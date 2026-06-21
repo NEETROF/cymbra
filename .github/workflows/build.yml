@@ -1,0 +1,59 @@
+name: build
+
+# Manual, required native-build gate. Compiles the app for every native target
+# (Android + the three desktops) — the only CI that exercises cargokit
+# per-platform and code gated behind `#[cfg(target_os = ...)]`.
+#
+# Trigger it before merging a PR:
+#   Actions -> build -> Run workflow -> (select the PR branch)
+# Each job is a required status check, so the PR stays "Expected" (blocked)
+# until a maintainer runs it; a new push makes it pending again (re-run).
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: ${{ matrix.label }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: android
+            os: ubuntu-latest
+            target: apk
+          - label: linux
+            os: ubuntu-latest
+            target: linux
+          - label: macos
+            os: macos-latest
+            target: macos
+          - label: windows
+            os: windows-latest
+            target: windows
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Java (Android)
+        if: matrix.label == 'android'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Linux build deps
+        if: matrix.label == 'linux'
+        run: sudo apt-get update && sudo apt-get install -y libasound2-dev ninja-build libgtk-3-dev
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - name: Build (${{ matrix.label }})
+        working-directory: apps/music
+        run: flutter build ${{ matrix.target }} --debug
