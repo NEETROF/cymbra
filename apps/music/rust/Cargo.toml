@@ -1,0 +1,25 @@
+[package]
+name = "rust_lib_music"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[lib]
+crate-type = ["cdylib", "staticlib"]
+
+[dependencies]
+flutter_rust_bridge = "=2.12.0"
+anyhow = "1"
+# Raw USB-MIDI port listening: CoreMIDI (macOS/iOS), ALSA (Linux),
+# WinMM (Windows), AMidi via NDK (Android). 0.11 adds the Android backend.
+midir = "0.11"
+
+# Android context init: midir's AMidi backend needs the JavaVM, which we
+# provide via ndk_context (initialized in JNI_OnLoad, see lib.rs).
+[target.'cfg(target_os = "android")'.dependencies]
+jni = "0.21"
+ndk-context = "0.1"
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(frb_expand)'] }

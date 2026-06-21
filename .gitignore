@@ -1,0 +1,22 @@
+# --- Rust ---
+/target
+**/target/
+
+# --- Flutter / Dart ---
+.dart_tool/
+**/build/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+**/.melos_tool/
+
+# --- IDE / editors ---
+*.iml
+.idea/
+.vscode/
+
+# --- OS ---
+.DS_Store
+**/.DS_Store

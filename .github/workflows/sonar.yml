@@ -1,0 +1,22 @@
+name: sonar
+
+# SonarCloud analysis (Rust + Dart, both natively supported).
+# Requires the SONAR_TOKEN repository secret (set by a maintainer) and a
+# SonarCloud project. Adjust organization/projectKey in sonar-project.properties.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  sonar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history for accurate blame/new-code detection
+      - name: SonarCloud scan
+        uses: SonarSource/sonarqube-scan-action@v4
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: https://sonarcloud.io

@@ -1,0 +1,27 @@
+name: frb-codegen
+
+# Fails the PR if the committed Dart/Rust bindings are out of date with the
+# flutter_rust_bridge API. Keep the version in sync with the crate's
+# `flutter_rust_bridge = "=2.12.0"` and the app's pubspec.
+on:
+  pull_request:
+
+jobs:
+  frb:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install ALSA (midir backend)
+        run: sudo apt-get update && sudo apt-get install -y libasound2-dev
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - name: Install codegen
+        run: cargo install flutter_rust_bridge_codegen --version 2.12.0 --locked
+      - name: Regenerate bindings
+        working-directory: apps/music
+        run: flutter_rust_bridge_codegen generate
+      - name: Fail if bindings drifted
+        run: git diff --exit-code

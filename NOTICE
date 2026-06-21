@@ -1,0 +1,27 @@
+Cymbra Music
+Copyright 2026 NEETROF
+
+This product includes software developed by NEETROF.
+
+Licensed under the Apache License, Version 2.0 (see the LICENSE file).
+
+----------------------------------------------------------------------
+Trademark notice
+----------------------------------------------------------------------
+"Cymbra", the Cymbra logo, and related product names and marks are
+trademarks of NEETROF. The Apache License 2.0 (Section 6) does NOT grant
+any right to use these names, logos, or marks. See TRADEMARKS.md.
+
+----------------------------------------------------------------------
+Third-party components
+----------------------------------------------------------------------
+This software builds on open-source components distributed under their
+own licenses, including (non-exhaustive):
+
+- midir (MIT)                  - cross-platform MIDI I/O
+- flutter_rust_bridge (MIT/Apache-2.0)
+- Flutter and Dart (BSD-3-Clause)
+- anyhow (MIT/Apache-2.0)
+
+Refer to each dependency's repository and to Cargo.lock / pubspec.lock
+for the authoritative list and license texts.

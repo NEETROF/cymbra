@@ -1,0 +1,15 @@
+# Cymbra — Rust workspace (monorepo).
+# Members are added as the project grows: shared engine crates under crates/,
+# the modular-monolith backend under backend/, and per-app FFI crates under apps/*/rust.
+[workspace]
+resolver = "2"
+members = [
+    "apps/*/rust",
+    # "crates/*",     # enable when cymbra-engine lands (F1)
+    # "backend/*",    # enable when the backend scaffolds (F2)
+]
+
+[workspace.package]
+edition = "2024"
+license = "Apache-2.0"
+authors = ["NEETROF"]

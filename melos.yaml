@@ -1,0 +1,27 @@
+name: cymbra
+
+packages:
+  - apps/**
+  - packages/**
+
+# Don't let Melos manage cargokit's internal Dart tool package.
+ignore:
+  - "**/cargokit/**"
+
+scripts:
+  analyze:
+    description: Static analysis across all Flutter packages.
+    run: melos exec -- flutter analyze
+    packageFilters:
+      flutter: true
+
+  test:
+    description: Run tests across all Flutter packages that have a test/ dir.
+    run: melos exec -- flutter test
+    packageFilters:
+      flutter: true
+      dirExists: test
+
+  format:
+    description: Check Dart formatting.
+    run: dart format --output=none --set-exit-if-changed .
