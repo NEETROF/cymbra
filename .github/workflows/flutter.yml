@@ -9,6 +9,9 @@ concurrency:
   group: flutter-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   flutter:
     runs-on: ubuntu-latest
