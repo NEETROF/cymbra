@@ -6,6 +6,9 @@ name: frb-codegen
 on:
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   frb:
     runs-on: ubuntu-latest
