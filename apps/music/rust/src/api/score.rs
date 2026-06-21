@@ -78,8 +78,5 @@ pub fn demo_score() -> Score {
         });
     }
 
-    Score {
-        bpm: BPM,
-        measures,
-    }
+    Score { bpm: BPM, measures }
 }

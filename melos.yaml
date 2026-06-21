@@ -4,8 +4,10 @@ packages:
   - apps/**
   - packages/**
 
-# Don't let Melos manage cargokit's internal Dart tool package.
+# Don't let Melos manage the flutter_rust_bridge plugin wrapper (auto-generated)
+# nor cargokit's internal Dart tool package — they aren't ours to lint/test.
 ignore:
+  - "apps/*/rust_builder"
   - "**/cargokit/**"
 
 scripts:

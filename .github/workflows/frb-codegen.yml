@@ -14,6 +14,8 @@ jobs:
       - name: Install ALSA (midir backend)
         run: sudo apt-get update && sudo apt-get install -y libasound2-dev
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt # frb formats generated Rust with rustfmt
       - uses: Swatinem/rust-cache@v2
       - uses: subosito/flutter-action@v2
         with:
@@ -23,5 +25,9 @@ jobs:
       - name: Regenerate bindings
         working-directory: apps/music
         run: flutter_rust_bridge_codegen generate
+      - name: Canonical-format generated Rust
+        # frb may skip rustfmt in CI; normalize to the same rustfmt canon the
+        # `rust` job's `cargo fmt --check` enforces, so only real drift fails.
+        run: cargo fmt --all
       - name: Fail if bindings drifted
         run: git diff --exit-code

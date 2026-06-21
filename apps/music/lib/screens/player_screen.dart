@@ -120,7 +120,10 @@ class _PlayerScreenState extends State<PlayerScreen>
                             SizedBox(
                               height: _keyboardHeight,
                               child: CustomPaint(
-                                size: Size(constraints.maxWidth, _keyboardHeight),
+                                size: Size(
+                                  constraints.maxWidth,
+                                  _keyboardHeight,
+                                ),
                                 painter: PianoKeyboardPainter(
                                   layout: layout,
                                   activeNotes: _state.activeNotes,
@@ -283,10 +286,7 @@ class _Chip extends StatelessWidget {
           const SizedBox(width: 6),
           Text(
             label,
-            style: const TextStyle(
-              color: CymbraColors.onSurface,
-              fontSize: 13,
-            ),
+            style: const TextStyle(color: CymbraColors.onSurface, fontSize: 13),
           ),
         ],
       ),
@@ -324,14 +324,17 @@ class _MidiStatusIndicator extends StatelessWidget {
     return PopupMenuButton<String>(
       tooltip: 'Choose MIDI device',
       color: CymbraColors.surfaceContainerHigh,
-      onSelected: (v) =>
-          state.selectMidiPort(v == autoValue ? null : v),
+      onSelected: (v) => state.selectMidiPort(v == autoValue ? null : v),
       itemBuilder: (_) => [
         PopupMenuItem<String>(
           value: autoValue,
           child: Row(
             children: const [
-              Icon(Icons.autorenew, size: 16, color: CymbraColors.onSurfaceVariant),
+              Icon(
+                Icons.autorenew,
+                size: 16,
+                color: CymbraColors.onSurfaceVariant,
+              ),
               SizedBox(width: 8),
               Text('Auto (first real device)'),
             ],
@@ -401,7 +404,11 @@ class _MidiStatusIndicator extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 4),
-            const Icon(Icons.arrow_drop_down, size: 18, color: CymbraColors.onSurfaceVariant),
+            const Icon(
+              Icons.arrow_drop_down,
+              size: 18,
+              color: CymbraColors.onSurfaceVariant,
+            ),
           ],
         ),
       ),
@@ -429,7 +436,10 @@ class _TransportBar extends StatelessWidget {
         children: [
           IconButton(
             onPressed: state.restart,
-            icon: const Icon(Icons.skip_previous, color: CymbraColors.onSurface),
+            icon: const Icon(
+              Icons.skip_previous,
+              color: CymbraColors.onSurface,
+            ),
           ),
           const SizedBox(width: 8),
           // Play / pause.
@@ -449,7 +459,10 @@ class _TransportBar extends StatelessWidget {
           // Speed.
           IconButton(
             onPressed: () => state.setSpeed(state.speed - 0.25),
-            icon: const Icon(Icons.remove, color: CymbraColors.onSurfaceVariant),
+            icon: const Icon(
+              Icons.remove,
+              color: CymbraColors.onSurfaceVariant,
+            ),
           ),
           Text(
             '${(state.speed * 100).round()}% SPD',

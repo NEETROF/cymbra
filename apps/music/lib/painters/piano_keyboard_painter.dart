@@ -23,10 +23,7 @@ class PianoKeyboardPainter extends CustomPainter {
   final PianoLayout layout;
   final Set<int> activeNotes;
 
-  const PianoKeyboardPainter({
-    required this.layout,
-    required this.activeNotes,
-  });
+  const PianoKeyboardPainter({required this.layout, required this.activeNotes});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -52,7 +49,12 @@ class PianoKeyboardPainter extends CustomPainter {
     }
   }
 
-  void _drawKey(Canvas canvas, Rect rect, bool active, {required bool isBlack}) {
+  void _drawKey(
+    Canvas canvas,
+    Rect rect,
+    bool active, {
+    required bool isBlack,
+  }) {
     // Rounded bottom corners (4px) to mimic a physical key.
     final rrect = RRect.fromRectAndCorners(
       rect,

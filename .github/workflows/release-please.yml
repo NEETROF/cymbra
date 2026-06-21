@@ -1,0 +1,26 @@
+name: release-please
+
+# Maintains a per-component "Release PR" from Conventional Commits on main.
+# Merging it bumps the version (pubspec.yaml / Cargo.toml), updates the
+# component CHANGELOG and creates a prefixed tag + GitHub Release
+# (e.g. music-v1.1.0). Build/ship workflows can then trigger on that tag.
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: googleapis/release-please-action@v4
+        with:
+          # Default GITHUB_TOKEN works to start. Note: PRs it opens do NOT
+          # trigger other workflows (CI won't run on the Release PR). Switch to
+          # a PAT or GitHub App token if you need CI on the Release PR.
+          token: ${{ secrets.GITHUB_TOKEN }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json

@@ -1,0 +1,19 @@
+# Code owners — auto-requested for review on matching paths.
+# Replace @Guillaume-Fortin with a team (e.g. @NEETROF/maintainers) as the team grows.
+
+# Default owner for everything.
+*                 @Guillaume-Fortin
+
+# Areas
+/apps/            @Guillaume-Fortin
+/crates/          @Guillaume-Fortin
+/backend/         @Guillaume-Fortin
+/packages/        @Guillaume-Fortin
+
+# Tooling, CI, licensing, governance.
+/.github/         @Guillaume-Fortin
+/Cargo.toml       @Guillaume-Fortin
+/melos.yaml       @Guillaume-Fortin
+/LICENSE          @Guillaume-Fortin
+/NOTICE           @Guillaume-Fortin
+/TRADEMARKS.md    @Guillaume-Fortin
