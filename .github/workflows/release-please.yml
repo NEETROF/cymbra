@@ -18,9 +18,10 @@ jobs:
     steps:
       - uses: googleapis/release-please-action@v4
         with:
-          # Default GITHUB_TOKEN works to start. Note: PRs it opens do NOT
-          # trigger other workflows (CI won't run on the Release PR). Switch to
-          # a PAT or GitHub App token if you need CI on the Release PR.
-          token: ${{ secrets.GITHUB_TOKEN }}
+          # Dedicated token (fine-grained PAT or classic PAT with `repo`) stored
+          # as the RELEASE_PLEASE_TOKEN secret. Required because the org policy
+          # forbids the default GITHUB_TOKEN from creating PRs; this also makes
+          # the Release PR trigger the normal CI workflows.
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
