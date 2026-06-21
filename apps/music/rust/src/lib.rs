@@ -20,7 +20,7 @@ mod frb_generated;
 /// `midir`'s AMidi backend (via jni-min-helper) can access the Android context
 /// and enumerate/open MIDI ports.
 #[cfg(target_os = "android")]
-#[no_mangle]
+#[unsafe(no_mangle)] // edition 2024 requires the unsafe(...) wrapper on no_mangle
 pub extern "C" fn JNI_OnLoad(vm: jni::JavaVM, res: *mut std::os::raw::c_void) -> jni::sys::jint {
     use std::ffi::c_void;
     let vm_ptr = vm.get_java_vm_pointer() as *mut c_void;
