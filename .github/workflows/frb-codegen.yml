@@ -14,6 +14,8 @@ jobs:
       - name: Install ALSA (midir backend)
         run: sudo apt-get update && sudo apt-get install -y libasound2-dev
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt # frb formats generated Rust with rustfmt
       - uses: Swatinem/rust-cache@v2
       - uses: subosito/flutter-action@v2
         with:

@@ -9,6 +9,15 @@
 # packages, and plugins designed to encourage good coding practices.
 include: package:flutter_lints/flutter.yaml
 
+analyzer:
+  exclude:
+    # Vendored flutter_rust_bridge / cargokit tooling — not ours to lint, and its
+    # build_tool package deps aren't resolved during `flutter analyze`.
+    - rust_builder/**
+    - build/**
+    # Generated Rust↔Dart bindings.
+    - lib/src/rust/**
+
 linter:
   # The lint rules applied to this project can be customized in the
   # section below to disable rules from the `package:flutter_lints/flutter.yaml`
