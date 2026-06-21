@@ -1,0 +1,120 @@
+name: release-build
+
+# Builds the music app for desktop + Android and attaches the artifacts to the
+# GitHub Release that release-please created for a `music-v*` tag.
+#
+# Triggered automatically when a `music-v*` tag is pushed (i.e. when the
+# release-please "Release PR" is merged), or manually via workflow_dispatch on an
+# existing tag.
+#
+# NOT covered yet (need signing secrets / Apple infra — follow-ups):
+#   - iOS .ipa (Apple certificates + provisioning, via fastlane)
+#   - Play Store (.aab) / TestFlight publishing
+# The Android .apk here is signed with debug keys (installable, NOT for Play).
+on:
+  push:
+    tags:
+      - "music-v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing music-v* tag to build and attach assets to"
+        required: true
+
+permissions:
+  contents: write # upload assets to the release
+
+env:
+  TAG: ${{ github.event.inputs.tag || github.ref_name }}
+
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref_name }}
+      - name: Linux build deps
+        run: sudo apt-get update && sudo apt-get install -y libasound2-dev ninja-build libgtk-3-dev
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - name: Build
+        working-directory: apps/music
+        run: flutter build linux --release
+      - name: Package
+        working-directory: apps/music/build/linux/x64/release/bundle
+        run: tar czf "$GITHUB_WORKSPACE/cymbra-music-${TAG}-linux-x64.tar.gz" .
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.TAG }}
+          files: cymbra-music-${{ env.TAG }}-linux-x64.tar.gz
+
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref_name }}
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - name: Build
+        working-directory: apps/music
+        run: flutter build macos --release
+      - name: Package (.app -> zip)
+        working-directory: apps/music/build/macos/Build/Products/Release
+        run: |
+          APP="$(ls -d *.app | head -1)"
+          ditto -c -k --keepParent "$APP" "$GITHUB_WORKSPACE/cymbra-music-${TAG}-macos.zip"
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.TAG }}
+          files: cymbra-music-${{ env.TAG }}-macos.zip
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref_name }}
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - name: Build
+        working-directory: apps/music
+        run: flutter build windows --release
+      - name: Package
+        shell: pwsh
+        run: Compress-Archive -Path apps/music/build/windows/x64/runner/Release/* -DestinationPath "cymbra-music-$env:TAG-windows-x64.zip"
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.TAG }}
+          files: cymbra-music-${{ env.TAG }}-windows-x64.zip
+
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref_name }}
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - name: Build APK (debug-signed)
+        working-directory: apps/music
+        run: flutter build apk --release
+      - name: Rename
+        run: cp apps/music/build/app/outputs/flutter-apk/app-release.apk "cymbra-music-${TAG}.apk"
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.TAG }}
+          files: cymbra-music-${{ env.TAG }}.apk
