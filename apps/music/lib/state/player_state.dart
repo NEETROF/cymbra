@@ -136,23 +136,20 @@ class PlayerState extends ChangeNotifier {
     _songEndMs = all.isEmpty
         ? 0
         : all
-                .map((n) => (n.startMs + n.durationMs))
-                .reduce((a, b) => a > b ? a : b)
-            .toDouble();
+              .map((n) => (n.startMs + n.durationMs))
+              .reduce((a, b) => a > b ? a : b)
+              .toDouble();
   }
 
   void _listenMidi() {
-    _midiSub = midiEventStream().listen(
-      (event) {
-        switch (event.kind) {
-          case MidiEventKind.noteOn:
-            noteOn(event.pitch);
-          case MidiEventKind.noteOff:
-            noteOff(event.pitch);
-        }
-      },
-      onError: (Object e) => debugPrint('MIDI stream error: $e'),
-    );
+    _midiSub = midiEventStream().listen((event) {
+      switch (event.kind) {
+        case MidiEventKind.noteOn:
+          noteOn(event.pitch);
+        case MidiEventKind.noteOff:
+          noteOff(event.pitch);
+      }
+    }, onError: (Object e) => debugPrint('MIDI stream error: $e'));
   }
 
   // --- Input (real MIDI or keyboard fallback) ---------------------------
@@ -201,9 +198,7 @@ class PlayerState extends ChangeNotifier {
 
     final required = requiredNotesAt(elapsedMs);
 
-    if (waitMode &&
-        required.isNotEmpty &&
-        !activeNotes.containsAll(required)) {
+    if (waitMode && required.isNotEmpty && !activeNotes.containsAll(required)) {
       // The correct note isn't held: we freeze the cascade.
       if (!blocked) {
         blocked = true;

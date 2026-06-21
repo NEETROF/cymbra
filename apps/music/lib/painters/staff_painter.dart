@@ -74,7 +74,11 @@ class StaffPainter extends CustomPainter {
     // 1) The 5 staff lines (fixed).
     for (var i = 0; i < 5; i++) {
       final y = bottomLineY - i * lineGap;
-      canvas.drawLine(Offset(margin, y), Offset(size.width - margin, y), linePaint);
+      canvas.drawLine(
+        Offset(margin, y),
+        Offset(size.width - margin, y),
+        linePaint,
+      );
     }
 
     // 2) Scrolling measure bars.
@@ -113,7 +117,9 @@ class StaffPainter extends CustomPainter {
       } else if (atPlayhead) {
         color = CymbraColors.secondary; // expected
       } else {
-        color = CymbraColors.onSurfaceVariant.withValues(alpha: 0.55); // upcoming / past
+        color = CymbraColors.onSurfaceVariant.withValues(
+          alpha: 0.55,
+        ); // upcoming / past
       }
 
       _drawNoteHead(canvas, Offset(x, y), lineGap, atPlayhead, color);
@@ -121,11 +127,23 @@ class StaffPainter extends CustomPainter {
     }
   }
 
-  int _staffSteps(int pitch) =>
-      _diatonic(pitch) - _diatonic(_bottomLinePitch);
+  int _staffSteps(int pitch) => _diatonic(pitch) - _diatonic(_bottomLinePitch);
 
   int _diatonic(int pitch) {
-    const whiteInOctave = {0: 0, 1: 0, 2: 1, 3: 1, 4: 2, 5: 3, 6: 3, 7: 4, 8: 4, 9: 5, 10: 5, 11: 6};
+    const whiteInOctave = {
+      0: 0,
+      1: 0,
+      2: 1,
+      3: 1,
+      4: 2,
+      5: 3,
+      6: 3,
+      7: 4,
+      8: 4,
+      9: 5,
+      10: 5,
+      11: 6,
+    };
     final octave = pitch ~/ 12;
     final semitone = pitch % 12;
     return octave * 7 + (whiteInOctave[semitone] ?? 0);
@@ -172,10 +190,18 @@ class StaffPainter extends CustomPainter {
     Paint linePaint,
   ) {
     for (var ly = bottomLineY + lineGap; ly <= y + 0.5; ly += lineGap) {
-      canvas.drawLine(Offset(x - lineGap, ly), Offset(x + lineGap, ly), linePaint);
+      canvas.drawLine(
+        Offset(x - lineGap, ly),
+        Offset(x + lineGap, ly),
+        linePaint,
+      );
     }
     for (var ly = topLineY - lineGap; ly >= y - 0.5; ly -= lineGap) {
-      canvas.drawLine(Offset(x - lineGap, ly), Offset(x + lineGap, ly), linePaint);
+      canvas.drawLine(
+        Offset(x - lineGap, ly),
+        Offset(x + lineGap, ly),
+        linePaint,
+      );
     }
   }
 

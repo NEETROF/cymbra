@@ -102,37 +102,39 @@ pub fn midi_event_stream(sink: StreamSink<MidiEvent>) -> Result<()> {
     let start = Instant::now();
 
     eprintln!("[cymbra-midi] watcher started");
-    thread::spawn(move || loop {
-        let ports = current_port_names();
+    thread::spawn(move || {
+        loop {
+            let ports = current_port_names();
 
-        // Log only when the port list changes.
-        {
-            let mut last = LAST_LOGGED_PORTS.lock().unwrap();
-            if *last != ports {
-                eprintln!("[cymbra-midi] detected ports = {ports:?}");
-                *last = ports.clone();
-            }
-        }
-
-        let connected = CONNECTED_PORT.lock().unwrap().clone();
-
-        match connected {
-            // Connected: check that the port is still there.
-            Some(name) if !ports.contains(&name) => {
-                CONNECTIONS.lock().unwrap().clear();
-                *CONNECTED_PORT.lock().unwrap() = None;
-                eprintln!("[cymbra-midi] Unplugged: {name}");
-            }
-            // Not connected: try to connect to the first port.
-            None => {
-                if let Err(e) = try_connect(&sink, start) {
-                    eprintln!("[cymbra-midi] Connection failed: {e}");
+            // Log only when the port list changes.
+            {
+                let mut last = LAST_LOGGED_PORTS.lock().unwrap();
+                if *last != ports {
+                    eprintln!("[cymbra-midi] detected ports = {ports:?}");
+                    *last = ports.clone();
                 }
             }
-            _ => {}
-        }
 
-        thread::sleep(Duration::from_millis(700));
+            let connected = CONNECTED_PORT.lock().unwrap().clone();
+
+            match connected {
+                // Connected: check that the port is still there.
+                Some(name) if !ports.contains(&name) => {
+                    CONNECTIONS.lock().unwrap().clear();
+                    *CONNECTED_PORT.lock().unwrap() = None;
+                    eprintln!("[cymbra-midi] Unplugged: {name}");
+                }
+                // Not connected: try to connect to the first port.
+                None => {
+                    if let Err(e) = try_connect(&sink, start) {
+                        eprintln!("[cymbra-midi] Connection failed: {e}");
+                    }
+                }
+                _ => {}
+            }
+
+            thread::sleep(Duration::from_millis(700));
+        }
     });
 
     Ok(())
@@ -144,7 +146,11 @@ fn current_port_names() -> Vec<String> {
         Ok(midi_in) => midi_in
             .ports()
             .iter()
-            .map(|p| midi_in.port_name(p).unwrap_or_else(|_| "<unknown>".to_string()))
+            .map(|p| {
+                midi_in
+                    .port_name(p)
+                    .unwrap_or_else(|_| "<unknown>".to_string())
+            })
             .collect(),
         Err(_) => Vec::new(),
     }
