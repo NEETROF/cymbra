@@ -136,6 +136,8 @@ class Player extends _$Player {
   void setMode(RenderMode m) => state = state.copyWith(mode: m);
   void toggleWaitMode() => state = state.copyWith(waitMode: !state.waitMode);
   void setSpeed(double s) => state = state.copyWith(speed: s.clamp(0.25, 2.0));
+  void setKeyboardRange(KeyboardRangeMode m) =>
+      state = state.copyWith(keyboardRange: m);
   void restart() => state = state.copyWith(elapsedMs: 0);
 
   // --- Time advance (called by the screen's Ticker) ---------------------

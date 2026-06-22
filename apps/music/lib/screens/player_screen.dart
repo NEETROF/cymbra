@@ -113,7 +113,12 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
               Expanded(
                 child: LayoutBuilder(
                   builder: (context, constraints) {
-                    final layout = PianoLayout(width: constraints.maxWidth);
+                    final bounds = data.keyboardBounds;
+                    final layout = PianoLayout(
+                      width: constraints.maxWidth,
+                      lowPitch: bounds.low,
+                      highPitch: bounds.high,
+                    );
                     return Column(
                       children: [
                         Expanded(child: _buildRenderArea(layout, data)),
@@ -124,6 +129,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                             painter: PianoKeyboardPainter(
                               layout: layout,
                               activeNotes: data.activeNotes,
+                              requiredNotes: data.requiredNotesAt(
+                                data.elapsedMs,
+                              ),
                             ),
                           ),
                         ),
@@ -229,9 +237,60 @@ class _TopBar extends StatelessWidget {
           const SizedBox(width: 8),
           _Chip(icon: Icons.speed, label: 'Tempo: ${data.score?.bpm ?? '--'}'),
           const SizedBox(width: 8),
+          // On-screen keyboard size chooser.
+          _RangeChooser(data: data, notifier: notifier),
+          const SizedBox(width: 8),
           // Rendering mode toggle.
           _ModeToggle(data: data, notifier: notifier),
         ],
+      ),
+    );
+  }
+}
+
+/// Chooses the on-screen keyboard range: auto-fit to the piece, or a fixed
+/// key-count preset (25/37/49/61/76/88).
+class _RangeChooser extends StatelessWidget {
+  final PlayerData data;
+  final Player notifier;
+  const _RangeChooser({required this.data, required this.notifier});
+
+  @override
+  Widget build(BuildContext context) {
+    final current = data.keyboardRange;
+    return PopupMenuButton<KeyboardRangeMode>(
+      tooltip: 'Keyboard size',
+      color: CymbraColors.surfaceContainerHigh,
+      onSelected: notifier.setKeyboardRange,
+      itemBuilder: (_) => [
+        for (final m in KeyboardRangeMode.values)
+          PopupMenuItem<KeyboardRangeMode>(
+            value: m,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  m == current
+                      ? Icons.check_circle
+                      : Icons.radio_button_unchecked,
+                  size: 16,
+                  color: m == current
+                      ? CymbraColors.tertiary
+                      : CymbraColors.onSurfaceVariant,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  m == KeyboardRangeMode.auto
+                      ? 'Auto (fit piece)'
+                      : '${m.label} keys',
+                ),
+              ],
+            ),
+          ),
+      ],
+      child: _Chip(
+        icon: Icons.piano,
+        label: current == KeyboardRangeMode.auto ? 'Auto' : current.label,
       ),
     );
   }
