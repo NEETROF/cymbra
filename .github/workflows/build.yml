@@ -1,14 +1,17 @@
 name: build
 
-# Manual, required native-build gate. Compiles the app for every native target
-# (Android + the three desktops) — the only CI that exercises cargokit
-# per-platform and code gated behind `#[cfg(target_os = ...)]`.
+# Native-build gate. Compiles the app for every native target (Android + the
+# three desktops) — the only CI that exercises cargokit per-platform and code
+# gated behind `#[cfg(target_os = ...)]`.
 #
-# Trigger it before merging a PR:
-#   Actions -> build -> Run workflow -> (select the PR branch)
-# Each job is a required status check, so the PR stays "Expected" (blocked)
-# until a maintainer runs it; a new push makes it pending again (re-run).
+# Runs automatically on every PR (and on main): runners are free for public
+# repos, so these checks can be required and will reliably satisfy branch
+# protection (unlike workflow_dispatch, whose runs don't count toward a PR).
+# `workflow_dispatch` is kept for ad-hoc manual runs.
 on:
+  push:
+    branches: [main]
+  pull_request:
   workflow_dispatch:
 
 permissions:
