@@ -28,10 +28,17 @@ jobs:
         run: dart pub global activate melos
       - name: Bootstrap
         run: melos bootstrap
+      # Format runs before codegen so it only checks hand-written source, not
+      # the generated *.g.dart / *.freezed.dart files.
       - name: Format
         run: dart format --output=none --set-exit-if-changed .
+      - name: Generate code (riverpod_generator + freezed)
+        run: melos run generate
       - name: Analyze
         run: melos run analyze
+      - name: Riverpod/Freezed lints
+        working-directory: apps/music
+        run: dart run custom_lint
       - name: Unit + widget tests (with coverage)
         run: melos run test
       - name: Enable Linux desktop

@@ -21,6 +21,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:music/main.dart';
@@ -40,7 +41,7 @@ void main() {
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
 
-    await tester.pumpWidget(const CymbraApp());
+    await tester.pumpWidget(const ProviderScope(child: CymbraApp()));
     await tester.pump(const Duration(milliseconds: 100));
 
     // App chrome from the real demo score loaded over the bridge.

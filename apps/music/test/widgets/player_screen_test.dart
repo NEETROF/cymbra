@@ -14,35 +14,49 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:music/painters/staff_painter.dart';
-import 'package:music/painters/synthesia_painter.dart';
 import 'package:music/screens/player_screen.dart';
-import 'package:music/state/player_state.dart';
+import 'package:music/services/midi_service.dart';
+import 'package:music/state/player_data.dart';
+import 'package:music/state/player_notifier.dart';
 
 import '../support/fakes.dart';
 
 void main() {
   late FakeMidiService midi;
-  late PlayerState state;
+  late ProviderContainer container;
+
+  PlayerData state() => container.read(playerProvider);
 
   Future<void> pumpScreen(
     WidgetTester tester, {
     List<String> ports = const ['Piano'],
     String? connected = 'Piano',
+    Size size = const Size(1600, 900),
   }) async {
-    // The top bar lays out many controls in a Row; give it a desktop-width
-    // surface so it doesn't overflow the default 800px test viewport.
-    await tester.binding.setSurfaceSize(const Size(1600, 900));
+    await tester.binding.setSurfaceSize(size);
     midi = FakeMidiService(ports: ports, connected: connected);
-    state = PlayerState(midi: midi, scores: FakeScoreSource());
-    await tester.pumpWidget(MaterialApp(home: PlayerScreen(state: state)));
-    await tester.pump(); // flush init() future + first rebuild
+    container = ProviderContainer(
+      overrides: [
+        midiServiceProvider.overrideWithValue(midi),
+        scoreSourceProvider.overrideWithValue(FakeScoreSource()),
+      ],
+    );
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(home: PlayerScreen()),
+      ),
+    );
+    await tester.pump(); // flush score load + first rebuild
   }
 
   Future<void> teardownScreen(WidgetTester tester) async {
-    await tester.pumpWidget(const SizedBox()); // dispose the screen (ticker)
-    state.dispose(); // cancel the status timer + MIDI subscription
+    await tester.pumpWidget(const SizedBox()); // unmount the screen
+    await tester.pump(); // let the auto-dispose provider tear down its timer
+    container.dispose();
     await midi.close();
     await tester.binding.setSurfaceSize(null);
   }
@@ -53,8 +67,7 @@ void main() {
     await pumpScreen(tester);
     expect(find.text('Cymbra Music'), findsOneWidget);
     expect(find.text('Tempo: 80'), findsOneWidget);
-    expect(find.text('Piano'), findsWidgets); // status indicator
-    expect(find.byType(SynthesiaPainter), findsNothing); // painter is internal
+    expect(find.text('Piano'), findsWidgets);
     await teardownScreen(tester);
   });
 
@@ -63,7 +76,7 @@ void main() {
     expect(find.byIcon(Icons.play_arrow), findsOneWidget);
     await tester.tap(find.byIcon(Icons.play_arrow));
     await tester.pump();
-    expect(state.isPlaying, isTrue);
+    expect(state().isPlaying, isTrue);
     expect(find.byIcon(Icons.pause), findsOneWidget);
     await teardownScreen(tester);
   });
@@ -72,7 +85,7 @@ void main() {
     await pumpScreen(tester);
     await tester.tap(find.text('Staff'));
     await tester.pump();
-    expect(state.mode, RenderMode.staff);
+    expect(state().mode, RenderMode.staff);
     await teardownScreen(tester);
   });
 
@@ -80,14 +93,14 @@ void main() {
     await pumpScreen(tester);
     await tester.tap(find.byIcon(Icons.add));
     await tester.pump();
-    expect(state.speed, greaterThan(1.0));
+    expect(state().speed, greaterThan(1.0));
     await tester.tap(find.byIcon(Icons.remove));
     await tester.pump();
 
-    expect(state.waitMode, isTrue);
+    expect(state().waitMode, isTrue);
     await tester.tap(find.text('Wait'));
     await tester.pump();
-    expect(state.waitMode, isFalse);
+    expect(state().waitMode, isFalse);
     await teardownScreen(tester);
   });
 
@@ -95,10 +108,10 @@ void main() {
     await pumpScreen(tester);
     await tester.sendKeyDownEvent(LogicalKeyboardKey.keyA); // C4
     await tester.pump();
-    expect(state.activeNotes, contains(60));
+    expect(state().activeNotes, contains(60));
     await tester.sendKeyUpEvent(LogicalKeyboardKey.keyA);
     await tester.pump();
-    expect(state.activeNotes, isNot(contains(60)));
+    expect(state().activeNotes, isNot(contains(60)));
     await teardownScreen(tester);
   });
 
@@ -119,13 +132,7 @@ void main() {
   testWidgets('fits a tablet-width (1024px) window without overflow', (
     tester,
   ) async {
-    // The dense top/transport bars are desktop/tablet-first; 1024 is the
-    // realistic minimum viewport. The Expanded title keeps the top bar fitting.
-    await tester.binding.setSurfaceSize(const Size(1024, 768));
-    midi = FakeMidiService(ports: ['Piano'], connected: 'Piano');
-    state = PlayerState(midi: midi, scores: FakeScoreSource());
-    await tester.pumpWidget(MaterialApp(home: PlayerScreen(state: state)));
-    await tester.pump();
+    await pumpScreen(tester, size: const Size(1024, 768));
     expect(tester.takeException(), isNull);
     expect(find.text('Cymbra Music'), findsOneWidget);
     await teardownScreen(tester);
@@ -138,7 +145,7 @@ void main() {
     await tester.tap(find.byIcon(Icons.play_arrow)); // play, wait-mode on
     await tester.pump(const Duration(milliseconds: 16)); // one ticker frame
     await tester.pump(); // rebuild after blocked=true
-    expect(state.blocked, isTrue);
+    expect(state().blocked, isTrue);
     expect(find.byType(StaffPainter), findsNothing); // still synthesia mode
     expect(
       find.text('⏸  Play the expected note to continue'),

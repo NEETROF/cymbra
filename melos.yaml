@@ -11,6 +11,12 @@ ignore:
   - "**/cargokit/**"
 
 scripts:
+  generate:
+    description: Run build_runner codegen (riverpod_generator + freezed).
+    run: melos exec -- dart run build_runner build --delete-conflicting-outputs
+    packageFilters:
+      dependsOn: build_runner
+
   analyze:
     description: Static analysis across all Flutter packages.
     run: melos exec -- flutter analyze

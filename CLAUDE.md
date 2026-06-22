@@ -16,6 +16,29 @@ Non-trivial changes go through OpenSpec before coding:
 Specs live in `openspec/specs/`; in-flight changes in `openspec/changes/`. The
 first capability is `midi` (see `openspec/changes/ratify-midi-poc/`).
 
+## State management — Riverpod 2 + Freezed (codegen)
+
+Mandatory for all app state:
+- **Riverpod 2** providers/notifiers via code generation (`@riverpod` +
+  `riverpod_generator`). No new `ChangeNotifier`/`setState` for app state.
+- **Freezed** immutable models for state (`@freezed`, mutate via `copyWith`).
+- **Dependencies are providers** (e.g. `midiServiceProvider`, `scoreSourceProvider`),
+  overridden in tests with fakes via `ProviderScope`/`ProviderContainer` overrides —
+  not constructor injection.
+- Reference implementation: [player_notifier.dart](apps/music/lib/state/player_notifier.dart),
+  [player_data.dart](apps/music/lib/state/player_data.dart),
+  [midi_service.dart](apps/music/lib/services/midi_service.dart).
+- `riverpod_lint`/`custom_lint` is enforced (`dart run custom_lint`).
+
+**Codegen**: generated `*.g.dart`/`*.freezed.dart` are gitignored and produced by
+`build_runner` — run it before analyze/test (CI does this automatically):
+```bash
+cd apps/music && dart run build_runner build --delete-conflicting-outputs
+# or: melos run generate
+```
+Notifier rule: never read or assign `state` inside `build()` before it returns —
+compute the initial value and return it.
+
 ## Test coverage — minimum 80%
 
 Every change keeps or raises **line coverage ≥ 80%** for both ecosystems; new

@@ -12,10 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:riverpod_annotation/riverpod_annotation.dart';
+
 import '../src/rust/api/midi.dart' as midi_api;
 import '../src/rust/api/score.dart' as score_api;
 import '../src/rust/api/midi.dart' show MidiEvent;
 import '../src/rust/api/score.dart' show Score;
+
+part 'midi_service.g.dart';
+
+/// Production MIDI engine provider. Override in tests with a fake.
+@riverpod
+MidiService midiService(Ref ref) => const FrbMidiService();
+
+/// Production score-source provider. Override in tests with a fake.
+@riverpod
+ScoreSource scoreSource(Ref ref) => const FrbScoreSource();
 
 /// Seam over the real-time MIDI engine.
 ///

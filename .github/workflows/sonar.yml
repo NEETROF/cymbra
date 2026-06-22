@@ -37,6 +37,8 @@ jobs:
         run: dart pub global activate melos
       - name: Bootstrap
         run: melos bootstrap
+      - name: Generate code (riverpod_generator + freezed)
+        run: melos run generate
       - name: Flutter coverage (unit + widget)
         run: melos run test
       - name: Enable Linux desktop

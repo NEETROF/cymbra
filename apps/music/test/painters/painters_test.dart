@@ -18,7 +18,7 @@ import 'package:music/painters/piano_keyboard_painter.dart';
 import 'package:music/painters/piano_layout.dart';
 import 'package:music/painters/staff_painter.dart';
 import 'package:music/painters/synthesia_painter.dart';
-import 'package:music/state/player_state.dart';
+import 'package:music/state/player_data.dart';
 
 /// Renders [painter] into a keyed RepaintBoundary for golden comparison.
 Widget _host(CustomPainter painter, Size size) => Directionality(

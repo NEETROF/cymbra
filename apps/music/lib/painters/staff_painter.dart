@@ -14,7 +14,7 @@
 
 import 'package:flutter/material.dart';
 
-import '../state/player_state.dart';
+import '../state/player_data.dart';
 import '../theme/cymbra_theme.dart';
 
 /// "Standard staff" rendering synchronized to time, like the waterfall.

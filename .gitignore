@@ -15,6 +15,11 @@
 # --- Coverage (generated; reported to CI/Sonar, never committed) ---
 **/coverage/
 
+# --- Codegen output (riverpod_generator / freezed); generated in CI + locally ---
+# (frb bindings are named frb_generated*.dart and are NOT matched here.)
+*.g.dart
+*.freezed.dart
+
 # --- IDE / editors ---
 *.iml
 .idea/
