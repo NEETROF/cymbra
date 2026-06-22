@@ -22,3 +22,13 @@ pub fn init_app() {
     // Default utilities - feel free to customize
     flutter_rust_bridge::setup_default_user_utils();
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn greet_interpolates_name() {
+        assert_eq!(greet("Cymbra".to_string()), "Hello, Cymbra!");
+    }
+}

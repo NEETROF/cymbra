@@ -26,7 +26,11 @@ import '../theme/cymbra_theme.dart';
 /// Main screen of the Cymbra player: top bar, rendering area
 /// (Synthesia or Staff), keyboard, and transport bar.
 class PlayerScreen extends StatefulWidget {
-  const PlayerScreen({super.key});
+  /// Optional injected state (for tests). When null, the screen creates and
+  /// owns a production [PlayerState] (real MIDI engine + score source).
+  final PlayerState? state;
+
+  const PlayerScreen({super.key, this.state});
 
   @override
   State<PlayerScreen> createState() => _PlayerScreenState();
@@ -34,7 +38,8 @@ class PlayerScreen extends StatefulWidget {
 
 class _PlayerScreenState extends State<PlayerScreen>
     with SingleTickerProviderStateMixin {
-  final PlayerState _state = PlayerState();
+  late final PlayerState _state = widget.state ?? PlayerState();
+  late final bool _ownsState = widget.state == null;
   final FocusNode _focusNode = FocusNode();
   late final Ticker _ticker;
   Duration _lastTick = Duration.zero;
@@ -92,7 +97,8 @@ class _PlayerScreenState extends State<PlayerScreen>
   void dispose() {
     _ticker.dispose();
     _focusNode.dispose();
-    _state.dispose();
+    // Only dispose state we created; injected state is owned by the caller (tests).
+    if (_ownsState) _state.dispose();
     super.dispose();
   }
 
@@ -199,27 +205,36 @@ class _TopBar extends StatelessWidget {
         children: [
           const Icon(Icons.arrow_back, color: CymbraColors.onSurface),
           const SizedBox(width: 16),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Cymbra Music',
-                style: TextStyle(
-                  color: CymbraColors.primary,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
+          // Expanded (instead of a fixed Column + Spacer) so the title absorbs
+          // the free space and shrinks gracefully on narrow windows; the texts
+          // ellipsize rather than overflowing the top bar.
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Cymbra Music',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: CymbraColors.primary,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
-              ),
-              const Text(
-                'Now Playing: Demo — C Major Scale',
-                style: TextStyle(
-                  color: CymbraColors.onSurfaceVariant,
-                  fontSize: 12,
+                const Text(
+                  'Now Playing: Demo — C Major Scale',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: CymbraColors.onSurfaceVariant,
+                    fontSize: 12,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-          const Spacer(),
+          const SizedBox(width: 12),
           _MidiStatusIndicator(state: state),
           const SizedBox(width: 8),
           _Chip(icon: Icons.speed, label: 'Tempo: ${state.score?.bpm ?? '--'}'),

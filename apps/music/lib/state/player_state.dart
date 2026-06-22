@@ -16,6 +16,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import '../services/midi_service.dart';
 import '../src/rust/api/midi.dart';
 import '../src/rust/api/score.dart';
 
@@ -29,6 +30,15 @@ enum RenderMode { staff, synthesia }
 /// the computer keyboard fallback. It is a [ChangeNotifier]: painters subscribe
 /// to it via a [ListenableBuilder].
 class PlayerState extends ChangeNotifier {
+  /// MIDI engine and score source. Default to the production (FFI) wiring;
+  /// tests inject fakes so the state can run without a native library.
+  final MidiService _midi;
+  final ScoreSource _scores;
+
+  PlayerState({MidiService? midi, ScoreSource? scores})
+    : _midi = midi ?? const FrbMidiService(),
+      _scores = scores ?? const FrbScoreSource();
+
   // --- Real-time input --------------------------------------------------
 
   /// MIDI notes currently pressed (real MIDI keyboard + keyboard fallback).
@@ -78,7 +88,7 @@ class PlayerState extends ChangeNotifier {
   // --- Initialization ---------------------------------------------------
 
   Future<void> init() async {
-    score = await demoScore();
+    score = await _scores.demoScore();
     _flatten();
     _listenMidi();
     _refreshMidiStatus();
@@ -93,7 +103,7 @@ class PlayerState extends ChangeNotifier {
   /// Chooses the MIDI device to listen to (null = auto: 1st non-virtual port).
   void selectMidiPort(String? name) {
     try {
-      setMidiPort(name: name);
+      _midi.selectPort(name);
     } catch (e) {
       debugPrint('MIDI port selection failed: $e');
     }
@@ -102,8 +112,8 @@ class PlayerState extends ChangeNotifier {
 
   void _refreshMidiStatus() {
     try {
-      final ports = listMidiPorts();
-      final device = connectedPort();
+      final ports = _midi.listPorts();
+      final device = _midi.connectedPort();
       if (ports.length != midiPorts.length ||
           !ports.every(midiPorts.contains) ||
           device != connectedDevice) {
@@ -142,7 +152,7 @@ class PlayerState extends ChangeNotifier {
   }
 
   void _listenMidi() {
-    _midiSub = midiEventStream().listen((event) {
+    _midiSub = _midi.events().listen((event) {
       switch (event.kind) {
         case MidiEventKind.noteOn:
           noteOn(event.pitch);

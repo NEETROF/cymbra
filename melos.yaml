@@ -18,8 +18,10 @@ scripts:
       flutter: true
 
   test:
-    description: Run tests across all Flutter packages that have a test/ dir.
-    run: melos exec -- flutter test
+    description: Run tests (with coverage) across all Flutter packages that have a test/ dir.
+    # Goldens are excluded from the cross-platform gate; run them locally with
+    # `flutter test --tags golden`.
+    run: melos exec -- flutter test --coverage --exclude-tags golden
     packageFilters:
       flutter: true
       dirExists: test

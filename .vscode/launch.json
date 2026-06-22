@@ -1,0 +1,35 @@
+{
+  // Dart-Code launch configs for the Cymbra monorepo. The Flutter app lives under
+  // apps/music (not the workspace root), so each config sets `cwd` accordingly.
+  // Drop the `-d macos` toolArgs to use the VSCode device picker; on a non-Mac
+  // host pick `linux` / `chrome` instead.
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "music (debug)",
+      "type": "dart",
+      "request": "launch",
+      "cwd": "apps/music",
+      "program": "lib/main.dart",
+      "flutterMode": "debug",
+      "toolArgs": ["-d", "macos"]
+    },
+    {
+      "name": "music (profile)",
+      "type": "dart",
+      "request": "launch",
+      "cwd": "apps/music",
+      "program": "lib/main.dart",
+      "flutterMode": "profile"
+    },
+    {
+      "name": "music: integration test",
+      "type": "dart",
+      "request": "launch",
+      "cwd": "apps/music",
+      "program": "integration_test/app_test.dart",
+      "flutterMode": "debug",
+      "toolArgs": ["-d", "macos"]
+    }
+  ]
+}
