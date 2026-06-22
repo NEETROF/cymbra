@@ -14,7 +14,7 @@
 
 import 'package:flutter/material.dart';
 
-import '../state/player_state.dart';
+import '../state/player_data.dart';
 import '../theme/cymbra_theme.dart';
 import 'piano_layout.dart';
 

@@ -80,3 +80,39 @@ pub fn demo_score() -> Score {
 
     Score { bpm: BPM, measures }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn demo_score_has_expected_shape() {
+        let s = demo_score();
+        assert_eq!(s.bpm, 80);
+        assert_eq!(s.measures.len(), 4);
+        for (i, m) in s.measures.iter().enumerate() {
+            assert_eq!(m.index, i as u32);
+            assert_eq!(m.notes.len(), 4, "4 quarter notes per measure");
+        }
+    }
+
+    #[test]
+    fn demo_score_first_phrase_is_c_d_e_f() {
+        let s = demo_score();
+        let pitches: Vec<u8> = s.measures[0].notes.iter().map(|n| n.pitch).collect();
+        assert_eq!(pitches, vec![60, 62, 64, 65]);
+    }
+
+    #[test]
+    fn demo_score_notes_are_monotonically_scheduled() {
+        let s = demo_score();
+        let beat_ms = 60_000 / 80; // 750ms
+        // First note starts at 0; notes are one beat apart and shorter than a beat.
+        let first = &s.measures[0].notes[0];
+        assert_eq!(first.start_ms, 0);
+        assert!(first.duration_ms < beat_ms, "gap left between notes");
+
+        // Second measure starts one full bar (4 beats) in.
+        assert_eq!(s.measures[1].notes[0].start_ms, 4 * beat_ms);
+    }
+}

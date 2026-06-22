@@ -30,6 +30,7 @@ use anyhow::Result;
 use flutter_rust_bridge::frb;
 use midir::{Ignore, MidiInput, MidiInputConnection};
 
+use super::midi_core::{is_virtual_port, parse_midi, sort_ports_virtual_last};
 use crate::frb_generated::StreamSink;
 
 /// MIDI event type forwarded to Flutter.
@@ -65,8 +66,7 @@ static WATCHER_RUNNING: AtomicBool = AtomicBool::new(false);
 #[frb(sync)]
 pub fn list_midi_ports() -> Result<Vec<String>> {
     let mut names = current_port_names();
-    // Stable sort: real devices first (false < true), virtual ones after.
-    names.sort_by_key(|n| is_virtual_port(n));
+    sort_ports_virtual_last(&mut names);
     Ok(names)
 }
 
@@ -202,40 +202,4 @@ fn try_connect(sink: &Arc<StreamSink<MidiEvent>>, start: Instant) -> Result<()> 
     *CONNECTED_PORT.lock().unwrap() = Some(name.clone());
     eprintln!("[cymbra-midi] Connected: {name}");
     Ok(())
-}
-
-/// True if the port is a virtual/loopback MIDI port (e.g. ALSA "Midi Through"),
-/// which we avoid by default in auto mode.
-fn is_virtual_port(name: &str) -> bool {
-    let n = name.to_lowercase();
-    n.contains("through") || n.contains("rtpmidi") || n.contains("network")
-}
-
-/// Parses a raw MIDI message into a `MidiEvent`.
-///
-/// - `0x90` (NoteOn) with velocity > 0 → NoteOn
-/// - `0x80` (NoteOff), or `0x90` with velocity 0 → NoteOff
-fn parse_midi(message: &[u8], timestamp_ms: u64) -> Option<MidiEvent> {
-    if message.len() < 3 {
-        return None;
-    }
-    let status = message[0] & 0xF0;
-    let pitch = message[1];
-    let velocity = message[2];
-
-    match status {
-        0x90 if velocity > 0 => Some(MidiEvent {
-            kind: MidiEventKind::NoteOn,
-            pitch,
-            velocity,
-            timestamp_ms,
-        }),
-        0x80 | 0x90 => Some(MidiEvent {
-            kind: MidiEventKind::NoteOff,
-            pitch,
-            velocity: 0,
-            timestamp_ms,
-        }),
-        _ => None,
-    }
 }

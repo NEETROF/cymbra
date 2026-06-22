@@ -12,10 +12,23 @@
 .pub/
 **/.melos_tool/
 
+# --- Coverage (generated; reported to CI/Sonar, never committed) ---
+**/coverage/
+
+# --- Codegen output (riverpod_generator / freezed); generated in CI + locally ---
+# (frb bindings are named frb_generated*.dart and are NOT matched here.)
+*.g.dart
+*.freezed.dart
+
 # --- IDE / editors ---
 *.iml
 .idea/
-.vscode/
+# Ignore personal VSCode settings but share the launch configs.
+.vscode/*
+!.vscode/launch.json
+
+# Machine-local Claude Code overrides (not shared).
+.claude/settings.local.json
 
 # --- OS ---
 .DS_Store

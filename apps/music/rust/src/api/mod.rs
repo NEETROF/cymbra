@@ -13,5 +13,6 @@
 // limitations under the License.
 
 pub mod midi;
+mod midi_core;
 pub mod score;
 pub mod simple;

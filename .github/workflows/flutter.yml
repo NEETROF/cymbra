@@ -17,8 +17,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install Linux build deps (native Rust lib via cargokit)
-        run: sudo apt-get update && sudo apt-get install -y libasound2-dev ninja-build libgtk-3-dev
+      - name: Install Linux build deps (native Rust lib via cargokit + Linux desktop + headless display)
+        run: sudo apt-get update && sudo apt-get install -y libasound2-dev ninja-build libgtk-3-dev clang cmake pkg-config xvfb lcov
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - uses: subosito/flutter-action@v2
@@ -28,9 +28,31 @@ jobs:
         run: dart pub global activate melos
       - name: Bootstrap
         run: melos bootstrap
+      # Format runs before codegen so it only checks hand-written source, not
+      # the generated *.g.dart / *.freezed.dart files.
       - name: Format
         run: dart format --output=none --set-exit-if-changed .
+      - name: Generate code (riverpod_generator + freezed)
+        run: melos run generate
       - name: Analyze
         run: melos run analyze
-      - name: Test
+      - name: Riverpod/Freezed lints
+        working-directory: apps/music
+        run: dart run custom_lint
+      - name: Unit + widget tests (with coverage)
         run: melos run test
+      - name: Enable Linux desktop
+        run: flutter config --enable-linux-desktop
+      # Integration tests drive the real app (real Rust lib via cargokit) on the
+      # Linux desktop engine, headless under Xvfb. Locally: flutter test integration_test -d macos
+      - name: Integration tests (Linux desktop, headless via Xvfb)
+        working-directory: apps/music
+        run: xvfb-run -a flutter test integration_test -d linux --coverage --coverage-path coverage/integration.lcov.info
+      - name: Merge coverage (unit/widget + integration)
+        run: lcov -a apps/music/coverage/lcov.info -a apps/music/coverage/integration.lcov.info -o apps/music/coverage/merged.lcov.info
+      - name: Enforce 80% line coverage
+        uses: VeryGoodOpenSource/very_good_coverage@v3
+        with:
+          path: apps/music/coverage/merged.lcov.info
+          min_coverage: 80
+          exclude: "lib/src/rust/** lib/main.dart **/*.g.dart **/*.freezed.dart"

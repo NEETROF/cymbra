@@ -1,0 +1,8 @@
+# Test tags for the music app.
+#
+# `golden`: pixel-comparison golden tests. Excluded from the cross-platform CI
+# gate (`flutter test --exclude-tags golden`) because goldens are not reliable
+# across OSes. Run/refresh locally with `flutter test --tags golden --update-goldens`.
+tags:
+  golden:
+    description: Pixel-comparison golden tests (platform-sensitive).

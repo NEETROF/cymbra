@@ -15,26 +15,27 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../painters/piano_keyboard_painter.dart';
 import '../painters/piano_layout.dart';
 import '../painters/staff_painter.dart';
 import '../painters/synthesia_painter.dart';
-import '../state/player_state.dart';
+import '../state/player_data.dart';
+import '../state/player_notifier.dart';
 import '../theme/cymbra_theme.dart';
 
 /// Main screen of the Cymbra player: top bar, rendering area
 /// (Synthesia or Staff), keyboard, and transport bar.
-class PlayerScreen extends StatefulWidget {
+class PlayerScreen extends ConsumerStatefulWidget {
   const PlayerScreen({super.key});
 
   @override
-  State<PlayerScreen> createState() => _PlayerScreenState();
+  ConsumerState<PlayerScreen> createState() => _PlayerScreenState();
 }
 
-class _PlayerScreenState extends State<PlayerScreen>
+class _PlayerScreenState extends ConsumerState<PlayerScreen>
     with SingleTickerProviderStateMixin {
-  final PlayerState _state = PlayerState();
   final FocusNode _focusNode = FocusNode();
   late final Ticker _ticker;
   Duration _lastTick = Duration.zero;
@@ -63,7 +64,6 @@ class _PlayerScreenState extends State<PlayerScreen>
   @override
   void initState() {
     super.initState();
-    _state.init();
     _ticker = createTicker(_onTick)..start();
   }
 
@@ -71,18 +71,20 @@ class _PlayerScreenState extends State<PlayerScreen>
     final dt = (elapsed - _lastTick).inMicroseconds / 1000.0; // ms
     _lastTick = elapsed;
     if (dt > 0 && dt < 100) {
-      _state.advance(dt * _state.speed);
+      final speed = ref.read(playerProvider).speed;
+      ref.read(playerProvider.notifier).advance(dt * speed);
     }
   }
 
   KeyEventResult _onKey(FocusNode node, KeyEvent event) {
     final pitch = _keyToPitch[event.logicalKey];
     if (pitch == null) return KeyEventResult.ignored;
+    final notifier = ref.read(playerProvider.notifier);
     if (event is KeyDownEvent) {
-      _state.noteOn(pitch);
+      notifier.noteOn(pitch);
       return KeyEventResult.handled;
     } else if (event is KeyUpEvent) {
-      _state.noteOff(pitch);
+      notifier.noteOff(pitch);
       return KeyEventResult.handled;
     }
     return KeyEventResult.ignored; // ignore repeats
@@ -92,74 +94,67 @@ class _PlayerScreenState extends State<PlayerScreen>
   void dispose() {
     _ticker.dispose();
     _focusNode.dispose();
-    _state.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final data = ref.watch(playerProvider);
+    final notifier = ref.read(playerProvider.notifier);
     return Focus(
       focusNode: _focusNode,
       autofocus: true,
       onKeyEvent: _onKey,
       child: Scaffold(
         body: SafeArea(
-          child: ListenableBuilder(
-            listenable: _state,
-            builder: (context, _) {
-              return Column(
-                children: [
-                  _TopBar(state: _state),
-                  Expanded(
-                    child: LayoutBuilder(
-                      builder: (context, constraints) {
-                        final layout = PianoLayout(width: constraints.maxWidth);
-                        return Column(
-                          children: [
-                            Expanded(child: _buildRenderArea(layout)),
-                            SizedBox(
-                              height: _keyboardHeight,
-                              child: CustomPaint(
-                                size: Size(
-                                  constraints.maxWidth,
-                                  _keyboardHeight,
-                                ),
-                                painter: PianoKeyboardPainter(
-                                  layout: layout,
-                                  activeNotes: _state.activeNotes,
-                                ),
-                              ),
+          child: Column(
+            children: [
+              _TopBar(data: data, notifier: notifier),
+              Expanded(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final layout = PianoLayout(width: constraints.maxWidth);
+                    return Column(
+                      children: [
+                        Expanded(child: _buildRenderArea(layout, data)),
+                        SizedBox(
+                          height: _keyboardHeight,
+                          child: CustomPaint(
+                            size: Size(constraints.maxWidth, _keyboardHeight),
+                            painter: PianoKeyboardPainter(
+                              layout: layout,
+                              activeNotes: data.activeNotes,
                             ),
-                          ],
-                        );
-                      },
-                    ),
-                  ),
-                  _TransportBar(state: _state),
-                ],
-              );
-            },
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ),
+              _TransportBar(data: data, notifier: notifier),
+            ],
           ),
         ),
       ),
     );
   }
 
-  Widget _buildRenderArea(PianoLayout layout) {
-    if (_state.mode == RenderMode.synthesia) {
+  Widget _buildRenderArea(PianoLayout layout, PlayerData data) {
+    if (data.mode == RenderMode.synthesia) {
       return Stack(
         children: [
           Positioned.fill(
             child: CustomPaint(
               painter: SynthesiaPainter(
                 layout: layout,
-                notes: _state.notes,
-                elapsedMs: _state.elapsedMs,
-                activeNotes: _state.activeNotes,
+                notes: data.notes,
+                elapsedMs: data.elapsedMs,
+                activeNotes: data.activeNotes,
               ),
             ),
           ),
-          if (_state.blocked) const _WaitOverlay(),
+          if (data.blocked) const _WaitOverlay(),
         ],
       );
     }
@@ -168,11 +163,11 @@ class _PlayerScreenState extends State<PlayerScreen>
       color: CymbraColors.surfaceContainerLow,
       child: CustomPaint(
         painter: StaffPainter(
-          notes: _state.notes,
-          elapsedMs: _state.elapsedMs,
-          activeNotes: _state.activeNotes,
-          bpm: _state.score?.bpm ?? 80,
-          songEndMs: _state.songEndMs,
+          notes: data.notes,
+          elapsedMs: data.elapsedMs,
+          activeNotes: data.activeNotes,
+          bpm: data.score?.bpm ?? 80,
+          songEndMs: data.songEndMs,
         ),
         size: Size.infinite,
       ),
@@ -182,8 +177,9 @@ class _PlayerScreenState extends State<PlayerScreen>
 
 /// Top bar: title, indicators and mode toggle.
 class _TopBar extends StatelessWidget {
-  final PlayerState state;
-  const _TopBar({required this.state});
+  final PlayerData data;
+  final Player notifier;
+  const _TopBar({required this.data, required this.notifier});
 
   @override
   Widget build(BuildContext context) {
@@ -199,33 +195,42 @@ class _TopBar extends StatelessWidget {
         children: [
           const Icon(Icons.arrow_back, color: CymbraColors.onSurface),
           const SizedBox(width: 16),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Cymbra Music',
-                style: TextStyle(
-                  color: CymbraColors.primary,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
+          // Expanded (instead of a fixed Column + Spacer) so the title absorbs
+          // the free space and shrinks gracefully on narrow windows; the texts
+          // ellipsize rather than overflowing the top bar.
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Cymbra Music',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: CymbraColors.primary,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
-              ),
-              const Text(
-                'Now Playing: Demo — C Major Scale',
-                style: TextStyle(
-                  color: CymbraColors.onSurfaceVariant,
-                  fontSize: 12,
+                const Text(
+                  'Now Playing: Demo — C Major Scale',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: CymbraColors.onSurfaceVariant,
+                    fontSize: 12,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-          const Spacer(),
-          _MidiStatusIndicator(state: state),
+          const SizedBox(width: 12),
+          _MidiStatusIndicator(data: data, notifier: notifier),
           const SizedBox(width: 8),
-          _Chip(icon: Icons.speed, label: 'Tempo: ${state.score?.bpm ?? '--'}'),
+          _Chip(icon: Icons.speed, label: 'Tempo: ${data.score?.bpm ?? '--'}'),
           const SizedBox(width: 8),
           // Rendering mode toggle.
-          _ModeToggle(state: state),
+          _ModeToggle(data: data, notifier: notifier),
         ],
       ),
     );
@@ -234,8 +239,9 @@ class _TopBar extends StatelessWidget {
 
 /// Switch between the two rendering modes (Synthesia / Staff).
 class _ModeToggle extends StatelessWidget {
-  final PlayerState state;
-  const _ModeToggle({required this.state});
+  final PlayerData data;
+  final Player notifier;
+  const _ModeToggle({required this.data, required this.notifier});
 
   @override
   Widget build(BuildContext context) {
@@ -260,8 +266,8 @@ class _ModeToggle extends StatelessWidget {
           icon: Icon(Icons.music_note),
         ),
       ],
-      selected: {state.mode},
-      onSelectionChanged: (s) => state.setMode(s.first),
+      selected: {data.mode},
+      onSelectionChanged: (s) => notifier.setMode(s.first),
       showSelectedIcon: false,
     );
   }
@@ -297,8 +303,9 @@ class _Chip extends StatelessWidget {
 /// MIDI connection indicator: green dot + name of the connected device,
 /// amber if detected but not yet connected, gray if none.
 class _MidiStatusIndicator extends StatelessWidget {
-  final PlayerState state;
-  const _MidiStatusIndicator({required this.state});
+  final PlayerData data;
+  final Player notifier;
+  const _MidiStatusIndicator({required this.data, required this.notifier});
 
   @override
   Widget build(BuildContext context) {
@@ -306,14 +313,14 @@ class _MidiStatusIndicator extends StatelessWidget {
     final String label;
     final IconData icon;
 
-    if (state.midiConnected) {
+    if (data.midiConnected) {
       color = CymbraColors.tertiary;
       icon = Icons.usb;
-      label = state.connectedDevice!;
-    } else if (state.midiPorts.isNotEmpty) {
+      label = data.connectedDevice!;
+    } else if (data.midiPorts.isNotEmpty) {
       color = CymbraColors.secondary;
       icon = Icons.usb;
-      label = '${state.midiPorts.first} (connecting…)';
+      label = '${data.midiPorts.first} (connecting…)';
     } else {
       color = CymbraColors.outline;
       icon = Icons.usb_off;
@@ -324,11 +331,12 @@ class _MidiStatusIndicator extends StatelessWidget {
     return PopupMenuButton<String>(
       tooltip: 'Choose MIDI device',
       color: CymbraColors.surfaceContainerHigh,
-      onSelected: (v) => state.selectMidiPort(v == autoValue ? null : v),
+      onSelected: (v) => notifier.selectMidiPort(v == autoValue ? null : v),
       itemBuilder: (_) => [
         PopupMenuItem<String>(
           value: autoValue,
           child: Row(
+            mainAxisSize: MainAxisSize.min,
             children: const [
               Icon(
                 Icons.autorenew,
@@ -340,18 +348,18 @@ class _MidiStatusIndicator extends StatelessWidget {
             ],
           ),
         ),
-        if (state.midiPorts.isNotEmpty) const PopupMenuDivider(),
-        ...state.midiPorts.map(
+        if (data.midiPorts.isNotEmpty) const PopupMenuDivider(),
+        ...data.midiPorts.map(
           (p) => PopupMenuItem<String>(
             value: p,
             child: Row(
               children: [
                 Icon(
-                  p == state.connectedDevice
+                  p == data.connectedDevice
                       ? Icons.check_circle
                       : Icons.radio_button_unchecked,
                   size: 16,
-                  color: p == state.connectedDevice
+                  color: p == data.connectedDevice
                       ? CymbraColors.tertiary
                       : CymbraColors.onSurfaceVariant,
                 ),
@@ -361,7 +369,7 @@ class _MidiStatusIndicator extends StatelessWidget {
             ),
           ),
         ),
-        if (state.midiPorts.isEmpty)
+        if (data.midiPorts.isEmpty)
           const PopupMenuItem<String>(
             enabled: false,
             child: Text('No device detected'),
@@ -418,8 +426,9 @@ class _MidiStatusIndicator extends StatelessWidget {
 
 /// Floating transport bar: restart, play/pause, speed, loop, Wait Mode.
 class _TransportBar extends StatelessWidget {
-  final PlayerState state;
-  const _TransportBar({required this.state});
+  final PlayerData data;
+  final Player notifier;
+  const _TransportBar({required this.data, required this.notifier});
 
   @override
   Widget build(BuildContext context) {
@@ -435,7 +444,7 @@ class _TransportBar extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           IconButton(
-            onPressed: state.restart,
+            onPressed: notifier.restart,
             icon: const Icon(
               Icons.skip_previous,
               color: CymbraColors.onSurface,
@@ -444,12 +453,12 @@ class _TransportBar extends StatelessWidget {
           const SizedBox(width: 8),
           // Play / pause.
           GestureDetector(
-            onTap: state.togglePlay,
+            onTap: notifier.togglePlay,
             child: CircleAvatar(
               radius: 26,
               backgroundColor: CymbraColors.primaryContainer,
               child: Icon(
-                state.isPlaying ? Icons.pause : Icons.play_arrow,
+                data.isPlaying ? Icons.pause : Icons.play_arrow,
                 color: Colors.white,
                 size: 28,
               ),
@@ -458,37 +467,37 @@ class _TransportBar extends StatelessWidget {
           const SizedBox(width: 16),
           // Speed.
           IconButton(
-            onPressed: () => state.setSpeed(state.speed - 0.25),
+            onPressed: () => notifier.setSpeed(data.speed - 0.25),
             icon: const Icon(
               Icons.remove,
               color: CymbraColors.onSurfaceVariant,
             ),
           ),
           Text(
-            '${(state.speed * 100).round()}% SPD',
+            '${(data.speed * 100).round()}% SPD',
             style: const TextStyle(
               color: CymbraColors.onSurface,
               fontWeight: FontWeight.w600,
             ),
           ),
           IconButton(
-            onPressed: () => state.setSpeed(state.speed + 0.25),
+            onPressed: () => notifier.setSpeed(data.speed + 0.25),
             icon: const Icon(Icons.add, color: CymbraColors.onSurfaceVariant),
           ),
           const SizedBox(width: 8),
           // Wait Mode.
           TextButton.icon(
-            onPressed: state.toggleWaitMode,
+            onPressed: notifier.toggleWaitMode,
             icon: Icon(
-              state.waitMode ? Icons.hourglass_top : Icons.hourglass_disabled,
-              color: state.waitMode
+              data.waitMode ? Icons.hourglass_top : Icons.hourglass_disabled,
+              color: data.waitMode
                   ? CymbraColors.secondary
                   : CymbraColors.onSurfaceVariant,
             ),
             label: Text(
               'Wait',
               style: TextStyle(
-                color: state.waitMode
+                color: data.waitMode
                     ? CymbraColors.secondary
                     : CymbraColors.onSurfaceVariant,
               ),
