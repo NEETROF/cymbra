@@ -147,10 +147,7 @@ void main() {
     await tester.pump(); // rebuild after blocked=true
     expect(state().blocked, isTrue);
     expect(find.byType(StaffPainter), findsNothing); // still synthesia mode
-    expect(
-      find.text('⏸  Play the expected note to continue'),
-      findsOneWidget,
-    );
+    expect(find.text('⏸  Play the expected note to continue'), findsOneWidget);
     await teardownScreen(tester);
   });
 }

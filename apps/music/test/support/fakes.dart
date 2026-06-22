@@ -66,11 +66,7 @@ class FakeScoreSource implements ScoreSource {
       Measure(
         index: 0,
         notes: [
-          Note(
-            pitch: 60,
-            startMs: BigInt.zero,
-            durationMs: BigInt.from(500),
-          ),
+          Note(pitch: 60, startMs: BigInt.zero, durationMs: BigInt.from(500)),
           Note(
             pitch: 62,
             startMs: BigInt.from(500),

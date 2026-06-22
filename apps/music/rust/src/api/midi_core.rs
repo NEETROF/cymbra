@@ -71,7 +71,7 @@ mod tests {
     #[test]
     fn note_on_is_parsed() {
         let ev = parse_midi(&[0x90, 60, 100], 42).expect("note on");
-        assert_eq!(ev.kind, MidiEventKind::NoteOn);
+        assert!(matches!(ev.kind, MidiEventKind::NoteOn));
         assert_eq!(ev.pitch, 60);
         assert_eq!(ev.velocity, 100);
         assert_eq!(ev.timestamp_ms, 42);
@@ -81,14 +81,14 @@ mod tests {
     fn note_on_ignores_running_status_channel_bits() {
         // 0x95 = NoteOn on channel 6 → still a NoteOn (status high nibble 0x90).
         let ev = parse_midi(&[0x95, 64, 80], 0).expect("note on ch6");
-        assert_eq!(ev.kind, MidiEventKind::NoteOn);
+        assert!(matches!(ev.kind, MidiEventKind::NoteOn));
         assert_eq!(ev.pitch, 64);
     }
 
     #[test]
     fn explicit_note_off_is_parsed() {
         let ev = parse_midi(&[0x80, 60, 64], 7).expect("note off");
-        assert_eq!(ev.kind, MidiEventKind::NoteOff);
+        assert!(matches!(ev.kind, MidiEventKind::NoteOff));
         assert_eq!(ev.pitch, 60);
         // NoteOff velocity is normalized to 0.
         assert_eq!(ev.velocity, 0);
@@ -97,7 +97,7 @@ mod tests {
     #[test]
     fn note_on_with_zero_velocity_is_note_off() {
         let ev = parse_midi(&[0x90, 60, 0], 0).expect("note off via vel 0");
-        assert_eq!(ev.kind, MidiEventKind::NoteOff);
+        assert!(matches!(ev.kind, MidiEventKind::NoteOff));
         assert_eq!(ev.velocity, 0);
     }
 

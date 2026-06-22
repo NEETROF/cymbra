@@ -34,14 +34,12 @@ use super::midi_core::{is_virtual_port, parse_midi, sort_ports_virtual_last};
 use crate::frb_generated::StreamSink;
 
 /// MIDI event type forwarded to Flutter.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MidiEventKind {
     NoteOn,
     NoteOff,
 }
 
 /// A normalized MIDI event, ready to be consumed by Flutter.
-#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MidiEvent {
     pub kind: MidiEventKind,
     /// MIDI note number (0-127).
