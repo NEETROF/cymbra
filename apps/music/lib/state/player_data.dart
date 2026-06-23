@@ -15,6 +15,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 import '../painters/keyboard_range.dart';
+import '../src/rust/api/musicxml.dart' show BeamState;
 import '../src/rust/api/score.dart';
 
 export '../painters/keyboard_range.dart'
@@ -37,11 +38,16 @@ class TimedNote {
   /// Lets the Staff painter lay out a real grand staff.
   final int staff;
 
+  /// Beam states carried from the parsed notation (begin/continue/end), so the
+  /// Staff painter can beam eighth/sixteenth runs instead of drawing flags.
+  final List<BeamState> beams;
+
   const TimedNote({
     required this.pitch,
     required this.startMs,
     required this.durationMs,
     this.staff = 1,
+    this.beams = const [],
   });
 }
 

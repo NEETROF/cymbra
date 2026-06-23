@@ -14,6 +14,7 @@
 
 import 'package:flutter/material.dart';
 
+import '../src/rust/api/musicxml.dart' show BeamState;
 import '../state/player_data.dart';
 import '../theme/cymbra_theme.dart';
 import 'smufl.dart';
@@ -154,36 +155,66 @@ class StaffPainter extends CustomPainter {
       playPaint,
     );
 
-    // 4) Scrolling notes, routed to their staff.
-    for (final n in notes) {
-      final x = xForTime(n.startMs.toDouble());
-      if (x < margin - lineGap || x > size.width - margin + lineGap) continue;
-
+    // Vertical position of a note on its staff.
+    double noteY(TimedNote n) {
       final isBass = bassBottom != null && n.staff >= 2;
       final base = isBass ? bassBottom : trebleBottom;
       final ref = isBass ? _bassBottomPitch : _trebleBottomPitch;
-      final y = base - _staffSteps(n.pitch, ref) * stepGap;
+      return base - _staffSteps(n.pitch, ref) * stepGap;
+    }
 
-      // Only the note under the playhead (expected now) is emphasized.
+    final quarterMs = bpm > 0 ? 60000.0 / bpm : 500.0;
+    int flagsOf(TimedNote n) {
+      final ratio = n.durationMs / quarterMs;
+      return ratio <= 0.32 ? 2 : (ratio <= 0.62 ? 1 : 0);
+    }
+
+    // Beam groups carried from the notation (per staff). Members get a beam
+    // instead of individual flags.
+    final beamGroups = <List<TimedNote>>[];
+    final openGroups = <int, List<TimedNote>>{};
+    for (final n in notes) {
+      if (n.beams.isEmpty) continue;
+      final g = openGroups.putIfAbsent(n.staff, () => <TimedNote>[]);
+      g.add(n);
+      if (n.beams.contains(BeamState.end)) {
+        beamGroups.add(g);
+        openGroups.remove(n.staff);
+      }
+    }
+    beamGroups.addAll(openGroups.values);
+    final beamed = beamGroups.expand((g) => g).toSet();
+
+    bool visible(double x) =>
+        x >= margin - lineGap && x <= size.width - margin + lineGap;
+
+    Color colorFor(TimedNote n) {
       final atPlayhead =
           n.startMs <= elapsedMs && elapsedMs < n.startMs + n.durationMs;
-      final Color color;
       if (atPlayhead && activeNotes.contains(n.pitch)) {
-        color = CymbraColors.tertiary; // well played
+        return CymbraColors.tertiary; // well played
       } else if (atPlayhead) {
-        color = CymbraColors.secondary; // expected
-      } else {
-        color = CymbraColors.onSurfaceVariant.withValues(
-          alpha: 0.55,
-        ); // upcoming / past
+        return CymbraColors.secondary; // expected
       }
+      return CymbraColors.onSurfaceVariant.withValues(alpha: 0.55);
+    }
 
-      // Approximate the note value from its duration to choose flags (the
-      // scrolling timeline carries no note-type), so eighths/sixteenths read.
-      final quarterMs = bpm > 0 ? 60000.0 / bpm : 500.0;
-      final ratio = n.durationMs / quarterMs;
-      final flags = ratio <= 0.32 ? 2 : (ratio <= 0.62 ? 1 : 0);
-      _drawNoteHead(canvas, Offset(x, y), lineGap, atPlayhead, color, flags);
+    // 4) Scrolling notes, routed to their staff.
+    for (final n in notes) {
+      final x = xForTime(n.startMs.toDouble());
+      if (!visible(x)) continue;
+      final y = noteY(n);
+      final atPlayhead =
+          n.startMs <= elapsedMs && elapsedMs < n.startMs + n.durationMs;
+      final color = colorFor(n);
+
+      _drawHead(canvas, Offset(x, y), lineGap, atPlayhead, color);
+      // Beamed notes get their stems/beam from the group pass; others stem now.
+      if (!beamed.contains(n)) {
+        _drawStemFlag(canvas, Offset(x, y), lineGap, color, flagsOf(n));
+      }
+      final isBass = bassBottom != null && n.staff >= 2;
+      final base = isBass ? bassBottom : trebleBottom;
       _drawLedgerLines(
         canvas,
         x,
@@ -193,6 +224,29 @@ class StaffPainter extends CustomPainter {
         lineGap,
         linePaint,
       );
+    }
+
+    // 5) Beams over their groups (stems up, one straight beam each).
+    for (final group in beamGroups) {
+      if (group.length < 2) {
+        if (group.length == 1 &&
+            visible(xForTime(group.first.startMs.toDouble()))) {
+          final n = group.first;
+          _drawStemFlag(
+            canvas,
+            Offset(xForTime(n.startMs.toDouble()), noteY(n)),
+            lineGap,
+            colorFor(n),
+            flagsOf(n),
+          );
+        }
+        continue;
+      }
+      final pts = group
+          .map((n) => Offset(xForTime(n.startMs.toDouble()), noteY(n)))
+          .toList();
+      if (pts.every((p) => !visible(p.dx))) continue;
+      _drawBeam(canvas, pts, group, lineGap);
     }
   }
 
@@ -233,15 +287,14 @@ class StaffPainter extends CustomPainter {
     return octave * 7 + (whiteInOctave[semitone] ?? 0);
   }
 
-  void _drawNoteHead(
+  /// SMuFL note head (plus a soft glow when under the playhead).
+  void _drawHead(
     Canvas canvas,
     Offset center,
     double lineGap,
     bool emphasized,
     Color color,
-    int flags,
   ) {
-    // Soft glow behind the note under the playhead.
     if (emphasized) {
       canvas.drawCircle(
         center,
@@ -251,7 +304,6 @@ class StaffPainter extends CustomPainter {
           ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6),
       );
     }
-    // SMuFL note head (stems always up on the scrolling staff).
     final headLeft = center.dx - Smufl.noteheadWidth * lineGap / 2;
     Smufl.draw(
       canvas,
@@ -261,9 +313,17 @@ class StaffPainter extends CustomPainter {
       lineGap,
       color,
     );
+  }
 
-    final stemX =
-        headLeft + Smufl.stemUpAnchorX * lineGap; // right side of the head
+  /// Up-stem and (for unbeamed notes) flags, attached at the head anchor.
+  void _drawStemFlag(
+    Canvas canvas,
+    Offset center,
+    double lineGap,
+    Color color,
+    int flags,
+  ) {
+    final stemX = _stemX(center, lineGap);
     final stemBottom = center.dy - Smufl.stemUpAnchorY * lineGap;
     final stemTop = stemBottom - lineGap * 3.2;
     canvas.drawLine(
@@ -274,10 +334,70 @@ class StaffPainter extends CustomPainter {
         ..strokeWidth = Smufl.stemThickness * lineGap
         ..strokeCap = StrokeCap.round,
     );
-
     if (flags > 0) {
       final glyph = flags >= 2 ? Smufl.flag16thUp : Smufl.flag8thUp;
       Smufl.draw(canvas, glyph, stemX, stemTop, lineGap, color);
+    }
+  }
+
+  double _stemX(Offset center, double lineGap) =>
+      center.dx -
+      Smufl.noteheadWidth * lineGap / 2 +
+      Smufl.stemUpAnchorX * lineGap;
+
+  /// One straight beam over a group of note heads, with stems of varying length
+  /// reaching it (matching the Partition engraving), plus a secondary beam for
+  /// consecutive sixteenths.
+  void _drawBeam(
+    Canvas canvas,
+    List<Offset> pts,
+    List<TimedNote> group,
+    double lineGap,
+  ) {
+    final color = CymbraColors.onSurfaceVariant.withValues(alpha: 0.75);
+    final quarterMs = bpm > 0 ? 60000.0 / bpm : 500.0;
+    final stemPaint = Paint()
+      ..color = color
+      ..strokeWidth = Smufl.stemThickness * lineGap
+      ..strokeCap = StrokeCap.round;
+
+    var beamY = double.infinity;
+    final stemBottoms = <double>[];
+    final stemXs = <double>[];
+    for (final p in pts) {
+      final sb = p.dy - Smufl.stemUpAnchorY * lineGap;
+      stemBottoms.add(sb);
+      stemXs.add(_stemX(p, lineGap));
+      final top = sb - lineGap * 3.2;
+      if (top < beamY) beamY = top;
+    }
+    for (var i = 0; i < pts.length; i++) {
+      canvas.drawLine(
+        Offset(stemXs[i], stemBottoms[i]),
+        Offset(stemXs[i], beamY),
+        stemPaint,
+      );
+    }
+    canvas.drawLine(
+      Offset(stemXs.first, beamY),
+      Offset(stemXs.last, beamY),
+      Paint()
+        ..color = color
+        ..strokeWidth = Smufl.beamThickness * lineGap,
+    );
+    // Secondary beam between consecutive sixteenths (duration < a third beat).
+    bool isSixteenth(TimedNote n) => n.durationMs / quarterMs <= 0.32;
+    final off = (Smufl.beamThickness + 0.2) * lineGap;
+    for (var i = 0; i < group.length - 1; i++) {
+      if (isSixteenth(group[i]) && isSixteenth(group[i + 1])) {
+        canvas.drawLine(
+          Offset(stemXs[i], beamY + off),
+          Offset(stemXs[i + 1], beamY + off),
+          Paint()
+            ..color = color
+            ..strokeWidth = Smufl.beamThickness * lineGap,
+        );
+      }
     }
   }
 
