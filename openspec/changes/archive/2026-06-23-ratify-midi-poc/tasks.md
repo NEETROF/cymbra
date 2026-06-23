@@ -24,9 +24,9 @@
 - [x] 4.1 Wire `cargo-llvm-cov` (fail under 80%) into `rust.yml`; feed lcov to Sonar
 - [x] 4.2 Wire `flutter test --coverage` + `very_good_coverage` (80%) and integration coverage into `flutter.yml`
 - [x] 4.3 Uncomment Sonar lcov report paths; regenerate coverage in `sonar.yml`
-- [ ] 4.4 Confirm both gates pass in CI (rust ≥80%, merged Flutter lcov ≥80%)
+- [x] 4.4 Confirm both gates pass in CI (rust ≥80%, merged Flutter lcov ≥80%)
 
 ## 5. Validate the change
 
 - [x] 5.1 `openspec validate ratify-midi-poc --strict`
-- [ ] 5.2 After review, `openspec archive ratify-midi-poc` to fold the delta into `openspec/specs/midi/`
+- [x] 5.2 After review, `openspec archive ratify-midi-poc` to fold the delta into `openspec/specs/midi/`
