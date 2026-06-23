@@ -19,8 +19,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:music/painters/partition_painter.dart';
 
 import '../support/notation_fakes.dart';
+import '../support/test_fonts.dart';
 
 void main() {
+  setUpAll(loadBravura);
+
   test('paints a two-staff grand staff without error', () {
     final document = sampleGrandStaffDocument();
     final painter = PartitionPainter(
@@ -49,6 +52,30 @@ void main() {
     expect(a.shouldRepaint(same), isFalse);
     expect(a.shouldRepaint(other), isTrue);
   });
+
+  testWidgets('partition beamed golden', (tester) async {
+    final document = sampleBeamedDocument();
+    final painter = PartitionPainter(
+      document: document,
+      systems: FakeNotationEngine().layout(document, 600),
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: CustomPaint(
+              painter: painter,
+              size: Size(600, painter.heightFor(600)),
+            ),
+          ),
+        ),
+      ),
+    );
+    await expectLater(
+      find.byType(CustomPaint).first,
+      matchesGoldenFile('goldens/partition_beamed.png'),
+    );
+  }, tags: 'golden');
 
   testWidgets('partition golden', (tester) async {
     final document = sampleGrandStaffDocument();

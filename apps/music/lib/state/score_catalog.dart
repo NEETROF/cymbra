@@ -86,6 +86,14 @@ List<CatalogEntry> scoreCatalog(Ref ref) => const [
     level: PracticeLevel.intermediate,
   ),
   CatalogEntry(
+    id: 'arabesque-l-66-no-1-in-e-major',
+    title: 'Arabesque, L. 66 No. 1 in E Major',
+    composer: 'Claude Debussy',
+    assetPath:
+        'assets/scores/intermediate/arabesque-l-66-no-1-in-e-major.musicxml',
+    level: PracticeLevel.intermediate,
+  ),
+  CatalogEntry(
     id: 'prelude-e-minor',
     title: 'Prelude in E minor, Op. 28 No. 4',
     composer: 'Frédéric Chopin',

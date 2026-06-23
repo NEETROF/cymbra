@@ -20,6 +20,8 @@ import 'package:music/painters/staff_painter.dart';
 import 'package:music/painters/synthesia_painter.dart';
 import 'package:music/state/player_data.dart';
 
+import '../support/test_fonts.dart';
+
 /// Renders [painter] into a keyed RepaintBoundary for golden comparison.
 Widget _host(CustomPainter painter, Size size) => Directionality(
   textDirection: TextDirection.ltr,
@@ -48,6 +50,7 @@ void main() {
   // `flutter test --tags golden --update-goldens`. Painter paint() is still
   // covered in CI by the widget tests, which render all three painters.
   group('golden renders', () {
+    setUpAll(loadBravura);
     testWidgets('piano keyboard', tags: 'golden', (tester) async {
       await tester.pumpWidget(
         _host(

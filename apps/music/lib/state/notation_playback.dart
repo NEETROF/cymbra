@@ -88,6 +88,7 @@ DerivedPlayback notationToTimedNotes(ScoreDocument document) {
           pitch: midiOfPitch(pitch),
           startMs: startMs.round(),
           durationMs: durationMs.round(),
+          staff: note.staff,
         ),
       );
       if (startMs + durationMs > songEndMs) songEndMs = startMs + durationMs;

@@ -55,8 +55,11 @@ very large.
 - **Multi-part / orchestral** scores — a single (piano) part with up to two
   staves is the target; the model allows more staves but layout is tuned for one
   part.
-- SMuFL/font glyph engraving fidelity, slurs, articulations, ornaments,
-  grace notes, multiple verses of lyrics, repeats/voltas — not modelled here.
+- Slurs, articulations, ornaments, grace notes, multiple verses of lyrics,
+  repeats/voltas — not modelled here. (Note: SMuFL/Bravura glyph engraving for
+  note heads, clefs, flags, accidentals, rests and dynamics IS now in scope —
+  see the SMuFL decision below — it was originally a non-goal but was adopted to
+  reach real engraving quality.)
 - Replacing or unifying the time-based player *model* (`score.rs::Score`) with
   the notation model; they stay distinct structures. The player *screen*, by
   contrast, is reused to host both the engraved partition and the derived
@@ -183,6 +186,24 @@ an entry sets a `selectedScore` provider and `Navigator.push`es the **existing
   project's provider-seam pattern (catalog and selection are injectable, so the
   screens are testable without the bundle or native lib). Navigator keeps a normal
   back-stack to the library.
+
+### Decision: render notation with SMuFL/Bravura glyphs
+Both notation painters (`PartitionPainter` and the grand-staff `StaffPainter`)
+draw real engraving glyphs from the **Bravura** font (Steinberg, SIL OFL 1.1, the
+reference SMuFL implementation) via a small `Smufl` helper: note heads, clefs,
+flags, accidentals, rests and dynamics are glyphs; stems, beams, staff lines and
+ledger lines are stroked at Bravura's engraving thicknesses, with stems attached
+at the font's note-head anchor points. Glyphs are positioned in *staff spaces*
+(Bravura: 1 em = 4 staff spaces), drawn baseline-anchored.
+- **Why:** Hand-drawn primitives (ovals for heads, ad-hoc flags) look amateur and
+  were the source of mis-rendered eighth notes. SMuFL/Bravura is the industry
+  standard (Verovio, MuseScore) and fixes glyph fidelity at the root. Beams/stems
+  are still drawn (as in every SMuFL renderer), but now use correct anchors so a
+  beamed group is one straight beam with stems of varying length, not a "tent".
+- **Trade-off:** Bundles `Bravura.otf` (~400 KB) as a font asset; this was
+  originally listed as a non-goal but adopted on review for engraving quality.
+- **Scope:** glyph fidelity for heads/clefs/flags/accidentals/rests/dynamics;
+  slurs, articulations, ornaments and grace notes remain out of scope.
 
 ### Decision: derive visual timing from the parsed notation for the time-based modes
 A pure Dart helper converts a parsed `ScoreDocument` into the player's existing

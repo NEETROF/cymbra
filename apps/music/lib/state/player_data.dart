@@ -33,10 +33,15 @@ class TimedNote {
   final int startMs;
   final int durationMs;
 
+  /// Staff the note belongs to (1 = treble/right hand, 2 = bass/left hand).
+  /// Lets the Staff painter lay out a real grand staff.
+  final int staff;
+
   const TimedNote({
     required this.pitch,
     required this.startMs,
     required this.durationMs,
+    this.staff = 1,
   });
 }
 

@@ -154,3 +154,24 @@
   refresh/replace the partition widget/golden tests; coverage stays ≥ 80%
 - [x] 11.6 Re-run wrap-up gates (analyze, format, clippy, fmt, custom_lint,
   coverage) and `openspec validate --strict`
+
+## 12. SMuFL/Bravura engraving glyphs
+
+> Revision: hand-drawn note heads/flags read poorly (mis-rendered eighth notes,
+> "tent" beams). Adopt SMuFL with the Bravura reference font for real engraving.
+
+- [x] 12.1 Bundle `assets/fonts/Bravura.otf` (SIL OFL, + `OFL.txt`) and register
+  it as a `Bravura` font family in `pubspec.yaml`
+- [x] 12.2 Add a `Smufl` helper (`lib/painters/smufl.dart`): glyph codepoints
+  (heads, clefs, flags, accidentals, rests, dynamics, dots), Bravura engraving
+  metrics/anchors, and a baseline-anchored glyph-draw helper (staff-space units)
+- [x] 12.3 Rewrite `PartitionPainter` to use glyphs for heads/clefs/flags/
+  accidentals/rests/dynamics, with stems/beams/ledgers stroked at Bravura
+  thicknesses and stem-anchor attachment; beamed groups → one straight beam with
+  varying stem lengths
+- [x] 12.4 Use SMuFL glyphs in the grand-staff `StaffPainter` (heads + clefs),
+  with eighth/sixteenth flags derived from note duration
+- [x] 12.5 Load Bravura in golden tests (FontLoader) and refresh goldens; add a
+  beamed-group golden to verify beaming
+- [x] 12.6 Re-run gates (analyze, format, custom_lint, coverage) and
+  `openspec validate --strict`

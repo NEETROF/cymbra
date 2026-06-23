@@ -16,30 +16,30 @@ import 'package:flutter/material.dart';
 
 import '../src/rust/api/musicxml.dart';
 import '../theme/cymbra_theme.dart';
+import 'smufl.dart';
 
 /// Draws engraved notation ("Partition" mode) from a parsed [ScoreDocument] and
-/// its laid-out [System]s.
-///
-/// Each system is a grand staff (treble + bass for a 2-staff piano part); within
-/// a measure, notes are placed by their `position_divisions` so the two staves
-/// stay vertically aligned. Renders note heads (with dots and accidentals),
-/// stems, rests, lyrics, and word/dynamics directions. Geometry only — no
-/// playback or interaction.
+/// its laid-out [System]s, using SMuFL/Bravura glyphs for note heads, clefs,
+/// flags, accidentals, rests and dynamics. Stems, beams, staff and ledger lines
+/// are stroked at Bravura's engraving thicknesses; stem attachment uses the
+/// font's note-head anchors. Geometry only — no playback or interaction.
 class PartitionPainter extends CustomPainter {
   final ScoreDocument document;
   final List<System> systems;
 
   PartitionPainter({required this.document, required this.systems});
 
-  static const double _gap = 9; // staff line spacing
-  static const double _staffHeight = 4 * _gap;
-  static const double _interStaff = 7 * _gap; // treble bottom → bass top
-  static const double _topPad = 4 * _gap; // room for words/dynamics above
-  static const double _bottomPad = 4 * _gap; // room for lyrics below
-  static const double _systemGap = 3 * _gap; // between systems
-  static const double _notePad = 18; // inset for notes inside a measure
+  /// Staff space (distance between two staff lines), in pixels. Everything else
+  /// is derived from it so the engraving scales as one unit.
+  static const double _s = 12;
+  static const double _staffHeight = 4 * _s;
+  static const double _interStaff = 8 * _s; // treble bottom → bass top
+  static const double _topPad = 5 * _s; // words/dynamics above
+  static const double _bottomPad = 4.5 * _s; // lyrics below
+  static const double _systemGap = 3 * _s;
+  static const double _clefGutter = 3.4 * _s; // clef/key area before notes
+  static const double _stemLen = 3.5; // staff spaces
 
-  /// Diatonic step order within an octave (C=0 … B=6).
   static const Map<String, int> _stepOrder = {
     'C': 0,
     'D': 1,
@@ -50,18 +50,18 @@ class PartitionPainter extends CustomPainter {
     'B': 6,
   };
 
-  /// Total height needed to draw all systems at the given [width]; used by the
-  /// screen to size the scrollable canvas.
-  double heightFor(double width) {
-    final systemHeight =
-        _topPad +
-        _staffHeight +
-        (document.staves >= 2 ? _interStaff + _staffHeight : 0) +
-        _bottomPad;
-    return systems.length * (systemHeight + _systemGap) + _systemGap;
-  }
+  Color get _ink => CymbraColors.onSurface;
 
   bool get _twoStaff => document.staves >= 2;
+
+  double get _systemHeight =>
+      _topPad +
+      _staffHeight +
+      (_twoStaff ? _interStaff + _staffHeight : 0) +
+      _bottomPad;
+
+  double heightFor(double width) =>
+      systems.length * (_systemHeight + _systemGap) + _systemGap;
 
   int _divisionsPerMeasure() {
     final a = document.attributes;
@@ -73,19 +73,11 @@ class PartitionPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     if (systems.isEmpty) return;
-    final width = size.width;
     final divPerMeasure = _divisionsPerMeasure();
-
-    final systemHeight =
-        _topPad +
-        _staffHeight +
-        (_twoStaff ? _interStaff + _staffHeight : 0) +
-        _bottomPad;
-
     var y = _systemGap;
     for (final system in systems) {
-      _paintSystem(canvas, system, width, y, divPerMeasure);
-      y += systemHeight + _systemGap;
+      _paintSystem(canvas, system, size.width, y, divPerMeasure);
+      y += _systemHeight + _systemGap;
     }
   }
 
@@ -96,52 +88,68 @@ class PartitionPainter extends CustomPainter {
     double yTop,
     int divPerMeasure,
   ) {
-    final trebleTop = yTop + _topPad;
-    final trebleBottom = trebleTop + _staffHeight;
-    final bassTop = trebleBottom + _interStaff;
-    final bassBottom = bassTop + _staffHeight;
+    final trebleBottom = yTop + _topPad + _staffHeight;
+    final bassBottom = trebleBottom + _interStaff + _staffHeight;
+    final systemBottom = _twoStaff ? bassBottom : trebleBottom;
 
     final linePaint = Paint()
-      ..color = CymbraColors.onSurfaceVariant.withValues(alpha: 0.5)
-      ..strokeWidth = 1.1;
+      ..color = CymbraColors.onSurfaceVariant.withValues(alpha: 0.7)
+      ..strokeWidth = Smufl.staffLineThickness * _s;
     final barPaint = Paint()
-      ..color = CymbraColors.onSurface.withValues(alpha: 0.6)
-      ..strokeWidth = 1.3;
+      ..color = _ink.withValues(alpha: 0.7)
+      ..strokeWidth = Smufl.thinBarlineThickness * _s;
 
-    // Staff lines spanning the whole system width.
-    _drawStaffLines(canvas, trebleTop, width, linePaint);
-    if (_twoStaff) _drawStaffLines(canvas, bassTop, width, linePaint);
+    _drawStaffLines(canvas, trebleBottom, width, linePaint);
+    if (_twoStaff) _drawStaffLines(canvas, bassBottom, width, linePaint);
 
-    // Left and right system barlines (connect the grand staff).
-    final connectBottom = _twoStaff ? bassBottom : trebleBottom;
+    final systemTop = trebleBottom - _staffHeight;
+    // Left system bracket connecting the grand staff (a single brace glyph does
+    // not stretch cleanly, so a thick rounded bar is used instead).
     canvas.drawLine(
-      Offset(0.5, trebleTop),
-      Offset(0.5, connectBottom),
-      barPaint,
+      Offset(1.2, systemTop),
+      Offset(1.2, systemBottom),
+      Paint()
+        ..color = _ink.withValues(alpha: 0.8)
+        ..strokeWidth = _s * 0.35
+        ..strokeCap = StrokeCap.round,
     );
 
-    // Clef hint at the head of each system.
-    _drawText(canvas, _clefGlyph(1), Offset(3, trebleTop - 2), size: 20);
+    // Clefs (G on the 2nd line up, F on the 4th line up).
+    Smufl.draw(
+      canvas,
+      Smufl.clef(_clefSign(1)),
+      _s * 0.4,
+      trebleBottom - _s,
+      _s,
+      _ink,
+    );
     if (_twoStaff) {
-      _drawText(canvas, _clefGlyph(2), Offset(3, bassTop - 2), size: 20);
+      Smufl.draw(
+        canvas,
+        Smufl.clef(_clefSign(2)),
+        _s * 0.4,
+        bassBottom - 3 * _s,
+        _s,
+        _ink,
+      );
     }
 
-    // Measures, scaled so the system fills the available width (justified).
+    // Measures justified to fill the line width after the clef gutter.
     final indices = system.measures;
     var totalMin = 0.0;
     for (final idx in indices) {
       totalMin += document.measures[idx].minWidth;
     }
-    final scale = totalMin > 0 ? width / totalMin : 1.0;
+    final usable = width - _clefGutter;
+    final scale = totalMin > 0 ? usable / totalMin : 1.0;
 
-    var x = 0.0;
+    var x = _clefGutter;
     for (final idx in indices) {
       final measure = document.measures[idx];
       final mWidth = measure.minWidth * scale;
-      // Trailing barline.
       canvas.drawLine(
-        Offset(x + mWidth, trebleTop),
-        Offset(x + mWidth, connectBottom),
+        Offset(x + mWidth, systemTop),
+        Offset(x + mWidth, systemBottom),
         barPaint,
       );
       _paintMeasure(
@@ -157,9 +165,14 @@ class PartitionPainter extends CustomPainter {
     }
   }
 
-  void _drawStaffLines(Canvas canvas, double top, double width, Paint paint) {
+  void _drawStaffLines(
+    Canvas canvas,
+    double bottom,
+    double width,
+    Paint paint,
+  ) {
     for (var i = 0; i < 5; i++) {
-      final y = top + i * _gap;
+      final y = bottom - i * _s;
       canvas.drawLine(Offset(0, y), Offset(width, y), paint);
     }
   }
@@ -177,29 +190,29 @@ class PartitionPainter extends CustomPainter {
       final frac = divPerMeasure > 0
           ? (position / divPerMeasure).clamp(0.0, 1.0)
           : 0.0;
-      return measureX + _notePad + frac * (measureWidth - 2 * _notePad);
+      return measureX + _s + frac * (measureWidth - 2.4 * _s);
     }
 
-    // Directions: words above the treble staff, dynamics just below it.
     for (final dir in measure.directions) {
       final x = xForPosition(dir.positionDivisions);
       switch (dir.kind) {
         case DirectionKind_Words(:final field0):
-          _drawText(
+          _text(
             canvas,
             field0,
-            Offset(x, trebleBottom - _staffHeight - _gap * 2.4),
-            color: CymbraColors.onSurfaceVariant,
+            x,
+            trebleBottom - _staffHeight - _s * 2.2,
             italic: true,
+            color: CymbraColors.onSurfaceVariant,
           );
         case DirectionKind_Dynamics(:final field0):
-          _drawText(
+          Smufl.draw(
             canvas,
-            field0,
-            Offset(x, trebleBottom + _gap * 0.4),
-            color: CymbraColors.secondary,
-            italic: true,
-            size: 14,
+            Smufl.dynamics(field0),
+            x,
+            trebleBottom + _s * 2.4,
+            _s,
+            CymbraColors.secondary,
           );
         case DirectionKind_Wedge():
         case DirectionKind_Metronome():
@@ -207,164 +220,268 @@ class PartitionPainter extends CustomPainter {
       }
     }
 
+    final beamGroups = <String, List<_Note>>{};
+
     for (final note in measure.notes) {
       final isBass = note.staff >= 2 && _twoStaff;
-      final bottom = isBass ? bassBottom : trebleBottom;
+      final staffBottom = isBass ? bassBottom : trebleBottom;
       final x = xForPosition(note.positionDivisions);
 
       if (note.isRest) {
-        _drawRest(canvas, x, bottom - _staffHeight / 2);
+        Smufl.draw(
+          canvas,
+          _restGlyph(note),
+          x,
+          staffBottom - 2 * _s,
+          _s,
+          _ink,
+          centerX: true,
+        );
         continue;
       }
       final pitch = note.pitch;
       if (pitch == null) continue;
 
-      final y = _yForPitch(pitch, bottom, isBass);
-      _drawLedgerLines(canvas, x, y, bottom);
-      _drawNoteHead(canvas, x, y, note);
-      _drawStem(canvas, x, y, note);
-      _drawDots(canvas, x, y, note.dots);
+      final y = _yForPitch(pitch, staffBottom, isBass);
+      _drawLedgerLines(canvas, x, y, staffBottom);
+
+      // Note head, centred on x.
+      final headLeft = x - Smufl.noteheadWidth * _s / 2;
+      Smufl.draw(canvas, _headGlyph(note), headLeft, y, _s, _ink);
+
       if (note.accidental != null) {
-        _drawText(
-          canvas,
-          _accidentalGlyph(note.accidental!),
-          Offset(x - _gap * 2.1, y - _gap),
-          size: 15,
-        );
+        final glyph = Smufl.accidental(note.accidental!);
+        if (glyph != null) {
+          Smufl.draw(canvas, glyph, headLeft - _s * 1.5, y, _s, _ink);
+        }
       }
+      _drawDots(canvas, x, y, note.dots);
+
+      // Stem + beam grouping (chord members share the principal note's stem).
+      if (_headGlyph(note) != Smufl.noteheadWhole && !note.isChord) {
+        final midY = staffBottom - 2 * _s;
+        final up = note.stem != null ? note.stem == StemDir.up : y >= midY;
+        final n = _Note(x, y, up, note);
+        if (note.beams.isEmpty) {
+          _drawStemAndFlag(canvas, n);
+        } else {
+          final key = '${note.staff}_${note.voice}';
+          beamGroups.putIfAbsent(key, () => <_Note>[]).add(n);
+          if (note.beams.contains(BeamState.end)) {
+            _drawBeamGroup(canvas, beamGroups.remove(key)!);
+          }
+        }
+      }
+
       final lyric = note.lyric;
       if (lyric != null) {
-        _drawText(
+        _text(
           canvas,
           lyric.text,
-          Offset(x - _gap, bottom + _gap * 1.4),
-          size: 12,
-          color: CymbraColors.onSurface,
+          x - _s,
+          staffBottom + _s * 1.6,
+          size: _s * 1.05,
         );
       }
     }
+    for (final group in beamGroups.values) {
+      _drawBeamGroup(canvas, group);
+    }
   }
 
-  /// Bottom staff line reference pitch: E4 (treble) / G2 (bass).
+  /// Y of a pitch's note head; bottom staff line is E4 (treble) / G2 (bass).
   double _yForPitch(Pitch pitch, double bottomLineY, bool isBass) {
     final diatonic = pitch.octave * 7 + (_stepOrder[pitch.step] ?? 0);
-    final refDiatonic = isBass ? (2 * 7 + 4) : (4 * 7 + 2);
-    return bottomLineY - (diatonic - refDiatonic) * (_gap / 2);
+    final ref = isBass ? (2 * 7 + 4) : (4 * 7 + 2);
+    return bottomLineY - (diatonic - ref) * (_s / 2);
   }
 
-  void _drawNoteHead(Canvas canvas, double x, double y, NoteEvent note) {
-    final rx = _gap * 0.62;
-    final ry = _gap * 0.46;
-    final hollow =
-        note.noteType == 'whole' ||
-        note.noteType == 'half' ||
-        note.noteType == null && note.durationDivisions >= 8;
-    final rect = Rect.fromCenter(
-      center: Offset(x, y),
-      width: rx * 2,
-      height: ry * 2,
-    );
-    final paint = Paint()..color = CymbraColors.onSurface;
-    if (hollow) {
-      paint
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.6;
+  Paint get _stemPaint => Paint()
+    ..color = _ink
+    ..strokeWidth = Smufl.stemThickness * _s
+    ..strokeCap = StrokeCap.round;
+
+  /// Stem-attachment point on the note head for the given direction.
+  Offset _stemAnchor(_Note n) => n.up
+      ? Offset(
+          n.x - Smufl.noteheadWidth * _s / 2 + Smufl.stemUpAnchorX * _s,
+          n.y - Smufl.stemUpAnchorY * _s,
+        )
+      : Offset(
+          n.x - Smufl.noteheadWidth * _s / 2 + Smufl.stemDownAnchorX * _s,
+          n.y - Smufl.stemDownAnchorY * _s,
+        );
+
+  void _drawStemAndFlag(Canvas canvas, _Note n) {
+    final anchor = _stemAnchor(n);
+    final tipY = n.up ? anchor.dy - _stemLen * _s : anchor.dy + _stemLen * _s;
+    canvas.drawLine(anchor, Offset(anchor.dx, tipY), _stemPaint);
+    final flag = _flagGlyph(n.note, n.up);
+    if (flag != null) {
+      Smufl.draw(canvas, flag, anchor.dx, tipY, _s, _ink);
     }
-    canvas.drawOval(rect, paint);
   }
 
-  void _drawStem(Canvas canvas, double x, double y, NoteEvent note) {
-    if (note.noteType == 'whole') return;
-    final up = note.stem != StemDir.down;
-    final rx = _gap * 0.62;
-    final dx = up ? x + rx : x - rx;
-    final dy = up ? y - _gap * 3 : y + _gap * 3;
+  /// Draws a beamed group: one straight beam, stems of varying length reaching
+  /// it, plus secondary beams for 16th-or-shorter runs.
+  void _drawBeamGroup(Canvas canvas, List<_Note> group) {
+    if (group.isEmpty) return;
+    if (group.length == 1) {
+      _drawStemAndFlag(canvas, group.first);
+      return;
+    }
+    final up = group.first.up;
+    final anchors = group.map(_stemAnchor).toList();
+    // Flat beam clearing the extreme note by the stem length.
+    double beamY;
+    if (up) {
+      beamY =
+          anchors.map((a) => a.dy).reduce((a, b) => a < b ? a : b) -
+          _stemLen * _s;
+    } else {
+      beamY =
+          anchors.map((a) => a.dy).reduce((a, b) => a > b ? a : b) +
+          _stemLen * _s;
+    }
+    for (final a in anchors) {
+      canvas.drawLine(a, Offset(a.dx, beamY), _stemPaint);
+    }
+    final beamPaint = Paint()
+      ..color = _ink
+      ..strokeWidth = Smufl.beamThickness * _s
+      ..strokeCap = StrokeCap.butt;
     canvas.drawLine(
-      Offset(dx, y),
-      Offset(dx, dy),
-      Paint()
-        ..color = CymbraColors.onSurface
-        ..strokeWidth = 1.4,
+      Offset(anchors.first.dx, beamY),
+      Offset(anchors.last.dx, beamY),
+      beamPaint,
     );
+    // Secondary beam for consecutive 16th-or-shorter notes.
+    final dir = up ? 1.0 : -1.0;
+    final off = dir * (Smufl.beamThickness + 0.2) * _s;
+    final thin = Paint()
+      ..color = _ink
+      ..strokeWidth = Smufl.beamThickness * _s;
+    for (var i = 0; i < group.length - 1; i++) {
+      if (_flagCount(group[i].note) >= 2 &&
+          _flagCount(group[i + 1].note) >= 2) {
+        canvas.drawLine(
+          Offset(anchors[i].dx, beamY + off),
+          Offset(anchors[i + 1].dx, beamY + off),
+          thin,
+        );
+      }
+    }
   }
 
   void _drawDots(Canvas canvas, double x, double y, int dots) {
-    final paint = Paint()..color = CymbraColors.onSurface;
     for (var i = 0; i < dots; i++) {
-      canvas.drawCircle(
-        Offset(x + _gap * (1.3 + i * 0.6), y),
-        _gap * 0.16,
-        paint,
+      Smufl.draw(
+        canvas,
+        Smufl.augmentationDot,
+        x + Smufl.noteheadWidth * _s / 2 + _s * (0.3 + i * 0.5),
+        y,
+        _s,
+        _ink,
       );
     }
   }
 
-  void _drawRest(Canvas canvas, double x, double y) {
-    canvas.drawRect(
-      Rect.fromCenter(center: Offset(x, y), width: _gap * 1.1, height: _gap),
-      Paint()..color = CymbraColors.onSurfaceVariant,
-    );
-  }
-
-  /// Ledger lines for note heads above/below their staff.
   void _drawLedgerLines(Canvas canvas, double x, double y, double bottomLineY) {
     final topLineY = bottomLineY - _staffHeight;
+    final ext = Smufl.legerLineExtension * _s;
+    final half = Smufl.noteheadWidth * _s / 2 + ext;
     final paint = Paint()
-      ..color = CymbraColors.onSurfaceVariant.withValues(alpha: 0.6)
-      ..strokeWidth = 1.1;
-    for (var ly = bottomLineY + _gap; ly <= y + 0.5; ly += _gap) {
-      canvas.drawLine(Offset(x - _gap, ly), Offset(x + _gap, ly), paint);
+      ..color = CymbraColors.onSurfaceVariant.withValues(alpha: 0.8)
+      ..strokeWidth = Smufl.legerLineThickness * _s;
+    for (var ly = bottomLineY + _s; ly <= y + 0.5; ly += _s) {
+      canvas.drawLine(Offset(x - half, ly), Offset(x + half, ly), paint);
     }
-    for (var ly = topLineY - _gap; ly >= y - 0.5; ly -= _gap) {
-      canvas.drawLine(Offset(x - _gap, ly), Offset(x + _gap, ly), paint);
+    for (var ly = topLineY - _s; ly >= y - 0.5; ly -= _s) {
+      canvas.drawLine(Offset(x - half, ly), Offset(x + half, ly), paint);
     }
   }
 
-  String _clefGlyph(int staff) {
+  String _clefSign(int staff) {
     final clef = document.attributes.clefs
         .where((c) => c.staff == staff)
         .firstOrNull;
-    final sign = clef?.sign ?? (staff >= 2 ? 'F' : 'G');
-    return switch (sign) {
-      'F' => '𝄢',
-      'C' => '𝄡',
-      _ => '𝄞',
-    };
+    return clef?.sign ?? (staff >= 2 ? 'F' : 'G');
   }
 
-  String _accidentalGlyph(String accidental) => switch (accidental) {
-    'flat' => '♭',
-    'sharp' => '♯',
-    'natural' => '♮',
-    'double-sharp' => '𝄪',
-    'flat-flat' => '𝄫',
-    _ => '',
+  String _headGlyph(NoteEvent note) {
+    final div = document.attributes.divisions;
+    switch (note.noteType) {
+      case 'whole':
+        return Smufl.noteheadWhole;
+      case 'half':
+        return Smufl.noteheadHalf;
+      case null:
+        if (note.durationDivisions >= 4 * div) return Smufl.noteheadWhole;
+        if (note.durationDivisions >= 2 * div) return Smufl.noteheadHalf;
+        return Smufl.noteheadBlack;
+      default:
+        return Smufl.noteheadBlack;
+    }
+  }
+
+  String? _flagGlyph(NoteEvent note, bool up) => switch (note.noteType) {
+    'eighth' => up ? Smufl.flag8thUp : Smufl.flag8thDown,
+    '16th' => up ? Smufl.flag16thUp : Smufl.flag16thDown,
+    '32nd' => up ? Smufl.flag32ndUp : Smufl.flag32ndDown,
+    _ => null,
   };
 
-  void _drawText(
+  int _flagCount(NoteEvent note) => switch (note.noteType) {
+    'eighth' => 1,
+    '16th' => 2,
+    '32nd' => 3,
+    '64th' => 4,
+    _ => 0,
+  };
+
+  String _restGlyph(NoteEvent note) => switch (note.noteType) {
+    'whole' => Smufl.restWhole,
+    'half' => Smufl.restHalf,
+    'eighth' => Smufl.rest8th,
+    '16th' => Smufl.rest16th,
+    _ => Smufl.restQuarter,
+  };
+
+  void _text(
     Canvas canvas,
     String text,
-    Offset offset, {
+    double x,
+    double y, {
     double size = 13,
     Color color = CymbraColors.onSurface,
     bool italic = false,
   }) {
     if (text.isEmpty) return;
-    final tp = TextPainter(
-      text: TextSpan(
-        text: text,
-        style: TextStyle(
-          color: color,
-          fontSize: size,
-          fontStyle: italic ? FontStyle.italic : FontStyle.normal,
+    TextPainter(
+        text: TextSpan(
+          text: text,
+          style: TextStyle(
+            color: color,
+            fontSize: size,
+            fontStyle: italic ? FontStyle.italic : FontStyle.normal,
+          ),
         ),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout();
-    tp.paint(canvas, offset);
+        textDirection: TextDirection.ltr,
+      )
+      ..layout()
+      ..paint(canvas, Offset(x, y));
   }
 
   @override
   bool shouldRepaint(PartitionPainter old) =>
       old.document != document || old.systems != systems;
+}
+
+/// A note's drawn geometry (head centre + stem direction), used for beaming.
+class _Note {
+  final double x;
+  final double y;
+  final bool up;
+  final NoteEvent note;
+  const _Note(this.x, this.y, this.up, this.note);
 }

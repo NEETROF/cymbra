@@ -93,6 +93,60 @@ NoteEvent noteEvent({
   lyric: lyric,
 );
 
+/// A treble-only document with a beamed run of eighth notes that rises then
+/// falls (the arpeggio contour that previously produced a "tent" beam), plus a
+/// pair of beamed sixteenths — to eyeball beaming/flags.
+ScoreDocument sampleBeamedDocument() {
+  NoteEvent eighth(
+    String step,
+    int octave,
+    int pos, {
+    List<BeamState>? beams,
+  }) => NoteEvent(
+    staff: 1,
+    voice: 1,
+    positionDivisions: pos,
+    pitch: Pitch(step: step, octave: octave, alter: 0),
+    isRest: false,
+    isChord: false,
+    durationDivisions: 2,
+    noteType: 'eighth',
+    dots: 0,
+    accidental: null,
+    tieStart: false,
+    tieStop: false,
+    tuplet: null,
+    stem: StemDir.up,
+    beams: beams ?? const [],
+    lyric: null,
+  );
+  return ScoreDocument(
+    meta: const ScoreMeta(title: 'Beamed', composer: 'Tester'),
+    staves: 1,
+    attributes: const Attributes(
+      divisions: 4,
+      clefs: [Clef(staff: 1, sign: 'G', line: 2)],
+      keyFifths: 0,
+      time: TimeSignature(beats: 4, beatType: 4),
+    ),
+    measures: [
+      NotationMeasure(
+        index: 0,
+        minWidth: 200,
+        directions: const [],
+        notes: [
+          eighth('E', 4, 0, beams: const [BeamState.begin]),
+          eighth('G', 4, 2, beams: const [BeamState.continue_]),
+          eighth('C', 5, 4, beams: const [BeamState.continue_]),
+          eighth('G', 4, 6, beams: const [BeamState.continue_]),
+          eighth('E', 4, 8, beams: const [BeamState.continue_]),
+          eighth('C', 4, 10, beams: const [BeamState.end]),
+        ],
+      ),
+    ],
+  );
+}
+
 /// A small two-staff (grand-staff) document: one 4/4 measure with a treble note,
 /// a bass note, a `words` direction, and a `dynamics` direction.
 ScoreDocument sampleGrandStaffDocument() => ScoreDocument(

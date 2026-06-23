@@ -15,6 +15,7 @@ confirmed as public-domain / CC0.
 | `beginner/ode_to_joy.musicxml` | Ode to Joy (theme from Symphony No. 9) | Ludwig van Beethoven (1770–1827) | Public domain (composition) |
 | `beginner/twinkle.musicxml` | Twinkle, Twinkle, Little Star | Traditional | Public domain |
 | `intermediate/minuet_in_g.musicxml` | Minuet in G major, BWV Anh. 114 | Christian Petzold (1677–1733) | Public domain (composition) |
+| `intermediate/arabesque-l-66-no-1-in-e-major.musicxml` | Arabesque No. 1, L. 66 | Claude Debussy (1862–1918) | Public domain (composition) |
 | `advanced/prelude_e_minor.musicxml` | Prelude in E minor, Op. 28 No. 4 (opening) | Frédéric Chopin (1810–1849) | Public domain (composition) |
 
 All files are short excerpts intended to exercise the notation parser and the
