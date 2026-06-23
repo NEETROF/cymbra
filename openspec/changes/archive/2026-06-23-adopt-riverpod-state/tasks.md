@@ -20,9 +20,9 @@
 
 - [x] 4.1 flutter.yml/sonar.yml: `melos run generate` before analyze/test; custom_lint step
 - [x] 4.2 CLAUDE.md: State-management convention section
-- [ ] 4.3 Confirm in CI: codegen + analyze + custom_lint + tests + coverage ≥ 80% (Rust + merged Flutter)
+- [x] 4.3 Confirm in CI: codegen + analyze + custom_lint + tests + coverage ≥ 80% (Rust + merged Flutter)
 
 ## 5. Validate
 
 - [x] 5.1 `openspec validate adopt-riverpod-state --strict`
-- [ ] 5.2 After review, `openspec archive adopt-riverpod-state`
+- [x] 5.2 After review, `openspec archive adopt-riverpod-state`
