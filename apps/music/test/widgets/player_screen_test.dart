@@ -104,6 +104,25 @@ void main() {
     await teardownScreen(tester);
   });
 
+  testWidgets('keyboard range chooser updates the range mode', (tester) async {
+    await pumpScreen(tester);
+    // Defaults to the full 88-key piano (chip shows "88").
+    expect(state().keyboardRange, KeyboardRangeMode.keys88);
+    expect(find.text('88'), findsOneWidget);
+
+    // The screen runs a Ticker (never settles), so pump explicitly rather than
+    // pumpAndSettle. 300ms lets the popup menu open/close animation finish.
+    await tester.tap(find.byIcon(Icons.piano));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(find.text('Auto (fit piece)'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(state().keyboardRange, KeyboardRangeMode.auto);
+    await teardownScreen(tester);
+  });
+
   testWidgets('computer keyboard fallback presses a key', (tester) async {
     await pumpScreen(tester);
     await tester.sendKeyDownEvent(LogicalKeyboardKey.keyA); // C4

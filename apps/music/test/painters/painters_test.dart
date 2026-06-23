@@ -61,6 +61,27 @@ void main() {
       );
     });
 
+    testWidgets('piano keyboard feedback states', tags: 'golden', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _host(
+          // 60 correct (green), 64 expected (teal), 62 pressed-only (purple),
+          // 61 expected black key (teal + outline).
+          const PianoKeyboardPainter(
+            layout: _layout,
+            activeNotes: {60, 62},
+            requiredNotes: {60, 64, 61},
+          ),
+          const Size(600, 160),
+        ),
+      );
+      await expectLater(
+        find.byKey(const Key('golden')),
+        matchesGoldenFile('goldens/piano_keyboard_feedback.png'),
+      );
+    });
+
     testWidgets('synthesia waterfall', tags: 'golden', (tester) async {
       await tester.pumpWidget(
         _host(
@@ -99,6 +120,24 @@ void main() {
     });
   });
 
+  // Non-golden render so the three-state paint() branches are exercised by the
+  // cross-platform CI gate (goldens are excluded there).
+  testWidgets('keyboard renders all feedback states without error', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _host(
+        const PianoKeyboardPainter(
+          layout: _layout,
+          activeNotes: {60, 62}, // 60 correct, 62 pressed-only
+          requiredNotes: {60, 64, 61}, // 64 expected white, 61 expected black
+        ),
+        const Size(600, 160),
+      ),
+    );
+    expect(tester.takeException(), isNull);
+  });
+
   group('shouldRepaint', () {
     test('keyboard repaints only when inputs change', () {
       const notes = {60};
@@ -107,6 +146,28 @@ void main() {
       expect(a.shouldRepaint(b), isFalse);
       const c = PianoKeyboardPainter(layout: _layout, activeNotes: {61});
       expect(a.shouldRepaint(c), isTrue);
+    });
+
+    test('keyboard repaints when requiredNotes change', () {
+      const active = {60};
+      const a = PianoKeyboardPainter(
+        layout: _layout,
+        activeNotes: active,
+        requiredNotes: {62},
+      );
+      const b = PianoKeyboardPainter(
+        layout: _layout,
+        activeNotes: active,
+        requiredNotes: {64},
+      );
+      expect(a.shouldRepaint(b), isTrue);
+    });
+
+    test('keyboard repaints when the displayed range changes', () {
+      const a = PianoKeyboardPainter(layout: _layout, activeNotes: {60});
+      const wider = PianoLayout(width: 600, lowPitch: 21, highPitch: 108);
+      const b = PianoKeyboardPainter(layout: wider, activeNotes: {60});
+      expect(a.shouldRepaint(b), isTrue);
     });
 
     test('synthesia repaints when the playhead moves', () {

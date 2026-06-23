@@ -17,13 +17,54 @@ import 'package:flutter/material.dart';
 import '../theme/cymbra_theme.dart';
 import 'piano_layout.dart';
 
-/// Draws the piano keyboard at the bottom of the screen and highlights the
-/// currently pressed keys ([activeNotes]) with a purple halo.
+/// Visual state of a key, by precedence.
+enum _KeyState {
+  /// Not pressed and not expected.
+  idle,
+
+  /// Required at the playhead but not held — "press this key".
+  expected,
+
+  /// Required and held — correctly played.
+  correct,
+
+  /// Held but not required.
+  pressed,
+}
+
+/// Draws the piano keyboard at the bottom of the screen with three-state
+/// feedback: keys the player must press now ([requiredNotes]) glow teal, turn
+/// green once correctly held, while any other pressed key ([activeNotes]) glows
+/// purple.
 class PianoKeyboardPainter extends CustomPainter {
   final PianoLayout layout;
   final Set<int> activeNotes;
 
-  const PianoKeyboardPainter({required this.layout, required this.activeNotes});
+  /// Notes expected at the current playhead (the Wait Mode gate).
+  final Set<int> requiredNotes;
+
+  const PianoKeyboardPainter({
+    required this.layout,
+    required this.activeNotes,
+    this.requiredNotes = const {},
+  });
+
+  _KeyState _stateOf(int pitch) {
+    final required = requiredNotes.contains(pitch);
+    final active = activeNotes.contains(pitch);
+    if (required && active) return _KeyState.correct;
+    if (required) return _KeyState.expected;
+    if (active) return _KeyState.pressed;
+    return _KeyState.idle;
+  }
+
+  Color _fillFor(_KeyState state, {required bool isBlack}) => switch (state) {
+    _KeyState.correct => CymbraColors.tertiary,
+    _KeyState.expected => CymbraColors.secondaryContainer,
+    _KeyState.pressed => CymbraColors.primaryContainer,
+    _KeyState.idle =>
+      isBlack ? CymbraColors.pianoBlack : CymbraColors.pianoWhite,
+  };
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -35,8 +76,7 @@ class PianoKeyboardPainter extends CustomPainter {
       if (PianoLayout.isBlack(p)) continue;
       final r = layout.keyRect(p);
       final rect = Rect.fromLTWH(r.left, 0, r.width, whiteH);
-      final active = activeNotes.contains(p);
-      _drawKey(canvas, rect, active, isBlack: false);
+      _drawKey(canvas, rect, _stateOf(p), isBlack: false);
     }
 
     // 2) Black keys (on top).
@@ -44,15 +84,14 @@ class PianoKeyboardPainter extends CustomPainter {
       if (!PianoLayout.isBlack(p)) continue;
       final r = layout.keyRect(p);
       final rect = Rect.fromLTWH(r.left, 0, r.width, blackH);
-      final active = activeNotes.contains(p);
-      _drawKey(canvas, rect, active, isBlack: true);
+      _drawKey(canvas, rect, _stateOf(p), isBlack: true);
     }
   }
 
   void _drawKey(
     Canvas canvas,
     Rect rect,
-    bool active, {
+    _KeyState state, {
     required bool isBlack,
   }) {
     // Rounded bottom corners (4px) to mimic a physical key.
@@ -62,19 +101,15 @@ class PianoKeyboardPainter extends CustomPainter {
       bottomRight: const Radius.circular(4),
     );
 
-    final Color fill;
-    if (active) {
-      fill = CymbraColors.primaryContainer;
-    } else {
-      fill = isBlack ? CymbraColors.pianoBlack : CymbraColors.pianoWhite;
-    }
+    final highlighted = state != _KeyState.idle;
+    final fill = _fillFor(state, isBlack: isBlack);
 
-    // Purple halo under an active key.
-    if (active) {
+    // Colored halo under any highlighted key.
+    if (highlighted) {
       canvas.drawRRect(
         rrect,
         Paint()
-          ..color = CymbraColors.primaryContainer
+          ..color = fill
           ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12),
       );
     }
@@ -90,10 +125,23 @@ class PianoKeyboardPainter extends CustomPainter {
           ..strokeWidth = 1
           ..color = const Color(0xFFE2E8F0),
       );
+    } else if (highlighted) {
+      // A highlighted black key is narrow; outline it so the state still reads.
+      canvas.drawRRect(
+        rrect,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2
+          ..color = CymbraColors.onSurface,
+      );
     }
   }
 
   @override
   bool shouldRepaint(PianoKeyboardPainter old) =>
-      old.activeNotes != activeNotes || old.layout.width != layout.width;
+      old.activeNotes != activeNotes ||
+      old.requiredNotes != requiredNotes ||
+      old.layout.width != layout.width ||
+      old.layout.lowPitch != layout.lowPitch ||
+      old.layout.highPitch != layout.highPitch;
 }

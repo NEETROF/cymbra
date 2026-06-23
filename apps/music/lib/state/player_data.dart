@@ -14,7 +14,11 @@
 
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import '../painters/keyboard_range.dart';
 import '../src/rust/api/score.dart';
+
+export '../painters/keyboard_range.dart'
+    show KeyboardRangeMode, KeyboardRangeModeLabel;
 
 part 'player_data.freezed.dart';
 
@@ -74,9 +78,19 @@ abstract class PlayerData with _$PlayerData {
 
     /// True when Wait Mode is currently blocking progression.
     @Default(false) bool blocked,
+
+    /// On-screen keyboard range mode. Defaults to the full 88-key piano; the
+    /// user can switch to auto-fit or a smaller preset from the chooser.
+    @Default(KeyboardRangeMode.keys88) KeyboardRangeMode keyboardRange,
   }) = _PlayerData;
 
   bool get midiConnected => connectedDevice != null;
+
+  /// Inclusive (low, high) MIDI pitches the on-screen keyboard should show for
+  /// the current [keyboardRange] and loaded [notes]. Feeds the shared
+  /// `PianoLayout` so the keyboard and waterfall stay aligned.
+  ({int low, int high}) get keyboardBounds =>
+      computeKeyboardRange(keyboardRange, [for (final n in notes) n.pitch]);
 
   /// Notes that should be held at instant [t] (playhead within the window
   /// [start, start+duration]). Acts as the "gate" for Wait Mode.

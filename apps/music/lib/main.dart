@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'screens/player_screen.dart';
@@ -21,6 +22,12 @@ import 'theme/cymbra_theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Lock to landscape: the on-screen keyboard (up to 88 keys) is only legible in
+  // landscape. No-op on desktop/web.
+  await SystemChrome.setPreferredOrientations(const [
+    DeviceOrientation.landscapeLeft,
+    DeviceOrientation.landscapeRight,
+  ]);
   await RustLib.init();
   runApp(const ProviderScope(child: CymbraApp()));
 }
