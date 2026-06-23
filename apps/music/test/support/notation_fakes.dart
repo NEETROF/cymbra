@@ -158,7 +158,7 @@ ScoreDocument sampleGrandStaffDocument() => ScoreDocument(
       Clef(staff: 1, sign: 'G', line: 2),
       Clef(staff: 2, sign: 'F', line: 4),
     ],
-    keyFifths: 0,
+    keyFifths: 3, // 3 sharps → shows the key signature (armature)
     time: TimeSignature(beats: 4, beatType: 4),
   ),
   measures: [

@@ -78,6 +78,13 @@ abstract class PlayerData with _$PlayerData {
     /// Tempo in BPM used to place staff bar-lines and for the tempo readout.
     @Default(80) int bpm,
 
+    /// Key signature (fifths) of the loaded piece, for the staff armature.
+    @Default(0) int keyFifths,
+
+    /// Time signature of the loaded piece (beats / beat-type).
+    @Default(4) int beats,
+    @Default(4) int beatType,
+
     /// Score notes flattened and sorted by start.
     @Default(<TimedNote>[]) List<TimedNote> notes,
 

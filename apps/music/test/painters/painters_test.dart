@@ -186,6 +186,7 @@ void main() {
             activeNotes: {},
             bpm: 80,
             songEndMs: 1500,
+            keyFifths: 3, // armature: 3 sharps
           ),
           const Size(700, 360),
         ),

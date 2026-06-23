@@ -36,12 +36,21 @@ class StaffPainter extends CustomPainter {
   /// End of the song (ms), to bound the measure bars.
   final double songEndMs;
 
+  /// Key signature (fifths) and time signature of the loaded piece, drawn as the
+  /// armature + meter at the head of the system.
+  final int keyFifths;
+  final int beats;
+  final int beatType;
+
   const StaffPainter({
     required this.notes,
     required this.elapsedMs,
     required this.activeNotes,
     required this.bpm,
     required this.songEndMs,
+    this.keyFifths = 0,
+    this.beats = 4,
+    this.beatType = 4,
   });
 
   // Bottom-line reference pitches: E4 (MIDI 64) for the treble staff,
@@ -128,6 +137,51 @@ class StaffPainter extends CustomPainter {
         bassBottom - 3 * lineGap,
         lineGap,
         CymbraColors.onSurfaceVariant,
+      );
+    }
+
+    // Key signature (armature) + time signature at the head of the system.
+    const headColor = CymbraColors.onSurfaceVariant;
+    var hx = 6 + lineGap * 2.8;
+    final keyW = Smufl.drawKeySignature(
+      canvas,
+      hx,
+      trebleBottom,
+      lineGap,
+      keyFifths,
+      false,
+      headColor,
+    );
+    if (bassBottom != null) {
+      Smufl.drawKeySignature(
+        canvas,
+        hx,
+        bassBottom,
+        lineGap,
+        keyFifths,
+        true,
+        headColor,
+      );
+    }
+    hx += keyW;
+    Smufl.drawTimeSignature(
+      canvas,
+      hx,
+      trebleBottom,
+      lineGap,
+      beats,
+      beatType,
+      headColor,
+    );
+    if (bassBottom != null) {
+      Smufl.drawTimeSignature(
+        canvas,
+        hx,
+        bassBottom,
+        lineGap,
+        beats,
+        beatType,
+        headColor,
       );
     }
 

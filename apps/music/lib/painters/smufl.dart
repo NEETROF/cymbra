@@ -57,6 +57,76 @@ class Smufl {
   static const String augmentationDot = '\u{E1E7}';
   static const String brace = '\u{E000}';
 
+  /// Time-signature digit glyph for 0–9 (timeSig0 = U+E080).
+  static String timeSigDigit(int d) => String.fromCharCode(0xE080 + d);
+
+  /// Time-signature number as a glyph string (each digit a timeSig glyph).
+  static String timeSigNumber(int n) =>
+      n.toString().split('').map((c) => timeSigDigit(int.parse(c))).join();
+
+  // Vertical positions (diatonic staff steps from the treble bottom line E4,
+  // each step = half a staff space) of key-signature accidentals, in fifths
+  // order. Bass-clef positions are these minus 2.
+  static const List<int> _sharpSteps = [8, 5, 9, 6, 3, 7, 4]; // F C G D A E B
+  static const List<int> _flatSteps = [4, 7, 3, 6, 2, 5, 1]; // B E A D G C F
+
+  /// Draws a key signature (sharps/flats in fifths order) on one staff whose
+  /// bottom line is at [staffBottom]; returns the width it consumed.
+  static double drawKeySignature(
+    Canvas canvas,
+    double xStart,
+    double staffBottom,
+    double s,
+    int fifths,
+    bool isBass,
+    Color color,
+  ) {
+    if (fifths == 0) return 0;
+    final sharps = fifths > 0;
+    final steps = sharps ? _sharpSteps : _flatSteps;
+    final glyph = sharps ? accidentalSharp : accidentalFlat;
+    final count = fifths.abs().clamp(0, 7);
+    const adv = 0.95;
+    for (var i = 0; i < count; i++) {
+      final step = steps[i] - (isBass ? 2 : 0);
+      draw(
+        canvas,
+        glyph,
+        xStart + i * adv * s,
+        staffBottom - step * (s / 2),
+        s,
+        color,
+      );
+    }
+    return count * adv * s + s * 0.4;
+  }
+
+  /// Draws a time signature (beats over beat-type) centred on a staff whose
+  /// bottom line is at [staffBottom]; returns the width it consumed.
+  static double drawTimeSignature(
+    Canvas canvas,
+    double xStart,
+    double staffBottom,
+    double s,
+    int beats,
+    int beatType,
+    Color color,
+  ) {
+    final midY = staffBottom - 2 * s; // middle staff line
+    final cx = xStart + s * 0.9;
+    draw(canvas, timeSigNumber(beats), cx, midY - s, s, color, centerX: true);
+    draw(
+      canvas,
+      timeSigNumber(beatType),
+      cx,
+      midY + s,
+      s,
+      color,
+      centerX: true,
+    );
+    return s * 2.2;
+  }
+
   // --- Engraving defaults (staff spaces), from bravura_metadata.json ------
   static const double staffLineThickness = 0.13;
   static const double stemThickness = 0.12;

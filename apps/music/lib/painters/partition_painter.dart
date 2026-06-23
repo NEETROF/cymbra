@@ -37,7 +37,6 @@ class PartitionPainter extends CustomPainter {
   static const double _topPad = 5 * _s; // words/dynamics above
   static const double _bottomPad = 4.5 * _s; // lyrics below
   static const double _systemGap = 3 * _s;
-  static const double _clefGutter = 3.4 * _s; // clef/key area before notes
   static const double _stemLen = 3.5; // staff spaces
 
   static const Map<String, int> _stepOrder = {
@@ -75,8 +74,8 @@ class PartitionPainter extends CustomPainter {
     if (systems.isEmpty) return;
     final divPerMeasure = _divisionsPerMeasure();
     var y = _systemGap;
-    for (final system in systems) {
-      _paintSystem(canvas, system, size.width, y, divPerMeasure);
+    for (var i = 0; i < systems.length; i++) {
+      _paintSystem(canvas, systems[i], size.width, y, divPerMeasure, i == 0);
       y += _systemHeight + _systemGap;
     }
   }
@@ -87,6 +86,7 @@ class PartitionPainter extends CustomPainter {
     double width,
     double yTop,
     int divPerMeasure,
+    bool isFirst,
   ) {
     final trebleBottom = yTop + _topPad + _staffHeight;
     final bassBottom = trebleBottom + _interStaff + _staffHeight;
@@ -114,7 +114,7 @@ class PartitionPainter extends CustomPainter {
         ..strokeCap = StrokeCap.round,
     );
 
-    // Clefs (G on the 2nd line up, F on the 4th line up).
+    // --- Header: clef, key signature, then time signature (first system). ---
     Smufl.draw(
       canvas,
       Smufl.clef(_clefSign(1)),
@@ -133,17 +133,59 @@ class PartitionPainter extends CustomPainter {
         _ink,
       );
     }
+    var hx = _s * 3.0; // after the clef
 
-    // Measures justified to fill the line width after the clef gutter.
+    final fifths = document.attributes.keyFifths;
+    final keyWidth = Smufl.drawKeySignature(
+      canvas,
+      hx,
+      trebleBottom,
+      _s,
+      fifths,
+      false,
+      _ink,
+    );
+    if (_twoStaff) {
+      Smufl.drawKeySignature(canvas, hx, bassBottom, _s, fifths, true, _ink);
+    }
+    hx += keyWidth;
+
+    if (isFirst) {
+      final time = document.attributes.time;
+      final timeWidth = Smufl.drawTimeSignature(
+        canvas,
+        hx,
+        trebleBottom,
+        _s,
+        time.beats,
+        time.beatType,
+        _ink,
+      );
+      if (_twoStaff) {
+        Smufl.drawTimeSignature(
+          canvas,
+          hx,
+          bassBottom,
+          _s,
+          time.beats,
+          time.beatType,
+          _ink,
+        );
+      }
+      hx += timeWidth;
+    }
+    final headerX = hx + _s * 0.6;
+
+    // Measures justified to fill the line width after the header.
     final indices = system.measures;
     var totalMin = 0.0;
     for (final idx in indices) {
       totalMin += document.measures[idx].minWidth;
     }
-    final usable = width - _clefGutter;
+    final usable = width - headerX;
     final scale = totalMin > 0 ? usable / totalMin : 1.0;
 
-    var x = _clefGutter;
+    var x = headerX;
     for (final idx in indices) {
       final measure = document.measures[idx];
       final mWidth = measure.minWidth * scale;
