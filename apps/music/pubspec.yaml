@@ -70,6 +70,14 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
+  # Bundled public-domain MusicXML scores, grouped by practice level. See
+  # assets/scores/CREDITS.md for sources/licences. The directory entries pick up
+  # every file beneath them, so new scores need no further pubspec change.
+  assets:
+    - assets/scores/beginner/
+    - assets/scores/intermediate/
+    - assets/scores/advanced/
+
   # To add assets to your application, add an assets section, like this:
   # assets:
   #   - images/a_dot_burr.jpeg

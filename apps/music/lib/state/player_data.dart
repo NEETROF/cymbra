@@ -22,8 +22,9 @@ export '../painters/keyboard_range.dart'
 
 part 'player_data.freezed.dart';
 
-/// The two score rendering modes.
-enum RenderMode { staff, synthesia }
+/// The score rendering modes: scrolling staff, Synthesia waterfall, and the
+/// engraved Partition (sheet-music) view of a loaded MusicXML score.
+enum RenderMode { staff, synthesia, partition }
 
 /// A score note with its time bounds in milliseconds (int), more convenient to
 /// handle on the Dart side than the bridge's `BigInt`.
@@ -57,8 +58,14 @@ abstract class PlayerData with _$PlayerData {
     /// Currently connected port (null if none).
     String? connectedDevice,
 
-    /// The loaded score (null until [Player] finishes loading it).
+    /// The loaded demo score (null when a MusicXML partition is loaded instead).
     Score? score,
+
+    /// Title of the piece currently loaded (null → the built-in demo).
+    String? title,
+
+    /// Tempo in BPM used to place staff bar-lines and for the tempo readout.
+    @Default(80) int bpm,
 
     /// Score notes flattened and sorted by start.
     @Default(<TimedNote>[]) List<TimedNote> notes,

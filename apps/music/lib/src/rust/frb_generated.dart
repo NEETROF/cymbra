@@ -4,6 +4,7 @@
 // ignore_for_file: unused_import, unused_element, unnecessary_import, duplicate_ignore, invalid_use_of_internal_member, annotate_overrides, non_constant_identifier_names, curly_braces_in_flow_control_structures, prefer_const_literals_to_create_immutables, unused_field
 
 import 'api/midi.dart';
+import 'api/musicxml.dart';
 import 'api/score.dart';
 import 'api/simple.dart';
 import 'dart:async';
@@ -68,7 +69,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.12.0';
 
   @override
-  int get rustContentHash => 777308845;
+  int get rustContentHash => 1609584886;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -88,9 +89,18 @@ abstract class RustLibApi extends BaseApi {
 
   Future<void> crateApiSimpleInitApp();
 
+  List<System> crateApiMusicxmlLayoutSystems({
+    required ScoreDocument doc,
+    required double availableWidth,
+  });
+
   List<String> crateApiMidiListMidiPorts();
 
   Stream<MidiEvent> crateApiMidiMidiEventStream();
+
+  Future<ScoreDocument> crateApiMusicxmlParseMusicxml({
+    required List<int> bytes,
+  });
 
   void crateApiMidiSetMidiPort({String? name});
 }
@@ -203,12 +213,42 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "init_app", argNames: []);
 
   @override
+  List<System> crateApiMusicxmlLayoutSystems({
+    required ScoreDocument doc,
+    required double availableWidth,
+  }) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_score_document(doc, serializer);
+          sse_encode_f_64(availableWidth, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 5)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_system,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiMusicxmlLayoutSystemsConstMeta,
+        argValues: [doc, availableWidth],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiMusicxmlLayoutSystemsConstMeta =>
+      const TaskConstMeta(
+        debugName: "layout_systems",
+        argNames: ["doc", "availableWidth"],
+      );
+
+  @override
   List<String> crateApiMidiListMidiPorts() {
     return handler.executeSync(
       SyncTask(
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 5)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 6)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_list_String,
@@ -236,7 +276,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             pdeCallFfi(
               generalizedFrbRustBinding,
               serializer,
-              funcId: 6,
+              funcId: 7,
               port: port_,
             );
           },
@@ -257,13 +297,43 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "midi_event_stream", argNames: ["sink"]);
 
   @override
+  Future<ScoreDocument> crateApiMusicxmlParseMusicxml({
+    required List<int> bytes,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_list_prim_u_8_loose(bytes, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 8,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_score_document,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiMusicxmlParseMusicxmlConstMeta,
+        argValues: [bytes],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiMusicxmlParseMusicxmlConstMeta =>
+      const TaskConstMeta(debugName: "parse_musicxml", argNames: ["bytes"]);
+
+  @override
   void crateApiMidiSetMidiPort({String? name}) {
     return handler.executeSync(
       SyncTask(
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_opt_String(name, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 7)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 9)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_unit,
@@ -286,6 +356,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  String dco_decode_Char(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return String.fromCharCode(raw);
+  }
+
+  @protected
   RustStreamSink<MidiEvent> dco_decode_StreamSink_midi_event_Sse(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     throw UnimplementedError();
@@ -295,6 +371,117 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   String dco_decode_String(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as String;
+  }
+
+  @protected
+  Attributes dco_decode_attributes(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return Attributes(
+      divisions: dco_decode_u_32(arr[0]),
+      clefs: dco_decode_list_clef(arr[1]),
+      keyFifths: dco_decode_i_32(arr[2]),
+      time: dco_decode_time_signature(arr[3]),
+    );
+  }
+
+  @protected
+  BeamState dco_decode_beam_state(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return BeamState.values[raw as int];
+  }
+
+  @protected
+  bool dco_decode_bool(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as bool;
+  }
+
+  @protected
+  Lyric dco_decode_box_autoadd_lyric(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_lyric(raw);
+  }
+
+  @protected
+  Pitch dco_decode_box_autoadd_pitch(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_pitch(raw);
+  }
+
+  @protected
+  ScoreDocument dco_decode_box_autoadd_score_document(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_score_document(raw);
+  }
+
+  @protected
+  StemDir dco_decode_box_autoadd_stem_dir(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_stem_dir(raw);
+  }
+
+  @protected
+  Tuplet dco_decode_box_autoadd_tuplet(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_tuplet(raw);
+  }
+
+  @protected
+  Clef dco_decode_clef(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return Clef(
+      staff: dco_decode_u_32(arr[0]),
+      sign: dco_decode_Char(arr[1]),
+      line: dco_decode_i_32(arr[2]),
+    );
+  }
+
+  @protected
+  Direction dco_decode_direction(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return Direction(
+      staff: dco_decode_u_32(arr[0]),
+      positionDivisions: dco_decode_u_32(arr[1]),
+      kind: dco_decode_direction_kind(arr[2]),
+    );
+  }
+
+  @protected
+  DirectionKind dco_decode_direction_kind(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    switch (raw[0]) {
+      case 0:
+        return DirectionKind_Words(dco_decode_String(raw[1]));
+      case 1:
+        return DirectionKind_Dynamics(dco_decode_String(raw[1]));
+      case 2:
+        return DirectionKind_Wedge(
+          crescendo: dco_decode_bool(raw[1]),
+          stop: dco_decode_bool(raw[2]),
+        );
+      case 3:
+        return DirectionKind_Metronome(
+          beatUnit: dco_decode_String(raw[1]),
+          perMinute: dco_decode_u_32(raw[2]),
+        );
+      default:
+        throw Exception("unreachable");
+    }
+  }
+
+  @protected
+  double dco_decode_f_64(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as double;
   }
 
   @protected
@@ -310,9 +497,33 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<BeamState> dco_decode_list_beam_state(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_beam_state).toList();
+  }
+
+  @protected
+  List<Clef> dco_decode_list_clef(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_clef).toList();
+  }
+
+  @protected
+  List<Direction> dco_decode_list_direction(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_direction).toList();
+  }
+
+  @protected
   List<Measure> dco_decode_list_measure(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_measure).toList();
+  }
+
+  @protected
+  List<NotationMeasure> dco_decode_list_notation_measure(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_notation_measure).toList();
   }
 
   @protected
@@ -322,9 +533,45 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<NoteEvent> dco_decode_list_note_event(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_note_event).toList();
+  }
+
+  @protected
+  Uint32List dco_decode_list_prim_u_32_strict(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as Uint32List;
+  }
+
+  @protected
+  List<int> dco_decode_list_prim_u_8_loose(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as List<int>;
+  }
+
+  @protected
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as Uint8List;
+  }
+
+  @protected
+  List<System> dco_decode_list_system(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_system).toList();
+  }
+
+  @protected
+  Lyric dco_decode_lyric(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return Lyric(
+      syllabic: dco_decode_opt_String(arr[0]),
+      text: dco_decode_String(arr[1]),
+    );
   }
 
   @protected
@@ -360,6 +607,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  NotationMeasure dco_decode_notation_measure(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return NotationMeasure(
+      index: dco_decode_u_32(arr[0]),
+      notes: dco_decode_list_note_event(arr[1]),
+      directions: dco_decode_list_direction(arr[2]),
+      minWidth: dco_decode_f_64(arr[3]),
+    );
+  }
+
+  @protected
   Note dco_decode_note(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -373,9 +634,72 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  NoteEvent dco_decode_note_event(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 16)
+      throw Exception('unexpected arr length: expect 16 but see ${arr.length}');
+    return NoteEvent(
+      staff: dco_decode_u_32(arr[0]),
+      voice: dco_decode_u_32(arr[1]),
+      positionDivisions: dco_decode_u_32(arr[2]),
+      pitch: dco_decode_opt_box_autoadd_pitch(arr[3]),
+      isRest: dco_decode_bool(arr[4]),
+      isChord: dco_decode_bool(arr[5]),
+      durationDivisions: dco_decode_u_32(arr[6]),
+      noteType: dco_decode_opt_String(arr[7]),
+      dots: dco_decode_u_32(arr[8]),
+      accidental: dco_decode_opt_String(arr[9]),
+      tieStart: dco_decode_bool(arr[10]),
+      tieStop: dco_decode_bool(arr[11]),
+      tuplet: dco_decode_opt_box_autoadd_tuplet(arr[12]),
+      stem: dco_decode_opt_box_autoadd_stem_dir(arr[13]),
+      beams: dco_decode_list_beam_state(arr[14]),
+      lyric: dco_decode_opt_box_autoadd_lyric(arr[15]),
+    );
+  }
+
+  @protected
   String? dco_decode_opt_String(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_String(raw);
+  }
+
+  @protected
+  Lyric? dco_decode_opt_box_autoadd_lyric(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_lyric(raw);
+  }
+
+  @protected
+  Pitch? dco_decode_opt_box_autoadd_pitch(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_pitch(raw);
+  }
+
+  @protected
+  StemDir? dco_decode_opt_box_autoadd_stem_dir(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_stem_dir(raw);
+  }
+
+  @protected
+  Tuplet? dco_decode_opt_box_autoadd_tuplet(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_tuplet(raw);
+  }
+
+  @protected
+  Pitch dco_decode_pitch(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return Pitch(
+      step: dco_decode_Char(arr[0]),
+      octave: dco_decode_i_32(arr[1]),
+      alter: dco_decode_i_32(arr[2]),
+    );
   }
 
   @protected
@@ -387,6 +711,74 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     return Score(
       bpm: dco_decode_u_32(arr[0]),
       measures: dco_decode_list_measure(arr[1]),
+    );
+  }
+
+  @protected
+  ScoreDocument dco_decode_score_document(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return ScoreDocument(
+      meta: dco_decode_score_meta(arr[0]),
+      staves: dco_decode_u_32(arr[1]),
+      attributes: dco_decode_attributes(arr[2]),
+      measures: dco_decode_list_notation_measure(arr[3]),
+    );
+  }
+
+  @protected
+  ScoreMeta dco_decode_score_meta(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return ScoreMeta(
+      title: dco_decode_opt_String(arr[0]),
+      composer: dco_decode_opt_String(arr[1]),
+    );
+  }
+
+  @protected
+  StemDir dco_decode_stem_dir(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return StemDir.values[raw as int];
+  }
+
+  @protected
+  System dco_decode_system(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return System(
+      measures: dco_decode_list_prim_u_32_strict(arr[0]),
+      staves: dco_decode_u_32(arr[1]),
+    );
+  }
+
+  @protected
+  TimeSignature dco_decode_time_signature(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return TimeSignature(
+      beats: dco_decode_u_32(arr[0]),
+      beatType: dco_decode_u_32(arr[1]),
+    );
+  }
+
+  @protected
+  Tuplet dco_decode_tuplet(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return Tuplet(
+      actual: dco_decode_u_32(arr[0]),
+      normal: dco_decode_u_32(arr[1]),
     );
   }
 
@@ -422,6 +814,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  String sse_decode_Char(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_String(deserializer);
+    return inner;
+  }
+
+  @protected
   RustStreamSink<MidiEvent> sse_decode_StreamSink_midi_event_Sse(
     SseDeserializer deserializer,
   ) {
@@ -434,6 +833,122 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var inner = sse_decode_list_prim_u_8_strict(deserializer);
     return utf8.decoder.convert(inner);
+  }
+
+  @protected
+  Attributes sse_decode_attributes(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_divisions = sse_decode_u_32(deserializer);
+    var var_clefs = sse_decode_list_clef(deserializer);
+    var var_keyFifths = sse_decode_i_32(deserializer);
+    var var_time = sse_decode_time_signature(deserializer);
+    return Attributes(
+      divisions: var_divisions,
+      clefs: var_clefs,
+      keyFifths: var_keyFifths,
+      time: var_time,
+    );
+  }
+
+  @protected
+  BeamState sse_decode_beam_state(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return BeamState.values[inner];
+  }
+
+  @protected
+  bool sse_decode_bool(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return deserializer.buffer.getUint8() != 0;
+  }
+
+  @protected
+  Lyric sse_decode_box_autoadd_lyric(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_lyric(deserializer));
+  }
+
+  @protected
+  Pitch sse_decode_box_autoadd_pitch(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_pitch(deserializer));
+  }
+
+  @protected
+  ScoreDocument sse_decode_box_autoadd_score_document(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_score_document(deserializer));
+  }
+
+  @protected
+  StemDir sse_decode_box_autoadd_stem_dir(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_stem_dir(deserializer));
+  }
+
+  @protected
+  Tuplet sse_decode_box_autoadd_tuplet(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_tuplet(deserializer));
+  }
+
+  @protected
+  Clef sse_decode_clef(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_staff = sse_decode_u_32(deserializer);
+    var var_sign = sse_decode_Char(deserializer);
+    var var_line = sse_decode_i_32(deserializer);
+    return Clef(staff: var_staff, sign: var_sign, line: var_line);
+  }
+
+  @protected
+  Direction sse_decode_direction(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_staff = sse_decode_u_32(deserializer);
+    var var_positionDivisions = sse_decode_u_32(deserializer);
+    var var_kind = sse_decode_direction_kind(deserializer);
+    return Direction(
+      staff: var_staff,
+      positionDivisions: var_positionDivisions,
+      kind: var_kind,
+    );
+  }
+
+  @protected
+  DirectionKind sse_decode_direction_kind(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var tag_ = sse_decode_i_32(deserializer);
+    switch (tag_) {
+      case 0:
+        var var_field0 = sse_decode_String(deserializer);
+        return DirectionKind_Words(var_field0);
+      case 1:
+        var var_field0 = sse_decode_String(deserializer);
+        return DirectionKind_Dynamics(var_field0);
+      case 2:
+        var var_crescendo = sse_decode_bool(deserializer);
+        var var_stop = sse_decode_bool(deserializer);
+        return DirectionKind_Wedge(crescendo: var_crescendo, stop: var_stop);
+      case 3:
+        var var_beatUnit = sse_decode_String(deserializer);
+        var var_perMinute = sse_decode_u_32(deserializer);
+        return DirectionKind_Metronome(
+          beatUnit: var_beatUnit,
+          perMinute: var_perMinute,
+        );
+      default:
+        throw UnimplementedError('');
+    }
+  }
+
+  @protected
+  double sse_decode_f_64(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return deserializer.buffer.getFloat64();
   }
 
   @protected
@@ -455,6 +970,42 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<BeamState> sse_decode_list_beam_state(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <BeamState>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_beam_state(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<Clef> sse_decode_list_clef(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <Clef>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_clef(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<Direction> sse_decode_list_direction(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <Direction>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_direction(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   List<Measure> sse_decode_list_measure(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -462,6 +1013,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var ans_ = <Measure>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_measure(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<NotationMeasure> sse_decode_list_notation_measure(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <NotationMeasure>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_notation_measure(deserializer));
     }
     return ans_;
   }
@@ -479,10 +1044,56 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<NoteEvent> sse_decode_list_note_event(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <NoteEvent>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_note_event(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  Uint32List sse_decode_list_prim_u_32_strict(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var len_ = sse_decode_i_32(deserializer);
+    return deserializer.buffer.getUint32List(len_);
+  }
+
+  @protected
+  List<int> sse_decode_list_prim_u_8_loose(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var len_ = sse_decode_i_32(deserializer);
+    return deserializer.buffer.getUint8List(len_);
+  }
+
+  @protected
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var len_ = sse_decode_i_32(deserializer);
     return deserializer.buffer.getUint8List(len_);
+  }
+
+  @protected
+  List<System> sse_decode_list_system(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <System>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_system(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  Lyric sse_decode_lyric(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_syllabic = sse_decode_opt_String(deserializer);
+    var var_text = sse_decode_String(deserializer);
+    return Lyric(syllabic: var_syllabic, text: var_text);
   }
 
   @protected
@@ -516,6 +1127,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  NotationMeasure sse_decode_notation_measure(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_index = sse_decode_u_32(deserializer);
+    var var_notes = sse_decode_list_note_event(deserializer);
+    var var_directions = sse_decode_list_direction(deserializer);
+    var var_minWidth = sse_decode_f_64(deserializer);
+    return NotationMeasure(
+      index: var_index,
+      notes: var_notes,
+      directions: var_directions,
+      minWidth: var_minWidth,
+    );
+  }
+
+  @protected
   Note sse_decode_note(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_pitch = sse_decode_u_8(deserializer);
@@ -525,6 +1151,45 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       pitch: var_pitch,
       startMs: var_startMs,
       durationMs: var_durationMs,
+    );
+  }
+
+  @protected
+  NoteEvent sse_decode_note_event(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_staff = sse_decode_u_32(deserializer);
+    var var_voice = sse_decode_u_32(deserializer);
+    var var_positionDivisions = sse_decode_u_32(deserializer);
+    var var_pitch = sse_decode_opt_box_autoadd_pitch(deserializer);
+    var var_isRest = sse_decode_bool(deserializer);
+    var var_isChord = sse_decode_bool(deserializer);
+    var var_durationDivisions = sse_decode_u_32(deserializer);
+    var var_noteType = sse_decode_opt_String(deserializer);
+    var var_dots = sse_decode_u_32(deserializer);
+    var var_accidental = sse_decode_opt_String(deserializer);
+    var var_tieStart = sse_decode_bool(deserializer);
+    var var_tieStop = sse_decode_bool(deserializer);
+    var var_tuplet = sse_decode_opt_box_autoadd_tuplet(deserializer);
+    var var_stem = sse_decode_opt_box_autoadd_stem_dir(deserializer);
+    var var_beams = sse_decode_list_beam_state(deserializer);
+    var var_lyric = sse_decode_opt_box_autoadd_lyric(deserializer);
+    return NoteEvent(
+      staff: var_staff,
+      voice: var_voice,
+      positionDivisions: var_positionDivisions,
+      pitch: var_pitch,
+      isRest: var_isRest,
+      isChord: var_isChord,
+      durationDivisions: var_durationDivisions,
+      noteType: var_noteType,
+      dots: var_dots,
+      accidental: var_accidental,
+      tieStart: var_tieStart,
+      tieStop: var_tieStop,
+      tuplet: var_tuplet,
+      stem: var_stem,
+      beams: var_beams,
+      lyric: var_lyric,
     );
   }
 
@@ -540,11 +1205,118 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  Lyric? sse_decode_opt_box_autoadd_lyric(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_lyric(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  Pitch? sse_decode_opt_box_autoadd_pitch(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_pitch(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  StemDir? sse_decode_opt_box_autoadd_stem_dir(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_stem_dir(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  Tuplet? sse_decode_opt_box_autoadd_tuplet(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_tuplet(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  Pitch sse_decode_pitch(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_step = sse_decode_Char(deserializer);
+    var var_octave = sse_decode_i_32(deserializer);
+    var var_alter = sse_decode_i_32(deserializer);
+    return Pitch(step: var_step, octave: var_octave, alter: var_alter);
+  }
+
+  @protected
   Score sse_decode_score(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_bpm = sse_decode_u_32(deserializer);
     var var_measures = sse_decode_list_measure(deserializer);
     return Score(bpm: var_bpm, measures: var_measures);
+  }
+
+  @protected
+  ScoreDocument sse_decode_score_document(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_meta = sse_decode_score_meta(deserializer);
+    var var_staves = sse_decode_u_32(deserializer);
+    var var_attributes = sse_decode_attributes(deserializer);
+    var var_measures = sse_decode_list_notation_measure(deserializer);
+    return ScoreDocument(
+      meta: var_meta,
+      staves: var_staves,
+      attributes: var_attributes,
+      measures: var_measures,
+    );
+  }
+
+  @protected
+  ScoreMeta sse_decode_score_meta(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_title = sse_decode_opt_String(deserializer);
+    var var_composer = sse_decode_opt_String(deserializer);
+    return ScoreMeta(title: var_title, composer: var_composer);
+  }
+
+  @protected
+  StemDir sse_decode_stem_dir(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return StemDir.values[inner];
+  }
+
+  @protected
+  System sse_decode_system(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_measures = sse_decode_list_prim_u_32_strict(deserializer);
+    var var_staves = sse_decode_u_32(deserializer);
+    return System(measures: var_measures, staves: var_staves);
+  }
+
+  @protected
+  TimeSignature sse_decode_time_signature(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_beats = sse_decode_u_32(deserializer);
+    var var_beatType = sse_decode_u_32(deserializer);
+    return TimeSignature(beats: var_beats, beatType: var_beatType);
+  }
+
+  @protected
+  Tuplet sse_decode_tuplet(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_actual = sse_decode_u_32(deserializer);
+    var var_normal = sse_decode_u_32(deserializer);
+    return Tuplet(actual: var_actual, normal: var_normal);
   }
 
   @protected
@@ -571,18 +1343,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  bool sse_decode_bool(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return deserializer.buffer.getUint8() != 0;
-  }
-
-  @protected
   void sse_encode_AnyhowException(
     AnyhowException self,
     SseSerializer serializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.message, serializer);
+  }
+
+  @protected
+  void sse_encode_Char(String self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self, serializer);
   }
 
   @protected
@@ -609,6 +1381,106 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_attributes(Attributes self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_32(self.divisions, serializer);
+    sse_encode_list_clef(self.clefs, serializer);
+    sse_encode_i_32(self.keyFifths, serializer);
+    sse_encode_time_signature(self.time, serializer);
+  }
+
+  @protected
+  void sse_encode_beam_state(BeamState self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
+  void sse_encode_bool(bool self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    serializer.buffer.putUint8(self ? 1 : 0);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_lyric(Lyric self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_lyric(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_pitch(Pitch self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_pitch(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_score_document(
+    ScoreDocument self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_score_document(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_stem_dir(StemDir self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_stem_dir(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_tuplet(Tuplet self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_tuplet(self, serializer);
+  }
+
+  @protected
+  void sse_encode_clef(Clef self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_32(self.staff, serializer);
+    sse_encode_Char(self.sign, serializer);
+    sse_encode_i_32(self.line, serializer);
+  }
+
+  @protected
+  void sse_encode_direction(Direction self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_32(self.staff, serializer);
+    sse_encode_u_32(self.positionDivisions, serializer);
+    sse_encode_direction_kind(self.kind, serializer);
+  }
+
+  @protected
+  void sse_encode_direction_kind(DirectionKind self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    switch (self) {
+      case DirectionKind_Words(field0: final field0):
+        sse_encode_i_32(0, serializer);
+        sse_encode_String(field0, serializer);
+      case DirectionKind_Dynamics(field0: final field0):
+        sse_encode_i_32(1, serializer);
+        sse_encode_String(field0, serializer);
+      case DirectionKind_Wedge(crescendo: final crescendo, stop: final stop):
+        sse_encode_i_32(2, serializer);
+        sse_encode_bool(crescendo, serializer);
+        sse_encode_bool(stop, serializer);
+      case DirectionKind_Metronome(
+        beatUnit: final beatUnit,
+        perMinute: final perMinute,
+      ):
+        sse_encode_i_32(3, serializer);
+        sse_encode_String(beatUnit, serializer);
+        sse_encode_u_32(perMinute, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_f_64(double self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    serializer.buffer.putFloat64(self);
+  }
+
+  @protected
   void sse_encode_i_32(int self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putInt32(self);
@@ -624,11 +1496,56 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_beam_state(
+    List<BeamState> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_beam_state(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_clef(List<Clef> self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_clef(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_direction(
+    List<Direction> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_direction(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_list_measure(List<Measure> self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
       sse_encode_measure(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_notation_measure(
+    List<NotationMeasure> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_notation_measure(item, serializer);
     }
   }
 
@@ -642,6 +1559,40 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_note_event(
+    List<NoteEvent> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_note_event(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_prim_u_32_strict(
+    Uint32List self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    serializer.buffer.putUint32List(self);
+  }
+
+  @protected
+  void sse_encode_list_prim_u_8_loose(
+    List<int> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    serializer.buffer.putUint8List(
+      self is Uint8List ? self : Uint8List.fromList(self),
+    );
+  }
+
+  @protected
   void sse_encode_list_prim_u_8_strict(
     Uint8List self,
     SseSerializer serializer,
@@ -649,6 +1600,22 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.length, serializer);
     serializer.buffer.putUint8List(self);
+  }
+
+  @protected
+  void sse_encode_list_system(List<System> self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_system(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_lyric(Lyric self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_opt_String(self.syllabic, serializer);
+    sse_encode_String(self.text, serializer);
   }
 
   @protected
@@ -677,11 +1644,44 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_notation_measure(
+    NotationMeasure self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_32(self.index, serializer);
+    sse_encode_list_note_event(self.notes, serializer);
+    sse_encode_list_direction(self.directions, serializer);
+    sse_encode_f_64(self.minWidth, serializer);
+  }
+
+  @protected
   void sse_encode_note(Note self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_u_8(self.pitch, serializer);
     sse_encode_u_64(self.startMs, serializer);
     sse_encode_u_64(self.durationMs, serializer);
+  }
+
+  @protected
+  void sse_encode_note_event(NoteEvent self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_32(self.staff, serializer);
+    sse_encode_u_32(self.voice, serializer);
+    sse_encode_u_32(self.positionDivisions, serializer);
+    sse_encode_opt_box_autoadd_pitch(self.pitch, serializer);
+    sse_encode_bool(self.isRest, serializer);
+    sse_encode_bool(self.isChord, serializer);
+    sse_encode_u_32(self.durationDivisions, serializer);
+    sse_encode_opt_String(self.noteType, serializer);
+    sse_encode_u_32(self.dots, serializer);
+    sse_encode_opt_String(self.accidental, serializer);
+    sse_encode_bool(self.tieStart, serializer);
+    sse_encode_bool(self.tieStop, serializer);
+    sse_encode_opt_box_autoadd_tuplet(self.tuplet, serializer);
+    sse_encode_opt_box_autoadd_stem_dir(self.stem, serializer);
+    sse_encode_list_beam_state(self.beams, serializer);
+    sse_encode_opt_box_autoadd_lyric(self.lyric, serializer);
   }
 
   @protected
@@ -695,10 +1695,107 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_opt_box_autoadd_lyric(Lyric? self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_lyric(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_pitch(Pitch? self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_pitch(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_stem_dir(
+    StemDir? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_stem_dir(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_tuplet(
+    Tuplet? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_tuplet(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_pitch(Pitch self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_Char(self.step, serializer);
+    sse_encode_i_32(self.octave, serializer);
+    sse_encode_i_32(self.alter, serializer);
+  }
+
+  @protected
   void sse_encode_score(Score self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_u_32(self.bpm, serializer);
     sse_encode_list_measure(self.measures, serializer);
+  }
+
+  @protected
+  void sse_encode_score_document(ScoreDocument self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_score_meta(self.meta, serializer);
+    sse_encode_u_32(self.staves, serializer);
+    sse_encode_attributes(self.attributes, serializer);
+    sse_encode_list_notation_measure(self.measures, serializer);
+  }
+
+  @protected
+  void sse_encode_score_meta(ScoreMeta self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_opt_String(self.title, serializer);
+    sse_encode_opt_String(self.composer, serializer);
+  }
+
+  @protected
+  void sse_encode_stem_dir(StemDir self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
+  void sse_encode_system(System self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_list_prim_u_32_strict(self.measures, serializer);
+    sse_encode_u_32(self.staves, serializer);
+  }
+
+  @protected
+  void sse_encode_time_signature(TimeSignature self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_32(self.beats, serializer);
+    sse_encode_u_32(self.beatType, serializer);
+  }
+
+  @protected
+  void sse_encode_tuplet(Tuplet self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_32(self.actual, serializer);
+    sse_encode_u_32(self.normal, serializer);
   }
 
   @protected
@@ -722,11 +1819,5 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   void sse_encode_unit(void self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-  }
-
-  @protected
-  void sse_encode_bool(bool self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    serializer.buffer.putUint8(self ? 1 : 0);
   }
 }

@@ -289,14 +289,49 @@ SHALL surface an error/empty state without crashing.
 The Flutter layer SHALL store the parsed-and-laid-out notation in immutable
 state and expose it to a Partition-mode `CustomPainter`, which SHALL draw the
 computed systems and, for a piano part, both staves (treble + bass) of each
-system with their measures and notes. Updating the loaded document SHALL update
-the state so the painter re-renders the new measures.
+system with their measures and notes. The Partition view SHALL be presented as a
+render mode of the existing player screen, alongside the time-based modes.
+Updating the loaded document SHALL update the state so the painter re-renders the
+new measures.
 
 #### Scenario: Painter renders both staves
 - **WHEN** notation state holds a laid-out two-staff score document
 - **THEN** the Partition painter reads its systems and renders treble and bass
   staves together
 
+#### Scenario: Partition is a mode of the player screen
+- **WHEN** the player screen displays a selected score and the user chooses the
+  Partition render mode
+- **THEN** the engraved notation is shown within the player, while the on-screen
+  keyboard and transport remain present
+
 #### Scenario: New document re-renders
 - **WHEN** a new MusicXML document is loaded into the notation state
 - **THEN** the state updates and the painter renders the new measures
+
+### Requirement: Derived Playback Timing
+
+The system SHALL derive a visual playback timing from a parsed score so the
+existing time-based render modes (waterfall and scrolling staff) can present the
+selected piece. For each non-rest note it SHALL compute a MIDI pitch from the
+note's step, octave and alteration, and a start time and duration in
+milliseconds from the note's running division position and a tempo (taken from a
+`metronome` direction when present, otherwise a default). Chord members SHALL
+share the onset of the note they attach to; rests SHALL NOT produce a played
+note. This derivation is visual only — no audio synthesis or MIDI output is
+produced.
+
+#### Scenario: Pitch derived from step, octave and alteration
+- **WHEN** a note declares step C, octave 4, alteration 0
+- **THEN** the derived note has MIDI pitch 60 (middle C); an alteration of +1
+  yields 61
+
+#### Scenario: Timing scales with divisions and tempo
+- **WHEN** two quarter notes follow one another at a known divisions value and
+  tempo
+- **THEN** the second note's start time equals the first note's start plus one
+  quarter-note duration in milliseconds
+
+#### Scenario: Rests are not played
+- **WHEN** the measure contains a rest between two notes
+- **THEN** the derived timeline contains the two notes and no entry for the rest
