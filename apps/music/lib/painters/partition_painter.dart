@@ -361,7 +361,7 @@ class PartitionPainter extends CustomPainter {
       _drawDots(canvas, x, y, note.dots);
 
       // Ties (same-pitch) and slurs (phrase), connecting to a stored start.
-      final headR = Smufl.noteheadWidth * _s / 2;
+      const headR = Smufl.noteheadWidth * _s / 2;
       final tieKey =
           '${note.staff}_${note.voice}_${pitch.step}'
           '${pitch.octave}_${pitch.alter}';
@@ -464,7 +464,7 @@ class PartitionPainter extends CustomPainter {
     if (!acc.allBeamed && acc.xs.length >= 2) {
       final x0 = acc.xs.first;
       final x1 = acc.xs.last;
-      final gap = _s * 0.9;
+      const gap = _s * 0.9;
       final hook = acc.up ? _s * 0.5 : -_s * 0.5;
       final paint = Paint()
         ..color = _ink
@@ -620,7 +620,7 @@ class PartitionPainter extends CustomPainter {
 
   void _drawLedgerLines(Canvas canvas, double x, double y, double bottomLineY) {
     final topLineY = bottomLineY - _staffHeight;
-    final ext = Smufl.legerLineExtension * _s;
+    const ext = Smufl.legerLineExtension * _s;
     final half = Smufl.noteheadWidth * _s / 2 + ext;
     final paint = Paint()
       ..color = CymbraColors.onSurfaceVariant.withValues(alpha: 0.8)
