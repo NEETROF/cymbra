@@ -12,11 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:music/painters/partition_painter.dart';
+import 'package:music/src/rust/api/musicxml.dart';
 
 import '../support/notation_fakes.dart';
 import '../support/test_fonts.dart';
@@ -52,6 +54,33 @@ void main() {
     expect(a.shouldRepaint(same), isFalse);
     expect(a.shouldRepaint(other), isTrue);
   });
+
+  testWidgets('partition clef-change golden', (tester) async {
+    final document = sampleClefChangeDocument();
+    // Both measures in one system so the mid-system clef change is visible.
+    final painter = PartitionPainter(
+      document: document,
+      systems: [
+        System(measures: Uint32List.fromList([0, 1]), staves: 2),
+      ],
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: CustomPaint(
+              painter: painter,
+              size: Size(600, painter.heightFor(600)),
+            ),
+          ),
+        ),
+      ),
+    );
+    await expectLater(
+      find.byType(CustomPaint).first,
+      matchesGoldenFile('goldens/partition_clef_change.png'),
+    );
+  }, tags: 'golden');
 
   testWidgets('partition beamed golden', (tester) async {
     final document = sampleBeamedDocument();

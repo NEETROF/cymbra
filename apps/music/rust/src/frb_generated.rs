@@ -684,11 +684,13 @@ impl SseDecode for crate::api::musicxml::NotationMeasure {
         let mut var_index = <u32>::sse_decode(deserializer);
         let mut var_notes = <Vec<crate::api::musicxml::NoteEvent>>::sse_decode(deserializer);
         let mut var_directions = <Vec<crate::api::musicxml::Direction>>::sse_decode(deserializer);
+        let mut var_clefs = <Vec<crate::api::musicxml::Clef>>::sse_decode(deserializer);
         let mut var_minWidth = <f64>::sse_decode(deserializer);
         return crate::api::musicxml::NotationMeasure {
             index: var_index,
             notes: var_notes,
             directions: var_directions,
+            clefs: var_clefs,
             min_width: var_minWidth,
         };
     }
@@ -1176,6 +1178,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::musicxml::NotationMeasure {
             self.index.into_into_dart().into_dart(),
             self.notes.into_into_dart().into_dart(),
             self.directions.into_into_dart().into_dart(),
+            self.clefs.into_into_dart().into_dart(),
             self.min_width.into_into_dart().into_dart(),
         ]
         .into_dart()
@@ -1685,6 +1688,7 @@ impl SseEncode for crate::api::musicxml::NotationMeasure {
         <u32>::sse_encode(self.index, serializer);
         <Vec<crate::api::musicxml::NoteEvent>>::sse_encode(self.notes, serializer);
         <Vec<crate::api::musicxml::Direction>>::sse_encode(self.directions, serializer);
+        <Vec<crate::api::musicxml::Clef>>::sse_encode(self.clefs, serializer);
         <f64>::sse_encode(self.min_width, serializer);
     }
 }

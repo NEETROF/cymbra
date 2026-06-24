@@ -132,6 +132,7 @@ ScoreDocument sampleBeamedDocument() {
     measures: [
       NotationMeasure(
         index: 0,
+        clefs: const [],
         minWidth: 200,
         directions: const [],
         notes: [
@@ -146,6 +147,57 @@ ScoreDocument sampleBeamedDocument() {
     ],
   );
 }
+
+/// A grand-staff document whose left hand (staff 2) starts in treble clef and
+/// switches to bass clef in the second measure (as in Debussy's Arabesque),
+/// plus two overlapping word directions at the same beat — to eyeball the clef
+/// change and the word de-overlap.
+ScoreDocument sampleClefChangeDocument() => ScoreDocument(
+  meta: const ScoreMeta(title: 'ClefChange', composer: 'Tester'),
+  staves: 2,
+  attributes: const Attributes(
+    divisions: 4,
+    clefs: [
+      Clef(staff: 1, sign: 'G', line: 2),
+      Clef(staff: 2, sign: 'G', line: 2), // left hand starts in treble
+    ],
+    keyFifths: 0,
+    time: TimeSignature(beats: 4, beatType: 4),
+  ),
+  measures: [
+    NotationMeasure(
+      index: 0,
+      clefs: const [],
+      minWidth: 140,
+      directions: const [
+        Direction(
+          staff: 1,
+          positionDivisions: 0,
+          kind: DirectionKind.words('stringendo'),
+        ),
+        Direction(
+          staff: 1,
+          positionDivisions: 0,
+          kind: DirectionKind.words('cresc.'),
+        ),
+      ],
+      notes: [
+        noteEvent(staff: 1, pitch: const Pitch(step: 'G', octave: 4, alter: 0)),
+        noteEvent(staff: 2, pitch: const Pitch(step: 'B', octave: 3, alter: 0)),
+      ],
+    ),
+    NotationMeasure(
+      index: 1,
+      clefs: const [Clef(staff: 2, sign: 'F', line: 4)], // → bass clef
+      minWidth: 140,
+      directions: const [],
+      notes: [
+        noteEvent(staff: 1, pitch: const Pitch(step: 'A', octave: 4, alter: 0)),
+        noteEvent(staff: 2, pitch: const Pitch(step: 'C', octave: 3, alter: 0)),
+      ],
+    ),
+  ],
+);
 
 /// A small two-staff (grand-staff) document: one 4/4 measure with a treble note,
 /// a bass note, a `words` direction, and a `dynamics` direction.
@@ -164,6 +216,7 @@ ScoreDocument sampleGrandStaffDocument() => ScoreDocument(
   measures: [
     NotationMeasure(
       index: 0,
+      clefs: const [],
       minWidth: 120,
       directions: const [
         Direction(

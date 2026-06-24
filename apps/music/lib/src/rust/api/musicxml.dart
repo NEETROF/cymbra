@@ -161,6 +161,11 @@ class NotationMeasure {
   final List<NoteEvent> notes;
   final List<Direction> directions;
 
+  /// Clef changes declared in this measure (empty when unchanged), so the
+  /// renderer can switch clefs mid-piece (e.g. a left hand that starts in
+  /// treble and moves to bass).
+  final List<Clef> clefs;
+
   /// Minimum engraving width (pixels) from the non-linear spacing function.
   final double minWidth;
 
@@ -168,12 +173,17 @@ class NotationMeasure {
     required this.index,
     required this.notes,
     required this.directions,
+    required this.clefs,
     required this.minWidth,
   });
 
   @override
   int get hashCode =>
-      index.hashCode ^ notes.hashCode ^ directions.hashCode ^ minWidth.hashCode;
+      index.hashCode ^
+      notes.hashCode ^
+      directions.hashCode ^
+      clefs.hashCode ^
+      minWidth.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -183,6 +193,7 @@ class NotationMeasure {
           index == other.index &&
           notes == other.notes &&
           directions == other.directions &&
+          clefs == other.clefs &&
           minWidth == other.minWidth;
 }
 

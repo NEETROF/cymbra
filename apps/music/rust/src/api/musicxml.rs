@@ -84,6 +84,10 @@ pub struct NotationMeasure {
     pub index: u32,
     pub notes: Vec<NoteEvent>,
     pub directions: Vec<Direction>,
+    /// Clef changes declared in this measure (empty when unchanged), so the
+    /// renderer can switch clefs mid-piece (e.g. a left hand that starts in
+    /// treble and moves to bass).
+    pub clefs: Vec<Clef>,
     /// Minimum engraving width (pixels) from the non-linear spacing function.
     pub min_width: f64,
 }

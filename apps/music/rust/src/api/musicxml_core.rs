@@ -188,6 +188,7 @@ struct Parser {
     last_onset: u32,
     notes: Vec<NoteEvent>,
     directions: Vec<Direction>,
+    measure_clefs: Vec<Clef>,
     measures: Vec<NotationMeasure>,
     // per-element builders
     note: Option<NoteEvent>,
@@ -229,6 +230,7 @@ impl Parser {
             last_onset: 0,
             notes: Vec::new(),
             directions: Vec::new(),
+            measure_clefs: Vec::new(),
             measures: Vec::new(),
             note: None,
             pitch: None,
@@ -435,9 +437,19 @@ impl Parser {
                     sign: self.clef_sign,
                     line: self.clef_line,
                 };
-                if let Some(existing) = self.clefs.iter_mut().find(|c| c.staff == clef.staff) {
-                    *existing = clef;
+                // Record this measure's clef change (replace by staff).
+                if let Some(existing) = self
+                    .measure_clefs
+                    .iter_mut()
+                    .find(|c| c.staff == clef.staff)
+                {
+                    *existing = clef.clone();
                 } else {
+                    self.measure_clefs.push(clef.clone());
+                }
+                // The document's `attributes.clefs` keeps the *initial* clef per
+                // staff (first occurrence); later changes live on the measure.
+                if !self.clefs.iter().any(|c| c.staff == clef.staff) {
                     self.clefs.push(clef);
                 }
             }
@@ -622,6 +634,7 @@ impl Parser {
     fn finish_measure(&mut self) {
         let notes = std::mem::take(&mut self.notes);
         let directions = std::mem::take(&mut self.directions);
+        let clefs = std::mem::take(&mut self.measure_clefs);
         // Only the first part contributes to the (single-part) document.
         if self.current_part <= 1 {
             let width = min_width(&notes, self.divisions);
@@ -629,6 +642,7 @@ impl Parser {
                 index: self.measure_index,
                 notes,
                 directions,
+                clefs,
                 min_width: width,
             });
             self.measure_index += 1;
@@ -830,6 +844,42 @@ mod tests {
         let bass = doc.attributes.clefs.iter().find(|c| c.staff == 2).unwrap();
         assert_eq!((treble.sign, treble.line), ('G', 2));
         assert_eq!((bass.sign, bass.line), ('F', 4));
+    }
+
+    #[test]
+    fn clef_change_keeps_initial_and_records_per_measure() {
+        // Staff 2 starts in treble (G) then switches to bass (F) in measure 2,
+        // as in Debussy's Arabesque left hand.
+        let xml = r#"<score-partwise><part-list><score-part id="P1"/></part-list>
+        <part id="P1">
+          <measure number="1">
+            <attributes><divisions>4</divisions><staves>2</staves>
+              <clef number="1"><sign>G</sign><line>2</line></clef>
+              <clef number="2"><sign>G</sign><line>2</line></clef>
+            </attributes>
+            <note><pitch><step>C</step><octave>4</octave></pitch><duration>4</duration><staff>2</staff></note>
+          </measure>
+          <measure number="2">
+            <attributes>
+              <clef number="2"><sign>F</sign><line>4</line></clef>
+            </attributes>
+            <note><pitch><step>C</step><octave>3</octave></pitch><duration>4</duration><staff>2</staff></note>
+          </measure>
+        </part></score-partwise>"#;
+        let doc = parse_ok(xml);
+        // Initial clef for staff 2 is treble.
+        let init2 = doc.attributes.clefs.iter().find(|c| c.staff == 2).unwrap();
+        assert_eq!((init2.sign, init2.line), ('G', 2));
+        // Measure 1 declares both clefs; measure 2 changes staff 2 to bass.
+        assert!(
+            doc.measures[0]
+                .clefs
+                .iter()
+                .any(|c| c.staff == 2 && c.sign == 'G')
+        );
+        let m2 = doc.measures[1].clefs.iter().find(|c| c.staff == 2).unwrap();
+        assert_eq!((m2.sign, m2.line), ('F', 4));
+        assert!(doc.measures[1].clefs.iter().all(|c| c.staff != 1));
     }
 
     #[test]
@@ -1163,6 +1213,7 @@ mod tests {
                     index: i as u32,
                     notes: Vec::new(),
                     directions: Vec::new(),
+                    clefs: Vec::new(),
                     min_width: w,
                 })
                 .collect(),

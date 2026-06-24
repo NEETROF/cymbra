@@ -36,6 +36,7 @@ ScoreDocument _docWith({
   measures: [
     NotationMeasure(
       index: 0,
+      clefs: const [],
       minWidth: 100,
       directions: directions,
       notes: notes,
@@ -167,6 +168,7 @@ void main() {
           measures: [
             NotationMeasure(
               index: 0,
+              clefs: const [],
               minWidth: 100,
               directions: const [],
               notes: [
@@ -179,6 +181,7 @@ void main() {
             ),
             NotationMeasure(
               index: 1,
+              clefs: const [],
               minWidth: 100,
               directions: const [],
               notes: [

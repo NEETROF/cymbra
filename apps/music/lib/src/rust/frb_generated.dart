@@ -610,13 +610,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   NotationMeasure dco_decode_notation_measure(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 4)
-      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
     return NotationMeasure(
       index: dco_decode_u_32(arr[0]),
       notes: dco_decode_list_note_event(arr[1]),
       directions: dco_decode_list_direction(arr[2]),
-      minWidth: dco_decode_f_64(arr[3]),
+      clefs: dco_decode_list_clef(arr[3]),
+      minWidth: dco_decode_f_64(arr[4]),
     );
   }
 
@@ -1132,11 +1133,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_index = sse_decode_u_32(deserializer);
     var var_notes = sse_decode_list_note_event(deserializer);
     var var_directions = sse_decode_list_direction(deserializer);
+    var var_clefs = sse_decode_list_clef(deserializer);
     var var_minWidth = sse_decode_f_64(deserializer);
     return NotationMeasure(
       index: var_index,
       notes: var_notes,
       directions: var_directions,
+      clefs: var_clefs,
       minWidth: var_minWidth,
     );
   }
@@ -1652,6 +1655,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_u_32(self.index, serializer);
     sse_encode_list_note_event(self.notes, serializer);
     sse_encode_list_direction(self.directions, serializer);
+    sse_encode_list_clef(self.clefs, serializer);
     sse_encode_f_64(self.minWidth, serializer);
   }
 
