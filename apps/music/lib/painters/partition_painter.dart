@@ -126,6 +126,7 @@ class PartitionPainter extends CustomPainter {
     final systemBottom = _twoStaff ? bassBottom : trebleBottom;
     final headerClefs = clefAt[system.measures.first];
     final words = _TextLanes(_s * 1.3);
+    final arcs = _Arcs();
 
     final linePaint = Paint()
       ..color = CymbraColors.onSurfaceVariant.withValues(alpha: 0.7)
@@ -227,6 +228,7 @@ class PartitionPainter extends CustomPainter {
         clefAt[idx],
         k == 0, // first measure of the system → clef already in the header
         words,
+        arcs,
       );
       x += mWidth;
     }
@@ -268,6 +270,7 @@ class PartitionPainter extends CustomPainter {
     Map<int, Clef> clefs,
     bool isSystemFirst,
     _TextLanes words,
+    _Arcs arcs,
   ) {
     // A mid-system clef change is drawn at the measure start and reserves space.
     final showClefChange = !isSystemFirst && measure.clefs.isNotEmpty;
@@ -356,6 +359,23 @@ class PartitionPainter extends CustomPainter {
         }
       }
       _drawDots(canvas, x, y, note.dots);
+
+      // Ties (same-pitch) and slurs (phrase), connecting to a stored start.
+      final headR = Smufl.noteheadWidth * _s / 2;
+      final tieKey =
+          '${note.staff}_${note.voice}_${pitch.step}'
+          '${pitch.octave}_${pitch.alter}';
+      if (note.tieStop) {
+        final start = arcs.takeTie(tieKey);
+        if (start != null) _drawArc(canvas, start, Offset(x - headR, y), false);
+      }
+      if (note.tieStart) arcs.putTie(tieKey, Offset(x + headR, y));
+      final slurKey = '${note.staff}_${note.voice}';
+      if (note.slurStop) {
+        final start = arcs.popSlur(slurKey);
+        if (start != null) _drawArc(canvas, start, Offset(x, y), true);
+      }
+      if (note.slurStart) arcs.pushSlur(slurKey, Offset(x, y));
 
       // Stem + beam grouping (chord members share the principal note's stem).
       if (_headGlyph(note) != Smufl.noteheadWhole && !note.isChord) {
@@ -452,6 +472,28 @@ class PartitionPainter extends CustomPainter {
       canvas.drawLine(Offset(x0, y), Offset(x0, y + hook), paint);
       canvas.drawLine(Offset(x1, y), Offset(x1, y + hook), paint);
     }
+  }
+
+  /// Draws a tie (short, belly down) or slur (longer, belly up) as a quadratic
+  /// arc between two note-head points.
+  void _drawArc(Canvas canvas, Offset a, Offset b, bool slur) {
+    final mid = Offset((a.dx + b.dx) / 2, (a.dy + b.dy) / 2);
+    final span = (b.dx - a.dx).abs();
+    final bulge = slur
+        ? -(span * 0.12 + _s * 1.6) // above the notes
+        : (_s * 1.0); // below the notes
+    final ctrl = Offset(mid.dx, mid.dy + bulge);
+    final path = Path()
+      ..moveTo(a.dx, a.dy)
+      ..quadraticBezierTo(ctrl.dx, ctrl.dy, b.dx, b.dy);
+    canvas.drawPath(
+      path,
+      Paint()
+        ..color = _ink
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = _s * 0.13
+        ..strokeCap = StrokeCap.round,
+    );
   }
 
   /// Y of a pitch's note head for the clef in effect on its staff.
@@ -666,6 +708,25 @@ class _Note {
   final bool up;
   final NoteEvent note;
   const _Note(this.x, this.y, this.up, this.note);
+}
+
+/// Tracks open tie/slur starts within a system so the arc can be drawn when the
+/// matching stop note is reached. Ties key on pitch (same note resumed); slurs
+/// key on staff+voice and nest as a stack.
+class _Arcs {
+  final Map<String, Offset> _ties = {};
+  final Map<String, List<Offset>> _slurs = {};
+
+  void putTie(String key, Offset start) => _ties[key] = start;
+  Offset? takeTie(String key) => _ties.remove(key);
+
+  void pushSlur(String key, Offset start) =>
+      _slurs.putIfAbsent(key, () => <Offset>[]).add(start);
+  Offset? popSlur(String key) {
+    final stack = _slurs[key];
+    if (stack == null || stack.isEmpty) return null;
+    return stack.removeLast();
+  }
 }
 
 /// Accumulates a tuplet's notes so its number/bracket can be drawn once the

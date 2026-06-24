@@ -222,6 +222,10 @@ class NoteEvent {
   final String? accidental;
   final bool tieStart;
   final bool tieStop;
+
+  /// Phrasing slur start/stop (legato arc spanning several notes).
+  final bool slurStart;
+  final bool slurStop;
   final Tuplet? tuplet;
   final StemDir? stem;
   final List<BeamState> beams;
@@ -240,6 +244,8 @@ class NoteEvent {
     this.accidental,
     required this.tieStart,
     required this.tieStop,
+    required this.slurStart,
+    required this.slurStop,
     this.tuplet,
     this.stem,
     required this.beams,
@@ -260,6 +266,8 @@ class NoteEvent {
       accidental.hashCode ^
       tieStart.hashCode ^
       tieStop.hashCode ^
+      slurStart.hashCode ^
+      slurStop.hashCode ^
       tuplet.hashCode ^
       stem.hashCode ^
       beams.hashCode ^
@@ -282,6 +290,8 @@ class NoteEvent {
           accidental == other.accidental &&
           tieStart == other.tieStart &&
           tieStop == other.tieStop &&
+          slurStart == other.slurStart &&
+          slurStop == other.slurStop &&
           tuplet == other.tuplet &&
           stem == other.stem &&
           beams == other.beams &&

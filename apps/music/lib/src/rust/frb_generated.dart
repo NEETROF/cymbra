@@ -638,8 +638,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   NoteEvent dco_decode_note_event(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 16)
-      throw Exception('unexpected arr length: expect 16 but see ${arr.length}');
+    if (arr.length != 18)
+      throw Exception('unexpected arr length: expect 18 but see ${arr.length}');
     return NoteEvent(
       staff: dco_decode_u_32(arr[0]),
       voice: dco_decode_u_32(arr[1]),
@@ -653,10 +653,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       accidental: dco_decode_opt_String(arr[9]),
       tieStart: dco_decode_bool(arr[10]),
       tieStop: dco_decode_bool(arr[11]),
-      tuplet: dco_decode_opt_box_autoadd_tuplet(arr[12]),
-      stem: dco_decode_opt_box_autoadd_stem_dir(arr[13]),
-      beams: dco_decode_list_beam_state(arr[14]),
-      lyric: dco_decode_opt_box_autoadd_lyric(arr[15]),
+      slurStart: dco_decode_bool(arr[12]),
+      slurStop: dco_decode_bool(arr[13]),
+      tuplet: dco_decode_opt_box_autoadd_tuplet(arr[14]),
+      stem: dco_decode_opt_box_autoadd_stem_dir(arr[15]),
+      beams: dco_decode_list_beam_state(arr[16]),
+      lyric: dco_decode_opt_box_autoadd_lyric(arr[17]),
     );
   }
 
@@ -1172,6 +1174,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_accidental = sse_decode_opt_String(deserializer);
     var var_tieStart = sse_decode_bool(deserializer);
     var var_tieStop = sse_decode_bool(deserializer);
+    var var_slurStart = sse_decode_bool(deserializer);
+    var var_slurStop = sse_decode_bool(deserializer);
     var var_tuplet = sse_decode_opt_box_autoadd_tuplet(deserializer);
     var var_stem = sse_decode_opt_box_autoadd_stem_dir(deserializer);
     var var_beams = sse_decode_list_beam_state(deserializer);
@@ -1189,6 +1193,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       accidental: var_accidental,
       tieStart: var_tieStart,
       tieStop: var_tieStop,
+      slurStart: var_slurStart,
+      slurStop: var_slurStop,
       tuplet: var_tuplet,
       stem: var_stem,
       beams: var_beams,
@@ -1682,6 +1688,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_opt_String(self.accidental, serializer);
     sse_encode_bool(self.tieStart, serializer);
     sse_encode_bool(self.tieStop, serializer);
+    sse_encode_bool(self.slurStart, serializer);
+    sse_encode_bool(self.slurStop, serializer);
     sse_encode_opt_box_autoadd_tuplet(self.tuplet, serializer);
     sse_encode_opt_box_autoadd_stem_dir(self.stem, serializer);
     sse_encode_list_beam_state(self.beams, serializer);

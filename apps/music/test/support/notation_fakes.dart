@@ -74,6 +74,10 @@ NoteEvent noteEvent({
   String? accidental,
   Lyric? lyric,
   StemDir? stem,
+  bool tieStart = false,
+  bool tieStop = false,
+  bool slurStart = false,
+  bool slurStop = false,
 }) => NoteEvent(
   staff: staff,
   voice: voice,
@@ -85,12 +89,61 @@ NoteEvent noteEvent({
   noteType: noteType,
   dots: dots,
   accidental: accidental,
-  tieStart: false,
-  tieStop: false,
+  tieStart: tieStart,
+  tieStop: tieStop,
+  slurStart: slurStart,
+  slurStop: slurStop,
   tuplet: null,
   stem: stem,
   beams: const [],
   lyric: lyric,
+);
+
+/// A treble document with a phrase slur over four notes and a tie between the
+/// last two (same pitch) — to eyeball tie/slur arcs.
+ScoreDocument sampleTieSlurDocument() => ScoreDocument(
+  meta: const ScoreMeta(title: 'TieSlur', composer: 'Tester'),
+  staves: 1,
+  attributes: const Attributes(
+    divisions: 4,
+    clefs: [Clef(staff: 1, sign: 'G', line: 2)],
+    keyFifths: 0,
+    time: TimeSignature(beats: 4, beatType: 4),
+  ),
+  measures: [
+    NotationMeasure(
+      index: 0,
+      clefs: const [],
+      minWidth: 200,
+      directions: const [],
+      notes: [
+        noteEvent(
+          positionDivisions: 0,
+          pitch: const Pitch(step: 'C', octave: 5, alter: 0),
+          stem: StemDir.down,
+          slurStart: true,
+        ),
+        noteEvent(
+          positionDivisions: 4,
+          pitch: const Pitch(step: 'D', octave: 5, alter: 0),
+          stem: StemDir.down,
+        ),
+        noteEvent(
+          positionDivisions: 8,
+          pitch: const Pitch(step: 'E', octave: 5, alter: 0),
+          stem: StemDir.down,
+          tieStart: true,
+        ),
+        noteEvent(
+          positionDivisions: 12,
+          pitch: const Pitch(step: 'E', octave: 5, alter: 0),
+          stem: StemDir.down,
+          tieStop: true,
+          slurStop: true,
+        ),
+      ],
+    ),
+  ],
 );
 
 /// A treble-only document with a beamed run of eighth notes that rises then
@@ -115,6 +168,8 @@ ScoreDocument sampleBeamedDocument() {
     accidental: null,
     tieStart: false,
     tieStop: false,
+    slurStart: false,
+    slurStop: false,
     tuplet: const Tuplet(actual: 3, normal: 2), // two triplets → "3" markers
     stem: StemDir.up,
     beams: beams ?? const [],

@@ -113,6 +113,9 @@ pub struct NoteEvent {
     pub accidental: Option<String>,
     pub tie_start: bool,
     pub tie_stop: bool,
+    /// Phrasing slur start/stop (legato arc spanning several notes).
+    pub slur_start: bool,
+    pub slur_stop: bool,
     pub tuplet: Option<Tuplet>,
     pub stem: Option<StemDir>,
     pub beams: Vec<BeamState>,

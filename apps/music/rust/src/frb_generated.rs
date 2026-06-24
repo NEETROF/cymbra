@@ -725,6 +725,8 @@ impl SseDecode for crate::api::musicxml::NoteEvent {
         let mut var_accidental = <Option<String>>::sse_decode(deserializer);
         let mut var_tieStart = <bool>::sse_decode(deserializer);
         let mut var_tieStop = <bool>::sse_decode(deserializer);
+        let mut var_slurStart = <bool>::sse_decode(deserializer);
+        let mut var_slurStop = <bool>::sse_decode(deserializer);
         let mut var_tuplet = <Option<crate::api::musicxml::Tuplet>>::sse_decode(deserializer);
         let mut var_stem = <Option<crate::api::musicxml::StemDir>>::sse_decode(deserializer);
         let mut var_beams = <Vec<crate::api::musicxml::BeamState>>::sse_decode(deserializer);
@@ -742,6 +744,8 @@ impl SseDecode for crate::api::musicxml::NoteEvent {
             accidental: var_accidental,
             tie_start: var_tieStart,
             tie_stop: var_tieStop,
+            slur_start: var_slurStart,
+            slur_stop: var_slurStop,
             tuplet: var_tuplet,
             stem: var_stem,
             beams: var_beams,
@@ -1228,6 +1232,8 @@ impl flutter_rust_bridge::IntoDart for crate::api::musicxml::NoteEvent {
             self.accidental.into_into_dart().into_dart(),
             self.tie_start.into_into_dart().into_dart(),
             self.tie_stop.into_into_dart().into_dart(),
+            self.slur_start.into_into_dart().into_dart(),
+            self.slur_stop.into_into_dart().into_dart(),
             self.tuplet.into_into_dart().into_dart(),
             self.stem.into_into_dart().into_dart(),
             self.beams.into_into_dart().into_dart(),
@@ -1717,6 +1723,8 @@ impl SseEncode for crate::api::musicxml::NoteEvent {
         <Option<String>>::sse_encode(self.accidental, serializer);
         <bool>::sse_encode(self.tie_start, serializer);
         <bool>::sse_encode(self.tie_stop, serializer);
+        <bool>::sse_encode(self.slur_start, serializer);
+        <bool>::sse_encode(self.slur_stop, serializer);
         <Option<crate::api::musicxml::Tuplet>>::sse_encode(self.tuplet, serializer);
         <Option<crate::api::musicxml::StemDir>>::sse_encode(self.stem, serializer);
         <Vec<crate::api::musicxml::BeamState>>::sse_encode(self.beams, serializer);

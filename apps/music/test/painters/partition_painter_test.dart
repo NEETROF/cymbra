@@ -55,6 +55,30 @@ void main() {
     expect(a.shouldRepaint(other), isTrue);
   });
 
+  testWidgets('partition tie/slur golden', (tester) async {
+    final document = sampleTieSlurDocument();
+    final painter = PartitionPainter(
+      document: document,
+      systems: FakeNotationEngine().layout(document, 600),
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: CustomPaint(
+              painter: painter,
+              size: Size(600, painter.heightFor(600)),
+            ),
+          ),
+        ),
+      ),
+    );
+    await expectLater(
+      find.byType(CustomPaint).first,
+      matchesGoldenFile('goldens/partition_tie_slur.png'),
+    );
+  }, tags: 'golden');
+
   testWidgets('partition clef-change golden', (tester) async {
     final document = sampleClefChangeDocument();
     // Both measures in one system so the mid-system clef change is visible.

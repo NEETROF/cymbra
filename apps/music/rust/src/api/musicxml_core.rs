@@ -280,6 +280,8 @@ impl Parser {
                     accidental: None,
                     tie_start: false,
                     tie_stop: false,
+                    slur_start: false,
+                    slur_stop: false,
                     tuplet: None,
                     stem: None,
                     beams: Vec::new(),
@@ -306,6 +308,16 @@ impl Parser {
                     match attr(e, b"type").as_deref() {
                         Some("start") => n.tie_start = true,
                         Some("stop") => n.tie_stop = true,
+                        _ => {}
+                    }
+                }
+            }
+            // Phrasing slur (in <notations>), distinct from a tie.
+            b"slur" => {
+                if let Some(n) = self.note.as_mut() {
+                    match attr(e, b"type").as_deref() {
+                        Some("start") => n.slur_start = true,
+                        Some("stop") => n.slur_stop = true,
                         _ => {}
                     }
                 }
@@ -987,6 +999,23 @@ mod tests {
     }
 
     #[test]
+    fn slur_start_and_stop() {
+        let xml = r#"<score-partwise><part-list><score-part id="P1"/></part-list>
+        <part id="P1"><measure number="1">
+          <note><pitch><step>C</step><octave>4</octave></pitch><duration>2</duration>
+            <notations><slur type="start" number="1"/></notations></note>
+          <note><pitch><step>D</step><octave>4</octave></pitch><duration>2</duration></note>
+          <note><pitch><step>E</step><octave>4</octave></pitch><duration>2</duration>
+            <notations><slur type="stop" number="1"/></notations></note>
+        </measure></part></score-partwise>"#;
+        let doc = parse_ok(xml);
+        let m = &doc.measures[0];
+        assert!(m.notes[0].slur_start && !m.notes[0].slur_stop);
+        assert!(!m.notes[1].slur_start && !m.notes[1].slur_stop);
+        assert!(m.notes[2].slur_stop && !m.notes[2].slur_start);
+    }
+
+    #[test]
     fn triplet_ratio_captured() {
         let doc = parse_ok(GRAND);
         let t = doc.measures[0]
@@ -1153,6 +1182,8 @@ mod tests {
             accidental: None,
             tie_start: false,
             tie_stop: false,
+            slur_start: false,
+            slur_stop: false,
             tuplet: None,
             stem: None,
             beams: Vec::new(),
@@ -1180,6 +1211,8 @@ mod tests {
             accidental: None,
             tie_start: false,
             tie_stop: false,
+            slur_start: false,
+            slur_stop: false,
             tuplet: None,
             stem: None,
             beams: Vec::new(),
