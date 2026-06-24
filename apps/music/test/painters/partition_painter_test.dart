@@ -42,6 +42,29 @@ void main() {
     expect(painter.document.staves, 2);
   });
 
+  test('paints ties, slurs, tuplets and a clef change without error', () {
+    for (final document in [
+      sampleTieSlurDocument(),
+      sampleClefChangeDocument(),
+      sampleBeamedDocument(),
+    ]) {
+      final painter = PartitionPainter(
+        document: document,
+        systems: [
+          System(
+            measures: Uint32List.fromList([
+              for (var i = 0; i < document.measures.length; i++) i,
+            ]),
+            staves: document.staves,
+          ),
+        ],
+      );
+      final recorder = ui.PictureRecorder();
+      painter.paint(Canvas(recorder), const Size(600, 400));
+      recorder.endRecording();
+    }
+  });
+
   test('shouldRepaint reflects document/systems changes', () {
     final doc = sampleGrandStaffDocument();
     final systems = FakeNotationEngine().layout(doc, 600);
