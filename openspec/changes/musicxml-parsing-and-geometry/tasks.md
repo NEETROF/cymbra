@@ -175,3 +175,27 @@
   beamed-group golden to verify beaming
 - [x] 12.6 Re-run gates (analyze, format, custom_lint, coverage) and
   `openspec validate --strict`
+
+## 13. Engraving fidelity (review feedback)
+
+> Iterative fixes from comparing the rendered Arabesque against an engraved
+> edition: signatures, clef changes, tuplet/tie/slur drawing, layout density.
+
+- [x] 13.1 Draw the **key signature** (armature) on every system and the **time
+  signature** on the first, as SMuFL glyphs, in both Partition and Staff modes
+- [x] 13.2 **Clef changes**: keep the initial clef per staff and record
+  per-measure clef changes on `NotationMeasure.clefs` (bridge regenerated); the
+  Partition draws the clef in effect per measure (header + mid-system change) and
+  positions notes from it
+- [x] 13.3 **Slur extraction**: parse `<slur>` into `NoteEvent.slur_start/stop`
+  (bridge regenerated)
+- [x] 13.4 Render **tuplet numbers**, **ties** (short belly-down arc) and
+  **slurs** (phrase arc clearing the highest note) in the Partition; tune tuplet
+  number / dynamics glyph sizes
+- [x] 13.5 Cap measures per system (`MAX_MEASURES_PER_SYSTEM`) so dense scores
+  stay legible on a wide viewport
+- [x] 13.6 **Staff mode**: carry staff + beam states + clef in effect on
+  `TimedNote`; lay out a grand staff with beamed groups and clef-aware note
+  positions (fix an octave-off bug in the clef reference scale)
+- [x] 13.7 Re-run gates (analyze, format, clippy, fmt, custom_lint, coverage) and
+  `openspec validate --strict`

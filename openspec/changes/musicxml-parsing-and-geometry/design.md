@@ -202,8 +202,31 @@ at the font's note-head anchor points. Glyphs are positioned in *staff spaces*
   beamed group is one straight beam with stems of varying length, not a "tent".
 - **Trade-off:** Bundles `Bravura.otf` (~400 KB) as a font asset; this was
   originally listed as a non-goal but adopted on review for engraving quality.
-- **Scope:** glyph fidelity for heads/clefs/flags/accidentals/rests/dynamics;
-  slurs, articulations, ornaments and grace notes remain out of scope.
+- **Scope:** glyph fidelity for heads/clefs/flags/accidentals/rests/dynamics,
+  plus key/time signatures, tuplet numbers, ties and slurs (added on review);
+  articulations, ornaments and grace notes remain out of scope.
+
+### Decision: engraving-fidelity refinements (from review against an engraved edition)
+Comparing the rendered Arabesque to a published edition surfaced several gaps,
+addressed as follows:
+- **Clef changes.** `attributes.clefs` keeps the *initial* clef per staff; each
+  measure additionally records its own clef changes (`NotationMeasure.clefs`).
+  Renderers compute the clef in effect per measure and position notes from it
+  (a left hand that starts in treble and moves to bass renders correctly).
+- **Slurs.** `<slur>` is now parsed (a non-goal originally) into
+  `slur_start`/`slur_stop`, distinct from ties. The Partition draws ties as a
+  short belly-down arc between same-pitch heads, and slurs as a phrase arc whose
+  control point clears the highest note of the span.
+- **Signatures.** The key signature (armature) is drawn on every system and the
+  time signature on the first, as SMuFL glyphs, in both notation modes.
+- **Legibility cap.** System layout caps measures per system
+  (`MAX_MEASURES_PER_SYSTEM`) so dense scores don't cram a whole page onto one
+  line on a wide viewport.
+- **Staff mode fidelity.** `TimedNote` carries staff, beam states and the clef in
+  effect, so the scrolling Staff mode lays out a grand staff with beamed groups
+  and clef-aware note positions.
+- **Why:** these are the visible differences from a real engraving on a dense
+  piano score; each is a small, testable addition over the established model.
 
 ### Decision: derive visual timing from the parsed notation for the time-based modes
 A pure Dart helper converts a parsed `ScoreDocument` into the player's existing

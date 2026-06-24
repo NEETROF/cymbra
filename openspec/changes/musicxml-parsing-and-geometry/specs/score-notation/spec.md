@@ -74,13 +74,21 @@ The parser SHALL extract the starting musical attributes of a part: the
 `divisions` (ticks per quarter note), one clef per staff (sign and line,
 identified by the clef `number`), the key signature (`fifths`, with mode when
 present), and the time signature (beats and beat-type). When a measure restates
-attributes, the most recent value SHALL apply to subsequent notes.
+attributes, the most recent value SHALL apply to subsequent notes. The document
+SHALL keep the *initial* clef per staff, and SHALL additionally record any clef
+changes per measure so a renderer can switch clefs mid-piece.
 
 #### Scenario: Per-staff clefs on a grand staff
 - **WHEN** the first measure declares clef number 1 as treble (G/2) and clef
   number 2 as bass (F/4)
 - **THEN** the score document reports a treble clef for staff 1 and a bass clef
   for staff 2
+
+#### Scenario: Mid-piece clef change recorded per measure
+- **WHEN** a staff is in treble clef in the first measure and a later measure
+  declares a bass clef for that staff
+- **THEN** the document keeps the initial treble clef for the staff and records
+  the bass-clef change on that later measure
 
 #### Scenario: Initial key and time signature
 - **WHEN** the first measure declares key `fifths` of -3 and time 3/4
@@ -152,6 +160,18 @@ sustained sound.
 - **WHEN** one note carries `tie type=start` and the following note of the same
   pitch carries `tie type=stop`
 - **THEN** the first note event is flagged tie-start and the second tie-stop
+
+### Requirement: Slur Extraction
+
+The parser SHALL detect phrasing slurs via the note `slur` element
+(`start`/`stop`) and mark each note event with whether it begins and/or ends a
+slur, so the renderer can draw the phrase arc. A slur is distinct from a tie: it
+spans notes of differing pitch.
+
+#### Scenario: Slur start and stop
+- **WHEN** one note carries `slur type=start` and a later note in the phrase
+  carries `slur type=stop`
+- **THEN** the first note event is flagged slur-start and the later one slur-stop
 
 ### Requirement: Tuplet (Time-Modification) Extraction
 
@@ -246,15 +266,22 @@ time position SHALL NOT add horizontal space.
 The geometry engine SHALL group measures into systems (justified staff lines) for
 a given available width: measures SHALL be appended to the current system while
 their cumulative `min_width` fits the available width, and a new system SHALL
-begin when the next measure would overflow. A single measure whose `min_width`
-exceeds the available width SHALL occupy its own system. Each system SHALL carry
-the staves of the part (e.g. treble + bass for piano) so a grand staff is laid
-out together. The returned layout SHALL preserve measure order.
+begin when the next measure would overflow *or* a fixed maximum number of
+measures per system is reached (so dense scores stay legible on a wide viewport).
+A single measure whose `min_width` exceeds the available width SHALL occupy its
+own system. Each system SHALL carry the staves of the part (e.g. treble + bass
+for piano) so a grand staff is laid out together. The returned layout SHALL
+preserve measure order.
 
 #### Scenario: Measures wrap into multiple systems
 - **WHEN** the cumulative `min_width` of measures exceeds the available width
 - **THEN** the engine starts a new system at the first measure that would
   overflow, preserving order
+
+#### Scenario: Cap on measures per system
+- **WHEN** more measures than the per-system maximum would fit width-wise on one
+  line
+- **THEN** the engine still wraps to a new system at the cap, preserving order
 
 #### Scenario: Grand staff kept together
 - **WHEN** the part has two staves
@@ -294,6 +321,14 @@ render mode of the existing player screen, alongside the time-based modes.
 Updating the loaded document SHALL update the state so the painter re-renders the
 new measures.
 
+The Partition painter SHALL engrave with a SMuFL music font (Bravura): note
+heads, clefs, flags, accidentals, rests and dynamics SHALL be font glyphs, while
+stems, beams, staff and ledger lines are stroked. It SHALL draw, per system, the
+clef in effect (including mid-piece clef changes), the key signature (armature)
+and the time signature, and per note its beams/flags, dots and accidental. It
+SHALL draw tuplet numbers over their groups, ties between tied same-pitch notes,
+and phrasing slurs arcing over their phrase.
+
 #### Scenario: Painter renders both staves
 - **WHEN** notation state holds a laid-out two-staff score document
 - **THEN** the Partition painter reads its systems and renders treble and bass
@@ -304,6 +339,21 @@ new measures.
   Partition render mode
 - **THEN** the engraved notation is shown within the player, while the on-screen
   keyboard and transport remain present
+
+#### Scenario: Engraved with SMuFL glyphs and signatures
+- **WHEN** a score with a key signature and time signature is rendered
+- **THEN** each system shows the clef, key signature and time signature, and
+  notes are drawn as SMuFL note-head/flag/accidental/rest glyphs
+
+#### Scenario: Tuplets, ties and slurs are drawn
+- **WHEN** the score contains a triplet, a tie and a phrasing slur
+- **THEN** the painter draws the tuplet number over its group, a tie arc between
+  the tied notes, and a slur arc over the phrase
+
+#### Scenario: Clef change is shown mid-system
+- **WHEN** a staff changes clef partway through a system
+- **THEN** the painter draws the new clef at that measure and positions the
+  following notes from the changed clef
 
 #### Scenario: New document re-renders
 - **WHEN** a new MusicXML document is loaded into the notation state
@@ -318,13 +368,20 @@ note's step, octave and alteration, and a start time and duration in
 milliseconds from the note's running division position and a tempo (taken from a
 `metronome` direction when present, otherwise a default). Chord members SHALL
 share the onset of the note they attach to; rests SHALL NOT produce a played
-note. This derivation is visual only — no audio synthesis or MIDI output is
-produced.
+note. Each derived note SHALL also carry its staff, beam states and the clef in
+effect, so the scrolling Staff mode can lay out a grand staff with beamed groups
+and position notes by the clef in force (honouring mid-piece clef changes). This
+derivation is visual only — no audio synthesis or MIDI output is produced.
 
 #### Scenario: Pitch derived from step, octave and alteration
 - **WHEN** a note declares step C, octave 4, alteration 0
 - **THEN** the derived note has MIDI pitch 60 (middle C); an alteration of +1
   yields 61
+
+#### Scenario: Staff mode positions notes by the clef in effect
+- **WHEN** a staff's clef changes from treble to bass mid-piece
+- **THEN** the scrolling Staff mode positions that staff's notes from the clef in
+  force at each note and shows the clef in effect at the playhead
 
 #### Scenario: Timing scales with divisions and tempo
 - **WHEN** two quarter notes follow one another at a known divisions value and
