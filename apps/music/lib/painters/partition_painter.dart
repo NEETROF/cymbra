@@ -304,12 +304,13 @@ class PartitionPainter extends CustomPainter {
             color: CymbraColors.onSurfaceVariant,
           );
         case DirectionKind_Dynamics(:final field0):
+          // Dynamics sit a little below note-head size (≈ 0.78 staff spaces).
           Smufl.draw(
             canvas,
             Smufl.dynamics(field0),
             x,
-            trebleBottom + _s * 2.4,
-            _s,
+            trebleBottom + _s * 2.2,
+            _s * 0.78,
             CymbraColors.secondary,
           );
         case DirectionKind_Wedge():
@@ -427,12 +428,13 @@ class PartitionPainter extends CustomPainter {
       }
       y = bot + (_stemLen + 0.8) * _s;
     }
+    // Tuplet numbers are drawn smaller than note heads (≈ 0.6 staff spaces).
     Smufl.draw(
       canvas,
       Smufl.tupletNumber(acc.actual),
       cx,
       y,
-      _s,
+      _s * 0.6,
       _ink,
       centerX: true,
     );
