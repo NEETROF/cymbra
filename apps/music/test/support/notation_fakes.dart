@@ -115,7 +115,7 @@ ScoreDocument sampleBeamedDocument() {
     accidental: null,
     tieStart: false,
     tieStop: false,
-    tuplet: null,
+    tuplet: const Tuplet(actual: 3, normal: 2), // two triplets → "3" markers
     stem: StemDir.up,
     beams: beams ?? const [],
     lyric: null,

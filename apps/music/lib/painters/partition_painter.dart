@@ -319,6 +319,7 @@ class PartitionPainter extends CustomPainter {
     }
 
     final beamGroups = <String, List<_Note>>{};
+    final openTuplets = <String, _TupletAcc>{};
 
     for (final note in measure.notes) {
       final isBass = note.staff >= 2 && _twoStaff;
@@ -369,6 +370,23 @@ class PartitionPainter extends CustomPainter {
             _drawBeamGroup(canvas, beamGroups.remove(key)!);
           }
         }
+
+        // Tuplet grouping: collect consecutive same-voice notes that carry a
+        // tuplet ratio; draw the number once the group is complete.
+        final t = note.tuplet;
+        final key = '${note.staff}_${note.voice}';
+        if (t != null) {
+          final acc = openTuplets.putIfAbsent(
+            key,
+            () => _TupletAcc(t.actual, up),
+          );
+          acc.add(x, y, note.beams.isNotEmpty);
+          if (acc.count >= t.actual) {
+            _drawTuplet(canvas, openTuplets.remove(key)!);
+          }
+        } else if (openTuplets.containsKey(key)) {
+          _drawTuplet(canvas, openTuplets.remove(key)!);
+        }
       }
 
       final lyric = note.lyric;
@@ -384,6 +402,53 @@ class PartitionPainter extends CustomPainter {
     }
     for (final group in beamGroups.values) {
       _drawBeamGroup(canvas, group);
+    }
+    for (final acc in openTuplets.values) {
+      _drawTuplet(canvas, acc);
+    }
+  }
+
+  /// Draws a tuplet's number (e.g. "3") centred over/under its note group, with
+  /// a bracket when the group is not beamed (the beam already implies grouping).
+  void _drawTuplet(Canvas canvas, _TupletAcc acc) {
+    if (acc.xs.isEmpty) return;
+    final cx = (acc.xs.first + acc.xs.last) / 2;
+    final double y;
+    if (acc.up) {
+      var top = acc.ys.first;
+      for (final v in acc.ys) {
+        if (v < top) top = v;
+      }
+      y = top - (_stemLen + 1.6) * _s;
+    } else {
+      var bot = acc.ys.first;
+      for (final v in acc.ys) {
+        if (v > bot) bot = v;
+      }
+      y = bot + (_stemLen + 0.8) * _s;
+    }
+    Smufl.draw(
+      canvas,
+      Smufl.tupletNumber(acc.actual),
+      cx,
+      y,
+      _s,
+      _ink,
+      centerX: true,
+    );
+
+    if (!acc.allBeamed && acc.xs.length >= 2) {
+      final x0 = acc.xs.first;
+      final x1 = acc.xs.last;
+      final gap = _s * 0.9;
+      final hook = acc.up ? _s * 0.5 : -_s * 0.5;
+      final paint = Paint()
+        ..color = _ink
+        ..strokeWidth = Smufl.stemThickness * _s;
+      canvas.drawLine(Offset(x0, y), Offset(cx - gap, y), paint);
+      canvas.drawLine(Offset(cx + gap, y), Offset(x1, y), paint);
+      canvas.drawLine(Offset(x0, y), Offset(x0, y + hook), paint);
+      canvas.drawLine(Offset(x1, y), Offset(x1, y + hook), paint);
     }
   }
 
@@ -599,6 +664,25 @@ class _Note {
   final bool up;
   final NoteEvent note;
   const _Note(this.x, this.y, this.up, this.note);
+}
+
+/// Accumulates a tuplet's notes so its number/bracket can be drawn once the
+/// group (`actual` notes) is complete.
+class _TupletAcc {
+  final int actual;
+  final bool up;
+  final List<double> xs = [];
+  final List<double> ys = [];
+  bool allBeamed = true;
+  _TupletAcc(this.actual, this.up);
+
+  void add(double x, double y, bool beamed) {
+    xs.add(x);
+    ys.add(y);
+    if (!beamed) allBeamed = false;
+  }
+
+  int get count => xs.length;
 }
 
 /// Assigns text (e.g. expression words) to stacked rows so overlapping items at

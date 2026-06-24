@@ -64,6 +64,14 @@ class Smufl {
   static String timeSigNumber(int n) =>
       n.toString().split('').map((c) => timeSigDigit(int.parse(c))).join();
 
+  /// Tuplet number as a glyph string (tuplet0 = U+E880), e.g. the "3" of a
+  /// triplet.
+  static String tupletNumber(int n) => n
+      .toString()
+      .split('')
+      .map((c) => String.fromCharCode(0xE880 + int.parse(c)))
+      .join();
+
   // Vertical positions (diatonic staff steps from the treble bottom line E4,
   // each step = half a staff space) of key-signature accidentals, in fifths
   // order. Bass-clef positions are these minus 2.
