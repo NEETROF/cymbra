@@ -71,7 +71,16 @@ DerivedPlayback notationToTimedNotes(ScoreDocument document) {
   var songEndMs = 0.0;
   var measureStartDiv = 0;
 
+  // Running clef per staff, honouring mid-piece clef changes.
+  final clef = <int, Clef>{};
+  for (final c in document.attributes.clefs) {
+    clef[c.staff] = c;
+  }
+
   for (final measure in document.measures) {
+    for (final c in measure.clefs) {
+      clef[c.staff] = c;
+    }
     var measureSpan = divisionsPerMeasure > 0 ? divisionsPerMeasure : 0;
     for (final note in measure.notes) {
       final end = note.positionDivisions + note.durationDivisions;
@@ -83,6 +92,7 @@ DerivedPlayback notationToTimedNotes(ScoreDocument document) {
       final startMs =
           (measureStartDiv + note.positionDivisions) * msPerDivision;
       final durationMs = note.durationDivisions * msPerDivision;
+      final c = clef[note.staff];
       notes.add(
         TimedNote(
           pitch: midiOfPitch(pitch),
@@ -90,6 +100,8 @@ DerivedPlayback notationToTimedNotes(ScoreDocument document) {
           durationMs: durationMs.round(),
           staff: note.staff,
           beams: note.beams,
+          clefSign: c?.sign ?? (note.staff >= 2 ? 'F' : 'G'),
+          clefLine: c?.line ?? (note.staff >= 2 ? 4 : 2),
         ),
       );
       if (startMs + durationMs > songEndMs) songEndMs = startMs + durationMs;

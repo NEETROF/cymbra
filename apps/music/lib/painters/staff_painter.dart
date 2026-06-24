@@ -53,11 +53,6 @@ class StaffPainter extends CustomPainter {
     this.beatType = 4,
   });
 
-  // Bottom-line reference pitches: E4 (MIDI 64) for the treble staff,
-  // G2 (MIDI 43) for the bass staff.
-  static const int _trebleBottomPitch = 64;
-  static const int _bassBottomPitch = 43;
-
   // Visible time window to the right of the playhead.
   static const double _lookAheadMs = 4000;
 
@@ -120,21 +115,24 @@ class StaffPainter extends CustomPainter {
     final systemTop = trebleBottom - 4 * lineGap;
     final systemBottom = bassBottom ?? trebleBottom;
 
-    // Clefs (SMuFL glyphs) at the head of the system.
+    // Clefs (SMuFL glyphs) at the head of the system — the clef in effect at
+    // the playhead, so a mid-piece clef change is reflected as you scroll.
+    final trebleClef = _clefAtPlayhead(1);
     Smufl.draw(
       canvas,
-      Smufl.gClef,
+      Smufl.clef(trebleClef.$1),
       6,
-      trebleBottom - lineGap,
+      trebleBottom - (trebleClef.$2 - 1) * lineGap,
       lineGap,
       CymbraColors.onSurfaceVariant,
     );
     if (bassBottom != null) {
+      final bassClef = _clefAtPlayhead(2);
       Smufl.draw(
         canvas,
-        Smufl.fClef,
+        Smufl.clef(bassClef.$1),
         6,
-        bassBottom - 3 * lineGap,
+        bassBottom - (bassClef.$2 - 1) * lineGap,
         lineGap,
         CymbraColors.onSurfaceVariant,
       );
@@ -213,8 +211,9 @@ class StaffPainter extends CustomPainter {
     double noteY(TimedNote n) {
       final isBass = bassBottom != null && n.staff >= 2;
       final base = isBass ? bassBottom : trebleBottom;
-      final ref = isBass ? _bassBottomPitch : _trebleBottomPitch;
-      return base - _staffSteps(n.pitch, ref) * stepGap;
+      // Position by the clef in effect for this note (not its staff index).
+      final bottom = _clefBottomDiatonic(n.clefSign, n.clefLine);
+      return base - (_diatonic(n.pitch) - bottom) * stepGap;
     }
 
     final quarterMs = bpm > 0 ? 60000.0 / bpm : 500.0;
@@ -318,8 +317,28 @@ class StaffPainter extends CustomPainter {
     }
   }
 
-  int _staffSteps(int pitch, int refPitch) =>
-      _diatonic(pitch) - _diatonic(refPitch);
+  /// Diatonic value of the bottom staff line for a clef (sign on its `line`).
+  int _clefBottomDiatonic(String sign, int line) {
+    final refOnLine = switch (sign) {
+      'F' => 3 * 7 + 3, // F3
+      'C' => 4 * 7 + 0, // C4
+      _ => 4 * 7 + 4, // G4
+    };
+    return refOnLine - (line - 1) * 2;
+  }
+
+  /// The clef (sign, line) in effect on [staff] at the current playhead — the
+  /// latest note at/before [elapsedMs], else the first note on that staff.
+  (String, int) _clefAtPlayhead(int staff) {
+    TimedNote? chosen;
+    for (final n in notes) {
+      if (n.staff != staff) continue;
+      chosen ??= n; // fallback: first note on the staff
+      if (n.startMs <= elapsedMs) chosen = n; // latest before the playhead
+    }
+    if (chosen == null) return (staff >= 2 ? 'F' : 'G', staff >= 2 ? 4 : 2);
+    return (chosen.clefSign, chosen.clefLine);
+  }
 
   int _diatonic(int pitch) {
     const whiteInOctave = {

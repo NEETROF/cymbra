@@ -80,6 +80,8 @@ const _beamedStaffNotes = [
     startMs: 0,
     durationMs: 375,
     staff: 2,
+    clefSign: 'F',
+    clefLine: 4,
     beams: [BeamState.begin],
   ),
   TimedNote(
@@ -87,6 +89,8 @@ const _beamedStaffNotes = [
     startMs: 375,
     durationMs: 375,
     staff: 2,
+    clefSign: 'F',
+    clefLine: 4,
     beams: [BeamState.continue_],
   ),
   TimedNote(
@@ -94,6 +98,8 @@ const _beamedStaffNotes = [
     startMs: 750,
     durationMs: 375,
     staff: 2,
+    clefSign: 'F',
+    clefLine: 4,
     beams: [BeamState.end],
   ),
 ];

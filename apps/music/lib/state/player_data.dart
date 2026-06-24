@@ -42,12 +42,20 @@ class TimedNote {
   /// Staff painter can beam eighth/sixteenth runs instead of drawing flags.
   final List<BeamState> beams;
 
+  /// Clef in effect for this note's staff (sign + line), so the Staff painter
+  /// positions it correctly through mid-piece clef changes (e.g. a left hand
+  /// that starts in treble and moves to bass).
+  final String clefSign;
+  final int clefLine;
+
   const TimedNote({
     required this.pitch,
     required this.startMs,
     required this.durationMs,
     this.staff = 1,
     this.beams = const [],
+    this.clefSign = 'G',
+    this.clefLine = 2,
   });
 }
 

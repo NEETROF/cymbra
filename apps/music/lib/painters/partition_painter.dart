@@ -498,7 +498,8 @@ class PartitionPainter extends CustomPainter {
   /// ([minY]) seen while the slur was open.
   void _drawSlur(Canvas canvas, Offset a, Offset b, double minY) {
     final cx = (a.dx + b.dx) / 2;
-    const clearance = _s * 1.6;
+    // Longer phrases bulge a little more so the arc stays clear of the notes.
+    final clearance = _s * 1.4 + (b.dx - a.dx).abs() * 0.05;
     // Quadratic midpoint y = 0.25*(a.y+b.y) + 0.5*ctrlY; solve so it sits at
     // minY - clearance (above the highest note head).
     final ctrlY = 2 * (minY - clearance) - 0.5 * (a.dy + b.dy);
