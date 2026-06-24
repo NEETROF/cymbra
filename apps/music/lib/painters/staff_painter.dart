@@ -318,13 +318,15 @@ class StaffPainter extends CustomPainter {
   }
 
   /// Diatonic value of the bottom staff line for a clef (sign on its `line`).
+  /// Uses MIDI reference pitches so it matches [_diatonic] (which keys on MIDI
+  /// numbers, not the musical octave).
   int _clefBottomDiatonic(String sign, int line) {
-    final refOnLine = switch (sign) {
-      'F' => 3 * 7 + 3, // F3
-      'C' => 4 * 7 + 0, // C4
-      _ => 4 * 7 + 4, // G4
+    final refMidi = switch (sign) {
+      'F' => 53, // F3
+      'C' => 60, // C4
+      _ => 67, // G4
     };
-    return refOnLine - (line - 1) * 2;
+    return _diatonic(refMidi) - (line - 1) * 2;
   }
 
   /// The clef (sign, line) in effect on [staff] at the current playhead — the
