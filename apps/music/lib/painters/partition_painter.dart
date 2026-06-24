@@ -367,13 +367,15 @@ class PartitionPainter extends CustomPainter {
           '${pitch.octave}_${pitch.alter}';
       if (note.tieStop) {
         final start = arcs.takeTie(tieKey);
-        if (start != null) _drawArc(canvas, start, Offset(x - headR, y), false);
+        if (start != null) _drawTie(canvas, start, Offset(x - headR, y));
       }
       if (note.tieStart) arcs.putTie(tieKey, Offset(x + headR, y));
+
       final slurKey = '${note.staff}_${note.voice}';
+      arcs.observeSlur(slurKey, y); // track the phrase's highest note
       if (note.slurStop) {
-        final start = arcs.popSlur(slurKey);
-        if (start != null) _drawArc(canvas, start, Offset(x, y), true);
+        final s = arcs.popSlur(slurKey);
+        if (s != null) _drawSlur(canvas, s.start, Offset(x, y), s.minY);
       }
       if (note.slurStart) arcs.pushSlur(slurKey, Offset(x, y));
 
@@ -474,25 +476,37 @@ class PartitionPainter extends CustomPainter {
     }
   }
 
-  /// Draws a tie (short, belly down) or slur (longer, belly up) as a quadratic
-  /// arc between two note-head points.
-  void _drawArc(Canvas canvas, Offset a, Offset b, bool slur) {
-    final mid = Offset((a.dx + b.dx) / 2, (a.dy + b.dy) / 2);
-    final span = (b.dx - a.dx).abs();
-    final bulge = slur
-        ? -(span * 0.12 + _s * 1.6) // above the notes
-        : (_s * 1.0); // below the notes
-    final ctrl = Offset(mid.dx, mid.dy + bulge);
-    final path = Path()
-      ..moveTo(a.dx, a.dy)
-      ..quadraticBezierTo(ctrl.dx, ctrl.dy, b.dx, b.dy);
+  Paint get _arcPaint => Paint()
+    ..color = _ink
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = _s * 0.13
+    ..strokeCap = StrokeCap.round;
+
+  /// A short tie between two same-pitch heads, curving below (belly down).
+  void _drawTie(Canvas canvas, Offset a, Offset b) {
+    final ctrl = Offset((a.dx + b.dx) / 2, (a.dy + b.dy) / 2 + _s * 1.0);
     canvas.drawPath(
-      path,
-      Paint()
-        ..color = _ink
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = _s * 0.13
-        ..strokeCap = StrokeCap.round,
+      Path()
+        ..moveTo(a.dx, a.dy)
+        ..quadraticBezierTo(ctrl.dx, ctrl.dy, b.dx, b.dy),
+      _arcPaint,
+    );
+  }
+
+  /// A phrase slur from the first to the last note, arcing above the whole
+  /// phrase: the control point is placed so the curve clears the highest note
+  /// ([minY]) seen while the slur was open.
+  void _drawSlur(Canvas canvas, Offset a, Offset b, double minY) {
+    final cx = (a.dx + b.dx) / 2;
+    const clearance = _s * 1.6;
+    // Quadratic midpoint y = 0.25*(a.y+b.y) + 0.5*ctrlY; solve so it sits at
+    // minY - clearance (above the highest note head).
+    final ctrlY = 2 * (minY - clearance) - 0.5 * (a.dy + b.dy);
+    canvas.drawPath(
+      Path()
+        ..moveTo(a.dx, a.dy)
+        ..quadraticBezierTo(cx, ctrlY, b.dx, b.dy),
+      _arcPaint,
     );
   }
 
@@ -715,18 +729,34 @@ class _Note {
 /// key on staff+voice and nest as a stack.
 class _Arcs {
   final Map<String, Offset> _ties = {};
-  final Map<String, List<Offset>> _slurs = {};
+  final Map<String, List<_SlurOpen>> _slurs = {};
 
   void putTie(String key, Offset start) => _ties[key] = start;
   Offset? takeTie(String key) => _ties.remove(key);
 
   void pushSlur(String key, Offset start) =>
-      _slurs.putIfAbsent(key, () => <Offset>[]).add(start);
-  Offset? popSlur(String key) {
+      _slurs.putIfAbsent(key, () => <_SlurOpen>[]).add(_SlurOpen(start));
+
+  /// Updates the open slur's highest note (smallest y) as the phrase is drawn.
+  void observeSlur(String key, double y) {
+    final stack = _slurs[key];
+    if (stack != null && stack.isNotEmpty && y < stack.last.minY) {
+      stack.last.minY = y;
+    }
+  }
+
+  _SlurOpen? popSlur(String key) {
     final stack = _slurs[key];
     if (stack == null || stack.isEmpty) return null;
     return stack.removeLast();
   }
+}
+
+/// An open slur: its start point and the highest note (smallest y) seen so far.
+class _SlurOpen {
+  final Offset start;
+  double minY;
+  _SlurOpen(this.start) : minY = start.dy;
 }
 
 /// Accumulates a tuplet's notes so its number/bracket can be drawn once the

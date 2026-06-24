@@ -73,8 +73,13 @@ pub(crate) fn min_width(notes: &[NoteEvent], divisions: u32) -> f64 {
     (LEFT_PAD + sum).max(FLOOR)
 }
 
-/// Greedily packs measures into systems for `available_width`, wrapping on
-/// overflow. A measure wider than the line gets its own system. Order preserved.
+/// Upper bound on measures per system, so dense scores stay legible even on a
+/// wide viewport (a real engraving of e.g. the Arabesque uses ~3 per line).
+pub(crate) const MAX_MEASURES_PER_SYSTEM: usize = 4;
+
+/// Greedily packs measures into systems for `available_width`, wrapping when the
+/// next measure overflows the line *or* the per-system cap is reached. A measure
+/// wider than the line gets its own system. Order preserved.
 pub(crate) fn layout_systems(doc: &ScoreDocument, available_width: f64) -> Vec<System> {
     let staves = doc.staves;
     let mut systems: Vec<System> = Vec::new();
@@ -83,34 +88,24 @@ pub(crate) fn layout_systems(doc: &ScoreDocument, available_width: f64) -> Vec<S
 
     for m in &doc.measures {
         let w = m.min_width;
-        if current.is_empty() {
-            current.push(m.index);
-            current_w = w;
-            // Oversized single measure occupies its own system.
-            if current_w > available_width {
-                systems.push(System {
-                    measures: std::mem::take(&mut current),
-                    staves,
-                });
-                current_w = 0.0;
-            }
-        } else if current_w + w <= available_width {
-            current.push(m.index);
-            current_w += w;
-        } else {
+        let overflow = !current.is_empty() && current_w + w > available_width;
+        let at_cap = current.len() >= MAX_MEASURES_PER_SYSTEM;
+        if overflow || at_cap {
             systems.push(System {
                 measures: std::mem::take(&mut current),
                 staves,
             });
-            current.push(m.index);
-            current_w = w;
-            if current_w > available_width {
-                systems.push(System {
-                    measures: std::mem::take(&mut current),
-                    staves,
-                });
-                current_w = 0.0;
-            }
+            current_w = 0.0;
+        }
+        current.push(m.index);
+        current_w += w;
+        // An oversized lone measure occupies its own system.
+        if current.len() == 1 && current_w > available_width {
+            systems.push(System {
+                measures: std::mem::take(&mut current),
+                staves,
+            });
+            current_w = 0.0;
         }
     }
     if !current.is_empty() {
@@ -1278,6 +1273,16 @@ mod tests {
         // m0 alone, m1 oversized alone, m2 alone.
         assert_eq!(systems.len(), 3);
         assert_eq!(systems[1].measures, vec![1]);
+    }
+
+    #[test]
+    fn caps_measures_per_system_even_on_a_wide_line() {
+        // Six narrow measures that would all fit width-wise still wrap at the cap.
+        let doc = doc_with_widths(&[10.0, 10.0, 10.0, 10.0, 10.0, 10.0]);
+        let systems = layout_systems(&doc, 100_000.0);
+        assert_eq!(systems.len(), 2);
+        assert_eq!(systems[0].measures.len(), MAX_MEASURES_PER_SYSTEM);
+        assert_eq!(systems[1].measures, vec![4, 5]);
     }
 
     #[test]
