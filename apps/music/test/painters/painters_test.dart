@@ -18,7 +18,10 @@ import 'package:music/painters/piano_keyboard_painter.dart';
 import 'package:music/painters/piano_layout.dart';
 import 'package:music/painters/staff_painter.dart';
 import 'package:music/painters/synthesia_painter.dart';
+import 'package:music/src/rust/api/musicxml.dart' show BeamState;
 import 'package:music/state/player_data.dart';
+
+import '../support/test_fonts.dart';
 
 /// Renders [painter] into a keyed RepaintBoundary for golden comparison.
 Widget _host(CustomPainter painter, Size size) => Directionality(
@@ -41,6 +44,66 @@ const _notes = [
   TimedNote(pitch: 67, startMs: 1000, durationMs: 500),
 ];
 
+// A grand-staff run of beamed eighth notes (treble + bass) at 80 bpm
+// (eighth = 375 ms), to verify the Staff painter ligatures beamed groups.
+const _beamedStaffNotes = [
+  TimedNote(
+    pitch: 64,
+    startMs: 0,
+    durationMs: 375,
+    staff: 1,
+    beams: [BeamState.begin],
+  ),
+  TimedNote(
+    pitch: 67,
+    startMs: 375,
+    durationMs: 375,
+    staff: 1,
+    beams: [BeamState.continue_],
+  ),
+  TimedNote(
+    pitch: 72,
+    startMs: 750,
+    durationMs: 375,
+    staff: 1,
+    beams: [BeamState.continue_],
+  ),
+  TimedNote(
+    pitch: 67,
+    startMs: 1125,
+    durationMs: 375,
+    staff: 1,
+    beams: [BeamState.end],
+  ),
+  TimedNote(
+    pitch: 48,
+    startMs: 0,
+    durationMs: 375,
+    staff: 2,
+    clefSign: 'F',
+    clefLine: 4,
+    beams: [BeamState.begin],
+  ),
+  TimedNote(
+    pitch: 52,
+    startMs: 375,
+    durationMs: 375,
+    staff: 2,
+    clefSign: 'F',
+    clefLine: 4,
+    beams: [BeamState.continue_],
+  ),
+  TimedNote(
+    pitch: 55,
+    startMs: 750,
+    durationMs: 375,
+    staff: 2,
+    clefSign: 'F',
+    clefLine: 4,
+    beams: [BeamState.end],
+  ),
+];
+
 void main() {
   // Golden tests are pixel comparisons and are not reliable across platforms
   // (generated on macOS, CI is Linux). They're tagged so the cross-platform CI
@@ -48,6 +111,7 @@ void main() {
   // `flutter test --tags golden --update-goldens`. Painter paint() is still
   // covered in CI by the widget tests, which render all three painters.
   group('golden renders', () {
+    setUpAll(loadBravura);
     testWidgets('piano keyboard', tags: 'golden', (tester) async {
       await tester.pumpWidget(
         _host(
@@ -118,10 +182,46 @@ void main() {
         matchesGoldenFile('goldens/staff.png'),
       );
     });
+
+    testWidgets('staff beamed grand staff', tags: 'golden', (tester) async {
+      await tester.pumpWidget(
+        _host(
+          const StaffPainter(
+            notes: _beamedStaffNotes,
+            elapsedMs: 0,
+            activeNotes: {},
+            bpm: 80,
+            songEndMs: 1500,
+            keyFifths: 3, // armature: 3 sharps
+          ),
+          const Size(700, 360),
+        ),
+      );
+      await expectLater(
+        find.byKey(const Key('golden')),
+        matchesGoldenFile('goldens/staff_beamed.png'),
+      );
+    });
   });
 
   // Non-golden render so the three-state paint() branches are exercised by the
   // cross-platform CI gate (goldens are excluded there).
+  testWidgets('staff beams a grand-staff group without error', (tester) async {
+    await tester.pumpWidget(
+      _host(
+        const StaffPainter(
+          notes: _beamedStaffNotes,
+          elapsedMs: 0,
+          activeNotes: {64},
+          bpm: 80,
+          songEndMs: 1500,
+        ),
+        const Size(700, 360),
+      ),
+    );
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('keyboard renders all feedback states without error', (
     tester,
   ) async {

@@ -33,4 +33,8 @@ jobs:
         # `rust` job's `cargo fmt --check` enforces, so only real drift fails.
         run: cargo fmt --all
       - name: Fail if bindings drifted
-        run: git diff --exit-code
+        # Scope the check to the generated bindings only. `flutter pub get` (run
+        # by codegen) can rewrite pubspec.lock when the floating `stable` Flutter
+        # ships newer transitive deps than the committed lock — that SDK churn is
+        # unrelated to binding drift and must not fail this gate.
+        run: git diff --exit-code -- apps/music/lib/src/rust apps/music/rust/src/frb_generated.rs

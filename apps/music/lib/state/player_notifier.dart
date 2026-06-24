@@ -18,17 +18,27 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../services/midi_service.dart';
 import '../src/rust/api/midi.dart';
+import '../src/rust/api/musicxml.dart';
+import 'notation_data.dart';
+import 'notation_notifier.dart';
 import 'player_data.dart';
+import 'notation_playback.dart';
+import 'score_catalog.dart';
 
 part 'player_notifier.g.dart';
 
 /// Central player notifier: pressed keys, score, rendering mode, playhead and
 /// Wait Mode logic. Listens to the real-time MIDI stream and also receives notes
 /// from the computer-keyboard fallback (via [noteOn]/[noteOff]).
+///
+/// Content comes from one of two sources: when a library score is selected, the
+/// player shows that parsed MusicXML (with playback timing derived from it);
+/// otherwise it falls back to the built-in demo score.
 @riverpod
 class Player extends _$Player {
   Timer? _statusTimer;
   StreamSubscription<MidiEvent>? _sub;
+  ScoreDocument? _loadedDocument;
 
   @override
   PlayerData build() {
@@ -39,11 +49,14 @@ class Player extends _$Player {
       const Duration(seconds: 1),
       (_) => _refreshMidiStatus(),
     );
+    // React to the selected score's notation loading / changing without
+    // rebuilding (which would reset the playhead and pressed keys).
+    ref.listen(notationProvider, (_, next) => _applyNotation(next));
     ref.onDispose(() {
       _statusTimer?.cancel();
       _sub?.cancel();
     });
-    _loadScore();
+    _loadInitial();
     // Initial MIDI status, read directly (cannot touch `state` during build).
     List<String> ports;
     String? device;
@@ -59,7 +72,42 @@ class Player extends _$Player {
 
   MidiService get _midi => ref.read(midiServiceProvider);
 
-  Future<void> _loadScore() async {
+  /// Loads the initial content: the selected score's notation if it is already
+  /// available, otherwise the demo score (when nothing is selected).
+  Future<void> _loadInitial() async {
+    final notation = ref.read(notationProvider);
+    if (notation.document != null) {
+      _applyNotation(notation);
+    } else if (ref.read(selectedScoreProvider) == null) {
+      await _loadDemo();
+    }
+    // If a score is selected but not parsed yet, the notation listener applies
+    // it once it resolves.
+  }
+
+  /// Applies a freshly-parsed MusicXML document: derives the playback timeline
+  /// and resets the playhead. Ignored when the document is unchanged (e.g. a
+  /// width-driven re-layout) so playback is not disturbed.
+  void _applyNotation(NotationData notation) {
+    final document = notation.document;
+    if (document == null || identical(document, _loadedDocument)) return;
+    _loadedDocument = document;
+    final derived = notationToTimedNotes(document);
+    state = state.copyWith(
+      score: null,
+      title: document.meta.title,
+      bpm: derived.bpm,
+      keyFifths: document.attributes.keyFifths,
+      beats: document.attributes.time.beats,
+      beatType: document.attributes.time.beatType,
+      notes: derived.notes,
+      songEndMs: derived.songEndMs,
+      elapsedMs: 0,
+      isPlaying: false,
+    );
+  }
+
+  Future<void> _loadDemo() async {
     final score = await ref.read(scoreSourceProvider).demoScore();
     final all = <TimedNote>[];
     for (final m in score.measures) {
@@ -80,7 +128,13 @@ class Player extends _$Player {
               .map((n) => n.startMs + n.durationMs)
               .reduce((a, b) => a > b ? a : b)
               .toDouble();
-    state = state.copyWith(score: score, notes: all, songEndMs: end);
+    state = state.copyWith(
+      score: score,
+      title: 'Demo — C Major Scale',
+      bpm: score.bpm,
+      notes: all,
+      songEndMs: end,
+    );
   }
 
   void _onMidi(MidiEvent event) {

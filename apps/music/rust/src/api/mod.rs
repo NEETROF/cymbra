@@ -14,5 +14,7 @@
 
 pub mod midi;
 mod midi_core;
+pub mod musicxml;
+mod musicxml_core;
 pub mod score;
 pub mod simple;

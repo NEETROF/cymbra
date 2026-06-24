@@ -39,6 +39,15 @@ very large.
   given width.
 - Render the result with a new Partition `CustomPainter`, driven by Freezed
   notation state.
+- **Display the loaded score inside the existing player screen** (on-screen
+  piano keyboard, MIDI device selection, transport) rather than a separate
+  notation-only screen: the engraved partition is a new render mode alongside
+  Synthesia and Staff, and selecting a library entry opens that player screen.
+- **Derive a visual timing** (note on/off in milliseconds) from the parsed
+  notation — using each note's `duration` in divisions and a tempo (from a
+  `metronome` direction when present, else a default BPM) — so the existing
+  time-based modes (Synthesia waterfall, scrolling Staff) play the *selected*
+  piece, keeping all three modes consistent.
 - Keep all of it covered ≥ 80% by isolating pure logic.
 
 **Non-Goals:**
@@ -46,11 +55,17 @@ very large.
 - **Multi-part / orchestral** scores — a single (piano) part with up to two
   staves is the target; the model allows more staves but layout is tuned for one
   part.
-- SMuFL/font glyph engraving fidelity, slurs, articulations, ornaments,
-  grace notes, multiple verses of lyrics, repeats/voltas — not modelled here.
-- Replacing or unifying with the existing time-based player score; this is
-  additive and parallel.
-- Audio playback of the parsed score, or deriving MIDI timing from it.
+- Slurs, articulations, ornaments, grace notes, multiple verses of lyrics,
+  repeats/voltas — not modelled here. (Note: SMuFL/Bravura glyph engraving for
+  note heads, clefs, flags, accidentals, rests and dynamics IS now in scope —
+  see the SMuFL decision below — it was originally a non-goal but was adopted to
+  reach real engraving quality.)
+- Replacing or unifying the time-based player *model* (`score.rs::Score`) with
+  the notation model; they stay distinct structures. The player *screen*, by
+  contrast, is reused to host both the engraved partition and the derived
+  playback of the selected piece.
+- **Audio** playback of the parsed score. Visual timing is derived, but no sound
+  synthesis and no MIDI-out are produced.
 - Page pagination / vertical system stacking beyond returning the ordered systems.
 
 ## Decisions
@@ -137,29 +152,94 @@ re-requests layout when the width changes meaningfully.
 - **Why:** The prompt lists `System` as a Rust-returned struct; geometry belongs
   in the engine. Separating parse from layout avoids re-parsing on resize.
 
-### Decision: Flutter seam = `scoreAssetSource` provider + Freezed `NotationData`
+### Decision: Flutter seams = `scoreAssetSource` + `notationEngine` + Freezed `NotationData`
 A `@riverpod` `scoreAssetSource` exposes `Future<Uint8List> load(String assetPath)`
 (default impl uses `rootBundle`; overridden with in-memory bytes in tests). A
-`@riverpod NotationNotifier` calls the source, invokes the bridge, stores a
-Freezed `NotationData { document, systems, availableWidth, error }`. A new
+`@riverpod notationEngine` wraps the native bridge calls (`parse_musicxml`,
+`layout_systems`) behind an interface so state/widgets test without the native
+lib (mirroring `scoreSourceProvider`). A `@riverpod NotationNotifier` calls the
+source + engine and stores a Freezed
+`NotationData { document, systems, availableWidth, error }`. The new
 `PartitionPainter` consumes it.
 - **Why:** Same injectable-seam pattern as `midiServiceProvider`; keeps widgets
   and state testable without `rootBundle` or the native lib.
 
-### Decision: app boots into a library screen; selection drives the partition screen
-`main.dart` `home` changes from `PlayerScreen` to a new `LibraryScreen`. The
-library lists the catalog grouped by practice level; tapping an entry sets a
-`selectedScore` provider and `Navigator.push`es the partition screen.
+### Decision: library boots the app; selection opens the existing player screen with the loaded score
+`main.dart` `home` changes from a directly-instantiated `PlayerScreen` to a new
+`LibraryScreen`. The library lists the catalog grouped by practice level; tapping
+an entry sets a `selectedScore` provider and `Navigator.push`es the **existing
+`PlayerScreen`**, which loads and displays that score. Back returns to the library.
+- The player keeps its on-screen piano keyboard, MIDI device selection, range
+  chooser and transport. It gains a third render mode, **Partition**, that draws
+  the engraved notation (`PartitionPainter`) for the selected score; the existing
+  **Synthesia** and **Staff** modes show the same piece via derived timing
+  (see next decision).
 - Catalog model: `CatalogEntry { id, title, composer, assetPath, level }` with
   `enum PracticeLevel { beginner, intermediate, advanced }`.
 - `@riverpod scoreCatalog` returns the curated `List<CatalogEntry>` (const for the
-  POC), overridable in tests.
-- `@riverpod selectedScore` holds the chosen `CatalogEntry?`; the partition
-  screen's `NotationNotifier` watches it to know which `assetPath` to load via
-  `scoreAssetSource`.
-- **Why:** Mirrors the project's provider-seam pattern (catalog and selection are
-  injectable, so the library and partition screens are testable without the
-  bundle or native lib). Navigator keeps a normal back-stack to the library.
+  POC), overridable in tests. `@Riverpod(keepAlive: true) selectedScore` holds the
+  chosen `CatalogEntry?` (kept alive so the selection survives the push); the
+  `NotationNotifier` watches it to know which `assetPath` to load.
+- **Why:** Reuses the working player (keyboard/MIDI/transport) instead of a
+  parallel notation-only screen, so nothing is lost from the existing UX; the
+  loaded partition appears *inside* the screen the user already knows. Mirrors the
+  project's provider-seam pattern (catalog and selection are injectable, so the
+  screens are testable without the bundle or native lib). Navigator keeps a normal
+  back-stack to the library.
+
+### Decision: render notation with SMuFL/Bravura glyphs
+Both notation painters (`PartitionPainter` and the grand-staff `StaffPainter`)
+draw real engraving glyphs from the **Bravura** font (Steinberg, SIL OFL 1.1, the
+reference SMuFL implementation) via a small `Smufl` helper: note heads, clefs,
+flags, accidentals, rests and dynamics are glyphs; stems, beams, staff lines and
+ledger lines are stroked at Bravura's engraving thicknesses, with stems attached
+at the font's note-head anchor points. Glyphs are positioned in *staff spaces*
+(Bravura: 1 em = 4 staff spaces), drawn baseline-anchored.
+- **Why:** Hand-drawn primitives (ovals for heads, ad-hoc flags) look amateur and
+  were the source of mis-rendered eighth notes. SMuFL/Bravura is the industry
+  standard (Verovio, MuseScore) and fixes glyph fidelity at the root. Beams/stems
+  are still drawn (as in every SMuFL renderer), but now use correct anchors so a
+  beamed group is one straight beam with stems of varying length, not a "tent".
+- **Trade-off:** Bundles `Bravura.otf` (~400 KB) as a font asset; this was
+  originally listed as a non-goal but adopted on review for engraving quality.
+- **Scope:** glyph fidelity for heads/clefs/flags/accidentals/rests/dynamics,
+  plus key/time signatures, tuplet numbers, ties and slurs (added on review);
+  articulations, ornaments and grace notes remain out of scope.
+
+### Decision: engraving-fidelity refinements (from review against an engraved edition)
+Comparing the rendered Arabesque to a published edition surfaced several gaps,
+addressed as follows:
+- **Clef changes.** `attributes.clefs` keeps the *initial* clef per staff; each
+  measure additionally records its own clef changes (`NotationMeasure.clefs`).
+  Renderers compute the clef in effect per measure and position notes from it
+  (a left hand that starts in treble and moves to bass renders correctly).
+- **Slurs.** `<slur>` is now parsed (a non-goal originally) into
+  `slur_start`/`slur_stop`, distinct from ties. The Partition draws ties as a
+  short belly-down arc between same-pitch heads, and slurs as a phrase arc whose
+  control point clears the highest note of the span.
+- **Signatures.** The key signature (armature) is drawn on every system and the
+  time signature on the first, as SMuFL glyphs, in both notation modes.
+- **Legibility cap.** System layout caps measures per system
+  (`MAX_MEASURES_PER_SYSTEM`) so dense scores don't cram a whole page onto one
+  line on a wide viewport.
+- **Staff mode fidelity.** `TimedNote` carries staff, beam states and the clef in
+  effect, so the scrolling Staff mode lays out a grand staff with beamed groups
+  and clef-aware note positions.
+- **Why:** these are the visible differences from a real engraving on a dense
+  piano score; each is a small, testable addition over the established model.
+
+### Decision: derive visual timing from the parsed notation for the time-based modes
+A pure Dart helper converts a parsed `ScoreDocument` into the player's existing
+`TimedNote` list: each note's MIDI pitch comes from `step`/`octave`/`alter`; its
+`start_ms`/`duration_ms` come from its running division position (accumulated
+across measures) scaled by `ms_per_division = (60000 / bpm) / divisions`. The BPM
+is read from a `metronome` direction when present, else a sensible default. Rests
+produce no note; chord members share their onset.
+- **Why:** Lets the unchanged Synthesia/Staff painters render the *selected*
+  MusicXML piece, so all three modes are consistent — without coupling the
+  notation model to the temporal `Score`. Pure and host-testable (no native lib).
+- **Note:** This is *visual* timing only (note rectangles / scrolling), not audio
+  synthesis or MIDI-out; that remains a non-goal.
 - **Alternatives considered:** (a) a manifest JSON asset parsed at runtime —
   more flexible but adds a parse/IO path to test; deferred. (b) passing the entry
   as a route argument instead of a provider — works, but a `selectedScore`

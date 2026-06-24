@@ -16,7 +16,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'screens/player_screen.dart';
+import 'screens/library_screen.dart';
 import 'src/rust/frb_generated.dart';
 import 'theme/cymbra_theme.dart';
 
@@ -41,7 +41,7 @@ class CymbraApp extends StatelessWidget {
       title: 'Cymbra Music',
       debugShowCheckedModeBanner: false,
       theme: buildCymbraTheme(),
-      home: const PlayerScreen(),
+      home: const LibraryScreen(),
     );
   }
 }

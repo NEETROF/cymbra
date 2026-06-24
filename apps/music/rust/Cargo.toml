@@ -15,6 +15,10 @@ anyhow = "1"
 # WinMM (Windows), AMidi via NDK (Android). 0.11 adds the Android backend.
 midir = "0.11"
 
+# Streaming (SAX-style) MusicXML reader. Used by api/musicxml_core.rs to parse
+# multi-megabyte scores as a stream of events with bounded memory (no DOM).
+quick-xml = "0.36"
+
 # Android context init: midir's AMidi backend needs the JavaVM, which we
 # provide via ndk_context (initialized in JNI_OnLoad, see lib.rs).
 [target.'cfg(target_os = "android")'.dependencies]

@@ -1,5 +1,8 @@
-## ADDED Requirements
+# score-library Specification
 
+## Purpose
+TBD - created by archiving change musicxml-parsing-and-geometry. Update Purpose after archive.
+## Requirements
 ### Requirement: Bundled Score Catalog
 
 The app SHALL ship a catalog of multiple free / public-domain MusicXML scores
@@ -56,21 +59,28 @@ library screen SHALL be the application's initial route (`home`).
 ### Requirement: Partition Selection And Navigation
 
 Selecting a catalog entry on the library screen SHALL record it as the selected
-score and navigate to the piano/partition screen, which SHALL load and render
-that score's MusicXML. The selection SHALL be exposed through state so the
-partition screen knows which asset to load. Returning from the partition screen
-SHALL bring the user back to the library.
+score and navigate to the player screen, which SHALL load that score's MusicXML
+and display it — including an engraved Partition view. The player screen SHALL
+retain its on-screen piano keyboard, MIDI device selection and transport. The
+selection SHALL be exposed through state so the player knows which asset to load.
+Returning from the player screen SHALL bring the user back to the library.
 
-#### Scenario: Selecting a score opens the partition screen
+#### Scenario: Selecting a score opens the player screen
 - **WHEN** the user taps a catalog entry
 - **THEN** that entry becomes the selected score and the app navigates to the
-  partition screen showing its parsed notation
+  player screen, which loads and displays its parsed notation
 
-#### Scenario: Partition screen loads the selected asset
-- **WHEN** the partition screen is shown for a selected entry
+#### Scenario: Player screen loads the selected asset
+- **WHEN** the player screen is shown for a selected entry
 - **THEN** it loads the entry's asset path through the score-asset source and
-  renders the resulting systems
+  renders the resulting score (engraved partition and the derived playback views)
+
+#### Scenario: Player retains keyboard and MIDI controls
+- **WHEN** the player screen is shown for a selected entry
+- **THEN** the on-screen piano keyboard, MIDI device selection and transport
+  controls remain available
 
 #### Scenario: Back returns to the library
-- **WHEN** the user navigates back from the partition screen
+- **WHEN** the user navigates back from the player screen
 - **THEN** the library screen is shown again
+

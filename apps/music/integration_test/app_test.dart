@@ -14,10 +14,10 @@
 
 // End-to-end test driving the REAL app: it builds and loads the native Rust
 // library (cargokit) and exercises the genuine flutter_rust_bridge path
-// (RustLib.init, demoScore, midiEventStream). No MIDI hardware is required —
-// the computer-keyboard fallback covers the input path. Run locally with
-// `flutter test integration_test -d macos`; in CI it runs on the Linux desktop
-// engine under Xvfb.
+// (RustLib.init, parse_musicxml, layout_systems, midiEventStream). No MIDI
+// hardware is required — the computer-keyboard fallback covers the input path.
+// Run locally with `flutter test integration_test -d macos`; in CI it runs on
+// the Linux desktop engine under Xvfb.
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -31,7 +31,7 @@ void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
   setUpAll(() async => await RustLib.init());
 
-  testWidgets('boots, plays, accepts keyboard input, toggles render mode', (
+  testWidgets('library → score → plays, keyboard input, render modes', (
     tester,
   ) async {
     // The desktop/tablet-first UI is laid out for a realistic viewport; pin a
@@ -44,9 +44,20 @@ void main() {
     await tester.pumpWidget(const ProviderScope(child: CymbraApp()));
     await tester.pump(const Duration(milliseconds: 100));
 
-    // App chrome from the real demo score loaded over the bridge.
+    // Boots into the score library; pick a bundled score.
+    expect(find.text('Cymbra — Score Library'), findsOneWidget);
+    final entry = find.text('Ode to Joy (theme)');
+    expect(entry, findsOneWidget);
+    await tester.tap(entry);
+
+    // Let navigation + asset load + the real bridge parse/layout settle.
+    for (var i = 0; i < 25; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+
+    // Player chrome for the loaded score (parsed over the bridge).
     expect(find.text('Cymbra Music'), findsWidgets);
-    expect(find.text('Tempo: 80'), findsOneWidget);
+    expect(find.textContaining('Ode to Joy'), findsWidgets);
 
     // Transport: play.
     expect(find.byIcon(Icons.play_arrow), findsOneWidget);
@@ -60,9 +71,11 @@ void main() {
     await tester.sendKeyUpEvent(LogicalKeyboardKey.keyA);
     await tester.pump();
 
-    // Switch rendering mode Synthesia → Staff → Synthesia.
+    // Cycle the three rendering modes: Synthesia → Staff → Partition → Synthesia.
     await tester.tap(find.text('Staff'));
     await tester.pump();
+    await tester.tap(find.text('Partition'));
+    await tester.pump(const Duration(milliseconds: 100));
     await tester.tap(find.text('Synthesia'));
     await tester.pump();
   });

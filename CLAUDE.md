@@ -45,8 +45,10 @@ Every change keeps or raises **line coverage ≥ 80%** for both ecosystems; new
 code needs tests. CI fails under 80% and also reports to SonarCloud (decoration).
 
 - **Rust**: `cargo llvm-cov --workspace --fail-under-lines 80` (excludes the
-  generated bridge, `lib.rs`, and the hardware/thread glue in `api/midi.rs`).
-  Keep pure, testable logic in host-testable modules like `api/midi_core.rs`.
+  generated bridge, `lib.rs`, the hardware/thread glue in `api/midi.rs`, and the
+  thin MusicXML FFI seam in `api/musicxml.rs`).
+  Keep pure, testable logic in host-testable modules like `api/midi_core.rs` and
+  `api/musicxml_core.rs`.
 - **Flutter**: `flutter test --coverage` (unit + widget) merged with the
   integration run, gated by `very_good_coverage` (excludes `lib/src/rust/**`,
   `main.dart`, generated `*.g.dart`/`*.freezed.dart`). Keep the native FFI behind
@@ -55,7 +57,7 @@ code needs tests. CI fails under 80% and also reports to SonarCloud (decoration)
 
 Run locally before pushing:
 ```bash
-cargo llvm-cov --workspace --fail-under-lines 80 --ignore-filename-regex 'frb_generated|/lib\.rs|/midi\.rs'
+cargo llvm-cov --workspace --fail-under-lines 80 --ignore-filename-regex 'frb_generated|/lib\.rs|/midi\.rs|/musicxml\.rs'
 cd apps/music && flutter test --coverage --exclude-tags golden   # then check lcov
 ```
 

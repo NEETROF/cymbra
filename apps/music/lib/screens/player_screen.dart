@@ -17,10 +17,12 @@ import 'package:flutter/services.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../painters/partition_painter.dart';
 import '../painters/piano_keyboard_painter.dart';
 import '../painters/piano_layout.dart';
 import '../painters/staff_painter.dart';
 import '../painters/synthesia_painter.dart';
+import '../state/notation_notifier.dart';
 import '../state/player_data.dart';
 import '../state/player_notifier.dart';
 import '../theme/cymbra_theme.dart';
@@ -149,6 +151,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
   }
 
   Widget _buildRenderArea(PianoLayout layout, PlayerData data) {
+    if (data.mode == RenderMode.partition) {
+      return const _PartitionView();
+    }
     if (data.mode == RenderMode.synthesia) {
       return Stack(
         children: [
@@ -174,8 +179,11 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
           notes: data.notes,
           elapsedMs: data.elapsedMs,
           activeNotes: data.activeNotes,
-          bpm: data.score?.bpm ?? 80,
+          bpm: data.bpm,
           songEndMs: data.songEndMs,
+          keyFifths: data.keyFifths,
+          beats: data.beats,
+          beatType: data.beatType,
         ),
         size: Size.infinite,
       ),
@@ -201,7 +209,15 @@ class _TopBar extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(Icons.arrow_back, color: CymbraColors.onSurface),
+          // Wired only when reached from the library (a route to pop back to).
+          if (Navigator.of(context).canPop())
+            IconButton(
+              icon: const Icon(Icons.arrow_back, color: CymbraColors.onSurface),
+              tooltip: 'Back to library',
+              onPressed: () => Navigator.of(context).maybePop(),
+            )
+          else
+            const Icon(Icons.arrow_back, color: CymbraColors.onSurface),
           const SizedBox(width: 16),
           // Expanded (instead of a fixed Column + Spacer) so the title absorbs
           // the free space and shrinks gracefully on narrow windows; the texts
@@ -220,11 +236,11 @@ class _TopBar extends StatelessWidget {
                     fontWeight: FontWeight.w800,
                   ),
                 ),
-                const Text(
-                  'Now Playing: Demo — C Major Scale',
+                Text(
+                  'Now Playing: ${data.title ?? '—'}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
+                  style: const TextStyle(
                     color: CymbraColors.onSurfaceVariant,
                     fontSize: 12,
                   ),
@@ -235,7 +251,7 @@ class _TopBar extends StatelessWidget {
           const SizedBox(width: 12),
           _MidiStatusIndicator(data: data, notifier: notifier),
           const SizedBox(width: 8),
-          _Chip(icon: Icons.speed, label: 'Tempo: ${data.score?.bpm ?? '--'}'),
+          _Chip(icon: Icons.speed, label: 'Tempo: ${data.bpm}'),
           const SizedBox(width: 8),
           // On-screen keyboard size chooser.
           _RangeChooser(data: data, notifier: notifier),
@@ -313,17 +329,12 @@ class _ModeToggle extends StatelessWidget {
               : CymbraColors.surfaceContainerHigh,
         ),
       ),
+      // Labels only (no per-segment icons) to keep the top bar within narrow
+      // tablet widths now that there are three modes.
       segments: const [
-        ButtonSegment(
-          value: RenderMode.synthesia,
-          label: Text('Synthesia'),
-          icon: Icon(Icons.waterfall_chart),
-        ),
-        ButtonSegment(
-          value: RenderMode.staff,
-          label: Text('Staff'),
-          icon: Icon(Icons.music_note),
-        ),
+        ButtonSegment(value: RenderMode.synthesia, label: Text('Synthesia')),
+        ButtonSegment(value: RenderMode.staff, label: Text('Staff')),
+        ButtonSegment(value: RenderMode.partition, label: Text('Partition')),
       ],
       selected: {data.mode},
       onSelectionChanged: (s) => notifier.setMode(s.first),
@@ -586,6 +597,61 @@ class _WaitOverlay extends StatelessWidget {
           '⏸  Play the expected note to continue',
           style: TextStyle(color: CymbraColors.secondary, fontSize: 16),
         ),
+      ),
+    );
+  }
+}
+
+/// Engraved-notation (Partition) render mode: draws the laid-out MusicXML of the
+/// loaded score and re-lays it out as the available width changes. Shows a
+/// loading/empty state when no score notation is available (e.g. the demo).
+class _PartitionView extends ConsumerWidget {
+  const _PartitionView();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final notation = ref.watch(notationProvider);
+
+    if (notation.error != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text(
+            'Could not load this score:\n${notation.error}',
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: CymbraColors.error),
+          ),
+        ),
+      );
+    }
+    if (!notation.hasDocument) {
+      return const Center(
+        child: Text(
+          'No partition loaded — pick a score from the library.',
+          style: TextStyle(color: CymbraColors.onSurfaceVariant),
+        ),
+      );
+    }
+
+    return Container(
+      color: CymbraColors.surfaceContainerLow,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final width = constraints.maxWidth;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            ref.read(notationProvider.notifier).setAvailableWidth(width);
+          });
+          final painter = PartitionPainter(
+            document: notation.document!,
+            systems: notation.systems,
+          );
+          return SingleChildScrollView(
+            child: CustomPaint(
+              painter: painter,
+              size: Size(width, painter.heightFor(width)),
+            ),
+          );
+        },
       ),
     );
   }

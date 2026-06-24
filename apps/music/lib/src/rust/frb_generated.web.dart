@@ -7,6 +7,7 @@
 // ignore_for_file: argument_type_not_assignable
 
 import 'api/midi.dart';
+import 'api/musicxml.dart';
 import 'api/score.dart';
 import 'api/simple.dart';
 import 'dart:async';
@@ -26,10 +27,49 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   AnyhowException dco_decode_AnyhowException(dynamic raw);
 
   @protected
+  String dco_decode_Char(dynamic raw);
+
+  @protected
   RustStreamSink<MidiEvent> dco_decode_StreamSink_midi_event_Sse(dynamic raw);
 
   @protected
   String dco_decode_String(dynamic raw);
+
+  @protected
+  Attributes dco_decode_attributes(dynamic raw);
+
+  @protected
+  BeamState dco_decode_beam_state(dynamic raw);
+
+  @protected
+  bool dco_decode_bool(dynamic raw);
+
+  @protected
+  Lyric dco_decode_box_autoadd_lyric(dynamic raw);
+
+  @protected
+  Pitch dco_decode_box_autoadd_pitch(dynamic raw);
+
+  @protected
+  ScoreDocument dco_decode_box_autoadd_score_document(dynamic raw);
+
+  @protected
+  StemDir dco_decode_box_autoadd_stem_dir(dynamic raw);
+
+  @protected
+  Tuplet dco_decode_box_autoadd_tuplet(dynamic raw);
+
+  @protected
+  Clef dco_decode_clef(dynamic raw);
+
+  @protected
+  Direction dco_decode_direction(dynamic raw);
+
+  @protected
+  DirectionKind dco_decode_direction_kind(dynamic raw);
+
+  @protected
+  double dco_decode_f_64(dynamic raw);
 
   @protected
   int dco_decode_i_32(dynamic raw);
@@ -38,13 +78,40 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<String> dco_decode_list_String(dynamic raw);
 
   @protected
+  List<BeamState> dco_decode_list_beam_state(dynamic raw);
+
+  @protected
+  List<Clef> dco_decode_list_clef(dynamic raw);
+
+  @protected
+  List<Direction> dco_decode_list_direction(dynamic raw);
+
+  @protected
   List<Measure> dco_decode_list_measure(dynamic raw);
+
+  @protected
+  List<NotationMeasure> dco_decode_list_notation_measure(dynamic raw);
 
   @protected
   List<Note> dco_decode_list_note(dynamic raw);
 
   @protected
+  List<NoteEvent> dco_decode_list_note_event(dynamic raw);
+
+  @protected
+  Uint32List dco_decode_list_prim_u_32_strict(dynamic raw);
+
+  @protected
+  List<int> dco_decode_list_prim_u_8_loose(dynamic raw);
+
+  @protected
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw);
+
+  @protected
+  List<System> dco_decode_list_system(dynamic raw);
+
+  @protected
+  Lyric dco_decode_lyric(dynamic raw);
 
   @protected
   Measure dco_decode_measure(dynamic raw);
@@ -56,13 +123,52 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   MidiEventKind dco_decode_midi_event_kind(dynamic raw);
 
   @protected
+  NotationMeasure dco_decode_notation_measure(dynamic raw);
+
+  @protected
   Note dco_decode_note(dynamic raw);
+
+  @protected
+  NoteEvent dco_decode_note_event(dynamic raw);
 
   @protected
   String? dco_decode_opt_String(dynamic raw);
 
   @protected
+  Lyric? dco_decode_opt_box_autoadd_lyric(dynamic raw);
+
+  @protected
+  Pitch? dco_decode_opt_box_autoadd_pitch(dynamic raw);
+
+  @protected
+  StemDir? dco_decode_opt_box_autoadd_stem_dir(dynamic raw);
+
+  @protected
+  Tuplet? dco_decode_opt_box_autoadd_tuplet(dynamic raw);
+
+  @protected
+  Pitch dco_decode_pitch(dynamic raw);
+
+  @protected
   Score dco_decode_score(dynamic raw);
+
+  @protected
+  ScoreDocument dco_decode_score_document(dynamic raw);
+
+  @protected
+  ScoreMeta dco_decode_score_meta(dynamic raw);
+
+  @protected
+  StemDir dco_decode_stem_dir(dynamic raw);
+
+  @protected
+  System dco_decode_system(dynamic raw);
+
+  @protected
+  TimeSignature dco_decode_time_signature(dynamic raw);
+
+  @protected
+  Tuplet dco_decode_tuplet(dynamic raw);
 
   @protected
   int dco_decode_u_32(dynamic raw);
@@ -80,6 +186,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   AnyhowException sse_decode_AnyhowException(SseDeserializer deserializer);
 
   @protected
+  String sse_decode_Char(SseDeserializer deserializer);
+
+  @protected
   RustStreamSink<MidiEvent> sse_decode_StreamSink_midi_event_Sse(
     SseDeserializer deserializer,
   );
@@ -88,19 +197,86 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   String sse_decode_String(SseDeserializer deserializer);
 
   @protected
+  Attributes sse_decode_attributes(SseDeserializer deserializer);
+
+  @protected
+  BeamState sse_decode_beam_state(SseDeserializer deserializer);
+
+  @protected
+  bool sse_decode_bool(SseDeserializer deserializer);
+
+  @protected
+  Lyric sse_decode_box_autoadd_lyric(SseDeserializer deserializer);
+
+  @protected
+  Pitch sse_decode_box_autoadd_pitch(SseDeserializer deserializer);
+
+  @protected
+  ScoreDocument sse_decode_box_autoadd_score_document(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  StemDir sse_decode_box_autoadd_stem_dir(SseDeserializer deserializer);
+
+  @protected
+  Tuplet sse_decode_box_autoadd_tuplet(SseDeserializer deserializer);
+
+  @protected
+  Clef sse_decode_clef(SseDeserializer deserializer);
+
+  @protected
+  Direction sse_decode_direction(SseDeserializer deserializer);
+
+  @protected
+  DirectionKind sse_decode_direction_kind(SseDeserializer deserializer);
+
+  @protected
+  double sse_decode_f_64(SseDeserializer deserializer);
+
+  @protected
   int sse_decode_i_32(SseDeserializer deserializer);
 
   @protected
   List<String> sse_decode_list_String(SseDeserializer deserializer);
 
   @protected
+  List<BeamState> sse_decode_list_beam_state(SseDeserializer deserializer);
+
+  @protected
+  List<Clef> sse_decode_list_clef(SseDeserializer deserializer);
+
+  @protected
+  List<Direction> sse_decode_list_direction(SseDeserializer deserializer);
+
+  @protected
   List<Measure> sse_decode_list_measure(SseDeserializer deserializer);
+
+  @protected
+  List<NotationMeasure> sse_decode_list_notation_measure(
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<Note> sse_decode_list_note(SseDeserializer deserializer);
 
   @protected
+  List<NoteEvent> sse_decode_list_note_event(SseDeserializer deserializer);
+
+  @protected
+  Uint32List sse_decode_list_prim_u_32_strict(SseDeserializer deserializer);
+
+  @protected
+  List<int> sse_decode_list_prim_u_8_loose(SseDeserializer deserializer);
+
+  @protected
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer);
+
+  @protected
+  List<System> sse_decode_list_system(SseDeserializer deserializer);
+
+  @protected
+  Lyric sse_decode_lyric(SseDeserializer deserializer);
 
   @protected
   Measure sse_decode_measure(SseDeserializer deserializer);
@@ -112,13 +288,52 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   MidiEventKind sse_decode_midi_event_kind(SseDeserializer deserializer);
 
   @protected
+  NotationMeasure sse_decode_notation_measure(SseDeserializer deserializer);
+
+  @protected
   Note sse_decode_note(SseDeserializer deserializer);
+
+  @protected
+  NoteEvent sse_decode_note_event(SseDeserializer deserializer);
 
   @protected
   String? sse_decode_opt_String(SseDeserializer deserializer);
 
   @protected
+  Lyric? sse_decode_opt_box_autoadd_lyric(SseDeserializer deserializer);
+
+  @protected
+  Pitch? sse_decode_opt_box_autoadd_pitch(SseDeserializer deserializer);
+
+  @protected
+  StemDir? sse_decode_opt_box_autoadd_stem_dir(SseDeserializer deserializer);
+
+  @protected
+  Tuplet? sse_decode_opt_box_autoadd_tuplet(SseDeserializer deserializer);
+
+  @protected
+  Pitch sse_decode_pitch(SseDeserializer deserializer);
+
+  @protected
   Score sse_decode_score(SseDeserializer deserializer);
+
+  @protected
+  ScoreDocument sse_decode_score_document(SseDeserializer deserializer);
+
+  @protected
+  ScoreMeta sse_decode_score_meta(SseDeserializer deserializer);
+
+  @protected
+  StemDir sse_decode_stem_dir(SseDeserializer deserializer);
+
+  @protected
+  System sse_decode_system(SseDeserializer deserializer);
+
+  @protected
+  TimeSignature sse_decode_time_signature(SseDeserializer deserializer);
+
+  @protected
+  Tuplet sse_decode_tuplet(SseDeserializer deserializer);
 
   @protected
   int sse_decode_u_32(SseDeserializer deserializer);
@@ -133,13 +348,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_decode_unit(SseDeserializer deserializer);
 
   @protected
-  bool sse_decode_bool(SseDeserializer deserializer);
-
-  @protected
   void sse_encode_AnyhowException(
     AnyhowException self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_Char(String self, SseSerializer serializer);
 
   @protected
   void sse_encode_StreamSink_midi_event_Sse(
@@ -151,22 +366,103 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_String(String self, SseSerializer serializer);
 
   @protected
+  void sse_encode_attributes(Attributes self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_beam_state(BeamState self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_bool(bool self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_lyric(Lyric self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_pitch(Pitch self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_score_document(
+    ScoreDocument self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_stem_dir(StemDir self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_tuplet(Tuplet self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_clef(Clef self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_direction(Direction self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_direction_kind(DirectionKind self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_f_64(double self, SseSerializer serializer);
+
+  @protected
   void sse_encode_i_32(int self, SseSerializer serializer);
 
   @protected
   void sse_encode_list_String(List<String> self, SseSerializer serializer);
 
   @protected
+  void sse_encode_list_beam_state(
+    List<BeamState> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_clef(List<Clef> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_direction(
+    List<Direction> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_measure(List<Measure> self, SseSerializer serializer);
 
   @protected
+  void sse_encode_list_notation_measure(
+    List<NotationMeasure> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_note(List<Note> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_note_event(
+    List<NoteEvent> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_prim_u_32_strict(
+    Uint32List self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_prim_u_8_loose(List<int> self, SseSerializer serializer);
 
   @protected
   void sse_encode_list_prim_u_8_strict(
     Uint8List self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_list_system(List<System> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_lyric(Lyric self, SseSerializer serializer);
 
   @protected
   void sse_encode_measure(Measure self, SseSerializer serializer);
@@ -178,13 +474,61 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_midi_event_kind(MidiEventKind self, SseSerializer serializer);
 
   @protected
+  void sse_encode_notation_measure(
+    NotationMeasure self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_note(Note self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_note_event(NoteEvent self, SseSerializer serializer);
 
   @protected
   void sse_encode_opt_String(String? self, SseSerializer serializer);
 
   @protected
+  void sse_encode_opt_box_autoadd_lyric(Lyric? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_pitch(Pitch? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_stem_dir(
+    StemDir? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_tuplet(
+    Tuplet? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_pitch(Pitch self, SseSerializer serializer);
+
+  @protected
   void sse_encode_score(Score self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_score_document(ScoreDocument self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_score_meta(ScoreMeta self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_stem_dir(StemDir self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_system(System self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_time_signature(TimeSignature self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_tuplet(Tuplet self, SseSerializer serializer);
 
   @protected
   void sse_encode_u_32(int self, SseSerializer serializer);
@@ -197,9 +541,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_unit(void self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_bool(bool self, SseSerializer serializer);
 }
 
 // Section: wire_class

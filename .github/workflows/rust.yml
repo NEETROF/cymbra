@@ -29,11 +29,12 @@ jobs:
       - name: Clippy
         run: cargo clippy --workspace --all-targets -- -D warnings
       # cargo-llvm-cov runs the tests AND measures coverage, failing the job under
-      # 80% line coverage. The generated bridge, the Android JNI entrypoint (lib.rs)
-      # and the hardware/thread MIDI glue (api/midi.rs) can't run on a headless CI
-      # host, so they're excluded. The pure, testable logic lives in api/midi_core.rs
-      # (still measured), alongside score.rs and simple.rs.
+      # 80% line coverage. The generated bridge, the Android JNI entrypoint (lib.rs),
+      # the hardware/thread MIDI glue (api/midi.rs) and the thin MusicXML FFI seam
+      # (api/musicxml.rs) can't run on a headless CI host, so they're excluded. The
+      # pure, testable logic lives in api/midi_core.rs and api/musicxml_core.rs (still
+      # measured), alongside score.rs and simple.rs.
       - name: Test + coverage (fail under 80%)
-        run: cargo llvm-cov --workspace --lcov --output-path target/lcov.info --fail-under-lines 80 --ignore-filename-regex 'frb_generated|/lib\.rs|/midi\.rs'
+        run: cargo llvm-cov --workspace --lcov --output-path target/lcov.info --fail-under-lines 80 --ignore-filename-regex 'frb_generated|/lib\.rs|/midi\.rs|/musicxml\.rs'
       - name: Build
         run: cargo build --workspace
