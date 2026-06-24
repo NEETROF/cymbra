@@ -621,7 +621,7 @@ class PartitionPainter extends CustomPainter {
   void _drawLedgerLines(Canvas canvas, double x, double y, double bottomLineY) {
     final topLineY = bottomLineY - _staffHeight;
     const ext = Smufl.legerLineExtension * _s;
-    final half = Smufl.noteheadWidth * _s / 2 + ext;
+    const half = Smufl.noteheadWidth * _s / 2 + ext;
     final paint = Paint()
       ..color = CymbraColors.onSurfaceVariant.withValues(alpha: 0.8)
       ..strokeWidth = Smufl.legerLineThickness * _s;

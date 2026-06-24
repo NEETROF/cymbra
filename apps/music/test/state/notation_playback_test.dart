@@ -149,7 +149,7 @@ void main() {
         ],
       );
       final d = notationToTimedNotes(doc);
-      final halfMs = (60000 / kDefaultBpm) * 2; // 8 divisions = 2 quarters
+      const halfMs = (60000 / kDefaultBpm) * 2; // 8 divisions = 2 quarters
       expect(d.songEndMs, closeTo(halfMs, 1));
     });
 
@@ -197,7 +197,7 @@ void main() {
         final d = notationToTimedNotes(doc);
         expect(d.notes, hasLength(2));
         // Full 4/4 measure = 16 divisions = 4 quarters.
-        final measureMs = (60000 / kDefaultBpm) * 4;
+        const measureMs = (60000 / kDefaultBpm) * 4;
         expect(d.notes[1].startMs, closeTo(measureMs, 1));
       },
     );
