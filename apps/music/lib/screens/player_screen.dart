@@ -774,6 +774,7 @@ class _PartitionViewState extends ConsumerState<_PartitionView> {
     PlayerData data,
     NotationData notation,
     double width,
+    PartitionPainter mainPainter,
   ) {
     final cursor = data.measureAt(data.elapsedMs);
     if (cursor == null) return null;
@@ -786,6 +787,20 @@ class _PartitionViewState extends ConsumerState<_PartitionView> {
     if (pos < 0) return null;
     final lineProgress = (pos + cursor.fraction) / current.measures.length;
     if (lineProgress < 0.5) return null; // only near the end of the line
+
+    // Don't cover the score when the next line is already visible on screen
+    // (e.g. a tall viewport shows it below the current line) — the overlay is
+    // only useful when the next line is still below the fold.
+    if (_scroll.hasClients) {
+      final vpTop = _scroll.offset;
+      final vpBottom = vpTop + _scroll.position.viewportDimension;
+      final nextTop = mainPainter.systemTopY(sysIndex + 1);
+      final nextBottom = nextTop + mainPainter.systemStride;
+      final visible =
+          (nextBottom < vpBottom ? nextBottom : vpBottom) -
+          (nextTop > vpTop ? nextTop : vpTop);
+      if (visible >= mainPainter.systemStride * 0.6) return null;
+    }
 
     // Engrave the FULL next system at the same width as the main view (so the
     // notes are exactly the same size — no down-scaling) and clip the overlay to
@@ -856,7 +871,7 @@ class _PartitionViewState extends ConsumerState<_PartitionView> {
             activeNotes: data.activeNotes,
           );
           _followCursor(data, notation.systems, painter);
-          final overlay = _buildNextLineOverlay(data, notation, width);
+          final overlay = _buildNextLineOverlay(data, notation, width, painter);
           return Stack(
             children: [
               SingleChildScrollView(

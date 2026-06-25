@@ -87,7 +87,7 @@ void main() {
     container.dispose();
   });
 
-  testWidgets('shows the next-line overlay past the middle of a line', (
+  testWidgets('hides the next-line overlay while the next line is on screen', (
     tester,
   ) async {
     await tester.binding.setSurfaceSize(const Size(1400, 900));
@@ -125,8 +125,9 @@ void main() {
     for (var i = 0; i < 40; i++) {
       await tester.pump(const Duration(milliseconds: 50));
     }
-    // Past the middle of a line, with lines still ahead → the peek appears.
-    expect(find.text('NEXT'), findsOneWidget);
+    // This viewport is tall enough to show the next line below the current one,
+    // so the overlay must stay hidden (it would otherwise cover the score).
+    expect(find.text('NEXT'), findsNothing);
 
     await tester.pumpWidget(const SizedBox());
     await tester.pump();
