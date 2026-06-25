@@ -16,6 +16,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:music/painters/partition_painter.dart';
+import 'package:music/painters/staff_painter.dart';
+import 'package:music/painters/synthesia_painter.dart';
 import 'package:music/screens/player_screen.dart';
 import 'package:music/services/midi_service.dart';
 import 'package:music/services/notation_engine.dart';
@@ -119,5 +121,116 @@ void main() {
     expect(data.score, isNotNull); // fell back to the demo
     expect(data.notes, isNotEmpty);
     await _teardown(tester, container);
+  });
+
+  group('hand selector (settings menu)', () {
+    T painterOf<T>(WidgetTester tester) => tester
+        .widgetList<CustomPaint>(find.byType(CustomPaint))
+        .map((w) => w.painter)
+        .whereType<T>()
+        .first;
+
+    /// Opens the gear end drawer (the screen's Ticker never settles, so pump
+    /// explicitly past the open animation).
+    Future<void> openSettings(WidgetTester tester) async {
+      await tester.tap(find.byIcon(Icons.tune));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+    }
+
+    /// Opens the drawer and drills into the "Hand" category.
+    Future<void> openHandCategory(WidgetTester tester) async {
+      await openSettings(tester);
+      await tester.tap(find.text('Hand'));
+      await tester.pump();
+    }
+
+    /// Dismisses the drawer by tapping the scrim left of the right-side panel.
+    Future<void> closeSettings(WidgetTester tester) async {
+      await tester.tapAt(const Offset(20, 400));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+    }
+
+    testWidgets('shows the current selection and dispatches the setter', (
+      tester,
+    ) async {
+      final container = await _pumpPlayer(tester);
+      // The two-staff sample makes the Hand category meaningful → it is offered.
+      await openHandCategory(tester);
+      expect(find.text('Both'), findsOneWidget); // current selection is listed
+
+      await tester.tap(find.text('Left'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 600));
+
+      expect(container.read(playerProvider).selectedHands, Hand.left);
+      await _teardown(tester, container);
+    });
+
+    testWidgets('is reachable in every render mode', (tester) async {
+      final container = await _pumpPlayer(tester);
+      final notifier = container.read(playerProvider.notifier);
+      for (final mode in RenderMode.values) {
+        notifier.setMode(mode);
+        await tester.pump();
+        await openHandCategory(tester);
+        expect(
+          find.text('Left'),
+          findsOneWidget,
+          reason: 'hand option missing in $mode',
+        );
+        await closeSettings(tester);
+      }
+      await _teardown(tester, container);
+    });
+
+    testWidgets('is hidden for a single-staff piece (the demo)', (
+      tester,
+    ) async {
+      // No score selected → the demo (all staff 1) loads, so there is no hand
+      // to isolate and the Hand category is not offered.
+      final container = await _pumpPlayer(tester, select: false);
+      expect(container.read(playerProvider).hasMultipleStaves, isFalse);
+      await openSettings(tester);
+      expect(find.text('Hand'), findsNothing);
+      // The other categories are still offered.
+      expect(find.text('Keyboard size'), findsOneWidget);
+      await _teardown(tester, container);
+    });
+
+    testWidgets('Staff and Synthesia exclude the unselected hand', (
+      tester,
+    ) async {
+      final container = await _pumpPlayer(tester);
+      final notifier = container.read(playerProvider.notifier);
+
+      // Both: the painter sees the left-hand (staff 2) note.
+      notifier.setMode(RenderMode.staff);
+      await tester.pump();
+      expect(
+        painterOf<StaffPainter>(tester).notes.any((n) => n.staff >= 2),
+        isTrue,
+      );
+
+      // Right: only staff-1 notes reach the painters, in every time-based mode.
+      notifier.setSelectedHands(Hand.right);
+      await tester.pump();
+      final staff = painterOf<StaffPainter>(tester);
+      expect(staff.notes, isNotEmpty);
+      expect(staff.notes.every((n) => n.staff == 1), isTrue);
+
+      notifier.setMode(RenderMode.synthesia);
+      await tester.pump();
+      final synth = painterOf<SynthesiaPainter>(tester);
+      expect(synth.notes, isNotEmpty);
+      expect(synth.notes.every((n) => n.staff == 1), isTrue);
+
+      // Partition collapses to a single staff via the selection it is handed.
+      notifier.setMode(RenderMode.partition);
+      await tester.pump();
+      expect(painterOf<PartitionPainter>(tester).selectedHands, Hand.right);
+      await _teardown(tester, container);
+    });
   });
 }

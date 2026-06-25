@@ -194,6 +194,9 @@ class Player extends _$Player {
   // --- Playback controls ------------------------------------------------
 
   void togglePlay() => state = state.copyWith(isPlaying: !state.isPlaying);
+  // Set the play/pause state explicitly (used to pause while the settings drawer
+  // is open and restore the prior state when it closes).
+  void setPlaying(bool playing) => state = state.copyWith(isPlaying: playing);
   void setMode(RenderMode m) => state = state.copyWith(mode: m);
   // Re-arm the onset gate at the current playhead when toggling Wait Mode on.
   void toggleWaitMode() => state = state.copyWith(
@@ -203,6 +206,10 @@ class Player extends _$Player {
   void setSpeed(double s) => state = state.copyWith(speed: s.clamp(0.25, 2.0));
   void setKeyboardRange(KeyboardRangeMode m) =>
       state = state.copyWith(keyboardRange: m);
+  // Re-arm the onset gate so a hand switch can't leave the cascade frozen on an
+  // onset that is now hidden (or pre-satisfied from the previous selection).
+  void setSelectedHands(Hand hand) =>
+      state = state.copyWith(selectedHands: hand, gateSatisfied: const {});
   void restart() =>
       state = state.copyWith(elapsedMs: 0, gateSatisfied: const {});
 

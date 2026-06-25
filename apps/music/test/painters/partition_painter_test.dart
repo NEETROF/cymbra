@@ -19,6 +19,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:music/painters/partition_painter.dart';
 import 'package:music/src/rust/api/musicxml.dart';
+import 'package:music/state/player_data.dart' show Hand;
 
 import '../support/notation_fakes.dart';
 import '../support/test_fonts.dart';
@@ -58,6 +59,32 @@ void main() {
             staves: document.staves,
           ),
         ],
+      );
+      final recorder = ui.PictureRecorder();
+      painter.paint(Canvas(recorder), const Size(600, 400));
+      recorder.endRecording();
+    }
+  });
+
+  test('single-hand selection collapses to one staff', () {
+    final document = sampleGrandStaffDocument();
+    final systems = FakeNotationEngine().layout(document, 600);
+    final both = PartitionPainter(document: document, systems: systems);
+    final right = PartitionPainter(
+      document: document,
+      systems: systems,
+      selectedHands: Hand.right,
+    );
+    // Collapsing a staff shortens the system (no bass staff + inter-staff gap).
+    expect(right.heightFor(600), lessThan(both.heightFor(600)));
+    expect(right.shouldRepaint(both), isTrue); // selection drives a repaint
+
+    // Both single-hand selections paint without error.
+    for (final hand in [Hand.left, Hand.right]) {
+      final painter = PartitionPainter(
+        document: document,
+        systems: systems,
+        selectedHands: hand,
       );
       final recorder = ui.PictureRecorder();
       painter.paint(Canvas(recorder), const Size(600, 400));
@@ -176,4 +203,33 @@ void main() {
       matchesGoldenFile('goldens/partition.png'),
     );
   }, tags: 'golden');
+
+  // Single-hand collapsed layouts: only the kept staff (treble for Right, bass
+  // for Left) is engraved; the other staff and its glyphs are gone.
+  for (final (hand, name) in [(Hand.right, 'right'), (Hand.left, 'left')]) {
+    testWidgets('partition $name-hand only golden', (tester) async {
+      final document = sampleGrandStaffDocument();
+      final painter = PartitionPainter(
+        document: document,
+        systems: FakeNotationEngine().layout(document, 600),
+        selectedHands: hand,
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: CustomPaint(
+                painter: painter,
+                size: Size(600, painter.heightFor(600)),
+              ),
+            ),
+          ),
+        ),
+      );
+      await expectLater(
+        find.byType(CustomPaint).first,
+        matchesGoldenFile('goldens/partition_${name}_only.png'),
+      );
+    }, tags: 'golden');
+  }
 }

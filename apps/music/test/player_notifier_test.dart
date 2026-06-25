@@ -137,6 +137,34 @@ void main() {
     });
   });
 
+  group('hand selection', () {
+    test('defaults to both', () async {
+      await build();
+      expect(read().selectedHands, Hand.both);
+    });
+
+    test('setSelectedHands updates state immutably', () async {
+      await build();
+      final before = read();
+      notifier().setSelectedHands(Hand.left);
+      expect(read().selectedHands, Hand.left);
+      // The previous immutable snapshot is untouched (copyWith made a new one).
+      expect(before.selectedHands, Hand.both);
+
+      notifier().setSelectedHands(Hand.right);
+      expect(read().selectedHands, Hand.right);
+    });
+
+    test('switching hands re-arms the onset gate', () async {
+      await build();
+      notifier().togglePlay();
+      notifier().noteOn(60); // latch the C4 onset
+      expect(read().gateSatisfied, contains(60));
+      notifier().setSelectedHands(Hand.left);
+      expect(read().gateSatisfied, isEmpty);
+    });
+  });
+
   group('time advance + wait mode', () {
     test('requiredNotesAt returns the note under the playhead', () async {
       await build();

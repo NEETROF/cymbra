@@ -15,8 +15,8 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../painters/partition_painter.dart';
@@ -61,6 +61,28 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
   /// Assist keys → the pitches each fired on key-down, so key-up note-offs
   /// exactly those (a near-miss picks a fresh random pitch each press).
   final Map<LogicalKeyboardKey, Set<int>> _assistPressed = {};
+
+  /// Whether playback was running when the settings drawer opened, so closing it
+  /// restores that state (the drawer pauses the session while open).
+  bool _wasPlayingBeforeDrawer = false;
+
+  /// Lets [_onEndDrawerChanged] reset the drawer to its category list each time
+  /// it opens (its navigation state otherwise persists across open/close).
+  final GlobalKey<_SettingsDrawerState> _settingsDrawerKey = GlobalKey();
+
+  /// Pause the session while the settings drawer is open; restore the prior
+  /// play/pause state when it closes. Also resets the drawer to its root.
+  void _onEndDrawerChanged(bool isOpen) {
+    final notifier = ref.read(playerProvider.notifier);
+    if (isOpen) {
+      _settingsDrawerKey.currentState?.resetToRoot();
+      _wasPlayingBeforeDrawer = ref.read(playerProvider).isPlaying;
+      if (_wasPlayingBeforeDrawer) notifier.setPlaying(false);
+    } else {
+      if (_wasPlayingBeforeDrawer) notifier.setPlaying(true);
+      _wasPlayingBeforeDrawer = false;
+    }
+  }
 
   @override
   void initState() {
@@ -177,63 +199,73 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
 
   @override
   Widget build(BuildContext context) {
-    final data = ref.watch(playerProvider);
-    final notifier = ref.read(playerProvider.notifier);
     return Focus(
       focusNode: _focusNode,
       autofocus: true,
       onKeyEvent: _onKey,
       child: Scaffold(
+        // Settings live in an end drawer (slides in from the right). Opening it
+        // pauses the session; closing restores the prior play/pause state.
+        endDrawer: _SettingsDrawer(key: _settingsDrawerKey),
+        onEndDrawerChanged: _onEndDrawerChanged,
         body: SafeArea(
           child: Column(
             children: [
-              _TopBar(data: data, notifier: notifier),
+              const _TopBar(),
               Expanded(
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    final bounds = data.keyboardBounds;
-                    final layout = PianoLayout(
-                      width: constraints.maxWidth,
-                      lowPitch: bounds.low,
-                      highPitch: bounds.high,
-                    );
-                    return Column(
-                      children: [
-                        // Clip the render area so a painter (e.g. high notes /
-                        // beams in Staff mode) never draws over the top bar or
-                        // the keyboard below.
-                        Expanded(
-                          child: ClipRect(
-                            child: _buildRenderArea(layout, data),
-                          ),
-                        ),
-                        SizedBox(
-                          height: _keyboardHeight,
-                          child: Listener(
-                            key: const Key('onscreen-keyboard'),
-                            onPointerDown: (e) =>
-                                _onKeyboardPointerDown(e, layout),
-                            onPointerUp: _onKeyboardPointerUp,
-                            onPointerCancel: _onKeyboardPointerUp,
-                            child: CustomPaint(
-                              size: Size(constraints.maxWidth, _keyboardHeight),
-                              painter: PianoKeyboardPainter(
-                                layout: layout,
-                                activeNotes: data.activeNotes,
-                                requiredNotes: data.expectedKeys,
-                                leftHandNotes: data.expectedKeysForHand(
-                                  rightHand: false,
+                child: Consumer(
+                  builder: (context, ref, child) {
+                    final data = ref.watch(playerProvider);
+                    return LayoutBuilder(
+                      builder: (context, constraints) {
+                        final bounds = data.keyboardBounds;
+                        final layout = PianoLayout(
+                          width: constraints.maxWidth,
+                          lowPitch: bounds.low,
+                          highPitch: bounds.high,
+                        );
+                        return Column(
+                          children: [
+                            // Clip the render area so a painter (e.g. high notes /
+                            // beams in Staff mode) never draws over the top bar or
+                            // the keyboard below.
+                            Expanded(
+                              child: ClipRect(
+                                child: _buildRenderArea(layout, data),
+                              ),
+                            ),
+                            SizedBox(
+                              height: _keyboardHeight,
+                              child: Listener(
+                                key: const Key('onscreen-keyboard'),
+                                onPointerDown: (e) =>
+                                    _onKeyboardPointerDown(e, layout),
+                                onPointerUp: _onKeyboardPointerUp,
+                                onPointerCancel: _onKeyboardPointerUp,
+                                child: CustomPaint(
+                                  size: Size(
+                                    constraints.maxWidth,
+                                    _keyboardHeight,
+                                  ),
+                                  painter: PianoKeyboardPainter(
+                                    layout: layout,
+                                    activeNotes: data.activeNotes,
+                                    requiredNotes: data.expectedKeys,
+                                    leftHandNotes: data.expectedKeysForHand(
+                                      rightHand: false,
+                                    ),
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                        ),
-                      ],
+                          ],
+                        );
+                      },
                     );
                   },
                 ),
               ),
-              _TransportBar(data: data, notifier: notifier),
+              _TransportBar(),
             ],
           ),
         ),
@@ -252,7 +284,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
             child: CustomPaint(
               painter: SynthesiaPainter(
                 layout: layout,
-                notes: data.notes,
+                notes: data.visibleNotes,
                 elapsedMs: data.elapsedMs,
                 activeNotes: data.activeNotes,
               ),
@@ -267,7 +299,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
       color: CymbraColors.surfaceContainerLow,
       child: CustomPaint(
         painter: StaffPainter(
-          notes: data.notes,
+          notes: data.visibleNotes,
           elapsedMs: data.elapsedMs,
           activeNotes: data.activeNotes,
           bpm: data.bpm,
@@ -283,13 +315,20 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
 }
 
 /// Top bar: title, indicators and mode toggle.
-class _TopBar extends StatelessWidget {
-  final PlayerData data;
-  final Player notifier;
-  const _TopBar({required this.data, required this.notifier});
+///
+/// A `const` [ConsumerWidget] that watches **only** the title and tempo — not
+/// the playhead — so the player's per-frame rebuilds (while playing) do not
+/// rebuild the top bar. Each interactive control is its own `const` consumer
+/// watching its own slice, which keeps the open settings menu stable on touch
+/// devices (an ever-rebuilding [MenuAnchor] flickered on iPad).
+class _TopBar extends ConsumerWidget {
+  const _TopBar();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final (title, bpm) = ref.watch(
+      playerProvider.select((d) => (d.title, d.bpm)),
+    );
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: const BoxDecoration(
@@ -328,7 +367,7 @@ class _TopBar extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  'Now Playing: ${data.title ?? '—'}',
+                  'Now Playing: ${title ?? '—'}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
@@ -340,77 +379,290 @@ class _TopBar extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 12),
-          _MidiStatusIndicator(data: data, notifier: notifier),
+          // MIDI connection status (read-only at a glance); the device itself is
+          // chosen from the settings menu.
+          const _MidiStatusIndicator(),
           const SizedBox(width: 8),
-          _Chip(icon: Icons.speed, label: 'Tempo: ${data.bpm}'),
+          _Chip(icon: Icons.speed, label: 'Tempo: $bpm'),
           const SizedBox(width: 8),
-          // On-screen keyboard size chooser.
-          _RangeChooser(data: data, notifier: notifier),
+          // Consolidated music settings (MIDI device, keyboard size, hand). Lives
+          // in the mode-independent top bar, so it is reachable in Synthesia,
+          // Staff and Partition alike.
+          const _SettingsMenu(),
           const SizedBox(width: 8),
           // Rendering mode toggle.
-          _ModeToggle(data: data, notifier: notifier),
+          const _ModeToggle(),
         ],
       ),
     );
   }
 }
 
-/// Chooses the on-screen keyboard range: auto-fit to the piece, or a fixed
-/// key-count preset (25/37/49/61/76/88).
-class _RangeChooser extends StatelessWidget {
-  final PlayerData data;
-  final Player notifier;
-  const _RangeChooser({required this.data, required this.notifier});
+/// Gear button that opens the settings **end drawer** (slides in from the
+/// right). A drawer is a modal route with a scrim, so — unlike the dropdown
+/// menus that flickered on iPad — it cannot dismiss itself; opening it also
+/// pauses the session (see [_PlayerScreenState._onEndDrawerChanged]).
+class _SettingsMenu extends StatelessWidget {
+  const _SettingsMenu();
 
   @override
   Widget build(BuildContext context) {
-    final current = data.keyboardRange;
-    return PopupMenuButton<KeyboardRangeMode>(
-      tooltip: 'Keyboard size',
-      color: CymbraColors.surfaceContainerHigh,
-      onSelected: notifier.setKeyboardRange,
-      itemBuilder: (_) => [
-        for (final m in KeyboardRangeMode.values)
-          PopupMenuItem<KeyboardRangeMode>(
-            value: m,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  m == current
-                      ? Icons.check_circle
-                      : Icons.radio_button_unchecked,
-                  size: 16,
-                  color: m == current
-                      ? CymbraColors.tertiary
-                      : CymbraColors.onSurfaceVariant,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  m == KeyboardRangeMode.auto
-                      ? 'Auto (fit piece)'
-                      : '${m.label} keys',
-                ),
-              ],
-            ),
-          ),
-      ],
-      child: _Chip(
-        icon: Icons.piano,
-        label: current == KeyboardRangeMode.auto ? 'Auto' : current.label,
-      ),
+    return IconButton(
+      icon: const Icon(Icons.tune, color: CymbraColors.onSurface),
+      tooltip: 'Settings',
+      onPressed: () => Scaffold.of(context).openEndDrawer(),
     );
   }
 }
 
-/// Switch between the two rendering modes (Synthesia / Staff).
-class _ModeToggle extends StatelessWidget {
-  final PlayerData data;
-  final Player notifier;
-  const _ModeToggle({required this.data, required this.notifier});
+/// A setting category shown in the drawer's top-level list: its title, icon, and
+/// a short label of the value currently in effect.
+typedef _Category = ({String title, IconData icon, String current});
+
+/// The settings drawer: a master-detail panel. The first screen lists the
+/// setting **categories** (MIDI device, Keyboard size, Hand); tapping one shows
+/// just that category's values, so the options are never all on screen at once.
+/// Reads/updates the live [PlayerData] selection.
+class _SettingsDrawer extends ConsumerStatefulWidget {
+  const _SettingsDrawer({super.key});
+
+  @override
+  ConsumerState<_SettingsDrawer> createState() => _SettingsDrawerState();
+}
+
+class _SettingsDrawerState extends ConsumerState<_SettingsDrawer> {
+  static const Map<Hand, String> _handLabels = {
+    Hand.left: 'Left',
+    Hand.right: 'Right',
+    Hand.both: 'Both',
+  };
+
+  /// The category whose values are shown; null shows the category list.
+  String? _category;
+
+  /// Returns the drawer to its top-level category list (called when it opens).
+  void resetToRoot() {
+    if (mounted && _category != null) setState(() => _category = null);
+  }
+
+  String _rangeLabel(KeyboardRangeMode m) =>
+      m == KeyboardRangeMode.auto ? 'Auto (fit piece)' : '${m.label} keys';
+
+  /// A radio-style value row with a leading "selected" check.
+  Widget _option({
+    required bool selected,
+    required String label,
+    required VoidCallback? onTap,
+  }) => ListTile(
+    leading: Icon(
+      selected ? Icons.check_circle : Icons.radio_button_unchecked,
+      size: 20,
+      color: selected ? CymbraColors.tertiary : CymbraColors.onSurfaceVariant,
+    ),
+    title: Text(label, style: const TextStyle(color: CymbraColors.onSurface)),
+    onTap: onTap,
+  );
+
+  /// The value rows for [category], built from the current selection.
+  List<Widget> _valuesFor(
+    String category, {
+    required List<String> midiPorts,
+    required String? connectedDevice,
+    required KeyboardRangeMode keyboardRange,
+    required Hand selectedHands,
+    required Player notifier,
+  }) {
+    switch (category) {
+      case 'MIDI device':
+        return [
+          _option(
+            selected: connectedDevice == null,
+            label: 'Auto (first real device)',
+            onTap: () => notifier.selectMidiPort(null),
+          ),
+          for (final p in midiPorts)
+            _option(
+              selected: p == connectedDevice,
+              label: p,
+              onTap: () => notifier.selectMidiPort(p),
+            ),
+          if (midiPorts.isEmpty)
+            _option(selected: false, label: 'No device detected', onTap: null),
+        ];
+      case 'Keyboard size':
+        return [
+          for (final m in KeyboardRangeMode.values)
+            _option(
+              selected: m == keyboardRange,
+              label: _rangeLabel(m),
+              onTap: () => notifier.setKeyboardRange(m),
+            ),
+        ];
+      case 'Hand':
+        return [
+          for (final h in Hand.values)
+            _option(
+              selected: h == selectedHands,
+              label: _handLabels[h]!,
+              onTap: () => notifier.setSelectedHands(h),
+            ),
+        ];
+      default:
+        return const [];
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final notifier = ref.read(playerProvider.notifier);
+    final (
+      midiPorts,
+      connectedDevice,
+      keyboardRange,
+      selectedHands,
+      twoStaves,
+    ) = ref.watch(
+      playerProvider.select(
+        (d) => (
+          d.midiPorts,
+          d.connectedDevice,
+          d.keyboardRange,
+          d.selectedHands,
+          d.hasMultipleStaves,
+        ),
+      ),
+    );
+
+    // Top-level categories (with the value currently in effect as a subtitle).
+    final categories = <_Category>[
+      (
+        title: 'MIDI device',
+        icon: Icons.piano,
+        current: connectedDevice ?? 'Auto',
+      ),
+      (
+        title: 'Keyboard size',
+        icon: Icons.straighten,
+        current: keyboardRange == KeyboardRangeMode.auto
+            ? 'Auto'
+            : keyboardRange.label,
+      ),
+      if (twoStaves)
+        (
+          title: 'Hand',
+          icon: Icons.front_hand,
+          current: _handLabels[selectedHands]!,
+        ),
+    ];
+
+    final Widget body;
+    if (_category == null) {
+      // Master view: the list of categories.
+      body = ListView(
+        padding: EdgeInsets.zero,
+        children: [
+          const _DrawerHeader(title: 'Settings'),
+          for (final c in categories)
+            ListTile(
+              leading: Icon(c.icon, color: CymbraColors.onSurfaceVariant),
+              title: Text(
+                c.title,
+                style: const TextStyle(color: CymbraColors.onSurface),
+              ),
+              subtitle: Text(
+                c.current,
+                style: const TextStyle(color: CymbraColors.onSurfaceVariant),
+              ),
+              trailing: const Icon(
+                Icons.chevron_right,
+                color: CymbraColors.onSurfaceVariant,
+              ),
+              onTap: () => setState(() => _category = c.title),
+            ),
+        ],
+      );
+    } else {
+      // Detail view: just the selected category's values, with a back affordance.
+      body = ListView(
+        padding: EdgeInsets.zero,
+        children: [
+          _DrawerHeader(
+            title: _category!,
+            onBack: () => setState(() => _category = null),
+          ),
+          ..._valuesFor(
+            _category!,
+            midiPorts: midiPorts,
+            connectedDevice: connectedDevice,
+            keyboardRange: keyboardRange,
+            selectedHands: selectedHands,
+            notifier: notifier,
+          ),
+        ],
+      );
+    }
+
+    return Drawer(
+      backgroundColor: CymbraColors.surfaceContainerHigh,
+      child: SafeArea(child: body),
+    );
+  }
+}
+
+/// Drawer header: a title, optionally preceded by a back button (in the detail
+/// view), with a bottom divider.
+class _DrawerHeader extends StatelessWidget {
+  final String title;
+  final VoidCallback? onBack;
+  const _DrawerHeader({required this.title, this.onBack});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: EdgeInsets.fromLTRB(onBack != null ? 4 : 20, 14, 12, 12),
+          child: Row(
+            children: [
+              if (onBack != null) ...[
+                IconButton(
+                  tooltip: 'Back',
+                  icon: const Icon(
+                    Icons.arrow_back,
+                    color: CymbraColors.onSurfaceVariant,
+                  ),
+                  onPressed: onBack,
+                ),
+                const SizedBox(width: 4),
+              ],
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    color: CymbraColors.onSurface,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const Divider(height: 1, color: CymbraColors.outlineVariant),
+      ],
+    );
+  }
+}
+
+/// Switch between the rendering modes (Synthesia / Staff / Partition).
+class _ModeToggle extends ConsumerWidget {
+  const _ModeToggle();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final mode = ref.watch(playerProvider.select((d) => d.mode));
+    final notifier = ref.read(playerProvider.notifier);
     return SegmentedButton<RenderMode>(
       style: ButtonStyle(
         visualDensity: VisualDensity.compact,
@@ -427,7 +679,7 @@ class _ModeToggle extends StatelessWidget {
         ButtonSegment(value: RenderMode.staff, label: Text('Staff')),
         ButtonSegment(value: RenderMode.partition, label: Text('Partition')),
       ],
-      selected: {data.mode},
+      selected: {mode},
       onSelectionChanged: (s) => notifier.setMode(s.first),
       showSelectedIcon: false,
     );
@@ -461,138 +713,88 @@ class _Chip extends StatelessWidget {
   }
 }
 
-/// MIDI connection indicator: green dot + name of the connected device,
-/// amber if detected but not yet connected, gray if none.
-class _MidiStatusIndicator extends StatelessWidget {
-  final PlayerData data;
-  final Player notifier;
-  const _MidiStatusIndicator({required this.data, required this.notifier});
+/// MIDI connection status (read-only): a coloured dot + icon and a short state
+/// label — green when connected, amber while a device is detected but not yet
+/// connected, gray when none. The connected device's *name* is not shown here;
+/// the device is listed and chosen from the settings menu (see [_SettingsMenu]).
+class _MidiStatusIndicator extends ConsumerWidget {
+  const _MidiStatusIndicator();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Watch only the connection state, not the playhead, so this chip is not
+    // rebuilt on every player frame.
+    final (connected, hasPorts) = ref.watch(
+      playerProvider.select((d) => (d.midiConnected, d.midiPorts.isNotEmpty)),
+    );
+
     final Color color;
     final String label;
     final IconData icon;
 
-    if (data.midiConnected) {
+    if (connected) {
       color = CymbraColors.tertiary;
       icon = Icons.usb;
-      label = data.connectedDevice!;
-    } else if (data.midiPorts.isNotEmpty) {
+      label = 'Connected';
+    } else if (hasPorts) {
       color = CymbraColors.secondary;
       icon = Icons.usb;
-      label = '${data.midiPorts.first} (connecting…)';
+      label = 'Connecting…';
     } else {
       color = CymbraColors.outline;
       icon = Icons.usb_off;
       label = 'No MIDI device';
     }
 
-    const autoValue = '__auto__';
-    return PopupMenuButton<String>(
-      tooltip: 'Choose MIDI device',
-      color: CymbraColors.surfaceContainerHigh,
-      onSelected: (v) => notifier.selectMidiPort(v == autoValue ? null : v),
-      itemBuilder: (_) => [
-        PopupMenuItem<String>(
-          value: autoValue,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: const [
-              Icon(
-                Icons.autorenew,
-                size: 16,
-                color: CymbraColors.onSurfaceVariant,
-              ),
-              SizedBox(width: 8),
-              Text('Auto (first real device)'),
-            ],
-          ),
-        ),
-        if (data.midiPorts.isNotEmpty) const PopupMenuDivider(),
-        ...data.midiPorts.map(
-          (p) => PopupMenuItem<String>(
-            value: p,
-            child: Row(
-              children: [
-                Icon(
-                  p == data.connectedDevice
-                      ? Icons.check_circle
-                      : Icons.radio_button_unchecked,
-                  size: 16,
-                  color: p == data.connectedDevice
-                      ? CymbraColors.tertiary
-                      : CymbraColors.onSurfaceVariant,
-                ),
-                const SizedBox(width: 8),
-                Flexible(child: Text(p)),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: CymbraColors.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withValues(alpha: 0.6)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Status dot.
+          Container(
+            width: 9,
+            height: 9,
+            decoration: BoxDecoration(
+              color: color,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(color: color.withValues(alpha: 0.7), blurRadius: 6),
               ],
             ),
           ),
-        ),
-        if (data.midiPorts.isEmpty)
-          const PopupMenuItem<String>(
-            enabled: false,
-            child: Text('No device detected'),
+          const SizedBox(width: 8),
+          Icon(icon, size: 16, color: color),
+          const SizedBox(width: 6),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 200),
+            child: Text(
+              label,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: CymbraColors.onSurface,
+                fontSize: 13,
+              ),
+            ),
           ),
-      ],
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: CymbraColors.surfaceContainerHigh,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: color.withValues(alpha: 0.6)),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Status dot.
-            Container(
-              width: 9,
-              height: 9,
-              decoration: BoxDecoration(
-                color: color,
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(color: color.withValues(alpha: 0.7), blurRadius: 6),
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            Icon(icon, size: 16, color: color),
-            const SizedBox(width: 6),
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 200),
-              child: Text(
-                label,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: CymbraColors.onSurface,
-                  fontSize: 13,
-                ),
-              ),
-            ),
-            const SizedBox(width: 4),
-            const Icon(
-              Icons.arrow_drop_down,
-              size: 18,
-              color: CymbraColors.onSurfaceVariant,
-            ),
-          ],
-        ),
+        ],
       ),
     );
   }
 }
 
 /// Floating transport bar: restart, play/pause, speed, loop, Wait Mode.
-class _TransportBar extends StatelessWidget {
-  final PlayerData data;
-  final Player notifier;
-  const _TransportBar({required this.data, required this.notifier});
-
+class _TransportBar extends ConsumerWidget {
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final data = ref.watch(playerProvider);
+    final notifier = ref.read(playerProvider.notifier);
+
     return Container(
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
@@ -819,7 +1021,11 @@ class _PartitionViewState extends ConsumerState<_PartitionView> {
     final boxWidth =
         headerApprox + (total > 0 ? firstMin / total : 1.0) * usable;
     return _NextLineOverlay(
-      painter: PartitionPainter(document: notation.document!, systems: [next]),
+      painter: PartitionPainter(
+        document: notation.document!,
+        systems: [next],
+        selectedHands: data.selectedHands,
+      ),
       fullWidth: width,
       boxWidth: boxWidth,
     );
@@ -866,6 +1072,7 @@ class _PartitionViewState extends ConsumerState<_PartitionView> {
             measureStartMs: data.measureStartMs,
             songEndMs: data.songEndMs,
             activeNotes: data.activeNotes,
+            selectedHands: data.selectedHands,
           );
           _followCursor(data, notation.systems, painter);
           final overlay = _buildNextLineOverlay(data, notation, width, painter);

@@ -25,19 +25,26 @@ above) is the left hand**.
 
 ### Requirement: Hand Selector Control
 
-The player screen SHALL present a hand selector control in its top bar, available
-in all three render modes (Synthesia, Staff, Partition), that lets the user pick
-Left, Right, or Both. The control SHALL reflect the current selection and SHALL
-change it through the notifier method, following the existing top-bar chooser
-pattern.
+The player screen SHALL expose a hand selector reachable from a settings control
+in its top bar that is available in all three render modes (Synthesia, Staff,
+Partition). Opening the settings SHALL present the hand choices — Left, Right,
+Both — for a piece that has a second staff; the control SHALL reflect the current
+selection and SHALL change it through the notifier method. The hand selector MAY
+be hidden for single-staff pieces, where isolating a hand is meaningless and the
+default Both applies.
 
-#### Scenario: Selector available in every mode
+#### Scenario: Selector reachable in every mode
 - **WHEN** the player screen is shown in Synthesia, Staff, or Partition mode
-- **THEN** the hand selector is present and shows the current selection
+- **THEN** the settings control is present and the hand selector can be reached
+  from it, showing the current selection
 
 #### Scenario: Choosing a hand updates state
 - **WHEN** the user picks Left (or Right, or Both) from the selector
 - **THEN** the selected-hand state becomes that value and the selector reflects it
+
+#### Scenario: Hidden for single-staff pieces
+- **WHEN** the loaded piece has only one staff
+- **THEN** the hand selector is not offered and the selection stays at Both
 
 ### Requirement: Hand Visibility Filter
 

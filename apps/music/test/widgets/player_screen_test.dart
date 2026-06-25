@@ -77,13 +77,16 @@ void main() {
     await tester.binding.setSurfaceSize(null);
   }
 
-  testWidgets('renders title, tempo, and connected MIDI device', (
+  testWidgets('renders title, tempo, and MIDI status (no device name)', (
     tester,
   ) async {
     await pumpScreen(tester);
     expect(find.text('Cymbra Music'), findsOneWidget);
     expect(find.text('Tempo: 80'), findsOneWidget);
-    expect(find.text('Piano'), findsWidgets);
+    // The status chip shows the connection state, not the device name (that's
+    // listed in the settings menu instead).
+    expect(find.text('Connected'), findsOneWidget);
+    expect(find.text('Piano'), findsNothing);
     await teardownScreen(tester);
   });
 
@@ -120,22 +123,61 @@ void main() {
     await teardownScreen(tester);
   });
 
-  testWidgets('keyboard range chooser updates the range mode', (tester) async {
+  testWidgets('settings menu › keyboard size updates the range mode', (
+    tester,
+  ) async {
     await pumpScreen(tester);
-    // Defaults to the full 88-key piano (chip shows "88").
+    // Defaults to the full 88-key piano.
     expect(state().keyboardRange, KeyboardRangeMode.keys88);
-    expect(find.text('88'), findsOneWidget);
 
     // The screen runs a Ticker (never settles), so pump explicitly rather than
-    // pumpAndSettle. 300ms lets the popup menu open/close animation finish.
-    await tester.tap(find.byIcon(Icons.piano));
+    // pumpAndSettle. 300ms lets the drawer open animation finish. Master-detail:
+    // open the gear (end drawer) → pick the "Keyboard size" category → pick Auto.
+    await tester.tap(find.byIcon(Icons.tune));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(find.text('Keyboard size'));
+    await tester.pump();
     await tester.tap(find.text('Auto (fit piece)'));
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
 
     expect(state().keyboardRange, KeyboardRangeMode.auto);
+    await teardownScreen(tester);
+  });
+
+  testWidgets('settings menu › MIDI device selects a port', (tester) async {
+    await pumpScreen(tester, ports: ['Piano', 'Synth'], connected: 'Piano');
+    await tester.tap(find.byIcon(Icons.tune));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(find.text('MIDI device'));
+    await tester.pump();
+    await tester.tap(find.text('Synth'));
+    await tester.pump();
+
+    expect(state().connectedDevice, 'Synth');
+    await teardownScreen(tester);
+  });
+
+  testWidgets('settings drawer pauses playback and resumes on close', (
+    tester,
+  ) async {
+    await pumpScreen(tester);
+    await tester.tap(find.byIcon(Icons.play_arrow));
+    await tester.pump();
+    expect(state().isPlaying, isTrue);
+
+    // Opening the end drawer pauses the session.
+    await tester.tap(find.byIcon(Icons.tune));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(state().isPlaying, isFalse);
+
+    // Closing it (tap the scrim left of the right-side drawer) restores play.
+    await tester.tapAt(const Offset(20, 400));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(state().isPlaying, isTrue);
     await teardownScreen(tester);
   });
 
@@ -218,7 +260,7 @@ void main() {
 
   testWidgets('MIDI indicator shows a connecting state', (tester) async {
     await pumpScreen(tester, ports: ['Piano'], connected: null);
-    expect(find.text('Piano (connecting…)'), findsOneWidget);
+    expect(find.text('Connecting…'), findsOneWidget);
     await teardownScreen(tester);
   });
 
