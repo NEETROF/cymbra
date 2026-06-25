@@ -15,7 +15,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:music/painters/partition_painter.dart';
 import 'package:music/screens/player_screen.dart';
 import 'package:music/services/midi_service.dart';
 import 'package:music/services/notation_engine.dart';
@@ -35,9 +34,9 @@ const _entry = CatalogEntry(
   level: PracticeLevel.beginner,
 );
 
-Finder _partitionPaint() => find.byWidgetPredicate(
-  (w) => w is CustomPaint && w.painter is PartitionPainter,
-);
+// The main (scrolling) engraving canvas — keyed so it stays unambiguous when the
+// "next line" overlay (also a PartitionPainter) is on screen.
+Finder _partitionPaint() => find.byKey(const Key('partition-canvas'));
 
 void main() {
   testWidgets('Partition auto-scrolls to follow the playhead', (tester) async {
@@ -82,6 +81,52 @@ void main() {
     // Scrolling moves the (tall) content upward, so its top is now higher.
     final afterY = tester.getTopLeft(_partitionPaint()).dy;
     expect(afterY, lessThan(beforeY));
+
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump();
+    container.dispose();
+  });
+
+  testWidgets('shows the next-line overlay past the middle of a line', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1400, 900));
+    final container = ProviderContainer(
+      overrides: [
+        scoreCatalogProvider.overrideWithValue(const [_entry]),
+        scoreAssetSourceProvider.overrideWithValue(FakeScoreAssetSource()),
+        notationEngineProvider.overrideWithValue(
+          FakeNotationEngine(document: tallDocument(24)),
+        ),
+        midiServiceProvider.overrideWithValue(FakeMidiService()),
+        scoreSourceProvider.overrideWithValue(FakeScoreSource()),
+      ],
+    );
+    container.read(selectedScoreProvider.notifier).select(_entry);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(home: PlayerScreen()),
+      ),
+    );
+    for (var i = 0; i < 12; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+
+    final notifier = container.read(playerProvider.notifier);
+    notifier.setMode(RenderMode.partition);
+    notifier.toggleWaitMode(); // off
+    await tester.pump();
+
+    // At the very start (first half of the first measure) there is no overlay.
+    expect(find.text('NEXT'), findsNothing);
+
+    notifier.togglePlay();
+    for (var i = 0; i < 40; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    // Past the middle of a line, with lines still ahead → the peek appears.
+    expect(find.text('NEXT'), findsOneWidget);
 
     await tester.pumpWidget(const SizedBox());
     await tester.pump();

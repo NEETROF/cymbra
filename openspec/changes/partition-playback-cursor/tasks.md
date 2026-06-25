@@ -11,17 +11,19 @@
 - [x] 2.3 Highlight notes whose `[positionDivisions, +durationDivisions)` contains `fraction × divPerMeasure` in the active measure, using the keyboard's expected/correct colors (expected unless pitch ∈ activeNotes → correct).
 - [x] 2.4 No-op safely when `measureStartMs` is empty (demo / no score).
 
-## 3. View: look-ahead auto-scroll
+## 3. View: per-line auto-scroll + next-line overlay
 
 - [x] 3.1 Give `_PartitionView` a `ScrollController`; expose the painter's per-system height (const/helper) to compute the cursor system's y.
-- [x] 3.2 On playhead change, animate the scroll so the cursor stays visible and the next system is pre-revealed before the current measure ends (lead ≈ one system); skip when everything fits or the target barely moved.
+- [x] 3.2 On playhead change, animate the scroll **per line** (target depends only on the cursor's system index → centred), advancing once when the line changes; skip when everything fits or the line hasn't changed.
 - [x] 3.3 Dispose the controller; guard against scheduling a scroll every tick.
+- [x] 3.4 Look-ahead via a top-left **next-line overlay** (first ≤2 measures of the next system, scaled down) shown only past the middle of the current line and when a next system exists — replaces scroll-ahead look-ahead.
 
 ## 4. Tests
 
 - [x] 4.1 Unit-test `measureStartMs` derivation (start at 0; spacing matches divisions×tempo).
 - [x] 4.2 Unit-test `measureAt`: position inside a measure → right index + fraction; before start / after end → null.
-- [x] 4.3 Widget-test: in Partition mode with a loaded score, advancing the playhead repaints the painter and moves the scroll offset (look-ahead).
+- [x] 4.3 Widget-test: in Partition mode with a loaded score, advancing the playhead moves the scroll offset (per-line follow).
+- [x] 4.4 Widget-test: the next-line overlay ("NEXT") is hidden in the first half of a line and appears past the middle when more lines follow.
 
 ## 5. Verify & gate
 

@@ -60,24 +60,45 @@ engraving ink.
 - **WHEN** a note is not at the playhead
 - **THEN** it is drawn in the normal engraving ink
 
-### Requirement: Partition Auto-Scroll With Look-Ahead
+### Requirement: Partition Auto-Scroll Per Line
 
-In Partition mode the view SHALL scroll automatically to keep the playhead cursor
-visible, and SHALL pre-reveal the upcoming measure/system — bringing the next
-system into view before the current measure ends — so the reader sees what is
-coming rather than the view jumping when the cursor reaches the bottom. When the
-whole score fits in the viewport, no scrolling SHALL occur.
+In Partition mode the view SHALL scroll automatically to keep the current line
+(system) visible, advancing **once per staff line** rather than per measure: the
+vertical position depends only on which system the cursor is in, so the view stays
+put while the cursor crosses measures of the same line and moves when the playhead
+reaches a new line (no per-measure back-and-forth). When the whole score fits in
+the viewport, no scrolling SHALL occur. Look-ahead is provided by the next-line
+overlay, not by scrolling ahead.
 
-#### Scenario: View follows the cursor
-- **WHEN** the cursor advances toward the bottom of the visible area
-- **THEN** the view scrolls so the cursor stays visible
+#### Scenario: View follows the cursor per line
+- **WHEN** the playhead moves to a measure on a new system
+- **THEN** the view scrolls once so that system is visible
 
-#### Scenario: Upcoming system pre-revealed
-- **WHEN** the playhead nears the end of the current measure and the next system
-  is still below the fold
-- **THEN** the view scrolls ahead so the upcoming system becomes visible before
-  the current measure ends
+#### Scenario: No scroll within a line
+- **WHEN** the cursor crosses measures within the same system
+- **THEN** the view does not scroll (the line stays put)
 
 #### Scenario: No scroll when it all fits
 - **WHEN** every system fits within the viewport
 - **THEN** the view does not scroll
+
+### Requirement: Next-Line Preview Overlay
+
+In Partition mode the player SHALL show a small "next line" overlay — the first
+measures (up to two) of the upcoming system — pinned to the top-left of the
+viewport, so the reader can see what comes next without scrolling the main view
+ahead. The overlay SHALL appear only once the playhead is past the middle of the
+current line (when the top-left area holds already-played measures) and only when
+a next system exists; it SHALL be hidden otherwise (including on the last line).
+
+#### Scenario: Overlay appears near the end of a line
+- **WHEN** the playhead passes the middle of the current line and more lines follow
+- **THEN** the first measures of the next line are shown in a top-left overlay
+
+#### Scenario: Hidden early in the line
+- **WHEN** the playhead is in the first half of the current line
+- **THEN** no next-line overlay is shown
+
+#### Scenario: Hidden on the last line
+- **WHEN** the cursor is on the last system of the score
+- **THEN** no next-line overlay is shown

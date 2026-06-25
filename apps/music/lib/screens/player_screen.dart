@@ -25,6 +25,7 @@ import '../painters/piano_layout.dart';
 import '../painters/staff_painter.dart';
 import '../painters/synthesia_painter.dart';
 import '../src/rust/api/musicxml.dart' show System;
+import '../state/notation_data.dart';
 import '../state/notation_notifier.dart';
 import '../state/player_data.dart';
 import '../state/player_notifier.dart';
@@ -713,16 +714,13 @@ class _PartitionViewState extends ConsumerState<_PartitionView> {
     return null;
   }
 
-  /// Small gap above the current line so it isn't flush with the top edge.
-  static const double _scrollTopMargin = 12;
-
   /// Auto-scroll **per staff line (system)**, not per measure: the vertical
   /// target depends only on which system the cursor is in, so the view advances
   /// once when the playhead moves to a new line and stays put while it crosses
   /// measures within the same line (no back-and-forth jitter). The current line
-  /// is pinned near the top so all the space below it pre-reveals the next
-  /// line(s) — the upcoming measures are visible before the current line ends.
-  /// Only while playing, so manual scrolling is undisturbed when paused.
+  /// is centred in the viewport; look-ahead is provided by the next-line overlay
+  /// (see [_buildNextLineOverlay]), not by scrolling ahead. Only while playing,
+  /// so manual scrolling is undisturbed when paused.
   void _followCursor(
     PlayerData data,
     List<System> systems,
@@ -737,10 +735,12 @@ class _PartitionViewState extends ConsumerState<_PartitionView> {
       if (!_scroll.hasClients) return;
       final max = _scroll.position.maxScrollExtent;
       if (max <= 0) return; // everything fits — no scrolling
-      final target = (painter.systemTopY(sysIndex) - _scrollTopMargin).clamp(
-        0.0,
-        max,
-      );
+      final viewport = _scroll.position.viewportDimension;
+      final target =
+          (painter.systemTopY(sysIndex) +
+                  painter.systemStride / 2 -
+                  viewport / 2)
+              .clamp(0.0, max);
       // Only scroll when the line changes — re-issuing every frame would restart
       // (and stall) the animation.
       if (_lastScrollTarget != null &&
@@ -754,6 +754,53 @@ class _PartitionViewState extends ConsumerState<_PartitionView> {
         curve: Curves.easeInOut,
       );
     });
+  }
+
+  /// A small "next up" overlay showing the first two measures of the **next**
+  /// line, pinned top-left. It appears only once the playhead is past the middle
+  /// of the current line (so the top-left, already-played area is free to cover)
+  /// and only when there is a next line. Returns null otherwise.
+  Widget? _buildNextLineOverlay(
+    PlayerData data,
+    NotationData notation,
+    double width,
+  ) {
+    final cursor = data.measureAt(data.elapsedMs);
+    if (cursor == null) return null;
+    final systems = notation.systems;
+    final sysIndex = _systemOf(cursor.index, systems);
+    if (sysIndex == null || sysIndex + 1 >= systems.length) return null;
+
+    final current = systems[sysIndex];
+    final pos = current.measures.indexOf(cursor.index);
+    if (pos < 0) return null;
+    final lineProgress = (pos + cursor.fraction) / current.measures.length;
+    if (lineProgress < 0.5) return null; // only near the end of the line
+
+    // Engrave the FULL next system at the same width as the main view (so the
+    // notes are exactly the same size — no down-scaling) and clip the overlay to
+    // the first ~2 measures. The clip width follows the painter's justification:
+    // an approximate header plus the first measures' share of the system width.
+    final next = systems[sysIndex + 1];
+    final measures = notation.document!.measures;
+    var total = 0.0;
+    for (final m in next.measures) {
+      total += measures[m].minWidth;
+    }
+    final take = next.measures.length < 2 ? next.measures.length : 2;
+    var firstMin = 0.0;
+    for (var i = 0; i < take; i++) {
+      firstMin += measures[next.measures[i]].minWidth;
+    }
+    const headerApprox = 96.0; // clef + key + time, roughly
+    final usable = (width - headerApprox).clamp(0.0, width);
+    final boxWidth =
+        headerApprox + (total > 0 ? firstMin / total : 1.0) * usable;
+    return _NextLineOverlay(
+      painter: PartitionPainter(document: notation.document!, systems: [next]),
+      fullWidth: width,
+      boxWidth: boxWidth,
+    );
   }
 
   @override
@@ -799,14 +846,92 @@ class _PartitionViewState extends ConsumerState<_PartitionView> {
             activeNotes: data.activeNotes,
           );
           _followCursor(data, notation.systems, painter);
-          return SingleChildScrollView(
-            controller: _scroll,
-            child: CustomPaint(
-              painter: painter,
-              size: Size(width, painter.heightFor(width)),
-            ),
+          final overlay = _buildNextLineOverlay(data, notation, width);
+          return Stack(
+            children: [
+              SingleChildScrollView(
+                controller: _scroll,
+                child: CustomPaint(
+                  key: const Key('partition-canvas'),
+                  painter: painter,
+                  size: Size(width, painter.heightFor(width)),
+                ),
+              ),
+              if (overlay != null) Positioned(left: 8, top: 8, child: overlay),
+            ],
           );
         },
+      ),
+    );
+  }
+}
+
+/// "Next up" peek: the first measures of the upcoming line, scaled down into a
+/// small framed box (pinned top-left over the already-played start of the line).
+class _NextLineOverlay extends StatelessWidget {
+  final PartitionPainter painter;
+
+  /// Width the system is engraved at — the same as the main view, so the notes
+  /// are rendered at identical size (no scaling).
+  final double fullWidth;
+
+  /// Visible width of the peek (clips to roughly the first two measures).
+  final double boxWidth;
+
+  const _NextLineOverlay({
+    required this.painter,
+    required this.fullWidth,
+    required this.boxWidth,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final height = painter.heightFor(fullWidth);
+    return Container(
+      decoration: BoxDecoration(
+        color: CymbraColors.surfaceContainerHigh.withValues(alpha: 0.94),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: CymbraColors.outlineVariant),
+      ),
+      padding: const EdgeInsets.fromLTRB(8, 4, 8, 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text(
+            'NEXT',
+            style: TextStyle(
+              color: CymbraColors.onSurfaceVariant,
+              fontSize: 9,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1.5,
+            ),
+          ),
+          const SizedBox(height: 2),
+          // The system is painted at [fullWidth] (full size) but only [boxWidth]
+          // is shown; OverflowBox lets the wider canvas extend under the clip.
+          SizedBox(
+            width: boxWidth,
+            height: height,
+            child: ClipRect(
+              child: OverflowBox(
+                alignment: Alignment.topLeft,
+                minWidth: 0,
+                maxWidth: fullWidth,
+                minHeight: 0,
+                maxHeight: height,
+                child: SizedBox(
+                  width: fullWidth,
+                  height: height,
+                  child: CustomPaint(
+                    painter: painter,
+                    size: Size(fullWidth, height),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

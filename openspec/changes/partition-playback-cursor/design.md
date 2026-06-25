@@ -55,15 +55,20 @@ A note at the playhead is "expected" unless its pitch is in `activeNotes`, then
 `CymbraColors` (secondaryContainer / tertiary) for visual consistency. **Why:**
 one mental model across keyboard and score.
 
-### Decision: Auto-scroll via a ScrollController with a look-ahead lead
-`_PartitionView` owns a `ScrollController`. On playhead change, compute the
-cursor's absolute y (system index × system pitch, known from the painter's
-`_systemHeight + _systemGap`). Target offset = cursorSystemTop − leadMargin,
-where `leadMargin` is sized so the **next** system is already on-screen before the
-current measure ends (e.g. lead ≈ one system height, or scroll when the cursor
-passes a threshold fraction of the viewport). Animate with a short duration.
-**Why:** simplest way to pre-reveal upcoming music. **Trade-off:** needs the
-system-height metric shared from the painter (expose a const/helper).
+### Decision: Per-line auto-scroll + a next-line overlay (not scroll-ahead)
+`_PartitionView` owns a `ScrollController`. The scroll target depends **only on
+the cursor's system index** (centred via the painter's `systemTopY`/`systemStride`),
+so it advances once per staff line and never oscillates per measure; it re-issues
+the animation only when the line changes. Look-ahead is **not** done by scrolling
+ahead — instead a small **next-line overlay** (first ≤2 measures of the next
+system, engraved by a second `PartitionPainter` scaled down) is pinned top-left,
+shown only once the cursor passes the middle of the current line (so it covers
+already-played measures) and only when a next system exists. **Why:** an earlier
+"pin current line to top to pre-reveal the next line below" approach failed on
+short viewports — a grand-staff system nearly fills the viewport, leaving no room
+below for the next line. The overlay shows the upcoming measures regardless of
+viewport height. **Trade-off:** a second painter instance and a corner that
+overlaps the (already-played) start of the line.
 
 ### Decision: Compute timing in a host-testable helper
 Put `measureStartMs` derivation and the `elapsedMs → (measure, fraction)` lookup
