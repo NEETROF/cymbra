@@ -99,6 +99,10 @@ abstract class PlayerData with _$PlayerData {
     /// End of the song (ms).
     @Default(0.0) double songEndMs,
 
+    /// Start time (ms) of each measure, in order (Partition cursor placement).
+    /// Empty for the demo score; populated from a parsed MusicXML document.
+    @Default(<int>[]) List<int> measureStartMs,
+
     @Default(RenderMode.synthesia) RenderMode mode,
     @Default(true) bool waitMode,
     @Default(false) bool isPlaying,
@@ -111,6 +115,11 @@ abstract class PlayerData with _$PlayerData {
 
     /// True when Wait Mode is currently blocking progression.
     @Default(false) bool blocked,
+
+    /// Pitches already pressed for the onset the playhead is currently waiting
+    /// at (Wait Mode). Latched on key-down so a note counts even once released —
+    /// validation is by attack, not sustained hold. Reset when the gate advances.
+    @Default(<int>{}) Set<int> gateSatisfied,
 
     /// On-screen keyboard range mode. Defaults to the full 88-key piano; the
     /// user can switch to auto-fit or a smaller preset from the chooser.
@@ -136,4 +145,137 @@ abstract class PlayerData with _$PlayerData {
     }
     return result;
   }
+
+  /// Pitches of notes whose onset is at instant [t] (their start coincides with
+  /// the playhead, within a 1ms tolerance). This is the Wait Mode gate set: the
+  /// notes that must be *attacked* here, regardless of their duration.
+  Set<int> onsetPitchesAt(double t) {
+    final result = <int>{};
+    for (final n in notes) {
+      if ((n.startMs - t).abs() <= 1.0) result.add(n.pitch);
+    }
+    return result;
+  }
+
+  /// The next note onset strictly after [t] (ms), or null if there are none.
+  double? nextOnsetAfter(double t) {
+    double? best;
+    for (final n in notes) {
+      if (n.startMs > t + 1 && (best == null || n.startMs < best)) {
+        best = n.startMs.toDouble();
+      }
+    }
+    return best;
+  }
+
+  /// Keys to highlight as "expected" on the keyboard. In Wait Mode this is the
+  /// onset gate the playhead sits on, or — while travelling between onsets — the
+  /// upcoming onset, so the preview shows the next note to play. Outside Wait
+  /// Mode it is the notes sounding under the playhead.
+  Set<int> get expectedKeys {
+    if (!waitMode) return requiredNotesAt(elapsedMs);
+    final here = onsetPitchesAt(elapsedMs);
+    if (here.isNotEmpty) return here;
+    final ns = nextOnsetAfter(elapsedMs);
+    return ns == null ? const {} : onsetPitchesAt(ns);
+  }
+
+  /// The subset of [expectedKeys] belonging to one hand (staff 1 = right, staff
+  /// 2+ = left), so the keyboard can colour expected keys per hand.
+  Set<int> expectedKeysForHand({required bool rightHand}) {
+    // The time the expected set refers to: the onset under the playhead (or the
+    // upcoming one while travelling) in Wait Mode, else the playhead itself.
+    final double t;
+    if (waitMode) {
+      if (onsetPitchesAt(elapsedMs).isEmpty) {
+        final ns = nextOnsetAfter(elapsedMs);
+        if (ns == null) return const {};
+        t = ns;
+      } else {
+        t = elapsedMs;
+      }
+    } else {
+      t = elapsedMs;
+    }
+    final result = <int>{};
+    for (final n in notes) {
+      final isRight = n.staff == 1;
+      if (rightHand != isRight) continue;
+      final hit = waitMode
+          ? (n.startMs - t).abs() <= 1.0
+          : (n.startMs <= t + 1 && t < n.startMs + n.durationMs);
+      if (hit) result.add(n.pitch);
+    }
+    return result;
+  }
+
+  /// The measure containing playhead [t] and the fraction (0..1) elapsed within
+  /// it, or null when no timing is known (e.g. the demo score) or [t] is outside
+  /// the piece. Drives the Partition playhead cursor.
+  ({int index, double fraction})? measureAt(double t) {
+    final starts = measureStartMs;
+    if (starts.isEmpty || t < starts.first) return null;
+    for (var i = 0; i < starts.length; i++) {
+      final start = starts[i];
+      final end = (i + 1 < starts.length ? starts[i + 1] : songEndMs)
+          .toDouble();
+      if (t >= start && t < end) {
+        final span = end - start;
+        final frac = span > 0 ? ((t - start) / span).clamp(0.0, 1.0) : 0.0;
+        return (index: i, fraction: frac);
+      }
+    }
+    return null;
+  }
+
+  /// Expected notes at instant [t] for one hand: staff 1 is the right hand,
+  /// staff 2+ the left hand. Same window as [requiredNotesAt], split by staff,
+  /// so the assist keys play exactly the hand's due notes.
+  Set<int> expectedNotesForHand(double t, {required bool rightHand}) {
+    final result = <int>{};
+    for (final n in notes) {
+      final isRight = n.staff == 1;
+      if (rightHand != isRight) continue;
+      if (n.startMs <= t + 1 && t < n.startMs + n.durationMs) {
+        result.add(n.pitch);
+      }
+    }
+    return result;
+  }
+}
+
+/// A pitch near [expected] (within ±[spread] semitones) that is **not** in
+/// [avoid] and lies within `[lowBound, highBound]` — a deliberate near-miss that
+/// never matches an expected note, so it cannot satisfy the Wait Mode gate.
+///
+/// [nextRandom] is called with an exclusive upper bound to choose among the
+/// candidates; injecting it keeps the pick deterministic in tests. When no
+/// candidate exists within [spread], the nearest in-range non-avoided pitch is
+/// returned; if even that is impossible, [expected] is returned unchanged.
+int nearMissPitch(
+  int expected, {
+  required int lowBound,
+  required int highBound,
+  required Set<int> avoid,
+  required int Function(int) nextRandom,
+  int spread = 3,
+}) {
+  final candidates = <int>[];
+  for (var d = 1; d <= spread; d++) {
+    for (final p in [expected - d, expected + d]) {
+      if (p >= lowBound && p <= highBound && !avoid.contains(p)) {
+        candidates.add(p);
+      }
+    }
+  }
+  if (candidates.isNotEmpty) {
+    return candidates[nextRandom(candidates.length)];
+  }
+  // Fallback: nearest in-range pitch that is not avoided.
+  for (var d = 1; d <= highBound - lowBound; d++) {
+    for (final p in [expected - d, expected + d]) {
+      if (p >= lowBound && p <= highBound && !avoid.contains(p)) return p;
+    }
+  }
+  return expected;
 }

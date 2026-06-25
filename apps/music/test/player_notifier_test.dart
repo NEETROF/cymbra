@@ -15,6 +15,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:music/services/midi_service.dart';
+import 'package:music/src/rust/api/score.dart';
 import 'package:music/state/player_data.dart';
 import 'package:music/state/player_notifier.dart';
 
@@ -30,12 +31,12 @@ void main() {
   Player notifier() => container.read(playerProvider.notifier);
   PlayerData read() => container.read(playerProvider);
 
-  Future<void> build({FakeMidiService? service}) async {
+  Future<void> build({FakeMidiService? service, Score? score}) async {
     midi = service ?? FakeMidiService();
     container = ProviderContainer(
       overrides: [
         midiServiceProvider.overrideWithValue(midi),
-        scoreSourceProvider.overrideWithValue(FakeScoreSource()),
+        scoreSourceProvider.overrideWithValue(FakeScoreSource(score)),
       ],
     );
     addTearDown(container.dispose);
@@ -181,6 +182,138 @@ void main() {
       expect(read().elapsedMs, 500);
       notifier().advance(600); // crosses songEndMs (1000)
       expect(read().elapsedMs, 0);
+    });
+  });
+
+  group('wait mode (onset gate)', () {
+    test('a single press releases the gate without holding the note', () async {
+      await build(); // demo: C4 [0,500), D4 [500,1000)
+      notifier().togglePlay();
+      notifier().advance(50);
+      expect(read().blocked, isTrue); // frozen on the C4 onset
+
+      notifier().noteOn(60);
+      notifier().advance(50);
+      expect(read().blocked, isFalse);
+      final moved = read().elapsedMs;
+      expect(moved, greaterThan(0));
+
+      // Release the note: it must NOT re-freeze mid-note (the old bug).
+      notifier().noteOff(60);
+      notifier().advance(50);
+      expect(read().blocked, isFalse);
+      expect(read().elapsedMs, greaterThan(moved));
+    });
+
+    test('continues automatically and freezes at the next onset', () async {
+      await build();
+      notifier().togglePlay();
+      notifier().noteOn(60); // satisfy the first onset
+      notifier().advance(50); // unblock and start moving
+      notifier().noteOff(60);
+      notifier().advance(1000); // travels but clamps at the D4 onset (500)
+      expect(read().elapsedMs, 500);
+
+      notifier().advance(50); // now waiting on D4, not yet pressed
+      expect(read().blocked, isTrue);
+      expect(read().elapsedMs, 500);
+      expect(read().expectedKeys, {62}); // preview moved to the next note
+    });
+
+    test('an early press does not pre-satisfy the next onset', () async {
+      await build(); // C4 [0,500), D4 [500,1000)
+      notifier().togglePlay();
+      notifier().noteOn(60);
+      notifier().advance(50); // pass the C4 onset
+      notifier().noteOff(60);
+
+      // Press D4 early, while travelling well before its 500ms onset.
+      notifier().noteOn(62);
+      notifier().advance(1000); // clamps to the D4 onset (500)
+      expect(read().elapsedMs, 500);
+      notifier().advance(50);
+      expect(read().blocked, isTrue); // the early press did not count
+    });
+
+    test('a repeated pitch must be attacked again at the next onset', () async {
+      // Same pitch (C4) on two consecutive onsets.
+      await build(
+        score: Score(
+          bpm: 80,
+          measures: [
+            Measure(
+              index: 0,
+              notes: [
+                Note(
+                  pitch: 60,
+                  startMs: BigInt.zero,
+                  durationMs: BigInt.from(500),
+                ),
+                Note(
+                  pitch: 60,
+                  startMs: BigInt.from(500),
+                  durationMs: BigInt.from(500),
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+      notifier().togglePlay();
+      notifier().noteOn(60);
+      notifier().advance(50); // pass the first C4 (key stays held)
+      notifier().advance(1000); // clamp to the second C4 onset (500)
+      expect(read().elapsedMs, 500);
+      notifier().advance(50);
+      expect(read().blocked, isTrue); // a held key does not carry over
+
+      notifier().noteOff(60);
+      notifier().noteOn(60); // fresh attack
+      notifier().advance(50);
+      expect(read().blocked, isFalse);
+    });
+
+    test('a chord onset requires every pitch before releasing', () async {
+      // C4 + E4 together at 0, then D4 at 500.
+      await build(
+        score: Score(
+          bpm: 80,
+          measures: [
+            Measure(
+              index: 0,
+              notes: [
+                Note(
+                  pitch: 60,
+                  startMs: BigInt.zero,
+                  durationMs: BigInt.from(500),
+                ),
+                Note(
+                  pitch: 64,
+                  startMs: BigInt.zero,
+                  durationMs: BigInt.from(500),
+                ),
+                Note(
+                  pitch: 62,
+                  startMs: BigInt.from(500),
+                  durationMs: BigInt.from(500),
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+      notifier().togglePlay();
+      notifier().advance(50);
+      expect(read().blocked, isTrue);
+
+      notifier().noteOn(60); // only half the chord
+      notifier().advance(50);
+      expect(read().blocked, isTrue);
+
+      notifier().noteOn(64); // the rest of the chord
+      notifier().advance(50);
+      expect(read().blocked, isFalse);
+      expect(read().elapsedMs, greaterThan(0));
     });
   });
 }

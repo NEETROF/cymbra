@@ -49,6 +49,12 @@ class CymbraColors {
   // Error — Pink (missed note).
   static const error = Color(0xFFFFB4AB);
 
+  // Hand colours — used to tell the right and left hands apart on the keyboard
+  // (expected keys) and on the partition (note heads). Cool blue vs warm amber
+  // for an at-a-glance contrast, distinct from the green "correct" state.
+  static const handRight = Color(0xFF5B9DFF); // right hand (treble / staff 1)
+  static const handLeft = Color(0xFFFFB454); // left hand (bass / staff 2+)
+
   // Physical piano keys.
   static const pianoWhite = Color(0xFFFFFFFF);
   static const pianoBlack = Color(0xFF1E293B);

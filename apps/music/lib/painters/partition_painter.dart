@@ -22,12 +22,61 @@ import 'smufl.dart';
 /// its laid-out [System]s, using SMuFL/Bravura glyphs for note heads, clefs,
 /// flags, accidentals, rests and dynamics. Stems, beams, staff and ledger lines
 /// are stroked at Bravura's engraving thicknesses; stem attachment uses the
-/// font's note-head anchors. Geometry only — no playback or interaction.
+/// font's note-head anchors. During playback it also draws a playhead cursor and
+/// highlights the notes at the playhead (see [elapsedMs]/[measureStartMs]).
 class PartitionPainter extends CustomPainter {
   final ScoreDocument document;
   final List<System> systems;
 
-  PartitionPainter({required this.document, required this.systems});
+  /// Playback playhead (ms) and per-measure start times, so the cursor and note
+  /// highlighting track the current position. [activeNotes] are the held MIDI
+  /// pitches (a highlighted note reads "correct" when held, else "expected").
+  final double elapsedMs;
+  final List<int> measureStartMs;
+  final double songEndMs;
+  final Set<int> activeNotes;
+
+  PartitionPainter({
+    required this.document,
+    required this.systems,
+    this.elapsedMs = 0,
+    this.measureStartMs = const [],
+    this.songEndMs = 0,
+    this.activeNotes = const {},
+  });
+
+  static const Map<String, int> _semitoneOfStep = {
+    'C': 0,
+    'D': 2,
+    'E': 4,
+    'F': 5,
+    'G': 7,
+    'A': 9,
+    'B': 11,
+  };
+
+  int _midiOf(Pitch p) =>
+      (p.octave + 1) * 12 + (_semitoneOfStep[p.step] ?? 0) + p.alter;
+
+  /// The measure index containing the playhead and the fraction within it, or
+  /// null when there is no timing (demo score) or the playhead is out of range.
+  ({int index, double fraction})? get _cursor {
+    final starts = measureStartMs;
+    if (starts.isEmpty || elapsedMs < starts.first) return null;
+    for (var i = 0; i < starts.length; i++) {
+      final start = starts[i];
+      final end = (i + 1 < starts.length ? starts[i + 1] : songEndMs)
+          .toDouble();
+      if (elapsedMs >= start && elapsedMs < end) {
+        final span = end - start;
+        final frac = span > 0
+            ? ((elapsedMs - start) / span).clamp(0.0, 1.0)
+            : 0.0;
+        return (index: i, fraction: frac);
+      }
+    }
+    return null;
+  }
 
   /// Staff space (distance between two staff lines), in pixels. Everything else
   /// is derived from it so the engraving scales as one unit.
@@ -62,6 +111,12 @@ class PartitionPainter extends CustomPainter {
   double heightFor(double width) =>
       systems.length * (_systemHeight + _systemGap) + _systemGap;
 
+  /// Vertical distance between consecutive system tops (matches `paint`).
+  double get systemStride => _systemHeight + _systemGap;
+
+  /// Y of the top of system [index] in the scrollable content (matches `paint`).
+  double systemTopY(int index) => _systemGap + index * systemStride;
+
   int _divisionsPerMeasure() {
     final a = document.attributes;
     final beatType = a.time.beatType == 0 ? 4 : a.time.beatType;
@@ -74,6 +129,7 @@ class PartitionPainter extends CustomPainter {
     if (systems.isEmpty) return;
     final divPerMeasure = _divisionsPerMeasure();
     final clefAt = _computeClefAt();
+    final cursor = _cursor;
     var y = _systemGap;
     for (var i = 0; i < systems.length; i++) {
       _paintSystem(
@@ -84,6 +140,7 @@ class PartitionPainter extends CustomPainter {
         divPerMeasure,
         i == 0,
         clefAt,
+        cursor,
       );
       y += _systemHeight + _systemGap;
     }
@@ -120,6 +177,7 @@ class PartitionPainter extends CustomPainter {
     int divPerMeasure,
     bool isFirst,
     List<Map<int, Clef>> clefAt,
+    ({int index, double fraction})? cursor,
   ) {
     final trebleBottom = yTop + _topPad + _staffHeight;
     final bassBottom = trebleBottom + _interStaff + _staffHeight;
@@ -208,6 +266,7 @@ class PartitionPainter extends CustomPainter {
     final scale = totalMin > 0 ? usable / totalMin : 1.0;
 
     var x = headerX;
+    double? cursorX; // set when the active measure is in this system
     for (var k = 0; k < indices.length; k++) {
       final idx = indices[k];
       final measure = document.measures[idx];
@@ -217,6 +276,8 @@ class PartitionPainter extends CustomPainter {
         Offset(x + mWidth, systemBottom),
         barPaint,
       );
+      final isCursorMeasure = cursor != null && cursor.index == idx;
+      if (isCursorMeasure) cursorX = x + cursor.fraction * mWidth;
       _paintMeasure(
         canvas,
         measure,
@@ -229,8 +290,21 @@ class PartitionPainter extends CustomPainter {
         k == 0, // first measure of the system → clef already in the header
         words,
         arcs,
+        isCursorMeasure ? cursor.fraction * divPerMeasure : null,
       );
       x += mWidth;
+    }
+
+    // Playhead cursor, drawn over the system's staves.
+    if (cursorX != null) {
+      canvas.drawLine(
+        Offset(cursorX, systemTop),
+        Offset(cursorX, systemBottom),
+        Paint()
+          ..color = CymbraColors.secondary
+          ..strokeWidth = _s * 0.18
+          ..strokeCap = StrokeCap.round,
+      );
     }
   }
 
@@ -271,6 +345,7 @@ class PartitionPainter extends CustomPainter {
     bool isSystemFirst,
     _TextLanes words,
     _Arcs arcs,
+    double? cursorDiv,
   ) {
     // A mid-system clef change is drawn at the measure start and reserves space.
     final showClefChange = !isSystemFirst && measure.clefs.isNotEmpty;
@@ -348,9 +423,25 @@ class PartitionPainter extends CustomPainter {
       final y = _yForPitch(pitch, staffBottom, _clefFor(clefs, note.staff));
       _drawLedgerLines(canvas, x, y, staffBottom);
 
+      // Note heads are coloured by hand (right = blue, left = amber). The note
+      // at the playhead is emphasised: green once its pitch is held ("correct"),
+      // otherwise a brighter tint of its hand colour.
+      final handColor = note.staff >= 2
+          ? CymbraColors.handLeft
+          : CymbraColors.handRight;
+      final isAtPlayhead =
+          cursorDiv != null &&
+          note.positionDivisions <= cursorDiv &&
+          cursorDiv < note.positionDivisions + note.durationDivisions;
+      final headColor = isAtPlayhead
+          ? (activeNotes.contains(_midiOf(pitch))
+                ? CymbraColors.tertiary
+                : Color.lerp(handColor, const Color(0xFFFFFFFF), 0.55)!)
+          : handColor;
+
       // Note head, centred on x.
       final headLeft = x - Smufl.noteheadWidth * _s / 2;
-      Smufl.draw(canvas, _headGlyph(note), headLeft, y, _s, _ink);
+      Smufl.draw(canvas, _headGlyph(note), headLeft, y, _s, headColor);
 
       if (note.accidental != null) {
         final glyph = Smufl.accidental(note.accidental!);
@@ -713,7 +804,10 @@ class PartitionPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(PartitionPainter old) =>
-      old.document != document || old.systems != systems;
+      old.document != document ||
+      old.systems != systems ||
+      old.elapsedMs != elapsedMs ||
+      old.activeNotes != activeNotes;
 }
 
 /// A note's drawn geometry (head centre + stem direction), used for beaming.

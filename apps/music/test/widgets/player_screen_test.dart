@@ -16,6 +16,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:music/painters/piano_layout.dart';
 import 'package:music/painters/staff_painter.dart';
 import 'package:music/screens/player_screen.dart';
 import 'package:music/services/midi_service.dart';
@@ -29,6 +30,21 @@ void main() {
   late ProviderContainer container;
 
   PlayerData state() => container.read(playerProvider);
+
+  /// Global position of the center of [pitch]'s key on the on-screen keyboard.
+  /// [y] picks the vertical band: ~120 is the white-only region, ~30 the black
+  /// band. Mirrors the layout the screen builds from the keyboard width and the
+  /// current keyboard bounds.
+  Offset keyPos(WidgetTester tester, int pitch, {double y = 120}) {
+    final rect = tester.getRect(find.byKey(const Key('onscreen-keyboard')));
+    final bounds = state().keyboardBounds;
+    final layout = PianoLayout(
+      width: rect.width,
+      lowPitch: bounds.low,
+      highPitch: bounds.high,
+    );
+    return rect.topLeft + Offset(layout.centerX(pitch), y);
+  }
 
   Future<void> pumpScreen(
     WidgetTester tester, {
@@ -123,14 +139,72 @@ void main() {
     await teardownScreen(tester);
   });
 
-  testWidgets('computer keyboard fallback presses a key', (tester) async {
+  testWidgets('right-correct assist key plays the expected right-hand note', (
+    tester,
+  ) async {
+    // Demo notes are staff 1 (right hand); C4 (60) is due at t=0.
     await pumpScreen(tester);
-    await tester.sendKeyDownEvent(LogicalKeyboardKey.keyA); // C4
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.keyZ);
     await tester.pump();
     expect(state().activeNotes, contains(60));
-    await tester.sendKeyUpEvent(LogicalKeyboardKey.keyA);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.keyZ);
     await tester.pump();
     expect(state().activeNotes, isNot(contains(60)));
+    await teardownScreen(tester);
+  });
+
+  testWidgets('near-miss assist key plays a nearby wrong note', (tester) async {
+    await pumpScreen(tester);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.keyS); // right near-miss
+    await tester.pump();
+    final active = state().activeNotes;
+    expect(active, isNotEmpty);
+    expect(active, isNot(contains(60))); // never the expected note
+    expect(active.every((p) => (p - 60).abs() <= 3), isTrue);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.keyS);
+    await tester.pump();
+    expect(state().activeNotes, isEmpty);
+    await teardownScreen(tester);
+  });
+
+  testWidgets('right-correct assist key satisfies Wait Mode', (tester) async {
+    await pumpScreen(tester);
+    await tester.tap(find.byIcon(Icons.play_arrow)); // play, wait-mode on
+    await tester.pump(const Duration(milliseconds: 16));
+    await tester.pump();
+    expect(state().blocked, isTrue);
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.keyZ);
+    await tester.pump(const Duration(milliseconds: 16)); // advance unblocks
+    await tester.pump();
+    expect(state().blocked, isFalse);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.keyZ);
+    await teardownScreen(tester);
+  });
+
+  testWidgets('near-miss assist key does not satisfy Wait Mode', (
+    tester,
+  ) async {
+    await pumpScreen(tester);
+    await tester.tap(find.byIcon(Icons.play_arrow));
+    await tester.pump(const Duration(milliseconds: 16));
+    await tester.pump();
+    expect(state().blocked, isTrue);
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.keyS); // right near-miss
+    await tester.pump(const Duration(milliseconds: 16));
+    await tester.pump();
+    expect(state().blocked, isTrue); // wrong note → still blocked
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.keyS);
+    await teardownScreen(tester);
+  });
+
+  testWidgets('former pitch keys no longer produce notes', (tester) async {
+    await pumpScreen(tester);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.keyD); // was E4
+    await tester.pump();
+    expect(state().activeNotes, isEmpty);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.keyD);
     await teardownScreen(tester);
   });
 
@@ -167,6 +241,68 @@ void main() {
     expect(state().blocked, isTrue);
     expect(find.byType(StaffPainter), findsNothing); // still synthesia mode
     expect(find.text('⏸  Play the expected note to continue'), findsOneWidget);
+    await teardownScreen(tester);
+  });
+
+  testWidgets('on-screen key press/release toggles the note', (tester) async {
+    await pumpScreen(tester);
+    final gesture = await tester.startGesture(keyPos(tester, 60)); // C4
+    await tester.pump();
+    expect(state().activeNotes, contains(60));
+    await gesture.up();
+    await tester.pump();
+    expect(state().activeNotes, isNot(contains(60)));
+    await teardownScreen(tester);
+  });
+
+  testWidgets('multi-touch holds two keys and releases independently', (
+    tester,
+  ) async {
+    await pumpScreen(tester);
+    final g1 = await tester.startGesture(keyPos(tester, 60)); // C4
+    final g2 = await tester.startGesture(keyPos(tester, 62)); // D4
+    await tester.pump();
+    expect(state().activeNotes, containsAll(<int>[60, 62]));
+
+    // Releasing one pointer note-offs only its pitch.
+    await g1.up();
+    await tester.pump();
+    expect(state().activeNotes, isNot(contains(60)));
+    expect(state().activeNotes, contains(62));
+
+    await g2.up();
+    await tester.pump();
+    expect(state().activeNotes, isNot(contains(62)));
+    await teardownScreen(tester);
+  });
+
+  testWidgets('on-screen play satisfies the Wait Mode gate', (tester) async {
+    await pumpScreen(tester);
+    await tester.tap(find.byIcon(Icons.play_arrow)); // play, wait-mode on
+    await tester.pump(const Duration(milliseconds: 16)); // one ticker frame
+    await tester.pump();
+    expect(state().blocked, isTrue); // waiting for C4 (60)
+
+    final gesture = await tester.startGesture(keyPos(tester, 60));
+    await tester.pump(const Duration(milliseconds: 16)); // advance unblocks
+    await tester.pump();
+    expect(state().blocked, isFalse);
+    await gesture.up();
+    await teardownScreen(tester);
+  });
+
+  testWidgets('keyboard responds in every render mode', (tester) async {
+    await pumpScreen(tester);
+    for (final mode in RenderMode.values) {
+      container.read(playerProvider.notifier).setMode(mode);
+      await tester.pump();
+      final gesture = await tester.startGesture(keyPos(tester, 60));
+      await tester.pump();
+      expect(state().activeNotes, contains(60), reason: 'mode $mode');
+      await gesture.up();
+      await tester.pump();
+      expect(state().activeNotes, isNot(contains(60)), reason: 'mode $mode');
+    }
     await teardownScreen(tester);
   });
 }

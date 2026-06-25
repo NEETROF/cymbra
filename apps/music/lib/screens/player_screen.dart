@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/scheduler.dart';
@@ -22,6 +24,8 @@ import '../painters/piano_keyboard_painter.dart';
 import '../painters/piano_layout.dart';
 import '../painters/staff_painter.dart';
 import '../painters/synthesia_painter.dart';
+import '../src/rust/api/musicxml.dart' show System;
+import '../state/notation_data.dart';
 import '../state/notation_notifier.dart';
 import '../state/player_data.dart';
 import '../state/player_notifier.dart';
@@ -42,26 +46,21 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
   late final Ticker _ticker;
   Duration _lastTick = Duration.zero;
 
+  /// Active on-screen-keyboard pointers → the pitch each is holding, so a finger
+  /// release note-offs only its own pitch (independent multi-touch). Same-pitch
+  /// from multiple sources is last-release-wins: releasing one source clears the
+  /// shared [PlayerData.activeNotes] entry even if another still holds it — an
+  /// accepted v1 simplification (chords use distinct pitches).
+  final Map<int, int> _keyboardPointers = {};
+
   static const double _keyboardHeight = 150;
 
-  /// Computer keyboard → MIDI pitch mapping (piano-style row, QWERTY).
-  static final Map<LogicalKeyboardKey, int> _keyToPitch = {
-    LogicalKeyboardKey.keyA: 60, // C4
-    LogicalKeyboardKey.keyW: 61, // C#4
-    LogicalKeyboardKey.keyS: 62, // D4
-    LogicalKeyboardKey.keyE: 63, // D#4
-    LogicalKeyboardKey.keyD: 64, // E4
-    LogicalKeyboardKey.keyF: 65, // F4
-    LogicalKeyboardKey.keyT: 66, // F#4
-    LogicalKeyboardKey.keyG: 67, // G4
-    LogicalKeyboardKey.keyY: 68, // G#4
-    LogicalKeyboardKey.keyH: 69, // A4
-    LogicalKeyboardKey.keyU: 70, // A#4
-    LogicalKeyboardKey.keyJ: 71, // B4
-    LogicalKeyboardKey.keyK: 72, // C5
-    LogicalKeyboardKey.keyO: 73, // C#5
-    LogicalKeyboardKey.keyL: 74, // D5
-  };
+  /// Random source for the near-miss assist keys (q/s).
+  final math.Random _rng = math.Random();
+
+  /// Assist keys → the pitches each fired on key-down, so key-up note-offs
+  /// exactly those (a near-miss picks a fresh random pitch each press).
+  final Map<LogicalKeyboardKey, Set<int>> _assistPressed = {};
 
   @override
   void initState() {
@@ -78,18 +77,95 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     }
   }
 
+  /// Desktop keyboard = four practice-assist keys (AZERTY 2×2 cluster):
+  ///   a = left-hand correct,  z = right-hand correct,
+  ///   q = left-hand near-miss, s = right-hand near-miss.
+  /// The correct keys play all notes expected for that hand at the playhead
+  /// (satisfying Wait Mode); the near-miss keys play a random nearby wrong note.
+  /// Exact, arbitrary notes are played with the on-screen keyboard instead.
   KeyEventResult _onKey(FocusNode node, KeyEvent event) {
-    final pitch = _keyToPitch[event.logicalKey];
-    if (pitch == null) return KeyEventResult.ignored;
+    final key = event.logicalKey;
+    final bool rightHand;
+    final bool nearMiss;
+    if (key == LogicalKeyboardKey.keyA) {
+      rightHand = false;
+      nearMiss = false;
+    } else if (key == LogicalKeyboardKey.keyZ) {
+      rightHand = true;
+      nearMiss = false;
+    } else if (key == LogicalKeyboardKey.keyQ) {
+      rightHand = false;
+      nearMiss = true;
+    } else if (key == LogicalKeyboardKey.keyS) {
+      rightHand = true;
+      nearMiss = true;
+    } else {
+      return KeyEventResult.ignored;
+    }
+
     final notifier = ref.read(playerProvider.notifier);
     if (event is KeyDownEvent) {
-      notifier.noteOn(pitch);
+      if (_assistPressed.containsKey(key)) {
+        return KeyEventResult.handled; // already held; ignore stray repeat
+      }
+      final pitches = _assistPitches(rightHand: rightHand, nearMiss: nearMiss);
+      if (pitches.isEmpty) return KeyEventResult.handled;
+      _assistPressed[key] = pitches;
+      for (final p in pitches) {
+        notifier.noteOn(p);
+      }
       return KeyEventResult.handled;
     } else if (event is KeyUpEvent) {
-      notifier.noteOff(pitch);
+      final pitches = _assistPressed.remove(key);
+      if (pitches != null) {
+        for (final p in pitches) {
+          notifier.noteOff(p);
+        }
+      }
       return KeyEventResult.handled;
     }
     return KeyEventResult.ignored; // ignore repeats
+  }
+
+  /// Pitches an assist key should sound now: the expected notes for [rightHand],
+  /// or — for a [nearMiss] — a single random pitch near one of them that never
+  /// equals an expected note. Empty when nothing is expected for that hand.
+  Set<int> _assistPitches({required bool rightHand, required bool nearMiss}) {
+    final data = ref.read(playerProvider);
+    final expected = data.expectedNotesForHand(
+      data.elapsedMs,
+      rightHand: rightHand,
+    );
+    if (expected.isEmpty) return const {};
+    if (!nearMiss) return expected;
+    final bounds = data.keyboardBounds;
+    return {
+      nearMissPitch(
+        expected.first,
+        lowBound: bounds.low,
+        highBound: bounds.high,
+        avoid: expected,
+        nextRandom: _rng.nextInt,
+      ),
+    };
+  }
+
+  // --- On-screen keyboard (mouse / touch) -------------------------------
+  // Routes pointer presses through the same note-on/off path as MIDI and the
+  // computer keyboard, so on-screen play drives feedback and the Wait Mode gate
+  // identically. Works during playback and when stopped.
+
+  void _onKeyboardPointerDown(PointerDownEvent event, PianoLayout layout) {
+    final pitch = layout.pitchAt(event.localPosition, _keyboardHeight);
+    if (pitch == null) return;
+    _keyboardPointers[event.pointer] = pitch;
+    ref.read(playerProvider.notifier).noteOn(pitch);
+  }
+
+  void _onKeyboardPointerUp(PointerEvent event) {
+    final pitch = _keyboardPointers.remove(event.pointer);
+    if (pitch == null) return;
+    ref.read(playerProvider.notifier).noteOff(pitch);
   }
 
   @override
@@ -123,16 +199,31 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                     );
                     return Column(
                       children: [
-                        Expanded(child: _buildRenderArea(layout, data)),
+                        // Clip the render area so a painter (e.g. high notes /
+                        // beams in Staff mode) never draws over the top bar or
+                        // the keyboard below.
+                        Expanded(
+                          child: ClipRect(
+                            child: _buildRenderArea(layout, data),
+                          ),
+                        ),
                         SizedBox(
                           height: _keyboardHeight,
-                          child: CustomPaint(
-                            size: Size(constraints.maxWidth, _keyboardHeight),
-                            painter: PianoKeyboardPainter(
-                              layout: layout,
-                              activeNotes: data.activeNotes,
-                              requiredNotes: data.requiredNotesAt(
-                                data.elapsedMs,
+                          child: Listener(
+                            key: const Key('onscreen-keyboard'),
+                            onPointerDown: (e) =>
+                                _onKeyboardPointerDown(e, layout),
+                            onPointerUp: _onKeyboardPointerUp,
+                            onPointerCancel: _onKeyboardPointerUp,
+                            child: CustomPaint(
+                              size: Size(constraints.maxWidth, _keyboardHeight),
+                              painter: PianoKeyboardPainter(
+                                layout: layout,
+                                activeNotes: data.activeNotes,
+                                requiredNotes: data.expectedKeys,
+                                leftHandNotes: data.expectedKeysForHand(
+                                  rightHand: false,
+                                ),
                               ),
                             ),
                           ),
@@ -605,12 +696,139 @@ class _WaitOverlay extends StatelessWidget {
 /// Engraved-notation (Partition) render mode: draws the laid-out MusicXML of the
 /// loaded score and re-lays it out as the available width changes. Shows a
 /// loading/empty state when no score notation is available (e.g. the demo).
-class _PartitionView extends ConsumerWidget {
+class _PartitionView extends ConsumerStatefulWidget {
   const _PartitionView();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_PartitionView> createState() => _PartitionViewState();
+}
+
+class _PartitionViewState extends ConsumerState<_PartitionView> {
+  final ScrollController _scroll = ScrollController();
+
+  /// The last scroll target we animated to, so we only scroll when the cursor
+  /// moves to a new line (not every frame, which would restart the animation).
+  double? _lastScrollTarget;
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  /// Index of the system containing [measureIndex], or null if not found.
+  int? _systemOf(int measureIndex, List<System> systems) {
+    for (var i = 0; i < systems.length; i++) {
+      if (systems[i].measures.contains(measureIndex)) return i;
+    }
+    return null;
+  }
+
+  /// Auto-scroll **per staff line (system)**, not per measure: the vertical
+  /// target depends only on which system the cursor is in, so the view advances
+  /// once when the playhead moves to a new line and stays put while it crosses
+  /// measures within the same line (no back-and-forth jitter). The current line
+  /// is centred in the viewport; look-ahead is provided by the next-line overlay
+  /// (see [_buildNextLineOverlay]), not by scrolling ahead. Only while playing,
+  /// so manual scrolling is undisturbed when paused.
+  void _followCursor(
+    PlayerData data,
+    List<System> systems,
+    PartitionPainter painter,
+  ) {
+    if (!data.isPlaying) return;
+    final cursor = data.measureAt(data.elapsedMs);
+    if (cursor == null) return;
+    final sysIndex = _systemOf(cursor.index, systems);
+    if (sysIndex == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scroll.hasClients) return;
+      final max = _scroll.position.maxScrollExtent;
+      if (max <= 0) return; // everything fits — no scrolling
+      final viewport = _scroll.position.viewportDimension;
+      final target =
+          (painter.systemTopY(sysIndex) +
+                  painter.systemStride / 2 -
+                  viewport / 2)
+              .clamp(0.0, max);
+      // Only scroll when the line changes — re-issuing every frame would restart
+      // (and stall) the animation.
+      if (_lastScrollTarget != null &&
+          (target - _lastScrollTarget!).abs() < 4) {
+        return;
+      }
+      _lastScrollTarget = target;
+      _scroll.animateTo(
+        target,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    });
+  }
+
+  /// A small "next up" overlay showing the first two measures of the **next**
+  /// line, pinned top-left. It appears only once the playhead is past the middle
+  /// of the current line (so the top-left, already-played area is free to cover)
+  /// and only when there is a next line. Returns null otherwise.
+  Widget? _buildNextLineOverlay(
+    PlayerData data,
+    NotationData notation,
+    double width,
+    PartitionPainter mainPainter,
+  ) {
+    final cursor = data.measureAt(data.elapsedMs);
+    if (cursor == null) return null;
+    final systems = notation.systems;
+    final sysIndex = _systemOf(cursor.index, systems);
+    if (sysIndex == null || sysIndex + 1 >= systems.length) return null;
+
+    final current = systems[sysIndex];
+    final pos = current.measures.indexOf(cursor.index);
+    if (pos < 0) return null;
+    final lineProgress = (pos + cursor.fraction) / current.measures.length;
+    if (lineProgress < 0.5) return null; // only near the end of the line
+
+    // Don't cover the score when the next line is already visible on screen
+    // (e.g. a tall viewport shows it below the current line) — the overlay is
+    // only useful when the next line is still below the fold.
+    if (_scroll.hasClients) {
+      final vpTop = _scroll.offset;
+      final vpBottom = vpTop + _scroll.position.viewportDimension;
+      final nextTop = mainPainter.systemTopY(sysIndex + 1);
+      final nextBottom = nextTop + mainPainter.systemStride;
+      final visible =
+          (nextBottom < vpBottom ? nextBottom : vpBottom) -
+          (nextTop > vpTop ? nextTop : vpTop);
+      if (visible >= mainPainter.systemStride * 0.6) return null;
+    }
+
+    // Engrave the FULL next system at the same width as the main view (so the
+    // notes are exactly the same size — no down-scaling) and clip the overlay to
+    // its first measure (a two-measure peek was too wide). The clip width follows
+    // the painter's justification: an approximate header plus that measure's
+    // share of the system width.
+    final next = systems[sysIndex + 1];
+    final measures = notation.document!.measures;
+    var total = 0.0;
+    for (final m in next.measures) {
+      total += measures[m].minWidth;
+    }
+    final firstMin = measures[next.measures.first].minWidth;
+    const headerApprox = 96.0; // clef + key + time, roughly
+    final usable = (width - headerApprox).clamp(0.0, width);
+    final boxWidth =
+        headerApprox + (total > 0 ? firstMin / total : 1.0) * usable;
+    return _NextLineOverlay(
+      painter: PartitionPainter(document: notation.document!, systems: [next]),
+      fullWidth: width,
+      boxWidth: boxWidth,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final notation = ref.watch(notationProvider);
+    final data = ref.watch(playerProvider);
 
     if (notation.error != null) {
       return Center(
@@ -644,14 +862,98 @@ class _PartitionView extends ConsumerWidget {
           final painter = PartitionPainter(
             document: notation.document!,
             systems: notation.systems,
+            elapsedMs: data.elapsedMs,
+            measureStartMs: data.measureStartMs,
+            songEndMs: data.songEndMs,
+            activeNotes: data.activeNotes,
           );
-          return SingleChildScrollView(
-            child: CustomPaint(
-              painter: painter,
-              size: Size(width, painter.heightFor(width)),
-            ),
+          _followCursor(data, notation.systems, painter);
+          final overlay = _buildNextLineOverlay(data, notation, width, painter);
+          return Stack(
+            children: [
+              SingleChildScrollView(
+                controller: _scroll,
+                child: CustomPaint(
+                  key: const Key('partition-canvas'),
+                  painter: painter,
+                  size: Size(width, painter.heightFor(width)),
+                ),
+              ),
+              if (overlay != null) Positioned(left: 8, top: 8, child: overlay),
+            ],
           );
         },
+      ),
+    );
+  }
+}
+
+/// "Next up" peek: the first measures of the upcoming line, scaled down into a
+/// small framed box (pinned top-left over the already-played start of the line).
+class _NextLineOverlay extends StatelessWidget {
+  final PartitionPainter painter;
+
+  /// Width the system is engraved at — the same as the main view, so the notes
+  /// are rendered at identical size (no scaling).
+  final double fullWidth;
+
+  /// Visible width of the peek (clips to roughly the first two measures).
+  final double boxWidth;
+
+  const _NextLineOverlay({
+    required this.painter,
+    required this.fullWidth,
+    required this.boxWidth,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final height = painter.heightFor(fullWidth);
+    return Container(
+      decoration: BoxDecoration(
+        color: CymbraColors.surfaceContainerHigh.withValues(alpha: 0.94),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: CymbraColors.outlineVariant),
+      ),
+      padding: const EdgeInsets.fromLTRB(8, 4, 8, 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text(
+            'NEXT',
+            style: TextStyle(
+              color: CymbraColors.onSurfaceVariant,
+              fontSize: 9,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1.5,
+            ),
+          ),
+          const SizedBox(height: 2),
+          // The system is painted at [fullWidth] (full size) but only [boxWidth]
+          // is shown; OverflowBox lets the wider canvas extend under the clip.
+          SizedBox(
+            width: boxWidth,
+            height: height,
+            child: ClipRect(
+              child: OverflowBox(
+                alignment: Alignment.topLeft,
+                minWidth: 0,
+                maxWidth: fullWidth,
+                minHeight: 0,
+                maxHeight: height,
+                child: SizedBox(
+                  width: fullWidth,
+                  height: height,
+                  child: CustomPaint(
+                    painter: painter,
+                    size: Size(fullWidth, height),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

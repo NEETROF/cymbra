@@ -84,17 +84,20 @@ class SynthesiaPainter extends CustomPainter {
       );
       final rrect = RRect.fromRectAndRadius(rect, const Radius.circular(4));
 
-      // Note in the hit zone (should be played now) → teal,
-      // otherwise purple. Key correctly held → success green.
+      // Falling notes are coloured by hand (right = blue, left = amber): a
+      // brighter tint in the hit zone ("play now"), success green once held.
+      final handColor = n.staff >= 2
+          ? CymbraColors.handLeft
+          : CymbraColors.handRight;
       final inHitZone =
           n.startMs <= elapsedMs && elapsedMs < n.startMs + n.durationMs;
       final Color base;
       if (inHitZone && activeNotes.contains(n.pitch)) {
         base = CymbraColors.tertiary; // well played
       } else if (inHitZone) {
-        base = CymbraColors.secondaryContainer; // to play now
+        base = Color.lerp(handColor, const Color(0xFFFFFFFF), 0.4)!; // play now
       } else {
-        base = CymbraColors.primaryContainer; // upcoming
+        base = handColor; // upcoming, by hand
       }
 
       // Halo.
