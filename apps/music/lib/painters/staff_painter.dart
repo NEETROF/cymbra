@@ -243,15 +243,20 @@ class StaffPainter extends CustomPainter {
     bool visible(double x) =>
         x >= margin - lineGap && x <= size.width - margin + lineGap;
 
+    // Notes are coloured by hand (right = blue, left = amber): brighter at the
+    // playhead ("play now"), success green once correctly held.
     Color colorFor(TimedNote n) {
+      final handColor = n.staff >= 2
+          ? CymbraColors.handLeft
+          : CymbraColors.handRight;
       final atPlayhead =
           n.startMs <= elapsedMs && elapsedMs < n.startMs + n.durationMs;
       if (atPlayhead && activeNotes.contains(n.pitch)) {
         return CymbraColors.tertiary; // well played
       } else if (atPlayhead) {
-        return CymbraColors.secondary; // expected
+        return Color.lerp(handColor, const Color(0xFFFFFFFF), 0.4)!; // play now
       }
-      return CymbraColors.onSurfaceVariant.withValues(alpha: 0.55);
+      return handColor; // upcoming, by hand
     }
 
     // 4) Scrolling notes, routed to their staff.
