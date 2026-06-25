@@ -22,5 +22,5 @@
 
 - [x] 4.1 `cd apps/music && dart run build_runner build --delete-conflicting-outputs`; `melos run analyze`, `dart format`, `dart run custom_lint` clean.
 - [x] 4.2 `flutter test --coverage --exclude-tags golden` green and Flutter line coverage ≥ 80%.
-- [ ] 4.3 Manually confirm in-app: in Wait Mode, the correct-hand key advances; the near-miss key plays a wrong nearby note and does not advance.
+- [x] 4.3 Manually confirm in-app: in Wait Mode, the correct-hand key advances; the near-miss key plays a wrong nearby note and does not advance.
 - [x] 4.4 `openspec validate assisted-practice-keys --strict` passes.

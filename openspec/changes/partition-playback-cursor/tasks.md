@@ -29,5 +29,5 @@
 
 - [x] 5.1 `cd apps/music && dart run build_runner build --delete-conflicting-outputs`; `melos run analyze`, `dart format`, `dart run custom_lint` clean.
 - [x] 5.2 `flutter test --coverage --exclude-tags golden` green and Flutter line coverage ≥ 80%.
-- [ ] 5.3 Manually confirm in-app: load a multi-system score, play in Partition mode — cursor advances, current notes light, view scrolls ahead smoothly; Wait Mode freezes the cursor.
+- [x] 5.3 Manually confirm in-app: load a multi-system score, play in Partition mode — cursor advances, current notes light, view scrolls ahead smoothly; Wait Mode freezes the cursor.
 - [x] 5.4 `openspec validate partition-playback-cursor --strict` passes.

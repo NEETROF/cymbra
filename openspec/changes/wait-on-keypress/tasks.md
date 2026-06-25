@@ -15,7 +15,7 @@
 ## 3. Feedback wiring
 
 - [x] 3.1 Point the keyboard's expected/correct feedback at the active onset set (the same gate), so a validated-and-released note stops showing as expected. No change to the `keyboard-display` Three-State requirement wording.
-- [ ] 3.2 If the `hand-selection-filter` change is present, intersect the onset set with the visible-hand filter so hidden-hand onsets are neither awaited nor shown.
+- [x] 3.2 If the `hand-selection-filter` change is present, intersect the onset set with the visible-hand filter so hidden-hand onsets are neither awaited nor shown. _(N/A — hand-selection-filter not implemented yet; revisit when it lands.)_
 
 ## 4. Tests
 
@@ -30,5 +30,5 @@
 
 - [x] 5.1 `cd apps/music && dart run build_runner build --delete-conflicting-outputs`; `melos run analyze`, `dart format`, `dart run custom_lint` clean.
 - [x] 5.2 `flutter test --coverage --exclude-tags golden` green and Flutter line coverage ≥ 80%.
-- [ ] 5.3 Manually confirm in-app: in Wait Mode, a quick correct tap advances the cascade; holding is not needed; pressing early does not skip the wait.
+- [x] 5.3 Manually confirm in-app: in Wait Mode, a quick correct tap advances the cascade; holding is not needed; pressing early does not skip the wait.
 - [x] 5.4 `openspec validate wait-on-keypress --strict` passes.

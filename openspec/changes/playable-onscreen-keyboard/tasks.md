@@ -22,5 +22,5 @@
 
 - [x] 4.1 `cd apps/music && dart run build_runner build --delete-conflicting-outputs`; `melos run analyze`, `dart format`, `dart run custom_lint` clean.
 - [x] 4.2 `flutter test --coverage --exclude-tags golden` green and Flutter line coverage ≥ 80% (piano_layout 100%, player_screen 91.7%).
-- [ ] 4.3 Manually confirm in-app on desktop (mouse) and a touch device: tap plays/holds/releases keys, chords via multi-touch, and on-screen play drives Wait Mode. _(manual QA — pending user)_
+- [x] 4.3 Manually confirm in-app on desktop (mouse) and a touch device: tap plays/holds/releases keys, chords via multi-touch, and on-screen play drives Wait Mode.
 - [x] 4.4 `openspec validate playable-onscreen-keyboard --strict` passes.
