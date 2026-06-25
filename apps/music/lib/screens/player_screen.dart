@@ -212,9 +212,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                               painter: PianoKeyboardPainter(
                                 layout: layout,
                                 activeNotes: data.activeNotes,
-                                requiredNotes: data.requiredNotesAt(
-                                  data.elapsedMs,
-                                ),
+                                requiredNotes: data.expectedKeys,
                               ),
                             ),
                           ),

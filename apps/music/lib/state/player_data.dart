@@ -116,6 +116,11 @@ abstract class PlayerData with _$PlayerData {
     /// True when Wait Mode is currently blocking progression.
     @Default(false) bool blocked,
 
+    /// Pitches already pressed for the onset the playhead is currently waiting
+    /// at (Wait Mode). Latched on key-down so a note counts even once released —
+    /// validation is by attack, not sustained hold. Reset when the gate advances.
+    @Default(<int>{}) Set<int> gateSatisfied,
+
     /// On-screen keyboard range mode. Defaults to the full 88-key piano; the
     /// user can switch to auto-fit or a smaller preset from the chooser.
     @Default(KeyboardRangeMode.keys88) KeyboardRangeMode keyboardRange,
@@ -139,6 +144,40 @@ abstract class PlayerData with _$PlayerData {
       }
     }
     return result;
+  }
+
+  /// Pitches of notes whose onset is at instant [t] (their start coincides with
+  /// the playhead, within a 1ms tolerance). This is the Wait Mode gate set: the
+  /// notes that must be *attacked* here, regardless of their duration.
+  Set<int> onsetPitchesAt(double t) {
+    final result = <int>{};
+    for (final n in notes) {
+      if ((n.startMs - t).abs() <= 1.0) result.add(n.pitch);
+    }
+    return result;
+  }
+
+  /// The next note onset strictly after [t] (ms), or null if there are none.
+  double? nextOnsetAfter(double t) {
+    double? best;
+    for (final n in notes) {
+      if (n.startMs > t + 1 && (best == null || n.startMs < best)) {
+        best = n.startMs.toDouble();
+      }
+    }
+    return best;
+  }
+
+  /// Keys to highlight as "expected" on the keyboard. In Wait Mode this is the
+  /// onset gate the playhead sits on, or — while travelling between onsets — the
+  /// upcoming onset, so the preview shows the next note to play. Outside Wait
+  /// Mode it is the notes sounding under the playhead.
+  Set<int> get expectedKeys {
+    if (!waitMode) return requiredNotesAt(elapsedMs);
+    final here = onsetPitchesAt(elapsedMs);
+    if (here.isNotEmpty) return here;
+    final ns = nextOnsetAfter(elapsedMs);
+    return ns == null ? const {} : onsetPitchesAt(ns);
   }
 
   /// The measure containing playhead [t] and the fraction (0..1) elapsed within

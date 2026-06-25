@@ -175,6 +175,12 @@ class Player extends _$Player {
     if (!state.activeNotes.contains(pitch)) {
       state = state.copyWith(activeNotes: {...state.activeNotes, pitch});
     }
+    // Wait Mode validates by attack: if this note is part of the onset the
+    // playhead is sitting on, latch it so it still counts once released.
+    if (state.onsetPitchesAt(state.elapsedMs).contains(pitch) &&
+        !state.gateSatisfied.contains(pitch)) {
+      state = state.copyWith(gateSatisfied: {...state.gateSatisfied, pitch});
+    }
   }
 
   void noteOff(int pitch) {
@@ -189,49 +195,56 @@ class Player extends _$Player {
 
   void togglePlay() => state = state.copyWith(isPlaying: !state.isPlaying);
   void setMode(RenderMode m) => state = state.copyWith(mode: m);
-  void toggleWaitMode() => state = state.copyWith(waitMode: !state.waitMode);
+  // Re-arm the onset gate at the current playhead when toggling Wait Mode on.
+  void toggleWaitMode() => state = state.copyWith(
+    waitMode: !state.waitMode,
+    gateSatisfied: const {},
+  );
   void setSpeed(double s) => state = state.copyWith(speed: s.clamp(0.25, 2.0));
   void setKeyboardRange(KeyboardRangeMode m) =>
       state = state.copyWith(keyboardRange: m);
-  void restart() => state = state.copyWith(elapsedMs: 0);
+  void restart() =>
+      state = state.copyWith(elapsedMs: 0, gateSatisfied: const {});
 
   // --- Time advance (called by the screen's Ticker) ---------------------
 
   /// Advances the playhead by [dtMs] ms (already multiplied by the speed).
-  /// Handles Wait Mode freezing and the simple loop at end of song.
+  ///
+  /// Wait Mode gates on note *onsets*: the cascade freezes at each onset until
+  /// every note starting there has been pressed (latched in [PlayerData.gateSatisfied]),
+  /// then advances to the next onset — notes do not need to be held for their
+  /// duration. A simple loop restarts at the end of the song.
   void advance(double dtMs) {
     final s = state;
     if (!s.isPlaying || s.notes.isEmpty) return;
 
-    final required = s.requiredNotesAt(s.elapsedMs);
-    if (s.waitMode &&
-        required.isNotEmpty &&
-        !s.activeNotes.containsAll(required)) {
-      // The correct note isn't held: freeze the cascade.
+    final onset = s.onsetPitchesAt(s.elapsedMs);
+    if (s.waitMode && onset.isNotEmpty && !s.gateSatisfied.containsAll(onset)) {
+      // The onset's notes haven't all been attacked: freeze the cascade.
       if (!s.blocked) state = s.copyWith(blocked: true);
       return;
     }
 
     var next = s.elapsedMs + dtMs;
 
-    // In Wait Mode, don't go past the next note start until it's validated.
+    // In Wait Mode, don't go past the next onset until it's validated.
     if (s.waitMode) {
-      final ns = _nextNoteStart(s.elapsedMs);
-      if (ns != null && next > ns) next = ns.toDouble();
+      final ns = s.nextOnsetAfter(s.elapsedMs);
+      if (ns != null && next > ns) next = ns;
     }
 
+    var loop = false;
     if (s.songEndMs > 0 && next >= s.songEndMs) {
       next = 0; // simple loop
+      loop = true;
     }
 
-    state = s.copyWith(elapsedMs: next, blocked: false);
-  }
-
-  /// Next note start strictly after [t], or null if there are no more.
-  int? _nextNoteStart(double t) {
-    for (final n in state.notes) {
-      if (n.startMs > t + 1) return n.startMs;
-    }
-    return null;
+    // Leaving the satisfied onset (or looping) re-arms the gate for the next one.
+    final leftOnset = onset.isNotEmpty && next != s.elapsedMs;
+    state = s.copyWith(
+      elapsedMs: next,
+      blocked: false,
+      gateSatisfied: (leftOnset || loop) ? const {} : s.gateSatisfied,
+    );
   }
 }
