@@ -804,19 +804,16 @@ class _PartitionViewState extends ConsumerState<_PartitionView> {
 
     // Engrave the FULL next system at the same width as the main view (so the
     // notes are exactly the same size — no down-scaling) and clip the overlay to
-    // the first ~2 measures. The clip width follows the painter's justification:
-    // an approximate header plus the first measures' share of the system width.
+    // its first measure (a two-measure peek was too wide). The clip width follows
+    // the painter's justification: an approximate header plus that measure's
+    // share of the system width.
     final next = systems[sysIndex + 1];
     final measures = notation.document!.measures;
     var total = 0.0;
     for (final m in next.measures) {
       total += measures[m].minWidth;
     }
-    final take = next.measures.length < 2 ? next.measures.length : 2;
-    var firstMin = 0.0;
-    for (var i = 0; i < take; i++) {
-      firstMin += measures[next.measures[i]].minWidth;
-    }
+    final firstMin = measures[next.measures.first].minWidth;
     const headerApprox = 96.0; // clef + key + time, roughly
     final usable = (width - headerApprox).clamp(0.0, width);
     final boxWidth =
