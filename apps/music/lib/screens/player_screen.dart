@@ -199,8 +199,6 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
 
   @override
   Widget build(BuildContext context) {
-    final data = ref.watch(playerProvider);
-    final notifier = ref.read(playerProvider.notifier);
     return Focus(
       focusNode: _focusNode,
       autofocus: true,
@@ -215,51 +213,59 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
             children: [
               const _TopBar(),
               Expanded(
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    final bounds = data.keyboardBounds;
-                    final layout = PianoLayout(
-                      width: constraints.maxWidth,
-                      lowPitch: bounds.low,
-                      highPitch: bounds.high,
-                    );
-                    return Column(
-                      children: [
-                        // Clip the render area so a painter (e.g. high notes /
-                        // beams in Staff mode) never draws over the top bar or
-                        // the keyboard below.
-                        Expanded(
-                          child: ClipRect(
-                            child: _buildRenderArea(layout, data),
-                          ),
-                        ),
-                        SizedBox(
-                          height: _keyboardHeight,
-                          child: Listener(
-                            key: const Key('onscreen-keyboard'),
-                            onPointerDown: (e) =>
-                                _onKeyboardPointerDown(e, layout),
-                            onPointerUp: _onKeyboardPointerUp,
-                            onPointerCancel: _onKeyboardPointerUp,
-                            child: CustomPaint(
-                              size: Size(constraints.maxWidth, _keyboardHeight),
-                              painter: PianoKeyboardPainter(
-                                layout: layout,
-                                activeNotes: data.activeNotes,
-                                requiredNotes: data.expectedKeys,
-                                leftHandNotes: data.expectedKeysForHand(
-                                  rightHand: false,
+                child: Consumer(
+                  builder: (context, ref, child) {
+                    final data = ref.watch(playerProvider);
+                    return LayoutBuilder(
+                      builder: (context, constraints) {
+                        final bounds = data.keyboardBounds;
+                        final layout = PianoLayout(
+                          width: constraints.maxWidth,
+                          lowPitch: bounds.low,
+                          highPitch: bounds.high,
+                        );
+                        return Column(
+                          children: [
+                            // Clip the render area so a painter (e.g. high notes /
+                            // beams in Staff mode) never draws over the top bar or
+                            // the keyboard below.
+                            Expanded(
+                              child: ClipRect(
+                                child: _buildRenderArea(layout, data),
+                              ),
+                            ),
+                            SizedBox(
+                              height: _keyboardHeight,
+                              child: Listener(
+                                key: const Key('onscreen-keyboard'),
+                                onPointerDown: (e) =>
+                                    _onKeyboardPointerDown(e, layout),
+                                onPointerUp: _onKeyboardPointerUp,
+                                onPointerCancel: _onKeyboardPointerUp,
+                                child: CustomPaint(
+                                  size: Size(
+                                    constraints.maxWidth,
+                                    _keyboardHeight,
+                                  ),
+                                  painter: PianoKeyboardPainter(
+                                    layout: layout,
+                                    activeNotes: data.activeNotes,
+                                    requiredNotes: data.expectedKeys,
+                                    leftHandNotes: data.expectedKeysForHand(
+                                      rightHand: false,
+                                    ),
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                        ),
-                      ],
+                          ],
+                        );
+                      },
                     );
                   },
                 ),
               ),
-              _TransportBar(data: data, notifier: notifier),
+              _TransportBar(),
             ],
           ),
         ),
@@ -555,7 +561,7 @@ class _SettingsDrawerState extends ConsumerState<_SettingsDrawer> {
       body = ListView(
         padding: EdgeInsets.zero,
         children: [
-          _DrawerHeader(title: 'Settings'),
+          const _DrawerHeader(title: 'Settings'),
           for (final c in categories)
             ListTile(
               leading: Icon(c.icon, color: CymbraColors.onSurfaceVariant),
@@ -783,13 +789,12 @@ class _MidiStatusIndicator extends ConsumerWidget {
 }
 
 /// Floating transport bar: restart, play/pause, speed, loop, Wait Mode.
-class _TransportBar extends StatelessWidget {
-  final PlayerData data;
-  final Player notifier;
-  const _TransportBar({required this.data, required this.notifier});
-
+class _TransportBar extends ConsumerWidget {
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final data = ref.watch(playerProvider);
+    final notifier = ref.read(playerProvider.notifier);
+
     return Container(
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
