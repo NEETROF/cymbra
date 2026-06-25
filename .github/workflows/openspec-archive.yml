@@ -1,0 +1,76 @@
+name: openspec-archive
+
+# Auto-archives OpenSpec changes once they are 100% complete (all tasks checked)
+# and have landed on main. `openspec archive` is a deterministic CLI op — it folds
+# each change's delta into openspec/specs/ and removes it from openspec/changes/ —
+# so no review/AI is needed: this just runs the same command `/opsx:archive` wraps.
+#
+# Triggers:
+#   - push to main (after a merge) touching openspec/changes/ — the common path
+#   - workflow_dispatch — manual safety valve to archive on demand
+#
+# Writes the result straight to main using RELEASE_PLEASE_TOKEN (a PAT already
+# allowed to bypass branch protection, reused from release-please). The commit
+# carries [skip ci] so the bot's own push doesn't re-trigger this workflow.
+on:
+  push:
+    branches: [main]
+    paths: ['openspec/changes/**']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+# Avoid racing with an overlapping run (e.g. a fast second merge).
+concurrency:
+  group: openspec-archive
+  cancel-in-progress: false
+
+jobs:
+  archive:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - run: npm install -g @fission-ai/openspec@1.4.1
+
+      - name: Archive completed changes
+        run: |
+          set -euo pipefail
+          changes=$(openspec list --json | jq -r '.changes[] | select(.status == "complete") | .name')
+          if [ -z "$changes" ]; then
+            echo "No completed changes to archive."
+            exit 0
+          fi
+          for c in $changes; do
+            echo "::group::archive $c"
+            openspec archive "$c" -y
+            echo "::endgroup::"
+          done
+          {
+            echo "names<<EOF"
+            echo "$changes"
+            echo "EOF"
+          } >> "$GITHUB_ENV"
+
+      - name: Commit archived changes
+        run: |
+          set -euo pipefail
+          if git diff --quiet && git diff --cached --quiet; then
+            echo "Nothing to commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          list=$(printf '%s\n' "$names" | sed 's/^/- /')
+          git commit -m "chore(openspec): archive completed changes" \
+                     -m "$list" \
+                     -m "[skip ci]"
+          git push
