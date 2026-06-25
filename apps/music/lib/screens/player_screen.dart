@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/scheduler.dart';
@@ -22,6 +24,7 @@ import '../painters/piano_keyboard_painter.dart';
 import '../painters/piano_layout.dart';
 import '../painters/staff_painter.dart';
 import '../painters/synthesia_painter.dart';
+import '../src/rust/api/musicxml.dart' show System;
 import '../state/notation_notifier.dart';
 import '../state/player_data.dart';
 import '../state/player_notifier.dart';
@@ -42,26 +45,21 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
   late final Ticker _ticker;
   Duration _lastTick = Duration.zero;
 
+  /// Active on-screen-keyboard pointers → the pitch each is holding, so a finger
+  /// release note-offs only its own pitch (independent multi-touch). Same-pitch
+  /// from multiple sources is last-release-wins: releasing one source clears the
+  /// shared [PlayerData.activeNotes] entry even if another still holds it — an
+  /// accepted v1 simplification (chords use distinct pitches).
+  final Map<int, int> _keyboardPointers = {};
+
   static const double _keyboardHeight = 150;
 
-  /// Computer keyboard → MIDI pitch mapping (piano-style row, QWERTY).
-  static final Map<LogicalKeyboardKey, int> _keyToPitch = {
-    LogicalKeyboardKey.keyA: 60, // C4
-    LogicalKeyboardKey.keyW: 61, // C#4
-    LogicalKeyboardKey.keyS: 62, // D4
-    LogicalKeyboardKey.keyE: 63, // D#4
-    LogicalKeyboardKey.keyD: 64, // E4
-    LogicalKeyboardKey.keyF: 65, // F4
-    LogicalKeyboardKey.keyT: 66, // F#4
-    LogicalKeyboardKey.keyG: 67, // G4
-    LogicalKeyboardKey.keyY: 68, // G#4
-    LogicalKeyboardKey.keyH: 69, // A4
-    LogicalKeyboardKey.keyU: 70, // A#4
-    LogicalKeyboardKey.keyJ: 71, // B4
-    LogicalKeyboardKey.keyK: 72, // C5
-    LogicalKeyboardKey.keyO: 73, // C#5
-    LogicalKeyboardKey.keyL: 74, // D5
-  };
+  /// Random source for the near-miss assist keys (q/s).
+  final math.Random _rng = math.Random();
+
+  /// Assist keys → the pitches each fired on key-down, so key-up note-offs
+  /// exactly those (a near-miss picks a fresh random pitch each press).
+  final Map<LogicalKeyboardKey, Set<int>> _assistPressed = {};
 
   @override
   void initState() {
@@ -78,18 +76,95 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     }
   }
 
+  /// Desktop keyboard = four practice-assist keys (AZERTY 2×2 cluster):
+  ///   a = left-hand correct,  z = right-hand correct,
+  ///   q = left-hand near-miss, s = right-hand near-miss.
+  /// The correct keys play all notes expected for that hand at the playhead
+  /// (satisfying Wait Mode); the near-miss keys play a random nearby wrong note.
+  /// Exact, arbitrary notes are played with the on-screen keyboard instead.
   KeyEventResult _onKey(FocusNode node, KeyEvent event) {
-    final pitch = _keyToPitch[event.logicalKey];
-    if (pitch == null) return KeyEventResult.ignored;
+    final key = event.logicalKey;
+    final bool rightHand;
+    final bool nearMiss;
+    if (key == LogicalKeyboardKey.keyA) {
+      rightHand = false;
+      nearMiss = false;
+    } else if (key == LogicalKeyboardKey.keyZ) {
+      rightHand = true;
+      nearMiss = false;
+    } else if (key == LogicalKeyboardKey.keyQ) {
+      rightHand = false;
+      nearMiss = true;
+    } else if (key == LogicalKeyboardKey.keyS) {
+      rightHand = true;
+      nearMiss = true;
+    } else {
+      return KeyEventResult.ignored;
+    }
+
     final notifier = ref.read(playerProvider.notifier);
     if (event is KeyDownEvent) {
-      notifier.noteOn(pitch);
+      if (_assistPressed.containsKey(key)) {
+        return KeyEventResult.handled; // already held; ignore stray repeat
+      }
+      final pitches = _assistPitches(rightHand: rightHand, nearMiss: nearMiss);
+      if (pitches.isEmpty) return KeyEventResult.handled;
+      _assistPressed[key] = pitches;
+      for (final p in pitches) {
+        notifier.noteOn(p);
+      }
       return KeyEventResult.handled;
     } else if (event is KeyUpEvent) {
-      notifier.noteOff(pitch);
+      final pitches = _assistPressed.remove(key);
+      if (pitches != null) {
+        for (final p in pitches) {
+          notifier.noteOff(p);
+        }
+      }
       return KeyEventResult.handled;
     }
     return KeyEventResult.ignored; // ignore repeats
+  }
+
+  /// Pitches an assist key should sound now: the expected notes for [rightHand],
+  /// or — for a [nearMiss] — a single random pitch near one of them that never
+  /// equals an expected note. Empty when nothing is expected for that hand.
+  Set<int> _assistPitches({required bool rightHand, required bool nearMiss}) {
+    final data = ref.read(playerProvider);
+    final expected = data.expectedNotesForHand(
+      data.elapsedMs,
+      rightHand: rightHand,
+    );
+    if (expected.isEmpty) return const {};
+    if (!nearMiss) return expected;
+    final bounds = data.keyboardBounds;
+    return {
+      nearMissPitch(
+        expected.first,
+        lowBound: bounds.low,
+        highBound: bounds.high,
+        avoid: expected,
+        nextRandom: _rng.nextInt,
+      ),
+    };
+  }
+
+  // --- On-screen keyboard (mouse / touch) -------------------------------
+  // Routes pointer presses through the same note-on/off path as MIDI and the
+  // computer keyboard, so on-screen play drives feedback and the Wait Mode gate
+  // identically. Works during playback and when stopped.
+
+  void _onKeyboardPointerDown(PointerDownEvent event, PianoLayout layout) {
+    final pitch = layout.pitchAt(event.localPosition, _keyboardHeight);
+    if (pitch == null) return;
+    _keyboardPointers[event.pointer] = pitch;
+    ref.read(playerProvider.notifier).noteOn(pitch);
+  }
+
+  void _onKeyboardPointerUp(PointerEvent event) {
+    final pitch = _keyboardPointers.remove(event.pointer);
+    if (pitch == null) return;
+    ref.read(playerProvider.notifier).noteOff(pitch);
   }
 
   @override
@@ -126,13 +201,20 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                         Expanded(child: _buildRenderArea(layout, data)),
                         SizedBox(
                           height: _keyboardHeight,
-                          child: CustomPaint(
-                            size: Size(constraints.maxWidth, _keyboardHeight),
-                            painter: PianoKeyboardPainter(
-                              layout: layout,
-                              activeNotes: data.activeNotes,
-                              requiredNotes: data.requiredNotesAt(
-                                data.elapsedMs,
+                          child: Listener(
+                            key: const Key('onscreen-keyboard'),
+                            onPointerDown: (e) =>
+                                _onKeyboardPointerDown(e, layout),
+                            onPointerUp: _onKeyboardPointerUp,
+                            onPointerCancel: _onKeyboardPointerUp,
+                            child: CustomPaint(
+                              size: Size(constraints.maxWidth, _keyboardHeight),
+                              painter: PianoKeyboardPainter(
+                                layout: layout,
+                                activeNotes: data.activeNotes,
+                                requiredNotes: data.requiredNotesAt(
+                                  data.elapsedMs,
+                                ),
                               ),
                             ),
                           ),
@@ -605,12 +687,60 @@ class _WaitOverlay extends StatelessWidget {
 /// Engraved-notation (Partition) render mode: draws the laid-out MusicXML of the
 /// loaded score and re-lays it out as the available width changes. Shows a
 /// loading/empty state when no score notation is available (e.g. the demo).
-class _PartitionView extends ConsumerWidget {
+class _PartitionView extends ConsumerStatefulWidget {
   const _PartitionView();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_PartitionView> createState() => _PartitionViewState();
+}
+
+class _PartitionViewState extends ConsumerState<_PartitionView> {
+  final ScrollController _scroll = ScrollController();
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  /// Index of the system containing [measureIndex], or null if not found.
+  int? _systemOf(int measureIndex, List<System> systems) {
+    for (var i = 0; i < systems.length; i++) {
+      if (systems[i].measures.contains(measureIndex)) return i;
+    }
+    return null;
+  }
+
+  /// Auto-scroll so the playhead stays ~40% down the viewport, which keeps the
+  /// upcoming systems visible (look-ahead). Only while playing, so manual
+  /// scrolling is undisturbed when paused.
+  void _followCursor(
+    PlayerData data,
+    List<System> systems,
+    PartitionPainter painter,
+    double viewportHeight,
+  ) {
+    if (!data.isPlaying) return;
+    final cursor = data.measureAt(data.elapsedMs);
+    if (cursor == null) return;
+    final sysIndex = _systemOf(cursor.index, systems);
+    if (sysIndex == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scroll.hasClients) return;
+      final max = _scroll.position.maxScrollExtent;
+      if (max <= 0) return; // everything fits — no scrolling
+      final cursorY =
+          painter.systemTopY(sysIndex) + cursor.fraction * painter.systemStride;
+      final target = (cursorY - viewportHeight * 0.4).clamp(0.0, max);
+      if ((target - _scroll.offset).abs() < 4) return;
+      _scroll.jumpTo(target);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final notation = ref.watch(notationProvider);
+    final data = ref.watch(playerProvider);
 
     if (notation.error != null) {
       return Center(
@@ -644,8 +774,14 @@ class _PartitionView extends ConsumerWidget {
           final painter = PartitionPainter(
             document: notation.document!,
             systems: notation.systems,
+            elapsedMs: data.elapsedMs,
+            measureStartMs: data.measureStartMs,
+            songEndMs: data.songEndMs,
+            activeNotes: data.activeNotes,
           );
+          _followCursor(data, notation.systems, painter, constraints.maxHeight);
           return SingleChildScrollView(
+            controller: _scroll,
             child: CustomPaint(
               painter: painter,
               size: Size(width, painter.heightFor(width)),

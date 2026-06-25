@@ -60,5 +60,43 @@ void main() {
       expect(layout.contains(59), isFalse);
       expect(layout.contains(85), isFalse);
     });
+
+    group('pitchAt', () {
+      // 150px height: black keys occupy the upper 62% (y < 93), white keys the
+      // full height. whiteWidth 10, blackWidth 6.2.
+      const h = 150.0;
+      const whiteY = 120.0; // below the black band → white-only region
+      const blackY = 30.0; // inside the black band
+
+      test('white key hit in the white-only region', () {
+        // C4 is the first white key [0,10); its center is x=5.
+        expect(layout.pitchAt(const Offset(5, whiteY), h), 60);
+        // D4 is the second white key [10,20).
+        expect(layout.pitchAt(const Offset(15, whiteY), h), 62);
+      });
+
+      test('black key takes priority in the overlap band', () {
+        // C#4 is centered on the C4/D4 boundary (x=10), rect [6.9,13.1). In the
+        // black band a hit there is the black key, not a white one.
+        expect(layout.pitchAt(const Offset(10, blackY), h), 61);
+      });
+
+      test('same x below the black band hits the white key', () {
+        // At x=10 but in the white-only region, the black key is not present, so
+        // the hit falls through to the white key starting at that boundary (D4).
+        expect(layout.pitchAt(const Offset(10, whiteY), h), 62);
+      });
+
+      test('out of range returns null', () {
+        expect(layout.pitchAt(const Offset(-1, whiteY), h), isNull);
+        expect(layout.pitchAt(const Offset(200, whiteY), h), isNull);
+        expect(layout.pitchAt(const Offset(5, -1), h), isNull);
+        expect(layout.pitchAt(const Offset(5, h + 1), h), isNull);
+      });
+
+      test('left edge of the keyboard hits the first key', () {
+        expect(layout.pitchAt(const Offset(0, whiteY), h), 60);
+      });
+    });
   });
 }

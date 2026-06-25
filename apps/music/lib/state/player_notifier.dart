@@ -102,6 +102,7 @@ class Player extends _$Player {
       beatType: document.attributes.time.beatType,
       notes: derived.notes,
       songEndMs: derived.songEndMs,
+      measureStartMs: derived.measureStartMs,
       elapsedMs: 0,
       isPlaying: false,
     );

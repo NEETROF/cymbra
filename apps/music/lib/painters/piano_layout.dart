@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:ui' show Offset;
+
 /// Shared geometry of the piano keyboard.
 ///
 /// Serves as a common X-axis reference for [PianoKeyboardPainter] and
@@ -72,4 +74,34 @@ class PianoLayout {
   }
 
   bool contains(int pitch) => pitch >= lowPitch && pitch <= highPitch;
+
+  /// MIDI pitch of the key drawn under [p] on a keyboard of [height] pixels, or
+  /// null when no key is there (outside the keyboard or past the last white
+  /// key). Black keys take priority within their upper band, matching how
+  /// [PianoKeyboardPainter] stacks them on top of the white keys (the top 62%
+  /// of the height).
+  int? pitchAt(Offset p, double height) {
+    final x = p.dx;
+    final y = p.dy;
+    if (x < 0 || y < 0 || y > height) return null;
+
+    // Black keys occupy only the upper band and are painted over the whites, so
+    // a hit there wins over the white key beneath it.
+    final blackH = height * 0.62;
+    if (y < blackH) {
+      for (var pitch = lowPitch; pitch <= highPitch; pitch++) {
+        if (!isBlack(pitch)) continue;
+        final r = keyRect(pitch);
+        if (x >= r.left && x < r.left + r.width) return pitch;
+      }
+    }
+
+    // White keys span the full height and tile the width edge-to-edge.
+    for (var pitch = lowPitch; pitch <= highPitch; pitch++) {
+      if (isBlack(pitch)) continue;
+      final r = keyRect(pitch);
+      if (x >= r.left && x < r.left + r.width) return pitch;
+    }
+    return null;
+  }
 }

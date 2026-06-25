@@ -99,6 +99,10 @@ abstract class PlayerData with _$PlayerData {
     /// End of the song (ms).
     @Default(0.0) double songEndMs,
 
+    /// Start time (ms) of each measure, in order (Partition cursor placement).
+    /// Empty for the demo score; populated from a parsed MusicXML document.
+    @Default(<int>[]) List<int> measureStartMs,
+
     @Default(RenderMode.synthesia) RenderMode mode,
     @Default(true) bool waitMode,
     @Default(false) bool isPlaying,
@@ -136,4 +140,74 @@ abstract class PlayerData with _$PlayerData {
     }
     return result;
   }
+
+  /// The measure containing playhead [t] and the fraction (0..1) elapsed within
+  /// it, or null when no timing is known (e.g. the demo score) or [t] is outside
+  /// the piece. Drives the Partition playhead cursor.
+  ({int index, double fraction})? measureAt(double t) {
+    final starts = measureStartMs;
+    if (starts.isEmpty || t < starts.first) return null;
+    for (var i = 0; i < starts.length; i++) {
+      final start = starts[i];
+      final end = (i + 1 < starts.length ? starts[i + 1] : songEndMs)
+          .toDouble();
+      if (t >= start && t < end) {
+        final span = end - start;
+        final frac = span > 0 ? ((t - start) / span).clamp(0.0, 1.0) : 0.0;
+        return (index: i, fraction: frac);
+      }
+    }
+    return null;
+  }
+
+  /// Expected notes at instant [t] for one hand: staff 1 is the right hand,
+  /// staff 2+ the left hand. Same window as [requiredNotesAt], split by staff,
+  /// so the assist keys play exactly the hand's due notes.
+  Set<int> expectedNotesForHand(double t, {required bool rightHand}) {
+    final result = <int>{};
+    for (final n in notes) {
+      final isRight = n.staff == 1;
+      if (rightHand != isRight) continue;
+      if (n.startMs <= t + 1 && t < n.startMs + n.durationMs) {
+        result.add(n.pitch);
+      }
+    }
+    return result;
+  }
+}
+
+/// A pitch near [expected] (within ±[spread] semitones) that is **not** in
+/// [avoid] and lies within `[lowBound, highBound]` — a deliberate near-miss that
+/// never matches an expected note, so it cannot satisfy the Wait Mode gate.
+///
+/// [nextRandom] is called with an exclusive upper bound to choose among the
+/// candidates; injecting it keeps the pick deterministic in tests. When no
+/// candidate exists within [spread], the nearest in-range non-avoided pitch is
+/// returned; if even that is impossible, [expected] is returned unchanged.
+int nearMissPitch(
+  int expected, {
+  required int lowBound,
+  required int highBound,
+  required Set<int> avoid,
+  required int Function(int) nextRandom,
+  int spread = 3,
+}) {
+  final candidates = <int>[];
+  for (var d = 1; d <= spread; d++) {
+    for (final p in [expected - d, expected + d]) {
+      if (p >= lowBound && p <= highBound && !avoid.contains(p)) {
+        candidates.add(p);
+      }
+    }
+  }
+  if (candidates.isNotEmpty) {
+    return candidates[nextRandom(candidates.length)];
+  }
+  // Fallback: nearest in-range pitch that is not avoided.
+  for (var d = 1; d <= highBound - lowBound; d++) {
+    for (final p in [expected - d, expected + d]) {
+      if (p >= lowBound && p <= highBound && !avoid.contains(p)) return p;
+    }
+  }
+  return expected;
 }

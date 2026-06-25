@@ -23,10 +23,16 @@ class DerivedPlayback {
   final double songEndMs;
   final int bpm;
 
+  /// Start time (ms) of each measure, in document order; the first is 0. Lets the
+  /// Partition cursor map a playhead position to a measure and a fraction within
+  /// it.
+  final List<int> measureStartMs;
+
   const DerivedPlayback({
     required this.notes,
     required this.songEndMs,
     required this.bpm,
+    this.measureStartMs = const [],
   });
 }
 
@@ -68,6 +74,7 @@ DerivedPlayback notationToTimedNotes(ScoreDocument document) {
   final divisionsPerMeasure = divisions * time.beats * 4 ~/ beatType;
 
   final notes = <TimedNote>[];
+  final measureStartMs = <int>[];
   var songEndMs = 0.0;
   var measureStartDiv = 0;
 
@@ -78,6 +85,7 @@ DerivedPlayback notationToTimedNotes(ScoreDocument document) {
   }
 
   for (final measure in document.measures) {
+    measureStartMs.add((measureStartDiv * msPerDivision).round());
     for (final c in measure.clefs) {
       clef[c.staff] = c;
     }
@@ -110,7 +118,12 @@ DerivedPlayback notationToTimedNotes(ScoreDocument document) {
   }
 
   notes.sort((a, b) => a.startMs.compareTo(b.startMs));
-  return DerivedPlayback(notes: notes, songEndMs: songEndMs, bpm: bpm);
+  return DerivedPlayback(
+    notes: notes,
+    songEndMs: songEndMs,
+    bpm: bpm,
+    measureStartMs: measureStartMs,
+  );
 }
 
 /// First `metronome` `per-minute` in the score, or [kDefaultBpm] if none.

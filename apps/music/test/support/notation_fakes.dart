@@ -254,6 +254,36 @@ ScoreDocument sampleClefChangeDocument() => ScoreDocument(
   ],
 );
 
+/// A treble document with [count] one-note 4/4 measures, so the fake layout
+/// (one system per measure) produces many systems — tall enough to scroll.
+ScoreDocument tallDocument(int count) => ScoreDocument(
+  meta: const ScoreMeta(title: 'Tall', composer: 'Tester'),
+  staves: 1,
+  attributes: const Attributes(
+    divisions: 4,
+    clefs: [Clef(staff: 1, sign: 'G', line: 2)],
+    keyFifths: 0,
+    time: TimeSignature(beats: 4, beatType: 4),
+  ),
+  measures: [
+    for (var i = 0; i < count; i++)
+      NotationMeasure(
+        index: i,
+        clefs: const [],
+        minWidth: 120,
+        directions: const [],
+        notes: [
+          noteEvent(
+            staff: 1,
+            pitch: const Pitch(step: 'C', octave: 5, alter: 0),
+            durationDivisions: 16,
+            noteType: 'whole',
+          ),
+        ],
+      ),
+  ],
+);
+
 /// A small two-staff (grand-staff) document: one 4/4 measure with a treble note,
 /// a bass note, a `words` direction, and a `dynamics` direction.
 ScoreDocument sampleGrandStaffDocument() => ScoreDocument(
