@@ -61,8 +61,14 @@ class StaffPainter extends CustomPainter {
     if (notes.isEmpty) return;
 
     const margin = 48.0;
-    // A grand staff is drawn whenever any note belongs to the bass staff.
-    final twoStaff = notes.any((n) => n.staff >= 2);
+    // A grand staff needs both hands present in the (already hand-filtered)
+    // notes; when a single hand is shown only its staff is drawn and recentred.
+    final hasTreble = notes.any((n) => n.staff == 1);
+    final hasBass = notes.any((n) => n.staff >= 2);
+    final twoStaff = hasTreble && hasBass;
+    // The kept staff when a single hand is shown: its clef/armature are drawn on
+    // the lone staff (bass when only staff 2+ remains, else treble).
+    final soloStaff = !twoStaff && hasBass ? 2 : 1;
     final lineGap = (size.height * (twoStaff ? 0.055 : 0.10)).clamp(8.0, 18.0);
     final stepGap = lineGap / 2;
 
@@ -118,8 +124,10 @@ class StaffPainter extends CustomPainter {
     final systemBottom = bassBottom ?? trebleBottom;
 
     // Clefs (SMuFL glyphs) at the head of the system — the clef in effect at
-    // the playhead, so a mid-piece clef change is reflected as you scroll.
-    final trebleClef = _clefAtPlayhead(1);
+    // the playhead, so a mid-piece clef change is reflected as you scroll. On a
+    // collapsed single staff the lone staff carries the kept hand's clef.
+    final topStaff = twoStaff ? 1 : soloStaff;
+    final trebleClef = _clefAtPlayhead(topStaff);
     Smufl.draw(
       canvas,
       Smufl.clef(trebleClef.$1),
@@ -149,7 +157,7 @@ class StaffPainter extends CustomPainter {
       trebleBottom,
       lineGap,
       keyFifths,
-      false,
+      topStaff >= 2, // bass-clef placement when the lone staff is the left hand
       headColor,
     );
     if (bassBottom != null) {

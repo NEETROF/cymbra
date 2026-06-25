@@ -27,6 +27,10 @@ part 'player_data.freezed.dart';
 /// engraved Partition (sheet-music) view of a loaded MusicXML score.
 enum RenderMode { staff, synthesia, partition }
 
+/// Which hand(s) the player shows and awaits. Follows the engine's MusicXML
+/// convention: staff 1 is the right hand, staff 2 (and above) the left hand.
+enum Hand { left, right, both }
+
 /// A score note with its time bounds in milliseconds (int), more convenient to
 /// handle on the Dart side than the bridge's `BigInt`.
 class TimedNote {
@@ -124,9 +128,33 @@ abstract class PlayerData with _$PlayerData {
     /// On-screen keyboard range mode. Defaults to the full 88-key piano; the
     /// user can switch to auto-fit or a smaller preset from the chooser.
     @Default(KeyboardRangeMode.keys88) KeyboardRangeMode keyboardRange,
+
+    /// Which hand(s) the player shows and awaits. Session-only (resets to
+    /// [Hand.both] on launch); drives [showsStaff]/[visibleNotes] so every mode
+    /// and the gate filter out the unselected hand together.
+    @Default(Hand.both) Hand selectedHands,
   }) = _PlayerData;
 
   bool get midiConnected => connectedDevice != null;
+
+  /// Whether notes on [staff] are shown for the current [selectedHands] — the
+  /// single visibility predicate shared by the painters and the gate. Staff 1
+  /// is the right hand, staff 2+ the left hand.
+  bool showsStaff(int staff) => switch (selectedHands) {
+    Hand.both => true,
+    Hand.right => staff == 1,
+    Hand.left => staff >= 2,
+  };
+
+  /// Notes belonging to the selected hand(s) — the input every render mode and
+  /// the gate derive from, so display and Wait Mode stay consistent.
+  List<TimedNote> get visibleNotes =>
+      notes.where((n) => showsStaff(n.staff)).toList();
+
+  /// Whether the loaded piece has any left-hand (staff 2+) notes, so isolating a
+  /// hand is meaningful. The hand selector is shown only then — a single-staff
+  /// piece offers nothing to separate (and the [Hand.both] default is harmless).
+  bool get hasMultipleStaves => notes.any((n) => n.staff >= 2);
 
   /// Inclusive (low, high) MIDI pitches the on-screen keyboard should show for
   /// the current [keyboardRange] and loaded [notes]. Feeds the shared
@@ -135,10 +163,11 @@ abstract class PlayerData with _$PlayerData {
       computeKeyboardRange(keyboardRange, [for (final n in notes) n.pitch]);
 
   /// Notes that should be held at instant [t] (playhead within the window
-  /// [start, start+duration]). Acts as the "gate" for Wait Mode.
+  /// [start, start+duration]). Acts as the "gate" for Wait Mode. Restricted to
+  /// [visibleNotes] so a hidden hand is neither awaited nor shown as expected.
   Set<int> requiredNotesAt(double t) {
     final result = <int>{};
-    for (final n in notes) {
+    for (final n in visibleNotes) {
       if (n.startMs <= t + 1 && t < n.startMs + n.durationMs) {
         result.add(n.pitch);
       }
@@ -149,18 +178,21 @@ abstract class PlayerData with _$PlayerData {
   /// Pitches of notes whose onset is at instant [t] (their start coincides with
   /// the playhead, within a 1ms tolerance). This is the Wait Mode gate set: the
   /// notes that must be *attacked* here, regardless of their duration.
+  /// Restricted to [visibleNotes] so the hidden hand never freezes the cascade.
   Set<int> onsetPitchesAt(double t) {
     final result = <int>{};
-    for (final n in notes) {
+    for (final n in visibleNotes) {
       if ((n.startMs - t).abs() <= 1.0) result.add(n.pitch);
     }
     return result;
   }
 
   /// The next note onset strictly after [t] (ms), or null if there are none.
+  /// Restricted to [visibleNotes] so the playhead does not pause at a hidden
+  /// hand's onset in Wait Mode.
   double? nextOnsetAfter(double t) {
     double? best;
-    for (final n in notes) {
+    for (final n in visibleNotes) {
       if (n.startMs > t + 1 && (best == null || n.startMs < best)) {
         best = n.startMs.toDouble();
       }
@@ -198,7 +230,7 @@ abstract class PlayerData with _$PlayerData {
       t = elapsedMs;
     }
     final result = <int>{};
-    for (final n in notes) {
+    for (final n in visibleNotes) {
       final isRight = n.staff == 1;
       if (rightHand != isRight) continue;
       final hit = waitMode
@@ -233,7 +265,7 @@ abstract class PlayerData with _$PlayerData {
   /// so the assist keys play exactly the hand's due notes.
   Set<int> expectedNotesForHand(double t, {required bool rightHand}) {
     final result = <int>{};
-    for (final n in notes) {
+    for (final n in visibleNotes) {
       final isRight = n.staff == 1;
       if (rightHand != isRight) continue;
       if (n.startMs <= t + 1 && t < n.startMs + n.durationMs) {

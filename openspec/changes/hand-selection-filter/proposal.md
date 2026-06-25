@@ -11,8 +11,8 @@ view and from the gate, turns Cymbra into a hands-separate practice tool.
 - Add a **hand selection** to player state with three values — **Left**,
   **Right**, **Both** (default Both) — held in immutable state and changed via a
   notifier method, session-only (no persistence; resets to Both on launch).
-- Add a **hand selector** control to the player top bar (matching the existing
-  range-chooser pattern), available in all three render modes.
+- Add a **hand selector** to the player settings (reachable from a settings
+  control in the top bar), available in all three render modes.
 - In **all** modes, notes belonging to the unselected hand are **not displayed
   and not awaited**: they are excluded from each painter's note set and from the
   required-notes gate that drives Wait Mode and the keyboard's expected/correct
@@ -43,8 +43,8 @@ view and from the gate, turns Cymbra into a hands-separate practice tool.
 
 - **State**: `apps/music/lib/state/player_data.dart` (new `Hand` enum + field,
   note-filter and required-notes helpers), `player_notifier.dart` (setter).
-- **UI**: `apps/music/lib/screens/player_screen.dart` (new `_HandSelector` in the
-  top bar).
+- **UI**: `apps/music/lib/screens/player_screen.dart` (hand selector in the
+  settings drawer opened from the top bar).
 - **Painters**: `synthesia_painter.dart`, `staff_painter.dart`,
   `partition_painter.dart` consume hand-filtered notes; staff painters collapse a
   hidden staff.

@@ -202,6 +202,53 @@ void main() {
         matchesGoldenFile('goldens/staff_beamed.png'),
       );
     });
+
+    // Single-hand collapse: feeding the Staff painter only one hand's notes (as
+    // the screen does via `visibleNotes`) draws a lone, recentred staff with the
+    // kept hand's clef/armature — right hand keeps the treble, left the bass.
+    testWidgets('staff right-hand only (collapsed)', tags: 'golden', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _host(
+          StaffPainter(
+            notes: _beamedStaffNotes.where((n) => n.staff == 1).toList(),
+            elapsedMs: 0,
+            activeNotes: const {},
+            bpm: 80,
+            songEndMs: 1500,
+            keyFifths: 3,
+          ),
+          const Size(700, 360),
+        ),
+      );
+      await expectLater(
+        find.byKey(const Key('golden')),
+        matchesGoldenFile('goldens/staff_right_only.png'),
+      );
+    });
+
+    testWidgets('staff left-hand only (collapsed)', tags: 'golden', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _host(
+          StaffPainter(
+            notes: _beamedStaffNotes.where((n) => n.staff >= 2).toList(),
+            elapsedMs: 0,
+            activeNotes: const {},
+            bpm: 80,
+            songEndMs: 1500,
+            keyFifths: 3,
+          ),
+          const Size(700, 360),
+        ),
+      );
+      await expectLater(
+        find.byKey(const Key('golden')),
+        matchesGoldenFile('goldens/staff_left_only.png'),
+      );
+    });
   });
 
   // Non-golden render so the three-state paint() branches are exercised by the

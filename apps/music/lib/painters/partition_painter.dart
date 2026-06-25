@@ -15,6 +15,7 @@
 import 'package:flutter/material.dart';
 
 import '../src/rust/api/musicxml.dart';
+import '../state/player_data.dart' show Hand;
 import '../theme/cymbra_theme.dart';
 import 'smufl.dart';
 
@@ -36,6 +37,10 @@ class PartitionPainter extends CustomPainter {
   final double songEndMs;
   final Set<int> activeNotes;
 
+  /// Which hand(s) to engrave. When a single hand is selected the unselected
+  /// staff is collapsed entirely (lines, clef, signatures and notes).
+  final Hand selectedHands;
+
   PartitionPainter({
     required this.document,
     required this.systems,
@@ -43,6 +48,7 @@ class PartitionPainter extends CustomPainter {
     this.measureStartMs = const [],
     this.songEndMs = 0,
     this.activeNotes = const {},
+    this.selectedHands = Hand.both,
   });
 
   static const Map<String, int> _semitoneOfStep = {
@@ -100,7 +106,21 @@ class PartitionPainter extends CustomPainter {
 
   Color get _ink => CymbraColors.onSurface;
 
-  bool get _twoStaff => document.staves >= 2;
+  /// Whether [staff]'s glyphs are drawn for the current [selectedHands]
+  /// (staff 1 = right hand, staff 2+ = left hand) — the visibility predicate.
+  bool _showsStaff(int staff) => switch (selectedHands) {
+    Hand.both => true,
+    Hand.right => staff == 1,
+    Hand.left => staff >= 2,
+  };
+
+  /// A grand staff is drawn only when both hands are shown; selecting a single
+  /// hand collapses the other staff and lays out one staff per system.
+  bool get _twoStaff => document.staves >= 2 && selectedHands == Hand.both;
+
+  /// The kept staff when a single hand is shown — its clef/armature/time sit on
+  /// the lone staff (bass for the left hand, treble otherwise).
+  int get _soloStaff => selectedHands == Hand.left ? 2 : 1;
 
   double get _systemHeight =>
       _topPad +
@@ -208,8 +228,16 @@ class PartitionPainter extends CustomPainter {
         ..strokeCap = StrokeCap.round,
     );
 
-    // --- Header: clef (in effect here), key signature, time signature. ---
-    _drawClef(canvas, _clefFor(headerClefs, 1), _s * 0.4, trebleBottom, _s);
+    // --- Header: clef (in effect here), key signature, time signature. On a
+    // collapsed single staff the lone staff carries the kept hand's clef. ---
+    final topStaff = _twoStaff ? 1 : _soloStaff;
+    _drawClef(
+      canvas,
+      _clefFor(headerClefs, topStaff),
+      _s * 0.4,
+      trebleBottom,
+      _s,
+    );
     if (_twoStaff) {
       _drawClef(canvas, _clefFor(headerClefs, 2), _s * 0.4, bassBottom, _s);
     }
@@ -222,7 +250,7 @@ class PartitionPainter extends CustomPainter {
       trebleBottom,
       _s,
       fifths,
-      false,
+      topStaff >= 2, // bass-clef placement when the lone staff is the left hand
       _ink,
     );
     if (_twoStaff) {
@@ -347,11 +375,14 @@ class PartitionPainter extends CustomPainter {
     _Arcs arcs,
     double? cursorDiv,
   ) {
-    // A mid-system clef change is drawn at the measure start and reserves space.
-    final showClefChange = !isSystemFirst && measure.clefs.isNotEmpty;
+    // A mid-system clef change is drawn at the measure start and reserves space
+    // — only for staves that are shown (a collapsed staff draws nothing).
+    final showClefChange =
+        !isSystemFirst && measure.clefs.any((c) => _showsStaff(c.staff));
     final clefLead = showClefChange ? _s * 2.6 : 0.0;
     if (showClefChange) {
       for (final c in measure.clefs) {
+        if (!_showsStaff(c.staff)) continue;
         final sb = c.staff >= 2 && _twoStaff ? bassBottom : trebleBottom;
         _drawClef(canvas, c, measureX + _s * 0.3, sb, _s * 0.9);
       }
@@ -401,6 +432,8 @@ class PartitionPainter extends CustomPainter {
     final openTuplets = <String, _TupletAcc>{};
 
     for (final note in measure.notes) {
+      // Collapse the unselected hand: skip every glyph on a hidden staff.
+      if (!_showsStaff(note.staff)) continue;
       final isBass = note.staff >= 2 && _twoStaff;
       final staffBottom = isBass ? bassBottom : trebleBottom;
       final x = xForPosition(note.positionDivisions);
@@ -807,7 +840,8 @@ class PartitionPainter extends CustomPainter {
       old.document != document ||
       old.systems != systems ||
       old.elapsedMs != elapsedMs ||
-      old.activeNotes != activeNotes;
+      old.activeNotes != activeNotes ||
+      old.selectedHands != selectedHands;
 }
 
 /// A note's drawn geometry (head centre + stem direction), used for beaming.
