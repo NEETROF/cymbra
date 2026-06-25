@@ -42,23 +42,24 @@ cursor SHALL span the staves drawn for that system.
 
 ### Requirement: Partition Note Highlighting
 
-In Partition mode the notes sounding at the playhead SHALL be highlighted using
-the same expected/correct feedback colors as the on-screen keyboard: a note due
-at the playhead but not yet played reads as expected, and a note due and being
-played reads as correct. Notes not at the playhead SHALL render in the normal
-engraving ink.
+In Partition mode the note(s) at the playhead SHALL be emphasised relative to the
+rest of the score so the reader sees what to play now: a note whose time window
+contains the playhead and whose key is held SHALL read as "correct" (green),
+otherwise it SHALL be drawn brighter than its normal colour. Notes away from the
+playhead SHALL keep their normal rendering. (The base colour of each note head is
+set per hand by the hand-colour-coding capability.)
 
-#### Scenario: Current note highlighted as expected
-- **WHEN** a note's time window contains the playhead and its key is not held
-- **THEN** that note head is drawn in the expected color
-
-#### Scenario: Current note highlighted as correct
+#### Scenario: Current note emphasised as correct when held
 - **WHEN** a note's time window contains the playhead and its key is held
-- **THEN** that note head is drawn in the correct color
+- **THEN** that note head is drawn in the correct (green) colour
 
-#### Scenario: Other notes stay normal
+#### Scenario: Current note emphasised when not held
+- **WHEN** a note's time window contains the playhead and its key is not held
+- **THEN** that note head is drawn brighter than its normal colour
+
+#### Scenario: Other notes are not emphasised
 - **WHEN** a note is not at the playhead
-- **THEN** it is drawn in the normal engraving ink
+- **THEN** it is drawn in its normal (per-hand) colour
 
 ### Requirement: Partition Auto-Scroll Per Line
 
@@ -85,15 +86,22 @@ overlay, not by scrolling ahead.
 ### Requirement: Next-Line Preview Overlay
 
 In Partition mode the player SHALL show a small "next line" overlay — the first
-measures (up to two) of the upcoming system — pinned to the top-left of the
-viewport, so the reader can see what comes next without scrolling the main view
-ahead. The overlay SHALL appear only once the playhead is past the middle of the
-current line (when the top-left area holds already-played measures) and only when
-a next system exists; it SHALL be hidden otherwise (including on the last line).
+measure of the upcoming system, engraved at the same scale as the main view —
+pinned to the top-left of the viewport, so the reader can see what comes next.
+The overlay SHALL appear only when it adds information: the playhead is past the
+middle of the current line, a next system exists, AND that next system is not
+already visible in the viewport (so it never covers the score when the next line
+is already shown below the current one). It SHALL be hidden otherwise — early in
+the line, on the last line, or whenever the next line is already on screen.
 
-#### Scenario: Overlay appears near the end of a line
-- **WHEN** the playhead passes the middle of the current line and more lines follow
-- **THEN** the first measures of the next line are shown in a top-left overlay
+#### Scenario: Overlay appears when the next line is off-screen
+- **WHEN** the playhead passes the middle of the current line, more lines follow,
+  and the next line is not visible in the viewport
+- **THEN** the first measure of the next line is shown in a top-left overlay
+
+#### Scenario: Hidden when the next line is already visible
+- **WHEN** the viewport already shows the next line below the current one
+- **THEN** no next-line overlay is shown (the score is not covered)
 
 #### Scenario: Hidden early in the line
 - **WHEN** the playhead is in the first half of the current line
