@@ -695,6 +695,10 @@ class _PartitionView extends ConsumerStatefulWidget {
 class _PartitionViewState extends ConsumerState<_PartitionView> {
   final ScrollController _scroll = ScrollController();
 
+  /// The last scroll target we animated to, so we only scroll when the cursor
+  /// moves to a new line (not every frame, which would restart the animation).
+  double? _lastScrollTarget;
+
   @override
   void dispose() {
     _scroll.dispose();
@@ -709,14 +713,20 @@ class _PartitionViewState extends ConsumerState<_PartitionView> {
     return null;
   }
 
-  /// Auto-scroll so the playhead stays ~40% down the viewport, which keeps the
-  /// upcoming systems visible (look-ahead). Only while playing, so manual
-  /// scrolling is undisturbed when paused.
+  /// Small gap above the current line so it isn't flush with the top edge.
+  static const double _scrollTopMargin = 12;
+
+  /// Auto-scroll **per staff line (system)**, not per measure: the vertical
+  /// target depends only on which system the cursor is in, so the view advances
+  /// once when the playhead moves to a new line and stays put while it crosses
+  /// measures within the same line (no back-and-forth jitter). The current line
+  /// is pinned near the top so all the space below it pre-reveals the next
+  /// line(s) — the upcoming measures are visible before the current line ends.
+  /// Only while playing, so manual scrolling is undisturbed when paused.
   void _followCursor(
     PlayerData data,
     List<System> systems,
     PartitionPainter painter,
-    double viewportHeight,
   ) {
     if (!data.isPlaying) return;
     final cursor = data.measureAt(data.elapsedMs);
@@ -727,11 +737,22 @@ class _PartitionViewState extends ConsumerState<_PartitionView> {
       if (!_scroll.hasClients) return;
       final max = _scroll.position.maxScrollExtent;
       if (max <= 0) return; // everything fits — no scrolling
-      final cursorY =
-          painter.systemTopY(sysIndex) + cursor.fraction * painter.systemStride;
-      final target = (cursorY - viewportHeight * 0.4).clamp(0.0, max);
-      if ((target - _scroll.offset).abs() < 4) return;
-      _scroll.jumpTo(target);
+      final target = (painter.systemTopY(sysIndex) - _scrollTopMargin).clamp(
+        0.0,
+        max,
+      );
+      // Only scroll when the line changes — re-issuing every frame would restart
+      // (and stall) the animation.
+      if (_lastScrollTarget != null &&
+          (target - _lastScrollTarget!).abs() < 4) {
+        return;
+      }
+      _lastScrollTarget = target;
+      _scroll.animateTo(
+        target,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
     });
   }
 
@@ -777,7 +798,7 @@ class _PartitionViewState extends ConsumerState<_PartitionView> {
             songEndMs: data.songEndMs,
             activeNotes: data.activeNotes,
           );
-          _followCursor(data, notation.systems, painter, constraints.maxHeight);
+          _followCursor(data, notation.systems, painter);
           return SingleChildScrollView(
             controller: _scroll,
             child: CustomPaint(
