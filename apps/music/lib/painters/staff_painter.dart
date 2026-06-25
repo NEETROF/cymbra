@@ -75,11 +75,13 @@ class StaffPainter extends CustomPainter {
     final double trebleBottom;
     final double? bassBottom;
     if (twoStaff) {
-      final between = lineGap * 6; // gap between the two staves
-      final blockHeight = 8 * lineGap + between;
-      final top = (size.height - blockHeight) / 2 + 4 * lineGap;
-      trebleBottom = top;
-      bassBottom = trebleBottom + between + 4 * lineGap;
+      // Place the staves proportionally to the viewport height: treble near the
+      // top, bass near the bottom, with a margin above/below for ledger lines,
+      // stems and beams. Both stay fully visible and well separated at any
+      // height (the inter-staff gap grows with a taller viewport).
+      final margin = size.height * 0.16;
+      trebleBottom = margin + 4 * lineGap;
+      bassBottom = size.height - margin;
     } else {
       trebleBottom = size.height / 2 + 2 * lineGap;
       bassBottom = null;

@@ -199,7 +199,14 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                     );
                     return Column(
                       children: [
-                        Expanded(child: _buildRenderArea(layout, data)),
+                        // Clip the render area so a painter (e.g. high notes /
+                        // beams in Staff mode) never draws over the top bar or
+                        // the keyboard below.
+                        Expanded(
+                          child: ClipRect(
+                            child: _buildRenderArea(layout, data),
+                          ),
+                        ),
                         SizedBox(
                           height: _keyboardHeight,
                           child: Listener(
