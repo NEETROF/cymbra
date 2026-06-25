@@ -423,8 +423,12 @@ class PartitionPainter extends CustomPainter {
       final y = _yForPitch(pitch, staffBottom, _clefFor(clefs, note.staff));
       _drawLedgerLines(canvas, x, y, staffBottom);
 
-      // Highlight the note when the playhead is within its time window: it reads
-      // "correct" if its pitch is held, otherwise "expected".
+      // Note heads are coloured by hand (right = blue, left = amber). The note
+      // at the playhead is emphasised: green once its pitch is held ("correct"),
+      // otherwise a brighter tint of its hand colour.
+      final handColor = note.staff >= 2
+          ? CymbraColors.handLeft
+          : CymbraColors.handRight;
       final isAtPlayhead =
           cursorDiv != null &&
           note.positionDivisions <= cursorDiv &&
@@ -432,8 +436,8 @@ class PartitionPainter extends CustomPainter {
       final headColor = isAtPlayhead
           ? (activeNotes.contains(_midiOf(pitch))
                 ? CymbraColors.tertiary
-                : CymbraColors.secondaryContainer)
-          : _ink;
+                : Color.lerp(handColor, const Color(0xFFFFFFFF), 0.55)!)
+          : handColor;
 
       // Note head, centred on x.
       final headLeft = x - Smufl.noteheadWidth * _s / 2;

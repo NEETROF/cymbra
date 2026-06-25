@@ -180,6 +180,35 @@ abstract class PlayerData with _$PlayerData {
     return ns == null ? const {} : onsetPitchesAt(ns);
   }
 
+  /// The subset of [expectedKeys] belonging to one hand (staff 1 = right, staff
+  /// 2+ = left), so the keyboard can colour expected keys per hand.
+  Set<int> expectedKeysForHand({required bool rightHand}) {
+    // The time the expected set refers to: the onset under the playhead (or the
+    // upcoming one while travelling) in Wait Mode, else the playhead itself.
+    final double t;
+    if (waitMode) {
+      if (onsetPitchesAt(elapsedMs).isEmpty) {
+        final ns = nextOnsetAfter(elapsedMs);
+        if (ns == null) return const {};
+        t = ns;
+      } else {
+        t = elapsedMs;
+      }
+    } else {
+      t = elapsedMs;
+    }
+    final result = <int>{};
+    for (final n in notes) {
+      final isRight = n.staff == 1;
+      if (rightHand != isRight) continue;
+      final hit = waitMode
+          ? (n.startMs - t).abs() <= 1.0
+          : (n.startMs <= t + 1 && t < n.startMs + n.durationMs);
+      if (hit) result.add(n.pitch);
+    }
+    return result;
+  }
+
   /// The measure containing playhead [t] and the fraction (0..1) elapsed within
   /// it, or null when no timing is known (e.g. the demo score) or [t] is outside
   /// the piece. Drives the Partition playhead cursor.

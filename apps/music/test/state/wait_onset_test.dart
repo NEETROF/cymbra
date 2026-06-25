@@ -49,6 +49,30 @@ void main() {
     });
   });
 
+  group('expectedKeysForHand', () {
+    // A right-hand note and a left-hand note share the onset at t=0.
+    const handData = PlayerData(
+      notes: [
+        TimedNote(pitch: 72, startMs: 0, durationMs: 500, staff: 1),
+        TimedNote(pitch: 48, startMs: 0, durationMs: 500, staff: 2),
+      ],
+      songEndMs: 1000,
+      waitMode: true,
+    );
+
+    test('splits the expected onset by hand', () {
+      expect(handData.expectedKeysForHand(rightHand: true), {72});
+      expect(handData.expectedKeysForHand(rightHand: false), {48});
+    });
+
+    test('the two hands union to expectedKeys', () {
+      expect({
+        ...handData.expectedKeysForHand(rightHand: true),
+        ...handData.expectedKeysForHand(rightHand: false),
+      }, handData.expectedKeys);
+    });
+  });
+
   group('expectedKeys', () {
     test('shows the onset at the playhead when sitting on one', () {
       expect(data.onsetPitchesAt(0), {60, 64});

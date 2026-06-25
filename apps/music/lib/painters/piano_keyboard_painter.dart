@@ -22,8 +22,11 @@ enum _KeyState {
   /// Not pressed and not expected.
   idle,
 
-  /// Required at the playhead but not held — "press this key".
-  expected,
+  /// Required by the right hand but not held — "press this key" (blue).
+  expectedRight,
+
+  /// Required by the left hand but not held — "press this key" (amber).
+  expectedLeft,
 
   /// Required and held — correctly played.
   correct,
@@ -32,10 +35,10 @@ enum _KeyState {
   pressed,
 }
 
-/// Draws the piano keyboard at the bottom of the screen with three-state
-/// feedback: keys the player must press now ([requiredNotes]) glow teal, turn
-/// green once correctly held, while any other pressed key ([activeNotes]) glows
-/// purple.
+/// Draws the piano keyboard at the bottom of the screen with feedback: keys the
+/// player must press now ([requiredNotes]) glow in their hand's colour (right =
+/// blue, left = amber — [leftHandNotes] marks the left-hand subset), turn green
+/// once correctly held, while any other pressed key ([activeNotes]) glows purple.
 class PianoKeyboardPainter extends CustomPainter {
   final PianoLayout layout;
   final Set<int> activeNotes;
@@ -43,24 +46,34 @@ class PianoKeyboardPainter extends CustomPainter {
   /// Notes expected at the current playhead (the Wait Mode gate).
   final Set<int> requiredNotes;
 
+  /// The subset of [requiredNotes] belonging to the left hand (staff 2+); the
+  /// rest are right-hand. Drives the per-hand expected colour.
+  final Set<int> leftHandNotes;
+
   const PianoKeyboardPainter({
     required this.layout,
     required this.activeNotes,
     this.requiredNotes = const {},
+    this.leftHandNotes = const {},
   });
 
   _KeyState _stateOf(int pitch) {
     final required = requiredNotes.contains(pitch);
     final active = activeNotes.contains(pitch);
     if (required && active) return _KeyState.correct;
-    if (required) return _KeyState.expected;
+    if (required) {
+      return leftHandNotes.contains(pitch)
+          ? _KeyState.expectedLeft
+          : _KeyState.expectedRight;
+    }
     if (active) return _KeyState.pressed;
     return _KeyState.idle;
   }
 
   Color _fillFor(_KeyState state, {required bool isBlack}) => switch (state) {
     _KeyState.correct => CymbraColors.tertiary,
-    _KeyState.expected => CymbraColors.secondaryContainer,
+    _KeyState.expectedRight => CymbraColors.handRight,
+    _KeyState.expectedLeft => CymbraColors.handLeft,
     _KeyState.pressed => CymbraColors.primaryContainer,
     _KeyState.idle =>
       isBlack ? CymbraColors.pianoBlack : CymbraColors.pianoWhite,
@@ -141,6 +154,7 @@ class PianoKeyboardPainter extends CustomPainter {
   bool shouldRepaint(PianoKeyboardPainter old) =>
       old.activeNotes != activeNotes ||
       old.requiredNotes != requiredNotes ||
+      old.leftHandNotes != leftHandNotes ||
       old.layout.width != layout.width ||
       old.layout.lowPitch != layout.lowPitch ||
       old.layout.highPitch != layout.highPitch;

@@ -221,6 +221,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                                 layout: layout,
                                 activeNotes: data.activeNotes,
                                 requiredNotes: data.expectedKeys,
+                                leftHandNotes: data.expectedKeysForHand(
+                                  rightHand: false,
+                                ),
                               ),
                             ),
                           ),
