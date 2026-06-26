@@ -1,6 +1,6 @@
 ## 1. Asset & dependencies
 
-- [ ] 1.1 Choose and add a small, permissively-licensed piano `.sf2` SoundFont under `apps/music/assets/`; record source + license. Register it in `pubspec.yaml` assets.
+- [ ] 1.1 Vendor **Upright Piano KW** (CC0, ~27 MiB) as `apps/music/assets/`'s single bundled `.sf2`; copy the file into the repo (no runtime tie to its source) and record source + CC0 license. Register it in `pubspec.yaml` assets.
 - [ ] 1.2 Add `rustysynth` and `cpal` to `apps/music/rust/Cargo.toml`; gate the Android audio backend (`oboe`/AAudio) under `[target.'cfg(target_os = "android")']` like the existing `midir` setup.
 
 ## 2. Rust engine: synth + output
