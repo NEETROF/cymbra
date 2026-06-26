@@ -10,6 +10,7 @@ on:
 
 permissions:
   contents: read
+  pull-requests: write # Required for Sonar to decorate the PR with analysis results
 
 jobs:
   sonar:
