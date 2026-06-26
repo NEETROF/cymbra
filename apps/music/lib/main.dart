@@ -16,7 +16,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'dart:async';
+
 import 'screens/library_screen.dart';
+import 'services/audio_service.dart';
 import 'src/rust/frb_generated.dart';
 import 'theme/cymbra_theme.dart';
 
@@ -29,7 +32,17 @@ Future<void> main() async {
     DeviceOrientation.landscapeRight,
   ]);
   await RustLib.init();
-  runApp(const ProviderScope(child: CymbraApp()));
+
+  // Pre-warm the piano synth at launch (loads the ~50 MB SoundFont) so it is
+  // ready before the user picks a piece — keeping the heavy one-time load off
+  // the score-selection path. The container is shared with the app so the
+  // player reuses this already-initialized AudioService instance.
+  final container = ProviderContainer();
+  unawaited(container.read(audioServiceProvider).init());
+
+  runApp(
+    UncontrolledProviderScope(container: container, child: const CymbraApp()),
+  );
 }
 
 class CymbraApp extends StatelessWidget {

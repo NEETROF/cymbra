@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:io';
+
+import 'package:flutter/foundation.dart' show debugPrint, kDebugMode;
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -21,8 +24,8 @@ import '../src/rust/api/audio.dart' as audio_api;
 part 'audio_service.g.dart';
 
 /// Asset path of the bundled CC0 piano SoundFont (see
-/// `assets/soundfonts/CREDITS.md`). Loaded once at startup and handed to the
-/// Rust synthesizer.
+/// `assets/soundfonts/CREDITS.md`). The filename is version-stamped, so it
+/// doubles as the cache key when extracted to disk.
 const String _soundFontAsset = 'assets/soundfonts/UprightPianoKW-20220221.sf2';
 
 /// Production audio engine provider. Override in tests with a recording fake.
@@ -73,15 +76,41 @@ class FrbAudioService implements AudioService {
     if (_initStarted) return;
     _initStarted = true;
     try {
-      final data = await rootBundle.load(_soundFontAsset);
-      // Returns promptly; the SoundFont parse + device setup run on the Rust
-      // audio thread so the UI isolate never blocks.
-      await audio_api.audioInit(sf2Bytes: data.buffer.asUint8List());
+      final sw = kDebugMode ? (Stopwatch()..start()) : null;
+      // Hand the engine a *file path*, not the bytes: the ~50 MB SoundFont is
+      // extracted from the bundle to a cached file once (off the UI thread) and
+      // Rust reads it straight from disk. Pushing the bytes across the bridge
+      // would serialize them on the UI isolate and freeze it for seconds.
+      final path = await _ensureSoundFontFile();
+      // Tiny sync call: just spawns the audio thread, which reads/parses the
+      // file and opens the device.
+      audio_api.audioInit(sf2Path: path);
+      if (sw != null) {
+        debugPrint('[audio] soundfont ready: ${sw.elapsedMilliseconds}ms');
+      }
     } catch (_) {
-      // No audio device, or the SoundFont could not be loaded/parsed: remain a
-      // silent no-op for the rest of the session.
+      // No audio device, or the SoundFont could not be extracted/parsed: remain
+      // a silent no-op for the rest of the session.
       _failed = true;
     }
+  }
+
+  /// Ensures the bundled SoundFont exists as a plain file and returns its path,
+  /// extracting it from the asset bundle only on first run (the version-stamped
+  /// filename is the cache key). The 54 MB write happens on dart:io's I/O
+  /// threads, not the UI isolate.
+  Future<String> _ensureSoundFontFile() async {
+    final name = _soundFontAsset.split('/').last;
+    final file = File('${Directory.systemTemp.path}/cymbra_soundfonts/$name');
+    if (!await file.exists()) {
+      await file.parent.create(recursive: true);
+      final data = await rootBundle.load(_soundFontAsset);
+      await file.writeAsBytes(
+        data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes),
+        flush: true,
+      );
+    }
+    return file.path;
   }
 
   @override

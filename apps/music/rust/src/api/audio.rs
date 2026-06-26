@@ -29,7 +29,8 @@
 //! cpal backends: CoreAudio (macOS/iOS), WASAPI (Windows), ALSA (Linux), AAudio
 //! (Android — using the NDK context initialized in `JNI_OnLoad`, see lib.rs).
 
-use std::io::Cursor;
+use std::fs::File;
+use std::io::BufReader;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{Arc, Mutex};
@@ -53,17 +54,16 @@ static EVENT_TX: Mutex<Option<Sender<AudioEvent>>> = Mutex::new(None);
 /// so a later call can retry.
 static INIT_STARTED: AtomicBool = AtomicBool::new(false);
 
-/// Initializes the synthesizer from SoundFont (`.sf2`) bytes and starts the
-/// audio output. Idempotent: a second call keeps the first engine.
+/// Initializes the synthesizer from a SoundFont (`.sf2`) file path and starts
+/// the audio output. Idempotent: a second call keeps the first engine.
 ///
-/// Returns immediately — the heavy work (parsing the ~50 MB SoundFont and
-/// opening the device) runs on the dedicated audio thread so the UI isolate
-/// never blocks. If the font is invalid or no device can be opened the engine
+/// Returns immediately — the heavy work (reading + parsing the ~50 MB SoundFont
+/// and opening the device) runs on the dedicated audio thread, reading straight
+/// from disk so the UI isolate never blocks and no large buffer crosses the
+/// bridge. If the font is missing/invalid or no device can be opened the engine
 /// stays silent (note events become no-ops); the app keeps working.
-///
-/// NOT `#[frb(sync)]`: the SoundFont bytes are marshalled and handled off the
-/// UI thread, so even moving the buffer across the bridge can't jank the UI.
-pub fn audio_init(sf2_bytes: Vec<u8>) {
+#[frb(sync)]
+pub fn audio_init(sf2_path: String) {
     if INIT_STARTED.swap(true, Ordering::SeqCst) {
         return; // already initialized (or initializing)
     }
@@ -73,7 +73,7 @@ pub fn audio_init(sf2_bytes: Vec<u8>) {
     // drained once the stream's callback begins.
     *EVENT_TX.lock().unwrap() = Some(tx);
 
-    thread::spawn(move || match run_audio_thread(sf2_bytes, rx) {
+    thread::spawn(move || match run_audio_thread(sf2_path, rx) {
         Ok(stream) => {
             eprintln!("[cymbra-audio] output started");
             // Keep the stream (and its callback) alive for the process lifetime.
@@ -119,13 +119,15 @@ fn send(event: AudioEvent) {
     }
 }
 
-/// Parses the SoundFont, opens the default output device and builds the synth
-/// stream for its native sample format. Runs on the dedicated audio thread, so
-/// the multi-second SoundFont parse never blocks the UI.
-fn run_audio_thread(sf2_bytes: Vec<u8>, rx: Receiver<AudioEvent>) -> Result<cpal::Stream> {
-    let mut cursor = Cursor::new(sf2_bytes);
+/// Reads and parses the SoundFont from `sf2_path`, opens the default output
+/// device and builds the synth stream for its native sample format. Runs on the
+/// dedicated audio thread, so the multi-second SoundFont read/parse never blocks
+/// the UI.
+fn run_audio_thread(sf2_path: String, rx: Receiver<AudioEvent>) -> Result<cpal::Stream> {
+    let file = File::open(&sf2_path).map_err(|e| anyhow!("open SoundFont {sf2_path}: {e}"))?;
+    let mut reader = BufReader::new(file);
     let sound_font =
-        Arc::new(SoundFont::new(&mut cursor).map_err(|e| anyhow!("invalid SoundFont: {e}"))?);
+        Arc::new(SoundFont::new(&mut reader).map_err(|e| anyhow!("invalid SoundFont: {e}"))?);
 
     let host = cpal::default_host();
     let device = host

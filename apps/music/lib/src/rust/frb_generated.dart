@@ -84,7 +84,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
 abstract class RustLibApi extends BaseApi {
   void crateApiAudioAllNotesOff();
 
-  Future<void> crateApiAudioAudioInit({required List<int> sf2Bytes});
+  void crateApiAudioAudioInit({required String sf2Path});
 
   String? crateApiMidiConnectedPort();
 
@@ -145,32 +145,27 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "all_notes_off", argNames: []);
 
   @override
-  Future<void> crateApiAudioAudioInit({required List<int> sf2Bytes}) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
+  void crateApiAudioAudioInit({required String sf2Path}) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_list_prim_u_8_loose(sf2Bytes, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 2,
-            port: port_,
-          );
+          sse_encode_String(sf2Path, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 2)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_unit,
           decodeErrorData: null,
         ),
         constMeta: kCrateApiAudioAudioInitConstMeta,
-        argValues: [sf2Bytes],
+        argValues: [sf2Path],
         apiImpl: this,
       ),
     );
   }
 
   TaskConstMeta get kCrateApiAudioAudioInitConstMeta =>
-      const TaskConstMeta(debugName: "audio_init", argNames: ["sf2Bytes"]);
+      const TaskConstMeta(debugName: "audio_init", argNames: ["sf2Path"]);
 
   @override
   String? crateApiMidiConnectedPort() {
