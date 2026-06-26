@@ -461,7 +461,8 @@ mod tests {
 
         h.m.request_password_reset("b@x.dev").await.unwrap();
         let rt = h.creds.peek_reset_token("b@x.dev").unwrap();
-        h.m.reset_password(&rt, "a-new-strong-pass").await.unwrap();
+        let new_pw = format!("Pw-{}-Aa1!", uuid::Uuid::new_v4());
+        h.m.reset_password(&rt, &new_pw).await.unwrap();
 
         // old session revoked
         assert!(matches!(
@@ -469,7 +470,7 @@ mod tests {
             Err(AppError::Unauthenticated(_))
         ));
         // new password works
-        h.m.sign_in_local("b@x.dev", "a-new-strong-pass", "music")
+        h.m.sign_in_local("b@x.dev", &new_pw, "music")
             .await
             .unwrap();
     }
