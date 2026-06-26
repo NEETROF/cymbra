@@ -522,8 +522,29 @@ data):
   TTLs and revocation (logout, revoke-all-on-reset) are natural in Redis.
 - **Rate-limiting / lockout** — counters for local sign-in attempts and email sends
   (verification, reset), shared across instances so limits hold horizontally.
-This resolves the earlier open questions (refresh storage = Redis; signing =
-asymmetric + JWKS; a plain-HTTP endpoint *is* needed — for JWKS).
+
+**Token lifetimes & offline behaviour.** Access tokens are **short (~15 min)** so
+that offline-validated tokens and revocation have a small window; refresh tokens are
+**long and sliding (~30 days)** — the refresh token is the real session length.
+Losing connectivity does **not** sign a user out: the app's standalone mode keeps
+working locally with no server at all, and on reconnect the client **silently
+exchanges the refresh token for a new access token** (no credential re-entry).
+Re-authentication is required only when the refresh token **expires** (≈30 days of
+inactivity) or is **revoked** (logout / ban / password reset).
+
+**One login per app (decided).** Sessions are **per-app**: each session/refresh
+token is bound to a single audience, `SignIn` carries the audience, and `Refresh`
+**derives it from the session** (no audience parameter on refresh). The backend
+never shares or copies a token between apps, and there is **no cross-app SSO** in
+this base — a user signs in to Cymbra Music and to Cymbra Live **independently
+(one login per app)**. The **only** shared thing is the account (same `user_id`,
+roles, future entitlements), resolved server-side regardless of which app
+authenticated. Cross-app single sign-on (provider one-tap, or a shared-keychain
+bootstrap for local accounts) is a **future client-side** improvement, out of scope.
+
+This resolves the earlier open questions (access TTL ~15 min, refresh ~30 days
+sliding; refresh storage = Redis; signing = asymmetric + JWKS; a plain-HTTP endpoint
+*is* needed — for JWKS; one login per app, audience-bound sessions).
 
 **Local-auth hardening (D3 detail):** a configurable **password policy** at sign-up
 and reset; **rate-limit + temporary lockout** on sign-in; **throttled** verification/
@@ -602,9 +623,10 @@ database. No client rollback needed.
 - **Account deletion (GDPR erasure)** — in scope, but the exact erasure semantics
   (hard delete vs tombstone, what auth purges, grace period) are finalized during
   implementation.
-- App/audience registry: how Music/Live identify themselves at sign-in (a
-  configured allow-list of audience ids, vs per-app OAuth client credentials), and
-  whether a single sign-in can mint tokens for multiple audiences at once.
+- App audience is a **config allow-list** (`music`/`live`) with **one login per app
+  and audience-bound sessions** (decided — no multi-audience mint, no token sharing).
+  Per-app OAuth `client_id`s and app attestation (Apple App Attest / Play Integrity)
+  are future hardening, not needed for the base.
 - The future `billing` module (webhook ownership already decided: central under
   Cymbra ID): build in-house store integrations vs use RevenueCat (or similar) for
   cross-platform entitlements; how apps read entitlements (billing gRPC call vs an

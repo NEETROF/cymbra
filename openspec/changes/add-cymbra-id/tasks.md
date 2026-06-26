@@ -34,7 +34,7 @@
 
 ## 4. Auth module (backend-auth)
 
-- [ ] 4.1 In `auth-port`: define the `AuthService` `.proto` + port — `SignUpLocal`, `VerifyEmail`, `ResendVerification`, `SignInLocal`, `SignInOidc`, `Refresh`, `Logout`, `RequestPasswordReset`, `ResetPassword`, `LinkIdentity`, `UnlinkIdentity`; sign-in/refresh carry a target **app audience**; depend on `user-port`
+- [ ] 4.1 In `auth-port`: define the `AuthService` `.proto` + port — `SignUpLocal`, `VerifyEmail`, `ResendVerification`, `SignInLocal`, `SignInOidc`, `Refresh`, `Logout`, `RequestPasswordReset`, `ResetPassword`, `LinkIdentity`, `UnlinkIdentity`; **sign-in carries a target app audience; refresh derives it from the session** (one login per app, audience-bound sessions); depend on `user-port`
 - [ ] 4.2 In `auth`: own schema `auth`; migration for `local_credentials` (email, argon2id hash, `email_verified`, verification token + expiry, password-reset token + expiry). Session/refresh state lives in **Redis** (TTL), not Postgres
 - [ ] 4.3 Define the `IdentityVerifier` port; implement `OidcJwtVerifier` (Google + Apple, multi-issuer by `iss`) and `LocalCredentialVerifier` (email + argon2id). Generate the **Apple client secret** as a JWT signed with the `.p8` key (≤6-month expiry, regenerated)
 - [ ] 4.4 Implement `SignUpLocal` (enforce password policy, argon2id hash, email unverified, send verification token; reject duplicate `ALREADY_EXISTS`), `VerifyEmail` (single-use, expiring), and `ResendVerification` (rate-limited)

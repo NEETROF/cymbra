@@ -56,8 +56,12 @@ secure-by-default — not the full product backend.
   role-based guard. Fine-grained domain authorization stays in each app.
 - Issue **audience-scoped session tokens**: sign-in targets an app audience
   (`music`/`live`), and the access token embeds only the effective roles for that
-  audience (`global` + that scope). Concrete admin/role-assignment endpoints are
-  out of scope.
+  audience (`global` + that scope). Tokens are **short-lived (~15 min) access +
+  long sliding (~30 day) refresh**; losing connectivity never signs a user out
+  (standalone keeps working, silent refresh on reconnect). **One login per app**:
+  sessions are audience-bound and not shared across apps — the shared element is the
+  **account**, not the session; cross-app SSO is a future client concern. Concrete
+  admin/role-assignment endpoints are out of scope.
 - Add **OpenTelemetry** across all three signals — traces, metrics (RED **plus
   resource consumption**: process CPU/memory, async-runtime + DB-pool saturation,
   and host metrics via the Collector), and **logs** (`tracing` events bridged to

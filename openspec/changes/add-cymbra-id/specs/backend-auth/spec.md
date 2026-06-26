@@ -96,10 +96,23 @@ token. The access token SHALL set `aud` to the target app and carry the account'
 `global` or that app's scope, read from the user module — never from the provider
 token). Protected gRPC methods MUST be authorized by validating the internal
 **access** token (not the provider token), and an interceptor MUST reject requests
-whose access token is missing, invalid, or expired. The refresh token MUST be
-exchangeable for a new access token and MUST be **rotated on use** with **reuse
-detection**: presenting an expired, revoked, or already-rotated refresh token MUST
-be rejected, and replay of a rotated token SHALL revoke the whole session family.
+whose access token is missing, invalid, or expired. The access token SHALL be
+**short-lived** (target ~15 minutes) and the refresh token **long-lived and
+sliding** (target ~30 days) — the refresh token is the effective session length.
+The refresh token MUST be exchangeable for a new access token and MUST be **rotated
+on use** with **reuse detection**: presenting an expired, revoked, or already-
+rotated refresh token MUST be rejected, and replay of a rotated token SHALL revoke
+the whole session family. An expired **access** token alone MUST NOT require
+re-authentication while the refresh token is still valid. Each session/refresh token
+is **bound to the audience chosen at sign-in**; `Refresh` preserves that audience
+(it takes no audience parameter), and tokens are never shared across apps — a user
+signs in to each app **independently (one login per app)**.
+
+#### Scenario: Expired access token is refreshed without re-login
+
+- **WHEN** a client's access token has expired but its refresh token is still valid
+- **THEN** the client obtains a new access token via refresh, with no credential
+  re-entry by the user
 
 #### Scenario: Successful sign-in issues an audience-scoped token
 
