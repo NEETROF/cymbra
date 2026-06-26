@@ -2,14 +2,42 @@ syntax = "proto3";
 
 package cymbra.user.v1;
 
-// UserService is the user module's public gRPC surface (account management).
-//
-// The full RPC set — GetAccount, UpdateAccount, ListIdentities, DeleteAccount —
-// plus the in-process port methods (resolve-or-provision, link/unlink, roles)
-// are defined in task 3.1. This scaffold establishes the `cymbra.user.v1`
-// package and the tonic-build pipeline.
-message Empty {}
+// UserService — the user module's public, authenticated account-management
+// surface (the caller's identity comes from the internal access token, not the
+// request body). Internal port methods (resolve-or-provision, link/unlink,
+// effective roles) are in-process Rust APIs used by the auth module, not RPCs.
+
+message Account {
+  string user_id = 1;
+  optional string display_name = 2;
+  string preferences = 3; // JSON object as a string
+  int64 version = 4;
+  int64 updated_at = 5; // unix seconds
+}
+
+message Identity {
+  string provider = 1; // local | google | apple
+  string subject = 2;
+  int64 linked_at = 3;
+}
+
+message GetAccountRequest {}
+
+message UpdateAccountRequest {
+  optional string display_name = 1;
+  string preferences = 2;
+  int64 expected_version = 3;
+}
+
+message ListIdentitiesRequest {}
+message ListIdentitiesResponse { repeated Identity identities = 1; }
+
+message DeleteAccountRequest {}
+message DeleteAccountResponse {}
 
 service UserService {
-  rpc Ping(Empty) returns (Empty);
+  rpc GetAccount(GetAccountRequest) returns (Account);
+  rpc UpdateAccount(UpdateAccountRequest) returns (Account);
+  rpc ListIdentities(ListIdentitiesRequest) returns (ListIdentitiesResponse);
+  rpc DeleteAccount(DeleteAccountRequest) returns (DeleteAccountResponse);
 }

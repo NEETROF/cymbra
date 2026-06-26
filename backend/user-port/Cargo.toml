@@ -7,8 +7,10 @@ authors.workspace = true
 description = "Cymbra ID user module — contract crate (port trait, DTOs, protobuf, gRPC client adapter)."
 
 [dependencies]
+cymbra-platform = { path = "../platform" }
 tonic.workspace = true
 prost.workspace = true
+async-trait.workspace = true
 
 [build-dependencies]
 tonic-build.workspace = true

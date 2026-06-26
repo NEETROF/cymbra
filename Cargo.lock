@@ -686,16 +686,22 @@ dependencies = [
 name = "cymbra-user"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "async-trait",
  "cymbra-platform",
  "cymbra-user-port",
+ "sqlx",
  "tokio",
+ "tonic",
+ "uuid",
 ]
 
 [[package]]
 name = "cymbra-user-port"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
+ "cymbra-platform",
  "prost",
  "tonic",
  "tonic-build",

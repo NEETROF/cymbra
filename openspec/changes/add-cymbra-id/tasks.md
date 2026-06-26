@@ -25,12 +25,12 @@
 
 ## 3. User module (user-account)
 
-- [ ] 3.1 In `user-port`: define the **port trait** (resolve-or-provision by `(provider, subject)`, link identity, **unlink identity**, list identities, get account, update account, **delete account**, read **effective roles for a scope** / `has_role(scope, role)`), DTOs, and `.proto`
-- [ ] 3.2 In `user`: own schema `user_account`; migrations for `users` (`id` UUID v7, profile, preferences, `version`, timestamps), `user_identities` (`id`, `user_id`, `provider`, `subject`, `linked_at`, `UNIQUE(provider, subject)`), and `user_roles` (`user_id`, `scope`, `role`, `UNIQUE(user_id, scope, role)`)
-- [ ] 3.3 In `user`: repositories scoped to the caller's `user_id`; resolve-or-provision (seed default role `(global, user)`) and link enforcing uniqueness (reject identity bound elsewhere); effective-roles query returns `global` + requested scope
-- [ ] 3.4 Implement the **direct adapter**: resolve/provision, link, **unlink (reject removing the last identity)**, list identities, read roles, get account, update account (optimistic concurrency via `version_core`), **delete account** (erase users + identities + roles for the `user_id`)
-- [ ] 3.5 Implement the **gRPC server adapter** (in `user`) and **gRPC client adapter** (in `user-port`)
-- [ ] 3.6 Tests: provision defaults to `(global, user)`; resolve reuses; link attaches; already-linked rejected; **unlink ok / unlinking last identity rejected**; **delete erases account + identities + roles**; effective roles scoped per app; same set across providers; update version + stale rejected; contract test across both adapters
+- [x] 3.1 In `user-port`: define the **port trait** (resolve-or-provision by `(provider, subject)`, link identity, **unlink identity**, list identities, get account, update account, **delete account**, read **effective roles for a scope** / `has_role(scope, role)`), DTOs, and `.proto`
+- [x] 3.2 In `user`: own schema `user_account`; migrations for `users` (`id` UUID v7, profile, preferences, `version`, timestamps), `user_identities` (`id`, `user_id`, `provider`, `subject`, `linked_at`, `UNIQUE(provider, subject)`), and `user_roles` (`user_id`, `scope`, `role`, `UNIQUE(user_id, scope, role)`)
+- [x] 3.3 In `user`: repositories scoped to the caller's `user_id`; resolve-or-provision (seed default role `(global, user)`) and link enforcing uniqueness (reject identity bound elsewhere); effective-roles query returns `global` + requested scope
+- [x] 3.4 Implement the **direct adapter**: resolve/provision, link, **unlink (reject removing the last identity)**, list identities, read roles, get account, update account (optimistic concurrency via `version_core`), **delete account** (erase users + identities + roles for the `user_id`)
+- [x] 3.5 Implement the **gRPC server adapter** (in `user`) and **gRPC client adapter** (in `user-port`)
+- [x] 3.6 Tests: provision defaults to `(global, user)`; resolve reuses; link attaches; already-linked rejected; **unlink ok / unlinking last identity rejected**; **delete erases account + identities + roles**; effective roles scoped per app; same set across providers; update version + stale rejected; contract test across both adapters
 
 ## 4. Auth module (backend-auth)
 
