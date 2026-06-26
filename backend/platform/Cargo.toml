@@ -9,7 +9,24 @@ description = "Cymbra ID cross-cutting platform: config, telemetry, token codec 
 [dependencies]
 tokio.workspace = true
 tracing.workspace = true
+tracing-subscriber.workspace = true
 config.workspace = true
 thiserror.workspace = true
 anyhow.workspace = true
 async-trait.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+humantime.workspace = true
+uuid.workspace = true
+tonic.workspace = true
+axum.workspace = true
+sqlx.workspace = true
+redis.workspace = true
+jsonwebtoken.workspace = true
+argon2.workspace = true
+reqwest.workspace = true
+lettre.workspace = true
+base64.workspace = true
+
+[dev-dependencies]
+tokio = { workspace = true }

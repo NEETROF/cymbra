@@ -10,18 +10,18 @@
 
 ## 2. Platform crate (cross-cutting)
 
-- [ ] 2.1 Typed configuration loading (env + optional file) with fail-fast validation and a unit-tested `config_core` parser
-- [ ] 2.2 Structured logging via `tracing` with request correlation ids; redact tokens/secrets
-- [ ] 2.3 SQLx pool factory building a pool per module using that module's own DB role, plus a per-module migration runner
-- [ ] 2.4 Shared `AuthIdentity { user_id, roles }` context type and gRPC error/status mapping helpers
-- [ ] 2.5 Internal-token **JWT codec** in a host-testable `token_core` — sign with the **asymmetric private key** (EdDSA/RS256, `kid` in header), verify with the public key; the **internal-token interceptor** validates the access token on protected methods and injects `AuthIdentity`; reject missing/invalid/expired with `UNAUTHENTICATED`
-- [ ] 2.6 **JWKS publishing**: expose the internal-token public key(s) at `/.well-known/jwks.json` over an **Axum** HTTP surface mounted alongside tonic (also `/healthz`), supporting multiple active `kid`s for rotation — so Music/Live verify Cymbra ID tokens offline
-- [ ] 2.7 Provide a **Redis client/port** (fake for tests) for sessions/refresh state, rate-limit counters, and email throttles
-- [ ] 2.8 Rate-limiter helper over Redis (fixed-window or token-bucket) in a host-testable `ratelimit_core`, for sign-in attempts and email sends
-- [ ] 2.9 OIDC verification helper: JWKS fetch+cache and signature/`iss`/`aud`/`exp` checks in a host-testable `oidc_core`
-- [ ] 2.10 argon2id password-hash helper (+ password-policy check) and an **email-sender port** (fake for tests, SMTP impl for runtime)
-- [ ] 2.11 Role-based guard `require_role(r)` / `is_admin` reading the role set from `AuthIdentity`; returns `PERMISSION_DENIED` when the role is absent
-- [ ] 2.12 Tests: config validation; asymmetric token sign/verify (incl. roles claim) + interceptor; JWKS output shape; OIDC claim checks; rate-limiter window; guard allow/deny
+- [x] 2.1 Typed configuration loading (env + optional file) with fail-fast validation and a unit-tested `config_core` parser
+- [x] 2.2 Structured logging via `tracing` with request correlation ids; redact tokens/secrets
+- [x] 2.3 SQLx pool factory building a pool per module using that module's own DB role, plus a per-module migration runner
+- [x] 2.4 Shared `AuthIdentity { user_id, roles }` context type and gRPC error/status mapping helpers
+- [x] 2.5 Internal-token **JWT codec** in a host-testable `token_core` — sign with the **asymmetric private key** (EdDSA/RS256, `kid` in header), verify with the public key; the **internal-token interceptor** validates the access token on protected methods and injects `AuthIdentity`; reject missing/invalid/expired with `UNAUTHENTICATED`
+- [x] 2.6 **JWKS publishing**: expose the internal-token public key(s) at `/.well-known/jwks.json` over an **Axum** HTTP surface mounted alongside tonic (also `/healthz`), supporting multiple active `kid`s for rotation — so Music/Live verify Cymbra ID tokens offline
+- [x] 2.7 Provide a **Redis client/port** (fake for tests) for sessions/refresh state, rate-limit counters, and email throttles
+- [x] 2.8 Rate-limiter helper over Redis (fixed-window or token-bucket) in a host-testable `ratelimit_core`, for sign-in attempts and email sends
+- [x] 2.9 OIDC verification helper: JWKS fetch+cache and signature/`iss`/`aud`/`exp` checks in a host-testable `oidc_core`
+- [x] 2.10 argon2id password-hash helper (+ password-policy check) and an **email-sender port** (fake for tests, SMTP impl for runtime)
+- [x] 2.11 Role-based guard `require_role(r)` / `is_admin` reading the role set from `AuthIdentity`; returns `PERMISSION_DENIED` when the role is absent
+- [x] 2.12 Tests: config validation; asymmetric token sign/verify (incl. roles claim) + interceptor; JWKS output shape; OIDC claim checks; rate-limiter window; guard allow/deny
 
 ## 3. User module (user-account)
 
