@@ -12,3 +12,15 @@ cymbra-user-port = { path = "../user-port" }
 cymbra-platform = { path = "../platform" }
 async-trait.workspace = true
 tokio.workspace = true
+tonic.workspace = true
+sqlx.workspace = true
+uuid.workspace = true
+anyhow.workspace = true
+jsonwebtoken.workspace = true
+reqwest.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+base64.workspace = true
+
+[dev-dependencies]
+cymbra-user = { path = "../user" }

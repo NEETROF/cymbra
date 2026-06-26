@@ -2,14 +2,50 @@ syntax = "proto3";
 
 package cymbra.auth.v1;
 
-// AuthService is the auth module's public gRPC surface.
-//
-// The full RPC set — SignUpLocal, VerifyEmail, ResendVerification, SignInLocal,
-// SignInOidc, Refresh, Logout, RequestPasswordReset, ResetPassword,
-// LinkIdentity, UnlinkIdentity — is fleshed out in task 4.1. This scaffold
-// establishes the `cymbra.auth.v1` package and the tonic-build pipeline.
-message Empty {}
+// AuthService — Cymbra ID's sign-in surface. Sign-in carries a target app
+// audience; Refresh derives the audience from the (audience-bound) session.
+
+message TokenPair {
+  string access_token = 1;  // short-lived, asymmetric-signed, aud-scoped
+  string refresh_token = 2;  // long, sliding, rotated on use
+}
+
+message SignUpLocalRequest { string email = 1; string password = 2; }
+message SignUpLocalResponse {}
+
+message VerifyEmailRequest { string token = 1; }
+message VerifyEmailResponse {}
+
+message ResendVerificationRequest { string email = 1; }
+message ResendVerificationResponse {}
+
+message SignInLocalRequest { string email = 1; string password = 2; string audience = 3; }
+message SignInOidcRequest { string id_token = 1; string audience = 2; }
+
+message RefreshRequest { string refresh_token = 1; }
+message LogoutRequest { string refresh_token = 1; }
+message LogoutResponse {}
+
+message RequestPasswordResetRequest { string email = 1; }
+message RequestPasswordResetResponse {}
+message ResetPasswordRequest { string token = 1; string new_password = 2; }
+message ResetPasswordResponse {}
+
+message LinkIdentityRequest { string id_token = 1; }       // link an OIDC provider
+message LinkIdentityResponse {}
+message UnlinkIdentityRequest { string provider = 1; string subject = 2; }
+message UnlinkIdentityResponse {}
 
 service AuthService {
-  rpc Ping(Empty) returns (Empty);
+  rpc SignUpLocal(SignUpLocalRequest) returns (SignUpLocalResponse);
+  rpc VerifyEmail(VerifyEmailRequest) returns (VerifyEmailResponse);
+  rpc ResendVerification(ResendVerificationRequest) returns (ResendVerificationResponse);
+  rpc SignInLocal(SignInLocalRequest) returns (TokenPair);
+  rpc SignInOidc(SignInOidcRequest) returns (TokenPair);
+  rpc Refresh(RefreshRequest) returns (TokenPair);
+  rpc Logout(LogoutRequest) returns (LogoutResponse);
+  rpc RequestPasswordReset(RequestPasswordResetRequest) returns (RequestPasswordResetResponse);
+  rpc ResetPassword(ResetPasswordRequest) returns (ResetPasswordResponse);
+  rpc LinkIdentity(LinkIdentityRequest) returns (LinkIdentityResponse);
+  rpc UnlinkIdentity(UnlinkIdentityRequest) returns (UnlinkIdentityResponse);
 }

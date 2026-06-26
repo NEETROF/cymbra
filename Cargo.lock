@@ -628,17 +628,29 @@ dependencies = [
 name = "cymbra-auth"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "async-trait",
+ "base64 0.22.1",
  "cymbra-auth-port",
  "cymbra-platform",
+ "cymbra-user",
  "cymbra-user-port",
+ "jsonwebtoken",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "sqlx",
  "tokio",
+ "tonic",
+ "uuid",
 ]
 
 [[package]]
 name = "cymbra-auth-port"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
+ "cymbra-platform",
  "prost",
  "tonic",
  "tonic-build",
