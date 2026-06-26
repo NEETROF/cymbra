@@ -16,7 +16,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'dart:async';
+
 import 'screens/library_screen.dart';
+import 'services/audio_service.dart';
 import 'src/rust/frb_generated.dart';
 import 'theme/cymbra_theme.dart';
 
@@ -29,7 +32,39 @@ Future<void> main() async {
     DeviceOrientation.landscapeRight,
   ]);
   await RustLib.init();
-  runApp(const ProviderScope(child: CymbraApp()));
+
+  // Pre-warm the piano synth at launch (loads the ~50 MB SoundFont) so it is
+  // ready before the user picks a piece — keeping the heavy one-time load off
+  // the score-selection path. The container is shared with the app so the
+  // player reuses this already-initialized AudioService instance.
+  final container = ProviderContainer();
+  unawaited(container.read(audioServiceProvider).init());
+
+  // Silence the synth when the OS backgrounds/hides the app, so a held voice
+  // (note pressed, no note-off yet) doesn't keep ringing while paused.
+  WidgetsBinding.instance.addObserver(_AudioLifecycleObserver(container));
+
+  runApp(
+    UncontrolledProviderScope(container: container, child: const CymbraApp()),
+  );
+}
+
+/// Cuts all audio when the app leaves the foreground. `paused`/`hidden` cover
+/// mobile backgrounding (and desktop minimise); `inactive` is intentionally not
+/// silenced so a brief focus change on desktop doesn't chop a sounding note.
+class _AudioLifecycleObserver with WidgetsBindingObserver {
+  _AudioLifecycleObserver(this._container);
+
+  final ProviderContainer _container;
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden ||
+        state == AppLifecycleState.detached) {
+      _container.read(audioServiceProvider).allNotesOff();
+    }
+  }
 }
 
 class CymbraApp extends StatelessWidget {

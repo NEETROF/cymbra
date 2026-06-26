@@ -276,6 +276,37 @@ abstract class PlayerData with _$PlayerData {
   }
 }
 
+/// The note edges crossed by the playhead moving from [from] to [to] (ms),
+/// used to drive score audio: which pitches to **start** (an onset entered the
+/// half-open span `[from, to)`) and which currently-[sounding] pitches to
+/// **stop** (no visible note still covers the new playhead [to]).
+///
+/// Pure and host-testable. Pass [visible] (the selected hand's notes) so a
+/// hidden hand is neither sounded nor stopped here. The span is half-open so an
+/// onset sounds exactly once and only **after** the playhead advances past it —
+/// a frozen Wait Mode onset (`from == to`) yields no starts.
+({List<int> starts, List<int> stops}) scoreNoteEdges({
+  required List<TimedNote> visible,
+  required double from,
+  required double to,
+  required Set<int> sounding,
+}) {
+  final starts = <int>[];
+  if (to > from) {
+    for (final n in visible) {
+      if (from <= n.startMs && n.startMs < to) starts.add(n.pitch);
+    }
+  }
+  final stops = <int>[];
+  for (final p in sounding) {
+    final covered = visible.any(
+      (n) => n.pitch == p && n.startMs <= to && to < n.startMs + n.durationMs,
+    );
+    if (!covered) stops.add(p);
+  }
+  return (starts: starts, stops: stops);
+}
+
 /// A pitch near [expected] (within ±[spread] semitones) that is **not** in
 /// [avoid] and lies within `[lowBound, highBound]` — a deliberate near-miss that
 /// never matches an expected note, so it cannot satisfy the Wait Mode gate.

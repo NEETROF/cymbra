@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import AVFoundation
 import CoreMIDI
 import Flutter
 import UIKit
@@ -29,8 +30,24 @@ import UIKit
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
+    configureAudioSession()
     MIDIClientCreateWithBlock("CymbraMidiRefresh" as CFString, &midiRefreshClient) { _ in }
     GeneratedPluginRegistrant.register(with: self)
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+  }
+
+  // The cpal/rustysynth output (a RemoteIO AudioUnit) stays silent on iOS unless
+  // an AVAudioSession is configured and activated. `.playback` routes to the
+  // speaker and keeps playing when the device is muted with the ring/silent
+  // switch (musical output, like a piano app should).
+  private func configureAudioSession() {
+    let session = AVAudioSession.sharedInstance()
+    do {
+      try session.setCategory(.playback, mode: .default)
+      try session.setActive(true)
+    } catch {
+      // Non-fatal: the engine degrades to silence; the rest of the app works.
+      NSLog("[cymbra-audio] AVAudioSession setup failed: \(error)")
+    }
   }
 }

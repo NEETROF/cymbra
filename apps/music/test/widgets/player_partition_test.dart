@@ -19,6 +19,7 @@ import 'package:music/painters/partition_painter.dart';
 import 'package:music/painters/staff_painter.dart';
 import 'package:music/painters/synthesia_painter.dart';
 import 'package:music/screens/player_screen.dart';
+import 'package:music/services/audio_service.dart';
 import 'package:music/services/midi_service.dart';
 import 'package:music/services/notation_engine.dart';
 import 'package:music/services/score_asset_source.dart';
@@ -49,6 +50,7 @@ Future<ProviderContainer> _pumpPlayer(
       notationEngineProvider.overrideWithValue(FakeNotationEngine()),
       midiServiceProvider.overrideWithValue(FakeMidiService()),
       scoreSourceProvider.overrideWithValue(FakeScoreSource()),
+      audioServiceProvider.overrideWithValue(RecordingAudioService()),
     ],
   );
   if (select) container.read(selectedScoreProvider.notifier).select(_entry);

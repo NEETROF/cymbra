@@ -39,8 +39,9 @@ A new Flutter FFI plugin project.
     'DEFINES_MODULE' => 'YES',
     # Flutter.framework does not contain a i386 slice.
     'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'i386',
-    # midir relies on CoreMIDI: Xcode must link the framework into the final binary
-    # (Rust's #[link] directives don't propagate through the static lib).
-    'OTHER_LDFLAGS' => '-force_load ${BUILT_PRODUCTS_DIR}/librust_lib_music.a -framework CoreMIDI -framework CoreFoundation -framework CoreAudio',
+    # midir relies on CoreMIDI and cpal on CoreAudio/AudioUnit/AudioToolbox:
+    # Xcode must link these frameworks into the final binary (Rust's #[link]
+    # directives don't propagate through the static lib).
+    'OTHER_LDFLAGS' => '-force_load ${BUILT_PRODUCTS_DIR}/librust_lib_music.a -framework CoreMIDI -framework CoreFoundation -framework CoreAudio -framework AudioUnit -framework AudioToolbox',
   }
 end

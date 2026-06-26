@@ -19,6 +19,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:music/painters/piano_layout.dart';
 import 'package:music/painters/staff_painter.dart';
 import 'package:music/screens/player_screen.dart';
+import 'package:music/services/audio_service.dart';
 import 'package:music/services/midi_service.dart';
 import 'package:music/state/player_data.dart';
 import 'package:music/state/player_notifier.dart';
@@ -58,6 +59,7 @@ void main() {
       overrides: [
         midiServiceProvider.overrideWithValue(midi),
         scoreSourceProvider.overrideWithValue(FakeScoreSource()),
+        audioServiceProvider.overrideWithValue(RecordingAudioService()),
       ],
     );
     await tester.pumpWidget(

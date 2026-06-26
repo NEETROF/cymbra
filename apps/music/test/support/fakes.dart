@@ -14,6 +14,7 @@
 
 import 'dart:async';
 
+import 'package:music/services/audio_service.dart';
 import 'package:music/services/midi_service.dart';
 import 'package:music/src/rust/api/midi.dart';
 import 'package:music/src/rust/api/score.dart';
@@ -49,6 +50,49 @@ class FakeMidiService implements MidiService {
   }
 
   Future<void> close() => _controller.close();
+}
+
+/// Recording [AudioService] for tests: captures every call so a test can assert
+/// the player drives the synth, without loading the native audio library.
+///
+/// Set [failInit] to emulate a missing device / SoundFont — [init] then records
+/// the attempt but the service stays usable (its other calls are still recorded,
+/// mirroring the production no-op-on-failure behaviour at the player's level).
+class RecordingAudioService implements AudioService {
+  final List<({int pitch, int velocity})> noteOns = [];
+  final List<int> noteOffs = [];
+  int allNotesOffCount = 0;
+  int initCount = 0;
+  final bool failInit;
+
+  RecordingAudioService({this.failInit = false});
+
+  /// Flat log of calls in order, for sequencing assertions.
+  final List<String> calls = [];
+
+  @override
+  Future<void> init() async {
+    initCount++;
+    calls.add(failInit ? 'init:fail' : 'init');
+  }
+
+  @override
+  void noteOn(int pitch, {int velocity = AudioService.defaultVelocity}) {
+    noteOns.add((pitch: pitch, velocity: velocity));
+    calls.add('on:$pitch');
+  }
+
+  @override
+  void noteOff(int pitch) {
+    noteOffs.add(pitch);
+    calls.add('off:$pitch');
+  }
+
+  @override
+  void allNotesOff() {
+    allNotesOffCount++;
+    calls.add('allOff');
+  }
 }
 
 /// [ScoreSource] returning a fixed, tiny score for deterministic tests.

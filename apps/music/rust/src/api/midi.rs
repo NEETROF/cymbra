@@ -60,6 +60,11 @@ static SELECTED_PORT: Mutex<Option<String>> = Mutex::new(None);
 static LAST_LOGGED_PORTS: Mutex<Vec<String>> = Mutex::new(Vec::new());
 // Prevents launching multiple watcher threads.
 static WATCHER_RUNNING: AtomicBool = AtomicBool::new(false);
+// The current Flutter sink. Replaced on every `midi_event_stream` call so that
+// re-subscription (screen re-entry, hot-plug after launch) routes events to the
+// live listener instead of the first, now-dead, sink. Read by the input
+// callback on each MIDI message and by the watcher thread.
+static SINK: Mutex<Option<Arc<StreamSink<MidiEvent>>>> = Mutex::new(None);
 
 /// Lists the names of available MIDI input ports (UI selection).
 /// Virtual ports ("Midi Through", rtpmidi…) are placed last.
@@ -93,12 +98,16 @@ pub fn set_midi_port(name: Option<String>) {
 /// The thread connects to the first available port, reconnects on hot-plug,
 /// and releases the connection on unplug.
 pub fn midi_event_stream(sink: StreamSink<MidiEvent>) -> Result<()> {
+    // Always register the latest sink. Flutter re-subscribes on every screen
+    // (re-)entry; the watcher and input callback read this global, so events
+    // follow the live listener instead of being stuck on the first sink.
+    *SINK.lock().unwrap() = Some(Arc::new(sink));
+
     // A single watcher thread for the entire process lifetime.
     if WATCHER_RUNNING.swap(true, Ordering::SeqCst) {
         return Ok(());
     }
 
-    let sink = Arc::new(sink);
     let start = Instant::now();
 
     eprintln!("[cymbra-midi] watcher started");
@@ -126,7 +135,7 @@ pub fn midi_event_stream(sink: StreamSink<MidiEvent>) -> Result<()> {
                 }
                 // Not connected: try to connect to the first port.
                 None => {
-                    if let Err(e) = try_connect(&sink, start) {
+                    if let Err(e) = try_connect(start) {
                         eprintln!("[cymbra-midi] Connection failed: {e}");
                     }
                 }
@@ -157,7 +166,9 @@ fn current_port_names() -> Vec<String> {
 }
 
 /// Tries to connect to the first available port and wires up the callback.
-fn try_connect(sink: &Arc<StreamSink<MidiEvent>>, start: Instant) -> Result<()> {
+/// The callback reads the global [`SINK`] on each message, so events always
+/// reach the live listener even after the Flutter side re-subscribes.
+fn try_connect(start: Instant) -> Result<()> {
     let mut midi_in = MidiInput::new("cymbra-input")?;
     midi_in.ignore(Ignore::None);
 
@@ -184,14 +195,17 @@ fn try_connect(sink: &Arc<StreamSink<MidiEvent>>, start: Instant) -> Result<()> 
     };
     let name = midi_in.port_name(port).unwrap_or_default();
 
-    let sink = Arc::clone(sink);
     let conn = midi_in
         .connect(
             port,
             "cymbra-read",
             move |_timestamp_us, message, _| {
                 if let Some(event) = parse_midi(message, start.elapsed().as_millis() as u64) {
-                    let _ = sink.add(event);
+                    // Read the current sink each message: it may have been
+                    // swapped by a re-subscription since this port was opened.
+                    if let Some(sink) = SINK.lock().unwrap().as_ref() {
+                        let _ = sink.add(event);
+                    }
                 }
             },
             (),
