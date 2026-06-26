@@ -6,6 +6,10 @@ license.workspace = true
 authors.workspace = true
 description = "Cymbra ID composition root — wires platform + auth + user, serves gRPC and the JWKS/health HTTP surface."
 
+[lib]
+name = "cymbra_server"
+path = "src/lib.rs"
+
 [[bin]]
 name = "cymbra-id"
 path = "src/main.rs"
@@ -16,4 +20,11 @@ cymbra-auth = { path = "../auth" }
 cymbra-user = { path = "../user" }
 cymbra-auth-port = { path = "../auth-port" }
 cymbra-user-port = { path = "../user-port" }
+tokio.workspace = true
+tonic.workspace = true
+axum.workspace = true
 anyhow.workspace = true
+tracing.workspace = true
+jsonwebtoken.workspace = true
+sqlx.workspace = true
+serde_json.workspace = true

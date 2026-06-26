@@ -24,8 +24,24 @@ pub struct Config {
     pub signin_lockout: Duration,
     pub smtp_url: String,
     pub smtp_from: String,
+    /// Max verification/reset emails per window.
+    pub email_max: u32,
+    pub email_window: Duration,
+    pub verify_ttl: Duration,
+    pub reset_ttl: Duration,
+    /// Trusted OIDC providers (Google/Apple) — empty entries omitted.
+    pub oidc_providers: Vec<OidcProvider>,
     pub otlp_endpoint: Option<String>,
     pub otlp_enabled: bool,
+}
+
+/// A trusted external OIDC provider.
+#[derive(Debug, Clone)]
+pub struct OidcProvider {
+    pub provider: String,
+    pub issuer: String,
+    pub audience: String,
+    pub jwks_uri: String,
 }
 
 /// Internal-token signing parameters (asymmetric; public key served via JWKS).
@@ -73,9 +89,50 @@ pub mod config_core {
             signin_lockout: dur(m, "CYMBRA_SIGNIN_LOCKOUT", "15m")?,
             smtp_url: req(m, "CYMBRA_SMTP_URL")?,
             smtp_from: opt(m, "CYMBRA_SMTP_FROM", "no-reply@cymbra.dev"),
+            email_max: email_rate(m)?.0,
+            email_window: email_rate(m)?.1,
+            verify_ttl: dur(m, "CYMBRA_VERIFY_TOKEN_TTL", "24h")?,
+            reset_ttl: dur(m, "CYMBRA_RESET_TOKEN_TTL", "1h")?,
+            oidc_providers: oidc_providers(m),
             otlp_endpoint: m.get("CYMBRA_OTLP_ENDPOINT").cloned(),
             otlp_enabled: flag(m, "CYMBRA_OTLP_ENABLED", false),
         })
+    }
+
+    /// Parse `CYMBRA_EMAIL_SEND_RATE` of the form `N/<duration>` (e.g. `3/1h`).
+    fn email_rate(m: &HashMap<String, String>) -> Result<(u32, Duration)> {
+        let raw = opt(m, "CYMBRA_EMAIL_SEND_RATE", "3/1h");
+        let (n, win) = raw
+            .split_once('/')
+            .ok_or_else(|| AppError::Config(format!("CYMBRA_EMAIL_SEND_RATE invalid: {raw:?}")))?;
+        let max = n.trim().parse::<u32>().map_err(|_| {
+            AppError::Config(format!("CYMBRA_EMAIL_SEND_RATE count invalid: {n:?}"))
+        })?;
+        let window = humantime::parse_duration(win.trim())
+            .map_err(|e| AppError::Config(format!("CYMBRA_EMAIL_SEND_RATE window invalid: {e}")))?;
+        Ok((max, window))
+    }
+
+    /// Build the trusted OIDC provider list from Google/Apple env (audience set).
+    fn oidc_providers(m: &HashMap<String, String>) -> Vec<OidcProvider> {
+        let mut v = Vec::new();
+        if let Some(aud) = m.get("CYMBRA_GOOGLE_AUDIENCE").filter(|s| !s.is_empty()) {
+            v.push(OidcProvider {
+                provider: "google".into(),
+                issuer: opt(m, "CYMBRA_GOOGLE_ISSUER", "https://accounts.google.com"),
+                audience: aud.clone(),
+                jwks_uri: "https://www.googleapis.com/oauth2/v3/certs".into(),
+            });
+        }
+        if let Some(aud) = m.get("CYMBRA_APPLE_AUDIENCE").filter(|s| !s.is_empty()) {
+            v.push(OidcProvider {
+                provider: "apple".into(),
+                issuer: opt(m, "CYMBRA_APPLE_ISSUER", "https://appleid.apple.com"),
+                audience: aud.clone(),
+                jwks_uri: "https://appleid.apple.com/auth/keys".into(),
+            });
+        }
+        v
     }
 
     fn req(m: &HashMap<String, String>, k: &str) -> Result<String> {

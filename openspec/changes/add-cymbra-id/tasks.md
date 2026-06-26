@@ -48,11 +48,11 @@
 
 ## 5. Server (composition root)
 
-- [ ] 5.1 tonic server bootstrap: bind address, run all migrations, mount the `auth` and `user` gRPC **server adapters**, enable reflection in non-prod
-- [ ] 5.2 Wire dependency injection: construct each module's **direct adapter**, inject the `user` direct adapter + Redis client + signing keys + rate-limiter into `auth`, install the internal-token interceptor — the single place adapters are chosen
-- [ ] 5.3 gRPC Health service (readiness reflects DB + Redis reachability) **and the Axum HTTP surface** for `/.well-known/jwks.json` + `/healthz`, mounted alongside tonic
+- [x] 5.1 tonic server bootstrap: bind address, run all migrations, mount the `auth` and `user` gRPC **server adapters**, enable reflection in non-prod
+- [x] 5.2 Wire dependency injection: construct each module's **direct adapter**, inject the `user` direct adapter + Redis client + signing keys + rate-limiter into `auth`, install the internal-token interceptor — the single place adapters are chosen
+- [x] 5.3 gRPC Health service (readiness reflects DB + Redis reachability) **and the Axum HTTP surface** for `/.well-known/jwks.json` + `/healthz`, mounted alongside tonic
 - [ ] 5.4 Initialize OpenTelemetry on startup and shut it down cleanly on exit
-- [ ] 5.5 Tests: server builds with both modules + HTTP surface mounted; readiness toggles when DB or Redis is down
+- [x] 5.5 Tests: server builds with both modules + HTTP surface mounted; readiness toggles when DB or Redis is down
 
 ## 6. Observability (OpenTelemetry + Grafana)
 

@@ -687,11 +687,18 @@ name = "cymbra-server"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "axum",
  "cymbra-auth",
  "cymbra-auth-port",
  "cymbra-platform",
  "cymbra-user",
  "cymbra-user-port",
+ "jsonwebtoken",
+ "serde_json",
+ "sqlx",
+ "tokio",
+ "tonic",
+ "tracing",
 ]
 
 [[package]]

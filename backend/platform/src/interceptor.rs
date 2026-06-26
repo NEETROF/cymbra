@@ -51,3 +51,43 @@ impl Interceptor for AuthInterceptor {
         Ok(req)
     }
 }
+
+/// Like [`AuthInterceptor`] but **does not reject** unauthenticated requests — it
+/// injects [`AuthIdentity`] only when a valid token is present. Used on the auth
+/// service, whose sign-in methods are public while link/unlink need the caller.
+#[derive(Clone)]
+pub struct OptionalAuthInterceptor {
+    keys: Arc<HashMap<String, DecodingKey>>,
+    audiences: Arc<Vec<String>>,
+}
+
+impl OptionalAuthInterceptor {
+    pub fn new(keys: HashMap<String, DecodingKey>, audiences: Vec<String>) -> Self {
+        Self {
+            keys: Arc::new(keys),
+            audiences: Arc::new(audiences),
+        }
+    }
+}
+
+impl Interceptor for OptionalAuthInterceptor {
+    fn call(&mut self, mut req: Request<()>) -> Result<Request<()>, Status> {
+        let token_string = req
+            .metadata()
+            .get("authorization")
+            .and_then(|v| v.to_str().ok())
+            .and_then(|s| s.strip_prefix("Bearer "))
+            .map(|s| s.to_string());
+        if let Some(t) = token_string {
+            let auds: Vec<&str> = self.audiences.iter().map(|s| s.as_str()).collect();
+            if let Ok(claims) = token::verify(&t, &self.keys, &auds) {
+                req.extensions_mut().insert(AuthIdentity {
+                    user_id: claims.sub,
+                    audience: claims.aud,
+                    roles: claims.roles,
+                });
+            }
+        }
+        Ok(req)
+    }
+}
