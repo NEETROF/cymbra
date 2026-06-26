@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package cymbra.user.v1;
+
+// UserService is the user module's public gRPC surface (account management).
+//
+// The full RPC set — GetAccount, UpdateAccount, ListIdentities, DeleteAccount —
+// plus the in-process port methods (resolve-or-provision, link/unlink, roles)
+// are defined in task 3.1. This scaffold establishes the `cymbra.user.v1`
+// package and the tonic-build pipeline.
+message Empty {}
+
+service UserService {
+  rpc Ping(Empty) returns (Empty);
+}

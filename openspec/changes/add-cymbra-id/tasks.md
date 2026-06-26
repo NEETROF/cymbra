@@ -1,12 +1,12 @@
 ## 1. Workspace & modular layout
 
-- [ ] 1.1 Create the backend directory with workspace members: `platform`, a `server` binary, and two module crate pairs — `auth-port`/`auth` and `user-port`/`user`
-- [ ] 1.2 Establish the dependency rule in the manifests: consumers depend on `<module>-port` only (`auth` depends on `user-port`); impl crates depend on `platform` + their own `-port`; `server` depends on all; no impl crate depends on another impl crate
-- [ ] 1.3 Add shared dependencies: `tonic`, `prost`, `tokio`, `tower`, `axum` (JWKS + health HTTP endpoint), `sqlx` (postgres, runtime-tokio, migrate), `redis`/`deadpool-redis` (sessions, rate-limit, throttles), `jsonwebtoken` (EdDSA/RS256 for internal tokens + provider verification), `argon2`, `config`, `tracing`/`tracing-subscriber`, `tracing-opentelemetry`, `opentelemetry`, `opentelemetry-otlp`, `opentelemetry-appender-tracing`, `tokio-metrics` + `sysinfo`, an SMTP/email crate (e.g. `lettre`), `thiserror`/`anyhow`, `uuid` (`v7` feature — internal ids are UUID v7 via `Uuid::now_v7()`), `async-trait`
-- [ ] 1.4 Set up `tonic-build` so each `<module>-port` owns its `proto/` and generated client/server stubs (packages `cymbra.auth.v1`, `cymbra.user.v1`)
-- [ ] 1.5 Add docker-compose for local dev: Postgres + **Redis** + a mock OIDC issuer + Mailpit (SMTP sink)
-- [ ] 1.6 Add a DB bootstrap that provisions schemas `auth` and `user_account`, each with a per-module Postgres role granted privileges **only** on its own schema (`search_path` pinned)
-- [ ] 1.7 Add `.env.example` / config schema: DB roles, Redis URL, Google/Apple `iss`/`aud`, Apple `.p8` client-secret key, the **app-audience allow-list** (`music`/`live`), **asymmetric internal-token signing keypair** (+ `kid`) and TTLs, password-policy + rate-limit params, SMTP settings, OTLP endpoint + toggle
+- [x] 1.1 Create the backend directory with workspace members: `platform`, a `server` binary, and two module crate pairs — `auth-port`/`auth` and `user-port`/`user`
+- [x] 1.2 Establish the dependency rule in the manifests: consumers depend on `<module>-port` only (`auth` depends on `user-port`); impl crates depend on `platform` + their own `-port`; `server` depends on all; no impl crate depends on another impl crate
+- [x] 1.3 Add shared dependencies: `tonic`, `prost`, `tokio`, `tower`, `axum` (JWKS + health HTTP endpoint), `sqlx` (postgres, runtime-tokio, migrate), `redis`/`deadpool-redis` (sessions, rate-limit, throttles), `jsonwebtoken` (EdDSA/RS256 for internal tokens + provider verification), `argon2`, `config`, `tracing`/`tracing-subscriber`, `tracing-opentelemetry`, `opentelemetry`, `opentelemetry-otlp`, `opentelemetry-appender-tracing`, `tokio-metrics` + `sysinfo`, an SMTP/email crate (e.g. `lettre`), `thiserror`/`anyhow`, `uuid` (`v7` feature — internal ids are UUID v7 via `Uuid::now_v7()`), `async-trait`
+- [x] 1.4 Set up `tonic-build` so each `<module>-port` owns its `proto/` and generated client/server stubs (packages `cymbra.auth.v1`, `cymbra.user.v1`)
+- [x] 1.5 Add docker-compose for local dev: Postgres + **Redis** + a mock OIDC issuer + Mailpit (SMTP sink)
+- [x] 1.6 Add a DB bootstrap that provisions schemas `auth` and `user_account`, each with a per-module Postgres role granted privileges **only** on its own schema (`search_path` pinned)
+- [x] 1.7 Add `.env.example` / config schema: DB roles, Redis URL, Google/Apple `iss`/`aud`, Apple `.p8` client-secret key, the **app-audience allow-list** (`music`/`live`), **asymmetric internal-token signing keypair** (+ `kid`) and TTLs, password-policy + rate-limit params, SMTP settings, OTLP endpoint + toggle
 
 ## 2. Platform crate (cross-cutting)
 

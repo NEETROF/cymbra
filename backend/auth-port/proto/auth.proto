@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package cymbra.auth.v1;
+
+// AuthService is the auth module's public gRPC surface.
+//
+// The full RPC set — SignUpLocal, VerifyEmail, ResendVerification, SignInLocal,
+// SignInOidc, Refresh, Logout, RequestPasswordReset, ResetPassword,
+// LinkIdentity, UnlinkIdentity — is fleshed out in task 4.1. This scaffold
+// establishes the `cymbra.auth.v1` package and the tonic-build pipeline.
+message Empty {}
+
+service AuthService {
+  rpc Ping(Empty) returns (Empty);
+}

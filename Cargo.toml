@@ -5,11 +5,52 @@
 resolver = "2"
 members = [
     "apps/*/rust",
+    "backend/*",
     # "crates/*",     # enable when cymbra-engine lands (F1)
-    # "backend/*",    # enable when the backend scaffolds (F2)
 ]
+# Non-crate dirs under backend/ (dev infra, configs) that the `backend/*` glob
+# would otherwise try to load as packages.
+exclude = ["backend/db"]
 
 [workspace.package]
 edition = "2024"
 license = "Apache-2.0"
 authors = ["NEETROF"]
+
+# Shared dependency versions for the Cymbra ID backend (change: add-cymbra-id).
+# Declaring them here keeps versions consistent; a crate only compiles a dep when
+# it opts in via `dep.workspace = true`. The OpenTelemetry stack versions are
+# validated when the observability group (6) wires them.
+[workspace.dependencies]
+# gRPC + HTTP
+tonic = "0.12"
+tonic-build = "0.12"
+prost = "0.13"
+axum = "0.7"
+tower = "0.5"
+# async runtime
+tokio = { version = "1", features = ["full"] }
+async-trait = "0.1"
+# persistence + cache
+sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "tls-rustls", "postgres", "uuid", "chrono", "migrate", "macros"] }
+redis = { version = "0.27", features = ["tokio-comp"] }
+# auth + crypto
+jsonwebtoken = "9"
+argon2 = "0.5"
+# config + errors + ids
+config = "0.14"
+thiserror = "2"
+anyhow = "1"
+uuid = { version = "1", features = ["v7"] }
+# email
+lettre = { version = "0.11", default-features = false, features = ["tokio1-rustls-tls", "smtp-transport", "builder"] }
+# observability
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+tracing-opentelemetry = "0.28"
+opentelemetry = "0.27"
+opentelemetry_sdk = { version = "0.27", features = ["rt-tokio"] }
+opentelemetry-otlp = { version = "0.27", features = ["grpc-tonic"] }
+opentelemetry-appender-tracing = "0.27"
+tokio-metrics = "0.3"
+sysinfo = "0.32"

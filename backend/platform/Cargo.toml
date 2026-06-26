@@ -1,0 +1,15 @@
+[package]
+name = "cymbra-platform"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Cymbra ID cross-cutting platform: config, telemetry, token codec + interceptor, OIDC/JWKS, argon2, email-sender port, Redis, AuthIdentity."
+
+[dependencies]
+tokio.workspace = true
+tracing.workspace = true
+config.workspace = true
+thiserror.workspace = true
+anyhow.workspace = true
+async-trait.workspace = true
