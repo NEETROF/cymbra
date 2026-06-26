@@ -16,9 +16,11 @@ pub mod identity;
 pub mod interceptor;
 pub mod jwks;
 pub mod logging;
+pub mod metrics;
 pub mod oidc;
 pub mod password;
 pub mod ratelimit;
+pub mod telemetry;
 pub mod token;
 
 pub use error::{AppError, Result};

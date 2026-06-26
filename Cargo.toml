@@ -10,7 +10,7 @@ members = [
 ]
 # Non-crate dirs under backend/ (dev infra, configs) that the `backend/*` glob
 # would otherwise try to load as packages.
-exclude = ["backend/db"]
+exclude = ["backend/db", "backend/observability"]
 
 [workspace.package]
 edition = "2024"
@@ -28,6 +28,7 @@ tonic-build = "0.12"
 prost = "0.13"
 axum = "0.7"
 tower = "0.5"
+http = "1"
 # async runtime
 tokio = { version = "1", features = ["full"] }
 async-trait = "0.1"

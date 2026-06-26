@@ -19,3 +19,39 @@ pub fn init() -> bool {
         .try_init()
         .is_ok()
 }
+
+/// Mask a `Bearer <token>` value so it can never leak into a log/span field
+/// (task 6.6). Use whenever request metadata might be rendered.
+pub fn redact_bearer(input: &str) -> String {
+    let mut out = String::with_capacity(input.len());
+    let mut redact_next = false;
+    for (i, tok) in input.split(' ').enumerate() {
+        if i > 0 {
+            out.push(' ');
+        }
+        if redact_next && !tok.is_empty() {
+            out.push_str("<redacted>");
+            redact_next = false;
+        } else {
+            out.push_str(tok);
+            if tok == "Bearer" {
+                redact_next = true;
+            }
+        }
+    }
+    out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn bearer_token_never_survives_redaction() {
+        let secret = "eyJ.header.signature-SECRET";
+        let line = format!("authorization: Bearer {secret}");
+        let red = redact_bearer(&line);
+        assert!(red.contains("Bearer <redacted>"));
+        assert!(!red.contains(secret), "token must not appear in output");
+    }
+}

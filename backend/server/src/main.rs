@@ -15,7 +15,7 @@ use cymbra_platform::cache::{Cache, RedisCache};
 use cymbra_platform::config::Config;
 use cymbra_platform::email::{EmailSender, SmtpSender};
 use cymbra_platform::interceptor::{AuthInterceptor, OptionalAuthInterceptor};
-use cymbra_platform::{db, logging};
+use cymbra_platform::{db, metrics, telemetry};
 use cymbra_user::{PgUserRepo, UserGrpc, UserModule};
 use cymbra_user_port::UserPort;
 use cymbra_user_port::proto::user_service_server::UserServiceServer;
@@ -23,8 +23,10 @@ use tonic::transport::Server;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    logging::init();
     let cfg = Config::from_env()?;
+    let telemetry = telemetry::init(&cfg)?;
+    metrics::install_resource_metrics();
+    let red = std::sync::Arc::new(metrics::RedMetrics::new());
 
     // --- Postgres (per-module roles) + migrations ---
     let auth_pool = db::connect(&cfg.auth_database_url, 5).await?;
@@ -94,14 +96,17 @@ async fn main() -> anyhow::Result<()> {
     tracing::info!(%grpc_addr, %http_addr, "cymbra-id serving");
 
     let grpc = Server::builder()
+        .layer(metrics::ObserveLayer::new(red))
         .add_service(user_svc)
         .add_service(auth_svc)
         .serve(grpc_addr);
     let listener = tokio::net::TcpListener::bind(http_addr).await?;
     let http_srv = axum::serve(listener, http.into_make_service());
 
-    tokio::try_join!(async { grpc.await.map_err(anyhow::Error::from) }, async {
+    let result = tokio::try_join!(async { grpc.await.map_err(anyhow::Error::from) }, async {
         http_srv.await.map_err(anyhow::Error::from)
-    },)?;
+    });
+    telemetry.shutdown();
+    result?;
     Ok(())
 }

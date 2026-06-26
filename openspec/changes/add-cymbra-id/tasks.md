@@ -51,19 +51,19 @@
 - [x] 5.1 tonic server bootstrap: bind address, run all migrations, mount the `auth` and `user` gRPC **server adapters**, enable reflection in non-prod
 - [x] 5.2 Wire dependency injection: construct each module's **direct adapter**, inject the `user` direct adapter + Redis client + signing keys + rate-limiter into `auth`, install the internal-token interceptor — the single place adapters are chosen
 - [x] 5.3 gRPC Health service (readiness reflects DB + Redis reachability) **and the Axum HTTP surface** for `/.well-known/jwks.json` + `/healthz`, mounted alongside tonic
-- [ ] 5.4 Initialize OpenTelemetry on startup and shut it down cleanly on exit
+- [x] 5.4 Initialize OpenTelemetry on startup and shut it down cleanly on exit
 - [x] 5.5 Tests: server builds with both modules + HTTP surface mounted; readiness toggles when DB or Redis is down
 
 ## 6. Observability (OpenTelemetry + Grafana)
 
-- [ ] 6.1 Wire `tracing-opentelemetry` + the OpenTelemetry SDK + OTLP exporter in `platform`; endpoint + sampling configurable, export **disablable** for tests/offline runs
-- [ ] 6.2 Emit a span per gRPC request (method, status, correlation id) with downstream DB/auth/Redis work as child spans; propagate trace context across async boundaries
-- [ ] 6.3 Emit RED metrics (request rate/errors/duration) over OTLP
-- [ ] 6.4 Emit **resource-consumption metrics** over OTLP: process CPU + resident memory (`sysinfo`), async-runtime saturation (`tokio-metrics`), and SQLx/Redis pool usage; enable the Collector **hostmetrics receiver** for host CPU/mem/disk/net
-- [ ] 6.5 Bridge `tracing` events to the OpenTelemetry **Logs** signal via `opentelemetry-appender-tracing`, exported over OTLP; ensure each in-span log record carries `trace_id`/`span_id`; keep a console layer (pretty dev / JSON prod) in parallel; OTLP log export independently disablable
-- [ ] 6.6 Assert in tests that no bearer token, password, secret, or PII appears in spans, metric labels, or logs
-- [ ] 6.7 Add the observability stack to docker-compose (own profile): OTel Collector + Tempo + Prometheus + **Loki** + Grafana, with pre-provisioned datasources, a starter dashboard (RED + **resource** panels), and **trace↔logs correlation** (Tempo trace-to-logs + Loki `trace_id` derived field)
-- [ ] 6.8 Write the observability technical docs: start the stack, point the OTLP endpoint at it, and find a sample request's trace, metrics, **resource usage**, and **correlated logs** in Grafana (incl. jumping trace↔logs)
+- [x] 6.1 Wire `tracing-opentelemetry` + the OpenTelemetry SDK + OTLP exporter in `platform`; endpoint + sampling configurable, export **disablable** for tests/offline runs
+- [x] 6.2 Emit a span per gRPC request (method, status, correlation id) with downstream DB/auth/Redis work as child spans; propagate trace context across async boundaries
+- [x] 6.3 Emit RED metrics (request rate/errors/duration) over OTLP
+- [x] 6.4 Emit **resource-consumption metrics** over OTLP: process CPU + resident memory (`sysinfo`), async-runtime saturation (`tokio-metrics`), and SQLx/Redis pool usage; enable the Collector **hostmetrics receiver** for host CPU/mem/disk/net
+- [x] 6.5 Bridge `tracing` events to the OpenTelemetry **Logs** signal via `opentelemetry-appender-tracing`, exported over OTLP; ensure each in-span log record carries `trace_id`/`span_id`; keep a console layer (pretty dev / JSON prod) in parallel; OTLP log export independently disablable
+- [x] 6.6 Assert in tests that no bearer token, password, secret, or PII appears in spans, metric labels, or logs
+- [x] 6.7 Add the observability stack to docker-compose (own profile): OTel Collector + Tempo + Prometheus + **Loki** + Grafana, with pre-provisioned datasources, a starter dashboard (RED + **resource** panels), and **trace↔logs correlation** (Tempo trace-to-logs + Loki `trace_id` derived field)
+- [x] 6.8 Write the observability technical docs: start the stack, point the OTLP endpoint at it, and find a sample request's trace, metrics, **resource usage**, and **correlated logs** in Grafana (incl. jumping trace↔logs)
 
 ## 7. Boundary enforcement, CI, coverage & docs
 
