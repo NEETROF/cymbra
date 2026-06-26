@@ -74,7 +74,9 @@ class FrbAudioService implements AudioService {
     _initStarted = true;
     try {
       final data = await rootBundle.load(_soundFontAsset);
-      audio_api.audioInit(sf2Bytes: data.buffer.asUint8List());
+      // Returns promptly; the SoundFont parse + device setup run on the Rust
+      // audio thread so the UI isolate never blocks.
+      await audio_api.audioInit(sf2Bytes: data.buffer.asUint8List());
     } catch (_) {
       // No audio device, or the SoundFont could not be loaded/parsed: remain a
       // silent no-op for the rest of the session.

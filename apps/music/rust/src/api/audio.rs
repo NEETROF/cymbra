@@ -30,6 +30,7 @@
 //! (Android — using the NDK context initialized in `JNI_OnLoad`, see lib.rs).
 
 use std::io::Cursor;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -43,36 +44,38 @@ use rustysynth::{SoundFont, Synthesizer, SynthesizerSettings};
 use super::audio_core::{AudioEvent, PIANO_CHANNEL, VoiceTracker};
 
 /// Sender used by the FFI entry points to hand control events to the audio
-/// thread. `None` until [`audio_init`] succeeds (so calls before/without a
-/// working device are silently dropped — graceful degradation).
+/// thread. Published as soon as [`audio_init`] starts (so note events queue
+/// while the device spins up) and cleared if setup fails, so calls without a
+/// working device are silently dropped — graceful degradation.
 static EVENT_TX: Mutex<Option<Sender<AudioEvent>>> = Mutex::new(None);
+
+/// Guards against launching more than one audio engine. Reset on setup failure
+/// so a later call can retry.
+static INIT_STARTED: AtomicBool = AtomicBool::new(false);
 
 /// Initializes the synthesizer from SoundFont (`.sf2`) bytes and starts the
 /// audio output. Idempotent: a second call keeps the first engine.
 ///
-/// Returns an error if the SoundFont is invalid or no audio device can be
-/// opened; the Flutter seam turns that into a silent no-op so the app keeps
-/// working without sound.
-#[frb(sync)]
-pub fn audio_init(sf2_bytes: Vec<u8>) -> Result<()> {
-    if EVENT_TX.lock().unwrap().is_some() {
-        return Ok(()); // already initialized
+/// Returns immediately — the heavy work (parsing the ~50 MB SoundFont and
+/// opening the device) runs on the dedicated audio thread so the UI isolate
+/// never blocks. If the font is invalid or no device can be opened the engine
+/// stays silent (note events become no-ops); the app keeps working.
+///
+/// NOT `#[frb(sync)]`: the SoundFont bytes are marshalled and handled off the
+/// UI thread, so even moving the buffer across the bridge can't jank the UI.
+pub fn audio_init(sf2_bytes: Vec<u8>) {
+    if INIT_STARTED.swap(true, Ordering::SeqCst) {
+        return; // already initialized (or initializing)
     }
 
-    // Parse the SoundFont up front so a bad/missing font fails fast, on the
-    // caller's thread, before we touch any audio device.
-    let mut cursor = Cursor::new(sf2_bytes);
-    let sound_font =
-        Arc::new(SoundFont::new(&mut cursor).map_err(|e| anyhow!("invalid SoundFont: {e}"))?);
-
     let (tx, rx) = mpsc::channel::<AudioEvent>();
-    // The audio thread reports device-setup success/failure back so we can
-    // surface a real init error synchronously (errors there can't be returned).
-    let (ready_tx, ready_rx) = mpsc::channel::<std::result::Result<(), String>>();
+    // Publish the sender now so notes pressed during startup queue up; they are
+    // drained once the stream's callback begins.
+    *EVENT_TX.lock().unwrap() = Some(tx);
 
-    thread::spawn(move || match run_audio_thread(sound_font, rx) {
+    thread::spawn(move || match run_audio_thread(sf2_bytes, rx) {
         Ok(stream) => {
-            let _ = ready_tx.send(Ok(()));
+            eprintln!("[cymbra-audio] output started");
             // Keep the stream (and its callback) alive for the process lifetime.
             let _stream = stream;
             loop {
@@ -80,19 +83,13 @@ pub fn audio_init(sf2_bytes: Vec<u8>) -> Result<()> {
             }
         }
         Err(e) => {
-            let _ = ready_tx.send(Err(e.to_string()));
+            eprintln!("[cymbra-audio] disabled: {e}");
+            // Drop the sender so further note events are silent no-ops, and let
+            // a future call retry.
+            *EVENT_TX.lock().unwrap() = None;
+            INIT_STARTED.store(false, Ordering::SeqCst);
         }
     });
-
-    match ready_rx.recv() {
-        Ok(Ok(())) => {
-            *EVENT_TX.lock().unwrap() = Some(tx);
-            eprintln!("[cymbra-audio] output started");
-            Ok(())
-        }
-        Ok(Err(e)) => Err(anyhow!("audio device unavailable: {e}")),
-        Err(e) => Err(anyhow!("audio thread did not start: {e}")),
-    }
 }
 
 /// Sounds a piano voice for `pitch` at `velocity` (both 7-bit MIDI; 0 velocity
@@ -122,9 +119,14 @@ fn send(event: AudioEvent) {
     }
 }
 
-/// Opens the default output device and builds the synth stream for its native
-/// sample format. Runs on the dedicated audio thread.
-fn run_audio_thread(sound_font: Arc<SoundFont>, rx: Receiver<AudioEvent>) -> Result<cpal::Stream> {
+/// Parses the SoundFont, opens the default output device and builds the synth
+/// stream for its native sample format. Runs on the dedicated audio thread, so
+/// the multi-second SoundFont parse never blocks the UI.
+fn run_audio_thread(sf2_bytes: Vec<u8>, rx: Receiver<AudioEvent>) -> Result<cpal::Stream> {
+    let mut cursor = Cursor::new(sf2_bytes);
+    let sound_font =
+        Arc::new(SoundFont::new(&mut cursor).map_err(|e| anyhow!("invalid SoundFont: {e}"))?);
+
     let host = cpal::default_host();
     let device = host
         .default_output_device()

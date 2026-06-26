@@ -11,10 +11,14 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 /// Initializes the synthesizer from SoundFont (`.sf2`) bytes and starts the
 /// audio output. Idempotent: a second call keeps the first engine.
 ///
-/// Returns an error if the SoundFont is invalid or no audio device can be
-/// opened; the Flutter seam turns that into a silent no-op so the app keeps
-/// working without sound.
-void audioInit({required List<int> sf2Bytes}) =>
+/// Returns immediately — the heavy work (parsing the ~50 MB SoundFont and
+/// opening the device) runs on the dedicated audio thread so the UI isolate
+/// never blocks. If the font is invalid or no device can be opened the engine
+/// stays silent (note events become no-ops); the app keeps working.
+///
+/// NOT `#[frb(sync)]`: the SoundFont bytes are marshalled and handled off the
+/// UI thread, so even moving the buffer across the bridge can't jank the UI.
+Future<void> audioInit({required List<int> sf2Bytes}) =>
     RustLib.instance.api.crateApiAudioAudioInit(sf2Bytes: sf2Bytes);
 
 /// Sounds a piano voice for `pitch` at `velocity` (both 7-bit MIDI; 0 velocity

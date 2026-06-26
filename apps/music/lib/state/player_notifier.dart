@@ -52,7 +52,8 @@ class Player extends _$Player {
     _sub = midi.events().listen(_onMidi, onError: (Object _) {});
     // Start the piano synth (loads the SoundFont). Fire-and-forget: it is
     // idempotent and degrades to a silent no-op on any failure.
-    unawaited(ref.read(audioServiceProvider).init());
+    final audio = ref.read(audioServiceProvider);
+    unawaited(audio.init());
     // Poll the MIDI connection state every second (handles hot-plug).
     _statusTimer = Timer.periodic(
       const Duration(seconds: 1),
@@ -64,6 +65,10 @@ class Player extends _$Player {
     ref.onDispose(() {
       _statusTimer?.cancel();
       _sub?.cancel();
+      // Flush any held/sounding voices so leaving the screen doesn't leave a
+      // note ringing in the audio pipeline. Use the captured reference (not
+      // ref.read) since the container is disposing.
+      audio.allNotesOff();
     });
     _loadInitial();
     // Initial MIDI status, read directly (cannot touch `state` during build).
