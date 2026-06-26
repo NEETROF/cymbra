@@ -36,5 +36,5 @@
 - [x] 6.1 Add `audio.rs` to the Rust coverage ignore regex (alongside `midi.rs`/`musicxml.rs`); `cargo llvm-cov --workspace --fail-under-lines 80` passes; `cargo fmt`/`clippy` clean.
 - [x] 6.2 `cd apps/music && dart run build_runner build --delete-conflicting-outputs`; `melos run analyze`, `dart format`, `dart run custom_lint` clean.
 - [x] 6.3 `flutter test --coverage --exclude-tags golden` green and Flutter line coverage ≥ 80%.
-- [ ] 6.4 Manually confirm on macOS + one mobile device: keys (on-screen/MIDI) sound immediately; the score plays audibly; speed and stop behave; no hanging voices.
+- [x] 6.4 Manually confirm on macOS + one mobile device: keys (on-screen/MIDI) sound immediately; the score plays audibly; speed and stop behave; no hanging voices.
 - [x] 6.5 `openspec validate piano-sound-output --strict` passes.
