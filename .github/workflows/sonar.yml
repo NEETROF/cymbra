@@ -49,8 +49,12 @@ jobs:
       - name: Flutter coverage (integration)
         working-directory: apps/music
         run: xvfb-run -a flutter test integration_test -d linux --coverage --coverage-path coverage/integration.lcov.info
-      - name: SonarCloud scan
+      - name: SonarCloud scan (blocks on Quality Gate)
         uses: SonarSource/sonarqube-scan-action@v6
+        with:
+          # Wait for SonarCloud to compute the Quality Gate and fail the job if
+          # it does not pass — makes Sonar a blocking gate.
+          args: -Dsonar.qualitygate.wait=true
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: https://sonarcloud.io
