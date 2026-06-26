@@ -38,4 +38,4 @@
 - [x] 6.3 `flutter test --coverage --exclude-tags golden` green and Flutter line coverage ≥ 80%.
 - [x] 6.4 Manually confirm on macOS + one mobile device (and Linux desktop): keys (on-screen/MIDI) sound immediately; the score plays audibly; speed and stop behave; no hanging voices.
 - [x] 6.5 `openspec validate piano-sound-output --strict` passes.
-- [ ] 6.6 Manually confirm on **Windows desktop**: keys (on-screen/MIDI, incl. hot-plug after launch and song re-entry) sound immediately; the score plays audibly; speed and stop behave; no hanging voices.
+- [x] 6.6 Manually confirm on **Windows desktop**: keys (on-screen/MIDI, incl. hot-plug after launch and song re-entry) sound immediately; the score plays audibly; speed and stop behave; no hanging voices.
