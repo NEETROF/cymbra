@@ -34,15 +34,21 @@ secure-by-default — not the full product backend.
   the public/network surface — so any module can be extracted into its own service
   by swapping the adapter, with no caller changes.
 - Add an **auth module** that authenticates users via external **OIDC providers
-  (Google and Apple)**. It validates the provider ID token against the matching
-  issuer's JWKS, then issues the backend's **own internal session tokens** (access
-  + refresh); the per-request interceptor validates only the internal token. A
-  pluggable `IdentityVerifier` port keeps the provider list open (e.g. Facebook
-  later) without touching callers.
-- Support **multiple providers linked to one internal account**: an account has
-  one or more linked provider identities (`UNIQUE(provider, subject)`). Linking is
-  **explicit** — an authenticated user links an additional provider; there is no
-  email-based auto-merge. The backend stores no passwords.
+  (Google and Apple)** **and a local email/password provider** (argon2id hash,
+  **required email verification**), all behind a pluggable `IdentityVerifier` port
+  (provider list stays open). It issues the backend's **own session tokens** —
+  access (asymmetrically signed, public keys served at a **JWKS endpoint** so
+  Cymbra Music/Live validate **offline**) + refresh (rotated, with **reuse
+  detection**) — and the per-request interceptor validates only the internal token.
+- Cover the full **session lifecycle**: `Refresh`, `Logout`/revoke-all,
+  **password reset** and **resend verification** (single-use, expiring, throttled),
+  with **password policy + rate-limiting/lockout** and **no account enumeration**.
+  **Redis** backs sessions/refresh and rate-limit counters; durable data stays in
+  Postgres.
+- Support **multiple providers linked to one internal account** (`UNIQUE(provider,
+  subject)`): **explicit** link **and unlink** (cannot unlink the last identity);
+  no email-based auto-merge. **Account deletion** is in scope (erasure detailed at
+  implementation). The backend stores no third-party passwords.
 - Add a **user module** for account management (profile + preferences with
   versioned optimistic concurrency) and a **per-app role scaffold**: roles are
   scoped (`global` / `music` / `live`) via `user_roles(user_id, scope, role)`,
@@ -107,16 +113,19 @@ architecture leaves clean seams for all of these.
 - **New workspace members**: backend crates (`auth-port`/`auth` and `user-port`/
   `user` pairs, a `server` binary, and a thin `platform` crate) added to the Cargo
   workspace; CI build/test/coverage gates extended to cover them.
-- **New dependencies**: `tonic`/`prost` (gRPC), `tokio`, `sqlx` (Postgres), an
-  OIDC/JWT validation crate (`jsonwebtoken` + JWKS fetch) for both provider tokens
-  and internal tokens, `config`, `tracing`, and OpenTelemetry crates
+- **New dependencies**: `tonic`/`prost` (gRPC), `axum` (JWKS + health HTTP
+  endpoint), `tokio`, `sqlx` (Postgres), `redis`/`deadpool-redis` (sessions +
+  rate-limit), `jsonwebtoken` (EdDSA/RS256 internal tokens + provider verification),
+  `argon2`, `config`, `tracing`, and OpenTelemetry crates
   (`opentelemetry`, `opentelemetry-otlp`, `tracing-opentelemetry`,
   `opentelemetry-appender-tracing` for the logs signal, `tokio-metrics` + `sysinfo`
   for resource metrics).
-- **New infrastructure**: a Postgres database, external OIDC providers (Google,
-  Apple) registered as relying-party clients, an internal token-signing key, and a
-  local observability stack (OTel Collector, Tempo, Prometheus, Loki, Grafana) —
-  provisioned for local dev via docker-compose and documented for deployment.
+- **New infrastructure**: a Postgres database, a **Redis** instance, an SMTP
+  sender (Mailpit in dev), external OIDC providers (Google, Apple) registered as
+  relying-party clients, an **asymmetric token-signing keypair published via JWKS**,
+  and a local observability stack (OTel Collector, Tempo, Prometheus, Loki,
+  Grafana) — provisioned for local dev via docker-compose and documented for
+  deployment.
 - **Protobuf contract**: new `.proto` definitions and generated code; these become
   the shared API contract the Flutter client will consume later.
 - **Documentation**: a backend README (layout, ports/adapters, extraction recipe,

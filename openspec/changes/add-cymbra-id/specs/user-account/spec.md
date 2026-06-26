@@ -49,6 +49,23 @@ rejected (uniqueness preserved).
 - **WHEN** linking a `(provider, subject)` already bound to a different account
 - **THEN** the module rejects the link and changes nothing
 
+### Requirement: Unlink an identity from an account
+
+The user module SHALL remove a `(provider, subject)` identity from an account,
+**unless it is the account's last remaining identity** (which MUST be rejected to
+avoid locking the user out).
+
+#### Scenario: Identity unlinked
+
+- **WHEN** an identity is unlinked and the account still has at least one other
+  identity
+- **THEN** the `user_identities` row is removed
+
+#### Scenario: Removing the last identity is rejected
+
+- **WHEN** unlinking would leave the account with no identity
+- **THEN** the module rejects it and changes nothing
+
 ### Requirement: List linked identities
 
 The user module SHALL return the providers linked to the authenticated caller's
@@ -98,6 +115,20 @@ version.
 - **THEN** the module rejects it with gRPC status `ABORTED` (conflict) and returns
   the current server version
 - **AND** the stored account is unchanged
+
+### Requirement: Delete account
+
+The user module SHALL delete the authenticated caller's account, erasing the
+`users` row together with its linked identities and roles. After deletion the
+account MUST NOT resolve for any of its former identities. (The auth module purges
+the related credentials and sessions; detailed erasure semantics are finalized in
+implementation.)
+
+#### Scenario: Account erased
+
+- **WHEN** an authenticated user deletes their account
+- **THEN** the account, its `user_identities`, and its `user_roles` are removed
+- **AND** none of its former identities resolves to an account afterwards
 
 ### Requirement: Per-user scoped roles (RBAC scaffold)
 

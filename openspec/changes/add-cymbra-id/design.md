@@ -29,14 +29,17 @@ roles) — that demonstrate the architecture (incl. a real cross-module port cal
 end-to-end, not the full product backend.
 
 Constraints and inputs (decided up front):
-- **gRPC only** (tonic), no REST for now.
-- **Postgres** for relational state, accessed from async Rust.
+- **gRPC only** (tonic), no REST — **except** a tiny Axum HTTP surface for the JWKS
+  endpoint and health (D9/D1).
+- **Postgres** for durable state + **Redis** for ephemeral auth state (sessions/
+  refresh, rate-limit counters), accessed from async Rust.
 - **Shared identity (Cymbra ID)**: one account shared by Cymbra Music and Cymbra
   Live, keyed by a stable internal `user_id`.
-- **Identity via OIDC, providers Google + Apple** (both OIDC-native). The backend
-  validates the provider ID token, then issues its **own audience-scoped session
-  tokens**; it never stores passwords. The provider list is open via a verifier
-  port —
+- **Identity via OIDC (Google + Apple) and a local email/password provider.** The
+  backend validates provider ID tokens, then issues its **own audience-scoped,
+  asymmetrically-signed session tokens** (public keys via JWKS); it stores **no
+  third-party passwords** (only an argon2id hash for the local provider). The
+  provider list is open via a verifier port —
   **Steam** (OpenID 2.0 / Steamworks tickets, outside OIDC) was considered and
   **dropped as too complex**, and **Facebook** is deferred (addable later as one
   more verifier; clean on mobile via Limited Login, needs a Graph-API verifier on
@@ -175,9 +178,10 @@ port trait via a tonic client). Both are thin DTO⇄protobuf translators; domain
 logic lives once, in the local implementation. A shared **contract test** runs the
 same scenarios against the direct and gRPC client adapters to prove they behave
 identically.
-- *Note on Axum*: in a gRPC-only service tonic owns the request path. Health is
-  exposed via the standard gRPC Health service; a plain-HTTP `/healthz` (via Axum
-  alongside tonic) can be added later for L7 load balancers if needed.
+- *Note on Axum*: the request path is gRPC, **except** a tiny **Axum** HTTP surface
+  mounted alongside tonic for the **JWKS endpoint** (`/.well-known/jwks.json`, which
+  conventionally must be HTTP/JSON so downstream apps and standard libraries can
+  fetch it) and `/healthz`. See D9.
 
 ### D2: SQLx for Postgres access
 **SQLx** gives async, compile-time-checked queries without a heavy ORM, and ships
@@ -199,10 +203,11 @@ Authentication is split into three concerns:
   Apple; multi-issuer, selected by the token's `iss`) and a `LocalCredentialVerifier`
   (email + argon2id password). The local **secret** lives in the auth schema
   (`auth.local_credentials`: email, argon2id hash, `email_verified`, verification
-  token), so the user module never sees passwords. `AuthService` exposes
-  `SignUpLocal`, `VerifyEmail`, `SignInLocal`, `SignInOidc`, `Refresh`, and
-  `LinkIdentity`. On any successful sign-in it mints internal access + refresh
-  tokens (refresh rotated on use). Sign-in targets an **app audience**
+  token, password-reset token), so the user module never sees passwords.
+  `AuthService` exposes `SignUpLocal`, `VerifyEmail`, `ResendVerification`,
+  `SignInLocal`, `SignInOidc`, `Refresh`, `Logout`, `RequestPasswordReset`,
+  `ResetPassword`, `LinkIdentity`, and `UnlinkIdentity`. On any successful sign-in
+  it mints internal access + refresh tokens. Sign-in targets an **app audience**
   (`music`/`live`, validated against a configured allow-list); the access token's
   `aud` is set to that app and embeds the account's `user_id` plus the **effective
   role set for that audience** (`global` + that app's scope). Provider tokens are
@@ -499,6 +504,40 @@ boundary); the boxes in the outer columns are **adapters**. `AD -->|User port| U
 --> UD` is the **cross-module** call (`auth` → `user`) through the direct adapter —
 swap `UDIR` for a gRPC client adapter and `user` is extracted, untouched.
 
+### D9: Token signing (asymmetric + JWKS), sessions & limits in Redis
+Because Cymbra ID tokens are consumed by **separate services** (Music, Live), the
+internal access token is signed with an **asymmetric** key (EdDSA/Ed25519 preferred
+for compactness, RS256 acceptable), `kid` in the header, and the **public keys are
+published at a JWKS endpoint** (`/.well-known/jwks.json` over the Axum surface, D1).
+Downstream apps fetch and **cache** the JWKS and validate tokens **offline** — they
+never call Cymbra ID per request, which is what keeps it from being spammed. A
+symmetric HS256 secret is rejected here: sharing it across services is a security
+liability. Multiple active `kid`s allow **key rotation** without invalidating live
+tokens.
+
+**Redis** is the store for *ephemeral auth state* (alongside Postgres for durable
+data):
+- **Refresh tokens / sessions** — rotation with **reuse detection**: a refresh
+  token is one-time; replay of a rotated token revokes the whole session family.
+  TTLs and revocation (logout, revoke-all-on-reset) are natural in Redis.
+- **Rate-limiting / lockout** — counters for local sign-in attempts and email sends
+  (verification, reset), shared across instances so limits hold horizontally.
+This resolves the earlier open questions (refresh storage = Redis; signing =
+asymmetric + JWKS; a plain-HTTP endpoint *is* needed — for JWKS).
+
+**Local-auth hardening (D3 detail):** a configurable **password policy** at sign-up
+and reset; **rate-limit + temporary lockout** on sign-in; **throttled** verification/
+reset emails; password reset and verification tokens **single-use + expiring**; the
+reset *request* flow avoids **account enumeration** (uniform response). `Logout` and
+`UnlinkIdentity` round out the lifecycle; unlinking the **last** identity is refused
+(lock-out guard).
+
+**Apple specifics to plan for:** Sign in with Apple needs a **client secret that is
+a JWT signed with a `.p8` key, expiring ≤ 6 months** (must be regenerated on a
+schedule); the email is often a **private relay**; the user's name is returned
+**only on the first authorization** (capture it then). These are handled inside the
+`OidcJwtVerifier`/Apple adapter and config, not in the domain.
+
 ## Risks / Trade-offs
 
 - **gRPC-only excludes browsers / simple curl testing** → Mitigate with grpcurl +
@@ -512,7 +551,16 @@ swap `UDIR` for a gRPC client adapter and `user` is extracted, untouched.
   transient IdP outages for cached keys, fail closed for unknown key ids.
 - **Local passwords are a credential store to protect** → argon2id with sound
   parameters, hashes only (never clear text), kept in the `auth` schema isolated by
-  role; never logged or put in telemetry.
+  role; never logged or put in telemetry. Sign-in rate-limited + locked out; reset
+  flow avoids account enumeration.
+- **Tokens consumed by other services** → asymmetric signing + published JWKS so
+  apps validate offline (no per-request call to Cymbra ID); never a shared HS256
+  secret; `kid` + multiple active keys for rotation.
+- **Stolen refresh token** → one-time refresh with reuse detection: replay revokes
+  the whole session family; logout + revoke-all (on reset) supported via Redis.
+- **Redis as an added dependency** → used only for ephemeral auth state (sessions,
+  rate-limit counters); readiness reflects it, and it is a standard, lightweight
+  local-compose service.
 - **Email verification adds an email-delivery dependency** → Behind an email-sender
   port; Mailpit in local dev, SMTP/provider in prod; verification tokens are
   single-use and expiring.
@@ -530,11 +578,13 @@ swap `UDIR` for a gRPC client adapter and `user` is extracted, untouched.
 This is additive — no existing data or client behavior changes.
 
 1. Land the backend crates behind no client wiring; deploy is independent of the app.
-2. Stand up Postgres + an SMTP sender + register the Google/Apple OIDC clients +
-   generate the internal-token signing key; run migrations on boot.
+2. Stand up Postgres + Redis + an SMTP sender + register the Google/Apple OIDC
+   clients + generate the asymmetric signing keypair (publish its JWKS); run
+   migrations on boot.
 3. (Optional) Start the observability stack and point the OTLP endpoint at it.
 4. Smoke-test with grpcurl against staging (local sign-up + verify + sign-in, OIDC
-   sign-in, link identity, account get/update).
+   sign-in, refresh, logout, password reset, link/unlink, account get/update/delete);
+   confirm a downstream service can validate a token via the JWKS endpoint.
 5. Client integration ships as a separate change once the contract is stable.
 
 **Rollback**: the service is standalone and unreferenced by the shipped app;
@@ -544,13 +594,14 @@ database. No client rollback needed.
 ## Open Questions
 
 - Final crate/package names and directory (`backend/<crate>` vs `crates/<crate>`).
-- Concrete `iss`/`aud` values per environment for Google and Apple, and Apple
-  specifics (private-relay email, name returned only on first authorization).
-- Whether password reset (forgot-password via email) ships in this base or as an
-  immediate follow-up — sign-up, verification, sign-in, and linking are in scope;
-  reset is currently out of scope.
-- Internal-token specifics: access-token TTL, refresh rotation/revocation storage
-  (DB table vs cache), and signing-key rotation strategy.
+- Concrete `iss`/`aud` values per environment for Google and Apple (Apple
+  client-secret `.p8` rotation, private-relay email, first-auth-only name are
+  decided in D9; the env values remain to fill in).
+- Internal-token tuning: access-token TTL, refresh TTL, exact signing-key rotation
+  cadence (mechanism decided in D9: asymmetric + JWKS + Redis-backed refresh).
+- **Account deletion (GDPR erasure)** — in scope, but the exact erasure semantics
+  (hard delete vs tombstone, what auth purges, grace period) are finalized during
+  implementation.
 - App/audience registry: how Music/Live identify themselves at sign-in (a
   configured allow-list of audience ids, vs per-app OAuth client credentials), and
   whether a single sign-in can mint tokens for multiple audiences at once.

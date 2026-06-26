@@ -48,16 +48,16 @@ schema migrations. Migrations MUST be versioned and idempotent across restarts.
 ### Requirement: Health and readiness
 
 The backend SHALL expose liveness and readiness checks. Readiness MUST reflect
-the availability of critical dependencies (the database).
+the availability of critical dependencies (the database and Redis).
 
 #### Scenario: Ready when dependencies healthy
 
-- **WHEN** the database is reachable
+- **WHEN** the database and Redis are reachable
 - **THEN** the readiness check reports serving/healthy
 
 #### Scenario: Not ready when a dependency is down
 
-- **WHEN** the database is unreachable
+- **WHEN** the database or Redis is unreachable
 - **THEN** the readiness check reports not-serving
 
 ### Requirement: Structured logging
