@@ -40,6 +40,7 @@ jsonwebtoken = "9"
 argon2 = "0.5"
 # config + errors + ids + serde
 config = "0.14"
+dotenvy = "0.15"
 thiserror = "2"
 anyhow = "1"
 uuid = { version = "1", features = ["v4", "v7"] }

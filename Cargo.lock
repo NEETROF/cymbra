@@ -720,6 +720,7 @@ dependencies = [
  "cymbra-platform",
  "cymbra-user",
  "cymbra-user-port",
+ "dotenvy",
  "jsonwebtoken",
  "serde_json",
  "sqlx",

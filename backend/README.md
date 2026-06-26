@@ -42,7 +42,7 @@ No changes to other modules' domain code.
 docker compose -f backend/docker-compose.yml up -d
 
 cp backend/.env.example backend/.env   # fill in the signing keypair + OIDC ids
-set -a; . backend/.env; set +a
+# the server auto-loads backend/.env (dotenvy) — just run it:
 cargo run -p cymbra-server --bin cymbra-id
 ```
 

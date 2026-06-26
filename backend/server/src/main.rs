@@ -23,6 +23,9 @@ use tonic::transport::Server;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    // Load `backend/.env` (repo-root run) or `.env` (run from backend/) if present.
+    // Real environment variables always win over the file.
+    let _ = dotenvy::from_filename("backend/.env").or_else(|_| dotenvy::dotenv());
     let cfg = Config::from_env()?;
     let telemetry = telemetry::init(&cfg)?;
     metrics::install_resource_metrics();
