@@ -21,7 +21,7 @@ EXTERNAL SOURCES:
 SPEC CHECKSUMS:
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
   integration_test: 252f60fa39af5e17c3aa9899d35d908a0721b573
-  rust_lib_music: cc7cdae58f124e2c0cdefb99090571a9c4816b7c
+  rust_lib_music: fbd132ed0e4c09507a7296d71cd1ad0ae6dd92fa
 
 PODFILE CHECKSUM: 3c63482e143d1b91d2d2560aee9fb04ecc74ac7e
 

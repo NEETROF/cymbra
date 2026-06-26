@@ -40,8 +40,9 @@ A new Flutter FFI plugin project.
     'DEFINES_MODULE' => 'YES',
     # Flutter.framework does not contain a i386 slice.
     'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'i386',
-    # midir relies on CoreMIDI and cpal on CoreAudio/AudioUnit/AudioToolbox
-    # (AVFoundation for the audio session) — see macOS podspec.
-    'OTHER_LDFLAGS' => '-force_load ${BUILT_PRODUCTS_DIR}/librust_lib_music.a -framework CoreMIDI -framework CoreFoundation -framework CoreAudio -framework AudioUnit -framework AudioToolbox -framework AVFoundation',
+    # midir relies on CoreMIDI and cpal on CoreAudio/AudioToolbox (AVFoundation
+    # for the audio session). On iOS the AudioUnit C API lives in AudioToolbox —
+    # there is no AudioUnit.framework (that one is macOS-only, see macOS podspec).
+    'OTHER_LDFLAGS' => '-force_load ${BUILT_PRODUCTS_DIR}/librust_lib_music.a -framework CoreMIDI -framework CoreFoundation -framework CoreAudio -framework AudioToolbox -framework AVFoundation',
   }
 end
