@@ -67,10 +67,10 @@
 
 ## 7. Boundary enforcement, CI, coverage & docs
 
-- [ ] 7.1 CI check asserting the module dependency graph (consumers depend on `-port` only; no impl→impl dependency); fail the build on violation
-- [ ] 7.2 Integration test proving DB-level isolation: a module's role is denied when reading another schema's tables
-- [ ] 7.3 Extend CI to build, `cargo fmt --check`, and `cargo clippy -D warnings` across all backend crates
-- [ ] 7.4 `cargo llvm-cov` with the ≥80% gate, ignoring generated proto code and thin I/O glue (gRPC adapters, SQLx, Redis, JWKS/OIDC HTTP, SMTP, OTLP export) — domain logic and `*_core` helpers stay covered
-- [ ] 7.5 Integration tests against docker-compose (Postgres + Redis + mock OIDC + Mailpit) covering sign-up/verify/resend/sign-in, OIDC sign-in, refresh reuse-detection, logout, password reset, link/unlink, and account get/update/delete
-- [ ] 7.6 Backend README: modular-monolith layout, the port + dual-adapter pattern, the `IdentityVerifier` extension point, token/JWKS model, the extraction recipe, local setup, grpcurl smoke-tests
-- [ ] 7.7 Run `openspec validate add-cymbra-id --strict` and ensure it passes
+- [x] 7.1 CI check asserting the module dependency graph (consumers depend on `-port` only; no impl→impl dependency); fail the build on violation
+- [x] 7.2 Integration test proving DB-level isolation: a module's role is denied when reading another schema's tables
+- [x] 7.3 Extend CI to build, `cargo fmt --check`, and `cargo clippy -D warnings` across all backend crates
+- [x] 7.4 `cargo llvm-cov` with the ≥80% gate, ignoring generated proto code and thin I/O glue (gRPC adapters, SQLx, Redis, JWKS/OIDC HTTP, SMTP, OTLP export) — domain logic and `*_core` helpers stay covered
+- [x] 7.5 Integration tests against docker-compose (Postgres + Redis + mock OIDC + Mailpit) covering sign-up/verify/resend/sign-in, OIDC sign-in, refresh reuse-detection, logout, password reset, link/unlink, and account get/update/delete
+- [x] 7.6 Backend README: modular-monolith layout, the port + dual-adapter pattern, the `IdentityVerifier` extension point, token/JWKS model, the extraction recipe, local setup, grpcurl smoke-tests
+- [x] 7.7 Run `openspec validate add-cymbra-id --strict` and ensure it passes

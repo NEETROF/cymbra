@@ -17,13 +17,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install ALSA (midir backend)
-        run: sudo apt-get update && sudo apt-get install -y libasound2-dev
+      - name: Install ALSA (midir backend) + protoc (backend tonic-build)
+        run: sudo apt-get update && sudo apt-get install -y libasound2-dev protobuf-compiler
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy, llvm-tools-preview
       - uses: taiki-e/install-action@cargo-llvm-cov
       - uses: Swatinem/rust-cache@v2
+      - name: Module boundaries (no impl->impl deps)
+        run: python3 backend/scripts/check_boundaries.py
       - name: Format
         run: cargo fmt --all --check
       - name: Clippy
@@ -35,7 +37,14 @@ jobs:
       # run on a headless CI host, so they're excluded. The pure, testable logic
       # lives in api/midi_core.rs, api/musicxml_core.rs and api/audio_core.rs (still
       # measured), alongside score.rs and simple.rs.
+      # Coverage gate (>=80% lines). Excluded: the frb bridge + FFI/hardware glue
+      # on the client; and on the Cymbra ID backend, generated protobuf and the
+      # thin I/O adapters (gRPC servers/clients, SQLx repos, Redis, JWKS/OIDC HTTP,
+      # SMTP, OTLP/metrics) — domain logic and the *_core helpers stay measured.
       - name: Test + coverage (fail under 80%)
-        run: cargo llvm-cov --workspace --lcov --output-path target/lcov.info --fail-under-lines 80 --ignore-filename-regex 'frb_generated|/lib\.rs|/midi\.rs|/musicxml\.rs|/audio\.rs'
+        run: >-
+          cargo llvm-cov --workspace --lcov --output-path target/lcov.info
+          --fail-under-lines 80
+          --ignore-filename-regex 'frb_generated|cymbra\.(auth|user)\.v1|/lib\.rs|/main\.rs|/midi\.rs|/musicxml\.rs|/audio\.rs|/grpc\.rs|/pg\.rs|/creds_pg\.rs|/verifier\.rs|/telemetry\.rs|/metrics\.rs|/cache\.rs|/email\.rs|/db\.rs|/jwks\.rs|/interceptor\.rs|/logging\.rs|/session\.rs'
       - name: Build
         run: cargo build --workspace

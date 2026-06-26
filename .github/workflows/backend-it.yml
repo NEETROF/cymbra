@@ -1,0 +1,54 @@
+name: backend-it
+
+# Integration tests for the Cymbra ID backend (tasks 7.2, 7.5): runs the
+# `#[ignore]`-gated tests against real Postgres (with per-module roles) + Redis.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-it.yml"
+
+concurrency:
+  group: backend-it-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  it:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: cymbra
+          POSTGRES_PASSWORD: cymbra_dev_pw
+          POSTGRES_DB: cymbra_id
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U cymbra -d cymbra_id"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+      redis:
+        image: redis:7
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+    env:
+      PGPASSWORD: cymbra_dev_pw
+      CYMBRA_AUTH_DATABASE_URL: postgres://auth_svc:auth_dev_pw@localhost:5432/cymbra_id
+      CYMBRA_USER_DATABASE_URL: postgres://user_svc:user_dev_pw@localhost:5432/cymbra_id
+      CYMBRA_REDIS_URL: redis://localhost:6379
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install protoc + psql
+        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler postgresql-client
+      - name: Bootstrap schemas + per-module roles
+        run: psql -h localhost -U cymbra -d cymbra_id -v ON_ERROR_STOP=1 -f backend/db/init/01-schemas-roles.sql
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Integration tests (ignored set)
+        run: cargo test -p cymbra-auth -p cymbra-user -- --ignored

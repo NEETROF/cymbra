@@ -10,7 +10,7 @@ members = [
 ]
 # Non-crate dirs under backend/ (dev infra, configs) that the `backend/*` glob
 # would otherwise try to load as packages.
-exclude = ["backend/db", "backend/observability"]
+exclude = ["backend/db", "backend/observability", "backend/scripts"]
 
 [workspace.package]
 edition = "2024"
