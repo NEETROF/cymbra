@@ -17,6 +17,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:music/screens/library_screen.dart';
 import 'package:music/screens/player_screen.dart';
+import 'package:music/services/audio_service.dart';
 import 'package:music/services/midi_service.dart';
 import 'package:music/services/notation_engine.dart';
 import 'package:music/services/score_asset_source.dart';
@@ -56,6 +57,7 @@ ProviderContainer _container() => ProviderContainer(
     notationEngineProvider.overrideWithValue(FakeNotationEngine()),
     midiServiceProvider.overrideWithValue(FakeMidiService()),
     scoreSourceProvider.overrideWithValue(FakeScoreSource()),
+    audioServiceProvider.overrideWithValue(RecordingAudioService()),
   ],
 );
 

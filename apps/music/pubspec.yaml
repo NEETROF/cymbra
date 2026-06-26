@@ -77,6 +77,10 @@ flutter:
     - assets/scores/beginner/
     - assets/scores/intermediate/
     - assets/scores/advanced/
+    # Bundled CC0 piano SoundFont rendered by the Rust audio synth. Only the
+    # .sf2 is shipped; the licence/readme/credits live beside it in the repo
+    # (see assets/soundfonts/CREDITS.md) but are not bundled into the app.
+    - assets/soundfonts/UprightPianoKW-20220221.sf2
 
   # Bravura — the reference SMuFL music font (Steinberg, SIL OFL 1.1). Used by
   # the notation painters to draw real engraving glyphs (note heads, clefs,

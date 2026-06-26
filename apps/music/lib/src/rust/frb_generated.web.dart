@@ -6,6 +6,7 @@
 // Static analysis wrongly picks the IO variant, thus ignore this
 // ignore_for_file: argument_type_not_assignable
 
+import 'api/audio.dart';
 import 'api/midi.dart';
 import 'api/musicxml.dart';
 import 'api/score.dart';

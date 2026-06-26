@@ -16,6 +16,7 @@ import 'dart:async';
 
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../services/audio_service.dart';
 import '../services/midi_service.dart';
 import '../src/rust/api/midi.dart';
 import '../src/rust/api/musicxml.dart';
@@ -40,10 +41,18 @@ class Player extends _$Player {
   StreamSubscription<MidiEvent>? _sub;
   ScoreDocument? _loadedDocument;
 
+  /// Pitches the score is currently sounding (auto-play), tracked so each note
+  /// is released when the playhead passes its end. Audio-only and ephemeral, so
+  /// it lives here rather than in [PlayerData].
+  final Set<int> _sounding = <int>{};
+
   @override
   PlayerData build() {
     final midi = ref.watch(midiServiceProvider);
     _sub = midi.events().listen(_onMidi, onError: (Object _) {});
+    // Start the piano synth (loads the SoundFont). Fire-and-forget: it is
+    // idempotent and degrades to a silent no-op on any failure.
+    unawaited(ref.read(audioServiceProvider).init());
     // Poll the MIDI connection state every second (handles hot-plug).
     _statusTimer = Timer.periodic(
       const Duration(seconds: 1),
@@ -71,6 +80,32 @@ class Player extends _$Player {
   }
 
   MidiService get _midi => ref.read(midiServiceProvider);
+  AudioService get _audio => ref.read(audioServiceProvider);
+
+  /// Releases every sounding score voice (stop / restart / loop / hand switch),
+  /// so no note is left hanging.
+  void _silenceAll() {
+    _audio.allNotesOff();
+    _sounding.clear();
+  }
+
+  /// Sounds/releases score notes as the playhead travels from [from] to [to].
+  void _applyScoreAudio(PlayerData s, double from, double to) {
+    final edges = scoreNoteEdges(
+      visible: s.visibleNotes,
+      from: from,
+      to: to,
+      sounding: _sounding,
+    );
+    for (final p in edges.stops) {
+      _audio.noteOff(p);
+      _sounding.remove(p);
+    }
+    for (final p in edges.starts) {
+      _audio.noteOn(p);
+      _sounding.add(p);
+    }
+  }
 
   /// Loads the initial content: the selected score's notation if it is already
   /// available, otherwise the demo score (when nothing is selected).
@@ -172,6 +207,10 @@ class Player extends _$Player {
   // --- Input (real MIDI or keyboard fallback) ---------------------------
 
   void noteOn(int pitch) {
+    // Every input source converges here, so a single hook sounds the piano for
+    // the on-screen keyboard, the computer keyboard, and MIDI alike — during
+    // playback and while stopped.
+    _audio.noteOn(pitch);
     if (!state.activeNotes.contains(pitch)) {
       state = state.copyWith(activeNotes: {...state.activeNotes, pitch});
     }
@@ -184,6 +223,7 @@ class Player extends _$Player {
   }
 
   void noteOff(int pitch) {
+    _audio.noteOff(pitch);
     if (state.activeNotes.contains(pitch)) {
       state = state.copyWith(
         activeNotes: {...state.activeNotes}..remove(pitch),
@@ -193,25 +233,38 @@ class Player extends _$Player {
 
   // --- Playback controls ------------------------------------------------
 
-  void togglePlay() => state = state.copyWith(isPlaying: !state.isPlaying);
+  void togglePlay() => setPlaying(!state.isPlaying);
   // Set the play/pause state explicitly (used to pause while the settings drawer
   // is open and restore the prior state when it closes).
-  void setPlaying(bool playing) => state = state.copyWith(isPlaying: playing);
+  void setPlaying(bool playing) {
+    // Stopping silences any voices the score was sounding.
+    if (!playing) _silenceAll();
+    state = state.copyWith(isPlaying: playing);
+  }
+
   void setMode(RenderMode m) => state = state.copyWith(mode: m);
-  // Re-arm the onset gate at the current playhead when toggling Wait Mode on.
-  void toggleWaitMode() => state = state.copyWith(
-    waitMode: !state.waitMode,
-    gateSatisfied: const {},
-  );
+  // Re-arm the onset gate at the current playhead when toggling Wait Mode on,
+  // and silence any in-flight score voices so none hang across the switch.
+  void toggleWaitMode() {
+    _silenceAll();
+    state = state.copyWith(waitMode: !state.waitMode, gateSatisfied: const {});
+  }
+
   void setSpeed(double s) => state = state.copyWith(speed: s.clamp(0.25, 2.0));
   void setKeyboardRange(KeyboardRangeMode m) =>
       state = state.copyWith(keyboardRange: m);
   // Re-arm the onset gate so a hand switch can't leave the cascade frozen on an
-  // onset that is now hidden (or pre-satisfied from the previous selection).
-  void setSelectedHands(Hand hand) =>
-      state = state.copyWith(selectedHands: hand, gateSatisfied: const {});
-  void restart() =>
-      state = state.copyWith(elapsedMs: 0, gateSatisfied: const {});
+  // onset that is now hidden (or pre-satisfied from the previous selection), and
+  // silence voices so a now-hidden hand's notes don't keep sounding.
+  void setSelectedHands(Hand hand) {
+    _silenceAll();
+    state = state.copyWith(selectedHands: hand, gateSatisfied: const {});
+  }
+
+  void restart() {
+    _silenceAll();
+    state = state.copyWith(elapsedMs: 0, gateSatisfied: const {});
+  }
 
   // --- Time advance (called by the screen's Ticker) ---------------------
 
@@ -244,6 +297,16 @@ class Player extends _$Player {
     if (s.songEndMs > 0 && next >= s.songEndMs) {
       next = 0; // simple loop
       loop = true;
+    }
+
+    // Score audio: sound onsets the playhead crosses and release notes whose end
+    // it passes. The half-open span means a frozen Wait Mode onset (next ==
+    // elapsedMs) does not pre-sound — it sounds only once time advances past it.
+    // A loop wrap silences everything instead of sounding across the seam.
+    if (loop) {
+      _silenceAll();
+    } else {
+      _applyScoreAudio(s, s.elapsedMs, next);
     }
 
     // Leaving the satisfied onset (or looping) re-arms the gate for the next one.

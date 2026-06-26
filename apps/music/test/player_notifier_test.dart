@@ -14,6 +14,7 @@
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:music/services/audio_service.dart';
 import 'package:music/services/midi_service.dart';
 import 'package:music/src/rust/api/score.dart';
 import 'package:music/state/player_data.dart';
@@ -26,17 +27,24 @@ Future<void> _flush() => Future<void>.delayed(Duration.zero);
 
 void main() {
   late FakeMidiService midi;
+  late RecordingAudioService audio;
   late ProviderContainer container;
 
   Player notifier() => container.read(playerProvider.notifier);
   PlayerData read() => container.read(playerProvider);
 
-  Future<void> build({FakeMidiService? service, Score? score}) async {
+  Future<void> build({
+    FakeMidiService? service,
+    RecordingAudioService? audioService,
+    Score? score,
+  }) async {
     midi = service ?? FakeMidiService();
+    audio = audioService ?? RecordingAudioService();
     container = ProviderContainer(
       overrides: [
         midiServiceProvider.overrideWithValue(midi),
         scoreSourceProvider.overrideWithValue(FakeScoreSource(score)),
+        audioServiceProvider.overrideWithValue(audio),
       ],
     );
     addTearDown(container.dispose);
@@ -341,6 +349,135 @@ void main() {
       notifier().noteOn(64); // the rest of the chord
       notifier().advance(50);
       expect(read().blocked, isFalse);
+      expect(read().elapsedMs, greaterThan(0));
+    });
+  });
+
+  group('audio — startup & live input (5.1)', () {
+    test('initializes the audio engine once at startup', () async {
+      await build();
+      expect(audio.initCount, 1);
+    });
+
+    test('noteOn / noteOff sound and release the piano voice', () async {
+      await build();
+      notifier().noteOn(60);
+      expect(audio.noteOns, contains((pitch: 60, velocity: 100)));
+      notifier().noteOff(60);
+      expect(audio.noteOffs, contains(60));
+    });
+
+    test('MIDI stream events sound through the synth', () async {
+      await build();
+      midi.emit(noteOnEvent(67));
+      await _flush();
+      expect(audio.noteOns.map((e) => e.pitch), contains(67));
+    });
+
+    test('a key sounds even while playback is stopped', () async {
+      await build();
+      expect(read().isPlaying, isFalse);
+      notifier().noteOn(60);
+      expect(audio.noteOns.map((e) => e.pitch), contains(60));
+    });
+  });
+
+  group('audio — score playback (5.2)', () {
+    test('advancing across an onset sounds the note, releases it at its '
+        'end', () async {
+      await build(); // C4 [0,500), D4 [500,1000)
+      notifier().toggleWaitMode(); // free-run
+      notifier().togglePlay();
+
+      notifier().advance(50); // cross C4's onset
+      expect(audio.noteOns.map((e) => e.pitch), contains(60));
+
+      notifier().advance(500); // playhead → 550: pass C4's end, reach D4
+      expect(audio.noteOffs, contains(60));
+      expect(audio.noteOns.map((e) => e.pitch), contains(62));
+    });
+
+    test(
+      'a wider tick (faster speed) sounds more onsets in one step',
+      () async {
+        await build();
+        notifier().toggleWaitMode();
+        notifier().togglePlay();
+        // One big advance (as a higher speed multiplier would scale dt) crosses
+        // both onsets at once → tighter spacing.
+        notifier().advance(900);
+        final sounded = audio.noteOns.map((e) => e.pitch).toSet();
+        expect(sounded, containsAll(<int>[60, 62]));
+      },
+    );
+
+    test('stopping and restarting each issue all-notes-off', () async {
+      await build();
+      notifier().toggleWaitMode();
+      notifier().togglePlay(); // play
+      notifier().advance(50);
+
+      notifier().togglePlay(); // pause → all-notes-off
+      final afterPause = audio.allNotesOffCount;
+      expect(afterPause, greaterThanOrEqualTo(1));
+
+      notifier().restart(); // → another all-notes-off
+      expect(audio.allNotesOffCount, greaterThan(afterPause));
+    });
+
+    test('looping at the end silences all voices', () async {
+      await build();
+      notifier().toggleWaitMode();
+      notifier().togglePlay();
+      notifier().advance(500);
+      final before = audio.allNotesOffCount;
+      notifier().advance(600); // crosses songEnd (1000) → loop
+      expect(read().elapsedMs, 0);
+      expect(audio.allNotesOffCount, greaterThan(before));
+    });
+  });
+
+  group('audio — wait mode (5.3)', () {
+    // Hidden-hand silencing is driven by `visibleNotes` (covered in
+    // hand_selection_test) feeding `scoreNoteEdges` (covered in
+    // score_audio_edges_test); staff data only exists on parsed notation, not on
+    // the demo Score used here, so it is asserted at those two layers.
+    test(
+      'a frozen Wait Mode onset does not pre-sound the awaited note',
+      () async {
+        await build(); // wait mode on by default
+        notifier().togglePlay();
+        notifier().advance(50); // frozen on the C4 onset
+        expect(read().blocked, isTrue);
+        // The score must not have sounded the awaited note while frozen.
+        expect(audio.noteOns, isEmpty);
+
+        // Press the note: it sounds live, the gate releases…
+        notifier().noteOn(60);
+        expect(audio.noteOns.map((e) => e.pitch), contains(60));
+        // …and once time advances past the onset the score sounds it too.
+        audio.noteOns.clear();
+        notifier().advance(50);
+        expect(read().blocked, isFalse);
+        expect(audio.noteOns.map((e) => e.pitch), contains(60));
+      },
+    );
+  });
+
+  group('audio — graceful degradation (5.4)', () {
+    test('a failed audio service leaves the player fully functional', () async {
+      await build(audioService: RecordingAudioService(failInit: true));
+      expect(audio.calls, contains('init:fail'));
+
+      // Visuals/feedback: input still updates state.
+      notifier().noteOn(60);
+      expect(read().activeNotes, contains(60));
+
+      // Wait Mode still gates and releases as usual.
+      expect(read().waitMode, isTrue);
+      notifier().togglePlay();
+      notifier().advance(50);
+      expect(read().blocked, isFalse); // 60 is held → gate satisfied
       expect(read().elapsedMs, greaterThan(0));
     });
   });
