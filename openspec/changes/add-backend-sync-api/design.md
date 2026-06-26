@@ -389,6 +389,99 @@ by **two complementary mechanisms**: (1) at compile time, a dependency-graph che
 violation; (2) at runtime, per-module Postgres roles make cross-schema access fail
 in the database itself.
 
+### D8: Pragmatic hexagonal — ports at the seams, not everywhere
+The design is ports-and-adapters (hexagonal): a pure **domain core** per module,
+surrounded by **ports** (traits) and **adapters** (impls). We adopt it
+**pragmatically**, not dogmatically, because the strict onion's main cost — mapping
+fatigue across domain ↔ DB row ↔ protobuf ↔ DTO — is real and adds no value on
+trivial CRUD.
+
+**Introduce a port only when at least one holds:**
+1. there are (or will be) **multiple adapters** — `IdentityVerifier` (Google/Apple/
+   local, later Facebook), the future `ReceiptVerifier` (App Store/Play/Stripe), and
+   the **direct vs gRPC-client** pair on each module surface;
+2. it is a **module boundary** — the `user` port consumed by `auth`;
+3. it is **external I/O we fake in tests** — email-sender, object-store (future),
+   the repositories.
+
+**Do NOT add a port for:** pure internal helpers (`token_core`, `version_core`,
+`oidc_core`, key derivation) — test them directly; or single-implementation trivial
+infra that will never be swapped or faked.
+
+**Two non-negotiables / shortcuts that cut ~80% of the boilerplate:**
+- The **domain core stays pure** — no `sqlx`/`tonic`/`prost` types leak into it.
+  This is what makes everything host-testable; it is not optional.
+- But **protobuf mapping lives only in the gRPC adapter**, and the **repository
+  returns domain types directly** (no separate DAO layer) — so each concept has at
+  most **two** representations (domain + wire/row), not four.
+
+**Sub-decision — dispatch: `dyn` over generics.** Ports are injected as
+`Arc<dyn Port>` (trait objects via `#[async_trait]`), chosen over generic type
+parameters: the composition root swaps a direct adapter for a gRPC client without
+making every consuming type generic (`Auth<U: UserPort>` propagating params
+everywhere). Cost is dynamic dispatch + boxing, negligible against DB/network
+latency. Constraint this imposes: **ports must stay object-safe** (no generic
+methods, no `Self`-returning methods) — a cheap rule to follow.
+
+**Ports & adapters map (driving side → core → driven side):**
+
+```mermaid
+flowchart LR
+    subgraph PRIM [Driving side primary adapters]
+        APP["Flutter apps, Music and Live"]
+        ITC["Internal-token interceptor, platform"]
+        ASRV["AuthService gRPC server adapter"]
+        USRV["UserService gRPC server adapter"]
+    end
+
+    subgraph CORE [Domain core pure no SQLx or tonic]
+        AD["auth domain: signup, verify, signin, link, issue tokens"]
+        UD["user domain: account, identities, scoped roles, version"]
+    end
+
+    subgraph DRIV [Driven side secondary adapters]
+        OIDC["OidcJwtVerifier"]
+        LOCAL["LocalCredentialVerifier argon2id"]
+        SMTP["SMTP email adapter"]
+        ASQL["SQLx auth repo"]
+        USQL["SQLx user repo"]
+        UDIR["User port direct adapter"]
+    end
+
+    subgraph EXT [External systems]
+        IDP["Google and Apple JWKS"]
+        MAIL["SMTP server or Mailpit"]
+        PG["Postgres: schemas auth and user_account"]
+    end
+
+    APP -->|sign up or sign in| ASRV
+    APP -->|Bearer token| ITC
+    ITC --> USRV
+    ITC -->|protected methods| ASRV
+
+    ASRV -->|Auth port| AD
+    USRV -->|User port| UD
+
+    AD -->|IdentityVerifier port| OIDC
+    AD -->|IdentityVerifier port| LOCAL
+    AD -->|Email sender port| SMTP
+    AD -->|Auth repo port| ASQL
+    AD -->|User port| UDIR
+    UDIR --> UD
+    UD -->|User repo port| USQL
+
+    OIDC --> IDP
+    LOCAL --> ASQL
+    SMTP --> MAIL
+    ASQL --> PG
+    USQL --> PG
+```
+
+Reading it: every arrow **labelled `... port`** is a port (a trait crossing the core
+boundary); the boxes in the outer columns are **adapters**. `AD -->|User port| UDIR
+--> UD` is the **cross-module** call (`auth` → `user`) through the direct adapter —
+swap `UDIR` for a gRPC client adapter and `user` is extracted, untouched.
+
 ## Risks / Trade-offs
 
 - **gRPC-only excludes browsers / simple curl testing** → Mitigate with grpcurl +
