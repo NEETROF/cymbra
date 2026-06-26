@@ -2,7 +2,7 @@
 
 - [ ] 1.1 Create the backend directory with workspace members: `platform`, a `server` binary, and two module crate pairs — `auth-port`/`auth` and `user-port`/`user`
 - [ ] 1.2 Establish the dependency rule in the manifests: consumers depend on `<module>-port` only (`auth` depends on `user-port`); impl crates depend on `platform` + their own `-port`; `server` depends on all; no impl crate depends on another impl crate
-- [ ] 1.3 Add shared dependencies: `tonic`, `prost`, `tokio`, `tower`, `sqlx` (postgres, runtime-tokio, migrate), `jsonwebtoken` (provider + internal tokens), `argon2`, `config`, `tracing`/`tracing-subscriber`, `tracing-opentelemetry`, `opentelemetry`, `opentelemetry-otlp`, an SMTP/email crate (e.g. `lettre`), `thiserror`/`anyhow`, `uuid` (with the `v7` feature — all internal ids are UUID v7, generated app-side via `Uuid::now_v7()`), `async-trait`
+- [ ] 1.3 Add shared dependencies: `tonic`, `prost`, `tokio`, `tower`, `sqlx` (postgres, runtime-tokio, migrate), `jsonwebtoken` (provider + internal tokens), `argon2`, `config`, `tracing`/`tracing-subscriber`, `tracing-opentelemetry`, `opentelemetry`, `opentelemetry-otlp`, `opentelemetry-appender-tracing` (logs signal), `tokio-metrics` + `sysinfo` (resource/runtime metrics), an SMTP/email crate (e.g. `lettre`), `thiserror`/`anyhow`, `uuid` (with the `v7` feature — all internal ids are UUID v7, generated app-side via `Uuid::now_v7()`), `async-trait`
 - [ ] 1.4 Set up `tonic-build` so each `<module>-port` owns its `proto/` and generated client/server stubs (packages `cymbra.auth.v1`, `cymbra.user.v1`)
 - [ ] 1.5 Add docker-compose for local dev: Postgres + a mock OIDC issuer + Mailpit (SMTP sink)
 - [ ] 1.6 Add a DB bootstrap that provisions schemas `auth` and `user_account`, each with a per-module Postgres role granted privileges **only** on its own schema (`search_path` pinned)
@@ -54,9 +54,11 @@
 - [ ] 6.1 Wire `tracing-opentelemetry` + the OpenTelemetry SDK + OTLP exporter in `platform`; endpoint + sampling configurable, export **disablable** for tests/offline runs
 - [ ] 6.2 Emit a span per gRPC request (method, status, correlation id) with downstream DB/auth work as child spans; propagate trace context across async boundaries
 - [ ] 6.3 Emit RED metrics (request rate/errors/duration) over OTLP
-- [ ] 6.4 Assert in tests that no bearer token, password, secret, or PII appears in spans, metric labels, or logs
-- [ ] 6.5 Add the observability stack to docker-compose (own profile): OTel Collector + Tempo + Prometheus + Grafana, with pre-provisioned datasources and a starter dashboard
-- [ ] 6.6 Write the observability technical docs: start the stack, point the OTLP endpoint at it, find a sample request's trace and metrics in Grafana
+- [ ] 6.4 Emit **resource-consumption metrics** over OTLP: process CPU + resident memory (`sysinfo`), async-runtime saturation (`tokio-metrics`), and SQLx pool in-use/idle; enable the Collector **hostmetrics receiver** for host CPU/mem/disk/net
+- [ ] 6.5 Bridge `tracing` events to the OpenTelemetry **Logs** signal via `opentelemetry-appender-tracing`, exported over OTLP; ensure each in-span log record carries `trace_id`/`span_id`; keep a console layer (pretty dev / JSON prod) in parallel; OTLP log export independently disablable
+- [ ] 6.6 Assert in tests that no bearer token, password, secret, or PII appears in spans, metric labels, or logs
+- [ ] 6.7 Add the observability stack to docker-compose (own profile): OTel Collector + Tempo + Prometheus + **Loki** + Grafana, with pre-provisioned datasources, a starter dashboard (RED + **resource** panels), and **trace↔logs correlation** (Tempo trace-to-logs + Loki `trace_id` derived field)
+- [ ] 6.8 Write the observability technical docs: start the stack, point the OTLP endpoint at it, and find a sample request's trace, metrics, **resource usage**, and **correlated logs** in Grafana (incl. jumping trace↔logs)
 
 ## 7. Boundary enforcement, CI, coverage & docs
 

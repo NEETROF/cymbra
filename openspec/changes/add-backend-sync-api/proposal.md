@@ -52,9 +52,13 @@ secure-by-default — not the full product backend.
   (`music`/`live`), and the access token embeds only the effective roles for that
   audience (`global` + that scope). Concrete admin/role-assignment endpoints are
   out of scope.
-- Add **OpenTelemetry** tracing (and metrics) exported over OTLP, and a local
-  **Grafana observability stack** (OpenTelemetry Collector + Tempo + Prometheus +
-  Grafana) wired to the backend, with **technical documentation** for using it.
+- Add **OpenTelemetry** across all three signals — traces, metrics (RED **plus
+  resource consumption**: process CPU/memory, async-runtime + DB-pool saturation,
+  and host metrics via the Collector), and **logs** (`tracing` events bridged to
+  the OTel Logs signal, carrying `trace_id`/`span_id`)
+  — exported over OTLP, and a local **Grafana observability stack** (OpenTelemetry
+  Collector + Tempo + Prometheus + **Loki** + Grafana) with **trace↔logs
+  correlation** wired to the backend, plus **technical documentation** for using it.
 - Add database schema + migrations, typed configuration, health/readiness, and
   structured logging for the new service.
 
@@ -88,9 +92,11 @@ architecture leaves clean seams for all of these.
   identities (1→N), provisioning/linking by `(provider, subject)`, account
   management (profile + preferences, optimistic concurrency), and **per-app scoped
   roles** (`user_roles(user_id, scope, role)`).
-- `observability`: OpenTelemetry tracing/metrics exported over OTLP, a local
-  Grafana exploration stack (Collector + Tempo + Prometheus + Grafana), and
-  technical documentation for using them.
+- `observability`: OpenTelemetry traces/metrics/logs exported over OTLP — metrics
+  include RED **and resource consumption** (process CPU/memory, runtime + DB-pool
+  saturation, host metrics); logs bridged from `tracing` and correlated to traces —
+  a local Grafana exploration stack (Collector + Tempo + Prometheus + Loki +
+  Grafana) with trace↔logs correlation, and technical documentation for using them.
 
 ### Modified Capabilities
 <!-- None — this change is additive and introduces a separate backend service
@@ -104,16 +110,18 @@ architecture leaves clean seams for all of these.
 - **New dependencies**: `tonic`/`prost` (gRPC), `tokio`, `sqlx` (Postgres), an
   OIDC/JWT validation crate (`jsonwebtoken` + JWKS fetch) for both provider tokens
   and internal tokens, `config`, `tracing`, and OpenTelemetry crates
-  (`opentelemetry`, `opentelemetry-otlp`, `tracing-opentelemetry`).
+  (`opentelemetry`, `opentelemetry-otlp`, `tracing-opentelemetry`,
+  `opentelemetry-appender-tracing` for the logs signal, `tokio-metrics` + `sysinfo`
+  for resource metrics).
 - **New infrastructure**: a Postgres database, external OIDC providers (Google,
   Apple) registered as relying-party clients, an internal token-signing key, and a
-  local observability stack (OTel Collector, Tempo, Prometheus, Grafana) —
+  local observability stack (OTel Collector, Tempo, Prometheus, Loki, Grafana) —
   provisioned for local dev via docker-compose and documented for deployment.
 - **Protobuf contract**: new `.proto` definitions and generated code; these become
   the shared API contract the Flutter client will consume later.
 - **Documentation**: a backend README (layout, ports/adapters, extraction recipe,
-  local setup) and an observability guide (running the stack, finding traces and
-  metrics in Grafana).
+  local setup) and an observability guide (running the stack, finding traces,
+  metrics, and correlated logs in Grafana).
 - **No change** to the existing Flutter app or on-device engine in this change.
 - **Security surface**: introduces network-exposed authentication, internal-token
   issuance/refresh, provider-identity linking, and per-user account isolation.

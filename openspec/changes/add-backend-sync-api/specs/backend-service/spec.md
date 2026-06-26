@@ -63,8 +63,10 @@ the availability of critical dependencies (the database).
 ### Requirement: Structured logging
 
 The backend SHALL emit structured logs for each request, including a
-request/correlation identifier and the resolved user identity when authenticated.
-Logs MUST NOT contain secrets or bearer tokens.
+request/correlation identifier (the trace id when the request is traced) and the
+resolved user identity when authenticated. Logs MUST NOT contain secrets or bearer
+tokens. (Export of logs as an OpenTelemetry signal is covered by the
+`observability` capability.)
 
 #### Scenario: Request is logged
 

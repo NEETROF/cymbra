@@ -352,18 +352,35 @@ unreliable). Account field updates use **optimistic concurrency**: a write commi
 only if the client `version` matches, else `ABORTED` with the current version
 (detection, not merge).
 
-### D5: OpenTelemetry tracing/metrics + Grafana stack
+### D5: OpenTelemetry traces + metrics + logs, Grafana stack
 Instrumentation uses the **`tracing` + `tracing-opentelemetry` + OpenTelemetry SDK
-+ `opentelemetry-otlp`** path: structured logs and spans come from `tracing`, and
-an OTLP exporter ships traces (and RED metrics) to a collector. The exporter
-endpoint and sampling are configurable, and export is **disablable** for tests and
-offline local runs.
++ `opentelemetry-otlp`** path and covers **all three OTel signals**:
+- **Traces** — spans from `tracing`, exported over OTLP.
+- **Metrics** — RED (rate/errors/duration) **plus resource-consumption metrics**:
+  in-process **process CPU + resident memory** (`sysinfo`), **async-runtime
+  saturation** (`tokio-metrics`: task backlog, busy ratio), and **DB pool usage**
+  (SQLx in-use/idle), all as OTel metrics over OTLP. **Host-level** resource
+  metrics (CPU/mem/disk/net) come from the Collector's **hostmetrics receiver** —
+  no app code. Together these answer "how much is this instance consuming and where
+  is it saturating".
+- **Logs** — `tracing` stays the single logging API; an
+  **`opentelemetry-appender-tracing`** layer bridges `tracing` events into the
+  OpenTelemetry **Logs** SDK, exported over OTLP. Each log record carries the
+  current span's **`trace_id`/`span_id`**, so logs and traces are correlated. A
+  console layer (pretty in dev, JSON in prod) stays available in parallel; the OTLP
+  logs exporter is **disablable** like the others.
+
+So the same `tracing` call site feeds the local console *and* the OTel logs
+pipeline — no second logging framework. Endpoint and sampling are configurable, and
+all exporters are disablable for tests/offline runs.
 
 The local **Grafana stack** (docker-compose) is: **OpenTelemetry Collector**
-(receives OTLP, fans out) → **Tempo** (traces) + **Prometheus** (metrics) →
-**Grafana** (dashboards/explore), with pre-provisioned datasources and a starter
-dashboard. **Technical docs** explain starting the stack, pointing the backend's
-OTLP endpoint at it, and finding a request's trace and metrics in Grafana.
+(receives OTLP, fans out) → **Tempo** (traces) + **Prometheus** (metrics) +
+**Loki** (logs) → **Grafana** (dashboards/explore), with pre-provisioned
+datasources and **trace↔logs correlation** wired (Tempo "trace to logs" and Loki's
+derived field on `trace_id`) so you can jump from a span to its logs and back.
+**Technical docs** explain starting the stack, pointing the backend's OTLP endpoint
+at it, and finding a request's trace, metrics, and correlated logs in Grafana.
 - *Alternative*: logs-only/ad-hoc tracing — rejected; OTel is the portable
   standard and the Grafana stack makes traces usable from day one without lock-in.
 - Telemetry **must not** carry bearer tokens, secrets, or raw PII (enforced by
@@ -547,7 +564,8 @@ database. No client rollback needed.
   the gRPC Health service.
 - Proto package/versioning convention (e.g. `cymbra.user.v1`) and where generated
   Dart bindings will live for the future client change.
-- Observability scope for the base: traces + RED metrics now; whether to also ship
-  Loki for log aggregation or defer it.
+- Observability log retention/volume tuning (sampling, level filters, Loki
+  retention) — the base ships all three signals (traces, metrics, logs via Loki);
+  production retention/cost knobs are still to set.
 - Whether account-update conflict handling needs field-level merge later, or
   whole-record optimistic concurrency is sufficient long-term.
