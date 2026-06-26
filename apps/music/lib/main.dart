@@ -40,9 +40,31 @@ Future<void> main() async {
   final container = ProviderContainer();
   unawaited(container.read(audioServiceProvider).init());
 
+  // Silence the synth when the OS backgrounds/hides the app, so a held voice
+  // (note pressed, no note-off yet) doesn't keep ringing while paused.
+  WidgetsBinding.instance.addObserver(_AudioLifecycleObserver(container));
+
   runApp(
     UncontrolledProviderScope(container: container, child: const CymbraApp()),
   );
+}
+
+/// Cuts all audio when the app leaves the foreground. `paused`/`hidden` cover
+/// mobile backgrounding (and desktop minimise); `inactive` is intentionally not
+/// silenced so a brief focus change on desktop doesn't chop a sounding note.
+class _AudioLifecycleObserver with WidgetsBindingObserver {
+  _AudioLifecycleObserver(this._container);
+
+  final ProviderContainer _container;
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden ||
+        state == AppLifecycleState.detached) {
+      _container.read(audioServiceProvider).allNotesOff();
+    }
+  }
 }
 
 class CymbraApp extends StatelessWidget {
