@@ -116,5 +116,6 @@ alongside) `playable-onscreen-keyboard` so on-screen play is audible end-to-end.
   control in a follow-up or a small task here. Decide during implementation.
 - **Velocity from on-screen taps** (no pressure) — use a fixed sensible velocity;
   revisit if pointer pressure/Force is available.
-- **SoundFont choice** (specific `.sf2`, license, size) — finalize in the asset
-  task.
+- **SoundFont choice** — decided: **Upright Piano KW** (CC0, ~27 MiB), vendored
+  into the repo assets (CC0 → no attribution, no runtime dependency on its source).
+  Multiple-piano selection/management is a separate change (`piano-sound-selection`).
