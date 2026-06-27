@@ -67,7 +67,7 @@ impl Config {
 
 /// Pure, host-testable parsing/validation over a key/value map.
 pub mod config_core {
-    use super::*;
+    use super::{AppError, Config, Duration, HashMap, OidcProvider, Result, TokenConfig};
 
     pub fn parse(m: &HashMap<String, String>) -> Result<Config> {
         Ok(Config {

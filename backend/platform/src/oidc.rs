@@ -20,7 +20,7 @@ pub struct ExternalIdentity {
 
 /// Pure OIDC claim checks shared by every OIDC verifier.
 pub mod oidc_core {
-    use super::*;
+    use super::{AppError, Result};
 
     /// Validate a decoded provider token's `iss` / `aud` / `exp`.
     ///
