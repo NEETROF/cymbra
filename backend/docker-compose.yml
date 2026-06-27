@@ -23,10 +23,12 @@ services:
       retries: 10
 
   redis:
-    image: redis:7
+    # Valkey is the BSD-licensed, wire-compatible Redis fork (RESP unchanged), so
+    # the `redis` crate and the redis:// URL scheme keep working as-is.
+    image: valkey/valkey:8
     ports: ["6379:6379"]
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "valkey-cli", "ping"]
       interval: 5s
       timeout: 3s
       retries: 10

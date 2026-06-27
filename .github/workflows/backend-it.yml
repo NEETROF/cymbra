@@ -32,10 +32,10 @@ jobs:
           --health-cmd "pg_isready -U cymbra -d cymbra_id"
           --health-interval 5s --health-timeout 3s --health-retries 10
       redis:
-        image: redis:7
+        image: valkey/valkey:8 # wire-compatible Redis fork (BSD); redis crate + redis:// URL unchanged
         ports: ["6379:6379"]
         options: >-
-          --health-cmd "redis-cli ping"
+          --health-cmd "valkey-cli ping"
           --health-interval 5s --health-timeout 3s --health-retries 10
     env:
       PGPASSWORD: cymbra_dev_pw

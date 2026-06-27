@@ -38,7 +38,7 @@ No changes to other modules' domain code.
 ## Local development
 
 ```bash
-# infra: Postgres (+ per-module roles), Redis, a mock OIDC issuer, Mailpit
+# infra: Postgres (+ per-module roles), Valkey (Redis-compatible), a mock OIDC issuer, Mailpit
 docker compose -f backend/docker-compose.yml up -d
 
 cp backend/.env.example backend/.env   # fill in the signing keypair + OIDC ids
