@@ -2,6 +2,11 @@
 /target
 **/target/
 
+# --- Secrets / local env (contains dev signing keys, DB creds) ---
+.env
+**/.env
+!**/.env.example
+
 # --- Flutter / Dart ---
 .dart_tool/
 **/build/

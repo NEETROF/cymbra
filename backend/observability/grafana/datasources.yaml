@@ -1,0 +1,32 @@
+# Grafana datasource provisioning with trace<->logs correlation (task 6.7).
+apiVersion: 1
+datasources:
+  - name: Prometheus
+    type: prometheus
+    uid: prometheus
+    url: http://prometheus:9090
+    isDefault: true
+
+  - name: Tempo
+    type: tempo
+    uid: tempo
+    url: http://tempo:3200
+    jsonData:
+      # Jump from a span to its logs in Loki, filtered by trace id.
+      tracesToLogsV2:
+        datasourceUid: loki
+        filterByTraceID: true
+        spanStartTimeShift: -1h
+        spanEndTimeShift: 1h
+
+  - name: Loki
+    type: loki
+    uid: loki
+    url: http://loki:3100
+    jsonData:
+      # Turn a log's trace_id into a clickable link to Tempo.
+      derivedFields:
+        - name: TraceID
+          matcherRegex: 'trace_id"?[:=]"?(\w+)'
+          url: '$${__value.raw}'
+          datasourceUid: tempo

@@ -10,6 +10,7 @@ on:
 
 permissions:
   contents: read
+  pull-requests: write # Required for Sonar to decorate the PR with analysis results
 
 jobs:
   sonar:
@@ -22,14 +23,16 @@ jobs:
       # integration) lcov here; the hard 80% gate lives in rust.yml / flutter.yml.
       # Sonar stays non-blocking (no qualitygate.wait) — PR decoration only.
       - name: Install build deps
-        run: sudo apt-get update && sudo apt-get install -y libasound2-dev ninja-build libgtk-3-dev clang cmake pkg-config xvfb
+        run: sudo apt-get update && sudo apt-get install -y libasound2-dev ninja-build libgtk-3-dev clang cmake pkg-config xvfb protobuf-compiler
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: llvm-tools-preview
       - uses: taiki-e/install-action@cargo-llvm-cov
       - uses: Swatinem/rust-cache@v2
       - name: Rust coverage
-        run: cargo llvm-cov --workspace --lcov --output-path target/lcov.info --ignore-filename-regex 'frb_generated|/lib\.rs|/midi\.rs|/musicxml\.rs|/audio\.rs'
+        run: >-
+          cargo llvm-cov --workspace --lcov --output-path target/lcov.info
+          --ignore-filename-regex 'frb_generated|cymbra\.(auth|user)\.v1|/lib\.rs|/main\.rs|/midi\.rs|/musicxml\.rs|/audio\.rs|/grpc\.rs|/pg\.rs|/creds_pg\.rs|/verifier\.rs|/telemetry\.rs|/metrics\.rs|/cache\.rs|/email\.rs|/db\.rs|/jwks\.rs|/interceptor\.rs|/logging\.rs|/session\.rs'
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
@@ -46,8 +49,12 @@ jobs:
       - name: Flutter coverage (integration)
         working-directory: apps/music
         run: xvfb-run -a flutter test integration_test -d linux --coverage --coverage-path coverage/integration.lcov.info
-      - name: SonarCloud scan
+      - name: SonarCloud scan (blocks on Quality Gate)
         uses: SonarSource/sonarqube-scan-action@v6
+        with:
+          # Wait for SonarCloud to compute the Quality Gate and fail the job if
+          # it does not pass — makes Sonar a blocking gate.
+          args: -Dsonar.qualitygate.wait=true
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: https://sonarcloud.io

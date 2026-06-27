@@ -1,0 +1,55 @@
+# Cymbra ID — local dev infrastructure (task 1.5).
+#
+# Start:  docker compose -f backend/docker-compose.yml up -d
+# Stop:   docker compose -f backend/docker-compose.yml down
+#
+# The observability stack (OTel Collector + Tempo + Prometheus + Loki + Grafana)
+# is added as a separate compose profile in task 6.7.
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: cymbra
+      POSTGRES_PASSWORD: cymbra_dev_pw
+      POSTGRES_DB: cymbra_id
+    ports: ["5432:5432"]
+    volumes:
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+      - cymbra_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cymbra -d cymbra_id"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    # Valkey is the BSD-licensed, wire-compatible Redis fork (RESP unchanged), so
+    # the `redis` crate and the redis:// URL scheme keep working as-is.
+    image: valkey/valkey:8
+    ports: ["6379:6379"]
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # Stands in for Google/Apple in local dev: issues OIDC ID tokens + serves JWKS.
+  # Opt-in (not needed for local email/password): start with `--profile oidc`.
+  # If this image/tag 403s, pick a current tag from
+  # https://github.com/navikt/mock-oauth2-server/pkgs/container/mock-oauth2-server
+  mock-oidc:
+    image: ghcr.io/navikt/mock-oauth2-server:2.1.10
+    profiles: ["oidc"]
+    ports: ["8080:8080"]
+    environment:
+      LOG_LEVEL: INFO
+
+  # SMTP sink for verification / password-reset emails (web UI on :8025).
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
+volumes:
+  cymbra_pg:

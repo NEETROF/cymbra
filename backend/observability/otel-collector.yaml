@@ -1,0 +1,45 @@
+# OpenTelemetry Collector — receives the backend's OTLP (traces/metrics/logs),
+# scrapes host metrics, and fans out to Tempo / Prometheus / Loki (task 6.7).
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+  hostmetrics:
+    collection_interval: 15s
+    scrapers:
+      cpu: {}
+      memory: {}
+      disk: {}
+      network: {}
+      load: {}
+
+processors:
+  batch: {}
+
+exporters:
+  otlp/tempo:
+    endpoint: tempo:4317
+    tls:
+      insecure: true
+  prometheus:
+    endpoint: 0.0.0.0:8889
+  otlphttp/loki:
+    endpoint: http://loki:3100/otlp
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlp/tempo]
+    metrics:
+      receivers: [otlp, hostmetrics]
+      processors: [batch]
+      exporters: [prometheus]
+    logs:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlphttp/loki]

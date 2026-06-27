@@ -1,0 +1,644 @@
+## Context
+
+Cymbra today is a local-only product: a Flutter client driving an on-device Rust
+engine (MIDI, MusicXML, audio) in a Cargo + Melos monorepo. There is no server.
+
+**Product picture.** Cymbra is becoming **two apps that share users**: *Cymbra
+Music* (existing) and *Cymbra Live* (RTC audio/video channel streaming). This
+change builds **Cymbra ID** — the shared identity/account hub both apps consume.
+Cymbra ID owns identity, accounts, and **product-level (scoped) roles**, and
+issues **audience-scoped tokens**. The product backends (Music, Live) and Live's
+RTC/media service are **separate** services that trust Cymbra ID tokens and key
+their **own** domain data + fine-grained authorization on the shared `user_id`.
+Cymbra ID deliberately does *not* centralize every app's domain ACLs — that would
+couple it to each product; it centralizes identity + coarse, durable product roles
+(and, later, entitlements).
+
+**Standalone mode.** Each app also offers a fully **standalone, no-account mode**:
+purely local, **zero server calls**. Cymbra ID is contacted *only* when the user
+chooses to register or sign in — so registration is **optional**, and there is
+deliberately **no anonymous/guest server session** (standalone never reaches the
+backend at all, keeping the auth model clean). A user who starts standalone can
+later sign up; migrating their local data into the account is the job of the future
+sync/files module, not this base — the only seam needed now is the stable
+`user_id` that data will later attach to.
+
+This change is the foundation: a working, observable, secure-by-default Cymbra ID
+with two business modules — **auth** (identity) and **user** (account + scoped
+roles) — that demonstrate the architecture (incl. a real cross-module port call)
+end-to-end, not the full product backend.
+
+Constraints and inputs (decided up front):
+- **gRPC only** (tonic), no REST — **except** a tiny Axum HTTP surface for the JWKS
+  endpoint and health (D9/D1).
+- **Postgres** for durable state + **Redis** for ephemeral auth state (sessions/
+  refresh, rate-limit counters), accessed from async Rust.
+- **Shared identity (Cymbra ID)**: one account shared by Cymbra Music and Cymbra
+  Live, keyed by a stable internal `user_id`.
+- **Identity via OIDC (Google + Apple) and a local email/password provider.** The
+  backend validates provider ID tokens, then issues its **own audience-scoped,
+  asymmetrically-signed session tokens** (public keys via JWKS); it stores **no
+  third-party passwords** (only an argon2id hash for the local provider). The
+  provider list is open via a verifier port —
+  **Steam** (OpenID 2.0 / Steamworks tickets, outside OIDC) was considered and
+  **dropped as too complex**, and **Facebook** is deferred (addable later as one
+  more verifier; clean on mobile via Limited Login, needs a Graph-API verifier on
+  desktop/web).
+- **One internal account, multiple providers**: identities are linked to an
+  account (1→N); linking is **explicit** (no email-based auto-merge).
+- **Modular monolith**: ships as one process, internally partitioned into modules
+  with hard boundaries; extracting a module later must be mechanical.
+- **Observability is first-class**: OpenTelemetry tracing/metrics out of the box,
+  with a Grafana stack and docs to exploit it.
+- **Per-app scoped roles, RBAC scaffold only** — `user_roles(user_id, scope,
+  role)` with a role-based guard; no concrete admin/role-assignment endpoints yet.
+- Must fit the existing monorepo conventions: Cargo workspace member(s),
+  host-testable pure logic separated from I/O glue, ≥80% line coverage gate.
+
+A future **billing / entitlements** module (purchases) and user **file** sync
+(scores, SoundFonts) + its **S3** storage are explicitly **future work** — see
+Non-Goals. This base only **wires their seams** (entitlements keyed by `user_id` +
+`scope` via a `ReceiptVerifier` pattern; a `files` module slot); it implements
+neither.
+
+## Goals / Non-Goals
+
+**Goals:**
+- A backend that builds in the workspace and runs a tonic gRPC server, structured
+  as a **modular monolith** with extraction-ready module crates.
+- Hard module boundaries: each module owns its data and is consumed only through a
+  published port (trait); no module reads another module's tables or internals.
+- An **auth module**: sign in via Google/Apple (multi-issuer OIDC behind a verifier
+  port), issue internal session tokens (access + refresh), validate the internal
+  token per request, and link additional providers to an account explicitly.
+- A **user module**: own the internal account + its linked identities, manage
+  profile + preferences, with a `user`/`admin` role and `is_admin` guard.
+- **OpenTelemetry** tracing + metrics over OTLP, and a one-command local Grafana
+  stack (Collector + Tempo + Prometheus + Grafana) with technical docs.
+- Local-dev ergonomics: docker-compose for Postgres + a mock OIDC issuer + an SMTP
+  sink (Mailpit) + the observability stack; versioned migrations; health/readiness.
+- Testable design: business logic in host-testable modules behind ports.
+
+**Non-Goals:**
+- REST/HTTP-JSON API (gRPC only for now).
+- **Billing / entitlements (purchases)** — future `billing` module; only the
+  `user_id`+`scope` seam is honored here. No store integrations, webhooks, or
+  entitlement storage now.
+- **The Cymbra Music and Cymbra Live product backends and Live's RTC/media
+  service** — separate services that consume Cymbra ID; not built here.
+- **Fine-grained per-app domain authorization** — owned by each product app
+  (keyed by `user_id`), not by Cymbra ID, which carries only product-scoped roles.
+- **Anonymous/guest server sessions** — there are none; the apps' standalone mode
+  is purely local and makes no backend calls, so the backend stays auth-required.
+- **Standalone-data → account migration** — when a standalone user later signs up,
+  uploading their local data belongs to the future sync/files module, not here.
+- **User file upload/sync and S3 object storage** — future work; not built here.
+- **Steam** and **Facebook** providers — dropped/deferred (see Context); the
+  verifier port leaves the seam to add them later.
+- Concrete admin endpoints (user CRUD, moderation, audit log, dashboards).
+- Flutter client integration with this API (separate follow-up change).
+- Email-based account auto-merge, real-time/push sync, CRDT merge — linking is
+  explicit and account updates use simple optimistic-concurrency *detection*.
+- Self-hosted identity / password storage.
+- Production deployment topology, autoscaling, and secrets hardening.
+
+## Decisions
+
+### D0: Modular-monolith architecture with extraction-ready modules
+The service deploys as **one process** but is built from independent **module
+crates**, each owning a single concern. This is the dominant design constraint —
+every other decision is shaped to keep modules separable. There are two business
+modules — `auth` and `user` — and `auth` depends on `user`'s **port** (to resolve/
+provision/link accounts), which exercises the cross-module port pattern for real.
+The structure is set up so adding a future `files` module (or extracting any
+module) is mechanical.
+
+**Crate layout (workspace members).** Each module is a *family* of crates so the
+contract is separable from the implementation:
+- `server` (binary, composition root): the *only* place modules are wired
+  together. It chooses each port's adapter (direct vs gRPC client), injects
+  dependencies, mounts each module's gRPC **server** adapter onto the tonic router,
+  initializes telemetry, and owns process lifecycle. Contains no business logic.
+- `platform` (shared library): cross-cutting primitives only — config loading,
+  telemetry/OpenTelemetry setup, the **internal-token interceptor** + JWT
+  sign/verify codec, the OIDC/JWKS verification helper, the `AuthIdentity` context
+  type, error types, and the DB pool factory. It MUST NOT depend on any module;
+  modules depend on it, never the reverse.
+- For each capability (`auth`, `user`) — **two crates**:
+  - `<module>-port` (the contract): the **port trait**, its request/response DTOs,
+    the generated protobuf messages, and the **gRPC client adapter** that
+    implements the trait over the wire. No domain logic or DB code, so any consumer
+    (another module, or a future extracted service) can depend on it cheaply.
+    Consumers depend on `-port` **only**.
+  - `<module>` (the implementation): domain logic, persistence (migrations +
+    repositories over *its own* tables), the **direct/local** implementation of the
+    port trait, and the **gRPC server** adapter (the tonic service that exposes the
+    port by delegating to the local impl). Only `server` depends on this.
+
+**Data topology:** a **single Postgres database** with **one schema per module**
+(`auth`, `user_account`). Each module connects with its **own database role**,
+granted privileges *only* on its own schema (`search_path` pinned to it). Note the
+account aggregate — `users` **and** `user_identities` — lives entirely in the user
+module's schema; the auth module never touches it directly, only via the `user`
+port (so there is no cross-schema FK from auth to user).
+
+**Boundary rules:**
+1. **No shared tables — enforced by Postgres privileges, not convention.** A module
+   physically cannot read/write another module's tables — the database rejects it.
+   No cross-module foreign keys; a shared `user_id` is an opaque identifier passed
+   across boundaries, never a SQL join key between schemas.
+2. **Every port has two interchangeable adapters — direct and gRPC.** The port
+   trait is the single contract, satisfied by **both** a **direct/local adapter**
+   (in `<module>`, an in-process call into domain + persistence) and a **gRPC
+   adapter** — a *server* side (the tonic service in `<module>` exposing the port)
+   and a *client* side (in `<module>-port`) implementing the same trait over the
+   wire. A consumer depending on the trait cannot tell which adapter it got.
+3. **Cross-module access goes through the port, never internals.** A consumer
+   depends on `<module>-port` and calls the trait; `server` injects either the
+   direct adapter (monolith) or the gRPC client adapter (after extraction).
+4. **Module impl crates do not depend on each other** — only on `platform` and
+   other modules' `-port` crates. The dependency graph is acyclic and enforces it.
+5. **No global shared state.** Dependencies are passed in (constructor / builder),
+   mirroring the client-side "dependencies are providers" rule.
+
+**Extraction test (the design's litmus):** moving a module to its own service
+should require only — (a) give it its own `main` that mounts the gRPC **server**
+adapter it already has, (b) point its DB/schema at its own infra, (c) in the
+monolith's `server`, swap the direct adapter for the `-port` gRPC **client**
+adapter that already exists. No new code, no changes to other modules' domain code.
+
+### D1: tonic + prost, with each port exposed as a gRPC service
+**tonic** is the de-facto async gRPC stack for Rust (tokio/hyper, HTTP/2, tower
+middleware). Services are defined in `.proto` and generated with
+`prost`/`tonic-build`. The `.proto` files become the contract the Flutter client
+consumes later. Each module's port maps **1:1 to a gRPC service**, split into a
+**server adapter** (in `<module>`, translating RPCs into local port calls — the
+public surface) and a **client adapter** (in `<module>-port`, implementing the
+port trait via a tonic client). Both are thin DTO⇄protobuf translators; domain
+logic lives once, in the local implementation. A shared **contract test** runs the
+same scenarios against the direct and gRPC client adapters to prove they behave
+identically.
+- *Note on Axum*: the request path is gRPC, **except** a tiny **Axum** HTTP surface
+  mounted alongside tonic for the **JWKS endpoint** (`/.well-known/jwks.json`, which
+  conventionally must be HTTP/JSON so downstream apps and standard libraries can
+  fetch it) and `/healthz`. See D9.
+
+### D2: SQLx for Postgres access
+**SQLx** gives async, compile-time-checked queries without a heavy ORM, and ships
+a migration runner (`sqlx::migrate!`), matching the repo's preference for thin,
+explicit, testable seams. Each module owns and migrates its own schema.
+
+### D3: Auth module — pluggable verifiers + backend-issued internal tokens
+Authentication is split into three concerns:
+- **`platform`** owns the cross-cutting pieces: the **internal-token interceptor**
+  (validates the backend's own access token on every protected method and injects
+  `AuthIdentity { user_id, roles }`) and a role-based guard
+  (`require_role`/`is_admin`), the **JWT sign/verify codec** for those
+  internal tokens, an **OIDC/JWKS verification helper**, an **argon2id** password
+  hashing helper, and an **email-sender port** (for verification mail). Pure logic
+  (token claims, OIDC claim checks, password hashing inputs) lives in host-testable
+  `*_core` modules; network/IO (JWKS fetch, SMTP) is thin glue.
+- **`auth` module** owns the sign-in surface and credentials. It defines an
+  `IdentityVerifier` port with adapters per provider — `OidcJwtVerifier` (Google,
+  Apple; multi-issuer, selected by the token's `iss`) and a `LocalCredentialVerifier`
+  (email + argon2id password). The local **secret** lives in the auth schema
+  (`auth.local_credentials`: email, argon2id hash, `email_verified`, verification
+  token, password-reset token), so the user module never sees passwords.
+  `AuthService` exposes `SignUpLocal`, `VerifyEmail`, `ResendVerification`,
+  `SignInLocal`, `SignInOidc`, `Refresh`, `Logout`, `RequestPasswordReset`,
+  `ResetPassword`, `LinkIdentity`, and `UnlinkIdentity`. On any successful sign-in
+  it mints internal access + refresh tokens. Sign-in targets an **app audience**
+  (`music`/`live`, validated against a configured allow-list); the access token's
+  `aud` is set to that app and embeds the account's `user_id` plus the **effective
+  role set for that audience** (`global` + that app's scope). Provider tokens are
+  validated **only** at sign-in/link — never per request, and **roles are never
+  read from provider claims**.
+- **`user` module** owns the account aggregate. `auth` calls the **`user` port** to
+  resolve/provision an account by `(provider, subject)`, to link/list identities,
+  and to read the account's **roles for a given scope** (to stamp into the token);
+  it never touches the user schema. The role-based guard reads roles from the
+  validated token. Each product app validates Cymbra ID tokens at **its own**
+  audience and enforces its fine-grained domain authorization itself.
+
+**Why internal tokens.** Verifying provider tokens once (at login) and then issuing
+our own short-lived tokens decouples session lifetime from provider-token lifetime,
+gives one uniform validation path for every provider (local included), and makes
+adding a provider a verifier-only change. **Passwords:** the backend stores **no
+third-party passwords**; for the local provider it stores **only an argon2id hash**.
+
+**Auth flow (sequence diagrams).**
+
+Local sign-up + required email verification:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor U as User
+    participant App as Front App
+    participant Auth as Cymbra ID auth
+    participant Mail as Email sender
+    participant User as User module
+    U->>App: email + password
+    App->>Auth: SignUpLocal(email, password)
+    Auth->>Auth: hash argon2id, email_verified=false
+    Auth->>User: resolve_or_provision(local, email)
+    Auth->>Mail: send single-use verification token
+    Mail-->>U: email with link or code
+    U->>App: open verification link
+    App->>Auth: VerifyEmail(token)
+    Auth-->>App: email verified, sign-in allowed
+```
+
+Sign-in (OIDC or local) → audience-scoped tokens → protected call → refresh:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor U as User
+    participant App as Front App
+    participant IdP as OIDC Provider
+    participant Auth as Cymbra ID auth
+    participant Ver as IdentityVerifier
+    participant User as User module
+    participant DB as Postgres
+
+    Note over U,DB: A - OIDC sign-in (Google or Apple)
+    U->>App: Sign in with Google
+    App->>IdP: interactive OAuth/OIDC flow
+    IdP-->>App: ID token (signed JWT)
+    App->>Auth: SignInOidc(id_token, audience=music)
+    Auth->>Ver: verify(id_token)
+    Ver->>IdP: fetch JWKS (cached)
+    Ver-->>Auth: ExternalIdentity {provider, subject, claims}
+    Auth->>User: resolve_or_provision(provider, subject)
+    User->>DB: upsert users and user_identities
+    User-->>Auth: user_id and effective roles (scope=music)
+    Auth-->>App: access token (aud=music, roles) and refresh token
+
+    Note over U,DB: B - Local sign-in (email and password)
+    U->>App: email + password
+    App->>Auth: SignInLocal(email, password, audience=music)
+    Auth->>Ver: verify(email, password) argon2id + email_verified
+    Ver-->>Auth: ok or reject
+    Auth->>User: resolve_or_provision(local, email)
+    User-->>Auth: user_id and effective roles
+    Auth-->>App: access token and refresh token
+
+    Note over U,DB: C - Protected call (every request)
+    App->>Auth: RPC with metadata Bearer access token
+    Note right of Auth: interceptor validates the INTERNAL token (sig/aud/exp) and injects AuthIdentity
+    Auth-->>App: response, or UNAUTHENTICATED / PERMISSION_DENIED
+
+    Note over U,DB: D - Refresh (access token expired)
+    App->>Auth: Refresh(refresh_token, audience=music)
+    Auth->>User: re-read effective roles (scope=music)
+    Auth-->>App: new access token and rotated refresh token
+```
+
+### D4: Account + linked identities; explicit linking; optimistic concurrency
+All internal identifiers (`users.id`, `user_identities.id`, …) are **UUID v7** —
+time-ordered, generated app-side in Rust (`Uuid::now_v7()`), chosen over random v4
+for sequential-insert index locality in Postgres.
+
+The account aggregate lives in the `user_account` schema:
+- `users`: internal `id` (UUID v7), profile fields, preferences, `version`,
+  timestamps. **No provider columns and no role column here.**
+- `user_identities`: `id`, `user_id` → `users.id`, `provider`
+  (`local`/`google`/`apple`), `subject` (email for `local`, OIDC `sub` otherwise),
+  `linked_at`, with **`UNIQUE(provider, subject)`** — an identity belongs to exactly
+  one account. This 1→N model is what lets one account carry several providers.
+- `user_roles`: `user_id` → `users.id`, **`scope`** (`global`/`music`/`live`),
+  `role`, with **`UNIQUE(user_id, scope, role)`** — a user holds a **set of scoped
+  roles** (default `('global','user')` on provisioning). Roles are **independent of
+  identity** (same set whichever provider signs in) and **assigned server-side**,
+  never trusted from OIDC claims. `scope` is baked in now because Cymbra Live is
+  known to be coming — adding it later would be a painful migration. Role
+  assignment admin endpoints are out of scope; the data model + read + guard are
+  the scaffold.
+
+**Scoped roles in the audience token, trade-off.** At sign-in for audience X, the
+effective set (roles where `scope ∈ {global, X}`) is stamped into the short-lived
+access token, so the guard needs no per-request DB hit and only sees roles relevant
+to that app. A role change takes effect on the next token **refresh** (acceptable
+for a base); if immediate revocation is ever needed, the guard can fall back to a
+`user`-port lookup.
+
+**Entitlement seam (no implementation here).** A future `billing` module will own
+**entitlements** (durable, platform-agnostic rights: `Pro`, `Broadcaster`, packs),
+keyed by `user_id` and `scope`, granted by per-platform **`ReceiptVerifier`**
+adapters (App Store / Play / Stripe) + store webhooks — exactly mirroring the
+`IdentityVerifier`/dual-adapter pattern. Apps will read entitlements, never raw
+receipts. We bake nothing now beyond the shared `user_id` + `scope` conventions so
+that module drops in without reshaping identity or accounts.
+
+**Where purchase webhooks live (decided).** Purchases are *initiated* client-side
+in each app (native IAP — StoreKit / Play Billing), but receipt validation, the
+store **server-to-server webhooks** (App Store Server Notifications, Google Play
+RTDN, Stripe), and the entitlement store are owned by the **central `billing`
+module under Cymbra ID** — **not** by the Music/Live app backends. Rationale: a
+single source of truth for what a user owns (shared across apps and platforms); one
+webhook endpoint and one set of store secrets per store instead of duplicating them
+per app; and a single place to hold the `transaction_id → user_id` mapping that
+webhooks (which only carry a transaction id) need to resolve. The flow is: app →
+billing (receipt + `{scope, sku}` context) → `ReceiptVerifier` validates → grant
+entitlement `(user_id, scope, …)`; store webhooks → billing → update/revoke. The
+app's role is limited to **supplying the scope/SKU context and reading
+entitlements** (it never holds store credentials or receives webhooks). If
+RevenueCat (or similar) is adopted, it *is* this central layer: its webhook feeds
+billing, which only syncs entitlement state. Apps read entitlements either via a
+billing gRPC call (short-TTL cache) or via an `entitlements` claim in the Cymbra ID
+token (refreshed like roles, accepting bounded staleness).
+
+Provisioning creates a `users` row plus its first identity. **Linking is explicit**:
+an authenticated user attaches another identity to their *current* account; the
+uniqueness constraint rejects an identity already bound elsewhere. There is **no
+email-based auto-merge** (it is a known footgun, and Apple/relay emails make it
+unreliable). Account field updates use **optimistic concurrency**: a write commits
+only if the client `version` matches, else `ABORTED` with the current version
+(detection, not merge).
+
+### D5: OpenTelemetry traces + metrics + logs, Grafana stack
+Instrumentation uses the **`tracing` + `tracing-opentelemetry` + OpenTelemetry SDK
++ `opentelemetry-otlp`** path and covers **all three OTel signals**:
+- **Traces** — spans from `tracing`, exported over OTLP.
+- **Metrics** — RED (rate/errors/duration) **plus resource-consumption metrics**:
+  in-process **process CPU + resident memory** (`sysinfo`), **async-runtime
+  saturation** (`tokio-metrics`: task backlog, busy ratio), and **DB pool usage**
+  (SQLx in-use/idle), all as OTel metrics over OTLP. **Host-level** resource
+  metrics (CPU/mem/disk/net) come from the Collector's **hostmetrics receiver** —
+  no app code. Together these answer "how much is this instance consuming and where
+  is it saturating".
+- **Logs** — `tracing` stays the single logging API; an
+  **`opentelemetry-appender-tracing`** layer bridges `tracing` events into the
+  OpenTelemetry **Logs** SDK, exported over OTLP. Each log record carries the
+  current span's **`trace_id`/`span_id`**, so logs and traces are correlated. A
+  console layer (pretty in dev, JSON in prod) stays available in parallel; the OTLP
+  logs exporter is **disablable** like the others.
+
+So the same `tracing` call site feeds the local console *and* the OTel logs
+pipeline — no second logging framework. Endpoint and sampling are configurable, and
+all exporters are disablable for tests/offline runs.
+
+The local **Grafana stack** (docker-compose) is: **OpenTelemetry Collector**
+(receives OTLP, fans out) → **Tempo** (traces) + **Prometheus** (metrics) +
+**Loki** (logs) → **Grafana** (dashboards/explore), with pre-provisioned
+datasources and **trace↔logs correlation** wired (Tempo "trace to logs" and Loki's
+derived field on `trace_id`) so you can jump from a span to its logs and back.
+**Technical docs** explain starting the stack, pointing the backend's OTLP endpoint
+at it, and finding a request's trace, metrics, and correlated logs in Grafana.
+- *Alternative*: logs-only/ad-hoc tracing — rejected; OTel is the portable
+  standard and the Grafana stack makes traces usable from day one without lock-in.
+- Telemetry **must not** carry bearer tokens, secrets, or raw PII (enforced by
+  redaction + reviewed span attributes).
+
+### D6: Testability seam mirroring the client convention
+Pure logic — claim validation, version/conflict checks, request→domain mapping —
+lives in `*_core.rs` modules *within each module crate* with unit tests. I/O
+(tonic adapters, SQLx, JWKS HTTP, OTLP export) is thin glue excluded from the
+coverage gate, exactly as `midi.rs`/`audio.rs` glue is on the client. Ports/traits
+let each module be unit-tested in isolation with fakes (incl. a fake email-sender
+and a fake `user` port for the auth module); integration tests run against
+docker-compose Postgres + mock OIDC + Mailpit.
+
+### D7: Workspace placement and CI
+Add `platform`, `server`, and the two module pairs `auth-port`/`auth` and
+`user-port`/`user` as new workspace members under a `backend/` (or `crates/`)
+directory (final name in Open Questions). CI builds,
+`fmt`/`clippy`s, and tests the backend, and runs `cargo llvm-cov` with the ≥80%
+gate, ignoring generated proto code and thin I/O glue. Boundaries are kept honest
+by **two complementary mechanisms**: (1) at compile time, a dependency-graph check
+(consumers depend on `-port` only; no impl→impl dependency) fails the build on
+violation; (2) at runtime, per-module Postgres roles make cross-schema access fail
+in the database itself.
+
+### D8: Pragmatic hexagonal — ports at the seams, not everywhere
+The design is ports-and-adapters (hexagonal): a pure **domain core** per module,
+surrounded by **ports** (traits) and **adapters** (impls). We adopt it
+**pragmatically**, not dogmatically, because the strict onion's main cost — mapping
+fatigue across domain ↔ DB row ↔ protobuf ↔ DTO — is real and adds no value on
+trivial CRUD.
+
+**Introduce a port only when at least one holds:**
+1. there are (or will be) **multiple adapters** — `IdentityVerifier` (Google/Apple/
+   local, later Facebook), the future `ReceiptVerifier` (App Store/Play/Stripe), and
+   the **direct vs gRPC-client** pair on each module surface;
+2. it is a **module boundary** — the `user` port consumed by `auth`;
+3. it is **external I/O we fake in tests** — email-sender, object-store (future),
+   the repositories.
+
+**Do NOT add a port for:** pure internal helpers (`token_core`, `version_core`,
+`oidc_core`, key derivation) — test them directly; or single-implementation trivial
+infra that will never be swapped or faked.
+
+**Two non-negotiables / shortcuts that cut ~80% of the boilerplate:**
+- The **domain core stays pure** — no `sqlx`/`tonic`/`prost` types leak into it.
+  This is what makes everything host-testable; it is not optional.
+- But **protobuf mapping lives only in the gRPC adapter**, and the **repository
+  returns domain types directly** (no separate DAO layer) — so each concept has at
+  most **two** representations (domain + wire/row), not four.
+
+**Sub-decision — dispatch: `dyn` over generics.** Ports are injected as
+`Arc<dyn Port>` (trait objects via `#[async_trait]`), chosen over generic type
+parameters: the composition root swaps a direct adapter for a gRPC client without
+making every consuming type generic (`Auth<U: UserPort>` propagating params
+everywhere). Cost is dynamic dispatch + boxing, negligible against DB/network
+latency. Constraint this imposes: **ports must stay object-safe** (no generic
+methods, no `Self`-returning methods) — a cheap rule to follow.
+
+**Ports & adapters map (driving side → core → driven side):**
+
+```mermaid
+flowchart LR
+    subgraph PRIM [Driving side primary adapters]
+        APP["Flutter apps, Music and Live"]
+        ITC["Internal-token interceptor, platform"]
+        ASRV["AuthService gRPC server adapter"]
+        USRV["UserService gRPC server adapter"]
+    end
+
+    subgraph CORE [Domain core pure no SQLx or tonic]
+        AD["auth domain: signup, verify, signin, link, issue tokens"]
+        UD["user domain: account, identities, scoped roles, version"]
+    end
+
+    subgraph DRIV [Driven side secondary adapters]
+        OIDC["OidcJwtVerifier"]
+        LOCAL["LocalCredentialVerifier argon2id"]
+        SMTP["SMTP email adapter"]
+        ASQL["SQLx auth repo"]
+        USQL["SQLx user repo"]
+        UDIR["User port direct adapter"]
+    end
+
+    subgraph EXT [External systems]
+        IDP["Google and Apple JWKS"]
+        MAIL["SMTP server or Mailpit"]
+        PG["Postgres: schemas auth and user_account"]
+    end
+
+    APP -->|sign up or sign in| ASRV
+    APP -->|Bearer token| ITC
+    ITC --> USRV
+    ITC -->|protected methods| ASRV
+
+    ASRV -->|Auth port| AD
+    USRV -->|User port| UD
+
+    AD -->|IdentityVerifier port| OIDC
+    AD -->|IdentityVerifier port| LOCAL
+    AD -->|Email sender port| SMTP
+    AD -->|Auth repo port| ASQL
+    AD -->|User port| UDIR
+    UDIR --> UD
+    UD -->|User repo port| USQL
+
+    OIDC --> IDP
+    LOCAL --> ASQL
+    SMTP --> MAIL
+    ASQL --> PG
+    USQL --> PG
+```
+
+Reading it: every arrow **labelled `... port`** is a port (a trait crossing the core
+boundary); the boxes in the outer columns are **adapters**. `AD -->|User port| UDIR
+--> UD` is the **cross-module** call (`auth` → `user`) through the direct adapter —
+swap `UDIR` for a gRPC client adapter and `user` is extracted, untouched.
+
+### D9: Token signing (asymmetric + JWKS), sessions & limits in Redis
+Because Cymbra ID tokens are consumed by **separate services** (Music, Live), the
+internal access token is signed with an **asymmetric** key (EdDSA/Ed25519 preferred
+for compactness, RS256 acceptable), `kid` in the header, and the **public keys are
+published at a JWKS endpoint** (`/.well-known/jwks.json` over the Axum surface, D1).
+Downstream apps fetch and **cache** the JWKS and validate tokens **offline** — they
+never call Cymbra ID per request, which is what keeps it from being spammed. A
+symmetric HS256 secret is rejected here: sharing it across services is a security
+liability. Multiple active `kid`s allow **key rotation** without invalidating live
+tokens.
+
+**Redis** is the store for *ephemeral auth state* (alongside Postgres for durable
+data):
+- **Refresh tokens / sessions** — rotation with **reuse detection**: a refresh
+  token is one-time; replay of a rotated token revokes the whole session family.
+  TTLs and revocation (logout, revoke-all-on-reset) are natural in Redis.
+- **Rate-limiting / lockout** — counters for local sign-in attempts and email sends
+  (verification, reset), shared across instances so limits hold horizontally.
+
+**Token lifetimes & offline behaviour.** Access tokens are **short (~15 min)** so
+that offline-validated tokens and revocation have a small window; refresh tokens are
+**long and sliding (~30 days)** — the refresh token is the real session length.
+Losing connectivity does **not** sign a user out: the app's standalone mode keeps
+working locally with no server at all, and on reconnect the client **silently
+exchanges the refresh token for a new access token** (no credential re-entry).
+Re-authentication is required only when the refresh token **expires** (≈30 days of
+inactivity) or is **revoked** (logout / ban / password reset).
+
+**One login per app (decided).** Sessions are **per-app**: each session/refresh
+token is bound to a single audience, `SignIn` carries the audience, and `Refresh`
+**derives it from the session** (no audience parameter on refresh). The backend
+never shares or copies a token between apps, and there is **no cross-app SSO** in
+this base — a user signs in to Cymbra Music and to Cymbra Live **independently
+(one login per app)**. The **only** shared thing is the account (same `user_id`,
+roles, future entitlements), resolved server-side regardless of which app
+authenticated. Cross-app single sign-on (provider one-tap, or a shared-keychain
+bootstrap for local accounts) is a **future client-side** improvement, out of scope.
+
+This resolves the earlier open questions (access TTL ~15 min, refresh ~30 days
+sliding; refresh storage = Redis; signing = asymmetric + JWKS; a plain-HTTP endpoint
+*is* needed — for JWKS; one login per app, audience-bound sessions).
+
+**Local-auth hardening (D3 detail):** a configurable **password policy** at sign-up
+and reset; **rate-limit + temporary lockout** on sign-in; **throttled** verification/
+reset emails; password reset and verification tokens **single-use + expiring**; the
+reset *request* flow avoids **account enumeration** (uniform response). `Logout` and
+`UnlinkIdentity` round out the lifecycle; unlinking the **last** identity is refused
+(lock-out guard).
+
+**Apple specifics to plan for:** Sign in with Apple needs a **client secret that is
+a JWT signed with a `.p8` key, expiring ≤ 6 months** (must be regenerated on a
+schedule); the email is often a **private relay**; the user's name is returned
+**only on the first authorization** (capture it then). These are handled inside the
+`OidcJwtVerifier`/Apple adapter and config, not in the domain.
+
+## Risks / Trade-offs
+
+- **gRPC-only excludes browsers / simple curl testing** → Mitigate with grpcurl +
+  reflection in dev; revisit grpc-web/REST gateway when a web client appears.
+- **Up-front modularity adds boilerplate for one module** → Worth it: this change
+  *is* the base/template; the port + dual-adapter pattern is demonstrated once on
+  `user` and copied for the future `files` module instead of being retrofitted.
+- **Stale-write rejection pushes conflict resolution to the client** → Acceptable
+  for a base; documented in the contract.
+- **JWKS fetch is a network dependency on the IdP** → Cache keys with TTL, tolerate
+  transient IdP outages for cached keys, fail closed for unknown key ids.
+- **Local passwords are a credential store to protect** → argon2id with sound
+  parameters, hashes only (never clear text), kept in the `auth` schema isolated by
+  role; never logged or put in telemetry. Sign-in rate-limited + locked out; reset
+  flow avoids account enumeration.
+- **Tokens consumed by other services** → asymmetric signing + published JWKS so
+  apps validate offline (no per-request call to Cymbra ID); never a shared HS256
+  secret; `kid` + multiple active keys for rotation.
+- **Stolen refresh token** → one-time refresh with reuse detection: replay revokes
+  the whole session family; logout + revoke-all (on reset) supported via Redis.
+- **Redis as an added dependency** → used only for ephemeral auth state (sessions,
+  rate-limit counters); readiness reflects it, and it is a standard, lightweight
+  local-compose service.
+- **Email verification adds an email-delivery dependency** → Behind an email-sender
+  port; Mailpit in local dev, SMTP/provider in prod; verification tokens are
+  single-use and expiring.
+- **Account isolation bugs are high-impact** → Enforce owner scoping in one place
+  (the user repository), cover with tests asserting cross-user access is denied.
+- **Observability stack adds local-dev weight** → It's opt-in (compose profile)
+  and telemetry export is disablable, so the backend runs fine without it.
+- **Telemetry can leak secrets/PII** → Redact tokens, review span attributes, and
+  assert in tests that no token/secret appears in emitted telemetry.
+- **Scope creep** → Keep admin to the RBAC scaffold and resist adding files/S3 now;
+  the seam is designed in, the implementation is deferred.
+
+## Migration Plan
+
+This is additive — no existing data or client behavior changes.
+
+1. Land the backend crates behind no client wiring; deploy is independent of the app.
+2. Stand up Postgres + Redis + an SMTP sender + register the Google/Apple OIDC
+   clients + generate the asymmetric signing keypair (publish its JWKS); run
+   migrations on boot.
+3. (Optional) Start the observability stack and point the OTLP endpoint at it.
+4. Smoke-test with grpcurl against staging (local sign-up + verify + sign-in, OIDC
+   sign-in, refresh, logout, password reset, link/unlink, account get/update/delete);
+   confirm a downstream service can validate a token via the JWKS endpoint.
+5. Client integration ships as a separate change once the contract is stable.
+
+**Rollback**: the service is standalone and unreferenced by the shipped app;
+rolling back is decommissioning the deployment and (optionally) dropping its
+database. No client rollback needed.
+
+## Open Questions
+
+- Final crate/package names and directory (`backend/<crate>` vs `crates/<crate>`).
+- Concrete `iss`/`aud` values per environment for Google and Apple (Apple
+  client-secret `.p8` rotation, private-relay email, first-auth-only name are
+  decided in D9; the env values remain to fill in).
+- Internal-token tuning: access-token TTL, refresh TTL, exact signing-key rotation
+  cadence (mechanism decided in D9: asymmetric + JWKS + Redis-backed refresh).
+- **Account deletion (GDPR erasure)** — in scope, but the exact erasure semantics
+  (hard delete vs tombstone, what auth purges, grace period) are finalized during
+  implementation.
+- App audience is a **config allow-list** (`music`/`live`) with **one login per app
+  and audience-bound sessions** (decided — no multi-audience mint, no token sharing).
+  Per-app OAuth `client_id`s and app attestation (Apple App Attest / Play Integrity)
+  are future hardening, not needed for the base.
+- The future `billing` module (webhook ownership already decided: central under
+  Cymbra ID): build in-house store integrations vs use RevenueCat (or similar) for
+  cross-platform entitlements; how apps read entitlements (billing gRPC call vs an
+  `entitlements` token claim); and the product/store-compliance policy for sharing
+  a purchase between Music and Live (shared account-level entitlement vs distinct
+  SKUs, family sharing).
+- Whether to expose a plain-HTTP `/healthz` (for L7 load balancers) in addition to
+  the gRPC Health service.
+- Proto package/versioning convention (e.g. `cymbra.user.v1`) and where generated
+  Dart bindings will live for the future client change.
+- Observability log retention/volume tuning (sampling, level filters, Loki
+  retention) — the base ships all three signals (traces, metrics, logs via Loki);
+  production retention/cost knobs are still to set.
+- Whether account-update conflict handling needs field-level merge later, or
+  whole-record optimistic concurrency is sufficient long-term.
