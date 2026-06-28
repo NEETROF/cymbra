@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.0](https://github.com/NEETROF/cymbra/compare/music-v1.2.0...music-v1.3.0) (2026-06-28)
+
+
+### Features
+
+* **player:** playback metronome (+ staff measure-bar fix) ([#28](https://github.com/NEETROF/cymbra/issues/28)) ([18bb8ea](https://github.com/NEETROF/cymbra/commit/18bb8ea2b635dbe39090a50b62757883d128a597))
+
 ## [1.2.0](https://github.com/NEETROF/cymbra/compare/music-v1.1.1...music-v1.2.0) (2026-06-26)
 
 
