@@ -184,6 +184,58 @@ void main() {
       expect(c.read(sessionNotifierProvider), isA<SessionUnauthenticated>());
     });
 
+    test(
+      'abandonOnboarding deletes a brand-new (handle-less) account',
+      () async {
+        final store = FakeTokenStore(
+          tokens: const StoredTokens(accessToken: 'a', refreshToken: 'r'),
+        );
+        final acct = FakeAccountService(account: account(handle: null));
+        final c = makeContainer(store: store, account: acct);
+        c.read(sessionNotifierProvider);
+        await pumpEventQueue();
+
+        await c.read(sessionNotifierProvider.notifier).abandonOnboarding();
+        expect(acct.calls, contains('deleteAccount'));
+        expect(store.tokens, isNull);
+        expect(c.read(sessionNotifierProvider), isA<SessionUnauthenticated>());
+      },
+    );
+
+    test('abandonOnboarding only signs out an account with a handle', () async {
+      final store = FakeTokenStore(
+        tokens: const StoredTokens(accessToken: 'a', refreshToken: 'r'),
+      );
+      final auth = FakeAuthService();
+      final acct = FakeAccountService(account: account(handle: 'alice'));
+      final c = makeContainer(store: store, auth: auth, account: acct);
+      c.read(sessionNotifierProvider);
+      await pumpEventQueue();
+
+      await c.read(sessionNotifierProvider.notifier).abandonOnboarding();
+      expect(acct.calls, isNot(contains('deleteAccount')));
+      expect(auth.calls, contains('logout:r'));
+      expect(c.read(sessionNotifierProvider), isA<SessionUnauthenticated>());
+    });
+
+    test('abandonOnboarding clears locally even if delete fails', () async {
+      final store = FakeTokenStore(
+        tokens: const StoredTokens(accessToken: 'a', refreshToken: 'r'),
+      );
+      final acct = FakeAccountService(
+        account: account(handle: null),
+        deleteError: const AuthException(AuthError.unavailable),
+      );
+      final c = makeContainer(store: store, account: acct);
+      c.read(sessionNotifierProvider);
+      await pumpEventQueue();
+
+      await c.read(sessionNotifierProvider.notifier).abandonOnboarding();
+      expect(acct.calls, contains('deleteAccount'));
+      expect(store.tokens, isNull); // local session cleared regardless
+      expect(c.read(sessionNotifierProvider), isA<SessionUnauthenticated>());
+    });
+
     test('signOut while offline still clears the local session', () async {
       final store = FakeTokenStore(
         tokens: const StoredTokens(accessToken: 'a', refreshToken: 'r'),

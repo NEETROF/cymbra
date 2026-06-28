@@ -234,6 +234,17 @@ impl UserRepo for PgUserRepo {
         Ok(())
     }
 
+    async fn delete_orphans_before(&self, cutoff_unix: i64) -> Result<u64> {
+        // Mirrors reaper_core::reapable: no handle AND created before the cutoff.
+        let res =
+            sqlx::query("DELETE FROM users WHERE handle IS NULL AND created_at < to_timestamp($1)")
+                .bind(cutoff_unix)
+                .execute(&self.pool)
+                .await
+                .map_err(internal)?;
+        Ok(res.rows_affected())
+    }
+
     async fn roles_for_scope(&self, user_id: &str, scopes: &[&str]) -> Result<Vec<String>> {
         let scope_vec: Vec<String> = scopes.iter().map(|s| s.to_string()).collect();
         let rows =

@@ -31,6 +31,11 @@ pub struct Config {
     pub reset_ttl: Duration,
     /// Trusted OIDC providers (Google/Apple) — empty entries omitted.
     pub oidc_providers: Vec<OidcProvider>,
+    /// Grace before a handle-less account is reaped as an orphan; zero disables
+    /// the reaper entirely.
+    pub orphan_reap_grace: Duration,
+    /// How often the orphan reaper runs (ignored when the grace is zero).
+    pub orphan_reap_interval: Duration,
     pub otlp_endpoint: Option<String>,
     pub otlp_enabled: bool,
 }
@@ -94,6 +99,8 @@ pub mod config_core {
             verify_ttl: dur(m, "CYMBRA_VERIFY_TOKEN_TTL", "24h")?,
             reset_ttl: dur(m, "CYMBRA_RESET_TOKEN_TTL", "1h")?,
             oidc_providers: oidc_providers(m),
+            orphan_reap_grace: dur(m, "CYMBRA_ORPHAN_REAP_GRACE", "24h")?,
+            orphan_reap_interval: dur(m, "CYMBRA_ORPHAN_REAP_INTERVAL", "1h")?,
             otlp_endpoint: m.get("CYMBRA_OTLP_ENDPOINT").cloned(),
             otlp_enabled: flag(m, "CYMBRA_OTLP_ENABLED", false),
         })
@@ -228,6 +235,18 @@ mod tests {
         let mut m = base();
         m.insert("CYMBRA_ACCESS_TOKEN_TTL".into(), "soon".into());
         assert!(matches!(config_core::parse(&m), Err(AppError::Config(_))));
+    }
+
+    #[test]
+    fn orphan_reaper_defaults_and_disable() {
+        let c = config_core::parse(&base()).unwrap();
+        assert_eq!(c.orphan_reap_grace, Duration::from_secs(24 * 3600));
+        assert_eq!(c.orphan_reap_interval, Duration::from_secs(3600));
+
+        let mut m = base();
+        m.insert("CYMBRA_ORPHAN_REAP_GRACE".into(), "0s".into());
+        let c = config_core::parse(&m).unwrap();
+        assert!(c.orphan_reap_grace.is_zero()); // disables the reaper
     }
 
     #[test]

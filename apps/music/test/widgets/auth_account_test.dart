@@ -140,6 +140,37 @@ void main() {
 
       expect(find.textContaining('is taken'), findsOneWidget);
     });
+
+    testWidgets('offers an escape even with no valid handle entered', (
+      tester,
+    ) async {
+      await pumpOnboarding(
+        tester,
+        FakeAccountService(account: fakeAccount(handle: null)),
+      );
+      // Continue is disabled (empty field) but the escape is still available.
+      expect(
+        tester
+            .widget<FilledButton>(find.byKey(const Key('handle-commit')))
+            .onPressed,
+        isNull,
+      );
+      expect(find.byKey(const Key('handle-abandon')), findsOneWidget);
+    });
+
+    testWidgets('escape discards a brand-new account and returns to entry', (
+      tester,
+    ) async {
+      final account = FakeAccountService(account: fakeAccount(handle: null));
+      final c = await pumpOnboarding(tester, account);
+
+      await tester.tap(find.byKey(const Key('handle-abandon')));
+      await tester.pump();
+      await tester.pump();
+
+      expect(account.calls, contains('deleteAccount'));
+      expect(c.read(sessionNotifierProvider), isA<SessionUnauthenticated>());
+    });
   });
 
   group('Account menu (tasks 4.3/7.3)', () {

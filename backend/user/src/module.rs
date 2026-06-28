@@ -16,6 +16,14 @@ impl<R: UserRepo> UserModule<R> {
     pub fn new(repo: R) -> Self {
         Self { repo }
     }
+
+    /// Purge handle-less accounts older than `grace_secs` (orphans left by
+    /// abandoned onboarding). `now_unix` is injected so the policy is testable.
+    /// Returns the number of accounts purged.
+    pub async fn reap_orphans(&self, now_unix: i64, grace_secs: i64) -> Result<u64> {
+        let cutoff = crate::reaper_core::cutoff(now_unix, grace_secs);
+        self.repo.delete_orphans_before(cutoff).await
+    }
 }
 
 #[async_trait]
@@ -167,6 +175,33 @@ mod tests {
             Err(AppError::NotFound(_))
         ));
         assert!(m.effective_roles(&a, "music").await.unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn reap_purges_only_old_handle_less_accounts() {
+        let m = module();
+        // Old, no handle → reaped.
+        let old = m.resolve_or_provision("google", "old").await.unwrap();
+        m.repo.set_created_at(&old, 100);
+        // Recent, no handle → kept.
+        let recent = m.resolve_or_provision("google", "recent").await.unwrap();
+        m.repo.set_created_at(&recent, 5_000);
+        // Old but onboarded (has a handle) → kept.
+        let onboarded = m.resolve_or_provision("google", "named").await.unwrap();
+        m.repo.set_created_at(&onboarded, 100);
+        m.update_account(&onboarded, None, Some("Alice".into()), "{}", 1)
+            .await
+            .unwrap();
+
+        // now=2000, grace=1000 → cutoff=1000; only `old` (created 100) qualifies.
+        let purged = m.reap_orphans(2_000, 1_000).await.unwrap();
+        assert_eq!(purged, 1);
+        assert!(matches!(
+            m.get_account(&old).await,
+            Err(AppError::NotFound(_))
+        ));
+        assert!(m.get_account(&recent).await.is_ok());
+        assert!(m.get_account(&onboarded).await.is_ok());
     }
 
     #[tokio::test]

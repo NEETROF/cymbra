@@ -125,6 +125,29 @@ class SessionNotifier extends _$SessionNotifier {
     await _tokens.clear();
     state = const SessionState.unauthenticated();
   }
+
+  /// Leave an in-progress sign-in from the handle gate. A **brand-new** account
+  /// (just provisioned, no handle yet) is deleted so it does not linger as an
+  /// orphan; an established account (already has a handle) is only signed out.
+  /// The local session is cleared regardless — even if the backend call cannot
+  /// be reached (offline), the server-side reaper purges any orphan left behind.
+  Future<void> abandonOnboarding() async {
+    final session = state;
+    final brandNew =
+        session is SessionAuthenticated &&
+        (session.account?.needsHandle ?? false);
+    if (!brandNew) {
+      await signOut();
+      return;
+    }
+    try {
+      await _account.deleteAccount();
+    } catch (_) {
+      // Best-effort: leave even if DeleteAccount can't reach the backend.
+    }
+    await _tokens.clear();
+    state = const SessionState.unauthenticated();
+  }
 }
 
 /// Whether the current session is a guest (spec: guest gating). Online-bound

@@ -89,6 +89,18 @@ class _HandleOnboardingScreenState
     });
   }
 
+  /// Always-available escape from the gate (spec: "the handle gate is always
+  /// escapable"). Discards a just-created account or signs an existing user out;
+  /// either way the gate re-routes to the entry screen.
+  Future<void> _abandon() async {
+    setState(() => _busy = true);
+    try {
+      await ref.read(sessionNotifierProvider.notifier).abandonOnboarding();
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   Future<void> _commit() async {
     final handle = _handle.text.trim();
     if (_status != _HandleStatus.available) return;
@@ -183,6 +195,12 @@ class _HandleOnboardingScreenState
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
               : const Text('Continue'),
+        ),
+        const SizedBox(height: 8),
+        TextButton(
+          key: const Key('handle-abandon'),
+          onPressed: _busy ? null : _abandon,
+          child: const Text('Use a different account'),
         ),
       ],
     );

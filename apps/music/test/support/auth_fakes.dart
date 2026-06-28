@@ -145,6 +145,7 @@ class FakeAccountService implements AccountService {
   Set<String> takenHandles;
   AuthException? getError;
   AuthException? updateError;
+  AuthException? deleteError;
 
   final List<String> calls = [];
 
@@ -153,6 +154,7 @@ class FakeAccountService implements AccountService {
     Set<String>? takenHandles,
     this.getError,
     this.updateError,
+    this.deleteError,
   }) : takenHandles = takenHandles ?? <String>{};
 
   @override
@@ -191,6 +193,7 @@ class FakeAccountService implements AccountService {
   @override
   Future<void> deleteAccount() async {
     calls.add('deleteAccount');
+    if (deleteError != null) throw deleteError!;
     account = null;
   }
 }
