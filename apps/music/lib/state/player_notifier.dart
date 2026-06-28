@@ -255,6 +255,12 @@ class Player extends _$Player {
     state = state.copyWith(waitMode: !state.waitMode, gateSatisfied: const {});
   }
 
+  /// Toggles the metronome on/off (driven by the header Tempo chip). A plain
+  /// preference flip: it persists across pause/stop and across score changes, and
+  /// ticks resume on the next beat boundary once playback runs again.
+  void toggleMetronome() =>
+      state = state.copyWith(metronomeEnabled: !state.metronomeEnabled);
+
   void setSpeed(double s) => state = state.copyWith(speed: s.clamp(0.25, 2.0));
   void setKeyboardRange(KeyboardRangeMode m) =>
       state = state.copyWith(keyboardRange: m);
@@ -314,12 +320,37 @@ class Player extends _$Player {
       _applyScoreAudio(s, s.elapsedMs, next);
     }
 
+    // Metronome: click + pulse on each beat boundary the playhead crosses. Skipped
+    // on a loop wrap (no tick across the seam) and naturally silent while paused
+    // (the early return above) or frozen in Wait Mode (next == elapsedMs yields no
+    // beats). Beats are positional — derived from the score timing each frame — so
+    // a seek/restart simply resumes on the next real boundary with no extra tick.
+    var beatCount = s.beatCount;
+    var lastBeatAccent = s.lastBeatAccent;
+    if (!loop && s.metronomeEnabled) {
+      final crossed = metronomeBeatsCrossed(
+        measureStartMs: s.measureStartMs,
+        beats: s.beats,
+        bpm: s.bpm,
+        songEndMs: s.songEndMs,
+        from: s.elapsedMs,
+        to: next,
+      );
+      for (final beat in crossed) {
+        _audio.metronomeClick(accent: beat.accent);
+        beatCount++;
+        lastBeatAccent = beat.accent;
+      }
+    }
+
     // Leaving the satisfied onset (or looping) re-arms the gate for the next one.
     final leftOnset = onset.isNotEmpty && next != s.elapsedMs;
     state = s.copyWith(
       elapsedMs: next,
       blocked: false,
       gateSatisfied: (leftOnset || loop) ? const {} : s.gateSatisfied,
+      beatCount: beatCount,
+      lastBeatAccent: lastBeatAccent,
     );
   }
 }

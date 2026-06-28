@@ -47,6 +47,9 @@ pub(crate) enum AudioEvent {
     NoteOff { pitch: u8 },
     /// Release every sounding voice (stop/restart/seek/loop).
     AllOff,
+    /// Sound a one-shot metronome click. `accent` marks the downbeat (higher and
+    /// louder). Self-terminating — no matching release event.
+    Click { accent: bool },
 }
 
 impl AudioEvent {
@@ -117,7 +120,100 @@ impl VoiceTracker {
                 }
             }
             AudioEvent::AllOff => std::mem::take(&mut self.active),
+            // The metronome click is not a tracked piano voice (it is mixed in
+            // separately and decays on its own), so it releases nothing here.
+            AudioEvent::Click { .. } => Vec::new(),
         }
+    }
+}
+
+/// Metronome click tone frequencies (Hz). The accented downbeat is pitched higher
+/// than a normal beat so the start of the measure is audible.
+pub(crate) const CLICK_FREQ_NORMAL: f32 = 1000.0;
+pub(crate) const CLICK_FREQ_ACCENT: f32 = 1500.0;
+
+/// Peak amplitudes for the click envelope; the accent is a touch louder as well
+/// as higher in pitch.
+pub(crate) const CLICK_AMP_NORMAL: f32 = 0.25;
+pub(crate) const CLICK_AMP_ACCENT: f32 = 0.40;
+
+/// Click length in seconds — short and percussive, so it self-terminates well
+/// within a beat at any musical tempo.
+pub(crate) const CLICK_SECS: f32 = 0.035;
+
+/// A one-shot, self-terminating metronome click — an enveloped sine burst that
+/// the audio thread mixes into its output **independently of the SoundFont**, so
+/// a beat sounds without using a piano voice and is unmistakably distinct from the
+/// music. Accent (downbeat) clicks are higher in pitch and amplitude than normal
+/// beats.
+///
+/// Pure DSP with no device/synth dependency, so it is host-testable (and counted
+/// by `cargo llvm-cov`); `audio.rs` only owns the mixing into the cpal buffer.
+#[frb(ignore)]
+#[derive(Debug, Clone)]
+pub(crate) struct ClickVoice {
+    /// Samples still to emit (counts down to 0, then the voice is inactive).
+    remaining: u32,
+    /// Total samples in the click, for the decay envelope.
+    total: u32,
+    /// Sine phase in radians.
+    phase: f32,
+    /// Phase increment per sample (`2π·f / sample_rate`).
+    phase_inc: f32,
+    /// Peak amplitude.
+    amplitude: f32,
+}
+
+impl ClickVoice {
+    /// Builds a click for the given `accent` at `sample_rate` Hz. A non-positive
+    /// sample rate falls back to 44.1 kHz so the voice is always well-formed.
+    pub(crate) fn new(accent: bool, sample_rate: f32) -> ClickVoice {
+        let sample_rate = if sample_rate > 0.0 {
+            sample_rate
+        } else {
+            44_100.0
+        };
+        let freq = if accent {
+            CLICK_FREQ_ACCENT
+        } else {
+            CLICK_FREQ_NORMAL
+        };
+        let amplitude = if accent {
+            CLICK_AMP_ACCENT
+        } else {
+            CLICK_AMP_NORMAL
+        };
+        let total = ((CLICK_SECS * sample_rate).round() as u32).max(1);
+        ClickVoice {
+            remaining: total,
+            total,
+            phase: 0.0,
+            phase_inc: std::f32::consts::TAU * freq / sample_rate,
+            amplitude,
+        }
+    }
+
+    /// Next mono sample of the click, advancing its envelope. Returns `0.0` once
+    /// the click has finished (and on every later call), so it leaves no hanging
+    /// voice.
+    pub(crate) fn next_sample(&mut self) -> f32 {
+        if self.remaining == 0 {
+            return 0.0;
+        }
+        // Linear decay (fast, percussive): 1.0 at onset → ~0.0 at the end.
+        let envelope = self.remaining as f32 / self.total as f32;
+        let value = self.amplitude * envelope * self.phase.sin();
+        self.phase += self.phase_inc;
+        if self.phase >= std::f32::consts::TAU {
+            self.phase -= std::f32::consts::TAU;
+        }
+        self.remaining -= 1;
+        value
+    }
+
+    /// Whether the click still has samples to emit.
+    pub(crate) fn is_active(&self) -> bool {
+        self.remaining > 0
     }
 }
 
@@ -234,5 +330,65 @@ mod tests {
         }
         // 60 was switched off; 64 and 67 remain.
         assert_eq!(held(&mut v), vec![64, 67]);
+    }
+
+    #[test]
+    fn click_event_releases_no_voice() {
+        // A click is mixed in separately, not tracked as a piano voice, so it must
+        // never release one (and must not disturb the held set).
+        let mut v = VoiceTracker::new();
+        v.apply(AudioEvent::note_on(60, 100));
+        assert!(v.apply(AudioEvent::Click { accent: true }).is_empty());
+        assert_eq!(held(&mut v), vec![60]);
+    }
+
+    /// Total energy of a freshly built click, rendered to completion.
+    fn click_energy(accent: bool, sample_rate: f32) -> f32 {
+        let mut c = ClickVoice::new(accent, sample_rate);
+        let mut energy = 0.0;
+        while c.is_active() {
+            let s = c.next_sample();
+            energy += s * s;
+        }
+        energy
+    }
+
+    #[test]
+    fn click_is_audible() {
+        // A normal-beat click renders non-silent audio.
+        assert!(click_energy(false, 44_100.0) > 0.0);
+    }
+
+    #[test]
+    fn accent_click_is_louder_than_normal() {
+        // The downbeat must be audibly distinct: more energy than a normal beat.
+        let accent = click_energy(true, 44_100.0);
+        let normal = click_energy(false, 44_100.0);
+        assert!(
+            accent > normal,
+            "accent energy {accent} should exceed normal {normal}"
+        );
+    }
+
+    #[test]
+    fn click_self_terminates_and_stays_silent() {
+        let mut c = ClickVoice::new(false, 44_100.0);
+        // Drain exactly the click's length.
+        for _ in 0..(CLICK_SECS * 44_100.0).round() as u32 {
+            c.next_sample();
+        }
+        assert!(!c.is_active());
+        // Every later call is a silent no-op — no panic, no hanging voice.
+        assert_eq!(c.next_sample(), 0.0);
+        assert_eq!(c.next_sample(), 0.0);
+    }
+
+    #[test]
+    fn click_handles_nonpositive_sample_rate() {
+        // A degenerate sample rate falls back rather than producing an empty or
+        // NaN-laden voice.
+        let mut c = ClickVoice::new(true, 0.0);
+        assert!(c.is_active());
+        assert!(c.next_sample().is_finite());
     }
 }
