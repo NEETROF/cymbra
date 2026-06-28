@@ -69,7 +69,15 @@ cd apps/music && flutter test --coverage --exclude-tags golden   # then check lc
   from the cross-platform gate. Refresh on a pinned platform with
   `flutter test --tags golden --update-goldens`.
 - **Integration** (`apps/music/integration_test/`): drive the real app + FFI.
-  Local: `flutter test integration_test -d macos`. CI: Linux desktop under Xvfb.
+  Headless pass/fail: `melos run integration` (`flutter test integration_test -d
+  macos`; CI: Linux desktop under Xvfb). To **watch** the app being driven, run
+  `melos run integration-watch` — it uses `flutter drive` on a **visible iOS
+  simulator** (boot one first, `open -a Simulator`) with ~1.2s pauses between
+  steps. macOS *desktop* renders a black window under the integration_test
+  binding, so it can't be watched — use a simulator. The pause is the optional
+  `--dart-define=WATCH_MS=<ms>` (0 in CI, so the gate stays fast). The test uses
+  its own MusicXML fixture (`integration_test/support/fixture_score.dart`), not
+  the shipping scores.
 
 VSCode: use the `music (debug)` and `music: integration test` launch configs
 (`.vscode/launch.json`).

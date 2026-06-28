@@ -481,4 +481,88 @@ void main() {
       expect(read().elapsedMs, greaterThan(0));
     });
   });
+
+  group('metronome', () {
+    // The demo Score (bpm 80) carries no measure table, so the metronome uses the
+    // tempo fallback: a steady beat every 60000/80 = 750ms, accenting beat 0.
+    test('toggleMetronome flips the flag and it survives pause', () async {
+      await build();
+      expect(read().metronomeEnabled, isFalse);
+      notifier().toggleMetronome();
+      expect(read().metronomeEnabled, isTrue);
+      // Pausing must not clear the preference.
+      notifier().setPlaying(false);
+      expect(read().metronomeEnabled, isTrue);
+      notifier().toggleMetronome();
+      expect(read().metronomeEnabled, isFalse);
+    });
+
+    test('the enabled flag is global and survives a notifier rebuild', () async {
+      await build();
+      notifier().toggleMetronome();
+      expect(read().metronomeEnabled, isTrue);
+      // The app-wide provider holds the choice independently of the player.
+      expect(container.read(metronomeEnabledProvider), isTrue);
+
+      // Leaving the player and reopening it on another piece auto-disposes and
+      // rebuilds the notifier; the global flag must seed the fresh state.
+      container.invalidate(playerProvider);
+      await _flush();
+      expect(read().metronomeEnabled, isTrue);
+    });
+
+    test('enabled + playing clicks and pulses on each beat', () async {
+      await build();
+      notifier().toggleWaitMode(); // free-run so the playhead isn't gated
+      notifier().togglePlay();
+      notifier().toggleMetronome();
+
+      notifier().advance(100); // span [0,100): the downbeat at 0
+      expect(audio.metronomeClicks, [true]);
+      expect(read().beatCount, 1);
+      expect(read().lastBeatAccent, isTrue);
+
+      notifier().advance(700); // span [100,800): the normal beat at 750
+      expect(audio.metronomeClicks, [true, false]);
+      expect(read().beatCount, 2);
+      expect(read().lastBeatAccent, isFalse);
+    });
+
+    test('silent while paused even when enabled', () async {
+      await build();
+      notifier().toggleWaitMode();
+      notifier().toggleMetronome(); // enabled but NOT playing
+      notifier().advance(800);
+      expect(audio.metronomeClicks, isEmpty);
+      expect(read().beatCount, 0);
+    });
+
+    test('no clicks while disabled', () async {
+      await build();
+      notifier().toggleWaitMode();
+      notifier().togglePlay(); // playing but metronome off
+      notifier().advance(800);
+      expect(audio.metronomeClicks, isEmpty);
+      expect(read().beatCount, 0);
+    });
+
+    test('no tick across a loop seam, resumes on the next downbeat', () async {
+      await build();
+      notifier().toggleWaitMode();
+      notifier().togglePlay();
+      notifier().toggleMetronome();
+
+      notifier().advance(900); // beats at 0 (accent) and 750
+      expect(read().beatCount, 2);
+      final beforeLoop = audio.metronomeClicks.length;
+
+      notifier().advance(200); // 900→1100 ≥ songEnd(1000): loops, no seam tick
+      expect(read().elapsedMs, 0);
+      expect(audio.metronomeClicks.length, beforeLoop); // nothing added
+
+      notifier().advance(100); // back at the top → downbeat fires again
+      expect(audio.metronomeClicks.length, beforeLoop + 1);
+      expect(audio.metronomeClicks.last, isTrue);
+    });
+  });
 }

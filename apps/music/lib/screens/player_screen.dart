@@ -307,6 +307,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
           keyFifths: data.keyFifths,
           beats: data.beats,
           beatType: data.beatType,
+          measureStartMs: data.measureStartMs,
         ),
         size: Size.infinite,
       ),
@@ -326,9 +327,9 @@ class _TopBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final (title, bpm) = ref.watch(
-      playerProvider.select((d) => (d.title, d.bpm)),
-    );
+    // Watch only the title here; the tempo/metronome chip watches its own slices
+    // so the per-beat pulse doesn't rebuild the whole top bar.
+    final title = ref.watch(playerProvider.select((d) => d.title));
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: const BoxDecoration(
@@ -383,7 +384,9 @@ class _TopBar extends ConsumerWidget {
           // chosen from the settings menu.
           const _MidiStatusIndicator(),
           const SizedBox(width: 8),
-          _Chip(icon: Icons.speed, label: 'Tempo: $bpm'),
+          // Tap to toggle the metronome; pulses on each beat. Mode-independent
+          // (lives in the shared top bar), so it works in Synthesia/Staff/Partition.
+          const _TempoChip(),
           const SizedBox(width: 8),
           // Consolidated music settings (MIDI device, keyboard size, hand). Lives
           // in the mode-independent top bar, so it is reachable in Synthesia,
@@ -686,28 +689,109 @@ class _ModeToggle extends ConsumerWidget {
   }
 }
 
-class _Chip extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  const _Chip({required this.icon, required this.label});
+/// The header **Tempo** chip, doubling as the metronome toggle.
+///
+/// Tapping it flips [Player.toggleMetronome]; when the metronome is enabled the
+/// chip takes an active (primary-tinted) style and **pulses once per beat**,
+/// harder on the accented downbeat. The pulse is the visual half of the beat (the
+/// audible click is the other) and, living in the mode-independent top bar, it is
+/// visible the same way in Synthesia, Staff and Partition. Watches only its own
+/// slices so the per-beat pulse never rebuilds the rest of the top bar.
+class _TempoChip extends ConsumerStatefulWidget {
+  const _TempoChip();
+
+  @override
+  ConsumerState<_TempoChip> createState() => _TempoChipState();
+}
+
+class _TempoChipState extends ConsumerState<_TempoChip>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _pulse = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 200),
+  );
+  bool _accent = false;
+
+  @override
+  void dispose() {
+    _pulse.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: CymbraColors.surfaceContainerHigh,
-        borderRadius: BorderRadius.circular(8),
+    final (bpm, enabled, beatCount, lastAccent) = ref.watch(
+      playerProvider.select(
+        (d) => (d.bpm, d.metronomeEnabled, d.beatCount, d.lastBeatAccent),
       ),
-      child: Row(
-        children: [
-          Icon(icon, size: 16, color: CymbraColors.onSurfaceVariant),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: const TextStyle(color: CymbraColors.onSurface, fontSize: 13),
+    );
+    // Fire one pulse per beat: restart the decay animation whenever the beat
+    // counter ticks. Done as a listen (not in build's body) so it reacts to the
+    // change rather than the rebuild.
+    ref.listen(playerProvider.select((d) => d.beatCount), (_, _) {
+      _accent = lastAccent;
+      _pulse.forward(from: 0);
+    });
+
+    return Semantics(
+      button: true,
+      toggled: enabled,
+      label: 'Metronome',
+      child: InkWell(
+        onTap: () => ref.read(playerProvider.notifier).toggleMetronome(),
+        borderRadius: BorderRadius.circular(8),
+        child: AnimatedBuilder(
+          animation: _pulse,
+          builder: (context, child) {
+            // Pulse intensity decays 1 → 0 over the animation; the accent pulses
+            // brighter. Zero when the metronome is off.
+            final intensity = enabled ? (1 - _pulse.value) : 0.0;
+            final glow = intensity * (_accent ? 0.9 : 0.45);
+            final baseColor = enabled
+                ? Color.alphaBlend(
+                    CymbraColors.primary.withValues(alpha: 0.18),
+                    CymbraColors.surfaceContainerHigh,
+                  )
+                : CymbraColors.surfaceContainerHigh;
+            return Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: Color.alphaBlend(
+                  CymbraColors.primary.withValues(alpha: glow),
+                  baseColor,
+                ),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: enabled
+                      ? CymbraColors.primary
+                      : CymbraColors.surfaceContainerHigh,
+                  width: 1,
+                ),
+              ),
+              child: child,
+            );
+          },
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.speed,
+                size: 16,
+                color: enabled
+                    ? CymbraColors.primary
+                    : CymbraColors.onSurfaceVariant,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                'Tempo: $bpm',
+                style: const TextStyle(
+                  color: CymbraColors.onSurface,
+                  fontSize: 13,
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

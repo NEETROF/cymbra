@@ -133,6 +133,20 @@ abstract class PlayerData with _$PlayerData {
     /// [Hand.both] on launch); drives [showsStaff]/[visibleNotes] so every mode
     /// and the gate filter out the unselected hand together.
     @Default(Hand.both) Hand selectedHands,
+
+    /// Whether the metronome is enabled. A single app-wide preference (kept across
+    /// pause and across score changes) toggled from the header Tempo chip. When on
+    /// *and* [isPlaying], [advance] sounds a click and pulses the chip on each beat
+    /// of the measure; while paused it stays on but is silent.
+    @Default(false) bool metronomeEnabled,
+
+    /// Monotonic count of metronome beats fired so far — the visual pulse signal
+    /// the Tempo chip watches to animate one pulse per beat. Paired with
+    /// [lastBeatAccent] so the chip can pulse harder on the downbeat.
+    @Default(0) int beatCount,
+
+    /// Whether the most recent beat ([beatCount]) was an accented downbeat.
+    @Default(false) bool lastBeatAccent,
   }) = _PlayerData;
 
   bool get midiConnected => connectedDevice != null;
@@ -305,6 +319,64 @@ abstract class PlayerData with _$PlayerData {
     if (!covered) stops.add(p);
   }
   return (starts: starts, stops: stops);
+}
+
+/// One metronome beat: the playhead time (ms) it falls on and whether it is the
+/// accented downbeat (the first beat of its measure).
+typedef MetronomeBeat = ({double timeMs, bool accent});
+
+/// The metronome beats crossed by the playhead moving from [from] to [to] (ms),
+/// in order — one tick per beat of the measure, so the number of ticks per
+/// measure follows the time signature ([beats]).
+///
+/// Pure and host-testable. Beats are derived from the score's own timing so they
+/// stay in sync with the notes:
+/// - When [measureStartMs] is known, each measure `[start, end)` is divided into
+///   [beats] equal beats; the beat on a measure start is the accented downbeat.
+///   This keeps ticks aligned to the engraved measures.
+/// - For the demo score (no [measureStartMs]) it falls back to a steady beat from
+///   [bpm], accenting every [beats]-th beat from the origin.
+///
+/// The span is half-open `[from, to)` so each beat fires exactly once and a frozen
+/// playhead (`from == to`) yields none. Callers skip this across a loop/seek seam.
+List<MetronomeBeat> metronomeBeatsCrossed({
+  required List<int> measureStartMs,
+  required int beats,
+  required int bpm,
+  required double songEndMs,
+  required double from,
+  required double to,
+}) {
+  if (to <= from || beats < 1) return const [];
+
+  final result = <MetronomeBeat>[];
+  if (measureStartMs.isNotEmpty) {
+    for (var i = 0; i < measureStartMs.length; i++) {
+      final start = measureStartMs[i].toDouble();
+      final end = (i + 1 < measureStartMs.length
+          ? measureStartMs[i + 1].toDouble()
+          : songEndMs);
+      if (end <= start) continue;
+      final beatDur = (end - start) / beats;
+      for (var b = 0; b < beats; b++) {
+        final t = start + b * beatDur;
+        if (from <= t && t < to) result.add((timeMs: t, accent: b == 0));
+      }
+    }
+    return result;
+  }
+
+  // Fallback: no measure table — derive a steady beat straight from the tempo.
+  if (bpm <= 0) return const [];
+  final beatDur = 60000.0 / bpm;
+  // First beat index at/after [from], and the last strictly before [to].
+  final firstIndex = (from / beatDur).ceil();
+  for (var g = firstIndex; ; g++) {
+    final t = g * beatDur;
+    if (t >= to) break;
+    if (t >= from) result.add((timeMs: t, accent: g % beats == 0));
+  }
+  return result;
 }
 
 /// A pitch near [expected] (within ±[spread] semitones) that is **not** in
