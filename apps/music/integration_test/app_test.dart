@@ -42,8 +42,9 @@ void main() {
   setUpAll(() async => await RustLib.init());
 
   /// Real-time pause so the current screen is visible (no-op when [_watchMs]==0).
-  Future<void> watch(WidgetTester tester) =>
-      _watchMs > 0 ? tester.pump(Duration(milliseconds: _watchMs)) : Future.value();
+  Future<void> watch(WidgetTester tester) => _watchMs > 0
+      ? tester.pump(Duration(milliseconds: _watchMs))
+      : Future.value();
 
   testWidgets('library → score → plays, keyboard input, render modes', (
     tester,
