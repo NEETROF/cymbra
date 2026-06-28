@@ -25,7 +25,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:music/main.dart';
+import 'package:music/services/score_asset_source.dart';
 import 'package:music/src/rust/frb_generated.dart';
+import 'package:music/state/score_catalog.dart';
+
+import 'support/fixture_score.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -41,10 +45,22 @@ void main() {
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
 
-    await tester.pumpWidget(const ProviderScope(child: CymbraApp()));
+    // Drive a test-owned score fixture (not the app's shipping assets, which
+    // change independently) — still parsed/laid out by the real Rust bridge.
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          scoreCatalogProvider.overrideWithValue(const [kFixtureCatalogEntry]),
+          scoreAssetSourceProvider.overrideWithValue(
+            const FixtureScoreAssetSource(),
+          ),
+        ],
+        child: const CymbraApp(),
+      ),
+    );
     await tester.pump(const Duration(milliseconds: 100));
 
-    // Boots into the score library; pick a bundled score.
+    // Boots into the score library; pick the fixture score.
     expect(find.text('Cymbra — Score Library'), findsOneWidget);
     final entry = find.text('Ode to Joy (theme)');
     expect(entry, findsOneWidget);
