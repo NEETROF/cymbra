@@ -9,6 +9,10 @@ packages:
 ignore:
   - "apps/*/rust_builder"
   - "**/cargokit/**"
+  # Build output (gitignored) contains nested Dart packages (e.g. duplicate
+  # `build_tool_runner`s under build/) that otherwise break package discovery
+  # after a local build.
+  - "**/build/**"
 
 scripts:
   generate:
@@ -31,6 +35,21 @@ scripts:
     packageFilters:
       flutter: true
       dirExists: test
+
+  integration:
+    description: >
+      Run the end-to-end integration test in a VISIBLE app window (flutter
+      drive), so you can watch the real app being driven — unlike
+      `flutter test integration_test`, which doesn't foreground the window.
+      Defaults to macOS; for another device run the raw `flutter drive` command
+      with `-d linux`/`-d chrome`.
+    run: >
+      melos exec -- flutter drive
+      --driver=test_driver/integration_test.dart
+      --target=integration_test/app_test.dart
+      -d macos
+    packageFilters:
+      dirExists: integration_test
 
   format:
     description: Check Dart formatting.
