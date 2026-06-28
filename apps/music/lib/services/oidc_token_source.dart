@@ -1,0 +1,74 @@
+// Copyright 2026 NEETROF
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+import 'dart:io' show Platform;
+
+import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
+
+part 'oidc_token_source.g.dart';
+
+/// Seam over the native Google/Apple sign-in SDKs (design D1). Each method drives
+/// the platform consent sheet and returns the provider `id_token` to post to
+/// Cymbra ID's `SignInOidc`, or **null** when the user cancels. The app never
+/// performs the OAuth exchange itself. Kept abstract so the OIDC sign-in flow is
+/// tested with a fake token source (task 6.5) — no native channel.
+abstract class OidcTokenSource {
+  /// Obtain a Google `id_token`, or null if the user dismissed the sheet.
+  Future<String?> googleIdToken();
+
+  /// Obtain an Apple `id_token`, or null if the user cancelled.
+  Future<String?> appleIdToken();
+
+  /// Whether Sign in with Apple should be offered on this platform (Apple
+  /// platforms; App Store requires it wherever Google is offered).
+  bool get appleAvailable;
+}
+
+/// Production [OidcTokenSource] backed by `google_sign_in` and
+/// `sign_in_with_apple`. A user cancellation is normalized to null (no error).
+class NativeOidcTokenSource implements OidcTokenSource {
+  const NativeOidcTokenSource();
+
+  @override
+  Future<String?> googleIdToken() async {
+    final account = await GoogleSignIn().signIn(); // null when cancelled
+    if (account == null) return null;
+    final auth = await account.authentication;
+    return auth.idToken;
+  }
+
+  @override
+  Future<String?> appleIdToken() async {
+    try {
+      final cred = await SignInWithApple.getAppleIDCredential(
+        scopes: const [AppleIDAuthorizationScopes.email],
+      );
+      return cred.identityToken;
+    } on SignInWithAppleAuthorizationException catch (e) {
+      if (e.code == AuthorizationErrorCode.canceled) return null;
+      rethrow;
+    }
+  }
+
+  @override
+  bool get appleAvailable => !kIsWeb && (Platform.isIOS || Platform.isMacOS);
+}
+
+/// Production OIDC-token-source provider. Override in tests with a fake.
+@Riverpod(keepAlive: true)
+OidcTokenSource oidcTokenSource(Ref ref) => const NativeOidcTokenSource();

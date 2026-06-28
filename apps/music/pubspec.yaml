@@ -41,9 +41,24 @@ dependencies:
   riverpod_annotation: ^2.6.1
   freezed_annotation: ^3.1.0
 
+  # Cymbra ID account layer (change: add-music-account-access).
+  # Native gRPC client over the backend's auth.proto / user.proto, secure token
+  # storage, and the native Google/Apple sign-in SDKs. All sit behind injectable
+  # Riverpod seams so state/widgets stay testable without the backend or SDKs.
+  grpc: ^4.0.4
+  protobuf: ^4.2.0
+  fixnum: ^1.1.1
+  flutter_secure_storage: ^9.2.4
+  google_sign_in: ^6.3.0
+  sign_in_with_apple: ^6.1.4
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
+
+  # Dart code generator for the gRPC stubs (run via `melos run gen-grpc`); the
+  # `protoc` binary itself comes from the toolchain (brew/apt) in CI.
+  protoc_plugin: ^22.5.0
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is

@@ -40,6 +40,17 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+      - name: Set up protoc (gRPC codegen)
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Generate code (gRPC + riverpod + freezed)
+        working-directory: apps/music
+        shell: bash
+        run: |
+          flutter pub get
+          bash tool/gen_grpc.sh
+          dart run build_runner build --delete-conflicting-outputs
       - name: Build
         working-directory: apps/music
         run: flutter build linux --release
@@ -61,6 +72,17 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+      - name: Set up protoc (gRPC codegen)
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Generate code (gRPC + riverpod + freezed)
+        working-directory: apps/music
+        shell: bash
+        run: |
+          flutter pub get
+          bash tool/gen_grpc.sh
+          dart run build_runner build --delete-conflicting-outputs
       - name: Build
         working-directory: apps/music
         run: flutter build macos --release
@@ -84,6 +106,17 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+      - name: Set up protoc (gRPC codegen)
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Generate code (gRPC + riverpod + freezed)
+        working-directory: apps/music
+        shell: bash
+        run: |
+          flutter pub get
+          bash tool/gen_grpc.sh
+          dart run build_runner build --delete-conflicting-outputs
       - name: Build
         working-directory: apps/music
         run: flutter build windows --release
@@ -109,6 +142,17 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+      - name: Set up protoc (gRPC codegen)
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Generate code (gRPC + riverpod + freezed)
+        working-directory: apps/music
+        shell: bash
+        run: |
+          flutter pub get
+          bash tool/gen_grpc.sh
+          dart run build_runner build --delete-conflicting-outputs
       - name: Build APK (debug-signed)
         working-directory: apps/music
         run: flutter build apk --release

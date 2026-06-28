@@ -57,11 +57,19 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
-      - name: Generate code (riverpod_generator + freezed)
+      - name: Set up protoc (gRPC codegen)
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Generate gRPC stubs (protoc)
         working-directory: apps/music
+        shell: bash
         run: |
           flutter pub get
-          dart run build_runner build --delete-conflicting-outputs
+          bash tool/gen_grpc.sh
+      - name: Generate code (riverpod_generator + freezed)
+        working-directory: apps/music
+        run: dart run build_runner build --delete-conflicting-outputs
       - name: Build (${{ matrix.label }})
         working-directory: apps/music
         run: flutter build ${{ matrix.target }} --debug

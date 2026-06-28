@@ -17,8 +17,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install Linux build deps (native Rust lib via cargokit + Linux desktop + headless display)
-        run: sudo apt-get update && sudo apt-get install -y libasound2-dev ninja-build libgtk-3-dev clang cmake pkg-config xvfb lcov
+      - name: Install Linux build deps (native Rust lib via cargokit + Linux desktop + headless display + protoc for gRPC codegen)
+        run: sudo apt-get update && sudo apt-get install -y libasound2-dev ninja-build libgtk-3-dev clang cmake pkg-config xvfb lcov protobuf-compiler
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - uses: subosito/flutter-action@v2
@@ -32,6 +32,10 @@ jobs:
       # the generated *.g.dart / *.freezed.dart files.
       - name: Format
         run: dart format --output=none --set-exit-if-changed .
+      # gRPC stubs are gitignored (like lib/src/rust); regenerate them before
+      # analyze/test. Runs after Format so the generated grpc Dart isn't gated.
+      - name: Generate gRPC stubs (protoc)
+        run: melos run gen-grpc
       - name: Generate code (riverpod_generator + freezed)
         run: melos run generate
       - name: Analyze
@@ -55,4 +59,4 @@ jobs:
         with:
           path: apps/music/coverage/merged.lcov.info
           min_coverage: 80
-          exclude: "lib/src/rust/** lib/main.dart **/*.g.dart **/*.freezed.dart"
+          exclude: "lib/src/rust/** lib/src/grpc/** lib/main.dart **/*.g.dart **/*.freezed.dart"

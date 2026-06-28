@@ -92,6 +92,52 @@ then sees hot-plug changes. (Linux/Windows re-enumerate natively, nothing to do.
 
 On this Mac, `pod install` requires a UTF-8 locale: `LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 pod install`.
 
+## Cymbra ID account layer (dev setup)
+
+The app talks to the **Cymbra ID** backend (`backend/`) over native gRPC for
+sign-in, sessions, and the unique handle. Everything sits behind injectable
+Riverpod seams (`lib/services/auth_service.dart`, `account_service.dart`,
+`token_store.dart`, `oidc_token_source.dart`), so unit/widget tests run with
+fakes and never touch a channel or platform plugin.
+
+### gRPC stub codegen
+
+The Dart client stubs are generated from the backend protos into
+`lib/src/grpc/` (gitignored, like `lib/src/rust/`) and excluded from analysis +
+coverage. Regenerate after a proto change:
+
+```bash
+melos run gen-grpc          # wraps apps/music/tool/gen_grpc.sh
+```
+
+Requires `protoc` on PATH (`brew install protobuf` / `apt install
+protobuf-compiler`); the script installs the pinned Dart plugin
+(`protoc_plugin 22.5.0`, matching the `protobuf 4.x` runtime — a newer plugin
+emits code for an incompatible runtime). CI runs this before analyze/test.
+
+### Backend endpoint
+
+The gRPC endpoint defaults to plaintext `localhost:50051` (dev). Override the
+`cymbraEndpointProvider` for staging/production (TLS). Bring the backend up with
+`backend/docker-compose.yml` (`CYMBRA_GRPC_ADDR=0.0.0.0:50051`).
+
+### Google / Apple sign-in (platform config — TODO before shipping OIDC)
+
+Email/password and guest work against the local backend with no extra config.
+The Google/Apple buttons need native credentials wired up first:
+
+- **Google**: register OAuth client IDs (iOS, Android, macOS), add the iOS URL
+  scheme / Android intent filter for `google_sign_in`, and set the backend's
+  `CYMBRA_GOOGLE_AUDIENCE` to the registered client ID(s).
+- **Apple**: enable the "Sign in with Apple" capability and set
+  `CYMBRA_APPLE_AUDIENCE`.
+- **Local dev**: the compose `mock-oidc` profile stands in for Google/Apple —
+  start it with `docker compose --profile oidc up` (see
+  `CYMBRA_DEV_OIDC_ISSUER`).
+
+Until those client IDs exist the OIDC buttons will fail with `UNAUTHENTICATED`;
+this is tracked as tasks 6.3/6.4 of the `add-music-account-access` change.
+
 ## License
 
 Free and **open source** under the [Apache License 2.0](../../LICENSE) — use, modify

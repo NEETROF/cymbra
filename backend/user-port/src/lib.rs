@@ -21,6 +21,8 @@ pub struct Account {
     pub preferences: String,
     pub version: i64,
     pub updated_at: i64,
+    /// Unique display handle; `None` until the user completes onboarding.
+    pub handle: Option<String>,
 }
 
 /// A provider identity linked to an account.
@@ -54,13 +56,20 @@ pub trait UserPort: Send + Sync {
     async fn get_account(&self, user_id: &str) -> Result<Account>;
 
     /// Update profile/preferences with optimistic concurrency on `expected_version`.
+    /// When `handle` is `Some`, validate and (re)assign it, enforcing
+    /// case-insensitive uniqueness; when `None`, the stored handle is unchanged.
     async fn update_account(
         &self,
         user_id: &str,
         display_name: Option<String>,
+        handle: Option<String>,
         preferences: &str,
         expected_version: i64,
     ) -> Result<Account>;
+
+    /// Whether `handle` is currently free (advisory; the write path is the
+    /// authority). Errors with `InvalidArgument` when the handle fails policy.
+    async fn check_handle_availability(&self, handle: &str) -> Result<bool>;
 
     /// Erase the account, its identities, and its roles.
     async fn delete_account(&self, user_id: &str) -> Result<()>;

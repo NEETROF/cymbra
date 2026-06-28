@@ -740,6 +740,7 @@ dependencies = [
  "sqlx",
  "tokio",
  "tonic",
+ "unicode-normalization",
  "uuid",
 ]
 

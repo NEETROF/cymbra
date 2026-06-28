@@ -63,12 +63,35 @@ impl<R: UserRepo> UserPort for UserModule<R> {
         &self,
         user_id: &str,
         display_name: Option<String>,
+        handle: Option<String>,
         preferences: &str,
         expected_version: i64,
     ) -> Result<Account> {
+        // Validate + normalize the handle here (business invariant); the repo
+        // stores the display form and enforces uniqueness on the normalized key.
+        let handle_key = match &handle {
+            Some(h) => {
+                crate::handle_core::validate(h)?;
+                Some(crate::handle_core::normalize(h))
+            }
+            None => None,
+        };
         self.repo
-            .update_account(user_id, display_name, preferences, expected_version)
+            .update_account(
+                user_id,
+                display_name,
+                handle,
+                handle_key,
+                preferences,
+                expected_version,
+            )
             .await
+    }
+
+    async fn check_handle_availability(&self, handle: &str) -> Result<bool> {
+        crate::handle_core::validate(handle)?;
+        let key = crate::handle_core::normalize(handle);
+        Ok(self.repo.handle_owner(&key).await?.is_none())
     }
 
     async fn delete_account(&self, user_id: &str) -> Result<()> {
@@ -163,14 +186,78 @@ mod tests {
         let m = module();
         let a = m.resolve_or_provision("google", "g1").await.unwrap();
         let acc = m
-            .update_account(&a, Some("Ada".into()), "{\"theme\":\"dark\"}", 1)
+            .update_account(&a, Some("Ada".into()), None, "{\"theme\":\"dark\"}", 1)
             .await
             .unwrap();
         assert_eq!(acc.version, 2);
         // stale write rejected
         assert!(matches!(
-            m.update_account(&a, None, "{}", 1).await,
+            m.update_account(&a, None, None, "{}", 1).await,
             Err(AppError::Aborted(_))
+        ));
+    }
+
+    #[tokio::test]
+    async fn handle_is_set_and_reported_on_account() {
+        let m = module();
+        let a = m.resolve_or_provision("google", "g1").await.unwrap();
+        assert_eq!(m.get_account(&a).await.unwrap().handle, None);
+
+        let acc = m
+            .update_account(&a, None, Some("Alice".into()), "{}", 1)
+            .await
+            .unwrap();
+        assert_eq!(acc.handle.as_deref(), Some("Alice")); // display form preserved
+        assert_eq!(
+            m.get_account(&a).await.unwrap().handle.as_deref(),
+            Some("Alice")
+        );
+    }
+
+    #[tokio::test]
+    async fn handle_uniqueness_is_case_insensitive() {
+        let m = module();
+        let a = m.resolve_or_provision("google", "g1").await.unwrap();
+        let b = m.resolve_or_provision("google", "g2").await.unwrap();
+
+        m.update_account(&a, None, Some("Alice".into()), "{}", 1)
+            .await
+            .unwrap();
+        // Differs only by case → conflict.
+        assert!(matches!(
+            m.update_account(&b, None, Some("alice".into()), "{}", 1)
+                .await,
+            Err(AppError::AlreadyExists(_))
+        ));
+    }
+
+    #[tokio::test]
+    async fn invalid_handle_is_rejected_on_update() {
+        let m = module();
+        let a = m.resolve_or_provision("google", "g1").await.unwrap();
+        assert!(matches!(
+            m.update_account(&a, None, Some("no spaces".into()), "{}", 1)
+                .await,
+            Err(AppError::InvalidArgument(_))
+        ));
+    }
+
+    #[tokio::test]
+    async fn availability_reflects_taken_and_rejects_invalid() {
+        let m = module();
+        let a = m.resolve_or_provision("google", "g1").await.unwrap();
+        assert!(m.check_handle_availability("Alice").await.unwrap());
+
+        m.update_account(&a, None, Some("Alice".into()), "{}", 1)
+            .await
+            .unwrap();
+        // Taken, case-insensitively.
+        assert!(!m.check_handle_availability("alice").await.unwrap());
+        assert!(!m.check_handle_availability("Alice").await.unwrap());
+        // Invalid handles error rather than reporting availability.
+        assert!(matches!(
+            m.check_handle_availability("bad handle!").await,
+            Err(AppError::InvalidArgument(_))
         ));
     }
 }

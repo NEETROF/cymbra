@@ -23,11 +23,17 @@ pub trait UserRepo: Send + Sync {
     async fn count_identities(&self, user_id: &str) -> Result<usize>;
     async fn list_identities(&self, user_id: &str) -> Result<Vec<Identity>>;
     async fn get_account(&self, user_id: &str) -> Result<Account>;
+    /// `user_id` whose normalized handle key is `handle_key`, if any.
+    async fn handle_owner(&self, handle_key: &str) -> Result<Option<String>>;
     /// Conditional update: applies only if the stored version == `expected_version`.
+    /// When `handle`/`handle_key` are `Some`, the handle is (re)assigned and the
+    /// key's uniqueness is enforced; when `None`, the stored handle is unchanged.
     async fn update_account(
         &self,
         user_id: &str,
         display_name: Option<String>,
+        handle: Option<String>,
+        handle_key: Option<String>,
         preferences: &str,
         expected_version: i64,
     ) -> Result<Account>;
@@ -44,6 +50,8 @@ struct AccountRow {
     display_name: Option<String>,
     preferences: String,
     version: i64,
+    handle: Option<String>,
+    handle_key: Option<String>,
 }
 
 #[derive(Default)]
@@ -71,6 +79,7 @@ impl FakeUserRepo {
             },
             version: row.version,
             updated_at: 0,
+            handle: row.handle.clone(),
         }
     }
 }
@@ -94,6 +103,8 @@ impl UserRepo for FakeUserRepo {
                 display_name: None,
                 preferences: "{}".into(),
                 version: 1,
+                handle: None,
+                handle_key: None,
             },
         );
         s.identities
@@ -142,14 +153,33 @@ impl UserRepo for FakeUserRepo {
             .ok_or_else(|| AppError::NotFound("account".into()))
     }
 
+    async fn handle_owner(&self, handle_key: &str) -> Result<Option<String>> {
+        let s = self.state.lock().unwrap();
+        Ok(s.users
+            .iter()
+            .find(|(_, row)| row.handle_key.as_deref() == Some(handle_key))
+            .map(|(uid, _)| uid.clone()))
+    }
+
     async fn update_account(
         &self,
         user_id: &str,
         display_name: Option<String>,
+        handle: Option<String>,
+        handle_key: Option<String>,
         preferences: &str,
         expected_version: i64,
     ) -> Result<Account> {
         let mut s = self.state.lock().unwrap();
+        // Enforce the unique key against other accounts before mutating (mirrors
+        // the Postgres unique index).
+        if let Some(key) = &handle_key
+            && s.users
+                .iter()
+                .any(|(uid, row)| uid != user_id && row.handle_key.as_deref() == Some(key))
+        {
+            return Err(AppError::AlreadyExists("handle already taken".into()));
+        }
         let row = s
             .users
             .get_mut(user_id)
@@ -157,6 +187,11 @@ impl UserRepo for FakeUserRepo {
         crate::version_core::check(row.version, expected_version)?;
         row.display_name = display_name;
         row.preferences = preferences.to_string();
+        // A `None` handle leaves the stored handle untouched (COALESCE semantics).
+        if handle.is_some() {
+            row.handle = handle;
+            row.handle_key = handle_key;
+        }
         row.version = crate::version_core::next(row.version);
         Ok(Self::account(row, user_id))
     }
