@@ -42,6 +42,12 @@ class StaffPainter extends CustomPainter {
   final int beats;
   final int beatType;
 
+  /// Absolute start time (ms) of each measure, in order — the same table that
+  /// places the notes, so the bar lines land exactly on the real measure
+  /// boundaries (any time signature). Empty for the demo score, which falls back
+  /// to a meter-derived spacing.
+  final List<int> measureStartMs;
+
   const StaffPainter({
     required this.notes,
     required this.elapsedMs,
@@ -51,6 +57,7 @@ class StaffPainter extends CustomPainter {
     this.keyFifths = 0,
     this.beats = 4,
     this.beatType = 4,
+    this.measureStartMs = const [],
   });
 
   // Visible time window to the right of the playhead.
@@ -193,17 +200,36 @@ class StaffPainter extends CustomPainter {
       );
     }
 
-    // 2) Scrolling measure bars (span the whole system).
-    final measureMs = (60000.0 / bpm) * 4; // 4 beats per measure
-    if (measureMs > 0) {
-      for (var t = 0.0; t <= songEndMs + measureMs; t += measureMs) {
-        final x = xForTime(t);
-        if (x < margin || x > size.width - margin) continue;
-        canvas.drawLine(
-          Offset(x, systemTop),
-          Offset(x, systemBottom),
-          barPaint,
-        );
+    // 2) Scrolling measure bars (span the whole system). Drawn at the real
+    // measure boundaries from [measureStartMs] (plus the final bar at songEnd) so
+    // they match the notes for any time signature. The demo score carries no
+    // table, so fall back to a meter-derived spacing (beats × beat-unit), not a
+    // hardcoded 4/4.
+    //
+    // A bar line sits *just left* of the measure's first note — in the gap before
+    // the downbeat — so the downbeat (also at the measure-start time) doesn't land
+    // on top of its bar. There is no opening bar before the very first measure;
+    // the closing bar at songEnd has no downbeat after it, so it is not shifted.
+    final barGap = lineGap * 1.25;
+    void drawBar(double t, {bool beforeDownbeat = true}) {
+      if (t <= 0) return; // no bar before the first measure
+      final x = xForTime(t) - (beforeDownbeat ? barGap : 0);
+      if (x < margin || x > size.width - margin) return;
+      canvas.drawLine(Offset(x, systemTop), Offset(x, systemBottom), barPaint);
+    }
+
+    if (measureStartMs.isNotEmpty) {
+      for (final t in measureStartMs) {
+        drawBar(t.toDouble());
+      }
+      drawBar(songEndMs, beforeDownbeat: false); // closing bar line
+    } else {
+      final bt = beatType == 0 ? 4 : beatType;
+      final measureMs = (60000.0 / bpm) * beats * 4 / bt;
+      if (measureMs > 0) {
+        for (var t = measureMs; t <= songEndMs + measureMs; t += measureMs) {
+          drawBar(t);
+        }
       }
     }
 
@@ -520,5 +546,6 @@ class StaffPainter extends CustomPainter {
   bool shouldRepaint(StaffPainter old) =>
       old.elapsedMs != elapsedMs ||
       old.activeNotes != activeNotes ||
-      old.notes != notes;
+      old.notes != notes ||
+      old.measureStartMs != measureStartMs;
 }
