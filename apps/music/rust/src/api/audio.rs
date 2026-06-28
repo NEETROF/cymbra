@@ -42,7 +42,7 @@ use cpal::{FromSample, SizedSample};
 use flutter_rust_bridge::frb;
 use rustysynth::{SoundFont, Synthesizer, SynthesizerSettings};
 
-use super::audio_core::{AudioEvent, PIANO_CHANNEL, VoiceTracker};
+use super::audio_core::{AudioEvent, ClickVoice, PIANO_CHANNEL, VoiceTracker};
 
 /// Sender used by the FFI entry points to hand control events to the audio
 /// thread. Published as soon as [`audio_init`] starts (so note events queue
@@ -111,6 +111,14 @@ pub fn all_notes_off() {
     send(AudioEvent::AllOff);
 }
 
+/// Sounds a short metronome click — a synthesized tick mixed into the output
+/// independently of the piano SoundFont. `accent` marks the downbeat (higher and
+/// louder). Self-terminating: there is no matching off.
+#[frb(sync)]
+pub fn metronome_click(accent: bool) {
+    send(AudioEvent::Click { accent });
+}
+
 /// Pushes an event to the audio thread if the engine is running; otherwise a
 /// silent no-op.
 fn send(event: AudioEvent) {
@@ -163,6 +171,9 @@ where
     let mut synth =
         Synthesizer::new(&sound_font, &settings).map_err(|e| anyhow!("synth init: {e}"))?;
     let mut tracker = VoiceTracker::new();
+    // The currently sounding metronome click, if any. A click is a short one-shot
+    // mixed in on top of the synth; a new click event simply replaces it.
+    let mut click: Option<ClickVoice> = None;
     // Reused scratch buffers so the callback never allocates on the steady path.
     let mut left: Vec<f32> = Vec::new();
     let mut right: Vec<f32> = Vec::new();
@@ -186,6 +197,9 @@ where
                         tracker.apply(ev);
                         synth.note_off_all(true);
                     }
+                    AudioEvent::Click { accent } => {
+                        click = Some(ClickVoice::new(accent, sample_rate as f32));
+                    }
                 }
             }
 
@@ -197,6 +211,20 @@ where
             let l = &mut left[..frames];
             let r = &mut right[..frames];
             synth.render(l, r);
+
+            // Mix the metronome click on top of the synth render. It is the same
+            // mono signal in both channels and decays on its own; drop it once
+            // finished so the steady path does nothing.
+            if let Some(voice) = click.as_mut() {
+                for i in 0..frames {
+                    let s = voice.next_sample();
+                    l[i] += s;
+                    r[i] += s;
+                }
+                if !voice.is_active() {
+                    click = None;
+                }
+            }
 
             // Interleave the stereo render into the device's frame layout. Mono
             // devices get the left channel; >2 channels mirror L/R.

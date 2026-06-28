@@ -9,6 +9,10 @@ packages:
 ignore:
   - "apps/*/rust_builder"
   - "**/cargokit/**"
+  # Build output (gitignored) contains nested Dart packages (e.g. duplicate
+  # `build_tool_runner`s under build/) that otherwise break package discovery
+  # after a local build.
+  - "**/build/**"
 
 scripts:
   generate:
@@ -31,6 +35,27 @@ scripts:
     packageFilters:
       flutter: true
       dirExists: test
+
+  integration:
+    description: Run the e2e integration test headlessly on macOS (fast pass/fail; the window is not shown). To *watch* it, use `integration-watch`.
+    run: melos exec -- flutter test integration_test -d macos
+    packageFilters:
+      dirExists: integration_test
+
+  integration-watch:
+    description: >
+      Watch the e2e test drive the real app in a VISIBLE iOS simulator, with
+      ~1.2s pauses between steps. macOS desktop renders a black window under the
+      integration_test binding, so a simulator is required. Boot one first
+      (`open -a Simulator`); change the device below if yours differs.
+    run: >
+      melos exec -- flutter drive
+      --driver=test_driver/integration_test.dart
+      --target=integration_test/app_test.dart
+      --dart-define=WATCH_MS=1200
+      -d "iPad Pro"
+    packageFilters:
+      dirExists: integration_test
 
   format:
     description: Check Dart formatting.

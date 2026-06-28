@@ -57,6 +57,11 @@ abstract class AudioService {
 
   /// Releases every sounding voice (stop / restart / seek / loop).
   void allNotesOff();
+
+  /// Sounds a one-shot metronome click, independent of the piano voices. When
+  /// [accent] is true it marks the downbeat (higher and louder). Self-terminating
+  /// — there is no matching release call.
+  void metronomeClick({required bool accent});
 }
 
 /// Production [AudioService] backed by the generated flutter_rust_bridge API.
@@ -134,6 +139,14 @@ class FrbAudioService implements AudioService {
     if (_failed) return;
     try {
       audio_api.allNotesOff();
+    } catch (_) {}
+  }
+
+  @override
+  void metronomeClick({required bool accent}) {
+    if (_failed) return;
+    try {
+      audio_api.metronomeClick(accent: accent);
     } catch (_) {}
   }
 }

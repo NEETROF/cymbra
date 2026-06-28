@@ -30,3 +30,9 @@ void noteOff({required int pitch}) =>
 
 /// Releases every sounding voice (stop / restart / seek / loop).
 void allNotesOff() => RustLib.instance.api.crateApiAudioAllNotesOff();
+
+/// Sounds a short metronome click — a synthesized tick mixed into the output
+/// independently of the piano SoundFont. `accent` marks the downbeat (higher and
+/// louder). Self-terminating: there is no matching off.
+void metronomeClick({required bool accent}) =>
+    RustLib.instance.api.crateApiAudioMetronomeClick(accent: accent);

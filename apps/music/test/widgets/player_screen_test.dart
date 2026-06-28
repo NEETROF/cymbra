@@ -23,14 +23,17 @@ import 'package:music/services/audio_service.dart';
 import 'package:music/services/midi_service.dart';
 import 'package:music/state/player_data.dart';
 import 'package:music/state/player_notifier.dart';
+import 'package:music/theme/cymbra_theme.dart';
 
 import '../support/fakes.dart';
 
 void main() {
   late FakeMidiService midi;
+  late RecordingAudioService audio;
   late ProviderContainer container;
 
   PlayerData state() => container.read(playerProvider);
+  Player notifier() => container.read(playerProvider.notifier);
 
   /// Global position of the center of [pitch]'s key on the on-screen keyboard.
   /// [y] picks the vertical band: ~120 is the white-only region, ~30 the black
@@ -52,14 +55,16 @@ void main() {
     List<String> ports = const ['Piano'],
     String? connected = 'Piano',
     Size size = const Size(1600, 900),
+    RecordingAudioService? audioService,
   }) async {
     await tester.binding.setSurfaceSize(size);
     midi = FakeMidiService(ports: ports, connected: connected);
+    audio = audioService ?? RecordingAudioService();
     container = ProviderContainer(
       overrides: [
         midiServiceProvider.overrideWithValue(midi),
         scoreSourceProvider.overrideWithValue(FakeScoreSource()),
-        audioServiceProvider.overrideWithValue(RecordingAudioService()),
+        audioServiceProvider.overrideWithValue(audio),
       ],
     );
     await tester.pumpWidget(
@@ -347,6 +352,72 @@ void main() {
       await tester.pump();
       expect(state().activeNotes, isNot(contains(60)), reason: 'mode $mode');
     }
+    await teardownScreen(tester);
+  });
+
+  /// The speed icon inside the Tempo chip (unique on the screen) — its colour
+  /// reflects the metronome's active state.
+  Icon tempoIcon(WidgetTester tester) =>
+      tester.widget<Icon>(find.byIcon(Icons.speed));
+
+  testWidgets('tapping the Tempo chip toggles the metronome and its style', (
+    tester,
+  ) async {
+    await pumpScreen(tester);
+    expect(state().metronomeEnabled, isFalse);
+    // Inactive: the icon uses the muted variant colour.
+    expect(tempoIcon(tester).color, CymbraColors.onSurfaceVariant);
+
+    await tester.tap(find.text('Tempo: 80'));
+    await tester.pump();
+    expect(state().metronomeEnabled, isTrue);
+    // Active: the icon switches to the primary colour.
+    expect(tempoIcon(tester).color, CymbraColors.primary);
+
+    await tester.tap(find.text('Tempo: 80'));
+    await tester.pump();
+    expect(state().metronomeEnabled, isFalse);
+    await teardownScreen(tester);
+  });
+
+  testWidgets('the chip pulses on each beat without error', (tester) async {
+    await pumpScreen(tester);
+    notifier().toggleWaitMode(); // free-run
+    notifier().toggleMetronome(); // enable
+    await tester.tap(find.byIcon(Icons.play_arrow)); // play
+    await tester.pump();
+
+    // Drive a beat boundary through the notifier (the demo beats every 750ms),
+    // then let the widget react to the beatCount change.
+    notifier().advance(800);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100)); // run the pulse anim
+
+    expect(state().beatCount, greaterThan(0));
+    expect(tester.takeException(), isNull);
+    await teardownScreen(tester);
+  });
+
+  testWidgets('visual pulse still updates when audio is unavailable', (
+    tester,
+  ) async {
+    // A failed audio engine: clicks are no-ops at the seam, but the visual beat
+    // (beatCount) must still advance and the chip must not crash.
+    await pumpScreen(
+      tester,
+      audioService: RecordingAudioService(failInit: true),
+    );
+    notifier().toggleWaitMode();
+    notifier().toggleMetronome();
+    await tester.tap(find.byIcon(Icons.play_arrow));
+    await tester.pump();
+
+    notifier().advance(800);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(state().beatCount, greaterThan(0));
+    expect(tester.takeException(), isNull);
     await teardownScreen(tester);
   });
 }

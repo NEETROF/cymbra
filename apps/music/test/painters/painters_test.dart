@@ -104,6 +104,82 @@ const _beamedStaffNotes = [
   ),
 ];
 
+// Two 3/4 measures (Minuet in G, bpm 90 → quarter 666 ms, eighth 333 ms) with a
+// real measure table, so the bar lines must land on the measure boundaries
+// (0, 2000, 4000) — not on a hardcoded 4-beat spacing.
+const _threeFourMeasureStarts = [0, 2000, 4000];
+const _threeFourNotes = [
+  // Measure 1 (treble): D5 quarter, then G4 A4 B4 C5 beamed eighths.
+  TimedNote(pitch: 74, startMs: 0, durationMs: 666),
+  TimedNote(pitch: 67, startMs: 666, durationMs: 333, beams: [BeamState.begin]),
+  TimedNote(
+    pitch: 69,
+    startMs: 1000,
+    durationMs: 333,
+    beams: [BeamState.continue_],
+  ),
+  TimedNote(
+    pitch: 71,
+    startMs: 1333,
+    durationMs: 333,
+    beams: [BeamState.continue_],
+  ),
+  TimedNote(pitch: 72, startMs: 1666, durationMs: 333, beams: [BeamState.end]),
+  // Measure 2 (treble): D5, G4, G4 quarters.
+  TimedNote(pitch: 74, startMs: 2000, durationMs: 666),
+  TimedNote(pitch: 67, startMs: 2666, durationMs: 666),
+  TimedNote(pitch: 67, startMs: 3333, durationMs: 666),
+  // Bass quarters across both measures.
+  TimedNote(
+    pitch: 55,
+    startMs: 0,
+    durationMs: 666,
+    staff: 2,
+    clefSign: 'F',
+    clefLine: 4,
+  ),
+  TimedNote(
+    pitch: 59,
+    startMs: 666,
+    durationMs: 666,
+    staff: 2,
+    clefSign: 'F',
+    clefLine: 4,
+  ),
+  TimedNote(
+    pitch: 55,
+    startMs: 1333,
+    durationMs: 666,
+    staff: 2,
+    clefSign: 'F',
+    clefLine: 4,
+  ),
+  TimedNote(
+    pitch: 59,
+    startMs: 2000,
+    durationMs: 666,
+    staff: 2,
+    clefSign: 'F',
+    clefLine: 4,
+  ),
+  TimedNote(
+    pitch: 60,
+    startMs: 2666,
+    durationMs: 666,
+    staff: 2,
+    clefSign: 'F',
+    clefLine: 4,
+  ),
+  TimedNote(
+    pitch: 62,
+    startMs: 3333,
+    durationMs: 666,
+    staff: 2,
+    clefSign: 'F',
+    clefLine: 4,
+  ),
+];
+
 void main() {
   // Golden tests are pixel comparisons and are not reliable across platforms
   // (generated on macOS, CI is Linux). They're tagged so the cross-platform CI
@@ -249,6 +325,57 @@ void main() {
         matchesGoldenFile('goldens/staff_left_only.png'),
       );
     });
+
+    // A 3/4 grand staff: the bar lines must align with the real measure starts
+    // (from measureStartMs), so notes sit inside their measure instead of falling
+    // on a bar drawn at a hardcoded 4-beat spacing.
+    testWidgets('staff 3/4 measure bars align with measures', tags: 'golden', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _host(
+          const StaffPainter(
+            notes: _threeFourNotes,
+            elapsedMs: 0,
+            activeNotes: {},
+            bpm: 90,
+            songEndMs: 6000,
+            keyFifths: 1, // G major
+            beats: 3,
+            beatType: 4,
+            measureStartMs: _threeFourMeasureStarts,
+          ),
+          const Size(1400, 320),
+        ),
+      );
+      await expectLater(
+        find.byKey(const Key('golden')),
+        matchesGoldenFile('goldens/staff_threefour.png'),
+      );
+    });
+  });
+
+  // Non-golden render so the measureStartMs bar path is exercised by the
+  // cross-platform CI gate (goldens are excluded there).
+  testWidgets('staff draws 3/4 bars from measureStartMs without error', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _host(
+        const StaffPainter(
+          notes: _threeFourNotes,
+          elapsedMs: 500,
+          activeNotes: {},
+          bpm: 90,
+          songEndMs: 6000,
+          beats: 3,
+          beatType: 4,
+          measureStartMs: _threeFourMeasureStarts,
+        ),
+        const Size(1400, 320),
+      ),
+    );
+    expect(tester.takeException(), isNull);
   });
 
   // Non-golden render so the three-state paint() branches are exercised by the
