@@ -497,6 +497,20 @@ void main() {
       expect(read().metronomeEnabled, isFalse);
     });
 
+    test('the enabled flag is global and survives a notifier rebuild', () async {
+      await build();
+      notifier().toggleMetronome();
+      expect(read().metronomeEnabled, isTrue);
+      // The app-wide provider holds the choice independently of the player.
+      expect(container.read(metronomeEnabledProvider), isTrue);
+
+      // Leaving the player and reopening it on another piece auto-disposes and
+      // rebuilds the notifier; the global flag must seed the fresh state.
+      container.invalidate(playerProvider);
+      await _flush();
+      expect(read().metronomeEnabled, isTrue);
+    });
+
     test('enabled + playing clicks and pulses on each beat', () async {
       await build();
       notifier().toggleWaitMode(); // free-run so the playhead isn't gated
