@@ -63,6 +63,10 @@ class RecordingAudioService implements AudioService {
   final List<int> noteOffs = [];
   int allNotesOffCount = 0;
   int initCount = 0;
+
+  /// Accent flag of every metronome click, in order (true = accented downbeat).
+  final List<bool> metronomeClicks = [];
+
   final bool failInit;
 
   RecordingAudioService({this.failInit = false});
@@ -92,6 +96,12 @@ class RecordingAudioService implements AudioService {
   void allNotesOff() {
     allNotesOffCount++;
     calls.add('allOff');
+  }
+
+  @override
+  void metronomeClick({required bool accent}) {
+    metronomeClicks.add(accent);
+    calls.add(accent ? 'click:accent' : 'click:beat');
   }
 }
 

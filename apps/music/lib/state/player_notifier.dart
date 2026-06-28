@@ -28,6 +28,19 @@ import 'score_catalog.dart';
 
 part 'player_notifier.g.dart';
 
+/// App-wide metronome on/off. Kept alive across player sessions so the choice
+/// survives switching pieces — the [Player] notifier is auto-disposed when you
+/// leave the player screen, which would otherwise reset a flag held only in
+/// [PlayerData]. Seeded into [PlayerData.metronomeEnabled] on build and written
+/// through by [Player.toggleMetronome].
+@Riverpod(keepAlive: true)
+class MetronomeEnabled extends _$MetronomeEnabled {
+  @override
+  bool build() => false;
+
+  void set({required bool enabled}) => state = enabled;
+}
+
 /// Central player notifier: pressed keys, score, rendering mode, playhead and
 /// Wait Mode logic. Listens to the real-time MIDI stream and also receives notes
 /// from the computer-keyboard fallback (via [noteOn]/[noteOff]).
@@ -81,7 +94,12 @@ class Player extends _$Player {
       ports = const [];
       device = null;
     }
-    return PlayerData(midiPorts: ports, connectedDevice: device);
+    return PlayerData(
+      midiPorts: ports,
+      connectedDevice: device,
+      // Seed from the app-wide flag so the metronome stays on/off across pieces.
+      metronomeEnabled: ref.read(metronomeEnabledProvider),
+    );
   }
 
   MidiService get _midi => ref.read(midiServiceProvider);
@@ -255,6 +273,16 @@ class Player extends _$Player {
     state = state.copyWith(waitMode: !state.waitMode, gateSatisfied: const {});
   }
 
+  /// Toggles the metronome on/off (driven by the header Tempo chip). Written
+  /// through to the app-wide [metronomeEnabledProvider] so the choice persists
+  /// across pause/stop and across switching pieces; ticks resume on the next beat
+  /// boundary once playback runs again.
+  void toggleMetronome() {
+    final next = !state.metronomeEnabled;
+    ref.read(metronomeEnabledProvider.notifier).set(enabled: next);
+    state = state.copyWith(metronomeEnabled: next);
+  }
+
   void setSpeed(double s) => state = state.copyWith(speed: s.clamp(0.25, 2.0));
   void setKeyboardRange(KeyboardRangeMode m) =>
       state = state.copyWith(keyboardRange: m);
@@ -314,12 +342,37 @@ class Player extends _$Player {
       _applyScoreAudio(s, s.elapsedMs, next);
     }
 
+    // Metronome: click + pulse on each beat boundary the playhead crosses. Skipped
+    // on a loop wrap (no tick across the seam) and naturally silent while paused
+    // (the early return above) or frozen in Wait Mode (next == elapsedMs yields no
+    // beats). Beats are positional — derived from the score timing each frame — so
+    // a seek/restart simply resumes on the next real boundary with no extra tick.
+    var beatCount = s.beatCount;
+    var lastBeatAccent = s.lastBeatAccent;
+    if (!loop && s.metronomeEnabled) {
+      final crossed = metronomeBeatsCrossed(
+        measureStartMs: s.measureStartMs,
+        beats: s.beats,
+        bpm: s.bpm,
+        songEndMs: s.songEndMs,
+        from: s.elapsedMs,
+        to: next,
+      );
+      for (final beat in crossed) {
+        _audio.metronomeClick(accent: beat.accent);
+        beatCount++;
+        lastBeatAccent = beat.accent;
+      }
+    }
+
     // Leaving the satisfied onset (or looping) re-arms the gate for the next one.
     final leftOnset = onset.isNotEmpty && next != s.elapsedMs;
     state = s.copyWith(
       elapsedMs: next,
       blocked: false,
       gateSatisfied: (leftOnset || loop) ? const {} : s.gateSatisfied,
+      beatCount: beatCount,
+      lastBeatAccent: lastBeatAccent,
     );
   }
 }

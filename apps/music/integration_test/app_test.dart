@@ -25,11 +25,26 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:music/main.dart';
+import 'package:music/services/score_asset_source.dart';
 import 'package:music/src/rust/frb_generated.dart';
+import 'package:music/state/score_catalog.dart';
+
+import 'support/fixture_score.dart';
+
+/// Optional pause (ms) held between steps so a *visible* `flutter drive` run is
+/// watchable. Zero by default — CI and `flutter test` pass no `--dart-define`,
+/// so the gate stays fast — and set by `melos run integration`. Override with
+/// `--dart-define=WATCH_MS=1500`.
+const int _watchMs = int.fromEnvironment('WATCH_MS');
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
   setUpAll(() async => await RustLib.init());
+
+  /// Real-time pause so the current screen is visible (no-op when [_watchMs]==0).
+  Future<void> watch(WidgetTester tester) => _watchMs > 0
+      ? tester.pump(Duration(milliseconds: _watchMs))
+      : Future.value();
 
   testWidgets('library → score → plays, keyboard input, render modes', (
     tester,
@@ -41,11 +56,24 @@ void main() {
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
 
-    await tester.pumpWidget(const ProviderScope(child: CymbraApp()));
+    // Drive a test-owned score fixture (not the app's shipping assets, which
+    // change independently) — still parsed/laid out by the real Rust bridge.
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          scoreCatalogProvider.overrideWithValue(const [kFixtureCatalogEntry]),
+          scoreAssetSourceProvider.overrideWithValue(
+            const FixtureScoreAssetSource(),
+          ),
+        ],
+        child: const CymbraApp(),
+      ),
+    );
     await tester.pump(const Duration(milliseconds: 100));
 
-    // Boots into the score library; pick a bundled score.
+    // Boots into the score library; pick the fixture score.
     expect(find.text('Cymbra — Score Library'), findsOneWidget);
+    await watch(tester);
     final entry = find.text('Ode to Joy (theme)');
     expect(entry, findsOneWidget);
     await tester.tap(entry);
@@ -58,12 +86,14 @@ void main() {
     // Player chrome for the loaded score (parsed over the bridge).
     expect(find.text('Cymbra Music'), findsWidgets);
     expect(find.textContaining('Ode to Joy'), findsWidgets);
+    await watch(tester);
 
     // Transport: play.
     expect(find.byIcon(Icons.play_arrow), findsOneWidget);
     await tester.tap(find.byIcon(Icons.play_arrow));
     await tester.pump();
     expect(find.byIcon(Icons.pause), findsOneWidget);
+    await watch(tester);
 
     // Computer-keyboard fallback: press and release C4.
     await tester.sendKeyDownEvent(LogicalKeyboardKey.keyA);
@@ -74,9 +104,12 @@ void main() {
     // Cycle the three rendering modes: Synthesia → Staff → Partition → Synthesia.
     await tester.tap(find.text('Staff'));
     await tester.pump();
+    await watch(tester);
     await tester.tap(find.text('Partition'));
     await tester.pump(const Duration(milliseconds: 100));
+    await watch(tester);
     await tester.tap(find.text('Synthesia'));
     await tester.pump();
+    await watch(tester);
   });
 }
