@@ -44,6 +44,9 @@
 - [x] 6.1 Integrate `google_sign_in`: obtain `id_token`, call `SignInOidc(audience="music")`; handle user-cancel as no-op
 - [x] 6.2 Integrate `sign_in_with_apple`: obtain `id_token`, call `SignInOidc(audience="music")`; offer on Apple platforms wherever Google is offered
 - [ ] 6.3 Platform config: Google OAuth client IDs (iOS/Android/macOS) + iOS URL schemes / Android intent filters; Apple "Sign in with Apple" capability — SCAFFOLDED (buttons gated behind `--dart-define` GOOGLE_CLIENT_ID/APPLE_SIGN_IN_ENABLED; reversed-client-id URL scheme placeholders in iOS/macOS Info.plist; README documents the steps). BLOCKED on the real OAuth client IDs + Apple capability (needs a dev certificate) to finish.
+  - [x] 6.3a **macOS** build-time injection (no secret committed): Info.plist URL scheme uses `$(GOOGLE_OAUTH_CLIENT_SUFFIX)` resolved from `Configs/AppInfo.xcconfig` (inert default) overridden by gitignored `Configs/Secrets.xcconfig` (template: `Secrets.example.xcconfig`); the `release-build.yml` macOS job writes it from the `GOOGLE_CLIENT_ID` secret and passes `--dart-define`. Needs the `GOOGLE_CLIENT_ID` repo secret set.
+  - [ ] 6.3b **iOS**: replicate the macOS `Secrets.xcconfig` injection in `ios/Runner/Info.plist` (still a literal placeholder); deferred until signed iOS builds land in CI.
+  - [ ] 6.3c **Android**: wire `serverClientId` (web OAuth client) for `google_sign_in` — NOT a reversed-client-id intent filter; needs its own client + secret injection.
 - [ ] 6.4 Coordinate backend `CYMBRA_GOOGLE_AUDIENCE`/`CYMBRA_APPLE_AUDIENCE` with the registered client IDs — BLOCKED: depends on 6.3 credentials
 - [x] 6.5 Tests with a fake OIDC token source covering success and cancellation
 

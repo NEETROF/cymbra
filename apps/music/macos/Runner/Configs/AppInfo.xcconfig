@@ -12,3 +12,10 @@ PRODUCT_BUNDLE_IDENTIFIER = com.cymbra.music
 
 // The copyright displayed in application information
 PRODUCT_COPYRIGHT = Copyright © 2026 NEETROF. All rights reserved.
+
+// Google Sign-In reversed-client-id suffix for the OAuth callback URL scheme
+// (Info.plist CFBundleURLSchemes). This default is an inert placeholder; the real
+// value is injected — and never committed — via Secrets.xcconfig (gitignored, see
+// Secrets.example.xcconfig). CI writes it from the GOOGLE_CLIENT_ID secret.
+GOOGLE_OAUTH_CLIENT_SUFFIX = REPLACE_WITH_REVERSED_GOOGLE_CLIENT_ID
+#include? "Secrets.xcconfig"

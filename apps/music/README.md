@@ -134,14 +134,19 @@ flutter run -d macos \
   --dart-define=APPLE_SIGN_IN_ENABLED=true
 ```
 
-**Google** — once you have an OAuth client ID:
+**Google** — once you have an OAuth client ID (the reversed client ID and the
+client ID are **never committed**; supply them at build time):
 1. Pass it via `--dart-define=GOOGLE_CLIENT_ID=...` (no `GIDClientID` Info.plist
    entry needed — it's passed in Dart).
-2. Replace the placeholder `CFBundleURLScheme`
-   `com.googleusercontent.apps.REPLACE_WITH_REVERSED_GOOGLE_CLIENT_ID` in
-   `ios/Runner/Info.plist` and `macos/Runner/Info.plist` with your **reversed**
-   client ID (needed for the OAuth callback). Android uses an intent filter.
-3. Set the backend's `CYMBRA_GOOGLE_AUDIENCE` to the same client ID.
+2. **macOS**: the callback URL scheme `com.googleusercontent.apps.$(GOOGLE_OAUTH_CLIENT_SUFFIX)`
+   in `macos/Runner/Info.plist` is resolved from a build setting. Copy
+   `macos/Runner/Configs/Secrets.example.xcconfig` → `Secrets.xcconfig` (gitignored)
+   and set `GOOGLE_OAUTH_CLIENT_SUFFIX` to the part of your client ID before
+   `.apps.googleusercontent.com`. In CI the `macos` release job writes this file
+   from the `GOOGLE_CLIENT_ID` secret. (iOS still uses the literal placeholder in
+   `ios/Runner/Info.plist`; wire it the same way when iOS builds land. Android uses
+   a `serverClientId`, not a URL scheme.)
+3. Set the backend's `CYMBRA_GOOGLE_AUDIENCE` to the same (full) client ID.
 
 **Apple** — enable `--dart-define=APPLE_SIGN_IN_ENABLED=true`, add the
 **"Sign in with Apple"** capability in Xcode (writes the
