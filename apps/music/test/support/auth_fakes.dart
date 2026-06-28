@@ -201,6 +201,8 @@ class FakeOidcTokenSource implements OidcTokenSource {
   String? googleToken;
   String? appleToken;
   @override
+  bool googleAvailable;
+  @override
   bool appleAvailable;
 
   final List<String> calls = [];
@@ -208,6 +210,7 @@ class FakeOidcTokenSource implements OidcTokenSource {
   FakeOidcTokenSource({
     this.googleToken = 'google-id-token',
     this.appleToken = 'apple-id-token',
+    this.googleAvailable = true,
     this.appleAvailable = true,
   });
 

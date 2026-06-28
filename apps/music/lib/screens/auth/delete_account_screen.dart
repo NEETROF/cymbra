@@ -116,7 +116,9 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final appleAvailable = ref.watch(oidcTokenSourceProvider).appleAvailable;
+    final oidc = ref.watch(oidcTokenSourceProvider);
+    final googleAvailable = oidc.googleAvailable;
+    final appleAvailable = oidc.appleAvailable;
 
     return AuthScaffold(
       title: 'Delete account',
@@ -153,15 +155,19 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
                 )
               : const Text('Confirm with password & delete'),
         ),
-        const SizedBox(height: 16),
-        const Text('or re-authenticate with', textAlign: TextAlign.center),
-        const SizedBox(height: 8),
-        OutlinedButton.icon(
-          key: const Key('delete-with-google'),
-          onPressed: _busy ? null : _deleteWithGoogle,
-          icon: const Icon(Icons.account_circle),
-          label: const Text('Google'),
-        ),
+        if (googleAvailable || appleAvailable) ...[
+          const SizedBox(height: 16),
+          const Text('or re-authenticate with', textAlign: TextAlign.center),
+        ],
+        if (googleAvailable) ...[
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            key: const Key('delete-with-google'),
+            onPressed: _busy ? null : _deleteWithGoogle,
+            icon: const Icon(Icons.account_circle),
+            label: const Text('Google'),
+          ),
+        ],
         if (appleAvailable) ...[
           const SizedBox(height: 8),
           OutlinedButton.icon(

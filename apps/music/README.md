@@ -121,22 +121,35 @@ The gRPC endpoint defaults to plaintext `localhost:50051` (dev). Override the
 `cymbraEndpointProvider` for staging/production (TLS). Bring the backend up with
 `backend/docker-compose.yml` (`CYMBRA_GRPC_ADDR=0.0.0.0:50051`).
 
-### Google / Apple sign-in (platform config — TODO before shipping OIDC)
+### Google / Apple sign-in (platform config — tasks 6.3/6.4)
 
-Email/password and guest work against the local backend with no extra config.
-The Google/Apple buttons need native credentials wired up first:
+Email/password and guest work against the local backend with **no extra config**.
+The Google/Apple buttons are **hidden until configured**, so an unconfigured build
+never invokes the native SDK (which would crash with `GIDClientID is set in
+Info.plist`). Configuration is supplied at build time with `--dart-define`:
 
-- **Google**: register OAuth client IDs (iOS, Android, macOS), add the iOS URL
-  scheme / Android intent filter for `google_sign_in`, and set the backend's
-  `CYMBRA_GOOGLE_AUDIENCE` to the registered client ID(s).
-- **Apple**: enable the "Sign in with Apple" capability and set
-  `CYMBRA_APPLE_AUDIENCE`.
-- **Local dev**: the compose `mock-oidc` profile stands in for Google/Apple —
-  start it with `docker compose --profile oidc up` (see
-  `CYMBRA_DEV_OIDC_ISSUER`).
+```bash
+flutter run -d macos \
+  --dart-define=GOOGLE_CLIENT_ID=<id>.apps.googleusercontent.com \
+  --dart-define=APPLE_SIGN_IN_ENABLED=true
+```
 
-Until those client IDs exist the OIDC buttons will fail with `UNAUTHENTICATED`;
-this is tracked as tasks 6.3/6.4 of the `add-music-account-access` change.
+**Google** — once you have an OAuth client ID:
+1. Pass it via `--dart-define=GOOGLE_CLIENT_ID=...` (no `GIDClientID` Info.plist
+   entry needed — it's passed in Dart).
+2. Replace the placeholder `CFBundleURLScheme`
+   `com.googleusercontent.apps.REPLACE_WITH_REVERSED_GOOGLE_CLIENT_ID` in
+   `ios/Runner/Info.plist` and `macos/Runner/Info.plist` with your **reversed**
+   client ID (needed for the OAuth callback). Android uses an intent filter.
+3. Set the backend's `CYMBRA_GOOGLE_AUDIENCE` to the same client ID.
+
+**Apple** — enable `--dart-define=APPLE_SIGN_IN_ENABLED=true`, add the
+**"Sign in with Apple"** capability in Xcode (writes the
+`com.apple.developer.applesignin` entitlement — this **requires a development
+certificate**, like all capability entitlements), and set `CYMBRA_APPLE_AUDIENCE`.
+
+**Local dev**: the compose `mock-oidc` profile stands in for Google/Apple — start
+it with `docker compose --profile oidc up` (see `CYMBRA_DEV_OIDC_ISSUER`).
 
 ## License
 

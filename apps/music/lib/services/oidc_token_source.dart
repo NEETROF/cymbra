@@ -20,6 +20,8 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
+import 'oidc_config.dart';
+
 part 'oidc_token_source.g.dart';
 
 /// Seam over the native Google/Apple sign-in SDKs (design D1). Each method drives
@@ -27,6 +29,11 @@ part 'oidc_token_source.g.dart';
 /// Cymbra ID's `SignInOidc`, or **null** when the user cancels. The app never
 /// performs the OAuth exchange itself. Kept abstract so the OIDC sign-in flow is
 /// tested with a fake token source (task 6.5) — no native channel.
+///
+/// The `*Available` flags gate the entry buttons: when a provider is not
+/// configured (no client ID / capability) its button is hidden, so the native
+/// SDK is never invoked unconfigured — that would throw an uncatchable native
+/// exception and crash the app.
 abstract class OidcTokenSource {
   /// Obtain a Google `id_token`, or null if the user dismissed the sheet.
   Future<String?> googleIdToken();
@@ -34,8 +41,10 @@ abstract class OidcTokenSource {
   /// Obtain an Apple `id_token`, or null if the user cancelled.
   Future<String?> appleIdToken();
 
-  /// Whether Sign in with Apple should be offered on this platform (Apple
-  /// platforms; App Store requires it wherever Google is offered).
+  /// Whether Google sign-in is configured (a client ID is present).
+  bool get googleAvailable;
+
+  /// Whether Sign in with Apple is offered (enabled + on an Apple platform).
   bool get appleAvailable;
 }
 
@@ -45,15 +54,26 @@ class NativeOidcTokenSource implements OidcTokenSource {
   const NativeOidcTokenSource();
 
   @override
+  bool get googleAvailable => kGoogleClientId.isNotEmpty;
+
+  @override
+  bool get appleAvailable =>
+      kAppleSignInEnabled && !kIsWeb && (Platform.isIOS || Platform.isMacOS);
+
+  @override
   Future<String?> googleIdToken() async {
-    final account = await GoogleSignIn().signIn(); // null when cancelled
-    if (account == null) return null;
+    if (!googleAvailable) return null; // not configured — caller guards too
+    // Pass the client ID in Dart so no GIDClientID Info.plist entry is required;
+    // the reversed-client-id URL scheme is still needed for the callback.
+    final account = await GoogleSignIn(clientId: kGoogleClientId).signIn();
+    if (account == null) return null; // user dismissed the sheet
     final auth = await account.authentication;
     return auth.idToken;
   }
 
   @override
   Future<String?> appleIdToken() async {
+    if (!appleAvailable) return null;
     try {
       final cred = await SignInWithApple.getAppleIDCredential(
         scopes: const [AppleIDAuthorizationScopes.email],
@@ -64,9 +84,6 @@ class NativeOidcTokenSource implements OidcTokenSource {
       rethrow;
     }
   }
-
-  @override
-  bool get appleAvailable => !kIsWeb && (Platform.isIOS || Platform.isMacOS);
 }
 
 /// Production OIDC-token-source provider. Override in tests with a fake.

@@ -74,7 +74,9 @@ class _EntryScreenState extends ConsumerState<EntryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final appleAvailable = ref.watch(oidcTokenSourceProvider).appleAvailable;
+    final oidc = ref.watch(oidcTokenSourceProvider);
+    final googleAvailable = oidc.googleAvailable;
+    final appleAvailable = oidc.appleAvailable;
 
     return Scaffold(
       backgroundColor: CymbraColors.background,
@@ -107,22 +109,24 @@ class _EntryScreenState extends ConsumerState<EntryScreen> {
                     style: TextStyle(color: CymbraColors.onSurfaceVariant),
                   ),
                   const SizedBox(height: 40),
-                  _EntryButton(
-                    key: const Key('entry-google'),
-                    icon: Icons.account_circle,
-                    label: 'Continue with Google',
-                    onPressed: _busy ? null : _continueWithGoogle,
-                  ),
-                  if (appleAvailable) ...[
+                  if (googleAvailable) ...[
+                    _EntryButton(
+                      key: const Key('entry-google'),
+                      icon: Icons.account_circle,
+                      label: 'Continue with Google',
+                      onPressed: _busy ? null : _continueWithGoogle,
+                    ),
                     const SizedBox(height: 12),
+                  ],
+                  if (appleAvailable) ...[
                     _EntryButton(
                       key: const Key('entry-apple'),
                       icon: Icons.apple,
                       label: 'Continue with Apple',
                       onPressed: _busy ? null : _continueWithApple,
                     ),
+                    const SizedBox(height: 12),
                   ],
-                  const SizedBox(height: 12),
                   _EntryButton(
                     key: const Key('entry-email'),
                     icon: Icons.mail_outline,

@@ -42,5 +42,21 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<!-- Google Sign-In callback (add-music-account-access, task 6.3). Replace the
+	     placeholder with your REVERSED Google iOS client ID, e.g.
+	     com.googleusercontent.apps.1234567890-abcdef. Until GOOGLE_CLIENT_ID is
+	     supplied via --dart-define the Google button is hidden, so this scheme is
+	     inert and safe to leave as a placeholder. -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.REPLACE_WITH_REVERSED_GOOGLE_CLIENT_ID</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>
