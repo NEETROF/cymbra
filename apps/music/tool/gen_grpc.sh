@@ -37,10 +37,18 @@ export PATH="$PATH:$HOME/.pub-cache/bin:${LOCALAPPDATA:-}/Pub/Cache/bin:${APPDAT
 rm -rf "$OUT_DIR"
 mkdir -p "$OUT_DIR"
 
+# protoc is a native binary; under Git Bash/MSYS on Windows it does not
+# understand MSYS-style paths (/d/a/...), so convert the paths it receives to
+# native (D:\a\...) form. cygpath is absent on macOS/Linux, where paths pass
+# through unchanged.
+to_native() {
+  if command -v cygpath >/dev/null 2>&1; then cygpath -w "$1"; else printf '%s' "$1"; fi
+}
+
 protoc \
-  --proto_path="$AUTH_PROTO_DIR" \
-  --proto_path="$USER_PROTO_DIR" \
-  --dart_out=grpc:"$OUT_DIR" \
+  --proto_path="$(to_native "$AUTH_PROTO_DIR")" \
+  --proto_path="$(to_native "$USER_PROTO_DIR")" \
+  --dart_out=grpc:"$(to_native "$OUT_DIR")" \
   auth.proto user.proto
 
 echo "Generated gRPC Dart stubs into $OUT_DIR"

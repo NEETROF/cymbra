@@ -23,7 +23,7 @@ jobs:
       # integration) lcov here; the hard 80% gate lives in rust.yml / flutter.yml.
       # Sonar stays non-blocking (no qualitygate.wait) — PR decoration only.
       - name: Install build deps
-        run: sudo apt-get update && sudo apt-get install -y libasound2-dev ninja-build libgtk-3-dev clang cmake pkg-config xvfb protobuf-compiler
+        run: sudo apt-get update && sudo apt-get install -y libasound2-dev ninja-build libgtk-3-dev libsecret-1-dev clang cmake pkg-config xvfb protobuf-compiler
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: llvm-tools-preview
