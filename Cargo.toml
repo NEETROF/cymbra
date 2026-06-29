@@ -35,6 +35,13 @@ async-trait = "0.1"
 # persistence + cache
 sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "tls-rustls", "postgres", "uuid", "chrono", "migrate", "macros"] }
 redis = { version = "0.27", features = ["tokio-comp", "connection-manager"] }
+# async-job substrate (change: add-job-infrastructure). rustls to match sqlx's
+# TLS stack (no native-tls/OpenSSL).
+sqlxmq = { version = "0.6", default-features = false, features = ["runtime-tokio-rustls"] }
+# time + cron for the recurring scheduler
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+chrono-tz = "0.10"
+cron = "0.15"
 # auth + crypto
 jsonwebtoken = "9"
 argon2 = "0.5"

@@ -30,3 +30,18 @@ datasources:
           matcherRegex: 'trace_id"?[:=]"?(\w+)'
           url: '$${__value.raw}'
           datasourceUid: tempo
+
+  # Job-queue observability (design D8; change: add-job-infrastructure). Read-only
+  # SQL over the `jobs.*` views. DEV connects as worker_svc against the dev
+  # Postgres; production should point this at a dedicated read-only grant.
+  - name: Jobs (Postgres)
+    type: grafana-postgresql-datasource
+    uid: jobs-postgres
+    url: host.docker.internal:5432
+    user: worker_svc
+    jsonData:
+      database: cymbra_id
+      sslmode: disable
+      postgresVersion: 1600
+    secureJsonData:
+      password: worker_dev_pw

@@ -44,6 +44,27 @@ cargo run -p cymbra-server --bin cymbra-id
    - resources: `process_memory_bytes`, `process_cpu_percent`, plus host
      `system_*` series from the collector.
 
+## Job queue (change: add-job-infrastructure)
+
+The async-job substrate is observed with plain SQL over Grafana's Postgres
+datasource (design D8) — no extra exporter. Provisioned automatically with the
+stack:
+
+- **Datasource** "Jobs (Postgres)" (`grafana/datasources.yaml`) — dev connects as
+  `worker_svc` to the backend Postgres via `host.docker.internal`. Point this at a
+  dedicated read-only grant in production.
+- **Dashboard** "Cymbra — Job Queue" (`grafana/dashboards/jobs.json`, folder
+  *Jobs*) — pending / in-flight / dead-lettered counts, per-channel depth and
+  oldest age, and a recent-dead-letters table. Built on the `jobs.pending`,
+  `jobs.inflight`, `jobs.failed`, and `jobs.channel_depth` views.
+- **Alert** "Job dead-letter queue is non-empty" (`grafana/alerting.yaml`, folder
+  *Jobs*) — fires whenever `jobs.dead_letter` is non-empty (a job exhausted its
+  retries). Wire a contact point to your channel of choice.
+
+The worker also serves `/healthz` and `/readyz` on `CYMBRA_WORKER_HTTP_ADDR`.
+Queue pickup is event-driven (LISTEN/NOTIFY); the tuning knob is concurrency, not
+a poll interval (design D7).
+
 ## Notes
 
 - No bearer tokens, passwords, secrets, or raw PII are placed in spans, metric

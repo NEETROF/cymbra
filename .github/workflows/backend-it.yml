@@ -41,6 +41,7 @@ jobs:
       PGPASSWORD: cymbra_dev_pw
       CYMBRA_AUTH_DATABASE_URL: postgres://auth_svc:auth_dev_pw@localhost:5432/cymbra_id
       CYMBRA_USER_DATABASE_URL: postgres://user_svc:user_dev_pw@localhost:5432/cymbra_id
+      CYMBRA_WORKER_DATABASE_URL: postgres://worker_svc:worker_dev_pw@localhost:5432/cymbra_id
       CYMBRA_REDIS_URL: redis://localhost:6379
     steps:
       - uses: actions/checkout@v4
@@ -51,4 +52,4 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - name: Integration tests (ignored set)
-        run: cargo test -p cymbra-auth -p cymbra-user -- --ignored
+        run: cargo test -p cymbra-auth -p cymbra-user -p cymbra-jobs -- --ignored

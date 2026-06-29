@@ -1,0 +1,33 @@
+[package]
+name = "cymbra-worker"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Cymbra background-job worker — executes queued jobs (sqlxmq runner), runs the recurring scheduler and the dead-letter sweep, and serves a health surface."
+
+[[bin]]
+name = "cymbra-worker"
+path = "src/main.rs"
+
+[dependencies]
+cymbra-jobs = { path = "../jobs" }
+cymbra-platform = { path = "../platform" }
+cymbra-user = { path = "../user" }
+cymbra-user-port = { path = "../user-port" }
+sqlxmq.workspace = true
+sqlx.workspace = true
+tokio.workspace = true
+axum.workspace = true
+anyhow.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+chrono.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+async-trait.workspace = true
+dotenvy.workspace = true
+humantime.workspace = true
+
+[dev-dependencies]
+tokio = { workspace = true }

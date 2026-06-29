@@ -130,6 +130,51 @@ to a scheduled job (D5) and remove the in-process loop in `main.rs`.
 - **Long maintenance jobs** → the scheduler only enqueues; heavy work runs in the
   worker, never held inside a tick/lock.
 
+## Spike findings (task 1.3 — decision checkpoint)
+
+The transactional-enqueue spike (tasks 1.1–1.2) was de-risked at the dependency
+and SQL-semantics level, and is asserted at runtime by an `#[ignore]` integration
+test (`backend/jobs/tests/spike_transactional_enqueue.rs`, run under the
+`backend-it` workflow against live Postgres, matching the repo convention for
+DB-touching code). Findings:
+
+1. **Engine compatibility — confirmed.** `sqlxmq 0.6` depends on `sqlx ^0.8`
+   (matches the repo pin) and its `JobBuilder::spawn` takes any
+   `sqlx::Executor`, so `spawn(&mut *tx)` enqueues inside the producer's
+   transaction. We use the `runtime-tokio-rustls` feature (no native-tls/OpenSSL)
+   to match the repo's TLS stack. **D1 holds.**
+
+2. **D3 refinement — enqueue via a `SECURITY DEFINER` wrapper, not a bare
+   `GRANT INSERT`.** Inspecting sqlxmq's `mq_insert` (what `spawn` calls) shows it
+   INSERTs into **both** `mq_msgs` and `mq_payloads`, and for *ordered* channels
+   reads `mq_msgs` via `mq_latest_message()`. A bare write-only `GRANT INSERT`
+   (as D3 first sketched) is therefore insufficient *and* would force a module
+   role to hold direct SELECT/INSERT on the queue tables — a wider hole than
+   intended. **Resolution:** a `SECURITY DEFINER` function `jobs.enqueue(...)`
+   owned by `worker_svc` performs the insert with the owner's privileges; module
+   roles get `EXECUTE` on **only that one function** (plus `USAGE` on the `jobs`
+   schema). This is a *stricter*, cleaner realization of D3's intent — module
+   roles never touch the `mq_*` tables directly and gain no read access to any
+   other schema — while preserving transactional enqueue (the function call runs
+   in the producer's own transaction). The worker side still uses sqlxmq's
+   native `spawn`/poll under `worker_svc`. The bare-`GRANT INSERT` wording in D3
+   is superseded by this `EXECUTE`-on-definer-function grant.
+
+3. **`mq_*` placement / `search_path` (task 1.2).** sqlxmq's migration creates
+   the `mq_*` objects with **unqualified** names, so they land in the schema at
+   the front of `search_path` when the migration runs. We run the `cymbra-jobs`
+   migrator as `worker_svc` whose `search_path` is pinned to `jobs`, so the
+   objects are created in `jobs`. Two superuser prerequisites are handled in the
+   dev bootstrap (`db/init`), not the crate migration, because `worker_svc` is
+   not a superuser: (a) `CREATE EXTENSION "uuid-ossp"` and (b) ensuring
+   `uuid_nil()`/`uuid_generate_*` resolve — the extension is installed into
+   `jobs` and `worker_svc`'s `search_path` covers it. The vendored sqlxmq
+   migrations are kept verbatim (minus the `CREATE EXTENSION` line, hoisted to
+   bootstrap) so the engine can be re-vendored on upgrade.
+
+No fallback (per-module queue tables / outbox) is needed — the spike's central
+assumption holds with the D3 refinement above.
+
 ## Migration Plan
 
 Additive: new `cymbra-jobs` crate + `cymbra-worker` binary + `jobs` schema

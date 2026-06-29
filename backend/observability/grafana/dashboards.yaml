@@ -1,0 +1,13 @@
+# Dashboard provisioning (change: add-job-infrastructure). Loads the JSON
+# dashboards under ./dashboards (mounted into the Grafana container).
+apiVersion: 1
+providers:
+  - name: cymbra-jobs
+    orgId: 1
+    folder: Jobs
+    type: file
+    disableDeletion: false
+    editable: true
+    options:
+      path: /etc/grafana/provisioning/dashboards/jobs
+      foldersFromFilesStructure: false
