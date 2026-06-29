@@ -39,9 +39,15 @@ class CymbraEndpoint {
   });
 }
 
-/// Endpoint provider — overridden per environment.
+/// Endpoint provider — overridden per environment. Host/port can be supplied at
+/// build time with `--dart-define=CYMBRA_GRPC_HOST=…` / `CYMBRA_GRPC_PORT=…`
+/// (e.g. to reach a backend on the dev machine from a physical device on the LAN);
+/// defaults stay plaintext localhost. Override the provider directly for TLS.
 @Riverpod(keepAlive: true)
-CymbraEndpoint cymbraEndpoint(Ref ref) => const CymbraEndpoint();
+CymbraEndpoint cymbraEndpoint(Ref ref) => const CymbraEndpoint(
+  host: String.fromEnvironment('CYMBRA_GRPC_HOST', defaultValue: 'localhost'),
+  port: int.fromEnvironment('CYMBRA_GRPC_PORT', defaultValue: 50051),
+);
 
 /// Shared gRPC channel to the backend. Closed when the provider is disposed.
 @Riverpod(keepAlive: true)

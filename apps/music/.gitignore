@@ -6,8 +6,9 @@ custom_lint.log
 # before analyze/test, like lib/src/rust). Never committed.
 lib/src/grpc/
 
-# Local OAuth secret injected into the macOS build (real reversed Google client-id
-# suffix). Copy Secrets.example.xcconfig → Secrets.xcconfig; CI writes it from the
-# GOOGLE_CLIENT_ID secret. Never committed.
+# Local OAuth secret injected into the macOS / iOS build (real reversed Google
+# client-id suffix). Copy Secrets.example.xcconfig → Secrets.xcconfig; CI writes it
+# from the GOOGLE_CLIENT_ID secret. Never committed.
 macos/Runner/Configs/Secrets.xcconfig
+ios/Flutter/Secrets.xcconfig
 
