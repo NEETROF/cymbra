@@ -680,6 +680,7 @@ dependencies = [
  "async-trait",
  "base64 0.22.1",
  "cymbra-auth-port",
+ "cymbra-jobs",
  "cymbra-platform",
  "cymbra-user",
  "cymbra-user-port",

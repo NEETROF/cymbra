@@ -30,17 +30,11 @@
 - [x] 5.3 Per-schedule missed-run policy (skip vs catch-up) honored — `schedule::MissedRun` + `Schedule::occurrences_to_enqueue`
 - [x] 5.4 Tests (host-testable): bucket/dedup is singleton across N simulated replicas; disabled schedule enqueues nothing; cron/timezone due-time computation — `schedule.rs` unit tests
 
-## 6. First slice (migrate existing work) — DEFERRED to a follow-up step
+## 6. First slice (migrate existing work)
 
-> Substrate + worker are in place; the worker already has the `verification_email`
-> and `orphan_reap` handlers and the enqueue seam. What remains is the invasive
-> request-path change (and is intentionally left as the final, separately-reviewed
-> step — it touches the live sign-up path and is runtime-verified via integration
-> tests).
-
-- [ ] 6.1 Move verification email out of `AuthModule::sign_up_local` request path → enqueue an `email` job in the same transaction; handler idempotent (dedupe by token), retried
-- [ ] 6.2 Relocate the orphan reaper to a scheduled job (reuses `UserModule::reap_orphans`); remove the in-process `tokio::interval` loop in `backend/server/src/main.rs`
-- [ ] 6.3 Tests: sign-up succeeds without SMTP and enqueues the email; reaper runs via a scheduled job exactly once
+- [x] 6.1 Move verification email out of `AuthModule::sign_up_local` request path → enqueue an `email` job in the same transaction; handler idempotent (dedupe by token), retried — `CredentialRepo::set_verification_with_job` (one tx: verification write + `jobs.enqueue`); `verification_email_job` builds the payload; worker's `verification_email` handler sends it (single-use token = idempotency)
+- [x] 6.2 Relocate the orphan reaper to a scheduled job (reuses `UserModule::reap_orphans`); remove the in-process `tokio::interval` loop in `backend/server/src/main.rs` — loop removed; seeded `jobs.schedules` row `orphan_reap_hourly` (`migrations/0007`); worker's `orphan_reap` handler calls `UserModule::reap_orphans`
+- [x] 6.3 Tests: sign-up succeeds without SMTP and enqueues the email; reaper runs via a scheduled job exactly once — `module::tests::signup_enqueues_email_off_request_path` (unit) + `jobs/tests/scheduler_test.rs` (`#[ignore]`, exactly-once across replicas)
 
 ## 7. Observability
 
@@ -52,5 +46,5 @@
 
 - [x] 8.1 `cargo fmt --all --check` + `cargo clippy --workspace --all-targets -- -D warnings` clean
 - [x] 8.2 `cargo llvm-cov` green, coverage ≥ 80% (pure policy/scheduler logic covered; engine/DB glue excluded) — 95.67% lines workspace-wide with `engine.rs`/`scheduler.rs`/`handlers.rs` added to the exclusion regex (rust.yml + sonar.yml)
-- [x] 8.3 Deployment note: `cymbra-worker` must be deployed for background work; the reaper no longer runs in `cymbra-id` — backend `README.md` (the reaper-loop removal lands with the deferred first slice, 6.2)
+- [x] 8.3 Deployment note: `cymbra-worker` must be deployed for background work; the reaper no longer runs in `cymbra-id` — backend `README.md`; the in-process reaper loop is removed (6.2)
 - [x] 8.4 `openspec validate add-job-infrastructure --strict` passes

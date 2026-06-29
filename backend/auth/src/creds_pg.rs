@@ -2,6 +2,7 @@
 //! tested in group 7).
 
 use async_trait::async_trait;
+use cymbra_jobs::EnqueueRequest;
 use cymbra_platform::{AppError, Result};
 use sqlx::{PgPool, Row};
 
@@ -69,6 +70,33 @@ impl CredentialRepo for PgCredentialRepo {
         .execute(&self.pool)
         .await
         .map_err(internal)?;
+        Ok(())
+    }
+
+    async fn set_verification_with_job(
+        &self,
+        email: &str,
+        token: &str,
+        expires_at: i64,
+        job: &EnqueueRequest,
+    ) -> Result<()> {
+        let mut tx = self.pool.begin().await.map_err(internal)?;
+        sqlx::query(
+            "UPDATE local_credentials SET verification_token = $2, verification_expires_at = $3 \
+             WHERE email = $1",
+        )
+        .bind(email)
+        .bind(token)
+        .bind(expires_at)
+        .execute(&mut *tx)
+        .await
+        .map_err(internal)?;
+        // Enqueue the email job in the SAME transaction (auth_svc has EXECUTE on
+        // jobs.enqueue); the job exists iff this commits.
+        cymbra_jobs::transactional_enqueue(&mut tx, job)
+            .await
+            .map_err(|e| AppError::Internal(anyhow::anyhow!("enqueue email job: {e}")))?;
+        tx.commit().await.map_err(internal)?;
         Ok(())
     }
 

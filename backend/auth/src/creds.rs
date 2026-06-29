@@ -2,6 +2,7 @@
 //! verification/reset tokens. A [`FakeCredentialRepo`] keeps the module testable.
 
 use async_trait::async_trait;
+use cymbra_jobs::EnqueueRequest;
 use cymbra_platform::{AppError, Result};
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -21,6 +22,17 @@ pub trait CredentialRepo: Send + Sync {
     async fn get(&self, email: &str) -> Result<Option<Credential>>;
     /// Store a single-use verification token + expiry (unix seconds).
     async fn set_verification(&self, email: &str, token: &str, expires_at: i64) -> Result<()>;
+    /// Store the verification token **and** enqueue `job` atomically in one
+    /// transaction (transactional enqueue, design D1): the email job exists iff
+    /// the verification write commits. Used by sign-up so SMTP is off the request
+    /// path and an email failure can never fail an account that was created.
+    async fn set_verification_with_job(
+        &self,
+        email: &str,
+        token: &str,
+        expires_at: i64,
+        job: &EnqueueRequest,
+    ) -> Result<()>;
     /// Consume a valid verification token: mark verified, clear it; return the email.
     async fn verify_by_token(&self, token: &str, now: i64) -> Result<Option<String>>;
     async fn set_reset(&self, email: &str, token: &str, expires_at: i64) -> Result<()>;
@@ -41,9 +53,15 @@ struct Row {
 #[derive(Default)]
 pub struct FakeCredentialRepo {
     rows: Mutex<HashMap<String, Row>>,
+    enqueued: Mutex<Vec<EnqueueRequest>>,
 }
 
 impl FakeCredentialRepo {
+    /// Test helper: jobs enqueued via [`CredentialRepo::set_verification_with_job`].
+    pub fn enqueued_jobs(&self) -> Vec<EnqueueRequest> {
+        self.enqueued.lock().unwrap().clone()
+    }
+
     /// Test helper: read the pending verification token for `email`.
     pub fn peek_verification_token(&self, email: &str) -> Option<String> {
         self.rows
@@ -94,6 +112,20 @@ impl CredentialRepo for FakeCredentialRepo {
             .get_mut(email)
             .ok_or_else(|| AppError::NotFound("credential".into()))?;
         row.verify_token = Some((token.into(), expires_at));
+        Ok(())
+    }
+
+    async fn set_verification_with_job(
+        &self,
+        email: &str,
+        token: &str,
+        expires_at: i64,
+        job: &EnqueueRequest,
+    ) -> Result<()> {
+        // Records the write and the enqueue together, mirroring the Pg impl's
+        // single transaction.
+        self.set_verification(email, token, expires_at).await?;
+        self.enqueued.lock().unwrap().push(job.clone());
         Ok(())
     }
 
