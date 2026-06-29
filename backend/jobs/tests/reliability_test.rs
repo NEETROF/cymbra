@@ -177,35 +177,22 @@ async fn exhaustion_moves_to_dead_letter() {
         .await
         .unwrap();
 
-    let ctx = Arc::new(TestCtx::default());
-    let _runner = runner_on(&pool, &name, ctx.clone()).await;
-
-    // 0 retries → single attempt; always fails → exhausted.
-    let req = EnqueueRequest::for_job(
-        &spec(ch.clone(), 0),
-        &serde_json::json!({"fail_times": 999}),
-        None,
-    )
-    .unwrap();
+    // Enqueue a job, then force the terminal state the runner leaves after the
+    // last failed attempt (attempts spent, never to retry: attempts=0,
+    // attempt_at NULL). Done via SQL rather than a live runner so this test of
+    // the *sweep* is deterministic — natural retry exhaustion is exercised by
+    // `bounded_retry_then_success`.
+    let req = EnqueueRequest::for_job(&spec(ch.clone(), 0), &serde_json::json!({}), None).unwrap();
     let mut c = pool.acquire().await.unwrap();
     transactional_enqueue(&mut c, &req).await.unwrap();
-
-    // Wait for the attempt to be spent (attempts<=0, attempt_at NULL).
-    assert!(
-        wait_until(Duration::from_secs(15), || async {
-            sqlx::query(
-                "SELECT COUNT(*) AS n FROM jobs.mq_msgs WHERE channel_name=$1 AND attempts<=0 AND attempt_at IS NULL",
-            )
-            .bind(&name)
-            .fetch_one(&pool)
-            .await
-            .unwrap()
-            .get::<i64, _>("n")
-                == 1
-        })
-        .await,
-        "job should exhaust its single attempt"
-    );
+    sqlx::query(
+        "UPDATE jobs.mq_msgs SET attempts = 0, attempt_at = NULL \
+         WHERE channel_name = $1 AND id != jobs.uuid_nil()",
+    )
+    .bind(&name)
+    .execute(&pool)
+    .await
+    .unwrap();
 
     // Sweep moves it to the dead-letter store and out of the queue. Assert on
     // this channel's resulting state, not the global `moved` count (a concurrent
