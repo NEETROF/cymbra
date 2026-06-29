@@ -35,11 +35,17 @@ part 'oidc_token_source.g.dart';
 /// SDK is never invoked unconfigured — that would throw an uncatchable native
 /// exception and crash the app.
 abstract class OidcTokenSource {
-  /// Obtain a Google `id_token`, or null if the user dismissed the sheet.
-  Future<String?> googleIdToken();
+  /// Obtain a Google `id_token`, or null if the user dismissed the sheet. When
+  /// [forceChooser] is true the cached account is cleared first so the account
+  /// picker reappears — used for re-authentication (e.g. account deletion).
+  Future<String?> googleIdToken({bool forceChooser = false});
 
   /// Obtain an Apple `id_token`, or null if the user cancelled.
   Future<String?> appleIdToken();
+
+  /// Forget any cached native sign-in (the Google account) so the next sign-in
+  /// re-prompts for it. Called on app sign-out; best-effort.
+  Future<void> signOut();
 
   /// Whether Google sign-in is configured (a client ID is present).
   bool get googleAvailable;
@@ -54,21 +60,47 @@ class NativeOidcTokenSource implements OidcTokenSource {
   const NativeOidcTokenSource();
 
   @override
-  bool get googleAvailable => kGoogleClientId.isNotEmpty;
+  bool get googleAvailable {
+    if (kIsWeb) return false;
+    // Android mints the id_token from the server (web) client; Apple platforms
+    // use the native iOS client. google_sign_in supports neither Windows nor
+    // Linux, so Google stays hidden there.
+    if (Platform.isAndroid) return kGoogleServerClientId.isNotEmpty;
+    if (Platform.isIOS || Platform.isMacOS) return kGoogleClientId.isNotEmpty;
+    return false;
+  }
 
   @override
   bool get appleAvailable =>
       kAppleSignInEnabled && !kIsWeb && (Platform.isIOS || Platform.isMacOS);
 
+  // clientId drives the native iOS/macOS flow (its reversed-client-id URL scheme
+  // is still required); serverClientId (the web client) sets the id_token audience
+  // on every platform — and is what makes Android return an id_token at all.
+  GoogleSignIn _google() => GoogleSignIn(
+    clientId: kGoogleClientId.isEmpty ? null : kGoogleClientId,
+    serverClientId: kGoogleServerClientId.isEmpty
+        ? null
+        : kGoogleServerClientId,
+  );
+
   @override
-  Future<String?> googleIdToken() async {
+  Future<String?> googleIdToken({bool forceChooser = false}) async {
     if (!googleAvailable) return null; // not configured — caller guards too
-    // Pass the client ID in Dart so no GIDClientID Info.plist entry is required;
-    // the reversed-client-id URL scheme is still needed for the callback.
-    final account = await GoogleSignIn(clientId: kGoogleClientId).signIn();
+    final google = _google();
+    // Clear the cached account first so the picker reappears (re-auth path).
+    if (forceChooser) await google.signOut();
+    final account = await google.signIn();
     if (account == null) return null; // user dismissed the sheet
     final auth = await account.authentication;
     return auth.idToken;
+  }
+
+  @override
+  Future<void> signOut() async {
+    // Forget the cached Google account so the next sign-in re-prompts (app
+    // sign-out). Apple has no persistent session to clear.
+    if (googleAvailable) await _google().signOut();
   }
 
   @override

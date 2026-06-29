@@ -17,6 +17,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:music/services/account_service.dart';
 import 'package:music/services/auth_service.dart';
 import 'package:music/services/grpc_client.dart';
+import 'package:music/services/oidc_token_source.dart';
 import 'package:music/services/token_store.dart';
 import 'package:music/state/session_notifier.dart';
 import 'package:music/state/session_state.dart';
@@ -27,12 +28,14 @@ ProviderContainer makeContainer({
   required FakeTokenStore store,
   FakeAuthService? auth,
   FakeAccountService? account,
+  FakeOidcTokenSource? oidc,
 }) {
   final container = ProviderContainer(
     overrides: [
       tokenStoreProvider.overrideWithValue(store),
       authServiceProvider.overrideWithValue(auth ?? FakeAuthService()),
       accountServiceProvider.overrideWithValue(account ?? FakeAccountService()),
+      oidcTokenSourceProvider.overrideWithValue(oidc ?? FakeOidcTokenSource()),
     ],
   );
   addTearDown(container.dispose);
@@ -182,6 +185,22 @@ void main() {
       expect(auth.calls, contains('logout:r'));
       expect(store.tokens, isNull);
       expect(c.read(sessionNotifierProvider), isA<SessionUnauthenticated>());
+    });
+
+    test('signOut also forgets the cached Google account', () async {
+      final oidc = FakeOidcTokenSource();
+      final c = makeContainer(
+        store: FakeTokenStore(
+          tokens: const StoredTokens(accessToken: 'a', refreshToken: 'r'),
+        ),
+        account: FakeAccountService(account: account(handle: 'a')),
+        oidc: oidc,
+      );
+      c.read(sessionNotifierProvider);
+      await pumpEventQueue();
+
+      await c.read(sessionNotifierProvider.notifier).signOut();
+      expect(oidc.calls, contains('oidcSignOut'));
     });
 
     test(

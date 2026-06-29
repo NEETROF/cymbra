@@ -62,7 +62,9 @@ class AuthFlow {
   }
 
   /// Sign in with Google. Returns false if the user dismissed the native sheet.
-  Future<bool> signInWithGoogle() => _signInOidc(_oidc.googleIdToken());
+  /// [forceChooser] re-shows the account picker (re-authentication, e.g. delete).
+  Future<bool> signInWithGoogle({bool forceChooser = false}) =>
+      _signInOidc(_oidc.googleIdToken(forceChooser: forceChooser));
 
   /// Sign in with Apple. Returns false if the user cancelled.
   Future<bool> signInWithApple() => _signInOidc(_oidc.appleIdToken());

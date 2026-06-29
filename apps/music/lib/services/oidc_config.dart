@@ -20,14 +20,27 @@
 // terminates the app. Provide the values once the OAuth credentials exist:
 //
 //   flutter run -d macos \
-//     --dart-define=GOOGLE_CLIENT_ID=<id>.apps.googleusercontent.com \
+//     --dart-define=GOOGLE_CLIENT_ID=<ios-client>.apps.googleusercontent.com \
+//     --dart-define=GOOGLE_SERVER_CLIENT_ID=<web-client>.apps.googleusercontent.com \
 //     --dart-define=APPLE_SIGN_IN_ENABLED=true
 //
-// The backend's CYMBRA_GOOGLE_AUDIENCE must match GOOGLE_CLIENT_ID. See the app
-// README for the matching Info.plist URL scheme and Apple capability steps.
+// Option A: serverClientId (the web client) is passed on every platform, so the
+// id_token audience is always the web client — set the backend's
+// CYMBRA_GOOGLE_AUDIENCE to that web client id. Android needs only
+// GOOGLE_SERVER_CLIENT_ID; iOS/macOS also need GOOGLE_CLIENT_ID (+ the reversed
+// URL scheme). See the app README for the per-platform steps.
 
-/// Google OAuth client ID for the native sign-in SDK (empty ⇒ Google hidden).
+/// Google OAuth **iOS** client ID for the native sign-in SDK on Apple platforms
+/// (empty ⇒ Google hidden on iOS/macOS). Not used on Android.
 const String kGoogleClientId = String.fromEnvironment('GOOGLE_CLIENT_ID');
+
+/// Google **server** (Web) OAuth client ID, passed as `serverClientId`. It sets
+/// the id_token audience on every platform (so the backend trusts a single
+/// audience) and is required on Android to obtain an id_token at all (empty ⇒
+/// Google hidden on Android).
+const String kGoogleServerClientId = String.fromEnvironment(
+  'GOOGLE_SERVER_CLIENT_ID',
+);
 
 /// Whether Sign in with Apple is enabled (requires the "Sign in with Apple"
 /// capability + a development certificate; off by default).

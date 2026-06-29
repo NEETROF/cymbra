@@ -46,7 +46,7 @@
 - [ ] 6.3 Platform config: Google OAuth client IDs (iOS/Android/macOS) + iOS URL schemes / Android intent filters; Apple "Sign in with Apple" capability — SCAFFOLDED (buttons gated behind `--dart-define` GOOGLE_CLIENT_ID/APPLE_SIGN_IN_ENABLED; reversed-client-id URL scheme placeholders in iOS/macOS Info.plist; README documents the steps). BLOCKED on the real OAuth client IDs + Apple capability (needs a dev certificate) to finish.
   - [x] 6.3a **macOS** build-time injection (no secret committed): Info.plist URL scheme uses `$(GOOGLE_OAUTH_CLIENT_SUFFIX)` resolved from `Configs/AppInfo.xcconfig` (inert default) overridden by gitignored `Configs/Secrets.xcconfig` (template: `Secrets.example.xcconfig`); the `release-build.yml` macOS job writes it from the `GOOGLE_CLIENT_ID` secret and passes `--dart-define`. Needs the `GOOGLE_CLIENT_ID` repo secret set.
   - [x] 6.3b **iOS**: replicated the macOS injection — `ios/Runner/Info.plist` uses `$(GOOGLE_OAUTH_CLIENT_SUFFIX)`, default in `Flutter/Debug.xcconfig`/`Release.xcconfig`, overridden by gitignored `Flutter/Secrets.xcconfig` (template: `Secrets.example.xcconfig`). Fixes the native crash on "Continue with Google" (the placeholder URL scheme). CI injection step deferred until signed iOS builds land in CI.
-  - [ ] 6.3c **Android**: wire `serverClientId` (web OAuth client) for `google_sign_in` — NOT a reversed-client-id intent filter; needs its own client + secret injection.
+  - [x] 6.3c **Android**: wired `serverClientId` (the web OAuth client) on every platform (Option A → single backend audience = web client). Android needs only `GOOGLE_SERVER_CLIENT_ID`; an Android OAuth client (package + SHA-1) is registered for Play Services. Shared debug keystore committed (`android/app/debug.keystore` + pinned `signingConfigs.debug`) so all devs/CI share one SHA-1. Verified on a physical device.
 - [ ] 6.4 Coordinate backend `CYMBRA_GOOGLE_AUDIENCE`/`CYMBRA_APPLE_AUDIENCE` with the registered client IDs — BLOCKED: depends on 6.3 credentials
 - [x] 6.5 Tests with a fake OIDC token source covering success and cancellation
 
@@ -73,7 +73,7 @@ library; each platform's client ID must be in the backend `CYMBRA_GOOGLE_AUDIENC
 Windows/Linux desktop. (macOS Google already verified this session — task 6.3a.)
 
 - [ ] 9.1 **Google — iOS** (needs 6.3b: iOS client ID + reversed-client-id URL scheme): full flow on a device/simulator
-- [ ] 9.2 **Google — Android** (needs 6.3c: `serverClientId` web client + SHA-registered Android client): full flow
+- [x] 9.2 **Google — Android** (serverClientId web client + SHA-registered Android client): full flow verified on a physical device (SM P610)
 - [ ] 9.3 **Google — Windows**: plugin unsupported → verify the Google button is hidden/degrades gracefully (no native crash); decide whether a loopback-OAuth flow is in scope (separate work)
 - [ ] 9.4 **Google — Linux**: same as Windows (plugin unsupported) — verify graceful absence / decide on a loopback flow
 

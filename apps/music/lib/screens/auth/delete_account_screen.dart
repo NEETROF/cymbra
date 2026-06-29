@@ -86,8 +86,10 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
     });
   }
 
-  Future<void> _deleteWithGoogle() =>
-      _reauthThenDelete(() => ref.read(authFlowProvider).signInWithGoogle());
+  Future<void> _deleteWithGoogle() => _reauthThenDelete(
+    // Force the account picker: a genuine re-auth, not a silent token reuse.
+    () => ref.read(authFlowProvider).signInWithGoogle(forceChooser: true),
+  );
 
   Future<void> _deleteWithApple() =>
       _reauthThenDelete(() => ref.read(authFlowProvider).signInWithApple());

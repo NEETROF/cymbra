@@ -12,3 +12,7 @@ GeneratedPluginRegistrant.java
 key.properties
 **/*.keystore
 **/*.jks
+# Exception: the SHARED debug-only keystore is committed on purpose so all devs +
+# CI sign debug builds with one certificate (a single SHA-1 to register for Google
+# sign-in). Debug only — never commit a release keystore.
+!app/debug.keystore

@@ -18,6 +18,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../services/account_service.dart';
 import '../services/auth_service.dart';
 import '../services/grpc_client.dart';
+import '../services/oidc_token_source.dart';
 import '../services/token_store.dart';
 import 'session_state.dart';
 
@@ -31,6 +32,7 @@ class SessionNotifier extends _$SessionNotifier {
   TokenStore get _tokens => ref.read(tokenStoreProvider);
   AuthService get _auth => ref.read(authServiceProvider);
   AccountService get _account => ref.read(accountServiceProvider);
+  OidcTokenSource get _oidc => ref.read(oidcTokenSourceProvider);
 
   @override
   SessionState build() {
@@ -114,6 +116,12 @@ class SessionNotifier extends _$SessionNotifier {
       } catch (_) {
         // Offline or already-revoked: fall through to local clear.
       }
+    }
+    try {
+      // Forget the cached Google account so the next sign-in re-prompts.
+      await _oidc.signOut();
+    } catch (_) {
+      // Best-effort: never block local sign-out on the native SDK.
     }
     await _tokens.clear();
     state = const SessionState.unauthenticated();

@@ -28,6 +28,19 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        // Shared debug-only keystore committed to the repo (app/debug.keystore) so
+        // every developer and CI sign debug builds with the SAME certificate — one
+        // SHA-1 to register for Google sign-in. NOT for release: add a real keystore
+        // / Play App Signing and register its own SHA-1 separately.
+        getByName("debug") {
+            storeFile = file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
         release {
             // TODO: Add your own signing config for the release build.

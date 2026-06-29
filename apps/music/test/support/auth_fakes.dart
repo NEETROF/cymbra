@@ -218,8 +218,8 @@ class FakeOidcTokenSource implements OidcTokenSource {
   });
 
   @override
-  Future<String?> googleIdToken() async {
-    calls.add('google');
+  Future<String?> googleIdToken({bool forceChooser = false}) async {
+    calls.add(forceChooser ? 'google:forceChooser' : 'google');
     return googleToken;
   }
 
@@ -227,5 +227,10 @@ class FakeOidcTokenSource implements OidcTokenSource {
   Future<String?> appleIdToken() async {
     calls.add('apple');
     return appleToken;
+  }
+
+  @override
+  Future<void> signOut() async {
+    calls.add('oidcSignOut');
   }
 }
