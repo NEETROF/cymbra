@@ -93,9 +93,12 @@ async fn channel_count(pool: &sqlx::PgPool, channel: &str) -> i64 {
     .get::<i64, _>("n")
 }
 
-async fn dead_letter_count(pool: &sqlx::PgPool, name: &str) -> i64 {
-    sqlx::query("SELECT COUNT(*) AS n FROM jobs.dead_letter WHERE name = $1")
-        .bind(name)
+/// Dead-letters scoped to a channel, so concurrent tests (which share the
+/// `spike_flaky` job name and the global `jobs.dead_letter` table) don't
+/// contaminate each other's assertions — each test uses a unique channel.
+async fn dead_letter_count(pool: &sqlx::PgPool, channel: &str) -> i64 {
+    sqlx::query("SELECT COUNT(*) AS n FROM jobs.dead_letter WHERE channel_name = $1")
+        .bind(channel)
         .fetch_one(pool)
         .await
         .unwrap()
@@ -153,7 +156,7 @@ async fn bounded_retry_then_success() {
         .await,
         "job should complete after bounded retries"
     );
-    assert_eq!(dead_letter_count(&pool, "spike_flaky").await, 0);
+    assert_eq!(dead_letter_count(&pool, &name).await, 0);
 }
 
 #[tokio::test]
@@ -168,7 +171,8 @@ async fn exhaustion_moves_to_dead_letter() {
         .execute(&pool)
         .await
         .unwrap();
-    sqlx::query("DELETE FROM jobs.dead_letter")
+    sqlx::query("DELETE FROM jobs.dead_letter WHERE channel_name = $1")
+        .bind(&name)
         .execute(&pool)
         .await
         .unwrap();
@@ -203,13 +207,16 @@ async fn exhaustion_moves_to_dead_letter() {
         "job should exhaust its single attempt"
     );
 
-    let moved = dead_letter_sweep(&pool).await.unwrap();
-    assert!(moved >= 1, "sweep should move the exhausted job");
-    assert_eq!(dead_letter_count(&pool, "spike_flaky").await, 1);
-    assert_eq!(
-        channel_count(&pool, &name).await,
-        0,
-        "removed from the queue"
+    // Sweep moves it to the dead-letter store and out of the queue. Assert on
+    // this channel's resulting state, not the global `moved` count (a concurrent
+    // test's sweep may move the row first — the row still lands here).
+    dead_letter_sweep(&pool).await.unwrap();
+    assert!(
+        wait_until(Duration::from_secs(5), || async {
+            dead_letter_count(&pool, &name).await == 1 && channel_count(&pool, &name).await == 0
+        })
+        .await,
+        "exhausted job should be dead-lettered and removed from the queue"
     );
 }
 

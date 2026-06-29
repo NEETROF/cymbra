@@ -110,11 +110,13 @@ WHERE id != uuid_nil()
   AND attempts > 0;
 
 -- Exhausted-but-not-yet-reaped messages (attempts spent, never to run again)
--- unioned with the dead-letter store.
+-- unioned with the dead-letter store. The job name lives in mq_payloads, not
+-- mq_msgs, so join to surface it.
 CREATE VIEW failed AS
-SELECT id, channel_name, name AS job_name, attempts, NULL::TIMESTAMPTZ AS dead_lettered_at
-FROM mq_msgs
-WHERE id != uuid_nil() AND attempt_at IS NULL AND attempts <= 0
+SELECT m.id, m.channel_name, p.name AS job_name, m.attempts, NULL::TIMESTAMPTZ AS dead_lettered_at
+FROM mq_msgs m
+LEFT JOIN mq_payloads p ON p.id = m.id
+WHERE m.id != uuid_nil() AND m.attempt_at IS NULL AND m.attempts <= 0
 UNION ALL
 SELECT id, channel_name, name AS job_name, attempts, dead_lettered_at
 FROM dead_letter;
