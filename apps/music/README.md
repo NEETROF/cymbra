@@ -121,6 +121,29 @@ The gRPC endpoint defaults to plaintext `localhost:50051` (dev). Override the
 `cymbraEndpointProvider` for staging/production (TLS). Bring the backend up with
 `backend/docker-compose.yml` (`CYMBRA_GRPC_ADDR=0.0.0.0:50051`).
 
+`localhost` works for desktop builds and simulators. To test on a **physical
+device** against a backend on your dev machine, point the host at the machine's
+LAN IP at build time:
+
+```bash
+flutter run -d <device> \
+  --dart-define=GOOGLE_CLIENT_ID=<id>.apps.googleusercontent.com \
+  --dart-define=CYMBRA_GRPC_HOST=<dev-machine-ip>   # e.g. 192.168.1.32; CYMBRA_GRPC_PORT defaults to 50051
+```
+
+Find the IP with `ipconfig getifaddr en0` (macOS Wi-Fi). Requirements:
+
+- device and dev machine on the **same Wi-Fi/LAN**;
+- the backend already listens on `0.0.0.0:50051` (reachable on the LAN);
+- **iOS** prompts for *Local Network* access on first connect → **Allow** (the
+  `NSLocalNetworkUsageDescription` key is set; toggle later under Settings →
+  Privacy → Local Network);
+- if the connection **times out**, allow incoming connections to `cymbra-id` in
+  the **macOS firewall** (or disable it for dev). Plaintext gRPC over the LAN is
+  fine for dev — it's a raw socket, so iOS ATS does not apply.
+
+Changing a `--dart-define` requires a full rebuild (not hot reload).
+
 ### Google / Apple sign-in (platform config — tasks 6.3/6.4)
 
 Email/password and guest work against the local backend with **no extra config**.
