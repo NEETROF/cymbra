@@ -28,5 +28,22 @@
 	<string>MainMenu</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
+	<!-- Google Sign-In callback (add-music-account-access, task 6.3). The reversed
+	     client ID suffix is injected at build time via the GOOGLE_OAUTH_CLIENT_SUFFIX
+	     build setting (see Runner/Configs/AppInfo.xcconfig + Secrets.xcconfig), so the
+	     real client ID is never committed. Unconfigured builds expand to an inert
+	     placeholder, and the Google button stays hidden until GOOGLE_CLIENT_ID is
+	     supplied via --dart-define. -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.$(GOOGLE_OAUTH_CLIENT_SUFFIX)</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

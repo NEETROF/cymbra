@@ -20,6 +20,8 @@ analyzer:
     - build/**
     # Generated Rust↔Dart bindings.
     - lib/src/rust/**
+    # Generated gRPC client stubs (protoc).
+    - lib/src/grpc/**
     # Generated code (riverpod_generator / freezed).
     - "**/*.g.dart"
     - "**/*.freezed.dart"

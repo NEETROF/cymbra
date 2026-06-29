@@ -135,7 +135,7 @@ impl UserRepo for PgUserRepo {
 
     async fn get_account(&self, user_id: &str) -> Result<Account> {
         let row = sqlx::query(
-            "SELECT display_name, preferences::text AS preferences, version, \
+            "SELECT display_name, handle, preferences::text AS preferences, version, \
              extract(epoch FROM updated_at)::bigint AS updated_at FROM users WHERE id = $1",
         )
         .bind(parse_uuid(user_id)?)
@@ -149,30 +149,54 @@ impl UserRepo for PgUserRepo {
             preferences: row.get("preferences"),
             version: row.get("version"),
             updated_at: row.get("updated_at"),
+            handle: row.get("handle"),
         })
+    }
+
+    async fn handle_owner(&self, handle_key: &str) -> Result<Option<String>> {
+        let row = sqlx::query("SELECT id FROM users WHERE handle_key = $1")
+            .bind(handle_key)
+            .fetch_optional(&self.pool)
+            .await
+            .map_err(internal)?;
+        Ok(row.map(|r| r.get::<uuid::Uuid, _>("id").to_string()))
     }
 
     async fn update_account(
         &self,
         user_id: &str,
         display_name: Option<String>,
+        handle: Option<String>,
+        handle_key: Option<String>,
         preferences: &str,
         expected_version: i64,
     ) -> Result<Account> {
         let uid = parse_uuid(user_id)?;
-        let updated = sqlx::query(
+        // COALESCE keeps the stored handle when none is supplied; a non-null
+        // handle_key that collides trips the unique index → AlreadyExists.
+        let res = sqlx::query(
             "UPDATE users SET display_name = $2, preferences = $3::jsonb, version = version + 1, \
-             updated_at = now() WHERE id = $1 AND version = $4 \
-             RETURNING display_name, preferences::text AS preferences, version, \
+             updated_at = now(), handle = COALESCE($5, handle), \
+             handle_key = COALESCE($6, handle_key) WHERE id = $1 AND version = $4 \
+             RETURNING display_name, handle, preferences::text AS preferences, version, \
              extract(epoch FROM updated_at)::bigint AS updated_at",
         )
         .bind(uid)
         .bind(&display_name)
         .bind(preferences)
         .bind(expected_version)
+        .bind(&handle)
+        .bind(&handle_key)
         .fetch_optional(&self.pool)
-        .await
-        .map_err(internal)?;
+        .await;
+
+        let updated = match res {
+            Ok(row) => row,
+            Err(e) if is_unique_violation(&e) => {
+                return Err(AppError::AlreadyExists("handle already taken".into()));
+            }
+            Err(e) => return Err(internal(e)),
+        };
 
         match updated {
             Some(row) => Ok(Account {
@@ -181,6 +205,7 @@ impl UserRepo for PgUserRepo {
                 preferences: row.get("preferences"),
                 version: row.get("version"),
                 updated_at: row.get("updated_at"),
+                handle: row.get("handle"),
             }),
             None => {
                 // Distinguish a stale write from a missing account.
@@ -207,6 +232,17 @@ impl UserRepo for PgUserRepo {
             .await
             .map_err(internal)?;
         Ok(())
+    }
+
+    async fn delete_orphans_before(&self, cutoff_unix: i64) -> Result<u64> {
+        // Mirrors reaper_core::reapable: no handle AND created before the cutoff.
+        let res =
+            sqlx::query("DELETE FROM users WHERE handle IS NULL AND created_at < to_timestamp($1)")
+                .bind(cutoff_unix)
+                .execute(&self.pool)
+                .await
+                .map_err(internal)?;
+        Ok(res.rows_affected())
     }
 
     async fn roles_for_scope(&self, user_id: &str, scopes: &[&str]) -> Result<Vec<String>> {

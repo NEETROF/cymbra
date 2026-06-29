@@ -1,2 +1,9 @@
 #include? "Pods/Target Support Files/Pods-Runner/Pods-Runner.release.xcconfig"
 #include "Generated.xcconfig"
+
+// Google Sign-In reversed-client-id suffix for the OAuth callback URL scheme
+// (Info.plist CFBundleURLSchemes). Inert placeholder by default; the real value is
+// injected — and never committed — via Secrets.xcconfig (gitignored, see
+// Secrets.example.xcconfig).
+GOOGLE_OAUTH_CLIENT_SUFFIX = REPLACE_WITH_REVERSED_GOOGLE_CLIENT_ID
+#include? "Secrets.xcconfig"

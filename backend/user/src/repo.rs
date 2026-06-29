@@ -23,15 +23,24 @@ pub trait UserRepo: Send + Sync {
     async fn count_identities(&self, user_id: &str) -> Result<usize>;
     async fn list_identities(&self, user_id: &str) -> Result<Vec<Identity>>;
     async fn get_account(&self, user_id: &str) -> Result<Account>;
+    /// `user_id` whose normalized handle key is `handle_key`, if any.
+    async fn handle_owner(&self, handle_key: &str) -> Result<Option<String>>;
     /// Conditional update: applies only if the stored version == `expected_version`.
+    /// When `handle`/`handle_key` are `Some`, the handle is (re)assigned and the
+    /// key's uniqueness is enforced; when `None`, the stored handle is unchanged.
     async fn update_account(
         &self,
         user_id: &str,
         display_name: Option<String>,
+        handle: Option<String>,
+        handle_key: Option<String>,
         preferences: &str,
         expected_version: i64,
     ) -> Result<Account>;
     async fn delete_account(&self, user_id: &str) -> Result<()>;
+    /// Delete every handle-less account created strictly before `cutoff_unix`
+    /// (orphans from abandoned onboarding). Returns the number purged.
+    async fn delete_orphans_before(&self, cutoff_unix: i64) -> Result<u64>;
     /// Roles whose scope is in `scopes` (e.g. `["global", "live"]`).
     async fn roles_for_scope(&self, user_id: &str, scopes: &[&str]) -> Result<Vec<String>>;
     async fn grant_role(&self, user_id: &str, scope: &str, role: &str) -> Result<()>;
@@ -44,6 +53,9 @@ struct AccountRow {
     display_name: Option<String>,
     preferences: String,
     version: i64,
+    handle: Option<String>,
+    handle_key: Option<String>,
+    created_at: i64,
 }
 
 #[derive(Default)]
@@ -60,6 +72,15 @@ pub struct FakeUserRepo {
 }
 
 impl FakeUserRepo {
+    /// Test helper: stamp an account's creation time (the real repo sets it from
+    /// `now()` on insert; the fake defaults to 0).
+    pub fn set_created_at(&self, user_id: &str, created_at_unix: i64) {
+        let mut s = self.state.lock().unwrap();
+        if let Some(row) = s.users.get_mut(user_id) {
+            row.created_at = created_at_unix;
+        }
+    }
+
     fn account(row: &AccountRow, user_id: &str) -> Account {
         Account {
             user_id: user_id.to_string(),
@@ -71,6 +92,7 @@ impl FakeUserRepo {
             },
             version: row.version,
             updated_at: 0,
+            handle: row.handle.clone(),
         }
     }
 }
@@ -94,6 +116,9 @@ impl UserRepo for FakeUserRepo {
                 display_name: None,
                 preferences: "{}".into(),
                 version: 1,
+                handle: None,
+                handle_key: None,
+                created_at: 0,
             },
         );
         s.identities
@@ -142,14 +167,33 @@ impl UserRepo for FakeUserRepo {
             .ok_or_else(|| AppError::NotFound("account".into()))
     }
 
+    async fn handle_owner(&self, handle_key: &str) -> Result<Option<String>> {
+        let s = self.state.lock().unwrap();
+        Ok(s.users
+            .iter()
+            .find(|(_, row)| row.handle_key.as_deref() == Some(handle_key))
+            .map(|(uid, _)| uid.clone()))
+    }
+
     async fn update_account(
         &self,
         user_id: &str,
         display_name: Option<String>,
+        handle: Option<String>,
+        handle_key: Option<String>,
         preferences: &str,
         expected_version: i64,
     ) -> Result<Account> {
         let mut s = self.state.lock().unwrap();
+        // Enforce the unique key against other accounts before mutating (mirrors
+        // the Postgres unique index).
+        if let Some(key) = &handle_key
+            && s.users
+                .iter()
+                .any(|(uid, row)| uid != user_id && row.handle_key.as_deref() == Some(key))
+        {
+            return Err(AppError::AlreadyExists("handle already taken".into()));
+        }
         let row = s
             .users
             .get_mut(user_id)
@@ -157,6 +201,11 @@ impl UserRepo for FakeUserRepo {
         crate::version_core::check(row.version, expected_version)?;
         row.display_name = display_name;
         row.preferences = preferences.to_string();
+        // A `None` handle leaves the stored handle untouched (COALESCE semantics).
+        if handle.is_some() {
+            row.handle = handle;
+            row.handle_key = handle_key;
+        }
         row.version = crate::version_core::next(row.version);
         Ok(Self::account(row, user_id))
     }
@@ -167,6 +216,24 @@ impl UserRepo for FakeUserRepo {
         s.identities.retain(|(u, _, _)| u != user_id);
         s.roles.retain(|(u, _, _)| u != user_id);
         Ok(())
+    }
+
+    async fn delete_orphans_before(&self, cutoff_unix: i64) -> Result<u64> {
+        let mut s = self.state.lock().unwrap();
+        let victims: Vec<String> = s
+            .users
+            .iter()
+            .filter(|(_, row)| {
+                crate::reaper_core::reapable(row.handle.as_deref(), row.created_at, cutoff_unix)
+            })
+            .map(|(uid, _)| uid.clone())
+            .collect();
+        for uid in &victims {
+            s.users.remove(uid);
+            s.identities.retain(|(u, _, _)| u != uid);
+            s.roles.retain(|(u, _, _)| u != uid);
+        }
+        Ok(victims.len() as u64)
     }
 
     async fn roles_for_scope(&self, user_id: &str, scopes: &[&str]) -> Result<Vec<String>> {

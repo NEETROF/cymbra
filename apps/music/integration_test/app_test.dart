@@ -26,6 +26,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:music/main.dart';
 import 'package:music/services/score_asset_source.dart';
+import 'package:music/services/token_store.dart';
 import 'package:music/src/rust/frb_generated.dart';
 import 'package:music/state/score_catalog.dart';
 
@@ -65,6 +66,10 @@ void main() {
           scoreAssetSourceProvider.overrideWithValue(
             const FixtureScoreAssetSource(),
           ),
+          // Boot straight into the library: a guest session skips the entry
+          // screen, and the in-memory store keeps the test off platform secure
+          // storage (no Keychain/libsecret keyring in headless CI).
+          tokenStoreProvider.overrideWithValue(const _GuestTokenStore()),
         ],
         child: const CymbraApp(),
       ),
@@ -112,4 +117,25 @@ void main() {
     await tester.pump();
     await watch(tester);
   });
+}
+
+/// In-memory [TokenStore] reporting a persisted guest choice, so [SessionGate]
+/// routes straight to the library without touching platform secure storage.
+class _GuestTokenStore implements TokenStore {
+  const _GuestTokenStore();
+
+  @override
+  Future<bool> isGuest() async => true;
+
+  @override
+  Future<StoredTokens?> readTokens() async => null;
+
+  @override
+  Future<void> writeTokens(StoredTokens tokens) async {}
+
+  @override
+  Future<void> setGuest() async {}
+
+  @override
+  Future<void> clear() async {}
 }

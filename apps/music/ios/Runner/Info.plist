@@ -42,5 +42,27 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<!-- Local network access (iOS 14+): required in dev to reach a gRPC backend on
+	     the LAN (e.g. --dart-define=CYMBRA_GRPC_HOST=<dev-machine-ip>). Harmless in
+	     prod, which uses a real server domain. -->
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Cymbra connects to your Cymbra ID server on the local network during development.</string>
+	<!-- Google Sign-In callback (add-music-account-access, task 6.3b). The reversed
+	     client ID suffix is injected at build time via the GOOGLE_OAUTH_CLIENT_SUFFIX
+	     build setting (see Flutter/Debug.xcconfig + Secrets.xcconfig), so the real
+	     client ID is never committed. Unconfigured builds expand to an inert
+	     placeholder, and the Google button stays hidden until GOOGLE_CLIENT_ID is
+	     supplied via --dart-define. -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.$(GOOGLE_OAUTH_CLIENT_SUFFIX)</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

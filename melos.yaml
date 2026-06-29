@@ -15,6 +15,10 @@ ignore:
   - "**/build/**"
 
 scripts:
+  gen-grpc:
+    description: Generate the Cymbra ID gRPC Dart stubs from the backend protos.
+    run: bash apps/music/tool/gen_grpc.sh
+
   generate:
     description: Run build_runner codegen (riverpod_generator + freezed).
     run: melos exec -- dart run build_runner build --delete-conflicting-outputs

@@ -18,7 +18,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'dart:async';
 
-import 'screens/library_screen.dart';
+import 'screens/auth/session_gate.dart';
 import 'services/audio_service.dart';
 import 'src/rust/frb_generated.dart';
 import 'theme/cymbra_theme.dart';
@@ -67,16 +67,19 @@ class _AudioLifecycleObserver with WidgetsBindingObserver {
   }
 }
 
-class CymbraApp extends StatelessWidget {
+/// Root app. `home` is no longer the unconditional library: it is the
+/// [SessionGate], which routes on the resolved account session (entry screen,
+/// guest/library, or handle onboarding).
+class CymbraApp extends ConsumerWidget {
   const CymbraApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return MaterialApp(
       title: 'Cymbra Music',
       debugShowCheckedModeBanner: false,
       theme: buildCymbraTheme(),
-      home: const LibraryScreen(),
+      home: const SessionGate(),
     );
   }
 }

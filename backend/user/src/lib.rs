@@ -6,8 +6,10 @@
 //! `cymbra-platform`.
 
 pub mod grpc;
+pub mod handle_core;
 pub mod module;
 pub mod pg;
+pub mod reaper_core;
 pub mod repo;
 pub mod version_core;
 

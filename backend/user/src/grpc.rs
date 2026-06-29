@@ -11,8 +11,9 @@ use std::sync::Arc;
 use cymbra_platform::AuthIdentity;
 use cymbra_user_port::UserPort;
 use cymbra_user_port::proto::{
-    Account, DeleteAccountRequest, DeleteAccountResponse, GetAccountRequest, Identity,
-    ListIdentitiesRequest, ListIdentitiesResponse, UpdateAccountRequest,
+    Account, CheckHandleAvailabilityRequest, CheckHandleAvailabilityResponse, DeleteAccountRequest,
+    DeleteAccountResponse, GetAccountRequest, Identity, ListIdentitiesRequest,
+    ListIdentitiesResponse, UpdateAccountRequest,
     user_service_server::{UserService, UserServiceServer},
 };
 use tonic::{Request, Response, Status};
@@ -47,6 +48,7 @@ fn to_proto(a: cymbra_user_port::Account) -> Account {
         preferences: a.preferences,
         version: a.version,
         updated_at: a.updated_at,
+        handle: a.handle,
     }
 }
 
@@ -72,11 +74,25 @@ impl<P: UserPort + 'static> UserService for UserGrpc<P> {
             .update_account(
                 &id.user_id,
                 r.display_name,
+                r.handle,
                 &r.preferences,
                 r.expected_version,
             )
             .await?;
         Ok(Response::new(to_proto(acc)))
+    }
+
+    async fn check_handle_availability(
+        &self,
+        req: Request<CheckHandleAvailabilityRequest>,
+    ) -> Result<Response<CheckHandleAvailabilityResponse>, Status> {
+        // Authenticated, but the answer is independent of the caller's account.
+        let _ = identity(&req)?;
+        let available = self
+            .port
+            .check_handle_availability(&req.into_inner().handle)
+            .await?;
+        Ok(Response::new(CheckHandleAvailabilityResponse { available }))
     }
 
     async fn list_identities(

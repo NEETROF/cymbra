@@ -92,6 +92,93 @@ then sees hot-plug changes. (Linux/Windows re-enumerate natively, nothing to do.
 
 On this Mac, `pod install` requires a UTF-8 locale: `LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 pod install`.
 
+## Cymbra ID account layer (dev setup)
+
+The app talks to the **Cymbra ID** backend (`backend/`) over native gRPC for
+sign-in, sessions, and the unique handle. Everything sits behind injectable
+Riverpod seams (`lib/services/auth_service.dart`, `account_service.dart`,
+`token_store.dart`, `oidc_token_source.dart`), so unit/widget tests run with
+fakes and never touch a channel or platform plugin.
+
+### gRPC stub codegen
+
+The Dart client stubs are generated from the backend protos into
+`lib/src/grpc/` (gitignored, like `lib/src/rust/`) and excluded from analysis +
+coverage. Regenerate after a proto change:
+
+```bash
+melos run gen-grpc          # wraps apps/music/tool/gen_grpc.sh
+```
+
+Requires `protoc` on PATH (`brew install protobuf` / `apt install
+protobuf-compiler`); the script installs the pinned Dart plugin
+(`protoc_plugin 22.5.0`, matching the `protobuf 4.x` runtime — a newer plugin
+emits code for an incompatible runtime). CI runs this before analyze/test.
+
+### Backend endpoint
+
+The gRPC endpoint defaults to plaintext `localhost:50051` (dev). Override the
+`cymbraEndpointProvider` for staging/production (TLS). Bring the backend up with
+`backend/docker-compose.yml` (`CYMBRA_GRPC_ADDR=0.0.0.0:50051`).
+
+`localhost` works for desktop builds and simulators. To test on a **physical
+device** against a backend on your dev machine, point the host at the machine's
+LAN IP at build time:
+
+```bash
+flutter run -d <device> \
+  --dart-define=GOOGLE_CLIENT_ID=<id>.apps.googleusercontent.com \
+  --dart-define=CYMBRA_GRPC_HOST=<dev-machine-ip>   # e.g. 192.168.1.32; CYMBRA_GRPC_PORT defaults to 50051
+```
+
+Find the IP with `ipconfig getifaddr en0` (macOS Wi-Fi). Requirements:
+
+- device and dev machine on the **same Wi-Fi/LAN**;
+- the backend already listens on `0.0.0.0:50051` (reachable on the LAN);
+- **iOS** prompts for *Local Network* access on first connect → **Allow** (the
+  `NSLocalNetworkUsageDescription` key is set; toggle later under Settings →
+  Privacy → Local Network);
+- if the connection **times out**, allow incoming connections to `cymbra-id` in
+  the **macOS firewall** (or disable it for dev). Plaintext gRPC over the LAN is
+  fine for dev — it's a raw socket, so iOS ATS does not apply.
+
+Changing a `--dart-define` requires a full rebuild (not hot reload).
+
+### Google / Apple sign-in (platform config — tasks 6.3/6.4)
+
+Email/password and guest work against the local backend with **no extra config**.
+The Google/Apple buttons are **hidden until configured**, so an unconfigured build
+never invokes the native SDK (which would crash with `GIDClientID is set in
+Info.plist`). Configuration is supplied at build time with `--dart-define`:
+
+```bash
+flutter run -d macos \
+  --dart-define=GOOGLE_CLIENT_ID=<id>.apps.googleusercontent.com \
+  --dart-define=APPLE_SIGN_IN_ENABLED=true
+```
+
+**Google** — once you have an OAuth client ID (the reversed client ID and the
+client ID are **never committed**; supply them at build time):
+1. Pass it via `--dart-define=GOOGLE_CLIENT_ID=...` (no `GIDClientID` Info.plist
+   entry needed — it's passed in Dart).
+2. **macOS**: the callback URL scheme `com.googleusercontent.apps.$(GOOGLE_OAUTH_CLIENT_SUFFIX)`
+   in `macos/Runner/Info.plist` is resolved from a build setting. Copy
+   `macos/Runner/Configs/Secrets.example.xcconfig` → `Secrets.xcconfig` (gitignored)
+   and set `GOOGLE_OAUTH_CLIENT_SUFFIX` to the part of your client ID before
+   `.apps.googleusercontent.com`. In CI the `macos` release job writes this file
+   from the `GOOGLE_CLIENT_ID` secret. (iOS still uses the literal placeholder in
+   `ios/Runner/Info.plist`; wire it the same way when iOS builds land. Android uses
+   a `serverClientId`, not a URL scheme.)
+3. Set the backend's `CYMBRA_GOOGLE_AUDIENCE` to the same (full) client ID.
+
+**Apple** — enable `--dart-define=APPLE_SIGN_IN_ENABLED=true`, add the
+**"Sign in with Apple"** capability in Xcode (writes the
+`com.apple.developer.applesignin` entitlement — this **requires a development
+certificate**, like all capability entitlements), and set `CYMBRA_APPLE_AUDIENCE`.
+
+**Local dev**: the compose `mock-oidc` profile stands in for Google/Apple — start
+it with `docker compose --profile oidc up` (see `CYMBRA_DEV_OIDC_ISSUER`).
+
 ## License
 
 Free and **open source** under the [Apache License 2.0](../../LICENSE) — use, modify

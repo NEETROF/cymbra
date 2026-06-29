@@ -51,17 +51,25 @@ jobs:
           java-version: "17"
       - name: Linux build deps
         if: matrix.label == 'linux'
-        run: sudo apt-get update && sudo apt-get install -y libasound2-dev ninja-build libgtk-3-dev
+        run: sudo apt-get update && sudo apt-get install -y libasound2-dev ninja-build libgtk-3-dev libsecret-1-dev
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
-      - name: Generate code (riverpod_generator + freezed)
+      - name: Set up protoc (gRPC codegen)
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Generate gRPC stubs (protoc)
         working-directory: apps/music
+        shell: bash
         run: |
           flutter pub get
-          dart run build_runner build --delete-conflicting-outputs
+          bash tool/gen_grpc.sh
+      - name: Generate code (riverpod_generator + freezed)
+        working-directory: apps/music
+        run: dart run build_runner build --delete-conflicting-outputs
       - name: Build (${{ matrix.label }})
         working-directory: apps/music
         run: flutter build ${{ matrix.target }} --debug

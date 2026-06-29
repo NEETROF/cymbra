@@ -8,5 +8,8 @@
 	<true/>
 	<key>com.apple.security.network.server</key>
 	<true/>
+	<!-- Outbound gRPC to the Cymbra ID backend (add-music-account-access). -->
+	<key>com.apple.security.network.client</key>
+	<true/>
 </dict>
 </plist>

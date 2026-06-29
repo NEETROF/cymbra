@@ -17,6 +17,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../state/score_catalog.dart';
 import '../theme/cymbra_theme.dart';
+import 'auth/account_menu.dart';
 import 'player_screen.dart';
 
 /// Start screen: the bundled score catalog, grouped by practice level. Tapping
@@ -33,6 +34,7 @@ class LibraryScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Cymbra — Score Library'),
         backgroundColor: CymbraColors.surfaceContainerLowest,
+        actions: const [AccountMenu(), SizedBox(width: 8)],
       ),
       body: ListView(
         padding: const EdgeInsets.symmetric(vertical: 8),

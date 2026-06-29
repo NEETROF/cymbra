@@ -35,11 +35,22 @@ jobs:
         with:
           ref: ${{ github.event.inputs.tag || github.ref_name }}
       - name: Linux build deps
-        run: sudo apt-get update && sudo apt-get install -y libasound2-dev ninja-build libgtk-3-dev
+        run: sudo apt-get update && sudo apt-get install -y libasound2-dev ninja-build libgtk-3-dev libsecret-1-dev
       - uses: dtolnay/rust-toolchain@stable
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+      - name: Set up protoc (gRPC codegen)
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Generate code (gRPC + riverpod + freezed)
+        working-directory: apps/music
+        shell: bash
+        run: |
+          flutter pub get
+          bash tool/gen_grpc.sh
+          dart run build_runner build --delete-conflicting-outputs
       - name: Build
         working-directory: apps/music
         run: flutter build linux --release
@@ -61,9 +72,35 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+      - name: Set up protoc (gRPC codegen)
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Generate code (gRPC + riverpod + freezed)
+        working-directory: apps/music
+        shell: bash
+        run: |
+          flutter pub get
+          bash tool/gen_grpc.sh
+          dart run build_runner build --delete-conflicting-outputs
+      - name: Inject Google OAuth client ID (optional)
+        working-directory: apps/music
+        shell: bash
+        env:
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+        run: |
+          if [ -n "$GOOGLE_CLIENT_ID" ]; then
+            # Reversed-client-id suffix = client ID without the Google domain suffix.
+            suffix="${GOOGLE_CLIENT_ID%.apps.googleusercontent.com}"
+            printf 'GOOGLE_OAUTH_CLIENT_SUFFIX = %s\n' "$suffix" \
+              > macos/Runner/Configs/Secrets.xcconfig
+            echo "Injected reversed client-id suffix into Secrets.xcconfig."
+          else
+            echo "GOOGLE_CLIENT_ID secret not set — building with Google sign-in disabled."
+          fi
       - name: Build
         working-directory: apps/music
-        run: flutter build macos --release
+        run: flutter build macos --release --dart-define=GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
       - name: Package (.app -> zip)
         working-directory: apps/music/build/macos/Build/Products/Release
         run: |
@@ -84,6 +121,17 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+      - name: Set up protoc (gRPC codegen)
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Generate code (gRPC + riverpod + freezed)
+        working-directory: apps/music
+        shell: bash
+        run: |
+          flutter pub get
+          bash tool/gen_grpc.sh
+          dart run build_runner build --delete-conflicting-outputs
       - name: Build
         working-directory: apps/music
         run: flutter build windows --release
@@ -109,6 +157,17 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+      - name: Set up protoc (gRPC codegen)
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Generate code (gRPC + riverpod + freezed)
+        working-directory: apps/music
+        shell: bash
+        run: |
+          flutter pub get
+          bash tool/gen_grpc.sh
+          dart run build_runner build --delete-conflicting-outputs
       - name: Build APK (debug-signed)
         working-directory: apps/music
         run: flutter build apk --release
