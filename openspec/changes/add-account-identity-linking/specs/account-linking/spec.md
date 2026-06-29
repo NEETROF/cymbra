@@ -122,6 +122,23 @@ SHALL be deleted before `LinkIdentity` to avoid an `ALREADY_EXISTS` self-collisi
 - **WHEN** the social `id_token` is no longer valid by the time `LinkIdentity` is called
 - **THEN** the app re-mints a fresh `id_token` via the OIDC source before linking
 
+### Requirement: Link actions follow platform availability
+
+The app SHALL offer a link action for a provider only where that provider's sign-in
+flow is available on the current platform. Where a provider is unavailable (e.g.
+Google/Apple on Windows/Linux without the desktop browser flow), its link action
+SHALL be hidden; identities already linked SHALL still be listed on every platform.
+
+#### Scenario: Google/Apple link hidden on unsupported desktop
+
+- **WHEN** the Connected accounts screen is shown on a platform where the Google (or Apple) flow is unavailable
+- **THEN** no "Link Google" (or "Link Apple") action is offered, while "Set a password" (email) remains available
+
+#### Scenario: Already-linked identities are always listed
+
+- **WHEN** an account has a Google identity but the current platform cannot initiate the Google flow
+- **THEN** the Google identity is still listed (unlink subject to the last-identity guard)
+
 ### Requirement: Linking requires an authenticated session
 
 Link and unlink actions SHALL require a valid authenticated session; they are never
