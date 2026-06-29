@@ -72,7 +72,7 @@ library; each platform's client ID must be in the backend `CYMBRA_GOOGLE_AUDIENC
 (accepts a list). NOTE: `google_sign_in` supports Android/iOS/macOS/Web — **not**
 Windows/Linux desktop. (macOS Google already verified this session — task 6.3a.)
 
-- [ ] 9.1 **Google — iOS** (needs 6.3b: iOS client ID + reversed-client-id URL scheme): full flow on a device/simulator
+- [x] 9.1 **Google — iOS** (iOS client ID + reversed-client-id URL scheme + serverClientId): full flow verified on a physical iPad
 - [x] 9.2 **Google — Android** (serverClientId web client + SHA-registered Android client): full flow verified on a physical device (SM P610)
 - [ ] 9.3 **Google — Windows**: plugin unsupported → verify the Google button is hidden/degrades gracefully (no native crash); decide whether a loopback-OAuth flow is in scope (separate work)
 - [ ] 9.4 **Google — Linux**: same as Windows (plugin unsupported) — verify graceful absence / decide on a loopback flow
