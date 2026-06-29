@@ -20,5 +20,5 @@
 
 - [x] 4.1 `flutter analyze` + `dart run custom_lint` + `dart format` clean; `cargo fmt` + `cargo clippy -D warnings` clean
 - [x] 4.2 Suites green (234 Flutter unit/widget + 21 backend user/platform); new code covered (session_notifier 92%, handle screen 93%, reaper_core 100%, module.reap 92%). Aggregate ≥80% is the CI gate over merged unit+widget+integration / full Rust workspace (not reproducible locally without the integration run)
-- [ ] 4.3 Manual: sign in with Google, on the handle screen use the escape action, confirm return to entry and that no handle-less account remains (grpcurl `ListIdentities`/DB check) — **manual, pending** (run against the live app + backend)
+- [x] 4.3 Manual: sign in with Google, on the handle screen use the escape action, confirm return to entry and that no handle-less account remains — verified on macOS (escape → entry, orphan deleted; reaper purge also confirmed with a short grace)
 - [x] 4.4 `openspec validate fix-handle-onboarding-escape --strict` passes

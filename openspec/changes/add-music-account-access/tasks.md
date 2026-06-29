@@ -64,3 +64,31 @@
 - [x] 8.2 Confirm Flutter + Rust coverage ≥80%; generated gRPC excluded; `melos run analyze`, `dart format`, `cargo fmt`/`clippy` clean
 - [x] 8.3 Document the dev setup (backend endpoint, proto codegen, OAuth client IDs, mock-oidc) in the app README/CONTRIBUTING
 - [x] 8.4 Run `openspec validate add-music-account-access --strict` and address findings
+
+## 9. Manual cross-platform sign-in verification (Google & Apple)
+
+Google sign-in end-to-end = native consent → `SignInOidc` → handle onboarding →
+library; each platform's client ID must be in the backend `CYMBRA_GOOGLE_AUDIENCE`
+(accepts a list). NOTE: `google_sign_in` supports Android/iOS/macOS/Web — **not**
+Windows/Linux desktop. (macOS Google already verified this session — task 6.3a.)
+
+- [ ] 9.1 **Google — iOS** (needs 6.3b: iOS client ID + reversed-client-id URL scheme): full flow on a device/simulator
+- [ ] 9.2 **Google — Android** (needs 6.3c: `serverClientId` web client + SHA-registered Android client): full flow
+- [ ] 9.3 **Google — Windows**: plugin unsupported → verify the Google button is hidden/degrades gracefully (no native crash); decide whether a loopback-OAuth flow is in scope (separate work)
+- [ ] 9.4 **Google — Linux**: same as Windows (plugin unsupported) — verify graceful absence / decide on a loopback flow
+
+Apple sign-in = native `sign_in_with_apple` (iOS/macOS only); needs the "Sign in
+with Apple" capability + a dev certificate and `CYMBRA_APPLE_AUDIENCE`. The app
+seam currently gates Apple to iOS/macOS (`appleAvailable`).
+
+- [ ] 9.5 **Apple — iOS** (capability + cert + audience): full flow on a device
+- [ ] 9.6 **Apple — macOS** (capability + cert + audience): full flow
+- [ ] 9.7 **Apple — Android/Windows/Linux**: Apple is offered only on iOS/macOS today → verify the Apple button is absent there. Native Apple on these platforms requires the web-auth flow (Services ID + return URL) — out of current scope
+
+> Handle-escape per provider: the `fix-handle-onboarding-escape` flow is
+> provider-agnostic (deletes the just-created account regardless of sign-in
+> method; unit/widget-tested as such, smoke-verified on macOS-Google). For each
+> path above that reaches handle onboarding (Google iOS/Android, Apple iOS/macOS),
+> also tap "Use a different account" there and confirm return-to-entry + no orphan
+> — this re-confirms gate routing per provider. The email sign-up path reaches the
+> same screen and is testable now without OAuth.
