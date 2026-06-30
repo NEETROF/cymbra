@@ -29,6 +29,7 @@ struct ScheduleRow {
 
 /// Evaluate every schedule once and enqueue any due occurrences. Returns the
 /// number of jobs enqueued this tick. Called on an interval by `cymbra-worker`.
+#[tracing::instrument(skip_all, name = "scheduler.tick")]
 pub async fn run_scheduler_tick(pool: &PgPool, now: DateTime<Utc>) -> Result<u64> {
     let rows = sqlx::query(
         "SELECT name, kind, cron_expr, timezone, enabled, missed_run_policy, \

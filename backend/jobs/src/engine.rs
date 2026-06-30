@@ -112,6 +112,7 @@ impl Enqueuer for PgEnqueuer {
 /// queue. Returns the number of newly dead-lettered jobs (the caller raises an
 /// alert / increments a metric when it is non-zero). Idempotent via
 /// `ON CONFLICT (id) DO NOTHING`.
+#[tracing::instrument(skip_all, name = "dlq.sweep")]
 pub async fn dead_letter_sweep(pool: &PgPool) -> Result<u64> {
     let mut tx = pool.begin().await?;
 
