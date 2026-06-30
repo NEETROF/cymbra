@@ -93,3 +93,45 @@ cargo test -p cymbra-auth -p cymbra-user -- --ignored
 CI: [`rust.yml`](../.github/workflows/rust.yml) (fmt/clippy/coverage ≥80% +
 boundary check) and [`backend-it.yml`](../.github/workflows/backend-it.yml)
 (integration against Postgres + Redis).
+
+## Database roles & operations (change: add-ops-db-access)
+
+Roles + schemas are bootstrapped by [`db/init/00-roles.sh`](db/init/00-roles.sh),
+which applies the secret-free, idempotent template
+[`db/init/roles.sql.tpl`](db/init/roles.sql.tpl) with role names/passwords from the
+environment (defaulting to the dev values, so `docker compose up` and CI need no
+config). It is re-runnable, so it also (re)provisions an already-running DB:
+
+```bash
+PGHOST=localhost PGPASSWORD=cymbra_dev_pw POSTGRES_USER=cymbra POSTGRES_DB=cymbra_id \
+  CYMBRA_ROLES_TEMPLATE=backend/db/init/roles.sql.tpl bash backend/db/init/00-roles.sh
+```
+
+**Roles.** Per-module least-privilege login roles (`auth_svc`, `user_svc`,
+`worker_svc`) each confined to their own schema (design D0). Plus an **ops role
+`admin_svc`** that can read **and** write every schema (current and future) from a
+single connection — via Postgres' predefined `pg_read_all_data` + `pg_write_all_data`,
+as **pure DML** (it owns nothing and cannot run DDL, so migrations/ownership stay
+per-module). `admin_svc` deliberately crosses D0 **for operations only** (runners,
+admins, ad-hoc `psql` via `CYMBRA_ADMIN_DATABASE_URL`) and **must never be wired
+into an application service**.
+
+> **Depends on `add-job-infrastructure`** — the `jobs` schema + `worker_svc` come
+> from that change; this layers `admin_svc` and the env-driven bootstrap on top.
+
+### Production credentials
+
+The committed bootstrap carries **dev defaults only** — no production secret is in
+the repo. For prod, replace the `*_dev_pw` defaults via one of:
+
+- **Secret manager** (Vault / AWS Secrets Manager / GCP Secret Manager / K8s Secret
+  + External Secrets Operator): inject `CYMBRA_*_DB_PASSWORD` as env at provision
+  time; the same `00-roles.sh` applies them. Rotate = update the secret →
+  re-run the bootstrap (it `ALTER ROLE … PASSWORD`s) → roll the services.
+- **IAM database auth** (RDS / Cloud SQL IAM) — *preferred on managed cloud*: no
+  static passwords at all; the connection string carries a short-lived token and
+  rotation is automatic.
+
+A single shared `admin_svc` is used for now; **per-operator IAM-authenticated roles**
+(individually audited) are the natural prod hardening and are deferred to a later
+ops change.
