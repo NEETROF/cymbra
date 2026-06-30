@@ -19,7 +19,20 @@ backend/
   user/         impl: account aggregate (users/identities/roles), gRPC server
   server/       composition root (binary `cymbra-id`): wires everything, serves
                 gRPC + the Axum JWKS/health surface
+  jobs/         async-job substrate: transactional enqueue seam, channel/retry/
+                DLQ policy, recurring scheduler (over sqlxmq; engine swappable)
+  worker/       binary `cymbra-worker`: executes queued jobs, runs the scheduler
+                + dead-letter sweep, serves /healthz /readyz
 ```
+
+> **Deployment (change: add-job-infrastructure).** Background work now runs in a
+> **separate `cymbra-worker` deployment** — it must be deployed for any async work
+> (verification email, scheduled maintenance) to run. The orphan reaper no longer
+> runs inside `cymbra-id` (the in-process loop is removed); it is a scheduled job
+> in `jobs.schedules`. The worker owns the shared `jobs` schema as `worker_svc`;
+> each module role gets only `EXECUTE` on `jobs.enqueue` (a write-only, documented
+> exception to per-module isolation — design D3). Run it with
+> `cargo run -p cymbra-worker --bin cymbra-worker`.
 
 Each module is a **port** (Rust trait) with two interchangeable adapters: a
 **direct** in-process impl and a **gRPC** impl (server + client). Consumers depend

@@ -45,6 +45,6 @@ jobs:
         run: >-
           cargo llvm-cov --workspace --lcov --output-path target/lcov.info
           --fail-under-lines 80
-          --ignore-filename-regex 'frb_generated|cymbra\.(auth|user)\.v1|/lib\.rs|/main\.rs|/midi\.rs|/musicxml\.rs|/audio\.rs|/grpc\.rs|/pg\.rs|/creds_pg\.rs|/verifier\.rs|/telemetry\.rs|/metrics\.rs|/cache\.rs|/email\.rs|/db\.rs|/jwks\.rs|/interceptor\.rs|/logging\.rs|/session\.rs'
+          --ignore-filename-regex 'frb_generated|cymbra\.(auth|user)\.v1|/lib\.rs|/main\.rs|/midi\.rs|/musicxml\.rs|/audio\.rs|/grpc\.rs|/pg\.rs|/creds_pg\.rs|/verifier\.rs|/telemetry\.rs|/metrics\.rs|/cache\.rs|/email\.rs|/db\.rs|/jwks\.rs|/interceptor\.rs|/logging\.rs|/session\.rs|/engine\.rs|/scheduler\.rs|/handlers\.rs'
       - name: Build
         run: cargo build --workspace

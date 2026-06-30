@@ -27,7 +27,7 @@ async fn main() -> anyhow::Result<()> {
     // Real environment variables always win over the file.
     let _ = dotenvy::from_filename("backend/.env").or_else(|_| dotenvy::dotenv());
     let cfg = Config::from_env()?;
-    let telemetry = telemetry::init(&cfg)?;
+    let telemetry = telemetry::init("cymbra-id", cfg.otlp_enabled, cfg.otlp_endpoint.as_deref())?;
     metrics::install_resource_metrics();
     let red = std::sync::Arc::new(metrics::RedMetrics::new());
 
@@ -82,27 +82,9 @@ async fn main() -> anyhow::Result<()> {
         auth_cfg,
     )?);
 
-    // --- orphan reaper (handle-less accounts from abandoned onboarding) ---
-    if !cfg.orphan_reap_grace.is_zero() {
-        let reaper = user_concrete.clone();
-        let grace = cfg.orphan_reap_grace.as_secs() as i64;
-        let interval = cfg.orphan_reap_interval;
-        tokio::spawn(async move {
-            let mut tick = tokio::time::interval(interval);
-            loop {
-                tick.tick().await; // fires immediately, then every `interval`
-                let now = std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH)
-                    .map(|d| d.as_secs() as i64)
-                    .unwrap_or(0);
-                match reaper.reap_orphans(now, grace).await {
-                    Ok(n) if n > 0 => tracing::info!(reaped = n, "orphan accounts purged"),
-                    Ok(_) => {}
-                    Err(e) => tracing::warn!(error = %e, "orphan reaper failed"),
-                }
-            }
-        });
-    }
+    // The orphan reaper no longer runs in-process here: it is a scheduled job
+    // (`orphan_reap`) executed by cymbra-worker (change: add-job-infrastructure).
+    // cymbra-worker MUST be deployed for handle-less accounts to be purged.
 
     // --- interceptors (strict for user; optional for auth's public methods) ---
     let keys = cymbra_server::interceptor_keys(&cfg)?;

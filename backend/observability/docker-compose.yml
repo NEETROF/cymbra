@@ -7,7 +7,7 @@
 # Grafana: http://localhost:3000 (anonymous admin). See README.md.
 services:
   otel-collector:
-    image: otel/opentelemetry-collector-contrib:0.116.0
+    image: otel/opentelemetry-collector-contrib:0.119.0
     command: ["--config=/etc/otel-collector.yaml"]
     volumes:
       - ./otel-collector.yaml:/etc/otel-collector.yaml:ro
@@ -40,7 +40,14 @@ services:
       GF_AUTH_ANONYMOUS_ENABLED: "true"
       GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
       GF_FEATURE_TOGGLES_ENABLE: traceToMetrics
+    extra_hosts:
+      # Lets the "Jobs (Postgres)" datasource reach the backend's Postgres
+      # (running in the other compose file / on the host) at host.docker.internal.
+      - "host.docker.internal:host-gateway"
     volumes:
       - ./grafana/datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml:ro
+      - ./grafana/dashboards.yaml:/etc/grafana/provisioning/dashboards/dashboards.yaml:ro
+      - ./grafana/dashboards:/etc/grafana/provisioning/dashboards/jobs:ro
+      - ./grafana/alerting.yaml:/etc/grafana/provisioning/alerting/alerting.yaml:ro
     ports: ["3000:3000"]
     depends_on: [prometheus, tempo, loki]

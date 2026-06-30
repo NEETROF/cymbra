@@ -27,6 +27,14 @@ async fn local_lifecycle_signup_verify_signin_refresh_reuse() -> Result<()> {
     let redis_url =
         std::env::var("CYMBRA_REDIS_URL").unwrap_or_else(|_| "redis://localhost:6379".into());
 
+    // The worker owns the `jobs` schema; in production it applies these
+    // migrations (creating `jobs.enqueue` + granting auth_svc EXECUTE) before
+    // cymbra-id enqueues. Mirror that here so sign-up's transactional enqueue
+    // works — run them as worker_svc.
+    let worker_url = std::env::var("CYMBRA_WORKER_DATABASE_URL").unwrap();
+    let worker_pool = PgPoolOptions::new().connect(&worker_url).await.unwrap();
+    cymbra_jobs::MIGRATOR.run(&worker_pool).await.unwrap();
+
     let auth_pool = PgPoolOptions::new().connect(&auth_url).await.unwrap();
     let user_pool = PgPoolOptions::new().connect(&user_url).await.unwrap();
     cymbra_auth::MIGRATOR.run(&auth_pool).await.unwrap();

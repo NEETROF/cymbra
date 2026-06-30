@@ -52,6 +52,22 @@ fn now_secs() -> i64 {
         .as_secs() as i64
 }
 
+/// Build the enqueue request for a verification email. The worker's
+/// `verification_email` handler consumes `{to, subject, body}`. Idempotency is
+/// provided by the single-use token: a re-delivered job re-sends the same code.
+fn verification_email_job(email: &str, token: &str) -> Result<cymbra_jobs::EnqueueRequest> {
+    let spec = cymbra_jobs::registry::spec(cymbra_jobs::VERIFICATION_EMAIL).ok_or_else(|| {
+        AppError::Internal(anyhow::anyhow!("missing verification_email job spec"))
+    })?;
+    let payload = serde_json::json!({
+        "to": email,
+        "subject": "Verify your Cymbra account",
+        "body": format!("Confirm your email with this code: {token}"),
+    });
+    cymbra_jobs::EnqueueRequest::for_job(&spec, &payload, None)
+        .map_err(|e| AppError::Internal(anyhow::anyhow!("build verification email job: {e}")))
+}
+
 impl AuthModule {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -141,13 +157,12 @@ impl AuthPort for AuthModule {
         self.user.resolve_or_provision("local", email).await?;
         let tok = uuid::Uuid::new_v4().to_string();
         let exp = now_secs() + self.cfg.verify_ttl.as_secs() as i64;
-        self.creds.set_verification(email, &tok, exp).await?;
-        self.email
-            .send(
-                email,
-                "Verify your Cymbra account",
-                &format!("Confirm your email with this code: {tok}"),
-            )
+        // Enqueue the verification email as a job in the same transaction as the
+        // verification write — SMTP is now off the request path, so a mail
+        // failure can never fail an account that already exists (design D10).
+        let job = verification_email_job(email, &tok)?;
+        self.creds
+            .set_verification_with_job(email, &tok, exp, &job)
             .await?;
         Ok(())
     }
@@ -325,13 +340,15 @@ mod tests {
     struct Harness {
         m: AuthModule,
         creds: Arc<FakeCredentialRepo>,
+        email: Arc<FakeEmail>,
     }
 
     fn harness() -> Harness {
         let user: Arc<dyn UserPort> = Arc::new(UserModule::new(FakeUserRepo::default()));
         let creds = Arc::new(FakeCredentialRepo::default());
         let cache: Arc<dyn Cache> = Arc::new(FakeCache::default());
-        let email: Arc<dyn EmailSender> = Arc::new(FakeEmail::default());
+        let email = Arc::new(FakeEmail::default());
+        let email_dyn: Arc<dyn EmailSender> = email.clone();
         let oidc = Arc::new(FakeOidcVerifier::default());
         let cfg = AuthConfig::new(
             Duration::from_secs(900),
@@ -345,8 +362,9 @@ mod tests {
             Duration::from_secs(86_400),
             Duration::from_secs(3600),
         );
-        let m = AuthModule::new(user, creds.clone(), cache, email, oidc, PRIV, "k1", cfg).unwrap();
-        Harness { m, creds }
+        let m =
+            AuthModule::new(user, creds.clone(), cache, email_dyn, oidc, PRIV, "k1", cfg).unwrap();
+        Harness { m, creds, email }
     }
 
     fn keys() -> HashMap<String, DecodingKey> {
@@ -367,6 +385,26 @@ mod tests {
         let claims = ptoken::verify(&pair.access_token, &keys(), &["music"]).unwrap();
         assert_eq!(claims.aud, "music");
         assert!(claims.roles.contains(&"user".to_string()));
+    }
+
+    #[tokio::test]
+    async fn signup_enqueues_email_off_request_path() {
+        let h = harness();
+        h.m.sign_up_local("a@x.dev", PW).await.unwrap();
+        // SMTP is no longer on the sign-up request path (design D10).
+        assert!(
+            h.email.sent.lock().unwrap().is_empty(),
+            "sign-up must not send email inline"
+        );
+        // Exactly one verification_email job was enqueued (in the verification tx).
+        let jobs = h.creds.enqueued_jobs();
+        assert_eq!(jobs.len(), 1);
+        assert_eq!(jobs[0].name, cymbra_jobs::VERIFICATION_EMAIL);
+        assert_eq!(jobs[0].channel_name, "auth.email");
+        assert!(jobs[0].payload_json.contains("a@x.dev"));
+        // The verification token is still set, so the verify flow is unaffected.
+        let tok = h.creds.peek_verification_token("a@x.dev").unwrap();
+        h.m.verify_email(&tok).await.unwrap();
     }
 
     #[tokio::test]

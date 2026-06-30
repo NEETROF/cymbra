@@ -1,0 +1,40 @@
+# Dead-letter alert (design D6/D8; task 7.2). Fires whenever any job has been
+# moved to jobs.dead_letter — a poison job that exhausted its retries needs an
+# operator. Grafana unified-alerting provisioning (apiVersion 1).
+apiVersion: 1
+groups:
+  - orgId: 1
+    name: jobs
+    folder: Jobs
+    interval: 1m
+    rules:
+      - uid: jobs-dead-letter-nonempty
+        title: Job dead-letter queue is non-empty
+        condition: C
+        for: 0m
+        noDataState: OK
+        execErrState: Alerting
+        labels:
+          severity: critical
+          service: cymbra-jobs
+        annotations:
+          summary: "{{ $values.A }} job(s) in jobs.dead_letter — a job exhausted its retries."
+          runbook: "Inspect jobs.dead_letter (last_error), fix the cause, then re-enqueue or purge."
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: jobs-postgres
+            model:
+              refId: A
+              format: table
+              rawQuery: true
+              rawSql: "SELECT count(*) AS value FROM jobs.dead_letter"
+          - refId: C
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [0] }

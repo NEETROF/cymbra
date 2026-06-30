@@ -10,6 +10,7 @@ description = "Cymbra ID auth module — implementation (IdentityVerifier, local
 cymbra-auth-port = { path = "../auth-port" }
 cymbra-user-port = { path = "../user-port" }
 cymbra-platform = { path = "../platform" }
+cymbra-jobs = { path = "../jobs" }
 async-trait.workspace = true
 tokio.workspace = true
 tonic.workspace = true
