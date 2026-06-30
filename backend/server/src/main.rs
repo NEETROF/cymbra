@@ -27,7 +27,7 @@ async fn main() -> anyhow::Result<()> {
     // Real environment variables always win over the file.
     let _ = dotenvy::from_filename("backend/.env").or_else(|_| dotenvy::dotenv());
     let cfg = Config::from_env()?;
-    let telemetry = telemetry::init(&cfg)?;
+    let telemetry = telemetry::init("cymbra-id", cfg.otlp_enabled, cfg.otlp_endpoint.as_deref())?;
     metrics::install_resource_metrics();
     let red = std::sync::Arc::new(metrics::RedMetrics::new());
 

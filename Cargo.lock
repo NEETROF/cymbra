@@ -824,7 +824,6 @@ dependencies = [
  "sqlxmq",
  "tokio",
  "tracing",
- "tracing-subscriber",
 ]
 
 [[package]]

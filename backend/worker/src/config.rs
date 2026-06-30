@@ -25,6 +25,10 @@ pub struct WorkerConfig {
     pub dlq_sweep_interval: Duration,
     /// Grace before a handle-less account is reaped (reused by the reaper job).
     pub orphan_reap_grace: Duration,
+    /// OTLP export endpoint (traces/metrics/logs); ignored when disabled.
+    pub otlp_endpoint: Option<String>,
+    /// Whether to export OpenTelemetry over OTLP (off for tests/offline runs).
+    pub otlp_enabled: bool,
 }
 
 impl WorkerConfig {
@@ -57,7 +61,18 @@ pub mod core {
             scheduler_interval: dur(m, "CYMBRA_WORKER_SCHEDULER_INTERVAL", "30s")?,
             dlq_sweep_interval: dur(m, "CYMBRA_WORKER_DLQ_SWEEP_INTERVAL", "60s")?,
             orphan_reap_grace: dur(m, "CYMBRA_ORPHAN_REAP_GRACE", "24h")?,
+            otlp_endpoint: m
+                .get("CYMBRA_OTLP_ENDPOINT")
+                .filter(|s| !s.is_empty())
+                .cloned(),
+            otlp_enabled: flag(m, "CYMBRA_OTLP_ENABLED", false),
         })
+    }
+
+    fn flag(m: &HashMap<String, String>, k: &str, default: bool) -> bool {
+        m.get(k)
+            .map(|v| matches!(v.as_str(), "1" | "true" | "TRUE" | "yes"))
+            .unwrap_or(default)
     }
 
     fn req(m: &HashMap<String, String>, k: &str) -> Result<String, String> {
@@ -113,6 +128,21 @@ mod tests {
         assert_eq!(c.dlq_sweep_interval, Duration::from_secs(60));
         assert_eq!(c.http_addr, "0.0.0.0:8082");
         assert_eq!(c.smtp_from, "no-reply@cymbra.dev");
+        assert!(!c.otlp_enabled);
+        assert_eq!(c.otlp_endpoint, None);
+    }
+
+    #[test]
+    fn otlp_can_be_enabled() {
+        let mut m = base();
+        m.insert("CYMBRA_OTLP_ENABLED".into(), "true".into());
+        m.insert(
+            "CYMBRA_OTLP_ENDPOINT".into(),
+            "http://collector:4317".into(),
+        );
+        let c = core::parse(&m).unwrap();
+        assert!(c.otlp_enabled);
+        assert_eq!(c.otlp_endpoint.as_deref(), Some("http://collector:4317"));
     }
 
     #[test]

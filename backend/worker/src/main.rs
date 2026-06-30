@@ -23,13 +23,14 @@ use crate::handlers::WorkerCtx;
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let _ = dotenvy::from_filename("backend/.env").or_else(|_| dotenvy::dotenv());
-    tracing_subscriber::fmt()
-        .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into()),
-        )
-        .init();
-
     let cfg = WorkerConfig::from_env().map_err(|e| anyhow::anyhow!("worker config: {e}"))?;
+    // Shared OTel init (service `cymbra-worker`): stdout logs always; traces/
+    // metrics/logs over OTLP when enabled. Same pipeline as cymbra-id.
+    let telemetry = cymbra_platform::telemetry::init(
+        "cymbra-worker",
+        cfg.otlp_enabled,
+        cfg.otlp_endpoint.as_deref(),
+    )?;
 
     // --- queue connection (worker_svc) + migrations ---
     let queue_pool = db::connect(&cfg.worker_database_url, cfg.concurrency_max as u32 + 2).await?;
@@ -75,6 +76,7 @@ async fn main() -> anyhow::Result<()> {
     // Dropping `_runner` here stops polling; in-flight jobs finish or their lease
     // expires and another worker reclaims them (at-least-once; design D9).
     tracing::info!("cymbra-worker shutting down");
+    telemetry.shutdown(); // flush OTLP exporters
     Ok(())
 }
 
