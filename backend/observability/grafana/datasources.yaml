@@ -40,7 +40,7 @@ datasources:
     url: host.docker.internal:5432
     user: worker_svc
     jsonData:
-      database: cymbra_id
+      database: cymbra
       sslmode: disable
       postgresVersion: 1600
     secureJsonData:

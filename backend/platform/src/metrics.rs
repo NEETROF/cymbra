@@ -20,7 +20,7 @@ pub struct RedMetrics {
 
 impl RedMetrics {
     pub fn new() -> Self {
-        let meter = opentelemetry::global::meter("cymbra-id");
+        let meter = opentelemetry::global::meter("cymbra-server");
         Self {
             requests: meter.u64_counter("rpc.server.requests").build(),
             duration: meter.f64_histogram("rpc.server.duration.seconds").build(),
@@ -50,7 +50,7 @@ pub fn install_resource_metrics() {
         Ok(p) => p,
         Err(_) => return,
     };
-    let meter = opentelemetry::global::meter("cymbra-id");
+    let meter = opentelemetry::global::meter("cymbra-server");
     let sys = Arc::new(Mutex::new(sysinfo::System::new()));
 
     let sys_mem = sys.clone();

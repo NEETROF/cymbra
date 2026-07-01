@@ -2,7 +2,7 @@
 //!
 //! Connects as `worker_svc`, runs the `jobs` migrations, starts the sqlxmq runner
 //! (executes queued jobs), and spawns the recurring scheduler and the dead-letter
-//! sweep. Serves a small health surface. The user-facing `cymbra-id` only
+//! sweep. Serves a small health surface. The user-facing `cymbra-server` only
 //! enqueues; this binary is what actually runs background work.
 
 mod config;
@@ -25,7 +25,7 @@ async fn main() -> anyhow::Result<()> {
     let _ = dotenvy::from_filename("backend/.env").or_else(|_| dotenvy::dotenv());
     let cfg = WorkerConfig::from_env().map_err(|e| anyhow::anyhow!("worker config: {e}"))?;
     // Shared OTel init (service `cymbra-worker`): stdout logs always; traces/
-    // metrics/logs over OTLP when enabled. Same pipeline as cymbra-id.
+    // metrics/logs over OTLP when enabled. Same pipeline as cymbra-server.
     let telemetry = cymbra_platform::telemetry::init(
         "cymbra-worker",
         cfg.otlp_enabled,

@@ -138,7 +138,7 @@ Find the IP with `ipconfig getifaddr en0` (macOS Wi-Fi). Requirements:
 - **iOS** prompts for *Local Network* access on first connect → **Allow** (the
   `NSLocalNetworkUsageDescription` key is set; toggle later under Settings →
   Privacy → Local Network);
-- if the connection **times out**, allow incoming connections to `cymbra-id` in
+- if the connection **times out**, allow incoming connections to `cymbra-server` in
   the **macOS firewall** (or disable it for dev). Plaintext gRPC over the LAN is
   fine for dev — it's a raw socket, so iOS ATS does not apply.
 

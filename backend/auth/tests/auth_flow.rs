@@ -29,7 +29,7 @@ async fn local_lifecycle_signup_verify_signin_refresh_reuse() -> Result<()> {
 
     // The worker owns the `jobs` schema; in production it applies these
     // migrations (creating `jobs.enqueue` + granting auth_svc EXECUTE) before
-    // cymbra-id enqueues. Mirror that here so sign-up's transactional enqueue
+    // cymbra-server enqueues. Mirror that here so sign-up's transactional enqueue
     // works — run them as worker_svc.
     let worker_url = std::env::var("CYMBRA_WORKER_DATABASE_URL").unwrap();
     let worker_pool = PgPoolOptions::new().connect(&worker_url).await.unwrap();

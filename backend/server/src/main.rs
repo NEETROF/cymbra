@@ -1,4 +1,4 @@
-//! Cymbra ID — composition root (binary `cymbra-id`).
+//! Cymbra ID — composition root (binary `cymbra-server`).
 //!
 //! The **only** place modules are wired: connect Postgres (per-module roles) +
 //! Redis, run migrations, build the user + auth modules and their adapters,
@@ -27,7 +27,11 @@ async fn main() -> anyhow::Result<()> {
     // Real environment variables always win over the file.
     let _ = dotenvy::from_filename("backend/.env").or_else(|_| dotenvy::dotenv());
     let cfg = Config::from_env()?;
-    let telemetry = telemetry::init("cymbra-id", cfg.otlp_enabled, cfg.otlp_endpoint.as_deref())?;
+    let telemetry = telemetry::init(
+        "cymbra-server",
+        cfg.otlp_enabled,
+        cfg.otlp_endpoint.as_deref(),
+    )?;
     metrics::install_resource_metrics();
     let red = std::sync::Arc::new(metrics::RedMetrics::new());
 
@@ -100,7 +104,7 @@ async fn main() -> anyhow::Result<()> {
 
     let grpc_addr: SocketAddr = cfg.grpc_addr.parse()?;
     let http_addr: SocketAddr = cfg.http_addr.parse()?;
-    tracing::info!(%grpc_addr, %http_addr, "cymbra-id serving");
+    tracing::info!(%grpc_addr, %http_addr, "cymbra-server serving");
 
     let grpc = Server::builder()
         .layer(metrics::ObserveLayer::new(red))
