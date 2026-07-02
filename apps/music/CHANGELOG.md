@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.0](https://github.com/NEETROF/cymbra/compare/music-v1.3.0...music-v1.4.0) (2026-07-02)
+
+
+### Features
+
+* **account:** Cymbra ID account access (Google + Apple sign-in, handle onboarding) ([#30](https://github.com/NEETROF/cymbra/issues/30)) ([c71e8a1](https://github.com/NEETROF/cymbra/commit/c71e8a133d6697d6d58de6456ae18cc8dd0bd2fc))
+
 ## [1.3.0](https://github.com/NEETROF/cymbra/compare/music-v1.2.0...music-v1.3.0) (2026-06-28)
 
 
