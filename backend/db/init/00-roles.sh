@@ -7,7 +7,7 @@
 # so this is safe on a fresh volume and on re-apply.
 #
 # Also reused by CI and by hand to (re)provision an existing DB:
-#   PGHOST=localhost PGPASSWORD=… POSTGRES_USER=cymbra POSTGRES_DB=cymbra_id \
+#   PGHOST=localhost PGPASSWORD=… POSTGRES_USER=cymbra POSTGRES_DB=cymbra \
 #     CYMBRA_ROLES_TEMPLATE=backend/db/init/roles.sql.tpl bash backend/db/init/00-roles.sh
 #
 # Production: set CYMBRA_*_DB_PASSWORD from a secret store (or use IAM auth and
@@ -18,7 +18,7 @@ TEMPLATE="${CYMBRA_ROLES_TEMPLATE:-/docker-entrypoint-initdb.d/roles.sql.tpl}"
 
 psql -v ON_ERROR_STOP=1 \
   --username "${POSTGRES_USER:-cymbra}" \
-  --dbname "${POSTGRES_DB:-cymbra_id}" \
+  --dbname "${POSTGRES_DB:-cymbra}" \
   -v auth_role="${CYMBRA_AUTH_DB_ROLE:-auth_svc}" \
   -v auth_pw="${CYMBRA_AUTH_DB_PASSWORD:-auth_dev_pw}" \
   -v user_role="${CYMBRA_USER_DB_ROLE:-user_svc}" \

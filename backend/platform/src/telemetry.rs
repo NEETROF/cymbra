@@ -48,7 +48,7 @@ fn resource(service_name: &str) -> Resource {
 }
 
 /// Initialize logging + (optionally) the three OTel signals for `service_name`
-/// (e.g. `cymbra-id`, `cymbra-worker`). Decoupled from any one binary's config so
+/// (e.g. `cymbra-server`, `cymbra-worker`). Decoupled from any one binary's config so
 /// every backend process can share it. Idempotent-safe.
 pub fn init(
     service_name: &str,

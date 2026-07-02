@@ -11,7 +11,7 @@ name = "cymbra_server"
 path = "src/lib.rs"
 
 [[bin]]
-name = "cymbra-id"
+name = "cymbra-server"
 path = "src/main.rs"
 
 [dependencies]

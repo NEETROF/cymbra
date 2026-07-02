@@ -28,12 +28,12 @@ This brings up an **OpenTelemetry Collector** (OTLP in on `:4317`), **Tempo**
 ```bash
 export CYMBRA_OTLP_ENABLED=true
 export CYMBRA_OTLP_ENDPOINT=http://localhost:4317
-cargo run -p cymbra-server --bin cymbra-id
+cargo run -p cymbra-server --bin cymbra-server
 ```
 
 ## Find a request's telemetry in Grafana
 
-1. **Traces** — *Explore → Tempo → Search* (service `cymbra-id`). Open a
+1. **Traces** — *Explore → Tempo → Search* (service `cymbra-server`). Open a
    `grpc.request` span; expand to see DB/auth child spans.
 2. **Logs for that trace** — from the span, click **Logs for this span**
    (Tempo → Loki, filtered by `trace_id`). Or in *Explore → Loki*, click a log's

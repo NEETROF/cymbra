@@ -26,10 +26,10 @@ jobs:
         env:
           POSTGRES_USER: cymbra
           POSTGRES_PASSWORD: cymbra_dev_pw
-          POSTGRES_DB: cymbra_id
+          POSTGRES_DB: cymbra
         ports: ["5432:5432"]
         options: >-
-          --health-cmd "pg_isready -U cymbra -d cymbra_id"
+          --health-cmd "pg_isready -U cymbra -d cymbra"
           --health-interval 5s --health-timeout 3s --health-retries 10
       redis:
         image: valkey/valkey:8 # wire-compatible Redis fork (BSD); redis crate + redis:// URL unchanged
@@ -39,10 +39,10 @@ jobs:
           --health-interval 5s --health-timeout 3s --health-retries 10
     env:
       PGPASSWORD: cymbra_dev_pw
-      CYMBRA_AUTH_DATABASE_URL: postgres://auth_svc:auth_dev_pw@localhost:5432/cymbra_id
-      CYMBRA_USER_DATABASE_URL: postgres://user_svc:user_dev_pw@localhost:5432/cymbra_id
-      CYMBRA_WORKER_DATABASE_URL: postgres://worker_svc:worker_dev_pw@localhost:5432/cymbra_id
-      CYMBRA_ADMIN_DATABASE_URL: postgres://admin_svc:admin_dev_pw@localhost:5432/cymbra_id
+      CYMBRA_AUTH_DATABASE_URL: postgres://auth_svc:auth_dev_pw@localhost:5432/cymbra
+      CYMBRA_USER_DATABASE_URL: postgres://user_svc:user_dev_pw@localhost:5432/cymbra
+      CYMBRA_WORKER_DATABASE_URL: postgres://worker_svc:worker_dev_pw@localhost:5432/cymbra
+      CYMBRA_ADMIN_DATABASE_URL: postgres://admin_svc:admin_dev_pw@localhost:5432/cymbra
       CYMBRA_REDIS_URL: redis://localhost:6379
     steps:
       - uses: actions/checkout@v4
@@ -52,7 +52,7 @@ jobs:
         env:
           PGHOST: localhost
           POSTGRES_USER: cymbra
-          POSTGRES_DB: cymbra_id
+          POSTGRES_DB: cymbra
           CYMBRA_ROLES_TEMPLATE: backend/db/init/roles.sql.tpl
         run: bash backend/db/init/00-roles.sh
       - uses: dtolnay/rust-toolchain@stable

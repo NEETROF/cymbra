@@ -1,9 +1,11 @@
-# Cymbra ID — backend
+# Cymbra — backend
 
-The shared identity/account service for Cymbra Music and Cymbra Live: a
-gRPC-first **modular monolith** in Rust (tonic + SQLx/Postgres + Redis), with
-OIDC (Google/Apple) + local email/password sign-in, audience-scoped session
-tokens, per-app scoped roles, and first-class OpenTelemetry observability.
+The Cymbra backend: a gRPC-first **modular monolith** in Rust (tonic +
+SQLx/Postgres + Redis). It currently provides shared identity/accounts for Cymbra
+Music and Cymbra Live — OIDC (Google/Apple) + local email/password sign-in,
+audience-scoped session tokens, per-app scoped roles — with first-class
+OpenTelemetry observability, and is the home for further server-side modules
+(background jobs run separately in `cymbra-worker`).
 
 Spec: [`openspec/changes/add-cymbra-id`](../openspec/changes/add-cymbra-id).
 
@@ -17,7 +19,7 @@ backend/
   auth/         impl: IdentityVerifier, local credentials, sessions, gRPC server
   user-port/    contract: UserPort trait + DTOs + cymbra.user.v1 proto + gRPC client
   user/         impl: account aggregate (users/identities/roles), gRPC server
-  server/       composition root (binary `cymbra-id`): wires everything, serves
+  server/       composition root (binary `cymbra-server`): wires everything, serves
                 gRPC + the Axum JWKS/health surface
   jobs/         async-job substrate: transactional enqueue seam, channel/retry/
                 DLQ policy, recurring scheduler (over sqlxmq; engine swappable)
@@ -28,7 +30,7 @@ backend/
 > **Deployment (change: add-job-infrastructure).** Background work now runs in a
 > **separate `cymbra-worker` deployment** — it must be deployed for any async work
 > (verification email, scheduled maintenance) to run. The orphan reaper no longer
-> runs inside `cymbra-id` (the in-process loop is removed); it is a scheduled job
+> runs inside `cymbra-server` (the in-process loop is removed); it is a scheduled job
 > in `jobs.schedules`. The worker owns the shared `jobs` schema as `worker_svc`;
 > each module role gets only `EXECUTE` on `jobs.enqueue` (a write-only, documented
 > exception to per-module isolation — design D3). Run it with
@@ -56,7 +58,7 @@ docker compose -f backend/docker-compose.yml up -d
 
 cp backend/.env.example backend/.env   # fill in the signing keypair + OIDC ids
 # the server auto-loads backend/.env (dotenvy) — just run it:
-cargo run -p cymbra-server --bin cymbra-id
+cargo run -p cymbra-server --bin cymbra-server
 ```
 
 Generate the internal-token signing keypair:
@@ -103,7 +105,7 @@ environment (defaulting to the dev values, so `docker compose up` and CI need no
 config). It is re-runnable, so it also (re)provisions an already-running DB:
 
 ```bash
-PGHOST=localhost PGPASSWORD=cymbra_dev_pw POSTGRES_USER=cymbra POSTGRES_DB=cymbra_id \
+PGHOST=localhost PGPASSWORD=cymbra_dev_pw POSTGRES_USER=cymbra POSTGRES_DB=cymbra \
   CYMBRA_ROLES_TEMPLATE=backend/db/init/roles.sql.tpl bash backend/db/init/00-roles.sh
 ```
 
