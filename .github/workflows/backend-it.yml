@@ -42,13 +42,19 @@ jobs:
       CYMBRA_AUTH_DATABASE_URL: postgres://auth_svc:auth_dev_pw@localhost:5432/cymbra_id
       CYMBRA_USER_DATABASE_URL: postgres://user_svc:user_dev_pw@localhost:5432/cymbra_id
       CYMBRA_WORKER_DATABASE_URL: postgres://worker_svc:worker_dev_pw@localhost:5432/cymbra_id
+      CYMBRA_ADMIN_DATABASE_URL: postgres://admin_svc:admin_dev_pw@localhost:5432/cymbra_id
       CYMBRA_REDIS_URL: redis://localhost:6379
     steps:
       - uses: actions/checkout@v4
       - name: Install protoc + psql
         run: sudo apt-get update && sudo apt-get install -y protobuf-compiler postgresql-client
-      - name: Bootstrap schemas + per-module roles
-        run: psql -h localhost -U cymbra -d cymbra_id -v ON_ERROR_STOP=1 -f backend/db/init/01-schemas-roles.sql
+      - name: Bootstrap schemas + roles (env-driven, dev defaults)
+        env:
+          PGHOST: localhost
+          POSTGRES_USER: cymbra
+          POSTGRES_DB: cymbra_id
+          CYMBRA_ROLES_TEMPLATE: backend/db/init/roles.sql.tpl
+        run: bash backend/db/init/00-roles.sh
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - name: Integration tests (ignored set)
