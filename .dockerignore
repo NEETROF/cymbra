@@ -1,0 +1,17 @@
+# Keep the backend image build context lean (repo-root context).
+.git
+target
+**/target
+# Flutter / app build artefacts — not needed to build the backend binaries.
+apps/*/build
+apps/*/.dart_tool
+apps/*/ios/Pods
+apps/*/macos/Pods
+**/*.g.dart
+**/*.freezed.dart
+node_modules
+**/node_modules
+# Local env / secrets must never enter an image layer.
+backend/.env
+backend/deploy/.env
+**/.env

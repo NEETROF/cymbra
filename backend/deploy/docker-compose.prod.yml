@@ -1,0 +1,136 @@
+# Cymbra backend — single-box production compose (testers / early access).
+#
+# One Hetzner box runs everything: Postgres, Valkey, cymbra-server, cymbra-worker,
+# and Caddy (auto-HTTPS). NOT highly available — a reboot/restore is manual — but
+# reliable enough to hand the apps to real users. Scale to managed HA later without
+# touching app code (server is stateless, worker is idempotent across replicas).
+#
+# Usage on the box:
+#   cd backend/deploy
+#   cp .env.prod.example .env      # then fill in ALL secrets
+#   docker compose -f docker-compose.prod.yml pull
+#   docker compose -f docker-compose.prod.yml up -d
+#
+# Binaries self-migrate on boot (sqlx::migrate!): server runs auth+user migrations,
+# worker runs jobs migrations. Per-module DB roles are bootstrapped by db/init on
+# first Postgres init (passwords come from the CYMBRA_*_DB_PASSWORD vars below).
+
+name: cymbra-prod
+
+# Cap container logs so `docker logs` / json-file can't fill the box's disk.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    logging: *default-logging
+    environment:
+      POSTGRES_USER: cymbra
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: cymbra
+      # Consumed by db/init/00-roles.sh on FIRST init to set per-module role
+      # passwords (must match the passwords embedded in the *_DATABASE_URL vars).
+      CYMBRA_AUTH_DB_PASSWORD: ${CYMBRA_AUTH_DB_PASSWORD:?}
+      CYMBRA_USER_DB_PASSWORD: ${CYMBRA_USER_DB_PASSWORD:?}
+      CYMBRA_WORKER_DB_PASSWORD: ${CYMBRA_WORKER_DB_PASSWORD:?}
+      CYMBRA_ADMIN_DB_PASSWORD: ${CYMBRA_ADMIN_DB_PASSWORD:?}
+    volumes:
+      - ../db/init:/docker-entrypoint-initdb.d:ro
+      - pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cymbra -d cymbra"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    # Not published to the host — only reachable on the compose network.
+    expose: ["5432"]
+
+  valkey:
+    image: valkey/valkey:8
+    restart: unless-stopped
+    logging: *default-logging
+    # Durable: append-only file so sessions survive a restart (design note — until
+    # sessions move to Postgres, Valkey holds refresh-token families).
+    command: ["valkey-server", "--appendonly", "yes"]
+    volumes:
+      - valkey:/data
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    expose: ["6379"]
+
+  server:
+    image: ${CYMBRA_IMAGE:-ghcr.io/neetrof/cymbra-backend:latest}
+    restart: unless-stopped
+    logging: *default-logging
+    command: ["cymbra-server"]
+    env_file: [.env]
+    environment:
+      CYMBRA_GRPC_ADDR: 0.0.0.0:50051
+      CYMBRA_HTTP_ADDR: 0.0.0.0:8081
+    depends_on:
+      postgres: {condition: service_healthy}
+      valkey: {condition: service_healthy}
+    # gRPC (50051) + JWKS/health (8081) reachable only via Caddy, not the host.
+    expose: ["50051", "8081"]
+
+  worker:
+    image: ${CYMBRA_IMAGE:-ghcr.io/neetrof/cymbra-backend:latest}
+    restart: unless-stopped
+    logging: *default-logging
+    command: ["cymbra-worker"]
+    env_file: [.env]
+    environment:
+      CYMBRA_WORKER_HTTP_ADDR: 0.0.0.0:8082
+    depends_on:
+      postgres: {condition: service_healthy}
+      valkey: {condition: service_healthy}
+    expose: ["8082"]
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    logging: *default-logging
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    environment:
+      API_DOMAIN: ${API_DOMAIN:?set API_DOMAIN in .env, e.g. api.cymbra.app}
+    depends_on:
+      - server
+
+  # Optional: OpenTelemetry Collector — OFF by default. Enable with
+  #   docker compose -f docker-compose.prod.yml --profile observability up -d
+  # and set (in .env): CYMBRA_OTLP_ENABLED=true,
+  # CYMBRA_OTLP_ENDPOINT=http://otel-collector:4317, plus GRAFANA_OTLP_* below.
+  # Ships traces/metrics/logs to Grafana Cloud (free tier) so you don't self-host
+  # Tempo/Loki/Prometheus/Grafana on this small box.
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    restart: unless-stopped
+    profiles: ["observability"]
+    logging: *default-logging
+    command: ["--config=/etc/otel/config.yaml"]
+    volumes:
+      - ./otel-collector.prod.yaml:/etc/otel/config.yaml:ro
+    environment:
+      GRAFANA_OTLP_ENDPOINT: ${GRAFANA_OTLP_ENDPOINT:-}
+      GRAFANA_OTLP_AUTH: ${GRAFANA_OTLP_AUTH:-}
+    expose: ["4317"]
+
+volumes:
+  pg:
+  valkey:
+  caddy_data:
+  caddy_config:
