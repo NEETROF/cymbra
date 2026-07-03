@@ -70,6 +70,17 @@ jobs:
       - name: Generate code (riverpod_generator + freezed)
         working-directory: apps/music
         run: dart run build_runner build --delete-conflicting-outputs
+      # The Sign in with Apple entitlement (com.apple.developer.applesignin) is
+      # profile-restricted, so a signed macOS build needs an Apple provisioning
+      # profile this runner has no credentials for. This job is a compile-only
+      # gate, so disable signing: the target doesn't set CODE_SIGNING_ALLOWED, so
+      # this xcconfig value wins and xcodebuild skips provisioning (ad-hoc build).
+      # Appended only in the ephemeral CI checkout — never committed.
+      - name: Disable macOS code signing (unsigned compile gate)
+        if: matrix.label == 'macos'
+        working-directory: apps/music/macos
+        shell: bash
+        run: printf '\nCODE_SIGNING_ALLOWED = NO\n' >> Runner/Configs/Debug.xcconfig
       - name: Build (${{ matrix.label }})
         working-directory: apps/music
         run: flutter build ${{ matrix.target }} --debug
