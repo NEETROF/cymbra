@@ -11,6 +11,10 @@ name: release-build
 #   - iOS .ipa (Apple certificates + provisioning, via fastlane)
 #   - Play Store (.aab) / TestFlight publishing
 # The Android .apk here is signed with debug keys (installable, NOT for Play).
+# The macOS .app is built unsigned (ad-hoc): the Sign in with Apple entitlement
+# is profile-restricted and CI has no Apple signing identity, so signing is
+# disabled here. The artifact runs for dev/testing but is NOT notarized /
+# Gatekeeper-distributable until real signing secrets are wired in.
 on:
   push:
     tags:
@@ -98,6 +102,15 @@ jobs:
           else
             echo "GOOGLE_CLIENT_ID secret not set — building with Google sign-in disabled."
           fi
+      # No Apple signing identity in CI, and the Sign in with Apple entitlement
+      # is profile-restricted, so a signed build can't resolve a provisioning
+      # profile. Disable signing (the target doesn't set CODE_SIGNING_ALLOWED, so
+      # this xcconfig value wins) → xcodebuild builds ad-hoc, no profile needed.
+      # Yields an unsigned .app; swap for real signing secrets to notarize.
+      - name: Disable code signing (unsigned macOS artifact)
+        working-directory: apps/music/macos
+        shell: bash
+        run: printf '\nCODE_SIGNING_ALLOWED = NO\n' >> Runner/Configs/Release.xcconfig
       - name: Build
         working-directory: apps/music
         run: flutter build macos --release --dart-define=GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
