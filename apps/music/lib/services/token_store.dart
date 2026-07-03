@@ -69,7 +69,7 @@ class SecureTokenStore implements TokenStore {
           // protection keychain needs a `keychain-access-groups` entitlement and
           // therefore a development certificate (errSecMissingEntitlement -34018).
           const FlutterSecureStorage(
-            mOptions: MacOsOptions(useDataProtectionKeyChain: false),
+            mOptions: MacOsOptions(usesDataProtectionKeychain: false),
           );
 
   final FlutterSecureStorage _storage;
