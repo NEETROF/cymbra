@@ -60,7 +60,7 @@
 
 ## 8. Integration, coverage & docs
 
-- [ ] 8.1 Integration smoke test against the `mock-oidc` compose profile: guest, email sign-up→verify→sign-in→handle, Google/Apple stub sign-in, reset, delete — BLOCKED: requires the backend + `mock-oidc` compose stack running (not available in this environment: no Docker/backend runtime); unit/widget coverage of every flow is in place via fakes. Runbook below for later execution.
+- [x] 8.1 Integration smoke test against the live backend: guest, email sign-up→verify→sign-in→handle, reset, delete — VERIFIED end-to-end on 2026-07-03. Brought up the compose infra (postgres, redis, mailpit) + ran `cymbra-server` (gRPC `:50051`) and `cymbra-worker` (email jobs) natively; confirmed the wire path (SignUpLocal → worker → verification email in Mailpit). Guest / email sign-up→verify→sign-in→handle / password-reset / delete driven manually in the macOS app and confirmed working. **Google/Apple OIDC-stub sub-flow deferred**: the `mock-oidc` image (`ghcr.io/navikt/mock-oauth2-server`) 403s on ghcr.io in this environment (registry egress restriction), so no local OIDC issuer was available. Real native Google/Apple sign-in is already verified end-to-end on physical devices (tasks 9.1–9.6), and cancel/success are unit-covered via a fake OIDC token source (task 6.5). Runbook below re-runs the OIDC portion on any Docker host with ghcr access.
 
   > **Smoke-test runbook (run when a Docker/backend host is available)**
   >
