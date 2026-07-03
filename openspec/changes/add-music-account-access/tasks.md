@@ -43,11 +43,11 @@
 
 - [x] 6.1 Integrate `google_sign_in`: obtain `id_token`, call `SignInOidc(audience="music")`; handle user-cancel as no-op
 - [x] 6.2 Integrate `sign_in_with_apple`: obtain `id_token`, call `SignInOidc(audience="music")`; offer on Apple platforms wherever Google is offered
-- [ ] 6.3 Platform config: Google OAuth client IDs (iOS/Android/macOS) + iOS URL schemes / Android intent filters; Apple "Sign in with Apple" capability — SCAFFOLDED (buttons gated behind `--dart-define` GOOGLE_CLIENT_ID/APPLE_SIGN_IN_ENABLED; reversed-client-id URL scheme placeholders in iOS/macOS Info.plist; README documents the steps). BLOCKED on the real OAuth client IDs + Apple capability (needs a dev certificate) to finish.
+- [x] 6.3 Platform config: Google OAuth client IDs (iOS/Android/macOS) + iOS URL schemes / Android intent filters; Apple "Sign in with Apple" capability — DONE. Google client IDs wired + verified on iOS (9.1) and Android (9.2). Apple capability added on iOS (`ios/Runner/Runner.entitlements` → `com.apple.developer.applesignin`) with a paid-account dev cert, verified end-to-end on a physical iPad (9.5). macOS Apple entitlements added (`macos/Runner/{DebugProfile,Release}.entitlements`) and verified (9.6).
   - [x] 6.3a **macOS** build-time injection (no secret committed): Info.plist URL scheme uses `$(GOOGLE_OAUTH_CLIENT_SUFFIX)` resolved from `Configs/AppInfo.xcconfig` (inert default) overridden by gitignored `Configs/Secrets.xcconfig` (template: `Secrets.example.xcconfig`); the `release-build.yml` macOS job writes it from the `GOOGLE_CLIENT_ID` secret and passes `--dart-define`. Needs the `GOOGLE_CLIENT_ID` repo secret set.
   - [x] 6.3b **iOS**: replicated the macOS injection — `ios/Runner/Info.plist` uses `$(GOOGLE_OAUTH_CLIENT_SUFFIX)`, default in `Flutter/Debug.xcconfig`/`Release.xcconfig`, overridden by gitignored `Flutter/Secrets.xcconfig` (template: `Secrets.example.xcconfig`). Fixes the native crash on "Continue with Google" (the placeholder URL scheme). CI injection step deferred until signed iOS builds land in CI.
   - [x] 6.3c **Android**: wired `serverClientId` (the web OAuth client) on every platform (Option A → single backend audience = web client). Android needs only `GOOGLE_SERVER_CLIENT_ID`; an Android OAuth client (package + SHA-1) is registered for Play Services. Shared debug keystore committed (`android/app/debug.keystore` + pinned `signingConfigs.debug`) so all devs/CI share one SHA-1. Verified on a physical device.
-- [ ] 6.4 Coordinate backend `CYMBRA_GOOGLE_AUDIENCE`/`CYMBRA_APPLE_AUDIENCE` with the registered client IDs — BLOCKED: depends on 6.3 credentials
+- [x] 6.4 Coordinate backend `CYMBRA_GOOGLE_AUDIENCE`/`CYMBRA_APPLE_AUDIENCE` with the registered client IDs — DONE. Google audience set (`backend/.env`, web client). Apple audience set to the app bundle ID `com.cymbra.music` (native Sign in with Apple: `id_token.aud` = bundle ID; no Services ID / P8 needed for native id_token JWKS verification). Both proven live: a successful `SignInOidc` means the audience matched.
 - [x] 6.5 Tests with a fake OIDC token source covering success and cancellation
 
 ## 7. App: handle onboarding, sign-out, deletion
@@ -81,8 +81,8 @@ Apple sign-in = native `sign_in_with_apple` (iOS/macOS only); needs the "Sign in
 with Apple" capability + a dev certificate and `CYMBRA_APPLE_AUDIENCE`. The app
 seam currently gates Apple to iOS/macOS (`appleAvailable`).
 
-- [ ] 9.5 **Apple — iOS** (capability + cert + audience): full flow on a device
-- [ ] 9.6 **Apple — macOS** (capability + cert + audience): full flow
+- [x] 9.5 **Apple — iOS** (capability + cert + audience): full flow verified on a physical iPad — native consent → `SignInOidc` → handle onboarding → library; "Use a different account" on handle onboarding returns to entry with no orphan account.
+- [x] 9.6 **Apple — macOS** (capability + cert + audience): full flow verified on macOS — Sign in with Apple capability added to `macos/Runner/DebugProfile.entitlements` + `Release.entitlements` (`com.apple.developer.applesignin`); native consent → `SignInOidc` → handle onboarding → library.
 - [ ] 9.7 **Apple — Android/Windows/Linux**: Apple is offered only on iOS/macOS today → verify the Apple button is absent there. Native Apple on these platforms requires the web-auth flow (Services ID + return URL) — out of current scope
 
 > Handle-escape per provider: the `fix-handle-onboarding-escape` flow is

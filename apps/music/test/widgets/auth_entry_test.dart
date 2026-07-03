@@ -58,6 +58,31 @@ void main() {
     expect(find.byKey(const Key('entry-apple')), findsNothing);
   });
 
+  testWidgets('Google is hidden where it is not available', (tester) async {
+    // Degrades gracefully on platforms without a google_sign_in impl (e.g.
+    // Windows/Linux): the button never renders, so the native plugin is never
+    // invoked and cannot crash. Email/guest remain available.
+    final c = authContainer(oidc: FakeOidcTokenSource(googleAvailable: false));
+    await _pump(tester, c, const EntryScreen());
+    expect(find.byKey(const Key('entry-google')), findsNothing);
+    expect(find.byKey(const Key('entry-email')), findsOneWidget);
+    expect(find.byKey(const Key('entry-guest')), findsOneWidget);
+  });
+
+  testWidgets('entry degrades to email + guest with no OIDC providers', (
+    tester,
+  ) async {
+    // Windows/Linux today: neither Google nor Apple is offered.
+    final c = authContainer(
+      oidc: FakeOidcTokenSource(googleAvailable: false, appleAvailable: false),
+    );
+    await _pump(tester, c, const EntryScreen());
+    expect(find.byKey(const Key('entry-google')), findsNothing);
+    expect(find.byKey(const Key('entry-apple')), findsNothing);
+    expect(find.byKey(const Key('entry-email')), findsOneWidget);
+    expect(find.byKey(const Key('entry-guest')), findsOneWidget);
+  });
+
   testWidgets('guest choice persists and enters guest mode', (tester) async {
     final store = FakeTokenStore();
     final c = authContainer(store: store);
