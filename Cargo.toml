@@ -43,7 +43,9 @@ chrono = { version = "0.4", default-features = false, features = ["clock", "std"
 chrono-tz = "0.10"
 cron = "0.15"
 # auth + crypto
-jsonwebtoken = "9"
+# v10 requires an explicit crypto backend; rust_crypto is pure-Rust (no C
+# toolchain) and covers the EdDSA (internal tokens) + RS256 (OIDC) we verify.
+jsonwebtoken = { version = "10", features = ["rust_crypto"] }
 argon2 = "0.5"
 # config + errors + ids + serde
 config = "0.14"
@@ -63,10 +65,12 @@ lettre = { version = "0.11", default-features = false, features = ["tokio1-rustl
 # observability
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
-tracing-opentelemetry = "0.28"
-opentelemetry = "0.27"
-opentelemetry_sdk = { version = "0.27", features = ["rt-tokio"] }
-opentelemetry-otlp = { version = "0.27", features = ["grpc-tonic"] }
-opentelemetry-appender-tracing = "0.27"
+tracing-opentelemetry = "0.33"
+opentelemetry = "0.32"
+# 0.28+ dropped the async-runtime batch model (rt-tokio / runtime::Tokio) for a
+# background-thread processor, so no runtime feature is needed here.
+opentelemetry_sdk = "0.32"
+opentelemetry-otlp = { version = "0.32", features = ["grpc-tonic"] }
+opentelemetry-appender-tracing = "0.32"
 tokio-metrics = "0.3"
 sysinfo = "0.32"

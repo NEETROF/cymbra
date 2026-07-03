@@ -12,9 +12,9 @@ use tracing_subscriber::{EnvFilter, fmt};
 
 /// Owns the OTel providers; [`Telemetry::shutdown`] flushes them on exit.
 pub struct Telemetry {
-    tracer_provider: Option<opentelemetry_sdk::trace::TracerProvider>,
+    tracer_provider: Option<opentelemetry_sdk::trace::SdkTracerProvider>,
     meter_provider: Option<opentelemetry_sdk::metrics::SdkMeterProvider>,
-    logger_provider: Option<opentelemetry_sdk::logs::LoggerProvider>,
+    logger_provider: Option<opentelemetry_sdk::logs::SdkLoggerProvider>,
 }
 
 impl Telemetry {
@@ -41,10 +41,9 @@ impl Telemetry {
 }
 
 fn resource(service_name: &str) -> Resource {
-    Resource::new(vec![KeyValue::new(
-        "service.name",
-        service_name.to_string(),
-    )])
+    Resource::builder()
+        .with_attribute(KeyValue::new("service.name", service_name.to_string()))
+        .build()
 }
 
 /// Initialize logging + (optionally) the three OTel signals for `service_name`
@@ -74,8 +73,8 @@ pub fn init(
         .with_tonic()
         .with_endpoint(&endpoint)
         .build()?;
-    let tracer_provider = opentelemetry_sdk::trace::TracerProvider::builder()
-        .with_batch_exporter(span_exporter, opentelemetry_sdk::runtime::Tokio)
+    let tracer_provider = opentelemetry_sdk::trace::SdkTracerProvider::builder()
+        .with_batch_exporter(span_exporter)
         .with_resource(resource(service_name))
         .build();
     let tracer = tracer_provider.tracer(service_name.to_string());
@@ -86,11 +85,7 @@ pub fn init(
         .with_tonic()
         .with_endpoint(&endpoint)
         .build()?;
-    let reader = opentelemetry_sdk::metrics::PeriodicReader::builder(
-        metric_exporter,
-        opentelemetry_sdk::runtime::Tokio,
-    )
-    .build();
+    let reader = opentelemetry_sdk::metrics::PeriodicReader::builder(metric_exporter).build();
     let meter_provider = opentelemetry_sdk::metrics::SdkMeterProvider::builder()
         .with_reader(reader)
         .with_resource(resource(service_name))
@@ -102,8 +97,8 @@ pub fn init(
         .with_tonic()
         .with_endpoint(&endpoint)
         .build()?;
-    let logger_provider = opentelemetry_sdk::logs::LoggerProvider::builder()
-        .with_batch_exporter(log_exporter, opentelemetry_sdk::runtime::Tokio)
+    let logger_provider = opentelemetry_sdk::logs::SdkLoggerProvider::builder()
+        .with_batch_exporter(log_exporter)
         .with_resource(resource(service_name))
         .build();
     let log_layer =
@@ -121,4 +116,32 @@ pub fn init(
         meter_provider: Some(meter_provider),
         logger_provider: Some(logger_provider),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn disabled_path_installs_console_only() {
+        let tele = init("cymbra-test", false, None).expect("init disabled");
+        assert!(tele.tracer_provider.is_none());
+        assert!(tele.meter_provider.is_none());
+        assert!(tele.logger_provider.is_none());
+        tele.shutdown();
+    }
+
+    // Exercises the OTLP-enabled construction on otel 0.32 (SdkTracerProvider /
+    // PeriodicReader / SdkLoggerProvider + Resource builder). The tonic exporters
+    // connect lazily, so building the providers must succeed against a dead
+    // endpoint without a running collector; shutdown must flush and return.
+    // (End-to-end export still needs a real collector — out of scope here.)
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn enabled_path_builds_all_three_providers_and_shuts_down() {
+        let tele = init("cymbra-test", true, Some("http://127.0.0.1:4317")).expect("init enabled");
+        assert!(tele.tracer_provider.is_some());
+        assert!(tele.meter_provider.is_some());
+        assert!(tele.logger_provider.is_some());
+        tele.shutdown();
+    }
 }
