@@ -10,7 +10,28 @@ permissions:
   contents: read
 
 jobs:
+  # A skipped job reports "success" and satisfies the required check. frb only
+  # matters when the Rust FFI / committed bindings / frb version change.
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      frb: ${{ steps.f.outputs.frb }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: f
+        with:
+          filters: |
+            frb:
+              - 'apps/*/rust/**'
+              - 'apps/*/lib/src/rust/**'
+              - 'apps/*/pubspec.yaml'
+              - '.github/workflows/frb-codegen.yml'
+              - '!**/CHANGELOG.md'
+
   frb:
+    needs: changes
+    if: ${{ github.event_name != 'pull_request' || needs.changes.outputs.frb == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

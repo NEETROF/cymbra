@@ -13,7 +13,34 @@ permissions:
   pull-requests: write # Required for Sonar to decorate the PR with analysis results
 
 jobs:
+  # A skipped job reports "success" and satisfies the required check. Sonar covers
+  # both ecosystems, so it runs when any backend OR app source changes (not on a
+  # CHANGELOG-only release PR).
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.f.outputs.code }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: f
+        with:
+          filters: |
+            code:
+              - 'backend/**'
+              - 'apps/**'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+              - 'rust-toolchain.toml'
+              - 'melos.yaml'
+              - 'pubspec.yaml'
+              - 'pubspec.lock'
+              - '.github/workflows/sonar.yml'
+              - '!**/CHANGELOG.md'
+
   sonar:
+    needs: changes
+    if: ${{ github.event_name != 'pull_request' || needs.changes.outputs.code == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
