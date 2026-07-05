@@ -6,6 +6,10 @@
     "apps/music": {
       "release-type": "dart",
       "component": "music"
+    },
+    "backend": {
+      "release-type": "simple",
+      "component": "backend"
     }
   }
 }

@@ -5,7 +5,10 @@ name: backend-image
 on:
   push:
     branches: [main]
-    tags: ["v*"]
+    # release-please tags the backend component `backend-vX.Y.Z`. Its release
+    # commit modifies backend/CHANGELOG.md (under backend/**), so the tag build
+    # matches the paths filter below and fires.
+    tags: ["backend-v*"]
     paths:
       - "backend/**"
       - "Cargo.toml"
@@ -42,8 +45,11 @@ jobs:
           images: ${{ env.IMAGE }}
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
-            type=ref,event=tag
             type=sha,format=short
+            # Strip the release-please `backend-v` prefix → clean semver image tags
+            # (e.g. tag backend-v0.1.0 → image :0.1.0 and :0.1).
+            type=match,pattern=backend-v(\d+\.\d+\.\d+),group=1
+            type=match,pattern=backend-v(\d+\.\d+),group=1
 
       - name: Build and push
         uses: docker/build-push-action@v6
