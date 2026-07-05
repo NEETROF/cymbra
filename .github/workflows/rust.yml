@@ -15,7 +15,7 @@ permissions:
 jobs:
   # Detect whether any Rust-relevant path changed. A skipped job (below) reports
   # "success" and satisfies the required check, so PRs that touch no Rust don't
-  # burn minutes. CHANGELOG-only release PRs are excluded via !**/CHANGELOG.md.
+  # burn minutes.
   changes:
     runs-on: ubuntu-latest
     outputs:
@@ -33,7 +33,6 @@ jobs:
               - 'Cargo.lock'
               - 'rust-toolchain.toml'
               - '.github/workflows/rust.yml'
-              - '!**/CHANGELOG.md'
 
   rust:
     needs: changes
