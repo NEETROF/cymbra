@@ -11,6 +11,7 @@ use std::sync::Arc;
 use cymbra_platform::email::EmailSender;
 use cymbra_user::{PgUserRepo, UserModule};
 use serde::Deserialize;
+use sqlx::PgPool;
 use sqlxmq::{CurrentJob, JobRegistry};
 use tracing::Instrument;
 
@@ -23,6 +24,8 @@ pub type BoxError = Box<dyn Error + Send + Sync + 'static>;
 pub struct WorkerCtx {
     pub email: Arc<dyn EmailSender>,
     pub user: Arc<UserModule<PgUserRepo>>,
+    /// `auth_svc` pool for the session-reaper job (auth owns `auth.sessions`).
+    pub auth_pool: PgPool,
     pub reap_grace_secs: i64,
 }
 
@@ -72,9 +75,27 @@ pub async fn orphan_reap(mut job: CurrentJob, ctx: WorkerCtx) -> Result<(), BoxE
     .await
 }
 
+/// Delete expired `auth.sessions` rows (change: durable-sessions-postgres). Lazy
+/// expiry enforces correctness on read, so this is pure table hygiene; naturally
+/// idempotent (a second run finds nothing to delete). Uses the auth-scoped pool.
+#[sqlxmq::job("session_reap")]
+pub async fn session_reap(mut job: CurrentJob, ctx: WorkerCtx) -> Result<(), BoxError> {
+    let span = tracing::info_span!("job.session_reap", job_id = %job.id());
+    async move {
+        let deleted = cymbra_auth::reap_expired_sessions(&ctx.auth_pool).await?;
+        if deleted > 0 {
+            tracing::info!(reaped = deleted, "expired sessions purged (scheduled job)");
+        }
+        job.complete().await?;
+        Ok(())
+    }
+    .instrument(span)
+    .await
+}
+
 /// Build the job registry with all handlers registered and the shared context set.
 pub fn registry(ctx: WorkerCtx) -> JobRegistry {
-    let mut registry = JobRegistry::new(&[verification_email, orphan_reap]);
+    let mut registry = JobRegistry::new(&[verification_email, orphan_reap, session_reap]);
     registry.set_context(ctx);
     registry
 }

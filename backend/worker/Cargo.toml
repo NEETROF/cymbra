@@ -15,6 +15,9 @@ cymbra-jobs = { path = "../jobs" }
 cymbra-platform = { path = "../platform" }
 cymbra-user = { path = "../user" }
 cymbra-user-port = { path = "../user-port" }
+# The session-reaper job calls into the auth module (which owns auth.sessions),
+# same pattern as the orphan reaper using cymbra-user.
+cymbra-auth = { path = "../auth" }
 sqlxmq.workspace = true
 sqlx.workspace = true
 tokio.workspace = true

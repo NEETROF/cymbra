@@ -39,11 +39,14 @@ async fn main() -> anyhow::Result<()> {
     // --- per-module connections for the work the handlers perform ---
     let user_pool = db::connect(&cfg.user_database_url, 5).await?;
     let user = Arc::new(UserModule::new(PgUserRepo::new(user_pool)));
+    // auth_svc pool for the session-reaper job (auth owns `auth.sessions`).
+    let auth_pool = db::connect(&cfg.auth_database_url, 5).await?;
     let email: Arc<dyn EmailSender> = Arc::new(SmtpSender::new(&cfg.smtp_url, &cfg.smtp_from)?);
 
     let ctx = WorkerCtx {
         email,
         user,
+        auth_pool,
         reap_grace_secs: cfg.orphan_reap_grace.as_secs() as i64,
     };
 

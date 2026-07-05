@@ -7,7 +7,9 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use cymbra_auth::{AuthConfig, AuthModule, FakeOidcVerifier, PgCredentialRepo};
+use cymbra_auth::{
+    AuthConfig, AuthModule, FakeOidcVerifier, PgCredentialRepo, PgSessionStore, SessionStore,
+};
 use cymbra_auth_port::AuthPort;
 use cymbra_platform::cache::{Cache, RedisCache};
 use cymbra_platform::email::{EmailSender, FakeEmail};
@@ -57,7 +59,9 @@ async fn local_lifecycle_signup_verify_signin_refresh_reuse() -> Result<()> {
         Duration::from_secs(86_400),
         Duration::from_secs(3600),
     );
-    let m = AuthModule::new(user, creds, cache, email, oidc, PRIV, "k1", cfg)?;
+    let sessions: Arc<dyn SessionStore> =
+        Arc::new(PgSessionStore::new(auth_pool.clone(), cfg.refresh_ttl));
+    let m = AuthModule::new(user, creds, cache, email, oidc, sessions, PRIV, "k1", cfg)?;
 
     // Unique email per run.
     let email_addr = format!("it-{}@x.dev", uuid::Uuid::new_v4());
@@ -85,5 +89,67 @@ async fn local_lifecycle_signup_verify_signin_refresh_reuse() -> Result<()> {
         m.refresh(&rotated.refresh_token).await,
         Err(AppError::Unauthenticated(_))
     ));
+    Ok(())
+}
+
+/// Durable session store directly: rotate/replay, revoke, revoke_all, listing,
+/// expiry, and the reap. (change: durable-sessions-postgres, task 6.1)
+#[tokio::test]
+#[ignore = "needs docker compose (Postgres) up"]
+async fn pg_session_store_lifecycle_and_reap() -> Result<()> {
+    let auth_url = std::env::var("CYMBRA_AUTH_DATABASE_URL").unwrap();
+    let auth_pool = PgPoolOptions::new().connect(&auth_url).await.unwrap();
+    cymbra_auth::MIGRATOR.run(&auth_pool).await.unwrap();
+
+    let store = PgSessionStore::new(auth_pool.clone(), Duration::from_secs(3600));
+    let uid = format!("u-{}", uuid::Uuid::new_v4());
+
+    // create → rotate → replay revokes the family.
+    let rt = store.create(&uid, "music").await?;
+    assert_eq!(store.list_for_user(&uid).await?.len(), 1);
+    let rot = store.rotate(&rt).await?;
+    assert_eq!(rot.user_id, uid);
+    assert_eq!(rot.audience, "music");
+    assert!(matches!(
+        store.rotate(&rt).await,
+        Err(AppError::Unauthenticated(_))
+    ));
+    assert!(matches!(
+        store.rotate(&rot.refresh_token).await,
+        Err(AppError::Unauthenticated(_))
+    ));
+    assert!(store.list_for_user(&uid).await?.is_empty());
+
+    // revoke (logout).
+    let rt2 = store.create(&uid, "music").await?;
+    store.revoke(&rt2).await?;
+    assert!(matches!(
+        store.rotate(&rt2).await,
+        Err(AppError::Unauthenticated(_))
+    ));
+
+    // revoke_all ends every session for the user.
+    let _a = store.create(&uid, "music").await?;
+    let _b = store.create(&uid, "live").await?;
+    assert_eq!(store.list_for_user(&uid).await?.len(), 2);
+    store.revoke_all(&uid).await?;
+    assert!(store.list_for_user(&uid).await?.is_empty());
+
+    // concurrent rotate of the same token: exactly one succeeds.
+    let rt3 = store.create(&uid, "music").await?;
+    let (r1, r2) = tokio::join!(store.rotate(&rt3), store.rotate(&rt3));
+    let wins = [r1.is_ok(), r2.is_ok()].iter().filter(|b| **b).count();
+    assert_eq!(wins, 1, "exactly one concurrent rotate wins");
+
+    // expired session is rejected on use and not listed, then reaped.
+    let expired = PgSessionStore::new(auth_pool.clone(), Duration::from_secs(0));
+    let ert = expired.create(&uid, "music").await?;
+    assert!(matches!(
+        expired.rotate(&ert).await,
+        Err(AppError::Unauthenticated(_))
+    ));
+    assert!(store.list_for_user(&uid).await?.is_empty());
+    let reaped = cymbra_auth::reap_expired_sessions(&auth_pool).await?;
+    assert!(reaped >= 1, "reap deletes at least the expired row");
     Ok(())
 }

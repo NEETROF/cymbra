@@ -8,8 +8,10 @@
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use cymbra_auth::{AuthConfig, AuthGrpc, AuthModule, PgCredentialRepo, RealOidcVerifier};
-use cymbra_auth::{CredentialRepo, OidcProviderCfg, OidcVerifier};
+use cymbra_auth::{
+    AuthConfig, AuthGrpc, AuthModule, PgCredentialRepo, PgSessionStore, RealOidcVerifier,
+};
+use cymbra_auth::{CredentialRepo, OidcProviderCfg, OidcVerifier, SessionStore};
 use cymbra_auth_port::proto::auth_service_server::AuthServiceServer;
 use cymbra_platform::cache::{Cache, RedisCache};
 use cymbra_platform::config::Config;
@@ -42,7 +44,9 @@ async fn main() -> anyhow::Result<()> {
     cymbra_auth::MIGRATOR.run(&auth_pool).await?;
     cymbra_user::MIGRATOR.run(&user_pool).await?;
 
-    // --- Redis (sessions, rate-limit) ---
+    // --- Redis: disposable cache (rate-limit + email throttles) only ---
+    // Sessions are durable in Postgres (change: durable-sessions-postgres), so a
+    // Redis outage no longer signs anyone out and Redis needs no HA/persistence.
     let cache: Arc<dyn Cache> = Arc::new(RedisCache::connect(&cfg.redis_url).await?);
 
     // --- user module ---
@@ -50,7 +54,10 @@ async fn main() -> anyhow::Result<()> {
     let user_dyn: Arc<dyn UserPort> = user_concrete.clone();
 
     // --- auth module ---
-    let creds: Arc<dyn CredentialRepo> = Arc::new(PgCredentialRepo::new(auth_pool));
+    let creds: Arc<dyn CredentialRepo> = Arc::new(PgCredentialRepo::new(auth_pool.clone()));
+    // Durable session store on the auth pool (auth_svc owns `auth.sessions`).
+    let sessions: Arc<dyn SessionStore> =
+        Arc::new(PgSessionStore::new(auth_pool, cfg.token.refresh_ttl));
     let providers: Vec<OidcProviderCfg> = cfg
         .oidc_providers
         .iter()
@@ -81,6 +88,7 @@ async fn main() -> anyhow::Result<()> {
         cache.clone(),
         email,
         oidc,
+        sessions,
         &cfg.token.signing_key_pem,
         &cfg.token.kid,
         auth_cfg,

@@ -14,6 +14,8 @@ use crate::retry::RetryPolicy;
 pub const VERIFICATION_EMAIL: &str = "verification_email";
 /// Stable name of the orphan-reaper job (first slice, design D10).
 pub const ORPHAN_REAP: &str = "orphan_reap";
+/// Stable name of the session-reaper job (change: durable-sessions-postgres).
+pub const SESSION_REAP: &str = "session_reap";
 
 /// Static description of one job type.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -62,6 +64,13 @@ pub fn builtin() -> Vec<JobSpec> {
             Channel::parallel("user", "reap"),
             RetryPolicy::new(3, Duration::from_secs(30), Duration::from_secs(600)),
         ),
+        JobSpec::new(
+            SESSION_REAP,
+            // Delete expired `auth.sessions` rows; dedup'd per occurrence, so
+            // ordering is moot — parallel to avoid head-of-line blocking.
+            Channel::parallel("auth", "reap"),
+            RetryPolicy::new(3, Duration::from_secs(30), Duration::from_secs(600)),
+        ),
     ]
 }
 
@@ -79,6 +88,7 @@ mod tests {
         let names: Vec<_> = builtin().iter().map(|s| s.name().to_string()).collect();
         assert!(names.contains(&VERIFICATION_EMAIL.to_string()));
         assert!(names.contains(&ORPHAN_REAP.to_string()));
+        assert!(names.contains(&SESSION_REAP.to_string()));
     }
 
     #[test]
