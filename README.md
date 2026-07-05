@@ -1,5 +1,7 @@
 # Cymbra
 
+<!-- ci-skip verification (temporary; safe to close/revert) -->
+
 Open-source suite around an interactive music engine — Flutter (UI) + Rust (engine),
 bridged with [flutter_rust_bridge](https://github.com/fzyzcjy/flutter_rust_bridge).
 Free and open source under the [Apache License 2.0](LICENSE).
