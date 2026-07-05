@@ -99,17 +99,21 @@ token. The access token SHALL set `aud` to the target app and carry the account'
 `global` or that app's scope, read from the user module — never from the provider
 token). Protected gRPC methods MUST be authorized by validating the internal
 **access** token (not the provider token), and an interceptor MUST reject requests
-whose access token is missing, invalid, or expired. The access token SHALL be
-**short-lived** (target ~15 minutes) and the refresh token **long-lived and
-sliding** (target ~30 days) — the refresh token is the effective session length.
-The refresh token MUST be exchangeable for a new access token and MUST be **rotated
-on use** with **reuse detection**: presenting an expired, revoked, or already-
-rotated refresh token MUST be rejected, and replay of a rotated token SHALL revoke
-the whole session family. An expired **access** token alone MUST NOT require
-re-authentication while the refresh token is still valid. Each session/refresh token
-is **bound to the audience chosen at sign-in**; `Refresh` preserves that audience
-(it takes no audience parameter), and tokens are never shared across apps — a user
-signs in to each app **independently (one login per app)**.
+whose access token is missing, invalid, or expired. Access-token validation SHALL
+be **offline** (signature + claims against the published JWKS), so protected calls
+MUST NOT depend on the session store. The access token SHALL be **short-lived**
+(target ~15 minutes) and the refresh token **long-lived and sliding** (target ~30
+days) — the refresh token is the effective session length. The refresh token MUST
+be exchangeable for a new access token and MUST be **rotated on use** with **reuse
+detection**: presenting an expired, revoked, or already-rotated refresh token MUST
+be rejected, and replay of a rotated token SHALL revoke the whole session family.
+Rotation and reuse detection MUST be **atomic** — the check-and-rotate SHALL be a
+single durable, conditional operation so that concurrent refreshes cannot both
+succeed. An expired **access** token alone MUST NOT require re-authentication while
+the refresh token is still valid. Each session/refresh token is **bound to the
+audience chosen at sign-in**; `Refresh` preserves that audience (it takes no
+audience parameter), and tokens are never shared across apps — a user signs in to
+each app **independently (one login per app)**.
 
 #### Scenario: Expired access token is refreshed without re-login
 
@@ -158,12 +162,21 @@ signs in to each app **independently (one login per app)**.
 - **THEN** the module rejects it and revokes the whole session family so the stolen
   token chain is dead
 
+#### Scenario: Concurrent refresh of the same token yields one winner
+
+- **WHEN** the same refresh token is presented by two concurrent requests
+- **THEN** at most one succeeds and rotates the token; the other is rejected with
+  `UNAUTHENTICATED` (and, being a replay of a now-rotated token, revokes the family)
+
 ### Requirement: Sign out and session revocation
 
 The auth module SHALL let an authenticated user sign out, revoking the current
 session's refresh token so it can no longer be used, and SHALL support revoking all
-of an account's sessions (e.g. after a password reset). A revoked session's refresh
-token MUST be rejected on use.
+of an account's sessions (e.g. after a password reset). Revocation SHALL be served
+from the durable session store. A revoked session's refresh token MUST be rejected
+on use. Because sessions are stored durably per account, the module SHALL be able to
+**enumerate an account's active sessions** (for revoke-all and for a future
+"active devices" surface) via an indexed lookup by `user_id`.
 
 #### Scenario: Sign-out revokes the session
 
@@ -175,6 +188,11 @@ token MUST be rejected on use.
 
 - **WHEN** all sessions for an account are revoked
 - **THEN** every previously issued refresh token for that account is rejected on use
+
+#### Scenario: Account's active sessions can be listed
+
+- **WHEN** the module looks up an account's sessions by `user_id`
+- **THEN** it returns that account's non-expired session families
 
 ### Requirement: Local credential hardening
 
@@ -284,4 +302,37 @@ admin endpoints are out of scope.
 - **WHEN** a user whose role set contains the required role invokes the guarded
   method
 - **THEN** the request is permitted to proceed
+
+### Requirement: Durable session persistence
+
+The auth module SHALL store refresh-token session state — the session **family**
+(`user_id`, `audience`, `current_rt`, `expires_at`) — in the backend's durable
+system of record (Postgres, the `auth` schema), NOT solely in an in-memory cache.
+Session state MUST survive a restart or outage of the cache tier: a cache (Redis)
+restart MUST NOT invalidate active sessions or force re-authentication. The cache
+tier SHALL hold only disposable data (rate-limit and email-throttle counters) and
+therefore MUST NOT be required to be highly available or durable for sessions to
+work. Session records SHALL carry an expiry (`expires_at`) that bounds them to the
+refresh-token lifetime; expired sessions MUST be treated as invalid on use
+regardless of cleanup timing, and a periodic reap SHALL remove expired rows for
+table hygiene.
+
+#### Scenario: Sessions survive a cache-tier restart
+
+- **WHEN** the cache (Redis) service is restarted or lost while a user holds a
+  valid refresh token
+- **THEN** the user's session remains valid and a subsequent refresh succeeds
+  without credential re-entry
+
+#### Scenario: Cache loss does not affect session validity
+
+- **WHEN** rate-limit/throttle counters in the cache are lost
+- **THEN** only those counters reset; no session is revoked and no user is signed
+  out
+
+#### Scenario: Expired session is rejected even before reap runs
+
+- **WHEN** a refresh token whose session `expires_at` is in the past is presented,
+  before the reap job has deleted the row
+- **THEN** the module rejects it with gRPC status `UNAUTHENTICATED`
 
