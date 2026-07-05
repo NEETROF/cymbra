@@ -18,7 +18,7 @@ COPY . .
 # needs no SQL files. cache mounts keep rebuilds fast in CI.
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/src/target \
-    cargo build --release -p cymbra-server -p cymbra-worker \
+    cargo build --release --locked -p cymbra-server -p cymbra-worker \
     && cp target/release/cymbra-server target/release/cymbra-worker /usr/local/bin/
 
 FROM debian:bookworm-slim AS runtime
