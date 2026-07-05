@@ -12,6 +12,8 @@ pub struct WorkerConfig {
     pub worker_database_url: String,
     /// `user_svc` connection — used by the orphan-reaper job handler.
     pub user_database_url: String,
+    /// `auth_svc` connection — used by the session-reaper job handler.
+    pub auth_database_url: String,
     pub smtp_url: String,
     pub smtp_from: String,
     /// Health/readiness HTTP surface.
@@ -53,6 +55,7 @@ pub mod core {
         Ok(WorkerConfig {
             worker_database_url: req(m, "CYMBRA_WORKER_DATABASE_URL")?,
             user_database_url: req(m, "CYMBRA_USER_DATABASE_URL")?,
+            auth_database_url: req(m, "CYMBRA_AUTH_DATABASE_URL")?,
             smtp_url: req(m, "CYMBRA_SMTP_URL")?,
             smtp_from: opt(m, "CYMBRA_SMTP_FROM", "no-reply@cymbra.dev"),
             http_addr: opt(m, "CYMBRA_WORKER_HTTP_ADDR", "0.0.0.0:8082"),
@@ -112,6 +115,7 @@ mod tests {
         [
             ("CYMBRA_WORKER_DATABASE_URL", "postgres://w"),
             ("CYMBRA_USER_DATABASE_URL", "postgres://u"),
+            ("CYMBRA_AUTH_DATABASE_URL", "postgres://a"),
             ("CYMBRA_SMTP_URL", "smtp://s"),
         ]
         .iter()

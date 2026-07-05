@@ -3,7 +3,8 @@
 The Cymbra backend: a gRPC-first **modular monolith** in Rust (tonic +
 SQLx/Postgres + Redis). It currently provides shared identity/accounts for Cymbra
 Music and Cymbra Live — OIDC (Google/Apple) + local email/password sign-in,
-audience-scoped session tokens, per-app scoped roles — with first-class
+audience-scoped session tokens (durable in Postgres; Redis is a disposable cache
+for rate-limit/throttles only), per-app scoped roles — with first-class
 OpenTelemetry observability, and is the home for further server-side modules
 (background jobs run separately in `cymbra-worker`).
 

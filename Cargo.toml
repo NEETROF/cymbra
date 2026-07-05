@@ -47,6 +47,8 @@ cron = "0.15"
 # toolchain) and covers the EdDSA (internal tokens) + RS256 (OIDC) we verify.
 jsonwebtoken = { version = "10", features = ["rust_crypto"] }
 argon2 = "0.5"
+# SHA-256 for hashing refresh tokens at rest (durable sessions).
+sha2 = "0.10"
 # config + errors + ids + serde
 config = "0.14"
 dotenvy = "0.15"

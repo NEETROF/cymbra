@@ -105,6 +105,8 @@ mod build_tests {
         let cache: Arc<dyn Cache> = Arc::new(FakeCache::default());
         let email: Arc<dyn EmailSender> = Arc::new(FakeEmail::default());
         let oidc: Arc<dyn OidcVerifier> = Arc::new(FakeOidcVerifier::default());
+        let sessions: Arc<dyn cymbra_auth::SessionStore> =
+            Arc::new(cymbra_auth::FakeSessionStore::default());
         let cfg = AuthConfig::new(
             Duration::from_secs(900),
             Duration::from_secs(2_592_000),
@@ -118,7 +120,18 @@ mod build_tests {
             Duration::from_secs(3600),
         );
         let auth = Arc::new(
-            AuthModule::new(user_for_auth, creds, cache, email, oidc, PRIV, "k1", cfg).unwrap(),
+            AuthModule::new(
+                user_for_auth,
+                creds,
+                cache,
+                email,
+                oidc,
+                sessions,
+                PRIV,
+                "k1",
+                cfg,
+            )
+            .unwrap(),
         );
         let _auth_server = AuthGrpc::new(auth).into_server();
     }

@@ -39,7 +39,7 @@ pub struct AuthModule {
     cache: Arc<dyn Cache>,
     email: Arc<dyn EmailSender>,
     oidc: Arc<dyn OidcVerifier>,
-    sessions: SessionStore,
+    sessions: Arc<dyn SessionStore>,
     signing_key: EncodingKey,
     kid: String,
     cfg: AuthConfig,
@@ -76,12 +76,12 @@ impl AuthModule {
         cache: Arc<dyn Cache>,
         email: Arc<dyn EmailSender>,
         oidc: Arc<dyn OidcVerifier>,
+        sessions: Arc<dyn SessionStore>,
         signing_key_pem: &str,
         kid: &str,
         cfg: AuthConfig,
     ) -> Result<Self> {
         let signing_key = token::encoding_key(signing_key_pem)?;
-        let sessions = SessionStore::new(cache.clone(), cfg.refresh_ttl);
         Ok(Self {
             user,
             creds,
@@ -350,6 +350,7 @@ mod tests {
         let email = Arc::new(FakeEmail::default());
         let email_dyn: Arc<dyn EmailSender> = email.clone();
         let oidc = Arc::new(FakeOidcVerifier::default());
+        let sessions: Arc<dyn SessionStore> = Arc::new(crate::session::FakeSessionStore::default());
         let cfg = AuthConfig::new(
             Duration::from_secs(900),
             Duration::from_secs(2_592_000),
@@ -362,8 +363,18 @@ mod tests {
             Duration::from_secs(86_400),
             Duration::from_secs(3600),
         );
-        let m =
-            AuthModule::new(user, creds.clone(), cache, email_dyn, oidc, PRIV, "k1", cfg).unwrap();
+        let m = AuthModule::new(
+            user,
+            creds.clone(),
+            cache,
+            email_dyn,
+            oidc,
+            sessions,
+            PRIV,
+            "k1",
+            cfg,
+        )
+        .unwrap();
         Harness { m, creds, email }
     }
 

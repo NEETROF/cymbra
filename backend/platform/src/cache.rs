@@ -1,6 +1,7 @@
-//! Redis client/port for ephemeral auth state (task 2.7): sessions/refresh,
-//! rate-limit counters, email throttles. A [`Cache`] trait keeps modules testable
-//! with [`FakeCache`] (no Redis).
+//! Redis client/port for **disposable** cache state: rate-limit counters + email
+//! throttles. Sessions are durable in Postgres (change: durable-sessions-postgres),
+//! so losing Redis just resets counters — it needs no HA/persistence. A [`Cache`]
+//! trait keeps modules testable with [`FakeCache`] (no Redis).
 
 use crate::error::{AppError, Result};
 use async_trait::async_trait;
