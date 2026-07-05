@@ -130,7 +130,14 @@ async fn bounded_retry_then_success() {
     cymbra_jobs::MIGRATOR.run(&pool).await.unwrap();
     let ch = Channel::parallel("test", "retry");
     let name = ch.name();
+    // Clear BOTH the queue and any residual dead-letter rows for this channel, so
+    // the test is idempotent against a long-lived DB (matches the exhaustion test).
     sqlx::query("SELECT jobs.mq_clear(ARRAY[$1])")
+        .bind(&name)
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query("DELETE FROM jobs.dead_letter WHERE channel_name = $1")
         .bind(&name)
         .execute(&pool)
         .await
@@ -214,7 +221,14 @@ async fn poison_job_does_not_freeze_ordered_channel() {
     cymbra_jobs::MIGRATOR.run(&pool).await.unwrap();
     let ch = Channel::ordered("test", "ordered");
     let name = ch.name();
+    // Clear the queue AND residual dead-letter rows this test's sweep produces on
+    // re-runs, so it is idempotent against a long-lived DB.
     sqlx::query("SELECT jobs.mq_clear(ARRAY[$1])")
+        .bind(&name)
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query("DELETE FROM jobs.dead_letter WHERE channel_name = $1")
         .bind(&name)
         .execute(&pool)
         .await
