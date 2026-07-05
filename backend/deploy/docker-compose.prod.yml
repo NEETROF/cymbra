@@ -1,6 +1,6 @@
 # Cymbra backend — single-box production compose (testers / early access).
 #
-# One Hetzner box runs everything: Postgres, Valkey, cymbra-server, cymbra-worker,
+# One VPS (e.g. OVH VPS-2, 4 vCore / 8 GB) runs everything: Postgres, Valkey, cymbra-server, cymbra-worker,
 # and Caddy (auto-HTTPS). NOT highly available — a reboot/restore is manual — but
 # reliable enough to hand the apps to real users. Scale to managed HA later without
 # touching app code (server is stateless, worker is idempotent across replicas).
@@ -54,11 +54,10 @@ services:
     image: valkey/valkey:8
     restart: unless-stopped
     logging: *default-logging
-    # Durable: append-only file so sessions survive a restart (design note — until
-    # sessions move to Postgres, Valkey holds refresh-token families).
-    command: ["valkey-server", "--appendonly", "yes"]
-    volumes:
-      - valkey:/data
+    # Pure disposable cache (rate-limit + email throttles). Sessions live in
+    # Postgres (change: durable-sessions-postgres), so persistence is OFF and there
+    # is no volume/backup — a restart just warms an empty cache and logs nobody out.
+    command: ["valkey-server", "--save", "", "--appendonly", "no"]
     healthcheck:
       test: ["CMD", "valkey-cli", "ping"]
       interval: 5s
@@ -131,6 +130,5 @@ services:
 
 volumes:
   pg:
-  valkey:
   caddy_data:
   caddy_config:

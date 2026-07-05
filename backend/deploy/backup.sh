@@ -2,8 +2,8 @@
 # Nightly Postgres backup for the single-box deploy.
 #
 # Dumps the whole `cymbra` DB from the compose Postgres container, gzips it, keeps
-# a local rolling window, and (optionally) ships it off-box to a Hetzner Storage
-# Box over SFTP so a lost server does not mean lost data.
+# a local rolling window, and (optionally) ships it off-box to OVH Object Storage
+# (S3-compatible) so a lost server does not mean lost data.
 #
 # Install as a cron job on the host (see DEPLOY.md):
 #   0 3 * * *  /opt/cymbra/backend/deploy/backup.sh >> /var/log/cymbra-backup.log 2>&1
@@ -28,11 +28,14 @@ docker compose -f "$COMPOSE_FILE" exec -T postgres \
 	| gzip -9 > "$OUT"
 echo "backup written: $OUT ($(du -h "$OUT" | cut -f1))"
 
-# Off-box copy (optional). Set STORAGEBOX_TARGET, e.g.:
-#   STORAGEBOX_TARGET=u123456@u123456.your-storagebox.de:/backups/cymbra
-# Uses SSH key auth (add the box's key to the Storage Box).
-if [[ -n "${STORAGEBOX_TARGET:-}" ]]; then
-	scp -q "$OUT" "$STORAGEBOX_TARGET/" && echo "shipped off-box -> $STORAGEBOX_TARGET"
+# Off-box copy to OVH Object Storage (S3-compatible), optional. Provide S3_BUCKET +
+# S3_ENDPOINT and OVH S3 creds (AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY) in the
+# environment. OVH bills only stored GB — no ingress/egress/API fees.
+#   S3_ENDPOINT=https://s3.gra.io.cloud.ovh.net   S3_BUCKET=cymbra-backups
+if [[ -n "${S3_BUCKET:-}" ]]; then
+	aws --endpoint-url "${S3_ENDPOINT:?set S3_ENDPOINT}" \
+		s3 cp "$OUT" "s3://$S3_BUCKET/$(basename "$OUT")" \
+		&& echo "shipped off-box -> s3://$S3_BUCKET"
 fi
 
 # Prune local backups older than the retention window.

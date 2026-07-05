@@ -1,7 +1,8 @@
 # Cymbra backend — single-box production deploy (testers / early access)
 
-A pragmatic, non-HA production for handing the apps to real users. One Hetzner box
-runs Postgres + Valkey + `cymbra-server` + `cymbra-worker` + Caddy (auto-HTTPS) via
+A pragmatic, non-HA production for handing the apps to real users. One VPS (e.g. an
+OVH VPS-2 — 4 vCore / 8 GB) runs Postgres + Valkey + `cymbra-server` + `cymbra-worker`
++ Caddy (auto-HTTPS) via
 `docker-compose.prod.yml`. Images are built by GitHub Actions and pulled from GHCR.
 
 > Not highly available: a hardware failure means a **manual restore** from backup
@@ -12,21 +13,27 @@ runs Postgres + Valkey + `cymbra-server` + `cymbra-worker` + Caddy (auto-HTTPS) 
 ## 0. What you need first
 
 - A domain you control (managed via Google — Google Domains/Squarespace or Cloud DNS).
-- A Hetzner Cloud account.
+- An OVHcloud account.
 - A transactional email provider with SMTP creds (Brevo/Postmark/SES) for verification
   emails. (Mailpit is dev-only.)
 - Your Google + Apple OIDC client IDs (for `CYMBRA_GOOGLE_AUDIENCE` / Apple vars).
 
 ## 1. Provision the box
 
-- Create a Hetzner Cloud server in an EU location (Falkenstein/Nuremberg/Helsinki):
-  - **CX32** (4 vCPU / 8 GB) is comfortable; CX22 (4 GB) works if lean.
-- Attach the **Hetzner Cloud Firewall**, inbound rules ONLY:
-  - `tcp/443` from anywhere (gRPC + JWKS over TLS)
-  - `tcp/80` from anywhere (Let's Encrypt HTTP-01 challenge + redirect)
-  - `tcp/22` from **your IP only** (SSH)
-  - Everything else denied. Postgres/Valkey/gRPC are never published to the host —
-    the compose file uses `expose`, not `ports`, so they stay on the internal network.
+- Order an **OVH VPS** in an EU datacenter (Gravelines/Roubaix/Strasbourg):
+  - **VPS-2** (4 vCore / 8 GB / 75 GB NVMe) is the recommended size; VPS-1 (2 vCore
+    / 4 GB) also works at this scale.
+- OVH VPS has no Hetzner-style cloud firewall, so lock the box down with the host
+  firewall (`ufw`) — allow ONLY:
+  ```bash
+  ufw default deny incoming
+  ufw allow 443/tcp                                    # gRPC + JWKS over TLS
+  ufw allow 80/tcp                                     # Let's Encrypt HTTP-01 + redirect
+  ufw allow from <your-ip> to any port 22 proto tcp    # SSH from your IP only
+  ufw enable
+  ```
+  Postgres/Valkey/gRPC are never published to the host anyway — the compose file uses
+  `expose`, not `ports`, so they stay on the internal Docker network.
 - Install Docker Engine + the compose plugin (`docker`, `docker compose`).
 
 ## 2. DNS (in Google domain management)
@@ -120,10 +127,13 @@ curl -s https://api.<your-domain>/.well-known/jwks.json
 
 ```bash
 chmod +x /opt/cymbra/backend/deploy/backup.sh
-# Off-box target (Hetzner Storage Box), add the box's SSH key to the Storage Box first:
-#   export STORAGEBOX_TARGET=u123456@u123456.your-storagebox.de:/backups/cymbra
+apt install -y awscli    # for the off-box S3 copy
+# Off-box target = OVH Object Storage (S3). Create a bucket + an S3 user in the OVH
+# console, then export the creds. OVH bills only stored GB — no egress/API fees.
+#   export S3_ENDPOINT=https://s3.gra.io.cloud.ovh.net S3_BUCKET=cymbra-backups
+#   export AWS_ACCESS_KEY_ID=... AWS_SECRET_ACCESS_KEY=...
 crontab -e
-# 0 3 * * *  STORAGEBOX_TARGET=u123456@u123456.your-storagebox.de:/backups/cymbra /opt/cymbra/backend/deploy/backup.sh >> /var/log/cymbra-backup.log 2>&1
+# 0 3 * * *  S3_ENDPOINT=https://s3.gra.io.cloud.ovh.net S3_BUCKET=cymbra-backups AWS_ACCESS_KEY_ID=... AWS_SECRET_ACCESS_KEY=... /opt/cymbra/backend/deploy/backup.sh >> /var/log/cymbra-backup.log 2>&1
 ```
 
 **Test a restore once** into a throwaway DB — an untested backup is not a backup.
@@ -177,7 +187,7 @@ Grafana/Tempo/Loki/Prometheus stack on this box:
 - [ ] **Uptime monitor** — there's no HA/alerting. Point a free UptimeRobot/BetterStack
       check at `https://api.<domain>/healthz` so you learn about downtime before users do.
 - [ ] **Backups tested** — run `backup.sh` once and actually restore the dump into a
-      throwaway DB. Confirm the off-box copy lands on the Storage Box.
+      throwaway DB. Confirm the off-box copy lands in OVH Object Storage.
 - [ ] **Email deliverability** — SPF+DKIM+DMARC set, test mail hits the inbox (§9).
 - [ ] **Apple Sign in** — the current implementation is the **native flow**: the app sends
       Apple's `id_token`, the backend verifies it against Apple's JWKS (`aud` = bundle ID).
