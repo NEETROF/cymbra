@@ -1,0 +1,22 @@
+# Cymbra backend — Caddy reverse proxy (auto-HTTPS via Let's Encrypt).
+#
+# One public host on :443 serves BOTH surfaces:
+#   * gRPC (HTTP/2, content-type application/grpc)  -> tonic  server:50051 (h2c)
+#     — the apps' AuthService/UserService calls.
+#   * everything else (JWKS, health)                -> Axum   server:8081
+#     — GET /.well-known/jwks.json, /healthz.
+#
+# Caddy obtains + renews the TLS cert automatically for $API_DOMAIN. The apps
+# connect with ChannelCredentials.secure() to $API_DOMAIN:443.
+
+{$API_DOMAIN} {
+	# gRPC calls are HTTP/2 with an application/grpc content-type; route them to
+	# tonic over cleartext HTTP/2 (h2c) on the internal network.
+	@grpc {
+		protocol grpc
+	}
+	reverse_proxy @grpc h2c://server:50051
+
+	# Everything else (JWKS for offline token validation, health) -> Axum.
+	reverse_proxy server:8081
+}

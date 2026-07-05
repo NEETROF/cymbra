@@ -1,0 +1,39 @@
+# OpenTelemetry Collector — receives OTLP from cymbra-server + cymbra-worker and
+# forwards to a managed backend (Grafana Cloud free tier by default). This keeps
+# the heavy self-hosted stack (Tempo/Loki/Prometheus/Grafana) OFF the small box.
+#
+# Enable via the `observability` compose profile; see DEPLOY.md §Observability.
+# GRAFANA_OTLP_ENDPOINT / GRAFANA_OTLP_AUTH come from .env.
+#   - GRAFANA_OTLP_ENDPOINT: your stack's OTLP endpoint, e.g.
+#       https://otlp-gateway-prod-eu-west-2.grafana.net/otlp
+#   - GRAFANA_OTLP_AUTH: base64("<instanceID>:<API token>") for Basic auth.
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+
+processors:
+  batch: {}
+
+exporters:
+  otlphttp/grafana:
+    endpoint: ${env:GRAFANA_OTLP_ENDPOINT}
+    headers:
+      authorization: "Basic ${env:GRAFANA_OTLP_AUTH}"
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlphttp/grafana]
+    metrics:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlphttp/grafana]
+    logs:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlphttp/grafana]
