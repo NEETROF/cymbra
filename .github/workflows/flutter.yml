@@ -13,7 +13,29 @@ permissions:
   contents: read
 
 jobs:
+  # A skipped job reports "success" and satisfies the required check, so PRs that
+  # touch no app code don't burn minutes. Release PRs (CHANGELOG only) are excluded.
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      app: ${{ steps.f.outputs.app }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: f
+        with:
+          filters: |
+            app:
+              - 'apps/**'
+              - 'melos.yaml'
+              - 'pubspec.yaml'
+              - 'pubspec.lock'
+              - '.github/workflows/flutter.yml'
+              - '!**/CHANGELOG.md'
+
   flutter:
+    needs: changes
+    if: ${{ github.event_name != 'pull_request' || needs.changes.outputs.app == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

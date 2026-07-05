@@ -22,7 +22,33 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # A skipped matrix job reports "success" for each context (android/linux/macos/
+  # windows), satisfying the required checks — so PRs that touch no app code skip
+  # the expensive native builds. Release PRs (CHANGELOG only) are excluded.
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      native: ${{ steps.f.outputs.native }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: f
+        with:
+          filters: |
+            native:
+              - 'apps/**'
+              - 'melos.yaml'
+              - 'pubspec.yaml'
+              - 'pubspec.lock'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+              - 'rust-toolchain.toml'
+              - '.github/workflows/build.yml'
+              - '!**/CHANGELOG.md'
+
   build:
+    needs: changes
+    if: ${{ github.event_name != 'pull_request' || needs.changes.outputs.native == 'true' }}
     name: ${{ matrix.label }}
     runs-on: ${{ matrix.os }}
     strategy:

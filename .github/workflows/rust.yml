@@ -13,7 +13,32 @@ permissions:
   contents: read
 
 jobs:
+  # Detect whether any Rust-relevant path changed. A skipped job (below) reports
+  # "success" and satisfies the required check, so PRs that touch no Rust don't
+  # burn minutes. CHANGELOG-only release PRs are excluded via !**/CHANGELOG.md.
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      rust: ${{ steps.f.outputs.rust }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: f
+        with:
+          filters: |
+            rust:
+              - 'backend/**'
+              - 'apps/*/rust/**'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+              - 'rust-toolchain.toml'
+              - '.github/workflows/rust.yml'
+              - '!**/CHANGELOG.md'
+
   rust:
+    needs: changes
+    # Gate PRs only; pushes to main always build.
+    if: ${{ github.event_name != 'pull_request' || needs.changes.outputs.rust == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
