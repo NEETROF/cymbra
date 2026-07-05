@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.0](https://github.com/NEETROF/cymbra/compare/music-v1.4.0...music-v1.5.0) (2026-07-05)
+
+
+### Features
+
+* **music:** account access — Sign in with Apple config + cross-platform gating + verified smoke test ([#36](https://github.com/NEETROF/cymbra/issues/36)) ([61ec756](https://github.com/NEETROF/cymbra/commit/61ec75659d3ec16520b3b4a636474d738286cad1))
+
 ## [1.4.0](https://github.com/NEETROF/cymbra/compare/music-v1.3.0...music-v1.4.0) (2026-07-02)
 
 
