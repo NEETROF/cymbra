@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   # A skipped job reports "success" and satisfies the required check, so PRs that
-  # touch no app code don't burn minutes. Release PRs (CHANGELOG only) are excluded.
+  # touch no app code don't burn minutes.
   changes:
     runs-on: ubuntu-latest
     outputs:
@@ -31,7 +31,6 @@ jobs:
               - 'pubspec.yaml'
               - 'pubspec.lock'
               - '.github/workflows/flutter.yml'
-              - '!**/CHANGELOG.md'
 
   flutter:
     needs: changes

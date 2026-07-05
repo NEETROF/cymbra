@@ -24,7 +24,7 @@ concurrency:
 jobs:
   # A skipped matrix job reports "success" for each context (android/linux/macos/
   # windows), satisfying the required checks — so PRs that touch no app code skip
-  # the expensive native builds. Release PRs (CHANGELOG only) are excluded.
+  # the expensive native builds.
   changes:
     runs-on: ubuntu-latest
     outputs:
@@ -44,7 +44,6 @@ jobs:
               - 'Cargo.lock'
               - 'rust-toolchain.toml'
               - '.github/workflows/build.yml'
-              - '!**/CHANGELOG.md'
 
   build:
     needs: changes

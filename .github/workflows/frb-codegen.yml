@@ -27,7 +27,6 @@ jobs:
               - 'apps/*/lib/src/rust/**'
               - 'apps/*/pubspec.yaml'
               - '.github/workflows/frb-codegen.yml'
-              - '!**/CHANGELOG.md'
 
   frb:
     needs: changes

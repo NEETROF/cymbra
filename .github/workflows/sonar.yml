@@ -14,8 +14,7 @@ permissions:
 
 jobs:
   # A skipped job reports "success" and satisfies the required check. Sonar covers
-  # both ecosystems, so it runs when any backend OR app source changes (not on a
-  # CHANGELOG-only release PR).
+  # both ecosystems, so it runs when any backend OR app source changes.
   changes:
     runs-on: ubuntu-latest
     outputs:
@@ -36,7 +35,6 @@ jobs:
               - 'pubspec.yaml'
               - 'pubspec.lock'
               - '.github/workflows/sonar.yml'
-              - '!**/CHANGELOG.md'
 
   sonar:
     needs: changes
