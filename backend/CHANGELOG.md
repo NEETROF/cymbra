@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/NEETROF/cymbra/compare/backend-v0.2.0...backend-v0.2.1) (2026-07-06)
+
+
+### Bug Fixes
+
+* **backend:** cold-restore safety for pg_dump backups (mq_uuid_exists) ([#49](https://github.com/NEETROF/cymbra/issues/49)) ([d07e2c6](https://github.com/NEETROF/cymbra/commit/d07e2c628032fd42ee0df2b3337e220ec6cf0924))
+
 ## [0.2.0](https://github.com/NEETROF/cymbra/compare/backend-v0.1.0...backend-v0.2.0) (2026-07-05)
 
 
