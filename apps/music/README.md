@@ -179,6 +179,16 @@ certificate**, like all capability entitlements), and set `CYMBRA_APPLE_AUDIENCE
 **Local dev**: the compose `mock-oidc` profile stands in for Google/Apple — start
 it with `docker compose --profile oidc up` (see `CYMBRA_DEV_OIDC_ISSUER`).
 
+**Production build**: point the app at the TLS-fronted backend (Caddy terminates
+HTTPS on 443) with dart-defines:
+
+```bash
+flutter build ... \
+  --dart-define=CYMBRA_GRPC_HOST=api.<your-domain> \
+  --dart-define=CYMBRA_GRPC_PORT=443 \
+  --dart-define=CYMBRA_GRPC_SECURE=true
+```
+
 ## License
 
 Free and **open source** under the [Apache License 2.0](../../LICENSE) — use, modify
