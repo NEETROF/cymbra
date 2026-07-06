@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.6.0](https://github.com/NEETROF/cymbra/compare/music-v1.5.0...music-v1.6.0) (2026-07-06)
+
+
+### Features
+
+* **music:** TLS gRPC to prod via CYMBRA_GRPC_SECURE dart-define ([#50](https://github.com/NEETROF/cymbra/issues/50)) ([d7a0123](https://github.com/NEETROF/cymbra/commit/d7a012347cc116d4f5766df037030994d29e51fa))
+
 ## [1.5.0](https://github.com/NEETROF/cymbra/compare/music-v1.4.0...music-v1.5.0) (2026-07-05)
 
 
