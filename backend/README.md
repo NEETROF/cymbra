@@ -138,3 +138,9 @@ the repo. For prod, replace the `*_dev_pw` defaults via one of:
 A single shared `admin_svc` is used for now; **per-operator IAM-authenticated roles**
 (individually audited) are the natural prod hardening and are deferred to a later
 ops change.
+
+### Single-box production deploy
+
+For the pragmatic non-HA production (Docker Compose + Caddy auto-TLS + nightly
+`pg_dump` backups) that hands the apps to real users, see
+[deploy/DEPLOY.md](deploy/DEPLOY.md).
