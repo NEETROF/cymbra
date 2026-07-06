@@ -12,6 +12,10 @@
 #   DEPLOY_SSH_PORT  ssh port (49222)
 name: deploy
 
+# This workflow only SSHes out using secrets; it never calls the GitHub API, so the
+# GITHUB_TOKEN is granted no permissions at all (CodeQL: least-privilege token).
+permissions: {}
+
 on:
   workflow_dispatch:
     inputs:
@@ -31,9 +35,11 @@ jobs:
     # environment: production
     steps:
       - name: Validate version input
+        env:
+          VERSION: ${{ inputs.version }}
         run: |
-          echo "${{ inputs.version }}" | grep -Eq '^([0-9]+\.[0-9]+\.[0-9]+|latest)$' \
-            || { echo "invalid version '${{ inputs.version }}' (expected X.Y.Z or latest)"; exit 1; }
+          echo "$VERSION" | grep -Eq '^([0-9]+\.[0-9]+\.[0-9]+|latest)$' \
+            || { echo "invalid version '$VERSION' (expected X.Y.Z or latest)"; exit 1; }
 
       - name: Deploy over SSH
         env:
