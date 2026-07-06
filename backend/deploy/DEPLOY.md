@@ -182,17 +182,28 @@ crontab -e
 
 ## 8. Updating
 
-Push to `main` (or tag `v*`) → the `backend-image` workflow builds and pushes the image.
-Then on the box:
+release-please tags `backend-vX.Y.Z` on merge → the `backend-image` workflow builds
+and pushes `ghcr.io/neetrof/cymbra-backend:X.Y.Z` (+ `:latest`). Deploy that version
+one of two ways:
+
+**One-click CI (recommended)** — Actions → **deploy** → *Run workflow* → enter the
+version (`X.Y.Z`). The runner SSHes to the box with a dedicated deploy key locked to a
+forced-command and runs [`deploy.sh`](deploy.sh) (pins `CYMBRA_IMAGE` in `.env` → pull
+→ `up -d` → waits for `/healthz`). Rollback = run it again with the previous version.
+Needs repo secrets `DEPLOY_SSH_KEY` / `DEPLOY_HOST` / `DEPLOY_USER` / `DEPLOY_SSH_PORT`
+and `deploy.sh` + `deploy-forced.sh` present on the box.
+
+**Manual on the box** — pin the tag yourself and roll:
 
 ```bash
 cd /opt/cymbra/backend/deploy
-docker compose -f docker-compose.prod.yml pull
-docker compose -f docker-compose.prod.yml up -d
+./deploy.sh X.Y.Z        # or, by hand:
+# sed -i 's|^CYMBRA_IMAGE=.*|CYMBRA_IMAGE=ghcr.io/neetrof/cymbra-backend:X.Y.Z|' .env
+# docker compose -f docker-compose.prod.yml pull && docker compose -f docker-compose.prod.yml up -d
 ```
 
-Migrations run automatically on the new container's boot. Single node, so there is no
-multi-replica migration race to worry about.
+The pinned tag in `.env` is the record of what is running. Migrations run automatically
+on the new container's boot. Single node, so there is no multi-replica migration race.
 
 ## 9. Email deliverability (SPF / DKIM / DMARC) — don't skip
 
