@@ -24,17 +24,51 @@ OVH VPS-2 — 4 vCore / 8 GB) runs Postgres + Valkey + `cymbra-server` + `cymbra
   - **VPS-2** (4 vCore / 8 GB / 75 GB NVMe) is the recommended size; VPS-1 (2 vCore
     / 4 GB) also works at this scale.
 - OVH VPS has no Hetzner-style cloud firewall, so lock the box down with the host
-  firewall (`ufw`) — allow ONLY:
+  firewall (`ufw`). SSH runs on a **non-standard port** (`$SSH_PORT`, e.g. `49222`)
+  with **key-only** auth + `fail2ban`; open it from anywhere rather than pinning to a
+  single source IP (a home connection is usually dynamic — pinning risks locking
+  yourself out). Allow ONLY:
   ```bash
+  SSH_PORT=49222
   ufw default deny incoming
-  ufw allow 443/tcp                                    # gRPC + JWKS over TLS
-  ufw allow 80/tcp                                     # Let's Encrypt HTTP-01 + redirect
-  ufw allow from <your-ip> to any port 22 proto tcp    # SSH from your IP only
+  ufw allow 443/tcp                 # gRPC + JWKS over TLS
+  ufw allow 80/tcp                  # Let's Encrypt HTTP-01 + redirect
+  ufw allow "$SSH_PORT"/tcp         # SSH (custom port)
   ufw enable
   ```
   Postgres/Valkey/gRPC are never published to the host anyway — the compose file uses
   `expose`, not `ports`, so they stay on the internal Docker network.
-- Install Docker Engine + the compose plugin (`docker`, `docker compose`).
+- **Move SSH off port 22 — carefully.** On Ubuntu 24.04/26.04 sshd is **socket-activated**
+  (`ssh.socket`), so the `Port` directive in `sshd_config` is **ignored**; change the port
+  in the socket instead. Two traps that WILL lock you out if ignored:
+  1. A bare `ListenStream=<port>` binds **IPv6-only** on some boxes — always bind both
+     families explicitly:
+     ```ini
+     # /etc/systemd/system/ssh.socket.d/override.conf
+     [Socket]
+     ListenStream=
+     ListenStream=0.0.0.0:49222
+     ListenStream=[::]:49222
+     ```
+  2. OVH VPS IPv6 inbound is frequently **not routed** (ping6 fails), so you cannot rely
+     on IPv6 as a fallback. Keep the box reachable on IPv4.
+  Do it lock-out-safe: open the new port in `ufw` and make sshd listen on **both** 22 and
+  the new port first, verify a **fresh** connection on the new port, and only then drop 22.
+  Arm a self-reverting timer while you work, so a mistake auto-restores access:
+  ```bash
+  # reverts to default (22) + re-opens ufw:22 in 5 min unless you cancel it
+  printf '#!/bin/bash\nrm -f /etc/systemd/system/ssh.socket.d/override.conf\nsystemctl daemon-reload\nsystemctl restart ssh.socket\nufw allow 22/tcp\n' \
+    | sudo tee /usr/local/sbin/ssh-revert.sh >/dev/null && sudo chmod +x /usr/local/sbin/ssh-revert.sh
+  sudo systemd-run --unit=ssh-revert --on-active=300 /usr/local/sbin/ssh-revert.sh
+  # ... apply change, verify new port from a NEW terminal, then:
+  sudo systemctl stop ssh-revert.timer   # cancel the net once confirmed
+  ```
+  If you do get locked out: recover via the **OVH KVM console** (or rescue mode) and delete
+  the override drop-in. Finally, point `fail2ban`'s `[sshd]` jail at the new port
+  (`port = 49222` in `/etc/fail2ban/jail.local`).
+- Install Docker Engine + the compose plugin. On a brand-new Ubuntu LTS the third-party
+  Docker repo may not have a build for the release codename yet — the Ubuntu-archive
+  packages work out of the box: `apt install docker.io docker-compose-v2`.
 
 ## 2. DNS (in Google domain management)
 
@@ -208,7 +242,8 @@ Grafana/Tempo/Loki/Prometheus stack on this box:
       apps pointing at prod (§6).
 - [ ] **Box hardening** — enable `unattended-upgrades` (auto security patches), confirm
       `systemctl enable docker` (services come back after reboot via `restart:
-      unless-stopped`), SSH key-only (no password), fail2ban optional.
+      unless-stopped`), SSH **key-only (no password) on a non-standard port**, `fail2ban`
+      enabled and pointed at that port.
 - [ ] **Disk headroom** — Postgres data + WAL + backups grow; container logs are capped
       (10 MB × 3). Keep an eye on `df -h` for the first weeks.
 - [ ] **Secrets hygiene** — `.env` is `chmod 600`; you deleted `priv.pem`/`pub.pem` after

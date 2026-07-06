@@ -39,14 +39,19 @@ class CymbraEndpoint {
   });
 }
 
-/// Endpoint provider — overridden per environment. Host/port can be supplied at
-/// build time with `--dart-define=CYMBRA_GRPC_HOST=…` / `CYMBRA_GRPC_PORT=…`
-/// (e.g. to reach a backend on the dev machine from a physical device on the LAN);
-/// defaults stay plaintext localhost. Override the provider directly for TLS.
+/// Endpoint provider — overridden per environment. Host/port/TLS can be supplied
+/// at build time with `--dart-define`:
+///   `CYMBRA_GRPC_HOST=…` / `CYMBRA_GRPC_PORT=…` — reach a backend on the dev
+///     machine from a physical device on the LAN;
+///   `CYMBRA_GRPC_SECURE=true` — front the channel with TLS (production, where
+///     Caddy terminates HTTPS on 443). Defaults stay plaintext localhost.
+/// A typical prod build: `--dart-define=CYMBRA_GRPC_HOST=api.example.com
+/// --dart-define=CYMBRA_GRPC_PORT=443 --dart-define=CYMBRA_GRPC_SECURE=true`.
 @Riverpod(keepAlive: true)
 CymbraEndpoint cymbraEndpoint(Ref ref) => const CymbraEndpoint(
   host: String.fromEnvironment('CYMBRA_GRPC_HOST', defaultValue: 'localhost'),
   port: int.fromEnvironment('CYMBRA_GRPC_PORT', defaultValue: 50051),
+  secure: bool.fromEnvironment('CYMBRA_GRPC_SECURE'),
 );
 
 /// Shared gRPC channel to the backend. Closed when the provider is disposed.
