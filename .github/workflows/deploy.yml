@@ -1,0 +1,57 @@
+# Manual one-click production deploy of the cymbra-backend image to the single box.
+#
+# Trigger: Actions → deploy → "Run workflow" → enter the version (X.Y.Z or latest).
+# The runner SSHes to the box using a dedicated deploy key (locked to a
+# forced-command that only runs deploy.sh), which pins CYMBRA_IMAGE in the .env,
+# pulls, rolls server+worker, and waits for /healthz.
+#
+# Required repo secrets:
+#   DEPLOY_SSH_KEY   private key of the dedicated deploy keypair
+#   DEPLOY_HOST      box public IPv4 (e.g. 149.202.227.119)
+#   DEPLOY_USER      ssh user (ubuntu)
+#   DEPLOY_SSH_PORT  ssh port (49222)
+name: deploy
+
+# This workflow only SSHes out using secrets; it never calls the GitHub API, so the
+# GITHUB_TOKEN is granted no permissions at all (CodeQL: least-privilege token).
+permissions: {}
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Backend image tag to deploy (X.Y.Z, or 'latest')"
+        required: true
+
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    # To gate deploys behind a manual approval, create a GitHub Environment named
+    # "production" with required reviewers and uncomment the next line.
+    # environment: production
+    steps:
+      - name: Validate version input
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          echo "$VERSION" | grep -Eq '^([0-9]+\.[0-9]+\.[0-9]+|latest)$' \
+            || { echo "invalid version '$VERSION' (expected X.Y.Z or latest)"; exit 1; }
+
+      - name: Deploy over SSH
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_SSH_PORT: ${{ secrets.DEPLOY_SSH_PORT }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          install -m 600 /dev/null key
+          printf '%s\n' "$DEPLOY_SSH_KEY" > key
+          ssh-keyscan -p "$DEPLOY_SSH_PORT" -H "$DEPLOY_HOST" > known_hosts 2>/dev/null
+          ssh -i key -p "$DEPLOY_SSH_PORT" -o UserKnownHostsFile=known_hosts \
+              -o IdentitiesOnly=yes \
+              "$DEPLOY_USER@$DEPLOY_HOST" "deploy $VERSION"
