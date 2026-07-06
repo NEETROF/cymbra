@@ -20,6 +20,14 @@ OVH VPS-2 — 4 vCore / 8 GB) runs Postgres + Valkey + `cymbra-server` + `cymbra
 
 ## 1. Provision the box
 
+> **Automated / disaster recovery:** [`bootstrap.sh`](bootstrap.sh) does everything in
+> this section idempotently (ufw, key-only SSH on a custom port, fail2ban,
+> unattended-upgrades, Docker, the `/opt/cymbra` dirs, the nightly backup cron). Rebuild
+> a lost box with: provision → `git clone`/scp the repo → `SSH_PORT=… DEPLOY_PUBKEY="…"
+> sudo -E bash backend/deploy/bootstrap.sh` → restore the vaulted `.env` →
+> `docker login ghcr.io` → first launch (§5) → restore the latest DB dump. It is
+> **secret-free**; every secret is restored separately, never committed.
+
 - Order an **OVH VPS** in an EU datacenter (Gravelines/Roubaix/Strasbourg):
   - **VPS-2** (4 vCore / 8 GB / 75 GB NVMe) is the recommended size; VPS-1 (2 vCore
     / 4 GB) also works at this scale.
