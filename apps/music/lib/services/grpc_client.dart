@@ -45,7 +45,7 @@ class CymbraEndpoint {
 ///     machine from a physical device on the LAN;
 ///   `CYMBRA_GRPC_SECURE=true` — front the channel with TLS (production, where
 ///     Caddy terminates HTTPS on 443). Defaults stay plaintext localhost.
-/// A typical prod build: `--dart-define=CYMBRA_GRPC_HOST=api.<domain>
+/// A typical prod build: `--dart-define=CYMBRA_GRPC_HOST=api.example.com
 /// --dart-define=CYMBRA_GRPC_PORT=443 --dart-define=CYMBRA_GRPC_SECURE=true`.
 @Riverpod(keepAlive: true)
 CymbraEndpoint cymbraEndpoint(Ref ref) => const CymbraEndpoint(
