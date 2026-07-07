@@ -6,15 +6,15 @@
 
 # Terms of Service — Cymbra
 
-**Last updated: «DD/MM/YYYY»**
+**Last updated: 07/07/2026**
 
-By creating an account or using the **Cymbra** application (published by **«NEETROF»**),
+By creating an account or using the **Cymbra** application (published by **NEETROF**),
 you agree to these terms.
 
 ## 1. The service
 
-Cymbra is a «music-practice — specify» application. The service is provided "as is" and
-may change, be suspended, or be discontinued.
+Cymbra is a connected music practice and lessons application for musical instruments.
+The service is provided "as is" and may change, be suspended, or be discontinued.
 
 ## 2. Your account
 
@@ -31,14 +31,15 @@ automation), impersonate others, or use Cymbra for unlawful purposes.
 
 ## 4. Intellectual property
 
-The application, its code «(Apache 2.0 licence for the code — see the repository)» and
+The application, its code (Apache 2.0 licence for the code — see the repository
+https://github.com/NEETROF/cymbra) and
 its content remain the property of their respective holders. The **"Cymbra"** name and
 logo are **trademarks of NEETROF** and are not licensed to you (see `TRADEMARKS.md`).
 You keep ownership of your own content.
 
 ## 5. Liability
 
-To the extent permitted by law, Cymbra is provided without warranty and «NEETROF» shall
+To the extent permitted by law, Cymbra is provided without warranty and NEETROF shall
 not be liable for indirect damages or data loss. Nothing here limits the rights the law
 grants you as a consumer.
 
@@ -49,9 +50,8 @@ service and delete your account at any time.
 
 ## 7. Governing law
 
-These terms are governed by **French law**. Any dispute falls under the competent courts
-«specify».
+These terms are governed by **French law**. Any dispute falls under the competent courts.
 
 ## 8. Contact
 
-**«contact@cymbra.app»** — «NEETROF, address».
+**contact@cymbra.app** — NEETROF, 42 IMPASSE DUFERMONT, 59510 HEM, FRANCE.

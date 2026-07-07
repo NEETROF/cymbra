@@ -6,7 +6,7 @@
 
 # Politique de confidentialité — Cymbra
 
-**Dernière mise à jour : «JJ/MM/AAAA»**
+**Dernière mise à jour : 07/07/2026**
 
 La présente politique explique quelles données personnelles l'application **Cymbra**
 traite, pourquoi, sur quelle base légale, avec qui elles sont partagées, combien de
@@ -14,8 +14,8 @@ temps elles sont conservées, et quels sont vos droits.
 
 ## 1. Responsable du traitement
 
-**«NEETROF — forme juridique, SIREN»**, «adresse».
-Contact : **«privacy@cymbra.app»**.
+**NEETROF — SASU, 948723887**, 42 IMPASSE DUFERMONT, 59510 HEM, FRANCE.
+Contact : **gfortin@neetrof.fr**.
 
 ## 2. Données que nous traitons
 
@@ -53,7 +53,7 @@ Nous partageons le strict nécessaire avec des prestataires agissant pour notre 
   votre identité via leur jeton).
 
 Vos données sont **hébergées dans l'Union européenne** (France). Nous ne procédons à
-aucun transfert hors UE «sauf : préciser si applicable».
+aucun transfert hors UE.
 
 ## 5. Durée de conservation
 
@@ -62,9 +62,9 @@ aucun transfert hors UE «sauf : préciser si applicable».
   données personnelles (email, empreinte de mot de passe, identité externe, pseudo,
   nom, sessions) sont **effacées**.
 - Sauvegardes : les sauvegardes chiffrées tournent sur une fenêtre glissante
-  («14 jours») puis sont écrasées ; une donnée supprimée disparaît donc au plus tard à
+  (14 jours) puis sont écrasées ; une donnée supprimée disparaît donc au plus tard à
   l'expiration de cette fenêtre.
-- Journaux techniques : «durée, ex. 30 jours».
+- Journaux techniques : 7 jours.
 
 ## 6. Sécurité
 
@@ -81,12 +81,12 @@ Vous disposez des droits d'**accès**, de **rectification**, d'**effacement**, d
 - **Effacement (droit à l'oubli)** : vous pouvez **supprimer votre compte directement
   dans l'application** (Réglages → Supprimer mon compte). La suppression est
   irréversible et efface vos données personnelles.
-- Pour toute autre demande, écrivez à **«privacy@cymbra.app»**. Vous pouvez aussi
+- Pour toute autre demande, écrivez à **privacy@cymbra.app**. Vous pouvez aussi
   introduire une réclamation auprès de la **CNIL** (www.cnil.fr).
 
 ## 8. Mineurs
 
-Cymbra n'est pas destinée aux enfants de moins de «15» ans ; nous ne collectons pas
+Cymbra n'est pas destinée aux enfants de moins de 12 ans ; nous ne collectons pas
 sciemment leurs données.
 
 ## 9. Modifications
@@ -96,4 +96,4 @@ sera modifiée en conséquence. En cas de changement important, nous vous en inf
 
 ## 10. Contact
 
-**«privacy@cymbra.app»** — «NEETROF, adresse».
+**gfortin@neetrof.fr** — NEETROF, 42 IMPASSE DUFERMONT, 59510 HEM, FRANCE.

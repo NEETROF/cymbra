@@ -7,15 +7,15 @@
 
 # Privacy Policy — Cymbra
 
-**Last updated: «DD/MM/YYYY»**
+**Last updated: 07/07/2026**
 
 This policy explains what personal data the **Cymbra** application processes, why, on
 what legal basis, who it is shared with, how long it is kept, and what your rights are.
 
 ## 1. Data controller
 
-**«NEETROF — legal form, company number»**, «address».
-Contact: **«privacy@cymbra.app»**.
+**NEETROF — SASU, SIREN 948723887**, 42 IMPASSE DUFERMONT, 59510 HEM, FRANCE.
+Contact: **gfortin@neetrof.fr**.
 
 ## 2. Data we process
 
@@ -52,17 +52,17 @@ We share only what is necessary with providers acting on our behalf:
   their token).
 
 Your data is **hosted in the European Union** (France). We do not transfer data outside
-the EU «unless: state if applicable».
+the EU.
 
 ## 5. Retention
 
 - Account data: kept **for as long as your account exists**.
 - **Account deletion**: when you delete your account (see §7), your personal data
   (email, password hash, external identity, handle, name, sessions) is **erased**.
-- Backups: encrypted backups rotate over a sliding window («14 days») then are
+- Backups: encrypted backups rotate over a sliding window (14 days) then are
   overwritten; deleted data therefore disappears at the latest when that window
   expires.
-- Technical logs: «duration, e.g. 30 days».
+- Technical logs: 7 days.
 
 ## 6. Security
 
@@ -78,13 +78,13 @@ You have the rights of **access**, **rectification**, **erasure**, **restriction
 - **Erasure (right to be forgotten)**: you can **delete your account directly in the
   app** (Settings → Delete my account). Deletion is irreversible and erases your
   personal data.
-- For any other request, write to **«privacy@cymbra.app»**. You may also lodge a
+- For any other request, write to **privacy@cymbra.app**. You may also lodge a
   complaint with the French supervisory authority, the **CNIL** (www.cnil.fr), or your
   local data protection authority.
 
 ## 8. Minors
 
-Cymbra is not intended for children under «15»; we do not knowingly collect their data.
+Cymbra is not intended for children under 12; we do not knowingly collect their data.
 
 ## 9. Changes
 
@@ -93,4 +93,4 @@ will inform you of any material change.
 
 ## 10. Contact
 
-**«privacy@cymbra.app»** — «NEETROF, address».
+**gfortin@neetrof.fr** — NEETROF, 42 IMPASSE DUFERMONT, 59510 HEM, FRANCE.
