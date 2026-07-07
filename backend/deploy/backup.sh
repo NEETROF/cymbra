@@ -38,6 +38,23 @@ if [[ -n "${S3_BUCKET:-}" ]]; then
 		&& echo "shipped off-box -> s3://$S3_BUCKET"
 fi
 
+# Off-box copy of the .env (DB passwords + token signing key), ENCRYPTED client-side
+# so a leaked S3 object / OVH-side access can't read it — redundancy for the
+# password-manager vault. gpg symmetric (AES256) with BACKUP_ENV_PASSPHRASE (kept in
+# this env file AND your vault; a lost box means restoring the passphrase from the
+# vault). Fixed object name: the secrets don't rotate, we keep one current copy.
+# Restore:  gpg --batch --pinentry-mode loopback --passphrase "<pass>" -d cymbra-env.gpg > .env
+if [[ -n "${S3_BUCKET:-}" && -n "${BACKUP_ENV_PASSPHRASE:-}" && -f "$COMPOSE_DIR/.env" ]]; then
+	ENC="$(mktemp)"
+	gpg --batch --yes --symmetric --cipher-algo AES256 \
+		--pinentry-mode loopback --passphrase "$BACKUP_ENV_PASSPHRASE" \
+		-o "$ENC" "$COMPOSE_DIR/.env"
+	aws --endpoint-url "${S3_ENDPOINT:?set S3_ENDPOINT}" \
+		s3 cp "$ENC" "s3://$S3_BUCKET/env/cymbra-env.gpg" \
+		&& echo "shipped encrypted .env -> s3://$S3_BUCKET/env/cymbra-env.gpg"
+	rm -f "$ENC"
+fi
+
 # Prune local backups older than the retention window.
 find "$LOCAL_DIR" -name 'cymbra-*.sql.gz' -mtime "+$RETENTION_DAYS" -delete
 echo "pruned local backups older than ${RETENTION_DAYS}d"

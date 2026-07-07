@@ -142,8 +142,14 @@ export BACKUP_DIR=/var/backups/cymbra
 export BACKUP_RETENTION_DAYS=14
 export S3_ENDPOINT=
 export S3_BUCKET=
+export AWS_DEFAULT_REGION=
 export AWS_ACCESS_KEY_ID=
 export AWS_SECRET_ACCESS_KEY=
+# Encrypts the .env off-box (redundancy for your password-manager vault). Generate a
+# strong one — e.g. `openssl rand -base64 32` — and store it in your vault too (a lost
+# box means restoring this passphrase from the vault to decrypt the S3 copy). Empty =
+# skip the encrypted .env upload.
+export BACKUP_ENV_PASSPHRASE=
 EOF
   chmod 600 /etc/cymbra/backup.env
   echo "created /etc/cymbra/backup.env (empty S3 — fill to enable off-box copy)"
