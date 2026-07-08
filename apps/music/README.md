@@ -171,6 +171,29 @@ client ID are **never committed**; supply them at build time):
    a `serverClientId`, not a URL scheme.)
 3. Set the backend's `CYMBRA_GOOGLE_AUDIENCE` to the same (full) client ID.
 
+**Google on desktop (Windows/Linux)** — the native `google_sign_in` plugin has no
+Windows/Linux implementation, so those platforms use a browser-loopback OAuth flow
+(RFC 8252: authorization code + PKCE, redirect captured on a local `127.0.0.1`
+port). It's hidden until configured:
+
+```bash
+flutter run -d windows \
+  --dart-define=DESKTOP_GOOGLE_CLIENT_ID=<client>.apps.googleusercontent.com
+# add --dart-define=DESKTOP_GOOGLE_CLIENT_SECRET=<secret> only for a Web client
+```
+
+1. In Google Cloud, pick the OAuth client for the flow and register the loopback
+   redirect URIs `http://127.0.0.1` and `http://localhost` on it.
+2. **Client type (unresolved — design D3):** a **Desktop app** client is public
+   (leave the secret empty, pure PKCE), but its audience differs from the web
+   client, so add it to the backend's accepted Google audiences. A **Web** client
+   keeps the single audience (`CYMBRA_GOOGLE_AUDIENCE`, Option A) but is
+   confidential — supply `DESKTOP_GOOGLE_CLIENT_SECRET`, which is then shipped in
+   the binary (a security trade-off). The secret is sent on the token exchange only
+   when non-empty, so one build serves either choice; confirm the client type
+   before release.
+3. No URL-scheme / Info.plist entries are needed — desktop uses only the dart-defines.
+
 **Apple** — enable `--dart-define=APPLE_SIGN_IN_ENABLED=true`, add the
 **"Sign in with Apple"** capability in Xcode (writes the
 `com.apple.developer.applesignin` entitlement — this **requires a development

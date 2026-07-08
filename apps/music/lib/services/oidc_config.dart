@@ -45,3 +45,32 @@ const String kGoogleServerClientId = String.fromEnvironment(
 /// Whether Sign in with Apple is enabled (requires the "Sign in with Apple"
 /// capability + a development certificate; off by default).
 const bool kAppleSignInEnabled = bool.fromEnvironment('APPLE_SIGN_IN_ENABLED');
+
+// Desktop (Windows/Linux) Google sign-in via the browser-loopback OAuth flow
+// (change: add-desktop-oauth-loopback). The native google_sign_in plugin has no
+// Windows/Linux implementation, so those platforms use the RFC 8252 flow instead.
+// Empty client id ⇒ Google stays hidden on desktop (as today).
+//
+//   flutter run -d windows \
+//     --dart-define=DESKTOP_GOOGLE_CLIENT_ID=<client>.apps.googleusercontent.com \
+//     [--dart-define=DESKTOP_GOOGLE_CLIENT_SECRET=<secret>]   # only for a Web client
+//
+// Client-type note (design D3, unresolved): a **Desktop app** OAuth client is a
+// public client — leave the secret empty (pure PKCE), but its audience differs
+// from the web client, so the backend must accept it. A **Web** client keeps the
+// single audience (Option A) but is confidential — its secret must be supplied
+// here and is then shipped in the binary (a security trade-off). The secret is
+// sent on the token exchange only when non-empty, so the same build serves both.
+
+/// Google OAuth client ID for the desktop browser-loopback flow (Windows/Linux).
+/// Empty ⇒ Google hidden on desktop.
+const String kDesktopGoogleClientId = String.fromEnvironment(
+  'DESKTOP_GOOGLE_CLIENT_ID',
+);
+
+/// Optional client secret for the desktop token exchange. Required only when the
+/// chosen OAuth client is a *Web application* client (confidential); leave empty
+/// for a *Desktop app* client (public, PKCE-only).
+const String kDesktopGoogleClientSecret = String.fromEnvironment(
+  'DESKTOP_GOOGLE_CLIENT_SECRET',
+);

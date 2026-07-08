@@ -20,6 +20,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
+import 'desktop_oauth_io.dart';
 import 'oidc_config.dart';
 
 part 'oidc_token_source.g.dart';
@@ -119,5 +120,16 @@ class NativeOidcTokenSource implements OidcTokenSource {
 }
 
 /// Production OIDC-token-source provider. Override in tests with a fake.
+///
+/// Windows/Linux have no native `google_sign_in`, so they use the browser
+/// loopback flow ([DesktopOidcTokenSource]); macOS/iOS/Android keep the native
+/// SDK path unchanged.
 @Riverpod(keepAlive: true)
-OidcTokenSource oidcTokenSource(Ref ref) => const NativeOidcTokenSource();
+OidcTokenSource oidcTokenSource(Ref ref) {
+  if (!kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.windows ||
+          defaultTargetPlatform == TargetPlatform.linux)) {
+    return buildDesktopOidcTokenSource();
+  }
+  return const NativeOidcTokenSource();
+}

@@ -80,9 +80,60 @@ URIs. macOS/iOS/Android unchanged. Ships independently; flipping `googleAvailabl
 desktop is what surfaces the button/link action. Rollback = revert the desktop source
 (Google hides again on Windows/Linux).
 
+## D3 resolution (spike outcome — tasks 1.1/1.2)
+
+**Decision: keep the app decision-agnostic; confirm the client type before release.**
+
+Findings:
+- **Web client**: Google allows `http://localhost`/`http://127.0.0.1` loopback
+  redirect URIs on a *Web application* client, and it can run authorization-code +
+  PKCE. But a Web client is **confidential** — Google's token endpoint requires its
+  `client_secret` at the code→token exchange. Shipping that secret in a distributed
+  desktop binary makes it non-confidential (D3/Risks). If used, `aud` stays the web
+  client ⇒ **no backend change** (Option A preserved).
+- **Desktop app client**: a **public** client — loopback + PKCE with **no secret**
+  (RFC 8252). This is the standard, secret-free desktop pattern. Its `aud` is the
+  desktop client id, so the **backend must accept a second Google audience**
+  (config + verifier accepted-audience list) — this reopens the multi-audience
+  question (D3 option a).
+
+**What we build now:** the loopback flow reads a desktop `client_id` and an
+**optional** `client_secret` from `--dart-define`. When a secret is present it is
+sent on the token exchange (web-client path, Option A); when absent the exchange is
+pure PKCE (desktop-client path). This makes the app work under either choice without
+another code change.
+
+**Still required before release (external — cannot be done in code):**
+- Task 1.3: register the loopback redirect URIs on the chosen Google Cloud client.
+- If the desktop-client path is chosen: add its client id to the backend's accepted
+  Google audiences (`CYMBRA_GOOGLE_AUDIENCE` / verifier list).
+- Task 5.3: manual end-to-end verification of sign-in + "Link Google" on Windows/Linux.
+
+## macOS resolution (open question — keep native)
+
+**Decision: macOS keeps the native `google_sign_in` flow; do NOT unify it onto the
+loopback flow.** The loopback source stays gated to Windows/Linux.
+
+Rationale:
+- **Preserves Option A on macOS.** Native macOS uses the iOS client +
+  `serverClientId` (web client), so its `id_token` `aud` is the web client — the
+  single backend audience. Moving macOS to loopback would switch its `aud` to the
+  desktop client and force a backend audience addition on a platform that has no
+  problem today.
+- **Avoids a macOS App Sandbox entitlement.** The loopback flow binds a *listening*
+  socket on `127.0.0.1`, which a sandboxed macOS app needs
+  `com.apple.security.network.server` for (extra entitlement, more review surface).
+  The native SDK needs no listening socket.
+- **Little upside.** `google_sign_in` stays a dependency for iOS/Android regardless,
+  so unifying removes only a code path on a working platform — not the dependency.
+
+Revisit only if maintaining the native macOS path becomes costly. The loopback flow
+targets the platforms that are actually broken (Windows/Linux).
+
 ## Open Questions
 
 - D3 client type: can the **web** client do the loopback flow (keeping Option A), or
   is a **desktop** client required (and thus a backend audience addition)?
-- macOS: keep the native flow, or unify macOS onto the loopback flow too?
+- ~~macOS: keep the native flow, or unify macOS onto the loopback flow too?~~
+  **Resolved: keep native** (see "macOS resolution" above).
 - Do we want a branded local success page, or the minimal default?
