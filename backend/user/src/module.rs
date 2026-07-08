@@ -1,20 +1,47 @@
 //! The user module's **direct adapter** (task 3.4): implements [`UserPort`] with
 //! the account invariants on top of a [`UserRepo`].
 
+use std::sync::Arc;
+
 use async_trait::async_trait;
+use cymbra_jobs::{EnqueueRequest, Enqueuer, PURGE_USER};
 use cymbra_platform::{AppError, Result};
 use cymbra_user_port::{Account, Identity, UserPort};
+use serde::Serialize;
 
 use crate::repo::UserRepo;
+
+/// Payload for the `purge_user` job: only the user id (the erasure worker resolves
+/// the email inside its own transaction, so it never transits the queue).
+#[derive(Serialize)]
+struct PurgeUserPayload<'a> {
+    user_id: &'a str,
+}
 
 /// In-process implementation of the user port over any [`UserRepo`].
 pub struct UserModule<R: UserRepo> {
     repo: R,
+    /// When set, `delete_account` enqueues a `purge_user` job (complete
+    /// cross-schema erasure by the worker) instead of the direct `user_account`
+    /// delete. Absent in contexts with no queue (unit tests, the worker's own
+    /// reaper wiring), where the direct repo delete is used.
+    enqueuer: Option<Arc<dyn Enqueuer>>,
 }
 
 impl<R: UserRepo> UserModule<R> {
     pub fn new(repo: R) -> Self {
-        Self { repo }
+        Self {
+            repo,
+            enqueuer: None,
+        }
+    }
+
+    /// Wire the enqueue seam so `delete_account` performs a complete erasure via
+    /// the `purge_user` job (change: complete-account-deletion). Used by the
+    /// server composition root; the worker keeps the enqueuer unset.
+    pub fn with_enqueuer(mut self, enqueuer: Arc<dyn Enqueuer>) -> Self {
+        self.enqueuer = Some(enqueuer);
+        self
     }
 
     /// Purge handle-less accounts older than `grace_secs` (orphans left by
@@ -103,7 +130,29 @@ impl<R: UserRepo> UserPort for UserModule<R> {
     }
 
     async fn delete_account(&self, user_id: &str) -> Result<()> {
-        self.repo.delete_account(user_id).await
+        match &self.enqueuer {
+            // Enqueue the complete cross-schema erasure. The `purge_user` job
+            // (run by the worker as `admin_svc`) owns the `user_account` delete
+            // too, so it all happens in one atomic transaction — we do NOT delete
+            // here. Returns once enqueued (async erasure; the RPC stays thin).
+            Some(enqueuer) => {
+                let spec = cymbra_jobs::spec(PURGE_USER).ok_or_else(|| {
+                    AppError::Internal(anyhow::anyhow!("purge_user job spec missing from registry"))
+                })?;
+                let req = EnqueueRequest::for_job(&spec, &PurgeUserPayload { user_id }, None)
+                    .map_err(|e| {
+                        AppError::Internal(anyhow::anyhow!("build purge_user job: {e}"))
+                    })?;
+                enqueuer
+                    .enqueue(req)
+                    .await
+                    .map_err(|e| AppError::Internal(anyhow::anyhow!("enqueue purge_user: {e}")))?;
+                Ok(())
+            }
+            // No queue wired (unit tests / non-server contexts): fall back to the
+            // direct `user_account` delete.
+            None => self.repo.delete_account(user_id).await,
+        }
     }
 
     async fn effective_roles(&self, user_id: &str, scope: &str) -> Result<Vec<String>> {
@@ -175,6 +224,25 @@ mod tests {
             Err(AppError::NotFound(_))
         ));
         assert!(m.effective_roles(&a, "music").await.unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn delete_account_enqueues_purge_user_when_wired() {
+        use cymbra_jobs::FakeEnqueuer;
+        let enq = Arc::new(FakeEnqueuer::default());
+        let m = UserModule::new(FakeUserRepo::default()).with_enqueuer(enq.clone());
+        let a = m.resolve_or_provision("google", "g1").await.unwrap();
+
+        m.delete_account(&a).await.unwrap();
+
+        // The direct delete is NOT performed — the enqueued job owns the
+        // `user_account` erasure so it stays in the single atomic transaction.
+        assert!(m.get_account(&a).await.is_ok());
+        // Exactly one `purge_user` job was enqueued, carrying the user id.
+        let reqs = enq.requests();
+        assert_eq!(reqs.len(), 1);
+        assert_eq!(reqs[0].name, PURGE_USER);
+        assert!(reqs[0].payload_json.contains(&a));
     }
 
     #[tokio::test]

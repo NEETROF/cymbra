@@ -26,6 +26,9 @@ pub struct WorkerCtx {
     pub user: Arc<UserModule<PgUserRepo>>,
     /// `auth_svc` pool for the session-reaper job (auth owns `auth.sessions`).
     pub auth_pool: PgPool,
+    /// `admin_svc` pool for the `purge_user` job — the only actor that may write
+    /// both schemas, so the account erasure is atomic. Worker-only (design D0).
+    pub admin_pool: PgPool,
     pub reap_grace_secs: i64,
 }
 
@@ -93,9 +96,34 @@ pub async fn session_reap(mut job: CurrentJob, ctx: WorkerCtx) -> Result<(), Box
     .await
 }
 
+/// Payload for the `purge_user` job (change: complete-account-deletion).
+#[derive(Deserialize)]
+struct PurgeUserJob {
+    user_id: String,
+}
+
+/// Completely erase a deleted user's data across `user_account` + `auth` in one
+/// atomic `admin_svc` transaction (change: complete-account-deletion). A thin
+/// adapter over [`cymbra_worker::purge_user`]; that function is idempotent, so
+/// this at-least-once handler is safe to re-run (design D9).
+#[sqlxmq::job("purge_user")]
+pub async fn purge_user(mut job: CurrentJob, ctx: WorkerCtx) -> Result<(), BoxError> {
+    let span = tracing::info_span!("job.purge_user", job_id = %job.id());
+    async move {
+        let p: PurgeUserJob = job.json()?.ok_or("purge_user: missing JSON payload")?;
+        cymbra_worker::purge_user(&ctx.admin_pool, &p.user_id).await?;
+        tracing::info!(user_id = %p.user_id, "account data purged");
+        job.complete().await?;
+        Ok(())
+    }
+    .instrument(span)
+    .await
+}
+
 /// Build the job registry with all handlers registered and the shared context set.
 pub fn registry(ctx: WorkerCtx) -> JobRegistry {
-    let mut registry = JobRegistry::new(&[verification_email, orphan_reap, session_reap]);
+    let mut registry =
+        JobRegistry::new(&[verification_email, orphan_reap, session_reap, purge_user]);
     registry.set_context(ctx);
     registry
 }

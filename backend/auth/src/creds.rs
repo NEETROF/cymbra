@@ -39,6 +39,11 @@ pub trait CredentialRepo: Send + Sync {
     /// Consume a valid reset token: set the new hash, clear it; return the email.
     async fn reset_by_token(&self, token: &str, new_hash: &str, now: i64)
     -> Result<Option<String>>;
+    /// Erase the credential for `email` (GDPR account deletion / complete erasure).
+    /// Idempotent: deleting an absent email is a successful no-op, so a retried
+    /// deletion converges. Nothing that could re-identify the user (password hash,
+    /// verification/reset token) survives.
+    async fn delete_credentials(&self, email: &str) -> Result<()>;
 }
 
 #[derive(Clone, Default)]
@@ -171,5 +176,40 @@ impl CredentialRepo for FakeCredentialRepo {
             }
         }
         Ok(None)
+    }
+
+    async fn delete_credentials(&self, email: &str) -> Result<()> {
+        // Idempotent: `remove` on an absent key is a no-op.
+        self.rows.lock().unwrap().remove(email);
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn delete_credentials_erases_then_frees_the_email() {
+        let repo = FakeCredentialRepo::default();
+        repo.insert("a@x.dev", "hash").await.unwrap();
+        assert!(repo.get("a@x.dev").await.unwrap().is_some());
+
+        repo.delete_credentials("a@x.dev").await.unwrap();
+        // The row is gone …
+        assert!(repo.get("a@x.dev").await.unwrap().is_none());
+        // … and the email is registrable again (no AlreadyExists).
+        repo.insert("a@x.dev", "hash2").await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn delete_credentials_absent_email_is_noop_success() {
+        let repo = FakeCredentialRepo::default();
+        // Deleting a never-seen email succeeds (idempotent erasure).
+        repo.delete_credentials("nobody@x.dev").await.unwrap();
+        // Re-running after a real delete also succeeds.
+        repo.insert("a@x.dev", "hash").await.unwrap();
+        repo.delete_credentials("a@x.dev").await.unwrap();
+        repo.delete_credentials("a@x.dev").await.unwrap();
     }
 }

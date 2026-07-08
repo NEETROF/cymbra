@@ -16,6 +16,10 @@ pub const VERIFICATION_EMAIL: &str = "verification_email";
 pub const ORPHAN_REAP: &str = "orphan_reap";
 /// Stable name of the session-reaper job (change: durable-sessions-postgres).
 pub const SESSION_REAP: &str = "session_reap";
+/// Stable name of the account-purge job (change: complete-account-deletion).
+/// Payload `{ user_id }`. Run by `cymbra-worker` as `admin_svc` to erase a
+/// deleted user's data across the `user_account` and `auth` schemas atomically.
+pub const PURGE_USER: &str = "purge_user";
 
 /// Static description of one job type.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -71,6 +75,13 @@ pub fn builtin() -> Vec<JobSpec> {
             Channel::parallel("auth", "reap"),
             RetryPolicy::new(3, Duration::from_secs(30), Duration::from_secs(600)),
         ),
+        JobSpec::new(
+            PURGE_USER,
+            // Each purge targets a distinct user and is independent → parallel.
+            // Erasure is idempotent, so retries after a partial failure are safe.
+            Channel::parallel("user", "purge"),
+            RetryPolicy::new(5, Duration::from_secs(30), Duration::from_secs(3600)),
+        ),
     ]
 }
 
@@ -89,6 +100,15 @@ mod tests {
         assert!(names.contains(&VERIFICATION_EMAIL.to_string()));
         assert!(names.contains(&ORPHAN_REAP.to_string()));
         assert!(names.contains(&SESSION_REAP.to_string()));
+        assert!(names.contains(&PURGE_USER.to_string()));
+    }
+
+    #[test]
+    fn purge_user_spec_is_parallel_on_the_user_module() {
+        let s = spec(PURGE_USER).unwrap();
+        assert_eq!(s.channel().name(), "user.purge");
+        assert!(!s.channel().is_ordered());
+        assert_eq!(s.default_retry().max_attempts(), 5);
     }
 
     #[test]

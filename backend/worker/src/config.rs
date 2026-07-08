@@ -14,6 +14,11 @@ pub struct WorkerConfig {
     pub user_database_url: String,
     /// `auth_svc` connection — used by the session-reaper job handler.
     pub auth_database_url: String,
+    /// `admin_svc` connection — used by the `purge_user` job to erase a deleted
+    /// user's data across the `user_account` and `auth` schemas in one atomic
+    /// transaction. Worker-only: `admin_svc` crosses schema isolation (D0) and
+    /// MUST NEVER be wired into an application service.
+    pub admin_database_url: String,
     pub smtp_url: String,
     pub smtp_from: String,
     /// Health/readiness HTTP surface.
@@ -56,6 +61,7 @@ pub mod core {
             worker_database_url: req(m, "CYMBRA_WORKER_DATABASE_URL")?,
             user_database_url: req(m, "CYMBRA_USER_DATABASE_URL")?,
             auth_database_url: req(m, "CYMBRA_AUTH_DATABASE_URL")?,
+            admin_database_url: req(m, "CYMBRA_ADMIN_DATABASE_URL")?,
             smtp_url: req(m, "CYMBRA_SMTP_URL")?,
             smtp_from: opt(m, "CYMBRA_SMTP_FROM", "no-reply@cymbra.dev"),
             http_addr: opt(m, "CYMBRA_WORKER_HTTP_ADDR", "0.0.0.0:8082"),
@@ -116,6 +122,7 @@ mod tests {
             ("CYMBRA_WORKER_DATABASE_URL", "postgres://w"),
             ("CYMBRA_USER_DATABASE_URL", "postgres://u"),
             ("CYMBRA_AUTH_DATABASE_URL", "postgres://a"),
+            ("CYMBRA_ADMIN_DATABASE_URL", "postgres://admin"),
             ("CYMBRA_SMTP_URL", "smtp://s"),
         ]
         .iter()
@@ -126,6 +133,7 @@ mod tests {
     #[test]
     fn parses_with_defaults() {
         let c = core::parse(&base()).unwrap();
+        assert_eq!(c.admin_database_url, "postgres://admin");
         assert_eq!(c.concurrency_min, 1);
         assert_eq!(c.concurrency_max, 16);
         assert_eq!(c.scheduler_interval, Duration::from_secs(30));
@@ -157,6 +165,17 @@ mod tests {
             core::parse(&m)
                 .unwrap_err()
                 .contains("CYMBRA_WORKER_DATABASE_URL")
+        );
+    }
+
+    #[test]
+    fn admin_database_url_is_required() {
+        let mut m = base();
+        m.remove("CYMBRA_ADMIN_DATABASE_URL");
+        assert!(
+            core::parse(&m)
+                .unwrap_err()
+                .contains("CYMBRA_ADMIN_DATABASE_URL")
         );
     }
 

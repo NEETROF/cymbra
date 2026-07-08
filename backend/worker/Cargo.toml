@@ -6,6 +6,10 @@ license.workspace = true
 authors.workspace = true
 description = "Cymbra background-job worker — executes queued jobs (sqlxmq runner), runs the recurring scheduler and the dead-letter sweep, and serves a health surface."
 
+[lib]
+name = "cymbra_worker"
+path = "src/lib.rs"
+
 [[bin]]
 name = "cymbra-worker"
 path = "src/main.rs"
@@ -20,6 +24,7 @@ cymbra-user-port = { path = "../user-port" }
 cymbra-auth = { path = "../auth" }
 sqlxmq.workspace = true
 sqlx.workspace = true
+uuid.workspace = true
 tokio.workspace = true
 axum.workspace = true
 anyhow.workspace = true

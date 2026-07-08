@@ -50,7 +50,13 @@ async fn main() -> anyhow::Result<()> {
     let cache: Arc<dyn Cache> = Arc::new(RedisCache::connect(&cfg.redis_url).await?);
 
     // --- user module ---
-    let user_concrete = Arc::new(UserModule::new(PgUserRepo::new(user_pool)));
+    // DeleteAccount enqueues a `purge_user` job through the jobs.enqueue seam on
+    // the user_svc connection (it holds EXECUTE on jobs.enqueue); the worker then
+    // performs the complete cross-schema erasure as admin_svc.
+    let user_enqueuer: Arc<dyn cymbra_jobs::Enqueuer> =
+        Arc::new(cymbra_jobs::PgEnqueuer::new(user_pool.clone()));
+    let user_concrete =
+        Arc::new(UserModule::new(PgUserRepo::new(user_pool)).with_enqueuer(user_enqueuer));
     let user_dyn: Arc<dyn UserPort> = user_concrete.clone();
 
     // --- auth module ---

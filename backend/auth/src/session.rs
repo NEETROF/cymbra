@@ -44,7 +44,11 @@ pub trait SessionStore: Send + Sync {
     async fn rotate(&self, refresh_token: &str) -> Result<Rotated>;
     /// Revoke the session that owns `refresh_token` (logout).
     async fn revoke(&self, refresh_token: &str) -> Result<()>;
-    /// Revoke every session for `user_id` (e.g. after a password reset).
+    /// Revoke every session for `user_id` — `DELETE FROM sessions WHERE user_id
+    /// = $1`. This is the auth module's **erasure path** for account deletion
+    /// (it removes all refresh tokens for the user) as well as the
+    /// password-reset revoke-all. Idempotent: revoking for a user with no live
+    /// sessions is a successful no-op, so a retried deletion converges.
     async fn revoke_all(&self, user_id: &str) -> Result<()>;
     /// The account's non-expired session families.
     async fn list_for_user(&self, user_id: &str) -> Result<Vec<SessionInfo>>;
@@ -248,5 +252,21 @@ mod tests {
 
         // revoking a malformed token is a no-op (no panic/err)
         s.revoke("garbage").await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn revoke_all_for_user_without_sessions_is_noop_success() {
+        // Erasure path (account deletion): revoking a user that has no sessions —
+        // an OIDC-only account, or a retried deletion — succeeds as a no-op.
+        let s = FakeSessionStore::default();
+        s.revoke_all("never-had-a-session").await.unwrap();
+        // And after a real revoke-all, re-running still succeeds (idempotent).
+        let rt = s.create("u1", "music").await.unwrap();
+        s.revoke_all("u1").await.unwrap();
+        s.revoke_all("u1").await.unwrap();
+        assert!(matches!(
+            s.rotate(&rt).await,
+            Err(AppError::Unauthenticated(_))
+        ));
     }
 }
