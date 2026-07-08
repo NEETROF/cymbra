@@ -24,7 +24,7 @@ pub use dlq::{DeadLetter, is_exhausted};
 pub use engine::{PgEnqueuer, dead_letter_sweep, load_retry_policy, transactional_enqueue};
 pub use enqueue::{EnqueueRequest, Enqueuer, FakeEnqueuer};
 pub use error::{JobError, Result};
-pub use registry::{JobSpec, ORPHAN_REAP, VERIFICATION_EMAIL};
+pub use registry::{JobSpec, ORPHAN_REAP, PURGE_USER, SESSION_REAP, VERIFICATION_EMAIL, spec};
 pub use retry::RetryPolicy;
 pub use schedule::{MissedRun, Schedule, bucket, dedup_key};
 pub use scheduler::run_scheduler_tick;

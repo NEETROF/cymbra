@@ -20,6 +20,8 @@ cymbra-auth = { path = "../auth" }
 cymbra-user = { path = "../user" }
 cymbra-auth-port = { path = "../auth-port" }
 cymbra-user-port = { path = "../user-port" }
+# DeleteAccount enqueues a `purge_user` job via the jobs.enqueue seam.
+cymbra-jobs = { path = "../jobs" }
 tokio.workspace = true
 tonic.workspace = true
 axum.workspace = true

@@ -818,6 +818,7 @@ dependencies = [
  "axum",
  "cymbra-auth",
  "cymbra-auth-port",
+ "cymbra-jobs",
  "cymbra-platform",
  "cymbra-user",
  "cymbra-user-port",
@@ -836,8 +837,10 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
+ "cymbra-jobs",
  "cymbra-platform",
  "cymbra-user-port",
+ "serde",
  "sqlx",
  "tokio",
  "tonic 0.12.3",
@@ -877,6 +880,7 @@ dependencies = [
  "sqlxmq",
  "tokio",
  "tracing",
+ "uuid",
 ]
 
 [[package]]

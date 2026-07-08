@@ -9,7 +9,11 @@ description = "Cymbra ID user module — implementation (account aggregate, iden
 [dependencies]
 cymbra-user-port = { path = "../user-port" }
 cymbra-platform = { path = "../platform" }
+# DeleteAccount enqueues a `purge_user` job (via the jobs.enqueue seam) so the
+# worker performs the complete cross-schema erasure atomically.
+cymbra-jobs = { path = "../jobs" }
 async-trait.workspace = true
+serde.workspace = true
 tokio.workspace = true
 tonic.workspace = true
 sqlx.workspace = true

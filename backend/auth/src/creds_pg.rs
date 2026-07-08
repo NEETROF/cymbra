@@ -146,4 +146,14 @@ impl CredentialRepo for PgCredentialRepo {
         .map_err(internal)?;
         Ok(row.map(|r| r.get::<String, _>("email")))
     }
+
+    async fn delete_credentials(&self, email: &str) -> Result<()> {
+        // Idempotent: a `DELETE` that matches no row affects 0 rows and succeeds.
+        sqlx::query("DELETE FROM local_credentials WHERE email = $1")
+            .bind(email)
+            .execute(&self.pool)
+            .await
+            .map_err(internal)?;
+        Ok(())
+    }
 }
