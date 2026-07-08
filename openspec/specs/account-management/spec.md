@@ -146,6 +146,15 @@ fresh `id_token`. `DeleteAccount` SHALL only be called after re-authentication
 succeeds and the user confirms. On success the app SHALL clear the local session
 and return to the entry screen. Account deletion SHALL NOT be offered in guest mode.
 
+`DeleteAccount` SHALL perform a **complete erasure** of the user's personal data
+across all backend modules — the `user_account` record (with its identities and
+roles) **and** the auth module's local credentials and sessions — so that no email,
+password hash, OIDC identity, verification/reset token, or refresh token for that
+user survives. The erasure SHALL be **atomic** (all-or-nothing) and **idempotent**
+(safe to retry after a partial failure). After a successful deletion the freed email
+address SHALL be registrable again, and any outstanding refresh token for the
+deleted user SHALL be rejected.
+
 #### Scenario: Confirmed deletion after re-authentication
 - **WHEN** a signed-in user re-authenticates successfully and then confirms account deletion
 - **THEN** the app calls `DeleteAccount`, clears secure storage, and returns to the entry screen
@@ -158,7 +167,11 @@ and return to the entry screen. Account deletion SHALL NOT be offered in guest m
 - **WHEN** the user re-authenticates but does not confirm the irreversible step
 - **THEN** no `DeleteAccount` call is made and the account remains intact
 
-#### Scenario: Not available to guests
-- **WHEN** the app is in guest mode
-- **THEN** no account-deletion action is presented
+#### Scenario: Deleted email can register again
+- **WHEN** a user deletes their account and later signs up with the same email address
+- **THEN** sign-up succeeds with no "already registered" error and a fresh account is created
+
+#### Scenario: Refresh tokens invalidated on deletion
+- **WHEN** an account is deleted while a refresh token for it is still unexpired
+- **THEN** using that refresh token is rejected and no new access token is issued
 
