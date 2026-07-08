@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- App Store / TestFlight export for `flutter build ipa --export-options-plist ios/ExportOptions.plist`. -->
+	<key>method</key>
+	<string>app-store</string>
+	<key>teamID</key>
+	<string>VMFJ6KRW77</string>
+	<!-- Automatic signing: Xcode picks the matching Distribution cert + App Store
+	     provisioning profile for com.cymbra.music. Switch to manual (add
+	     provisioningProfiles) once CI holds explicit profiles. -->
+	<key>signingStyle</key>
+	<string>automatic</string>
+	<key>uploadSymbols</key>
+	<true/>
+	<key>uploadBitcode</key>
+	<false/>
+	<key>stripSwiftSymbols</key>
+	<true/>
+	<key>destination</key>
+	<string>export</string>
+</dict>
+</plist>

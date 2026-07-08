@@ -189,6 +189,66 @@ flutter build ... \
   --dart-define=CYMBRA_GRPC_SECURE=true
 ```
 
+## Release builds (mobile)
+
+### Config via `--dart-define-from-file`
+
+All build-time config (OIDC client IDs + gRPC endpoint) lives in per-environment
+JSON under [`config/`](config/) — one source of truth instead of scattered flags.
+The values are **public** (OAuth client IDs and the API host are embedded in the
+shipped binary anyway), so both files are committed:
+
+- [`config/dev.json`](config/dev.json) — plaintext `localhost:50051`;
+- [`config/prod.json`](config/prod.json) — `api.cymbra.app:443` over TLS.
+
+```bash
+flutter build appbundle --release --dart-define-from-file=config/prod.json   # Android (Play)
+flutter build ipa       --release --dart-define-from-file=config/prod.json \
+  --export-options-plist ios/ExportOptions.plist                             # iOS (TestFlight)
+```
+
+For a physical device on the LAN, copy `config/dev.json` and set
+`CYMBRA_GRPC_HOST` to the dev machine's IP (see above).
+
+### Android signing (Play App Signing)
+
+Release builds use an **upload key**; Google holds the final app-signing key
+(Play App Signing). Without `android/key.properties` the release build falls back
+to the shared debug key, so this stays optional for local/CI smoke builds.
+
+```bash
+keytool -genkeypair -v \
+  -keystore apps/music/android/app/upload-keystore.jks \
+  -keyalg RSA -keysize 2048 -validity 10000 -alias upload
+cp apps/music/android/app/key.properties.example apps/music/android/key.properties
+# then edit key.properties with the store/key passwords you just chose
+```
+
+`key.properties`, `*.jks` and `*.keystore` are gitignored. For Google sign-in to
+work on Play builds, register **both** SHA-1s in the Android OAuth client: the
+upload key's, and the Play **app-signing** key's (from Play Console → App
+integrity, after the first upload).
+
+**CI** (`.github/workflows/release-build.yml`, `android` job) rebuilds
+`key.properties` from repo secrets and signs the AAB + APK:
+`ANDROID_KEYSTORE_BASE64` (`base64 -i upload-keystore.jks`),
+`ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`.
+
+### iOS signing
+
+`ios/ExportOptions.plist` targets `app-store` with automatic signing under team
+`VMFJ6KRW77`. A local archive needs an Apple Distribution cert + an App Store
+provisioning profile for `com.cymbra.music` (Xcode → Signing & Capabilities, be
+signed in to the Apple Developer account). Sign in with Apple is already in
+`Runner.entitlements`.
+
+**CI** (`ios` job) imports the cert + profile into a throwaway keychain and
+exports with **manual** signing (a generated `ExportOptions-ci.plist`). Secrets:
+`IOS_DIST_CERT_BASE64` (`base64 -i dist.p12`), `IOS_DIST_CERT_PASSWORD`,
+`IOS_PROVISIONING_PROFILE_BASE64`, `IOS_PROVISIONING_PROFILE_NAME`, `IOS_TEAM_ID`,
+and `GOOGLE_CLIENT_ID` (reversed-client-id URL scheme). The first tagged run may
+need a tweak to the profile name — iOS signing is environment-sensitive.
+
 ## License
 
 Free and **open source** under the [Apache License 2.0](../../LICENSE) — use, modify
