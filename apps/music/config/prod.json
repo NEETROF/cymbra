@@ -1,0 +1,8 @@
+{
+  "GOOGLE_CLIENT_ID": "277306671535-40577tiu0eec2ai42bf2750n77r0mcm6.apps.googleusercontent.com",
+  "GOOGLE_SERVER_CLIENT_ID": "277306671535-o48v49523pgv201iv9fb58bq12ad4t64.apps.googleusercontent.com",
+  "APPLE_SIGN_IN_ENABLED": true,
+  "CYMBRA_GRPC_HOST": "api.cymbra.app",
+  "CYMBRA_GRPC_PORT": 443,
+  "CYMBRA_GRPC_SECURE": true
+}

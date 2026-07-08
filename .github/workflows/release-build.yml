@@ -1,20 +1,33 @@
 name: release-build
 
-# Builds the music app for desktop + Android and attaches the artifacts to the
-# GitHub Release that release-please created for a `music-v*` tag.
+# Builds the music app for desktop + Android + iOS and attaches the artifacts to
+# the GitHub Release that release-please created for a `music-v*` tag.
 #
 # Triggered automatically when a `music-v*` tag is pushed (i.e. when the
 # release-please "Release PR" is merged), or manually via workflow_dispatch on an
 # existing tag.
 #
-# NOT covered yet (need signing secrets / Apple infra — follow-ups):
-#   - iOS .ipa (Apple certificates + provisioning, via fastlane)
-#   - Play Store (.aab) / TestFlight publishing
-# The Android .apk here is signed with debug keys (installable, NOT for Play).
-# The macOS .app is built unsigned (ad-hoc): the Sign in with Apple entitlement
-# is profile-restricted and CI has no Apple signing identity, so signing is
-# disabled here. The artifact runs for dev/testing but is NOT notarized /
-# Gatekeeper-distributable until real signing secrets are wired in.
+# Mobile config comes from apps/music/config/prod.json (--dart-define-from-file):
+# api.cymbra.app:443 over TLS + the OIDC client IDs.
+#
+# Required GitHub secrets for the signed mobile jobs:
+#   Android (Play upload key):
+#     ANDROID_KEYSTORE_BASE64      base64 of the upload keystore (.jks)
+#     ANDROID_KEYSTORE_PASSWORD    store password
+#     ANDROID_KEY_ALIAS            key alias (e.g. upload)
+#     ANDROID_KEY_PASSWORD         key password
+#   iOS (App Store distribution):
+#     IOS_DIST_CERT_BASE64         base64 of the Apple Distribution cert (.p12)
+#     IOS_DIST_CERT_PASSWORD       .p12 export password
+#     IOS_PROVISIONING_PROFILE_BASE64   base64 of the App Store .mobileprovision
+#     IOS_PROVISIONING_PROFILE_NAME     the profile's name (as in the portal)
+#     IOS_TEAM_ID                  Apple Developer team id (VMFJ6KRW77)
+#     GOOGLE_CLIENT_ID             iOS OAuth client id (reversed URL scheme)
+#
+# Absent Android secrets → the release build falls back to debug signing (the
+# gradle config degrades gracefully), but this job requires them and fails loudly.
+# The macOS .app is still built unsigned (ad-hoc): the Sign in with Apple
+# entitlement is profile-restricted and CI has no macOS signing identity.
 on:
   push:
     tags:
@@ -181,12 +194,146 @@ jobs:
           flutter pub get
           bash tool/gen_grpc.sh
           dart run build_runner build --delete-conflicting-outputs
-      - name: Build APK (debug-signed)
+      - name: Set up release signing (Play upload key)
+        working-directory: apps/music/android
+        shell: bash
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ -z "${KEYSTORE_BASE64:-}" ]; then
+            echo "::error::ANDROID_KEYSTORE_BASE64 not set — cannot produce a Play-signed build."
+            exit 1
+          fi
+          echo "$KEYSTORE_BASE64" | base64 --decode > app/upload-keystore.jks
+          # key.properties lives at android/ (rootProject); storeFile is relative to android/app/.
+          cat > key.properties <<EOF
+          storeFile=upload-keystore.jks
+          storePassword=${KEYSTORE_PASSWORD}
+          keyAlias=${KEY_ALIAS}
+          keyPassword=${KEY_PASSWORD}
+          EOF
+      - name: Build AAB + APK (release, prod config)
         working-directory: apps/music
-        run: flutter build apk --release
-      - name: Rename
-        run: cp apps/music/build/app/outputs/flutter-apk/app-release.apk "cymbra-music-${TAG}.apk"
+        run: |
+          flutter build appbundle --release --dart-define-from-file=config/prod.json
+          flutter build apk       --release --dart-define-from-file=config/prod.json
+      - name: Rename artifacts
+        run: |
+          cp apps/music/build/app/outputs/bundle/release/app-release.aab "cymbra-music-${TAG}.aab"
+          cp apps/music/build/app/outputs/flutter-apk/app-release.apk "cymbra-music-${TAG}.apk"
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.TAG }}
-          files: cymbra-music-${{ env.TAG }}.apk
+          files: |
+            cymbra-music-${{ env.TAG }}.aab
+            cymbra-music-${{ env.TAG }}.apk
+
+  ios:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref_name }}
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - name: Set up protoc (gRPC codegen)
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Generate code (gRPC + riverpod + freezed)
+        working-directory: apps/music
+        shell: bash
+        run: |
+          flutter pub get
+          bash tool/gen_grpc.sh
+          dart run build_runner build --delete-conflicting-outputs
+      - name: Check iOS signing secrets
+        env:
+          CERT: ${{ secrets.IOS_DIST_CERT_BASE64 }}
+          PROFILE: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
+        run: |
+          if [ -z "${CERT:-}" ] || [ -z "${PROFILE:-}" ]; then
+            echo "::error::iOS signing secrets missing (IOS_DIST_CERT_BASE64 / IOS_PROVISIONING_PROFILE_BASE64). See apps/music/README.md."
+            exit 1
+          fi
+      - name: Import distribution cert + provisioning profile
+        env:
+          CERT_BASE64: ${{ secrets.IOS_DIST_CERT_BASE64 }}
+          CERT_PASSWORD: ${{ secrets.IOS_DIST_CERT_PASSWORD }}
+          PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
+        run: |
+          set -euo pipefail
+          CERT_PATH="$RUNNER_TEMP/dist.p12"
+          PROFILE_PATH="$RUNNER_TEMP/profile.mobileprovision"
+          KEYCHAIN="$RUNNER_TEMP/build.keychain-db"
+          KEYCHAIN_PW="$(uuidgen)"
+          echo "$CERT_BASE64" | base64 --decode > "$CERT_PATH"
+          echo "$PROFILE_BASE64" | base64 --decode > "$PROFILE_PATH"
+          security create-keychain -p "$KEYCHAIN_PW" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PW" "$KEYCHAIN"
+          security import "$CERT_PATH" -P "$CERT_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN"
+          security list-keychain -d user -s "$KEYCHAIN" login.keychain-db
+          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PW" "$KEYCHAIN" >/dev/null
+          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+          cp "$PROFILE_PATH" "$HOME/Library/MobileDevice/Provisioning Profiles/"
+      - name: Inject Google OAuth reversed client-id (URL scheme)
+        working-directory: apps/music
+        env:
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+        run: |
+          suffix="${GOOGLE_CLIENT_ID%.apps.googleusercontent.com}"
+          printf 'GOOGLE_OAUTH_CLIENT_SUFFIX = %s\n' "$suffix" > ios/Flutter/Secrets.xcconfig
+      - name: Configure manual signing + export options
+        working-directory: apps/music/ios
+        env:
+          TEAM_ID: ${{ secrets.IOS_TEAM_ID }}
+          PROFILE_NAME: ${{ secrets.IOS_PROVISIONING_PROFILE_NAME }}
+        run: |
+          set -euo pipefail
+          # Drive the archive phase to manual signing (Flutter's Runner target
+          # leaves CODE_SIGN_STYLE unset, so the xcconfig value applies).
+          cat >> Flutter/Release.xcconfig <<EOF
+
+          CODE_SIGN_STYLE = Manual
+          DEVELOPMENT_TEAM = ${TEAM_ID}
+          PROVISIONING_PROFILE_SPECIFIER = ${PROFILE_NAME}
+          CODE_SIGN_IDENTITY = Apple Distribution
+          EOF
+          # CI export options: manual, map the bundle id to the profile by name.
+          cat > ExportOptions-ci.plist <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key><string>app-store</string>
+            <key>teamID</key><string>${TEAM_ID}</string>
+            <key>signingStyle</key><string>manual</string>
+            <key>provisioningProfiles</key>
+            <dict>
+              <key>com.cymbra.music</key><string>${PROFILE_NAME}</string>
+            </dict>
+            <key>uploadSymbols</key><true/>
+            <key>uploadBitcode</key><false/>
+            <key>stripSwiftSymbols</key><true/>
+          </dict>
+          </plist>
+          EOF
+      - name: Build IPA (release, prod config)
+        working-directory: apps/music
+        run: |
+          flutter build ipa --release \
+            --dart-define-from-file=config/prod.json \
+            --export-options-plist ios/ExportOptions-ci.plist
+      - name: Rename
+        run: cp apps/music/build/ios/ipa/*.ipa "cymbra-music-${TAG}.ipa"
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.TAG }}
+          files: cymbra-music-${{ env.TAG }}.ipa

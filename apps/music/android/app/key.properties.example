@@ -1,0 +1,14 @@
+# Release signing for Play App Signing (UPLOAD key).
+# Copy to ../key.properties (i.e. android/key.properties), fill in real values,
+# and NEVER commit it (android/.gitignore already ignores key.properties + *.jks).
+#
+# Create the upload keystore first (password is yours — do not share it):
+#   keytool -genkeypair -v \
+#     -keystore apps/music/android/app/upload-keystore.jks \
+#     -keyalg RSA -keysize 2048 -validity 10000 -alias upload
+#
+# storeFile is resolved relative to android/app/.
+storeFile=upload-keystore.jks
+storePassword=CHANGE_ME
+keyAlias=upload
+keyPassword=CHANGE_ME
