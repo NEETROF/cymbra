@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/NEETROF/cymbra/compare/backend-v0.2.1...backend-v0.3.0) (2026-07-08)
+
+
+### Features
+
+* **backend:** complete cross-schema account deletion ([#56](https://github.com/NEETROF/cymbra/issues/56)) ([6fd8aa1](https://github.com/NEETROF/cymbra/commit/6fd8aa1fe2ba8f63edad9d8122d4e2b66bf54118))
+
 ## [0.2.1](https://github.com/NEETROF/cymbra/compare/backend-v0.2.0...backend-v0.2.1) (2026-07-06)
 
 
