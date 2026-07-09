@@ -199,10 +199,14 @@ class FakeAccountService implements AccountService {
 }
 
 /// Scriptable [OidcTokenSource] fake: returns canned id_tokens (null = the user
-/// cancelled the native sheet) without any platform channel.
+/// cancelled the native sheet) without any platform channel. When [googleError]
+/// is set, `googleIdToken` throws it — modelling the desktop loopback flow, which
+/// throws (e.g. `DesktopOauthException`) on a real failure rather than returning
+/// null.
 class FakeOidcTokenSource implements OidcTokenSource {
   String? googleToken;
   String? appleToken;
+  Object? googleError;
   @override
   bool googleAvailable;
   @override
@@ -213,6 +217,7 @@ class FakeOidcTokenSource implements OidcTokenSource {
   FakeOidcTokenSource({
     this.googleToken = 'google-id-token',
     this.appleToken = 'apple-id-token',
+    this.googleError,
     this.googleAvailable = true,
     this.appleAvailable = true,
   });
@@ -220,6 +225,7 @@ class FakeOidcTokenSource implements OidcTokenSource {
   @override
   Future<String?> googleIdToken({bool forceChooser = false}) async {
     calls.add(forceChooser ? 'google:forceChooser' : 'google');
+    if (googleError != null) throw googleError!;
     return googleToken;
   }
 

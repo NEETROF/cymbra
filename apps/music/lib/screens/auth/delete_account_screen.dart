@@ -69,6 +69,19 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
           fallback: 'Authentication failed — your account was not deleted.',
         );
       }
+    } catch (_) {
+      // A desktop OAuth (DesktopOauthException) or other platform failure during
+      // re-auth must not escape uncaught (it is not an AuthException); surface it
+      // like a failed re-auth rather than silently spinning down.
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Authentication failed — your account was not deleted.',
+            ),
+          ),
+        );
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }

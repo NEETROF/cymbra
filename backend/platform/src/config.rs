@@ -169,13 +169,11 @@ pub mod config_core {
             .unwrap_or_default()
     }
 
+    /// Required comma-separated list: `csv` plus a non-empty guard (the key must
+    /// be present and yield at least one value).
     fn list(m: &HashMap<String, String>, k: &str) -> Result<Vec<String>> {
-        let raw = req(m, k)?;
-        let items: Vec<String> = raw
-            .split(',')
-            .map(|s| s.trim().to_string())
-            .filter(|s| !s.is_empty())
-            .collect();
+        req(m, k)?; // presence check (distinct "missing key" error)
+        let items = csv(m, k);
         if items.is_empty() {
             return Err(AppError::Config(format!(
                 "{k} must list at least one value"
