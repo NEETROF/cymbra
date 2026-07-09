@@ -29,5 +29,5 @@
 
 - [x] 5.1 `flutter analyze` + `dart run custom_lint` + `dart format` clean
 - [x] 5.2 `flutter test --coverage` green, coverage ≥ 80% (pure core covered; browser/HttpServer glue behind the fake/seam, excluded like other native adapters)
-- [~] 5.3 Manual: Google sign-in **and** "Link Google" on Windows and Linux end-to-end against the backend — **Windows: sign-in verified end-to-end** (Desktop client + secret + backend multi-audience). Linux pending; "Link Google" pending (no linking UI in-repo yet)
+- [x] 5.3 Manual: Google sign-in **and** "Link Google" on Windows and Linux end-to-end against the backend — **sign-in verified end-to-end on Windows AND Linux** (Desktop client + secret + backend multi-audience). "Link Google" not applicable yet (no linking UI in-repo; account-linking not merged)
 - [x] 5.4 `openspec validate add-desktop-oauth-loopback --strict` passes
