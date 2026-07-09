@@ -90,11 +90,11 @@ jobs:
           --dart-define=DESKTOP_GOOGLE_CLIENT_SECRET=${{ secrets.DESKTOP_GOOGLE_CLIENT_SECRET }}
       - name: Package
         working-directory: apps/music/build/linux/x64/release/bundle
-        run: tar czf "$GITHUB_WORKSPACE/cymbra-music-${TAG}-linux-x64.tar.gz" .
+        run: tar czf "$GITHUB_WORKSPACE/cymbra-${TAG}-linux-x64.tar.gz" .
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.TAG }}
-          files: cymbra-music-${{ env.TAG }}-linux-x64.tar.gz
+          files: cymbra-${{ env.TAG }}-linux-x64.tar.gz
 
   macos:
     runs-on: macos-latest
@@ -148,11 +148,11 @@ jobs:
         working-directory: apps/music/build/macos/Build/Products/Release
         run: |
           APP="$(ls -d *.app | head -1)"
-          ditto -c -k --keepParent "$APP" "$GITHUB_WORKSPACE/cymbra-music-${TAG}-macos.zip"
+          ditto -c -k --keepParent "$APP" "$GITHUB_WORKSPACE/cymbra-${TAG}-macos.zip"
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.TAG }}
-          files: cymbra-music-${{ env.TAG }}-macos.zip
+          files: cymbra-${{ env.TAG }}-macos.zip
 
   windows:
     runs-on: windows-latest
@@ -186,11 +186,11 @@ jobs:
           --dart-define=DESKTOP_GOOGLE_CLIENT_SECRET=${{ secrets.DESKTOP_GOOGLE_CLIENT_SECRET }}
       - name: Package
         shell: pwsh
-        run: Compress-Archive -Path apps/music/build/windows/x64/runner/Release/* -DestinationPath "cymbra-music-$env:TAG-windows-x64.zip"
+        run: Compress-Archive -Path apps/music/build/windows/x64/runner/Release/* -DestinationPath "cymbra-$env:TAG-windows-x64.zip"
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.TAG }}
-          files: cymbra-music-${{ env.TAG }}-windows-x64.zip
+          files: cymbra-${{ env.TAG }}-windows-x64.zip
 
   android:
     runs-on: ubuntu-latest
@@ -246,14 +246,14 @@ jobs:
           flutter build apk       --release --dart-define-from-file=config/prod.json
       - name: Rename artifacts
         run: |
-          cp apps/music/build/app/outputs/bundle/release/app-release.aab "cymbra-music-${TAG}.aab"
-          cp apps/music/build/app/outputs/flutter-apk/app-release.apk "cymbra-music-${TAG}.apk"
+          cp apps/music/build/app/outputs/bundle/release/app-release.aab "cymbra-${TAG}.aab"
+          cp apps/music/build/app/outputs/flutter-apk/app-release.apk "cymbra-${TAG}.apk"
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.TAG }}
           files: |
-            cymbra-music-${{ env.TAG }}.aab
-            cymbra-music-${{ env.TAG }}.apk
+            cymbra-${{ env.TAG }}.aab
+            cymbra-${{ env.TAG }}.apk
 
   ios:
     runs-on: macos-latest
@@ -355,8 +355,8 @@ jobs:
             --dart-define-from-file=config/prod.json \
             --export-options-plist ios/ExportOptions-ci.plist
       - name: Rename
-        run: cp apps/music/build/ios/ipa/*.ipa "cymbra-music-${TAG}.ipa"
+        run: cp apps/music/build/ios/ipa/*.ipa "cymbra-${TAG}.ipa"
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.TAG }}
-          files: cymbra-music-${{ env.TAG }}.ipa
+          files: cymbra-${{ env.TAG }}.ipa
