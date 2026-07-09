@@ -176,7 +176,7 @@ DesktopOidcTokenSource buildDesktopOidcTokenSource() => DesktopOidcTokenSource(
   clientId: kDesktopGoogleClientId,
   serverFactory: IoLoopbackServer.new,
   launch: (url) => launchUrl(url, mode: LaunchMode.externalApplication),
-  exchanger: HttpTokenExchanger(
+  exchanger: const HttpTokenExchanger(
     clientId: kDesktopGoogleClientId,
     clientSecret: kDesktopGoogleClientSecret,
   ),
