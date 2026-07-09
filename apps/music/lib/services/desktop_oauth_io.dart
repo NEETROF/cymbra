@@ -94,7 +94,7 @@ class HttpTokenExchanger implements OauthTokenExchanger {
   const HttpTokenExchanger({required this.clientId, this.clientSecret = ''});
 
   @override
-  Future<String?> exchangeCode({
+  Future<String> exchangeCode({
     required String code,
     required String verifier,
     required String redirectUri,
@@ -110,9 +110,31 @@ class HttpTokenExchanger implements OauthTokenExchanger {
         if (clientSecret.isNotEmpty) 'client_secret': clientSecret,
       },
     );
-    if (response.statusCode != HttpStatus.ok) return null;
+    if (response.statusCode != HttpStatus.ok) {
+      // The HTTP status + the `error` code (e.g. invalid_client when a Desktop
+      // client's secret is missing) are safe to log — never the body's tokens.
+      final error = _errorCode(response.body);
+      throw DesktopOauthException(
+        'token_exchange_http_${response.statusCode}${error == null ? '' : '_$error'}',
+      );
+    }
     final body = jsonDecode(response.body) as Map<String, dynamic>;
-    return body['id_token'] as String?;
+    final idToken = body['id_token'] as String?;
+    if (idToken == null || idToken.isEmpty) {
+      throw const DesktopOauthException('token_exchange_no_id_token');
+    }
+    return idToken;
+  }
+
+  /// Best-effort, non-sensitive OAuth `error` code from an error response body.
+  static String? _errorCode(String body) {
+    try {
+      final json = jsonDecode(body);
+      if (json is Map<String, dynamic>) return json['error'] as String?;
+    } on FormatException {
+      // Non-JSON error body — nothing safe to extract.
+    }
+    return null;
   }
 }
 

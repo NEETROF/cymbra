@@ -70,7 +70,7 @@ async fn main() -> anyhow::Result<()> {
         .map(|p| OidcProviderCfg {
             provider: p.provider.clone(),
             issuer: p.issuer.clone(),
-            audience: p.audience.clone(),
+            audiences: p.audiences.clone(),
             jwks_uri: p.jwks_uri.clone(),
         })
         .collect();

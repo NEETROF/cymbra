@@ -30,6 +30,19 @@ const String kGoogleAuthEndpoint =
     'https://accounts.google.com/o/oauth2/v2/auth';
 const String kGoogleTokenEndpoint = 'https://oauth2.googleapis.com/token';
 
+/// A desktop loopback flow that failed for a reason that is **not** a user
+/// cancellation — a `state` mismatch, a missing `code`, a browser that wouldn't
+/// open, or a rejected token exchange. Surfaced (not swallowed) so the UI shows
+/// an error instead of looking like a silent no-op. [reason] is a short,
+/// non-sensitive label — never the code, verifier, or token.
+class DesktopOauthException implements Exception {
+  final String reason;
+  const DesktopOauthException(this.reason);
+
+  @override
+  String toString() => 'DesktopOauthException($reason)';
+}
+
 /// base64url **without** padding, per RFC 7636 (PKCE) and RFC 6749 `state`.
 String base64UrlNoPad(List<int> bytes) =>
     base64Url.encode(bytes).replaceAll('=', '');

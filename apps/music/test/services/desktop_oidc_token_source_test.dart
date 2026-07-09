@@ -14,6 +14,7 @@
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:music/services/desktop_oauth_core.dart';
 import 'package:music/services/desktop_oidc_token_source.dart';
 
 /// Records the launched authorization URL and returns a scripted launch result.
@@ -54,19 +55,22 @@ class _FakeLoopbackServer implements LoopbackServer {
   Future<void> close() async => closeCount++;
 }
 
-/// Records exchange calls and returns a scripted id_token.
+/// Records exchange calls and returns a scripted id_token, or throws [failWith]
+/// to simulate a rejected token exchange.
 class _FakeExchanger implements OauthTokenExchanger {
-  final String? idToken;
+  final String idToken;
+  final DesktopOauthException? failWith;
   final List<Map<String, String>> calls = [];
-  _FakeExchanger(this.idToken);
+  _FakeExchanger(this.idToken, {this.failWith});
 
   @override
-  Future<String?> exchangeCode({
+  Future<String> exchangeCode({
     required String code,
     required String verifier,
     required String redirectUri,
   }) async {
     calls.add({'code': code, 'verifier': verifier, 'redirect': redirectUri});
+    if (failWith != null) throw failWith!;
     return idToken;
   }
 }
@@ -85,12 +89,13 @@ void main() {
   })
   build({
     String clientId = 'desktop-client',
-    String? exchangedToken = 'id-token-xyz',
+    String exchangedToken = 'id-token-xyz',
+    DesktopOauthException? exchangeError,
     bool launchResult = true,
     required Uri? Function(String? state) redirect,
   }) {
     final launcher = _FakeLauncher(result: launchResult);
-    final exch = _FakeExchanger(exchangedToken);
+    final exch = _FakeExchanger(exchangedToken, failWith: exchangeError);
     late _FakeLoopbackServer server;
     server = _FakeLoopbackServer(() async {
       final state = launcher.launchedUrl?.queryParameters['state'];
@@ -167,16 +172,19 @@ void main() {
       );
     });
 
-    test('user cancels (browser closed) → null, no exchange', () async {
-      final t = build(
-        redirect: (state) => Uri.parse(
-          'http://127.0.0.1:4321/?state=$state&error=access_denied',
-        ),
-      );
-      expect(await t.source.googleIdToken(), isNull);
-      expect(t.exch.calls, isEmpty);
-      expect(t.server.closeCount, 1);
-    });
+    test(
+      'user denies consent (access_denied) → null no-op, no exchange',
+      () async {
+        final t = build(
+          redirect: (state) => Uri.parse(
+            'http://127.0.0.1:4321/?state=$state&error=access_denied',
+          ),
+        );
+        expect(await t.source.googleIdToken(), isNull);
+        expect(t.exch.calls, isEmpty);
+        expect(t.server.closeCount, 1);
+      },
+    );
 
     test('timeout (no redirect) → null, no exchange, port freed', () async {
       final t = build(redirect: (_) => null);
@@ -185,22 +193,55 @@ void main() {
       expect(t.server.closeCount, 1);
     });
 
-    test('state mismatch → null and code is never exchanged', () async {
+    test('state mismatch → throws, and code is never exchanged', () async {
       final t = build(
         redirect: (_) =>
             Uri.parse('http://127.0.0.1:4321/?state=forged&code=auth-1'),
       );
-      expect(await t.source.googleIdToken(), isNull);
+      await expectLater(
+        t.source.googleIdToken(),
+        throwsA(isA<DesktopOauthException>()),
+      );
+      expect(t.exch.calls, isEmpty);
+      expect(t.server.closeCount, 1);
+    });
+
+    test('a non-cancel OAuth error surfaces as a throw', () async {
+      final t = build(
+        redirect: (state) =>
+            Uri.parse('http://127.0.0.1:4321/?state=$state&error=server_error'),
+      );
+      await expectLater(
+        t.source.googleIdToken(),
+        throwsA(isA<DesktopOauthException>()),
+      );
       expect(t.exch.calls, isEmpty);
     });
 
-    test('browser launch refused → null, no exchange', () async {
+    test('rejected token exchange propagates (not a silent null)', () async {
+      final t = build(
+        exchangeError: const DesktopOauthException('token_exchange_http_400'),
+        redirect: (state) =>
+            Uri.parse('http://127.0.0.1:4321/?state=$state&code=auth-1'),
+      );
+      await expectLater(
+        t.source.googleIdToken(),
+        throwsA(isA<DesktopOauthException>()),
+      );
+      expect(t.exch.calls, hasLength(1)); // it did attempt the exchange
+      expect(t.server.closeCount, 1); // …and still freed the port
+    });
+
+    test('browser launch refused → throws, no exchange', () async {
       final t = build(
         launchResult: false,
         redirect: (state) =>
             Uri.parse('http://127.0.0.1:4321/?state=$state&code=c'),
       );
-      expect(await t.source.googleIdToken(), isNull);
+      await expectLater(
+        t.source.googleIdToken(),
+        throwsA(isA<DesktopOauthException>()),
+      );
       expect(t.exch.calls, isEmpty);
       expect(t.server.closeCount, 1);
     });

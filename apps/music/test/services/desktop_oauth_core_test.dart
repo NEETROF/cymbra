@@ -51,6 +51,14 @@ void main() {
     });
   });
 
+  group('DesktopOauthException', () {
+    test('carries a non-sensitive reason label', () {
+      const e = DesktopOauthException('token_exchange_http_400_invalid_client');
+      expect(e.reason, 'token_exchange_http_400_invalid_client');
+      expect(e.toString(), contains('token_exchange_http_400_invalid_client'));
+    });
+  });
+
   group('base64UrlNoPad', () {
     test('drops padding', () {
       expect(base64UrlNoPad([0]), 'AA'); // "AA==" without padding

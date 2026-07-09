@@ -50,9 +50,11 @@ abstract class LoopbackServer {
 }
 
 /// Exchanges an authorization [code] (+ PKCE [verifier]) for tokens at Google's
-/// token endpoint and returns the `id_token`, or null on failure.
+/// token endpoint and returns the `id_token`. Throws [DesktopOauthException] if
+/// the endpoint rejects the exchange or the response carries no `id_token` — a
+/// real error the UI should surface, not a silent cancel.
 abstract class OauthTokenExchanger {
-  Future<String?> exchangeCode({
+  Future<String> exchangeCode({
     required String code,
     required String verifier,
     required String redirectUri,
@@ -63,9 +65,12 @@ abstract class OauthTokenExchanger {
 /// injected ([serverFactory], [launch], [exchanger]) so the orchestration is
 /// unit-tested with fakes; the production provider supplies the real glue.
 ///
-/// A cancelled browser, a timeout, an OAuth error, or a `state` mismatch all
-/// resolve to **null** (a no-op, like a dismissed native sheet) — crucially, a
-/// bad/missing `state` returns before any code exchange (design D5).
+/// A user cancellation — closing the browser (timeout) or denying consent
+/// (`error=access_denied`) — resolves to **null**, a no-op like a dismissed
+/// native sheet. Every *other* failure ([state mismatch, missing code, a browser
+/// that won't open, a rejected token exchange]) throws [DesktopOauthException]
+/// so the UI surfaces it instead of failing silently. A bad/missing `state` is
+/// rejected before any code exchange (design D5).
 class DesktopOidcTokenSource implements OidcTokenSource {
   final String clientId;
   final Duration timeout;
@@ -115,20 +120,26 @@ class DesktopOidcTokenSource implements OidcTokenSource {
         forceChooser: forceChooser,
       );
       final launched = await launch(authUrl);
-      if (!launched) return null; // couldn't open a browser — treat as cancel
+      if (!launched) throw const DesktopOauthException('browser_launch_failed');
 
       final redirect = await server.waitForRedirect(timeout);
       if (redirect == null) return null; // timeout / user closed the browser
 
       final result = parseRedirect(redirect, expectedState: state);
-      if (result is! RedirectSuccess) {
-        return null; // error / state mismatch → fail without exchanging the code
+      switch (result) {
+        case RedirectSuccess(:final code):
+          // Throws on a rejected exchange; otherwise yields the id_token.
+          return await exchanger.exchangeCode(
+            code: code,
+            verifier: pkce.verifier,
+            redirectUri: redirectUri,
+          );
+        case RedirectFailure(:final reason):
+          // Denied consent is a user cancel (no-op); anything else is a real
+          // error surfaced to the UI. Neither exchanges the code (design D5).
+          if (reason == 'access_denied') return null;
+          throw DesktopOauthException(reason);
       }
-      return exchanger.exchangeCode(
-        code: result.code,
-        verifier: pkce.verifier,
-        redirectUri: redirectUri,
-      );
     } finally {
       await server.close(); // single-use; free the port on every path
     }

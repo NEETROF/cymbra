@@ -103,10 +103,23 @@ sent on the token exchange (web-client path, Option A); when absent the exchange
 pure PKCE (desktop-client path). This makes the app work under either choice without
 another code change.
 
+**Update (desktop-client path taken):** a Google **Desktop app** client was created
+(`cymbra desktop`). Two consequences handled in code:
+- Google requires the desktop client's `client_secret` at the token exchange even
+  with PKCE — supplied via `DESKTOP_GOOGLE_CLIENT_SECRET`; the exchanger sends it
+  when non-empty.
+- The desktop token's `aud` = desktop client id, so the **backend now accepts a
+  comma-separated audience set** (`CYMBRA_GOOGLE_AUDIENCE=<web>,<desktop>`):
+  `OidcProvider`/`OidcProviderCfg` carry `audiences: Vec<String>` and the verifier
+  calls `set_audience(&audiences)` (a token matching any one is trusted).
+
+A failed exchange / bad `state` / unopened browser now **throw** `DesktopOauthException`
+(surfaced by the UI) instead of returning null — only a real user cancel (timeout or
+`error=access_denied`) stays a silent no-op.
+
 **Still required before release (external — cannot be done in code):**
-- Task 1.3: register the loopback redirect URIs on the chosen Google Cloud client.
-- If the desktop-client path is chosen: add its client id to the backend's accepted
-  Google audiences (`CYMBRA_GOOGLE_AUDIENCE` / verifier list).
+- Task 1.3: register the loopback redirect URIs on the Google Cloud desktop client.
+- Set the backend's `CYMBRA_GOOGLE_AUDIENCE` to include the desktop client id.
 - Task 5.3: manual end-to-end verification of sign-in + "Link Google" on Windows/Linux.
 
 ## macOS resolution (open question — keep native)
