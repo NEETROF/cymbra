@@ -45,3 +45,34 @@ const String kGoogleServerClientId = String.fromEnvironment(
 /// Whether Sign in with Apple is enabled (requires the "Sign in with Apple"
 /// capability + a development certificate; off by default).
 const bool kAppleSignInEnabled = bool.fromEnvironment('APPLE_SIGN_IN_ENABLED');
+
+// Desktop (Windows/Linux) Google sign-in via the browser-loopback OAuth flow
+// (change: add-desktop-oauth-loopback). The native google_sign_in plugin has no
+// Windows/Linux implementation, so those platforms use the RFC 8252 flow instead.
+// Empty client id ⇒ Google stays hidden on desktop (as today).
+//
+//   flutter run -d windows \
+//     --dart-define=DESKTOP_GOOGLE_CLIENT_ID=<client>.apps.googleusercontent.com \
+//     --dart-define=DESKTOP_GOOGLE_CLIENT_SECRET=<secret>
+//
+// Client-type note (design D3): we use a Google **Desktop app** client. Despite
+// PKCE, Google **still requires that client's `client_secret` at the token
+// exchange** (verified end-to-end on Windows) — so the secret must be supplied;
+// Google does not treat the desktop secret as confidential. The desktop client's
+// `aud` differs from the web client, so the backend accepts it via a
+// comma-separated `CYMBRA_GOOGLE_AUDIENCE`. The secret is sent on the exchange
+// only when non-empty, so a pure-PKCE public client (no secret) also works if one
+// is ever used.
+
+/// Google OAuth client ID for the desktop browser-loopback flow (Windows/Linux).
+/// Empty ⇒ Google hidden on desktop.
+const String kDesktopGoogleClientId = String.fromEnvironment(
+  'DESKTOP_GOOGLE_CLIENT_ID',
+);
+
+/// Client secret for the desktop token exchange. Google's *Desktop app* clients
+/// require it even with PKCE, so it is effectively mandatory for our setup (the
+/// exchange 400s without it). Sent only when non-empty.
+const String kDesktopGoogleClientSecret = String.fromEnvironment(
+  'DESKTOP_GOOGLE_CLIENT_SECRET',
+);

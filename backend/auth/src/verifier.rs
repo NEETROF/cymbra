@@ -26,7 +26,9 @@ pub trait OidcVerifier: Send + Sync {
 pub struct OidcProviderCfg {
     pub provider: String, // google | apple
     pub issuer: String,
-    pub audience: String,
+    /// Accepted `aud` values — a token matching any one is trusted (e.g. Google's
+    /// web + desktop-loopback client ids).
+    pub audiences: Vec<String>,
     pub jwks_uri: String,
 }
 
@@ -123,7 +125,7 @@ impl OidcVerifier for RealOidcVerifier {
             .map_err(|_| AppError::Unauthenticated("malformed jwk".into()))?;
 
         let mut v = Validation::new(Algorithm::RS256);
-        v.set_audience(&[&provider.audience]);
+        v.set_audience(&provider.audiences);
         v.set_issuer(&[&provider.issuer]);
         let claims = decode::<OidcClaims>(id_token, &key, &v)
             .map_err(|_| AppError::Unauthenticated("provider token rejected".into()))?

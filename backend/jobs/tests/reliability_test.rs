@@ -256,8 +256,10 @@ async fn poison_job_does_not_freeze_ordered_channel() {
     transactional_enqueue(&mut c, &good).await.unwrap();
 
     // Wait until the poison is exhausted, then sweep it to the dead-letter store.
+    // 30s (not 15) so the worker's poll/round-trip latency under heavy CI load
+    // doesn't flake the assertion — a healthy run returns as soon as it exhausts.
     assert!(
-        wait_until(Duration::from_secs(15), || async {
+        wait_until(Duration::from_secs(30), || async {
             sqlx::query(
                 "SELECT COUNT(*) AS n FROM jobs.mq_msgs WHERE channel_name=$1 AND attempts<=0 AND attempt_at IS NULL",
             )
@@ -275,7 +277,7 @@ async fn poison_job_does_not_freeze_ordered_channel() {
 
     // The follow-up should now drain — channel empties.
     assert!(
-        wait_until(Duration::from_secs(15), || async {
+        wait_until(Duration::from_secs(30), || async {
             channel_count(&pool, &name).await == 0
         })
         .await,

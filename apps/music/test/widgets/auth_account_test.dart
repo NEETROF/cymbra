@@ -202,11 +202,13 @@ void main() {
       WidgetTester tester, {
       required FakeAuthService auth,
       required FakeAccountService account,
+      FakeOidcTokenSource? oidc,
     }) async {
       final c = authContainer(
         store: FakeTokenStore(tokens: _tokens),
         auth: auth,
         account: account,
+        oidc: oidc,
       );
       c.read(sessionNotifierProvider);
       await tester.runAsync(() => pumpEventQueue());
@@ -264,6 +266,37 @@ void main() {
 
       expect(find.byKey(const Key('delete-confirm')), findsNothing);
       expect(account.calls.contains('deleteAccount'), isFalse);
+    });
+
+    testWidgets('desktop Google re-auth error is surfaced, not uncaught', (
+      tester,
+    ) async {
+      // The desktop loopback flow throws (not returns null) on a real failure;
+      // the delete screen must catch it, show an error, and not delete.
+      final account = FakeAccountService(account: fakeAccount(handle: 'bob'));
+      final oidc = FakeOidcTokenSource(
+        googleError: Exception('token_exchange_http_400_invalid_client'),
+      );
+      await pumpDelete(
+        tester,
+        auth: FakeAuthService(),
+        account: account,
+        oidc: oidc,
+      );
+
+      await tester.tap(find.byKey(const Key('delete-with-google')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      // No unhandled exception, no confirmation dialog, nothing deleted, and the
+      // failure is surfaced to the user.
+      expect(tester.takeException(), isNull);
+      expect(find.byKey(const Key('delete-confirm')), findsNothing);
+      expect(account.calls.contains('deleteAccount'), isFalse);
+      expect(
+        find.text('Authentication failed — your account was not deleted.'),
+        findsOneWidget,
+      );
     });
 
     testWidgets('cancelling the confirmation keeps the account', (

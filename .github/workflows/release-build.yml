@@ -7,10 +7,19 @@ name: release-build
 # release-please "Release PR" is merged), or manually via workflow_dispatch on an
 # existing tag.
 #
-# Mobile config comes from apps/music/config/prod.json (--dart-define-from-file):
-# api.cymbra.app:443 over TLS + the OIDC client IDs.
+# App config comes from apps/music/config/prod.json (--dart-define-from-file):
+# api.cymbra.app:443 over TLS + the OIDC client IDs (mobile, and the desktop
+# Google client id for the Windows/Linux loopback flow).
 #
 # Required GitHub secrets for the signed mobile jobs:
+#   Desktop (Windows/Linux Google sign-in):
+#     DESKTOP_GOOGLE_CLIENT_ID      the "Desktop app" OAuth client id (public).
+#                                   Absent ⇒ Google stays hidden on desktop.
+#     DESKTOP_GOOGLE_CLIENT_SECRET  the "Desktop app" client secret; Google
+#                                   requires it at the token exchange even with
+#                                   PKCE. Absent ⇒ desktop Google sign-in fails
+#                                   the exchange (the button still shows if the
+#                                   client id is set).
 #   Android (Play upload key):
 #     ANDROID_KEYSTORE_BASE64      base64 of the upload keystore (.jks)
 #     ANDROID_KEYSTORE_PASSWORD    store password
@@ -70,7 +79,15 @@ jobs:
           dart run build_runner build --delete-conflicting-outputs
       - name: Build
         working-directory: apps/music
-        run: flutter build linux --release
+        # prod.json carries the gRPC endpoint; the desktop Google client id +
+        # secret come from repo secrets (the secret is required by Google's
+        # Desktop client even with PKCE). Empty client id ⇒ Google stays hidden
+        # on desktop (the app guards on a non-empty client id).
+        run: >-
+          flutter build linux --release
+          --dart-define-from-file=config/prod.json
+          --dart-define=DESKTOP_GOOGLE_CLIENT_ID=${{ secrets.DESKTOP_GOOGLE_CLIENT_ID }}
+          --dart-define=DESKTOP_GOOGLE_CLIENT_SECRET=${{ secrets.DESKTOP_GOOGLE_CLIENT_SECRET }}
       - name: Package
         working-directory: apps/music/build/linux/x64/release/bundle
         run: tar czf "$GITHUB_WORKSPACE/cymbra-music-${TAG}-linux-x64.tar.gz" .
@@ -160,7 +177,13 @@ jobs:
           dart run build_runner build --delete-conflicting-outputs
       - name: Build
         working-directory: apps/music
-        run: flutter build windows --release
+        # See the linux job: prod.json + the desktop client id/secret enable
+        # Google sign-in on the shipped Windows build.
+        run: >-
+          flutter build windows --release
+          --dart-define-from-file=config/prod.json
+          --dart-define=DESKTOP_GOOGLE_CLIENT_ID=${{ secrets.DESKTOP_GOOGLE_CLIENT_ID }}
+          --dart-define=DESKTOP_GOOGLE_CLIENT_SECRET=${{ secrets.DESKTOP_GOOGLE_CLIENT_SECRET }}
       - name: Package
         shell: pwsh
         run: Compress-Archive -Path apps/music/build/windows/x64/runner/Release/* -DestinationPath "cymbra-music-$env:TAG-windows-x64.zip"

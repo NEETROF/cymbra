@@ -40,7 +40,10 @@ pub struct Config {
 pub struct OidcProvider {
     pub provider: String,
     pub issuer: String,
-    pub audience: String,
+    /// Accepted `aud` values — a token matching **any** is trusted. Google needs
+    /// more than one when several client types sign in (web/Android/iOS +
+    /// desktop-loopback each mint a token with their own client id as `aud`).
+    pub audiences: Vec<String>,
     pub jwks_uri: String,
 }
 
@@ -113,22 +116,26 @@ pub mod config_core {
         Ok((max, window))
     }
 
-    /// Build the trusted OIDC provider list from Google/Apple env (audience set).
+    /// Build the trusted OIDC provider list from Google/Apple env. Each audience
+    /// var is a comma-separated set (`CYMBRA_GOOGLE_AUDIENCE=web-id,desktop-id`);
+    /// a provider with no non-empty audience is omitted.
     fn oidc_providers(m: &HashMap<String, String>) -> Vec<OidcProvider> {
         let mut v = Vec::new();
-        if let Some(aud) = m.get("CYMBRA_GOOGLE_AUDIENCE").filter(|s| !s.is_empty()) {
+        let google = csv(m, "CYMBRA_GOOGLE_AUDIENCE");
+        if !google.is_empty() {
             v.push(OidcProvider {
                 provider: "google".into(),
                 issuer: opt(m, "CYMBRA_GOOGLE_ISSUER", "https://accounts.google.com"),
-                audience: aud.clone(),
+                audiences: google,
                 jwks_uri: "https://www.googleapis.com/oauth2/v3/certs".into(),
             });
         }
-        if let Some(aud) = m.get("CYMBRA_APPLE_AUDIENCE").filter(|s| !s.is_empty()) {
+        let apple = csv(m, "CYMBRA_APPLE_AUDIENCE");
+        if !apple.is_empty() {
             v.push(OidcProvider {
                 provider: "apple".into(),
                 issuer: opt(m, "CYMBRA_APPLE_ISSUER", "https://appleid.apple.com"),
-                audience: aud.clone(),
+                audiences: apple,
                 jwks_uri: "https://appleid.apple.com/auth/keys".into(),
             });
         }
@@ -149,13 +156,24 @@ pub mod config_core {
             .unwrap_or_else(|| default.to_string())
     }
 
+    /// Optional comma-separated list (trimmed, empties dropped); `[]` when unset.
+    /// Unlike `list`, an absent/empty key is not an error.
+    fn csv(m: &HashMap<String, String>, k: &str) -> Vec<String> {
+        m.get(k)
+            .map(|raw| {
+                raw.split(',')
+                    .map(|s| s.trim().to_string())
+                    .filter(|s| !s.is_empty())
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
+    /// Required comma-separated list: `csv` plus a non-empty guard (the key must
+    /// be present and yield at least one value).
     fn list(m: &HashMap<String, String>, k: &str) -> Result<Vec<String>> {
-        let raw = req(m, k)?;
-        let items: Vec<String> = raw
-            .split(',')
-            .map(|s| s.trim().to_string())
-            .filter(|s| !s.is_empty())
-            .collect();
+        req(m, k)?; // presence check (distinct "missing key" error)
+        let items = csv(m, k);
         if items.is_empty() {
             return Err(AppError::Config(format!(
                 "{k} must list at least one value"
@@ -235,5 +253,44 @@ mod tests {
         let mut m = base();
         m.insert("CYMBRA_ALLOWED_AUDIENCES".into(), " , ".into());
         assert!(matches!(config_core::parse(&m), Err(AppError::Config(_))));
+    }
+
+    #[test]
+    fn no_oidc_audience_yields_no_provider() {
+        let c = config_core::parse(&base()).unwrap();
+        assert!(c.oidc_providers.is_empty());
+    }
+
+    #[test]
+    fn google_audience_accepts_a_comma_separated_set() {
+        let mut m = base();
+        // web client + desktop-loopback client both trusted for Google.
+        m.insert(
+            "CYMBRA_GOOGLE_AUDIENCE".into(),
+            "web-client.example, desktop-client.example".into(),
+        );
+        let c = config_core::parse(&m).unwrap();
+        let google = c
+            .oidc_providers
+            .iter()
+            .find(|p| p.provider == "google")
+            .expect("google provider present");
+        assert_eq!(
+            google.audiences,
+            vec!["web-client.example", "desktop-client.example"],
+        );
+    }
+
+    #[test]
+    fn single_google_audience_still_works() {
+        let mut m = base();
+        m.insert("CYMBRA_GOOGLE_AUDIENCE".into(), "only-web.example".into());
+        let c = config_core::parse(&m).unwrap();
+        let google = c
+            .oidc_providers
+            .iter()
+            .find(|p| p.provider == "google")
+            .unwrap();
+        assert_eq!(google.audiences, vec!["only-web.example"]);
     }
 }

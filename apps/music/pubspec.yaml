@@ -51,6 +51,9 @@ dependencies:
   flutter_secure_storage: ^10.3.1
   google_sign_in: ^6.3.0
   sign_in_with_apple: ^6.1.4
+  url_launcher: ^6.3.2
+  http: ^1.6.0
+  crypto: ^3.0.7
 
 dev_dependencies:
   flutter_test:
