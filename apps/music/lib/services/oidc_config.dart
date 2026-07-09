@@ -53,14 +53,16 @@ const bool kAppleSignInEnabled = bool.fromEnvironment('APPLE_SIGN_IN_ENABLED');
 //
 //   flutter run -d windows \
 //     --dart-define=DESKTOP_GOOGLE_CLIENT_ID=<client>.apps.googleusercontent.com \
-//     [--dart-define=DESKTOP_GOOGLE_CLIENT_SECRET=<secret>]   # only for a Web client
+//     --dart-define=DESKTOP_GOOGLE_CLIENT_SECRET=<secret>
 //
-// Client-type note (design D3, unresolved): a **Desktop app** OAuth client is a
-// public client — leave the secret empty (pure PKCE), but its audience differs
-// from the web client, so the backend must accept it. A **Web** client keeps the
-// single audience (Option A) but is confidential — its secret must be supplied
-// here and is then shipped in the binary (a security trade-off). The secret is
-// sent on the token exchange only when non-empty, so the same build serves both.
+// Client-type note (design D3): we use a Google **Desktop app** client. Despite
+// PKCE, Google **still requires that client's `client_secret` at the token
+// exchange** (verified end-to-end on Windows) — so the secret must be supplied;
+// Google does not treat the desktop secret as confidential. The desktop client's
+// `aud` differs from the web client, so the backend accepts it via a
+// comma-separated `CYMBRA_GOOGLE_AUDIENCE`. The secret is sent on the exchange
+// only when non-empty, so a pure-PKCE public client (no secret) also works if one
+// is ever used.
 
 /// Google OAuth client ID for the desktop browser-loopback flow (Windows/Linux).
 /// Empty ⇒ Google hidden on desktop.
@@ -68,9 +70,9 @@ const String kDesktopGoogleClientId = String.fromEnvironment(
   'DESKTOP_GOOGLE_CLIENT_ID',
 );
 
-/// Optional client secret for the desktop token exchange. Required only when the
-/// chosen OAuth client is a *Web application* client (confidential); leave empty
-/// for a *Desktop app* client (public, PKCE-only).
+/// Client secret for the desktop token exchange. Google's *Desktop app* clients
+/// require it even with PKCE, so it is effectively mandatory for our setup (the
+/// exchange 400s without it). Sent only when non-empty.
 const String kDesktopGoogleClientSecret = String.fromEnvironment(
   'DESKTOP_GOOGLE_CLIENT_SECRET',
 );

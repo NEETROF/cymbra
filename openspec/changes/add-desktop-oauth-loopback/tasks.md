@@ -2,7 +2,7 @@
 
 - [x] 1.1 Determine whether the **web** OAuth client can run the loopback flow with `http://127.0.0.1` redirect URIs + PKCE so the `id_token` `aud` stays the web client (preserves Option A) — recorded in design.md (D3 resolution): web client can, but is confidential (must ship a secret)
 - [x] 1.2 If a **Desktop** client is required (different `aud`), decide: backend accepts a second Google audience (config + verifier list) vs a desktop-specific audience; record the outcome in design.md — recorded (agnostic build: optional client_secret serves either path)
-- [ ] 1.3 Register the loopback redirect URIs on the chosen Google Cloud client — **external** (Google Cloud console; do before release)
+- [x] 1.3 Register the loopback redirect URIs on the chosen Google Cloud client — done: a **Desktop app** client (`cymbra desktop`) auto-registers loopback; backend `CYMBRA_GOOGLE_AUDIENCE` extended to include it (comma-separated)
 
 ## 2. Pure core (host-testable)
 
@@ -29,5 +29,5 @@
 
 - [x] 5.1 `flutter analyze` + `dart run custom_lint` + `dart format` clean
 - [x] 5.2 `flutter test --coverage` green, coverage ≥ 80% (pure core covered; browser/HttpServer glue behind the fake/seam, excluded like other native adapters)
-- [ ] 5.3 Manual: Google sign-in **and** "Link Google" on Windows and Linux end-to-end against the backend — **manual** (needs real desktop + backend; do before release)
+- [~] 5.3 Manual: Google sign-in **and** "Link Google" on Windows and Linux end-to-end against the backend — **Windows: sign-in verified end-to-end** (Desktop client + secret + backend multi-audience). Linux pending; "Link Google" pending (no linking UI in-repo yet)
 - [x] 5.4 `openspec validate add-desktop-oauth-loopback --strict` passes
