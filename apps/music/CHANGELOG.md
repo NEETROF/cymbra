@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.7.0](https://github.com/NEETROF/cymbra/compare/music-v1.6.0...music-v1.7.0) (2026-07-09)
+
+
+### Features
+
+* desktop Google sign-in via browser loopback OAuth (Windows/Linux) ([#59](https://github.com/NEETROF/cymbra/issues/59)) ([3203778](https://github.com/NEETROF/cymbra/commit/3203778beb9cfd071ef534a4b24d002668d1be2a))
+
 ## [1.6.0](https://github.com/NEETROF/cymbra/compare/music-v1.5.0...music-v1.6.0) (2026-07-06)
 
 
