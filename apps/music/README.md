@@ -215,6 +215,11 @@ flutter build ... \
 
 ## Release builds (mobile)
 
+Tagging a `music-v*` release (via release-please) builds and **signs** every
+platform in CI: the Android **AAB + APK** and the desktop bundles are attached to
+the GitHub Release, and the iOS **IPA** is both attached and delivered to
+**TestFlight**. Details below.
+
 ### Config via `--dart-define-from-file`
 
 All build-time config (OIDC client IDs + gRPC endpoint) lives in per-environment
