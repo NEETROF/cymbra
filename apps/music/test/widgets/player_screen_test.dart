@@ -21,6 +21,7 @@ import 'package:music/painters/staff_painter.dart';
 import 'package:music/screens/player_screen.dart';
 import 'package:music/services/audio_service.dart';
 import 'package:music/services/midi_service.dart';
+import 'package:music/services/platform_info.dart';
 import 'package:music/state/player_data.dart';
 import 'package:music/state/player_notifier.dart';
 import 'package:music/theme/cymbra_theme.dart';
@@ -56,6 +57,7 @@ void main() {
     String? connected = 'Piano',
     Size size = const Size(1600, 900),
     RecordingAudioService? audioService,
+    bool isAndroid = false,
   }) async {
     await tester.binding.setSurfaceSize(size);
     midi = FakeMidiService(ports: ports, connected: connected);
@@ -65,6 +67,9 @@ void main() {
         midiServiceProvider.overrideWithValue(midi),
         scoreSourceProvider.overrideWithValue(FakeScoreSource()),
         audioServiceProvider.overrideWithValue(audio),
+        // Drive the Android-only OTG guidance deterministically (the test VM
+        // would otherwise report the host OS).
+        isAndroidProvider.overrideWithValue(isAndroid),
       ],
     );
     await tester.pumpWidget(
@@ -163,6 +168,51 @@ void main() {
     await tester.pump();
 
     expect(state().connectedDevice, 'Synth');
+    await teardownScreen(tester);
+  });
+
+  /// Opens the settings end drawer and drills into the "MIDI device" category.
+  Future<void> openMidiDeviceCategory(WidgetTester tester) async {
+    await tester.tap(find.byIcon(Icons.tune));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(find.text('MIDI device'));
+    await tester.pump();
+  }
+
+  testWidgets('settings menu › MIDI device shows OTG guidance on Android when '
+      'no port is detected', (tester) async {
+    await pumpScreen(tester, ports: const [], connected: null, isAndroid: true);
+    await openMidiDeviceCategory(tester);
+
+    // Android empty-state: actionable OTG/cable guidance, not the plain row.
+    expect(find.textContaining('No MIDI device detected'), findsOneWidget);
+    expect(find.textContaining('USB OTG'), findsOneWidget);
+    expect(find.text('No device detected'), findsNothing);
+    await teardownScreen(tester);
+  });
+
+  testWidgets('settings menu › MIDI device hides OTG guidance when a port is '
+      'present, and on non-Android when empty', (tester) async {
+    // A port is present on Android → guidance is gone (this branch only runs
+    // when the list is empty).
+    await pumpScreen(
+      tester,
+      ports: ['Piano'],
+      connected: 'Piano',
+      isAndroid: true,
+    );
+    await openMidiDeviceCategory(tester);
+    expect(find.textContaining('No MIDI device detected'), findsNothing);
+    expect(find.textContaining('USB OTG'), findsNothing);
+    await teardownScreen(tester);
+
+    // Empty list but non-Android → the plain "No device detected" row, never the
+    // Android-specific OTG guidance.
+    await pumpScreen(tester, ports: const [], connected: null);
+    await openMidiDeviceCategory(tester);
+    expect(find.text('No device detected'), findsOneWidget);
+    expect(find.textContaining('USB OTG'), findsNothing);
     await teardownScreen(tester);
   });
 

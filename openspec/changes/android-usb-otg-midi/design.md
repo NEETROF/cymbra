@@ -74,6 +74,16 @@ cable. It clears as soon as a port appears. No Rust/FFI change.
 - **[Re-launch/onNewIntent handling]** → `singleTop` + `taskAffinity=""` already
   set; verify plugging a device while the app is foregrounded doesn't spawn a new
   task or reset navigation. Covered in tasks.
+- **[Attach prompt shows even when app is foregrounded]** → On stock Android a
+  `singleTop` foreground activity receives the attach silently via `onNewIntent`,
+  but several OEMs (e.g. Samsung) re-show the system "Open Cymbra?" dialog on
+  every plug-in regardless. Confirmed on a physical device. This cannot be
+  suppressed from code while the manifest `USB_DEVICE_ATTACHED` filter is present,
+  because the launch-when-closed behavior and the while-open prompt are the same
+  mechanism. **Decision (accepted):** keep the filter — the auto-open-when-closed
+  affordance is worth the redundant prompt while open. Hot-plug detection while
+  the app runs is handled by midir's watcher thread regardless, so the prompt is
+  purely a launch affordance, not required for detection.
 - **[Platform check hurts testability]** → put the Android check behind the
   existing injectable pattern (like `midiServiceProvider`) so widget tests can
   drive both empty-Android and empty-other states.
