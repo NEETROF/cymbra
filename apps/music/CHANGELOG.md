@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.8.2](https://github.com/NEETROF/cymbra/compare/music-v1.8.1...music-v1.8.2) (2026-07-10)
+
+
+### Bug Fixes
+
+* **music:** unique iOS CFBundleName (fixes ITMS-90129) ([#68](https://github.com/NEETROF/cymbra/issues/68)) ([c260c46](https://github.com/NEETROF/cymbra/commit/c260c46a936401a3cfb1be5d19cb3f419be618e3))
+
 ## [1.8.1](https://github.com/NEETROF/cymbra/compare/music-v1.8.0...music-v1.8.1) (2026-07-10)
 
 
