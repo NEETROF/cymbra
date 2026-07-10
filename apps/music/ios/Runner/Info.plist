@@ -44,6 +44,12 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<!-- Landscape-only music-notation app. Opt out of iPad multitasking
+	     (Split View / Slide Over) so a restricted, landscape-only orientation
+	     set is allowed — otherwise App Store validation (error 90474) demands
+	     all four orientations for iPad multitasking support. -->
+	<key>UIRequiresFullScreen</key>
+	<true/>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
