@@ -15,6 +15,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../l10n/gen/app_localizations.dart';
 import '../../services/auth_service.dart';
 import '../../state/auth_flow.dart';
 import 'auth_messages.dart';
@@ -49,6 +50,7 @@ class _OtpVerifyScreenState extends ConsumerState<OtpVerifyScreen> {
   Future<void> _verify() async {
     final code = _code.text.trim();
     if (code.isEmpty) return;
+    final l10n = AppLocalizations.of(context);
     setState(() => _busy = true);
     try {
       await ref.read(authFlowProvider).verifyEmail(code);
@@ -59,15 +61,15 @@ class _OtpVerifyScreenState extends ConsumerState<OtpVerifyScreen> {
         if (mounted) Navigator.of(context).popUntil((r) => r.isFirst);
       } else {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Email verified — please sign in.')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(l10n.otpVerifiedSnack)));
           Navigator.of(context).pop();
         }
       }
     } on AuthException catch (e) {
       if (mounted) {
-        showAuthError(context, e, fallback: 'That code is invalid or expired.');
+        showAuthError(context, e, fallback: l10n.otpInvalidFallback);
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -75,12 +77,13 @@ class _OtpVerifyScreenState extends ConsumerState<OtpVerifyScreen> {
   }
 
   Future<void> _resend() async {
+    final l10n = AppLocalizations.of(context);
     try {
       await ref.read(authFlowProvider).resendVerification(widget.email);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('A new code was sent to your email.')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l10n.otpResentSnack)));
       }
     } on AuthException catch (e) {
       if (mounted) showAuthError(context, e);
@@ -89,19 +92,17 @@ class _OtpVerifyScreenState extends ConsumerState<OtpVerifyScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return AuthScaffold(
-      title: 'Verify your email',
+      title: l10n.otpTitle,
       children: [
-        Text(
-          'Enter the code we sent to ${widget.email}.',
-          textAlign: TextAlign.center,
-        ),
+        Text(l10n.otpIntro(widget.email), textAlign: TextAlign.center),
         const SizedBox(height: 24),
         TextField(
           key: const Key('otp-code'),
           controller: _code,
           keyboardType: TextInputType.number,
-          decoration: const InputDecoration(labelText: 'Verification code'),
+          decoration: InputDecoration(labelText: l10n.fieldVerificationCode),
         ),
         const SizedBox(height: 24),
         FilledButton(
@@ -112,12 +113,12 @@ class _OtpVerifyScreenState extends ConsumerState<OtpVerifyScreen> {
                   dimension: 18,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
-              : const Text('Verify'),
+              : Text(l10n.otpVerify),
         ),
         TextButton(
           key: const Key('otp-resend'),
           onPressed: _busy ? null : _resend,
-          child: const Text('Resend code'),
+          child: Text(l10n.otpResend),
         ),
       ],
     );

@@ -18,9 +18,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'dart:async';
 
+import 'l10n/gen/app_localizations.dart';
 import 'screens/auth/session_gate.dart';
 import 'services/audio_service.dart';
 import 'src/rust/frb_generated.dart';
+import 'state/app_locale.dart';
 import 'theme/cymbra_theme.dart';
 
 Future<void> main() async {
@@ -75,10 +77,17 @@ class CymbraApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Drive the locale from state: selecting a language rebuilds MaterialApp and
+    // re-resolves every AppLocalizations.of(context) — an immediate, restart-free
+    // switch. The title stays the fixed brand.
+    final locale = ref.watch(appLocaleProvider);
     return MaterialApp(
       title: 'Cymbra Music',
       debugShowCheckedModeBanner: false,
       theme: buildCymbraTheme(),
+      locale: locale,
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       home: const SessionGate(),
     );
   }

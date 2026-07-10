@@ -15,6 +15,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../l10n/gen/app_localizations.dart';
 import '../../state/session_notifier.dart';
 import '../../state/session_state.dart';
 import 'delete_account_screen.dart';
@@ -28,13 +29,14 @@ class AccountMenu extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final session = ref.watch(sessionNotifierProvider);
+    final l10n = AppLocalizations.of(context);
     return switch (session) {
       SessionGuest() => TextButton.icon(
         key: const Key('account-signin'),
         onPressed: () =>
             ref.read(sessionNotifierProvider.notifier).leaveGuest(),
         icon: const Icon(Icons.login),
-        label: const Text('Sign in'),
+        label: Text(l10n.signIn),
       ),
       SessionAuthenticated(:final account) => PopupMenuButton<String>(
         key: const Key('account-menu'),
@@ -57,13 +59,13 @@ class AccountMenu extends ConsumerWidget {
               enabled: false,
               child: Text('@${account!.handle}'),
             ),
-          const PopupMenuItem<String>(
+          PopupMenuItem<String>(
             value: 'signout',
-            child: Text('Sign out'),
+            child: Text(l10n.accountSignOut),
           ),
-          const PopupMenuItem<String>(
+          PopupMenuItem<String>(
             value: 'delete',
-            child: Text('Delete account'),
+            child: Text(l10n.accountDelete),
           ),
         ],
       ),

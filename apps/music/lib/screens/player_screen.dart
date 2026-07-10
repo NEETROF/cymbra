@@ -19,6 +19,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../l10n/gen/app_localizations.dart';
 import '../painters/partition_painter.dart';
 import '../painters/piano_keyboard_painter.dart';
 import '../painters/piano_layout.dart';
@@ -26,11 +27,14 @@ import '../painters/staff_painter.dart';
 import '../painters/synthesia_painter.dart';
 import '../services/platform_info.dart';
 import '../src/rust/api/musicxml.dart' show System;
+import '../state/app_language.dart';
+import '../state/app_locale.dart';
 import '../state/notation_data.dart';
 import '../state/notation_notifier.dart';
 import '../state/player_data.dart';
 import '../state/player_notifier.dart';
 import '../theme/cymbra_theme.dart';
+import '../widgets/language_selector.dart';
 
 /// Main screen of the Cymbra player: top bar, rendering area
 /// (Synthesia or Staff), keyboard, and transport bar.
@@ -331,6 +335,7 @@ class _TopBar extends ConsumerWidget {
     // Watch only the title here; the tempo/metronome chip watches its own slices
     // so the per-beat pulse doesn't rebuild the whole top bar.
     final title = ref.watch(playerProvider.select((d) => d.title));
+    final l10n = AppLocalizations.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: const BoxDecoration(
@@ -345,7 +350,7 @@ class _TopBar extends ConsumerWidget {
           if (Navigator.of(context).canPop())
             IconButton(
               icon: const Icon(Icons.arrow_back, color: CymbraColors.onSurface),
-              tooltip: 'Back to library',
+              tooltip: l10n.backToLibrary,
               onPressed: () => Navigator.of(context).maybePop(),
             )
           else
@@ -369,7 +374,7 @@ class _TopBar extends ConsumerWidget {
                   ),
                 ),
                 Text(
-                  'Now Playing: ${title ?? '—'}',
+                  l10n.nowPlaying(title ?? '—'),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
@@ -413,15 +418,25 @@ class _SettingsMenu extends StatelessWidget {
   Widget build(BuildContext context) {
     return IconButton(
       icon: const Icon(Icons.tune, color: CymbraColors.onSurface),
-      tooltip: 'Settings',
+      tooltip: AppLocalizations.of(context).settings,
       onPressed: () => Scaffold.of(context).openEndDrawer(),
     );
   }
 }
 
-/// A setting category shown in the drawer's top-level list: its title, icon, and
-/// a short label of the value currently in effect.
-typedef _Category = ({String title, IconData icon, String current});
+/// The settings categories shown in the drawer. Used as a stable key so the
+/// selected category survives localization (the display titles are translated,
+/// but the key that drives navigation is not).
+enum _SettingsCategory { midiDevice, keyboardSize, hand, language }
+
+/// A setting category shown in the drawer's top-level list: its stable key,
+/// localized title, icon, and a short label of the value currently in effect.
+typedef _Category = ({
+  _SettingsCategory key,
+  String title,
+  IconData icon,
+  String current,
+});
 
 /// The settings drawer: a master-detail panel. The first screen lists the
 /// setting **categories** (MIDI device, Keyboard size, Hand); tapping one shows
@@ -435,22 +450,35 @@ class _SettingsDrawer extends ConsumerStatefulWidget {
 }
 
 class _SettingsDrawerState extends ConsumerState<_SettingsDrawer> {
-  static const Map<Hand, String> _handLabels = {
-    Hand.left: 'Left',
-    Hand.right: 'Right',
-    Hand.both: 'Both',
-  };
-
   /// The category whose values are shown; null shows the category list.
-  String? _category;
+  _SettingsCategory? _category;
 
   /// Returns the drawer to its top-level category list (called when it opens).
   void resetToRoot() {
     if (mounted && _category != null) setState(() => _category = null);
   }
 
-  String _rangeLabel(KeyboardRangeMode m) =>
-      m == KeyboardRangeMode.auto ? 'Auto (fit piece)' : '${m.label} keys';
+  /// Localized title for a settings [category], resolved independently of the
+  /// master list so the detail header renders even when a category is
+  /// conditionally hidden (e.g. Hand for single-staff pieces).
+  String _categoryTitle(AppLocalizations l10n, _SettingsCategory category) =>
+      switch (category) {
+        _SettingsCategory.midiDevice => l10n.settingsCategoryMidiDevice,
+        _SettingsCategory.keyboardSize => l10n.settingsCategoryKeyboardSize,
+        _SettingsCategory.hand => l10n.settingsCategoryHand,
+        _SettingsCategory.language => l10n.settingsCategoryLanguage,
+      };
+
+  String _handLabel(AppLocalizations l10n, Hand hand) => switch (hand) {
+    Hand.left => l10n.handLeft,
+    Hand.right => l10n.handRight,
+    Hand.both => l10n.handBoth,
+  };
+
+  String _rangeLabel(AppLocalizations l10n, KeyboardRangeMode m) =>
+      m == KeyboardRangeMode.auto
+      ? l10n.keyboardAutoFit
+      : l10n.keyboardKeys(m.label);
 
   /// A radio-style value row with a leading "selected" check.
   Widget _option({
@@ -467,22 +495,46 @@ class _SettingsDrawerState extends ConsumerState<_SettingsDrawer> {
     onTap: onTap,
   );
 
+  /// A language row: the flag is the visible content, with an accessible label
+  /// so screen readers announce the language name rather than the emoji.
+  Widget _languageOption({
+    required bool selected,
+    required String flag,
+    required String semanticLabel,
+    required VoidCallback? onTap,
+  }) => Semantics(
+    label: semanticLabel,
+    selected: selected,
+    button: true,
+    child: ListTile(
+      leading: Icon(
+        selected ? Icons.check_circle : Icons.radio_button_unchecked,
+        size: 20,
+        color: selected ? CymbraColors.tertiary : CymbraColors.onSurfaceVariant,
+      ),
+      title: Text(flag, style: const TextStyle(fontSize: 26)),
+      onTap: onTap,
+    ),
+  );
+
   /// The value rows for [category], built from the current selection.
   List<Widget> _valuesFor(
-    String category, {
+    _SettingsCategory category, {
+    required AppLocalizations l10n,
     required List<String> midiPorts,
     required String? connectedDevice,
     required KeyboardRangeMode keyboardRange,
     required Hand selectedHands,
+    required AppLanguage activeLanguage,
     required Player notifier,
     required bool isAndroid,
   }) {
     switch (category) {
-      case 'MIDI device':
+      case _SettingsCategory.midiDevice:
         return [
           _option(
             selected: connectedDevice == null,
-            label: 'Auto (first real device)',
+            label: l10n.midiAutoFirstDevice,
             onTap: () => notifier.selectMidiPort(null),
           ),
           for (final p in midiPorts)
@@ -499,37 +551,56 @@ class _SettingsDrawerState extends ConsumerState<_SettingsDrawer> {
           if (midiPorts.isEmpty && isAndroid)
             const _OtgGuidance()
           else if (midiPorts.isEmpty)
-            _option(selected: false, label: 'No device detected', onTap: null),
+            _option(
+              selected: false,
+              label: l10n.midiNoDeviceDetected,
+              onTap: null,
+            ),
         ];
-      case 'Keyboard size':
+      case _SettingsCategory.keyboardSize:
         return [
           for (final m in KeyboardRangeMode.values)
             _option(
               selected: m == keyboardRange,
-              label: _rangeLabel(m),
+              label: _rangeLabel(l10n, m),
               onTap: () => notifier.setKeyboardRange(m),
             ),
         ];
-      case 'Hand':
+      case _SettingsCategory.hand:
         return [
           for (final h in Hand.values)
             _option(
               selected: h == selectedHands,
-              label: _handLabels[h]!,
+              label: _handLabel(l10n, h),
               onTap: () => notifier.setSelectedHands(h),
             ),
         ];
-      default:
-        return const [];
+      case _SettingsCategory.language:
+        return [
+          for (final language in AppLanguage.values)
+            _languageOption(
+              selected: language == activeLanguage,
+              flag: language.flag,
+              semanticLabel: languageName(l10n, language),
+              onTap: () =>
+                  ref.read(appLocaleProvider.notifier).select(language),
+            ),
+        ];
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final notifier = ref.read(playerProvider.notifier);
     // Behind a provider so tests can drive the Android/non-Android empty-state
     // guidance deterministically (the test VM reports the host OS otherwise).
     final isAndroid = ref.watch(isAndroidProvider);
+    // The active language marks the selected flag; state is always a supported
+    // locale, so this never falls back in practice.
+    final activeLanguage =
+        AppLanguage.fromCode(ref.watch(appLocaleProvider).languageCode) ??
+        AppLanguage.en;
     final (
       midiPorts,
       connectedDevice,
@@ -551,23 +622,32 @@ class _SettingsDrawerState extends ConsumerState<_SettingsDrawer> {
     // Top-level categories (with the value currently in effect as a subtitle).
     final categories = <_Category>[
       (
-        title: 'MIDI device',
+        key: _SettingsCategory.midiDevice,
+        title: _categoryTitle(l10n, _SettingsCategory.midiDevice),
         icon: Icons.piano,
-        current: connectedDevice ?? 'Auto',
+        current: connectedDevice ?? l10n.settingsAuto,
       ),
       (
-        title: 'Keyboard size',
+        key: _SettingsCategory.keyboardSize,
+        title: _categoryTitle(l10n, _SettingsCategory.keyboardSize),
         icon: Icons.straighten,
         current: keyboardRange == KeyboardRangeMode.auto
-            ? 'Auto'
+            ? l10n.settingsAuto
             : keyboardRange.label,
       ),
       if (twoStaves)
         (
-          title: 'Hand',
+          key: _SettingsCategory.hand,
+          title: _categoryTitle(l10n, _SettingsCategory.hand),
           icon: Icons.front_hand,
-          current: _handLabels[selectedHands]!,
+          current: _handLabel(l10n, selectedHands),
         ),
+      (
+        key: _SettingsCategory.language,
+        title: _categoryTitle(l10n, _SettingsCategory.language),
+        icon: Icons.language,
+        current: activeLanguage.flag,
+      ),
     ];
 
     final Widget body;
@@ -576,7 +656,7 @@ class _SettingsDrawerState extends ConsumerState<_SettingsDrawer> {
       body = ListView(
         padding: EdgeInsets.zero,
         children: [
-          const _DrawerHeader(title: 'Settings'),
+          _DrawerHeader(title: l10n.settings),
           for (final c in categories)
             ListTile(
               leading: Icon(c.icon, color: CymbraColors.onSurfaceVariant),
@@ -592,7 +672,7 @@ class _SettingsDrawerState extends ConsumerState<_SettingsDrawer> {
                 Icons.chevron_right,
                 color: CymbraColors.onSurfaceVariant,
               ),
-              onTap: () => setState(() => _category = c.title),
+              onTap: () => setState(() => _category = c.key),
             ),
         ],
       );
@@ -602,15 +682,17 @@ class _SettingsDrawerState extends ConsumerState<_SettingsDrawer> {
         padding: EdgeInsets.zero,
         children: [
           _DrawerHeader(
-            title: _category!,
+            title: _categoryTitle(l10n, _category!),
             onBack: () => setState(() => _category = null),
           ),
           ..._valuesFor(
             _category!,
+            l10n: l10n,
             midiPorts: midiPorts,
             connectedDevice: connectedDevice,
             keyboardRange: keyboardRange,
             selectedHands: selectedHands,
+            activeLanguage: activeLanguage,
             notifier: notifier,
             isAndroid: isAndroid,
           ),
@@ -643,7 +725,7 @@ class _DrawerHeader extends StatelessWidget {
             children: [
               if (onBack != null) ...[
                 IconButton(
-                  tooltip: 'Back',
+                  tooltip: AppLocalizations.of(context).settingsBack,
                   icon: const Icon(
                     Icons.arrow_back,
                     color: CymbraColors.onSurfaceVariant,
@@ -681,39 +763,35 @@ class _DrawerHeader extends StatelessWidget {
 class _OtgGuidance extends StatelessWidget {
   const _OtgGuidance();
 
-  /// Short headline for the empty MIDI list on Android.
-  static const String title = 'No MIDI device detected';
-
-  /// Actionable body pointing at the two things the user (not the app) controls.
-  static const String body =
-      'If your keyboard is plugged in, enable USB OTG in your phone Settings '
-      '(search "OTG"), and check that your cable/adapter supports data — not '
-      'charge-only.';
-
   @override
   Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.fromLTRB(20, 12, 20, 12),
+    final l10n = AppLocalizations.of(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.usb_off, size: 20, color: CymbraColors.onSurfaceVariant),
-          SizedBox(width: 16),
+          const Icon(
+            Icons.usb_off,
+            size: 20,
+            color: CymbraColors.onSurfaceVariant,
+          ),
+          const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  title,
-                  style: TextStyle(
+                  l10n.midiOtgTitle,
+                  style: const TextStyle(
                     color: CymbraColors.onSurface,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                SizedBox(height: 4),
+                const SizedBox(height: 4),
                 Text(
-                  body,
-                  style: TextStyle(
+                  l10n.midiOtgBody,
+                  style: const TextStyle(
                     color: CymbraColors.onSurfaceVariant,
                     fontSize: 13,
                     height: 1.35,
@@ -736,6 +814,7 @@ class _ModeToggle extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final mode = ref.watch(playerProvider.select((d) => d.mode));
     final notifier = ref.read(playerProvider.notifier);
+    final l10n = AppLocalizations.of(context);
     return SegmentedButton<RenderMode>(
       style: ButtonStyle(
         visualDensity: VisualDensity.compact,
@@ -747,10 +826,16 @@ class _ModeToggle extends ConsumerWidget {
       ),
       // Labels only (no per-segment icons) to keep the top bar within narrow
       // tablet widths now that there are three modes.
-      segments: const [
-        ButtonSegment(value: RenderMode.synthesia, label: Text('Synthesia')),
-        ButtonSegment(value: RenderMode.staff, label: Text('Staff')),
-        ButtonSegment(value: RenderMode.partition, label: Text('Partition')),
+      segments: [
+        ButtonSegment(
+          value: RenderMode.synthesia,
+          label: Text(l10n.modeSynthesia),
+        ),
+        ButtonSegment(value: RenderMode.staff, label: Text(l10n.modeStaff)),
+        ButtonSegment(
+          value: RenderMode.partition,
+          label: Text(l10n.modePartition),
+        ),
       ],
       selected: {mode},
       onSelectionChanged: (s) => notifier.setMode(s.first),
@@ -803,10 +888,11 @@ class _TempoChipState extends ConsumerState<_TempoChip>
       _pulse.forward(from: 0);
     });
 
+    final l10n = AppLocalizations.of(context);
     return Semantics(
       button: true,
       toggled: enabled,
-      label: 'Metronome',
+      label: l10n.metronome,
       child: InkWell(
         onTap: () => ref.read(playerProvider.notifier).toggleMetronome(),
         borderRadius: BorderRadius.circular(8),
@@ -853,7 +939,7 @@ class _TempoChipState extends ConsumerState<_TempoChip>
               ),
               const SizedBox(width: 6),
               Text(
-                'Tempo: $bpm',
+                l10n.tempo(bpm),
                 style: const TextStyle(
                   color: CymbraColors.onSurface,
                   fontSize: 13,
@@ -881,6 +967,7 @@ class _MidiStatusIndicator extends ConsumerWidget {
     final (connected, hasPorts) = ref.watch(
       playerProvider.select((d) => (d.midiConnected, d.midiPorts.isNotEmpty)),
     );
+    final l10n = AppLocalizations.of(context);
 
     final Color color;
     final String label;
@@ -889,15 +976,15 @@ class _MidiStatusIndicator extends ConsumerWidget {
     if (connected) {
       color = CymbraColors.tertiary;
       icon = Icons.usb;
-      label = 'Connected';
+      label = l10n.midiConnected;
     } else if (hasPorts) {
       color = CymbraColors.secondary;
       icon = Icons.usb;
-      label = 'Connecting…';
+      label = l10n.midiConnecting;
     } else {
       color = CymbraColors.outline;
       icon = Icons.usb_off;
-      label = 'No MIDI device';
+      label = l10n.midiStatusNone;
     }
 
     return Container(

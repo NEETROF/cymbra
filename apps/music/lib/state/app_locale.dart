@@ -1,0 +1,89 @@
+// Copyright 2026 NEETROF
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+import 'dart:ui' show Locale, PlatformDispatcher;
+
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:riverpod_annotation/riverpod_annotation.dart';
+
+import '../services/preferences_service.dart';
+import 'app_language.dart';
+
+part 'app_locale.g.dart';
+
+/// The device's current locale, behind a provider so tests can drive the
+/// default-language behaviour deterministically (the VM reports the host locale
+/// otherwise). Read once at startup by [AppLocale].
+@riverpod
+Locale deviceLocale(Ref ref) => PlatformDispatcher.instance.locale;
+
+/// The active UI locale that drives `MaterialApp.locale`.
+///
+/// The state is always a concrete supported `Locale`. It is seeded
+/// synchronously from the device locale (so the first frame is already
+/// correct-by-default) and then reconciled against the persisted choice, which
+/// loads asynchronously. Selecting a language updates the state — rebuilding
+/// `MaterialApp` for an immediate, restart-free switch — and persists the code.
+///
+/// Resolution precedence is specified by [resolveLanguage]: a supported
+/// persisted choice wins, else the device language, else English.
+@Riverpod(keepAlive: true)
+class AppLocale extends _$AppLocale {
+  /// Preferences key under which the selected language [AppLanguage.code] lives.
+  static const String prefsKey = 'app_language';
+
+  @override
+  Locale build() {
+    final device = ref.watch(deviceLocaleProvider);
+    // Load the persisted override (if any) and reconcile once it arrives; until
+    // then, fall back to the device-derived language so nothing blocks startup.
+    _restore(device);
+    return resolveLanguage(deviceLocale: device).locale;
+  }
+
+  Future<void> _restore(Locale device) async {
+    final prefs = ref.read(preferencesServiceProvider);
+    // Storage is best-effort: if it is unavailable, keep the device-derived
+    // default rather than failing (mirrors the app's other stores).
+    String? storedCode;
+    try {
+      storedCode = await prefs.getString(prefsKey);
+    } catch (_) {
+      return;
+    }
+    final resolved = resolveLanguage(
+      persistedCode: storedCode,
+      deviceLocale: device,
+    );
+    state = resolved.locale;
+    // Self-heal: a stored value that is no longer supported resolves to the
+    // fallback above; re-persist it so storage matches what is shown.
+    if (storedCode != null && AppLanguage.fromCode(storedCode) == null) {
+      try {
+        await prefs.setString(prefsKey, resolved.code);
+      } catch (_) {}
+    }
+  }
+
+  /// Switches the UI to [language] immediately and persists the choice. The
+  /// switch is applied even if persistence fails, so the UI never gets stuck.
+  Future<void> select(AppLanguage language) async {
+    state = language.locale;
+    try {
+      await ref
+          .read(preferencesServiceProvider)
+          .setString(prefsKey, language.code);
+    } catch (_) {}
+  }
+}

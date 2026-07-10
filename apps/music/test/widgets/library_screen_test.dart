@@ -24,6 +24,7 @@ import 'package:music/services/score_asset_source.dart';
 import 'package:music/state/score_catalog.dart';
 
 import '../support/fakes.dart';
+import '../support/localized.dart';
 import '../support/notation_fakes.dart';
 
 const _entries = [
@@ -74,7 +75,7 @@ Future<void> _pump(WidgetTester tester, ProviderContainer container) async {
   await tester.pumpWidget(
     UncontrolledProviderScope(
       container: container,
-      child: const MaterialApp(home: LibraryScreen()),
+      child: localizedApp(const LibraryScreen()),
     ),
   );
 }

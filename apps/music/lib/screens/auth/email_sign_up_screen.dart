@@ -15,6 +15,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../l10n/gen/app_localizations.dart';
 import '../../services/auth_policy.dart';
 import '../../services/auth_service.dart';
 import '../../state/auth_flow.dart';
@@ -52,6 +53,7 @@ class _EmailSignUpScreenState extends ConsumerState<EmailSignUpScreen> {
     setState(() => _passwordError = policyError);
     if (email.isEmpty || policyError != null) return;
 
+    final l10n = AppLocalizations.of(context);
     setState(() => _busy = true);
     try {
       await ref.read(authFlowProvider).signUp(email: email, password: password);
@@ -64,11 +66,7 @@ class _EmailSignUpScreenState extends ConsumerState<EmailSignUpScreen> {
       }
     } on AuthException catch (e) {
       if (mounted) {
-        showAuthError(
-          context,
-          e,
-          fallback: 'Could not create the account. Please try again.',
-        );
+        showAuthError(context, e, fallback: l10n.signUpFallback);
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -77,15 +75,16 @@ class _EmailSignUpScreenState extends ConsumerState<EmailSignUpScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return AuthScaffold(
-      title: 'Create your account',
+      title: l10n.signUpTitle,
       children: [
         TextField(
           key: const Key('signup-email'),
           controller: _email,
           keyboardType: TextInputType.emailAddress,
           autocorrect: false,
-          decoration: const InputDecoration(labelText: 'Email'),
+          decoration: InputDecoration(labelText: l10n.fieldEmail),
         ),
         const SizedBox(height: 16),
         TextField(
@@ -93,8 +92,8 @@ class _EmailSignUpScreenState extends ConsumerState<EmailSignUpScreen> {
           controller: _password,
           obscureText: true,
           decoration: InputDecoration(
-            labelText: 'Password',
-            helperText: 'At least $kPasswordMinLength characters',
+            labelText: l10n.fieldPassword,
+            helperText: l10n.passwordMinChars(kPasswordMinLength),
             errorText: _passwordError,
           ),
         ),
@@ -107,7 +106,7 @@ class _EmailSignUpScreenState extends ConsumerState<EmailSignUpScreen> {
                   dimension: 18,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
-              : const Text('Create account'),
+              : Text(l10n.signUpButton),
         ),
       ],
     );

@@ -26,6 +26,7 @@ import 'package:music/state/session_state.dart';
 
 import '../support/auth_fakes.dart';
 import '../support/auth_harness.dart';
+import '../support/localized.dart';
 
 Future<void> _pump(
   WidgetTester tester,
@@ -34,10 +35,7 @@ Future<void> _pump(
 ) async {
   await tester.binding.setSurfaceSize(const Size(1200, 900));
   await tester.pumpWidget(
-    UncontrolledProviderScope(
-      container: c,
-      child: MaterialApp(home: child),
-    ),
+    UncontrolledProviderScope(container: c, child: localizedApp(child)),
   );
 }
 
@@ -81,6 +79,26 @@ void main() {
     expect(find.byKey(const Key('entry-apple')), findsNothing);
     expect(find.byKey(const Key('entry-email')), findsOneWidget);
     expect(find.byKey(const Key('entry-guest')), findsOneWidget);
+  });
+
+  testWidgets('entry screen is localized and offers a language switcher', (
+    tester,
+  ) async {
+    final c = authContainer(oidc: FakeOidcTokenSource(appleAvailable: true));
+    await tester.binding.setSurfaceSize(const Size(1200, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: c,
+        child: localizedApp(const EntryScreen(), locale: const Locale('fr')),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Strings render in French, and the language switcher is present.
+    expect(find.text('Continuer sans compte'), findsOneWidget);
+    expect(find.text('Continuer avec l\'e-mail'), findsOneWidget);
+    expect(find.byTooltip('Langue'), findsOneWidget);
   });
 
   testWidgets('guest choice persists and enters guest mode', (tester) async {

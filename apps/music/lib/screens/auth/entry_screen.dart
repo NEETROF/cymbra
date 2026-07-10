@@ -15,11 +15,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../l10n/gen/app_localizations.dart';
 import '../../services/auth_service.dart';
 import '../../services/oidc_token_source.dart';
 import '../../state/auth_flow.dart';
 import '../../state/session_notifier.dart';
 import '../../theme/cymbra_theme.dart';
+import '../../widgets/language_selector.dart';
 import 'auth_messages.dart';
 import 'email_sign_in_screen.dart';
 
@@ -47,9 +49,7 @@ class _EntryScreenState extends ConsumerState<EntryScreen> {
       // A native SDK / platform failure must not crash the entry screen.
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Something went wrong. Please try again.'),
-          ),
+          SnackBar(content: Text(AppLocalizations.of(context).entryError)),
         );
       }
     } finally {
@@ -77,76 +77,95 @@ class _EntryScreenState extends ConsumerState<EntryScreen> {
     final oidc = ref.watch(oidcTokenSourceProvider);
     final googleAvailable = oidc.googleAvailable;
     final appleAvailable = oidc.appleAvailable;
+    final l10n = AppLocalizations.of(context);
 
     return Scaffold(
       backgroundColor: CymbraColors.background,
       body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 420),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(
-                    Icons.piano,
-                    size: 72,
-                    color: CymbraColors.primary,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Cymbra',
-                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      color: CymbraColors.onSurface,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Sign in to sync and share, or jump straight in.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: CymbraColors.onSurfaceVariant),
-                  ),
-                  const SizedBox(height: 40),
-                  if (googleAvailable) ...[
-                    _EntryButton(
-                      key: const Key('entry-google'),
-                      icon: Icons.account_circle,
-                      label: 'Continue with Google',
-                      onPressed: _busy ? null : _continueWithGoogle,
-                    ),
-                    const SizedBox(height: 12),
-                  ],
-                  if (appleAvailable) ...[
-                    _EntryButton(
-                      key: const Key('entry-apple'),
-                      icon: Icons.apple,
-                      label: 'Continue with Apple',
-                      onPressed: _busy ? null : _continueWithApple,
-                    ),
-                    const SizedBox(height: 12),
-                  ],
-                  _EntryButton(
-                    key: const Key('entry-email'),
-                    icon: Icons.mail_outline,
-                    label: 'Continue with email',
-                    onPressed: _busy ? null : _continueWithEmail,
-                  ),
-                  const SizedBox(height: 24),
-                  TextButton(
-                    key: const Key('entry-guest'),
-                    onPressed: _busy ? null : _continueAsGuest,
-                    child: const Text('Continue without an account'),
-                  ),
-                  if (_busy) ...[
-                    const SizedBox(height: 16),
-                    const CircularProgressIndicator(),
-                  ],
-                ],
+        child: Stack(
+          children: [
+            // Language switcher reachable before signing in (top-right corner).
+            const Align(
+              alignment: Alignment.topRight,
+              child: Padding(
+                padding: EdgeInsets.all(4),
+                child: LanguageSelectorButton(),
               ),
             ),
-          ),
+            Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 32,
+                  vertical: 24,
+                ),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 420),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.piano,
+                        size: 72,
+                        color: CymbraColors.primary,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Cymbra',
+                        style: Theme.of(context).textTheme.headlineMedium
+                            ?.copyWith(
+                              color: CymbraColors.onSurface,
+                              fontWeight: FontWeight.w800,
+                            ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        l10n.entrySubtitle,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: CymbraColors.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 40),
+                      if (googleAvailable) ...[
+                        _EntryButton(
+                          key: const Key('entry-google'),
+                          icon: Icons.account_circle,
+                          label: l10n.entryContinueGoogle,
+                          onPressed: _busy ? null : _continueWithGoogle,
+                        ),
+                        const SizedBox(height: 12),
+                      ],
+                      if (appleAvailable) ...[
+                        _EntryButton(
+                          key: const Key('entry-apple'),
+                          icon: Icons.apple,
+                          label: l10n.entryContinueApple,
+                          onPressed: _busy ? null : _continueWithApple,
+                        ),
+                        const SizedBox(height: 12),
+                      ],
+                      _EntryButton(
+                        key: const Key('entry-email'),
+                        icon: Icons.mail_outline,
+                        label: l10n.entryContinueEmail,
+                        onPressed: _busy ? null : _continueWithEmail,
+                      ),
+                      const SizedBox(height: 24),
+                      TextButton(
+                        key: const Key('entry-guest'),
+                        onPressed: _busy ? null : _continueAsGuest,
+                        child: Text(l10n.entryContinueGuest),
+                      ),
+                      if (_busy) ...[
+                        const SizedBox(height: 16),
+                        const CircularProgressIndicator(),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

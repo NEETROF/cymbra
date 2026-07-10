@@ -19,6 +19,13 @@ scripts:
     description: Generate the Cymbra ID gRPC Dart stubs from the backend protos.
     run: bash apps/music/tool/gen_grpc.sh
 
+  gen-l10n:
+    description: Generate the AppLocalizations from the ARB files (lib/l10n/).
+    run: melos exec -- flutter gen-l10n
+    packageFilters:
+      flutter: true
+      fileExists: l10n.yaml
+
   generate:
     description: Run build_runner codegen (riverpod_generator + freezed).
     run: melos exec -- dart run build_runner build --delete-conflicting-outputs
