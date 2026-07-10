@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.8.1](https://github.com/NEETROF/cymbra/compare/music-v1.8.0...music-v1.8.1) (2026-07-10)
+
+
+### Bug Fixes
+
+* **music:** require full screen on iPad (landscape-only app) ([#66](https://github.com/NEETROF/cymbra/issues/66)) ([f47df8d](https://github.com/NEETROF/cymbra/commit/f47df8d49dbe79696fc05bea21a9ff9ec65d18bf))
+
 ## [1.8.0](https://github.com/NEETROF/cymbra/compare/music-v1.7.0...music-v1.8.0) (2026-07-10)
 
 
