@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.8.0](https://github.com/NEETROF/cymbra/compare/music-v1.7.0...music-v1.8.0) (2026-07-10)
+
+
+### Documentation
+
+* **music:** summarize the signed release pipeline in the README ([#64](https://github.com/NEETROF/cymbra/issues/64)) ([1c72533](https://github.com/NEETROF/cymbra/commit/1c7253308a2020ae78960cfe0a55955e392bab91))
+
 ## [1.7.0](https://github.com/NEETROF/cymbra/compare/music-v1.6.0...music-v1.7.0) (2026-07-09)
 
 
