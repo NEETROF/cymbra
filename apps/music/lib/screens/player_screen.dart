@@ -24,6 +24,7 @@ import '../painters/piano_keyboard_painter.dart';
 import '../painters/piano_layout.dart';
 import '../painters/staff_painter.dart';
 import '../painters/synthesia_painter.dart';
+import '../services/platform_info.dart';
 import '../src/rust/api/musicxml.dart' show System;
 import '../state/notation_data.dart';
 import '../state/notation_notifier.dart';
@@ -474,6 +475,7 @@ class _SettingsDrawerState extends ConsumerState<_SettingsDrawer> {
     required KeyboardRangeMode keyboardRange,
     required Hand selectedHands,
     required Player notifier,
+    required bool isAndroid,
   }) {
     switch (category) {
       case 'MIDI device':
@@ -489,7 +491,14 @@ class _SettingsDrawerState extends ConsumerState<_SettingsDrawer> {
               label: p,
               onTap: () => notifier.selectMidiPort(p),
             ),
-          if (midiPorts.isEmpty)
+          // When no port is found on Android, the cause is usually USB OTG being
+          // off or a charge-only cable — neither of which the app can fix — so
+          // surface actionable guidance instead of a dead-end "No device" row.
+          // Other platforms keep the plain empty row. The guidance clears on its
+          // own once a port appears, since this branch only runs when empty.
+          if (midiPorts.isEmpty && isAndroid)
+            const _OtgGuidance()
+          else if (midiPorts.isEmpty)
             _option(selected: false, label: 'No device detected', onTap: null),
         ];
       case 'Keyboard size':
@@ -518,6 +527,9 @@ class _SettingsDrawerState extends ConsumerState<_SettingsDrawer> {
   @override
   Widget build(BuildContext context) {
     final notifier = ref.read(playerProvider.notifier);
+    // Behind a provider so tests can drive the Android/non-Android empty-state
+    // guidance deterministically (the test VM reports the host OS otherwise).
+    final isAndroid = ref.watch(isAndroidProvider);
     final (
       midiPorts,
       connectedDevice,
@@ -600,6 +612,7 @@ class _SettingsDrawerState extends ConsumerState<_SettingsDrawer> {
             keyboardRange: keyboardRange,
             selectedHands: selectedHands,
             notifier: notifier,
+            isAndroid: isAndroid,
           ),
         ],
       );
@@ -654,6 +667,63 @@ class _DrawerHeader extends StatelessWidget {
         ),
         const Divider(height: 1, color: CymbraColors.outlineVariant),
       ],
+    );
+  }
+}
+
+/// Android-only guidance shown in the MIDI device list when no port is detected.
+///
+/// USB OTG is a system/hardware toggle the app cannot enable itself, and a
+/// charge-only cable looks identical to a data one — so when Android enumerates
+/// no MIDI port the actionable move is to point the user at those two causes.
+/// Kept out of the plain "No device detected" row (used on other platforms)
+/// because the OTG/cable advice is Android-specific.
+class _OtgGuidance extends StatelessWidget {
+  const _OtgGuidance();
+
+  /// Short headline for the empty MIDI list on Android.
+  static const String title = 'No MIDI device detected';
+
+  /// Actionable body pointing at the two things the user (not the app) controls.
+  static const String body =
+      'If your keyboard is plugged in, enable USB OTG in your phone Settings '
+      '(search "OTG"), and check that your cable/adapter supports data — not '
+      'charge-only.';
+
+  @override
+  Widget build(BuildContext context) {
+    return const Padding(
+      padding: EdgeInsets.fromLTRB(20, 12, 20, 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.usb_off, size: 20, color: CymbraColors.onSurfaceVariant),
+          SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    color: CymbraColors.onSurface,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  body,
+                  style: TextStyle(
+                    color: CymbraColors.onSurfaceVariant,
+                    fontSize: 13,
+                    height: 1.35,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

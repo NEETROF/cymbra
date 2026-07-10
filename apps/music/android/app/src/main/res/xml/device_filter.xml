@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Matches any class-compliant USB MIDI device by its USB interface class rather
+  than by vendor/product IDs, so every standards-compliant keyboard matches and
+  the filter needs no maintenance.
+
+  USB Audio class = 1, MIDIStreaming subclass = 3 (per the USB Device Class
+  Definition for MIDI Devices). Matching on class/subclass keeps this
+  vendor-agnostic; a wrong subclass would silently never match.
+-->
+<resources>
+    <usb-device class="1" subclass="3" />
+</resources>

@@ -2,6 +2,10 @@
     <!-- MIDI: required=false → the app stays installable without the software MIDI feature;
          USB/BLE MIDI still works where it's available. -->
     <uses-feature android:name="android.software.midi" android:required="false" />
+    <!-- USB host: required=false → the app stays installable on devices without a
+         USB host stack, while declaring that Cymbra operates as a USB host so the
+         platform routes attached USB MIDI devices to it. -->
+    <uses-feature android:name="android.hardware.usb.host" android:required="false" />
     <application
         android:label="Cymbra Music"
         android:name="${applicationName}"
@@ -28,6 +32,18 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            <!-- USB device-attach: when a class-compliant USB MIDI device is
+                 plugged in, Android matches @xml/device_filter and offers to open
+                 Cymbra. Because MainActivity is singleTop, an already-running app
+                 receives the attach via onNewIntent (no new task) — on several OEM
+                 devices this handshake is what powers/enumerates the device so the
+                 AMidi backend can see it. -->
+            <intent-filter>
+                <action android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED"/>
+            </intent-filter>
+            <meta-data
+                android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED"
+                android:resource="@xml/device_filter" />
         </activity>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
