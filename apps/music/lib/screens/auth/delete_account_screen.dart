@@ -15,6 +15,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../l10n/gen/app_localizations.dart';
 import '../../services/auth_service.dart';
 import '../../services/grpc_client.dart';
 import '../../services/oidc_token_source.dart';
@@ -51,6 +52,7 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
   /// Run a re-authentication [reauth] that returns true on success (false = the
   /// user cancelled an OIDC sheet); on success, confirm and delete.
   Future<void> _reauthThenDelete(Future<bool> Function() reauth) async {
+    final l10n = AppLocalizations.of(context);
     setState(() => _busy = true);
     try {
       final ok = await reauth();
@@ -63,24 +65,16 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
       if (mounted) Navigator.of(context).popUntil((r) => r.isFirst);
     } on AuthException catch (e) {
       if (mounted) {
-        showAuthError(
-          context,
-          e,
-          fallback: 'Authentication failed — your account was not deleted.',
-        );
+        showAuthError(context, e, fallback: l10n.deleteReauthFailed);
       }
     } catch (_) {
       // A desktop OAuth (DesktopOauthException) or other platform failure during
       // re-auth must not escape uncaught (it is not an AuthException); surface it
       // like a failed re-auth rather than silently spinning down.
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Authentication failed — your account was not deleted.',
-            ),
-          ),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l10n.deleteReauthFailed)));
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -107,27 +101,28 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
   Future<void> _deleteWithApple() =>
       _reauthThenDelete(() => ref.read(authFlowProvider).signInWithApple());
 
-  Future<bool?> _confirmIrreversible() => showDialog<bool>(
-    context: context,
-    builder: (ctx) => AlertDialog(
-      title: const Text('Delete account?'),
-      content: const Text(
-        'This permanently deletes your Cymbra account and cannot be undone.',
+  Future<bool?> _confirmIrreversible() {
+    final l10n = AppLocalizations.of(context);
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l10n.deleteConfirmTitle),
+        content: Text(l10n.deleteConfirmBody),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(l10n.cancel),
+          ),
+          FilledButton(
+            key: const Key('delete-confirm'),
+            style: FilledButton.styleFrom(backgroundColor: CymbraColors.error),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text(l10n.delete),
+          ),
+        ],
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(ctx).pop(false),
-          child: const Text('Cancel'),
-        ),
-        FilledButton(
-          key: const Key('delete-confirm'),
-          style: FilledButton.styleFrom(backgroundColor: CymbraColors.error),
-          onPressed: () => Navigator.of(ctx).pop(true),
-          child: const Text('Delete'),
-        ),
-      ],
-    ),
-  );
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -135,28 +130,25 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
     final googleAvailable = oidc.googleAvailable;
     final appleAvailable = oidc.appleAvailable;
 
+    final l10n = AppLocalizations.of(context);
     return AuthScaffold(
-      title: 'Delete account',
+      title: l10n.accountDelete,
       children: [
-        const Text(
-          'For your security, confirm it’s you before deleting. This action is '
-          'permanent.',
-          textAlign: TextAlign.center,
-        ),
+        Text(l10n.deleteIntro, textAlign: TextAlign.center),
         const SizedBox(height: 24),
         TextField(
           key: const Key('delete-email'),
           controller: _email,
           keyboardType: TextInputType.emailAddress,
           autocorrect: false,
-          decoration: const InputDecoration(labelText: 'Email'),
+          decoration: InputDecoration(labelText: l10n.fieldEmail),
         ),
         const SizedBox(height: 16),
         TextField(
           key: const Key('delete-password'),
           controller: _password,
           obscureText: true,
-          decoration: const InputDecoration(labelText: 'Password'),
+          decoration: InputDecoration(labelText: l10n.fieldPassword),
         ),
         const SizedBox(height: 24),
         FilledButton(
@@ -168,11 +160,11 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
                   dimension: 18,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
-              : const Text('Confirm with password & delete'),
+              : Text(l10n.deleteConfirmButton),
         ),
         if (googleAvailable || appleAvailable) ...[
           const SizedBox(height: 16),
-          const Text('or re-authenticate with', textAlign: TextAlign.center),
+          Text(l10n.deleteReauthWith, textAlign: TextAlign.center),
         ],
         if (googleAvailable) ...[
           const SizedBox(height: 8),
@@ -180,7 +172,7 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
             key: const Key('delete-with-google'),
             onPressed: _busy ? null : _deleteWithGoogle,
             icon: const Icon(Icons.account_circle),
-            label: const Text('Google'),
+            label: Text(l10n.providerGoogle),
           ),
         ],
         if (appleAvailable) ...[
@@ -189,7 +181,7 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
             key: const Key('delete-with-apple'),
             onPressed: _busy ? null : _deleteWithApple,
             icon: const Icon(Icons.apple),
-            label: const Text('Apple'),
+            label: Text(l10n.providerApple),
           ),
         ],
       ],

@@ -25,6 +25,7 @@ import 'package:music/state/player_notifier.dart';
 import 'package:music/state/score_catalog.dart';
 
 import '../support/fakes.dart';
+import '../support/localized.dart';
 import '../support/notation_fakes.dart';
 
 const _entry = CatalogEntry(
@@ -58,7 +59,7 @@ void main() {
     await tester.pumpWidget(
       UncontrolledProviderScope(
         container: container,
-        child: const MaterialApp(home: PlayerScreen()),
+        child: localizedApp(const PlayerScreen()),
       ),
     );
     for (var i = 0; i < 12; i++) {
@@ -109,7 +110,7 @@ void main() {
     await tester.pumpWidget(
       UncontrolledProviderScope(
         container: container,
-        child: const MaterialApp(home: PlayerScreen()),
+        child: localizedApp(const PlayerScreen()),
       ),
     );
     for (var i = 0; i < 12; i++) {

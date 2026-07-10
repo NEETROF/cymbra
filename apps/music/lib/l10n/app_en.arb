@@ -1,0 +1,220 @@
+{
+  "@@locale": "en",
+
+  "nowPlaying": "Now Playing: {title}",
+  "@nowPlaying": {
+    "description": "Player top-bar subtitle showing the current score title.",
+    "placeholders": {
+      "title": { "type": "String", "example": "Für Elise" }
+    }
+  },
+
+  "backToLibrary": "Back to library",
+  "@backToLibrary": { "description": "Tooltip on the player back button." },
+
+  "settings": "Settings",
+  "@settings": { "description": "Tooltip on the settings gear and the settings drawer title." },
+
+  "settingsBack": "Back",
+  "@settingsBack": { "description": "Back button in the settings drawer detail view." },
+
+  "settingsCategoryMidiDevice": "MIDI device",
+  "@settingsCategoryMidiDevice": { "description": "Settings category: choose the MIDI input device." },
+
+  "settingsCategoryKeyboardSize": "Keyboard size",
+  "@settingsCategoryKeyboardSize": { "description": "Settings category: choose the on-screen keyboard range." },
+
+  "settingsCategoryHand": "Hand",
+  "@settingsCategoryHand": { "description": "Settings category: choose which hand(s) to show." },
+
+  "settingsCategoryLanguage": "Language",
+  "@settingsCategoryLanguage": { "description": "Settings category: choose the app language." },
+
+  "settingsAuto": "Auto",
+  "@settingsAuto": { "description": "Short label for an automatic setting value (shown as the current value)." },
+
+  "handLeft": "Left",
+  "@handLeft": { "description": "Left-hand option." },
+
+  "handRight": "Right",
+  "@handRight": { "description": "Right-hand option." },
+
+  "handBoth": "Both",
+  "@handBoth": { "description": "Both-hands option." },
+
+  "keyboardAutoFit": "Auto (fit piece)",
+  "@keyboardAutoFit": { "description": "Keyboard-size option that auto-fits the current piece." },
+
+  "keyboardKeys": "{keys} keys",
+  "@keyboardKeys": {
+    "description": "Keyboard-size option labelled by its key count, e.g. '88 keys'.",
+    "placeholders": {
+      "keys": { "type": "String", "example": "88" }
+    }
+  },
+
+  "midiAutoFirstDevice": "Auto (first real device)",
+  "@midiAutoFirstDevice": { "description": "MIDI-device option that auto-picks the first connected device." },
+
+  "midiNoDeviceDetected": "No device detected",
+  "@midiNoDeviceDetected": { "description": "Shown in the MIDI-device list when no port is available." },
+
+  "midiOtgTitle": "No MIDI device detected",
+  "@midiOtgTitle": { "description": "Headline of the Android OTG guidance in the empty MIDI list." },
+
+  "midiOtgBody": "If your keyboard is plugged in, enable USB OTG in your phone Settings (search \"OTG\"), and check that your cable/adapter supports data — not charge-only.",
+  "@midiOtgBody": { "description": "Android-only actionable guidance when no MIDI port is detected." },
+
+  "midiConnected": "Connected",
+  "@midiConnected": { "description": "Top-bar MIDI status: a device is connected." },
+
+  "midiConnecting": "Connecting…",
+  "@midiConnecting": { "description": "Top-bar MIDI status: a device is detected but not yet connected." },
+
+  "midiStatusNone": "No MIDI device",
+  "@midiStatusNone": { "description": "Top-bar MIDI status: no device present." },
+
+  "modeSynthesia": "Synthesia",
+  "@modeSynthesia": { "description": "Render-mode toggle: falling-notes (Synthesia-style) view. Kept as the recognised term across languages." },
+
+  "modeStaff": "Staff",
+  "@modeStaff": { "description": "Render-mode toggle: single-staff notation view." },
+
+  "modePartition": "Partition",
+  "@modePartition": { "description": "Render-mode toggle: full score / partition view." },
+
+  "tempo": "Tempo: {bpm}",
+  "@tempo": {
+    "description": "Top-bar tempo chip showing beats per minute.",
+    "placeholders": {
+      "bpm": { "type": "int", "example": "120" }
+    }
+  },
+
+  "metronome": "Metronome",
+  "@metronome": { "description": "Accessible label for the tempo chip that toggles the metronome." },
+
+  "languageSystemDefault": "System default",
+  "@languageSystemDefault": { "description": "Language option that follows the device locale (clears any override)." },
+
+  "languageEnglish": "English",
+  "@languageEnglish": { "description": "Accessible label for the English (🇬🇧) flag in the language picker." },
+
+  "languageFrench": "French",
+  "@languageFrench": { "description": "Accessible label for the French (🇫🇷) flag in the language picker." },
+
+  "languageItalian": "Italian",
+  "@languageItalian": { "description": "Accessible label for the Italian (🇮🇹) flag in the language picker." },
+
+  "languageSpanish": "Spanish",
+  "@languageSpanish": { "description": "Accessible label for the Spanish (🇪🇸) flag in the language picker." },
+
+  "entrySubtitle": "Sign in to sync and share, or jump straight in.",
+  "@entrySubtitle": { "description": "Tagline under the brand on the launch/login screen." },
+
+  "entryContinueGoogle": "Continue with Google",
+  "@entryContinueGoogle": { "description": "Login button: sign in with Google." },
+
+  "entryContinueApple": "Continue with Apple",
+  "@entryContinueApple": { "description": "Login button: sign in with Apple." },
+
+  "entryContinueEmail": "Continue with email",
+  "@entryContinueEmail": { "description": "Login button: sign in with email." },
+
+  "entryContinueGuest": "Continue without an account",
+  "@entryContinueGuest": { "description": "Login option: use the app as a guest, no account." },
+
+  "entryError": "Something went wrong. Please try again.",
+  "@entryError": { "description": "Generic error shown if a sign-in attempt fails unexpectedly." },
+
+  "signIn": "Sign in",
+  "fieldEmail": "Email",
+  "fieldPassword": "Password",
+  "cancel": "Cancel",
+
+  "passwordMinChars": "At least {count} characters",
+  "@passwordMinChars": {
+    "description": "Helper under a password field stating the minimum length.",
+    "placeholders": { "count": { "type": "int", "example": "8" } }
+  },
+
+  "authErrUnauthenticated": "Incorrect email or password.",
+  "authErrAlreadyExists": "That email is already in use.",
+  "authErrRateLimited": "Too many attempts. Please wait and try again.",
+  "authErrUnverified": "Please verify your email first.",
+  "authErrInvalidCode": "That code is invalid or has expired.",
+  "authErrConflict": "That was just taken — please try again.",
+  "authErrNotFound": "Not found.",
+  "authErrUnavailable": "Can’t reach Cymbra. Check your connection.",
+  "authErrUnknown": "Something went wrong. Please try again.",
+
+  "accountSignOut": "Sign out",
+  "accountDelete": "Delete account",
+
+  "signInForgotPassword": "Forgot password?",
+  "signInCreateAccount": "Create an account",
+  "signInRateLimitedFallback": "Too many attempts — please try again later.",
+
+  "signUpTitle": "Create your account",
+  "signUpButton": "Create account",
+  "signUpFallback": "Could not create the account. Please try again.",
+
+  "resetTitle": "Reset password",
+  "resetSentSnack": "If that email is registered, a code is on its way.",
+  "resetDoneSnack": "Password reset. All sessions were signed out — please sign in.",
+  "resetInvalidCodeFallback": "That code is invalid or expired — request a new one.",
+  "resetSendCode": "Send reset code",
+  "fieldResetCode": "Reset code",
+  "fieldNewPassword": "New password",
+  "resetSetNewPassword": "Set new password",
+
+  "deleteReauthFailed": "Authentication failed — your account was not deleted.",
+  "deleteConfirmTitle": "Delete account?",
+  "deleteConfirmBody": "This permanently deletes your Cymbra account and cannot be undone.",
+  "delete": "Delete",
+  "deleteIntro": "For your security, confirm it's you before deleting. This action is permanent.",
+  "deleteConfirmButton": "Confirm with password & delete",
+  "deleteReauthWith": "or re-authenticate with",
+  "providerGoogle": "Google",
+  "providerApple": "Apple",
+
+  "handleTitle": "Choose your handle",
+  "handleIntro": "Your handle is how others will find you. You can use letters and numbers, up to {count} characters.",
+  "@handleIntro": {
+    "description": "Explanation on the handle onboarding screen.",
+    "placeholders": { "count": { "type": "int", "example": "15" } }
+  },
+  "fieldHandle": "Handle",
+  "handleHelperDefault": "1–15 letters or numbers.",
+  "handleHelperFormat": "1–15 letters or numbers only (no spaces or symbols).",
+  "handleTaken": "That handle is taken — try another.",
+  "handleAvailable": "Available!",
+  "handleTakenFallback": "That handle was just taken — please pick another.",
+  "continueLabel": "Continue",
+  "useDifferentAccount": "Use a different account",
+
+  "otpTitle": "Verify your email",
+  "otpIntro": "Enter the code we sent to {email}.",
+  "@otpIntro": {
+    "description": "Instruction on the OTP verification screen.",
+    "placeholders": { "email": { "type": "String", "example": "you@example.com" } }
+  },
+  "fieldVerificationCode": "Verification code",
+  "otpVerify": "Verify",
+  "otpResend": "Resend code",
+  "otpVerifiedSnack": "Email verified — please sign in.",
+  "otpInvalidFallback": "That code is invalid or expired.",
+  "otpResentSnack": "A new code was sent to your email.",
+
+  "libraryTitle": "Cymbra — Score Library",
+  "@libraryTitle": { "description": "App-bar title of the score library screen ('Cymbra' is the brand, kept as-is)." },
+
+  "levelBeginner": "Beginner",
+  "@levelBeginner": { "description": "Practice level: beginner." },
+
+  "levelIntermediate": "Intermediate",
+  "@levelIntermediate": { "description": "Practice level: intermediate." },
+
+  "levelAdvanced": "Advanced",
+  "@levelAdvanced": { "description": "Practice level: advanced." }
+}

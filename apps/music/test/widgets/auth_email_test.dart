@@ -23,6 +23,7 @@ import 'package:music/services/auth_service.dart';
 
 import '../support/auth_fakes.dart';
 import '../support/auth_harness.dart';
+import '../support/localized.dart';
 
 Future<ProviderContainer> _pump(
   WidgetTester tester,
@@ -33,10 +34,7 @@ Future<ProviderContainer> _pump(
   final c = authContainer(auth: auth, account: account);
   await tester.binding.setSurfaceSize(const Size(1200, 900));
   await tester.pumpWidget(
-    UncontrolledProviderScope(
-      container: c,
-      child: MaterialApp(home: child),
-    ),
+    UncontrolledProviderScope(container: c, child: localizedApp(child)),
   );
   return c;
 }
@@ -87,6 +85,28 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(OtpVerifyScreen), findsOneWidget);
+    });
+  });
+
+  group('Localization', () {
+    testWidgets('the sign-in screen renders in French', (tester) async {
+      final c = authContainer(auth: FakeAuthService());
+      await tester.binding.setSurfaceSize(const Size(1200, 900));
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: c,
+          child: localizedApp(
+            const EmailSignInScreen(),
+            locale: const Locale('fr'),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text('Mot de passe oublié ?'), findsOneWidget);
+      expect(find.text('Créer un compte'), findsOneWidget);
+      // Field labels + button use the French strings.
+      expect(find.text('Mot de passe'), findsWidgets);
     });
   });
 

@@ -25,6 +25,7 @@ import 'package:music/state/session_state.dart';
 
 import '../support/auth_fakes.dart';
 import '../support/auth_harness.dart';
+import '../support/localized.dart';
 
 const _tokens = StoredTokens(accessToken: 'a', refreshToken: 'r');
 
@@ -46,9 +47,7 @@ Future<ProviderContainer> _signedIn(
   await tester.pumpWidget(
     UncontrolledProviderScope(
       container: c,
-      child: MaterialApp(
-        home: Scaffold(body: Center(child: child)),
-      ),
+      child: localizedApp(Scaffold(body: Center(child: child))),
     ),
   );
   await tester.pump();
@@ -71,7 +70,7 @@ void main() {
       await tester.pumpWidget(
         UncontrolledProviderScope(
           container: c,
-          child: const MaterialApp(home: HandleOnboardingScreen()),
+          child: localizedApp(const HandleOnboardingScreen()),
         ),
       );
       await tester.pump();
@@ -216,7 +215,7 @@ void main() {
       await tester.pumpWidget(
         UncontrolledProviderScope(
           container: c,
-          child: const MaterialApp(home: DeleteAccountScreen()),
+          child: localizedApp(const DeleteAccountScreen()),
         ),
       );
       await tester.pump();

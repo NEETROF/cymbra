@@ -6,6 +6,11 @@ custom_lint.log
 # before analyze/test, like lib/src/rust). Never committed.
 lib/src/grpc/
 
+# Generated localizations (`AppLocalizations`), produced by `flutter gen-l10n` /
+# `flutter pub get` from the ARB files under lib/l10n/. Regenerated in CI before
+# analyze/test, like the gRPC stubs. Never committed.
+lib/l10n/gen/
+
 # Local OAuth secret injected into the macOS / iOS build (real reversed Google
 # client-id suffix). Copy Secrets.example.xcconfig → Secrets.xcconfig; CI writes it
 # from the GOOGLE_CLIENT_ID secret. Never committed.

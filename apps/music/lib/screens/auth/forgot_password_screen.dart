@@ -15,6 +15,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../l10n/gen/app_localizations.dart';
 import '../../services/auth_policy.dart';
 import '../../services/auth_service.dart';
 import '../../state/auth_flow.dart';
@@ -52,17 +53,16 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
   Future<void> _request() async {
     final email = _email.text.trim();
     if (email.isEmpty) return;
+    final l10n = AppLocalizations.of(context);
     setState(() => _busy = true);
     try {
       await ref.read(authFlowProvider).requestPasswordReset(email);
       // No-enumeration: the same confirmation regardless of whether it exists.
       if (mounted) {
         setState(() => _requested = true);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('If that email is registered, a code is on its way.'),
-          ),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l10n.resetSentSnack)));
       }
     } on AuthException catch (e) {
       if (mounted) showAuthError(context, e);
@@ -78,28 +78,21 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
     setState(() => _passwordError = policyError);
     if (code.isEmpty || policyError != null) return;
 
+    final l10n = AppLocalizations.of(context);
     setState(() => _busy = true);
     try {
       await ref
           .read(authFlowProvider)
           .resetPassword(code: code, newPassword: newPassword);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Password reset. All sessions were signed out — please sign in.',
-            ),
-          ),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l10n.resetDoneSnack)));
         Navigator.of(context).pop();
       }
     } on AuthException catch (e) {
       if (mounted) {
-        showAuthError(
-          context,
-          e,
-          fallback: 'That code is invalid or expired — request a new one.',
-        );
+        showAuthError(context, e, fallback: l10n.resetInvalidCodeFallback);
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -108,8 +101,9 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return AuthScaffold(
-      title: 'Reset password',
+      title: l10n.resetTitle,
       children: [
         TextField(
           key: const Key('forgot-email'),
@@ -117,21 +111,21 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
           enabled: !_requested,
           keyboardType: TextInputType.emailAddress,
           autocorrect: false,
-          decoration: const InputDecoration(labelText: 'Email'),
+          decoration: InputDecoration(labelText: l10n.fieldEmail),
         ),
         const SizedBox(height: 16),
         if (!_requested)
           FilledButton(
             key: const Key('forgot-request'),
             onPressed: _busy ? null : _request,
-            child: const Text('Send reset code'),
+            child: Text(l10n.resetSendCode),
           )
         else ...[
           TextField(
             key: const Key('forgot-code'),
             controller: _code,
             keyboardType: TextInputType.number,
-            decoration: const InputDecoration(labelText: 'Reset code'),
+            decoration: InputDecoration(labelText: l10n.fieldResetCode),
           ),
           const SizedBox(height: 16),
           TextField(
@@ -139,8 +133,8 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
             controller: _newPassword,
             obscureText: true,
             decoration: InputDecoration(
-              labelText: 'New password',
-              helperText: 'At least $kPasswordMinLength characters',
+              labelText: l10n.fieldNewPassword,
+              helperText: l10n.passwordMinChars(kPasswordMinLength),
               errorText: _passwordError,
             ),
           ),
@@ -148,7 +142,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
           FilledButton(
             key: const Key('forgot-reset'),
             onPressed: _busy ? null : _reset,
-            child: const Text('Set new password'),
+            child: Text(l10n.resetSetNewPassword),
           ),
         ],
       ],

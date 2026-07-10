@@ -27,6 +27,7 @@ import 'package:music/state/player_notifier.dart';
 import 'package:music/theme/cymbra_theme.dart';
 
 import '../support/fakes.dart';
+import '../support/localized.dart';
 
 void main() {
   late FakeMidiService midi;
@@ -75,7 +76,7 @@ void main() {
     await tester.pumpWidget(
       UncontrolledProviderScope(
         container: container,
-        child: const MaterialApp(home: PlayerScreen()),
+        child: localizedApp(const PlayerScreen()),
       ),
     );
     await tester.pump(); // flush score load + first rebuild

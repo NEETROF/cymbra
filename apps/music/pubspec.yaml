@@ -30,6 +30,14 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  # Localization delegates + supported locales for the four UI languages
+  # (en/fr/it/es). Paired with `flutter: generate: true` and `l10n.yaml`, which
+  # generate `AppLocalizations` from the ARB files under `lib/l10n/`.
+  flutter_localizations:
+    sdk: flutter
+  # Required by the gen_l10n toolchain (placeholders/plurals). Version is pinned
+  # by the Flutter SDK, so defer to it with `any`.
+  intl: any
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
@@ -54,6 +62,12 @@ dependencies:
   url_launcher: ^6.3.2
   http: ^1.6.0
   crypto: ^3.0.7
+
+  # Local, on-device key-value store for small user preferences (starting with
+  # the selected UI language). Kept separate from flutter_secure_storage, which
+  # is reserved for auth tokens. Behind the injectable `preferencesServiceProvider`
+  # seam so state/widgets are testable with an in-memory fake.
+  shared_preferences: ^2.3.2
 
 dev_dependencies:
   flutter_test:
@@ -82,6 +96,11 @@ dev_dependencies:
 
 # The following section is specific to Flutter packages.
 flutter:
+
+  # Generate `AppLocalizations` from the ARB files (see `l10n.yaml`). The
+  # generated Dart lands under `lib/l10n/gen/` (gitignored, produced by
+  # `flutter gen-l10n` / `flutter pub get`, like the other generated sources).
+  generate: true
 
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in

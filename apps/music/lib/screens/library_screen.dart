@@ -15,10 +15,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../l10n/gen/app_localizations.dart';
 import '../state/score_catalog.dart';
 import '../theme/cymbra_theme.dart';
+import '../widgets/language_selector.dart';
 import 'auth/account_menu.dart';
 import 'player_screen.dart';
+
+/// Localized name for a [PracticeLevel] section header.
+String _levelLabel(AppLocalizations l10n, PracticeLevel level) =>
+    switch (level) {
+      PracticeLevel.beginner => l10n.levelBeginner,
+      PracticeLevel.intermediate => l10n.levelIntermediate,
+      PracticeLevel.advanced => l10n.levelAdvanced,
+    };
 
 /// Start screen: the bundled score catalog, grouped by practice level. Tapping
 /// an entry records it as the selected score and opens the partition screen.
@@ -32,9 +42,13 @@ class LibraryScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: CymbraColors.surfaceContainerLow,
       appBar: AppBar(
-        title: const Text('Cymbra — Score Library'),
+        title: Text(AppLocalizations.of(context).libraryTitle),
         backgroundColor: CymbraColors.surfaceContainerLowest,
-        actions: const [AccountMenu(), SizedBox(width: 8)],
+        actions: const [
+          LanguageSelectorButton(),
+          AccountMenu(),
+          SizedBox(width: 8),
+        ],
       ),
       body: ListView(
         padding: const EdgeInsets.symmetric(vertical: 8),
@@ -62,7 +76,7 @@ class LibraryScreen extends ConsumerWidget {
       Padding(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
         child: Text(
-          level.label,
+          _levelLabel(AppLocalizations.of(context), level),
           style: const TextStyle(
             color: CymbraColors.primary,
             fontSize: 15,

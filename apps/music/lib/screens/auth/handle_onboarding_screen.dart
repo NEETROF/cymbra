@@ -17,6 +17,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../l10n/gen/app_localizations.dart';
 import '../../services/auth_policy.dart';
 import '../../services/auth_service.dart';
 import '../../services/grpc_client.dart';
@@ -104,6 +105,7 @@ class _HandleOnboardingScreenState
   Future<void> _commit() async {
     final handle = _handle.text.trim();
     if (_status != _HandleStatus.available) return;
+    final l10n = AppLocalizations.of(context);
     final session = ref.read(sessionNotifierProvider);
     final version = switch (session) {
       SessionAuthenticated(:final account) => account?.version ?? 0,
@@ -121,11 +123,7 @@ class _HandleOnboardingScreenState
       if (!mounted) return;
       if (e.error == AuthError.alreadyExists || e.error == AuthError.conflict) {
         setState(() => _status = _HandleStatus.taken);
-        showAuthError(
-          context,
-          e,
-          fallback: 'That handle was just taken — please pick another.',
-        );
+        showAuthError(context, e, fallback: l10n.handleTakenFallback);
       } else {
         showAuthError(context, e);
       }
@@ -134,12 +132,11 @@ class _HandleOnboardingScreenState
     }
   }
 
-  String? get _helperText => switch (_status) {
-    _HandleStatus.invalid =>
-      '1–15 letters or numbers only (no spaces or symbols).',
-    _HandleStatus.taken => 'That handle is taken — try another.',
-    _HandleStatus.available => 'Available!',
-    _ => '1–15 letters or numbers.',
+  String? _helperText(AppLocalizations l10n) => switch (_status) {
+    _HandleStatus.invalid => l10n.handleHelperFormat,
+    _HandleStatus.taken => l10n.handleTaken,
+    _HandleStatus.available => l10n.handleAvailable,
+    _ => l10n.handleHelperDefault,
   };
 
   Color get _helperColor => switch (_status) {
@@ -150,14 +147,11 @@ class _HandleOnboardingScreenState
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return AuthScaffold(
-      title: 'Choose your handle',
+      title: l10n.handleTitle,
       children: [
-        const Text(
-          'Your handle is how others will find you. You can use letters and '
-          'numbers, up to $kHandleMaxLength characters.',
-          textAlign: TextAlign.center,
-        ),
+        Text(l10n.handleIntro(kHandleMaxLength), textAlign: TextAlign.center),
         const SizedBox(height: 24),
         TextField(
           key: const Key('handle-field'),
@@ -166,9 +160,9 @@ class _HandleOnboardingScreenState
           maxLength: kHandleMaxLength,
           onChanged: _onChanged,
           decoration: InputDecoration(
-            labelText: 'Handle',
+            labelText: l10n.fieldHandle,
             prefixText: '@',
-            helperText: _helperText,
+            helperText: _helperText(l10n),
             helperStyle: TextStyle(color: _helperColor),
             suffixIcon: _status == _HandleStatus.checking
                 ? const Padding(
@@ -194,13 +188,13 @@ class _HandleOnboardingScreenState
                   dimension: 18,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
-              : const Text('Continue'),
+              : Text(l10n.continueLabel),
         ),
         const SizedBox(height: 8),
         TextButton(
           key: const Key('handle-abandon'),
           onPressed: _busy ? null : _abandon,
-          child: const Text('Use a different account'),
+          child: Text(l10n.useDifferentAccount),
         ),
       ],
     );

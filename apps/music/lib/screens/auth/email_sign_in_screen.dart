@@ -15,6 +15,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../l10n/gen/app_localizations.dart';
 import '../../services/auth_service.dart';
 import '../../state/auth_flow.dart';
 import 'auth_messages.dart';
@@ -51,6 +52,7 @@ class _EmailSignInScreenState extends ConsumerState<EmailSignInScreen> {
     final password = _password.text;
     if (email.isEmpty || password.isEmpty) return;
 
+    final l10n = AppLocalizations.of(context);
     setState(() => _busy = true);
     try {
       await ref
@@ -73,8 +75,8 @@ class _EmailSignInScreenState extends ConsumerState<EmailSignInScreen> {
         context,
         e,
         fallback: e.error == AuthError.rateLimited
-            ? 'Too many attempts — please try again later.'
-            : 'Incorrect email or password.',
+            ? l10n.signInRateLimitedFallback
+            : l10n.authErrUnauthenticated,
       );
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -87,22 +89,23 @@ class _EmailSignInScreenState extends ConsumerState<EmailSignInScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return AuthScaffold(
-      title: 'Sign in',
+      title: l10n.signIn,
       children: [
         TextField(
           key: const Key('signin-email'),
           controller: _email,
           keyboardType: TextInputType.emailAddress,
           autocorrect: false,
-          decoration: const InputDecoration(labelText: 'Email'),
+          decoration: InputDecoration(labelText: l10n.fieldEmail),
         ),
         const SizedBox(height: 16),
         TextField(
           key: const Key('signin-password'),
           controller: _password,
           obscureText: true,
-          decoration: const InputDecoration(labelText: 'Password'),
+          decoration: InputDecoration(labelText: l10n.fieldPassword),
         ),
         const SizedBox(height: 24),
         FilledButton(
@@ -113,18 +116,18 @@ class _EmailSignInScreenState extends ConsumerState<EmailSignInScreen> {
                   dimension: 18,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
-              : const Text('Sign in'),
+              : Text(l10n.signIn),
         ),
         const SizedBox(height: 8),
         TextButton(
           key: const Key('signin-forgot'),
           onPressed: _busy ? null : () => _goTo(const ForgotPasswordScreen()),
-          child: const Text('Forgot password?'),
+          child: Text(l10n.signInForgotPassword),
         ),
         TextButton(
           key: const Key('signin-create'),
           onPressed: _busy ? null : () => _goTo(const EmailSignUpScreen()),
-          child: const Text('Create an account'),
+          child: Text(l10n.signInCreateAccount),
         ),
       ],
     );
