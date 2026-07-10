@@ -234,22 +234,38 @@ class Player extends _$Player {
     // the on-screen keyboard, the computer keyboard, and MIDI alike — during
     // playback and while stopped.
     _audio.noteOn(pitch);
-    if (!state.activeNotes.contains(pitch)) {
-      state = state.copyWith(activeNotes: {...state.activeNotes, pitch});
-    }
+    // A fresh attack starts a new, uncounted hold: drop any prior "consumed"
+    // mark so this press can satisfy the onset it lands on (and only that one).
+    final active = state.activeNotes.contains(pitch)
+        ? state.activeNotes
+        : {...state.activeNotes, pitch};
+    final consumed = state.consumedHeld.contains(pitch)
+        ? ({...state.consumedHeld}..remove(pitch))
+        : state.consumedHeld;
     // Wait Mode validates by attack: if this note is part of the onset the
-    // playhead is sitting on, latch it so it still counts once released.
-    if (state.onsetPitchesAt(state.elapsedMs).contains(pitch) &&
-        !state.gateSatisfied.contains(pitch)) {
-      state = state.copyWith(gateSatisfied: {...state.gateSatisfied, pitch});
-    }
+    // playhead is sitting on, latch it so it still counts once released, and
+    // consume the hold so a later repeat of this pitch needs a fresh attack.
+    final atOnset =
+        state.onsetPitchesAt(state.elapsedMs).contains(pitch) &&
+        !state.gateSatisfied.contains(pitch);
+    state = state.copyWith(
+      activeNotes: active,
+      gateSatisfied: atOnset
+          ? {...state.gateSatisfied, pitch}
+          : state.gateSatisfied,
+      consumedHeld: atOnset ? {...consumed, pitch} : consumed,
+    );
   }
 
   void noteOff(int pitch) {
     _audio.noteOff(pitch);
-    if (state.activeNotes.contains(pitch)) {
+    // The hold ended: drop it from the held set and clear its consumed mark so a
+    // re-press starts fresh.
+    if (state.activeNotes.contains(pitch) ||
+        state.consumedHeld.contains(pitch)) {
       state = state.copyWith(
         activeNotes: {...state.activeNotes}..remove(pitch),
+        consumedHeld: {...state.consumedHeld}..remove(pitch),
       );
     }
   }
@@ -270,7 +286,11 @@ class Player extends _$Player {
   // and silence any in-flight score voices so none hang across the switch.
   void toggleWaitMode() {
     _silenceAll();
-    state = state.copyWith(waitMode: !state.waitMode, gateSatisfied: const {});
+    state = state.copyWith(
+      waitMode: !state.waitMode,
+      gateSatisfied: const {},
+      consumedHeld: const {},
+    );
   }
 
   /// Toggles the metronome on/off (driven by the header Tempo chip). Written
@@ -291,12 +311,20 @@ class Player extends _$Player {
   // silence voices so a now-hidden hand's notes don't keep sounding.
   void setSelectedHands(Hand hand) {
     _silenceAll();
-    state = state.copyWith(selectedHands: hand, gateSatisfied: const {});
+    state = state.copyWith(
+      selectedHands: hand,
+      gateSatisfied: const {},
+      consumedHeld: const {},
+    );
   }
 
   void restart() {
     _silenceAll();
-    state = state.copyWith(elapsedMs: 0, gateSatisfied: const {});
+    state = state.copyWith(
+      elapsedMs: 0,
+      gateSatisfied: const {},
+      consumedHeld: const {},
+    );
   }
 
   // --- Time advance (called by the screen's Ticker) ---------------------
@@ -308,13 +336,33 @@ class Player extends _$Player {
   /// then advances to the next onset — notes do not need to be held for their
   /// duration. A simple loop restarts at the end of the song.
   void advance(double dtMs) {
-    final s = state;
+    var s = state;
     if (!s.isPlaying || s.notes.isEmpty) return;
 
     final onset = s.onsetPitchesAt(s.elapsedMs);
+
+    // Wait Mode tolerance: a key already held (and not already consumed by an
+    // earlier onset) when the playhead reaches this onset counts as attacked —
+    // a sustained/tied note need not be re-pressed. Consuming the hold keeps a
+    // repeated pitch honest: it must be re-attacked to satisfy the next onset.
+    if (s.waitMode && onset.isNotEmpty) {
+      final heldDue = <int>{
+        for (final p in onset)
+          if (s.activeNotes.contains(p) && !s.consumedHeld.contains(p)) p,
+      };
+      if (heldDue.isNotEmpty) {
+        s = s.copyWith(
+          gateSatisfied: {...s.gateSatisfied, ...heldDue},
+          consumedHeld: {...s.consumedHeld, ...heldDue},
+        );
+      }
+    }
+
     if (s.waitMode && onset.isNotEmpty && !s.gateSatisfied.containsAll(onset)) {
       // The onset's notes haven't all been attacked: freeze the cascade.
-      if (!s.blocked) state = s.copyWith(blocked: true);
+      // Persist any seeding done above (s no longer identical) even when
+      // already blocked; otherwise just latch the blocked flag once.
+      if (!identical(s, state) || !s.blocked) state = s.copyWith(blocked: true);
       return;
     }
 
@@ -366,11 +414,14 @@ class Player extends _$Player {
     }
 
     // Leaving the satisfied onset (or looping) re-arms the gate for the next one.
+    // A held pitch stays *consumed* across a normal onset advance (so it can't
+    // walk through a repeat), but a loop wrap re-arms from scratch.
     final leftOnset = onset.isNotEmpty && next != s.elapsedMs;
     state = s.copyWith(
       elapsedMs: next,
       blocked: false,
       gateSatisfied: (leftOnset || loop) ? const {} : s.gateSatisfied,
+      consumedHeld: loop ? const {} : s.consumedHeld,
       beatCount: beatCount,
       lastBeatAccent: lastBeatAccent,
     );
