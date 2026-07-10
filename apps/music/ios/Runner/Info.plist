@@ -22,6 +22,12 @@
 	<string>????</string>
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<!-- Export-compliance: the app uses only standard TLS/HTTPS (an exempt
+	     encryption category), so no non-exempt encryption. Declaring this here
+	     skips the "Export Compliance" question on every TestFlight/App Store
+	     upload. Revisit if proprietary/non-exempt crypto is ever added. -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>
