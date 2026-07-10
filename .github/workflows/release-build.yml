@@ -32,6 +32,10 @@ name: release-build
 #     IOS_PROVISIONING_PROFILE_NAME     the profile's name (as in the portal)
 #     IOS_TEAM_ID                  Apple Developer team id (VMFJ6KRW77)
 #     GOOGLE_CLIENT_ID             iOS OAuth client id (reversed URL scheme)
+#   iOS TestFlight upload (optional — auto-deliver on tag push; absent ⇒ skipped):
+#     ASC_API_KEY_ID               App Store Connect API key id
+#     ASC_API_ISSUER_ID            App Store Connect API issuer id
+#     ASC_API_KEY_P8               base64 of the API private key (AuthKey_*.p8)
 #
 # Absent Android secrets → the release build falls back to debug signing (the
 # gradle config degrades gracefully), but this job requires them and fails loudly.
@@ -360,3 +364,27 @@ jobs:
         with:
           tag_name: ${{ env.TAG }}
           files: cymbra-${{ env.TAG }}.ipa
+      # Push the signed IPA to TestFlight on real releases (tag push) only —
+      # manual workflow_dispatch runs build + sign to validate, but don't upload
+      # (avoids re-uploading an already-delivered build number). Skips cleanly if
+      # the App Store Connect API secrets are absent.
+      - name: Upload to TestFlight (App Store Connect API key)
+        if: ${{ github.event_name == 'push' }}
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_API_ISSUER_ID }}
+          ASC_KEY_P8: ${{ secrets.ASC_API_KEY_P8 }}
+        run: |
+          set -euo pipefail
+          if [ -z "${ASC_KEY_ID:-}" ] || [ -z "${ASC_ISSUER_ID:-}" ] || [ -z "${ASC_KEY_P8:-}" ]; then
+            echo "::warning::App Store Connect API secrets missing — skipping TestFlight upload."
+            exit 0
+          fi
+          # altool resolves the signing key from ~/private_keys/AuthKey_<KEYID>.p8
+          mkdir -p "$HOME/private_keys"
+          KEYFILE="$HOME/private_keys/AuthKey_${ASC_KEY_ID}.p8"
+          echo "$ASC_KEY_P8" | base64 --decode > "$KEYFILE"
+          trap 'rm -f "$KEYFILE"' EXIT
+          xcrun altool --upload-app --type ios \
+            --file "cymbra-${TAG}.ipa" \
+            --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID"

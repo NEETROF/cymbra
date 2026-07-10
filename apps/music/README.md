@@ -273,6 +273,14 @@ exports with **manual** signing (a generated `ExportOptions-ci.plist`). Secrets:
 and `GOOGLE_CLIENT_ID` (reversed-client-id URL scheme). The first tagged run may
 need a tweak to the profile name — iOS signing is environment-sensitive.
 
+**TestFlight upload** is automatic on a real release (tag push); manual
+`workflow_dispatch` runs build + sign only. It uses an App Store Connect API key
+(`altool`), skipped cleanly if its secrets are absent. Create the key in App
+Store Connect → Users and Access → Integrations → App Store Connect API (role
+*App Manager*), then set: `ASC_API_KEY_ID`, `ASC_API_ISSUER_ID`, and
+`ASC_API_KEY_P8` (`base64 -i AuthKey_XXXX.p8`). `ITSAppUsesNonExemptEncryption`
+is `false` in `Info.plist` (TLS-only), so no export-compliance prompt.
+
 ## License
 
 Free and **open source** under the [Apache License 2.0](../../LICENSE) — use, modify
