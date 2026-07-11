@@ -512,6 +512,16 @@ void main() {
     double keyboardHeight(WidgetTester tester) =>
         tester.getSize(find.byKey(const Key('onscreen-keyboard'))).height;
 
+    // Full vertical footprint of the transport bar (its margin included).
+    double transportFootprint(WidgetTester tester) {
+      final bar = find.byKey(const Key('transport-bar'));
+      final container = tester.widget<Container>(bar);
+      final margin = (container.margin ?? EdgeInsets.zero).resolve(
+        TextDirection.ltr,
+      );
+      return tester.getSize(bar).height + margin.vertical;
+    }
+
     double titleFontSize(WidgetTester tester) =>
         tester.widget<Text>(find.text('Cymbra Music')).style!.fontSize!;
 
@@ -527,8 +537,9 @@ void main() {
           final tabletKb = keyboardHeight(tester);
           await teardownScreen(tester);
 
-          // Clamp band mirrors _PlayerScreenState (_min.._maxKeyboardHeight).
-          expect(phoneKb, inInclusiveRange(96, 150));
+          // Clamp bands mirror _PlayerScreenState: phones use the shorter
+          // 78..108 band, tablet/desktop the 96..150 band.
+          expect(phoneKb, inInclusiveRange(78, 108));
           expect(tabletKb, inInclusiveRange(96, 150));
           expect(
             phoneKb,
@@ -574,6 +585,26 @@ void main() {
 
         expect(phoneTitle, 15, reason: 'phone uses the compact title size');
         expect(tabletTitle, 18, reason: 'tablet keeps the full title size');
+      });
+    });
+
+    testWidgets('transport bar is slimmer on a phone than on a tablet', (
+      tester,
+    ) async {
+      await onMobile(tester, () async {
+        await pumpAt(tester, phone);
+        final phoneBar = transportFootprint(tester);
+        await teardownScreen(tester);
+
+        await pumpAt(tester, tablet);
+        final tabletBar = transportFootprint(tester);
+        await teardownScreen(tester);
+
+        expect(
+          phoneBar,
+          lessThan(tabletBar),
+          reason: 'the phone transport bar reclaims vertical space',
+        );
       });
     });
   });

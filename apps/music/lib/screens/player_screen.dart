@@ -61,24 +61,30 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
 
   /// Keyboard height is derived from the available render height (not fixed) so
   /// it shrinks on short phone-landscape viewports and stays proportionate on
-  /// larger screens. The clamp keeps keys legible: [_minKeyboardHeight] is a
-  /// floor so even an 88-key keyboard stays tappable on a phone, and
-  /// [_maxKeyboardHeight] preserves the prior tablet/desktop size so those
-  /// layouts don't regress while stopping the keyboard from dominating a tall
-  /// viewport.
+  /// larger screens. Tablet/desktop keep the prior band ([_maxKeyboardHeight]
+  /// == the old fixed 150 px, so those layouts don't regress). Phones use a
+  /// shorter band so the thin 88-key keyboard doesn't dominate the short
+  /// landscape viewport and more height goes to the render area (waterfall /
+  /// notation). The floor keeps the keys tappable.
   static const double _minKeyboardHeight = 96;
   static const double _maxKeyboardHeight = 150;
   static const double _keyboardHeightFraction = 0.34;
+  static const double _minKeyboardHeightPhone = 78;
+  static const double _maxKeyboardHeightPhone = 108;
+  static const double _keyboardHeightFractionPhone = 0.28;
 
   /// Keyboard height for a render column of [availableHeight] pixels (the
   /// [LayoutBuilder] constraints below the top bar). The render area above the
   /// keyboard takes the remainder via [Expanded], staying > 0 as long as the
-  /// viewport exceeds [_minKeyboardHeight].
-  double _keyboardHeightFor(double availableHeight) =>
-      (availableHeight * _keyboardHeightFraction).clamp(
-        _minKeyboardHeight,
-        _maxKeyboardHeight,
-      );
+  /// viewport exceeds the (phone or default) floor.
+  double _keyboardHeightFor(double availableHeight, {required bool isPhone}) {
+    final fraction = isPhone
+        ? _keyboardHeightFractionPhone
+        : _keyboardHeightFraction;
+    final min = isPhone ? _minKeyboardHeightPhone : _minKeyboardHeight;
+    final max = isPhone ? _maxKeyboardHeightPhone : _maxKeyboardHeight;
+    return (availableHeight * fraction).clamp(min, max);
+  }
 
   /// Random source for the near-miss assist keys (q/s).
   final math.Random _rng = math.Random();
@@ -255,6 +261,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                         );
                         final keyboardHeight = _keyboardHeightFor(
                           constraints.maxHeight,
+                          isPhone: context.isPhoneLayout,
                         );
                         return Column(
                           children: [
@@ -1094,9 +1101,25 @@ class _TransportBar extends ConsumerWidget {
     final data = ref.watch(playerProvider);
     final notifier = ref.read(playerProvider.notifier);
 
+    // On a phone the landscape height is scarce, so the transport bar slims
+    // down: tighter margin/padding, a smaller play button, and denser icon
+    // buttons — reclaiming vertical space for the render area. Tablet/desktop
+    // keep the roomier floating pill.
+    final isPhone = context.isPhoneLayout;
+    final density = isPhone ? VisualDensity.compact : VisualDensity.standard;
+    final playRadius = isPhone ? 19.0 : 26.0;
+    final playIcon = isPhone ? 22.0 : 28.0;
+    final gapL = isPhone ? 8.0 : 16.0;
+    final gapS = isPhone ? 4.0 : 8.0;
+
     return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      key: const Key('transport-bar'),
+      margin: isPhone
+          ? const EdgeInsets.symmetric(horizontal: 12, vertical: 6)
+          : const EdgeInsets.all(16),
+      padding: isPhone
+          ? const EdgeInsets.symmetric(horizontal: 12, vertical: 2)
+          : const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       decoration: BoxDecoration(
         color: CymbraColors.surfaceContainerHigh.withValues(alpha: 0.9),
         borderRadius: BorderRadius.circular(999),
@@ -1106,29 +1129,31 @@ class _TransportBar extends ConsumerWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           IconButton(
+            visualDensity: density,
             onPressed: notifier.restart,
             icon: const Icon(
               Icons.skip_previous,
               color: CymbraColors.onSurface,
             ),
           ),
-          const SizedBox(width: 8),
+          SizedBox(width: gapS),
           // Play / pause.
           GestureDetector(
             onTap: notifier.togglePlay,
             child: CircleAvatar(
-              radius: 26,
+              radius: playRadius,
               backgroundColor: CymbraColors.primaryContainer,
               child: Icon(
                 data.isPlaying ? Icons.pause : Icons.play_arrow,
                 color: Colors.white,
-                size: 28,
+                size: playIcon,
               ),
             ),
           ),
-          const SizedBox(width: 16),
+          SizedBox(width: gapL),
           // Speed.
           IconButton(
+            visualDensity: density,
             onPressed: () => notifier.setSpeed(data.speed - 0.25),
             icon: const Icon(
               Icons.remove,
@@ -1143,12 +1168,14 @@ class _TransportBar extends ConsumerWidget {
             ),
           ),
           IconButton(
+            visualDensity: density,
             onPressed: () => notifier.setSpeed(data.speed + 0.25),
             icon: const Icon(Icons.add, color: CymbraColors.onSurfaceVariant),
           ),
-          const SizedBox(width: 8),
+          SizedBox(width: gapS),
           // Wait Mode.
           TextButton.icon(
+            style: TextButton.styleFrom(visualDensity: density),
             onPressed: notifier.toggleWaitMode,
             icon: Icon(
               data.waitMode ? Icons.hourglass_top : Icons.hourglass_disabled,
