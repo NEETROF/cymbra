@@ -621,6 +621,37 @@ void main() {
       });
     });
 
+    testWidgets('bottom safe area is dropped on a phone, kept on a tablet', (
+      tester,
+    ) async {
+      Iterable<bool> bottomInsets(WidgetTester tester) => tester
+          .widgetList<SafeArea>(
+            find.ancestor(
+              of: find.byKey(const Key('transport-bar')),
+              matching: find.byType(SafeArea),
+            ),
+          )
+          .map((s) => s.bottom);
+
+      await onMobile(tester, () async {
+        await pumpAt(tester, phone);
+        expect(
+          bottomInsets(tester),
+          contains(false),
+          reason: 'phone lets the transport bar reach the bottom edge',
+        );
+        await teardownScreen(tester);
+
+        await pumpAt(tester, tablet);
+        expect(
+          bottomInsets(tester),
+          isNot(contains(false)),
+          reason: 'tablet keeps the full safe area',
+        );
+        await teardownScreen(tester);
+      });
+    });
+
     testWidgets('transport bar is slimmer on a phone than on a tablet', (
       tester,
     ) async {

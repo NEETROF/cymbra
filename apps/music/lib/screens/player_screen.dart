@@ -243,7 +243,13 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
         // pauses the session; closing restores the prior play/pause state.
         endDrawer: _SettingsDrawer(key: _settingsDrawerKey),
         onEndDrawerChanged: _onEndDrawerChanged,
+        // On a phone the bottom safe-area inset (home-indicator zone) wastes
+        // scarce landscape height below the transport bar, so we let the bar
+        // extend into it (its own small margin keeps a hair of clearance, and
+        // the centred controls sit clear of the thin indicator). Tablet/desktop
+        // keep the full safe area.
         body: SafeArea(
+          bottom: !context.isPhoneLayout,
           child: Column(
             children: [
               const _TopBar(),

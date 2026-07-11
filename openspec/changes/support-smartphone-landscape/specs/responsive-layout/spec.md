@@ -78,6 +78,11 @@ space for the render area. Tablet/desktop SHALL keep the roomier floating bar.
 - **THEN** the transport bar's total vertical footprint (margin included) is
   smaller than on a tablet/desktop viewport
 
+#### Scenario: Transport bar reaches the bottom edge on phones
+- **WHEN** the player renders on a phone-class viewport
+- **THEN** the bottom safe-area inset below the transport bar is dropped so the
+  bar reaches the bottom edge, while tablet/desktop keep the full safe area
+
 ### Requirement: Reduced Render Modes On Phones
 
 The engraved two-stave Partition render mode SHALL be unavailable on phone-class
