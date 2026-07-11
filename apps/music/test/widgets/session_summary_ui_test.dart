@@ -86,9 +86,9 @@ void main() {
       expect(find.text('Tempo'), findsOneWidget);
       expect(find.text('Reaction'), findsOneWidget);
       expect(find.text('Replay mistakes'), findsOneWidget);
-      // Three explicit choices — no silent dismiss.
+      // Explicit choices: replay, retry, or the close cross (quit). No silent dismiss.
       expect(find.text('Retry'), findsOneWidget);
-      expect(find.text('Quit'), findsOneWidget);
+      expect(find.byIcon(Icons.close), findsOneWidget);
       // Each sub-score shows an average-timing tendency line.
       expect(find.textContaining('avg'), findsWidgets);
     });
@@ -128,7 +128,6 @@ void main() {
         // The stats scroll; the buttons and the close cross stay pinned/visible.
         expect(find.text('Replay mistakes'), findsOneWidget);
         expect(find.text('Retry'), findsOneWidget);
-        expect(find.text('Quit'), findsOneWidget);
         expect(find.byIcon(Icons.close), findsOneWidget);
 
         await tester.tap(find.byIcon(Icons.close));
@@ -137,7 +136,9 @@ void main() {
       },
     );
 
-    testWidgets('quit returns close and dismisses the modal', (tester) async {
+    testWidgets('the close cross returns close and dismisses the modal', (
+      tester,
+    ) async {
       SummaryAction? action;
       await tester.pumpWidget(
         localizedApp(
@@ -154,10 +155,10 @@ void main() {
       );
       await tester.tap(find.text('go'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Quit'));
+      await tester.tap(find.byIcon(Icons.close));
       await tester.pumpAndSettle();
       expect(action, SummaryAction.close);
-      expect(find.text('Quit'), findsNothing);
+      expect(find.byIcon(Icons.close), findsNothing);
     });
   });
 

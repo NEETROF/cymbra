@@ -135,7 +135,6 @@
   "replayReaction": "Reazione {ms} ms",
   "summaryAvgEarly": "{ms} ms in anticipo",
   "summaryAvgLate": "{ms} ms in ritardo",
-  "summaryAvgReaction": "{ms} ms di reazione",
+  "summaryAvgReaction": "{ms} ms di reazione"
 
-  "summaryClose": "Esci"
 }

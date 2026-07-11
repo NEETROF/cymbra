@@ -279,7 +279,7 @@ class _SummaryDialog extends StatelessWidget {
 
   Widget _actions(BuildContext context, AppLocalizations l10n) => Column(
     children: [
-      // Primary action: see the mistakes on the score.
+      // Primary action: see the mistakes on the score. Quit is the close cross.
       SizedBox(
         width: double.infinity,
         child: FilledButton(
@@ -291,22 +291,12 @@ class _SummaryDialog extends StatelessWidget {
         ),
       ),
       const SizedBox(height: 8),
-      Row(
-        children: [
-          Expanded(
-            child: OutlinedButton(
-              onPressed: () => Navigator.of(context).pop(SummaryAction.retry),
-              child: Text(l10n.summaryRetry),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: TextButton(
-              onPressed: () => Navigator.of(context).pop(SummaryAction.close),
-              child: Text(l10n.summaryClose),
-            ),
-          ),
-        ],
+      SizedBox(
+        width: double.infinity,
+        child: OutlinedButton(
+          onPressed: () => Navigator.of(context).pop(SummaryAction.retry),
+          child: Text(l10n.summaryRetry),
+        ),
       ),
     ],
   );
