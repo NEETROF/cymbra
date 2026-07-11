@@ -404,6 +404,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
             ),
           ),
           // Gamified sync gauge + hit sparks (shown only during a scored run).
+          // Synthesia always shows the keyboard, so effects are always anchored.
           Positioned.fill(child: ScoringOverlay(layout: layout)),
           if (data.blocked) const _WaitOverlay(),
         ],
@@ -431,7 +432,14 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
             ),
           ),
         ),
-        Positioned.fill(child: ScoringOverlay(layout: layout)),
+        // In the staff view the sparks anchor to the keyboard line, so hide them
+        // when the keyboard is hidden (the gauge still shows).
+        Positioned.fill(
+          child: ScoringOverlay(
+            layout: layout,
+            showEffects: data.keyboardVisible,
+          ),
+        ),
       ],
     );
   }

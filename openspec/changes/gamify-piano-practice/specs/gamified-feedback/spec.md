@@ -67,6 +67,11 @@ and SHALL NOT leave persistent clutter over the play surface.
 - **WHEN** a hit effect has been shown
 - **THEN** it fades within a short time and does not persist over subsequent notes
 
+#### Scenario: Sparks are hidden when the keyboard is hidden
+- **WHEN** the on-screen keyboard is hidden (a notation mode with the keyboard off)
+- **THEN** the hit sparks — which anchor to the keyboard/note-hit line — are not drawn,
+  while the sync gauge still shows
+
 ### Requirement: Learning-Safe Feedback Constraints
 
 Gamified feedback SHALL be constrained so it never impairs learning: it SHALL NOT hide,

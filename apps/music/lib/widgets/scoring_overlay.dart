@@ -28,38 +28,53 @@ import 'scoring_gauge.dart';
 /// [IgnorePointer] so it never intercepts keyboard/gesture input — the play
 /// surface underneath stays fully interactive and legible.
 class ScoringOverlay extends ConsumerWidget {
-  const ScoringOverlay({super.key, required this.layout});
+  const ScoringOverlay({
+    super.key,
+    required this.layout,
+    this.showEffects = true,
+  });
 
   final PianoLayout layout;
+
+  /// Whether to draw the hit sparks. They anchor to the keyboard/note-hit line
+  /// at the bottom, so they are suppressed when the keyboard is hidden — the
+  /// gauge still shows.
+  final bool showEffects;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final active = ref.watch(performanceScorerProvider.select((s) => s.active));
     if (!active) return const SizedBox.shrink();
 
+    return IgnorePointer(
+      child: Stack(
+        children: [
+          if (showEffects) Positioned.fill(child: _HitEffects(layout: layout)),
+          const Positioned(top: 8, right: 8, child: ScoringGauge()),
+        ],
+      ),
+    );
+  }
+}
+
+/// The transient hit-spark layer. Split out so watching the playhead each frame
+/// (for the fade) only happens when the sparks are actually drawn.
+class _HitEffects extends ConsumerWidget {
+  const _HitEffects({required this.layout});
+
+  final PianoLayout layout;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
     // Rebuild each frame while the playhead advances so the sparks fade
-    // smoothly; the scorer's own state drives the gauge and the hit list.
+    // smoothly; the scorer's own state drives the hit list.
     ref.watch(playerProvider.select((d) => d.elapsedMs));
     final hits = ref.watch(
       performanceScorerProvider.select((s) => s.recentHits),
     );
     final nowMs = ref.read(clockProvider).nowMs();
-
-    return IgnorePointer(
-      child: Stack(
-        children: [
-          Positioned.fill(
-            child: CustomPaint(
-              painter: HitEffectsPainter(
-                layout: layout,
-                hits: hits,
-                nowMs: nowMs,
-              ),
-            ),
-          ),
-          const Positioned(top: 8, right: 8, child: ScoringGauge()),
-        ],
-      ),
+    return CustomPaint(
+      painter: HitEffectsPainter(layout: layout, hits: hits, nowMs: nowMs),
     );
   }
 }
