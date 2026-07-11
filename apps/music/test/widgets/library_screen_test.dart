@@ -102,6 +102,23 @@ void main() {
     await _teardown(tester, container);
   });
 
+  testWidgets('insets its list within a SafeArea (landscape camera cutout)', (
+    tester,
+  ) async {
+    final container = _container();
+    await _pump(tester, container);
+
+    // The list must sit inside a SafeArea so the level headers/tiles don't run
+    // under the side display cutout in landscape.
+    final safeArea = find.ancestor(
+      of: find.byType(ListView),
+      matching: find.byType(SafeArea),
+    );
+    expect(safeArea, findsOneWidget);
+    expect(tester.widget<SafeArea>(safeArea).top, isFalse);
+    await _teardown(tester, container);
+  });
+
   testWidgets('tapping an entry selects it and opens the player screen', (
     tester,
   ) async {

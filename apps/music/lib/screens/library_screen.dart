@@ -50,17 +50,24 @@ class LibraryScreen extends ConsumerWidget {
           SizedBox(width: 8),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        children: [
-          for (final level in PracticeLevel.values)
-            ..._levelSection(
-              context,
-              ref,
-              level,
-              catalog.where((e) => e.level == level).toList(),
-            ),
-        ],
+      // In landscape the display cutout (camera/notch) sits on a side, so the
+      // list must inset for it — otherwise the level headers and tiles run under
+      // the notch. The AppBar already handles the top inset. `top: false` avoids
+      // double-insetting below it.
+      body: SafeArea(
+        top: false,
+        child: ListView(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          children: [
+            for (final level in PracticeLevel.values)
+              ..._levelSection(
+                context,
+                ref,
+                level,
+                catalog.where((e) => e.level == level).toList(),
+              ),
+          ],
+        ),
       ),
     );
   }

@@ -103,6 +103,19 @@ Synthesia and Staff SHALL remain available on all device classes.
 - **WHEN** the mode is Partition and the player renders on a phone-class viewport
 - **THEN** the render area shows the Staff view and no error occurs
 
+### Requirement: Content Respects Display Cutouts
+
+Full-screen content SHALL inset for the device's display cutout (camera / notch),
+which sits on a side in landscape, so no primary content is drawn underneath it.
+This applies to the player and to the score library list; the top app bar handles
+the top inset, and the scrollable content handles the side/bottom insets.
+
+#### Scenario: Library list avoids the side cutout
+- **WHEN** the score library renders in landscape on a phone with a display
+  cutout
+- **THEN** the level headers and score tiles are inset clear of the cutout rather
+  than drawn under it
+
 ### Requirement: No Overflow On Small Landscape Viewports
 
 The player screen SHALL lay out without vertical or horizontal overflow on the
