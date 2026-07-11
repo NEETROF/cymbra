@@ -66,6 +66,38 @@ operable on small screens.
 - **THEN** each interactive top-bar control keeps a touch target of at least the
   platform-minimum tappable size
 
+### Requirement: Adaptive Transport Bar
+
+The player's bottom transport bar SHALL compact on phone-class viewports —
+reduced outer margin (especially below the bar), reduced inner padding, a
+smaller play control, and denser transport buttons — so it reclaims vertical
+space for the render area. Tablet/desktop SHALL keep the roomier floating bar.
+
+#### Scenario: Slimmer transport bar on phones
+- **WHEN** the player renders on a phone-class viewport
+- **THEN** the transport bar's total vertical footprint (margin included) is
+  smaller than on a tablet/desktop viewport
+
+### Requirement: Reduced Render Modes On Phones
+
+The engraved two-stave Partition render mode SHALL be unavailable on phone-class
+viewports, whose short landscape height cannot legibly fit it. The mode toggle
+SHALL omit the Partition option on phones, and if the mode was set to Partition
+on a larger viewport the player SHALL fall back to the Staff view without error.
+Synthesia and Staff SHALL remain available on all device classes.
+
+#### Scenario: Partition hidden on phones
+- **WHEN** the mode toggle renders on a phone-class viewport
+- **THEN** it offers Synthesia and Staff only, with no Partition option
+
+#### Scenario: Partition available on tablet/desktop
+- **WHEN** the mode toggle renders on a tablet- or desktop-class viewport
+- **THEN** it still offers the Partition mode
+
+#### Scenario: Graceful fallback from Partition on a phone
+- **WHEN** the mode is Partition and the player renders on a phone-class viewport
+- **THEN** the render area shows the Staff view and no error occurs
+
 ### Requirement: No Overflow On Small Landscape Viewports
 
 The player screen SHALL lay out without vertical or horizontal overflow on the

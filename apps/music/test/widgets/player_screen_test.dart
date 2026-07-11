@@ -588,6 +588,39 @@ void main() {
       });
     });
 
+    testWidgets('Partition mode is offered on a tablet but hidden on a phone', (
+      tester,
+    ) async {
+      await onMobile(tester, () async {
+        await pumpAt(tester, phone);
+        // Icon-only toggle on a phone offers Synthesia + Staff only — the
+        // Partition segment (Icons.article) is dropped.
+        expect(find.byIcon(Icons.waterfall_chart), findsOneWidget);
+        expect(find.byIcon(Icons.music_note), findsOneWidget);
+        expect(find.byIcon(Icons.article), findsNothing);
+        await teardownScreen(tester);
+
+        await pumpAt(tester, tablet);
+        // The labelled tablet toggle still includes Partition.
+        expect(find.text('Partition'), findsOneWidget);
+        await teardownScreen(tester);
+      });
+    });
+
+    testWidgets('a Partition mode set before switching to a phone renders '
+        'without error and offers no Partition segment', (tester) async {
+      await onMobile(tester, () async {
+        await pumpAt(tester, phone);
+        // Coerce the mode to Partition (as if set on a larger screen), then
+        // rebuild on the phone layout: no crash, and Staff is the selection.
+        container.read(playerProvider.notifier).setMode(RenderMode.partition);
+        await tester.pump();
+        expect(tester.takeException(), isNull);
+        expect(find.byIcon(Icons.article), findsNothing);
+        await teardownScreen(tester);
+      });
+    });
+
     testWidgets('transport bar is slimmer on a phone than on a tablet', (
       tester,
     ) async {

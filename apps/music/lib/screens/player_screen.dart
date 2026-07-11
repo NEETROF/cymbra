@@ -270,7 +270,11 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                             // the keyboard below.
                             Expanded(
                               child: ClipRect(
-                                child: _buildRenderArea(layout, data),
+                                child: _buildRenderArea(
+                                  layout,
+                                  data,
+                                  isPhone: context.isPhoneLayout,
+                                ),
                               ),
                             ),
                             SizedBox(
@@ -315,8 +319,17 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     );
   }
 
-  Widget _buildRenderArea(PianoLayout layout, PlayerData data) {
-    if (data.mode == RenderMode.partition) {
+  Widget _buildRenderArea(
+    PianoLayout layout,
+    PlayerData data, {
+    required bool isPhone,
+  }) {
+    // The engraved two-stave Partition view needs vertical room the short phone
+    // landscape viewport doesn't have (it's unreadable there), so it's
+    // unavailable on phones and falls back to the staff view. The mode toggle
+    // also hides the Partition segment on phones, so this is only reached if the
+    // mode was set on a larger screen before switching to a phone layout.
+    if (data.mode == RenderMode.partition && !isPhone) {
       return const _PartitionView();
     }
     if (data.mode == RenderMode.synthesia) {
@@ -887,6 +900,10 @@ class _ModeToggle extends ConsumerWidget {
               : CymbraColors.surfaceContainerHigh,
         ),
       ),
+      // Partition (engraved two-stave) is unusable in the short phone landscape
+      // viewport, so it's dropped from the toggle on phones. If the mode was set
+      // to Partition on a larger screen, the selection falls back to Staff (what
+      // the render area also shows) so the button keeps a valid selection.
       segments: [
         segment(
           RenderMode.synthesia,
@@ -894,9 +911,12 @@ class _ModeToggle extends ConsumerWidget {
           Icons.waterfall_chart,
         ),
         segment(RenderMode.staff, l10n.modeStaff, Icons.music_note),
-        segment(RenderMode.partition, l10n.modePartition, Icons.article),
+        if (!isPhone)
+          segment(RenderMode.partition, l10n.modePartition, Icons.article),
       ],
-      selected: {mode},
+      selected: {
+        (isPhone && mode == RenderMode.partition) ? RenderMode.staff : mode,
+      },
       onSelectionChanged: (s) => notifier.setMode(s.first),
       showSelectedIcon: false,
     );
@@ -1114,8 +1134,10 @@ class _TransportBar extends ConsumerWidget {
 
     return Container(
       key: const Key('transport-bar'),
+      // Hug the bottom edge on phones (small top gap off the keyboard, minimal
+      // gap below); the roomier all-round pill stays on tablet/desktop.
       margin: isPhone
-          ? const EdgeInsets.symmetric(horizontal: 12, vertical: 6)
+          ? const EdgeInsets.only(left: 12, right: 12, top: 4, bottom: 2)
           : const EdgeInsets.all(16),
       padding: isPhone
           ? const EdgeInsets.symmetric(horizontal: 12, vertical: 2)
