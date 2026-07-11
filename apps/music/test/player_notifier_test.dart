@@ -173,14 +173,19 @@ void main() {
       expect(read().gateSatisfied, isEmpty);
     });
 
-    test('changing hands mid-run cancels the scored run', () async {
+    test('changing hands mid-run restarts scoring from the top', () async {
       await build();
       // Synthesia (default) + play from the top opens a scored run.
       notifier().togglePlay();
+      notifier().toggleWaitMode(); // free run so the playhead advances
+      notifier().advance(200);
+      expect(read().elapsedMs, greaterThan(0));
       expect(container.read(performanceScorerProvider).active, isTrue);
-      // The scored note set is hand-specific, so a hand switch discards the run.
+      // A hand switch restarts the piece with a fresh, still-active run for the
+      // new selection (demo notes are right-hand, so a run opens).
       notifier().setSelectedHands(Hand.right);
-      expect(container.read(performanceScorerProvider).active, isFalse);
+      expect(read().elapsedMs, 0);
+      expect(container.read(performanceScorerProvider).active, isTrue);
     });
   });
 
