@@ -102,7 +102,8 @@ class _Tracked {
 
   _Tracked(this.index, this.note);
 
-  bool get isHit => resolved && verdict != null && verdict != TimingVerdict.missed;
+  bool get isHit =>
+      resolved && verdict != null && verdict != TimingVerdict.missed;
 }
 
 const int _maxRecentHits = 8;
@@ -142,9 +143,7 @@ class PerformanceScorer extends _$PerformanceScorer {
   }) {
     _tracked
       ..clear()
-      ..addAll([
-        for (var i = 0; i < notes.length; i++) _Tracked(i, notes[i]),
-      ]);
+      ..addAll([for (var i = 0; i < notes.length; i++) _Tracked(i, notes[i])]);
     _heldBound.clear();
     _wrong.clear();
     _combo = 0;
@@ -177,14 +176,16 @@ class PerformanceScorer extends _$PerformanceScorer {
       // (the frozen playhead sits on an onset); presses made while exploring
       // ahead of the gate are ignored, not penalized.
       if (waitMode && !_gateActiveAt(playheadMs)) return;
-      _wrong.add(NoteJudgment(
-        noteIndex: -1,
-        pitch: pitch,
-        startMs: playheadMs.round(),
-        waitMode: waitMode,
-        verdict: TimingVerdict.missed,
-        wrong: true,
-      ));
+      _wrong.add(
+        NoteJudgment(
+          noteIndex: -1,
+          pitch: pitch,
+          startMs: playheadMs.round(),
+          waitMode: waitMode,
+          verdict: TimingVerdict.missed,
+          wrong: true,
+        ),
+      );
       _combo = 0;
       _pushEffect(pitch, TimingVerdict.missed, wrong: true);
       _recompute();
@@ -302,18 +303,21 @@ class PerformanceScorer extends _$PerformanceScorer {
   }
 
   /// Clears the last result (e.g. after the summary modal is dismissed).
-  void clearLastResult() =>
-      state = state.copyWith(clearLastResult: true);
+  void clearLastResult() => state = state.copyWith(clearLastResult: true);
 
   // --- internals --------------------------------------------------------
 
   /// Whether any pending onset sits at the (frozen) playhead — i.e. a Wait-Mode
   /// gate is open.
   bool _gateActiveAt(double playheadMs) => _tracked.any(
-        (t) => !t.resolved && (t.note.startMs - playheadMs).abs() <= 1,
-      );
+    (t) => !t.resolved && (t.note.startMs - playheadMs).abs() <= 1,
+  );
 
-  _Tracked? _matchOnset(int pitch, double playheadMs, {required bool waitMode}) {
+  _Tracked? _matchOnset(
+    int pitch,
+    double playheadMs, {
+    required bool waitMode,
+  }) {
     _Tracked? best;
     var bestDelta = double.infinity;
     for (final t in _tracked) {
@@ -377,12 +381,14 @@ class PerformanceScorer extends _$PerformanceScorer {
   }
 
   void _pushEffect(int pitch, TimingVerdict verdict, {required bool wrong}) {
-    _recent.add(HitEffect(
-      pitch: pitch,
-      verdict: verdict,
-      wrong: wrong,
-      atMs: _clock.nowMs(),
-    ));
+    _recent.add(
+      HitEffect(
+        pitch: pitch,
+        verdict: verdict,
+        wrong: wrong,
+        atMs: _clock.nowMs(),
+      ),
+    );
     if (_recent.length > _maxRecentHits) {
       _recent.removeRange(0, _recent.length - _maxRecentHits);
     }

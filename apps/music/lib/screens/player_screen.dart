@@ -32,10 +32,15 @@ import '../state/app_language.dart';
 import '../state/app_locale.dart';
 import '../state/notation_data.dart';
 import '../state/notation_notifier.dart';
+import '../state/performance_scoring.dart';
 import '../state/player_data.dart';
 import '../state/player_notifier.dart';
+import '../state/session_summary.dart';
+import '../state/session_summary_store.dart';
 import '../theme/cymbra_theme.dart';
 import '../widgets/language_selector.dart';
+import '../widgets/scoring_overlay.dart';
+import '../widgets/session_summary_modal.dart';
 
 /// Main screen of the Cymbra player: top bar, rendering area
 /// (Synthesia or Staff), keyboard, and transport bar.
@@ -234,6 +239,15 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
 
   @override
   Widget build(BuildContext context) {
+    // A scored run just finished: persist the summary and show the modal.
+    ref.listen(performanceScorerProvider.select((s) => s.lastResult), (
+      prev,
+      next,
+    ) {
+      if (next != null && !identical(next, prev)) {
+        _onScoredRunFinished(next);
+      }
+    });
     return Focus(
       focusNode: _focusNode,
       autofocus: true,
@@ -333,6 +347,21 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     );
   }
 
+  /// Persists the finished run and presents the summary modal, then clears the
+  /// result and applies the player's chosen action (retry restarts playback).
+  Future<void> _onScoredRunFinished(SessionResult result) async {
+    await ref.read(sessionSummaryStoreProvider).save(result);
+    if (!mounted) return;
+    final action = await showSessionSummary(context, result);
+    if (!mounted) return;
+    ref.read(performanceScorerProvider.notifier).clearLastResult();
+    if (action == SummaryAction.retry) {
+      final player = ref.read(playerProvider.notifier);
+      player.restart();
+      player.setPlaying(true);
+    }
+  }
+
   Widget _buildRenderArea(
     PianoLayout layout,
     PlayerData data, {
@@ -359,27 +388,36 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
               ),
             ),
           ),
+          // Gamified sync gauge + hit sparks (shown only during a scored run).
+          Positioned.fill(child: ScoringOverlay(layout: layout)),
           if (data.blocked) const _WaitOverlay(),
         ],
       );
     }
     // Standard staff mode (synchronized, horizontal scrolling).
-    return Container(
-      color: CymbraColors.surfaceContainerLow,
-      child: CustomPaint(
-        painter: StaffPainter(
-          notes: data.visibleNotes,
-          elapsedMs: data.elapsedMs,
-          activeNotes: data.activeNotes,
-          bpm: data.bpm,
-          songEndMs: data.songEndMs,
-          keyFifths: data.keyFifths,
-          beats: data.beats,
-          beatType: data.beatType,
-          measureStartMs: data.measureStartMs,
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: Container(
+            color: CymbraColors.surfaceContainerLow,
+            child: CustomPaint(
+              painter: StaffPainter(
+                notes: data.visibleNotes,
+                elapsedMs: data.elapsedMs,
+                activeNotes: data.activeNotes,
+                bpm: data.bpm,
+                songEndMs: data.songEndMs,
+                keyFifths: data.keyFifths,
+                beats: data.beats,
+                beatType: data.beatType,
+                measureStartMs: data.measureStartMs,
+              ),
+              size: Size.infinite,
+            ),
+          ),
         ),
-        size: Size.infinite,
-      ),
+        Positioned.fill(child: ScoringOverlay(layout: layout)),
+      ],
     );
   }
 }

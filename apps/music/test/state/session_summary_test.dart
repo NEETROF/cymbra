@@ -127,8 +127,12 @@ void main() {
         hands: 'both',
         judgments: [
           _onset(index: 0, waitMode: false, verdict: TimingVerdict.perfect),
-          _onset(index: 1, waitMode: true, verdict: TimingVerdict.late,
-              sustain: 0.5),
+          _onset(
+            index: 1,
+            waitMode: true,
+            verdict: TimingVerdict.late,
+            sustain: 0.5,
+          ),
           _wrong(waitMode: true),
         ],
         bestCombo: 3,

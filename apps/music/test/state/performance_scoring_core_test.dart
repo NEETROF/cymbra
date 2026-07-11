@@ -90,7 +90,10 @@ void main() {
     test('correctness counts hits over onsets plus wrong notes', () {
       expect(correctnessScore(const [], 0), 1.0);
       expect(
-        correctnessScore(const [TimingVerdict.perfect, TimingVerdict.missed], 0),
+        correctnessScore(const [
+          TimingVerdict.perfect,
+          TimingVerdict.missed,
+        ], 0),
         closeTo(0.5, 1e-9),
       );
       // 1 hit, 1 onset, 1 wrong note → 1/2.
@@ -109,7 +112,11 @@ void main() {
   group('synchronization percentage', () {
     test('defined at 100 before any judgment', () {
       expect(
-        syncPercent(onsetVerdicts: const [], sustainRatios: const [], wrongNotes: 0),
+        syncPercent(
+          onsetVerdicts: const [],
+          sustainRatios: const [],
+          wrongNotes: 0,
+        ),
         100.0,
       );
     });

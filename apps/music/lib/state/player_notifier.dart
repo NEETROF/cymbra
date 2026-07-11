@@ -105,8 +105,7 @@ class Player extends _$Player {
 
   MidiService get _midi => ref.read(midiServiceProvider);
   AudioService get _audio => ref.read(audioServiceProvider);
-  PerformanceScorer get _scorer =>
-      ref.read(performanceScorerProvider.notifier);
+  PerformanceScorer get _scorer => ref.read(performanceScorerProvider.notifier);
 
   /// The two "playing" views where a run is scored (not the engraved Partition).
   static bool _isScoredMode(RenderMode m) =>
@@ -316,6 +315,7 @@ class Player extends _$Player {
     if (!_isScoredMode(m)) _scorer.cancelRun();
     state = state.copyWith(mode: m);
   }
+
   // Re-arm the onset gate at the current playhead when toggling Wait Mode on,
   // and silence any in-flight score voices so none hang across the switch.
   void toggleWaitMode() {

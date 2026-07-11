@@ -40,7 +40,11 @@ void main() {
       overrides: [clockProvider.overrideWithValue(clock)],
     );
     addTearDown(container.dispose);
-    container.listen(performanceScorerProvider, (_, _) {}, fireImmediately: true);
+    container.listen(
+      performanceScorerProvider,
+      (_, _) {},
+      fireImmediately: true,
+    );
   });
 
   // C4 @ [0,500), D4 @ [500,1000).
@@ -50,12 +54,12 @@ void main() {
   ];
 
   void start() => scorer().startRun(
-        pieceId: 'p',
-        title: 'Piece',
-        hands: 'both',
-        speed: 1,
-        notes: notes,
-      );
+    pieceId: 'p',
+    title: 'Piece',
+    hands: 'both',
+    speed: 1,
+    notes: notes,
+  );
 
   group('activation / gating', () {
     test('events are no-ops before a run starts', () {

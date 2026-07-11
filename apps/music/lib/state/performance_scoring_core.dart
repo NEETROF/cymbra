@@ -159,8 +159,7 @@ double syncPercent({
 
 /// Feedback tier 0–4 for a synchronization [percent], one per 20% band. Pure so
 /// the gauge/effects escalation is testable without rendering.
-int feedbackTier(double percent) =>
-    (percent / 20).floor().clamp(0, 4);
+int feedbackTier(double percent) => (percent / 20).floor().clamp(0, 4);
 
 /// Run classification from the per-mode onset counts (see [RunMode]).
 RunMode classifyRun({required int freeOnsets, required int waitOnsets}) {
