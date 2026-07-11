@@ -290,5 +290,8 @@
   "summaryAvgLate": "{ms} ms late avg",
   "@summaryAvgLate": {"placeholders": {"ms": {"type": "int"}}, "description": "Summary: average late (drag) tendency."},
   "summaryAvgReaction": "{ms} ms avg",
-  "@summaryAvgReaction": {"placeholders": {"ms": {"type": "int"}}, "description": "Summary: average Wait-Mode reaction time."}
+  "@summaryAvgReaction": {"placeholders": {"ms": {"type": "int"}}, "description": "Summary: average Wait-Mode reaction time."},
+
+  "summaryClose": "Quit",
+  "@summaryClose": {"description": "Summary: quit button (leave the summary without retrying)."}
 }

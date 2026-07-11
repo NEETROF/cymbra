@@ -31,8 +31,11 @@ Future<SummaryAction> showSessionSummary(
 ) async {
   final action = await showDialog<SummaryAction>(
     context: context,
-    barrierDismissible: true,
-    builder: (context) => _SummaryDialog(result: result),
+    // The player must make an explicit choice (see mistakes / retry / quit) —
+    // no dismiss by tapping outside or the back button.
+    barrierDismissible: false,
+    builder: (context) =>
+        PopScope(canPop: false, child: _SummaryDialog(result: result)),
   );
   return action ?? SummaryAction.close;
 }
@@ -250,9 +253,11 @@ class _SummaryDialog extends StatelessWidget {
     );
   }
 
-  Widget _actions(BuildContext context, AppLocalizations l10n) => Row(
+  Widget _actions(BuildContext context, AppLocalizations l10n) => Column(
     children: [
-      Expanded(
+      // Primary action: see the mistakes on the score.
+      SizedBox(
+        width: double.infinity,
         child: FilledButton(
           style: FilledButton.styleFrom(
             backgroundColor: CymbraColors.primaryContainer,
@@ -261,12 +266,23 @@ class _SummaryDialog extends StatelessWidget {
           child: Text(l10n.summaryReplay),
         ),
       ),
-      const SizedBox(width: 8),
-      Expanded(
-        child: OutlinedButton(
-          onPressed: () => Navigator.of(context).pop(SummaryAction.retry),
-          child: Text(l10n.summaryRetry),
-        ),
+      const SizedBox(height: 8),
+      Row(
+        children: [
+          Expanded(
+            child: OutlinedButton(
+              onPressed: () => Navigator.of(context).pop(SummaryAction.retry),
+              child: Text(l10n.summaryRetry),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: TextButton(
+              onPressed: () => Navigator.of(context).pop(SummaryAction.close),
+              child: Text(l10n.summaryClose),
+            ),
+          ),
+        ],
       ),
     ],
   );

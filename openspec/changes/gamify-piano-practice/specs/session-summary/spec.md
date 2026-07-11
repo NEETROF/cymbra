@@ -6,7 +6,9 @@ When a scored run reaches the end of the piece, the system SHALL present a summa
 built from that run's session-result record. The modal SHALL show the overall
 synchronization percentage, a per-dimension breakdown (timing, correct notes, sustain),
 the best combo/streak, and a count of onsets by verdict (e.g. perfect / good / missed /
-wrong). The modal SHALL offer actions to replay the run, retry the piece, and dismiss.
+wrong). The modal SHALL require the player to make an **explicit choice** — see the
+mistakes (replay), retry the piece, or quit — and SHALL NOT dismiss on a tap outside it or
+a back gesture.
 
 #### Scenario: Modal appears at song end
 - **WHEN** a scored run reaches the end of the piece
@@ -27,9 +29,13 @@ wrong). The modal SHALL offer actions to replay the run, retry the piece, and di
 - **WHEN** the finished run is classified `free` or `wait`
 - **THEN** the modal shows the one relevant sub-score and does not show an empty other-mode score
 
-#### Scenario: Dismiss returns to the player
-- **WHEN** the player dismisses the summary modal
-- **THEN** the player view is restored with the piece reset for another attempt
+#### Scenario: The modal does not auto-dismiss
+- **WHEN** the player taps outside the summary modal or triggers a back gesture
+- **THEN** the modal stays open and awaits an explicit see-mistakes / retry / quit choice
+
+#### Scenario: Quit returns to the player
+- **WHEN** the player chooses quit on the summary modal
+- **THEN** the modal closes and the player view is restored
 
 ### Requirement: Mistake Replay On The Horizontal Score
 

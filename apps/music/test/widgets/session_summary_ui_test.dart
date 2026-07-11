@@ -86,6 +86,9 @@ void main() {
       expect(find.text('Tempo'), findsOneWidget);
       expect(find.text('Reaction'), findsOneWidget);
       expect(find.text('Replay mistakes'), findsOneWidget);
+      // Three explicit choices — no silent dismiss.
+      expect(find.text('Retry'), findsOneWidget);
+      expect(find.text('Quit'), findsOneWidget);
       // Each sub-score shows an average-timing tendency line.
       expect(find.textContaining('avg'), findsWidgets);
     });
@@ -96,6 +99,29 @@ void main() {
       await _open(tester, _pureFree());
       expect(find.text('Tempo'), findsOneWidget);
       expect(find.text('Reaction'), findsNothing);
+    });
+
+    testWidgets('quit returns close and dismisses the modal', (tester) async {
+      SummaryAction? action;
+      await tester.pumpWidget(
+        localizedApp(
+          Scaffold(
+            body: Builder(
+              builder: (context) => ElevatedButton(
+                onPressed: () async =>
+                    action = await showSessionSummary(context, _pureFree()),
+                child: const Text('go'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('go'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Quit'));
+      await tester.pumpAndSettle();
+      expect(action, SummaryAction.close);
+      expect(find.text('Quit'), findsNothing);
     });
   });
 

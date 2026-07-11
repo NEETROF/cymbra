@@ -17,6 +17,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:music/services/audio_service.dart';
 import 'package:music/services/midi_service.dart';
 import 'package:music/src/rust/api/score.dart';
+import 'package:music/state/performance_scoring.dart';
 import 'package:music/state/player_data.dart';
 import 'package:music/state/player_notifier.dart';
 
@@ -170,6 +171,16 @@ void main() {
       expect(read().gateSatisfied, contains(60));
       notifier().setSelectedHands(Hand.left);
       expect(read().gateSatisfied, isEmpty);
+    });
+
+    test('changing hands mid-run cancels the scored run', () async {
+      await build();
+      // Synthesia (default) + play from the top opens a scored run.
+      notifier().togglePlay();
+      expect(container.read(performanceScorerProvider).active, isTrue);
+      // The scored note set is hand-specific, so a hand switch discards the run.
+      notifier().setSelectedHands(Hand.right);
+      expect(container.read(performanceScorerProvider).active, isFalse);
     });
   });
 

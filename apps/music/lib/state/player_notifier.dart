@@ -347,6 +347,10 @@ class Player extends _$Player {
   // silence voices so a now-hidden hand's notes don't keep sounding.
   void setSelectedHands(Hand hand) {
     _silenceAll();
+    // Changing the played hand(s) changes which notes are scored, so any
+    // in-flight scored run is discarded (a fresh one opens on the next
+    // play-from-top) — the summary always reflects a single hand selection.
+    _scorer.cancelRun();
     state = state.copyWith(
       selectedHands: hand,
       gateSatisfied: const {},

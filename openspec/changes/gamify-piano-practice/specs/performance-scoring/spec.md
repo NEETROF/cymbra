@@ -8,6 +8,11 @@ inactive only in the engraved Partition view, which has no live play surface. A 
 run SHALL begin when playback starts from the beginning of the piece and SHALL end when
 the playhead reaches the end of the piece.
 
+A scored run SHALL judge only the notes of the currently selected hand(s) and SHALL record
+which hand(s) were played, so the result reflects a single hand selection. Changing the
+selected hand(s) during a run SHALL discard that run (a fresh one may begin on the next
+play-from-start).
+
 #### Scenario: Scoring runs in Synthesia with Wait Mode off
 - **WHEN** Wait Mode is off, the render mode is Synthesia or scrolling staff, and the
   player starts playback from the beginning
@@ -22,6 +27,14 @@ the playhead reaches the end of the piece.
 #### Scenario: Partition view is not scored
 - **WHEN** the render mode is the engraved Partition view
 - **THEN** no scored run is active regardless of the Wait Mode setting
+
+#### Scenario: Scoring is scoped to the selected hand(s)
+- **WHEN** the player has selected a single hand and starts a scored run
+- **THEN** only that hand's notes are judged and the result records the hand selection
+
+#### Scenario: Changing hands mid-run discards the run
+- **WHEN** the selected hand(s) change while a scored run is active
+- **THEN** the run is discarded and no summary is produced for it
 
 ### Requirement: Per-Note Timing Judgment
 
