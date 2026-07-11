@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.9.0](https://github.com/NEETROF/cymbra/compare/music-v1.8.2...music-v1.9.0) (2026-07-11)
+
+
+### Features
+
+* **music:** adapt player & library to smartphone landscape ([#74](https://github.com/NEETROF/cymbra/issues/74)) ([66061b7](https://github.com/NEETROF/cymbra/commit/66061b71d32d5a7e00e975a6edb4a891f8255b3c))
+* **music:** add in-app localization (en/fr/it/es) ([#70](https://github.com/NEETROF/cymbra/issues/70)) ([33fdc13](https://github.com/NEETROF/cymbra/commit/33fdc132b6e6c37895ed33f91d6905064d6db5d1))
+* **music:** tolerate sustained notes in Wait Mode ([#72](https://github.com/NEETROF/cymbra/issues/72)) ([e9a9aa6](https://github.com/NEETROF/cymbra/commit/e9a9aa6eb8db8518b4ec9ec9d044d9d4619854fe))
+
 ## [1.8.2](https://github.com/NEETROF/cymbra/compare/music-v1.8.1...music-v1.8.2) (2026-07-10)
 
 
