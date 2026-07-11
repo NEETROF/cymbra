@@ -20,6 +20,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../l10n/gen/app_localizations.dart';
+import '../layout/device_class.dart';
 import '../painters/partition_painter.dart';
 import '../painters/piano_keyboard_painter.dart';
 import '../painters/piano_layout.dart';
@@ -58,7 +59,32 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
   /// accepted v1 simplification (chords use distinct pitches).
   final Map<int, int> _keyboardPointers = {};
 
-  static const double _keyboardHeight = 150;
+  /// Keyboard height is derived from the available render height (not fixed) so
+  /// it shrinks on short phone-landscape viewports and stays proportionate on
+  /// larger screens. Tablet/desktop keep the prior band ([_maxKeyboardHeight]
+  /// == the old fixed 150 px, so those layouts don't regress). Phones use a
+  /// shorter band so the thin 88-key keyboard doesn't dominate the short
+  /// landscape viewport and more height goes to the render area (waterfall /
+  /// notation). The floor keeps the keys tappable.
+  static const double _minKeyboardHeight = 96;
+  static const double _maxKeyboardHeight = 150;
+  static const double _keyboardHeightFraction = 0.34;
+  static const double _minKeyboardHeightPhone = 78;
+  static const double _maxKeyboardHeightPhone = 108;
+  static const double _keyboardHeightFractionPhone = 0.28;
+
+  /// Keyboard height for a render column of [availableHeight] pixels (the
+  /// [LayoutBuilder] constraints below the top bar). The render area above the
+  /// keyboard takes the remainder via [Expanded], staying > 0 as long as the
+  /// viewport exceeds the (phone or default) floor.
+  double _keyboardHeightFor(double availableHeight, {required bool isPhone}) {
+    final fraction = isPhone
+        ? _keyboardHeightFractionPhone
+        : _keyboardHeightFraction;
+    final min = isPhone ? _minKeyboardHeightPhone : _minKeyboardHeight;
+    final max = isPhone ? _maxKeyboardHeightPhone : _maxKeyboardHeight;
+    return (availableHeight * fraction).clamp(min, max);
+  }
 
   /// Random source for the near-miss assist keys (q/s).
   final math.Random _rng = math.Random();
@@ -182,8 +208,12 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
   // computer keyboard, so on-screen play drives feedback and the Wait Mode gate
   // identically. Works during playback and when stopped.
 
-  void _onKeyboardPointerDown(PointerDownEvent event, PianoLayout layout) {
-    final pitch = layout.pitchAt(event.localPosition, _keyboardHeight);
+  void _onKeyboardPointerDown(
+    PointerDownEvent event,
+    PianoLayout layout,
+    double keyboardHeight,
+  ) {
+    final pitch = layout.pitchAt(event.localPosition, keyboardHeight);
     if (pitch == null) return;
     _keyboardPointers[event.pointer] = pitch;
     ref.read(playerProvider.notifier).noteOn(pitch);
@@ -213,7 +243,13 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
         // pauses the session; closing restores the prior play/pause state.
         endDrawer: _SettingsDrawer(key: _settingsDrawerKey),
         onEndDrawerChanged: _onEndDrawerChanged,
+        // On a phone the bottom safe-area inset (home-indicator zone) wastes
+        // scarce landscape height below the transport bar, so we let the bar
+        // extend into it (its own small margin keeps a hair of clearance, and
+        // the centred controls sit clear of the thin indicator). Tablet/desktop
+        // keep the full safe area.
         body: SafeArea(
+          bottom: !context.isPhoneLayout,
           child: Column(
             children: [
               const _TopBar(),
@@ -229,6 +265,17 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                           lowPitch: bounds.low,
                           highPitch: bounds.high,
                         );
+                        final keyboardHeight = _keyboardHeightFor(
+                          constraints.maxHeight,
+                          isPhone: context.isPhoneLayout,
+                        );
+                        // Synthesia always shows the keyboard (its cascade aligns
+                        // to the keys); the notation modes honour the user's
+                        // hide-keyboard setting, handing the freed height to the
+                        // score.
+                        final showKeyboard =
+                            data.mode == RenderMode.synthesia ||
+                            data.keyboardVisible;
                         return Column(
                           children: [
                             // Clip the render area so a painter (e.g. high notes /
@@ -236,33 +283,41 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                             // the keyboard below.
                             Expanded(
                               child: ClipRect(
-                                child: _buildRenderArea(layout, data),
+                                child: _buildRenderArea(
+                                  layout,
+                                  data,
+                                  isPhone: context.isPhoneLayout,
+                                ),
                               ),
                             ),
-                            SizedBox(
-                              height: _keyboardHeight,
-                              child: Listener(
-                                key: const Key('onscreen-keyboard'),
-                                onPointerDown: (e) =>
-                                    _onKeyboardPointerDown(e, layout),
-                                onPointerUp: _onKeyboardPointerUp,
-                                onPointerCancel: _onKeyboardPointerUp,
-                                child: CustomPaint(
-                                  size: Size(
-                                    constraints.maxWidth,
-                                    _keyboardHeight,
+                            if (showKeyboard)
+                              SizedBox(
+                                height: keyboardHeight,
+                                child: Listener(
+                                  key: const Key('onscreen-keyboard'),
+                                  onPointerDown: (e) => _onKeyboardPointerDown(
+                                    e,
+                                    layout,
+                                    keyboardHeight,
                                   ),
-                                  painter: PianoKeyboardPainter(
-                                    layout: layout,
-                                    activeNotes: data.activeNotes,
-                                    requiredNotes: data.expectedKeys,
-                                    leftHandNotes: data.expectedKeysForHand(
-                                      rightHand: false,
+                                  onPointerUp: _onKeyboardPointerUp,
+                                  onPointerCancel: _onKeyboardPointerUp,
+                                  child: CustomPaint(
+                                    size: Size(
+                                      constraints.maxWidth,
+                                      keyboardHeight,
+                                    ),
+                                    painter: PianoKeyboardPainter(
+                                      layout: layout,
+                                      activeNotes: data.activeNotes,
+                                      requiredNotes: data.expectedKeys,
+                                      leftHandNotes: data.expectedKeysForHand(
+                                        rightHand: false,
+                                      ),
                                     ),
                                   ),
                                 ),
                               ),
-                            ),
                           ],
                         );
                       },
@@ -278,8 +333,17 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     );
   }
 
-  Widget _buildRenderArea(PianoLayout layout, PlayerData data) {
-    if (data.mode == RenderMode.partition) {
+  Widget _buildRenderArea(
+    PianoLayout layout,
+    PlayerData data, {
+    required bool isPhone,
+  }) {
+    // The engraved two-stave Partition view needs vertical room the short phone
+    // landscape viewport doesn't have (it's unreadable there), so it's
+    // unavailable on phones and falls back to the staff view. The mode toggle
+    // also hides the Partition segment on phones, so this is only reached if the
+    // mode was set on a larger screen before switching to a phone layout.
+    if (data.mode == RenderMode.partition && !isPhone) {
       return const _PartitionView();
     }
     if (data.mode == RenderMode.synthesia) {
@@ -336,8 +400,19 @@ class _TopBar extends ConsumerWidget {
     // so the per-beat pulse doesn't rebuild the whole top bar.
     final title = ref.watch(playerProvider.select((d) => d.title));
     final l10n = AppLocalizations.of(context);
+    // On a phone the landscape viewport is short, so the top bar compacts:
+    // tighter padding, smaller type, and a narrower lead gap free vertical and
+    // horizontal space for the render area. Tablet/desktop keep their sizes.
+    // The IconButton/chips keep their own 48 px tap targets regardless.
+    final isPhone = context.isPhoneLayout;
+    final hPad = isPhone ? 10.0 : 16.0;
+    final vPad = isPhone ? 6.0 : 12.0;
+    final titleSize = isPhone ? 15.0 : 18.0;
+    final subtitleSize = isPhone ? 11.0 : 12.0;
+    final leadGap = isPhone ? 8.0 : 16.0;
+    final trailGap = isPhone ? 8.0 : 12.0;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: EdgeInsets.symmetric(horizontal: hPad, vertical: vPad),
       decoration: const BoxDecoration(
         color: CymbraColors.surfaceContainerLowest,
         border: Border(
@@ -355,7 +430,7 @@ class _TopBar extends ConsumerWidget {
             )
           else
             const Icon(Icons.arrow_back, color: CymbraColors.onSurface),
-          const SizedBox(width: 16),
+          SizedBox(width: leadGap),
           // Expanded (instead of a fixed Column + Spacer) so the title absorbs
           // the free space and shrinks gracefully on narrow windows; the texts
           // ellipsize rather than overflowing the top bar.
@@ -369,7 +444,7 @@ class _TopBar extends ConsumerWidget {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: CymbraColors.primary,
-                    fontSize: 18,
+                    fontSize: titleSize,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
@@ -377,15 +452,15 @@ class _TopBar extends ConsumerWidget {
                   l10n.nowPlaying(title ?? '—'),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: CymbraColors.onSurfaceVariant,
-                    fontSize: 12,
+                    fontSize: subtitleSize,
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(width: 12),
+          SizedBox(width: trailGap),
           // MIDI connection status (read-only at a glance); the device itself is
           // chosen from the settings menu.
           const _MidiStatusIndicator(),
@@ -427,7 +502,13 @@ class _SettingsMenu extends StatelessWidget {
 /// The settings categories shown in the drawer. Used as a stable key so the
 /// selected category survives localization (the display titles are translated,
 /// but the key that drives navigation is not).
-enum _SettingsCategory { midiDevice, keyboardSize, hand, language }
+enum _SettingsCategory {
+  midiDevice,
+  keyboardSize,
+  keyboardVisibility,
+  hand,
+  language,
+}
 
 /// A setting category shown in the drawer's top-level list: its stable key,
 /// localized title, icon, and a short label of the value currently in effect.
@@ -465,9 +546,14 @@ class _SettingsDrawerState extends ConsumerState<_SettingsDrawer> {
       switch (category) {
         _SettingsCategory.midiDevice => l10n.settingsCategoryMidiDevice,
         _SettingsCategory.keyboardSize => l10n.settingsCategoryKeyboardSize,
+        _SettingsCategory.keyboardVisibility =>
+          l10n.settingsCategoryKeyboardVisibility,
         _SettingsCategory.hand => l10n.settingsCategoryHand,
         _SettingsCategory.language => l10n.settingsCategoryLanguage,
       };
+
+  String _keyboardVisibilityLabel(AppLocalizations l10n, bool visible) =>
+      visible ? l10n.keyboardShown : l10n.keyboardHidden;
 
   String _handLabel(AppLocalizations l10n, Hand hand) => switch (hand) {
     Hand.left => l10n.handLeft,
@@ -524,6 +610,7 @@ class _SettingsDrawerState extends ConsumerState<_SettingsDrawer> {
     required List<String> midiPorts,
     required String? connectedDevice,
     required KeyboardRangeMode keyboardRange,
+    required bool keyboardVisible,
     required Hand selectedHands,
     required AppLanguage activeLanguage,
     required Player notifier,
@@ -566,6 +653,15 @@ class _SettingsDrawerState extends ConsumerState<_SettingsDrawer> {
               onTap: () => notifier.setKeyboardRange(m),
             ),
         ];
+      case _SettingsCategory.keyboardVisibility:
+        return [
+          for (final visible in const [true, false])
+            _option(
+              selected: visible == keyboardVisible,
+              label: _keyboardVisibilityLabel(l10n, visible),
+              onTap: () => notifier.setKeyboardVisible(visible),
+            ),
+        ];
       case _SettingsCategory.hand:
         return [
           for (final h in Hand.values)
@@ -605,19 +701,26 @@ class _SettingsDrawerState extends ConsumerState<_SettingsDrawer> {
       midiPorts,
       connectedDevice,
       keyboardRange,
+      keyboardVisible,
       selectedHands,
       twoStaves,
+      mode,
     ) = ref.watch(
       playerProvider.select(
         (d) => (
           d.midiPorts,
           d.connectedDevice,
           d.keyboardRange,
+          d.keyboardVisible,
           d.selectedHands,
           d.hasMultipleStaves,
+          d.mode,
         ),
       ),
     );
+    // The hide-keyboard toggle only makes sense in the notation modes; Synthesia
+    // needs the keyboard for its cascade, so the category is omitted there.
+    final canHideKeyboard = mode != RenderMode.synthesia;
 
     // Top-level categories (with the value currently in effect as a subtitle).
     final categories = <_Category>[
@@ -635,6 +738,13 @@ class _SettingsDrawerState extends ConsumerState<_SettingsDrawer> {
             ? l10n.settingsAuto
             : keyboardRange.label,
       ),
+      if (canHideKeyboard)
+        (
+          key: _SettingsCategory.keyboardVisibility,
+          title: _categoryTitle(l10n, _SettingsCategory.keyboardVisibility),
+          icon: keyboardVisible ? Icons.piano : Icons.piano_off,
+          current: _keyboardVisibilityLabel(l10n, keyboardVisible),
+        ),
       if (twoStaves)
         (
           key: _SettingsCategory.hand,
@@ -691,6 +801,7 @@ class _SettingsDrawerState extends ConsumerState<_SettingsDrawer> {
             midiPorts: midiPorts,
             connectedDevice: connectedDevice,
             keyboardRange: keyboardRange,
+            keyboardVisible: keyboardVisible,
             selectedHands: selectedHands,
             activeLanguage: activeLanguage,
             notifier: notifier,
@@ -815,6 +926,21 @@ class _ModeToggle extends ConsumerWidget {
     final mode = ref.watch(playerProvider.select((d) => d.mode));
     final notifier = ref.read(playerProvider.notifier);
     final l10n = AppLocalizations.of(context);
+    // On a phone the three labelled segments are too wide for the landscape top
+    // bar, so it collapses to icon-only segments (label kept as the tooltip);
+    // tablet/desktop keep the labels. Labels only (no per-segment icons) off
+    // phone to stay within narrow tablet widths now that there are three modes.
+    final isPhone = context.isPhoneLayout;
+    ButtonSegment<RenderMode> segment(
+      RenderMode value,
+      String label,
+      IconData icon,
+    ) => ButtonSegment(
+      value: value,
+      label: isPhone ? null : Text(label),
+      icon: isPhone ? Icon(icon) : null,
+      tooltip: isPhone ? label : null,
+    );
     return SegmentedButton<RenderMode>(
       style: ButtonStyle(
         visualDensity: VisualDensity.compact,
@@ -824,20 +950,23 @@ class _ModeToggle extends ConsumerWidget {
               : CymbraColors.surfaceContainerHigh,
         ),
       ),
-      // Labels only (no per-segment icons) to keep the top bar within narrow
-      // tablet widths now that there are three modes.
+      // Partition (engraved two-stave) is unusable in the short phone landscape
+      // viewport, so it's dropped from the toggle on phones. If the mode was set
+      // to Partition on a larger screen, the selection falls back to Staff (what
+      // the render area also shows) so the button keeps a valid selection.
       segments: [
-        ButtonSegment(
-          value: RenderMode.synthesia,
-          label: Text(l10n.modeSynthesia),
+        segment(
+          RenderMode.synthesia,
+          l10n.modeSynthesia,
+          Icons.waterfall_chart,
         ),
-        ButtonSegment(value: RenderMode.staff, label: Text(l10n.modeStaff)),
-        ButtonSegment(
-          value: RenderMode.partition,
-          label: Text(l10n.modePartition),
-        ),
+        segment(RenderMode.staff, l10n.modeStaff, Icons.music_note),
+        if (!isPhone)
+          segment(RenderMode.partition, l10n.modePartition, Icons.article),
       ],
-      selected: {mode},
+      selected: {
+        (isPhone && mode == RenderMode.partition) ? RenderMode.staff : mode,
+      },
       onSelectionChanged: (s) => notifier.setMode(s.first),
       showSelectedIcon: false,
     );
@@ -1011,18 +1140,24 @@ class _MidiStatusIndicator extends ConsumerWidget {
           ),
           const SizedBox(width: 8),
           Icon(icon, size: 16, color: color),
-          const SizedBox(width: 6),
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 200),
-            child: Text(
-              label,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: CymbraColors.onSurface,
-                fontSize: 13,
+          // On a phone the landscape width is tight, so the status collapses to
+          // the dot + icon (the same info at a glance); the full label returns
+          // on tablet/desktop. The state is also spelled out in the settings
+          // menu, so nothing is lost.
+          if (!context.isPhoneLayout) ...[
+            const SizedBox(width: 6),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 200),
+              child: Text(
+                label,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: CymbraColors.onSurface,
+                  fontSize: 13,
+                ),
               ),
             ),
-          ),
+          ],
         ],
       ),
     );
@@ -1036,9 +1171,27 @@ class _TransportBar extends ConsumerWidget {
     final data = ref.watch(playerProvider);
     final notifier = ref.read(playerProvider.notifier);
 
+    // On a phone the landscape height is scarce, so the transport bar slims
+    // down: tighter margin/padding, a smaller play button, and denser icon
+    // buttons — reclaiming vertical space for the render area. Tablet/desktop
+    // keep the roomier floating pill.
+    final isPhone = context.isPhoneLayout;
+    final density = isPhone ? VisualDensity.compact : VisualDensity.standard;
+    final playRadius = isPhone ? 19.0 : 26.0;
+    final playIcon = isPhone ? 22.0 : 28.0;
+    final gapL = isPhone ? 8.0 : 16.0;
+    final gapS = isPhone ? 4.0 : 8.0;
+
     return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      key: const Key('transport-bar'),
+      // Hug the bottom edge on phones (small top gap off the keyboard, minimal
+      // gap below); the roomier all-round pill stays on tablet/desktop.
+      margin: isPhone
+          ? const EdgeInsets.only(left: 12, right: 12, top: 4, bottom: 2)
+          : const EdgeInsets.all(16),
+      padding: isPhone
+          ? const EdgeInsets.symmetric(horizontal: 12, vertical: 2)
+          : const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       decoration: BoxDecoration(
         color: CymbraColors.surfaceContainerHigh.withValues(alpha: 0.9),
         borderRadius: BorderRadius.circular(999),
@@ -1048,29 +1201,31 @@ class _TransportBar extends ConsumerWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           IconButton(
+            visualDensity: density,
             onPressed: notifier.restart,
             icon: const Icon(
               Icons.skip_previous,
               color: CymbraColors.onSurface,
             ),
           ),
-          const SizedBox(width: 8),
+          SizedBox(width: gapS),
           // Play / pause.
           GestureDetector(
             onTap: notifier.togglePlay,
             child: CircleAvatar(
-              radius: 26,
+              radius: playRadius,
               backgroundColor: CymbraColors.primaryContainer,
               child: Icon(
                 data.isPlaying ? Icons.pause : Icons.play_arrow,
                 color: Colors.white,
-                size: 28,
+                size: playIcon,
               ),
             ),
           ),
-          const SizedBox(width: 16),
+          SizedBox(width: gapL),
           // Speed.
           IconButton(
+            visualDensity: density,
             onPressed: () => notifier.setSpeed(data.speed - 0.25),
             icon: const Icon(
               Icons.remove,
@@ -1085,12 +1240,14 @@ class _TransportBar extends ConsumerWidget {
             ),
           ),
           IconButton(
+            visualDensity: density,
             onPressed: () => notifier.setSpeed(data.speed + 0.25),
             icon: const Icon(Icons.add, color: CymbraColors.onSurfaceVariant),
           ),
-          const SizedBox(width: 8),
+          SizedBox(width: gapS),
           // Wait Mode.
           TextButton.icon(
+            style: TextButton.styleFrom(visualDensity: density),
             onPressed: notifier.toggleWaitMode,
             icon: Icon(
               data.waitMode ? Icons.hourglass_top : Icons.hourglass_disabled,

@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -470,5 +471,270 @@ void main() {
     expect(state().beatCount, greaterThan(0));
     expect(tester.takeException(), isNull);
     await teardownScreen(tester);
+  });
+
+  group('hide-keyboard toggle', () {
+    testWidgets('hides the on-screen keyboard in a notation mode', (
+      tester,
+    ) async {
+      await pumpScreen(tester);
+      notifier().setMode(RenderMode.staff);
+      notifier().setKeyboardVisible(false);
+      await tester.pump();
+      expect(find.byKey(const Key('onscreen-keyboard')), findsNothing);
+      await teardownScreen(tester);
+    });
+
+    testWidgets('keeps the keyboard in Synthesia even when set hidden', (
+      tester,
+    ) async {
+      await pumpScreen(tester);
+      notifier().setMode(RenderMode.synthesia);
+      notifier().setKeyboardVisible(false);
+      await tester.pump();
+      // Synthesia's cascade aligns to the keyboard, so it stays visible.
+      expect(find.byKey(const Key('onscreen-keyboard')), findsOneWidget);
+      await teardownScreen(tester);
+    });
+
+    Future<void> openSettings(WidgetTester tester) async {
+      await tester.tap(find.byIcon(Icons.tune));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+    }
+
+    testWidgets('the settings category is hidden in Synthesia', (tester) async {
+      await pumpScreen(tester); // default mode is Synthesia
+      await openSettings(tester);
+      expect(find.text('Keyboard display'), findsNothing);
+      await teardownScreen(tester);
+    });
+
+    testWidgets('the settings category is offered in a notation mode', (
+      tester,
+    ) async {
+      await pumpScreen(tester);
+      notifier().setMode(RenderMode.staff);
+      await tester.pump();
+      await openSettings(tester);
+      expect(find.text('Keyboard display'), findsOneWidget);
+      await teardownScreen(tester);
+    });
+
+    testWidgets('choosing "Hidden" in the drawer hides the keyboard', (
+      tester,
+    ) async {
+      await pumpScreen(tester);
+      notifier().setMode(RenderMode.staff);
+      await tester.pump();
+      await openSettings(tester);
+      await tester.tap(find.text('Keyboard display'));
+      await tester.pump();
+      await tester.tap(find.text('Hidden'));
+      await tester.pump();
+      expect(state().keyboardVisible, isFalse);
+      expect(find.byKey(const Key('onscreen-keyboard')), findsNothing);
+      await teardownScreen(tester);
+    });
+  });
+
+  group('adaptive smartphone layout', () {
+    // A phone / tablet landscape viewport (shortest side 375 / 768), plus a
+    // deliberately narrow phone (iPhone-SE-class) to stress the top-bar fit.
+    const phone = Size(812, 375);
+    const smallPhone = Size(667, 375);
+    const tablet = Size(1024, 768);
+
+    // Forces the target platform to iOS so the size-based device-class path
+    // drives the layout (not the desktop-platform override), then resets it
+    // (and the view) before the test body ends — the framework asserts
+    // foundation debug vars are clear before tearDown, so an addTearDown reset
+    // would be too late.
+    Future<void> onMobile(
+      WidgetTester tester,
+      Future<void> Function() body,
+    ) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+      try {
+        await body();
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      }
+    }
+
+    // Pumps the player at [size]. `setSurfaceSize` (via pumpScreen) drives the
+    // render constraints, but `MediaQuery.size` — which the device-class helper
+    // reads — comes from the view, so we set the view too (dpr 1 ⇒ logical ==
+    // physical) to keep both in agreement at the intended device size.
+    Future<void> pumpAt(WidgetTester tester, Size size) async {
+      tester.view.devicePixelRatio = 1.0;
+      tester.view.physicalSize = size;
+      await pumpScreen(tester, size: size);
+    }
+
+    double keyboardHeight(WidgetTester tester) =>
+        tester.getSize(find.byKey(const Key('onscreen-keyboard'))).height;
+
+    // Full vertical footprint of the transport bar (its margin included).
+    double transportFootprint(WidgetTester tester) {
+      final bar = find.byKey(const Key('transport-bar'));
+      final container = tester.widget<Container>(bar);
+      final margin = (container.margin ?? EdgeInsets.zero).resolve(
+        TextDirection.ltr,
+      );
+      return tester.getSize(bar).height + margin.vertical;
+    }
+
+    double titleFontSize(WidgetTester tester) =>
+        tester.widget<Text>(find.text('Cymbra Music')).style!.fontSize!;
+
+    testWidgets(
+      'keyboard shrinks on a phone vs a tablet, within the legible clamp',
+      (tester) async {
+        await onMobile(tester, () async {
+          await pumpAt(tester, phone);
+          final phoneKb = keyboardHeight(tester);
+          await teardownScreen(tester);
+
+          await pumpAt(tester, tablet);
+          final tabletKb = keyboardHeight(tester);
+          await teardownScreen(tester);
+
+          // Clamp bands mirror _PlayerScreenState: phones use the shorter
+          // 78..108 band, tablet/desktop the 96..150 band.
+          expect(phoneKb, inInclusiveRange(78, 108));
+          expect(tabletKb, inInclusiveRange(96, 150));
+          expect(
+            phoneKb,
+            lessThan(tabletKb),
+            reason: 'the shorter phone viewport yields a shorter keyboard',
+          );
+        });
+      },
+    );
+
+    testWidgets(
+      'the narrowest phone lays out without overflow and keeps a render area',
+      (tester) async {
+        await onMobile(tester, () async {
+          await pumpAt(tester, smallPhone);
+          expect(tester.takeException(), isNull);
+          // The keyboard takes only part of the column; the render area above
+          // it (plus the top bar) is taller than the keyboard itself, so the
+          // render area keeps a usable, non-zero height.
+          final kb = tester.getRect(find.byKey(const Key('onscreen-keyboard')));
+          expect(kb.top, greaterThan(0));
+          expect(
+            kb.height,
+            lessThan(kb.top),
+            reason: 'content above the keyboard exceeds its height',
+          );
+          await teardownScreen(tester);
+        });
+      },
+    );
+
+    testWidgets('top bar uses compact type on a phone, full type on a tablet', (
+      tester,
+    ) async {
+      await onMobile(tester, () async {
+        await pumpAt(tester, phone);
+        final phoneTitle = titleFontSize(tester);
+        await teardownScreen(tester);
+
+        await pumpAt(tester, tablet);
+        final tabletTitle = titleFontSize(tester);
+        await teardownScreen(tester);
+
+        expect(phoneTitle, 15, reason: 'phone uses the compact title size');
+        expect(tabletTitle, 18, reason: 'tablet keeps the full title size');
+      });
+    });
+
+    testWidgets('Partition mode is offered on a tablet but hidden on a phone', (
+      tester,
+    ) async {
+      await onMobile(tester, () async {
+        await pumpAt(tester, phone);
+        // Icon-only toggle on a phone offers Synthesia + Staff only — the
+        // Partition segment (Icons.article) is dropped.
+        expect(find.byIcon(Icons.waterfall_chart), findsOneWidget);
+        expect(find.byIcon(Icons.music_note), findsOneWidget);
+        expect(find.byIcon(Icons.article), findsNothing);
+        await teardownScreen(tester);
+
+        await pumpAt(tester, tablet);
+        // The labelled tablet toggle still includes Partition.
+        expect(find.text('Partition'), findsOneWidget);
+        await teardownScreen(tester);
+      });
+    });
+
+    testWidgets('a Partition mode set before switching to a phone renders '
+        'without error and offers no Partition segment', (tester) async {
+      await onMobile(tester, () async {
+        await pumpAt(tester, phone);
+        // Coerce the mode to Partition (as if set on a larger screen), then
+        // rebuild on the phone layout: no crash, and Staff is the selection.
+        container.read(playerProvider.notifier).setMode(RenderMode.partition);
+        await tester.pump();
+        expect(tester.takeException(), isNull);
+        expect(find.byIcon(Icons.article), findsNothing);
+        await teardownScreen(tester);
+      });
+    });
+
+    testWidgets('bottom safe area is dropped on a phone, kept on a tablet', (
+      tester,
+    ) async {
+      Iterable<bool> bottomInsets(WidgetTester tester) => tester
+          .widgetList<SafeArea>(
+            find.ancestor(
+              of: find.byKey(const Key('transport-bar')),
+              matching: find.byType(SafeArea),
+            ),
+          )
+          .map((s) => s.bottom);
+
+      await onMobile(tester, () async {
+        await pumpAt(tester, phone);
+        expect(
+          bottomInsets(tester),
+          contains(false),
+          reason: 'phone lets the transport bar reach the bottom edge',
+        );
+        await teardownScreen(tester);
+
+        await pumpAt(tester, tablet);
+        expect(
+          bottomInsets(tester),
+          isNot(contains(false)),
+          reason: 'tablet keeps the full safe area',
+        );
+        await teardownScreen(tester);
+      });
+    });
+
+    testWidgets('transport bar is slimmer on a phone than on a tablet', (
+      tester,
+    ) async {
+      await onMobile(tester, () async {
+        await pumpAt(tester, phone);
+        final phoneBar = transportFootprint(tester);
+        await teardownScreen(tester);
+
+        await pumpAt(tester, tablet);
+        final tabletBar = transportFootprint(tester);
+        await teardownScreen(tester);
+
+        expect(
+          phoneBar,
+          lessThan(tabletBar),
+          reason: 'the phone transport bar reclaims vertical space',
+        );
+      });
+    });
   });
 }

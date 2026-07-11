@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../src/rust/api/musicxml.dart' show BeamState;
@@ -84,19 +86,31 @@ class StaffPainter extends CustomPainter {
     final pxPerMs = (size.width - playLineX - margin) / _lookAheadMs;
     double xForTime(double tMs) => playLineX + (tMs - elapsedMs) * pxPerMs;
 
-    // Vertical placement of the staff/staves.
+    // Vertical placement of the staff/staves. Stems are always drawn upward, so
+    // reserve headroom above the top staff line for up-stems, beams and flags
+    // (~3.9·lineGap) plus a little ledger room; otherwise high notes near the
+    // top clip against the render area — visible on short phone-landscape
+    // viewports, where the proportional margin alone is too small.
+    final stemHeadroom = lineGap * 4.6;
     final double trebleBottom;
     final double? bassBottom;
     if (twoStaff) {
       // Place the staves proportionally to the viewport height: treble near the
       // top, bass near the bottom, with a margin above/below for ledger lines,
       // stems and beams. Both stay fully visible and well separated at any
-      // height (the inter-staff gap grows with a taller viewport).
-      final margin = size.height * 0.16;
-      trebleBottom = margin + 4 * lineGap;
-      bassBottom = size.height - margin;
+      // height (the inter-staff gap grows with a taller viewport). The top
+      // margin never drops below the stem headroom.
+      final topMargin = math.max(size.height * 0.14, stemHeadroom);
+      final bottomMargin = size.height * 0.14;
+      trebleBottom = topMargin + 4 * lineGap;
+      bassBottom = size.height - bottomMargin;
     } else {
-      trebleBottom = size.height / 2 + 2 * lineGap;
+      // Centre the lone staff, but guarantee the up-stem headroom above its top
+      // line so high notes stay visible on short viewports.
+      trebleBottom = math.max(
+        size.height / 2 + 2 * lineGap,
+        stemHeadroom + 4 * lineGap,
+      );
       bassBottom = null;
     }
 

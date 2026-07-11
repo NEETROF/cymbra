@@ -279,6 +279,33 @@ void main() {
       );
     });
 
+    // Short phone-landscape viewport: the grand staff must still fit its
+    // up-stems and beams within the height — high notes near the top are not
+    // clipped (regression guard for the reserved stem headroom).
+    testWidgets(
+      'staff beamed grand staff on a short viewport',
+      tags: 'golden',
+      (tester) async {
+        await tester.pumpWidget(
+          _host(
+            const StaffPainter(
+              notes: _beamedStaffNotes,
+              elapsedMs: 0,
+              activeNotes: {},
+              bpm: 80,
+              songEndMs: 1500,
+              keyFifths: 3,
+            ),
+            const Size(700, 180),
+          ),
+        );
+        await expectLater(
+          find.byKey(const Key('golden')),
+          matchesGoldenFile('goldens/staff_beamed_short.png'),
+        );
+      },
+    );
+
     // Single-hand collapse: feeding the Staff painter only one hand's notes (as
     // the screen does via `visibleNotes`) draws a lone, recentred staff with the
     // kept hand's clef/armature — right hand keeps the treble, left the bass.
