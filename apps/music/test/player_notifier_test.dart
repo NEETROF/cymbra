@@ -212,6 +212,10 @@ void main() {
 
     test('loops back to start at the end of the song', () async {
       await build();
+      // Looping is the unscored behavior; the scored views (synthesia/staff)
+      // finish with a summary instead. Use the Partition view to exercise the
+      // loop path.
+      notifier().setMode(RenderMode.partition);
       notifier().toggleWaitMode(); // disable wait
       notifier().togglePlay();
       notifier().advance(500);
@@ -560,6 +564,8 @@ void main() {
 
     test('looping at the end silences all voices', () async {
       await build();
+      // Unscored (Partition) playback loops; scored views finish instead.
+      notifier().setMode(RenderMode.partition);
       notifier().toggleWaitMode();
       notifier().togglePlay();
       notifier().advance(500);
@@ -681,6 +687,8 @@ void main() {
 
     test('no tick across a loop seam, resumes on the next downbeat', () async {
       await build();
+      // Unscored (Partition) playback loops; scored views finish instead.
+      notifier().setMode(RenderMode.partition);
       notifier().toggleWaitMode();
       notifier().togglePlay();
       notifier().toggleMetronome();

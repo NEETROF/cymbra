@@ -1,41 +1,41 @@
 ## 1. Scoring core (pure, host-testable)
 
-- [ ] 1.1 Add `state/performance_scoring_core.dart`: mode-adaptive timing-verdict function —
+- [x] 1.1 Add `state/performance_scoring_core.dart`: mode-adaptive timing-verdict function —
   Wait-Mode-off uses signed score-clock offset (→ perfect/good/early/late/missed);
   Wait-Mode-on uses reaction time from gate-open to attack (→ perfect/good/late, no miss) —
   with tunable ms-window constants for each
-- [ ] 1.2 Add sustain-ratio helper (held/intended, clamped 0–1, credit floor, no over-hold
+- [x] 1.2 Add sustain-ratio helper (held/intended, clamped 0–1, credit floor, no over-hold
   penalty) to the core
-- [ ] 1.3 Add dimension accumulators + `syncPercent` blend (weighted timing/correctness/
+- [x] 1.3 Add dimension accumulators + `syncPercent` blend (weighted timing/correctness/
   sustain, defined-before-first-judgment baseline) to the core
-- [ ] 1.4 Add pure `feedbackTier(syncPercent)` → 0–4 band function to the core
-- [ ] 1.5 Unit-test the core: each verdict boundary for **both** timing models (free-tempo
+- [x] 1.4 Add pure `feedbackTier(syncPercent)` → 0–4 band function to the core
+- [x] 1.5 Unit-test the core: each verdict boundary for **both** timing models (free-tempo
   offset and Wait-Mode reaction time), sustain edges, wrong-note handling, sync% trends
   up/down, tier up/down-crossings (drive coverage on the pure module)
 
 ## 2. Session-result model
 
-- [ ] 2.1 Add Freezed `NoteJudgment` (with per-note `waitMode` stamp + `timingOffsetMs` xor
+- [x] 2.1 Add Freezed `NoteJudgment` (with per-note `waitMode` stamp + `timingOffsetMs` xor
   `reactionMs`), `RunMode { free, wait, mixed }`, and `SessionResult` (with `runMode`,
   `freeSyncPct?`/`waitSyncPct?`, per-mode onset counts) models in `state/session_summary.dart`
   with `toJson`/`fromJson`, per design D6/D10
-- [ ] 2.2 Run `build_runner`; unit-test round-trip serialization and aggregate/verdict-count
+- [x] 2.2 Run `build_runner`; unit-test round-trip serialization and aggregate/verdict-count
   derivation, including per-mode sub-score presence/absence
 
 ## 3. Scoring notifier wired to the player
 
-- [ ] 3.1 Expose player events the scorer needs (onset-crossed, **gate-open** timestamp for
+- [x] 3.1 Expose player events the scorer needs (onset-crossed, **gate-open** timestamp for
   Wait Mode, note-on/note-off with timestamps) from `player_notifier.dart` without changing
   Wait Mode / playback
-- [ ] 3.2 Add `@riverpod` `PerformanceScorer` notifier consuming those events, holding run
+- [x] 3.2 Add `@riverpod` `PerformanceScorer` notifier consuming those events, holding run
   state (accumulators, recent-hits, combo, per-note judgments)
-- [ ] 3.3 Gate run activation on `mode ∈ {synthesia, staff}` (Wait Mode on **or** off; not
+- [x] 3.3 Gate run activation on `mode ∈ {synthesia, staff}` (Wait Mode on **or** off; not
   Partition); stamp each judged onset with the live `waitMode` state and pick its timing model
   accordingly; start on play-from-start
-- [ ] 3.4 At song end, derive `runMode` (free/wait/mixed) from per-onset counts and compute
+- [x] 3.4 At song end, derive `runMode` (free/wait/mixed) from per-onset counts and compute
   the overall sync% plus per-mode sub-scores (`freeSyncPct`/`waitSyncPct`, absent when that
   mode had no onsets) into the finalized `SessionResult`
-- [ ] 3.5 Unit-test the notifier with fake providers: run gating in both Wait-Mode states and
+- [x] 3.5 Unit-test the notifier with fake providers: run gating in both Wait-Mode states and
   suppression in Partition; per-onset mode stamping across a mid-run toggle (no reset);
   `runMode` classification (pure free, pure wait, mixed); per-mode sub-score presence;
   wrong-note recording; combo increment/reset; final record produced only for scored runs

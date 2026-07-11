@@ -22,6 +22,7 @@ import '../src/rust/api/midi.dart';
 import '../src/rust/api/musicxml.dart';
 import 'notation_data.dart';
 import 'notation_notifier.dart';
+import 'performance_scoring.dart';
 import 'player_data.dart';
 import 'notation_playback.dart';
 import 'score_catalog.dart';
@@ -104,6 +105,28 @@ class Player extends _$Player {
 
   MidiService get _midi => ref.read(midiServiceProvider);
   AudioService get _audio => ref.read(audioServiceProvider);
+  PerformanceScorer get _scorer =>
+      ref.read(performanceScorerProvider.notifier);
+
+  /// The two "playing" views where a run is scored (not the engraved Partition).
+  static bool _isScoredMode(RenderMode m) =>
+      m == RenderMode.synthesia || m == RenderMode.staff;
+
+  /// Begins a scored run for the current piece if playback is starting cleanly
+  /// from the top in a scored view. Idempotent: a run already active is left
+  /// alone (the scorer resets its own state on [PerformanceScorer.startRun]).
+  void _maybeStartRun() {
+    final s = state;
+    if (!_isScoredMode(s.mode) || s.visibleNotes.isEmpty) return;
+    if (s.elapsedMs > 0) return;
+    _scorer.startRun(
+      pieceId: s.title ?? 'demo',
+      title: s.title ?? 'Demo',
+      hands: s.selectedHands.name,
+      speed: s.speed,
+      notes: s.visibleNotes,
+    );
+  }
 
   /// Releases every sounding score voice (stop / restart / loop / hand switch),
   /// so no note is left hanging.
@@ -255,6 +278,9 @@ class Player extends _$Player {
           : state.gateSatisfied,
       consumedHeld: atOnset ? {...consumed, pitch} : consumed,
     );
+    // Feed the scorer the attack at the current playhead; it binds to a pending
+    // onset or records an extra note (a no-op when no run is active).
+    _scorer.noteOn(pitch, state.elapsedMs, waitMode: state.waitMode);
   }
 
   void noteOff(int pitch) {
@@ -268,6 +294,7 @@ class Player extends _$Player {
         consumedHeld: {...state.consumedHeld}..remove(pitch),
       );
     }
+    _scorer.noteOff(pitch, state.elapsedMs);
   }
 
   // --- Playback controls ------------------------------------------------
@@ -279,9 +306,16 @@ class Player extends _$Player {
     // Stopping silences any voices the score was sounding.
     if (!playing) _silenceAll();
     state = state.copyWith(isPlaying: playing);
+    // Starting cleanly from the top in a scored view opens a scored run.
+    if (playing) _maybeStartRun();
   }
 
-  void setMode(RenderMode m) => state = state.copyWith(mode: m);
+  void setMode(RenderMode m) {
+    // Leaving the scored views mid-run discards the run (the Partition view is
+    // not scored); no summary is produced.
+    if (!_isScoredMode(m)) _scorer.cancelRun();
+    state = state.copyWith(mode: m);
+  }
   // Re-arm the onset gate at the current playhead when toggling Wait Mode on,
   // and silence any in-flight score voices so none hang across the switch.
   void toggleWaitMode() {
@@ -322,11 +356,15 @@ class Player extends _$Player {
 
   void restart() {
     _silenceAll();
+    // Discard any in-flight run; a fresh one opens when playback next starts
+    // from the top in a scored view.
+    _scorer.cancelRun();
     state = state.copyWith(
       elapsedMs: 0,
       gateSatisfied: const {},
       consumedHeld: const {},
     );
+    if (state.isPlaying) _maybeStartRun();
   }
 
   // --- Time advance (called by the screen's Ticker) ---------------------
@@ -343,6 +381,12 @@ class Player extends _$Player {
 
     final onset = s.onsetPitchesAt(s.elapsedMs);
 
+    // Drive the scorer's time-based bookkeeping (gate-open stamping in Wait Mode,
+    // miss detection in free run, sustain finalization). Runs before the Wait
+    // Mode blocked early-return below so the gate-open time is stamped even while
+    // the cascade is frozen. A no-op when no run is active.
+    _scorer.tick(s.elapsedMs, waitMode: s.waitMode);
+
     // Wait Mode tolerance: a key already held (and not already consumed by an
     // earlier onset) when the playhead reaches this onset counts as attacked —
     // a sustained/tied note need not be re-pressed. Consuming the hold keeps a
@@ -357,6 +401,12 @@ class Player extends _$Player {
           gateSatisfied: {...s.gateSatisfied, ...heldDue},
           consumedHeld: {...s.consumedHeld, ...heldDue},
         );
+        // A sustained/tied note carried into its onset satisfies the gate with
+        // no fresh attack — credit the scorer for it (reaction ≈ 0) so it is not
+        // later marked missed.
+        for (final p in heldDue) {
+          _scorer.noteOn(p, s.elapsedMs, waitMode: true);
+        }
       }
     }
 
@@ -377,9 +427,16 @@ class Player extends _$Player {
     }
 
     var loop = false;
+    var finishScoredRun = false;
     if (s.songEndMs > 0 && next >= s.songEndMs) {
-      next = 0; // simple loop
-      loop = true;
+      if (ref.read(performanceScorerProvider).active) {
+        // A scored run ends the piece (produces the summary) instead of looping.
+        next = s.songEndMs;
+        finishScoredRun = true;
+      } else {
+        next = 0; // simple loop
+        loop = true;
+      }
     }
 
     // Score audio: sound onsets the playhead crosses and release notes whose end
@@ -427,5 +484,13 @@ class Player extends _$Player {
       beatCount: beatCount,
       lastBeatAccent: lastBeatAccent,
     );
+
+    // End of a scored run: finalize the result (drives the summary modal) and
+    // pause at the last position rather than looping.
+    if (finishScoredRun) {
+      _silenceAll();
+      _scorer.finishRun(next, waitMode: s.waitMode);
+      state = state.copyWith(isPlaying: false);
+    }
   }
 }
