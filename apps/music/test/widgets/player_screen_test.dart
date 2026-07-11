@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -470,5 +471,110 @@ void main() {
     expect(state().beatCount, greaterThan(0));
     expect(tester.takeException(), isNull);
     await teardownScreen(tester);
+  });
+
+  group('adaptive smartphone layout', () {
+    // A phone / tablet landscape viewport (shortest side 375 / 768), plus a
+    // deliberately narrow phone (iPhone-SE-class) to stress the top-bar fit.
+    const phone = Size(812, 375);
+    const smallPhone = Size(667, 375);
+    const tablet = Size(1024, 768);
+
+    // Forces the target platform to iOS so the size-based device-class path
+    // drives the layout (not the desktop-platform override), then resets it
+    // (and the view) before the test body ends — the framework asserts
+    // foundation debug vars are clear before tearDown, so an addTearDown reset
+    // would be too late.
+    Future<void> onMobile(
+      WidgetTester tester,
+      Future<void> Function() body,
+    ) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+      try {
+        await body();
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      }
+    }
+
+    // Pumps the player at [size]. `setSurfaceSize` (via pumpScreen) drives the
+    // render constraints, but `MediaQuery.size` — which the device-class helper
+    // reads — comes from the view, so we set the view too (dpr 1 ⇒ logical ==
+    // physical) to keep both in agreement at the intended device size.
+    Future<void> pumpAt(WidgetTester tester, Size size) async {
+      tester.view.devicePixelRatio = 1.0;
+      tester.view.physicalSize = size;
+      await pumpScreen(tester, size: size);
+    }
+
+    double keyboardHeight(WidgetTester tester) =>
+        tester.getSize(find.byKey(const Key('onscreen-keyboard'))).height;
+
+    double titleFontSize(WidgetTester tester) =>
+        tester.widget<Text>(find.text('Cymbra Music')).style!.fontSize!;
+
+    testWidgets(
+      'keyboard shrinks on a phone vs a tablet, within the legible clamp',
+      (tester) async {
+        await onMobile(tester, () async {
+          await pumpAt(tester, phone);
+          final phoneKb = keyboardHeight(tester);
+          await teardownScreen(tester);
+
+          await pumpAt(tester, tablet);
+          final tabletKb = keyboardHeight(tester);
+          await teardownScreen(tester);
+
+          // Clamp band mirrors _PlayerScreenState (_min.._maxKeyboardHeight).
+          expect(phoneKb, inInclusiveRange(96, 150));
+          expect(tabletKb, inInclusiveRange(96, 150));
+          expect(
+            phoneKb,
+            lessThan(tabletKb),
+            reason: 'the shorter phone viewport yields a shorter keyboard',
+          );
+        });
+      },
+    );
+
+    testWidgets(
+      'the narrowest phone lays out without overflow and keeps a render area',
+      (tester) async {
+        await onMobile(tester, () async {
+          await pumpAt(tester, smallPhone);
+          expect(tester.takeException(), isNull);
+          // The keyboard takes only part of the column; the render area above
+          // it (plus the top bar) is taller than the keyboard itself, so the
+          // render area keeps a usable, non-zero height.
+          final kb = tester.getRect(find.byKey(const Key('onscreen-keyboard')));
+          expect(kb.top, greaterThan(0));
+          expect(
+            kb.height,
+            lessThan(kb.top),
+            reason: 'content above the keyboard exceeds its height',
+          );
+          await teardownScreen(tester);
+        });
+      },
+    );
+
+    testWidgets('top bar uses compact type on a phone, full type on a tablet', (
+      tester,
+    ) async {
+      await onMobile(tester, () async {
+        await pumpAt(tester, phone);
+        final phoneTitle = titleFontSize(tester);
+        await teardownScreen(tester);
+
+        await pumpAt(tester, tablet);
+        final tabletTitle = titleFontSize(tester);
+        await teardownScreen(tester);
+
+        expect(phoneTitle, 15, reason: 'phone uses the compact title size');
+        expect(tabletTitle, 18, reason: 'tablet keeps the full title size');
+      });
+    });
   });
 }

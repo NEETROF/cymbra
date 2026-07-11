@@ -20,6 +20,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../l10n/gen/app_localizations.dart';
+import '../layout/device_class.dart';
 import '../painters/partition_painter.dart';
 import '../painters/piano_keyboard_painter.dart';
 import '../painters/piano_layout.dart';
@@ -58,7 +59,26 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
   /// accepted v1 simplification (chords use distinct pitches).
   final Map<int, int> _keyboardPointers = {};
 
-  static const double _keyboardHeight = 150;
+  /// Keyboard height is derived from the available render height (not fixed) so
+  /// it shrinks on short phone-landscape viewports and stays proportionate on
+  /// larger screens. The clamp keeps keys legible: [_minKeyboardHeight] is a
+  /// floor so even an 88-key keyboard stays tappable on a phone, and
+  /// [_maxKeyboardHeight] preserves the prior tablet/desktop size so those
+  /// layouts don't regress while stopping the keyboard from dominating a tall
+  /// viewport.
+  static const double _minKeyboardHeight = 96;
+  static const double _maxKeyboardHeight = 150;
+  static const double _keyboardHeightFraction = 0.34;
+
+  /// Keyboard height for a render column of [availableHeight] pixels (the
+  /// [LayoutBuilder] constraints below the top bar). The render area above the
+  /// keyboard takes the remainder via [Expanded], staying > 0 as long as the
+  /// viewport exceeds [_minKeyboardHeight].
+  double _keyboardHeightFor(double availableHeight) =>
+      (availableHeight * _keyboardHeightFraction).clamp(
+        _minKeyboardHeight,
+        _maxKeyboardHeight,
+      );
 
   /// Random source for the near-miss assist keys (q/s).
   final math.Random _rng = math.Random();
@@ -182,8 +202,12 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
   // computer keyboard, so on-screen play drives feedback and the Wait Mode gate
   // identically. Works during playback and when stopped.
 
-  void _onKeyboardPointerDown(PointerDownEvent event, PianoLayout layout) {
-    final pitch = layout.pitchAt(event.localPosition, _keyboardHeight);
+  void _onKeyboardPointerDown(
+    PointerDownEvent event,
+    PianoLayout layout,
+    double keyboardHeight,
+  ) {
+    final pitch = layout.pitchAt(event.localPosition, keyboardHeight);
     if (pitch == null) return;
     _keyboardPointers[event.pointer] = pitch;
     ref.read(playerProvider.notifier).noteOn(pitch);
@@ -229,6 +253,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                           lowPitch: bounds.low,
                           highPitch: bounds.high,
                         );
+                        final keyboardHeight = _keyboardHeightFor(
+                          constraints.maxHeight,
+                        );
                         return Column(
                           children: [
                             // Clip the render area so a painter (e.g. high notes /
@@ -240,17 +267,20 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                               ),
                             ),
                             SizedBox(
-                              height: _keyboardHeight,
+                              height: keyboardHeight,
                               child: Listener(
                                 key: const Key('onscreen-keyboard'),
-                                onPointerDown: (e) =>
-                                    _onKeyboardPointerDown(e, layout),
+                                onPointerDown: (e) => _onKeyboardPointerDown(
+                                  e,
+                                  layout,
+                                  keyboardHeight,
+                                ),
                                 onPointerUp: _onKeyboardPointerUp,
                                 onPointerCancel: _onKeyboardPointerUp,
                                 child: CustomPaint(
                                   size: Size(
                                     constraints.maxWidth,
-                                    _keyboardHeight,
+                                    keyboardHeight,
                                   ),
                                   painter: PianoKeyboardPainter(
                                     layout: layout,
@@ -336,8 +366,19 @@ class _TopBar extends ConsumerWidget {
     // so the per-beat pulse doesn't rebuild the whole top bar.
     final title = ref.watch(playerProvider.select((d) => d.title));
     final l10n = AppLocalizations.of(context);
+    // On a phone the landscape viewport is short, so the top bar compacts:
+    // tighter padding, smaller type, and a narrower lead gap free vertical and
+    // horizontal space for the render area. Tablet/desktop keep their sizes.
+    // The IconButton/chips keep their own 48 px tap targets regardless.
+    final isPhone = context.isPhoneLayout;
+    final hPad = isPhone ? 10.0 : 16.0;
+    final vPad = isPhone ? 6.0 : 12.0;
+    final titleSize = isPhone ? 15.0 : 18.0;
+    final subtitleSize = isPhone ? 11.0 : 12.0;
+    final leadGap = isPhone ? 8.0 : 16.0;
+    final trailGap = isPhone ? 8.0 : 12.0;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: EdgeInsets.symmetric(horizontal: hPad, vertical: vPad),
       decoration: const BoxDecoration(
         color: CymbraColors.surfaceContainerLowest,
         border: Border(
@@ -355,7 +396,7 @@ class _TopBar extends ConsumerWidget {
             )
           else
             const Icon(Icons.arrow_back, color: CymbraColors.onSurface),
-          const SizedBox(width: 16),
+          SizedBox(width: leadGap),
           // Expanded (instead of a fixed Column + Spacer) so the title absorbs
           // the free space and shrinks gracefully on narrow windows; the texts
           // ellipsize rather than overflowing the top bar.
@@ -369,7 +410,7 @@ class _TopBar extends ConsumerWidget {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: CymbraColors.primary,
-                    fontSize: 18,
+                    fontSize: titleSize,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
@@ -377,15 +418,15 @@ class _TopBar extends ConsumerWidget {
                   l10n.nowPlaying(title ?? '—'),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: CymbraColors.onSurfaceVariant,
-                    fontSize: 12,
+                    fontSize: subtitleSize,
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(width: 12),
+          SizedBox(width: trailGap),
           // MIDI connection status (read-only at a glance); the device itself is
           // chosen from the settings menu.
           const _MidiStatusIndicator(),
@@ -815,6 +856,21 @@ class _ModeToggle extends ConsumerWidget {
     final mode = ref.watch(playerProvider.select((d) => d.mode));
     final notifier = ref.read(playerProvider.notifier);
     final l10n = AppLocalizations.of(context);
+    // On a phone the three labelled segments are too wide for the landscape top
+    // bar, so it collapses to icon-only segments (label kept as the tooltip);
+    // tablet/desktop keep the labels. Labels only (no per-segment icons) off
+    // phone to stay within narrow tablet widths now that there are three modes.
+    final isPhone = context.isPhoneLayout;
+    ButtonSegment<RenderMode> segment(
+      RenderMode value,
+      String label,
+      IconData icon,
+    ) => ButtonSegment(
+      value: value,
+      label: isPhone ? null : Text(label),
+      icon: isPhone ? Icon(icon) : null,
+      tooltip: isPhone ? label : null,
+    );
     return SegmentedButton<RenderMode>(
       style: ButtonStyle(
         visualDensity: VisualDensity.compact,
@@ -824,18 +880,14 @@ class _ModeToggle extends ConsumerWidget {
               : CymbraColors.surfaceContainerHigh,
         ),
       ),
-      // Labels only (no per-segment icons) to keep the top bar within narrow
-      // tablet widths now that there are three modes.
       segments: [
-        ButtonSegment(
-          value: RenderMode.synthesia,
-          label: Text(l10n.modeSynthesia),
+        segment(
+          RenderMode.synthesia,
+          l10n.modeSynthesia,
+          Icons.waterfall_chart,
         ),
-        ButtonSegment(value: RenderMode.staff, label: Text(l10n.modeStaff)),
-        ButtonSegment(
-          value: RenderMode.partition,
-          label: Text(l10n.modePartition),
-        ),
+        segment(RenderMode.staff, l10n.modeStaff, Icons.music_note),
+        segment(RenderMode.partition, l10n.modePartition, Icons.article),
       ],
       selected: {mode},
       onSelectionChanged: (s) => notifier.setMode(s.first),
@@ -1011,18 +1063,24 @@ class _MidiStatusIndicator extends ConsumerWidget {
           ),
           const SizedBox(width: 8),
           Icon(icon, size: 16, color: color),
-          const SizedBox(width: 6),
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 200),
-            child: Text(
-              label,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: CymbraColors.onSurface,
-                fontSize: 13,
+          // On a phone the landscape width is tight, so the status collapses to
+          // the dot + icon (the same info at a glance); the full label returns
+          // on tablet/desktop. The state is also spelled out in the settings
+          // menu, so nothing is lost.
+          if (!context.isPhoneLayout) ...[
+            const SizedBox(width: 6),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 200),
+              child: Text(
+                label,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: CymbraColors.onSurface,
+                  fontSize: 13,
+                ),
               ),
             ),
-          ),
+          ],
         ],
       ),
     );
