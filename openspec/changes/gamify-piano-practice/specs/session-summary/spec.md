@@ -19,7 +19,7 @@ visible), so the player can always close or retry.
 
 #### Scenario: Modal not shown for an unscored run
 - **WHEN** playback reaches the end of the piece while no scored run was active (e.g. the
-  engraved Partition view was showing)
+  run was cancelled, or playback resumed past a finished run without restarting)
 - **THEN** no summary modal is shown
 
 #### Scenario: Mixed run shows both sub-scores

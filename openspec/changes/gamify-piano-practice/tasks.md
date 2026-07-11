@@ -48,7 +48,8 @@
   the Synthesia and horizontal-staff views, suppressible via an effects flag
 - [x] 4.3 Enforce learning-safe constraints: effects never recolor/occlude upcoming notes or
   expected-key highlights; a `missed` verdict never shows a success effect
-- [x] 4.4 Wire gauge + effects into `player_screen.dart` for both scored render modes
+- [x] 4.4 Wire gauge + effects into `player_screen.dart` for all render modes (gauge in
+  Synthesia/staff/Partition; keyboard-anchored sparks only where a keyboard is shown)
 - [x] 4.5 Widget test: gauge visible during a scored run in **both** Wait-Mode states; hidden
   in Partition. Golden (tagged `golden`): notes remain visible under the effects layer
 

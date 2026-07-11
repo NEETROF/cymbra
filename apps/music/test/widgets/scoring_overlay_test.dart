@@ -39,6 +39,7 @@ void main() {
   Future<ProviderContainer> pumpOverlay(
     WidgetTester tester, {
     required bool showEffects,
+    bool withLayout = true,
   }) async {
     final container = ProviderContainer(
       overrides: [clockProvider.overrideWithValue(_FakeClock())],
@@ -49,7 +50,10 @@ void main() {
         container: container,
         child: localizedApp(
           Scaffold(
-            body: ScoringOverlay(layout: layout, showEffects: showEffects),
+            body: ScoringOverlay(
+              layout: withLayout ? layout : null,
+              showEffects: showEffects,
+            ),
           ),
         ),
       ),
@@ -74,6 +78,14 @@ void main() {
   ) async {
     await pumpOverlay(tester, showEffects: false);
     // No spark layer (keyboard hidden), but the gauge still reads the sync %.
+    expect(_hitEffects, findsNothing);
+    expect(find.textContaining('%'), findsOneWidget);
+  });
+
+  testWidgets('with no layout (Partition) shows the gauge but no sparks', (
+    tester,
+  ) async {
+    await pumpOverlay(tester, showEffects: true, withLayout: false);
     expect(_hitEffects, findsNothing);
     expect(find.textContaining('%'), findsOneWidget);
   });

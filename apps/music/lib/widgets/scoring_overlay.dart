@@ -28,17 +28,15 @@ import 'scoring_gauge.dart';
 /// [IgnorePointer] so it never intercepts keyboard/gesture input — the play
 /// surface underneath stays fully interactive and legible.
 class ScoringOverlay extends ConsumerWidget {
-  const ScoringOverlay({
-    super.key,
-    required this.layout,
-    this.showEffects = true,
-  });
+  const ScoringOverlay({super.key, this.layout, this.showEffects = true});
 
-  final PianoLayout layout;
+  /// Keyboard geometry used to place the hit sparks. Null in views without a
+  /// keyboard mapping (e.g. the engraved Partition), where only the gauge shows.
+  final PianoLayout? layout;
 
   /// Whether to draw the hit sparks. They anchor to the keyboard/note-hit line
-  /// at the bottom, so they are suppressed when the keyboard is hidden — the
-  /// gauge still shows.
+  /// at the bottom, so they are suppressed when the keyboard is hidden (or there
+  /// is no [layout]) — the gauge still shows.
   final bool showEffects;
 
   @override
@@ -46,10 +44,12 @@ class ScoringOverlay extends ConsumerWidget {
     final active = ref.watch(performanceScorerProvider.select((s) => s.active));
     if (!active) return const SizedBox.shrink();
 
+    final layout = this.layout;
     return IgnorePointer(
       child: Stack(
         children: [
-          if (showEffects) Positioned.fill(child: _HitEffects(layout: layout)),
+          if (showEffects && layout != null)
+            Positioned.fill(child: _HitEffects(layout: layout)),
           const Positioned(top: 8, right: 8, child: ScoringGauge()),
         ],
       ),

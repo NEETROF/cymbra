@@ -107,17 +107,13 @@ class Player extends _$Player {
   AudioService get _audio => ref.read(audioServiceProvider);
   PerformanceScorer get _scorer => ref.read(performanceScorerProvider.notifier);
 
-  /// The two "playing" views where a run is scored (not the engraved Partition).
-  static bool _isScoredMode(RenderMode m) =>
-      m == RenderMode.synthesia || m == RenderMode.staff;
-
   /// Begins a scored run for the current piece if playback is starting cleanly
-  /// from the top in a scored view. Idempotent: a run already active is left
-  /// alone (the scorer resets its own state on [PerformanceScorer.startRun]).
+  /// from the top. Every render mode is scored (Synthesia, the scrolling staff,
+  /// and the engraved Partition). Idempotent: a run already active is left alone
+  /// (the scorer resets its own state on [PerformanceScorer.startRun]).
   void _maybeStartRun() {
     final s = state;
-    if (!_isScoredMode(s.mode) || s.visibleNotes.isEmpty) return;
-    if (s.elapsedMs > 0) return;
+    if (s.visibleNotes.isEmpty || s.elapsedMs > 0) return;
     _scorer.startRun(
       pieceId: s.title ?? 'demo',
       title: s.title ?? 'Demo',
@@ -309,12 +305,10 @@ class Player extends _$Player {
     if (playing) _maybeStartRun();
   }
 
-  void setMode(RenderMode m) {
-    // Leaving the scored views mid-run discards the run (the Partition view is
-    // not scored); no summary is produced.
-    if (!_isScoredMode(m)) _scorer.cancelRun();
-    state = state.copyWith(mode: m);
-  }
+  // Every mode is scored and the scored note set is mode-independent, so
+  // switching the render mode keeps the in-flight run (and its gauge/effects)
+  // rather than discarding it.
+  void setMode(RenderMode m) => state = state.copyWith(mode: m);
 
   // Re-arm the onset gate at the current playhead when toggling Wait Mode on,
   // and silence any in-flight score voices so none hang across the switch.

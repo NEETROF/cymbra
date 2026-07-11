@@ -5,15 +5,15 @@
 While a scored run is active, the system SHALL display a compact synchronization gauge
 that reflects the live synchronization percentage. The gauge SHALL be positioned so it
 does not occlude the falling notes, the note-hit line, or the on-screen keyboard, and
-SHALL be shown in both the Synthesia and horizontal scrolling-staff modes. When no
-scored run is active the gauge SHALL be hidden.
+SHALL be shown in every render mode (Synthesia, the scrolling staff, and the Partition).
+When no scored run is active the gauge SHALL be hidden.
 
 #### Scenario: Gauge visible during a scored run
-- **WHEN** a scored run is active in Synthesia or the scrolling staff
+- **WHEN** a scored run is active in any render mode (Synthesia, scrolling staff, or Partition)
 - **THEN** the sync gauge is shown and reflects the current synchronization percentage
 
 #### Scenario: Gauge hidden when not scoring
-- **WHEN** no scored run is active (the Partition view, or playback stopped before a run)
+- **WHEN** no scored run is active (playback stopped before a run, or the run was cancelled)
 - **THEN** the sync gauge is not shown
 
 #### Scenario: Gauge visible in Wait Mode

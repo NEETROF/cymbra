@@ -20,8 +20,10 @@ gamification helps rather than distracts.
   Guitar-Hero–style hit sparkles / combo streaks — deliberately restrained so they
   never occlude the falling notes or keyboard and never fire in a way that misleads
   a learner.
-- Wire this feedback into the **Synthesia (waterfall)** and **horizontal scrolling-staff**
-  render modes (the two "playing" views), reusing their existing painters/piano layout.
+- Wire this feedback into **every render mode** — Synthesia (waterfall), the horizontal
+  scrolling staff, and the engraved vertical Partition — reusing their existing painters
+  (the keyboard-anchored hit sparks show where a keyboard is present; the gauge shows in
+  all modes). Switching modes mid-run keeps the run.
 - On song end, show a **session-summary modal**: overall sync %, per-dimension
   breakdown (timing / correct notes / sustain), best combo, and a note-accuracy count.
 - From that modal, let the player **replay the run on the horizontal score**, with the
@@ -37,8 +39,9 @@ attack against the note's scheduled onset (respect of tempo); with Wait Mode **o
 the cascade freezes at each onset and absolute-tempo offset is meaningless — it measures
 **reaction time** from the moment the gate opens on an onset to the correct attack.
 Correctness (wrong/extra presses) and sustain (hold vs. intended duration) are judged the
-same way in both modes. Scoring is inactive only in the engraved Partition view (which has
-no live play surface). Wait Mode gating itself is unchanged — scoring is layered on top.
+same way in both modes. Scoring is active in **all three** render modes (Synthesia, the
+scrolling staff, and the engraved Partition). Wait Mode gating itself is unchanged —
+scoring is layered on top.
 
 Because Wait Mode can be toggled at any moment, each judged onset is **stamped with the mode
 active at that instant** (not the run as a whole); a mid-run toggle never resets the run. At

@@ -228,12 +228,11 @@ void main() {
 
     test('loops back to start at the end of the song', () async {
       await build();
-      // Looping is the unscored behavior; the scored views (synthesia/staff)
-      // finish with a summary instead. Use the Partition view to exercise the
-      // loop path.
-      notifier().setMode(RenderMode.partition);
       notifier().toggleWaitMode(); // disable wait
       notifier().togglePlay();
+      // A scored run finishes instead of looping; cancel it to exercise the
+      // unscored loop path (all render modes are scored now).
+      container.read(performanceScorerProvider.notifier).cancelRun();
       notifier().advance(500);
       expect(read().elapsedMs, 500);
       notifier().advance(600); // crosses songEndMs (1000)
@@ -580,10 +579,10 @@ void main() {
 
     test('looping at the end silences all voices', () async {
       await build();
-      // Unscored (Partition) playback loops; scored views finish instead.
-      notifier().setMode(RenderMode.partition);
       notifier().toggleWaitMode();
       notifier().togglePlay();
+      // Unscored playback loops; cancel the auto-started run to reach it.
+      container.read(performanceScorerProvider.notifier).cancelRun();
       notifier().advance(500);
       final before = audio.allNotesOffCount;
       notifier().advance(600); // crosses songEnd (1000) → loop
@@ -703,10 +702,10 @@ void main() {
 
     test('no tick across a loop seam, resumes on the next downbeat', () async {
       await build();
-      // Unscored (Partition) playback loops; scored views finish instead.
-      notifier().setMode(RenderMode.partition);
       notifier().toggleWaitMode();
       notifier().togglePlay();
+      // Unscored playback loops; cancel the auto-started run to reach it.
+      container.read(performanceScorerProvider.notifier).cancelRun();
       notifier().toggleMetronome();
 
       notifier().advance(900); // beats at 0 (accent) and 750

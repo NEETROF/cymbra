@@ -1546,6 +1546,9 @@ class _PartitionViewState extends ConsumerState<_PartitionView> {
                 ),
               ),
               if (overlay != null) Positioned(left: 8, top: 8, child: overlay),
+              // Gamified sync gauge (no keyboard-anchored sparks in the engraved
+              // Partition view — it has no waterfall/keyboard mapping).
+              const Positioned.fill(child: ScoringOverlay()),
             ],
           );
         },

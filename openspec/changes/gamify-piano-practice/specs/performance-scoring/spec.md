@@ -2,11 +2,11 @@
 
 ### Requirement: Scored Run Activation
 
-Performance scoring SHALL be active in a "playing" render mode (Synthesia or the
-horizontal scrolling staff) with Wait Mode **either on or off**. Scoring SHALL be
-inactive only in the engraved Partition view, which has no live play surface. A scored
-run SHALL begin when playback starts from the beginning of the piece and SHALL end when
-the playhead reaches the end of the piece.
+Performance scoring SHALL be active in **every** render mode — Synthesia, the horizontal
+scrolling staff, and the engraved vertical Partition — with Wait Mode **either on or off**.
+A scored run SHALL begin when playback starts from the beginning of the piece and SHALL end
+when the playhead reaches the end of the piece. Switching the render mode during a run SHALL
+keep the run active (the scored note set does not depend on the render mode).
 
 A scored run SHALL judge only the notes of the currently selected hand(s) and SHALL record
 which hand(s) were played, so the result reflects a single hand selection. Changing the
@@ -25,9 +25,14 @@ new selection, so the score stays coherent over the whole piece and still ends i
 - **THEN** a scored run begins and note judgments accumulate at each gated onset, using the
   Wait-Mode timing model, without altering the Wait-Mode gating behavior
 
-#### Scenario: Partition view is not scored
-- **WHEN** the render mode is the engraved Partition view
-- **THEN** no scored run is active regardless of the Wait Mode setting
+#### Scenario: The Partition view is scored
+- **WHEN** the render mode is the engraved Partition view and playback starts from the
+  beginning
+- **THEN** a scored run begins and note judgments accumulate
+
+#### Scenario: Switching render mode keeps the run
+- **WHEN** the render mode changes (e.g. Synthesia → Partition) during an active scored run
+- **THEN** the run stays active with its accumulated judgments and its gauge/effects
 
 #### Scenario: Scoring is scoped to the selected hand(s)
 - **WHEN** the player has selected a single hand and starts a scored run
