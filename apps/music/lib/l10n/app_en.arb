@@ -277,5 +277,18 @@
   "replayMeasure": "Measure {n}",
   "@replayMeasure": {"placeholders": {"n": {"type": "int"}}, "description": "Replay list: measure number of a mistake."},
   "replayNoMistakes": "No mistakes — nicely done",
-  "@replayNoMistakes": {"description": "Replay list: shown when the run had no mistakes."}
+  "@replayNoMistakes": {"description": "Replay list: shown when the run had no mistakes."},
+
+  "replayEarly": "Early {ms} ms",
+  "@replayEarly": {"placeholders": {"ms": {"type": "int"}}, "description": "Replay chip: note hit early by N ms."},
+  "replayLate": "Late {ms} ms",
+  "@replayLate": {"placeholders": {"ms": {"type": "int"}}, "description": "Replay chip: note hit late by N ms."},
+  "replayReaction": "Reaction {ms} ms",
+  "@replayReaction": {"placeholders": {"ms": {"type": "int"}}, "description": "Replay chip: Wait-Mode reaction time."},
+  "summaryAvgEarly": "{ms} ms early avg",
+  "@summaryAvgEarly": {"placeholders": {"ms": {"type": "int"}}, "description": "Summary: average early (rush) tendency."},
+  "summaryAvgLate": "{ms} ms late avg",
+  "@summaryAvgLate": {"placeholders": {"ms": {"type": "int"}}, "description": "Summary: average late (drag) tendency."},
+  "summaryAvgReaction": "{ms} ms avg",
+  "@summaryAvgReaction": {"placeholders": {"ms": {"type": "int"}}, "description": "Summary: average Wait-Mode reaction time."}
 }

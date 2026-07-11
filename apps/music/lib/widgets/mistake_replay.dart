@@ -342,7 +342,7 @@ class _ReplayDialogState extends ConsumerState<_ReplayDialog>
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    _markLabel(l10n, mark),
+                    _markLabel(l10n, j, mark),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
@@ -360,11 +360,25 @@ class _ReplayDialogState extends ConsumerState<_ReplayDialog>
     );
   }
 
-  String _markLabel(AppLocalizations l10n, ReplayMark m) => switch (m) {
-    ReplayMark.missed => l10n.replayMissed,
-    ReplayMark.mistimed => l10n.replayMistimed,
-    ReplayMark.shortSustain => l10n.replayShortSustain,
-    ReplayMark.wrong => l10n.replayWrong,
-    ReplayMark.correct => '',
-  };
+  /// Label for a mistake chip. A mistimed note spells out the direction and
+  /// offset ("Late 85 ms" / "Early 40 ms", or the reaction time in Wait Mode)
+  /// so the player sees whether they rushed or dragged, and by how much.
+  String _markLabel(AppLocalizations l10n, NoteJudgment j, ReplayMark m) =>
+      switch (m) {
+        ReplayMark.missed => l10n.replayMissed,
+        ReplayMark.mistimed => _timingDetail(l10n, j) ?? l10n.replayMistimed,
+        ReplayMark.shortSustain => l10n.replayShortSustain,
+        ReplayMark.wrong => l10n.replayWrong,
+        ReplayMark.correct => '',
+      };
+
+  /// The signed timing detail for a note: reaction time in Wait Mode, else the
+  /// early/late offset. Null when no timing was recorded.
+  String? _timingDetail(AppLocalizations l10n, NoteJudgment j) {
+    if (j.reactionMs != null) return l10n.replayReaction(j.reactionMs!.round());
+    final off = j.timingOffsetMs;
+    if (off == null) return null;
+    final ms = off.abs().round();
+    return off < 0 ? l10n.replayEarly(ms) : l10n.replayLate(ms);
+  }
 }

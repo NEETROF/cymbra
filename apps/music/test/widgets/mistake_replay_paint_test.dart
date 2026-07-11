@@ -236,6 +236,36 @@ void main() {
       expect(find.byIcon(Icons.play_circle), findsOneWidget);
     });
 
+    testWidgets('a mistimed note shows its direction and offset', (
+      tester,
+    ) async {
+      await _openReplay(
+        tester,
+        _result(const [
+          NoteJudgment(
+            noteIndex: 0,
+            pitch: 60,
+            startMs: 0,
+            waitMode: false,
+            verdict: TimingVerdict.late,
+            timingOffsetMs: 85,
+            sustainRatio: 1,
+          ),
+          NoteJudgment(
+            noteIndex: 1,
+            pitch: 62,
+            startMs: 500,
+            waitMode: false,
+            verdict: TimingVerdict.early,
+            timingOffsetMs: -40,
+            sustainRatio: 1,
+          ),
+        ]),
+      );
+      expect(find.text('Late 85 ms'), findsOneWidget);
+      expect(find.text('Early 40 ms'), findsOneWidget);
+    });
+
     testWidgets('tapping a mistake jumps to it without error', (tester) async {
       await _openReplay(
         tester,

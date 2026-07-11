@@ -74,6 +74,16 @@ SHALL say so rather than showing an empty list.
 - **WHEN** the replay opens for a run with no mis-played notes
 - **THEN** it shows a no-mistakes message instead of an empty mistake list
 
+#### Scenario: A mistimed note shows early/late and its offset
+- **WHEN** a mistimed note is shown in the replay mistake list
+- **THEN** it states whether it was played early or late and by how many
+  milliseconds (or, in Wait Mode, the reaction time in milliseconds)
+
+#### Scenario: The summary shows the average timing tendency
+- **WHEN** the summary modal shows the tempo and/or reaction sub-scores
+- **THEN** each sub-score also shows the average timing tendency (mean early/late
+  offset in free run, or mean reaction time in Wait Mode)
+
 ### Requirement: Local Persistence Of The Last Summary
 
 The system SHALL persist the most recent session-result record to device-local storage

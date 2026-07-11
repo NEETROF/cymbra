@@ -174,9 +174,11 @@ A sub-score for a mode with no onsets SHALL be absent (not zero).
 At the end of a scored run the system SHALL produce an immutable session-result record
 containing the overall synchronization percentage, the per-mode synchronization sub-scores
 and per-mode onset counts, the run classification (`free`/`wait`/`mixed`), the per-dimension
-aggregates (timing, correctness, sustain), the count of onsets by verdict, the best
-combo/streak, the piece identity and selected hand(s), and the per-note judgment list (each
-carrying its mode stamp) needed to drive a replay. The record SHALL be serializable so a
+aggregates (timing, correctness, sustain), the mean signed free-run timing offset and the
+mean Wait-Mode reaction time (each absent when that mode had no hits), the count of onsets by
+verdict, the best combo/streak, the piece identity and selected hand(s), and the per-note
+judgment list (each carrying its mode stamp and its signed offset or reaction time) needed to
+drive a replay. The record SHALL be serializable so a
 later change can upload it to the server and route it to the correct leaderboard(s).
 
 #### Scenario: Result produced at song end

@@ -112,7 +112,13 @@ class _SummaryDialog extends StatelessWidget {
   }
 
   Widget _subScores(AppLocalizations l10n) {
-    Widget box(String label, String sub, double? pct, Color color) => Expanded(
+    Widget box(
+      String label,
+      String sub,
+      double? pct,
+      Color color,
+      String? detail,
+    ) => Expanded(
       child: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
@@ -137,6 +143,15 @@ class _SummaryDialog extends StatelessWidget {
               sub,
               style: const TextStyle(fontSize: 10, color: CymbraColors.outline),
             ),
+            if (detail != null)
+              Text(
+                detail,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                  color: color,
+                ),
+              ),
           ],
         ),
       ),
@@ -153,6 +168,7 @@ class _SummaryDialog extends StatelessWidget {
             l10n.summaryTempoSub,
             result.freeSyncPct,
             CymbraColors.handRight,
+            _tempoTendency(l10n),
           ),
         if (showTempo && showReaction) const SizedBox(width: 8),
         if (showReaction)
@@ -161,9 +177,24 @@ class _SummaryDialog extends StatelessWidget {
             l10n.summaryReactionSub,
             result.waitSyncPct,
             CymbraColors.primary,
+            _reactionTendency(l10n),
           ),
       ],
     );
+  }
+
+  /// The tempo box's average early/late tendency (rushes vs. drags), or null.
+  String? _tempoTendency(AppLocalizations l10n) {
+    final off = result.avgFreeOffsetMs;
+    if (off == null) return null;
+    final ms = off.abs().round();
+    return off < 0 ? l10n.summaryAvgEarly(ms) : l10n.summaryAvgLate(ms);
+  }
+
+  /// The reaction box's average reaction time, or null.
+  String? _reactionTendency(AppLocalizations l10n) {
+    final r = result.avgReactionMs;
+    return r == null ? null : l10n.summaryAvgReaction(r.round());
   }
 
   Widget _dimensionBar(String label, double value, Color color) => Padding(

@@ -128,5 +128,12 @@
   "replayWrong": "Nota incorrecta",
 
   "replayMeasure": "Compás {n}",
-  "replayNoMistakes": "Sin errores — bien hecho"
+  "replayNoMistakes": "Sin errores — bien hecho",
+
+  "replayEarly": "Adelantada {ms} ms",
+  "replayLate": "Atrasada {ms} ms",
+  "replayReaction": "Reacción {ms} ms",
+  "summaryAvgEarly": "{ms} ms adelantado",
+  "summaryAvgLate": "{ms} ms atrasado",
+  "summaryAvgReaction": "{ms} ms de reacción"
 }

@@ -118,6 +118,15 @@ class SessionResult {
   final int freeOnsetCount;
   final int waitOnsetCount;
 
+  /// Mean signed timing offset (ms) over the free-run hit onsets — negative =
+  /// tends early (rushes), positive = tends late (drags). Null when there were
+  /// no free-run hits.
+  final double? avgFreeOffsetMs;
+
+  /// Mean reaction time (ms) over the Wait-Mode hit onsets. Null when there were
+  /// no Wait-Mode hits.
+  final double? avgReactionMs;
+
   /// Per-dimension aggregates in [0, 1] for the summary breakdown.
   final double timing;
   final double correctness;
@@ -148,6 +157,8 @@ class SessionResult {
     required this.waitSyncPct,
     required this.freeOnsetCount,
     required this.waitOnsetCount,
+    required this.avgFreeOffsetMs,
+    required this.avgReactionMs,
     required this.timing,
     required this.correctness,
     required this.sustain,
@@ -194,6 +205,27 @@ class SessionResult {
     final verdicts = onsets.map((j) => j.verdict).toList(growable: false);
     final ratios = onsets.where((j) => j.isHit).map((j) => j.sustainRatio);
 
+    double? mean(Iterable<double> xs) {
+      var sum = 0.0;
+      var n = 0;
+      for (final x in xs) {
+        sum += x;
+        n++;
+      }
+      return n == 0 ? null : sum / n;
+    }
+
+    final avgFreeOffset = mean(
+      onsets
+          .where((j) => !j.waitMode && j.isHit && j.timingOffsetMs != null)
+          .map((j) => j.timingOffsetMs!),
+    );
+    final avgReaction = mean(
+      onsets
+          .where((j) => j.waitMode && j.isHit && j.reactionMs != null)
+          .map((j) => j.reactionMs!),
+    );
+
     final counts = <TimingVerdict, int>{};
     for (final j in onsets) {
       counts[j.verdict] = (counts[j.verdict] ?? 0) + 1;
@@ -213,6 +245,8 @@ class SessionResult {
       waitSyncPct: subScore(true),
       freeOnsetCount: freeCount,
       waitOnsetCount: waitCount,
+      avgFreeOffsetMs: avgFreeOffset,
+      avgReactionMs: avgReaction,
       timing: timingScore(verdicts),
       correctness: correctnessScore(verdicts, wrong),
       sustain: sustainScore(ratios),
@@ -235,6 +269,8 @@ class SessionResult {
     if (waitSyncPct != null) 'waitSyncPct': waitSyncPct,
     'freeOnsetCount': freeOnsetCount,
     'waitOnsetCount': waitOnsetCount,
+    if (avgFreeOffsetMs != null) 'avgFreeOffsetMs': avgFreeOffsetMs,
+    if (avgReactionMs != null) 'avgReactionMs': avgReactionMs,
     'timing': timing,
     'correctness': correctness,
     'sustain': sustain,
@@ -258,6 +294,8 @@ class SessionResult {
     waitSyncPct: (json['waitSyncPct'] as num?)?.toDouble(),
     freeOnsetCount: (json['freeOnsetCount'] as num).toInt(),
     waitOnsetCount: (json['waitOnsetCount'] as num).toInt(),
+    avgFreeOffsetMs: (json['avgFreeOffsetMs'] as num?)?.toDouble(),
+    avgReactionMs: (json['avgReactionMs'] as num?)?.toDouble(),
     timing: (json['timing'] as num).toDouble(),
     correctness: (json['correctness'] as num).toDouble(),
     sustain: (json['sustain'] as num).toDouble(),

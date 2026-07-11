@@ -128,5 +128,12 @@
   "replayWrong": "Fausse note",
 
   "replayMeasure": "Mesure {n}",
-  "replayNoMistakes": "Aucune erreur — bravo"
+  "replayNoMistakes": "Aucune erreur — bravo",
+
+  "replayEarly": "En avance {ms} ms",
+  "replayLate": "En retard {ms} ms",
+  "replayReaction": "Réaction {ms} ms",
+  "summaryAvgEarly": "{ms} ms en avance",
+  "summaryAvgLate": "{ms} ms en retard",
+  "summaryAvgReaction": "{ms} ms de réaction"
 }

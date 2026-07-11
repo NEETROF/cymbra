@@ -86,6 +86,8 @@ void main() {
       expect(find.text('Tempo'), findsOneWidget);
       expect(find.text('Reaction'), findsOneWidget);
       expect(find.text('Replay mistakes'), findsOneWidget);
+      // Each sub-score shows an average-timing tendency line.
+      expect(find.textContaining('avg'), findsWidgets);
     });
 
     testWidgets('a pure free run shows only the tempo sub-score', (

@@ -104,6 +104,64 @@ void main() {
       expect(r.freeSyncPct!, lessThan(r.waitSyncPct!));
     });
 
+    test('avg tempo offset reflects dragging (late) vs rushing (early)', () {
+      NoteJudgment off(int i, double ms) => NoteJudgment(
+        noteIndex: i,
+        pitch: 60 + i,
+        startMs: i * 500,
+        waitMode: false,
+        verdict: ms > 0 ? TimingVerdict.late : TimingVerdict.early,
+        timingOffsetMs: ms,
+        sustainRatio: 1,
+      );
+      final drags = SessionResult.fromJudgments(
+        pieceId: 'p',
+        title: 'T',
+        hands: 'both',
+        judgments: [off(0, 120), off(1, 80)],
+        bestCombo: 0,
+        playedAtMs: 0,
+        speed: 1,
+      );
+      expect(drags.avgFreeOffsetMs, closeTo(100, 1e-9));
+      expect(drags.avgReactionMs, isNull);
+
+      final rushes = SessionResult.fromJudgments(
+        pieceId: 'p',
+        title: 'T',
+        hands: 'both',
+        judgments: [off(0, -60)],
+        bestCombo: 0,
+        playedAtMs: 0,
+        speed: 1,
+      );
+      expect(rushes.avgFreeOffsetMs, lessThan(0));
+    });
+
+    test('avg reaction is computed over wait onsets only', () {
+      final r = SessionResult.fromJudgments(
+        pieceId: 'p',
+        title: 'T',
+        hands: 'both',
+        judgments: const [
+          NoteJudgment(
+            noteIndex: 0,
+            pitch: 60,
+            startMs: 0,
+            waitMode: true,
+            verdict: TimingVerdict.good,
+            reactionMs: 200,
+            sustainRatio: 1,
+          ),
+        ],
+        bestCombo: 0,
+        playedAtMs: 0,
+        speed: 1,
+      );
+      expect(r.avgReactionMs, closeTo(200, 1e-9));
+      expect(r.avgFreeOffsetMs, isNull);
+    });
+
     test('overall percentage is defined and in range', () {
       final r = SessionResult.fromJudgments(
         pieceId: 'p1',
@@ -159,6 +217,8 @@ void main() {
       expect(restored.playedAtMs, r.playedAtMs);
       expect(restored.speed, r.speed);
       expect(restored.verdictCounts, r.verdictCounts);
+      expect(restored.avgFreeOffsetMs, r.avgFreeOffsetMs);
+      expect(restored.avgReactionMs, r.avgReactionMs);
       expect(restored.notes.length, r.notes.length);
       expect(restored.notes.last.wrong, isTrue);
       expect(restored.notes.first.verdict, TimingVerdict.perfect);
