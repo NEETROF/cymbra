@@ -101,6 +101,42 @@ void main() {
       expect(find.text('Reaction'), findsNothing);
     });
 
+    testWidgets(
+      'on a short viewport the actions stay reachable and the X quits',
+      (tester) async {
+        tester.view.physicalSize = const Size(1200, 480); // phone landscape
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.reset);
+
+        SummaryAction? action;
+        await tester.pumpWidget(
+          localizedApp(
+            Scaffold(
+              body: Builder(
+                builder: (context) => ElevatedButton(
+                  onPressed: () async =>
+                      action = await showSessionSummary(context, _mixed()),
+                  child: const Text('go'),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.tap(find.text('go'));
+        await tester.pumpAndSettle();
+
+        // The stats scroll; the buttons and the close cross stay pinned/visible.
+        expect(find.text('Replay mistakes'), findsOneWidget);
+        expect(find.text('Retry'), findsOneWidget);
+        expect(find.text('Quit'), findsOneWidget);
+        expect(find.byIcon(Icons.close), findsOneWidget);
+
+        await tester.tap(find.byIcon(Icons.close));
+        await tester.pumpAndSettle();
+        expect(action, SummaryAction.close);
+      },
+    );
+
     testWidgets('quit returns close and dismisses the modal', (tester) async {
       SummaryAction? action;
       await tester.pumpWidget(

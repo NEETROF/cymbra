@@ -7,8 +7,10 @@ built from that run's session-result record. The modal SHALL show the overall
 synchronization percentage, a per-dimension breakdown (timing, correct notes, sustain),
 the best combo/streak, and a count of onsets by verdict (e.g. perfect / good / missed /
 wrong). The modal SHALL require the player to make an **explicit choice** — see the
-mistakes (replay), retry the piece, or quit — and SHALL NOT dismiss on a tap outside it or
-a back gesture.
+mistakes (replay), retry the piece, or quit (a close cross is equivalent to quit) — and
+SHALL NOT dismiss on a tap outside it or a back gesture. The modal SHALL keep its action
+controls reachable on small/short viewports (the stats scroll while the actions stay
+visible), so the player can always close or retry.
 
 #### Scenario: Modal appears at song end
 - **WHEN** a scored run reaches the end of the piece
@@ -34,8 +36,13 @@ a back gesture.
 - **THEN** the modal stays open and awaits an explicit see-mistakes / retry / quit choice
 
 #### Scenario: Quit leaves play mode
-- **WHEN** the player chooses quit on the summary modal
+- **WHEN** the player chooses quit (or the close cross) on the summary modal
 - **THEN** the modal closes and the app leaves the player, returning to the previous screen
+
+#### Scenario: Actions stay reachable on a short viewport
+- **WHEN** the summary modal is shown on a short (e.g. phone-landscape) viewport
+- **THEN** the statistics scroll within the modal and the replay/retry/quit controls remain
+  visible and tappable
 
 ### Requirement: Mistake Replay On The Horizontal Score
 

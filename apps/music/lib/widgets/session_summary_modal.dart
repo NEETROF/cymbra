@@ -51,60 +51,84 @@ class _SummaryDialog extends StatelessWidget {
     final tier = (result.overallSyncPct ~/ 20).clamp(0, 4);
     final accent = _tierColor(tier);
 
+    // Cap the height so a short phone-landscape viewport never pushes the action
+    // buttons off-screen: the stats scroll, the buttons stay pinned below.
+    final maxHeight = MediaQuery.of(context).size.height * 0.92;
+
     return Dialog(
       backgroundColor: CymbraColors.surfaceContainerLow,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 420),
+        constraints: BoxConstraints(maxWidth: 420, maxHeight: maxHeight),
         child: Padding(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                '${result.title} · ${_handsLabel(l10n, result.hands)}',
-                style: const TextStyle(
-                  fontSize: 13,
-                  color: CymbraColors.onSurfaceVariant,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              Text(
-                '${result.overallSyncPct.round()}%',
-                style: TextStyle(
-                  fontSize: 44,
-                  fontWeight: FontWeight.w500,
-                  color: accent,
-                  height: 1.2,
+              // Close cross (top-right) — same as Quit: leaves play mode.
+              Align(
+                alignment: Alignment.centerRight,
+                child: IconButton(
+                  visualDensity: VisualDensity.compact,
+                  icon: const Icon(Icons.close, color: CymbraColors.onSurface),
+                  onPressed: () =>
+                      Navigator.of(context).pop(SummaryAction.close),
                 ),
               ),
-              Text(
-                l10n.summaryOverall,
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: CymbraColors.outline,
+              Flexible(
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        '${result.title} · ${_handsLabel(l10n, result.hands)}',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: CymbraColors.onSurfaceVariant,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      Text(
+                        '${result.overallSyncPct.round()}%',
+                        style: TextStyle(
+                          fontSize: 44,
+                          fontWeight: FontWeight.w500,
+                          color: accent,
+                          height: 1.2,
+                        ),
+                      ),
+                      Text(
+                        l10n.summaryOverall,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: CymbraColors.outline,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      _subScores(l10n),
+                      const SizedBox(height: 16),
+                      _dimensionBar(
+                        l10n.summaryTiming,
+                        result.timing,
+                        CymbraColors.secondary,
+                      ),
+                      _dimensionBar(
+                        l10n.summaryCorrect,
+                        result.correctness,
+                        CymbraColors.tertiary,
+                      ),
+                      _dimensionBar(
+                        l10n.summarySustain,
+                        result.sustain,
+                        CymbraColors.handLeft,
+                      ),
+                      const SizedBox(height: 12),
+                      _verdictRow(l10n),
+                    ],
+                  ),
                 ),
               ),
-              const SizedBox(height: 16),
-              _subScores(l10n),
-              const SizedBox(height: 16),
-              _dimensionBar(
-                l10n.summaryTiming,
-                result.timing,
-                CymbraColors.secondary,
-              ),
-              _dimensionBar(
-                l10n.summaryCorrect,
-                result.correctness,
-                CymbraColors.tertiary,
-              ),
-              _dimensionBar(
-                l10n.summarySustain,
-                result.sustain,
-                CymbraColors.handLeft,
-              ),
-              const SizedBox(height: 12),
-              _verdictRow(l10n),
               const SizedBox(height: 16),
               _actions(context, l10n),
             ],
