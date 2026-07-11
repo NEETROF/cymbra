@@ -125,5 +125,8 @@
   "replayMissed": "Manquée",
   "replayMistimed": "Décalée",
   "replayShortSustain": "Tenue courte",
-  "replayWrong": "Fausse note"
+  "replayWrong": "Fausse note",
+
+  "replayMeasure": "Mesure {n}",
+  "replayNoMistakes": "Aucune erreur — bravo"
 }

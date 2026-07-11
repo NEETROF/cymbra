@@ -272,5 +272,10 @@
   "replayShortSustain": "Short sustain",
   "@replayShortSustain": {"description": "Replay legend: short-sustain note."},
   "replayWrong": "Wrong note",
-  "@replayWrong": {"description": "Replay legend: wrong extra note."}
+  "@replayWrong": {"description": "Replay legend: wrong extra note."},
+
+  "replayMeasure": "Measure {n}",
+  "@replayMeasure": {"placeholders": {"n": {"type": "int"}}, "description": "Replay list: measure number of a mistake."},
+  "replayNoMistakes": "No mistakes — nicely done",
+  "@replayNoMistakes": {"description": "Replay list: shown when the run had no mistakes."}
 }

@@ -39,6 +39,7 @@ import '../state/session_summary.dart';
 import '../state/session_summary_store.dart';
 import '../theme/cymbra_theme.dart';
 import '../widgets/language_selector.dart';
+import '../widgets/mistake_replay.dart';
 import '../widgets/scoring_overlay.dart';
 import '../widgets/session_summary_modal.dart';
 
@@ -348,17 +349,28 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
   }
 
   /// Persists the finished run and presents the summary modal, then clears the
-  /// result and applies the player's chosen action (retry restarts playback).
+  /// result and applies the player's chosen action. Choosing "replay" opens the
+  /// mistake replay on the real score and returns to the summary afterwards, so
+  /// the player can still retry or close.
   Future<void> _onScoredRunFinished(SessionResult result) async {
     await ref.read(sessionSummaryStoreProvider).save(result);
-    if (!mounted) return;
-    final action = await showSessionSummary(context, result);
-    if (!mounted) return;
-    ref.read(performanceScorerProvider.notifier).clearLastResult();
-    if (action == SummaryAction.retry) {
-      final player = ref.read(playerProvider.notifier);
-      player.restart();
-      player.setPlaying(true);
+    // Capture the score context now — the piece is unchanged after the run.
+    final score = ReplayScore.fromPlayer(ref.read(playerProvider));
+    while (true) {
+      if (!mounted) return;
+      final action = await showSessionSummary(context, result);
+      if (!mounted) return;
+      if (action == SummaryAction.replay) {
+        await showMistakeReplay(context, score, result);
+        continue; // back to the summary after the replay
+      }
+      ref.read(performanceScorerProvider.notifier).clearLastResult();
+      if (action == SummaryAction.retry) {
+        final player = ref.read(playerProvider.notifier);
+        player.restart();
+        player.setPlaying(true);
+      }
+      return;
     }
   }
 

@@ -67,12 +67,14 @@
 
 ## 6. Mistake replay on the horizontal score
 
-- [x] 6.1 Add a replay overlay reusing the scrolling-staff painter, highlighting notes by
-  verdict (miss / mistimed / poor-sustain / wrong) driven only by `SessionResult` judgments
-- [x] 6.2 Launch replay from the summary modal; scrub a virtual playhead over the record
-  (no live input, no audio grading); correct notes render un-flagged
-- [x] 6.3 Widget test: mistakes highlighted, correct notes not flagged, replay independent of
-  live input
+- [x] 6.1 Reuse the real `StaffPainter` (add an optional `mistakeColors` note-index→colour
+  overlay) so mistakes are ringed in place on the actual staff; classify notes by verdict
+  (miss / mistimed / poor-sustain / wrong) from `SessionResult` judgments
+- [x] 6.2 Launch replay from the summary modal with a `ReplayScore` captured from the player;
+  transport (play/pause + seek) scrubs a real playhead with synced audio (`scoreNoteEdges`);
+  tappable mistake list (labelled by measure) seeks to a note; clean run shows a message
+- [x] 6.3 Widget/unit tests: mistake classification + colours, `measureOf`, `StaffPainter`
+  overlay paint, and the replay dialog (list/jump/transport/audio/close, no-mistakes case)
 
 ## 7. Localization
 

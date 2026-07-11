@@ -34,11 +34,17 @@ wrong). The modal SHALL offer actions to replay the run, retry the piece, and di
 ### Requirement: Mistake Replay On The Horizontal Score
 
 From the summary modal the player SHALL be able to replay the just-finished run rendered
-on the horizontal scrolling-staff view, with the notes they mis-played highlighted by
-verdict — missed onsets, mistimed (early/late) onsets, poor-sustain notes, and wrong
-extra notes SHALL each be visually distinguished from correctly-played notes. The replay
-SHALL be driven by the session-result record's per-note judgments and SHALL NOT require
-re-playing the piece live.
+on the **actual** horizontal scrolling-staff view (the same engraving used during play,
+with the real notes, measures, clefs, and key/time signatures), with the notes they
+mis-played ringed **in place on the staff** by verdict — missed onsets, mistimed
+(early/late) onsets, poor-sustain notes, and wrong extra notes SHALL each be visually
+distinguished from correctly-played notes. The replay SHALL be driven by the
+session-result record's per-note judgments and SHALL NOT require re-playing the piece live.
+
+The replay SHALL provide a transport (play/pause and seek) that scrubs a playhead across
+the staff with synchronized audio, and SHALL present the mistakes as a list the player can
+tap to jump the playhead straight to that note. When the run had no mistakes the replay
+SHALL say so rather than showing an empty list.
 
 #### Scenario: Replay highlights mistakes
 - **WHEN** the player starts the replay from the summary modal
@@ -54,6 +60,19 @@ re-playing the piece live.
 - **WHEN** the replay runs
 - **THEN** it is driven from the stored per-note judgments and does not depend on live
   input
+
+#### Scenario: Transport scrubs the staff with audio
+- **WHEN** the player presses play in the replay
+- **THEN** a playhead advances across the real staff and the notes sound in time, and
+  pausing or seeking stops the audio
+
+#### Scenario: Tapping a mistake jumps to it
+- **WHEN** the player taps a mistake in the replay's mistake list
+- **THEN** the playhead seeks to that note's position on the staff
+
+#### Scenario: A clean run reports no mistakes
+- **WHEN** the replay opens for a run with no mis-played notes
+- **THEN** it shows a no-mistakes message instead of an empty mistake list
 
 ### Requirement: Local Persistence Of The Last Summary
 

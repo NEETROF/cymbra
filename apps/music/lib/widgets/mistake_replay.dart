@@ -13,17 +13,22 @@
 // limitations under the License.
 
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../l10n/gen/app_localizations.dart';
+import '../painters/staff_painter.dart';
+import '../services/audio_service.dart';
 import '../state/performance_scoring_core.dart';
+import '../state/player_data.dart';
 import '../state/session_summary.dart';
 import '../theme/cymbra_theme.dart';
 
 /// How a judged note is classified for the replay highlight.
 enum ReplayMark { correct, mistimed, shortSustain, missed, wrong }
 
-/// Classifies a [NoteJudgment] for the replay: correct notes are left un-marked,
-/// everything else is highlighted by the kind of mistake.
+/// Classifies a [NoteJudgment]: correct notes are left un-marked, everything
+/// else is highlighted by the kind of mistake.
 ReplayMark markFor(NoteJudgment j) {
   if (j.wrong) return ReplayMark.wrong;
   if (j.verdict == TimingVerdict.missed) return ReplayMark.missed;
@@ -34,34 +39,179 @@ ReplayMark markFor(NoteJudgment j) {
   return ReplayMark.correct;
 }
 
-/// Opens the mistake replay for [result] over the horizontal score. Driven
-/// entirely by the recorded per-note judgments — no live input.
-Future<void> showMistakeReplay(BuildContext context, SessionResult result) =>
-    showDialog<void>(
-      context: context,
-      builder: (context) => _ReplayDialog(result: result),
-    );
+/// The mistake colours, matching the summary/replay legend.
+Color colorForMark(ReplayMark m) => switch (m) {
+  ReplayMark.correct => CymbraColors.tertiary,
+  ReplayMark.mistimed => CymbraColors.handLeft,
+  ReplayMark.shortSustain => CymbraColors.primary,
+  ReplayMark.missed => CymbraColors.error,
+  ReplayMark.wrong => CymbraColors.error,
+};
 
-class _ReplayDialog extends StatefulWidget {
-  const _ReplayDialog({required this.result});
+/// The score context the replay needs to render the real horizontal staff,
+/// captured from the player when the run finished.
+class ReplayScore {
+  final List<TimedNote> notes;
+  final int bpm;
+  final double songEndMs;
+  final int keyFifths;
+  final int beats;
+  final int beatType;
+  final List<int> measureStartMs;
 
+  const ReplayScore({
+    required this.notes,
+    required this.bpm,
+    required this.songEndMs,
+    required this.keyFifths,
+    required this.beats,
+    required this.beatType,
+    required this.measureStartMs,
+  });
+
+  /// Builds the replay context from the current player state (same piece).
+  factory ReplayScore.fromPlayer(PlayerData d) => ReplayScore(
+    notes: d.visibleNotes,
+    bpm: d.bpm,
+    songEndMs: d.songEndMs,
+    keyFifths: d.keyFifths,
+    beats: d.beats,
+    beatType: d.beatType,
+    measureStartMs: d.measureStartMs,
+  );
+
+  /// 1-based measure number containing [startMs].
+  int measureOf(int startMs) {
+    var m = 1;
+    for (var i = 0; i < measureStartMs.length; i++) {
+      if (startMs >= measureStartMs[i]) m = i + 1;
+    }
+    return m;
+  }
+}
+
+/// Opens the mistake replay for [result] over the real horizontal score
+/// ([score]). The player watches their run scrub across the actual staff with
+/// mistakes ringed in place, can play/pause/seek with synced audio, and tap a
+/// mistake in the list to jump straight to it.
+Future<void> showMistakeReplay(
+  BuildContext context,
+  ReplayScore score,
+  SessionResult result,
+) => showDialog<void>(
+  context: context,
+  builder: (context) => _ReplayDialog(score: score, result: result),
+);
+
+class _ReplayDialog extends ConsumerStatefulWidget {
+  const _ReplayDialog({required this.score, required this.result});
+
+  final ReplayScore score;
   final SessionResult result;
 
   @override
-  State<_ReplayDialog> createState() => _ReplayDialogState();
+  ConsumerState<_ReplayDialog> createState() => _ReplayDialogState();
 }
 
-class _ReplayDialogState extends State<_ReplayDialog>
+class _ReplayDialogState extends ConsumerState<_ReplayDialog>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _scrub = AnimationController(
-    vsync: this,
-    duration: const Duration(seconds: 6),
-  )..forward();
+  late final Ticker _ticker;
+  Duration _lastTick = Duration.zero;
+  final Set<int> _sounding = {};
+
+  double _elapsed = 0;
+  bool _playing = false;
+
+  ReplayScore get _score => widget.score;
+
+  /// Note-index → mistake colour for the notes shown on the staff.
+  late final Map<int, Color> _mistakeColors = {
+    for (final j in widget.result.notes)
+      if (j.noteIndex >= 0 && markFor(j) != ReplayMark.correct)
+        j.noteIndex: colorForMark(markFor(j)),
+  };
+
+  /// The judged mistakes, in time order, for the tappable list.
+  late final List<NoteJudgment> _mistakes =
+      widget.result.notes
+          .where((j) => markFor(j) != ReplayMark.correct)
+          .toList()
+        ..sort((a, b) => a.startMs.compareTo(b.startMs));
+
+  late final AudioService _audio;
+
+  @override
+  void initState() {
+    super.initState();
+    _ticker = createTicker(_onTick);
+    // Capture the audio service so [dispose] never touches `ref` after the
+    // provider scope has been torn down.
+    _audio = ref.read(audioServiceProvider);
+  }
 
   @override
   void dispose() {
-    _scrub.dispose();
+    _ticker.dispose();
+    _audio.allNotesOff();
     super.dispose();
+  }
+
+  void _onTick(Duration elapsed) {
+    final dt = (elapsed - _lastTick).inMicroseconds / 1000.0;
+    _lastTick = elapsed;
+    if (!_playing || dt <= 0 || dt > 100) return;
+    final next = _elapsed + dt;
+    _applyAudio(_elapsed, next);
+    if (next >= _score.songEndMs) {
+      _stopAudio();
+      setState(() {
+        _elapsed = _score.songEndMs;
+        _playing = false;
+      });
+      _ticker.stop();
+    } else {
+      setState(() => _elapsed = next);
+    }
+  }
+
+  void _applyAudio(double from, double to) {
+    final edges = scoreNoteEdges(
+      visible: _score.notes,
+      from: from,
+      to: to,
+      sounding: _sounding,
+    );
+    for (final p in edges.stops) {
+      _audio.noteOff(p);
+      _sounding.remove(p);
+    }
+    for (final p in edges.starts) {
+      _audio.noteOn(p);
+      _sounding.add(p);
+    }
+  }
+
+  void _stopAudio() {
+    _audio.allNotesOff();
+    _sounding.clear();
+  }
+
+  void _togglePlay() {
+    if (_playing) {
+      _stopAudio();
+      setState(() => _playing = false);
+      _ticker.stop();
+      return;
+    }
+    if (_elapsed >= _score.songEndMs) _elapsed = 0;
+    _lastTick = Duration.zero;
+    setState(() => _playing = true);
+    _ticker.start();
+  }
+
+  void _seek(double ms) {
+    _stopAudio();
+    setState(() => _elapsed = ms.clamp(0, _score.songEndMs));
   }
 
   @override
@@ -71,182 +221,150 @@ class _ReplayDialogState extends State<_ReplayDialog>
       backgroundColor: CymbraColors.background,
       child: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: Row(
-              children: [
-                Text(
-                  l10n.replayTitle,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                    color: CymbraColors.onSurface,
-                  ),
-                ),
-                const Spacer(),
-                IconButton(
-                  icon: const Icon(Icons.close, color: CymbraColors.onSurface),
-                  onPressed: () => Navigator.of(context).pop(),
-                ),
-              ],
-            ),
-          ),
+          _header(context, l10n),
           Expanded(
-            child: AnimatedBuilder(
-              animation: _scrub,
-              builder: (context, _) => CustomPaint(
-                size: Size.infinite,
-                painter: MistakeReplayPainter(
-                  judgments: widget.result.notes,
-                  progress: _scrub.value,
-                ),
+            child: CustomPaint(
+              size: Size.infinite,
+              painter: StaffPainter(
+                notes: _score.notes,
+                elapsedMs: _elapsed,
+                activeNotes: _sounding,
+                bpm: _score.bpm,
+                songEndMs: _score.songEndMs,
+                keyFifths: _score.keyFifths,
+                beats: _score.beats,
+                beatType: _score.beatType,
+                measureStartMs: _score.measureStartMs,
+                mistakeColors: _mistakeColors,
               ),
             ),
           ),
-          _legend(l10n),
+          _transport(),
+          _mistakeList(l10n),
         ],
       ),
     );
   }
 
-  Widget _legend(AppLocalizations l10n) => Padding(
-    padding: const EdgeInsets.all(12),
-    child: Wrap(
-      spacing: 16,
-      runSpacing: 8,
+  Widget _header(BuildContext context, AppLocalizations l10n) => Padding(
+    padding: const EdgeInsets.fromLTRB(16, 12, 8, 4),
+    child: Row(
       children: [
-        _legendItem(CymbraColors.error, l10n.replayMissed),
-        _legendItem(CymbraColors.handLeft, l10n.replayMistimed),
-        _legendItem(CymbraColors.primary, l10n.replayShortSustain),
-        _legendItem(
-          CymbraColors.error.withValues(alpha: 0.5),
-          l10n.replayWrong,
+        Text(
+          l10n.replayTitle,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w500,
+            color: CymbraColors.onSurface,
+          ),
+        ),
+        const Spacer(),
+        IconButton(
+          icon: const Icon(Icons.close, color: CymbraColors.onSurface),
+          onPressed: () => Navigator.of(context).pop(),
         ),
       ],
     ),
   );
 
-  Widget _legendItem(Color color, String label) => Row(
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      Container(
-        width: 12,
-        height: 12,
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(6),
+  Widget _transport() => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 12),
+    child: Row(
+      children: [
+        IconButton(
+          iconSize: 32,
+          color: CymbraColors.secondary,
+          icon: Icon(_playing ? Icons.pause_circle : Icons.play_circle),
+          onPressed: _togglePlay,
         ),
-      ),
-      const SizedBox(width: 6),
-      Text(
-        label,
-        style: const TextStyle(
-          fontSize: 12,
-          color: CymbraColors.onSurfaceVariant,
+        Expanded(
+          child: Slider(
+            value: _elapsed.clamp(0, _score.songEndMs),
+            max: _score.songEndMs <= 0 ? 1 : _score.songEndMs,
+            onChangeStart: (_) {
+              if (_playing) {
+                setState(() => _playing = false);
+                _ticker.stop();
+              }
+            },
+            onChanged: _seek,
+          ),
         ),
-      ),
-    ],
+      ],
+    ),
   );
-}
 
-/// Draws the judged notes on a horizontal timeline (x = onset time, y = pitch),
-/// highlighting mistakes by [ReplayMark]. A playhead scrubs across at [progress]
-/// (0→1). Correct notes render as faint dots; mistakes are colour-coded.
-class MistakeReplayPainter extends CustomPainter {
-  final List<NoteJudgment> judgments;
-  final double progress;
-
-  const MistakeReplayPainter({required this.judgments, required this.progress});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    // Reference staff lines.
-    final linePaint = Paint()
-      ..color = CymbraColors.surfaceContainerHigh
-      ..strokeWidth = 1;
-    for (var i = 1; i <= 5; i++) {
-      final y = size.height * i / 6;
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), linePaint);
+  Widget _mistakeList(AppLocalizations l10n) {
+    if (_mistakes.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.all(16),
+        child: Text(
+          l10n.replayNoMistakes,
+          style: const TextStyle(color: CymbraColors.tertiary),
+        ),
+      );
     }
-
-    if (judgments.isEmpty) return;
-
-    var maxStart = 1;
-    var minPitch = 127;
-    var maxPitch = 0;
-    for (final j in judgments) {
-      if (j.startMs > maxStart) maxStart = j.startMs;
-      if (!j.wrong) {
-        if (j.pitch < minPitch) minPitch = j.pitch;
-        if (j.pitch > maxPitch) maxPitch = j.pitch;
-      }
-    }
-    if (minPitch > maxPitch) {
-      minPitch = 60;
-      maxPitch = 72;
-    }
-    final span = (maxStart + 500).toDouble();
-    final pitchSpan = (maxPitch - minPitch).clamp(1, 127);
-    const pad = 24.0;
-
-    double xOf(int startMs) => (startMs / span) * size.width;
-    double yOf(int pitch) =>
-        size.height -
-        pad -
-        ((pitch - minPitch) / pitchSpan) * (size.height - 2 * pad);
-
-    for (final j in judgments) {
-      final x = xOf(j.startMs);
-      final y = yOf(j.pitch);
-      final center = Offset(x, y);
-      switch (markFor(j)) {
-        case ReplayMark.correct:
-          canvas.drawCircle(
-            center,
-            5,
-            Paint()..color = CymbraColors.onSurface.withValues(alpha: 0.5),
+    return SizedBox(
+      height: 84,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        itemCount: _mistakes.length,
+        separatorBuilder: (_, _) => const SizedBox(width: 8),
+        itemBuilder: (context, i) {
+          final j = _mistakes[i];
+          final mark = markFor(j);
+          final color = colorForMark(mark);
+          return InkWell(
+            onTap: () => _seek(j.startMs.toDouble()),
+            borderRadius: BorderRadius.circular(10),
+            child: Container(
+              width: 116,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                color: CymbraColors.surfaceContainerLow,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: color, width: 1),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    l10n.replayMeasure(_score.measureOf(j.startMs)),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: CymbraColors.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    _markLabel(l10n, mark),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: color,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           );
-        case ReplayMark.missed:
-          canvas.drawCircle(center, 7, Paint()..color = CymbraColors.error);
-        case ReplayMark.wrong:
-          canvas.drawCircle(
-            center,
-            7,
-            Paint()..color = CymbraColors.error.withValues(alpha: 0.5),
-          );
-        case ReplayMark.mistimed:
-          canvas.drawCircle(
-            center,
-            8,
-            Paint()
-              ..style = PaintingStyle.stroke
-              ..strokeWidth = 2.5
-              ..color = CymbraColors.handLeft,
-          );
-        case ReplayMark.shortSustain:
-          canvas.drawCircle(
-            center,
-            8,
-            Paint()
-              ..style = PaintingStyle.stroke
-              ..strokeWidth = 2.5
-              ..color = CymbraColors.primary,
-          );
-      }
-    }
-
-    // Scrubbing playhead.
-    final px = progress.clamp(0.0, 1.0) * size.width;
-    canvas.drawLine(
-      Offset(px, 0),
-      Offset(px, size.height),
-      Paint()
-        ..color = CymbraColors.secondary
-        ..strokeWidth = 2,
+        },
+      ),
     );
   }
 
-  @override
-  bool shouldRepaint(MistakeReplayPainter old) =>
-      old.progress != progress || old.judgments != judgments;
+  String _markLabel(AppLocalizations l10n, ReplayMark m) => switch (m) {
+    ReplayMark.missed => l10n.replayMissed,
+    ReplayMark.mistimed => l10n.replayMistimed,
+    ReplayMark.shortSustain => l10n.replayShortSustain,
+    ReplayMark.wrong => l10n.replayWrong,
+    ReplayMark.correct => '',
+  };
 }

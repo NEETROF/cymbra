@@ -148,12 +148,22 @@ core function parameterized by which onsets it folds.
 - *Alternative rejected*: a single run-level `waitMode` bool — wrong by construction since
   the mode is not constant over the run (the problem the user raised).
 
-### D7 — Replay reuses the horizontal-staff painter with a judgment overlay
+### D7 — Replay reuses the real `StaffPainter` with an in-place mistake overlay
 
-The replay renders the scrolling-staff view (existing painter) and adds a mistake-highlight
-pass keyed by `NoteJudgment.verdict` (miss / mistimed / poor-sustain / wrong). It scrubs a
-virtual playhead over the recorded record — **no live input, no audio grading** — so it is
-deterministic and can animate or step. Correctly-played notes render normally.
+The replay renders the **actual** scrolling-staff engraving by reusing `StaffPainter`
+(same notes/measures/clefs/armature as play), extended with an optional `mistakeColors`
+map (note-index → ring colour) so mistakes are ringed **on the note itself**, in place —
+not as an abstract scatter. It scrubs a real playhead (`elapsedMs`) driven by a `Ticker`,
+with **synchronized audio** via the same `scoreNoteEdges` seam the player uses, and a
+transport (play/pause + seek slider). Below the staff, a tappable mistake list (built from
+the judgments, labelled by measure via `measureStartMs`) seeks the playhead to a chosen
+note. Grading is **not** re-run — the marks come from the recorded `NoteJudgment`s; the
+audio is playback only. The score context (`ReplayScore`) is captured from `PlayerData`
+when the run finishes, since the piece is unchanged. A clean run shows a no-mistakes
+message instead of an empty list. Correctly-played notes render normally.
+
+The captured `SessionResult.notes` carry `noteIndex` into the run's `visibleNotes` snapshot,
+which the replay passes back to `StaffPainter` so the ring lands on the right head.
 
 ### D8 — Local persistence via `PreferencesService`, JSON under a namespaced key
 

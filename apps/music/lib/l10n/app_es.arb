@@ -125,5 +125,8 @@
   "replayMissed": "Fallada",
   "replayMistimed": "Desajustada",
   "replayShortSustain": "Sostenido corto",
-  "replayWrong": "Nota incorrecta"
+  "replayWrong": "Nota incorrecta",
+
+  "replayMeasure": "Compás {n}",
+  "replayNoMistakes": "Sin errores — bien hecho"
 }

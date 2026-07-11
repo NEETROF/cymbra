@@ -18,15 +18,13 @@ import '../l10n/gen/app_localizations.dart';
 import '../state/performance_scoring_core.dart';
 import '../state/session_summary.dart';
 import '../theme/cymbra_theme.dart';
-import 'mistake_replay.dart';
 
 /// What the player chose to do from the summary modal.
 enum SummaryAction { replay, retry, close }
 
 /// Shows the end-of-session summary for [result]. Returns the chosen
-/// [SummaryAction] (or [SummaryAction.close] if dismissed). Choosing
-/// `replay` opens the mistake replay and then returns `replay` so the caller can
-/// decide what to do next.
+/// [SummaryAction] (or [SummaryAction.close] if dismissed). The caller handles
+/// `replay` (it holds the score context the replay needs).
 Future<SummaryAction> showSessionSummary(
   BuildContext context,
   SessionResult result,
@@ -228,12 +226,7 @@ class _SummaryDialog extends StatelessWidget {
           style: FilledButton.styleFrom(
             backgroundColor: CymbraColors.primaryContainer,
           ),
-          onPressed: () async {
-            await showMistakeReplay(context, result);
-            if (context.mounted) {
-              Navigator.of(context).pop(SummaryAction.replay);
-            }
-          },
+          onPressed: () => Navigator.of(context).pop(SummaryAction.replay),
           child: Text(l10n.summaryReplay),
         ),
       ),
