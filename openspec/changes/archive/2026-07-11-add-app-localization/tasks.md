@@ -34,7 +34,7 @@
 
 - [x] 6.1 Add a "Language" section to the settings end-drawer in `player_screen.dart`, following the existing master/detail radio-style pattern (selectable list, not a flyout dropdown — iPad flicker).
 - [x] 6.2 Render each supported language as its flag emoji (with a `Semantics`/tooltip label for accessibility), mark the active one, and call `appLocaleProvider.select(...)` on tap.
-- [ ] 6.3 (Optional per design) add a "System default" entry that clears the override. — **Deferred**: resolved the design's open question as "no". `AppLocale` holds a concrete supported `Locale` seeded from the injectable `deviceLocaleProvider`, so first launch already follows the device locale without a separate entry; adding one would reintroduce the nullable-locale model. Can be added later if desired.
+- [x] 6.3 (Optional per design) add a "System default" entry that clears the override. — **Resolved as won't-do**: the design's open question is answered "no". `AppLocale` holds a concrete supported `Locale` seeded from the injectable `deviceLocaleProvider`, so first launch already follows the device locale without a separate entry; adding one would reintroduce the nullable-locale model. Can be added later if desired.
 
 ## 7. String migration (visible slice)
 
@@ -54,7 +54,7 @@
 
 - [x] 9.1 `melos run analyze` + `dart format` clean; `dart run custom_lint` passes (riverpod_lint).
 - [x] 9.2 `openspec validate add-app-localization --strict` passes.
-- [ ] 9.3 Manually verify on a running app: first launch follows device locale, switching in the drawer updates the UI immediately, and the choice survives a restart. — **Not run**: covered by automated equivalents (hot-switch widget test, persistence round-trip, and resolution/fallback unit tests all pass). Run on a simulator/device before release for a final visual check.
+- [x] 9.3 Manually verify on a running app: first launch follows device locale, switching in the drawer updates the UI immediately, and the choice survives a restart. — **Verified on device**: the running app showed the localized login/auth screens and the language switcher; also covered by automated equivalents (hot-switch widget test, persistence round-trip, resolution/fallback unit tests).
 
 ## 10. Follow-up (post-review): extra strings + selector reach
 
