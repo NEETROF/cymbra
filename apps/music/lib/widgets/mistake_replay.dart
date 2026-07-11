@@ -305,7 +305,7 @@ class _ReplayDialogState extends ConsumerState<_ReplayDialog>
       );
     }
     return SizedBox(
-      height: 84,
+      height: 96,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -319,7 +319,7 @@ class _ReplayDialogState extends ConsumerState<_ReplayDialog>
             onTap: () => _seek(j.startMs.toDouble()),
             borderRadius: BorderRadius.circular(10),
             child: Container(
-              width: 116,
+              width: 150,
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
               decoration: BoxDecoration(
                 color: CymbraColors.surfaceContainerLow,
@@ -343,7 +343,7 @@ class _ReplayDialogState extends ConsumerState<_ReplayDialog>
                   const SizedBox(height: 2),
                   Text(
                     _markLabel(l10n, j, mark),
-                    maxLines: 1,
+                    maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontSize: 13,
