@@ -21,4 +21,4 @@
 - [x] 3.1 `openspec validate tolerate-sustained-note-advance --strict` passes.
 - [x] 3.2 `cd apps/music && dart run build_runner build --delete-conflicting-outputs` then `melos run analyze` + `dart format` clean; `dart run custom_lint` passes.
 - [x] 3.3 `flutter test --coverage --exclude-tags golden` passes with line coverage ≥ 80%.
-- [ ] 3.4 Manually confirm on device/simulator (Wait Mode on): pressing a note slightly early and holding it advances the score when the playhead reaches that onset.
+- [x] 3.4 Manually confirm on device/simulator (Wait Mode on): pressing a note slightly early and holding it advances the score when the playhead reaches that onset.
