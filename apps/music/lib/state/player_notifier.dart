@@ -306,6 +306,8 @@ class Player extends _$Player {
   void setSpeed(double s) => state = state.copyWith(speed: s.clamp(0.25, 2.0));
   void setKeyboardRange(KeyboardRangeMode m) =>
       state = state.copyWith(keyboardRange: m);
+  void setKeyboardVisible(bool visible) =>
+      state = state.copyWith(keyboardVisible: visible);
   // Re-arm the onset gate so a hand switch can't leave the cascade frozen on an
   // onset that is now hidden (or pre-satisfied from the previous selection), and
   // silence voices so a now-hidden hand's notes don't keep sounding.

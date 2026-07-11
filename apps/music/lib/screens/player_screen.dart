@@ -269,6 +269,13 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                           constraints.maxHeight,
                           isPhone: context.isPhoneLayout,
                         );
+                        // Synthesia always shows the keyboard (its cascade aligns
+                        // to the keys); the notation modes honour the user's
+                        // hide-keyboard setting, handing the freed height to the
+                        // score.
+                        final showKeyboard =
+                            data.mode == RenderMode.synthesia ||
+                            data.keyboardVisible;
                         return Column(
                           children: [
                             // Clip the render area so a painter (e.g. high notes /
@@ -283,33 +290,34 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                                 ),
                               ),
                             ),
-                            SizedBox(
-                              height: keyboardHeight,
-                              child: Listener(
-                                key: const Key('onscreen-keyboard'),
-                                onPointerDown: (e) => _onKeyboardPointerDown(
-                                  e,
-                                  layout,
-                                  keyboardHeight,
-                                ),
-                                onPointerUp: _onKeyboardPointerUp,
-                                onPointerCancel: _onKeyboardPointerUp,
-                                child: CustomPaint(
-                                  size: Size(
-                                    constraints.maxWidth,
+                            if (showKeyboard)
+                              SizedBox(
+                                height: keyboardHeight,
+                                child: Listener(
+                                  key: const Key('onscreen-keyboard'),
+                                  onPointerDown: (e) => _onKeyboardPointerDown(
+                                    e,
+                                    layout,
                                     keyboardHeight,
                                   ),
-                                  painter: PianoKeyboardPainter(
-                                    layout: layout,
-                                    activeNotes: data.activeNotes,
-                                    requiredNotes: data.expectedKeys,
-                                    leftHandNotes: data.expectedKeysForHand(
-                                      rightHand: false,
+                                  onPointerUp: _onKeyboardPointerUp,
+                                  onPointerCancel: _onKeyboardPointerUp,
+                                  child: CustomPaint(
+                                    size: Size(
+                                      constraints.maxWidth,
+                                      keyboardHeight,
+                                    ),
+                                    painter: PianoKeyboardPainter(
+                                      layout: layout,
+                                      activeNotes: data.activeNotes,
+                                      requiredNotes: data.expectedKeys,
+                                      leftHandNotes: data.expectedKeysForHand(
+                                        rightHand: false,
+                                      ),
                                     ),
                                   ),
                                 ),
                               ),
-                            ),
                           ],
                         );
                       },
@@ -494,7 +502,13 @@ class _SettingsMenu extends StatelessWidget {
 /// The settings categories shown in the drawer. Used as a stable key so the
 /// selected category survives localization (the display titles are translated,
 /// but the key that drives navigation is not).
-enum _SettingsCategory { midiDevice, keyboardSize, hand, language }
+enum _SettingsCategory {
+  midiDevice,
+  keyboardSize,
+  keyboardVisibility,
+  hand,
+  language,
+}
 
 /// A setting category shown in the drawer's top-level list: its stable key,
 /// localized title, icon, and a short label of the value currently in effect.
@@ -532,9 +546,14 @@ class _SettingsDrawerState extends ConsumerState<_SettingsDrawer> {
       switch (category) {
         _SettingsCategory.midiDevice => l10n.settingsCategoryMidiDevice,
         _SettingsCategory.keyboardSize => l10n.settingsCategoryKeyboardSize,
+        _SettingsCategory.keyboardVisibility =>
+          l10n.settingsCategoryKeyboardVisibility,
         _SettingsCategory.hand => l10n.settingsCategoryHand,
         _SettingsCategory.language => l10n.settingsCategoryLanguage,
       };
+
+  String _keyboardVisibilityLabel(AppLocalizations l10n, bool visible) =>
+      visible ? l10n.keyboardShown : l10n.keyboardHidden;
 
   String _handLabel(AppLocalizations l10n, Hand hand) => switch (hand) {
     Hand.left => l10n.handLeft,
@@ -591,6 +610,7 @@ class _SettingsDrawerState extends ConsumerState<_SettingsDrawer> {
     required List<String> midiPorts,
     required String? connectedDevice,
     required KeyboardRangeMode keyboardRange,
+    required bool keyboardVisible,
     required Hand selectedHands,
     required AppLanguage activeLanguage,
     required Player notifier,
@@ -633,6 +653,15 @@ class _SettingsDrawerState extends ConsumerState<_SettingsDrawer> {
               onTap: () => notifier.setKeyboardRange(m),
             ),
         ];
+      case _SettingsCategory.keyboardVisibility:
+        return [
+          for (final visible in const [true, false])
+            _option(
+              selected: visible == keyboardVisible,
+              label: _keyboardVisibilityLabel(l10n, visible),
+              onTap: () => notifier.setKeyboardVisible(visible),
+            ),
+        ];
       case _SettingsCategory.hand:
         return [
           for (final h in Hand.values)
@@ -672,19 +701,26 @@ class _SettingsDrawerState extends ConsumerState<_SettingsDrawer> {
       midiPorts,
       connectedDevice,
       keyboardRange,
+      keyboardVisible,
       selectedHands,
       twoStaves,
+      mode,
     ) = ref.watch(
       playerProvider.select(
         (d) => (
           d.midiPorts,
           d.connectedDevice,
           d.keyboardRange,
+          d.keyboardVisible,
           d.selectedHands,
           d.hasMultipleStaves,
+          d.mode,
         ),
       ),
     );
+    // The hide-keyboard toggle only makes sense in the notation modes; Synthesia
+    // needs the keyboard for its cascade, so the category is omitted there.
+    final canHideKeyboard = mode != RenderMode.synthesia;
 
     // Top-level categories (with the value currently in effect as a subtitle).
     final categories = <_Category>[
@@ -702,6 +738,13 @@ class _SettingsDrawerState extends ConsumerState<_SettingsDrawer> {
             ? l10n.settingsAuto
             : keyboardRange.label,
       ),
+      if (canHideKeyboard)
+        (
+          key: _SettingsCategory.keyboardVisibility,
+          title: _categoryTitle(l10n, _SettingsCategory.keyboardVisibility),
+          icon: keyboardVisible ? Icons.piano : Icons.piano_off,
+          current: _keyboardVisibilityLabel(l10n, keyboardVisible),
+        ),
       if (twoStaves)
         (
           key: _SettingsCategory.hand,
@@ -758,6 +801,7 @@ class _SettingsDrawerState extends ConsumerState<_SettingsDrawer> {
             midiPorts: midiPorts,
             connectedDevice: connectedDevice,
             keyboardRange: keyboardRange,
+            keyboardVisible: keyboardVisible,
             selectedHands: selectedHands,
             activeLanguage: activeLanguage,
             notifier: notifier,

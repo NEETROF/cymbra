@@ -46,3 +46,26 @@ keyboard SHALL always retain a non-zero, usable height.
 #### Scenario: Render area retains usable height
 - **WHEN** the keyboard height is computed for any supported viewport
 - **THEN** the render area above the keyboard keeps a non-zero, usable height
+
+### Requirement: Hideable Keyboard In Notation Modes
+
+The user SHALL be able to hide the on-screen keyboard while in a notation render
+mode (Staff/Partition), handing the freed height to the score; the setting SHALL
+be reachable from the player settings. In Synthesia the keyboard SHALL always be
+shown regardless of the setting, because its cascade aligns to the keys, and the
+hide option SHALL NOT be offered in Synthesia. The setting SHALL default to
+visible and be session-scoped.
+
+#### Scenario: Hide the keyboard in a notation mode
+- **WHEN** the user turns the keyboard off while in Staff or Partition mode
+- **THEN** the on-screen keyboard is not rendered and the score takes the freed
+  height
+
+#### Scenario: Synthesia always keeps the keyboard
+- **WHEN** the mode is Synthesia and the keyboard has been set hidden
+- **THEN** the keyboard is still shown, and the hide option is absent from the
+  settings
+
+#### Scenario: Default is visible
+- **WHEN** a session starts
+- **THEN** the on-screen keyboard is visible

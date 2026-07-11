@@ -136,6 +136,12 @@ abstract class PlayerData with _$PlayerData {
     /// user can switch to auto-fit or a smaller preset from the chooser.
     @Default(KeyboardRangeMode.keys88) KeyboardRangeMode keyboardRange,
 
+    /// Whether the on-screen keyboard is shown. Only honoured in the notation
+    /// modes (Staff/Partition), where hiding it hands the freed height to the
+    /// score; Synthesia always shows the keyboard because its cascade aligns to
+    /// it. Session-only, defaults to visible.
+    @Default(true) bool keyboardVisible,
+
     /// Which hand(s) the player shows and awaits. Session-only (resets to
     /// [Hand.both] on launch); drives [showsStaff]/[visibleNotes] so every mode
     /// and the gate filter out the unselected hand together.

@@ -473,6 +473,71 @@ void main() {
     await teardownScreen(tester);
   });
 
+  group('hide-keyboard toggle', () {
+    testWidgets('hides the on-screen keyboard in a notation mode', (
+      tester,
+    ) async {
+      await pumpScreen(tester);
+      notifier().setMode(RenderMode.staff);
+      notifier().setKeyboardVisible(false);
+      await tester.pump();
+      expect(find.byKey(const Key('onscreen-keyboard')), findsNothing);
+      await teardownScreen(tester);
+    });
+
+    testWidgets('keeps the keyboard in Synthesia even when set hidden', (
+      tester,
+    ) async {
+      await pumpScreen(tester);
+      notifier().setMode(RenderMode.synthesia);
+      notifier().setKeyboardVisible(false);
+      await tester.pump();
+      // Synthesia's cascade aligns to the keyboard, so it stays visible.
+      expect(find.byKey(const Key('onscreen-keyboard')), findsOneWidget);
+      await teardownScreen(tester);
+    });
+
+    Future<void> openSettings(WidgetTester tester) async {
+      await tester.tap(find.byIcon(Icons.tune));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+    }
+
+    testWidgets('the settings category is hidden in Synthesia', (tester) async {
+      await pumpScreen(tester); // default mode is Synthesia
+      await openSettings(tester);
+      expect(find.text('Keyboard display'), findsNothing);
+      await teardownScreen(tester);
+    });
+
+    testWidgets('the settings category is offered in a notation mode', (
+      tester,
+    ) async {
+      await pumpScreen(tester);
+      notifier().setMode(RenderMode.staff);
+      await tester.pump();
+      await openSettings(tester);
+      expect(find.text('Keyboard display'), findsOneWidget);
+      await teardownScreen(tester);
+    });
+
+    testWidgets('choosing "Hidden" in the drawer hides the keyboard', (
+      tester,
+    ) async {
+      await pumpScreen(tester);
+      notifier().setMode(RenderMode.staff);
+      await tester.pump();
+      await openSettings(tester);
+      await tester.tap(find.text('Keyboard display'));
+      await tester.pump();
+      await tester.tap(find.text('Hidden'));
+      await tester.pump();
+      expect(state().keyboardVisible, isFalse);
+      expect(find.byKey(const Key('onscreen-keyboard')), findsNothing);
+      await teardownScreen(tester);
+    });
+  });
+
   group('adaptive smartphone layout', () {
     // A phone / tablet landscape viewport (shortest side 375 / 768), plus a
     // deliberately narrow phone (iPhone-SE-class) to stress the top-bar fit.

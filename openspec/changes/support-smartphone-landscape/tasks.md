@@ -20,6 +20,11 @@
 
 - [x] 4.1 Confirmed all three layers already exclude portrait on phones: Flutter runtime (`main.dart`), iOS `UISupportedInterfaceOrientations` (landscape only), and Android `screenOrientation="sensorLandscape"`. No change needed.
 
+## 4b. Hideable keyboard in notation modes
+
+- [x] 4b.1 Add `keyboardVisible` (default true) to `PlayerData` + `setKeyboardVisible` on the notifier; hide the on-screen keyboard when `mode != synthesia && !keyboardVisible` (Synthesia always shows it).
+- [x] 4b.2 Add a "Keyboard display" (Shown/Hidden) category to the settings drawer, offered only in notation modes; l10n in en/fr/it/es.
+
 ## 5. Tests & coverage
 
 - [x] 5.1 Added widget tests that set `tester.view.physicalSize`/`devicePixelRatio` to phone (812×375) and tablet (1024×768) landscape and assert: keyboard height is smaller on phone and within clamp bounds, render area height > 0, and `tester.takeException()` is null (no overflow).

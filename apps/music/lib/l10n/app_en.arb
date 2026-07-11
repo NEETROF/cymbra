@@ -24,6 +24,15 @@
   "settingsCategoryKeyboardSize": "Keyboard size",
   "@settingsCategoryKeyboardSize": { "description": "Settings category: choose the on-screen keyboard range." },
 
+  "settingsCategoryKeyboardVisibility": "Keyboard display",
+  "@settingsCategoryKeyboardVisibility": { "description": "Settings category (notation modes only): show or hide the on-screen keyboard." },
+
+  "keyboardShown": "Shown",
+  "@keyboardShown": { "description": "Keyboard-display option: the on-screen keyboard is visible." },
+
+  "keyboardHidden": "Hidden",
+  "@keyboardHidden": { "description": "Keyboard-display option: the on-screen keyboard is hidden." },
+
   "settingsCategoryHand": "Hand",
   "@settingsCategoryHand": { "description": "Settings category: choose which hand(s) to show." },
 
