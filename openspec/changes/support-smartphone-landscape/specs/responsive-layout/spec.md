@@ -145,3 +145,9 @@ chrome all fitting within the available height.
 - **WHEN** the player renders on the smallest supported phone landscape viewport
 - **THEN** no layout overflow occurs and the render area retains a non-zero,
   usable height above the keyboard
+
+#### Scenario: Staff notes stay within the render area
+- **WHEN** the staff notation renders on a short phone-landscape render area with
+  high notes near the top of the treble staff
+- **THEN** the note heads, up-stems and beams are fully visible (not clipped at
+  the top), because the staff reserves headroom for the stems/beams
