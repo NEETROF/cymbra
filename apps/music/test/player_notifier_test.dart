@@ -256,20 +256,49 @@ void main() {
       expect(read().expectedKeys, {62}); // preview moved to the next note
     });
 
-    test('an early press does not pre-satisfy the next onset', () async {
-      await build(); // C4 [0,500), D4 [500,1000)
-      notifier().togglePlay();
-      notifier().noteOn(60);
-      notifier().advance(50); // pass the C4 onset
-      notifier().noteOff(60);
+    test(
+      'an early press that is released does not pre-satisfy the onset',
+      () async {
+        await build(); // C4 [0,500), D4 [500,1000)
+        notifier().togglePlay();
+        notifier().noteOn(60);
+        notifier().advance(50); // pass the C4 onset
+        notifier().noteOff(60);
 
-      // Press D4 early, while travelling well before its 500ms onset.
-      notifier().noteOn(62);
-      notifier().advance(1000); // clamps to the D4 onset (500)
-      expect(read().elapsedMs, 500);
-      notifier().advance(50);
-      expect(read().blocked, isTrue); // the early press did not count
-    });
+        // Press D4 early then release it, both before its 500ms onset.
+        notifier().noteOn(62);
+        notifier().noteOff(62);
+        notifier().advance(1000); // clamps to the D4 onset (500)
+        expect(read().elapsedMs, 500);
+        notifier().advance(50);
+        expect(
+          read().blocked,
+          isTrue,
+        ); // the released early press did not count
+      },
+    );
+
+    test(
+      'a pitch held through the onset satisfies without a re-press',
+      () async {
+        await build(); // C4 [0,500), D4 [500,1000)
+        notifier().togglePlay();
+        notifier().noteOn(60);
+        notifier().advance(50); // pass the C4 onset
+        notifier().noteOff(60);
+
+        // Press D4 early and KEEP holding it through its 500ms onset.
+        notifier().noteOn(62);
+        notifier().advance(1000); // clamps to the D4 onset (500)
+        expect(read().elapsedMs, 500);
+        notifier().advance(50);
+        expect(
+          read().blocked,
+          isFalse,
+        ); // the sustained hold satisfied the onset
+        expect(read().elapsedMs, greaterThan(500));
+      },
+    );
 
     test('a repeated pitch must be attacked again at the next onset', () async {
       // Same pitch (C4) on two consecutive onsets.
@@ -351,6 +380,110 @@ void main() {
       expect(read().blocked, isFalse);
       expect(read().elapsedMs, greaterThan(0));
     });
+
+    test(
+      'a chord onset accepts a held pitch alongside a fresh press',
+      () async {
+        // C4 at 0, then E4 + G4 together at 500.
+        await build(
+          score: Score(
+            bpm: 80,
+            measures: [
+              Measure(
+                index: 0,
+                notes: [
+                  Note(
+                    pitch: 60,
+                    startMs: BigInt.zero,
+                    durationMs: BigInt.from(500),
+                  ),
+                  Note(
+                    pitch: 64,
+                    startMs: BigInt.from(500),
+                    durationMs: BigInt.from(500),
+                  ),
+                  Note(
+                    pitch: 67,
+                    startMs: BigInt.from(500),
+                    durationMs: BigInt.from(500),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+        notifier().togglePlay();
+        notifier().noteOn(60);
+        notifier().advance(50); // pass the C4 onset
+        notifier().noteOff(60);
+
+        // Hold E4 from before the chord onset, then travel to it.
+        notifier().noteOn(64);
+        notifier().advance(1000); // clamp to the chord onset (500)
+        expect(read().elapsedMs, 500);
+
+        notifier().advance(50); // held E4 counts, but G4 is still missing
+        expect(read().blocked, isTrue);
+
+        notifier().noteOn(67); // complete the chord with a fresh press
+        notifier().advance(50);
+        expect(read().blocked, isFalse);
+        expect(read().elapsedMs, greaterThan(500));
+      },
+    );
+
+    test(
+      'a held pitch does not satisfy a later repeat onset (N and N+2)',
+      () async {
+        // C4 at 0, D4 at 500, C4 again at 1000; C4 held continuously.
+        await build(
+          score: Score(
+            bpm: 80,
+            measures: [
+              Measure(
+                index: 0,
+                notes: [
+                  Note(
+                    pitch: 60,
+                    startMs: BigInt.zero,
+                    durationMs: BigInt.from(500),
+                  ),
+                  Note(
+                    pitch: 62,
+                    startMs: BigInt.from(500),
+                    durationMs: BigInt.from(500),
+                  ),
+                  Note(
+                    pitch: 60,
+                    startMs: BigInt.from(1000),
+                    durationMs: BigInt.from(500),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+        notifier().togglePlay();
+        notifier().noteOn(60); // satisfy the first C4 onset (and keep holding)
+        notifier().advance(50);
+        notifier().advance(1000); // clamp to the D4 onset (500)
+        expect(read().elapsedMs, 500);
+
+        notifier().noteOn(62); // satisfy the D4 onset
+        notifier().advance(50);
+        notifier().advance(1000); // clamp to the second C4 onset (1000)
+        expect(read().elapsedMs, 1000);
+
+        notifier().advance(50);
+        // C4 has been held the whole time but was consumed at onset 0.
+        expect(read().blocked, isTrue);
+
+        notifier().noteOff(60);
+        notifier().noteOn(60); // fresh attack
+        notifier().advance(50);
+        expect(read().blocked, isFalse);
+      },
+    );
   });
 
   group('audio — startup & live input (5.1)', () {

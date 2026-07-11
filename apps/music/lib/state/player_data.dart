@@ -125,6 +125,13 @@ abstract class PlayerData with _$PlayerData {
     /// validation is by attack, not sustained hold. Reset when the gate advances.
     @Default(<int>{}) Set<int> gateSatisfied,
 
+    /// Currently-held pitches whose *current* press has already satisfied an
+    /// onset (Wait Mode). A held key counts for at most one onset: this set lets
+    /// a sustained/tied note satisfy the onset it is carried into while a
+    /// repeated pitch still requires a fresh attack. Cleared for a pitch on a new
+    /// note-on (fresh attack) and on note-off; wholesale on gate re-arm.
+    @Default(<int>{}) Set<int> consumedHeld,
+
     /// On-screen keyboard range mode. Defaults to the full 88-key piano; the
     /// user can switch to auto-fit or a smaller preset from the chooser.
     @Default(KeyboardRangeMode.keys88) KeyboardRangeMode keyboardRange,
