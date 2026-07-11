@@ -33,9 +33,9 @@ a back gesture.
 - **WHEN** the player taps outside the summary modal or triggers a back gesture
 - **THEN** the modal stays open and awaits an explicit see-mistakes / retry / quit choice
 
-#### Scenario: Quit returns to the player
+#### Scenario: Quit leaves play mode
 - **WHEN** the player chooses quit on the summary modal
-- **THEN** the modal closes and the player view is restored
+- **THEN** the modal closes and the app leaves the player, returning to the previous screen
 
 ### Requirement: Mistake Replay On The Horizontal Score
 

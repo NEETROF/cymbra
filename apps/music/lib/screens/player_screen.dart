@@ -369,6 +369,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
         final player = ref.read(playerProvider.notifier);
         player.restart();
         player.setPlaying(true);
+      } else {
+        // Quit: leave play mode and return to the previous screen (library).
+        Navigator.of(context).maybePop();
       }
       return;
     }
