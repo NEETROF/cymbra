@@ -51,16 +51,17 @@ const _entries = [
   ),
 ];
 
-ProviderContainer _container() => ProviderContainer(
-  overrides: [
-    scoreCatalogProvider.overrideWithValue(_entries),
-    scoreAssetSourceProvider.overrideWithValue(FakeScoreAssetSource()),
-    notationEngineProvider.overrideWithValue(FakeNotationEngine()),
-    midiServiceProvider.overrideWithValue(FakeMidiService()),
-    scoreSourceProvider.overrideWithValue(FakeScoreSource()),
-    audioServiceProvider.overrideWithValue(RecordingAudioService()),
-  ],
-);
+ProviderContainer _container([List<CatalogEntry> entries = _entries]) =>
+    ProviderContainer(
+      overrides: [
+        scoreCatalogProvider.overrideWithValue(entries),
+        scoreAssetSourceProvider.overrideWithValue(FakeScoreAssetSource()),
+        notationEngineProvider.overrideWithValue(FakeNotationEngine()),
+        midiServiceProvider.overrideWithValue(FakeMidiService()),
+        scoreSourceProvider.overrideWithValue(FakeScoreSource()),
+        audioServiceProvider.overrideWithValue(RecordingAudioService()),
+      ],
+    );
 
 /// Unmounts and disposes the container so the player's auto-dispose poll timer
 /// is cancelled before the test ends.
@@ -116,6 +117,36 @@ void main() {
     );
     expect(safeArea, findsOneWidget);
     expect(tester.widget<SafeArea>(safeArea).top, isFalse);
+    await _teardown(tester, container);
+  });
+
+  testWidgets('lays same-level scores out in columns on a wide viewport', (
+    tester,
+  ) async {
+    const twoBeginners = [
+      CatalogEntry(
+        id: 'b1',
+        title: 'Alpha',
+        composer: 'A',
+        assetPath: 'assets/scores/beginner/b1.musicxml',
+        level: PracticeLevel.beginner,
+      ),
+      CatalogEntry(
+        id: 'b2',
+        title: 'Bravo',
+        composer: 'B',
+        assetPath: 'assets/scores/beginner/b2.musicxml',
+        level: PracticeLevel.beginner,
+      ),
+    ];
+    final container = _container(twoBeginners);
+    await _pump(tester, container); // 1400 px wide ⇒ multiple columns
+
+    final alpha = tester.getTopLeft(find.text('Alpha'));
+    final bravo = tester.getTopLeft(find.text('Bravo'));
+    // Same row (equal top), different columns (Alpha left of Bravo).
+    expect(alpha.dy, bravo.dy);
+    expect(alpha.dx, lessThan(bravo.dx));
     await _teardown(tester, container);
   });
 

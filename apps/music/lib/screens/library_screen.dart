@@ -16,6 +16,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../l10n/gen/app_localizations.dart';
+import '../layout/device_class.dart';
 import '../state/score_catalog.dart';
 import '../theme/cymbra_theme.dart';
 import '../widgets/language_selector.dart';
@@ -56,17 +57,27 @@ class LibraryScreen extends ConsumerWidget {
       // double-insetting below it.
       body: SafeArea(
         top: false,
-        child: ListView(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          children: [
-            for (final level in PracticeLevel.values)
-              ..._levelSection(
-                context,
-                ref,
-                level,
-                catalog.where((e) => e.level == level).toList(),
-              ),
-          ],
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            // The wide landscape viewport fits several tiles side by side, so
+            // lay each level's scores out in responsive columns (≈340 px each,
+            // 1–3). This shows far more scores at once — especially on a phone,
+            // where vertical space is scarce.
+            final columns = (constraints.maxWidth / 340).floor().clamp(1, 3);
+            return ListView(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              children: [
+                for (final level in PracticeLevel.values)
+                  ..._levelSection(
+                    context,
+                    ref,
+                    level,
+                    catalog.where((e) => e.level == level).toList(),
+                    columns,
+                  ),
+              ],
+            );
+          },
         ),
       ),
     );
@@ -77,6 +88,7 @@ class LibraryScreen extends ConsumerWidget {
     WidgetRef ref,
     PracticeLevel level,
     List<CatalogEntry> entries,
+    int columns,
   ) {
     if (entries.isEmpty) return const [];
     return [
@@ -92,7 +104,20 @@ class LibraryScreen extends ConsumerWidget {
           ),
         ),
       ),
-      for (final entry in entries) _EntryTile(entry: entry),
+      // Chunk the entries into rows of [columns] equal-width tiles; the last row
+      // pads with empty cells so the tiles stay column-aligned.
+      for (var i = 0; i < entries.length; i += columns)
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            for (var j = 0; j < columns; j++)
+              Expanded(
+                child: i + j < entries.length
+                    ? _EntryTile(entry: entries[i + j])
+                    : const SizedBox.shrink(),
+              ),
+          ],
+        ),
     ];
   }
 }
@@ -103,14 +128,26 @@ class _EntryTile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Denser rows on phones (shorter, tighter padding) so more scores fit in the
+    // short landscape viewport; tablet/desktop keep the roomier tile.
+    final isPhone = context.isPhoneLayout;
     return ListTile(
+      dense: isPhone,
+      visualDensity: isPhone ? VisualDensity.compact : null,
+      contentPadding: isPhone
+          ? const EdgeInsets.symmetric(horizontal: 12)
+          : null,
       leading: const Icon(Icons.music_note, color: CymbraColors.secondary),
       title: Text(
         entry.title,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
         style: const TextStyle(color: CymbraColors.onSurface),
       ),
       subtitle: Text(
         entry.composer,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
         style: const TextStyle(color: CymbraColors.onSurfaceVariant),
       ),
       trailing: const Icon(

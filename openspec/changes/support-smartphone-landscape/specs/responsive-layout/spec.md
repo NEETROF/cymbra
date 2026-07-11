@@ -103,6 +103,25 @@ Synthesia and Staff SHALL remain available on all device classes.
 - **WHEN** the mode is Partition and the player renders on a phone-class viewport
 - **THEN** the render area shows the Staff view and no error occurs
 
+### Requirement: Multi-Column Score Library
+
+The score library SHALL lay each practice level's scores out in responsive
+columns derived from the available width (roughly one column per ~340 px, capped
+at three), so the wide landscape viewport shows more scores at once instead of a
+single full-width column. Level grouping SHALL be preserved (each level's header
+spans the full width above its columns), and on phones the score rows SHALL be
+denser to fit more in the short viewport.
+
+#### Scenario: Multiple columns on a wide viewport
+- **WHEN** the library renders on a viewport wide enough for more than one column
+- **THEN** scores within a level are arranged side by side across columns rather
+  than stacked one per row
+
+#### Scenario: Level grouping preserved
+- **WHEN** the library renders in any column count
+- **THEN** each practice-level header still appears once above that level's
+  scores
+
 ### Requirement: Content Respects Display Cutouts
 
 Full-screen content SHALL inset for the device's display cutout (camera / notch),
