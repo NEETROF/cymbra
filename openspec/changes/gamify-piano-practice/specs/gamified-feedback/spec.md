@@ -24,6 +24,36 @@ When no scored run is active the gauge SHALL be hidden.
 - **WHEN** the gauge is shown
 - **THEN** it is placed clear of the falling notes, the hit line, and the keyboard
 
+### Requirement: Pre-Start Countdown
+
+The system SHALL show a race-game style get-ready countdown (5 → 4 → 3 → 2 → 1 → GO) centred
+over the player before the playhead advances when the player starts **free-run** playback
+(Wait Mode off) from the beginning of a piece, so the player has time to ready their hands
+before the notes start moving. The playhead SHALL stay frozen at the start while the
+countdown runs, and playback SHALL begin (the first note arriving no earlier than GO
+clearing) when the countdown reaches zero. Each step SHALL animate in (fade and scale) and
+the GO step SHALL disappear before the first note. Presses made during the countdown SHALL
+be treated as warm-ups and SHALL NOT be scored. Resuming playback from a mid-piece pause
+SHALL NOT show the countdown. In Wait Mode the cascade already freezes at the first onset
+(unlimited ready time), so no countdown SHALL be shown.
+
+#### Scenario: Countdown precedes a free-run fresh start
+- **WHEN** the player starts free-run playback from the beginning
+- **THEN** a 5…1…GO countdown is shown, the playhead stays at the start until it ends, and
+  playback begins when it reaches zero
+
+#### Scenario: Wait Mode skips the countdown
+- **WHEN** the player starts playback from the beginning with Wait Mode on
+- **THEN** no countdown is shown (the cascade waits at the first onset instead)
+
+#### Scenario: Warm-up presses during the countdown are not scored
+- **WHEN** the player presses a key while the countdown is running
+- **THEN** the press is not recorded as a judgment by the scorer
+
+#### Scenario: Resuming mid-piece skips the countdown
+- **WHEN** the player resumes playback after pausing mid-piece
+- **THEN** no countdown is shown and playback continues immediately
+
 ### Requirement: Tiered Feedback At 20% Thresholds
 
 The system SHALL define visual feedback tiers keyed to 20% bands of the live

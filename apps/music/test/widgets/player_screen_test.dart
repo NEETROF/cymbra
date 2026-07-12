@@ -23,6 +23,7 @@ import 'package:music/screens/player_screen.dart';
 import 'package:music/services/audio_service.dart';
 import 'package:music/services/midi_service.dart';
 import 'package:music/services/platform_info.dart';
+import 'package:music/state/countdown.dart';
 import 'package:music/state/player_data.dart';
 import 'package:music/state/player_notifier.dart';
 import 'package:music/theme/cymbra_theme.dart';
@@ -438,6 +439,7 @@ void main() {
     notifier().toggleMetronome(); // enable
     await tester.tap(find.byIcon(Icons.play_arrow)); // play
     await tester.pump();
+    notifier().advance(kCountdownStartMs); // clear the get-ready countdown
 
     // Drive a beat boundary through the notifier (the demo beats every 750ms),
     // then let the widget react to the beatCount change.
@@ -463,6 +465,7 @@ void main() {
     notifier().toggleMetronome();
     await tester.tap(find.byIcon(Icons.play_arrow));
     await tester.pump();
+    notifier().advance(kCountdownStartMs); // clear the get-ready countdown
 
     notifier().advance(800);
     await tester.pump();

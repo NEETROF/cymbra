@@ -38,6 +38,7 @@ import '../state/player_notifier.dart';
 import '../state/session_summary.dart';
 import '../state/session_summary_store.dart';
 import '../theme/cymbra_theme.dart';
+import '../widgets/countdown_overlay.dart';
 import '../widgets/language_selector.dart';
 import '../widgets/mistake_replay.dart';
 import '../widgets/scoring_overlay.dart';
@@ -263,86 +264,94 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
         // extend into it (its own small margin keeps a hair of clearance, and
         // the centred controls sit clear of the thin indicator). Tablet/desktop
         // keep the full safe area.
-        body: SafeArea(
-          bottom: !context.isPhoneLayout,
-          child: Column(
-            children: [
-              const _TopBar(),
-              Expanded(
-                child: Consumer(
-                  builder: (context, ref, child) {
-                    final data = ref.watch(playerProvider);
-                    return LayoutBuilder(
-                      builder: (context, constraints) {
-                        final bounds = data.keyboardBounds;
-                        final layout = PianoLayout(
-                          width: constraints.maxWidth,
-                          lowPitch: bounds.low,
-                          highPitch: bounds.high,
-                        );
-                        final keyboardHeight = _keyboardHeightFor(
-                          constraints.maxHeight,
-                          isPhone: context.isPhoneLayout,
-                        );
-                        // Synthesia always shows the keyboard (its cascade aligns
-                        // to the keys); the notation modes honour the user's
-                        // hide-keyboard setting, handing the freed height to the
-                        // score.
-                        final showKeyboard =
-                            data.mode == RenderMode.synthesia ||
-                            data.keyboardVisible;
-                        return Column(
-                          children: [
-                            // Clip the render area so a painter (e.g. high notes /
-                            // beams in Staff mode) never draws over the top bar or
-                            // the keyboard below.
-                            Expanded(
-                              child: ClipRect(
-                                child: _buildRenderArea(
-                                  layout,
-                                  data,
-                                  isPhone: context.isPhoneLayout,
-                                ),
-                              ),
-                            ),
-                            if (showKeyboard)
-                              SizedBox(
-                                height: keyboardHeight,
-                                child: Listener(
-                                  key: const Key('onscreen-keyboard'),
-                                  onPointerDown: (e) => _onKeyboardPointerDown(
-                                    e,
-                                    layout,
-                                    keyboardHeight,
-                                  ),
-                                  onPointerUp: _onKeyboardPointerUp,
-                                  onPointerCancel: _onKeyboardPointerUp,
-                                  child: CustomPaint(
-                                    size: Size(
-                                      constraints.maxWidth,
-                                      keyboardHeight,
+        body: Stack(
+          children: [
+            SafeArea(
+              bottom: !context.isPhoneLayout,
+              child: Column(
+                children: [
+                  const _TopBar(),
+                  Expanded(
+                    child: Consumer(
+                      builder: (context, ref, child) {
+                        final data = ref.watch(playerProvider);
+                        return LayoutBuilder(
+                          builder: (context, constraints) {
+                            final bounds = data.keyboardBounds;
+                            final layout = PianoLayout(
+                              width: constraints.maxWidth,
+                              lowPitch: bounds.low,
+                              highPitch: bounds.high,
+                            );
+                            final keyboardHeight = _keyboardHeightFor(
+                              constraints.maxHeight,
+                              isPhone: context.isPhoneLayout,
+                            );
+                            // Synthesia always shows the keyboard (its cascade aligns
+                            // to the keys); the notation modes honour the user's
+                            // hide-keyboard setting, handing the freed height to the
+                            // score.
+                            final showKeyboard =
+                                data.mode == RenderMode.synthesia ||
+                                data.keyboardVisible;
+                            return Column(
+                              children: [
+                                // Clip the render area so a painter (e.g. high notes /
+                                // beams in Staff mode) never draws over the top bar or
+                                // the keyboard below.
+                                Expanded(
+                                  child: ClipRect(
+                                    child: _buildRenderArea(
+                                      layout,
+                                      data,
+                                      isPhone: context.isPhoneLayout,
                                     ),
-                                    painter: PianoKeyboardPainter(
-                                      layout: layout,
-                                      activeNotes: data.activeNotes,
-                                      requiredNotes: data.expectedKeys,
-                                      leftHandNotes: data.expectedKeysForHand(
-                                        rightHand: false,
+                                  ),
+                                ),
+                                if (showKeyboard)
+                                  SizedBox(
+                                    height: keyboardHeight,
+                                    child: Listener(
+                                      key: const Key('onscreen-keyboard'),
+                                      onPointerDown: (e) =>
+                                          _onKeyboardPointerDown(
+                                            e,
+                                            layout,
+                                            keyboardHeight,
+                                          ),
+                                      onPointerUp: _onKeyboardPointerUp,
+                                      onPointerCancel: _onKeyboardPointerUp,
+                                      child: CustomPaint(
+                                        size: Size(
+                                          constraints.maxWidth,
+                                          keyboardHeight,
+                                        ),
+                                        painter: PianoKeyboardPainter(
+                                          layout: layout,
+                                          activeNotes: data.activeNotes,
+                                          requiredNotes: data.expectedKeys,
+                                          leftHandNotes: data
+                                              .expectedKeysForHand(
+                                                rightHand: false,
+                                              ),
+                                        ),
                                       ),
                                     ),
                                   ),
-                                ),
-                              ),
-                          ],
+                              ],
+                            );
+                          },
                         );
                       },
-                    );
-                  },
-                ),
+                    ),
+                  ),
+                  _TransportBar(),
+                ],
               ),
-              _TransportBar(),
-            ],
-          ),
+            ),
+            // Race-game style get-ready countdown, centred over everything.
+            const Positioned.fill(child: CountdownOverlay()),
+          ],
         ),
       ),
     );
@@ -368,7 +377,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
       if (action == SummaryAction.retry) {
         final player = ref.read(playerProvider.notifier);
         player.restart();
-        player.setPlaying(true);
+        player.startPlayback(); // fresh start → get-ready countdown
       } else {
         // Quit: leave play mode and return to the previous screen (library).
         Navigator.of(context).maybePop();
@@ -1270,9 +1279,12 @@ class _TransportBar extends ConsumerWidget {
             ),
           ),
           SizedBox(width: gapS),
-          // Play / pause.
+          // Play / pause. Play arms the get-ready countdown (from the top);
+          // pause stops immediately.
           GestureDetector(
-            onTap: notifier.togglePlay,
+            onTap: data.isPlaying
+                ? () => notifier.setPlaying(false)
+                : notifier.startPlayback,
             child: CircleAvatar(
               radius: playRadius,
               backgroundColor: CymbraColors.primaryContainer,

@@ -24,6 +24,9 @@ gamification helps rather than distracts.
   scrolling staff, and the engraved vertical Partition — reusing their existing painters
   (the keyboard-anchored hit sparks show where a keyboard is present; the gauge shows in
   all modes). Switching modes mid-run keeps the run.
+- Before playback starts from the top, show a **race-game style get-ready countdown**
+  (5…1…GO) so the player can ready their hands; the playhead stays frozen until GO clears,
+  and warm-up presses during it are not scored.
 - On song end, show a **session-summary modal**: overall sync %, per-dimension
   breakdown (timing / correct notes / sustain), best combo, and a note-accuracy count.
 - From that modal, let the player **replay the run on the horizontal score**, with the

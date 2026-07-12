@@ -20,6 +20,7 @@ import '../services/audio_service.dart';
 import '../services/midi_service.dart';
 import '../src/rust/api/midi.dart';
 import '../src/rust/api/musicxml.dart';
+import 'countdown.dart';
 import 'notation_data.dart';
 import 'notation_notifier.dart';
 import 'performance_scoring.dart';
@@ -274,8 +275,11 @@ class Player extends _$Player {
       consumedHeld: atOnset ? {...consumed, pitch} : consumed,
     );
     // Feed the scorer the attack at the current playhead; it binds to a pending
-    // onset or records an extra note (a no-op when no run is active).
-    _scorer.noteOn(pitch, state.elapsedMs, waitMode: state.waitMode);
+    // onset or records an extra note (a no-op when no run is active). Presses
+    // made during the pre-start countdown are warm-ups and are not scored.
+    if (state.countdownMs <= 0) {
+      _scorer.noteOn(pitch, state.elapsedMs, waitMode: state.waitMode);
+    }
   }
 
   void noteOff(int pitch) {
@@ -298,11 +302,27 @@ class Player extends _$Player {
   // Set the play/pause state explicitly (used to pause while the settings drawer
   // is open and restore the prior state when it closes).
   void setPlaying(bool playing) {
-    // Stopping silences any voices the score was sounding.
+    // Stopping silences any voices and cancels any pending countdown.
     if (!playing) _silenceAll();
-    state = state.copyWith(isPlaying: playing);
-    // Starting cleanly from the top in a scored view opens a scored run.
+    state = state.copyWith(
+      isPlaying: playing,
+      countdownMs: playing ? state.countdownMs : 0,
+    );
+    // Starting cleanly from the top opens a scored run.
     if (playing) _maybeStartRun();
+  }
+
+  /// Starts playback from the transport, arming a get-ready countdown (5…1…GO)
+  /// when starting a **free-run** piece from the top, so the player has time to
+  /// ready their hands before the notes start moving. In Wait Mode the cascade
+  /// already freezes at the first onset (unlimited ready time), so no countdown
+  /// is needed. Resuming mid-piece plays immediately. Plain [setPlaying] stays
+  /// countdown-free (used internally and in tests).
+  void startPlayback() {
+    if (!state.waitMode && state.elapsedMs == 0 && state.countdownMs == 0) {
+      state = state.copyWith(countdownMs: kCountdownStartMs);
+    }
+    setPlaying(true);
   }
 
   // Every mode is scored and the scored note set is mode-independent, so
@@ -363,6 +383,7 @@ class Player extends _$Player {
     _scorer.cancelRun();
     state = state.copyWith(
       elapsedMs: 0,
+      countdownMs: 0,
       gateSatisfied: const {},
       consumedHeld: const {},
     );
@@ -380,6 +401,14 @@ class Player extends _$Player {
   void advance(double dtMs) {
     var s = state;
     if (!s.isPlaying || s.notes.isEmpty) return;
+
+    // Pre-start countdown: freeze the playhead (and audio/scoring) while the
+    // 5…1…GO ticks down in real time, then playback proceeds normally.
+    if (s.countdownMs > 0) {
+      final remaining = s.countdownMs - dtMs;
+      state = s.copyWith(countdownMs: remaining > 0 ? remaining : 0);
+      return;
+    }
 
     final onset = s.onsetPitchesAt(s.elapsedMs);
 
