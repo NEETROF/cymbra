@@ -20,8 +20,10 @@ import '../services/audio_service.dart';
 import '../services/midi_service.dart';
 import '../src/rust/api/midi.dart';
 import '../src/rust/api/musicxml.dart';
+import 'countdown.dart';
 import 'notation_data.dart';
 import 'notation_notifier.dart';
+import 'performance_scoring.dart';
 import 'player_data.dart';
 import 'notation_playback.dart';
 import 'score_catalog.dart';
@@ -104,6 +106,23 @@ class Player extends _$Player {
 
   MidiService get _midi => ref.read(midiServiceProvider);
   AudioService get _audio => ref.read(audioServiceProvider);
+  PerformanceScorer get _scorer => ref.read(performanceScorerProvider.notifier);
+
+  /// Begins a scored run for the current piece if playback is starting cleanly
+  /// from the top. Every render mode is scored (Synthesia, the scrolling staff,
+  /// and the engraved Partition). Idempotent: a run already active is left alone
+  /// (the scorer resets its own state on [PerformanceScorer.startRun]).
+  void _maybeStartRun() {
+    final s = state;
+    if (s.visibleNotes.isEmpty || s.elapsedMs > 0) return;
+    _scorer.startRun(
+      pieceId: s.title ?? 'demo',
+      title: s.title ?? 'Demo',
+      hands: s.selectedHands.name,
+      speed: s.speed,
+      notes: s.visibleNotes,
+    );
+  }
 
   /// Releases every sounding score voice (stop / restart / loop / hand switch),
   /// so no note is left hanging.
@@ -255,6 +274,12 @@ class Player extends _$Player {
           : state.gateSatisfied,
       consumedHeld: atOnset ? {...consumed, pitch} : consumed,
     );
+    // Feed the scorer the attack at the current playhead; it binds to a pending
+    // onset or records an extra note (a no-op when no run is active). Presses
+    // made during the pre-start countdown are warm-ups and are not scored.
+    if (state.countdownMs <= 0) {
+      _scorer.noteOn(pitch, state.elapsedMs, waitMode: state.waitMode);
+    }
   }
 
   void noteOff(int pitch) {
@@ -268,6 +293,7 @@ class Player extends _$Player {
         consumedHeld: {...state.consumedHeld}..remove(pitch),
       );
     }
+    _scorer.noteOff(pitch, state.elapsedMs);
   }
 
   // --- Playback controls ------------------------------------------------
@@ -276,12 +302,34 @@ class Player extends _$Player {
   // Set the play/pause state explicitly (used to pause while the settings drawer
   // is open and restore the prior state when it closes).
   void setPlaying(bool playing) {
-    // Stopping silences any voices the score was sounding.
+    // Stopping silences any voices and cancels any pending countdown.
     if (!playing) _silenceAll();
-    state = state.copyWith(isPlaying: playing);
+    state = state.copyWith(
+      isPlaying: playing,
+      countdownMs: playing ? state.countdownMs : 0,
+    );
+    // Starting cleanly from the top opens a scored run.
+    if (playing) _maybeStartRun();
   }
 
+  /// Starts playback from the transport, arming a get-ready countdown (5…1…GO)
+  /// when starting a **free-run** piece from the top, so the player has time to
+  /// ready their hands before the notes start moving. In Wait Mode the cascade
+  /// already freezes at the first onset (unlimited ready time), so no countdown
+  /// is needed. Resuming mid-piece plays immediately. Plain [setPlaying] stays
+  /// countdown-free (used internally and in tests).
+  void startPlayback() {
+    if (!state.waitMode && state.elapsedMs == 0 && state.countdownMs == 0) {
+      state = state.copyWith(countdownMs: kCountdownStartMs);
+    }
+    setPlaying(true);
+  }
+
+  // Every mode is scored and the scored note set is mode-independent, so
+  // switching the render mode keeps the in-flight run (and its gauge/effects)
+  // rather than discarding it.
   void setMode(RenderMode m) => state = state.copyWith(mode: m);
+
   // Re-arm the onset gate at the current playhead when toggling Wait Mode on,
   // and silence any in-flight score voices so none hang across the switch.
   void toggleWaitMode() {
@@ -313,20 +361,40 @@ class Player extends _$Player {
   // silence voices so a now-hidden hand's notes don't keep sounding.
   void setSelectedHands(Hand hand) {
     _silenceAll();
+    // Changing the played hand(s) changes which notes are scored, so the piece
+    // restarts from the top with a fresh scored run for the new selection: the
+    // score stays coherent over the whole piece, the gauge/effects keep working,
+    // and the run still finishes into a summary at the end (rather than the
+    // cancelled-run case, which would loop with no scoring).
+    _scorer.cancelRun();
     state = state.copyWith(
       selectedHands: hand,
-      gateSatisfied: const {},
-      consumedHeld: const {},
-    );
-  }
-
-  void restart() {
-    _silenceAll();
-    state = state.copyWith(
       elapsedMs: 0,
       gateSatisfied: const {},
       consumedHeld: const {},
     );
+    if (state.isPlaying) _maybeStartRun();
+  }
+
+  void restart() {
+    _silenceAll();
+    // Discard any in-flight run; a fresh one opens when playback next starts
+    // from the top in a scored view.
+    _scorer.cancelRun();
+    state = state.copyWith(
+      elapsedMs: 0,
+      countdownMs: 0,
+      gateSatisfied: const {},
+      consumedHeld: const {},
+    );
+    if (state.isPlaying) _maybeStartRun();
+  }
+
+  /// Transport "restart": jump back to the top and start playing again, with the
+  /// get-ready countdown (in free run). Used by the restart button and Retry.
+  void restartFromTop() {
+    restart();
+    startPlayback();
   }
 
   // --- Time advance (called by the screen's Ticker) ---------------------
@@ -341,7 +409,21 @@ class Player extends _$Player {
     var s = state;
     if (!s.isPlaying || s.notes.isEmpty) return;
 
+    // Pre-start countdown: freeze the playhead (and audio/scoring) while the
+    // 5…1…GO ticks down in real time, then playback proceeds normally.
+    if (s.countdownMs > 0) {
+      final remaining = s.countdownMs - dtMs;
+      state = s.copyWith(countdownMs: remaining > 0 ? remaining : 0);
+      return;
+    }
+
     final onset = s.onsetPitchesAt(s.elapsedMs);
+
+    // Drive the scorer's time-based bookkeeping (gate-open stamping in Wait Mode,
+    // miss detection in free run, sustain finalization). Runs before the Wait
+    // Mode blocked early-return below so the gate-open time is stamped even while
+    // the cascade is frozen. A no-op when no run is active.
+    _scorer.tick(s.elapsedMs, waitMode: s.waitMode);
 
     // Wait Mode tolerance: a key already held (and not already consumed by an
     // earlier onset) when the playhead reaches this onset counts as attacked —
@@ -357,6 +439,12 @@ class Player extends _$Player {
           gateSatisfied: {...s.gateSatisfied, ...heldDue},
           consumedHeld: {...s.consumedHeld, ...heldDue},
         );
+        // A sustained/tied note carried into its onset satisfies the gate with
+        // no fresh attack — credit the scorer for it (reaction ≈ 0) so it is not
+        // later marked missed.
+        for (final p in heldDue) {
+          _scorer.noteOn(p, s.elapsedMs, waitMode: true);
+        }
       }
     }
 
@@ -377,9 +465,16 @@ class Player extends _$Player {
     }
 
     var loop = false;
+    var finishScoredRun = false;
     if (s.songEndMs > 0 && next >= s.songEndMs) {
-      next = 0; // simple loop
-      loop = true;
+      if (ref.read(performanceScorerProvider).active) {
+        // A scored run ends the piece (produces the summary) instead of looping.
+        next = s.songEndMs;
+        finishScoredRun = true;
+      } else {
+        next = 0; // simple loop
+        loop = true;
+      }
     }
 
     // Score audio: sound onsets the playhead crosses and release notes whose end
@@ -427,5 +522,13 @@ class Player extends _$Player {
       beatCount: beatCount,
       lastBeatAccent: lastBeatAccent,
     );
+
+    // End of a scored run: finalize the result (drives the summary modal) and
+    // pause at the last position rather than looping.
+    if (finishScoredRun) {
+      _silenceAll();
+      _scorer.finishRun(next, waitMode: s.waitMode);
+      state = state.copyWith(isPlaying: false);
+    }
   }
 }

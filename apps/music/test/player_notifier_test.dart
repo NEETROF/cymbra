@@ -17,6 +17,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:music/services/audio_service.dart';
 import 'package:music/services/midi_service.dart';
 import 'package:music/src/rust/api/score.dart';
+import 'package:music/state/countdown.dart';
+import 'package:music/state/performance_scoring.dart';
 import 'package:music/state/player_data.dart';
 import 'package:music/state/player_notifier.dart';
 
@@ -171,6 +173,85 @@ void main() {
       notifier().setSelectedHands(Hand.left);
       expect(read().gateSatisfied, isEmpty);
     });
+
+    test(
+      'startPlayback arms a countdown from the top, freezing the playhead',
+      () async {
+        await build();
+        notifier().toggleWaitMode(); // countdown is a free-run feature
+        notifier().startPlayback();
+        expect(read().isPlaying, isTrue);
+        expect(read().countdownMs, greaterThan(0));
+        // While the countdown ticks, the playhead stays at 0.
+        notifier().advance(500);
+        expect(read().elapsedMs, 0);
+        expect(read().countdownMs, lessThan(kCountdownStartMs));
+        // Once the countdown elapses, playback advances normally.
+        notifier().advance(kCountdownStartMs);
+        expect(read().countdownMs, 0);
+        notifier().advance(200);
+        expect(read().elapsedMs, greaterThan(0));
+      },
+    );
+
+    test('Wait Mode plays immediately with no countdown', () async {
+      await build(); // Wait Mode is on by default
+      notifier().startPlayback();
+      expect(read().isPlaying, isTrue);
+      expect(read().countdownMs, 0);
+    });
+
+    test('resuming mid-piece plays immediately (no countdown)', () async {
+      await build();
+      notifier().toggleWaitMode();
+      notifier().setPlaying(true);
+      notifier().advance(300); // move off the top
+      notifier().setPlaying(false);
+      notifier().startPlayback(); // resume from 300ms
+      expect(read().countdownMs, 0);
+    });
+
+    test(
+      'restartFromTop resets to the top and replays the countdown',
+      () async {
+        await build();
+        notifier().toggleWaitMode(); // free run
+        notifier().setPlaying(true); // (no countdown via setPlaying)
+        notifier().advance(300); // move off the top
+        expect(read().elapsedMs, 300);
+        notifier().restartFromTop();
+        expect(read().elapsedMs, 0);
+        expect(read().countdownMs, greaterThan(0));
+        expect(read().isPlaying, isTrue);
+      },
+    );
+
+    test('presses during the countdown are not scored (warm-up)', () async {
+      await build();
+      notifier().toggleWaitMode(); // free run → countdown active
+      notifier().startPlayback();
+      // A warm-up press while counting down does not register with the scorer.
+      notifier().noteOn(60);
+      final scoring = container.read(performanceScorerProvider);
+      expect(scoring.active, isTrue); // the run is armed
+      expect(scoring.recentHits, isEmpty); // but the press was not scored
+      expect(scoring.combo, 0);
+    });
+
+    test('changing hands mid-run restarts scoring from the top', () async {
+      await build();
+      // Synthesia (default) + play from the top opens a scored run.
+      notifier().togglePlay();
+      notifier().toggleWaitMode(); // free run so the playhead advances
+      notifier().advance(200);
+      expect(read().elapsedMs, greaterThan(0));
+      expect(container.read(performanceScorerProvider).active, isTrue);
+      // A hand switch restarts the piece with a fresh, still-active run for the
+      // new selection (demo notes are right-hand, so a run opens).
+      notifier().setSelectedHands(Hand.right);
+      expect(read().elapsedMs, 0);
+      expect(container.read(performanceScorerProvider).active, isTrue);
+    });
   });
 
   group('time advance + wait mode', () {
@@ -214,6 +295,9 @@ void main() {
       await build();
       notifier().toggleWaitMode(); // disable wait
       notifier().togglePlay();
+      // A scored run finishes instead of looping; cancel it to exercise the
+      // unscored loop path (all render modes are scored now).
+      container.read(performanceScorerProvider.notifier).cancelRun();
       notifier().advance(500);
       expect(read().elapsedMs, 500);
       notifier().advance(600); // crosses songEndMs (1000)
@@ -562,6 +646,8 @@ void main() {
       await build();
       notifier().toggleWaitMode();
       notifier().togglePlay();
+      // Unscored playback loops; cancel the auto-started run to reach it.
+      container.read(performanceScorerProvider.notifier).cancelRun();
       notifier().advance(500);
       final before = audio.allNotesOffCount;
       notifier().advance(600); // crosses songEnd (1000) → loop
@@ -683,6 +769,8 @@ void main() {
       await build();
       notifier().toggleWaitMode();
       notifier().togglePlay();
+      // Unscored playback loops; cancel the auto-started run to reach it.
+      container.read(performanceScorerProvider.notifier).cancelRun();
       notifier().toggleMetronome();
 
       notifier().advance(900); // beats at 0 (accent) and 750

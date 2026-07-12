@@ -101,5 +101,40 @@
   "libraryTitle": "Cymbra — Biblioteca de partituras",
   "levelBeginner": "Principiante",
   "levelIntermediate": "Intermedio",
-  "levelAdvanced": "Avanzado"
+  "levelAdvanced": "Avanzado",
+
+  "scoringTier": "{tier, select, 0{Sigue} 1{Bien} 2{Genial} 3{En llamas} 4{Perfecto} other{Genial}}",
+  "scoringCombo": "×{count}",
+  "scoringGaugeLabel": "Sincronización {percent}%",
+  "summaryOverall": "Sincro total",
+  "summaryTempo": "Tempo",
+  "summaryTempoSub": "modo libre",
+  "summaryReaction": "Reacción",
+  "summaryReactionSub": "modo espera",
+  "summaryTiming": "Ritmo",
+  "summaryCorrect": "Notas correctas",
+  "summarySustain": "Sostenido",
+  "summaryPerfect": "{count} perfectas",
+  "summaryOff": "{count} desajustadas",
+  "summaryMissed": "{count} falladas",
+  "summaryBestCombo": "Récord ×{count}",
+  "summaryReplay": "Revisar errores",
+  "summaryRetry": "Reintentar",
+  "summaryHands": "{hands, select, left{Mano izquierda} right{Mano derecha} both{Ambas manos} other{Ambas manos}}",
+  "replayTitle": "Repetición",
+  "replayMissed": "Fallada",
+  "replayMistimed": "Desajustada",
+  "replayShortSustain": "Sostenido corto",
+  "replayWrong": "Nota incorrecta",
+
+  "replayMeasure": "Compás {n}",
+  "replayNoMistakes": "Sin errores — bien hecho",
+
+  "replayEarly": "Adelantada {ms} ms",
+  "replayLate": "Atrasada {ms} ms",
+  "replayReaction": "Reacción {ms} ms",
+  "summaryAvgEarly": "{ms} ms adelantado",
+  "summaryAvgLate": "{ms} ms atrasado",
+  "summaryAvgReaction": "{ms} ms de reacción"
+
 }

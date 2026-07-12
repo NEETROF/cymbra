@@ -50,6 +50,11 @@ class StaffPainter extends CustomPainter {
   /// to a meter-derived spacing.
   final List<int> measureStartMs;
 
+  /// Optional replay overlay: a ring colour per note **index** (into [notes]) to
+  /// mark where the player made a mistake, drawn in place on the staff. Empty in
+  /// normal playback; populated by the mistake replay.
+  final Map<int, Color> mistakeColors;
+
   const StaffPainter({
     required this.notes,
     required this.elapsedMs,
@@ -60,6 +65,7 @@ class StaffPainter extends CustomPainter {
     this.beats = 4,
     this.beatType = 4,
     this.measureStartMs = const [],
+    this.mistakeColors = const {},
   });
 
   // Visible time window to the right of the playhead.
@@ -308,13 +314,27 @@ class StaffPainter extends CustomPainter {
     }
 
     // 4) Scrolling notes, routed to their staff.
-    for (final n in notes) {
+    for (var i = 0; i < notes.length; i++) {
+      final n = notes[i];
       final x = xForTime(n.startMs.toDouble());
       if (!visible(x)) continue;
       final y = noteY(n);
       final atPlayhead =
           n.startMs <= elapsedMs && elapsedMs < n.startMs + n.durationMs;
       final color = colorFor(n);
+
+      // Replay: ring the note in its mistake colour, in place on the staff.
+      final mistake = mistakeColors[i];
+      if (mistake != null) {
+        canvas.drawCircle(
+          Offset(x, y),
+          lineGap * 1.6,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 2.5
+            ..color = mistake,
+        );
+      }
 
       _drawHead(canvas, Offset(x, y), lineGap, atPlayhead, color);
       // Beamed notes get their stems/beam from the group pass; others stem now.
@@ -561,5 +581,6 @@ class StaffPainter extends CustomPainter {
       old.elapsedMs != elapsedMs ||
       old.activeNotes != activeNotes ||
       old.notes != notes ||
-      old.measureStartMs != measureStartMs;
+      old.measureStartMs != measureStartMs ||
+      old.mistakeColors != mistakeColors;
 }

@@ -1,0 +1,91 @@
+## 1. Scoring core (pure, host-testable)
+
+- [x] 1.1 Add `state/performance_scoring_core.dart`: mode-adaptive timing-verdict function —
+  Wait-Mode-off uses signed score-clock offset (→ perfect/good/early/late/missed);
+  Wait-Mode-on uses reaction time from gate-open to attack (→ perfect/good/late, no miss) —
+  with tunable ms-window constants for each
+- [x] 1.2 Add sustain-ratio helper (held/intended, clamped 0–1, credit floor, no over-hold
+  penalty) to the core
+- [x] 1.3 Add dimension accumulators + `syncPercent` blend (weighted timing/correctness/
+  sustain, defined-before-first-judgment baseline) to the core
+- [x] 1.4 Add pure `feedbackTier(syncPercent)` → 0–4 band function to the core
+- [x] 1.5 Unit-test the core: each verdict boundary for **both** timing models (free-tempo
+  offset and Wait-Mode reaction time), sustain edges, wrong-note handling, sync% trends
+  up/down, tier up/down-crossings (drive coverage on the pure module)
+
+## 2. Session-result model
+
+- [x] 2.1 Add Freezed `NoteJudgment` (with per-note `waitMode` stamp + `timingOffsetMs` xor
+  `reactionMs`), `RunMode { free, wait, mixed }`, and `SessionResult` (with `runMode`,
+  `freeSyncPct?`/`waitSyncPct?`, per-mode onset counts) models in `state/session_summary.dart`
+  with `toJson`/`fromJson`, per design D6/D10
+- [x] 2.2 Run `build_runner`; unit-test round-trip serialization and aggregate/verdict-count
+  derivation, including per-mode sub-score presence/absence
+
+## 3. Scoring notifier wired to the player
+
+- [x] 3.1 Expose player events the scorer needs (onset-crossed, **gate-open** timestamp for
+  Wait Mode, note-on/note-off with timestamps) from `player_notifier.dart` without changing
+  Wait Mode / playback
+- [x] 3.2 Add `@riverpod` `PerformanceScorer` notifier consuming those events, holding run
+  state (accumulators, recent-hits, combo, per-note judgments)
+- [x] 3.3 Gate run activation on `mode ∈ {synthesia, staff}` (Wait Mode on **or** off; not
+  Partition); stamp each judged onset with the live `waitMode` state and pick its timing model
+  accordingly; start on play-from-start
+- [x] 3.4 At song end, derive `runMode` (free/wait/mixed) from per-onset counts and compute
+  the overall sync% plus per-mode sub-scores (`freeSyncPct`/`waitSyncPct`, absent when that
+  mode had no onsets) into the finalized `SessionResult`
+- [x] 3.5 Unit-test the notifier with fake providers: run gating in both Wait-Mode states and
+  suppression in Partition; per-onset mode stamping across a mid-run toggle (no reset);
+  `runMode` classification (pure free, pure wait, mixed); per-mode sub-score presence;
+  wrong-note recording; combo increment/reset; final record produced only for scored runs
+
+## 4. Sync gauge + tiered feedback UI
+
+- [x] 4.1 Build the sync-gauge widget bound to live sync% and tier, positioned clear of
+  notes/hit-line/keyboard; shown only during a scored run
+- [x] 4.2 Add a transient hit-effect layer (spark intensity by verdict) + combo display over
+  the Synthesia and horizontal-staff views, suppressible via an effects flag
+- [x] 4.3 Enforce learning-safe constraints: effects never recolor/occlude upcoming notes or
+  expected-key highlights; a `missed` verdict never shows a success effect
+- [x] 4.4 Wire gauge + effects into `player_screen.dart` for all render modes (gauge in
+  Synthesia/staff/Partition; keyboard-anchored sparks only where a keyboard is shown)
+- [x] 4.5 Widget test: gauge visible during a scored run in **both** Wait-Mode states; hidden
+  in Partition. Golden (tagged `golden`): notes remain visible under the effects layer
+
+## 5. Session-summary modal + local persistence
+
+- [x] 5.1 Build the summary modal: overall sync%, per-dimension breakdown, best combo,
+  per-verdict counts, and the run classification — for a `mixed` run show both the tempo and
+  reaction sub-scores (labelled), for a pure run show the single relevant one; actions replay
+  / retry / dismiss
+- [x] 5.2 Show the modal at song end for scored runs only; wire retry (reset piece) and
+  dismiss
+- [x] 5.3 Persist the last `SessionResult` as JSON via `PreferencesService` under a
+  namespaced key; re-open the last summary; no server transmission
+- [x] 5.4 Widget/unit tests: modal contents from a record, modal not shown for unscored runs,
+  persistence via fake preferences (no native storage)
+
+## 6. Mistake replay on the horizontal score
+
+- [x] 6.1 Reuse the real `StaffPainter` (add an optional `mistakeColors` note-index→colour
+  overlay) so mistakes are ringed in place on the actual staff; classify notes by verdict
+  (miss / mistimed / poor-sustain / wrong) from `SessionResult` judgments
+- [x] 6.2 Launch replay from the summary modal with a `ReplayScore` captured from the player;
+  transport (play/pause + seek) scrubs a real playhead with synced audio (`scoreNoteEdges`);
+  tappable mistake list (labelled by measure) seeks to a note; clean run shows a message
+- [x] 6.3 Widget/unit tests: mistake classification + colours, `measureOf`, `StaffPainter`
+  overlay paint, and the replay dialog (list/jump/transport/audio/close, no-mistakes case)
+
+## 7. Localization
+
+- [x] 7.1 Add en/fr/it/es strings for the gauge labels, tier/combo copy, summary modal, and
+  replay legend via the existing `l10n` flow; regenerate localizations
+
+## 8. Validation & gates
+
+- [x] 8.1 `dart run build_runner build --delete-conflicting-outputs`; `melos run analyze` +
+  `dart format` + `dart run custom_lint` clean
+- [x] 8.2 `flutter test --coverage --exclude-tags golden` green with line coverage ≥ 80%
+  (refresh goldens on the pinned platform)
+- [x] 8.3 `openspec validate gamify-piano-practice --strict` passes

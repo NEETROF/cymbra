@@ -32,10 +32,17 @@ import '../state/app_language.dart';
 import '../state/app_locale.dart';
 import '../state/notation_data.dart';
 import '../state/notation_notifier.dart';
+import '../state/performance_scoring.dart';
 import '../state/player_data.dart';
 import '../state/player_notifier.dart';
+import '../state/session_summary.dart';
+import '../state/session_summary_store.dart';
 import '../theme/cymbra_theme.dart';
+import '../widgets/countdown_overlay.dart';
 import '../widgets/language_selector.dart';
+import '../widgets/mistake_replay.dart';
+import '../widgets/scoring_overlay.dart';
+import '../widgets/session_summary_modal.dart';
 
 /// Main screen of the Cymbra player: top bar, rendering area
 /// (Synthesia or Staff), keyboard, and transport bar.
@@ -234,6 +241,15 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
 
   @override
   Widget build(BuildContext context) {
+    // A scored run just finished: persist the summary and show the modal.
+    ref.listen(performanceScorerProvider.select((s) => s.lastResult), (
+      prev,
+      next,
+    ) {
+      if (next != null && !identical(next, prev)) {
+        _onScoredRunFinished(next);
+      }
+    });
     return Focus(
       focusNode: _focusNode,
       autofocus: true,
@@ -248,89 +264,125 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
         // extend into it (its own small margin keeps a hair of clearance, and
         // the centred controls sit clear of the thin indicator). Tablet/desktop
         // keep the full safe area.
-        body: SafeArea(
-          bottom: !context.isPhoneLayout,
-          child: Column(
-            children: [
-              const _TopBar(),
-              Expanded(
-                child: Consumer(
-                  builder: (context, ref, child) {
-                    final data = ref.watch(playerProvider);
-                    return LayoutBuilder(
-                      builder: (context, constraints) {
-                        final bounds = data.keyboardBounds;
-                        final layout = PianoLayout(
-                          width: constraints.maxWidth,
-                          lowPitch: bounds.low,
-                          highPitch: bounds.high,
-                        );
-                        final keyboardHeight = _keyboardHeightFor(
-                          constraints.maxHeight,
-                          isPhone: context.isPhoneLayout,
-                        );
-                        // Synthesia always shows the keyboard (its cascade aligns
-                        // to the keys); the notation modes honour the user's
-                        // hide-keyboard setting, handing the freed height to the
-                        // score.
-                        final showKeyboard =
-                            data.mode == RenderMode.synthesia ||
-                            data.keyboardVisible;
-                        return Column(
-                          children: [
-                            // Clip the render area so a painter (e.g. high notes /
-                            // beams in Staff mode) never draws over the top bar or
-                            // the keyboard below.
-                            Expanded(
-                              child: ClipRect(
-                                child: _buildRenderArea(
-                                  layout,
-                                  data,
-                                  isPhone: context.isPhoneLayout,
-                                ),
-                              ),
-                            ),
-                            if (showKeyboard)
-                              SizedBox(
-                                height: keyboardHeight,
-                                child: Listener(
-                                  key: const Key('onscreen-keyboard'),
-                                  onPointerDown: (e) => _onKeyboardPointerDown(
-                                    e,
-                                    layout,
-                                    keyboardHeight,
-                                  ),
-                                  onPointerUp: _onKeyboardPointerUp,
-                                  onPointerCancel: _onKeyboardPointerUp,
-                                  child: CustomPaint(
-                                    size: Size(
-                                      constraints.maxWidth,
-                                      keyboardHeight,
+        body: Stack(
+          children: [
+            SafeArea(
+              bottom: !context.isPhoneLayout,
+              child: Column(
+                children: [
+                  const _TopBar(),
+                  Expanded(
+                    child: Consumer(
+                      builder: (context, ref, child) {
+                        final data = ref.watch(playerProvider);
+                        return LayoutBuilder(
+                          builder: (context, constraints) {
+                            final bounds = data.keyboardBounds;
+                            final layout = PianoLayout(
+                              width: constraints.maxWidth,
+                              lowPitch: bounds.low,
+                              highPitch: bounds.high,
+                            );
+                            final keyboardHeight = _keyboardHeightFor(
+                              constraints.maxHeight,
+                              isPhone: context.isPhoneLayout,
+                            );
+                            // Synthesia always shows the keyboard (its cascade aligns
+                            // to the keys); the notation modes honour the user's
+                            // hide-keyboard setting, handing the freed height to the
+                            // score.
+                            final showKeyboard =
+                                data.mode == RenderMode.synthesia ||
+                                data.keyboardVisible;
+                            return Column(
+                              children: [
+                                // Clip the render area so a painter (e.g. high notes /
+                                // beams in Staff mode) never draws over the top bar or
+                                // the keyboard below.
+                                Expanded(
+                                  child: ClipRect(
+                                    child: _buildRenderArea(
+                                      layout,
+                                      data,
+                                      isPhone: context.isPhoneLayout,
                                     ),
-                                    painter: PianoKeyboardPainter(
-                                      layout: layout,
-                                      activeNotes: data.activeNotes,
-                                      requiredNotes: data.expectedKeys,
-                                      leftHandNotes: data.expectedKeysForHand(
-                                        rightHand: false,
+                                  ),
+                                ),
+                                if (showKeyboard)
+                                  SizedBox(
+                                    height: keyboardHeight,
+                                    child: Listener(
+                                      key: const Key('onscreen-keyboard'),
+                                      onPointerDown: (e) =>
+                                          _onKeyboardPointerDown(
+                                            e,
+                                            layout,
+                                            keyboardHeight,
+                                          ),
+                                      onPointerUp: _onKeyboardPointerUp,
+                                      onPointerCancel: _onKeyboardPointerUp,
+                                      child: CustomPaint(
+                                        size: Size(
+                                          constraints.maxWidth,
+                                          keyboardHeight,
+                                        ),
+                                        painter: PianoKeyboardPainter(
+                                          layout: layout,
+                                          activeNotes: data.activeNotes,
+                                          requiredNotes: data.expectedKeys,
+                                          leftHandNotes: data
+                                              .expectedKeysForHand(
+                                                rightHand: false,
+                                              ),
+                                        ),
                                       ),
                                     ),
                                   ),
-                                ),
-                              ),
-                          ],
+                              ],
+                            );
+                          },
                         );
                       },
-                    );
-                  },
-                ),
+                    ),
+                  ),
+                  _TransportBar(),
+                ],
               ),
-              _TransportBar(),
-            ],
-          ),
+            ),
+            // Race-game style get-ready countdown, centred over everything.
+            const Positioned.fill(child: CountdownOverlay()),
+          ],
         ),
       ),
     );
+  }
+
+  /// Persists the finished run and presents the summary modal, then clears the
+  /// result and applies the player's chosen action. Choosing "replay" opens the
+  /// mistake replay on the real score and returns to the summary afterwards, so
+  /// the player can still retry or close.
+  Future<void> _onScoredRunFinished(SessionResult result) async {
+    await ref.read(sessionSummaryStoreProvider).save(result);
+    // Capture the score context now — the piece is unchanged after the run.
+    final score = ReplayScore.fromPlayer(ref.read(playerProvider));
+    while (true) {
+      if (!mounted) return;
+      final action = await showSessionSummary(context, result);
+      if (!mounted) return;
+      if (action == SummaryAction.replay) {
+        await showMistakeReplay(context, score, result);
+        continue; // back to the summary after the replay
+      }
+      ref.read(performanceScorerProvider.notifier).clearLastResult();
+      if (action == SummaryAction.retry) {
+        // Fresh start from the top → replays the get-ready countdown.
+        ref.read(playerProvider.notifier).restartFromTop();
+      } else {
+        // Quit: leave play mode and return to the previous screen (library).
+        Navigator.of(context).maybePop();
+      }
+      return;
+    }
   }
 
   Widget _buildRenderArea(
@@ -359,27 +411,44 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
               ),
             ),
           ),
+          // Gamified sync gauge + hit sparks (shown only during a scored run).
+          // Synthesia always shows the keyboard, so effects are always anchored.
+          Positioned.fill(child: ScoringOverlay(layout: layout)),
           if (data.blocked) const _WaitOverlay(),
         ],
       );
     }
     // Standard staff mode (synchronized, horizontal scrolling).
-    return Container(
-      color: CymbraColors.surfaceContainerLow,
-      child: CustomPaint(
-        painter: StaffPainter(
-          notes: data.visibleNotes,
-          elapsedMs: data.elapsedMs,
-          activeNotes: data.activeNotes,
-          bpm: data.bpm,
-          songEndMs: data.songEndMs,
-          keyFifths: data.keyFifths,
-          beats: data.beats,
-          beatType: data.beatType,
-          measureStartMs: data.measureStartMs,
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: Container(
+            color: CymbraColors.surfaceContainerLow,
+            child: CustomPaint(
+              painter: StaffPainter(
+                notes: data.visibleNotes,
+                elapsedMs: data.elapsedMs,
+                activeNotes: data.activeNotes,
+                bpm: data.bpm,
+                songEndMs: data.songEndMs,
+                keyFifths: data.keyFifths,
+                beats: data.beats,
+                beatType: data.beatType,
+                measureStartMs: data.measureStartMs,
+              ),
+              size: Size.infinite,
+            ),
+          ),
         ),
-        size: Size.infinite,
-      ),
+        // In the staff view the sparks anchor to the keyboard line, so hide them
+        // when the keyboard is hidden (the gauge still shows).
+        Positioned.fill(
+          child: ScoringOverlay(
+            layout: layout,
+            showEffects: data.keyboardVisible,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -1202,16 +1271,20 @@ class _TransportBar extends ConsumerWidget {
         children: [
           IconButton(
             visualDensity: density,
-            onPressed: notifier.restart,
+            // Restart from the top, replaying the get-ready countdown.
+            onPressed: notifier.restartFromTop,
             icon: const Icon(
               Icons.skip_previous,
               color: CymbraColors.onSurface,
             ),
           ),
           SizedBox(width: gapS),
-          // Play / pause.
+          // Play / pause. Play arms the get-ready countdown (from the top);
+          // pause stops immediately.
           GestureDetector(
-            onTap: notifier.togglePlay,
+            onTap: data.isPlaying
+                ? () => notifier.setPlaying(false)
+                : notifier.startPlayback,
             child: CircleAvatar(
               radius: playRadius,
               backgroundColor: CymbraColors.primaryContainer,
@@ -1485,6 +1558,9 @@ class _PartitionViewState extends ConsumerState<_PartitionView> {
                 ),
               ),
               if (overlay != null) Positioned(left: 8, top: 8, child: overlay),
+              // Gamified sync gauge (no keyboard-anchored sparks in the engraved
+              // Partition view — it has no waterfall/keyboard mapping).
+              const Positioned.fill(child: ScoringOverlay()),
             ],
           );
         },
