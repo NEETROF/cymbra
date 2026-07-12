@@ -28,15 +28,17 @@ When no scored run is active the gauge SHALL be hidden.
 
 The system SHALL define visual feedback tiers keyed to 20% bands of the live
 synchronization percentage (0–20, 20–40, 40–60, 60–80, 80–100). Crossing upward into a
-higher tier SHALL trigger a distinct, celebratory escalation of the gauge/effects
-styling; the tier SHALL also visibly de-escalate when the percentage falls back into a
-lower band. Tier changes SHALL be derived purely from the percentage so they are
-host-testable without rendering.
+higher tier SHALL trigger a distinct, celebratory escalation of the gauge — at minimum the
+gauge box SHALL shake and a brief firework/particle burst SHALL play inside it, in the tier
+colour. The tier SHALL also visibly de-escalate (quietly, no celebration) when the
+percentage falls back into a lower band. Tier changes SHALL be derived purely from the
+percentage so they are host-testable without rendering.
 
 #### Scenario: Crossing up a tier escalates feedback
 - **WHEN** the live synchronization percentage rises from one 20% band into the next
   higher band
-- **THEN** the feedback tier increases and a celebratory escalation is signaled
+- **THEN** the feedback tier increases and a celebratory escalation is signaled (the gauge
+  box shakes and a brief firework burst plays inside it)
 
 #### Scenario: Dropping a tier de-escalates
 - **WHEN** the live synchronization percentage falls back from a band into a lower band

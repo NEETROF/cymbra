@@ -35,21 +35,29 @@ class ScoringGauge extends ConsumerStatefulWidget {
 }
 
 class _ScoringGaugeState extends ConsumerState<ScoringGauge>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late final AnimationController _shake = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 450),
   );
 
+  // A little firework burst inside the box on each 20% tier-up.
+  late final AnimationController _firework = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 700),
+  );
+
   @override
   void initState() {
     super.initState();
-    // Shake on a rising tier crossing only — a drop de-escalates quietly.
+    // Shake + firework on a rising tier crossing only — a drop de-escalates
+    // quietly.
     ref.listenManual(
       performanceScorerProvider.select((s) => s.active ? s.tier : 0),
       (prev, next) {
         if (next > (prev ?? 0)) {
           _shake.forward(from: 0);
+          _firework.forward(from: 0);
         }
       },
     );
@@ -58,6 +66,7 @@ class _ScoringGaugeState extends ConsumerState<ScoringGauge>
   @override
   void dispose() {
     _shake.dispose();
+    _firework.dispose();
     super.dispose();
   }
 
@@ -144,6 +153,20 @@ class _ScoringGaugeState extends ConsumerState<ScoringGauge>
                       ],
                     ),
                   ),
+                  // Firework burst on a tier-up (clipped to the box).
+                  Positioned.fill(
+                    child: IgnorePointer(
+                      child: AnimatedBuilder(
+                        animation: _firework,
+                        builder: (context, _) => CustomPaint(
+                          painter: GaugeFireworkPainter(
+                            progress: _firework.value,
+                            color: color,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -152,6 +175,38 @@ class _ScoringGaugeState extends ConsumerState<ScoringGauge>
       ),
     );
   }
+}
+
+/// A small firework burst drawn inside the gauge on a tier-up: [count] particles
+/// shoot out from the centre and fade over [progress] (0 → 1). Deterministic
+/// (fixed angles) so it is host-testable. Idle (paints nothing) at the ends.
+class GaugeFireworkPainter extends CustomPainter {
+  final double progress;
+  final Color color;
+
+  const GaugeFireworkPainter({required this.progress, required this.color});
+
+  static const int count = 12;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (progress <= 0 || progress >= 1) return;
+    final center = Offset(size.width / 2, size.height * 0.55);
+    final maxR = math.min(size.width, size.height) * 0.5;
+    final reach = (1 - math.pow(1 - progress, 2).toDouble()) * maxR; // easeOut
+    final alpha = (1 - progress).clamp(0.0, 1.0);
+    final paint = Paint()..color = color.withValues(alpha: alpha);
+    for (var i = 0; i < count; i++) {
+      final angle = 2 * math.pi * i / count + i * 0.3;
+      final p =
+          center + Offset(math.cos(angle) * reach, math.sin(angle) * reach);
+      canvas.drawCircle(p, (1 - progress) * 2.5 + 0.8, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(GaugeFireworkPainter old) =>
+      old.progress != progress || old.color != color;
 }
 
 /// A [FractionallySizedBox] whose [heightFactor] animates — used for the gauge

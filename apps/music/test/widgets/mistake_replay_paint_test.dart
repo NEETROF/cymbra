@@ -230,8 +230,12 @@ void main() {
       for (var i = 0; i < 40; i++) {
         await tester.pump(const Duration(milliseconds: 50));
       }
-      // Notes were sounded as the playhead crossed them.
-      expect(audio.noteOns, isNotEmpty);
+      // The player's own notes were sounded (not the score): the played
+      // pitches (60 perfect, 62 late) sound; the missed pitch (61) does not.
+      final pitches = audio.noteOns.map((e) => e.pitch).toSet();
+      expect(pitches, contains(60));
+      expect(pitches, contains(62));
+      expect(pitches.contains(61), isFalse);
       // Reaching the end auto-pauses (back to the play icon).
       expect(find.byIcon(Icons.play_circle), findsOneWidget);
     });

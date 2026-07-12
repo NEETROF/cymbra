@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -69,4 +71,28 @@ void main() {
       expect(find.textContaining('%'), findsNothing);
     },
   );
+
+  group('GaugeFireworkPainter', () {
+    void paintAt(double progress) {
+      final recorder = PictureRecorder();
+      GaugeFireworkPainter(
+        progress: progress,
+        color: const Color(0xFF44E2CD),
+      ).paint(Canvas(recorder), const Size(88, 120));
+      recorder.endRecording().dispose();
+    }
+
+    test('paints a burst mid-animation and nothing at rest', () {
+      paintAt(0.0); // idle — no particles
+      paintAt(0.5); // mid burst
+      paintAt(1.0); // finished — no particles
+    });
+
+    test('repaints as the burst progresses', () {
+      const a = GaugeFireworkPainter(progress: 0.1, color: Color(0xFF000000));
+      const b = GaugeFireworkPainter(progress: 0.4, color: Color(0xFF000000));
+      expect(a.shouldRepaint(b), isTrue);
+      expect(a.shouldRepaint(a), isFalse);
+    });
+  });
 }

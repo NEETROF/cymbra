@@ -138,6 +138,43 @@ class _ReplayDialogState extends ConsumerState<_ReplayDialog>
           .toList()
         ..sort((a, b) => a.startMs.compareTo(b.startMs));
 
+  /// The notes the player actually played, reconstructed from the judgments —
+  /// this is what the replay *sounds* (so the player hears their own
+  /// performance, not the score). Each hit is placed at the time it was played
+  /// (`startMs + timing offset` in free run, the onset in Wait Mode) for its
+  /// held duration; wrong notes sound at their press time; missed notes are
+  /// silent. The score is still what's *shown* on the staff.
+  late final List<TimedNote> _playedNotes = _buildPlayedNotes();
+
+  List<TimedNote> _buildPlayedNotes() {
+    final notes = <TimedNote>[];
+    for (final j in widget.result.notes) {
+      if (j.wrong) {
+        notes.add(
+          TimedNote(pitch: j.pitch, startMs: j.startMs, durationMs: 200),
+        );
+        continue;
+      }
+      if (j.verdict == TimingVerdict.missed) continue; // not played → silent
+      final start = j.waitMode
+          ? j.startMs
+          : (j.startMs + (j.timingOffsetMs ?? 0).round());
+      final intended = (j.noteIndex >= 0 && j.noteIndex < _score.notes.length)
+          ? _score.notes[j.noteIndex].durationMs
+          : 300;
+      final held = (intended * j.sustainRatio).round().clamp(80, intended);
+      notes.add(
+        TimedNote(
+          pitch: j.pitch,
+          startMs: start < 0 ? 0 : start,
+          durationMs: held,
+        ),
+      );
+    }
+    notes.sort((a, b) => a.startMs.compareTo(b.startMs));
+    return notes;
+  }
+
   late final AudioService _audio;
 
   @override
@@ -175,8 +212,9 @@ class _ReplayDialogState extends ConsumerState<_ReplayDialog>
   }
 
   void _applyAudio(double from, double to) {
+    // Sound the *player's* notes, not the score, so they hear their performance.
     final edges = scoreNoteEdges(
-      visible: _score.notes,
+      visible: _playedNotes,
       from: from,
       to: to,
       sounding: _sounding,

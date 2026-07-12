@@ -55,9 +55,12 @@ distinguished from correctly-played notes. The replay SHALL be driven by the
 session-result record's per-note judgments and SHALL NOT require re-playing the piece live.
 
 The replay SHALL provide a transport (play/pause and seek) that scrubs a playhead across
-the staff with synchronized audio, and SHALL present the mistakes as a list the player can
-tap to jump the playhead straight to that note. When the run had no mistakes the replay
-SHALL say so rather than showing an empty list.
+the staff with synchronized audio. The audio SHALL be the **player's own performance** —
+each note sounded at the pitch and time the player actually played it (with missed notes
+silent) — not the score, so the player hears how they played rather than the reference. The
+replay SHALL present the mistakes as a list the player can tap to jump the playhead straight
+to that note. When the run had no mistakes the replay SHALL say so rather than showing an
+empty list.
 
 #### Scenario: Replay highlights mistakes
 - **WHEN** the player starts the replay from the summary modal
@@ -74,10 +77,11 @@ SHALL say so rather than showing an empty list.
 - **THEN** it is driven from the stored per-note judgments and does not depend on live
   input
 
-#### Scenario: Transport scrubs the staff with audio
+#### Scenario: Transport plays back the player's performance
 - **WHEN** the player presses play in the replay
-- **THEN** a playhead advances across the real staff and the notes sound in time, and
-  pausing or seeking stops the audio
+- **THEN** a playhead advances across the real staff and the **player's own** played notes
+  sound in time (missed notes stay silent, not the score), and pausing or seeking stops the
+  audio
 
 #### Scenario: Tapping a mistake jumps to it
 - **WHEN** the player taps a mistake in the replay's mistake list
