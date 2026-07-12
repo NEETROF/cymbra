@@ -390,6 +390,13 @@ class Player extends _$Player {
     if (state.isPlaying) _maybeStartRun();
   }
 
+  /// Transport "restart": jump back to the top and start playing again, with the
+  /// get-ready countdown (in free run). Used by the restart button and Retry.
+  void restartFromTop() {
+    restart();
+    startPlayback();
+  }
+
   // --- Time advance (called by the screen's Ticker) ---------------------
 
   /// Advances the playhead by [dtMs] ms (already multiplied by the speed).

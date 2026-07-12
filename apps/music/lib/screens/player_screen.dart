@@ -375,9 +375,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
       }
       ref.read(performanceScorerProvider.notifier).clearLastResult();
       if (action == SummaryAction.retry) {
-        final player = ref.read(playerProvider.notifier);
-        player.restart();
-        player.startPlayback(); // fresh start → get-ready countdown
+        // Fresh start from the top → replays the get-ready countdown.
+        ref.read(playerProvider.notifier).restartFromTop();
       } else {
         // Quit: leave play mode and return to the previous screen (library).
         Navigator.of(context).maybePop();
@@ -1272,7 +1271,8 @@ class _TransportBar extends ConsumerWidget {
         children: [
           IconButton(
             visualDensity: density,
-            onPressed: notifier.restart,
+            // Restart from the top, replaying the get-ready countdown.
+            onPressed: notifier.restartFromTop,
             icon: const Icon(
               Icons.skip_previous,
               color: CymbraColors.onSurface,

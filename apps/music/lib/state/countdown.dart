@@ -14,15 +14,15 @@
 
 /// Pre-start countdown timing (pure, host-testable).
 ///
-/// A race-game style 5…4…3…2…1…GO shown before playback begins so the player has
+/// A race-game style 3…2…1…GO shown before playback begins so the player has
 /// time to get ready. The digits run for [_digitsMs] (one second each) and GO
 /// holds for [_goMs]; the total is [kCountdownStartMs]. GO ends exactly as the
 /// countdown reaches 0, so it disappears before the first note.
 const double _goMs = 700;
-const double _digitsMs = 5000; // 5 → 1, one second each
+const double _digitsMs = 3000; // 3 → 1, one second each
 const double kCountdownStartMs = _digitsMs + _goMs;
 
-/// The label to show for a countdown with [remainingMs] left: `"5"`…`"1"`,
+/// The label to show for a countdown with [remainingMs] left: `"3"`…`"1"`,
 /// `"GO"`, or null when the countdown is over (nothing to show).
 String? countdownLabel(double remainingMs) {
   if (remainingMs <= 0) return null;

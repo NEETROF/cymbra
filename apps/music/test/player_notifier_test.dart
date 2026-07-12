@@ -211,6 +211,21 @@ void main() {
       expect(read().countdownMs, 0);
     });
 
+    test(
+      'restartFromTop resets to the top and replays the countdown',
+      () async {
+        await build();
+        notifier().toggleWaitMode(); // free run
+        notifier().setPlaying(true); // (no countdown via setPlaying)
+        notifier().advance(300); // move off the top
+        expect(read().elapsedMs, 300);
+        notifier().restartFromTop();
+        expect(read().elapsedMs, 0);
+        expect(read().countdownMs, greaterThan(0));
+        expect(read().isPlaying, isTrue);
+      },
+    );
+
     test('presses during the countdown are not scored (warm-up)', () async {
       await build();
       notifier().toggleWaitMode(); // free run → countdown active

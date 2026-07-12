@@ -17,12 +17,11 @@ import 'package:music/state/countdown.dart';
 
 void main() {
   group('countdownLabel', () {
-    test('starts at 5 and counts down one digit per second', () {
-      expect(countdownLabel(kCountdownStartMs), '5');
-      expect(countdownLabel(4701), '5');
-      expect(countdownLabel(4700), '4');
-      expect(countdownLabel(3700), '3');
+    test('starts at 3 and counts down one digit per second', () {
+      expect(countdownLabel(kCountdownStartMs), '3');
+      expect(countdownLabel(2701), '3');
       expect(countdownLabel(2700), '2');
+      expect(countdownLabel(1701), '2');
       expect(countdownLabel(1700), '1');
     });
 
