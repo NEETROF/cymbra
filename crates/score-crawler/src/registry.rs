@@ -23,12 +23,18 @@ use std::sync::Arc;
 
 use crate::http::Fetcher;
 use crate::sources::SourceAdapter;
-use crate::sources::cpdl::CpdlSource;
 use crate::sources::git::GitRepoSource;
 use crate::sources::pdmx::PdmxSource;
+use crate::sources::web_index::WebIndexSource;
 
 /// Default CPDL listing (a scores category page).
 pub const CPDL_LISTING: &str = "https://www.cpdl.org/wiki/index.php/Category:Scores";
+/// Default IMSLP listing.
+pub const IMSLP_LISTING: &str = "https://imslp.org/wiki/Category:Scores";
+/// Default Project Gutenberg sheet-music listing.
+pub const GUTENBERG_LISTING: &str = "https://www.gutenberg.org/ebooks/subject/2955";
+/// Default Hymnary listing.
+pub const HYMNARY_LISTING: &str = "https://hymnary.org/browse/tunes";
 /// Default PDMX (Zenodo) metadata index.
 pub const PDMX_METADATA: &str = "https://zenodo.org/records/15571083/files/metadata.json";
 
@@ -59,7 +65,22 @@ pub fn build_adapters(
             "eduardomourar" => Some(Box::new(GitRepoSource::eduardomourar(
                 checkout_root.join("eduardomourar"),
             ))),
-            "cpdl" => Some(Box::new(CpdlSource::new(fetcher.clone(), CPDL_LISTING))),
+            "cpdl" => Some(Box::new(WebIndexSource::cpdl(
+                fetcher.clone(),
+                CPDL_LISTING,
+            ))),
+            "imslp" => Some(Box::new(WebIndexSource::imslp(
+                fetcher.clone(),
+                IMSLP_LISTING,
+            ))),
+            "gutenberg" => Some(Box::new(WebIndexSource::gutenberg(
+                fetcher.clone(),
+                GUTENBERG_LISTING,
+            ))),
+            "hymnary" => Some(Box::new(WebIndexSource::hymnary(
+                fetcher.clone(),
+                HYMNARY_LISTING,
+            ))),
             "pdmx" => Some(Box::new(PdmxSource::new(fetcher.clone(), PDMX_METADATA))),
             _ => None,
         };
@@ -86,12 +107,15 @@ mod tests {
             "openscore".to_string(),
             "cpdl".to_string(),
             "pdmx".to_string(),
-            "imslp".to_string(), // not wired yet
+            "imslp".to_string(),
+            "mutopia".to_string(), // not wired yet (LilyPond)
         ];
         let built = build_adapters(&sources, fetcher, Path::new("/tmp/checkouts"));
-        assert_eq!(built.adapters.len(), 3);
-        assert_eq!(built.unsupported, vec!["imslp"]);
+        assert_eq!(built.adapters.len(), 4);
+        assert_eq!(built.unsupported, vec!["mutopia"]);
         let names: Vec<&str> = built.adapters.iter().map(|a| a.name()).collect();
-        assert!(names.contains(&"openscore") && names.contains(&"cpdl") && names.contains(&"pdmx"));
+        assert!(
+            names.contains(&"openscore") && names.contains(&"cpdl") && names.contains(&"imslp")
+        );
     }
 }

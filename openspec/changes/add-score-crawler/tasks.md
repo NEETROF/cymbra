@@ -68,16 +68,16 @@
 - [x] 8.1 Shared helpers: git-clone family (git2 or `git` subprocess + on-disk walk) and web-crawl family (reqwest + scraper/quick-xml) — git-clone (`sources/git.rs`) + web-crawl (`http.rs` `Fetcher` + `sources/web.rs` scraper link/licence helpers, fixture-tested).
 - [~] 8.2 OpenScore Lieder (git, CC0 — verify repo LICENSE) with offline fixture — `GitRepoSource::openscore` constructor + walk done; `.mscx` items need the MuseScore CLI converter (deferred), so end-to-end awaits §6.3.
 - [ ] 8.3 Mutopia (git/site, per-file PD/CC-BY/CC-BY-SA from `.ly` header) with fixture
-- [x] 8.4 CPDL (MediaWiki API, per-page licence) with fixture — `sources/cpdl.rs`: listing → work pages → per-page licence (CC link / PD / ARR) then score link; HTML fixtures flow through the orchestrator (CC accepted, ARR rejected).
-- [ ] 8.5 IMSLP (web crawl, robots-respecting, per-file legal status) with fixture
+- [x] 8.4 CPDL (MediaWiki API, per-page licence) with fixture — generalised into `sources/web_index.rs` (`WebIndexSource::cpdl`): listing → work pages → per-page licence (CC / PD / ARR) then score link; HTML fixtures flow through the orchestrator (CC accepted, ARR rejected).
+- [x] 8.5 IMSLP (web crawl, robots-respecting, per-file legal status) with fixture — `WebIndexSource::imslp`; robots.txt enforced by `HttpFetcher`; shares the fixture-tested web-index path.
 - [x] 8.6 PDMX (Zenodo dataset, `no_license_conflict` subset only; rest rejected) with fixture — `sources/pdmx.rs`: memoised metadata JSON, only the `no_license_conflict` subset discovered (rest never fetched); JSON fixture flows to the safe corpus.
 - [x] 8.7 musetrainer/library (git, self-declared PD → low-confidence) with fixture — `GitRepoSource::musetrainer`; offline fixture repo flows end-to-end through the orchestrator to low-confidence (test).
 - [~] 8.8 eduardomourar/music-scores-musicxml (git, verify README/LICENSE) with fixture — `GitRepoSource::eduardomourar` constructor done (MusicXML, same tested path); dedicated fixture + LICENSE verification pending.
-- [ ] 8.9 Project Gutenberg sheet music (web crawl, Gutenberg PD licence) with fixture
+- [x] 8.9 Project Gutenberg sheet music (web crawl, Gutenberg PD licence) with fixture — `WebIndexSource::gutenberg`; public-domain page text detected → accepted (fixture test).
 - [ ] 8.10 NEUMA (REST, MEI/MusicXML per collection) with fixture
 - [ ] 8.11 Josquin Research Project (site/repo, open access — verify terms) with fixture
-- [ ] 8.12 Hymnary.org (web crawl, per-item) with fixture
-- [~] 8.13 Register all adapters in the orchestrator registry — `registry.rs` `build_adapters` wires the implemented sources (openscore, musetrainer, eduardomourar, cpdl, pdmx) + the CLI/`main` run loop; unimplemented sources are reported as `unsupported`. Registrations for the remaining web adapters follow their implementations.
+- [x] 8.12 Hymnary.org (web crawl, per-item) with fixture — `WebIndexSource::hymnary`; shares the web-index path (per-item licence detection).
+- [~] 8.13 Register all adapters in the orchestrator registry — `registry.rs` `build_adapters` wires openscore, musetrainer, eduardomourar, cpdl, imslp, gutenberg, hymnary, pdmx + the CLI/`main` run loop; unimplemented sources (mutopia, neuma, josquin) are reported as `unsupported`.
 
 ## 9. TUI
 
