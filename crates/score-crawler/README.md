@@ -60,6 +60,13 @@ degrade gracefully — they are recorded, never crash the crawl):
 
 MIDI is never treated as a score source.
 
+**Run converters in Docker instead of installing them.** Set `converters.backend:
+docker` in `config.yaml` and point `musescore_image` / `verovio_image` /
+`lilypond_image` at images that carry the tool on `PATH`. Each conversion then
+runs as `docker run --rm -v <tmp>:/work <image> <tool> …` — nothing heavy is
+installed on the host. (Requires Docker; on macOS the temp dir must be under a
+Docker-Desktop-shared path, which `$TMPDIR` is by default.)
+
 ## Usage
 
 ```bash

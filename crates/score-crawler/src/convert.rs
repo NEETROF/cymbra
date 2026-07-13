@@ -33,6 +33,51 @@ use serde::{Deserialize, Serialize};
 /// Wall-clock cap on any single external converter invocation.
 const CONVERTER_TIMEOUT: Duration = Duration::from_secs(120);
 
+/// How external converters are invoked.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ConverterBackend {
+    /// Run the binary directly (must be on `PATH`).
+    Local,
+    /// Run each converter inside a Docker image (a temp dir is bind-mounted at
+    /// `/work`), so nothing heavy needs installing on the host.
+    Docker,
+}
+
+/// External-converter configuration: the backend and, for Docker, the image per
+/// tool. Set once at startup via [`init_converters`]; defaults to `Local`.
+#[derive(Debug, Clone)]
+pub struct Converters {
+    pub backend: ConverterBackend,
+    pub musescore_image: String,
+    pub verovio_image: String,
+    pub lilypond_image: String,
+}
+
+impl Default for Converters {
+    fn default() -> Self {
+        // Docker image names are placeholders — override them in config to real
+        // images that carry `mscore` / `verovio` / `ly` on PATH.
+        Self {
+            backend: ConverterBackend::Local,
+            musescore_image: "cymbra/musescore".to_string(),
+            verovio_image: "cymbra/verovio".to_string(),
+            lilypond_image: "cymbra/python-ly".to_string(),
+        }
+    }
+}
+
+static CONVERTERS: std::sync::OnceLock<Converters> = std::sync::OnceLock::new();
+
+/// Installs the converter configuration (idempotent; first call wins).
+pub fn init_converters(converters: Converters) {
+    let _ = CONVERTERS.set(converters);
+}
+
+/// The active converter configuration (defaults to `Local` if never set).
+fn converters() -> &'static Converters {
+    CONVERTERS.get_or_init(Converters::default)
+}
+
 /// Internal member name for the score inside the `.mxl` container.
 const INNER_NAME: &str = "score.musicxml";
 
@@ -124,9 +169,11 @@ pub fn convert_any(origin: OriginFormat, bytes: &[u8]) -> Result<Converted> {
 pub fn musescore_to_mxl(bytes: &[u8]) -> Result<Converted> {
     let mxl = convert_via_files(
         bytes,
+        converters().backend,
         "mscx",
         "mxl",
         "mscore",
+        &converters().musescore_image,
         |input, output| vec!["-o".into(), path(output), path(input)],
         &[("QT_QPA_PLATFORM", "offscreen")],
     )?;
@@ -137,9 +184,11 @@ pub fn musescore_to_mxl(bytes: &[u8]) -> Result<Converted> {
 pub fn verovio_to_mxl(bytes: &[u8]) -> Result<Converted> {
     let musicxml = convert_via_files(
         bytes,
+        converters().backend,
         "mei",
         "xml",
         "verovio",
+        &converters().verovio_image,
         |input, output| {
             vec![
                 "-t".into(),
@@ -155,16 +204,18 @@ pub fn verovio_to_mxl(bytes: &[u8]) -> Result<Converted> {
 }
 
 /// LilyPond `.ly` → MusicXML via `python-ly`. Conversion is imperfect; on any
-/// failure (including a missing binary) the error is surfaced so the
+/// failure (including a missing binary/image) the error is surfaced so the
 /// orchestrator keeps the item as a failure rather than emitting dubious output.
 /// The `failed_kept_source` refinement (persisting the `.ly`/PDF) is a follow-up
 /// once the writer stores non-`.mxl` artefacts.
 pub fn lilypond_to_mxl(bytes: &[u8]) -> Result<Converted> {
     let musicxml = convert_via_files(
         bytes,
+        converters().backend,
         "ly",
         "xml",
         "ly",
+        &converters().lilypond_image,
         |input, output| vec!["musicxml".into(), "-o".into(), path(output), path(input)],
         &[],
     )
@@ -172,32 +223,64 @@ pub fn lilypond_to_mxl(bytes: &[u8]) -> Result<Converted> {
     convert_native(&musicxml).context("LilyPond output failed verification")
 }
 
-/// Runs an external converter over temp files: writes `input` to a temp file,
-/// invokes `program` with args built from the input/output paths, and returns
-/// the output file's bytes. Temp files are always cleaned up.
+/// Runs an external converter over temp files and returns the output bytes.
+///
+/// In `Local` mode `program` is run directly with host paths. In `Docker` mode
+/// the temp dir is bind-mounted at `/work` and `docker run --rm -v <dir>:/work
+/// <image> <program> <args-with-/work-paths>` is invoked (env vars passed via
+/// `-e`). The temp dir is always removed.
+#[allow(clippy::too_many_arguments)] // an internal seam; grouping would obscure it
 fn convert_via_files(
     input: &[u8],
+    backend: ConverterBackend,
     input_ext: &str,
     output_ext: &str,
     program: &str,
+    image: &str,
     args: impl Fn(&Path, &Path) -> Vec<String>,
     envs: &[(&str, &str)],
 ) -> Result<Vec<u8>> {
-    let in_path = unique_temp(input_ext);
-    let out_path = unique_temp(output_ext);
-    std::fs::write(&in_path, input)
-        .with_context(|| format!("writing converter input {}", in_path.display()))?;
+    let dir = unique_temp_dir()?;
+    let in_host = dir.join(format!("input.{input_ext}"));
+    let out_host = dir.join(format!("output.{output_ext}"));
+    let write = std::fs::write(&in_host, input)
+        .with_context(|| format!("writing converter input {}", in_host.display()));
 
-    let built = args(&in_path, &out_path);
-    let arg_refs: Vec<&str> = built.iter().map(|s| s.as_str()).collect();
-    let result = run_external(program, &arg_refs, envs, CONVERTER_TIMEOUT).and_then(|_| {
-        std::fs::read(&out_path)
-            .with_context(|| format!("reading converter output {}", out_path.display()))
+    let result = write.and_then(|()| match backend {
+        ConverterBackend::Local => {
+            let built = args(&in_host, &out_host);
+            run_external(program, &refs(&built), envs, CONVERTER_TIMEOUT)
+        }
+        ConverterBackend::Docker => {
+            // Build the tool command with the in-container paths.
+            let in_c = PathBuf::from("/work").join(format!("input.{input_ext}"));
+            let out_c = PathBuf::from("/work").join(format!("output.{output_ext}"));
+            let tool = args(&in_c, &out_c);
+            let mut cmd = vec!["run".to_string(), "--rm".to_string()];
+            for (k, v) in envs {
+                cmd.push("-e".into());
+                cmd.push(format!("{k}={v}"));
+            }
+            cmd.push("-v".into());
+            cmd.push(format!("{}:/work", dir.display()));
+            cmd.push(image.to_string());
+            cmd.push(program.to_string());
+            cmd.extend(tool);
+            run_external("docker", &refs(&cmd), &[], CONVERTER_TIMEOUT)
+        }
     });
 
-    let _ = std::fs::remove_file(&in_path);
-    let _ = std::fs::remove_file(&out_path);
-    result
+    let output = result.and_then(|()| {
+        std::fs::read(&out_host)
+            .with_context(|| format!("reading converter output {}", out_host.display()))
+    });
+    let _ = std::fs::remove_dir_all(&dir);
+    output
+}
+
+/// `&str` view over owned args.
+fn refs(v: &[String]) -> Vec<&str> {
+    v.iter().map(|s| s.as_str()).collect()
 }
 
 /// Spawns `program`, enforcing `timeout` and checking the exit status. A missing
@@ -238,11 +321,15 @@ pub fn run_external(
     }
 }
 
-/// A unique temp path (process id + a monotonic counter; no external dep).
-fn unique_temp(ext: &str) -> PathBuf {
+/// Creates a unique temp directory (process id + a monotonic counter) to hold a
+/// converter's input/output — one dir so Docker can bind-mount it at `/work`.
+fn unique_temp_dir() -> Result<PathBuf> {
     static COUNTER: AtomicU64 = AtomicU64::new(0);
     let n = COUNTER.fetch_add(1, Ordering::Relaxed);
-    std::env::temp_dir().join(format!("score_crawler_{}_{n}.{ext}", std::process::id()))
+    let dir = std::env::temp_dir().join(format!("score_crawler_conv_{}_{n}", std::process::id()));
+    std::fs::create_dir_all(&dir)
+        .with_context(|| format!("creating temp dir {}", dir.display()))?;
+    Ok(dir)
 }
 
 /// Lossy path→String for building converter args.
@@ -362,6 +449,29 @@ mod tests {
         let err =
             run_external("sh", &["-c", "sleep 5"], &[], Duration::from_millis(100)).unwrap_err();
         assert!(err.to_string().contains("timed out"));
+    }
+
+    #[test]
+    fn docker_backend_roundtrips_via_bind_mount() {
+        // Opt-in (it pulls/runs a container). Proves the Docker path — bind-mount
+        // the temp dir at /work, exec the tool, read back the output — using a
+        // trivial `alpine` + `cp` instead of a real converter image.
+        if std::env::var("SCORE_CRAWLER_DOCKER_TEST").is_err() {
+            eprintln!("skip: set SCORE_CRAWLER_DOCKER_TEST=1 to run the docker roundtrip");
+            return;
+        }
+        let out = convert_via_files(
+            b"HELLO-DOCKER",
+            ConverterBackend::Docker,
+            "in",
+            "out",
+            "cp",
+            "alpine",
+            |input, output| vec![path(input), path(output)],
+            &[],
+        )
+        .expect("docker convert_via_files roundtrip");
+        assert_eq!(out, b"HELLO-DOCKER");
     }
 
     #[test]

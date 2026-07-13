@@ -27,3 +27,14 @@ store:
   # High-confidence corpus prefix vs the quarantined low-confidence one.
   safe_prefix: safe
   low_confidence_prefix: low_confidence
+
+# External score converters (MuseScore / Verovio / python-ly). `local` runs the
+# binaries from PATH; `docker` runs each inside an image (a temp dir is
+# bind-mounted at /work) so nothing heavy is installed on the host. The image
+# names below are placeholders — point them at real images that carry `mscore` /
+# `verovio` / `ly` on PATH.
+converters:
+  backend: local            # local | docker
+  musescore_image: cymbra/musescore
+  verovio_image: cymbra/verovio
+  lilypond_image: cymbra/python-ly

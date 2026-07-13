@@ -45,6 +45,8 @@ async fn main() -> Result<()> {
     };
     // Apply CYMBRA_SCORE_* env overrides even when there is no config file.
     config.apply_process_env();
+    // Install the converter backend (local binaries vs Docker images).
+    score_crawler::convert::init_converters(config.converters.to_converters());
     let limit = cli.limit.or(config.limit_per_source);
 
     if cli.tui {

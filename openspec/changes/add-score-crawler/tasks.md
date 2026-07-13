@@ -54,7 +54,7 @@
 
 - [x] 6.1 Native `.musicxml`/`.xml` → validate via `musicxml-core`, reject non-MusicXML XML
 - [x] 6.2 Spec-compliant `.mxl` builder (`zip` + `META-INF/container.xml`) + re-parse verification step
-- [x] 6.3 MuseScore `.mscx/.mscz` → MuseScore CLI headless (`QT_QPA_PLATFORM=offscreen`) with exit-code check + timeout — `convert::musescore_to_mxl` via `run_external` (subprocess + timeout + exit-code; missing binary = clean per-item failure). `run_external` tested for success/exit/not-found/timeout via shell builtins.
+- [x] 6.3 MuseScore `.mscx/.mscz` → MuseScore CLI headless (`QT_QPA_PLATFORM=offscreen`) with exit-code check + timeout — `convert::musescore_to_mxl` via `run_external` (subprocess + timeout + exit-code; missing binary = clean per-item failure). A configurable **`local` vs `docker`** converter backend runs the tool from PATH or inside an image (temp dir bind-mounted at `/work`), so nothing heavy is installed on the host. `run_external` tested (success/exit/not-found/timeout via shell builtins); the Docker round-trip tested via `alpine` (opt-in `SCORE_CRAWLER_DOCKER_TEST=1`).
 - [~] 6.4 MEI → Verovio (`-t musicxml`); LilyPond `.ly` → python-ly with `failed_kept_source` fallback (keep .ly + PDF); never convert MIDI — Verovio (`verovio_to_mxl`) + python-ly (`lilypond_to_mxl`) wired; MIDI has no `OriginFormat`/dispatch branch so it can't be converted. The `failed_kept_source` refinement (persisting the `.ly`/PDF) awaits a writer that stores non-`.mxl` artefacts.
 - [x] 6.5 Record `conversion_status`; tests for `.mxl` build + re-parse verification (fixtures)
 

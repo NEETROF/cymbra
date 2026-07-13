@@ -25,6 +25,8 @@ use std::path::PathBuf;
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 
+use crate::convert::{ConverterBackend, Converters};
+
 /// Top-level crawler configuration.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Config {
@@ -51,6 +53,57 @@ pub struct Config {
     /// manifest are written. Overridable via `CYMBRA_SCORE_DATABASE_URL`.
     #[serde(default)]
     pub catalog_database_url: Option<String>,
+    /// How the external converters (MuseScore/Verovio/python-ly) are invoked.
+    #[serde(default)]
+    pub converters: ConverterSettings,
+}
+
+/// External-converter settings: run the binaries locally or inside Docker.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ConverterSettings {
+    #[serde(default)]
+    pub backend: ConverterBackendCfg,
+    #[serde(default = "default_musescore_image")]
+    pub musescore_image: String,
+    #[serde(default = "default_verovio_image")]
+    pub verovio_image: String,
+    #[serde(default = "default_lilypond_image")]
+    pub lilypond_image: String,
+}
+
+/// Serde-facing converter backend (`local` | `docker`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ConverterBackendCfg {
+    #[default]
+    Local,
+    Docker,
+}
+
+impl Default for ConverterSettings {
+    fn default() -> Self {
+        Self {
+            backend: ConverterBackendCfg::Local,
+            musescore_image: default_musescore_image(),
+            verovio_image: default_verovio_image(),
+            lilypond_image: default_lilypond_image(),
+        }
+    }
+}
+
+impl ConverterSettings {
+    /// Maps to the runtime [`Converters`] used by the conversion pipeline.
+    pub fn to_converters(&self) -> Converters {
+        Converters {
+            backend: match self.backend {
+                ConverterBackendCfg::Local => ConverterBackend::Local,
+                ConverterBackendCfg::Docker => ConverterBackend::Docker,
+            },
+            musescore_image: self.musescore_image.clone(),
+            verovio_image: self.verovio_image.clone(),
+            lilypond_image: self.lilypond_image.clone(),
+        }
+    }
 }
 
 /// The object-store target + confidence prefixes.
@@ -158,6 +211,7 @@ impl Default for Config {
             limit_per_source: None,
             store: StoreConfig::default(),
             catalog_database_url: None,
+            converters: ConverterSettings::default(),
         }
     }
 }
@@ -198,6 +252,16 @@ fn default_safe_prefix() -> String {
 fn default_low_prefix() -> String {
     "low_confidence".to_string()
 }
+// Docker image placeholders — override with real images carrying the CLI tools.
+fn default_musescore_image() -> String {
+    "cymbra/musescore".to_string()
+}
+fn default_verovio_image() -> String {
+    "cymbra/verovio".to_string()
+}
+fn default_lilypond_image() -> String {
+    "cymbra/python-ly".to_string()
+}
 
 #[cfg(test)]
 mod tests {
@@ -233,6 +297,29 @@ store:
         assert_eq!(cfg.limit_per_source, Some(50));
         assert_eq!(cfg.store.low_confidence_prefix, "review");
         assert!(cfg.user_agent().contains("ops@cymbra.example"));
+    }
+
+    #[test]
+    fn parses_docker_converter_settings() {
+        let yaml = r#"
+converters:
+  backend: docker
+  musescore_image: myorg/musescore:4
+  lilypond_image: myorg/python-ly:latest
+"#;
+        let cfg = Config::from_yaml(yaml).unwrap();
+        assert_eq!(cfg.converters.backend, ConverterBackendCfg::Docker);
+        let c = cfg.converters.to_converters();
+        assert_eq!(c.backend, ConverterBackend::Docker);
+        assert_eq!(c.musescore_image, "myorg/musescore:4");
+        // Unspecified images fall back to defaults.
+        assert_eq!(c.verovio_image, "cymbra/verovio");
+    }
+
+    #[test]
+    fn defaults_to_local_converters() {
+        let cfg = Config::from_yaml("{}").unwrap();
+        assert_eq!(cfg.converters.backend, ConverterBackendCfg::Local);
     }
 
     #[test]
