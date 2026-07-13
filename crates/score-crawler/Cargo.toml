@@ -18,6 +18,10 @@ path = "src/main.rs"
 # Shared notation engine: validation + .mxl re-parse + the parsed model that
 # metadata/difficulty read. Single source of truth across app/backend/crawler.
 cymbra-musicxml-core = { path = "../musicxml-core" }
+# The shared score module: the crawler ingests directly through its CatalogRepo
+# into the `score` schema's catalog_scores (the same store the app reads).
+cymbra-score = { path = "../../backend/score" }
+uuid = { version = "1", features = ["v7"] }
 
 anyhow = "1"
 thiserror = "2"

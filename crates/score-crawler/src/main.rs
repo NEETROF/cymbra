@@ -76,9 +76,28 @@ async fn main() -> Result<()> {
     }
 
     let outcome = run_all(&built.adapters, limit, None).await;
-    let summary = OutputWriter::new(&root, safe_prefix, low_prefix)
+    let (summary, entries) = OutputWriter::new(&root, safe_prefix, low_prefix)
         .write(&outcome)
         .context("writing corpus output")?;
+
+    // Ingest the provenance into the shared `score` catalog when configured.
+    let ingested = if let Some(url) = &config.catalog_database_url {
+        let pool = cymbra_score::connect(url, 4)
+            .await
+            .context("connecting to the score catalog database")?;
+        cymbra_score::MIGRATOR
+            .run(&pool)
+            .await
+            .context("running score catalog migrations")?;
+        let repo = cymbra_score::PgCatalogRepo::new(pool);
+        Some(
+            score_crawler::catalog::ingest(&repo, &entries)
+                .await
+                .context("ingesting into the score catalog")?,
+        )
+    } else {
+        None
+    };
 
     println!(
         "Done — safe: {}, low-confidence: {}, rejected/failed: {}. Output: {}",
@@ -87,5 +106,9 @@ async fn main() -> Result<()> {
         summary.rejected,
         root.display()
     );
+    match ingested {
+        Some(n) => println!("Catalog rows inserted: {n}"),
+        None => println!("(no catalog DB configured — set CYMBRA_SCORE_DATABASE_URL to ingest)"),
+    }
     Ok(())
 }

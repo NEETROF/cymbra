@@ -46,6 +46,11 @@ pub struct Config {
     /// Where retained scores are written.
     #[serde(default)]
     pub store: StoreConfig,
+    /// Optional Postgres connection for ingesting the provenance into the shared
+    /// `score` catalog (`catalog_scores`). When absent, only the local corpus +
+    /// manifest are written. Overridable via `CYMBRA_SCORE_DATABASE_URL`.
+    #[serde(default)]
+    pub catalog_database_url: Option<String>,
 }
 
 /// The object-store target + confidence prefixes.
@@ -110,6 +115,9 @@ impl Config {
                 region: env.region.clone(),
             };
         }
+        if env.catalog_url.is_some() {
+            self.catalog_database_url = env.catalog_url.clone();
+        }
     }
 }
 
@@ -120,6 +128,7 @@ pub struct EnvSource {
     pub bucket: Option<String>,
     pub endpoint: Option<String>,
     pub region: Option<String>,
+    pub catalog_url: Option<String>,
 }
 
 impl EnvSource {
@@ -128,6 +137,7 @@ impl EnvSource {
             bucket: std::env::var("CYMBRA_SCORE_S3_BUCKET").ok(),
             endpoint: std::env::var("CYMBRA_SCORE_S3_ENDPOINT").ok(),
             region: std::env::var("CYMBRA_SCORE_S3_REGION").ok(),
+            catalog_url: std::env::var("CYMBRA_SCORE_DATABASE_URL").ok(),
         }
     }
 }
@@ -141,6 +151,7 @@ impl Default for Config {
             contact: default_contact(),
             limit_per_source: None,
             store: StoreConfig::default(),
+            catalog_database_url: None,
         }
     }
 }
@@ -225,6 +236,7 @@ store:
             bucket: Some("cymbra-scores".into()),
             endpoint: Some("https://minio.local".into()),
             region: None,
+            catalog_url: None,
         };
         cfg.apply_env_overrides(&env);
         match cfg.store.backend {

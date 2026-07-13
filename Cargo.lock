@@ -1079,6 +1079,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "cymbra-score"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "serde",
+ "sqlx",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
 name = "cymbra-server"
 version = "0.1.0"
 dependencies = [
@@ -4030,6 +4042,7 @@ dependencies = [
  "crossterm",
  "csv",
  "cymbra-musicxml-core",
+ "cymbra-score",
  "ratatui",
  "reqwest 0.12.23",
  "scraper",
@@ -4043,6 +4056,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "unicode-normalization",
+ "uuid",
  "zip",
 ]
 

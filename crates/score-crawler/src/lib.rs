@@ -21,6 +21,7 @@
 //! metadata/difficulty extraction, and the adapter/orchestration contract —
 //! comes first.
 
+pub mod catalog;
 pub mod cli;
 pub mod config;
 pub mod convert;

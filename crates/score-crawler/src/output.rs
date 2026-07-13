@@ -58,8 +58,9 @@ impl OutputWriter {
     }
 
     /// Writes every prepared score + the manifests + `rejected.log`. Sets each
-    /// entry's `object_key` to its relative path before exporting the manifest.
-    pub fn write(&self, outcome: &CrawlOutcome) -> Result<WriteSummary> {
+    /// entry's `object_key` to its relative path before exporting the manifest,
+    /// and returns those entries so they can also be ingested into the catalog.
+    pub fn write(&self, outcome: &CrawlOutcome) -> Result<(WriteSummary, Vec<ManifestEntry>)> {
         let mut summary = WriteSummary {
             rejected: outcome.rejected.len(),
             ..Default::default()
@@ -99,7 +100,7 @@ impl OutputWriter {
         )
         .context("writing rejected.log")?;
 
-        Ok(summary)
+        Ok((summary, entries))
     }
 
     /// The relative object key `<prefix>/<source>/<author>/<title>-<sha8>.mxl`.
@@ -208,11 +209,14 @@ mod tests {
         let root = tmp("sep_unique_xyz");
         let _ = std::fs::remove_dir_all(&root);
         let w = OutputWriter::new(&root, "safe", "low_confidence");
-        let summary = w.write(&outcome()).unwrap();
+        let (summary, entries) = w.write(&outcome()).unwrap();
 
         assert_eq!(summary.safe, 1);
         assert_eq!(summary.low_confidence, 1);
         assert_eq!(summary.rejected, 1);
+        // Returned entries carry their object_key for catalog ingestion.
+        assert_eq!(entries.len(), 2);
+        assert!(entries.iter().all(|e| e.object_key.is_some()));
 
         // Verified under safe/, unverified under low_confidence/ — never mixed.
         let safe = root.join("safe/pdmx/debussy/clair_de_lune-aaaaaaaa.mxl");

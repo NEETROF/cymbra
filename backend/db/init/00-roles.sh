@@ -23,10 +23,12 @@ psql -v ON_ERROR_STOP=1 \
   -v auth_pw="${CYMBRA_AUTH_DB_PASSWORD:-auth_dev_pw}" \
   -v user_role="${CYMBRA_USER_DB_ROLE:-user_svc}" \
   -v user_pw="${CYMBRA_USER_DB_PASSWORD:-user_dev_pw}" \
+  -v score_role="${CYMBRA_SCORE_DB_ROLE:-score_svc}" \
+  -v score_pw="${CYMBRA_SCORE_DB_PASSWORD:-score_dev_pw}" \
   -v worker_role="${CYMBRA_WORKER_DB_ROLE:-worker_svc}" \
   -v worker_pw="${CYMBRA_WORKER_DB_PASSWORD:-worker_dev_pw}" \
   -v admin_role="${CYMBRA_ADMIN_DB_ROLE:-admin_svc}" \
   -v admin_pw="${CYMBRA_ADMIN_DB_PASSWORD:-admin_dev_pw}" \
   -f "$TEMPLATE"
 
-echo "cymbra: roles + schemas bootstrapped (auth_svc, user_svc, worker_svc, admin_svc)"
+echo "cymbra: roles + schemas bootstrapped (auth_svc, user_svc, score_svc, worker_svc, admin_svc)"

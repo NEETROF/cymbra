@@ -191,7 +191,8 @@ pub async fn run_tui(
 
     let outcome = result?;
     if let Some(outcome) = outcome {
-        let summary = OutputWriter::new(&root, safe_prefix, low_prefix).write(&outcome)?;
+        let (summary, _entries) =
+            OutputWriter::new(&root, safe_prefix, low_prefix).write(&outcome)?;
         println!(
             "Wrote safe: {}, low-confidence: {} to {}",
             summary.safe,
