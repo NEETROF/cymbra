@@ -109,6 +109,34 @@ available (S3 isn't in the PG transaction), so we accept eventual cleanup of
 orphaned objects rather than orphaned rows. Consider enqueuing the object delete
 as an idempotent job (`job-infrastructure`) so a failed delete is retried.
 
+### 4b. Read path — local-first, S3 fallback ("rebond S3")
+
+**Decision:** The storage port's `get(key)` serves **local disk first, then falls
+back to S3 on a miss** (and populates the local copy so the next read is local).
+So the read chain is: user's app ← server (local hit) — or, on a local miss,
+server ← S3 (lazy pull) ← app. S3 holds the **complete** set of bytes and is the
+durable origin; the local folder is a **warm cache/mirror**, safe to wipe or
+rebuild.
+
+**Why:** Two producers feed the same read path with different "home" storage:
+- the **bulk crawler** (`add-score-crawler`) writes its corpus to the server's
+  **local disk** and mirrors it to S3 (`backend/deploy/sync-scores.sh`, nightly
+  cron) — so those scores are already local (fast, no S3 call on the hot path);
+- **user uploads** are validated then **put to S3** (decision 4) — so those bytes
+  are on S3 first and reach the local cache only on first read.
+
+Local-first serves the common case with zero S3 latency/cost, while the S3
+fallback means a **rebuilt/empty server** (or an incomplete local mirror) still
+serves every score — it re-fetches from S3 on demand. This also keeps the local
+disk disposable: losing it costs cache warmth, never data. `object_key` is the
+same key in both stores, so the port needs no per-source branching.
+
+**Open (for when this change is implemented):** whether the fallback pull is
+write-through (cache the object locally on miss) or read-through-only (stream from
+S3 without caching); and an optional cap/TTL on the local cache if disk pressure
+matters. Not decided now — the bulk corpus is small (`.mxl` ≈ KBs) so caching
+everything locally is fine at current scale.
+
 ### 5. New module + per-user data isolation
 
 **Decision:** A new backend module `score` follows the existing per-module
