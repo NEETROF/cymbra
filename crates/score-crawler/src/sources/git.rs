@@ -137,6 +137,15 @@ impl SourceAdapter for GitRepoSource {
         &self.name
     }
 
+    async fn prepare(&self) -> Result<()> {
+        // Clone/pull the repo off the async runtime (blocking `git` subprocess).
+        let url = self.repo_url.clone();
+        let dest = self.checkout.clone();
+        tokio::task::spawn_blocking(move || ensure_checkout(&url, &dest))
+            .await
+            .context("joining git task")?
+    }
+
     async fn discover(&self) -> Result<Vec<Item>> {
         let mut files = Vec::new();
         collect_scores(&self.checkout, &mut files)

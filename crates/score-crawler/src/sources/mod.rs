@@ -75,6 +75,12 @@ pub trait SourceAdapter: Send + Sync {
     /// Stable source name (e.g. `openscore`), used in provenance + paths.
     fn name(&self) -> &str;
 
+    /// One-time preparation before discovery (e.g. a git clone/pull). The
+    /// default is a no-op; web adapters need nothing here.
+    async fn prepare(&self) -> Result<()> {
+        Ok(())
+    }
+
     /// Enumerate candidate items.
     async fn discover(&self) -> Result<Vec<Item>>;
 

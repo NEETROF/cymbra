@@ -58,10 +58,10 @@
 
 - [x] 7.1 `metadata.rs`: derive search/musical fields from the parsed `ScoreDocument` (work_key, title_norm, is_piano/instrumentation, key_fifths, time_sig, measure_count, language, voicing) at ingest — pure; language/voicing left to adapters (not in the parsed model).
 - [x] 7.2 `difficulty.rs`: pure heuristic `estimate_level(&ScoreDocument) -> Level` (note density, smallest rhythmic value/tuplets, polyphony, pitch range + max leap, key_fifths, staff count, tempo); set `level_source=source` when the adapter supplies a grade, else `heuristic`, else null — never mark a heuristic as source; unit tests over crafted scores
-- [ ] 7.3 `ingest.rs`: write `.mxl` bytes to the object store under the confidence-appropriate prefix, then insert the `catalog_scores` row with all metadata (dedup-by-sha256, idempotent)
-- [ ] 7.4 Enforce confidence separation (verified prefix vs low-confidence prefix + `confidence` column); never mix
-- [ ] 7.5 Derived manifest export: `manifest.csv` + `manifest.json` from `catalog_scores` (consistent), and append `rejected.log` (source, url, raw licence, reason)
-- [ ] 7.6 Tests: idempotent re-ingest is a no-op, confidence separation, CSV/JSON consistency, rejection journalling, level_source provenance
+- [~] 7.3 `ingest.rs`: write `.mxl` bytes to the object store under the confidence-appropriate prefix, then insert the `catalog_scores` row with all metadata (dedup-by-sha256, idempotent) — the `LocalFs` object-store write is done (`output.rs`: `<root>/<prefix>/<source>/<author>/<title>-<sha8>.mxl`); the Postgres `catalog_scores` insert awaits the backend score module.
+- [x] 7.4 Enforce confidence separation (verified prefix vs low-confidence prefix + `confidence` column); never mix — `output.rs` routes by confidence; test asserts no cross-contamination.
+- [x] 7.5 Derived manifest export: `manifest.csv` + `manifest.json` from `catalog_scores` (consistent), and append `rejected.log` (source, url, raw licence, reason) — `manifest.rs` + `output.rs`; JSON/CSV consistency tested.
+- [~] 7.6 Tests: idempotent re-ingest is a no-op, confidence separation, CSV/JSON consistency, rejection journalling, level_source provenance — confidence separation, CSV/JSON consistency, rejection journalling, and level_source all tested; idempotent re-ingest awaits the DB catalog (in-run dedup is tested).
 
 ## 8. Source adapters
 
@@ -77,7 +77,7 @@
 - [ ] 8.10 NEUMA (REST, MEI/MusicXML per collection) with fixture
 - [ ] 8.11 Josquin Research Project (site/repo, open access — verify terms) with fixture
 - [ ] 8.12 Hymnary.org (web crawl, per-item) with fixture
-- [ ] 8.13 Register all adapters in the orchestrator registry
+- [~] 8.13 Register all adapters in the orchestrator registry — `registry.rs` `build_adapters` wires the implemented sources (openscore, musetrainer, eduardomourar, cpdl, pdmx) + the CLI/`main` run loop; unimplemented sources are reported as `unsupported`. Registrations for the remaining web adapters follow their implementations.
 
 ## 9. TUI
 
@@ -86,7 +86,7 @@
 
 ## 10. Docs, quality gates, validation
 
-- [ ] 10.1 `crates/score-crawler/README.md` (Rust toolchain, external binaries MuseScore CLI/Verovio/python-ly, object-store + catalog config, usage examples, and the clear "final licence verification is the user's responsibility" disclaimer)
+- [x] 10.1 `crates/score-crawler/README.md` (Rust toolchain, external binaries MuseScore CLI/Verovio/python-ly, object-store + catalog config, usage examples, and the clear "final licence verification is the user's responsibility" disclaimer)
 - [ ] 10.2 `cargo fmt --all --check` + `cargo clippy --workspace --all-targets -- -D warnings` clean
 - [ ] 10.3 `cargo test` green; license + `.mxl`-validation + ingestion modules covered with offline fixtures
 - [ ] 10.4 Run `openspec validate add-score-crawler --strict` and fix any issues
