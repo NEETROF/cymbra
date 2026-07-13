@@ -37,12 +37,14 @@ async fn main() -> Result<()> {
     let cli = Cli::parse();
     init_tracing(cli.verbose);
 
-    let config = if cli.config.exists() {
+    let mut config = if cli.config.exists() {
         Config::load(&cli.config)?
     } else {
         info!(path = %cli.config.display(), "no config file; using defaults");
         Config::default()
     };
+    // Apply CYMBRA_SCORE_* env overrides even when there is no config file.
+    config.apply_process_env();
     let limit = cli.limit.or(config.limit_per_source);
 
     if cli.tui {

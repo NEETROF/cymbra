@@ -105,6 +105,12 @@ impl Config {
         )
     }
 
+    /// Applies overrides from the process environment. Call this even when no
+    /// `config.yaml` exists so `CYMBRA_SCORE_*` still take effect.
+    pub fn apply_process_env(&mut self) {
+        self.apply_env_overrides(&EnvSource::process());
+    }
+
     /// Overrides the store backend to S3 when `CYMBRA_SCORE_S3_BUCKET` is set,
     /// so dev (local folder) and prod (S3/MinIO) differ by environment.
     pub fn apply_env_overrides(&mut self, env: &EnvSource) {
