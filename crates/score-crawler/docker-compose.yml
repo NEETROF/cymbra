@@ -8,9 +8,17 @@
 #   LIMIT=5 docker compose -f crates/score-crawler/docker-compose.yml up --build
 #
 # Each source writes its own corpus + manifest under ./output/<source>/ (next to
-# this file), so parallel runs never clobber each other. To also ingest into a
-# shared Postgres catalog, uncomment the `postgres` service + the CYMBRA_SCORE_*
-# lines (the catalog dedups by sha256, so concurrent inserts are safe).
+# this file), so parallel runs never clobber each other.
+#
+# Each crawler is a one-shot process: it exits when its crawl finishes, so its
+# container stops (restart: "no"). Without --abort-on-container-exit each source
+# finishes independently, and `docker compose up` returns once ALL have stopped.
+#
+# To also ingest into a shared Postgres catalog, uncomment the `postgres` service
+# + the CYMBRA_SCORE_* lines (the catalog dedups by sha256, so concurrent inserts
+# are safe). NOTE: postgres is a daemon — it never self-exits, so run it
+# separately (`docker compose up -d postgres`) or `down` after the crawlers
+# finish, otherwise `up` will not return on its own.
 
 x-crawler: &crawler
   build:
