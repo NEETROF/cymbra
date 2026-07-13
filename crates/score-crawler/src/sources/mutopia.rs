@@ -85,7 +85,21 @@ impl SourceAdapter for MutopiaSource {
         collect_scores(&self.checkout, &mut files)
             .with_context(|| format!("walking checkout {}", self.checkout.display()))?;
         files.sort();
-        Ok(files.iter().filter_map(|p| self.item_for(p)).collect())
+        // A Mutopia repo holds real piece files (a `\header` with `license = …`)
+        // AND many `-lys/` includes + `contrib/templates` with no licence. Keep
+        // only the real pieces; skip the rest silently (they are not failures).
+        let items = files
+            .iter()
+            .filter(|p| self.item_for(p).is_some())
+            .filter(|p| {
+                std::fs::read_to_string(p)
+                    .ok()
+                    .and_then(|t| parse_ly_license(&t))
+                    .is_some()
+            })
+            .filter_map(|p| self.item_for(p))
+            .collect();
+        Ok(items)
     }
 
     async fn extract_license(&self, item: &Item) -> Result<RawLicense> {
@@ -114,10 +128,12 @@ impl SourceAdapter for MutopiaSource {
 pub fn parse_ly_license(ly: &str) -> Option<String> {
     for key in ["license", "copyright"] {
         for line in ly.lines() {
-            let l = line.trim();
-            if let Some(after) = l.strip_prefix(key)
-                && after.trim_start().starts_with('=')
-                && let Some(value) = between_quotes(after)
+            // Require `key = "value"` (a quote right after `=`), so a
+            // `copyright = \markup { … "font" … }` never yields a font name.
+            if let Some(rest) = line.trim().strip_prefix(key)
+                && let Some(rest) = rest.trim_start().strip_prefix('=')
+                && rest.trim_start().starts_with('"')
+                && let Some(value) = between_quotes(rest.trim_start())
                 && !value.is_empty()
             {
                 return Some(value);
@@ -157,6 +173,17 @@ mod tests {
             Some("Creative Commons Attribution-ShareAlike 4.0")
         );
         assert_eq!(parse_ly_license("title = \"No licence here\""), None);
+        // A markup copyright (a real Mutopia pattern) must NOT yield a font name.
+        assert_eq!(
+            parse_ly_license("copyright = \\markup {\\override #'(font-name . \"DejaVu Sans\")}"),
+            None
+        );
+        // ...but when a real `license` line is also present, it still wins.
+        assert_eq!(
+            parse_ly_license("license = \"Public Domain\"\ncopyright = \\markup {\"DejaVu\"}")
+                .as_deref(),
+            Some("Public Domain")
+        );
     }
 
     #[tokio::test]
