@@ -27,7 +27,10 @@ use crate::convert::{Converted, OriginFormat, convert_any};
 use crate::difficulty::Level;
 use crate::license::RawLicense;
 
+pub mod cpdl;
 pub mod git;
+pub mod pdmx;
+pub mod web;
 
 /// Every source this crawler knows how to harvest (concrete adapters land
 /// incrementally). `--all` expands to this list.

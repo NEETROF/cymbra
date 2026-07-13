@@ -26,6 +26,7 @@ pub mod config;
 pub mod convert;
 pub mod crawl;
 pub mod difficulty;
+pub mod http;
 pub mod license;
 pub mod manifest;
 pub mod metadata;

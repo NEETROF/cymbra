@@ -38,3 +38,9 @@ tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time"
 async-trait = "0.1"
 # robots.txt parsing/enforcement (politeness).
 texting_robots = "0.2"
+# HTTP for the web-crawl adapters (rustls, gzip) + HTML parsing.
+reqwest = { version = "0.12", default-features = false, features = [
+    "rustls-tls",
+    "gzip",
+] }
+scraper = "0.20"

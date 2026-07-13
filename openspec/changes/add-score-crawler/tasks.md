@@ -39,7 +39,7 @@
 
 ## 5. Politeness, orchestration, dedup, resume
 
-- [~] 5.1 HTTP client wrapper (descriptive User-Agent+contact, per-host delay, `backoff` retry on 429/errors) — back-off + retry primitives done (`politeness.rs`, pure schedule + `retry_async`); the `reqwest` GET wrapper ships with the web adapters.
+- [x] 5.1 HTTP client wrapper (descriptive User-Agent+contact, per-host delay, `backoff` retry on 429/errors) — `politeness.rs` (back-off + `retry_async`) + `http.rs` (`HttpFetcher`: UA, gzip, per-request delay, transient-only retry, per-host robots enforcement) behind an injectable `Fetcher` trait (fake for tests).
 - [x] 5.2 robots.txt fetch/cache/enforcement via `texting_robots` — `robots.rs` (parse/allow tested offline); per-host fetch/cache wires with the HTTP client.
 - [x] 5.3 Concurrency cap via a Tokio `Semaphore` (default 2) — `politeness::ConcurrencyLimiter`.
 - [x] 5.4 Resumable on-disk state cache (skip completed ids) + SHA-256 content dedup across sources and against `catalog_scores` — `state.rs` (completed ids + seen hashes, JSON, seeds `Orchestrator::with_seen`); catalog-seeding wires with ingestion.
@@ -65,12 +65,12 @@
 
 ## 8. Source adapters
 
-- [~] 8.1 Shared helpers: git-clone family (git2 or `git` subprocess + on-disk walk) and web-crawl family (reqwest + scraper/quick-xml) — git-clone family done (`sources/git.rs`: `git` subprocess `ensure_checkout` + recursive on-disk walk, `origin_from_ext`); web-crawl family (reqwest + scraper) pending.
+- [x] 8.1 Shared helpers: git-clone family (git2 or `git` subprocess + on-disk walk) and web-crawl family (reqwest + scraper/quick-xml) — git-clone (`sources/git.rs`) + web-crawl (`http.rs` `Fetcher` + `sources/web.rs` scraper link/licence helpers, fixture-tested).
 - [~] 8.2 OpenScore Lieder (git, CC0 — verify repo LICENSE) with offline fixture — `GitRepoSource::openscore` constructor + walk done; `.mscx` items need the MuseScore CLI converter (deferred), so end-to-end awaits §6.3.
 - [ ] 8.3 Mutopia (git/site, per-file PD/CC-BY/CC-BY-SA from `.ly` header) with fixture
-- [ ] 8.4 CPDL (MediaWiki API, per-page licence) with fixture
+- [x] 8.4 CPDL (MediaWiki API, per-page licence) with fixture — `sources/cpdl.rs`: listing → work pages → per-page licence (CC link / PD / ARR) then score link; HTML fixtures flow through the orchestrator (CC accepted, ARR rejected).
 - [ ] 8.5 IMSLP (web crawl, robots-respecting, per-file legal status) with fixture
-- [ ] 8.6 PDMX (Zenodo dataset, `no_license_conflict` subset only; rest rejected) with fixture
+- [x] 8.6 PDMX (Zenodo dataset, `no_license_conflict` subset only; rest rejected) with fixture — `sources/pdmx.rs`: memoised metadata JSON, only the `no_license_conflict` subset discovered (rest never fetched); JSON fixture flows to the safe corpus.
 - [x] 8.7 musetrainer/library (git, self-declared PD → low-confidence) with fixture — `GitRepoSource::musetrainer`; offline fixture repo flows end-to-end through the orchestrator to low-confidence (test).
 - [~] 8.8 eduardomourar/music-scores-musicxml (git, verify README/LICENSE) with fixture — `GitRepoSource::eduardomourar` constructor done (MusicXML, same tested path); dedicated fixture + LICENSE verification pending.
 - [ ] 8.9 Project Gutenberg sheet music (web crawl, Gutenberg PD licence) with fixture
