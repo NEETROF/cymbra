@@ -40,7 +40,7 @@ use crate::convert::OriginFormat;
 use crate::license::RawLicense;
 
 /// Default Zenodo file base for PDMX record 15571083.
-pub const PDMX_BASE: &str = "https://zenodo.org/records/15571083/files";
+pub const PDMX_BASE: &str = "https://zenodo.org/records/15571083/files/";
 const CSV_FILE: &str = "PDMX.csv";
 const MXL_ARCHIVE: &str = "mxl.tar.gz";
 /// The subset flag column — the usable (`no_license_conflict`) rows.
@@ -225,10 +225,26 @@ fn parse_usable(
     Ok(out)
 }
 
+/// A descriptive User-Agent. Zenodo (behind CloudFlare) returns 403 to requests
+/// with **no** User-Agent, and `reqwest` sends none by default — so the PDMX
+/// downloads must set one explicitly (git sources are unaffected: `git` sends
+/// its own).
+const DOWNLOAD_UA: &str = concat!(
+    "cymbra-score-crawler/",
+    env!("CARGO_PKG_VERSION"),
+    " (+https://github.com/NEETROF/cymbra)"
+);
+
 /// Streams a URL to a file (`.part` then rename), so multi-GB archives never sit
 /// fully in memory.
 async fn download_to_file(url: &str, dest: &Path) -> Result<()> {
-    let resp = reqwest::get(url)
+    let client = reqwest::Client::builder()
+        .user_agent(DOWNLOAD_UA)
+        .build()
+        .context("building HTTP client")?;
+    let resp = client
+        .get(url)
+        .send()
         .await
         .with_context(|| format!("GET {url}"))?;
     if !resp.status().is_success() {
@@ -268,6 +284,15 @@ mod tests {
 
     fn fixture() -> PathBuf {
         Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/pdmx")
+    }
+
+    #[test]
+    fn download_user_agent_identifies_the_crawler() {
+        // Zenodo (CloudFlare) returns 403 to requests with no User-Agent, so the
+        // PDMX downloader must always send a descriptive, non-empty one.
+        let ua = DOWNLOAD_UA;
+        assert!(ua.contains("cymbra-score-crawler"));
+        assert!(ua.len() > "cymbra-score-crawler".len());
     }
 
     #[test]
