@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.10.0](https://github.com/NEETROF/cymbra/compare/music-v1.9.0...music-v1.10.0) (2026-07-13)
+
+
+### Features
+
+* **engine:** extract shared cymbra-musicxml-core crate ([#79](https://github.com/NEETROF/cymbra/issues/79)) ([8c3d69e](https://github.com/NEETROF/cymbra/commit/8c3d69ed2301b7bc0e09ef9a4095531bf2532b6d))
+* **music:** gamify piano practice — scoring, feedback, summary & replay ([#76](https://github.com/NEETROF/cymbra/issues/76)) ([0c5f746](https://github.com/NEETROF/cymbra/commit/0c5f746af3d26aa43e00f2746c655aab0eb48ccc))
+
 ## [1.9.0](https://github.com/NEETROF/cymbra/compare/music-v1.8.2...music-v1.9.0) (2026-07-11)
 
 
