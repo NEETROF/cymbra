@@ -196,7 +196,10 @@ impl EnvSource {
             bucket: std::env::var("CYMBRA_SCORE_S3_BUCKET").ok(),
             endpoint: std::env::var("CYMBRA_SCORE_S3_ENDPOINT").ok(),
             region: std::env::var("CYMBRA_SCORE_S3_REGION").ok(),
-            catalog_url: std::env::var("CYMBRA_SCORE_DATABASE_URL").ok(),
+            // An empty value means "no catalog DB" (local corpus only).
+            catalog_url: std::env::var("CYMBRA_SCORE_DATABASE_URL")
+                .ok()
+                .filter(|s| !s.is_empty()),
         }
     }
 }

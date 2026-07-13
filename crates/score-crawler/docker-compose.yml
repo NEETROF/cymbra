@@ -14,25 +14,36 @@
 # container stops (restart: "no"). Without --abort-on-container-exit each source
 # finishes independently, and `docker compose up` returns once ALL have stopped.
 #
-# To also ingest into a shared Postgres catalog, uncomment the `postgres` service
-# + the CYMBRA_SCORE_* lines (the catalog dedups by sha256, so concurrent inserts
-# are safe). NOTE: postgres is a daemon — it never self-exits, so run it
-# separately (`docker compose up -d postgres`) or `down` after the crawlers
-# finish, otherwise `up` will not return on its own.
+# CATALOG INGESTION — the crawlers ingest into Postgres via
+# CYMBRA_SCORE_DATABASE_URL. It defaults to the backend/docker-compose.yml
+# Postgres reached through the host's mapped port (host.docker.internal:5432), so
+# locally just start that DB first:
+#     docker compose -f backend/docker-compose.yml up -d postgres
+#     docker compose -f crates/score-crawler/docker-compose.yml up --build
+# On a server, override the whole connection string (managed DB, other host, …):
+#     CYMBRA_SCORE_DATABASE_URL=postgres://user:pass@db.host:5432/cymbra \
+#       docker compose -f crates/score-crawler/docker-compose.yml up
+# Set it empty (CYMBRA_SCORE_DATABASE_URL=) to skip ingestion and write only the
+# local corpus. (The `-` form keeps an explicit empty value; unset uses the
+# default.)
 
 x-crawler: &crawler
   build:
     context: ../..
     dockerfile: crates/score-crawler/Dockerfile
   image: score-crawler
-  # When LIMIT is set on the host it is passed through and applied per source;
-  # when unset, no --limit flag is added (unbounded).
   environment:
+    # LIMIT: set → --limit N per source; unset → unbounded.
     LIMIT: ${LIMIT:-}
-    # CYMBRA_SCORE_DATABASE_URL: postgres://cymbra:cymbra_dev_pw@postgres:5432/cymbra
+    # Catalog DB: default targets the backend compose's Postgres via the host
+    # port; override on the server. Empty = no ingestion (local corpus only).
+    CYMBRA_SCORE_DATABASE_URL: ${CYMBRA_SCORE_DATABASE_URL-postgres://cymbra:cymbra_dev_pw@host.docker.internal:5432/cymbra}
+  # Make host.docker.internal resolve on Linux servers too (no-op on Docker
+  # Desktop, where it already resolves).
+  extra_hosts:
+    - "host.docker.internal:host-gateway"
   entrypoint: ["/bin/sh", "-c"]
   restart: "no"
-  # depends_on: [postgres]   # uncomment with the postgres service below
 
 services:
   openscore:
@@ -80,16 +91,12 @@ services:
     command: ["score-crawler --sources pdmx $${LIMIT:+--limit $$LIMIT}"]
     volumes: ["./output/pdmx:/work/output"]
 
-# --- Optional: shared Postgres catalog (uncomment to ingest) ----------------
-#  postgres:
-#    image: postgres:16
-#    environment:
-#      POSTGRES_USER: cymbra
-#      POSTGRES_PASSWORD: cymbra_dev_pw
-#      POSTGRES_DB: cymbra
-#    ports: ["5432:5432"]
-#    healthcheck:
-#      test: ["CMD-SHELL", "pg_isready -U cymbra -d cymbra"]
-#      interval: 5s
-#      timeout: 3s
-#      retries: 10
+# The catalog Postgres is NOT defined here — the crawlers connect to the backend
+# compose's Postgres (or any DB you point CYMBRA_SCORE_DATABASE_URL at). This
+# keeps the fan-out one-shot: with no daemon service, `docker compose up` returns
+# when every crawler has finished.
+#
+# Alternative (same-network instead of the host port): add
+#   networks: { db: { external: true, name: backend_default } }
+# put `networks: [db]` on the anchor, and use @postgres:5432 in the URL — but the
+# host-port default above is more portable (works for a managed DB too).
