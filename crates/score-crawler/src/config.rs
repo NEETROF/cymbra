@@ -159,6 +159,24 @@ impl Config {
         if env.catalog_url.is_some() {
             self.catalog_database_url = env.catalog_url.clone();
         }
+        // Converter backend + images: let the deployment pick `docker` (and the
+        // MuseScore/Verovio/python-ly images) without editing config.yaml — e.g.
+        // the compose openscore service that converts `.mscx` via a MuseScore
+        // container.
+        match env.converter_backend.as_deref() {
+            Some("docker") => self.converters.backend = ConverterBackendCfg::Docker,
+            Some("local") => self.converters.backend = ConverterBackendCfg::Local,
+            _ => {}
+        }
+        if let Some(img) = env.musescore_image.clone() {
+            self.converters.musescore_image = img;
+        }
+        if let Some(img) = env.verovio_image.clone() {
+            self.converters.verovio_image = img;
+        }
+        if let Some(img) = env.lilypond_image.clone() {
+            self.converters.lilypond_image = img;
+        }
     }
 }
 
@@ -170,18 +188,25 @@ pub struct EnvSource {
     pub endpoint: Option<String>,
     pub region: Option<String>,
     pub catalog_url: Option<String>,
+    pub converter_backend: Option<String>,
+    pub musescore_image: Option<String>,
+    pub verovio_image: Option<String>,
+    pub lilypond_image: Option<String>,
 }
 
 impl EnvSource {
     fn process() -> Self {
+        let non_empty = |k: &str| std::env::var(k).ok().filter(|s| !s.is_empty());
         Self {
             bucket: std::env::var("CYMBRA_SCORE_S3_BUCKET").ok(),
             endpoint: std::env::var("CYMBRA_SCORE_S3_ENDPOINT").ok(),
             region: std::env::var("CYMBRA_SCORE_S3_REGION").ok(),
             // An empty value means "no catalog DB" (local corpus only).
-            catalog_url: std::env::var("CYMBRA_SCORE_DATABASE_URL")
-                .ok()
-                .filter(|s| !s.is_empty()),
+            catalog_url: non_empty("CYMBRA_SCORE_DATABASE_URL"),
+            converter_backend: non_empty("CYMBRA_SCORE_CONVERTER_BACKEND"),
+            musescore_image: non_empty("CYMBRA_SCORE_MUSESCORE_IMAGE"),
+            verovio_image: non_empty("CYMBRA_SCORE_VEROVIO_IMAGE"),
+            lilypond_image: non_empty("CYMBRA_SCORE_LILYPOND_IMAGE"),
         }
     }
 }
@@ -282,8 +307,7 @@ converters:
         let env = EnvSource {
             bucket: Some("cymbra-scores".into()),
             endpoint: Some("https://minio.local".into()),
-            region: None,
-            catalog_url: None,
+            ..Default::default()
         };
         cfg.apply_env_overrides(&env);
         match cfg.store.backend {
@@ -295,5 +319,21 @@ converters:
             }
             _ => panic!("expected S3 backend"),
         }
+    }
+
+    #[test]
+    fn env_overrides_select_docker_converter_and_image() {
+        let mut cfg = Config::default();
+        assert_eq!(cfg.converters.backend, ConverterBackendCfg::Local);
+        let env = EnvSource {
+            converter_backend: Some("docker".into()),
+            musescore_image: Some("cymbra/musescore".into()),
+            ..Default::default()
+        };
+        cfg.apply_env_overrides(&env);
+        assert_eq!(cfg.converters.backend, ConverterBackendCfg::Docker);
+        assert_eq!(cfg.converters.musescore_image, "cymbra/musescore");
+        // Unset image keeps its default.
+        assert_eq!(cfg.converters.verovio_image, default_verovio_image());
     }
 }

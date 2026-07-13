@@ -22,9 +22,11 @@ store:
 
 # External score converters (MuseScore / Verovio / python-ly). `local` runs the
 # binaries from PATH; `docker` runs each inside an image (a temp dir is
-# bind-mounted at /work) so nothing heavy is installed on the host. The image
-# names below are placeholders — point them at real images that carry `mscore` /
-# `verovio` / `ly` on PATH.
+# bind-mounted at /work) so nothing heavy is installed on the host. Overridable
+# via CYMBRA_SCORE_CONVERTER_BACKEND / CYMBRA_SCORE_MUSESCORE_IMAGE / etc.
+# `cymbra/musescore` is real — build it from musescore.Dockerfile (needed for
+# openscore's .mscx). The verovio/python-ly images are placeholders (python-ly
+# is bundled in the crawler image, so mutopia works with the `local` backend).
 converters:
   backend: local            # local | docker
   musescore_image: cymbra/musescore

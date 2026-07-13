@@ -166,11 +166,16 @@ pub fn convert_any(origin: OriginFormat, bytes: &[u8]) -> Result<Converted> {
 
 /// MuseScore `.mscx`/`.mscz` → `.mxl` via the MuseScore CLI (headless), then
 /// re-parse verification. The CLI emits `.mxl` directly.
+///
+/// MuseScore infers the *input* format from the file extension, so the temp file
+/// must carry the right one: `.mscz` is a ZIP (magic `PK`), `.mscx` is plain XML.
+/// Feeding zipped `.mscz` bytes to a `.mscx`-named file makes MuseScore fail, so
+/// the extension is sniffed from the bytes rather than assumed.
 pub fn musescore_to_mxl(bytes: &[u8]) -> Result<Converted> {
     let mxl = convert_via_files(
         bytes,
         converters().backend,
-        "mscx",
+        musescore_input_ext(bytes),
         "mxl",
         "mscore",
         &converters().musescore_image,
@@ -178,6 +183,17 @@ pub fn musescore_to_mxl(bytes: &[u8]) -> Result<Converted> {
         &[("QT_QPA_PLATFORM", "offscreen")],
     )?;
     accept_mxl(&mxl).context("MuseScore output failed verification")
+}
+
+/// The temp-file extension MuseScore should read `bytes` as: `.mscz` when the
+/// bytes are a ZIP (magic `PK`), else the uncompressed `.mscx`. MuseScore infers
+/// the input format from the extension, so this must match the real content.
+fn musescore_input_ext(bytes: &[u8]) -> &'static str {
+    if bytes.starts_with(b"PK") {
+        "mscz"
+    } else {
+        "mscx"
+    }
 }
 
 /// MEI → MusicXML via Verovio, then compress + verify.
@@ -424,6 +440,17 @@ mod tests {
     #[test]
     fn verify_rejects_non_mxl() {
         assert!(verify_mxl(SCORE.as_bytes()).is_err());
+    }
+
+    #[test]
+    fn musescore_input_ext_sniffs_zip_vs_xml() {
+        // .mscz is a ZIP (PK magic); .mscx is plain XML.
+        assert_eq!(musescore_input_ext(b"PK\x03\x04\x14\0"), "mscz");
+        assert_eq!(
+            musescore_input_ext(b"<?xml version=\"1.0\"?><museScore/>"),
+            "mscx"
+        );
+        assert_eq!(musescore_input_ext(b""), "mscx");
     }
 
     #[test]

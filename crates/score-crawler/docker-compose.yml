@@ -46,10 +46,28 @@ x-crawler: &crawler
   restart: "no"
 
 services:
+  # openscore ships MuseScore `.mscx`, so it converts via the `docker` backend:
+  # the crawler spawns a sibling `cymbra/musescore` container per score. That
+  # needs (1) the docker socket, (2) the MuseScore image built once:
+  #     docker build -f crates/score-crawler/musescore.Dockerfile \
+  #         -t cymbra/musescore crates/score-crawler
+  # and (3) a converter temp dir mounted at the SAME path inside and outside the
+  # container, so the bind-mount the crawler passes to the host daemon resolves
+  # (override the host path with SC_CONVTMP). The other sources need none of this.
   openscore:
     <<: *crawler
     command: ["score-crawler --sources openscore $${LIMIT:+--limit $$LIMIT}"]
-    volumes: ["./output/openscore:/work/output"]
+    # A service-level `environment:` replaces the anchor's, so re-list its vars.
+    environment:
+      LIMIT: ${LIMIT:-}
+      CYMBRA_SCORE_DATABASE_URL: ${CYMBRA_SCORE_DATABASE_URL-postgres://cymbra:cymbra_dev_pw@host.docker.internal:5432/cymbra}
+      CYMBRA_SCORE_CONVERTER_BACKEND: docker
+      CYMBRA_SCORE_MUSESCORE_IMAGE: cymbra/musescore
+      TMPDIR: ${SC_CONVTMP:-/tmp/cymbra-conv}
+    volumes:
+      - "./output/openscore:/work/output"
+      - "/var/run/docker.sock:/var/run/docker.sock"
+      - "${SC_CONVTMP:-/tmp/cymbra-conv}:${SC_CONVTMP:-/tmp/cymbra-conv}"
 
   mutopia:
     <<: *crawler

@@ -52,8 +52,7 @@ Some sources ship formats other than MusicXML. Conversion shells out to these
 binaries; install the ones you need (missing binaries make the affected items
 degrade gracefully — they are recorded, never crash the crawl):
 
-- **MuseScore CLI** (`mscore`) — MuseScore `.mscx`/`.mscz` → `.mxl`
-  (headless: `QT_QPA_PLATFORM=offscreen`, or run under `xvfb-run`).
+- **MuseScore CLI** (`mscore`) — MuseScore `.mscx`/`.mscz` → `.mxl` (OpenScore).
 - **Verovio** — MEI → MusicXML.
 - **python-ly** (`ly`) — LilyPond `.ly` → MusicXML (imperfect; on failure the
   original is kept and the item is flagged `failed_kept_source`).
@@ -61,11 +60,38 @@ degrade gracefully — they are recorded, never crash the crawl):
 MIDI is never treated as a score source.
 
 **Run converters in Docker instead of installing them.** Set `converters.backend:
-docker` in `config.yaml` and point `musescore_image` / `verovio_image` /
-`lilypond_image` at images that carry the tool on `PATH`. Each conversion then
-runs as `docker run --rm -v <tmp>:/work <image> <tool> …` — nothing heavy is
-installed on the host. (Requires Docker; on macOS the temp dir must be under a
-Docker-Desktop-shared path, which `$TMPDIR` is by default.)
+docker` in `config.yaml` (or `CYMBRA_SCORE_CONVERTER_BACKEND=docker`) and point
+`musescore_image` / `verovio_image` / `lilypond_image` (or the
+`CYMBRA_SCORE_MUSESCORE_IMAGE` / `…_VEROVIO_IMAGE` / `…_LILYPOND_IMAGE` env vars)
+at images that carry the tool on `PATH`. Each conversion runs as `docker run
+--rm -v <tmp>:/work <image> <tool> …` — nothing heavy is installed on the host.
+(Requires Docker; on macOS the temp dir must be under a Docker-Desktop-shared
+path, which `$TMPDIR` is by default.)
+
+### MuseScore (for `openscore`)
+
+OpenScore's CC0 corpus is MuseScore `.mscx`, which only MuseScore can convert.
+A ready headless MuseScore 4 image is built from
+[`musescore.Dockerfile`](musescore.Dockerfile) (Ubuntu 24.04 + the official
+AppImage, extracted; a `mscore` shim runs the offscreen batch-job mode that
+converts and exits cleanly — plain `QT_QPA_PLATFORM=offscreen` is ignored by
+4.7 and `xvfb` hangs). Build it once:
+
+```bash
+docker build -f crates/score-crawler/musescore.Dockerfile -t cymbra/musescore \
+    crates/score-crawler
+```
+
+Then run the crawler with the docker converter backend (the default
+`musescore_image` is already `cymbra/musescore`):
+
+```bash
+CYMBRA_SCORE_CONVERTER_BACKEND=docker \
+  score-crawler --sources openscore --limit 10
+```
+
+`.mscz` is the same score zipped; when a song ships both `.mscx` and `.mscz`
+(as OpenScore does) the `.mscz` is skipped so MuseScore runs once per song.
 
 ## Usage
 
@@ -130,6 +156,13 @@ LIMIT=5 docker compose -f crates/score-crawler/docker-compose.yml up --build
 ```
 
 `LIMIT` is optional: set → `--limit N` per source; unset → no limit.
+
+The `openscore` service converts `.mscx` by spawning a `cymbra/musescore`
+sibling container, so it (only) needs the MuseScore image built (above), the
+docker socket (already mounted in the compose file), and a converter temp dir
+shared at the same path in and out of the container — override its host location
+with `SC_CONVTMP` (default `/tmp/cymbra-conv`). The other sources need none of
+this.
 
 ## Output
 

@@ -151,7 +151,11 @@ impl SourceAdapter for GitRepoSource {
         collect_scores(&self.checkout, &mut files)
             .with_context(|| format!("walking checkout {}", self.checkout.display()))?;
         files.sort();
-        Ok(files.iter().filter_map(|p| self.item_for(p)).collect())
+        Ok(files
+            .iter()
+            .filter(|p| !redundant_mscz(p, &files))
+            .filter_map(|p| self.item_for(p))
+            .collect())
     }
 
     async fn extract_license(&self, _item: &Item) -> Result<RawLicense> {
@@ -167,6 +171,19 @@ impl SourceAdapter for GitRepoSource {
             std::fs::read(&path).with_context(|| format!("reading score {}", path.display()))?;
         Ok(RawScore { origin, bytes })
     }
+}
+
+/// True when `path` is a `.mscz` whose sibling `.mscx` (same directory + stem)
+/// is also present. MuseScore repos like OpenScore ship every song as both an
+/// uncompressed `.mscx` and a zipped `.mscz`; they convert to identical scores,
+/// so the `.mscz` is dropped up front — otherwise a second MuseScore conversion
+/// runs only for the content fingerprint to discard it as a duplicate.
+fn redundant_mscz(path: &Path, all: &[PathBuf]) -> bool {
+    if path.extension().and_then(|e| e.to_str()) != Some("mscz") {
+        return false;
+    }
+    let twin = path.with_extension("mscx");
+    all.iter().any(|p| p == &twin)
 }
 
 /// The origin format implied by a file extension, or `None` if unsupported.
@@ -258,6 +275,48 @@ mod tests {
         );
         assert_eq!(origin_from_ext(Path::new("a.mid")), None);
         assert_eq!(origin_from_ext(Path::new("readme.txt")), None);
+    }
+
+    #[test]
+    fn redundant_mscz_only_when_the_mscx_twin_exists() {
+        let files = vec![
+            PathBuf::from("/r/a/song.mscx"),
+            PathBuf::from("/r/a/song.mscz"), // twin present → redundant
+            PathBuf::from("/r/b/solo.mscz"), // no .mscx twin → kept
+            PathBuf::from("/r/a/song.musicxml"),
+        ];
+        assert!(redundant_mscz(Path::new("/r/a/song.mscz"), &files));
+        assert!(!redundant_mscz(Path::new("/r/b/solo.mscz"), &files));
+        // The .mscx itself and non-mscz files are never dropped by this rule.
+        assert!(!redundant_mscz(Path::new("/r/a/song.mscx"), &files));
+        assert!(!redundant_mscz(Path::new("/r/a/song.musicxml"), &files));
+    }
+
+    #[tokio::test]
+    async fn discover_drops_mscz_paired_with_an_mscx() {
+        // A temp checkout with a paired song (.mscx + .mscz) and a lone .mscz.
+        let dir = std::env::temp_dir().join(format!("git_discover_{}", std::process::id()));
+        std::fs::create_dir_all(dir.join("song")).unwrap();
+        std::fs::create_dir_all(dir.join("solo")).unwrap();
+        std::fs::write(dir.join("song/a.mscx"), b"<museScore/>").unwrap();
+        std::fs::write(dir.join("song/a.mscz"), b"PK\x03\x04").unwrap();
+        std::fs::write(dir.join("solo/b.mscz"), b"PK\x03\x04").unwrap();
+
+        let src = GitRepoSource::openscore(dir.clone());
+        let ids: Vec<String> = src
+            .discover()
+            .await
+            .unwrap()
+            .into_iter()
+            .map(|i| i.source_item_id)
+            .collect();
+        std::fs::remove_dir_all(&dir).ok();
+        assert!(ids.contains(&"song/a.mscx".to_string()));
+        assert!(
+            !ids.contains(&"song/a.mscz".to_string()),
+            "paired .mscz dropped"
+        );
+        assert!(ids.contains(&"solo/b.mscz".to_string()), "lone .mscz kept");
     }
 
     #[tokio::test]
