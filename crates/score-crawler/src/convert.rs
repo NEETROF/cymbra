@@ -23,7 +23,7 @@
 
 use std::io::{Cursor, Write};
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 
@@ -301,17 +301,58 @@ fn refs(v: &[String]) -> Vec<&str> {
 
 /// Spawns `program`, enforcing `timeout` and checking the exit status. A missing
 /// binary is a clear, non-panicking error the caller can degrade on.
+///
+/// The converter's stdout is discarded and its stderr is captured to a temp file
+/// (not inherited) — tools like `python-ly` emit thousands of "not implemented"
+/// warning lines per score, which must not flood the crawler's own output. On
+/// failure a short **tail** of that stderr is attached to the error so a genuine
+/// problem is still diagnosable.
 pub fn run_external(
     program: &str,
     args: &[&str],
     envs: &[(&str, &str)],
     timeout: Duration,
 ) -> Result<()> {
+    let err_path = std::env::temp_dir().join(format!(
+        "score_crawler_err_{}_{}",
+        std::process::id(),
+        ERR_COUNTER.fetch_add(1, Ordering::Relaxed)
+    ));
+
     let mut cmd = Command::new(program);
-    cmd.args(args);
+    cmd.args(args).stdin(Stdio::null()).stdout(Stdio::null());
+    // Capture stderr to a file (never inherit): a pipe would deadlock this
+    // poll loop once a chatty converter fills the OS buffer.
+    match std::fs::File::create(&err_path) {
+        Ok(f) => {
+            cmd.stderr(Stdio::from(f));
+        }
+        Err(_) => {
+            cmd.stderr(Stdio::null());
+        }
+    }
     for (k, v) in envs {
         cmd.env(k, v);
     }
+
+    let result = wait_with_timeout(&mut cmd, program, timeout);
+    // On failure, enrich the error with a short tail of the converter's stderr.
+    let result = match result {
+        Ok(()) => Ok(()),
+        Err(e) => match stderr_tail(&err_path) {
+            Some(tail) => Err(e.context(format!("converter output (tail): {tail}"))),
+            None => Err(e),
+        },
+    };
+    let _ = std::fs::remove_file(&err_path);
+    result
+}
+
+static ERR_COUNTER: AtomicU64 = AtomicU64::new(0);
+
+/// Spawns `cmd` and waits, killing it past `timeout`. A missing binary is a
+/// clean, non-panicking error.
+fn wait_with_timeout(cmd: &mut Command, program: &str, timeout: Duration) -> Result<()> {
     let mut child = match cmd.spawn() {
         Ok(child) => child,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
@@ -334,6 +375,26 @@ pub fn run_external(
                 std::thread::sleep(Duration::from_millis(50));
             }
         }
+    }
+}
+
+/// The last non-empty line (trimmed, capped) of a converter's captured stderr,
+/// for attaching to a failure without dumping the whole log.
+fn stderr_tail(path: &Path) -> Option<String> {
+    let text = std::fs::read_to_string(path).ok()?;
+    let last = text.lines().rev().find(|l| !l.trim().is_empty())?;
+    let last = last.trim();
+    const MAX: usize = 300;
+    // Keep the last MAX chars (char-safe: converter output has multibyte chars).
+    if last.chars().count() > MAX {
+        let tail: String = {
+            let mut c: Vec<char> = last.chars().collect();
+            c.drain(..c.len() - MAX);
+            c.into_iter().collect()
+        };
+        Some(format!("…{tail}"))
+    } else {
+        Some(last.to_string())
     }
 }
 
@@ -457,6 +518,37 @@ mod tests {
     fn run_external_reports_exit_status() {
         assert!(run_external("sh", &["-c", "exit 0"], &[], Duration::from_secs(5)).is_ok());
         assert!(run_external("sh", &["-c", "exit 3"], &[], Duration::from_secs(5)).is_err());
+    }
+
+    #[test]
+    fn run_external_attaches_stderr_tail_on_failure() {
+        // Chatty stderr is captured (not printed); on failure the last line is
+        // attached to the error for diagnosis.
+        let err = run_external(
+            "sh",
+            &["-c", "echo noise >&2; echo 'real problem' >&2; exit 1"],
+            &[],
+            Duration::from_secs(5),
+        )
+        .unwrap_err();
+        assert!(
+            format!("{err:#}").contains("real problem"),
+            "error should carry the stderr tail: {err:#}"
+        );
+    }
+
+    #[test]
+    fn run_external_ignores_stderr_on_success() {
+        // Noise on stderr must not turn a successful conversion into a failure.
+        assert!(
+            run_external(
+                "sh",
+                &["-c", "echo lots of noise >&2; exit 0"],
+                &[],
+                Duration::from_secs(5)
+            )
+            .is_ok()
+        );
     }
 
     #[test]
