@@ -34,5 +34,7 @@ pub mod output;
 pub mod politeness;
 pub mod registry;
 pub mod robots;
+pub mod run;
 pub mod sources;
 pub mod state;
+pub mod tui;

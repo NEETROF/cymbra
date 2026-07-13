@@ -38,6 +38,9 @@ pub struct Cli {
     /// Resume from the on-disk state cache (skip completed items).
     #[arg(long)]
     pub resume: bool,
+    /// Launch the interactive terminal UI (pick sources, watch progress).
+    #[arg(long)]
+    pub tui: bool,
     /// Verbose (DEBUG) logging.
     #[arg(long)]
     pub verbose: bool,
@@ -83,6 +86,7 @@ mod tests {
             limit: None,
             all: false,
             resume: false,
+            tui: false,
             verbose: false,
             config: "config.yaml".into(),
         }

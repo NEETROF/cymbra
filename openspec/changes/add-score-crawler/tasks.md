@@ -81,8 +81,8 @@
 
 ## 9. TUI
 
-- [ ] 9.1 `ratatui`/`crossterm` TUI: source selection, live per-source progress (accepted/rejected/low-confidence) via mpsc, catalog browser
-- [ ] 9.2 Wire TUI actions and headless CLI mode to the same orchestrator + ingestion path
+- [~] 9.1 `ratatui`/`crossterm` TUI: source selection, live per-source progress (accepted/rejected/low-confidence) via mpsc, catalog browser — `tui.rs`: pure `App` state (source selection + per-source/total progress) unit-tested; ratatui render + crossterm loop stream `run::ProgressEvent`s over an mpsc channel. The manifest/catalog browser pane is still to add.
+- [x] 9.2 Wire TUI actions and headless CLI mode to the same orchestrator + ingestion path — both go through `run::run_all` (shared license-first loop, dedup across sources) then `OutputWriter`; `--tui` vs headless is the only difference.
 
 ## 10. Docs, quality gates, validation
 

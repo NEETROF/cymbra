@@ -14,9 +14,9 @@
 
 //! `score-crawler` binary entry point: resolve config + sources, run each
 //! enabled adapter through the license-first orchestrator, and write the vetted
-//! corpus + manifests to the configured local output root.
+//! corpus + manifests to the configured local output root. `--tui` launches the
+//! interactive terminal UI instead.
 
-use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -26,10 +26,11 @@ use tracing::{info, warn};
 
 use score_crawler::cli::{Cli, init_tracing};
 use score_crawler::config::{Config, StoreBackend};
-use score_crawler::crawl::{CrawlOutcome, Orchestrator};
 use score_crawler::http::{Fetcher, HttpFetcher};
 use score_crawler::output::OutputWriter;
 use score_crawler::registry::build_adapters;
+use score_crawler::run::run_all;
+use score_crawler::sources::ALL_SOURCES;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -42,10 +43,15 @@ async fn main() -> Result<()> {
         info!(path = %cli.config.display(), "no config file; using defaults");
         Config::default()
     };
+    let limit = cli.limit.or(config.limit_per_source);
+
+    if cli.tui {
+        return score_crawler::tui::run_tui(config, ALL_SOURCES, limit).await;
+    }
 
     let sources = cli.resolve_sources(&config);
     if sources.is_empty() {
-        println!("No sources selected. Use --sources <a,b> or --all (see --help).");
+        println!("No sources selected. Use --sources <a,b>, --all, or --tui (see --help).");
         return Ok(());
     }
 
@@ -56,8 +62,7 @@ async fn main() -> Result<()> {
             config.store.low_confidence_prefix.clone(),
         ),
         StoreBackend::S3 { .. } => {
-            // S3/catalog ingestion lands with the backend score module.
-            anyhow::bail!("S3 output backend not wired yet; use a local_fs store");
+            anyhow::bail!("S3 output backend not wired yet; use a local_fs store")
         }
     };
 
@@ -65,36 +70,15 @@ async fn main() -> Result<()> {
         HttpFetcher::new(config.user_agent(), Duration::from_millis(config.delay_ms))
             .context("building HTTP fetcher")?,
     );
-    let checkout_root: PathBuf = root.join(".checkouts");
-    let built = build_adapters(&sources, fetcher, &checkout_root);
+    let built = build_adapters(&sources, fetcher, &root.join(".checkouts"));
     for name in &built.unsupported {
         warn!(source = %name, "adapter not implemented yet; skipping");
     }
 
-    let limit = cli.limit.or(config.limit_per_source);
-    let mut orchestrator = Orchestrator::new();
-    let mut merged = CrawlOutcome::default();
-
-    for adapter in &built.adapters {
-        info!(source = adapter.name(), "preparing");
-        if let Err(e) = adapter.prepare().await {
-            warn!(source = adapter.name(), error = %e, "prepare failed; skipping source");
-            continue;
-        }
-        let out = orchestrator.run(adapter.as_ref(), limit).await;
-        info!(
-            source = adapter.name(),
-            accepted = out.stats.accepted,
-            low_confidence = out.stats.low_confidence,
-            rejected = out.stats.rejected,
-            failed = out.stats.failed,
-            "source complete"
-        );
-        merge(&mut merged, out);
-    }
-
-    let writer = OutputWriter::new(&root, safe_prefix, low_prefix);
-    let summary = writer.write(&merged).context("writing corpus output")?;
+    let outcome = run_all(&built.adapters, limit, None).await;
+    let summary = OutputWriter::new(&root, safe_prefix, low_prefix)
+        .write(&outcome)
+        .context("writing corpus output")?;
 
     println!(
         "Done — safe: {}, low-confidence: {}, rejected/failed: {}. Output: {}",
@@ -104,16 +88,4 @@ async fn main() -> Result<()> {
         root.display()
     );
     Ok(())
-}
-
-/// Folds one adapter's outcome into the merged totals.
-fn merge(into: &mut CrawlOutcome, from: CrawlOutcome) {
-    into.prepared.extend(from.prepared);
-    into.rejected.extend(from.rejected);
-    into.stats.discovered += from.stats.discovered;
-    into.stats.accepted += from.stats.accepted;
-    into.stats.low_confidence += from.stats.low_confidence;
-    into.stats.rejected += from.stats.rejected;
-    into.stats.failed += from.stats.failed;
-    into.stats.deduped += from.stats.deduped;
 }
