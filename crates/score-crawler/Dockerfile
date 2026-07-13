@@ -16,8 +16,13 @@ COPY . .
 RUN cargo build --release -p score-crawler
 
 FROM python:3.12-slim
-# Runtime converters: git (git-clone sources) + python-ly (LilyPond → MusicXML).
-# Add MuseScore / Verovio here for `.mscx` / MEI conversion.
+# Runtime converters: git (git-clone sources) + python-ly (LilyPond → MusicXML,
+# for Mutopia). MuseScore (.mscx, OpenScore) is intentionally NOT installed:
+# Debian's musescore3 (3.2.3) is too old to read OpenScore's 3.6.1 files, and a
+# newer MuseScore only ships as an AppImage that is painful to run headless in a
+# container. For .mscx conversion, point the crawler at a purpose-built MuseScore
+# image via the `docker` converter backend (converters.backend: docker) instead
+# of bloating this image. See the README.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends git ca-certificates \
     && pip install --no-cache-dir python-ly \

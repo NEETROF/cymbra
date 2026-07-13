@@ -25,7 +25,7 @@ use crate::http::Fetcher;
 use crate::sources::SourceAdapter;
 use crate::sources::git::GitRepoSource;
 use crate::sources::mutopia::MutopiaSource;
-use crate::sources::pdmx::PdmxSource;
+use crate::sources::pdmx::PdmxDatasetSource;
 use crate::sources::web_index::WebIndexSource;
 
 /// Default CPDL listing (a scores category page).
@@ -36,8 +36,6 @@ pub const IMSLP_LISTING: &str = "https://imslp.org/wiki/Category:Scores";
 pub const GUTENBERG_LISTING: &str = "https://www.gutenberg.org/ebooks/subject/2955";
 /// Default Hymnary listing.
 pub const HYMNARY_LISTING: &str = "https://hymnary.org/browse/tunes";
-/// Default PDMX (Zenodo) metadata index.
-pub const PDMX_METADATA: &str = "https://zenodo.org/records/15571083/files/metadata.json";
 
 /// The adapters built for a set of source names, plus the names not yet wired.
 pub struct BuiltAdapters {
@@ -83,7 +81,7 @@ pub fn build_adapters(
                 fetcher.clone(),
                 HYMNARY_LISTING,
             ))),
-            "pdmx" => Some(Box::new(PdmxSource::new(fetcher.clone(), PDMX_METADATA))),
+            "pdmx" => Some(Box::new(PdmxDatasetSource::new(checkout_root.join("pdmx")))),
             _ => None,
         };
         match adapter {

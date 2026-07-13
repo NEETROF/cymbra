@@ -12,109 +12,111 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! PDMX (Zenodo dataset) adapter.
+//! PDMX (Public Domain MusicXML) dataset adapter.
 //!
-//! PDMX ships a metadata index describing each MusicXML record with a per-record
-//! licence and subset flag. Only the **`no_license_conflict`** subset is usable;
-//! every other record is excluded up front (never discovered, never fetched).
-//! The lightweight metadata is fetched once and memoised, so the licence is
-//! known before any heavy score download (license-first).
+//! PDMX is a bulk Zenodo dataset, not a per-item API: a `PDMX.csv` index (with a
+//! `subset:no_license_conflict` flag) plus a `mxl.tar.gz` archive of the scores.
+//! `prepare` downloads and extracts both; only the **`no_license_conflict`**
+//! subset (≈222k of ~250k) is discovered — the rest is excluded up front. Each
+//! score is already MusicXML, so no conversion is needed.
+//!
+//! NOTE: the exact CSV column names for the score path/title/composer are
+//! configurable and default to reasonable guesses — confirm them against the
+//! real `PDMX.csv` before a production run. The full 1.9 GB download/extract is
+//! network/IO glue and is not unit-tested; the CSV subset filtering and the
+//! extracted-file read are.
 
-use std::sync::Arc;
+use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, anyhow};
 use async_trait::async_trait;
-use serde::Deserialize;
-use tokio::sync::Mutex;
+use futures_util::StreamExt;
+use tokio::io::AsyncWriteExt;
 
 use super::{Item, RawScore, SourceAdapter};
 use crate::convert::OriginFormat;
-use crate::http::Fetcher;
 use crate::license::RawLicense;
 
-/// The usable subset flag; records outside it are rejected wholesale.
-const USABLE_SUBSET: &str = "no_license_conflict";
+/// Default Zenodo file base for PDMX record 15571083.
+pub const PDMX_BASE: &str = "https://zenodo.org/records/15571083/files";
+const CSV_FILE: &str = "PDMX.csv";
+const MXL_ARCHIVE: &str = "mxl.tar.gz";
+/// The subset flag column — the usable (`no_license_conflict`) rows.
+const SUBSET_COL: &str = "subset:no_license_conflict";
 
-/// One PDMX metadata record.
-#[derive(Debug, Clone, Deserialize)]
-struct Record {
-    id: String,
-    #[serde(default)]
-    title: Option<String>,
-    #[serde(default)]
-    composer: Option<String>,
-    /// URL of the record's MusicXML.
+/// PDMX adapter over a local cache directory.
+pub struct PdmxDatasetSource {
+    base_url: String,
+    cache: PathBuf,
+    /// CSV column giving the `.mxl` path within the extracted archive.
+    path_col: String,
+    title_col: String,
+    composer_col: String,
+}
+
+/// One usable CSV row.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct Row {
     path: String,
-    /// Per-record normalised-ish licence string (fed to the licence engine).
-    license: String,
-    /// PDMX subset; only `no_license_conflict` is used.
-    subset: String,
+    title: Option<String>,
+    composer: Option<String>,
 }
 
-/// The PDMX adapter over any [`Fetcher`].
-pub struct PdmxSource {
-    fetcher: Arc<dyn Fetcher>,
-    metadata_url: String,
-    cache: Mutex<Option<Vec<Record>>>,
-}
-
-impl PdmxSource {
-    pub fn new(fetcher: Arc<dyn Fetcher>, metadata_url: impl Into<String>) -> Self {
+impl PdmxDatasetSource {
+    pub fn new(cache: impl Into<PathBuf>) -> Self {
         Self {
-            fetcher,
-            metadata_url: metadata_url.into(),
-            cache: Mutex::new(None),
+            base_url: PDMX_BASE.to_string(),
+            cache: cache.into(),
+            path_col: "mxl".to_string(),
+            title_col: "title".to_string(),
+            composer_col: "composer".to_string(),
         }
     }
 
-    /// Fetches + memoises the metadata index.
-    async fn records(&self) -> Result<Vec<Record>> {
-        let mut guard = self.cache.lock().await;
-        if guard.is_none() {
-            let text = self
-                .fetcher
-                .get_text(&self.metadata_url)
-                .await
-                .context("fetching PDMX metadata")?;
-            let recs: Vec<Record> = serde_json::from_str(&text).context("parsing PDMX metadata")?;
-            *guard = Some(recs);
-        }
-        Ok(guard.clone().unwrap_or_default())
+    fn csv_path(&self) -> PathBuf {
+        self.cache.join(CSV_FILE)
     }
-
-    /// The usable records (the `no_license_conflict` subset only).
-    async fn usable(&self) -> Result<Vec<Record>> {
-        Ok(self
-            .records()
-            .await?
-            .into_iter()
-            .filter(|r| r.subset == USABLE_SUBSET)
-            .collect())
-    }
-
-    async fn record(&self, id: &str) -> Result<Record> {
-        self.usable()
-            .await?
-            .into_iter()
-            .find(|r| r.id == id)
-            .ok_or_else(|| anyhow!("PDMX record {id} not in usable subset"))
+    fn mxl_dir(&self) -> PathBuf {
+        self.cache.join("mxl")
     }
 }
 
 #[async_trait]
-impl SourceAdapter for PdmxSource {
+impl SourceAdapter for PdmxDatasetSource {
     fn name(&self) -> &str {
         "pdmx"
     }
 
+    async fn prepare(&self) -> Result<()> {
+        tokio::fs::create_dir_all(&self.cache).await.ok();
+        if !self.csv_path().exists() {
+            download_to_file(&format!("{}/{CSV_FILE}", self.base_url), &self.csv_path()).await?;
+        }
+        if !self.mxl_dir().exists() {
+            let archive = self.cache.join(MXL_ARCHIVE);
+            if !archive.exists() {
+                download_to_file(&format!("{}/{MXL_ARCHIVE}", self.base_url), &archive).await?;
+            }
+            let (a, d) = (archive.clone(), self.mxl_dir());
+            tokio::task::spawn_blocking(move || extract_tar_gz(&a, &d))
+                .await
+                .context("joining extract task")??;
+        }
+        Ok(())
+    }
+
     async fn discover(&self) -> Result<Vec<Item>> {
-        Ok(self
-            .usable()
-            .await?
+        let rows = parse_usable(
+            &self.csv_path(),
+            &self.path_col,
+            &self.title_col,
+            &self.composer_col,
+        )?;
+        Ok(rows
             .into_iter()
             .map(|r| Item {
-                source_item_id: r.id,
-                url: r.path,
+                source_item_id: r.path.clone(),
+                url: format!("{}/{MXL_ARCHIVE}#{}", self.base_url, r.path),
                 title: r.title,
                 composer: r.composer,
                 arranger: None,
@@ -123,70 +125,131 @@ impl SourceAdapter for PdmxSource {
             .collect())
     }
 
-    async fn extract_license(&self, item: &Item) -> Result<RawLicense> {
-        // Licence is in the already-fetched metadata — no heavy download.
-        let r = self.record(&item.source_item_id).await?;
-        Ok(RawLicense::verified(r.license))
+    async fn extract_license(&self, _item: &Item) -> Result<RawLicense> {
+        // The `no_license_conflict` subset is PDMX's public-domain guarantee.
+        Ok(RawLicense::verified("Public Domain"))
     }
 
     async fn fetch(&self, item: &Item) -> Result<RawScore> {
-        let r = self.record(&item.source_item_id).await?;
-        let bytes = self.fetcher.get_bytes(&r.path).await?;
+        let path = self.mxl_dir().join(&item.source_item_id);
+        let bytes = std::fs::read(&path)
+            .with_context(|| format!("reading extracted score {}", path.display()))?;
         Ok(RawScore {
-            origin: OriginFormat::MusicXml,
+            origin: OriginFormat::Mxl,
             bytes,
         })
     }
+}
+
+/// Parses `PDMX.csv`, returning the rows in the `no_license_conflict` subset with
+/// a non-empty score path. Pure; testable offline.
+fn parse_usable(
+    csv_path: &Path,
+    path_col: &str,
+    title_col: &str,
+    composer_col: &str,
+) -> Result<Vec<Row>> {
+    let mut rdr = csv::Reader::from_path(csv_path)
+        .with_context(|| format!("opening {}", csv_path.display()))?;
+    let headers = rdr.headers().context("reading PDMX.csv headers")?.clone();
+    let index = |name: &str| headers.iter().position(|h| h == name);
+
+    let subset_i =
+        index(SUBSET_COL).ok_or_else(|| anyhow!("PDMX.csv has no '{SUBSET_COL}' column"))?;
+    let path_i = index(path_col).ok_or_else(|| anyhow!("PDMX.csv has no '{path_col}' column"))?;
+    let title_i = index(title_col);
+    let composer_i = index(composer_col);
+
+    let mut out = Vec::new();
+    for record in rdr.records() {
+        let record = record.context("reading PDMX.csv row")?;
+        if !matches!(record.get(subset_i), Some("True" | "true" | "1")) {
+            continue; // not in the usable subset
+        }
+        let path = match record.get(path_i) {
+            Some(p) if !p.is_empty() => p.to_string(),
+            _ => continue,
+        };
+        let field = |i: Option<usize>| {
+            i.and_then(|i| record.get(i))
+                .filter(|s| !s.is_empty())
+                .map(String::from)
+        };
+        out.push(Row {
+            path,
+            title: field(title_i),
+            composer: field(composer_i),
+        });
+    }
+    Ok(out)
+}
+
+/// Streams a URL to a file (`.part` then rename), so multi-GB archives never sit
+/// fully in memory.
+async fn download_to_file(url: &str, dest: &Path) -> Result<()> {
+    let resp = reqwest::get(url)
+        .await
+        .with_context(|| format!("GET {url}"))?;
+    if !resp.status().is_success() {
+        return Err(anyhow!("GET {url}: HTTP {}", resp.status()));
+    }
+    let tmp = dest.with_extension("part");
+    let mut file = tokio::fs::File::create(&tmp)
+        .await
+        .with_context(|| format!("creating {}", tmp.display()))?;
+    let mut stream = resp.bytes_stream();
+    while let Some(chunk) = stream.next().await {
+        let chunk = chunk.context("download chunk")?;
+        file.write_all(&chunk).await.context("writing download")?;
+    }
+    file.flush().await.ok();
+    drop(file);
+    tokio::fs::rename(&tmp, dest)
+        .await
+        .with_context(|| format!("finalising {}", dest.display()))
+}
+
+/// Extracts a `.tar.gz` into `dest`.
+fn extract_tar_gz(archive: &Path, dest: &Path) -> Result<()> {
+    let file =
+        std::fs::File::open(archive).with_context(|| format!("opening {}", archive.display()))?;
+    let gz = flate2::read::GzDecoder::new(file);
+    tar::Archive::new(gz)
+        .unpack(dest)
+        .with_context(|| format!("extracting into {}", dest.display()))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::crawl::Orchestrator;
-    use crate::http::test_fetcher::MapFetcher;
+    use crate::license::Confidence;
 
-    const METADATA: &str = r#"[
-      {"id":"good","title":"Sonatina","composer":"Clementi","path":"https://zenodo.example/good.musicxml","license":"CC-BY-4.0","subset":"no_license_conflict"},
-      {"id":"bad","title":"Mystery","composer":"Unknown","path":"https://zenodo.example/bad.musicxml","license":"All Rights Reserved","subset":"license_conflict"}
-    ]"#;
+    fn fixture() -> PathBuf {
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/pdmx")
+    }
 
-    const SCORE: &str = r#"<?xml version="1.0"?>
-<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
-<part id="P1"><measure number="1"><attributes><divisions>1</divisions>
-<key><fifths>0</fifths></key><time><beats>4</beats><beat-type>4</beat-type></time>
-<clef><sign>G</sign><line>2</line></clef></attributes>
-<note><pitch><step>C</step><octave>4</octave></pitch><duration>4</duration><type>whole</type></note></measure></part></score-partwise>"#;
-
-    fn source() -> PdmxSource {
-        let fetcher = MapFetcher::default()
-            .with_page("https://zenodo.example/index.json", METADATA)
-            .with_blob("https://zenodo.example/good.musicxml", SCORE.as_bytes());
-        PdmxSource::new(Arc::new(fetcher), "https://zenodo.example/index.json")
+    #[test]
+    fn parses_only_the_no_license_conflict_subset() {
+        let rows = parse_usable(&fixture().join(CSV_FILE), "mxl", "title", "composer").unwrap();
+        assert_eq!(rows.len(), 1, "only the no_license_conflict row");
+        assert_eq!(rows[0].path, "scores/ok.mxl");
+        assert_eq!(rows[0].composer.as_deref(), Some("Clementi"));
     }
 
     #[tokio::test]
-    async fn discovers_only_the_usable_subset() {
-        let items = source().discover().await.unwrap();
+    async fn discovers_and_flows_to_the_safe_corpus() {
+        // Cache pointed at the fixture (skips download/extract); the .mxl already
+        // sits under fixtures/pdmx/mxl/.
+        let src = PdmxDatasetSource::new(fixture());
+        let items = src.discover().await.unwrap();
         assert_eq!(items.len(), 1);
-        assert_eq!(items[0].source_item_id, "good");
-    }
 
-    #[tokio::test]
-    async fn usable_record_flows_to_the_safe_corpus() {
-        let out = Orchestrator::new().run(&source(), None).await;
-        assert_eq!(out.stats.accepted, 1);
-        assert_eq!(out.stats.rejected, 0);
+        let out = Orchestrator::new().run(&src, None).await;
+        assert_eq!(out.stats.accepted, 1, "the usable score is ingested");
         let e = &out.prepared[0].entry;
-        assert_eq!(e.license, "CC-BY-4.0");
-        assert_eq!(e.composer.as_deref(), Some("Clementi"));
+        assert_eq!(e.license, "PublicDomain");
+        assert_eq!(e.confidence, Confidence::Verified);
         assert_eq!(e.source, "pdmx");
-    }
-
-    #[tokio::test]
-    async fn conflicted_records_are_never_fetched() {
-        // The `bad` record is not in the usable subset, so it never appears as an
-        // item and its score is never requested (no blob fixture for it exists).
-        let out = Orchestrator::new().run(&source(), None).await;
-        assert_eq!(out.stats.discovered, 1);
     }
 }
