@@ -92,6 +92,20 @@ module).
 
 Please set a real `contact` before running against live sites.
 
+### Fan-out: one container per source
+
+`docker-compose.yml` runs one crawler container per source in parallel, each
+writing to its own `output/<source>/` tree:
+
+```bash
+# unbounded — crawl everything each source offers:
+docker compose -f crates/score-crawler/docker-compose.yml up --build
+# cap each source to N items (applied per source):
+LIMIT=5 docker compose -f crates/score-crawler/docker-compose.yml up --build
+```
+
+`LIMIT` is optional: set → `--limit N` per source; unset → no limit.
+
 ## Output
 
 ```

@@ -1,0 +1,87 @@
+# Fan-out: one score-crawler container per source, run in parallel.
+#
+# Usage (from the repo root):
+#   # no limit — crawl everything each source offers:
+#   docker compose -f crates/score-crawler/docker-compose.yml up --build
+#
+#   # cap each source to N items (per-source limit):
+#   LIMIT=5 docker compose -f crates/score-crawler/docker-compose.yml up --build
+#
+# Each source writes its own corpus + manifest under ./output/<source>/ (next to
+# this file), so parallel runs never clobber each other. To also ingest into a
+# shared Postgres catalog, uncomment the `postgres` service + the CYMBRA_SCORE_*
+# lines (the catalog dedups by sha256, so concurrent inserts are safe).
+
+x-crawler: &crawler
+  build:
+    context: ../..
+    dockerfile: crates/score-crawler/Dockerfile
+  image: score-crawler
+  # When LIMIT is set on the host it is passed through and applied per source;
+  # when unset, no --limit flag is added (unbounded).
+  environment:
+    LIMIT: ${LIMIT:-}
+    # CYMBRA_SCORE_DATABASE_URL: postgres://cymbra:cymbra_dev_pw@postgres:5432/cymbra
+  entrypoint: ["/bin/sh", "-c"]
+  restart: "no"
+  # depends_on: [postgres]   # uncomment with the postgres service below
+
+services:
+  openscore:
+    <<: *crawler
+    command: ["score-crawler --sources openscore $${LIMIT:+--limit $$LIMIT}"]
+    volumes: ["./output/openscore:/work/output"]
+
+  mutopia:
+    <<: *crawler
+    command: ["score-crawler --sources mutopia $${LIMIT:+--limit $$LIMIT}"]
+    volumes: ["./output/mutopia:/work/output"]
+
+  musetrainer:
+    <<: *crawler
+    command: ["score-crawler --sources musetrainer $${LIMIT:+--limit $$LIMIT}"]
+    volumes: ["./output/musetrainer:/work/output"]
+
+  eduardomourar:
+    <<: *crawler
+    command: ["score-crawler --sources eduardomourar $${LIMIT:+--limit $$LIMIT}"]
+    volumes: ["./output/eduardomourar:/work/output"]
+
+  cpdl:
+    <<: *crawler
+    command: ["score-crawler --sources cpdl $${LIMIT:+--limit $$LIMIT}"]
+    volumes: ["./output/cpdl:/work/output"]
+
+  imslp:
+    <<: *crawler
+    command: ["score-crawler --sources imslp $${LIMIT:+--limit $$LIMIT}"]
+    volumes: ["./output/imslp:/work/output"]
+
+  gutenberg:
+    <<: *crawler
+    command: ["score-crawler --sources gutenberg $${LIMIT:+--limit $$LIMIT}"]
+    volumes: ["./output/gutenberg:/work/output"]
+
+  hymnary:
+    <<: *crawler
+    command: ["score-crawler --sources hymnary $${LIMIT:+--limit $$LIMIT}"]
+    volumes: ["./output/hymnary:/work/output"]
+
+  pdmx:
+    <<: *crawler
+    command: ["score-crawler --sources pdmx $${LIMIT:+--limit $$LIMIT}"]
+    volumes: ["./output/pdmx:/work/output"]
+
+# --- Optional: shared Postgres catalog (uncomment to ingest) ----------------
+#  postgres:
+#    image: postgres:16
+#    environment:
+#      POSTGRES_USER: cymbra
+#      POSTGRES_PASSWORD: cymbra_dev_pw
+#      POSTGRES_DB: cymbra
+#    ports: ["5432:5432"]
+#    healthcheck:
+#      test: ["CMD-SHELL", "pg_isready -U cymbra -d cymbra"]
+#      interval: 5s
+#      timeout: 3s
+#      retries: 10
