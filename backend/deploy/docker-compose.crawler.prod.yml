@@ -1,0 +1,75 @@
+# Score-crawler fan-out for the production box — PULLS published images (no source
+# checkout needed), joins the backend's private network to reach Postgres, and
+# writes the corpus under CRAWL_OUT (published later by sync-scores.sh).
+#
+# One-time: log in to GHCR (or reuse the deploy pull creds), then pull:
+#   docker login ghcr.io
+#   docker compose -f docker-compose.crawler.prod.yml pull
+#
+# Run (from /opt/cymbra/backend/deploy, with the prod .env for the DB password):
+#   # smoke test — a few scores per source into the prod catalog:
+#   LIMIT=5 docker compose --env-file .env -f docker-compose.crawler.prod.yml up
+#   # full run (drop LIMIT); or one source: ... up mutopia
+#   docker compose --env-file .env -f docker-compose.crawler.prod.yml up
+# Then publish + back up the bytes:
+#   . /etc/cymbra/backup.env; ./sync-scores.sh
+#
+# openscore converts MuseScore .mscx via a sibling cymbra-musescore container, so
+# it (only) needs the docker socket + a converter temp dir shared at the same path
+# in and out of the container (SC_CONVTMP). The other sources need neither.
+
+x-crawler: &crawler
+  image: ghcr.io/neetrof/cymbra-score-crawler:${CRAWLER_TAG:-latest}
+  environment: &crawler-env
+    LIMIT: ${LIMIT:-}
+    # The crawler runs its own migrations then ingests, so it needs a role that
+    # can create/write the `score` schema. Defaults to the superuser on the
+    # private network; override with a dedicated role if you prefer.
+    # Defaults to the superuser on the private network — pass `--env-file .env`
+    # so POSTGRES_PASSWORD is set, or override the whole URL with a dedicated role.
+    CYMBRA_SCORE_DATABASE_URL: ${CYMBRA_SCORE_DATABASE_URL:-postgres://cymbra:${POSTGRES_PASSWORD:-}@postgres:5432/cymbra}
+  networks: [cymbra-prod]
+  entrypoint: ["/bin/sh", "-c"]
+  restart: "no"
+
+services:
+  mutopia:
+    <<: *crawler
+    command: ["score-crawler --sources mutopia $${LIMIT:+--limit $$LIMIT}"]
+    volumes: ["${CRAWL_OUT:-/opt/cymbra/score-crawler/output}/mutopia:/work/output"]
+
+  musetrainer:
+    <<: *crawler
+    command: ["score-crawler --sources musetrainer $${LIMIT:+--limit $$LIMIT}"]
+    volumes: ["${CRAWL_OUT:-/opt/cymbra/score-crawler/output}/musetrainer:/work/output"]
+
+  eduardomourar:
+    <<: *crawler
+    command: ["score-crawler --sources eduardomourar $${LIMIT:+--limit $$LIMIT}"]
+    volumes: ["${CRAWL_OUT:-/opt/cymbra/score-crawler/output}/eduardomourar:/work/output"]
+
+  pdmx:
+    <<: *crawler
+    command: ["score-crawler --sources pdmx $${LIMIT:+--limit $$LIMIT}"]
+    volumes: ["${CRAWL_OUT:-/opt/cymbra/score-crawler/output}/pdmx:/work/output"]
+
+  openscore:
+    <<: *crawler
+    command: ["score-crawler --sources openscore $${LIMIT:+--limit $$LIMIT}"]
+    environment:
+      <<: *crawler-env
+      CYMBRA_SCORE_CONVERTER_BACKEND: docker
+      CYMBRA_SCORE_MUSESCORE_IMAGE: ghcr.io/neetrof/cymbra-musescore:${CRAWLER_TAG:-latest}
+      TMPDIR: ${SC_CONVTMP:-/tmp/cymbra-conv}
+    volumes:
+      - "${CRAWL_OUT:-/opt/cymbra/score-crawler/output}/openscore:/work/output"
+      - "/var/run/docker.sock:/var/run/docker.sock"
+      - "${SC_CONVTMP:-/tmp/cymbra-conv}:${SC_CONVTMP:-/tmp/cymbra-conv}"
+
+networks:
+  # The backend stack's default network (its compose project is named
+  # `cymbra-prod`, so Docker names the network `cymbra-prod_default`), joined as
+  # external so `postgres` resolves. It must be up (backend stack running) first.
+  cymbra-prod:
+    external: true
+    name: cymbra-prod_default

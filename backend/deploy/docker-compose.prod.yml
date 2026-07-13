@@ -79,6 +79,12 @@ services:
       valkey: {condition: service_healthy}
     # gRPC (50051) + JWKS/health (8081) reachable only via Caddy, not the host.
     expose: ["50051", "8081"]
+    # Option A: the app serves score bytes from the local corpus (read-only).
+    # object_key in `catalog_scores` resolves directly under this root
+    # (`<root>/safe/<source>/<author>/<title>.mxl`). sync-scores.sh populates
+    # SCORES_DIR from the crawler output and mirrors it to S3 for backup.
+    volumes:
+      - ${SCORES_DIR:-/var/lib/cymbra/scores}:/srv/cymbra/scores:ro
 
   worker:
     image: ${CYMBRA_IMAGE:-ghcr.io/neetrof/cymbra-backend:latest}

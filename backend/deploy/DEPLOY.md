@@ -235,6 +235,53 @@ Grafana/Tempo/Loki/Prometheus stack on this box:
    Both binaries then export OTLP to the local collector, which forwards to Grafana
    Cloud. The self-hosted stack under `backend/observability/` stays for local dev.
 
+## 11. Score corpus (crawler → local serve → S3 backup)
+
+The score-crawler harvests redistributable scores and ingests their provenance
+into `catalog_scores` (Postgres). The `.mxl` **bytes** are served by the app from
+a **local folder** (Option A); OVH Object Storage is a durable **backup**, not
+the read path. `object_key` in the catalog is exactly the file's path under the
+corpus root (`safe/<source>/<author>/<title>.mxl`), so the server resolves bytes
+directly from the mounted `/srv/cymbra/scores` (see `docker-compose.prod.yml`).
+
+**No source is needed on the box.** The `crawler-image` CI workflow publishes two
+images to GHCR — `cymbra-score-crawler` and `cymbra-musescore` (headless MuseScore
+4, for OpenScore's `.mscx`) — and `docker-compose.crawler.prod.yml` (ships with
+`backend/deploy/`) pulls and runs them. It joins the backend's private network so
+`postgres` resolves, so **start the backend stack first**.
+
+```bash
+cd /opt/cymbra/backend/deploy
+docker login ghcr.io                     # once (or reuse the deploy pull creds)
+docker compose -f docker-compose.crawler.prod.yml pull
+
+# smoke test: a few scores per source into the prod catalog (--env-file for the DB pw)
+LIMIT=5 docker compose --env-file .env -f docker-compose.crawler.prod.yml up
+
+# then publish the bytes: merge into SCORES_DIR + mirror to S3
+. /etc/cymbra/backup.env; ./sync-scores.sh
+```
+
+Verify: `select count(*) from score.catalog_scores;` grows, and
+`find $SCORES_DIR -name '*.mxl' | wc -l` matches. Then run unbounded (drop `LIMIT`),
+or one source at a time (`... up mutopia`). `pdmx` downloads ~2 GB (the 222k-score
+Zenodo dataset) — run it last. `openscore` converts via a sibling `cymbra-musescore`
+container over the mounted docker socket (already wired in the compose).
+
+The crawler connects as the DB superuser by default (it runs its own `score`
+migrations then ingests); override `CYMBRA_SCORE_DATABASE_URL` for a dedicated role.
+
+**Nightly** `bootstrap.sh` installs a cron (04:00) that runs `sync-scores.sh`:
+it merges the crawler output into `SCORES_DIR` and mirrors it to `s3://$S3_BUCKET/scores`
+— same `/etc/cymbra/backup.env` creds as the DB backup. Set `CRAWL_OUT` +
+`SCORES_DIR` there (defaults: `/opt/cymbra/score-crawler/output`,
+`/var/lib/cymbra/scores`).
+
+> Remaining app-side work (tracked in `add-user-score-upload`): wire the server's
+> `object_store` **LocalFileSystem** reader to root at `/srv/cymbra/scores` and
+> expose the score-fetch endpoint. The corpus layout above is already what that
+> reader expects.
+
 ## Before you invite testers — checklist (the easy-to-forget bits)
 
 - [ ] **Uptime monitor** — there's no HA/alerting. Point a free UptimeRobot/BetterStack

@@ -1,0 +1,3 @@
+mxl,title,composer_name,license,subset:no_license_conflict
+./mxl/scores/ok.mxl,Good Piece,Clementi,publicdomain,True
+./mxl/scores/bad.mxl,Conflicted Piece,NA,All Rights Reserved,False

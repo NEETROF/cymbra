@@ -8,9 +8,10 @@
 ## 2. Object storage (greenfield)
 
 - [ ] 2.1 Add an S3-compatible object-store client crate to the workspace matching the `tls-rustls`/no-OpenSSL stack (e.g. `aws-sdk-s3` or `object_store`).
-- [ ] 2.2 Add `CYMBRA_SCORE_S3_*` config (bucket, endpoint, region, credentials) to the typed `backend/platform/src/config.rs` `Config::from_env`, failing fast when required keys are missing.
+- [ ] 2.2 Add `CYMBRA_SCORE_S3_*` config (bucket, endpoint, region, credentials) + a local corpus root (`CYMBRA_SCORE_LOCAL_ROOT`, default `/srv/cymbra/scores`) to the typed `backend/platform/src/config.rs` `Config::from_env`, failing fast when required keys are missing.
 - [ ] 2.3 Document the new keys in `backend/.env.example` and wire a local MinIO/S3-compatible service in `backend/docker-compose.yml` with dev defaults.
-- [ ] 2.4 Implement a small storage port (put/get/delete by key) with a fake for tests; keep the real S3 glue in a coverage-excluded seam.
+- [ ] 2.4 Implement a small storage port (put/get/delete by key) with a fake for tests; keep the real S3 glue in a coverage-excluded seam. `put`/`delete` target S3 (the durable origin for user uploads).
+- [ ] 2.5 `get(key)` is **local-first, S3 fallback** (design 4b): read `<LOCAL_ROOT>/<key>`; on a local miss fetch from S3 (populating the local copy). This is what lets the bulk crawler corpus (already on local disk) serve without an S3 call, while a rebuilt/empty server still serves everything from S3. Test both the local-hit and S3-fallback paths with the fake.
 
 ## 3. Backend `score` module
 

@@ -31,6 +31,14 @@ ALTER ROLE :"user_role" WITH LOGIN PASSWORD :'user_pw';
 CREATE SCHEMA IF NOT EXISTS user_account AUTHORIZATION :"user_role";
 ALTER ROLE :"user_role" SET search_path = user_account;
 
+-- score module -------------------------------------------------------------
+SELECT format('CREATE ROLE %I LOGIN', :'score_role')
+WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'score_role')
+\gexec
+ALTER ROLE :"score_role" WITH LOGIN PASSWORD :'score_pw';
+CREATE SCHEMA IF NOT EXISTS score AUTHORIZATION :"score_role";
+ALTER ROLE :"score_role" SET search_path = score;
+
 -- jobs (shared async-job substrate; owned by worker_svc — design D3) ---------
 SELECT format('CREATE ROLE %I LOGIN', :'worker_role')
 WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'worker_role')
@@ -45,7 +53,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp" SCHEMA jobs;
 
 -- Keep the module roles out of the shared `public` schema so the only namespaces
 -- each can touch are its own (+ the narrow jobs.enqueue grant from the migration).
-REVOKE ALL ON SCHEMA public FROM :"auth_role", :"user_role", :"worker_role";
+REVOKE ALL ON SCHEMA public FROM :"auth_role", :"user_role", :"score_role", :"worker_role";
 
 -- Ops role: read+write EVERY schema from a single connection (design OD1/OD2) --
 -- `pg_read_all_data` + `pg_write_all_data` cover all current AND future schemas
@@ -57,4 +65,4 @@ WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'admin_role')
 \gexec
 ALTER ROLE :"admin_role" WITH LOGIN PASSWORD :'admin_pw';
 GRANT pg_read_all_data, pg_write_all_data TO :"admin_role";
-ALTER ROLE :"admin_role" SET search_path = auth, user_account, jobs, public;
+ALTER ROLE :"admin_role" SET search_path = auth, user_account, score, jobs, public;

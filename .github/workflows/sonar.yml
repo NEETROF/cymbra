@@ -27,6 +27,7 @@ jobs:
           filters: |
             code:
               - 'backend/**'
+              - 'crates/**'
               - 'apps/**'
               - 'Cargo.toml'
               - 'Cargo.lock'

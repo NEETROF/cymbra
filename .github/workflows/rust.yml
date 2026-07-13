@@ -28,6 +28,7 @@ jobs:
           filters: |
             rust:
               - 'backend/**'
+              - 'crates/**'
               - 'apps/*/rust/**'
               - 'Cargo.toml'
               - 'Cargo.lock'

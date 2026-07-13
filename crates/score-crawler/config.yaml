@@ -1,0 +1,34 @@
+# Example score-crawler configuration.
+#
+# The store backend is a local folder in dev; set the CYMBRA_SCORE_S3_* env vars
+# (bucket/endpoint/region) to target S3/MinIO in prod without editing this file.
+
+# Sources to crawl when neither --sources nor --all is passed on the CLI.
+# Viable sources: openscore, mutopia, musetrainer, eduardomourar, pdmx.
+sources:
+  - mutopia
+  - musetrainer
+
+# Per-source item cap for test runs; remove or null for unbounded.
+limit_per_source: 50
+
+store:
+  backend:
+    kind: local_fs
+    root: ./output
+  # High-confidence corpus prefix vs the quarantined low-confidence one.
+  safe_prefix: safe
+  low_confidence_prefix: low_confidence
+
+# External score converters (MuseScore / Verovio / python-ly). `local` runs the
+# binaries from PATH; `docker` runs each inside an image (a temp dir is
+# bind-mounted at /work) so nothing heavy is installed on the host. Overridable
+# via CYMBRA_SCORE_CONVERTER_BACKEND / CYMBRA_SCORE_MUSESCORE_IMAGE / etc.
+# `cymbra/musescore` is real — build it from musescore.Dockerfile (needed for
+# openscore's .mscx). The verovio/python-ly images are placeholders (python-ly
+# is bundled in the crawler image, so mutopia works with the `local` backend).
+converters:
+  backend: local            # local | docker
+  musescore_image: cymbra/musescore
+  verovio_image: cymbra/verovio
+  lilypond_image: cymbra/python-ly
