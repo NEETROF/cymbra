@@ -158,7 +158,8 @@ pub fn normalize(raw: &RawLicense) -> LicenseOutcome {
     }
 
     // Detect each independent signal; more than one distinct family ⇒ ambiguous.
-    let is_cc0 = flat.contains("cc0") || flat.contains("publicdomain-zero");
+    let is_cc0 =
+        flat.contains("cc0") || flat.contains("publicdomain-zero") || flat.contains("commons-zero");
     let is_pd = !is_cc0
         && (flat.contains("public-domain")
             || flat.contains("publicdomain")
@@ -260,16 +261,23 @@ fn outcome(
 /// recognisable CC *licence* (CC0/PD are handled separately). Requires the `by`
 /// clause, since every redistributable-or-not CC *licence* includes attribution.
 fn parse_cc(flat: &str) -> Option<(CcClauses, Option<String>)> {
-    // Must look like a CC licence token: "cc-by...", "creativecommons-licenses-by...".
-    let has_cc = flat.contains("cc-by") || flat.contains("licenses-by");
-    if !has_cc {
+    // Recognise both the short token form ("cc-by-sa-4.0", the deed URL) and the
+    // spelled-out form libraries like Mutopia use ("creative commons
+    // attribution-sharealike 4.0"). Both require the attribution (`by`) clause.
+    let short = flat.contains("cc-by") || flat.contains("licenses-by");
+    let long = (flat.contains("creative-commons") || flat.contains("creativecommons"))
+        && (flat.contains("attribution") || flat.contains("-by"));
+    if !short && !long {
         return None;
     }
     let clauses = CcClauses {
         by: true,
-        nc: flat.contains("-nc"),
-        nd: flat.contains("-nd"),
-        sa: flat.contains("-sa"),
+        nc: flat.contains("-nc") || flat.contains("noncommercial"),
+        nd: flat.contains("-nd")
+            || flat.contains("noderiv")
+            || flat.contains("no-derivatives")
+            || flat.contains("noderivatives"),
+        sa: flat.contains("-sa") || flat.contains("sharealike") || flat.contains("share-alike"),
     };
     Some((clauses, extract_version(flat)))
 }
@@ -446,6 +454,37 @@ mod tests {
         let raw = RawLicense::declared("CC BY-NC 4.0");
         let o = normalize(&raw);
         assert!(matches!(is_redistributable(&o), Decision::Reject { .. }));
+    }
+
+    #[test]
+    fn accepts_spelled_out_cc_licenses() {
+        // The long form libraries like Mutopia write in the file header.
+        for s in [
+            "Creative Commons Attribution 4.0",
+            "Creative Commons Attribution-ShareAlike 4.0",
+            "Creative Commons Attribution-ShareAlike 3.0 Unported",
+        ] {
+            assert!(fam(s).is_whitelisted(), "signal: {s}");
+            assert_eq!(decide(s), Decision::Accept, "signal: {s}");
+        }
+        assert_eq!(fam("Creative Commons Attribution 4.0"), LicenseFamily::CcBy);
+        assert_eq!(
+            fam("Creative Commons Attribution-ShareAlike 4.0"),
+            LicenseFamily::CcBySa
+        );
+        assert_eq!(fam("Creative Commons Zero"), LicenseFamily::Cc0);
+    }
+
+    #[test]
+    fn rejects_spelled_out_nc_and_nd() {
+        for s in [
+            "Creative Commons Attribution-NonCommercial 4.0",
+            "Creative Commons Attribution-NoDerivatives 4.0",
+            "Creative Commons Attribution-NonCommercial-ShareAlike 4.0",
+        ] {
+            assert!(!fam(s).is_whitelisted(), "signal: {s}");
+            assert!(matches!(decide(s), Decision::Reject { .. }), "signal: {s}");
+        }
     }
 
     #[test]

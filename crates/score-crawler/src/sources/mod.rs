@@ -28,6 +28,7 @@ use crate::difficulty::Level;
 use crate::license::RawLicense;
 
 pub mod git;
+pub mod mutopia;
 pub mod pdmx;
 pub mod web;
 pub mod web_index;

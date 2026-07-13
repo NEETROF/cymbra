@@ -24,6 +24,7 @@ use std::sync::Arc;
 use crate::http::Fetcher;
 use crate::sources::SourceAdapter;
 use crate::sources::git::GitRepoSource;
+use crate::sources::mutopia::MutopiaSource;
 use crate::sources::pdmx::PdmxSource;
 use crate::sources::web_index::WebIndexSource;
 
@@ -65,6 +66,7 @@ pub fn build_adapters(
             "eduardomourar" => Some(Box::new(GitRepoSource::eduardomourar(
                 checkout_root.join("eduardomourar"),
             ))),
+            "mutopia" => Some(Box::new(MutopiaSource::new(checkout_root.join("mutopia")))),
             "cpdl" => Some(Box::new(WebIndexSource::cpdl(
                 fetcher.clone(),
                 CPDL_LISTING,
@@ -108,11 +110,11 @@ mod tests {
             "cpdl".to_string(),
             "pdmx".to_string(),
             "imslp".to_string(),
-            "mutopia".to_string(), // not wired yet (LilyPond)
+            "neuma".to_string(), // not wired yet (bespoke REST/MEI)
         ];
         let built = build_adapters(&sources, fetcher, Path::new("/tmp/checkouts"));
         assert_eq!(built.adapters.len(), 4);
-        assert_eq!(built.unsupported, vec!["mutopia"]);
+        assert_eq!(built.unsupported, vec!["neuma"]);
         let names: Vec<&str> = built.adapters.iter().map(|a| a.name()).collect();
         assert!(
             names.contains(&"openscore") && names.contains(&"cpdl") && names.contains(&"imslp")

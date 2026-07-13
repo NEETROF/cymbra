@@ -71,7 +71,7 @@
 
 - [x] 8.1 Shared helpers: git-clone family (git2 or `git` subprocess + on-disk walk) and web-crawl family (reqwest + scraper/quick-xml) — git-clone (`sources/git.rs`) + web-crawl (`http.rs` `Fetcher` + `sources/web.rs` scraper link/licence helpers, fixture-tested).
 - [~] 8.2 OpenScore Lieder (git, CC0 — verify repo LICENSE) with offline fixture — `GitRepoSource::openscore` constructor + walk done; `.mscx` items need the MuseScore CLI converter (deferred), so end-to-end awaits §6.3.
-- [ ] 8.3 Mutopia (git/site, per-file PD/CC-BY/CC-BY-SA from `.ly` header) with fixture — DEFERRED: needs bespoke per-file licence extraction from the `.ly` header (the `GitRepoSource` applies a repo-wide licence) + LilyPond conversion. Left unsupported rather than guess a licence.
+- [~] 8.3 Mutopia (git/site, per-file PD/CC-BY/CC-BY-SA from `.ly` header) with fixture — `sources/mutopia.rs`: clones MutopiaProject, reads the **per-file** licence from the `.ly` header (`license`/`copyright`) and gates it (the licence engine now also parses the spelled-out "Creative Commons Attribution-ShareAlike 4.0" form). Fixtures prove PD/CC-BY-SA accepted and **CC-BY-NC rejected per file**. Registered. LilyPond→MusicXML conversion needs `python-ly` (else the item is a per-item failure).
 - [x] 8.4 CPDL (MediaWiki API, per-page licence) with fixture — generalised into `sources/web_index.rs` (`WebIndexSource::cpdl`): listing → work pages → per-page licence (CC / PD / ARR) then score link; HTML fixtures flow through the orchestrator (CC accepted, ARR rejected).
 - [x] 8.5 IMSLP (web crawl, robots-respecting, per-file legal status) with fixture — `WebIndexSource::imslp`; robots.txt enforced by `HttpFetcher`; shares the fixture-tested web-index path.
 - [x] 8.6 PDMX (Zenodo dataset, `no_license_conflict` subset only; rest rejected) with fixture — `sources/pdmx.rs`: memoised metadata JSON, only the `no_license_conflict` subset discovered (rest never fetched); JSON fixture flows to the safe corpus.
@@ -81,7 +81,7 @@
 - [ ] 8.10 NEUMA (REST, MEI/MusicXML per collection) with fixture — DEFERRED: bespoke REST adapter + per-collection licence; MEI conversion (Verovio) is wired but the collection licences need verification before ingesting.
 - [ ] 8.11 Josquin Research Project (site/repo, open access — verify terms) with fixture — DEFERRED: "open access" is not automatically one of the whitelisted codes; its exact terms must be verified per the project's legal-first rule before an adapter asserts a licence.
 - [x] 8.12 Hymnary.org (web crawl, per-item) with fixture — `WebIndexSource::hymnary`; shares the web-index path (per-item licence detection).
-- [~] 8.13 Register all adapters in the orchestrator registry — `registry.rs` `build_adapters` wires openscore, musetrainer, eduardomourar, cpdl, imslp, gutenberg, hymnary, pdmx + the CLI/`main` run loop; unimplemented sources (mutopia, neuma, josquin) are reported as `unsupported`.
+- [~] 8.13 Register all adapters in the orchestrator registry — `registry.rs` `build_adapters` wires openscore, mutopia, musetrainer, eduardomourar, cpdl, imslp, gutenberg, hymnary, pdmx + the CLI/`main` run loop; only neuma + josquin remain `unsupported`.
 
 ## 9. TUI
 

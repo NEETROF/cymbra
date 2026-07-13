@@ -188,7 +188,7 @@ pub fn origin_from_ext(path: &Path) -> Option<OriginFormat> {
 }
 
 /// Recursively collects score files under `dir`, skipping `.git`.
-fn collect_scores(dir: &Path, out: &mut Vec<PathBuf>) -> Result<()> {
+pub(crate) fn collect_scores(dir: &Path, out: &mut Vec<PathBuf>) -> Result<()> {
     if !dir.exists() {
         return Err(anyhow!("checkout does not exist: {}", dir.display()));
     }
