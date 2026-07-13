@@ -1,3 +1,29 @@
+## Scope revision (post-bring-up)
+
+After implementing and test-running every proposed source, four web-crawl
+sources were **removed** because none serves free MusicXML that can be harvested
+lawfully and automatically:
+
+- **cpdl** (ChoralWiki) — automated access returns HTTP 403; scores are mostly
+  PDF/MuseScore, MusicXML is rare.
+- **imslp** — paywalled/wait-gated PDF scans; almost no MusicXML.
+- **gutenberg** — the "sheet music" holdings are text ebooks (GUTINDEX); no
+  MusicXML is served.
+- **hymnary** — scores are gated, paid "FlexScores"; no free bulk MusicXML and
+  no work index to crawl.
+
+Because these were the **only** consumers of the generic web-crawl/HTTP layer,
+that layer was removed with them: `sources::web`, `sources::web_index`, `http`
+(`HttpFetcher`/`Fetcher`), `robots` (`texting_robots`), and `politeness`
+(back-off + concurrency), plus the `scraper`/`texting_robots` deps and the
+per-host `delay`/`concurrency`/`contact` config knobs. The robots.txt /
+User-Agent / rate-limit discussion below therefore describes the *original*
+design; it no longer applies now that the surviving sources are all git clones
+or the PDMX bulk dataset (no polite HTTP crawling). The exclusion list and
+reasons live in code as `sources::EXCLUDED_SOURCES`; restore from git history if
+a source becomes viable. **Delivered sources:** openscore, mutopia, musetrainer,
+eduardomourar, pdmx.
+
 ## Context
 
 Cymbra is a Cargo + Melos monorepo. The Rust workspace (`Cargo.toml`) already

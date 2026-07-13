@@ -17,16 +17,12 @@
 //! corpus + manifests to the configured local output root. `--tui` launches the
 //! interactive terminal UI instead.
 
-use std::sync::Arc;
-use std::time::Duration;
-
 use anyhow::{Context, Result};
 use clap::Parser;
 use tracing::{info, warn};
 
 use score_crawler::cli::{Cli, init_tracing};
 use score_crawler::config::{Config, StoreBackend};
-use score_crawler::http::{Fetcher, HttpFetcher};
 use score_crawler::output::OutputWriter;
 use score_crawler::registry::build_adapters;
 use score_crawler::run::run_all;
@@ -70,11 +66,7 @@ async fn main() -> Result<()> {
         }
     };
 
-    let fetcher: Arc<dyn Fetcher> = Arc::new(
-        HttpFetcher::new(config.user_agent(), Duration::from_millis(config.delay_ms))
-            .context("building HTTP fetcher")?,
-    );
-    let built = build_adapters(&sources, fetcher, &root.join(".checkouts"));
+    let built = build_adapters(&sources, &root.join(".checkouts"));
     for name in &built.unsupported {
         warn!(source = %name, "adapter not implemented yet; skipping");
     }

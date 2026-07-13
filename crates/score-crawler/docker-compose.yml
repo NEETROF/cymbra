@@ -66,25 +66,8 @@ services:
     command: ["score-crawler --sources eduardomourar $${LIMIT:+--limit $$LIMIT}"]
     volumes: ["./output/eduardomourar:/work/output"]
 
-  cpdl:
-    <<: *crawler
-    command: ["score-crawler --sources cpdl $${LIMIT:+--limit $$LIMIT}"]
-    volumes: ["./output/cpdl:/work/output"]
-
-  imslp:
-    <<: *crawler
-    command: ["score-crawler --sources imslp $${LIMIT:+--limit $$LIMIT}"]
-    volumes: ["./output/imslp:/work/output"]
-
-  gutenberg:
-    <<: *crawler
-    command: ["score-crawler --sources gutenberg $${LIMIT:+--limit $$LIMIT}"]
-    volumes: ["./output/gutenberg:/work/output"]
-
-  hymnary:
-    <<: *crawler
-    command: ["score-crawler --sources hymnary $${LIMIT:+--limit $$LIMIT}"]
-    volumes: ["./output/hymnary:/work/output"]
+  # cpdl / imslp / gutenberg / hymnary were evaluated and dropped (no viable
+  # free MusicXML — see crates/score-crawler/README.md "Excluded sources").
 
   pdmx:
     <<: *crawler

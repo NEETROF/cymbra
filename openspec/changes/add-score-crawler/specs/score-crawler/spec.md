@@ -17,33 +17,32 @@ hold a registry of adapters and iterate only over the enabled ones.
 
 #### Scenario: One adapter per implemented source
 - **WHEN** the crawler is built
-- **THEN** an adapter implementation exists for each in-scope source (OpenScore
-  Lieder, Mutopia, CPDL, IMSLP, PDMX, musetrainer/library,
-  eduardomourar/music-scores-musicxml, Project Gutenberg sheet music, Hymnary)
-  and is registered in the orchestrator. NEUMA and the Josquin Research Project
-  are out of scope — the NEUMA site no longer exists and the Josquin site could
-  not be located, so their licences cannot be verified.
+- **THEN** an adapter implementation exists for each delivered source (OpenScore
+  Lieder, Mutopia, musetrainer/library, eduardomourar/music-scores-musicxml,
+  PDMX) and is registered in the orchestrator. The web-crawl sources originally
+  scoped (CPDL, IMSLP, Project Gutenberg, Hymnary) and NEUMA / the Josquin
+  Research Project are **excluded** — none serves free MusicXML that can be
+  harvested lawfully and automatically (403/paywall/no-MusicXML/gated), and the
+  latter two sites cannot be reached. Excluded names resolve to `unsupported`,
+  not to an adapter (see `sources::EXCLUDED_SOURCES`).
 
-### Requirement: Politeness and legality
+### Requirement: Politeness and legality (web sources only)
 
-The system SHALL respect each host's `robots.txt`, send a descriptive
-User-Agent that includes a contact, wait a configurable delay between requests
-to the same host (default 2 s), apply exponential back-off on transport errors
-and HTTP 429, and cap concurrency at a low configurable bound (default 2).
+WHERE a source is fetched over HTTP from a third-party host, the system SHALL
+respect that host's `robots.txt`, send a descriptive User-Agent that includes a
+contact, wait a configurable delay between requests, apply exponential back-off
+on transport errors and HTTP 429, and cap concurrency at a low bound.
 
-#### Scenario: Disallowed path is not fetched
-- **WHEN** a target URL is disallowed by the host's `robots.txt`
-- **THEN** the crawler does not request it and records it as skipped
+NOTE: no delivered source triggers this requirement. The surviving sources are
+git clones and a single bulk-dataset download (PDMX, from Zenodo), so the
+crawler performs no polite host-by-host crawling. The politeness layer built for
+the web sources (`http`/`robots`/`politeness`) was removed with them; this
+requirement re-applies only if a web-crawl source is reintroduced.
 
-#### Scenario: Rate limit triggers back-off
-- **WHEN** a host responds with HTTP 429 or a transport error
-- **THEN** the crawler retries with exponentially increasing delay up to a bound,
-  rather than hammering the host
-
-#### Scenario: Concurrency stays within the cap
-- **WHEN** many items are queued
-- **THEN** no more than the configured number of concurrent requests are in
-  flight at once
+#### Scenario: Delivered sources perform no host crawl
+- **WHEN** the crawler runs any delivered source (git clone or PDMX dataset)
+- **THEN** it fetches from the source's canonical endpoint (a git remote or the
+  Zenodo record) and does not crawl third-party hosts page-by-page
 
 ### Requirement: Resumable state
 

@@ -192,8 +192,8 @@ mod tests {
                 },
             ],
             rejected: vec![RejectionRecord {
-                source: "imslp".into(),
-                url: "https://imslp/x".into(),
+                source: "pdmx".into(),
+                url: "https://pdmx/x".into(),
                 raw_signal: "All Rights Reserved".into(),
                 reason: "not redistributable".into(),
             }],
@@ -234,7 +234,7 @@ mod tests {
         assert_eq!(parsed.len(), 2);
         assert!(parsed.iter().all(|e| e.object_key.is_some()));
         assert_eq!(csv.lines().count(), 3); // header + 2
-        assert!(log.contains("imslp") && log.contains("not redistributable"));
+        assert!(log.contains("pdmx") && log.contains("not redistributable"));
 
         let _ = std::fs::remove_dir_all(&root);
     }

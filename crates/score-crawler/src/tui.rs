@@ -19,7 +19,6 @@
 //! it (excluded from the coverage gate). Progress arrives as
 //! [`crate::run::ProgressEvent`]s from the shared run loop over a channel.
 
-use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::{Context, Result};
@@ -36,7 +35,6 @@ use ratatui::widgets::{Block, Borders, List, ListItem, Paragraph};
 
 use crate::config::{Config, StoreBackend};
 use crate::crawl::{CrawlOutcome, CrawlStats};
-use crate::http::{Fetcher, HttpFetcher};
 use crate::output::OutputWriter;
 use crate::registry::build_adapters;
 use crate::run::{ProgressEvent, run_all};
@@ -183,7 +181,7 @@ pub async fn run_tui(
     crossterm::execute!(stdout, EnterAlternateScreen).context("entering alt screen")?;
     let mut terminal = Terminal::new(CrosstermBackend::new(stdout)).context("terminal init")?;
 
-    let result = event_loop(&mut terminal, &config, source_names, limit, &root).await;
+    let result = event_loop(&mut terminal, source_names, limit, &root).await;
 
     disable_raw_mode().ok();
     crossterm::execute!(terminal.backend_mut(), LeaveAlternateScreen).ok();
@@ -206,7 +204,6 @@ pub async fn run_tui(
 /// The draw/input loop. Returns the crawl outcome if one ran to completion.
 async fn event_loop<B: ratatui::backend::Backend>(
     terminal: &mut Terminal<B>,
-    config: &Config,
     source_names: &[&'static str],
     limit: Option<usize>,
     root: &std::path::Path,
@@ -230,12 +227,7 @@ async fn event_loop<B: ratatui::backend::Backend>(
                 KeyCode::Char(' ') => app.toggle(),
                 KeyCode::Char('a') => app.set_all(true),
                 KeyCode::Enter if app.start() => {
-                    let fetcher: Arc<dyn Fetcher> = Arc::new(HttpFetcher::new(
-                        config.user_agent(),
-                        Duration::from_millis(config.delay_ms),
-                    )?);
-                    let built =
-                        build_adapters(&app.selected_names(), fetcher, &root.join(".checkouts"));
+                    let built = build_adapters(&app.selected_names(), &root.join(".checkouts"));
                     let adapters = built.adapters;
                     let txc = tx.clone();
                     handle = Some(tokio::spawn(async move {
@@ -318,7 +310,7 @@ mod tests {
     use super::*;
 
     fn app() -> App {
-        App::new(&["openscore", "cpdl", "pdmx"])
+        App::new(&["openscore", "mutopia", "pdmx"])
     }
 
     #[test]

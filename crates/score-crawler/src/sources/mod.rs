@@ -16,9 +16,9 @@
 //!
 //! The orchestrator ([`crate::crawl`]) drives adapters through a fixed pipeline
 //! — `discover → extract_license → [gate] → fetch → convert` — so licence is
-//! always decided before any heavy download. Concrete adapters (git-clone and
-//! web-crawl families) and their offline fixtures land in a later slice; this
-//! module defines the trait and its data types plus a test fake.
+//! always decided before any heavy download. Concrete adapters are git-clone
+//! ([`git`], [`mutopia`]) and bulk-dataset ([`pdmx`]) families; this module
+//! defines the trait, its data types, and a test fake.
 
 use anyhow::Result;
 use async_trait::async_trait;
@@ -30,25 +30,44 @@ use crate::license::RawLicense;
 pub mod git;
 pub mod mutopia;
 pub mod pdmx;
-pub mod web;
-pub mod web_index;
 
 /// Every source this crawler harvests; `--all` expands to this list. All are
 /// implemented (see [`crate::registry`]).
 ///
-/// NEUMA (`neuma.huma-num.fr`) and the Josquin Research Project were dropped from
-/// scope: the NEUMA site no longer exists and the Josquin site could not be
-/// located, so neither can be crawled or its licences verified.
+/// Sources that were evaluated and **dropped** (their adapters removed) are
+/// recorded in [`EXCLUDED_SOURCES`] with the reason, so scope decisions stay
+/// discoverable in code rather than only in history.
 pub const ALL_SOURCES: &[&str] = &[
     "openscore",
     "mutopia",
-    "cpdl",
-    "imslp",
     "pdmx",
     "musetrainer",
     "eduardomourar",
-    "gutenberg",
-    "hymnary",
+];
+
+/// Sources evaluated during the crawler's bring-up and **excluded** — their
+/// adapters (and the generic web-crawl/HTTP-politeness layer that only they
+/// used: `http`, `robots`, `politeness`, `sources::web*`) were removed rather
+/// than shipped broken. Restore from git history if a source becomes viable.
+///
+/// | source | why excluded |
+/// |--------|--------------|
+/// | `cpdl` (ChoralWiki) | automated access returns HTTP 403; scores are mostly PDF/MuseScore, MusicXML is rare. |
+/// | `imslp` | scores sit behind a paywall/wait and are PDF scans; almost no MusicXML. |
+/// | `gutenberg` | the "sheet music" holdings are text ebooks (GUTINDEX); no MusicXML is served. |
+/// | `hymnary` | scores are gated, paid "FlexScores"; no bulk/free MusicXML and no work index to crawl. |
+/// | `neuma` (`neuma.huma-num.fr`) | the site no longer exists. |
+/// | Josquin Research Project | the site could not be located. |
+pub const EXCLUDED_SOURCES: &[(&str, &str)] = &[
+    (
+        "cpdl",
+        "HTTP 403 on automated access; MusicXML rare (mostly PDF/MuseScore)",
+    ),
+    ("imslp", "paywalled PDF scans; almost no MusicXML"),
+    ("gutenberg", "text ebooks only; no MusicXML served"),
+    ("hymnary", "gated paid FlexScores; no free bulk MusicXML"),
+    ("neuma", "site no longer exists"),
+    ("josquin", "site could not be located"),
 ];
 
 /// A discovered candidate, known before licence evaluation or heavy download.

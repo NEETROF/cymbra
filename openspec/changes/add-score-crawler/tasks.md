@@ -43,9 +43,9 @@
 
 ## 5. Politeness, orchestration, dedup, resume
 
-- [x] 5.1 HTTP client wrapper (descriptive User-Agent+contact, per-host delay, `backoff` retry on 429/errors) — `politeness.rs` (back-off + `retry_async`) + `http.rs` (`HttpFetcher`: UA, gzip, per-request delay, transient-only retry, per-host robots enforcement) behind an injectable `Fetcher` trait (fake for tests).
-- [x] 5.2 robots.txt fetch/cache/enforcement via `texting_robots` — `robots.rs` (parse/allow tested offline); per-host fetch/cache wires with the HTTP client.
-- [x] 5.3 Concurrency cap via a Tokio `Semaphore` (default 2) — `politeness::ConcurrencyLimiter`.
+- [x] 5.1 HTTP client wrapper (descriptive User-Agent+contact, per-host delay, `backoff` retry on 429/errors) — built as `politeness.rs` + `http.rs` (`HttpFetcher` behind an injectable `Fetcher`), then **REMOVED** with the web sources: the surviving git/dataset sources do no polite HTTP crawling. See design "Scope revision".
+- [x] 5.2 robots.txt fetch/cache/enforcement via `texting_robots` — built as `robots.rs`, then **REMOVED** with the web layer (no web crawling remains).
+- [x] 5.3 Concurrency cap via a Tokio `Semaphore` (default 2) — built in `politeness`, then **REMOVED** with the web layer.
 - [x] 5.4 Resumable on-disk state cache (skip completed ids) + SHA-256 content dedup across sources and against `catalog_scores` — `state.rs` (completed ids + seen hashes, JSON, seeds `Orchestrator::with_seen`). **Two-layer dedup**: exact SHA-256 (in-run + state + `catalog_scores.sha256 UNIQUE`) **and** a musical **content fingerprint** (`fingerprint.rs`: hash of the notes, encoding-independent) so re-encodings / cross-site duplicates are caught; `catalog::ingest` skips on either (`sha_exists`/`fingerprint_exists`).
 - [x] 5.5 Define the `SourceAdapter` async trait + central orchestrator enforcing pipeline order with the license-first gate before `fetch` — `sources.rs` + `crawl.rs`; test asserts `fetch` is not called for a rejected licence.
 - [x] 5.6 Isolate single-item failures (logged + recorded, never abort); no `unwrap()`/`expect()` in production paths — per-item failures journalled, crawl continues; verified by test.
@@ -72,16 +72,16 @@
 - [x] 8.1 Shared helpers: git-clone family (git2 or `git` subprocess + on-disk walk) and web-crawl family (reqwest + scraper/quick-xml) — git-clone (`sources/git.rs`) + web-crawl (`http.rs` `Fetcher` + `sources/web.rs` scraper link/licence helpers, fixture-tested).
 - [~] 8.2 OpenScore Lieder (git, CC0 — verify repo LICENSE) with offline fixture — `GitRepoSource::openscore` constructor + walk done; `.mscx` items need the MuseScore CLI converter (deferred), so end-to-end awaits §6.3.
 - [~] 8.3 Mutopia (git/site, per-file PD/CC-BY/CC-BY-SA from `.ly` header) with fixture — `sources/mutopia.rs`: clones MutopiaProject, reads the **per-file** licence from the `.ly` header (`license`/`copyright`) and gates it (the licence engine now also parses the spelled-out "Creative Commons Attribution-ShareAlike 4.0" form). Fixtures prove PD/CC-BY-SA accepted and **CC-BY-NC rejected per file**. Registered. LilyPond→MusicXML conversion needs `python-ly` (else the item is a per-item failure).
-- [x] 8.4 CPDL (MediaWiki API, per-page licence) with fixture — generalised into `sources/web_index.rs` (`WebIndexSource::cpdl`): listing → work pages → per-page licence (CC / PD / ARR) then score link; HTML fixtures flow through the orchestrator (CC accepted, ARR rejected).
-- [x] 8.5 IMSLP (web crawl, robots-respecting, per-file legal status) with fixture — `WebIndexSource::imslp`; robots.txt enforced by `HttpFetcher`; shares the fixture-tested web-index path.
+- [x] 8.4 CPDL (MediaWiki API, per-page licence) — **REMOVED after evaluation**: automated access returns HTTP 403 and MusicXML is rare (mostly PDF/MuseScore). Adapter + web-crawl layer deleted; recorded in `sources::EXCLUDED_SOURCES`.
+- [x] 8.5 IMSLP (web crawl, per-file legal status) — **REMOVED after evaluation**: paywalled PDF scans, almost no MusicXML. Adapter deleted; recorded in `sources::EXCLUDED_SOURCES`.
 - [~] 8.6 PDMX (Zenodo dataset, `no_license_conflict` subset only; rest rejected) with fixture — reworked to the **real** shape: PDMX is a bulk Zenodo dataset (`PDMX.csv` index + `mxl.tar.gz`), not a per-item API. `sources/pdmx.rs` `PdmxDatasetSource` downloads + extracts both (streaming, `flate2`/`tar`), discovers only rows with `subset:no_license_conflict`, and reads the extracted `.mxl` (no conversion). CSV subset-filtering + extracted-file read are fixture-tested; the exact CSV column names + the 1.9 GB download/extract need confirming on a real run.
 - [x] 8.7 musetrainer/library (git, self-declared PD → low-confidence) with fixture — `GitRepoSource::musetrainer`; offline fixture repo flows end-to-end through the orchestrator to low-confidence (test).
 - [~] 8.8 eduardomourar/music-scores-musicxml (git, verify README/LICENSE) with fixture — `GitRepoSource::eduardomourar` constructor done (MusicXML, same tested path); dedicated fixture + LICENSE verification pending.
-- [x] 8.9 Project Gutenberg sheet music (web crawl, Gutenberg PD licence) with fixture — `WebIndexSource::gutenberg`; public-domain page text detected → accepted (fixture test).
+- [x] 8.9 Project Gutenberg sheet music (web crawl, Gutenberg PD licence) — **REMOVED after evaluation**: the holdings are text ebooks (GUTINDEX); no MusicXML is served. Adapter deleted; recorded in `sources::EXCLUDED_SOURCES`.
 - [x] 8.10 NEUMA (REST, MEI/MusicXML per collection) with fixture — DROPPED from scope: the NEUMA site (`neuma.huma-num.fr`) no longer exists, so it cannot be crawled or its licences verified. Removed from `ALL_SOURCES`.
 - [x] 8.11 Josquin Research Project (site/repo, open access — verify terms) with fixture — DROPPED from scope: the site could not be located, so its terms cannot be verified. Removed from `ALL_SOURCES`.
-- [x] 8.12 Hymnary.org (web crawl, per-item) with fixture — `WebIndexSource::hymnary`; shares the web-index path (per-item licence detection).
-- [x] 8.13 Register all adapters in the orchestrator registry — `registry.rs` `build_adapters` wires **every in-scope source** (openscore, mutopia, musetrainer, eduardomourar, cpdl, imslp, gutenberg, hymnary, pdmx) + the CLI/`main` run loop; the `unsupported` list now only catches unknown names (NEUMA/Josquin were dropped from scope).
+- [x] 8.12 Hymnary.org (web crawl, per-item) — **REMOVED after evaluation**: scores are gated paid "FlexScores"; no free bulk MusicXML and no work index to crawl. Adapter deleted; recorded in `sources::EXCLUDED_SOURCES`.
+- [x] 8.13 Register all adapters in the orchestrator registry — `registry.rs` `build_adapters` wires the **delivered** sources (openscore, mutopia, musetrainer, eduardomourar, pdmx) + the CLI/`main` run loop; the `unsupported` list catches unknown names and the excluded web sources (cpdl/imslp/gutenberg/hymnary/neuma/josquin — see `sources::EXCLUDED_SOURCES`).
 
 ## 9. TUI
 

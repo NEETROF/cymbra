@@ -47,16 +47,13 @@ tokio = { version = "1", features = [
     "io-util",
 ] }
 async-trait = "0.1"
-# robots.txt parsing/enforcement (politeness).
-texting_robots = "0.2"
-# HTTP for the web-crawl adapters (rustls, gzip) + streaming large downloads.
+# HTTP for streaming the large PDMX dataset download (rustls, gzip).
 reqwest = { version = "0.12", default-features = false, features = [
     "rustls-tls",
     "gzip",
     "stream",
 ] }
 futures-util = "0.3"
-scraper = "0.20"
 # PDMX dataset: gunzip + untar the mxl archive.
 flate2 = "1"
 tar = "0.4"

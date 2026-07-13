@@ -14,42 +14,28 @@
 
 //! The adapter registry: source name → concrete [`SourceAdapter`].
 //!
-//! Maps the enabled source names to adapter instances (git-clone or web-crawl).
-//! Sources whose adapter is not implemented yet are returned as `unsupported`
-//! so the caller can log them rather than silently ignoring coverage gaps.
+//! Maps the enabled source names to adapter instances. Every current source is
+//! either a git clone (`openscore`, `musetrainer`, `eduardomourar`, `mutopia`)
+//! or a bulk dataset (`pdmx`) — the web-crawl family was removed (see
+//! [`crate::sources::EXCLUDED_SOURCES`]). Names with no adapter are returned as
+//! `unsupported` so the caller can log them rather than silently dropping them.
 
 use std::path::Path;
-use std::sync::Arc;
 
-use crate::http::Fetcher;
 use crate::sources::SourceAdapter;
 use crate::sources::git::GitRepoSource;
 use crate::sources::mutopia::MutopiaSource;
 use crate::sources::pdmx::PdmxDatasetSource;
-use crate::sources::web_index::WebIndexSource;
 
-/// Default CPDL listing (a scores category page).
-pub const CPDL_LISTING: &str = "https://www.cpdl.org/wiki/index.php/Category:Scores";
-/// Default IMSLP listing.
-pub const IMSLP_LISTING: &str = "https://imslp.org/wiki/Category:Scores";
-/// Default Project Gutenberg sheet-music listing.
-pub const GUTENBERG_LISTING: &str = "https://www.gutenberg.org/ebooks/subject/2955";
-/// Default Hymnary listing.
-pub const HYMNARY_LISTING: &str = "https://hymnary.org/browse/tunes";
-
-/// The adapters built for a set of source names, plus the names not yet wired.
+/// The adapters built for a set of source names, plus the names not wired.
 pub struct BuiltAdapters {
     pub adapters: Vec<Box<dyn SourceAdapter>>,
     pub unsupported: Vec<String>,
 }
 
 /// Builds adapters for `sources`. Git adapters clone under
-/// `checkout_root/<name>`; web adapters use the shared `fetcher`.
-pub fn build_adapters(
-    sources: &[String],
-    fetcher: Arc<dyn Fetcher>,
-    checkout_root: &Path,
-) -> BuiltAdapters {
+/// `checkout_root/<name>`; the PDMX dataset caches there too.
+pub fn build_adapters(sources: &[String], checkout_root: &Path) -> BuiltAdapters {
     let mut adapters: Vec<Box<dyn SourceAdapter>> = Vec::new();
     let mut unsupported = Vec::new();
 
@@ -65,22 +51,6 @@ pub fn build_adapters(
                 checkout_root.join("eduardomourar"),
             ))),
             "mutopia" => Some(Box::new(MutopiaSource::new(checkout_root.join("mutopia")))),
-            "cpdl" => Some(Box::new(WebIndexSource::cpdl(
-                fetcher.clone(),
-                CPDL_LISTING,
-            ))),
-            "imslp" => Some(Box::new(WebIndexSource::imslp(
-                fetcher.clone(),
-                IMSLP_LISTING,
-            ))),
-            "gutenberg" => Some(Box::new(WebIndexSource::gutenberg(
-                fetcher.clone(),
-                GUTENBERG_LISTING,
-            ))),
-            "hymnary" => Some(Box::new(WebIndexSource::hymnary(
-                fetcher.clone(),
-                HYMNARY_LISTING,
-            ))),
             "pdmx" => Some(Box::new(PdmxDatasetSource::new(checkout_root.join("pdmx")))),
             _ => None,
         };
@@ -98,24 +68,30 @@ pub fn build_adapters(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::http::test_fetcher::MapFetcher;
 
     #[test]
     fn builds_known_sources_and_flags_the_rest() {
-        let fetcher: Arc<dyn Fetcher> = Arc::new(MapFetcher::default());
         let sources = [
             "openscore".to_string(),
-            "cpdl".to_string(),
+            "mutopia".to_string(),
             "pdmx".to_string(),
-            "imslp".to_string(),
+            "musetrainer".to_string(),
             "bogus".to_string(), // unknown source name → reported, not built
         ];
-        let built = build_adapters(&sources, fetcher, Path::new("/tmp/checkouts"));
+        let built = build_adapters(&sources, Path::new("/tmp/checkouts"));
         assert_eq!(built.adapters.len(), 4);
         assert_eq!(built.unsupported, vec!["bogus"]);
         let names: Vec<&str> = built.adapters.iter().map(|a| a.name()).collect();
-        assert!(
-            names.contains(&"openscore") && names.contains(&"cpdl") && names.contains(&"imslp")
-        );
+        assert!(names.contains(&"openscore") && names.contains(&"pdmx"));
+    }
+
+    #[test]
+    fn excluded_sources_are_not_buildable() {
+        // The dropped web sources must not silently resolve to an adapter.
+        for (name, _reason) in crate::sources::EXCLUDED_SOURCES {
+            let built = build_adapters(&[(*name).to_string()], Path::new("/tmp/checkouts"));
+            assert!(built.adapters.is_empty(), "{name} must not build");
+            assert_eq!(built.unsupported, vec![name.to_string()]);
+        }
     }
 }

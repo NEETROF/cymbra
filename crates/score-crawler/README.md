@@ -80,17 +80,42 @@ score-crawler --all
 score-crawler --resume
 
 # Verbose (DEBUG) logging
-score-crawler --sources cpdl --verbose
+score-crawler --sources mutopia --verbose
 ```
 
 Configuration is `config.yaml` (see the example in this crate): enabled sources,
-per-host delay (default 2 s), concurrency cap (default 2), a **descriptive
-contact** embedded in the User-Agent, per-source quotas, and the output store.
-The store is a local folder in dev; set the `CYMBRA_SCORE_S3_*` environment
-variables to target S3/MinIO in prod (that path lands with the backend `score`
-module).
+per-source quotas, the converter backend, and the output store. The store is a
+local folder in dev; set the `CYMBRA_SCORE_S3_*` environment variables to target
+S3/MinIO in prod (that path lands with the backend `score` module).
 
-Please set a real `contact` before running against live sites.
+## Sources
+
+Viable, wired sources:
+
+| source | access | format | licence |
+|--------|--------|--------|---------|
+| `openscore` | git clone (OpenScore Lieder) | `.mscx` → needs MuseScore | CC0 |
+| `mutopia` | git clone (MutopiaProject) | `.ly` → python-ly | per-file PD / CC-BY(-SA) |
+| `musetrainer` | git clone | MusicXML | self-declared PD → `low_confidence/` |
+| `eduardomourar` | git clone | MusicXML | repo LICENSE |
+| `pdmx` | Zenodo dataset (record 15571083) | `.mxl` | `no_license_conflict` subset, per-record licence |
+
+### Excluded sources
+
+These were evaluated during bring-up and **dropped** — their adapters, and the
+web-crawl/HTTP-politeness layer that only they used (`http`, `robots`,
+`politeness`, `sources::web*`), were removed rather than shipped broken. The
+list and reasons also live in code (`sources::EXCLUDED_SOURCES`); restore from
+git history if a source ever becomes viable.
+
+| source | why excluded |
+|--------|--------------|
+| `cpdl` (ChoralWiki) | automated access returns **HTTP 403**; scores are mostly PDF/MuseScore, MusicXML is rare. |
+| `imslp` | scores are behind a paywall/wait and are PDF scans; almost no MusicXML. |
+| `gutenberg` | the "sheet music" holdings are text ebooks (GUTINDEX); no MusicXML is served. |
+| `hymnary` | scores are gated, paid "FlexScores"; no free bulk MusicXML and no work index to crawl. |
+| `neuma` (`neuma.huma-num.fr`) | the site no longer exists. |
+| Josquin Research Project | the site could not be located. |
 
 ### Fan-out: one container per source
 
@@ -123,13 +148,6 @@ code, licence URL, confidence, sha256, origin format, conversion status — plus
 search metadata (key, time signature, measure count, …) and a
 provenance-tracked difficulty (`level` + `level_source`, where a source-declared
 grade wins over the non-authoritative heuristic estimate).
-
-## Politeness
-
-The crawler honours `robots.txt`, sends a descriptive User-Agent with your
-contact, waits between requests, backs off exponentially on `429`/errors, caps
-concurrency low, and deduplicates across sources. Please keep the defaults
-conservative.
 
 ## Deduplication
 

@@ -94,12 +94,12 @@ mod tests {
 
     fn entry(sha: &str) -> ManifestEntry {
         ManifestEntry {
-            id: "cpdl:x".into(),
+            id: "mutopia:x".into(),
             title: Some("Ave Verum".into()),
             composer: Some("Mozart".into()),
             arranger: None,
-            source: "cpdl".into(),
-            source_url: "https://cpdl/x".into(),
+            source: "mutopia".into(),
+            source_url: "https://mutopia/x".into(),
             source_item_id: "x".into(),
             license: "CC-BY-SA-4.0".into(),
             license_url: Some("https://cc/by-sa/4.0".into()),
@@ -108,7 +108,7 @@ mod tests {
             content_fingerprint: format!("fp-{sha}"),
             origin_format: OriginFormat::MusicXml,
             conversion_status: ConversionStatus::Converted,
-            object_key: Some("safe/cpdl/mozart/ave_verum-abcd1234.mxl".into()),
+            object_key: Some("safe/mutopia/mozart/ave_verum-abcd1234.mxl".into()),
             size_bytes: 1234,
             work_key: "mozart::ave verum".into(),
             title_norm: Some("ave verum".into()),
@@ -131,7 +131,7 @@ mod tests {
         assert_eq!(c.conversion_status, "converted");
         assert_eq!(c.level.as_deref(), Some("intermediate"));
         assert_eq!(c.level_source.as_deref(), Some("heuristic"));
-        assert_eq!(c.object_key, "safe/cpdl/mozart/ave_verum-abcd1234.mxl");
+        assert_eq!(c.object_key, "safe/mutopia/mozart/ave_verum-abcd1234.mxl");
         assert_eq!(c.size_bytes, 1234);
         // A fresh UUID v7 id was assigned.
         assert!(uuid::Uuid::parse_str(&c.id).is_ok());

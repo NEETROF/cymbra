@@ -14,8 +14,8 @@
 
 //! Typed `config.yaml` for the crawler.
 //!
-//! Declares enabled sources, politeness knobs (per-host delay, concurrency,
-//! contact), per-source quotas for test runs, and the object-store target
+//! Declares enabled sources, per-source quotas for test runs, and the
+//! object-store target
 //! (local filesystem folder in dev ⇄ S3/MinIO in prod, matching the shared
 //! `CYMBRA_SCORE_S3_*` config the score module introduces). Env vars override
 //! the store backend so dev/prod differ by environment, not by editing the file.
@@ -28,20 +28,11 @@ use serde::{Deserialize, Serialize};
 use crate::convert::{ConverterBackend, Converters};
 
 /// Top-level crawler configuration.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct Config {
     /// Enabled source names (empty = none until selected on the CLI).
     #[serde(default)]
     pub sources: Vec<String>,
-    /// Per-host delay between requests (politeness). Default 2000 ms.
-    #[serde(default = "default_delay_ms")]
-    pub delay_ms: u64,
-    /// Max concurrent in-flight requests. Default 2.
-    #[serde(default = "default_concurrency")]
-    pub concurrency: usize,
-    /// Contact (email/URL) embedded in the descriptive User-Agent.
-    #[serde(default = "default_contact")]
-    pub contact: String,
     /// Per-source item cap for test runs (`None` = unbounded).
     #[serde(default)]
     pub limit_per_source: Option<usize>,
@@ -149,15 +140,6 @@ impl Config {
         serde_yaml::from_str(text).context("parsing config yaml")
     }
 
-    /// The descriptive User-Agent, including the contact so hosts can reach us.
-    pub fn user_agent(&self) -> String {
-        format!(
-            "cymbra-score-crawler/{} (+{})",
-            env!("CARGO_PKG_VERSION"),
-            self.contact
-        )
-    }
-
     /// Applies overrides from the process environment. Call this even when no
     /// `config.yaml` exists so `CYMBRA_SCORE_*` still take effect.
     pub fn apply_process_env(&mut self) {
@@ -204,21 +186,6 @@ impl EnvSource {
     }
 }
 
-impl Default for Config {
-    fn default() -> Self {
-        Self {
-            sources: Vec::new(),
-            delay_ms: default_delay_ms(),
-            concurrency: default_concurrency(),
-            contact: default_contact(),
-            limit_per_source: None,
-            store: StoreConfig::default(),
-            catalog_database_url: None,
-            converters: ConverterSettings::default(),
-        }
-    }
-}
-
 impl Default for StoreConfig {
     fn default() -> Self {
         Self {
@@ -237,15 +204,6 @@ impl Default for StoreBackend {
     }
 }
 
-fn default_delay_ms() -> u64 {
-    2000
-}
-fn default_concurrency() -> usize {
-    2
-}
-fn default_contact() -> String {
-    "contact-not-set@example.org".to_string()
-}
 fn default_root() -> PathBuf {
     PathBuf::from("./output")
 }
@@ -273,8 +231,6 @@ mod tests {
     #[test]
     fn empty_yaml_uses_defaults() {
         let cfg = Config::from_yaml("{}").unwrap();
-        assert_eq!(cfg.delay_ms, 2000);
-        assert_eq!(cfg.concurrency, 2);
         assert_eq!(cfg.store.safe_prefix, "safe");
         assert!(matches!(cfg.store.backend, StoreBackend::LocalFs { .. }));
     }
@@ -283,9 +239,6 @@ mod tests {
     fn parses_a_populated_config() {
         let yaml = r#"
 sources: [openscore, mutopia]
-delay_ms: 3000
-concurrency: 1
-contact: "ops@cymbra.example"
 limit_per_source: 50
 store:
   backend:
@@ -296,10 +249,8 @@ store:
 "#;
         let cfg = Config::from_yaml(yaml).unwrap();
         assert_eq!(cfg.sources, vec!["openscore", "mutopia"]);
-        assert_eq!(cfg.delay_ms, 3000);
         assert_eq!(cfg.limit_per_source, Some(50));
         assert_eq!(cfg.store.low_confidence_prefix, "review");
-        assert!(cfg.user_agent().contains("ops@cymbra.example"));
     }
 
     #[test]

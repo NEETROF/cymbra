@@ -171,14 +171,14 @@ mod tests {
     #[test]
     fn rejection_log_lines_carry_source_url_and_reason() {
         let r = RejectionRecord {
-            source: "imslp".into(),
-            url: "https://imslp.org/x".into(),
+            source: "pdmx".into(),
+            url: "https://pdmx.example/x".into(),
             raw_signal: "All Rights Reserved".into(),
             reason: "licence AllRightsReserved is not redistributable".into(),
         };
         let line = r.to_log_line();
-        assert!(line.contains("imslp"));
-        assert!(line.contains("https://imslp.org/x"));
+        assert!(line.contains("pdmx"));
+        assert!(line.contains("https://pdmx.example/x"));
         assert!(line.contains("not redistributable"));
         assert_eq!(rejected_log(&[r]).lines().count(), 1);
     }
