@@ -45,25 +45,29 @@ in-run set and existing `catalog_scores` rows.
   `catalog_scores`
 - **THEN** no new object is written and no new row is inserted for that content
 
-### Requirement: TUI drives crawl and ingestion
+### Requirement: CLI and Docker fan-out drive crawl and ingestion
 
-The system SHALL provide a `ratatui` TUI to select sources, show live crawl +
-ingestion progress (per-source accepted / rejected / low-confidence counts), and
-browse the resulting catalog (title, author, source, licence, confidence). The
-TUI SHALL be keyboard-operable and SHALL NOT block on a single unresponsive
-source. A headless CLI mode SHALL run the same orchestrator + ingestion without
-the UI for scripting/CI.
+The system SHALL be operated as a headless CLI (`score-crawler --sources … [--all]
+[--limit N]`) and as a Docker Compose fan-out (one one-shot container per source).
+A single unresponsive or failing source SHALL NOT block the others: per-source
+prepare/discover failures are logged and skipped. Both entry points run the same
+license-first orchestrator + ingestion path, so results are identical.
 
-#### Scenario: Operator drives ingestion from the TUI
-- **WHEN** the operator enables sources and starts a run in the TUI
-- **THEN** per-source progress updates as items are accepted, rejected, or
-  quarantined, and accepted items are ingested into the shared store
+NOTE: an interactive `ratatui` TUI was originally proposed but was **dropped** —
+the tool is operated headless (locally via the CLI, in production via the Docker
+fan-out), where a TUI serves no purpose.
 
-#### Scenario: Catalog reviewable in the TUI
-- **WHEN** a run has ingested entries
-- **THEN** the operator can browse `catalog_scores` entries within the TUI
+#### Scenario: Operator drives ingestion from the CLI
+- **WHEN** the operator selects sources and starts a run (`--sources …` / `--all`)
+- **THEN** each accepted item is converted, deduplicated, and ingested into the
+  shared store, and a per-source summary (accepted / rejected / low-confidence)
+  is printed
 
-#### Scenario: Headless run matches TUI ingestion
-- **WHEN** the same configuration is run in headless CLI mode
-- **THEN** it ingests into the same store/catalog with identical results, without
-  rendering a UI
+#### Scenario: Docker fan-out ingests per source
+- **WHEN** the operator runs the Docker Compose fan-out
+- **THEN** one container per source crawls and ingests into the same store/catalog
+  (via `CYMBRA_SCORE_DATABASE_URL`), each exiting when its crawl finishes
+
+#### Scenario: One failing source does not stop the run
+- **WHEN** a source fails to prepare (e.g. a network/clone error)
+- **THEN** it is logged and skipped and the remaining sources still run

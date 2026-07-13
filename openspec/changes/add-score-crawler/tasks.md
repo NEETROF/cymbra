@@ -29,8 +29,8 @@
 
 ## 3. Crawler crate scaffold + config + CLI
 
-- [x] 3.1 Scaffold `crates/score-crawler` (lib + `score-crawler` bin) with modules `sources/`, `license.rs`, `convert.rs`, `catalog.rs`, `ingest.rs`, `crawl.rs`, `config.rs`, `tui.rs`, `main.rs` — engine modules landed (license, convert, metadata, difficulty, manifest, sources, crawl, config, cli, main); `catalog.rs`/`ingest.rs`/`tui.rs` deferred with their backend/TUI slices.
-- [~] 3.2 Add dependencies — engine set added (cymbra-musicxml-core, anyhow, thiserror, serde/json/yaml/csv, sha2, zip, unicode-normalization, clap, tracing, tokio, async-trait); network/backend/TUI deps (reqwest, scraper, texting_robots, backoff, governor, git2, object_store, sqlx, ratatui/crossterm) attach with their modules.
+- [x] 3.1 Scaffold `crates/score-crawler` (lib + `score-crawler` bin) with modules `sources/`, `license.rs`, `convert.rs`, `catalog.rs`, `crawl.rs`, `config.rs`, `main.rs` — engine modules landed (license, convert, metadata, difficulty, manifest, sources, crawl, config, cli, main) + catalog ingest. The TUI (`tui.rs`) was dropped (§9); the crawler is operated headless.
+- [x] 3.2 Add dependencies — engine set (cymbra-musicxml-core, anyhow, thiserror, serde/json/yaml/csv, sha2, zip, unicode-normalization, clap, tracing, tokio, async-trait) + git2, object_store, sqlx, and reqwest (streaming the PDMX dataset). The web-crawl deps (scraper, texting_robots) and the TUI deps (ratatui/crossterm) were removed with those features.
 - [x] 3.3 Define `config.yaml` schema + serde structs (enabled sources, per-host delay, concurrency, per-source quotas, User-Agent contact, object-store backend + prefixes, Postgres/catalog connection); env override support incl. `CYMBRA_SCORE_S3_*` — Postgres/catalog connection deferred to ingestion.
 - [x] 3.4 Implement the `clap` CLI (`--sources`, `--limit`, `--all`, `--resume`, `--verbose`) and `tracing` subscriber (INFO default, DEBUG on `--verbose`)
 
@@ -83,10 +83,10 @@
 - [x] 8.12 Hymnary.org (web crawl, per-item) — **REMOVED after evaluation**: scores are gated paid "FlexScores"; no free bulk MusicXML and no work index to crawl. Adapter deleted; recorded in `sources::EXCLUDED_SOURCES`.
 - [x] 8.13 Register all adapters in the orchestrator registry — `registry.rs` `build_adapters` wires the **delivered** sources (openscore, mutopia, musetrainer, eduardomourar, pdmx) + the CLI/`main` run loop; the `unsupported` list catches unknown names and the excluded web sources (cpdl/imslp/gutenberg/hymnary/neuma/josquin — see `sources::EXCLUDED_SOURCES`).
 
-## 9. TUI
+## 9. Operator interface (TUI dropped)
 
-- [~] 9.1 `ratatui`/`crossterm` TUI: source selection, live per-source progress (accepted/rejected/low-confidence) via mpsc, catalog browser — `tui.rs`: pure `App` state (source selection + per-source/total progress) unit-tested; ratatui render + crossterm loop stream `run::ProgressEvent`s over an mpsc channel. The manifest/catalog browser pane is still to add.
-- [x] 9.2 Wire TUI actions and headless CLI mode to the same orchestrator + ingestion path — both go through `run::run_all` (shared license-first loop, dedup across sources) then `OutputWriter`; `--tui` vs headless is the only difference.
+- [x] 9.1 ~~`ratatui`/`crossterm` TUI~~ — **REMOVED**: the crawler is operated headless (locally via the CLI, in production via the Docker fan-out), where a TUI serves no purpose. `tui.rs`, the `ratatui`/`crossterm` deps, and `run::ProgressEvent`/the mpsc progress channel were deleted.
+- [x] 9.2 Single orchestrator + ingestion path for both entry points — CLI (`main.rs`) and the Docker Compose fan-out both go through `run::run_all` (shared license-first loop, dedup across sources) then `OutputWriter` + catalog ingest.
 
 ## 10. Docs, quality gates, validation
 

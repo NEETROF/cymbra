@@ -24,6 +24,13 @@ reasons live in code as `sources::EXCLUDED_SOURCES`; restore from git history if
 a source becomes viable. **Delivered sources:** openscore, mutopia, musetrainer,
 eduardomourar, pdmx.
 
+The proposed **`ratatui` TUI was also dropped.** The crawler is operated
+headless — locally via the CLI, in production via the Docker Compose fan-out —
+where an interactive terminal UI serves no purpose. `tui.rs`, the
+`ratatui`/`crossterm` deps, and the `run::ProgressEvent`/mpsc progress channel
+were removed; the "TUI" sections below describe the original design only. The
+operator interface is now the CLI + `docker-compose.yml`.
+
 ## Context
 
 Cymbra is a Cargo + Melos monorepo. The Rust workspace (`Cargo.toml`) already

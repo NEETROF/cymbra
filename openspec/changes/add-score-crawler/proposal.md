@@ -12,12 +12,22 @@ store for the bytes. This change is the bulk/automated counterpart of the manual
 `add-user-score-upload` flow; the two SHARE the score storage and the extracted
 MusicXML parser.
 
+> **Scope revision (post-bring-up).** Two proposed pieces were **dropped** after
+> implementation (details in `design.md`): (1) the four web-crawl sources —
+> `cpdl`, `imslp`, `gutenberg`, `hymnary` — none serves free MusicXML that can be
+> harvested lawfully and automatically, so they and the whole web-crawl/HTTP
+> politeness layer were removed (delivered sources: **openscore, mutopia,
+> musetrainer, eduardomourar, pdmx**); and (2) the **`ratatui` TUI** — the crawler
+> is operated headless (CLI locally, Docker Compose fan-out in production), where
+> a TUI serves no purpose. The bullets below are the original proposal; read them
+> with this revision in mind.
+
 ## What Changes
 
-- Add a new Rust workspace crate `crates/score-crawler` (library + binary +
-  TUI): a polite, resumable crawler that collects scores from multiple online
-  score libraries through a per-source `SourceAdapter` trait, orchestrated
-  centrally.
+- Add a new Rust workspace crate `crates/score-crawler` (library + binary): a
+  resumable crawler that collects scores from git repos + the PDMX dataset
+  through a per-source `SourceAdapter` trait, orchestrated centrally, and driven
+  by a CLI + a Docker Compose fan-out.
 - **License-first pipeline**: the licence of each item is determined and
   normalised **before** any heavy content is downloaded; anything not on an
   explicit whitelist (CC0 / confirmed Public Domain / CC-BY any version /

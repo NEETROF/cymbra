@@ -1,8 +1,7 @@
-# Score crawler (change: add-score-crawler): a polite, resumable crawler that
-# harvests only redistributable scores from online libraries, converts them to
-# validated .mxl, and ingests them into the shared score store. This manifest
-# grows as modules land; network/backend/TUI deps (reqwest, object_store, sqlx,
-# ratatui, …) are added with their modules to keep early builds lean.
+# Score crawler (change: add-score-crawler): a resumable crawler that harvests
+# only redistributable scores from git repos + the PDMX dataset, converts them
+# to validated .mxl, and ingests them into the shared score store. Driven by a
+# CLI and a Docker fan-out (docker-compose.yml).
 [package]
 name = "score-crawler"
 version = "0.1.0"
@@ -57,6 +56,3 @@ futures-util = "0.3"
 # PDMX dataset: gunzip + untar the mxl archive.
 flate2 = "1"
 tar = "0.4"
-# Terminal UI.
-ratatui = "0.29"
-crossterm = "0.28"

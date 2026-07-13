@@ -12,60 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! The shared crawl run loop, used by both the CLI and the TUI.
+//! The shared crawl run loop used by the CLI.
 //!
 //! Prepares and runs each adapter through the license-first orchestrator
-//! (deduplicating across sources), optionally emitting [`ProgressEvent`]s so a
-//! front-end can show live progress, and returns the merged outcome.
+//! (deduplicating across sources) and returns the merged outcome.
 
-use tokio::sync::mpsc::UnboundedSender;
-
-use crate::crawl::{CrawlOutcome, CrawlStats, Orchestrator};
+use crate::crawl::{CrawlOutcome, Orchestrator};
 use crate::sources::SourceAdapter;
-
-/// Progress emitted as the run advances (consumed by the TUI).
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ProgressEvent {
-    Started(String),
-    Finished(String, CrawlStats),
-    AllDone,
-}
 
 /// Runs every adapter, folding results into one [`CrawlOutcome`]. Per-source
 /// prepare/discover failures are logged and skipped, never fatal.
-pub async fn run_all(
-    adapters: &[Box<dyn SourceAdapter>],
-    limit: Option<usize>,
-    tx: Option<UnboundedSender<ProgressEvent>>,
-) -> CrawlOutcome {
+pub async fn run_all(adapters: &[Box<dyn SourceAdapter>], limit: Option<usize>) -> CrawlOutcome {
     let mut orchestrator = Orchestrator::new();
     let mut merged = CrawlOutcome::default();
 
     for adapter in adapters {
-        emit(&tx, ProgressEvent::Started(adapter.name().to_string()));
         if let Err(e) = adapter.prepare().await {
             tracing::warn!(source = adapter.name(), error = %e, "prepare failed; skipping");
-            emit(
-                &tx,
-                ProgressEvent::Finished(adapter.name().to_string(), CrawlStats::default()),
-            );
             continue;
         }
         let out = orchestrator.run(adapter.as_ref(), limit).await;
-        emit(
-            &tx,
-            ProgressEvent::Finished(adapter.name().to_string(), out.stats.clone()),
-        );
         merge(&mut merged, out);
     }
-    emit(&tx, ProgressEvent::AllDone);
     merged
-}
-
-fn emit(tx: &Option<UnboundedSender<ProgressEvent>>, event: ProgressEvent) {
-    if let Some(tx) = tx {
-        let _ = tx.send(event);
-    }
 }
 
 /// Folds one adapter's outcome into the merged totals.
@@ -171,7 +140,7 @@ mod tests {
         // total), not 2 across the whole run.
         let adapters: Vec<Box<dyn SourceAdapter>> =
             vec![Box::new(fake_n("a", 4)), Box::new(fake_n("b", 4))];
-        let out = run_all(&adapters, Some(2), None).await;
+        let out = run_all(&adapters, Some(2)).await;
 
         assert_eq!(out.stats.discovered, 4, "2 per source × 2 sources");
         assert_eq!(out.stats.accepted, 4);
@@ -192,24 +161,13 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn runs_all_adapters_and_emits_progress() {
+    async fn runs_all_adapters_and_merges_outcomes() {
         let adapters: Vec<Box<dyn SourceAdapter>> =
             vec![Box::new(fake("a", "1")), Box::new(fake("b", "2"))];
-        let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
-        let out = run_all(&adapters, None, Some(tx)).await;
+        let out = run_all(&adapters, None).await;
 
-        assert_eq!(out.stats.accepted, 2);
-
-        let mut events = Vec::new();
-        while let Ok(e) = rx.try_recv() {
-            events.push(e);
-        }
-        assert_eq!(events.first(), Some(&ProgressEvent::Started("a".into())));
-        assert_eq!(events.last(), Some(&ProgressEvent::AllDone));
-        assert!(
-            events
-                .iter()
-                .any(|e| matches!(e, ProgressEvent::Finished(n, s) if n == "b" && s.accepted == 1))
-        );
+        assert_eq!(out.stats.accepted, 2, "both sources' items are accepted");
+        assert!(out.prepared.iter().any(|p| p.entry.source == "a"));
+        assert!(out.prepared.iter().any(|p| p.entry.source == "b"));
     }
 }

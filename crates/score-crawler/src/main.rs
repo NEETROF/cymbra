@@ -14,8 +14,7 @@
 
 //! `score-crawler` binary entry point: resolve config + sources, run each
 //! enabled adapter through the license-first orchestrator, and write the vetted
-//! corpus + manifests to the configured local output root. `--tui` launches the
-//! interactive terminal UI instead.
+//! corpus + manifests to the configured local output root.
 
 use anyhow::{Context, Result};
 use clap::Parser;
@@ -26,7 +25,6 @@ use score_crawler::config::{Config, StoreBackend};
 use score_crawler::output::OutputWriter;
 use score_crawler::registry::build_adapters;
 use score_crawler::run::run_all;
-use score_crawler::sources::ALL_SOURCES;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -45,13 +43,9 @@ async fn main() -> Result<()> {
     score_crawler::convert::init_converters(config.converters.to_converters());
     let limit = cli.limit.or(config.limit_per_source);
 
-    if cli.tui {
-        return score_crawler::tui::run_tui(config, ALL_SOURCES, limit).await;
-    }
-
     let sources = cli.resolve_sources(&config);
     if sources.is_empty() {
-        println!("No sources selected. Use --sources <a,b>, --all, or --tui (see --help).");
+        println!("No sources selected. Use --sources <a,b> or --all (see --help).");
         return Ok(());
     }
 
@@ -71,7 +65,7 @@ async fn main() -> Result<()> {
         warn!(source = %name, "adapter not implemented yet; skipping");
     }
 
-    let outcome = run_all(&built.adapters, limit, None).await;
+    let outcome = run_all(&built.adapters, limit).await;
     let (summary, entries) = OutputWriter::new(&root, safe_prefix, low_prefix)
         .write(&outcome)
         .context("writing corpus output")?;

@@ -15,11 +15,10 @@
 //! Score crawler engine: harvest only redistributable scores, convert to
 //! validated `.mxl`, and (once the backend score store lands) ingest them.
 //!
-//! Modules land incrementally; the network/backend/TUI pieces (real HTTP
-//! adapters, object-store + Postgres ingestion, ratatui) attach as they are
-//! implemented. The pure, offline-testable core — licence gate, conversion,
-//! metadata/difficulty extraction, and the adapter/orchestration contract —
-//! comes first.
+//! The pure, offline-testable core — licence gate, conversion,
+//! metadata/difficulty extraction, and the adapter/orchestration contract — is
+//! the heart; the git/dataset adapters and Postgres ingestion sit on top. The
+//! operator interface is the CLI and the Docker fan-out (`docker-compose.yml`).
 
 pub mod catalog;
 pub mod cli;
@@ -36,4 +35,3 @@ pub mod registry;
 pub mod run;
 pub mod sources;
 pub mod state;
-pub mod tui;
