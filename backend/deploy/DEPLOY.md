@@ -235,6 +235,42 @@ Grafana/Tempo/Loki/Prometheus stack on this box:
    Both binaries then export OTLP to the local collector, which forwards to Grafana
    Cloud. The self-hosted stack under `backend/observability/` stays for local dev.
 
+## 11. Score corpus (crawler → local serve → S3 backup)
+
+The score-crawler harvests redistributable scores and ingests their provenance
+into `catalog_scores` (Postgres). The `.mxl` **bytes** are served by the app from
+a **local folder** (Option A); OVH Object Storage is a durable **backup**, not
+the read path. `object_key` in the catalog is exactly the file's path under the
+corpus root (`safe/<source>/<author>/<title>.mxl`), so the server resolves bytes
+directly from the mounted `/srv/cymbra/scores` (see `docker-compose.prod.yml`).
+
+**Run a crawl** (one-shot; ingests into the prod DB via `CYMBRA_SCORE_DATABASE_URL`).
+Start small to validate, then unbounded. For `openscore` build the MuseScore
+image first (see `crates/score-crawler/README.md`):
+
+```bash
+cd /opt/cymbra/score-crawler          # the crawler checkout on the box
+# smoke test: a few scores per source, into the prod catalog
+LIMIT=5 CYMBRA_SCORE_DATABASE_URL=postgres://cymbra:...@localhost:5432/cymbra \
+  docker compose up --build
+# then publish the bytes: merge into SCORES_DIR + mirror to S3
+. /etc/cymbra/backup.env; /opt/cymbra/backend/deploy/sync-scores.sh
+```
+
+Verify: `select count(*) from score.catalog_scores;` grows, and
+`find $SCORES_DIR -name '*.mxl' | wc -l` matches. Then run unbounded (drop `LIMIT`).
+
+**Nightly** `bootstrap.sh` installs a cron (04:00) that runs `sync-scores.sh`:
+it merges the crawler output into `SCORES_DIR` and mirrors it to `s3://$S3_BUCKET/scores`
+— same `/etc/cymbra/backup.env` creds as the DB backup. Set `CRAWL_OUT` +
+`SCORES_DIR` there (defaults: `/opt/cymbra/score-crawler/output`,
+`/var/lib/cymbra/scores`).
+
+> Remaining app-side work (tracked in `add-user-score-upload`): wire the server's
+> `object_store` **LocalFileSystem** reader to root at `/srv/cymbra/scores` and
+> expose the score-fetch endpoint. The corpus layout above is already what that
+> reader expects.
+
 ## Before you invite testers — checklist (the easy-to-forget bits)
 
 - [ ] **Uptime monitor** — there's no HA/alerting. Point a free UptimeRobot/BetterStack

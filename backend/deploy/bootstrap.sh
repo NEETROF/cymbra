@@ -145,6 +145,11 @@ export S3_BUCKET=
 export AWS_DEFAULT_REGION=
 export AWS_ACCESS_KEY_ID=
 export AWS_SECRET_ACCESS_KEY=
+# Score corpus (sync-scores.sh): CRAWL_OUT = the crawler compose's output dir;
+# SCORES_DIR = the unified corpus the app serves from (mounted ro into server).
+# The nightly cron merges CRAWL_OUT into SCORES_DIR and mirrors it to S3_BUCKET.
+export CRAWL_OUT=/opt/cymbra/score-crawler/output
+export SCORES_DIR=/var/lib/cymbra/scores
 # Encrypts the .env off-box (redundancy for your password-manager vault). Generate a
 # strong one — e.g. `openssl rand -base64 32` — and store it in your vault too (a lost
 # box means restoring this passphrase from the vault to decrypt the S3 copy). Empty =
@@ -168,7 +173,17 @@ cat > /etc/logrotate.d/cymbra-backup <<'EOF'
 EOF
 CRON_LINE=". /etc/cymbra/backup.env; $DEPLOY_DIR/backup.sh >> /var/log/cymbra-backup.log 2>&1"
 CRON_ENTRY="0 3 * * * $CRON_LINE"
-( crontab -l 2>/dev/null | grep -v 'backend/deploy/backup.sh' || true; printf '%s\n' "$CRON_ENTRY" ) | crontab -
+# Nightly score-corpus publish/backup (merge crawler output -> SCORES_DIR, then
+# mirror to S3). Runs at 04:00, after the DB backup; shares backup.env + its log.
+SCORES_LINE=". /etc/cymbra/backup.env; $DEPLOY_DIR/sync-scores.sh >> /var/log/cymbra-backup.log 2>&1"
+SCORES_ENTRY="0 4 * * * $SCORES_LINE"
+(
+	crontab -l 2>/dev/null \
+		| grep -v 'backend/deploy/backup.sh' \
+		| grep -v 'backend/deploy/sync-scores.sh' || true
+	printf '%s\n' "$CRON_ENTRY"
+	printf '%s\n' "$SCORES_ENTRY"
+) | crontab -
 systemctl enable --now cron 2>/dev/null || true
 
 log "DONE"
