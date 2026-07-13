@@ -14,22 +14,25 @@
 
 //! Pure, host-testable MusicXML parsing and engraving geometry — no FFI, no IO.
 //!
-//! Split out of [`super::musicxml`] so it can be unit-tested (and counted by
-//! `cargo llvm-cov`) on CI hosts. The parser is a streaming (SAX-style) state
-//! machine over `quick-xml` events: a large score is consumed as a stream of
+//! The reusable engine crate: the notation data model ([`model`]), a streaming
+//! (SAX-style) parser and engraving geometry (this module), compressed `.mxl`
+//! decoding ([`mxl`]), and a client/server-shared [`validate`] gate. Consumed by
+//! the app FFI engine (`apps/music/rust`), the backend score module, and the
+//! score crawler. The parser consumes a large score as a stream of `quick-xml`
 //! `Event`s with bounded memory, never as a full DOM.
+
+pub mod model;
+pub mod mxl;
+pub mod validate;
+
+pub use model::*;
+pub use validate::{RejectReason, ScoreSummary, validate};
 
 use std::collections::BTreeMap;
 
 use anyhow::{Result, anyhow};
-use flutter_rust_bridge::frb;
 use quick_xml::events::{BytesStart, Event};
 use quick_xml::reader::Reader;
-
-use super::musicxml::{
-    Attributes, BeamState, Clef, Direction, DirectionKind, Lyric, NotationMeasure, NoteEvent,
-    Pitch, ScoreDocument, ScoreMeta, StemDir, System, TimeSignature, Tuplet,
-};
 
 // --- Geometry constants --------------------------------------------------
 
@@ -80,7 +83,7 @@ pub(crate) const MAX_MEASURES_PER_SYSTEM: usize = 4;
 /// Greedily packs measures into systems for `available_width`, wrapping when the
 /// next measure overflows the line *or* the per-system cap is reached. A measure
 /// wider than the line gets its own system. Order preserved.
-pub(crate) fn layout_systems(doc: &ScoreDocument, available_width: f64) -> Vec<System> {
+pub fn layout_systems(doc: &ScoreDocument, available_width: f64) -> Vec<System> {
     let staves = doc.staves;
     let mut systems: Vec<System> = Vec::new();
     let mut current: Vec<u32> = Vec::new();
@@ -122,7 +125,7 @@ pub(crate) fn layout_systems(doc: &ScoreDocument, available_width: f64) -> Vec<S
 /// Parses an uncompressed MusicXML document into a [`ScoreDocument`], filling
 /// each measure's `min_width`. Malformed XML is a recoverable [`Err`], never a
 /// panic; well-formed non-MusicXML yields an empty document.
-pub(crate) fn parse(input: &[u8]) -> Result<ScoreDocument> {
+pub fn parse(input: &[u8]) -> Result<ScoreDocument> {
     let mut reader = Reader::from_reader(input);
     reader.config_mut().trim_text(true);
 
@@ -158,11 +161,8 @@ pub(crate) fn parse(input: &[u8]) -> Result<ScoreDocument> {
     Ok(p.into_document())
 }
 
-/// Mutable parsing state threaded through the event loop.
-///
-/// `#[frb(ignore)]` keeps this internal state machine out of the generated
-/// bridge (it is an implementation detail, not part of the FFI surface).
-#[frb(ignore)]
+/// Mutable parsing state threaded through the event loop — an internal
+/// implementation detail, never part of any public surface.
 struct Parser {
     text: String,
     // metadata

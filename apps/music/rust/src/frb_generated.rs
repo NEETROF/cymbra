@@ -502,6 +502,117 @@ fn wire__crate__api__midi__set_midi_port_impl(
     )
 }
 
+// Section: static_checks
+
+#[allow(clippy::unnecessary_literal_unwrap)]
+const _: fn() = || {
+    {
+        let Attributes = None::<crate::api::musicxml::Attributes>.unwrap();
+        let _: u32 = Attributes.divisions;
+        let _: Vec<crate::api::musicxml::Clef> = Attributes.clefs;
+        let _: i32 = Attributes.key_fifths;
+        let _: crate::api::musicxml::TimeSignature = Attributes.time;
+    }
+    {
+        let Clef = None::<crate::api::musicxml::Clef>.unwrap();
+        let _: u32 = Clef.staff;
+        let _: char = Clef.sign;
+        let _: i32 = Clef.line;
+    }
+    {
+        let Direction = None::<crate::api::musicxml::Direction>.unwrap();
+        let _: u32 = Direction.staff;
+        let _: u32 = Direction.position_divisions;
+        let _: crate::api::musicxml::DirectionKind = Direction.kind;
+    }
+    match None::<crate::api::musicxml::DirectionKind>.unwrap() {
+        crate::api::musicxml::DirectionKind::Words(field0) => {
+            let _: String = field0;
+        }
+        crate::api::musicxml::DirectionKind::Dynamics(field0) => {
+            let _: String = field0;
+        }
+        crate::api::musicxml::DirectionKind::Wedge { crescendo, stop } => {
+            let _: bool = crescendo;
+            let _: bool = stop;
+        }
+        crate::api::musicxml::DirectionKind::Metronome {
+            beat_unit,
+            per_minute,
+        } => {
+            let _: String = beat_unit;
+            let _: u32 = per_minute;
+        }
+    }
+    {
+        let Lyric = None::<crate::api::musicxml::Lyric>.unwrap();
+        let _: Option<String> = Lyric.syllabic;
+        let _: String = Lyric.text;
+    }
+    {
+        let NotationMeasure = None::<crate::api::musicxml::NotationMeasure>.unwrap();
+        let _: u32 = NotationMeasure.index;
+        let _: Vec<crate::api::musicxml::NoteEvent> = NotationMeasure.notes;
+        let _: Vec<crate::api::musicxml::Direction> = NotationMeasure.directions;
+        let _: Vec<crate::api::musicxml::Clef> = NotationMeasure.clefs;
+        let _: f64 = NotationMeasure.min_width;
+    }
+    {
+        let NoteEvent = None::<crate::api::musicxml::NoteEvent>.unwrap();
+        let _: u32 = NoteEvent.staff;
+        let _: u32 = NoteEvent.voice;
+        let _: u32 = NoteEvent.position_divisions;
+        let _: Option<crate::api::musicxml::Pitch> = NoteEvent.pitch;
+        let _: bool = NoteEvent.is_rest;
+        let _: bool = NoteEvent.is_chord;
+        let _: u32 = NoteEvent.duration_divisions;
+        let _: Option<String> = NoteEvent.note_type;
+        let _: u32 = NoteEvent.dots;
+        let _: Option<String> = NoteEvent.accidental;
+        let _: bool = NoteEvent.tie_start;
+        let _: bool = NoteEvent.tie_stop;
+        let _: bool = NoteEvent.slur_start;
+        let _: bool = NoteEvent.slur_stop;
+        let _: Option<crate::api::musicxml::Tuplet> = NoteEvent.tuplet;
+        let _: Option<crate::api::musicxml::StemDir> = NoteEvent.stem;
+        let _: Vec<crate::api::musicxml::BeamState> = NoteEvent.beams;
+        let _: Option<crate::api::musicxml::Lyric> = NoteEvent.lyric;
+    }
+    {
+        let Pitch = None::<crate::api::musicxml::Pitch>.unwrap();
+        let _: char = Pitch.step;
+        let _: i32 = Pitch.octave;
+        let _: i32 = Pitch.alter;
+    }
+    {
+        let ScoreDocument = None::<crate::api::musicxml::ScoreDocument>.unwrap();
+        let _: crate::api::musicxml::ScoreMeta = ScoreDocument.meta;
+        let _: u32 = ScoreDocument.staves;
+        let _: crate::api::musicxml::Attributes = ScoreDocument.attributes;
+        let _: Vec<crate::api::musicxml::NotationMeasure> = ScoreDocument.measures;
+    }
+    {
+        let ScoreMeta = None::<crate::api::musicxml::ScoreMeta>.unwrap();
+        let _: Option<String> = ScoreMeta.title;
+        let _: Option<String> = ScoreMeta.composer;
+    }
+    {
+        let System = None::<crate::api::musicxml::System>.unwrap();
+        let _: Vec<u32> = System.measures;
+        let _: u32 = System.staves;
+    }
+    {
+        let TimeSignature = None::<crate::api::musicxml::TimeSignature>.unwrap();
+        let _: u32 = TimeSignature.beats;
+        let _: u32 = TimeSignature.beat_type;
+    }
+    {
+        let Tuplet = None::<crate::api::musicxml::Tuplet>.unwrap();
+        let _: u32 = Tuplet.actual;
+        let _: u32 = Tuplet.normal;
+    }
+};
+
 // Section: dart2rust
 
 impl SseDecode for flutter_rust_bridge::for_generated::anyhow::Error {
@@ -1140,93 +1251,98 @@ fn pde_ffi_dispatcher_sync_impl(
 // Section: rust2dart
 
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::musicxml::Attributes {
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::musicxml::Attributes> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
-            self.divisions.into_into_dart().into_dart(),
-            self.clefs.into_into_dart().into_dart(),
-            self.key_fifths.into_into_dart().into_dart(),
-            self.time.into_into_dart().into_dart(),
+            self.0.divisions.into_into_dart().into_dart(),
+            self.0.clefs.into_into_dart().into_dart(),
+            self.0.key_fifths.into_into_dart().into_dart(),
+            self.0.time.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::musicxml::Attributes
+    for FrbWrapper<crate::api::musicxml::Attributes>
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::api::musicxml::Attributes>
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::musicxml::Attributes>>
     for crate::api::musicxml::Attributes
 {
-    fn into_into_dart(self) -> crate::api::musicxml::Attributes {
-        self
+    fn into_into_dart(self) -> FrbWrapper<crate::api::musicxml::Attributes> {
+        self.into()
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::musicxml::BeamState {
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::musicxml::BeamState> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        match self {
-            Self::Begin => 0.into_dart(),
-            Self::Continue => 1.into_dart(),
-            Self::End => 2.into_dart(),
+        match self.0 {
+            crate::api::musicxml::BeamState::Begin => 0.into_dart(),
+            crate::api::musicxml::BeamState::Continue => 1.into_dart(),
+            crate::api::musicxml::BeamState::End => 2.into_dart(),
             _ => unreachable!(),
         }
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::musicxml::BeamState
+    for FrbWrapper<crate::api::musicxml::BeamState>
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::api::musicxml::BeamState>
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::musicxml::BeamState>>
     for crate::api::musicxml::BeamState
 {
-    fn into_into_dart(self) -> crate::api::musicxml::BeamState {
-        self
+    fn into_into_dart(self) -> FrbWrapper<crate::api::musicxml::BeamState> {
+        self.into()
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::musicxml::Clef {
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::musicxml::Clef> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
-            self.staff.into_into_dart().into_dart(),
-            self.sign.into_into_dart().into_dart(),
-            self.line.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::musicxml::Clef {}
-impl flutter_rust_bridge::IntoIntoDart<crate::api::musicxml::Clef> for crate::api::musicxml::Clef {
-    fn into_into_dart(self) -> crate::api::musicxml::Clef {
-        self
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::musicxml::Direction {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.staff.into_into_dart().into_dart(),
-            self.position_divisions.into_into_dart().into_dart(),
-            self.kind.into_into_dart().into_dart(),
+            self.0.staff.into_into_dart().into_dart(),
+            self.0.sign.into_into_dart().into_dart(),
+            self.0.line.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::musicxml::Direction
+    for FrbWrapper<crate::api::musicxml::Clef>
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::api::musicxml::Direction>
-    for crate::api::musicxml::Direction
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::musicxml::Clef>>
+    for crate::api::musicxml::Clef
 {
-    fn into_into_dart(self) -> crate::api::musicxml::Direction {
-        self
+    fn into_into_dart(self) -> FrbWrapper<crate::api::musicxml::Clef> {
+        self.into()
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::musicxml::DirectionKind {
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::musicxml::Direction> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        match self {
+        [
+            self.0.staff.into_into_dart().into_dart(),
+            self.0.position_divisions.into_into_dart().into_dart(),
+            self.0.kind.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::musicxml::Direction>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::musicxml::Direction>>
+    for crate::api::musicxml::Direction
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::musicxml::Direction> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::musicxml::DirectionKind> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self.0 {
             crate::api::musicxml::DirectionKind::Words(field0) => {
                 [0.into_dart(), field0.into_into_dart().into_dart()].into_dart()
             }
@@ -1255,32 +1371,35 @@ impl flutter_rust_bridge::IntoDart for crate::api::musicxml::DirectionKind {
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::musicxml::DirectionKind
+    for FrbWrapper<crate::api::musicxml::DirectionKind>
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::api::musicxml::DirectionKind>
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::musicxml::DirectionKind>>
     for crate::api::musicxml::DirectionKind
 {
-    fn into_into_dart(self) -> crate::api::musicxml::DirectionKind {
-        self
+    fn into_into_dart(self) -> FrbWrapper<crate::api::musicxml::DirectionKind> {
+        self.into()
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::musicxml::Lyric {
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::musicxml::Lyric> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
-            self.syllabic.into_into_dart().into_dart(),
-            self.text.into_into_dart().into_dart(),
+            self.0.syllabic.into_into_dart().into_dart(),
+            self.0.text.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
 }
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::musicxml::Lyric {}
-impl flutter_rust_bridge::IntoIntoDart<crate::api::musicxml::Lyric>
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::musicxml::Lyric>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::musicxml::Lyric>>
     for crate::api::musicxml::Lyric
 {
-    fn into_into_dart(self) -> crate::api::musicxml::Lyric {
-        self
+    fn into_into_dart(self) -> FrbWrapper<crate::api::musicxml::Lyric> {
+        self.into()
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
@@ -1341,27 +1460,27 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::midi::MidiEventKind>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::musicxml::NotationMeasure {
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::musicxml::NotationMeasure> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
-            self.index.into_into_dart().into_dart(),
-            self.notes.into_into_dart().into_dart(),
-            self.directions.into_into_dart().into_dart(),
-            self.clefs.into_into_dart().into_dart(),
-            self.min_width.into_into_dart().into_dart(),
+            self.0.index.into_into_dart().into_dart(),
+            self.0.notes.into_into_dart().into_dart(),
+            self.0.directions.into_into_dart().into_dart(),
+            self.0.clefs.into_into_dart().into_dart(),
+            self.0.min_width.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::musicxml::NotationMeasure
+    for FrbWrapper<crate::api::musicxml::NotationMeasure>
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::api::musicxml::NotationMeasure>
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::musicxml::NotationMeasure>>
     for crate::api::musicxml::NotationMeasure
 {
-    fn into_into_dart(self) -> crate::api::musicxml::NotationMeasure {
-        self
+    fn into_into_dart(self) -> FrbWrapper<crate::api::musicxml::NotationMeasure> {
+        self.into()
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
@@ -1382,59 +1501,62 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::score::Note> for crate::api::
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::musicxml::NoteEvent {
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::musicxml::NoteEvent> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
-            self.staff.into_into_dart().into_dart(),
-            self.voice.into_into_dart().into_dart(),
-            self.position_divisions.into_into_dart().into_dart(),
-            self.pitch.into_into_dart().into_dart(),
-            self.is_rest.into_into_dart().into_dart(),
-            self.is_chord.into_into_dart().into_dart(),
-            self.duration_divisions.into_into_dart().into_dart(),
-            self.note_type.into_into_dart().into_dart(),
-            self.dots.into_into_dart().into_dart(),
-            self.accidental.into_into_dart().into_dart(),
-            self.tie_start.into_into_dart().into_dart(),
-            self.tie_stop.into_into_dart().into_dart(),
-            self.slur_start.into_into_dart().into_dart(),
-            self.slur_stop.into_into_dart().into_dart(),
-            self.tuplet.into_into_dart().into_dart(),
-            self.stem.into_into_dart().into_dart(),
-            self.beams.into_into_dart().into_dart(),
-            self.lyric.into_into_dart().into_dart(),
+            self.0.staff.into_into_dart().into_dart(),
+            self.0.voice.into_into_dart().into_dart(),
+            self.0.position_divisions.into_into_dart().into_dart(),
+            self.0.pitch.into_into_dart().into_dart(),
+            self.0.is_rest.into_into_dart().into_dart(),
+            self.0.is_chord.into_into_dart().into_dart(),
+            self.0.duration_divisions.into_into_dart().into_dart(),
+            self.0.note_type.into_into_dart().into_dart(),
+            self.0.dots.into_into_dart().into_dart(),
+            self.0.accidental.into_into_dart().into_dart(),
+            self.0.tie_start.into_into_dart().into_dart(),
+            self.0.tie_stop.into_into_dart().into_dart(),
+            self.0.slur_start.into_into_dart().into_dart(),
+            self.0.slur_stop.into_into_dart().into_dart(),
+            self.0.tuplet.into_into_dart().into_dart(),
+            self.0.stem.into_into_dart().into_dart(),
+            self.0.beams.into_into_dart().into_dart(),
+            self.0.lyric.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::musicxml::NoteEvent
+    for FrbWrapper<crate::api::musicxml::NoteEvent>
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::api::musicxml::NoteEvent>
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::musicxml::NoteEvent>>
     for crate::api::musicxml::NoteEvent
 {
-    fn into_into_dart(self) -> crate::api::musicxml::NoteEvent {
-        self
+    fn into_into_dart(self) -> FrbWrapper<crate::api::musicxml::NoteEvent> {
+        self.into()
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::musicxml::Pitch {
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::musicxml::Pitch> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
-            self.step.into_into_dart().into_dart(),
-            self.octave.into_into_dart().into_dart(),
-            self.alter.into_into_dart().into_dart(),
+            self.0.step.into_into_dart().into_dart(),
+            self.0.octave.into_into_dart().into_dart(),
+            self.0.alter.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
 }
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::musicxml::Pitch {}
-impl flutter_rust_bridge::IntoIntoDart<crate::api::musicxml::Pitch>
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::musicxml::Pitch>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::musicxml::Pitch>>
     for crate::api::musicxml::Pitch
 {
-    fn into_into_dart(self) -> crate::api::musicxml::Pitch {
-        self
+    fn into_into_dart(self) -> FrbWrapper<crate::api::musicxml::Pitch> {
+        self.into()
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
@@ -1454,122 +1576,131 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::score::Score> for crate::api:
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::musicxml::ScoreDocument {
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::musicxml::ScoreDocument> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
-            self.meta.into_into_dart().into_dart(),
-            self.staves.into_into_dart().into_dart(),
-            self.attributes.into_into_dart().into_dart(),
-            self.measures.into_into_dart().into_dart(),
+            self.0.meta.into_into_dart().into_dart(),
+            self.0.staves.into_into_dart().into_dart(),
+            self.0.attributes.into_into_dart().into_dart(),
+            self.0.measures.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::musicxml::ScoreDocument
+    for FrbWrapper<crate::api::musicxml::ScoreDocument>
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::api::musicxml::ScoreDocument>
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::musicxml::ScoreDocument>>
     for crate::api::musicxml::ScoreDocument
 {
-    fn into_into_dart(self) -> crate::api::musicxml::ScoreDocument {
-        self
+    fn into_into_dart(self) -> FrbWrapper<crate::api::musicxml::ScoreDocument> {
+        self.into()
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::musicxml::ScoreMeta {
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::musicxml::ScoreMeta> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
-            self.title.into_into_dart().into_dart(),
-            self.composer.into_into_dart().into_dart(),
+            self.0.title.into_into_dart().into_dart(),
+            self.0.composer.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::musicxml::ScoreMeta
+    for FrbWrapper<crate::api::musicxml::ScoreMeta>
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::api::musicxml::ScoreMeta>
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::musicxml::ScoreMeta>>
     for crate::api::musicxml::ScoreMeta
 {
-    fn into_into_dart(self) -> crate::api::musicxml::ScoreMeta {
-        self
+    fn into_into_dart(self) -> FrbWrapper<crate::api::musicxml::ScoreMeta> {
+        self.into()
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::musicxml::StemDir {
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::musicxml::StemDir> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        match self {
-            Self::Up => 0.into_dart(),
-            Self::Down => 1.into_dart(),
+        match self.0 {
+            crate::api::musicxml::StemDir::Up => 0.into_dart(),
+            crate::api::musicxml::StemDir::Down => 1.into_dart(),
             _ => unreachable!(),
         }
     }
 }
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::musicxml::StemDir {}
-impl flutter_rust_bridge::IntoIntoDart<crate::api::musicxml::StemDir>
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::musicxml::StemDir>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::musicxml::StemDir>>
     for crate::api::musicxml::StemDir
 {
-    fn into_into_dart(self) -> crate::api::musicxml::StemDir {
-        self
+    fn into_into_dart(self) -> FrbWrapper<crate::api::musicxml::StemDir> {
+        self.into()
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::musicxml::System {
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::musicxml::System> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
-            self.measures.into_into_dart().into_dart(),
-            self.staves.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::musicxml::System {}
-impl flutter_rust_bridge::IntoIntoDart<crate::api::musicxml::System>
-    for crate::api::musicxml::System
-{
-    fn into_into_dart(self) -> crate::api::musicxml::System {
-        self
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::musicxml::TimeSignature {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.beats.into_into_dart().into_dart(),
-            self.beat_type.into_into_dart().into_dart(),
+            self.0.measures.into_into_dart().into_dart(),
+            self.0.staves.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::musicxml::TimeSignature
+    for FrbWrapper<crate::api::musicxml::System>
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::api::musicxml::TimeSignature>
-    for crate::api::musicxml::TimeSignature
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::musicxml::System>>
+    for crate::api::musicxml::System
 {
-    fn into_into_dart(self) -> crate::api::musicxml::TimeSignature {
-        self
+    fn into_into_dart(self) -> FrbWrapper<crate::api::musicxml::System> {
+        self.into()
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::musicxml::Tuplet {
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::musicxml::TimeSignature> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
-            self.actual.into_into_dart().into_dart(),
-            self.normal.into_into_dart().into_dart(),
+            self.0.beats.into_into_dart().into_dart(),
+            self.0.beat_type.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
 }
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::musicxml::Tuplet {}
-impl flutter_rust_bridge::IntoIntoDart<crate::api::musicxml::Tuplet>
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::musicxml::TimeSignature>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::musicxml::TimeSignature>>
+    for crate::api::musicxml::TimeSignature
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::musicxml::TimeSignature> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::musicxml::Tuplet> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.0.actual.into_into_dart().into_dart(),
+            self.0.normal.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::musicxml::Tuplet>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::musicxml::Tuplet>>
     for crate::api::musicxml::Tuplet
 {
-    fn into_into_dart(self) -> crate::api::musicxml::Tuplet {
-        self
+    fn into_into_dart(self) -> FrbWrapper<crate::api::musicxml::Tuplet> {
+        self.into()
     }
 }
 
