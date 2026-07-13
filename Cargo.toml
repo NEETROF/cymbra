@@ -6,7 +6,7 @@ resolver = "2"
 members = [
     "apps/*/rust",
     "backend/*",
-    # "crates/*",     # enable when cymbra-engine lands (F1)
+    "crates/*",       # shared engine crates (e.g. cymbra-musicxml-core)
 ]
 # Non-crate dirs under backend/ (dev infra, configs) that the `backend/*` glob
 # would otherwise try to load as packages.

@@ -1,9 +1,9 @@
 ## 1. Shared MusicXML core (client + server parity)
 
-- [ ] 1.1 Extract the pure parser from `apps/music/rust/src/api/musicxml_core.rs` into a workspace crate `crates/musicxml-core` (enable the `crates/*` member glob in the root `Cargo.toml`); keep `apps/music/rust` depending on it via the FFI seam so app behavior is unchanged.
-- [ ] 1.2 Add `.mxl` (zip) decoding to the shared core: read `META-INF/container.xml` → rootfile → underlying MusicXML bytes; add a bounded `zip` dependency with a max-decompressed-size guard.
-- [ ] 1.3 Add a `validate(bytes) -> Result<ScoreSummary, RejectReason>` entry point that decodes (plain or `.mxl`), parses, and confirms the score contains playable piano notes; return typed rejection reasons (undecodable, unparseable, no-notes, too-large).
-- [ ] 1.4 Host-testable unit tests for the shared core: valid plain XML, valid `.mxl`, corrupt zip, unparseable XML, empty/no-note score, oversized/zip-bomb guard (keep coverage ≥ 80%, per `CLAUDE.md`).
+- [x] 1.1 Extract the pure parser from `apps/music/rust/src/api/musicxml_core.rs` into a workspace crate `crates/musicxml-core` (enable the `crates/*` member glob in the root `Cargo.toml`); keep `apps/music/rust` depending on it via the FFI seam so app behavior is unchanged. — package `cymbra-musicxml-core`; app re-exports the model via `#[frb(mirror(...))]` shells so the generated Dart API + docs are byte-identical (verified).
+- [x] 1.2 Add `.mxl` (zip) decoding to the shared core: read `META-INF/container.xml` → rootfile → underlying MusicXML bytes; add a bounded `zip` dependency with a max-decompressed-size guard. — `mxl.rs`, 32 MiB guard, deflate-only zip.
+- [x] 1.3 Add a `validate(bytes) -> Result<ScoreSummary, RejectReason>` entry point that decodes (plain or `.mxl`), parses, and confirms the score contains playable piano notes; return typed rejection reasons (undecodable, unparseable, no-notes, too-large). — `validate.rs`, `RejectReason` with `.code()`, 16 MiB input cap.
+- [x] 1.4 Host-testable unit tests for the shared core: valid plain XML, valid `.mxl`, corrupt zip, unparseable XML, empty/no-note score, oversized/zip-bomb guard (keep coverage ≥ 80%, per `CLAUDE.md`). — 48 tests pass, 95% line coverage; app `score-notation`/painter Dart tests (65) green.
 
 ## 2. Object storage (greenfield)
 

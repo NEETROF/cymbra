@@ -12,42 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Thin flutter_rust_bridge seam for MusicXML notation.
+//! The pure MusicXML notation data model: a parsed score's metadata, staff
+//! count, starting attributes, and ordered measures with notes/directions and
+//! computed engraving geometry. No FFI, no IO — shared by the app engine, the
+//! backend score module, and the crawler.
 //!
-//! The notation data model and the pure parser/geometry now live in the shared,
-//! FFI-free [`cymbra_musicxml_core`] crate (reused by the backend score module
-//! and the score crawler). frb does not follow re-exports of external types, so
-//! this file declares `#[frb(mirror(...))]` shells that make the codegen emit
-//! the same Dart classes while the real types — and all logic — stay in the
-//! crate. The bridge functions take/return the crate's own types directly (no
-//! conversions), and the generated Dart API is unchanged. The mirrors carry the
-//! same doc comments so the generated Dart documentation is unchanged too.
-//!
-//! Excluded from the coverage gate: the testable logic is counted in
-//! `cymbra-musicxml-core`. All numeric fields use `u32`/`i32`/`f64` (never
-//! `u64`) so the generated Dart avoids `BigInt`.
-
-use anyhow::Result;
-use flutter_rust_bridge::frb;
-
-// The real types live in the shared crate; re-export so downstream Rust (and the
-// bridge functions below) refer to them by these names.
-pub use cymbra_musicxml_core::{
-    Attributes, BeamState, Clef, Direction, DirectionKind, Lyric, NotationMeasure, NoteEvent,
-    Pitch, ScoreDocument, ScoreMeta, StemDir, System, TimeSignature, Tuplet,
-};
-
-// --- frb mirrors of the shared model -------------------------------------
-//
-// Each mirror re-declares a crate type's public shape (and its doc comments) so
-// the codegen generates its Dart class unchanged. They carry no logic and are
-// never constructed; `mirror(T)` binds them to the real
-// `cymbra_musicxml_core::T`.
+//! All numeric fields use `u32`/`i32`/`f64` (never `u64`) so the app's
+//! flutter_rust_bridge codegen avoids Dart `BigInt`.
 
 /// A parsed MusicXML document: metadata, staff count, starting attributes, and
 /// the ordered measures with their notes, directions, and computed geometry.
-#[frb(mirror(ScoreDocument))]
-pub struct _ScoreDocument {
+#[derive(Debug, Clone, PartialEq)]
+pub struct ScoreDocument {
     pub meta: ScoreMeta,
     /// Number of staves in the (single) part — e.g. 2 for a piano grand staff.
     pub staves: u32,
@@ -56,15 +32,15 @@ pub struct _ScoreDocument {
 }
 
 /// Score metadata; fields are absent (`None`) rather than failing when missing.
-#[frb(mirror(ScoreMeta))]
-pub struct _ScoreMeta {
+#[derive(Debug, Clone, PartialEq)]
+pub struct ScoreMeta {
     pub title: Option<String>,
     pub composer: Option<String>,
 }
 
 /// Starting musical attributes of the part (most-recent values win).
-#[frb(mirror(Attributes))]
-pub struct _Attributes {
+#[derive(Debug, Clone, PartialEq)]
+pub struct Attributes {
     /// Divisions (ticks) per quarter note — the unit for every `duration`.
     pub divisions: u32,
     /// One clef per staff, identified by clef `number`.
@@ -75,24 +51,24 @@ pub struct _Attributes {
 }
 
 /// A clef on one staff: e.g. treble = `G`/2 on staff 1, bass = `F`/4 on staff 2.
-#[frb(mirror(Clef))]
-pub struct _Clef {
+#[derive(Debug, Clone, PartialEq)]
+pub struct Clef {
     pub staff: u32,
     pub sign: char,
     pub line: i32,
 }
 
 /// A time signature, e.g. 3/4 → `beats = 3`, `beat_type = 4`.
-#[frb(mirror(TimeSignature))]
-pub struct _TimeSignature {
+#[derive(Debug, Clone, PartialEq)]
+pub struct TimeSignature {
     pub beats: u32,
     pub beat_type: u32,
 }
 
 /// A measure: its notes and directions in document order, plus the engraving
 /// minimum width computed from note density.
-#[frb(mirror(NotationMeasure))]
-pub struct _NotationMeasure {
+#[derive(Debug, Clone, PartialEq)]
+pub struct NotationMeasure {
     /// 0-based position in the part.
     pub index: u32,
     pub notes: Vec<NoteEvent>,
@@ -106,8 +82,8 @@ pub struct _NotationMeasure {
 }
 
 /// A single note (or rest) event.
-#[frb(mirror(NoteEvent))]
-pub struct _NoteEvent {
+#[derive(Debug, Clone, PartialEq)]
+pub struct NoteEvent {
     pub staff: u32,
     pub voice: u32,
     /// Running time position within the measure (set via backup/forward), so
@@ -136,53 +112,53 @@ pub struct _NoteEvent {
 }
 
 /// A pitch: diatonic step, octave, and chromatic alteration (semitones).
-#[frb(mirror(Pitch))]
-pub struct _Pitch {
+#[derive(Debug, Clone, PartialEq)]
+pub struct Pitch {
     pub step: char,
     pub octave: i32,
     pub alter: i32,
 }
 
 /// Tuplet ratio from `time-modification` — e.g. a triplet is `3:2`.
-#[frb(mirror(Tuplet))]
-pub struct _Tuplet {
+#[derive(Debug, Clone, PartialEq)]
+pub struct Tuplet {
     pub actual: u32,
     pub normal: u32,
 }
 
 /// Stem direction.
-#[frb(mirror(StemDir))]
-pub enum _StemDir {
+#[derive(Debug, Clone, PartialEq)]
+pub enum StemDir {
     Up,
     Down,
 }
 
 /// Beam state at a note within a beam group.
-#[frb(mirror(BeamState))]
-pub enum _BeamState {
+#[derive(Debug, Clone, PartialEq)]
+pub enum BeamState {
     Begin,
     Continue,
     End,
 }
 
 /// A lyric syllable attached to a note.
-#[frb(mirror(Lyric))]
-pub struct _Lyric {
+#[derive(Debug, Clone, PartialEq)]
+pub struct Lyric {
     pub syllabic: Option<String>,
     pub text: String,
 }
 
 /// A measure direction (expression/tempo) anchored at a staff and time position.
-#[frb(mirror(Direction))]
-pub struct _Direction {
+#[derive(Debug, Clone, PartialEq)]
+pub struct Direction {
     pub staff: u32,
     pub position_divisions: u32,
     pub kind: DirectionKind,
 }
 
 /// The supported direction kinds; unknown ones are dropped at parse time.
-#[frb(mirror(DirectionKind))]
-pub enum _DirectionKind {
+#[derive(Debug, Clone, PartialEq)]
+pub enum DirectionKind {
     /// Free expression/tempo text (e.g. "Andantino", "dolce").
     Words(String),
     /// A dynamics marking (e.g. "pp", "f").
@@ -196,24 +172,8 @@ pub enum _DirectionKind {
 
 /// One staff line of music: the measure indices it contains, in order, plus the
 /// staff count so a grand staff lays out together.
-#[frb(mirror(System))]
-pub struct _System {
+#[derive(Debug, Clone, PartialEq)]
+pub struct System {
     pub measures: Vec<u32>,
     pub staves: u32,
-}
-
-// --- FFI wrappers (delegate to the shared core) --------------------------
-
-/// Parses an uncompressed MusicXML document (bytes) into a [`ScoreDocument`],
-/// with each measure's `min_width` already computed. Returns an error on
-/// malformed input rather than panicking.
-pub fn parse_musicxml(bytes: Vec<u8>) -> Result<ScoreDocument> {
-    cymbra_musicxml_core::parse(&bytes)
-}
-
-/// Lays the document's measures out into [`System`]s for the given available
-/// width (pixels), keeping measure order and the grand staff together.
-#[frb(sync)]
-pub fn layout_systems(doc: &ScoreDocument, available_width: f64) -> Vec<System> {
-    cymbra_musicxml_core::layout_systems(doc, available_width)
 }

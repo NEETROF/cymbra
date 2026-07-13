@@ -11,13 +11,13 @@ crate-type = ["cdylib", "staticlib"]
 [dependencies]
 flutter_rust_bridge = "=2.12.0"
 anyhow = "1"
+# Shared, FFI-free notation engine: data model + streaming parser + geometry
+# + .mxl decode + validate(). The app's musicxml.rs re-exports its model and
+# delegates the frb wrappers here (single source of truth across app/backend/crawler).
+cymbra-musicxml-core = { path = "../../../crates/musicxml-core" }
 # Raw USB-MIDI port listening: CoreMIDI (macOS/iOS), ALSA (Linux),
 # WinMM (Windows), AMidi via NDK (Android). 0.11 adds the Android backend.
 midir = "0.11"
-
-# Streaming (SAX-style) MusicXML reader. Used by api/musicxml_core.rs to parse
-# multi-megabyte scores as a stream of events with bounded memory (no DOM).
-quick-xml = "0.36"
 
 # Audio output (api/audio.rs): a pure-Rust SoundFont synthesizer rendered to the
 # system's default device via cpal. cpal covers CoreAudio (macOS/iOS), WASAPI
