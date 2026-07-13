@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0](https://github.com/NEETROF/cymbra/compare/backend-v0.4.0...backend-v0.5.0) (2026-07-13)
+
+
+### Features
+
+* **score-crawler:** licence-gated score crawler + catalog ingestion ([#80](https://github.com/NEETROF/cymbra/issues/80)) ([7885049](https://github.com/NEETROF/cymbra/commit/788504910d8c189813b0c899fc46f2576e01519c))
+
 ## [0.4.0](https://github.com/NEETROF/cymbra/compare/backend-v0.3.0...backend-v0.4.0) (2026-07-09)
 
 
