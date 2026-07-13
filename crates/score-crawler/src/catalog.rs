@@ -48,6 +48,7 @@ pub fn to_catalog_entry(e: &ManifestEntry) -> CatalogEntry {
         license_url: e.license_url.clone(),
         confidence: variant(&e.confidence),
         sha256: e.sha256.clone(),
+        content_fingerprint: e.content_fingerprint.clone(),
         origin_format: variant(&e.origin_format),
         conversion_status: variant(&e.conversion_status),
         object_key: e.object_key.clone().unwrap_or_default(),
@@ -65,11 +66,17 @@ pub fn to_catalog_entry(e: &ManifestEntry) -> CatalogEntry {
     }
 }
 
-/// Inserts every entry into the catalog, returning the count of new rows
-/// (duplicates by `sha256` are skipped).
+/// Inserts every entry into the catalog, returning the count of new rows.
+/// An entry already present is skipped — by exact content (`sha256`) or, for
+/// re-encodings / the same piece from another source, by musical fingerprint.
 pub async fn ingest(repo: &dyn CatalogRepo, entries: &[ManifestEntry]) -> Result<usize> {
     let mut inserted = 0;
     for e in entries {
+        if repo.sha_exists(&e.sha256).await?
+            || repo.fingerprint_exists(&e.content_fingerprint).await?
+        {
+            continue; // already in the catalog (exact or same music)
+        }
         if repo.insert(&to_catalog_entry(e)).await? {
             inserted += 1;
         }
@@ -98,6 +105,7 @@ mod tests {
             license_url: Some("https://cc/by-sa/4.0".into()),
             confidence: Confidence::Verified,
             sha256: sha.into(),
+            content_fingerprint: format!("fp-{sha}"),
             origin_format: OriginFormat::MusicXml,
             conversion_status: ConversionStatus::Converted,
             object_key: Some("safe/cpdl/mozart/ave_verum-abcd1234.mxl".into()),

@@ -164,7 +164,7 @@ pub fn difficulty_score(doc: &ScoreDocument) -> f64 {
 }
 
 /// MIDI number for a pitch (middle C `C4` = 60).
-fn pitch_midi(p: &cymbra_musicxml_core::Pitch) -> i32 {
+pub(crate) fn pitch_midi(p: &cymbra_musicxml_core::Pitch) -> i32 {
     let step = match p.step.to_ascii_uppercase() {
         'C' => 0,
         'D' => 2,

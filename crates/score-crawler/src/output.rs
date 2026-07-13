@@ -161,6 +161,7 @@ mod tests {
             license_url: None,
             confidence,
             sha256: sha.into(),
+            content_fingerprint: format!("fp-{sha}"),
             origin_format: OriginFormat::MusicXml,
             conversion_status: ConversionStatus::Converted,
             object_key: None,

@@ -42,7 +42,11 @@ pub struct ManifestEntry {
     pub license: String,
     pub license_url: Option<String>,
     pub confidence: Confidence,
+    /// SHA-256 of the canonical MusicXML — the exact-content dedup key.
     pub sha256: String,
+    /// Musical content fingerprint — dedup that survives re-encoding (same notes,
+    /// different editor/`divisions`). See [`crate::fingerprint`].
+    pub content_fingerprint: String,
     pub origin_format: OriginFormat,
     pub conversion_status: ConversionStatus,
     /// Object-store key; `None` until the item is ingested.
@@ -123,6 +127,7 @@ mod tests {
             license_url: Some("https://creativecommons.org/publicdomain/zero/1.0/".into()),
             confidence: Confidence::Verified,
             sha256: "abc123".into(),
+            content_fingerprint: "fp123".into(),
             origin_format: OriginFormat::MusicXml,
             conversion_status: ConversionStatus::Converted,
             object_key: None,

@@ -26,6 +26,8 @@ pub struct CatalogEntry {
     pub license_url: Option<String>,
     pub confidence: String,
     pub sha256: String,
+    /// Musical content fingerprint — dedup across re-encodings/sources.
+    pub content_fingerprint: String,
     pub origin_format: String,
     pub conversion_status: String,
     pub object_key: String,
@@ -45,8 +47,12 @@ pub struct CatalogEntry {
 /// Storage surface for the public catalog.
 #[async_trait]
 pub trait CatalogRepo: Send + Sync {
-    /// Whether a row with this content hash already exists.
+    /// Whether a row with this exact content hash already exists.
     async fn sha_exists(&self, sha256: &str) -> Result<bool>;
+
+    /// Whether a row with this musical content fingerprint already exists (the
+    /// same piece, possibly re-encoded or from another source).
+    async fn fingerprint_exists(&self, fingerprint: &str) -> Result<bool>;
 
     /// Inserts a catalog row, ignoring a duplicate `sha256`. Returns `true` when
     /// a row was inserted, `false` when it already existed (idempotent).
@@ -71,6 +77,11 @@ impl CatalogRepo for FakeCatalogRepo {
     async fn sha_exists(&self, sha256: &str) -> Result<bool> {
         let rows = self.rows.lock().expect("catalog fake lock");
         Ok(rows.iter().any(|r| r.sha256 == sha256))
+    }
+
+    async fn fingerprint_exists(&self, fingerprint: &str) -> Result<bool> {
+        let rows = self.rows.lock().expect("catalog fake lock");
+        Ok(rows.iter().any(|r| r.content_fingerprint == fingerprint))
     }
 
     async fn insert(&self, entry: &CatalogEntry) -> Result<bool> {
@@ -100,6 +111,7 @@ mod tests {
             license_url: None,
             confidence: "verified".into(),
             sha256: sha.into(),
+            content_fingerprint: format!("fp-{sha}"),
             origin_format: "music_xml".into(),
             conversion_status: "converted".into(),
             object_key: "safe/pdmx/c/t.mxl".into(),

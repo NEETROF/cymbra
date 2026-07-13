@@ -35,6 +35,17 @@ impl CatalogRepo for PgCatalogRepo {
         Ok(row.get::<bool, _>(0))
     }
 
+    async fn fingerprint_exists(&self, fingerprint: &str) -> Result<bool> {
+        let row = sqlx::query(
+            "SELECT EXISTS (SELECT 1 FROM score.catalog_scores WHERE content_fingerprint = $1)",
+        )
+        .bind(fingerprint)
+        .fetch_one(&self.pool)
+        .await
+        .context("catalog fingerprint_exists")?;
+        Ok(row.get::<bool, _>(0))
+    }
+
     async fn insert(&self, e: &CatalogEntry) -> Result<bool> {
         let id = uuid::Uuid::parse_str(&e.id).unwrap_or_else(|_| uuid::Uuid::now_v7());
         // ON CONFLICT (sha256) DO NOTHING makes re-ingestion idempotent; the
@@ -44,9 +55,9 @@ impl CatalogRepo for PgCatalogRepo {
                 id, title, composer, arranger, source, source_url, source_item_id, \
                 license, license_url, confidence, sha256, origin_format, conversion_status, \
                 object_key, size_bytes, work_key, title_norm, is_piano, key_fifths, time_sig, \
-                measure_count, language, voicing, level, level_source) \
+                measure_count, language, voicing, level, level_source, content_fingerprint) \
              VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,\
-                $21,$22,$23,$24,$25) \
+                $21,$22,$23,$24,$25,$26) \
              ON CONFLICT (sha256) DO NOTHING",
         )
         .bind(id)
@@ -74,6 +85,7 @@ impl CatalogRepo for PgCatalogRepo {
         .bind(&e.voicing)
         .bind(&e.level)
         .bind(&e.level_source)
+        .bind(&e.content_fingerprint)
         .execute(&self.pool)
         .await
         .context("catalog insert")?;

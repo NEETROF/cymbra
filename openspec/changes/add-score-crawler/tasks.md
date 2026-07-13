@@ -46,7 +46,7 @@
 - [x] 5.1 HTTP client wrapper (descriptive User-Agent+contact, per-host delay, `backoff` retry on 429/errors) — `politeness.rs` (back-off + `retry_async`) + `http.rs` (`HttpFetcher`: UA, gzip, per-request delay, transient-only retry, per-host robots enforcement) behind an injectable `Fetcher` trait (fake for tests).
 - [x] 5.2 robots.txt fetch/cache/enforcement via `texting_robots` — `robots.rs` (parse/allow tested offline); per-host fetch/cache wires with the HTTP client.
 - [x] 5.3 Concurrency cap via a Tokio `Semaphore` (default 2) — `politeness::ConcurrencyLimiter`.
-- [x] 5.4 Resumable on-disk state cache (skip completed ids) + SHA-256 content dedup across sources and against `catalog_scores` — `state.rs` (completed ids + seen hashes, JSON, seeds `Orchestrator::with_seen`); catalog-seeding wires with ingestion.
+- [x] 5.4 Resumable on-disk state cache (skip completed ids) + SHA-256 content dedup across sources and against `catalog_scores` — `state.rs` (completed ids + seen hashes, JSON, seeds `Orchestrator::with_seen`). **Two-layer dedup**: exact SHA-256 (in-run + state + `catalog_scores.sha256 UNIQUE`) **and** a musical **content fingerprint** (`fingerprint.rs`: hash of the notes, encoding-independent) so re-encodings / cross-site duplicates are caught; `catalog::ingest` skips on either (`sha_exists`/`fingerprint_exists`).
 - [x] 5.5 Define the `SourceAdapter` async trait + central orchestrator enforcing pipeline order with the license-first gate before `fetch` — `sources.rs` + `crawl.rs`; test asserts `fetch` is not called for a rejected licence.
 - [x] 5.6 Isolate single-item failures (logged + recorded, never abort); no `unwrap()`/`expect()` in production paths — per-item failures journalled, crawl continues; verified by test.
 

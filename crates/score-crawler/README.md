@@ -128,5 +128,23 @@ grade wins over the non-authoritative heuristic estimate).
 
 The crawler honours `robots.txt`, sends a descriptive User-Agent with your
 contact, waits between requests, backs off exponentially on `429`/errors, caps
-concurrency low, and deduplicates by content hash across sources. Please keep the
-defaults conservative.
+concurrency low, and deduplicates across sources. Please keep the defaults
+conservative.
+
+## Deduplication
+
+Two layers, so the same score is never stored twice — within a site or across
+sites:
+
+- **Exact content** — SHA-256 of the canonical decoded MusicXML (not the `.mxl`
+  bytes, so framing never defeats it). Enforced in-run, in the resumable state
+  cache, and in the catalog (`sha256 UNIQUE` + `ON CONFLICT DO NOTHING`).
+- **Musical fingerprint** — a hash of the *notes themselves* (onset, staff,
+  pitch, duration on a divisions-independent grid), so the **same piece
+  re-encoded** by a different editor, or found on another site, is caught even
+  though its bytes differ. It ignores lyrics/dynamics, so two scores differing
+  only in words (hymn verses over one tune) collapse to one — usually what you
+  want for a playable-notes corpus; disable it if not. Transpositions are kept
+  distinct (different playable notes).
+
+At ingest, an entry already present by either key is skipped.

@@ -90,9 +90,16 @@ mod tests {
     use std::sync::Arc;
     use std::sync::atomic::AtomicUsize;
 
-    // A distinct score per id (unique content ⇒ distinct hash, so the two fake
-    // sources are not deduplicated against each other).
+    // A distinct score per id — distinct NOTES (not just metadata) so the two
+    // fake sources are not merged by the musical-content fingerprint.
     fn score_for(id: &str) -> String {
+        let bytes = id.as_bytes();
+        let first = u32::from(bytes.first().copied().unwrap_or(b'x'));
+        let last = u32::from(bytes.last().copied().unwrap_or(b'y'));
+        // Octave from the first byte, step from the last ⇒ distinct ids differing
+        // in either byte get distinct notes (no fingerprint collision).
+        let step = ['C', 'D', 'E', 'F', 'G', 'A', 'B'][(last % 7) as usize];
+        let octave = 2 + (first % 5);
         format!(
             r#"<?xml version="1.0"?>
 <score-partwise version="4.0"><work><work-title>{id}</work-title></work>
@@ -100,7 +107,7 @@ mod tests {
 <part id="P1"><measure number="1"><attributes><divisions>1</divisions>
 <key><fifths>0</fifths></key><time><beats>4</beats><beat-type>4</beat-type></time>
 <clef><sign>G</sign><line>2</line></clef></attributes>
-<note><pitch><step>C</step><octave>4</octave></pitch><duration>4</duration><type>whole</type></note></measure></part></score-partwise>"#
+<note><pitch><step>{step}</step><octave>{octave}</octave></pitch><duration>4</duration><type>whole</type></note></measure></part></score-partwise>"#
         )
     }
 

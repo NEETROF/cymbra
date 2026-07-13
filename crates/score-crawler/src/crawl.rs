@@ -64,7 +64,12 @@ pub struct CrawlOutcome {
 /// hash across everything it has already seen this run (and, later, against
 /// existing `catalog_scores` rows via [`Orchestrator::with_seen`]).
 pub struct Orchestrator {
+    /// SHA-256 of the canonical MusicXML — exact-content dedup.
     seen: HashSet<String>,
+    /// Musical content fingerprints — dedup across re-encodings/sources.
+    seen_fp: HashSet<String>,
+    /// Whether to also dedup by musical fingerprint (not just exact bytes).
+    dedup_fingerprints: bool,
 }
 
 impl Default for Orchestrator {
@@ -77,13 +82,30 @@ impl Orchestrator {
     pub fn new() -> Self {
         Self {
             seen: HashSet::new(),
+            seen_fp: HashSet::new(),
+            dedup_fingerprints: true,
         }
     }
 
-    /// Seed the dedup set with hashes already in the catalog so a resumed crawl
-    /// does not re-ingest existing content.
+    /// Seed the exact-content dedup set with hashes already in the catalog so a
+    /// resumed crawl does not re-ingest existing content.
     pub fn with_seen(seen: HashSet<String>) -> Self {
-        Self { seen }
+        Self {
+            seen,
+            ..Self::new()
+        }
+    }
+
+    /// Seed the fingerprint dedup set (e.g. from existing `catalog_scores`).
+    pub fn seed_fingerprints(mut self, fingerprints: HashSet<String>) -> Self {
+        self.seen_fp = fingerprints;
+        self
+    }
+
+    /// Disables musical-fingerprint dedup (keep only exact-content dedup).
+    pub fn without_fingerprint_dedup(mut self) -> Self {
+        self.dedup_fingerprints = false;
+        self
     }
 
     /// Crawls one adapter, up to `limit` items. Never panics; per-item errors are
@@ -164,8 +186,8 @@ impl Orchestrator {
             }
         };
 
-        // --- Deduplicate by canonical content hash (the decoded MusicXML, not
-        // the zip container, so framing differences never defeat dedup). ---
+        // --- Decode + parse once (the decoded MusicXML, not the zip container,
+        // so framing differences never defeat dedup). ---
         let inner = match cymbra_musicxml_core::mxl::decode(&converted.mxl) {
             Ok(inner) => inner,
             Err(e) => {
@@ -179,27 +201,34 @@ impl Orchestrator {
                 return;
             }
         };
-        let sha = sha256_hex(&inner);
-        if !self.seen.insert(sha.clone()) {
-            out.stats.deduped += 1;
-            return;
-        }
-
-        // --- Enrich from the parsed score. ---
         let doc = match cymbra_musicxml_core::parse(&inner) {
             Ok(doc) => doc,
             Err(e) => {
-                self.seen.remove(&sha);
                 self.fail(
                     out,
                     adapter,
                     item,
                     &raw.signal,
-                    format!("metadata parse failed: {e}"),
+                    format!("parse failed: {e}"),
                 );
                 return;
             }
         };
+
+        // --- Deduplicate: exact content (SHA-256) always; musical fingerprint
+        // (same notes, any encoding/source) when enabled. ---
+        let sha = sha256_hex(&inner);
+        let fingerprint = crate::fingerprint::content_fingerprint(&doc);
+        let is_dup = self.seen.contains(&sha)
+            || (self.dedup_fingerprints && self.seen_fp.contains(&fingerprint));
+        if is_dup {
+            out.stats.deduped += 1;
+            return;
+        }
+        self.seen.insert(sha.clone());
+        self.seen_fp.insert(fingerprint.clone());
+
+        // --- Enrich from the parsed score. ---
         let meta = metadata::extract(&doc);
         let difficulty = assess(&doc, item.source_grade);
 
@@ -215,6 +244,7 @@ impl Orchestrator {
             license_url: outcome.url,
             confidence,
             sha256: sha,
+            content_fingerprint: fingerprint,
             origin_format: origin,
             conversion_status: converted.status,
             object_key: None, // set at ingest
@@ -295,6 +325,15 @@ mod tests {
 <key><fifths>2</fifths></key><time><beats>3</beats><beat-type>4</beat-type></time>
 <clef><sign>G</sign><line>2</line></clef></attributes>
 <note><pitch><step>G</step><octave>4</octave></pitch><duration>3</duration><type>half</type></note></measure></part></score-partwise>"#;
+
+    // SCORE_A re-encoded: same note (C4 whole) but a different editor/divisions,
+    // so different bytes (different sha256) yet identical music (same fingerprint).
+    const SCORE_A_REENCODED: &str = r#"<?xml version="1.0"?>
+<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Klavier</part-name></score-part></part-list>
+<part id="P1"><measure number="1"><attributes><divisions>2</divisions>
+<key><fifths>0</fifths></key><time><beats>4</beats><beat-type>4</beat-type></time>
+<clef><sign>G</sign><line>2</line></clef></attributes>
+<note><pitch><step>C</step><octave>4</octave></pitch><duration>8</duration><type>whole</type></note></measure></part></score-partwise>"#;
 
     fn item(id: &str) -> Item {
         Item {
@@ -394,6 +433,47 @@ mod tests {
         let out = Orchestrator::new().run(&a, None).await;
         assert_eq!(out.prepared.len(), 1);
         assert_eq!(out.stats.deduped, 1);
+    }
+
+    #[tokio::test]
+    async fn fingerprint_dedups_reencoded_music() {
+        // Same piece, re-encoded (different bytes/sha) — deduped by fingerprint.
+        let (a, _) = adapter(
+            vec![
+                (item("orig"), RawLicense::verified("CC0"), score(SCORE_A)),
+                (
+                    item("reenc"),
+                    RawLicense::verified("CC0"),
+                    score(SCORE_A_REENCODED),
+                ),
+            ],
+            vec![],
+        );
+        let out = Orchestrator::new().run(&a, None).await;
+        assert_eq!(
+            out.prepared.len(),
+            1,
+            "the re-encoding is a musical duplicate"
+        );
+        assert_eq!(out.stats.deduped, 1);
+
+        // With fingerprint dedup off, both are kept (exact-content dedup only).
+        let (b, _) = adapter(
+            vec![
+                (item("orig"), RawLicense::verified("CC0"), score(SCORE_A)),
+                (
+                    item("reenc"),
+                    RawLicense::verified("CC0"),
+                    score(SCORE_A_REENCODED),
+                ),
+            ],
+            vec![],
+        );
+        let out = Orchestrator::new()
+            .without_fingerprint_dedup()
+            .run(&b, None)
+            .await;
+        assert_eq!(out.prepared.len(), 2);
     }
 
     #[tokio::test]
