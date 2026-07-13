@@ -33,8 +33,12 @@ pub mod pdmx;
 pub mod web;
 pub mod web_index;
 
-/// Every source this crawler knows how to harvest (concrete adapters land
-/// incrementally). `--all` expands to this list.
+/// Every source this crawler harvests; `--all` expands to this list. All are
+/// implemented (see [`crate::registry`]).
+///
+/// NEUMA (`neuma.huma-num.fr`) and the Josquin Research Project were dropped from
+/// scope: the NEUMA site no longer exists and the Josquin site could not be
+/// located, so neither can be crawled or its licences verified.
 pub const ALL_SOURCES: &[&str] = &[
     "openscore",
     "mutopia",
@@ -44,8 +48,6 @@ pub const ALL_SOURCES: &[&str] = &[
     "musetrainer",
     "eduardomourar",
     "gutenberg",
-    "neuma",
-    "josquin",
     "hymnary",
 ];
 

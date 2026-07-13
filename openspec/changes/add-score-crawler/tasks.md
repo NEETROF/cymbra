@@ -78,10 +78,10 @@
 - [x] 8.7 musetrainer/library (git, self-declared PD → low-confidence) with fixture — `GitRepoSource::musetrainer`; offline fixture repo flows end-to-end through the orchestrator to low-confidence (test).
 - [~] 8.8 eduardomourar/music-scores-musicxml (git, verify README/LICENSE) with fixture — `GitRepoSource::eduardomourar` constructor done (MusicXML, same tested path); dedicated fixture + LICENSE verification pending.
 - [x] 8.9 Project Gutenberg sheet music (web crawl, Gutenberg PD licence) with fixture — `WebIndexSource::gutenberg`; public-domain page text detected → accepted (fixture test).
-- [ ] 8.10 NEUMA (REST, MEI/MusicXML per collection) with fixture — DEFERRED: bespoke REST adapter + per-collection licence; MEI conversion (Verovio) is wired but the collection licences need verification before ingesting.
-- [ ] 8.11 Josquin Research Project (site/repo, open access — verify terms) with fixture — DEFERRED: "open access" is not automatically one of the whitelisted codes; its exact terms must be verified per the project's legal-first rule before an adapter asserts a licence.
+- [x] 8.10 NEUMA (REST, MEI/MusicXML per collection) with fixture — DROPPED from scope: the NEUMA site (`neuma.huma-num.fr`) no longer exists, so it cannot be crawled or its licences verified. Removed from `ALL_SOURCES`.
+- [x] 8.11 Josquin Research Project (site/repo, open access — verify terms) with fixture — DROPPED from scope: the site could not be located, so its terms cannot be verified. Removed from `ALL_SOURCES`.
 - [x] 8.12 Hymnary.org (web crawl, per-item) with fixture — `WebIndexSource::hymnary`; shares the web-index path (per-item licence detection).
-- [~] 8.13 Register all adapters in the orchestrator registry — `registry.rs` `build_adapters` wires openscore, mutopia, musetrainer, eduardomourar, cpdl, imslp, gutenberg, hymnary, pdmx + the CLI/`main` run loop; only neuma + josquin remain `unsupported`.
+- [x] 8.13 Register all adapters in the orchestrator registry — `registry.rs` `build_adapters` wires **every in-scope source** (openscore, mutopia, musetrainer, eduardomourar, cpdl, imslp, gutenberg, hymnary, pdmx) + the CLI/`main` run loop; the `unsupported` list now only catches unknown names (NEUMA/Josquin were dropped from scope).
 
 ## 9. TUI
 

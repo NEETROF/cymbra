@@ -110,11 +110,11 @@ mod tests {
             "cpdl".to_string(),
             "pdmx".to_string(),
             "imslp".to_string(),
-            "neuma".to_string(), // not wired yet (bespoke REST/MEI)
+            "bogus".to_string(), // unknown source name → reported, not built
         ];
         let built = build_adapters(&sources, fetcher, Path::new("/tmp/checkouts"));
         assert_eq!(built.adapters.len(), 4);
-        assert_eq!(built.unsupported, vec!["neuma"]);
+        assert_eq!(built.unsupported, vec!["bogus"]);
         let names: Vec<&str> = built.adapters.iter().map(|a| a.name()).collect();
         assert!(
             names.contains(&"openscore") && names.contains(&"cpdl") && names.contains(&"imslp")

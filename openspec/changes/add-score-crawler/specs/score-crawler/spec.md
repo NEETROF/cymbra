@@ -17,10 +17,12 @@ hold a registry of adapters and iterate only over the enabled ones.
 
 #### Scenario: One adapter per implemented source
 - **WHEN** the crawler is built
-- **THEN** an adapter implementation exists for each declared source (OpenScore
+- **THEN** an adapter implementation exists for each in-scope source (OpenScore
   Lieder, Mutopia, CPDL, IMSLP, PDMX, musetrainer/library,
-  eduardomourar/music-scores-musicxml, Project Gutenberg sheet music, NEUMA,
-  Josquin Research Project, Hymnary) and is registered in the orchestrator
+  eduardomourar/music-scores-musicxml, Project Gutenberg sheet music, Hymnary)
+  and is registered in the orchestrator. NEUMA and the Josquin Research Project
+  are out of scope — the NEUMA site no longer exists and the Josquin site could
+  not be located, so their licences cannot be verified.
 
 ### Requirement: Politeness and legality
 

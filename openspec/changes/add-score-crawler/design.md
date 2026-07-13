@@ -83,9 +83,9 @@ ingest (object store + catalog_scores)`; the manifest is a derived export. The
 gate sits between `extract_license` and `fetch` so heavy content is never
 downloaded for rejected licences. Adapters fall into two
 families reusing shared helpers: **git-clone sources** (OpenScore, Mutopia,
-musetrainer, eduardomourar, Josquin) via `git2`/`git` subprocess + on-disk
+musetrainer, eduardomourar) via `git2`/`git` subprocess + on-disk
 walk; **web-crawl sources** (CPDL MediaWiki API, IMSLP, Gutenberg, Hymnary,
-NEUMA REST, PDMX/Zenodo) via `reqwest` + `scraper`/`quick-xml`.
+PDMX/Zenodo) via `reqwest` + `scraper`/`quick-xml`.
 
 ### License engine is pure and fixture-tested
 `license.rs` exposes `normalize(raw: &RawLicense) -> LicenseOutcome` as a pure
@@ -281,6 +281,7 @@ layer, and both paths write to the same store/catalog.
   vs writing inline in the crawler process.
 - IMSLP/CPDL crawl scope and rate limits acceptable to those hosts for the first
   real run (start conservative: low quota, 2 s delay, concurrency 2).
-- Whether NEUMA/Josquin need MEI→MusicXML at all or already expose MusicXML —
-  confirm per adapter during implementation.
+- ~~Whether NEUMA/Josquin need MEI→MusicXML~~ — RESOLVED (dropped): the NEUMA
+  site no longer exists and the Josquin site could not be located, so both are
+  out of scope.
 - Resume-cache backend: flat JSON vs `sled` — decide when state volume is known.
