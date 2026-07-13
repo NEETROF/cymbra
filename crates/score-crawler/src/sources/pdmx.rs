@@ -20,13 +20,15 @@
 //! subset (≈222k of ~250k) is discovered — the rest is excluded up front. Each
 //! score is already MusicXML, so no conversion is needed.
 //!
-//! NOTE: the exact CSV column names for the score path/title/composer are
-//! configurable and default to reasonable guesses — confirm them against the
-//! real `PDMX.csv` before a production run. The full 1.9 GB download/extract is
-//! network/IO glue and is not unit-tested; the CSV subset filtering and the
-//! extracted-file read are.
+//! The CSV column names (`mxl`, `title`, `composer_name`, `license`,
+//! `subset:no_license_conflict`) match the real `PDMX.csv` schema (record
+//! 15571083, 62 columns) and are overridable. The full 1.9 GB download/extract
+//! is network/IO glue and is not unit-tested; the CSV subset filtering, the
+//! per-record licence gate, and the extracted-file read are.
 
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::sync::Mutex;
 
 use anyhow::{Context, Result, anyhow};
 use async_trait::async_trait;
@@ -44,7 +46,8 @@ const MXL_ARCHIVE: &str = "mxl.tar.gz";
 /// The subset flag column — the usable (`no_license_conflict`) rows.
 const SUBSET_COL: &str = "subset:no_license_conflict";
 
-/// PDMX adapter over a local cache directory.
+/// PDMX adapter over a local cache directory. Column names match the real
+/// `PDMX.csv` schema (record 15571083).
 pub struct PdmxDatasetSource {
     base_url: String,
     cache: PathBuf,
@@ -52,6 +55,9 @@ pub struct PdmxDatasetSource {
     path_col: String,
     title_col: String,
     composer_col: String,
+    license_col: String,
+    /// path → per-record licence, cached at `discover` for `extract_license`.
+    licenses: Mutex<HashMap<String, String>>,
 }
 
 /// One usable CSV row.
@@ -60,6 +66,7 @@ struct Row {
     path: String,
     title: Option<String>,
     composer: Option<String>,
+    license: Option<String>,
 }
 
 impl PdmxDatasetSource {
@@ -69,15 +76,27 @@ impl PdmxDatasetSource {
             cache: cache.into(),
             path_col: "mxl".to_string(),
             title_col: "title".to_string(),
-            composer_col: "composer".to_string(),
+            composer_col: "composer_name".to_string(),
+            license_col: "license".to_string(),
+            licenses: Mutex::new(HashMap::new()),
         }
     }
 
     fn csv_path(&self) -> PathBuf {
         self.cache.join(CSV_FILE)
     }
+    /// The extracted-archive marker directory. PDMX's `mxl.tar.gz` unpacks a
+    /// top-level `mxl/` tree at the cache root, and the CSV's `mxl` column paths
+    /// (`./mxl/…`) are already relative to that root — so scores resolve against
+    /// the cache root, and this is only the "already extracted" sentinel.
     fn mxl_dir(&self) -> PathBuf {
         self.cache.join("mxl")
+    }
+    /// Resolves a CSV `mxl` path (e.g. `./mxl/1/11/<cid>.mxl`) to its extracted
+    /// location under the cache root, tolerating the leading `./`.
+    fn score_path(&self, csv_path: &str) -> PathBuf {
+        let rel = csv_path.strip_prefix("./").unwrap_or(csv_path);
+        self.cache.join(rel)
     }
 }
 
@@ -97,7 +116,9 @@ impl SourceAdapter for PdmxDatasetSource {
             if !archive.exists() {
                 download_to_file(&format!("{}/{MXL_ARCHIVE}", self.base_url), &archive).await?;
             }
-            let (a, d) = (archive.clone(), self.mxl_dir());
+            // The archive carries its own top-level `mxl/`, so unpack at the
+            // cache root (not into `mxl/`, which would double-nest the tree).
+            let (a, d) = (archive.clone(), self.cache.clone());
             tokio::task::spawn_blocking(move || extract_tar_gz(&a, &d))
                 .await
                 .context("joining extract task")??;
@@ -111,7 +132,15 @@ impl SourceAdapter for PdmxDatasetSource {
             &self.path_col,
             &self.title_col,
             &self.composer_col,
+            &self.license_col,
         )?;
+        if let Ok(mut cache) = self.licenses.lock() {
+            for r in &rows {
+                if let Some(lic) = &r.license {
+                    cache.insert(r.path.clone(), lic.clone());
+                }
+            }
+        }
         Ok(rows
             .into_iter()
             .map(|r| Item {
@@ -125,13 +154,21 @@ impl SourceAdapter for PdmxDatasetSource {
             .collect())
     }
 
-    async fn extract_license(&self, _item: &Item) -> Result<RawLicense> {
-        // The `no_license_conflict` subset is PDMX's public-domain guarantee.
-        Ok(RawLicense::verified("Public Domain"))
+    async fn extract_license(&self, item: &Item) -> Result<RawLicense> {
+        // Prefer the per-record `license` column (cached at discover); fall back
+        // to the subset's public-domain guarantee when it is empty. Both are
+        // still run through the same whitelist gate downstream.
+        let signal = self
+            .licenses
+            .lock()
+            .ok()
+            .and_then(|c| c.get(&item.source_item_id).cloned())
+            .unwrap_or_else(|| "Public Domain".to_string());
+        Ok(RawLicense::verified(signal))
     }
 
     async fn fetch(&self, item: &Item) -> Result<RawScore> {
-        let path = self.mxl_dir().join(&item.source_item_id);
+        let path = self.score_path(&item.source_item_id);
         let bytes = std::fs::read(&path)
             .with_context(|| format!("reading extracted score {}", path.display()))?;
         Ok(RawScore {
@@ -148,6 +185,7 @@ fn parse_usable(
     path_col: &str,
     title_col: &str,
     composer_col: &str,
+    license_col: &str,
 ) -> Result<Vec<Row>> {
     let mut rdr = csv::Reader::from_path(csv_path)
         .with_context(|| format!("opening {}", csv_path.display()))?;
@@ -159,6 +197,7 @@ fn parse_usable(
     let path_i = index(path_col).ok_or_else(|| anyhow!("PDMX.csv has no '{path_col}' column"))?;
     let title_i = index(title_col);
     let composer_i = index(composer_col);
+    let license_i = index(license_col);
 
     let mut out = Vec::new();
     for record in rdr.records() {
@@ -170,15 +209,17 @@ fn parse_usable(
             Some(p) if !p.is_empty() => p.to_string(),
             _ => continue,
         };
+        // PDMX uses the literal "NA" as a null marker for missing metadata.
         let field = |i: Option<usize>| {
             i.and_then(|i| record.get(i))
-                .filter(|s| !s.is_empty())
+                .filter(|s| !s.is_empty() && *s != "NA")
                 .map(String::from)
         };
         out.push(Row {
             path,
             title: field(title_i),
             composer: field(composer_i),
+            license: field(license_i),
         });
     }
     Ok(out)
@@ -231,10 +272,18 @@ mod tests {
 
     #[test]
     fn parses_only_the_no_license_conflict_subset() {
-        let rows = parse_usable(&fixture().join(CSV_FILE), "mxl", "title", "composer").unwrap();
+        let rows = parse_usable(
+            &fixture().join(CSV_FILE),
+            "mxl",
+            "title",
+            "composer_name",
+            "license",
+        )
+        .unwrap();
         assert_eq!(rows.len(), 1, "only the no_license_conflict row");
-        assert_eq!(rows[0].path, "scores/ok.mxl");
+        assert_eq!(rows[0].path, "./mxl/scores/ok.mxl");
         assert_eq!(rows[0].composer.as_deref(), Some("Clementi"));
+        assert_eq!(rows[0].license.as_deref(), Some("publicdomain"));
     }
 
     #[tokio::test]
