@@ -9,11 +9,12 @@
 
 FROM rust:1-slim AS build
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends pkg-config libssl-dev git \
+    && apt-get install -y --no-install-recommends git libssl-dev pkg-config \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /src
 COPY . .
-RUN cargo build --release -p score-crawler
+# --locked: build strictly from the committed Cargo.lock (reproducible).
+RUN cargo build --locked --release -p score-crawler
 
 FROM python:3.12-slim
 # Runtime converters: git (git-clone sources) + python-ly (LilyPond → MusicXML,
@@ -24,8 +25,8 @@ FROM python:3.12-slim
 # converter backend (CYMBRA_SCORE_CONVERTER_BACKEND=docker) — see musescore.Dockerfile
 # and the README. That spawns sibling containers, so the docker CLI is included.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends git ca-certificates \
-    && pip install --no-cache-dir python-ly \
+    && apt-get install -y --no-install-recommends ca-certificates git \
+    && pip install --no-cache-dir --only-binary=:all: python-ly==0.9.10 \
     && rm -rf /var/lib/apt/lists/*
 # The docker CLI (static, from the official image) so the `docker` converter
 # backend can `docker run cymbra/musescore …` against a mounted host socket.
