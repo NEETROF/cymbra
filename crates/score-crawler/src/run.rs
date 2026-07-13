@@ -128,6 +128,62 @@ mod tests {
         }
     }
 
+    /// A fake source exposing `n` distinct items.
+    fn fake_n(name: &str, n: usize) -> FakeAdapter {
+        let items = (0..n)
+            .map(|i| {
+                let id = format!("{name}-{i}");
+                (
+                    Item {
+                        source_item_id: id.clone(),
+                        url: format!("https://ex/{id}"),
+                        title: Some(id.clone()),
+                        composer: None,
+                        arranger: None,
+                        source_grade: None,
+                    },
+                    RawLicense::verified("CC0"),
+                    RawScore {
+                        origin: OriginFormat::MusicXml,
+                        bytes: score_for(&id).into_bytes(),
+                    },
+                )
+            })
+            .collect();
+        FakeAdapter {
+            name: name.into(),
+            items,
+            fetch_calls: Arc::new(AtomicUsize::new(0)),
+            fail_fetch: vec![],
+        }
+    }
+
+    #[tokio::test]
+    async fn limit_is_applied_per_source_not_globally() {
+        // Two sources of 4 items each, --limit 2 ⇒ 2 processed PER source (4
+        // total), not 2 across the whole run.
+        let adapters: Vec<Box<dyn SourceAdapter>> =
+            vec![Box::new(fake_n("a", 4)), Box::new(fake_n("b", 4))];
+        let out = run_all(&adapters, Some(2), None).await;
+
+        assert_eq!(out.stats.discovered, 4, "2 per source × 2 sources");
+        assert_eq!(out.stats.accepted, 4);
+        assert_eq!(
+            out.prepared
+                .iter()
+                .filter(|p| p.entry.source == "a")
+                .count(),
+            2
+        );
+        assert_eq!(
+            out.prepared
+                .iter()
+                .filter(|p| p.entry.source == "b")
+                .count(),
+            2
+        );
+    }
+
     #[tokio::test]
     async fn runs_all_adapters_and_emits_progress() {
         let adapters: Vec<Box<dyn SourceAdapter>> =
