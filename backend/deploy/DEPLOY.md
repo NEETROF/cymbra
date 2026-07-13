@@ -244,21 +244,32 @@ the read path. `object_key` in the catalog is exactly the file's path under the
 corpus root (`safe/<source>/<author>/<title>.mxl`), so the server resolves bytes
 directly from the mounted `/srv/cymbra/scores` (see `docker-compose.prod.yml`).
 
-**Run a crawl** (one-shot; ingests into the prod DB via `CYMBRA_SCORE_DATABASE_URL`).
-Start small to validate, then unbounded. For `openscore` build the MuseScore
-image first (see `crates/score-crawler/README.md`):
+**No source is needed on the box.** The `crawler-image` CI workflow publishes two
+images to GHCR — `cymbra-score-crawler` and `cymbra-musescore` (headless MuseScore
+4, for OpenScore's `.mscx`) — and `docker-compose.crawler.prod.yml` (ships with
+`backend/deploy/`) pulls and runs them. It joins the backend's private network so
+`postgres` resolves, so **start the backend stack first**.
 
 ```bash
-cd /opt/cymbra/score-crawler          # the crawler checkout on the box
-# smoke test: a few scores per source, into the prod catalog
-LIMIT=5 CYMBRA_SCORE_DATABASE_URL=postgres://cymbra:...@localhost:5432/cymbra \
-  docker compose up --build
+cd /opt/cymbra/backend/deploy
+docker login ghcr.io                     # once (or reuse the deploy pull creds)
+docker compose -f docker-compose.crawler.prod.yml pull
+
+# smoke test: a few scores per source into the prod catalog (--env-file for the DB pw)
+LIMIT=5 docker compose --env-file .env -f docker-compose.crawler.prod.yml up
+
 # then publish the bytes: merge into SCORES_DIR + mirror to S3
-. /etc/cymbra/backup.env; /opt/cymbra/backend/deploy/sync-scores.sh
+. /etc/cymbra/backup.env; ./sync-scores.sh
 ```
 
 Verify: `select count(*) from score.catalog_scores;` grows, and
-`find $SCORES_DIR -name '*.mxl' | wc -l` matches. Then run unbounded (drop `LIMIT`).
+`find $SCORES_DIR -name '*.mxl' | wc -l` matches. Then run unbounded (drop `LIMIT`),
+or one source at a time (`... up mutopia`). `pdmx` downloads ~2 GB (the 222k-score
+Zenodo dataset) — run it last. `openscore` converts via a sibling `cymbra-musescore`
+container over the mounted docker socket (already wired in the compose).
+
+The crawler connects as the DB superuser by default (it runs its own `score`
+migrations then ingests); override `CYMBRA_SCORE_DATABASE_URL` for a dedicated role.
 
 **Nightly** `bootstrap.sh` installs a cron (04:00) that runs `sync-scores.sh`:
 it merges the crawler output into `SCORES_DIR` and mirrors it to `s3://$S3_BUCKET/scores`
