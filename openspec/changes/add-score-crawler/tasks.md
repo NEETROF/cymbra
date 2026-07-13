@@ -4,13 +4,17 @@
      crate, skip 1.1–1.7 and just depend on it. Otherwise perform the extraction
      here. Do NOT extract twice. -->
 
-- [ ] 1.1 Confirm whether `crates/musicxml-core` already exists (delivered by `add-user-score-upload`); if so, depend on it and skip to §2
-- [ ] 1.2 Enable the `crates/*` member glob in the workspace `Cargo.toml` and scaffold `crates/musicxml-core` (lib, edition 2024, Apache-2.0 headers)
-- [ ] 1.3 Move the pure data model + streaming parser + geometry from `apps/music/rust/src/api/musicxml.rs` + `musicxml_core.rs` into the crate, stripped of `flutter_rust_bridge`; expose `parse(bytes) -> Result<ScoreDocument>`
-- [ ] 1.4 Add a `validate_musicxml(bytes) -> bool` helper for native-input validation and `.mxl` re-parse verification
-- [ ] 1.5 Rewire `apps/music/rust` to depend on `musicxml-core`; keep the `#[frb]` types/wrappers in the app crate as re-exports/wrappers
-- [ ] 1.6 Run `flutter_rust_bridge_codegen generate`; confirm the generated Dart MusicXML API is unchanged (diff) and `score-notation` tests stay green
-- [ ] 1.7 `cargo fmt` + `cargo clippy -D warnings` clean; `cargo llvm-cov` on `musicxml-core` ≥ 80%
+<!-- §1 delivered as `cymbra-musicxml-core` via PR #79 (merged to main); the
+     crawler depends on it. The extraction is complete — these boxes reflect that
+     inherited work. -->
+
+- [x] 1.1 Confirm whether `crates/musicxml-core` already exists (delivered by `add-user-score-upload`); if so, depend on it and skip to §2 — exists as `cymbra-musicxml-core` (PR #79); the crawler depends on it.
+- [x] 1.2 Enable the `crates/*` member glob in the workspace `Cargo.toml` and scaffold `crates/musicxml-core` (lib, edition 2024, Apache-2.0 headers) — done in PR #79.
+- [x] 1.3 Move the pure data model + streaming parser + geometry from `apps/music/rust/src/api/musicxml.rs` + `musicxml_core.rs` into the crate, stripped of `flutter_rust_bridge`; expose `parse(bytes) -> Result<ScoreDocument>` — done in PR #79.
+- [x] 1.4 Add a `validate_musicxml(bytes) -> bool` helper for native-input validation and `.mxl` re-parse verification — `validate()` + `mxl::decode` in the crate (PR #79).
+- [x] 1.5 Rewire `apps/music/rust` to depend on `musicxml-core`; keep the `#[frb]` types/wrappers in the app crate as re-exports/wrappers — done via `#[frb(mirror(...))]` (PR #79).
+- [x] 1.6 Run `flutter_rust_bridge_codegen generate`; confirm the generated Dart MusicXML API is unchanged (diff) and `score-notation` tests stay green — byte-identical Dart; 65 app tests green (PR #79).
+- [x] 1.7 `cargo fmt` + `cargo clippy -D warnings` clean; `cargo llvm-cov` on `musicxml-core` ≥ 80% — 95% coverage (PR #79).
 
 ## 2. Backend `score` catalog + ingestion path
 
