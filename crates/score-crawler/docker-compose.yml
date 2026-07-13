@@ -17,11 +17,12 @@
 # CATALOG INGESTION — the crawlers ingest into Postgres via
 # CYMBRA_SCORE_DATABASE_URL. It defaults to the backend/docker-compose.yml
 # Postgres reached through the host's mapped port (host.docker.internal:5432),
-# with the password taken from POSTGRES_PASSWORD (default `cymbra_dev_pw`, the
-# backend dev value) so no credential is hard-coded here. Locally just start that
-# DB first:
+# with the password read from POSTGRES_PASSWORD (no credential is hard-coded
+# here). Locally, start that DB and pass its password (the value set in
+# backend/docker-compose.yml's POSTGRES_PASSWORD):
 #     docker compose -f backend/docker-compose.yml up -d postgres
-#     docker compose -f crates/score-crawler/docker-compose.yml up --build
+#     POSTGRES_PASSWORD=<backend dev pw> \
+#       docker compose -f crates/score-crawler/docker-compose.yml up --build
 # On a server, override the whole connection string (managed DB, other host, …):
 #     CYMBRA_SCORE_DATABASE_URL=postgres://user:pass@db.host:5432/cymbra \
 #       docker compose -f crates/score-crawler/docker-compose.yml up
@@ -39,7 +40,7 @@ x-crawler: &crawler
     LIMIT: ${LIMIT:-}
     # Catalog DB: default targets the backend compose's Postgres via the host
     # port; override on the server. Empty = no ingestion (local corpus only).
-    CYMBRA_SCORE_DATABASE_URL: ${CYMBRA_SCORE_DATABASE_URL-postgres://cymbra:${POSTGRES_PASSWORD:-cymbra_dev_pw}@host.docker.internal:5432/cymbra}
+    CYMBRA_SCORE_DATABASE_URL: ${CYMBRA_SCORE_DATABASE_URL-postgres://cymbra:${POSTGRES_PASSWORD:-}@host.docker.internal:5432/cymbra}
   # Make host.docker.internal resolve on Linux servers too (no-op on Docker
   # Desktop, where it already resolves).
   extra_hosts:
@@ -62,7 +63,7 @@ services:
     # A service-level `environment:` replaces the anchor's, so re-list its vars.
     environment:
       LIMIT: ${LIMIT:-}
-      CYMBRA_SCORE_DATABASE_URL: ${CYMBRA_SCORE_DATABASE_URL-postgres://cymbra:${POSTGRES_PASSWORD:-cymbra_dev_pw}@host.docker.internal:5432/cymbra}
+      CYMBRA_SCORE_DATABASE_URL: ${CYMBRA_SCORE_DATABASE_URL-postgres://cymbra:${POSTGRES_PASSWORD:-}@host.docker.internal:5432/cymbra}
       CYMBRA_SCORE_CONVERTER_BACKEND: docker
       CYMBRA_SCORE_MUSESCORE_IMAGE: cymbra/musescore
       TMPDIR: ${SC_CONVTMP:-/tmp/cymbra-conv}
