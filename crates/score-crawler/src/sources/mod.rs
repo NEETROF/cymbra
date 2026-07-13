@@ -27,6 +27,8 @@ use crate::convert::{Converted, OriginFormat, convert_any};
 use crate::difficulty::Level;
 use crate::license::RawLicense;
 
+pub mod git;
+
 /// Every source this crawler knows how to harvest (concrete adapters land
 /// incrementally). `--all` expands to this list.
 pub const ALL_SOURCES: &[&str] = &[

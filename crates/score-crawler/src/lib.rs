@@ -29,4 +29,7 @@ pub mod difficulty;
 pub mod license;
 pub mod manifest;
 pub mod metadata;
+pub mod politeness;
+pub mod robots;
 pub mod sources;
+pub mod state;
