@@ -6,9 +6,10 @@
 //! End-to-end integration test: crawl the local fixture repo, write the corpus,
 //! and ingest into a real Postgres `score.catalog_scores`.
 //!
-//! Skipped unless `CYMBRA_SCORE_DATABASE_URL` is set, e.g.:
+//! Skipped unless `CYMBRA_SCORE_DATABASE_URL` is set, e.g. (substitute the
+//! backend dev Postgres password from backend/docker-compose.yml):
 //!   docker compose -f backend/docker-compose.yml up -d postgres
-//!   CYMBRA_SCORE_DATABASE_URL=postgres://cymbra:cymbra_dev_pw@localhost:5432/cymbra \
+//!   CYMBRA_SCORE_DATABASE_URL=postgres://cymbra:$PGPASS@localhost:5432/cymbra \
 //!     cargo test -p score-crawler --test pg_ingest_it -- --nocapture
 
 use std::path::PathBuf;
