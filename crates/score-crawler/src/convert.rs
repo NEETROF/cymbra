@@ -22,9 +22,16 @@
 //! subprocess steps; MIDI is never treated as a score source.
 
 use std::io::{Cursor, Write};
+use std::path::{Path, PathBuf};
+use std::process::Command;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result, anyhow};
 use serde::{Deserialize, Serialize};
+
+/// Wall-clock cap on any single external converter invocation.
+const CONVERTER_TIMEOUT: Duration = Duration::from_secs(120);
 
 /// Internal member name for the score inside the `.mxl` container.
 const INNER_NAME: &str = "score.musicxml";
@@ -106,10 +113,141 @@ pub fn convert_any(origin: OriginFormat, bytes: &[u8]) -> Result<Converted> {
     match origin {
         OriginFormat::MusicXml => convert_native(bytes),
         OriginFormat::Mxl => accept_mxl(bytes),
-        OriginFormat::MuseScore | OriginFormat::LilyPond | OriginFormat::Mei => Err(anyhow!(
-            "external converter for {origin:?} is not wired yet (MuseScore CLI / python-ly / Verovio)"
-        )),
+        OriginFormat::MuseScore => musescore_to_mxl(bytes),
+        OriginFormat::Mei => verovio_to_mxl(bytes),
+        OriginFormat::LilyPond => lilypond_to_mxl(bytes),
     }
+}
+
+/// MuseScore `.mscx`/`.mscz` → `.mxl` via the MuseScore CLI (headless), then
+/// re-parse verification. The CLI emits `.mxl` directly.
+pub fn musescore_to_mxl(bytes: &[u8]) -> Result<Converted> {
+    let mxl = convert_via_files(
+        bytes,
+        "mscx",
+        "mxl",
+        "mscore",
+        |input, output| vec!["-o".into(), path(output), path(input)],
+        &[("QT_QPA_PLATFORM", "offscreen")],
+    )?;
+    accept_mxl(&mxl).context("MuseScore output failed verification")
+}
+
+/// MEI → MusicXML via Verovio, then compress + verify.
+pub fn verovio_to_mxl(bytes: &[u8]) -> Result<Converted> {
+    let musicxml = convert_via_files(
+        bytes,
+        "mei",
+        "xml",
+        "verovio",
+        |input, output| {
+            vec![
+                "-t".into(),
+                "musicxml".into(),
+                "-o".into(),
+                path(output),
+                path(input),
+            ]
+        },
+        &[],
+    )?;
+    convert_native(&musicxml).context("Verovio output failed verification")
+}
+
+/// LilyPond `.ly` → MusicXML via `python-ly`. Conversion is imperfect; on any
+/// failure (including a missing binary) the error is surfaced so the
+/// orchestrator keeps the item as a failure rather than emitting dubious output.
+/// The `failed_kept_source` refinement (persisting the `.ly`/PDF) is a follow-up
+/// once the writer stores non-`.mxl` artefacts.
+pub fn lilypond_to_mxl(bytes: &[u8]) -> Result<Converted> {
+    let musicxml = convert_via_files(
+        bytes,
+        "ly",
+        "xml",
+        "ly",
+        |input, output| vec!["musicxml".into(), "-o".into(), path(output), path(input)],
+        &[],
+    )
+    .context("LilyPond conversion failed")?;
+    convert_native(&musicxml).context("LilyPond output failed verification")
+}
+
+/// Runs an external converter over temp files: writes `input` to a temp file,
+/// invokes `program` with args built from the input/output paths, and returns
+/// the output file's bytes. Temp files are always cleaned up.
+fn convert_via_files(
+    input: &[u8],
+    input_ext: &str,
+    output_ext: &str,
+    program: &str,
+    args: impl Fn(&Path, &Path) -> Vec<String>,
+    envs: &[(&str, &str)],
+) -> Result<Vec<u8>> {
+    let in_path = unique_temp(input_ext);
+    let out_path = unique_temp(output_ext);
+    std::fs::write(&in_path, input)
+        .with_context(|| format!("writing converter input {}", in_path.display()))?;
+
+    let built = args(&in_path, &out_path);
+    let arg_refs: Vec<&str> = built.iter().map(|s| s.as_str()).collect();
+    let result = run_external(program, &arg_refs, envs, CONVERTER_TIMEOUT).and_then(|_| {
+        std::fs::read(&out_path)
+            .with_context(|| format!("reading converter output {}", out_path.display()))
+    });
+
+    let _ = std::fs::remove_file(&in_path);
+    let _ = std::fs::remove_file(&out_path);
+    result
+}
+
+/// Spawns `program`, enforcing `timeout` and checking the exit status. A missing
+/// binary is a clear, non-panicking error the caller can degrade on.
+pub fn run_external(
+    program: &str,
+    args: &[&str],
+    envs: &[(&str, &str)],
+    timeout: Duration,
+) -> Result<()> {
+    let mut cmd = Command::new(program);
+    cmd.args(args);
+    for (k, v) in envs {
+        cmd.env(k, v);
+    }
+    let mut child = match cmd.spawn() {
+        Ok(child) => child,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            return Err(anyhow!("converter '{program}' not found on PATH"));
+        }
+        Err(e) => return Err(anyhow!("spawning {program}: {e}")),
+    };
+
+    let start = Instant::now();
+    loop {
+        match child.try_wait().context("waiting for converter")? {
+            Some(status) if status.success() => return Ok(()),
+            Some(status) => return Err(anyhow!("{program} exited with {status}")),
+            None => {
+                if start.elapsed() > timeout {
+                    let _ = child.kill();
+                    let _ = child.wait();
+                    return Err(anyhow!("{program} timed out after {timeout:?}"));
+                }
+                std::thread::sleep(Duration::from_millis(50));
+            }
+        }
+    }
+}
+
+/// A unique temp path (process id + a monotonic counter; no external dep).
+fn unique_temp(ext: &str) -> PathBuf {
+    static COUNTER: AtomicU64 = AtomicU64::new(0);
+    let n = COUNTER.fetch_add(1, Ordering::Relaxed);
+    std::env::temp_dir().join(format!("score_crawler_{}_{n}.{ext}", std::process::id()))
+}
+
+/// Lossy path→String for building converter args.
+fn path(p: &Path) -> String {
+    p.to_string_lossy().into_owned()
 }
 
 /// Builds a spec-compliant `.mxl` (ZIP: `META-INF/container.xml` → internal
@@ -199,5 +337,39 @@ mod tests {
     #[test]
     fn verify_rejects_non_mxl() {
         assert!(verify_mxl(SCORE.as_bytes()).is_err());
+    }
+
+    #[test]
+    fn run_external_reports_exit_status() {
+        assert!(run_external("sh", &["-c", "exit 0"], &[], Duration::from_secs(5)).is_ok());
+        assert!(run_external("sh", &["-c", "exit 3"], &[], Duration::from_secs(5)).is_err());
+    }
+
+    #[test]
+    fn run_external_missing_binary_is_a_clean_error() {
+        let err = run_external(
+            "score-crawler-no-such-binary-xyz",
+            &[],
+            &[],
+            Duration::from_secs(5),
+        )
+        .unwrap_err();
+        assert!(err.to_string().contains("not found"));
+    }
+
+    #[test]
+    fn run_external_enforces_timeout() {
+        let err =
+            run_external("sh", &["-c", "sleep 5"], &[], Duration::from_millis(100)).unwrap_err();
+        assert!(err.to_string().contains("timed out"));
+    }
+
+    #[test]
+    fn external_conversion_degrades_when_binary_absent() {
+        // With no MuseScore/Verovio/python-ly installed, conversion is a clean
+        // per-item error (the orchestrator isolates it), never a panic.
+        if run_external("mscore", &["-v"], &[], Duration::from_secs(2)).is_err() {
+            assert!(musescore_to_mxl(b"<museScore/>").is_err());
+        }
     }
 }

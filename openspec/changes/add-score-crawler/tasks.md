@@ -50,8 +50,8 @@
 
 - [x] 6.1 Native `.musicxml`/`.xml` → validate via `musicxml-core`, reject non-MusicXML XML
 - [x] 6.2 Spec-compliant `.mxl` builder (`zip` + `META-INF/container.xml`) + re-parse verification step
-- [ ] 6.3 MuseScore `.mscx/.mscz` → MuseScore CLI headless (`QT_QPA_PLATFORM=offscreen`) with exit-code check + timeout — external converter, deferred (dispatch stub errors cleanly, isolated per-item).
-- [ ] 6.4 MEI → Verovio (`-t musicxml`); LilyPond `.ly` → python-ly with `failed_kept_source` fallback (keep .ly + PDF); never convert MIDI — external converters, deferred.
+- [x] 6.3 MuseScore `.mscx/.mscz` → MuseScore CLI headless (`QT_QPA_PLATFORM=offscreen`) with exit-code check + timeout — `convert::musescore_to_mxl` via `run_external` (subprocess + timeout + exit-code; missing binary = clean per-item failure). `run_external` tested for success/exit/not-found/timeout via shell builtins.
+- [~] 6.4 MEI → Verovio (`-t musicxml`); LilyPond `.ly` → python-ly with `failed_kept_source` fallback (keep .ly + PDF); never convert MIDI — Verovio (`verovio_to_mxl`) + python-ly (`lilypond_to_mxl`) wired; MIDI has no `OriginFormat`/dispatch branch so it can't be converted. The `failed_kept_source` refinement (persisting the `.ly`/PDF) awaits a writer that stores non-`.mxl` artefacts.
 - [x] 6.5 Record `conversion_status`; tests for `.mxl` build + re-parse verification (fixtures)
 
 ## 7. Metadata extraction + difficulty + ingestion into the shared store
