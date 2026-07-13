@@ -11,6 +11,9 @@ apps/*/macos/Pods
 **/*.freezed.dart
 node_modules
 **/node_modules
+# score-crawler generated corpus / git checkouts.
+output
+**/output
 # Local env / secrets must never enter an image layer.
 backend/.env
 backend/deploy/.env
