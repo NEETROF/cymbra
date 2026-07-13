@@ -1,0 +1,38 @@
+# Score crawler (change: add-score-crawler): a polite, resumable crawler that
+# harvests only redistributable scores from online libraries, converts them to
+# validated .mxl, and ingests them into the shared score store. This manifest
+# grows as modules land; network/backend/TUI deps (reqwest, object_store, sqlx,
+# ratatui, …) are added with their modules to keep early builds lean.
+[package]
+name = "score-crawler"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[[bin]]
+name = "score-crawler"
+path = "src/main.rs"
+
+[dependencies]
+# Shared notation engine: validation + .mxl re-parse + the parsed model that
+# metadata/difficulty read. Single source of truth across app/backend/crawler.
+cymbra-musicxml-core = { path = "../musicxml-core" }
+
+anyhow = "1"
+thiserror = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_yaml = "0.9"
+csv = "1"
+sha2 = "0.10"
+# Accent-folding for title_norm / work_key (search-ready, dedup grouping).
+unicode-normalization = "0.1"
+# .mxl container build (spec-shaped ZIP); deflate only, no native backends.
+zip = { version = "2", default-features = false, features = ["deflate"] }
+clap = { version = "4", features = ["derive"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+# Async runtime + trait for the SourceAdapter orchestration + concurrency cap.
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time"] }
+async-trait = "0.1"

@@ -1,0 +1,29 @@
+# Example score-crawler configuration.
+#
+# Politeness defaults are conservative on purpose — respect the source
+# libraries. The store backend is a local folder in dev; set the
+# CYMBRA_SCORE_S3_* env vars (bucket/endpoint/region) to target S3/MinIO in prod
+# without editing this file.
+
+# Sources to crawl when neither --sources nor --all is passed on the CLI.
+sources:
+  - openscore
+  - mutopia
+
+# Milliseconds to wait between requests to the same host.
+delay_ms: 2000
+# Max concurrent in-flight requests (kept low to be polite).
+concurrency: 2
+# A real contact (email or URL) — embedded in the User-Agent so hosts can reach
+# you. Please set this before running against live sites.
+contact: "contact-not-set@example.org"
+# Per-source item cap for test runs; remove or null for unbounded.
+limit_per_source: 50
+
+store:
+  backend:
+    kind: local_fs
+    root: ./output
+  # High-confidence corpus prefix vs the quarantined low-confidence one.
+  safe_prefix: safe
+  low_confidence_prefix: low_confidence

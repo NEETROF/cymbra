@@ -25,17 +25,17 @@
 
 ## 3. Crawler crate scaffold + config + CLI
 
-- [ ] 3.1 Scaffold `crates/score-crawler` (lib + `score-crawler` bin) with modules `sources/`, `license.rs`, `convert.rs`, `catalog.rs`, `ingest.rs`, `crawl.rs`, `config.rs`, `tui.rs`, `main.rs`
-- [ ] 3.2 Add dependencies (tokio, reqwest rustls/stream/gzip, scraper, quick-xml/roxmltree, texting_robots, backoff, governor, sha2, zip, git2, serde/serde_json/serde_yaml/csv, clap, tracing/tracing-subscriber, ratatui/crossterm, sqlx + object_store via the `score` module, anyhow/thiserror, async-trait)
-- [ ] 3.3 Define `config.yaml` schema + serde structs (enabled sources, per-host delay, concurrency, per-source quotas, User-Agent contact, object-store backend + prefixes, Postgres/catalog connection); env override support incl. `CYMBRA_SCORE_S3_*`
-- [ ] 3.4 Implement the `clap` CLI (`--sources`, `--limit`, `--all`, `--resume`, `--verbose`) and `tracing` subscriber (INFO default, DEBUG on `--verbose`)
+- [x] 3.1 Scaffold `crates/score-crawler` (lib + `score-crawler` bin) with modules `sources/`, `license.rs`, `convert.rs`, `catalog.rs`, `ingest.rs`, `crawl.rs`, `config.rs`, `tui.rs`, `main.rs` — engine modules landed (license, convert, metadata, difficulty, manifest, sources, crawl, config, cli, main); `catalog.rs`/`ingest.rs`/`tui.rs` deferred with their backend/TUI slices.
+- [~] 3.2 Add dependencies — engine set added (cymbra-musicxml-core, anyhow, thiserror, serde/json/yaml/csv, sha2, zip, unicode-normalization, clap, tracing, tokio, async-trait); network/backend/TUI deps (reqwest, scraper, texting_robots, backoff, governor, git2, object_store, sqlx, ratatui/crossterm) attach with their modules.
+- [x] 3.3 Define `config.yaml` schema + serde structs (enabled sources, per-host delay, concurrency, per-source quotas, User-Agent contact, object-store backend + prefixes, Postgres/catalog connection); env override support incl. `CYMBRA_SCORE_S3_*` — Postgres/catalog connection deferred to ingestion.
+- [x] 3.4 Implement the `clap` CLI (`--sources`, `--limit`, `--all`, `--resume`, `--verbose`) and `tracing` subscriber (INFO default, DEBUG on `--verbose`)
 
 ## 4. License engine (most critical)
 
-- [ ] 4.1 Define `RawLicense`, `LicenseOutcome` (canonical code, licence URL, confidence), and `Decision` types
-- [ ] 4.2 Implement pure `normalize(raw) -> LicenseOutcome` (CC URLs, SPDX ids, version-less labels, NC/ND detection, per-source status strings, ambiguity/unknown handling)
-- [ ] 4.3 Implement `is_redistributable(outcome) -> Decision` enforcing the whitelist (CC0 / PublicDomain / CC-BY-* / CC-BY-SA-*) and `unverified` classification for self-declared PD
-- [ ] 4.4 Exhaustive table tests: accepted codes, NC/ND/ARR rejection, ambiguous/empty rejection, version-less "any version", self-declared PD → unverified
+- [x] 4.1 Define `RawLicense`, `LicenseOutcome` (canonical code, licence URL, confidence), and `Decision` types
+- [x] 4.2 Implement pure `normalize(raw) -> LicenseOutcome` (CC URLs, SPDX ids, version-less labels, NC/ND detection, per-source status strings, ambiguity/unknown handling)
+- [x] 4.3 Implement `is_redistributable(outcome) -> Decision` enforcing the whitelist (CC0 / PublicDomain / CC-BY-* / CC-BY-SA-*) and `unverified` classification for self-declared PD
+- [x] 4.4 Exhaustive table tests: accepted codes, NC/ND/ARR rejection, ambiguous/empty rejection, version-less "any version", self-declared PD → unverified — `license.rs` 99.6% covered.
 
 ## 5. Politeness, orchestration, dedup, resume
 
@@ -43,21 +43,21 @@
 - [ ] 5.2 robots.txt fetch/cache/enforcement via `texting_robots`
 - [ ] 5.3 Concurrency cap via a Tokio `Semaphore` (default 2)
 - [ ] 5.4 Resumable on-disk state cache (skip completed ids) + SHA-256 content dedup across sources and against `catalog_scores`
-- [ ] 5.5 Define the `SourceAdapter` async trait + central orchestrator enforcing pipeline order with the license-first gate before `fetch`
-- [ ] 5.6 Isolate single-item failures (logged + recorded, never abort); no `unwrap()`/`expect()` in production paths
+- [x] 5.5 Define the `SourceAdapter` async trait + central orchestrator enforcing pipeline order with the license-first gate before `fetch` — `sources.rs` + `crawl.rs`; test asserts `fetch` is not called for a rejected licence.
+- [x] 5.6 Isolate single-item failures (logged + recorded, never abort); no `unwrap()`/`expect()` in production paths — per-item failures journalled, crawl continues; verified by test.
 
 ## 6. Conversion pipeline → `.mxl`
 
-- [ ] 6.1 Native `.musicxml`/`.xml` → validate via `musicxml-core`, reject non-MusicXML XML
-- [ ] 6.2 Spec-compliant `.mxl` builder (`zip` + `META-INF/container.xml`) + re-parse verification step
-- [ ] 6.3 MuseScore `.mscx/.mscz` → MuseScore CLI headless (`QT_QPA_PLATFORM=offscreen`) with exit-code check + timeout
-- [ ] 6.4 MEI → Verovio (`-t musicxml`); LilyPond `.ly` → python-ly with `failed_kept_source` fallback (keep .ly + PDF); never convert MIDI
-- [ ] 6.5 Record `conversion_status`; tests for `.mxl` build + re-parse verification (fixtures)
+- [x] 6.1 Native `.musicxml`/`.xml` → validate via `musicxml-core`, reject non-MusicXML XML
+- [x] 6.2 Spec-compliant `.mxl` builder (`zip` + `META-INF/container.xml`) + re-parse verification step
+- [ ] 6.3 MuseScore `.mscx/.mscz` → MuseScore CLI headless (`QT_QPA_PLATFORM=offscreen`) with exit-code check + timeout — external converter, deferred (dispatch stub errors cleanly, isolated per-item).
+- [ ] 6.4 MEI → Verovio (`-t musicxml`); LilyPond `.ly` → python-ly with `failed_kept_source` fallback (keep .ly + PDF); never convert MIDI — external converters, deferred.
+- [x] 6.5 Record `conversion_status`; tests for `.mxl` build + re-parse verification (fixtures)
 
 ## 7. Metadata extraction + difficulty + ingestion into the shared store
 
-- [ ] 7.1 `metadata.rs`: derive search/musical fields from the parsed `ScoreDocument` (work_key, title_norm, is_piano/instrumentation, key_fifths, time_sig, measure_count, language, voicing) at ingest
-- [ ] 7.2 `difficulty.rs`: pure heuristic `estimate_level(&ScoreDocument) -> Level` (note density, smallest rhythmic value/tuplets, polyphony, pitch range + max leap, key_fifths, staff count, tempo); set `level_source=source` when the adapter supplies a grade, else `heuristic`, else null — never mark a heuristic as source; unit tests over crafted scores
+- [x] 7.1 `metadata.rs`: derive search/musical fields from the parsed `ScoreDocument` (work_key, title_norm, is_piano/instrumentation, key_fifths, time_sig, measure_count, language, voicing) at ingest — pure; language/voicing left to adapters (not in the parsed model).
+- [x] 7.2 `difficulty.rs`: pure heuristic `estimate_level(&ScoreDocument) -> Level` (note density, smallest rhythmic value/tuplets, polyphony, pitch range + max leap, key_fifths, staff count, tempo); set `level_source=source` when the adapter supplies a grade, else `heuristic`, else null — never mark a heuristic as source; unit tests over crafted scores
 - [ ] 7.3 `ingest.rs`: write `.mxl` bytes to the object store under the confidence-appropriate prefix, then insert the `catalog_scores` row with all metadata (dedup-by-sha256, idempotent)
 - [ ] 7.4 Enforce confidence separation (verified prefix vs low-confidence prefix + `confidence` column); never mix
 - [ ] 7.5 Derived manifest export: `manifest.csv` + `manifest.json` from `catalog_scores` (consistent), and append `rejected.log` (source, url, raw licence, reason)
