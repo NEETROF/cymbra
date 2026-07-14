@@ -8,10 +8,17 @@ name: crawler-image
 on:
   push:
     branches: [main]
+    # The crawler embeds cymbra-score and ships with the backend, so its images
+    # are versioned in LOCKSTEP with the backend: release-please tags the backend
+    # `backend-vX.Y.Z`, and its release commit bumps .release-please-manifest.json
+    # (listed below), so that tag push matches the paths filter and the crawler
+    # images get the same semver as cymbra-backend (see the tags block).
+    tags: ["backend-v*"]
     paths:
       - "crates/score-crawler/**"
       - "crates/musicxml-core/**"
       - "backend/score/**"
+      - ".release-please-manifest.json"
       - "Cargo.toml"
       - "Cargo.lock"
       - "rust-toolchain.toml"
@@ -53,6 +60,10 @@ jobs:
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
             type=sha,format=short
+            # Same version as cymbra-backend: strip the release-please `backend-v`
+            # prefix → clean semver image tags (backend-v0.5.0 → :0.5.0 and :0.5).
+            type=match,pattern=backend-v(\d+\.\d+\.\d+),group=1
+            type=match,pattern=backend-v(\d+\.\d+),group=1
 
       - name: Build and push
         uses: docker/build-push-action@v6
