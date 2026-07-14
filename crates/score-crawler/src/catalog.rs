@@ -34,10 +34,11 @@ fn variant<T: Serialize>(v: &T) -> String {
         .unwrap_or_default()
 }
 
-/// Maps a manifest entry to a backend catalog row (fresh UUID v7 id).
+/// Maps a manifest entry to a backend catalog row. The row id IS the entry's
+/// UUID v7 (also its object-store key), so the PK and the blob key match.
 pub fn to_catalog_entry(e: &ManifestEntry) -> CatalogEntry {
     CatalogEntry {
-        id: uuid::Uuid::now_v7().to_string(),
+        id: e.id.clone(),
         title: e.title.clone(),
         composer: e.composer.clone(),
         arranger: e.arranger.clone(),
@@ -92,9 +93,11 @@ mod tests {
     use crate::license::Confidence;
     use cymbra_score::FakeCatalogRepo;
 
+    const FIXED_ID: &str = "01936b3e-7f0a-7c1d-8e2f-0123456789ab";
+
     fn entry(sha: &str) -> ManifestEntry {
         ManifestEntry {
-            id: "mutopia:x".into(),
+            id: FIXED_ID.into(),
             title: Some("Ave Verum".into()),
             composer: Some("Mozart".into()),
             arranger: None,
@@ -108,7 +111,7 @@ mod tests {
             content_fingerprint: format!("fp-{sha}"),
             origin_format: OriginFormat::MusicXml,
             conversion_status: ConversionStatus::Converted,
-            object_key: Some("safe/mutopia/mozart/ave_verum-abcd1234.mxl".into()),
+            object_key: Some(format!("safe/ab/{FIXED_ID}.mxl")),
             size_bytes: 1234,
             work_key: "mozart::ave verum".into(),
             title_norm: Some("ave verum".into()),
@@ -131,9 +134,10 @@ mod tests {
         assert_eq!(c.conversion_status, "converted");
         assert_eq!(c.level.as_deref(), Some("intermediate"));
         assert_eq!(c.level_source.as_deref(), Some("heuristic"));
-        assert_eq!(c.object_key, "safe/mutopia/mozart/ave_verum-abcd1234.mxl");
+        assert_eq!(c.object_key, format!("safe/ab/{FIXED_ID}.mxl"));
         assert_eq!(c.size_bytes, 1234);
-        // A fresh UUID v7 id was assigned.
+        // The catalog id IS the entry's UUID v7 (same id as the object key).
+        assert_eq!(c.id, FIXED_ID);
         assert!(uuid::Uuid::parse_str(&c.id).is_ok());
     }
 

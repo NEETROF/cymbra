@@ -14,9 +14,10 @@
 
 //! Local filesystem output — the dev object-store backend + manifest export.
 //!
-//! Writes each retained `.mxl` under `<root>/<confidence-prefix>/<source>/
-//! <author>/<title>.mxl`, keeping the safe and low-confidence corpora strictly
-//! separate, and emits `manifest.csv` + `manifest.json` (consistent) and
+//! Writes each retained `.mxl` under `<root>/<confidence-prefix>/<shard>/
+//! <uuid>.mxl` (keyed by the score's stable UUID v7, not by mutable metadata),
+//! keeping the safe and low-confidence corpora strictly separate, and emits
+//! `manifest.csv` + `manifest.json` (consistent) and
 //! `rejected.log`. This is the `LocalFs` half of ingestion; the Postgres
 //! `catalog_scores` row is added with the backend score module (the manifest
 //! is the same record either way).
@@ -103,40 +104,20 @@ impl OutputWriter {
         Ok((summary, entries))
     }
 
-    /// The relative object key `<prefix>/<source>/<author>/<title>-<sha8>.mxl`.
-    /// A short content-hash suffix keeps same-titled works from colliding.
+    /// The relative object key `<prefix>/<shard>/<uuid>.mxl`, where `<uuid>` is
+    /// the entry's stable UUID v7 (also the catalog PK). Keying by the immutable
+    /// id — not by mutable title/author — means the object never needs re-keying
+    /// when metadata changes, leaks no metadata, and matches the user-upload
+    /// store. `<shard>` = the UUID's last two hex chars (its v7 random tail, so
+    /// the fan-out is even), keeping directories small for a 100k+ corpus.
     fn object_key(&self, entry: &ManifestEntry) -> String {
         let prefix = match entry.confidence {
             Confidence::Verified => &self.safe_prefix,
             Confidence::Unverified => &self.low_confidence_prefix,
         };
-        let author = sanitize(entry.composer.as_deref().unwrap_or("unknown"));
-        let title = sanitize(entry.title.as_deref().unwrap_or(&entry.source_item_id));
-        let sha8 = &entry.sha256[..entry.sha256.len().min(8)];
-        format!("{prefix}/{}/{author}/{title}-{sha8}.mxl", entry.source)
-    }
-}
-
-/// Makes a filesystem-safe path segment: keeps alphanumerics, folds everything
-/// else to `_`, collapses runs, and bounds the length.
-fn sanitize(s: &str) -> String {
-    let mut out = String::new();
-    let mut prev_us = false;
-    for c in s.chars() {
-        if c.is_ascii_alphanumeric() {
-            out.push(c.to_ascii_lowercase());
-            prev_us = false;
-        } else if !prev_us {
-            out.push('_');
-            prev_us = true;
-        }
-    }
-    let trimmed = out.trim_matches('_');
-    let bounded: String = trimmed.chars().take(60).collect();
-    if bounded.is_empty() {
-        "untitled".to_string()
-    } else {
-        bounded
+        let id = &entry.id;
+        let shard = &id[id.len().saturating_sub(2)..];
+        format!("{prefix}/{shard}/{id}.mxl")
     }
 }
 
@@ -150,7 +131,7 @@ mod tests {
 
     fn entry(source: &str, confidence: Confidence, sha: &str) -> ManifestEntry {
         ManifestEntry {
-            id: format!("{source}:x"),
+            id: uuid::Uuid::now_v7().to_string(),
             title: Some("Clair de Lune".into()),
             composer: Some("Debussy".into()),
             arranger: None,
@@ -219,11 +200,16 @@ mod tests {
         assert_eq!(entries.len(), 2);
         assert!(entries.iter().all(|e| e.object_key.is_some()));
 
+        // Key = `<prefix>/<shard>/<uuid>.mxl`, resolved straight from object_key.
         // Verified under safe/, unverified under low_confidence/ — never mixed.
-        let safe = root.join("safe/pdmx/debussy/clair_de_lune-aaaaaaaa.mxl");
-        let low = root.join("low_confidence/musetrainer/debussy/clair_de_lune-bbbbbbbb.mxl");
-        assert_eq!(std::fs::read(&safe).unwrap(), b"MXL-A");
-        assert_eq!(std::fs::read(&low).unwrap(), b"MXL-B");
+        let safe = &entries[0];
+        let low = &entries[1];
+        let safe_key = safe.object_key.as_ref().unwrap();
+        let low_key = low.object_key.as_ref().unwrap();
+        assert!(safe_key.starts_with("safe/") && safe_key.ends_with(&format!("/{}.mxl", safe.id)));
+        assert!(low_key.starts_with("low_confidence/") && low_key.contains(&low.id));
+        assert_eq!(std::fs::read(root.join(safe_key)).unwrap(), b"MXL-A");
+        assert_eq!(std::fs::read(root.join(low_key)).unwrap(), b"MXL-B");
         assert!(!root.join("safe/musetrainer").exists());
 
         // Manifests + rejected log written and consistent.
@@ -237,12 +223,5 @@ mod tests {
         assert!(log.contains("pdmx") && log.contains("not redistributable"));
 
         let _ = std::fs::remove_dir_all(&root);
-    }
-
-    #[test]
-    fn sanitize_folds_unsafe_characters() {
-        assert_eq!(sanitize("Clair de Lune!"), "clair_de_lune");
-        assert_eq!(sanitize("  Étude/Op.10  "), "tude_op_10");
-        assert_eq!(sanitize("***"), "untitled");
     }
 }
