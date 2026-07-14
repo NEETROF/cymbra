@@ -38,9 +38,22 @@ pub const SCHEMA: &str = "music";
 pub static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("./migrations");
 
 /// Connects a Postgres pool (used by the crawler's direct-ingestion path).
+///
+/// Pins `search_path = music` on every connection so that whatever role the
+/// crawler uses (often a superuser via `CYMBRA_SCORE_DATABASE_URL`) records the
+/// `_sqlx_migrations` ledger in the **same** `music` schema as the server's
+/// `music_svc` pool — one shared ledger, so the second `MIGRATOR.run` only applies
+/// new versions instead of forking a second ledger in `public` (design 5 / Option A).
 pub async fn connect(database_url: &str, max_connections: u32) -> anyhow::Result<sqlx::PgPool> {
+    use sqlx::Executor;
     Ok(sqlx::postgres::PgPoolOptions::new()
         .max_connections(max_connections)
+        .after_connect(|conn, _meta| {
+            Box::pin(async move {
+                conn.execute("SET search_path = music").await?;
+                Ok(())
+            })
+        })
         .connect(database_url)
         .await?)
 }
