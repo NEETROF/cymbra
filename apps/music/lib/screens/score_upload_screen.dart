@@ -54,7 +54,7 @@ class ScoreUploadScreen extends ConsumerWidget {
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 560),
+            constraints: const BoxConstraints(maxWidth: 746),
             child: switch (step) {
               UploadStep.upload => const _UploadStepView(),
               UploadStep.verify => const _VerifyStepView(),
