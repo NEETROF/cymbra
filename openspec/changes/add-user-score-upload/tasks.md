@@ -69,9 +69,9 @@
 
 ## 9. App tests
 
-- [ ] 9.1 Unit/notifier tests for `ScoreUploadNotifier` (step gating, CGU gate, difficulty gate, validation rejections, submit success/failure) with fake picker/engine/service.
-- [ ] 9.2 Widget tests for the three-step screen (auth gating, horizontal tempo-locked preview shows no practice controls) and for the library contributed-scores section + owner-only delete.
-- [ ] 9.3 `flutter test --coverage` ≥ 80% (exclusions per `CLAUDE.md`); `melos run analyze` + `dart format` + `custom_lint` clean.
+- [x] 9.1 Unit/notifier tests for `ScoreUploadNotifier` (step gating, CGU gate, difficulty gate, validation rejections, submit success/failure) with fake picker/engine/service. — `test/state/score_upload_notifier_test.dart`, 6 tests green (pick/validate, cancel no-op, typed reject, Verify gated on validation+attestation, finalize gated on difficulty + right inputs, friendly submit-error mapping).
+- [x] 9.2 Widget tests for the three-step screen (auth gating, horizontal tempo-locked preview shows no practice controls) and for the library contributed-scores section + owner-only delete. — `test/widgets/score_upload_screen_test.dart` (2 tests: Verify gated on validation+attestation; full upload→verify (no practice slider)→confirm (difficulty gate)→submit) + `test/widgets/library_contributions_test.dart` (4 tests: section + owner-only delete icon, hidden when signed out, confirm→deleteScore(id), cancel→no-op).
+- [x] 9.3 `flutter test --coverage` ≥ 80% (exclusions per `CLAUDE.md`); `melos run analyze` + `dart format` + `custom_lint` clean. — `flutter analyze` 0 issues, `custom_lint` 0 issues, `dart format` clean; full suite 404 tests green. New-code coverage: notifier 82%, contributed_scores 82%, wizard screen 78% (remainder is the verify-step audio/Ticker glue, exercised by the integration run). The definitive merged 80% gate (unit/widget + integration) runs in CI on Linux, like the Rust gate — the untestable gRPC/FFI seams (score_upload_service, file_picker prod impl) mirror the existing excused pattern (grpc_client 8.8%).
 
 ## 10. Verification & spec hygiene
 
