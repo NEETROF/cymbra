@@ -8,8 +8,12 @@
 --
 -- Fully-qualified names so the migration works whether or not the connecting
 -- role's search_path is pinned to `music`.
-
-CREATE SCHEMA IF NOT EXISTS music;
+--
+-- The `music` schema itself is provisioned by ops (`roles.sql.tpl`,
+-- `CREATE SCHEMA ... AUTHORIZATION music_svc`), NOT here: a least-privilege module
+-- role has no CREATE-on-database, and `CREATE SCHEMA IF NOT EXISTS` checks that
+-- privilege *before* the existence short-circuit (so it would fail even though
+-- the schema already exists). Migrations only create objects inside the schema.
 
 CREATE TABLE IF NOT EXISTS music.catalog_scores (
     id                UUID PRIMARY KEY,               -- UUID v7, app-side
