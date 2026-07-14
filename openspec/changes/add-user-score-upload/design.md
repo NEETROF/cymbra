@@ -60,11 +60,19 @@ screen: **upload → verify (horizontal, tempo-locked preview) → confirm**.
 deps). **Lift it into a workspace crate** (e.g. `crates/musicxml-core`, already
 anticipated by the commented `"crates/*"` glob in the root `Cargo.toml`) so
 both `apps/music/rust` (FFI → app-side validation, via the
-`notationEngineProvider` seam) and the new `backend/score` module depend on the
-**same** code. Add `.mxl` decoding there — read `META-INF/container.xml` →
-rootfile → underlying XML — so both sides decode identically and validate the
-same canonical XML. Extend the core with the "is piano / has playable notes"
-check. (`zip` is not yet a workspace dependency.)
+`notationEngineProvider` seam) and the **already-existing** `backend/score`
+module (created by the crawler) depend on the **same** code. Add `.mxl` decoding
+there — read `META-INF/container.xml` → rootfile → underlying XML — so both sides
+decode identically and validate the same canonical XML. Extend the core with the
+"is piano / has playable notes" check.
+
+**Status (done — tasks 1.1–1.4):** the crate exists as `crates/musicxml-core`
+(`cymbra-musicxml-core`), with `.mxl` decoding (`mxl.rs`, 32 MiB decompressed
+guard) and a `validate(bytes) -> Result<ScoreSummary, RejectReason>` entry point
+(`validate.rs`, 16 MiB input cap). `ScoreSummary` already carries `title`,
+`composer`, `staves`, `measure_count`, `note_count`; `key_fifths` and the time
+signature come from the parsed `ScoreDocument.attributes`. These are exactly the
+fields the server pre-fills at upload (see decision 2b).
 
 **Why:** Guarantees the client preview and the server gate agree — a file that
 previews cleanly won't be rejected server-side for a different reason.
@@ -80,13 +88,68 @@ storage or DB write; on failure it returns a typed gRPC error and stores nothing
 **Why:** Standard trust boundary — the client is attacker-controllable. Also caps
 resource use (size limit enforced server-side too).
 
+### 2b. Server-derived, tamper-proof metadata (client cannot set descriptive fields)
+
+**Decision:** All **descriptive/musical metadata** of an uploaded score — `title`,
+`composer`, `key_fifths`, `time_sig`, `measure_count`, `is_piano` (and derived
+`title_norm` / `work_key`) — is **extracted server-side from the parsed file** at
+upload time, from the same `ScoreSummary` + parsed `ScoreDocument` the shared core
+returns (decision 1). The client MUST NOT send or be able to alter these; the
+`UploadScore` request carries **only** the three user-owned inputs — the file
+`bytes`, the `authorship_ack`, and the chosen `level` — plus the raw `filename`
+(used for display/logging, not trusted as metadata). The server re-parses the
+received bytes and fills the record from that parse, so the stored metadata is
+**guaranteed to match the actual file content** (non-alteration): a client cannot
+spoof a title/composer, and the metadata cannot drift from the bytes. This mirrors
+exactly how the crawler populates `catalog_scores` (metadata captured at ingest
+from the parse, never from an external claim).
+
+The **one** descriptive field the user owns is `level` (difficulty) — recorded
+with `level_source = 'manual'` — because it is a subjective judgement, not derivable
+from the file.
+
+**Client preview parity (read-before-upload):** because the app parses the file
+client-side with the **same** shared core for the verification preview, it already
+holds the identical `ScoreSummary`. The Verification/Confirmation steps SHALL
+**display these derived fields read-only** (title, composer, key, time signature,
+measure count) so the user can review exactly what will be stored **before**
+confirming — but cannot edit them. What the user sees == what the server stores,
+since both sides run the same core.
+
+**Why:** Trust boundary + provenance integrity. Metadata that indexes and displays
+a user's library must reflect the file, not a user-editable free-text field that
+could be wrong, misleading, or abused. Deriving it once, server-side, keeps
+`user_scores` metadata as trustworthy as the crawler's `catalog_scores`.
+
+**Decided — one shared derivation in `musicxml-core` (Option 1).** The metadata
+derivation is lifted **into the shared core**: move `extract()` + `normalize_text()`
+from the crawler's `metadata.rs` into `musicxml-core`, and extend `ScoreSummary`
+with `key_fifths`, `time_sig`, `is_piano`, `title_norm`, `work_key`. The crawler
+then consumes the same function instead of its local copy, so `user_scores` and
+`catalog_scores` derive metadata identically — no drift possible — and the new
+fields ride the FFI mirror to the app for the read-only preview (task 7.4). (Task
+1.5.)
+
+**Shared code ≠ shared trust — the server always re-derives.** Using the same
+function on both sides does **not** mean the server ingests the client's computed
+values. The client sends **only** the file `bytes` (+ `level` + `authorship_ack`);
+the server **re-parses those bytes and re-runs the derivation itself**, and that
+server result is authoritative and written to the DB. The shared core only
+guarantees the server's derivation **equals what the user saw** in the preview —
+it never lets a client-supplied value reach storage. Likewise the server
+independently **validates/normalises every client input**: `level` must be in the
+fixed set, `authorship_ack` must be affirmative, `filename` is display-only and
+untrusted. There is no path by which a client value is stored without the server
+re-deriving or re-checking it.
+
 ### 3. Upload transport: unary gRPC with size cap (revisit streaming later)
 
 **Decision:** Add a new gRPC service (`ScoreUploadService` or fold into an
-existing music-scope service) with `UploadScore(bytes, filename, difficulty,
-authorship_ack) → score record`, `ListMyScores() → [record]`, and
-`DeleteScore(id)`. Send the file as a bounded `bytes` field with a server-enforced
-max message size (piano MusicXML is small — typically well under a few MB).
+existing music-scope service) with `UploadScore(bytes, filename, level,
+authorship_ack) → score record` (**no client-supplied metadata** — see decision
+2b), `ListMyScores() → [record]`, and `DeleteScore(id)`. Send the file as a
+bounded `bytes` field with a server-enforced max message size (piano MusicXML is
+small — typically well under a few MB).
 
 **Why:** Simplest correct path; matches the existing unary gRPC surface. If very
 large `.mxl` files appear later, switch to client-streaming without changing the
@@ -97,10 +160,21 @@ rejected: it bypasses server-side validation-before-store and complicates the
 ### 4. Storage ordering — validate → put object → write DB row
 
 **Decision:** On a valid upload: (1) generate an object key
-(`user-scores/{user_id}/{uuid}.musicxml`, canonical decoded XML), (2) put the
-object, (3) insert the DB record referencing that key inside the module's schema.
-Deletion reverses it: delete row, then best-effort delete object (a reconciler /
-orphan-sweep job can clean any object left if the process dies between steps).
+(`user-scores/{user_id}/{uuid}.mxl`), (2) put the object, (3) insert the DB record
+referencing that key inside the module's schema. Deletion reverses it: delete row,
+then best-effort delete object (a reconciler / orphan-sweep job can clean any
+object left if the process dies between steps).
+
+**Stored format — `.mxl`, matching the crawler.** The crawler stores its corpus as
+zipped `.mxl` under `<prefix>/<shard>/<uuid>.mxl` (commit #82: keyed by the score's
+UUID v7, sharded by the id's last two hex chars). To keep a **single read/decode
+path** for the player and the same object-store port for both producers, user
+uploads are **re-zipped to canonical `.mxl`** (the shared core already decodes
+`.mxl` on read, task 1.2) rather than stored as raw `.musicxml`. Both producers
+therefore key by the immutable UUID and store `.mxl`; only the key **prefix**
+differs (`user-scores/{user_id}/…` vs `safe/…` / `low_confidence/…`), and the
+`score_asset_source`/player path needs no per-source branching or dual-extension
+handling.
 
 **Why:** The DB row is the source of truth for ownership; an object without a row
 is invisible and reclaimable. Doing the object put before the row avoids a row
@@ -131,6 +205,20 @@ serves every score — it re-fetches from S3 on demand. This also keeps the loca
 disk disposable: losing it costs cache warmth, never data. `object_key` is the
 same key in both stores, so the port needs no per-source branching.
 
+**S3 changes role — from "backup" to "read fallback".** Today's crawler deploy
+(`backend/deploy/DEPLOY.md` §11, `sync-scores.sh`) treats S3 as a pure off-box
+**backup**, never read at runtime: the app serves strictly from the local mirror.
+This change makes S3 a **runtime read fallback** (and the durable origin for user
+uploads, which land on S3 first), so the storage port (task 2.5) must add the
+S3-fetch-on-local-miss path the current pure-local serve does not have.
+
+**Stale crawler docs to reconcile.** `DEPLOY.md` §11 and `sync-scores.sh` still
+describe the pre-#82 key shape `object_key = "safe/<source>/<author>/<title>.mxl"`.
+Commit #82 changed it to `<prefix>/<shard>/<uuid>.mxl`. Those docs (and the merge
+logic in `sync-scores.sh`, which assumes `SCORES_DIR/ + object_key` resolves the
+old per-title tree) MUST be updated to the UUID/shard layout as part of this
+change's storage work, or the local-first resolution in 4b will not find the bytes.
+
 **Open (for when this change is implemented):** whether the fallback pull is
 write-through (cache the object locally on miss) or read-through-only (stream from
 S3 without caching); and an optional cap/TTL on the local cache if disk pressure
@@ -139,15 +227,45 @@ everything locally is fine at current scale.
 
 ### 5. New module + per-user data isolation
 
-**Decision:** A new backend module `score` follows the existing per-module
-hexagonal pattern — mirror `backend/user/` + `backend/user-port/`:
-`score-port/` (proto + `ScorePort` trait + domain structs), `score/src/module.rs`
-(logic), `repo.rs` (`ScoreRepo` trait + `FakeScoreRepo`), `pg.rs` (`PgScoreRepo`,
-runtime `sqlx::query(...).bind(...)` API — **not** the compile-time `query!`
-macros, matching `backend/user/src/pg.rs`), `grpc.rs` (tonic adapter reading
-`AuthIdentity` from request extensions), `lib.rs` (`MIGRATOR`). It is wired in the
-composition root `backend/server/src/main.rs` (own pool, own `MIGRATOR`,
-`add_service`).
+**Decision:** The backend module `score` **already exists** — the crawler created
+it (`backend/score/`: `lib.rs` with `pub static MIGRATOR` + `SCHEMA = "score"` +
+`connect()`, `repo.rs` with `CatalogRepo`/`FakeCatalogRepo`, `pg.rs` with
+`PgCatalogRepo` on the runtime `sqlx::query(...).bind(...)` API, migrations
+`0001_catalog.sql` + `0002_fingerprint.sql` for `score.catalog_scores`). Its
+`lib.rs` doc-comment already anticipates this change: *"User uploads (user_scores +
+a gRPC surface) are added to this same schema by the user-upload change."* So this
+change **extends** the module, it does not create it:
+
+- **New migration** `0003_user_scores.sql` (not `0001`) — `0001`/`0002` are taken.
+- **New data-access types alongside the catalog ones** — `UserScoreRepo` +
+  `FakeUserScoreRepo` in `repo.rs`, `PgUserScoreRepo` in `pg.rs`, following the
+  same runtime-`query().bind()` pattern as `PgCatalogRepo`.
+- **New gRPC surface** — `score-port/` (proto + `ScorePort` trait + domain
+  structs) mirroring `backend/user-port/`, `score/src/module.rs` (logic),
+  `score/src/grpc.rs` (tonic adapter reading `AuthIdentity` from request
+  extensions). The current module is `anyhow`-based with **no tonic and no
+  platform error type** in its `Cargo.toml` (it is written to directly by the
+  crawler tool); the gRPC surface adds those deps.
+- **Wire it in the composition root** `backend/server/src/main.rs` (own pool, run
+  the existing `MIGRATOR`, `add_service`). The module is **not** wired into the
+  server yet — only the crawler tool uses it via `connect()` on an admin/ingestion
+  role. Migrations must have a **single applier** and share one `_sqlx_migrations`
+  ledger in the `score` schema (the crawler already runs `MIGRATOR`); the server
+  running the same `MIGRATOR` is idempotent by version.
+
+**Decided — single shared ledger (Option A).** `_sqlx_migrations` lands in the
+first schema of the connection's `search_path`. The `score_role` is pinned to
+`search_path = score` and owns the schema, so the server's `MIGRATOR.run` records
+the ledger at `score._sqlx_migrations` — the established `user`-module pattern.
+The crawler today connects with an admin/ingestion role and pins **no**
+search_path, so it would create a **second** ledger in `public` and re-apply
+0001–0003 from scratch. Fix: **pin the crawler's ingestion connection to
+`search_path = score`** (in `cymbra_score::connect()`, or run it as the
+schema-owning `score_role`) so both converge on one ledger; the second runner then
+applies only new versions (task 3.10). Belt-and-braces, the `0003` DDL is written
+idempotently — `CREATE TABLE/INDEX IF NOT EXISTS`, uniqueness as guarded indexes,
+fully-qualified names (task 3.3) — so even an accidental double-apply can't
+hard-crash.
 
 The module owns `user_scores` in its **own schema** with its own least-privilege
 role (`ops-db-access` / module-isolation). Because each module role is confined
@@ -171,23 +289,50 @@ erasure.
 (`job-infrastructure`: "Producer can enqueue but not read others' data") and
 keeps per-user authorization enforced at the data layer, not just the handler.
 
-### 6. Data model — `user_scores`
+### 6. Data model — `score.user_scores`
 
-Columns (final names in implementation):
-- `id uuid pk`
-- `user_id uuid not null` (FK/logical ref to account via `user` port)
-- `object_key text not null unique`
-- `title text` (extracted from MusicXML when present)
-- `difficulty text not null check in (beginner, intermediate, advanced)`
-- `authorship_ack boolean not null` (must be true to insert)
-- `size_bytes int`, `content_hash text` (dedupe / integrity, optional)
-- `created_at timestamptz not null default now()`
-- `deleted_at timestamptz null` (soft delete) — TBD vs hard delete (see Open
-  Questions)
+Lives in the **same `score` schema** as `catalog_scores`, and deliberately mirrors
+its column names/types so both tables read alike and could feed a shared query
+later. Columns split into three provenance classes:
 
-Difficulty reuses the existing `score-library` practice-level vocabulary
-(Beginner / Intermediate / Advanced) so uploaded scores slot into the same
-grouping.
+**User-owned inputs** (the only fields the client controls — decision 2b):
+- `id uuid pk` — UUID v7, app-side (`Uuid::now_v7()`), native `UUID` type like
+  `catalog_scores.id`.
+- `owner_id uuid not null` — the caller's `AuthIdentity.user_id`. **Plain `UUID`,
+  no cross-schema FK** (module-role isolation, exactly as `catalog_scores` avoids
+  cross-schema FKs). Indexed (every query is scoped by it).
+- `level text not null check (level in ('beginner','intermediate','advanced'))` —
+  **same column name and vocabulary as `catalog_scores.level`** (not `difficulty`),
+  mapping to the app's `PracticeLevel`.
+- `level_source text not null default 'manual'` — mirrors `catalog_scores`; user
+  uploads are always `'manual'`.
+- `authorship_ack boolean not null` — must be true to insert.
+
+**Server-derived from the parsed file** (decision 2b — client cannot set/alter):
+- `title text`, `composer text` — from `ScoreSummary`.
+- `title_norm text`, `work_key text` — normalised, reusing the crawler's derivation.
+- `key_fifths integer not null default 0`, `time_sig text not null default ''`,
+  `measure_count integer not null default 0`, `is_piano boolean not null default
+  false` — parity with `catalog_scores`, read off the parsed `ScoreDocument`.
+- `sha256 text not null` — content hash (same name as `catalog_scores.sha256`);
+  `UNIQUE (owner_id, sha256)` so a user can't store the same file twice (the random
+  `object_key` UUID would otherwise never collide). Not globally unique — two users
+  may legitimately upload the same public-domain piece.
+- `size_bytes bigint not null default 0` — **`BIGINT`**, matching `catalog_scores`
+  (not `int`).
+
+**Storage / lifecycle:**
+- `object_key text not null unique` — `user-scores/{owner_id}/{uuid}.mxl`
+  (decision 4).
+- `created_at timestamptz not null default now()`.
+- **Hard delete** (default per Open Questions — matches "librement supprimer"): no
+  `deleted_at` tombstone; the row is removed and the object deletion is enqueued as
+  an idempotent job.
+
+Note the naming change vs the earlier draft: `user_id`→`owner_id`,
+`difficulty`→`level` (+`level_source`), `content_hash`→`sha256`, `int`→`bigint`,
+and the added server-derived metadata columns — all for one-to-one parity with the
+sibling `catalog_scores` table in the same schema.
 
 ### 7. App architecture — Riverpod + reuse of existing seams
 
@@ -246,9 +391,9 @@ the library is the natural home and already groups by practice level. Alternativ
   `musicxml_core`; reject before storage. Decompress with bounded limits.
 - **Legal exposure from the authorship attestation** → The CGU checkbox is
   mandatory and its acknowledgement is persisted (`authorship_ack`,
-  `created_at`, user id) so contribution provenance is auditable. Wording is a
-  product/legal input (see Open Questions). We do not verify authorship
-  technically.
+  `created_at`, user id) so contribution provenance is auditable — we record only
+  the **fact** that the box was checked at submission, not a versioned copy of the
+  wording (Resolved Decisions). We do not verify authorship technically.
 - **PII / privacy** → Object keys are namespaced per user; list/delete/read are
   authorization-scoped to the owner; deleting the account must cascade
   (align with `user-account` "Delete account" erasure).
@@ -270,23 +415,64 @@ the library is the natural home and already groups by practice level. Alternativ
   job-dedup logic, not storage). Add an object-store client crate to the
   workspace matching the existing `tls-rustls`/no-OpenSSL stack (e.g.
   `aws-sdk-s3` or the `object_store` crate), new `CYMBRA_SCORE_S3_*` config keys
-  (bucket, endpoint, region, credentials) loaded via the typed
-  `backend/platform/src/config.rs` `Config::from_env`, documented in
+  (bucket, endpoint, region, credentials) plus the quota keys
+  `CYMBRA_SCORE_UPLOAD_QUOTA_MAX` (default 5) and
+  `CYMBRA_SCORE_UPLOAD_QUOTA_WINDOW_DAYS` (default 7, decision 9), all loaded via
+  the typed `backend/platform/src/config.rs` `Config::from_env`, documented in
   `backend/.env.example` and `backend/docker-compose.yml` with a local
   MinIO/S3-compatible default for dev. Provision the bucket/prefix for user
   scores.
 
-## Open Questions
+## Resolved Decisions (were open)
 
-- **Soft vs hard delete**: keep a `deleted_at` tombstone (auditability, undo) or
-  hard-delete row + object immediately? Default proposed: hard delete on the
-  user's explicit request (matches "librement supprimer"), with the object
-  removed via an idempotent job. Confirm.
-- **CGU wording**: exact authorship-attestation text and whether it must be
-  versioned (store which CGU version was accepted). Product/legal input needed.
-- **Per-user quota / rate limit**: max number of uploads or total bytes per user?
-  Default: a basic per-file size cap only, no count quota in this change.
-- **Where the entry point lives** in navigation (a button on the library, a
-  profile/account action, or both) — UX decision.
-- **Backend service placement**: new standalone `ScoreUploadService` vs a method
-  set on an existing music-scope service — confirm during proto design.
+- **Delete → hard delete.** No `deleted_at` tombstone: on the user's request the
+  row is removed and the object deletion is enqueued as an idempotent job
+  (decision 4 / tasks 3.7, 4.1). Matches "librement supprimer" and avoids retaining
+  data a user asked to remove.
+- **CGU → record only the fact of checking at submission, no versioning.** We
+  persist `authorship_ack = true` with `created_at` + `owner_id` — proof that the
+  user checked the box at upload time. **No** `cgu_version` column and no stored
+  copy of the wording. The checkbox label is fixed copy: **FR** "Je certifie être
+  l'auteur de cette partition" / **EN** "I certify that I am the author of this
+  score" (localised like the rest of the app, `app-localization`). The broader
+  authorship/liability clause it refers to lives in the site's Terms (CGU) pages
+  (`cymbra-site`), not in this change — it must cover both uploaded **scores** and
+  uploaded **piano sounds** (soundfonts), require a consent checkbox at **each**
+  file upload, and make the user solely responsible for the copyright and
+  distribution rights of what they upload.
+- **Quota → 5 uploads per rolling window, window length configurable.** The backend
+  rejects an upload once the caller already has **5** contributed scores created
+  within the last **N days** (rolling). **N is configurable** via
+  `CYMBRA_SCORE_UPLOAD_QUOTA_WINDOW_DAYS` (default `7` = one week); the max count
+  is `CYMBRA_SCORE_UPLOAD_QUOTA_MAX` (default `5`). Enforced server-side before
+  storage (`COUNT` of `user_scores` scoped to `owner_id` with
+  `created_at >= now() - make_interval(days => N)`). See decision 9.
+- **Entry point → in the library.** A contribution button lives in the library
+  (where the user already sees their contributed-scores section), gated on
+  `SessionAuthenticated`, hidden/disabled when signed out (task 7.2).
+- **Backend service → standalone.** A dedicated `ScoreService` (in `score-port/`),
+  not methods bolted onto an existing music-scope service — consistent with the
+  already-isolated `score` module (own schema, own role).
+
+### 9. Per-user upload quota (rolling window, configurable length)
+
+**Decision:** Before storing an upload the server counts the caller's existing
+`user_scores` rows whose `created_at` falls within the last `N` days and rejects
+the upload with a typed "quota exceeded" error once that count reaches the max
+(default 5 per 7 days). `N` (window length in days) is configurable via
+`CYMBRA_SCORE_UPLOAD_QUOTA_WINDOW_DAYS`; the cap via `CYMBRA_SCORE_UPLOAD_QUOTA_MAX`.
+Both load through the typed `Config::from_env` (`backend/platform/src/config.rs`)
+with the documented defaults, alongside the storage keys (Migration Plan).
+
+**Interaction with hard delete (sub-decision):** because deletes are hard
+(no tombstone), the windowed `COUNT` naturally excludes deleted scores — so
+deleting a recent upload **frees a slot** within the window. This is acceptable for
+the current intent (a light abuse/rate guard at <50-user scale), not a
+delete-proof rate limit. If a delete-to-reset bypass ever matters, replace the
+`COUNT`-over-rows with an append-only upload log (or a counter not cleared on
+delete); explicitly out of scope now.
+
+**Why:** A simple, cheap guard against a compromised/abusive account flooding
+uploads, with the window tunable without a code change. A pure per-file size cap
+(the earlier default) bounds one file's cost but not the count; a rolling per-user
+cap bounds sustained volume.

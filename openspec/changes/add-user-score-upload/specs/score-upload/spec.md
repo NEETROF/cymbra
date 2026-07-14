@@ -81,9 +81,11 @@ to Verification.
 ### Requirement: Mandatory authorship acknowledgement before upload
 
 Before a validated file can be submitted, the user MUST check an authorship
-acknowledgement (CGU) stating that they are the author of the score. The submit
-action MUST remain disabled until the acknowledgement is checked, and the
-acknowledgement MUST be sent with the upload.
+acknowledgement (CGU) stating that they are the author of the score — labelled
+"Je certifie être l'auteur de cette partition" ("I certify that I am the author of
+this score"), localised per `app-localization`. The submit action MUST remain
+disabled until the acknowledgement is checked, and the acknowledgement MUST be
+sent with the upload.
 
 #### Scenario: Submit blocked without acknowledgement
 
@@ -114,6 +116,29 @@ notated tempo, so the user can confirm the decoded score is correct.
 - **WHEN** the user plays the score in the Verification step
 - **THEN** it plays at the score's notated tempo and no tempo or practice
   controls are offered
+
+### Requirement: Derived metadata shown read-only before upload
+
+Before the upload is finalized, the flow SHALL display the score's descriptive
+metadata parsed from the file — at least its title, composer, key, time signature,
+and measure count — so the user can review exactly what will be stored. These
+fields MUST be presented **read-only**: the user MUST NOT be able to enter or edit
+them, and the flow MUST NOT send any user-entered value for them (only the file,
+the difficulty, and the authorship acknowledgement are user-provided). The values
+shown come from the same shared parsing seam used for validation, so they match
+what the server derives and stores.
+
+#### Scenario: Parsed metadata is displayed for review
+
+- **WHEN** a validated score reaches the Verification or Confirmation step
+- **THEN** its parsed title, composer, and musical metadata are shown to the user
+  for review
+
+#### Scenario: Metadata fields are not editable
+
+- **WHEN** the parsed metadata is shown
+- **THEN** the user cannot edit those fields and no user-entered metadata is sent
+  with the upload
 
 ### Requirement: Mandatory difficulty selection before confirm
 
