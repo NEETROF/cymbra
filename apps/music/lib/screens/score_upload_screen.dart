@@ -34,29 +34,45 @@ class ScoreUploadScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final step = ref.watch(scoreUploadNotifierProvider.select((s) => s.step));
+    final state = ref.watch(scoreUploadNotifierProvider);
+    final notifier = ref.read(scoreUploadNotifierProvider.notifier);
+    final step = state.step;
+
+    void quit() {
+      Navigator.of(context).maybePop();
+      notifier.reset();
+    }
+
     return Scaffold(
       appBar: AppBar(
-        // Reset the flow on exit (a user action, so provider mutation is allowed)
-        // so the next visit starts clean — the autoDispose notifier can survive a
-        // quick pop → re-push.
+        // Back = previous step (or quit at the first step / after success). Reset
+        // on quit so the next visit starts clean (user action → mutation allowed).
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
+          tooltip: step == UploadStep.upload || state.isDone ? 'Fermer' : 'Étape précédente',
           onPressed: () {
-            Navigator.of(context).maybePop();
-            ref.read(scoreUploadNotifierProvider.notifier).reset();
+            if (state.isDone) {
+              quit();
+            } else {
+              switch (step) {
+                case UploadStep.upload:
+                  quit();
+                case UploadStep.verify:
+                  notifier.backToUpload();
+                case UploadStep.confirm:
+                  notifier.backToVerify();
+              }
+            }
           },
         ),
         title: const Text('Contribuer une partition'),
+        actions: [
+          if (!state.isDone) _ForwardAction(state: state, notifier: notifier),
+          const SizedBox(width: 8),
+        ],
         bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(4),
-          child: LinearProgressIndicator(
-            value: switch (step) {
-              UploadStep.upload => 1 / 3,
-              UploadStep.verify => 2 / 3,
-              UploadStep.confirm => 1.0,
-            },
-          ),
+          preferredSize: const Size.fromHeight(72),
+          child: _WizardStepper(current: step, done: state.isDone),
         ),
       ),
       // Centre + plafonne la largeur : carte centrée sur desktop, plein écran
@@ -73,6 +89,142 @@ class ScoreUploadScreen extends ConsumerWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// The step-appropriate forward action, shown in the AppBar: Vérifier → Continuer
+/// → Envoyer, disabled until the current step's gate is met.
+class _ForwardAction extends StatelessWidget {
+  const _ForwardAction({required this.state, required this.notifier});
+  final ScoreUploadState state;
+  final ScoreUploadNotifier notifier;
+
+  @override
+  Widget build(BuildContext context) {
+    if (state.submitting) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(horizontal: 16),
+        child: Center(
+          child: SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        ),
+      );
+    }
+    final (String label, VoidCallback? onPressed) = switch (state.step) {
+      UploadStep.upload => (
+        'Vérifier',
+        state.canLeaveUpload ? notifier.goToVerify : null,
+      ),
+      UploadStep.verify => ('Continuer', notifier.goToConfirm),
+      UploadStep.confirm => (
+        'Envoyer',
+        state.canFinalize ? notifier.submit : null,
+      ),
+    };
+    return TextButton(onPressed: onPressed, child: Text(label));
+  }
+}
+
+/// A compact 3-step header (Import → Vérification → Confirmation) with a
+/// completed / current / pending state per step.
+class _WizardStepper extends StatelessWidget {
+  const _WizardStepper({required this.current, required this.done});
+  final UploadStep current;
+  final bool done;
+
+  static const _labels = ['Import', 'Vérification', 'Confirmation'];
+
+  @override
+  Widget build(BuildContext context) {
+    // After success, all steps read as completed.
+    final currentIndex = done ? _labels.length : current.index;
+    final scheme = Theme.of(context).colorScheme;
+
+    Color lineColor(bool active) =>
+        active ? scheme.primary : scheme.outlineVariant;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(8, 4, 8, 10),
+      child: Row(
+        children: [
+          for (var i = 0; i < _labels.length; i++)
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: i == 0
+                            ? const SizedBox()
+                            : Container(height: 2, color: lineColor(i <= currentIndex)),
+                      ),
+                      _Dot(index: i, currentIndex: currentIndex),
+                      Expanded(
+                        child: i == _labels.length - 1
+                            ? const SizedBox()
+                            : Container(height: 2, color: lineColor(i < currentIndex)),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _labels[i],
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: i == currentIndex
+                          ? FontWeight.w700
+                          : FontWeight.w400,
+                      color: i <= currentIndex
+                          ? scheme.onSurface
+                          : scheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Dot extends StatelessWidget {
+  const _Dot({required this.index, required this.currentIndex});
+  final int index;
+  final int currentIndex;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final done = index < currentIndex;
+    final current = index == currentIndex;
+    return Container(
+      width: 26,
+      height: 26,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: done || current ? scheme.primary : Colors.transparent,
+        border: Border.all(
+          color: done || current ? scheme.primary : scheme.outlineVariant,
+          width: 2,
+        ),
+      ),
+      alignment: Alignment.center,
+      child: done
+          ? Icon(Icons.check, size: 16, color: scheme.onPrimary)
+          : Text(
+              '${index + 1}',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: current ? scheme.onPrimary : scheme.onSurfaceVariant,
+              ),
+            ),
     );
   }
 }
@@ -154,11 +306,6 @@ class _UploadStepView extends ConsumerWidget {
                 'des droits nécessaires pour mettre cette partition à disposition.',
                 style: TextStyle(fontSize: 13),
               ),
-            ),
-            const SizedBox(height: 16),
-            FilledButton(
-              onPressed: state.canLeaveUpload ? notifier.goToVerify : null,
-              child: const Text('Vérifier'),
             ),
           ],
         ],
@@ -293,7 +440,6 @@ class _VerifyStepViewState extends ConsumerState<_VerifyStepView>
     // lingering select-listener on a disposed instance can fire markNeedsBuild on
     // a defunct element when the notifier mutates elsewhere.
     final summary = ref.read(scoreUploadNotifierProvider).summary;
-    final notifier = ref.read(scoreUploadNotifierProvider.notifier);
     final playback = _playback;
 
     return Column(
@@ -349,17 +495,7 @@ class _VerifyStepViewState extends ConsumerState<_VerifyStepView>
             ],
           ),
         ),
-        _StepNav(
-          onBack: () {
-            _stop();
-            notifier.backToUpload();
-          },
-          onNext: () {
-            _stop();
-            notifier.goToConfirm();
-          },
-          nextLabel: 'Continuer',
-        ),
+        const SizedBox(height: 8),
       ],
     );
   }
@@ -433,14 +569,6 @@ class _ConfirmStepView extends ConsumerWidget {
             text: state.submitError!,
           ),
         const SizedBox(height: 8),
-        _StepNav(
-          onBack: notifier.backToVerify,
-          onNext: state.canFinalize && !state.submitting
-              ? notifier.submit
-              : null,
-          nextLabel: state.submitting ? 'Envoi…' : 'Envoyer',
-          busy: state.submitting,
-        ),
       ],
     );
   }
@@ -548,35 +676,3 @@ class _Banner extends StatelessWidget {
   );
 }
 
-class _StepNav extends StatelessWidget {
-  const _StepNav({
-    required this.onBack,
-    required this.onNext,
-    required this.nextLabel,
-    this.busy = false,
-  });
-  final VoidCallback? onBack;
-  final VoidCallback? onNext;
-  final String nextLabel;
-  final bool busy;
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.all(12),
-    child: Row(
-      children: [
-        OutlinedButton(onPressed: onBack, child: const Text('Retour')),
-        const Spacer(),
-        FilledButton(
-          onPressed: onNext,
-          child: busy
-              ? const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : Text(nextLabel),
-        ),
-      ],
-    ),
-  );
-}
