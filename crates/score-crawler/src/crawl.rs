@@ -233,7 +233,10 @@ impl Orchestrator {
         let difficulty = assess(&doc, item.source_grade);
 
         let entry = ManifestEntry {
-            id: format!("{}:{}", adapter.name(), item.source_item_id),
+            // A stable UUID v7 identifies the score everywhere: the catalog PK
+            // AND the object-store key (see OutputWriter::object_key). Provenance
+            // stays in `source` + `source_item_id`, not the id.
+            id: uuid::Uuid::now_v7().to_string(),
             title: item.title.clone().or(meta.title),
             composer: item.composer.clone().or(meta.composer),
             arranger: item.arranger.clone(),

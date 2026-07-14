@@ -168,12 +168,16 @@ this.
 
 ```
 output/
-  safe/            <source>/<author>/<title>-<sha8>.mxl   # high-confidence corpus
-  low_confidence/  <source>/...                           # unverified PD, to review
-  manifest.csv                                            # one row per retained file
-  manifest.json                                           # same, structured
-  rejected.log                                            # excluded items + reason
+  safe/            <shard>/<uuid>.mxl   # high-confidence corpus, keyed by UUID v7
+  low_confidence/  <shard>/<uuid>.mxl   # unverified PD, to review
+  manifest.csv                          # one row per retained file
+  manifest.json                         # same, structured
+  rejected.log                          # excluded items + reason
 ```
+
+The object key is the score's stable **UUID v7** (also its `catalog_scores` PK),
+sharded by the UUID's last two hex chars — not derived from title/author, so an
+object never needs re-keying when metadata changes and leaks no metadata.
 
 Each manifest row carries exactly the fields needed to re-publish a score
 lawfully — title, composer, arranger, source, source URL, normalised licence
