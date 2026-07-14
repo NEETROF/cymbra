@@ -38,6 +38,13 @@ WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'music_role')
 ALTER ROLE :"music_role" WITH LOGIN PASSWORD :'music_pw';
 CREATE SCHEMA IF NOT EXISTS music AUTHORIZATION :"music_role";
 ALTER ROLE :"music_role" SET search_path = music;
+-- music_svc owns the schema, so tables it creates via MIGRATOR (user_scores, at
+-- server boot) are already its own. Belt-and-braces so it can DML tables the
+-- crawler may create here as another privileged role (catalog_scores): grant on
+-- what exists now, and default-privilege anything created later in this schema.
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA music TO :"music_role";
+ALTER DEFAULT PRIVILEGES IN SCHEMA music
+  GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO :"music_role";
 
 -- jobs (shared async-job substrate; owned by worker_svc — design D3) ---------
 SELECT format('CREATE ROLE %I LOGIN', :'worker_role')

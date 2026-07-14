@@ -37,6 +37,9 @@ pub struct Config {
     /// score-upload feature (backend ships inert until configured); a *partial*
     /// S3 config is a hard error (fail-fast), not a silent disable.
     pub score_storage: Option<ScoreStorageConfig>,
+    /// Postgres URL for the `music` schema (role `music_svc`). Required to wire the
+    /// score-upload service; `None` leaves it unwired (the feature stays inert).
+    pub music_database_url: Option<String>,
     /// Local warm-cache root the score reads serve from (crawler corpus + pulled
     /// uploads); the S3 fallback populates it on a miss.
     pub score_local_root: String,
@@ -128,6 +131,10 @@ pub mod config_core {
             otlp_endpoint: m.get("CYMBRA_OTLP_ENDPOINT").cloned(),
             otlp_enabled: flag(m, "CYMBRA_OTLP_ENABLED", false),
             score_storage: score_storage(m)?,
+            music_database_url: m
+                .get("CYMBRA_MUSIC_DATABASE_URL")
+                .filter(|v| !v.is_empty())
+                .cloned(),
             score_local_root: opt(m, "CYMBRA_SCORE_LOCAL_ROOT", "/srv/cymbra/scores"),
             upload_quota_max: num(m, "CYMBRA_SCORE_UPLOAD_QUOTA_MAX", 5)?,
             upload_quota_window_days: num(m, "CYMBRA_SCORE_UPLOAD_QUOTA_WINDOW_DAYS", 7)?,

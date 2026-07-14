@@ -11,11 +11,15 @@
 //! score-crawler tool, not over gRPC), so consumers need not depend on the
 //! platform error type.
 
+pub mod grpc;
+pub mod module;
 pub mod pg;
 pub mod pg_user_scores;
 pub mod repo;
 pub mod user_scores;
 
+pub use grpc::ScoreGrpc;
+pub use module::{ScoreModule, UploadInput};
 pub use pg::PgCatalogRepo;
 pub use pg_user_scores::PgUserScoreRepo;
 pub use repo::{CatalogEntry, CatalogRepo, FakeCatalogRepo};
