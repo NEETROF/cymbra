@@ -1085,6 +1085,7 @@ dependencies = [
  "cymbra-auth",
  "cymbra-jobs",
  "cymbra-platform",
+ "cymbra-storage",
  "cymbra-user",
  "cymbra-user-port",
  "dotenvy",

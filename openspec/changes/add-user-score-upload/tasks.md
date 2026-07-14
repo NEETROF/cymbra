@@ -38,8 +38,8 @@
 
 ## 4. Backend cleanup & account erasure
 
-- [ ] 4.1 Add an idempotent `purge_score_object` worker job (`backend/worker/src/handlers.rs` + register in `backend/jobs/src/registry.rs`) that deletes a stored object by key.
-- [ ] 4.2 Extend the existing `purge_user` job to also delete the user's `user_scores` rows (via the admin pool) and enqueue their object deletions, satisfying account-deletion erasure.
+- [x] 4.1 Add an idempotent `purge_score_object` worker job (`backend/worker/src/handlers.rs` + register in `backend/jobs/src/registry.rs`) that deletes a stored object by key. — `purge_score_object` job: registry spec (music.purge, 8 retries) + worker handler deleting via the storage port (idempotent, no-op if store unconfigured).
+- [x] 4.2 Extend the existing `purge_user` job to also delete the user's `user_scores` rows (via the admin pool) and enqueue their object deletions, satisfying account-deletion erasure. — `purge_user` also deletes `music.user_scores` rows and transactionally enqueues a `purge_score_object` per object_key (admin_svc granted EXECUTE on jobs.enqueue via migration 0010); worker carries the storage handle.
 
 ## 5. Backend tests
 

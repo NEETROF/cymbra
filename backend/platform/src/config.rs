@@ -53,7 +53,7 @@ pub struct Config {
 
 /// S3-compatible object-store connection for user scores. Maps to
 /// `cymbra_storage::S3Params` in the composition root.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ScoreStorageConfig {
     pub bucket: String,
     pub endpoint: String,

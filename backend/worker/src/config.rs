@@ -36,6 +36,11 @@ pub struct WorkerConfig {
     pub otlp_endpoint: Option<String>,
     /// Whether to export OpenTelemetry over OTLP (off for tests/offline runs).
     pub otlp_enabled: bool,
+    /// Object store for the `purge_score_object` job. `None` when unconfigured
+    /// (the score-upload feature is off); a *partial* S3 config is a hard error.
+    pub score_storage: Option<cymbra_platform::config::ScoreStorageConfig>,
+    /// Local warm-cache root (mirrors the server's `CYMBRA_SCORE_LOCAL_ROOT`).
+    pub score_local_root: String,
 }
 
 impl WorkerConfig {
@@ -75,7 +80,31 @@ pub mod core {
                 .filter(|s| !s.is_empty())
                 .cloned(),
             otlp_enabled: flag(m, "CYMBRA_OTLP_ENABLED", false),
+            score_storage: score_storage(m)?,
+            score_local_root: opt(m, "CYMBRA_SCORE_LOCAL_ROOT", "/srv/cymbra/scores"),
         })
+    }
+
+    /// Score object-store config, enabled when `CYMBRA_SCORE_S3_BUCKET` is set
+    /// (then the rest is required — a partial config fails fast). Mirrors the
+    /// server's parsing so both read the same keys.
+    fn score_storage(
+        m: &HashMap<String, String>,
+    ) -> Result<Option<cymbra_platform::config::ScoreStorageConfig>, String> {
+        if m.get("CYMBRA_SCORE_S3_BUCKET")
+            .filter(|v| !v.is_empty())
+            .is_none()
+        {
+            return Ok(None);
+        }
+        Ok(Some(cymbra_platform::config::ScoreStorageConfig {
+            bucket: req(m, "CYMBRA_SCORE_S3_BUCKET")?,
+            endpoint: req(m, "CYMBRA_SCORE_S3_ENDPOINT")?,
+            region: req(m, "CYMBRA_SCORE_S3_REGION")?,
+            access_key: req(m, "CYMBRA_SCORE_S3_ACCESS_KEY")?,
+            secret_key: req(m, "CYMBRA_SCORE_S3_SECRET_KEY")?,
+            allow_http: flag(m, "CYMBRA_SCORE_S3_ALLOW_HTTP", false),
+        }))
     }
 
     fn flag(m: &HashMap<String, String>, k: &str, default: bool) -> bool {

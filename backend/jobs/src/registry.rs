@@ -20,6 +20,11 @@ pub const SESSION_REAP: &str = "session_reap";
 /// Payload `{ user_id }`. Run by `cymbra-worker` as `admin_svc` to erase a
 /// deleted user's data across the `user_account` and `auth` schemas atomically.
 pub const PURGE_USER: &str = "purge_user";
+/// Stable name of the stored-object cleanup job (change: add-user-score-upload).
+/// Payload `{ object_key }`. Deletes one object from the store (idempotent). One
+/// is enqueued per user upload during account erasure (and, later, on a failed
+/// single-score object delete).
+pub const PURGE_SCORE_OBJECT: &str = "purge_score_object";
 
 /// Static description of one job type.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -82,6 +87,13 @@ pub fn builtin() -> Vec<JobSpec> {
             Channel::parallel("user", "purge"),
             RetryPolicy::new(5, Duration::from_secs(30), Duration::from_secs(3600)),
         ),
+        JobSpec::new(
+            PURGE_SCORE_OBJECT,
+            // Each object delete is independent and idempotent → parallel; retry
+            // generously since a transient S3 outage should not drop the object.
+            Channel::parallel("music", "purge"),
+            RetryPolicy::new(8, Duration::from_secs(30), Duration::from_secs(3600)),
+        ),
     ]
 }
 
@@ -101,6 +113,15 @@ mod tests {
         assert!(names.contains(&ORPHAN_REAP.to_string()));
         assert!(names.contains(&SESSION_REAP.to_string()));
         assert!(names.contains(&PURGE_USER.to_string()));
+        assert!(names.contains(&PURGE_SCORE_OBJECT.to_string()));
+    }
+
+    #[test]
+    fn purge_score_object_is_parallel_on_music_with_generous_retries() {
+        let s = spec(PURGE_SCORE_OBJECT).unwrap();
+        assert_eq!(s.channel().name(), "music.purge");
+        assert!(!s.channel().is_ordered());
+        assert_eq!(s.default_retry().max_attempts(), 8);
     }
 
     #[test]
