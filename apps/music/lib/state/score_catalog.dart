@@ -37,17 +37,26 @@ class CatalogEntry {
   final String title;
   final String composer;
 
-  /// Bundle path of the uncompressed `.musicxml`/`.xml` asset.
+  /// Bundle path of the uncompressed `.musicxml`/`.xml` asset. Empty for a
+  /// user-contributed score, whose bytes come from the backend instead.
   final String assetPath;
   final PracticeLevel level;
+
+  /// Backend id when this entry is a user-contributed score (loaded via the
+  /// backend byte source); `null` for a bundled-catalog entry.
+  final String? contributedId;
 
   const CatalogEntry({
     required this.id,
     required this.title,
     required this.composer,
-    required this.assetPath,
     required this.level,
+    this.assetPath = '',
+    this.contributedId,
   });
+
+  /// Whether this is a user upload (byte-sourced) rather than a bundled score.
+  bool get isContributed => contributedId != null;
 
   @override
   int get hashCode => id.hashCode;

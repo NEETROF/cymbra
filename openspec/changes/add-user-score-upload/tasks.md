@@ -63,9 +63,9 @@
 
 ## 8. App — library integration & deletion
 
-- [ ] 8.1 Extend `score-library` (`apps/music/lib/state/score_catalog.dart`) to list the signed-in user's contributed scores (via `ListMyScores`) as a section distinct from the bundled catalog; no section when signed out.
-- [ ] 8.2 Allow selecting a contributed score to open the player, loading bytes via the backend source (task 6.3) through the existing `SelectedScore` → `NotationProvider` → player path.
-- [ ] 8.3 Offer a delete action only on owned contributed scores (never on bundled entries); on confirm, call `DeleteScore` and remove the entry on success.
+- [x] 8.1 Extend `score-library` (`apps/music/lib/state/score_catalog.dart`) to list the signed-in user's contributed scores (via `ListMyScores`) as a section distinct from the bundled catalog; no section when signed out. — `myContributedScoresProvider` (listMyScores → CatalogEntry) + a distinct 'MES CONTRIBUTIONS' library section shown only when signed in and non-empty.
+- [x] 8.2 Allow selecting a contributed score to open the player, loading bytes via the backend source (task 6.3) through the existing `SelectedScore` → `NotationProvider` → player path. — `CatalogEntry.contributedId`; `Notation._load` routes to `fetchBytes` for contributed entries (same select→NotationProvider→player path as bundled).
+- [x] 8.3 Offer a delete action only on owned contributed scores (never on bundled entries); on confirm, call `DeleteScore` and remove the entry on success. — owner-only delete affordance on contributed tiles (confirm dialog → deleteScore → invalidate); bundled entries keep the open chevron, no delete.
 
 ## 9. App tests
 
