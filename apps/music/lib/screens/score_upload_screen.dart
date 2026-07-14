@@ -569,6 +569,14 @@ class _ConfirmStepView extends ConsumerWidget {
         ),
         const SizedBox(height: 8),
         SegmentedButton<PracticeLevel>(
+          style: ButtonStyle(
+            visualDensity: VisualDensity.compact,
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            padding: const WidgetStatePropertyAll(
+              EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            ),
+            textStyle: const WidgetStatePropertyAll(TextStyle(fontSize: 13)),
+          ),
           segments: [
             for (final l in PracticeLevel.values)
               ButtonSegment(value: l, label: Text(l.label)),
@@ -677,8 +685,11 @@ class _FallbackFieldState extends State<_FallbackField> {
       controller: _controller,
       onChanged: widget.onChanged,
       textInputAction: TextInputAction.done,
+      style: const TextStyle(fontSize: 14),
       decoration: InputDecoration(
         labelText: widget.label,
+        isDense: true,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         border: const OutlineInputBorder(),
       ),
     ),
