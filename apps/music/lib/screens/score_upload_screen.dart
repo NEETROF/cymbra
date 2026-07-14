@@ -430,7 +430,7 @@ class _ConfirmStepView extends ConsumerWidget {
           _Banner(
             icon: Icons.error_outline,
             color: Theme.of(context).colorScheme.error,
-            text: 'Échec de l\'envoi : ${state.submitError}',
+            text: state.submitError!,
           ),
         const SizedBox(height: 8),
         _StepNav(

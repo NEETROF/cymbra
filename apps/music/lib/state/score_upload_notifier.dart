@@ -15,6 +15,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../services/auth_service.dart' show AuthError, AuthException;
 import '../services/file_picker_service.dart';
 import '../services/notation_engine.dart';
 import '../services/score_upload_service.dart';
@@ -24,6 +25,26 @@ import 'score_catalog.dart' show PracticeLevel;
 
 part 'score_upload_notifier.freezed.dart';
 part 'score_upload_notifier.g.dart';
+
+/// Maps an upload failure to a short, user-facing French message (the raw
+/// exception is never shown).
+String uploadErrorMessage(Object error) {
+  if (error is AuthException) {
+    return switch (error.error) {
+      AuthError.alreadyExists => 'Vous avez déjà importé cette partition.',
+      AuthError.rateLimited =>
+        'Vous avez atteint votre quota d\'envois. Réessayez plus tard.',
+      AuthError.invalidArgument =>
+        'Ce fichier n\'a pas pu être accepté (format ou contenu invalide).',
+      AuthError.unauthenticated =>
+        'Votre session a expiré. Reconnectez-vous et réessayez.',
+      AuthError.unavailable =>
+        'Serveur injoignable. Vérifiez votre connexion et réessayez.',
+      _ => 'Une erreur est survenue lors de l\'envoi. Réessayez.',
+    };
+  }
+  return 'Une erreur est survenue lors de l\'envoi. Réessayez.';
+}
 
 /// The three ordered steps of the contribution wizard.
 enum UploadStep { upload, verify, confirm }
@@ -157,7 +178,7 @@ class ScoreUploadNotifier extends _$ScoreUploadNotifier {
       // Refresh the library's "my contributions" section so the new score shows.
       ref.invalidate(myContributedScoresProvider);
     } catch (e) {
-      state = state.copyWith(submitting: false, submitError: e.toString());
+      state = state.copyWith(submitting: false, submitError: uploadErrorMessage(e));
     }
   }
 

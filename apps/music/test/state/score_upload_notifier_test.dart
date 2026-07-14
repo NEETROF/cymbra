@@ -16,6 +16,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:music/services/auth_service.dart';
 import 'package:music/services/file_picker_service.dart';
 import 'package:music/services/notation_engine.dart';
 import 'package:music/services/score_upload_service.dart';
@@ -153,8 +154,12 @@ void main() {
     expect(c.read(scoreUploadNotifierProvider).isDone, isTrue);
   });
 
-  test('a submit error is surfaced and the user inputs are kept', () async {
-    final upload = _FakeUpload()..uploadError = Exception('server said no');
+  test('a submit error is surfaced as a friendly message, inputs kept', () async {
+    final upload = _FakeUpload()
+      ..uploadError = const AuthException(
+        AuthError.alreadyExists,
+        'score already uploaded',
+      );
     final c = _make(pick: _file(), upload: upload);
     final n = c.read(scoreUploadNotifierProvider.notifier);
     await n.pickAndValidate();
@@ -163,7 +168,9 @@ void main() {
     n.setLevel(PracticeLevel.beginner);
     await n.submit();
     final s = c.read(scoreUploadNotifierProvider);
-    expect(s.submitError, contains('server said no'));
+    // Mapped to a clean FR message — the raw exception is never shown.
+    expect(s.submitError, 'Vous avez déjà importé cette partition.');
+    expect(s.submitError, isNot(contains('AuthException')));
     expect(s.isDone, isFalse);
     expect(s.level, PracticeLevel.beginner);
   });
