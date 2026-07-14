@@ -55,7 +55,7 @@
 
 ## 7. App — contribution wizard
 
-- [ ] 7.1 `ScoreUploadNotifier` (`@riverpod` + Freezed state) modelling the `pickFile → validating → previewing → confirming → submitting → done/error` state machine with step gating.
+- [x] 7.1 `ScoreUploadNotifier` (`@riverpod` + Freezed state) modelling the `pickFile → validating → previewing → confirming → submitting → done/error` state machine with step gating. — `ScoreUploadNotifier` + Freezed `ScoreUploadState` (step machine, attestation/difficulty gating, submit success/error); `validate()` exposed over FFI (validate_musicxml + ScoreSummary mirror) and added to the notationEngine seam; 6 notifier tests green.
 - [ ] 7.2 Build the three-step screen (`Navigator.push` from the library), gated on `SessionAuthenticated` (`sessionNotifierProvider`); hide/disable the entry point when signed out.
 - [ ] 7.3 Upload step: pick `.musicxml`/`.xml`/`.mxl`, run client-side validation via `notationEngineProvider` (reuse shared core over FFI), surface typed rejection reasons, and gate submit behind the mandatory rights attestation — the user picks a basis (author / public domain) and ticks the confirmation CGU checkbox (`rights_basis` + `rights_ack`).
 - [ ] 7.4 Verification step: render the score horizontally with `StaffPainter`, playback locked to the score's own tempo (`playerProvider` at `speed = 1.0`, `notationToTimedNotes`), with all tempo/Wait/practice controls hidden. Also **display the parsed metadata read-only** (title, composer, key, time signature, measure count) from the client-side `ScoreSummary` so the user reviews exactly what will be stored — non-editable (design 2b).

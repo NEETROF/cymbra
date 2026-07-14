@@ -18,7 +18,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../src/rust/api/musicxml.dart' as musicxml_api;
-import '../src/rust/api/musicxml.dart' show ScoreDocument, System;
+import '../src/rust/api/musicxml.dart'
+    show ScoreDocument, System, ValidationOutcome;
 
 part 'notation_engine.g.dart';
 
@@ -36,6 +37,11 @@ abstract class NotationEngine {
   /// Parses uncompressed MusicXML bytes into a structured document.
   Future<ScoreDocument> parse(Uint8List bytes);
 
+  /// Validates raw bytes (plain MusicXML or a zipped `.mxl`) with the same shared
+  /// gate the backend upload path uses. Returns a summary on success, or a typed
+  /// reject code on failure — the contribution flow's client-side check.
+  Future<ValidationOutcome> validate(Uint8List bytes);
+
   /// Lays the document's measures out into systems for [availableWidth].
   List<System> layout(ScoreDocument document, double availableWidth);
 }
@@ -47,6 +53,10 @@ class FrbNotationEngine implements NotationEngine {
   @override
   Future<ScoreDocument> parse(Uint8List bytes) =>
       musicxml_api.parseMusicxml(bytes: bytes);
+
+  @override
+  Future<ValidationOutcome> validate(Uint8List bytes) =>
+      musicxml_api.validateMusicxml(bytes: bytes);
 
   @override
   List<System> layout(ScoreDocument document, double availableWidth) =>

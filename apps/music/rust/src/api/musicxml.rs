@@ -34,7 +34,7 @@ use flutter_rust_bridge::frb;
 // bridge functions below) refer to them by these names.
 pub use cymbra_musicxml_core::{
     Attributes, BeamState, Clef, Direction, DirectionKind, Lyric, NotationMeasure, NoteEvent,
-    Pitch, ScoreDocument, ScoreMeta, StemDir, System, TimeSignature, Tuplet,
+    Pitch, ScoreDocument, ScoreMeta, ScoreSummary, StemDir, System, TimeSignature, Tuplet,
 };
 
 // --- frb mirrors of the shared model -------------------------------------
@@ -202,6 +202,37 @@ pub struct _System {
     pub staves: u32,
 }
 
+/// A parsed score's derived summary — the fields worth surfacing to a caller
+/// (the contribution preview header) without re-parsing. Server-derived on
+/// upload; this mirror lets the app show the same values it will store.
+#[frb(mirror(ScoreSummary))]
+pub struct _ScoreSummary {
+    pub title: Option<String>,
+    pub composer: Option<String>,
+    /// Accent-/case-folded title for typo-tolerant search.
+    pub title_norm: Option<String>,
+    /// Normalised `composer::title` key for dedup / grouping.
+    pub work_key: String,
+    /// Grand-staff heuristic (`staves >= 2`) — a keyboard/piano proxy.
+    pub is_piano: bool,
+    /// Number of staves (2 for a piano grand staff).
+    pub staves: u32,
+    pub key_fifths: i32,
+    /// `beats/beat_type`, e.g. `4/4`.
+    pub time_sig: String,
+    pub measure_count: u32,
+    /// Count of pitched (non-rest) note events — the "playable notes" check.
+    pub note_count: u32,
+}
+
+/// Client-side validation outcome: on success the parsed [`ScoreSummary`]; on
+/// failure a stable reject `code` (`too_large` / `undecodable` / `unparseable` /
+/// `no_notes`). Exactly one field is set.
+pub struct ValidationOutcome {
+    pub summary: Option<ScoreSummary>,
+    pub reject_code: Option<String>,
+}
+
 // --- FFI wrappers (delegate to the shared core) --------------------------
 
 /// Parses an uncompressed MusicXML document (bytes) into a [`ScoreDocument`],
@@ -209,6 +240,22 @@ pub struct _System {
 /// malformed input rather than panicking.
 pub fn parse_musicxml(bytes: Vec<u8>) -> Result<ScoreDocument> {
     cymbra_musicxml_core::parse(&bytes)
+}
+
+/// Validates raw bytes (plain MusicXML or a zipped `.mxl`) client-side, using the
+/// **same** shared gate as the backend upload path — so a file that previews here
+/// is accepted server-side (and vice-versa). Never panics.
+pub fn validate_musicxml(bytes: Vec<u8>) -> ValidationOutcome {
+    match cymbra_musicxml_core::validate(&bytes) {
+        Ok(summary) => ValidationOutcome {
+            summary: Some(summary),
+            reject_code: None,
+        },
+        Err(reason) => ValidationOutcome {
+            summary: None,
+            reject_code: Some(reason.code().to_string()),
+        },
+    }
 }
 
 /// Lays the document's measures out into [`System`]s for the given available
