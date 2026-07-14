@@ -44,11 +44,13 @@ class FilePickerServiceImpl implements FilePickerService {
 
   @override
   Future<PickedScoreFile?> pickScore() async {
-    // iOS maps allowedExtensions to UTIs; `.mxl`/`.musicxml` aren't registered
-    // UTIs, so the picker would grey them out. Fall back to any-file there (our
-    // FFI validation is the real gate anyway); keep the extension filter on
-    // desktop/Android where it works and gives nicer UX.
-    final filtered = !Platform.isIOS;
+    // Mobile pickers key the extension filter off system-registered types:
+    // iOS maps `allowedExtensions` to UTIs and Android to MIME types, and
+    // `.mxl`/`.musicxml` are registered as neither — so a `custom` filter greys
+    // them out. Fall back to any-file on mobile (our FFI validation is the real
+    // gate anyway); keep the extension filter on desktop, where native dialogs
+    // match on the extension itself and it gives nicer UX.
+    final filtered = !Platform.isIOS && !Platform.isAndroid;
     final result = await FilePicker.platform.pickFiles(
       type: filtered ? FileType.custom : FileType.any,
       allowedExtensions: filtered ? const ['musicxml', 'xml', 'mxl'] : null,
