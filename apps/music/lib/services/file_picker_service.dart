@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:io' show Platform;
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
@@ -43,11 +44,16 @@ class FilePickerServiceImpl implements FilePickerService {
 
   @override
   Future<PickedScoreFile?> pickScore() async {
+    // iOS maps allowedExtensions to UTIs; `.mxl`/`.musicxml` aren't registered
+    // UTIs, so the picker would grey them out. Fall back to any-file there (our
+    // FFI validation is the real gate anyway); keep the extension filter on
+    // desktop/Android where it works and gives nicer UX.
+    final filtered = !Platform.isIOS;
     final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: const ['musicxml', 'xml', 'mxl'],
-      // Read the bytes in-memory: works uniformly across mobile/desktop/web and
-      // feeds the FFI validator directly, no filesystem path juggling.
+      type: filtered ? FileType.custom : FileType.any,
+      allowedExtensions: filtered ? const ['musicxml', 'xml', 'mxl'] : null,
+      // Read the bytes in-memory: works uniformly across mobile/desktop and feeds
+      // the FFI validator directly, no filesystem path juggling.
       withData: true,
     );
     if (result == null || result.files.isEmpty) return null;
