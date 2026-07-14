@@ -91,6 +91,40 @@ dev_dependencies:
   riverpod_lint: ^2.6.5
   custom_lint: ^0.7.0
 
+  # Store branding generators. These are build-time tools only (run manually,
+  # not at app runtime): they regenerate the native launcher icons and splash
+  # from the source art under `assets/branding/`. Re-run after changing the art:
+  #   dart run flutter_launcher_icons
+  #   dart run flutter_native_splash:create
+  flutter_launcher_icons: ^0.14.1
+  flutter_native_splash: ^2.4.3
+
+# Launcher icons generated from the Cymbra source art. The full-bleed square
+# (`icon.png`, no alpha) feeds iOS and legacy Android; the transparent mark
+# (`icon_foreground.png`) plus the navy background make the Android 8+ adaptive
+# icon. Regenerate with `dart run flutter_launcher_icons`.
+flutter_launcher_icons:
+  image_path: "assets/branding/icon.png"
+  ios: true
+  remove_alpha_ios: true
+  background_color_ios: "#0F1633"
+  android: "ic_launcher"
+  min_sdk_android: 29
+  adaptive_icon_background: "#0F1633"
+  adaptive_icon_foreground: "assets/branding/icon_foreground.png"
+
+# Branded launch screen: the Cymbra mark centered on the navy brand color,
+# replacing the default blank screen on both platforms (incl. the Android 12+
+# splash API). Regenerate with `dart run flutter_native_splash:create`.
+flutter_native_splash:
+  color: "#0F1633"
+  image: "assets/branding/splash_logo.png"
+  android_12:
+    color: "#0F1633"
+    image: "assets/branding/icon_foreground.png"
+  android: true
+  ios: true
+
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
 

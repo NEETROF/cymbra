@@ -6,18 +6,20 @@
 
 ## 2. App icons
 
-- [ ] 2.1 Add the source icon asset (≥1024×1024, no alpha) and adaptive foreground/background assets under `apps/music/assets/branding/`
-- [ ] 2.2 Add `flutter_launcher_icons` dev dependency and its config block to `apps/music/pubspec.yaml` (`remove_alpha_ios: true`, `adaptive_icon_background`, `adaptive_icon_foreground`)
-- [ ] 2.3 Run the generator (`dart run flutter_launcher_icons`) and review the full diff
-- [ ] 2.4 Confirm no default Flutter logo remains in `ios/Runner/Assets.xcassets/AppIcon.appiconset/` or `android/app/src/main/res/mipmap-*/`, and `mipmap-anydpi-v26/ic_launcher.xml` exists
+- [x] 2.1 Add the source icon asset (≥1024×1024, no alpha) and adaptive foreground/background assets under `apps/music/assets/branding/`
+- [x] 2.2 Add `flutter_launcher_icons` dev dependency and its config block to `apps/music/pubspec.yaml` (`remove_alpha_ios: true`, `adaptive_icon_background`, `adaptive_icon_foreground`)
+- [x] 2.3 Run the generator (`dart run flutter_launcher_icons`) and review the full diff
+- [x] 2.4 Confirm no default Flutter logo remains in `ios/Runner/Assets.xcassets/AppIcon.appiconset/` or `android/app/src/main/res/mipmap-*/`, and `mipmap-anydpi-v26/ic_launcher.xml` exists
+      (NOTE: v0.14.4 wrote empty adaptive foreground drawables — regenerated them by hand from the isolated mark; verified via composited render, incl. circle mask.)
 - [ ] 2.5 Verify the icon on an iOS device/simulator and an Android device/emulator (Android 8.0+ adaptive rendering)
 
 ## 3. Splash screen
 
-- [ ] 3.1 Add the splash source asset(s) (light + dark) under `apps/music/assets/branding/`
-- [ ] 3.2 Add `flutter_native_splash` dev dependency and config block to `apps/music/pubspec.yaml`
-- [ ] 3.3 Run `dart run flutter_native_splash:create` and review the diff
-- [ ] 3.4 Confirm iOS `Info.plist` orientation/`UIRequiresFullScreen` and the landscape config are unchanged after generation
+- [x] 3.1 Add the splash source asset(s) (light + dark) under `apps/music/assets/branding/`
+- [x] 3.2 Add `flutter_native_splash` dev dependency and config block to `apps/music/pubspec.yaml`
+- [x] 3.3 Run `dart run flutter_native_splash:create` and review the diff
+- [x] 3.4 Confirm iOS `Info.plist` orientation/`UIRequiresFullScreen` and the landscape config are unchanged after generation
+      (NOTE: the generators reserialized Info.plist AND AndroidManifest.xml, and the latter stripped `android:screenOrientation="sensorLandscape"` — both restored from HEAD; only the intended `UIStatusBarHidden` key was re-added by hand.)
 - [ ] 3.5 Verify branded launch screen on cold start (iOS + Android, light + dark)
 
 ## 4. Apple privacy manifest
