@@ -1,20 +1,23 @@
 #!/usr/bin/env bash
-# Publish the score-crawler corpus for the single-box deploy (Option A: the app
-# serves score bytes from a LOCAL folder; S3 is a durable off-box backup).
+# Publish the score-crawler corpus for the single-box deploy. The server serves
+# score bytes LOCAL-FIRST from SCORES_DIR; S3 is the durable ORIGIN and the read
+# FALLBACK (a local miss pulls from S3 and warms the local copy — the
+# cymbra-storage port). So this mirror is both DR *and* what makes a rebuilt box
+# self-heal on demand.
 #
 # Two steps, both idempotent — safe to run at the end of a crawl AND nightly by
 # cron (see bootstrap.sh / DEPLOY.md):
 #
-#   1. MERGE  each per-source crawler output into one corpus dir the app reads.
-#             The crawler's docker-compose writes per-source trees
-#             (CRAWL_OUT/<source>/safe/<source>/<author>/<title>.mxl), while the
-#             catalog stores object_key = "safe/<source>/<author>/<title>.mxl".
-#             Merging CRAWL_OUT/*/safe/ -> SCORES_DIR/safe/ makes the on-disk
-#             path exactly "SCORES_DIR/ + object_key", so the app resolves bytes
-#             from object_key directly. Sources are namespaced, so no collisions.
-#   2. MIRROR SCORES_DIR off-box to OVH Object Storage (S3-compatible), same
-#             creds convention as backup.sh (/etc/cymbra/backup.env). Durable
-#             backup / DR — NOT the app's read path.
+#   1. MERGE  each per-source crawler output into one corpus dir the server reads.
+#             The crawler writes per-source trees keyed by the score UUID (#82):
+#             CRAWL_OUT/<source>/safe/<shard>/<uuid>.mxl, where object_key =
+#             "safe/<shard>/<uuid>.mxl" (shard = the uuid's last two hex chars).
+#             Merging CRAWL_OUT/*/safe/ -> SCORES_DIR/safe/ makes the on-disk path
+#             exactly "SCORES_DIR/ + object_key", so the server resolves bytes from
+#             object_key directly. Keys are UUIDs, so sources never collide.
+#   2. MIRROR SCORES_DIR off-box to OVH Object Storage (S3-compatible), same creds
+#             convention as backup.sh (/etc/cymbra/backup.env). This is the durable
+#             origin the server falls back to on a local miss (same object_key).
 #
 # Install alongside the nightly backup cron (bootstrap.sh) and/or call at the end
 # of a crawl:
@@ -45,12 +48,15 @@ echo "corpus: $(find "$SCORES_DIR" -name '*.mxl' 2>/dev/null | wc -l | tr -d ' '
 
 # 2) Off-box mirror to OVH Object Storage (S3-compatible), if configured. `sync`
 #    is incremental; no --delete, so an accidental local wipe can't nuke the
-#    backup. OVH bills stored GB only (no egress/API fees).
+#    origin. Mirror to the BUCKET ROOT (not a scores/ prefix): the storage port
+#    reads S3 by object_key directly, so the S3 key MUST equal object_key
+#    (safe/<shard>/<uuid>.mxl). User uploads share the same bucket under
+#    user-scores/. OVH bills stored GB only (no egress/API fees).
 #      S3_ENDPOINT=https://s3.gra.io.cloud.ovh.net   S3_BUCKET=cymbra-scores
 if [[ -n "${S3_BUCKET:-}" ]]; then
 	aws --endpoint-url "${S3_ENDPOINT:?set S3_ENDPOINT}" \
-		s3 sync "$SCORES_DIR" "s3://$S3_BUCKET/scores" --no-progress \
-		&& echo "mirrored -> s3://$S3_BUCKET/scores"
+		s3 sync "$SCORES_DIR" "s3://$S3_BUCKET" --no-progress \
+		&& echo "mirrored -> s3://$S3_BUCKET"
 else
 	echo "S3_BUCKET unset — local corpus only, no off-box mirror"
 fi

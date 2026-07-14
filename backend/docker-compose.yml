@@ -51,5 +51,38 @@ services:
       - "1025:1025"
       - "8025:8025"
 
+  # S3-compatible object store for user-uploaded scores (console on :9001).
+  # Matches CYMBRA_SCORE_S3_* in .env.example (endpoint http://localhost:9000).
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: cymbra_dev
+      MINIO_ROOT_PASSWORD: cymbra_dev_pw
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - cymbra_minio:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # One-shot: create the user-scores bucket, then exit. Idempotent.
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 cymbra_dev cymbra_dev_pw &&
+      mc mb --ignore-existing local/cymbra-scores &&
+      echo 'bucket cymbra-scores ready'
+      "
+
 volumes:
   cymbra_pg:
+  cymbra_minio:

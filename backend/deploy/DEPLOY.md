@@ -235,14 +235,21 @@ Grafana/Tempo/Loki/Prometheus stack on this box:
    Both binaries then export OTLP to the local collector, which forwards to Grafana
    Cloud. The self-hosted stack under `backend/observability/` stays for local dev.
 
-## 11. Score corpus (crawler → local serve → S3 backup)
+## 11. Score corpus (crawler → local serve → S3 origin/fallback)
 
 The score-crawler harvests redistributable scores and ingests their provenance
-into `catalog_scores` (Postgres). The `.mxl` **bytes** are served by the app from
-a **local folder** (Option A); OVH Object Storage is a durable **backup**, not
-the read path. `object_key` in the catalog is exactly the file's path under the
-corpus root (`safe/<source>/<author>/<title>.mxl`), so the server resolves bytes
-directly from the mounted `/srv/cymbra/scores` (see `docker-compose.prod.yml`).
+into `catalog_scores` (Postgres). The `.mxl` **bytes** are served **local-first**
+from a **local folder** under `/srv/cymbra/scores`, with an **S3 fallback**: on a
+local miss the server pulls the object from S3 and warms the local copy (the
+`cymbra-storage` port, change `add-user-score-upload`). So S3 is the durable
+**origin** (and it also receives user uploads), not merely an off-box backup —
+a rebuilt/empty box still serves everything.
+
+`object_key` in the catalog is `<prefix>/<shard>/<uuid>.mxl` — `prefix` is
+`safe`/`low_confidence`, `shard` is the score UUID's last two hex chars, `uuid`
+is the catalog PK (keyed by the immutable id since #82, matching the user-upload
+store). The on-disk path is exactly `SCORES_DIR/ + object_key`, so the reader
+resolves bytes from `object_key` with no per-source branching.
 
 **No source is needed on the box.** The `crawler-image` CI workflow publishes two
 images to GHCR — `cymbra-score-crawler` and `cymbra-musescore` (headless MuseScore
@@ -272,15 +279,17 @@ The crawler connects as the DB superuser by default (it runs its own `score`
 migrations then ingests); override `CYMBRA_SCORE_DATABASE_URL` for a dedicated role.
 
 **Nightly** `bootstrap.sh` installs a cron (04:00) that runs `sync-scores.sh`:
-it merges the crawler output into `SCORES_DIR` and mirrors it to `s3://$S3_BUCKET/scores`
-— same `/etc/cymbra/backup.env` creds as the DB backup. Set `CRAWL_OUT` +
-`SCORES_DIR` there (defaults: `/opt/cymbra/score-crawler/output`,
-`/var/lib/cymbra/scores`).
+it merges the crawler output into `SCORES_DIR` and mirrors it to the **bucket root**
+`s3://$S3_BUCKET` — same `/etc/cymbra/backup.env` creds as the DB backup. Set
+`CRAWL_OUT` + `SCORES_DIR` there (defaults: `/opt/cymbra/score-crawler/output`,
+`/var/lib/cymbra/scores`). Mirroring to the root (not a `scores/` prefix) keeps the
+S3 key equal to `object_key`, so the server's S3 fallback and user uploads
+(`user-scores/…`) share one keyspace.
 
-> Remaining app-side work (tracked in `add-user-score-upload`): wire the server's
-> `object_store` **LocalFileSystem** reader to root at `/srv/cymbra/scores` and
-> expose the score-fetch endpoint. The corpus layout above is already what that
-> reader expects.
+> The server-side reader is the `cymbra-storage` local-first port (change
+> `add-user-score-upload`): `CYMBRA_SCORE_LOCAL_ROOT` roots the local cache
+> (default `/srv/cymbra/scores`) and `CYMBRA_SCORE_S3_*` configures the S3
+> origin/fallback. The corpus layout above is exactly what it expects.
 
 ## Before you invite testers — checklist (the easy-to-forget bits)
 
