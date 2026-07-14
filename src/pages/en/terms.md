@@ -2,7 +2,7 @@
 layout: ../../layouts/Legal.astro
 title: Terms of Service
 lang: en
-updated: 07/07/2026
+updated: 14/07/2026
 ---
 
 By creating an account or using the **Cymbra** application (published by **NEETROF**),
@@ -34,21 +34,33 @@ its content remain the property of their respective holders. The **"Cymbra"** na
 logo are **trademarks of NEETROF** and are not licensed to you (see `TRADEMARKS.md`).
 You keep ownership of your own content.
 
-## 5. Liability
+## 5. Content you make available
+
+Cymbra lets you upload your own content, in particular **scores** and **piano sounds**
+(*soundfonts*).
+
+- By making content available, you **certify that you are its author**; this consent is
+  collected via a **dedicated checkbox at each file upload**.
+- You are **solely responsible** for the copyright and distribution rights attached to
+  that content.
+- You indemnify NEETROF against any third-party claim regarding those rights.
+- You may **delete your content at any time**; deletion removes the file and its record.
+
+## 6. Liability
 
 To the extent permitted by law, Cymbra is provided without warranty and NEETROF shall
 not be liable for indirect damages or data loss. Nothing here limits the rights the law
 grants you as a consumer.
 
-## 6. Termination
+## 7. Termination
 
 We may suspend or close an account for breach of these terms. You may stop using the
 service and delete your account at any time.
 
-## 7. Governing law
+## 8. Governing law
 
 These terms are governed by **French law**. Any dispute falls under the competent courts.
 
-## 8. Contact
+## 9. Contact
 
 **contact@cymbra.app** — NEETROF, 42 IMPASSE DUFERMONT, 59510 HEM, FRANCE.

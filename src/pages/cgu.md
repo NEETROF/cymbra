@@ -2,7 +2,7 @@
 layout: ../layouts/Legal.astro
 title: Conditions d'utilisation
 lang: fr
-updated: 07/07/2026
+updated: 14/07/2026
 ---
 
 En créant un compte ou en utilisant l'application **Cymbra** (éditée par
@@ -33,22 +33,36 @@ contenu restent la propriété de leurs titulaires. La marque **« Cymbra »** e
 sont des **marques de NEETROF** et ne sont pas concédées (voir `TRADEMARKS.md`). Vous
 conservez vos propres contenus.
 
-## 5. Responsabilité
+## 5. Contenus que vous mettez à disposition
+
+Cymbra vous permet de téléverser vos propres contenus, notamment des **partitions**
+et des **sons de piano** (*soundfonts*).
+
+- En mettant un contenu à disposition, vous **certifiez en être l'auteur** ; ce
+  consentement est recueilli par une **case à cocher dédiée lors de chaque
+  téléversement de fichier**.
+- Vous êtes **seul responsable** du respect des droits d'auteur et des droits de
+  diffusion attachés à ce contenu.
+- Vous garantissez NEETROF contre toute réclamation de tiers relative à ces droits.
+- Vous pouvez **supprimer vos contenus à tout moment** ; la suppression retire le
+  fichier et son enregistrement.
+
+## 6. Responsabilité
 
 Dans les limites permises par la loi, Cymbra est fournie sans garantie et NEETROF ne
 saurait être tenue responsable des dommages indirects ou de la perte de données. Aucune
 disposition ne limite les droits que la loi vous accorde en tant que consommateur.
 
-## 6. Résiliation
+## 7. Résiliation
 
 Nous pouvons suspendre ou fermer un compte en cas de violation de ces conditions. Vous
 pouvez cesser d'utiliser le service et supprimer votre compte à tout moment.
 
-## 7. Droit applicable
+## 8. Droit applicable
 
 Les présentes conditions sont régies par le **droit français**. Tout litige relève des
 tribunaux compétents.
 
-## 8. Contact
+## 9. Contact
 
 **contact@cymbra.app** — NEETROF, 42 IMPASSE DUFERMONT, 59510 HEM, FRANCE.
