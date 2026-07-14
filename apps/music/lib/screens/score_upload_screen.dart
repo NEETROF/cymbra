@@ -29,27 +29,24 @@ import '../state/score_upload_notifier.dart';
 /// The three-step contribution wizard (design 7). Reached via `Navigator.push`
 /// from the library, only when signed in. Step gating is enforced by
 /// [ScoreUploadNotifier]; this screen just renders the current step.
-class ScoreUploadScreen extends ConsumerStatefulWidget {
+class ScoreUploadScreen extends ConsumerWidget {
   const ScoreUploadScreen({super.key});
 
   @override
-  ConsumerState<ScoreUploadScreen> createState() => _ScoreUploadScreenState();
-}
-
-class _ScoreUploadScreenState extends ConsumerState<ScoreUploadScreen> {
-  @override
-  void initState() {
-    super.initState();
-    // Each visit starts from a clean slate: the autoDispose provider can survive
-    // a quick pop → re-push, so a previous "done" flow would otherwise reappear.
-    ref.read(scoreUploadNotifierProvider.notifier).reset();
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final step = ref.watch(scoreUploadNotifierProvider.select((s) => s.step));
     return Scaffold(
       appBar: AppBar(
+        // Reset the flow on exit (a user action, so provider mutation is allowed)
+        // so the next visit starts clean — the autoDispose notifier can survive a
+        // quick pop → re-push.
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            Navigator.of(context).maybePop();
+            ref.read(scoreUploadNotifierProvider.notifier).reset();
+          },
+        ),
         title: const Text('Contribuer une partition'),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(4),
@@ -385,7 +382,10 @@ class _ConfirmStepView extends ConsumerWidget {
             const Text('Partition ajoutée à vos contributions.'),
             const SizedBox(height: 16),
             FilledButton(
-              onPressed: () => Navigator.of(context).pop(),
+              onPressed: () {
+                Navigator.of(context).pop();
+                ref.read(scoreUploadNotifierProvider.notifier).reset();
+              },
               child: const Text('Terminé'),
             ),
           ],
