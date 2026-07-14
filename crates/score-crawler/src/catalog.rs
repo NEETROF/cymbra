@@ -20,7 +20,7 @@
 //! The DB row is the source of truth; the manifest is the same record exported.
 
 use anyhow::Result;
-use cymbra_score::{CatalogEntry, CatalogRepo};
+use cymbra_music::{CatalogEntry, CatalogRepo};
 use serde::Serialize;
 
 use crate::manifest::ManifestEntry;
@@ -91,7 +91,7 @@ mod tests {
     use crate::convert::{ConversionStatus, OriginFormat};
     use crate::difficulty::{Level, LevelSource};
     use crate::license::Confidence;
-    use cymbra_score::FakeCatalogRepo;
+    use cymbra_music::FakeCatalogRepo;
 
     const FIXED_ID: &str = "01936b3e-7f0a-7c1d-8e2f-0123456789ab";
 

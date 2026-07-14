@@ -269,7 +269,7 @@ LIMIT=5 docker compose --env-file .env -f docker-compose.crawler.prod.yml up
 . /etc/cymbra/backup.env; ./sync-scores.sh
 ```
 
-Verify: `select count(*) from score.catalog_scores;` grows, and
+Verify: `select count(*) from music.catalog_scores;` grows, and
 `find $SCORES_DIR -name '*.mxl' | wc -l` matches. Then run unbounded (drop `LIMIT`),
 or one source at a time (`... up mutopia`). `pdmx` downloads ~2 GB (the 222k-score
 Zenodo dataset) — run it last. `openscore` converts via a sibling `cymbra-musescore`

@@ -1,4 +1,4 @@
--- score module — the public score catalog (change: add-score-crawler).
+-- music module — the public score catalog (change: add-score-crawler).
 --
 -- catalog_scores holds the crawler-ingested, redistributable corpus: one row per
 -- retained file, carrying the exact provenance needed to re-publish it plus the
@@ -7,11 +7,11 @@
 -- later by the user-upload change.
 --
 -- Fully-qualified names so the migration works whether or not the connecting
--- role's search_path is pinned to `score`.
+-- role's search_path is pinned to `music`.
 
-CREATE SCHEMA IF NOT EXISTS score;
+CREATE SCHEMA IF NOT EXISTS music;
 
-CREATE TABLE IF NOT EXISTS score.catalog_scores (
+CREATE TABLE IF NOT EXISTS music.catalog_scores (
     id                UUID PRIMARY KEY,               -- UUID v7, app-side
     -- provenance / attribution
     title             TEXT,
@@ -48,8 +48,8 @@ CREATE TABLE IF NOT EXISTS score.catalog_scores (
 -- Facet / filter indexes for the future search API. The fuzzy/full-text
 -- (pg_trgm GIN on title_norm/composer) index is deferred to that change and must
 -- enable the extension from an admin/ops migration, not this module role.
-CREATE INDEX IF NOT EXISTS catalog_scores_source_idx     ON score.catalog_scores (source);
-CREATE INDEX IF NOT EXISTS catalog_scores_license_idx    ON score.catalog_scores (license);
-CREATE INDEX IF NOT EXISTS catalog_scores_confidence_idx ON score.catalog_scores (confidence);
-CREATE INDEX IF NOT EXISTS catalog_scores_level_idx      ON score.catalog_scores (level);
-CREATE INDEX IF NOT EXISTS catalog_scores_work_key_idx   ON score.catalog_scores (work_key);
+CREATE INDEX IF NOT EXISTS catalog_scores_source_idx     ON music.catalog_scores (source);
+CREATE INDEX IF NOT EXISTS catalog_scores_license_idx    ON music.catalog_scores (license);
+CREATE INDEX IF NOT EXISTS catalog_scores_confidence_idx ON music.catalog_scores (confidence);
+CREATE INDEX IF NOT EXISTS catalog_scores_level_idx      ON music.catalog_scores (level);
+CREATE INDEX IF NOT EXISTS catalog_scores_work_key_idx   ON music.catalog_scores (work_key);

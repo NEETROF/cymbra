@@ -8,7 +8,7 @@ name: crawler-image
 on:
   push:
     branches: [main]
-    # The crawler embeds cymbra-score and ships with the backend, so its images
+    # The crawler embeds cymbra-music and ships with the backend, so its images
     # are versioned in LOCKSTEP with the backend: release-please tags the backend
     # `backend-vX.Y.Z`, and its release commit bumps .release-please-manifest.json
     # (listed below), so that tag push matches the paths filter and the crawler
@@ -17,7 +17,7 @@ on:
     paths:
       - "crates/score-crawler/**"
       - "crates/musicxml-core/**"
-      - "backend/score/**"
+      - "backend/music/**"
       - ".release-please-manifest.json"
       - "Cargo.toml"
       - "Cargo.lock"

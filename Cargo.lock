@@ -948,6 +948,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "cymbra-music"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "serde",
+ "sqlx",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
 name = "cymbra-musicxml-core"
 version = "0.1.0"
 dependencies = [
@@ -988,18 +1000,6 @@ dependencies = [
  "tracing",
  "tracing-opentelemetry",
  "tracing-subscriber",
- "uuid",
-]
-
-[[package]]
-name = "cymbra-score"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "serde",
- "sqlx",
- "tokio",
  "uuid",
 ]
 
@@ -3764,8 +3764,8 @@ dependencies = [
  "async-trait",
  "clap",
  "csv",
+ "cymbra-music",
  "cymbra-musicxml-core",
- "cymbra-score",
  "flate2",
  "futures-util",
  "reqwest 0.12.23",

@@ -227,7 +227,19 @@ S3 without caching); and an optional cap/TTL on the local cache if disk pressure
 matters. Not decided now — the bulk corpus is small (`.mxl` ≈ KBs) so caching
 everything locally is fine at current scale.
 
-### 5. New module + per-user data isolation
+### 5. Music-domain module + per-user data isolation
+
+> **Naming/consolidation update (during implementation).** The isolation boundary
+> is the **bounded context**, not the feature: identity/auth, jobs, and **music**
+> are the contexts. All music-app data (scores now, practice/performance/favorites
+> later) shares **one schema + one role** so its tables can reference each other
+> with real FKs — splitting *within* music would be over-decomposition (cross-schema
+> FKs are banned here). Concretely: the crawler's `score` schema/crate is **renamed
+> `music`** — schema `music`, role `music_svc`, crate `cymbra-music`
+> (`backend/music/`). And unlike `user` there is **no separate `*-port` crate**:
+> nothing external depends on a music port (account-erasure hits `user_scores` via
+> admin SQL, not a port), so proto + repo + gRPC all live in the single
+> `cymbra-music` crate. References to `score` below read as `music`.
 
 **Decision:** The backend module `score` **already exists** — the crawler created
 it (`backend/score/`: `lib.rs` with `pub static MIGRATOR` + `SCHEMA = "score"` +
