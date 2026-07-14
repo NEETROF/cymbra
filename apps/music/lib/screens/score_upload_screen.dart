@@ -58,56 +58,58 @@ class ScoreUploadScreen extends ConsumerWidget {
         ),
       ),
       child: Scaffold(
-      appBar: AppBar(
-        // Back = previous step (or quit at the first step / after success). Reset
-        // on quit so the next visit starts clean (user action → mutation allowed).
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          tooltip: step == UploadStep.upload || state.isDone ? 'Fermer' : 'Étape précédente',
-          onPressed: () {
-            if (state.isDone) {
-              quit();
-            } else {
-              switch (step) {
-                case UploadStep.upload:
-                  quit();
-                case UploadStep.verify:
-                  notifier.backToUpload();
-                case UploadStep.confirm:
-                  notifier.backToVerify();
+        appBar: AppBar(
+          // Back = previous step (or quit at the first step / after success). Reset
+          // on quit so the next visit starts clean (user action → mutation allowed).
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            tooltip: step == UploadStep.upload || state.isDone
+                ? 'Fermer'
+                : 'Étape précédente',
+            onPressed: () {
+              if (state.isDone) {
+                quit();
+              } else {
+                switch (step) {
+                  case UploadStep.upload:
+                    quit();
+                  case UploadStep.verify:
+                    notifier.backToUpload();
+                  case UploadStep.confirm:
+                    notifier.backToVerify();
+                }
               }
-            }
-          },
-        ),
-        // Style on the Text (not AppBar.titleTextStyle) so it merges with — and
-        // keeps — the theme's title colour, only overriding the size.
-        title: Text(
-          'Contribuer une partition',
-          style: TextStyle(fontSize: titleSize, fontWeight: FontWeight.w600),
-        ),
-        actions: [
-          if (!state.isDone) _ForwardAction(state: state, notifier: notifier),
-          const SizedBox(width: 8),
-        ],
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(58),
-          child: _WizardStepper(current: step, done: state.isDone),
-        ),
-      ),
-      // Centre + plafonne la largeur : carte centrée sur desktop, plein écran
-      // sur mobile (le contenu est plus lisible qu'étiré sur toute la largeur).
-      body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 746),
-            child: switch (step) {
-              UploadStep.upload => const _UploadStepView(),
-              UploadStep.verify => const _VerifyStepView(),
-              UploadStep.confirm => const _ConfirmStepView(),
             },
           ),
+          // Style on the Text (not AppBar.titleTextStyle) so it merges with — and
+          // keeps — the theme's title colour, only overriding the size.
+          title: Text(
+            'Contribuer une partition',
+            style: TextStyle(fontSize: titleSize, fontWeight: FontWeight.w600),
+          ),
+          actions: [
+            if (!state.isDone) _ForwardAction(state: state, notifier: notifier),
+            const SizedBox(width: 8),
+          ],
+          bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(58),
+            child: _WizardStepper(current: step, done: state.isDone),
+          ),
         ),
-      ),
+        // Centre + plafonne la largeur : carte centrée sur desktop, plein écran
+        // sur mobile (le contenu est plus lisible qu'étiré sur toute la largeur).
+        body: SafeArea(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 746),
+              child: switch (step) {
+                UploadStep.upload => const _UploadStepView(),
+                UploadStep.verify => const _VerifyStepView(),
+                UploadStep.confirm => const _ConfirmStepView(),
+              },
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -181,13 +183,19 @@ class _WizardStepper extends StatelessWidget {
                       Expanded(
                         child: i == 0
                             ? const SizedBox()
-                            : Container(height: 2, color: lineColor(i <= currentIndex)),
+                            : Container(
+                                height: 2,
+                                color: lineColor(i <= currentIndex),
+                              ),
                       ),
                       _Dot(index: i, currentIndex: currentIndex),
                       Expanded(
                         child: i == _labels.length - 1
                             ? const SizedBox()
-                            : Container(height: 2, color: lineColor(i < currentIndex)),
+                            : Container(
+                                height: 2,
+                                color: lineColor(i < currentIndex),
+                              ),
                       ),
                     ],
                   ),
@@ -276,7 +284,9 @@ class _UploadStepView extends ConsumerWidget {
           onPressed: state.validating ? null : notifier.pickAndValidate,
           icon: const Icon(Icons.upload_file),
           label: Text(
-            state.file == null ? 'Choisir un fichier' : 'Choisir un autre fichier',
+            state.file == null
+                ? 'Choisir un fichier'
+                : 'Choisir un autre fichier',
           ),
         ),
         const SizedBox(height: 8),
@@ -404,7 +414,10 @@ class _VerifyStepViewState extends ConsumerState<_VerifyStepView>
     while (_nextNote < _sorted.length && _sorted[_nextNote].startMs <= nowMs) {
       final n = _sorted[_nextNote];
       _audio.noteOn(n.pitch);
-      _sounding.add((pitch: n.pitch, endMs: (n.startMs + n.durationMs).toDouble()));
+      _sounding.add((
+        pitch: n.pitch,
+        endMs: (n.startMs + n.durationMs).toDouble(),
+      ));
       _nextNote++;
     }
   }
@@ -487,21 +500,21 @@ class _VerifyStepViewState extends ConsumerState<_VerifyStepView>
                   child: _error != null
                       ? Center(child: Text('Aperçu indisponible : $_error'))
                       : playback == null
-                          ? const Center(child: CircularProgressIndicator())
-                          : CustomPaint(
-                              size: Size.infinite,
-                              painter: StaffPainter(
-                                notes: playback.notes,
-                                elapsedMs: _elapsedMs,
-                                activeNotes: const <int>{},
-                                bpm: playback.bpm,
-                                songEndMs: playback.songEndMs,
-                                keyFifths: _doc?.attributes.keyFifths ?? 0,
-                                beats: _doc?.attributes.time.beats ?? 4,
-                                beatType: _doc?.attributes.time.beatType ?? 4,
-                                measureStartMs: playback.measureStartMs,
-                              ),
-                            ),
+                      ? const Center(child: CircularProgressIndicator())
+                      : CustomPaint(
+                          size: Size.infinite,
+                          painter: StaffPainter(
+                            notes: playback.notes,
+                            elapsedMs: _elapsedMs,
+                            activeNotes: const <int>{},
+                            bpm: playback.bpm,
+                            songEndMs: playback.songEndMs,
+                            keyFifths: _doc?.attributes.keyFifths ?? 0,
+                            beats: _doc?.attributes.time.beats ?? 4,
+                            beatType: _doc?.attributes.time.beatType ?? 4,
+                            measureStartMs: playback.measureStartMs,
+                          ),
+                        ),
                 ),
               ],
             ),
@@ -515,7 +528,9 @@ class _VerifyStepViewState extends ConsumerState<_VerifyStepView>
               IconButton.filled(
                 onPressed: playback == null ? null : _togglePlay,
                 icon: Icon(_playing ? Icons.pause : Icons.play_arrow),
-                tooltip: _playing ? 'Pause' : 'Lecture (au tempo de la partition)',
+                tooltip: _playing
+                    ? 'Pause'
+                    : 'Lecture (au tempo de la partition)',
               ),
               const SizedBox(width: 8),
               const Expanded(
@@ -697,7 +712,10 @@ class _FallbackFieldState extends State<_FallbackField> {
       decoration: InputDecoration(
         labelText: widget.label,
         isDense: true,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 12,
+        ),
         border: const OutlineInputBorder(),
       ),
     ),
@@ -725,4 +743,3 @@ class _Banner extends StatelessWidget {
     ),
   );
 }
-
