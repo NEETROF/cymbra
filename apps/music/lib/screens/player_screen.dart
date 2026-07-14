@@ -26,7 +26,6 @@ import '../painters/piano_keyboard_painter.dart';
 import '../painters/piano_layout.dart';
 import '../painters/staff_painter.dart';
 import '../painters/synthesia_painter.dart';
-import '../services/legal_links.dart';
 import '../services/platform_info.dart';
 import '../src/rust/api/musicxml.dart' show System;
 import '../state/app_language.dart';
@@ -854,7 +853,6 @@ class _SettingsDrawerState extends ConsumerState<_SettingsDrawer> {
               ),
               onTap: () => setState(() => _category = c.key),
             ),
-          const _LegalSection(),
         ],
       );
     } else {
@@ -933,68 +931,6 @@ class _DrawerHeader extends StatelessWidget {
       ],
     );
   }
-}
-
-/// Legal links pinned at the bottom of the settings drawer's category list:
-/// Terms of Service and Privacy Policy, each opening the locale-resolved page in
-/// an external browser (store compliance — a privacy link must be reachable from
-/// inside the app). Reads the active locale so `fr` gets the French pages.
-class _LegalSection extends ConsumerWidget {
-  const _LegalSection();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = AppLocalizations.of(context);
-    final links = legalLinksFor(ref.watch(appLocaleProvider).languageCode);
-    final launcher = ref.read(legalLinkLauncherProvider);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const Divider(height: 1, color: CymbraColors.outlineVariant),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 4),
-          child: Text(
-            l10n.legalSectionTitle,
-            style: const TextStyle(
-              color: CymbraColors.onSurfaceVariant,
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.5,
-            ),
-          ),
-        ),
-        _legalTile(
-          key: const Key('legal-terms'),
-          icon: Icons.description_outlined,
-          label: l10n.legalTerms,
-          onTap: () => launcher.open(links.terms),
-        ),
-        _legalTile(
-          key: const Key('legal-privacy'),
-          icon: Icons.privacy_tip_outlined,
-          label: l10n.legalPrivacy,
-          onTap: () => launcher.open(links.privacy),
-        ),
-      ],
-    );
-  }
-
-  Widget _legalTile({
-    required Key key,
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-  }) => ListTile(
-    key: key,
-    leading: Icon(icon, color: CymbraColors.onSurfaceVariant),
-    title: Text(label, style: const TextStyle(color: CymbraColors.onSurface)),
-    trailing: const Icon(
-      Icons.open_in_new,
-      size: 18,
-      color: CymbraColors.onSurfaceVariant,
-    ),
-    onTap: onTap,
-  );
 }
 
 /// Android-only guidance shown in the MIDI device list when no port is detected.

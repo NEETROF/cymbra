@@ -292,9 +292,6 @@
   "summaryAvgReaction": "{ms} ms avg",
   "@summaryAvgReaction": {"placeholders": {"ms": {"type": "int"}}, "description": "Summary: average Wait-Mode reaction time."},
 
-  "legalSectionTitle": "Legal",
-  "@legalSectionTitle": { "description": "Settings drawer section header grouping the legal links." },
-
   "legalTerms": "Terms of Service",
   "@legalTerms": { "description": "Label/link opening the Terms of Service (CGU) page." },
 

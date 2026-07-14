@@ -10,11 +10,11 @@
 - [x] 2.2 Mirror the new keys in `app_fr.arb`, `app_es.arb`, `app_it.arb`
 - [x] 2.3 Run `flutter gen-l10n` (or build_runner) and confirm `AppLocalizations` exposes the new getters
 
-## 3. Settings Legal section
+## 3. Account-menu Legal entries
 
-- [x] 3.1 Add a Legal section (divider + Terms and Privacy `ListTile`s) to the bottom of the settings drawer master view in `player_screen.dart`
-- [x] 3.2 Wire each tile to resolve the URL from the active locale and call the launcher seam
-- [x] 3.3 Widget test: overriding the launcher fake, tapping each tile records the correct locale-resolved URL
+- [x] 3.1 Add Terms and Privacy `PopupMenuItem`s (below a divider, near sign out / delete) to the signed-in account menu in `account_menu.dart`
+- [x] 3.2 Wire each entry to resolve the URL from the active locale and call the launcher seam
+- [x] 3.3 Widget test: overriding the launcher fake, opening the menu and tapping each entry records the correct locale-resolved URL
 
 ## 4. Entry consent notice
 

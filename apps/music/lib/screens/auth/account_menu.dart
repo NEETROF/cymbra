@@ -16,6 +16,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../l10n/gen/app_localizations.dart';
+import '../../services/legal_links.dart';
+import '../../state/app_locale.dart';
 import '../../state/session_notifier.dart';
 import '../../state/session_state.dart';
 import 'delete_account_screen.dart';
@@ -30,6 +32,10 @@ class AccountMenu extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final session = ref.watch(sessionNotifierProvider);
     final l10n = AppLocalizations.of(context);
+    // Legal pages follow the active language (fr → French pages, else English)
+    // and open in an external browser through the injectable launcher seam.
+    final links = legalLinksFor(ref.watch(appLocaleProvider).languageCode);
+    final launcher = ref.read(legalLinkLauncherProvider);
     return switch (session) {
       SessionGuest() => TextButton.icon(
         key: const Key('account-signin'),
@@ -51,6 +57,10 @@ class AccountMenu extends ConsumerWidget {
                   builder: (_) => const DeleteAccountScreen(),
                 ),
               );
+            case 'terms':
+              launcher.open(links.terms);
+            case 'privacy':
+              launcher.open(links.privacy);
           }
         },
         itemBuilder: (context) => [
@@ -67,9 +77,49 @@ class AccountMenu extends ConsumerWidget {
             value: 'delete',
             child: Text(l10n.accountDelete),
           ),
+          const PopupMenuDivider(),
+          PopupMenuItem<String>(
+            key: const Key('account-legal-terms'),
+            value: 'terms',
+            child: _LegalMenuRow(
+              icon: Icons.description_outlined,
+              label: l10n.legalTerms,
+            ),
+          ),
+          PopupMenuItem<String>(
+            key: const Key('account-legal-privacy'),
+            value: 'privacy',
+            child: _LegalMenuRow(
+              icon: Icons.privacy_tip_outlined,
+              label: l10n.legalPrivacy,
+            ),
+          ),
         ],
       ),
       _ => const SizedBox.shrink(),
     };
+  }
+}
+
+/// A legal-link row in the account menu: an icon, the label, and a trailing
+/// "opens externally" hint so it reads as leaving the app rather than an
+/// in-app action like sign-out or delete.
+class _LegalMenuRow extends StatelessWidget {
+  const _LegalMenuRow({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: 20),
+        const SizedBox(width: 12),
+        Expanded(child: Text(label)),
+        const SizedBox(width: 12),
+        const Icon(Icons.open_in_new, size: 16),
+      ],
+    );
   }
 }

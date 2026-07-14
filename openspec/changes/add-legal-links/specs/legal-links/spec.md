@@ -15,16 +15,16 @@ The app SHALL resolve the Terms of Service (CGU) and Privacy Policy URLs from th
 - **WHEN** the active locale is `en`, `es`, or `it`
 - **THEN** the Terms link resolves to `https://cymbra.app/en/terms/` and the Privacy link to `https://cymbra.app/en/privacy/`
 
-### Requirement: Legal links reachable from settings
+### Requirement: Legal links reachable from the account menu
 
-The app SHALL expose a Legal section in the settings drawer containing a Terms of Service entry and a Privacy Policy entry. Tapping an entry SHALL open the resolved URL in an external browser.
+The app SHALL expose a Terms of Service entry and a Privacy Policy entry in the signed-in account menu, grouped near the account actions (sign out / delete account). Tapping an entry SHALL open the resolved URL in an external browser.
 
-#### Scenario: Open Terms from settings
-- **WHEN** the user opens the settings drawer and taps the Terms of Service entry
+#### Scenario: Open Terms from the account menu
+- **WHEN** a signed-in user opens the account menu and taps the Terms of Service entry
 - **THEN** the app launches the locale-resolved Terms URL in an external browser via the injected launcher
 
-#### Scenario: Open Privacy from settings
-- **WHEN** the user opens the settings drawer and taps the Privacy Policy entry
+#### Scenario: Open Privacy from the account menu
+- **WHEN** a signed-in user opens the account menu and taps the Privacy Policy entry
 - **THEN** the app launches the locale-resolved Privacy URL in an external browser via the injected launcher
 
 ### Requirement: Consent notice at account entry

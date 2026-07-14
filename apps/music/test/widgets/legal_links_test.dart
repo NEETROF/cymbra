@@ -15,17 +15,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:music/screens/auth/account_menu.dart';
 import 'package:music/screens/auth/entry_screen.dart';
-import 'package:music/screens/player_screen.dart';
-import 'package:music/services/audio_service.dart';
 import 'package:music/services/legal_links.dart';
-import 'package:music/services/midi_service.dart';
-import 'package:music/services/platform_info.dart';
+import 'package:music/services/token_store.dart';
 import 'package:music/state/app_locale.dart';
+import 'package:music/state/session_notifier.dart';
 
 import '../support/auth_fakes.dart';
 import '../support/auth_harness.dart';
-import '../support/fakes.dart';
 import '../support/localized.dart';
 
 /// Records every URL asked to open, without touching the native browser.
@@ -112,50 +110,72 @@ void main() {
     });
   });
 
-  group('settings legal section', () {
-    testWidgets('tiles open the locale-resolved pages', (tester) async {
+  group('account menu legal links', () {
+    const tokens = StoredTokens(accessToken: 'a', refreshToken: 'r');
+
+    Future<_RecordingLauncher> pumpMenu(
+      WidgetTester tester, {
+      required Locale locale,
+    }) async {
       final launcher = _RecordingLauncher();
       final container = ProviderContainer(
         overrides: [
-          midiServiceProvider.overrideWithValue(
-            FakeMidiService(ports: const ['Piano'], connected: 'Piano'),
+          ...authOverrides(
+            store: FakeTokenStore(tokens: tokens),
+            account: FakeAccountService(account: fakeAccount(handle: 'bob')),
           ),
-          scoreSourceProvider.overrideWithValue(FakeScoreSource()),
-          audioServiceProvider.overrideWithValue(RecordingAudioService()),
-          isAndroidProvider.overrideWithValue(false),
-          deviceLocaleProvider.overrideWithValue(const Locale('en')),
+          deviceLocaleProvider.overrideWithValue(locale),
           legalLinkLauncherProvider.overrideWithValue(launcher),
         ],
       );
-      await tester.binding.setSurfaceSize(const Size(1600, 900));
+      addTearDown(container.dispose);
+      container.read(sessionNotifierProvider);
+      await tester.runAsync(() => pumpEventQueue());
+      await tester.binding.setSurfaceSize(const Size(1200, 900));
       addTearDown(() => tester.binding.setSurfaceSize(null));
       await tester.pumpWidget(
         UncontrolledProviderScope(
           container: container,
-          child: localizedApp(const PlayerScreen()),
+          child: localizedApp(
+            const Scaffold(body: Center(child: AccountMenu())),
+            locale: locale,
+          ),
         ),
       );
-      await tester.pump(); // flush score load + first rebuild
+      await tester.pump();
+      return launcher;
+    }
 
-      // Open the settings end drawer via the gear (tooltip == "Settings").
-      await tester.tap(find.byTooltip('Settings'));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 400)); // finish open anim
+    testWidgets('terms and privacy open the locale-resolved pages', (
+      tester,
+    ) async {
+      final launcher = await pumpMenu(tester, locale: const Locale('en'));
 
-      await tester.tap(find.byKey(const Key('legal-terms')));
-      await tester.pump();
-      await tester.tap(find.byKey(const Key('legal-privacy')));
-      await tester.pump();
+      await tester.tap(find.byKey(const Key('account-menu')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('account-legal-terms')));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('account-menu')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('account-legal-privacy')));
+      await tester.pumpAndSettle();
 
       expect(launcher.opened, [
         Uri.parse('https://cymbra.app/en/terms/'),
         Uri.parse('https://cymbra.app/en/privacy/'),
       ]);
+    });
 
-      // Unmount so the screen's ticker/auto-dispose providers tear down cleanly.
-      await tester.pumpWidget(const SizedBox());
-      await tester.pump();
-      container.dispose();
+    testWidgets('French locale opens the French pages', (tester) async {
+      final launcher = await pumpMenu(tester, locale: const Locale('fr'));
+
+      await tester.tap(find.byKey(const Key('account-menu')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('account-legal-terms')));
+      await tester.pumpAndSettle();
+
+      expect(launcher.opened, [Uri.parse('https://cymbra.app/cgu/')]);
     });
   });
 }
