@@ -29,11 +29,24 @@ import '../state/score_upload_notifier.dart';
 /// The three-step contribution wizard (design 7). Reached via `Navigator.push`
 /// from the library, only when signed in. Step gating is enforced by
 /// [ScoreUploadNotifier]; this screen just renders the current step.
-class ScoreUploadScreen extends ConsumerWidget {
+class ScoreUploadScreen extends ConsumerStatefulWidget {
   const ScoreUploadScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ScoreUploadScreen> createState() => _ScoreUploadScreenState();
+}
+
+class _ScoreUploadScreenState extends ConsumerState<ScoreUploadScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Each visit starts from a clean slate: the autoDispose provider can survive
+    // a quick pop → re-push, so a previous "done" flow would otherwise reappear.
+    ref.read(scoreUploadNotifierProvider.notifier).reset();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final step = ref.watch(scoreUploadNotifierProvider.select((s) => s.step));
     return Scaffold(
       appBar: AppBar(

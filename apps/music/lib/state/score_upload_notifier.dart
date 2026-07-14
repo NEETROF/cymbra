@@ -19,6 +19,7 @@ import '../services/file_picker_service.dart';
 import '../services/notation_engine.dart';
 import '../services/score_upload_service.dart';
 import '../src/rust/api/musicxml.dart' show ScoreSummary;
+import 'contributed_scores.dart';
 import 'score_catalog.dart' show PracticeLevel;
 
 part 'score_upload_notifier.freezed.dart';
@@ -153,6 +154,8 @@ class ScoreUploadNotifier extends _$ScoreUploadNotifier {
             fallbackComposer: state.fallbackComposer,
           );
       state = state.copyWith(submitting: false, result: record);
+      // Refresh the library's "my contributions" section so the new score shows.
+      ref.invalidate(myContributedScoresProvider);
     } catch (e) {
       state = state.copyWith(submitting: false, submitError: e.toString());
     }
