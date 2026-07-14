@@ -49,7 +49,7 @@ class ScoreUploadScreen extends ConsumerWidget {
     return MediaQuery(
       data: MediaQuery.of(context).copyWith(
         textScaler: TextScaler.linear(
-          MediaQuery.textScalerOf(context).scale(1) * 0.9,
+          MediaQuery.textScalerOf(context).scale(1) * 0.85,
         ),
       ),
       child: Scaffold(
@@ -74,7 +74,12 @@ class ScoreUploadScreen extends ConsumerWidget {
             }
           },
         ),
-        title: const Text('Contribuer une partition'),
+        // Style on the Text (not AppBar.titleTextStyle) so it merges with — and
+        // keeps — the theme's title colour, only overriding the size.
+        title: const Text(
+          'Contribuer une partition',
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+        ),
         actions: [
           if (!state.isDone) _ForwardAction(state: state, notifier: notifier),
           const SizedBox(width: 8),
