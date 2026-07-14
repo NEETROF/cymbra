@@ -30,11 +30,13 @@ screen: **upload → verify (horizontal, tempo-locked preview) → confirm**.
 - A verification preview that reuses the existing engraved partition + playback
   but **restricted**: horizontal layout only, playable **only at the score's own
   tempo** (no tempo slider, no practice/wait modes, no hand isolation controls).
-- Mandatory authorship **CGU checkbox** before upload; mandatory **difficulty**
-  (Beginner / Intermediate / Advanced) before confirm.
+- Mandatory **rights attestation** before upload — the user declares the basis
+  (**author** or **public domain / free licence**) and confirms it via a CGU
+  checkbox; mandatory **difficulty** (Beginner / Intermediate / Advanced) before
+  confirm.
 - Server re-validates every upload with the **same** `musicxml_core` logic,
   stores the (canonical) bytes in the object store, and writes a DB record:
-  owner, object key, difficulty, authorship flag, `created_at`.
+  owner, object key, difficulty, rights basis + confirmation, `created_at`.
 - Owner-only deletion of the record **and** the stored object.
 - The owner's contributed scores are listable and openable in the player,
   reusing the existing score-loading path (bytes instead of asset path).
@@ -95,9 +97,9 @@ resource use (size limit enforced server-side too).
 `title_norm` / `work_key`) — is **extracted server-side from the parsed file** at
 upload time, from the same `ScoreSummary` + parsed `ScoreDocument` the shared core
 returns (decision 1). The client MUST NOT send or be able to alter these; the
-`UploadScore` request carries **only** the three user-owned inputs — the file
-`bytes`, the `authorship_ack`, and the chosen `level` — plus the raw `filename`
-(used for display/logging, not trusted as metadata). The server re-parses the
+`UploadScore` request carries **only** the user-owned inputs — the file `bytes`,
+the rights attestation (`rights_basis` + `rights_ack`), and the chosen `level` —
+plus the raw `filename` (used for display/logging, not trusted as metadata). The server re-parses the
 received bytes and fills the record from that parse, so the stored metadata is
 **guaranteed to match the actual file content** (non-alteration): a client cannot
 spoof a title/composer, and the metadata cannot drift from the bytes. This mirrors
@@ -132,21 +134,21 @@ fields ride the FFI mirror to the app for the read-only preview (task 7.4). (Tas
 
 **Shared code ≠ shared trust — the server always re-derives.** Using the same
 function on both sides does **not** mean the server ingests the client's computed
-values. The client sends **only** the file `bytes` (+ `level` + `authorship_ack`);
-the server **re-parses those bytes and re-runs the derivation itself**, and that
-server result is authoritative and written to the DB. The shared core only
-guarantees the server's derivation **equals what the user saw** in the preview —
-it never lets a client-supplied value reach storage. Likewise the server
-independently **validates/normalises every client input**: `level` must be in the
-fixed set, `authorship_ack` must be affirmative, `filename` is display-only and
-untrusted. There is no path by which a client value is stored without the server
+values. The client sends **only** the file `bytes` (+ `level` + the rights
+attestation `rights_basis`/`rights_ack`); the server **re-parses those bytes and
+re-runs the derivation itself**, and that server result is authoritative and
+written to the DB. The shared core only guarantees the server's derivation
+**equals what the user saw** in the preview — it never lets a client-supplied value
+reach storage. Likewise the server independently **validates/normalises every
+client input**: `level` and `rights_basis` must be in their fixed sets, `rights_ack`
+must be affirmative, `filename` is display-only and untrusted. There is no path by which a client value is stored without the server
 re-deriving or re-checking it.
 
 ### 3. Upload transport: unary gRPC with size cap (revisit streaming later)
 
 **Decision:** Add a new gRPC service (`ScoreUploadService` or fold into an
 existing music-scope service) with `UploadScore(bytes, filename, level,
-authorship_ack) → score record` (**no client-supplied metadata** — see decision
+rights_basis, rights_ack) → score record` (**no client-supplied metadata** — see decision
 2b), `ListMyScores() → [record]`, and `DeleteScore(id)`. Send the file as a
 bounded `bytes` field with a server-enforced max message size (piano MusicXML is
 small — typically well under a few MB).
@@ -306,7 +308,10 @@ later. Columns split into three provenance classes:
   mapping to the app's `PracticeLevel`.
 - `level_source text not null default 'manual'` — mirrors `catalog_scores`; user
   uploads are always `'manual'`.
-- `authorship_ack boolean not null` — must be true to insert.
+- `rights_basis text not null check (rights_basis in ('own_work','public_domain'))`
+  — which basis the user attested: `own_work` (they are the author) or
+  `public_domain` (public domain / free licence permitting availability).
+- `rights_ack boolean not null` — the confirmation checkbox; must be true to insert.
 
 **Server-derived from the parsed file** (decision 2b — client cannot set/alter):
 - `title text`, `composer text` — from `ScoreSummary`.
@@ -389,11 +394,12 @@ the library is the natural home and already groups by practice level. Alternativ
 - **Large / malicious uploads** (zip bombs in `.mxl`, huge XML) → Enforce
   server-side max message + max decompressed size + parse timeouts in
   `musicxml_core`; reject before storage. Decompress with bounded limits.
-- **Legal exposure from the authorship attestation** → The CGU checkbox is
-  mandatory and its acknowledgement is persisted (`authorship_ack`,
-  `created_at`, user id) so contribution provenance is auditable — we record only
-  the **fact** that the box was checked at submission, not a versioned copy of the
-  wording (Resolved Decisions). We do not verify authorship technically.
+- **Legal exposure from the rights attestation** → The CGU attestation is
+  mandatory: the user declares a basis (author or public domain / free licence)
+  and confirms it, and both are persisted (`rights_basis`, `rights_ack`,
+  `created_at`, user id) so contribution provenance is auditable — we record the
+  **declared basis and the fact** it was confirmed at submission, not a versioned
+  copy of the wording (Resolved Decisions). We do not verify the basis technically.
 - **PII / privacy** → Object keys are namespaced per user; list/delete/read are
   authorization-scoped to the owner; deleting the account must cascade
   (align with `user-account` "Delete account" erasure).
@@ -429,17 +435,21 @@ the library is the natural home and already groups by practice level. Alternativ
   row is removed and the object deletion is enqueued as an idempotent job
   (decision 4 / tasks 3.7, 4.1). Matches "librement supprimer" and avoids retaining
   data a user asked to remove.
-- **CGU → record only the fact of checking at submission, no versioning.** We
-  persist `authorship_ack = true` with `created_at` + `owner_id` — proof that the
-  user checked the box at upload time. **No** `cgu_version` column and no stored
-  copy of the wording. The checkbox label is fixed copy: **FR** "Je certifie être
-  l'auteur de cette partition" / **EN** "I certify that I am the author of this
-  score" (localised like the rest of the app, `app-localization`). The broader
-  authorship/liability clause it refers to lives in the site's Terms (CGU) pages
-  (`cymbra-site`), not in this change — it must cover both uploaded **scores** and
-  uploaded **piano sounds** (soundfonts), require a consent checkbox at **each**
-  file upload, and make the user solely responsible for the copyright and
-  distribution rights of what they upload.
+- **CGU → user declares a rights basis (author OR public domain), records only
+  the fact of confirming at submission, no versioning.** The upload step offers two
+  bases — **author** (`own_work`) or **public domain / free licence**
+  (`public_domain`) — and a confirmation checkbox. We persist `rights_basis` +
+  `rights_ack = true` with `created_at` + `owner_id` — proof of the declared basis
+  and that it was confirmed at upload time. **No** `cgu_version` column and no
+  stored copy of the wording. Checkbox copy is fixed, localised (`app-localization`):
+  **FR** "Je certifie être l'auteur de cette partition, ou qu'elle relève du domaine
+  public (ou d'une licence libre en autorisant l'usage)" / **EN** "I certify that I
+  am the author of this score, or that it is in the public domain (or under a free
+  licence permitting its use)". The broader rights/liability clause it refers to
+  lives in the site's Terms (CGU) pages (`cymbra-site`), not in this change — it
+  covers both uploaded **scores** and uploaded **piano sounds** (soundfonts),
+  requires a consent checkbox at **each** file upload, and makes the user solely
+  responsible for the copyright and distribution rights of what they upload.
 - **Quota → 5 uploads per rolling window, window length configurable.** The backend
   rejects an upload once the caller already has **5** contributed scores created
   within the last **N days** (rolling). **N is configurable** via

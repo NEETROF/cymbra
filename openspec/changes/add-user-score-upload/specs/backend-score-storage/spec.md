@@ -3,8 +3,8 @@
 ### Requirement: Authenticated score upload with server-side validation
 
 The backend SHALL expose an authenticated operation that accepts an uploaded
-score (its bytes, original filename, chosen difficulty, and authorship
-acknowledgement) from the resolved caller. It MUST re-validate the received bytes
+score (its bytes, original filename, chosen difficulty, and rights attestation —
+declared basis + confirmation) from the resolved caller. It MUST re-validate the received bytes
 server-side — decoding `.mxl` when zipped, then parsing as MusicXML and confirming
 it contains playable piano notes — using the same shared validation logic as the
 client, and MUST reject anything invalid **before** any storage or database write.
@@ -76,21 +76,28 @@ database write, scoped to the caller's own contributions.
 On a valid upload the backend SHALL store the canonical (decoded) score bytes in
 the object store under a per-user key, and SHALL persist a database record
 attributing the score to the caller with: the owner's user id, the object key,
-the chosen difficulty (Beginner / Intermediate / Advanced), the authorship
-acknowledgement, and a creation timestamp. The database record MUST be the source
-of truth for ownership. An authorship acknowledgement that is not affirmative MUST
-be rejected.
+the chosen difficulty (Beginner / Intermediate / Advanced), the rights attestation
+(the declared basis — author or public domain / free licence — and its
+confirmation), and a creation timestamp. The database record MUST be the source of
+truth for ownership. A rights attestation whose confirmation is not affirmative, or
+whose basis is outside the accepted set, MUST be rejected.
 
 #### Scenario: Object and record created on success
 
 - **WHEN** a valid upload is accepted
 - **THEN** the canonical bytes are stored in the object store under a per-user key
-  **AND** a record is written with owner id, object key, difficulty, authorship
-  acknowledgement, and creation timestamp
+  **AND** a record is written with owner id, object key, difficulty, the rights
+  attestation (basis + confirmation), and creation timestamp
 
-#### Scenario: Missing authorship acknowledgement rejected
+#### Scenario: Missing rights confirmation rejected
 
-- **WHEN** an upload does not carry an affirmative authorship acknowledgement
+- **WHEN** an upload does not carry an affirmative rights confirmation
+- **THEN** it is rejected and no record is created
+
+#### Scenario: Invalid rights basis rejected
+
+- **WHEN** an upload declares a rights basis outside the accepted set (author or
+  public domain / free licence)
 - **THEN** it is rejected and no record is created
 
 #### Scenario: Difficulty is constrained to the fixed set
@@ -105,9 +112,9 @@ The backend SHALL derive every descriptive and musical metadata field of an
 uploaded score — at least its title, composer, key, time signature, and measure
 count — **from the server-side parse of the received file**, and MUST NOT accept
 or store any such metadata sent by the client. The only score attributes the
-caller may set are the chosen difficulty and the authorship acknowledgement; the
-stored metadata MUST therefore always correspond to the actual file content, so a
-client cannot alter or spoof it.
+caller may set are the chosen difficulty and the rights attestation (basis +
+confirmation); the stored metadata MUST therefore always correspond to the actual
+file content, so a client cannot alter or spoof it.
 
 #### Scenario: Metadata comes from the file, not the request
 
@@ -126,8 +133,8 @@ client cannot alter or spoof it.
 
 - **WHEN** a score is stored
 - **THEN** its recorded metadata reflects the parsed content of the stored bytes,
-  with only difficulty and the authorship acknowledgement originating from the
-  caller
+  with only difficulty and the rights attestation (basis + confirmation)
+  originating from the caller
 
 ### Requirement: List the caller's own contributed scores
 
