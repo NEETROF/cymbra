@@ -235,11 +235,18 @@ pub struct ValidationOutcome {
 
 // --- FFI wrappers (delegate to the shared core) --------------------------
 
-/// Parses an uncompressed MusicXML document (bytes) into a [`ScoreDocument`],
-/// with each measure's `min_width` already computed. Returns an error on
-/// malformed input rather than panicking.
+/// Parses a MusicXML document (bytes) into a [`ScoreDocument`], with each
+/// measure's `min_width` already computed. A zipped `.mxl` container is decoded
+/// first (same sniff as [`validate_musicxml`]), so the caller can pass the raw
+/// picked file — plain `.musicxml`/`.xml` or `.mxl`. Errors on malformed input
+/// rather than panicking.
 pub fn parse_musicxml(bytes: Vec<u8>) -> Result<ScoreDocument> {
-    cymbra_musicxml_core::parse(&bytes)
+    let xml = if cymbra_musicxml_core::mxl::is_mxl(&bytes) {
+        cymbra_musicxml_core::mxl::decode(&bytes)?
+    } else {
+        bytes
+    };
+    cymbra_musicxml_core::parse(&xml)
 }
 
 /// Validates raw bytes (plain MusicXML or a zipped `.mxl`) client-side, using the
