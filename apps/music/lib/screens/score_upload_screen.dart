@@ -541,10 +541,26 @@ class _ConfirmStepView extends ConsumerWidget {
       );
     }
 
+    // Actionable inputs FIRST (visible without scrolling on a phone); the
+    // read-only recap goes at the bottom.
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        if (state.summary != null) _MetadataCard(summary: state.summary!),
+        const Text(
+          'Niveau de difficulté',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        SegmentedButton<PracticeLevel>(
+          segments: [
+            for (final l in PracticeLevel.values)
+              ButtonSegment(value: l, label: Text(l.label)),
+          ],
+          selected: state.level == null ? const {} : {state.level!},
+          emptySelectionAllowed: true,
+          onSelectionChanged: (s) =>
+              s.isEmpty ? null : notifier.setLevel(s.first),
+        ),
         // Fallback inputs shown only when the file itself carries no title /
         // composer (a parsed value always wins server-side — design 2b).
         if (state.summary?.title == null)
@@ -557,27 +573,16 @@ class _ConfirmStepView extends ConsumerWidget {
             label: 'Compositeur (optionnel)',
             onChanged: notifier.setFallbackComposer,
           ),
-        const SizedBox(height: 8),
-        const Text('Niveau de difficulté'),
-        const SizedBox(height: 8),
-        SegmentedButton<PracticeLevel>(
-          segments: [
-            for (final l in PracticeLevel.values)
-              ButtonSegment(value: l, label: Text(l.label)),
-          ],
-          selected: state.level == null ? const {} : {state.level!},
-          emptySelectionAllowed: true,
-          onSelectionChanged: (s) =>
-              s.isEmpty ? null : notifier.setLevel(s.first),
-        ),
-        const SizedBox(height: 16),
-        if (state.submitError != null)
+        if (state.submitError != null) ...[
+          const SizedBox(height: 12),
           _Banner(
             icon: Icons.error_outline,
             color: Theme.of(context).colorScheme.error,
             text: state.submitError!,
           ),
-        const SizedBox(height: 8),
+        ],
+        const SizedBox(height: 20),
+        if (state.summary != null) _MetadataCard(summary: state.summary!),
       ],
     );
   }
