@@ -82,14 +82,14 @@ to Verification.
 
 Before a validated file can be submitted, the user MUST declare the **basis** on
 which they may contribute it — either that they are its **author** or that it is in
-the **public domain** (or under a free licence permitting its use) — and MUST tick
-a CGU confirmation checkbox, labelled "Je certifie être l'auteur de cette partition,
-ou qu'elle relève du domaine public (ou d'une licence libre en autorisant l'usage)"
-("I certify that I am the author of this score, or that it is in the public domain
-(or under a free licence permitting its use)"), localised per `app-localization`.
-The submit action MUST remain disabled until a basis is selected and the checkbox
-is ticked, and both the declared basis and the confirmation MUST be sent with the
-upload.
+the **public domain** (or under a free licence permitting its use) — via a distinct
+choice, AND MUST tick a **single confirmation checkbox** that attests the
+declaration is accurate (e.g. "Je certifie que cette déclaration est exacte et que
+je dispose des droits nécessaires pour mettre cette partition à disposition"),
+localised per `app-localization`. The confirmation MUST NOT restate the basis
+options (the basis choice already captures which applies). The submit action MUST
+remain disabled until a basis is selected and the checkbox is ticked, and both the
+declared basis and the confirmation MUST be sent with the upload.
 
 #### Scenario: Submit blocked without the attestation
 

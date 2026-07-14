@@ -453,11 +453,12 @@ the library is the natural home and already groups by practice level. Alternativ
   (`public_domain`) — and a confirmation checkbox. We persist `rights_basis` +
   `rights_ack = true` with `created_at` + `owner_id` — proof of the declared basis
   and that it was confirmed at upload time. **No** `cgu_version` column and no
-  stored copy of the wording. Checkbox copy is fixed, localised (`app-localization`):
-  **FR** "Je certifie être l'auteur de cette partition, ou qu'elle relève du domaine
-  public (ou d'une licence libre en autorisant l'usage)" / **EN** "I certify that I
-  am the author of this score, or that it is in the public domain (or under a free
-  licence permitting its use)". The broader rights/liability clause it refers to
+  stored copy of the wording. **UI shape (from manual testing):** the basis is a
+  distinct choice (radio: author / public domain) and the confirmation is a
+  **single generic checkbox** — it does NOT restate the basis options (that read as
+  redundant). FR copy e.g. "Je certifie que cette déclaration est exacte et que je
+  dispose des droits nécessaires pour mettre cette partition à disposition",
+  localised (`app-localization`). The broader rights/liability clause it refers to
   lives in the site's Terms (CGU) pages (`cymbra-site`), not in this change — it
   covers both uploaded **scores** and uploaded **piano sounds** (soundfonts),
   requires a consent checkbox at **each** file upload, and makes the user solely

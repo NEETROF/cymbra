@@ -47,12 +47,19 @@ class ScoreUploadScreen extends ConsumerWidget {
           ),
         ),
       ),
+      // Centre + plafonne la largeur : carte centrée sur desktop, plein écran
+      // sur mobile (le contenu est plus lisible qu'étiré sur toute la largeur).
       body: SafeArea(
-        child: switch (step) {
-          UploadStep.upload => const _UploadStepView(),
-          UploadStep.verify => const _VerifyStepView(),
-          UploadStep.confirm => const _ConfirmStepView(),
-        },
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 560),
+            child: switch (step) {
+              UploadStep.upload => const _UploadStepView(),
+              UploadStep.verify => const _VerifyStepView(),
+              UploadStep.confirm => const _ConfirmStepView(),
+            },
+          ),
+        ),
       ),
     );
   }
@@ -131,8 +138,8 @@ class _UploadStepView extends ConsumerWidget {
               onChanged: (v) => notifier.setRightsAck(v ?? false),
               controlAffinity: ListTileControlAffinity.leading,
               title: const Text(
-                'Je certifie être l\'auteur de cette partition, ou qu\'elle relève '
-                'du domaine public (ou d\'une licence libre en autorisant l\'usage).',
+                'Je certifie que cette déclaration est exacte et que je dispose '
+                'des droits nécessaires pour mettre cette partition à disposition.',
                 style: TextStyle(fontSize: 13),
               ),
             ),
