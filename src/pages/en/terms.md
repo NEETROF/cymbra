@@ -39,8 +39,10 @@ You keep ownership of your own content.
 Cymbra lets you upload your own content, in particular **scores** and **piano sounds**
 (*soundfonts*).
 
-- By making content available, you **certify that you are its author**; this consent is
-  collected via a **dedicated checkbox at each file upload**.
+- By making content available, you **certify either that you are its author, or that
+  it is in the public domain** (or under a free licence permitting its use and
+  availability). You indicate this basis and confirm it via a **dedicated checkbox at
+  each file upload**.
 - You are **solely responsible** for the copyright and distribution rights attached to
   that content.
 - You indemnify NEETROF against any third-party claim regarding those rights.

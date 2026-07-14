@@ -38,9 +38,10 @@ conservez vos propres contenus.
 Cymbra vous permet de téléverser vos propres contenus, notamment des **partitions**
 et des **sons de piano** (*soundfonts*).
 
-- En mettant un contenu à disposition, vous **certifiez en être l'auteur** ; ce
-  consentement est recueilli par une **case à cocher dédiée lors de chaque
-  téléversement de fichier**.
+- En mettant un contenu à disposition, vous **certifiez soit en être l'auteur, soit
+  qu'il relève du domaine public** (ou d'une licence libre en autorisant l'usage et
+  la mise à disposition). Vous indiquez ce motif et le confirmez par une **case à
+  cocher dédiée lors de chaque téléversement de fichier**.
 - Vous êtes **seul responsable** du respect des droits d'auteur et des droits de
   diffusion attachés à ce contenu.
 - Vous garantissez NEETROF contre toute réclamation de tiers relative à ces droits.
