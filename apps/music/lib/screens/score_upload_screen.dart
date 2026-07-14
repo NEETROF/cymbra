@@ -387,26 +387,14 @@ class _ConfirmStepView extends ConsumerWidget {
         // Fallback inputs shown only when the file itself carries no title /
         // composer (a parsed value always wins server-side — design 2b).
         if (state.summary?.title == null)
-          Padding(
-            padding: const EdgeInsets.only(top: 8),
-            child: TextField(
-              decoration: const InputDecoration(
-                labelText: 'Titre (ce fichier n\'en contient pas)',
-                border: OutlineInputBorder(),
-              ),
-              onChanged: notifier.setFallbackTitle,
-            ),
+          _FallbackField(
+            label: 'Titre (ce fichier n\'en contient pas)',
+            onChanged: notifier.setFallbackTitle,
           ),
         if (state.summary?.composer == null)
-          Padding(
-            padding: const EdgeInsets.only(top: 8),
-            child: TextField(
-              decoration: const InputDecoration(
-                labelText: 'Compositeur (optionnel)',
-                border: OutlineInputBorder(),
-              ),
-              onChanged: notifier.setFallbackComposer,
-            ),
+          _FallbackField(
+            label: 'Compositeur (optionnel)',
+            onChanged: notifier.setFallbackComposer,
           ),
         const SizedBox(height: 8),
         const Text('Niveau de difficulté'),
@@ -485,6 +473,41 @@ class _MetadataCard extends StatelessWidget {
       ),
     );
   }
+}
+
+/// A fallback title/composer input. A `StatefulWidget` with its own controller so
+/// it keeps focus and text even though the confirm view rebuilds on each change.
+class _FallbackField extends StatefulWidget {
+  const _FallbackField({required this.label, required this.onChanged});
+  final String label;
+  final ValueChanged<String> onChanged;
+
+  @override
+  State<_FallbackField> createState() => _FallbackFieldState();
+}
+
+class _FallbackFieldState extends State<_FallbackField> {
+  final _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(top: 8),
+    child: TextField(
+      controller: _controller,
+      onChanged: widget.onChanged,
+      textInputAction: TextInputAction.done,
+      decoration: InputDecoration(
+        labelText: widget.label,
+        border: const OutlineInputBorder(),
+      ),
+    ),
+  );
 }
 
 class _Banner extends StatelessWidget {
