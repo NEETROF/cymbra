@@ -43,10 +43,10 @@ class ScoreUploadScreen extends ConsumerWidget {
       notifier.reset();
     }
 
-    // Cap text scaling: the wizard is a dense multi-step form, so a very large
-    // Dynamic Type setting would blow the layout up. Allow up to 1.2×.
+    // Freeze text scaling at the base size: the wizard is a dense multi-step
+    // form, so a large iOS Dynamic Type setting would blow the layout up.
     return MediaQuery.withClampedTextScaling(
-      maxScaleFactor: 1.2,
+      maxScaleFactor: 1.0,
       child: Scaffold(
       appBar: AppBar(
         // Back = previous step (or quit at the first step / after success). Reset
