@@ -43,7 +43,11 @@ class ScoreUploadScreen extends ConsumerWidget {
       notifier.reset();
     }
 
-    return Scaffold(
+    // Cap text scaling: the wizard is a dense multi-step form, so a very large
+    // Dynamic Type setting would blow the layout up. Allow up to 1.2×.
+    return MediaQuery.withClampedTextScaling(
+      maxScaleFactor: 1.2,
+      child: Scaffold(
       appBar: AppBar(
         // Back = previous step (or quit at the first step / after success). Reset
         // on quit so the next visit starts clean (user action → mutation allowed).
@@ -71,7 +75,7 @@ class ScoreUploadScreen extends ConsumerWidget {
           const SizedBox(width: 8),
         ],
         bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(72),
+          preferredSize: const Size.fromHeight(58),
           child: _WizardStepper(current: step, done: state.isDone),
         ),
       ),
@@ -88,6 +92,7 @@ class ScoreUploadScreen extends ConsumerWidget {
             },
           ),
         ),
+      ),
       ),
     );
   }
@@ -171,13 +176,15 @@ class _WizardStepper extends StatelessWidget {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 3),
                   Text(
                     _labels[i],
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      fontSize: 12,
+                      fontSize: 11,
                       fontWeight: i == currentIndex
-                          ? FontWeight.w700
+                          ? FontWeight.w600
                           : FontWeight.w400,
                       color: i <= currentIndex
                           ? scheme.onSurface
@@ -204,8 +211,8 @@ class _Dot extends StatelessWidget {
     final done = index < currentIndex;
     final current = index == currentIndex;
     return Container(
-      width: 26,
-      height: 26,
+      width: 20,
+      height: 20,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: done || current ? scheme.primary : Colors.transparent,
@@ -216,11 +223,11 @@ class _Dot extends StatelessWidget {
       ),
       alignment: Alignment.center,
       child: done
-          ? Icon(Icons.check, size: 16, color: scheme.onPrimary)
+          ? Icon(Icons.check, size: 13, color: scheme.onPrimary)
           : Text(
               '${index + 1}',
               style: TextStyle(
-                fontSize: 13,
+                fontSize: 11,
                 fontWeight: FontWeight.w700,
                 color: current ? scheme.onPrimary : scheme.onSurfaceVariant,
               ),
