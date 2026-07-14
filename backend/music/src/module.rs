@@ -429,6 +429,49 @@ mod tests {
         assert!(!store.contains(&rec.object_key));
     }
 
+    /// A store that stores/reads fine but always fails to delete — models a
+    /// transient object-store fault during a delete.
+    #[derive(Default)]
+    struct DeleteFailsStore {
+        inner: FakeStore,
+    }
+
+    #[async_trait::async_trait]
+    impl ObjectStorage for DeleteFailsStore {
+        async fn put(&self, key: &str, bytes: Vec<u8>) -> cymbra_storage::Result<()> {
+            self.inner.put(key, bytes).await
+        }
+        async fn get(&self, key: &str) -> cymbra_storage::Result<Vec<u8>> {
+            self.inner.get(key).await
+        }
+        async fn delete(&self, _key: &str) -> cymbra_storage::Result<()> {
+            Err(cymbra_storage::StorageError::Backend(anyhow::anyhow!(
+                "object store unavailable"
+            )))
+        }
+    }
+
+    #[tokio::test]
+    async fn delete_removes_the_row_even_when_the_object_delete_fails() {
+        // The row is the source of truth: a failed object delete must NOT fail the
+        // request — it leaves a reclaimable orphan, but the record is gone.
+        let repo = Arc::new(FakeUserScoreRepo::default());
+        let store = Arc::new(DeleteFailsStore::default());
+        let m = ScoreModule::new(repo.clone(), store.clone(), 5, 7, 8 * 1024 * 1024);
+
+        let rec = m
+            .upload("u1", input(VALID, "beginner", "own_work", true))
+            .await
+            .unwrap();
+        assert_eq!(repo.rows().len(), 1);
+
+        // Object delete errors internally, but the call still succeeds…
+        m.delete("u1", &rec.id).await.unwrap();
+        // …and the row is gone (source of truth), while the orphan object remains.
+        assert!(repo.rows().is_empty());
+        assert!(store.inner.contains(&rec.object_key));
+    }
+
     #[tokio::test]
     async fn duplicate_upload_is_rejected_and_leaves_no_orphan() {
         let (m, _repo, store) = module(5, 7);
