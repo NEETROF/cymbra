@@ -16,6 +16,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../l10n/gen/app_localizations.dart';
 import '../painters/staff_painter.dart';
 import '../services/audio_service.dart';
 import '../services/notation_engine.dart';
@@ -43,13 +44,17 @@ class ScoreUploadScreen extends ConsumerWidget {
       notifier.reset();
     }
 
-    // The wizard is a dense multi-step form: shrink its text ~10% below the
-    // platform base (the device Dynamic Type factor is still respected
-    // proportionally, so accessibility scaling keeps working).
+    // The wizard is a dense multi-step form. On a phone the Material base sizes
+    // crowd the screen, so shrink text ~15% there; on a tablet/desktop the extra
+    // room makes that feel tiny, so keep the platform base. The device Dynamic
+    // Type factor is respected proportionally either way (accessibility scaling
+    // keeps working).
+    final isPhone = MediaQuery.of(context).size.shortestSide < 600;
+    final titleSize = isPhone ? 18.0 : 22.0;
     return MediaQuery(
       data: MediaQuery.of(context).copyWith(
         textScaler: TextScaler.linear(
-          MediaQuery.textScalerOf(context).scale(1) * 0.85,
+          MediaQuery.textScalerOf(context).scale(1) * (isPhone ? 0.85 : 1.0),
         ),
       ),
       child: Scaffold(
@@ -76,9 +81,9 @@ class ScoreUploadScreen extends ConsumerWidget {
         ),
         // Style on the Text (not AppBar.titleTextStyle) so it merges with — and
         // keeps — the theme's title colour, only overriding the size.
-        title: const Text(
+        title: Text(
           'Contribuer une partition',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+          style: TextStyle(fontSize: titleSize, fontWeight: FontWeight.w600),
         ),
         actions: [
           if (!state.isDone) _ForwardAction(state: state, notifier: notifier),
@@ -579,7 +584,10 @@ class _ConfirmStepView extends ConsumerWidget {
           ),
           segments: [
             for (final l in PracticeLevel.values)
-              ButtonSegment(value: l, label: Text(l.label)),
+              ButtonSegment(
+                value: l,
+                label: Text(l.localizedLabel(AppLocalizations.of(context))),
+              ),
           ],
           selected: state.level == null ? const {} : {state.level!},
           emptySelectionAllowed: true,

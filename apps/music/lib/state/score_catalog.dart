@@ -15,6 +15,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../l10n/gen/app_localizations.dart';
+
 part 'score_catalog.g.dart';
 
 /// Practice difficulty of a bundled score.
@@ -26,6 +28,13 @@ extension PracticeLevelLabel on PracticeLevel {
     PracticeLevel.beginner => 'Beginner',
     PracticeLevel.intermediate => 'Intermediate',
     PracticeLevel.advanced => 'Advanced',
+  };
+
+  /// Localized label (use in the UI; [label] is only a debug/fallback string).
+  String localizedLabel(AppLocalizations l10n) => switch (this) {
+    PracticeLevel.beginner => l10n.levelBeginner,
+    PracticeLevel.intermediate => l10n.levelIntermediate,
+    PracticeLevel.advanced => l10n.levelAdvanced,
   };
 }
 
