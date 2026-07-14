@@ -287,9 +287,10 @@ class _VerifyStepViewState extends ConsumerState<_VerifyStepView>
 
   @override
   Widget build(BuildContext context) {
-    final summary = ref.watch(
-      scoreUploadNotifierProvider.select((s) => s.summary),
-    );
+    // Read (not watch): the summary is fixed once we reach the Verify step, and a
+    // lingering select-listener on a disposed instance can fire markNeedsBuild on
+    // a defunct element when the notifier mutates elsewhere.
+    final summary = ref.read(scoreUploadNotifierProvider).summary;
     final notifier = ref.read(scoreUploadNotifierProvider.notifier);
     final playback = _playback;
 
