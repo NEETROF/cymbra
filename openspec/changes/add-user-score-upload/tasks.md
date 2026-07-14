@@ -49,9 +49,9 @@
 
 ## 6. App — upload dependencies & services
 
-- [ ] 6.1 Add `file_picker` to `apps/music/pubspec.yaml`; wrap it in an injectable `filePickerProvider` (faked in tests).
-- [ ] 6.2 Add a `scoreUploadService` provider wrapping the generated score gRPC stub via `authedCall` (`apps/music/lib/services/grpc_client.dart`), with a fake for tests.
-- [ ] 6.3 Add a backend-backed score source (paralleling `apps/music/lib/services/score_asset_source.dart`) that fetches a contributed score's bytes for the player.
+- [x] 6.1 Add `file_picker` to `apps/music/pubspec.yaml`; wrap it in an injectable `filePickerProvider` (faked in tests). — `file_picker_service.dart` (PickedScoreFile + FilePickerService seam + prod impl) behind `filePickerProvider`; `file_picker ^8.1.2` added.
+- [x] 6.2 Add a `scoreUploadService` provider wrapping the generated score gRPC stub via `authedCall` (`apps/music/lib/services/grpc_client.dart`), with a fake for tests. — `score_upload_service.dart`: ScoreUploadService seam + GrpcScoreUploadService (authedCall refresh) behind `scoreUploadServiceProvider`; `score.proto` added to gen_grpc.sh, Dart stubs generated.
+- [x] 6.3 Add a backend-backed score source (paralleling `apps/music/lib/services/score_asset_source.dart`) that fetches a contributed score's bytes for the player. — `ScoreUploadService.fetchBytes(id)` is the backend byte source (GetScoreBytes) for the player; wired into the load path in lot H (8.2).
 
 ## 7. App — contribution wizard
 
