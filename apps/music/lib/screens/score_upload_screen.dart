@@ -191,11 +191,13 @@ class _VerifyStepViewState extends ConsumerState<_VerifyStepView>
   int _nextNote = 0;
   final List<({int pitch, double endMs})> _sounding = [];
 
-  AudioService get _audio => ref.read(audioServiceProvider);
+  // Cached in initState: `dispose()` must not touch `ref` (it's already disposed).
+  late final AudioService _audio;
 
   @override
   void initState() {
     super.initState();
+    _audio = ref.read(audioServiceProvider);
     _ticker = createTicker(_onTick);
     // Fire-and-forget: load the SoundFont so playback has sound (guarded natively
     // until ready). Same synth the player uses.
