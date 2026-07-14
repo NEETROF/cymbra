@@ -242,28 +242,33 @@ class _VerifyStepViewState extends ConsumerState<_VerifyStepView>
     return Column(
       children: [
         if (summary != null) _MetadataCard(summary: summary),
+        // StaffPainter is a scrolling synchronized view: it draws a fixed
+        // horizontal window (playhead at 25%) and the notes scroll past as
+        // elapsedMs advances. So give it a normal viewport, not a giant canvas.
         Expanded(
           child: _error != null
               ? Center(child: Text('Aperçu indisponible : $_error'))
               : playback == null
                   ? const Center(child: CircularProgressIndicator())
-                  : SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: SizedBox(
-                        width: (playback.songEndMs / 4).clamp(600, 20000),
-                        height: 220,
-                        child: CustomPaint(
-                          painter: StaffPainter(
-                            notes: playback.notes,
-                            elapsedMs: _elapsedMs,
-                            activeNotes: const <int>{},
-                            bpm: playback.bpm,
-                            songEndMs: playback.songEndMs,
-                            keyFifths: _doc?.attributes.keyFifths ?? 0,
-                            beats: _doc?.attributes.time.beats ?? 4,
-                            beatType: _doc?.attributes.time.beatType ?? 4,
-                            measureStartMs: playback.measureStartMs,
-                          ),
+                  : Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 8),
+                      clipBehavior: Clip.hardEdge,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(8),
+                        color: Colors.black.withValues(alpha: 0.15),
+                      ),
+                      child: CustomPaint(
+                        size: Size.infinite,
+                        painter: StaffPainter(
+                          notes: playback.notes,
+                          elapsedMs: _elapsedMs,
+                          activeNotes: const <int>{},
+                          bpm: playback.bpm,
+                          songEndMs: playback.songEndMs,
+                          keyFifths: _doc?.attributes.keyFifths ?? 0,
+                          beats: _doc?.attributes.time.beats ?? 4,
+                          beatType: _doc?.attributes.time.beatType ?? 4,
+                          measureStartMs: playback.measureStartMs,
                         ),
                       ),
                     ),
