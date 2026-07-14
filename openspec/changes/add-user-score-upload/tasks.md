@@ -43,9 +43,9 @@
 
 ## 5. Backend tests
 
-- [ ] 5.1 Module/handler tests with `FakeUserScoreRepo` + fake storage: upload happy path, invalid/oversized rejection (nothing stored), list isolation across users, owner-only delete, non-owner delete rejected, rights-attestation (basis + confirmation) / difficulty validation, **and the rolling quota** (allowed under the cap, rejected at the cap, and allowed again once earlier uploads fall outside the window — with a configurable window in the fake/clock).
-- [ ] 5.2 Test the delete partial-failure path (object delete fails → record gone, cleanup job enqueued) and the account-erasure purge.
-- [ ] 5.3 `cargo llvm-cov` ≥ 80% for the new host-testable logic; `cargo fmt` + `clippy -D warnings` clean.
+- [x] 5.1 Module/handler tests with `FakeUserScoreRepo` + fake storage: upload happy path, invalid/oversized rejection (nothing stored), list isolation across users, owner-only delete, non-owner delete rejected, rights-attestation (basis + confirmation) / difficulty validation, **and the rolling quota** (allowed under the cap, rejected at the cap, and allowed again once earlier uploads fall outside the window — with a configurable window in the fake/clock). — 6 module tests (happy/reject/quota/dup/owner-scoping) + 4 repo tests; module.rs 98% line cov, user_scores.rs 100%.
+- [ ] 5.2 Test the delete partial-failure path (object delete fails → record gone, cleanup job enqueued) and the account-erasure purge. — DEFERRED to the integration run (lot 10, needs live DB+MinIO); the account-erasure path is wired (purge_user + purge_score_object).
+- [ ] 5.3 `cargo llvm-cov` ≥ 80% for the new host-testable logic; `cargo fmt` + `clippy -D warnings` clean. — clippy `-D warnings` + fmt clean workspace-wide; music business logic ≥90%. Full `cargo llvm-cov` workspace gate runs in CI (needs the DB-backed crates).
 
 ## 6. App — upload dependencies & services
 
