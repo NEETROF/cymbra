@@ -74,8 +74,10 @@ class _FakeUpload implements ScoreUploadService {
   Future<Uint8List> fetchBytes(String id) async => Uint8List(0);
 }
 
-PickedScoreFile _file() =>
-    PickedScoreFile(name: 'x.musicxml', bytes: Uint8List.fromList(const [1, 2, 3]));
+PickedScoreFile _file() => PickedScoreFile(
+  name: 'x.musicxml',
+  bytes: Uint8List.fromList(const [1, 2, 3]),
+);
 
 ProviderContainer _make({
   PickedScoreFile? pick,
@@ -94,16 +96,18 @@ ProviderContainer _make({
 }
 
 void main() {
-  test('pickAndValidate populates the server-parity summary on a valid file',
-      () async {
-    final c = _make(pick: _file());
-    final n = c.read(scoreUploadNotifierProvider.notifier);
-    await n.pickAndValidate();
-    final s = c.read(scoreUploadNotifierProvider);
-    expect(s.isValidated, isTrue);
-    expect(s.summary?.title, 'Sample');
-    expect(s.validating, isFalse);
-  });
+  test(
+    'pickAndValidate populates the server-parity summary on a valid file',
+    () async {
+      final c = _make(pick: _file());
+      final n = c.read(scoreUploadNotifierProvider.notifier);
+      await n.pickAndValidate();
+      final s = c.read(scoreUploadNotifierProvider);
+      expect(s.isValidated, isTrue);
+      expect(s.summary?.title, 'Sample');
+      expect(s.validating, isFalse);
+    },
+  );
 
   test('a cancelled pick is a no-op', () async {
     final c = _make(pick: null);
@@ -111,17 +115,20 @@ void main() {
     expect(c.read(scoreUploadNotifierProvider).file, isNull);
   });
 
-  test('a rejected file surfaces the typed code and is not validated', () async {
-    final engine = FakeNotationEngine(
-      validateOutcome: ValidationOutcome(rejectCode: 'no_notes'),
-    );
-    final c = _make(pick: _file(), engine: engine);
-    final n = c.read(scoreUploadNotifierProvider.notifier);
-    await n.pickAndValidate();
-    final s = c.read(scoreUploadNotifierProvider);
-    expect(s.isValidated, isFalse);
-    expect(s.rejectCode, 'no_notes');
-  });
+  test(
+    'a rejected file surfaces the typed code and is not validated',
+    () async {
+      final engine = FakeNotationEngine(
+        validateOutcome: ValidationOutcome(rejectCode: 'no_notes'),
+      );
+      final c = _make(pick: _file(), engine: engine);
+      final n = c.read(scoreUploadNotifierProvider.notifier);
+      await n.pickAndValidate();
+      final s = c.read(scoreUploadNotifierProvider);
+      expect(s.isValidated, isFalse);
+      expect(s.rejectCode, 'no_notes');
+    },
+  );
 
   test('Verify is gated on validation AND the rights attestation', () async {
     final c = _make(pick: _file());
@@ -135,43 +142,49 @@ void main() {
     expect(c.read(scoreUploadNotifierProvider).step, UploadStep.verify);
   });
 
-  test('finalize is gated on difficulty and submits the right inputs', () async {
-    final upload = _FakeUpload();
-    final c = _make(pick: _file(), upload: upload);
-    final n = c.read(scoreUploadNotifierProvider.notifier);
-    await n.pickAndValidate();
-    n.setRightsBasis(RightsBasis.publicDomain);
-    n.setRightsAck(true);
-    n.goToVerify();
-    n.goToConfirm();
-    await n.submit(); // no level yet → blocked
-    expect(upload.uploads, isEmpty);
-    n.setLevel(PracticeLevel.intermediate);
-    await n.submit();
-    expect(upload.uploads.single.level, PracticeLevel.intermediate);
-    expect(upload.uploads.single.basis, RightsBasis.publicDomain);
-    expect(upload.uploads.single.ack, isTrue);
-    expect(c.read(scoreUploadNotifierProvider).isDone, isTrue);
-  });
+  test(
+    'finalize is gated on difficulty and submits the right inputs',
+    () async {
+      final upload = _FakeUpload();
+      final c = _make(pick: _file(), upload: upload);
+      final n = c.read(scoreUploadNotifierProvider.notifier);
+      await n.pickAndValidate();
+      n.setRightsBasis(RightsBasis.publicDomain);
+      n.setRightsAck(true);
+      n.goToVerify();
+      n.goToConfirm();
+      await n.submit(); // no level yet → blocked
+      expect(upload.uploads, isEmpty);
+      n.setLevel(PracticeLevel.intermediate);
+      await n.submit();
+      expect(upload.uploads.single.level, PracticeLevel.intermediate);
+      expect(upload.uploads.single.basis, RightsBasis.publicDomain);
+      expect(upload.uploads.single.ack, isTrue);
+      expect(c.read(scoreUploadNotifierProvider).isDone, isTrue);
+    },
+  );
 
-  test('a submit error is surfaced as a friendly message, inputs kept', () async {
-    final upload = _FakeUpload()
-      ..uploadError = const AuthException(
-        AuthError.alreadyExists,
-        'score already uploaded',
-      );
-    final c = _make(pick: _file(), upload: upload);
-    final n = c.read(scoreUploadNotifierProvider.notifier);
-    await n.pickAndValidate();
-    n.setRightsBasis(RightsBasis.author);
-    n.setRightsAck(true);
-    n.setLevel(PracticeLevel.beginner);
-    await n.submit();
-    final s = c.read(scoreUploadNotifierProvider);
-    // Mapped to a clean FR message — the raw exception is never shown.
-    expect(s.submitError, 'Vous avez déjà importé cette partition.');
-    expect(s.submitError, isNot(contains('AuthException')));
-    expect(s.isDone, isFalse);
-    expect(s.level, PracticeLevel.beginner);
-  });
+  test(
+    'a submit error is surfaced as a friendly message, inputs kept',
+    () async {
+      final upload = _FakeUpload()
+        ..uploadError = const AuthException(
+          AuthError.alreadyExists,
+          'score already uploaded',
+        );
+      final c = _make(pick: _file(), upload: upload);
+      final n = c.read(scoreUploadNotifierProvider.notifier);
+      await n.pickAndValidate();
+      n.setRightsBasis(RightsBasis.author);
+      n.setRightsAck(true);
+      n.setLevel(PracticeLevel.beginner);
+      await n.submit();
+      final s = c.read(scoreUploadNotifierProvider);
+      // Mapped to a clean FR message — the raw exception is never shown.
+      expect(s.submitError, 'Vous avez déjà importé cette partition.');
+      expect(s.submitError, isNot(contains('AuthException')));
+      expect(s.isDone, isFalse);
+      expect(s.level, PracticeLevel.beginner);
+    },
+  );
 }

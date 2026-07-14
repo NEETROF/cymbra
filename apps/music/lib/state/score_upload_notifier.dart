@@ -61,22 +61,29 @@ abstract class ScoreUploadState with _$ScoreUploadState {
     @Default(UploadStep.upload) UploadStep step,
     PickedScoreFile? file,
     @Default(false) bool validating,
+
     /// Server-parity summary of the validated file (metadata shown read-only).
     ScoreSummary? summary,
+
     /// Typed reject code when validation failed (`too_large`/`undecodable`/…).
     String? rejectCode,
+
     /// The rights attestation (design 2b).
     RightsBasis? rightsBasis,
     @Default(false) bool rightsAck,
+
     /// Fallback title/composer the user may type when the file carries none
     /// (server uses them only then; a parsed value always wins).
     String? fallbackTitle,
     String? fallbackComposer,
+
     /// The chosen difficulty (confirm step).
     PracticeLevel? level,
     @Default(false) bool submitting,
+
     /// Set on a successful upload.
     ContributedScore? result,
+
     /// A recoverable submission error message (inputs are kept).
     String? submitError,
   }) = _ScoreUploadState;
@@ -113,7 +120,9 @@ class ScoreUploadNotifier extends _$ScoreUploadNotifier {
     if (picked == null) return;
     // Reset any prior validation, keep the wizard on the Upload step.
     state = ScoreUploadState(file: picked, validating: true);
-    final outcome = await ref.read(notationEngineProvider).validate(picked.bytes);
+    final outcome = await ref
+        .read(notationEngineProvider)
+        .validate(picked.bytes);
     state = state.copyWith(
       validating: false,
       summary: outcome.summary,
@@ -165,7 +174,9 @@ class ScoreUploadNotifier extends _$ScoreUploadNotifier {
     }
     state = state.copyWith(submitting: true, submitError: null);
     try {
-      final record = await ref.read(scoreUploadServiceProvider).upload(
+      final record = await ref
+          .read(scoreUploadServiceProvider)
+          .upload(
             data: file.bytes,
             filename: file.name,
             level: level,
@@ -178,7 +189,10 @@ class ScoreUploadNotifier extends _$ScoreUploadNotifier {
       // Refresh the library's "my contributions" section so the new score shows.
       ref.invalidate(myContributedScoresProvider);
     } catch (e) {
-      state = state.copyWith(submitting: false, submitError: uploadErrorMessage(e));
+      state = state.copyWith(
+        submitting: false,
+        submitError: uploadErrorMessage(e),
+      );
     }
   }
 

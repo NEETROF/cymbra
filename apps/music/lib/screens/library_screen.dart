@@ -205,7 +205,9 @@ class LibraryScreen extends ConsumerWidget {
       ),
     );
     if (ok != true) return;
-    await ref.read(scoreUploadServiceProvider).deleteScore(entry.contributedId!);
+    await ref
+        .read(scoreUploadServiceProvider)
+        .deleteScore(entry.contributedId!);
     ref.invalidate(myContributedScoresProvider);
   }
 }

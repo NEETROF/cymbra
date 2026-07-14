@@ -29,9 +29,7 @@ part 'contributed_scores.g.dart';
 Future<List<CatalogEntry>> myContributedScores(Ref ref) async {
   if (!ref.watch(canUseOnlineServicesProvider)) return const [];
   final scores = await ref.read(scoreUploadServiceProvider).listMyScores();
-  return [
-    for (final s in scores) _entry(s),
-  ];
+  return [for (final s in scores) _entry(s)];
 }
 
 CatalogEntry _entry(ContributedScore s) {
