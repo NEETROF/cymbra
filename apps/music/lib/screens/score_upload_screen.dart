@@ -17,10 +17,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../painters/staff_painter.dart';
+import '../services/audio_service.dart';
 import '../services/notation_engine.dart';
 import '../services/score_upload_service.dart';
 import '../src/rust/api/musicxml.dart' show ScoreDocument, ScoreSummary;
 import '../state/notation_playback.dart';
+import '../state/player_data.dart' show TimedNote;
 import '../state/score_catalog.dart';
 import '../state/score_upload_notifier.dart';
 
@@ -173,10 +175,21 @@ class _VerifyStepViewState extends ConsumerState<_VerifyStepView>
   bool _playing = false;
   String? _error;
 
+  // Audio playback: notes sorted by onset + a cursor, and the currently-sounding
+  // voices so we can note-off at each note's end (the piano synth).
+  List<TimedNote> _sorted = const [];
+  int _nextNote = 0;
+  final List<({int pitch, double endMs})> _sounding = [];
+
+  AudioService get _audio => ref.read(audioServiceProvider);
+
   @override
   void initState() {
     super.initState();
     _ticker = createTicker(_onTick);
+    // Fire-and-forget: load the SoundFont so playback has sound (guarded natively
+    // until ready). Same synth the player uses.
+    _audio.init();
     _load();
   }
 
@@ -186,12 +199,32 @@ class _VerifyStepViewState extends ConsumerState<_VerifyStepView>
     try {
       final doc = await ref.read(notationEngineProvider).parse(bytes);
       if (!mounted) return;
+      final playback = notationToTimedNotes(doc);
       setState(() {
         _doc = doc;
-        _playback = notationToTimedNotes(doc);
+        _playback = playback;
+        _sorted = [...playback.notes]
+          ..sort((a, b) => a.startMs.compareTo(b.startMs));
       });
     } catch (e) {
       if (mounted) setState(() => _error = '$e');
+    }
+  }
+
+  /// Trigger note-ons/offs for the window crossed up to [nowMs] (drives sound).
+  void _fireAudio(double nowMs) {
+    _sounding.removeWhere((s) {
+      if (s.endMs <= nowMs) {
+        _audio.noteOff(s.pitch);
+        return true;
+      }
+      return false;
+    });
+    while (_nextNote < _sorted.length && _sorted[_nextNote].startMs <= nowMs) {
+      final n = _sorted[_nextNote];
+      _audio.noteOn(n.pitch);
+      _sounding.add((pitch: n.pitch, endMs: (n.startMs + n.durationMs).toDouble()));
+      _nextNote++;
     }
   }
 
@@ -200,8 +233,10 @@ class _VerifyStepViewState extends ConsumerState<_VerifyStepView>
     if (playback == null) return;
     final dt = (elapsed - _lastTick).inMicroseconds / 1000.0;
     _lastTick = elapsed;
+    final next = _elapsedMs + dt; // real time == score tempo (notes are in ms)
+    _fireAudio(next);
     setState(() {
-      _elapsedMs += dt; // real time == score tempo (notes are already in ms)
+      _elapsedMs = next;
       if (_elapsedMs >= playback.songEndMs) {
         _elapsedMs = playback.songEndMs;
         _stop();
@@ -210,23 +245,32 @@ class _VerifyStepViewState extends ConsumerState<_VerifyStepView>
   }
 
   void _togglePlay() {
-    if (_playing) {
-      _stop();
-    } else {
-      if (_elapsedMs >= (_playback?.songEndMs ?? 0)) _elapsedMs = 0;
-      _lastTick = Duration.zero;
-      _ticker.start();
-      setState(() => _playing = true);
-    }
+    setState(() {
+      if (_playing) {
+        _stop();
+      } else {
+        if (_elapsedMs >= (_playback?.songEndMs ?? 0)) {
+          _elapsedMs = 0;
+          _nextNote = 0;
+          _sounding.clear();
+        }
+        _lastTick = Duration.zero;
+        _ticker.start();
+        _playing = true;
+      }
+    });
   }
 
   void _stop() {
     if (_ticker.isActive) _ticker.stop();
+    _audio.allNotesOff();
+    _sounding.clear();
     _playing = false;
   }
 
   @override
   void dispose() {
+    _audio.allNotesOff();
     _ticker.dispose();
     super.dispose();
   }
