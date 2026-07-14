@@ -88,6 +88,8 @@ impl ScoreService for ScoreGrpc {
                     level: r.level,
                     rights_basis: r.rights_basis,
                     rights_ack: r.rights_ack,
+                    fallback_title: r.fallback_title,
+                    fallback_composer: r.fallback_composer,
                 },
             )
             .await?;

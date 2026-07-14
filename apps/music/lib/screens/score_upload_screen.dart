@@ -384,6 +384,30 @@ class _ConfirmStepView extends ConsumerWidget {
       padding: const EdgeInsets.all(16),
       children: [
         if (state.summary != null) _MetadataCard(summary: state.summary!),
+        // Fallback inputs shown only when the file itself carries no title /
+        // composer (a parsed value always wins server-side — design 2b).
+        if (state.summary?.title == null)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: TextField(
+              decoration: const InputDecoration(
+                labelText: 'Titre (ce fichier n\'en contient pas)',
+                border: OutlineInputBorder(),
+              ),
+              onChanged: notifier.setFallbackTitle,
+            ),
+          ),
+        if (state.summary?.composer == null)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: TextField(
+              decoration: const InputDecoration(
+                labelText: 'Compositeur (optionnel)',
+                border: OutlineInputBorder(),
+              ),
+              onChanged: notifier.setFallbackComposer,
+            ),
+          ),
         const SizedBox(height: 8),
         const Text('Niveau de difficulté'),
         const SizedBox(height: 8),

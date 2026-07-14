@@ -26,6 +26,11 @@ message UploadScoreRequest {
   string level = 3; // beginner | intermediate | advanced
   string rights_basis = 4; // own_work | public_domain
   bool rights_ack = 5; // the CGU confirmation; must be true
+  // FALLBACK title/composer, used by the server ONLY when the parsed file
+  // carries none (design 2b): a present parsed value always wins, so these can
+  // never override/spoof real metadata.
+  optional string fallback_title = 6;
+  optional string fallback_composer = 7;
 }
 
 message ListMyScoresRequest {}

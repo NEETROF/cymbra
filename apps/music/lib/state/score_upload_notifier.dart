@@ -46,6 +46,10 @@ abstract class ScoreUploadState with _$ScoreUploadState {
     /// The rights attestation (design 2b).
     RightsBasis? rightsBasis,
     @Default(false) bool rightsAck,
+    /// Fallback title/composer the user may type when the file carries none
+    /// (server uses them only then; a parsed value always wins).
+    String? fallbackTitle,
+    String? fallbackComposer,
     /// The chosen difficulty (confirm step).
     PracticeLevel? level,
     @Default(false) bool submitting,
@@ -122,6 +126,11 @@ class ScoreUploadNotifier extends _$ScoreUploadNotifier {
   /// Choose the difficulty (confirm step).
   void setLevel(PracticeLevel level) => state = state.copyWith(level: level);
 
+  /// Set the fallback title/composer (only meaningful when the file has none).
+  void setFallbackTitle(String v) => state = state.copyWith(fallbackTitle: v);
+  void setFallbackComposer(String v) =>
+      state = state.copyWith(fallbackComposer: v);
+
   /// Finalize: submit the file bytes + level + rights attestation to the backend.
   /// Gated on [ScoreUploadState.canFinalize]; keeps the user's inputs on a
   /// recoverable error so they can retry.
@@ -140,6 +149,8 @@ class ScoreUploadNotifier extends _$ScoreUploadNotifier {
             level: level,
             rightsBasis: basis,
             rightsAck: true,
+            fallbackTitle: state.fallbackTitle,
+            fallbackComposer: state.fallbackComposer,
           );
       state = state.copyWith(submitting: false, result: record);
     } catch (e) {

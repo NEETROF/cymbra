@@ -30,13 +30,25 @@ Future<List<CatalogEntry>> myContributedScores(Ref ref) async {
   if (!ref.watch(canUseOnlineServicesProvider)) return const [];
   final scores = await ref.read(scoreUploadServiceProvider).listMyScores();
   return [
-    for (final s in scores)
-      CatalogEntry(
-        id: 'contrib-${s.id}',
-        title: (s.title == null || s.title!.isEmpty) ? 'Sans titre' : s.title!,
-        composer: s.composer ?? '',
-        level: s.level,
-        contributedId: s.id,
-      ),
+    for (final s in scores) _entry(s),
   ];
 }
+
+CatalogEntry _entry(ContributedScore s) {
+  final hasTitle = s.title != null && s.title!.isNotEmpty;
+  final hasComposer = s.composer != null && s.composer!.isNotEmpty;
+  return CatalogEntry(
+    id: 'contrib-${s.id}',
+    title: hasTitle ? s.title! : 'Sans titre',
+    // Fall back to the upload date so multiple untitled uploads stay
+    // distinguishable in the list (option A).
+    composer: hasComposer
+        ? s.composer!
+        : (hasTitle ? '' : _shortDate(s.createdAt)),
+    level: s.level,
+    contributedId: s.id,
+  );
+}
+
+String _shortDate(DateTime d) =>
+    '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';

@@ -126,9 +126,12 @@ notated tempo, so the user can confirm the decoded score is correct.
 Before the upload is finalized, the flow SHALL display the score's descriptive
 metadata parsed from the file — at least its title, composer, key, time signature,
 and measure count — so the user can review exactly what will be stored. These
-fields MUST be presented **read-only**: the user MUST NOT be able to enter or edit
-them, and the flow MUST NOT send any user-entered value for them (only the file,
-the difficulty, and the rights attestation are user-provided). The values
+fields MUST be presented **read-only** when the file provides them: the user MUST
+NOT be able to edit a value the file already carries. As the single exception, when
+the file carries **no** title (resp. composer), the flow MAY offer an editable
+**fallback** field for it, sent as a fallback the server uses only because the file
+lacks that value (a parsed value always wins). Musical fields (key, time, measures)
+are always read-only. The values
 shown come from the same shared parsing seam used for validation, so they match
 what the server derives and stores.
 

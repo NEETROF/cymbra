@@ -44,6 +44,8 @@ class _FakeUpload implements ScoreUploadService {
     required PracticeLevel level,
     required RightsBasis rightsBasis,
     required bool rightsAck,
+    String? fallbackTitle,
+    String? fallbackComposer,
   }) async {
     uploads.add((
       level: level,

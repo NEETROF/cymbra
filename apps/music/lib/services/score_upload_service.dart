@@ -66,15 +66,18 @@ class ContributedScore {
 /// `UNAUTHENTICATED`. Tests override the provider with an in-memory fake.
 /// Failures throw [AuthException] (see auth_service.dart).
 abstract class ScoreUploadService {
-  /// Upload a contribution. Only the bytes, chosen [level], and the rights
-  /// attestation are sent; the returned record carries the server-derived
-  /// metadata.
+  /// Upload a contribution. The bytes, chosen [level], and rights attestation are
+  /// sent; [fallbackTitle]/[fallbackComposer] are used by the server ONLY when the
+  /// file itself carries none (a parsed value always wins). The returned record
+  /// carries the effective server-side metadata.
   Future<ContributedScore> upload({
     required Uint8List data,
     required String filename,
     required PracticeLevel level,
     required RightsBasis rightsBasis,
     required bool rightsAck,
+    String? fallbackTitle,
+    String? fallbackComposer,
   });
 
   /// The caller's own contributed scores, newest first.
@@ -161,6 +164,8 @@ class GrpcScoreUploadService implements ScoreUploadService {
     required PracticeLevel level,
     required RightsBasis rightsBasis,
     required bool rightsAck,
+    String? fallbackTitle,
+    String? fallbackComposer,
   }) => _authed(
     (bearer) async => _toScore(
       await _client.uploadScore(
@@ -170,6 +175,8 @@ class GrpcScoreUploadService implements ScoreUploadService {
           level: level.name,
           rightsBasis: rightsBasis.wire,
           rightsAck: rightsAck,
+          fallbackTitle: fallbackTitle,
+          fallbackComposer: fallbackComposer,
         ),
         options: bearerOptions(bearer),
       ),

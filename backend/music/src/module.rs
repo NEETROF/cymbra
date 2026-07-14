@@ -16,9 +16,11 @@
 //!
 //! Every upload is: **check client inputs → quota → re-validate & re-derive the
 //! bytes (never trusting the client) → store canonical bytes → persist an
-//! owner-attributed record**. Descriptive metadata comes only from the server's
-//! own parse; the client supplies bytes + level + the rights attestation. Reads,
-//! deletes and the quota count are all owner-scoped.
+//! owner-attributed record**. Descriptive metadata comes from the server's own
+//! parse; a client-supplied fallback title/composer is used ONLY when the file
+//! itself carries none (a parsed value always wins — no spoofing). The client
+//! otherwise supplies bytes + level + the rights attestation. Reads, deletes and
+//! the quota count are all owner-scoped.
 
 use std::sync::Arc;
 
@@ -39,6 +41,17 @@ pub struct UploadInput {
     pub level: String,
     pub rights_basis: String,
     pub rights_ack: bool,
+    /// Fallback title/composer — used ONLY when the parsed file has none
+    /// (design 2b): a parsed value always wins, so these cannot override or spoof
+    /// real metadata.
+    pub fallback_title: Option<String>,
+    pub fallback_composer: Option<String>,
+}
+
+/// Trim, drop-if-empty, and cap a client-supplied fallback string.
+fn clean_fallback(s: Option<String>) -> Option<String> {
+    s.map(|v| v.trim().chars().take(200).collect::<String>())
+        .filter(|v| !v.is_empty())
 }
 
 /// User-upload logic over an owner-scoped repo and the object store.
@@ -110,6 +123,28 @@ impl ScoreModule {
             AppError::InvalidArgument(format!("invalid score ({}): {}", r.code(), r))
         })?;
 
+        // 3b. Fallback title/composer: fill only what the file itself lacks; a
+        //     parsed value always wins (design 2b). Re-derive the search keys from
+        //     the effective title/composer so they stay consistent.
+        let title = summary
+            .title
+            .clone()
+            .or_else(|| clean_fallback(input.fallback_title));
+        let composer = summary
+            .composer
+            .clone()
+            .or_else(|| clean_fallback(input.fallback_composer));
+        let title_norm = title.as_deref().map(cymbra_musicxml_core::normalize_text);
+        let composer_norm = composer
+            .as_deref()
+            .map(cymbra_musicxml_core::normalize_text)
+            .unwrap_or_default();
+        let work_key = format!(
+            "{}::{}",
+            composer_norm,
+            title_norm.clone().unwrap_or_default()
+        );
+
         // 4. Canonical bytes = the decoded MusicXML (so a re-zip of the same piece
         //    dedups); the read path decodes `.mxl` transparently, so we store the
         //    plain XML. sha256 over the canonical form is the per-owner dedup key.
@@ -131,10 +166,10 @@ impl ScoreModule {
             level: input.level,
             rights_basis: input.rights_basis,
             rights_ack: true,
-            title: summary.title,
-            composer: summary.composer,
-            title_norm: summary.title_norm,
-            work_key: summary.work_key,
+            title,
+            composer,
+            title_norm,
+            work_key,
             key_fifths: summary.key_fifths,
             time_sig: summary.time_sig,
             measure_count: summary.measure_count as i32,
@@ -248,7 +283,41 @@ mod tests {
             level: level.into(),
             rights_basis: basis.into(),
             rights_ack: ack,
+            fallback_title: None,
+            fallback_composer: None,
         }
+    }
+
+    /// A valid piano score carrying NO title/composer (for the fallback tests).
+    const NO_META: &str = r#"<?xml version="1.0"?>
+<score-partwise version="4.0">
+  <part-list><score-part id="P1"/></part-list>
+  <part id="P1"><measure number="1">
+    <attributes><divisions>1</divisions><staves>2</staves></attributes>
+    <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><staff>1</staff></note>
+  </measure></part>
+</score-partwise>"#;
+
+    #[tokio::test]
+    async fn fallback_fills_missing_title_but_never_overrides_a_parsed_one() {
+        let (m, repo, _store) = module(5, 7);
+        // File has no title/composer → the fallbacks are used, and the search
+        // keys are re-derived from them.
+        let mut i = input(NO_META, "beginner", "own_work", true);
+        i.fallback_title = Some("  My Untitled Piece  ".into());
+        i.fallback_composer = Some("Me".into());
+        let rec = m.upload("u1", i).await.unwrap();
+        assert_eq!(rec.title.as_deref(), Some("My Untitled Piece")); // trimmed
+        assert_eq!(rec.composer.as_deref(), Some("Me"));
+        assert_eq!(rec.work_key, "me::my untitled piece"); // normalized keys
+        assert_eq!(rec.title_norm.as_deref(), Some("my untitled piece"));
+
+        // A file WITH a title: the fallback is ignored (parsed wins — design 2b).
+        let mut i2 = input(VALID, "beginner", "own_work", true);
+        i2.fallback_title = Some("Spoofed Title".into());
+        let rec2 = m.upload("u1", i2).await.unwrap();
+        assert_eq!(rec2.title.as_deref(), Some("Test Piece"));
+        assert_eq!(repo.rows().len(), 2);
     }
 
     #[tokio::test]

@@ -110,6 +110,14 @@ The **one** descriptive field the user owns is `level` (difficulty) — recorded
 with `level_source = 'manual'` — because it is a subjective judgement, not derivable
 from the file.
 
+**Fallback for a file with no title/composer (refinement):** the anti-spoofing
+rule protects a value the file *contains*. When the file carries **no** title
+(resp. composer), there is nothing to protect, so the client MAY supply a
+**fallback** for that field — used server-side only then (a parsed value always
+wins), trimmed/bounded, with `title_norm`/`work_key` re-derived from it. The app
+shows an editable field only for a file-absent title/composer; musical fields stay
+read-only.
+
 **Client preview parity (read-before-upload):** because the app parses the file
 client-side with the **same** shared core for the verification preview, it already
 holds the identical `ScoreSummary`. The Verification/Confirmation steps SHALL
