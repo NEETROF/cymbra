@@ -75,6 +75,6 @@
 
 ## 10. Verification & spec hygiene
 
-- [ ] 10.1 Integration test (`apps/music/integration_test/`) driving upload → verify → confirm with a fixture score against fakes; run `melos run integration`.
+- [x] 10.1 Integration test (`apps/music/integration_test/`) driving upload → verify → confirm with a fixture score against fakes; run `melos run integration`. — `app_test.dart` 'contribution wizard: import → verify → confirm → submit' drives the library entry point → wizard with a fake picker/upload but the REAL Rust bridge validating/engraving the MusicXML fixture (server-parity metadata Ode to Joy/Beethoven), then submit. Both integration tests green on `-d macos`. Pinned English + empty prefs (`_englishLocaleOverrides`) so localized labels are host-locale-independent (also fixed the pre-existing library test's latent locale fragility).
 - [ ] 10.2 Manual end-to-end against a local backend + MinIO: upload a real `.mxl`, verify preview, confirm, see it in the library, play it, delete it.
 - [ ] 10.3 `openspec validate add-user-score-upload --strict` passes.
