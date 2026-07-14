@@ -29,8 +29,6 @@ serde_json = "1"
 serde_yaml = "0.9"
 csv = "1"
 sha2 = "0.10"
-# Accent-folding for title_norm / work_key (search-ready, dedup grouping).
-unicode-normalization = "0.1"
 # .mxl container build (spec-shaped ZIP); deflate only, no native backends.
 zip = { version = "2", default-features = false, features = ["deflate"] }
 clap = { version = "4", features = ["derive"] }

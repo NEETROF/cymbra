@@ -22,25 +22,13 @@
 
 use std::fmt;
 
+use crate::meta::ScoreSummary;
 use crate::mxl;
 use crate::parse;
 
 /// Upper bound (bytes) on the raw input handed to [`validate`]. Piano MusicXML
 /// is small; anything larger is rejected before any parsing work.
 pub const MAX_INPUT: usize = 16 * 1024 * 1024;
-
-/// A successful validation's extracted summary — the fields worth surfacing to a
-/// caller (preview header, upload record) without re-parsing.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ScoreSummary {
-    pub title: Option<String>,
-    pub composer: Option<String>,
-    /// Number of staves (2 for a piano grand staff).
-    pub staves: u32,
-    pub measure_count: u32,
-    /// Count of pitched (non-rest) note events — the "playable notes" check.
-    pub note_count: u32,
-}
 
 /// Why a buffer was rejected. Typed so callers map each case to a specific
 /// user-facing message or gRPC status without string matching.
@@ -99,23 +87,13 @@ pub fn validate(bytes: &[u8]) -> Result<ScoreSummary, RejectReason> {
 
     let doc = parse(&xml).map_err(|_| RejectReason::Unparseable)?;
 
-    let note_count: u32 = doc
-        .measures
-        .iter()
-        .flat_map(|m| &m.notes)
-        .filter(|n| n.pitch.is_some() && !n.is_rest)
-        .count() as u32;
-    if note_count == 0 {
+    // Derive the full summary once (title/composer/key/time/piano facets); the
+    // "playable notes" gate reuses its note count so there is no second pass.
+    let summary = ScoreSummary::from_document(&doc);
+    if summary.note_count == 0 {
         return Err(RejectReason::NoNotes);
     }
-
-    Ok(ScoreSummary {
-        title: doc.meta.title,
-        composer: doc.meta.composer,
-        staves: doc.staves,
-        measure_count: doc.measures.len() as u32,
-        note_count,
-    })
+    Ok(summary)
 }
 
 #[cfg(test)]
@@ -185,5 +163,36 @@ mod tests {
     fn reject_reason_codes_are_stable() {
         assert_eq!(RejectReason::NoNotes.code(), "no_notes");
         assert_eq!(RejectReason::TooLarge.code(), "too_large");
+    }
+
+    #[test]
+    fn every_reject_reason_has_code_and_message() {
+        for r in [
+            RejectReason::TooLarge,
+            RejectReason::Undecodable,
+            RejectReason::Unparseable,
+            RejectReason::NoNotes,
+        ] {
+            // Machine code and human message are both non-empty and distinct.
+            assert!(!r.code().is_empty());
+            let msg = r.to_string();
+            assert!(!msg.is_empty());
+            assert_ne!(r.code(), msg);
+        }
+        assert_eq!(RejectReason::Undecodable.code(), "undecodable");
+        assert_eq!(RejectReason::Unparseable.code(), "unparseable");
+        assert_eq!(
+            RejectReason::NoNotes.to_string(),
+            "score contains no playable notes"
+        );
+    }
+
+    #[test]
+    fn summary_carries_derived_facets() {
+        // The gate returns the shared summary — musical facets included.
+        let s = validate(MINIMAL.as_bytes()).unwrap();
+        assert_eq!(s.time_sig, "4/4");
+        assert_eq!(s.key_fifths, 0);
+        assert!(!s.is_piano); // single staff
     }
 }

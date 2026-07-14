@@ -952,6 +952,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "quick-xml",
+ "unicode-normalization",
  "zip",
 ]
 
@@ -3694,7 +3695,6 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
- "unicode-normalization",
  "uuid",
  "zip",
 ]

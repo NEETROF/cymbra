@@ -15,3 +15,5 @@ anyhow = "1"
 quick-xml = "0.36"
 # .mxl container (ZIP) decode; deflate only, no native compression backends.
 zip = { version = "2", default-features = false, features = ["deflate"] }
+# NFD folding for title/work-key normalisation (shared search/dedup keys).
+unicode-normalization = "0.1"
