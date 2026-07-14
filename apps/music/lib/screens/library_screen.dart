@@ -18,10 +18,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../l10n/gen/app_localizations.dart';
 import '../layout/device_class.dart';
 import '../state/score_catalog.dart';
+import '../state/session_notifier.dart';
 import '../theme/cymbra_theme.dart';
 import '../widgets/language_selector.dart';
 import 'auth/account_menu.dart';
 import 'player_screen.dart';
+import 'score_upload_screen.dart';
 
 /// Localized name for a [PracticeLevel] section header.
 String _levelLabel(AppLocalizations l10n, PracticeLevel level) =>
@@ -45,10 +47,22 @@ class LibraryScreen extends ConsumerWidget {
       appBar: AppBar(
         title: Text(AppLocalizations.of(context).libraryTitle),
         backgroundColor: CymbraColors.surfaceContainerLowest,
-        actions: const [
-          LanguageSelectorButton(),
-          AccountMenu(),
-          SizedBox(width: 8),
+        actions: [
+          // Contribution entry point — only when signed in (spec: hidden/disabled
+          // otherwise, and the flow is not reachable).
+          if (ref.watch(canUseOnlineServicesProvider))
+            IconButton(
+              icon: const Icon(Icons.library_add_outlined),
+              tooltip: 'Contribuer une partition',
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const ScoreUploadScreen(),
+                ),
+              ),
+            ),
+          const LanguageSelectorButton(),
+          const AccountMenu(),
+          const SizedBox(width: 8),
         ],
       ),
       // In landscape the display cutout (camera/notch) sits on a side, so the
