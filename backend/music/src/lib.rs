@@ -12,10 +12,20 @@
 //! platform error type.
 
 pub mod pg;
+pub mod pg_user_scores;
 pub mod repo;
+pub mod user_scores;
 
 pub use pg::PgCatalogRepo;
+pub use pg_user_scores::PgUserScoreRepo;
 pub use repo::{CatalogEntry, CatalogRepo, FakeCatalogRepo};
+pub use user_scores::{FakeUserScoreRepo, UserScore, UserScoreRepo};
+
+/// Generated protobuf messages + tonic client/server stubs for `cymbra.music.v1`
+/// (the ScoreService — user uploads).
+pub mod proto {
+    tonic::include_proto!("cymbra.music.v1");
+}
 
 /// The module's Postgres schema.
 pub const SCHEMA: &str = "music";
