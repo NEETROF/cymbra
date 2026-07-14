@@ -290,6 +290,24 @@
   "summaryAvgLate": "{ms} ms late avg",
   "@summaryAvgLate": {"placeholders": {"ms": {"type": "int"}}, "description": "Summary: average late (drag) tendency."},
   "summaryAvgReaction": "{ms} ms avg",
-  "@summaryAvgReaction": {"placeholders": {"ms": {"type": "int"}}, "description": "Summary: average Wait-Mode reaction time."}
+  "@summaryAvgReaction": {"placeholders": {"ms": {"type": "int"}}, "description": "Summary: average Wait-Mode reaction time."},
+
+  "legalSectionTitle": "Legal",
+  "@legalSectionTitle": { "description": "Settings drawer section header grouping the legal links." },
+
+  "legalTerms": "Terms of Service",
+  "@legalTerms": { "description": "Label/link opening the Terms of Service (CGU) page." },
+
+  "legalPrivacy": "Privacy Policy",
+  "@legalPrivacy": { "description": "Label/link opening the Privacy Policy page." },
+
+  "entryLegalPrefix": "By continuing, you accept our ",
+  "@entryLegalPrefix": { "description": "Lead-in of the account-entry consent notice, followed by the Terms link." },
+
+  "entryLegalSeparator": " and ",
+  "@entryLegalSeparator": { "description": "Connector between the Terms and Privacy links in the consent notice." },
+
+  "entryLegalSuffix": ".",
+  "@entryLegalSuffix": { "description": "Trailing punctuation after the Privacy link in the consent notice." }
 
 }

@@ -135,6 +135,13 @@
   "replayReaction": "Reacción {ms} ms",
   "summaryAvgEarly": "{ms} ms adelantado",
   "summaryAvgLate": "{ms} ms atrasado",
-  "summaryAvgReaction": "{ms} ms de reacción"
+  "summaryAvgReaction": "{ms} ms de reacción",
+
+  "legalSectionTitle": "Legal",
+  "legalTerms": "Condiciones de uso",
+  "legalPrivacy": "Política de privacidad",
+  "entryLegalPrefix": "Al continuar, aceptas nuestras ",
+  "entryLegalSeparator": " y nuestra ",
+  "entryLegalSuffix": "."
 
 }
