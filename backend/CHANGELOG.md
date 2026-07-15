@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.1](https://github.com/NEETROF/cymbra/compare/backend-v0.6.0...backend-v0.6.1) (2026-07-15)
+
+
+### Bug Fixes
+
+* **deploy:** wire the score-upload store for prod ([#90](https://github.com/NEETROF/cymbra/issues/90)) ([3d22f0e](https://github.com/NEETROF/cymbra/commit/3d22f0eabe8364efd5753ccd355918fa1e0cb7d1))
+
 ## [0.6.0](https://github.com/NEETROF/cymbra/compare/backend-v0.5.0...backend-v0.6.0) (2026-07-15)
 
 

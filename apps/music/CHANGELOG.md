@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.11.2](https://github.com/NEETROF/cymbra/compare/music-v1.11.1...music-v1.11.2) (2026-07-15)
+
+
+### Bug Fixes
+
+* **ios:** add location purpose string to silence App Store warning 90683 ([#91](https://github.com/NEETROF/cymbra/issues/91)) ([8815d0d](https://github.com/NEETROF/cymbra/commit/8815d0d61e79d523a778bc91c7c8e0dbd1d6cd77))
+
 ## [1.11.1](https://github.com/NEETROF/cymbra/compare/music-v1.11.0...music-v1.11.1) (2026-07-15)
 
 
