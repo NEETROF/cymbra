@@ -70,11 +70,16 @@ class SessionNotifier extends _$SessionNotifier {
       final account = await _account.getAccount();
       state = SessionState.authenticated(account: account);
     } on AuthException catch (e) {
-      if (e.error == AuthError.unauthenticated) {
+      // A revoked session (`unauthenticated`) or a deleted account (`notFound`:
+      // the token still verifies by signature/expiry, but the user row is gone)
+      // are both terminal — clear the local session and route to entry. Any other
+      // error is offline/transient: stay signed in with an unknown account so a
+      // flaky network doesn't sign the user out.
+      if (e.error == AuthError.unauthenticated ||
+          e.error == AuthError.notFound) {
         await _tokens.clear();
         state = const SessionState.unauthenticated();
       } else {
-        // Offline / transient: stay signed in, account unknown.
         state = const SessionState.authenticated();
       }
     }
