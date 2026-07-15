@@ -72,4 +72,4 @@ WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'admin_role')
 \gexec
 ALTER ROLE :"admin_role" WITH LOGIN PASSWORD :'admin_pw';
 GRANT pg_read_all_data, pg_write_all_data TO :"admin_role";
-ALTER ROLE :"admin_role" SET search_path = auth, user_account, score, jobs, public;
+ALTER ROLE :"admin_role" SET search_path = auth, user_account, music, jobs, public;

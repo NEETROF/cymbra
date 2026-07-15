@@ -52,11 +52,16 @@ echo "corpus: $(find "$SCORES_DIR" -name '*.mxl' 2>/dev/null | wc -l | tr -d ' '
 #    reads S3 by object_key directly, so the S3 key MUST equal object_key
 #    (safe/<shard>/<uuid>.mxl). User uploads share the same bucket under
 #    user-scores/. OVH bills stored GB only (no egress/API fees).
-#      S3_ENDPOINT=https://s3.gra.io.cloud.ovh.net   S3_BUCKET=cymbra-scores
-if [[ -n "${S3_BUCKET:-}" ]]; then
+#
+#    The scores bucket is DISTINCT from the DB-backup bucket (`S3_BUCKET`, used by
+#    backup.sh): it MUST equal the server's CYMBRA_SCORE_S3_BUCKET so uploads and
+#    the corpus share one keyspace. Set it explicitly (no fallback to S3_BUCKET —
+#    that would dump the corpus into the backups bucket):
+#      S3_ENDPOINT=https://s3.eu-west-par.io.cloud.ovh.net   SCORES_S3_BUCKET=cymbra-scores
+if [[ -n "${SCORES_S3_BUCKET:-}" ]]; then
 	aws --endpoint-url "${S3_ENDPOINT:?set S3_ENDPOINT}" \
-		s3 sync "$SCORES_DIR" "s3://$S3_BUCKET" --no-progress \
-		&& echo "mirrored -> s3://$S3_BUCKET"
+		s3 sync "$SCORES_DIR" "s3://$SCORES_S3_BUCKET" --no-progress \
+		&& echo "mirrored -> s3://$SCORES_S3_BUCKET"
 else
-	echo "S3_BUCKET unset — local corpus only, no off-box mirror"
+	echo "SCORES_S3_BUCKET unset — local corpus only, no off-box mirror"
 fi

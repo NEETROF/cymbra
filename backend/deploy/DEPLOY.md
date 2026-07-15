@@ -280,16 +280,49 @@ migrations then ingests); override `CYMBRA_SCORE_DATABASE_URL` for a dedicated r
 
 **Nightly** `bootstrap.sh` installs a cron (04:00) that runs `sync-scores.sh`:
 it merges the crawler output into `SCORES_DIR` and mirrors it to the **bucket root**
-`s3://$S3_BUCKET` — same `/etc/cymbra/backup.env` creds as the DB backup. Set
+`s3://$SCORES_S3_BUCKET` — same `/etc/cymbra/backup.env` creds as the DB backup. Set
 `CRAWL_OUT` + `SCORES_DIR` there (defaults: `/opt/cymbra/score-crawler/output`,
 `/var/lib/cymbra/scores`). Mirroring to the root (not a `scores/` prefix) keeps the
 S3 key equal to `object_key`, so the server's S3 fallback and user uploads
 (`user-scores/…`) share one keyspace.
 
+> **`SCORES_S3_BUCKET` is DISTINCT from the DB-backup `S3_BUCKET`.** The scores
+> bucket must equal the server's `CYMBRA_SCORE_S3_BUCKET` (e.g. `cymbra-scores`),
+> NOT the backups bucket (`cymbra-backups`). Add `SCORES_S3_BUCKET=cymbra-scores`
+> to `/etc/cymbra/backup.env`; `sync-scores.sh` no longer falls back to
+> `S3_BUCKET`, so an unset value means "local corpus only" rather than silently
+> dumping the corpus into the backups bucket.
+
 > The server-side reader is the `cymbra-storage` local-first port (change
 > `add-user-score-upload`): `CYMBRA_SCORE_LOCAL_ROOT` roots the local cache
 > (default `/srv/cymbra/scores`) and `CYMBRA_SCORE_S3_*` configures the S3
 > origin/fallback. The corpus layout above is exactly what it expects.
+
+### Enabling user score upload (the ScoreService)
+
+Off by default — the server logs `score-upload disabled` until `CYMBRA_SCORE_S3_BUCKET`
+is set. To turn it on:
+
+1. **Provision the `music` role** (only if the box was initialised before the module
+   existed — check with `\du`): run `provision-music-role.sql` (idempotent, targeted;
+   it does NOT reset other roles' passwords):
+   ```bash
+   docker exec -e MPW='<music pw>' -i <postgres-container> \
+     psql -U <superuser> -d cymbra -v music_pw="$MPW" -f - < provision-music-role.sql
+   ```
+2. **Make the score root writable by the container UID (1000)** — the store
+   `create_dir_all()`s it at boot and warms the cache into it (so `:ro` is not enough):
+   ```bash
+   sudo chown -R 1000:1000 "${SCORES_DIR:-/var/lib/cymbra/scores}"
+   ```
+   The compose already bind-mounts it (writable) into **both** `server` and `worker`.
+3. **Fill the `.env` block** (see `.env.prod.example` → "User score upload"):
+   `CYMBRA_MUSIC_DB_PASSWORD` + `CYMBRA_MUSIC_DATABASE_URL` (must match the role
+   password from step 1) and the `CYMBRA_SCORE_S3_*` keys. Leave `CYMBRA_SCORE_LOCAL_ROOT`
+   unset (defaults to the container path `/srv/cymbra/scores`).
+4. Roll: `./deploy.sh <version>` — the server's MIGRATOR then creates
+   `music.catalog_scores` + `music.user_scores`, and the log shows the ScoreService
+   mounted instead of `score-upload disabled`.
 
 ## Before you invite testers — checklist (the easy-to-forget bits)
 
