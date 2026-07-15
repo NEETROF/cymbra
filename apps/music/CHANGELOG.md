@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.11.1](https://github.com/NEETROF/cymbra/compare/music-v1.11.0...music-v1.11.1) (2026-07-15)
+
+
+### Bug Fixes
+
+* **ios:** add camera and photo library purpose strings to Info.plist ([#88](https://github.com/NEETROF/cymbra/issues/88)) ([2ef5c75](https://github.com/NEETROF/cymbra/commit/2ef5c759045d2b3cda87cec0f0e9220e2b74ec82))
+
 ## [1.11.0](https://github.com/NEETROF/cymbra/compare/music-v1.10.0...music-v1.11.0) (2026-07-15)
 
 
