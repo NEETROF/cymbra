@@ -68,6 +68,11 @@
 	<string>Cymbra can use the camera if you choose to take a photo, for example to set a profile picture.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Cymbra can access your photo library if you choose to select an image, for example to set a profile picture.</string>
+	<!-- Location is never used by the app; GoogleUtilities (pulled in by
+	     GoogleSignIn) weakly references CoreLocation, which trips App Store
+	     static analysis (warning 90683). This string satisfies the check. -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Cymbra does not use your location. This entry is required by a sign-in library included in the app.</string>
 	<!-- Google Sign-In callback (add-music-account-access, task 6.3b). The reversed
 	     client ID suffix is injected at build time via the GOOGLE_OAUTH_CLIENT_SUFFIX
 	     build setting (see Flutter/Debug.xcconfig + Secrets.xcconfig), so the real
