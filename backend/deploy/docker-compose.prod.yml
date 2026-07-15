@@ -79,12 +79,15 @@ services:
       valkey: {condition: service_healthy}
     # gRPC (50051) + JWKS/health (8081) reachable only via Caddy, not the host.
     expose: ["50051", "8081"]
-    # Option A: the app serves score bytes from the local corpus (read-only).
-    # object_key in `catalog_scores` resolves directly under this root
-    # (`<root>/safe/<source>/<author>/<title>.mxl`). sync-scores.sh populates
-    # SCORES_DIR from the crawler output and mirrors it to S3 for backup.
+    # Local-first score bytes rooted at CYMBRA_SCORE_LOCAL_ROOT (default
+    # /srv/cymbra/scores). It serves the crawler corpus (catalog_scores object
+    # keys resolve directly under this root) AND is the write-through cache for
+    # the S3 origin (LocalFirstStore warms it on a fallback read), so it must be
+    # WRITABLE — the store also create_dir_all()s it at boot. Host dir must be
+    # owned by the container UID (1000): `sudo chown -R 1000:1000 $SCORES_DIR`.
+    # sync-scores.sh populates SCORES_DIR from the crawler output + mirrors to S3.
     volumes:
-      - ${SCORES_DIR:-/var/lib/cymbra/scores}:/srv/cymbra/scores:ro
+      - ${SCORES_DIR:-/var/lib/cymbra/scores}:/srv/cymbra/scores
 
   worker:
     image: ${CYMBRA_IMAGE:-ghcr.io/neetrof/cymbra-backend:latest}
@@ -98,6 +101,12 @@ services:
       postgres: {condition: service_healthy}
       valkey: {condition: service_healthy}
     expose: ["8082"]
+    # Same score root: the worker builds the object store at boot too (it deletes
+    # local copies on account erasure / purge_score_object). Mount + writability
+    # as for `server` above, or the worker fails create_dir_all() when score
+    # upload is enabled.
+    volumes:
+      - ${SCORES_DIR:-/var/lib/cymbra/scores}:/srv/cymbra/scores
 
   caddy:
     image: caddy:2
