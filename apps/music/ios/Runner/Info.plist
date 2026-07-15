@@ -59,6 +59,15 @@
 	     prod, which uses a real server domain. -->
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Cymbra connects to your Cymbra ID server on the local network during development.</string>
+	<!-- Purpose strings required by App Store static analysis (error 90683): a
+	     transitive dependency references the Camera and Photo Library APIs, so
+	     Apple requires a purpose string even though the app does not currently
+	     use these APIs. Access is only requested if the user picks an image
+	     (e.g. an avatar); the app functions fully without granting it. -->
+	<key>NSCameraUsageDescription</key>
+	<string>Cymbra can use the camera if you choose to take a photo, for example to set a profile picture.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Cymbra can access your photo library if you choose to select an image, for example to set a profile picture.</string>
 	<!-- Google Sign-In callback (add-music-account-access, task 6.3b). The reversed
 	     client ID suffix is injected at build time via the GOOGLE_OAUTH_CLIENT_SUFFIX
 	     build setting (see Flutter/Debug.xcconfig + Secrets.xcconfig), so the real
