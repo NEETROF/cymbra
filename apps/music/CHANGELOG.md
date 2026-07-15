@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.11.0](https://github.com/NEETROF/cymbra/compare/music-v1.10.0...music-v1.11.0) (2026-07-15)
+
+
+### Features
+
+* **music:** in-app CGU and privacy links ([#84](https://github.com/NEETROF/cymbra/issues/84)) ([f6c3d67](https://github.com/NEETROF/cymbra/commit/f6c3d67de543f1b8a5f58f389e9b4ce7da251299))
+* user score upload (contribution wizard + music module) ([#86](https://github.com/NEETROF/cymbra/issues/86)) ([d50f34e](https://github.com/NEETROF/cymbra/commit/d50f34ea7e5b962e6ecbac2fed43009f35b728e7))
+
 ## [1.10.0](https://github.com/NEETROF/cymbra/compare/music-v1.9.0...music-v1.10.0) (2026-07-13)
 
 

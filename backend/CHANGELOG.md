@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.0](https://github.com/NEETROF/cymbra/compare/backend-v0.5.0...backend-v0.6.0) (2026-07-15)
+
+
+### Features
+
+* user score upload (contribution wizard + music module) ([#86](https://github.com/NEETROF/cymbra/issues/86)) ([d50f34e](https://github.com/NEETROF/cymbra/commit/d50f34ea7e5b962e6ecbac2fed43009f35b728e7))
+
 ## [0.5.0](https://github.com/NEETROF/cymbra/compare/backend-v0.4.0...backend-v0.5.0) (2026-07-13)
 
 
