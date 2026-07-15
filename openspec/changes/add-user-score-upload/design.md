@@ -110,6 +110,14 @@ The **one** descriptive field the user owns is `level` (difficulty) — recorded
 with `level_source = 'manual'` — because it is a subjective judgement, not derivable
 from the file.
 
+**Fallback for a file with no title/composer (refinement):** the anti-spoofing
+rule protects a value the file *contains*. When the file carries **no** title
+(resp. composer), there is nothing to protect, so the client MAY supply a
+**fallback** for that field — used server-side only then (a parsed value always
+wins), trimmed/bounded, with `title_norm`/`work_key` re-derived from it. The app
+shows an editable field only for a file-absent title/composer; musical fields stay
+read-only.
+
 **Client preview parity (read-before-upload):** because the app parses the file
 client-side with the **same** shared core for the verification preview, it already
 holds the identical `ScoreSummary`. The Verification/Confirmation steps SHALL
@@ -227,7 +235,19 @@ S3 without caching); and an optional cap/TTL on the local cache if disk pressure
 matters. Not decided now — the bulk corpus is small (`.mxl` ≈ KBs) so caching
 everything locally is fine at current scale.
 
-### 5. New module + per-user data isolation
+### 5. Music-domain module + per-user data isolation
+
+> **Naming/consolidation update (during implementation).** The isolation boundary
+> is the **bounded context**, not the feature: identity/auth, jobs, and **music**
+> are the contexts. All music-app data (scores now, practice/performance/favorites
+> later) shares **one schema + one role** so its tables can reference each other
+> with real FKs — splitting *within* music would be over-decomposition (cross-schema
+> FKs are banned here). Concretely: the crawler's `score` schema/crate is **renamed
+> `music`** — schema `music`, role `music_svc`, crate `cymbra-music`
+> (`backend/music/`). And unlike `user` there is **no separate `*-port` crate**:
+> nothing external depends on a music port (account-erasure hits `user_scores` via
+> admin SQL, not a port), so proto + repo + gRPC all live in the single
+> `cymbra-music` crate. References to `score` below read as `music`.
 
 **Decision:** The backend module `score` **already exists** — the crawler created
 it (`backend/score/`: `lib.rs` with `pub static MIGRATOR` + `SCHEMA = "score"` +
@@ -441,11 +461,12 @@ the library is the natural home and already groups by practice level. Alternativ
   (`public_domain`) — and a confirmation checkbox. We persist `rights_basis` +
   `rights_ack = true` with `created_at` + `owner_id` — proof of the declared basis
   and that it was confirmed at upload time. **No** `cgu_version` column and no
-  stored copy of the wording. Checkbox copy is fixed, localised (`app-localization`):
-  **FR** "Je certifie être l'auteur de cette partition, ou qu'elle relève du domaine
-  public (ou d'une licence libre en autorisant l'usage)" / **EN** "I certify that I
-  am the author of this score, or that it is in the public domain (or under a free
-  licence permitting its use)". The broader rights/liability clause it refers to
+  stored copy of the wording. **UI shape (from manual testing):** the basis is a
+  distinct choice (radio: author / public domain) and the confirmation is a
+  **single generic checkbox** — it does NOT restate the basis options (that read as
+  redundant). FR copy e.g. "Je certifie que cette déclaration est exacte et que je
+  dispose des droits nécessaires pour mettre cette partition à disposition",
+  localised (`app-localization`). The broader rights/liability clause it refers to
   lives in the site's Terms (CGU) pages (`cymbra-site`), not in this change — it
   covers both uploaded **scores** and uploaded **piano sounds** (soundfonts),
   requires a consent checkbox at **each** file upload, and makes the user solely

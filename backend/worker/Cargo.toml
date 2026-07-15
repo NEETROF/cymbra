@@ -17,6 +17,8 @@ path = "src/main.rs"
 [dependencies]
 cymbra-jobs = { path = "../jobs" }
 cymbra-platform = { path = "../platform" }
+# The purge_score_object job deletes a stored object via the storage port.
+cymbra-storage = { path = "../storage" }
 cymbra-user = { path = "../user" }
 cymbra-user-port = { path = "../user-port" }
 # The session-reaper job calls into the auth module (which owns auth.sessions),

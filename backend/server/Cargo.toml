@@ -20,6 +20,9 @@ cymbra-auth = { path = "../auth" }
 cymbra-user = { path = "../user" }
 cymbra-auth-port = { path = "../auth-port" }
 cymbra-user-port = { path = "../user-port" }
+# Music module (score catalog + user uploads) + its object store.
+cymbra-music = { path = "../music" }
+cymbra-storage = { path = "../storage" }
 # DeleteAccount enqueues a `purge_user` job via the jobs.enqueue seam.
 cymbra-jobs = { path = "../jobs" }
 tokio.workspace = true

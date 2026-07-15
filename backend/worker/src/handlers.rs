@@ -9,6 +9,7 @@ use std::error::Error;
 use std::sync::Arc;
 
 use cymbra_platform::email::EmailSender;
+use cymbra_storage::ObjectStorage;
 use cymbra_user::{PgUserRepo, UserModule};
 use serde::Deserialize;
 use sqlx::PgPool;
@@ -29,6 +30,9 @@ pub struct WorkerCtx {
     /// `admin_svc` pool for the `purge_user` job — the only actor that may write
     /// both schemas, so the account erasure is atomic. Worker-only (design D0).
     pub admin_pool: PgPool,
+    /// Object store for the `purge_score_object` job. `None` when the score-upload
+    /// feature is unconfigured (then that job is a no-op).
+    pub storage: Option<Arc<dyn ObjectStorage>>,
     pub reap_grace_secs: i64,
 }
 
@@ -120,10 +124,49 @@ pub async fn purge_user(mut job: CurrentJob, ctx: WorkerCtx) -> Result<(), BoxEr
     .await
 }
 
+/// Payload for the `purge_score_object` job (change: add-user-score-upload).
+#[derive(Deserialize)]
+struct PurgeScoreObjectJob {
+    object_key: String,
+}
+
+/// Delete one stored score object by key. Enqueued during account erasure (and,
+/// later, on a failed single-score object delete). Idempotent: deleting a missing
+/// key is a no-op, so at-least-once re-delivery is safe. A no-op with a warning
+/// when the store is unconfigured (the feature is off).
+#[sqlxmq::job("purge_score_object")]
+pub async fn purge_score_object(mut job: CurrentJob, ctx: WorkerCtx) -> Result<(), BoxError> {
+    let span = tracing::info_span!("job.purge_score_object", job_id = %job.id());
+    async move {
+        let p: PurgeScoreObjectJob = job
+            .json()?
+            .ok_or("purge_score_object: missing JSON payload")?;
+        match &ctx.storage {
+            Some(store) => {
+                store.delete(&p.object_key).await?;
+                tracing::info!(object_key = %p.object_key, "score object purged");
+            }
+            None => tracing::warn!(
+                object_key = %p.object_key,
+                "purge_score_object skipped: object store not configured"
+            ),
+        }
+        job.complete().await?;
+        Ok(())
+    }
+    .instrument(span)
+    .await
+}
+
 /// Build the job registry with all handlers registered and the shared context set.
 pub fn registry(ctx: WorkerCtx) -> JobRegistry {
-    let mut registry =
-        JobRegistry::new(&[verification_email, orphan_reap, session_reap, purge_user]);
+    let mut registry = JobRegistry::new(&[
+        verification_email,
+        orphan_reap,
+        session_reap,
+        purge_user,
+        purge_score_object,
+    ]);
     registry.set_context(ctx);
     registry
 }

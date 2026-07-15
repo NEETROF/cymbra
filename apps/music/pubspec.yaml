@@ -63,6 +63,11 @@ dependencies:
   http: ^1.6.0
   crypto: ^3.0.7
 
+  # Native file picker for the score-contribution flow (.musicxml/.xml/.mxl),
+  # behind the injectable `filePickerProvider` seam so the wizard is testable
+  # without the native picker (change: add-user-score-upload).
+  file_picker: ^8.1.2
+
   # Local, on-device key-value store for small user preferences (starting with
   # the selected UI language). Kept separate from flutter_secure_storage, which
   # is reserved for auth tokens. Behind the injectable `preferencesServiceProvider`

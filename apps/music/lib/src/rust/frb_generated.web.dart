@@ -55,6 +55,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ScoreDocument dco_decode_box_autoadd_score_document(dynamic raw);
 
   @protected
+  ScoreSummary dco_decode_box_autoadd_score_summary(dynamic raw);
+
+  @protected
   StemDir dco_decode_box_autoadd_stem_dir(dynamic raw);
 
   @protected
@@ -142,6 +145,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Pitch? dco_decode_opt_box_autoadd_pitch(dynamic raw);
 
   @protected
+  ScoreSummary? dco_decode_opt_box_autoadd_score_summary(dynamic raw);
+
+  @protected
   StemDir? dco_decode_opt_box_autoadd_stem_dir(dynamic raw);
 
   @protected
@@ -158,6 +164,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ScoreMeta dco_decode_score_meta(dynamic raw);
+
+  @protected
+  ScoreSummary dco_decode_score_summary(dynamic raw);
 
   @protected
   StemDir dco_decode_stem_dir(dynamic raw);
@@ -182,6 +191,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void dco_decode_unit(dynamic raw);
+
+  @protected
+  ValidationOutcome dco_decode_validation_outcome(dynamic raw);
 
   @protected
   AnyhowException sse_decode_AnyhowException(SseDeserializer deserializer);
@@ -214,6 +226,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ScoreDocument sse_decode_box_autoadd_score_document(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ScoreSummary sse_decode_box_autoadd_score_summary(
     SseDeserializer deserializer,
   );
 
@@ -307,6 +324,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Pitch? sse_decode_opt_box_autoadd_pitch(SseDeserializer deserializer);
 
   @protected
+  ScoreSummary? sse_decode_opt_box_autoadd_score_summary(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   StemDir? sse_decode_opt_box_autoadd_stem_dir(SseDeserializer deserializer);
 
   @protected
@@ -323,6 +345,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ScoreMeta sse_decode_score_meta(SseDeserializer deserializer);
+
+  @protected
+  ScoreSummary sse_decode_score_summary(SseDeserializer deserializer);
 
   @protected
   StemDir sse_decode_stem_dir(SseDeserializer deserializer);
@@ -347,6 +372,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_decode_unit(SseDeserializer deserializer);
+
+  @protected
+  ValidationOutcome sse_decode_validation_outcome(SseDeserializer deserializer);
 
   @protected
   void sse_encode_AnyhowException(
@@ -384,6 +412,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_score_document(
     ScoreDocument self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_score_summary(
+    ScoreSummary self,
     SseSerializer serializer,
   );
 
@@ -496,6 +530,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_opt_box_autoadd_pitch(Pitch? self, SseSerializer serializer);
 
   @protected
+  void sse_encode_opt_box_autoadd_score_summary(
+    ScoreSummary? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_box_autoadd_stem_dir(
     StemDir? self,
     SseSerializer serializer,
@@ -520,6 +560,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_score_meta(ScoreMeta self, SseSerializer serializer);
 
   @protected
+  void sse_encode_score_summary(ScoreSummary self, SseSerializer serializer);
+
+  @protected
   void sse_encode_stem_dir(StemDir self, SseSerializer serializer);
 
   @protected
@@ -542,6 +585,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_unit(void self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_validation_outcome(
+    ValidationOutcome self,
+    SseSerializer serializer,
+  );
 }
 
 // Section: wire_class

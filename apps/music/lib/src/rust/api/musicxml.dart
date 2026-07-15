@@ -8,11 +8,19 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'musicxml.freezed.dart';
 
-/// Parses an uncompressed MusicXML document (bytes) into a [`ScoreDocument`],
-/// with each measure's `min_width` already computed. Returns an error on
-/// malformed input rather than panicking.
+/// Parses a MusicXML document (bytes) into a [`ScoreDocument`], with each
+/// measure's `min_width` already computed. A zipped `.mxl` container is decoded
+/// first (same sniff as [`validate_musicxml`]), so the caller can pass the raw
+/// picked file — plain `.musicxml`/`.xml` or `.mxl`. Errors on malformed input
+/// rather than panicking.
 Future<ScoreDocument> parseMusicxml({required List<int> bytes}) =>
     RustLib.instance.api.crateApiMusicxmlParseMusicxml(bytes: bytes);
+
+/// Validates raw bytes (plain MusicXML or a zipped `.mxl`) client-side, using the
+/// **same** shared gate as the backend upload path — so a file that previews here
+/// is accepted server-side (and vice-versa). Never panics.
+Future<ValidationOutcome> validateMusicxml({required List<int> bytes}) =>
+    RustLib.instance.api.crateApiMusicxmlValidateMusicxml(bytes: bytes);
 
 /// Lays the document's measures out into [`System`]s for the given available
 /// width (pixels), keeping measure order and the grand staff together.
@@ -368,6 +376,76 @@ class ScoreMeta {
           composer == other.composer;
 }
 
+/// A parsed score's derived summary — the fields worth surfacing to a caller
+/// (the contribution preview header) without re-parsing. Server-derived on
+/// upload; this mirror lets the app show the same values it will store.
+class ScoreSummary {
+  final String? title;
+  final String? composer;
+
+  /// Accent-/case-folded title for typo-tolerant search.
+  final String? titleNorm;
+
+  /// Normalised `composer::title` key for dedup / grouping.
+  final String workKey;
+
+  /// Grand-staff heuristic (`staves >= 2`) — a keyboard/piano proxy.
+  final bool isPiano;
+
+  /// Number of staves (2 for a piano grand staff).
+  final int staves;
+  final int keyFifths;
+
+  /// `beats/beat_type`, e.g. `4/4`.
+  final String timeSig;
+  final int measureCount;
+
+  /// Count of pitched (non-rest) note events — the "playable notes" check.
+  final int noteCount;
+
+  const ScoreSummary({
+    this.title,
+    this.composer,
+    this.titleNorm,
+    required this.workKey,
+    required this.isPiano,
+    required this.staves,
+    required this.keyFifths,
+    required this.timeSig,
+    required this.measureCount,
+    required this.noteCount,
+  });
+
+  @override
+  int get hashCode =>
+      title.hashCode ^
+      composer.hashCode ^
+      titleNorm.hashCode ^
+      workKey.hashCode ^
+      isPiano.hashCode ^
+      staves.hashCode ^
+      keyFifths.hashCode ^
+      timeSig.hashCode ^
+      measureCount.hashCode ^
+      noteCount.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ScoreSummary &&
+          runtimeType == other.runtimeType &&
+          title == other.title &&
+          composer == other.composer &&
+          titleNorm == other.titleNorm &&
+          workKey == other.workKey &&
+          isPiano == other.isPiano &&
+          staves == other.staves &&
+          keyFifths == other.keyFifths &&
+          timeSig == other.timeSig &&
+          measureCount == other.measureCount &&
+          noteCount == other.noteCount;
+}
+
 /// Stem direction.
 enum StemDir { up, down }
 
@@ -427,4 +505,25 @@ class Tuplet {
           runtimeType == other.runtimeType &&
           actual == other.actual &&
           normal == other.normal;
+}
+
+/// Client-side validation outcome: on success the parsed [`ScoreSummary`]; on
+/// failure a stable reject `code` (`too_large` / `undecodable` / `unparseable` /
+/// `no_notes`). Exactly one field is set.
+class ValidationOutcome {
+  final ScoreSummary? summary;
+  final String? rejectCode;
+
+  const ValidationOutcome({this.summary, this.rejectCode});
+
+  @override
+  int get hashCode => summary.hashCode ^ rejectCode.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ValidationOutcome &&
+          runtimeType == other.runtimeType &&
+          summary == other.summary &&
+          rejectCode == other.rejectCode;
 }

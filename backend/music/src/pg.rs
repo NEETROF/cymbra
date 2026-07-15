@@ -3,7 +3,7 @@
 //!
 //! Uses the runtime `sqlx::query(...).bind(...)` API (not the compile-time
 //! `query!` macros), matching `backend/user/src/pg.rs`. Table names are fully
-//! qualified (`score.catalog_scores`) so it works regardless of the connecting
+//! qualified (`music.catalog_scores`) so it works regardless of the connecting
 //! role's `search_path`.
 
 use anyhow::{Context, Result};
@@ -27,7 +27,7 @@ impl PgCatalogRepo {
 impl CatalogRepo for PgCatalogRepo {
     async fn sha_exists(&self, sha256: &str) -> Result<bool> {
         let row =
-            sqlx::query("SELECT EXISTS (SELECT 1 FROM score.catalog_scores WHERE sha256 = $1)")
+            sqlx::query("SELECT EXISTS (SELECT 1 FROM music.catalog_scores WHERE sha256 = $1)")
                 .bind(sha256)
                 .fetch_one(&self.pool)
                 .await
@@ -37,7 +37,7 @@ impl CatalogRepo for PgCatalogRepo {
 
     async fn fingerprint_exists(&self, fingerprint: &str) -> Result<bool> {
         let row = sqlx::query(
-            "SELECT EXISTS (SELECT 1 FROM score.catalog_scores WHERE content_fingerprint = $1)",
+            "SELECT EXISTS (SELECT 1 FROM music.catalog_scores WHERE content_fingerprint = $1)",
         )
         .bind(fingerprint)
         .fetch_one(&self.pool)
@@ -51,7 +51,7 @@ impl CatalogRepo for PgCatalogRepo {
         // ON CONFLICT (sha256) DO NOTHING makes re-ingestion idempotent; the
         // affected-row count tells us whether this was a new insert.
         let result = sqlx::query(
-            "INSERT INTO score.catalog_scores (\
+            "INSERT INTO music.catalog_scores (\
                 id, title, composer, arranger, source, source_url, source_item_id, \
                 license, license_url, confidence, sha256, origin_format, conversion_status, \
                 object_key, size_bytes, work_key, title_norm, is_piano, key_fifths, time_sig, \

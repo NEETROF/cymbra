@@ -120,6 +120,29 @@ void main() {
     });
 
     test(
+      'a deleted account (notFound) clears the session and routes to entry',
+      () async {
+        // The stored token still verifies by signature, but the account row is
+        // gone server-side → GetAccount returns notFound. Must not stay stuck
+        // "signed in with unknown account".
+        final store = FakeTokenStore(
+          tokens: const StoredTokens(accessToken: 'a', refreshToken: 'r'),
+        );
+        final c = makeContainer(
+          store: store,
+          account: FakeAccountService(
+            getError: const AuthException(AuthError.notFound),
+          ),
+        );
+        c.read(sessionNotifierProvider);
+        await pumpEventQueue();
+
+        expect(c.read(sessionNotifierProvider), isA<SessionUnauthenticated>());
+        expect(store.tokens, isNull); // session cleared
+      },
+    );
+
+    test(
       'offline at startup keeps the user signed in (account unknown)',
       () async {
         final store = FakeTokenStore(

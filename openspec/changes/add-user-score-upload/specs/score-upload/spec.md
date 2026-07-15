@@ -82,14 +82,14 @@ to Verification.
 
 Before a validated file can be submitted, the user MUST declare the **basis** on
 which they may contribute it — either that they are its **author** or that it is in
-the **public domain** (or under a free licence permitting its use) — and MUST tick
-a CGU confirmation checkbox, labelled "Je certifie être l'auteur de cette partition,
-ou qu'elle relève du domaine public (ou d'une licence libre en autorisant l'usage)"
-("I certify that I am the author of this score, or that it is in the public domain
-(or under a free licence permitting its use)"), localised per `app-localization`.
-The submit action MUST remain disabled until a basis is selected and the checkbox
-is ticked, and both the declared basis and the confirmation MUST be sent with the
-upload.
+the **public domain** (or under a free licence permitting its use) — via a distinct
+choice, AND MUST tick a **single confirmation checkbox** that attests the
+declaration is accurate (e.g. "Je certifie que cette déclaration est exacte et que
+je dispose des droits nécessaires pour mettre cette partition à disposition"),
+localised per `app-localization`. The confirmation MUST NOT restate the basis
+options (the basis choice already captures which applies). The submit action MUST
+remain disabled until a basis is selected and the checkbox is ticked, and both the
+declared basis and the confirmation MUST be sent with the upload.
 
 #### Scenario: Submit blocked without the attestation
 
@@ -126,9 +126,12 @@ notated tempo, so the user can confirm the decoded score is correct.
 Before the upload is finalized, the flow SHALL display the score's descriptive
 metadata parsed from the file — at least its title, composer, key, time signature,
 and measure count — so the user can review exactly what will be stored. These
-fields MUST be presented **read-only**: the user MUST NOT be able to enter or edit
-them, and the flow MUST NOT send any user-entered value for them (only the file,
-the difficulty, and the rights attestation are user-provided). The values
+fields MUST be presented **read-only** when the file provides them: the user MUST
+NOT be able to edit a value the file already carries. As the single exception, when
+the file carries **no** title (resp. composer), the flow MAY offer an editable
+**fallback** field for it, sent as a fallback the server uses only because the file
+lacks that value (a parsed value always wins). Musical fields (key, time, measures)
+are always read-only. The values
 shown come from the same shared parsing seam used for validation, so they match
 what the server derives and stores.
 
