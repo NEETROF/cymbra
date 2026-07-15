@@ -134,6 +134,14 @@ impl ScoreModule {
             .composer
             .clone()
             .or_else(|| clean_fallback(input.fallback_composer));
+
+        // A title is mandatory: reject a file with no `<work-title>` and no
+        // fallback rather than storing an untitled score (the client gates this
+        // too, but the server is the real guard — design 2b).
+        if title.is_none() {
+            return Err(AppError::InvalidArgument("a title is required".into()));
+        }
+
         let title_norm = title.as_deref().map(cymbra_musicxml_core::normalize_text);
         let composer_norm = composer
             .as_deref()
@@ -318,6 +326,20 @@ mod tests {
         let rec2 = m.upload("u1", i2).await.unwrap();
         assert_eq!(rec2.title.as_deref(), Some("Test Piece"));
         assert_eq!(repo.rows().len(), 2);
+    }
+
+    #[tokio::test]
+    async fn upload_rejects_a_file_with_no_title_and_no_fallback() {
+        let (m, repo, store) = module(5, 7);
+        // File carries no <work-title> and the user typed no fallback title.
+        assert!(matches!(
+            m.upload("u1", input(NO_META, "beginner", "own_work", true))
+                .await,
+            Err(AppError::InvalidArgument(_))
+        ));
+        // Nothing stored, nothing persisted.
+        assert!(store.is_empty());
+        assert!(repo.rows().is_empty());
     }
 
     #[tokio::test]

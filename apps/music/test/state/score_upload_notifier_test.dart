@@ -165,6 +165,52 @@ void main() {
   );
 
   test(
+    'finalize is blocked without a title until a fallback is typed',
+    () async {
+      // A file with no parsed title.
+      final engine = FakeNotationEngine(
+        validateOutcome: const ValidationOutcome(
+          summary: ScoreSummary(
+            title: null,
+            composer: null,
+            titleNorm: null,
+            workKey: '::',
+            isPiano: true,
+            staves: 2,
+            keyFifths: 0,
+            timeSig: '4/4',
+            measureCount: 4,
+            noteCount: 8,
+          ),
+        ),
+      );
+      final upload = _FakeUpload();
+      final c = _make(pick: _file(), engine: engine, upload: upload);
+      final n = c.read(scoreUploadNotifierProvider.notifier);
+      await n.pickAndValidate();
+      n.setRightsBasis(RightsBasis.author);
+      n.setRightsAck(true);
+      n.setLevel(PracticeLevel.advanced);
+
+      // A difficulty alone is not enough — no title yet.
+      expect(c.read(scoreUploadNotifierProvider).canFinalize, isFalse);
+      await n.submit();
+      expect(upload.uploads, isEmpty);
+
+      // Whitespace is not a title.
+      n.setFallbackTitle('   ');
+      expect(c.read(scoreUploadNotifierProvider).canFinalize, isFalse);
+
+      // A real fallback title unblocks the upload.
+      n.setFallbackTitle('My Piece');
+      expect(c.read(scoreUploadNotifierProvider).canFinalize, isTrue);
+      await n.submit();
+      expect(upload.uploads.single.level, PracticeLevel.advanced);
+      expect(c.read(scoreUploadNotifierProvider).isDone, isTrue);
+    },
+  );
+
+  test(
     'a submit error is surfaced as a friendly message, inputs kept',
     () async {
       final upload = _FakeUpload()

@@ -613,7 +613,7 @@ class _ConfirmStepView extends ConsumerWidget {
         // composer (a parsed value always wins server-side — design 2b).
         if (state.summary?.title == null)
           _FallbackField(
-            label: 'Titre (ce fichier n\'en contient pas)',
+            label: 'Titre (obligatoire — ce fichier n\'en contient pas)',
             onChanged: notifier.setFallbackTitle,
           ),
         if (state.summary?.composer == null)

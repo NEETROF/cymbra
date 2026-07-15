@@ -98,8 +98,15 @@ abstract class ScoreUploadState with _$ScoreUploadState {
   /// a validated file plus the mandatory rights attestation (spec).
   bool get canLeaveUpload => isValidated && hasAttestation;
 
-  /// Whether the Confirm step can be finalized (a difficulty is chosen).
-  bool get canFinalize => level != null;
+  /// The score already carries a title, or the user supplied a fallback one.
+  /// A title is mandatory (the server rejects an untitled upload).
+  bool get hasTitle =>
+      (summary?.title?.isNotEmpty ?? false) ||
+      (fallbackTitle?.trim().isNotEmpty ?? false);
+
+  /// Whether the Confirm step can be finalized: a difficulty is chosen and the
+  /// score has a title (parsed or fallback).
+  bool get canFinalize => level != null && hasTitle;
 
   /// The flow completed successfully.
   bool get isDone => result != null;
@@ -169,7 +176,11 @@ class ScoreUploadNotifier extends _$ScoreUploadNotifier {
     final file = state.file;
     final basis = state.rightsBasis;
     final level = state.level;
-    if (file == null || basis == null || level == null || !state.rightsAck) {
+    if (file == null ||
+        basis == null ||
+        level == null ||
+        !state.rightsAck ||
+        !state.hasTitle) {
       return;
     }
     state = state.copyWith(submitting: true, submitError: null);
