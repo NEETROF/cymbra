@@ -280,11 +280,18 @@ migrations then ingests); override `CYMBRA_SCORE_DATABASE_URL` for a dedicated r
 
 **Nightly** `bootstrap.sh` installs a cron (04:00) that runs `sync-scores.sh`:
 it merges the crawler output into `SCORES_DIR` and mirrors it to the **bucket root**
-`s3://$S3_BUCKET` — same `/etc/cymbra/backup.env` creds as the DB backup. Set
+`s3://$SCORES_S3_BUCKET` — same `/etc/cymbra/backup.env` creds as the DB backup. Set
 `CRAWL_OUT` + `SCORES_DIR` there (defaults: `/opt/cymbra/score-crawler/output`,
 `/var/lib/cymbra/scores`). Mirroring to the root (not a `scores/` prefix) keeps the
 S3 key equal to `object_key`, so the server's S3 fallback and user uploads
 (`user-scores/…`) share one keyspace.
+
+> **`SCORES_S3_BUCKET` is DISTINCT from the DB-backup `S3_BUCKET`.** The scores
+> bucket must equal the server's `CYMBRA_SCORE_S3_BUCKET` (e.g. `cymbra-scores`),
+> NOT the backups bucket (`cymbra-backups`). Add `SCORES_S3_BUCKET=cymbra-scores`
+> to `/etc/cymbra/backup.env`; `sync-scores.sh` no longer falls back to
+> `S3_BUCKET`, so an unset value means "local corpus only" rather than silently
+> dumping the corpus into the backups bucket.
 
 > The server-side reader is the `cymbra-storage` local-first port (change
 > `add-user-score-upload`): `CYMBRA_SCORE_LOCAL_ROOT` roots the local cache
