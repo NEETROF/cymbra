@@ -106,7 +106,7 @@ impl UserScoreRepo for FakeUserScoreRepo {
             .filter(|r| r.owner_id == owner_id)
             .cloned()
             .collect();
-        mine.sort_by(|a, b| b.created_at.cmp(&a.created_at));
+        mine.sort_by_key(|r| std::cmp::Reverse(r.created_at));
         Ok(mine)
     }
 
