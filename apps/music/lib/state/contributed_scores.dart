@@ -35,14 +35,19 @@ Future<List<CatalogEntry>> myContributedScores(Ref ref) async {
 CatalogEntry _entry(ContributedScore s) {
   final hasTitle = s.title != null && s.title!.isNotEmpty;
   final hasComposer = s.composer != null && s.composer!.isNotEmpty;
+  var composer = '';
+  if (hasComposer) {
+    composer = s.composer!;
+  } else if (!hasTitle) {
+    composer = _shortDate(s.createdAt);
+  }
+
   return CatalogEntry(
     id: 'contrib-${s.id}',
     title: hasTitle ? s.title! : 'Sans titre',
     // Fall back to the upload date so multiple untitled uploads stay
     // distinguishable in the list (option A).
-    composer: hasComposer
-        ? s.composer!
-        : (hasTitle ? '' : _shortDate(s.createdAt)),
+    composer: composer,
     level: s.level,
     contributedId: s.id,
   );

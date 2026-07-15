@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'package:flutter/scheduler.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../l10n/gen/app_localizations.dart';
@@ -589,13 +589,13 @@ class _ConfirmStepView extends ConsumerWidget {
         ),
         const SizedBox(height: 8),
         SegmentedButton<PracticeLevel>(
-          style: ButtonStyle(
+          style: const ButtonStyle(
             visualDensity: VisualDensity.compact,
             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            padding: const WidgetStatePropertyAll(
+            padding: WidgetStatePropertyAll(
               EdgeInsets.symmetric(horizontal: 8, vertical: 6),
             ),
-            textStyle: const WidgetStatePropertyAll(TextStyle(fontSize: 13)),
+            textStyle: WidgetStatePropertyAll(TextStyle(fontSize: 13)),
           ),
           segments: [
             for (final l in PracticeLevel.values)

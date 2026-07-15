@@ -8,9 +8,11 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'musicxml.freezed.dart';
 
-/// Parses an uncompressed MusicXML document (bytes) into a [`ScoreDocument`],
-/// with each measure's `min_width` already computed. Returns an error on
-/// malformed input rather than panicking.
+/// Parses a MusicXML document (bytes) into a [`ScoreDocument`], with each
+/// measure's `min_width` already computed. A zipped `.mxl` container is decoded
+/// first (same sniff as [`validate_musicxml`]), so the caller can pass the raw
+/// picked file — plain `.musicxml`/`.xml` or `.mxl`. Errors on malformed input
+/// rather than panicking.
 Future<ScoreDocument> parseMusicxml({required List<int> bytes}) =>
     RustLib.instance.api.crateApiMusicxmlParseMusicxml(bytes: bytes);
 
