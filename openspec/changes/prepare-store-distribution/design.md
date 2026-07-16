@@ -64,3 +64,11 @@ No runtime migration — assets and manifest edits only. Rollout is a normal PR 
 ## Open Questions
 
 - None blocking. Optional future refinement: a transparent "C"-only cutout for a cleaner Android adaptive foreground.
+
+## Deferred (out of scope, revisit when adding analytics)
+
+- **Firebase Analytics (or any usage analytics)** is intentionally NOT part of this change. When it is added later, the privacy posture must be revisited:
+  - `PrivacyInfo.xcprivacy`: the Firebase pods (10.x+) ship their own manifests that Apple aggregates, so the app manifest needs little change — EXCEPT `NSPrivacyTracking` must flip to `true` (and ATT be implemented) if IDFA/ad signals are enabled.
+  - App Store Connect **App Privacy** label and Google Play **Data Safety** form must be updated (Usage/Product Interaction, Diagnostics, Device ID).
+  - Privacy policy must mention Firebase/Google.
+  - **RGPD/ePrivacy**: EU users require opt-in consent before Analytics initialises (default collection disabled, enabled after consent / Consent Mode).
