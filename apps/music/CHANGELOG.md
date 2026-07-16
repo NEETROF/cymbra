@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.12.0](https://github.com/NEETROF/cymbra/compare/music-v1.11.2...music-v1.12.0) (2026-07-16)
+
+
+### Features
+
+* **music:** prepare Cymbra Music for App Store & Play Store distribution ([#93](https://github.com/NEETROF/cymbra/issues/93)) ([41715c4](https://github.com/NEETROF/cymbra/commit/41715c49f69fd002c7fc5f537b6b9c79a509f4c7))
+
 ## [1.11.2](https://github.com/NEETROF/cymbra/compare/music-v1.11.1...music-v1.11.2) (2026-07-15)
 
 
