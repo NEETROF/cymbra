@@ -20,6 +20,8 @@ use sqlx::PgPool;
 ///    enqueue a `purge_score_object` job per stored object so the bytes are
 ///    erased too (no cross-schema FK, so no DB cascade — the enqueue is what
 ///    reaches the object store).
+/// 6. `DELETE` the user's `music.user_library` saves (saved catalog scores).
+///    These reference PUBLIC catalog rows, so no object cleanup is needed.
 ///
 /// Every delete is a no-op when its rows are already gone, so the whole function
 /// is **idempotent**: re-running it for an already-purged user commits nothing to
@@ -97,6 +99,14 @@ pub async fn purge_user(admin_pool: &PgPool, user_id: &str) -> anyhow::Result<()
             .await?;
         }
     }
+
+    // The user's saved-catalog library (change: score-hub-search). These rows
+    // reference PUBLIC catalog scores, so there is nothing to erase from the
+    // object store — just drop the owner's saves in the same transaction.
+    sqlx::query("DELETE FROM music.user_library WHERE owner_id = $1")
+        .bind(uid)
+        .execute(&mut *tx)
+        .await?;
 
     tx.commit().await?;
     Ok(())

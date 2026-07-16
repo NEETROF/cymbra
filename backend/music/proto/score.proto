@@ -44,9 +44,57 @@ message DeleteScoreResponse {}
 message GetScoreBytesRequest { string id = 1; }
 message GetScoreBytesResponse { bytes data = 1; }
 
+// --- Score Hub: public-catalog search + per-user saved library ---------------
+// (change: score-hub-search). All authenticated (identity from the interceptor,
+// never the body). Search/bytes are catalog-wide; save/remove/list are owner-
+// scoped. The corpus is public/redistributable — the crawler ingests it.
+
+// A public-catalog score as surfaced by search or the saved list: attribution-
+// complete (licence + source), WITHOUT bytes (fetched separately by id).
+message CatalogHit {
+  string id = 1;
+  optional string title = 2;
+  optional string composer = 3;
+  optional string level = 4; // beginner | intermediate | advanced | (unset)
+  string license = 5;        // normalised code, e.g. CC-BY-4.0
+  string source = 6;
+}
+
+// Full-text search over title+composer, with optional author/difficulty filters.
+message SearchCatalogRequest {
+  string query = 1;           // free-text over title + composer; empty = browse
+  optional string author = 2; // structured composer filter (composes with query)
+  optional string level = 3;  // difficulty filter: beginner|intermediate|advanced
+  int32 limit = 4;            // page size; clamped to a server maximum
+  int32 offset = 5;           // page offset
+}
+message SearchCatalogResponse {
+  repeated CatalogHit hits = 1;
+  int32 next_offset = 2; // offset to request the next page (offset + hits.len)
+}
+
+message SaveCatalogScoreRequest { string catalog_id = 1; }
+message SaveCatalogScoreResponse {}
+
+message RemoveSavedCatalogScoreRequest { string catalog_id = 1; }
+message RemoveSavedCatalogScoreResponse {}
+
+message ListSavedCatalogScoresRequest {}
+message ListSavedCatalogScoresResponse { repeated CatalogHit hits = 1; }
+
+message GetCatalogScoreBytesRequest { string catalog_id = 1; }
+message GetCatalogScoreBytesResponse { bytes data = 1; }
+
 service ScoreService {
   rpc UploadScore(UploadScoreRequest) returns (ScoreRecord);
   rpc ListMyScores(ListMyScoresRequest) returns (ListMyScoresResponse);
   rpc DeleteScore(DeleteScoreRequest) returns (DeleteScoreResponse);
   rpc GetScoreBytes(GetScoreBytesRequest) returns (GetScoreBytesResponse);
+
+  // Score Hub (change: score-hub-search).
+  rpc SearchCatalog(SearchCatalogRequest) returns (SearchCatalogResponse);
+  rpc SaveCatalogScore(SaveCatalogScoreRequest) returns (SaveCatalogScoreResponse);
+  rpc RemoveSavedCatalogScore(RemoveSavedCatalogScoreRequest) returns (RemoveSavedCatalogScoreResponse);
+  rpc ListSavedCatalogScores(ListSavedCatalogScoresRequest) returns (ListSavedCatalogScoresResponse);
+  rpc GetCatalogScoreBytes(GetCatalogScoreBytesRequest) returns (GetCatalogScoreBytesResponse);
 }

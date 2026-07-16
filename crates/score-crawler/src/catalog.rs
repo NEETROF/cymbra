@@ -56,6 +56,12 @@ pub fn to_catalog_entry(e: &ManifestEntry) -> CatalogEntry {
         size_bytes: e.size_bytes as i64,
         work_key: e.work_key.clone(),
         title_norm: e.title_norm.clone(),
+        // Accent/case-fold the composer to parity with `title_norm` so the search
+        // trigram index matches composer fragments (change: score-hub-search).
+        composer_norm: e
+            .composer
+            .as_deref()
+            .map(cymbra_musicxml_core::normalize_text),
         is_piano: e.is_piano,
         key_fifths: e.key_fifths,
         time_sig: e.time_sig.clone(),

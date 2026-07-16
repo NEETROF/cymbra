@@ -11,18 +11,24 @@
 //! score-crawler tool, not over gRPC), so consumers need not depend on the
 //! platform error type.
 
+pub mod catalog_search;
 pub mod grpc;
 pub mod module;
 pub mod pg;
 pub mod pg_user_scores;
 pub mod repo;
+pub mod user_library;
 pub mod user_scores;
 
+pub use catalog_search::{
+    CatalogHit, CatalogSearchParams, CatalogSearchRepo, FakeCatalogRow, FakeCatalogSearchRepo,
+};
 pub use grpc::ScoreGrpc;
 pub use module::{ScoreModule, UploadInput};
-pub use pg::PgCatalogRepo;
-pub use pg_user_scores::PgUserScoreRepo;
+pub use pg::{PgCatalogRepo, PgCatalogSearchRepo};
+pub use pg_user_scores::{PgUserLibraryRepo, PgUserScoreRepo};
 pub use repo::{CatalogEntry, CatalogRepo, FakeCatalogRepo};
+pub use user_library::{FakeUserLibraryRepo, UserLibraryRepo};
 pub use user_scores::{FakeUserScoreRepo, UserScore, UserScoreRepo};
 
 /// Generated protobuf messages + tonic client/server stubs for `cymbra.music.v1`

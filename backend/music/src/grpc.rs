@@ -26,10 +26,15 @@ use std::sync::Arc;
 use cymbra_platform::AuthIdentity;
 use tonic::{Request, Response, Status};
 
+use crate::catalog_search::CatalogHit;
 use crate::module::{ScoreModule, UploadInput};
 use crate::proto::{
-    DeleteScoreRequest, DeleteScoreResponse, GetScoreBytesRequest, GetScoreBytesResponse,
-    ListMyScoresRequest, ListMyScoresResponse, ScoreRecord, UploadScoreRequest,
+    CatalogHit as ProtoCatalogHit, DeleteScoreRequest, DeleteScoreResponse,
+    GetCatalogScoreBytesRequest, GetCatalogScoreBytesResponse, GetScoreBytesRequest,
+    GetScoreBytesResponse, ListMyScoresRequest, ListMyScoresResponse,
+    ListSavedCatalogScoresRequest, ListSavedCatalogScoresResponse, RemoveSavedCatalogScoreRequest,
+    RemoveSavedCatalogScoreResponse, SaveCatalogScoreRequest, SaveCatalogScoreResponse,
+    ScoreRecord, SearchCatalogRequest, SearchCatalogResponse, UploadScoreRequest,
     score_service_server::{ScoreService, ScoreServiceServer},
 };
 use crate::user_scores::UserScore;
@@ -67,6 +72,17 @@ fn to_record(s: UserScore) -> ScoreRecord {
         measure_count: s.measure_count,
         time_sig: s.time_sig,
         key_fifths: s.key_fifths,
+    }
+}
+
+fn to_hit(h: CatalogHit) -> ProtoCatalogHit {
+    ProtoCatalogHit {
+        id: h.id,
+        title: h.title,
+        composer: h.composer,
+        level: h.level,
+        license: h.license,
+        source: h.source,
     }
 }
 
@@ -125,5 +141,269 @@ impl ScoreService for ScoreGrpc {
         let id = req.into_inner().id;
         let data = self.module.get_bytes(&owner_id, &id).await?;
         Ok(Response::new(GetScoreBytesResponse { data }))
+    }
+
+    // --- Score Hub (change: score-hub-search) -------------------------------
+    // Every handler asserts an authenticated identity via `owner()` (the strict
+    // interceptor already rejects unauthenticated calls; this is defense-in-depth
+    // and the identity source for the owner-scoped ops). Search + bytes are
+    // catalog-wide, so they require identity but do not scope by owner.
+
+    async fn search_catalog(
+        &self,
+        req: Request<SearchCatalogRequest>,
+    ) -> Result<Response<SearchCatalogResponse>, Status> {
+        owner(&req)?; // authenticated-only (catalog is public, not owner-scoped)
+        let r = req.into_inner();
+        let hits = self
+            .module
+            .search_catalog(
+                &r.query,
+                r.author.as_deref(),
+                r.level.as_deref(),
+                r.limit as i64,
+                r.offset as i64,
+            )
+            .await?;
+        let next_offset = r.offset.max(0) + hits.len() as i32;
+        Ok(Response::new(SearchCatalogResponse {
+            hits: hits.into_iter().map(to_hit).collect(),
+            next_offset,
+        }))
+    }
+
+    async fn save_catalog_score(
+        &self,
+        req: Request<SaveCatalogScoreRequest>,
+    ) -> Result<Response<SaveCatalogScoreResponse>, Status> {
+        let owner_id = owner(&req)?;
+        let catalog_id = req.into_inner().catalog_id;
+        self.module
+            .save_catalog_score(&owner_id, &catalog_id)
+            .await?;
+        Ok(Response::new(SaveCatalogScoreResponse {}))
+    }
+
+    async fn remove_saved_catalog_score(
+        &self,
+        req: Request<RemoveSavedCatalogScoreRequest>,
+    ) -> Result<Response<RemoveSavedCatalogScoreResponse>, Status> {
+        let owner_id = owner(&req)?;
+        let catalog_id = req.into_inner().catalog_id;
+        self.module
+            .remove_saved_catalog_score(&owner_id, &catalog_id)
+            .await?;
+        Ok(Response::new(RemoveSavedCatalogScoreResponse {}))
+    }
+
+    async fn list_saved_catalog_scores(
+        &self,
+        req: Request<ListSavedCatalogScoresRequest>,
+    ) -> Result<Response<ListSavedCatalogScoresResponse>, Status> {
+        let owner_id = owner(&req)?;
+        let hits = self.module.list_saved_catalog_scores(&owner_id).await?;
+        Ok(Response::new(ListSavedCatalogScoresResponse {
+            hits: hits.into_iter().map(to_hit).collect(),
+        }))
+    }
+
+    async fn get_catalog_score_bytes(
+        &self,
+        req: Request<GetCatalogScoreBytesRequest>,
+    ) -> Result<Response<GetCatalogScoreBytesResponse>, Status> {
+        owner(&req)?; // authenticated-only
+        let catalog_id = req.into_inner().catalog_id;
+        let data = self.module.get_catalog_bytes(&catalog_id).await?;
+        Ok(Response::new(GetCatalogScoreBytesResponse { data }))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use cymbra_storage::{FakeStore, ObjectStorage};
+
+    use crate::catalog_search::{FakeCatalogRow, FakeCatalogSearchRepo};
+    use crate::user_library::FakeUserLibraryRepo;
+    use crate::user_scores::FakeUserScoreRepo;
+
+    const DEBUSSY: &str = "11111111-1111-7111-8111-111111111111";
+    const SATIE: &str = "22222222-2222-7222-8222-222222222222";
+
+    /// A `ScoreGrpc` over a seeded catalog + an object store holding the catalog
+    /// scores' bytes, so byte fetches resolve.
+    async fn grpc() -> ScoreGrpc {
+        let store = Arc::new(FakeStore::default());
+        for id in [DEBUSSY, SATIE] {
+            store
+                .put(&format!("safe/pdmx/{id}.mxl"), b"<score/>".to_vec())
+                .await
+                .unwrap();
+        }
+        let catalog = Arc::new(FakeCatalogSearchRepo::with(vec![
+            FakeCatalogRow::new(DEBUSSY, "Clair de Lune", "Claude Debussy", Some("advanced")),
+            FakeCatalogRow::new(SATIE, "Gymnopédie", "Erik Satie", Some("beginner")),
+        ]));
+        let module = Arc::new(ScoreModule::new(
+            Arc::new(FakeUserScoreRepo::default()),
+            catalog,
+            Arc::new(FakeUserLibraryRepo::default()),
+            store,
+            5,
+            7,
+            8 * 1024 * 1024,
+        ));
+        ScoreGrpc::new(module)
+    }
+
+    /// Attach an authenticated identity to a request (as the interceptor would).
+    fn authed<T>(msg: T, user_id: &str) -> Request<T> {
+        let mut req = Request::new(msg);
+        req.extensions_mut().insert(AuthIdentity {
+            user_id: user_id.into(),
+            audience: "music".into(),
+            roles: vec!["user".into()],
+        });
+        req
+    }
+
+    fn search(query: &str, author: Option<&str>, level: Option<&str>) -> SearchCatalogRequest {
+        SearchCatalogRequest {
+            query: query.into(),
+            author: author.map(Into::into),
+            level: level.map(Into::into),
+            limit: 50,
+            offset: 0,
+        }
+    }
+
+    #[tokio::test]
+    async fn unauthenticated_requests_are_rejected() {
+        let g = grpc().await;
+        // No AuthIdentity in the extensions → unauthenticated on every hub RPC.
+        let err = g
+            .search_catalog(Request::new(search("", None, None)))
+            .await
+            .unwrap_err();
+        assert_eq!(err.code(), tonic::Code::Unauthenticated);
+        let err = g
+            .save_catalog_score(Request::new(SaveCatalogScoreRequest {
+                catalog_id: DEBUSSY.into(),
+            }))
+            .await
+            .unwrap_err();
+        assert_eq!(err.code(), tonic::Code::Unauthenticated);
+        let err = g
+            .list_saved_catalog_scores(Request::new(ListSavedCatalogScoresRequest {}))
+            .await
+            .unwrap_err();
+        assert_eq!(err.code(), tonic::Code::Unauthenticated);
+    }
+
+    #[tokio::test]
+    async fn search_composes_query_author_and_level() {
+        let g = grpc().await;
+        // Author + level filter narrows to the one advanced Debussy work.
+        let resp = g
+            .search_catalog(authed(search("", Some("Debussy"), Some("advanced")), "u1"))
+            .await
+            .unwrap()
+            .into_inner();
+        let ids: Vec<&str> = resp.hits.iter().map(|h| h.id.as_str()).collect();
+        assert_eq!(ids, [DEBUSSY]);
+        assert_eq!(resp.next_offset, 1);
+        assert_eq!(resp.hits[0].license, "CC-BY-4.0");
+    }
+
+    #[tokio::test]
+    async fn save_list_remove_round_trip_reflects_across_calls() {
+        let g = grpc().await;
+        // Save two, list returns them newest-first for the SAME owner (the sync
+        // source of truth — a later list reflects earlier writes).
+        g.save_catalog_score(authed(
+            SaveCatalogScoreRequest {
+                catalog_id: SATIE.into(),
+            },
+            "u1",
+        ))
+        .await
+        .unwrap();
+        g.save_catalog_score(authed(
+            SaveCatalogScoreRequest {
+                catalog_id: DEBUSSY.into(),
+            },
+            "u1",
+        ))
+        .await
+        .unwrap();
+        let listed = g
+            .list_saved_catalog_scores(authed(ListSavedCatalogScoresRequest {}, "u1"))
+            .await
+            .unwrap()
+            .into_inner();
+        assert_eq!(
+            listed
+                .hits
+                .iter()
+                .map(|h| h.id.as_str())
+                .collect::<Vec<_>>(),
+            [DEBUSSY, SATIE]
+        );
+        // Another owner sees none of u1's saves (isolation).
+        let other = g
+            .list_saved_catalog_scores(authed(ListSavedCatalogScoresRequest {}, "u2"))
+            .await
+            .unwrap()
+            .into_inner();
+        assert!(other.hits.is_empty());
+        // Remove one; a subsequent list reflects it.
+        g.remove_saved_catalog_score(authed(
+            RemoveSavedCatalogScoreRequest {
+                catalog_id: SATIE.into(),
+            },
+            "u1",
+        ))
+        .await
+        .unwrap();
+        let listed = g
+            .list_saved_catalog_scores(authed(ListSavedCatalogScoresRequest {}, "u1"))
+            .await
+            .unwrap()
+            .into_inner();
+        assert_eq!(
+            listed
+                .hits
+                .iter()
+                .map(|h| h.id.as_str())
+                .collect::<Vec<_>>(),
+            [DEBUSSY]
+        );
+    }
+
+    #[tokio::test]
+    async fn bytes_for_known_and_unknown_id() {
+        let g = grpc().await;
+        let resp = g
+            .get_catalog_score_bytes(authed(
+                GetCatalogScoreBytesRequest {
+                    catalog_id: DEBUSSY.into(),
+                },
+                "u1",
+            ))
+            .await
+            .unwrap()
+            .into_inner();
+        assert_eq!(resp.data, b"<score/>");
+        // Unknown id → NotFound.
+        let err = g
+            .get_catalog_score_bytes(authed(
+                GetCatalogScoreBytesRequest {
+                    catalog_id: "99999999-9999-7999-8999-999999999999".into(),
+                },
+                "u1",
+            ))
+            .await
+            .unwrap_err();
+        assert_eq!(err.code(), tonic::Code::NotFound);
     }
 }

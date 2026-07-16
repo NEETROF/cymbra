@@ -34,6 +34,9 @@ pub struct CatalogEntry {
     pub size_bytes: i64,
     pub work_key: String,
     pub title_norm: Option<String>,
+    /// Accent/case-folded composer for typo-tolerant search (parity with
+    /// `title_norm`); populated by the crawler, backfilled for older rows.
+    pub composer_norm: Option<String>,
     pub is_piano: bool,
     pub key_fifths: i32,
     pub time_sig: String,
@@ -118,6 +121,7 @@ mod tests {
             size_bytes: 10,
             work_key: "c::t".into(),
             title_norm: Some("t".into()),
+            composer_norm: Some("c".into()),
             is_piano: true,
             key_fifths: 0,
             time_sig: "4/4".into(),

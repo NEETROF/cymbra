@@ -25,6 +25,7 @@ use chrono::{DateTime, Utc};
 use cymbra_platform::{AppError, Result};
 use sqlx::{PgPool, Row, postgres::PgRow};
 
+use crate::user_library::UserLibraryRepo;
 use crate::user_scores::{UserScore, UserScoreRepo};
 
 /// Maps a sqlx error to an internal `AppError` (no detail leaked to clients).
@@ -35,6 +36,12 @@ fn internal(e: sqlx::Error) -> AppError {
 fn is_unique_violation(e: &sqlx::Error) -> bool {
     e.as_database_error()
         .map(|d| d.is_unique_violation())
+        .unwrap_or(false)
+}
+
+fn is_foreign_key_violation(e: &sqlx::Error) -> bool {
+    e.as_database_error()
+        .map(|d| d.is_foreign_key_violation())
         .unwrap_or(false)
 }
 
@@ -169,5 +176,74 @@ impl UserScoreRepo for PgUserScoreRepo {
         .await
         .map_err(internal)?;
         Ok(row.get::<i64, _>("n"))
+    }
+}
+
+/// Postgres-backed [`UserLibraryRepo`] over the `music_svc` pool — the per-user
+/// saved-catalog library (change: score-hub-search). Every statement is
+/// owner-scoped; `save`/`remove` are idempotent.
+pub struct PgUserLibraryRepo {
+    pool: PgPool,
+}
+
+impl PgUserLibraryRepo {
+    pub fn new(pool: PgPool) -> Self {
+        Self { pool }
+    }
+}
+
+#[async_trait]
+impl UserLibraryRepo for PgUserLibraryRepo {
+    async fn save(&self, owner_id: &str, catalog_id: &str) -> Result<()> {
+        let owner = parse_uuid(owner_id)?;
+        // A malformed catalog id can never reference a real row → not found.
+        let catalog = uuid::Uuid::parse_str(catalog_id)
+            .map_err(|_| AppError::NotFound("catalog score not found".into()))?;
+        let res = sqlx::query(
+            "INSERT INTO music.user_library (owner_id, catalog_id) \
+             VALUES ($1, $2) ON CONFLICT (owner_id, catalog_id) DO NOTHING",
+        )
+        .bind(owner)
+        .bind(catalog)
+        .execute(&self.pool)
+        .await;
+        match res {
+            Ok(_) => Ok(()),
+            // A foreign-key violation means the catalog id doesn't exist.
+            Err(e) if is_foreign_key_violation(&e) => {
+                Err(AppError::NotFound("catalog score not found".into()))
+            }
+            Err(e) => Err(internal(e)),
+        }
+    }
+
+    async fn remove(&self, owner_id: &str, catalog_id: &str) -> Result<()> {
+        let owner = parse_uuid(owner_id)?;
+        let Ok(catalog) = uuid::Uuid::parse_str(catalog_id) else {
+            return Ok(()); // malformed id was never saved → no-op success
+        };
+        sqlx::query("DELETE FROM music.user_library WHERE owner_id = $1 AND catalog_id = $2")
+            .bind(owner)
+            .bind(catalog)
+            .execute(&self.pool)
+            .await
+            .map_err(internal)?;
+        Ok(())
+    }
+
+    async fn list_ids(&self, owner_id: &str) -> Result<Vec<String>> {
+        let owner = parse_uuid(owner_id)?;
+        let rows = sqlx::query(
+            "SELECT catalog_id FROM music.user_library \
+             WHERE owner_id = $1 ORDER BY created_at DESC, catalog_id",
+        )
+        .bind(owner)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(internal)?;
+        Ok(rows
+            .iter()
+            .map(|r| r.get::<uuid::Uuid, _>("catalog_id").to_string())
+            .collect())
     }
 }

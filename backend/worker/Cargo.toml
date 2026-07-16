@@ -40,3 +40,6 @@ humantime.workspace = true
 
 [dev-dependencies]
 tokio = { workspace = true }
+# The purge integration test seeds + migrates the `music` schema to assert the
+# saved-catalog library is erased on account deletion (change: score-hub-search).
+cymbra-music = { path = "../music" }
