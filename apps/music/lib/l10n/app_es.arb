@@ -154,6 +154,24 @@
   "scoreHubAddToLibrary": "Añadir a mi biblioteca",
   "scoreHubRemoveFromLibrary": "Quitar de mi biblioteca",
   "scoreHubLoadMore": "Cargar más",
-  "librarySavedSection": "GUARDADAS DEL CATÁLOGO"
+  "librarySavedSection": "GUARDADAS DEL CATÁLOGO",
+
+  "scoreHubAdvancedFilters": "Filtros avanzados",
+  "scoreHubAny": "Todo",
+  "scoreHubClearFilters": "Borrar",
+  "scoreHubFastestNote": "Nota más rápida",
+  "scoreHubNoteQuarter": "≤ Negra",
+  "scoreHubNoteEighth": "≤ Corchea",
+  "scoreHubNoteSixteenth": "≤ Semicorchea",
+  "scoreHubChords": "Acordes",
+  "scoreHubTuplets": "Tresillos",
+  "scoreHubDotted": "Puntillos",
+  "scoreHubHandSpan": "Ámbito",
+  "scoreHubSpanOneOctave": "≤ 1 octava",
+  "scoreHubSpanTwoOctaves": "≤ 2 octavas",
+  "scoreHubTempo": "Tempo",
+  "scoreHubTempoSlow": "Lento",
+  "scoreHubTempoModerate": "Moderado",
+  "scoreHubTempoFast": "Rápido"
 
 }

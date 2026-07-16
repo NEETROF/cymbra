@@ -29,15 +29,28 @@ class _FakeCatalog implements CatalogService {
   final Set<String> saved = {};
   final List<String> saveCalls = [];
   final List<String> removeCalls = [];
+  // Records the last call's facet arguments (for assertions).
+  bool? lastIsPiano;
+  int? lastMaxNoteValue;
 
   @override
   Future<CatalogSearchPage> search({
     String query = '',
     String? author,
     PracticeLevel? level,
+    bool? isPiano,
+    int? maxNoteValue,
+    bool? hasChords,
+    bool? hasTuplets,
+    bool? hasDotted,
+    int? maxAmbitusSemitones,
+    int? minBpm,
+    int? maxBpm,
     int limit = 20,
     int offset = 0,
   }) async {
+    lastIsPiano = isPiano;
+    lastMaxNoteValue = maxNoteValue;
     final q = query.toLowerCase();
     final a = author?.toLowerCase();
     final matched = rows.where((h) {
@@ -46,7 +59,10 @@ class _FakeCatalog implements CatalogService {
       final queryOk = q.isEmpty || t.contains(q) || c.contains(q);
       final authorOk = a == null || c.contains(a);
       final levelOk = level == null || h.level == level;
-      return queryOk && authorOk && levelOk;
+      // The corpus rows carry no facet data here; a set facet filter simply
+      // narrows to nothing (mirrors "unknown facet excluded").
+      final facetOk = maxNoteValue == null;
+      return queryOk && authorOk && levelOk && facetOk;
     }).toList();
     final page = matched.skip(offset).take(limit).toList();
     return CatalogSearchPage(hits: page, nextOffset: offset + page.length);
@@ -230,4 +246,28 @@ void main() {
     expect(catalog.removeCalls, ['c1']);
     expect(c.read(catalogSearchProvider).isSaved(entry), isFalse);
   });
+
+  test(
+    'catalog search pins is_piano and applies advanced facet filters',
+    () async {
+      final catalog = _FakeCatalog(_corpus());
+      final c = _container(catalog);
+      await _settled(c);
+      // The production catalog call always constrains to piano.
+      expect(catalog.lastIsPiano, isTrue);
+
+      // Applying a rhythmic-granularity filter re-queries with it.
+      c.read(catalogSearchProvider.notifier).setMaxNoteValue(8);
+      final s = await _settled(c);
+      expect(catalog.lastMaxNoteValue, 8);
+      expect(c.read(catalogSearchProvider).hasAdvancedFilters, isTrue);
+      expect(s.entries, isEmpty); // facet-less fake rows are excluded
+
+      // Clearing the advanced filters restores the results.
+      c.read(catalogSearchProvider.notifier).clearAdvancedFilters();
+      final s2 = await _settled(c);
+      expect(catalog.lastMaxNoteValue, isNull);
+      expect(s2.entries, isNotEmpty);
+    },
+  );
 }

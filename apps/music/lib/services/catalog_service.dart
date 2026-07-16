@@ -63,11 +63,21 @@ class CatalogSearchPage {
 /// the provider with an in-memory fake. Failures throw [AuthException].
 abstract class CatalogService {
   /// Search the public catalog by free-text (title/composer), with optional
-  /// [author] (composer) and [level] filters, paginated by [limit]/[offset].
+  /// [author] (composer) and [level] filters plus musical-facet filters, paginated
+  /// by [limit]/[offset]. Each facet filter is `null` = no constraint; a set
+  /// filter excludes rows whose facet is unknown.
   Future<CatalogSearchPage> search({
     String query,
     String? author,
     PracticeLevel? level,
+    bool? isPiano,
+    int? maxNoteValue,
+    bool? hasChords,
+    bool? hasTuplets,
+    bool? hasDotted,
+    int? maxAmbitusSemitones,
+    int? minBpm,
+    int? maxBpm,
     int limit,
     int offset,
   });
@@ -147,6 +157,14 @@ class GrpcCatalogService implements CatalogService {
     String query = '',
     String? author,
     PracticeLevel? level,
+    bool? isPiano,
+    int? maxNoteValue,
+    bool? hasChords,
+    bool? hasTuplets,
+    bool? hasDotted,
+    int? maxAmbitusSemitones,
+    int? minBpm,
+    int? maxBpm,
     int limit = 20,
     int offset = 0,
   }) => _authed((bearer) async {
@@ -155,6 +173,14 @@ class GrpcCatalogService implements CatalogService {
         query: query,
         author: author,
         level: _levelWire(level),
+        isPiano: isPiano,
+        maxNoteValue: maxNoteValue,
+        hasChords: hasChords,
+        hasTuplets: hasTuplets,
+        hasDotted: hasDotted,
+        maxAmbitusSemitones: maxAmbitusSemitones,
+        minBpm: minBpm,
+        maxBpm: maxBpm,
         limit: limit,
         offset: offset,
       ),

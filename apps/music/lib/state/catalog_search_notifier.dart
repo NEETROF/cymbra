@@ -41,6 +41,16 @@ abstract class CatalogSearchState with _$CatalogSearchState {
     @Default('') String query,
     @Default('') String author,
     PracticeLevel? level,
+    // Advanced musical-facet filters (change: score-catalog-facets). Each null =
+    // no constraint. Applied to the catalog source only (uploads carry no facet
+    // data in the app).
+    int? maxNoteValue,
+    bool? hasChords,
+    bool? hasTuplets,
+    bool? hasDotted,
+    int? maxAmbitusSemitones,
+    int? minBpm,
+    int? maxBpm,
     @Default(<CatalogEntry>[]) List<CatalogEntry> entries,
 
     /// Catalog ids the user has saved (drives the per-result saved indicator).
@@ -62,6 +72,16 @@ abstract class CatalogSearchState with _$CatalogSearchState {
   /// Whether a saved catalog entry is in the library (add/remove toggle state).
   bool isSaved(CatalogEntry e) =>
       e.catalogId != null && savedIds.contains(e.catalogId);
+
+  /// Whether any advanced facet filter is active.
+  bool get hasAdvancedFilters =>
+      maxNoteValue != null ||
+      hasChords != null ||
+      hasTuplets != null ||
+      hasDotted != null ||
+      maxAmbitusSemitones != null ||
+      minBpm != null ||
+      maxBpm != null;
 }
 
 /// Drives the Score Hub search: a debounced text query, author + difficulty
@@ -108,6 +128,57 @@ class CatalogSearch extends _$CatalogSearch {
     unawaited(_reload());
   }
 
+  // --- advanced facet filters (change: score-catalog-facets) --------------
+  // Applied to the catalog source; each reloads immediately.
+
+  /// Fastest allowed note value (power-of-two denominator), or null for "tout".
+  void setMaxNoteValue(int? denominator) {
+    state = state.copyWith(maxNoteValue: denominator);
+    unawaited(_reload());
+  }
+
+  void toggleChords(bool on) {
+    state = state.copyWith(hasChords: on ? true : null);
+    unawaited(_reload());
+  }
+
+  void toggleTuplets(bool on) {
+    state = state.copyWith(hasTuplets: on ? true : null);
+    unawaited(_reload());
+  }
+
+  void toggleDotted(bool on) {
+    state = state.copyWith(hasDotted: on ? true : null);
+    unawaited(_reload());
+  }
+
+  /// Maximum hand span in semitones (e.g. 12 = one octave), or null for "tout".
+  void setMaxAmbitusSemitones(int? semitones) {
+    state = state.copyWith(maxAmbitusSemitones: semitones);
+    unawaited(_reload());
+  }
+
+  /// Tempo band as an inclusive BPM range (either bound null = open), or both
+  /// null for "tout".
+  void setTempoBand(int? minBpm, int? maxBpm) {
+    state = state.copyWith(minBpm: minBpm, maxBpm: maxBpm);
+    unawaited(_reload());
+  }
+
+  /// Clear every advanced facet filter (keeps text/author/level/source).
+  void clearAdvancedFilters() {
+    state = state.copyWith(
+      maxNoteValue: null,
+      hasChords: null,
+      hasTuplets: null,
+      hasDotted: null,
+      maxAmbitusSemitones: null,
+      minBpm: null,
+      maxBpm: null,
+    );
+    unawaited(_reload());
+  }
+
   void _debouncedReload() {
     _debounceTimer?.cancel();
     _debounceTimer = Timer(_debounce, () => unawaited(_reload()));
@@ -131,6 +202,15 @@ class CatalogSearch extends _$CatalogSearch {
               query: state.query,
               author: state.author.isEmpty ? null : state.author,
               level: state.level,
+              // Corpus is piano-only for now: always constrain to piano.
+              isPiano: true,
+              maxNoteValue: state.maxNoteValue,
+              hasChords: state.hasChords,
+              hasTuplets: state.hasTuplets,
+              hasDotted: state.hasDotted,
+              maxAmbitusSemitones: state.maxAmbitusSemitones,
+              minBpm: state.minBpm,
+              maxBpm: state.maxBpm,
               limit: _pageSize,
               offset: 0,
             );
@@ -167,6 +247,14 @@ class CatalogSearch extends _$CatalogSearch {
             query: state.query,
             author: state.author.isEmpty ? null : state.author,
             level: state.level,
+            isPiano: true,
+            maxNoteValue: state.maxNoteValue,
+            hasChords: state.hasChords,
+            hasTuplets: state.hasTuplets,
+            hasDotted: state.hasDotted,
+            maxAmbitusSemitones: state.maxAmbitusSemitones,
+            minBpm: state.minBpm,
+            maxBpm: state.maxBpm,
             limit: _pageSize,
             offset: state.nextOffset,
           );

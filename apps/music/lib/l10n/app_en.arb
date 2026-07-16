@@ -341,6 +341,57 @@
   "@scoreHubLoadMore": { "description": "Button to load the next page of catalog results." },
 
   "librarySavedSection": "SAVED FROM THE HUB",
-  "@librarySavedSection": { "description": "Home-screen section header for catalog scores saved from the hub." }
+  "@librarySavedSection": { "description": "Home-screen section header for catalog scores saved from the hub." },
+
+  "scoreHubAdvancedFilters": "Advanced filters",
+  "@scoreHubAdvancedFilters": { "description": "Header of the collapsible advanced (musical-facet) filters panel." },
+
+  "scoreHubAny": "Any",
+  "@scoreHubAny": { "description": "Facet-filter option meaning no constraint (all values)." },
+
+  "scoreHubClearFilters": "Clear",
+  "@scoreHubClearFilters": { "description": "Button that clears all advanced filters." },
+
+  "scoreHubFastestNote": "Fastest note",
+  "@scoreHubFastestNote": { "description": "Label for the rhythmic-granularity (fastest note value) filter." },
+
+  "scoreHubNoteQuarter": "≤ Quarter",
+  "@scoreHubNoteQuarter": { "description": "Granularity chip: nothing faster than a quarter note." },
+
+  "scoreHubNoteEighth": "≤ Eighth",
+  "@scoreHubNoteEighth": { "description": "Granularity chip: nothing faster than an eighth note." },
+
+  "scoreHubNoteSixteenth": "≤ Sixteenth",
+  "@scoreHubNoteSixteenth": { "description": "Granularity chip: nothing faster than a sixteenth note." },
+
+  "scoreHubChords": "Chords",
+  "@scoreHubChords": { "description": "Toggle: only scores containing chords." },
+
+  "scoreHubTuplets": "Tuplets",
+  "@scoreHubTuplets": { "description": "Toggle: only scores containing tuplets." },
+
+  "scoreHubDotted": "Dotted",
+  "@scoreHubDotted": { "description": "Toggle: only scores with dotted rhythms." },
+
+  "scoreHubHandSpan": "Hand span",
+  "@scoreHubHandSpan": { "description": "Label for the ambitus (pitch span) filter." },
+
+  "scoreHubSpanOneOctave": "≤ 1 octave",
+  "@scoreHubSpanOneOctave": { "description": "Ambitus chip: span within one octave." },
+
+  "scoreHubSpanTwoOctaves": "≤ 2 octaves",
+  "@scoreHubSpanTwoOctaves": { "description": "Ambitus chip: span within two octaves." },
+
+  "scoreHubTempo": "Tempo",
+  "@scoreHubTempo": { "description": "Label for the tempo-band filter." },
+
+  "scoreHubTempoSlow": "Slow",
+  "@scoreHubTempoSlow": { "description": "Tempo band: slow (< 76 BPM)." },
+
+  "scoreHubTempoModerate": "Moderate",
+  "@scoreHubTempoModerate": { "description": "Tempo band: moderate (76–120 BPM)." },
+
+  "scoreHubTempoFast": "Fast",
+  "@scoreHubTempoFast": { "description": "Tempo band: fast (> 120 BPM)." }
 
 }

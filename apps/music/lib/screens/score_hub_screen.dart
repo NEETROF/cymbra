@@ -123,10 +123,164 @@ class _Filters extends StatelessWidget {
                 ),
             ],
           ),
+          // Advanced musical-facet filters, collapsed by default so the basic
+          // controls stay uncluttered.
+          _AdvancedFilters(state: state, notifier: notifier, l10n: l10n),
         ],
       ),
     );
   }
+}
+
+/// Collapsible panel of musical-facet filters (rhythmic granularity, chords/
+/// tuplets/dotted, hand span, tempo band).
+class _AdvancedFilters extends StatelessWidget {
+  const _AdvancedFilters({
+    required this.state,
+    required this.notifier,
+    required this.l10n,
+  });
+
+  final CatalogSearchState state;
+  final CatalogSearch notifier;
+  final AppLocalizations l10n;
+
+  @override
+  Widget build(BuildContext context) {
+    return Theme(
+      // Drop the ExpansionTile dividers for a cleaner inline look.
+      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+      child: ExpansionTile(
+        tilePadding: EdgeInsets.zero,
+        childrenPadding: const EdgeInsets.only(bottom: 8),
+        title: Text(
+          l10n.scoreHubAdvancedFilters,
+          style: const TextStyle(
+            color: CymbraColors.onSurfaceVariant,
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        children: [
+          _chipRow(l10n.scoreHubFastestNote, [
+            _opt(
+              l10n.scoreHubAny,
+              state.maxNoteValue == null,
+              () => notifier.setMaxNoteValue(null),
+            ),
+            _opt(
+              l10n.scoreHubNoteQuarter,
+              state.maxNoteValue == 4,
+              () => notifier.setMaxNoteValue(4),
+            ),
+            _opt(
+              l10n.scoreHubNoteEighth,
+              state.maxNoteValue == 8,
+              () => notifier.setMaxNoteValue(8),
+            ),
+            _opt(
+              l10n.scoreHubNoteSixteenth,
+              state.maxNoteValue == 16,
+              () => notifier.setMaxNoteValue(16),
+            ),
+          ]),
+          _chipRow(l10n.scoreHubHandSpan, [
+            _opt(
+              l10n.scoreHubAny,
+              state.maxAmbitusSemitones == null,
+              () => notifier.setMaxAmbitusSemitones(null),
+            ),
+            _opt(
+              l10n.scoreHubSpanOneOctave,
+              state.maxAmbitusSemitones == 12,
+              () => notifier.setMaxAmbitusSemitones(12),
+            ),
+            _opt(
+              l10n.scoreHubSpanTwoOctaves,
+              state.maxAmbitusSemitones == 24,
+              () => notifier.setMaxAmbitusSemitones(24),
+            ),
+          ]),
+          _chipRow(l10n.scoreHubTempo, [
+            _opt(
+              l10n.scoreHubAny,
+              state.minBpm == null && state.maxBpm == null,
+              () => notifier.setTempoBand(null, null),
+            ),
+            _opt(
+              l10n.scoreHubTempoSlow,
+              state.maxBpm == 75,
+              () => notifier.setTempoBand(null, 75),
+            ),
+            _opt(
+              l10n.scoreHubTempoModerate,
+              state.minBpm == 76 && state.maxBpm == 120,
+              () => notifier.setTempoBand(76, 120),
+            ),
+            _opt(
+              l10n.scoreHubTempoFast,
+              state.minBpm == 121,
+              () => notifier.setTempoBand(121, null),
+            ),
+          ]),
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Wrap(
+              spacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                FilterChip(
+                  label: Text(l10n.scoreHubChords),
+                  selected: state.hasChords == true,
+                  onSelected: notifier.toggleChords,
+                ),
+                FilterChip(
+                  label: Text(l10n.scoreHubTuplets),
+                  selected: state.hasTuplets == true,
+                  onSelected: notifier.toggleTuplets,
+                ),
+                FilterChip(
+                  label: Text(l10n.scoreHubDotted),
+                  selected: state.hasDotted == true,
+                  onSelected: notifier.toggleDotted,
+                ),
+                if (state.hasAdvancedFilters)
+                  TextButton(
+                    onPressed: notifier.clearAdvancedFilters,
+                    child: Text(l10n.scoreHubClearFilters),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// A labelled row of mutually-exclusive choice chips.
+  Widget _chipRow(String label, List<Widget> chips) => Padding(
+    padding: const EdgeInsets.only(top: 4),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            color: CymbraColors.onSurfaceVariant,
+            fontSize: 12,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Wrap(spacing: 8, runSpacing: 4, children: chips),
+      ],
+    ),
+  );
+
+  Widget _opt(String label, bool selected, VoidCallback onTap) => ChoiceChip(
+    label: Text(label),
+    selected: selected,
+    onSelected: (_) => onTap(),
+  );
 }
 
 class _Results extends StatelessWidget {
