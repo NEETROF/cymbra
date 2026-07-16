@@ -41,10 +41,10 @@
 
 ## 6. Store-listing copy
 
-- [ ] 6.1 Write app description and subtitle/short promo text into `apps/music/store/`
-- [ ] 6.2 Write iOS keywords and pick iOS primary/secondary categories
-- [ ] 6.3 Pick the Google Play category and short description
-- [ ] 6.4 Review copy for both stores' character limits and content policies
+- [x] 6.1 Write app description and subtitle/short promo text into `apps/music/store/` (en + fr in `store/copy/`; it + es to translate)
+- [x] 6.2 Write iOS keywords and pick iOS primary/secondary categories (Education / Music)
+- [x] 6.3 Pick the Google Play category and short description (Education)
+- [x] 6.4 Review copy for both stores' character limits and content policies (all constrained fields verified within limits)
 
 ## 7. Validation
 

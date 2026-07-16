@@ -21,7 +21,7 @@ store/
 - [x] Play feature graphic (1024×500)
 - [ ] iOS screenshots — 6.7" iPhone (1290×2796→landscape) and 12.9" iPad, **landscape** (the app is landscape-only). Capture manually from a simulator/device.
 - [ ] Android phone screenshots — ≥2, landscape.
-- [ ] Listing copy under `copy/` — description, subtitle/short promo, iOS keywords, category.
+- [x] Listing copy under `copy/` — **en** and **fr** done (`copy/en.md`, `copy/fr.md`): name, subtitle, short/promo, keywords, full description, categories, all within store char limits. **it** and **es** still to translate (app ships 4 locales).
 
 ## Categories (decided)
 
