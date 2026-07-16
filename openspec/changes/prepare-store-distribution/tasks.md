@@ -1,7 +1,7 @@
 ## 1. Android release blocker (do first — ships broken without it)
 
 - [x] 1.1 Add `<uses-permission android:name="android.permission.INTERNET"/>` to `apps/music/android/app/src/main/AndroidManifest.xml`
-- [ ] 1.2 Verify the merged release manifest contains INTERNET (`flutter build apk --release` → inspect `build/app/outputs/.../AndroidManifest.xml` or `manifest-merger` report)
+- [x] 1.2 Verify the merged release manifest contains INTERNET (confirmed in `build/app/intermediates/merged_manifests/release/.../AndroidManifest.xml`: `uses-permission android.permission.INTERNET` present and `screenOrientation="sensorLandscape"` preserved)
 - [ ] 1.3 Smoke-test a release/profile build reaching `api.cymbra.app:443` (gRPC call succeeds, no `SecurityException`)
 
 ## 2. App icons
@@ -49,5 +49,11 @@
 ## 7. Validation
 
 - [x] 7.1 `openspec validate prepare-store-distribution --strict` passes
-- [ ] 7.2 `melos run analyze` and `dart format` clean after pubspec/asset changes (no Dart changed by this work — assets/native/plist/pubspec only; run once alongside the build)
+- [x] 7.2 `melos run analyze` and `dart format` clean after pubspec/asset changes (`flutter analyze` → No issues found; `dart format` → 0 changed)
 - [ ] 7.3 Full release build of AAB + IPA succeeds locally (or via `release-build.yml` dispatch) with the new assets
+      (NOTE: local `flutter build apk --release` fails at the Java compile step because the LOCAL Flutter 3.38.10 (Feb 2026) does not exclude dev-dependency plugins — `flutter_native_splash` AND the pre-existing `integration_test` — from the generated plugin registrant while Gradle excludes their AARs in release. This is a local-Flutter-version artifact, NOT a regression from this change: CI's `channel: stable` is newer and the last 7 `release-build.yml` runs are green with `integration_test` present. The manifest-merge step (task 1.2) completes before that compile step, so INTERNET is verified. Resolve by building via CI or upgrading the local Flutter.)
+
+## 8. Desktop window title (branding)
+
+- [x] 8.1 Set the desktop window title to "Cymbra Music" (was the default "music"): linux `my_application.cc` (header bar + window title), windows `main.cpp` window title + `Runner.rc` ProductName/FileDescription, macos window title in `MainFlutterWindow.swift` + `CFBundleName` + `MainMenu.xib` About/Hide/Quit items
+- [x] 8.2 Verify macOS shows "Cymbra Music" in the title bar and menu bar (built + launched `-d macos`; confirmed on screen). Windows/Linux are code-only edits, to be confirmed at their next build.
