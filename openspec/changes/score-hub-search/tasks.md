@@ -56,6 +56,6 @@
 ## 8. Tests, coverage & pre-PR
 
 - [x] 8.1 Widget tests: hub search/author-filter/difficulty-filter/paging/add-remove with an in-memory `CatalogService` override; "mes partitions" chip switches source to uploads and hides add-to-library; home saved-section visibility (signed in/out/empty) and removal.
-- [ ] 8.2 Confirm Rust ≥ 80% (`cargo llvm-cov ... --fail-under-lines 80`) and Flutter ≥ 80% (`flutter test --coverage`), pure logic kept in host-testable seams.
-- [ ] 8.3 `melos run analyze` + `dart format`; `cargo fmt --all --check` + `cargo clippy --workspace --all-targets -- -D warnings`.
-- [ ] 8.4 Regenerate gRPC/FRB stubs if the public API changed; `openspec validate score-hub-search --strict` passes.
+- [x] 8.2 Confirm Rust ≥ 80% (`cargo llvm-cov ... --fail-under-lines 80`) and Flutter ≥ 80% (`flutter test --coverage`), pure logic kept in host-testable seams.
+- [x] 8.3 `melos run analyze` + `dart format`; `cargo fmt --all --check` + `cargo clippy --workspace --all-targets -- -D warnings`.
+- [x] 8.4 Regenerate gRPC/FRB stubs if the public API changed; `openspec validate score-hub-search --strict` passes.
