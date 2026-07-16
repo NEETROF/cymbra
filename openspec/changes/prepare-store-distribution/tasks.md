@@ -48,6 +48,6 @@
 
 ## 7. Validation
 
-- [ ] 7.1 `openspec validate prepare-store-distribution --strict` passes
-- [ ] 7.2 `melos run analyze` and `dart format` clean after pubspec/asset changes
+- [x] 7.1 `openspec validate prepare-store-distribution --strict` passes
+- [ ] 7.2 `melos run analyze` and `dart format` clean after pubspec/asset changes (no Dart changed by this work — assets/native/plist/pubspec only; run once alongside the build)
 - [ ] 7.3 Full release build of AAB + IPA succeeds locally (or via `release-build.yml` dispatch) with the new assets
