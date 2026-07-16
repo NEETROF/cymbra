@@ -1,5 +1,27 @@
 # Changelog
 
+## [1.11.2](https://github.com/NEETROF/cymbra/compare/music-v1.11.1...music-v1.11.2) (2026-07-15)
+
+
+### Bug Fixes
+
+* **ios:** add location purpose string to silence App Store warning 90683 ([#91](https://github.com/NEETROF/cymbra/issues/91)) ([8815d0d](https://github.com/NEETROF/cymbra/commit/8815d0d61e79d523a778bc91c7c8e0dbd1d6cd77))
+
+## [1.11.1](https://github.com/NEETROF/cymbra/compare/music-v1.11.0...music-v1.11.1) (2026-07-15)
+
+
+### Bug Fixes
+
+* **ios:** add camera and photo library purpose strings to Info.plist ([#88](https://github.com/NEETROF/cymbra/issues/88)) ([2ef5c75](https://github.com/NEETROF/cymbra/commit/2ef5c759045d2b3cda87cec0f0e9220e2b74ec82))
+
+## [1.11.0](https://github.com/NEETROF/cymbra/compare/music-v1.10.0...music-v1.11.0) (2026-07-15)
+
+
+### Features
+
+* **music:** in-app CGU and privacy links ([#84](https://github.com/NEETROF/cymbra/issues/84)) ([f6c3d67](https://github.com/NEETROF/cymbra/commit/f6c3d67de543f1b8a5f58f389e9b4ce7da251299))
+* user score upload (contribution wizard + music module) ([#86](https://github.com/NEETROF/cymbra/issues/86)) ([d50f34e](https://github.com/NEETROF/cymbra/commit/d50f34ea7e5b962e6ecbac2fed43009f35b728e7))
+
 ## [1.10.0](https://github.com/NEETROF/cymbra/compare/music-v1.9.0...music-v1.10.0) (2026-07-13)
 
 

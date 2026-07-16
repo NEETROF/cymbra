@@ -1,5 +1,8 @@
-## ADDED Requirements
+# backend-score-storage Specification
 
+## Purpose
+TBD - created by archiving change add-user-score-upload. Update Purpose after archive.
+## Requirements
 ### Requirement: Authenticated score upload with server-side validation
 
 The backend SHALL expose an authenticated operation that accepts an uploaded
@@ -110,11 +113,15 @@ whose basis is outside the accepted set, MUST be rejected.
 
 The backend SHALL derive every descriptive and musical metadata field of an
 uploaded score — at least its title, composer, key, time signature, and measure
-count — **from the server-side parse of the received file**, and MUST NOT accept
-or store any such metadata sent by the client. The only score attributes the
-caller may set are the chosen difficulty and the rights attestation (basis +
-confirmation); the stored metadata MUST therefore always correspond to the actual
-file content, so a client cannot alter or spoof it.
+count — **from the server-side parse of the received file**. A parsed value is
+authoritative and MUST NOT be overridden by any client-sent value. The **only**
+exception is a **fallback title/composer**: when the parsed file carries **no**
+title (resp. composer), the backend MAY use a client-supplied fallback for that
+field, since there is no parsed value to protect; a fallback MUST be ignored when
+the file does carry the field. Musical metadata (key, time, measures, is-piano)
+is never client-settable. The stored metadata therefore always reflects the file
+when the file provides it, and a client can never alter or spoof a value the file
+already contains.
 
 #### Scenario: Metadata comes from the file, not the request
 
@@ -122,19 +129,25 @@ file content, so a client cannot alter or spoof it.
 - **THEN** the stored record's title, composer, and musical metadata are taken
   from the server's parse of the uploaded bytes
 
-#### Scenario: Client-supplied metadata is ignored
+#### Scenario: A client value never overrides a parsed one
 
-- **WHEN** an upload request carries descriptive metadata fields (e.g. a title or
-  composer) alongside the file
-- **THEN** the server ignores them and uses only values derived from the parsed
-  file
+- **WHEN** the parsed file carries a title (or composer) AND the request also
+  carries a fallback for that field
+- **THEN** the server keeps the parsed value and ignores the client fallback
+
+#### Scenario: Fallback fills a field the file lacks
+
+- **WHEN** the parsed file carries no title (or composer) AND the request supplies
+  a fallback for that field
+- **THEN** the server stores the (trimmed, bounded) fallback and re-derives the
+  search keys from it
 
 #### Scenario: Stored metadata matches the file content
 
 - **WHEN** a score is stored
-- **THEN** its recorded metadata reflects the parsed content of the stored bytes,
-  with only difficulty and the rights attestation (basis + confirmation)
-  originating from the caller
+- **THEN** every field the file provides reflects the parsed content of the stored
+  bytes, with only difficulty, the rights attestation, and any fallback for a
+  file-absent title/composer originating from the caller
 
 ### Requirement: List the caller's own contributed scores
 
@@ -189,3 +202,4 @@ data remains attributable to the removed account.
 - **WHEN** a user account is deleted
 - **THEN** that user's contributed-score records are removed and their stored
   objects are deleted (or scheduled for idempotent deletion)
+

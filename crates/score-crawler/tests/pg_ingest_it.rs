@@ -4,7 +4,7 @@
 // See the workspace root for the full licence text.
 
 //! End-to-end integration test: crawl the local fixture repo, write the corpus,
-//! and ingest into a real Postgres `score.catalog_scores`.
+//! and ingest into a real Postgres `music.catalog_scores`.
 //!
 //! Skipped unless `CYMBRA_SCORE_DATABASE_URL` is set, e.g. (substitute the
 //! backend dev Postgres password from backend/docker-compose.yml):
@@ -45,21 +45,21 @@ async fn crawl_fixture_and_ingest_into_postgres() {
     assert_eq!(entries.len(), 2);
 
     // 3. Ingest into a real Postgres catalog.
-    let pool = cymbra_score::connect(&url, 2)
+    let pool = cymbra_music::connect(&url, 2)
         .await
         .expect("connect postgres");
-    cymbra_score::MIGRATOR
+    cymbra_music::MIGRATOR
         .run(&pool)
         .await
         .expect("run migrations");
-    let repo = cymbra_score::PgCatalogRepo::new(pool);
+    let repo = cymbra_music::PgCatalogRepo::new(pool);
 
     catalog::ingest(&repo, &entries).await.expect("ingest");
 
     // Every retained score is now in catalog_scores...
     for e in &entries {
         assert!(
-            cymbra_score::CatalogRepo::sha_exists(&repo, &e.sha256)
+            cymbra_music::CatalogRepo::sha_exists(&repo, &e.sha256)
                 .await
                 .expect("sha_exists"),
             "sha {} present after ingest",
@@ -71,7 +71,7 @@ async fn crawl_fixture_and_ingest_into_postgres() {
     assert_eq!(reingested, 0, "re-ingest inserts no new rows");
 
     eprintln!(
-        "OK: ingested {} scores into score.catalog_scores",
+        "OK: ingested {} scores into music.catalog_scores",
         entries.len()
     );
 }

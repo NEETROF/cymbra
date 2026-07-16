@@ -70,7 +70,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.12.0';
 
   @override
-  int get rustContentHash => 801337323;
+  int get rustContentHash => -588542748;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -114,6 +114,10 @@ abstract class RustLibApi extends BaseApi {
   });
 
   void crateApiMidiSetMidiPort({String? name});
+
+  Future<ValidationOutcome> crateApiMusicxmlValidateMusicxml({
+    required List<int> bytes,
+  });
 }
 
 class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
@@ -477,6 +481,36 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta get kCrateApiMidiSetMidiPortConstMeta =>
       const TaskConstMeta(debugName: "set_midi_port", argNames: ["name"]);
 
+  @override
+  Future<ValidationOutcome> crateApiMusicxmlValidateMusicxml({
+    required List<int> bytes,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_list_prim_u_8_loose(bytes, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 15,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_validation_outcome,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiMusicxmlValidateMusicxmlConstMeta,
+        argValues: [bytes],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiMusicxmlValidateMusicxmlConstMeta =>
+      const TaskConstMeta(debugName: "validate_musicxml", argNames: ["bytes"]);
+
   @protected
   AnyhowException dco_decode_AnyhowException(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
@@ -543,6 +577,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ScoreDocument dco_decode_box_autoadd_score_document(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_score_document(raw);
+  }
+
+  @protected
+  ScoreSummary dco_decode_box_autoadd_score_summary(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_score_summary(raw);
   }
 
   @protected
@@ -809,6 +849,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  ScoreSummary? dco_decode_opt_box_autoadd_score_summary(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_score_summary(raw);
+  }
+
+  @protected
   StemDir? dco_decode_opt_box_autoadd_stem_dir(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_stem_dir(raw);
@@ -868,6 +914,26 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     return ScoreMeta(
       title: dco_decode_opt_String(arr[0]),
       composer: dco_decode_opt_String(arr[1]),
+    );
+  }
+
+  @protected
+  ScoreSummary dco_decode_score_summary(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 10)
+      throw Exception('unexpected arr length: expect 10 but see ${arr.length}');
+    return ScoreSummary(
+      title: dco_decode_opt_String(arr[0]),
+      composer: dco_decode_opt_String(arr[1]),
+      titleNorm: dco_decode_opt_String(arr[2]),
+      workKey: dco_decode_String(arr[3]),
+      isPiano: dco_decode_bool(arr[4]),
+      staves: dco_decode_u_32(arr[5]),
+      keyFifths: dco_decode_i_32(arr[6]),
+      timeSig: dco_decode_String(arr[7]),
+      measureCount: dco_decode_u_32(arr[8]),
+      noteCount: dco_decode_u_32(arr[9]),
     );
   }
 
@@ -935,6 +1001,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   void dco_decode_unit(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return;
+  }
+
+  @protected
+  ValidationOutcome dco_decode_validation_outcome(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return ValidationOutcome(
+      summary: dco_decode_opt_box_autoadd_score_summary(arr[0]),
+      rejectCode: dco_decode_opt_String(arr[1]),
+    );
   }
 
   @protected
@@ -1012,6 +1090,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_score_document(deserializer));
+  }
+
+  @protected
+  ScoreSummary sse_decode_box_autoadd_score_summary(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_score_summary(deserializer));
   }
 
   @protected
@@ -1364,6 +1450,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  ScoreSummary? sse_decode_opt_box_autoadd_score_summary(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_score_summary(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
   StemDir? sse_decode_opt_box_autoadd_stem_dir(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -1426,6 +1525,33 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  ScoreSummary sse_decode_score_summary(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_title = sse_decode_opt_String(deserializer);
+    var var_composer = sse_decode_opt_String(deserializer);
+    var var_titleNorm = sse_decode_opt_String(deserializer);
+    var var_workKey = sse_decode_String(deserializer);
+    var var_isPiano = sse_decode_bool(deserializer);
+    var var_staves = sse_decode_u_32(deserializer);
+    var var_keyFifths = sse_decode_i_32(deserializer);
+    var var_timeSig = sse_decode_String(deserializer);
+    var var_measureCount = sse_decode_u_32(deserializer);
+    var var_noteCount = sse_decode_u_32(deserializer);
+    return ScoreSummary(
+      title: var_title,
+      composer: var_composer,
+      titleNorm: var_titleNorm,
+      workKey: var_workKey,
+      isPiano: var_isPiano,
+      staves: var_staves,
+      keyFifths: var_keyFifths,
+      timeSig: var_timeSig,
+      measureCount: var_measureCount,
+      noteCount: var_noteCount,
+    );
+  }
+
+  @protected
   StemDir sse_decode_stem_dir(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var inner = sse_decode_i_32(deserializer);
@@ -1477,6 +1603,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   void sse_decode_unit(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
+  }
+
+  @protected
+  ValidationOutcome sse_decode_validation_outcome(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_summary = sse_decode_opt_box_autoadd_score_summary(deserializer);
+    var var_rejectCode = sse_decode_opt_String(deserializer);
+    return ValidationOutcome(summary: var_summary, rejectCode: var_rejectCode);
   }
 
   @protected
@@ -1557,6 +1693,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_score_document(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_score_summary(
+    ScoreSummary self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_score_summary(self, serializer);
   }
 
   @protected
@@ -1855,6 +2000,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_opt_box_autoadd_score_summary(
+    ScoreSummary? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_score_summary(self, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_opt_box_autoadd_stem_dir(
     StemDir? self,
     SseSerializer serializer,
@@ -1912,6 +2070,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_score_summary(ScoreSummary self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_opt_String(self.title, serializer);
+    sse_encode_opt_String(self.composer, serializer);
+    sse_encode_opt_String(self.titleNorm, serializer);
+    sse_encode_String(self.workKey, serializer);
+    sse_encode_bool(self.isPiano, serializer);
+    sse_encode_u_32(self.staves, serializer);
+    sse_encode_i_32(self.keyFifths, serializer);
+    sse_encode_String(self.timeSig, serializer);
+    sse_encode_u_32(self.measureCount, serializer);
+    sse_encode_u_32(self.noteCount, serializer);
+  }
+
+  @protected
   void sse_encode_stem_dir(StemDir self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.index, serializer);
@@ -1959,5 +2132,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   void sse_encode_unit(void self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
+  }
+
+  @protected
+  void sse_encode_validation_outcome(
+    ValidationOutcome self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_opt_box_autoadd_score_summary(self.summary, serializer);
+    sse_encode_opt_String(self.rejectCode, serializer);
   }
 }

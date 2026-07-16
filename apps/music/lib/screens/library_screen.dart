@@ -17,11 +17,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../l10n/gen/app_localizations.dart';
 import '../layout/device_class.dart';
+import '../services/score_upload_service.dart';
+import '../state/contributed_scores.dart';
 import '../state/score_catalog.dart';
+import '../state/session_notifier.dart';
 import '../theme/cymbra_theme.dart';
 import '../widgets/language_selector.dart';
 import 'auth/account_menu.dart';
 import 'player_screen.dart';
+import 'score_upload_screen.dart';
 
 /// Localized name for a [PracticeLevel] section header.
 String _levelLabel(AppLocalizations l10n, PracticeLevel level) =>
@@ -45,10 +49,22 @@ class LibraryScreen extends ConsumerWidget {
       appBar: AppBar(
         title: Text(AppLocalizations.of(context).libraryTitle),
         backgroundColor: CymbraColors.surfaceContainerLowest,
-        actions: const [
-          LanguageSelectorButton(),
-          AccountMenu(),
-          SizedBox(width: 8),
+        actions: [
+          // Contribution entry point — only when signed in (spec: hidden/disabled
+          // otherwise, and the flow is not reachable).
+          if (ref.watch(canUseOnlineServicesProvider))
+            IconButton(
+              icon: const Icon(Icons.library_add_outlined),
+              tooltip: 'Contribuer une partition',
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const ScoreUploadScreen(),
+                ),
+              ),
+            ),
+          const LanguageSelectorButton(),
+          const AccountMenu(),
+          const SizedBox(width: 8),
         ],
       ),
       // In landscape the display cutout (camera/notch) sits on a side, so the
@@ -75,6 +91,14 @@ class LibraryScreen extends ConsumerWidget {
                     catalog.where((e) => e.level == level).toList(),
                     columns,
                   ),
+                // The signed-in user's own uploads (no section when signed out or
+                // empty). Byte-sourced, so they open in the player like bundled
+                // scores; each carries an owner-only delete.
+                ...switch (ref.watch(myContributedScoresProvider)) {
+                  AsyncData(:final value) when value.isNotEmpty =>
+                    _contributedSection(context, ref, value, columns),
+                  _ => const <Widget>[],
+                },
               ],
             );
           },
@@ -120,11 +144,81 @@ class LibraryScreen extends ConsumerWidget {
         ),
     ];
   }
+
+  /// The signed-in user's contributed scores, with an owner-only delete on each.
+  List<Widget> _contributedSection(
+    BuildContext context,
+    WidgetRef ref,
+    List<CatalogEntry> entries,
+    int columns,
+  ) => [
+    const Padding(
+      padding: EdgeInsets.fromLTRB(16, 20, 16, 4),
+      child: Text(
+        'MES CONTRIBUTIONS',
+        style: TextStyle(
+          color: CymbraColors.secondary,
+          fontSize: 15,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 0.5,
+        ),
+      ),
+    ),
+    for (var i = 0; i < entries.length; i += columns)
+      Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (var j = 0; j < columns; j++)
+            Expanded(
+              child: i + j < entries.length
+                  ? _EntryTile(
+                      entry: entries[i + j],
+                      onDelete: () =>
+                          _confirmDelete(context, ref, entries[i + j]),
+                    )
+                  : const SizedBox.shrink(),
+            ),
+        ],
+      ),
+  ];
+
+  Future<void> _confirmDelete(
+    BuildContext context,
+    WidgetRef ref,
+    CatalogEntry entry,
+  ) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Supprimer cette partition ?'),
+        content: Text('« ${entry.title} » sera définitivement supprimée.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Annuler'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Supprimer'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    await ref
+        .read(scoreUploadServiceProvider)
+        .deleteScore(entry.contributedId!);
+    ref.invalidate(myContributedScoresProvider);
+  }
 }
 
 class _EntryTile extends ConsumerWidget {
   final CatalogEntry entry;
-  const _EntryTile({required this.entry});
+
+  /// When set (a user-owned contributed score), the tile shows a delete action
+  /// instead of the open chevron. Bundled entries never get one (spec).
+  final VoidCallback? onDelete;
+  const _EntryTile({required this.entry, this.onDelete});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -150,10 +244,19 @@ class _EntryTile extends ConsumerWidget {
         overflow: TextOverflow.ellipsis,
         style: const TextStyle(color: CymbraColors.onSurfaceVariant),
       ),
-      trailing: const Icon(
-        Icons.chevron_right,
-        color: CymbraColors.onSurfaceVariant,
-      ),
+      trailing: onDelete != null
+          ? IconButton(
+              icon: const Icon(
+                Icons.delete_outline,
+                color: CymbraColors.onSurfaceVariant,
+              ),
+              tooltip: 'Supprimer',
+              onPressed: onDelete,
+            )
+          : const Icon(
+              Icons.chevron_right,
+              color: CymbraColors.onSurfaceVariant,
+            ),
       onTap: () {
         ref.read(selectedScoreProvider.notifier).select(entry);
         Navigator.of(

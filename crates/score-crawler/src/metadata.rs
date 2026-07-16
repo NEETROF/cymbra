@@ -14,14 +14,14 @@
 
 //! Search-ready metadata derived from the parsed score at ingest time.
 //!
-//! Everything the parser yields for free is captured now (a later search API
-//! then needs no re-parse backfill): a normalised `title_norm` and `work_key`
-//! for fuzzy search / dedup grouping, plus musical facets (`key_fifths`,
-//! `time_sig`, `measure_count`, staff/piano info). Fields the parsed model does
-//! not carry (`language`, `voicing`) are left to the source adapter.
+//! The musical facets and normalised keys (`title_norm`, `work_key`,
+//! `key_fifths`, `time_sig`, `measure_count`, staff/piano info) come from the
+//! shared [`ScoreSummary`] derivation in `musicxml-core`, so the crawler's
+//! `catalog_scores` and user uploads' `user_scores` are computed identically.
+//! Fields the parsed model does not carry (`language`, `voicing`) are left to
+//! the source adapter.
 
-use cymbra_musicxml_core::ScoreDocument;
-use unicode_normalization::UnicodeNormalization;
+use cymbra_musicxml_core::{ScoreDocument, ScoreSummary};
 
 /// Search/facet + musical metadata for one score, to be persisted alongside its
 /// provenance in `catalog_scores`.
@@ -49,59 +49,25 @@ pub struct ScoreMetadata {
     pub voicing: Option<String>,
 }
 
-/// Derives [`ScoreMetadata`] from a parsed document. Pure; never panics.
+/// Derives [`ScoreMetadata`] from a parsed document by delegating the musical
+/// facets and normalised keys to the shared [`ScoreSummary`], then attaching the
+/// source-supplied fields (`language`, `voicing`). Pure; never panics.
 pub fn extract(doc: &ScoreDocument) -> ScoreMetadata {
-    let title = doc.meta.title.clone();
-    let composer = doc.meta.composer.clone();
-    let title_norm = title.as_deref().map(normalize_text);
-    let composer_norm = composer.as_deref().map(normalize_text).unwrap_or_default();
-    let work_key = format!(
-        "{}::{}",
-        composer_norm,
-        title_norm.clone().unwrap_or_default()
-    );
-
-    let note_count = doc
-        .measures
-        .iter()
-        .flat_map(|m| &m.notes)
-        .filter(|n| n.pitch.is_some() && !n.is_rest)
-        .count() as u32;
-
+    let s = ScoreSummary::from_document(doc);
     ScoreMetadata {
-        title,
-        composer,
-        title_norm,
-        work_key,
-        is_piano: doc.staves >= 2,
-        staves: doc.staves,
-        key_fifths: doc.attributes.key_fifths,
-        time_sig: format!(
-            "{}/{}",
-            doc.attributes.time.beats, doc.attributes.time.beat_type
-        ),
-        measure_count: doc.measures.len() as u32,
-        note_count,
+        title: s.title,
+        composer: s.composer,
+        title_norm: s.title_norm,
+        work_key: s.work_key,
+        is_piano: s.is_piano,
+        staves: s.staves,
+        key_fifths: s.key_fifths,
+        time_sig: s.time_sig,
+        measure_count: s.measure_count,
+        note_count: s.note_count,
         language: None,
         voicing: None,
     }
-}
-
-/// Lowercases, strips diacritics (NFD then drop combining marks), and collapses
-/// runs of whitespace to single spaces — the canonical form used for fuzzy
-/// search and dedup keys.
-pub fn normalize_text(s: &str) -> String {
-    let folded: String = s
-        .nfd()
-        .filter(|c| !is_combining_mark(*c))
-        .collect::<String>()
-        .to_lowercase();
-    folded.split_whitespace().collect::<Vec<_>>().join(" ")
-}
-
-/// True for Unicode combining marks (the diacritics NFD splits off).
-fn is_combining_mark(c: char) -> bool {
-    ('\u{0300}'..='\u{036F}').contains(&c)
 }
 
 #[cfg(test)]
@@ -153,13 +119,6 @@ mod tests {
         assert_eq!(m.title.as_deref(), Some("Clair de Lune"));
         assert_eq!(m.title_norm.as_deref(), Some("clair de lune"));
         assert_eq!(m.work_key, "claude debussy::clair de lune");
-    }
-
-    #[test]
-    fn normalize_folds_accents_case_and_whitespace() {
-        assert_eq!(normalize_text("Éolienne  Op.  25"), "eolienne op. 25");
-        assert_eq!(normalize_text("BÉLA  Bartók"), "bela bartok");
-        assert_eq!(normalize_text("  trim  me  "), "trim me");
     }
 
     #[test]

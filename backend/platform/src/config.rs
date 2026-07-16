@@ -33,6 +33,35 @@ pub struct Config {
     pub oidc_providers: Vec<OidcProvider>,
     pub otlp_endpoint: Option<String>,
     pub otlp_enabled: bool,
+    /// S3-compatible object store for user-uploaded scores. `None` disables the
+    /// score-upload feature (backend ships inert until configured); a *partial*
+    /// S3 config is a hard error (fail-fast), not a silent disable.
+    pub score_storage: Option<ScoreStorageConfig>,
+    /// Postgres URL for the `music` schema (role `music_svc`). Required to wire the
+    /// score-upload service; `None` leaves it unwired (the feature stays inert).
+    pub music_database_url: Option<String>,
+    /// Local warm-cache root the score reads serve from (crawler corpus + pulled
+    /// uploads); the S3 fallback populates it on a miss.
+    pub score_local_root: String,
+    /// Max contributed scores a user may create within `upload_quota_window`.
+    pub upload_quota_max: u32,
+    /// Rolling window (days) for `upload_quota_max`.
+    pub upload_quota_window_days: u32,
+    /// Hard per-upload size cap (bytes) enforced server-side before storage.
+    pub upload_max_bytes: usize,
+}
+
+/// S3-compatible object-store connection for user scores. Maps to
+/// `cymbra_storage::S3Params` in the composition root.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ScoreStorageConfig {
+    pub bucket: String,
+    pub endpoint: String,
+    pub region: String,
+    pub access_key: String,
+    pub secret_key: String,
+    /// Allow plain HTTP (local MinIO in dev); keep false in prod.
+    pub allow_http: bool,
 }
 
 /// A trusted external OIDC provider.
@@ -70,7 +99,9 @@ impl Config {
 
 /// Pure, host-testable parsing/validation over a key/value map.
 pub mod config_core {
-    use super::{AppError, Config, Duration, HashMap, OidcProvider, Result, TokenConfig};
+    use super::{
+        AppError, Config, Duration, HashMap, OidcProvider, Result, ScoreStorageConfig, TokenConfig,
+    };
 
     pub fn parse(m: &HashMap<String, String>) -> Result<Config> {
         Ok(Config {
@@ -99,7 +130,36 @@ pub mod config_core {
             oidc_providers: oidc_providers(m),
             otlp_endpoint: m.get("CYMBRA_OTLP_ENDPOINT").cloned(),
             otlp_enabled: flag(m, "CYMBRA_OTLP_ENABLED", false),
+            score_storage: score_storage(m)?,
+            music_database_url: m
+                .get("CYMBRA_MUSIC_DATABASE_URL")
+                .filter(|v| !v.is_empty())
+                .cloned(),
+            score_local_root: opt(m, "CYMBRA_SCORE_LOCAL_ROOT", "/srv/cymbra/scores"),
+            upload_quota_max: num(m, "CYMBRA_SCORE_UPLOAD_QUOTA_MAX", 5)?,
+            upload_quota_window_days: num(m, "CYMBRA_SCORE_UPLOAD_QUOTA_WINDOW_DAYS", 7)?,
+            upload_max_bytes: num(m, "CYMBRA_SCORE_UPLOAD_MAX_BYTES", 8 * 1024 * 1024)?,
         })
+    }
+
+    /// Build the score object-store config. Enabled when `CYMBRA_SCORE_S3_BUCKET`
+    /// is set; then every other S3 key is required (a partial config fails fast).
+    /// Absent bucket ⇒ `None` (the score-upload feature stays inert).
+    fn score_storage(m: &HashMap<String, String>) -> Result<Option<ScoreStorageConfig>> {
+        if m.get("CYMBRA_SCORE_S3_BUCKET")
+            .filter(|v| !v.is_empty())
+            .is_none()
+        {
+            return Ok(None);
+        }
+        Ok(Some(ScoreStorageConfig {
+            bucket: req(m, "CYMBRA_SCORE_S3_BUCKET")?,
+            endpoint: req(m, "CYMBRA_SCORE_S3_ENDPOINT")?,
+            region: req(m, "CYMBRA_SCORE_S3_REGION")?,
+            access_key: req(m, "CYMBRA_SCORE_S3_ACCESS_KEY")?,
+            secret_key: req(m, "CYMBRA_SCORE_S3_SECRET_KEY")?,
+            allow_http: flag(m, "CYMBRA_SCORE_S3_ALLOW_HTTP", false),
+        }))
     }
 
     /// Parse `CYMBRA_EMAIL_SEND_RATE` of the form `N/<duration>` (e.g. `3/1h`).
@@ -292,5 +352,46 @@ mod tests {
             .find(|p| p.provider == "google")
             .unwrap();
         assert_eq!(google.audiences, vec!["only-web.example"]);
+    }
+
+    #[test]
+    fn score_storage_absent_disables_uploads_with_sane_defaults() {
+        let c = config_core::parse(&base()).unwrap();
+        assert!(c.score_storage.is_none());
+        assert_eq!(c.score_local_root, "/srv/cymbra/scores");
+        assert_eq!(c.upload_quota_max, 5);
+        assert_eq!(c.upload_quota_window_days, 7);
+        assert_eq!(c.upload_max_bytes, 8 * 1024 * 1024);
+    }
+
+    #[test]
+    fn score_storage_present_parses_full_config() {
+        let mut m = base();
+        for (k, v) in [
+            ("CYMBRA_SCORE_S3_BUCKET", "cymbra-scores"),
+            ("CYMBRA_SCORE_S3_ENDPOINT", "http://minio:9000"),
+            ("CYMBRA_SCORE_S3_REGION", "us-east-1"),
+            ("CYMBRA_SCORE_S3_ACCESS_KEY", "ak"),
+            ("CYMBRA_SCORE_S3_SECRET_KEY", "sk"),
+            ("CYMBRA_SCORE_S3_ALLOW_HTTP", "true"),
+            ("CYMBRA_SCORE_UPLOAD_QUOTA_WINDOW_DAYS", "14"),
+        ] {
+            m.insert(k.into(), v.into());
+        }
+        let c = config_core::parse(&m).unwrap();
+        let s = c.score_storage.expect("storage configured");
+        assert_eq!(s.bucket, "cymbra-scores");
+        assert_eq!(s.endpoint, "http://minio:9000");
+        assert!(s.allow_http);
+        assert_eq!(c.upload_quota_window_days, 14);
+    }
+
+    #[test]
+    fn partial_score_storage_fails_fast() {
+        let mut m = base();
+        // Bucket set but credentials missing → hard error, not a silent disable.
+        m.insert("CYMBRA_SCORE_S3_BUCKET".into(), "cymbra-scores".into());
+        let err = config_core::parse(&m).unwrap_err();
+        assert!(matches!(err, AppError::Config(msg) if msg.contains("CYMBRA_SCORE_S3_ENDPOINT")));
     }
 }

@@ -45,11 +45,28 @@ async fn main() -> anyhow::Result<()> {
     let admin_pool = db::connect(&cfg.admin_database_url, 5).await?;
     let email: Arc<dyn EmailSender> = Arc::new(SmtpSender::new(&cfg.smtp_url, &cfg.smtp_from)?);
 
+    // Object store for the purge_score_object job (only when configured).
+    let storage: Option<Arc<dyn cymbra_storage::ObjectStorage>> = match cfg.score_storage.as_ref() {
+        Some(s3) => Some(Arc::new(cymbra_storage::LocalFirstStore::from_config(
+            &cfg.score_local_root,
+            &cymbra_storage::S3Params {
+                bucket: s3.bucket.clone(),
+                endpoint: s3.endpoint.clone(),
+                region: s3.region.clone(),
+                access_key: s3.access_key.clone(),
+                secret_key: s3.secret_key.clone(),
+                allow_http: s3.allow_http,
+            },
+        )?)),
+        None => None,
+    };
+
     let ctx = WorkerCtx {
         email,
         user,
         auth_pool,
         admin_pool,
+        storage,
         reap_grace_secs: cfg.orphan_reap_grace.as_secs() as i64,
     };
 

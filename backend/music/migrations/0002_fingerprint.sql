@@ -5,8 +5,8 @@
 -- skip near-duplicates at ingest and to find them for curation, but it is NOT a
 -- hard constraint (different works can legitimately share a tune).
 
-ALTER TABLE score.catalog_scores
+ALTER TABLE music.catalog_scores
     ADD COLUMN IF NOT EXISTS content_fingerprint TEXT NOT NULL DEFAULT '';
 
 CREATE INDEX IF NOT EXISTS catalog_scores_fingerprint_idx
-    ON score.catalog_scores (content_fingerprint);
+    ON music.catalog_scores (content_fingerprint);

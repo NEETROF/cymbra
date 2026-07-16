@@ -1,0 +1,52 @@
+syntax = "proto3";
+
+package cymbra.music.v1;
+
+// ScoreService — a signed-in user's own contributed scores. The caller's
+// identity comes from the internal access token (request metadata), never the
+// body. All descriptive metadata (title/composer/key/…) is DERIVED server-side
+// from the uploaded file — the client only supplies bytes, the chosen level, and
+// the rights attestation (see design 2b). Every op is scoped to the caller.
+
+// A contributed score as returned to its owner. Metadata is server-derived.
+message ScoreRecord {
+  string id = 1;
+  optional string title = 2;
+  optional string composer = 3;
+  string level = 4; // beginner | intermediate | advanced
+  int64 created_at = 5; // unix seconds
+  int32 measure_count = 6;
+  string time_sig = 7;
+  int32 key_fifths = 8;
+}
+
+message UploadScoreRequest {
+  bytes data = 1; // raw .musicxml/.xml or zipped .mxl
+  string filename = 2; // display/logging only — not trusted as metadata
+  string level = 3; // beginner | intermediate | advanced
+  string rights_basis = 4; // own_work | public_domain
+  bool rights_ack = 5; // the CGU confirmation; must be true
+  // FALLBACK title/composer, used by the server ONLY when the parsed file
+  // carries none (design 2b): a present parsed value always wins, so these can
+  // never override/spoof real metadata.
+  optional string fallback_title = 6;
+  optional string fallback_composer = 7;
+}
+
+message ListMyScoresRequest {}
+message ListMyScoresResponse { repeated ScoreRecord scores = 1; }
+
+message DeleteScoreRequest { string id = 1; }
+message DeleteScoreResponse {}
+
+// Fetch the (decoded/canonical) bytes of a contributed score the caller owns —
+// served local-first with an S3 fallback — to open it in the player.
+message GetScoreBytesRequest { string id = 1; }
+message GetScoreBytesResponse { bytes data = 1; }
+
+service ScoreService {
+  rpc UploadScore(UploadScoreRequest) returns (ScoreRecord);
+  rpc ListMyScores(ListMyScoresRequest) returns (ListMyScoresResponse);
+  rpc DeleteScore(DeleteScoreRequest) returns (DeleteScoreResponse);
+  rpc GetScoreBytes(GetScoreBytesRequest) returns (GetScoreBytesResponse);
+}

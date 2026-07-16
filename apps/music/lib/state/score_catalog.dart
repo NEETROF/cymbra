@@ -15,6 +15,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../l10n/gen/app_localizations.dart';
+
 part 'score_catalog.g.dart';
 
 /// Practice difficulty of a bundled score.
@@ -27,6 +29,13 @@ extension PracticeLevelLabel on PracticeLevel {
     PracticeLevel.intermediate => 'Intermediate',
     PracticeLevel.advanced => 'Advanced',
   };
+
+  /// Localized label (use in the UI; [label] is only a debug/fallback string).
+  String localizedLabel(AppLocalizations l10n) => switch (this) {
+    PracticeLevel.beginner => l10n.levelBeginner,
+    PracticeLevel.intermediate => l10n.levelIntermediate,
+    PracticeLevel.advanced => l10n.levelAdvanced,
+  };
 }
 
 /// One entry in the bundled score catalog: a public-domain MusicXML asset
@@ -37,17 +46,26 @@ class CatalogEntry {
   final String title;
   final String composer;
 
-  /// Bundle path of the uncompressed `.musicxml`/`.xml` asset.
+  /// Bundle path of the uncompressed `.musicxml`/`.xml` asset. Empty for a
+  /// user-contributed score, whose bytes come from the backend instead.
   final String assetPath;
   final PracticeLevel level;
+
+  /// Backend id when this entry is a user-contributed score (loaded via the
+  /// backend byte source); `null` for a bundled-catalog entry.
+  final String? contributedId;
 
   const CatalogEntry({
     required this.id,
     required this.title,
     required this.composer,
-    required this.assetPath,
     required this.level,
+    this.assetPath = '',
+    this.contributedId,
   });
+
+  /// Whether this is a user upload (byte-sourced) rather than a bundled score.
+  bool get isContributed => contributedId != null;
 
   @override
   int get hashCode => id.hashCode;

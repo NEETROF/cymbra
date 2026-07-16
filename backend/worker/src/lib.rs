@@ -16,11 +16,15 @@ use sqlx::PgPool;
 /// 2. `DELETE` the `auth.local_credentials` row by that email (if any).
 /// 3. `DELETE` every `auth.sessions` row for the user (refresh-token erasure).
 /// 4. `DELETE` the `user_account.users` row (cascades identities + roles).
+/// 5. `DELETE` the user's `music.user_scores` rows and, in the same transaction,
+///    enqueue a `purge_score_object` job per stored object so the bytes are
+///    erased too (no cross-schema FK, so no DB cascade — the enqueue is what
+///    reaches the object store).
 ///
 /// Every delete is a no-op when its rows are already gone, so the whole function
 /// is **idempotent**: re-running it for an already-purged user commits nothing to
-/// delete and succeeds. Callers (the `purge_user` job handler) get at-least-once
-/// delivery, so this idempotency is required.
+/// delete (and enqueues nothing) and succeeds. Callers (the `purge_user` job
+/// handler) get at-least-once delivery, so this idempotency is required.
 pub async fn purge_user(admin_pool: &PgPool, user_id: &str) -> anyhow::Result<()> {
     let uid = uuid::Uuid::parse_str(user_id)
         .map_err(|_| anyhow::anyhow!("purge_user: invalid user_id {user_id:?}"))?;
@@ -51,11 +55,48 @@ pub async fn purge_user(admin_pool: &PgPool, user_id: &str) -> anyhow::Result<()
         .execute(&mut *tx)
         .await?;
 
-    // Finally the account row; the FKs cascade `user_identities` + `user_roles`.
+    // The account row; the FKs cascade `user_identities` + `user_roles`.
     sqlx::query("DELETE FROM user_account.users WHERE id = $1")
         .bind(uid)
         .execute(&mut *tx)
         .await?;
+
+    // The user's contributed scores live in the `music` schema (no cross-schema
+    // FK, so no cascade): delete the rows and, in the SAME transaction, enqueue a
+    // `purge_score_object` job per stored object so its bytes are removed too. The
+    // transactional enqueue makes the row deletes and the cleanup jobs atomic;
+    // each object job is independently retryable if the store is transiently down.
+    let object_keys: Vec<String> = sqlx::query_scalar(
+        "DELETE FROM music.user_scores WHERE owner_id = $1 RETURNING object_key",
+    )
+    .bind(uid)
+    .fetch_all(&mut *tx)
+    .await?;
+    if !object_keys.is_empty() {
+        let spec = cymbra_jobs::registry::spec(cymbra_jobs::registry::PURGE_SCORE_OBJECT)
+            .ok_or_else(|| anyhow::anyhow!("purge_score_object spec missing"))?;
+        for key in &object_keys {
+            let req = cymbra_jobs::EnqueueRequest::for_job(
+                &spec,
+                &serde_json::json!({ "object_key": key }),
+                None,
+            )?;
+            sqlx::query(
+                "SELECT jobs.enqueue($1, $2, $3, $4, $5, \
+                 make_interval(secs => $6), make_interval(secs => $7), $8)",
+            )
+            .bind(&req.name)
+            .bind(&req.channel_name)
+            .bind(&req.channel_args)
+            .bind(req.ordered)
+            .bind(req.retries)
+            .bind(req.retry_backoff.as_secs() as i32)
+            .bind(req.delay.as_secs() as i32)
+            .bind(&req.payload_json)
+            .execute(&mut *tx)
+            .await?;
+        }
+    }
 
     tx.commit().await?;
     Ok(())

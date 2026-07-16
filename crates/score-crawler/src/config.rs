@@ -305,7 +305,7 @@ converters:
     fn env_overrides_switch_to_s3() {
         let mut cfg = Config::default();
         let env = EnvSource {
-            bucket: Some("cymbra-scores".into()),
+            bucket: Some("cymbra-musics".into()),
             endpoint: Some("https://minio.local".into()),
             ..Default::default()
         };
@@ -314,7 +314,7 @@ converters:
             StoreBackend::S3 {
                 bucket, endpoint, ..
             } => {
-                assert_eq!(bucket, "cymbra-scores");
+                assert_eq!(bucket, "cymbra-musics");
                 assert_eq!(endpoint.as_deref(), Some("https://minio.local"));
             }
             _ => panic!("expected S3 backend"),

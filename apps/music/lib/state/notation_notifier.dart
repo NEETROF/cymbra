@@ -16,6 +16,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../services/notation_engine.dart';
 import '../services/score_asset_source.dart';
+import '../services/score_upload_service.dart';
 import 'notation_data.dart';
 import 'score_catalog.dart';
 
@@ -55,7 +56,13 @@ class Notation extends _$Notation {
         ? state.availableWidth
         : _initialWidth;
     try {
-      final bytes = await _source.load(entry.assetPath);
+      // A contributed score's bytes come from the backend byte source; a bundled
+      // score's from the asset bundle. Same parse → layout path either way.
+      final bytes = entry.contributedId != null
+          ? await ref
+                .read(scoreUploadServiceProvider)
+                .fetchBytes(entry.contributedId!)
+          : await _source.load(entry.assetPath);
       final document = await _engine.parse(bytes);
       // Guard against a selection change while we were loading.
       if (ref.read(selectedScoreProvider) != entry) return;

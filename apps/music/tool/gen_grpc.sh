@@ -19,6 +19,8 @@ REPO_ROOT="$(cd "$APP_DIR/../.." && pwd)"
 OUT_DIR="$APP_DIR/lib/src/grpc"
 AUTH_PROTO_DIR="$REPO_ROOT/backend/auth-port/proto"
 USER_PROTO_DIR="$REPO_ROOT/backend/user-port/proto"
+# The music module keeps its proto inside the crate (single crate, no *-port).
+MUSIC_PROTO_DIR="$REPO_ROOT/backend/music/proto"
 
 command -v protoc >/dev/null 2>&1 || {
   echo "error: protoc not found on PATH (brew install protobuf)" >&2
@@ -48,7 +50,8 @@ to_native() {
 protoc \
   --proto_path="$(to_native "$AUTH_PROTO_DIR")" \
   --proto_path="$(to_native "$USER_PROTO_DIR")" \
+  --proto_path="$(to_native "$MUSIC_PROTO_DIR")" \
   --dart_out=grpc:"$(to_native "$OUT_DIR")" \
-  auth.proto user.proto
+  auth.proto user.proto score.proto
 
 echo "Generated gRPC Dart stubs into $OUT_DIR"

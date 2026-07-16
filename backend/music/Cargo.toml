@@ -1,0 +1,30 @@
+[package]
+name = "cymbra-music"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Cymbra music-domain module — the public score catalog (crawler-ingested) plus authenticated user uploads (user_scores + gRPC ScoreService), owned by the `music` schema."
+
+[dependencies]
+async-trait.workspace = true
+sqlx.workspace = true
+serde = { workspace = true }
+uuid.workspace = true
+anyhow.workspace = true
+tokio.workspace = true
+chrono.workspace = true
+sha2 = "0.10"
+# gRPC ScoreService (user uploads). The catalog surface stays anyhow-based; only
+# the upload path needs the platform error type + storage + shared validation.
+tonic.workspace = true
+prost.workspace = true
+cymbra-platform = { path = "../platform" }
+cymbra-storage = { path = "../storage" }
+cymbra-musicxml-core = { path = "../../crates/musicxml-core" }
+
+[build-dependencies]
+tonic-build.workspace = true
+
+[dev-dependencies]
+tokio = { workspace = true }

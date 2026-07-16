@@ -41,12 +41,34 @@ class FakeNotationEngine implements NotationEngine {
   int layoutCalls = 0;
   double? lastWidth;
 
-  FakeNotationEngine({this.document, this.parseError});
+  /// Scripted validation outcome; defaults to a valid piano summary.
+  ValidationOutcome? validateOutcome;
+
+  FakeNotationEngine({this.document, this.parseError, this.validateOutcome});
 
   @override
   Future<ScoreDocument> parse(Uint8List bytes) async {
     if (parseError != null) throw parseError!;
     return document ?? sampleGrandStaffDocument();
+  }
+
+  @override
+  Future<ValidationOutcome> validate(Uint8List bytes) async {
+    return validateOutcome ??
+        ValidationOutcome(
+          summary: const ScoreSummary(
+            title: 'Sample',
+            composer: 'A. Composer',
+            titleNorm: 'sample',
+            workKey: 'a. composer::sample',
+            isPiano: true,
+            staves: 2,
+            keyFifths: 0,
+            timeSig: '4/4',
+            measureCount: 4,
+            noteCount: 8,
+          ),
+        );
   }
 
   @override

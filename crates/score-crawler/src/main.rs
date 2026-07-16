@@ -72,14 +72,14 @@ async fn main() -> Result<()> {
 
     // Ingest the provenance into the shared `score` catalog when configured.
     let ingested = if let Some(url) = &config.catalog_database_url {
-        let pool = cymbra_score::connect(url, 4)
+        let pool = cymbra_music::connect(url, 4)
             .await
             .context("connecting to the score catalog database")?;
-        cymbra_score::MIGRATOR
+        cymbra_music::MIGRATOR
             .run(&pool)
             .await
             .context("running score catalog migrations")?;
-        let repo = cymbra_score::PgCatalogRepo::new(pool);
+        let repo = cymbra_music::PgCatalogRepo::new(pool);
         Some(
             score_crawler::catalog::ingest(&repo, &entries)
                 .await

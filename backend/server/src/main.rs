@@ -13,11 +13,14 @@ use cymbra_auth::{
 };
 use cymbra_auth::{CredentialRepo, OidcProviderCfg, OidcVerifier, SessionStore};
 use cymbra_auth_port::proto::auth_service_server::AuthServiceServer;
+use cymbra_music::proto::score_service_server::ScoreServiceServer;
+use cymbra_music::{PgUserScoreRepo, ScoreGrpc, ScoreModule};
 use cymbra_platform::cache::{Cache, RedisCache};
 use cymbra_platform::config::Config;
 use cymbra_platform::email::{EmailSender, SmtpSender};
 use cymbra_platform::interceptor::{AuthInterceptor, OptionalAuthInterceptor};
 use cymbra_platform::{db, metrics, telemetry};
+use cymbra_storage::{LocalFirstStore, ObjectStorage, S3Params};
 use cymbra_user::{PgUserRepo, UserGrpc, UserModule};
 use cymbra_user_port::UserPort;
 use cymbra_user_port::proto::user_service_server::UserServiceServer;
@@ -109,8 +112,51 @@ async fn main() -> anyhow::Result<()> {
     let strict = AuthInterceptor::new(keys.clone(), cfg.allowed_audiences.clone());
     let optional = OptionalAuthInterceptor::new(keys, cfg.allowed_audiences.clone());
 
-    let user_svc = UserServiceServer::with_interceptor(UserGrpc::new(user_concrete), strict);
+    let user_svc =
+        UserServiceServer::with_interceptor(UserGrpc::new(user_concrete), strict.clone());
     let auth_svc = AuthServiceServer::with_interceptor(AuthGrpc::new(auth), optional);
+
+    // --- music module: score uploads (wired only when the object store is set) ---
+    // Own pool via `music_svc`, run the module's MIGRATOR (owns `music`, so it
+    // creates/owns `user_scores`), and mount ScoreService behind the strict auth
+    // interceptor. Absent S3 config leaves the feature inert (backend ships first).
+    let score_svc = match cfg.score_storage.as_ref() {
+        Some(s3) => {
+            let db_url = cfg.music_database_url.as_deref().ok_or_else(|| {
+                anyhow::anyhow!(
+                    "CYMBRA_SCORE_S3_BUCKET is set but CYMBRA_MUSIC_DATABASE_URL is missing"
+                )
+            })?;
+            let music_pool = db::connect(db_url, 5).await?;
+            cymbra_music::MIGRATOR.run(&music_pool).await?;
+            let storage: Arc<dyn ObjectStorage> = Arc::new(LocalFirstStore::from_config(
+                &cfg.score_local_root,
+                &S3Params {
+                    bucket: s3.bucket.clone(),
+                    endpoint: s3.endpoint.clone(),
+                    region: s3.region.clone(),
+                    access_key: s3.access_key.clone(),
+                    secret_key: s3.secret_key.clone(),
+                    allow_http: s3.allow_http,
+                },
+            )?);
+            let module = Arc::new(ScoreModule::new(
+                Arc::new(PgUserScoreRepo::new(music_pool)),
+                storage,
+                cfg.upload_quota_max,
+                cfg.upload_quota_window_days,
+                cfg.upload_max_bytes,
+            ));
+            Some(ScoreServiceServer::with_interceptor(
+                ScoreGrpc::new(module),
+                strict,
+            ))
+        }
+        None => {
+            tracing::info!("score-upload disabled (CYMBRA_SCORE_S3_BUCKET unset)");
+            None
+        }
+    };
 
     // --- HTTP surface (JWKS + health) ---
     let jwks = cymbra_server::jwks_value(&cfg)?;
@@ -120,11 +166,14 @@ async fn main() -> anyhow::Result<()> {
     let http_addr: SocketAddr = cfg.http_addr.parse()?;
     tracing::info!(%grpc_addr, %http_addr, "cymbra-server serving");
 
-    let grpc = Server::builder()
+    let mut router = Server::builder()
         .layer(metrics::ObserveLayer::new(red))
         .add_service(user_svc)
-        .add_service(auth_svc)
-        .serve(grpc_addr);
+        .add_service(auth_svc);
+    if let Some(score_svc) = score_svc {
+        router = router.add_service(score_svc);
+    }
+    let grpc = router.serve(grpc_addr);
     let listener = tokio::net::TcpListener::bind(http_addr).await?;
     let http_srv = axum::serve(listener, http.into_make_service());
 

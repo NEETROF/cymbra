@@ -21,12 +21,14 @@
 //! score crawler. The parser consumes a large score as a stream of `quick-xml`
 //! `Event`s with bounded memory, never as a full DOM.
 
+pub mod meta;
 pub mod model;
 pub mod mxl;
 pub mod validate;
 
+pub use meta::{ScoreSummary, normalize_text};
 pub use model::*;
-pub use validate::{RejectReason, ScoreSummary, validate};
+pub use validate::{RejectReason, validate};
 
 use std::collections::BTreeMap;
 

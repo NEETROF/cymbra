@@ -235,14 +235,21 @@ Grafana/Tempo/Loki/Prometheus stack on this box:
    Both binaries then export OTLP to the local collector, which forwards to Grafana
    Cloud. The self-hosted stack under `backend/observability/` stays for local dev.
 
-## 11. Score corpus (crawler → local serve → S3 backup)
+## 11. Score corpus (crawler → local serve → S3 origin/fallback)
 
 The score-crawler harvests redistributable scores and ingests their provenance
-into `catalog_scores` (Postgres). The `.mxl` **bytes** are served by the app from
-a **local folder** (Option A); OVH Object Storage is a durable **backup**, not
-the read path. `object_key` in the catalog is exactly the file's path under the
-corpus root (`safe/<source>/<author>/<title>.mxl`), so the server resolves bytes
-directly from the mounted `/srv/cymbra/scores` (see `docker-compose.prod.yml`).
+into `catalog_scores` (Postgres). The `.mxl` **bytes** are served **local-first**
+from a **local folder** under `/srv/cymbra/scores`, with an **S3 fallback**: on a
+local miss the server pulls the object from S3 and warms the local copy (the
+`cymbra-storage` port, change `add-user-score-upload`). So S3 is the durable
+**origin** (and it also receives user uploads), not merely an off-box backup —
+a rebuilt/empty box still serves everything.
+
+`object_key` in the catalog is `<prefix>/<shard>/<uuid>.mxl` — `prefix` is
+`safe`/`low_confidence`, `shard` is the score UUID's last two hex chars, `uuid`
+is the catalog PK (keyed by the immutable id since #82, matching the user-upload
+store). The on-disk path is exactly `SCORES_DIR/ + object_key`, so the reader
+resolves bytes from `object_key` with no per-source branching.
 
 **No source is needed on the box.** The `crawler-image` CI workflow publishes two
 images to GHCR — `cymbra-score-crawler` and `cymbra-musescore` (headless MuseScore
@@ -262,7 +269,7 @@ LIMIT=5 docker compose --env-file .env -f docker-compose.crawler.prod.yml up
 . /etc/cymbra/backup.env; ./sync-scores.sh
 ```
 
-Verify: `select count(*) from score.catalog_scores;` grows, and
+Verify: `select count(*) from music.catalog_scores;` grows, and
 `find $SCORES_DIR -name '*.mxl' | wc -l` matches. Then run unbounded (drop `LIMIT`),
 or one source at a time (`... up mutopia`). `pdmx` downloads ~2 GB (the 222k-score
 Zenodo dataset) — run it last. `openscore` converts via a sibling `cymbra-musescore`
@@ -272,15 +279,50 @@ The crawler connects as the DB superuser by default (it runs its own `score`
 migrations then ingests); override `CYMBRA_SCORE_DATABASE_URL` for a dedicated role.
 
 **Nightly** `bootstrap.sh` installs a cron (04:00) that runs `sync-scores.sh`:
-it merges the crawler output into `SCORES_DIR` and mirrors it to `s3://$S3_BUCKET/scores`
-— same `/etc/cymbra/backup.env` creds as the DB backup. Set `CRAWL_OUT` +
-`SCORES_DIR` there (defaults: `/opt/cymbra/score-crawler/output`,
-`/var/lib/cymbra/scores`).
+it merges the crawler output into `SCORES_DIR` and mirrors it to the **bucket root**
+`s3://$SCORES_S3_BUCKET` — same `/etc/cymbra/backup.env` creds as the DB backup. Set
+`CRAWL_OUT` + `SCORES_DIR` there (defaults: `/opt/cymbra/score-crawler/output`,
+`/var/lib/cymbra/scores`). Mirroring to the root (not a `scores/` prefix) keeps the
+S3 key equal to `object_key`, so the server's S3 fallback and user uploads
+(`user-scores/…`) share one keyspace.
 
-> Remaining app-side work (tracked in `add-user-score-upload`): wire the server's
-> `object_store` **LocalFileSystem** reader to root at `/srv/cymbra/scores` and
-> expose the score-fetch endpoint. The corpus layout above is already what that
-> reader expects.
+> **`SCORES_S3_BUCKET` is DISTINCT from the DB-backup `S3_BUCKET`.** The scores
+> bucket must equal the server's `CYMBRA_SCORE_S3_BUCKET` (e.g. `cymbra-scores`),
+> NOT the backups bucket (`cymbra-backups`). Add `SCORES_S3_BUCKET=cymbra-scores`
+> to `/etc/cymbra/backup.env`; `sync-scores.sh` no longer falls back to
+> `S3_BUCKET`, so an unset value means "local corpus only" rather than silently
+> dumping the corpus into the backups bucket.
+
+> The server-side reader is the `cymbra-storage` local-first port (change
+> `add-user-score-upload`): `CYMBRA_SCORE_LOCAL_ROOT` roots the local cache
+> (default `/srv/cymbra/scores`) and `CYMBRA_SCORE_S3_*` configures the S3
+> origin/fallback. The corpus layout above is exactly what it expects.
+
+### Enabling user score upload (the ScoreService)
+
+Off by default — the server logs `score-upload disabled` until `CYMBRA_SCORE_S3_BUCKET`
+is set. To turn it on:
+
+1. **Provision the `music` role** (only if the box was initialised before the module
+   existed — check with `\du`): run `provision-music-role.sql` (idempotent, targeted;
+   it does NOT reset other roles' passwords):
+   ```bash
+   docker exec -e MPW='<music pw>' -i <postgres-container> \
+     psql -U <superuser> -d cymbra -v music_pw="$MPW" -f - < provision-music-role.sql
+   ```
+2. **Make the score root writable by the container UID (1000)** — the store
+   `create_dir_all()`s it at boot and warms the cache into it (so `:ro` is not enough):
+   ```bash
+   sudo chown -R 1000:1000 "${SCORES_DIR:-/var/lib/cymbra/scores}"
+   ```
+   The compose already bind-mounts it (writable) into **both** `server` and `worker`.
+3. **Fill the `.env` block** (see `.env.prod.example` → "User score upload"):
+   `CYMBRA_MUSIC_DB_PASSWORD` + `CYMBRA_MUSIC_DATABASE_URL` (must match the role
+   password from step 1) and the `CYMBRA_SCORE_S3_*` keys. Leave `CYMBRA_SCORE_LOCAL_ROOT`
+   unset (defaults to the container path `/srv/cymbra/scores`).
+4. Roll: `./deploy.sh <version>` — the server's MIGRATOR then creates
+   `music.catalog_scores` + `music.user_scores`, and the log shows the ScoreService
+   mounted instead of `score-upload disabled`.
 
 ## Before you invite testers — checklist (the easy-to-forget bits)
 

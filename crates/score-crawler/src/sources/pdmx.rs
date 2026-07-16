@@ -230,7 +230,7 @@ fn parse_usable(
 /// downloads must set one explicitly (git sources are unaffected: `git` sends
 /// its own).
 const DOWNLOAD_UA: &str = concat!(
-    "cymbra-score-crawler/",
+    "cymbra-music-crawler/",
     env!("CARGO_PKG_VERSION"),
     " (+https://github.com/NEETROF/cymbra)"
 );
@@ -291,8 +291,8 @@ mod tests {
         // Zenodo (CloudFlare) returns 403 to requests with no User-Agent, so the
         // PDMX downloader must always send a descriptive, non-empty one.
         let ua = DOWNLOAD_UA;
-        assert!(ua.contains("cymbra-score-crawler"));
-        assert!(ua.len() > "cymbra-score-crawler".len());
+        assert!(ua.contains("cymbra-music-crawler"));
+        assert!(ua.len() > "cymbra-music-crawler".len());
     }
 
     #[test]
