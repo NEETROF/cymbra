@@ -32,30 +32,30 @@
 
 ## 5. App — service seam & state (Riverpod + codegen)
 
-- [ ] 5.1 Add a `catalogId` field to `CatalogEntry` (parallel to `contributedId`) and an `isCatalog` getter; keep bundled/contributed behavior unchanged.
-- [ ] 5.2 Add a `CatalogService` seam (abstract + `GrpcCatalogService` over `ScoreServiceClient`, bearer-authed with transparent refresh like `GrpcScoreUploadService`): `search(query, author, level, page)`, `save`, `remove`, `listSaved`, `fetchBytes`.
-- [ ] 5.3 `catalogSearchNotifier` (`@riverpod`): source mode (catalog vs. "mes partitions"), query + author + difficulty + paging, debounced; exposes results + load-more + saved-state. In catalog mode it calls `CatalogService.search`; in "mes partitions" mode it sources the user's uploads via the existing `ListMyScores` path (`myContributedScoresProvider`/upload service) and filters them client-side by query/author/level.
-- [ ] 5.4 `savedCatalogScoresProvider` (`@riverpod`): list saved → `CatalogEntry`s; empty when signed out; invalidated on save/remove. (Note: "mes partitions" surfaces uploads, not this saved set — keep the two distinct.)
-- [ ] 5.5 Catalog byte source keyed by `catalogId` (parallel to the contributed byte source) wired into the player's score-source path.
-- [ ] 5.6 Run `build_runner`; ensure `custom_lint`/`riverpod_lint` clean.
+- [x] 5.1 Add a `catalogId` field to `CatalogEntry` (parallel to `contributedId`) and an `isCatalog` getter; keep bundled/contributed behavior unchanged.
+- [x] 5.2 Add a `CatalogService` seam (abstract + `GrpcCatalogService` over `ScoreServiceClient`, bearer-authed with transparent refresh like `GrpcScoreUploadService`): `search(query, author, level, page)`, `save`, `remove`, `listSaved`, `fetchBytes`.
+- [x] 5.3 `catalogSearchNotifier` (`@riverpod`): source mode (catalog vs. "mes partitions"), query + author + difficulty + paging, debounced; exposes results + load-more + saved-state. In catalog mode it calls `CatalogService.search`; in "mes partitions" mode it sources the user's uploads via the existing `ListMyScores` path (`myContributedScoresProvider`/upload service) and filters them client-side by query/author/level.
+- [x] 5.4 `savedCatalogScoresProvider` (`@riverpod`): list saved → `CatalogEntry`s; empty when signed out; invalidated on save/remove. (Note: "mes partitions" surfaces uploads, not this saved set — keep the two distinct.)
+- [x] 5.5 Catalog byte source keyed by `catalogId` (parallel to the contributed byte source) wired into the player's score-source path.
+- [x] 5.6 Run `build_runner`; ensure `custom_lint`/`riverpod_lint` clean.
 
 ## 6. App — Score Hub screen
 
-- [ ] 6.1 `ScoreHubScreen`: search field (title/author), author filter control (clearable), difficulty filter (all-levels default), and a "mes partitions" quick-filter chip that scopes the hub to the user's uploads (signed-in only); paginated results with load-more, attribution shown per catalog result.
-- [ ] 6.2 Add/remove-from-library toggle per catalog result reflecting saved state, mutating through `CatalogService` and invalidating `savedCatalogScoresProvider`; suppress the add/remove action in "mes partitions" mode (uploads are already owned) — tapping opens the player.
-- [ ] 6.3 Empty-query browse, no-results, and empty-"mes partitions" states.
-- [ ] 6.4 Add the hub entry point (app-bar action) on `LibraryScreen`, gated by `canUseOnlineServicesProvider`; not reachable when signed out.
+- [x] 6.1 `ScoreHubScreen`: search field (title/author), author filter control (clearable), difficulty filter (all-levels default), and a "mes partitions" quick-filter chip that scopes the hub to the user's uploads (signed-in only); paginated results with load-more, attribution shown per catalog result.
+- [x] 6.2 Add/remove-from-library toggle per catalog result reflecting saved state, mutating through `CatalogService` and invalidating `savedCatalogScoresProvider`; suppress the add/remove action in "mes partitions" mode (uploads are already owned) — tapping opens the player.
+- [x] 6.3 Empty-query browse, no-results, and empty-"mes partitions" states.
+- [x] 6.4 Add the hub entry point (app-bar action) on `LibraryScreen`, gated by `canUseOnlineServicesProvider`; not reachable when signed out.
 
 ## 7. App — home screen integration
 
-- [ ] 7.1 Add a saved-catalog section to `LibraryScreen` distinct from bundled catalog and "MES CONTRIBUTIONS", watching `savedCatalogScoresProvider` (hidden when signed out/empty).
-- [ ] 7.2 Saved tiles open in the player via `selectedScoreProvider` + the catalog byte source; retain keyboard/MIDI/transport.
-- [ ] 7.3 Per-tile remove action (backend remove + invalidate), leaving the public catalog intact.
-- [ ] 7.4 Add localized strings for the hub + saved section across locales (title, search hint, author-filter label, difficulty-filter labels, "mes partitions" chip, empty/no-results, add/remove, attribution).
+- [x] 7.1 Add a saved-catalog section to `LibraryScreen` distinct from bundled catalog and "MES CONTRIBUTIONS", watching `savedCatalogScoresProvider` (hidden when signed out/empty).
+- [x] 7.2 Saved tiles open in the player via `selectedScoreProvider` + the catalog byte source; retain keyboard/MIDI/transport.
+- [x] 7.3 Per-tile remove action (backend remove + invalidate), leaving the public catalog intact.
+- [x] 7.4 Add localized strings for the hub + saved section across locales (title, search hint, author-filter label, difficulty-filter labels, "mes partitions" chip, empty/no-results, add/remove, attribution).
 
 ## 8. Tests, coverage & pre-PR
 
-- [ ] 8.1 Widget tests: hub search/author-filter/difficulty-filter/paging/add-remove with an in-memory `CatalogService` override; "mes partitions" chip switches source to uploads and hides add-to-library; home saved-section visibility (signed in/out/empty) and removal.
+- [x] 8.1 Widget tests: hub search/author-filter/difficulty-filter/paging/add-remove with an in-memory `CatalogService` override; "mes partitions" chip switches source to uploads and hides add-to-library; home saved-section visibility (signed in/out/empty) and removal.
 - [ ] 8.2 Confirm Rust ≥ 80% (`cargo llvm-cov ... --fail-under-lines 80`) and Flutter ≥ 80% (`flutter test --coverage`), pure logic kept in host-testable seams.
 - [ ] 8.3 `melos run analyze` + `dart format`; `cargo fmt --all --check` + `cargo clippy --workspace --all-targets -- -D warnings`.
 - [ ] 8.4 Regenerate gRPC/FRB stubs if the public API changed; `openspec validate score-hub-search --strict` passes.

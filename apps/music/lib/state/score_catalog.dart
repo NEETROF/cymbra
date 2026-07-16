@@ -55,6 +55,10 @@ class CatalogEntry {
   /// backend byte source); `null` for a bundled-catalog entry.
   final String? contributedId;
 
+  /// Backend catalog id when this entry is a public-catalog score saved from the
+  /// Score Hub (loaded via the catalog byte source); `null` otherwise.
+  final String? catalogId;
+
   const CatalogEntry({
     required this.id,
     required this.title,
@@ -62,10 +66,15 @@ class CatalogEntry {
     required this.level,
     this.assetPath = '',
     this.contributedId,
+    this.catalogId,
   });
 
   /// Whether this is a user upload (byte-sourced) rather than a bundled score.
   bool get isContributed => contributedId != null;
+
+  /// Whether this is a saved public-catalog score (byte-sourced from the
+  /// catalog) rather than a bundled or contributed score.
+  bool get isCatalog => catalogId != null;
 
   @override
   int get hashCode => id.hashCode;

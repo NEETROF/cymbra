@@ -305,6 +305,42 @@
   "@entryLegalSeparator": { "description": "Connector between the Terms and Privacy links in the consent notice." },
 
   "entryLegalSuffix": ".",
-  "@entryLegalSuffix": { "description": "Trailing punctuation after the Privacy link in the consent notice." }
+  "@entryLegalSuffix": { "description": "Trailing punctuation after the Privacy link in the consent notice." },
+
+  "scoreHubTitle": "Score Hub",
+  "@scoreHubTitle": { "description": "Title of the Score Hub screen (search/discover catalog scores)." },
+
+  "scoreHubEntryTooltip": "Score Hub",
+  "@scoreHubEntryTooltip": { "description": "Tooltip for the library app-bar action that opens the Score Hub." },
+
+  "scoreHubSearchHint": "Title or composer",
+  "@scoreHubSearchHint": { "description": "Placeholder of the hub search field." },
+
+  "scoreHubComposerFilter": "Composer",
+  "@scoreHubComposerFilter": { "description": "Placeholder/label of the author (composer) filter." },
+
+  "scoreHubMyScores": "My scores",
+  "@scoreHubMyScores": { "description": "Quick-filter chip that scopes the hub to the user's own uploads." },
+
+  "scoreHubAllLevels": "All levels",
+  "@scoreHubAllLevels": { "description": "Default option of the difficulty filter (no difficulty constraint)." },
+
+  "scoreHubNoResults": "No scores match your search.",
+  "@scoreHubNoResults": { "description": "Empty state when a catalog search returns nothing." },
+
+  "scoreHubMyScoresEmpty": "You haven't uploaded any scores yet.",
+  "@scoreHubMyScoresEmpty": { "description": "Empty state for the 'my scores' filter when the user has no uploads." },
+
+  "scoreHubAddToLibrary": "Add to my library",
+  "@scoreHubAddToLibrary": { "description": "Tooltip/label for saving a catalog score to the library." },
+
+  "scoreHubRemoveFromLibrary": "Remove from my library",
+  "@scoreHubRemoveFromLibrary": { "description": "Tooltip/label for removing a saved catalog score from the library." },
+
+  "scoreHubLoadMore": "Load more",
+  "@scoreHubLoadMore": { "description": "Button to load the next page of catalog results." },
+
+  "librarySavedSection": "SAVED FROM THE HUB",
+  "@librarySavedSection": { "description": "Home-screen section header for catalog scores saved from the hub." }
 
 }

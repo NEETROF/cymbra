@@ -1,0 +1,43 @@
+// Copyright 2026 NEETROF
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:riverpod_annotation/riverpod_annotation.dart';
+
+import '../services/catalog_service.dart';
+import 'score_catalog.dart';
+import 'session_notifier.dart';
+
+part 'saved_catalog_scores.g.dart';
+
+/// Maps a backend [CatalogHit] to a [CatalogEntry] (byte-sourced from the
+/// catalog by [CatalogEntry.catalogId]) so a saved catalog score slots into the
+/// same library grouping and player path as bundled and contributed scores.
+CatalogEntry catalogEntryFromHit(CatalogHit h) => CatalogEntry(
+  id: 'catalog-${h.id}',
+  title: (h.title != null && h.title!.isNotEmpty) ? h.title! : 'Sans titre',
+  composer: h.composer ?? '',
+  level: h.level ?? PracticeLevel.beginner,
+  catalogId: h.id,
+);
+
+/// The signed-in user's saved catalog scores, as [CatalogEntry]s, newest-saved
+/// first. Empty when signed out (the home section is then not shown). Invalidate
+/// to refresh after a save or a remove.
+@riverpod
+Future<List<CatalogEntry>> savedCatalogScores(Ref ref) async {
+  if (!ref.watch(canUseOnlineServicesProvider)) return const [];
+  final hits = await ref.read(catalogServiceProvider).listSaved();
+  return [for (final h in hits) catalogEntryFromHit(h)];
+}

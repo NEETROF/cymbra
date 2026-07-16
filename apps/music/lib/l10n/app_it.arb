@@ -141,6 +141,19 @@
   "legalPrivacy": "Informativa sulla privacy",
   "entryLegalPrefix": "Continuando, accetti i nostri ",
   "entryLegalSeparator": " e la nostra ",
-  "entryLegalSuffix": "."
+  "entryLegalSuffix": ".",
+
+  "scoreHubTitle": "Catalogo partiture",
+  "scoreHubEntryTooltip": "Catalogo partiture",
+  "scoreHubSearchHint": "Titolo o compositore",
+  "scoreHubComposerFilter": "Compositore",
+  "scoreHubMyScores": "Le mie partiture",
+  "scoreHubAllLevels": "Tutti i livelli",
+  "scoreHubNoResults": "Nessuna partitura corrisponde alla ricerca.",
+  "scoreHubMyScoresEmpty": "Non hai ancora caricato alcuna partitura.",
+  "scoreHubAddToLibrary": "Aggiungi alla mia libreria",
+  "scoreHubRemoveFromLibrary": "Rimuovi dalla mia libreria",
+  "scoreHubLoadMore": "Carica altro",
+  "librarySavedSection": "SALVATE DAL CATALOGO"
 
 }

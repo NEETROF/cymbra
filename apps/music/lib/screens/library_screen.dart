@@ -17,14 +17,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../l10n/gen/app_localizations.dart';
 import '../layout/device_class.dart';
+import '../services/catalog_service.dart';
 import '../services/score_upload_service.dart';
 import '../state/contributed_scores.dart';
+import '../state/saved_catalog_scores.dart';
 import '../state/score_catalog.dart';
 import '../state/session_notifier.dart';
 import '../theme/cymbra_theme.dart';
 import '../widgets/language_selector.dart';
 import 'auth/account_menu.dart';
 import 'player_screen.dart';
+import 'score_hub_screen.dart';
 import 'score_upload_screen.dart';
 
 /// Localized name for a [PracticeLevel] section header.
@@ -50,9 +53,16 @@ class LibraryScreen extends ConsumerWidget {
         title: Text(AppLocalizations.of(context).libraryTitle),
         backgroundColor: CymbraColors.surfaceContainerLowest,
         actions: [
-          // Contribution entry point — only when signed in (spec: hidden/disabled
-          // otherwise, and the flow is not reachable).
-          if (ref.watch(canUseOnlineServicesProvider))
+          // Score Hub + contribution entry points — only when signed in (spec:
+          // hidden/disabled otherwise, and the flow is not reachable).
+          if (ref.watch(canUseOnlineServicesProvider)) ...[
+            IconButton(
+              icon: const Icon(Icons.search),
+              tooltip: AppLocalizations.of(context).scoreHubEntryTooltip,
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(builder: (_) => const ScoreHubScreen()),
+              ),
+            ),
             IconButton(
               icon: const Icon(Icons.library_add_outlined),
               tooltip: 'Contribuer une partition',
@@ -62,6 +72,7 @@ class LibraryScreen extends ConsumerWidget {
                 ),
               ),
             ),
+          ],
           const LanguageSelectorButton(),
           const AccountMenu(),
           const SizedBox(width: 8),
@@ -97,6 +108,15 @@ class LibraryScreen extends ConsumerWidget {
                 ...switch (ref.watch(myContributedScoresProvider)) {
                   AsyncData(:final value) when value.isNotEmpty =>
                     _contributedSection(context, ref, value, columns),
+                  _ => const <Widget>[],
+                },
+                // Catalog scores the user saved from the Score Hub (no section
+                // when signed out or empty). Byte-sourced like the rest; each
+                // carries a remove-from-library action (never deletes the
+                // public catalog entry).
+                ...switch (ref.watch(savedCatalogScoresProvider)) {
+                  AsyncData(:final value) when value.isNotEmpty =>
+                    _savedSection(context, ref, value, columns),
                   _ => const <Widget>[],
                 },
               ],
@@ -182,6 +202,55 @@ class LibraryScreen extends ConsumerWidget {
       ),
   ];
 
+  /// Catalog scores saved from the Score Hub, each with a remove-from-library
+  /// action (removes the save only — the public catalog entry is untouched).
+  List<Widget> _savedSection(
+    BuildContext context,
+    WidgetRef ref,
+    List<CatalogEntry> entries,
+    int columns,
+  ) => [
+    Padding(
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 4),
+      child: Text(
+        AppLocalizations.of(context).librarySavedSection,
+        style: const TextStyle(
+          color: CymbraColors.primary,
+          fontSize: 15,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 0.5,
+        ),
+      ),
+    ),
+    for (var i = 0; i < entries.length; i += columns)
+      Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (var j = 0; j < columns; j++)
+            Expanded(
+              child: i + j < entries.length
+                  ? _EntryTile(
+                      entry: entries[i + j],
+                      onDelete: () => _removeSaved(ref, entries[i + j]),
+                      deleteIcon: Icons.bookmark_remove_outlined,
+                      deleteTooltip: AppLocalizations.of(
+                        context,
+                      ).scoreHubRemoveFromLibrary,
+                    )
+                  : const SizedBox.shrink(),
+            ),
+        ],
+      ),
+  ];
+
+  /// Remove a saved catalog score from the library (backend remove + refresh).
+  /// Reversible — the score can be found and saved again from the hub — so no
+  /// destructive-delete confirmation.
+  Future<void> _removeSaved(WidgetRef ref, CatalogEntry entry) async {
+    await ref.read(catalogServiceProvider).remove(entry.catalogId!);
+    ref.invalidate(savedCatalogScoresProvider);
+  }
+
   Future<void> _confirmDelete(
     BuildContext context,
     WidgetRef ref,
@@ -215,10 +284,20 @@ class LibraryScreen extends ConsumerWidget {
 class _EntryTile extends ConsumerWidget {
   final CatalogEntry entry;
 
-  /// When set (a user-owned contributed score), the tile shows a delete action
-  /// instead of the open chevron. Bundled entries never get one (spec).
+  /// When set, the tile shows a remove action instead of the open chevron:
+  /// an owner-only delete for a contributed score, or a remove-from-library for
+  /// a saved catalog score. Bundled entries never get one (spec).
   final VoidCallback? onDelete;
-  const _EntryTile({required this.entry, this.onDelete});
+
+  /// Icon/tooltip for the [onDelete] action (delete vs. remove-from-library).
+  final IconData deleteIcon;
+  final String? deleteTooltip;
+  const _EntryTile({
+    required this.entry,
+    this.onDelete,
+    this.deleteIcon = Icons.delete_outline,
+    this.deleteTooltip,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -246,11 +325,8 @@ class _EntryTile extends ConsumerWidget {
       ),
       trailing: onDelete != null
           ? IconButton(
-              icon: const Icon(
-                Icons.delete_outline,
-                color: CymbraColors.onSurfaceVariant,
-              ),
-              tooltip: 'Supprimer',
+              icon: Icon(deleteIcon, color: CymbraColors.onSurfaceVariant),
+              tooltip: deleteTooltip ?? 'Supprimer',
               onPressed: onDelete,
             )
           : const Icon(

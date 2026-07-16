@@ -12,8 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:typed_data';
+
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../services/catalog_service.dart';
 import '../services/notation_engine.dart';
 import '../services/score_asset_source.dart';
 import '../services/score_upload_service.dart';
@@ -56,13 +59,21 @@ class Notation extends _$Notation {
         ? state.availableWidth
         : _initialWidth;
     try {
-      // A contributed score's bytes come from the backend byte source; a bundled
-      // score's from the asset bundle. Same parse → layout path either way.
-      final bytes = entry.contributedId != null
-          ? await ref
-                .read(scoreUploadServiceProvider)
-                .fetchBytes(entry.contributedId!)
-          : await _source.load(entry.assetPath);
+      // Bytes come from: the backend contributed-score source (a user upload),
+      // the catalog byte source (a saved public-catalog score), or the asset
+      // bundle (a bundled score). Same parse → layout path either way.
+      final Uint8List bytes;
+      if (entry.contributedId != null) {
+        bytes = await ref
+            .read(scoreUploadServiceProvider)
+            .fetchBytes(entry.contributedId!);
+      } else if (entry.catalogId != null) {
+        bytes = await ref
+            .read(catalogServiceProvider)
+            .fetchBytes(entry.catalogId!);
+      } else {
+        bytes = await _source.load(entry.assetPath);
+      }
       final document = await _engine.parse(bytes);
       // Guard against a selection change while we were loading.
       if (ref.read(selectedScoreProvider) != entry) return;

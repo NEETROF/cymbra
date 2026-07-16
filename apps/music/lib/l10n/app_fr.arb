@@ -141,6 +141,19 @@
   "legalPrivacy": "Politique de confidentialité",
   "entryLegalPrefix": "En continuant, vous acceptez nos ",
   "entryLegalSeparator": " et notre ",
-  "entryLegalSuffix": "."
+  "entryLegalSuffix": ".",
+
+  "scoreHubTitle": "Hub de partitions",
+  "scoreHubEntryTooltip": "Hub de partitions",
+  "scoreHubSearchHint": "Titre ou compositeur",
+  "scoreHubComposerFilter": "Compositeur",
+  "scoreHubMyScores": "Mes partitions",
+  "scoreHubAllLevels": "Tous les niveaux",
+  "scoreHubNoResults": "Aucune partition ne correspond à votre recherche.",
+  "scoreHubMyScoresEmpty": "Vous n'avez encore importé aucune partition.",
+  "scoreHubAddToLibrary": "Ajouter à ma bibliothèque",
+  "scoreHubRemoveFromLibrary": "Retirer de ma bibliothèque",
+  "scoreHubLoadMore": "Charger plus",
+  "librarySavedSection": "ENREGISTRÉES DEPUIS LE HUB"
 
 }
