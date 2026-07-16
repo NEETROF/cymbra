@@ -30,6 +30,7 @@ class _FakeCatalog implements CatalogService {
   final List<CatalogHit> rows;
   final Set<String> saved = {};
   final List<String> saveCalls = [];
+  int? lastMaxNoteValue;
 
   @override
   Future<CatalogSearchPage> search({
@@ -47,6 +48,7 @@ class _FakeCatalog implements CatalogService {
     int limit = 20,
     int offset = 0,
   }) async {
+    lastMaxNoteValue = maxNoteValue;
     final page = rows.skip(offset).take(limit).toList();
     return CatalogSearchPage(hits: page, nextOffset: offset + page.length);
   }
@@ -142,9 +144,9 @@ void main() {
 
     expect(find.text('Clair de Lune'), findsOneWidget);
     // Catalog results offer an add-to-library toggle.
-    expect(find.byIcon(Icons.bookmark_add_outlined), findsOneWidget);
+    expect(find.byIcon(Icons.favorite_border), findsOneWidget);
 
-    await tester.tap(find.byIcon(Icons.bookmark_add_outlined));
+    await tester.tap(find.byIcon(Icons.favorite_border));
     await tester.pump();
     await tester.pump();
     expect(catalog.saveCalls, ['c1']);
@@ -174,7 +176,7 @@ void main() {
     expect(find.text('Clair de Lune'), findsOneWidget);
 
     // Activate the "My scores" quick-filter.
-    await tester.tap(find.widgetWithText(FilterChip, 'My scores'));
+    await tester.tap(find.widgetWithText(ChoiceChip, 'My scores'));
     for (var i = 0; i < 10; i++) {
       await tester.pump(const Duration(milliseconds: 40));
     }
@@ -183,7 +185,7 @@ void main() {
     // offer no add-to-library toggle (already owned).
     expect(find.text('My Upload'), findsOneWidget);
     expect(find.text('Clair de Lune'), findsNothing);
-    expect(find.byIcon(Icons.bookmark_add_outlined), findsNothing);
+    expect(find.byIcon(Icons.favorite_border), findsNothing);
     await _teardown(tester, c);
   });
 
@@ -193,6 +195,25 @@ void main() {
     final c = _container(_FakeCatalog(const []));
     await _pump(tester, c);
     expect(find.text('No scores match your search.'), findsOneWidget);
+    await _teardown(tester, c);
+  });
+
+  testWidgets('advanced-filters drawer applies a facet filter', (tester) async {
+    final catalog = _FakeCatalog([_hit('c1', 'Clair de Lune')]);
+    final c = _container(catalog);
+    await _pump(tester, c);
+
+    // Open the end-drawer via the app-bar tune action.
+    await tester.tap(find.byIcon(Icons.tune));
+    await tester.pumpAndSettle();
+    expect(find.text('Advanced filters'), findsOneWidget);
+
+    // Pick a rhythmic-granularity option → the notifier re-queries with it.
+    await tester.tap(find.text('≤ Eighth'));
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 40));
+    }
+    expect(catalog.lastMaxNoteValue, 8);
     await _teardown(tester, c);
   });
 }

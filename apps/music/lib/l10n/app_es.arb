@@ -172,6 +172,11 @@
   "scoreHubTempo": "Tempo",
   "scoreHubTempoSlow": "Lento",
   "scoreHubTempoModerate": "Moderado",
-  "scoreHubTempoFast": "Rápido"
+  "scoreHubTempoFast": "Rápido",
+  "scoreHubDifficulty": "Dificultad",
+  "scoreHubRhythmTexture": "Ritmo y textura",
+  "scoreHubApplyFilters": "Aplicar",
+  "scoreHubResetAll": "Restablecer todo",
+  "scoreHubResultsCount": "{count, plural, =0{Ninguna partitura} =1{1 partitura} other{{count} partituras}}"
 
 }

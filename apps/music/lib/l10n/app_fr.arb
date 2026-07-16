@@ -172,6 +172,11 @@
   "scoreHubTempo": "Tempo",
   "scoreHubTempoSlow": "Lent",
   "scoreHubTempoModerate": "Modéré",
-  "scoreHubTempoFast": "Rapide"
+  "scoreHubTempoFast": "Rapide",
+  "scoreHubDifficulty": "Difficulté",
+  "scoreHubRhythmTexture": "Rythme & texture",
+  "scoreHubApplyFilters": "Appliquer",
+  "scoreHubResetAll": "Tout réinitialiser",
+  "scoreHubResultsCount": "{count, plural, =0{Aucune partition} =1{1 partition} other{{count} partitions}}"
 
 }

@@ -392,6 +392,21 @@
   "@scoreHubTempoModerate": { "description": "Tempo band: moderate (76–120 BPM)." },
 
   "scoreHubTempoFast": "Fast",
-  "@scoreHubTempoFast": { "description": "Tempo band: fast (> 120 BPM)." }
+  "@scoreHubTempoFast": { "description": "Tempo band: fast (> 120 BPM)." },
+
+  "scoreHubDifficulty": "Difficulty",
+  "@scoreHubDifficulty": { "description": "Drawer section header for the difficulty filter." },
+
+  "scoreHubRhythmTexture": "Rhythm & texture",
+  "@scoreHubRhythmTexture": { "description": "Drawer section header for the chords/tuplets/dotted toggles." },
+
+  "scoreHubApplyFilters": "Apply filters",
+  "@scoreHubApplyFilters": { "description": "Button that closes the advanced-filters drawer." },
+
+  "scoreHubResetAll": "Reset all",
+  "@scoreHubResetAll": { "description": "Button that clears every filter in the drawer." },
+
+  "scoreHubResultsCount": "{count, plural, =0{No scores} =1{1 score} other{{count} scores}}",
+  "@scoreHubResultsCount": { "description": "Result count shown under the title.", "placeholders": { "count": { "type": "int" } } }
 
 }
