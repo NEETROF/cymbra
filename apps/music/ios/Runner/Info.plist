@@ -54,6 +54,10 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<!-- Managed by flutter_native_splash: keeps the status bar visible over the
+	     branded launch screen. -->
+	<key>UIStatusBarHidden</key>
+	<false/>
 	<!-- Local network access (iOS 14+): required in dev to reach a gRPC backend on
 	     the LAN (e.g. --dart-define=CYMBRA_GRPC_HOST=<dev-machine-ip>). Harmless in
 	     prod, which uses a real server domain. -->

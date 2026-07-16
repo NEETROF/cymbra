@@ -1,4 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- INTERNET: required at runtime for the gRPC backend (api.cymbra.app:443),
+         sign-in, and score sync. The debug/profile manifests declare it only for
+         the dev toolchain; it MUST live here so it merges into release builds —
+         without it, release builds have no network access. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <!-- MIDI: required=false → the app stays installable without the software MIDI feature;
          USB/BLE MIDI still works where it's available. -->
     <uses-feature android:name="android.software.midi" android:required="false" />
