@@ -310,16 +310,23 @@ impl ScoreModule {
     /// Fetch the canonical bytes of a public catalog score by id, from the object
     /// store, so the app can open it in the player. Not owner-scoped (public
     /// corpus); a non-existent id is a typed not-found.
+    ///
+    /// Catalog objects are stored as compressed `.mxl` (the crawler's output),
+    /// but the app's parser consumes **uncompressed** MusicXML — so decode the
+    /// `.mxl` container transparently here, exactly as the upload path does before
+    /// storing. A plain-XML object passes straight through.
     pub async fn get_catalog_bytes(&self, catalog_id: &str) -> Result<Vec<u8>> {
         let object_key = self
             .catalog
             .object_key(catalog_id)
             .await?
             .ok_or_else(|| AppError::NotFound("catalog score not found".into()))?;
-        self.storage
+        let raw = self
+            .storage
             .get(&object_key)
             .await
-            .map_err(|e| AppError::Internal(anyhow::anyhow!("read catalog score: {e}")))
+            .map_err(|e| AppError::Internal(anyhow::anyhow!("read catalog score: {e}")))?;
+        decode_canonical(&raw)
     }
 }
 
