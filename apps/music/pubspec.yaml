@@ -121,6 +121,14 @@ flutter_launcher_icons:
 # Branded launch screen: the Cymbra mark centered on the navy brand color,
 # replacing the default blank screen on both platforms (incl. the Android 12+
 # splash API). Regenerate with `dart run flutter_native_splash:create`.
+#
+# POST-REGEN PATCH (Android anti-flicker): after running :create, re-apply the
+# navy `windowBackground` in android/app/src/main/res/values*/styles.xml — set
+# NormalTheme's windowBackground to `@color/splash_background` (#0F1633) in every
+# variant, and add the same windowBackground to the v31 LaunchTheme. Without it,
+# the light NormalTheme flashes white between the Android 12 system splash and
+# Flutter's first frame. (Android 12+ only shows a masked icon + color, not the
+# full logo layout — that's a platform limitation of the SplashScreen API.)
 flutter_native_splash:
   color: "#0F1633"
   image: "assets/branding/splash_logo.png"
