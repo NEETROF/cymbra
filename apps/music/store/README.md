@@ -20,7 +20,7 @@ store/
 - [x] Play hi-res icon (512×512)
 - [x] Play feature graphic (1024×500)
 - [x] iOS screenshots — **6.7" iPhone** (`ios/iphone_6.7/`, 2796×1290) and **12.9" iPad** (`ios/ipad_12.9/`, 2732×2048), landscape. Captured from the iPhone 15 Pro Max and iPad Pro 12.9" simulators: score library, Synthesia falling-notes, staff, and (iPad) full-score "Partition" view.
-- [ ] Android phone screenshots — ≥2, landscape.
+- [x] Android phone screenshots — `android/phone/` (2160×1080, landscape): score library, Synthesia, staff. Captured on the Pixel 3a emulator, cropped to exactly 2:1 (Play caps the long:short side ratio at 2:1; the raw 2220×1080 was 2.06:1) with a demo-mode clean status bar.
 - [x] Listing copy under `copy/` — **en** and **fr** done (`copy/en.md`, `copy/fr.md`): name, subtitle, short/promo, keywords, full description, categories, all within store char limits. **it** and **es** still to translate (app ships 4 locales).
 
 ## Categories (decided)

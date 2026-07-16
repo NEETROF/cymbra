@@ -35,9 +35,9 @@
 
 - [x] 5.1 Create `apps/music/store/` layout (per platform, screenshots + graphics)
 - [x] 5.2 Capture iOS landscape screenshots for 6.7" iPhone and 12.9" iPad at required resolutions (iPhone 15 Pro Max 2796×1290 + iPad Pro 12.9" 2732×2048, in `store/ios/`)
-- [ ] 5.3 Capture ≥2 Android phone landscape screenshots
+- [x] 5.3 Capture ≥2 Android phone landscape screenshots (3 at 2160×1080 on the Pixel 3a emulator, in `store/android/phone/`)
 - [x] 5.4 Produce the Play 512×512 hi-res icon and the 1024×500 feature graphic
-- [ ] 5.5 Confirm every asset meets its store's size/format rules (512 icon + feature graphic done; screenshots pending)
+- [x] 5.5 Confirm every asset meets its store's size/format rules (iOS 2796×1290 & 2732×2048; Android cropped to exactly 2:1 for Play; Play icon 512² opaque; feature graphic 1024×500)
 
 ## 6. Store-listing copy
 
