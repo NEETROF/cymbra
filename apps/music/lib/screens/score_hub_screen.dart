@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -252,7 +254,6 @@ class _ScoreCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
-    final levelColor = _levelColor(entry.level);
     return Material(
       color: CymbraColors.surfaceContainerLow,
       borderRadius: BorderRadius.circular(18),
@@ -274,23 +275,7 @@ class _ScoreCard extends ConsumerWidget {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          levelColor.withValues(alpha: 0.35),
-                          CymbraColors.surfaceContainerHigh,
-                        ],
-                      ),
-                    ),
-                    child: Icon(
-                      Icons.music_note,
-                      size: 44,
-                      color: CymbraColors.onSurface.withValues(alpha: 0.22),
-                    ),
-                  ),
+                  _CoverArt(entry: entry),
                   Positioned(
                     top: 10,
                     left: 10,
@@ -352,6 +337,114 @@ class _ScoreCard extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// A deterministic generated cover for a score (no artwork exists): a gradient +
+/// soft bokeh glows + a subtle sound-wave, all seeded from the score id so each
+/// card is stable and distinct, with the title's initial as a monogram. No
+/// network, no assets — pure procedural art.
+class _CoverArt extends StatelessWidget {
+  const _CoverArt({required this.entry});
+
+  final CatalogEntry entry;
+
+  /// Curated gradient pairs (deep → accent) for the cover background.
+  static const List<List<Color>> _gradients = [
+    [Color(0xFF3B1E6E), Color(0xFF7C3AED)], // purple
+    [Color(0xFF0B3D4A), Color(0xFF03C6B2)], // teal
+    [Color(0xFF10233F), Color(0xFF5B9DFF)], // blue
+    [Color(0xFF4A1D3F), Color(0xFFE05299)], // magenta
+    [Color(0xFF123A2C), Color(0xFF4EDEA3)], // green
+    [Color(0xFF3A2A12), Color(0xFFFFB454)], // amber
+    [Color(0xFF241645), Color(0xFF44E2CD)], // indigo→teal
+    [Color(0xFF3A1220), Color(0xFFFF6B6B)], // rose
+  ];
+
+  String get _monogram {
+    final t = entry.title.trim();
+    return t.isEmpty ? '♪' : t.characters.first.toUpperCase();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final seed = entry.id.hashCode;
+    final colors = _gradients[seed.abs() % _gradients.length];
+    return CustomPaint(
+      painter: _CoverPainter(seed: seed, colors: colors),
+      child: Center(
+        child: Text(
+          _monogram,
+          style: TextStyle(
+            fontSize: 64,
+            fontWeight: FontWeight.w900,
+            color: Colors.white.withValues(alpha: 0.16),
+            height: 1,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CoverPainter extends CustomPainter {
+  _CoverPainter({required this.seed, required this.colors});
+
+  final int seed;
+  final List<Color> colors;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Offset.zero & size;
+    // Base diagonal gradient.
+    canvas.drawRect(
+      rect,
+      Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: colors,
+        ).createShader(rect),
+    );
+    final rng = math.Random(seed);
+    // Soft bokeh glows.
+    for (var i = 0; i < 4; i++) {
+      final c = Offset(
+        rng.nextDouble() * size.width,
+        rng.nextDouble() * size.height,
+      );
+      final r = size.shortestSide * (0.18 + rng.nextDouble() * 0.22);
+      canvas.drawCircle(
+        c,
+        r,
+        Paint()
+          ..color = Colors.white.withValues(
+            alpha: 0.05 + rng.nextDouble() * 0.06,
+          )
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 18),
+      );
+    }
+    // A subtle sound-wave across the lower third.
+    final path = Path();
+    final baseY = size.height * (0.6 + rng.nextDouble() * 0.15);
+    final amp = size.height * 0.08;
+    final phase = rng.nextDouble() * math.pi * 2;
+    path.moveTo(0, baseY);
+    for (double x = 0; x <= size.width; x += 6) {
+      final y = baseY + math.sin(x / size.width * math.pi * 3 + phase) * amp;
+      path.lineTo(x, y);
+    }
+    canvas.drawPath(
+      path,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2
+        ..color = Colors.white.withValues(alpha: 0.14),
+    );
+  }
+
+  @override
+  bool shouldRepaint(_CoverPainter old) =>
+      old.seed != seed || old.colors != colors;
 }
 
 class _DifficultyBadge extends StatelessWidget {
