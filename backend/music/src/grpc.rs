@@ -26,7 +26,7 @@ use std::sync::Arc;
 use cymbra_platform::AuthIdentity;
 use tonic::{Request, Response, Status};
 
-use crate::catalog_search::CatalogHit;
+use crate::catalog_search::{CatalogHit, CatalogQuery};
 use crate::module::{ScoreModule, UploadInput};
 use crate::proto::{
     CatalogHit as ProtoCatalogHit, DeleteScoreRequest, DeleteScoreResponse,
@@ -155,17 +155,27 @@ impl ScoreService for ScoreGrpc {
     ) -> Result<Response<SearchCatalogResponse>, Status> {
         owner(&req)?; // authenticated-only (catalog is public, not owner-scoped)
         let r = req.into_inner();
-        let hits = self
-            .module
-            .search_catalog(
-                &r.query,
-                r.author.as_deref(),
-                r.level.as_deref(),
-                r.limit as i64,
-                r.offset as i64,
-            )
-            .await?;
-        let next_offset = r.offset.max(0) + hits.len() as i32;
+        let offset = r.offset;
+        let query = CatalogQuery {
+            query: r.query,
+            author: r.author,
+            level: r.level,
+            is_piano: r.is_piano,
+            max_note_value: r.max_note_value.map(|v| v.clamp(0, i16::MAX as i32) as i16),
+            has_chords: r.has_chords,
+            has_tuplets: r.has_tuplets,
+            has_dotted: r.has_dotted,
+            max_ambitus_semitones: r
+                .max_ambitus_semitones
+                .map(|v| v.clamp(0, i16::MAX as i32) as i16),
+            staff_count: r.staff_count.map(|v| v.clamp(0, i16::MAX as i32) as i16),
+            min_bpm: r.min_bpm,
+            max_bpm: r.max_bpm,
+            limit: r.limit as i64,
+            offset: r.offset as i64,
+        };
+        let hits = self.module.search_catalog(query).await?;
+        let next_offset = offset.max(0) + hits.len() as i32;
         Ok(Response::new(SearchCatalogResponse {
             hits: hits.into_iter().map(to_hit).collect(),
             next_offset,
@@ -274,6 +284,7 @@ mod tests {
             level: level.map(Into::into),
             limit: 50,
             offset: 0,
+            ..Default::default()
         }
     }
 

@@ -67,6 +67,17 @@ message SearchCatalogRequest {
   optional string level = 3;  // difficulty filter: beginner|intermediate|advanced
   int32 limit = 4;            // page size; clamped to a server maximum
   int32 offset = 5;           // page offset
+  // Musical facet filters (change: score-catalog-facets). Each optional; unset =
+  // no constraint. A set filter excludes rows whose facet is unknown.
+  optional bool is_piano = 6;              // keyboard/grand-staff only
+  optional int32 max_note_value = 7;       // fastest allowed value (4=quarter,8=eighth,16=…)
+  optional bool has_chords = 8;
+  optional bool has_tuplets = 9;
+  optional bool has_dotted = 10;
+  optional int32 max_ambitus_semitones = 11; // max hand span
+  optional int32 staff_count = 12;         // 1 or 2
+  optional int32 min_bpm = 13;             // tempo range (marked BPM)
+  optional int32 max_bpm = 14;
 }
 message SearchCatalogResponse {
   repeated CatalogHit hits = 1;

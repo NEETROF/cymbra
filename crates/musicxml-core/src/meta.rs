@@ -48,6 +48,38 @@ pub struct ScoreSummary {
     pub note_count: u32,
 }
 
+/// Musical facets derived from a parsed score for catalog search filters
+/// (change: score-catalog-facets). Kept separate from [`ScoreSummary`] (which is
+/// bridged to the app) so it can grow without touching the app FFI. Every field
+/// is derived purely from the parse; a signal absent from the file yields
+/// `None`/`false`, never a fabricated value.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct ScoreFacets {
+    /// Smallest note value present, as a power-of-two denominator
+    /// (`4`=quarter, `8`=eighth, `16`=sixteenth, …). `None` when the score has no
+    /// sounding notes. The "rien de plus rapide que X" filter is `min_note_value <= X`.
+    pub min_note_value: Option<u8>,
+    /// Any note carries a tuplet (triplet, …).
+    pub has_tuplets: bool,
+    /// Any note carries one or more dots (dotted rhythm).
+    pub has_dotted: bool,
+    /// Any note is a chord member (simultaneous pitches).
+    pub has_chords: bool,
+    /// Lowest / highest sounding pitch as MIDI numbers (C4 = 60) — the ambitus.
+    /// `None` when there are no sounding notes.
+    pub lowest_midi: Option<u8>,
+    pub highest_midi: Option<u8>,
+    /// Number of staves (1, or 2 for a grand staff).
+    pub staff_count: u8,
+    /// Count of pitched (non-rest) note events.
+    pub note_count: u32,
+    /// The score's marked tempo (the first metronome mark's per-minute value),
+    /// or `None` when the file carries no tempo marking (never the playback default).
+    pub tempo_bpm: Option<u16>,
+    /// Any dynamics marking (pp…ff) is present.
+    pub has_dynamics: bool,
+}
+
 impl ScoreSummary {
     /// Derives the summary from a parsed document. Pure; never panics.
     pub fn from_document(doc: &ScoreDocument) -> Self {
@@ -84,6 +116,135 @@ impl ScoreSummary {
             note_count,
         }
     }
+}
+
+impl ScoreFacets {
+    /// Derives the musical facets from a parsed document. Pure; never panics.
+    pub fn from_document(doc: &crate::ScoreDocument) -> Self {
+        let divisions = doc.attributes.divisions;
+        let mut note_count = 0u32;
+        let mut has_tuplets = false;
+        let mut has_dotted = false;
+        let mut has_chords = false;
+        let mut lowest: Option<u8> = None;
+        let mut highest: Option<u8> = None;
+        // Smallest note value = largest denominator seen across sounding notes.
+        let mut max_denom: Option<u8> = None;
+
+        for note in doc.measures.iter().flat_map(|m| &m.notes) {
+            if note.is_chord {
+                has_chords = true;
+            }
+            if note.dots > 0 {
+                has_dotted = true;
+            }
+            if note.tuplet.is_some() {
+                has_tuplets = true;
+            }
+            // Only sounding (pitched, non-rest) notes drive counts, ambitus, and
+            // the fastest-value derivation — rests and grace notes are ignored.
+            let Some(pitch) = &note.pitch else { continue };
+            if note.is_rest {
+                continue;
+            }
+            note_count += 1;
+            if let Some(midi) = pitch_to_midi(pitch) {
+                lowest = Some(lowest.map_or(midi, |l| l.min(midi)));
+                highest = Some(highest.map_or(midi, |h| h.max(midi)));
+            }
+            if let Some(denom) = note_value_denominator(note, divisions) {
+                max_denom = Some(max_denom.map_or(denom, |d| d.max(denom)));
+            }
+        }
+
+        // Tempo: the first metronome mark's per-minute (matches the app player's
+        // tempo readout); `None` when the score carries none.
+        let mut tempo_bpm = None;
+        let mut has_dynamics = false;
+        for dir in doc.measures.iter().flat_map(|m| &m.directions) {
+            match &dir.kind {
+                crate::DirectionKind::Metronome { per_minute, .. }
+                    if tempo_bpm.is_none() && *per_minute > 0 =>
+                {
+                    tempo_bpm = Some((*per_minute).min(u16::MAX as u32) as u16);
+                }
+                crate::DirectionKind::Dynamics(_) => has_dynamics = true,
+                _ => {}
+            }
+        }
+
+        ScoreFacets {
+            min_note_value: max_denom,
+            has_tuplets,
+            has_dotted,
+            has_chords,
+            lowest_midi: lowest,
+            highest_midi: highest,
+            staff_count: doc.staves.min(u8::MAX as u32) as u8,
+            note_count,
+            tempo_bpm,
+            has_dynamics,
+        }
+    }
+}
+
+/// MIDI number of a pitch (C4 = 60), or `None` if the step is not A–G.
+fn pitch_to_midi(p: &crate::Pitch) -> Option<u8> {
+    let semitone = match p.step.to_ascii_uppercase() {
+        'C' => 0,
+        'D' => 2,
+        'E' => 4,
+        'F' => 5,
+        'G' => 7,
+        'A' => 9,
+        'B' => 11,
+        _ => return None,
+    };
+    let midi = (p.octave + 1) * 12 + semitone + p.alter;
+    u8::try_from(midi).ok()
+}
+
+/// The note's value as a power-of-two denominator (`4`=quarter, `8`=eighth, …):
+/// the notated `<type>` when present, else derived from `duration/divisions`.
+/// Ignores dots (the base value drives the "fastest note" facet). `None` for a
+/// zero-duration (grace) note with no type.
+fn note_value_denominator(note: &crate::NoteEvent, divisions: u32) -> Option<u8> {
+    if let Some(t) = note.note_type.as_deref() {
+        return note_type_denominator(t);
+    }
+    // Fallback: quarters = duration/divisions ⇒ denominator = 4 * divisions / duration,
+    // snapped to the nearest power of two in [1, 128].
+    if note.duration_divisions == 0 || divisions == 0 {
+        return None;
+    }
+    let ratio = (4.0 * divisions as f64) / note.duration_divisions as f64;
+    let denom = nearest_power_of_two(ratio).clamp(1, 128);
+    Some(denom as u8)
+}
+
+/// Maps a MusicXML note-type token to its power-of-two denominator.
+fn note_type_denominator(t: &str) -> Option<u8> {
+    Some(match t {
+        "maxima" | "long" | "breve" => 1, // treat longer-than-whole as whole
+        "whole" => 1,
+        "half" => 2,
+        "quarter" => 4,
+        "eighth" => 8,
+        "16th" => 16,
+        "32nd" => 32,
+        "64th" => 64,
+        "128th" => 128,
+        _ => return None,
+    })
+}
+
+/// Nearest power of two to `x` (x > 0), by rounding `log2` to the nearest integer.
+fn nearest_power_of_two(x: f64) -> u32 {
+    if x <= 1.0 {
+        return 1;
+    }
+    let exp = x.log2().round() as u32;
+    1u32 << exp
 }
 
 /// Lowercases, strips diacritics (NFD then drop combining marks), and collapses
@@ -172,5 +333,79 @@ mod tests {
         assert_eq!(normalize_text("Éolienne  Op.  25"), "eolienne op. 25");
         assert_eq!(normalize_text("BÉLA  Bartók"), "bela bartok");
         assert_eq!(normalize_text("  trim  me  "), "trim me");
+    }
+
+    // --- musical facets (change: score-catalog-facets) --------------------
+
+    /// A score exercising chord, dot, tuplet, note types, a metronome mark, and a
+    /// dynamics marking — plus an ambitus from A3 (57) up to G5 (79).
+    const FACETS: &str = r#"<?xml version="1.0"?>
+<score-partwise version="4.0">
+  <part-list><score-part id="P1"/></part-list>
+  <part id="P1">
+    <measure number="1">
+      <attributes><divisions>4</divisions>
+        <key><fifths>0</fifths></key>
+        <time><beats>4</beats><beat-type>4</beat-type></time>
+      </attributes>
+      <direction><direction-type>
+        <metronome><beat-unit>quarter</beat-unit><per-minute>96</per-minute></metronome>
+      </direction-type></direction>
+      <direction><direction-type><dynamics><mf/></dynamics></direction-type></direction>
+      <note><pitch><step>A</step><octave>3</octave></pitch><duration>2</duration><type>eighth</type></note>
+      <note><chord/><pitch><step>C</step><octave>4</octave></pitch><duration>2</duration><type>eighth</type></note>
+      <note><pitch><step>G</step><octave>5</octave></pitch><duration>1</duration><type>16th</type></note>
+      <note><pitch><step>E</step><octave>4</octave></pitch><duration>6</duration><type>quarter</type><dot/></note>
+      <note><pitch><step>D</step><octave>4</octave></pitch><duration>1</duration><type>eighth</type>
+        <time-modification><actual-notes>3</actual-notes><normal-notes>2</normal-notes></time-modification>
+      </note>
+    </measure>
+  </part>
+</score-partwise>"#;
+
+    #[test]
+    fn derives_rhythmic_textural_and_tempo_facets() {
+        let s = ScoreFacets::from_document(&parse(FACETS.as_bytes()).unwrap());
+        assert_eq!(s.min_note_value, Some(16)); // fastest is a sixteenth
+        assert!(s.has_chords);
+        assert!(s.has_dotted);
+        assert!(s.has_tuplets);
+        assert!(s.has_dynamics);
+        assert_eq!(s.tempo_bpm, Some(96));
+        // Ambitus: A3 = 57 … G5 = 79.
+        assert_eq!(s.lowest_midi, Some(57));
+        assert_eq!(s.highest_midi, Some(79));
+        assert_eq!(s.staff_count, 1);
+    }
+
+    #[test]
+    fn smallest_note_value_falls_back_to_duration_when_untyped() {
+        // divisions=4 (per quarter). A duration-1 note with no <type> is a
+        // sixteenth (4*4/1 = 16); a duration-8 note is a half (4*4/8 = 2).
+        let xml = r#"<score-partwise><part-list><score-part id="P1"/></part-list>
+        <part id="P1"><measure number="1">
+          <attributes><divisions>4</divisions></attributes>
+          <note><pitch><step>C</step><octave>4</octave></pitch><duration>8</duration></note>
+          <note><pitch><step>D</step><octave>4</octave></pitch><duration>1</duration></note>
+        </measure></part></score-partwise>"#;
+        let s = ScoreFacets::from_document(&parse(xml.as_bytes()).unwrap());
+        assert_eq!(s.min_note_value, Some(16)); // the sixteenth wins
+    }
+
+    #[test]
+    fn absent_tempo_and_empty_score_are_unknown_not_fabricated() {
+        // No metronome, no dynamics, only a rest → tempo/ambitus/min-value unknown.
+        let xml = r#"<score-partwise><part-list><score-part id="P1"/></part-list>
+        <part id="P1"><measure number="1">
+          <attributes><divisions>1</divisions></attributes>
+          <note><rest/><duration>4</duration></note>
+        </measure></part></score-partwise>"#;
+        let s = ScoreFacets::from_document(&parse(xml.as_bytes()).unwrap());
+        assert_eq!(s.tempo_bpm, None);
+        assert!(!s.has_dynamics);
+        assert_eq!(s.min_note_value, None);
+        assert_eq!(s.lowest_midi, None);
+        assert_eq!(s.highest_midi, None);
+        assert_eq!(s.note_count, 0);
     }
 }

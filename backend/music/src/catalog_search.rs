@@ -50,6 +50,42 @@ pub struct CatalogSearchParams {
     pub author_norm: Option<String>,
     /// Difficulty filter (validated); `None` = every level (incl. unleveled).
     pub level: Option<String>,
+    // --- musical facet filters (change: score-catalog-facets) --------------
+    // Each `None` = no constraint. When a filter is set, a row whose facet is
+    // NULL is excluded (an unknown trait can't be asserted to satisfy the filter).
+    /// Keyboard/grand-staff only.
+    pub is_piano: Option<bool>,
+    /// Fastest allowed note value (power-of-two denominator) → `min_note_value <= v`.
+    pub max_note_value: Option<i16>,
+    pub has_chords: Option<bool>,
+    pub has_tuplets: Option<bool>,
+    pub has_dotted: Option<bool>,
+    /// Maximum hand span → `highest_midi - lowest_midi <= v`.
+    pub max_ambitus_semitones: Option<i16>,
+    pub staff_count: Option<i16>,
+    /// Tempo range (marked BPM) → `tempo_bpm BETWEEN min_bpm AND max_bpm`.
+    pub min_bpm: Option<i32>,
+    pub max_bpm: Option<i32>,
+    pub limit: i64,
+    pub offset: i64,
+}
+
+/// Raw search inputs from the caller (the gRPC request), before validation and
+/// text normalisation. The module turns this into a [`CatalogSearchParams`].
+#[derive(Debug, Clone, Default)]
+pub struct CatalogQuery {
+    pub query: String,
+    pub author: Option<String>,
+    pub level: Option<String>,
+    pub is_piano: Option<bool>,
+    pub max_note_value: Option<i16>,
+    pub has_chords: Option<bool>,
+    pub has_tuplets: Option<bool>,
+    pub has_dotted: Option<bool>,
+    pub max_ambitus_semitones: Option<i16>,
+    pub staff_count: Option<i16>,
+    pub min_bpm: Option<i32>,
+    pub max_bpm: Option<i32>,
     pub limit: i64,
     pub offset: i64,
 }
@@ -72,7 +108,7 @@ pub trait CatalogSearchRepo: Send + Sync {
 
 /// A seed row for [`FakeCatalogSearchRepo`]. Norm keys are derived on the fly, so
 /// tests only supply human-readable title/composer.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct FakeCatalogRow {
     pub id: String,
     pub title: Option<String>,
@@ -81,6 +117,17 @@ pub struct FakeCatalogRow {
     pub license: String,
     pub source: String,
     pub object_key: String,
+    // Facets (change: score-catalog-facets) — default None so text/author/level
+    // tests are unaffected; set via `with_facets` for facet-filter tests.
+    pub is_piano: Option<bool>,
+    pub min_note_value: Option<i16>,
+    pub has_chords: Option<bool>,
+    pub has_tuplets: Option<bool>,
+    pub has_dotted: Option<bool>,
+    pub lowest_midi: Option<i16>,
+    pub highest_midi: Option<i16>,
+    pub staff_count: Option<i16>,
+    pub tempo_bpm: Option<i32>,
 }
 
 impl FakeCatalogRow {
@@ -94,7 +141,25 @@ impl FakeCatalogRow {
             license: "CC-BY-4.0".into(),
             source: "pdmx".into(),
             object_key: format!("safe/pdmx/{id}.mxl"),
+            ..Default::default()
         }
+    }
+
+    /// Set the facet fields used by the facet-filter tests (piano, fastest note
+    /// value, tempo, ambitus).
+    pub fn with_facets(
+        mut self,
+        is_piano: bool,
+        min_note_value: i16,
+        tempo_bpm: Option<i32>,
+        ambitus: (i16, i16),
+    ) -> Self {
+        self.is_piano = Some(is_piano);
+        self.min_note_value = Some(min_note_value);
+        self.tempo_bpm = tempo_bpm;
+        self.lowest_midi = Some(ambitus.0);
+        self.highest_midi = Some(ambitus.1);
+        self
     }
 
     fn to_hit(&self) -> CatalogHit {
@@ -161,7 +226,7 @@ impl CatalogSearchRepo for FakeCatalogSearchRepo {
                     .level
                     .as_ref()
                     .is_none_or(|l| r.level.as_deref() == Some(l));
-                text_ok && author_ok && level_ok
+                text_ok && author_ok && level_ok && facets_match(r, p)
             })
             .collect();
         // Deterministic order → stable paging (the Pg adapter adds similarity
@@ -193,6 +258,47 @@ impl CatalogSearchRepo for FakeCatalogSearchRepo {
     }
 }
 
+/// Applies the facet filters of `p` to a fake row, mirroring the Pg adapter: a
+/// set filter excludes rows whose corresponding facet is unknown (`None`).
+fn facets_match(r: &FakeCatalogRow, p: &CatalogSearchParams) -> bool {
+    fn bool_ok(filter: Option<bool>, value: Option<bool>) -> bool {
+        filter.is_none_or(|f| value == Some(f))
+    }
+    if let Some(pi) = p.is_piano
+        && r.is_piano != Some(pi)
+    {
+        return false;
+    }
+    if let Some(mv) = p.max_note_value
+        && !matches!(r.min_note_value, Some(v) if v <= mv)
+    {
+        return false;
+    }
+    if !bool_ok(p.has_chords, r.has_chords)
+        || !bool_ok(p.has_tuplets, r.has_tuplets)
+        || !bool_ok(p.has_dotted, r.has_dotted)
+    {
+        return false;
+    }
+    if let Some(span) = p.max_ambitus_semitones
+        && !matches!((r.lowest_midi, r.highest_midi), (Some(lo), Some(hi)) if hi - lo <= span)
+    {
+        return false;
+    }
+    if let Some(sc) = p.staff_count
+        && r.staff_count != Some(sc)
+    {
+        return false;
+    }
+    if p.min_bpm.is_some() || p.max_bpm.is_some() {
+        let Some(t) = r.tempo_bpm else { return false };
+        if p.min_bpm.is_some_and(|m| t < m) || p.max_bpm.is_some_and(|m| t > m) {
+            return false;
+        }
+    }
+    true
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -209,10 +315,8 @@ mod tests {
     fn params(text: &str) -> CatalogSearchParams {
         CatalogSearchParams {
             text_norm: normalize_text(text),
-            author_norm: None,
-            level: None,
             limit: 50,
-            offset: 0,
+            ..Default::default()
         }
     }
 
@@ -253,11 +357,10 @@ mod tests {
     async fn author_and_level_filters_compose_conjunctively() {
         let repo = seeded();
         let p = CatalogSearchParams {
-            text_norm: String::new(),
             author_norm: Some(normalize_text("Debussy")),
             level: Some("advanced".into()),
             limit: 50,
-            offset: 0,
+            ..Default::default()
         };
         let hits = repo.search(&p).await.unwrap();
         // Only the advanced Debussy work (Prélude), not the intermediate one.
@@ -271,11 +374,9 @@ mod tests {
     async fn paging_slices_without_overlap() {
         let repo = seeded();
         let page = |offset| CatalogSearchParams {
-            text_norm: String::new(),
-            author_norm: None,
-            level: None,
             limit: 2,
             offset,
+            ..Default::default()
         };
         let p1: Vec<String> = repo
             .search(&page(0))

@@ -29,7 +29,7 @@ use cymbra_platform::{AppError, Result};
 use cymbra_storage::ObjectStorage;
 use sha2::{Digest, Sha256};
 
-use crate::catalog_search::{CatalogHit, CatalogSearchParams, CatalogSearchRepo};
+use crate::catalog_search::{CatalogHit, CatalogQuery, CatalogSearchParams, CatalogSearchRepo};
 use crate::user_library::UserLibraryRepo;
 use crate::user_scores::{UserScore, UserScoreRepo};
 
@@ -39,6 +39,10 @@ const RIGHTS_BASES: [&str; 2] = ["own_work", "public_domain"];
 /// Server maximum page size for catalog search — a caller-supplied limit is
 /// clamped to `[1, SEARCH_MAX_LIMIT]` so one request can never scan the corpus.
 const SEARCH_MAX_LIMIT: i64 = 50;
+
+/// Valid note-value denominators for the rhythmic-granularity filter
+/// (`4`=quarter … `128`=128th).
+const NOTE_VALUE_DENOMINATORS: [i16; 8] = [1, 2, 4, 8, 16, 32, 64, 128];
 
 /// The caller-supplied part of an upload (identity comes separately, from auth).
 pub struct UploadInput {
@@ -250,29 +254,47 @@ impl ScoreModule {
     /// conjunctively. The query/author are accent/case-folded here so they match
     /// the persisted normalised columns; `level` is validated against the fixed
     /// set; `limit` is clamped to the server maximum.
-    pub async fn search_catalog(
-        &self,
-        query: &str,
-        author: Option<&str>,
-        level: Option<&str>,
-        limit: i64,
-        offset: i64,
-    ) -> Result<Vec<CatalogHit>> {
-        if let Some(l) = level
+    pub async fn search_catalog(&self, q: CatalogQuery) -> Result<Vec<CatalogHit>> {
+        if let Some(l) = q.level.as_deref()
             && !LEVELS.contains(&l)
         {
             return Err(AppError::InvalidArgument(format!("unknown level {l:?}")));
         }
+        if let Some(v) = q.max_note_value
+            && !NOTE_VALUE_DENOMINATORS.contains(&v)
+        {
+            return Err(AppError::InvalidArgument(format!(
+                "unknown note-value denominator {v}"
+            )));
+        }
+        if let Some(s) = q.staff_count
+            && !(1..=2).contains(&s)
+        {
+            return Err(AppError::InvalidArgument(format!(
+                "unknown staff count {s}"
+            )));
+        }
         // Normalise text/author; an empty author (after fold) imposes no filter.
-        let author_norm = author
+        let author_norm = q
+            .author
+            .as_deref()
             .map(normalize_text)
             .filter(|a: &String| !a.is_empty());
         let params = CatalogSearchParams {
-            text_norm: normalize_text(query),
+            text_norm: normalize_text(&q.query),
             author_norm,
-            level: level.map(str::to_string),
-            limit: limit.clamp(1, SEARCH_MAX_LIMIT),
-            offset: offset.max(0),
+            level: q.level,
+            is_piano: q.is_piano,
+            max_note_value: q.max_note_value,
+            has_chords: q.has_chords,
+            has_tuplets: q.has_tuplets,
+            has_dotted: q.has_dotted,
+            max_ambitus_semitones: q.max_ambitus_semitones,
+            staff_count: q.staff_count,
+            min_bpm: q.min_bpm,
+            max_bpm: q.max_bpm,
+            limit: q.limit.clamp(1, SEARCH_MAX_LIMIT),
+            offset: q.offset.max(0),
         };
         self.catalog.search(&params).await
     }
@@ -680,12 +702,23 @@ mod tests {
     const SATIE: &str = "22222222-2222-7222-8222-222222222222";
     const DEBUSSY_2: &str = "33333333-3333-7333-8333-333333333333";
 
+    /// A [`CatalogQuery`] with just text/author/level set (facets unconstrained).
+    fn q(query: &str, author: Option<&str>, level: Option<&str>, limit: i64) -> CatalogQuery {
+        CatalogQuery {
+            query: query.into(),
+            author: author.map(Into::into),
+            level: level.map(Into::into),
+            limit,
+            ..Default::default()
+        }
+    }
+
     #[tokio::test]
     async fn search_catalog_normalises_and_composes_filters() {
         let (m, _cat, _lib) = catalog_module();
         // Accent-insensitive composer match across two works, title_norm ordered.
         let hits = m
-            .search_catalog("debussy", None, None, 50, 0)
+            .search_catalog(q("debussy", None, None, 50))
             .await
             .unwrap();
         assert_eq!(
@@ -694,7 +727,7 @@ mod tests {
         );
         // Author + difficulty compose conjunctively.
         let hits = m
-            .search_catalog("", Some("Debussy"), Some("advanced"), 50, 0)
+            .search_catalog(q("", Some("Debussy"), Some("advanced"), 50))
             .await
             .unwrap();
         assert_eq!(
@@ -704,18 +737,96 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn search_catalog_rejects_bad_level_and_clamps_limit() {
+    async fn search_catalog_rejects_bad_inputs_and_clamps_limit() {
         let (m, _cat, _lib) = catalog_module();
         assert!(matches!(
-            m.search_catalog("", None, Some("expert"), 50, 0).await,
+            m.search_catalog(q("", None, Some("expert"), 50)).await,
+            Err(AppError::InvalidArgument(_))
+        ));
+        // A note-value denominator outside the allowed set is rejected.
+        let bad_nv = CatalogQuery {
+            max_note_value: Some(7),
+            limit: 50,
+            ..Default::default()
+        };
+        assert!(matches!(
+            m.search_catalog(bad_nv).await,
+            Err(AppError::InvalidArgument(_))
+        ));
+        // A staff count outside 1..=2 is rejected.
+        let bad_sc = CatalogQuery {
+            staff_count: Some(3),
+            limit: 50,
+            ..Default::default()
+        };
+        assert!(matches!(
+            m.search_catalog(bad_sc).await,
             Err(AppError::InvalidArgument(_))
         ));
         // A limit above the server max is clamped (3 rows exist, limit 999 → all).
-        let hits = m.search_catalog("", None, None, 999, 0).await.unwrap();
+        let hits = m.search_catalog(q("", None, None, 999)).await.unwrap();
         assert_eq!(hits.len(), 3);
         // A non-positive limit clamps up to 1.
-        let hits = m.search_catalog("", None, None, 0, 0).await.unwrap();
+        let hits = m.search_catalog(q("", None, None, 0)).await.unwrap();
         assert_eq!(hits.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn search_catalog_facet_filters_compose_and_exclude_unknowns() {
+        // Two rows with facets, one without (unknown) — filters must exclude the
+        // unknown and compose conjunctively.
+        let repo = Arc::new(FakeUserScoreRepo::default());
+        let store = Arc::new(FakeStore::default());
+        let catalog = Arc::new(FakeCatalogSearchRepo::with(vec![
+            FakeCatalogRow::new(DEBUSSY_1, "Fast", "X", Some("advanced")).with_facets(
+                true,
+                16,
+                Some(140),
+                (48, 84),
+            ), // sixteenths, 140bpm, 3 octaves
+            FakeCatalogRow::new(SATIE, "Slow", "Y", Some("beginner")).with_facets(
+                true,
+                8,
+                Some(72),
+                (60, 72),
+            ), // eighths, 72bpm, 1 octave
+            FakeCatalogRow::new(DEBUSSY_2, "Unknown", "Z", Some("beginner")), // no facets
+        ]));
+        let m = ScoreModule::new(
+            repo,
+            catalog,
+            Arc::new(FakeUserLibraryRepo::default()),
+            store,
+            5,
+            7,
+            8 * 1024 * 1024,
+        );
+
+        // "Nothing faster than an eighth" keeps only the eighth-note row.
+        let only_eighths = CatalogQuery {
+            max_note_value: Some(8),
+            limit: 50,
+            ..Default::default()
+        };
+        let hits = m.search_catalog(only_eighths).await.unwrap();
+        assert_eq!(
+            hits.iter().map(|h| h.id.as_str()).collect::<Vec<_>>(),
+            [SATIE]
+        );
+
+        // Tempo range + ambitus compose; the unknown-facet row is excluded even
+        // though it would pass on text.
+        let slow_narrow = CatalogQuery {
+            max_bpm: Some(100),
+            max_ambitus_semitones: Some(12),
+            limit: 50,
+            ..Default::default()
+        };
+        let hits = m.search_catalog(slow_narrow).await.unwrap();
+        assert_eq!(
+            hits.iter().map(|h| h.id.as_str()).collect::<Vec<_>>(),
+            [SATIE]
+        );
     }
 
     #[tokio::test]

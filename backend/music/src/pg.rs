@@ -140,21 +140,41 @@ impl CatalogSearchRepo for PgCatalogSearchRepo {
         // ranked by trigram similarity with a deterministic `(title_norm, id)`
         // tiebreak so paging is stable. The query text/author are pre-normalised
         // by the module, so no re-parse/unaccent is needed at query time.
+        // Facet filters ($4..$13): each is a no-op when its bind is NULL; when
+        // set, a NULL facet column fails the predicate (unknown ⇒ excluded).
         let rows = sqlx::query(&format!(
             "SELECT {HIT_COLS} FROM music.catalog_scores \
              WHERE ($1 = '' OR title_norm ILIKE '%'||$1||'%' OR composer_norm ILIKE '%'||$1||'%') \
                AND ($2::text IS NULL OR composer_norm ILIKE '%'||$2||'%') \
                AND ($3::text IS NULL OR level = $3) \
+               AND ($4::bool  IS NULL OR is_piano = $4) \
+               AND ($5::int2  IS NULL OR min_note_value <= $5) \
+               AND ($6::bool  IS NULL OR has_chords = $6) \
+               AND ($7::bool  IS NULL OR has_tuplets = $7) \
+               AND ($8::bool  IS NULL OR has_dotted = $8) \
+               AND ($9::int2  IS NULL OR highest_midi - lowest_midi <= $9) \
+               AND ($10::int2 IS NULL OR staff_count = $10) \
+               AND ($11::int4 IS NULL OR tempo_bpm >= $11) \
+               AND ($12::int4 IS NULL OR tempo_bpm <= $12) \
              ORDER BY \
                CASE WHEN $1 = '' THEN 0 \
                     ELSE GREATEST(COALESCE(similarity(title_norm, $1), 0), \
                                   COALESCE(similarity(composer_norm, $1), 0)) END DESC, \
                title_norm ASC NULLS LAST, id ASC \
-             LIMIT $4 OFFSET $5"
+             LIMIT $13 OFFSET $14"
         ))
         .bind(&p.text_norm)
         .bind(&p.author_norm)
         .bind(&p.level)
+        .bind(p.is_piano)
+        .bind(p.max_note_value)
+        .bind(p.has_chords)
+        .bind(p.has_tuplets)
+        .bind(p.has_dotted)
+        .bind(p.max_ambitus_semitones)
+        .bind(p.staff_count)
+        .bind(p.min_bpm)
+        .bind(p.max_bpm)
         .bind(p.limit)
         .bind(p.offset)
         .fetch_all(&self.pool)

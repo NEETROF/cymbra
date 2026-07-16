@@ -26,7 +26,7 @@ pub mod model;
 pub mod mxl;
 pub mod validate;
 
-pub use meta::{ScoreSummary, normalize_text};
+pub use meta::{ScoreFacets, ScoreSummary, normalize_text};
 pub use model::*;
 pub use validate::{RejectReason, validate};
 
