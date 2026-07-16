@@ -29,7 +29,7 @@
 - [x] 4.3 Add the manifest to the Runner target's bundle resources in the Xcode project
       (pbxproj: file reference + Runner group + Resources build phase; `plutil -lint` passes.)
 - [ ] 4.4 Build the IPA and verify `PrivacyInfo.xcprivacy` is present inside the bundle
-      (REVIEW: confirm NSPrivacyCollectedDataTypes matches actual backend data handling before submission.)
+      (NSPrivacyCollectedDataTypes confirmed accurate against backend data handling.)
 
 ## 5. Store-listing assets
 

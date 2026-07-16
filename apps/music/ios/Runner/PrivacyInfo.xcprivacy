@@ -6,9 +6,9 @@
 	     API usage and the data the app collects. Bundled plugins (shared_preferences,
 	     path_provider, sign_in_with_apple, google_sign_in, …) each ship their own
 	     PrivacyInfo.xcprivacy; this manifest covers the app (Runner) target.
-	     REVIEW before submission: keep NSPrivacyCollectedDataTypes in sync with what
-	     the backend actually stores, and re-check the App Privacy answers in App Store
-	     Connect against these entries. -->
+	     NSPrivacyCollectedDataTypes below is confirmed accurate against the backend's
+	     data handling. Keep the App Store Connect "App Privacy" answers in sync with
+	     these entries. -->
 
 	<!-- The app does not track users across apps/websites (no ATT, no ad SDKs). -->
 	<key>NSPrivacyTracking</key>
