@@ -24,18 +24,20 @@
 
 ## 4. Apple privacy manifest
 
-- [ ] 4.1 Enumerate required-reason APIs and collected data types from dependencies (`flutter_secure_storage` → Keychain; `shared_preferences` → UserDefaults `CA92.1`; Sign in with Apple/Google account data)
-- [ ] 4.2 Author `apps/music/ios/Runner/PrivacyInfo.xcprivacy` with `NSPrivacyAccessedAPITypes` and `NSPrivacyCollectedDataTypes`
-- [ ] 4.3 Add the manifest to the Runner target's bundle resources in the Xcode project
+- [x] 4.1 Enumerate required-reason APIs and collected data types from dependencies (`flutter_secure_storage` → Keychain; `shared_preferences` → UserDefaults `CA92.1`; Sign in with Apple/Google account data)
+- [x] 4.2 Author `apps/music/ios/Runner/PrivacyInfo.xcprivacy` with `NSPrivacyAccessedAPITypes` and `NSPrivacyCollectedDataTypes`
+- [x] 4.3 Add the manifest to the Runner target's bundle resources in the Xcode project
+      (pbxproj: file reference + Runner group + Resources build phase; `plutil -lint` passes.)
 - [ ] 4.4 Build the IPA and verify `PrivacyInfo.xcprivacy` is present inside the bundle
+      (REVIEW: confirm NSPrivacyCollectedDataTypes matches actual backend data handling before submission.)
 
 ## 5. Store-listing assets
 
-- [ ] 5.1 Create `apps/music/store/` layout (per platform, screenshots + graphics)
+- [x] 5.1 Create `apps/music/store/` layout (per platform, screenshots + graphics)
 - [ ] 5.2 Capture iOS landscape screenshots for 6.7" iPhone and 12.9" iPad at required resolutions
 - [ ] 5.3 Capture ≥2 Android phone landscape screenshots
-- [ ] 5.4 Produce the Play 512×512 hi-res icon and the 1024×500 feature graphic
-- [ ] 5.5 Confirm every asset meets its store's size/format rules
+- [x] 5.4 Produce the Play 512×512 hi-res icon and the 1024×500 feature graphic
+- [ ] 5.5 Confirm every asset meets its store's size/format rules (512 icon + feature graphic done; screenshots pending)
 
 ## 6. Store-listing copy
 
