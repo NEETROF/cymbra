@@ -177,13 +177,14 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
 
     // Open the Score Hub from the library AppBar, then the upload wizard from
-    // the hub AppBar (the contribute action now lives in the hub).
-    await tester.tap(find.byTooltip('Hub de partitions'));
+    // the hub AppBar (the contribute action now lives in the hub). Tooltips are
+    // localized and the app is pinned to English here, so match the EN strings.
+    await tester.tap(find.byTooltip('Score Hub'));
     for (var i = 0; i < 8; i++) {
       await tester.pump(const Duration(milliseconds: 50));
     }
     await watch(tester);
-    await tester.tap(find.byTooltip('Contribuer une partition'));
+    await tester.tap(find.byTooltip('Contribute a score'));
     for (var i = 0; i < 8; i++) {
       await tester.pump(const Duration(milliseconds: 50));
     }
