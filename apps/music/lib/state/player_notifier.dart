@@ -178,6 +178,7 @@ class Player extends _$Player {
       beats: document.attributes.time.beats,
       beatType: document.attributes.time.beatType,
       notes: derived.notes,
+      rests: derived.rests,
       songEndMs: derived.songEndMs,
       measureStartMs: derived.measureStartMs,
       elapsedMs: 0,
@@ -211,6 +212,7 @@ class Player extends _$Player {
       title: 'Demo — C Major Scale',
       bpm: score.bpm,
       notes: all,
+      rests: const [], // the demo score has no rests; clear any prior score's
       songEndMs: end,
     );
   }

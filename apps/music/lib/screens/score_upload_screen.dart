@@ -511,6 +511,7 @@ class _VerifyStepViewState extends ConsumerState<_VerifyStepView>
                           size: Size.infinite,
                           painter: StaffPainter(
                             notes: playback.notes,
+                            rests: playback.rests,
                             elapsedMs: _elapsedMs,
                             activeNotes: const <int>{},
                             bpm: playback.bpm,

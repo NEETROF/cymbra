@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:ui' show PictureRecorder;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:music/painters/piano_keyboard_painter.dart';
@@ -505,6 +507,84 @@ void main() {
         songEndMs: 1500,
       );
       expect(a.shouldRepaint(b), isTrue);
+    });
+
+    test('staff repaints when the rests change', () {
+      const a = StaffPainter(
+        notes: _notes,
+        elapsedMs: 0,
+        activeNotes: {},
+        bpm: 80,
+        songEndMs: 1500,
+      );
+      const b = StaffPainter(
+        notes: _notes,
+        rests: [TimedRest(startMs: 250, durationMs: 250)],
+        elapsedMs: 0,
+        activeNotes: {},
+        bpm: 80,
+        songEndMs: 1500,
+      );
+      expect(a.shouldRepaint(b), isTrue);
+    });
+
+    // The Portée renderer must draw open (half/whole) note heads, dotted notes,
+    // and rests — not just filled quarter heads — so it stays faithful to the
+    // score like the Partition view. This exercises those paint paths.
+    test('staff paints open note heads, dots and rests without error', () {
+      const painter = StaffPainter(
+        notes: [
+          TimedNote(pitch: 60, startMs: 0, durationMs: 3000, noteType: 'whole'),
+          TimedNote(
+            pitch: 64,
+            startMs: 3000,
+            durationMs: 1500,
+            noteType: 'half',
+            dots: 1,
+          ),
+          TimedNote(
+            pitch: 67,
+            startMs: 4500,
+            durationMs: 500,
+            noteType: 'quarter',
+          ),
+        ],
+        rests: [
+          TimedRest(
+            startMs: 5000,
+            durationMs: 500,
+            noteType: 'quarter',
+            dots: 1,
+          ),
+          TimedRest(startMs: 5500, durationMs: 250, noteType: 'eighth'),
+        ],
+        elapsedMs: 0,
+        activeNotes: {},
+        bpm: 80,
+        songEndMs: 6000,
+      );
+      final recorder = PictureRecorder();
+      final canvas = Canvas(recorder);
+      // Should complete without throwing (open heads, dots, rest glyphs).
+      painter.paint(canvas, const Size(600, 300));
+      recorder.endRecording();
+    });
+
+    // A single hand made up only of rests must still render (the guard used to
+    // bail when `notes` was empty, dropping rest-only staves).
+    test('staff renders a rest-only staff', () {
+      const painter = StaffPainter(
+        notes: [],
+        rests: [TimedRest(startMs: 0, durationMs: 2000, noteType: 'half')],
+        elapsedMs: 0,
+        activeNotes: {},
+        bpm: 80,
+        songEndMs: 2000,
+      );
+      final recorder = PictureRecorder();
+      final canvas = Canvas(recorder);
+      painter.paint(canvas, const Size(600, 300));
+      recorder.endRecording();
     });
   });
 }

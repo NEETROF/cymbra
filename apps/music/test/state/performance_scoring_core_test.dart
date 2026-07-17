@@ -103,9 +103,16 @@ void main() {
       );
     });
 
-    test('sustain score is the mean of ratios (1.0 if none)', () {
-      expect(sustainScore(const []), 1.0);
+    test('sustain score is the mean of ratios', () {
       expect(sustainScore(const [1.0, 0.0]), closeTo(0.5, 1e-9));
+    });
+
+    test('empty sustain is 1.0 pristine but 0.0 once onsets were judged', () {
+      // Pristine (nothing judged yet): full credit so the gauge renders.
+      expect(sustainScore(const []), 1.0);
+      expect(sustainScore(const [], anyOnsetJudged: false), 1.0);
+      // Judged onsets but no hits (all missed): nothing was held ⇒ 0, not 1.0.
+      expect(sustainScore(const [], anyOnsetJudged: true), 0.0);
     });
   });
 
@@ -120,6 +127,25 @@ void main() {
         100.0,
       );
     });
+
+    test(
+      'doing nothing (all onsets missed) scores 0, not the sustain weight',
+      () {
+        // Regression: an all-missed run has no hit sustain ratios, so the sustain
+        // dimension used to default to 1.0 and leak its 0.2 weight ⇒ a phantom
+        // 20%. With no hits, the whole blend must be 0.
+        final pct = syncPercent(
+          onsetVerdicts: const [
+            TimingVerdict.missed,
+            TimingVerdict.missed,
+            TimingVerdict.missed,
+          ],
+          sustainRatios: const [],
+          wrongNotes: 0,
+        );
+        expect(pct, 0.0);
+      },
+    );
 
     test('perfect, well-sustained play trends to 100', () {
       final pct = syncPercent(

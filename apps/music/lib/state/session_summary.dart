@@ -249,7 +249,7 @@ class SessionResult {
       avgReactionMs: avgReaction,
       timing: timingScore(verdicts),
       correctness: correctnessScore(verdicts, wrong),
-      sustain: sustainScore(ratios),
+      sustain: sustainScore(ratios, anyOnsetJudged: verdicts.isNotEmpty),
       verdictCounts: counts,
       wrongNotes: wrong,
       bestCombo: bestCombo,

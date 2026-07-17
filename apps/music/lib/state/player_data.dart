@@ -52,6 +52,17 @@ class TimedNote {
   final String clefSign;
   final int clefLine;
 
+  /// Note-type token when known (e.g. `"whole"`, `"half"`, `"quarter"`,
+  /// `"eighth"`), carried from the parsed notation so the Staff painter can pick
+  /// an open vs filled notehead and drop the stem on whole notes — matching the
+  /// engraved Partition view. Null for the demo score (the painter then infers
+  /// the head from [durationMs]).
+  final String? noteType;
+
+  /// Number of augmentation dots (0 when none), so the Staff painter can draw
+  /// dotted notes faithfully.
+  final int dots;
+
   const TimedNote({
     required this.pitch,
     required this.startMs,
@@ -60,6 +71,37 @@ class TimedNote {
     this.beams = const [],
     this.clefSign = 'G',
     this.clefLine = 2,
+    this.noteType,
+    this.dots = 0,
+  });
+}
+
+/// A rest in the score, time-positioned like a [TimedNote] but carrying no
+/// pitch. Kept in a channel **separate** from the playable notes so it feeds the
+/// notation painters (Staff/Partition) without ever polluting the Wait-Mode gate
+/// or the scoring — a rest is drawn, never awaited or judged.
+class TimedRest {
+  final int startMs;
+  final int durationMs;
+
+  /// Staff the rest belongs to (1 = treble/right hand, 2 = bass/left hand), so
+  /// the Staff painter routes it to the right staff and the hand filter hides it
+  /// with its hand.
+  final int staff;
+
+  /// Note-type token when known (e.g. `"whole"`, `"half"`, `"quarter"`), used to
+  /// pick the rest glyph. Null → inferred from [durationMs].
+  final String? noteType;
+
+  /// Number of augmentation dots (0 when none).
+  final int dots;
+
+  const TimedRest({
+    required this.startMs,
+    required this.durationMs,
+    this.staff = 1,
+    this.noteType,
+    this.dots = 0,
   });
 }
 
@@ -99,6 +141,11 @@ abstract class PlayerData with _$PlayerData {
 
     /// Score notes flattened and sorted by start.
     @Default(<TimedNote>[]) List<TimedNote> notes,
+
+    /// Score rests flattened and sorted by start — a render-only channel for the
+    /// notation painters. Deliberately separate from [notes] so rests are never
+    /// awaited by the Wait-Mode gate nor scored.
+    @Default(<TimedRest>[]) List<TimedRest> rests,
 
     /// End of the song (ms).
     @Default(0.0) double songEndMs,
@@ -183,6 +230,12 @@ abstract class PlayerData with _$PlayerData {
   /// the gate derive from, so display and Wait Mode stay consistent.
   List<TimedNote> get visibleNotes =>
       notes.where((n) => showsStaff(n.staff)).toList();
+
+  /// Rests belonging to the selected hand(s) — the render-only companion to
+  /// [visibleNotes], so the Staff painter hides a muted hand's rests with its
+  /// notes.
+  List<TimedRest> get visibleRests =>
+      rests.where((r) => showsStaff(r.staff)).toList();
 
   /// Whether the loaded piece has any left-hand (staff 2+) notes, so isolating a
   /// hand is meaningful. The hand selector is shown only then — a single-staff

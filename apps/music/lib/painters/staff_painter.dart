@@ -29,6 +29,11 @@ import 'smufl.dart';
 /// green if it's correctly played, teal if it's expected.
 class StaffPainter extends CustomPainter {
   final List<TimedNote> notes;
+
+  /// Rests to engrave on the staff (render-only; never played or scored). Placed
+  /// by time like the notes, routed to their staff.
+  final List<TimedRest> rests;
+
   final double elapsedMs;
   final Set<int> activeNotes;
 
@@ -61,6 +66,7 @@ class StaffPainter extends CustomPainter {
     required this.activeNotes,
     required this.bpm,
     required this.songEndMs,
+    this.rests = const [],
     this.keyFifths = 0,
     this.beats = 4,
     this.beatType = 4,
@@ -73,13 +79,16 @@ class StaffPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    if (notes.isEmpty) return;
+    if (notes.isEmpty && rests.isEmpty) return;
 
     const margin = 48.0;
     // A grand staff needs both hands present in the (already hand-filtered)
-    // notes; when a single hand is shown only its staff is drawn and recentred.
-    final hasTreble = notes.any((n) => n.staff == 1);
-    final hasBass = notes.any((n) => n.staff >= 2);
+    // notes/rests; when a single hand is shown only its staff is drawn and
+    // recentred.
+    final hasTreble =
+        notes.any((n) => n.staff == 1) || rests.any((r) => r.staff == 1);
+    final hasBass =
+        notes.any((n) => n.staff >= 2) || rests.any((r) => r.staff >= 2);
     final twoStaff = hasTreble && hasBass;
     // The kept staff when a single hand is shown: its clef/armature are drawn on
     // the lone staff (bass when only staff 2+ remains, else treble).
@@ -336,11 +345,14 @@ class StaffPainter extends CustomPainter {
         );
       }
 
-      _drawHead(canvas, Offset(x, y), lineGap, atPlayhead, color);
-      // Beamed notes get their stems/beam from the group pass; others stem now.
-      if (!beamed.contains(n)) {
+      final head = _headGlyph(n, quarterMs);
+      _drawHead(canvas, Offset(x, y), lineGap, atPlayhead, color, head);
+      // Whole notes carry no stem; others do. Beamed notes get their stem/beam
+      // from the group pass, so only unbeamed non-whole notes stem here.
+      if (!beamed.contains(n) && head != Smufl.noteheadWhole) {
         _drawStemFlag(canvas, Offset(x, y), lineGap, color, flagsOf(n));
       }
+      if (n.dots > 0) _drawDots(canvas, Offset(x, y), lineGap, n.dots, color);
       final isBass = bassBottom != null && n.staff >= 2;
       final base = isBass ? bassBottom : trebleBottom;
       _drawLedgerLines(
@@ -352,6 +364,29 @@ class StaffPainter extends CustomPainter {
         lineGap,
         linePaint,
       );
+    }
+
+    // 4b) Scrolling rests, routed to their staff and centred on its middle line
+    // (two spaces above the bottom line), like the engraved Partition view.
+    const restColor = CymbraColors.onSurfaceVariant;
+    for (final r in rests) {
+      final x = xForTime(r.startMs.toDouble());
+      if (!visible(x)) continue;
+      final isBass = bassBottom != null && r.staff >= 2;
+      final base = isBass ? bassBottom : trebleBottom;
+      final y = base - 2 * lineGap;
+      Smufl.draw(
+        canvas,
+        _restGlyph(r, quarterMs),
+        x,
+        y,
+        lineGap,
+        restColor,
+        centerX: true,
+      );
+      if (r.dots > 0) {
+        _drawDots(canvas, Offset(x, y), lineGap, r.dots, restColor);
+      }
     }
 
     // 5) Beams over their groups (stems up, one straight beam each).
@@ -437,13 +472,15 @@ class StaffPainter extends CustomPainter {
     return octave * 7 + (whiteInOctave[semitone] ?? 0);
   }
 
-  /// SMuFL note head (plus a soft glow when under the playhead).
+  /// SMuFL note head (plus a soft glow when under the playhead). [glyph] selects
+  /// the head shape (filled/half/whole) for the note's duration.
   void _drawHead(
     Canvas canvas,
     Offset center,
     double lineGap,
     bool emphasized,
     Color color,
+    String glyph,
   ) {
     if (emphasized) {
       canvas.drawCircle(
@@ -455,14 +492,74 @@ class StaffPainter extends CustomPainter {
       );
     }
     final headLeft = center.dx - Smufl.noteheadWidth * lineGap / 2;
-    Smufl.draw(
-      canvas,
-      Smufl.noteheadBlack,
-      headLeft,
-      center.dy,
-      lineGap,
-      color,
-    );
+    Smufl.draw(canvas, glyph, headLeft, center.dy, lineGap, color);
+  }
+
+  /// Notehead glyph for a note: open for half/whole, filled otherwise. Uses the
+  /// parsed [TimedNote.noteType] when present, else infers from the duration
+  /// (in [quarterMs] units) — matching the engraved Partition view.
+  String _headGlyph(TimedNote n, double quarterMs) {
+    switch (n.noteType) {
+      case 'whole':
+        return Smufl.noteheadWhole;
+      case 'half':
+        return Smufl.noteheadHalf;
+      case null:
+        final ratio = quarterMs > 0 ? n.durationMs / quarterMs : 1.0;
+        if (ratio >= 3.5) return Smufl.noteheadWhole; // ~whole (4 beats)
+        if (ratio >= 1.5) return Smufl.noteheadHalf; // ~half / dotted half
+        return Smufl.noteheadBlack;
+      default:
+        return Smufl.noteheadBlack;
+    }
+  }
+
+  /// Rest glyph for a rest: from its [TimedRest.noteType] when present, else
+  /// inferred from the duration (in [quarterMs] units).
+  String _restGlyph(TimedRest r, double quarterMs) {
+    switch (r.noteType) {
+      case 'whole':
+        return Smufl.restWhole;
+      case 'half':
+        return Smufl.restHalf;
+      case 'quarter':
+        return Smufl.restQuarter;
+      case 'eighth':
+        return Smufl.rest8th;
+      case '16th':
+        return Smufl.rest16th;
+      case null:
+        final ratio = quarterMs > 0 ? r.durationMs / quarterMs : 1.0;
+        if (ratio >= 3.5) return Smufl.restWhole;
+        if (ratio >= 1.5) return Smufl.restHalf;
+        if (ratio <= 0.32) return Smufl.rest16th;
+        if (ratio <= 0.62) return Smufl.rest8th;
+        return Smufl.restQuarter;
+      default:
+        return Smufl.restQuarter;
+    }
+  }
+
+  /// Augmentation dots to the right of a note head or rest.
+  void _drawDots(
+    Canvas canvas,
+    Offset center,
+    double lineGap,
+    int dots,
+    Color color,
+  ) {
+    for (var i = 0; i < dots; i++) {
+      Smufl.draw(
+        canvas,
+        Smufl.augmentationDot,
+        center.dx +
+            Smufl.noteheadWidth * lineGap / 2 +
+            lineGap * (0.3 + i * 0.5),
+        center.dy,
+        lineGap,
+        color,
+      );
+    }
   }
 
   /// Up-stem and (for unbeamed notes) flags, attached at the head anchor.
@@ -581,6 +678,7 @@ class StaffPainter extends CustomPainter {
       old.elapsedMs != elapsedMs ||
       old.activeNotes != activeNotes ||
       old.notes != notes ||
+      old.rests != rests ||
       old.measureStartMs != measureStartMs ||
       old.mistakeColors != mistakeColors;
 }
