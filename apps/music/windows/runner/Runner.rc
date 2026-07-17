@@ -89,13 +89,13 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.example" "\0"
-            VALUE "FileDescription", "music" "\0"
+            VALUE "CompanyName", "Cymbra" "\0"
+            VALUE "FileDescription", "Cymbra Music" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "music" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 com.example. All rights reserved." "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 Cymbra. All rights reserved." "\0"
             VALUE "OriginalFilename", "music.exe" "\0"
-            VALUE "ProductName", "music" "\0"
+            VALUE "ProductName", "Cymbra Music" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END
