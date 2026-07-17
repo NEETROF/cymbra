@@ -19,6 +19,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:music/services/catalog_service.dart';
 import 'package:music/services/score_upload_service.dart';
 import 'package:music/state/catalog_search_notifier.dart';
+import 'package:music/state/contributed_scores.dart';
 import 'package:music/state/score_catalog.dart';
 import 'package:music/state/session_notifier.dart';
 
@@ -233,6 +234,21 @@ void main() {
     c.read(catalogSearchProvider.notifier).setAuthor('Me');
     final s2 = await _settled(c);
     expect(_ids(s2), ['u1']);
+  });
+
+  test('a new upload refreshes the hub without a manual reload', () async {
+    // Mutable uploads list shared with the fake service; invalidating the
+    // uploads provider (as the upload flow does) must re-run the search.
+    final uploads = <ContributedScore>[];
+    final c = _container(_FakeCatalog(_corpus()), uploads: uploads);
+    final s = await _settled(c);
+    expect(_ids(s), ['c1', 'c2', 'c3']); // no uploads yet
+
+    uploads.add(_upload('u1', 'Fresh Upload', 'Me'));
+    c.invalidate(myUploadsProvider);
+    final s2 = await _settled(c);
+    // The upload now leads the mixed results, catalog still following.
+    expect(_ids(s2), ['u1', 'c1', 'c2', 'c3']);
   });
 
   test('toggleSave saves then removes through the service', () async {

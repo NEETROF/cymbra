@@ -97,6 +97,9 @@ class CatalogSearch extends _$CatalogSearch {
   @override
   CatalogSearchState build() {
     ref.onDispose(() => _debounceTimer?.cancel());
+    // Re-run the current query whenever the user's uploads change (e.g. a new
+    // contribution) so the hub reflects it immediately without a manual reload.
+    ref.listen(myContributedScoresProvider, (_, _) => unawaited(_reload()));
     // Kick off the initial browse after build returns (never touch state here).
     Future.microtask(_reload);
     return const CatalogSearchState();
