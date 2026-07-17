@@ -316,8 +316,10 @@ class _CoverPainter extends CustomPainter {
       );
     }
 
-    // Sound-wave: frequency ← tempo, amplitude ← ambitus, a second harmonic for
-    // dense pieces (idea B). Falls back to the difficulty when facets are absent.
+    // Sound-wave: frequency ← tempo, amplitude ← ambitus, plus a difficulty
+    // "energy" boost so harder pieces visibly read busier — taller, thicker, and
+    // with extra harmonics (idea B + the difficulty overlay). Falls back to the
+    // difficulty alone when facets are absent.
     final baseY = size.height * (0.55 + rng.nextDouble() * 0.18);
     final freq = tempoBpm != null
         ? (tempoBpm! / 40).clamp(1.5, 8.0)
@@ -325,12 +327,37 @@ class _CoverPainter extends CustomPainter {
     final ampFrac = ambitus != null
         ? (0.04 + ambitus! / 520).clamp(0.04, 0.13)
         : 0.05 + 0.035 * intensity;
-    final amp = size.height * ampFrac;
+    // Difficulty overlay: ×1.0 / ×1.15 / ×1.3 for beginner / intermediate / advanced.
+    final energy = 1.0 + 0.15 * intensity;
+    final amp = size.height * ampFrac * energy;
     final phase = rng.nextDouble() * math.pi * 2;
-    _wave(canvas, size, baseY, amp, freq, phase, 0.16 + 0.04 * intensity, 2.0);
-    final busy = noteCount != null ? noteCount! > 260 : intensity >= 2;
+    _wave(
+      canvas,
+      size,
+      baseY,
+      amp,
+      freq,
+      phase,
+      0.16 + 0.05 * intensity,
+      2.0 + 0.4 * intensity,
+    );
+    // Second harmonic for advanced pieces (always) or dense ones.
+    final busy = intensity >= 2 || (noteCount != null && noteCount! > 220);
     if (busy) {
-      _wave(canvas, size, baseY, amp * 0.5, freq * 2, phase + 1.0, 0.10, 1.2);
+      _wave(
+        canvas,
+        size,
+        baseY,
+        amp * 0.55,
+        freq * 2,
+        phase + 1.0,
+        0.11 + 0.03 * intensity,
+        1.3,
+      );
+    }
+    // A third, faint fast ripple for the busiest (advanced) pieces.
+    if (intensity >= 2) {
+      _wave(canvas, size, baseY, amp * 0.3, freq * 3, phase + 2.2, 0.09, 1.0);
     }
 
     // Fast-note glyphs: with facets, only when the piece really has eighths
