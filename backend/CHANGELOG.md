@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.0](https://github.com/NEETROF/cymbra/compare/backend-v0.6.1...backend-v0.7.0) (2026-07-17)
+
+
+### Features
+
+* Score Hub — search, save, facets, generated covers, favorites home ([#96](https://github.com/NEETROF/cymbra/issues/96)) ([97bd840](https://github.com/NEETROF/cymbra/commit/97bd84060d466d3627f883dc0ec2b4cf556e0725))
+
 ## [0.6.1](https://github.com/NEETROF/cymbra/compare/backend-v0.6.0...backend-v0.6.1) (2026-07-15)
 
 

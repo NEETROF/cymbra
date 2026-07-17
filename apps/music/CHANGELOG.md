@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.13.0](https://github.com/NEETROF/cymbra/compare/music-v1.12.0...music-v1.13.0) (2026-07-17)
+
+
+### Features
+
+* Score Hub — search, save, facets, generated covers, favorites home ([#96](https://github.com/NEETROF/cymbra/issues/96)) ([97bd840](https://github.com/NEETROF/cymbra/commit/97bd84060d466d3627f883dc0ec2b4cf556e0725))
+
 ## [1.12.0](https://github.com/NEETROF/cymbra/compare/music-v1.11.2...music-v1.12.0) (2026-07-16)
 
 
