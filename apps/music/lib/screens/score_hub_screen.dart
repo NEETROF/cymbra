@@ -126,6 +126,7 @@ class _SearchBar extends StatelessWidget {
                 ),
                 label: Text(l10n.scoreHubMyScores),
                 selected: state.isMyUploads,
+                showCheckmark: false,
                 onSelected: (on) => notifier.setSource(
                   on ? CatalogSource.myUploads : CatalogSource.catalog,
                 ),
@@ -484,9 +485,12 @@ class _FiltersDrawerState extends State<_FiltersDrawer> {
     );
   }
 
+  // `showCheckmark: false` so selecting a chip doesn't add a tick that changes
+  // its width and reflows the row; the fill colour already marks the selection.
   Widget _choice(String label, bool selected, VoidCallback onTap) => ChoiceChip(
     label: Text(label),
     selected: selected,
+    showCheckmark: false,
     onSelected: (_) => onTap(),
   );
 
@@ -494,6 +498,7 @@ class _FiltersDrawerState extends State<_FiltersDrawer> {
       FilterChip(
         label: Text(label),
         selected: selected,
+        showCheckmark: false,
         onSelected: onSelected,
       );
 }
