@@ -25,7 +25,15 @@ message ScoreRecord {
   int32 note_count = 11;
   optional int32 lowest_midi = 12;
   optional int32 highest_midi = 13;
+  // Whether this upload is in the caller's favorites (change: favorites-home).
+  bool favorite = 14;
 }
+
+message SetScoreFavoriteRequest {
+  string id = 1;
+  bool favorite = 2;
+}
+message SetScoreFavoriteResponse {}
 
 message UploadScoreRequest {
   bytes data = 1; // raw .musicxml/.xml or zipped .mxl
@@ -119,6 +127,7 @@ service ScoreService {
   rpc ListMyScores(ListMyScoresRequest) returns (ListMyScoresResponse);
   rpc DeleteScore(DeleteScoreRequest) returns (DeleteScoreResponse);
   rpc GetScoreBytes(GetScoreBytesRequest) returns (GetScoreBytesResponse);
+  rpc SetScoreFavorite(SetScoreFavoriteRequest) returns (SetScoreFavoriteResponse);
 
   // Score Hub (change: score-hub-search).
   rpc SearchCatalog(SearchCatalogRequest) returns (SearchCatalogResponse);

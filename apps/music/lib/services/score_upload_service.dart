@@ -56,6 +56,9 @@ class ContributedScore {
   final int? lowestMidi;
   final int? highestMidi;
 
+  /// Whether this upload is in the user's favorites (shown on the home screen).
+  final bool favorite;
+
   const ContributedScore({
     required this.id,
     required this.level,
@@ -70,6 +73,7 @@ class ContributedScore {
     this.noteCount = 0,
     this.lowestMidi,
     this.highestMidi,
+    this.favorite = true,
   });
 }
 
@@ -97,6 +101,10 @@ abstract class ScoreUploadService {
 
   /// Delete one of the caller's contributed scores.
   Future<void> deleteScore(String id);
+
+  /// Favorite / un-favorite one of the caller's uploads (home visibility).
+  /// Un-favoriting never deletes the upload.
+  Future<void> setFavorite(String id, bool favorite);
 
   /// Fetch a contributed score's bytes to open it in the player — the
   /// backend-backed byte source paralleling [ScoreAssetSource] (task 6.3).
@@ -172,6 +180,7 @@ class GrpcScoreUploadService implements ScoreUploadService {
     noteCount: r.noteCount,
     lowestMidi: r.hasLowestMidi() ? r.lowestMidi : null,
     highestMidi: r.hasHighestMidi() ? r.highestMidi : null,
+    favorite: r.favorite,
   );
 
   @override
@@ -216,6 +225,15 @@ class GrpcScoreUploadService implements ScoreUploadService {
       options: bearerOptions(bearer),
     );
   });
+
+  @override
+  Future<void> setFavorite(String id, bool favorite) =>
+      _authed<void>((bearer) async {
+        await _client.setScoreFavorite(
+          score.SetScoreFavoriteRequest(id: id, favorite: favorite),
+          options: bearerOptions(bearer),
+        );
+      });
 
   @override
   Future<Uint8List> fetchBytes(String id) => _authed((bearer) async {

@@ -16,7 +16,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../l10n/gen/app_localizations.dart';
+import '../services/score_upload_service.dart';
 import '../state/catalog_search_notifier.dart';
+import '../state/contributed_scores.dart';
 import '../state/score_catalog.dart';
 import '../theme/cymbra_theme.dart';
 import '../widgets/score_card.dart';
@@ -212,10 +214,12 @@ class _Results extends StatelessWidget {
               return _HubCard(
                 entry: entry,
                 saved: state.isSaved(entry),
-                // Only catalog results are savable; uploads are already owned.
+                // Catalog results are savable; the user's own uploads instead
+                // offer a delete (this is where an author manages/deletes them).
                 onToggleSave: state.isMyUploads
                     ? null
                     : () => notifier.toggleSave(entry),
+                deletable: state.isMyUploads,
               );
             },
           ),
@@ -233,11 +237,20 @@ class _Results extends StatelessWidget {
 }
 
 class _HubCard extends ConsumerWidget {
-  const _HubCard({required this.entry, required this.saved, this.onToggleSave});
+  const _HubCard({
+    required this.entry,
+    required this.saved,
+    this.onToggleSave,
+    this.deletable = false,
+  });
 
   final CatalogEntry entry;
   final bool saved;
   final VoidCallback? onToggleSave;
+
+  /// True for the user's own uploads ("mes partitions"): the card offers a
+  /// delete action instead of the save toggle.
+  final bool deletable;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -250,7 +263,19 @@ class _HubCard extends ConsumerWidget {
           context,
         ).push(MaterialPageRoute<void>(builder: (_) => const PlayerScreen()));
       },
-      action: onToggleSave == null
+      action: deletable
+          ? IconButton(
+              icon: const Icon(
+                Icons.delete_outline,
+                color: CymbraColors.onSurface,
+              ),
+              tooltip: 'Supprimer',
+              style: IconButton.styleFrom(
+                backgroundColor: Colors.black.withValues(alpha: 0.28),
+              ),
+              onPressed: () => _confirmDelete(context, ref),
+            )
+          : onToggleSave == null
           ? null
           : IconButton(
               icon: Icon(
@@ -263,6 +288,34 @@ class _HubCard extends ConsumerWidget {
               onPressed: onToggleSave,
             ),
     );
+  }
+
+  /// Delete one of the caller's own uploads (destructive) with a confirm dialog,
+  /// then refresh the hub list. Removes it everywhere — home + hub.
+  Future<void> _confirmDelete(BuildContext context, WidgetRef ref) async {
+    final id = entry.contributedId;
+    if (id == null) return;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Supprimer cette partition ?'),
+        content: Text('« ${entry.title} » sera définitivement supprimée.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Annuler'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Supprimer'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    await ref.read(scoreUploadServiceProvider).deleteScore(id);
+    ref.invalidate(myUploadsProvider);
+    await ref.read(catalogSearchProvider.notifier).refresh();
   }
 }
 

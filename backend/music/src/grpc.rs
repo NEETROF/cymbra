@@ -34,7 +34,8 @@ use crate::proto::{
     GetScoreBytesResponse, ListMyScoresRequest, ListMyScoresResponse,
     ListSavedCatalogScoresRequest, ListSavedCatalogScoresResponse, RemoveSavedCatalogScoreRequest,
     RemoveSavedCatalogScoreResponse, SaveCatalogScoreRequest, SaveCatalogScoreResponse,
-    ScoreRecord, SearchCatalogRequest, SearchCatalogResponse, UploadScoreRequest,
+    ScoreRecord, SearchCatalogRequest, SearchCatalogResponse, SetScoreFavoriteRequest,
+    SetScoreFavoriteResponse, UploadScoreRequest,
     score_service_server::{ScoreService, ScoreServiceServer},
 };
 use crate::user_scores::UserScore;
@@ -77,6 +78,7 @@ fn to_record(s: UserScore) -> ScoreRecord {
         note_count: s.facets.note_count as i32,
         lowest_midi: s.facets.lowest_midi.map(i32::from),
         highest_midi: s.facets.highest_midi.map(i32::from),
+        favorite: s.favorite,
     }
 }
 
@@ -154,6 +156,18 @@ impl ScoreService for ScoreGrpc {
         let id = req.into_inner().id;
         let data = self.module.get_bytes(&owner_id, &id).await?;
         Ok(Response::new(GetScoreBytesResponse { data }))
+    }
+
+    async fn set_score_favorite(
+        &self,
+        req: Request<SetScoreFavoriteRequest>,
+    ) -> Result<Response<SetScoreFavoriteResponse>, Status> {
+        let owner_id = owner(&req)?;
+        let r = req.into_inner();
+        self.module
+            .set_favorite(&owner_id, &r.id, r.favorite)
+            .await?;
+        Ok(Response::new(SetScoreFavoriteResponse {}))
     }
 
     // --- Score Hub (change: score-hub-search) -------------------------------

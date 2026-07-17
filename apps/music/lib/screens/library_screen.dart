@@ -19,6 +19,7 @@ import '../l10n/gen/app_localizations.dart';
 import '../services/catalog_service.dart';
 import '../services/score_upload_service.dart';
 import '../state/contributed_scores.dart';
+import '../state/favorite_scores.dart';
 import '../state/saved_catalog_scores.dart';
 import '../state/score_catalog.dart';
 import '../state/session_notifier.dart';
@@ -38,18 +39,17 @@ String _levelLabel(AppLocalizations l10n, PracticeLevel level) =>
       PracticeLevel.advanced => l10n.levelAdvanced,
     };
 
-/// Start screen: the bundled score catalog grouped by practice level, plus the
-/// signed-in user's uploads and their saved catalog scores — each rendered as a
-/// [ScoreCard]. Tapping a card records it as the selected score and opens the
-/// player; the per-section action differs (bundled = open only, contributions =
-/// delete, saved = remove-from-library).
+/// Start screen. Signed in, it is the user's **favorites** — the catalog scores
+/// they saved from the hub plus their favorited uploads, unified and grouped by
+/// level (each removable from favorites; deletion of an upload happens in the
+/// hub's "mes partitions"). Signed out, it shows the bundled demo catalog.
 class LibraryScreen extends ConsumerWidget {
   const LibraryScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
-    final catalog = ref.watch(scoreCatalogProvider);
+    final signedIn = ref.watch(canUseOnlineServicesProvider);
 
     return Scaffold(
       backgroundColor: CymbraColors.background,
@@ -57,15 +57,11 @@ class LibraryScreen extends ConsumerWidget {
         title: Text(l10n.libraryTitle),
         backgroundColor: CymbraColors.surfaceContainerLowest,
         actions: [
-          // Score Hub + contribution entry points — only when signed in (spec:
-          // hidden/disabled otherwise, and the flow is not reachable).
-          if (ref.watch(canUseOnlineServicesProvider)) ...[
+          if (signedIn) ...[
             IconButton(
               icon: const Icon(Icons.search),
               tooltip: l10n.scoreHubEntryTooltip,
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(builder: (_) => const ScoreHubScreen()),
-              ),
+              onPressed: () => _openHub(context),
             ),
             IconButton(
               icon: const Icon(Icons.library_add_outlined),
@@ -84,85 +80,67 @@ class LibraryScreen extends ConsumerWidget {
       ),
       body: SafeArea(
         top: false,
-        child: ListView(
-          padding: const EdgeInsets.only(bottom: 24),
-          children: [
-            // Bundled catalog, grouped by level — open only, no per-card action.
-            for (final level in PracticeLevel.values)
-              ..._section(
-                context,
-                _levelLabel(l10n, level),
-                CymbraColors.primary,
-                catalog.where((e) => e.level == level).toList(),
-                (entry) => _open(context, ref, entry),
-                actionFor: (_) => null,
-              ),
-            // The user's own uploads (hidden when signed out / empty). Each card
-            // carries an owner-only delete.
-            ...switch (ref.watch(myContributedScoresProvider)) {
-              AsyncData(:final value) when value.isNotEmpty => _section(
-                context,
-                'MES CONTRIBUTIONS',
-                CymbraColors.secondary,
-                value,
-                (entry) => _open(context, ref, entry),
-                actionFor: (entry) => _CardAction(
-                  icon: Icons.delete_outline,
-                  tooltip: 'Supprimer',
-                  onPressed: () => _confirmDelete(context, ref, entry),
-                ),
-              ),
-              _ => const <Widget>[],
-            },
-            // Catalog scores saved from the Score Hub (hidden when signed out /
-            // empty). Each card carries a remove-from-library action that never
-            // deletes the public catalog entry.
-            ...switch (ref.watch(savedCatalogScoresProvider)) {
-              AsyncData(:final value) when value.isNotEmpty => _section(
-                context,
-                l10n.librarySavedSection,
-                CymbraColors.primary,
-                value,
-                (entry) => _open(context, ref, entry),
-                actionFor: (entry) => _CardAction(
-                  icon: Icons.favorite,
-                  color: CymbraColors.error,
-                  tooltip: l10n.scoreHubRemoveFromLibrary,
-                  onPressed: () => _removeSaved(ref, entry),
-                ),
-              ),
-              _ => const <Widget>[],
-            },
-          ],
-        ),
+        child: signedIn
+            ? _FavoritesBody(l10n: l10n)
+            : _bundledBody(context, ref),
       ),
     );
   }
 
-  /// A titled section: a header followed by a responsive grid of [ScoreCard]s.
-  /// [actionFor] returns the per-card overlay action (or null for open-only).
-  List<Widget> _section(
-    BuildContext context,
-    String title,
-    Color titleColor,
-    List<CatalogEntry> entries,
-    void Function(CatalogEntry) onOpen, {
-    required Widget? Function(CatalogEntry) actionFor,
-  }) {
-    if (entries.isEmpty) return const [];
-    return [
+  /// Signed-out: the bundled demo catalog, grouped by level (open-only).
+  Widget _bundledBody(BuildContext context, WidgetRef ref) {
+    final catalog = ref.watch(scoreCatalogProvider);
+    return ListView(
+      padding: const EdgeInsets.only(bottom: 24),
+      children: _levelSections(
+        context,
+        catalog,
+        onOpen: (entry) => _open(context, ref, entry),
+        actionFor: (_) => null,
+      ),
+    );
+  }
+
+  static void _open(BuildContext context, WidgetRef ref, CatalogEntry entry) {
+    ref.read(selectedScoreProvider.notifier).select(entry);
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute<void>(builder: (_) => const PlayerScreen()));
+  }
+
+  static void _openHub(BuildContext context) => Navigator.of(
+    context,
+  ).push(MaterialPageRoute<void>(builder: (_) => const ScoreHubScreen()));
+}
+
+/// Groups [entries] into per-level card grids (only non-empty levels), in
+/// beginner → advanced order.
+List<Widget> _levelSections(
+  BuildContext context,
+  List<CatalogEntry> entries, {
+  required void Function(CatalogEntry) onOpen,
+  required Widget? Function(CatalogEntry) actionFor,
+}) {
+  final l10n = AppLocalizations.of(context);
+  final widgets = <Widget>[];
+  for (final level in PracticeLevel.values) {
+    final inLevel = entries.where((e) => e.level == level).toList();
+    if (inLevel.isEmpty) continue;
+    widgets.add(
       Padding(
         padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
         child: Text(
-          title,
-          style: TextStyle(
-            color: titleColor,
+          _levelLabel(l10n, level),
+          style: const TextStyle(
+            color: CymbraColors.primary,
             fontSize: 15,
             fontWeight: FontWeight.w800,
             letterSpacing: 0.5,
           ),
         ),
       ),
+    );
+    widgets.add(
       GridView.builder(
         padding: const EdgeInsets.symmetric(horizontal: 16),
         shrinkWrap: true,
@@ -173,85 +151,122 @@ class LibraryScreen extends ConsumerWidget {
           crossAxisSpacing: 16,
           childAspectRatio: 0.78,
         ),
-        itemCount: entries.length,
+        itemCount: inLevel.length,
         itemBuilder: (context, i) => ScoreCard(
-          entry: entries[i],
-          onTap: () => onOpen(entries[i]),
-          action: actionFor(entries[i]),
+          entry: inLevel[i],
+          onTap: () => onOpen(inLevel[i]),
+          action: actionFor(inLevel[i]),
         ),
       ),
-    ];
-  }
-
-  void _open(BuildContext context, WidgetRef ref, CatalogEntry entry) {
-    ref.read(selectedScoreProvider.notifier).select(entry);
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute<void>(builder: (_) => const PlayerScreen()));
-  }
-
-  /// Remove a saved catalog score from the library (backend remove + refresh).
-  /// Reversible — the score can be found and saved again from the hub — so no
-  /// destructive-delete confirmation.
-  Future<void> _removeSaved(WidgetRef ref, CatalogEntry entry) async {
-    await ref.read(catalogServiceProvider).remove(entry.catalogId!);
-    ref.invalidate(savedCatalogScoresProvider);
-  }
-
-  Future<void> _confirmDelete(
-    BuildContext context,
-    WidgetRef ref,
-    CatalogEntry entry,
-  ) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Supprimer cette partition ?'),
-        content: Text('« ${entry.title} » sera définitivement supprimée.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Annuler'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Supprimer'),
-          ),
-        ],
-      ),
     );
-    if (ok != true) return;
-    await ref
-        .read(scoreUploadServiceProvider)
-        .deleteScore(entry.contributedId!);
-    ref.invalidate(myContributedScoresProvider);
+  }
+  return widgets;
+}
+
+/// Signed-in body: the favorites, grouped by level, with a remove-from-favorites
+/// heart on each; an empty state points to the hub.
+class _FavoritesBody extends ConsumerWidget {
+  const _FavoritesBody({required this.l10n});
+
+  final AppLocalizations l10n;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final favorites = ref.watch(favoriteScoresProvider);
+    return switch (favorites) {
+      AsyncData(:final value) when value.isEmpty => _Empty(l10n: l10n),
+      AsyncData(:final value) => ListView(
+        padding: const EdgeInsets.only(bottom: 24),
+        children: _levelSections(
+          context,
+          value,
+          onOpen: (entry) => LibraryScreen._open(context, ref, entry),
+          actionFor: (entry) =>
+              _FavoriteHeart(onPressed: () => _removeFromFavorites(ref, entry)),
+        ),
+      ),
+      AsyncError() => _Empty(l10n: l10n),
+      _ => const Center(child: CircularProgressIndicator()),
+    };
+  }
+
+  /// Remove from favorites: for a saved catalog score, remove it from the
+  /// library; for an upload, un-favorite it (the upload is kept, still in the
+  /// hub's "mes partitions"). Never deletes anything here.
+  Future<void> _removeFromFavorites(WidgetRef ref, CatalogEntry entry) async {
+    if (entry.catalogId case final id?) {
+      await ref.read(catalogServiceProvider).remove(id);
+      ref.invalidate(savedCatalogScoresProvider);
+    } else if (entry.contributedId case final id?) {
+      await ref.read(scoreUploadServiceProvider).setFavorite(id, false);
+      ref.invalidate(myUploadsProvider);
+    }
   }
 }
 
-/// A small overlay action on a [ScoreCard] cover (delete / remove), with a
-/// subtle scrim so the icon stays legible over the artwork.
-class _CardAction extends StatelessWidget {
-  const _CardAction({
-    required this.icon,
-    required this.tooltip,
-    required this.onPressed,
-    this.color = CymbraColors.onSurface,
-  });
+/// A filled-heart button to remove an entry from favorites.
+class _FavoriteHeart extends StatelessWidget {
+  const _FavoriteHeart({required this.onPressed});
 
-  final IconData icon;
-  final String tooltip;
   final VoidCallback onPressed;
-  final Color color;
 
   @override
   Widget build(BuildContext context) {
     return IconButton(
-      icon: Icon(icon, color: color),
-      tooltip: tooltip,
+      icon: const Icon(Icons.favorite, color: CymbraColors.error),
+      tooltip: AppLocalizations.of(context).scoreHubRemoveFromLibrary,
       style: IconButton.styleFrom(
         backgroundColor: Colors.black.withValues(alpha: 0.28),
       ),
       onPressed: onPressed,
+    );
+  }
+}
+
+/// Empty-favorites state: a centered call-to-action linking to the Score Hub.
+class _Empty extends StatelessWidget {
+  const _Empty({required this.l10n});
+
+  final AppLocalizations l10n;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.favorite_border,
+              size: 56,
+              color: CymbraColors.outline,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              l10n.libraryEmptyTitle,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: CymbraColors.onSurface,
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              l10n.libraryEmptyBody,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: CymbraColors.onSurfaceVariant),
+            ),
+            const SizedBox(height: 20),
+            FilledButton.icon(
+              icon: const Icon(Icons.search),
+              label: Text(l10n.libraryEmptyAction),
+              onPressed: () => LibraryScreen._openHub(context),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

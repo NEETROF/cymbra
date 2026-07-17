@@ -47,7 +47,7 @@ fn is_foreign_key_violation(e: &sqlx::Error) -> bool {
 
 const COLS: &str = "id, owner_id, level, rights_basis, rights_ack, title, composer, \
      title_norm, work_key, key_fifths, time_sig, measure_count, is_piano, sha256, \
-     size_bytes, object_key, created_at, min_note_value, has_tuplets, has_dotted, \
+     size_bytes, object_key, created_at, favorite, min_note_value, has_tuplets, has_dotted, \
      has_chords, lowest_midi, highest_midi, staff_count, note_count, tempo_bpm, has_dynamics";
 
 fn row_to_score(r: &PgRow) -> UserScore {
@@ -69,6 +69,7 @@ fn row_to_score(r: &PgRow) -> UserScore {
         size_bytes: r.get("size_bytes"),
         object_key: r.get("object_key"),
         created_at: r.get::<DateTime<Utc>, _>("created_at").timestamp(),
+        favorite: r.get("favorite"),
         facets: crate::repo::ScoreFacets {
             min_note_value: r.get::<Option<i16>, _>("min_note_value").map(|v| v as u8),
             has_tuplets: r.get::<Option<bool>, _>("has_tuplets").unwrap_or(false),
@@ -109,8 +110,8 @@ impl UserScoreRepo for PgUserScoreRepo {
             .ok_or_else(|| AppError::Internal(anyhow::anyhow!("bad created_at")))?;
         let res = sqlx::query(&format!(
             "INSERT INTO music.user_scores ({COLS}) \
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,\
-                $18,$19,$20,$21,$22,$23,$24,$25,$26,$27)"
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,\
+                $19,$20,$21,$22,$23,$24,$25,$26,$27,$28)"
         ))
         .bind(id)
         .bind(owner)
@@ -129,6 +130,7 @@ impl UserScoreRepo for PgUserScoreRepo {
         .bind(s.size_bytes)
         .bind(&s.object_key)
         .bind(created)
+        .bind(s.favorite)
         .bind(s.facets.min_note_value.map(i16::from))
         .bind(s.facets.has_tuplets)
         .bind(s.facets.has_dotted)
@@ -200,6 +202,23 @@ impl UserScoreRepo for PgUserScoreRepo {
         .await
         .map_err(internal)?;
         Ok(row.get::<i64, _>("n"))
+    }
+
+    async fn set_favorite(&self, id: &str, owner_id: &str, favorite: bool) -> Result<()> {
+        let (id, owner) = (parse_uuid(id)?, parse_uuid(owner_id)?);
+        let res = sqlx::query(
+            "UPDATE music.user_scores SET favorite = $3 WHERE id = $1 AND owner_id = $2",
+        )
+        .bind(id)
+        .bind(owner)
+        .bind(favorite)
+        .execute(&self.pool)
+        .await
+        .map_err(internal)?;
+        if res.rows_affected() == 0 {
+            return Err(AppError::NotFound("score not found".into()));
+        }
+        Ok(())
     }
 }
 

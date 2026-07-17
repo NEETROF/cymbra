@@ -48,6 +48,9 @@ pub struct UserScore {
     pub size_bytes: i64,
     pub object_key: String,
     pub created_at: i64,
+    /// Whether this upload is in the caller's favorites (change: favorites-home).
+    /// Auto-`true` on upload; un-favoriting hides it from the home but keeps it.
+    pub favorite: bool,
     /// Derived musical facets (change: score-catalog-facets) — same as the
     /// catalog, so uploads render a faithful cover and can be facet-filtered.
     pub facets: ScoreFacets,
@@ -67,6 +70,9 @@ pub trait UserScoreRepo: Send + Sync {
     async fn delete_owned(&self, id: &str, owner_id: &str) -> Result<Option<UserScore>>;
     /// Count the caller's scores created within the last `window_days` (quota).
     async fn count_recent(&self, owner_id: &str, window_days: u32) -> Result<i64>;
+    /// Set the favorite flag on a score the caller owns; `NotFound` if absent or
+    /// not theirs. Never deletes the upload.
+    async fn set_favorite(&self, id: &str, owner_id: &str, favorite: bool) -> Result<()>;
 }
 
 /// In-memory [`UserScoreRepo`] for unit tests.
@@ -143,6 +149,20 @@ impl UserScoreRepo for FakeUserScoreRepo {
             .filter(|r| r.owner_id == owner_id && r.created_at >= cutoff)
             .count() as i64)
     }
+
+    async fn set_favorite(&self, id: &str, owner_id: &str, favorite: bool) -> Result<()> {
+        let mut rows = self.rows.lock().expect("user_scores fake lock");
+        match rows
+            .iter_mut()
+            .find(|r| r.id == id && r.owner_id == owner_id)
+        {
+            Some(row) => {
+                row.favorite = favorite;
+                Ok(())
+            }
+            None => Err(AppError::NotFound("score not found".into())),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -168,6 +188,7 @@ mod tests {
             size_bytes: 100,
             object_key: format!("user-scores/{owner}/{id}.mxl"),
             created_at,
+            favorite: true,
             facets: ScoreFacets::default(),
         }
     }

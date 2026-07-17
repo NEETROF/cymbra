@@ -270,6 +270,9 @@ class _RecordingUpload implements ScoreUploadService {
   @override
   Future<void> deleteScore(String id) async {}
   @override
+  Future<void> setFavorite(String id, bool favorite) async {}
+
+  @override
   Future<Uint8List> fetchBytes(String id) async => Uint8List(0);
 }
 

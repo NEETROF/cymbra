@@ -213,6 +213,7 @@ impl ScoreModule {
             size_bytes: input.data.len() as i64,
             object_key: object_key.clone(),
             created_at: now_unix(),
+            favorite: true, // a new upload lands in the caller's favorites
             facets,
         };
 
@@ -228,6 +229,13 @@ impl ScoreModule {
     /// The caller's own contributed scores, newest first.
     pub async fn list(&self, owner_id: &str) -> Result<Vec<UserScore>> {
         self.repo.list_by_owner(owner_id).await
+    }
+
+    /// Favorite / un-favorite one of the caller's own uploads (change:
+    /// favorites-home). Un-favoriting hides it from the home but keeps the
+    /// upload (still in the hub's "mes partitions").
+    pub async fn set_favorite(&self, owner_id: &str, id: &str, favorite: bool) -> Result<()> {
+        self.repo.set_favorite(id, owner_id, favorite).await
     }
 
     /// Delete a score the caller owns: remove the row, then best-effort delete the

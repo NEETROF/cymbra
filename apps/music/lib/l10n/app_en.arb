@@ -407,6 +407,15 @@
   "@scoreHubResetAll": { "description": "Button that clears every filter in the drawer." },
 
   "scoreHubResultsCount": "{count, plural, =0{No scores} =1{1 score} other{{count} scores}}",
-  "@scoreHubResultsCount": { "description": "Result count shown under the title.", "placeholders": { "count": { "type": "int" } } }
+  "@scoreHubResultsCount": { "description": "Result count shown under the title.", "placeholders": { "count": { "type": "int" } } },
+
+  "libraryEmptyTitle": "No favorites yet",
+  "@libraryEmptyTitle": { "description": "Home empty-state title when the user has no favorite scores." },
+
+  "libraryEmptyBody": "Save scores from the Score Hub or upload your own — they'll show up here.",
+  "@libraryEmptyBody": { "description": "Home empty-state body text." },
+
+  "libraryEmptyAction": "Browse the Score Hub",
+  "@libraryEmptyAction": { "description": "Home empty-state button that opens the Score Hub." }
 
 }

@@ -179,6 +179,9 @@ class CatalogSearch extends _$CatalogSearch {
     unawaited(_reload());
   }
 
+  /// Reload the current view (e.g. after deleting one of the user's uploads).
+  Future<void> refresh() => _reload();
+
   void _debouncedReload() {
     _debounceTimer?.cancel();
     _debounceTimer = Timer(_debounce, () => unawaited(_reload()));

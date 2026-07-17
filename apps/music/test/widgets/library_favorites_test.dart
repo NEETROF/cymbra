@@ -32,20 +32,17 @@ import '../support/localized.dart';
 import '../support/notation_fakes.dart';
 
 class _FakeCatalog implements CatalogService {
-  _FakeCatalog(this.savedHits);
-  final List<CatalogHit> savedHits;
+  _FakeCatalog(this.saved);
+  final List<CatalogHit> saved;
   final List<String> removed = [];
 
   @override
   Future<List<CatalogHit>> listSaved() async =>
-      savedHits.where((h) => !removed.contains(h.id)).toList();
-
+      saved.where((h) => !removed.contains(h.id)).toList();
   @override
   Future<void> remove(String catalogId) async => removed.add(catalogId);
-
   @override
   Future<void> save(String catalogId) async {}
-
   @override
   Future<CatalogSearchPage> search({
     String query = '',
@@ -62,16 +59,24 @@ class _FakeCatalog implements CatalogService {
     int limit = 20,
     int offset = 0,
   }) async => const CatalogSearchPage(hits: [], nextOffset: 0);
-
   @override
   Future<Uint8List> fetchBytes(String catalogId) async => Uint8List(0);
 }
 
 class _FakeUpload implements ScoreUploadService {
+  _FakeUpload(this.mine);
+  final List<ContributedScore> mine;
+  final List<String> favoritedOff = [];
+
   @override
-  Future<List<ContributedScore>> listMyScores() async => const [];
+  Future<List<ContributedScore>> listMyScores() async => mine;
   @override
   Future<void> deleteScore(String id) async {}
+  @override
+  Future<void> setFavorite(String id, bool favorite) async {
+    if (!favorite) favoritedOff.add(id);
+  }
+
   @override
   Future<Uint8List> fetchBytes(String id) async => Uint8List(0);
   @override
@@ -86,26 +91,53 @@ class _FakeUpload implements ScoreUploadService {
   }) async => throw UnimplementedError();
 }
 
-CatalogHit _saved() => const CatalogHit(
-  id: 'c1',
-  title: 'Saved Piece',
-  composer: 'Composer A',
+CatalogHit _saved(String id, String title) => CatalogHit(
+  id: id,
+  title: title,
+  composer: 'Composer',
   level: PracticeLevel.beginner,
   license: 'CC-BY-4.0',
   source: 'pdmx',
 );
 
-ProviderContainer _container(_FakeCatalog catalog, {bool signedIn = true}) {
+ContributedScore _upload(String id, String title, {bool favorite = true}) =>
+    ContributedScore(
+      id: id,
+      level: PracticeLevel.intermediate,
+      createdAt: DateTime.utc(2026, 5, 1),
+      measureCount: 8,
+      timeSig: '4/4',
+      keyFifths: 0,
+      title: title,
+      composer: 'Me',
+      favorite: favorite,
+    );
+
+const _bundled = [
+  CatalogEntry(
+    id: 'b1',
+    title: 'Bundled Piece',
+    composer: 'X',
+    assetPath: 'assets/scores/beginner/b1.musicxml',
+    level: PracticeLevel.beginner,
+  ),
+];
+
+ProviderContainer _container(
+  _FakeCatalog catalog,
+  _FakeUpload upload, {
+  bool signedIn = true,
+}) {
   final c = ProviderContainer(
     overrides: [
-      scoreCatalogProvider.overrideWithValue(const []),
+      scoreCatalogProvider.overrideWithValue(_bundled),
       scoreAssetSourceProvider.overrideWithValue(FakeScoreAssetSource()),
       notationEngineProvider.overrideWithValue(FakeNotationEngine()),
       midiServiceProvider.overrideWithValue(FakeMidiService()),
       scoreSourceProvider.overrideWithValue(FakeScoreSource()),
       audioServiceProvider.overrideWithValue(RecordingAudioService()),
-      scoreUploadServiceProvider.overrideWithValue(_FakeUpload()),
       catalogServiceProvider.overrideWithValue(catalog),
+      scoreUploadServiceProvider.overrideWithValue(upload),
       canUseOnlineServicesProvider.overrideWithValue(signedIn),
     ],
   );
@@ -132,43 +164,75 @@ Future<void> _teardown(WidgetTester tester) async {
 }
 
 void main() {
-  testWidgets('shows the saved section + hub entry point when signed in', (
+  testWidgets('signed in: favorites by level, no bundled, no non-favorites', (
     tester,
   ) async {
-    final c = _container(_FakeCatalog([_saved()]));
+    final c = _container(
+      _FakeCatalog([_saved('c1', 'Saved Piece')]),
+      _FakeUpload([
+        _upload('u1', 'Fav Upload'),
+        _upload('u2', 'Hidden Upload', favorite: false),
+      ]),
+    );
     await _pump(tester, c);
 
-    expect(find.text('SAVED FROM THE HUB'), findsOneWidget);
-    expect(find.text('Saved Piece'), findsOneWidget);
-    // The Score Hub app-bar entry point is present.
-    expect(find.byIcon(Icons.search), findsOneWidget);
+    expect(find.text('Saved Piece'), findsOneWidget); // saved catalog
+    expect(find.text('Fav Upload'), findsOneWidget); // favorited upload
+    expect(find.text('Hidden Upload'), findsNothing); // not favorited
+    expect(
+      find.text('Bundled Piece'),
+      findsNothing,
+    ); // no bundled when signed in
+    // Level headers (beginner for the saved, intermediate for the upload).
+    expect(find.text('Beginner'), findsOneWidget);
+    expect(find.text('Intermediate'), findsOneWidget);
     await _teardown(tester);
   });
 
-  testWidgets('no saved section or hub entry point when signed out', (
+  testWidgets('signed in with no favorites shows the hub call-to-action', (
     tester,
   ) async {
-    final c = _container(_FakeCatalog([_saved()]), signedIn: false);
+    final c = _container(_FakeCatalog(const []), _FakeUpload(const []));
     await _pump(tester, c);
 
-    expect(find.text('SAVED FROM THE HUB'), findsNothing);
-    expect(find.text('Saved Piece'), findsNothing);
-    expect(find.byIcon(Icons.search), findsNothing);
+    expect(find.text('No favorites yet'), findsOneWidget);
+    expect(
+      find.widgetWithText(FilledButton, 'Browse the Score Hub'),
+      findsOneWidget,
+    );
     await _teardown(tester);
   });
 
-  testWidgets('no saved section when the saved list is empty', (tester) async {
-    final c = _container(_FakeCatalog(const []));
+  testWidgets('signed out shows the bundled demo catalog', (tester) async {
+    final c = _container(
+      _FakeCatalog(const []),
+      _FakeUpload(const []),
+      signedIn: false,
+    );
     await _pump(tester, c);
-    expect(find.text('SAVED FROM THE HUB'), findsNothing);
+    expect(find.text('Bundled Piece'), findsOneWidget);
     await _teardown(tester);
   });
 
-  testWidgets('remove-from-library calls remove and drops the tile', (
+  testWidgets('heart un-favorites an upload (keeps it)', (tester) async {
+    final upload = _FakeUpload([_upload('u1', 'Fav Upload')]);
+    final c = _container(_FakeCatalog(const []), upload);
+    await _pump(tester, c);
+    expect(find.text('Fav Upload'), findsOneWidget);
+
+    await tester.tap(find.byIcon(Icons.favorite));
+    for (var i = 0; i < 8; i++) {
+      await tester.pump(const Duration(milliseconds: 20));
+    }
+    expect(upload.favoritedOff, ['u1']);
+    await _teardown(tester);
+  });
+
+  testWidgets('heart removes a saved catalog score from the library', (
     tester,
   ) async {
-    final catalog = _FakeCatalog([_saved()]);
-    final c = _container(catalog);
+    final catalog = _FakeCatalog([_saved('c1', 'Saved Piece')]);
+    final c = _container(catalog, _FakeUpload(const []));
     await _pump(tester, c);
     expect(find.text('Saved Piece'), findsOneWidget);
 
@@ -176,7 +240,6 @@ void main() {
     for (var i = 0; i < 8; i++) {
       await tester.pump(const Duration(milliseconds: 20));
     }
-
     expect(catalog.removed, ['c1']);
     expect(find.text('Saved Piece'), findsNothing);
     await _teardown(tester);

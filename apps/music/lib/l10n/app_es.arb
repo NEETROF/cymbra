@@ -177,6 +177,8 @@
   "scoreHubRhythmTexture": "Ritmo y textura",
   "scoreHubApplyFilters": "Aplicar",
   "scoreHubResetAll": "Restablecer todo",
-  "scoreHubResultsCount": "{count, plural, =0{Ninguna partitura} =1{1 partitura} other{{count} partituras}}"
-
+  "scoreHubResultsCount": "{count, plural, =0{Ninguna partitura} =1{1 partitura} other{{count} partituras}}",
+  "libraryEmptyTitle": "Aún no hay favoritos",
+  "libraryEmptyBody": "Guarda partituras del catálogo o sube las tuyas: aparecerán aquí.",
+  "libraryEmptyAction": "Explorar el catálogo"
 }
