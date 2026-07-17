@@ -79,23 +79,40 @@ class CatalogSearchPage {
 /// search + the per-user saved library. Every call is bearer-authenticated; the
 /// production impl refreshes transparently on `UNAUTHENTICATED`. Tests override
 /// the provider with an in-memory fake. Failures throw [AuthException].
+/// Musical-facet filters for [CatalogService.search]. Each field `null` = no
+/// constraint; a set filter excludes rows whose facet is unknown. Bundled into
+/// one object so `search` stays within a sane parameter count.
+class CatalogFilters {
+  const CatalogFilters({
+    this.isPiano,
+    this.maxNoteValue,
+    this.hasChords,
+    this.hasTuplets,
+    this.hasDotted,
+    this.maxAmbitusSemitones,
+    this.minBpm,
+    this.maxBpm,
+  });
+
+  final bool? isPiano;
+  final int? maxNoteValue;
+  final bool? hasChords;
+  final bool? hasTuplets;
+  final bool? hasDotted;
+  final int? maxAmbitusSemitones;
+  final int? minBpm;
+  final int? maxBpm;
+}
+
 abstract class CatalogService {
   /// Search the public catalog by free-text (title/composer), with optional
-  /// [author] (composer) and [level] filters plus musical-facet filters, paginated
-  /// by [limit]/[offset]. Each facet filter is `null` = no constraint; a set
-  /// filter excludes rows whose facet is unknown.
+  /// [author] (composer) and [level] filters plus musical-facet [filters],
+  /// paginated by [limit]/[offset].
   Future<CatalogSearchPage> search({
     String query,
     String? author,
     PracticeLevel? level,
-    bool? isPiano,
-    int? maxNoteValue,
-    bool? hasChords,
-    bool? hasTuplets,
-    bool? hasDotted,
-    int? maxAmbitusSemitones,
-    int? minBpm,
-    int? maxBpm,
+    CatalogFilters filters,
     int limit,
     int offset,
   });
@@ -183,14 +200,7 @@ class GrpcCatalogService implements CatalogService {
     String query = '',
     String? author,
     PracticeLevel? level,
-    bool? isPiano,
-    int? maxNoteValue,
-    bool? hasChords,
-    bool? hasTuplets,
-    bool? hasDotted,
-    int? maxAmbitusSemitones,
-    int? minBpm,
-    int? maxBpm,
+    CatalogFilters filters = const CatalogFilters(),
     int limit = 20,
     int offset = 0,
   }) => _authed((bearer) async {
@@ -199,14 +209,14 @@ class GrpcCatalogService implements CatalogService {
         query: query,
         author: author,
         level: _levelWire(level),
-        isPiano: isPiano,
-        maxNoteValue: maxNoteValue,
-        hasChords: hasChords,
-        hasTuplets: hasTuplets,
-        hasDotted: hasDotted,
-        maxAmbitusSemitones: maxAmbitusSemitones,
-        minBpm: minBpm,
-        maxBpm: maxBpm,
+        isPiano: filters.isPiano,
+        maxNoteValue: filters.maxNoteValue,
+        hasChords: filters.hasChords,
+        hasTuplets: filters.hasTuplets,
+        hasDotted: filters.hasDotted,
+        maxAmbitusSemitones: filters.maxAmbitusSemitones,
+        minBpm: filters.minBpm,
+        maxBpm: filters.maxBpm,
         limit: limit,
         offset: offset,
       ),

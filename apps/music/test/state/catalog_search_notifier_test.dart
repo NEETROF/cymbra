@@ -39,19 +39,12 @@ class _FakeCatalog implements CatalogService {
     String query = '',
     String? author,
     PracticeLevel? level,
-    bool? isPiano,
-    int? maxNoteValue,
-    bool? hasChords,
-    bool? hasTuplets,
-    bool? hasDotted,
-    int? maxAmbitusSemitones,
-    int? minBpm,
-    int? maxBpm,
+    CatalogFilters filters = const CatalogFilters(),
     int limit = 20,
     int offset = 0,
   }) async {
-    lastIsPiano = isPiano;
-    lastMaxNoteValue = maxNoteValue;
+    lastIsPiano = filters.isPiano;
+    lastMaxNoteValue = filters.maxNoteValue;
     final q = query.toLowerCase();
     final a = author?.toLowerCase();
     final matched = rows.where((h) {
@@ -62,7 +55,7 @@ class _FakeCatalog implements CatalogService {
       final levelOk = level == null || h.level == level;
       // The corpus rows carry no facet data here; a set facet filter simply
       // narrows to nothing (mirrors "unknown facet excluded").
-      final facetOk = maxNoteValue == null;
+      final facetOk = filters.maxNoteValue == null;
       return queryOk && authorOk && levelOk && facetOk;
     }).toList();
     final page = matched.skip(offset).take(limit).toList();

@@ -273,39 +273,42 @@ class _HubCard extends ConsumerWidget {
           context,
         ).push(MaterialPageRoute<void>(builder: (_) => const PlayerScreen()));
       },
-      action: deletable
-          // The user's own uploads: favorite toggle + delete.
-          ? Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _overlayButton(
-                  icon: entry.favorite ? Icons.favorite : Icons.favorite_border,
-                  color: entry.favorite
-                      ? CymbraColors.error
-                      : CymbraColors.onSurface,
-                  tooltip: l10n.scoreHubRemoveFromLibrary,
-                  onPressed: () => _toggleFavorite(ref),
-                ),
-                _overlayButton(
-                  icon: Icons.delete_outline,
-                  color: CymbraColors.onSurface,
-                  tooltip: 'Supprimer',
-                  onPressed: () => _confirmDelete(context, ref),
-                ),
-              ],
-            )
-          : onToggleSave == null
-          ? null
-          : IconButton(
-              icon: Icon(
-                saved ? Icons.favorite : Icons.favorite_border,
-                color: saved ? CymbraColors.error : CymbraColors.onSurface,
-              ),
-              tooltip: saved
-                  ? l10n.scoreHubRemoveFromLibrary
-                  : l10n.scoreHubAddToLibrary,
-              onPressed: onToggleSave,
-            ),
+      action: _action(context, ref, l10n),
+    );
+  }
+
+  /// The card's corner action: for the user's own uploads a favorite toggle +
+  /// delete; for catalog results a save toggle (or nothing when not saveable).
+  Widget? _action(BuildContext context, WidgetRef ref, AppLocalizations l10n) {
+    if (deletable) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _overlayButton(
+            icon: entry.favorite ? Icons.favorite : Icons.favorite_border,
+            color: entry.favorite ? CymbraColors.error : CymbraColors.onSurface,
+            tooltip: l10n.scoreHubRemoveFromLibrary,
+            onPressed: () => _toggleFavorite(ref),
+          ),
+          _overlayButton(
+            icon: Icons.delete_outline,
+            color: CymbraColors.onSurface,
+            tooltip: 'Supprimer',
+            onPressed: () => _confirmDelete(context, ref),
+          ),
+        ],
+      );
+    }
+    if (onToggleSave == null) return null;
+    return IconButton(
+      icon: Icon(
+        saved ? Icons.favorite : Icons.favorite_border,
+        color: saved ? CymbraColors.error : CymbraColors.onSurface,
+      ),
+      tooltip: saved
+          ? l10n.scoreHubRemoveFromLibrary
+          : l10n.scoreHubAddToLibrary,
+      onPressed: onToggleSave,
     );
   }
 

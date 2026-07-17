@@ -37,18 +37,11 @@ class _FakeCatalog implements CatalogService {
     String query = '',
     String? author,
     PracticeLevel? level,
-    bool? isPiano,
-    int? maxNoteValue,
-    bool? hasChords,
-    bool? hasTuplets,
-    bool? hasDotted,
-    int? maxAmbitusSemitones,
-    int? minBpm,
-    int? maxBpm,
+    CatalogFilters filters = const CatalogFilters(),
     int limit = 20,
     int offset = 0,
   }) async {
-    lastMaxNoteValue = maxNoteValue;
+    lastMaxNoteValue = filters.maxNoteValue;
     final page = rows.skip(offset).take(limit).toList();
     return CatalogSearchPage(hits: page, nextOffset: offset + page.length);
   }

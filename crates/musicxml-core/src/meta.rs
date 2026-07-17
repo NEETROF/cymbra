@@ -121,71 +121,80 @@ impl ScoreSummary {
 impl ScoreFacets {
     /// Derives the musical facets from a parsed document. Pure; never panics.
     pub fn from_document(doc: &crate::ScoreDocument) -> Self {
-        let divisions = doc.attributes.divisions;
-        let mut note_count = 0u32;
-        let mut has_tuplets = false;
-        let mut has_dotted = false;
-        let mut has_chords = false;
-        let mut lowest: Option<u8> = None;
-        let mut highest: Option<u8> = None;
-        // Smallest note value = largest denominator seen across sounding notes.
-        let mut max_denom: Option<u8> = None;
+        let notes = NoteScan::of(doc);
+        let (tempo_bpm, has_dynamics) = scan_directions(doc);
+        ScoreFacets {
+            min_note_value: notes.max_denom,
+            has_tuplets: notes.has_tuplets,
+            has_dotted: notes.has_dotted,
+            has_chords: notes.has_chords,
+            lowest_midi: notes.lowest,
+            highest_midi: notes.highest,
+            staff_count: doc.staves.min(u8::MAX as u32) as u8,
+            note_count: notes.note_count,
+            tempo_bpm,
+            has_dynamics,
+        }
+    }
+}
 
+/// Per-note facets aggregated in one pass over the sounding notes.
+#[derive(Default)]
+struct NoteScan {
+    note_count: u32,
+    has_tuplets: bool,
+    has_dotted: bool,
+    has_chords: bool,
+    lowest: Option<u8>,
+    highest: Option<u8>,
+    /// Smallest note value = largest denominator seen across sounding notes.
+    max_denom: Option<u8>,
+}
+
+impl NoteScan {
+    fn of(doc: &crate::ScoreDocument) -> Self {
+        let divisions = doc.attributes.divisions;
+        let mut s = NoteScan::default();
         for note in doc.measures.iter().flat_map(|m| &m.notes) {
-            if note.is_chord {
-                has_chords = true;
-            }
-            if note.dots > 0 {
-                has_dotted = true;
-            }
-            if note.tuplet.is_some() {
-                has_tuplets = true;
-            }
+            s.has_chords |= note.is_chord;
+            s.has_dotted |= note.dots > 0;
+            s.has_tuplets |= note.tuplet.is_some();
             // Only sounding (pitched, non-rest) notes drive counts, ambitus, and
             // the fastest-value derivation — rests and grace notes are ignored.
             let Some(pitch) = &note.pitch else { continue };
             if note.is_rest {
                 continue;
             }
-            note_count += 1;
+            s.note_count += 1;
             if let Some(midi) = pitch_to_midi(pitch) {
-                lowest = Some(lowest.map_or(midi, |l| l.min(midi)));
-                highest = Some(highest.map_or(midi, |h| h.max(midi)));
+                s.lowest = Some(s.lowest.map_or(midi, |l| l.min(midi)));
+                s.highest = Some(s.highest.map_or(midi, |h| h.max(midi)));
             }
             if let Some(denom) = note_value_denominator(note, divisions) {
-                max_denom = Some(max_denom.map_or(denom, |d| d.max(denom)));
+                s.max_denom = Some(s.max_denom.map_or(denom, |d| d.max(denom)));
             }
         }
+        s
+    }
+}
 
-        // Tempo: the first metronome mark's per-minute (matches the app player's
-        // tempo readout); `None` when the score carries none.
-        let mut tempo_bpm = None;
-        let mut has_dynamics = false;
-        for dir in doc.measures.iter().flat_map(|m| &m.directions) {
-            match &dir.kind {
-                crate::DirectionKind::Metronome { per_minute, .. }
-                    if tempo_bpm.is_none() && *per_minute > 0 =>
-                {
-                    tempo_bpm = Some((*per_minute).min(u16::MAX as u32) as u16);
-                }
-                crate::DirectionKind::Dynamics(_) => has_dynamics = true,
-                _ => {}
+/// The first metronome mark's per-minute (matches the app player's tempo
+/// readout; `None` when the score carries none) and whether any dynamics appear.
+fn scan_directions(doc: &crate::ScoreDocument) -> (Option<u16>, bool) {
+    let mut tempo_bpm = None;
+    let mut has_dynamics = false;
+    for dir in doc.measures.iter().flat_map(|m| &m.directions) {
+        match &dir.kind {
+            crate::DirectionKind::Metronome { per_minute, .. }
+                if tempo_bpm.is_none() && *per_minute > 0 =>
+            {
+                tempo_bpm = Some((*per_minute).min(u16::MAX as u32) as u16);
             }
-        }
-
-        ScoreFacets {
-            min_note_value: max_denom,
-            has_tuplets,
-            has_dotted,
-            has_chords,
-            lowest_midi: lowest,
-            highest_midi: highest,
-            staff_count: doc.staves.min(u8::MAX as u32) as u8,
-            note_count,
-            tempo_bpm,
-            has_dynamics,
+            crate::DirectionKind::Dynamics(_) => has_dynamics = true,
+            _ => {}
         }
     }
+    (tempo_bpm, has_dynamics)
 }
 
 /// MIDI number of a pitch (C4 = 60), or `None` if the step is not A–G.

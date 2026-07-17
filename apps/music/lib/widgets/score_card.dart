@@ -267,6 +267,17 @@ String _valueGlyph(int? minNoteValue) => switch (minNoteValue) {
   _ => '♬',
 };
 
+/// One sine layer of the generated cover wave (bundled so `_wave` stays within
+/// the parameter budget).
+typedef _WaveSpec = ({
+  double baseY,
+  double amp,
+  double freq,
+  double phase,
+  double opacity,
+  double stroke,
+});
+
 class _CoverPainter extends CustomPainter {
   _CoverPainter({
     required this.seed,
@@ -292,6 +303,15 @@ class _CoverPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    final rng = math.Random(seed);
+    _paintBackground(canvas, size, rng);
+    final wave = _paintWaves(canvas, size, rng);
+    _paintGlyphs(canvas, size, rng, wave.baseY, wave.amp);
+    _paintWatermark(canvas, size);
+  }
+
+  /// Gradient fill + soft blurred blobs.
+  void _paintBackground(Canvas canvas, Size size, math.Random rng) {
     final rect = Offset.zero & size;
     canvas.drawRect(
       rect,
@@ -302,7 +322,6 @@ class _CoverPainter extends CustomPainter {
           colors: colors,
         ).createShader(rect),
     );
-    final rng = math.Random(seed);
     for (var i = 0; i < 4; i++) {
       final c = Offset(
         rng.nextDouble() * size.width,
@@ -319,11 +338,18 @@ class _CoverPainter extends CustomPainter {
           ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 18),
       );
     }
+  }
 
-    // Sound-wave: frequency ← tempo, amplitude ← ambitus, plus a difficulty
-    // "energy" boost so harder pieces visibly read busier — taller, thicker, and
-    // with extra harmonics (idea B + the difficulty overlay). Falls back to the
-    // difficulty alone when facets are absent.
+  /// Sound-wave: frequency ← tempo, amplitude ← ambitus, plus a difficulty
+  /// "energy" boost so harder pieces visibly read busier — taller, thicker, and
+  /// with extra harmonics (idea B + the difficulty overlay). Falls back to the
+  /// difficulty alone when facets are absent. Returns the base line + amplitude
+  /// so the glyph band can sit above it.
+  ({double baseY, double amp}) _paintWaves(
+    Canvas canvas,
+    Size size,
+    math.Random rng,
+  ) {
     final baseY = size.height * (0.55 + rng.nextDouble() * 0.18);
     final freq = tempoBpm != null
         ? (tempoBpm! / 40).clamp(1.5, 8.0)
@@ -335,55 +361,50 @@ class _CoverPainter extends CustomPainter {
     final energy = 1.0 + 0.15 * intensity;
     final amp = size.height * ampFrac * energy;
     final phase = rng.nextDouble() * math.pi * 2;
-    _wave(
-      canvas,
-      size,
-      baseY,
-      amp,
-      freq,
-      phase,
-      0.16 + 0.05 * intensity,
-      2.0 + 0.4 * intensity,
-    );
+    _wave(canvas, size, (
+      baseY: baseY,
+      amp: amp,
+      freq: freq,
+      phase: phase,
+      opacity: 0.16 + 0.05 * intensity,
+      stroke: 2.0 + 0.4 * intensity,
+    ));
     // Second harmonic for advanced pieces (always) or dense ones.
-    final busy = intensity >= 2 || (noteCount != null && noteCount! > 220);
-    if (busy) {
-      _wave(
-        canvas,
-        size,
-        baseY,
-        amp * 0.55,
-        freq * 2,
-        phase + 1.0,
-        0.11 + 0.03 * intensity,
-        1.3,
-      );
+    if (intensity >= 2 || (noteCount != null && noteCount! > 220)) {
+      _wave(canvas, size, (
+        baseY: baseY,
+        amp: amp * 0.55,
+        freq: freq * 2,
+        phase: phase + 1.0,
+        opacity: 0.11 + 0.03 * intensity,
+        stroke: 1.3,
+      ));
     }
     // A third, faint fast ripple for the busiest (advanced) pieces.
     if (intensity >= 2) {
-      _wave(canvas, size, baseY, amp * 0.3, freq * 3, phase + 2.2, 0.09, 1.0);
+      _wave(canvas, size, (
+        baseY: baseY,
+        amp: amp * 0.3,
+        freq: freq * 3,
+        phase: phase + 2.2,
+        opacity: 0.09,
+        stroke: 1.0,
+      ));
     }
+    return (baseY: baseY, amp: amp);
+  }
 
-    // Fast-note glyphs: with facets, only when the piece really has eighths
-    // (♫) or sixteenths (♬); without facets, a difficulty proxy.
-    final int noteGlyphs;
-    final String fastGlyph;
-    if (minNoteValue != null) {
-      if (minNoteValue! >= 8) {
-        fastGlyph = minNoteValue! >= 16 ? '♬' : '♫';
-        noteGlyphs = noteCount != null
-            ? (noteCount! / 160).clamp(1, 4).round()
-            : 1 + intensity;
-      } else {
-        fastGlyph = '';
-        noteGlyphs = 0; // only quarters/slower — no fast-note motif
-      }
-    } else {
-      fastGlyph = intensity >= 1 ? '♫' : '♪';
-      noteGlyphs = (1 + intensity).clamp(1, 4);
-    }
-    // Lay the notes in evenly-spaced columns (small seeded jitter) so they never
-    // overlap; each sits in the band above the wave.
+  /// Fast-note glyphs, laid in evenly-spaced columns (small seeded jitter) so
+  /// they never overlap; each sits in the band above the wave. With facets, only
+  /// when the piece really has eighths (♫)/sixteenths (♬); else a difficulty proxy.
+  void _paintGlyphs(
+    Canvas canvas,
+    Size size,
+    math.Random rng,
+    double baseY,
+    double amp,
+  ) {
+    final (fastGlyph, noteGlyphs) = _glyphChoice();
     for (var i = 0; i < noteGlyphs; i++) {
       final t = noteGlyphs == 1 ? 0.5 : (i + 0.5) / noteGlyphs;
       final x =
@@ -398,47 +419,54 @@ class _CoverPainter extends CustomPainter {
         0.18 + rng.nextDouble() * 0.08,
       );
     }
+  }
 
-    // Watermark: time signature + key accidentals bottom-right (idea 5).
+  /// The fast-note glyph + how many to draw, from the facets (or difficulty).
+  (String, int) _glyphChoice() {
+    if (minNoteValue == null) {
+      return (intensity >= 1 ? '♫' : '♪', (1 + intensity).clamp(1, 4));
+    }
+    if (minNoteValue! < 8) return ('', 0); // only quarters/slower — no motif
+    return (
+      minNoteValue! >= 16 ? '♬' : '♫',
+      noteCount != null
+          ? (noteCount! / 160).clamp(1, 4).round()
+          : 1 + intensity,
+    );
+  }
+
+  /// Watermark: time signature + key accidentals bottom-right (idea 5).
+  void _paintWatermark(Canvas canvas, Size size) {
     final marks = <String>[];
     if (timeSig.isNotEmpty && timeSig != '/') marks.add(timeSig);
     if (keyFifths != 0) {
       marks.add((keyFifths > 0 ? '♯' : '♭') * keyFifths.abs().clamp(1, 7));
     }
-    if (marks.isNotEmpty) {
-      _text(
-        canvas,
-        marks.join('  '),
-        Offset(size.width - 10, size.height - 8),
-        11,
-        0.28,
-        TextAlign.right,
-      );
-    }
+    if (marks.isEmpty) return;
+    _text(
+      canvas,
+      marks.join('  '),
+      Offset(size.width - 10, size.height - 8),
+      11,
+      0.28,
+      TextAlign.right,
+    );
   }
 
-  void _wave(
-    Canvas c,
-    Size size,
-    double baseY,
-    double amp,
-    double freq,
-    double phase,
-    double opacity,
-    double stroke,
-  ) {
-    final path = Path()..moveTo(0, baseY);
+  void _wave(Canvas c, Size size, _WaveSpec w) {
+    final path = Path()..moveTo(0, w.baseY);
     for (double x = 0; x <= size.width; x += 6) {
       final y =
-          baseY + math.sin(x / size.width * math.pi * 2 * freq + phase) * amp;
+          w.baseY +
+          math.sin(x / size.width * math.pi * 2 * w.freq + w.phase) * w.amp;
       path.lineTo(x, y);
     }
     c.drawPath(
       path,
       Paint()
         ..style = PaintingStyle.stroke
-        ..strokeWidth = stroke
-        ..color = Colors.white.withValues(alpha: opacity),
+        ..strokeWidth = w.stroke
+        ..color = Colors.white.withValues(alpha: w.opacity),
     );
   }
 
