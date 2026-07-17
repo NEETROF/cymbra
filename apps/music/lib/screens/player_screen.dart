@@ -427,6 +427,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
             child: CustomPaint(
               painter: StaffPainter(
                 notes: data.visibleNotes,
+                rests: data.visibleRests,
                 elapsedMs: data.elapsedMs,
                 activeNotes: data.activeNotes,
                 bpm: data.bpm,
@@ -1366,6 +1367,10 @@ class _WaitOverlay extends StatelessWidget {
   }
 }
 
+/// Width reserved on the right of the engraved Partition for the top-right sync
+/// gauge (88 wide at right:8, plus breathing room), so it never overlaps notes.
+const double _kGaugeGutter = 104.0;
+
 /// Engraved-notation (Partition) render mode: draws the laid-out MusicXML of the
 /// loaded score and re-lays it out as the available width changes. Shows a
 /// loading/empty state when no score notation is available (e.g. the demo).
@@ -1532,9 +1537,14 @@ class _PartitionViewState extends ConsumerState<_PartitionView> {
       color: CymbraColors.surfaceContainerLow,
       child: LayoutBuilder(
         builder: (context, constraints) {
+          // Reserve a right-hand gutter so the top-right sync gauge floats in a
+          // clear strip and never paints over the engraved notes (the gauge is
+          // 88 wide at right:8). Always on so the system layout stays stable
+          // whether or not a scored run is active.
           final width = constraints.maxWidth;
+          final engraveWidth = (width - _kGaugeGutter).clamp(0.0, width);
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            ref.read(notationProvider.notifier).setAvailableWidth(width);
+            ref.read(notationProvider.notifier).setAvailableWidth(engraveWidth);
           });
           final painter = PartitionPainter(
             document: notation.document!,
@@ -1546,7 +1556,12 @@ class _PartitionViewState extends ConsumerState<_PartitionView> {
             selectedHands: data.selectedHands,
           );
           _followCursor(data, notation.systems, painter);
-          final overlay = _buildNextLineOverlay(data, notation, width, painter);
+          final overlay = _buildNextLineOverlay(
+            data,
+            notation,
+            engraveWidth,
+            painter,
+          );
           return Stack(
             children: [
               SingleChildScrollView(
@@ -1554,12 +1569,13 @@ class _PartitionViewState extends ConsumerState<_PartitionView> {
                 child: CustomPaint(
                   key: const Key('partition-canvas'),
                   painter: painter,
-                  size: Size(width, painter.heightFor(width)),
+                  size: Size(engraveWidth, painter.heightFor(engraveWidth)),
                 ),
               ),
               if (overlay != null) Positioned(left: 8, top: 8, child: overlay),
               // Gamified sync gauge (no keyboard-anchored sparks in the engraved
-              // Partition view — it has no waterfall/keyboard mapping).
+              // Partition view — it has no waterfall/keyboard mapping). Floats in
+              // the reserved right gutter so it clears the notes.
               const Positioned.fill(child: ScoringOverlay()),
             ],
           );

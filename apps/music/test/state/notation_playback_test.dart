@@ -81,14 +81,21 @@ void main() {
       expect(d.notes[1].pitch, 62);
     });
 
-    test('rests produce no played note', () {
+    test('rests produce no played note but land on the rests channel', () {
       final doc = _docWith(
         notes: [
           noteEvent(
             positionDivisions: 0,
             pitch: const Pitch(step: 'C', octave: 4, alter: 0),
           ),
-          noteEvent(positionDivisions: 4, isRest: true, pitch: null),
+          noteEvent(
+            positionDivisions: 4,
+            durationDivisions: 4,
+            isRest: true,
+            pitch: null,
+            noteType: 'quarter',
+            dots: 1,
+          ),
           noteEvent(
             positionDivisions: 8,
             pitch: const Pitch(step: 'E', octave: 4, alter: 0),
@@ -96,8 +103,33 @@ void main() {
         ],
       );
       final d = notationToTimedNotes(doc);
+      // The rest is kept out of the playable/scored notes...
       expect(d.notes, hasLength(2));
       expect(d.notes.map((n) => n.pitch), [60, 64]);
+      // ...and surfaced on its own render-only channel with its type/dots.
+      expect(d.rests, hasLength(1));
+      final quarterMs = (60000 / kDefaultBpm).round();
+      expect(d.rests.single.startMs, quarterMs);
+      expect(d.rests.single.noteType, 'quarter');
+      expect(d.rests.single.dots, 1);
+    });
+
+    test('note type and dots are carried onto the timed note', () {
+      final doc = _docWith(
+        notes: [
+          noteEvent(
+            positionDivisions: 0,
+            durationDivisions: 12,
+            pitch: const Pitch(step: 'C', octave: 4, alter: 0),
+            noteType: 'half',
+            dots: 1,
+          ),
+        ],
+      );
+      final d = notationToTimedNotes(doc);
+      expect(d.notes.single.noteType, 'half');
+      expect(d.notes.single.dots, 1);
+      expect(d.rests, isEmpty);
     });
 
     test('a metronome direction overrides the default tempo', () {

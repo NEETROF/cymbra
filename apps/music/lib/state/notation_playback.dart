@@ -20,6 +20,11 @@ import 'player_data.dart';
 /// tempo. This is *visual* timing only — no audio or MIDI-out.
 class DerivedPlayback {
   final List<TimedNote> notes;
+
+  /// Rests flattened alongside [notes], on their own channel so they render on
+  /// the staff without ever entering the playable/scored note set.
+  final List<TimedRest> rests;
+
   final double songEndMs;
   final int bpm;
 
@@ -30,6 +35,7 @@ class DerivedPlayback {
 
   const DerivedPlayback({
     required this.notes,
+    this.rests = const [],
     required this.songEndMs,
     required this.bpm,
     this.measureStartMs = const [],
@@ -74,6 +80,7 @@ DerivedPlayback notationToTimedNotes(ScoreDocument document) {
   final divisionsPerMeasure = divisions * time.beats * 4 ~/ beatType;
 
   final notes = <TimedNote>[];
+  final rests = <TimedRest>[];
   final measureStartMs = <int>[];
   var songEndMs = 0.0;
   var measureStartDiv = 0;
@@ -94,12 +101,31 @@ DerivedPlayback notationToTimedNotes(ScoreDocument document) {
       final end = note.positionDivisions + note.durationDivisions;
       if (end > measureSpan) measureSpan = end;
 
-      final pitch = note.pitch;
-      if (note.isRest || pitch == null) continue;
-
       final startMs =
           (measureStartDiv + note.positionDivisions) * msPerDivision;
       final durationMs = note.durationDivisions * msPerDivision;
+
+      final pitch = note.pitch;
+      // Rests go to their own channel (render-only); pitchless non-rests are
+      // skipped entirely.
+      if (note.isRest || pitch == null) {
+        if (note.isRest) {
+          rests.add(
+            TimedRest(
+              startMs: startMs.round(),
+              durationMs: durationMs.round(),
+              staff: note.staff,
+              noteType: note.noteType,
+              dots: note.dots,
+            ),
+          );
+          if (startMs + durationMs > songEndMs) {
+            songEndMs = startMs + durationMs;
+          }
+        }
+        continue;
+      }
+
       final c = clef[note.staff];
       notes.add(
         TimedNote(
@@ -110,6 +136,8 @@ DerivedPlayback notationToTimedNotes(ScoreDocument document) {
           beams: note.beams,
           clefSign: c?.sign ?? (note.staff >= 2 ? 'F' : 'G'),
           clefLine: c?.line ?? (note.staff >= 2 ? 4 : 2),
+          noteType: note.noteType,
+          dots: note.dots,
         ),
       );
       if (startMs + durationMs > songEndMs) songEndMs = startMs + durationMs;
@@ -118,8 +146,10 @@ DerivedPlayback notationToTimedNotes(ScoreDocument document) {
   }
 
   notes.sort((a, b) => a.startMs.compareTo(b.startMs));
+  rests.sort((a, b) => a.startMs.compareTo(b.startMs));
   return DerivedPlayback(
     notes: notes,
+    rests: rests,
     songEndMs: songEndMs,
     bpm: bpm,
     measureStartMs: measureStartMs,
