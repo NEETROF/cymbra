@@ -35,11 +35,13 @@ Future<List<ContributedScore>> myUploads(Ref ref) async {
 @riverpod
 Future<List<CatalogEntry>> myContributedScores(Ref ref) async {
   final scores = await ref.watch(myUploadsProvider.future);
-  return [for (final s in scores) contributedEntry(s)];
+  final handle = ref.watch(currentUserHandleProvider);
+  return [for (final s in scores) contributedEntry(s, uploaderHandle: handle)];
 }
 
 /// Maps an upload to a [CatalogEntry] (byte-sourced, facets carried through).
-CatalogEntry contributedEntry(ContributedScore s) {
+/// [uploaderHandle] drives the "{handle} · Cymbra" attribution on the card.
+CatalogEntry contributedEntry(ContributedScore s, {String? uploaderHandle}) {
   final hasTitle = s.title != null && s.title!.isNotEmpty;
   final hasComposer = s.composer != null && s.composer!.isNotEmpty;
   var composer = '';
@@ -66,6 +68,7 @@ CatalogEntry contributedEntry(ContributedScore s) {
     timeSig: s.timeSig,
     keyFifths: s.keyFifths,
     favorite: s.favorite,
+    uploaderHandle: uploaderHandle,
   );
 }
 

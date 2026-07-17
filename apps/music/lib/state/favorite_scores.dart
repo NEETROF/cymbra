@@ -32,9 +32,10 @@ Future<List<CatalogEntry>> favoriteScores(Ref ref) async {
   if (!ref.watch(canUseOnlineServicesProvider)) return const [];
   final uploads = await ref.watch(myUploadsProvider.future);
   final saved = await ref.watch(savedCatalogScoresProvider.future);
+  final handle = ref.watch(currentUserHandleProvider);
   return [
     for (final s in uploads)
-      if (s.favorite) contributedEntry(s),
+      if (s.favorite) contributedEntry(s, uploaderHandle: handle),
     ...saved,
   ];
 }

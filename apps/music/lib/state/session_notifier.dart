@@ -176,3 +176,11 @@ bool isGuestSession(Ref ref) =>
 @riverpod
 bool canUseOnlineServices(Ref ref) =>
     ref.watch(sessionNotifierProvider) is SessionAuthenticated;
+
+/// The signed-in user's handle (for upload attribution), or `null` when guest /
+/// signed out / not yet chosen.
+@riverpod
+String? currentUserHandle(Ref ref) {
+  final session = ref.watch(sessionNotifierProvider);
+  return session is SessionAuthenticated ? session.account?.handle : null;
+}

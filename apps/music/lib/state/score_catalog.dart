@@ -76,6 +76,10 @@ class CatalogEntry {
   /// Meaningless (and `true`) for bundled/catalog entries.
   final bool favorite;
 
+  /// For an upload: the handle of the account that uploaded it (attribution
+  /// "{handle} · Cymbra"); `null` for bundled/catalog entries.
+  final String? uploaderHandle;
+
   const CatalogEntry({
     required this.id,
     required this.title,
@@ -94,6 +98,7 @@ class CatalogEntry {
     this.timeSig,
     this.keyFifths,
     this.favorite = true,
+    this.uploaderHandle,
   });
 
   /// Whether this is a user upload (byte-sourced) rather than a bundled score.

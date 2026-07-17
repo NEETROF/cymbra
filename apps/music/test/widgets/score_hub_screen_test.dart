@@ -184,7 +184,7 @@ void main() {
     expect(find.text('Clair de Lune'), findsOneWidget);
 
     // Activate the "My scores" quick-filter.
-    await tester.tap(find.widgetWithText(ChoiceChip, 'My scores'));
+    await tester.tap(find.widgetWithText(FilterChip, 'My scores'));
     for (var i = 0; i < 10; i++) {
       await tester.pump(const Duration(milliseconds: 40));
     }
@@ -194,6 +194,31 @@ void main() {
     expect(find.text('My Upload'), findsOneWidget);
     expect(find.text('Clair de Lune'), findsNothing);
     expect(find.byIcon(Icons.favorite_border), findsNothing);
+    await _teardown(tester, c);
+  });
+
+  testWidgets('uploads are mixed into the catalog results by default', (
+    tester,
+  ) async {
+    final c = _container(
+      _FakeCatalog([_hit('c1', 'Clair de Lune')]),
+      uploads: [
+        ContributedScore(
+          id: 'u1',
+          level: PracticeLevel.beginner,
+          createdAt: DateTime.utc(2026, 5, 1),
+          measureCount: 4,
+          timeSig: '4/4',
+          keyFifths: 0,
+          title: 'My Upload',
+          composer: 'Me',
+        ),
+      ],
+    );
+    await _pump(tester, c);
+    // "Mes partitions" unchecked → the upload and the catalog result both show.
+    expect(find.text('My Upload'), findsOneWidget);
+    expect(find.text('Clair de Lune'), findsOneWidget);
     await _teardown(tester, c);
   });
 
@@ -223,7 +248,7 @@ void main() {
     ]);
     final c = _container(_FakeCatalog(const []), uploadFake: upload);
     await _pump(tester, c);
-    await tester.tap(find.widgetWithText(ChoiceChip, 'My scores'));
+    await tester.tap(find.widgetWithText(FilterChip, 'My scores'));
     for (var i = 0; i < 10; i++) {
       await tester.pump(const Duration(milliseconds: 40));
     }

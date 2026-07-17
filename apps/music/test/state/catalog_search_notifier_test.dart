@@ -225,7 +225,7 @@ void main() {
       ],
     );
     await _settled(c);
-    c.read(catalogSearchProvider.notifier).setSource(CatalogSource.myUploads);
+    c.read(catalogSearchProvider.notifier).setMyScoresOnly(true);
     final s = await _settled(c);
     expect(s.isMyUploads, isTrue);
     expect(_ids(s), ['u1', 'u2']);

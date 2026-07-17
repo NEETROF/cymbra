@@ -25,19 +25,18 @@ import 'score_catalog.dart';
 part 'catalog_search_notifier.freezed.dart';
 part 'catalog_search_notifier.g.dart';
 
-/// Where the hub sources its results: the public catalog (searchable, savable)
-/// or the signed-in user's own uploaded scores (the "mes partitions" filter).
-enum CatalogSource { catalog, myUploads }
-
-/// Immutable state of the Score Hub search: the source scope, the text query and
-/// the author/difficulty filters, the loaded page of results, the set of
-/// catalog ids currently in the user's library, and paging/loading status.
+/// Immutable state of the Score Hub search: the "mes partitions" quick-filter,
+/// the text query and the author/difficulty/facet filters, the loaded page of
+/// results (the user's uploads plus the public catalog, mixed), the set of
+/// catalog ids currently in the library, and paging/loading status.
 @freezed
 abstract class CatalogSearchState with _$CatalogSearchState {
   const CatalogSearchState._();
 
   const factory CatalogSearchState({
-    @Default(CatalogSource.catalog) CatalogSource source,
+    /// The "mes partitions" quick-filter: when true, only the user's own uploads
+    /// are shown; when false, uploads are mixed in with the public catalog.
+    @Default(false) bool myScoresOnly,
     @Default('') String query,
     @Default('') String author,
     PracticeLevel? level,
@@ -63,7 +62,7 @@ abstract class CatalogSearchState with _$CatalogSearchState {
   }) = _CatalogSearchState;
 
   /// Whether the hub is scoped to the user's own uploads ("mes partitions").
-  bool get isMyUploads => source == CatalogSource.myUploads;
+  bool get isMyUploads => myScoresOnly;
 
   /// Whether the current result list is empty after a completed (non-loading)
   /// query — the signal for the no-results / empty-uploads state.
@@ -121,10 +120,11 @@ class CatalogSearch extends _$CatalogSearch {
     unawaited(_reload());
   }
 
-  /// Switch the source scope (catalog ↔ my uploads) and reload immediately.
-  void setSource(CatalogSource source) {
-    if (source == state.source) return;
-    state = state.copyWith(source: source);
+  /// Toggle the "mes partitions" quick-filter and reload immediately. When on,
+  /// only the user's uploads show; when off, uploads are mixed with the catalog.
+  void setMyScoresOnly(bool value) {
+    if (value == state.myScoresOnly) return;
+    state = state.copyWith(myScoresOnly: value);
     unawaited(_reload());
   }
 
@@ -187,7 +187,8 @@ class CatalogSearch extends _$CatalogSearch {
     _debounceTimer = Timer(_debounce, () => unawaited(_reload()));
   }
 
-  /// Load the first page for the current source/query/filters.
+  /// Load the first page. The user's matching uploads always lead the list; the
+  /// public catalog follows unless the "mes partitions" quick-filter is on.
   Future<void> _reload() async {
     state = state.copyWith(
       loading: true,
@@ -197,50 +198,59 @@ class CatalogSearch extends _$CatalogSearch {
       hasMore: true,
     );
     try {
-      if (state.source == CatalogSource.catalog) {
-        final saved = await _loadSavedIds();
-        final page = await ref
-            .read(catalogServiceProvider)
-            .search(
-              query: state.query,
-              author: state.author.isEmpty ? null : state.author,
-              level: state.level,
-              // Corpus is piano-only for now: always constrain to piano.
-              isPiano: true,
-              maxNoteValue: state.maxNoteValue,
-              hasChords: state.hasChords,
-              hasTuplets: state.hasTuplets,
-              hasDotted: state.hasDotted,
-              maxAmbitusSemitones: state.maxAmbitusSemitones,
-              minBpm: state.minBpm,
-              maxBpm: state.maxBpm,
-              limit: _pageSize,
-              offset: 0,
-            );
+      final uploads = await _matchingUploads();
+      if (state.myScoresOnly) {
         state = state.copyWith(
           loading: false,
-          savedIds: saved,
-          entries: [for (final h in page.hits) catalogEntryFromHit(h)],
-          nextOffset: page.nextOffset,
-          hasMore: page.hits.length >= _pageSize,
-        );
-      } else {
-        final uploads = await ref.read(myContributedScoresProvider.future);
-        state = state.copyWith(
-          loading: false,
-          entries: uploads.where(_matchesFilters).toList(),
+          entries: uploads,
           hasMore: false,
         );
+        return;
       }
+      final saved = await _loadSavedIds();
+      final page = await ref
+          .read(catalogServiceProvider)
+          .search(
+            query: state.query,
+            author: state.author.isEmpty ? null : state.author,
+            level: state.level,
+            // Corpus is piano-only for now: always constrain to piano.
+            isPiano: true,
+            maxNoteValue: state.maxNoteValue,
+            hasChords: state.hasChords,
+            hasTuplets: state.hasTuplets,
+            hasDotted: state.hasDotted,
+            maxAmbitusSemitones: state.maxAmbitusSemitones,
+            minBpm: state.minBpm,
+            maxBpm: state.maxBpm,
+            limit: _pageSize,
+            offset: 0,
+          );
+      state = state.copyWith(
+        loading: false,
+        savedIds: saved,
+        entries: [
+          ...uploads,
+          for (final h in page.hits) catalogEntryFromHit(h),
+        ],
+        nextOffset: page.nextOffset,
+        hasMore: page.hits.length >= _pageSize,
+      );
     } catch (e) {
       state = state.copyWith(loading: false, error: e.toString());
     }
   }
 
-  /// Fetch the next page (catalog source only) and append it. No-op while a load
-  /// is in flight, when exhausted, or in the (unpaged) my-uploads source.
+  /// The user's uploads that match the current filters (leads the result list).
+  Future<List<CatalogEntry>> _matchingUploads() async {
+    final uploads = await ref.read(myContributedScoresProvider.future);
+    return uploads.where(_matchesFilters).toList();
+  }
+
+  /// Fetch the next catalog page and append it. No-op while a load is in flight,
+  /// when exhausted, or under the "mes partitions" quick-filter (uploads only).
   Future<void> loadMore() async {
-    if (state.source != CatalogSource.catalog) return;
+    if (state.myScoresOnly) return;
     if (state.loading || state.loadingMore || !state.hasMore) return;
     state = state.copyWith(loadingMore: true);
     try {
@@ -305,16 +315,31 @@ class CatalogSearch extends _$CatalogSearch {
     };
   }
 
-  /// Client-side filter for the my-uploads source (the backend search covers the
-  /// catalog; uploads are a small, already-owned set).
+  /// Client-side filter for the user's uploads (the backend search covers the
+  /// catalog; uploads are a small set filtered here by the same query/author/
+  /// level and the facet filters the entry carries — chords/tuplets/dotted are
+  /// not available client-side, so they don't constrain uploads).
   bool _matchesFilters(CatalogEntry e) {
     final q = state.query.trim().toLowerCase();
     final a = state.author.trim().toLowerCase();
     final title = e.title.toLowerCase();
     final composer = e.composer.toLowerCase();
-    final queryOk = q.isEmpty || title.contains(q) || composer.contains(q);
-    final authorOk = a.isEmpty || composer.contains(a);
-    final levelOk = state.level == null || e.level == state.level;
-    return queryOk && authorOk && levelOk;
+    if (!(q.isEmpty || title.contains(q) || composer.contains(q))) return false;
+    if (!(a.isEmpty || composer.contains(a))) return false;
+    if (state.level != null && e.level != state.level) return false;
+    if (state.maxNoteValue case final max?) {
+      if (e.minNoteValue == null || e.minNoteValue! > max) return false;
+    }
+    if (state.maxAmbitusSemitones case final span?) {
+      final lo = e.lowestMidi, hi = e.highestMidi;
+      if (lo == null || hi == null || (hi - lo) > span) return false;
+    }
+    if (state.minBpm != null || state.maxBpm != null) {
+      final t = e.tempoBpm;
+      if (t == null) return false;
+      if (state.minBpm != null && t < state.minBpm!) return false;
+      if (state.maxBpm != null && t > state.maxBpm!) return false;
+    }
+    return true;
   }
 }

@@ -117,21 +117,20 @@ class _SearchBar extends StatelessWidget {
           const SizedBox(height: 8),
           Row(
             children: [
-              // "Mes partitions" scopes the hub to the user's own uploads.
-              ChoiceChip(
+              // "Mes partitions": a quick-filter — checked shows only the user's
+              // uploads; unchecked mixes them into the catalog results.
+              FilterChip(
                 avatar: Icon(
-                  state.isMyUploads ? Icons.person : Icons.public,
+                  Icons.person,
                   size: 18,
-                  color: state.isMyUploads
+                  color: state.myScoresOnly
                       ? CymbraColors.primaryContainer
                       : CymbraColors.onSurfaceVariant,
                 ),
                 label: Text(l10n.scoreHubMyScores),
-                selected: state.isMyUploads,
+                selected: state.myScoresOnly,
                 showCheckmark: false,
-                onSelected: (on) => notifier.setSource(
-                  on ? CatalogSource.myUploads : CatalogSource.catalog,
-                ),
+                onSelected: notifier.setMyScoresOnly,
               ),
               const Spacer(),
               if (!state.loading)
@@ -211,15 +210,16 @@ class _Results extends StatelessWidget {
             itemCount: state.entries.length,
             itemBuilder: (context, i) {
               final entry = state.entries[i];
+              // Per entry: a catalog result is savable (add/remove heart); the
+              // user's own upload instead offers a favorite toggle + delete.
+              final isUpload = entry.contributedId != null;
               return _HubCard(
                 entry: entry,
                 saved: state.isSaved(entry),
-                // Catalog results are savable; the user's own uploads instead
-                // offer a delete (this is where an author manages/deletes them).
-                onToggleSave: state.isMyUploads
+                onToggleSave: isUpload
                     ? null
                     : () => notifier.toggleSave(entry),
-                deletable: state.isMyUploads,
+                deletable: isUpload,
               );
             },
           ),

@@ -38,9 +38,13 @@ String? _sourceLabel(String? source) => switch (source) {
   final s => s,
 };
 
-/// The attribution line for a catalog score: its origin (crawler source) plus the
-/// arranger when known. `null` for bundled/contributed scores (no origin to show).
+/// The attribution line for a score card. For an upload: "{handle} · Cymbra".
+/// For a catalog score: its origin (crawler source) plus the arranger when
+/// known. `null` for bundled scores (no origin to show).
 String? _attributionLine(CatalogEntry entry) {
+  if (entry.uploaderHandle case final handle? when handle.isNotEmpty) {
+    return '$handle · Cymbra';
+  }
   final parts = <String>[];
   final origin = _sourceLabel(entry.source);
   if (origin != null) parts.add('via $origin');
