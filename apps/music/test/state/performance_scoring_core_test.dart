@@ -128,21 +128,24 @@ void main() {
       );
     });
 
-    test('doing nothing (all onsets missed) scores 0, not the sustain weight', () {
-      // Regression: an all-missed run has no hit sustain ratios, so the sustain
-      // dimension used to default to 1.0 and leak its 0.2 weight ⇒ a phantom
-      // 20%. With no hits, the whole blend must be 0.
-      final pct = syncPercent(
-        onsetVerdicts: const [
-          TimingVerdict.missed,
-          TimingVerdict.missed,
-          TimingVerdict.missed,
-        ],
-        sustainRatios: const [],
-        wrongNotes: 0,
-      );
-      expect(pct, 0.0);
-    });
+    test(
+      'doing nothing (all onsets missed) scores 0, not the sustain weight',
+      () {
+        // Regression: an all-missed run has no hit sustain ratios, so the sustain
+        // dimension used to default to 1.0 and leak its 0.2 weight ⇒ a phantom
+        // 20%. With no hits, the whole blend must be 0.
+        final pct = syncPercent(
+          onsetVerdicts: const [
+            TimingVerdict.missed,
+            TimingVerdict.missed,
+            TimingVerdict.missed,
+          ],
+          sustainRatios: const [],
+          wrongNotes: 0,
+        );
+        expect(pct, 0.0);
+      },
+    );
 
     test('perfect, well-sustained play trends to 100', () {
       final pct = syncPercent(
