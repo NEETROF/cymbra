@@ -191,36 +191,36 @@ void main() {
     await watch(tester);
 
     // Import: pick the fixture; the real bridge validates it.
-    await tester.tap(find.text('Choisir un fichier'));
+    await tester.tap(find.text('Choose a file'));
     for (var i = 0; i < 12; i++) {
       await tester.pump(const Duration(milliseconds: 50));
     }
-    expect(find.textContaining('est valide'), findsOneWidget);
+    expect(find.textContaining('is valid'), findsOneWidget);
     await watch(tester);
 
     // Attest, then advance to the real engraved preview.
-    await tester.tap(find.text('J\'en suis l\'auteur'));
+    await tester.tap(find.text('I am the author'));
     await tester.pump();
     await tester.tap(find.byType(CheckboxListTile));
     await tester.pump();
-    await tester.tap(find.text('Vérifier'));
+    await tester.tap(find.text('Verify'));
     for (var i = 0; i < 20; i++) {
       await tester.pump(const Duration(milliseconds: 50));
     }
     // Server-parity metadata derived by the real parser (Ode to Joy / Beethoven).
-    expect(find.text('Informations détectées (lecture seule)'), findsOneWidget);
+    expect(find.text('Detected information (read-only)'), findsOneWidget);
     expect(find.textContaining('Ode to Joy'), findsWidgets);
     await watch(tester);
 
     // Confirm: choose a difficulty and submit.
-    await tester.tap(find.text('Continuer'));
+    await tester.tap(find.text('Continue'));
     for (var i = 0; i < 8; i++) {
       await tester.pump(const Duration(milliseconds: 50));
     }
-    expect(find.text('Niveau de difficulté'), findsOneWidget);
+    expect(find.text('Difficulty level'), findsOneWidget);
     await tester.tap(find.text('Intermediate'));
     await tester.pump();
-    await tester.tap(find.text('Envoyer'));
+    await tester.tap(find.text('Submit'));
     for (var i = 0; i < 12; i++) {
       await tester.pump(const Duration(milliseconds: 50));
     }
@@ -229,7 +229,7 @@ void main() {
     expect(upload.uploads, hasLength(1));
     expect(upload.uploads.single.level, PracticeLevel.intermediate);
     expect(upload.uploads.single.basis, RightsBasis.author);
-    expect(find.text('Partition ajoutée à vos contributions.'), findsOneWidget);
+    expect(find.text('Score added to your contributions.'), findsOneWidget);
     await watch(tester);
   });
 }

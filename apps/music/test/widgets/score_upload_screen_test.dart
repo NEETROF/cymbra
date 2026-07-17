@@ -132,22 +132,22 @@ void main() {
     await _pump(tester, container);
 
     // Nothing picked yet: the forward action is present but disabled.
-    expect(find.text('Vérifier'), findsOneWidget);
-    expect(_enabled(tester, 'Vérifier'), isFalse);
+    expect(find.text('Verify'), findsOneWidget);
+    expect(_enabled(tester, 'Verify'), isFalse);
 
     // Pick + validate.
-    await tester.tap(find.text('Choisir un fichier'));
+    await tester.tap(find.text('Choose a file'));
     await _pumpFrames(tester);
-    expect(find.textContaining('est valide'), findsOneWidget);
+    expect(find.textContaining('is valid'), findsOneWidget);
     // A validated file alone is not enough — the attestation is still missing.
-    expect(_enabled(tester, 'Vérifier'), isFalse);
+    expect(_enabled(tester, 'Verify'), isFalse);
 
     // Declare a basis and tick the confirmation.
-    await tester.tap(find.text('Domaine public / licence libre'));
+    await tester.tap(find.text('Public domain / open licence'));
     await tester.pump();
     await tester.tap(find.byType(CheckboxListTile));
     await tester.pump();
-    expect(_enabled(tester, 'Vérifier'), isTrue);
+    expect(_enabled(tester, 'Verify'), isTrue);
     await _teardown(tester);
   });
 
@@ -159,37 +159,37 @@ void main() {
     await _pump(tester, container);
 
     // Upload step: pick + attest.
-    await tester.tap(find.text('Choisir un fichier'));
+    await tester.tap(find.text('Choose a file'));
     await _pumpFrames(tester);
-    await tester.tap(find.text('J\'en suis l\'auteur'));
+    await tester.tap(find.text('I am the author'));
     await tester.pump();
     await tester.tap(find.byType(CheckboxListTile));
     await tester.pump();
 
     // → Verify: read-only metadata, and NO practice controls (no tempo slider).
-    await tester.tap(find.text('Vérifier'));
+    await tester.tap(find.text('Verify'));
     await _pumpFrames(tester);
-    expect(find.text('Informations détectées (lecture seule)'), findsOneWidget);
+    expect(find.text('Detected information (read-only)'), findsOneWidget);
     expect(find.byType(Slider), findsNothing);
 
     // → Confirm: difficulty gate.
-    await tester.tap(find.text('Continuer'));
+    await tester.tap(find.text('Continue'));
     await _pumpFrames(tester);
-    expect(find.text('Niveau de difficulté'), findsOneWidget);
-    // 'Envoyer' is disabled until a level is chosen.
-    expect(_enabled(tester, 'Envoyer'), isFalse);
+    expect(find.text('Difficulty level'), findsOneWidget);
+    // 'Submit' is disabled until a level is chosen.
+    expect(_enabled(tester, 'Submit'), isFalse);
 
     await tester.tap(find.text('Intermediate')); // localized label (en default)
     await tester.pump();
-    expect(_enabled(tester, 'Envoyer'), isTrue);
+    expect(_enabled(tester, 'Submit'), isTrue);
 
-    await tester.tap(find.text('Envoyer'));
+    await tester.tap(find.text('Submit'));
     await _pumpFrames(tester);
 
     // Submitted with the chosen level/basis; success screen shown.
     expect(upload.uploads.single.level, PracticeLevel.intermediate);
     expect(upload.uploads.single.basis, RightsBasis.author);
-    expect(find.text('Partition ajoutée à vos contributions.'), findsOneWidget);
+    expect(find.text('Score added to your contributions.'), findsOneWidget);
     await _teardown(tester);
   });
 
@@ -200,27 +200,27 @@ void main() {
     await _pump(tester, container);
 
     // Drive to the confirm step.
-    await tester.tap(find.text('Choisir un fichier'));
+    await tester.tap(find.text('Choose a file'));
     await _pumpFrames(tester);
-    await tester.tap(find.text('J\'en suis l\'auteur'));
+    await tester.tap(find.text('I am the author'));
     await tester.pump();
     await tester.tap(find.byType(CheckboxListTile));
     await tester.pump();
-    await tester.tap(find.text('Vérifier'));
+    await tester.tap(find.text('Verify'));
     await _pumpFrames(tester);
-    await tester.tap(find.text('Continuer'));
+    await tester.tap(find.text('Continue'));
     await _pumpFrames(tester);
-    expect(find.text('Niveau de difficulté'), findsOneWidget);
+    expect(find.text('Difficulty level'), findsOneWidget);
 
     // Back: confirm → verify.
     await tester.tap(find.byIcon(Icons.arrow_back));
     await _pumpFrames(tester);
-    expect(find.text('Informations détectées (lecture seule)'), findsOneWidget);
+    expect(find.text('Detected information (read-only)'), findsOneWidget);
 
     // Back: verify → upload.
     await tester.tap(find.byIcon(Icons.arrow_back));
     await _pumpFrames(tester);
-    expect(find.textContaining('Formats acceptés'), findsOneWidget);
+    expect(find.textContaining('Accepted formats'), findsOneWidget);
     await _teardown(tester);
   });
 
@@ -233,13 +233,13 @@ void main() {
     final container = _container(pick: _validFile(), engine: engine);
     await _pump(tester, container);
 
-    await tester.tap(find.text('Choisir un fichier'));
+    await tester.tap(find.text('Choose a file'));
     await _pumpFrames(tester);
 
     // No "valide" banner, no attestation controls, forward stays disabled.
-    expect(find.textContaining('est valide'), findsNothing);
+    expect(find.textContaining('is valid'), findsNothing);
     expect(find.byType(CheckboxListTile), findsNothing);
-    expect(_enabled(tester, 'Vérifier'), isFalse);
+    expect(_enabled(tester, 'Verify'), isFalse);
     await _teardown(tester);
   });
 
@@ -254,19 +254,19 @@ void main() {
     final container = _container(pick: _validFile(), upload: upload);
     await _pump(tester, container);
 
-    await tester.tap(find.text('Choisir un fichier'));
+    await tester.tap(find.text('Choose a file'));
     await _pumpFrames(tester);
-    await tester.tap(find.text('J\'en suis l\'auteur'));
+    await tester.tap(find.text('I am the author'));
     await tester.pump();
     await tester.tap(find.byType(CheckboxListTile));
     await tester.pump();
-    await tester.tap(find.text('Vérifier'));
+    await tester.tap(find.text('Verify'));
     await _pumpFrames(tester);
-    await tester.tap(find.text('Continuer'));
+    await tester.tap(find.text('Continue'));
     await _pumpFrames(tester);
     await tester.tap(find.text('Beginner'));
     await tester.pump();
-    await tester.tap(find.text('Envoyer'));
+    await tester.tap(find.text('Submit'));
     await _pumpFrames(tester);
 
     // Friendly FR message (never the raw exception); still on the confirm step.
@@ -276,7 +276,7 @@ void main() {
       reason: 'the rate-limit message mentions the quota',
     );
     expect(find.textContaining('AuthException'), findsNothing);
-    expect(find.text('Niveau de difficulté'), findsOneWidget);
+    expect(find.text('Difficulty level'), findsOneWidget);
     await _teardown(tester);
   });
 }

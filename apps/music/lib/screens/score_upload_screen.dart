@@ -35,6 +35,7 @@ class ScoreUploadScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
     final state = ref.watch(scoreUploadNotifierProvider);
     final notifier = ref.read(scoreUploadNotifierProvider.notifier);
     final step = state.step;
@@ -64,8 +65,8 @@ class ScoreUploadScreen extends ConsumerWidget {
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
             tooltip: step == UploadStep.upload || state.isDone
-                ? 'Fermer'
-                : 'Étape précédente',
+                ? l10n.uploadCloseTooltip
+                : l10n.uploadPreviousStepTooltip,
             onPressed: () {
               if (state.isDone) {
                 quit();
@@ -84,7 +85,7 @@ class ScoreUploadScreen extends ConsumerWidget {
           // Style on the Text (not AppBar.titleTextStyle) so it merges with — and
           // keeps — the theme's title colour, only overriding the size.
           title: Text(
-            'Contribuer une partition',
+            l10n.uploadTitle,
             style: TextStyle(fontSize: titleSize, fontWeight: FontWeight.w600),
           ),
           actions: [
@@ -136,14 +137,15 @@ class _ForwardAction extends StatelessWidget {
         ),
       );
     }
+    final l10n = AppLocalizations.of(context);
     final (String label, VoidCallback? onPressed) = switch (state.step) {
       UploadStep.upload => (
-        'Vérifier',
+        l10n.uploadActionVerify,
         state.canLeaveUpload ? notifier.goToVerify : null,
       ),
-      UploadStep.verify => ('Continuer', notifier.goToConfirm),
+      UploadStep.verify => (l10n.uploadActionContinue, notifier.goToConfirm),
       UploadStep.confirm => (
-        'Envoyer',
+        l10n.uploadActionSubmit,
         state.canFinalize ? notifier.submit : null,
       ),
     };
@@ -158,12 +160,16 @@ class _WizardStepper extends StatelessWidget {
   final UploadStep current;
   final bool done;
 
-  static const _labels = ['Import', 'Vérification', 'Confirmation'];
-
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final labels = [
+      l10n.uploadStepImport,
+      l10n.uploadStepVerification,
+      l10n.uploadStepConfirmation,
+    ];
     // After success, all steps read as completed.
-    final currentIndex = done ? _labels.length : current.index;
+    final currentIndex = done ? labels.length : current.index;
     final scheme = Theme.of(context).colorScheme;
 
     Color lineColor(bool active) =>
@@ -173,7 +179,7 @@ class _WizardStepper extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(8, 4, 8, 10),
       child: Row(
         children: [
-          for (var i = 0; i < _labels.length; i++)
+          for (var i = 0; i < labels.length; i++)
             Expanded(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -190,7 +196,7 @@ class _WizardStepper extends StatelessWidget {
                       ),
                       _Dot(index: i, currentIndex: currentIndex),
                       Expanded(
-                        child: i == _labels.length - 1
+                        child: i == labels.length - 1
                             ? const SizedBox()
                             : Container(
                                 height: 2,
@@ -201,7 +207,7 @@ class _WizardStepper extends StatelessWidget {
                   ),
                   const SizedBox(height: 3),
                   Text(
-                    _labels[i],
+                    labels[i],
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
@@ -259,12 +265,12 @@ class _Dot extends StatelessWidget {
   }
 }
 
-String _rejectMessage(String code) => switch (code) {
-  'too_large' => 'Le fichier est trop volumineux.',
-  'undecodable' => 'Le conteneur .mxl n\'a pas pu être décodé.',
-  'unparseable' => 'Ce n\'est pas un fichier MusicXML valide.',
-  'no_notes' => 'La partition ne contient aucune note jouable.',
-  _ => 'Fichier invalide.',
+String _rejectMessage(AppLocalizations l10n, String code) => switch (code) {
+  'too_large' => l10n.uploadRejectTooLarge,
+  'undecodable' => l10n.uploadRejectUndecodable,
+  'unparseable' => l10n.uploadRejectUnparseable,
+  'no_notes' => l10n.uploadRejectNoNotes,
+  _ => l10n.uploadRejectGeneric,
 };
 
 // --- Step 1: Upload ---------------------------------------------------------
@@ -274,6 +280,7 @@ class _UploadStepView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
     final state = ref.watch(scoreUploadNotifierProvider);
     final notifier = ref.read(scoreUploadNotifierProvider.notifier);
 
@@ -285,15 +292,12 @@ class _UploadStepView extends ConsumerWidget {
           icon: const Icon(Icons.upload_file),
           label: Text(
             state.file == null
-                ? 'Choisir un fichier'
-                : 'Choisir un autre fichier',
+                ? l10n.uploadPickFile
+                : l10n.uploadPickAnotherFile,
           ),
         ),
         const SizedBox(height: 8),
-        const Text(
-          'Formats acceptés : .musicxml, .xml ou .mxl (MusicXML compressé).',
-          style: TextStyle(fontSize: 12),
-        ),
+        Text(l10n.uploadAcceptedFormats, style: const TextStyle(fontSize: 12)),
         const SizedBox(height: 16),
         if (state.validating) const Center(child: CircularProgressIndicator()),
         if (state.file != null && !state.validating) ...[
@@ -301,30 +305,30 @@ class _UploadStepView extends ConsumerWidget {
             _Banner(
               icon: Icons.error_outline,
               color: Theme.of(context).colorScheme.error,
-              text: _rejectMessage(state.rejectCode!),
+              text: _rejectMessage(l10n, state.rejectCode!),
             )
           else if (state.isValidated) ...[
             _Banner(
               icon: Icons.check_circle_outline,
               color: Colors.green,
-              text: '« ${state.file!.name} » est valide.',
+              text: l10n.uploadFileValid(state.file!.name),
             ),
             const SizedBox(height: 16),
-            const Text('Sur quelle base contribuez-vous ce contenu ?'),
+            Text(l10n.uploadRightsQuestion),
             RadioGroup<RightsBasis>(
               groupValue: state.rightsBasis,
               onChanged: (v) {
                 if (v != null) notifier.setRightsBasis(v);
               },
-              child: const Column(
+              child: Column(
                 children: [
                   RadioListTile<RightsBasis>(
                     value: RightsBasis.author,
-                    title: Text('J\'en suis l\'auteur'),
+                    title: Text(l10n.uploadRightsAuthor),
                   ),
                   RadioListTile<RightsBasis>(
                     value: RightsBasis.publicDomain,
-                    title: Text('Domaine public / licence libre'),
+                    title: Text(l10n.uploadRightsPublicDomain),
                   ),
                 ],
               ),
@@ -333,10 +337,9 @@ class _UploadStepView extends ConsumerWidget {
               value: state.rightsAck,
               onChanged: (v) => notifier.setRightsAck(v ?? false),
               controlAffinity: ListTileControlAffinity.leading,
-              title: const Text(
-                'Je certifie que cette déclaration est exacte et que je dispose '
-                'des droits nécessaires pour mettre cette partition à disposition.',
-                style: TextStyle(fontSize: 13),
+              title: Text(
+                l10n.uploadRightsAck,
+                style: const TextStyle(fontSize: 13),
               ),
             ),
           ],
@@ -474,6 +477,7 @@ class _VerifyStepViewState extends ConsumerState<_VerifyStepView>
     // Read (not watch): the summary is fixed once we reach the Verify step, and a
     // lingering select-listener on a disposed instance can fire markNeedsBuild on
     // a defunct element when the notifier mutates elsewhere.
+    final l10n = AppLocalizations.of(context);
     final summary = ref.read(scoreUploadNotifierProvider).summary;
     final playback = _playback;
 
@@ -498,7 +502,9 @@ class _VerifyStepViewState extends ConsumerState<_VerifyStepView>
                     color: Colors.black.withValues(alpha: 0.15),
                   ),
                   child: _error != null
-                      ? Center(child: Text('Aperçu indisponible : $_error'))
+                      ? Center(
+                          child: Text(l10n.uploadPreviewUnavailable(_error!)),
+                        )
                       : playback == null
                       ? const Center(child: CircularProgressIndicator())
                       : CustomPaint(
@@ -529,14 +535,14 @@ class _VerifyStepViewState extends ConsumerState<_VerifyStepView>
                 onPressed: playback == null ? null : _togglePlay,
                 icon: Icon(_playing ? Icons.pause : Icons.play_arrow),
                 tooltip: _playing
-                    ? 'Pause'
-                    : 'Lecture (au tempo de la partition)',
+                    ? l10n.uploadPauseTooltip
+                    : l10n.uploadPlayTooltip,
               ),
               const SizedBox(width: 8),
-              const Expanded(
+              Expanded(
                 child: Text(
-                  'Lecture au tempo de la partition, sans réglages.',
-                  style: TextStyle(fontSize: 12),
+                  l10n.uploadPlaybackHint,
+                  style: const TextStyle(fontSize: 12),
                 ),
               ),
             ],
@@ -554,6 +560,7 @@ class _ConfirmStepView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
     final state = ref.watch(scoreUploadNotifierProvider);
     final notifier = ref.read(scoreUploadNotifierProvider.notifier);
 
@@ -564,14 +571,14 @@ class _ConfirmStepView extends ConsumerWidget {
           children: [
             const Icon(Icons.check_circle, color: Colors.green, size: 64),
             const SizedBox(height: 12),
-            const Text('Partition ajoutée à vos contributions.'),
+            Text(l10n.uploadDoneMessage),
             const SizedBox(height: 16),
             FilledButton(
               onPressed: () {
                 Navigator.of(context).pop();
                 ref.read(scoreUploadNotifierProvider.notifier).reset();
               },
-              child: const Text('Terminé'),
+              child: Text(l10n.uploadDoneButton),
             ),
           ],
         ),
@@ -583,9 +590,9 @@ class _ConfirmStepView extends ConsumerWidget {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        const Text(
-          'Niveau de difficulté',
-          style: TextStyle(fontWeight: FontWeight.bold),
+        Text(
+          l10n.uploadDifficultyLabel,
+          style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 8),
         SegmentedButton<PracticeLevel>(
@@ -613,12 +620,12 @@ class _ConfirmStepView extends ConsumerWidget {
         // composer (a parsed value always wins server-side — design 2b).
         if (state.summary?.title == null)
           _FallbackField(
-            label: 'Titre (obligatoire — ce fichier n\'en contient pas)',
+            label: l10n.uploadFallbackTitleLabel,
             onChanged: notifier.setFallbackTitle,
           ),
         if (state.summary?.composer == null)
           _FallbackField(
-            label: 'Compositeur (optionnel)',
+            label: l10n.uploadFallbackComposerLabel,
             onChanged: notifier.setFallbackComposer,
           ),
         if (state.submitError != null) ...[
@@ -644,6 +651,7 @@ class _MetadataCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     Widget row(String k, String v) => Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
@@ -664,16 +672,16 @@ class _MetadataCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Informations détectées (lecture seule)',
-              style: TextStyle(fontWeight: FontWeight.bold),
+            Text(
+              l10n.uploadDetectedInfo,
+              style: const TextStyle(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
-            row('Titre', summary.title ?? '—'),
-            row('Compositeur', summary.composer ?? '—'),
-            row('Tonalité', '${summary.keyFifths} altération(s)'),
-            row('Mesure', summary.timeSig),
-            row('Nombre de mesures', '${summary.measureCount}'),
+            row(l10n.uploadFieldTitle, summary.title ?? '—'),
+            row(l10n.uploadFieldComposer, summary.composer ?? '—'),
+            row(l10n.uploadFieldKey, l10n.uploadKeyValue(summary.keyFifths)),
+            row(l10n.uploadFieldTimeSig, summary.timeSig),
+            row(l10n.uploadFieldMeasureCount, '${summary.measureCount}'),
           ],
         ),
       ),

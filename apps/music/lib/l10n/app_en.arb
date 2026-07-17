@@ -419,6 +419,129 @@
   "@libraryEmptyBody": { "description": "Home empty-state body text." },
 
   "libraryEmptyAction": "Browse the Score Hub",
-  "@libraryEmptyAction": { "description": "Home empty-state button that opens the Score Hub." }
+  "@libraryEmptyAction": { "description": "Home empty-state button that opens the Score Hub." },
+
+  "uploadTitle": "Contribute a score",
+  "@uploadTitle": { "description": "Title of the score-contribution wizard screen." },
+
+  "uploadCloseTooltip": "Close",
+  "@uploadCloseTooltip": { "description": "Back-button tooltip on the first wizard step / after success (quits the wizard)." },
+
+  "uploadPreviousStepTooltip": "Previous step",
+  "@uploadPreviousStepTooltip": { "description": "Back-button tooltip on later wizard steps (goes to the previous step)." },
+
+  "uploadActionVerify": "Verify",
+  "@uploadActionVerify": { "description": "Forward action on the Import step: go to the Verify step." },
+
+  "uploadActionContinue": "Continue",
+  "@uploadActionContinue": { "description": "Forward action on the Verify step: go to the Confirm step." },
+
+  "uploadActionSubmit": "Submit",
+  "@uploadActionSubmit": { "description": "Forward action on the Confirm step: submit the upload." },
+
+  "uploadStepImport": "Import",
+  "@uploadStepImport": { "description": "Wizard stepper label for step 1 (pick a file)." },
+
+  "uploadStepVerification": "Verification",
+  "@uploadStepVerification": { "description": "Wizard stepper label for step 2 (preview/verify)." },
+
+  "uploadStepConfirmation": "Confirmation",
+  "@uploadStepConfirmation": { "description": "Wizard stepper label for step 3 (confirm/submit)." },
+
+  "uploadRejectTooLarge": "The file is too large.",
+  "@uploadRejectTooLarge": { "description": "Rejection banner: the picked file exceeds the size limit." },
+
+  "uploadRejectUndecodable": "The .mxl container could not be decoded.",
+  "@uploadRejectUndecodable": { "description": "Rejection banner: the .mxl (zip) container failed to decode." },
+
+  "uploadRejectUnparseable": "This is not a valid MusicXML file.",
+  "@uploadRejectUnparseable": { "description": "Rejection banner: the file is not valid MusicXML." },
+
+  "uploadRejectNoNotes": "The score contains no playable notes.",
+  "@uploadRejectNoNotes": { "description": "Rejection banner: the parsed score has no playable notes." },
+
+  "uploadRejectGeneric": "Invalid file.",
+  "@uploadRejectGeneric": { "description": "Rejection banner: generic fallback for an invalid file." },
+
+  "uploadPickFile": "Choose a file",
+  "@uploadPickFile": { "description": "Button to pick a score file (no file chosen yet)." },
+
+  "uploadPickAnotherFile": "Choose another file",
+  "@uploadPickAnotherFile": { "description": "Button to replace the already-chosen score file." },
+
+  "uploadAcceptedFormats": "Accepted formats: .musicxml, .xml or .mxl (compressed MusicXML).",
+  "@uploadAcceptedFormats": { "description": "Helper text listing the accepted upload file formats." },
+
+  "uploadFileValid": "“{name}” is valid.",
+  "@uploadFileValid": {
+    "description": "Success banner after a picked file validates; {name} is the file name.",
+    "placeholders": { "name": { "type": "String", "example": "prelude.mxl" } }
+  },
+
+  "uploadRightsQuestion": "On what basis are you contributing this content?",
+  "@uploadRightsQuestion": { "description": "Prompt above the rights-basis radio options." },
+
+  "uploadRightsAuthor": "I am the author",
+  "@uploadRightsAuthor": { "description": "Rights-basis option: the user authored the score." },
+
+  "uploadRightsPublicDomain": "Public domain / open licence",
+  "@uploadRightsPublicDomain": { "description": "Rights-basis option: public domain or an open licence." },
+
+  "uploadRightsAck": "I certify that this declaration is accurate and that I hold the rights necessary to make this score available.",
+  "@uploadRightsAck": { "description": "Legal (terms-of-use) attestation checkbox the user must tick to upload." },
+
+  "uploadPlayTooltip": "Play (at the score's tempo)",
+  "@uploadPlayTooltip": { "description": "Preview play-button tooltip." },
+
+  "uploadPauseTooltip": "Pause",
+  "@uploadPauseTooltip": { "description": "Preview pause-button tooltip." },
+
+  "uploadPlaybackHint": "Playback at the score's tempo, no adjustments.",
+  "@uploadPlaybackHint": { "description": "Helper text next to the preview play control." },
+
+  "uploadPreviewUnavailable": "Preview unavailable: {error}",
+  "@uploadPreviewUnavailable": {
+    "description": "Shown in the preview area when rendering the score failed; {error} is the error detail.",
+    "placeholders": { "error": { "type": "String", "example": "parse error" } }
+  },
+
+  "uploadDoneMessage": "Score added to your contributions.",
+  "@uploadDoneMessage": { "description": "Success message after the upload completes." },
+
+  "uploadDoneButton": "Done",
+  "@uploadDoneButton": { "description": "Button that closes the wizard after a successful upload." },
+
+  "uploadDifficultyLabel": "Difficulty level",
+  "@uploadDifficultyLabel": { "description": "Label above the difficulty segmented control on the confirm step." },
+
+  "uploadFallbackTitleLabel": "Title (required — this file has none)",
+  "@uploadFallbackTitleLabel": { "description": "Fallback title input label, shown when the file carries no title." },
+
+  "uploadFallbackComposerLabel": "Composer (optional)",
+  "@uploadFallbackComposerLabel": { "description": "Fallback composer input label, shown when the file carries no composer." },
+
+  "uploadDetectedInfo": "Detected information (read-only)",
+  "@uploadDetectedInfo": { "description": "Heading of the read-only detected-metadata card." },
+
+  "uploadFieldTitle": "Title",
+  "@uploadFieldTitle": { "description": "Metadata card row label: title." },
+
+  "uploadFieldComposer": "Composer",
+  "@uploadFieldComposer": { "description": "Metadata card row label: composer." },
+
+  "uploadFieldKey": "Key",
+  "@uploadFieldKey": { "description": "Metadata card row label: key signature." },
+
+  "uploadKeyValue": "{count} alteration(s)",
+  "@uploadKeyValue": {
+    "description": "Metadata card key-signature value; {count} is the number of sharps/flats.",
+    "placeholders": { "count": { "type": "int", "example": "2" } }
+  },
+
+  "uploadFieldTimeSig": "Time signature",
+  "@uploadFieldTimeSig": { "description": "Metadata card row label: time signature." },
+
+  "uploadFieldMeasureCount": "Number of measures",
+  "@uploadFieldMeasureCount": { "description": "Metadata card row label: number of measures." }
 
 }
