@@ -76,14 +76,7 @@ class ScoreHubScreen extends ConsumerWidget {
       ),
       body: SafeArea(
         top: false,
-        child: Column(
-          children: [
-            _SearchBar(state: state, notifier: notifier, l10n: l10n),
-            Expanded(
-              child: _Results(state: state, notifier: notifier, l10n: l10n),
-            ),
-          ],
-        ),
+        child: _Results(state: state, notifier: notifier, l10n: l10n),
       ),
     );
   }
@@ -103,8 +96,12 @@ class _SearchBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      // Compact header: it lives in a floating app bar that scrolls away, so it
+      // must stay slim (mobile screens are short). Tighter paddings + a denser
+      // search field than a full-page header.
+      padding: const EdgeInsets.fromLTRB(16, 6, 16, 8),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           TextField(
@@ -117,14 +114,14 @@ class _SearchBar extends StatelessWidget {
               filled: true,
               fillColor: CymbraColors.surfaceContainer,
               isDense: true,
-              contentPadding: const EdgeInsets.symmetric(vertical: 14),
+              contentPadding: const EdgeInsets.symmetric(vertical: 9),
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(28),
+                borderRadius: BorderRadius.circular(24),
                 borderSide: BorderSide.none,
               ),
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Row(
             children: [
               // "Mes partitions": a quick-filter — checked shows only the user's
@@ -172,34 +169,6 @@ class _Results extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (state.loading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-    if (state.isEmptyResult) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(
-                Icons.library_music_outlined,
-                size: 48,
-                color: CymbraColors.outline,
-              ),
-              const SizedBox(height: 12),
-              Text(
-                state.isMyUploads
-                    ? l10n.scoreHubMyScoresEmpty
-                    : l10n.scoreHubNoResults,
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: CymbraColors.onSurfaceVariant),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
     return NotificationListener<ScrollNotification>(
       onNotification: (n) {
         if (n.metrics.pixels >= n.metrics.maxScrollExtent - 320) {
@@ -207,42 +176,105 @@ class _Results extends StatelessWidget {
         }
         return false;
       },
-      child: Stack(
-        children: [
-          GridView.builder(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-            gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-              maxCrossAxisExtent: 320,
-              mainAxisSpacing: 16,
-              crossAxisSpacing: 16,
-              childAspectRatio: 0.78,
-            ),
-            itemCount: state.entries.length,
-            itemBuilder: (context, i) {
-              final entry = state.entries[i];
-              // Per entry: a catalog result is savable (add/remove heart); the
-              // user's own upload instead offers a favorite toggle + delete.
-              final isUpload = entry.contributedId != null;
-              return _HubCard(
-                entry: entry,
-                saved: state.isSaved(entry),
-                onToggleSave: isUpload
-                    ? null
-                    : () => notifier.toggleSave(entry),
-                deletable: isUpload,
-              );
-            },
+      child: CustomScrollView(
+        slivers: [
+          // The search + "mes partitions" chip live in a FLOATING app bar: it
+          // shows on entry, scrolls away as the grid scrolls, and snaps back on
+          // any upward flick — so short mobile screens aren't half-eaten by it.
+          SliverAppBar(
+            floating: true,
+            snap: true,
+            automaticallyImplyLeading: false,
+            backgroundColor: CymbraColors.background,
+            surfaceTintColor: Colors.transparent,
+            elevation: 0,
+            scrolledUnderElevation: 0,
+            titleSpacing: 0,
+            toolbarHeight: 112,
+            title: _SearchBar(state: state, notifier: notifier, l10n: l10n),
           ),
-          if (state.loadingMore)
-            const Positioned(
-              left: 0,
-              right: 0,
-              bottom: 12,
-              child: Center(child: CircularProgressIndicator()),
-            ),
+          ..._resultSlivers(),
         ],
       ),
     );
+  }
+
+  /// The results area below the floating header: a spinner, the empty state, or
+  /// the card grid (+ a load-more spinner).
+  List<Widget> _resultSlivers() {
+    if (state.loading) {
+      return const [
+        SliverFillRemaining(
+          hasScrollBody: false,
+          child: Center(child: CircularProgressIndicator()),
+        ),
+      ];
+    }
+    if (state.isEmptyResult) {
+      return [
+        SliverFillRemaining(
+          hasScrollBody: false,
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.library_music_outlined,
+                    size: 48,
+                    color: CymbraColors.outline,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    state.isMyUploads
+                        ? l10n.scoreHubMyScoresEmpty
+                        : l10n.scoreHubNoResults,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: CymbraColors.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ];
+    }
+    return [
+      SliverPadding(
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+        sliver: SliverGrid.builder(
+          gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+            maxCrossAxisExtent: 320,
+            mainAxisSpacing: 16,
+            crossAxisSpacing: 16,
+            childAspectRatio: 0.78,
+          ),
+          itemCount: state.entries.length,
+          itemBuilder: (context, i) {
+            final entry = state.entries[i];
+            // Per entry: a catalog result is savable (add/remove heart); the
+            // user's own upload instead offers a favorite toggle + delete.
+            final isUpload = entry.contributedId != null;
+            return _HubCard(
+              entry: entry,
+              saved: state.isSaved(entry),
+              onToggleSave: isUpload ? null : () => notifier.toggleSave(entry),
+              deletable: isUpload,
+            );
+          },
+        ),
+      ),
+      if (state.loadingMore)
+        const SliverToBoxAdapter(
+          child: Padding(
+            padding: EdgeInsets.only(bottom: 12),
+            child: Center(child: CircularProgressIndicator()),
+          ),
+        ),
+    ];
   }
 }
 
