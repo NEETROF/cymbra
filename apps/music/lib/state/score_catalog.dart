@@ -72,6 +72,10 @@ class CatalogEntry {
   final String? timeSig;
   final int? keyFifths;
 
+  /// For a contributed (upload) entry: whether it is in the user's favorites.
+  /// Meaningless (and `true`) for bundled/catalog entries.
+  final bool favorite;
+
   const CatalogEntry({
     required this.id,
     required this.title,
@@ -89,6 +93,7 @@ class CatalogEntry {
     this.highestMidi,
     this.timeSig,
     this.keyFifths,
+    this.favorite = true,
   });
 
   /// Whether this is a user upload (byte-sourced) rather than a bundled score.

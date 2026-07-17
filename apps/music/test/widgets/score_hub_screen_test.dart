@@ -73,13 +73,15 @@ class _FakeCatalog implements CatalogService {
 class _FakeUpload implements ScoreUploadService {
   _FakeUpload(this.mine);
   final List<ContributedScore> mine;
+  final List<(String, bool)> favoriteCalls = [];
 
   @override
   Future<List<ContributedScore>> listMyScores() async => mine;
   @override
   Future<void> deleteScore(String id) async {}
   @override
-  Future<void> setFavorite(String id, bool favorite) async {}
+  Future<void> setFavorite(String id, bool favorite) async =>
+      favoriteCalls.add((id, favorite));
 
   @override
   Future<Uint8List> fetchBytes(String id) async => Uint8List(0);
@@ -107,11 +109,14 @@ CatalogHit _hit(String id, String title) => CatalogHit(
 ProviderContainer _container(
   _FakeCatalog catalog, {
   List<ContributedScore> uploads = const [],
+  _FakeUpload? uploadFake,
 }) {
   final c = ProviderContainer(
     overrides: [
       catalogServiceProvider.overrideWithValue(catalog),
-      scoreUploadServiceProvider.overrideWithValue(_FakeUpload(uploads)),
+      scoreUploadServiceProvider.overrideWithValue(
+        uploadFake ?? _FakeUpload(uploads),
+      ),
       canUseOnlineServicesProvider.overrideWithValue(true),
     ],
   );
@@ -198,6 +203,37 @@ void main() {
     final c = _container(_FakeCatalog(const []));
     await _pump(tester, c);
     expect(find.text('No scores match your search.'), findsOneWidget);
+    await _teardown(tester, c);
+  });
+
+  testWidgets('"mes partitions" upload can be un-favorited from the hub', (
+    tester,
+  ) async {
+    final upload = _FakeUpload([
+      ContributedScore(
+        id: 'u1',
+        level: PracticeLevel.beginner,
+        createdAt: DateTime.utc(2026, 5, 1),
+        measureCount: 4,
+        timeSig: '4/4',
+        keyFifths: 0,
+        title: 'My Upload',
+        composer: 'Me',
+      ),
+    ]);
+    final c = _container(_FakeCatalog(const []), uploadFake: upload);
+    await _pump(tester, c);
+    await tester.tap(find.widgetWithText(ChoiceChip, 'My scores'));
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 40));
+    }
+    expect(find.text('My Upload'), findsOneWidget);
+    // The upload is favorited → a filled heart; tapping it un-favorites.
+    await tester.tap(find.byIcon(Icons.favorite));
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 40));
+    }
+    expect(upload.favoriteCalls, [('u1', false)]);
     await _teardown(tester, c);
   });
 

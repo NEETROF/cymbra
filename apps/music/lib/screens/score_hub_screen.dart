@@ -264,16 +264,25 @@ class _HubCard extends ConsumerWidget {
         ).push(MaterialPageRoute<void>(builder: (_) => const PlayerScreen()));
       },
       action: deletable
-          ? IconButton(
-              icon: const Icon(
-                Icons.delete_outline,
-                color: CymbraColors.onSurface,
-              ),
-              tooltip: 'Supprimer',
-              style: IconButton.styleFrom(
-                backgroundColor: Colors.black.withValues(alpha: 0.28),
-              ),
-              onPressed: () => _confirmDelete(context, ref),
+          // The user's own uploads: favorite toggle + delete.
+          ? Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _overlayButton(
+                  icon: entry.favorite ? Icons.favorite : Icons.favorite_border,
+                  color: entry.favorite
+                      ? CymbraColors.error
+                      : CymbraColors.onSurface,
+                  tooltip: l10n.scoreHubRemoveFromLibrary,
+                  onPressed: () => _toggleFavorite(ref),
+                ),
+                _overlayButton(
+                  icon: Icons.delete_outline,
+                  color: CymbraColors.onSurface,
+                  tooltip: 'Supprimer',
+                  onPressed: () => _confirmDelete(context, ref),
+                ),
+              ],
             )
           : onToggleSave == null
           ? null
@@ -288,6 +297,31 @@ class _HubCard extends ConsumerWidget {
               onPressed: onToggleSave,
             ),
     );
+  }
+
+  Widget _overlayButton({
+    required IconData icon,
+    required Color color,
+    required String tooltip,
+    required VoidCallback onPressed,
+  }) => IconButton(
+    visualDensity: VisualDensity.compact,
+    icon: Icon(icon, color: color),
+    tooltip: tooltip,
+    style: IconButton.styleFrom(
+      backgroundColor: Colors.black.withValues(alpha: 0.28),
+    ),
+    onPressed: onPressed,
+  );
+
+  /// Favorite / un-favorite one of the caller's uploads from the hub (updates
+  /// the home favorites too). Never deletes the upload.
+  Future<void> _toggleFavorite(WidgetRef ref) async {
+    final id = entry.contributedId;
+    if (id == null) return;
+    await ref.read(scoreUploadServiceProvider).setFavorite(id, !entry.favorite);
+    ref.invalidate(myUploadsProvider);
+    await ref.read(catalogSearchProvider.notifier).refresh();
   }
 
   /// Delete one of the caller's own uploads (destructive) with a confirm dialog,

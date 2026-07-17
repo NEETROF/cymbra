@@ -197,8 +197,10 @@ class ScoreUploadNotifier extends _$ScoreUploadNotifier {
             fallbackComposer: state.fallbackComposer,
           );
       state = state.copyWith(submitting: false, result: record);
-      // Refresh the library's "my contributions" section so the new score shows.
-      ref.invalidate(myContributedScoresProvider);
+      // Refresh the uploads source so the new (auto-favorited) score shows on the
+      // home favorites and in the hub's "mes partitions" immediately. Invalidating
+      // myUploads cascades to myContributedScores + favoriteScores.
+      ref.invalidate(myUploadsProvider);
     } catch (e) {
       state = state.copyWith(
         submitting: false,

@@ -65,6 +65,7 @@ CatalogEntry contributedEntry(ContributedScore s) {
     highestMidi: s.highestMidi,
     timeSig: s.timeSig,
     keyFifths: s.keyFifths,
+    favorite: s.favorite,
   );
 }
 
