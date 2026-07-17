@@ -47,7 +47,8 @@ fn is_foreign_key_violation(e: &sqlx::Error) -> bool {
 
 const COLS: &str = "id, owner_id, level, rights_basis, rights_ack, title, composer, \
      title_norm, work_key, key_fifths, time_sig, measure_count, is_piano, sha256, \
-     size_bytes, object_key, created_at";
+     size_bytes, object_key, created_at, min_note_value, has_tuplets, has_dotted, \
+     has_chords, lowest_midi, highest_midi, staff_count, note_count, tempo_bpm, has_dynamics";
 
 fn row_to_score(r: &PgRow) -> UserScore {
     UserScore {
@@ -68,6 +69,18 @@ fn row_to_score(r: &PgRow) -> UserScore {
         size_bytes: r.get("size_bytes"),
         object_key: r.get("object_key"),
         created_at: r.get::<DateTime<Utc>, _>("created_at").timestamp(),
+        facets: crate::repo::ScoreFacets {
+            min_note_value: r.get::<Option<i16>, _>("min_note_value").map(|v| v as u8),
+            has_tuplets: r.get::<Option<bool>, _>("has_tuplets").unwrap_or(false),
+            has_dotted: r.get::<Option<bool>, _>("has_dotted").unwrap_or(false),
+            has_chords: r.get::<Option<bool>, _>("has_chords").unwrap_or(false),
+            lowest_midi: r.get::<Option<i16>, _>("lowest_midi").map(|v| v as u8),
+            highest_midi: r.get::<Option<i16>, _>("highest_midi").map(|v| v as u8),
+            staff_count: r.get::<Option<i16>, _>("staff_count").unwrap_or(0) as u8,
+            note_count: r.get::<Option<i32>, _>("note_count").unwrap_or(0) as u32,
+            tempo_bpm: r.get::<Option<i32>, _>("tempo_bpm").map(|v| v as u16),
+            has_dynamics: r.get::<Option<bool>, _>("has_dynamics").unwrap_or(false),
+        },
     }
 }
 
@@ -96,7 +109,8 @@ impl UserScoreRepo for PgUserScoreRepo {
             .ok_or_else(|| AppError::Internal(anyhow::anyhow!("bad created_at")))?;
         let res = sqlx::query(&format!(
             "INSERT INTO music.user_scores ({COLS}) \
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)"
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,\
+                $18,$19,$20,$21,$22,$23,$24,$25,$26,$27)"
         ))
         .bind(id)
         .bind(owner)
@@ -115,6 +129,16 @@ impl UserScoreRepo for PgUserScoreRepo {
         .bind(s.size_bytes)
         .bind(&s.object_key)
         .bind(created)
+        .bind(s.facets.min_note_value.map(i16::from))
+        .bind(s.facets.has_tuplets)
+        .bind(s.facets.has_dotted)
+        .bind(s.facets.has_chords)
+        .bind(s.facets.lowest_midi.map(i16::from))
+        .bind(s.facets.highest_midi.map(i16::from))
+        .bind(i16::from(s.facets.staff_count))
+        .bind(s.facets.note_count as i32)
+        .bind(s.facets.tempo_bpm.map(i32::from))
+        .bind(s.facets.has_dynamics)
         .execute(&self.pool)
         .await;
         match res {

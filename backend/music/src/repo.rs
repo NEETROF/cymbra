@@ -26,6 +26,25 @@ pub struct ScoreFacets {
     pub has_dynamics: bool,
 }
 
+impl ScoreFacets {
+    /// Copy from the engine's [`cymbra_musicxml_core::ScoreFacets`] (the shared
+    /// derivation), so the crawler and the upload path map facets the same way.
+    pub fn from_core(f: &cymbra_musicxml_core::ScoreFacets) -> Self {
+        Self {
+            min_note_value: f.min_note_value,
+            has_tuplets: f.has_tuplets,
+            has_dotted: f.has_dotted,
+            has_chords: f.has_chords,
+            lowest_midi: f.lowest_midi,
+            highest_midi: f.highest_midi,
+            staff_count: f.staff_count,
+            note_count: f.note_count,
+            tempo_bpm: f.tempo_bpm,
+            has_dynamics: f.has_dynamics,
+        }
+    }
+}
+
 /// One public-corpus catalog row: the provenance that must travel with a
 /// redistributed score, plus search/musical metadata. Enum-like fields are
 /// snake_case strings matching the crawler's serde output and the table CHECKs.

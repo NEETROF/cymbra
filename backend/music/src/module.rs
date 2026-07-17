@@ -30,6 +30,7 @@ use cymbra_storage::ObjectStorage;
 use sha2::{Digest, Sha256};
 
 use crate::catalog_search::{CatalogHit, CatalogQuery, CatalogSearchParams, CatalogSearchRepo};
+use crate::repo::ScoreFacets;
 use crate::user_library::UserLibraryRepo;
 use crate::user_scores::{UserScore, UserScoreRepo};
 
@@ -176,6 +177,15 @@ impl ScoreModule {
         let canonical = decode_canonical(&input.data)?;
         let sha = sha256_hex(&canonical);
 
+        // 4b. Derive the musical facets from the canonical parse (same as the
+        //     crawler does for the catalog), so uploads carry them too. A parse
+        //     failure here is impossible after `validate`, but default rather than
+        //     abort if it somehow occurs.
+        let core_facets = cymbra_musicxml_core::parse(&canonical)
+            .map(|doc| cymbra_musicxml_core::ScoreFacets::from_document(&doc))
+            .unwrap_or_default();
+        let facets = ScoreFacets::from_core(&core_facets);
+
         // 5. Store the object, then persist the row (design 4: object before row;
         //    an orphaned object is invisible/reclaimable, a dangling row is not).
         let id = uuid::Uuid::now_v7().to_string();
@@ -203,6 +213,7 @@ impl ScoreModule {
             size_bytes: input.data.len() as i64,
             object_key: object_key.clone(),
             created_at: now_unix(),
+            facets,
         };
 
         if let Err(e) = self.repo.insert(&record).await {

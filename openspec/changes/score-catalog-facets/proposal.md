@@ -18,9 +18,9 @@ existing corpus is repopulated simply by **re-crawling** (no separate backfill p
   staff count, note count, mode (major/minor), tempo (BPM, when marked), and expressivity
   flags (dynamics / ornaments / articulations / pedal). Purely derived — never client-supplied.
 - Persist those facets as new **nullable columns** on `music.catalog_scores` (+ btree/partial
-  indexes for the ones used as filters), **populated by the crawler at ingest**. Mirror the
-  columns on `music.user_scores` for parity (upload-path population is a follow-up; the app
-  filters "mes partitions" client-side for now).
+  indexes for the ones used as filters), **populated at ingest** — by the crawler for the
+  catalog and by the upload path for `music.user_scores` (surfaced via `ScoreRecord`), so
+  contributed scores render a faithful cover too.
 - Add optional **facet filters** to the backend `SearchCatalog` RPC — all composed
   conjunctively with the existing query/author/level: max-fastest-note-value (e.g. "nothing
   faster than an eighth"), chords/tuplets/dotted (include-only), max ambitus span, staff

@@ -49,6 +49,13 @@ class ContributedScore {
   final String timeSig;
   final int keyFifths;
 
+  // Derived musical facets for the generated cover (null until known).
+  final int? minNoteValue;
+  final int? tempoBpm;
+  final int noteCount;
+  final int? lowestMidi;
+  final int? highestMidi;
+
   const ContributedScore({
     required this.id,
     required this.level,
@@ -58,6 +65,11 @@ class ContributedScore {
     required this.keyFifths,
     this.title,
     this.composer,
+    this.minNoteValue,
+    this.tempoBpm,
+    this.noteCount = 0,
+    this.lowestMidi,
+    this.highestMidi,
   });
 }
 
@@ -155,6 +167,11 @@ class GrpcScoreUploadService implements ScoreUploadService {
     measureCount: r.measureCount,
     timeSig: r.timeSig,
     keyFifths: r.keyFifths,
+    minNoteValue: r.hasMinNoteValue() ? r.minNoteValue : null,
+    tempoBpm: r.hasTempoBpm() ? r.tempoBpm : null,
+    noteCount: r.noteCount,
+    lowestMidi: r.hasLowestMidi() ? r.lowestMidi : null,
+    highestMidi: r.hasHighestMidi() ? r.highestMidi : null,
   );
 
   @override

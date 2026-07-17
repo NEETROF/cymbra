@@ -72,6 +72,11 @@ fn to_record(s: UserScore) -> ScoreRecord {
         measure_count: s.measure_count,
         time_sig: s.time_sig,
         key_fifths: s.key_fifths,
+        min_note_value: s.facets.min_note_value.map(i32::from),
+        tempo_bpm: s.facets.tempo_bpm.map(i32::from),
+        note_count: s.facets.note_count as i32,
+        lowest_midi: s.facets.lowest_midi.map(i32::from),
+        highest_midi: s.facets.highest_midi.map(i32::from),
     }
 }
 

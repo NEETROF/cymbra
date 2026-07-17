@@ -3,9 +3,9 @@
 > **Delivered scope:** the facets derivable from the existing (app-bridged) parse model —
 > smallest note value, chords/tuplets/dotted, ambitus, staff/note counts, tempo, dynamics.
 > **Deferred** (need model + app-FFI/bridge changes): `is_minor` (mode) and the
-> ornaments/articulations/pedal flags. Facets are **populated by the crawler at ingest**;
-> the existing corpus is repopulated by re-crawling (the standalone re-read backfill was
-> removed). Upload-path population of `user_scores` facets is a follow-up.
+> ornaments/articulations/pedal flags. Facets are **populated at ingest** — by the crawler for
+> the catalog and by the upload path for `user_scores` (surfaced via `ScoreRecord`) — so the
+> existing catalog is repopulated by re-crawling (the standalone re-read backfill was removed).
 
 ## 1. Engine — facet derivation (`musicxml_core`)
 
@@ -42,8 +42,9 @@
 - [x] 3.3 Remove the standalone re-read backfill (lib + server bin) — the crawler populates at
   ingest; re-crawl to repopulate.
 - [x] 3.4 Update the fakes/tests that build `CatalogEntry`/`ManifestEntry` for the new field.
-- [ ] 3.5 (Follow-up) Populate `user_scores` facets from the upload path (`UserScore` +
-  `module.rs` upload + `pg_user_scores.rs`).
+- [x] 3.5 Populate `user_scores` facets from the upload path (compute in `module.rs` upload,
+  store in `pg_user_scores.rs`) and surface them via `ScoreRecord` so contributed covers are
+  faithful too.
 
 ## 4. Backend — search filters
 

@@ -18,6 +18,13 @@ message ScoreRecord {
   int32 measure_count = 6;
   string time_sig = 7;
   int32 key_fifths = 8;
+  // Derived facets for a faithful cover (change: score-catalog-facets). Null
+  // facets are sent as their unset/zero form; the app treats 0 note_count etc.
+  optional int32 min_note_value = 9;
+  optional int32 tempo_bpm = 10;
+  int32 note_count = 11;
+  optional int32 lowest_midi = 12;
+  optional int32 highest_midi = 13;
 }
 
 message UploadScoreRequest {

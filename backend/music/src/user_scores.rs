@@ -24,6 +24,8 @@ use std::sync::Mutex;
 use async_trait::async_trait;
 use cymbra_platform::{AppError, Result};
 
+use crate::repo::ScoreFacets;
+
 /// One contributed-score row. Descriptive fields (`title`..`is_piano`) are
 /// **server-derived** from the parsed file (design 2b); `level`/`rights_*` are the
 /// only caller-owned inputs. `created_at` is unix seconds.
@@ -46,6 +48,9 @@ pub struct UserScore {
     pub size_bytes: i64,
     pub object_key: String,
     pub created_at: i64,
+    /// Derived musical facets (change: score-catalog-facets) — same as the
+    /// catalog, so uploads render a faithful cover and can be facet-filtered.
+    pub facets: ScoreFacets,
 }
 
 /// Owner-scoped storage surface for user uploads.
@@ -163,6 +168,7 @@ mod tests {
             size_bytes: 100,
             object_key: format!("user-scores/{owner}/{id}.mxl"),
             created_at,
+            facets: ScoreFacets::default(),
         }
     }
 

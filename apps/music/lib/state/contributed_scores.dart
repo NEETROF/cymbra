@@ -50,6 +50,14 @@ CatalogEntry _entry(ContributedScore s) {
     composer: composer,
     level: s.level,
     contributedId: s.id,
+    // Facets so the contributed cover is as faithful as a catalog one.
+    minNoteValue: s.minNoteValue,
+    tempoBpm: s.tempoBpm,
+    noteCount: s.noteCount,
+    lowestMidi: s.lowestMidi,
+    highestMidi: s.highestMidi,
+    timeSig: s.timeSig,
+    keyFifths: s.keyFifths,
   );
 }
 
