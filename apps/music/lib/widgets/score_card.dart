@@ -142,8 +142,10 @@ class _DifficultyBadge extends StatelessWidget {
 }
 
 /// A deterministic generated cover for a score (no artwork exists): a gradient +
-/// soft bokeh glows + a subtle sound-wave, all seeded from the score id so each
-/// card is stable and distinct, with the title's initial as a monogram.
+/// soft bokeh glows + a sound-wave whose *energy* grows with the difficulty
+/// (amplitude, frequency, harmonics) and a few eighth-note glyphs whose count
+/// tracks it too — all seeded from the score id so each card is stable, distinct,
+/// and reflects how busy the piece is. The centre shows a ♪, not a letter.
 class _CoverArt extends StatelessWidget {
   const _CoverArt({required this.entry});
 
@@ -156,28 +158,28 @@ class _CoverArt extends StatelessWidget {
     [Color(0xFF4A1D3F), Color(0xFFE05299)], // magenta
     [Color(0xFF123A2C), Color(0xFF4EDEA3)], // green
     [Color(0xFF3A2A12), Color(0xFFFFB454)], // amber
-    [Color(0xFF241645), Color(0xFF44E2CD)], // indigo→teal
+    [Color(0xFF241645), Color(0xFF44E2CD)], // indigo->teal
     [Color(0xFF3A1220), Color(0xFFFF6B6B)], // rose
   ];
-
-  String get _monogram {
-    final t = entry.title.trim();
-    return t.isEmpty ? '♪' : t.characters.first.toUpperCase();
-  }
 
   @override
   Widget build(BuildContext context) {
     final seed = entry.id.hashCode;
     final colors = _gradients[seed.abs() % _gradients.length];
+    // Difficulty drives the wave's energy + note density (0=beginner..2=advanced).
+    final intensity = switch (entry.level) {
+      PracticeLevel.beginner => 0,
+      PracticeLevel.intermediate => 1,
+      PracticeLevel.advanced => 2,
+    };
     return CustomPaint(
-      painter: _CoverPainter(seed: seed, colors: colors),
+      painter: _CoverPainter(seed: seed, colors: colors, intensity: intensity),
       child: Center(
         child: Text(
-          _monogram,
+          '♪', // ♪
           style: TextStyle(
-            fontSize: 64,
-            fontWeight: FontWeight.w900,
-            color: Colors.white.withValues(alpha: 0.16),
+            fontSize: 60,
+            color: Colors.white.withValues(alpha: 0.18),
             height: 1,
           ),
         ),
@@ -187,10 +189,17 @@ class _CoverArt extends StatelessWidget {
 }
 
 class _CoverPainter extends CustomPainter {
-  _CoverPainter({required this.seed, required this.colors});
+  _CoverPainter({
+    required this.seed,
+    required this.colors,
+    required this.intensity,
+  });
 
   final int seed;
   final List<Color> colors;
+
+  /// 0 = beginner … 2 = advanced — drives the wave's energy and note count.
+  final int intensity;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -221,25 +230,81 @@ class _CoverPainter extends CustomPainter {
           ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 18),
       );
     }
-    final path = Path();
-    final baseY = size.height * (0.6 + rng.nextDouble() * 0.15);
-    final amp = size.height * 0.08;
+
+    // Sound-wave: taller, faster and busier the harder the piece is; the seed
+    // adds per-piece variation so two same-level scores still differ.
+    final baseY = size.height * (0.55 + rng.nextDouble() * 0.18);
+    final amp = size.height * (0.05 + 0.035 * intensity);
+    final freq =
+        2.0 + intensity + rng.nextDouble(); // full periods across width
     final phase = rng.nextDouble() * math.pi * 2;
-    path.moveTo(0, baseY);
+    _wave(canvas, size, baseY, amp, freq, phase, 0.16 + 0.04 * intensity, 2.0);
+    // Advanced pieces get a second, faster harmonic for a denser line.
+    if (intensity >= 2) {
+      _wave(canvas, size, baseY, amp * 0.5, freq * 2, phase + 1.0, 0.10, 1.2);
+    }
+
+    // Eighth-note glyphs floating above the wave; more notes ⇒ harder piece.
+    final noteCount = 1 + intensity * 2;
+    for (var i = 0; i < noteCount; i++) {
+      final x = size.width * (0.12 + rng.nextDouble() * 0.76);
+      final y = baseY - amp - size.height * (0.06 + rng.nextDouble() * 0.12);
+      _glyph(
+        canvas,
+        Offset(x, y),
+        13 + rng.nextDouble() * 7,
+        i.isEven ? '♫' : '♪', // ♫ / ♪
+        0.16 + rng.nextDouble() * 0.10,
+      );
+    }
+  }
+
+  void _wave(
+    Canvas c,
+    Size size,
+    double baseY,
+    double amp,
+    double freq,
+    double phase,
+    double opacity,
+    double stroke,
+  ) {
+    final path = Path()..moveTo(0, baseY);
     for (double x = 0; x <= size.width; x += 6) {
-      final y = baseY + math.sin(x / size.width * math.pi * 3 + phase) * amp;
+      final y =
+          baseY + math.sin(x / size.width * math.pi * 2 * freq + phase) * amp;
       path.lineTo(x, y);
     }
-    canvas.drawPath(
+    c.drawPath(
       path,
       Paint()
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 2
-        ..color = Colors.white.withValues(alpha: 0.14),
+        ..strokeWidth = stroke
+        ..color = Colors.white.withValues(alpha: opacity),
     );
+  }
+
+  void _glyph(
+    Canvas c,
+    Offset pos,
+    double fontSize,
+    String glyph,
+    double opacity,
+  ) {
+    final tp = TextPainter(
+      text: TextSpan(
+        text: glyph,
+        style: TextStyle(
+          fontSize: fontSize,
+          color: Colors.white.withValues(alpha: opacity),
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    tp.paint(c, pos - Offset(tp.width / 2, tp.height / 2));
   }
 
   @override
   bool shouldRepaint(_CoverPainter old) =>
-      old.seed != seed || old.colors != colors;
+      old.seed != seed || old.colors != colors || old.intensity != intensity;
 }
