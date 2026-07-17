@@ -23,6 +23,7 @@ import '../state/score_catalog.dart';
 import '../theme/cymbra_theme.dart';
 import '../widgets/score_card.dart';
 import 'player_screen.dart';
+import 'score_upload_screen.dart';
 
 /// The Score Hub: a card grid over the public catalog with a search bar, a "mes
 /// partitions" source toggle, and musical-facet filters in an end-drawer. Add or
@@ -48,6 +49,15 @@ class ScoreHubScreen extends ConsumerWidget {
         title: Text(l10n.scoreHubTitle),
         backgroundColor: CymbraColors.surfaceContainerLowest,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.library_add_outlined),
+            tooltip: l10n.scoreHubContributeTooltip,
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const ScoreUploadScreen(),
+              ),
+            ),
+          ),
           Builder(
             builder: (ctx) => Padding(
               padding: const EdgeInsets.only(right: 4),

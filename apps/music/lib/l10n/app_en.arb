@@ -313,6 +313,9 @@
   "scoreHubEntryTooltip": "Score Hub",
   "@scoreHubEntryTooltip": { "description": "Tooltip for the library app-bar action that opens the Score Hub." },
 
+  "scoreHubContributeTooltip": "Contribute a score",
+  "@scoreHubContributeTooltip": { "description": "Tooltip for the hub app-bar action that opens the upload/contribute screen." },
+
   "scoreHubSearchHint": "Title or composer",
   "@scoreHubSearchHint": { "description": "Placeholder of the hub search field." },
 

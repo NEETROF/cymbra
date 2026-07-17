@@ -145,6 +145,7 @@
 
   "scoreHubTitle": "Hub de partitions",
   "scoreHubEntryTooltip": "Hub de partitions",
+  "scoreHubContributeTooltip": "Contribuer une partition",
   "scoreHubSearchHint": "Titre ou compositeur",
   "scoreHubComposerFilter": "Compositeur",
   "scoreHubMyScores": "Mes partitions",

@@ -145,6 +145,7 @@
 
   "scoreHubTitle": "Catalogo partiture",
   "scoreHubEntryTooltip": "Catalogo partiture",
+  "scoreHubContributeTooltip": "Contribuisci una partitura",
   "scoreHubSearchHint": "Titolo o compositore",
   "scoreHubComposerFilter": "Compositore",
   "scoreHubMyScores": "Le mie partiture",

@@ -29,7 +29,6 @@ import '../widgets/score_card.dart';
 import 'auth/account_menu.dart';
 import 'player_screen.dart';
 import 'score_hub_screen.dart';
-import 'score_upload_screen.dart';
 
 /// Localized name for a [PracticeLevel] section header.
 String _levelLabel(AppLocalizations l10n, PracticeLevel level) =>
@@ -57,22 +56,12 @@ class LibraryScreen extends ConsumerWidget {
         title: Text(l10n.libraryTitle),
         backgroundColor: CymbraColors.surfaceContainerLowest,
         actions: [
-          if (signedIn) ...[
+          if (signedIn)
             IconButton(
               icon: const Icon(Icons.search),
               tooltip: l10n.scoreHubEntryTooltip,
               onPressed: () => _openHub(context),
             ),
-            IconButton(
-              icon: const Icon(Icons.library_add_outlined),
-              tooltip: 'Contribuer une partition',
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => const ScoreUploadScreen(),
-                ),
-              ),
-            ),
-          ],
           const LanguageSelectorButton(),
           const AccountMenu(),
           const SizedBox(width: 8),
