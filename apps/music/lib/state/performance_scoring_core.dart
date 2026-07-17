@@ -138,8 +138,27 @@ double correctnessScore(Iterable<TimingVerdict> verdicts, int wrongNotes) {
   return hits / denom;
 }
 
-/// Sustain dimension in [0, 1] over the per-hit [sustainRatios] (1.0 if none).
-double sustainScore(Iterable<double> sustainRatios) => _mean(sustainRatios);
+/// Sustain dimension in [0, 1] over the per-hit [sustainRatios].
+///
+/// Empty ratios are ambiguous: either the run is **pristine** (no onset judged
+/// yet) or **every judged onset was missed** (nothing to sustain). Pass
+/// [anyOnsetJudged] to disambiguate — pristine scores a full 1.0 so the gauge
+/// renders before the first judgment, whereas a run with judged-but-all-missed
+/// onsets scores 0. Without this gate, a do-nothing run leaks the full sustain
+/// weight (0.2 ⇒ 20%) into the blend even though nothing was held.
+double sustainScore(
+  Iterable<double> sustainRatios, {
+  bool anyOnsetJudged = false,
+}) {
+  var sum = 0.0;
+  var n = 0;
+  for (final x in sustainRatios) {
+    sum += x;
+    n++;
+  }
+  if (n == 0) return anyOnsetJudged ? 0.0 : 1.0;
+  return sum / n;
+}
 
 /// Rolling/overall synchronization percentage in [0, 100] blended from the
 /// three dimensions. Defined before the first judgment (empty inputs ⇒ 100), so
@@ -153,7 +172,8 @@ double syncPercent({
   final blend =
       ScoringWeights.timing * timingScore(verdicts) +
       ScoringWeights.correctness * correctnessScore(verdicts, wrongNotes) +
-      ScoringWeights.sustain * sustainScore(sustainRatios);
+      ScoringWeights.sustain *
+          sustainScore(sustainRatios, anyOnsetJudged: verdicts.isNotEmpty);
   return (blend * 100).clamp(0.0, 100.0).toDouble();
 }
 

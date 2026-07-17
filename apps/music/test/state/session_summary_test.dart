@@ -65,6 +65,29 @@ void main() {
       expect(r.verdictCounts[TimingVerdict.good], 1);
     });
 
+    test('doing nothing scores 0 overall with a 0 sustain dimension', () {
+      // Regression: a run where every onset is missed (player does nothing) has
+      // no hit sustain ratios. The sustain dimension used to default to 1.0 and
+      // leak its 0.2 weight, showing a phantom 20% with a full "Tenue" bar.
+      final r = SessionResult.fromJudgments(
+        pieceId: 'p1',
+        title: 'Piece',
+        hands: 'both',
+        judgments: [
+          for (var i = 0; i < 5; i++)
+            _onset(index: i, waitMode: false, verdict: TimingVerdict.missed),
+        ],
+        bestCombo: 0,
+        playedAtMs: 0,
+        speed: 1.0,
+      );
+      expect(r.overallSyncPct, 0.0);
+      expect(r.sustain, 0.0);
+      expect(r.timing, 0.0);
+      expect(r.correctness, 0.0);
+      expect(r.verdictCounts[TimingVerdict.missed], 5);
+    });
+
     test('pure wait run has only a wait sub-score', () {
       final r = SessionResult.fromJudgments(
         pieceId: 'p1',
