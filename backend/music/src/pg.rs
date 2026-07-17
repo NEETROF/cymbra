@@ -57,9 +57,10 @@ impl CatalogRepo for PgCatalogRepo {
                 license, license_url, confidence, sha256, origin_format, conversion_status, \
                 object_key, size_bytes, work_key, title_norm, is_piano, key_fifths, time_sig, \
                 measure_count, language, voicing, level, level_source, content_fingerprint, \
-                composer_norm) \
+                composer_norm, min_note_value, has_tuplets, has_dotted, has_chords, \
+                lowest_midi, highest_midi, staff_count, note_count, tempo_bpm, has_dynamics) \
              VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,\
-                $21,$22,$23,$24,$25,$26,$27) \
+                $21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37) \
              ON CONFLICT (sha256) DO NOTHING",
         )
         .bind(id)
@@ -89,6 +90,16 @@ impl CatalogRepo for PgCatalogRepo {
         .bind(&e.level_source)
         .bind(&e.content_fingerprint)
         .bind(&e.composer_norm)
+        .bind(e.facets.min_note_value.map(i16::from))
+        .bind(e.facets.has_tuplets)
+        .bind(e.facets.has_dotted)
+        .bind(e.facets.has_chords)
+        .bind(e.facets.lowest_midi.map(i16::from))
+        .bind(e.facets.highest_midi.map(i16::from))
+        .bind(i16::from(e.facets.staff_count))
+        .bind(e.facets.note_count as i32)
+        .bind(e.facets.tempo_bpm.map(i32::from))
+        .bind(e.facets.has_dynamics)
         .execute(&self.pool)
         .await
         .context("catalog insert")?;

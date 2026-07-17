@@ -6,10 +6,9 @@ material by *musical* traits the catalog already *could* expose: the fastest not
 grand-staff vs single-staff, major/minor, length. Today only `is_piano`, `key_fifths`,
 `time_sig`, `measure_count` are persisted — and none is surfaced as a filter. The parser
 already sees note `type`, `chord`, `dot`, `pitch`, `staff`, `dynamics` per note, so these
-facets are derivable at ingest with no new source data. The score objects are already in the
-object store (each row's `object_key`), so existing rows are backfilled by **re-reading the
-stored objects** — no re-download/re-crawl and no truncate, preserving ids (and users' saved
-references).
+facets are derivable **at ingest with no new source data**: the crawler already parses every
+score, so it computes and persists the facets directly on the `catalog_scores` row. The
+existing corpus is repopulated simply by **re-crawling** (no separate backfill pass).
 
 ## What Changes
 
@@ -19,10 +18,9 @@ references).
   staff count, note count, mode (major/minor), tempo (BPM, when marked), and expressivity
   flags (dynamics / ornaments / articulations / pedal). Purely derived — never client-supplied.
 - Persist those facets as new **nullable columns** on `music.catalog_scores` (+ btree/partial
-  indexes for the ones used as filters), populated by the crawler going forward and backfilled
-  for existing rows by a one-shot **re-read of the stored objects** (decode + parse + `UPDATE`,
-  no network, ids preserved). Mirror the columns on `music.user_scores` so uploads carry the
-  same facets (parity; "mes partitions" can filter too), backfilled the same way.
+  indexes for the ones used as filters), **populated by the crawler at ingest**. Mirror the
+  columns on `music.user_scores` for parity (upload-path population is a follow-up; the app
+  filters "mes partitions" client-side for now).
 - Add optional **facet filters** to the backend `SearchCatalog` RPC — all composed
   conjunctively with the existing query/author/level: max-fastest-note-value (e.g. "nothing
   faster than an eighth"), chords/tuplets/dotted (include-only), max ambitus span, staff
@@ -51,9 +49,8 @@ references).
   (note-value min, tuplet/mode/ornament/articulation/pedal flags, pitch→MIDI min/max). Host-testable.
 - **Crawler**: carry the new facets through `ScoreMetadata`/`CatalogEntry` into the ingest insert.
 - **Migrations**: nullable facet columns + indexes on `catalog_scores` and `user_scores`.
-- **Backfill tool**: a one-shot maintenance command that re-reads each stored object via the
-  `ObjectStorage` seam, decodes + parses it, and `UPDATE`s the row's facet columns (catalog +
-  user scores) — no re-crawl, ids preserved.
+- **Crawler**: derives the facets at ingest (`ScoreFacets::from_document`) and threads them
+  through `ScoreMetadata → ManifestEntry → CatalogEntry` into the `catalog_scores` insert.
 - **Backend `music`**: extend `CatalogEntry`, `PgCatalogRepo` insert, `UserScore`, the search
   port/params/adapter, `ScoreModule::search_catalog`, and the `score.proto` `SearchCatalogRequest`.
 - **App**: `CatalogService.search` + `CatalogSearch` notifier + hub UI gain the facet filters;

@@ -9,6 +9,23 @@ use std::sync::Mutex;
 use anyhow::Result;
 use async_trait::async_trait;
 
+/// Musical facets a catalog row carries (change: score-catalog-facets),
+/// populated by the crawler at ingest so the search filters + generated cover
+/// have them without a backfill pass. Mirrors the crawler's `ScoreFacets`.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct ScoreFacets {
+    pub min_note_value: Option<u8>,
+    pub has_tuplets: bool,
+    pub has_dotted: bool,
+    pub has_chords: bool,
+    pub lowest_midi: Option<u8>,
+    pub highest_midi: Option<u8>,
+    pub staff_count: u8,
+    pub note_count: u32,
+    pub tempo_bpm: Option<u16>,
+    pub has_dynamics: bool,
+}
+
 /// One public-corpus catalog row: the provenance that must travel with a
 /// redistributed score, plus search/musical metadata. Enum-like fields are
 /// snake_case strings matching the crawler's serde output and the table CHECKs.
@@ -45,6 +62,8 @@ pub struct CatalogEntry {
     pub voicing: Option<String>,
     pub level: Option<String>,
     pub level_source: Option<String>,
+    /// Derived musical facets (search filters + generated cover).
+    pub facets: ScoreFacets,
 }
 
 /// Storage surface for the public catalog.
@@ -130,6 +149,7 @@ mod tests {
             voicing: None,
             level: Some("beginner".into()),
             level_source: Some("heuristic".into()),
+            facets: ScoreFacets::default(),
         }
     }
 

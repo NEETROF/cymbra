@@ -258,6 +258,7 @@ impl Orchestrator {
             key_fifths: meta.key_fifths,
             time_sig: meta.time_sig,
             measure_count: meta.measure_count,
+            facets: meta.facets,
             language: meta.language,
             voicing: meta.voicing,
             level: difficulty.level,

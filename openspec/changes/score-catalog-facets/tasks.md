@@ -3,8 +3,9 @@
 > **Delivered scope:** the facets derivable from the existing (app-bridged) parse model —
 > smallest note value, chords/tuplets/dotted, ambitus, staff/note counts, tempo, dynamics.
 > **Deferred** (need model + app-FFI/bridge changes): `is_minor` (mode) and the
-> ornaments/articulations/pedal flags. Existing rows are populated by a **re-read backfill**,
-> not by threading facets through the crawler/upload insert paths (also deferred).
+> ornaments/articulations/pedal flags. Facets are **populated by the crawler at ingest**;
+> the existing corpus is repopulated by re-crawling (the standalone re-read backfill was
+> removed). Upload-path population of `user_scores` facets is a follow-up.
 
 ## 1. Engine — facet derivation (`musicxml_core`)
 
@@ -31,26 +32,18 @@
 - [x] 2.3 Indexes for the filter columns: btree on `min_note_value`, `staff_count`, `is_minor`,
   `tempo_bpm`, `lowest_midi`/`highest_midi`; leave low-cardinality booleans to bitmap/partial indexes.
 
-## 2b. Backfill existing rows (re-read stored objects, no re-crawl)
+## 3. Crawler — carry facets into catalog rows (at ingest)
 
-- [x] 2b.1 Add a `UserLibraryRepo`-style facet-update method (or a dedicated maintenance repo):
-  `update_facets(id, facets)` for `catalog_scores` and `user_scores`, plus a `rows_missing_facets()`
-  stream of `(id, object_key)`.
-- [x] 2b.2 Maintenance command (crawler subcommand or a small `cymbra-music` bin): for each row
-  missing facets, read the object via `ObjectStorage`, `decode_canonical` + parse, derive facets
-  via `ScoreSummary`, and `UPDATE` the row. Idempotent + resumable; log-and-skip a missing/unreadable
-  object without aborting the run.
-- [x] 2b.3 Wire it against the dev store (`/tmp/cymbra/scores`) + DB; document the invocation.
-
-## 3. Crawler + upload — carry facets into rows (DEFERRED — the re-read backfill populates rows instead)
-
-- [ ] 3.1 Extend `ScoreMetadata` (crawler `metadata.rs`) + the manifest to carry the new facets
-  from `ScoreSummary`.
-- [ ] 3.2 Extend `CatalogEntry` (backend `repo.rs`) with the facet fields; set them in the
-  crawler's `to_catalog_entry` and bind them in `PgCatalogRepo::insert`.
-- [ ] 3.3 Extend `UserScore` + the upload persistence (`module.rs` upload, `pg_user_scores.rs`)
-  to store the facets from the re-derived summary.
-- [ ] 3.4 Update the fakes/tests that build `CatalogEntry`/`UserScore` for the new fields.
+- [x] 3.1 Extend `ScoreMetadata` (crawler `metadata.rs`) to carry a `facets: ScoreFacets`
+  (`cymbra_musicxml_core::ScoreFacets::from_document`) + the manifest field (`#[serde(skip)]`,
+  facets flow via the in-memory entries, not the CSV/JSON manifest).
+- [x] 3.2 Add `ScoreFacets` + a `facets` field to `CatalogEntry` (backend `repo.rs`); set them in
+  the crawler's `to_catalog_entry` and bind the columns in `PgCatalogRepo::insert`.
+- [x] 3.3 Remove the standalone re-read backfill (lib + server bin) — the crawler populates at
+  ingest; re-crawl to repopulate.
+- [x] 3.4 Update the fakes/tests that build `CatalogEntry`/`ManifestEntry` for the new field.
+- [ ] 3.5 (Follow-up) Populate `user_scores` facets from the upload path (`UserScore` +
+  `module.rs` upload + `pg_user_scores.rs`).
 
 ## 4. Backend — search filters
 
@@ -93,5 +86,5 @@
   (`flutter test --coverage`); pure logic kept in host-testable seams.
 - [x] 7.3 `melos run analyze` + `dart format`; `cargo fmt --all --check` +
   `cargo clippy --workspace --all-targets -- -D warnings`.
-- [x] 7.4 Run the backfill on the dev corpus (re-read stored objects), smoke-test the filters
+- [x] 7.4 Re-crawl the dev corpus (crawler writes the facets at ingest), smoke-test the filters
   end-to-end; `openspec validate score-catalog-facets --strict` passes.

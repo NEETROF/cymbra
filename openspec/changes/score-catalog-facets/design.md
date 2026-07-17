@@ -12,10 +12,10 @@ Persisted catalog columns today: `is_piano`, `key_fifths`, `time_sig`, `measure_
 (+ provenance). `note_count`/`staves` are computed but **not** persisted. The Score Hub
 (`score-hub-search` change) filters by text/author/level only.
 
-**Locked with the user:** more relevant filters is better; existing rows are **backfilled by
-re-reading the already-stored objects** (not by re-crawling from source), preserving ids;
-`is_piano` is **forced `true` by the front** for now (piano-only corpus) but must exist as a
-search parameter.
+**Locked with the user:** more relevant filters is better; facets are **computed by the crawler
+at ingest** and the existing corpus is **repopulated by re-crawling** (the standalone backfill
+was removed); `is_piano` is **forced `true` by the front** for now (piano-only corpus) but must
+exist as a search parameter.
 
 ## Goals / Non-Goals
 
@@ -69,21 +69,19 @@ exports only give `<duration>`), fall back to `round(divisions_per_quarter*4 / d
 the nearest power-of-two denominator. Rests are ignored (playable notes only, matching
 `note_count`). Grace notes (zero duration) are ignored for the fallback.
 
-### D4 — DB: nullable columns + indexes, repopulate by truncate + re-crawl
+### D4 — DB: nullable columns + indexes, populated by the crawler at ingest
 - Module migration adds the facet columns to `music.catalog_scores` **and** `music.user_scores`
-  (parity so "mes partitions" can filter identically), all nullable, guarded, fully-qualified.
-- Indexes for the columns used as filters: btree on `min_note_value`, `staff_count`,
-  `is_minor`, and the ambitus columns; the boolean flags are low-cardinality so a partial
-  index (`WHERE has_x`) or none (bitmap scan) suffices — pick per column at implementation.
-- **Backfill (re-read, not re-crawl):** the score objects are already in the store, so existing
-  rows are updated in place without re-downloading. A one-shot maintenance command streams
-  `SELECT id, object_key FROM …` for both tables, reads each object via the `ObjectStorage`
-  seam, runs `decode_canonical` (catalog objects are `.mxl`; user-score objects are already
-  plain XML — both pass through), parses it, derives the facets via `ScoreSummary`, and
-  `UPDATE`s that row's facet columns by id. No network, no `TRUNCATE`, ids (and users'
-  `user_library` references) preserved. The command is idempotent (re-running recomputes the
-  same values) and resumable (skip rows whose facets are already set, or `WHERE min_note_value
-  IS NULL`). The crawler fills the columns for new ingests going forward.
+  (parity), all nullable, guarded, fully-qualified.
+- Indexes for the columns used as filters: btree on `min_note_value`, `staff_count`, `tempo_bpm`
+  and the ambitus columns; the boolean flags are low-cardinality so a partial index or none
+  (bitmap scan) suffices.
+- **Population by the crawler (not a backfill):** the crawler already parses every score at
+  ingest, so it derives the facets there (`ScoreFacets::from_document`) and threads them through
+  `ScoreMetadata → ManifestEntry → CatalogEntry` into the `catalog_scores` insert. The existing
+  corpus is repopulated by **re-crawling** — the standalone re-read backfill (and its bin) was
+  removed. An undeterminable facet stays null (never fabricated). `user_scores` gets the columns
+  for parity; populating them from the upload path is a follow-up (the app filters "mes
+  partitions" client-side for now).
 
 ### D5 — Search: optional facet params, validated + conjunctive
 Extend `SearchCatalogRequest` / `CatalogSearchParams` with optional:
@@ -116,11 +114,8 @@ same facets.
 - **[Missing `<type>`/`<mode>`]** some files omit them → `min_note_value` uses the duration
   fallback; `is_minor` stays `Null` and is excluded when the mode filter is active.
 - **[Null-excluding filters]** applying a facet filter drops rows whose facet is null (not-yet-
-  backfilled rows). After the backfill every stored row has the facets, so this only bites a
-  partially-migrated DB. Mitigation: run the backfill before relying on the filters.
-- **[Missing object on backfill]** a row whose object is gone from the store can't be
-  re-derived. Mitigation: the backfill logs and skips it (leaves facets null), never aborts the
-  whole run.
+  populated rows). After a re-crawl every row has the facets, so this only bites a
+  partially-migrated DB. Mitigation: re-crawl before relying on the filters.
 - **[Index selectivity]** boolean flags are low-cardinality; over-indexing wastes writes.
   Mitigation: index only the scalar/range columns; leave flags to bitmap/partial indexes.
 - **[Coverage]** all derivation/validation/compose logic stays in host-testable modules
@@ -135,8 +130,7 @@ same facets.
 4. Extend `score.proto` `SearchCatalogRequest`; regenerate stubs; add filter params to the
    port/adapter + `ScoreModule::search_catalog`.
 5. App: service + notifier + advanced-filters UI; pin `is_piano = true` in the production call.
-6. Backfill existing rows: run the re-read maintenance command (catalog + user scores) — no
-   re-crawl.
+6. Repopulate existing rows: re-crawl the corpus (the crawler now writes the facets at ingest).
 7. **Rollback:** additive — reverting the app hides the advanced filters; the columns/indexes
    are safe to drop (nothing else consumes them).
 

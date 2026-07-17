@@ -70,6 +70,20 @@ pub fn to_catalog_entry(e: &ManifestEntry) -> CatalogEntry {
         voicing: e.voicing.clone(),
         level: e.level.as_ref().map(variant),
         level_source: e.level_source.as_ref().map(variant),
+        // Carry the derived facets straight through to the catalog row so the
+        // search filters + generated cover have them at ingest (no backfill).
+        facets: cymbra_music::ScoreFacets {
+            min_note_value: e.facets.min_note_value,
+            has_tuplets: e.facets.has_tuplets,
+            has_dotted: e.facets.has_dotted,
+            has_chords: e.facets.has_chords,
+            lowest_midi: e.facets.lowest_midi,
+            highest_midi: e.facets.highest_midi,
+            staff_count: e.facets.staff_count,
+            note_count: e.facets.note_count,
+            tempo_bpm: e.facets.tempo_bpm,
+            has_dynamics: e.facets.has_dynamics,
+        },
     }
 }
 
@@ -125,6 +139,7 @@ mod tests {
             key_fifths: 1,
             time_sig: "4/4".into(),
             measure_count: 46,
+            facets: cymbra_musicxml_core::ScoreFacets::default(),
             language: Some("la".into()),
             voicing: Some("SATB".into()),
             level: Some(Level::Intermediate),

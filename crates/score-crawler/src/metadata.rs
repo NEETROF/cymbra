@@ -21,7 +21,7 @@
 //! Fields the parsed model does not carry (`language`, `voicing`) are left to
 //! the source adapter.
 
-use cymbra_musicxml_core::{ScoreDocument, ScoreSummary};
+use cymbra_musicxml_core::{ScoreDocument, ScoreFacets, ScoreSummary};
 
 /// Search/facet + musical metadata for one score, to be persisted alongside its
 /// provenance in `catalog_scores`.
@@ -43,6 +43,8 @@ pub struct ScoreMetadata {
     pub measure_count: u32,
     /// Pitched (non-rest) note events.
     pub note_count: u32,
+    /// Derived musical facets (for the search filters + generated cover).
+    pub facets: ScoreFacets,
     /// Lyrics language — not in the parsed model; set by the source adapter.
     pub language: Option<String>,
     /// Choral voicing (e.g. SATB) — set by the source adapter.
@@ -54,6 +56,7 @@ pub struct ScoreMetadata {
 /// source-supplied fields (`language`, `voicing`). Pure; never panics.
 pub fn extract(doc: &ScoreDocument) -> ScoreMetadata {
     let s = ScoreSummary::from_document(doc);
+    let facets = ScoreFacets::from_document(doc);
     ScoreMetadata {
         title: s.title,
         composer: s.composer,
@@ -65,6 +68,7 @@ pub fn extract(doc: &ScoreDocument) -> ScoreMetadata {
         time_sig: s.time_sig,
         measure_count: s.measure_count,
         note_count: s.note_count,
+        facets,
         language: None,
         voicing: None,
     }

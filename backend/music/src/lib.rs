@@ -12,7 +12,6 @@
 //! platform error type.
 
 pub mod catalog_search;
-pub mod facets_backfill;
 pub mod grpc;
 pub mod module;
 pub mod pg;
@@ -24,12 +23,11 @@ pub mod user_scores;
 pub use catalog_search::{
     CatalogHit, CatalogSearchParams, CatalogSearchRepo, FakeCatalogRow, FakeCatalogSearchRepo,
 };
-pub use facets_backfill::{BackfillStats, backfill_all};
 pub use grpc::ScoreGrpc;
 pub use module::{ScoreModule, UploadInput};
 pub use pg::{PgCatalogRepo, PgCatalogSearchRepo};
 pub use pg_user_scores::{PgUserLibraryRepo, PgUserScoreRepo};
-pub use repo::{CatalogEntry, CatalogRepo, FakeCatalogRepo};
+pub use repo::{CatalogEntry, CatalogRepo, FakeCatalogRepo, ScoreFacets};
 pub use user_library::{FakeUserLibraryRepo, UserLibraryRepo};
 pub use user_scores::{FakeUserScoreRepo, UserScore, UserScoreRepo};
 

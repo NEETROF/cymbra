@@ -69,28 +69,17 @@ without `<type>` elements still receives a smallest-note-value facet. Rests and 
 
 ### Requirement: Facets persisted on catalog and user scores
 
-The derived facets SHALL be persisted as nullable fields on both the public catalog scores and
-the user-uploaded scores, so search can filter either set by the same traits. The facets SHALL
-be populated by re-reading each score's stored object (a one-shot, idempotent, resumable
-backfill that decodes + parses the object and updates the row in place — no re-crawl). A score
-whose facet cannot be determined SHALL store a null for that facet rather than a fabricated
-value, and a row whose stored object is missing or unparseable SHALL be skipped without
-aborting the run.
+The derived facets SHALL be persisted as nullable fields on the public catalog scores (and the
+same columns SHALL exist on user-uploaded scores for parity), so search can filter by these
+traits. The catalog facets SHALL be **populated by the crawler at ingest** (it already parses
+each score), so the existing corpus is repopulated by re-crawling — no separate backfill pass.
+A score whose facet cannot be determined SHALL store a null for that facet rather than a
+fabricated value.
 
-#### Scenario: Rows carry facets after the backfill
+#### Scenario: Crawled rows carry facets
 
-- **WHEN** the facet backfill runs over stored catalog and user-score objects
-- **THEN** each processed row carries the derived facets
-
-#### Scenario: Backfill is idempotent and resumable
-
-- **WHEN** the facet backfill is re-run
-- **THEN** already-populated rows are not reprocessed and the run is a cheap no-op
-
-#### Scenario: Missing or unparseable object is skipped
-
-- **WHEN** a row's stored object is missing or cannot be parsed during backfill
-- **THEN** that row is skipped and the backfill continues, leaving its facets null
+- **WHEN** the crawler ingests a score into the catalog
+- **THEN** that row carries the facets derived from the parsed score
 
 #### Scenario: Undeterminable facet stored as null
 
