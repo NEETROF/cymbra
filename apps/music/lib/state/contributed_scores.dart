@@ -21,18 +21,27 @@ import 'session_notifier.dart';
 
 part 'contributed_scores.g.dart';
 
-/// The signed-in user's contributed scores, as [CatalogEntry]s (byte-sourced from
-/// the backend) so they slot into the same library grouping and player path as
-/// bundled scores. Empty when signed out (the section is then not shown).
-/// Invalidate to refresh after an upload or a delete.
+/// The signed-in user's raw uploads (all of them, favorite or not). Empty when
+/// signed out. Invalidate to refresh after an upload, delete, or favorite toggle.
 @riverpod
-Future<List<CatalogEntry>> myContributedScores(Ref ref) async {
+Future<List<ContributedScore>> myUploads(Ref ref) async {
   if (!ref.watch(canUseOnlineServicesProvider)) return const [];
-  final scores = await ref.read(scoreUploadServiceProvider).listMyScores();
-  return [for (final s in scores) _entry(s)];
+  return ref.read(scoreUploadServiceProvider).listMyScores();
 }
 
-CatalogEntry _entry(ContributedScore s) {
+/// The signed-in user's contributed scores, as [CatalogEntry]s (byte-sourced from
+/// the backend) so they slot into the same player path as bundled scores. Used by
+/// the hub's "mes partitions" (all uploads). Empty when signed out.
+@riverpod
+Future<List<CatalogEntry>> myContributedScores(Ref ref) async {
+  final scores = await ref.watch(myUploadsProvider.future);
+  final handle = ref.watch(currentUserHandleProvider);
+  return [for (final s in scores) contributedEntry(s, uploaderHandle: handle)];
+}
+
+/// Maps an upload to a [CatalogEntry] (byte-sourced, facets carried through).
+/// [uploaderHandle] drives the "{handle} · Cymbra" attribution on the card.
+CatalogEntry contributedEntry(ContributedScore s, {String? uploaderHandle}) {
   final hasTitle = s.title != null && s.title!.isNotEmpty;
   final hasComposer = s.composer != null && s.composer!.isNotEmpty;
   var composer = '';
@@ -50,6 +59,16 @@ CatalogEntry _entry(ContributedScore s) {
     composer: composer,
     level: s.level,
     contributedId: s.id,
+    // Facets so the contributed cover is as faithful as a catalog one.
+    minNoteValue: s.minNoteValue,
+    tempoBpm: s.tempoBpm,
+    noteCount: s.noteCount,
+    lowestMidi: s.lowestMidi,
+    highestMidi: s.highestMidi,
+    timeSig: s.timeSig,
+    keyFifths: s.keyFifths,
+    favorite: s.favorite,
+    uploaderHandle: uploaderHandle,
   );
 }
 

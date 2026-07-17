@@ -24,15 +24,26 @@
 
 use std::sync::Arc;
 
-use cymbra_musicxml_core::{ScoreSummary, mxl, validate};
+use cymbra_musicxml_core::{ScoreSummary, mxl, normalize_text, validate};
 use cymbra_platform::{AppError, Result};
 use cymbra_storage::ObjectStorage;
 use sha2::{Digest, Sha256};
 
+use crate::catalog_search::{CatalogHit, CatalogQuery, CatalogSearchParams, CatalogSearchRepo};
+use crate::repo::{ScoreFacets, ScoreMeta};
+use crate::user_library::UserLibraryRepo;
 use crate::user_scores::{UserScore, UserScoreRepo};
 
 const LEVELS: [&str; 3] = ["beginner", "intermediate", "advanced"];
 const RIGHTS_BASES: [&str; 2] = ["own_work", "public_domain"];
+
+/// Server maximum page size for catalog search — a caller-supplied limit is
+/// clamped to `[1, SEARCH_MAX_LIMIT]` so one request can never scan the corpus.
+const SEARCH_MAX_LIMIT: i64 = 50;
+
+/// Valid note-value denominators for the rhythmic-granularity filter
+/// (`4`=quarter … `128`=128th).
+const NOTE_VALUE_DENOMINATORS: [i16; 8] = [1, 2, 4, 8, 16, 32, 64, 128];
 
 /// The caller-supplied part of an upload (identity comes separately, from auth).
 pub struct UploadInput {
@@ -54,9 +65,12 @@ fn clean_fallback(s: Option<String>) -> Option<String> {
         .filter(|v| !v.is_empty())
 }
 
-/// User-upload logic over an owner-scoped repo and the object store.
+/// User-upload logic + catalog search / saved library, over owner-scoped repos,
+/// the public-catalog read port, and the object store.
 pub struct ScoreModule {
     repo: Arc<dyn UserScoreRepo>,
+    catalog: Arc<dyn CatalogSearchRepo>,
+    library: Arc<dyn UserLibraryRepo>,
     storage: Arc<dyn ObjectStorage>,
     quota_max: u32,
     quota_window_days: u32,
@@ -66,6 +80,8 @@ pub struct ScoreModule {
 impl ScoreModule {
     pub fn new(
         repo: Arc<dyn UserScoreRepo>,
+        catalog: Arc<dyn CatalogSearchRepo>,
+        library: Arc<dyn UserLibraryRepo>,
         storage: Arc<dyn ObjectStorage>,
         quota_max: u32,
         quota_window_days: u32,
@@ -73,6 +89,8 @@ impl ScoreModule {
     ) -> Self {
         Self {
             repo,
+            catalog,
+            library,
             storage,
             quota_max,
             quota_window_days,
@@ -159,6 +177,15 @@ impl ScoreModule {
         let canonical = decode_canonical(&input.data)?;
         let sha = sha256_hex(&canonical);
 
+        // 4b. Derive the musical facets from the canonical parse (same as the
+        //     crawler does for the catalog), so uploads carry them too. A parse
+        //     failure here is impossible after `validate`, but default rather than
+        //     abort if it somehow occurs.
+        let core_facets = cymbra_musicxml_core::parse(&canonical)
+            .map(|doc| cymbra_musicxml_core::ScoreFacets::from_document(&doc))
+            .unwrap_or_default();
+        let facets = ScoreFacets::from_core(&core_facets);
+
         // 5. Store the object, then persist the row (design 4: object before row;
         //    an orphaned object is invisible/reclaimable, a dangling row is not).
         let id = uuid::Uuid::now_v7().to_string();
@@ -174,18 +201,22 @@ impl ScoreModule {
             level: input.level,
             rights_basis: input.rights_basis,
             rights_ack: true,
-            title,
-            composer,
-            title_norm,
-            work_key,
-            key_fifths: summary.key_fifths,
-            time_sig: summary.time_sig,
-            measure_count: summary.measure_count as i32,
-            is_piano: summary.is_piano,
             sha256: sha,
             size_bytes: input.data.len() as i64,
             object_key: object_key.clone(),
             created_at: now_unix(),
+            favorite: true, // a new upload lands in the caller's favorites
+            meta: ScoreMeta {
+                title,
+                composer,
+                title_norm,
+                work_key,
+                key_fifths: summary.key_fifths,
+                time_sig: summary.time_sig,
+                measure_count: summary.measure_count as i32,
+                is_piano: summary.is_piano,
+                facets,
+            },
         };
 
         if let Err(e) = self.repo.insert(&record).await {
@@ -200,6 +231,13 @@ impl ScoreModule {
     /// The caller's own contributed scores, newest first.
     pub async fn list(&self, owner_id: &str) -> Result<Vec<UserScore>> {
         self.repo.list_by_owner(owner_id).await
+    }
+
+    /// Favorite / un-favorite one of the caller's own uploads (change:
+    /// favorites-home). Un-favoriting hides it from the home but keeps the
+    /// upload (still in the hub's "mes partitions").
+    pub async fn set_favorite(&self, owner_id: &str, id: &str, favorite: bool) -> Result<()> {
+        self.repo.set_favorite(id, owner_id, favorite).await
     }
 
     /// Delete a score the caller owns: remove the row, then best-effort delete the
@@ -225,6 +263,113 @@ impl ScoreModule {
             .get(&row.object_key)
             .await
             .map_err(|e| AppError::Internal(anyhow::anyhow!("read score: {e}")))
+    }
+
+    // --- catalog search + saved library (change: score-hub-search) ----------
+    // The public catalog is not owner-scoped, but every op requires an
+    // authenticated caller (enforced at the gRPC interceptor); save/remove/list
+    // are owner-scoped by `owner_id`.
+
+    /// Search the public catalog by free-text (title/composer), an optional
+    /// author (composer) filter, and an optional difficulty — all composed
+    /// conjunctively. The query/author are accent/case-folded here so they match
+    /// the persisted normalised columns; `level` is validated against the fixed
+    /// set; `limit` is clamped to the server maximum.
+    pub async fn search_catalog(&self, q: CatalogQuery) -> Result<Vec<CatalogHit>> {
+        if let Some(l) = q.level.as_deref()
+            && !LEVELS.contains(&l)
+        {
+            return Err(AppError::InvalidArgument(format!("unknown level {l:?}")));
+        }
+        if let Some(v) = q.max_note_value
+            && !NOTE_VALUE_DENOMINATORS.contains(&v)
+        {
+            return Err(AppError::InvalidArgument(format!(
+                "unknown note-value denominator {v}"
+            )));
+        }
+        if let Some(s) = q.staff_count
+            && !(1..=2).contains(&s)
+        {
+            return Err(AppError::InvalidArgument(format!(
+                "unknown staff count {s}"
+            )));
+        }
+        // Normalise text/author; an empty author (after fold) imposes no filter.
+        let author_norm = q
+            .author
+            .as_deref()
+            .map(normalize_text)
+            .filter(|a: &String| !a.is_empty());
+        let params = CatalogSearchParams {
+            text_norm: normalize_text(&q.query),
+            author_norm,
+            level: q.level,
+            is_piano: q.is_piano,
+            max_note_value: q.max_note_value,
+            has_chords: q.has_chords,
+            has_tuplets: q.has_tuplets,
+            has_dotted: q.has_dotted,
+            max_ambitus_semitones: q.max_ambitus_semitones,
+            staff_count: q.staff_count,
+            min_bpm: q.min_bpm,
+            max_bpm: q.max_bpm,
+            limit: q.limit.clamp(1, SEARCH_MAX_LIMIT),
+            offset: q.offset.max(0),
+        };
+        self.catalog.search(&params).await
+    }
+
+    /// Save a public catalog score to the caller's library. Validates the catalog
+    /// id exists first, then records an idempotent owner-scoped save.
+    pub async fn save_catalog_score(&self, owner_id: &str, catalog_id: &str) -> Result<()> {
+        if self.catalog.object_key(catalog_id).await?.is_none() {
+            return Err(AppError::NotFound("catalog score not found".into()));
+        }
+        self.library.save(owner_id, catalog_id).await
+    }
+
+    /// Remove a saved catalog score from the caller's library (idempotent no-op if
+    /// it was not saved). Never touches the public catalog entry.
+    pub async fn remove_saved_catalog_score(&self, owner_id: &str, catalog_id: &str) -> Result<()> {
+        self.library.remove(owner_id, catalog_id).await
+    }
+
+    /// The caller's saved catalog scores, newest-saved first. Joins the saved ids
+    /// to the catalog and omits any whose entry is gone (e.g. after a re-ingest),
+    /// so a stale save is never surfaced as a broken row.
+    pub async fn list_saved_catalog_scores(&self, owner_id: &str) -> Result<Vec<CatalogHit>> {
+        let ids = self.library.list_ids(owner_id).await?;
+        if ids.is_empty() {
+            return Ok(Vec::new());
+        }
+        let hits = self.catalog.hits_by_ids(&ids).await?;
+        // Preserve the saved (newest-first) order and drop missing entries.
+        let mut by_id: std::collections::HashMap<String, CatalogHit> =
+            hits.into_iter().map(|h| (h.id.clone(), h)).collect();
+        Ok(ids.iter().filter_map(|id| by_id.remove(id)).collect())
+    }
+
+    /// Fetch the canonical bytes of a public catalog score by id, from the object
+    /// store, so the app can open it in the player. Not owner-scoped (public
+    /// corpus); a non-existent id is a typed not-found.
+    ///
+    /// Catalog objects are stored as compressed `.mxl` (the crawler's output),
+    /// but the app's parser consumes **uncompressed** MusicXML — so decode the
+    /// `.mxl` container transparently here, exactly as the upload path does before
+    /// storing. A plain-XML object passes straight through.
+    pub async fn get_catalog_bytes(&self, catalog_id: &str) -> Result<Vec<u8>> {
+        let object_key = self
+            .catalog
+            .object_key(catalog_id)
+            .await?
+            .ok_or_else(|| AppError::NotFound("catalog score not found".into()))?;
+        let raw = self
+            .storage
+            .get(&object_key)
+            .await
+            .map_err(|e| AppError::Internal(anyhow::anyhow!("read catalog score: {e}")))?;
+        decode_canonical(&raw)
     }
 }
 
@@ -260,6 +405,8 @@ mod tests {
     use super::*;
     use cymbra_storage::FakeStore;
 
+    use crate::catalog_search::{FakeCatalogRow, FakeCatalogSearchRepo};
+    use crate::user_library::FakeUserLibraryRepo;
     use crate::user_scores::FakeUserScoreRepo;
 
     const VALID: &str = r#"<?xml version="1.0"?>
@@ -280,8 +427,60 @@ mod tests {
     fn module(max: u32, window: u32) -> (ScoreModule, Arc<FakeUserScoreRepo>, Arc<FakeStore>) {
         let repo = Arc::new(FakeUserScoreRepo::default());
         let store = Arc::new(FakeStore::default());
-        let m = ScoreModule::new(repo.clone(), store.clone(), max, window, 8 * 1024 * 1024);
+        let catalog = Arc::new(FakeCatalogSearchRepo::default());
+        let library = Arc::new(FakeUserLibraryRepo::default());
+        let m = ScoreModule::new(
+            repo.clone(),
+            catalog,
+            library,
+            store.clone(),
+            max,
+            window,
+            8 * 1024 * 1024,
+        );
         (m, repo, store)
+    }
+
+    /// Module wired with a seeded catalog + an empty library, for the catalog
+    /// search / saved-library tests.
+    fn catalog_module() -> (
+        ScoreModule,
+        Arc<FakeCatalogSearchRepo>,
+        Arc<FakeUserLibraryRepo>,
+    ) {
+        let repo = Arc::new(FakeUserScoreRepo::default());
+        let store = Arc::new(FakeStore::default());
+        let catalog = Arc::new(FakeCatalogSearchRepo::with(vec![
+            FakeCatalogRow::new(
+                "11111111-1111-7111-8111-111111111111",
+                "Clair de Lune",
+                "Claude Debussy",
+                Some("intermediate"),
+            ),
+            FakeCatalogRow::new(
+                "22222222-2222-7222-8222-222222222222",
+                "Gymnopédie",
+                "Erik Satie",
+                Some("beginner"),
+            ),
+            FakeCatalogRow::new(
+                "33333333-3333-7333-8333-333333333333",
+                "Prélude",
+                "Claude Debussy",
+                Some("advanced"),
+            ),
+        ]));
+        let library = Arc::new(FakeUserLibraryRepo::default());
+        let m = ScoreModule::new(
+            repo,
+            catalog.clone(),
+            library.clone(),
+            store,
+            5,
+            7,
+            8 * 1024 * 1024,
+        );
+        (m, catalog, library)
     }
 
     fn input(data: &str, level: &str, basis: &str, ack: bool) -> UploadInput {
@@ -315,16 +514,16 @@ mod tests {
         i.fallback_title = Some("  My Untitled Piece  ".into());
         i.fallback_composer = Some("Me".into());
         let rec = m.upload("u1", i).await.unwrap();
-        assert_eq!(rec.title.as_deref(), Some("My Untitled Piece")); // trimmed
-        assert_eq!(rec.composer.as_deref(), Some("Me"));
-        assert_eq!(rec.work_key, "me::my untitled piece"); // normalized keys
-        assert_eq!(rec.title_norm.as_deref(), Some("my untitled piece"));
+        assert_eq!(rec.meta.title.as_deref(), Some("My Untitled Piece")); // trimmed
+        assert_eq!(rec.meta.composer.as_deref(), Some("Me"));
+        assert_eq!(rec.meta.work_key, "me::my untitled piece"); // normalized keys
+        assert_eq!(rec.meta.title_norm.as_deref(), Some("my untitled piece"));
 
         // A file WITH a title: the fallback is ignored (parsed wins — design 2b).
         let mut i2 = input(VALID, "beginner", "own_work", true);
         i2.fallback_title = Some("Spoofed Title".into());
         let rec2 = m.upload("u1", i2).await.unwrap();
-        assert_eq!(rec2.title.as_deref(), Some("Test Piece"));
+        assert_eq!(rec2.meta.title.as_deref(), Some("Test Piece"));
         assert_eq!(repo.rows().len(), 2);
     }
 
@@ -350,11 +549,11 @@ mod tests {
             .await
             .unwrap();
         // Server-derived metadata (client sent none).
-        assert_eq!(rec.title.as_deref(), Some("Test Piece"));
-        assert_eq!(rec.composer.as_deref(), Some("A. Composer"));
-        assert_eq!(rec.key_fifths, 2);
-        assert_eq!(rec.time_sig, "3/4");
-        assert!(rec.is_piano);
+        assert_eq!(rec.meta.title.as_deref(), Some("Test Piece"));
+        assert_eq!(rec.meta.composer.as_deref(), Some("A. Composer"));
+        assert_eq!(rec.meta.key_fifths, 2);
+        assert_eq!(rec.meta.time_sig, "3/4");
+        assert!(rec.meta.is_piano);
         assert_eq!(rec.level, "intermediate");
         assert_eq!(
             rec.object_key,
@@ -479,7 +678,15 @@ mod tests {
         // request — it leaves a reclaimable orphan, but the record is gone.
         let repo = Arc::new(FakeUserScoreRepo::default());
         let store = Arc::new(DeleteFailsStore::default());
-        let m = ScoreModule::new(repo.clone(), store.clone(), 5, 7, 8 * 1024 * 1024);
+        let m = ScoreModule::new(
+            repo.clone(),
+            Arc::new(FakeCatalogSearchRepo::default()),
+            Arc::new(FakeUserLibraryRepo::default()),
+            store.clone(),
+            5,
+            7,
+            8 * 1024 * 1024,
+        );
 
         let rec = m
             .upload("u1", input(VALID, "beginner", "own_work", true))
@@ -508,5 +715,205 @@ mod tests {
             Err(AppError::AlreadyExists(_))
         ));
         assert_eq!(store.len(), 1);
+    }
+
+    // --- catalog search + saved library ------------------------------------
+
+    const DEBUSSY_1: &str = "11111111-1111-7111-8111-111111111111";
+    const SATIE: &str = "22222222-2222-7222-8222-222222222222";
+    const DEBUSSY_2: &str = "33333333-3333-7333-8333-333333333333";
+
+    /// A [`CatalogQuery`] with just text/author/level set (facets unconstrained).
+    fn q(query: &str, author: Option<&str>, level: Option<&str>, limit: i64) -> CatalogQuery {
+        CatalogQuery {
+            query: query.into(),
+            author: author.map(Into::into),
+            level: level.map(Into::into),
+            limit,
+            ..Default::default()
+        }
+    }
+
+    #[tokio::test]
+    async fn search_catalog_normalises_and_composes_filters() {
+        let (m, _cat, _lib) = catalog_module();
+        // Accent-insensitive composer match across two works, title_norm ordered.
+        let hits = m
+            .search_catalog(q("debussy", None, None, 50))
+            .await
+            .unwrap();
+        assert_eq!(
+            hits.iter().map(|h| h.id.as_str()).collect::<Vec<_>>(),
+            [DEBUSSY_1, DEBUSSY_2]
+        );
+        // Author + difficulty compose conjunctively.
+        let hits = m
+            .search_catalog(q("", Some("Debussy"), Some("advanced"), 50))
+            .await
+            .unwrap();
+        assert_eq!(
+            hits.iter().map(|h| h.id.as_str()).collect::<Vec<_>>(),
+            [DEBUSSY_2]
+        );
+    }
+
+    #[tokio::test]
+    async fn search_catalog_rejects_bad_inputs_and_clamps_limit() {
+        let (m, _cat, _lib) = catalog_module();
+        assert!(matches!(
+            m.search_catalog(q("", None, Some("expert"), 50)).await,
+            Err(AppError::InvalidArgument(_))
+        ));
+        // A note-value denominator outside the allowed set is rejected.
+        let bad_nv = CatalogQuery {
+            max_note_value: Some(7),
+            limit: 50,
+            ..Default::default()
+        };
+        assert!(matches!(
+            m.search_catalog(bad_nv).await,
+            Err(AppError::InvalidArgument(_))
+        ));
+        // A staff count outside 1..=2 is rejected.
+        let bad_sc = CatalogQuery {
+            staff_count: Some(3),
+            limit: 50,
+            ..Default::default()
+        };
+        assert!(matches!(
+            m.search_catalog(bad_sc).await,
+            Err(AppError::InvalidArgument(_))
+        ));
+        // A limit above the server max is clamped (3 rows exist, limit 999 → all).
+        let hits = m.search_catalog(q("", None, None, 999)).await.unwrap();
+        assert_eq!(hits.len(), 3);
+        // A non-positive limit clamps up to 1.
+        let hits = m.search_catalog(q("", None, None, 0)).await.unwrap();
+        assert_eq!(hits.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn search_catalog_facet_filters_compose_and_exclude_unknowns() {
+        // Two rows with facets, one without (unknown) — filters must exclude the
+        // unknown and compose conjunctively.
+        let repo = Arc::new(FakeUserScoreRepo::default());
+        let store = Arc::new(FakeStore::default());
+        let catalog = Arc::new(FakeCatalogSearchRepo::with(vec![
+            FakeCatalogRow::new(DEBUSSY_1, "Fast", "X", Some("advanced")).with_facets(
+                true,
+                16,
+                Some(140),
+                (48, 84),
+            ), // sixteenths, 140bpm, 3 octaves
+            FakeCatalogRow::new(SATIE, "Slow", "Y", Some("beginner")).with_facets(
+                true,
+                8,
+                Some(72),
+                (60, 72),
+            ), // eighths, 72bpm, 1 octave
+            FakeCatalogRow::new(DEBUSSY_2, "Unknown", "Z", Some("beginner")), // no facets
+        ]));
+        let m = ScoreModule::new(
+            repo,
+            catalog,
+            Arc::new(FakeUserLibraryRepo::default()),
+            store,
+            5,
+            7,
+            8 * 1024 * 1024,
+        );
+
+        // "Nothing faster than an eighth" keeps only the eighth-note row.
+        let only_eighths = CatalogQuery {
+            max_note_value: Some(8),
+            limit: 50,
+            ..Default::default()
+        };
+        let hits = m.search_catalog(only_eighths).await.unwrap();
+        assert_eq!(
+            hits.iter().map(|h| h.id.as_str()).collect::<Vec<_>>(),
+            [SATIE]
+        );
+
+        // Tempo range + ambitus compose; the unknown-facet row is excluded even
+        // though it would pass on text.
+        let slow_narrow = CatalogQuery {
+            max_bpm: Some(100),
+            max_ambitus_semitones: Some(12),
+            limit: 50,
+            ..Default::default()
+        };
+        let hits = m.search_catalog(slow_narrow).await.unwrap();
+        assert_eq!(
+            hits.iter().map(|h| h.id.as_str()).collect::<Vec<_>>(),
+            [SATIE]
+        );
+    }
+
+    #[tokio::test]
+    async fn save_validates_existence_then_lists_newest_first() {
+        let (m, _cat, lib) = catalog_module();
+        // Unknown catalog id is rejected and nothing is saved.
+        assert!(matches!(
+            m.save_catalog_score("u1", "99999999-9999-7999-8999-999999999999")
+                .await,
+            Err(AppError::NotFound(_))
+        ));
+        assert_eq!(lib.count("u1"), 0);
+
+        m.save_catalog_score("u1", SATIE).await.unwrap();
+        m.save_catalog_score("u1", DEBUSSY_1).await.unwrap();
+        m.save_catalog_score("u1", DEBUSSY_1).await.unwrap(); // idempotent
+        assert_eq!(lib.count("u1"), 2);
+
+        // Saved list is newest-first and joined to the catalog.
+        let saved = m.list_saved_catalog_scores("u1").await.unwrap();
+        assert_eq!(
+            saved.iter().map(|h| h.id.as_str()).collect::<Vec<_>>(),
+            [DEBUSSY_1, SATIE]
+        );
+        assert_eq!(saved[0].composer.as_deref(), Some("Claude Debussy"));
+    }
+
+    #[tokio::test]
+    async fn remove_is_a_no_op_when_not_saved_and_owner_scoped() {
+        let (m, _cat, _lib) = catalog_module();
+        m.save_catalog_score("u1", SATIE).await.unwrap();
+        // Removing a not-saved score succeeds and changes nothing.
+        m.remove_saved_catalog_score("u1", DEBUSSY_1).await.unwrap();
+        assert_eq!(m.list_saved_catalog_scores("u1").await.unwrap().len(), 1);
+        // Removing the saved one drops it; a re-list reflects that (sync source).
+        m.remove_saved_catalog_score("u1", SATIE).await.unwrap();
+        assert!(m.list_saved_catalog_scores("u1").await.unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn list_saved_omits_entries_whose_catalog_row_is_gone() {
+        let (m, cat, _lib) = catalog_module();
+        m.save_catalog_score("u1", SATIE).await.unwrap();
+        m.save_catalog_score("u1", DEBUSSY_1).await.unwrap();
+        // Simulate a re-ingest that dropped the Satie row: the library still has
+        // the save, but the join omits it rather than surfacing a broken entry.
+        cat.set_rows(vec![FakeCatalogRow::new(
+            DEBUSSY_1,
+            "Clair de Lune",
+            "Claude Debussy",
+            Some("intermediate"),
+        )]);
+        let saved = m.list_saved_catalog_scores("u1").await.unwrap();
+        assert_eq!(
+            saved.iter().map(|h| h.id.as_str()).collect::<Vec<_>>(),
+            [DEBUSSY_1]
+        );
+    }
+
+    #[tokio::test]
+    async fn get_catalog_bytes_rejects_unknown_id() {
+        let (m, _cat, _lib) = catalog_module();
+        assert!(matches!(
+            m.get_catalog_bytes("99999999-9999-7999-8999-999999999999")
+                .await,
+            Err(AppError::NotFound(_))
+        ));
     }
 }

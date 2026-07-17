@@ -55,6 +55,31 @@ class CatalogEntry {
   /// backend byte source); `null` for a bundled-catalog entry.
   final String? contributedId;
 
+  /// Backend catalog id when this entry is a public-catalog score saved from the
+  /// Score Hub (loaded via the catalog byte source); `null` otherwise.
+  final String? catalogId;
+
+  // Attribution + musical facets used to generate the cover art and the
+  // attribution line (all optional; `null`/absent for bundled scores or until a
+  // catalog row is backfilled). See widgets/score_card.dart.
+  final String? source;
+  final String? arranger;
+  final int? minNoteValue;
+  final int? tempoBpm;
+  final int? noteCount;
+  final int? lowestMidi;
+  final int? highestMidi;
+  final String? timeSig;
+  final int? keyFifths;
+
+  /// For a contributed (upload) entry: whether it is in the user's favorites.
+  /// Meaningless (and `true`) for bundled/catalog entries.
+  final bool favorite;
+
+  /// For an upload: the handle of the account that uploaded it (attribution
+  /// "{handle} · Cymbra"); `null` for bundled/catalog entries.
+  final String? uploaderHandle;
+
   const CatalogEntry({
     required this.id,
     required this.title,
@@ -62,10 +87,26 @@ class CatalogEntry {
     required this.level,
     this.assetPath = '',
     this.contributedId,
+    this.catalogId,
+    this.source,
+    this.arranger,
+    this.minNoteValue,
+    this.tempoBpm,
+    this.noteCount,
+    this.lowestMidi,
+    this.highestMidi,
+    this.timeSig,
+    this.keyFifths,
+    this.favorite = true,
+    this.uploaderHandle,
   });
 
   /// Whether this is a user upload (byte-sourced) rather than a bundled score.
   bool get isContributed => contributedId != null;
+
+  /// Whether this is a saved public-catalog score (byte-sourced from the
+  /// catalog) rather than a bundled or contributed score.
+  bool get isCatalog => catalogId != null;
 
   @override
   int get hashCode => id.hashCode;

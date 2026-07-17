@@ -9,6 +9,61 @@ use std::sync::Mutex;
 use anyhow::Result;
 use async_trait::async_trait;
 
+/// Musical facets a catalog row carries (change: score-catalog-facets),
+/// populated by the crawler at ingest so the search filters + generated cover
+/// have them without a backfill pass. Mirrors the crawler's `ScoreFacets`.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct ScoreFacets {
+    pub min_note_value: Option<u8>,
+    pub has_tuplets: bool,
+    pub has_dotted: bool,
+    pub has_chords: bool,
+    pub lowest_midi: Option<u8>,
+    pub highest_midi: Option<u8>,
+    pub staff_count: u8,
+    pub note_count: u32,
+    pub tempo_bpm: Option<u16>,
+    pub has_dynamics: bool,
+}
+
+impl ScoreFacets {
+    /// Copy from the engine's [`cymbra_musicxml_core::ScoreFacets`] (the shared
+    /// derivation), so the crawler and the upload path map facets the same way.
+    pub fn from_core(f: &cymbra_musicxml_core::ScoreFacets) -> Self {
+        Self {
+            min_note_value: f.min_note_value,
+            has_tuplets: f.has_tuplets,
+            has_dotted: f.has_dotted,
+            has_chords: f.has_chords,
+            lowest_midi: f.lowest_midi,
+            highest_midi: f.highest_midi,
+            staff_count: f.staff_count,
+            note_count: f.note_count,
+            tempo_bpm: f.tempo_bpm,
+            has_dynamics: f.has_dynamics,
+        }
+    }
+}
+
+/// The descriptive + facet metadata derived from a parsed score. The public
+/// catalog ([`CatalogEntry`]) and user uploads ([`crate::user_scores::UserScore`])
+/// carry the *same* block, so it lives here once instead of being repeated on both
+/// structs. The two tables still store these columns flat (each keeps its own
+/// indexes); the shared column list + row/bind mapping is in [`crate::pg`]
+/// ([`crate::pg::META_COLS`] / `bind_meta` / `meta_from_row`).
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct ScoreMeta {
+    pub title: Option<String>,
+    pub composer: Option<String>,
+    pub title_norm: Option<String>,
+    pub work_key: String,
+    pub key_fifths: i32,
+    pub time_sig: String,
+    pub measure_count: i32,
+    pub is_piano: bool,
+    pub facets: ScoreFacets,
+}
+
 /// One public-corpus catalog row: the provenance that must travel with a
 /// redistributed score, plus search/musical metadata. Enum-like fields are
 /// snake_case strings matching the crawler's serde output and the table CHECKs.
@@ -16,8 +71,6 @@ use async_trait::async_trait;
 pub struct CatalogEntry {
     /// UUID v7 (text form).
     pub id: String,
-    pub title: Option<String>,
-    pub composer: Option<String>,
     pub arranger: Option<String>,
     pub source: String,
     pub source_url: String,
@@ -32,16 +85,16 @@ pub struct CatalogEntry {
     pub conversion_status: String,
     pub object_key: String,
     pub size_bytes: i64,
-    pub work_key: String,
-    pub title_norm: Option<String>,
-    pub is_piano: bool,
-    pub key_fifths: i32,
-    pub time_sig: String,
-    pub measure_count: i32,
+    /// Accent/case-folded composer for typo-tolerant search (parity with
+    /// `title_norm`); populated by the crawler, backfilled for older rows.
+    pub composer_norm: Option<String>,
     pub language: Option<String>,
     pub voicing: Option<String>,
     pub level: Option<String>,
     pub level_source: Option<String>,
+    /// Shared descriptive + facet metadata (title/composer/key/time-sig/facets…),
+    /// stored flat in `catalog_scores` but held here as one block.
+    pub meta: ScoreMeta,
 }
 
 /// Storage surface for the public catalog.
@@ -101,8 +154,6 @@ mod tests {
     fn entry(sha: &str) -> CatalogEntry {
         CatalogEntry {
             id: "id".into(),
-            title: Some("T".into()),
-            composer: Some("C".into()),
             arranger: None,
             source: "pdmx".into(),
             source_url: "u".into(),
@@ -116,16 +167,22 @@ mod tests {
             conversion_status: "converted".into(),
             object_key: "safe/pdmx/c/t.mxl".into(),
             size_bytes: 10,
-            work_key: "c::t".into(),
-            title_norm: Some("t".into()),
-            is_piano: true,
-            key_fifths: 0,
-            time_sig: "4/4".into(),
-            measure_count: 1,
+            composer_norm: Some("c".into()),
             language: None,
             voicing: None,
             level: Some("beginner".into()),
             level_source: Some("heuristic".into()),
+            meta: ScoreMeta {
+                title: Some("T".into()),
+                composer: Some("C".into()),
+                title_norm: Some("t".into()),
+                work_key: "c::t".into(),
+                key_fifths: 0,
+                time_sig: "4/4".into(),
+                measure_count: 1,
+                is_piano: true,
+                facets: ScoreFacets::default(),
+            },
         }
     }
 

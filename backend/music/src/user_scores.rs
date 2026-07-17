@@ -24,9 +24,12 @@ use std::sync::Mutex;
 use async_trait::async_trait;
 use cymbra_platform::{AppError, Result};
 
-/// One contributed-score row. Descriptive fields (`title`..`is_piano`) are
-/// **server-derived** from the parsed file (design 2b); `level`/`rights_*` are the
-/// only caller-owned inputs. `created_at` is unix seconds.
+use crate::repo::ScoreMeta;
+
+/// One contributed-score row. The descriptive/facet block (`meta`) is
+/// **server-derived** from the parsed file (design 2b) and shared with the public
+/// catalog ([`crate::repo::ScoreMeta`]); `level`/`rights_*`/`favorite` are the only
+/// caller-owned inputs. `created_at` is unix seconds.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UserScore {
     pub id: String,
@@ -34,18 +37,16 @@ pub struct UserScore {
     pub level: String,
     pub rights_basis: String,
     pub rights_ack: bool,
-    pub title: Option<String>,
-    pub composer: Option<String>,
-    pub title_norm: Option<String>,
-    pub work_key: String,
-    pub key_fifths: i32,
-    pub time_sig: String,
-    pub measure_count: i32,
-    pub is_piano: bool,
     pub sha256: String,
     pub size_bytes: i64,
     pub object_key: String,
     pub created_at: i64,
+    /// Whether this upload is in the caller's favorites (change: favorites-home).
+    /// Auto-`true` on upload; un-favoriting hides it from the home but keeps it.
+    pub favorite: bool,
+    /// Shared descriptive + facet metadata — same block the catalog carries, so
+    /// uploads render a faithful cover and can be facet-filtered identically.
+    pub meta: ScoreMeta,
 }
 
 /// Owner-scoped storage surface for user uploads.
@@ -62,6 +63,9 @@ pub trait UserScoreRepo: Send + Sync {
     async fn delete_owned(&self, id: &str, owner_id: &str) -> Result<Option<UserScore>>;
     /// Count the caller's scores created within the last `window_days` (quota).
     async fn count_recent(&self, owner_id: &str, window_days: u32) -> Result<i64>;
+    /// Set the favorite flag on a score the caller owns; `NotFound` if absent or
+    /// not theirs. Never deletes the upload.
+    async fn set_favorite(&self, id: &str, owner_id: &str, favorite: bool) -> Result<()>;
 }
 
 /// In-memory [`UserScoreRepo`] for unit tests.
@@ -138,11 +142,26 @@ impl UserScoreRepo for FakeUserScoreRepo {
             .filter(|r| r.owner_id == owner_id && r.created_at >= cutoff)
             .count() as i64)
     }
+
+    async fn set_favorite(&self, id: &str, owner_id: &str, favorite: bool) -> Result<()> {
+        let mut rows = self.rows.lock().expect("user_scores fake lock");
+        match rows
+            .iter_mut()
+            .find(|r| r.id == id && r.owner_id == owner_id)
+        {
+            Some(row) => {
+                row.favorite = favorite;
+                Ok(())
+            }
+            None => Err(AppError::NotFound("score not found".into())),
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::repo::ScoreFacets;
 
     fn score(id: &str, owner: &str, sha: &str, created_at: i64) -> UserScore {
         UserScore {
@@ -151,18 +170,22 @@ mod tests {
             level: "beginner".into(),
             rights_basis: "own_work".into(),
             rights_ack: true,
-            title: Some("T".into()),
-            composer: None,
-            title_norm: Some("t".into()),
-            work_key: "::t".into(),
-            key_fifths: 0,
-            time_sig: "4/4".into(),
-            measure_count: 4,
-            is_piano: true,
             sha256: sha.into(),
             size_bytes: 100,
             object_key: format!("user-scores/{owner}/{id}.mxl"),
             created_at,
+            favorite: true,
+            meta: ScoreMeta {
+                title: Some("T".into()),
+                composer: None,
+                title_norm: Some("t".into()),
+                work_key: "::t".into(),
+                key_fifths: 0,
+                time_sig: "4/4".into(),
+                measure_count: 4,
+                is_piano: true,
+                facets: ScoreFacets::default(),
+            },
         }
     }
 

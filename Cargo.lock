@@ -1084,6 +1084,7 @@ dependencies = [
  "chrono",
  "cymbra-auth",
  "cymbra-jobs",
+ "cymbra-music",
  "cymbra-platform",
  "cymbra-storage",
  "cymbra-user",

@@ -153,6 +153,7 @@ mod tests {
             key_fifths: 0,
             time_sig: "4/4".into(),
             measure_count: 1,
+            facets: cymbra_musicxml_core::ScoreFacets::default(),
             language: None,
             voicing: None,
             level: Some(Level::Advanced),

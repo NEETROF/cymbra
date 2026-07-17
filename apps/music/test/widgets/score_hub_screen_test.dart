@@ -1,0 +1,276 @@
+// Copyright 2026 NEETROF
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+import 'dart:typed_data';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:music/screens/score_hub_screen.dart';
+import 'package:music/services/catalog_service.dart';
+import 'package:music/services/score_upload_service.dart';
+import 'package:music/state/score_catalog.dart';
+import 'package:music/state/session_notifier.dart';
+
+import '../support/localized.dart';
+
+class _FakeCatalog implements CatalogService {
+  _FakeCatalog(this.rows);
+  final List<CatalogHit> rows;
+  final Set<String> saved = {};
+  final List<String> saveCalls = [];
+  int? lastMaxNoteValue;
+
+  @override
+  Future<CatalogSearchPage> search({
+    String query = '',
+    String? author,
+    PracticeLevel? level,
+    CatalogFilters filters = const CatalogFilters(),
+    int limit = 20,
+    int offset = 0,
+  }) async {
+    lastMaxNoteValue = filters.maxNoteValue;
+    final page = rows.skip(offset).take(limit).toList();
+    return CatalogSearchPage(hits: page, nextOffset: offset + page.length);
+  }
+
+  @override
+  Future<void> save(String catalogId) async {
+    saved.add(catalogId);
+    saveCalls.add(catalogId);
+  }
+
+  @override
+  Future<void> remove(String catalogId) async => saved.remove(catalogId);
+
+  @override
+  Future<List<CatalogHit>> listSaved() async =>
+      rows.where((h) => saved.contains(h.id)).toList();
+
+  @override
+  Future<Uint8List> fetchBytes(String catalogId) async => Uint8List(0);
+}
+
+class _FakeUpload implements ScoreUploadService {
+  _FakeUpload(this.mine);
+  final List<ContributedScore> mine;
+  final List<(String, bool)> favoriteCalls = [];
+
+  @override
+  Future<List<ContributedScore>> listMyScores() async => mine;
+  @override
+  Future<void> deleteScore(String id) async {}
+  @override
+  Future<void> setFavorite(String id, bool favorite) async =>
+      favoriteCalls.add((id, favorite));
+
+  @override
+  Future<Uint8List> fetchBytes(String id) async => Uint8List(0);
+  @override
+  Future<ContributedScore> upload({
+    required Uint8List data,
+    required String filename,
+    required PracticeLevel level,
+    required RightsBasis rightsBasis,
+    required bool rightsAck,
+    String? fallbackTitle,
+    String? fallbackComposer,
+  }) async => throw UnimplementedError();
+}
+
+CatalogHit _hit(String id, String title) => CatalogHit(
+  id: id,
+  title: title,
+  composer: 'Composer',
+  level: PracticeLevel.beginner,
+  license: 'CC-BY-4.0',
+  source: 'pdmx',
+);
+
+ProviderContainer _container(
+  _FakeCatalog catalog, {
+  List<ContributedScore> uploads = const [],
+  _FakeUpload? uploadFake,
+}) {
+  final c = ProviderContainer(
+    overrides: [
+      catalogServiceProvider.overrideWithValue(catalog),
+      scoreUploadServiceProvider.overrideWithValue(
+        uploadFake ?? _FakeUpload(uploads),
+      ),
+      canUseOnlineServicesProvider.overrideWithValue(true),
+    ],
+  );
+  addTearDown(c.dispose);
+  return c;
+}
+
+Future<void> _pump(WidgetTester tester, ProviderContainer c) async {
+  await tester.binding.setSurfaceSize(const Size(900, 1200));
+  await tester.pumpWidget(
+    UncontrolledProviderScope(
+      container: c,
+      child: localizedApp(const ScoreHubScreen(), locale: const Locale('en')),
+    ),
+  );
+  for (var i = 0; i < 10; i++) {
+    await tester.pump(const Duration(milliseconds: 40));
+  }
+}
+
+Future<void> _teardown(WidgetTester tester, ProviderContainer c) async {
+  await tester.pumpWidget(const SizedBox());
+  await tester.pump();
+}
+
+void main() {
+  testWidgets('shows catalog results with an add-to-library action', (
+    tester,
+  ) async {
+    final catalog = _FakeCatalog([_hit('c1', 'Clair de Lune')]);
+    final c = _container(catalog);
+    await _pump(tester, c);
+
+    expect(find.text('Clair de Lune'), findsOneWidget);
+    // Catalog results offer an add-to-library toggle.
+    expect(find.byIcon(Icons.favorite_border), findsOneWidget);
+
+    await tester.tap(find.byIcon(Icons.favorite_border));
+    await tester.pump();
+    await tester.pump();
+    expect(catalog.saveCalls, ['c1']);
+    await _teardown(tester, c);
+  });
+
+  testWidgets('"mes partitions" chip switches to uploads and hides add', (
+    tester,
+  ) async {
+    final catalog = _FakeCatalog([_hit('c1', 'Clair de Lune')]);
+    final c = _container(
+      catalog,
+      uploads: [
+        ContributedScore(
+          id: 'u1',
+          level: PracticeLevel.beginner,
+          createdAt: DateTime.utc(2026, 5, 1),
+          measureCount: 4,
+          timeSig: '4/4',
+          keyFifths: 0,
+          title: 'My Upload',
+          composer: 'Me',
+        ),
+      ],
+    );
+    await _pump(tester, c);
+    expect(find.text('Clair de Lune'), findsOneWidget);
+
+    // Activate the "My scores" quick-filter.
+    await tester.tap(find.widgetWithText(FilterChip, 'My scores'));
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 40));
+    }
+
+    // Now the user's upload shows, the catalog result is gone, and uploads
+    // offer no add-to-library toggle (already owned).
+    expect(find.text('My Upload'), findsOneWidget);
+    expect(find.text('Clair de Lune'), findsNothing);
+    expect(find.byIcon(Icons.favorite_border), findsNothing);
+    await _teardown(tester, c);
+  });
+
+  testWidgets('uploads are mixed into the catalog results by default', (
+    tester,
+  ) async {
+    final c = _container(
+      _FakeCatalog([_hit('c1', 'Clair de Lune')]),
+      uploads: [
+        ContributedScore(
+          id: 'u1',
+          level: PracticeLevel.beginner,
+          createdAt: DateTime.utc(2026, 5, 1),
+          measureCount: 4,
+          timeSig: '4/4',
+          keyFifths: 0,
+          title: 'My Upload',
+          composer: 'Me',
+        ),
+      ],
+    );
+    await _pump(tester, c);
+    // "Mes partitions" unchecked → the upload and the catalog result both show.
+    expect(find.text('My Upload'), findsOneWidget);
+    expect(find.text('Clair de Lune'), findsOneWidget);
+    await _teardown(tester, c);
+  });
+
+  testWidgets('empty catalog search shows the no-results state', (
+    tester,
+  ) async {
+    final c = _container(_FakeCatalog(const []));
+    await _pump(tester, c);
+    expect(find.text('No scores match your search.'), findsOneWidget);
+    await _teardown(tester, c);
+  });
+
+  testWidgets('"mes partitions" upload can be un-favorited from the hub', (
+    tester,
+  ) async {
+    final upload = _FakeUpload([
+      ContributedScore(
+        id: 'u1',
+        level: PracticeLevel.beginner,
+        createdAt: DateTime.utc(2026, 5, 1),
+        measureCount: 4,
+        timeSig: '4/4',
+        keyFifths: 0,
+        title: 'My Upload',
+        composer: 'Me',
+      ),
+    ]);
+    final c = _container(_FakeCatalog(const []), uploadFake: upload);
+    await _pump(tester, c);
+    await tester.tap(find.widgetWithText(FilterChip, 'My scores'));
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 40));
+    }
+    expect(find.text('My Upload'), findsOneWidget);
+    // The upload is favorited → a filled heart; tapping it un-favorites.
+    await tester.tap(find.byIcon(Icons.favorite));
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 40));
+    }
+    expect(upload.favoriteCalls, [('u1', false)]);
+    await _teardown(tester, c);
+  });
+
+  testWidgets('advanced-filters drawer applies a facet filter', (tester) async {
+    final catalog = _FakeCatalog([_hit('c1', 'Clair de Lune')]);
+    final c = _container(catalog);
+    await _pump(tester, c);
+
+    // Open the end-drawer via the app-bar tune action.
+    await tester.tap(find.byIcon(Icons.tune));
+    await tester.pumpAndSettle();
+    expect(find.text('Advanced filters'), findsOneWidget);
+
+    // Pick a rhythmic-granularity option → the notifier re-queries with it.
+    await tester.tap(find.text('≤ Eighth'));
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 40));
+    }
+    expect(catalog.lastMaxNoteValue, 8);
+    await _teardown(tester, c);
+  });
+}

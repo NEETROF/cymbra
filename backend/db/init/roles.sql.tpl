@@ -45,6 +45,13 @@ ALTER ROLE :"music_role" SET search_path = music;
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA music TO :"music_role";
 ALTER DEFAULT PRIVILEGES IN SCHEMA music
   GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO :"music_role";
+-- Catalog full-text search (change: score-hub-search): the trigram GIN index +
+-- the accent-fold backfill need `pg_trgm`/`unaccent`, and CREATE EXTENSION needs
+-- superuser, so it is done here (not the least-privilege module migration, which
+-- only creates the index that USES the extension). Installed into `music` so
+-- music_svc resolves the operator class / functions via its pinned search_path.
+CREATE EXTENSION IF NOT EXISTS pg_trgm SCHEMA music;
+CREATE EXTENSION IF NOT EXISTS unaccent SCHEMA music;
 
 -- jobs (shared async-job substrate; owned by worker_svc — design D3) ---------
 SELECT format('CREATE ROLE %I LOGIN', :'worker_role')

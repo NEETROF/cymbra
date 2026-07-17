@@ -212,3 +212,74 @@ async fn purge_is_idempotent() {
 
     assert_eq!(users_count(&admin, uid).await, 0);
 }
+
+/// score-hub-search — the purge erases the user's saved-catalog library, while
+/// the PUBLIC catalog entries they had saved remain untouched.
+#[tokio::test]
+#[ignore = "needs docker compose (Postgres) with per-module roles"]
+async fn purge_erases_saved_catalog_library_but_not_the_catalog() {
+    migrate().await;
+    let music = connect("CYMBRA_MUSIC_DATABASE_URL").await;
+    cymbra_music::MIGRATOR.run(&music).await.unwrap();
+    let admin = connect("CYMBRA_ADMIN_DATABASE_URL").await;
+
+    let uid = seed_user(
+        &admin,
+        "local",
+        &format!("lib-{}@x.dev", uuid::Uuid::now_v7()),
+    )
+    .await;
+    let cid = uuid::Uuid::now_v7();
+    // Seed a public catalog score, then have the user save it.
+    sqlx::query(
+        "INSERT INTO music.catalog_scores \
+         (id, source, source_url, source_item_id, license, confidence, sha256, \
+          origin_format, conversion_status, object_key, work_key) \
+         VALUES ($1,'pdmx','u','1','CC-BY-4.0','verified',$2,'music_xml','converted','k','w')",
+    )
+    .bind(cid)
+    .bind(format!("sha-{cid}"))
+    .execute(&admin)
+    .await
+    .unwrap();
+    sqlx::query("INSERT INTO music.user_library (owner_id, catalog_id) VALUES ($1, $2)")
+        .bind(uid)
+        .bind(cid)
+        .execute(&admin)
+        .await
+        .unwrap();
+
+    cymbra_worker::purge_user(&admin, &uid.to_string())
+        .await
+        .expect("purge should succeed");
+
+    // The user's saves are gone…
+    assert_eq!(
+        count(
+            &admin,
+            "SELECT count(*) FROM music.user_library WHERE owner_id = $1::uuid",
+            &uid.to_string(),
+        )
+        .await,
+        0,
+        "saved-library rows must be purged"
+    );
+    // …but the PUBLIC catalog entry it referenced remains.
+    assert_eq!(
+        count(
+            &admin,
+            "SELECT count(*) FROM music.catalog_scores WHERE id = $1::uuid",
+            &cid.to_string(),
+        )
+        .await,
+        1,
+        "the public catalog entry must be untouched"
+    );
+
+    // cleanup the seeded catalog row.
+    sqlx::query("DELETE FROM music.catalog_scores WHERE id = $1")
+        .bind(cid)
+        .execute(&admin)
+        .await
+        .unwrap();
+}

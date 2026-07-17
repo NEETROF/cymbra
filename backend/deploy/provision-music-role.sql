@@ -34,4 +34,11 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA music
 -- Keep music_svc out of the shared public schema (design D0).
 REVOKE ALL ON SCHEMA public FROM "music_svc";
 
+-- Catalog full-text search (change: score-hub-search): pg_trgm/unaccent are
+-- needed by the trigram GIN index + accent-fold backfill; CREATE EXTENSION needs
+-- superuser, so enable it here (mirrors the roles.sql.tpl music block). Installed
+-- into `music` so music_svc resolves it via its pinned search_path.
+CREATE EXTENSION IF NOT EXISTS pg_trgm SCHEMA music;
+CREATE EXTENSION IF NOT EXISTS unaccent SCHEMA music;
+
 \echo 'music_svc + schema music provisioned (idempotent).'

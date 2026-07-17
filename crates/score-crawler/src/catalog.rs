@@ -39,8 +39,6 @@ fn variant<T: Serialize>(v: &T) -> String {
 pub fn to_catalog_entry(e: &ManifestEntry) -> CatalogEntry {
     CatalogEntry {
         id: e.id.clone(),
-        title: e.title.clone(),
-        composer: e.composer.clone(),
         arranger: e.arranger.clone(),
         source: e.source.clone(),
         source_url: e.source_url.clone(),
@@ -54,16 +52,30 @@ pub fn to_catalog_entry(e: &ManifestEntry) -> CatalogEntry {
         conversion_status: variant(&e.conversion_status),
         object_key: e.object_key.clone().unwrap_or_default(),
         size_bytes: e.size_bytes as i64,
-        work_key: e.work_key.clone(),
-        title_norm: e.title_norm.clone(),
-        is_piano: e.is_piano,
-        key_fifths: e.key_fifths,
-        time_sig: e.time_sig.clone(),
-        measure_count: e.measure_count as i32,
+        // Accent/case-fold the composer to parity with `title_norm` so the search
+        // trigram index matches composer fragments (change: score-hub-search).
+        composer_norm: e
+            .composer
+            .as_deref()
+            .map(cymbra_musicxml_core::normalize_text),
         language: e.language.clone(),
         voicing: e.voicing.clone(),
         level: e.level.as_ref().map(variant),
         level_source: e.level_source.as_ref().map(variant),
+        // The shared descriptive + facet block, carried straight through to the
+        // catalog row so the search filters + generated cover have it at ingest
+        // (no backfill). Facets map via the shared `from_core`.
+        meta: cymbra_music::ScoreMeta {
+            title: e.title.clone(),
+            composer: e.composer.clone(),
+            title_norm: e.title_norm.clone(),
+            work_key: e.work_key.clone(),
+            key_fifths: e.key_fifths,
+            time_sig: e.time_sig.clone(),
+            measure_count: e.measure_count as i32,
+            is_piano: e.is_piano,
+            facets: cymbra_music::ScoreFacets::from_core(&e.facets),
+        },
     }
 }
 
@@ -119,6 +131,7 @@ mod tests {
             key_fifths: 1,
             time_sig: "4/4".into(),
             measure_count: 46,
+            facets: cymbra_musicxml_core::ScoreFacets::default(),
             language: Some("la".into()),
             voicing: Some("SATB".into()),
             level: Some(Level::Intermediate),

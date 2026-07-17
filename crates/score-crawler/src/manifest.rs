@@ -23,6 +23,8 @@
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 
+use cymbra_musicxml_core::ScoreFacets;
+
 use crate::convert::{ConversionStatus, OriginFormat};
 use crate::difficulty::{Level, LevelSource};
 use crate::license::Confidence;
@@ -59,6 +61,11 @@ pub struct ManifestEntry {
     pub key_fifths: i32,
     pub time_sig: String,
     pub measure_count: u32,
+    /// Derived musical facets (change: score-catalog-facets). Skipped from the
+    /// serialised manifest (the CSV export can't hold a nested struct, and the
+    /// facets reach ingest via the in-memory entries, not the manifest file).
+    #[serde(skip)]
+    pub facets: ScoreFacets,
     pub language: Option<String>,
     pub voicing: Option<String>,
     pub level: Option<Level>,
@@ -138,6 +145,7 @@ mod tests {
             key_fifths: -3,
             time_sig: "9/8".into(),
             measure_count: 72,
+            facets: ScoreFacets::default(),
             language: None,
             voicing: None,
             level: Some(Level::Advanced),
