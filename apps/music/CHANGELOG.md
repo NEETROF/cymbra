@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.13.1](https://github.com/NEETROF/cymbra/compare/music-v1.13.0...music-v1.13.1) (2026-07-17)
+
+
+### Bug Fixes
+
+* **player:** game-mode scoring + Portée notation fidelity ([#98](https://github.com/NEETROF/cymbra/issues/98)) ([9ebd3b9](https://github.com/NEETROF/cymbra/commit/9ebd3b9e599ba0b5e703d4cedee0094678fb88c6))
+
 ## [1.13.0](https://github.com/NEETROF/cymbra/compare/music-v1.12.0...music-v1.13.0) (2026-07-17)
 
 
