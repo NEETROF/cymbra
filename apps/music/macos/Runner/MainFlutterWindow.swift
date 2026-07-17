@@ -11,8 +11,5 @@ class MainFlutterWindow: NSWindow {
     RegisterGeneratedPlugins(registry: flutterViewController)
 
     super.awakeFromNib()
-
-    // Brand the window title (the default derives from the product name "music").
-    self.title = "Cymbra Music"
   }
 }
