@@ -59,6 +59,19 @@ class CatalogEntry {
   /// Score Hub (loaded via the catalog byte source); `null` otherwise.
   final String? catalogId;
 
+  // Attribution + musical facets used to generate the cover art and the
+  // attribution line (all optional; `null`/absent for bundled scores or until a
+  // catalog row is backfilled). See widgets/score_card.dart.
+  final String? source;
+  final String? arranger;
+  final int? minNoteValue;
+  final int? tempoBpm;
+  final int? noteCount;
+  final int? lowestMidi;
+  final int? highestMidi;
+  final String? timeSig;
+  final int? keyFifths;
+
   const CatalogEntry({
     required this.id,
     required this.title,
@@ -67,6 +80,15 @@ class CatalogEntry {
     this.assetPath = '',
     this.contributedId,
     this.catalogId,
+    this.source,
+    this.arranger,
+    this.minNoteValue,
+    this.tempoBpm,
+    this.noteCount,
+    this.lowestMidi,
+    this.highestMidi,
+    this.timeSig,
+    this.keyFifths,
   });
 
   /// Whether this is a user upload (byte-sourced) rather than a bundled score.

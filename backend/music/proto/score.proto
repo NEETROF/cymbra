@@ -57,7 +57,18 @@ message CatalogHit {
   optional string composer = 3;
   optional string level = 4; // beginner | intermediate | advanced | (unset)
   string license = 5;        // normalised code, e.g. CC-BY-4.0
-  string source = 6;
+  string source = 6;         // origin dataset/repo (crawler attribution)
+  // Attribution + musical facets for the generated cover (change: score-catalog-
+  // facets-cover). Facets are null until backfilled; the cover falls back to the
+  // difficulty when absent.
+  optional string arranger = 7;
+  optional int32 min_note_value = 8;  // fastest value denominator (8=eighth, 16=…)
+  optional int32 tempo_bpm = 9;
+  optional int32 note_count = 10;
+  optional int32 lowest_midi = 11;
+  optional int32 highest_midi = 12;
+  string time_sig = 13;               // e.g. "4/4" ("" when unknown)
+  int32 key_fifths = 14;              // circle-of-fifths (negative = flats)
 }
 
 // Full-text search over title+composer, with optional author/difficulty filters.

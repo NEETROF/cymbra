@@ -27,6 +27,28 @@ Color scoreLevelColor(PracticeLevel level) => switch (level) {
   PracticeLevel.advanced => CymbraColors.error,
 };
 
+/// A friendly name for a crawler source code, or `null` to omit (dev/unknown).
+String? _sourceLabel(String? source) => switch (source) {
+  'pdmx' => 'PDMX',
+  'openscore' => 'OpenScore',
+  'musetrainer' => 'MuseTrainer',
+  'mutopia' => 'Mutopia',
+  'eduardomourar' => 'GitHub · eduardomourar',
+  null || '' || 'seed' => null,
+  final s => s,
+};
+
+/// The attribution line for a catalog score: its origin (crawler source) plus the
+/// arranger when known. `null` for bundled/contributed scores (no origin to show).
+String? _attributionLine(CatalogEntry entry) {
+  final parts = <String>[];
+  final origin = _sourceLabel(entry.source);
+  if (origin != null) parts.add('via $origin');
+  final arranger = entry.arranger;
+  if (arranger != null && arranger.isNotEmpty) parts.add('arr. $arranger');
+  return parts.isEmpty ? null : parts.join(' · ');
+}
+
 /// A score tile used across the Score Hub and the library: a generated cover, a
 /// difficulty badge, the title/composer, and an optional top-right [action]
 /// (save / remove / delete — the caller decides, since each surface differs).
@@ -101,6 +123,30 @@ class ScoreCard extends StatelessWidget {
                         ),
                       ),
                     ],
+                    if (_attributionLine(entry) case final attribution?) ...[
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.cloud_outlined,
+                            size: 12,
+                            color: CymbraColors.outline,
+                          ),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              attribution,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: CymbraColors.outline,
+                                fontSize: 11,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -141,11 +187,14 @@ class _DifficultyBadge extends StatelessWidget {
   }
 }
 
-/// A deterministic generated cover for a score (no artwork exists): a gradient +
-/// soft bokeh glows + a sound-wave whose *energy* grows with the difficulty
-/// (amplitude, frequency, harmonics) and a few eighth-note glyphs whose count
-/// tracks it too — all seeded from the score id so each card is stable, distinct,
-/// and reflects how busy the piece is. The centre shows a ♪, not a letter.
+/// A deterministic generated cover for a score (no artwork exists). It is seeded
+/// from the title+composer (stable across re-crawls) and, when the catalog has
+/// backfilled facets, *reflects the piece*: the central glyph is its fastest note
+/// value (♩/♪/♬), the sound-wave's frequency follows the tempo and its amplitude
+/// the ambitus, and eighth/sixteenth glyphs appear only when the piece really has
+/// them. The gradient is tinted toward the difficulty colour, and the time
+/// signature / key accidentals sit as a watermark. Without facets it falls back
+/// to the difficulty + seed.
 class _CoverArt extends StatelessWidget {
   const _CoverArt({required this.entry});
 
@@ -164,19 +213,36 @@ class _CoverArt extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final seed = entry.id.hashCode;
-    final colors = _gradients[seed.abs() % _gradients.length];
-    // Difficulty drives the wave's energy + note density (0=beginner..2=advanced).
+    // Seed on title+composer so the cover is stable even if a re-crawl changes
+    // the row id (idea 1).
+    final seed = '${entry.title}|${entry.composer}'.hashCode;
+    final base = _gradients[seed.abs() % _gradients.length];
+    // Tint the accent stop toward the difficulty colour (idea 3).
+    final accent = Color.lerp(base[1], scoreLevelColor(entry.level), 0.35)!;
     final intensity = switch (entry.level) {
       PracticeLevel.beginner => 0,
       PracticeLevel.intermediate => 1,
       PracticeLevel.advanced => 2,
     };
+    final ambitus = (entry.lowestMidi != null && entry.highestMidi != null)
+        ? entry.highestMidi! - entry.lowestMidi!
+        : null;
     return CustomPaint(
-      painter: _CoverPainter(seed: seed, colors: colors, intensity: intensity),
+      painter: _CoverPainter(
+        seed: seed,
+        colors: [base[0], accent],
+        intensity: intensity,
+        minNoteValue: entry.minNoteValue,
+        tempoBpm: entry.tempoBpm,
+        noteCount: entry.noteCount,
+        ambitus: ambitus,
+        timeSig: entry.timeSig ?? '',
+        keyFifths: entry.keyFifths ?? 0,
+      ),
+      // Central glyph = the fastest note value (idea 2); ♪ when unknown.
       child: Center(
         child: Text(
-          '♪', // ♪
+          _valueGlyph(entry.minNoteValue),
           style: TextStyle(
             fontSize: 60,
             color: Colors.white.withValues(alpha: 0.18),
@@ -188,18 +254,37 @@ class _CoverArt extends StatelessWidget {
   }
 }
 
+/// The note-value glyph for the fastest note (power-of-two denominator): ♩ for a
+/// quarter or slower, ♪ for eighths, ♬ for sixteenths and faster; ♪ when unknown.
+String _valueGlyph(int? minNoteValue) => switch (minNoteValue) {
+  null => '♪',
+  final v when v <= 4 => '♩',
+  8 => '♪',
+  _ => '♬',
+};
+
 class _CoverPainter extends CustomPainter {
   _CoverPainter({
     required this.seed,
     required this.colors,
     required this.intensity,
+    required this.minNoteValue,
+    required this.tempoBpm,
+    required this.noteCount,
+    required this.ambitus,
+    required this.timeSig,
+    required this.keyFifths,
   });
 
   final int seed;
   final List<Color> colors;
-
-  /// 0 = beginner … 2 = advanced — drives the wave's energy and note count.
   final int intensity;
+  final int? minNoteValue;
+  final int? tempoBpm;
+  final int? noteCount;
+  final int? ambitus;
+  final String timeSig;
+  final int keyFifths;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -231,30 +316,67 @@ class _CoverPainter extends CustomPainter {
       );
     }
 
-    // Sound-wave: taller, faster and busier the harder the piece is; the seed
-    // adds per-piece variation so two same-level scores still differ.
+    // Sound-wave: frequency ← tempo, amplitude ← ambitus, a second harmonic for
+    // dense pieces (idea B). Falls back to the difficulty when facets are absent.
     final baseY = size.height * (0.55 + rng.nextDouble() * 0.18);
-    final amp = size.height * (0.05 + 0.035 * intensity);
-    final freq =
-        2.0 + intensity + rng.nextDouble(); // full periods across width
+    final freq = tempoBpm != null
+        ? (tempoBpm! / 40).clamp(1.5, 8.0)
+        : 2.0 + intensity;
+    final ampFrac = ambitus != null
+        ? (0.04 + ambitus! / 520).clamp(0.04, 0.13)
+        : 0.05 + 0.035 * intensity;
+    final amp = size.height * ampFrac;
     final phase = rng.nextDouble() * math.pi * 2;
     _wave(canvas, size, baseY, amp, freq, phase, 0.16 + 0.04 * intensity, 2.0);
-    // Advanced pieces get a second, faster harmonic for a denser line.
-    if (intensity >= 2) {
+    final busy = noteCount != null ? noteCount! > 260 : intensity >= 2;
+    if (busy) {
       _wave(canvas, size, baseY, amp * 0.5, freq * 2, phase + 1.0, 0.10, 1.2);
     }
 
-    // Eighth-note glyphs floating above the wave; more notes ⇒ harder piece.
-    final noteCount = 1 + intensity * 2;
-    for (var i = 0; i < noteCount; i++) {
+    // Fast-note glyphs: with facets, only when the piece really has eighths
+    // (♫) or sixteenths (♬); without facets, a difficulty proxy.
+    final int noteGlyphs;
+    final String fastGlyph;
+    if (minNoteValue != null) {
+      if (minNoteValue! >= 8) {
+        fastGlyph = minNoteValue! >= 16 ? '♬' : '♫';
+        noteGlyphs = noteCount != null
+            ? (noteCount! / 140).clamp(1, 5).round()
+            : 1 + intensity;
+      } else {
+        fastGlyph = '';
+        noteGlyphs = 0; // only quarters/slower — no fast-note motif
+      }
+    } else {
+      fastGlyph = intensity >= 1 ? '♫' : '♪';
+      noteGlyphs = 1 + intensity * 2;
+    }
+    for (var i = 0; i < noteGlyphs; i++) {
       final x = size.width * (0.12 + rng.nextDouble() * 0.76);
       final y = baseY - amp - size.height * (0.06 + rng.nextDouble() * 0.12);
       _glyph(
         canvas,
         Offset(x, y),
         13 + rng.nextDouble() * 7,
-        i.isEven ? '♫' : '♪', // ♫ / ♪
+        fastGlyph,
         0.16 + rng.nextDouble() * 0.10,
+      );
+    }
+
+    // Watermark: time signature + key accidentals bottom-right (idea 5).
+    final marks = <String>[];
+    if (timeSig.isNotEmpty && timeSig != '/') marks.add(timeSig);
+    if (keyFifths != 0) {
+      marks.add((keyFifths > 0 ? '♯' : '♭') * keyFifths.abs().clamp(1, 7));
+    }
+    if (marks.isNotEmpty) {
+      _text(
+        canvas,
+        marks.join('  '),
+        Offset(size.width - 10, size.height - 8),
+        11,
+        0.28,
+        TextAlign.right,
       );
     }
   }
@@ -291,6 +413,7 @@ class _CoverPainter extends CustomPainter {
     String glyph,
     double opacity,
   ) {
+    if (glyph.isEmpty) return;
     final tp = TextPainter(
       text: TextSpan(
         text: glyph,
@@ -304,7 +427,39 @@ class _CoverPainter extends CustomPainter {
     tp.paint(c, pos - Offset(tp.width / 2, tp.height / 2));
   }
 
+  /// Bottom/right-anchored watermark text.
+  void _text(
+    Canvas c,
+    String s,
+    Offset anchor,
+    double fontSize,
+    double opacity,
+    TextAlign align,
+  ) {
+    final tp = TextPainter(
+      text: TextSpan(
+        text: s,
+        style: TextStyle(
+          fontSize: fontSize,
+          fontWeight: FontWeight.w700,
+          color: Colors.white.withValues(alpha: opacity),
+        ),
+      ),
+      textAlign: align,
+      textDirection: TextDirection.ltr,
+    )..layout();
+    tp.paint(c, anchor - Offset(tp.width, tp.height));
+  }
+
   @override
   bool shouldRepaint(_CoverPainter old) =>
-      old.seed != seed || old.colors != colors || old.intensity != intensity;
+      old.seed != seed ||
+      old.colors != colors ||
+      old.intensity != intensity ||
+      old.minNoteValue != minNoteValue ||
+      old.tempoBpm != tempoBpm ||
+      old.noteCount != noteCount ||
+      old.ambitus != ambitus ||
+      old.timeSig != timeSig ||
+      old.keyFifths != keyFifths;
 }

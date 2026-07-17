@@ -39,6 +39,16 @@ class CatalogHit {
   final String license;
   final String source;
 
+  // Attribution + musical facets for the generated cover (null until backfilled).
+  final String? arranger;
+  final int? minNoteValue;
+  final int? tempoBpm;
+  final int? noteCount;
+  final int? lowestMidi;
+  final int? highestMidi;
+  final String timeSig;
+  final int keyFifths;
+
   const CatalogHit({
     required this.id,
     required this.license,
@@ -46,6 +56,14 @@ class CatalogHit {
     this.title,
     this.composer,
     this.level,
+    this.arranger,
+    this.minNoteValue,
+    this.tempoBpm,
+    this.noteCount,
+    this.lowestMidi,
+    this.highestMidi,
+    this.timeSig = '',
+    this.keyFifths = 0,
   });
 }
 
@@ -150,6 +168,14 @@ class GrpcCatalogService implements CatalogService {
     level: h.hasLevel() ? practiceLevelFromWire(h.level) : null,
     license: h.license,
     source: h.source,
+    arranger: h.hasArranger() ? h.arranger : null,
+    minNoteValue: h.hasMinNoteValue() ? h.minNoteValue : null,
+    tempoBpm: h.hasTempoBpm() ? h.tempoBpm : null,
+    noteCount: h.hasNoteCount() ? h.noteCount : null,
+    lowestMidi: h.hasLowestMidi() ? h.lowestMidi : null,
+    highestMidi: h.hasHighestMidi() ? h.highestMidi : null,
+    timeSig: h.timeSig,
+    keyFifths: h.keyFifths,
   );
 
   @override

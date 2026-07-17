@@ -30,6 +30,15 @@ CatalogEntry catalogEntryFromHit(CatalogHit h) => CatalogEntry(
   composer: h.composer ?? '',
   level: h.level ?? PracticeLevel.beginner,
   catalogId: h.id,
+  source: h.source,
+  arranger: h.arranger,
+  minNoteValue: h.minNoteValue,
+  tempoBpm: h.tempoBpm,
+  noteCount: h.noteCount,
+  lowestMidi: h.lowestMidi,
+  highestMidi: h.highestMidi,
+  timeSig: h.timeSig,
+  keyFifths: h.keyFifths,
 );
 
 /// The signed-in user's saved catalog scores, as [CatalogEntry]s, newest-saved

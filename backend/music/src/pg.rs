@@ -117,10 +117,19 @@ fn row_to_hit(r: &PgRow) -> CatalogHit {
         level: r.get("level"),
         license: r.get("license"),
         source: r.get("source"),
+        arranger: r.get("arranger"),
+        min_note_value: r.get::<Option<i16>, _>("min_note_value").map(i32::from),
+        tempo_bpm: r.get("tempo_bpm"),
+        note_count: r.get("note_count"),
+        lowest_midi: r.get::<Option<i16>, _>("lowest_midi").map(i32::from),
+        highest_midi: r.get::<Option<i16>, _>("highest_midi").map(i32::from),
+        time_sig: r.get("time_sig"),
+        key_fifths: r.get("key_fifths"),
     }
 }
 
-const HIT_COLS: &str = "id, title, composer, level, license, source";
+const HIT_COLS: &str = "id, title, composer, level, license, source, arranger, \
+     min_note_value, tempo_bpm, note_count, lowest_midi, highest_midi, time_sig, key_fifths";
 
 /// Postgres-backed [`CatalogSearchRepo`] over the `music_svc` pool.
 pub struct PgCatalogSearchRepo {

@@ -37,6 +37,16 @@ pub struct CatalogHit {
     pub level: Option<String>,
     pub license: String,
     pub source: String,
+    // Attribution + facets for the generated cover (change: score-catalog-facets-
+    // cover). Facets are `None` until backfilled.
+    pub arranger: Option<String>,
+    pub min_note_value: Option<i32>,
+    pub tempo_bpm: Option<i32>,
+    pub note_count: Option<i32>,
+    pub lowest_midi: Option<i32>,
+    pub highest_midi: Option<i32>,
+    pub time_sig: String,
+    pub key_fifths: i32,
 }
 
 /// Normalised, validated search parameters. The module fills these in: `text_norm`
@@ -128,6 +138,10 @@ pub struct FakeCatalogRow {
     pub highest_midi: Option<i16>,
     pub staff_count: Option<i16>,
     pub tempo_bpm: Option<i32>,
+    pub arranger: Option<String>,
+    pub note_count: Option<i32>,
+    pub time_sig: String,
+    pub key_fifths: i32,
 }
 
 impl FakeCatalogRow {
@@ -170,6 +184,14 @@ impl FakeCatalogRow {
             level: self.level.clone(),
             license: self.license.clone(),
             source: self.source.clone(),
+            arranger: self.arranger.clone(),
+            min_note_value: self.min_note_value.map(i32::from),
+            tempo_bpm: self.tempo_bpm,
+            note_count: self.note_count,
+            lowest_midi: self.lowest_midi.map(i32::from),
+            highest_midi: self.highest_midi.map(i32::from),
+            time_sig: self.time_sig.clone(),
+            key_fifths: self.key_fifths,
         }
     }
 

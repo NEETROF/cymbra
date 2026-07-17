@@ -83,6 +83,14 @@ fn to_hit(h: CatalogHit) -> ProtoCatalogHit {
         level: h.level,
         license: h.license,
         source: h.source,
+        arranger: h.arranger,
+        min_note_value: h.min_note_value,
+        tempo_bpm: h.tempo_bpm,
+        note_count: h.note_count,
+        lowest_midi: h.lowest_midi,
+        highest_midi: h.highest_midi,
+        time_sig: h.time_sig,
+        key_fifths: h.key_fifths,
     }
 }
 
