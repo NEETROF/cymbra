@@ -341,7 +341,7 @@ class _CoverPainter extends CustomPainter {
       if (minNoteValue! >= 8) {
         fastGlyph = minNoteValue! >= 16 ? '♬' : '♫';
         noteGlyphs = noteCount != null
-            ? (noteCount! / 140).clamp(1, 5).round()
+            ? (noteCount! / 160).clamp(1, 4).round()
             : 1 + intensity;
       } else {
         fastGlyph = '';
@@ -349,17 +349,22 @@ class _CoverPainter extends CustomPainter {
       }
     } else {
       fastGlyph = intensity >= 1 ? '♫' : '♪';
-      noteGlyphs = 1 + intensity * 2;
+      noteGlyphs = (1 + intensity).clamp(1, 4);
     }
+    // Lay the notes in evenly-spaced columns (small seeded jitter) so they never
+    // overlap; each sits in the band above the wave.
     for (var i = 0; i < noteGlyphs; i++) {
-      final x = size.width * (0.12 + rng.nextDouble() * 0.76);
-      final y = baseY - amp - size.height * (0.06 + rng.nextDouble() * 0.12);
+      final t = noteGlyphs == 1 ? 0.5 : (i + 0.5) / noteGlyphs;
+      final x =
+          size.width * (0.14 + 0.72 * t) +
+          (rng.nextDouble() - 0.5) * size.width * 0.05;
+      final y = baseY - amp - size.height * (0.12 + rng.nextDouble() * 0.10);
       _glyph(
         canvas,
         Offset(x, y),
-        13 + rng.nextDouble() * 7,
+        14 + rng.nextDouble() * 5,
         fastGlyph,
-        0.16 + rng.nextDouble() * 0.10,
+        0.18 + rng.nextDouble() * 0.08,
       );
     }
 
