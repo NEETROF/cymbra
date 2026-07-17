@@ -45,6 +45,25 @@ impl ScoreFacets {
     }
 }
 
+/// The descriptive + facet metadata derived from a parsed score. The public
+/// catalog ([`CatalogEntry`]) and user uploads ([`crate::user_scores::UserScore`])
+/// carry the *same* block, so it lives here once instead of being repeated on both
+/// structs. The two tables still store these columns flat (each keeps its own
+/// indexes); the shared column list + row/bind mapping is in [`crate::pg`]
+/// ([`crate::pg::META_COLS`] / `bind_meta` / `meta_from_row`).
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct ScoreMeta {
+    pub title: Option<String>,
+    pub composer: Option<String>,
+    pub title_norm: Option<String>,
+    pub work_key: String,
+    pub key_fifths: i32,
+    pub time_sig: String,
+    pub measure_count: i32,
+    pub is_piano: bool,
+    pub facets: ScoreFacets,
+}
+
 /// One public-corpus catalog row: the provenance that must travel with a
 /// redistributed score, plus search/musical metadata. Enum-like fields are
 /// snake_case strings matching the crawler's serde output and the table CHECKs.
@@ -52,8 +71,6 @@ impl ScoreFacets {
 pub struct CatalogEntry {
     /// UUID v7 (text form).
     pub id: String,
-    pub title: Option<String>,
-    pub composer: Option<String>,
     pub arranger: Option<String>,
     pub source: String,
     pub source_url: String,
@@ -68,21 +85,16 @@ pub struct CatalogEntry {
     pub conversion_status: String,
     pub object_key: String,
     pub size_bytes: i64,
-    pub work_key: String,
-    pub title_norm: Option<String>,
     /// Accent/case-folded composer for typo-tolerant search (parity with
     /// `title_norm`); populated by the crawler, backfilled for older rows.
     pub composer_norm: Option<String>,
-    pub is_piano: bool,
-    pub key_fifths: i32,
-    pub time_sig: String,
-    pub measure_count: i32,
     pub language: Option<String>,
     pub voicing: Option<String>,
     pub level: Option<String>,
     pub level_source: Option<String>,
-    /// Derived musical facets (search filters + generated cover).
-    pub facets: ScoreFacets,
+    /// Shared descriptive + facet metadata (title/composer/key/time-sig/facets…),
+    /// stored flat in `catalog_scores` but held here as one block.
+    pub meta: ScoreMeta,
 }
 
 /// Storage surface for the public catalog.
@@ -142,8 +154,6 @@ mod tests {
     fn entry(sha: &str) -> CatalogEntry {
         CatalogEntry {
             id: "id".into(),
-            title: Some("T".into()),
-            composer: Some("C".into()),
             arranger: None,
             source: "pdmx".into(),
             source_url: "u".into(),
@@ -157,18 +167,22 @@ mod tests {
             conversion_status: "converted".into(),
             object_key: "safe/pdmx/c/t.mxl".into(),
             size_bytes: 10,
-            work_key: "c::t".into(),
-            title_norm: Some("t".into()),
             composer_norm: Some("c".into()),
-            is_piano: true,
-            key_fifths: 0,
-            time_sig: "4/4".into(),
-            measure_count: 1,
             language: None,
             voicing: None,
             level: Some("beginner".into()),
             level_source: Some("heuristic".into()),
-            facets: ScoreFacets::default(),
+            meta: ScoreMeta {
+                title: Some("T".into()),
+                composer: Some("C".into()),
+                title_norm: Some("t".into()),
+                work_key: "c::t".into(),
+                key_fifths: 0,
+                time_sig: "4/4".into(),
+                measure_count: 1,
+                is_piano: true,
+                facets: ScoreFacets::default(),
+            },
         }
     }
 

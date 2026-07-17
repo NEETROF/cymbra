@@ -39,8 +39,6 @@ fn variant<T: Serialize>(v: &T) -> String {
 pub fn to_catalog_entry(e: &ManifestEntry) -> CatalogEntry {
     CatalogEntry {
         id: e.id.clone(),
-        title: e.title.clone(),
-        composer: e.composer.clone(),
         arranger: e.arranger.clone(),
         source: e.source.clone(),
         source_url: e.source_url.clone(),
@@ -54,35 +52,29 @@ pub fn to_catalog_entry(e: &ManifestEntry) -> CatalogEntry {
         conversion_status: variant(&e.conversion_status),
         object_key: e.object_key.clone().unwrap_or_default(),
         size_bytes: e.size_bytes as i64,
-        work_key: e.work_key.clone(),
-        title_norm: e.title_norm.clone(),
         // Accent/case-fold the composer to parity with `title_norm` so the search
         // trigram index matches composer fragments (change: score-hub-search).
         composer_norm: e
             .composer
             .as_deref()
             .map(cymbra_musicxml_core::normalize_text),
-        is_piano: e.is_piano,
-        key_fifths: e.key_fifths,
-        time_sig: e.time_sig.clone(),
-        measure_count: e.measure_count as i32,
         language: e.language.clone(),
         voicing: e.voicing.clone(),
         level: e.level.as_ref().map(variant),
         level_source: e.level_source.as_ref().map(variant),
-        // Carry the derived facets straight through to the catalog row so the
-        // search filters + generated cover have them at ingest (no backfill).
-        facets: cymbra_music::ScoreFacets {
-            min_note_value: e.facets.min_note_value,
-            has_tuplets: e.facets.has_tuplets,
-            has_dotted: e.facets.has_dotted,
-            has_chords: e.facets.has_chords,
-            lowest_midi: e.facets.lowest_midi,
-            highest_midi: e.facets.highest_midi,
-            staff_count: e.facets.staff_count,
-            note_count: e.facets.note_count,
-            tempo_bpm: e.facets.tempo_bpm,
-            has_dynamics: e.facets.has_dynamics,
+        // The shared descriptive + facet block, carried straight through to the
+        // catalog row so the search filters + generated cover have it at ingest
+        // (no backfill). Facets map via the shared `from_core`.
+        meta: cymbra_music::ScoreMeta {
+            title: e.title.clone(),
+            composer: e.composer.clone(),
+            title_norm: e.title_norm.clone(),
+            work_key: e.work_key.clone(),
+            key_fifths: e.key_fifths,
+            time_sig: e.time_sig.clone(),
+            measure_count: e.measure_count as i32,
+            is_piano: e.is_piano,
+            facets: cymbra_music::ScoreFacets::from_core(&e.facets),
         },
     }
 }

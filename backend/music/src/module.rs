@@ -30,7 +30,7 @@ use cymbra_storage::ObjectStorage;
 use sha2::{Digest, Sha256};
 
 use crate::catalog_search::{CatalogHit, CatalogQuery, CatalogSearchParams, CatalogSearchRepo};
-use crate::repo::ScoreFacets;
+use crate::repo::{ScoreFacets, ScoreMeta};
 use crate::user_library::UserLibraryRepo;
 use crate::user_scores::{UserScore, UserScoreRepo};
 
@@ -201,20 +201,22 @@ impl ScoreModule {
             level: input.level,
             rights_basis: input.rights_basis,
             rights_ack: true,
-            title,
-            composer,
-            title_norm,
-            work_key,
-            key_fifths: summary.key_fifths,
-            time_sig: summary.time_sig,
-            measure_count: summary.measure_count as i32,
-            is_piano: summary.is_piano,
             sha256: sha,
             size_bytes: input.data.len() as i64,
             object_key: object_key.clone(),
             created_at: now_unix(),
             favorite: true, // a new upload lands in the caller's favorites
-            facets,
+            meta: ScoreMeta {
+                title,
+                composer,
+                title_norm,
+                work_key,
+                key_fifths: summary.key_fifths,
+                time_sig: summary.time_sig,
+                measure_count: summary.measure_count as i32,
+                is_piano: summary.is_piano,
+                facets,
+            },
         };
 
         if let Err(e) = self.repo.insert(&record).await {
@@ -512,16 +514,16 @@ mod tests {
         i.fallback_title = Some("  My Untitled Piece  ".into());
         i.fallback_composer = Some("Me".into());
         let rec = m.upload("u1", i).await.unwrap();
-        assert_eq!(rec.title.as_deref(), Some("My Untitled Piece")); // trimmed
-        assert_eq!(rec.composer.as_deref(), Some("Me"));
-        assert_eq!(rec.work_key, "me::my untitled piece"); // normalized keys
-        assert_eq!(rec.title_norm.as_deref(), Some("my untitled piece"));
+        assert_eq!(rec.meta.title.as_deref(), Some("My Untitled Piece")); // trimmed
+        assert_eq!(rec.meta.composer.as_deref(), Some("Me"));
+        assert_eq!(rec.meta.work_key, "me::my untitled piece"); // normalized keys
+        assert_eq!(rec.meta.title_norm.as_deref(), Some("my untitled piece"));
 
         // A file WITH a title: the fallback is ignored (parsed wins — design 2b).
         let mut i2 = input(VALID, "beginner", "own_work", true);
         i2.fallback_title = Some("Spoofed Title".into());
         let rec2 = m.upload("u1", i2).await.unwrap();
-        assert_eq!(rec2.title.as_deref(), Some("Test Piece"));
+        assert_eq!(rec2.meta.title.as_deref(), Some("Test Piece"));
         assert_eq!(repo.rows().len(), 2);
     }
 
@@ -547,11 +549,11 @@ mod tests {
             .await
             .unwrap();
         // Server-derived metadata (client sent none).
-        assert_eq!(rec.title.as_deref(), Some("Test Piece"));
-        assert_eq!(rec.composer.as_deref(), Some("A. Composer"));
-        assert_eq!(rec.key_fifths, 2);
-        assert_eq!(rec.time_sig, "3/4");
-        assert!(rec.is_piano);
+        assert_eq!(rec.meta.title.as_deref(), Some("Test Piece"));
+        assert_eq!(rec.meta.composer.as_deref(), Some("A. Composer"));
+        assert_eq!(rec.meta.key_fifths, 2);
+        assert_eq!(rec.meta.time_sig, "3/4");
+        assert!(rec.meta.is_piano);
         assert_eq!(rec.level, "intermediate");
         assert_eq!(
             rec.object_key,

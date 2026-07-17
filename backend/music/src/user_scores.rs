@@ -24,11 +24,12 @@ use std::sync::Mutex;
 use async_trait::async_trait;
 use cymbra_platform::{AppError, Result};
 
-use crate::repo::ScoreFacets;
+use crate::repo::ScoreMeta;
 
-/// One contributed-score row. Descriptive fields (`title`..`is_piano`) are
-/// **server-derived** from the parsed file (design 2b); `level`/`rights_*` are the
-/// only caller-owned inputs. `created_at` is unix seconds.
+/// One contributed-score row. The descriptive/facet block (`meta`) is
+/// **server-derived** from the parsed file (design 2b) and shared with the public
+/// catalog ([`crate::repo::ScoreMeta`]); `level`/`rights_*`/`favorite` are the only
+/// caller-owned inputs. `created_at` is unix seconds.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UserScore {
     pub id: String,
@@ -36,14 +37,6 @@ pub struct UserScore {
     pub level: String,
     pub rights_basis: String,
     pub rights_ack: bool,
-    pub title: Option<String>,
-    pub composer: Option<String>,
-    pub title_norm: Option<String>,
-    pub work_key: String,
-    pub key_fifths: i32,
-    pub time_sig: String,
-    pub measure_count: i32,
-    pub is_piano: bool,
     pub sha256: String,
     pub size_bytes: i64,
     pub object_key: String,
@@ -51,9 +44,9 @@ pub struct UserScore {
     /// Whether this upload is in the caller's favorites (change: favorites-home).
     /// Auto-`true` on upload; un-favoriting hides it from the home but keeps it.
     pub favorite: bool,
-    /// Derived musical facets (change: score-catalog-facets) — same as the
-    /// catalog, so uploads render a faithful cover and can be facet-filtered.
-    pub facets: ScoreFacets,
+    /// Shared descriptive + facet metadata — same block the catalog carries, so
+    /// uploads render a faithful cover and can be facet-filtered identically.
+    pub meta: ScoreMeta,
 }
 
 /// Owner-scoped storage surface for user uploads.
@@ -168,6 +161,7 @@ impl UserScoreRepo for FakeUserScoreRepo {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::repo::ScoreFacets;
 
     fn score(id: &str, owner: &str, sha: &str, created_at: i64) -> UserScore {
         UserScore {
@@ -176,20 +170,22 @@ mod tests {
             level: "beginner".into(),
             rights_basis: "own_work".into(),
             rights_ack: true,
-            title: Some("T".into()),
-            composer: None,
-            title_norm: Some("t".into()),
-            work_key: "::t".into(),
-            key_fifths: 0,
-            time_sig: "4/4".into(),
-            measure_count: 4,
-            is_piano: true,
             sha256: sha.into(),
             size_bytes: 100,
             object_key: format!("user-scores/{owner}/{id}.mxl"),
             created_at,
             favorite: true,
-            facets: ScoreFacets::default(),
+            meta: ScoreMeta {
+                title: Some("T".into()),
+                composer: None,
+                title_norm: Some("t".into()),
+                work_key: "::t".into(),
+                key_fifths: 0,
+                time_sig: "4/4".into(),
+                measure_count: 4,
+                is_piano: true,
+                facets: ScoreFacets::default(),
+            },
         }
     }
 

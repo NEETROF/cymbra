@@ -25,6 +25,7 @@ use chrono::{DateTime, Utc};
 use cymbra_platform::{AppError, Result};
 use sqlx::{PgPool, Row, postgres::PgRow};
 
+use crate::pg::{META_COLS, bind_meta, meta_from_row};
 use crate::user_library::UserLibraryRepo;
 use crate::user_scores::{UserScore, UserScoreRepo};
 
@@ -45,10 +46,14 @@ fn is_foreign_key_violation(e: &sqlx::Error) -> bool {
         .unwrap_or(false)
 }
 
-const COLS: &str = "id, owner_id, level, rights_basis, rights_ack, title, composer, \
-     title_norm, work_key, key_fifths, time_sig, measure_count, is_piano, sha256, \
-     size_bytes, object_key, created_at, favorite, min_note_value, has_tuplets, has_dotted, \
-     has_chords, lowest_midi, highest_midi, staff_count, note_count, tempo_bpm, has_dynamics";
+/// The `user_scores` columns: owner/rights/lifecycle first, then the shared
+/// [`META_COLS`] block — matching `row_to_score` / the insert bind order.
+fn user_cols() -> String {
+    format!(
+        "id, owner_id, level, rights_basis, rights_ack, sha256, size_bytes, \
+         object_key, created_at, favorite, {META_COLS}"
+    )
+}
 
 fn row_to_score(r: &PgRow) -> UserScore {
     UserScore {
@@ -57,31 +62,12 @@ fn row_to_score(r: &PgRow) -> UserScore {
         level: r.get("level"),
         rights_basis: r.get("rights_basis"),
         rights_ack: r.get("rights_ack"),
-        title: r.get("title"),
-        composer: r.get("composer"),
-        title_norm: r.get("title_norm"),
-        work_key: r.get("work_key"),
-        key_fifths: r.get("key_fifths"),
-        time_sig: r.get("time_sig"),
-        measure_count: r.get("measure_count"),
-        is_piano: r.get("is_piano"),
         sha256: r.get("sha256"),
         size_bytes: r.get("size_bytes"),
         object_key: r.get("object_key"),
         created_at: r.get::<DateTime<Utc>, _>("created_at").timestamp(),
         favorite: r.get("favorite"),
-        facets: crate::repo::ScoreFacets {
-            min_note_value: r.get::<Option<i16>, _>("min_note_value").map(|v| v as u8),
-            has_tuplets: r.get::<Option<bool>, _>("has_tuplets").unwrap_or(false),
-            has_dotted: r.get::<Option<bool>, _>("has_dotted").unwrap_or(false),
-            has_chords: r.get::<Option<bool>, _>("has_chords").unwrap_or(false),
-            lowest_midi: r.get::<Option<i16>, _>("lowest_midi").map(|v| v as u8),
-            highest_midi: r.get::<Option<i16>, _>("highest_midi").map(|v| v as u8),
-            staff_count: r.get::<Option<i16>, _>("staff_count").unwrap_or(0) as u8,
-            note_count: r.get::<Option<i32>, _>("note_count").unwrap_or(0) as u32,
-            tempo_bpm: r.get::<Option<i32>, _>("tempo_bpm").map(|v| v as u16),
-            has_dynamics: r.get::<Option<bool>, _>("has_dynamics").unwrap_or(false),
-        },
+        meta: meta_from_row(r),
     }
 }
 
@@ -108,41 +94,26 @@ impl UserScoreRepo for PgUserScoreRepo {
         let owner = parse_uuid(&s.owner_id)?;
         let created = DateTime::from_timestamp(s.created_at, 0)
             .ok_or_else(|| AppError::Internal(anyhow::anyhow!("bad created_at")))?;
-        let res = sqlx::query(&format!(
-            "INSERT INTO music.user_scores ({COLS}) \
+        // Owner/rights/lifecycle columns ($1..$10), then the shared ScoreMeta
+        // block ($11..$28) via `bind_meta`.
+        let sql = format!(
+            "INSERT INTO music.user_scores ({}) \
              VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,\
-                $19,$20,$21,$22,$23,$24,$25,$26,$27,$28)"
-        ))
-        .bind(id)
-        .bind(owner)
-        .bind(&s.level)
-        .bind(&s.rights_basis)
-        .bind(s.rights_ack)
-        .bind(&s.title)
-        .bind(&s.composer)
-        .bind(&s.title_norm)
-        .bind(&s.work_key)
-        .bind(s.key_fifths)
-        .bind(&s.time_sig)
-        .bind(s.measure_count)
-        .bind(s.is_piano)
-        .bind(&s.sha256)
-        .bind(s.size_bytes)
-        .bind(&s.object_key)
-        .bind(created)
-        .bind(s.favorite)
-        .bind(s.facets.min_note_value.map(i16::from))
-        .bind(s.facets.has_tuplets)
-        .bind(s.facets.has_dotted)
-        .bind(s.facets.has_chords)
-        .bind(s.facets.lowest_midi.map(i16::from))
-        .bind(s.facets.highest_midi.map(i16::from))
-        .bind(i16::from(s.facets.staff_count))
-        .bind(s.facets.note_count as i32)
-        .bind(s.facets.tempo_bpm.map(i32::from))
-        .bind(s.facets.has_dynamics)
-        .execute(&self.pool)
-        .await;
+                $19,$20,$21,$22,$23,$24,$25,$26,$27,$28)",
+            user_cols()
+        );
+        let q = sqlx::query(&sql)
+            .bind(id)
+            .bind(owner)
+            .bind(&s.level)
+            .bind(&s.rights_basis)
+            .bind(s.rights_ack)
+            .bind(&s.sha256)
+            .bind(s.size_bytes)
+            .bind(&s.object_key)
+            .bind(created)
+            .bind(s.favorite);
+        let res = bind_meta(q, &s.meta).execute(&self.pool).await;
         match res {
             Ok(_) => Ok(()),
             Err(e) if is_unique_violation(&e) => {
@@ -155,7 +126,8 @@ impl UserScoreRepo for PgUserScoreRepo {
     async fn list_by_owner(&self, owner_id: &str) -> Result<Vec<UserScore>> {
         let owner = parse_uuid(owner_id)?;
         let rows = sqlx::query(&format!(
-            "SELECT {COLS} FROM music.user_scores WHERE owner_id = $1 ORDER BY created_at DESC"
+            "SELECT {} FROM music.user_scores WHERE owner_id = $1 ORDER BY created_at DESC",
+            user_cols()
         ))
         .bind(owner)
         .fetch_all(&self.pool)
@@ -167,7 +139,8 @@ impl UserScoreRepo for PgUserScoreRepo {
     async fn get_owned(&self, id: &str, owner_id: &str) -> Result<Option<UserScore>> {
         let (id, owner) = (parse_uuid(id)?, parse_uuid(owner_id)?);
         let row = sqlx::query(&format!(
-            "SELECT {COLS} FROM music.user_scores WHERE id = $1 AND owner_id = $2"
+            "SELECT {} FROM music.user_scores WHERE id = $1 AND owner_id = $2",
+            user_cols()
         ))
         .bind(id)
         .bind(owner)
@@ -180,7 +153,8 @@ impl UserScoreRepo for PgUserScoreRepo {
     async fn delete_owned(&self, id: &str, owner_id: &str) -> Result<Option<UserScore>> {
         let (id, owner) = (parse_uuid(id)?, parse_uuid(owner_id)?);
         let row = sqlx::query(&format!(
-            "DELETE FROM music.user_scores WHERE id = $1 AND owner_id = $2 RETURNING {COLS}"
+            "DELETE FROM music.user_scores WHERE id = $1 AND owner_id = $2 RETURNING {}",
+            user_cols()
         ))
         .bind(id)
         .bind(owner)

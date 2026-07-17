@@ -27,7 +27,7 @@ pub use grpc::ScoreGrpc;
 pub use module::{ScoreModule, UploadInput};
 pub use pg::{PgCatalogRepo, PgCatalogSearchRepo};
 pub use pg_user_scores::{PgUserLibraryRepo, PgUserScoreRepo};
-pub use repo::{CatalogEntry, CatalogRepo, FakeCatalogRepo, ScoreFacets};
+pub use repo::{CatalogEntry, CatalogRepo, FakeCatalogRepo, ScoreFacets, ScoreMeta};
 pub use user_library::{FakeUserLibraryRepo, UserLibraryRepo};
 pub use user_scores::{FakeUserScoreRepo, UserScore, UserScoreRepo};
 

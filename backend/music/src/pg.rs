@@ -8,10 +8,71 @@
 
 use anyhow::{Context, Result};
 use async_trait::async_trait;
-use sqlx::{PgPool, Row, postgres::PgRow};
+use sqlx::{PgPool, Postgres, Row, postgres::PgArguments, postgres::PgRow, query::Query};
 
 use crate::catalog_search::{CatalogHit, CatalogSearchParams, CatalogSearchRepo};
-use crate::repo::{CatalogEntry, CatalogRepo};
+use crate::repo::{CatalogEntry, CatalogRepo, ScoreFacets, ScoreMeta};
+
+/// The shared [`ScoreMeta`] columns (descriptive + facets), in the canonical bind
+/// order of [`bind_meta`] / [`meta_from_row`]. Both `catalog_scores` and
+/// `user_scores` expose these column names, so their INSERT/SELECT statements
+/// share this one fragment instead of repeating 18 columns each.
+pub(crate) const META_COLS: &str = "title, composer, title_norm, work_key, key_fifths, \
+     time_sig, measure_count, is_piano, min_note_value, has_tuplets, has_dotted, has_chords, \
+     lowest_midi, highest_midi, staff_count, note_count, tempo_bpm, has_dynamics";
+
+/// Append the 18 [`ScoreMeta`] binds to `q`, in [`META_COLS`] order. The caller
+/// places the matching `$n..$n+17` placeholders as a contiguous trailing block.
+pub(crate) fn bind_meta<'q>(
+    q: Query<'q, Postgres, PgArguments>,
+    m: &'q ScoreMeta,
+) -> Query<'q, Postgres, PgArguments> {
+    q.bind(&m.title)
+        .bind(&m.composer)
+        .bind(&m.title_norm)
+        .bind(&m.work_key)
+        .bind(m.key_fifths)
+        .bind(&m.time_sig)
+        .bind(m.measure_count)
+        .bind(m.is_piano)
+        .bind(m.facets.min_note_value.map(i16::from))
+        .bind(m.facets.has_tuplets)
+        .bind(m.facets.has_dotted)
+        .bind(m.facets.has_chords)
+        .bind(m.facets.lowest_midi.map(i16::from))
+        .bind(m.facets.highest_midi.map(i16::from))
+        .bind(i16::from(m.facets.staff_count))
+        .bind(m.facets.note_count as i32)
+        .bind(m.facets.tempo_bpm.map(i32::from))
+        .bind(m.facets.has_dynamics)
+}
+
+/// Decode the [`META_COLS`] from a row into a [`ScoreMeta`] (by column name, so
+/// the SELECT column order is irrelevant).
+pub(crate) fn meta_from_row(r: &PgRow) -> ScoreMeta {
+    ScoreMeta {
+        title: r.get("title"),
+        composer: r.get("composer"),
+        title_norm: r.get("title_norm"),
+        work_key: r.get("work_key"),
+        key_fifths: r.get("key_fifths"),
+        time_sig: r.get("time_sig"),
+        measure_count: r.get("measure_count"),
+        is_piano: r.get("is_piano"),
+        facets: ScoreFacets {
+            min_note_value: r.get::<Option<i16>, _>("min_note_value").map(|v| v as u8),
+            has_tuplets: r.get::<Option<bool>, _>("has_tuplets").unwrap_or(false),
+            has_dotted: r.get::<Option<bool>, _>("has_dotted").unwrap_or(false),
+            has_chords: r.get::<Option<bool>, _>("has_chords").unwrap_or(false),
+            lowest_midi: r.get::<Option<i16>, _>("lowest_midi").map(|v| v as u8),
+            highest_midi: r.get::<Option<i16>, _>("highest_midi").map(|v| v as u8),
+            staff_count: r.get::<Option<i16>, _>("staff_count").unwrap_or(0) as u8,
+            note_count: r.get::<Option<i32>, _>("note_count").unwrap_or(0) as u32,
+            tempo_bpm: r.get::<Option<i32>, _>("tempo_bpm").map(|v| v as u16),
+            has_dynamics: r.get::<Option<bool>, _>("has_dynamics").unwrap_or(false),
+        },
+    }
+}
 
 /// Postgres implementation over a pool (typically an admin/ingestion role).
 pub struct PgCatalogRepo {
@@ -51,58 +112,42 @@ impl CatalogRepo for PgCatalogRepo {
         let id = uuid::Uuid::parse_str(&e.id).unwrap_or_else(|_| uuid::Uuid::now_v7());
         // ON CONFLICT (sha256) DO NOTHING makes re-ingestion idempotent; the
         // affected-row count tells us whether this was a new insert.
-        let result = sqlx::query(
+        // Catalog-specific columns first ($1..$19), then the shared ScoreMeta
+        // block ($20..$37) via `bind_meta` — the two adapters share that fragment.
+        let sql = format!(
             "INSERT INTO music.catalog_scores (\
-                id, title, composer, arranger, source, source_url, source_item_id, \
-                license, license_url, confidence, sha256, origin_format, conversion_status, \
-                object_key, size_bytes, work_key, title_norm, is_piano, key_fifths, time_sig, \
-                measure_count, language, voicing, level, level_source, content_fingerprint, \
-                composer_norm, min_note_value, has_tuplets, has_dotted, has_chords, \
-                lowest_midi, highest_midi, staff_count, note_count, tempo_bpm, has_dynamics) \
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,\
-                $21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37) \
-             ON CONFLICT (sha256) DO NOTHING",
-        )
-        .bind(id)
-        .bind(&e.title)
-        .bind(&e.composer)
-        .bind(&e.arranger)
-        .bind(&e.source)
-        .bind(&e.source_url)
-        .bind(&e.source_item_id)
-        .bind(&e.license)
-        .bind(&e.license_url)
-        .bind(&e.confidence)
-        .bind(&e.sha256)
-        .bind(&e.origin_format)
-        .bind(&e.conversion_status)
-        .bind(&e.object_key)
-        .bind(e.size_bytes)
-        .bind(&e.work_key)
-        .bind(&e.title_norm)
-        .bind(e.is_piano)
-        .bind(e.key_fifths)
-        .bind(&e.time_sig)
-        .bind(e.measure_count)
-        .bind(&e.language)
-        .bind(&e.voicing)
-        .bind(&e.level)
-        .bind(&e.level_source)
-        .bind(&e.content_fingerprint)
-        .bind(&e.composer_norm)
-        .bind(e.facets.min_note_value.map(i16::from))
-        .bind(e.facets.has_tuplets)
-        .bind(e.facets.has_dotted)
-        .bind(e.facets.has_chords)
-        .bind(e.facets.lowest_midi.map(i16::from))
-        .bind(e.facets.highest_midi.map(i16::from))
-        .bind(i16::from(e.facets.staff_count))
-        .bind(e.facets.note_count as i32)
-        .bind(e.facets.tempo_bpm.map(i32::from))
-        .bind(e.facets.has_dynamics)
-        .execute(&self.pool)
-        .await
-        .context("catalog insert")?;
+                id, arranger, source, source_url, source_item_id, license, license_url, \
+                confidence, sha256, origin_format, conversion_status, object_key, size_bytes, \
+                composer_norm, language, voicing, level, level_source, content_fingerprint, \
+                {META_COLS}) \
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,\
+                $20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37) \
+             ON CONFLICT (sha256) DO NOTHING"
+        );
+        let q = sqlx::query(&sql)
+            .bind(id)
+            .bind(&e.arranger)
+            .bind(&e.source)
+            .bind(&e.source_url)
+            .bind(&e.source_item_id)
+            .bind(&e.license)
+            .bind(&e.license_url)
+            .bind(&e.confidence)
+            .bind(&e.sha256)
+            .bind(&e.origin_format)
+            .bind(&e.conversion_status)
+            .bind(&e.object_key)
+            .bind(e.size_bytes)
+            .bind(&e.composer_norm)
+            .bind(&e.language)
+            .bind(&e.voicing)
+            .bind(&e.level)
+            .bind(&e.level_source)
+            .bind(&e.content_fingerprint);
+        let result = bind_meta(q, &e.meta)
+            .execute(&self.pool)
+            .await
+            .context("catalog insert")?;
         Ok(result.rows_affected() > 0)
     }
 }
