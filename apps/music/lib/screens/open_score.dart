@@ -21,6 +21,7 @@ import '../l10n/gen/app_localizations.dart';
 import '../state/notation_data.dart';
 import '../state/notation_notifier.dart';
 import '../state/score_catalog.dart';
+import '../widgets/app_snackbar.dart';
 import 'player_screen.dart';
 
 /// Opens [entry] in the player, guarded by a pre-flight load: the score is
@@ -74,6 +75,6 @@ Future<void> openScore(
         .whenComplete(sub.close);
   } else {
     sub.close();
-    messenger.showSnackBar(SnackBar(content: Text(l10n.playerScoreLoadError)));
+    showAppSnackBar(messenger, l10n.playerScoreLoadError);
   }
 }

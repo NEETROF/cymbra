@@ -16,6 +16,7 @@ import 'package:flutter/material.dart';
 
 import '../../l10n/gen/app_localizations.dart';
 import '../../services/auth_service.dart';
+import '../../widgets/app_snackbar.dart';
 
 /// A human, non-enumerating message for an [AuthException]. Localized via [l10n];
 /// screens may pass a [fallback] tuned to their context (e.g. sign-in vs reset).
@@ -48,11 +49,8 @@ String authErrorMessage(
 
 /// Show an [AuthException] as a SnackBar using [authErrorMessage].
 void showAuthError(BuildContext context, AuthException e, {String? fallback}) {
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(
-      content: Text(
-        authErrorMessage(AppLocalizations.of(context), e, fallback: fallback),
-      ),
-    ),
+  showAppSnackBar(
+    ScaffoldMessenger.of(context),
+    authErrorMessage(AppLocalizations.of(context), e, fallback: fallback),
   );
 }

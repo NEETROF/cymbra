@@ -22,6 +22,7 @@ import '../../services/oidc_token_source.dart';
 import '../../state/auth_flow.dart';
 import '../../state/session_notifier.dart';
 import '../../theme/cymbra_theme.dart';
+import '../../widgets/app_snackbar.dart';
 import 'auth_messages.dart';
 import 'auth_scaffold.dart';
 
@@ -72,9 +73,7 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
       // re-auth must not escape uncaught (it is not an AuthException); surface it
       // like a failed re-auth rather than silently spinning down.
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(l10n.deleteReauthFailed)));
+        showAppSnackBar(ScaffoldMessenger.of(context), l10n.deleteReauthFailed);
       }
     } finally {
       if (mounted) setState(() => _busy = false);

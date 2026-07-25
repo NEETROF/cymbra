@@ -19,6 +19,7 @@ import '../../l10n/gen/app_localizations.dart';
 import '../../services/auth_policy.dart';
 import '../../services/auth_service.dart';
 import '../../state/auth_flow.dart';
+import '../../widgets/app_snackbar.dart';
 import 'auth_messages.dart';
 import 'auth_scaffold.dart';
 
@@ -60,9 +61,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
       // No-enumeration: the same confirmation regardless of whether it exists.
       if (mounted) {
         setState(() => _requested = true);
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(l10n.resetSentSnack)));
+        showAppSnackBar(ScaffoldMessenger.of(context), l10n.resetSentSnack);
       }
     } on AuthException catch (e) {
       if (mounted) showAuthError(context, e);
@@ -85,9 +84,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
           .read(authFlowProvider)
           .resetPassword(code: code, newPassword: newPassword);
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(l10n.resetDoneSnack)));
+        showAppSnackBar(ScaffoldMessenger.of(context), l10n.resetDoneSnack);
         Navigator.of(context).pop();
       }
     } on AuthException catch (e) {
