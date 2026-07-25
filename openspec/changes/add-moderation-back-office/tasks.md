@@ -12,6 +12,7 @@
 - [ ] 2.3 Add `GrantRole`/`RevokeRole(user_id, scope, role)` RPCs guarded by `require_admin`; granting `admin` requires the caller be `admin`; idempotent grant.
 - [ ] 2.5 Add a `role_grants` audit table migration (target user, scope, role, action grant/revoke, acting admin, timestamp; append-only) and write to it on every grant/revoke.
 - [ ] 2.4 Consume #2's `needs_review` flag (if present) to build the queue ordering; degrade gracefully when absent.
+- [ ] 2.6 Add a review-priority ordering to the privileged catalog search (back office): rank by review priority — re-review-flagged/`pending` first, then by a substance heuristic derived from existing facets (`measure_count`, `staff_count`, chords/tuplets/dotted). Expose it as an `order_by` option and ensure the ranked/facet fields are returned in the hit so the Vue table can re-sort client-side.
 
 ## 3. Browser transport (backend)
 
@@ -24,7 +25,7 @@
 - [ ] 4.1 Scaffold a Vue 3 + Vite SPA (client-rendered, no SSR) as a new package/repo for `bo.cymbra.app`; wire Cymbra OIDC sign-in and a gRPC-web client generated from the protos.
 - [ ] 4.2 Gate the app to `moderator`/`admin`: access-denied state for signed-in non-moderators; sign-in prompt when unauthenticated.
 - [ ] 4.3 Build the catalog table: reuse the app hub filters (text/author/level/facets) + the BO-only moderation-status filter; show status per row.
-- [ ] 4.4 Build the queue view: `pending` first, then rating-flagged `accepted` (when available).
+- [ ] 4.4 Build the queue view: default review-priority order (re-review-flagged + `pending` first, then by substance/richness); a dedicated re-review filter; sortable/filterable columns for status, the re-review flag, and substance/facet fields to override the default order.
 - [ ] 4.5 Row detail: read-only preview rendering the score via the app's Rust notation/render engine compiled to **wasm** (fetch bytes → wasm render), so it matches the app; Accept/Reject actions calling `SetModerationStatus`; show reviewer/time after action.
 - [ ] 4.6 Admin-only role management UI calling `GrantRole`/`RevokeRole`; surface the `role_grants` audit history.
 - [ ] 4.7 Deploy config for `bo.cymbra.app` (reuse the marketing-site/Cloudflare Pages pattern).

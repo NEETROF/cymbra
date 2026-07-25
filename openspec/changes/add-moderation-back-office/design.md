@@ -80,10 +80,20 @@ single conditional UPDATE.
 ### D5 — Console table = the app's filters + a privileged status filter + queue
 The console lists **all** scores in a simple table using the **same catalog search** the
 app uses (same text/author/level/facet filters), plus the privileged `moderation_status`
-filter (from #1) that only moderators/admins may send. A default "queue" view orders work:
-`pending` first (e.g. newest or by source), then `accepted` scores flagged `needs_review`
-by #2. Row click → read-only preview (reusing the score bytes + a web renderer or an
-embedded view) → accept/reject.
+filter (from #1) that only moderators/admins may send. A default "queue" view orders work by a **review priority**: the work set is
+`pending` scores + `accepted` scores flagged `needs_review` by #2, with flagged scores
+surfaced at the top and also reachable via a dedicated re-review filter. Within the work
+set, ordering prioritizes the **most substantial scores** — a richness heuristic derived
+from the score's existing facets (e.g. `measure_count`, `staff_count`, and the boolean
+complexity facets chords/tuplets/dotted): scores with more content rank first, so the most
+relevant are reviewed before thin ones. The table stays fully **sortable/filterable** by
+moderation status, the re-review flag, and the substance/facet fields, so a moderator can
+override the default order. Row click → read-only preview → accept/reject.
+- **Where the ordering runs**: the facet fields already exist on `catalog_scores`. The
+  richness rank can be computed either server-side (an `order_by` option on the privileged
+  search that ranks by a facet-derived score) or client-side in the Vue table when all
+  facet fields are present in the hit. Prefer server-side ordering for the default queue so
+  paging stays correct across large result sets; client-side sort covers ad-hoc overrides.
 - **Why reuse catalog search**: the requirement is explicitly "the same filters as the
   hub". One search surface, one set of filters, with the status filter as the BO-only
   extra. Avoids a parallel query surface.

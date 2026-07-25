@@ -54,27 +54,55 @@ row SHALL open the score for review.
 - **WHEN** a moderator selects a table row
 - **THEN** the score opens for review showing its current moderation status
 
-### Requirement: Review queue prioritizes pending and flagged scores
+### Requirement: Review queue prioritizes work by review priority
 
-The back office SHALL offer a default queue view that orders the work to do: unreviewed
-(`pending`) scores first, followed by `accepted` scores flagged for re-review by the app
-rating signal (when that signal is available). When the rating signal is absent, the
-queue SHALL still function on `pending` scores alone.
+The back office SHALL offer a default queue view that orders the work to do by a **review
+priority**. The queue SHALL surface **first** the scores most in need of attention:
+unreviewed (`pending`) scores and `accepted` scores flagged for re-review by the app
+rating signal (when that signal is available). Re-review-flagged scores MUST be reachable
+prominently — surfaced at the top of the queue and available as a dedicated filter — so a
+moderator can jump straight to them.
 
-#### Scenario: Pending scores lead the queue
+Within that work set, the default ordering SHALL further prioritize the **most
+substantial scores** — those with more musical content are presented first, so the most
+relevant scores are reviewed before thin or trivial ones. Substance SHALL be derived from
+the score's own musical facets (for example its length in measures, its staff count, and
+the presence of richer musical features such as chords, tuplets, and dotted rhythms);
+scores with more of these rank higher.
+
+The table SHALL let a moderator **sort and filter** by these dimensions (moderation
+status, re-review flag, and the substance/facet fields), so the default priority order can
+be overridden on demand. When the rating signal is absent, the queue SHALL still function
+on `pending` scores alone, ordered by substance.
+
+#### Scenario: Flagged and pending scores lead the queue
 
 - **WHEN** a moderator opens the queue view
-- **THEN** `pending` scores are presented as the primary work to review
+- **THEN** `pending` scores and re-review-flagged `accepted` scores are presented first as
+  the primary work to review
 
-#### Scenario: Flagged accepted scores appear for re-review
+#### Scenario: Re-review-flagged scores are reachable prominently
 
-- **WHEN** an `accepted` score has been flagged for re-review by ratings
-- **THEN** it appears in the queue for a moderator to re-evaluate
+- **WHEN** `accepted` scores have been flagged for re-review by ratings
+- **THEN** they appear at the top of the queue and can also be isolated with a dedicated
+  re-review filter
+
+#### Scenario: Richer scores are reviewed first
+
+- **WHEN** the queue lists several scores of the same review status
+- **THEN** scores with more musical content (more measures, more staves, richer features)
+  are ordered ahead of thinner ones
+
+#### Scenario: Moderator overrides the order by sorting/filtering
+
+- **WHEN** a moderator sorts or filters the table by status, the re-review flag, or a
+  substance/facet field
+- **THEN** the table reorders/narrows accordingly, overriding the default priority order
 
 #### Scenario: Queue works without the rating signal
 
 - **WHEN** the rating re-review signal is not yet available
-- **THEN** the queue still lists `pending` scores to review
+- **THEN** the queue still lists `pending` scores to review, ordered by substance
 
 ### Requirement: Read-only score preview in the back office
 
