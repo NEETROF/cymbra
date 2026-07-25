@@ -179,6 +179,8 @@
   "scoreHubApplyFilters": "Appliquer",
   "scoreHubResetAll": "Tout réinitialiser",
   "scoreHubResultsCount": "{count, plural, =0{Aucune partition} =1{1 partition} other{{count} partitions}}",
+  "playerScoreLoading": "Chargement de la partition…",
+  "playerScoreLoadError": "Impossible de charger cette partition :\n{error}",
   "libraryEmptyTitle": "Aucun favori pour l’instant",
   "libraryEmptyBody": "Enregistrez des partitions depuis le Hub ou importez les vôtres — elles apparaîtront ici.",
   "libraryEmptyAction": "Explorer le Hub",

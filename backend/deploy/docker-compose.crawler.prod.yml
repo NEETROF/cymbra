@@ -1,6 +1,13 @@
 # Score-crawler fan-out for the production box — PULLS published images (no source
 # checkout needed), joins the backend's private network to reach Postgres, and
-# writes the corpus under CRAWL_OUT (published later by sync-scores.sh).
+# writes the corpus DIRECTLY into the served corpus dir (SCORES_DIR), the same
+# path the server reads local-first. The crawler writes every .mxl before it
+# inserts its catalog_scores rows, so a row visible in the hub is already
+# servable — no deferred merge needed. sync-scores.sh then only MIRRORS SCORES_DIR
+# off-box to S3 (durability + the S3 read-fallback).
+#
+# NOTE: SCORES_DIR must be writable by the crawler container UID (the server owns
+# it as 1000:1000 — `sudo chown -R 1000:1000 $SCORES_DIR`).
 #
 # One-time: log in to GHCR (or reuse the deploy pull creds), then pull:
 #   docker login ghcr.io
@@ -11,7 +18,7 @@
 #   LIMIT=5 docker compose --env-file .env -f docker-compose.crawler.prod.yml up
 #   # full run (drop LIMIT); or one source: ... up mutopia
 #   docker compose --env-file .env -f docker-compose.crawler.prod.yml up
-# Then publish + back up the bytes:
+# Scores are already served locally after the run; mirror them off-box to S3:
 #   . /etc/cymbra/backup.env; ./sync-scores.sh
 #
 # openscore converts MuseScore .mscx via a sibling cymbra-musescore container, so
@@ -36,22 +43,22 @@ services:
   mutopia:
     <<: *crawler
     command: ["score-crawler --sources mutopia $${LIMIT:+--limit $$LIMIT}"]
-    volumes: ["${CRAWL_OUT:-/opt/cymbra/score-crawler/output}/mutopia:/work/output"]
+    volumes: ["${SCORES_DIR:-/var/lib/cymbra/scores}:/work/output"]
 
   musetrainer:
     <<: *crawler
     command: ["score-crawler --sources musetrainer $${LIMIT:+--limit $$LIMIT}"]
-    volumes: ["${CRAWL_OUT:-/opt/cymbra/score-crawler/output}/musetrainer:/work/output"]
+    volumes: ["${SCORES_DIR:-/var/lib/cymbra/scores}:/work/output"]
 
   eduardomourar:
     <<: *crawler
     command: ["score-crawler --sources eduardomourar $${LIMIT:+--limit $$LIMIT}"]
-    volumes: ["${CRAWL_OUT:-/opt/cymbra/score-crawler/output}/eduardomourar:/work/output"]
+    volumes: ["${SCORES_DIR:-/var/lib/cymbra/scores}:/work/output"]
 
   pdmx:
     <<: *crawler
     command: ["score-crawler --sources pdmx $${LIMIT:+--limit $$LIMIT}"]
-    volumes: ["${CRAWL_OUT:-/opt/cymbra/score-crawler/output}/pdmx:/work/output"]
+    volumes: ["${SCORES_DIR:-/var/lib/cymbra/scores}:/work/output"]
 
   openscore:
     <<: *crawler
@@ -62,7 +69,7 @@ services:
       CYMBRA_SCORE_MUSESCORE_IMAGE: ghcr.io/neetrof/cymbra-musescore:${CRAWLER_TAG:-latest}
       TMPDIR: ${SC_CONVTMP:-/tmp/cymbra-conv}
     volumes:
-      - "${CRAWL_OUT:-/opt/cymbra/score-crawler/output}/openscore:/work/output"
+      - "${SCORES_DIR:-/var/lib/cymbra/scores}:/work/output"
       - "/var/run/docker.sock:/var/run/docker.sock"
       - "${SC_CONVTMP:-/tmp/cymbra-conv}:${SC_CONVTMP:-/tmp/cymbra-conv}"
 

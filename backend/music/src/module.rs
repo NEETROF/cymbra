@@ -275,7 +275,7 @@ impl ScoreModule {
     /// conjunctively. The query/author are accent/case-folded here so they match
     /// the persisted normalised columns; `level` is validated against the fixed
     /// set; `limit` is clamped to the server maximum.
-    pub async fn search_catalog(&self, q: CatalogQuery) -> Result<Vec<CatalogHit>> {
+    pub async fn search_catalog(&self, q: CatalogQuery) -> Result<(Vec<CatalogHit>, i64)> {
         if let Some(l) = q.level.as_deref()
             && !LEVELS.contains(&l)
         {
@@ -738,7 +738,7 @@ mod tests {
     async fn search_catalog_normalises_and_composes_filters() {
         let (m, _cat, _lib) = catalog_module();
         // Accent-insensitive composer match across two works, title_norm ordered.
-        let hits = m
+        let (hits, _) = m
             .search_catalog(q("debussy", None, None, 50))
             .await
             .unwrap();
@@ -747,7 +747,7 @@ mod tests {
             [DEBUSSY_1, DEBUSSY_2]
         );
         // Author + difficulty compose conjunctively.
-        let hits = m
+        let (hits, _) = m
             .search_catalog(q("", Some("Debussy"), Some("advanced"), 50))
             .await
             .unwrap();
@@ -785,10 +785,10 @@ mod tests {
             Err(AppError::InvalidArgument(_))
         ));
         // A limit above the server max is clamped (3 rows exist, limit 999 → all).
-        let hits = m.search_catalog(q("", None, None, 999)).await.unwrap();
+        let (hits, _) = m.search_catalog(q("", None, None, 999)).await.unwrap();
         assert_eq!(hits.len(), 3);
         // A non-positive limit clamps up to 1.
-        let hits = m.search_catalog(q("", None, None, 0)).await.unwrap();
+        let (hits, _) = m.search_catalog(q("", None, None, 0)).await.unwrap();
         assert_eq!(hits.len(), 1);
     }
 
@@ -829,7 +829,7 @@ mod tests {
             limit: 50,
             ..Default::default()
         };
-        let hits = m.search_catalog(only_eighths).await.unwrap();
+        let (hits, _) = m.search_catalog(only_eighths).await.unwrap();
         assert_eq!(
             hits.iter().map(|h| h.id.as_str()).collect::<Vec<_>>(),
             [SATIE]
@@ -843,7 +843,7 @@ mod tests {
             limit: 50,
             ..Default::default()
         };
-        let hits = m.search_catalog(slow_narrow).await.unwrap();
+        let (hits, _) = m.search_catalog(slow_narrow).await.unwrap();
         assert_eq!(
             hits.iter().map(|h| h.id.as_str()).collect::<Vec<_>>(),
             [SATIE]

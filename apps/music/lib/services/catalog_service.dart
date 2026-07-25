@@ -67,12 +67,19 @@ class CatalogHit {
   });
 }
 
-/// One page of catalog search results plus the offset to fetch the next page.
+/// One page of catalog search results plus the offset to fetch the next page and
+/// the total number of catalog scores matching the query+filters on the server
+/// (independent of this page), so the hub can show the full match count.
 class CatalogSearchPage {
   final List<CatalogHit> hits;
   final int nextOffset;
+  final int total;
 
-  const CatalogSearchPage({required this.hits, required this.nextOffset});
+  const CatalogSearchPage({
+    required this.hits,
+    required this.nextOffset,
+    required this.total,
+  });
 }
 
 /// Seam over the backend `ScoreService`'s Score Hub surface — public-catalog
@@ -225,6 +232,7 @@ class GrpcCatalogService implements CatalogService {
     return CatalogSearchPage(
       hits: resp.hits.map(_toHit).toList(),
       nextOffset: resp.nextOffset,
+      total: resp.total,
     );
   });
 

@@ -179,6 +179,8 @@
   "scoreHubApplyFilters": "Applica",
   "scoreHubResetAll": "Reimposta tutto",
   "scoreHubResultsCount": "{count, plural, =0{Nessuna partitura} =1{1 partitura} other{{count} partiture}}",
+  "playerScoreLoading": "Caricamento partitura…",
+  "playerScoreLoadError": "Impossibile caricare questa partitura:\n{error}",
   "libraryEmptyTitle": "Nessun preferito",
   "libraryEmptyBody": "Salva partiture dal catalogo o carica le tue: appariranno qui.",
   "libraryEmptyAction": "Esplora il catalogo",

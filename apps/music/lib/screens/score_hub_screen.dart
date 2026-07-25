@@ -142,7 +142,7 @@ class _SearchBar extends StatelessWidget {
               const Spacer(),
               if (!state.loading)
                 Text(
-                  l10n.scoreHubResultsCount(state.entries.length),
+                  l10n.scoreHubResultsCount(state.displayCount),
                   style: const TextStyle(
                     color: CymbraColors.onSurfaceVariant,
                     fontSize: 13,

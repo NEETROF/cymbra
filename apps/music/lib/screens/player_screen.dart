@@ -32,6 +32,7 @@ import '../state/app_language.dart';
 import '../state/app_locale.dart';
 import '../state/notation_data.dart';
 import '../state/notation_notifier.dart';
+import '../state/score_catalog.dart';
 import '../state/performance_scoring.dart';
 import '../state/player_data.dart';
 import '../state/player_notifier.dart';
@@ -275,6 +276,12 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                     child: Consumer(
                       builder: (context, ref, child) {
                         final data = ref.watch(playerProvider);
+                        // Load state of the selected score, surfaced in every
+                        // render mode (not just Partition): a fetch in flight
+                        // shows a spinner, a failure shows an error banner.
+                        final notation = ref.watch(notationProvider);
+                        final hasSelection =
+                            ref.watch(selectedScoreProvider) != null;
                         return LayoutBuilder(
                           builder: (context, constraints) {
                             final bounds = data.keyboardBounds;
@@ -304,6 +311,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                                     child: _buildRenderArea(
                                       layout,
                                       data,
+                                      notation,
+                                      hasSelection: hasSelection,
                                       isPhone: context.isPhoneLayout,
                                     ),
                                   ),
@@ -387,7 +396,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
 
   Widget _buildRenderArea(
     PianoLayout layout,
-    PlayerData data, {
+    PlayerData data,
+    NotationData notation, {
+    required bool hasSelection,
     required bool isPhone,
   }) {
     // The engraved two-stave Partition view needs vertical room the short phone
@@ -415,6 +426,12 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
           // Synthesia always shows the keyboard, so effects are always anchored.
           Positioned.fill(child: ScoringOverlay(layout: layout)),
           if (data.blocked) const _WaitOverlay(),
+          Positioned.fill(
+            child: _ScoreLoadOverlay(
+              notation: notation,
+              hasSelection: hasSelection,
+            ),
+          ),
         ],
       );
     }
@@ -449,8 +466,60 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
             showEffects: data.keyboardVisible,
           ),
         ),
+        Positioned.fill(
+          child: _ScoreLoadOverlay(
+            notation: notation,
+            hasSelection: hasSelection,
+          ),
+        ),
       ],
     );
+  }
+}
+
+/// Loading / error feedback for the selected score, overlaid on the time-based
+/// render modes (Synthesia, Staff) which otherwise paint a silent blank surface
+/// while a fetch is in flight or after it fails. A load in progress shows a
+/// spinner; a failure shows an error banner; anything else (no selection, or a
+/// loaded document) renders nothing so the painter shows through.
+class _ScoreLoadOverlay extends StatelessWidget {
+  const _ScoreLoadOverlay({required this.notation, required this.hasSelection});
+
+  final NotationData notation;
+  final bool hasSelection;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    if (notation.error != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text(
+            l10n.playerScoreLoadError(notation.error!),
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: CymbraColors.error),
+          ),
+        ),
+      );
+    }
+    // A selected score with neither a document nor an error yet is still loading.
+    if (hasSelection && !notation.hasDocument) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const CircularProgressIndicator(),
+            const SizedBox(height: 12),
+            Text(
+              l10n.playerScoreLoading,
+              style: const TextStyle(color: CymbraColors.onSurfaceVariant),
+            ),
+          ],
+        ),
+      );
+    }
+    return const SizedBox.shrink();
   }
 }
 

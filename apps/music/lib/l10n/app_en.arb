@@ -412,6 +412,12 @@
   "scoreHubResultsCount": "{count, plural, =0{No scores} =1{1 score} other{{count} scores}}",
   "@scoreHubResultsCount": { "description": "Result count shown under the title.", "placeholders": { "count": { "type": "int" } } },
 
+  "playerScoreLoading": "Loading score…",
+  "@playerScoreLoading": { "description": "Shown in the player while the selected score's bytes are being fetched and parsed." },
+
+  "playerScoreLoadError": "Could not load this score:\n{error}",
+  "@playerScoreLoadError": { "description": "Shown in the player when the selected score fails to load.", "placeholders": { "error": { "type": "String" } } },
+
   "libraryEmptyTitle": "No favorites yet",
   "@libraryEmptyTitle": { "description": "Home empty-state title when the user has no favorite scores." },
 

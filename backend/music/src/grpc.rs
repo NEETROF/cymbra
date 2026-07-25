@@ -202,11 +202,12 @@ impl ScoreService for ScoreGrpc {
             limit: r.limit as i64,
             offset: r.offset as i64,
         };
-        let hits = self.module.search_catalog(query).await?;
+        let (hits, total) = self.module.search_catalog(query).await?;
         let next_offset = offset.max(0) + hits.len() as i32;
         Ok(Response::new(SearchCatalogResponse {
             hits: hits.into_iter().map(to_hit).collect(),
             next_offset,
+            total: total.clamp(0, i32::MAX as i64) as i32,
         }))
     }
 
@@ -351,6 +352,7 @@ mod tests {
         let ids: Vec<&str> = resp.hits.iter().map(|h| h.id.as_str()).collect();
         assert_eq!(ids, [DEBUSSY]);
         assert_eq!(resp.next_offset, 1);
+        assert_eq!(resp.total, 1); // full match count for the filter, on the response
         assert_eq!(resp.hits[0].license, "CC-BY-4.0");
     }
 

@@ -43,7 +43,11 @@ class _FakeCatalog implements CatalogService {
   }) async {
     lastMaxNoteValue = filters.maxNoteValue;
     final page = rows.skip(offset).take(limit).toList();
-    return CatalogSearchPage(hits: page, nextOffset: offset + page.length);
+    return CatalogSearchPage(
+      hits: page,
+      nextOffset: offset + page.length,
+      total: rows.length,
+    );
   }
 
   @override
@@ -271,6 +275,22 @@ void main() {
       await tester.pump(const Duration(milliseconds: 40));
     }
     expect(catalog.lastMaxNoteValue, 8);
+    await _teardown(tester, c);
+  });
+
+  testWidgets('result count shows the server total, not the loaded page', (
+    tester,
+  ) async {
+    // 25 rows match but the first page loads only 20 (the page size): the count
+    // label must read the server total (25), not the number loaded in memory.
+    final catalog = _FakeCatalog([
+      for (var i = 0; i < 25; i++) _hit('c$i', 'Score $i'),
+    ]);
+    final c = _container(catalog);
+    await _pump(tester, c);
+
+    expect(find.text('25 scores'), findsOneWidget);
+    expect(find.text('20 scores'), findsNothing);
     await _teardown(tester, c);
   });
 }
