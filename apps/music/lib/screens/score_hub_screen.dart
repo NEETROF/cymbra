@@ -22,7 +22,7 @@ import '../state/contributed_scores.dart';
 import '../state/score_catalog.dart';
 import '../theme/cymbra_theme.dart';
 import '../widgets/score_card.dart';
-import 'player_screen.dart';
+import 'open_score.dart';
 import 'score_upload_screen.dart';
 
 /// The Score Hub: a card grid over the public catalog with a search bar, a "mes
@@ -299,12 +299,7 @@ class _HubCard extends ConsumerWidget {
     final l10n = AppLocalizations.of(context);
     return ScoreCard(
       entry: entry,
-      onTap: () {
-        ref.read(selectedScoreProvider.notifier).select(entry);
-        Navigator.of(
-          context,
-        ).push(MaterialPageRoute<void>(builder: (_) => const PlayerScreen()));
-      },
+      onTap: () => openScore(context, ref, entry),
       action: _action(context, ref, l10n),
     );
   }

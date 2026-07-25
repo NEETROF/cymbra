@@ -154,7 +154,10 @@ class Player extends _$Player {
   Future<void> _loadInitial() async {
     final notation = ref.read(notationProvider);
     if (notation.document != null) {
-      _applyNotation(notation);
+      // The score was pre-loaded before this screen mounted (the hub/library
+      // guard). `build()` has not returned yet, so `state` is not initialized —
+      // defer the apply to a microtask so it runs after build returns.
+      Future.microtask(() => _applyNotation(notation));
     } else if (ref.read(selectedScoreProvider) == null) {
       await _loadDemo();
     }

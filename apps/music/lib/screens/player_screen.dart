@@ -496,7 +496,7 @@ class _ScoreLoadOverlay extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Text(
-            l10n.playerScoreLoadError(notation.error!),
+            l10n.playerScoreLoadError,
             textAlign: TextAlign.center,
             style: const TextStyle(color: CymbraColors.error),
           ),
@@ -1586,7 +1586,7 @@ class _PartitionViewState extends ConsumerState<_PartitionView> {
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Text(
-            'Could not load this score:\n${notation.error}',
+            AppLocalizations.of(context).playerScoreLoadError,
             textAlign: TextAlign.center,
             style: const TextStyle(color: CymbraColors.error),
           ),

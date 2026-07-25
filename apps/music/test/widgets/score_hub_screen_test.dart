@@ -26,8 +26,11 @@ import 'package:music/state/session_notifier.dart';
 import '../support/localized.dart';
 
 class _FakeCatalog implements CatalogService {
-  _FakeCatalog(this.rows);
+  _FakeCatalog(this.rows, {this.throwOnFetch = false});
   final List<CatalogHit> rows;
+
+  /// When true, [fetchBytes] throws — exercises the hub's pre-flight guard.
+  final bool throwOnFetch;
   final Set<String> saved = {};
   final List<String> saveCalls = [];
   int? lastMaxNoteValue;
@@ -64,7 +67,10 @@ class _FakeCatalog implements CatalogService {
       rows.where((h) => saved.contains(h.id)).toList();
 
   @override
-  Future<Uint8List> fetchBytes(String catalogId) async => Uint8List(0);
+  Future<Uint8List> fetchBytes(String catalogId) async {
+    if (throwOnFetch) throw StateError('boom');
+    return Uint8List(0);
+  }
 }
 
 class _FakeUpload implements ScoreUploadService {
@@ -291,6 +297,32 @@ void main() {
 
     expect(find.text('25 scores'), findsOneWidget);
     expect(find.text('20 scores'), findsNothing);
+    await _teardown(tester, c);
+  });
+
+  testWidgets('tapping a score that fails to load shows a snackbar, no player', (
+    tester,
+  ) async {
+    // Pre-flight guard: the score can't be fetched, so the player is never
+    // opened — the user stays on the hub and gets a localized snackbar (never a
+    // raw error).
+    final catalog = _FakeCatalog([
+      _hit('c1', 'Clair de Lune'),
+    ], throwOnFetch: true);
+    final c = _container(catalog);
+    await _pump(tester, c);
+
+    await tester.tap(find.text('Clair de Lune'));
+    await tester.pump(); // show the progress dialog
+    await tester.pump(); // pre-flight load resolves (fetch throws)
+    await tester.pump(const Duration(milliseconds: 400)); // dialog out, snackbar in
+
+    expect(find.text('Could not load this score.'), findsOneWidget);
+    expect(find.textContaining('boom'), findsNothing); // no raw error leaked
+    // Still on the hub — the player was not pushed.
+    expect(find.text('Clair de Lune'), findsOneWidget);
+
+    await tester.pump(const Duration(seconds: 5)); // let the snackbar auto-dismiss
     await _teardown(tester, c);
   });
 }

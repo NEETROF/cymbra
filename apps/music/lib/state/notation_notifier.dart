@@ -12,8 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'dart:typed_data';
-
+import 'package:flutter/foundation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../services/catalog_service.dart';
@@ -38,6 +37,11 @@ class Notation extends _$Notation {
 
   /// Minimum width change (px) that triggers a re-layout, to avoid thrashing.
   static const double _relayoutThreshold = 8;
+
+  /// Non-user-facing sentinel stored in [NotationData.error] on a load failure.
+  /// It marks the error state as a flag only — the UI renders a localized
+  /// message, never this string (the technical cause goes to the logs).
+  static const String _loadFailed = 'load-failed';
 
   @override
   NotationData build() {
@@ -85,7 +89,12 @@ class Notation extends _$Notation {
       );
     } catch (e) {
       if (ref.read(selectedScoreProvider) != entry) return;
-      state = NotationData(error: e.toString(), availableWidth: width);
+      // Keep the technical cause in the logs only — the UI shows a localized
+      // message, never the raw exception/gRPC text.
+      debugPrint('Notation load failed for ${entry.id}: $e');
+      state = const NotationData(error: _loadFailed).copyWith(
+        availableWidth: width,
+      );
     }
   }
 

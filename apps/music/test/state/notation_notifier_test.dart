@@ -79,7 +79,10 @@ void main() {
     container.read(selectedScoreProvider.notifier).select(firstEntry());
     await _flush();
 
-    expect(read().error, contains('bad xml'));
+    // The error is set as a flag; the raw exception text is logged, not stored
+    // for display (the UI shows a localized message).
+    expect(read().error, isNotNull);
+    expect(read().error, isNot(contains('bad xml')));
     expect(read().document, isNull);
     expect(read().hasDocument, isFalse);
   });

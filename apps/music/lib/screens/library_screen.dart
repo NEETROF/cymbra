@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -27,7 +29,7 @@ import '../theme/cymbra_theme.dart';
 import '../widgets/language_selector.dart';
 import '../widgets/score_card.dart';
 import 'auth/account_menu.dart';
-import 'player_screen.dart';
+import 'open_score.dart';
 import 'score_hub_screen.dart';
 
 /// Localized name for a [PracticeLevel] section header.
@@ -91,10 +93,7 @@ class LibraryScreen extends ConsumerWidget {
   }
 
   static void _open(BuildContext context, WidgetRef ref, CatalogEntry entry) {
-    ref.read(selectedScoreProvider.notifier).select(entry);
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute<void>(builder: (_) => const PlayerScreen()));
+    unawaited(openScore(context, ref, entry));
   }
 
   static void _openHub(BuildContext context) => Navigator.of(

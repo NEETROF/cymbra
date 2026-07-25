@@ -415,8 +415,8 @@
   "playerScoreLoading": "Loading score…",
   "@playerScoreLoading": { "description": "Shown in the player while the selected score's bytes are being fetched and parsed." },
 
-  "playerScoreLoadError": "Could not load this score:\n{error}",
-  "@playerScoreLoadError": { "description": "Shown in the player when the selected score fails to load.", "placeholders": { "error": { "type": "String" } } },
+  "playerScoreLoadError": "Could not load this score.",
+  "@playerScoreLoadError": { "description": "Shown when the selected score fails to load (snackbar on the hub, or banner in the player). No technical detail is surfaced to the user." },
 
   "libraryEmptyTitle": "No favorites yet",
   "@libraryEmptyTitle": { "description": "Home empty-state title when the user has no favorite scores." },
