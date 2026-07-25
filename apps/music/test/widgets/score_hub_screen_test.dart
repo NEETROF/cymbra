@@ -318,14 +318,18 @@ void main() {
     await tester.tap(find.text('Clair de Lune'));
     await tester.pump(); // show the progress dialog
     await tester.pump(); // pre-flight load resolves (fetch throws)
-    await tester.pump(const Duration(milliseconds: 400)); // dialog out, snackbar in
+    await tester.pump(
+      const Duration(milliseconds: 400),
+    ); // dialog out, snackbar in
 
     expect(find.text('Could not load this score.'), findsOneWidget);
     expect(find.textContaining('boom'), findsNothing); // no raw error leaked
     // Still on the hub — the player was not pushed.
     expect(find.text('Clair de Lune'), findsOneWidget);
 
-    await tester.pump(const Duration(seconds: 5)); // let the snackbar auto-dismiss
+    await tester.pump(
+      const Duration(seconds: 5),
+    ); // let the snackbar auto-dismiss
     await _teardown(tester, c);
   });
 

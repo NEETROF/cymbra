@@ -70,9 +70,7 @@ Future<void> openScore(
 
   if (loaded) {
     navigator
-        .push(
-          MaterialPageRoute<void>(builder: (_) => const PlayerScreen()),
-        )
+        .push(MaterialPageRoute<void>(builder: (_) => const PlayerScreen()))
         .whenComplete(sub.close);
   } else {
     // Surface the specific (but localized) cause — missing, not-ready, offline…
