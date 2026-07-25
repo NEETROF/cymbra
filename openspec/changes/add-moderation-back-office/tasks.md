@@ -12,7 +12,7 @@
 - [ ] 2.3 Add `GrantRole`/`RevokeRole(user_id, scope, role)` RPCs guarded by `require_admin`; granting `admin` requires the caller be `admin`; idempotent grant.
 - [ ] 2.5 Add a `role_grants` audit table migration (target user, scope, role, action grant/revoke, acting admin, timestamp; append-only) and write to it on every grant/revoke.
 - [ ] 2.4 Consume #2's `needs_review` flag (if present) to build the queue ordering; degrade gracefully when absent.
-- [ ] 2.6 Add a `sort` field to the privileged catalog search (back office), validated against an allow-list of sortable fields: `review_priority` (re-review-flagged/`pending` first, then substance from `measure_count`, `staff_count`, chords/tuplets/dotted) plus the individual substance/facet fields. Apply the sort server-side so it is correct across the whole paginated result set; reject an unknown `sort` value.
+- [ ] 2.6 Add an optional structured `sort` to the search proto: a repeated `{ field, direction }` list (ordered = multi-key). Validate each `field` against an allow-list (substance/facet columns + moderation-oriented keys `status_rank`, `needs_review`); reject unknown fields. Gate moderation-oriented keys to `require_moderator_or_admin`. Apply server-side across the whole paginated set. **When `sort` is empty, preserve the current default ordering unchanged so the app hub is unaffected** (add a regression test asserting the hub's order without `sort` is identical).
 
 ## 3. Browser transport (backend)
 
@@ -25,7 +25,7 @@
 - [ ] 4.1 Scaffold a Vue 3 + Vite SPA (client-rendered, no SSR) as a new package/repo for `bo.cymbra.app`; wire Cymbra OIDC sign-in and a gRPC-web client generated from the protos.
 - [ ] 4.2 Gate the app to `moderator`/`admin`: access-denied state for signed-in non-moderators; sign-in prompt when unauthenticated.
 - [ ] 4.3 Build the catalog table: reuse the app hub filters (text/author/level/facets) + the BO-only moderation-status filter; show status per row.
-- [ ] 4.4 Build the queue view: send `sort=review_priority` by default on every page request; a dedicated re-review filter; clicking a sortable column (status, re-review flag, substance/facet fields) changes the `sort` value sent to the API and re-queries from page 1 (no client-side sort). Keep the same `sort` across page changes.
+- [ ] 4.4 Build the queue view: send the default review-priority `sort` list (e.g. `[{needs_review,desc},{status_rank,desc},{measure_count,desc},{staff_count,desc}]`) on every page request; a dedicated re-review filter; clicking a sortable column rebuilds the `sort` list sent to the API and re-queries from page 1 (no client-side sort). Keep the same `sort` across page changes.
 - [ ] 4.5 Row detail: read-only preview rendering the score via the app's Rust notation/render engine compiled to **wasm** (fetch bytes → wasm render), so it matches the app; Accept/Reject actions calling `SetModerationStatus`; show reviewer/time after action.
 - [ ] 4.6 Admin-only role management UI calling `GrantRole`/`RevokeRole`; surface the `role_grants` audit history.
 - [ ] 4.7 Deploy config for `bo.cymbra.app` (reuse the marketing-site/Cloudflare Pages pattern).

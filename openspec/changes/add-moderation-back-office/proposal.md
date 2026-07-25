@@ -48,6 +48,9 @@ revisit if history is needed).
 - `backend-service`: the gRPC foundation additionally exposes a browser-reachable
   gRPC-web endpoint with CORS restricted to the back-office origin, without introducing a
   REST API.
+- `catalog-search`: the search gains an optional structured `sort` (an ordered list of
+  `{field, direction}` keys, allow-listed) applied server-side; moderation-oriented sort
+  keys are privileged; when no sort is supplied the existing hub ordering is unchanged.
 
 ## Impact
 

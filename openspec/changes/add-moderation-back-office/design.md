@@ -89,17 +89,22 @@ complexity facets chords/tuplets/dotted): scores with more content rank first, s
 relevant are reviewed before thin ones. The table stays fully **sortable/filterable** by
 moderation status, the re-review flag, and the substance/facet fields, so a moderator can
 override the default order. Row click → read-only preview → accept/reject.
-- **How the ordering runs — a `sort` field on the privileged search, always applied
-  server-side.** The search gains a `sort` parameter and the back office passes it on
-  **every (paginated) request**: the queue view sends a hardcoded default
-  (`sort = review_priority`); clicking a column changes the value the BO sends (e.g.
-  `measure_count_desc`) and re-queries from page 1; paging keeps sending the same `sort`
-  so order stays consistent across pages. Because all sorting is server-side, it is correct
-  across the whole result set (not just the current page), so **no client-side sort is
-  needed**. The server validates `sort` against an **allow-list** of sortable fields
-  (review priority + the substance/facet fields); an unknown value is rejected. The facet
-  fields already exist on `catalog_scores`, so `review_priority` is a facet-derived ranking
-  (flagged/`pending` first, then substance).
+- **How the ordering runs — an optional structured `sort` on the search, always applied
+  server-side.** The search gains a `sort` argument that is an **ordered list of
+  `{field, direction}` keys** (not an opaque string the backend must re-parse): the first
+  key is primary, the rest break ties. The back office passes it on **every (paginated)
+  request**: the queue view sends a hardcoded default list (its "review priority" ordering,
+  e.g. `[{needs_review, desc}, {status_rank, desc}, {measure_count, desc}, {staff_count,
+  desc}]`); clicking a column changes the list the BO sends and re-queries from page 1;
+  paging keeps sending the same list so order stays consistent. All sorting is server-side,
+  so it is correct across the whole result set (not just the current page) — **no
+  client-side sort is needed**. Each `field` is validated against an **allow-list** of
+  sortable keys (the substance/facet columns plus the moderation-oriented keys); an unknown
+  field is rejected.
+- **App hub is not impacted.** `sort` is **optional**; the Flutter app sends none, so the
+  hub keeps its existing default ordering unchanged. Moderation-oriented sort keys (status,
+  re-review flag) are privileged (moderator/admin only), like the status filter; the app
+  could never use them anyway.
 - **Why reuse catalog search**: the requirement is explicitly "the same filters as the
   hub". One search surface, one set of filters, with the status filter as the BO-only
   extra. Avoids a parallel query surface.
