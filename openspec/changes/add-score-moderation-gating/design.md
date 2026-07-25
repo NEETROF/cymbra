@@ -136,8 +136,11 @@ recompiling against the model.
    Because the app sends no new field, rolling back the server alone restores prior
    behavior (all rows visible) without a client release.
 
-## Open Questions
+## Resolved Questions
 
-- **User uploads**: should `music.user_scores` shown in the hub also be gated later, or
-  do owner-visible uploads stay always-visible to their owner? Assumed out of scope
-  here (catalog only); revisit if user uploads become publicly browsable.
+- **User uploads — out of scope (decided).** `music.user_scores` are owner-private: a
+  user's uploads are visible only to their owner (via `myContributedScoresProvider`),
+  not publicly browsable by others, so there is nothing to moderate for public
+  visibility. Moderation applies to the **public catalog only**. If publicly-browsable
+  user uploads ever become a feature, they get their own gating at that point — not
+  here.

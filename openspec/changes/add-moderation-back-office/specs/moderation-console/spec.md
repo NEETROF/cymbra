@@ -80,8 +80,9 @@ queue SHALL still function on `pending` scores alone.
 
 Before deciding, a moderator SHALL be able to preview the selected score — its metadata
 and its notation — in a **read-only** view, using score bytes served by the backend
-(moderators may fetch bytes of non-`accepted` scores). The preview MUST NOT allow editing
-the score.
+(moderators may fetch bytes of non-`accepted` scores). The notation SHALL be rendered
+faithfully to how the app renders it, so the moderator judges the score as users will
+see it. The preview MUST NOT allow editing the score.
 
 #### Scenario: Moderator previews before deciding
 

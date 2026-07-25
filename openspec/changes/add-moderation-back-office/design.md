@@ -87,9 +87,12 @@ embedded view) → accept/reject.
 - **Why reuse catalog search**: the requirement is explicitly "the same filters as the
   hub". One search surface, one set of filters, with the status filter as the BO-only
   extra. Avoids a parallel query surface.
-- **Preview in the browser**: the console fetches score bytes (moderators may fetch
-  non-`accepted`, D4) and renders MusicXML in a web view. Exact renderer (e.g. a JS music
-  notation lib) is a console-local choice; out of scope for the backend.
+- **Preview in the browser (decided: reuse the Rust engine via wasm)**: the console
+  fetches score bytes (moderators may fetch non-`accepted`, D4) and renders them with the
+  **same Rust notation/render engine as the app, compiled to WebAssembly**, so the
+  moderator sees the score exactly as it will look in the app rather than an approximation.
+  This costs a wasm build/integration of the render engine (see Risks) but removes any
+  "looked fine in the JS renderer, wrong in the app" divergence. The render is read-only.
 
 ### D6 — Role granting + first-admin bootstrap
 `GrantRole(user, scope, role)` / `RevokeRole(...)` RPCs, guarded by `require_admin`,
@@ -99,6 +102,16 @@ access (a small `backend/scripts` command or SQL, consistent with today's "admin
 DB"), breaking the chicken-and-egg. After that, admins self-serve from the console.
 - **Why ops-seed first admin**: there is no trusted in-app path to mint the very first
   admin; an operator with DB access is the root of trust, as today.
+
+### D7 — Role grants are audited in a dedicated table
+Every grant/revoke SHALL append a row to a `role_grants` audit table recording the target
+account, scope, role, action (grant/revoke), the acting admin, and the time. The current
+authorization state stays in `user_roles`; `role_grants` is an append-only history.
+- **Why a table, not just logs**: parallels the score-rejection traceability the
+  stakeholder explicitly wanted — "who gave whom which powers, when" is a security-
+  relevant question that should be queryable and durable, not only grep-able in logs.
+- **Alternative**: application logs only. Rejected — not durable or queryable enough for
+  an access-control audit.
 
 ## Risks / Trade-offs
 
@@ -111,9 +124,16 @@ DB"), breaking the chicken-and-egg. After that, admins self-serve from the conso
   mitigated by short-lived access tokens, role gating per method, and the BO's own OIDC
   client. Revisit a dedicated audience if isolation becomes a requirement.
 - **Privilege escalation via GrantRole** → only `require_admin` may grant; granting
-  `admin` requires being an `admin`; log all grants. Consider a grant audit table later.
+  `admin` requires being an `admin`; every grant/revoke is recorded in the `role_grants`
+  audit table (D7) for durable traceability.
 - **New web app maintenance** → a Vue SPA is new surface; keep it thin (table + preview +
   two actions) and reuse the marketing-site deploy pattern (Cloudflare Pages).
+- **Rust-render wasm effort/size** (D5) → compiling the notation/render engine to wasm is
+  non-trivial (build wiring, bundle size, MusicXML-in/render-out API surface for the web).
+  Mitigation: expose a minimal "bytes → rendered read-only view" wasm entry point reused
+  from the app's render core (`musicxml_core`/notation), lazy-load the wasm in the console,
+  and treat the renderer as an isolated module so a fallback (a JS renderer) stays possible
+  if the wasm cost proves too high in practice.
 
 ## Migration Plan
 
@@ -125,12 +145,14 @@ DB"), breaking the chicken-and-egg. After that, admins self-serve from the conso
 4. **Rollback**: remove the web app + RPCs + CORS/gRPC-web layer; roles in `user_roles`
    are harmless if unused. The app never depended on any of it.
 
-## Open Questions
+## Resolved Questions
 
-- **Vue vs. alternative** — the stakeholder flagged "VueJS à challenger". Vue 3 + Vite SPA
-  is the default here; a lighter option (e.g. a small Preact/vanilla + gRPC-web) could be
-  weighed at implementation. Decide before scaffolding the web app.
-- **Preview renderer in the browser** — which MusicXML/notation renderer the console uses
-  (and whether to reuse any Rust/wasm rendering) is undecided; backend only serves bytes.
-- **Grant audit** — do we need a `role_grants` audit trail now, or is logging enough?
-  Assumed logging for v1.
+- **Web stack (decided): Vue 3 + Vite SPA.** Client-rendered, no SSR, deployed like the
+  marketing site. Chosen over a lighter Preact/vanilla stack: for a thin internal tool used
+  by a handful of moderators, Vue's ecosystem/DX outweighs the marginal bundle savings.
+- **Preview renderer (decided): reuse the Rust engine via wasm.** The console renders
+  scores with the app's own notation/render core compiled to WebAssembly, so the moderator
+  sees exactly the app's rendering (no divergence). Accepts the wasm build cost (see Risks);
+  kept as an isolated module so a JS-renderer fallback remains possible.
+- **Grant audit (decided): dedicated `role_grants` table.** Every grant/revoke is recorded
+  durably and queryably (D7), matching the score-rejection traceability requirement.

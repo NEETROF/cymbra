@@ -3,7 +3,7 @@
 ### Requirement: Submit and update a score rating
 
 The backend SHALL expose an authenticated operation for a signed-in user to rate an
-`accepted` catalog score, carrying a swipe verdict (`pass` / `like` / `love`) and an
+`accepted` catalog score, carrying a swipe verdict (`dislike` / `like` / `love`) and an
 optional 1–5 star value. There SHALL be **at most one rating per user per score**:
 re-rating the same score SHALL update (upsert) the existing rating rather than create a
 duplicate. Rating a score that is not `accepted`, or that does not exist, MUST be
@@ -36,7 +36,8 @@ The system SHALL derive, per catalog score, an aggregate of its ratings: an aver
 effective value on a single comparable scale and the number of ratings, plus a
 breakdown of verdicts. When a rating has an explicit star value, that value SHALL feed
 the average; when it has only a swipe verdict, the verdict's implied value SHALL be
-used. The aggregate SHALL update as ratings are added or changed and SHALL be readable
+used, where a `dislike` contributes a low value (pulling the average down), `like` a
+mid-high value, and `love` the maximum. The aggregate SHALL update as ratings are added or changed and SHALL be readable
 for hub ranking/recommendation.
 
 #### Scenario: Aggregate reflects ratings

@@ -72,6 +72,30 @@ idempotent (granting an already-held role is a no-op success).
 - **WHEN** a non-admin attempts to grant the `admin` role
 - **THEN** the request is rejected and no role is granted
 
+### Requirement: Role grants are audited
+
+Every role grant and revocation SHALL be recorded in a durable, append-only audit trail
+capturing at least the target account, the scope and role, whether it was a grant or a
+revoke, the administrator who performed it, and when. The audit trail SHALL be queryable
+so it can answer "who granted whom which role, and when" — mirroring the traceability
+required for score rejections. The current authorization state remains in the roles
+store; the audit trail is history and is never the source of truth for access decisions.
+
+#### Scenario: Granting records an audit entry
+
+- **WHEN** an admin grants a role to an account
+- **THEN** an audit entry records the target, scope, role, action, the acting admin, and the time
+
+#### Scenario: Revoking records an audit entry
+
+- **WHEN** an admin revokes a role from an account
+- **THEN** a corresponding audit entry is recorded
+
+#### Scenario: Audit trail is queryable
+
+- **WHEN** an administrator reviews who was granted or revoked which roles
+- **THEN** the audit trail can be queried to answer it, independent of the current role state
+
 ### Requirement: First administrator is bootstrapped out-of-band
 
 Because there is no in-app path to mint the very first administrator, the system SHALL

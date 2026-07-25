@@ -30,21 +30,27 @@ engine exists (horizontal game score). Backend is gRPC-only (tonic).
 
 ### D1 — One rating row per (user, score), swipe + stars unified
 Table `music.score_ratings (user_id, catalog_score_id, verdict, stars, updated_at,
-PRIMARY KEY (user_id, catalog_score_id))`. `verdict` ∈ `pass|like|love` (the swipe);
-`stars` ∈ 1..5 nullable. Re-rating **upserts** the row (`ON CONFLICT ... DO UPDATE`).
+PRIMARY KEY (user_id, catalog_score_id))`. `verdict` ∈ `dislike|like|love` (the swipe:
+**left = dislike**, **right = like**, **up = love**); `stars` ∈ 1..5 nullable. Re-rating
+**upserts** the row (`ON CONFLICT ... DO UPDATE`).
 - **Why unify**: swipe and stars are two granularities of the same "how much do you
   like this" signal. Storing both on one row avoids double-counting and lets the UI
-  map a swipe to an implied star band (e.g. love≈5, like≈4, pass≈no-star/low) or keep
+  map a swipe to an implied star band (e.g. love≈5, like≈4, dislike≈1–2) or keep
   them independent — resolved in D2.
+- **Skip without judging**: because `left = dislike` is a negative verdict (Tinder-style
+  "nope"), a separate, non-recording **Skip** control lets a user advance a card they
+  don't want to judge without writing any rating.
 - **Alternative**: an append-only ratings event log. Rejected for #2 — a single
   current rating per user is enough for the aggregate; an event log can be added later
   if we need history/anti-gaming analytics.
 
 ### D2 — Swipe ↔ stars mapping
 A swipe records a `verdict` and a coarse implied score; opening the card and setting
-stars records an explicit `stars` and a derived `verdict` (5→love, 3–4→like, 1–2→pass)
+stars records an explicit `stars` and a derived `verdict` (5→love, 3–4→like, 1–2→dislike)
 so the two never conflict. The aggregate (D3) is computed from an effective numeric
-value per rating: explicit `stars` when present, else the verdict's implied value.
+value per rating on the 1–5 scale: explicit `stars` when present, else the verdict's
+implied value (dislike≈1.5, like≈3.5, love≈5). A `dislike` therefore pulls the aggregate
+down — that is the negative signal the re-review flag (D4) needs.
 - **Why**: keeps a single comparable scale for ranking while letting users act fast
   (swipe) or precisely (stars).
 
@@ -59,8 +65,9 @@ if the hub needs to sort by it cheaply.
 
 ### D4 — Hybrid re-review flag, not a status change
 When a validated score reaches `rating_count ≥ N` and `avg_effective ≤ T` (tunable
-constants), the backend marks it **eligible for re-review** — a boolean/`needs_review`
-signal (a column or a derived query) consumed by #3's queue. It **never** sets
+config constants; **defaults N = 5 ratings, T = 2.0 on the 1–5 scale**), the backend
+marks it **eligible for re-review** — a boolean/`needs_review` signal (a column or a
+derived query) consumed by #3's queue. It **never** sets
 `moderation_status`; a moderator re-opens and decides. Symmetrically, strong positive
 ratings can raise a score's rank but never auto-accept anything (nothing is auto-set).
 - **Why**: preserves #1's invariant that only a human validates, while making ratings
@@ -110,13 +117,14 @@ Evaluate a maintained Flutter card-swiper (license + upkeep) vs. a custom
 4. **Rollback**: the deck is additive UI; removing the screen and RPC leaves scores
    untouched. Dropping `score_ratings` loses only rating data.
 
-## Open Questions
+## Resolved Questions
 
-- **Do ratings apply only to `accepted` scores?** Assumed yes (per #1 visibility). If a
-  future flow lets trusted users pre-rate `pending` scores, that needs an explicit
-  authorization carve-out — out of scope here.
-- **Thresholds `N`/`T` for re-review** — pick initial values with the stakeholder (or
-  ship config defaults and tune). Confirmed as config, not schema.
-- **Swipe semantics of "pass"** — does a left-swipe count as a negative rating or just
-  "skip without rating"? Leaning: `pass` = mild negative that counts toward the
-  aggregate; confirm during #2 implementation.
+- **Ratings apply only to `accepted` scores (decided).** Per #1's visibility gate, normal
+  users only ever see validated scores, so the deck sources and rates `accepted` scores
+  only. Any future "trusted user pre-rates pending" flow would need its own authorization
+  carve-out — out of scope here.
+- **Thresholds `N`/`T` (decided).** Config, not schema. Defaults: **N = 5 ratings, T = 2.0
+  on the 1–5 scale**; tune later without a migration.
+- **Left-swipe semantics (decided).** **Left = dislike**, a negative verdict that counts
+  toward the aggregate (Tinder-style "nope"), giving the re-review flag a natural negative
+  signal. A separate non-recording **Skip** control covers "advance without judging".

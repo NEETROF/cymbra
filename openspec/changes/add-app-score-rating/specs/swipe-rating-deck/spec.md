@@ -5,15 +5,16 @@
 The app SHALL present a card-stack ("deck") rating surface, available only to a
 signed-in user, that sources **validated (`accepted`)** catalog scores through the
 existing catalog search. The user SHALL be able to rate the top card by swiping —
-**left = pass**, **right = like**, **up = love** — advancing to the next card. Each
-swipe action SHALL be recorded through the rating operation. The deck SHALL be driven
+**left = dislike**, **right = like**, **up = love** — advancing to the next card. Each
+swipe action SHALL be recorded through the rating operation; `dislike` is a negative
+verdict. The deck SHALL be driven
 through injectable state so it is exercisable in tests without the native library or a
 live backend.
 
 #### Scenario: Swipe records a rating and advances
 
 - **WHEN** the user swipes the top card left, right, or up
-- **THEN** the corresponding verdict (pass / like / love) is submitted for that score
+- **THEN** the corresponding verdict (dislike / like / love) is submitted for that score
   and the next card is shown
 
 #### Scenario: Deck shows only validated scores
@@ -29,13 +30,20 @@ live backend.
 ### Requirement: Tap-button parity for swipe actions
 
 The deck SHALL present on-screen buttons under the card that perform the same actions
-as the swipes (pass / like / love), so the rating flow is fully usable without
-swiping. Swiping is a shortcut, not the only path.
+as the swipes (dislike / like / love), so the rating flow is fully usable without
+swiping. Swiping is a shortcut, not the only path. The deck SHALL additionally offer a
+**Skip** control that advances to the next card **without recording any rating**, so a
+user can pass over a score they do not want to judge.
 
 #### Scenario: Buttons mirror swipes
 
-- **WHEN** the user taps the pass, like, or love button
+- **WHEN** the user taps the dislike, like, or love button
 - **THEN** the same rating is recorded and the deck advances exactly as the equivalent swipe
+
+#### Scenario: Skip advances without rating
+
+- **WHEN** the user taps Skip on a card
+- **THEN** the deck advances to the next card and no rating is recorded for the skipped score
 
 #### Scenario: Rating without swiping
 
