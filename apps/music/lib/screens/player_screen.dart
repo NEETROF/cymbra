@@ -44,6 +44,7 @@ import '../widgets/language_selector.dart';
 import '../widgets/mistake_replay.dart';
 import '../widgets/scoring_overlay.dart';
 import '../widgets/session_summary_modal.dart';
+import 'score_load_message.dart';
 
 /// Main screen of the Cymbra player: top bar, rendering area
 /// (Synthesia or Staff), keyboard, and transport bar.
@@ -491,12 +492,12 @@ class _ScoreLoadOverlay extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    if (notation.error != null) {
+    if (notation.failure != null) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Text(
-            l10n.playerScoreLoadError,
+            scoreLoadFailureMessage(l10n, notation.failure!),
             textAlign: TextAlign.center,
             style: const TextStyle(color: CymbraColors.error),
           ),
@@ -1581,12 +1582,15 @@ class _PartitionViewState extends ConsumerState<_PartitionView> {
     final notation = ref.watch(notationProvider);
     final data = ref.watch(playerProvider);
 
-    if (notation.error != null) {
+    if (notation.failure != null) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Text(
-            AppLocalizations.of(context).playerScoreLoadError,
+            scoreLoadFailureMessage(
+              AppLocalizations.of(context),
+              notation.failure!,
+            ),
             textAlign: TextAlign.center,
             style: const TextStyle(color: CymbraColors.error),
           ),

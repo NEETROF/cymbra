@@ -23,6 +23,7 @@ import '../state/notation_notifier.dart';
 import '../state/score_catalog.dart';
 import '../widgets/app_snackbar.dart';
 import 'player_screen.dart';
+import 'score_load_message.dart';
 
 /// Opens [entry] in the player, guarded by a pre-flight load: the score is
 /// selected and fetched/parsed behind a blocking spinner, and the player is only
@@ -47,7 +48,7 @@ Future<void> openScore(
   final completer = Completer<bool>();
   final sub = ref.listenManual<NotationData>(notationProvider, (_, next) {
     if (completer.isCompleted) return;
-    if (next.error != null) {
+    if (next.failure != null) {
       completer.complete(false);
     } else if (next.hasDocument) {
       completer.complete(true);
@@ -74,7 +75,10 @@ Future<void> openScore(
         )
         .whenComplete(sub.close);
   } else {
+    // Surface the specific (but localized) cause — missing, not-ready, offline…
+    final failure =
+        ref.read(notationProvider).failure ?? ScoreLoadFailure.generic;
     sub.close();
-    showAppSnackBar(messenger, l10n.playerScoreLoadError);
+    showAppSnackBar(messenger, scoreLoadFailureMessage(l10n, failure));
   }
 }

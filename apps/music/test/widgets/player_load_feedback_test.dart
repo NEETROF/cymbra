@@ -109,12 +109,13 @@ void main() {
   ) async {
     final c = await _pump(
       tester,
-      notation: const NotationData(error: 'load-failed'),
+      notation: const NotationData(failure: ScoreLoadFailure.generic),
       selected: _entry,
     );
     // The banner shows a localized message, never the raw error string.
     expect(find.text('Could not load this score.'), findsOneWidget);
-    expect(find.textContaining('load-failed'), findsNothing);
+    // No raw failure code/enum leaks into the UI.
+    expect(find.textContaining('ScoreLoadFailure'), findsNothing);
     expect(find.byType(CircularProgressIndicator), findsNothing);
     await _teardown(tester, c);
   });
@@ -122,7 +123,7 @@ void main() {
   testWidgets('Staff mode also shows the error banner', (tester) async {
     final container = await _pump(
       tester,
-      notation: const NotationData(error: 'load-failed'),
+      notation: const NotationData(failure: ScoreLoadFailure.generic),
       selected: _entry,
     );
     container.read(playerProvider.notifier).setMode(RenderMode.staff);

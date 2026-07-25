@@ -416,7 +416,16 @@
   "@playerScoreLoading": { "description": "Shown in the player while the selected score's bytes are being fetched and parsed." },
 
   "playerScoreLoadError": "Could not load this score.",
-  "@playerScoreLoadError": { "description": "Shown when the selected score fails to load (snackbar on the hub, or banner in the player). No technical detail is surfaced to the user." },
+  "@playerScoreLoadError": { "description": "Generic fallback shown when a score fails to load for an unclassified reason. No technical detail is surfaced to the user." },
+
+  "playerScoreNotFound": "This score no longer exists.",
+  "@playerScoreNotFound": { "description": "Shown when the selected score's catalog entry no longer exists." },
+
+  "playerScoreNotAvailableYet": "This score isn't available yet. Please try again later.",
+  "@playerScoreNotAvailableYet": { "description": "Shown when the score exists but its file isn't available yet (not synced yet, or pending review)." },
+
+  "playerScoreUnavailable": "Can't reach the server. Check your connection and try again.",
+  "@playerScoreUnavailable": { "description": "Shown when the backend is unreachable while loading a score." },
 
   "libraryEmptyTitle": "No favorites yet",
   "@libraryEmptyTitle": { "description": "Home empty-state title when the user has no favorite scores." },

@@ -18,6 +18,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:music/screens/score_hub_screen.dart';
+import 'package:music/services/auth_service.dart';
 import 'package:music/services/catalog_service.dart';
 import 'package:music/services/score_upload_service.dart';
 import 'package:music/state/score_catalog.dart';
@@ -26,11 +27,12 @@ import 'package:music/state/session_notifier.dart';
 import '../support/localized.dart';
 
 class _FakeCatalog implements CatalogService {
-  _FakeCatalog(this.rows, {this.throwOnFetch = false});
+  _FakeCatalog(this.rows, {this.fetchError});
   final List<CatalogHit> rows;
 
-  /// When true, [fetchBytes] throws — exercises the hub's pre-flight guard.
-  final bool throwOnFetch;
+  /// When set, [fetchBytes] throws it — exercises the hub's pre-flight guard and
+  /// the typed error → localized message mapping.
+  final Object? fetchError;
   final Set<String> saved = {};
   final List<String> saveCalls = [];
   int? lastMaxNoteValue;
@@ -68,7 +70,8 @@ class _FakeCatalog implements CatalogService {
 
   @override
   Future<Uint8List> fetchBytes(String catalogId) async {
-    if (throwOnFetch) throw StateError('boom');
+    final err = fetchError;
+    if (err != null) throw err;
     return Uint8List(0);
   }
 }
@@ -308,7 +311,7 @@ void main() {
     // raw error).
     final catalog = _FakeCatalog([
       _hit('c1', 'Clair de Lune'),
-    ], throwOnFetch: true);
+    ], fetchError: StateError('boom'));
     final c = _container(catalog);
     await _pump(tester, c);
 
@@ -323,6 +326,29 @@ void main() {
     expect(find.text('Clair de Lune'), findsOneWidget);
 
     await tester.pump(const Duration(seconds: 5)); // let the snackbar auto-dismiss
+    await _teardown(tester, c);
+  });
+
+  testWidgets('a not-found score shows a specific localized snackbar', (
+    tester,
+  ) async {
+    // A backend NOT_FOUND surfaces as a specific — but localized — message,
+    // never the raw gRPC/exception text.
+    final catalog = _FakeCatalog([
+      _hit('c1', 'Clair de Lune'),
+    ], fetchError: const AuthException(AuthError.notFound));
+    final c = _container(catalog);
+    await _pump(tester, c);
+
+    await tester.tap(find.text('Clair de Lune'));
+    await tester.pump();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(find.text('This score no longer exists.'), findsOneWidget);
+    expect(find.text('Could not load this score.'), findsNothing);
+
+    await tester.pump(const Duration(seconds: 5));
     await _teardown(tester, c);
   });
 }

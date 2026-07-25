@@ -40,3 +40,39 @@ filter predicates as the returned entries.
 
 - **WHEN** a search returns entries
 - **THEN** no entry includes the score's raw MusicXML/.mxl bytes
+
+### Requirement: Fetch catalog score bytes for playback
+
+The backend SHALL expose an authenticated operation that returns the canonical
+(decoded) bytes of a catalog score by its id, read from the object store under
+the public-corpus prefix, so the app can open it in the player. A request for a
+non-existent catalog id MUST be rejected with a typed not-found error.
+Unauthenticated requests MUST be rejected.
+
+When the catalog row exists but its bytes are **not yet present** in the object
+store (e.g. a corpus not synced to the serving store yet), the operation MUST be
+rejected with a typed **precondition-failed** error distinct from both not-found
+and a generic internal error, so the app can tell the user the score is not
+available yet rather than surfacing an opaque failure.
+
+#### Scenario: Bytes returned for a known catalog score
+
+- **WHEN** an authenticated caller requests the bytes of an existing catalog id
+- **THEN** the canonical score bytes are returned
+
+#### Scenario: Unknown catalog id rejected
+
+- **WHEN** a caller requests the bytes of a catalog id that does not exist
+- **THEN** a typed not-found error is returned and no bytes are served
+
+#### Scenario: Known score with missing bytes is a precondition failure
+
+- **WHEN** a caller requests the bytes of an existing catalog id whose object is
+  not in the store yet
+- **THEN** a typed precondition-failed error is returned (distinct from not-found
+  and from a generic internal error), and no bytes are served
+
+#### Scenario: Unauthenticated bytes request rejected
+
+- **WHEN** a bytes request arrives without a valid authenticated identity
+- **THEN** the request is rejected

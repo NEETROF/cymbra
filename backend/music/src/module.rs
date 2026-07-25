@@ -26,7 +26,7 @@ use std::sync::Arc;
 
 use cymbra_musicxml_core::{ScoreSummary, mxl, normalize_text, validate};
 use cymbra_platform::{AppError, Result};
-use cymbra_storage::ObjectStorage;
+use cymbra_storage::{ObjectStorage, StorageError};
 use sha2::{Digest, Sha256};
 
 use crate::catalog_search::{CatalogHit, CatalogQuery, CatalogSearchParams, CatalogSearchRepo};
@@ -364,11 +364,16 @@ impl ScoreModule {
             .object_key(catalog_id)
             .await?
             .ok_or_else(|| AppError::NotFound("catalog score not found".into()))?;
-        let raw = self
-            .storage
-            .get(&object_key)
-            .await
-            .map_err(|e| AppError::Internal(anyhow::anyhow!("read catalog score: {e}")))?;
+        let raw = self.storage.get(&object_key).await.map_err(|e| match e {
+            // The catalog row exists but its bytes are not in the store yet (e.g.
+            // a corpus not synced to the serving store yet). Report a distinct,
+            // typed precondition failure so the app can say "not available yet"
+            // rather than a generic internal error.
+            StorageError::NotFound(_) => {
+                AppError::FailedPrecondition("catalog score bytes not available yet".into())
+            }
+            other => AppError::Internal(anyhow::anyhow!("read catalog score: {other}")),
+        })?;
         decode_canonical(&raw)
     }
 }
@@ -914,6 +919,19 @@ mod tests {
             m.get_catalog_bytes("99999999-9999-7999-8999-999999999999")
                 .await,
             Err(AppError::NotFound(_))
+        ));
+    }
+
+    #[tokio::test]
+    async fn get_catalog_bytes_when_object_missing_is_failed_precondition() {
+        // The catalog row exists but its bytes are not in the store yet (the
+        // fake store is empty) — a distinct, typed precondition failure so the
+        // app can say "not available yet", not a generic internal error.
+        let (m, _cat, _lib) = catalog_module();
+        assert!(matches!(
+            m.get_catalog_bytes("11111111-1111-7111-8111-111111111111")
+                .await,
+            Err(AppError::FailedPrecondition(_))
         ));
     }
 }
