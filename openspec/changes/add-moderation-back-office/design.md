@@ -89,11 +89,17 @@ complexity facets chords/tuplets/dotted): scores with more content rank first, s
 relevant are reviewed before thin ones. The table stays fully **sortable/filterable** by
 moderation status, the re-review flag, and the substance/facet fields, so a moderator can
 override the default order. Row click → read-only preview → accept/reject.
-- **Where the ordering runs**: the facet fields already exist on `catalog_scores`. The
-  richness rank can be computed either server-side (an `order_by` option on the privileged
-  search that ranks by a facet-derived score) or client-side in the Vue table when all
-  facet fields are present in the hit. Prefer server-side ordering for the default queue so
-  paging stays correct across large result sets; client-side sort covers ad-hoc overrides.
+- **How the ordering runs — a `sort` field on the privileged search, always applied
+  server-side.** The search gains a `sort` parameter and the back office passes it on
+  **every (paginated) request**: the queue view sends a hardcoded default
+  (`sort = review_priority`); clicking a column changes the value the BO sends (e.g.
+  `measure_count_desc`) and re-queries from page 1; paging keeps sending the same `sort`
+  so order stays consistent across pages. Because all sorting is server-side, it is correct
+  across the whole result set (not just the current page), so **no client-side sort is
+  needed**. The server validates `sort` against an **allow-list** of sortable fields
+  (review priority + the substance/facet fields); an unknown value is rejected. The facet
+  fields already exist on `catalog_scores`, so `review_priority` is a facet-derived ranking
+  (flagged/`pending` first, then substance).
 - **Why reuse catalog search**: the requirement is explicitly "the same filters as the
   hub". One search surface, one set of filters, with the status filter as the BO-only
   extra. Avoids a parallel query surface.
