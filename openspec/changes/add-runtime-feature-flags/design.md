@@ -102,13 +102,29 @@ cleanly disable the capability without deleting data (it's gated, not destroyed)
 - **Why**: a flag must actually disable a capability even against a modified client; hiding UI
   alone is bypassable.
 
-### D4 — App consumes: fetch on launch + resume; backend authoritative
-A client-facing read returns the caller's **effective** flags (respecting scope/identity). The
-app fetches them on **launch** and on **resume** (plus a lightweight refresh), exposes them via a
-small provider, and shows/hides feature entry points accordingly. Truly instant on-device would
-need push; fetch-on-launch/resume + short cache is "hot enough", and the backend enforces
-regardless of client state.
-- **Why not push**: disproportionate now; the backend gate makes eventual client refresh safe.
+### D4 — Client invalidation: lifecycle fetch + version/ETag; presentation-only, backend authoritative
+The **client cannot subscribe to Redis**, so the shared Flutter package invalidates its local
+flags differently — and the key that makes this simple is that the **backend is authoritative**,
+so the app's flag cache is **presentation-only** (show/hide entry points), never the correctness
+gate.
+- **Lifecycle fetch (primary)**: fetch effective flags on **launch** and on **resume**
+  (foreground), driven by the app lifecycle.
+- **Version/ETag for cheap refresh**: `GetEffectiveFlags` returns a **version/hash**; the app
+  sends its known version and the server replies "unchanged" (cheap) or the new set — so resume
+  refreshes are near-free.
+- **Optional foreground poll**: a light timer (~5–15 min), guarded by the version, catches a
+  kill-switch during a long session without a restart.
+- **Local persisted cache**: the last set is stored locally for a **flicker-free cold start**
+  before the first fetch returns; fall back to code/bundled defaults if nothing was ever fetched
+  (offline first launch).
+- **Stale client is only cosmetic**: because the backend enforces (D3), a slightly-stale UI (a
+  button still shown after an admin flips it off) just means the action **fails gracefully**
+  server-side (a localized "unavailable" message, never a raw error) — not incorrect access. This
+  is exactly why real-time client push is **not** required.
+- **`WatchFlags` server-stream deferred**: near-real-time client updates via a gRPC stream are
+  possible later but costly on mobile (long-lived connection, reconnect, backgrounding) and
+  unnecessary given backend enforcement.
+- **All of this lives in the shared package** so music/live/future apps get identical behavior.
 
 ### D5 — Rollout scope: global by default, optional staff-only; no percentage rollout yet
 Orthogonal to the **app scope** (D0), a flag's **rollout scope** is **global** or **staff-only**

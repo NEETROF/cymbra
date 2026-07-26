@@ -105,19 +105,33 @@ caller's identity.
 ### Requirement: The app receives its effective flags
 
 The system SHALL expose an authenticated read that returns the caller's **effective** flags/config
-(respecting scope and identity), and the app SHALL fetch them at **launch and on resume** so
-feature entry points reflect the current flags. The backend remains authoritative — the app view
-is for presentation, not enforcement.
+(respecting scope and identity) together with a **version/ETag**, and the app SHALL fetch them at
+**launch and on resume** so feature entry points reflect the current flags. Subsequent fetches
+SHALL be able to send the known version so the server can answer **"unchanged"** cheaply. The app
+SHALL cache the last set locally for a flicker-free start and fall back to defaults when it has
+never fetched. The backend remains **authoritative** — the app view is presentation-only, so a
+momentarily stale UI results only in a gated action **failing gracefully** server-side (a
+localized unavailable message), never incorrect access.
 
 #### Scenario: App reflects current flags on launch
 
 - **WHEN** the app starts and fetches effective flags
 - **THEN** it shows or hides feature entry points according to those flags
 
-#### Scenario: App refreshes on resume
+#### Scenario: App refreshes on resume, cheaply when unchanged
 
-- **WHEN** the app resumes
-- **THEN** it refreshes the effective flags so a recent change is reflected
+- **WHEN** the app resumes and re-fetches with its known version
+- **THEN** the server answers "unchanged" when nothing changed, or returns the new set otherwise
+
+#### Scenario: Stale client is presentation-only
+
+- **WHEN** the app's cached flags are momentarily behind a just-made change and a user triggers a now-disabled action
+- **THEN** the backend rejects it and the app shows a localized "unavailable" message, with no incorrect access
+
+#### Scenario: Flicker-free start from local cache
+
+- **WHEN** the app starts before its first fetch returns
+- **THEN** it uses the locally cached last set (or defaults if never fetched) rather than flickering
 
 ### Requirement: Flag and config changes are audited
 

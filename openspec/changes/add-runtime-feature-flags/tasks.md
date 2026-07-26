@@ -9,7 +9,7 @@
 ## 2. Enforcement & client read (backend)
 
 - [ ] 2.1 Enforcement hooks: where a feature is gated, read the flag and reject the op / withhold data when off (backend-authoritative; data preserved, not deleted). Wire the actual gates as each feature is implemented.
-- [ ] 2.2 A `GetEffectiveFlags` authenticated RPC returning the caller's effective flags/config (app + rollout scope + identity applied — an app sees `all` + its own keys).
+- [ ] 2.2 A `GetEffectiveFlags` authenticated RPC returning the caller's effective flags/config (app + rollout scope + identity applied — an app sees `all` + its own keys) plus a **version/ETag**; accept the caller's known version and answer **"unchanged"** cheaply when nothing changed.
 
 ## 3. Admin editing (BO, needs #3)
 
@@ -19,8 +19,8 @@
 
 ## 4. App consumption
 
-- [ ] 4.1 A **shared Flutter package** holding the flag client: fetch effective flags on **launch and resume** via `GetEffectiveFlags`; expose through a small Riverpod provider (service seam, fake in tests). Reusable by music, live, and future apps.
-- [ ] 4.2 Feature entry points read the provider to show/hide; backend still enforces regardless.
+- [ ] 4.1 A **shared Flutter package** holding the flag client: fetch effective flags on **launch and resume** via `GetEffectiveFlags`, sending the known **version** (cheap "unchanged"); an optional light foreground poll (~5–15 min) guarded by the version; a **local persisted cache** for a flicker-free cold start (fallback to defaults if never fetched); expose through a small Riverpod provider (service seam, fake in tests). Reusable by music, live, and future apps.
+- [ ] 4.2 Feature entry points read the provider to show/hide; backend still enforces regardless; a gated action that a stale client still shows **fails gracefully** (localized "unavailable", no raw error).
 
 ## 5. Initial registry
 
