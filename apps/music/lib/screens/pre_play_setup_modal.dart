@@ -16,6 +16,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../l10n/gen/app_localizations.dart';
+import '../layout/device_class.dart';
 import '../services/platform_info.dart';
 import '../state/notation_notifier.dart';
 import '../state/player_data.dart';
@@ -80,40 +81,82 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
 
     final title = entry?.title ?? meta?.title ?? l10n.nowPlaying('').trim();
     final composer = entry?.composer ?? meta?.composer;
+    final phone = context.isPhoneLayout;
     final maxHeight = MediaQuery.of(context).size.height * 0.92;
 
+    final facts = _facts(l10n, data, entry);
+    final hands = data.hasMultipleStaves ? _handsSection(l10n) : null;
+    final metronome = _metronomeTile(l10n);
+    final tempo = _tempoTile(l10n, data);
+    final midi = _midiSection(l10n, data);
+
+    Widget scrollCol(List<Widget> children) => SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: children,
+      ),
+    );
+
+    // Phone-landscape is short: facts on top, then controls in two columns
+    // (left: hands + metronome, right: MIDI + tempo) so the modal fits without
+    // scrolling. Larger screens keep a single scrollable column.
+    final Widget body = phone
+        ? Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: scrollCol([?hands, metronome])),
+              const SizedBox(width: 24),
+              Expanded(child: scrollCol([midi, tempo])),
+            ],
+          )
+        : scrollCol([facts, ?hands, metronome, tempo, midi]);
+
+    final header = _header(l10n, title, composer, entry?.level, phone);
+    final button = Padding(
+      padding: EdgeInsets.only(top: phone ? 8 : 12),
+      child: FilledButton(onPressed: _apply, child: Text(l10n.prePlayStart)),
+    );
+
+    // Phone: full-screen so all controls fit without scrolling. Larger screens:
+    // a centered, content-sized dialog.
+    if (phone) {
+      return Dialog.fullscreen(
+        backgroundColor: CymbraColors.surfaceContainerLow,
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 10, 20, 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                header,
+                const SizedBox(height: 4),
+                facts,
+                const SizedBox(height: 4),
+                Expanded(child: body),
+                button,
+              ],
+            ),
+          ),
+        ),
+      );
+    }
     return Dialog(
       backgroundColor: CymbraColors.surfaceContainerLow,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: ConstrainedBox(
         constraints: BoxConstraints(maxWidth: 460, maxHeight: maxHeight),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _header(l10n, title, composer, entry?.level),
-            Flexible(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _facts(l10n, data, entry),
-                    if (data.hasMultipleStaves) _handsSection(l10n),
-                    _tempoSection(l10n, data),
-                    _midiSection(l10n, data),
-                  ],
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
-              child: FilledButton(
-                onPressed: _apply,
-                child: Text(l10n.prePlayStart),
-              ),
-            ),
-          ],
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              header,
+              const SizedBox(height: 4),
+              Flexible(child: body),
+              button,
+            ],
+          ),
         ),
       ),
     );
@@ -124,52 +167,55 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
     String title,
     String? composer,
     PracticeLevel? level,
-  ) => Padding(
-    padding: const EdgeInsets.fromLTRB(20, 16, 8, 4),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  color: CymbraColors.onSurface,
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
+    bool phone,
+  ) => Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              maxLines: phone ? 1 : 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: CymbraColors.onSurface,
+                fontSize: phone ? 16 : 20,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            if (composer != null && composer.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Text(
+                  composer,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: CymbraColors.onSurfaceVariant,
+                    fontSize: phone ? 12 : 14,
+                  ),
                 ),
               ),
-              if (composer != null && composer.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(top: 2),
-                  child: Text(
-                    composer,
-                    style: const TextStyle(
-                      color: CymbraColors.onSurfaceVariant,
-                      fontSize: 14,
-                    ),
-                  ),
+            if (level != null)
+              Padding(
+                padding: EdgeInsets.only(top: phone ? 4 : 8),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: DifficultyBadge(level: level, l10n: l10n),
                 ),
-              if (level != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: 8),
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: DifficultyBadge(level: level, l10n: l10n),
-                  ),
-                ),
-            ],
-          ),
+              ),
+          ],
         ),
-        IconButton(
-          icon: const Icon(Icons.close, color: CymbraColors.onSurfaceVariant),
-          tooltip: l10n.cancel,
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-      ],
-    ),
+      ),
+      IconButton(
+        icon: const Icon(Icons.close, color: CymbraColors.onSurfaceVariant),
+        tooltip: l10n.cancel,
+        visualDensity: VisualDensity.compact,
+        onPressed: () => Navigator.of(context).pop(),
+      ),
+    ],
   );
 
   /// Key / time-signature / marked-tempo chips — each labelled (so a novice knows
@@ -257,7 +303,21 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
     );
   }
 
-  Widget _tempoSection(AppLocalizations l10n, PlayerData data) {
+  /// Metronome on/off — placed before the tempo control.
+  Widget _metronomeTile(AppLocalizations l10n) => SwitchListTile(
+    contentPadding: EdgeInsets.zero,
+    title: Text(
+      l10n.metronome,
+      style: const TextStyle(color: CymbraColors.onSurface),
+    ),
+    value: _metronome,
+    onChanged: (v) => setState(() => _metronome = v),
+  );
+
+  /// Playback-speed slider (full width) with the resulting tempo (BPM) and the
+  /// ×-multiplier, so the value stays understandable. The fixed-width value box
+  /// wraps rather than overflowing in the narrow two-column phone layout.
+  Widget _tempoTile(AppLocalizations l10n, PlayerData data) {
     final effectiveBpm = (data.bpm * _speed).round();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -275,62 +335,85 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
                 onChanged: (v) => setState(() => _speed = v),
               ),
             ),
+            const SizedBox(width: 8),
             SizedBox(
-              width: 96,
-              child: Text(
-                '${_speed.toStringAsFixed(2)}×  ·  ${l10n.tempo(effectiveBpm)}',
-                textAlign: TextAlign.end,
-                style: const TextStyle(
-                  color: CymbraColors.onSurfaceVariant,
-                  fontSize: 11,
-                ),
+              width: 72,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    '$effectiveBpm BPM',
+                    style: const TextStyle(
+                      color: CymbraColors.onSurface,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  Text(
+                    '${_speed.toStringAsFixed(2)}×',
+                    style: const TextStyle(
+                      color: CymbraColors.onSurfaceVariant,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
-        ),
-        SwitchListTile(
-          contentPadding: EdgeInsets.zero,
-          title: Text(
-            l10n.metronome,
-            style: const TextStyle(color: CymbraColors.onSurface),
-          ),
-          value: _metronome,
-          onChanged: (v) => setState(() => _metronome = v),
         ),
       ],
     );
   }
 
-  Widget _midiSection(AppLocalizations l10n, PlayerData data) => Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      _sectionTitle(l10n.settingsCategoryMidiDevice),
-      SettingOptionRow(
-        selected: _port == null,
-        label: l10n.midiAutoFirstDevice,
-        onTap: () => setState(() => _port = null),
-      ),
-      for (final port in data.midiPorts)
-        SettingOptionRow(
-          selected: _port == port,
-          label: port,
-          onTap: () => setState(() => _port = port),
-        ),
-      if (data.midiPorts.isEmpty)
-        // Android: USB-OTG / charge-only-cable advice; other platforms: a plain
-        // "no device" row.
-        if (ref.watch(isAndroidProvider))
-          const OtgGuidance()
-        else
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: Text(
-              l10n.midiNoDeviceDetected,
-              style: const TextStyle(color: CymbraColors.onSurfaceVariant),
+  Widget _midiSection(AppLocalizations l10n, PlayerData data) {
+    // Selected value must match a dropdown item; fall back to Auto (null) if the
+    // current device isn't in the enumerated ports.
+    final value = data.midiPorts.contains(_port) ? _port : null;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _sectionTitle(l10n.settingsCategoryMidiDevice),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            color: CymbraColors.surfaceContainerHigh,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String?>(
+              isExpanded: true,
+              value: value,
+              dropdownColor: CymbraColors.surfaceContainerHigh,
+              iconEnabledColor: CymbraColors.onSurfaceVariant,
+              style: const TextStyle(color: CymbraColors.onSurface),
+              items: [
+                DropdownMenuItem<String?>(
+                  value: null,
+                  child: Text(l10n.midiAutoFirstDevice),
+                ),
+                for (final port in data.midiPorts)
+                  DropdownMenuItem<String?>(value: port, child: Text(port)),
+              ],
+              onChanged: (v) => setState(() => _port = v),
             ),
           ),
-    ],
-  );
+        ),
+        if (data.midiPorts.isEmpty)
+          // Android: USB-OTG / charge-only-cable advice; other platforms: a
+          // plain "no device" hint.
+          if (ref.watch(isAndroidProvider))
+            const OtgGuidance()
+          else
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                l10n.midiNoDeviceDetected,
+                style: const TextStyle(color: CymbraColors.onSurfaceVariant),
+              ),
+            ),
+      ],
+    );
+  }
 }
 
 /// The tonic name of a key from its number of sharps (+) / flats (−). Uses

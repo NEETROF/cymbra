@@ -12,10 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:music/screens/player_screen.dart';
+import 'package:music/screens/pre_play_setup_modal.dart';
 import 'package:music/services/audio_service.dart';
 import 'package:music/services/midi_service.dart';
 import 'package:music/services/notation_engine.dart';
@@ -37,24 +39,28 @@ const _entry = CatalogEntry(
   level: PracticeLevel.beginner,
 );
 
-/// Pumps the player for [_entry] and leaves the pre-play setup modal open.
+ProviderContainer _container({ScoreDocument? document}) => ProviderContainer(
+  overrides: [
+    scoreCatalogProvider.overrideWithValue(const [_entry]),
+    scoreAssetSourceProvider.overrideWithValue(FakeScoreAssetSource()),
+    notationEngineProvider.overrideWithValue(
+      FakeNotationEngine(document: document),
+    ),
+    midiServiceProvider.overrideWithValue(FakeMidiService()),
+    scoreSourceProvider.overrideWithValue(FakeScoreSource()),
+    audioServiceProvider.overrideWithValue(RecordingAudioService()),
+  ],
+);
+
+/// Pumps the whole player for [_entry] and leaves the setup modal open — used to
+/// exercise the modal's behaviour (the notation loads so hands are derived).
 Future<ProviderContainer> _pumpWithModal(
   WidgetTester tester, {
   ScoreDocument? document,
+  Size size = const Size(1400, 900),
 }) async {
-  await tester.binding.setSurfaceSize(const Size(1400, 900));
-  final container = ProviderContainer(
-    overrides: [
-      scoreCatalogProvider.overrideWithValue(const [_entry]),
-      scoreAssetSourceProvider.overrideWithValue(FakeScoreAssetSource()),
-      notationEngineProvider.overrideWithValue(
-        FakeNotationEngine(document: document),
-      ),
-      midiServiceProvider.overrideWithValue(FakeMidiService()),
-      scoreSourceProvider.overrideWithValue(FakeScoreSource()),
-      audioServiceProvider.overrideWithValue(RecordingAudioService()),
-    ],
-  );
+  await tester.binding.setSurfaceSize(size);
+  final container = _container(document: document);
   container.read(selectedScoreProvider.notifier).select(_entry);
   await tester.pumpWidget(
     UncontrolledProviderScope(
@@ -66,6 +72,48 @@ Future<ProviderContainer> _pumpWithModal(
     await tester.pump(const Duration(milliseconds: 50));
   }
   return container;
+}
+
+/// Shows the setup modal over a bare host (not the whole player), so a layout
+/// check isn't perturbed by the player chrome behind it.
+Future<ProviderContainer> _pumpModalIsolated(
+  WidgetTester tester, {
+  required Size size,
+}) async {
+  await tester.binding.setSurfaceSize(size);
+  final container = _container();
+  container.read(selectedScoreProvider.notifier).select(_entry);
+  await tester.pumpWidget(
+    UncontrolledProviderScope(
+      container: container,
+      child: localizedApp(const _ModalHost(), locale: const Locale('en')),
+    ),
+  );
+  for (var i = 0; i < 12; i++) {
+    await tester.pump(const Duration(milliseconds: 50));
+  }
+  return container;
+}
+
+/// A bare host that opens the setup modal after the first frame.
+class _ModalHost extends StatefulWidget {
+  const _ModalHost();
+  @override
+  State<_ModalHost> createState() => _ModalHostState();
+}
+
+class _ModalHostState extends State<_ModalHost> {
+  bool _shown = false;
+  @override
+  Widget build(BuildContext context) {
+    if (!_shown) {
+      _shown = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) showPrePlaySetup(context);
+      });
+    }
+    return const Scaffold(body: SizedBox.shrink());
+  }
 }
 
 Future<void> _teardown(WidgetTester tester, ProviderContainer container) async {
@@ -132,5 +180,35 @@ void main() {
     expect(find.text('Play with'), findsNothing);
     expect(find.text('Left'), findsNothing);
     await _teardown(tester, container);
+  });
+
+  testWidgets('phone landscape lays out in two columns without overflow', (
+    tester,
+  ) async {
+    // isPhoneLayout needs a mobile platform + a small MediaQuery. MediaQuery.size
+    // comes from the view (not setSurfaceSize), so set the view too (dpr 1 ⇒
+    // logical == physical). Reset before the body ends — the framework asserts
+    // debug vars are clear before tearDown, so addTearDown would be too late.
+    debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+    tester.view.physicalSize = const Size(812, 375);
+    tester.view.devicePixelRatio = 1.0;
+    try {
+      // A short landscape phone viewport: a render overflow would throw here.
+      final container = await _pumpModalIsolated(
+        tester,
+        size: const Size(812, 375),
+      );
+
+      // Every control is present without needing to scroll.
+      expect(find.widgetWithText(FilledButton, 'Play'), findsOneWidget);
+      expect(find.text('Left'), findsOneWidget); // hands (multi-staff)
+      expect(find.text('Tempo'), findsOneWidget); // tempo section
+      expect(find.text('MIDI device'), findsOneWidget); // midi section
+      await _teardown(tester, container);
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    }
   });
 }
