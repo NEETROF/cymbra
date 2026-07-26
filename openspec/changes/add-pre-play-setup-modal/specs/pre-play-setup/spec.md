@@ -45,7 +45,9 @@ and the selection stays at both.
 
 - **WHEN** the modal is shown
 - **THEN** an auto option and a row per available MIDI input port are shown and
-  can be selected; when no device is detected a no-device state is shown
+  can be selected; when no device is detected the platform-appropriate guidance
+  is shown (the Android USB-OTG / charge-only-cable advice, otherwise a plain
+  no-device state)
 
 ### Requirement: Validate applies, close keeps current settings
 

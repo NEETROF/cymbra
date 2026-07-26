@@ -42,6 +42,7 @@ import '../theme/cymbra_theme.dart';
 import '../widgets/countdown_overlay.dart';
 import '../widgets/language_selector.dart';
 import '../widgets/mistake_replay.dart';
+import '../widgets/otg_guidance.dart';
 import '../widgets/scoring_overlay.dart';
 import '../widgets/session_summary_modal.dart';
 import '../widgets/setting_option_row.dart';
@@ -789,7 +790,7 @@ class _SettingsDrawerState extends ConsumerState<_SettingsDrawer> {
           // Other platforms keep the plain empty row. The guidance clears on its
           // own once a port appears, since this branch only runs when empty.
           if (midiPorts.isEmpty && isAndroid)
-            const _OtgGuidance()
+            const OtgGuidance()
           else if (midiPorts.isEmpty)
             _option(
               selected: false,
@@ -1013,59 +1014,6 @@ class _DrawerHeader extends StatelessWidget {
         ),
         const Divider(height: 1, color: CymbraColors.outlineVariant),
       ],
-    );
-  }
-}
-
-/// Android-only guidance shown in the MIDI device list when no port is detected.
-///
-/// USB OTG is a system/hardware toggle the app cannot enable itself, and a
-/// charge-only cable looks identical to a data one — so when Android enumerates
-/// no MIDI port the actionable move is to point the user at those two causes.
-/// Kept out of the plain "No device detected" row (used on other platforms)
-/// because the OTG/cable advice is Android-specific.
-class _OtgGuidance extends StatelessWidget {
-  const _OtgGuidance();
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Icon(
-            Icons.usb_off,
-            size: 20,
-            color: CymbraColors.onSurfaceVariant,
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  l10n.midiOtgTitle,
-                  style: const TextStyle(
-                    color: CymbraColors.onSurface,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  l10n.midiOtgBody,
-                  style: const TextStyle(
-                    color: CymbraColors.onSurfaceVariant,
-                    fontSize: 13,
-                    height: 1.35,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

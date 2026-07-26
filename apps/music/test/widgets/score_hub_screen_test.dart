@@ -319,7 +319,7 @@ void main() {
     await tester.pump(); // show the progress dialog
     await tester.pump(); // pre-flight load resolves (fetch throws)
     await tester.pump(
-      const Duration(milliseconds: 400),
+      const Duration(milliseconds: 700),
     ); // dialog out, snackbar in
 
     expect(find.text('Could not load this score.'), findsOneWidget);
@@ -347,7 +347,7 @@ void main() {
     await tester.tap(find.text('Clair de Lune'));
     await tester.pump();
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pump(const Duration(milliseconds: 700));
 
     expect(find.text('This score no longer exists.'), findsOneWidget);
     expect(find.text('Could not load this score.'), findsNothing);

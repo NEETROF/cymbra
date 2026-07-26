@@ -83,7 +83,7 @@ Future<void> _pump(WidgetTester tester, ProviderContainer container) async {
 
 /// Pumps a bounded number of frames. The player runs a Ticker/Timer, so
 /// `pumpAndSettle` would never settle — pump a fixed number of frames instead.
-Future<void> _pumpFrames(WidgetTester tester, [int n = 12]) async {
+Future<void> _pumpFrames(WidgetTester tester, [int n = 16]) async {
   for (var i = 0; i < n; i++) {
     await tester.pump(const Duration(milliseconds: 50));
   }

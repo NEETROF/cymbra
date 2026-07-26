@@ -21,9 +21,14 @@ import '../l10n/gen/app_localizations.dart';
 import '../state/notation_data.dart';
 import '../state/notation_notifier.dart';
 import '../state/score_catalog.dart';
+import '../theme/cymbra_theme.dart';
 import '../widgets/app_snackbar.dart';
 import 'player_screen.dart';
 import 'score_load_message.dart';
+
+/// Minimum time the loading animation stays on screen, so a fast (local) load
+/// still shows it instead of flickering.
+const _minSpinnerVisible = Duration(milliseconds: 550);
 
 /// Opens [entry] in the player, guarded by a pre-flight load: the score is
 /// selected and fetched/parsed behind a blocking spinner, and the player is only
@@ -55,15 +60,42 @@ Future<void> openScore(
     }
   }, fireImmediately: true);
 
-  // Blocking progress while the score pre-loads.
+  // Blocking progress while the score pre-loads — a spinner + label in a card so
+  // it reads as a real loading step.
   unawaited(
     showDialog<void>(
       context: context,
       barrierDismissible: false,
-      builder: (_) => const Center(child: CircularProgressIndicator()),
+      builder: (_) => Center(
+        child: Card(
+          color: CymbraColors.surfaceContainerHigh,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircularProgressIndicator(),
+                const SizedBox(height: 16),
+                Text(
+                  l10n.playerScoreLoading,
+                  style: const TextStyle(color: CymbraColors.onSurfaceVariant),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     ),
   );
 
+  // Keep the animation visible for a minimum time so a fast load doesn't flash.
+  await Future.wait([
+    completer.future,
+    Future<void>.delayed(_minSpinnerVisible),
+  ]);
   final loaded = await completer.future;
   // Dismiss the progress dialog (pushed on the root navigator).
   if (rootNavigator.canPop()) rootNavigator.pop();

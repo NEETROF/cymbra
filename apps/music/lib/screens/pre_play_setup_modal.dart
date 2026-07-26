@@ -16,12 +16,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../l10n/gen/app_localizations.dart';
+import '../services/platform_info.dart';
 import '../state/notation_notifier.dart';
 import '../state/player_data.dart';
 import '../state/player_notifier.dart';
 import '../state/score_catalog.dart';
 import '../theme/cymbra_theme.dart';
 import '../widgets/difficulty_badge.dart';
+import '../widgets/otg_guidance.dart';
 import '../widgets/setting_option_row.dart';
 
 /// Shows the pre-play setup modal, centered over the player. Lets the user review
@@ -286,13 +288,18 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
           onTap: () => setState(() => _port = port),
         ),
       if (data.midiPorts.isEmpty)
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Text(
-            l10n.midiNoDeviceDetected,
-            style: const TextStyle(color: CymbraColors.onSurfaceVariant),
+        // Android: USB-OTG / charge-only-cable advice; other platforms: a plain
+        // "no device" row.
+        if (ref.watch(isAndroidProvider))
+          const OtgGuidance()
+        else
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Text(
+              l10n.midiNoDeviceDetected,
+              style: const TextStyle(color: CymbraColors.onSurfaceVariant),
+            ),
           ),
-        ),
     ],
   );
 }
