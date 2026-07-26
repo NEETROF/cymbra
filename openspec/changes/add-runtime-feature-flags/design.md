@@ -36,21 +36,31 @@ network hop per check.
   flag/config snapshot in memory (tiny — dozens of keys), read with near-zero latency. It is the
   actual read cache. Refreshed **atomically** on a short **TTL** (~15 s, a safety net) or on an
   invalidation signal.
-- **L2 — Redis as the invalidation bus (pub/sub)**: on an admin edit, the change is written to
-  Postgres and an **invalidation is published on Redis**; every instance drops/refreshes its L1
-  **within milliseconds**, so the edit is effective near-instantly rather than after each
-  instance's TTL. Redis MAY also act as a warm shared read cache, but given the tiny dataset that
-  is marginal — Redis's essential role here is **fan-out invalidation** across the horizontally
-  scaled server + worker.
+- **L2 — Redis-driven invalidation of L1**. Two mechanisms, preferred first:
+  - **RESP3 server-assisted client-side caching (`CLIENT TRACKING`, BCAST on a `flags:` prefix)** —
+    the preferred option **when the Rust Redis client supports it cleanly**. Flags live as Redis
+    keys (populated from Postgres, the durable source of truth); each instance's client keeps the
+    L1 and Redis **pushes invalidations automatically** on change — no hand-written publish/
+    subscribe/refresh wiring, and Redis becomes a real warm L2 read cache with free invalidation.
+    Requires RESP3/Redis 6+, and a **dedicated tracking connection** (pooled connections otherwise
+    drop the push stream).
+  - **Manual pub/sub invalidation** — the fallback: on an admin edit, write Postgres and **publish**
+    an invalidation on a Redis channel; every instance refreshes its L1. Because L1 is a
+    whole-snapshot cache, a coarse "reload" message is sufficient (per-key precision — client
+    tracking's main edge — is muted here), so pub/sub remains perfectly adequate if client-side
+    caching support is lacking. Works on RESP2.
+  Either way, the edit is effective across the horizontally-scaled server + worker within
+  milliseconds, well before the L1 TTL.
 - **Read path**: L1 → (miss/expired) Postgres (source of truth) → repopulate L1. **Write path**:
   Postgres → publish Redis invalidation → instances refresh L1.
 - **Fail-safe**: if **Redis** is down, L1 keeps serving its last snapshot and TTL-polls Postgres;
   if **Postgres** is also unreachable, evaluation falls back to **code defaults**. Fail direction
   is per-key — kill-switches resolve to their **safe** (disabled) state so an outage never
   silently enables something risky.
-- **Why L1 + invalidation, not Redis-as-read-cache**: a per-flag Redis round-trip on the hot path
-  would add latency and load and couple flag evaluation to Redis availability; L1 makes evaluation
-  free and outage-tolerant, while Redis pub/sub gives the multi-instance "seconds, no redeploy".
+- **Why L1 stays the hot path either way**: a per-flag Redis round-trip on the hot path would add
+  latency and couple evaluation to Redis availability; L1 makes evaluation free and outage-tolerant.
+  Redis (via client tracking or pub/sub) only drives **when to refresh L1**, giving the
+  multi-instance "seconds, no redeploy".
 
 ### D3 — Backend enforces; the UI toggle is defense-in-depth
 Where a feature is gated, the **backend** checks the flag and, when off, **rejects the RPC /
@@ -119,8 +129,11 @@ audited change).
 
 ## Open Questions
 
-- **L1 TTL value** — a tuning detail (default ~15 s as a backstop); the L1 snapshot + Redis
-  pub/sub invalidation tiering itself is decided (D2).
+- **L1 TTL value** — a tuning detail (default ~15 s as a backstop); the L1-snapshot tiering is
+  decided (D2).
+- **L2 mechanism (pending a client-lib spike)** — prefer RESP3 client-side caching
+  (`CLIENT TRACKING` BCAST) if the Rust Redis client supports it cleanly; else manual pub/sub.
+  Confirm during implementation (task 1.3a).
 - **Which keys are flags vs fixed** — confirm the initial registry (all #2/#4/#6/#7 tunables as
   config; on/off flags per major feature: rating, rewards/shop, profiles, per-piece boards, global
   board, onboarding).
