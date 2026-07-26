@@ -104,9 +104,11 @@ caller's identity.
 
 ### Requirement: The app receives its effective flags
 
-The system SHALL expose an authenticated read that returns the caller's **effective** flags/config
-(respecting scope and identity) together with a **version/ETag**, and the app SHALL fetch them at
-**launch and on resume** so feature entry points reflect the current flags. Subsequent fetches
+The system SHALL expose a read that returns the caller's **effective** flags/config together with a
+**version/ETag** — **authenticated**, returning the identity-scoped set (roles + app); or
+**unauthenticated**, returning the anonymous global (non-staff) set so a pre-account app respects
+kill-switches too. The app SHALL fetch them at **launch and on resume** so feature entry points
+reflect the current flags. Subsequent fetches
 SHALL be able to send the known version so the server can answer **"unchanged"** cheaply. The app
 SHALL cache the last set locally for a flicker-free start and fall back to defaults when it has
 never fetched. The backend remains **authoritative** — the app view is presentation-only, so a
@@ -132,6 +134,38 @@ localized unavailable message), never incorrect access.
 
 - **WHEN** the app starts before its first fetch returns
 - **THEN** it uses the locally cached last set (or defaults if never fetched) rather than flickering
+
+### Requirement: Client cache is a per-identity snapshot, reset on auth change
+
+The app SHALL cache the effective flags as a **single snapshot fetched in one read** — reads of
+individual keys are local and synchronous, never per-key network calls. The snapshot is
+**identity-scoped** (it reflects the caller's roles and app). A refresh SHALL be an **atomic
+swap** that keeps serving the **last-good snapshot** until a new one arrives, and a **failed**
+refresh SHALL keep the previous snapshot rather than clearing to an empty state. On **sign-out**
+the app MUST discard the signed-in snapshot and revert to the anonymous/default set; on **user
+switch** it MUST NOT reuse the previous user's snapshot and MUST refetch for the new identity. Any
+**persisted** cache MUST be keyed by identity (or cleared on sign-out) so one user's flags never
+apply to another.
+
+#### Scenario: One fetch, local per-key reads
+
+- **WHEN** the app needs several flag values
+- **THEN** it reads them locally from the one fetched snapshot, without a network call per key
+
+#### Scenario: Failed refresh keeps the last-good snapshot
+
+- **WHEN** a refresh fails (offline or server error)
+- **THEN** the app keeps serving the previous snapshot rather than dropping to an empty/gap state
+
+#### Scenario: Sign-out clears the signed-in snapshot
+
+- **WHEN** the user signs out
+- **THEN** the signed-in snapshot is discarded and the app reverts to the anonymous/default set
+
+#### Scenario: User switch does not inherit the previous user's flags
+
+- **WHEN** one user signs out and another signs in on the same device
+- **THEN** the new user's flags are refetched and the previous user's snapshot is not reused (no staff-only leakage)
 
 ### Requirement: Flag and config changes are audited
 

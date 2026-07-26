@@ -19,7 +19,8 @@
 
 ## 4. App consumption
 
-- [ ] 4.1 A **shared Flutter package** holding the flag client: fetch effective flags on **launch and resume** via `GetEffectiveFlags`, sending the known **version** (cheap "unchanged"); an optional light foreground poll (~5–15 min) guarded by the version; a **local persisted cache** for a flicker-free cold start (fallback to defaults if never fetched); expose through a small Riverpod provider (service seam, fake in tests). Reusable by music, live, and future apps.
+- [ ] 4.1 A **shared Flutter package** holding the flag client: **one** `GetEffectiveFlags` fetch → cache a **snapshot**; per-key reads are local/synchronous. Fetch on **launch and resume** sending the known **version** (cheap "unchanged"); optional light foreground poll (~5–15 min) version-guarded. **Stale-while-revalidate**: atomic swap, keep last-good snapshot on failed refresh (never a gap). **Identity-scoped**: watch auth state → on sign-out clear to anonymous/defaults, on user switch drop the old snapshot and refetch for the new identity (never inherit). **Local persisted cache keyed by identity** (or cleared on sign-out) for a flicker-free cold start. Expose via a Riverpod provider (service seam, fake in tests). Reusable by music/live/future apps.
+- [ ] 4.1a `GetEffectiveFlags` supports an **unauthenticated** call returning the anonymous global (non-staff) set, so pre-account UI (#8) respects kill-switches; else defaults.
 - [ ] 4.2 Feature entry points read the provider to show/hide; backend still enforces regardless; a gated action that a stale client still shows **fails gracefully** (localized "unavailable", no raw error).
 
 ## 5. Initial registry
@@ -29,7 +30,7 @@
 ## 6. Tests & verification
 
 - [ ] 6.1 Rust: default fallback (absent key + store outage), L1/L2 cache + Redis invalidation (edit effective on invalidation, TTL as backstop; Redis-down → L1 snapshot + Postgres poll; Postgres-down → code defaults), **app-scope resolution** (a `music` caller sees `all`+`music`, not `live`), rollout-scope (staff-only vs global), **admin scoping** (per-app admin can't change `all`/other-app; platform admin can), enforcement (gated op rejected when off; data preserved), audit recorded, sensitive-key confirmation. `cargo llvm-cov ... --fail-under-lines 80`.
-- [ ] 6.2 Flutter: flag provider reflects fetched flags; launch/resume refresh; entry point shows/hides (via fakes). `flutter test --coverage` ≥ 80%.
+- [ ] 6.2 Flutter (via fakes): provider reflects fetched flags; one snapshot + local per-key reads; launch/resume refresh with version; **failed refresh keeps last-good snapshot**; **sign-out reverts to anonymous**; **user switch refetches and does not inherit** the previous snapshot; persisted cache keyed by identity. `flutter test --coverage` ≥ 80%.
 - [ ] 6.3 Vue BO panel: toggle/edit + admin-gating + sensitive-key confirmation (own test setup).
 - [ ] 6.4 `cargo fmt`/`clippy` + `melos run analyze`/`dart format` clean; regenerate codegen as needed.
 - [ ] 6.5 `openspec validate add-runtime-feature-flags --strict` passes.

@@ -124,6 +124,20 @@ gate.
 - **`WatchFlags` server-stream deferred**: near-real-time client updates via a gRPC stream are
   possible later but costly on mobile (long-lived connection, reconnect, backgrounding) and
   unnecessary given backend enforcement.
+- **Whole-snapshot, not per-key network**: one `GetEffectiveFlags` returns the caller's entire
+  effective set (small payload); the app caches it as a **snapshot** and reads are **per-key,
+  local, synchronous** — never a per-key round trip.
+- **Stale-while-revalidate**: a refresh is an **atomic swap** — the app keeps serving the last-good
+  snapshot while a fetch is in flight and replaces it only on success; a **failed** refresh keeps
+  the previous snapshot, never a gap/empty state.
+- **Identity-scoped snapshot + auth-change reset (the security bit)**: the effective set depends on
+  the caller's **roles + app**, so the snapshot is per-identity. The package **watches auth state**
+  and: on **sign-out** discards the signed-in snapshot and reverts to the **anonymous/default**
+  set; on **user switch** never reuses the previous user's snapshot — it refetches for the new
+  identity (defaults meanwhile). Any **persisted** cache is **keyed by identity** (or cleared on
+  sign-out), so one user's flags (e.g. staff-only features) never apply to another on a shared
+  device. A pre-account app may fetch an **anonymous** effective set (global, non-staff keys) so
+  onboarding respects kill-switches too; otherwise it uses code/bundled defaults.
 - **All of this lives in the shared package** so music/live/future apps get identical behavior.
 
 ### D5 — Rollout scope: global by default, optional staff-only; no percentage rollout yet
