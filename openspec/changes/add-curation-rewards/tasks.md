@@ -3,7 +3,7 @@
 - [ ] 1.1 Migration: append-only `curation_points` ledger (user_id, award_kind coverage/honesty/adjustment, amount, catalog_score_id nullable, created_at) + index by user.
 - [ ] 1.2 Migration: per-rating settlement state (settled flag + settled-against source consensus/moderator + settled_at), and per-score consensus-settlement state, so honesty is awarded once and idempotently.
 - [ ] 1.3 Migration: unlock/badge state (user_id, unlock/badge key, granted_at) and, if needed, a denormalized user balance/level for cheap reads.
-- [ ] 1.4 Config for point values, diminishing curve, daily cap, level thresholds, consensus settlement minimum (≥ re-review N), and floor amount.
+- [ ] 1.4 Config for point values, diminishing curve, daily cap, level thresholds, consensus settlement minimum, and floor amount. Seed the straw-man defaults from design.md "Starting Configuration": coverage bands 10/6/3/1/0 (by existing ratings 0 / 1–4 / 5–19 / 20–49 / ≥50), daily cap 60; honesty aligned 8 (moderator) / 5 (consensus), floor 1, alignment midpoint 3.0 with ±0.25 ambiguous band, consensus min 8 raters; levels 50/150/350/700/1200/2000/3000 then +1200; piano unlocks at L1/L3/L5, "Patron" premium tier at L6 (future, not granted); badges First Note, Curator I/II/III (10/100/500), Sharp Ear I/II (25/100 aligned), Trailblazer (20 first-rater).
 
 ## 2. Coverage award (backend)
 

@@ -125,10 +125,51 @@ truth). Read-only; informs manual promotion; no automation.
 5. **Rollback**: rewards are additive; disabling the award hooks and hiding the app/BO
    surfaces leaves ratings and moderation fully functional. Ledger data is inert if unused.
 
+## Starting Configuration (straw-man defaults)
+
+All values are configuration; these are the initial defaults to ship and tune. They are
+sized so a casual session (~10 previewed ratings/day) is rewarding without grinding, and
+so alignment matters more than volume over time.
+
+**Coverage points** by the score's existing rating count `r` (before this rating):
+
+| existing ratings `r` | coverage points |
+| --- | --- |
+| 0 (first rater) | 10 |
+| 1–4 | 6 |
+| 5–19 | 3 |
+| 20–49 | 1 |
+| ≥ 50 | 0 |
+
+- Daily coverage cap: **60 points/user/day**. Engagement gate: coverage counts only if the
+  score was previewed first.
+
+**Honesty bonus** at settlement:
+
+| outcome | points |
+| --- | --- |
+| aligned, settled by a moderator decision (expert) | 8 |
+| aligned, settled by community consensus | 5 |
+| misaligned (either source) | 1 (floor, never negative) |
+
+- Alignment: effective value vs midpoint **3.0** (dislike≈1.5, like≈3.5, love≈5, or explicit
+  stars). Truth is positive if consensus avg > 3.0 **or** moderator accept; negative if < 3.0
+  **or** reject; a consensus within ±0.25 of 3.0 is ambiguous → all raters get the floor.
+- Consensus settlement minimum: **8 distinct raters** (≥ the re-review N=5, for a stabler avg).
+
+**Levels** (cumulative points): L1 50 · L2 150 · L3 350 · L4 700 · L5 1200 · L6 2000 ·
+L7 3000, then +1200 per level.
+
+**Unlocks** (map to the actual FreePats catalog): starter piano at L0; +1 piano at L1, L3,
+L5; L6 is the "Patron" tier reserved for future temporary premium (not granted now).
+
+**Badges**: First Note (1st rating); Curator I/II/III (10/100/500 ratings); Sharp Ear I/II
+(25/100 aligned ratings); Trailblazer (20 first-rater ratings).
+
 ## Open Questions
 
-- **Point values / thresholds / diminishing curve / daily cap** — ship config defaults and
-  tune with real usage. Initial straw-man to confirm at implementation.
+- **Tuning the straw-man above** — confirm/adjust with real usage; all values are config so
+  no schema change is needed to retune.
 - **Consensus settlement trigger** — inline vs. worker sweep, and the exact minimum-rater
   threshold (≥ the re-review N=5). Lean worker sweep for scale.
 - **Re-settlement policy** — does a late moderator decision override an earlier
