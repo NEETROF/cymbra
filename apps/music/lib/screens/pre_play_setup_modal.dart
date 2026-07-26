@@ -215,18 +215,35 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
     ),
   );
 
-  Widget _handsSection(AppLocalizations l10n) => Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      _sectionTitle(l10n.prePlayHands),
-      for (final h in Hand.values)
-        SettingOptionRow(
-          selected: h == _hands,
-          label: handLabel(l10n, h),
-          onTap: () => setState(() => _hands = h),
+  Widget _handsSection(AppLocalizations l10n) {
+    const hands = Hand.values;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _sectionTitle(l10n.prePlayHands),
+        // A 3-way toggle (Left / Right / Both) — compact, one row instead of
+        // three radio rows.
+        LayoutBuilder(
+          builder: (context, constraints) {
+            // Three equal segments filling the width (account for the borders).
+            final segment = (constraints.maxWidth - 4) / hands.length;
+            return ToggleButtons(
+              isSelected: [for (final h in hands) h == _hands],
+              onPressed: (i) => setState(() => _hands = hands[i]),
+              borderRadius: BorderRadius.circular(10),
+              borderColor: CymbraColors.surfaceContainerHighest,
+              selectedBorderColor: CymbraColors.tertiary,
+              color: CymbraColors.onSurfaceVariant,
+              selectedColor: CymbraColors.onSurface,
+              fillColor: CymbraColors.tertiary.withValues(alpha: 0.22),
+              constraints: BoxConstraints(minHeight: 44, minWidth: segment),
+              children: [for (final h in hands) Text(handLabel(l10n, h))],
+            );
+          },
         ),
-    ],
-  );
+      ],
+    );
+  }
 
   Widget _tempoSection(AppLocalizations l10n, PlayerData data) {
     final effectiveBpm = (data.bpm * _speed).round();
