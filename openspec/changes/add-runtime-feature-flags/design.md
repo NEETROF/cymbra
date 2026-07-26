@@ -19,6 +19,16 @@ earlier "runtime config" option for the scattered straw-man tunables (#2/#4/#6/#
 **Non-Goals:**
 - Percentage/cohort/gradual rollout and A/B experiments (future).
 - Making legal/infra values (min public-sharing age, retention) casually flippable.
+- **Purchase/subscription-based access (entitlements) — a separate, composable concern.** Flags
+  are operator control ("is the feature enabled?"); **entitlements** are per-user grants from
+  purchases/rewards ("is *this* user entitled?"), with their own source of truth (purchase/reward
+  records, store-receipt validation, expiry, restore) and stronger server-side verification.
+  Feature availability composes the two: **flag enabled AND user entitled**. Entitlement-like
+  grants already exist (the #4 reward-shop unlocks; #5's future premium); real in-app purchases
+  would feed an **entitlements** service (a possible future change), **not** the flag store — an
+  admin must never be able to grant paid access by flipping a flag. The flag **evaluation context
+  is kept extensible** so it can later *see* entitlements (as it already sees roles/app), but the
+  entitlement check itself stays outside the flag system.
 
 ## Decisions
 
