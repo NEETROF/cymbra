@@ -42,8 +42,11 @@ import '../theme/cymbra_theme.dart';
 import '../widgets/countdown_overlay.dart';
 import '../widgets/language_selector.dart';
 import '../widgets/mistake_replay.dart';
+import '../widgets/otg_guidance.dart';
 import '../widgets/scoring_overlay.dart';
 import '../widgets/session_summary_modal.dart';
+import '../widgets/setting_option_row.dart';
+import 'pre_play_setup_modal.dart';
 import 'score_load_message.dart';
 
 /// Main screen of the Cymbra player: top bar, rendering area
@@ -60,6 +63,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
   final FocusNode _focusNode = FocusNode();
   late final Ticker _ticker;
   Duration _lastTick = Duration.zero;
+
+  /// Whether the pre-play setup modal has been shown for this opening (one per
+  /// pushed `PlayerScreen`, so it re-appears on every open).
+  bool _setupShown = false;
 
   /// Active on-screen-keyboard pointers → the pitch each is holding, so a finger
   /// release note-offs only its own pitch (independent multi-touch). Same-pitch
@@ -252,6 +259,14 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
         _onScoredRunFinished(next);
       }
     });
+    // Show the pre-play setup modal once, as soon as the score has loaded. The
+    // openScore guard usually pre-loads before this screen mounts, so the
+    // build-body call catches the already-loaded case; the listener covers a
+    // load that resolves after mount.
+    ref.listen(notationProvider.select((n) => n.hasDocument), (_, hasDoc) {
+      if (hasDoc) _maybeShowSetup();
+    });
+    _maybeShowSetup();
     return Focus(
       focusNode: _focusNode,
       autofocus: true,
@@ -365,6 +380,17 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
         ),
       ),
     );
+  }
+
+  /// Shows the pre-play setup modal once per opening, after the score has loaded.
+  /// Safe to call from build: it never shows synchronously — it schedules the
+  /// dialog on the next frame and is guarded so it fires at most once.
+  void _maybeShowSetup() {
+    if (_setupShown || !ref.read(notationProvider).hasDocument) return;
+    _setupShown = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) showPrePlaySetup(context);
+    });
   }
 
   /// Persists the finished run and presents the summary modal, then clears the
@@ -695,11 +721,7 @@ class _SettingsDrawerState extends ConsumerState<_SettingsDrawer> {
   String _keyboardVisibilityLabel(AppLocalizations l10n, bool visible) =>
       visible ? l10n.keyboardShown : l10n.keyboardHidden;
 
-  String _handLabel(AppLocalizations l10n, Hand hand) => switch (hand) {
-    Hand.left => l10n.handLeft,
-    Hand.right => l10n.handRight,
-    Hand.both => l10n.handBoth,
-  };
+  String _handLabel(AppLocalizations l10n, Hand hand) => handLabel(l10n, hand);
 
   String _rangeLabel(AppLocalizations l10n, KeyboardRangeMode m) =>
       m == KeyboardRangeMode.auto
@@ -711,15 +733,7 @@ class _SettingsDrawerState extends ConsumerState<_SettingsDrawer> {
     required bool selected,
     required String label,
     required VoidCallback? onTap,
-  }) => ListTile(
-    leading: Icon(
-      selected ? Icons.check_circle : Icons.radio_button_unchecked,
-      size: 20,
-      color: selected ? CymbraColors.tertiary : CymbraColors.onSurfaceVariant,
-    ),
-    title: Text(label, style: const TextStyle(color: CymbraColors.onSurface)),
-    onTap: onTap,
-  );
+  }) => SettingOptionRow(selected: selected, label: label, onTap: onTap);
 
   /// A language row: the flag is the visible content, with an accessible label
   /// so screen readers announce the language name rather than the emoji.
@@ -776,7 +790,7 @@ class _SettingsDrawerState extends ConsumerState<_SettingsDrawer> {
           // Other platforms keep the plain empty row. The guidance clears on its
           // own once a port appears, since this branch only runs when empty.
           if (midiPorts.isEmpty && isAndroid)
-            const _OtgGuidance()
+            const OtgGuidance()
           else if (midiPorts.isEmpty)
             _option(
               selected: false,
@@ -1000,59 +1014,6 @@ class _DrawerHeader extends StatelessWidget {
         ),
         const Divider(height: 1, color: CymbraColors.outlineVariant),
       ],
-    );
-  }
-}
-
-/// Android-only guidance shown in the MIDI device list when no port is detected.
-///
-/// USB OTG is a system/hardware toggle the app cannot enable itself, and a
-/// charge-only cable looks identical to a data one — so when Android enumerates
-/// no MIDI port the actionable move is to point the user at those two causes.
-/// Kept out of the plain "No device detected" row (used on other platforms)
-/// because the OTG/cable advice is Android-specific.
-class _OtgGuidance extends StatelessWidget {
-  const _OtgGuidance();
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Icon(
-            Icons.usb_off,
-            size: 20,
-            color: CymbraColors.onSurfaceVariant,
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  l10n.midiOtgTitle,
-                  style: const TextStyle(
-                    color: CymbraColors.onSurface,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  l10n.midiOtgBody,
-                  style: const TextStyle(
-                    color: CymbraColors.onSurfaceVariant,
-                    fontSize: 13,
-                    height: 1.35,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

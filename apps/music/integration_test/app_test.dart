@@ -118,6 +118,15 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
     }
 
+    // The pre-play setup modal opens over the player — validate it to start.
+    final startSetup = find.widgetWithText(FilledButton, 'Play');
+    expect(startSetup, findsOneWidget);
+    await watch(tester);
+    await tester.tap(startSetup);
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+
     // Player chrome for the loaded score (parsed over the bridge).
     expect(find.text('Cymbra Music'), findsWidgets);
     expect(find.textContaining('Ode to Joy'), findsWidgets);

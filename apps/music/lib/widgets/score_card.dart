@@ -19,13 +19,7 @@ import 'package:flutter/material.dart';
 import '../l10n/gen/app_localizations.dart';
 import '../state/score_catalog.dart';
 import '../theme/cymbra_theme.dart';
-
-/// The difficulty accent colour (green / teal / pink) shared by the badge + cover.
-Color scoreLevelColor(PracticeLevel level) => switch (level) {
-  PracticeLevel.beginner => CymbraColors.tertiary,
-  PracticeLevel.intermediate => CymbraColors.secondary,
-  PracticeLevel.advanced => CymbraColors.error,
-};
+import 'difficulty_badge.dart';
 
 /// A friendly name for a crawler source code, or `null` to omit (dev/unknown).
 String? _sourceLabel(String? source) => switch (source) {
@@ -91,7 +85,7 @@ class ScoreCard extends StatelessWidget {
                   Positioned(
                     top: 10,
                     left: 10,
-                    child: _DifficultyBadge(level: entry.level, l10n: l10n),
+                    child: DifficultyBadge(level: entry.level, l10n: l10n),
                   ),
                   if (action != null)
                     Positioned(top: 4, right: 4, child: action!),
@@ -156,35 +150,6 @@ class ScoreCard extends StatelessWidget {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _DifficultyBadge extends StatelessWidget {
-  const _DifficultyBadge({required this.level, required this.l10n});
-
-  final PracticeLevel level;
-  final AppLocalizations l10n;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = scoreLevelColor(level);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.22),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withValues(alpha: 0.6)),
-      ),
-      child: Text(
-        level.localizedLabel(l10n).toUpperCase(),
-        style: TextStyle(
-          color: color,
-          fontSize: 10,
-          fontWeight: FontWeight.w800,
-          letterSpacing: 0.5,
         ),
       ),
     );
