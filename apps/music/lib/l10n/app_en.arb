@@ -427,6 +427,15 @@
   "playerScoreUnavailable": "Can't reach the server. Check your connection and try again.",
   "@playerScoreUnavailable": { "description": "Shown when the backend is unreachable while loading a score." },
 
+  "prePlayHands": "Play with",
+  "@prePlayHands": { "description": "Pre-play setup modal: section header for the hand chooser." },
+
+  "prePlayTempo": "Tempo",
+  "@prePlayTempo": { "description": "Pre-play setup modal: section header for the tempo/speed and metronome controls." },
+
+  "prePlayStart": "Play",
+  "@prePlayStart": { "description": "Pre-play setup modal: the validate button that applies the settings and starts playing." },
+
   "libraryEmptyTitle": "No favorites yet",
   "@libraryEmptyTitle": { "description": "Home empty-state title when the user has no favorite scores." },
 
