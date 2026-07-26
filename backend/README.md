@@ -122,6 +122,40 @@ into an application service**.
 > **Depends on `add-job-infrastructure`** — the `jobs` schema + `worker_svc` come
 > from that change; this layers `admin_svc` and the env-driven bootstrap on top.
 
+### Seeding the first admin & moderator onboarding (change: add-moderation-back-office)
+
+Moderation access is `music/admin` or `music/moderator`. There is no in-app path to
+mint the **first** admin, so an operator seeds it out-of-band (design D6) with
+[`scripts/seed_admin.sh`](scripts/seed_admin.sh), then everyone else is granted from
+the back office (`GrantRole`). Onboarding chain:
+
+**seed the first `music/admin` → that admin grants `music/moderator` to others → moderators work the review queue.**
+
+The target **account must already exist** — the person signs in once (which
+provisions their `users` row), then you look up their id and seed the role:
+
+```bash
+# 1. Find the account id (any psql against the user_account schema).
+#    In local dev without a host psql, use the container's:
+docker exec -it backend-postgres-1 \
+  psql -U cymbra -d cymbra -c "SELECT id, handle FROM user_account.users;"
+
+# 2. Seed music/admin for that id. Needs `psql` on PATH — on macOS:
+#    `brew install libpq` then add "$(brew --prefix libpq)/bin" to PATH.
+PGHOST=localhost PGPASSWORD=cymbra_dev_pw POSTGRES_USER=cymbra POSTGRES_DB=cymbra \
+  bash backend/scripts/seed_admin.sh <user-uuid>
+```
+
+Defaults to `scope=music role=admin`; pass `<user-uuid> <scope> <role>` to grant
+something else (e.g. `… music moderator`). The script is **idempotent**
+(`ON CONFLICT DO NOTHING`) and **fails loudly** (non-zero exit) on an unknown or
+malformed id. In prod, point `PG*`/`PGPASSWORD` at the real DB (an `admin_svc` or
+superuser connection).
+
+> **The new role takes effect on the caller's next token**, not immediately — access
+> tokens are short-lived and carry the role set at issuance, so the user must
+> re-login or let their token refresh before the back office sees the role.
+
 ### Production credentials
 
 The committed bootstrap carries **dev defaults only** — no production secret is in
