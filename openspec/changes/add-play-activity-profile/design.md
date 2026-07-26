@@ -142,6 +142,24 @@ schema change.
   gate at opt-in, store only `share_eligible_from` (DATE), server-enforced fail-closed, UTC
   date check with a one-day margin; heatmap stays local-tz (D6).
 
+### D7 — Retention: never drop un-acked outbox; tiered server retention; erasure on deletion
+- **Client outbox**: entries are kept **only until acknowledged**, then removed. An un-acked
+  entry is **never dropped** — no age cap prunes it (the "no loss" invariant wins over any
+  size concern). Realistically bounded (a user's own sessions); if the server is long
+  unavailable they simply accumulate and flush later.
+- **Server `play_sessions` — two tiers** (both config):
+  - a **lightweight summary** (id, user, score, played_at, overall sync %, per-mode
+    sub-scores, classification) + the **per-day aggregate** are kept **long-term** — they are
+    tiny and drive the heatmap (~13-month window) and future leaderboard bests;
+  - the **heavy detail** (the full session-result JSONB incl. per-note judgments, used for
+    replay) is pruned after `play_detail_retention_days` (**default 90**), keeping the summary.
+- **Erasure (RGPD)**: on account deletion, **all** of a user's play data (sessions +
+  aggregates) is deleted — via FK `ON DELETE CASCADE` to the user and/or the existing
+  `purge_user` worker job. No orphaned play data survives a deleted account.
+- **Why tiered**: keeps storage bounded (per-note detail is the only heavy part) while
+  preserving the small long-lived signals the profile/leaderboards need, and honors data
+  minimization/retention-limitation.
+
 ## Resolved Questions (continued)
 
 - **Public field allow-list (decided)**: handle/display name, level, badges, the play heatmap,
@@ -150,9 +168,11 @@ schema change.
 - **Success metric for the color (decided)**: `performance-scoring`'s **overall
   synchronization percentage (0–100)**; the per-day cell color is the day's average of it.
 
+- **Retention & erasure (decided, D7)**: outbox keeps un-acked entries forever (never drops);
+  server keeps summary + daily aggregate long-term and prunes heavy per-note detail after
+  `play_detail_retention_days` (default 90); all play data is erased on account deletion.
+
 ## Open Questions
 
-- **Retention/cap** of `play_sessions` and outbox entries — set a sane retention; never drop
-  un-acked outbox entries.
 - **Leaderboards** (reaction/tempo) are **out of scope** here but **enabled** by storing the
-  full session-result record; a future change can add them without re-plumbing ingestion.
+  full session-result record; the next change (#6) adds them without re-plumbing ingestion.

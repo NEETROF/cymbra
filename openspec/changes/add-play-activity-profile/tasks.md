@@ -3,6 +3,7 @@
 - [ ] 1.1 Migration: `play_sessions` (id UUID PK = client session id, user_id, catalog/user score id, played_at TIMESTAMPTZ, tz offset, overall_sync_pct, session_result JSONB = the immutable session-result record, created_at) + index by (user_id, played_at).
 - [ ] 1.2 `RecordPlaySession` RPC (authenticated): carries the serializable session-result record from `performance-scoring`; idempotent upsert `ON CONFLICT (id) DO NOTHING`; returns an acknowledgement. Reject unauthenticated. (Storing the full record enables future leaderboards; #5 uses only the overall sync %.)
 - [ ] 1.3 Per-day aggregate read (count + avg overall synchronization % per user per local day, bucketed by the recorded tz); on-demand query first, denormalize later if needed.
+- [ ] 1.4 Retention & erasure: config `play_detail_retention_days` (default 90) + a prune of the heavy per-session detail (keep summary/aggregate); `play_sessions` FK to users `ON DELETE CASCADE` and extend the `purge_user` worker job so account deletion erases all play data. Outbox: never prune un-acked entries (client side, task 2.3).
 
 ## 2. Reliable client delivery (app, no loss)
 

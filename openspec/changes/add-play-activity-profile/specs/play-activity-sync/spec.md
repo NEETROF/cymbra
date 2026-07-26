@@ -75,3 +75,27 @@ requests MUST be rejected.
 
 - **WHEN** a record request arrives without a valid authenticated identity
 - **THEN** it is rejected and nothing is stored
+
+### Requirement: Play-data retention and erasure
+
+The system SHALL bound stored play data and erase it with the account. Un-acknowledged
+outbox entries MUST NOT be dropped by any retention rule (the no-loss guarantee). On the
+server, the lightweight per-session summary and the per-day aggregate MAY be kept long-term,
+while the heavy per-session detail (the full record used for replay) SHALL be pruned after a
+configured retention period. On **account deletion**, **all** of that user's play sessions
+and aggregates SHALL be deleted, so no play data outlives the account.
+
+#### Scenario: Heavy detail pruned after the retention period
+
+- **WHEN** a session's detailed record is older than the configured detail-retention period
+- **THEN** the heavy detail is pruned while the lightweight summary/aggregate may remain
+
+#### Scenario: Un-acked outbox entries are never pruned
+
+- **WHEN** outbox entries remain un-acknowledged for a long time
+- **THEN** they are retained (never dropped by retention) until delivered
+
+#### Scenario: Account deletion erases play data
+
+- **WHEN** a user's account is deleted
+- **THEN** all of that user's play sessions and aggregates are deleted, leaving no orphaned play data
