@@ -54,8 +54,10 @@ class LibraryScreen extends ConsumerWidget {
     final signedIn = ref.watch(canUseOnlineServicesProvider);
     // Warm the persisted play preferences at startup (the library is the first
     // screen) so they're restored before the first score's player seeds from
-    // them — otherwise a cold-start open would fall back to defaults.
-    ref.watch(playerPreferencesProvider);
+    // them — otherwise a cold-start open would fall back to defaults. Listen (not
+    // watch): activate the keepAlive provider without rebuilding this screen when
+    // the settings change.
+    ref.listen(playerPreferencesProvider, (_, _) {});
 
     return Scaffold(
       backgroundColor: CymbraColors.background,
