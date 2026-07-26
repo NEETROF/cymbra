@@ -29,9 +29,17 @@ success/sync metrics; the backend is gRPC-only (tonic) with idempotent upsert pa
 ### D1 — Durable client outbox, not fire-and-forget
 At session end the app writes a session record to a **durable local outbox** (a persisted
 store — e.g. a local DB/box that survives process death), independent of network state. A
-background **sender** drains the outbox: on success it removes the entry; on failure
-(offline, timeout, server busy/5xx) it keeps the entry and retries with **exponential
-backoff + jitter**. Entries are removed **only after server acknowledgement**.
+background **sender** drains the outbox: it removes an entry **only after the server's
+acknowledgement that it was persisted** (not merely on request-sent — a lost ack or an
+un-committed server must not delete the entry); on failure (offline, timeout, server
+busy/5xx) it keeps the entry and retries with **exponential backoff + jitter**.
+- **Resume triggers**: the sender re-drains the outbox on **app launch**, on **regained
+  connectivity**, and on **user (re)authentication** — delivery is authenticated, so entries
+  produced while signed out or with an expired token wait for a valid token, then flush. A
+  periodic/backoff timer covers the rest.
+- **Per-user association**: each entry is tied to the account that produced it and is sent
+  under **that** identity, so on a shared device one user's sessions are never delivered under
+  another's account.
 - **Why**: "nothing is lost" requires the stat to be durably captured *before* any network
   attempt, and to outlive app kills. Fire-and-forget or in-memory retry would drop stats on
   a crash/offline close.

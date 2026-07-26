@@ -9,7 +9,7 @@
 
 - [ ] 2.1 A durable local outbox (persisted store surviving app restarts) that stores a session record with a client-generated UUID v7 id at session end, before any network attempt.
 - [ ] 2.2 Hook at session end to enqueue the `performance-scoring` immutable session-result record (incl. overall sync %) + client tz into the outbox.
-- [ ] 2.3 A background sender that drains the outbox: send → on ack remove; on failure keep + retry with exponential backoff + jitter; never drop an un-acked entry; resume on app launch.
+- [ ] 2.3 A background sender that drains the outbox: send → remove **only on the server's persisted-ack** (never on mere request-sent); on failure keep + retry with exponential backoff + jitter; never drop an un-acked entry. **Resume triggers**: app launch, regained connectivity, and user (re)authentication; entries stay pending without a valid token and flush once signed in; deliver each entry under the producing account's identity.
 - [ ] 2.4 Idempotent by session id end-to-end (client resends the same id; server dedupes); confirm no double-count and no loss across offline/restart/duplicate.
 
 ## 3. Heatmap (app)
@@ -26,7 +26,7 @@
 
 ## 5. Tests & verification
 
-- [ ] 5.1 Flutter: outbox durability (survives restart), retry-until-ack, never drops un-acked, offline capture, duplicate send is safe — assert **no loss, no double-count**. `flutter test --coverage` ≥ 80%.
+- [ ] 5.1 Flutter: outbox durability (survives restart), remove only on persisted-ack, retry-until-ack, never drops un-acked, offline capture, duplicate send is safe, **resume on launch / connectivity / sign-in**, per-user delivery — assert **no loss, no double-count**. `flutter test --coverage` ≥ 80%.
 - [ ] 5.2 Flutter: heatmap colors by success rate, conveys count, blanks empty days (via a fake aggregate); public-profile view shows only public fields.
 - [ ] 5.3 Rust: idempotent ingest (same id no-ops), per-day aggregation by local tz, public read allow-list (no email/alignment/moderation), visibility default private + honored, age gate fail-closed (under-min-age refused to go public; UTC one-day margin; DOB not stored), unauthenticated rejected. `cargo llvm-cov ... --fail-under-lines 80`.
 - [ ] 5.4 `cargo fmt`/`clippy` + `melos run analyze`/`dart format` clean; regenerate codegen as needed.

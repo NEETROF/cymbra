@@ -53,6 +53,29 @@ this guarantees **no session is lost and none is counted twice**.
 - **WHEN** deliveries fail repeatedly and the app restarts between attempts
 - **THEN** every captured session is eventually delivered exactly once, with none dropped
 
+### Requirement: Delivery resumes on launch, connectivity, and sign-in
+
+The app SHALL resume draining the outbox automatically after conditions that could have
+stalled it: on **app launch**, on **regained network connectivity**, and on **user
+(re)authentication**. Because delivery is authenticated, an entry produced while signed out or
+with an expired token SHALL remain pending and be delivered once a valid session exists. Each
+entry SHALL be delivered under the identity of the account that produced it.
+
+#### Scenario: Pending entries flush on next launch
+
+- **WHEN** the app starts with entries still pending in the outbox
+- **THEN** the sender resumes and delivers them
+
+#### Scenario: Delivery resumes when the user signs in
+
+- **WHEN** entries are pending but no valid authenticated session exists, and the user then signs in
+- **THEN** the sender delivers the pending entries under that user's identity
+
+#### Scenario: Delivery resumes when connectivity returns
+
+- **WHEN** entries are pending during an offline period and connectivity is regained
+- **THEN** the sender resumes delivering them
+
 ### Requirement: Server persists sessions and aggregates per day
 
 The backend SHALL expose an authenticated, idempotent operation to record a play session
