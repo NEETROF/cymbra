@@ -108,6 +108,7 @@ message SearchCatalogRequest {
 message SearchCatalogResponse {
   repeated CatalogHit hits = 1;
   int32 next_offset = 2; // offset to request the next page (offset + hits.len)
+  int32 total = 3;       // total rows matching the query+filters, independent of limit/offset
 }
 
 message SaveCatalogScoreRequest { string catalog_id = 1; }

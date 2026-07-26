@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -20,6 +22,7 @@ import '../services/catalog_service.dart';
 import '../services/score_upload_service.dart';
 import '../state/contributed_scores.dart';
 import '../state/favorite_scores.dart';
+import '../state/player_preferences.dart';
 import '../state/saved_catalog_scores.dart';
 import '../state/score_catalog.dart';
 import '../state/session_notifier.dart';
@@ -27,7 +30,7 @@ import '../theme/cymbra_theme.dart';
 import '../widgets/language_selector.dart';
 import '../widgets/score_card.dart';
 import 'auth/account_menu.dart';
-import 'player_screen.dart';
+import 'open_score.dart';
 import 'score_hub_screen.dart';
 
 /// Localized name for a [PracticeLevel] section header.
@@ -47,6 +50,12 @@ class LibraryScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Warm the persisted play preferences at startup (the library is the first
+    // screen) so they're restored before the first score's player seeds from
+    // them — otherwise a cold-start open would fall back to defaults. Listen (not
+    // watch): activate the keepAlive provider without rebuilding this screen when
+    // the settings change.
+    ref.listen(playerPreferencesProvider, (_, _) {});
     final l10n = AppLocalizations.of(context);
     final signedIn = ref.watch(canUseOnlineServicesProvider);
 
@@ -91,10 +100,7 @@ class LibraryScreen extends ConsumerWidget {
   }
 
   static void _open(BuildContext context, WidgetRef ref, CatalogEntry entry) {
-    ref.read(selectedScoreProvider.notifier).select(entry);
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute<void>(builder: (_) => const PlayerScreen()));
+    unawaited(openScore(context, ref, entry));
   }
 
   static void _openHub(BuildContext context) => Navigator.of(

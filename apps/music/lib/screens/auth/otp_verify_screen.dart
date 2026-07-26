@@ -18,6 +18,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../../services/auth_service.dart';
 import '../../state/auth_flow.dart';
+import '../../widgets/app_snackbar.dart';
 import 'auth_messages.dart';
 import 'auth_scaffold.dart';
 
@@ -61,9 +62,7 @@ class _OtpVerifyScreenState extends ConsumerState<OtpVerifyScreen> {
         if (mounted) Navigator.of(context).popUntil((r) => r.isFirst);
       } else {
         if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text(l10n.otpVerifiedSnack)));
+          showAppSnackBar(ScaffoldMessenger.of(context), l10n.otpVerifiedSnack);
           Navigator.of(context).pop();
         }
       }
@@ -81,9 +80,7 @@ class _OtpVerifyScreenState extends ConsumerState<OtpVerifyScreen> {
     try {
       await ref.read(authFlowProvider).resendVerification(widget.email);
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(l10n.otpResentSnack)));
+        showAppSnackBar(ScaffoldMessenger.of(context), l10n.otpResentSnack);
       }
     } on AuthException catch (e) {
       if (mounted) showAuthError(context, e);

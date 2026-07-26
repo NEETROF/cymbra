@@ -58,11 +58,27 @@ abstract class CatalogSearchState with _$CatalogSearchState {
     @Default(false) bool loadingMore,
     @Default(true) bool hasMore,
     @Default(0) int nextOffset,
+
+    /// Total catalog scores matching the current filters on the server,
+    /// independent of how many pages are loaded. Null in "mes partitions" mode
+    /// (no server total applies) and before the first page returns.
+    int? totalCount,
     String? error,
   }) = _CatalogSearchState;
 
   /// Whether the hub is scoped to the user's own uploads ("mes partitions").
   bool get isMyUploads => myScoresOnly;
+
+  /// The count shown under the title: the server total for the applied filters
+  /// plus the user's matching uploads (which lead the list), so it reflects the
+  /// full match set rather than the pages loaded so far. Falls back to the loaded
+  /// list length in "mes partitions" mode or before the first page returns.
+  int get displayCount {
+    final total = totalCount;
+    if (myScoresOnly || total == null) return entries.length;
+    final uploads = entries.where((e) => e.isContributed).length;
+    return uploads + total;
+  }
 
   /// Whether the current result list is empty after a completed (non-loading)
   /// query — the signal for the no-results / empty-uploads state.
@@ -199,14 +215,17 @@ class CatalogSearch extends _$CatalogSearch {
       entries: const [],
       nextOffset: 0,
       hasMore: true,
+      totalCount: null,
     );
     try {
       final uploads = await _matchingUploads();
       if (state.myScoresOnly) {
+        // No server total in my-uploads mode — the local list is the count.
         state = state.copyWith(
           loading: false,
           entries: uploads,
           hasMore: false,
+          totalCount: null,
         );
         return;
       }
@@ -230,6 +249,7 @@ class CatalogSearch extends _$CatalogSearch {
         ],
         nextOffset: page.nextOffset,
         hasMore: page.hits.length >= _pageSize,
+        totalCount: page.total,
       );
     } catch (e) {
       state = state.copyWith(loading: false, error: e.toString());
@@ -280,6 +300,7 @@ class CatalogSearch extends _$CatalogSearch {
         ],
         nextOffset: page.nextOffset,
         hasMore: page.hits.length >= _pageSize,
+        totalCount: page.total,
       );
     } catch (e) {
       state = state.copyWith(loadingMore: false, error: e.toString());

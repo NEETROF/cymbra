@@ -83,7 +83,7 @@ Future<void> _pump(WidgetTester tester, ProviderContainer container) async {
 
 /// Pumps a bounded number of frames. The player runs a Ticker/Timer, so
 /// `pumpAndSettle` would never settle — pump a fixed number of frames instead.
-Future<void> _pumpFrames(WidgetTester tester, [int n = 12]) async {
+Future<void> _pumpFrames(WidgetTester tester, [int n = 16]) async {
   for (var i = 0; i < n; i++) {
     await tester.pump(const Duration(milliseconds: 50));
   }
@@ -173,6 +173,11 @@ void main() {
     await tester.tap(find.text('Beginner Piece'));
     await _pumpFrames(tester);
     expect(find.byType(PlayerScreen), findsOneWidget);
+
+    // Opening a score shows the pre-play setup modal — dismiss it (Validate)
+    // before reaching for the player's back button underneath.
+    await tester.tap(find.widgetWithText(FilledButton, 'Play'));
+    await _pumpFrames(tester);
 
     // Tap the player's back button (wired because there is a route to pop).
     await tester.tap(find.byTooltip('Back to library'));

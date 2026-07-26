@@ -104,8 +104,10 @@ pub struct CatalogQuery {
 #[async_trait]
 pub trait CatalogSearchRepo: Send + Sync {
     /// One page of attribution-complete hits matching `p`, deterministically
-    /// ordered so paging is stable.
-    async fn search(&self, p: &CatalogSearchParams) -> Result<Vec<CatalogHit>>;
+    /// ordered so paging is stable, paired with the **total** number of rows
+    /// matching the query+filters (independent of `limit`/`offset`) so callers can
+    /// show the full match count without loading every page.
+    async fn search(&self, p: &CatalogSearchParams) -> Result<(Vec<CatalogHit>, i64)>;
 
     /// Hits for the given catalog ids, existing rows only (missing ids are simply
     /// absent). Order is unspecified — the caller re-orders to the saved order.
@@ -235,7 +237,7 @@ impl FakeCatalogSearchRepo {
 
 #[async_trait]
 impl CatalogSearchRepo for FakeCatalogSearchRepo {
-    async fn search(&self, p: &CatalogSearchParams) -> Result<Vec<CatalogHit>> {
+    async fn search(&self, p: &CatalogSearchParams) -> Result<(Vec<CatalogHit>, i64)> {
         let rows = self.rows.lock().expect("catalog search fake lock");
         let mut matched: Vec<&FakeCatalogRow> = rows
             .iter()
@@ -251,15 +253,19 @@ impl CatalogSearchRepo for FakeCatalogSearchRepo {
                 text_ok && author_ok && level_ok && facets_match(r, p)
             })
             .collect();
+        // Total over the full filtered set, before pagination (mirrors the Pg
+        // adapter's `COUNT(*) OVER()`).
+        let total = matched.len() as i64;
         // Deterministic order → stable paging (the Pg adapter adds similarity
         // ranking ahead of this tiebreak).
         matched.sort_by(|a, b| a.title_norm().cmp(&b.title_norm()).then(a.id.cmp(&b.id)));
-        Ok(matched
+        let hits = matched
             .into_iter()
             .skip(p.offset.max(0) as usize)
             .take(p.limit.max(0) as usize)
             .map(FakeCatalogRow::to_hit)
-            .collect())
+            .collect();
+        Ok((hits, total))
     }
 
     async fn hits_by_ids(&self, ids: &[String]) -> Result<Vec<CatalogHit>> {
@@ -346,19 +352,19 @@ mod tests {
     async fn matches_title_and_composer_ignoring_case_and_accents() {
         let repo = seeded();
         // Title fragment.
-        let hits = repo.search(&params("lune")).await.unwrap();
+        let (hits, _) = repo.search(&params("lune")).await.unwrap();
         assert_eq!(
             hits.iter().map(|h| h.id.as_str()).collect::<Vec<_>>(),
             ["1"]
         );
         // Composer fragment, accent-insensitive ("frederic" matches "Frédéric").
-        let hits = repo.search(&params("frederic")).await.unwrap();
+        let (hits, _) = repo.search(&params("frederic")).await.unwrap();
         assert_eq!(
             hits.iter().map(|h| h.id.as_str()).collect::<Vec<_>>(),
             ["3"]
         );
         // Composer surname shared by two works.
-        let hits = repo.search(&params("debussy")).await.unwrap();
+        let (hits, _) = repo.search(&params("debussy")).await.unwrap();
         assert_eq!(
             hits.iter().map(|h| h.id.as_str()).collect::<Vec<_>>(),
             ["1", "4"] // ordered by title_norm: "clair..." < "prelude"
@@ -368,7 +374,7 @@ mod tests {
     #[tokio::test]
     async fn empty_query_browses_everything_deterministically() {
         let repo = seeded();
-        let hits = repo.search(&params("")).await.unwrap();
+        let (hits, _) = repo.search(&params("")).await.unwrap();
         assert_eq!(
             hits.iter().map(|h| h.id.as_str()).collect::<Vec<_>>(),
             ["1", "2", "3", "4"] // title_norm order
@@ -384,7 +390,7 @@ mod tests {
             limit: 50,
             ..Default::default()
         };
-        let hits = repo.search(&p).await.unwrap();
+        let (hits, _) = repo.search(&p).await.unwrap();
         // Only the advanced Debussy work (Prélude), not the intermediate one.
         assert_eq!(
             hits.iter().map(|h| h.id.as_str()).collect::<Vec<_>>(),
@@ -400,23 +406,32 @@ mod tests {
             offset,
             ..Default::default()
         };
-        let p1: Vec<String> = repo
-            .search(&page(0))
-            .await
-            .unwrap()
-            .into_iter()
-            .map(|h| h.id)
-            .collect();
-        let p2: Vec<String> = repo
-            .search(&page(2))
-            .await
-            .unwrap()
-            .into_iter()
-            .map(|h| h.id)
-            .collect();
+        let (page1, total1) = repo.search(&page(0)).await.unwrap();
+        let (page2, total2) = repo.search(&page(2)).await.unwrap();
+        let p1: Vec<String> = page1.into_iter().map(|h| h.id).collect();
+        let p2: Vec<String> = page2.into_iter().map(|h| h.id).collect();
         assert_eq!(p1, ["1", "2"]);
         assert_eq!(p2, ["3", "4"]);
         assert!(p1.iter().all(|id| !p2.contains(id))); // no dup across pages
+        // The reported total is the full match count, independent of the page.
+        assert_eq!(total1, 4);
+        assert_eq!(total2, 4);
+    }
+
+    #[tokio::test]
+    async fn search_reports_full_match_total_independent_of_limit() {
+        let repo = seeded();
+        // One small page over the two Debussy works: total counts both, not the page.
+        let (hits, total) = repo
+            .search(&CatalogSearchParams {
+                text_norm: normalize_text("debussy"),
+                limit: 1,
+                ..Default::default()
+            })
+            .await
+            .unwrap();
+        assert_eq!(hits.len(), 1);
+        assert_eq!(total, 2);
     }
 
     #[tokio::test]

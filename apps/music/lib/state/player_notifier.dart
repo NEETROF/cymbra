@@ -26,22 +26,10 @@ import 'notation_notifier.dart';
 import 'performance_scoring.dart';
 import 'player_data.dart';
 import 'notation_playback.dart';
+import 'player_preferences.dart';
 import 'score_catalog.dart';
 
 part 'player_notifier.g.dart';
-
-/// App-wide metronome on/off. Kept alive across player sessions so the choice
-/// survives switching pieces — the [Player] notifier is auto-disposed when you
-/// leave the player screen, which would otherwise reset a flag held only in
-/// [PlayerData]. Seeded into [PlayerData.metronomeEnabled] on build and written
-/// through by [Player.toggleMetronome].
-@Riverpod(keepAlive: true)
-class MetronomeEnabled extends _$MetronomeEnabled {
-  @override
-  bool build() => false;
-
-  void set({required bool enabled}) => state = enabled;
-}
 
 /// Central player notifier: pressed keys, score, rendering mode, playhead and
 /// Wait Mode logic. Listens to the real-time MIDI stream and also receives notes
@@ -86,10 +74,16 @@ class Player extends _$Player {
       audio.allNotesOff();
     });
     _loadInitial();
+    // Seed from the device-persisted play preferences so hands / speed /
+    // metronome / MIDI device are remembered across scores and restarts.
+    final prefs = ref.read(playerPreferencesProvider);
     // Initial MIDI status, read directly (cannot touch `state` during build).
     List<String> ports;
     String? device;
     try {
+      // Re-apply a remembered device before reading the connection. Null = auto,
+      // which is already the service default, so only a specific port is applied.
+      if (prefs.midiPort != null) midi.selectPort(prefs.midiPort);
       ports = midi.listPorts();
       device = midi.connectedPort();
     } catch (_) {
@@ -99,8 +93,9 @@ class Player extends _$Player {
     return PlayerData(
       midiPorts: ports,
       connectedDevice: device,
-      // Seed from the app-wide flag so the metronome stays on/off across pieces.
-      metronomeEnabled: ref.read(metronomeEnabledProvider),
+      selectedHands: prefs.hands,
+      speed: prefs.speed,
+      metronomeEnabled: prefs.metronome,
     );
   }
 
@@ -154,7 +149,10 @@ class Player extends _$Player {
   Future<void> _loadInitial() async {
     final notation = ref.read(notationProvider);
     if (notation.document != null) {
-      _applyNotation(notation);
+      // The score was pre-loaded before this screen mounted (the hub/library
+      // guard). `build()` has not returned yet, so `state` is not initialized —
+      // defer the apply to a microtask so it runs after build returns.
+      Future.microtask(() => _applyNotation(notation));
     } else if (ref.read(selectedScoreProvider) == null) {
       await _loadDemo();
     }
@@ -241,10 +239,12 @@ class Player extends _$Player {
   }
 
   /// Chooses the MIDI device to listen to (null = auto: 1st non-virtual port).
+  /// Persisted so the device is remembered next time.
   void selectMidiPort(String? name) {
     try {
       _midi.selectPort(name);
     } catch (_) {}
+    ref.read(playerPreferencesProvider.notifier).setMidiPort(name);
     _refreshMidiStatus();
   }
 
@@ -343,17 +343,23 @@ class Player extends _$Player {
     );
   }
 
-  /// Toggles the metronome on/off (driven by the header Tempo chip). Written
-  /// through to the app-wide [metronomeEnabledProvider] so the choice persists
-  /// across pause/stop and across switching pieces; ticks resume on the next beat
-  /// boundary once playback runs again.
+  /// Toggles the metronome on/off (driven by the header Tempo chip). Persisted
+  /// via [playerPreferencesProvider] so the choice survives pause/stop, switching
+  /// pieces and app restarts; ticks resume on the next beat boundary once
+  /// playback runs again.
   void toggleMetronome() {
     final next = !state.metronomeEnabled;
-    ref.read(metronomeEnabledProvider.notifier).set(enabled: next);
+    ref.read(playerPreferencesProvider.notifier).setMetronome(enabled: next);
     state = state.copyWith(metronomeEnabled: next);
   }
 
-  void setSpeed(double s) => state = state.copyWith(speed: s.clamp(0.25, 2.0));
+  /// Sets the playback speed (0.25×–2×) and remembers it across scores/restarts.
+  void setSpeed(double s) {
+    final clamped = s.clamp(0.25, 2.0);
+    ref.read(playerPreferencesProvider.notifier).setSpeed(clamped);
+    state = state.copyWith(speed: clamped);
+  }
+
   void setKeyboardRange(KeyboardRangeMode m) =>
       state = state.copyWith(keyboardRange: m);
   void setKeyboardVisible(bool visible) =>
@@ -362,6 +368,7 @@ class Player extends _$Player {
   // onset that is now hidden (or pre-satisfied from the previous selection), and
   // silence voices so a now-hidden hand's notes don't keep sounding.
   void setSelectedHands(Hand hand) {
+    ref.read(playerPreferencesProvider.notifier).setHands(hand);
     _silenceAll();
     // Changing the played hand(s) changes which notes are scored, so the piece
     // restarts from the top with a fresh scored run for the new selection: the

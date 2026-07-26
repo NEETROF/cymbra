@@ -64,6 +64,18 @@ Future<ProviderContainer> _pumpPlayer(
   for (var i = 0; i < 12; i++) {
     await tester.pump(const Duration(milliseconds: 50));
   }
+  // A loaded score now opens the pre-play setup modal — dismiss it (Validate)
+  // so the tests below can interact with the player underneath.
+  if (select) {
+    final validate = find.widgetWithText(FilledButton, 'Play');
+    if (validate.evaluate().isNotEmpty) {
+      await tester.tap(validate);
+      // Fixed pumps (not pumpAndSettle — the player ticker never settles).
+      for (var i = 0; i < 6; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+    }
+  }
   return container;
 }
 

@@ -32,6 +32,7 @@ import '../state/app_language.dart';
 import '../state/app_locale.dart';
 import '../state/notation_data.dart';
 import '../state/notation_notifier.dart';
+import '../state/score_catalog.dart';
 import '../state/performance_scoring.dart';
 import '../state/player_data.dart';
 import '../state/player_notifier.dart';
@@ -41,8 +42,12 @@ import '../theme/cymbra_theme.dart';
 import '../widgets/countdown_overlay.dart';
 import '../widgets/language_selector.dart';
 import '../widgets/mistake_replay.dart';
+import '../widgets/otg_guidance.dart';
 import '../widgets/scoring_overlay.dart';
 import '../widgets/session_summary_modal.dart';
+import '../widgets/setting_option_row.dart';
+import 'pre_play_setup_modal.dart';
+import 'score_load_message.dart';
 
 /// Main screen of the Cymbra player: top bar, rendering area
 /// (Synthesia or Staff), keyboard, and transport bar.
@@ -58,6 +63,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
   final FocusNode _focusNode = FocusNode();
   late final Ticker _ticker;
   Duration _lastTick = Duration.zero;
+
+  /// Whether the pre-play setup modal has been shown for this opening (one per
+  /// pushed `PlayerScreen`, so it re-appears on every open).
+  bool _setupShown = false;
 
   /// Active on-screen-keyboard pointers → the pitch each is holding, so a finger
   /// release note-offs only its own pitch (independent multi-touch). Same-pitch
@@ -250,6 +259,14 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
         _onScoredRunFinished(next);
       }
     });
+    // Show the pre-play setup modal once, as soon as the score has loaded. The
+    // openScore guard usually pre-loads before this screen mounts, so the
+    // build-body call catches the already-loaded case; the listener covers a
+    // load that resolves after mount.
+    ref.listen(notationProvider.select((n) => n.hasDocument), (_, hasDoc) {
+      if (hasDoc) _maybeShowSetup();
+    });
+    _maybeShowSetup();
     return Focus(
       focusNode: _focusNode,
       autofocus: true,
@@ -275,6 +292,12 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                     child: Consumer(
                       builder: (context, ref, child) {
                         final data = ref.watch(playerProvider);
+                        // Load state of the selected score, surfaced in every
+                        // render mode (not just Partition): a fetch in flight
+                        // shows a spinner, a failure shows an error banner.
+                        final notation = ref.watch(notationProvider);
+                        final hasSelection =
+                            ref.watch(selectedScoreProvider) != null;
                         return LayoutBuilder(
                           builder: (context, constraints) {
                             final bounds = data.keyboardBounds;
@@ -304,6 +327,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                                     child: _buildRenderArea(
                                       layout,
                                       data,
+                                      notation,
+                                      hasSelection: hasSelection,
                                       isPhone: context.isPhoneLayout,
                                     ),
                                   ),
@@ -357,6 +382,17 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     );
   }
 
+  /// Shows the pre-play setup modal once per opening, after the score has loaded.
+  /// Safe to call from build: it never shows synchronously — it schedules the
+  /// dialog on the next frame and is guarded so it fires at most once.
+  void _maybeShowSetup() {
+    if (_setupShown || !ref.read(notationProvider).hasDocument) return;
+    _setupShown = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) showPrePlaySetup(context);
+    });
+  }
+
   /// Persists the finished run and presents the summary modal, then clears the
   /// result and applies the player's chosen action. Choosing "replay" opens the
   /// mistake replay on the real score and returns to the summary afterwards, so
@@ -387,7 +423,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
 
   Widget _buildRenderArea(
     PianoLayout layout,
-    PlayerData data, {
+    PlayerData data,
+    NotationData notation, {
+    required bool hasSelection,
     required bool isPhone,
   }) {
     // The engraved two-stave Partition view needs vertical room the short phone
@@ -415,6 +453,12 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
           // Synthesia always shows the keyboard, so effects are always anchored.
           Positioned.fill(child: ScoringOverlay(layout: layout)),
           if (data.blocked) const _WaitOverlay(),
+          Positioned.fill(
+            child: _ScoreLoadOverlay(
+              notation: notation,
+              hasSelection: hasSelection,
+            ),
+          ),
         ],
       );
     }
@@ -449,8 +493,60 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
             showEffects: data.keyboardVisible,
           ),
         ),
+        Positioned.fill(
+          child: _ScoreLoadOverlay(
+            notation: notation,
+            hasSelection: hasSelection,
+          ),
+        ),
       ],
     );
+  }
+}
+
+/// Loading / error feedback for the selected score, overlaid on the time-based
+/// render modes (Synthesia, Staff) which otherwise paint a silent blank surface
+/// while a fetch is in flight or after it fails. A load in progress shows a
+/// spinner; a failure shows an error banner; anything else (no selection, or a
+/// loaded document) renders nothing so the painter shows through.
+class _ScoreLoadOverlay extends StatelessWidget {
+  const _ScoreLoadOverlay({required this.notation, required this.hasSelection});
+
+  final NotationData notation;
+  final bool hasSelection;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    if (notation.failure != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text(
+            scoreLoadFailureMessage(l10n, notation.failure!),
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: CymbraColors.error),
+          ),
+        ),
+      );
+    }
+    // A selected score with neither a document nor an error yet is still loading.
+    if (hasSelection && !notation.hasDocument) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const CircularProgressIndicator(),
+            const SizedBox(height: 12),
+            Text(
+              l10n.playerScoreLoading,
+              style: const TextStyle(color: CymbraColors.onSurfaceVariant),
+            ),
+          ],
+        ),
+      );
+    }
+    return const SizedBox.shrink();
   }
 }
 
@@ -625,11 +721,7 @@ class _SettingsDrawerState extends ConsumerState<_SettingsDrawer> {
   String _keyboardVisibilityLabel(AppLocalizations l10n, bool visible) =>
       visible ? l10n.keyboardShown : l10n.keyboardHidden;
 
-  String _handLabel(AppLocalizations l10n, Hand hand) => switch (hand) {
-    Hand.left => l10n.handLeft,
-    Hand.right => l10n.handRight,
-    Hand.both => l10n.handBoth,
-  };
+  String _handLabel(AppLocalizations l10n, Hand hand) => handLabel(l10n, hand);
 
   String _rangeLabel(AppLocalizations l10n, KeyboardRangeMode m) =>
       m == KeyboardRangeMode.auto
@@ -641,15 +733,7 @@ class _SettingsDrawerState extends ConsumerState<_SettingsDrawer> {
     required bool selected,
     required String label,
     required VoidCallback? onTap,
-  }) => ListTile(
-    leading: Icon(
-      selected ? Icons.check_circle : Icons.radio_button_unchecked,
-      size: 20,
-      color: selected ? CymbraColors.tertiary : CymbraColors.onSurfaceVariant,
-    ),
-    title: Text(label, style: const TextStyle(color: CymbraColors.onSurface)),
-    onTap: onTap,
-  );
+  }) => SettingOptionRow(selected: selected, label: label, onTap: onTap);
 
   /// A language row: the flag is the visible content, with an accessible label
   /// so screen readers announce the language name rather than the emoji.
@@ -706,7 +790,7 @@ class _SettingsDrawerState extends ConsumerState<_SettingsDrawer> {
           // Other platforms keep the plain empty row. The guidance clears on its
           // own once a port appears, since this branch only runs when empty.
           if (midiPorts.isEmpty && isAndroid)
-            const _OtgGuidance()
+            const OtgGuidance()
           else if (midiPorts.isEmpty)
             _option(
               selected: false,
@@ -930,59 +1014,6 @@ class _DrawerHeader extends StatelessWidget {
         ),
         const Divider(height: 1, color: CymbraColors.outlineVariant),
       ],
-    );
-  }
-}
-
-/// Android-only guidance shown in the MIDI device list when no port is detected.
-///
-/// USB OTG is a system/hardware toggle the app cannot enable itself, and a
-/// charge-only cable looks identical to a data one — so when Android enumerates
-/// no MIDI port the actionable move is to point the user at those two causes.
-/// Kept out of the plain "No device detected" row (used on other platforms)
-/// because the OTG/cable advice is Android-specific.
-class _OtgGuidance extends StatelessWidget {
-  const _OtgGuidance();
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Icon(
-            Icons.usb_off,
-            size: 20,
-            color: CymbraColors.onSurfaceVariant,
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  l10n.midiOtgTitle,
-                  style: const TextStyle(
-                    color: CymbraColors.onSurface,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  l10n.midiOtgBody,
-                  style: const TextStyle(
-                    color: CymbraColors.onSurfaceVariant,
-                    fontSize: 13,
-                    height: 1.35,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -1512,12 +1543,15 @@ class _PartitionViewState extends ConsumerState<_PartitionView> {
     final notation = ref.watch(notationProvider);
     final data = ref.watch(playerProvider);
 
-    if (notation.error != null) {
+    if (notation.failure != null) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Text(
-            'Could not load this score:\n${notation.error}',
+            scoreLoadFailureMessage(
+              AppLocalizations.of(context),
+              notation.failure!,
+            ),
             textAlign: TextAlign.center,
             style: const TextStyle(color: CymbraColors.error),
           ),

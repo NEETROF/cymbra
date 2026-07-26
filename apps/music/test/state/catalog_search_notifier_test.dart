@@ -59,7 +59,11 @@ class _FakeCatalog implements CatalogService {
       return queryOk && authorOk && levelOk && facetOk;
     }).toList();
     final page = matched.skip(offset).take(limit).toList();
-    return CatalogSearchPage(hits: page, nextOffset: offset + page.length);
+    return CatalogSearchPage(
+      hits: page,
+      nextOffset: offset + page.length,
+      total: matched.length,
+    );
   }
 
   @override

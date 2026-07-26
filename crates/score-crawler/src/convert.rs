@@ -140,9 +140,15 @@ pub fn convert_native(musicxml: &[u8]) -> Result<Converted> {
 }
 
 /// Accepts an already-compressed `.mxl`: verifies it re-parses (and is genuine
-/// MusicXML inside) rather than trusting the source blindly.
+/// MusicXML inside) rather than trusting the source blindly, then enforces the
+/// same playable-note gate as [`convert_native`] so a parseable-but-noteless
+/// score (rest-only, unpitched, metadata shell) is rejected rather than admitted
+/// to the catalog. This is the shared acceptance point for `.mxl`- and
+/// MuseScore-origin inputs, which otherwise never reach [`cymbra_musicxml_core::validate`].
 pub fn accept_mxl(mxl: &[u8]) -> Result<Converted> {
     verify_mxl(mxl).context(".mxl failed re-parse verification")?;
+    cymbra_musicxml_core::validate(mxl)
+        .map_err(|r| anyhow!(".mxl is not a playable score: {r}"))?;
     Ok(Converted {
         mxl: mxl.to_vec(),
         status: ConversionStatus::Converted,
@@ -496,6 +502,27 @@ mod tests {
         let mxl = compress_to_mxl(SCORE.as_bytes()).unwrap();
         let c = accept_mxl(&mxl).unwrap();
         assert_eq!(c.status, ConversionStatus::Converted);
+    }
+
+    #[test]
+    fn accept_mxl_rejects_noteless_score() {
+        // A parseable .mxl whose only note is a rest has no playable notes: the
+        // acceptance path (used by .mxl/MuseScore origins) must reject it, not
+        // admit a silently unplayable score to the catalog.
+        const RESTS_ONLY: &str = r#"<?xml version="1.0"?>
+<score-partwise version="4.0">
+  <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+  <part id="P1">
+    <measure number="1">
+      <attributes><divisions>1</divisions></attributes>
+      <note><rest/><duration>4</duration><type>whole</type></note>
+    </measure>
+  </part>
+</score-partwise>"#;
+        let mxl = compress_to_mxl(RESTS_ONLY.as_bytes()).unwrap();
+        // It parses (verify_mxl passes) but has zero playable notes.
+        verify_mxl(&mxl).unwrap();
+        assert!(accept_mxl(&mxl).is_err());
     }
 
     #[test]

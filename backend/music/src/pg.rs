@@ -200,15 +200,17 @@ impl PgCatalogSearchRepo {
 
 #[async_trait]
 impl CatalogSearchRepo for PgCatalogSearchRepo {
-    async fn search(&self, p: &CatalogSearchParams) -> PlatformResult<Vec<CatalogHit>> {
+    async fn search(&self, p: &CatalogSearchParams) -> PlatformResult<(Vec<CatalogHit>, i64)> {
         // Substring match on the normalised columns (trigram-GIN accelerated),
         // ranked by trigram similarity with a deterministic `(title_norm, id)`
         // tiebreak so paging is stable. The query text/author are pre-normalised
         // by the module, so no re-parse/unaccent is needed at query time.
         // Facet filters ($4..$13): each is a no-op when its bind is NULL; when
         // set, a NULL facet column fails the predicate (unknown ⇒ excluded).
+        // `COUNT(*) OVER()` reports the full match total (before LIMIT/OFFSET) on
+        // every returned row — one round-trip, no separate count query.
         let rows = sqlx::query(&format!(
-            "SELECT {HIT_COLS} FROM music.catalog_scores \
+            "SELECT {HIT_COLS}, COUNT(*) OVER() AS total_count FROM music.catalog_scores \
              WHERE ($1 = '' OR title_norm ILIKE '%'||$1||'%' OR composer_norm ILIKE '%'||$1||'%') \
                AND ($2::text IS NULL OR composer_norm ILIKE '%'||$2||'%') \
                AND ($3::text IS NULL OR level = $3) \
@@ -245,7 +247,14 @@ impl CatalogSearchRepo for PgCatalogSearchRepo {
         .fetch_all(&self.pool)
         .await
         .map_err(search_internal)?;
-        Ok(rows.iter().map(row_to_hit).collect())
+        // The window count is identical on every row; an empty page (e.g. offset
+        // past the end) yields no rows, so the total is 0 there.
+        let total = rows
+            .first()
+            .map(|r| r.get::<i64, _>("total_count"))
+            .unwrap_or(0);
+        let hits = rows.iter().map(row_to_hit).collect();
+        Ok((hits, total))
     }
 
     async fn hits_by_ids(&self, ids: &[String]) -> PlatformResult<Vec<CatalogHit>> {

@@ -23,6 +23,7 @@ import '../../state/app_locale.dart';
 import '../../state/auth_flow.dart';
 import '../../state/session_notifier.dart';
 import '../../theme/cymbra_theme.dart';
+import '../../widgets/app_snackbar.dart';
 import '../../widgets/language_selector.dart';
 import 'auth_messages.dart';
 import 'email_sign_in_screen.dart';
@@ -50,8 +51,9 @@ class _EntryScreenState extends ConsumerState<EntryScreen> {
     } catch (e) {
       // A native SDK / platform failure must not crash the entry screen.
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppLocalizations.of(context).entryError)),
+        showAppSnackBar(
+          ScaffoldMessenger.of(context),
+          AppLocalizations.of(context).entryError,
         );
       }
     } finally {

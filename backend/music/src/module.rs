@@ -26,7 +26,7 @@ use std::sync::Arc;
 
 use cymbra_musicxml_core::{ScoreSummary, mxl, normalize_text, validate};
 use cymbra_platform::{AppError, Result};
-use cymbra_storage::ObjectStorage;
+use cymbra_storage::{ObjectStorage, StorageError};
 use sha2::{Digest, Sha256};
 
 use crate::catalog_search::{CatalogHit, CatalogQuery, CatalogSearchParams, CatalogSearchRepo};
@@ -275,7 +275,7 @@ impl ScoreModule {
     /// conjunctively. The query/author are accent/case-folded here so they match
     /// the persisted normalised columns; `level` is validated against the fixed
     /// set; `limit` is clamped to the server maximum.
-    pub async fn search_catalog(&self, q: CatalogQuery) -> Result<Vec<CatalogHit>> {
+    pub async fn search_catalog(&self, q: CatalogQuery) -> Result<(Vec<CatalogHit>, i64)> {
         if let Some(l) = q.level.as_deref()
             && !LEVELS.contains(&l)
         {
@@ -364,11 +364,16 @@ impl ScoreModule {
             .object_key(catalog_id)
             .await?
             .ok_or_else(|| AppError::NotFound("catalog score not found".into()))?;
-        let raw = self
-            .storage
-            .get(&object_key)
-            .await
-            .map_err(|e| AppError::Internal(anyhow::anyhow!("read catalog score: {e}")))?;
+        let raw = self.storage.get(&object_key).await.map_err(|e| match e {
+            // The catalog row exists but its bytes are not in the store yet (e.g.
+            // a corpus not synced to the serving store yet). Report a distinct,
+            // typed precondition failure so the app can say "not available yet"
+            // rather than a generic internal error.
+            StorageError::NotFound(_) => {
+                AppError::FailedPrecondition("catalog score bytes not available yet".into())
+            }
+            other => AppError::Internal(anyhow::anyhow!("read catalog score: {other}")),
+        })?;
         decode_canonical(&raw)
     }
 }
@@ -738,7 +743,7 @@ mod tests {
     async fn search_catalog_normalises_and_composes_filters() {
         let (m, _cat, _lib) = catalog_module();
         // Accent-insensitive composer match across two works, title_norm ordered.
-        let hits = m
+        let (hits, _) = m
             .search_catalog(q("debussy", None, None, 50))
             .await
             .unwrap();
@@ -747,7 +752,7 @@ mod tests {
             [DEBUSSY_1, DEBUSSY_2]
         );
         // Author + difficulty compose conjunctively.
-        let hits = m
+        let (hits, _) = m
             .search_catalog(q("", Some("Debussy"), Some("advanced"), 50))
             .await
             .unwrap();
@@ -785,10 +790,10 @@ mod tests {
             Err(AppError::InvalidArgument(_))
         ));
         // A limit above the server max is clamped (3 rows exist, limit 999 → all).
-        let hits = m.search_catalog(q("", None, None, 999)).await.unwrap();
+        let (hits, _) = m.search_catalog(q("", None, None, 999)).await.unwrap();
         assert_eq!(hits.len(), 3);
         // A non-positive limit clamps up to 1.
-        let hits = m.search_catalog(q("", None, None, 0)).await.unwrap();
+        let (hits, _) = m.search_catalog(q("", None, None, 0)).await.unwrap();
         assert_eq!(hits.len(), 1);
     }
 
@@ -829,7 +834,7 @@ mod tests {
             limit: 50,
             ..Default::default()
         };
-        let hits = m.search_catalog(only_eighths).await.unwrap();
+        let (hits, _) = m.search_catalog(only_eighths).await.unwrap();
         assert_eq!(
             hits.iter().map(|h| h.id.as_str()).collect::<Vec<_>>(),
             [SATIE]
@@ -843,7 +848,7 @@ mod tests {
             limit: 50,
             ..Default::default()
         };
-        let hits = m.search_catalog(slow_narrow).await.unwrap();
+        let (hits, _) = m.search_catalog(slow_narrow).await.unwrap();
         assert_eq!(
             hits.iter().map(|h| h.id.as_str()).collect::<Vec<_>>(),
             [SATIE]
@@ -914,6 +919,19 @@ mod tests {
             m.get_catalog_bytes("99999999-9999-7999-8999-999999999999")
                 .await,
             Err(AppError::NotFound(_))
+        ));
+    }
+
+    #[tokio::test]
+    async fn get_catalog_bytes_when_object_missing_is_failed_precondition() {
+        // The catalog row exists but its bytes are not in the store yet (the
+        // fake store is empty) — a distinct, typed precondition failure so the
+        // app can say "not available yet", not a generic internal error.
+        let (m, _cat, _lib) = catalog_module();
+        assert!(matches!(
+            m.get_catalog_bytes("11111111-1111-7111-8111-111111111111")
+                .await,
+            Err(AppError::FailedPrecondition(_))
         ));
     }
 }

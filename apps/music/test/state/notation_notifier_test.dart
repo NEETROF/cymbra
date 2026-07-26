@@ -57,7 +57,7 @@ void main() {
     await _flush();
     expect(read().document, isNull);
     expect(read().systems, isEmpty);
-    expect(read().error, isNull);
+    expect(read().failure, isNull);
   });
 
   test('selecting an entry loads bytes and populates notation data', () async {
@@ -69,17 +69,19 @@ void main() {
     expect(read().document, isNotNull);
     expect(read().hasDocument, isTrue);
     expect(read().systems, isNotEmpty);
-    expect(read().error, isNull);
+    expect(read().failure, isNull);
   });
 
-  test('a parse failure sets the error and clears the document', () async {
+  test('a parse failure sets a typed failure and clears the document', () async {
     container = build(
       withEngine: FakeNotationEngine(parseError: Exception('bad xml')),
     );
     container.read(selectedScoreProvider.notifier).select(firstEntry());
     await _flush();
 
-    expect(read().error, contains('bad xml'));
+    // A parse error (not a backend AuthException) classifies as generic; the raw
+    // exception text is logged, not stored for display.
+    expect(read().failure, ScoreLoadFailure.generic);
     expect(read().document, isNull);
     expect(read().hasDocument, isFalse);
   });

@@ -51,7 +51,7 @@ class _FakeCatalog implements CatalogService {
     CatalogFilters filters = const CatalogFilters(),
     int limit = 20,
     int offset = 0,
-  }) async => const CatalogSearchPage(hits: [], nextOffset: 0);
+  }) async => const CatalogSearchPage(hits: [], nextOffset: 0, total: 0);
   @override
   Future<Uint8List> fetchBytes(String catalogId) async => Uint8List(0);
 }

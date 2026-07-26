@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'dart:typed_data';
-
+import 'package:flutter/foundation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../services/auth_service.dart';
 import '../services/catalog_service.dart';
 import '../services/notation_engine.dart';
 import '../services/score_asset_source.dart';
@@ -85,8 +85,29 @@ class Notation extends _$Notation {
       );
     } catch (e) {
       if (ref.read(selectedScoreProvider) != entry) return;
-      state = NotationData(error: e.toString(), availableWidth: width);
+      // Keep the technical cause in the logs only — the UI shows a localized
+      // message keyed off the typed [ScoreLoadFailure], never the raw
+      // exception/gRPC text.
+      debugPrint('Notation load failed for ${entry.id}: $e');
+      state = NotationData(failure: _classify(e), availableWidth: width);
     }
+  }
+
+  /// Maps a load exception to a typed [ScoreLoadFailure] so the UI can show a
+  /// specific localized message. Backend failures arrive as an [AuthException]
+  /// carrying a gRPC-derived [AuthError].
+  static ScoreLoadFailure _classify(Object e) {
+    if (e is AuthException) {
+      return switch (e.error) {
+        AuthError.notFound => ScoreLoadFailure.notFound,
+        // The row exists but its bytes aren't ready (not synced yet / gated
+        // pending review) — the backend reports this as FAILED_PRECONDITION.
+        AuthError.failedPrecondition => ScoreLoadFailure.notAvailableYet,
+        AuthError.unavailable => ScoreLoadFailure.unavailable,
+        _ => ScoreLoadFailure.generic,
+      };
+    }
+    return ScoreLoadFailure.generic;
   }
 
   /// Updates the viewport width and re-lays-out the cached document. No-op when

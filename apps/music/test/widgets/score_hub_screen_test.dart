@@ -18,6 +18,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:music/screens/score_hub_screen.dart';
+import 'package:music/services/auth_service.dart';
 import 'package:music/services/catalog_service.dart';
 import 'package:music/services/score_upload_service.dart';
 import 'package:music/state/score_catalog.dart';
@@ -26,8 +27,12 @@ import 'package:music/state/session_notifier.dart';
 import '../support/localized.dart';
 
 class _FakeCatalog implements CatalogService {
-  _FakeCatalog(this.rows);
+  _FakeCatalog(this.rows, {this.fetchError});
   final List<CatalogHit> rows;
+
+  /// When set, [fetchBytes] throws it — exercises the hub's pre-flight guard and
+  /// the typed error → localized message mapping.
+  final Object? fetchError;
   final Set<String> saved = {};
   final List<String> saveCalls = [];
   int? lastMaxNoteValue;
@@ -43,7 +48,11 @@ class _FakeCatalog implements CatalogService {
   }) async {
     lastMaxNoteValue = filters.maxNoteValue;
     final page = rows.skip(offset).take(limit).toList();
-    return CatalogSearchPage(hits: page, nextOffset: offset + page.length);
+    return CatalogSearchPage(
+      hits: page,
+      nextOffset: offset + page.length,
+      total: rows.length,
+    );
   }
 
   @override
@@ -60,7 +69,11 @@ class _FakeCatalog implements CatalogService {
       rows.where((h) => saved.contains(h.id)).toList();
 
   @override
-  Future<Uint8List> fetchBytes(String catalogId) async => Uint8List(0);
+  Future<Uint8List> fetchBytes(String catalogId) async {
+    final err = fetchError;
+    if (err != null) throw err;
+    return Uint8List(0);
+  }
 }
 
 class _FakeUpload implements ScoreUploadService {
@@ -271,6 +284,75 @@ void main() {
       await tester.pump(const Duration(milliseconds: 40));
     }
     expect(catalog.lastMaxNoteValue, 8);
+    await _teardown(tester, c);
+  });
+
+  testWidgets('result count shows the server total, not the loaded page', (
+    tester,
+  ) async {
+    // 25 rows match but the first page loads only 20 (the page size): the count
+    // label must read the server total (25), not the number loaded in memory.
+    final catalog = _FakeCatalog([
+      for (var i = 0; i < 25; i++) _hit('c$i', 'Score $i'),
+    ]);
+    final c = _container(catalog);
+    await _pump(tester, c);
+
+    expect(find.text('25 scores'), findsOneWidget);
+    expect(find.text('20 scores'), findsNothing);
+    await _teardown(tester, c);
+  });
+
+  testWidgets('tapping a score that fails to load shows a snackbar, no player', (
+    tester,
+  ) async {
+    // Pre-flight guard: the score can't be fetched, so the player is never
+    // opened — the user stays on the hub and gets a localized snackbar (never a
+    // raw error).
+    final catalog = _FakeCatalog([
+      _hit('c1', 'Clair de Lune'),
+    ], fetchError: StateError('boom'));
+    final c = _container(catalog);
+    await _pump(tester, c);
+
+    await tester.tap(find.text('Clair de Lune'));
+    await tester.pump(); // show the progress dialog
+    await tester.pump(); // pre-flight load resolves (fetch throws)
+    await tester.pump(
+      const Duration(milliseconds: 700),
+    ); // dialog out, snackbar in
+
+    expect(find.text('Could not load this score.'), findsOneWidget);
+    expect(find.textContaining('boom'), findsNothing); // no raw error leaked
+    // Still on the hub — the player was not pushed.
+    expect(find.text('Clair de Lune'), findsOneWidget);
+
+    await tester.pump(
+      const Duration(seconds: 5),
+    ); // let the snackbar auto-dismiss
+    await _teardown(tester, c);
+  });
+
+  testWidgets('a not-found score shows a specific localized snackbar', (
+    tester,
+  ) async {
+    // A backend NOT_FOUND surfaces as a specific — but localized — message,
+    // never the raw gRPC/exception text.
+    final catalog = _FakeCatalog([
+      _hit('c1', 'Clair de Lune'),
+    ], fetchError: const AuthException(AuthError.notFound));
+    final c = _container(catalog);
+    await _pump(tester, c);
+
+    await tester.tap(find.text('Clair de Lune'));
+    await tester.pump();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 700));
+
+    expect(find.text('This score no longer exists.'), findsOneWidget);
+    expect(find.text('Could not load this score.'), findsNothing);
+
+    await tester.pump(const Duration(seconds: 5));
     await _teardown(tester, c);
   });
 }

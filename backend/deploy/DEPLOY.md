@@ -257,6 +257,13 @@ images to GHCR — `cymbra-score-crawler` and `cymbra-musescore` (headless MuseS
 `backend/deploy/`) pulls and runs them. It joins the backend's private network so
 `postgres` resolves, so **start the backend stack first**.
 
+The crawler writes its `.mxl` bytes **directly into the served corpus dir**
+(`SCORES_DIR`, the same path the server reads local-first) — it writes every file
+before inserting the `catalog_scores` rows, so a row visible in the hub is already
+servable, with no deferred merge. `SCORES_DIR` must therefore be writable by the
+crawler container UID (the server owns it as 1000:1000 — see the `chown` in the
+user-upload section below).
+
 ```bash
 cd /opt/cymbra/backend/deploy
 docker login ghcr.io                     # once (or reuse the deploy pull creds)
@@ -265,7 +272,7 @@ docker compose -f docker-compose.crawler.prod.yml pull
 # smoke test: a few scores per source into the prod catalog (--env-file for the DB pw)
 LIMIT=5 docker compose --env-file .env -f docker-compose.crawler.prod.yml up
 
-# then publish the bytes: merge into SCORES_DIR + mirror to S3
+# scores are served locally right after the run; mirror them off-box to S3:
 . /etc/cymbra/backup.env; ./sync-scores.sh
 ```
 
@@ -279,12 +286,12 @@ The crawler connects as the DB superuser by default (it runs its own `score`
 migrations then ingests); override `CYMBRA_SCORE_DATABASE_URL` for a dedicated role.
 
 **Nightly** `bootstrap.sh` installs a cron (04:00) that runs `sync-scores.sh`:
-it merges the crawler output into `SCORES_DIR` and mirrors it to the **bucket root**
-`s3://$SCORES_S3_BUCKET` — same `/etc/cymbra/backup.env` creds as the DB backup. Set
-`CRAWL_OUT` + `SCORES_DIR` there (defaults: `/opt/cymbra/score-crawler/output`,
-`/var/lib/cymbra/scores`). Mirroring to the root (not a `scores/` prefix) keeps the
-S3 key equal to `object_key`, so the server's S3 fallback and user uploads
-(`user-scores/…`) share one keyspace.
+it mirrors `SCORES_DIR` to the **bucket root** `s3://$SCORES_S3_BUCKET` — same
+`/etc/cymbra/backup.env` creds as the DB backup. Set `SCORES_DIR` there (default
+`/var/lib/cymbra/scores`). Since the crawler now writes straight into `SCORES_DIR`,
+the script only mirrors off-box (no merge). Mirroring to the root (not a `scores/`
+prefix) keeps the S3 key equal to `object_key`, so the server's S3 fallback and user
+uploads (`user-scores/…`) share one keyspace.
 
 > **`SCORES_S3_BUCKET` is DISTINCT from the DB-backup `S3_BUCKET`.** The scores
 > bucket must equal the server's `CYMBRA_SCORE_S3_BUCKET` (e.g. `cymbra-scores`),
