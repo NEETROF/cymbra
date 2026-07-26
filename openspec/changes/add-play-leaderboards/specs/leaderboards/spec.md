@@ -64,10 +64,12 @@ metric and tie-break order SHALL be configuration.
 
 A leaderboard listed to **other** players SHALL include only players whose profile is
 **public and age-eligible** per the profile visibility and minimum-age safeguard; a private
-or ineligible player MUST NOT be listed to others. The system SHALL nonetheless always return
-to a caller **their own** personal best and **their own rank** among the public entries.
-Leaderboard entries SHALL never expose a sensitive field (no email, curator
-alignment/reliability, or moderation state).
+or ineligible player MUST NOT be listed to others. **Viewing** a leaderboard, however, SHALL
+be available to **any authenticated user** — including under-age or private users — since it
+only reads already-public entries; being under-age or private restricts *appearing* on a
+board, not *reading* one. The system SHALL nonetheless always return to a caller **their own**
+personal best and **their own rank** among the public entries. Leaderboard entries SHALL never
+expose a sensitive field (no email, curator alignment/reliability, or moderation state).
 
 #### Scenario: Private player is not listed to others
 
@@ -78,6 +80,11 @@ alignment/reliability, or moderation state).
 
 - **WHEN** a private or ineligible player views a board they have played
 - **THEN** they see their own personal best and their own rank among the public entries
+
+#### Scenario: Under-age user may view but is not listed
+
+- **WHEN** an under-age (or private) authenticated user opens a leaderboard
+- **THEN** they can read the ranked public entries, but they themselves do not appear in the listing shown to others
 
 #### Scenario: No sensitive fields on a board
 

@@ -58,15 +58,22 @@ lowers or duplicates a best). Boards read from `leaderboard_bests`.
   detail after 90 days (D7 there); a durable best must not depend on retained raw sessions.
   Keeping `leaderboard_bests` as its own durable summary survives detail pruning.
 
-### D4 — Public listing gated by #5's visibility + eligibility; own rank always visible
-A leaderboard **listed to other players** SHALL include only players whose profile is
-**public and age-eligible** (the #5 gate). A **private or ineligible** player is **not shown
-to others**, but the API SHALL always return to a caller **their own** best and **their own
-rank** among the public entries. Ranks shown to others are computed over public entries.
-- **Why**: a board must not become a backdoor that exposes a private user or a minor,
-  bypassing #5's safeguard. Fail-closed: unknown/!public ⇒ not listed.
-- **Consequence**: a player's own rank is "your position among publicly ranked players", so a
-  private player still gets motivating feedback without being exposed.
+### D4 — Two separate rights: *viewing* is open; *being listed* is gated
+**Viewing** a leaderboard (reading the ranked public entries) is available to **any
+authenticated user, including under-16 / private users** — it only reads data of players who
+already chose to be public and are eligible, with no interaction and no way to reach the
+viewer, so it is low-risk. **Being listed** on a board (appearing to others) SHALL include
+only players whose profile is **public and age-eligible** (the #5 gate); a **private or
+ineligible** player is **not shown to others**. Regardless, the API SHALL always return to a
+caller **their own** best and **their own rank** among the public entries.
+- **Why split the two**: the real risk for a minor is *exposure* (being shown to strangers,
+  being reachable), which the listing gate blocks. Reading a ranking of opted-in adults is
+  benign and motivating; walling minors out of viewing would remove a fun, harmless surface
+  for no safety gain. Because only eligible players are listed, a viewer never sees a minor's
+  entry either.
+- **Fail-closed on listing**: unknown/!public/!eligible ⇒ not listed. A player's own rank is
+  "your position among publicly ranked players", so a private player still gets feedback
+  without being exposed.
 
 ### D5 — Basic integrity checks; robust anti-cheat deferred
 On ingest, validate the submitted result against cheap server-side invariants: sub-scores in
