@@ -76,6 +76,11 @@ pub struct CatalogSearchParams {
     /// Tempo range (marked BPM) → `tempo_bpm BETWEEN min_bpm AND max_bpm`.
     pub min_bpm: Option<i32>,
     pub max_bpm: Option<i32>,
+    /// Moderation-status gate (change: add-score-moderation-gating). `None` = the
+    /// normal-caller default of accepted-only; `Some(status)` filters to exactly
+    /// that status (a privileged, back-office-only path — the gRPC layer authorises
+    /// it before it is ever set here).
+    pub moderation_status: Option<String>,
     pub limit: i64,
     pub offset: i64,
 }
@@ -96,6 +101,10 @@ pub struct CatalogQuery {
     pub staff_count: Option<i16>,
     pub min_bpm: Option<i32>,
     pub max_bpm: Option<i32>,
+    /// Privileged moderation-status filter (change: add-score-moderation-gating).
+    /// `None` for a normal caller (accepted-only); `Some(status)` only after the
+    /// gRPC handler has authorised the caller as admin/moderator.
+    pub moderation_status: Option<String>,
     pub limit: i64,
     pub offset: i64,
 }
@@ -115,7 +124,13 @@ pub trait CatalogSearchRepo: Send + Sync {
 
     /// The object-store key of a catalog score (for the byte fetch); `None` when
     /// the id does not exist. Doubles as the existence check used on save.
-    async fn object_key(&self, id: &str) -> Result<Option<String>>;
+    ///
+    /// `include_unvalidated` gates on moderation (change: add-score-moderation-
+    /// gating): when `false` (a normal caller), only an `accepted` score resolves —
+    /// a `pending`/`rejected` id is reported as absent (`None`), so its bytes can't
+    /// be opened and it can't be saved. When `true` (an authorised reviewer), a
+    /// score in any status resolves so a moderator can open it.
+    async fn object_key(&self, id: &str, include_unvalidated: bool) -> Result<Option<String>>;
 }
 
 /// A seed row for [`FakeCatalogSearchRepo`]. Norm keys are derived on the fly, so
@@ -144,10 +159,15 @@ pub struct FakeCatalogRow {
     pub note_count: Option<i32>,
     pub time_sig: String,
     pub key_fifths: i32,
+    /// Moderation status (change: add-score-moderation-gating). `new()` seeds
+    /// `accepted` (a hub-visible row, matching how these tests use the fake); the
+    /// moderation tests set `pending`/`rejected` via [`Self::with_moderation_status`].
+    pub moderation_status: String,
 }
 
 impl FakeCatalogRow {
-    /// A minimal row with a fixed licence/source and a derived object key.
+    /// A minimal, hub-visible (`accepted`) row with a fixed licence/source and a
+    /// derived object key.
     pub fn new(id: &str, title: &str, composer: &str, level: Option<&str>) -> Self {
         Self {
             id: id.into(),
@@ -157,8 +177,16 @@ impl FakeCatalogRow {
             license: "CC-BY-4.0".into(),
             source: "pdmx".into(),
             object_key: format!("safe/pdmx/{id}.mxl"),
+            moderation_status: "accepted".into(),
             ..Default::default()
         }
+    }
+
+    /// Override the moderation status (`pending` / `accepted` / `rejected`) for the
+    /// moderation-gating tests.
+    pub fn with_moderation_status(mut self, status: &str) -> Self {
+        self.moderation_status = status.into();
+        self
     }
 
     /// Set the facet fields used by the facet-filter tests (piano, fastest note
@@ -250,7 +278,12 @@ impl CatalogSearchRepo for FakeCatalogSearchRepo {
                     .level
                     .as_ref()
                     .is_none_or(|l| r.level.as_deref() == Some(l));
-                text_ok && author_ok && level_ok && facets_match(r, p)
+                // Moderation gate: default to accepted-only; a set filter selects
+                // exactly that status (mirrors the Pg adapter's
+                // `moderation_status = COALESCE($n, 'accepted')`).
+                let want_status = p.moderation_status.as_deref().unwrap_or("accepted");
+                let status_ok = r.moderation_status == want_status;
+                text_ok && author_ok && level_ok && status_ok && facets_match(r, p)
             })
             .collect();
         // Total over the full filtered set, before pagination (mirrors the Pg
@@ -277,11 +310,11 @@ impl CatalogSearchRepo for FakeCatalogSearchRepo {
             .collect())
     }
 
-    async fn object_key(&self, id: &str) -> Result<Option<String>> {
+    async fn object_key(&self, id: &str, include_unvalidated: bool) -> Result<Option<String>> {
         let rows = self.rows.lock().expect("catalog search fake lock");
         Ok(rows
             .iter()
-            .find(|r| r.id == id)
+            .find(|r| r.id == id && (include_unvalidated || r.moderation_status == "accepted"))
             .map(|r| r.object_key.clone()))
     }
 }
@@ -438,10 +471,75 @@ mod tests {
     async fn object_key_resolves_existence() {
         let repo = seeded();
         assert_eq!(
-            repo.object_key("2").await.unwrap().as_deref(),
+            repo.object_key("2", false).await.unwrap().as_deref(),
             Some("safe/pdmx/2.mxl")
         );
-        assert!(repo.object_key("nope").await.unwrap().is_none());
+        assert!(repo.object_key("nope", false).await.unwrap().is_none());
+    }
+
+    /// A corpus of mixed moderation status for the gating tests.
+    fn moderated() -> FakeCatalogSearchRepo {
+        FakeCatalogSearchRepo::with(vec![
+            FakeCatalogRow::new("a", "Accepted One", "Bach", Some("beginner"))
+                .with_moderation_status("accepted"),
+            FakeCatalogRow::new("b", "Accepted Two", "Bach", Some("advanced"))
+                .with_moderation_status("accepted"),
+            FakeCatalogRow::new("p", "Pending One", "Bach", Some("beginner"))
+                .with_moderation_status("pending"),
+            FakeCatalogRow::new("r", "Rejected One", "Bach", Some("beginner"))
+                .with_moderation_status("rejected"),
+        ])
+    }
+
+    #[tokio::test]
+    async fn search_defaults_to_accepted_only() {
+        let repo = moderated();
+        // No status filter → only the two `accepted` rows; pending/rejected excluded.
+        let (hits, total) = repo.search(&params("")).await.unwrap();
+        assert_eq!(
+            hits.iter().map(|h| h.id.as_str()).collect::<Vec<_>>(),
+            ["a", "b"]
+        );
+        assert_eq!(total, 2);
+    }
+
+    #[tokio::test]
+    async fn privileged_status_filter_selects_exactly_that_status() {
+        let repo = moderated();
+        let by_status = |s: &str| CatalogSearchParams {
+            moderation_status: Some(s.into()),
+            limit: 50,
+            ..Default::default()
+        };
+        let ids = |hits: Vec<CatalogHit>| hits.into_iter().map(|h| h.id).collect::<Vec<_>>();
+        let (pending, _) = repo.search(&by_status("pending")).await.unwrap();
+        assert_eq!(ids(pending), ["p"]);
+        let (rejected, _) = repo.search(&by_status("rejected")).await.unwrap();
+        assert_eq!(ids(rejected), ["r"]);
+        // Even a privileged caller can ask for `accepted` explicitly.
+        let (accepted, _) = repo.search(&by_status("accepted")).await.unwrap();
+        assert_eq!(ids(accepted), ["a", "b"]);
+    }
+
+    #[tokio::test]
+    async fn status_filter_composes_with_text_and_level_filters() {
+        let repo = moderated();
+        // Privileged `pending` filter AND a level filter AND a text query all
+        // compose conjunctively: the pending beginner "Pending One" qualifies, but
+        // the accepted rows are excluded by the status filter.
+        let p = CatalogSearchParams {
+            text_norm: normalize_text("one"),
+            level: Some("beginner".into()),
+            moderation_status: Some("pending".into()),
+            limit: 50,
+            ..Default::default()
+        };
+        let (hits, total) = repo.search(&p).await.unwrap();
+        assert_eq!(
+            hits.iter().map(|h| h.id.as_str()).collect::<Vec<_>>(),
+            ["p"]
+        );
+        assert_eq!(total, 1);
     }
 
     #[tokio::test]

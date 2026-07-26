@@ -37,6 +37,11 @@ use crate::user_scores::{UserScore, UserScoreRepo};
 const LEVELS: [&str; 3] = ["beginner", "intermediate", "advanced"];
 const RIGHTS_BASES: [&str; 2] = ["own_work", "public_domain"];
 
+/// The allowed moderation statuses for the privileged search filter (change:
+/// add-score-moderation-gating). A caller-supplied status outside this set is
+/// rejected before the query runs.
+const MODERATION_STATUSES: [&str; 3] = ["pending", "accepted", "rejected"];
+
 /// Server maximum page size for catalog search — a caller-supplied limit is
 /// clamped to `[1, SEARCH_MAX_LIMIT]` so one request can never scan the corpus.
 const SEARCH_MAX_LIMIT: i64 = 50;
@@ -295,6 +300,15 @@ impl ScoreModule {
                 "unknown staff count {s}"
             )));
         }
+        // Privileged moderation-status filter: validate the value (the gRPC layer
+        // has already authorised the caller). `None` keeps the accepted-only default.
+        if let Some(s) = q.moderation_status.as_deref()
+            && !MODERATION_STATUSES.contains(&s)
+        {
+            return Err(AppError::InvalidArgument(format!(
+                "unknown moderation status {s:?}"
+            )));
+        }
         // Normalise text/author; an empty author (after fold) imposes no filter.
         let author_norm = q
             .author
@@ -314,6 +328,7 @@ impl ScoreModule {
             staff_count: q.staff_count,
             min_bpm: q.min_bpm,
             max_bpm: q.max_bpm,
+            moderation_status: q.moderation_status,
             limit: q.limit.clamp(1, SEARCH_MAX_LIMIT),
             offset: q.offset.max(0),
         };
@@ -323,7 +338,9 @@ impl ScoreModule {
     /// Save a public catalog score to the caller's library. Validates the catalog
     /// id exists first, then records an idempotent owner-scoped save.
     pub async fn save_catalog_score(&self, owner_id: &str, catalog_id: &str) -> Result<()> {
-        if self.catalog.object_key(catalog_id).await?.is_none() {
+        // A normal caller can only save a validated (`accepted`) score — an
+        // unvalidated id resolves as absent, matching what search exposes.
+        if self.catalog.object_key(catalog_id, false).await?.is_none() {
             return Err(AppError::NotFound("catalog score not found".into()));
         }
         self.library.save(owner_id, catalog_id).await
@@ -358,10 +375,19 @@ impl ScoreModule {
     /// but the app's parser consumes **uncompressed** MusicXML — so decode the
     /// `.mxl` container transparently here, exactly as the upload path does before
     /// storing. A plain-XML object passes straight through.
-    pub async fn get_catalog_bytes(&self, catalog_id: &str) -> Result<Vec<u8>> {
+    /// `allow_unvalidated` reflects the caller's authorisation (change:
+    /// add-score-moderation-gating): a normal caller (`false`) is served only
+    /// `accepted` scores — a `pending`/`rejected` id is a typed not-found, so it
+    /// can't be opened by id; an authorised reviewer (`true`) is served a score in
+    /// any status so they can evaluate it.
+    pub async fn get_catalog_bytes(
+        &self,
+        catalog_id: &str,
+        allow_unvalidated: bool,
+    ) -> Result<Vec<u8>> {
         let object_key = self
             .catalog
-            .object_key(catalog_id)
+            .object_key(catalog_id, allow_unvalidated)
             .await?
             .ok_or_else(|| AppError::NotFound("catalog score not found".into()))?;
         let raw = self.storage.get(&object_key).await.map_err(|e| match e {
@@ -916,7 +942,7 @@ mod tests {
     async fn get_catalog_bytes_rejects_unknown_id() {
         let (m, _cat, _lib) = catalog_module();
         assert!(matches!(
-            m.get_catalog_bytes("99999999-9999-7999-8999-999999999999")
+            m.get_catalog_bytes("99999999-9999-7999-8999-999999999999", false)
                 .await,
             Err(AppError::NotFound(_))
         ));
@@ -929,9 +955,121 @@ mod tests {
         // app can say "not available yet", not a generic internal error.
         let (m, _cat, _lib) = catalog_module();
         assert!(matches!(
-            m.get_catalog_bytes("11111111-1111-7111-8111-111111111111")
+            m.get_catalog_bytes("11111111-1111-7111-8111-111111111111", false)
                 .await,
             Err(AppError::FailedPrecondition(_))
         ));
+    }
+
+    // --- moderation gating (change: add-score-moderation-gating) -------------
+
+    const PENDING_ID: &str = "44444444-4444-7444-8444-444444444444";
+    const REJECTED_ID: &str = "55555555-5555-7555-8555-555555555555";
+
+    /// A module over a corpus of one accepted + one pending + one rejected score,
+    /// with all three scores' bytes in the store, so both the search gate and the
+    /// fetch-bytes gate can be exercised.
+    async fn moderated_module() -> ScoreModule {
+        let repo = Arc::new(FakeUserScoreRepo::default());
+        let store = Arc::new(FakeStore::default());
+        let rows = vec![
+            FakeCatalogRow::new(
+                DEBUSSY_1,
+                "Clair de Lune",
+                "Claude Debussy",
+                Some("advanced"),
+            ),
+            FakeCatalogRow::new(PENDING_ID, "Pending Piece", "Anon", Some("beginner"))
+                .with_moderation_status("pending"),
+            FakeCatalogRow::new(REJECTED_ID, "Rejected Piece", "Anon", Some("beginner"))
+                .with_moderation_status("rejected"),
+        ];
+        let catalog = Arc::new(FakeCatalogSearchRepo::with(rows));
+        // Seed the object store with each row's bytes so a resolved key fetches.
+        for id in [DEBUSSY_1, PENDING_ID, REJECTED_ID] {
+            store
+                .put(&format!("safe/pdmx/{id}.mxl"), b"<score/>".to_vec())
+                .await
+                .unwrap();
+        }
+        ScoreModule::new(
+            repo,
+            catalog,
+            Arc::new(FakeUserLibraryRepo::default()),
+            store,
+            5,
+            7,
+            8 * 1024 * 1024,
+        )
+    }
+
+    #[tokio::test]
+    async fn search_catalog_hides_unvalidated_by_default_and_honours_privileged_filter() {
+        let m = moderated_module().await;
+        // Default (normal caller): only the accepted score.
+        let (hits, _) = m.search_catalog(q("", None, None, 50)).await.unwrap();
+        assert_eq!(
+            hits.iter().map(|h| h.id.as_str()).collect::<Vec<_>>(),
+            [DEBUSSY_1]
+        );
+        // Privileged `pending` filter (already authorised at the gRPC layer).
+        let pending = CatalogQuery {
+            moderation_status: Some("pending".into()),
+            limit: 50,
+            ..Default::default()
+        };
+        let (hits, _) = m.search_catalog(pending).await.unwrap();
+        assert_eq!(
+            hits.iter().map(|h| h.id.as_str()).collect::<Vec<_>>(),
+            [PENDING_ID]
+        );
+    }
+
+    #[tokio::test]
+    async fn search_catalog_rejects_an_unknown_moderation_status() {
+        let m = moderated_module().await;
+        let bad = CatalogQuery {
+            moderation_status: Some("bogus".into()),
+            limit: 50,
+            ..Default::default()
+        };
+        assert!(matches!(
+            m.search_catalog(bad).await,
+            Err(AppError::InvalidArgument(_))
+        ));
+    }
+
+    #[tokio::test]
+    async fn get_catalog_bytes_gated_by_moderation_status() {
+        let m = moderated_module().await;
+        // Accepted bytes are served to a normal caller.
+        assert_eq!(
+            m.get_catalog_bytes(DEBUSSY_1, false).await.unwrap(),
+            b"<score/>"
+        );
+        // Pending / rejected bytes are not-found for a normal caller…
+        for id in [PENDING_ID, REJECTED_ID] {
+            assert!(matches!(
+                m.get_catalog_bytes(id, false).await,
+                Err(AppError::NotFound(_))
+            ));
+            // …but an authorised reviewer (allow_unvalidated) is served them.
+            assert_eq!(m.get_catalog_bytes(id, true).await.unwrap(), b"<score/>");
+        }
+    }
+
+    #[tokio::test]
+    async fn save_catalog_score_refuses_an_unvalidated_score() {
+        let m = moderated_module().await;
+        // A normal user cannot save a pending/rejected score (it's invisible to
+        // them, exactly as search hides it).
+        for id in [PENDING_ID, REJECTED_ID] {
+            assert!(matches!(
+                m.save_catalog_score("u1", id).await,
+                Err(AppError::NotFound(_))
+            ));
+        }
+        // The accepted one saves fine.
+        m.save_catalog_score("u1", DEBUSSY_1).await.unwrap();
     }
 }

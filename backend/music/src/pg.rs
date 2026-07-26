@@ -74,6 +74,30 @@ pub(crate) fn meta_from_row(r: &PgRow) -> ScoreMeta {
     }
 }
 
+/// The catalog INSERT statement. Catalog-specific columns first ($1..$19), then
+/// the shared [`ScoreMeta`] block ($20..$37) via [`bind_meta`] — the two adapters
+/// share that fragment. `ON CONFLICT (sha256) DO NOTHING` makes re-ingestion
+/// idempotent; the affected-row count tells us whether this was a new insert.
+///
+/// `moderation_status` is written as the literal `'pending'` (never a bind, never
+/// from the caller): ingestion must NEVER auto-validate, so the insert path is
+/// structurally incapable of persisting any other status (change:
+/// add-score-moderation-gating). The DB default guarantees the same, but the
+/// explicit literal keeps the invariant local to this statement — and unit-testable
+/// (see the test below) without a database.
+fn catalog_insert_sql() -> String {
+    format!(
+        "INSERT INTO music.catalog_scores (\
+            id, arranger, source, source_url, source_item_id, license, license_url, \
+            confidence, sha256, origin_format, conversion_status, object_key, size_bytes, \
+            composer_norm, language, voicing, level, level_source, content_fingerprint, \
+            moderation_status, {META_COLS}) \
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,\
+            'pending',$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37) \
+         ON CONFLICT (sha256) DO NOTHING"
+    )
+}
+
 /// Postgres implementation over a pool (typically an admin/ingestion role).
 pub struct PgCatalogRepo {
     pool: PgPool,
@@ -110,20 +134,7 @@ impl CatalogRepo for PgCatalogRepo {
 
     async fn insert(&self, e: &CatalogEntry) -> Result<bool> {
         let id = uuid::Uuid::parse_str(&e.id).unwrap_or_else(|_| uuid::Uuid::now_v7());
-        // ON CONFLICT (sha256) DO NOTHING makes re-ingestion idempotent; the
-        // affected-row count tells us whether this was a new insert.
-        // Catalog-specific columns first ($1..$19), then the shared ScoreMeta
-        // block ($20..$37) via `bind_meta` — the two adapters share that fragment.
-        let sql = format!(
-            "INSERT INTO music.catalog_scores (\
-                id, arranger, source, source_url, source_item_id, license, license_url, \
-                confidence, sha256, origin_format, conversion_status, object_key, size_bytes, \
-                composer_norm, language, voicing, level, level_source, content_fingerprint, \
-                {META_COLS}) \
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,\
-                $20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37) \
-             ON CONFLICT (sha256) DO NOTHING"
-        );
+        let sql = catalog_insert_sql();
         let q = sqlx::query(&sql)
             .bind(id)
             .bind(&e.arranger)
@@ -209,6 +220,10 @@ impl CatalogSearchRepo for PgCatalogSearchRepo {
         // set, a NULL facet column fails the predicate (unknown ⇒ excluded).
         // `COUNT(*) OVER()` reports the full match total (before LIMIT/OFFSET) on
         // every returned row — one round-trip, no separate count query.
+        // Moderation gate ($13): `moderation_status = COALESCE($13, 'accepted')` —
+        // a normal caller binds NULL and sees only `accepted`; a privileged caller
+        // (authorised at the gRPC layer) binds an explicit status to select it
+        // (change: add-score-moderation-gating). It composes with every filter above.
         let rows = sqlx::query(&format!(
             "SELECT {HIT_COLS}, COUNT(*) OVER() AS total_count FROM music.catalog_scores \
              WHERE ($1 = '' OR title_norm ILIKE '%'||$1||'%' OR composer_norm ILIKE '%'||$1||'%') \
@@ -223,12 +238,13 @@ impl CatalogSearchRepo for PgCatalogSearchRepo {
                AND ($10::int2 IS NULL OR staff_count = $10) \
                AND ($11::int4 IS NULL OR tempo_bpm >= $11) \
                AND ($12::int4 IS NULL OR tempo_bpm <= $12) \
+               AND moderation_status = COALESCE($13::text, 'accepted') \
              ORDER BY \
                CASE WHEN $1 = '' THEN 0 \
                     ELSE GREATEST(COALESCE(similarity(title_norm, $1), 0), \
                                   COALESCE(similarity(composer_norm, $1), 0)) END DESC, \
                title_norm ASC NULLS LAST, id ASC \
-             LIMIT $13 OFFSET $14"
+             LIMIT $14 OFFSET $15"
         ))
         .bind(&p.text_norm)
         .bind(&p.author_norm)
@@ -242,6 +258,7 @@ impl CatalogSearchRepo for PgCatalogSearchRepo {
         .bind(p.staff_count)
         .bind(p.min_bpm)
         .bind(p.max_bpm)
+        .bind(&p.moderation_status)
         .bind(p.limit)
         .bind(p.offset)
         .fetch_all(&self.pool)
@@ -276,15 +293,50 @@ impl CatalogSearchRepo for PgCatalogSearchRepo {
         Ok(rows.iter().map(row_to_hit).collect())
     }
 
-    async fn object_key(&self, id: &str) -> PlatformResult<Option<String>> {
+    async fn object_key(
+        &self,
+        id: &str,
+        include_unvalidated: bool,
+    ) -> PlatformResult<Option<String>> {
         let Ok(uuid) = uuid::Uuid::parse_str(id) else {
             return Ok(None); // malformed id → not found, never a 500
         };
-        let row = sqlx::query("SELECT object_key FROM music.catalog_scores WHERE id = $1")
-            .bind(uuid)
-            .fetch_optional(&self.pool)
-            .await
-            .map_err(search_internal)?;
+        // Moderation gate ($2): a normal caller (`include_unvalidated = false`) only
+        // resolves an `accepted` score, so a `pending`/`rejected` id is reported as
+        // absent — its bytes can't be fetched and it can't be saved. An authorised
+        // reviewer (`true`) resolves any status (change: add-score-moderation-gating).
+        let row = sqlx::query(
+            "SELECT object_key FROM music.catalog_scores \
+             WHERE id = $1 AND ($2 OR moderation_status = 'accepted')",
+        )
+        .bind(uuid)
+        .bind(include_unvalidated)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(search_internal)?;
         Ok(row.map(|r| r.get::<String, _>("object_key")))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Ingestion can only ever persist a `pending` score: the INSERT hardcodes the
+    /// `moderation_status` literal (never a bind), so no caller — regardless of
+    /// licensing `confidence` — can auto-validate a crawled row (change:
+    /// add-score-moderation-gating). This guards the D5 invariant without a DB; the
+    /// end-to-end behaviour is covered by the integration/migration checks.
+    #[test]
+    fn catalog_insert_hardcodes_pending_moderation_status() {
+        let sql = catalog_insert_sql();
+        // The column is inserted, with the literal value — and there is no `$…`
+        // bind that could carry a different status in.
+        assert!(sql.contains("moderation_status"));
+        assert!(sql.contains("'pending'"));
+        assert!(
+            !sql.contains("'accepted'") && !sql.contains("'rejected'"),
+            "insert must never write accepted/rejected"
+        );
     }
 }

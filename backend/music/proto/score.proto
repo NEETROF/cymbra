@@ -104,6 +104,11 @@ message SearchCatalogRequest {
   optional int32 staff_count = 12;         // 1 or 2
   optional int32 min_bpm = 13;             // tempo range (marked BPM)
   optional int32 max_bpm = 14;
+  // PRIVILEGED, back-office-only moderation-status filter (change: add-score-
+  // moderation-gating): pending | accepted | rejected. The server honours it ONLY
+  // for an admin/moderator identity and rejects it (PERMISSION_DENIED) otherwise.
+  // The Flutter app never sets it; unset = the normal accepted-only visibility.
+  optional string moderation_status = 15;
 }
 message SearchCatalogResponse {
   repeated CatalogHit hits = 1;
