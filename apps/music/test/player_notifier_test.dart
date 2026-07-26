@@ -787,4 +787,126 @@ void main() {
       expect(audio.metronomeClicks.last, isTrue);
     });
   });
+
+  group('start at the first note (trim leading silence)', () {
+    // A score whose first note lands in the 3rd measure (80bpm 4/4 →
+    // 3000ms/measure): C4 [6000,6500), D4 [6500,7000). Song ends at 7000ms.
+    // Effective start = 6000 − kStartLeadInMs(1000) = 5000.
+    Score leadingRestScore() => Score(
+      bpm: 80,
+      measures: [
+        Measure(
+          index: 0,
+          notes: [
+            Note(
+              pitch: 60,
+              startMs: BigInt.from(6000),
+              durationMs: BigInt.from(500),
+            ),
+            Note(
+              pitch: 62,
+              startMs: BigInt.from(6500),
+              durationMs: BigInt.from(500),
+            ),
+          ],
+        ),
+      ],
+    );
+    const start = 5000.0;
+
+    test('initial load seeds the effective start, not zero', () async {
+      await build(score: leadingRestScore());
+      expect(read().notes.first.startMs, 6000);
+      expect(read().startMs, start);
+      expect(read().elapsedMs, start);
+    });
+
+    test('a piece starting at time zero is unchanged (regression)', () async {
+      await build(); // demo opens on a note at 0
+      expect(read().startMs, 0);
+      expect(read().elapsedMs, 0);
+    });
+
+    test('restart returns to the effective start', () async {
+      await build(score: leadingRestScore());
+      notifier().toggleWaitMode(); // free run so the playhead moves
+      notifier().setPlaying(true);
+      // Reach the plain advance path (a scored run would finish at the end).
+      container.read(performanceScorerProvider.notifier).cancelRun();
+      notifier().advance(500); // 5000 → 5500, off the start
+      expect(read().elapsedMs, greaterThan(start));
+      notifier().restart();
+      expect(read().elapsedMs, start);
+    });
+
+    test('changing hands recomputes the start for that selection', () async {
+      await build(score: leadingRestScore()); // demo notes are right-hand
+      notifier().setSelectedHands(Hand.right);
+      expect(read().elapsedMs, start);
+      // The left hand has no notes here → nothing to await → start falls to 0.
+      notifier().setSelectedHands(Hand.left);
+      expect(read().startMs, 0);
+      expect(read().elapsedMs, 0);
+    });
+
+    test('loop wraps to the effective start, not zero', () async {
+      await build(score: leadingRestScore());
+      notifier().toggleWaitMode(); // free run
+      notifier().togglePlay();
+      // Reach the unscored loop path (every mode is scored otherwise).
+      container.read(performanceScorerProvider.notifier).cancelRun();
+      notifier().advance(1000); // 5000 → 6000
+      expect(read().elapsedMs, 6000);
+      notifier().advance(1500); // 6000 → 7500 ≥ songEnd(7000): loops
+      expect(read().elapsedMs, start);
+    });
+
+    test('a scored run opens at a non-zero effective start', () async {
+      await build(score: leadingRestScore());
+      expect(read().elapsedMs, start);
+      notifier().togglePlay(); // Synthesia + from the top → scored run
+      expect(container.read(performanceScorerProvider).active, isTrue);
+    });
+
+    test('free-run countdown arms at a non-zero effective start', () async {
+      await build(score: leadingRestScore());
+      notifier().toggleWaitMode(); // countdown is a free-run feature
+      notifier().startPlayback();
+      expect(read().countdownMs, greaterThan(0));
+      // The playhead stays frozen at the effective start while it ticks.
+      notifier().advance(500);
+      expect(read().elapsedMs, start);
+      // After the countdown, playback advances past the start.
+      notifier().advance(kCountdownStartMs);
+      notifier().advance(200);
+      expect(read().elapsedMs, greaterThan(start));
+    });
+
+    test('resuming mid-piece does not re-trim to the first note', () async {
+      await build(score: leadingRestScore());
+      notifier().toggleWaitMode(); // free run
+      notifier().setPlaying(true);
+      notifier().advance(1500); // 5000 → 6500, mid-piece
+      expect(read().elapsedMs, 6500);
+      notifier().setPlaying(false); // pause
+      notifier().startPlayback(); // resume
+      expect(read().countdownMs, 0); // no countdown on resume
+      expect(read().elapsedMs, 6500); // stays put, no jump to the start
+    });
+
+    test('Wait Mode freezes at the first onset after the lead-in', () async {
+      await build(score: leadingRestScore()); // Wait Mode on by default
+      notifier().togglePlay();
+      expect(read().elapsedMs, start); // starts at the lead-in, not 0
+      // Advance through the lead-in: the playhead clamps at the first onset…
+      notifier().advance(2000); // 5000 → clamps to the 6000 onset
+      expect(read().elapsedMs, 6000);
+      notifier().advance(50);
+      expect(read().blocked, isTrue); // …and freezes there, awaiting C4
+      notifier().noteOn(60);
+      notifier().advance(50);
+      expect(read().blocked, isFalse);
+      expect(read().elapsedMs, greaterThan(6000));
+    });
+  });
 }

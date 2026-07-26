@@ -105,6 +105,31 @@ class TimedRest {
   });
 }
 
+/// Lead-in (ms) kept before the first note when trimming leading silence, so the
+/// first note visibly approaches (falls in / scrolls in) instead of appearing
+/// already on the hit line. A small fixed budget — on the order of the waterfall
+/// fall-in — bounded and clamped to no earlier than time zero in
+/// [effectiveStartMs]. Kept as a named constant so it is easy to tune.
+const double kStartLeadInMs = 1000.0;
+
+/// The playhead position a fresh run/transport should start at for [visibleNotes]:
+/// a short [leadInMs] before the first note's onset, clamped to no earlier than
+/// time zero, so leading rests / empty leading measures are skipped while the
+/// first note still approaches. Returns `0` when there are no notes (nothing to
+/// trim). Pure and host-testable; [visibleNotes] need not be sorted.
+double effectiveStartMs(
+  List<TimedNote> visibleNotes, {
+  double leadInMs = kStartLeadInMs,
+}) {
+  if (visibleNotes.isEmpty) return 0;
+  var firstOnset = visibleNotes.first.startMs;
+  for (final n in visibleNotes) {
+    if (n.startMs < firstOnset) firstOnset = n.startMs;
+  }
+  final start = firstOnset - leadInMs;
+  return start < 0 ? 0 : start;
+}
+
 /// Immutable player state (replaces the former `ChangeNotifier`).
 ///
 /// Held by the `Player` Riverpod notifier; the UI watches it and mutates it via
@@ -236,6 +261,12 @@ abstract class PlayerData with _$PlayerData {
   /// notes.
   List<TimedRest> get visibleRests =>
       rests.where((r) => showsStaff(r.staff)).toList();
+
+  /// Effective start of the current selection — where a fresh run/transport
+  /// places the playhead. A short lead-in before the first visible note's onset
+  /// (see [effectiveStartMs]), so leading rests / empty measures are trimmed.
+  /// `0` when the selection has no notes or already starts near the beginning.
+  double get startMs => effectiveStartMs(visibleNotes);
 
   /// Whether the loaded piece has any left-hand (staff 2+) notes, so isolating a
   /// hand is meaningful. The hand selector is shown only then — a single-staff
