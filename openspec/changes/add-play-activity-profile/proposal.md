@@ -23,11 +23,15 @@ them.
   **colored by that day's success rate** (percentage of success), with the number of songs
   played conveyed by the cell (size/intensity + tooltip). Extends the full-screen curator
   profile from #4.
-- **Public player profiles** — a player's profile is **viewable by other authenticated
-  players**, showing a defined **public field set** (handle/display name, level, badges,
-  the play heatmap, songs-played totals) and **excluding sensitive fields** (email, and the
-  moderation/curator reliability figures). A **visibility control** lets a user limit or opt
-  out, for privacy/RGPD.
+- **Public player profiles (opt-in, private by default)** — a player's profile is
+  **viewable by other authenticated players** only after the user **explicitly opts in**,
+  showing a defined **public field set** (handle/display name, level, badges, the play
+  heatmap, songs-played totals) and **excluding sensitive fields** (email, and the
+  moderation/curator reliability figures). Going public requires meeting a **configured
+  minimum age** (`min_public_sharing_age`, default **16** — the strictest EU threshold, so
+  compliant EU-wide without per-country detection): a **neutral age gate at opt-in** stores
+  only a derived eligibility date (no date of birth kept), and the safeguard is
+  **server-enforced, fail-closed**, as a UTC date check with a one-day margin.
 
 Out of scope: social discovery (search/follow/leaderboards) beyond viewing a profile;
 changing how success is scored (owned by `performance-scoring`); push notifications.

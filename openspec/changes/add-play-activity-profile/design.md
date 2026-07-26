@@ -69,11 +69,34 @@ or any moderation state. A **visibility control** lets a user make their profile
 public/limited/private.
 - **Why allow-list (not deny-list)**: fail-closed — a new sensitive field is private by
   default unless explicitly added to the public set.
-- **Default visibility**: the stated intent is that profiles are visible to other players, so
-  the default is **public**; the opt-out exists for privacy/RGPD. Confirm the default (see
-  Open Questions).
+- **Default visibility (decided): opt-in — private by default.** Going public is an explicit
+  user choice (RGPD-aligned, and protects minors). Community growth is driven by a friendly
+  prompt to opt in, not by exposing everyone by default.
 - **Viewer gating**: profiles are viewable by **authenticated** players (not anonymous web),
   consistent with the app's authenticated surfaces.
+
+### D6 — Minor safeguard: neutral age gate, config threshold (default 16), server-enforced
+Making a profile public SHALL require the user to be at least a **configured minimum age**
+(`min_public_sharing_age`, **default 16**). The threshold is a single global config value —
+16 is the strictest EU digital-consent age, so it is compliant EU-wide without per-country
+detection, and comfortably above the UK/US 13; it can later become a country→age map without
+schema change.
+- **Neutral age gate at opt-in only**: age is asked **only when** the user first tries to go
+  public (not at signup — data minimization), with a **neutral** prompt (ask the date of
+  birth, not a leading "are you 16+?" checkbox).
+- **Store only a derived date, discard the DOB**: from the DOB compute
+  `share_eligible_from = DOB + min_public_sharing_age years` and persist only that as a plain
+  **`DATE`**; the DOB is not stored.
+- **Server-enforced, fail-closed**: `SetProfileVisibility(public)` refuses if the user is not
+  yet eligible; the public-profile read is also fail-closed (never expose a profile whose
+  owner is not eligible), so a modified client cannot bypass it. Under-age users stay private
+  and keep full use of everything else; no parental-consent flow in v1.
+- **UTC date check with a safe margin (not the user's timezone)**: eligibility is a **date**
+  comparison done server-side in **UTC**; the only edge is the 16th-birthday day, resolved
+  conservatively (`current_date_utc > share_eligible_from`, i.e. a one-day margin) so a
+  timezone difference can never grant eligibility early. Being eligible one day late is
+  harmless and self-corrects. **This is deliberately different from the heatmap** (D3/D4),
+  which buckets by the **user's local timezone** because that is about lived UX, not safety.
 
 ## Risks / Trade-offs
 
@@ -100,10 +123,16 @@ public/limited/private.
 3. **Rollback**: the outbox/sender and profile additions are additive; disabling them leaves
    play + the local session summary working. `play_sessions` data is inert if unused.
 
+## Resolved Questions
+
+- **Default profile visibility (decided): opt-in — private by default**, with a friendly
+  prompt to go public (D5).
+- **Minor safeguard (decided): config `min_public_sharing_age`, default 16**, neutral age
+  gate at opt-in, store only `share_eligible_from` (DATE), server-enforced fail-closed, UTC
+  date check with a one-day margin; heatmap stays local-tz (D6).
+
 ## Open Questions
 
-- **Default profile visibility** — public by default (per the stated intent) with opt-out, or
-  opt-in? RGPD-safe either way; confirm the default.
 - **Which fields are public** — confirm the allow-list (handle, level, badges, heatmap,
   songs-played). Explicitly excluded: email, curator alignment/reliability, moderation state.
 - **Success-rate metric for the color** — reuse `performance-scoring`'s primary success/sync

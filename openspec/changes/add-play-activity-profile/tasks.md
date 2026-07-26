@@ -17,15 +17,16 @@
 
 ## 4. Public profiles (backend + app)
 
-- [ ] 4.1 A user profile-visibility setting (public/limited/private) on the user model + an RPC to update it.
-- [ ] 4.2 `GetPlayerProfile(user)` read returning only the allow-listed public fields (handle/display name, level, badges, heatmap, songs-played); NEVER email, curator alignment/reliability, or moderation state; honor the visibility setting; reject unauthenticated.
-- [ ] 4.3 App: a read-only public-profile view (reuses the profile widgets from #4 with the public field set) and an entry point to open another player's profile.
-- [ ] 4.4 App: a visibility setting UI (public/limited/private).
+- [ ] 4.1 User model: a profile-visibility setting (**default private**; public/limited/private) + a `share_eligible_from DATE` (nullable) + config `min_public_sharing_age` (default 16). Migration additive. Do NOT store date of birth.
+- [ ] 4.2 `SetProfileVisibility` RPC: to set public, require the user eligible — server-side, fail-closed, `current_date_utc > share_eligible_from` (one-day margin); refuse otherwise. A neutral age-gate flow computes `share_eligible_from = DOB + min_public_sharing_age years` from a DOB entered only at opt-in and discards the DOB.
+- [ ] 4.3 `GetPlayerProfile(user)` read returning only the allow-listed public fields (handle/display name, level, badges, heatmap, songs-played); NEVER email, curator alignment/reliability, or moderation state; honor visibility AND eligibility (fail-closed); reject unauthenticated.
+- [ ] 4.4 App: a read-only public-profile view (reuses the #4 profile widgets with the public field set) + an entry point to open another player's profile.
+- [ ] 4.5 App: visibility setting UI (default private) with an opt-in flow that shows the **neutral age gate** (asks date of birth, sends it once to derive eligibility; nothing about DOB kept locally) and a friendly prompt to go public.
 
 ## 5. Tests & verification
 
 - [ ] 5.1 Flutter: outbox durability (survives restart), retry-until-ack, never drops un-acked, offline capture, duplicate send is safe — assert **no loss, no double-count**. `flutter test --coverage` ≥ 80%.
 - [ ] 5.2 Flutter: heatmap colors by success rate, conveys count, blanks empty days (via a fake aggregate); public-profile view shows only public fields.
-- [ ] 5.3 Rust: idempotent ingest (same id no-ops), per-day aggregation by local tz, public read allow-list (no email/alignment/moderation), visibility honored, unauthenticated rejected. `cargo llvm-cov ... --fail-under-lines 80`.
+- [ ] 5.3 Rust: idempotent ingest (same id no-ops), per-day aggregation by local tz, public read allow-list (no email/alignment/moderation), visibility default private + honored, age gate fail-closed (under-min-age refused to go public; UTC one-day margin; DOB not stored), unauthenticated rejected. `cargo llvm-cov ... --fail-under-lines 80`.
 - [ ] 5.4 `cargo fmt`/`clippy` + `melos run analyze`/`dart format` clean; regenerate codegen as needed.
 - [ ] 5.5 `openspec validate add-play-activity-profile --strict` passes.
