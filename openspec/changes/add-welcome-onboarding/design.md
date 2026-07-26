@@ -100,6 +100,31 @@ the player, pointing at each control in place (e.g. inside the player settings d
 - **Extensible**: the same guided mechanism can later cover other controls (wait-mode, metronome,
   tempo) without new machinery.
 
+### D9 — Help overlays: a thin custom overlay driven by a Riverpod coaching controller
+The coach-marks and the guided player sequence are built **in-house** (no coach-mark
+dependency), because the key case — *open the settings drawer, then spotlight a control inside
+it, interactively* — is too specific to fit a package's controller model cleanly.
+- **Coaching controller** (`@riverpod` notifier + Freezed state): owns the "seen" set, the current
+  guided-sequence step, and `markSeen / start / next / skip`. All logic lives here so it is
+  **unit-testable**.
+- **Seen persistence behind an injectable seam** (like `midiService`): a fake in tests, real
+  `shared_preferences` in production — no native/prefs in widget tests, keeps the 80% gate.
+- **Target discovery**: each coachable control carries a `GlobalKey` (or registers in a
+  `CoachTarget` registry); the overlay reads its `RenderBox` (`localToGlobal` + size) to get the
+  spotlight rect, after `addPostFrameCallback` (rects exist only post-layout).
+- **The overlay** (`Overlay`/`OverlayEntry`): a `CustomPainter` scrim with a cut-out hole over
+  the target (`Path.combine(difference, …)`), a bubble positioned near the target with landscape
+  edge-avoidance, and Next/Skip. Hit-test **pass-through** in the hole for the guided "do it now"
+  steps (tap the real control to advance); illustrative-only for passive hints.
+- **Drawer orchestration**: the controller drives the UI between steps — e.g. open the player
+  settings end-drawer, then spotlight the piano / MIDI / hand control inside — since those
+  controls aren't on screen until the drawer opens.
+- **Testing split**: step/seen logic → unit tests on the notifier; the spotlight visuals → golden
+  tests (tagged `golden`, already excluded from the cross-platform gate).
+- **Alternative**: `tutorial_coach_mark` / `flutter_showcaseview` (MIT). Rejected as the default —
+  they'd have to be bent to the drawer-open + Riverpod + pass-through flow and add a dependency;
+  a ~1-file custom overlay is cleaner here. (Fallback if the custom placement proves fiddly.)
+
 ## Risks / Trade-offs
 
 - **"Don't force account" vs auth-only hub** → resolved by D2's no-account demo (aha without

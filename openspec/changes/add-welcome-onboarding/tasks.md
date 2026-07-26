@@ -16,9 +16,10 @@
 
 ## 4. Unified progressive coaching
 
-- [ ] 4.1 A shared coach-mark/spotlight widget: one-time, dismissible, non-blocking, with per-hint "seen" state (`shared_preferences`).
+- [ ] 4.0 A **coaching controller** (`@riverpod` notifier + Freezed state) owning the "seen" set and the guided-sequence step (`markSeen/start/next/skip`), with "seen" persistence behind an **injectable seam** (fake in tests, `shared_preferences` in prod). Logic is unit-testable without native/prefs.
+- [ ] 4.1 A shared **custom** coach-mark/spotlight overlay (`Overlay` + `CustomPainter` hole + positioned bubble w/ landscape edge-avoidance + Next/Skip): one-time, dismissible, non-blocking; targets located by `GlobalKey`/`CoachTarget` registry after `addPostFrameCallback`; hit-test pass-through in the hole for "do it now" steps, illustrative for passive hints. (No coach-mark dependency; `tutorial_coach_mark` only as a fallback.)
 - [ ] 4.2 Route the first-run hints from #2 (rating deck), #4 (reward feedback), and #5 (age gate) through this shared mechanism instead of ad-hoc implementations.
-- [ ] 4.3 A **guided in-context sequence in the player** (directed, one control at a time) highlighting the real controls — piano-sound selection (`piano-sound-selection`), connected-MIDI/device view + manual select (`midi`), hand selection right/left/both (`hand-selection`) — pointing at each control in place (player settings drawer); runs on first player visit; skippable (never blocks play); replayable from help. Built on the shared coach-mark/spotlight so it extends to other controls later.
+- [ ] 4.3 A **guided in-context sequence in the player** (directed, one control at a time) highlighting the real controls — piano-sound selection (`piano-sound-selection`), connected-MIDI/device view + manual select (`midi`), hand selection right/left/both (`hand-selection`) — pointing at each control in place. The controller **orchestrates the UI** (open the player settings end-drawer, then spotlight the control inside); runs on first player visit; skippable (never blocks play); replayable from help. Built on 4.0/4.1 so it extends to other controls later.
 
 ## 5. Help/tips
 
@@ -33,5 +34,6 @@
 ## 7. Tests & verification
 
 - [ ] 7.1 Flutter (via fakes): language step precedes the welcome and defaults to device locale; welcome shows pre-account and is skippable; no forced sign-up; no-account demo plays and shows the summary; contextual sign-in invite states a benefit, decline keeps exploring, accept resumes the action; coach-mark shown once + re-findable in help; guided player sequence highlights piano/MIDI/hand controls, is skippable, and is replayable from help. `flutter test --coverage` ≥ 80%.
-- [ ] 7.2 `melos run analyze` + `dart format` clean; regenerate codegen as needed.
-- [ ] 7.3 `openspec validate add-welcome-onboarding --strict` passes.
+- [ ] 7.2 Golden tests (tagged `golden`) for the spotlight overlay visuals (hole + bubble placement, landscape); excluded from the cross-platform gate.
+- [ ] 7.3 `melos run analyze` + `dart format` clean; regenerate codegen as needed.
+- [ ] 7.4 `openspec validate add-welcome-onboarding --strict` passes.
