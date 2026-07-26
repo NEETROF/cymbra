@@ -1,7 +1,8 @@
 ## 1. First-run welcome (no account)
 
-- [ ] 1.1 A welcome flow (Riverpod notifier + Freezed state) shown at first launch **before** the entry/handle screens; 2–3 screens (value → core loop → first action); always skippable; a one-time "welcome seen" flag in `shared_preferences`.
-- [ ] 1.2 Wire ordering: welcome → optional sign-in → existing `handle-onboarding` gate → app. Do not require an account to view or skip the welcome.
+- [ ] 1.0 A **language step** as the very first launch screen (before the welcome), defaulting to the device locale when supported, applied immediately via `app-localization`; changeable later in settings; no account required.
+- [ ] 1.1 A welcome flow (Riverpod notifier + Freezed state) shown at first launch **after the language step and before** the entry/handle screens; 2–3 screens (value → core loop → first action); always skippable; a one-time "welcome seen" flag in `shared_preferences`.
+- [ ] 1.2 Wire ordering: language → welcome → optional sign-in → existing `handle-onboarding` gate → app. Do not require an account to view or skip the welcome.
 
 ## 2. No-account "try" of the core loop
 
@@ -17,6 +18,7 @@
 
 - [ ] 4.1 A shared coach-mark/spotlight widget: one-time, dismissible, non-blocking, with per-hint "seen" state (`shared_preferences`).
 - [ ] 4.2 Route the first-run hints from #2 (rating deck), #4 (reward feedback), and #5 (age gate) through this shared mechanism instead of ad-hoc implementations.
+- [ ] 4.3 A **guided in-context sequence in the player** (directed, one control at a time) highlighting the real controls — piano-sound selection (`piano-sound-selection`), connected-MIDI/device view + manual select (`midi`), hand selection right/left/both (`hand-selection`) — pointing at each control in place (player settings drawer); runs on first player visit; skippable (never blocks play); replayable from help. Built on the shared coach-mark/spotlight so it extends to other controls later.
 
 ## 5. Help/tips
 
@@ -30,6 +32,6 @@
 
 ## 7. Tests & verification
 
-- [ ] 7.1 Flutter (via fakes): welcome shows pre-account and is skippable; no forced sign-up; no-account demo plays and shows the summary; contextual sign-in invite states a benefit, decline keeps exploring, accept resumes the action; coach-mark shown once + re-findable in help. `flutter test --coverage` ≥ 80%.
+- [ ] 7.1 Flutter (via fakes): language step precedes the welcome and defaults to device locale; welcome shows pre-account and is skippable; no forced sign-up; no-account demo plays and shows the summary; contextual sign-in invite states a benefit, decline keeps exploring, accept resumes the action; coach-mark shown once + re-findable in help; guided player sequence highlights piano/MIDI/hand controls, is skippable, and is replayable from help. `flutter test --coverage` ≥ 80%.
 - [ ] 7.2 `melos run analyze` + `dart format` clean; regenerate codegen as needed.
 - [ ] 7.3 `openspec validate add-welcome-onboarding --strict` passes.

@@ -9,9 +9,18 @@ without sign-up, and account creation is invited only when a feature actually ne
 
 ## What Changes
 
+- **Language first** — the very first launch step is a **language choice** (defaulting to the
+  device locale), applied immediately so the whole welcome is in the user's language; changeable
+  later in settings; no account required.
 - **Lean first-run welcome (no account required)** — a short (2–3 screen) welcome, shown at
   first launch **before any sign-in**, that states the value and routes the user to a first
   action. It is **always skippable** and **never forces sign-up**.
+- **Guided in-context player coaching (Clash-of-Clans style)** — the first time the user reaches
+  the player, a **directed** sequence highlights the real controls one at a time — **selecting a
+  piano sound**, **viewing the connected MIDI instrument and selecting one manually**, and
+  **choosing which hand(s)** (right/left/both) — pointing at each control in place. Skippable
+  (never blocks play) and replayable from help; built on the same coach-mark system so it extends
+  to other controls later.
 - **Value before sign-up** — the user SHALL be able to experience the **core loop** (play a
   piece, see the live sync gauge and end-of-session summary) **without an account** — via a
   no-account "try" path (e.g. a bundled demo piece). Sign-in is **deferred**.
@@ -39,7 +48,9 @@ whole hub to anonymous browsing (only a minimal no-account "try" is introduced).
   sign-up, the **no-account way to experience the core loop**, and the **deferred, contextual**
   sign-in invitation offered (never forced) at the point a feature needs an account.
 - `feature-discovery`: the unified progressive coaching system — one-time, dismissible,
-  re-findable hints introduced at first use (consolidating #2/#4/#5), plus a help/tips surface.
+  re-findable hints introduced at first use (consolidating #2/#4/#5), a **guided in-context
+  sequence in the player** for its key controls (piano sound, MIDI device, hand selection), and a
+  help/tips surface.
 
 ### Modified Capabilities
 <!-- None. Onboarding wraps the existing entry/handle flow and the per-feature hints without
@@ -53,8 +64,10 @@ whole hub to anonymous browsing (only a minimal no-account "try" is introduced).
   seam; a shared coach-mark/spotlight widget + "seen" state (`shared_preferences`); a help/tips
   screen; contextual sign-in prompts at gated actions.
 - **Relates to** `handle-onboarding` (welcome precedes the post-auth handle gate; ordering:
-  welcome → optional sign-in → handle gate), `state-management`, `app-localization`,
-  `responsive-layout`, and the per-feature hints in #2/#4/#5 it consolidates.
+  language → welcome → optional sign-in → handle gate), `app-localization` (language-first),
+  `piano-sound-selection` / `midi` / `hand-selection` (the player controls the guided sequence
+  points at), `state-management`, `responsive-layout`, and the per-feature hints in #2/#4/#5 it
+  consolidates.
 - **Likely no backend change** (scope B): "seen" state is local; the demo piece is bundled. A
   backend "seen"/what's-new surface is scope C, deferred.
 - **Coverage**: Flutter ≥ 80% for the welcome/skip/deferred-sign-in flow and the coach-mark

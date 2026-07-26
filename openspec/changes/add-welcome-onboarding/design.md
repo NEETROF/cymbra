@@ -75,6 +75,31 @@ All copy is localized (`app-localization`); coach-marks are dismissible and neve
 block the underlying action; onboarding surfaces adapt to the landscape/`responsive-layout`.
 Moderation is backstage and never appears in user onboarding.
 
+### D7 — Language is chosen first, before the welcome
+The very first step at first launch is a **language choice**, defaulting to the device locale
+when supported, applied immediately to the welcome and everything after, and changeable later in
+settings. Flow becomes: **language → welcome → optional sign-in → handle gate → app**. No account
+required.
+- **Why first**: the welcome copy itself must be in the user's language to land; asking language
+  after showing English/French copy is backwards. It is one tap (locale-defaulted), so it does
+  not add friction.
+
+### D8 — Guided in-context coaching for the player controls (Clash-of-Clans style)
+Beyond passive one-time hints (D4), the player gets a **directed** guided sequence that
+highlights the real controls one at a time — **piano-sound selection**, **connected-MIDI/device
+view + manual selection**, **hand selection (right/left/both)** — the first time the user reaches
+the player, pointing at each control in place (e.g. inside the player settings drawer). It is
+**skippable**, never permanently blocks play, and is **replayable from help**.
+- **Why directed, not just passive**: these controls are not obvious and matter for a good first
+  session; a "show me where to tap" walk-through (like Clash of Clans' first-build guidance) is
+  the right level — but kept **skippable**, consistent with the "don't force" ethos (we guide,
+  we don't gate).
+- **Reuses existing specs/surfaces**: it points at the controls defined by `piano-sound-selection`,
+  the `midi` device selection, and `hand-selection`, rendered where they already live (the player
+  settings end-drawer). #8 provides the guidance layer, not new controls.
+- **Extensible**: the same guided mechanism can later cover other controls (wait-mode, metronome,
+  tempo) without new machinery.
+
 ## Risks / Trade-offs
 
 - **"Don't force account" vs auth-only hub** → resolved by D2's no-account demo (aha without

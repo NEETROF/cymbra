@@ -1,12 +1,34 @@
 ## ADDED Requirements
 
+### Requirement: Language is chosen first
+
+The app SHALL, at the **very first launch and before the welcome**, let the user choose the app
+language, defaulting to the device locale when it is supported. The chosen language SHALL apply
+immediately to the welcome and everything after it, SHALL remain changeable later from settings,
+and MUST NOT require an account.
+
+#### Scenario: Language step precedes the welcome
+
+- **WHEN** the app is launched for the very first time
+- **THEN** the user chooses the language before the welcome is shown, without needing an account
+
+#### Scenario: Defaults to the device locale
+
+- **WHEN** the language step is shown and the device locale is a supported language
+- **THEN** that language is pre-selected as the default
+
+#### Scenario: Language remains changeable later
+
+- **WHEN** the user later changes the language in settings
+- **THEN** the app applies the new language
+
 ### Requirement: First-run welcome runs without an account and never forces sign-up
 
 The app SHALL present, at first launch and **before any sign-in**, a short welcome that states
 the value and routes the user toward a first action. The welcome MUST NOT require an account and
 MUST always be **skippable**; sign-in SHALL be offered only as an **option**, never as a
-mandatory wall to proceed. The welcome SHALL appear before the existing post-auth handle gate in
-the flow (welcome → optional sign-in → handle gate).
+mandatory wall to proceed. The welcome SHALL follow the language step and precede the existing
+post-auth handle gate (language → welcome → optional sign-in → handle gate).
 
 #### Scenario: Welcome shown before any account exists
 
