@@ -22,6 +22,23 @@ earlier "runtime config" option for the scattered straw-man tunables (#2/#4/#6/#
 
 ## Decisions
 
+### D0 — A shared, app-agnostic platform crate, not part of `music`
+The system is delivered as a **dedicated crate** `backend/feature-flags`
+(`cymbra-feature-flags`), owning its own schema/migrations and service, on the model of
+`backend/jobs` and `backend/observability`. It is consumed by the server, the worker, and every
+app/module, and a **shared Flutter package** holds the client provider. It MUST NOT live inside
+`backend/music`, so **Cymbra Live and future apps reuse it with zero re-coding**.
+- **Why a crate, not a module method**: flags are cross-cutting platform infra (like jobs,
+  observability, tokens), used by every app. Coupling them to `music` would force a re-implement
+  for `live`.
+- **Per-app key scoping (two orthogonal dimensions)**: each key has an **app scope** — `all`
+  (shared across every Cymbra app) or a specific app (`music`, `live`, …) — resolved from the
+  caller's app (token `aud`); and a **rollout scope** — `global` or `staff-only` (D5). A `music`
+  build only ever sees `all` + `music` keys; a `live` build sees `all` + `live`. Shared keys (e.g.
+  an "under maintenance" kill-switch) are defined once and apply everywhere.
+- **Evaluation context** carries `{ app (aud), identity/roles }`, so the same service resolves the
+  right values for any app.
+
 ### D1 — One store, two kinds: boolean flags + typed config; DB source, code defaults
 A single key/value store holds **boolean feature flags** and **typed config values** (int,
 number, string, small JSON). The **DB is the source of truth**; **code declares every key with a
@@ -93,17 +110,25 @@ need push; fetch-on-launch/resume + short cache is "hot enough", and the backend
 regardless of client state.
 - **Why not push**: disproportionate now; the backend gate makes eventual client refresh safe.
 
-### D5 — Scope: global by default, optional staff-only; no percentage rollout yet
-A flag's scope is **global** or **staff-only** (visible/enabled only for admin/moderator
-identities), so a feature can be dogfooded by staff before a global flip. Percentage/cohort
-targeting is deferred (the user base is tiny; it adds real complexity).
+### D5 — Rollout scope: global by default, optional staff-only; no percentage rollout yet
+Orthogonal to the **app scope** (D0), a flag's **rollout scope** is **global** or **staff-only**
+(enabled only for admin/moderator identities), so a feature can be dogfooded by staff before a
+global flip. Percentage/cohort targeting is deferred (the user base is tiny; it adds real
+complexity).
 - **Why staff-only**: it's the highest-value targeting for a small team — try it internally,
   then flip global — without an experimentation framework.
+- **Two dimensions compose**: `app scope` picks *which apps* a key applies to; `rollout scope`
+  picks *which users within an app*. Evaluation resolves both from the caller's `{app, roles}`.
 
-### D6 — Admin editing from the BO, audited
-Flags/config are viewed and changed from an **admin-only** BO panel (guarded by `require_admin`,
-reusing #3). Every change appends to a **`feature_flag_changes`** audit (key, old→new, actor,
-time), mirroring `role_grants`.
+### D6 — Admin editing: app-aware, platform + per-app admin, audited
+Flags/config are viewed and changed from an **app-aware** admin panel (filter by app). A
+**platform admin** (`global/admin`) manages keys across all apps; a **per-app admin** (e.g.
+`music/admin`) manages only that app's keys (and `all`-scoped keys are platform-admin only). The
+panel is hosted in the existing back office (#3) as a **platform-scoped section**, designed
+app-agnostic so a future `live` back office reuses the same component. Every change appends to a
+**`feature_flag_changes`** audit (key, app, old→new, actor, time), mirroring `role_grants`.
+- **Why platform + per-app**: shared/`all` keys are cross-app and must not be flippable by a
+  single app's admin; per-app keys stay with that app's admin. Reuses the scoped-roles model.
 - **Why audited**: flipping a feature or an economy value is a sensitive, consequential action;
   "who changed what, when" must be durable and queryable.
 

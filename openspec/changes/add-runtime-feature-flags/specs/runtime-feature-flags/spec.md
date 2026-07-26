@@ -1,5 +1,28 @@
 ## ADDED Requirements
 
+### Requirement: A shared, app-scoped flag system reusable across Cymbra apps
+
+The feature-flag system SHALL be a **shared platform component**, reusable by every Cymbra app
+(`music`, `live`, and future apps) **without re-implementation**, not coupled to any one app's
+module. Each key SHALL have an **app scope**: `all` (applies to every app) or a specific app; the
+system SHALL resolve a caller's effective keys from the caller's app (its token audience), so an
+app sees only the `all` keys plus its own. This app scope is independent of the rollout scope.
+
+#### Scenario: A per-app key applies only to its app
+
+- **WHEN** a key is scoped to `music` and a `live` caller evaluates flags
+- **THEN** that key does not apply to the `live` caller
+
+#### Scenario: A shared key applies to every app
+
+- **WHEN** a key is scoped to `all`
+- **THEN** every app's callers resolve it
+
+#### Scenario: A new app reuses the system without re-coding
+
+- **WHEN** a new Cymbra app is added
+- **THEN** it consumes the same shared flag system and its own app-scoped keys, without a new implementation
+
 ### Requirement: Runtime flag and config store with code defaults
 
 The system SHALL provide a runtime store holding **boolean feature flags** and **typed config

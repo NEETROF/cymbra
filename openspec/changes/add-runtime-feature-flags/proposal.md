@@ -8,8 +8,20 @@ to roll out gradually, **kill-switch** a misbehaving feature, dogfood with staff
 tune the economy live. This also subsumes the runtime-config need for the scattered
 straw-man values.
 
+Critically, this must be a **shared, app-agnostic platform component**, not something baked
+into the `music` module: Cymbra is a multi-app suite (`music`, `live`, future apps), and the
+flag system MUST be **reused across apps without re-coding**. So it lives in its own crate + a
+shared client, and its keys are **scoped per app** (global across all Cymbra apps, or per app).
+
 ## What Changes
 
+- **Shared platform component (reusable across Cymbra apps)** — delivered as a **dedicated
+  crate** (`backend/feature-flags`, owning its schema/service, like `jobs`/`observability`) plus
+  a **shared Flutter package**, consumed by the server, the worker, and **every app** (music,
+  live, future). It is NOT part of the `music` module — a new app reuses it with zero re-coding.
+- **Per-app key scoping** — a flag/config key is scoped to **all apps** (shared) or to a
+  **specific app** (`music`, `live`, …), resolved by the caller's app (the token `aud`). This
+  app-scope is orthogonal to the rollout scope (global vs staff-only).
 - **Runtime flag & config store** — one store holding **boolean feature flags** (on/off per
   feature) and **typed config values** (the tunables), with the **source of truth in the DB**
   and **safe defaults in code** used when a key is absent or the store is unreachable.
@@ -24,8 +36,10 @@ straw-man values.
 - **Rollout scope** — a flag is **global** by default, with an optional **staff-only**
   (admin/moderator) scope so a feature can be exercised by staff before opening to everyone.
   (Percentage/cohort rollout is a future extension.)
-- **Admin editing from the back office** — an **admin-only** panel to view/toggle flags and
-  edit config values, with every change **audited** (who/when/old→new), like `role_grants`.
+- **Admin editing from the back office** — an **app-aware** admin panel to view/toggle flags and
+  edit config values, filtered by app; managed by a **platform (global) admin** across apps, and
+  by a per-app admin (e.g. `music/admin`) for that app's keys. Every change **audited**
+  (who/when/old→new), like `role_grants`.
 - **Home for the tunables** — the straw-man values (#2 re-review thresholds, #4 reward
   points/costs/levels, #6/#7 best-N, difficulty weights, season length, …) register here with
   their code defaults; each feature reads them through the flag/config service.
@@ -37,10 +51,12 @@ casually-editable flags — those stay code-reviewed unless deliberately promote
 ## Capabilities
 
 ### New Capabilities
-- `runtime-feature-flags`: the runtime store of boolean flags + typed config with DB source and
-  code defaults; hot evaluation with a short-TTL/invalidated cache; backend enforcement (off =
-  capability disabled); fail-safe fallback to defaults; the global/staff-only scope; the change
-  audit; and the client fetch of relevant flags.
+- `runtime-feature-flags`: the **shared, app-agnostic** runtime store of boolean flags + typed
+  config with DB source and code defaults; **per-app key scoping** (all-apps or a specific app,
+  resolved by the caller's app) orthogonal to the global/staff-only rollout scope; hot evaluation
+  with an L1 snapshot + Redis pub/sub invalidation; backend enforcement (off = capability
+  disabled); fail-safe fallback to defaults; the change audit; and the client fetch of the
+  caller's effective flags. Delivered as a reusable crate + shared client, not tied to `music`.
 - `feature-flags-admin`: the back-office admin panel to view/toggle flags and edit config
   values, guarded to admins, with audited changes.
 
@@ -50,10 +66,15 @@ casually-editable flags — those stay code-reviewed unless deliberately promote
 
 ## Impact
 
-- **Backend**: a `feature_flags` / `app_config` table (key, typed value, scope, updated_by,
-  updated_at) + a `feature_flag_changes` audit; a flags/config **service** with code-declared
-  defaults, a short-TTL/Redis-invalidated cache, and typed accessors; a client-facing read RPC
-  returning the caller's effective flags; enforcement hooks where features are gated.
+- **New dedicated crate** `backend/feature-flags` (`cymbra-feature-flags`), owning its schema and
+  service — reusable by any app/module; NOT inside `backend/music`. A **shared Flutter package**
+  holds the client provider so every app reuses it.
+- **Backend**: a `feature_flags` / `app_config` table (key, **app** [all|music|live|…], typed
+  value, rollout scope, sensitive, updated_by, updated_at) + a `feature_flag_changes` audit; a
+  flags/config **service** with code-declared defaults, an L1 snapshot + Redis-pub/sub cache, and
+  typed OpenFeature-shaped accessors taking an identity+app context; a client-facing read RPC
+  returning the caller's effective flags (resolved by app + identity); enforcement hooks where
+  features are gated.
 - **Back office** (`bo.cymbra.app`, #3): an admin-only flags/config panel (view, toggle, edit),
   audited.
 - **App** (`apps/music`): fetch effective flags on launch/resume; a small provider exposing them;

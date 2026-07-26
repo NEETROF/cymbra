@@ -2,11 +2,13 @@
 
 ### Requirement: Admin flags & config panel in the back office
 
-The back office SHALL provide an **admin-only** panel that lists the **declared** flags and config
-keys with their current effective values and defaults, and lets an admin **toggle a flag** or
-**edit a config value** within its type. The operation SHALL be guarded so only an `admin`
-identity may change values; a non-admin MUST be rejected. Edits SHALL take effect at runtime (per
-the hot-evaluation rule) and SHALL be audited.
+The back office SHALL provide an **admin-only**, **app-aware** panel that lists the **declared**
+flags and config keys (filterable by app) with their current effective values and defaults, and
+lets an admin **toggle a flag** or **edit a config value** within its type. A **platform admin**
+(global admin) MAY change keys across all apps and the `all`-scoped keys; a **per-app admin** MAY
+change only that app's keys and MUST NOT change `all`-scoped or another app's keys. A caller
+without the required admin role MUST be rejected. Edits SHALL take effect at runtime (per the
+hot-evaluation rule) and SHALL be audited.
 
 #### Scenario: Admin toggles a feature flag
 
@@ -27,6 +29,11 @@ the hot-evaluation rule) and SHALL be audited.
 
 - **WHEN** a non-admin attempts to toggle a flag or edit config
 - **THEN** the request is rejected
+
+#### Scenario: Per-app admin cannot change another app's or shared keys
+
+- **WHEN** a per-app admin (e.g. `music/admin`) attempts to change a `live` key or an `all`-scoped key
+- **THEN** the request is rejected; only that app's keys are editable by them
 
 ### Requirement: Sensitive keys are protected from casual change
 
