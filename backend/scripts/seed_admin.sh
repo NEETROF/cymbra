@@ -25,18 +25,30 @@ psql -v ON_ERROR_STOP=1 \
   -v uid="$UID_ARG" \
   -v scope="$SCOPE" \
   -v role="$ROLE" <<'SQL'
--- Verify the account exists first, so a typo'd id fails loudly rather than
--- silently seeding a role for a non-existent user.
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM user_account.users WHERE id = :'uid'::uuid) THEN
-    RAISE EXCEPTION 'no account with id %', :'uid';
-  END IF;
-END $$;
+-- Stash the args as session settings: psql `:var` substitution does NOT reach
+-- inside a `$$`-quoted plpgsql body, so the DO block reads them via
+-- current_setting instead (substitution here, in plain statements, is fine).
+-- `\o /dev/null` discards the SELECT's result grid so only the final notice shows.
+\o /dev/null
+SELECT set_config('cymbra.seed_uid',   :'uid',   false),
+       set_config('cymbra.seed_scope', :'scope', false),
+       set_config('cymbra.seed_role',  :'role',  false);
+\o
 
-INSERT INTO user_account.user_roles (user_id, scope, role)
-VALUES (:'uid'::uuid, :'scope', :'role')
-ON CONFLICT DO NOTHING;
+-- Verify the account exists first (a typo'd id RAISEs, and with ON_ERROR_STOP the
+-- script exits non-zero) rather than silently seeding a role for no one, then
+-- grant idempotently — all in one transaction.
+DO $$
+DECLARE
+  u uuid := current_setting('cymbra.seed_uid')::uuid;
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM user_account.users WHERE id = u) THEN
+    RAISE EXCEPTION 'no account with id %', u;
+  END IF;
+  INSERT INTO user_account.user_roles (user_id, scope, role)
+  VALUES (u, current_setting('cymbra.seed_scope'), current_setting('cymbra.seed_role'))
+  ON CONFLICT DO NOTHING;
+END $$;
 SQL
 
 echo "cymbra: seeded ${ROLE} in scope ${SCOPE} for ${UID_ARG}"
