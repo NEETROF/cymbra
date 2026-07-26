@@ -1,0 +1,6 @@
+node_modules/
+dist/
+# Generated gRPC-web/protobuf stubs (produced by `pnpm gen`, like the Flutter app's).
+src/gen/
+*.local
+.env
