@@ -21,6 +21,7 @@ import 'package:music/state/countdown.dart';
 import 'package:music/state/performance_scoring.dart';
 import 'package:music/state/player_data.dart';
 import 'package:music/state/player_notifier.dart';
+import 'package:music/state/player_preferences.dart';
 
 import 'support/fakes.dart';
 
@@ -720,8 +721,8 @@ void main() {
       await build();
       notifier().toggleMetronome();
       expect(read().metronomeEnabled, isTrue);
-      // The app-wide provider holds the choice independently of the player.
-      expect(container.read(metronomeEnabledProvider), isTrue);
+      // The persisted preferences hold the choice independently of the player.
+      expect(container.read(playerPreferencesProvider).metronome, isTrue);
 
       // Leaving the player and reopening it on another piece auto-disposes and
       // rebuilds the notifier; the global flag must seed the fresh state.

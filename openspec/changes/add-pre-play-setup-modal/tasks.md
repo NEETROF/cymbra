@@ -18,7 +18,14 @@
 - [x] 3.1 In `_PlayerScreenState`, show the modal once per opened score after the notation has a document (post-frame check + `ref.listen(notationProvider…)`), guarded by a `_setupShown` flag.
 - [x] 3.2 Add l10n strings (modal title, section headers "Play with"/"Tempo"/"MIDI device", Validate) to `app_{en,fr,es,it}.arb`; reuse existing `handLeft/Right/Both`, `tempo`, level labels, MIDI device labels; regen localizations.
 
-## 4. Tests + validation
+## 4. Persist the play settings
+
+- [x] 4a.1 Add `lib/state/player_preferences.dart`: a keepAlive, device-persisted `PlayerPreferences` (Freezed `PlayerPrefs` — hands, speed, metronome, midiPort) using `preferencesServiceProvider` (JSON under one key), mirroring the `AppLocale` restore/persist pattern.
+- [x] 4a.2 Seed `PlayerData` from it in `Player.build` (hands/speed/metronome, re-apply a remembered MIDI device), and write through in `setSelectedHands` / `setSpeed` / `toggleMetronome` / `selectMidiPort`; remove the old in-memory `MetronomeEnabled` provider.
+- [x] 4a.3 Warm the provider at startup (library screen) so a cold-start open restores before the first player seeds.
+- [x] 4a.4 Unit test `player_preferences_test.dart`: defaults, restore from a seeded store, each setter persists, corrupt value falls back.
+
+## 5. Tests + validation
 
 - [x] 4.1 Widget test: opening the player shows the modal (score title/composer visible); Validate with a changed hand applies it to `playerProvider` and closes; close (X) leaves settings unchanged.
 - [x] 4.2 Widget test: single-staff piece → no hand chooser; multi-staff → hand chooser present.

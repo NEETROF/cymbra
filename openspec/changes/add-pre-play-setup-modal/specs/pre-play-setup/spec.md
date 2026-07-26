@@ -67,3 +67,29 @@ current settings unchanged. In both cases the user remains on the player.
 - **WHEN** the user makes changes in the modal and taps the close (X) action
 - **THEN** the modal closes without applying those changes, the previous settings
   remain in effect, and the user stays on the player
+
+### Requirement: Setup choices persist across scores and restarts
+
+The system SHALL remember the play settings (hands, tempo/playback speed,
+metronome, and the chosen MIDI device) on the device. Applied choices SHALL
+persist across scores and SHALL survive an app restart, and each newly opened
+score SHALL be seeded from them. The same settings SHALL be editable both in the
+modal and in the in-game settings, and a change made in either place SHALL update
+the shared, persisted value.
+
+#### Scenario: Choices are remembered on the next score
+
+- **WHEN** the user sets the hands/tempo/metronome/device (in the modal or the
+  in-game settings) and later opens another score
+- **THEN** that score is seeded with the same settings
+
+#### Scenario: Choices survive an app restart
+
+- **WHEN** the user has set play settings and restarts the app
+- **THEN** the restored settings are in effect when a score is opened
+
+#### Scenario: In-game changes update the same settings
+
+- **WHEN** the user changes a setting from the in-game settings while playing
+- **THEN** the shared persisted value is updated (the next score and the next
+  launch reflect it)

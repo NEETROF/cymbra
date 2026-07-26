@@ -21,6 +21,9 @@ tune the essentials before the first note.
 - A **Validate** button at the bottom applies the chosen settings and closes the
   modal; a **close (X)** dismisses it keeping the current settings. Either way the
   user stays on the player.
+- The play settings (hands, tempo, metronome, MIDI device) are **persisted to the
+  device**: they carry across scores, survive an app restart, and are shared with
+  the in-game settings drawer (a change in either place updates the same value).
 - Extract the small shared controls (an option/radio row, the hand labels, the
   difficulty badge) so the modal and the existing settings drawer share them
   instead of duplicating.

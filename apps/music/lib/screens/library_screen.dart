@@ -22,6 +22,7 @@ import '../services/catalog_service.dart';
 import '../services/score_upload_service.dart';
 import '../state/contributed_scores.dart';
 import '../state/favorite_scores.dart';
+import '../state/player_preferences.dart';
 import '../state/saved_catalog_scores.dart';
 import '../state/score_catalog.dart';
 import '../state/session_notifier.dart';
@@ -51,6 +52,10 @@ class LibraryScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
     final signedIn = ref.watch(canUseOnlineServicesProvider);
+    // Warm the persisted play preferences at startup (the library is the first
+    // screen) so they're restored before the first score's player seeds from
+    // them — otherwise a cold-start open would fall back to defaults.
+    ref.watch(playerPreferencesProvider);
 
     return Scaffold(
       backgroundColor: CymbraColors.background,
