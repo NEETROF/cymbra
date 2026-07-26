@@ -19,10 +19,14 @@ per-user reliability indicator to inform manual moderator promotion.
     decision**. A rating that aligns with the truth earns the bonus; a misaligned rating
     earns a **small floor (never negative)**, so honest minority taste is never punished.
     A user **never settles their own rating against their own moderation decision**.
-- **XP/points as the single backbone** — points are the XP; **levels/tiers** unlock:
-  - **Pianos/SoundFonts** (reuses `piano-sound-selection` + FreePats CC0; zero cost),
-  - **Badges** (milestones: coverage, aligned-ratings, rare-score explorer…),
-  - **Temporary premium access** — **deferred** (declared as a future tier, not built now).
+- **One points currency, two totals** — **lifetime earned** points drive **levels + badges**
+  (prestige, never spent); a **spendable balance** (lifetime − redeemed) is spent in a
+  **reward shop** where the user **chooses** what to redeem:
+  - **Pianos/SoundFonts** are shop items with a **point cost** (reuses `piano-sound-selection`
+    + FreePats CC0; zero cost), redeemable by cost vs balance — **not** gated by level,
+  - **Badges** stay **earned** at milestones (coverage, aligned-ratings, rare-score explorer…),
+    never purchased,
+  - **Temporary premium access** — a **future** shop item (declared, not redeemable now).
 - **Staff are players too** — an admin/moderator who rates **from the app** earns points
   like anyone (the bootstrap reality: the owner wants to play and earn). Moderation work
   in the BO (validate/reject/sort) earns **no** points; rating is **app-only** (there is
@@ -42,9 +46,10 @@ anti-abuse beyond the stated gates (rate-limit tuning, fraud analytics) tuned la
   community consensus and/or a moderator decision, never self-settled, floor-not-negative),
   the append-only points ledger, and the rule that app ratings earn points regardless of
   the rater's role while BO moderation work does not.
-- `reward-unlocks`: levels/tiers derived from points and what they unlock — pianos and
-  badges now, temporary premium declared as a future tier — plus surfacing a user's
-  points/level/unlocks and progress in the app.
+- `reward-unlocks`: the points-as-currency model — lifetime points driving levels + earned
+  badges, a spendable balance, and a **reward shop** where the user redeems chosen rewards
+  (pianos now, premium later) by cost — plus surfacing points/level/balance/shop/badges and
+  progress on a full-screen curator profile in the app.
 - `curator-reliability-indicator`: the back-office per-user reliability panel (ratings
   count, coverage contribution, alignment rate) shown to admins/moderators to inform
   manual promotion decisions.

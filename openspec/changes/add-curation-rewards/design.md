@@ -77,14 +77,25 @@ card (which offers the preview), so this is mostly a backstop.
 - **Why**: keeps #2's spec untouched (it is not yet archived) and puts the anti-blind-swipe
   rule where it belongs — in the reward logic.
 
-### D5 — Points backbone → levels → unlocks
-Points are the XP. **Levels** are point thresholds. Unlocks hang off levels:
-- **Pianos/SoundFonts** unlocked at tiers, feeding the existing `piano-sound-selection`
-  catalog (FreePats CC0 → zero marginal cost).
-- **Badges** at milestones (first ratings, N aligned ratings, rare-score coverage…).
-- **Temporary premium** declared as a **future** tier; not implemented now.
-- **Why one backbone**: avoids parallel competing currencies; every reward is "spend a
-  level/threshold", simple to reason about and extend.
+### D5 — One ledger, two totals: lifetime points (prestige) + spendable balance (shop)
+Points are a single currency tracked in one append-only ledger, read two ways:
+- **Lifetime earned** (sum of awards, only rises) → drives **levels** and **badges**
+  (prestige). Spending never lowers it.
+- **Spendable balance** (lifetime earned − redeemed) → spent in a **reward shop** where the
+  user **chooses** what to redeem.
+Rewards:
+- **Reward shop — pianos/SoundFonts** each have a **point cost**; the user redeems the ones
+  they want (feeding `piano-sound-selection`, FreePats CC0 → zero marginal cost). Limited
+  by **cost vs balance only, not by level**, so choice is free.
+- **Badges** are **earned** at milestones (not purchasable) — buying achievements would
+  defeat their purpose.
+- **Temporary premium** is a **future** shop item; listed, not redeemable now.
+- **Why lifetime + balance on one ledger**: lets the user spend points on the reward they
+  actually want without demoting their progression/prestige; avoids two separate currencies
+  while still supporting a spend economy. Redemption is a ledger event that reduces balance
+  but not lifetime earned.
+- **Alternative**: level-gated auto-unlocks (a fixed piano at each tier). Rejected per the
+  product decision — the user wants to **choose** their reward, not receive a fixed one.
 
 ### D6 — Staff inclusion by surface, not role
 Award logic keys off **where** the rating came from (the app rating path), not the rater's
@@ -157,11 +168,13 @@ so alignment matters more than volume over time.
   **or** reject; a consensus within ±0.25 of 3.0 is ambiguous → all raters get the floor.
 - Consensus settlement minimum: **8 distinct raters** (≥ the re-review N=5, for a stabler avg).
 
-**Levels** (cumulative points): L1 50 · L2 150 · L3 350 · L4 700 · L5 1200 · L6 2000 ·
-L7 3000, then +1200 per level.
+**Levels** (from **lifetime** points; prestige, never spent): L1 50 · L2 150 · L3 350 ·
+L4 700 · L5 1200 · L6 2000 · L7 3000, then +1200 per level.
 
-**Unlocks** (map to the actual FreePats catalog): starter piano at L0; +1 piano at L1, L3,
-L5; L6 is the "Patron" tier reserved for future temporary premium (not granted now).
+**Reward shop costs** (spent from the **spendable balance**; map to the actual FreePats
+catalog): starter piano free/default; other pianos e.g. **50 / 150 / 300** points; a future
+temporary-premium item ~**500** (listed, not redeemable yet). Costs are config; the user
+redeems whichever they can afford, independent of level.
 
 **Badges**: First Note (1st rating); Curator I/II/III (10/100/500 ratings); Sharp Ear I/II
 (25/100 aligned ratings); Trailblazer (20 first-rater ratings).
