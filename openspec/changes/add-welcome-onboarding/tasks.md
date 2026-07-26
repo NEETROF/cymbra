@@ -6,8 +6,8 @@
 
 ## 2. No-account "try" of the core loop
 
-- [ ] 2.1 Add a license-clean **bundled demo piece** (reuse a fixture/public-domain asset) and a "Try it now" entry from the welcome that plays it via the existing player + `performance-scoring` seam — **without** sign-in and without opening the authenticated hub.
-- [ ] 2.2 After the demo's end-of-session summary, offer (not force) sign-in with the benefit stated; declining returns to the welcome/app.
+- [ ] 2.1 A "Try it now" entry from the welcome that plays one of the **already-included bundled scores** (`assets/scores/{beginner,intermediate,advanced}/`) via the existing player + `performance-scoring` seam — **without** sign-in and without opening the authenticated hub. No new asset needed; optionally let the user pick among the included scores.
+- [ ] 2.2 After the try's end-of-session summary, offer (not force) sign-in with the benefit stated; declining returns to the welcome/app.
 
 ## 3. Deferred contextual sign-in
 

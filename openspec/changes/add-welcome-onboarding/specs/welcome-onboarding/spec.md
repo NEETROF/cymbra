@@ -49,18 +49,19 @@ post-auth handle gate (language → welcome → optional sign-in → handle gate
 
 The app SHALL provide a way to experience the **core loop** — playing a piece and seeing the
 live synchronization gauge and the end-of-session summary — **without an account**, so the value
-lands before any sign-up. This no-account experience SHALL exercise the real player and scoring,
-and MUST NOT require opening the authenticated catalog to anonymous users.
+lands before any sign-up. This no-account experience SHALL use the app's **already-included
+bundled scores** (playable without the backend), exercise the real player and scoring, and MUST
+NOT require opening the authenticated catalog to anonymous users.
 
 #### Scenario: Try the core loop with no account
 
 - **WHEN** a user chooses to try from the welcome without signing in
-- **THEN** they can play the offered piece and see the live gauge and end-of-session summary
+- **THEN** they can play an included bundled score and see the live gauge and end-of-session summary
 
-#### Scenario: Trying does not require the authenticated hub
+#### Scenario: Trying uses included scores, not the authenticated hub
 
 - **WHEN** the no-account try runs
-- **THEN** it does not require anonymous access to the authenticated catalog/hub
+- **THEN** it plays an included bundled score and does not require anonymous access to the authenticated catalog/hub
 
 ### Requirement: Sign-in is invited contextually, never blocking exploration
 

@@ -32,17 +32,17 @@ sign-in → handle gate (`handle-onboarding`) → app**.
 - **Why**: the stakeholder is explicit — no forced account. A forced sign-up wall at launch is
   the highest-drop-off point; deferring it lifts activation.
 
-### D2 — Value before sign-up via a no-account "try" (the key decision)
+### D2 — Value before sign-up via the already-included scores (decided)
 The core loop (play → live sync gauge → end-of-session summary) MUST be reachable **without an
-account**. The chosen mechanism is a **bundled demo piece** playable anonymously from the
-welcome ("Try it now"), exercising the existing player + `performance-scoring` seam — **not**
-opening the authenticated catalog/hub to anonymous users.
-- **Why a bundled demo, not anonymous hub**: it delivers the "aha" with a tiny, contained
-  change and no auth rearchitecture; the hub stays authenticated-only. The integration suite
-  already uses a fixture score, so a bundled demo asset is a well-trodden path.
-- **Alternative**: make the whole hub browsable/playable anonymously. Rejected for scope B —
-  large auth/permission change; revisit only if a fuller guest mode is wanted.
-- **Open**: confirm the demo mechanism and which piece (see Open Questions).
+account**. The app **already ships bundled scores** as local assets
+(`assets/scores/{beginner,intermediate,advanced}/`), playable without the backend — so the
+no-account "try" simply routes the welcome to **those included scores**. No new demo asset and
+no anonymous access to the authenticated catalog/hub is needed.
+- **Why reuse the bundled scores**: they already exist and already work offline/without an
+  account; it's the smallest possible change and delivers the "aha" immediately. The hub stays
+  authenticated-only; only the local included scores are used for the no-account experience.
+- **Alternative**: make the whole catalog/hub browsable anonymously. Rejected for scope B —
+  large auth/permission change; the bundled scores already cover the try.
 
 ### D3 — Deferred, contextual sign-in with the benefit stated
 When the user hits an account-gated action (save to library, rate to earn points, appear on a
@@ -125,8 +125,8 @@ the player, pointing at each control in place (e.g. inside the player settings d
 
 ## Open Questions
 
-- **No-account "try" mechanism (key)** — confirm a **bundled demo piece** playable anonymously
-  (recommended) vs. a fuller guest mode; and which piece (a license-clean/public-domain asset).
+- **No-account "try" mechanism (resolved, D2)**: reuse the **already-included bundled scores**
+  (`assets/scores/**`), already playable without an account; no new demo asset, no anonymous hub.
 - **Help/tips home** — settings, profile, or a dedicated entry; and its depth (short tips vs a
   small FAQ).
 - **Deferred-sign-in copy per feature** — the exact benefit lines for each gated action

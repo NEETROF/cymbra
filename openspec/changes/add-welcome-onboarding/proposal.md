@@ -22,8 +22,10 @@ without sign-up, and account creation is invited only when a feature actually ne
   (never blocks play) and replayable from help; built on the same coach-mark system so it extends
   to other controls later.
 - **Value before sign-up** — the user SHALL be able to experience the **core loop** (play a
-  piece, see the live sync gauge and end-of-session summary) **without an account** — via a
-  no-account "try" path (e.g. a bundled demo piece). Sign-in is **deferred**.
+  piece, see the live sync gauge and end-of-session summary) **without an account**, by playing
+  one of the **already-included bundled scores** (`assets/scores/**`, already playable without
+  the backend). Sign-in is **deferred** — no new demo asset and no anonymous catalog access
+  needed.
 - **Deferred, contextual sign-in** — when the user reaches a feature that genuinely needs an
   account (saving a library, rating to earn points, appearing on leaderboards, going public),
   the app **invites** sign-in with the benefit stated, and lets them **back out** to keep
@@ -59,10 +61,11 @@ whole hub to anonymous browsing (only a minimal no-account "try" is introduced).
 
 ## Impact
 
-- **App** (`apps/music`): a welcome flow before the entry/handle screens; a no-account "try"
-  path (a bundled demo piece playable without sign-in) exercising the existing player/scoring
-  seam; a shared coach-mark/spotlight widget + "seen" state (`shared_preferences`); a help/tips
-  screen; contextual sign-in prompts at gated actions.
+- **App** (`apps/music`): a language step + welcome flow before the entry/handle screens; a
+  no-account "try" path playing the **already-included bundled scores** (`assets/scores/**`)
+  through the existing player/scoring seam; a shared coach-mark/spotlight widget (incl. the
+  guided player sequence) + "seen" state (`shared_preferences`); a help/tips screen; contextual
+  sign-in prompts at gated actions.
 - **Relates to** `handle-onboarding` (welcome precedes the post-auth handle gate; ordering:
   language → welcome → optional sign-in → handle gate), `app-localization` (language-first),
   `piano-sound-selection` / `midi` / `hand-selection` (the player controls the guided sequence
