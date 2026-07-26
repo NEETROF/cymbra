@@ -63,6 +63,15 @@ fn owner<T>(req: &Request<T>) -> Result<String, Status> {
         .ok_or_else(|| Status::unauthenticated("missing identity"))
 }
 
+/// The full authenticated identity (for role checks). Same unauthenticated guard
+/// as [`owner`]; cloned so it outlives `req.into_inner()`.
+fn identity<T>(req: &Request<T>) -> Result<AuthIdentity, Status> {
+    req.extensions()
+        .get::<AuthIdentity>()
+        .cloned()
+        .ok_or_else(|| Status::unauthenticated("missing identity"))
+}
+
 fn to_record(s: UserScore) -> ScoreRecord {
     let m = s.meta;
     ScoreRecord {
@@ -181,7 +190,14 @@ impl ScoreService for ScoreGrpc {
         &self,
         req: Request<SearchCatalogRequest>,
     ) -> Result<Response<SearchCatalogResponse>, Status> {
-        owner(&req)?; // authenticated-only (catalog is public, not owner-scoped)
+        let id = identity(&req)?; // authenticated-only (catalog is public, not owner-scoped)
+        // The moderation-status filter is privileged and back-office-only: when the
+        // caller sets it, they MUST be authorised — reject with PERMISSION_DENIED
+        // and run no query otherwise (change: add-score-moderation-gating). Today
+        // that means `admin`; change #3 widens this to admin-or-(music) moderator.
+        if req.get_ref().moderation_status.is_some() {
+            cymbra_platform::guard::require_admin(&id)?;
+        }
         let r = req.into_inner();
         let offset = r.offset;
         let query = CatalogQuery {
@@ -199,6 +215,7 @@ impl ScoreService for ScoreGrpc {
             staff_count: r.staff_count.map(|v| v.clamp(0, i16::MAX as i32) as i16),
             min_bpm: r.min_bpm,
             max_bpm: r.max_bpm,
+            moderation_status: r.moderation_status,
             limit: r.limit as i64,
             offset: r.offset as i64,
         };
@@ -250,9 +267,16 @@ impl ScoreService for ScoreGrpc {
         &self,
         req: Request<GetCatalogScoreBytesRequest>,
     ) -> Result<Response<GetCatalogScoreBytesResponse>, Status> {
-        owner(&req)?; // authenticated-only
+        // Authenticated-only. An admin/moderator may open a score in any moderation
+        // status (to review it); a normal caller is served only `accepted` bytes and
+        // gets not-found otherwise (change: add-score-moderation-gating). Admin-only
+        // until the `moderator` role lands in change #3.
+        let allow_unvalidated = identity(&req)?.is_admin();
         let catalog_id = req.into_inner().catalog_id;
-        let data = self.module.get_catalog_bytes(&catalog_id).await?;
+        let data = self
+            .module
+            .get_catalog_bytes(&catalog_id, allow_unvalidated)
+            .await?;
         Ok(Response::new(GetCatalogScoreBytesResponse { data }))
     }
 }
@@ -268,12 +292,15 @@ mod tests {
 
     const DEBUSSY: &str = "11111111-1111-7111-8111-111111111111";
     const SATIE: &str = "22222222-2222-7222-8222-222222222222";
+    const PENDING: &str = "44444444-4444-7444-8444-444444444444";
 
     /// A `ScoreGrpc` over a seeded catalog + an object store holding the catalog
-    /// scores' bytes, so byte fetches resolve.
+    /// scores' bytes, so byte fetches resolve. The catalog carries two `accepted`
+    /// scores and one `pending` score (change: add-score-moderation-gating), so the
+    /// moderation gate can be exercised at the handler layer.
     async fn grpc() -> ScoreGrpc {
         let store = Arc::new(FakeStore::default());
-        for id in [DEBUSSY, SATIE] {
+        for id in [DEBUSSY, SATIE, PENDING] {
             store
                 .put(&format!("safe/pdmx/{id}.mxl"), b"<score/>".to_vec())
                 .await
@@ -282,6 +309,8 @@ mod tests {
         let catalog = Arc::new(FakeCatalogSearchRepo::with(vec![
             FakeCatalogRow::new(DEBUSSY, "Clair de Lune", "Claude Debussy", Some("advanced")),
             FakeCatalogRow::new(SATIE, "Gymnopédie", "Erik Satie", Some("beginner")),
+            FakeCatalogRow::new(PENDING, "Pending Piece", "Anon", Some("beginner"))
+                .with_moderation_status("pending"),
         ]));
         let module = Arc::new(ScoreModule::new(
             Arc::new(FakeUserScoreRepo::default()),
@@ -297,11 +326,20 @@ mod tests {
 
     /// Attach an authenticated identity to a request (as the interceptor would).
     fn authed<T>(msg: T, user_id: &str) -> Request<T> {
+        authed_with(msg, user_id, &["user"])
+    }
+
+    /// Attach an authenticated identity carrying the `admin` role.
+    fn authed_admin<T>(msg: T, user_id: &str) -> Request<T> {
+        authed_with(msg, user_id, &["user", "admin"])
+    }
+
+    fn authed_with<T>(msg: T, user_id: &str, roles: &[&str]) -> Request<T> {
         let mut req = Request::new(msg);
         req.extensions_mut().insert(AuthIdentity {
             user_id: user_id.into(),
             audience: "music".into(),
-            roles: vec!["user".into()],
+            roles: roles.iter().map(|r| (*r).into()).collect(),
         });
         req
     }
@@ -446,5 +484,84 @@ mod tests {
             .await
             .unwrap_err();
         assert_eq!(err.code(), tonic::Code::NotFound);
+    }
+
+    // --- moderation gating (change: add-score-moderation-gating) -------------
+
+    fn search_status(status: &str) -> SearchCatalogRequest {
+        SearchCatalogRequest {
+            limit: 50,
+            offset: 0,
+            moderation_status: Some(status.into()),
+            ..Default::default()
+        }
+    }
+
+    #[tokio::test]
+    async fn normal_search_hides_pending_scores() {
+        let g = grpc().await;
+        // A normal caller browsing (no status filter) sees only the accepted rows,
+        // never the pending one.
+        let resp = g
+            .search_catalog(authed(search("", None, None), "u1"))
+            .await
+            .unwrap()
+            .into_inner();
+        let ids: Vec<&str> = resp.hits.iter().map(|h| h.id.as_str()).collect();
+        assert_eq!(ids, [DEBUSSY, SATIE]); // title_norm order; PENDING excluded
+        assert!(!ids.contains(&PENDING));
+    }
+
+    #[tokio::test]
+    async fn non_admin_supplying_status_filter_is_permission_denied() {
+        let g = grpc().await;
+        // A normal (non-admin) caller that sets the privileged filter is rejected,
+        // and no query runs (the request never reaches the search path).
+        let err = g
+            .search_catalog(authed(search_status("pending"), "u1"))
+            .await
+            .unwrap_err();
+        assert_eq!(err.code(), tonic::Code::PermissionDenied);
+    }
+
+    #[tokio::test]
+    async fn admin_supplying_status_filter_is_honoured() {
+        let g = grpc().await;
+        // An admin caller's `pending` filter returns exactly the pending score.
+        let resp = g
+            .search_catalog(authed_admin(search_status("pending"), "admin1"))
+            .await
+            .unwrap()
+            .into_inner();
+        let ids: Vec<&str> = resp.hits.iter().map(|h| h.id.as_str()).collect();
+        assert_eq!(ids, [PENDING]);
+    }
+
+    #[tokio::test]
+    async fn bytes_of_pending_score_gated_by_role() {
+        let g = grpc().await;
+        // A normal caller cannot open the pending score's bytes (not found)…
+        let err = g
+            .get_catalog_score_bytes(authed(
+                GetCatalogScoreBytesRequest {
+                    catalog_id: PENDING.into(),
+                },
+                "u1",
+            ))
+            .await
+            .unwrap_err();
+        assert_eq!(err.code(), tonic::Code::NotFound);
+        // …but an admin reviewer is served them.
+        let resp = g
+            .get_catalog_score_bytes(authed_admin(
+                GetCatalogScoreBytesRequest {
+                    catalog_id: PENDING.into(),
+                },
+                "admin1",
+            ))
+            .await
+            .unwrap()
+            .into_inner();
+        assert_eq!(resp.data, b"<score/>");
     }
 }
