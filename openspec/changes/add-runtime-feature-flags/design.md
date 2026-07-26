@@ -29,16 +29,28 @@ typed default**. An absent key resolves to its code default, so the store only o
 - **Why one store**: flags and tunables share the same lifecycle (declare, default, override,
   audit, hot-eval). Splitting them would duplicate machinery.
 
-### D2 — Hot evaluation: short-TTL cache + Redis invalidation, fail-safe to defaults
-The service reads effective values through a small **in-memory cache with a short TTL**
-(default ~15 s) so per-request reads are cheap; an admin edit **publishes an invalidation via
-Redis** so all server/worker instances refresh within seconds (not just on TTL expiry). If the
-DB/Redis is unreachable, the service **falls back to code defaults** (fail-safe) rather than
-erroring.
-- **Why cache + invalidation**: hot means "seconds, no redeploy" across horizontally-scaled
-  instances; TTL bounds staleness even if an invalidation is missed. Redis is already present.
-- **Fail direction is per-key**: kill-switches default to the **safe** state (usually off), so a
-  store outage never silently enables something risky.
+### D2 — Two-tier cache: L1 in-process snapshot (hot path) + L2 Redis pub/sub invalidation
+Flags are read on the hot path (potentially every request/gate), so evaluation MUST NOT do a
+network hop per check.
+- **L1 — in-process snapshot, per instance**: each server/worker instance keeps the **whole**
+  flag/config snapshot in memory (tiny — dozens of keys), read with near-zero latency. It is the
+  actual read cache. Refreshed **atomically** on a short **TTL** (~15 s, a safety net) or on an
+  invalidation signal.
+- **L2 — Redis as the invalidation bus (pub/sub)**: on an admin edit, the change is written to
+  Postgres and an **invalidation is published on Redis**; every instance drops/refreshes its L1
+  **within milliseconds**, so the edit is effective near-instantly rather than after each
+  instance's TTL. Redis MAY also act as a warm shared read cache, but given the tiny dataset that
+  is marginal — Redis's essential role here is **fan-out invalidation** across the horizontally
+  scaled server + worker.
+- **Read path**: L1 → (miss/expired) Postgres (source of truth) → repopulate L1. **Write path**:
+  Postgres → publish Redis invalidation → instances refresh L1.
+- **Fail-safe**: if **Redis** is down, L1 keeps serving its last snapshot and TTL-polls Postgres;
+  if **Postgres** is also unreachable, evaluation falls back to **code defaults**. Fail direction
+  is per-key — kill-switches resolve to their **safe** (disabled) state so an outage never
+  silently enables something risky.
+- **Why L1 + invalidation, not Redis-as-read-cache**: a per-flag Redis round-trip on the hot path
+  would add latency and load and couple flag evaluation to Redis availability; L1 makes evaluation
+  free and outage-tolerant, while Redis pub/sub gives the multi-instance "seconds, no redeploy".
 
 ### D3 — Backend enforces; the UI toggle is defense-in-depth
 Where a feature is gated, the **backend** checks the flag and, when off, **rejects the RPC /
@@ -107,8 +119,8 @@ audited change).
 
 ## Open Questions
 
-- **TTL value** and whether to require Redis invalidation or rely on TTL only (default: both,
-  TTL ~15 s).
+- **L1 TTL value** — a tuning detail (default ~15 s as a backstop); the L1 snapshot + Redis
+  pub/sub invalidation tiering itself is decided (D2).
 - **Which keys are flags vs fixed** — confirm the initial registry (all #2/#4/#6/#7 tunables as
   config; on/off flags per major feature: rating, rewards/shop, profiles, per-piece boards, global
   board, onboarding).

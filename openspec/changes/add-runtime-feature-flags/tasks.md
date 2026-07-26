@@ -2,7 +2,7 @@
 
 - [ ] 1.1 Migration: `feature_flags` / `app_config` (key TEXT PK, value_type, value, scope `global`/`staff_only`, sensitive BOOL, updated_by, updated_at) + `feature_flag_changes` audit (key, old_value, new_value, actor, at).
 - [ ] 1.2 A **code registry** of declared keys: name, type, default, scope, fail-direction (safe state), sensitive flag, short doc. Absent key ⇒ code default; only declared keys are editable.
-- [ ] 1.3 A flags/config **service** with typed accessors, a short-TTL in-memory cache (default ~15 s) + **Redis invalidation** on change; fail-safe to code defaults when the store/Redis is unreachable (kill-switches to safe state).
+- [ ] 1.3 A flags/config **service** with typed accessors and a two-tier cache: **L1** = an in-process snapshot of the whole flag/config set (hot-path reads, near-zero latency), refreshed atomically on a short TTL (~15 s safety net) or on invalidation; **L2** = **Redis pub/sub** as the invalidation bus so all server+worker instances refresh L1 within ms on an admin edit. Read path L1→Postgres; write path Postgres→publish→refresh L1. Fail-safe: Redis down → L1 last snapshot + TTL-poll Postgres; Postgres down → code defaults (kill-switches to safe state). Worker instances share the same service + subscription.
 - [ ] 1.4 Scope resolution per identity (global vs staff-only → admin/moderator only).
 
 ## 2. Enforcement & client read (backend)
@@ -27,7 +27,7 @@
 
 ## 6. Tests & verification
 
-- [ ] 6.1 Rust: default fallback (absent key + store outage), cache + invalidation (change effective within TTL/on invalidation), scope resolution (staff-only vs global), enforcement (gated op rejected when off; data preserved), audit recorded, sensitive-key confirmation. `cargo llvm-cov ... --fail-under-lines 80`.
+- [ ] 6.1 Rust: default fallback (absent key + store outage), L1/L2 cache + Redis invalidation (edit effective on invalidation, TTL as backstop; Redis-down → L1 snapshot + Postgres poll; Postgres-down → code defaults), scope resolution (staff-only vs global), enforcement (gated op rejected when off; data preserved), audit recorded, sensitive-key confirmation. `cargo llvm-cov ... --fail-under-lines 80`.
 - [ ] 6.2 Flutter: flag provider reflects fetched flags; launch/resume refresh; entry point shows/hides (via fakes). `flutter test --coverage` ≥ 80%.
 - [ ] 6.3 Vue BO panel: toggle/edit + admin-gating + sensitive-key confirmation (own test setup).
 - [ ] 6.4 `cargo fmt`/`clippy` + `melos run analyze`/`dart format` clean; regenerate codegen as needed.
