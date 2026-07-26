@@ -83,6 +83,15 @@ a result from the boards if it fails (still stored as a session, just not board-
   record; full anti-cheat (server re-scoring, attestation) is disproportionate now. Log
   rejected results; revisit if abuse appears.
 
+### D6 — Where boards surface: piece-level, with the end-of-session summary as the hook
+Per-piece boards are **contextual to a piece**, so they surface where the player relates to
+that piece: the **end-of-session summary** (the primary hook — the player's rank + personal
+best right after a run, with a link to the full board), the **player/score** entry, and the
+**profile** (their standout per-piece rankings). There is no separate score-detail screen
+today (a hub card opens the player directly), so the summary + player + profile are the
+natural homes. A future global board (#7) would instead be a **destination** — a dedicated
+Community/Leaderboards screen plus a global-rank standing on the profile.
+
 ## Risks / Trade-offs
 
 - **Cheating / forged scores** → basic integrity checks (D5) catch the obviously impossible;

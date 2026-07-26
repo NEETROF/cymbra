@@ -15,8 +15,9 @@
 
 ## 4. App leaderboard views
 
-- [ ] 4.1 A leaderboard view (Riverpod notifier + service seam) for a piece: tempo/reaction toggle, ranked public entries; reachable from the score and the profile.
+- [ ] 4.1 A leaderboard view (Riverpod notifier + service seam) for a piece: tempo/reaction toggle, ranked public entries; reachable from the score, the profile, and the end-of-session summary.
 - [ ] 4.2 Always show the viewer's own rank + personal best; highlight the viewer's own entry when present.
+- [ ] 4.3 In the `session_summary_modal`, surface the player's post-session standing (rank + personal best on that piece, for the run's mode(s)) with a link to open the full board; a private/under-age player still sees their own standing.
 
 ## 5. Tests & verification
 
