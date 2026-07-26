@@ -103,13 +103,19 @@ class Player extends _$Player {
   AudioService get _audio => ref.read(audioServiceProvider);
   PerformanceScorer get _scorer => ref.read(performanceScorerProvider.notifier);
 
+  /// Whether the playhead sits at the fresh-start position (at or before the
+  /// effective start) rather than resumed mid-piece. Centralises the "starting
+  /// from the top" check for the countdown and scored-run guards, so both honour
+  /// the trimmed, possibly non-zero start; a paused playhead is `> startMs`.
+  bool _atStart(PlayerData s) => s.elapsedMs <= s.startMs;
+
   /// Begins a scored run for the current piece if playback is starting cleanly
   /// from the top. Every render mode is scored (Synthesia, the scrolling staff,
   /// and the engraved Partition). Idempotent: a run already active is left alone
   /// (the scorer resets its own state on [PerformanceScorer.startRun]).
   void _maybeStartRun() {
     final s = state;
-    if (s.visibleNotes.isEmpty || s.elapsedMs > 0) return;
+    if (s.visibleNotes.isEmpty || !_atStart(s)) return;
     _scorer.startRun(
       pieceId: s.title ?? 'demo',
       title: s.title ?? 'Demo',
@@ -168,7 +174,7 @@ class Player extends _$Player {
     if (document == null || identical(document, _loadedDocument)) return;
     _loadedDocument = document;
     final derived = notationToTimedNotes(document);
-    state = state.copyWith(
+    final updated = state.copyWith(
       score: null,
       title: document.meta.title,
       bpm: derived.bpm,
@@ -179,9 +185,11 @@ class Player extends _$Player {
       rests: derived.rests,
       songEndMs: derived.songEndMs,
       measureStartMs: derived.measureStartMs,
-      elapsedMs: 0,
       isPlaying: false,
     );
+    // Start a short lead-in before the first note, skipping leading rests/empty
+    // measures — computed from the newly-loaded notes and current hand selection.
+    state = updated.copyWith(elapsedMs: updated.startMs);
   }
 
   Future<void> _loadDemo() async {
@@ -205,7 +213,7 @@ class Player extends _$Player {
               .map((n) => n.startMs + n.durationMs)
               .reduce((a, b) => a > b ? a : b)
               .toDouble();
-    state = state.copyWith(
+    final updated = state.copyWith(
       score: score,
       title: 'Demo — C Major Scale',
       bpm: score.bpm,
@@ -213,6 +221,9 @@ class Player extends _$Player {
       rests: const [], // the demo score has no rests; clear any prior score's
       songEndMs: end,
     );
+    // Seed the playhead at the effective start (0 for the demo, which opens on a
+    // note) so every load path shares the same trim-leading-silence rule.
+    state = updated.copyWith(elapsedMs: updated.startMs);
   }
 
   void _onMidi(MidiEvent event) {
@@ -321,7 +332,7 @@ class Player extends _$Player {
   /// is needed. Resuming mid-piece plays immediately. Plain [setPlaying] stays
   /// countdown-free (used internally and in tests).
   void startPlayback() {
-    if (!state.waitMode && state.elapsedMs == 0 && state.countdownMs == 0) {
+    if (!state.waitMode && _atStart(state) && state.countdownMs == 0) {
       state = state.copyWith(countdownMs: kCountdownStartMs);
     }
     setPlaying(true);
@@ -376,12 +387,14 @@ class Player extends _$Player {
     // and the run still finishes into a summary at the end (rather than the
     // cancelled-run case, which would loop with no scoring).
     _scorer.cancelRun();
-    state = state.copyWith(
+    final updated = state.copyWith(
       selectedHands: hand,
-      elapsedMs: 0,
       gateSatisfied: const {},
       consumedHeld: const {},
     );
+    // The effective start depends on the selection, so recompute it for the new
+    // hand(s) — a hand that enters later starts trimmed to its own first note.
+    state = updated.copyWith(elapsedMs: updated.startMs);
     if (state.isPlaying) _maybeStartRun();
   }
 
@@ -391,7 +404,7 @@ class Player extends _$Player {
     // from the top in a scored view.
     _scorer.cancelRun();
     state = state.copyWith(
-      elapsedMs: 0,
+      elapsedMs: state.startMs,
       countdownMs: 0,
       gateSatisfied: const {},
       consumedHeld: const {},
@@ -481,7 +494,7 @@ class Player extends _$Player {
         next = s.songEndMs;
         finishScoredRun = true;
       } else {
-        next = 0; // simple loop
+        next = s.startMs; // simple loop — wrap to the trimmed start, not 0
         loop = true;
       }
     }
