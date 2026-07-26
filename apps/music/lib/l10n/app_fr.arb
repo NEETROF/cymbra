@@ -187,6 +187,8 @@
   "prePlayHands": "Jouer avec",
   "prePlayTempo": "Tempo",
   "prePlayStart": "Jouer",
+  "prePlayKey": "Tonalité",
+  "prePlayMeter": "Mesure",
   "libraryEmptyTitle": "Aucun favori pour l’instant",
   "libraryEmptyBody": "Enregistrez des partitions depuis le Hub ou importez les vôtres — elles apparaîtront ici.",
   "libraryEmptyAction": "Explorer le Hub",

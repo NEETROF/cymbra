@@ -187,6 +187,8 @@
   "prePlayHands": "Tocar con",
   "prePlayTempo": "Tempo",
   "prePlayStart": "Tocar",
+  "prePlayKey": "Tonalidad",
+  "prePlayMeter": "Compás",
   "libraryEmptyTitle": "Aún no hay favoritos",
   "libraryEmptyBody": "Guarda partituras del catálogo o sube las tuyas: aparecerán aquí.",
   "libraryEmptyAction": "Explorar el catálogo",

@@ -172,11 +172,23 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
     ),
   );
 
-  /// Key / time-signature / marked-tempo chips — each shown only when known.
+  /// Key / time-signature / marked-tempo chips — each labelled (so a novice knows
+  /// what it is) and shown only when known.
   Widget _facts(AppLocalizations l10n, PlayerData data, CatalogEntry? entry) {
+    // Note naming: letters (C, D, E…) in English, solfège (Do, Ré, Mi…) in the
+    // Latin-language locales.
+    final lang = Localizations.localeOf(context).languageCode;
+    final key = _keyName(
+      data.keyFifths,
+      solfege: lang != 'en',
+      frenchRe: lang == 'fr',
+    );
     final chips = <Widget>[
-      _chip(Icons.piano, _keyName(data.keyFifths)),
-      _chip(Icons.timer_outlined, '${data.beats}/${data.beatType}'),
+      _chip(Icons.piano, '${l10n.prePlayKey} · $key'),
+      _chip(
+        Icons.timer_outlined,
+        '${l10n.prePlayMeter} · ${data.beats}/${data.beatType}',
+      ),
       if (entry?.tempoBpm != null)
         _chip(Icons.speed, l10n.tempo(entry!.tempoBpm!)),
     ];
@@ -321,22 +333,48 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
   );
 }
 
-/// The tonic name of a major key from its number of sharps (+) / flats (−).
-String _keyName(int fifths) => switch (fifths) {
-  -7 => 'C♭',
-  -6 => 'G♭',
-  -5 => 'D♭',
-  -4 => 'A♭',
-  -3 => 'E♭',
-  -2 => 'B♭',
-  -1 => 'F',
-  0 => 'C',
-  1 => 'G',
-  2 => 'D',
-  3 => 'A',
-  4 => 'E',
-  5 => 'B',
-  6 => 'F♯',
-  7 => 'C♯',
-  _ => 'C',
-};
+/// The tonic name of a key from its number of sharps (+) / flats (−). Uses
+/// letter names (C, D, E…) or solfège (Do, Ré/Re, Mi…) so it reads for a novice
+/// in their language. Mode is unknown from the key signature alone, so this is
+/// the conventional major-tonic reading.
+String _keyName(int fifths, {required bool solfege, required bool frenchRe}) {
+  if (!solfege) {
+    return switch (fifths) {
+      -7 => 'C♭',
+      -6 => 'G♭',
+      -5 => 'D♭',
+      -4 => 'A♭',
+      -3 => 'E♭',
+      -2 => 'B♭',
+      -1 => 'F',
+      0 => 'C',
+      1 => 'G',
+      2 => 'D',
+      3 => 'A',
+      4 => 'E',
+      5 => 'B',
+      6 => 'F♯',
+      7 => 'C♯',
+      _ => 'C',
+    };
+  }
+  final re = frenchRe ? 'Ré' : 'Re';
+  return switch (fifths) {
+    -7 => 'Do♭',
+    -6 => 'Sol♭',
+    -5 => '$re♭',
+    -4 => 'La♭',
+    -3 => 'Mi♭',
+    -2 => 'Si♭',
+    -1 => 'Fa',
+    0 => 'Do',
+    1 => 'Sol',
+    2 => re,
+    3 => 'La',
+    4 => 'Mi',
+    5 => 'Si',
+    6 => 'Fa♯',
+    7 => 'Do♯',
+    _ => 'Do',
+  };
+}

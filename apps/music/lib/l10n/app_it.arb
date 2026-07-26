@@ -187,6 +187,8 @@
   "prePlayHands": "Suona con",
   "prePlayTempo": "Tempo",
   "prePlayStart": "Suona",
+  "prePlayKey": "Tonalità",
+  "prePlayMeter": "Metro",
   "libraryEmptyTitle": "Nessun preferito",
   "libraryEmptyBody": "Salva partiture dal catalogo o carica le tue: appariranno qui.",
   "libraryEmptyAction": "Esplora il catalogo",

@@ -436,6 +436,12 @@
   "prePlayStart": "Play",
   "@prePlayStart": { "description": "Pre-play setup modal: the validate button that applies the settings and starts playing." },
 
+  "prePlayKey": "Key",
+  "@prePlayKey": { "description": "Pre-play setup modal: label for the score's key/tonic chip." },
+
+  "prePlayMeter": "Time",
+  "@prePlayMeter": { "description": "Pre-play setup modal: label for the score's time-signature chip." },
+
   "libraryEmptyTitle": "No favorites yet",
   "@libraryEmptyTitle": { "description": "Home empty-state title when the user has no favorite scores." },
 
