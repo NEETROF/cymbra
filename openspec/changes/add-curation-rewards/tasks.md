@@ -23,7 +23,11 @@
 - [ ] 4.2 Grant piano/SoundFont unlocks at tiers and wire them into `piano-sound-selection`; keep them durable.
 - [ ] 4.3 Grant badges at milestones (first ratings, N aligned ratings, rare-score coverage…); durable.
 - [ ] 4.4 Declare the temporary-premium tier as future (no premium granted now).
-- [ ] 4.5 App: a reward/progress surface (Riverpod notifier + service seam) showing points, level, next unlock + progress, and badges.
+- [ ] 4.5 App: a **full-screen curator profile** (Riverpod notifier + service seam) — header (level, points, progress bar), next-unlock card, badge grid (earned + locked with hints), and personal stats (rating count, coverage contribution, own alignment rate).
+- [ ] 4.6 App: a persistent level/points **chip** in the hub + rating-deck app bars that opens the curator profile; reflects live standing.
+- [ ] 4.7 App: **immediate "+N"** coverage cue on rating, and a **celebration** modal on level-up / piano unlock / badge earned (reuse `gamified-feedback` / `session_summary_modal` patterns).
+- [ ] 4.8 App: surface **deferred honesty awards** — a notification cue on the profile entry point + a recent-activity list stating each award's amount and source (consensus vs moderator). Needs a backend read for recent award events (from the ledger).
+- [ ] 4.9 App: show **locked pianos** in `piano-sound-selection` with a lock affordance + required level; unlocked ones become selectable.
 
 ## 5. Curator reliability indicator (BO)
 
@@ -34,7 +38,7 @@
 
 - [ ] 6.1 Rust: coverage diminishing + daily cap + engagement gate; honesty aligned vs floor (never negative) + award-once; moderator-outweighs-consensus; no self-settlement; consensus sweep idempotent; ledger balance. `cargo llvm-cov ... --fail-under-lines 80`.
 - [ ] 6.2 Rust: staff app-rating earns points; BO actions award nothing.
-- [ ] 6.3 Flutter: progress surface via a fake service (points/level/next-unlock/badges); unlocked piano appears in selection. `flutter test --coverage` ≥ 80%.
+- [ ] 6.3 Flutter (via fakes): curator profile (level/points/next-unlock/badges/stats); app-bar chip opens it; "+N" cue on rating; deferred-award activity list + notification cue; locked piano shows required level and becomes selectable once unlocked. `flutter test --coverage` ≥ 80%.
 - [ ] 6.4 Vue: reliability panel renders and is gated to moderator/admin (own test setup).
 - [ ] 6.5 `cargo fmt`/`clippy` + `melos run analyze`/`dart format` clean; regenerate codegen as needed.
 - [ ] 6.6 `openspec validate add-curation-rewards --strict` passes.
