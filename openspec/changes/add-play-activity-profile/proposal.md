@@ -11,18 +11,19 @@ them.
 ## What Changes
 
 - **End-of-session stats sent to the server (reliably, no loss)**
-  - At session end the app captures the session's play stats (score, timestamp, success
-    rate, and the session summary metrics) and writes them to a **durable local outbox**
-    that survives app restarts.
+  - At session end the app captures the `performance-scoring` **immutable session-result
+    record** (its **overall synchronization percentage** — the success score — plus the
+    other metrics) with the score, timestamp, and client timezone, and writes them to a
+    **durable local outbox** that survives app restarts.
   - A sender **retries with backoff until the server acknowledges**; entries are removed
     only after acknowledgement. Server ingestion is **idempotent** (keyed by a
     client-generated session id), so retries never double-count and no session is lost.
   - The server persists per-session records and aggregates them **per day** (play count +
     success rate).
 - **GitHub-style play heatmap on the profile** — a grid with one cell per day; each cell is
-  **colored by that day's success rate** (percentage of success), with the number of songs
-  played conveyed by the cell (size/intensity + tooltip). Extends the full-screen curator
-  profile from #4.
+  **colored by that day's average overall synchronization percentage** (the session success
+  score from `performance-scoring`), with the number of songs played conveyed by the cell
+  (size/intensity + tooltip). Extends the full-screen curator profile from #4.
 - **Public player profiles (opt-in, private by default)** — a player's profile is
   **viewable by other authenticated players** only after the user **explicitly opts in**,
   showing a defined **public field set** (handle/display name, level, badges, the play

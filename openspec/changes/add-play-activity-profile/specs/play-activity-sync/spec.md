@@ -4,9 +4,10 @@
 
 The app SHALL, at the end of a play session, capture that session's stats — a
 client-generated session id, the score played, the timestamp with the client's timezone,
-the success rate, and the session summary metrics — and write them to a **durable local
-outbox** that **survives app restarts**. Capture SHALL happen independently of network
-availability, so a session's stats are safe before any attempt to send them.
+and the immutable session-result record produced by scoring (its **overall synchronization
+percentage** and the other session metrics) — and write them to a **durable local outbox**
+that **survives app restarts**. Capture SHALL happen independently of network availability,
+so a session's stats are safe before any attempt to send them.
 
 #### Scenario: Session end enqueues stats durably
 
@@ -56,8 +57,9 @@ this guarantees **no session is lost and none is counted twice**.
 
 The backend SHALL expose an authenticated, idempotent operation to record a play session
 (keyed by the client session id) and SHALL persist it, then aggregate a user's sessions
-**per day** into a play count and an average success rate, bucketed by the **user's local
-day** (from the timezone sent with the session). Unauthenticated requests MUST be rejected.
+**per day** into a play count and an average **overall synchronization percentage**, bucketed
+by the **user's local day** (from the timezone sent with the session). Unauthenticated
+requests MUST be rejected.
 
 #### Scenario: Session is persisted idempotently
 
@@ -67,7 +69,7 @@ day** (from the timezone sent with the session). Unauthenticated requests MUST b
 #### Scenario: Per-day aggregate reflects sessions
 
 - **WHEN** a user has recorded several sessions on a given local day
-- **THEN** that day's aggregate reports the play count and the average success rate
+- **THEN** that day's aggregate reports the play count and the average overall synchronization percentage
 
 #### Scenario: Unauthenticated record rejected
 

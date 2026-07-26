@@ -46,20 +46,31 @@ session is **never double-counted**. The client keeps retrying the *same* id unt
   client-side id lets the client retry safely without server round-trips to dedupe.
 - **Result**: at-least-once (client) + idempotent (server) ⇒ no loss, no duplicates.
 
-### D3 — Server storage: per-session rows + per-day aggregate
-A `play_sessions` table (id, user_id, catalog/user score id, played_at, success_rate, plus
-the summary metrics) is the source of truth. The heatmap reads a **per-day aggregate**
-(count + average success rate per user per local day) — computed on demand first, denormalized
-later if needed. Day bucketing uses the user's timezone (sent with the record) so the grid
-matches what the player experienced.
-- **Why on-demand first**: volume is low (per the prod plan); avoid premature denormalization.
+### D3 — Payload is the existing immutable session-result record
+`performance-scoring` already produces, at song end, an **immutable, serializable
+session-result record** — explicitly designed "so a later change can upload it to the server
+and route it to the correct leaderboard(s)". #5 is that later change: `RecordPlaySession`
+carries that record (its **overall synchronization percentage**, per-mode sub-scores, run
+classification `free`/`wait`/`mixed`, per-dimension aggregates, best combo, piece identity,
+hand(s), …), and `play_sessions` stores it (id = client session id, user_id, score id,
+played_at + client tz, the overall sync %, and the record as JSONB). The heatmap reads a
+**per-day aggregate** (count + average overall sync % per user per local day) — computed on
+demand first, denormalized later if needed. Day bucketing uses the user's timezone.
+- **Why the full record**: it is already the canonical session artifact and is meant for
+  server upload; storing it now **enables future leaderboards** (reaction/tempo) with no
+  re-plumbing, while #5 itself only needs the overall sync % + count for the heatmap.
+- **Why on-demand aggregate first**: volume is low (per the prod plan); avoid premature
+  denormalization.
 
-### D4 — Heatmap encodes two dimensions: count and success rate
-One cell per day. **Color** maps to the day's **average success rate** (the requested
-weighting — e.g. a low-to-high scale). **Presence/intensity** and the **tooltip** convey the
-**count** of songs played (and the exact success %). Empty days render as blank cells.
-- **Why**: the user asked specifically for color = success percentage; count is the second
-  dimension carried without fighting the color channel.
+### D4 — Heatmap color = the day's average overall synchronization percentage
+The session "success rate" is `performance-scoring`'s **overall synchronization percentage
+(0–100)** — the single quality figure combining timing, correctness, and sustain. One cell
+per day: **Color** maps to the day's **average overall sync %** (the requested weighting —
+e.g. a low-to-high scale). **Presence/intensity** and the **tooltip** convey the **count** of
+songs played (and the exact average %). Empty days render as blank cells.
+- **Why this metric**: it is the established per-run success score; using it keeps the grid
+  consistent with the in-app gauge and the session summary. Per-mode sub-scores are richer but
+  belong to leaderboards, not the at-a-glance color.
 
 ### D5 — Public profile: explicit allow-list of public fields; sensitive fields never public
 A public profile read returns only an **allow-listed** field set: handle/display name,
@@ -131,11 +142,17 @@ schema change.
   gate at opt-in, store only `share_eligible_from` (DATE), server-enforced fail-closed, UTC
   date check with a one-day margin; heatmap stays local-tz (D6).
 
+## Resolved Questions (continued)
+
+- **Public field allow-list (decided)**: handle/display name, level, badges, the play heatmap,
+  and songs-played total. Explicitly excluded and never public: email, the curator
+  alignment/reliability figures, and any moderation state.
+- **Success metric for the color (decided)**: `performance-scoring`'s **overall
+  synchronization percentage (0–100)**; the per-day cell color is the day's average of it.
+
 ## Open Questions
 
-- **Which fields are public** — confirm the allow-list (handle, level, badges, heatmap,
-  songs-played). Explicitly excluded: email, curator alignment/reliability, moderation state.
-- **Success-rate metric for the color** — reuse `performance-scoring`'s primary success/sync
-  figure; confirm which metric drives the cell color.
 - **Retention/cap** of `play_sessions` and outbox entries — set a sane retention; never drop
   un-acked outbox entries.
+- **Leaderboards** (reaction/tempo) are **out of scope** here but **enabled** by storing the
+  full session-result record; a future change can add them without re-plumbing ingestion.

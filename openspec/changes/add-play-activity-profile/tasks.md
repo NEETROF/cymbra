@@ -1,19 +1,19 @@
 ## 1. Server persistence & ingestion
 
-- [ ] 1.1 Migration: `play_sessions` (id UUID PK = client session id, user_id, catalog/user score id, played_at TIMESTAMPTZ, tz offset, success_rate, summary metrics JSONB, created_at) + index by (user_id, played_at).
-- [ ] 1.2 `RecordPlaySession` RPC (authenticated): idempotent upsert `ON CONFLICT (id) DO NOTHING`; returns an acknowledgement. Reject unauthenticated.
-- [ ] 1.3 Per-day aggregate read (count + avg success rate per user per local day, bucketed by the recorded tz); on-demand query first, denormalize later if needed.
+- [ ] 1.1 Migration: `play_sessions` (id UUID PK = client session id, user_id, catalog/user score id, played_at TIMESTAMPTZ, tz offset, overall_sync_pct, session_result JSONB = the immutable session-result record, created_at) + index by (user_id, played_at).
+- [ ] 1.2 `RecordPlaySession` RPC (authenticated): carries the serializable session-result record from `performance-scoring`; idempotent upsert `ON CONFLICT (id) DO NOTHING`; returns an acknowledgement. Reject unauthenticated. (Storing the full record enables future leaderboards; #5 uses only the overall sync %.)
+- [ ] 1.3 Per-day aggregate read (count + avg overall synchronization % per user per local day, bucketed by the recorded tz); on-demand query first, denormalize later if needed.
 
 ## 2. Reliable client delivery (app, no loss)
 
 - [ ] 2.1 A durable local outbox (persisted store surviving app restarts) that stores a session record with a client-generated UUID v7 id at session end, before any network attempt.
-- [ ] 2.2 Hook at session end (`session-summary`/`performance-scoring` result) to enqueue the summary + success rate + client tz into the outbox.
+- [ ] 2.2 Hook at session end to enqueue the `performance-scoring` immutable session-result record (incl. overall sync %) + client tz into the outbox.
 - [ ] 2.3 A background sender that drains the outbox: send → on ack remove; on failure keep + retry with exponential backoff + jitter; never drop an un-acked entry; resume on app launch.
 - [ ] 2.4 Idempotent by session id end-to-end (client resends the same id; server dedupes); confirm no double-count and no loss across offline/restart/duplicate.
 
 ## 3. Heatmap (app)
 
-- [ ] 3.1 A play-heatmap widget on the #4 curator profile: one cell/day, color by the day's avg success rate, count via intensity + tooltip (count + exact success %), empty days blank. Driven by an injectable provider reading the per-day aggregate.
+- [ ] 3.1 A play-heatmap widget on the #4 curator profile: one cell/day, color by the day's avg **overall synchronization %**, count via intensity + tooltip (count + exact avg %), empty days blank. Driven by an injectable provider reading the per-day aggregate.
 
 ## 4. Public profiles (backend + app)
 
