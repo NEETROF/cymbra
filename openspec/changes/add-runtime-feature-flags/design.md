@@ -46,6 +46,15 @@ network hop per check.
     (`fred` vs `redis-rs` RESP3 support is a non-issue), **no dedicated tracking connection / pool
     nuance**, RESP2-compatible, and Redis is already wired for rate-limit counters. RESP3 tracking
     stays a documented alternative to revisit only if the cache model ever becomes per-key.
+  - **Redis's role here is ONLY this invalidation ping** — it is not the store (Postgres) and not
+    the read cache (L1). System-wide, Redis also already backs rate-limit counters, so #9 adds no
+    new dependency.
+  - **Redis-free alternative — Postgres `LISTEN/NOTIFY`**: since Postgres is already the source of
+    truth, the invalidation could ride on `LISTEN/NOTIFY` instead, removing Redis from the flags
+    path entirely (Postgres does both truth and invalidation; Redis stays only for rate-limiting).
+    Trade-off: a dedicated LISTEN connection per instance + reconnect handling (refresh L1 on
+    reconnect). **Chosen Redis pub/sub** because Redis is already a hard dependency (zero marginal
+    cost); switch to `LISTEN/NOTIFY` only if keeping flags Redis-independent is a goal.
 - **Read path**: L1 → (miss/expired) Postgres (source of truth) → repopulate L1. **Write path**:
   Postgres → publish Redis invalidation → instances refresh L1.
 - **Fail-safe**: if **Redis** is down, L1 keeps serving its last snapshot and TTL-polls Postgres;
