@@ -49,6 +49,12 @@ pub struct Config {
     pub upload_quota_window_days: u32,
     /// Hard per-upload size cap (bytes) enforced server-side before storage.
     pub upload_max_bytes: usize,
+    /// Allowed browser origins for the gRPC-web back office (change: add-moderation-
+    /// back-office). The `CorsLayer` permits only these; empty (the default) allows
+    /// no cross-origin browser access, so the native gRPC app is unaffected and the
+    /// browser surface stays closed until an operator opts in an origin. Each entry
+    /// is a full origin, e.g. `https://bo.cymbra.app`.
+    pub back_office_origins: Vec<String>,
 }
 
 /// S3-compatible object-store connection for user scores. Maps to
@@ -139,6 +145,8 @@ pub mod config_core {
             upload_quota_max: num(m, "CYMBRA_SCORE_UPLOAD_QUOTA_MAX", 5)?,
             upload_quota_window_days: num(m, "CYMBRA_SCORE_UPLOAD_QUOTA_WINDOW_DAYS", 7)?,
             upload_max_bytes: num(m, "CYMBRA_SCORE_UPLOAD_MAX_BYTES", 8 * 1024 * 1024)?,
+            // Optional; absent = no cross-origin browser access (gRPC-web stays closed).
+            back_office_origins: csv(m, "CYMBRA_BACK_OFFICE_ORIGINS"),
         })
     }
 

@@ -11,6 +11,13 @@ use serde::Serialize;
 
 use crate::repo::UserRepo;
 
+/// Recognized role values (change: add-moderation-back-office). `moderator` is
+/// added here so a grant of `music/moderator` is accepted and flows into the token
+/// via `effective_roles`.
+const ROLES: [&str; 3] = ["user", "admin", "moderator"];
+/// Recognized authorization scopes (module audiences + the `global` break-glass).
+const SCOPES: [&str; 3] = ["global", "music", "live"];
+
 /// Payload for the `purge_user` job: only the user id (the erasure worker resolves
 /// the email inside its own transaction, so it never transits the queue).
 #[derive(Serialize)]
@@ -158,6 +165,54 @@ impl<R: UserRepo> UserPort for UserModule<R> {
     async fn effective_roles(&self, user_id: &str, scope: &str) -> Result<Vec<String>> {
         self.repo.roles_for_scope(user_id, &["global", scope]).await
     }
+
+    async fn grant_role(
+        &self,
+        acting_admin: &str,
+        user_id: &str,
+        scope: &str,
+        role: &str,
+    ) -> Result<()> {
+        validate_scope_role(scope, role)?;
+        // Idempotent role write, then the audit entry (change: add-moderation-back-
+        // office). Authorization (admin-only) is enforced at the gRPC layer.
+        self.repo.grant_role(user_id, scope, role).await?;
+        self.repo
+            .record_role_grant(user_id, scope, role, "grant", acting_admin)
+            .await
+    }
+
+    async fn revoke_role(
+        &self,
+        acting_admin: &str,
+        user_id: &str,
+        scope: &str,
+        role: &str,
+    ) -> Result<()> {
+        validate_scope_role(scope, role)?;
+        self.repo.revoke_role(user_id, scope, role).await?;
+        self.repo
+            .record_role_grant(user_id, scope, role, "revoke", acting_admin)
+            .await
+    }
+
+    async fn list_role_grants(&self, user_id: &str) -> Result<Vec<cymbra_user_port::RoleGrant>> {
+        self.repo.list_role_grants(user_id).await
+    }
+}
+
+/// Reject an unrecognized scope or role before any write (change: add-moderation-
+/// back-office), so a typo or an arbitrary role value can never be persisted.
+fn validate_scope_role(scope: &str, role: &str) -> Result<()> {
+    if !SCOPES.contains(&scope) {
+        return Err(AppError::InvalidArgument(format!(
+            "unknown scope {scope:?}"
+        )));
+    }
+    if !ROLES.contains(&role) {
+        return Err(AppError::InvalidArgument(format!("unknown role {role:?}")));
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -270,6 +325,80 @@ mod tests {
         ));
         assert!(m.get_account(&recent).await.is_ok());
         assert!(m.get_account(&onboarded).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn grant_role_adds_moderator_and_audits() {
+        let m = module();
+        let admin = m.resolve_or_provision("google", "admin").await.unwrap();
+        let target = m.resolve_or_provision("google", "target").await.unwrap();
+        // Grant music/moderator → it appears in the music-audience effective roles.
+        m.grant_role(&admin, &target, "music", "moderator")
+            .await
+            .unwrap();
+        assert!(
+            m.effective_roles(&target, "music")
+                .await
+                .unwrap()
+                .contains(&"moderator".to_string())
+        );
+        // Idempotent: a second grant is a no-op success (but still audits).
+        m.grant_role(&admin, &target, "music", "moderator")
+            .await
+            .unwrap();
+        // The audit records the grants, most recent first, attributed to the admin.
+        let grants = m.list_role_grants(&target).await.unwrap();
+        assert_eq!(grants.len(), 2);
+        assert_eq!(grants[0].action, "grant");
+        assert_eq!(grants[0].role, "moderator");
+        assert_eq!(grants[0].scope, "music");
+        assert_eq!(grants[0].acting_admin, admin);
+    }
+
+    #[tokio::test]
+    async fn revoke_role_removes_and_audits() {
+        let m = module();
+        let admin = m.resolve_or_provision("google", "admin").await.unwrap();
+        let target = m.resolve_or_provision("google", "target").await.unwrap();
+        m.grant_role(&admin, &target, "music", "moderator")
+            .await
+            .unwrap();
+        m.revoke_role(&admin, &target, "music", "moderator")
+            .await
+            .unwrap();
+        assert!(
+            !m.effective_roles(&target, "music")
+                .await
+                .unwrap()
+                .contains(&"moderator".to_string())
+        );
+        // The most recent audit entry is the revoke.
+        let grants = m.list_role_grants(&target).await.unwrap();
+        assert_eq!(grants[0].action, "revoke");
+    }
+
+    #[tokio::test]
+    async fn grant_role_rejects_unknown_scope_or_role() {
+        let m = module();
+        let admin = m.resolve_or_provision("google", "admin").await.unwrap();
+        let t = m.resolve_or_provision("google", "t").await.unwrap();
+        assert!(matches!(
+            m.grant_role(&admin, &t, "galaxy", "moderator").await,
+            Err(AppError::InvalidArgument(_))
+        ));
+        assert!(matches!(
+            m.grant_role(&admin, &t, "music", "wizard").await,
+            Err(AppError::InvalidArgument(_))
+        ));
+        // A rejected grant writes neither the role nor an audit entry (the default
+        // `user` role is still present, but no `moderator` was added).
+        assert!(
+            !m.effective_roles(&t, "music")
+                .await
+                .unwrap()
+                .contains(&"moderator".to_string())
+        );
+        assert!(m.list_role_grants(&t).await.unwrap().is_empty());
     }
 
     #[tokio::test]

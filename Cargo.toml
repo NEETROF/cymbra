@@ -25,6 +25,9 @@ authors = ["NEETROF"]
 # gRPC + HTTP
 tonic = "0.12"
 tonic-build = "0.12"
+# gRPC-web + CORS for the browser back office (change: add-moderation-back-office).
+tonic-web = "0.12"
+tower-http = { version = "0.6", features = ["cors"] }
 prost = "0.13"
 axum = "0.7"
 tower = "0.5"

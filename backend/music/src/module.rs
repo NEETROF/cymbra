@@ -309,6 +309,17 @@ impl ScoreModule {
                 "unknown moderation status {s:?}"
             )));
         }
+        // Validate every sort field against the allow-list; an unknown field is
+        // rejected and the query does not run (change: add-moderation-back-office).
+        // Privilege of moderation-oriented keys is enforced at the gRPC layer.
+        for key in &q.sort {
+            if crate::catalog_search::sort_field_privilege(&key.field).is_none() {
+                return Err(AppError::InvalidArgument(format!(
+                    "unknown sort field {:?}",
+                    key.field
+                )));
+            }
+        }
         // Normalise text/author; an empty author (after fold) imposes no filter.
         let author_norm = q
             .author
@@ -329,10 +340,37 @@ impl ScoreModule {
             min_bpm: q.min_bpm,
             max_bpm: q.max_bpm,
             moderation_status: q.moderation_status,
+            sort: q.sort,
             limit: q.limit.clamp(1, SEARCH_MAX_LIMIT),
             offset: q.offset.max(0),
         };
         self.catalog.search(&params).await
+    }
+
+    /// Evaluate a catalog score (change: add-moderation-back-office): set its
+    /// moderation status and stamp the reviewer + time. Restricted to
+    /// moderator/admin at the gRPC layer; here we validate the target status and
+    /// treat an unknown score id as not-found. `reviewer_id` is the authenticated
+    /// caller. Returns once the single conditional UPDATE has run.
+    pub async fn set_moderation_status(
+        &self,
+        reviewer_id: &str,
+        score_id: &str,
+        status: &str,
+    ) -> Result<()> {
+        if !MODERATION_STATUSES.contains(&status) {
+            return Err(AppError::InvalidArgument(format!(
+                "unknown moderation status {status:?}"
+            )));
+        }
+        let updated = self
+            .catalog
+            .set_moderation_status(score_id, status, reviewer_id)
+            .await?;
+        if !updated {
+            return Err(AppError::NotFound("catalog score not found".into()));
+        }
+        Ok(())
     }
 
     /// Save a public catalog score to the caller's library. Validates the catalog
@@ -1071,5 +1109,55 @@ mod tests {
         }
         // The accepted one saves fine.
         m.save_catalog_score("u1", DEBUSSY_1).await.unwrap();
+    }
+
+    // --- evaluate + sort (change: add-moderation-back-office) ----------------
+
+    #[tokio::test]
+    async fn set_moderation_status_accepts_rejects_and_requeues() {
+        let m = moderated_module().await;
+        // Accept the pending score → it becomes visible in the default search.
+        m.set_moderation_status("mod-1", PENDING_ID, "accepted")
+            .await
+            .unwrap();
+        let (hits, _) = m.search_catalog(q("", None, None, 50)).await.unwrap();
+        assert!(hits.iter().any(|h| h.id == PENDING_ID));
+        // Re-queue it back to pending → it leaves the accepted-only hub again.
+        m.set_moderation_status("mod-1", PENDING_ID, "pending")
+            .await
+            .unwrap();
+        let (hits, _) = m.search_catalog(q("", None, None, 50)).await.unwrap();
+        assert!(!hits.iter().any(|h| h.id == PENDING_ID));
+    }
+
+    #[tokio::test]
+    async fn set_moderation_status_rejects_unknown_id_and_bad_status() {
+        let m = moderated_module().await;
+        assert!(matches!(
+            m.set_moderation_status("mod-1", "99999999-9999-7999-8999-999999999999", "accepted")
+                .await,
+            Err(AppError::NotFound(_))
+        ));
+        assert!(matches!(
+            m.set_moderation_status("mod-1", PENDING_ID, "bogus").await,
+            Err(AppError::InvalidArgument(_))
+        ));
+    }
+
+    #[tokio::test]
+    async fn search_catalog_rejects_an_unknown_sort_field() {
+        let m = moderated_module().await;
+        let bad = CatalogQuery {
+            sort: vec![crate::catalog_search::SortKey {
+                field: "not_a_column".into(),
+                descending: true,
+            }],
+            limit: 50,
+            ..Default::default()
+        };
+        assert!(matches!(
+            m.search_catalog(bad).await,
+            Err(AppError::InvalidArgument(_))
+        ));
     }
 }

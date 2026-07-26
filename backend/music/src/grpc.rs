@@ -26,7 +26,7 @@ use std::sync::Arc;
 use cymbra_platform::AuthIdentity;
 use tonic::{Request, Response, Status};
 
-use crate::catalog_search::{CatalogHit, CatalogQuery};
+use crate::catalog_search::{CatalogHit, CatalogQuery, SortKey, is_moderation_sort_field};
 use crate::module::{ScoreModule, UploadInput};
 use crate::proto::{
     CatalogHit as ProtoCatalogHit, DeleteScoreRequest, DeleteScoreResponse,
@@ -34,8 +34,9 @@ use crate::proto::{
     GetScoreBytesResponse, ListMyScoresRequest, ListMyScoresResponse,
     ListSavedCatalogScoresRequest, ListSavedCatalogScoresResponse, RemoveSavedCatalogScoreRequest,
     RemoveSavedCatalogScoreResponse, SaveCatalogScoreRequest, SaveCatalogScoreResponse,
-    ScoreRecord, SearchCatalogRequest, SearchCatalogResponse, SetScoreFavoriteRequest,
-    SetScoreFavoriteResponse, UploadScoreRequest,
+    ScoreRecord, SearchCatalogRequest, SearchCatalogResponse, SetModerationStatusRequest,
+    SetModerationStatusResponse, SetScoreFavoriteRequest, SetScoreFavoriteResponse,
+    UploadScoreRequest,
     score_service_server::{ScoreService, ScoreServiceServer},
 };
 use crate::user_scores::UserScore;
@@ -191,12 +192,19 @@ impl ScoreService for ScoreGrpc {
         req: Request<SearchCatalogRequest>,
     ) -> Result<Response<SearchCatalogResponse>, Status> {
         let id = identity(&req)?; // authenticated-only (catalog is public, not owner-scoped)
-        // The moderation-status filter is privileged and back-office-only: when the
-        // caller sets it, they MUST be authorised — reject with PERMISSION_DENIED
-        // and run no query otherwise (change: add-score-moderation-gating). Today
-        // that means `admin`; change #3 widens this to admin-or-(music) moderator.
-        if req.get_ref().moderation_status.is_some() {
-            cymbra_platform::guard::require_admin(&id)?;
+        // The moderation-status filter and any moderation-oriented sort key are
+        // privileged and back-office-only: when the caller uses either, they MUST be
+        // authorised — reject with PERMISSION_DENIED and run no query otherwise.
+        // #1 restricted this to `admin`; this change (add-moderation-back-office)
+        // widens it to admin-or-(music) moderator.
+        let uses_moderation = req.get_ref().moderation_status.is_some()
+            || req
+                .get_ref()
+                .sort
+                .iter()
+                .any(|k| is_moderation_sort_field(&k.field));
+        if uses_moderation {
+            cymbra_platform::guard::require_moderator_or_admin(&id)?;
         }
         let r = req.into_inner();
         let offset = r.offset;
@@ -216,6 +224,14 @@ impl ScoreService for ScoreGrpc {
             min_bpm: r.min_bpm,
             max_bpm: r.max_bpm,
             moderation_status: r.moderation_status,
+            sort: r
+                .sort
+                .into_iter()
+                .map(|k| SortKey {
+                    field: k.field,
+                    descending: k.descending,
+                })
+                .collect(),
             limit: r.limit as i64,
             offset: r.offset as i64,
         };
@@ -267,17 +283,34 @@ impl ScoreService for ScoreGrpc {
         &self,
         req: Request<GetCatalogScoreBytesRequest>,
     ) -> Result<Response<GetCatalogScoreBytesResponse>, Status> {
-        // Authenticated-only. An admin/moderator may open a score in any moderation
+        // Authenticated-only. A moderator/admin may open a score in any moderation
         // status (to review it); a normal caller is served only `accepted` bytes and
-        // gets not-found otherwise (change: add-score-moderation-gating). Admin-only
-        // until the `moderator` role lands in change #3.
-        let allow_unvalidated = identity(&req)?.is_admin();
+        // gets not-found otherwise (change: add-score-moderation-gating, widened to
+        // moderator by add-moderation-back-office).
+        let id = identity(&req)?;
+        let allow_unvalidated = id.is_admin() || id.has_role("moderator");
         let catalog_id = req.into_inner().catalog_id;
         let data = self
             .module
             .get_catalog_bytes(&catalog_id, allow_unvalidated)
             .await?;
         Ok(Response::new(GetCatalogScoreBytesResponse { data }))
+    }
+
+    async fn set_moderation_status(
+        &self,
+        req: Request<SetModerationStatusRequest>,
+    ) -> Result<Response<SetModerationStatusResponse>, Status> {
+        // Evaluate action (change: add-moderation-back-office): moderator/admin only.
+        // The reviewer id is the authenticated caller — never the body — and is
+        // stamped as `reviewed_by` alongside the status.
+        let id = identity(&req)?;
+        cymbra_platform::guard::require_moderator_or_admin(&id)?;
+        let r = req.into_inner();
+        self.module
+            .set_moderation_status(&id.user_id, &r.score_id, &r.status)
+            .await?;
+        Ok(Response::new(SetModerationStatusResponse {}))
     }
 }
 
@@ -332,6 +365,11 @@ mod tests {
     /// Attach an authenticated identity carrying the `admin` role.
     fn authed_admin<T>(msg: T, user_id: &str) -> Request<T> {
         authed_with(msg, user_id, &["user", "admin"])
+    }
+
+    /// Attach an authenticated identity carrying the `moderator` role.
+    fn authed_moderator<T>(msg: T, user_id: &str) -> Request<T> {
+        authed_with(msg, user_id, &["user", "moderator"])
     }
 
     fn authed_with<T>(msg: T, user_id: &str, roles: &[&str]) -> Request<T> {
@@ -563,5 +601,97 @@ mod tests {
             .unwrap()
             .into_inner();
         assert_eq!(resp.data, b"<score/>");
+    }
+
+    // --- moderator role widening + evaluate + sort (add-moderation-back-office) --
+
+    #[tokio::test]
+    async fn moderator_may_use_status_filter_and_open_pending_bytes() {
+        let g = grpc().await;
+        // A moderator (not admin) can now use the privileged status filter…
+        let resp = g
+            .search_catalog(authed_moderator(search_status("pending"), "mod1"))
+            .await
+            .unwrap()
+            .into_inner();
+        assert_eq!(
+            resp.hits.iter().map(|h| h.id.as_str()).collect::<Vec<_>>(),
+            [PENDING]
+        );
+        // …and open a pending score's bytes to review it.
+        let resp = g
+            .get_catalog_score_bytes(authed_moderator(
+                GetCatalogScoreBytesRequest {
+                    catalog_id: PENDING.into(),
+                },
+                "mod1",
+            ))
+            .await
+            .unwrap()
+            .into_inner();
+        assert_eq!(resp.data, b"<score/>");
+    }
+
+    #[tokio::test]
+    async fn moderation_sort_key_is_privileged() {
+        let g = grpc().await;
+        let sorted = || SearchCatalogRequest {
+            limit: 50,
+            sort: vec![crate::proto::SortKey {
+                field: "status_rank".into(),
+                descending: true,
+            }],
+            ..Default::default()
+        };
+        // A normal caller sorting by a moderation-oriented key is denied…
+        let err = g.search_catalog(authed(sorted(), "u1")).await.unwrap_err();
+        assert_eq!(err.code(), tonic::Code::PermissionDenied);
+        // …while a moderator may (a substance-only sort stays open to anyone, so
+        // this asserts the privileged path specifically).
+        assert!(
+            g.search_catalog(authed_moderator(sorted(), "mod1"))
+                .await
+                .is_ok()
+        );
+    }
+
+    #[tokio::test]
+    async fn substance_sort_key_is_open_to_normal_callers() {
+        let g = grpc().await;
+        let req = SearchCatalogRequest {
+            limit: 50,
+            sort: vec![crate::proto::SortKey {
+                field: "note_count".into(),
+                descending: true,
+            }],
+            ..Default::default()
+        };
+        // No moderation key → no privilege required.
+        assert!(g.search_catalog(authed(req, "u1")).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn set_moderation_status_requires_moderator_or_admin() {
+        let g = grpc().await;
+        let req = || SetModerationStatusRequest {
+            score_id: PENDING.into(),
+            status: "accepted".into(),
+        };
+        // A normal caller is denied and nothing changes.
+        let err = g
+            .set_moderation_status(authed(req(), "u1"))
+            .await
+            .unwrap_err();
+        assert_eq!(err.code(), tonic::Code::PermissionDenied);
+        // A moderator succeeds; the score is now visible to a normal search.
+        g.set_moderation_status(authed_moderator(req(), "mod1"))
+            .await
+            .unwrap();
+        let resp = g
+            .search_catalog(authed(search("", None, None), "u1"))
+            .await
+            .unwrap()
+            .into_inner();
+        assert!(resp.hits.iter().any(|h| h.id == PENDING));
     }
 }

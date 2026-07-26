@@ -198,6 +198,52 @@ fn row_to_hit(r: &PgRow) -> CatalogHit {
 const HIT_COLS: &str = "id, title, composer, level, license, source, arranger, \
      min_note_value, tempo_bpm, note_count, lowest_midi, highest_midi, time_sig, key_fifths";
 
+/// The SQL ORDER BY expression for an allow-listed sort field, or `None` for an
+/// unknown one (already rejected by the module — this is defence in depth). The
+/// expressions are constant and server-defined, so a field name never reaches SQL
+/// unvalidated. `status_rank` ranks the queue (`pending` > `accepted` > `rejected`);
+/// `needs_review` is inert until #2 adds its column (a constant, no-op order).
+fn sort_sql(field: &str) -> Option<&'static str> {
+    Some(match field {
+        "measure_count" => "measure_count",
+        "staff_count" => "staff_count",
+        "note_count" => "note_count",
+        "min_note_value" => "min_note_value",
+        "tempo_bpm" => "tempo_bpm",
+        "title" => "title_norm",
+        "composer" => "composer_norm",
+        "status_rank" => {
+            "CASE moderation_status WHEN 'pending' THEN 2 WHEN 'accepted' THEN 1 ELSE 0 END"
+        }
+        "needs_review" => "false",
+        _ => return None,
+    })
+}
+
+/// Build the ORDER BY body. Empty `sort` → the existing default (trigram similarity
+/// on the `$1` query, then the `(title_norm, id)` stable tiebreak), byte-for-byte
+/// unchanged so the app hub is unaffected. Non-empty → the validated keys (primary
+/// first) followed by the same `(title_norm, id)` tiebreak for stable paging.
+fn order_by_clause(sort: &[crate::catalog_search::SortKey]) -> String {
+    if sort.is_empty() {
+        return "CASE WHEN $1 = '' THEN 0 \
+                     ELSE GREATEST(COALESCE(similarity(title_norm, $1), 0), \
+                                   COALESCE(similarity(composer_norm, $1), 0)) END DESC, \
+                title_norm ASC NULLS LAST, id ASC"
+            .to_string();
+    }
+    let mut parts: Vec<String> = Vec::new();
+    for key in sort {
+        if let Some(expr) = sort_sql(&key.field) {
+            let dir = if key.descending { "DESC" } else { "ASC" };
+            parts.push(format!("{expr} {dir} NULLS LAST"));
+        }
+    }
+    parts.push("title_norm ASC NULLS LAST".to_string());
+    parts.push("id ASC".to_string());
+    parts.join(", ")
+}
+
 /// Postgres-backed [`CatalogSearchRepo`] over the `music_svc` pool.
 pub struct PgCatalogSearchRepo {
     pool: PgPool,
@@ -224,6 +270,12 @@ impl CatalogSearchRepo for PgCatalogSearchRepo {
         // a normal caller binds NULL and sees only `accepted`; a privileged caller
         // (authorised at the gRPC layer) binds an explicit status to select it
         // (change: add-score-moderation-gating). It composes with every filter above.
+        // ORDER BY: an empty `sort` keeps the existing default (similarity, then the
+        // `(title_norm, id)` tiebreak) so the app hub is unchanged; a non-empty
+        // `sort` orders by the validated keys (constant, allow-listed expressions —
+        // never raw input) followed by the same stable tiebreak (change:
+        // add-moderation-back-office).
+        let order_clause = order_by_clause(&p.sort);
         let rows = sqlx::query(&format!(
             "SELECT {HIT_COLS}, COUNT(*) OVER() AS total_count FROM music.catalog_scores \
              WHERE ($1 = '' OR title_norm ILIKE '%'||$1||'%' OR composer_norm ILIKE '%'||$1||'%') \
@@ -239,11 +291,7 @@ impl CatalogSearchRepo for PgCatalogSearchRepo {
                AND ($11::int4 IS NULL OR tempo_bpm >= $11) \
                AND ($12::int4 IS NULL OR tempo_bpm <= $12) \
                AND moderation_status = COALESCE($13::text, 'accepted') \
-             ORDER BY \
-               CASE WHEN $1 = '' THEN 0 \
-                    ELSE GREATEST(COALESCE(similarity(title_norm, $1), 0), \
-                                  COALESCE(similarity(composer_norm, $1), 0)) END DESC, \
-               title_norm ASC NULLS LAST, id ASC \
+             ORDER BY {order_clause} \
              LIMIT $14 OFFSET $15"
         ))
         .bind(&p.text_norm)
@@ -315,6 +363,37 @@ impl CatalogSearchRepo for PgCatalogSearchRepo {
         .await
         .map_err(search_internal)?;
         Ok(row.map(|r| r.get::<String, _>("object_key")))
+    }
+
+    async fn set_moderation_status(
+        &self,
+        score_id: &str,
+        status: &str,
+        reviewer_id: &str,
+    ) -> PlatformResult<bool> {
+        let Ok(id) = uuid::Uuid::parse_str(score_id) else {
+            return Ok(false); // malformed id → not found (no row updated)
+        };
+        // A reviewer id that isn't a UUID is a caller/programming error, not a
+        // client 500: treat it as no-op not-found rather than failing the query.
+        let Ok(reviewer) = uuid::Uuid::parse_str(reviewer_id) else {
+            return Ok(false);
+        };
+        // Single conditional UPDATE: set the status and stamp reviewer + time in one
+        // write (change: add-moderation-back-office). rows_affected tells us whether
+        // the score existed.
+        let result = sqlx::query(
+            "UPDATE music.catalog_scores \
+             SET moderation_status = $2, reviewed_by = $3, reviewed_at = now() \
+             WHERE id = $1",
+        )
+        .bind(id)
+        .bind(status)
+        .bind(reviewer)
+        .execute(&self.pool)
+        .await
+        .map_err(search_internal)?;
+        Ok(result.rows_affected() > 0)
     }
 }
 
