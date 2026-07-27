@@ -36,6 +36,13 @@ message LinkIdentityResponse {}
 message UnlinkIdentityRequest { string provider = 1; string subject = 2; }
 message UnlinkIdentityResponse {}
 
+// Session revocation (change: add-session-management). Caller identity comes from the
+// validated access token; no refresh token is ever surfaced.
+message RevokeAllSessionsRequest {}                          // sign out everywhere (self)
+message RevokeAllSessionsResponse {}
+message RevokeAccountSessionsRequest { string user_id = 1; } // admin: cut off a target account
+message RevokeAccountSessionsResponse {}
+
 service AuthService {
   rpc SignUpLocal(SignUpLocalRequest) returns (SignUpLocalResponse);
   rpc VerifyEmail(VerifyEmailRequest) returns (VerifyEmailResponse);
@@ -48,4 +55,7 @@ service AuthService {
   rpc ResetPassword(ResetPasswordRequest) returns (ResetPasswordResponse);
   rpc LinkIdentity(LinkIdentityRequest) returns (LinkIdentityResponse);
   rpc UnlinkIdentity(UnlinkIdentityRequest) returns (UnlinkIdentityResponse);
+  // Session revocation (caller from the access token; the admin one is role-gated).
+  rpc RevokeAllSessions(RevokeAllSessionsRequest) returns (RevokeAllSessionsResponse);
+  rpc RevokeAccountSessions(RevokeAccountSessionsRequest) returns (RevokeAccountSessionsResponse);
 }

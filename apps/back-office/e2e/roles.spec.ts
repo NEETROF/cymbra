@@ -55,6 +55,25 @@ test.describe("roles directory (admin only)", () => {
     await expect(page.locator("body")).not.toContainText("019f60be-6cd9");
   });
 
+  test("a failed admin session-revoke surfaces an error instead of failing silently", async ({ page }) => {
+    await seed(page, {
+      loginAs: "admin",
+      data: {
+        accounts: [ada],
+        // Connect UNAVAILABLE = 14.
+        fail: { revokeAccountSessions: { code: 14, message: "[unavailable] backend down" } },
+      },
+    });
+    page.on("dialog", (d) => d.accept()); // confirm the destructive action
+    await page.goto("/roles");
+
+    await page.getByRole("button", { name: "Revoke sessions" }).click();
+
+    // The failure is shown (not swallowed into the sessions store), and no raw code leaks.
+    await expect(page.getByRole("alert")).toHaveText("Service unavailable. Try again.");
+    await expect(page.locator("body")).not.toContainText("backend down");
+  });
+
   test("an empty result shows a friendly message, not a raw code", async ({ page }) => {
     await seed(page, { loginAs: "admin", data: { accounts: [ada] } });
     await page.goto("/roles");

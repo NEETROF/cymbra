@@ -24,6 +24,10 @@
     "body": "This account is signed in but is not a moderator or admin, so no moderation actions are available. Ask an admin to grant you the moderator role."
   },
   "nav": { "queue": "Catalog review", "catalog": "Catalog", "roles": "Roles", "menu": "Menu" },
+  "sessions": {
+    "revokeAccount": "Revoke sessions",
+    "revokeAccountConfirm": "Revoke all sessions for this account?"
+  },
   "catalog": { "title": "Catalog", "count": "{n} score | {n} scores" },
   "queue": {
     "title": "Catalog review",

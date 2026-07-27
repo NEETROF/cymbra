@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
+import { useI18n } from "vue-i18n";
 import { match } from "ts-pattern";
 import { PAGE_SIZE, useRolesStore } from "@/stores/roles";
+import { useSessionsStore } from "@/stores/sessions";
 import type { AccountRow, RoleGrant } from "@/gen/user_pb";
 
 // Admin-only (route- + server-guarded). A paginated directory of accounts with
@@ -9,6 +11,8 @@ import type { AccountRow, RoleGrant } from "@/gen/user_pb";
 // row. Selecting a row loads its audit history. All API work lives in the store;
 // this view only matches on the Async unions.
 const store = useRolesStore();
+const sessions = useSessionsStore();
+const { t } = useI18n();
 const filter = ref("");
 const selected = ref<string | null>(null);
 
@@ -30,13 +34,21 @@ const vm = computed(() =>
     }))
     .otherwise(() => ({ loading: true, error: null as string | null, accounts: [] as AccountRow[], total: 0 })),
 );
-const acting = computed(() => store.op.status === "loading");
+// Both the role op and the session-revoke op count as "acting" (disable while either
+// runs), and either op's error is surfaced — a failed admin session-revoke must not be
+// silent.
+const acting = computed(() => store.op.status === "loading" || sessions.op.status === "loading");
 const opError = computed(() =>
   match(store.op)
     .with({ status: "error" }, ({ error }) => error)
     .otherwise(() => null),
 );
-const error = computed(() => vm.value.error ?? opError.value);
+const sessionOpError = computed(() =>
+  match(sessions.op)
+    .with({ status: "error" }, ({ error }) => error)
+    .otherwise(() => null),
+);
+const error = computed(() => vm.value.error ?? opError.value ?? sessionOpError.value);
 
 const offset = computed(() => store.params.offset);
 const from = computed(() => (vm.value.total === 0 ? 0 : offset.value + 1));
@@ -66,6 +78,12 @@ function toggle(account: AccountRow, role: string) {
 function history(userId: string) {
   selected.value = userId;
   store.listGrants(userId);
+}
+/** Admin: cut off every session of a compromised account (server-gated by require_admin).
+ * Confirm first — it's destructive — and let the outcome surface via `error`. */
+async function revokeSessions(userId: string) {
+  if (globalThis.confirm && !globalThis.confirm(t("sessions.revokeAccountConfirm"))) return;
+  await sessions.revokeAccount(userId);
 }
 function when(atSeconds: bigint | number): string {
   const ms = Number(atSeconds) * 1000;
@@ -128,6 +146,9 @@ onMounted(() => store.list("", 0));
               {{ a.roles.includes(r) ? "−" : "+" }} {{ $t(`role.${r}`) }}
             </button>
             <button type="button" :disabled="acting" @click="history(a.userId)">{{ $t("roles.history") }}</button>
+            <button type="button" :disabled="acting" @click="revokeSessions(a.userId)">
+              {{ $t("sessions.revokeAccount") }}
+            </button>
           </td>
         </tr>
         <tr v-if="vm.accounts.length === 0">

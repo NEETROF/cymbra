@@ -134,6 +134,40 @@ impl SessionStore for PgSessionStore {
         Ok(())
     }
 
+    async fn revoke_account_sessions_audited(
+        &self,
+        target_user_id: &str,
+        acting_admin: &str,
+        audience: &str,
+    ) -> Result<i64> {
+        let mut tx = self.pool.begin().await.map_err(internal)?;
+        // Audience-scoped delete; `rows_affected` is the exact count (no pre-count race).
+        let deleted = sqlx::query("DELETE FROM sessions WHERE user_id = $1 AND audience = $2")
+            .bind(target_user_id)
+            .bind(audience)
+            .execute(&mut *tx)
+            .await
+            .map_err(internal)?
+            .rows_affected() as i64;
+        // Audit in the SAME transaction: a revoked account is always traceable, and a
+        // failure here rolls the delete back rather than losing the trail.
+        sqlx::query(
+            "INSERT INTO session_revocation_audit \
+                 (id, target_user_id, acting_admin, audience, revoked_count) \
+             VALUES ($1, $2, $3, $4, $5)",
+        )
+        .bind(session_core::new_id())
+        .bind(target_user_id)
+        .bind(acting_admin)
+        .bind(audience)
+        .bind(deleted as i32)
+        .execute(&mut *tx)
+        .await
+        .map_err(internal)?;
+        tx.commit().await.map_err(internal)?;
+        Ok(deleted)
+    }
+
     async fn list_for_user(&self, user_id: &str) -> Result<Vec<SessionInfo>> {
         let rows = sqlx::query(
             "SELECT id, audience FROM sessions WHERE user_id = $1 AND expires_at > now()",

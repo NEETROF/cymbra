@@ -94,6 +94,10 @@ export function installE2EClients(): void {
         return tokens;
       },
       refresh: async () => tokens,
+      revokeAccountSessions: async () => {
+        failIfSet("revokeAccountSessions");
+        return {};
+      },
     },
     score: {
       searchCatalog: async (req: { moderationStatus?: string; limit?: number }) => {

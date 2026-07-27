@@ -18,7 +18,7 @@ pub use creds::{Credential, CredentialRepo, FakeCredentialRepo};
 pub use creds_pg::PgCredentialRepo;
 pub use grpc::AuthGrpc;
 pub use module::{AuthConfig, AuthModule};
-pub use session::{FakeSessionStore, Rotated, SessionInfo, SessionStore};
+pub use session::{AdminRevocation, FakeSessionStore, Rotated, SessionInfo, SessionStore};
 pub use session_pg::{PgSessionStore, reap_expired_sessions};
 pub use verifier::{FakeOidcVerifier, OidcProviderCfg, OidcVerifier, RealOidcVerifier};
 

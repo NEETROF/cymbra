@@ -271,6 +271,24 @@ impl AuthPort for AuthModule {
         self.sessions.revoke(refresh_token).await
     }
 
+    async fn revoke_all_sessions(&self, user_id: &str) -> Result<()> {
+        self.sessions.revoke_all(user_id).await
+    }
+
+    async fn revoke_account_sessions(
+        &self,
+        acting_admin: &str,
+        target_user_id: &str,
+        audience: &str,
+    ) -> Result<()> {
+        // One transactional, audience-scoped delete + audit in the store: the count is
+        // exact (from the delete) and the trail can't be lost on a partial failure.
+        self.sessions
+            .revoke_account_sessions_audited(target_user_id, acting_admin, audience)
+            .await?;
+        Ok(())
+    }
+
     async fn request_password_reset(&self, email: &str) -> Result<()> {
         ratelimit::check(
             self.cache.as_ref(),
@@ -341,6 +359,7 @@ mod tests {
         m: AuthModule,
         creds: Arc<FakeCredentialRepo>,
         email: Arc<FakeEmail>,
+        sessions: Arc<crate::session::FakeSessionStore>,
     }
 
     fn harness() -> Harness {
@@ -350,7 +369,8 @@ mod tests {
         let email = Arc::new(FakeEmail::default());
         let email_dyn: Arc<dyn EmailSender> = email.clone();
         let oidc = Arc::new(FakeOidcVerifier::default());
-        let sessions: Arc<dyn SessionStore> = Arc::new(crate::session::FakeSessionStore::default());
+        let sessions = Arc::new(crate::session::FakeSessionStore::default());
+        let sessions_dyn: Arc<dyn SessionStore> = sessions.clone();
         let cfg = AuthConfig::new(
             Duration::from_secs(900),
             Duration::from_secs(2_592_000),
@@ -369,13 +389,18 @@ mod tests {
             cache,
             email_dyn,
             oidc,
-            sessions,
+            sessions_dyn,
             PRIV,
             "k1",
             cfg,
         )
         .unwrap();
-        Harness { m, creds, email }
+        Harness {
+            m,
+            creds,
+            email,
+            sessions,
+        }
     }
 
     fn keys() -> HashMap<String, DecodingKey> {
@@ -487,6 +512,54 @@ mod tests {
             h.m.refresh(&p2.refresh_token).await,
             Err(AppError::Unauthenticated(_))
         ));
+    }
+
+    #[tokio::test]
+    async fn sign_out_everywhere_revokes_all_the_users_sessions() {
+        let h = harness();
+        let a = h.m.sign_in_oidc("g1", "music").await.unwrap();
+        let b = h.m.sign_in_oidc("g1", "live").await.unwrap();
+        let uid = sub_of(&a.access_token, "music");
+
+        h.m.revoke_all_sessions(&uid).await.unwrap();
+
+        // Both of the account's sessions are dead; neither refresh token can rotate.
+        assert!(matches!(
+            h.m.refresh(&a.refresh_token).await,
+            Err(AppError::Unauthenticated(_))
+        ));
+        assert!(matches!(
+            h.m.refresh(&b.refresh_token).await,
+            Err(AppError::Unauthenticated(_))
+        ));
+    }
+
+    #[tokio::test]
+    async fn admin_revoke_account_sessions_is_audience_scoped_and_audited() {
+        let h = harness();
+        let music = h.m.sign_in_oidc("target", "music").await.unwrap();
+        let live = h.m.sign_in_oidc("target", "live").await.unwrap();
+        let target = sub_of(&music.access_token, "music");
+
+        // A music-scoped admin revoke cuts ONLY the target's music sessions.
+        h.m.revoke_account_sessions("admin-9", &target, "music")
+            .await
+            .unwrap();
+
+        // The music session is gone; the live session survives (out of scope).
+        assert!(matches!(
+            h.m.refresh(&music.refresh_token).await,
+            Err(AppError::Unauthenticated(_))
+        ));
+        assert!(h.m.refresh(&live.refresh_token).await.is_ok());
+
+        // A durable audit entry records admin, target, audience, and the exact count.
+        let audit = h.sessions.admin_revocations();
+        assert_eq!(audit.len(), 1);
+        assert_eq!(audit[0].acting_admin, "admin-9");
+        assert_eq!(audit[0].target_user_id, target);
+        assert_eq!(audit[0].audience, "music");
+        assert_eq!(audit[0].revoked_count, 1);
     }
 
     #[tokio::test]
