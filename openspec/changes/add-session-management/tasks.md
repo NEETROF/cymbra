@@ -10,14 +10,19 @@
 
 ## 3. gRPC AuthService
 
-- [ ] 3.1 Add proto messages/RPCs: `ListSessions`, `RevokeSession(id)`, `RevokeAllSessions` (caller from the internal token), and `RevokeAccountSessions(user_id)` (admin-gated). Regenerate stubs (`flutter_rust_bridge`/protoc as applicable).
-- [ ] 3.2 Server adapter: self ops read `user_id` from the `AuthIdentity` extension (like `LinkIdentity`); mount the admin RPC behind the strict interceptor + admin-role guard (as `GrantRole`). Record an audit entry for the admin revoke (acting admin + target).
-- [ ] 3.3 gRPC handler tests: self ops scope to the caller; admin op requires admin; non-admin denied.
+- [x] 3.1 Add proto messages/RPCs: `ListSessions`, `RevokeSession(id)`, `RevokeAllSessions` (caller from the internal token), and `RevokeAccountSessions(user_id)` (admin-gated). Regenerate stubs (tonic build.rs; back-office `yarn gen` for group 5).
+- [x] 3.2 Server adapter: self ops read `user_id` from the `AuthIdentity` extension (like `LinkIdentity`); the admin RPC is guarded by `require_admin` on the identity roles. Durable audit: a new `auth.session_revocation_audit` table (migration `0003`) records acting admin + target + count on the admin revoke — a queryable trail, not a log line.
+- [x] 3.3 gRPC handler tests: self ops scope to the caller; missing identity → unauthenticated; admin op requires admin; non-admin denied.
 
-## 4. Web-auth HTTP surface (browser, cookie-aware)
+## 4. Cookie handling on sign-out-everywhere (design change — no new HTTP surface)
 
-- [ ] 4.1 Add `GET /web/auth/sessions` (list, flag the current one via the request cookie's family id), `POST /web/auth/sessions/revoke` (by id), and `POST /web/auth/logout-all` (revoke_all + expired `Set-Cookie`). Reuse the existing CORS-credentials + CSRF header.
-- [ ] 4.2 Host-testable handler tests: list flags current; revoke-by-id; logout-all revokes every session and clears the cookie; all scoped to the cookie's account.
+Session ops go through the **authenticated gRPC `AuthService`** (called from the BO
+over the existing gRPC-web transport), not a bespoke web-auth HTTP surface — that would
+have re-implemented access-token auth on the cookie surface for no gain.
+
+- [ ] 4.1 "Sign out everywhere" in the BO = `RevokeAllSessions` (gRPC) **then** the
+  existing `POST /web/auth/logout` (clears the HttpOnly cookie) + local sign-out. No new
+  backend endpoint needed. (Implemented as part of the store in group 5.)
 
 ## 5. Back office — UI
 

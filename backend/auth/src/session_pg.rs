@@ -149,6 +149,26 @@ impl SessionStore for PgSessionStore {
         Ok(())
     }
 
+    async fn record_admin_revocation(
+        &self,
+        target_user_id: &str,
+        acting_admin: &str,
+        revoked_count: i64,
+    ) -> Result<()> {
+        sqlx::query(
+            "INSERT INTO session_revocation_audit (id, target_user_id, acting_admin, revoked_count) \
+             VALUES ($1, $2, $3, $4)",
+        )
+        .bind(session_core::new_id())
+        .bind(target_user_id)
+        .bind(acting_admin)
+        .bind(revoked_count as i32)
+        .execute(&self.pool)
+        .await
+        .map_err(internal)?;
+        Ok(())
+    }
+
     async fn list_for_user(&self, user_id: &str) -> Result<Vec<SessionInfo>> {
         let rows = sqlx::query(
             "SELECT id, audience FROM sessions WHERE user_id = $1 AND expires_at > now()",

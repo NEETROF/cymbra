@@ -33,14 +33,14 @@ SHALL be a successful no-op.
 ### Requirement: A user can sign out everywhere
 
 The system SHALL provide an authenticated operation that revokes every session for the
-caller's account. On the browser web-auth surface it SHALL also clear the caller's
-refresh cookie (expired `Set-Cookie`). After it succeeds, no existing refresh token for
-the account SHALL be able to refresh.
+caller's account. After it succeeds, no existing refresh token for the account SHALL be
+able to refresh. The browser client SHALL additionally clear its own refresh cookie
+(via the existing sign-out endpoint) so the current tab ends locally too.
 
 #### Scenario: Sign out everywhere revokes all sessions and clears the cookie
 
 - **WHEN** a signed-in user triggers sign-out-everywhere from the browser
-- **THEN** every session for the account is revoked, the response clears the refresh cookie, and any subsequent refresh (this browser or another device) fails
+- **THEN** every session for the account is revoked, the browser's refresh cookie is cleared, and any subsequent refresh (this browser or another device) fails
 
 ### Requirement: An admin can revoke all sessions for an account
 

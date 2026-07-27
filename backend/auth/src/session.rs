@@ -57,6 +57,23 @@ pub trait SessionStore: Send + Sync {
     async fn revoke_all(&self, user_id: &str) -> Result<()>;
     /// The account's non-expired session families.
     async fn list_for_user(&self, user_id: &str) -> Result<Vec<SessionInfo>>;
+    /// Append a **durable** audit record for an admin-initiated revocation of
+    /// `target_user_id`'s sessions (who, whom, how many) — a queryable trail, not a
+    /// log line lost in the stream.
+    async fn record_admin_revocation(
+        &self,
+        target_user_id: &str,
+        acting_admin: &str,
+        revoked_count: i64,
+    ) -> Result<()>;
+}
+
+/// One admin-revocation audit entry (the fake exposes these for tests).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AdminRevocation {
+    pub target_user_id: String,
+    pub acting_admin: String,
+    pub revoked_count: i64,
 }
 
 /// Pure, host-testable token logic: encode/parse the `"{id}.{secret}"` refresh
@@ -103,6 +120,14 @@ pub mod session_core {
 #[derive(Default)]
 pub struct FakeSessionStore {
     fams: Mutex<HashMap<Uuid, FakeFam>>,
+    audit: Mutex<Vec<AdminRevocation>>,
+}
+
+impl FakeSessionStore {
+    /// Admin-revocation audit entries recorded so far (test introspection).
+    pub fn admin_revocations(&self) -> Vec<AdminRevocation> {
+        self.audit.lock().unwrap().clone()
+    }
 }
 
 struct FakeFam {
@@ -174,6 +199,20 @@ impl SessionStore for FakeSessionStore {
             .lock()
             .unwrap()
             .retain(|_, f| f.user_id != user_id);
+        Ok(())
+    }
+
+    async fn record_admin_revocation(
+        &self,
+        target_user_id: &str,
+        acting_admin: &str,
+        revoked_count: i64,
+    ) -> Result<()> {
+        self.audit.lock().unwrap().push(AdminRevocation {
+            target_user_id: target_user_id.into(),
+            acting_admin: acting_admin.into(),
+            revoked_count,
+        });
         Ok(())
     }
 

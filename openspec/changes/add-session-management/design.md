@@ -41,26 +41,33 @@ store (authorization-scoped: the id must belong to `user_id`) so a user can end 
 session they aren't holding. Logout-by-token stays for the cookie flow. The raw refresh
 token is never exposed to a listing.
 
-**2. Operations live on the authenticated `AuthService` (gRPC); the web-auth HTTP
-surface proxies the self-service ones for the browser.**
+**2. All operations live on the authenticated gRPC `AuthService` — no bespoke web-auth
+HTTP surface.**
 `ListSessions` / `RevokeSession(id)` / `RevokeAllSessions` take the caller's `user_id`
-from the internal access token (like `LinkIdentity`). `RevokeAccountSessions(user_id)`
-is **admin-gated** (same guard as `GrantRole`). The back office calls the self-service
-actions via the cookie-aware web-auth surface (so "sign out everywhere" also clears the
-current cookie) and the admin action via gRPC-web. Native clients get the gRPC methods
-directly.
+from the internal access token (like `LinkIdentity`, via the `AuthIdentity` extension).
+`RevokeAccountSessions(user_id)` is **admin-gated** (`require_admin` on the identity
+roles). The back office calls them over the **existing gRPC-web transport** (Bearer
+access token). A cookie-aware HTTP surface was considered and rejected: it would have
+re-implemented access-token validation on the web-auth surface for no benefit.
 
-**3. "Sign out everywhere" clears the current browser cookie too.**
-On the web-auth surface, `revoke-all` runs `revoke_all(user_id)` **and** returns an
-expired `Set-Cookie` (like logout), so the calling tab ends locally as well; other tabs
-lose refresh on their next attempt (bounded by the access-token TTL).
+**3. "Sign out everywhere" clears the browser cookie via the existing logout endpoint.**
+The BO runs `RevokeAllSessions` (gRPC) then the existing `POST /web/auth/logout` (which
+returns an expired `Set-Cookie`) and clears its in-memory token. No new endpoint. Other
+tabs/devices lose refresh on their next attempt (bounded by the access-token TTL).
 
-**4. Mark the current session in the listing.**
-The web-auth `list` reads the caller's own refresh cookie, resolves its family id, and
-flags that entry as `current: true` so the UI can label "This device" and avoid a
-foot-gun. gRPC clients that hold their own refresh token can do the same client-side.
+**4. The admin revoke is audited durably.**
+A dedicated append-only table `auth.session_revocation_audit` (migration `0003`) records
+`{target_user_id, acting_admin, revoked_count, at}` — a queryable trail (not a `tracing`
+line lost in the stream). `revoke_account_sessions` counts live sessions, revokes, then
+writes the audit row.
 
-**5. Idempotent + safe.** Revoking an already-revoked/absent session is a successful
+**5. Flagging the caller's "current session" in the list** needs a session-id (`sid`)
+claim on the access token (the refresh cookie is `HttpOnly`, so the client can't read
+its own family id). Adding an additive `sid` claim at `issue()`/`refresh()` and matching
+it client-side is the plan for the front-end slice; it does not change signing, TTL, or
+rotation. (Deferred to the UI phase so the exact shape can be settled there.)
+
+**6. Idempotent + safe.** Revoking an already-revoked/absent session is a successful
 no-op (matches `SessionStore` semantics), so retries converge and a revoked id can't be
 used to probe existence beyond the caller's own account.
 

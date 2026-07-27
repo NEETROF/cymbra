@@ -290,6 +290,20 @@ impl AuthPort for AuthModule {
         self.sessions.revoke_all(user_id).await
     }
 
+    async fn revoke_account_sessions(
+        &self,
+        acting_admin: &str,
+        target_user_id: &str,
+    ) -> Result<()> {
+        // Count live sessions first (for the audit), then revoke and record. The audit
+        // is durable so a compromised-account cut-off is always traceable.
+        let count = self.sessions.list_for_user(target_user_id).await?.len() as i64;
+        self.sessions.revoke_all(target_user_id).await?;
+        self.sessions
+            .record_admin_revocation(target_user_id, acting_admin, count)
+            .await
+    }
+
     async fn request_password_reset(&self, email: &str) -> Result<()> {
         ratelimit::check(
             self.cache.as_ref(),
@@ -360,6 +374,7 @@ mod tests {
         m: AuthModule,
         creds: Arc<FakeCredentialRepo>,
         email: Arc<FakeEmail>,
+        sessions: Arc<crate::session::FakeSessionStore>,
     }
 
     fn harness() -> Harness {
@@ -369,7 +384,8 @@ mod tests {
         let email = Arc::new(FakeEmail::default());
         let email_dyn: Arc<dyn EmailSender> = email.clone();
         let oidc = Arc::new(FakeOidcVerifier::default());
-        let sessions: Arc<dyn SessionStore> = Arc::new(crate::session::FakeSessionStore::default());
+        let sessions = Arc::new(crate::session::FakeSessionStore::default());
+        let sessions_dyn: Arc<dyn SessionStore> = sessions.clone();
         let cfg = AuthConfig::new(
             Duration::from_secs(900),
             Duration::from_secs(2_592_000),
@@ -388,13 +404,18 @@ mod tests {
             cache,
             email_dyn,
             oidc,
-            sessions,
+            sessions_dyn,
             PRIV,
             "k1",
             cfg,
         )
         .unwrap();
-        Harness { m, creds, email }
+        Harness {
+            m,
+            creds,
+            email,
+            sessions,
+        }
     }
 
     fn keys() -> HashMap<String, DecodingKey> {
@@ -530,6 +551,32 @@ mod tests {
             h.m.refresh(&a.refresh_token).await,
             Err(AppError::Unauthenticated(_))
         ));
+    }
+
+    #[tokio::test]
+    async fn admin_revoke_account_sessions_records_durable_audit() {
+        let h = harness();
+        let a = h.m.sign_in_oidc("target", "music").await.unwrap();
+        let _b = h.m.sign_in_oidc("target", "live").await.unwrap();
+        let target = sub_of(&a.access_token, "music");
+
+        h.m.revoke_account_sessions("admin-9", &target)
+            .await
+            .unwrap();
+
+        // Every target session is cut; the original refresh fails.
+        assert!(h.m.list_sessions(&target).await.unwrap().is_empty());
+        assert!(matches!(
+            h.m.refresh(&a.refresh_token).await,
+            Err(AppError::Unauthenticated(_))
+        ));
+
+        // A durable audit entry records the acting admin, the target, and the count.
+        let audit = h.sessions.admin_revocations();
+        assert_eq!(audit.len(), 1);
+        assert_eq!(audit[0].acting_admin, "admin-9");
+        assert_eq!(audit[0].target_user_id, target);
+        assert_eq!(audit[0].revoked_count, 2);
     }
 
     #[tokio::test]
