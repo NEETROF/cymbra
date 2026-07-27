@@ -95,6 +95,9 @@ dev_dependencies:
   freezed: ^3.0.0
   riverpod_lint: ^2.6.5
   custom_lint: ^0.7.0
+  # Default test-double: mockito with generated mocks (@GenerateNiceMocks +
+  # build_runner). See the `flutter-testing` skill.
+  mockito: ^5.4.4
 
   # Store branding generators. These are build-time tools only (run manually,
   # not at app runtime): they regenerate the native launcher icons and splash

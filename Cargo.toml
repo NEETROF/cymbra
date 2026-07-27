@@ -79,3 +79,7 @@ opentelemetry-otlp = { version = "0.32", features = ["grpc-tonic"] }
 opentelemetry-appender-tracing = "0.32"
 tokio-metrics = "0.3"
 sysinfo = "0.32"
+# testing — default test-double is mockall generated mocks (#[automock]).
+# A crate opts in under [dev-dependencies] with `mockall = { workspace = true }`.
+# See the `rust-testing` skill.
+mockall = "0.13"

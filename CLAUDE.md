@@ -23,8 +23,9 @@ Mandatory for all app state:
   `riverpod_generator`). No new `ChangeNotifier`/`setState` for app state.
 - **Freezed** immutable models for state (`@freezed`, mutate via `copyWith`).
 - **Dependencies are providers** (e.g. `midiServiceProvider`, `scoreSourceProvider`),
-  overridden in tests with fakes via `ProviderScope`/`ProviderContainer` overrides —
-  not constructor injection.
+  overridden in tests via `ProviderScope`/`ProviderContainer` overrides — not
+  constructor injection. The override value is a **mockito-generated mock by default**
+  (hand fakes only for special cases — see the `flutter-testing` skill).
 - Reference implementation: [player_notifier.dart](apps/music/lib/state/player_notifier.dart),
   [player_data.dart](apps/music/lib/state/player_data.dart),
   [midi_service.dart](apps/music/lib/services/midi_service.dart).
@@ -74,7 +75,9 @@ code needs tests. CI fails under 80% and also reports to SonarCloud (decoration)
   thin MusicXML FFI seam in `api/musicxml.rs`, and the cpal/rustysynth audio glue
   in `api/audio.rs`).
   Keep pure, testable logic in host-testable modules like `api/midi_core.rs`,
-  `api/musicxml_core.rs` and `api/audio_core.rs`.
+  `api/musicxml_core.rs` and `api/audio_core.rs`. Trait dependencies are doubled
+  with **mockall generated mocks by default** (hand fakes only for special cases —
+  see the `rust-testing` skill).
 - **Flutter**: `flutter test --coverage` (unit + widget) merged with the
   integration run, gated by `very_good_coverage` (excludes `lib/src/rust/**`,
   `main.dart`, generated `*.g.dart`/`*.freezed.dart`). Keep the native FFI behind
@@ -89,7 +92,8 @@ cd apps/music && flutter test --coverage --exclude-tags golden   # then check lc
 
 ## Tests: layers
 
-- **Unit/widget** (`apps/music/test/`): fast, fakes only, no native lib. Default gate.
+- **Unit/widget** (`apps/music/test/`): fast, mocked deps (mockito by default), no
+  native lib. Default gate. See the `flutter-testing` skill for the double convention.
 - **Golden** (tagged `golden`): pixel comparisons, platform-sensitive — excluded
   from the cross-platform gate. Refresh on a pinned platform with
   `flutter test --tags golden --update-goldens`.
