@@ -105,12 +105,15 @@ impl AuthModule {
         }
     }
 
-    /// Mint an access (signed) + refresh (session) token pair for `audience`.
+    /// Mint an access (signed) + refresh (session) token pair for `audience`. The
+    /// session is created first so its family id can be stamped into the access token
+    /// as `sid` (lets the client flag its current device in a session list).
     async fn issue(&self, user_id: &str, audience: &str) -> Result<TokenPair> {
         let roles = self.user.effective_roles(user_id, audience).await?;
-        let claims = token::new_claims(user_id, audience, roles, self.cfg.access_ttl);
-        let access = token::sign(&claims, &self.kid, &self.signing_key)?;
         let refresh = self.sessions.create(user_id, audience).await?;
+        let sid = crate::session::session_core::parse_id(&refresh)?.to_string();
+        let claims = token::new_claims(user_id, audience, roles, self.cfg.access_ttl, Some(sid));
+        let access = token::sign(&claims, &self.kid, &self.signing_key)?;
         Ok(TokenPair {
             access_token: access,
             refresh_token: refresh,
@@ -259,7 +262,14 @@ impl AuthPort for AuthModule {
             .user
             .effective_roles(&rot.user_id, &rot.audience)
             .await?;
-        let claims = token::new_claims(&rot.user_id, &rot.audience, roles, self.cfg.access_ttl);
+        let sid = crate::session::session_core::parse_id(&rot.refresh_token)?.to_string();
+        let claims = token::new_claims(
+            &rot.user_id,
+            &rot.audience,
+            roles,
+            self.cfg.access_ttl,
+            Some(sid),
+        );
         let access = token::sign(&claims, &self.kid, &self.signing_key)?;
         Ok(TokenPair {
             access_token: access,
@@ -551,6 +561,18 @@ mod tests {
             h.m.refresh(&a.refresh_token).await,
             Err(AppError::Unauthenticated(_))
         ));
+    }
+
+    #[tokio::test]
+    async fn access_token_sid_matches_its_session() {
+        let h = harness();
+        let pair = h.m.sign_in_oidc("g1", "music").await.unwrap();
+        let uid = sub_of(&pair.access_token, "music");
+        let claims = ptoken::verify(&pair.access_token, &keys(), &["music"]).unwrap();
+        let sessions = h.m.list_sessions(&uid).await.unwrap();
+        assert_eq!(sessions.len(), 1);
+        // The token's `sid` lets the client flag this exact session as "this device".
+        assert_eq!(claims.sid.as_deref(), Some(sessions[0].id.as_str()));
     }
 
     #[tokio::test]
