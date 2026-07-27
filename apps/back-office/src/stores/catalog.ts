@@ -80,5 +80,11 @@ export const useCatalogStore = defineStore("catalog", () => {
     return resp.data;
   }
 
-  return { result, lastParams, search, setModerationStatus, fetchBytes };
+  /** One score's metadata by id — so the detail view is self-sufficient (works on
+   * refresh / deep-link, not dependent on the last search's list). */
+  async function fetchHit(catalogId: string): Promise<CatalogHit> {
+    return api().score.getCatalogScore({ catalogId });
+  }
+
+  return { result, lastParams, search, setModerationStatus, fetchBytes, fetchHit };
 });

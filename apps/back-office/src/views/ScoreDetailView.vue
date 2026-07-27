@@ -6,26 +6,31 @@ import ScorePreview from "@/components/ScorePreview.vue";
 import { useCatalogStore, type ModerationStatus } from "@/stores/catalog";
 import { useAuthStore } from "@/stores/auth";
 import { type Async, idle, run } from "@/lib/async";
+import type { CatalogHit } from "@/gen/score_pb";
 
 const props = defineProps<{ id: string }>();
 const store = useCatalogStore();
 const auth = useAuthStore();
 const router = useRouter();
 
-// Metadata comes from the list the moderator navigated from (avoids a second
-// round-trip); bytes are always fetched fresh (moderators may fetch non-accepted).
-const hit = computed(() =>
-  match(store.result)
-    .with({ status: "success" }, ({ data }) => data.hits.find((h) => h.id === props.id) ?? null)
-    .otherwise(() => null),
-);
-
+// The detail view is self-sufficient: it fetches the score's metadata AND bytes by
+// id on mount, so it works on refresh / deep-link (not dependent on a prior list).
+const hit = ref<Async<CatalogHit>>(idle);
 const bytes = ref<Async<Uint8Array>>(idle);
 const decision = ref<Async<void>>(idle);
 
+const hitVm = computed(() =>
+  match(hit.value)
+    .with({ status: "success" }, ({ data }) => ({ loading: false, hit: data as CatalogHit | null, error: null as string | null }))
+    .with({ status: "error" }, ({ error }) => ({ loading: false, hit: null, error }))
+    .otherwise(() => ({ loading: true, hit: null, error: null as string | null })),
+);
+// Bytes are separate from metadata: a fetch failure (e.g. the corpus bytes aren't
+// synced to the serving store yet) must NOT block metadata or accept/reject — it's
+// shown as an informational note inside the preview, not a page-level error.
 const bytesVm = computed(() =>
   match(bytes.value)
-    .with({ status: "success" }, ({ data }) => ({ loading: false, bytes: data, error: null as string | null }))
+    .with({ status: "success" }, ({ data }) => ({ loading: false, bytes: data as Uint8Array | null, error: null as string | null }))
     .with({ status: "error" }, ({ error }) => ({ loading: false, bytes: null, error }))
     .otherwise(() => ({ loading: true, bytes: null, error: null as string | null })),
 );
@@ -36,7 +41,10 @@ const decisionError = computed(() =>
     .otherwise(() => null),
 );
 
-onMounted(() => run(bytes, () => store.fetchBytes(props.id)));
+onMounted(() => {
+  run(hit, () => store.fetchHit(props.id));
+  run(bytes, () => store.fetchBytes(props.id));
+});
 
 async function decide(status: ModerationStatus) {
   const outcome = await run(decision, () => store.setModerationStatus(props.id, status));
@@ -59,10 +67,15 @@ async function decide(status: ModerationStatus) {
       </button>
     </div>
   </div>
-  <h1>{{ hit?.title || $t("detail.score") }}</h1>
-  <p v-if="bytesVm.error" class="error" role="alert">{{ bytesVm.error }}</p>
+  <h1>{{ hitVm.hit?.title || $t("detail.score") }}</h1>
+  <p v-if="hitVm.error" class="error" role="alert">{{ hitVm.error }}</p>
   <p v-if="decisionError" class="error" role="alert">{{ decisionError }}</p>
-  <ScorePreview :hit="hit" :bytes="bytesVm.bytes" :loading="bytesVm.loading" />
+  <ScorePreview
+    :hit="hitVm.hit"
+    :bytes="bytesVm.bytes"
+    :loading="bytesVm.loading || hitVm.loading"
+    :bytes-error="bytesVm.error"
+  />
 </template>
 
 <style scoped>

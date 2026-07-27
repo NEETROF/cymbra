@@ -8,7 +8,12 @@ import type { CatalogHit } from "@/gen/score_pb";
 // painter, so the moderator eventually sees exactly the app's engraving. Keeping
 // this component the single seam means that renderer drops in without touching the
 // rest of the console — or is swapped for a JS fallback if the wasm cost is too high.
-const props = defineProps<{ hit: CatalogHit | null; bytes: Uint8Array | null; loading: boolean }>();
+const props = defineProps<{
+  hit: CatalogHit | null;
+  bytes: Uint8Array | null;
+  loading: boolean;
+  bytesError?: string | null;
+}>();
 const { t } = useI18n();
 
 function meta(): { label: string; value: string }[] {
@@ -39,6 +44,7 @@ function meta(): { label: string; value: string }[] {
 
     <div class="notation" aria-label="score preview">
       <p v-if="loading" class="muted">{{ t("preview.loading") }}</p>
+      <p v-else-if="bytesError" class="muted">{{ bytesError }}</p>
       <p v-else-if="bytes" class="muted">
         {{ t("preview.loaded", { bytes: bytes.length.toLocaleString() }) }}
       </p>

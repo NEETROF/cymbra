@@ -16,6 +16,8 @@ export function humanError(e: unknown): string {
         return t("errors.permissionDenied");
       case Code.NotFound:
         return t("errors.notFound");
+      case Code.FailedPrecondition:
+        return t("errors.notAvailable");
       case Code.InvalidArgument:
         return t("errors.invalidArgument");
       case Code.ResourceExhausted:
