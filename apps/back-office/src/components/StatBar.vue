@@ -64,7 +64,7 @@ onMounted(() => store.loadStats());
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 1rem;
-  margin-top: 1.5rem;
+  margin-bottom: 1.5rem;
 }
 .stat {
   display: flex;

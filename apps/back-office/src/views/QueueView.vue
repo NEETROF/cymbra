@@ -57,6 +57,7 @@ onMounted(run);
     </div>
     <button @click="resetToPriority">{{ $t("queue.priorityOrder") }}</button>
   </div>
+  <StatBar />
   <p v-if="vm.error" class="error" role="alert">{{ vm.error }}</p>
   <div class="table-card">
     <CatalogTable
@@ -67,5 +68,4 @@ onMounted(run);
       @select="(id) => router.push({ name: 'score', params: { id } })"
     />
   </div>
-  <StatBar />
 </template>

@@ -30,8 +30,6 @@ const nav = computed(() => {
   return items;
 });
 
-const initials = computed(() => (auth.isAdmin ? "AD" : "MO"));
-
 function signOut() {
   auth.signOut();
   router.push({ name: "signin" });
@@ -70,7 +68,19 @@ function signOut() {
 
       <div class="foot">
         <div class="user-chip">
-          <span class="avatar">{{ initials }}</span>
+          <span class="avatar" aria-hidden="true">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M20 21a8 8 0 1 0-16 0" />
+              <circle cx="12" cy="7" r="4" />
+            </svg>
+          </span>
           <span class="badge role">{{ auth.isAdmin ? t("role.admin") : t("role.moderator") }}</span>
         </div>
         <div class="lang" role="group" aria-label="language">
@@ -212,9 +222,10 @@ function signOut() {
   border-radius: 999px;
   background: var(--panel-3);
   color: var(--accent);
-  font-family: var(--mono);
-  font-size: 0.72rem;
-  font-weight: 700;
+}
+.avatar svg {
+  width: 17px;
+  height: 17px;
 }
 .badge.role {
   color: var(--accent);
