@@ -67,8 +67,8 @@ test.describe("i18n", () => {
     await seed(page, { loginAs: "moderator", data: { hits: [sampleHit()] } });
     await page.goto("/queue");
 
-    await expect(page.getByRole("heading", { name: "Review queue" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Catalog review" })).toBeVisible();
     await page.getByRole("button", { name: "FR", exact: true }).click();
-    await expect(page.getByRole("heading", { name: "File de revue" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Revue du catalogue" })).toBeVisible();
   });
 });

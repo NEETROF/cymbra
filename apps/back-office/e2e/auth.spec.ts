@@ -19,7 +19,7 @@ test.describe("sign-in", () => {
     await page.getByRole("button", { name: "Sign in" }).click();
 
     await expect(page).toHaveURL(/\/queue$/);
-    await expect(page.getByRole("heading", { name: "Review queue" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Catalog review" })).toBeVisible();
     await expect(page.getByText("Clair de Lune")).toBeVisible();
   });
 
