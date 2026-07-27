@@ -198,11 +198,16 @@ fn row_to_hit(r: &PgRow) -> CatalogHit {
 const HIT_COLS: &str = "id, title, composer, level, license, source, arranger, \
      min_note_value, tempo_bpm, note_count, lowest_midi, highest_midi, time_sig, key_fifths";
 
-/// The SQL ORDER BY expression for an allow-listed sort field, or `None` for an
-/// unknown one (already rejected by the module — this is defence in depth). The
-/// expressions are constant and server-defined, so a field name never reaches SQL
-/// unvalidated. `status_rank` ranks the queue (`pending` > `accepted` > `rejected`);
-/// `needs_review` is inert until #2 adds its column (a constant, no-op order).
+/// The SQL ORDER BY expression for an allow-listed sort field, or `None` when the
+/// key produces no ordering term — either unknown (already rejected by the module —
+/// defence in depth) or not backed by a column yet. Skipped keys are simply left
+/// out of the ORDER BY. The expressions are constant and server-defined, so a field
+/// name never reaches SQL unvalidated. `status_rank` ranks the queue
+/// (`pending` > `accepted` > `rejected`).
+///
+/// `needs_review` has NO backing column until the app-rating change (#2), so it maps
+/// to `None` (skipped). It must NOT emit a bare constant like `false` — Postgres
+/// rejects a non-integer constant in ORDER BY ("non-integer constant in ORDER BY").
 fn sort_sql(field: &str) -> Option<&'static str> {
     Some(match field {
         "measure_count" => "measure_count",
@@ -215,7 +220,7 @@ fn sort_sql(field: &str) -> Option<&'static str> {
         "status_rank" => {
             "CASE moderation_status WHEN 'pending' THEN 2 WHEN 'accepted' THEN 1 ELSE 0 END"
         }
-        "needs_review" => "false",
+        // `needs_review` (no column yet) and any unknown field: no ORDER BY term.
         _ => return None,
     })
 }
@@ -417,5 +422,46 @@ mod tests {
             !sql.contains("'accepted'") && !sql.contains("'rejected'"),
             "insert must never write accepted/rejected"
         );
+    }
+
+    use crate::catalog_search::SortKey;
+
+    fn key(field: &str) -> SortKey {
+        SortKey {
+            field: field.into(),
+            descending: true,
+        }
+    }
+
+    /// The queue's default sort must produce valid SQL: `needs_review` has no column
+    /// yet, so it emits NO term (a bare `false` is rejected by Postgres with
+    /// "non-integer constant in ORDER BY"). The other keys + the stable tiebreak
+    /// are present.
+    #[test]
+    fn order_by_skips_needs_review_and_avoids_bare_constants() {
+        let clause = order_by_clause(&[
+            key("needs_review"),
+            key("status_rank"),
+            key("measure_count"),
+            key("staff_count"),
+        ]);
+        // No bare non-integer constant that Postgres would reject in ORDER BY.
+        assert!(
+            !clause.contains("false"),
+            "must not emit `false` in ORDER BY: {clause}"
+        );
+        // The backed keys + the deterministic tiebreak are ordered as expected.
+        assert!(clause.contains("moderation_status")); // status_rank → CASE
+        assert!(clause.contains("measure_count DESC"));
+        assert!(clause.contains("staff_count DESC"));
+        assert!(clause.ends_with("title_norm ASC NULLS LAST, id ASC"));
+    }
+
+    /// An empty sort keeps the pre-existing default ordering (hub unaffected).
+    #[test]
+    fn order_by_empty_sort_uses_similarity_default() {
+        let clause = order_by_clause(&[]);
+        assert!(clause.contains("similarity(title_norm, $1)"));
+        assert!(clause.ends_with("title_norm ASC NULLS LAST, id ASC"));
     }
 }
