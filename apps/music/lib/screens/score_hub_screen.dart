@@ -187,6 +187,11 @@ class _Results extends StatelessWidget {
             floating: true,
             snap: true,
             automaticallyImplyLeading: false,
+            // The Scaffold owns an endDrawer, and an AppBar with no actions
+            // auto-inserts a second end-drawer (≡) button. Filters are already
+            // reachable via the tune button in the main AppBar, so pass an
+            // explicit (non-empty) actions list to suppress the duplicate.
+            actions: const [SizedBox.shrink()],
             backgroundColor: CymbraColors.background,
             surfaceTintColor: Colors.transparent,
             elevation: 0,
