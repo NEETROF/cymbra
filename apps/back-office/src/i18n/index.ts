@@ -9,6 +9,8 @@ const STORAGE_KEY = "cymbra.bo.locale";
 
 const en = {
   common: { signOut: "Sign out", back: "← Back", loading: "Loading…" },
+  brand: { suite: "Back-office" },
+  stats: { total: "Total catalog", approved: "Approved", pending: "Awaiting review" },
   role: { moderator: "moderator", admin: "admin" },
   status: { pending: "pending", accepted: "accepted", rejected: "rejected" },
   level: { any: "any level", beginner: "beginner", intermediate: "intermediate", advanced: "advanced" },
@@ -99,6 +101,8 @@ const en = {
 
 const fr: typeof en = {
   common: { signOut: "Se déconnecter", back: "← Retour", loading: "Chargement…" },
+  brand: { suite: "Back-office" },
+  stats: { total: "Catalogue total", approved: "Acceptées", pending: "En attente" },
   role: { moderator: "modérateur", admin: "admin" },
   status: { pending: "en attente", accepted: "acceptée", rejected: "rejetée" },
   level: { any: "tous niveaux", beginner: "débutant", intermediate: "intermédiaire", advanced: "avancé" },

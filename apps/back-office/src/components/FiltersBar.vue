@@ -67,15 +67,26 @@ watch(
   flex-wrap: wrap;
   gap: 0.5rem;
   align-items: center;
-  margin-bottom: 1rem;
+  justify-content: flex-end;
+  padding: 0.6rem 0.7rem;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 14px;
 }
+.filters input,
+.filters select {
+  background: var(--panel-2);
+  border-radius: 999px;
+}
+.filters input[type="search"] { min-width: 12rem; }
 .piano {
   display: flex;
-  gap: 0.3rem;
+  gap: 0.35rem;
   align-items: center;
   color: var(--muted);
+  font-size: 0.9rem;
+  padding: 0 0.3rem;
+  white-space: nowrap;
 }
-.status {
-  margin-left: auto;
-}
+.piano input { accent-color: var(--accent-strong); }
 </style>

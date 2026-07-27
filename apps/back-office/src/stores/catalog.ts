@@ -47,10 +47,20 @@ export const QUEUE_SORT: SortKeyInit[] = [
   { field: "staff_count", descending: true },
 ];
 
+export interface CatalogStats {
+  total: number;
+  accepted: number;
+  pending: number;
+  rejected: number;
+}
+
 export const useCatalogStore = defineStore("catalog", () => {
   // One value for the whole search lifecycle — views match on it exhaustively.
   const result = ref<Async<CatalogResult>>(idle);
   const lastParams = reactive<SearchParams>({ limit: 50, offset: 0 });
+  // Header stat cards. Kept in its own Async so a stats failure never blocks the
+  // list — the cards just fall back to "—".
+  const stats = ref<Async<CatalogStats>>(idle);
 
   async function search(params: SearchParams) {
     Object.assign(lastParams, { limit: 50, offset: 0 }, params);
@@ -75,6 +85,23 @@ export const useCatalogStore = defineStore("catalog", () => {
     await search(lastParams);
   }
 
+  /** Per-status counts for the header cards — three cheap count-only queries
+   * (limit 1, we only read `total`) run in parallel. */
+  async function loadStats() {
+    await run(stats, async () => {
+      const count = (moderationStatus: ModerationStatus) =>
+        api()
+          .score.searchCatalog({ query: "", moderationStatus, sort: [], limit: 1, offset: 0 })
+          .then((r) => r.total);
+      const [pending, accepted, rejected] = await Promise.all([
+        count("pending"),
+        count("accepted"),
+        count("rejected"),
+      ]);
+      return { pending, accepted, rejected, total: pending + accepted + rejected };
+    });
+  }
+
   async function fetchBytes(catalogId: string): Promise<Uint8Array> {
     const resp = await api().score.getCatalogScoreBytes({ catalogId });
     return resp.data;
@@ -86,5 +113,5 @@ export const useCatalogStore = defineStore("catalog", () => {
     return api().score.getCatalogScore({ catalogId });
   }
 
-  return { result, lastParams, search, setModerationStatus, fetchBytes, fetchHit };
+  return { result, lastParams, stats, search, loadStats, setModerationStatus, fetchBytes, fetchHit };
 });

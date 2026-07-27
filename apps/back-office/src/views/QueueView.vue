@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import { match } from "ts-pattern";
 import CatalogTable from "@/components/CatalogTable.vue";
+import StatBar from "@/components/StatBar.vue";
 import { useCatalogStore, QUEUE_SORT, type SortKeyInit } from "@/stores/catalog";
 import type { CatalogHit } from "@/gen/score_pb";
 
@@ -42,33 +43,24 @@ onMounted(run);
 </script>
 
 <template>
-  <div class="head">
-    <h1>{{ $t("queue.title") }}</h1>
+  <div class="page-head">
+    <div>
+      <h1 class="page-title">{{ $t("queue.title") }}</h1>
+      <p class="sub">
+        {{ vm.loading ? $t("common.loading") : $t("queue.pending", vm.total) }} — {{ $t("queue.hint") }}
+      </p>
+    </div>
     <button @click="resetToPriority">{{ $t("queue.priorityOrder") }}</button>
   </div>
-  <p class="muted">
-    {{ vm.loading ? $t("common.loading") : $t("queue.pending", vm.total) }} — {{ $t("queue.hint") }}
-  </p>
   <p v-if="vm.error" class="error" role="alert">{{ vm.error }}</p>
-  <CatalogTable
-    :hits="vm.hits"
-    status="pending"
-    :sort="sort"
-    @sort="onSort"
-    @select="(id) => router.push({ name: 'score', params: { id } })"
-  />
+  <div class="table-card">
+    <CatalogTable
+      :hits="vm.hits"
+      status="pending"
+      :sort="sort"
+      @sort="onSort"
+      @select="(id) => router.push({ name: 'score', params: { id } })"
+    />
+  </div>
+  <StatBar />
 </template>
-
-<style scoped>
-.head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-.muted {
-  color: var(--muted);
-}
-.error {
-  color: var(--reject);
-}
-</style>

@@ -23,10 +23,20 @@ const columns: { field: string; labelKey: string }[] = [
   { field: "tempo_bpm", labelKey: "table.bpm" },
 ];
 
+const KNOWN_LEVELS = ["beginner", "intermediate", "advanced"];
+
 function arrow(field: string): string {
   const key = props.sort.find((k) => k.field === field);
   if (!key) return "";
   return key.descending ? " ↓" : " ↑";
+}
+
+function shortId(id: string): string {
+  return id.replace(/-/g, "").slice(0, 8).toUpperCase();
+}
+
+function levelLabel(level: string): string {
+  return KNOWN_LEVELS.includes(level) ? t(`level.${level}`) : level;
 }
 </script>
 
@@ -50,12 +60,30 @@ function arrow(field: string): string {
     </thead>
     <tbody>
       <tr v-for="h in hits" :key="h.id" class="row" @click="emit('select', h.id)">
-        <td>{{ h.title || "—" }}</td>
+        <td>
+          <div class="title-cell">
+            <span class="thumb" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                   stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 18V5l12-2v13" />
+                <circle cx="6" cy="18" r="3" />
+                <circle cx="18" cy="16" r="3" />
+              </svg>
+            </span>
+            <span class="title-text">
+              <span class="t-name">{{ h.title || "—" }}</span>
+              <span class="t-id">ID: {{ shortId(h.id) }}</span>
+            </span>
+          </div>
+        </td>
         <td>{{ h.composer || "—" }}</td>
-        <td>{{ h.level || "—" }}</td>
-        <td>{{ h.noteCount ?? "—" }}</td>
-        <td>{{ h.tempoBpm ?? "—" }}</td>
-        <td>{{ h.source }}</td>
+        <td>
+          <span v-if="h.level" class="pill" :class="`lvl-${h.level}`">{{ levelLabel(h.level) }}</span>
+          <span v-else>—</span>
+        </td>
+        <td class="num">{{ h.noteCount ?? "—" }}</td>
+        <td class="num">{{ h.tempoBpm ?? "—" }}</td>
+        <td><span class="src">{{ h.source }}</span></td>
         <td><span class="badge" :class="status">{{ t(`status.${status}`) }}</span></td>
       </tr>
       <tr v-if="hits.length === 0">
@@ -66,19 +94,44 @@ function arrow(field: string): string {
 </template>
 
 <style scoped>
-.sortable {
-  cursor: pointer;
-  user-select: none;
+.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+.sortable:hover { color: var(--text); }
+.row { cursor: pointer; transition: background 0.12s; }
+.row:hover { background: var(--panel-2); }
+
+.title-cell { display: flex; align-items: center; gap: 0.8rem; }
+.thumb {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  flex: none;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent-strong) 20%, transparent);
+  color: var(--accent);
 }
-.row {
-  cursor: pointer;
-}
-.row:hover {
-  background: var(--panel);
-}
-.empty {
+.thumb svg { width: 18px; height: 18px; }
+.title-text { display: flex; flex-direction: column; line-height: 1.25; }
+.t-name { font-weight: 600; color: var(--text); }
+.t-id { font-family: var(--mono); font-size: 0.68rem; color: var(--faint); letter-spacing: 0.05em; }
+
+.num { font-variant-numeric: tabular-nums; color: var(--text); }
+
+.pill {
+  display: inline-block;
+  padding: 0.18rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  font-weight: 600;
+  border: 1px solid var(--border-2);
   color: var(--muted);
-  text-align: center;
-  padding: 1.5rem;
+  text-transform: capitalize;
 }
+.pill.lvl-beginner { color: var(--green); border-color: color-mix(in srgb, var(--green) 35%, transparent); }
+.pill.lvl-intermediate { color: var(--teal); border-color: color-mix(in srgb, var(--teal) 35%, transparent); }
+.pill.lvl-advanced { color: var(--amber); border-color: color-mix(in srgb, var(--amber) 35%, transparent); }
+
+.src { color: var(--green); font-weight: 500; }
+
+.empty { color: var(--muted); text-align: center; padding: 2rem; }
 </style>

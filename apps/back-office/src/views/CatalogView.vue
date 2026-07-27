@@ -4,6 +4,7 @@ import { useRouter } from "vue-router";
 import { match } from "ts-pattern";
 import FiltersBar from "@/components/FiltersBar.vue";
 import CatalogTable from "@/components/CatalogTable.vue";
+import StatBar from "@/components/StatBar.vue";
 import {
   useCatalogStore,
   type Filters,
@@ -66,24 +67,22 @@ onMounted(run);
 </script>
 
 <template>
-  <h1>{{ $t("catalog.title") }}</h1>
-  <FiltersBar :status="status" @change="onFilters" />
+  <div class="page-head">
+    <div>
+      <h1 class="page-title">{{ $t("catalog.title") }}</h1>
+      <p class="sub">{{ vm.loading ? $t("common.loading") : $t("catalog.count", vm.total) }}</p>
+    </div>
+    <FiltersBar :status="status" @change="onFilters" />
+  </div>
   <p v-if="vm.error" class="error" role="alert">{{ vm.error }}</p>
-  <p class="muted">{{ vm.loading ? $t("common.loading") : $t("catalog.count", vm.total) }}</p>
-  <CatalogTable
-    :hits="vm.hits"
-    :status="status"
-    :sort="sort"
-    @sort="onSort"
-    @select="(id) => router.push({ name: 'score', params: { id } })"
-  />
+  <div class="table-card">
+    <CatalogTable
+      :hits="vm.hits"
+      :status="status"
+      :sort="sort"
+      @sort="onSort"
+      @select="(id) => router.push({ name: 'score', params: { id } })"
+    />
+  </div>
+  <StatBar />
 </template>
-
-<style scoped>
-.muted {
-  color: var(--muted);
-}
-.error {
-  color: var(--reject);
-}
-</style>

@@ -67,15 +67,17 @@ async function decide(status: ModerationStatus) {
       </button>
     </div>
   </div>
-  <h1>{{ hitVm.hit?.title || $t("detail.score") }}</h1>
+  <h1 class="page-title detail-title">{{ hitVm.hit?.title || $t("detail.score") }}</h1>
   <p v-if="hitVm.error" class="error" role="alert">{{ hitVm.error }}</p>
   <p v-if="decisionError" class="error" role="alert">{{ decisionError }}</p>
-  <ScorePreview
-    :hit="hitVm.hit"
-    :bytes="bytesVm.bytes"
-    :loading="bytesVm.loading || hitVm.loading"
-    :bytes-error="bytesVm.error"
-  />
+  <div class="preview-card">
+    <ScorePreview
+      :hit="hitVm.hit"
+      :bytes="bytesVm.bytes"
+      :loading="bytesVm.loading || hitVm.loading"
+      :bytes-error="bytesVm.error"
+    />
+  </div>
 </template>
 
 <style scoped>
@@ -83,10 +85,20 @@ async function decide(status: ModerationStatus) {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.75rem;
 }
 .actions button {
   margin-left: 0.4rem;
+}
+.detail-title {
+  font-size: 1.6rem;
+  margin-bottom: 1rem;
+}
+.preview-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
 }
 .error {
   color: var(--reject);

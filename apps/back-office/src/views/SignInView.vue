@@ -41,6 +41,10 @@ defineExpose({ submitGoogleCredential });
 
 <template>
   <section class="signin">
+    <div class="brand">
+      <span class="brand-mark">C</span>
+      <span class="brand-name">Cymbra</span>
+    </div>
     <h1>{{ $t("signin.title") }}</h1>
     <p class="muted">{{ $t("signin.subtitle") }}</p>
 
@@ -59,12 +63,12 @@ defineExpose({ submitGoogleCredential });
         autocomplete="current-password"
         required
       />
-      <button type="submit" :disabled="busy">
+      <button class="btn-primary" type="submit" :disabled="busy">
         {{ busy ? $t("signin.submitting") : $t("signin.submit") }}
       </button>
     </form>
 
-    <p v-if="googleClientId" class="muted">{{ $t("signin.googleConfigured") }}</p>
+    <p v-if="googleClientId" class="muted small">{{ $t("signin.googleConfigured") }}</p>
 
     <p v-if="error" class="error" role="alert">{{ error }}</p>
   </section>
@@ -72,19 +76,41 @@ defineExpose({ submitGoogleCredential });
 
 <style scoped>
 .signin {
-  max-width: 340px;
-  margin: 4rem auto;
+  max-width: 360px;
+  margin: 6vh auto 0;
+  padding: 2rem 2rem 2.25rem;
   text-align: center;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
 }
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 1.25rem;
+}
+.brand-mark {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: linear-gradient(145deg, var(--accent-strong), #b58bff);
+  color: #fff;
+  font-weight: 800;
+  font-size: 1.2rem;
+}
+.brand-name { font-weight: 800; font-size: 1.3rem; }
+h1 { margin: 0 0 0.35rem; font-size: 1.25rem; }
 form {
   display: flex;
   flex-direction: column;
   gap: 0.6rem;
-  margin-top: 1rem;
+  margin-top: 1.25rem;
 }
-.muted {
-  color: var(--muted);
-}
+.muted { color: var(--muted); }
+.small { font-size: 0.82rem; margin-top: 0.9rem; }
 .error {
   color: var(--reject);
   margin-top: 1rem;

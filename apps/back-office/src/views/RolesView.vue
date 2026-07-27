@@ -43,7 +43,7 @@ function when(atSeconds: bigint | number): string {
 </script>
 
 <template>
-  <h1>{{ $t("roles.title") }}</h1>
+  <h1 class="page-title">{{ $t("roles.title") }}</h1>
   <p class="muted">{{ $t("roles.intro") }}</p>
 
   <div class="form">
@@ -64,7 +64,8 @@ function when(atSeconds: bigint | number): string {
 
   <p v-if="error" class="error" role="alert">{{ error }}</p>
 
-  <table v-if="grants.length">
+  <div v-if="grants.length" class="table-card">
+    <table>
     <thead>
       <tr>
         <th>{{ $t("roles.when") }}</th>
@@ -83,7 +84,8 @@ function when(atSeconds: bigint | number): string {
         <td class="mono">{{ g.actingAdmin }}</td>
       </tr>
     </tbody>
-  </table>
+    </table>
+  </div>
 </template>
 
 <style scoped>
@@ -91,8 +93,12 @@ function when(atSeconds: bigint | number): string {
   display: flex;
   gap: 0.5rem;
   align-items: center;
-  margin: 1rem 0;
+  margin: 1.25rem 0;
+  padding: 0.9rem;
   flex-wrap: wrap;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 14px;
 }
 .muted {
   color: var(--muted);

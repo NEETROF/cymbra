@@ -22,8 +22,12 @@ function signOut() {
 <style scoped>
 .denied {
   max-width: 460px;
-  margin: 4rem auto;
+  margin: 6vh auto 0;
+  padding: 2rem;
   text-align: center;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
 }
 .muted {
   color: var(--muted);
