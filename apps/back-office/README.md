@@ -25,6 +25,22 @@ admin account must exist (see `backend/scripts/seed_admin.sh`).
 - `yarn test` — Vitest component/store tests (its own gate, outside the Flutter/Rust CI).
 - `yarn build` — type-check + production build.
 
+## Debugging gRPC-web calls
+
+gRPC-web always returns **HTTP 200** — the real status is the `grpc-status` trailer
+(`0` = OK, else an error; e.g. `16` = unauthenticated), so Chrome's Network tab
+hides failures. Two dev-only aids (wired in `src/lib/transport.ts`, `import.meta.env.DEV`):
+
+- **Console**: every failed call logs one line — `gRPC <Method> → <Code> (<n>): <message>`.
+- **gRPC-Web Developer Tools** Chrome extension
+  ([SafetyCulture](https://github.com/SafetyCulture/grpc-web-devtools)): install it to
+  get a DevTools panel decoding each call's request/response/status. The interceptor
+  that feeds it (`src/lib/grpc-devtools.ts`) posts the events it listens for; no
+  extension → harmless no-op.
+
+User-facing errors never show raw codes: `humanError` (`src/lib/errors.ts`) maps
+`ConnectError` codes to short messages and logs the real cause.
+
 ## Architecture
 
 - **Components never call the API.** Only Pinia stores (`src/stores/`) import
