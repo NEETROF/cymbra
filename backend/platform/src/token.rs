@@ -27,21 +27,14 @@ pub struct Claims {
     pub exp: usize,
     /// Unique token id (for logging / future deny-lists).
     pub jti: String,
-    /// Session-family id this token was minted for. Lets a client flag its own
-    /// current device in a session listing (the refresh cookie is `HttpOnly`, so the
-    /// client can't read the family id otherwise). Absent on older tokens.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub sid: Option<String>,
 }
 
-/// Build a fresh claim set expiring `access_ttl` from now. `sid` is the session-family
-/// id the token belongs to (when minted from a session), else `None`.
+/// Build a fresh claim set expiring `access_ttl` from now.
 pub fn new_claims(
     user_id: &str,
     audience: &str,
     roles: Vec<String>,
     access_ttl: Duration,
-    sid: Option<String>,
 ) -> Claims {
     let now = unix_now();
     Claims {
@@ -51,7 +44,6 @@ pub fn new_claims(
         iat: now,
         exp: now + access_ttl.as_secs() as usize,
         jti: uuid::Uuid::now_v7().to_string(),
-        sid,
     }
 }
 
@@ -137,13 +129,7 @@ mod tests {
     #[test]
     fn sign_then_verify_roundtrips() {
         let ek = encoding_key(PRIV).unwrap();
-        let claims = new_claims(
-            "u1",
-            "music",
-            vec!["user".into()],
-            Duration::from_secs(900),
-            None,
-        );
+        let claims = new_claims("u1", "music", vec!["user".into()], Duration::from_secs(900));
         let tok = sign(&claims, "k1", &ek).unwrap();
         let got = verify(&tok, &keys(), &["music"]).unwrap();
         assert_eq!(got.sub, "u1");
@@ -153,7 +139,7 @@ mod tests {
     #[test]
     fn wrong_audience_rejected() {
         let ek = encoding_key(PRIV).unwrap();
-        let claims = new_claims("u1", "music", vec![], Duration::from_secs(900), None);
+        let claims = new_claims("u1", "music", vec![], Duration::from_secs(900));
         let tok = sign(&claims, "k1", &ek).unwrap();
         assert!(matches!(
             verify(&tok, &keys(), &["live"]),
@@ -172,7 +158,6 @@ mod tests {
             iat: now - 1000,
             exp: now - 600, // past, beyond default leeway
             jti: "j".into(),
-            sid: None,
         };
         let tok = sign(&claims, "k1", &ek).unwrap();
         assert!(matches!(
@@ -182,26 +167,9 @@ mod tests {
     }
 
     #[test]
-    fn sid_roundtrips_when_present() {
-        let ek = encoding_key(PRIV).unwrap();
-        let claims = new_claims(
-            "u1",
-            "music",
-            vec![],
-            Duration::from_secs(900),
-            Some("sess-7".into()),
-        );
-        let tok = sign(&claims, "k1", &ek).unwrap();
-        assert_eq!(
-            verify(&tok, &keys(), &["music"]).unwrap().sid.as_deref(),
-            Some("sess-7")
-        );
-    }
-
-    #[test]
     fn unknown_kid_rejected() {
         let ek = encoding_key(PRIV).unwrap();
-        let claims = new_claims("u1", "music", vec![], Duration::from_secs(900), None);
+        let claims = new_claims("u1", "music", vec![], Duration::from_secs(900));
         let tok = sign(&claims, "other", &ek).unwrap();
         assert!(matches!(
             verify(&tok, &keys(), &["music"]),

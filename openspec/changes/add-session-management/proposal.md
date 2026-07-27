@@ -12,34 +12,37 @@ unavailable to the OIDC-only accounts that have no password.
 
 ## What Changes
 
-- **Self-service session management** exposed to the signed-in user:
-  - **List active sessions** — the account's non-expired session families (id +
-    audience/app), so the current session is identifiable.
-  - **Revoke one session by id** — end a specific device/session.
-  - **Sign out everywhere** — revoke all of the account's sessions (`revoke_all`).
-- **Admin session revocation** — an admin can revoke **all** sessions for a target
-  account (e.g. a compromised moderator), from the back office.
-- **Surfaces**: extend the browser **web-auth HTTP surface** (cookie-aware, added in
-  `add-web-auth-cookies`) for the self-service actions the back office needs, and the
-  **gRPC `AuthService`** for the authenticated list/revoke operations (native clients +
-  the admin action). No new session semantics — these are thin wrappers over the
-  existing `SessionStore` methods.
-- **Back-office UI** — an "active sessions" view for the signed-in user (revoke one /
-  sign out everywhere) and an admin "revoke sessions" control on the account directory.
+- **Sign out everywhere (self)** — an authenticated operation that revokes **all** of
+  the caller's sessions, exposed on the gRPC `AuthService` for native clients. The
+  back office does not surface it (a moderator/admin can reset their password, which
+  already revokes all sessions); it is the API the **mobile app** will call from a
+  Profile screen (follow-up change).
+- **Admin session revocation** — an admin can revoke **all** sessions of a target
+  account (e.g. a compromised moderator), **scoped to their audience** and recorded in
+  a durable audit trail. Surfaced in the back office on the Roles directory.
+- **Surfaces**: the authenticated **gRPC `AuthService`** (both operations). No bespoke
+  web-auth HTTP surface — that would re-implement access-token auth on the cookie
+  surface for no gain. No new session semantics: thin, authorization-gated wrappers
+  over the existing `SessionStore` (`revoke_all` + a new transactional, audience-scoped
+  admin revoke-and-audit).
 
 ## Capabilities
 
 ### New Capabilities
-- `session-management`: authenticated listing and revocation of refresh-token sessions
-  — a user lists/revokes their own sessions (including sign-out-everywhere), and an
-  admin revokes all sessions for a target account. Thin, authorization-gated wrappers
-  over the existing durable `SessionStore` (list/revoke/revoke_all); rotation, reuse
-  detection, and token TTLs are unchanged.
+- `session-management`: authenticated revocation of refresh-token sessions — a user
+  signs out of every session (self), and an admin revokes all sessions of a target
+  account (audience-scoped, audited). Thin, authorization-gated wrappers over the
+  existing durable `SessionStore`; rotation, reuse detection, and token TTLs are
+  unchanged.
 
 ### Modified Capabilities
 <!-- None. `backend-auth` session/rotation/TTL requirements are unchanged; this change
-     ADDS authenticated read/revoke operations over the same session store. The
-     `web-auth-session` cookie surface (add-web-auth-cookies) is extended additively. -->
+     ADDS authenticated revoke operations over the same session store. -->
+
+<!-- Scope note: self-service session *listing* + per-device revoke (an "active
+     sessions" screen) is intentionally out of this change — it belongs to the mobile
+     app and is deferred to a follow-up. -->
+
 
 ## Impact
 

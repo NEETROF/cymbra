@@ -26,14 +26,11 @@ pub struct Rotated {
     pub audience: String,
 }
 
-/// Summary of a session family (revoke-all / active-devices listing).
+/// Summary of a session family (revoke-all / active-session enumeration).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SessionInfo {
     pub id: String,
     pub audience: String,
-    /// When the session was first created (unix seconds) — lets a UI show age and
-    /// distinguish otherwise-identical sessions.
-    pub created_at: i64,
 }
 
 /// Storage-agnostic refresh-token session store. Consumers depend on this trait;
@@ -47,11 +44,6 @@ pub trait SessionStore: Send + Sync {
     async fn rotate(&self, refresh_token: &str) -> Result<Rotated>;
     /// Revoke the session that owns `refresh_token` (logout).
     async fn revoke(&self, refresh_token: &str) -> Result<()>;
-    /// Revoke the session `session_id` **only if it belongs to `user_id`** — so a
-    /// caller can end one of their own devices/sessions by id without holding its
-    /// refresh token. A foreign, absent, expired, or malformed id is a successful
-    /// no-op (it neither errors nor reveals another account's data).
-    async fn revoke_by_id(&self, user_id: &str, session_id: &str) -> Result<()>;
     /// Revoke every session for `user_id` — `DELETE FROM sessions WHERE user_id
     /// = $1`. This is the auth module's **erasure path** for account deletion
     /// (it removes all refresh tokens for the user) as well as the
@@ -140,15 +132,6 @@ struct FakeFam {
     user_id: String,
     audience: String,
     current_rt_hash: String,
-    created_at: i64,
-}
-
-/// Current unix time in seconds (session `created_at` for the in-memory fake).
-fn unix_now() -> i64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs() as i64
 }
 
 #[async_trait]
@@ -162,7 +145,6 @@ impl SessionStore for FakeSessionStore {
                 user_id: user_id.into(),
                 audience: audience.into(),
                 current_rt_hash: session_core::hash_token(&token),
-                created_at: unix_now(),
             },
         );
         Ok(token)
@@ -195,17 +177,6 @@ impl SessionStore for FakeSessionStore {
     async fn revoke(&self, refresh_token: &str) -> Result<()> {
         if let Ok(id) = session_core::parse_id(refresh_token) {
             self.fams.lock().unwrap().remove(&id);
-        }
-        Ok(())
-    }
-
-    async fn revoke_by_id(&self, user_id: &str, session_id: &str) -> Result<()> {
-        if let Ok(id) = Uuid::parse_str(session_id) {
-            let mut fams = self.fams.lock().unwrap();
-            // Scoped to the owner: a foreign/absent id removes nothing.
-            if fams.get(&id).is_some_and(|f| f.user_id == user_id) {
-                fams.remove(&id);
-            }
         }
         Ok(())
     }
@@ -250,7 +221,6 @@ impl SessionStore for FakeSessionStore {
             .map(|(id, f)| SessionInfo {
                 id: id.to_string(),
                 audience: f.audience.clone(),
-                created_at: f.created_at,
             })
             .collect())
     }
@@ -332,34 +302,6 @@ mod tests {
 
         // revoking a malformed token is a no-op (no panic/err)
         s.revoke("garbage").await.unwrap();
-    }
-
-    #[tokio::test]
-    async fn fake_revoke_by_id_is_owner_scoped() {
-        let s = FakeSessionStore::default();
-        let a = s.create("u1", "music").await.unwrap();
-        let b = s.create("u1", "live").await.unwrap();
-        let c = s.create("u2", "music").await.unwrap();
-        let id_a = session_core::parse_id(&a).unwrap().to_string();
-
-        // A different account cannot revoke u1's session (owner-scoped) → no-op.
-        s.revoke_by_id("u2", &id_a).await.unwrap();
-        assert_eq!(s.list_for_user("u1").await.unwrap().len(), 2);
-
-        // The owner revokes that session by id: it ends, the other survives.
-        s.revoke_by_id("u1", &id_a).await.unwrap();
-        assert!(matches!(
-            s.rotate(&a).await,
-            Err(AppError::Unauthenticated(_))
-        ));
-        assert!(s.rotate(&b).await.is_ok());
-
-        // A malformed or unknown id is a successful no-op; u2 is unaffected.
-        s.revoke_by_id("u1", "not-a-uuid").await.unwrap();
-        s.revoke_by_id("u1", &Uuid::new_v4().to_string())
-            .await
-            .unwrap();
-        assert!(s.rotate(&c).await.is_ok());
     }
 
     #[tokio::test]

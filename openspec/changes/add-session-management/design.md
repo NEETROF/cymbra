@@ -19,55 +19,45 @@ HTTP surface and confirmed the access token carries the caller's `user_id` + rol
 ## Goals / Non-Goals
 
 **Goals:**
-- Let a signed-in user list their active sessions, revoke one by id, and sign out
-  everywhere — with the current session identifiable.
-- Let an admin revoke all sessions for a target account.
-- Reuse the existing `SessionStore` unchanged; keep operations thin and
-  authorization-gated.
+- Let a signed-in user sign out of every session (self "sign out everywhere").
+- Let an admin revoke all sessions of a target account, scoped and audited.
+- Keep operations thin and authorization-gated over the existing `SessionStore`.
 
 **Non-Goals:**
+- A self-service "active sessions" screen (list + per-device revoke + "this device"
+  flag). For an admin-only back office it's overkill (and password reset already
+  revokes all your sessions); it belongs to the **mobile app** and is deferred to a
+  follow-up change. This change therefore adds **no** `ListSessions`/`RevokeSession`
+  RPCs, no `sid` claim, and no per-session device metadata.
 - Revoking already-issued **access tokens** mid-life. They are stateless JWTs valid
-  until their ~15 min TTL; revoking the refresh session bounds the window. (Introducing
-  an access-token denylist/introspection is explicitly out of scope.)
+  until their ~15 min TTL; revoking the refresh session bounds the window. (An
+  access-token denylist/introspection is explicitly out of scope.)
 - Changing rotation, reuse detection, TTLs, or session storage (`backend-auth`).
-- Per-session device metadata (user-agent/IP/last-seen) beyond `{id, audience}` — a
-  possible follow-up; this change ships the revoke levers first.
 
 ## Decisions
 
-**1. Identify sessions by the family `id`, revoke by id — never by the raw token.**
-`list_for_user` already returns the family `id`. Add `revoke_by_id(user_id, id)` to the
-store (authorization-scoped: the id must belong to `user_id`) so a user can end a
-session they aren't holding. Logout-by-token stays for the cookie flow. The raw refresh
-token is never exposed to a listing.
+**1. Two operations on the authenticated gRPC `AuthService` — no bespoke web-auth
+surface.**
+`RevokeAllSessions` (self) takes the caller's `user_id` from the internal access token
+(like `LinkIdentity`, via the `AuthIdentity` extension). `RevokeAccountSessions(user_id)`
+is **admin-gated** (`require_admin` on the identity roles). A cookie-aware HTTP surface
+was considered and rejected — it would re-implement access-token validation on the
+web-auth surface for no benefit.
 
-**2. All operations live on the authenticated gRPC `AuthService` — no bespoke web-auth
-HTTP surface.**
-`ListSessions` / `RevokeSession(id)` / `RevokeAllSessions` take the caller's `user_id`
-from the internal access token (like `LinkIdentity`, via the `AuthIdentity` extension).
-`RevokeAccountSessions(user_id)` is **admin-gated** (`require_admin` on the identity
-roles). The back office calls them over the **existing gRPC-web transport** (Bearer
-access token). A cookie-aware HTTP surface was considered and rejected: it would have
-re-implemented access-token validation on the web-auth surface for no benefit.
+**2. The admin revoke is audience-scoped.**
+`RevokeAccountSessions` cuts the target's sessions **only in the caller's token audience**
+(`id.audience`), so a `music` admin can't nuke a target's `live` sessions. Erasure paths
+(password reset, account deletion) keep using the all-audiences `revoke_all`.
 
-**3. "Sign out everywhere" clears the browser cookie via the existing logout endpoint.**
-The BO runs `RevokeAllSessions` (gRPC) then the existing `POST /web/auth/logout` (which
-returns an expired `Set-Cookie`) and clears its in-memory token. No new endpoint. Other
-tabs/devices lose refresh on their next attempt (bounded by the access-token TTL).
+**3. The admin revoke + its audit are one transaction.**
+A single store method `revoke_account_sessions_audited(target, admin, audience)` does the
+audience-scoped `DELETE` and the audit `INSERT` in one transaction and returns
+`rows_affected` as the exact count — no pre-count race, and a failure rolls the delete
+back rather than losing the trail. The audit lives in a dedicated append-only table
+`auth.session_revocation_audit` (migration `0003`): `{target_user_id, acting_admin,
+audience, revoked_count, at}` — queryable, not a `tracing` line lost in the stream.
 
-**4. The admin revoke is audited durably.**
-A dedicated append-only table `auth.session_revocation_audit` (migration `0003`) records
-`{target_user_id, acting_admin, revoked_count, at}` — a queryable trail (not a `tracing`
-line lost in the stream). `revoke_account_sessions` counts live sessions, revokes, then
-writes the audit row.
-
-**5. Flagging the caller's "current session" in the list** needs a session-id (`sid`)
-claim on the access token (the refresh cookie is `HttpOnly`, so the client can't read
-its own family id). Adding an additive `sid` claim at `issue()`/`refresh()` and matching
-it client-side is the plan for the front-end slice; it does not change signing, TTL, or
-rotation. (Deferred to the UI phase so the exact shape can be settled there.)
-
-**6. Idempotent + safe.** Revoking an already-revoked/absent session is a successful
+**4. Idempotent + safe.** Revoking an already-revoked/absent session is a successful
 no-op (matches `SessionStore` semantics), so retries converge and a revoked id can't be
 used to probe existence beyond the caller's own account.
 

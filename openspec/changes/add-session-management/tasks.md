@@ -1,37 +1,27 @@
-## 1. Session store — revoke by id
+## 1. Backend — session revocation store
 
-- [x] 1.1 Add `revoke_by_id(user_id, session_id)` to `SessionStore` (auth): revoke a family only when it belongs to `user_id`; absent/foreign/already-revoked → successful no-op. Implement in `PgSessionStore` (scoped `DELETE`/mark) and `FakeSessionStore`.
-- [x] 1.2 Host-testable tests: revoke-by-id ends only the targeted session; a foreign id is a no-op and reveals nothing; `list_for_user` reflects the change.
+- [x] 1.1 Add a transactional, audience-scoped `revoke_account_sessions_audited(target, admin, audience) -> count` to `SessionStore` (Pg + fake): one `DELETE ... WHERE user_id AND audience` + audit INSERT in the same transaction, returning `rows_affected`. Reuse the existing `revoke_all` for self sign-out-everywhere.
+- [x] 1.2 Durable audit table `auth.session_revocation_audit` (migration `0003`): id, target_user_id, acting_admin, audience, revoked_count, at.
+- [x] 1.3 Host tests: audience-scoped admin revoke records the audit (admin + target + audience + count); self `revoke_all` cuts every session.
 
-## 2. Auth module + port — authenticated session ops
+## 2. Auth module + port
 
-- [x] 2.1 Extend `AuthPort` (auth-port) with `list_sessions(user_id)`, `revoke_session(user_id, session_id)`, `revoke_all_sessions(user_id)` (the admin path reuses `revoke_all_sessions(target)` with authorization enforced at the gRPC layer); implement in `AuthModule` over the session store.
-- [x] 2.2 Unit-test the module ops (list scoping, revoke-by-id, sign-out-everywhere), reusing the existing fakes.
+- [x] 2.1 `AuthPort`/`AuthModule`: `revoke_all_sessions(user_id)` (self) and `revoke_account_sessions(admin, target, audience)` (admin, delegates to the audited store method).
+- [x] 2.2 Unit tests (self sign-out-everywhere; admin audience-scoped + audited).
 
 ## 3. gRPC AuthService
 
-- [x] 3.1 Add proto messages/RPCs: `ListSessions`, `RevokeSession(id)`, `RevokeAllSessions` (caller from the internal token), and `RevokeAccountSessions(user_id)` (admin-gated). Regenerate stubs (tonic build.rs; back-office `yarn gen` for group 5).
-- [x] 3.2 Server adapter: self ops read `user_id` from the `AuthIdentity` extension (like `LinkIdentity`); the admin RPC is guarded by `require_admin` on the identity roles. Durable audit: a new `auth.session_revocation_audit` table (migration `0003`) records acting admin + target + count on the admin revoke — a queryable trail, not a log line.
-- [x] 3.3 gRPC handler tests: self ops scope to the caller; missing identity → unauthenticated; admin op requires admin; non-admin denied.
+- [x] 3.1 Add `RevokeAllSessions` (self, caller from the access token) and `RevokeAccountSessions` (admin) to the proto; regenerate stubs (tonic build.rs; back-office `yarn gen`).
+- [x] 3.2 Adapter: self op scopes to the `AuthIdentity` user_id; the admin op is gated by `require_admin` and scoped to the identity's audience.
+- [x] 3.3 Adapter tests: self op uses the caller id; missing identity → unauthenticated; admin op requires admin; non-admin denied.
 
-## 4. Cookie handling on sign-out-everywhere (design change — no new HTTP surface)
+## 4. Back office — admin action only
 
-Session ops go through the **authenticated gRPC `AuthService`** (called from the BO
-over the existing gRPC-web transport), not a bespoke web-auth HTTP surface — that would
-have re-implemented access-token auth on the cookie surface for no gain.
+- [x] 4.1 An admin "Revoke sessions" action on the Roles directory (`RevokeAccountSessions`), behind the sessions store (`Async` op union). Confirm the destructive action; surface success/failure in the view (not a silent store). Route-gated (admin) + server-gated.
+- [x] 4.2 Store unit test + e2e (a failed admin revoke surfaces the localized error). (Self-service session management is NOT surfaced in the BO — it belongs to the mobile app; see the follow-up change.)
 
-- [x] 4.1 "Sign out everywhere" in the BO = `RevokeAllSessions` (gRPC) **then** the
-  existing `POST /web/auth/logout` (clears the HttpOnly cookie) + local sign-out. No new
-  backend endpoint needed. (Implemented as part of the store in group 5.)
+## 5. Docs & checks
 
-## 5. Back office — UI
-
-- [x] 5.1 "Active sessions" view + Pinia store (`Async<T>` union): list sessions, revoke one, sign out everywhere — via the web-auth seam; label the current device; localized errors (no raw codes).
-- [x] 5.2 Admin: a "revoke sessions" action on the account directory (`RolesView`) calling `RevokeAccountSessions`; confirm-guarded; success/failure surfaced in the union.
-- [x] 5.3 Unit + e2e: store tests (inject fake); e2e for list → revoke one → sign-out-everywhere, and the admin revoke on a target row; assert no raw error codes leak.
-
-## 6. Docs & checks
-
-- [x] 6.1 Document the threat model + the access-token TTL residual window (revocation is immediate at the refresh layer; access tokens coast to expiry) in the back-office README / security notes.
-- [x] 6.2 Run the gates: backend `cargo test`/`clippy`/`llvm-cov`; back-office `yarn lint && yarn format:check && yarn typecheck && yarn test:coverage && yarn e2e`.
-- [x] 6.3 `openspec validate add-session-management --strict` passes.
+- [x] 5.1 Document the threat model + the access-token TTL residual window (revocation is immediate at the refresh layer; access tokens coast to expiry).
+- [x] 5.2 Run the gates: backend `cargo test`/`clippy`/`llvm-cov`; back-office `yarn lint && yarn format:check && yarn typecheck && yarn test:coverage && yarn e2e`.
+- [x] 5.3 `openspec validate add-session-management --strict` passes.

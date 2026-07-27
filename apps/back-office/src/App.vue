@@ -30,14 +30,12 @@ const ICONS: Record<string, string> = {
   queue: "M3 5h18M3 12h18M3 19h12",
   catalog: "M9 18V5l12-2v13M9 13l12-2M9 18a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm12-2a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z",
   roles: "M12 2 4 6v6c0 5 3.5 8 8 10 4.5-2 8-5 8-10V6l-8-4Z",
-  sessions: "M9 17H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-4M12 17v4M8 21h8",
 };
 
 const nav = computed(() => {
   const items = [
     { to: "/music/queue", key: "nav.queue", icon: "queue" },
     { to: "/music/catalog", key: "nav.catalog", icon: "catalog" },
-    { to: "/sessions", key: "nav.sessions", icon: "sessions" },
   ];
   if (auth.isAdmin) items.push({ to: "/roles", key: "nav.roles", icon: "roles" });
   return items;

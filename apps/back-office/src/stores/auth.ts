@@ -29,8 +29,6 @@ export const useAuthStore = defineStore("auth", {
     isModerator: (s): boolean => isModerator(s.claims.roles),
     isAdmin: (s): boolean => isAdmin(s.claims.roles),
     userId: (s): string | undefined => s.claims.sub,
-    /** The session id of THIS device's token — to flag the current row in the list. */
-    sessionId: (s): string | undefined => s.claims.sid,
   },
   actions: {
     setToken(accessToken: string) {

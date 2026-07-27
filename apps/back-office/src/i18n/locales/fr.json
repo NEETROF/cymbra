@@ -23,23 +23,8 @@
     "title": "Accès refusé",
     "body": "Ce compte est connecté mais n'est ni modérateur ni admin : aucune action de modération n'est disponible. Demande à un admin de t'attribuer le rôle modérateur."
   },
-  "nav": {
-    "queue": "Revue du catalogue",
-    "catalog": "Catalogue",
-    "roles": "Rôles",
-    "sessions": "Sessions",
-    "menu": "Menu"
-  },
+  "nav": { "queue": "Revue du catalogue", "catalog": "Catalogue", "roles": "Rôles", "menu": "Menu" },
   "sessions": {
-    "title": "Sessions actives",
-    "intro": "Appareils et applications actuellement connectés à ce compte. Révoque une session pour déconnecter cet appareil, ou déconnecte-toi de toutes les sessions d'un coup.",
-    "thisDevice": "Cet appareil",
-    "app": "Application",
-    "id": "Session",
-    "created": "créée le",
-    "revoke": "Révoquer",
-    "signOutAll": "Se déconnecter partout",
-    "empty": "Aucune session active.",
     "revokeAccount": "Révoquer les sessions",
     "revokeAccountConfirm": "Révoquer toutes les sessions de ce compte ?"
   },

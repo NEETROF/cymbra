@@ -125,21 +125,6 @@ impl SessionStore for PgSessionStore {
         Ok(())
     }
 
-    async fn revoke_by_id(&self, user_id: &str, session_id: &str) -> Result<()> {
-        // Malformed id → nothing to revoke. The `user_id` guard scopes the delete to
-        // the owner, so a foreign id affects zero rows (no-op, no enumeration).
-        let Ok(id) = uuid::Uuid::parse_str(session_id) else {
-            return Ok(());
-        };
-        sqlx::query("DELETE FROM sessions WHERE id = $1 AND user_id = $2")
-            .bind(id)
-            .bind(user_id)
-            .execute(&self.pool)
-            .await
-            .map_err(internal)?;
-        Ok(())
-    }
-
     async fn revoke_all(&self, user_id: &str) -> Result<()> {
         sqlx::query("DELETE FROM sessions WHERE user_id = $1")
             .bind(user_id)
@@ -185,9 +170,7 @@ impl SessionStore for PgSessionStore {
 
     async fn list_for_user(&self, user_id: &str) -> Result<Vec<SessionInfo>> {
         let rows = sqlx::query(
-            "SELECT id, audience, EXTRACT(EPOCH FROM created_at)::bigint AS created_at \
-             FROM sessions WHERE user_id = $1 AND expires_at > now() \
-             ORDER BY created_at DESC",
+            "SELECT id, audience FROM sessions WHERE user_id = $1 AND expires_at > now()",
         )
         .bind(user_id)
         .fetch_all(&self.pool)
@@ -198,7 +181,6 @@ impl SessionStore for PgSessionStore {
             .map(|r| SessionInfo {
                 id: r.get::<uuid::Uuid, _>("id").to_string(),
                 audience: r.get("audience"),
-                created_at: r.get("created_at"),
             })
             .collect())
     }

@@ -159,34 +159,6 @@ impl<P: AuthPort + 'static> AuthService for AuthGrpc<P> {
         Ok(Response::new(proto::UnlinkIdentityResponse {}))
     }
 
-    async fn list_sessions(
-        &self,
-        req: Request<proto::ListSessionsRequest>,
-    ) -> Result<Response<proto::ListSessionsResponse>, Status> {
-        let user_id = caller(&req)?;
-        let sessions = self.port.list_sessions(&user_id).await?;
-        Ok(Response::new(proto::ListSessionsResponse {
-            sessions: sessions
-                .into_iter()
-                .map(|s| proto::Session {
-                    id: s.id,
-                    audience: s.audience,
-                    created_at: s.created_at,
-                })
-                .collect(),
-        }))
-    }
-
-    async fn revoke_session(
-        &self,
-        req: Request<proto::RevokeSessionRequest>,
-    ) -> Result<Response<proto::RevokeSessionResponse>, Status> {
-        let user_id = caller(&req)?;
-        let session_id = req.into_inner().session_id;
-        self.port.revoke_session(&user_id, &session_id).await?;
-        Ok(Response::new(proto::RevokeSessionResponse {}))
-    }
-
     async fn revoke_all_sessions(
         &self,
         req: Request<proto::RevokeAllSessionsRequest>,
@@ -218,7 +190,6 @@ impl<P: AuthPort + 'static> AuthService for AuthGrpc<P> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use cymbra_auth_port::SessionSummary;
     use cymbra_platform::Result;
     use std::sync::Mutex;
 
@@ -226,31 +197,16 @@ mod tests {
     /// assert the caller scoping + admin gate without any real session store.
     #[derive(Default)]
     struct Calls {
-        list_for: Mutex<Vec<String>>,
-        revoke_session: Mutex<Vec<(String, String)>>,
         revoke_all: Mutex<Vec<String>>,
         admin_revoke: Mutex<Vec<(String, String, String)>>,
     }
 
     struct FakeAuth {
         calls: Arc<Calls>,
-        sessions: Vec<SessionSummary>,
     }
 
     #[async_trait::async_trait]
     impl AuthPort for FakeAuth {
-        async fn list_sessions(&self, user_id: &str) -> Result<Vec<SessionSummary>> {
-            self.calls.list_for.lock().unwrap().push(user_id.into());
-            Ok(self.sessions.clone())
-        }
-        async fn revoke_session(&self, user_id: &str, session_id: &str) -> Result<()> {
-            self.calls
-                .revoke_session
-                .lock()
-                .unwrap()
-                .push((user_id.into(), session_id.into()));
-            Ok(())
-        }
         async fn revoke_all_sessions(&self, user_id: &str) -> Result<()> {
             self.calls.revoke_all.lock().unwrap().push(user_id.into());
             Ok(())
@@ -304,11 +260,10 @@ mod tests {
         }
     }
 
-    fn grpc(sessions: Vec<SessionSummary>) -> (AuthGrpc<FakeAuth>, Arc<Calls>) {
+    fn grpc() -> (AuthGrpc<FakeAuth>, Arc<Calls>) {
         let calls = Arc::new(Calls::default());
         let port = Arc::new(FakeAuth {
             calls: calls.clone(),
-            sessions,
         });
         (AuthGrpc::new(port), calls)
     }
@@ -325,56 +280,28 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn list_sessions_scopes_to_the_caller() {
-        let (g, calls) = grpc(vec![SessionSummary {
-            id: "s1".into(),
-            audience: "music".into(),
-            created_at: 1_700_000_000,
-        }]);
-        let resp = g
-            .list_sessions(req_as(proto::ListSessionsRequest {}, "u1", &["user"]))
-            .await
-            .unwrap();
-        assert_eq!(resp.into_inner().sessions.len(), 1);
-        assert_eq!(*calls.list_for.lock().unwrap(), vec!["u1".to_string()]);
-    }
-
-    #[tokio::test]
     async fn missing_identity_is_unauthenticated() {
-        let (g, _) = grpc(vec![]);
+        let (g, _) = grpc();
         // No AuthIdentity extension → the interceptor rejected/omitted it.
         let err = g
-            .list_sessions(Request::new(proto::ListSessionsRequest {}))
+            .revoke_all_sessions(Request::new(proto::RevokeAllSessionsRequest {}))
             .await
             .unwrap_err();
         assert_eq!(err.code(), tonic::Code::Unauthenticated);
     }
 
     #[tokio::test]
-    async fn revoke_session_and_all_use_the_caller_id() {
-        let (g, calls) = grpc(vec![]);
-        g.revoke_session(req_as(
-            proto::RevokeSessionRequest {
-                session_id: "sess-9".into(),
-            },
-            "u1",
-            &["user"],
-        ))
-        .await
-        .unwrap();
+    async fn sign_out_everywhere_uses_the_caller_id() {
+        let (g, calls) = grpc();
         g.revoke_all_sessions(req_as(proto::RevokeAllSessionsRequest {}, "u1", &["user"]))
             .await
             .unwrap();
-        assert_eq!(
-            *calls.revoke_session.lock().unwrap(),
-            vec![("u1".to_string(), "sess-9".to_string())]
-        );
         assert_eq!(*calls.revoke_all.lock().unwrap(), vec!["u1".to_string()]);
     }
 
     #[tokio::test]
     async fn admin_can_revoke_a_target_account() {
-        let (g, calls) = grpc(vec![]);
+        let (g, calls) = grpc();
         g.revoke_account_sessions(req_as(
             proto::RevokeAccountSessionsRequest {
                 user_id: "target".into(),
@@ -397,7 +324,7 @@ mod tests {
 
     #[tokio::test]
     async fn non_admin_cannot_revoke_a_target_account() {
-        let (g, calls) = grpc(vec![]);
+        let (g, calls) = grpc();
         let err = g
             .revoke_account_sessions(req_as(
                 proto::RevokeAccountSessionsRequest {

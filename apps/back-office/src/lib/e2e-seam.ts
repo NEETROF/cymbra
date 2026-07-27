@@ -38,9 +38,6 @@ export interface E2EData {
   /** Accounts for the admin directory (`listAccounts`); roles are mutated in place
    * by grant/revoke so the UI reflects the change on re-list. */
   accounts?: DirectoryAccount[];
-  /** Active sessions for `listSessions`; `revokeSession`/`revokeAllSessions` mutate
-   * this list in place so the UI reflects the change on re-list. */
-  sessions?: { id: string; audience: string; createdAt?: number }[];
   /** Force a method to reject with a ConnectError, keyed by method name. */
   fail?: Record<string, E2EFailure>;
   /** Force a method to reject with a ConnectError exactly ONCE (then succeed) —
@@ -68,8 +65,6 @@ export function installE2EClients(): void {
   const tokens = data.tokens ?? { accessToken: "", refreshToken: "r" };
   // Mutable copy so grant/revoke change roles and the next listAccounts reflects it.
   const accounts: DirectoryAccount[] = (data.accounts ?? []).map((a) => ({ ...a, roles: [...(a.roles ?? [])] }));
-  // Mutable copy so revoke removes a session and the next listSessions reflects it.
-  const sessionList = (data.sessions ?? []).map((s) => ({ ...s }));
 
   function failIfSet(method: string): void {
     const f = data.fail?.[method];
@@ -99,21 +94,6 @@ export function installE2EClients(): void {
         return tokens;
       },
       refresh: async () => tokens,
-      listSessions: async () => {
-        failIfSet("listSessions");
-        return { sessions: sessionList };
-      },
-      revokeSession: async (req: { sessionId: string }) => {
-        failIfSet("revokeSession");
-        const i = sessionList.findIndex((s) => s.id === req.sessionId);
-        if (i >= 0) sessionList.splice(i, 1);
-        return {};
-      },
-      revokeAllSessions: async () => {
-        failIfSet("revokeAllSessions");
-        sessionList.length = 0;
-        return {};
-      },
       revokeAccountSessions: async () => {
         failIfSet("revokeAccountSessions");
         return {};

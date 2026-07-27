@@ -19,18 +19,6 @@ pub struct TokenPair {
     pub refresh_token: String,
 }
 
-/// A summary of one active refresh-token session (a family), for listing. Carries no
-/// secret — the refresh token itself is never surfaced.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SessionSummary {
-    /// Opaque session-family id (used to revoke a specific session).
-    pub id: String,
-    /// The app/audience this session was minted for (one login per app).
-    pub audience: String,
-    /// When the session was created (unix seconds).
-    pub created_at: i64,
-}
-
 /// The auth module's port: sign-up, verification, sign-in (local + OIDC), token
 /// lifecycle (refresh/logout), password reset, and identity link/unlink.
 ///
@@ -46,10 +34,6 @@ pub trait AuthPort: Send + Sync {
     async fn sign_in_oidc(&self, id_token: &str, audience: &str) -> Result<TokenPair>;
     async fn refresh(&self, refresh_token: &str) -> Result<TokenPair>;
     async fn logout(&self, refresh_token: &str) -> Result<()>;
-    /// List `user_id`'s active sessions (id + audience); no refresh token is returned.
-    async fn list_sessions(&self, user_id: &str) -> Result<Vec<SessionSummary>>;
-    /// Revoke one of `user_id`'s sessions by id (owner-scoped; foreign/absent → no-op).
-    async fn revoke_session(&self, user_id: &str, session_id: &str) -> Result<()>;
     /// Revoke every session for `user_id` (self sign-out-everywhere).
     async fn revoke_all_sessions(&self, user_id: &str) -> Result<()>;
     /// Revoke every session for `target_user_id` **within `audience`** as an admin

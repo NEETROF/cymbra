@@ -10,8 +10,7 @@ export function makeJwt(payload: Record<string, unknown>): string {
 
 export function tokenFor(role: "moderator" | "admin" | "none"): string {
   const roles = role === "admin" ? ["admin"] : role === "moderator" ? ["moderator"] : [];
-  // `sid` lets the active-sessions view flag "this device"; seed a session with this id.
-  return makeJwt({ sub: "u1", aud: "music", roles, exp: 4102444800, sid: "sess-current" });
+  return makeJwt({ sub: "u1", aud: "music", roles, exp: 4102444800 });
 }
 
 export interface SeedOptions {

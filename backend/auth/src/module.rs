@@ -6,7 +6,7 @@ use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use async_trait::async_trait;
-use cymbra_auth_port::{AuthPort, SessionSummary, TokenPair};
+use cymbra_auth_port::{AuthPort, TokenPair};
 use cymbra_platform::cache::Cache;
 use cymbra_platform::email::EmailSender;
 use cymbra_platform::{AppError, Result, password, ratelimit, token};
@@ -105,15 +105,12 @@ impl AuthModule {
         }
     }
 
-    /// Mint an access (signed) + refresh (session) token pair for `audience`. The
-    /// session is created first so its family id can be stamped into the access token
-    /// as `sid` (lets the client flag its current device in a session list).
+    /// Mint an access (signed) + refresh (session) token pair for `audience`.
     async fn issue(&self, user_id: &str, audience: &str) -> Result<TokenPair> {
         let roles = self.user.effective_roles(user_id, audience).await?;
-        let refresh = self.sessions.create(user_id, audience).await?;
-        let sid = crate::session::session_core::parse_id(&refresh)?.to_string();
-        let claims = token::new_claims(user_id, audience, roles, self.cfg.access_ttl, Some(sid));
+        let claims = token::new_claims(user_id, audience, roles, self.cfg.access_ttl);
         let access = token::sign(&claims, &self.kid, &self.signing_key)?;
+        let refresh = self.sessions.create(user_id, audience).await?;
         Ok(TokenPair {
             access_token: access,
             refresh_token: refresh,
@@ -262,14 +259,7 @@ impl AuthPort for AuthModule {
             .user
             .effective_roles(&rot.user_id, &rot.audience)
             .await?;
-        let sid = crate::session::session_core::parse_id(&rot.refresh_token)?.to_string();
-        let claims = token::new_claims(
-            &rot.user_id,
-            &rot.audience,
-            roles,
-            self.cfg.access_ttl,
-            Some(sid),
-        );
+        let claims = token::new_claims(&rot.user_id, &rot.audience, roles, self.cfg.access_ttl);
         let access = token::sign(&claims, &self.kid, &self.signing_key)?;
         Ok(TokenPair {
             access_token: access,
@@ -279,22 +269,6 @@ impl AuthPort for AuthModule {
 
     async fn logout(&self, refresh_token: &str) -> Result<()> {
         self.sessions.revoke(refresh_token).await
-    }
-
-    async fn list_sessions(&self, user_id: &str) -> Result<Vec<SessionSummary>> {
-        let sessions = self.sessions.list_for_user(user_id).await?;
-        Ok(sessions
-            .into_iter()
-            .map(|s| SessionSummary {
-                id: s.id,
-                audience: s.audience,
-                created_at: s.created_at,
-            })
-            .collect())
-    }
-
-    async fn revoke_session(&self, user_id: &str, session_id: &str) -> Result<()> {
-        self.sessions.revoke_by_id(user_id, session_id).await
     }
 
     async fn revoke_all_sessions(&self, user_id: &str) -> Result<()> {
@@ -541,39 +515,23 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn list_revoke_and_sign_out_everywhere() {
+    async fn sign_out_everywhere_revokes_all_the_users_sessions() {
         let h = harness();
-        // Two sessions for one account (same OIDC subject, two apps).
         let a = h.m.sign_in_oidc("g1", "music").await.unwrap();
-        let _b = h.m.sign_in_oidc("g1", "live").await.unwrap();
+        let b = h.m.sign_in_oidc("g1", "live").await.unwrap();
         let uid = sub_of(&a.access_token, "music");
 
-        let sessions = h.m.list_sessions(&uid).await.unwrap();
-        assert_eq!(sessions.len(), 2);
-
-        // Revoke one by id → that session dies, the other survives.
-        h.m.revoke_session(&uid, &sessions[0].id).await.unwrap();
-        assert_eq!(h.m.list_sessions(&uid).await.unwrap().len(), 1);
-
-        // Sign out everywhere → none left, and the original refresh fails.
         h.m.revoke_all_sessions(&uid).await.unwrap();
-        assert!(h.m.list_sessions(&uid).await.unwrap().is_empty());
+
+        // Both of the account's sessions are dead; neither refresh token can rotate.
         assert!(matches!(
             h.m.refresh(&a.refresh_token).await,
             Err(AppError::Unauthenticated(_))
         ));
-    }
-
-    #[tokio::test]
-    async fn access_token_sid_matches_its_session() {
-        let h = harness();
-        let pair = h.m.sign_in_oidc("g1", "music").await.unwrap();
-        let uid = sub_of(&pair.access_token, "music");
-        let claims = ptoken::verify(&pair.access_token, &keys(), &["music"]).unwrap();
-        let sessions = h.m.list_sessions(&uid).await.unwrap();
-        assert_eq!(sessions.len(), 1);
-        // The token's `sid` lets the client flag this exact session as "this device".
-        assert_eq!(claims.sid.as_deref(), Some(sessions[0].id.as_str()));
+        assert!(matches!(
+            h.m.refresh(&b.refresh_token).await,
+            Err(AppError::Unauthenticated(_))
+        ));
     }
 
     #[tokio::test]
@@ -589,7 +547,6 @@ mod tests {
             .unwrap();
 
         // The music session is gone; the live session survives (out of scope).
-        assert_eq!(h.m.list_sessions(&target).await.unwrap().len(), 1);
         assert!(matches!(
             h.m.refresh(&music.refresh_token).await,
             Err(AppError::Unauthenticated(_))
