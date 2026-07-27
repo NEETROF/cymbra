@@ -27,6 +27,8 @@ pub struct SessionSummary {
     pub id: String,
     /// The app/audience this session was minted for (one login per app).
     pub audience: String,
+    /// When the session was created (unix seconds).
+    pub created_at: i64,
 }
 
 /// The auth module's port: sign-up, verification, sign-in (local + OIDC), token

@@ -31,6 +31,9 @@ pub struct Rotated {
 pub struct SessionInfo {
     pub id: String,
     pub audience: String,
+    /// When the session was first created (unix seconds) — lets a UI show age and
+    /// distinguish otherwise-identical sessions.
+    pub created_at: i64,
 }
 
 /// Storage-agnostic refresh-token session store. Consumers depend on this trait;
@@ -137,6 +140,15 @@ struct FakeFam {
     user_id: String,
     audience: String,
     current_rt_hash: String,
+    created_at: i64,
+}
+
+/// Current unix time in seconds (session `created_at` for the in-memory fake).
+fn unix_now() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs() as i64
 }
 
 #[async_trait]
@@ -150,6 +162,7 @@ impl SessionStore for FakeSessionStore {
                 user_id: user_id.into(),
                 audience: audience.into(),
                 current_rt_hash: session_core::hash_token(&token),
+                created_at: unix_now(),
             },
         );
         Ok(token)
@@ -237,6 +250,7 @@ impl SessionStore for FakeSessionStore {
             .map(|(id, f)| SessionInfo {
                 id: id.to_string(),
                 audience: f.audience.clone(),
+                created_at: f.created_at,
             })
             .collect())
     }

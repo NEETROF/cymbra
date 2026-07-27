@@ -38,7 +38,7 @@ message UnlinkIdentityResponse {}
 
 // Session management (change: add-session-management). Caller identity comes from the
 // validated access token; no refresh token is ever surfaced.
-message Session { string id = 1; string audience = 2; }    // one active session family
+message Session { string id = 1; string audience = 2; int64 created_at = 3; }  // one active session family
 message ListSessionsRequest {}
 message ListSessionsResponse { repeated Session sessions = 1; }
 message RevokeSessionRequest { string session_id = 1; }    // revoke one of my sessions by id

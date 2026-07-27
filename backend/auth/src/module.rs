@@ -288,6 +288,7 @@ impl AuthPort for AuthModule {
             .map(|s| SessionSummary {
                 id: s.id,
                 audience: s.audience,
+                created_at: s.created_at,
             })
             .collect())
     }

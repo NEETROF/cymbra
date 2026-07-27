@@ -3,10 +3,12 @@ import { defineStore } from "pinia";
 import { api } from "@/lib/api";
 import { type Async, idle, run } from "@/lib/async";
 
-/** One active session (a refresh-token family) — id + the app it was minted for. */
+/** One active session (a refresh-token family) — id, the app it was minted for, and
+ * when it was created (unix seconds). */
 export interface SessionRow {
   id: string;
   audience: string;
+  createdAt: number;
 }
 
 // Self-service + admin session management (change: add-session-management). Every
@@ -22,7 +24,7 @@ export const useSessionsStore = defineStore("sessions", () => {
   async function load() {
     await run(list, async () => {
       const resp = await api().auth.listSessions({});
-      return resp.sessions.map((s) => ({ id: s.id, audience: s.audience }));
+      return resp.sessions.map((s) => ({ id: s.id, audience: s.audience, createdAt: Number(s.createdAt) }));
     });
   }
 

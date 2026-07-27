@@ -185,7 +185,9 @@ impl SessionStore for PgSessionStore {
 
     async fn list_for_user(&self, user_id: &str) -> Result<Vec<SessionInfo>> {
         let rows = sqlx::query(
-            "SELECT id, audience FROM sessions WHERE user_id = $1 AND expires_at > now()",
+            "SELECT id, audience, EXTRACT(EPOCH FROM created_at)::bigint AS created_at \
+             FROM sessions WHERE user_id = $1 AND expires_at > now() \
+             ORDER BY created_at DESC",
         )
         .bind(user_id)
         .fetch_all(&self.pool)
@@ -196,6 +198,7 @@ impl SessionStore for PgSessionStore {
             .map(|r| SessionInfo {
                 id: r.get::<uuid::Uuid, _>("id").to_string(),
                 audience: r.get("audience"),
+                created_at: r.get("created_at"),
             })
             .collect())
     }

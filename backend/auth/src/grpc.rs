@@ -171,6 +171,7 @@ impl<P: AuthPort + 'static> AuthService for AuthGrpc<P> {
                 .map(|s| proto::Session {
                     id: s.id,
                     audience: s.audience,
+                    created_at: s.created_at,
                 })
                 .collect(),
         }))
@@ -328,6 +329,7 @@ mod tests {
         let (g, calls) = grpc(vec![SessionSummary {
             id: "s1".into(),
             audience: "music".into(),
+            created_at: 1_700_000_000,
         }]);
         let resp = g
             .list_sessions(req_as(proto::ListSessionsRequest {}, "u1", &["user"]))

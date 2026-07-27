@@ -8,6 +8,7 @@ import { useSessionsStore } from "@/stores/sessions";
 interface Sess {
   id: string;
   audience: string;
+  createdAt: number;
 }
 interface Calls {
   revoked: string[];
@@ -51,8 +52,8 @@ describe("sessions store", () => {
   it("loads the caller's active sessions into a success union", async () => {
     const { clients } = fake({
       sessions: [
-        { id: "a", audience: "music" },
-        { id: "b", audience: "live" },
+        { id: "a", audience: "music", createdAt: 1700000000 },
+        { id: "b", audience: "live", createdAt: 1700000100 },
       ],
     });
     setClientsForTest(clients);
@@ -67,8 +68,8 @@ describe("sessions store", () => {
   it("revokes one session then re-lists without it", async () => {
     const { clients, calls } = fake({
       sessions: [
-        { id: "a", audience: "music" },
-        { id: "b", audience: "live" },
+        { id: "a", audience: "music", createdAt: 1700000000 },
+        { id: "b", audience: "live", createdAt: 1700000100 },
       ],
     });
     setClientsForTest(clients);
@@ -83,7 +84,7 @@ describe("sessions store", () => {
   });
 
   it("sign-out-everywhere revokes all sessions", async () => {
-    const { clients, calls } = fake({ sessions: [{ id: "a", audience: "music" }] });
+    const { clients, calls } = fake({ sessions: [{ id: "a", audience: "music", createdAt: 1700000000 }] });
     setClientsForTest(clients);
     const store = useSessionsStore();
 

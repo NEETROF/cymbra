@@ -40,7 +40,7 @@ export interface E2EData {
   accounts?: DirectoryAccount[];
   /** Active sessions for `listSessions`; `revokeSession`/`revokeAllSessions` mutate
    * this list in place so the UI reflects the change on re-list. */
-  sessions?: { id: string; audience: string }[];
+  sessions?: { id: string; audience: string; createdAt?: number }[];
   /** Force a method to reject with a ConnectError, keyed by method name. */
   fail?: Record<string, E2EFailure>;
   /** Force a method to reject with a ConnectError exactly ONCE (then succeed) —

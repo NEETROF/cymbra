@@ -36,6 +36,7 @@
     "thisDevice": "This device",
     "app": "App",
     "id": "Session",
+    "created": "created",
     "revoke": "Revoke",
     "signOutAll": "Sign out everywhere",
     "empty": "No active sessions.",

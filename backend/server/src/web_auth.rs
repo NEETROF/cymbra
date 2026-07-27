@@ -356,6 +356,7 @@ mod tests {
                 .map(|s| cymbra_auth_port::SessionSummary {
                     id: s.id,
                     audience: s.audience,
+                    created_at: s.created_at,
                 })
                 .collect())
         }

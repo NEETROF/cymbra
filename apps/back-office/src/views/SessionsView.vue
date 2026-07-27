@@ -39,6 +39,8 @@ const isCurrent = (s: SessionRow): boolean => !!auth.sessionId && s.id === auth.
 // you out) and leave "sign out everywhere" as the safe lever.
 const currentKnown = computed(() => !!auth.sessionId);
 const shortId = (id: string): string => id.slice(0, 8);
+// Deterministic YYYY-MM-DD (locale-independent) so the age is readable at a glance.
+const createdOn = (sec: number): string => (sec > 0 ? new Date(sec * 1000).toISOString().slice(0, 10) : "—");
 
 async function revoke(id: string) {
   await sessions.revoke(id);
@@ -74,7 +76,10 @@ async function signOutEverywhere() {
       <li v-for="s in vm.items" :key="s.id" class="row" :class="{ current: isCurrent(s) }">
         <div class="meta">
           <span class="app">{{ s.audience }}</span>
-          <span class="id">{{ $t("sessions.id") }} {{ shortId(s.id) }}</span>
+          <span class="id"
+            >{{ $t("sessions.id") }} {{ shortId(s.id) }} · {{ $t("sessions.created") }}
+            {{ createdOn(s.createdAt) }}</span
+          >
         </div>
         <span v-if="isCurrent(s)" class="badge">{{ $t("sessions.thisDevice") }}</span>
         <button v-else-if="currentKnown" type="button" :disabled="busy" @click="revoke(s.id)">

@@ -6,8 +6,8 @@ test.describe("active sessions", () => {
       loginAs: "moderator",
       data: {
         sessions: [
-          { id: "sess-current", audience: "music" },
-          { id: "sess-other", audience: "live" },
+          { id: "sess-current", audience: "music", createdAt: 1700000000 }, // 2023-11-14
+          { id: "sess-other", audience: "live", createdAt: 1699000000 }, // 2023-11-03
         ],
       },
     });
@@ -16,6 +16,8 @@ test.describe("active sessions", () => {
     await expect(page.getByRole("heading", { name: "Active sessions" })).toBeVisible();
     // The token's `sid` matches "sess-current" → flagged as this device (no revoke button).
     await expect(page.getByText("This device")).toBeVisible();
+    // The creation date is shown so sessions are distinguishable.
+    await expect(page.getByText("2023-11-14")).toBeVisible();
 
     // Exactly one other session is revocable.
     const revoke = page.getByRole("button", { name: "Revoke", exact: true });
@@ -30,7 +32,7 @@ test.describe("active sessions", () => {
   test("sign out everywhere ends the session and returns to sign-in", async ({ page }) => {
     await seed(page, {
       loginAs: "moderator",
-      data: { sessions: [{ id: "sess-current", audience: "music" }] },
+      data: { sessions: [{ id: "sess-current", audience: "music", createdAt: 1700000000 }] },
     });
     await page.goto("/sessions");
 
