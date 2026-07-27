@@ -55,6 +55,37 @@ describe("catalog store", () => {
     expect(state.searchCalls).toHaveLength(2);
   });
 
+  it("loads per-status counts for the header stat cards", async () => {
+    const { clients, state } = makeFakeClients({ total: 4 });
+    setClientsForTest(clients);
+    const store = useCatalogStore();
+
+    await store.loadStats();
+
+    // Three count-only queries (limit 1), one per status.
+    expect(state.searchCalls).toHaveLength(3);
+    expect(state.searchCalls.every((c) => c.limit === 1)).toBe(true);
+    expect(store.stats.status).toBe("success");
+    if (store.stats.status === "success") {
+      expect(store.stats.data.total).toBe(
+        store.stats.data.pending + store.stats.data.accepted + store.stats.data.rejected,
+      );
+    }
+  });
+
+  it("fetches a score's bytes and metadata by id (detail deep-link)", async () => {
+    const { clients } = makeFakeClients({ hits: [{ id: "score-9", title: "Nocturne" }] });
+    setClientsForTest(clients);
+    const store = useCatalogStore();
+
+    const bytes = await store.fetchBytes("score-9");
+    const hit = await store.fetchHit("score-9");
+
+    expect(bytes).toBeInstanceOf(Uint8Array);
+    expect(bytes).toHaveLength(3);
+    expect((hit as { id: string }).id).toBe("score-9");
+  });
+
   it("surfaces an error without throwing", async () => {
     const { clients } = makeFakeClients();
     // Make searchCatalog reject.

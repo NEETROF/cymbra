@@ -77,6 +77,20 @@ jobs:
       - name: Flutter coverage (integration)
         working-directory: apps/music
         run: xvfb-run -a flutter test integration_test -d linux --coverage --coverage-path coverage/integration.lcov.info
+      # Back-office (Vue/TS): generate stubs + unit coverage. `protobuf-compiler` is
+      # already installed above (used by `yarn gen`). lcov paths are emitted relative
+      # to the app, so rewrite them to repo-root-relative for the root-run scanner.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Back-office coverage
+        working-directory: apps/back-office
+        run: |
+          corepack enable
+          yarn install --immutable
+          yarn gen
+          yarn test:coverage
+          sed -i 's|^SF:src/|SF:apps/back-office/src/|' coverage/lcov.info
       - name: SonarCloud scan (blocks on Quality Gate)
         uses: SonarSource/sonarqube-scan-action@v6
         with:

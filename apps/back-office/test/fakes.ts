@@ -53,6 +53,7 @@ export function makeFakeClients(state: Partial<FakeState> = {}): { clients: Clie
         s.evaluateCalls.push(req);
         return {};
       },
+      getCatalogScore: async (req: { catalogId: string }) => s.hits[0] ?? { id: req.catalogId },
       getCatalogScoreBytes: async () => ({ data: new Uint8Array([1, 2, 3]) }),
     },
     user: {
