@@ -1,9 +1,22 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createPinia, setActivePinia } from "pinia";
 import { decodeClaims, isAdmin, isModerator } from "@/lib/jwt";
 import { useAuthStore } from "@/stores/auth";
-import { setClientsForTest } from "@/lib/api";
-import { makeFakeClients, makeJwt } from "./fakes";
+import { setWebAuthClientForTest, WebAuthError, type WebAuthClient } from "@/lib/web-auth";
+import { makeJwt } from "./fakes";
+
+// A fake web-auth client (the injectable seam the store depends on). Override just the
+// method a test cares about; the rest return a default moderator token.
+function fakeWebAuth(over: Partial<WebAuthClient> = {}): WebAuthClient {
+  const token = () => ({ accessToken: makeJwt({ roles: ["moderator"], sub: "m1" }) });
+  return {
+    signInLocal: async () => token(),
+    signInOidc: async () => token(),
+    refresh: async () => token(),
+    logout: async () => undefined,
+    ...over,
+  };
+}
 
 describe("jwt role decoding", () => {
   it("reads roles from the payload", () => {
@@ -25,17 +38,17 @@ describe("jwt role decoding", () => {
   });
 });
 
-describe("auth store sign-in", () => {
+describe("auth store — memory-only session", () => {
   beforeEach(() => {
     setActivePinia(createPinia());
     localStorage.clear();
+    sessionStorage.clear();
   });
 
-  it("exchanges credentials and exposes the token's roles", async () => {
-    const { clients } = makeFakeClients({
-      tokens: { accessToken: makeJwt({ roles: ["moderator"], sub: "m1" }), refreshToken: "r" },
-    });
-    setClientsForTest(clients);
+  it("keeps the access token in memory and writes nothing to web storage on sign-in", async () => {
+    setWebAuthClientForTest(
+      fakeWebAuth({ signInLocal: async () => ({ accessToken: makeJwt({ roles: ["moderator"], sub: "m1" }) }) }),
+    );
     const auth = useAuthStore();
     expect(auth.isAuthenticated).toBe(false);
 
@@ -45,28 +58,57 @@ describe("auth store sign-in", () => {
     expect(auth.isModerator).toBe(true);
     expect(auth.isAdmin).toBe(false);
     expect(auth.userId).toBe("m1");
-    // Tokens are persisted for reload.
-    expect(localStorage.getItem("cymbra.bo.tokens")).toContain("accessToken");
+    // The whole point: no token in any JS-readable storage.
+    expect(localStorage.length).toBe(0);
+    expect(sessionStorage.length).toBe(0);
   });
 
   it("a signed-in non-moderator is not granted console access", async () => {
-    const { clients } = makeFakeClients({
-      tokens: { accessToken: makeJwt({ roles: ["user"], sub: "u1" }), refreshToken: "r" },
-    });
-    setClientsForTest(clients);
+    setWebAuthClientForTest(
+      fakeWebAuth({ signInLocal: async () => ({ accessToken: makeJwt({ roles: ["user"], sub: "u1" }) }) }),
+    );
     const auth = useAuthStore();
     await auth.signInLocal("user@x.dev", "pw");
     expect(auth.isAuthenticated).toBe(true);
     expect(auth.isModerator).toBe(false);
   });
 
-  it("signOut clears tokens", async () => {
-    const { clients } = makeFakeClients();
-    setClientsForTest(clients);
+  it("signOut revokes the server session and clears the in-memory token", async () => {
+    const logout = vi.fn(async () => undefined);
+    setWebAuthClientForTest(fakeWebAuth({ logout }));
     const auth = useAuthStore();
     await auth.signInLocal("m@x.dev", "pw");
-    auth.signOut();
+    expect(auth.isAuthenticated).toBe(true);
+
+    await auth.signOut();
+
     expect(auth.isAuthenticated).toBe(false);
-    expect(localStorage.getItem("cymbra.bo.tokens")).toBeNull();
+    expect(logout).toHaveBeenCalledTimes(1);
+    expect(localStorage.length).toBe(0);
+  });
+
+  it("bootstrap re-mints an access token from the refresh cookie", async () => {
+    setWebAuthClientForTest(
+      fakeWebAuth({ refresh: async () => ({ accessToken: makeJwt({ roles: ["admin"], sub: "a1" }) }) }),
+    );
+    const auth = useAuthStore();
+    await auth.bootstrap();
+    expect(auth.isAuthenticated).toBe(true);
+    expect(auth.isAdmin).toBe(true);
+    expect(auth.bootstrapped).toBe(true);
+  });
+
+  it("bootstrap with no session stays signed out and does not throw", async () => {
+    setWebAuthClientForTest(
+      fakeWebAuth({
+        refresh: async () => {
+          throw new WebAuthError(401, "no session");
+        },
+      }),
+    );
+    const auth = useAuthStore();
+    await auth.bootstrap();
+    expect(auth.isAuthenticated).toBe(false);
+    expect(auth.bootstrapped).toBe(true);
   });
 });

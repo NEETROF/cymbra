@@ -20,7 +20,7 @@ export interface SeedOptions {
   loginAs?: "moderator" | "admin";
 }
 
-// Seed the e2e data (and optionally a persisted session) BEFORE the app boots, so
+// Seed the e2e data (and optionally a signed-in session) BEFORE the app boots, so
 // the fake clients and auth store see them on first render. Call before goto().
 export async function seed(page: Page, opts: SeedOptions = {}): Promise<void> {
   // Force English so assertions are deterministic regardless of the runner's browser
@@ -30,19 +30,18 @@ export async function seed(page: Page, opts: SeedOptions = {}): Promise<void> {
     localStorage.setItem("cymbra.bo.locale", "en");
   });
 
-  await page.addInitScript(
-    (d) => {
-      window.__CYMBRA_E2E__ = d as E2EData;
-    },
-    (opts.data ?? {}) as E2EData,
-  );
-
+  const data: E2EData = { ...(opts.data ?? {}) };
   if (opts.loginAs) {
-    const token = tokenFor(opts.loginAs);
-    await page.addInitScript((t) => {
-      localStorage.setItem("cymbra.bo.tokens", JSON.stringify({ accessToken: t, refreshToken: "r" }));
-    }, token);
+    // No token is persisted anywhere (memory-only). Instead we simulate the HttpOnly
+    // refresh cookie existing at boot: `session` makes the fake web-auth `refresh`
+    // re-mint an access token for this role, so the app boots signed in.
+    data.session = true;
+    data.tokens = { accessToken: tokenFor(opts.loginAs), refreshToken: "r" };
   }
+
+  await page.addInitScript((d) => {
+    window.__CYMBRA_E2E__ = d as E2EData;
+  }, data as E2EData);
 }
 
 // A sample catalog hit with every field the table + detail preview read.

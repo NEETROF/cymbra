@@ -53,8 +53,16 @@ pub struct Config {
     /// back-office). The `CorsLayer` permits only these; empty (the default) allows
     /// no cross-origin browser access, so the native gRPC app is unaffected and the
     /// browser surface stays closed until an operator opts in an origin. Each entry
-    /// is a full origin, e.g. `https://bo.cymbra.app`.
+    /// is a full origin, e.g. `https://bo.cymbra.app`. Also used as the credentialed
+    /// allow-list for the web-auth cookie surface (change: add-web-auth-cookies).
     pub back_office_origins: Vec<String>,
+    /// `Domain` attribute for the web-auth refresh cookie. `None` (the default)
+    /// scopes the cookie to the exact API host; set it to the shared registrable
+    /// parent (e.g. `cymbra.app`) so `api.` and `bo.` share the first-party cookie.
+    pub web_auth_cookie_domain: Option<String>,
+    /// `Secure` attribute for the web-auth refresh cookie. Defaults to `true`
+    /// (fail-closed for prod); set `false` only for plain-HTTP `localhost` dev.
+    pub web_auth_cookie_secure: bool,
 }
 
 /// S3-compatible object-store connection for user scores. Maps to
@@ -147,6 +155,12 @@ pub mod config_core {
             upload_max_bytes: num(m, "CYMBRA_SCORE_UPLOAD_MAX_BYTES", 8 * 1024 * 1024)?,
             // Optional; absent = no cross-origin browser access (gRPC-web stays closed).
             back_office_origins: csv(m, "CYMBRA_BACK_OFFICE_ORIGINS"),
+            web_auth_cookie_domain: m
+                .get("CYMBRA_WEB_AUTH_COOKIE_DOMAIN")
+                .filter(|v| !v.is_empty())
+                .cloned(),
+            // Fail-closed: default Secure=true; a dev override sets it false for http localhost.
+            web_auth_cookie_secure: flag(m, "CYMBRA_WEB_AUTH_COOKIE_SECURE", true),
         })
     }
 
@@ -299,6 +313,19 @@ mod tests {
         assert_eq!(c.token.refresh_ttl, Duration::from_secs(30 * 24 * 3600));
         assert_eq!(c.password_min_length, 12);
         assert!(!c.otlp_enabled);
+        // Web-auth cookie: no Domain by default, Secure fail-closed to true.
+        assert!(c.web_auth_cookie_domain.is_none());
+        assert!(c.web_auth_cookie_secure);
+    }
+
+    #[test]
+    fn web_auth_cookie_overrides_parse() {
+        let mut m = base();
+        m.insert("CYMBRA_WEB_AUTH_COOKIE_DOMAIN".into(), "cymbra.app".into());
+        m.insert("CYMBRA_WEB_AUTH_COOKIE_SECURE".into(), "false".into());
+        let c = config_core::parse(&m).unwrap();
+        assert_eq!(c.web_auth_cookie_domain.as_deref(), Some("cymbra.app"));
+        assert!(!c.web_auth_cookie_secure);
     }
 
     #[test]
