@@ -18,7 +18,7 @@ test.describe("sign-in", () => {
     await page.getByPlaceholder("password").fill("secret");
     await page.getByRole("button", { name: "Sign in" }).click();
 
-    await expect(page).toHaveURL(/\/queue$/);
+    await expect(page).toHaveURL(/\/music\/queue$/);
     await expect(page.getByRole("heading", { name: "Catalog review" })).toBeVisible();
     await expect(page.getByText("Clair de Lune")).toBeVisible();
   });
@@ -58,16 +58,16 @@ test.describe("sign-in", () => {
 test.describe("route guards", () => {
   test("an unauthenticated visitor is redirected to sign-in", async ({ page }) => {
     await seed(page);
-    await page.goto("/queue");
+    await page.goto("/music/queue");
     await expect(page).toHaveURL(/\/signin$/);
     await expect(page.getByRole("button", { name: "Sign in" })).toBeVisible();
   });
 
   test("a moderator cannot reach the admin-only roles route", async ({ page }) => {
     await seed(page, { loginAs: "moderator", data: { hits: [sampleHit()] } });
-    await page.goto("/roles");
+    await page.goto("/music/roles");
     // The admin guard bounces a non-admin to the catalog.
-    await expect(page).toHaveURL(/\/$/);
+    await expect(page).toHaveURL(/\/music\/catalog$/);
     await expect(page.getByRole("heading", { name: "Catalog" })).toBeVisible();
   });
 });

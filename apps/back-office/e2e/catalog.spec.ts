@@ -12,7 +12,7 @@ test.describe("queue", () => {
         counts: { pending: 5, accepted: 3, rejected: 1 },
       },
     });
-    await page.goto("/queue");
+    await page.goto("/music/queue");
 
     await expect(page.locator("tbody tr")).toHaveCount(2);
     await expect(page.getByText("Clair de Lune")).toBeVisible();
@@ -26,10 +26,10 @@ test.describe("queue", () => {
 
   test("clicking a row opens its detail page (self-sufficient on deep-link)", async ({ page }) => {
     await seed(page, { loginAs: "moderator", data: { hits: [sampleHit()] } });
-    await page.goto("/queue");
+    await page.goto("/music/queue");
 
     await page.locator("tbody tr").first().click();
-    await expect(page).toHaveURL(/\/score\/11111111-1111-1111-1111-111111111111$/);
+    await expect(page).toHaveURL(/\/music\/score\/11111111-1111-1111-1111-111111111111$/);
     await expect(page.getByRole("heading", { name: "Clair de Lune" })).toBeVisible();
     await expect(page.getByText(/Score loaded \(3 bytes\)/)).toBeVisible();
   });
@@ -38,11 +38,11 @@ test.describe("queue", () => {
 test.describe("score detail", () => {
   test("accepting a score records the decision and returns to the queue", async ({ page }) => {
     await seed(page, { loginAs: "moderator", data: { hit: sampleHit(), hits: [sampleHit()] } });
-    await page.goto("/score/11111111-1111-1111-1111-111111111111");
+    await page.goto("/music/score/11111111-1111-1111-1111-111111111111");
 
     await expect(page.getByRole("heading", { name: "Clair de Lune" })).toBeVisible();
     await page.getByRole("button", { name: "Accept" }).click();
-    await expect(page).toHaveURL(/\/queue$/);
+    await expect(page).toHaveURL(/\/music\/queue$/);
   });
 
   test("a bytes fetch failure degrades gracefully — metadata still shows", async ({ page }) => {
@@ -53,7 +53,7 @@ test.describe("score detail", () => {
         fail: { getCatalogScoreBytes: { code: FAILED_PRECONDITION, message: "catalog score bytes not available yet" } },
       },
     });
-    await page.goto("/score/11111111-1111-1111-1111-111111111111");
+    await page.goto("/music/score/11111111-1111-1111-1111-111111111111");
 
     // Metadata is unaffected; the bytes error is an informational note, not a crash.
     await expect(page.getByRole("heading", { name: "Clair de Lune" })).toBeVisible();
@@ -65,7 +65,7 @@ test.describe("score detail", () => {
 test.describe("i18n", () => {
   test("the language toggle switches the whole console to French", async ({ page }) => {
     await seed(page, { loginAs: "moderator", data: { hits: [sampleHit()] } });
-    await page.goto("/queue");
+    await page.goto("/music/queue");
 
     await expect(page.getByRole("heading", { name: "Catalog review" })).toBeVisible();
     await page.getByRole("button", { name: "FR", exact: true }).click();
