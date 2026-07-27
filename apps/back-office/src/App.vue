@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import { RouterLink, RouterView, useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
 import { useAuthStore } from "@/stores/auth";
@@ -8,6 +8,14 @@ import { currentLocale, setLocale, SUPPORTED_LOCALES } from "@/i18n";
 const auth = useAuthStore();
 const router = useRouter();
 const { t } = useI18n();
+
+// Mobile: the sidebar is an off-canvas drawer toggled by the hamburger; it closes
+// on navigation and on backdrop tap. On desktop the drawer state is inert (the
+// sidebar is always shown).
+const menuOpen = ref(false);
+function closeMenu() {
+  menuOpen.value = false;
+}
 
 // The full app shell (sidebar) only shows to a signed-in moderator/admin; the
 // sign-in and access-denied screens render on a bare, centered canvas.
@@ -31,14 +39,25 @@ const nav = computed(() => {
 });
 
 function signOut() {
+  closeMenu();
   auth.signOut();
   router.push({ name: "signin" });
 }
 </script>
 
 <template>
-  <!-- Signed-in shell: fixed sidebar + scrollable main. -->
-  <div v-if="shell" class="shell">
+  <!-- Signed-in shell: fixed sidebar + scrollable main. On mobile the sidebar is an
+       off-canvas drawer opened by the hamburger in the mobile bar. -->
+  <div v-if="shell" class="shell" :class="{ open: menuOpen }">
+    <div class="mobile-bar">
+      <button class="burger" :aria-label="t('nav.menu')" @click="menuOpen = !menuOpen">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <path d="M3 6h18M3 12h18M3 18h18" />
+        </svg>
+      </button>
+      <span class="brand-mini">Cymbra</span>
+    </div>
+    <div class="backdrop" @click="closeMenu" />
     <aside class="sidebar">
       <div class="brand">
         <span class="brand-mark">C</span>
@@ -49,7 +68,7 @@ function signOut() {
       </div>
 
       <nav class="nav">
-        <RouterLink v-for="item in nav" :key="item.to" :to="item.to" class="nav-item">
+        <RouterLink v-for="item in nav" :key="item.to" :to="item.to" class="nav-item" @click="closeMenu">
           <svg
             class="ic"
             viewBox="0 0 24 24"
@@ -273,24 +292,71 @@ function signOut() {
   color: var(--accent);
 }
 
+/* Mobile bar + drawer backdrop are desktop-hidden; the media query turns them on. */
+.mobile-bar {
+  display: none;
+}
+.backdrop {
+  display: none;
+}
+.brand-mini {
+  font-weight: 800;
+  font-size: 1.1rem;
+}
+
 @media (max-width: 720px) {
   .shell {
     grid-template-columns: 1fr;
   }
+  .mobile-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.6rem 1rem;
+    background: var(--bg-deep);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  .burger {
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+  }
+  .burger svg {
+    width: 20px;
+    height: 20px;
+  }
+  /* The sidebar becomes an off-canvas drawer sliding in from the left. */
   .sidebar {
-    position: static;
-    height: auto;
-    flex-direction: row;
-    flex-wrap: wrap;
-    align-items: center;
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    width: 260px;
+    transform: translateX(-100%);
+    transition: transform 0.22s ease;
+    z-index: 30;
   }
-  .foot {
-    margin: 0 0 0 auto;
-    flex-direction: row;
-    align-items: center;
+  .shell.open .sidebar {
+    transform: translateX(0);
   }
-  .signout {
-    width: auto;
+  .backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.22s ease;
+    z-index: 20;
+  }
+  .shell.open .backdrop {
+    opacity: 1;
+    pointer-events: auto;
   }
   .main {
     padding: 1.25rem;

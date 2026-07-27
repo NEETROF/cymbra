@@ -27,7 +27,7 @@ const en = {
     title: "Access denied",
     body: "This account is signed in but is not a moderator or admin, so no moderation actions are available. Ask an admin to grant you the moderator role.",
   },
-  nav: { queue: "Queue", catalog: "Catalog", roles: "Roles" },
+  nav: { queue: "Queue", catalog: "Catalog", roles: "Roles", menu: "Menu" },
   catalog: { title: "Catalog", count: "{n} score | {n} scores" },
   queue: {
     title: "Review queue",
@@ -127,7 +127,7 @@ const fr: typeof en = {
     title: "Accès refusé",
     body: "Ce compte est connecté mais n'est ni modérateur ni admin : aucune action de modération n'est disponible. Demande à un admin de t'attribuer le rôle modérateur.",
   },
-  nav: { queue: "File", catalog: "Catalogue", roles: "Rôles" },
+  nav: { queue: "File", catalog: "Catalogue", roles: "Rôles", menu: "Menu" },
   catalog: { title: "Catalogue", count: "{n} partition | {n} partitions" },
   queue: {
     title: "File de revue",
