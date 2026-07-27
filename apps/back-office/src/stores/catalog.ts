@@ -54,6 +54,24 @@ export interface CatalogStats {
   rejected: number;
 }
 
+// Module-scope data helpers (no store state — kept out of the setup, and flatter,
+// per Sonar S7721/S2004). They call the API seam like everything else.
+async function countByStatus(moderationStatus: ModerationStatus): Promise<number> {
+  const resp = await api().score.searchCatalog({ query: "", moderationStatus, sort: [], limit: 1, offset: 0 });
+  return resp.total;
+}
+
+async function fetchBytes(catalogId: string): Promise<Uint8Array> {
+  const resp = await api().score.getCatalogScoreBytes({ catalogId });
+  return resp.data;
+}
+
+/** One score's metadata by id — so the detail view is self-sufficient (works on
+ * refresh / deep-link, not dependent on the last search's list). */
+async function fetchHit(catalogId: string): Promise<CatalogHit> {
+  return api().score.getCatalogScore({ catalogId });
+}
+
 export const useCatalogStore = defineStore("catalog", () => {
   // One value for the whole search lifecycle — views match on it exhaustively.
   const result = ref<Async<CatalogResult>>(idle);
@@ -89,24 +107,13 @@ export const useCatalogStore = defineStore("catalog", () => {
    * (limit 1, we only read `total`) run in parallel. */
   async function loadStats() {
     await run(stats, async () => {
-      const count = (moderationStatus: ModerationStatus) =>
-        api()
-          .score.searchCatalog({ query: "", moderationStatus, sort: [], limit: 1, offset: 0 })
-          .then((r) => r.total);
-      const [pending, accepted, rejected] = await Promise.all([count("pending"), count("accepted"), count("rejected")]);
+      const [pending, accepted, rejected] = await Promise.all([
+        countByStatus("pending"),
+        countByStatus("accepted"),
+        countByStatus("rejected"),
+      ]);
       return { pending, accepted, rejected, total: pending + accepted + rejected };
     });
-  }
-
-  async function fetchBytes(catalogId: string): Promise<Uint8Array> {
-    const resp = await api().score.getCatalogScoreBytes({ catalogId });
-    return resp.data;
-  }
-
-  /** One score's metadata by id — so the detail view is self-sufficient (works on
-   * refresh / deep-link, not dependent on the last search's list). */
-  async function fetchHit(catalogId: string): Promise<CatalogHit> {
-    return api().score.getCatalogScore({ catalogId });
   }
 
   return { result, lastParams, stats, search, loadStats, setModerationStatus, fetchBytes, fetchHit };

@@ -55,7 +55,7 @@ onMounted(run);
         {{ vm.loading ? $t("common.loading") : $t("queue.pending", vm.total) }} — {{ $t("queue.hint") }}
       </p>
     </div>
-    <button @click="resetToPriority">{{ $t("queue.priorityOrder") }}</button>
+    <button type="button" @click="resetToPriority">{{ $t("queue.priorityOrder") }}</button>
   </div>
   <StatBar />
   <p v-if="vm.error" class="error" role="alert">{{ vm.error }}</p>

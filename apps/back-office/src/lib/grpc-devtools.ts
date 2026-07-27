@@ -13,7 +13,10 @@ import { ConnectError, type Interceptor } from "@connectrpc/connect";
 
 function post(payload: Record<string, unknown>): void {
   try {
-    window.postMessage({ type: "__GRPCWEB_DEVTOOLS__", ...payload }, "*");
+    // Target the page's own origin (not "*"): the devtools extension listens on the
+    // same window, so a same-origin post reaches it while nothing is broadcast to
+    // other frames/origins.
+    window.postMessage({ type: "__GRPCWEB_DEVTOOLS__", ...payload }, window.location.origin);
   } catch {
     /* extension absent or window unavailable — ignore */
   }

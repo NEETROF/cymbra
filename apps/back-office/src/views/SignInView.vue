@@ -49,8 +49,18 @@ defineExpose({ submitGoogleCredential });
     <p class="muted">{{ $t("signin.subtitle") }}</p>
 
     <form @submit.prevent="submitLocal">
-      <input v-model="email" type="email" :placeholder="$t('signin.email')" autocomplete="username" required />
+      <label for="signin-email" class="sr-only">{{ $t("signin.email") }}</label>
       <input
+        id="signin-email"
+        v-model="email"
+        type="email"
+        :placeholder="$t('signin.email')"
+        autocomplete="username"
+        required
+      />
+      <label for="signin-password" class="sr-only">{{ $t("signin.password") }}</label>
+      <input
+        id="signin-password"
         v-model="password"
         type="password"
         :placeholder="$t('signin.password')"

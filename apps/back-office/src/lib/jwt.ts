@@ -12,7 +12,7 @@ export interface TokenClaims {
 
 function base64UrlDecode(input: string): string {
   const pad = input.length % 4 === 0 ? "" : "=".repeat(4 - (input.length % 4));
-  const b64 = input.replace(/-/g, "+").replace(/_/g, "/") + pad;
+  const b64 = input.replaceAll("-", "+").replaceAll("_", "/") + pad;
   // atob is available in the browser and jsdom.
   return atob(b64);
 }

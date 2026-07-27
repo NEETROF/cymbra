@@ -23,7 +23,7 @@ const columns: { field: string; labelKey: string }[] = [
   { field: "tempo_bpm", labelKey: "table.bpm" },
 ];
 
-const KNOWN_LEVELS = ["beginner", "intermediate", "advanced"];
+const KNOWN_LEVELS = new Set(["beginner", "intermediate", "advanced"]);
 
 function arrow(field: string): string {
   const key = props.sort.find((k) => k.field === field);
@@ -32,11 +32,11 @@ function arrow(field: string): string {
 }
 
 function shortId(id: string): string {
-  return id.replace(/-/g, "").slice(0, 8).toUpperCase();
+  return id.replaceAll("-", "").slice(0, 8).toUpperCase();
 }
 
 function levelLabel(level: string): string {
-  return KNOWN_LEVELS.includes(level) ? t(`level.${level}`) : level;
+  return KNOWN_LEVELS.has(level) ? t(`level.${level}`) : level;
 }
 </script>
 
@@ -44,15 +44,15 @@ function levelLabel(level: string): string {
   <table>
     <thead>
       <tr>
-        <th
-          v-for="c in columns"
-          :key="c.field"
-          class="sortable"
-          role="button"
-          :aria-label="t('table.sortBy', { field: t(c.labelKey) })"
-          @click="emit('sort', c.field)"
-        >
-          {{ t(c.labelKey) }}{{ arrow(c.field) }}
+        <th v-for="c in columns" :key="c.field">
+          <button
+            type="button"
+            class="sortable"
+            :aria-label="t('table.sortBy', { field: t(c.labelKey) })"
+            @click="emit('sort', c.field)"
+          >
+            {{ t(c.labelKey) }}{{ arrow(c.field) }}
+          </button>
         </th>
         <th>{{ t("table.source") }}</th>
         <th>{{ t("table.status") }}</th>
@@ -104,12 +104,23 @@ function levelLabel(level: string): string {
 </template>
 
 <style scoped>
+/* The sortable header is a real <button> (keyboard-accessible) reset to look like a
+   plain <th> — it inherits the uppercase/color from the global thead th. */
 .sortable {
+  background: none;
+  border: 0;
+  margin: 0;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
   cursor: pointer;
   user-select: none;
   white-space: nowrap;
 }
 .sortable:hover {
+  background: none;
   color: var(--text);
 }
 .row {

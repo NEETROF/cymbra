@@ -87,7 +87,7 @@ onMounted(() => store.list("", 0));
       :aria-label="$t('roles.searchPlaceholder')"
       @keyup.enter="search"
     />
-    <button @click="search">{{ $t("roles.search") }}</button>
+    <button type="button" @click="search">{{ $t("roles.search") }}</button>
   </div>
 
   <p v-if="error" class="error" role="alert">{{ error }}</p>
@@ -114,6 +114,7 @@ onMounted(() => store.list("", 0));
             <button
               v-for="r in MANAGED_ROLES"
               :key="r"
+              type="button"
               class="toggle"
               :class="{ held: a.roles.includes(r) }"
               :disabled="acting"
@@ -126,7 +127,7 @@ onMounted(() => store.list("", 0));
             >
               {{ a.roles.includes(r) ? "−" : "+" }} {{ $t(`role.${r}`) }}
             </button>
-            <button :disabled="acting" @click="history(a.userId)">{{ $t("roles.history") }}</button>
+            <button type="button" :disabled="acting" @click="history(a.userId)">{{ $t("roles.history") }}</button>
           </td>
         </tr>
         <tr v-if="vm.accounts.length === 0">
@@ -139,8 +140,8 @@ onMounted(() => store.list("", 0));
   <div class="pager">
     <span class="muted">{{ $t("roles.showing", { from, to, total: vm.total }) }}</span>
     <div class="pager-btns">
-      <button :disabled="!canPrev" @click="prev">{{ $t("roles.prev") }}</button>
-      <button :disabled="!canNext" @click="next">{{ $t("roles.next") }}</button>
+      <button type="button" :disabled="!canPrev" @click="prev">{{ $t("roles.prev") }}</button>
+      <button type="button" :disabled="!canNext" @click="next">{{ $t("roles.next") }}</button>
     </div>
   </div>
 

@@ -15,7 +15,7 @@ function signOut() {
   <section class="denied">
     <h1>{{ $t("denied.title") }}</h1>
     <p class="muted">{{ $t("denied.body") }}</p>
-    <button @click="signOut">{{ $t("common.signOut") }}</button>
+    <button type="button" @click="signOut">{{ $t("common.signOut") }}</button>
   </section>
 </template>
 

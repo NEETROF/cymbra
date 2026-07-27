@@ -62,15 +62,15 @@ async function decide(status: ModerationStatus) {
 
 <template>
   <div class="head">
-    <button @click="router.back()">{{ $t("common.back") }}</button>
+    <button type="button" @click="router.back()">{{ $t("common.back") }}</button>
     <div v-if="auth.isModerator" class="actions">
-      <button class="accept" :disabled="acting" @click="decide('accepted')">
+      <button type="button" class="accept" :disabled="acting" @click="decide('accepted')">
         {{ $t("detail.accept") }}
       </button>
-      <button class="reject" :disabled="acting" @click="decide('rejected')">
+      <button type="button" class="reject" :disabled="acting" @click="decide('rejected')">
         {{ $t("detail.reject") }}
       </button>
-      <button :disabled="acting" @click="decide('pending')">
+      <button type="button" :disabled="acting" @click="decide('pending')">
         {{ $t("detail.requeue") }}
       </button>
     </div>

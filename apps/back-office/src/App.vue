@@ -50,7 +50,7 @@ function signOut() {
        off-canvas drawer opened by the hamburger in the mobile bar. -->
   <div v-if="shell" class="shell" :class="{ open: menuOpen }">
     <div class="mobile-bar">
-      <button class="burger" :aria-label="t('nav.menu')" @click="menuOpen = !menuOpen">
+      <button type="button" class="burger" :aria-label="t('nav.menu')" @click="menuOpen = !menuOpen">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
           <path d="M3 6h18M3 12h18M3 18h18" />
         </svg>
@@ -102,17 +102,18 @@ function signOut() {
           </span>
           <span class="badge role">{{ auth.isAdmin ? t("role.admin") : t("role.moderator") }}</span>
         </div>
-        <div class="lang" role="group" aria-label="language">
+        <div class="lang" role="toolbar" aria-label="language">
           <button
             v-for="l in SUPPORTED_LOCALES"
             :key="l"
+            type="button"
             :class="{ active: currentLocale() === l }"
             @click="setLocale(l)"
           >
             {{ l.toUpperCase() }}
           </button>
         </div>
-        <button class="signout" @click="signOut">{{ t("common.signOut") }}</button>
+        <button type="button" class="signout" @click="signOut">{{ t("common.signOut") }}</button>
       </div>
     </aside>
 
@@ -124,10 +125,11 @@ function signOut() {
   <!-- Unauthenticated canvas: sign-in / access-denied, with a corner language toggle. -->
   <div v-else class="plain">
     <div class="plain-top">
-      <div class="lang" role="group" aria-label="language">
+      <div class="lang" role="toolbar" aria-label="language">
         <button
           v-for="l in SUPPORTED_LOCALES"
           :key="l"
+          type="button"
           :class="{ active: currentLocale() === l }"
           @click="setLocale(l)"
         >
