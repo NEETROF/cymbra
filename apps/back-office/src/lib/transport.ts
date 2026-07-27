@@ -60,6 +60,41 @@ const sessionExpiryInterceptor: Interceptor = (next) => async (req) => {
   }
 };
 
+// Silent token refresh: an UNAUTHENTICATED response usually just means the short-
+// lived access token expired, so refresh it once and retry the call with the new
+// token — the user stays signed in as long as the refresh token is valid. Refreshes
+// are single-flighted so concurrent 401s trigger only ONE refresh. Only if the
+// refresh itself fails does the error reach the session-expiry handler (real sign-
+// out). The refresh RPC is skipped to avoid recursion. Wired in main.ts.
+let tokenRefresher: (() => Promise<boolean>) | null = null;
+let inflightRefresh: Promise<boolean> | null = null;
+
+export function setTokenRefresher(fn: (() => Promise<boolean>) | null): void {
+  tokenRefresher = fn;
+}
+
+function refreshOnce(): Promise<boolean> {
+  if (!tokenRefresher) return Promise.resolve(false);
+  inflightRefresh ??= tokenRefresher().finally(() => {
+    inflightRefresh = null;
+  });
+  return inflightRefresh;
+}
+
+export const refreshInterceptor: Interceptor = (next) => async (req) => {
+  try {
+    return await next(req);
+  } catch (e) {
+    // Never refresh-and-retry the refresh call itself (would recurse / deadlock).
+    const isRefreshCall = req.method === AuthService.method.refresh;
+    if (!isRefreshCall && e instanceof ConnectError && e.code === Code.Unauthenticated) {
+      // Retry once; the auth interceptor re-attaches the freshly refreshed token.
+      if (await refreshOnce()) return await next(req);
+    }
+    throw e;
+  }
+};
+
 // gRPC-web always returns HTTP 200; the real status is the grpc-status trailer, so
 // the Network tab hides errors. In dev, log one clear line per failed call
 // (method + decoded code + message) to the Console so failures are obvious.
@@ -75,7 +110,10 @@ const devLogInterceptor: Interceptor = (next) => async (req) => {
 };
 
 export function createTransport(getToken: () => string | null): Transport {
-  const interceptors: Interceptor[] = [authInterceptor(getToken), sessionExpiryInterceptor];
+  // Order = outermost→innermost. session-expiry wraps refresh (so it only fires
+  // once refresh has given up), which wraps auth (so a retry re-attaches the new
+  // token).
+  const interceptors: Interceptor[] = [sessionExpiryInterceptor, refreshInterceptor, authInterceptor(getToken)];
   if (import.meta.env.DEV) {
     // Console one-liner + the gRPC-Web Developer Tools panel (if the extension is
     // installed). Both dev-only.

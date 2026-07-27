@@ -3,7 +3,7 @@ import { createPinia } from "pinia";
 import App from "./App.vue";
 import { createAppRouter } from "./router";
 import { initApi } from "./lib/api";
-import { setUnauthenticatedHandler } from "./lib/transport";
+import { setTokenRefresher, setUnauthenticatedHandler } from "./lib/transport";
 import { useAuthStore } from "./stores/auth";
 import { currentLocale, i18n } from "./i18n";
 import "./styles.css";
@@ -27,6 +27,18 @@ async function boot() {
     installE2EClients();
   } else {
     initApi(() => auth.accessToken);
+    // Silent refresh: on an expired access token, refresh once and retry rather
+    // than signing the user out. Returns false (→ sign out) when there is no
+    // refresh token or the refresh itself fails.
+    setTokenRefresher(async () => {
+      if (!auth.refreshToken) return false;
+      try {
+        await auth.refresh();
+        return true;
+      } catch {
+        return false;
+      }
+    });
   }
 
   const router = createAppRouter();
