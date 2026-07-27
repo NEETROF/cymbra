@@ -181,7 +181,13 @@ tbody tr:last-child td {
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  overflow: hidden;
+  /* Wide tables scroll horizontally inside the card instead of being clipped
+     (was overflow:hidden, which cut off the right columns on narrow screens). */
+  overflow-x: auto;
+}
+/* Keep columns readable: below this width the table scrolls rather than cramming. */
+.table-card table {
+  min-width: 680px;
 }
 
 .error {

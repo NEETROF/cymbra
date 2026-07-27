@@ -307,6 +307,9 @@ function signOut() {
 @media (max-width: 720px) {
   .shell {
     grid-template-columns: 1fr;
+    /* Bar = its own height, main takes the rest — otherwise the grid stretches the
+       bar to share free vertical space on short pages. */
+    grid-template-rows: auto 1fr;
   }
   .mobile-bar {
     display: flex;
