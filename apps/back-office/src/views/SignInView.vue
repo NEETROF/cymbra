@@ -21,7 +21,7 @@ const error = computed(() =>
 
 async function afterSignIn() {
   // A signed-in user without moderator/admin lands on the access-denied state.
-  await router.push({ name: auth.isModerator ? "queue" : "denied" });
+  await router.push({ name: auth.isModerator ? "music-queue" : "denied" });
 }
 
 async function submitLocal() {

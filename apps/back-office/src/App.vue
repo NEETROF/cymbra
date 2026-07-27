@@ -34,7 +34,7 @@ const nav = computed(() => {
     { to: "/music/queue", key: "nav.queue", icon: "queue" },
     { to: "/music/catalog", key: "nav.catalog", icon: "catalog" },
   ];
-  if (auth.isAdmin) items.push({ to: "/music/roles", key: "nav.roles", icon: "roles" });
+  if (auth.isAdmin) items.push({ to: "/roles", key: "nav.roles", icon: "roles" });
   return items;
 });
 

@@ -82,7 +82,7 @@ onMounted(run);
       :status="status"
       :sort="sort"
       @sort="onSort"
-      @select="(id) => router.push({ name: 'score', params: { id } })"
+      @select="(id) => router.push({ name: 'music-score', params: { id } })"
     />
   </div>
 </template>

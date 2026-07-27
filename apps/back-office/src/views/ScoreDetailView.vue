@@ -56,7 +56,7 @@ onMounted(() => {
 
 async function decide(status: ModerationStatus) {
   const outcome = await run(decision, () => store.setModerationStatus(props.id, status));
-  if (outcome.status === "success") await router.push({ name: "queue" });
+  if (outcome.status === "success") await router.push({ name: "music-queue" });
 }
 </script>
 
