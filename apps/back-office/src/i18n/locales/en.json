@@ -1,0 +1,102 @@
+{
+  "common": { "signOut": "Sign out", "back": "← Back", "loading": "Loading…" },
+  "brand": { "suite": "Back-office" },
+  "stats": { "total": "Total catalog", "approved": "Approved", "pending": "Awaiting review" },
+  "role": { "moderator": "moderator", "admin": "admin" },
+  "status": { "pending": "pending", "accepted": "accepted", "rejected": "rejected" },
+  "level": {
+    "any": "any level",
+    "beginner": "beginner",
+    "intermediate": "intermediate",
+    "advanced": "advanced"
+  },
+  "signin": {
+    "title": "Cymbra moderation",
+    "subtitle": "Sign in with a moderator or admin account.",
+    "email": "email",
+    "password": "password",
+    "submit": "Sign in",
+    "submitting": "Signing in…",
+    "googleConfigured": "Google sign-in is configured — the Google button targets the same account."
+  },
+  "denied": {
+    "title": "Access denied",
+    "body": "This account is signed in but is not a moderator or admin, so no moderation actions are available. Ask an admin to grant you the moderator role."
+  },
+  "nav": { "queue": "Catalog review", "catalog": "Catalog", "roles": "Roles", "menu": "Menu" },
+  "catalog": { "title": "Catalog", "count": "{n} score | {n} scores" },
+  "queue": {
+    "title": "Catalog review",
+    "priorityOrder": "Priority order",
+    "pending": "{n} pending",
+    "hint": "most substantial first. Re-review flagging arrives with app ratings (#2)."
+  },
+  "table": {
+    "title": "Title",
+    "composer": "Composer",
+    "level": "Level",
+    "notes": "Notes",
+    "bpm": "BPM",
+    "source": "Source",
+    "status": "Status",
+    "empty": "No scores.",
+    "sortBy": "sort by {field}"
+  },
+  "filters": {
+    "query": "title or composer",
+    "composer": "composer",
+    "pianoOnly": "piano only",
+    "searchLabel": "search",
+    "composerLabel": "composer",
+    "levelLabel": "level",
+    "statusLabel": "moderation status"
+  },
+  "detail": { "accept": "Accept", "reject": "Reject", "requeue": "Re-queue", "score": "Score" },
+  "preview": {
+    "title": "Title",
+    "composer": "Composer",
+    "arranger": "Arranger",
+    "level": "Level",
+    "licence": "Licence",
+    "source": "Source",
+    "timeSig": "Time signature",
+    "notes": "Notes",
+    "tempo": "Tempo (BPM)",
+    "loading": "Loading score…",
+    "loaded": "Score loaded ({bytes} bytes). Notation rendering (Rust layout_systems → wasm) is not wired yet in this slice.",
+    "noBytes": "No score bytes."
+  },
+  "roles": {
+    "title": "Roles",
+    "intro": "Browse accounts and grant or revoke the moderator and admin roles (music scope). Filter by handle or email. Every change is recorded in each account's audit history.",
+    "searchPlaceholder": "filter by handle or email",
+    "search": "Search",
+    "colHandle": "Handle",
+    "colName": "Name",
+    "colRoles": "Roles",
+    "colActions": "Actions",
+    "noAccounts": "No accounts.",
+    "noHandle": "—",
+    "grantRole": "Grant {role}",
+    "revokeRole": "Revoke {role}",
+    "showing": "{from}–{to} of {total}",
+    "prev": "Previous",
+    "next": "Next",
+    "history": "History",
+    "when": "When",
+    "action": "Action",
+    "scope": "Scope",
+    "role": "Role",
+    "byAdmin": "By admin"
+  },
+  "errors": {
+    "unauthenticated": "Invalid credentials or expired session.",
+    "permissionDenied": "Access denied.",
+    "notFound": "Item not found.",
+    "notAvailable": "Not available yet. Try again later.",
+    "invalidArgument": "Invalid request.",
+    "resourceExhausted": "Too many attempts. Try again later.",
+    "unavailable": "Service unavailable. Try again.",
+    "generic": "Something went wrong. Try again."
+  }
+}

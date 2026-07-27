@@ -1,0 +1,107 @@
+{
+  "common": { "signOut": "Se déconnecter", "back": "← Retour", "loading": "Chargement…" },
+  "brand": { "suite": "Back-office" },
+  "stats": { "total": "Catalogue total", "approved": "Acceptées", "pending": "En attente" },
+  "role": { "moderator": "modérateur", "admin": "admin" },
+  "status": { "pending": "en attente", "accepted": "acceptée", "rejected": "rejetée" },
+  "level": {
+    "any": "tous niveaux",
+    "beginner": "débutant",
+    "intermediate": "intermédiaire",
+    "advanced": "avancé"
+  },
+  "signin": {
+    "title": "Modération Cymbra",
+    "subtitle": "Connecte-toi avec un compte modérateur ou admin.",
+    "email": "e-mail",
+    "password": "mot de passe",
+    "submit": "Se connecter",
+    "submitting": "Connexion…",
+    "googleConfigured": "La connexion Google est configurée — le bouton Google cible le même compte."
+  },
+  "denied": {
+    "title": "Accès refusé",
+    "body": "Ce compte est connecté mais n'est ni modérateur ni admin : aucune action de modération n'est disponible. Demande à un admin de t'attribuer le rôle modérateur."
+  },
+  "nav": { "queue": "Revue du catalogue", "catalog": "Catalogue", "roles": "Rôles", "menu": "Menu" },
+  "catalog": { "title": "Catalogue", "count": "{n} partition | {n} partitions" },
+  "queue": {
+    "title": "Revue du catalogue",
+    "priorityOrder": "Ordre de priorité",
+    "pending": "{n} en attente",
+    "hint": "les plus substantielles d'abord. Le signalement de re-revue arrive avec les notes de l'app (#2)."
+  },
+  "table": {
+    "title": "Titre",
+    "composer": "Compositeur",
+    "level": "Niveau",
+    "notes": "Notes",
+    "bpm": "BPM",
+    "source": "Source",
+    "status": "Statut",
+    "empty": "Aucune partition.",
+    "sortBy": "trier par {field}"
+  },
+  "filters": {
+    "query": "titre ou compositeur",
+    "composer": "compositeur",
+    "pianoOnly": "piano uniquement",
+    "searchLabel": "recherche",
+    "composerLabel": "compositeur",
+    "levelLabel": "niveau",
+    "statusLabel": "statut de modération"
+  },
+  "detail": {
+    "accept": "Accepter",
+    "reject": "Rejeter",
+    "requeue": "Remettre en file",
+    "score": "Partition"
+  },
+  "preview": {
+    "title": "Titre",
+    "composer": "Compositeur",
+    "arranger": "Arrangeur",
+    "level": "Niveau",
+    "licence": "Licence",
+    "source": "Source",
+    "timeSig": "Signature rythmique",
+    "notes": "Notes",
+    "tempo": "Tempo (BPM)",
+    "loading": "Chargement de la partition…",
+    "loaded": "Partition chargée ({bytes} octets). Le rendu de notation (Rust layout_systems → wasm) n'est pas encore branché dans cette tranche.",
+    "noBytes": "Aucun octet de partition."
+  },
+  "roles": {
+    "title": "Rôles",
+    "intro": "Parcours les comptes et attribue ou retire les rôles modérateur et admin (scope music). Filtre par handle ou e-mail. Chaque changement est enregistré dans l'historique d'audit du compte.",
+    "searchPlaceholder": "filtrer par handle ou e-mail",
+    "search": "Rechercher",
+    "colHandle": "Handle",
+    "colName": "Nom",
+    "colRoles": "Rôles",
+    "colActions": "Actions",
+    "noAccounts": "Aucun compte.",
+    "noHandle": "—",
+    "grantRole": "Attribuer {role}",
+    "revokeRole": "Retirer {role}",
+    "showing": "{from}–{to} sur {total}",
+    "prev": "Précédent",
+    "next": "Suivant",
+    "history": "Historique",
+    "when": "Quand",
+    "action": "Action",
+    "scope": "Scope",
+    "role": "Rôle",
+    "byAdmin": "Par l'admin"
+  },
+  "errors": {
+    "unauthenticated": "Identifiants invalides ou session expirée.",
+    "permissionDenied": "Accès refusé.",
+    "notFound": "Élément introuvable.",
+    "notAvailable": "Pas encore disponible. Réessaie plus tard.",
+    "invalidArgument": "Requête invalide.",
+    "resourceExhausted": "Trop de tentatives. Réessaie plus tard.",
+    "unavailable": "Service indisponible. Réessaie.",
+    "generic": "Une erreur est survenue. Réessaie."
+  }
+}
