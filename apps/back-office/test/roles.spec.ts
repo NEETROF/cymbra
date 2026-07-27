@@ -45,6 +45,10 @@ describe("roles store", () => {
     const outcome = await store.grant("t", "admin");
     expect(outcome.status).toBe("error");
     expect(store.op.status).toBe("error");
-    if (store.op.status === "error") expect(store.op.error).toBe("permission denied");
+    // A user-facing message, not the raw error text.
+    if (store.op.status === "error") {
+      expect(store.op.error).not.toContain("permission denied");
+      expect(store.op.error.length).toBeGreaterThan(0);
+    }
   });
 });

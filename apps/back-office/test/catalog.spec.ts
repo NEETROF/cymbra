@@ -64,6 +64,10 @@ describe("catalog store", () => {
     const store = useCatalogStore();
     await store.search({ moderationStatus: "pending" });
     expect(store.result.status).toBe("error");
-    if (store.result.status === "error") expect(store.result.error).toBe("boom");
+    if (store.result.status === "error") {
+      // The union holds a user-facing message, never the raw technical error.
+      expect(store.result.error).not.toContain("boom");
+      expect(store.result.error.length).toBeGreaterThan(0);
+    }
   });
 });

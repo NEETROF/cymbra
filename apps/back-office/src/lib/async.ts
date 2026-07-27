@@ -1,4 +1,5 @@
 import type { Ref } from "vue";
+import { humanError } from "./errors";
 
 // A discriminated union for an async resource. Modelling the four states as ONE
 // value (instead of separate `loading`/`error`/`data` refs) makes impossible
@@ -18,15 +19,16 @@ export const failure = <E = string>(error: E): Async<never, E> => ({ status: "er
 
 /**
  * Fold a promise into an `Async` ref: `loading` while it runs, then `success` or
- * `error` (message extracted). Never throws — the outcome lives in the state, so
- * callers/views branch on it rather than try/catch. Returns the settled state.
+ * `error`. The error is a **user-facing** message via `humanError` (raw gRPC codes
+ * are logged, never stored/shown). Never throws — the outcome lives in the state,
+ * so callers/views branch on it rather than try/catch. Returns the settled state.
  */
 export async function run<T>(ref: Ref<Async<T>>, fn: () => Promise<T>): Promise<Async<T>> {
   ref.value = loading;
   try {
     ref.value = success(await fn());
   } catch (e) {
-    ref.value = failure(e instanceof Error ? e.message : String(e));
+    ref.value = failure(humanError(e));
   }
   return ref.value;
 }
