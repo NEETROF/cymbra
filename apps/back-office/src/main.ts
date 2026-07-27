@@ -3,6 +3,7 @@ import { createPinia } from "pinia";
 import App from "./App.vue";
 import { createAppRouter } from "./router";
 import { initApi } from "./lib/api";
+import { setUnauthenticatedHandler } from "./lib/transport";
 import { useAuthStore } from "./stores/auth";
 import { currentLocale, i18n } from "./i18n";
 import "./styles.css";
@@ -17,5 +18,18 @@ if (globalThis.document) document.documentElement.lang = currentLocale();
 const auth = useAuthStore(pinia);
 initApi(() => auth.accessToken);
 
-app.use(createAppRouter());
+const router = createAppRouter();
+app.use(router);
+
+// Session expiry: if any call returns UNAUTHENTICATED while a session exists, the
+// token is expired/rejected — sign out and send the user to sign-in. Guarded on an
+// existing session so a failed sign-in (bad credentials, also UNAUTHENTICATED) does
+// NOT redirect.
+setUnauthenticatedHandler(() => {
+  if (auth.isAuthenticated) {
+    auth.signOut();
+    router.push({ name: "signin" });
+  }
+});
+
 app.mount("#app");

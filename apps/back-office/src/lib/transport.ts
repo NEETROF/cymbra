@@ -42,6 +42,31 @@ export function baseUrl(): string {
   return url;
 }
 
+// Global session-expiry handling: any call that comes back UNAUTHENTICATED means
+// the access token is missing/expired/rejected. A registered handler (wired in
+// main.ts) signs the user out and redirects to sign-in. It fires for EVERY such
+// error; the handler itself decides what to do (e.g. ignore when no session
+// exists, so a failed sign-in attempt with bad credentials is NOT a redirect).
+let onUnauthenticated: (() => void) | null = null;
+
+export function setUnauthenticatedHandler(fn: (() => void) | null): void {
+  onUnauthenticated = fn;
+}
+
+/** Notify the handler when `e` is an UNAUTHENTICATED Connect error. Exported for tests. */
+export function notifyIfUnauthenticated(e: unknown): void {
+  if (e instanceof ConnectError && e.code === Code.Unauthenticated) onUnauthenticated?.();
+}
+
+const sessionExpiryInterceptor: Interceptor = (next) => async (req) => {
+  try {
+    return await next(req);
+  } catch (e) {
+    notifyIfUnauthenticated(e);
+    throw e;
+  }
+};
+
 // gRPC-web always returns HTTP 200; the real status is the grpc-status trailer, so
 // the Network tab hides errors. In dev, log one clear line per failed call
 // (method + decoded code + message) to the Console so failures are obvious.
@@ -59,7 +84,7 @@ const devLogInterceptor: Interceptor = (next) => async (req) => {
 };
 
 export function createTransport(getToken: () => string | null): Transport {
-  const interceptors: Interceptor[] = [authInterceptor(getToken)];
+  const interceptors: Interceptor[] = [authInterceptor(getToken), sessionExpiryInterceptor];
   if (import.meta.env.DEV) {
     // Console one-liner + the gRPC-Web Developer Tools panel (if the extension is
     // installed). Both dev-only.
