@@ -1,38 +1,48 @@
-import { test, expect, seed, sampleHit } from "./fixtures";
+import { test, expect, seed } from "./fixtures";
 
-const grantRow = {
-  at: 1_700_000_000, // seconds
-  action: "grant",
-  scope: "music",
-  role: "moderator",
-  actingAdmin: "admin-1",
-};
+const ada = { userId: "u-ada", handle: "ada", displayName: "Ada Lovelace", roles: [] as string[] };
+const bob = { userId: "u-bob", handle: "bob", displayName: "Bob Ross", roles: ["moderator"] };
 
-test.describe("roles (admin only)", () => {
-  test("an admin sees the Roles nav and loads an account's audit history", async ({ page }) => {
-    await seed(page, { loginAs: "admin", data: { hits: [sampleHit()], grants: [grantRow] } });
+test.describe("roles directory (admin only)", () => {
+  test("an admin sees the account directory and grants a role on a row", async ({ page }) => {
+    await seed(page, { loginAs: "admin", data: { accounts: [ada] } });
     await page.goto("/roles");
 
     await expect(page.getByRole("heading", { name: "Roles" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "Roles" })).toBeVisible();
+    await expect(page.getByText("ada", { exact: true })).toBeVisible();
+    // Before: grantable, not yet held.
+    await expect(page.getByRole("button", { name: "Grant moderator" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Revoke moderator" })).toHaveCount(0);
 
-    await page.getByPlaceholder("target user id (UUID)").fill("00000000-0000-0000-0000-000000000000");
-    await page.getByRole("button", { name: "Load history" }).click();
+    await page.getByRole("button", { name: "Grant moderator" }).click();
 
-    const row = page.locator("tbody tr").first();
-    await expect(row).toContainText("grant");
-    await expect(row).toContainText("music");
-    await expect(row).toContainText("moderator");
-    await expect(row).toContainText("admin-1");
+    // After the grant + re-list, the row reflects the role (toggle flips to revoke).
+    await expect(page.getByRole("button", { name: "Revoke moderator" })).toBeVisible();
   });
 
-  test("granting a role succeeds without surfacing an error", async ({ page }) => {
-    await seed(page, { loginAs: "admin", data: { grants: [] } });
+  test("filtering by handle narrows the directory", async ({ page }) => {
+    await seed(page, { loginAs: "admin", data: { accounts: [ada, bob] } });
     await page.goto("/roles");
 
-    await page.getByPlaceholder("target user id (UUID)").fill("00000000-0000-0000-0000-000000000000");
-    await page.getByRole("button", { name: "Grant", exact: true }).click();
+    await expect(page.getByText("ada", { exact: true })).toBeVisible();
+    await expect(page.getByText("bob", { exact: true })).toBeVisible();
 
-    await expect(page.getByRole("alert")).toHaveCount(0);
+    await page.getByPlaceholder("filter by handle or email").fill("ada");
+    await page.getByRole("button", { name: "Search" }).click();
+
+    await expect(page.getByText("ada", { exact: true })).toBeVisible();
+    await expect(page.getByText("bob", { exact: true })).toHaveCount(0);
+  });
+
+  test("an empty result shows a friendly message, not a raw code", async ({ page }) => {
+    await seed(page, { loginAs: "admin", data: { accounts: [ada] } });
+    await page.goto("/roles");
+
+    await page.getByPlaceholder("filter by handle or email").fill("zzz-nobody");
+    await page.getByRole("button", { name: "Search" }).click();
+
+    await expect(page.getByText("No accounts.")).toBeVisible();
+    await expect(page.locator("body")).not.toContainText("unavailable");
+    await expect(page.locator("body")).not.toContainText("[");
   });
 });

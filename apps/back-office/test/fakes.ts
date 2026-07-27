@@ -19,9 +19,11 @@ export interface FakeState {
   evaluateCalls: { scoreId: string; status: string }[];
   grantCalls: { userId: string; scope: string; role: string }[];
   revokeCalls: { userId: string; scope: string; role: string }[];
+  listAccountsCalls: { query: string; limit: number; offset: number }[];
   hits: unknown[];
   total: number;
   grants: unknown[];
+  accounts: unknown[];
   tokens: { accessToken: string; refreshToken: string };
 }
 
@@ -33,9 +35,11 @@ export function makeFakeClients(state: Partial<FakeState> = {}): { clients: Clie
     evaluateCalls: [],
     grantCalls: [],
     revokeCalls: [],
+    listAccountsCalls: [],
     hits: state.hits ?? [],
     total: state.total ?? 0,
     grants: state.grants ?? [],
+    accounts: state.accounts ?? [],
     tokens: state.tokens ?? { accessToken: makeJwt({ roles: ["moderator"], sub: "u1" }), refreshToken: "r" },
   };
   const clients = {
@@ -66,6 +70,10 @@ export function makeFakeClients(state: Partial<FakeState> = {}): { clients: Clie
         return {};
       },
       listRoleGrants: async () => ({ grants: s.grants }),
+      listAccounts: async (req: { query: string; limit: number; offset: number }) => {
+        s.listAccountsCalls.push(req);
+        return { accounts: s.accounts, total: s.accounts.length };
+      },
     },
   } as unknown as Clients;
   return { clients, state: s };

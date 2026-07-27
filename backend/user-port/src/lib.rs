@@ -47,6 +47,25 @@ pub struct RoleGrant {
     pub at: i64, // unix seconds
 }
 
+/// One row of the admin account directory (change: add-admin-account-directory):
+/// an account with the roles it holds in the `music` scope. Handle/display_name are
+/// optional (handle-less accounts are onboarding-incomplete).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AccountSummary {
+    pub user_id: String,
+    pub handle: Option<String>,
+    pub display_name: Option<String>,
+    /// Roles held in the `music` scope (e.g. `moderator`, `admin`).
+    pub roles: Vec<String>,
+}
+
+/// A page of the admin account directory plus the total matching count.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AccountPage {
+    pub entries: Vec<AccountSummary>,
+    pub total: i64,
+}
+
 /// The user module's port: the contract `cymbra-auth` and the server adapter call.
 ///
 /// Implemented in-process by the direct adapter (`cymbra-user`) and — for the
@@ -116,6 +135,13 @@ pub trait UserPort: Send + Sync {
     /// The role-grant audit history for `user_id`, most recent first — answers "who
     /// granted/revoked which role, and when", independent of current role state.
     async fn list_role_grants(&self, user_id: &str) -> Result<Vec<RoleGrant>>;
+
+    /// A page of the admin account directory (change: add-admin-account-directory):
+    /// accounts with their `music`-scope roles, plus the total matching count.
+    /// `query` filters by handle (prefix, case-insensitive) or a `local` identity's
+    /// email; an empty `query` lists all accounts. Authorization (admin-only) is
+    /// enforced by the caller.
+    async fn list_accounts(&self, query: &str, limit: i64, offset: i64) -> Result<AccountPage>;
 }
 
 /// gRPC **client** adapter for the public account-management surface — used to

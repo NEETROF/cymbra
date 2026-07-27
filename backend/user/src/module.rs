@@ -6,7 +6,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use cymbra_jobs::{EnqueueRequest, Enqueuer, PURGE_USER};
 use cymbra_platform::{AppError, Result};
-use cymbra_user_port::{Account, Identity, UserPort};
+use cymbra_user_port::{Account, AccountPage, Identity, UserPort};
 use serde::Serialize;
 
 use crate::repo::UserRepo;
@@ -17,6 +17,11 @@ use crate::repo::UserRepo;
 const ROLES: [&str; 3] = ["user", "admin", "moderator"];
 /// Recognized authorization scopes (module audiences + the `global` break-glass).
 const SCOPES: [&str; 3] = ["global", "music", "live"];
+/// Account-directory paging bounds (change: add-admin-account-directory): a `0`/
+/// negative request means "default page", capped so a caller can't pull the whole
+/// table in one call.
+const DEFAULT_PAGE: i64 = 25;
+const MAX_PAGE: i64 = 100;
 
 /// Payload for the `purge_user` job: only the user id (the erasure worker resolves
 /// the email inside its own transaction, so it never transits the queue).
@@ -198,6 +203,28 @@ impl<R: UserRepo> UserPort for UserModule<R> {
 
     async fn list_role_grants(&self, user_id: &str) -> Result<Vec<cymbra_user_port::RoleGrant>> {
         self.repo.list_role_grants(user_id).await
+    }
+
+    async fn list_accounts(&self, query: &str, limit: i64, offset: i64) -> Result<AccountPage> {
+        // Clamp paging (default when unset, capped) so a caller can't drain the
+        // table; authorization (admin-only) is enforced at the gRPC layer.
+        let limit = if limit <= 0 {
+            DEFAULT_PAGE
+        } else {
+            limit.min(MAX_PAGE)
+        };
+        let offset = offset.max(0);
+        // Normalize the query into a handle key for the prefix match; handles carry
+        // no '@', so an email query just won't hit the handle branch (it matches the
+        // repo's email branch instead). Empty query → empty key → list all.
+        let handle_key = if query.is_empty() {
+            String::new()
+        } else {
+            crate::handle_core::normalize(query)
+        };
+        self.repo
+            .list_accounts(query, &handle_key, limit, offset)
+            .await
     }
 }
 
@@ -491,5 +518,70 @@ mod tests {
             m.check_handle_availability("bad handle!").await,
             Err(AppError::InvalidArgument(_))
         ));
+    }
+
+    #[tokio::test]
+    async fn list_accounts_paginates_filters_and_aggregates_roles() {
+        let m = module();
+        let admin = m.resolve_or_provision("google", "admin").await.unwrap();
+        // Three handled accounts; `ada` also has a `local` (email) identity + role.
+        let a = m.resolve_or_provision("local", "ada@x.dev").await.unwrap();
+        m.update_account(&a, None, Some("ada".into()), "{}", 1)
+            .await
+            .unwrap();
+        let b = m.resolve_or_provision("google", "b").await.unwrap();
+        m.update_account(&b, None, Some("bob".into()), "{}", 1)
+            .await
+            .unwrap();
+        let c = m.resolve_or_provision("google", "c").await.unwrap();
+        m.update_account(&c, None, Some("carol".into()), "{}", 1)
+            .await
+            .unwrap();
+        m.grant_role(&admin, &a, "music", "moderator")
+            .await
+            .unwrap();
+
+        // Unfiltered: all four accounts, total independent of the page window.
+        let page = m.list_accounts("", 2, 0).await.unwrap();
+        assert_eq!(page.total, 4);
+        assert_eq!(page.entries.len(), 2);
+        let page2 = m.list_accounts("", 2, 2).await.unwrap();
+        assert_eq!(page2.entries.len(), 2);
+        let first_ids: Vec<&String> = page.entries.iter().map(|e| &e.user_id).collect();
+        assert!(
+            page2
+                .entries
+                .iter()
+                .all(|e| !first_ids.contains(&&e.user_id))
+        );
+
+        // Filter by handle prefix (case-insensitive) + role aggregation.
+        let by_handle = m.list_accounts("AD", 25, 0).await.unwrap();
+        assert_eq!(by_handle.total, 1);
+        assert_eq!(by_handle.entries[0].handle.as_deref(), Some("ada"));
+        assert!(
+            by_handle.entries[0]
+                .roles
+                .contains(&"moderator".to_string())
+        );
+
+        // Filter by the email of a local identity.
+        let by_email = m.list_accounts("ada@x.dev", 25, 0).await.unwrap();
+        assert_eq!(by_email.total, 1);
+        assert_eq!(by_email.entries[0].user_id, a);
+
+        // No match → empty page, total 0 (not an error).
+        let none = m.list_accounts("nobody", 25, 0).await.unwrap();
+        assert_eq!(none.total, 0);
+        assert!(none.entries.is_empty());
+    }
+
+    #[tokio::test]
+    async fn list_accounts_clamps_paging() {
+        let m = module();
+        m.resolve_or_provision("google", "x").await.unwrap();
+        // limit <= 0 falls back to the default window rather than returning nothing.
+        let page = m.list_accounts("", 0, 0).await.unwrap();
+        assert_eq!(page.entries.len(), 1);
     }
 }

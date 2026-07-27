@@ -26,8 +26,18 @@ export interface E2EData {
   bytes?: number[] | null;
   /** Audit rows for `listRoleGrants`. */
   grants?: Record<string, unknown>[];
+  /** Accounts for the admin directory (`listAccounts`); roles are mutated in place
+   * by grant/revoke so the UI reflects the change on re-list. */
+  accounts?: DirectoryAccount[];
   /** Force a method to reject with a ConnectError, keyed by method name. */
   fail?: Record<string, E2EFailure>;
+}
+
+interface DirectoryAccount {
+  userId: string;
+  handle?: string;
+  displayName?: string;
+  roles: string[];
 }
 
 declare global {
@@ -41,6 +51,8 @@ export function installE2EClients(): void {
   const hits = data.hits ?? [];
   const counts = { pending: 0, accepted: 0, rejected: 0, ...(data.counts ?? {}) };
   const tokens = data.tokens ?? { accessToken: "", refreshToken: "r" };
+  // Mutable copy so grant/revoke change roles and the next listAccounts reflects it.
+  const accounts: DirectoryAccount[] = (data.accounts ?? []).map((a) => ({ ...a, roles: [...(a.roles ?? [])] }));
 
   function failIfSet(method: string): void {
     const f = data.fail?.[method];
@@ -84,15 +96,30 @@ export function installE2EClients(): void {
       },
     },
     user: {
-      grantRole: async () => {
+      grantRole: async (req: { userId: string; role: string }) => {
         failIfSet("grantRole");
+        const acc = accounts.find((a) => a.userId === req.userId);
+        if (acc && !acc.roles.includes(req.role)) acc.roles.push(req.role);
         return {};
       },
-      revokeRole: async () => {
+      revokeRole: async (req: { userId: string; role: string }) => {
         failIfSet("revokeRole");
+        const acc = accounts.find((a) => a.userId === req.userId);
+        if (acc) acc.roles = acc.roles.filter((r) => r !== req.role);
         return {};
       },
       listRoleGrants: async () => ({ grants: data.grants ?? [] }),
+      listAccounts: async (req: { query: string; limit: number; offset: number }) => {
+        failIfSet("listAccounts");
+        const q = (req.query ?? "").toLowerCase();
+        const filtered = q
+          ? accounts.filter(
+              (a) => (a.handle ?? "").toLowerCase().includes(q) || (a.displayName ?? "").toLowerCase().includes(q),
+            )
+          : accounts;
+        const page = filtered.slice(req.offset ?? 0, (req.offset ?? 0) + (req.limit ?? 25));
+        return { accounts: page, total: filtered.length };
+      },
     },
   } as unknown as Clients;
 
