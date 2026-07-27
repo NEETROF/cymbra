@@ -20,6 +20,18 @@ import 'session_notifier.dart';
 
 part 'saved_catalog_scores.g.dart';
 
+/// A monotonic bump signal for library changes made *outside* this provider (e.g.
+/// saving/un-saving a score from the hub). Mutations bump it **after** they
+/// persist; dependents `ref.listen` it and refresh themselves — so no one has to
+/// invalidate a sibling provider (architecture rule 2).
+@riverpod
+class LibraryRevision extends _$LibraryRevision {
+  @override
+  int build() => 0;
+
+  void bump() => state = state + 1;
+}
+
 /// Maps a backend [CatalogHit] to a [CatalogEntry] (byte-sourced from the
 /// catalog by [CatalogEntry.catalogId]) so a saved catalog score slots into the
 /// same library grouping and player path as bundled and contributed scores.
@@ -50,6 +62,9 @@ CatalogEntry catalogEntryFromHit(CatalogHit h) => CatalogEntry(
 class SavedCatalogScores extends _$SavedCatalogScores {
   @override
   Future<List<CatalogEntry>> build() {
+    // Refresh when a library change happened elsewhere (e.g. the hub's save
+    // toggle bumps the revision after it persists) — reactive, not invalidated.
+    ref.listen(libraryRevisionProvider, (_, _) => ref.invalidateSelf());
     if (!ref.watch(canUseOnlineServicesProvider)) {
       return Future.value(const <CatalogEntry>[]);
     }
