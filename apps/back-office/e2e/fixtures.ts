@@ -23,6 +23,13 @@ export interface SeedOptions {
 // Seed the e2e data (and optionally a persisted session) BEFORE the app boots, so
 // the fake clients and auth store see them on first render. Call before goto().
 export async function seed(page: Page, opts: SeedOptions = {}): Promise<void> {
+  // Force English so assertions are deterministic regardless of the runner's browser
+  // locale. `detectLocale()` reads this persisted key first; the i18n toggle test
+  // still flips it at runtime by clicking FR.
+  await page.addInitScript(() => {
+    localStorage.setItem("cymbra.bo.locale", "en");
+  });
+
   await page.addInitScript((d) => {
     window.__CYMBRA_E2E__ = d as E2EData;
   }, (opts.data ?? {}) as E2EData);

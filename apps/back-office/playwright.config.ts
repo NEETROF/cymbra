@@ -15,6 +15,8 @@ export default defineConfig({
   reporter: [["list"], ["html", { open: "never" }]],
   use: {
     baseURL: `http://localhost:${PORT}`,
+    // Pin the browser locale; the app is forced to English per test via seed() too.
+    locale: "en-US",
     trace: "on-first-retry",
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
