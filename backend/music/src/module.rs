@@ -390,6 +390,22 @@ impl ScoreModule {
         self.library.remove(owner_id, catalog_id).await
     }
 
+    /// A single catalog score's metadata by id, so a detail/deep-link view is
+    /// self-sufficient (change: add-moderation-back-office). `allow_unvalidated`
+    /// reflects the caller's authorisation, mirroring [`Self::get_catalog_bytes`]:
+    /// a normal caller only resolves `accepted` scores (a non-`accepted` id is a
+    /// typed not-found); an authorised reviewer resolves any status.
+    pub async fn get_catalog_hit(
+        &self,
+        catalog_id: &str,
+        allow_unvalidated: bool,
+    ) -> Result<CatalogHit> {
+        self.catalog
+            .hit_by_id(catalog_id, allow_unvalidated)
+            .await?
+            .ok_or_else(|| AppError::NotFound("catalog score not found".into()))
+    }
+
     /// The caller's saved catalog scores, newest-saved first. Joins the saved ids
     /// to the catalog and omits any whose entry is gone (e.g. after a re-ingest),
     /// so a stale save is never surfaced as a broken row.
@@ -1094,6 +1110,31 @@ mod tests {
             // …but an authorised reviewer (allow_unvalidated) is served them.
             assert_eq!(m.get_catalog_bytes(id, true).await.unwrap(), b"<score/>");
         }
+    }
+
+    #[tokio::test]
+    async fn get_catalog_hit_gated_by_moderation_status() {
+        let m = moderated_module().await;
+        // Accepted metadata resolves for a normal caller.
+        assert_eq!(
+            m.get_catalog_hit(DEBUSSY_1, false).await.unwrap().id,
+            DEBUSSY_1
+        );
+        for id in [PENDING_ID, REJECTED_ID] {
+            // Pending/rejected are not-found for a normal caller…
+            assert!(matches!(
+                m.get_catalog_hit(id, false).await,
+                Err(AppError::NotFound(_))
+            ));
+            // …but resolve for an authorised reviewer.
+            assert_eq!(m.get_catalog_hit(id, true).await.unwrap().id, id);
+        }
+        // Unknown id → not-found even for a reviewer.
+        assert!(matches!(
+            m.get_catalog_hit("99999999-9999-7999-8999-999999999999", true)
+                .await,
+            Err(AppError::NotFound(_))
+        ));
     }
 
     #[tokio::test]
