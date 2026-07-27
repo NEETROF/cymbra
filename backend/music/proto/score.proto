@@ -109,6 +109,21 @@ message SearchCatalogRequest {
   // for an admin/moderator identity and rejects it (PERMISSION_DENIED) otherwise.
   // The Flutter app never sets it; unset = the normal accepted-only visibility.
   optional string moderation_status = 15;
+  // Optional structured sort (change: add-moderation-back-office): an ORDERED list
+  // of keys — the first is primary, the rest break ties — applied server-side so it
+  // is correct across the whole paginated set. Each `field` is validated against a
+  // server allow-list; an unknown field is rejected. Moderation-oriented keys
+  // (`status_rank`, `needs_review`) are privileged (moderator/admin only). When the
+  // list is EMPTY the existing default ordering is preserved unchanged, so the app
+  // hub (which sends none) is unaffected.
+  repeated SortKey sort = 16;
+}
+
+// One sort key: a column/alias from the search allow-list, ascending unless
+// `descending` is set. Order in the repeated `sort` list = precedence.
+message SortKey {
+  string field = 1;
+  bool descending = 2;
 }
 message SearchCatalogResponse {
   repeated CatalogHit hits = 1;
@@ -128,6 +143,16 @@ message ListSavedCatalogScoresResponse { repeated CatalogHit hits = 1; }
 message GetCatalogScoreBytesRequest { string catalog_id = 1; }
 message GetCatalogScoreBytesResponse { bytes data = 1; }
 
+// Evaluate a catalog score (change: add-moderation-back-office). Sets its
+// moderation status to accepted | rejected (or back to pending to re-queue) and
+// stamps reviewed_by = caller + reviewed_at = now in the same write. Restricted to
+// moderator/admin; an unknown score id is rejected.
+message SetModerationStatusRequest {
+  string score_id = 1;
+  string status = 2; // pending | accepted | rejected
+}
+message SetModerationStatusResponse {}
+
 service ScoreService {
   rpc UploadScore(UploadScoreRequest) returns (ScoreRecord);
   rpc ListMyScores(ListMyScoresRequest) returns (ListMyScoresResponse);
@@ -141,4 +166,7 @@ service ScoreService {
   rpc RemoveSavedCatalogScore(RemoveSavedCatalogScoreRequest) returns (RemoveSavedCatalogScoreResponse);
   rpc ListSavedCatalogScores(ListSavedCatalogScoresRequest) returns (ListSavedCatalogScoresResponse);
   rpc GetCatalogScoreBytes(GetCatalogScoreBytesRequest) returns (GetCatalogScoreBytesResponse);
+
+  // Moderation back office (change: add-moderation-back-office). Moderator/admin only.
+  rpc SetModerationStatus(SetModerationStatusRequest) returns (SetModerationStatusResponse);
 }

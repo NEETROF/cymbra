@@ -20,6 +20,23 @@ pub fn require_admin(id: &AuthIdentity) -> Result<()> {
     require_role(id, "admin")
 }
 
+/// Require the caller to be a moderator **or** an admin (change: add-moderation-
+/// back-office). Because `AuthIdentity.roles` is the effective set for the token's
+/// audience — the audience scope unioned with `global` — holding `moderator` here
+/// means the caller is a moderator in that audience's scope (e.g. `music/moderator`),
+/// and `admin` covers both a scope admin and a `global/admin` break-glass. This is
+/// the authorization for every moderation operation (evaluate, the privileged
+/// status filter, non-`accepted` fetch-bytes, moderation-oriented sort keys).
+pub fn require_moderator_or_admin(id: &AuthIdentity) -> Result<()> {
+    if id.has_role("admin") || id.has_role("moderator") {
+        Ok(())
+    } else {
+        Err(AppError::PermissionDenied(
+            "requires role `moderator` or `admin`".into(),
+        ))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -38,6 +55,16 @@ mod tests {
         assert!(require_admin(&id(&["user"])).is_err());
         assert!(matches!(
             require_role(&id(&["user"]), "broadcaster"),
+            Err(AppError::PermissionDenied(_))
+        ));
+    }
+
+    #[test]
+    fn moderator_or_admin_allows_either_and_denies_normal() {
+        assert!(require_moderator_or_admin(&id(&["user", "moderator"])).is_ok());
+        assert!(require_moderator_or_admin(&id(&["user", "admin"])).is_ok());
+        assert!(matches!(
+            require_moderator_or_admin(&id(&["user"])),
             Err(AppError::PermissionDenied(_))
         ));
     }

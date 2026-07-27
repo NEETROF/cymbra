@@ -49,6 +49,47 @@ pub struct CatalogHit {
     pub key_fifths: i32,
 }
 
+/// One validated sort key (change: add-moderation-back-office): an allow-listed
+/// `field`, descending when `descending`. In a `sort` list the first key is primary
+/// and later keys break ties.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SortKey {
+    pub field: String,
+    pub descending: bool,
+}
+
+/// The allow-list of sortable search fields → whether the key is
+/// **moderation-oriented** (privileged: only a moderator/admin may sort by it).
+/// Substance/facet keys are open to any caller. The names are the wire contract;
+/// each adapter maps a name to its own storage (SQL column / fake accessor), so a
+/// name never reaches SQL unvalidated. `needs_review` is accepted but inert until
+/// the rating change (#2) adds its backing column — it degrades to a no-op order.
+pub const SORT_FIELDS: &[(&str, bool)] = &[
+    ("measure_count", false),
+    ("staff_count", false),
+    ("note_count", false),
+    ("min_note_value", false),
+    ("tempo_bpm", false),
+    ("title", false),
+    ("composer", false),
+    ("status_rank", true),
+    ("needs_review", true),
+];
+
+/// `Some(privileged)` when `field` is allow-listed, else `None` (unknown field).
+pub fn sort_field_privilege(field: &str) -> Option<bool> {
+    SORT_FIELDS
+        .iter()
+        .find(|(f, _)| *f == field)
+        .map(|(_, privileged)| *privileged)
+}
+
+/// Whether `field` is a moderation-oriented (privileged) sort key. Unknown fields
+/// are not privileged (they are rejected later as invalid, not as unauthorized).
+pub fn is_moderation_sort_field(field: &str) -> bool {
+    sort_field_privilege(field) == Some(true)
+}
+
 /// Normalised, validated search parameters. The module fills these in: `text_norm`
 /// and `author_norm` are already accent/case-folded, `level` already validated
 /// against the fixed set, `limit` already clamped to the server maximum.
@@ -81,6 +122,9 @@ pub struct CatalogSearchParams {
     /// that status (a privileged, back-office-only path — the gRPC layer authorises
     /// it before it is ever set here).
     pub moderation_status: Option<String>,
+    /// Validated multi-key sort (change: add-moderation-back-office). Empty = the
+    /// existing default ordering (so the app hub is unaffected).
+    pub sort: Vec<SortKey>,
     pub limit: i64,
     pub offset: i64,
 }
@@ -105,6 +149,9 @@ pub struct CatalogQuery {
     /// `None` for a normal caller (accepted-only); `Some(status)` only after the
     /// gRPC handler has authorised the caller as admin/moderator.
     pub moderation_status: Option<String>,
+    /// Raw sort keys from the request; validated against [`SORT_FIELDS`] by the
+    /// module before they reach a repo. Empty = the default ordering.
+    pub sort: Vec<SortKey>,
     pub limit: i64,
     pub offset: i64,
 }
@@ -131,6 +178,18 @@ pub trait CatalogSearchRepo: Send + Sync {
     /// be opened and it can't be saved. When `true` (an authorised reviewer), a
     /// score in any status resolves so a moderator can open it.
     async fn object_key(&self, id: &str, include_unvalidated: bool) -> Result<Option<String>>;
+
+    /// Evaluate a score (change: add-moderation-back-office): set its
+    /// `moderation_status` and stamp `reviewed_by = reviewer_id` + `reviewed_at =
+    /// now()` in one write. Returns `true` when a row was updated, `false` when no
+    /// score has that id (so the caller can surface not-found). Authorization is the
+    /// gRPC layer's job; the store just writes.
+    async fn set_moderation_status(
+        &self,
+        score_id: &str,
+        status: &str,
+        reviewer_id: &str,
+    ) -> Result<bool>;
 }
 
 /// A seed row for [`FakeCatalogSearchRepo`]. Norm keys are derived on the fly, so
@@ -163,6 +222,9 @@ pub struct FakeCatalogRow {
     /// `accepted` (a hub-visible row, matching how these tests use the fake); the
     /// moderation tests set `pending`/`rejected` via [`Self::with_moderation_status`].
     pub moderation_status: String,
+    /// The last reviewer stamped by an evaluate (change: add-moderation-back-office);
+    /// `None` until a `set_moderation_status` writes it. Lets tests assert audit.
+    pub reviewed_by: Option<String>,
 }
 
 impl FakeCatalogRow {
@@ -289,9 +351,20 @@ impl CatalogSearchRepo for FakeCatalogSearchRepo {
         // Total over the full filtered set, before pagination (mirrors the Pg
         // adapter's `COUNT(*) OVER()`).
         let total = matched.len() as i64;
-        // Deterministic order → stable paging (the Pg adapter adds similarity
-        // ranking ahead of this tiebreak).
-        matched.sort_by(|a, b| a.title_norm().cmp(&b.title_norm()).then(a.id.cmp(&b.id)));
+        // Apply the validated sort keys (primary first), then the deterministic
+        // `(title_norm, id)` tiebreak so paging stays stable — mirroring the Pg
+        // adapter, which appends the same tiebreak after the sort keys. An empty
+        // `sort` leaves ONLY the default tiebreak, so the hub order is unchanged.
+        matched.sort_by(|a, b| {
+            for key in &p.sort {
+                let ord = sort_value(a, &key.field).cmp(&sort_value(b, &key.field));
+                let ord = if key.descending { ord.reverse() } else { ord };
+                if ord != std::cmp::Ordering::Equal {
+                    return ord;
+                }
+            }
+            a.title_norm().cmp(&b.title_norm()).then(a.id.cmp(&b.id))
+        });
         let hits = matched
             .into_iter()
             .skip(p.offset.max(0) as usize)
@@ -316,6 +389,44 @@ impl CatalogSearchRepo for FakeCatalogSearchRepo {
             .iter()
             .find(|r| r.id == id && (include_unvalidated || r.moderation_status == "accepted"))
             .map(|r| r.object_key.clone()))
+    }
+
+    async fn set_moderation_status(
+        &self,
+        score_id: &str,
+        status: &str,
+        reviewer_id: &str,
+    ) -> Result<bool> {
+        let mut rows = self.rows.lock().expect("catalog search fake lock");
+        match rows.iter_mut().find(|r| r.id == score_id) {
+            Some(row) => {
+                row.moderation_status = status.to_string();
+                row.reviewed_by = Some(reviewer_id.to_string());
+                Ok(true)
+            }
+            None => Ok(false),
+        }
+    }
+}
+
+/// A monotone sort value for a fake row on an allow-listed field, mirroring the Pg
+/// adapter's ORDER BY expression. `status_rank` ranks `pending` > `accepted` >
+/// `rejected` (queue priority); `needs_review` is inert (0) until #2 lands;
+/// `measure_count` is not modelled on the fake, so it sorts as equal.
+fn sort_value(r: &FakeCatalogRow, field: &str) -> i64 {
+    match field {
+        "staff_count" => r.staff_count.unwrap_or(0) as i64,
+        "note_count" => r.note_count.unwrap_or(0) as i64,
+        "min_note_value" => r.min_note_value.unwrap_or(0) as i64,
+        "tempo_bpm" => r.tempo_bpm.unwrap_or(0) as i64,
+        "status_rank" => match r.moderation_status.as_str() {
+            "pending" => 2,
+            "accepted" => 1,
+            _ => 0,
+        },
+        // `needs_review` (no backing data yet) and `measure_count`/`title`/`composer`
+        // (not modelled on the fake) contribute no ordering here.
+        _ => 0,
     }
 }
 
@@ -540,6 +651,123 @@ mod tests {
             ["p"]
         );
         assert_eq!(total, 1);
+    }
+
+    #[tokio::test]
+    async fn empty_sort_preserves_default_title_norm_order() {
+        // Regression (change: add-moderation-back-office): with no sort keys, the
+        // order is the pre-existing `(title_norm, id)` default — the app hub, which
+        // sends no sort, is unaffected.
+        let repo = seeded();
+        let (hits, _) = repo.search(&params("")).await.unwrap();
+        assert_eq!(
+            hits.iter().map(|h| h.id.as_str()).collect::<Vec<_>>(),
+            ["1", "2", "3", "4"] // title_norm order, identical to before
+        );
+    }
+
+    #[tokio::test]
+    async fn multi_key_sort_orders_primary_then_tiebreak() {
+        // Rows with distinct staff/note counts; a moderator sorts by staff_count
+        // desc, then note_count desc as a tiebreaker.
+        let repo = FakeCatalogSearchRepo::with(vec![
+            FakeCatalogRow {
+                id: "a".into(),
+                staff_count: Some(1),
+                note_count: Some(500),
+                moderation_status: "accepted".into(),
+                ..FakeCatalogRow::new("a", "A", "X", None)
+            },
+            FakeCatalogRow {
+                id: "b".into(),
+                staff_count: Some(2),
+                note_count: Some(100),
+                moderation_status: "accepted".into(),
+                ..FakeCatalogRow::new("b", "B", "X", None)
+            },
+            FakeCatalogRow {
+                id: "c".into(),
+                staff_count: Some(2),
+                note_count: Some(900),
+                moderation_status: "accepted".into(),
+                ..FakeCatalogRow::new("c", "C", "X", None)
+            },
+        ]);
+        let p = CatalogSearchParams {
+            sort: vec![
+                SortKey {
+                    field: "staff_count".into(),
+                    descending: true,
+                },
+                SortKey {
+                    field: "note_count".into(),
+                    descending: true,
+                },
+            ],
+            limit: 50,
+            ..Default::default()
+        };
+        let (hits, _) = repo.search(&p).await.unwrap();
+        // staff 2 first (c before b by note_count desc), then staff 1 (a).
+        assert_eq!(
+            hits.iter().map(|h| h.id.as_str()).collect::<Vec<_>>(),
+            ["c", "b", "a"]
+        );
+    }
+
+    #[tokio::test]
+    async fn status_rank_sort_surfaces_pending_first() {
+        // The queue's default primary key: status_rank desc puts pending ahead of
+        // accepted ahead of rejected.
+        let repo = moderated(); // ids a,b=accepted; p=pending; r=rejected
+        let p = CatalogSearchParams {
+            moderation_status: None,
+            sort: vec![SortKey {
+                field: "status_rank".into(),
+                descending: true,
+            }],
+            // A privileged caller browsing all statuses would pass a status filter;
+            // here we assert ordering over the accepted-only default set is stable.
+            limit: 50,
+            ..Default::default()
+        };
+        let (hits, _) = repo.search(&p).await.unwrap();
+        // Default visibility is accepted-only, so only a,b appear, ordered by the
+        // stable tiebreak (both rank equally on status_rank).
+        assert_eq!(
+            hits.iter().map(|h| h.id.as_str()).collect::<Vec<_>>(),
+            ["a", "b"]
+        );
+    }
+
+    #[tokio::test]
+    async fn set_moderation_status_writes_status_and_reviewer() {
+        let repo = moderated();
+        // Evaluate the pending row → accepted, stamping the reviewer.
+        assert!(
+            repo.set_moderation_status("p", "accepted", "mod-1")
+                .await
+                .unwrap()
+        );
+        // It now appears in the accepted-only default search…
+        let (hits, _) = repo.search(&params("")).await.unwrap();
+        assert!(hits.iter().any(|h| h.id == "p"));
+        // …and the reviewer was recorded on the row.
+        let rows = repo.rows.lock().unwrap();
+        let row = rows.iter().find(|r| r.id == "p").unwrap();
+        assert_eq!(row.moderation_status, "accepted");
+        assert_eq!(row.reviewed_by.as_deref(), Some("mod-1"));
+    }
+
+    #[tokio::test]
+    async fn set_moderation_status_unknown_id_is_no_op() {
+        let repo = moderated();
+        assert!(
+            !repo
+                .set_moderation_status("does-not-exist", "accepted", "mod-1")
+                .await
+                .unwrap()
+        );
     }
 
     #[tokio::test]

@@ -6,7 +6,7 @@
 
 use async_trait::async_trait;
 use cymbra_platform::{AppError, Result};
-use cymbra_user_port::{Account, Identity};
+use cymbra_user_port::{Account, Identity, RoleGrant};
 use std::collections::HashMap;
 use std::sync::Mutex;
 
@@ -44,6 +44,21 @@ pub trait UserRepo: Send + Sync {
     /// Roles whose scope is in `scopes` (e.g. `["global", "live"]`).
     async fn roles_for_scope(&self, user_id: &str, scopes: &[&str]) -> Result<Vec<String>>;
     async fn grant_role(&self, user_id: &str, scope: &str, role: &str) -> Result<()>;
+    /// Remove `(user_id, scope, role)` if present (idempotent; change:
+    /// add-moderation-back-office).
+    async fn revoke_role(&self, user_id: &str, scope: &str, role: &str) -> Result<()>;
+    /// Append a role-grant audit entry (change: add-moderation-back-office). The
+    /// store stamps the time; `action` is `grant` or `revoke`.
+    async fn record_role_grant(
+        &self,
+        target_user_id: &str,
+        scope: &str,
+        role: &str,
+        action: &str,
+        acting_admin: &str,
+    ) -> Result<()>;
+    /// The audit history for `user_id`, most recent first.
+    async fn list_role_grants(&self, user_id: &str) -> Result<Vec<RoleGrant>>;
 }
 
 // --- In-memory fake (tests) -------------------------------------------------
@@ -63,6 +78,7 @@ struct State {
     users: HashMap<String, AccountRow>,
     identities: Vec<(String, String, String)>, // (user_id, provider, subject)
     roles: Vec<(String, String, String)>,      // (user_id, scope, role)
+    role_grants: Vec<RoleGrant>,               // append-only audit (oldest first)
 }
 
 /// In-memory [`UserRepo`] for unit tests (no Postgres; `updated_at` is fixed).
@@ -252,5 +268,45 @@ impl UserRepo for FakeUserRepo {
             s.roles.push(tuple);
         }
         Ok(())
+    }
+
+    async fn revoke_role(&self, user_id: &str, scope: &str, role: &str) -> Result<()> {
+        let mut s = self.state.lock().unwrap();
+        s.roles
+            .retain(|(u, sc, r)| !(u == user_id && sc == scope && r == role));
+        Ok(())
+    }
+
+    async fn record_role_grant(
+        &self,
+        target_user_id: &str,
+        scope: &str,
+        role: &str,
+        action: &str,
+        acting_admin: &str,
+    ) -> Result<()> {
+        let mut s = self.state.lock().unwrap();
+        // Monotonic `at` from the append position, so `list_role_grants` can return
+        // a deterministic most-recent-first order without a clock.
+        let at = s.role_grants.len() as i64;
+        s.role_grants.push(RoleGrant {
+            target_user_id: target_user_id.to_string(),
+            scope: scope.to_string(),
+            role: role.to_string(),
+            action: action.to_string(),
+            acting_admin: acting_admin.to_string(),
+            at,
+        });
+        Ok(())
+    }
+
+    async fn list_role_grants(&self, user_id: &str) -> Result<Vec<RoleGrant>> {
+        let s = self.state.lock().unwrap();
+        Ok(s.role_grants
+            .iter()
+            .filter(|g| g.target_user_id == user_id)
+            .rev() // most recent first
+            .cloned()
+            .collect())
     }
 }

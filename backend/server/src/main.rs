@@ -26,7 +26,10 @@ use cymbra_storage::{LocalFirstStore, ObjectStorage, S3Params};
 use cymbra_user::{PgUserRepo, UserGrpc, UserModule};
 use cymbra_user_port::UserPort;
 use cymbra_user_port::proto::user_service_server::UserServiceServer;
+use http::{HeaderName, HeaderValue};
 use tonic::transport::Server;
+use tonic_web::GrpcWebLayer;
+use tower_http::cors::{AllowOrigin, Any, CorsLayer};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -170,7 +173,33 @@ async fn main() -> anyhow::Result<()> {
     let http_addr: SocketAddr = cfg.http_addr.parse()?;
     tracing::info!(%grpc_addr, %http_addr, "cymbra-server serving");
 
+    // Browser transport for the back office (change: add-moderation-back-office):
+    // gRPC-web + a CORS layer restricted to the configured origin(s). gRPC-web is a
+    // framing of gRPC (not REST), and the native HTTP/2 gRPC surface the app uses is
+    // unchanged — `accept_http1(true)` only *additionally* accepts gRPC-web over
+    // HTTP/1.1. Every method still runs behind the same auth interceptor + role
+    // guards, so CORS is defence-in-depth, not the authorization boundary. An empty
+    // origin list (the default) allows no cross-origin browser access.
+    let cors_origins: Vec<HeaderValue> = cfg
+        .back_office_origins
+        .iter()
+        .filter_map(|o| o.parse::<HeaderValue>().ok())
+        .collect();
+    let cors = CorsLayer::new()
+        .allow_origin(AllowOrigin::list(cors_origins))
+        .allow_headers(Any)
+        .allow_methods(Any)
+        // gRPC-web carries the call status in trailers surfaced as these headers.
+        .expose_headers([
+            HeaderName::from_static("grpc-status"),
+            HeaderName::from_static("grpc-message"),
+            HeaderName::from_static("grpc-status-details-bin"),
+        ]);
+
     let mut router = Server::builder()
+        .accept_http1(true)
+        .layer(cors)
+        .layer(GrpcWebLayer::new())
         .layer(metrics::ObserveLayer::new(red))
         .add_service(user_svc)
         .add_service(auth_svc);

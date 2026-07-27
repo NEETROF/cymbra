@@ -33,6 +33,20 @@ pub struct Identity {
     pub linked_at: i64,
 }
 
+/// One append-only role-grant audit entry (change: add-moderation-back-office):
+/// who was granted/revoked which role in which scope, by which admin, and when.
+/// The current authorization state lives in the roles store; this is history.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RoleGrant {
+    pub target_user_id: String,
+    pub scope: String,
+    pub role: String,
+    /// `grant` or `revoke`.
+    pub action: String,
+    pub acting_admin: String,
+    pub at: i64, // unix seconds
+}
+
 /// The user module's port: the contract `cymbra-auth` and the server adapter call.
 ///
 /// Implemented in-process by the direct adapter (`cymbra-user`) and — for the
@@ -76,6 +90,32 @@ pub trait UserPort: Send + Sync {
 
     /// Effective roles for `scope` (the account's `global` roles plus that scope).
     async fn effective_roles(&self, user_id: &str, scope: &str) -> Result<Vec<String>>;
+
+    /// Grant `role` in `scope` to `user_id`, idempotently (granting a held role is a
+    /// no-op success), recording an audit entry attributed to `acting_admin`
+    /// (change: add-moderation-back-office). The role/scope are validated against the
+    /// recognized sets; authorization (admin-only) is enforced by the caller.
+    async fn grant_role(
+        &self,
+        acting_admin: &str,
+        user_id: &str,
+        scope: &str,
+        role: &str,
+    ) -> Result<()>;
+
+    /// Revoke `role` in `scope` from `user_id`, recording an audit entry. Revoking a
+    /// role the account does not hold is a no-op success.
+    async fn revoke_role(
+        &self,
+        acting_admin: &str,
+        user_id: &str,
+        scope: &str,
+        role: &str,
+    ) -> Result<()>;
+
+    /// The role-grant audit history for `user_id`, most recent first — answers "who
+    /// granted/revoked which role, and when", independent of current role state.
+    async fn list_role_grants(&self, user_id: &str) -> Result<Vec<RoleGrant>>;
 }
 
 /// gRPC **client** adapter for the public account-management surface — used to

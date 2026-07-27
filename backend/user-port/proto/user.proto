@@ -42,10 +42,46 @@ message DeleteAccountResponse {}
 message CheckHandleAvailabilityRequest { string handle = 1; }
 message CheckHandleAvailabilityResponse { bool available = 1; }
 
+// --- Role administration (change: add-moderation-back-office) ----------------
+// Admin-only: an administrator grants/revokes a role (e.g. music/moderator) for an
+// account within a scope. The acting admin is the authenticated caller, never the
+// body. Every grant/revoke is recorded in an append-only audit trail.
+
+message GrantRoleRequest {
+  string user_id = 1; // target account
+  string scope = 2;   // global | music | live
+  string role = 3;    // user | admin | moderator
+}
+message GrantRoleResponse {}
+
+message RevokeRoleRequest {
+  string user_id = 1;
+  string scope = 2;
+  string role = 3;
+}
+message RevokeRoleResponse {}
+
+// One audit entry: who was granted/revoked which role, by which admin, when.
+message RoleGrant {
+  string target_user_id = 1;
+  string scope = 2;
+  string role = 3;
+  string action = 4; // grant | revoke
+  string acting_admin = 5;
+  int64 at = 6; // unix seconds
+}
+message ListRoleGrantsRequest { string user_id = 1; }
+message ListRoleGrantsResponse { repeated RoleGrant grants = 1; }
+
 service UserService {
   rpc GetAccount(GetAccountRequest) returns (Account);
   rpc UpdateAccount(UpdateAccountRequest) returns (Account);
   rpc CheckHandleAvailability(CheckHandleAvailabilityRequest) returns (CheckHandleAvailabilityResponse);
   rpc ListIdentities(ListIdentitiesRequest) returns (ListIdentitiesResponse);
   rpc DeleteAccount(DeleteAccountRequest) returns (DeleteAccountResponse);
+
+  // Role administration (admin-only).
+  rpc GrantRole(GrantRoleRequest) returns (GrantRoleResponse);
+  rpc RevokeRole(RevokeRoleRequest) returns (RevokeRoleResponse);
+  rpc ListRoleGrants(ListRoleGrantsRequest) returns (ListRoleGrantsResponse);
 }

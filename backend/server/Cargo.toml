@@ -27,6 +27,10 @@ cymbra-storage = { path = "../storage" }
 cymbra-jobs = { path = "../jobs" }
 tokio.workspace = true
 tonic.workspace = true
+# gRPC-web + CORS for the browser back office (change: add-moderation-back-office).
+tonic-web.workspace = true
+tower-http.workspace = true
+http.workspace = true
 axum.workspace = true
 anyhow.workspace = true
 tracing.workspace = true

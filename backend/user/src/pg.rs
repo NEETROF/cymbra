@@ -3,7 +3,7 @@
 
 use async_trait::async_trait;
 use cymbra_platform::{AppError, Result};
-use cymbra_user_port::{Account, Identity};
+use cymbra_user_port::{Account, Identity, RoleGrant};
 use sqlx::{PgPool, Row};
 
 use crate::repo::UserRepo;
@@ -272,6 +272,64 @@ impl UserRepo for PgUserRepo {
         .await
         .map_err(internal)?;
         Ok(())
+    }
+
+    async fn revoke_role(&self, user_id: &str, scope: &str, role: &str) -> Result<()> {
+        sqlx::query("DELETE FROM user_roles WHERE user_id = $1 AND scope = $2 AND role = $3")
+            .bind(parse_uuid(user_id)?)
+            .bind(scope)
+            .bind(role)
+            .execute(&self.pool)
+            .await
+            .map_err(internal)?;
+        Ok(())
+    }
+
+    async fn record_role_grant(
+        &self,
+        target_user_id: &str,
+        scope: &str,
+        role: &str,
+        action: &str,
+        acting_admin: &str,
+    ) -> Result<()> {
+        sqlx::query(
+            "INSERT INTO role_grants (target_user_id, scope, role, action, acting_admin) \
+             VALUES ($1, $2, $3, $4, $5)",
+        )
+        .bind(parse_uuid(target_user_id)?)
+        .bind(scope)
+        .bind(role)
+        .bind(action)
+        .bind(parse_uuid(acting_admin)?)
+        .execute(&self.pool)
+        .await
+        .map_err(internal)?;
+        Ok(())
+    }
+
+    async fn list_role_grants(&self, user_id: &str) -> Result<Vec<RoleGrant>> {
+        let rows = sqlx::query(
+            "SELECT target_user_id, scope, role, action, acting_admin, \
+                    EXTRACT(EPOCH FROM created_at)::bigint AS at \
+             FROM role_grants WHERE target_user_id = $1 \
+             ORDER BY created_at DESC, id DESC",
+        )
+        .bind(parse_uuid(user_id)?)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(internal)?;
+        Ok(rows
+            .into_iter()
+            .map(|r| RoleGrant {
+                target_user_id: r.get::<uuid::Uuid, _>("target_user_id").to_string(),
+                scope: r.get("scope"),
+                role: r.get("role"),
+                action: r.get("action"),
+                acting_admin: r.get::<uuid::Uuid, _>("acting_admin").to_string(),
+                at: r.get("at"),
+            })
+            .collect())
     }
 }
 
