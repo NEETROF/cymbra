@@ -1,0 +1,76 @@
+name: back-office
+
+# Web-console gate (apps/back-office, Vue 3 + gRPC-web). Generates the TS stubs
+# from the backend protos, then typechecks, runs the Vitest unit/widget suite and
+# the Playwright e2e suite (real app, fake-client seam, no backend). The gen stubs
+# are gitignored like the Flutter app's, so CI produces them with protoc.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: back-office-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      bo: ${{ steps.f.outputs.bo }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: f
+        with:
+          filters: |
+            bo:
+              - 'apps/back-office/**'
+              - 'backend/auth-port/proto/**'
+              - 'backend/user-port/proto/**'
+              - 'backend/music/proto/**'
+              - '.github/workflows/back-office.yml'
+
+  test:
+    needs: changes
+    if: ${{ github.event_name != 'pull_request' || needs.changes.outputs.bo == 'true' }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/back-office
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install protoc
+        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Enable Corepack (Yarn Berry)
+        run: corepack enable
+      - name: Install dependencies
+        run: yarn install --immutable
+      - name: Generate gRPC-web stubs
+        run: yarn gen
+      - name: Lint (ESLint)
+        run: yarn lint
+      - name: Format check (Prettier)
+        run: yarn format:check
+      - name: Typecheck
+        run: yarn typecheck
+      - name: Unit + widget tests
+        run: yarn test
+      - name: Install Playwright browser
+        run: yarn playwright install --with-deps chromium
+      - name: E2E tests
+        run: yarn e2e
+      - name: Upload Playwright report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: apps/back-office/playwright-report/
+          retention-days: 7

@@ -1,0 +1,212 @@
+:root {
+  /* Cymbra palette — mirrors the Flutter app's CymbraColors (cymbra_theme.dart). */
+  --bg: #0b1326; /* background */
+  --bg-deep: #060e20; /* surfaceContainerLowest — sidebar / deepest */
+  --panel: #131b2e; /* surfaceContainerLow — cards */
+  --panel-2: #171f33; /* surfaceContainer — inputs / raised */
+  --panel-3: #222a3d; /* surfaceContainerHigh — hover */
+  --border: #212a40; /* subtle divider */
+  --border-2: #2d3449; /* surfaceContainerHighest — stronger edge */
+  --text: #dae2fd; /* onSurface */
+  --muted: #9aa1ba; /* softened onSurfaceVariant */
+  --faint: #6a7091; /* placeholders */
+  --accent: #d2bbff; /* primary — lilac */
+  --accent-strong: #7c3aed; /* primaryContainer — violet */
+  --teal: #44e2cd; /* secondary */
+  --green: #4edea3; /* tertiary — source / accepted */
+  --amber: #ffb454; /* handLeft — pending */
+  --coral: #ffb4ab; /* error — rejected */
+
+  /* semantic aliases (kept so existing rules read well) */
+  --accept: var(--green);
+  --reject: var(--coral);
+
+  --radius: 12px;
+  --radius-lg: 18px;
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", "JetBrains Mono", Menlo, monospace;
+  font-family:
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    Roboto,
+    sans-serif;
+  color-scheme: dark;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+}
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+button {
+  font: inherit;
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--border-2);
+  background: var(--panel-2);
+  color: var(--text);
+  border-radius: 10px;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    color 0.15s;
+}
+button:hover:not(:disabled) {
+  background: var(--panel-3);
+}
+button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.btn-primary {
+  background: var(--accent-strong);
+  border-color: transparent;
+  color: #f3ecff;
+  font-weight: 600;
+}
+.btn-primary:hover:not(:disabled) {
+  background: #8b4df0;
+}
+
+input,
+select {
+  font: inherit;
+  padding: 0.5rem 0.7rem;
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--border-2);
+  border-radius: 10px;
+  outline: none;
+}
+input:focus,
+select:focus {
+  border-color: var(--accent);
+}
+input::placeholder {
+  color: var(--faint);
+}
+
+/* tables */
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+th,
+td {
+  text-align: left;
+  padding: 0.8rem 1rem;
+}
+thead th {
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 0.72rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--border);
+}
+tbody td {
+  border-bottom: 1px solid var(--border);
+}
+tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* pills / status badges */
+.badge {
+  display: inline-block;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  font-weight: 600;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+.badge.pending {
+  color: var(--amber);
+  background: rgba(255, 180, 84, 0.12);
+  border-color: rgba(255, 180, 84, 0.28);
+}
+.badge.accepted {
+  color: var(--green);
+  background: rgba(78, 222, 163, 0.12);
+  border-color: rgba(78, 222, 163, 0.28);
+}
+.badge.rejected {
+  color: var(--coral);
+  background: rgba(255, 180, 171, 0.12);
+  border-color: rgba(255, 180, 171, 0.28);
+}
+
+/* accept / reject action buttons */
+.accept {
+  border-color: rgba(78, 222, 163, 0.45);
+  color: var(--green);
+}
+.reject {
+  border-color: rgba(255, 180, 171, 0.45);
+  color: var(--coral);
+}
+.row-actions button {
+  margin-right: 0.4rem;
+}
+
+/* shared page scaffolding (used inside <main>, so it lives in the global sheet) */
+.page-title {
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  background: linear-gradient(180deg, var(--accent), #b79bf5);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.page-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.25rem;
+}
+.table-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  /* Wide tables scroll horizontally inside the card instead of being clipped
+     (was overflow:hidden, which cut off the right columns on narrow screens). */
+  overflow-x: auto;
+}
+/* Keep columns readable: below this width the table scrolls rather than cramming. */
+.table-card table {
+  min-width: 680px;
+}
+
+.error {
+  color: var(--coral);
+}
+.muted,
+.sub {
+  color: var(--muted);
+}
+
+/* Visually-hidden but accessible (labels for placeholder-only inputs, etc.). */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

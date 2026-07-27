@@ -1,0 +1,7 @@
+dist/
+src/gen/
+coverage/
+playwright-report/
+test-results/
+.yarn/
+yarn.lock

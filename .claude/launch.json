@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "back-office",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": ["-c", "cd apps/back-office && yarn dev --port 5173 --strictPort"],
+      "port": 5173
+    }
+  ]
+}

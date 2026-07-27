@@ -69,9 +69,32 @@ message RoleGrant {
   string action = 4; // grant | revoke
   string acting_admin = 5;
   int64 at = 6; // unix seconds
+  // Resolved handle of the acting admin (null if the admin has no handle or the
+  // account no longer exists); the UI shows this instead of the raw id.
+  optional string acting_admin_handle = 7;
 }
 message ListRoleGrantsRequest { string user_id = 1; }
 message ListRoleGrantsResponse { repeated RoleGrant grants = 1; }
+
+// Admin account directory (change: add-admin-account-directory). A paginated list
+// of accounts with their music-scope roles, so an admin can browse users and act
+// on each row. `query` is an optional filter matching a handle (prefix,
+// case-insensitive) or the email of a `local` identity; an empty query lists all.
+message ListAccountsRequest {
+  uint32 limit = 1;
+  uint32 offset = 2;
+  string query = 3;
+}
+message AccountRow {
+  string user_id = 1;
+  optional string handle = 2;
+  optional string display_name = 3;
+  repeated string roles = 4; // roles held in the `music` scope
+}
+message ListAccountsResponse {
+  repeated AccountRow accounts = 1;
+  uint32 total = 2; // total matching accounts (for pagination)
+}
 
 service UserService {
   rpc GetAccount(GetAccountRequest) returns (Account);
@@ -84,4 +107,5 @@ service UserService {
   rpc GrantRole(GrantRoleRequest) returns (GrantRoleResponse);
   rpc RevokeRole(RevokeRoleRequest) returns (RevokeRoleResponse);
   rpc ListRoleGrants(ListRoleGrantsRequest) returns (ListRoleGrantsResponse);
+  rpc ListAccounts(ListAccountsRequest) returns (ListAccountsResponse);
 }

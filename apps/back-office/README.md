@@ -1,0 +1,76 @@
+# Cymbra moderation back office (`bo.cymbra.app`)
+
+A client-rendered Vue 3 + Vite SPA where moderators/admins review catalog scores
+and accept/reject them, and admins grant/revoke roles. It talks to the backend over
+**gRPC-web** (tonic-web) using generated Connect clients — no REST. Part of the
+`add-moderation-back-office` change (frontend slice).
+
+## Develop
+
+```bash
+cd apps/back-office
+yarn install
+yarn gen        # generate TS gRPC stubs from the backend protos (needs protoc)
+cp .env.example .env   # set VITE_GRPC_WEB_URL to your backend
+yarn dev
+```
+
+The backend must run with `CYMBRA_BACK_OFFICE_ORIGINS` including this app's origin
+(e.g. `http://localhost:5173`) so CORS allows the browser calls, and a moderator/
+admin account must exist (see `backend/scripts/seed_admin.sh`).
+
+## Scripts
+
+- `yarn gen` — regenerate `src/gen/*` from `backend/*/proto/*.proto` (gitignored).
+- `yarn test` — Vitest component/store tests (its own gate, outside the Flutter/Rust CI).
+- `yarn build` — type-check + production build.
+
+## Debugging gRPC-web calls
+
+gRPC-web always returns **HTTP 200** — the real status is the `grpc-status` trailer
+(`0` = OK, else an error; e.g. `16` = unauthenticated), so Chrome's Network tab
+hides failures. Two dev-only aids (wired in `src/lib/transport.ts`, `import.meta.env.DEV`):
+
+- **Console**: every failed call logs one line — `gRPC <Method> → <Code> (<n>): <message>`.
+- **gRPC-Web Developer Tools** Chrome extension
+  ([SafetyCulture](https://github.com/SafetyCulture/grpc-web-devtools)): install it to
+  get a DevTools panel decoding each call's request/response/status. The interceptor
+  that feeds it (`src/lib/grpc-devtools.ts`) posts the events it listens for; no
+  extension → harmless no-op.
+
+User-facing errors never show raw codes: `humanError` (`src/lib/errors.ts`) maps
+`ConnectError` codes to short messages and logs the real cause.
+
+## Architecture
+
+- **Components never call the API.** Only Pinia stores (`src/stores/`) import
+  `api()`; views/components depend on stores. The gRPC-web clients live behind
+  `src/lib/api.ts` (injectable — tests swap fakes via `setClientsForTest`).
+- **Async state is a discriminated union, matched with `ts-pattern`.** Every remote
+  resource is one `Async<T>` value (`idle | loading | success | error`, see
+  `src/lib/async.ts`) — impossible states (loading + error at once) can't be
+  represented. Views fold it into a template view-model with
+  `match(...).exhaustive()`, so forgetting a state is a compile error. Errors land
+  in the union (`{ status: "error" }`), not exceptions.
+
+## Auth & access
+
+Sign-in targets the `music` audience so `music`-scoped roles (`moderator`/`admin`)
+ride in the access token. The router gates the console: unauthenticated → sign-in;
+signed-in non-moderator → access-denied; `/roles` requires `admin`. This is UX only —
+**every RPC is independently role-guarded server-side**, so the gate can't be bypassed.
+
+## Preview (notation)
+
+`ScorePreview.vue` is the isolated preview seam. Today it shows metadata and confirms
+the fetched bytes; the notation renderer (compile the app's Rust `layout_systems` to
+wasm + a JS/SVG SMuFL painter, so it matches the app exactly) is a deferred module that
+drops in behind this component — or is swapped for a JS fallback if the wasm cost is
+too high.
+
+## Not yet wired (deferred)
+
+- The wasm notation renderer.
+- Cloudflare Pages deploy config for `bo.cymbra.app`.
+- Full Google OIDC button (the token-exchange path is wired; the GIS button needs a
+  configured client id).

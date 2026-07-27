@@ -30,8 +30,8 @@ use crate::catalog_search::{CatalogHit, CatalogQuery, SortKey, is_moderation_sor
 use crate::module::{ScoreModule, UploadInput};
 use crate::proto::{
     CatalogHit as ProtoCatalogHit, DeleteScoreRequest, DeleteScoreResponse,
-    GetCatalogScoreBytesRequest, GetCatalogScoreBytesResponse, GetScoreBytesRequest,
-    GetScoreBytesResponse, ListMyScoresRequest, ListMyScoresResponse,
+    GetCatalogScoreBytesRequest, GetCatalogScoreBytesResponse, GetCatalogScoreRequest,
+    GetScoreBytesRequest, GetScoreBytesResponse, ListMyScoresRequest, ListMyScoresResponse,
     ListSavedCatalogScoresRequest, ListSavedCatalogScoresResponse, RemoveSavedCatalogScoreRequest,
     RemoveSavedCatalogScoreResponse, SaveCatalogScoreRequest, SaveCatalogScoreResponse,
     ScoreRecord, SearchCatalogRequest, SearchCatalogResponse, SetModerationStatusRequest,
@@ -295,6 +295,23 @@ impl ScoreService for ScoreGrpc {
             .get_catalog_bytes(&catalog_id, allow_unvalidated)
             .await?;
         Ok(Response::new(GetCatalogScoreBytesResponse { data }))
+    }
+
+    async fn get_catalog_score(
+        &self,
+        req: Request<GetCatalogScoreRequest>,
+    ) -> Result<Response<ProtoCatalogHit>, Status> {
+        // Same gate as fetch-bytes: a moderator/admin resolves any status; a normal
+        // caller only `accepted` (non-`accepted` id → not-found). Lets a detail view
+        // load by id without depending on a prior list.
+        let id = identity(&req)?;
+        let allow_unvalidated = id.is_admin() || id.has_role("moderator");
+        let catalog_id = req.into_inner().catalog_id;
+        let hit = self
+            .module
+            .get_catalog_hit(&catalog_id, allow_unvalidated)
+            .await?;
+        Ok(Response::new(to_hit(hit)))
     }
 
     async fn set_moderation_status(

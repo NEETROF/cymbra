@@ -346,6 +346,28 @@ impl CatalogSearchRepo for PgCatalogSearchRepo {
         Ok(rows.iter().map(row_to_hit).collect())
     }
 
+    async fn hit_by_id(
+        &self,
+        id: &str,
+        include_unvalidated: bool,
+    ) -> PlatformResult<Option<CatalogHit>> {
+        let Ok(uuid) = uuid::Uuid::parse_str(id) else {
+            return Ok(None); // malformed id → not found, never a 500
+        };
+        // Same moderation gate ($2) as `object_key`: normal caller sees `accepted`
+        // only; an authorised reviewer (`true`) sees any status.
+        let row = sqlx::query(&format!(
+            "SELECT {HIT_COLS} FROM music.catalog_scores \
+             WHERE id = $1 AND ($2 OR moderation_status = 'accepted')"
+        ))
+        .bind(uuid)
+        .bind(include_unvalidated)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(search_internal)?;
+        Ok(row.as_ref().map(row_to_hit))
+    }
+
     async fn object_key(
         &self,
         id: &str,

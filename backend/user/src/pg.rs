@@ -3,7 +3,7 @@
 
 use async_trait::async_trait;
 use cymbra_platform::{AppError, Result};
-use cymbra_user_port::{Account, Identity, RoleGrant};
+use cymbra_user_port::{Account, AccountPage, AccountSummary, Identity, RoleGrant};
 use sqlx::{PgPool, Row};
 
 use crate::repo::UserRepo;
@@ -310,10 +310,13 @@ impl UserRepo for PgUserRepo {
 
     async fn list_role_grants(&self, user_id: &str) -> Result<Vec<RoleGrant>> {
         let rows = sqlx::query(
-            "SELECT target_user_id, scope, role, action, acting_admin, \
-                    EXTRACT(EPOCH FROM created_at)::bigint AS at \
-             FROM role_grants WHERE target_user_id = $1 \
-             ORDER BY created_at DESC, id DESC",
+            "SELECT rg.target_user_id, rg.scope, rg.role, rg.action, rg.acting_admin, \
+                    u.handle AS acting_admin_handle, \
+                    EXTRACT(EPOCH FROM rg.created_at)::bigint AS at \
+             FROM role_grants rg \
+             LEFT JOIN users u ON u.id = rg.acting_admin \
+             WHERE rg.target_user_id = $1 \
+             ORDER BY rg.created_at DESC, rg.id DESC",
         )
         .bind(parse_uuid(user_id)?)
         .fetch_all(&self.pool)
@@ -328,8 +331,61 @@ impl UserRepo for PgUserRepo {
                 action: r.get("action"),
                 acting_admin: r.get::<uuid::Uuid, _>("acting_admin").to_string(),
                 at: r.get("at"),
+                acting_admin_handle: r.get("acting_admin_handle"),
             })
             .collect())
+    }
+
+    async fn list_accounts(
+        &self,
+        query: &str,
+        handle_key: &str,
+        limit: i64,
+        offset: i64,
+    ) -> Result<AccountPage> {
+        // Filter predicate (shared by count + page): empty query = all; else a
+        // handle-key prefix OR a `local` identity email equal to the query.
+        const WHERE: &str = "($1 = '' \
+            OR ($2 <> '' AND u.handle_key LIKE $2 || '%') \
+            OR EXISTS (SELECT 1 FROM user_identities i \
+                       WHERE i.user_id = u.id AND i.provider = 'local' \
+                         AND lower(i.subject) = lower($1)))";
+
+        let total: i64 = sqlx::query_scalar(&format!("SELECT count(*) FROM users u WHERE {WHERE}"))
+            .bind(query)
+            .bind(handle_key)
+            .fetch_one(&self.pool)
+            .await
+            .map_err(internal)?;
+
+        let rows = sqlx::query(&format!(
+            "SELECT u.id, u.handle, u.display_name, \
+                    COALESCE(array_agg(r.role) FILTER (WHERE r.role IS NOT NULL), ARRAY[]::text[]) AS roles \
+             FROM users u \
+             LEFT JOIN user_roles r ON r.user_id = u.id AND r.scope = 'music' \
+             WHERE {WHERE} \
+             GROUP BY u.id, u.handle, u.display_name, u.created_at \
+             ORDER BY u.handle ASC NULLS LAST, u.created_at, u.id \
+             LIMIT $3 OFFSET $4"
+        ))
+        .bind(query)
+        .bind(handle_key)
+        .bind(limit)
+        .bind(offset)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(internal)?;
+
+        let entries = rows
+            .into_iter()
+            .map(|r| AccountSummary {
+                user_id: r.get::<uuid::Uuid, _>("id").to_string(),
+                handle: r.get("handle"),
+                display_name: r.get("display_name"),
+                roles: r.get("roles"),
+            })
+            .collect();
+        Ok(AccountPage { entries, total })
     }
 }
 

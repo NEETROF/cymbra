@@ -169,6 +169,12 @@ pub trait CatalogSearchRepo: Send + Sync {
     /// absent). Order is unspecified — the caller re-orders to the saved order.
     async fn hits_by_ids(&self, ids: &[String]) -> Result<Vec<CatalogHit>>;
 
+    /// One catalog hit by id, or `None` if it doesn't exist. `include_unvalidated`
+    /// gates on moderation exactly like [`Self::object_key`]: `false` resolves only
+    /// an `accepted` score; `true` (an authorised reviewer) resolves any status.
+    /// Backs a self-sufficient detail/deep-link view (change: add-moderation-back-office).
+    async fn hit_by_id(&self, id: &str, include_unvalidated: bool) -> Result<Option<CatalogHit>>;
+
     /// The object-store key of a catalog score (for the byte fetch); `None` when
     /// the id does not exist. Doubles as the existence check used on save.
     ///
@@ -389,6 +395,14 @@ impl CatalogSearchRepo for FakeCatalogSearchRepo {
             .iter()
             .find(|r| r.id == id && (include_unvalidated || r.moderation_status == "accepted"))
             .map(|r| r.object_key.clone()))
+    }
+
+    async fn hit_by_id(&self, id: &str, include_unvalidated: bool) -> Result<Option<CatalogHit>> {
+        let rows = self.rows.lock().expect("catalog search fake lock");
+        Ok(rows
+            .iter()
+            .find(|r| r.id == id && (include_unvalidated || r.moderation_status == "accepted"))
+            .map(FakeCatalogRow::to_hit))
     }
 
     async fn set_moderation_status(

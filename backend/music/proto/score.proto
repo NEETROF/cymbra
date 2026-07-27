@@ -143,6 +143,12 @@ message ListSavedCatalogScoresResponse { repeated CatalogHit hits = 1; }
 message GetCatalogScoreBytesRequest { string catalog_id = 1; }
 message GetCatalogScoreBytesResponse { bytes data = 1; }
 
+// Fetch a single catalog score's metadata by id (change: add-moderation-back-
+// office), so a detail/deep-link view is self-sufficient (not dependent on a prior
+// list). Gated like the bytes fetch: a normal caller resolves only `accepted`
+// scores (non-`accepted` id → not-found), a moderator/admin resolves any status.
+message GetCatalogScoreRequest { string catalog_id = 1; }
+
 // Evaluate a catalog score (change: add-moderation-back-office). Sets its
 // moderation status to accepted | rejected (or back to pending to re-queue) and
 // stamps reviewed_by = caller + reviewed_at = now in the same write. Restricted to
@@ -166,6 +172,7 @@ service ScoreService {
   rpc RemoveSavedCatalogScore(RemoveSavedCatalogScoreRequest) returns (RemoveSavedCatalogScoreResponse);
   rpc ListSavedCatalogScores(ListSavedCatalogScoresRequest) returns (ListSavedCatalogScoresResponse);
   rpc GetCatalogScoreBytes(GetCatalogScoreBytesRequest) returns (GetCatalogScoreBytesResponse);
+  rpc GetCatalogScore(GetCatalogScoreRequest) returns (CatalogHit);
 
   // Moderation back office (change: add-moderation-back-office). Moderator/admin only.
   rpc SetModerationStatus(SetModerationStatusRequest) returns (SetModerationStatusResponse);

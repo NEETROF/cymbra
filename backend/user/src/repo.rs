@@ -6,7 +6,7 @@
 
 use async_trait::async_trait;
 use cymbra_platform::{AppError, Result};
-use cymbra_user_port::{Account, Identity, RoleGrant};
+use cymbra_user_port::{Account, AccountPage, AccountSummary, Identity, RoleGrant};
 use std::collections::HashMap;
 use std::sync::Mutex;
 
@@ -59,6 +59,17 @@ pub trait UserRepo: Send + Sync {
     ) -> Result<()>;
     /// The audit history for `user_id`, most recent first.
     async fn list_role_grants(&self, user_id: &str) -> Result<Vec<RoleGrant>>;
+    /// A page of the account directory (change: add-admin-account-directory):
+    /// accounts (with their `music`-scope roles) matching `query` — empty matches
+    /// all; otherwise a `handle_key` prefix OR a `local` identity whose email equals
+    /// `query` — ordered by handle (nulls last) then creation, plus the total count.
+    async fn list_accounts(
+        &self,
+        query: &str,
+        handle_key: &str,
+        limit: i64,
+        offset: i64,
+    ) -> Result<AccountPage>;
 }
 
 // --- In-memory fake (tests) -------------------------------------------------
@@ -296,6 +307,7 @@ impl UserRepo for FakeUserRepo {
             action: action.to_string(),
             acting_admin: acting_admin.to_string(),
             at,
+            acting_admin_handle: None,
         });
         Ok(())
     }
@@ -306,7 +318,72 @@ impl UserRepo for FakeUserRepo {
             .iter()
             .filter(|g| g.target_user_id == user_id)
             .rev() // most recent first
-            .cloned()
+            .map(|g| RoleGrant {
+                // Resolve the acting admin's handle at read time (mirrors the SQL join).
+                acting_admin_handle: s.users.get(&g.acting_admin).and_then(|r| r.handle.clone()),
+                ..g.clone()
+            })
             .collect())
+    }
+
+    async fn list_accounts(
+        &self,
+        query: &str,
+        handle_key: &str,
+        limit: i64,
+        offset: i64,
+    ) -> Result<AccountPage> {
+        let s = self.state.lock().unwrap();
+        let email = query.to_lowercase();
+        // Filter: empty query = all; else a handle-key prefix OR a `local` identity
+        // whose email equals the query (case-insensitive) — mirrors the SQL.
+        let mut matched: Vec<(&String, &AccountRow)> =
+            s.users
+                .iter()
+                .filter(|(uid, row)| {
+                    if query.is_empty() {
+                        return true;
+                    }
+                    let handle_hit = !handle_key.is_empty()
+                        && row
+                            .handle_key
+                            .as_deref()
+                            .map(|k| k.starts_with(handle_key))
+                            .unwrap_or(false);
+                    let email_hit = s.identities.iter().any(|(u, p, sub)| {
+                        u == *uid && p == "local" && sub.to_lowercase() == email
+                    });
+                    handle_hit || email_hit
+                })
+                .collect();
+        // Order by handle (nulls last, case-insensitive), then creation, then id.
+        matched.sort_by(|(ua, a), (ub, b)| {
+            match (a.handle.as_deref(), b.handle.as_deref()) {
+                (Some(x), Some(y)) => x.to_lowercase().cmp(&y.to_lowercase()),
+                (Some(_), None) => std::cmp::Ordering::Less,
+                (None, Some(_)) => std::cmp::Ordering::Greater,
+                (None, None) => std::cmp::Ordering::Equal,
+            }
+            .then(a.created_at.cmp(&b.created_at))
+            .then(ua.cmp(ub))
+        });
+        let total = matched.len() as i64;
+        let entries = matched
+            .into_iter()
+            .skip(offset.max(0) as usize)
+            .take(limit.max(0) as usize)
+            .map(|(uid, row)| AccountSummary {
+                user_id: uid.clone(),
+                handle: row.handle.clone(),
+                display_name: row.display_name.clone(),
+                roles: s
+                    .roles
+                    .iter()
+                    .filter(|(u, sc, _)| u == uid && sc == "music")
+                    .map(|(_, _, r)| r.clone())
+                    .collect(),
+            })
+            .collect();
+        Ok(AccountPage { entries, total })
     }
 }

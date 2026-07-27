@@ -11,10 +11,11 @@ use std::sync::Arc;
 use cymbra_platform::AuthIdentity;
 use cymbra_user_port::UserPort;
 use cymbra_user_port::proto::{
-    Account, CheckHandleAvailabilityRequest, CheckHandleAvailabilityResponse, DeleteAccountRequest,
-    DeleteAccountResponse, GetAccountRequest, GrantRoleRequest, GrantRoleResponse, Identity,
-    ListIdentitiesRequest, ListIdentitiesResponse, ListRoleGrantsRequest, ListRoleGrantsResponse,
-    RevokeRoleRequest, RevokeRoleResponse, RoleGrant as ProtoRoleGrant, UpdateAccountRequest,
+    Account, AccountRow, CheckHandleAvailabilityRequest, CheckHandleAvailabilityResponse,
+    DeleteAccountRequest, DeleteAccountResponse, GetAccountRequest, GrantRoleRequest,
+    GrantRoleResponse, Identity, ListAccountsRequest, ListAccountsResponse, ListIdentitiesRequest,
+    ListIdentitiesResponse, ListRoleGrantsRequest, ListRoleGrantsResponse, RevokeRoleRequest,
+    RevokeRoleResponse, RoleGrant as ProtoRoleGrant, UpdateAccountRequest,
     user_service_server::{UserService, UserServiceServer},
 };
 use tonic::{Request, Response, Status};
@@ -171,9 +172,40 @@ impl<P: UserPort + 'static> UserService for UserGrpc<P> {
                 action: g.action,
                 acting_admin: g.acting_admin,
                 at: g.at,
+                acting_admin_handle: g.acting_admin_handle,
             })
             .collect();
         Ok(Response::new(ListRoleGrantsResponse { grants }))
+    }
+
+    async fn list_accounts(
+        &self,
+        req: Request<ListAccountsRequest>,
+    ) -> Result<Response<ListAccountsResponse>, Status> {
+        // Admin-only (change: add-admin-account-directory): the directory reveals
+        // who holds which role, so it is gated exactly like the grant/revoke it
+        // feeds. Moderators and normal users are refused.
+        let id = identity(&req)?;
+        cymbra_platform::guard::require_admin(&id)?;
+        let r = req.into_inner();
+        let page = self
+            .port
+            .list_accounts(&r.query, r.limit as i64, r.offset as i64)
+            .await?;
+        let accounts = page
+            .entries
+            .into_iter()
+            .map(|a| AccountRow {
+                user_id: a.user_id,
+                handle: a.handle,
+                display_name: a.display_name,
+                roles: a.roles,
+            })
+            .collect();
+        Ok(Response::new(ListAccountsResponse {
+            accounts,
+            total: page.total as u32,
+        }))
     }
 }
 
@@ -291,5 +323,48 @@ mod tests {
         assert_eq!(resp.grants.len(), 1);
         assert_eq!(resp.grants[0].action, "grant");
         assert_eq!(resp.grants[0].role, "moderator");
+    }
+
+    #[tokio::test]
+    async fn list_accounts_is_admin_only_and_filters() {
+        let (g, module) = grpc();
+        let target = module
+            .resolve_or_provision("local", "ada@x.dev")
+            .await
+            .unwrap();
+        module
+            .update_account(&target, None, Some("ada".into()), "{}", 1)
+            .await
+            .unwrap();
+        // A moderator (non-admin) is refused.
+        let err = g
+            .list_accounts(authed(
+                ListAccountsRequest {
+                    limit: 25,
+                    offset: 0,
+                    query: String::new(),
+                },
+                "u1",
+                &["user", "moderator"],
+            ))
+            .await
+            .unwrap_err();
+        assert_eq!(err.code(), tonic::Code::PermissionDenied);
+        // An admin lists and can filter by handle.
+        let resp = g
+            .list_accounts(authed(
+                ListAccountsRequest {
+                    limit: 25,
+                    offset: 0,
+                    query: "ada".into(),
+                },
+                "admin1",
+                &["user", "admin"],
+            ))
+            .await
+            .unwrap()
+            .into_inner();
+        assert_eq!(resp.total, 1);
+        assert_eq!(resp.accounts[0].handle.as_deref(), Some("ada"));
     }
 }
