@@ -16,9 +16,27 @@ const authInterceptor =
     return next(req);
   };
 
+/// Default to the backend's local gRPC addr so `yarn dev` works without a `.env`.
+/// Connect's `createMethodUrl` calls `baseUrl.toString()`, so an undefined baseUrl
+/// crashes with a cryptic "reading 'toString'" before any request is sent — never
+/// pass undefined.
+const DEFAULT_GRPC_WEB_URL = "http://localhost:50051";
+
+export function baseUrl(): string {
+  const url = import.meta.env.VITE_GRPC_WEB_URL;
+  if (!url) {
+    console.warn(
+      `VITE_GRPC_WEB_URL is not set — defaulting to ${DEFAULT_GRPC_WEB_URL}. ` +
+        "Set it in apps/back-office/.env (see .env.example) for other environments.",
+    );
+    return DEFAULT_GRPC_WEB_URL;
+  }
+  return url;
+}
+
 export function createTransport(getToken: () => string | null): Transport {
   return createGrpcWebTransport({
-    baseUrl: import.meta.env.VITE_GRPC_WEB_URL,
+    baseUrl: baseUrl(),
     interceptors: [authInterceptor(getToken)],
   });
 }
