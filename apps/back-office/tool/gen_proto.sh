@@ -3,7 +3,7 @@
 # the backend's protos, into src/gen/ (gitignored, like the Flutter app's stubs).
 # Uses protoc (brew: protobuf) + the local protoc-gen-es plugin (Connect ES v2:
 # the *_pb.ts files carry both messages and service descriptors, consumed by
-# @connectrpc/connect's createClient). Run via `pnpm gen`.
+# @connectrpc/connect's createClient). Run via `yarn gen`.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -22,7 +22,7 @@ command -v protoc >/dev/null 2>&1 || {
 
 PLUGIN="$APP_DIR/node_modules/.bin/protoc-gen-es"
 [ -x "$PLUGIN" ] || {
-  echo "error: protoc-gen-es not found — run 'pnpm install' first" >&2
+  echo "error: protoc-gen-es not found — run 'yarn install' first" >&2
   exit 1
 }
 

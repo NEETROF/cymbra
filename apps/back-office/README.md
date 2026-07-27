@@ -9,10 +9,10 @@ and accept/reject them, and admins grant/revoke roles. It talks to the backend o
 
 ```bash
 cd apps/back-office
-pnpm install
-pnpm gen        # generate TS gRPC stubs from the backend protos (needs protoc)
+yarn install
+yarn gen        # generate TS gRPC stubs from the backend protos (needs protoc)
 cp .env.example .env   # set VITE_GRPC_WEB_URL to your backend
-pnpm dev
+yarn dev
 ```
 
 The backend must run with `CYMBRA_BACK_OFFICE_ORIGINS` including this app's origin
@@ -21,9 +21,9 @@ admin account must exist (see `backend/scripts/seed_admin.sh`).
 
 ## Scripts
 
-- `pnpm gen` — regenerate `src/gen/*` from `backend/*/proto/*.proto` (gitignored).
-- `pnpm test` — Vitest component/store tests (its own gate, outside the Flutter/Rust CI).
-- `pnpm build` — type-check + production build.
+- `yarn gen` — regenerate `src/gen/*` from `backend/*/proto/*.proto` (gitignored).
+- `yarn test` — Vitest component/store tests (its own gate, outside the Flutter/Rust CI).
+- `yarn build` — type-check + production build.
 
 ## Architecture
 

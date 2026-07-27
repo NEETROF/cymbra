@@ -1,6 +1,11 @@
 node_modules/
 dist/
-# Generated gRPC-web/protobuf stubs (produced by `pnpm gen`, like the Flutter app's).
+# Generated gRPC-web/protobuf stubs (produced by `yarn gen`, like the Flutter app's).
 src/gen/
 *.local
 .env
+
+# Yarn Berry (node-modules linker): commit yarn.lock + .yarnrc.yml, ignore the rest.
+.yarn/*
+!.yarn/patches
+.pnp.*

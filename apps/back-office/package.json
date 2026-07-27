@@ -3,6 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "packageManager": "yarn@4.10.3",
   "description": "Cymbra moderation back office — Vue 3 SPA (bo.cymbra.app).",
   "scripts": {
     "gen": "bash tool/gen_proto.sh",
