@@ -24,6 +24,7 @@
 # (frb bindings are named frb_generated*.dart and are NOT matched here.)
 *.g.dart
 *.freezed.dart
+*.mocks.dart
 
 # --- IDE / editors ---
 *.iml

@@ -12,56 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'dart:typed_data';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mockito/annotations.dart';
+import 'package:mockito/mockito.dart';
 import 'package:music/services/score_upload_service.dart';
 import 'package:music/state/contributed_scores.dart';
 import 'package:music/state/score_catalog.dart';
 import 'package:music/state/session_notifier.dart';
 
-/// Records the mutations and reloads, and lets a test force a failure.
-class _FakeUpload implements ScoreUploadService {
-  _FakeUpload(this.mine);
-  List<ContributedScore> mine;
-  final List<(String, bool)> favoriteCalls = [];
-  final List<String> deleteCalls = [];
-  int listCalls = 0;
-  bool throwNext = false;
-
-  @override
-  Future<List<ContributedScore>> listMyScores() async {
-    listCalls++;
-    return mine;
-  }
-
-  @override
-  Future<void> deleteScore(String id) async {
-    if (throwNext) throw StateError('boom');
-    deleteCalls.add(id);
-    mine = mine.where((s) => s.id != id).toList();
-  }
-
-  @override
-  Future<void> setFavorite(String id, bool favorite) async {
-    if (throwNext) throw StateError('boom');
-    favoriteCalls.add((id, favorite));
-  }
-
-  @override
-  Future<Uint8List> fetchBytes(String id) async => Uint8List(0);
-  @override
-  Future<ContributedScore> upload({
-    required Uint8List data,
-    required String filename,
-    required PracticeLevel level,
-    required RightsBasis rightsBasis,
-    required bool rightsAck,
-    String? fallbackTitle,
-    String? fallbackComposer,
-  }) async => throw UnimplementedError();
-}
+@GenerateNiceMocks([MockSpec<ScoreUploadService>()])
+import 'contributed_scores_test.mocks.dart';
 
 ContributedScore _upload(String id, {bool favorite = false}) =>
     ContributedScore(
@@ -75,7 +36,7 @@ ContributedScore _upload(String id, {bool favorite = false}) =>
       favorite: favorite,
     );
 
-ProviderContainer _container(_FakeUpload upload) {
+ProviderContainer _container(ScoreUploadService upload) {
   final c = ProviderContainer(
     overrides: [
       scoreUploadServiceProvider.overrideWithValue(upload),
@@ -90,8 +51,12 @@ ProviderContainer _container(_FakeUpload upload) {
 
 void main() {
   test('build loads the caller uploads', () async {
-    final fake = _FakeUpload([_upload('a'), _upload('b')]);
-    final c = _container(fake);
+    final upload = MockScoreUploadService();
+    when(
+      upload.listMyScores(),
+    ).thenAnswer((_) async => [_upload('a'), _upload('b')]);
+
+    final c = _container(upload);
     final list = await c.read(myUploadsProvider.future);
     expect(list.map((s) => s.id), ['a', 'b']);
   });
@@ -99,35 +64,50 @@ void main() {
   test(
     'toggleFavorite calls the service then reloads (no direct UI call)',
     () async {
-      final fake = _FakeUpload([_upload('a')]);
-      final c = _container(fake);
-      await c.read(myUploadsProvider.future); // initial load (listCalls == 1)
+      final upload = MockScoreUploadService();
+      when(upload.listMyScores()).thenAnswer((_) async => [_upload('a')]);
+      when(upload.setFavorite(any, any)).thenAnswer((_) async {});
+
+      final c = _container(upload);
+      await c.read(myUploadsProvider.future); // initial load
 
       await c
           .read(myUploadsProvider.notifier)
           .toggleFavorite('a', favorite: true);
 
-      expect(fake.favoriteCalls, [('a', true)]);
-      expect(fake.listCalls, 2); // reloaded after the mutation
+      verify(upload.setFavorite('a', true)).called(1);
+      // Reloaded after the mutation: build + reload == 2 list calls.
+      verify(upload.listMyScores()).called(2);
       expect(c.read(myUploadsProvider).hasValue, isTrue);
     },
   );
 
   test('delete calls the service then reloads', () async {
-    final fake = _FakeUpload([_upload('a'), _upload('b')]);
-    final c = _container(fake);
+    final upload = MockScoreUploadService();
+    // A tiny bit of state so the post-delete reload reflects the removal.
+    var mine = [_upload('a'), _upload('b')];
+    when(upload.listMyScores()).thenAnswer((_) async => mine);
+    when(upload.deleteScore(any)).thenAnswer((inv) async {
+      final id = inv.positionalArguments.first as String;
+      mine = mine.where((s) => s.id != id).toList();
+    });
+
+    final c = _container(upload);
     await c.read(myUploadsProvider.future);
 
     await c.read(myUploadsProvider.notifier).delete('a');
 
-    expect(fake.deleteCalls, ['a']);
+    verify(upload.deleteScore('a')).called(1);
     final list = await c.read(myUploadsProvider.future);
     expect(list.map((s) => s.id), ['b']); // reflects the deletion
   });
 
   test('a failed mutation lands in the state, never thrown', () async {
-    final fake = _FakeUpload([_upload('a')])..throwNext = true;
-    final c = _container(fake);
+    final upload = MockScoreUploadService();
+    when(upload.listMyScores()).thenAnswer((_) async => [_upload('a')]);
+    when(upload.deleteScore(any)).thenThrow(StateError('boom'));
+
+    final c = _container(upload);
     await c.read(myUploadsProvider.future);
 
     // Does not throw — the guard captures it into the AsyncValue.
