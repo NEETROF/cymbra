@@ -39,6 +39,18 @@ cd apps/music && dart run build_runner build --delete-conflicting-outputs
 Notifier rule: never read or assign `state` inside `build()` before it returns —
 compute the initial value and return it.
 
+### Web front-ends (Vue 3 + TS)
+
+For Vue web apps (e.g. `apps/back-office`), follow the **`vue-frontend-architecture`**
+skill (`.claude/skills/`). Two hard rules, applied proactively:
+- **A screen/component NEVER calls an API directly** — only Pinia stores/composables
+  do, behind an injectable client seam (`lib/api.ts` + `setClientsForTest`).
+- **Async state is one `ts-pattern` discriminated union** (`Async<T>`:
+  `idle|loading|success|error`), matched with `match(...).exhaustive()` — never
+  scattered `loading`/`error`/`data` refs. Errors live in the union, not thrown.
+
+Reference: `apps/back-office/src/lib/async.ts` + `src/stores/catalog.ts`.
+
 ## Test coverage — minimum 80%
 
 Every change keeps or raises **line coverage ≥ 80%** for both ecosystems; new
