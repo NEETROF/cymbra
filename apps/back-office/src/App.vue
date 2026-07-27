@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import { RouterLink, RouterView, useRouter } from "vue-router";
+import { RouterLink, RouterView, useRoute, useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
 import { useAuthStore } from "@/stores/auth";
 import { currentLocale, setLocale, SUPPORTED_LOCALES } from "@/i18n";
 
 const auth = useAuthStore();
 const router = useRouter();
+const route = useRoute();
 const { t } = useI18n();
 
 // Mobile: the sidebar is an off-canvas drawer toggled by the hamburger; it closes
@@ -17,9 +18,11 @@ function closeMenu() {
   menuOpen.value = false;
 }
 
-// The full app shell (sidebar) only shows to a signed-in moderator/admin; the
-// sign-in and access-denied screens render on a bare, centered canvas.
-const shell = computed(() => auth.isAuthenticated && auth.isModerator);
+// The full app shell (sidebar) only shows to a signed-in moderator/admin AND never on
+// a public route — so the sign-in / access-denied screens render on a bare, centered
+// canvas even when an in-memory session is still active (e.g. navigating back to
+// /signin after signing in).
+const shell = computed(() => auth.isAuthenticated && auth.isModerator && !route.meta.public);
 
 // Minimal line icons (Lucide-style paths) so the nav reads like the mockup
 // without pulling an icon dependency.
@@ -38,9 +41,9 @@ const nav = computed(() => {
   return items;
 });
 
-function signOut() {
+async function signOut() {
   closeMenu();
-  auth.signOut();
+  await auth.signOut();
   router.push({ name: "signin" });
 }
 </script>

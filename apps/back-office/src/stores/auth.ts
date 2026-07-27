@@ -1,43 +1,28 @@
 import { defineStore } from "pinia";
-import { api } from "@/lib/api";
+import { webAuth } from "@/lib/web-auth";
 import { decodeClaims, isAdmin, isModerator, type TokenClaims } from "@/lib/jwt";
 
 // The back office targets the `music` audience so `music`-scoped roles
 // (moderator/admin) flow into the token (design D2).
 const AUDIENCE = "music";
-const STORAGE_KEY = "cymbra.bo.tokens";
-
-interface StoredTokens {
-  accessToken: string;
-  refreshToken: string;
-}
-
-function load(): StoredTokens | null {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as StoredTokens) : null;
-  } catch {
-    return null;
-  }
-}
 
 interface AuthState {
+  // Memory-only: the access token is NEVER persisted (localStorage/sessionStorage/
+  // non-HttpOnly cookie). The refresh token lives only in the HttpOnly cookie the
+  // server manages — unreadable by this JS. A reload silently re-mints via `bootstrap`.
   accessToken: string | null;
-  refreshToken: string | null;
   claims: TokenClaims;
-  error: string | null;
+  // Whether the initial cookie-refresh attempt has run, so the router can wait for a
+  // decided auth state (signed-in vs no-session) instead of flashing sign-in.
+  bootstrapped: boolean;
 }
 
 export const useAuthStore = defineStore("auth", {
-  state: (): AuthState => {
-    const stored = load();
-    return {
-      accessToken: stored?.accessToken ?? null,
-      refreshToken: stored?.refreshToken ?? null,
-      claims: stored ? decodeClaims(stored.accessToken) : { roles: [] },
-      error: null,
-    };
-  },
+  state: (): AuthState => ({
+    accessToken: null,
+    claims: { roles: [] },
+    bootstrapped: false,
+  }),
   getters: {
     isAuthenticated: (s): boolean => !!s.accessToken,
     roles: (s): string[] => s.claims.roles,
@@ -46,31 +31,40 @@ export const useAuthStore = defineStore("auth", {
     userId: (s): string | undefined => s.claims.sub,
   },
   actions: {
-    setTokens(accessToken: string, refreshToken: string) {
+    setToken(accessToken: string) {
       this.accessToken = accessToken;
-      this.refreshToken = refreshToken;
       this.claims = decodeClaims(accessToken);
-      this.error = null;
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ accessToken, refreshToken }));
     },
     async signInLocal(email: string, password: string) {
-      const pair = await api().auth.signInLocal({ email, password, audience: AUDIENCE });
-      this.setTokens(pair.accessToken, pair.refreshToken);
+      const { accessToken } = await webAuth().signInLocal(email, password, AUDIENCE);
+      this.setToken(accessToken);
     },
     async signInOidc(idToken: string) {
-      const pair = await api().auth.signInOidc({ idToken, audience: AUDIENCE });
-      this.setTokens(pair.accessToken, pair.refreshToken);
+      const { accessToken } = await webAuth().signInOidc(idToken, AUDIENCE);
+      this.setToken(accessToken);
     },
+    /** Mint a fresh access token from the refresh cookie. Throws if there is no
+     * valid session (caller decides: silent on boot, sign-out on a live 401). */
     async refresh() {
-      if (!this.refreshToken) return;
-      const pair = await api().auth.refresh({ refreshToken: this.refreshToken });
-      this.setTokens(pair.accessToken, pair.refreshToken);
+      const { accessToken } = await webAuth().refresh();
+      this.setToken(accessToken);
     },
-    signOut() {
+    /** On app load, try to re-mint an access token from the refresh cookie. A missing
+     * or invalid cookie just means "no session" — swallow it and land on sign-in. */
+    async bootstrap() {
+      try {
+        await this.refresh();
+      } catch {
+        // No session; stay signed out (no console noise).
+      } finally {
+        this.bootstrapped = true;
+      }
+    },
+    /** Revoke the server session (clears the cookie) and drop the in-memory token. */
+    async signOut() {
+      await webAuth().logout();
       this.accessToken = null;
-      this.refreshToken = null;
       this.claims = { roles: [] };
-      localStorage.removeItem(STORAGE_KEY);
     },
   },
 });

@@ -1,6 +1,7 @@
 import { Code, ConnectError } from "@connectrpc/connect";
 import { setClientsForTest } from "@/lib/api";
 import type { Clients } from "@/lib/transport";
+import { setWebAuthClientForTest, WebAuthError, type WebAuthClient } from "@/lib/web-auth";
 
 // E2E test seam (loaded ONLY when VITE_E2E=1 — see main.ts). Playwright seeds
 // `window.__CYMBRA_E2E__` with canned data via addInitScript before the app boots;
@@ -16,6 +17,14 @@ export interface E2EFailure {
 export interface E2EData {
   /** What `signInLocal`/`signInOidc`/`refresh` return. */
   tokens?: { accessToken: string; refreshToken: string };
+  /** Simulates the HttpOnly refresh cookie existing at boot: when true, the fake
+   * web-auth `refresh` re-mints `tokens` (so a reload stays signed in); when false
+   * it 401s (no session). `loginAs` in the e2e fixtures sets this. */
+  session?: boolean;
+  /** Artificial latency (ms) on the fake web-auth `refresh`, to mimic a real network
+   * round-trip. Used to catch the boot-order race where the router's initial guard
+   * could run before the cookie re-mint completed. */
+  refreshDelayMs?: number;
   /** Rows returned by the list search (limit > 1). */
   hits?: Record<string, unknown>[];
   /** Per-status totals returned by the count-only stat queries (limit 1). */
@@ -31,6 +40,9 @@ export interface E2EData {
   accounts?: DirectoryAccount[];
   /** Force a method to reject with a ConnectError, keyed by method name. */
   fail?: Record<string, E2EFailure>;
+  /** Force a method to reject with a ConnectError exactly ONCE (then succeed) —
+   * used to exercise the silent refresh-and-retry path. Keyed by method name. */
+  failOnce?: Record<string, E2EFailure>;
 }
 
 interface DirectoryAccount {
@@ -59,6 +71,18 @@ export function installE2EClients(): void {
     if (f) throw new ConnectError(f.message, f.code as Code);
   }
 
+  // One-shot failures (consumed on first use) exercise the refresh-and-retry path:
+  // the first call 401s, the interceptor refreshes via the cookie, then retries here
+  // and succeeds.
+  const failOnce = { ...(data.failOnce ?? {}) };
+  function failOnceIfSet(method: string): void {
+    const f = failOnce[method];
+    if (f) {
+      delete failOnce[method];
+      throw new ConnectError(f.message, f.code as Code);
+    }
+  }
+
   const clients = {
     auth: {
       signInLocal: async () => {
@@ -73,6 +97,7 @@ export function installE2EClients(): void {
     },
     score: {
       searchCatalog: async (req: { moderationStatus?: string; limit?: number }) => {
+        failOnceIfSet("searchCatalog");
         failIfSet("searchCatalog");
         // The header stat cards issue count-only queries (limit 1); return the
         // per-status total for those, and the row list for the real query.
@@ -123,5 +148,40 @@ export function installE2EClients(): void {
     },
   } as unknown as Clients;
 
+  // Web-auth (cookie) fake: sign-in mints a token and "sets the cookie" (session on);
+  // refresh re-mints only while a session exists; logout ends it. `data.session` seeds
+  // the boot state (an existing HttpOnly cookie) so a reload silently re-mints.
+  let session = data.session ?? false;
+  // Reuse the same `fail` map as the gRPC fakes, translating the Connect code to the
+  // HTTP status the real web-auth surface would return.
+  const codeToHttp: Record<number, number> = { 16: 401, 7: 403, 5: 404, 9: 412, 3: 400, 8: 429, 14: 503 };
+  function webAuthFail(method: string): void {
+    const f = data.fail?.[method];
+    if (f) throw new WebAuthError(codeToHttp[f.code] ?? 500, f.message);
+  }
+  const webAuthClient: WebAuthClient = {
+    signInLocal: async () => {
+      webAuthFail("signInLocal");
+      session = true;
+      return { accessToken: tokens.accessToken };
+    },
+    signInOidc: async () => {
+      webAuthFail("signInOidc");
+      session = true;
+      return { accessToken: tokens.accessToken };
+    },
+    refresh: async () => {
+      // Optional latency so the boot re-mint isn't instantaneous — exercises the
+      // router-install boot order (the guard must wait for the session to resolve).
+      if (data.refreshDelayMs) await new Promise((r) => setTimeout(r, data.refreshDelayMs));
+      if (!session) throw new WebAuthError(401, "no session");
+      return { accessToken: tokens.accessToken };
+    },
+    logout: async () => {
+      session = false;
+    },
+  };
+
   setClientsForTest(clients);
+  setWebAuthClientForTest(webAuthClient);
 }

@@ -30,7 +30,14 @@ export function createAppRouter() {
   // UX only — every RPC is independently role-guarded server-side.
   router.beforeEach((to) => {
     const auth = useAuthStore();
-    if (to.meta.public) return true;
+    if (to.meta.public) {
+      // An already-signed-in moderator has no business on the sign-in page (the
+      // in-memory session survives navigating back to /signin) — send them to work.
+      if (to.name === "signin" && auth.isAuthenticated && auth.isModerator) {
+        return { name: "music-queue" };
+      }
+      return true;
+    }
     if (!auth.isAuthenticated) return { name: "signin" };
     if (!auth.isModerator) return { name: "denied" };
     if (to.meta.admin && !auth.isAdmin) return { name: "music-catalog" };

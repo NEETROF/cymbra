@@ -1028,11 +1028,13 @@ dependencies = [
  "dotenvy",
  "http",
  "jsonwebtoken",
+ "serde",
  "serde_json",
  "sqlx",
  "tokio",
  "tonic 0.12.3",
  "tonic-web",
+ "tower 0.5.3",
  "tower-http 0.6.11",
  "tracing",
 ]

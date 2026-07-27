@@ -14,6 +14,9 @@ use jsonwebtoken::DecodingKey;
 use serde_json::Value;
 use sqlx::PgPool;
 
+pub mod web_auth;
+pub use web_auth::{WebAuthConfig, web_auth_router};
+
 /// Liveness/readiness logic (pure; the HTTP/gRPC surfaces apply it).
 pub mod health {
     /// Ready only when every critical dependency is reachable.

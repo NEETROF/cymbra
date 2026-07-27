@@ -107,6 +107,9 @@ async fn main() -> anyhow::Result<()> {
         &cfg.token.kid,
         auth_cfg,
     )?);
+    // Shared handle for the browser web-auth HTTP surface (cookie sign-in/refresh/
+    // logout); the gRPC AuthService keeps its own handle below.
+    let auth_port: Arc<dyn cymbra_auth_port::AuthPort> = auth.clone();
 
     // The orphan reaper no longer runs in-process here: it is a scheduled job
     // (`orphan_reap`) executed by cymbra-worker (change: add-job-infrastructure).
@@ -165,9 +168,20 @@ async fn main() -> anyhow::Result<()> {
         }
     };
 
-    // --- HTTP surface (JWKS + health) ---
+    // --- HTTP surface (JWKS + health + web-auth cookie endpoints) ---
+    // The web-auth surface (change: add-web-auth-cookies) carries the refresh token
+    // in an HttpOnly cookie for the browser back office; it reuses the back-office
+    // CORS allow-list (credentialed, exact-origin) and the refresh TTL from token cfg.
     let jwks = cymbra_server::jwks_value(&cfg)?;
-    let http = cymbra_server::http_router(jwks, ready_pool, cache.clone());
+    let web_auth_cfg = cymbra_server::WebAuthConfig {
+        cookie_domain: cfg.web_auth_cookie_domain.clone(),
+        cookie_secure: cfg.web_auth_cookie_secure,
+        cookie_path: cymbra_server::WebAuthConfig::DEFAULT_PATH.to_string(),
+        refresh_ttl: cfg.token.refresh_ttl,
+        allowed_origins: cfg.back_office_origins.clone(),
+    };
+    let http = cymbra_server::http_router(jwks, ready_pool, cache.clone())
+        .merge(cymbra_server::web_auth_router(auth_port, web_auth_cfg));
 
     let grpc_addr: SocketAddr = cfg.grpc_addr.parse()?;
     let http_addr: SocketAddr = cfg.http_addr.parse()?;

@@ -11,13 +11,15 @@ and accept/reject them, and admins grant/revoke roles. It talks to the backend o
 cd apps/back-office
 yarn install
 yarn gen        # generate TS gRPC stubs from the backend protos (needs protoc)
-cp .env.example .env   # set VITE_GRPC_WEB_URL to your backend
+cp .env.example .env   # set VITE_GRPC_WEB_URL + VITE_WEB_AUTH_URL to your backend
 yarn dev
 ```
 
 The backend must run with `CYMBRA_BACK_OFFICE_ORIGINS` including this app's origin
-(e.g. `http://localhost:5173`) so CORS allows the browser calls, and a moderator/
-admin account must exist (see `backend/scripts/seed_admin.sh`).
+(e.g. `http://localhost:5173`) so CORS allows both the gRPC-web calls and the
+credentialed web-auth cookie calls, and a moderator/admin account must exist (see
+`backend/scripts/seed_admin.sh`). For plain-HTTP localhost set
+`CYMBRA_WEB_AUTH_COOKIE_SECURE=false` (see [Cookie sessions](#cookie-sessions-no-token-in-js-storage)).
 
 ## Scripts
 
@@ -59,6 +61,41 @@ Sign-in targets the `music` audience so `music`-scoped roles (`moderator`/`admin
 ride in the access token. The router gates the console: unauthenticated → sign-in;
 signed-in non-moderator → access-denied; `/roles` requires `admin`. This is UX only —
 **every RPC is independently role-guarded server-side**, so the gate can't be bypassed.
+
+### Cookie sessions (no token in JS storage)
+
+The refresh token is **never** exposed to page JavaScript, and the access token is
+**memory-only** (nothing in `localStorage`/`sessionStorage`/non-`HttpOnly` cookie), so
+an XSS can't exfiltrate a replayable session (change: `add-web-auth-cookies`).
+
+- Sign-in / refresh / sign-out go over the **web-auth HTTP surface** (`VITE_WEB_AUTH_URL`,
+  the backend's HTTP port), not gRPC. The server sets/rotates/clears the refresh token
+  in an `HttpOnly; Secure; SameSite=Strict; Path=/web/auth` cookie and returns the access
+  token in the JSON body. See `src/lib/web-auth.ts` (injectable seam, like `lib/api.ts`).
+- On load the SPA calls `/web/auth/refresh` (credentialed) to **re-mint** an access token
+  from the cookie — a reload stays signed in with nothing persisted. On a gRPC
+  `UNAUTHENTICATED` the transport refreshes once via the cookie and retries; only if that
+  refresh fails does it sign out.
+- **CSRF**: the cookie is `SameSite=Strict` and every web-auth call sends a custom
+  `X-Cymbra-Web` header (and JSON content-type) that forces a CORS preflight a cross-site
+  `<form>` can't satisfy; CORS echoes the exact origin with credentials (never `*`).
+
+### Deployment constraint — same-site + reverse proxy
+
+The API and this SPA **must share a registrable domain** (e.g. `api.cymbra.app` +
+`bo.cymbra.app` under `cymbra.app`, with `CYMBRA_WEB_AUTH_COOKIE_DOMAIN=cymbra.app`) so
+the refresh cookie is first-party and survives third-party-cookie blocking (Safari ITP,
+Firefox, Chrome). A split-domain deploy breaks the cookie — this is a hard constraint.
+Dev uses `localhost` (cookies are shared across ports; set
+`CYMBRA_WEB_AUTH_COOKIE_SECURE=false` for plain-HTTP localhost).
+
+The reverse proxy fronting the SPA should also send, as response **headers** (complementing
+the build-time CSP `<meta>`):
+
+- `Content-Security-Policy: frame-ancestors 'none'` (header form — clickjacking defence
+  the meta tag can't express), plus the app's `default-src`/`connect-src` policy.
+- `Strict-Transport-Security: max-age=63072000; includeSubDomains; preload` (HSTS), so the
+  `Secure` cookie is never attempted over plain HTTP.
 
 ## Preview (notation)
 
