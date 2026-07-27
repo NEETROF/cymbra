@@ -24,6 +24,9 @@ pub struct TokenPair {
 ///
 /// `user_id` parameters on the authenticated operations (`link`/`unlink`) come
 /// from the validated internal access token, supplied by the server adapter.
+// `#[automock]` sits ABOVE `#[async_trait]` so mockall sees the async trait
+// before it desugars; gated on the `mock` feature (test-only, never shipped).
+#[cfg_attr(feature = "mock", mockall::automock)]
 #[async_trait]
 pub trait AuthPort: Send + Sync {
     async fn sign_up_local(&self, email: &str, password: &str) -> Result<()>;

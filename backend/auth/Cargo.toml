@@ -26,3 +26,6 @@ base64.workspace = true
 
 [dev-dependencies]
 cymbra-user = { path = "../user" }
+# Enable the port's `mock` feature (→ `MockAuthPort`) for tests only.
+cymbra-auth-port = { path = "../auth-port", features = ["mock"] }
+mockall = { workspace = true }
