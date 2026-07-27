@@ -307,6 +307,7 @@ impl UserRepo for FakeUserRepo {
             action: action.to_string(),
             acting_admin: acting_admin.to_string(),
             at,
+            acting_admin_handle: None,
         });
         Ok(())
     }
@@ -317,7 +318,11 @@ impl UserRepo for FakeUserRepo {
             .iter()
             .filter(|g| g.target_user_id == user_id)
             .rev() // most recent first
-            .cloned()
+            .map(|g| RoleGrant {
+                // Resolve the acting admin's handle at read time (mirrors the SQL join).
+                acting_admin_handle: s.users.get(&g.acting_admin).and_then(|r| r.handle.clone()),
+                ..g.clone()
+            })
             .collect())
     }
 

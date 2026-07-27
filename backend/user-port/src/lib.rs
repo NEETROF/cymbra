@@ -45,6 +45,8 @@ pub struct RoleGrant {
     pub action: String,
     pub acting_admin: String,
     pub at: i64, // unix seconds
+    /// Resolved handle of the acting admin (`None` if it has none / was deleted).
+    pub acting_admin_handle: Option<String>,
 }
 
 /// One row of the admin account directory (change: add-admin-account-directory):

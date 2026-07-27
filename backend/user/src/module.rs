@@ -358,6 +358,9 @@ mod tests {
     async fn grant_role_adds_moderator_and_audits() {
         let m = module();
         let admin = m.resolve_or_provision("google", "admin").await.unwrap();
+        m.update_account(&admin, None, Some("bossadmin".into()), "{}", 1)
+            .await
+            .unwrap();
         let target = m.resolve_or_provision("google", "target").await.unwrap();
         // Grant music/moderator → it appears in the music-audience effective roles.
         m.grant_role(&admin, &target, "music", "moderator")
@@ -380,6 +383,8 @@ mod tests {
         assert_eq!(grants[0].role, "moderator");
         assert_eq!(grants[0].scope, "music");
         assert_eq!(grants[0].acting_admin, admin);
+        // The audit resolves the acting admin's handle (shown instead of the UUID).
+        assert_eq!(grants[0].acting_admin_handle.as_deref(), Some("bossadmin"));
     }
 
     #[tokio::test]

@@ -310,10 +310,13 @@ impl UserRepo for PgUserRepo {
 
     async fn list_role_grants(&self, user_id: &str) -> Result<Vec<RoleGrant>> {
         let rows = sqlx::query(
-            "SELECT target_user_id, scope, role, action, acting_admin, \
-                    EXTRACT(EPOCH FROM created_at)::bigint AS at \
-             FROM role_grants WHERE target_user_id = $1 \
-             ORDER BY created_at DESC, id DESC",
+            "SELECT rg.target_user_id, rg.scope, rg.role, rg.action, rg.acting_admin, \
+                    u.handle AS acting_admin_handle, \
+                    EXTRACT(EPOCH FROM rg.created_at)::bigint AS at \
+             FROM role_grants rg \
+             LEFT JOIN users u ON u.id = rg.acting_admin \
+             WHERE rg.target_user_id = $1 \
+             ORDER BY rg.created_at DESC, rg.id DESC",
         )
         .bind(parse_uuid(user_id)?)
         .fetch_all(&self.pool)
@@ -328,6 +331,7 @@ impl UserRepo for PgUserRepo {
                 action: r.get("action"),
                 acting_admin: r.get::<uuid::Uuid, _>("acting_admin").to_string(),
                 at: r.get("at"),
+                acting_admin_handle: r.get("acting_admin_handle"),
             })
             .collect())
     }

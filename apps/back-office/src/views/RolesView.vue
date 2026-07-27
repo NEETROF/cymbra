@@ -163,7 +163,7 @@ onMounted(() => store.list("", 0));
             <td>{{ g.action }}</td>
             <td>{{ g.scope }}</td>
             <td>{{ g.role }}</td>
-            <td class="mono">{{ g.actingAdmin }}</td>
+            <td :class="{ mono: !g.actingAdminHandle }">{{ g.actingAdminHandle || g.actingAdmin }}</td>
           </tr>
         </tbody>
       </table>

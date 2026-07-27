@@ -172,6 +172,7 @@ impl<P: UserPort + 'static> UserService for UserGrpc<P> {
                 action: g.action,
                 acting_admin: g.acting_admin,
                 at: g.at,
+                acting_admin_handle: g.acting_admin_handle,
             })
             .collect();
         Ok(Response::new(ListRoleGrantsResponse { grants }))

@@ -34,6 +34,27 @@ test.describe("roles directory (admin only)", () => {
     await expect(page.getByText("bob", { exact: true })).toHaveCount(0);
   });
 
+  test("the audit history shows the acting admin's handle, not the raw id", async ({ page }) => {
+    const grants = [
+      {
+        targetUserId: "u-ada",
+        scope: "music",
+        role: "moderator",
+        action: "grant",
+        actingAdmin: "019f60be-6cd9-74e2-a600-9893bd2aaa3a",
+        actingAdminHandle: "bossadmin",
+        at: 1_700_000_000,
+      },
+    ];
+    await seed(page, { loginAs: "admin", data: { accounts: [ada], grants } });
+    await page.goto("/roles");
+
+    await page.getByRole("button", { name: "History" }).click();
+
+    await expect(page.getByText("bossadmin")).toBeVisible();
+    await expect(page.locator("body")).not.toContainText("019f60be-6cd9");
+  });
+
   test("an empty result shows a friendly message, not a raw code", async ({ page }) => {
     await seed(page, { loginAs: "admin", data: { accounts: [ada] } });
     await page.goto("/roles");

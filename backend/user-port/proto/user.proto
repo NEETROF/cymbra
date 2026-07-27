@@ -69,6 +69,9 @@ message RoleGrant {
   string action = 4; // grant | revoke
   string acting_admin = 5;
   int64 at = 6; // unix seconds
+  // Resolved handle of the acting admin (null if the admin has no handle or the
+  // account no longer exists); the UI shows this instead of the raw id.
+  optional string acting_admin_handle = 7;
 }
 message ListRoleGrantsRequest { string user_id = 1; }
 message ListRoleGrantsResponse { repeated RoleGrant grants = 1; }
