@@ -20,18 +20,18 @@ Session ops go through the **authenticated gRPC `AuthService`** (called from the
 over the existing gRPC-web transport), not a bespoke web-auth HTTP surface — that would
 have re-implemented access-token auth on the cookie surface for no gain.
 
-- [ ] 4.1 "Sign out everywhere" in the BO = `RevokeAllSessions` (gRPC) **then** the
+- [x] 4.1 "Sign out everywhere" in the BO = `RevokeAllSessions` (gRPC) **then** the
   existing `POST /web/auth/logout` (clears the HttpOnly cookie) + local sign-out. No new
   backend endpoint needed. (Implemented as part of the store in group 5.)
 
 ## 5. Back office — UI
 
-- [ ] 5.1 "Active sessions" view + Pinia store (`Async<T>` union): list sessions, revoke one, sign out everywhere — via the web-auth seam; label the current device; localized errors (no raw codes).
-- [ ] 5.2 Admin: a "revoke sessions" action on the account directory (`RolesView`) calling `RevokeAccountSessions`; confirm-guarded; success/failure surfaced in the union.
-- [ ] 5.3 Unit + e2e: store tests (inject fake); e2e for list → revoke one → sign-out-everywhere, and the admin revoke on a target row; assert no raw error codes leak.
+- [x] 5.1 "Active sessions" view + Pinia store (`Async<T>` union): list sessions, revoke one, sign out everywhere — via the web-auth seam; label the current device; localized errors (no raw codes).
+- [x] 5.2 Admin: a "revoke sessions" action on the account directory (`RolesView`) calling `RevokeAccountSessions`; confirm-guarded; success/failure surfaced in the union.
+- [x] 5.3 Unit + e2e: store tests (inject fake); e2e for list → revoke one → sign-out-everywhere, and the admin revoke on a target row; assert no raw error codes leak.
 
 ## 6. Docs & checks
 
-- [ ] 6.1 Document the threat model + the access-token TTL residual window (revocation is immediate at the refresh layer; access tokens coast to expiry) in the back-office README / security notes.
-- [ ] 6.2 Run the gates: backend `cargo test`/`clippy`/`llvm-cov`; back-office `yarn lint && yarn format:check && yarn typecheck && yarn test:coverage && yarn e2e`.
-- [ ] 6.3 `openspec validate add-session-management --strict` passes.
+- [x] 6.1 Document the threat model + the access-token TTL residual window (revocation is immediate at the refresh layer; access tokens coast to expiry) in the back-office README / security notes.
+- [x] 6.2 Run the gates: backend `cargo test`/`clippy`/`llvm-cov`; back-office `yarn lint && yarn format:check && yarn typecheck && yarn test:coverage && yarn e2e`.
+- [x] 6.3 `openspec validate add-session-management --strict` passes.

@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from "vue";
 import { match } from "ts-pattern";
 import { PAGE_SIZE, useRolesStore } from "@/stores/roles";
+import { useSessionsStore } from "@/stores/sessions";
 import type { AccountRow, RoleGrant } from "@/gen/user_pb";
 
 // Admin-only (route- + server-guarded). A paginated directory of accounts with
@@ -9,6 +10,7 @@ import type { AccountRow, RoleGrant } from "@/gen/user_pb";
 // row. Selecting a row loads its audit history. All API work lives in the store;
 // this view only matches on the Async unions.
 const store = useRolesStore();
+const sessions = useSessionsStore();
 const filter = ref("");
 const selected = ref<string | null>(null);
 
@@ -66,6 +68,10 @@ function toggle(account: AccountRow, role: string) {
 function history(userId: string) {
   selected.value = userId;
   store.listGrants(userId);
+}
+/** Admin: cut off every session of a compromised account (server-gated by require_admin). */
+function revokeSessions(userId: string) {
+  sessions.revokeAccount(userId);
 }
 function when(atSeconds: bigint | number): string {
   const ms = Number(atSeconds) * 1000;
@@ -128,6 +134,9 @@ onMounted(() => store.list("", 0));
               {{ a.roles.includes(r) ? "−" : "+" }} {{ $t(`role.${r}`) }}
             </button>
             <button type="button" :disabled="acting" @click="history(a.userId)">{{ $t("roles.history") }}</button>
+            <button type="button" :disabled="acting" @click="revokeSessions(a.userId)">
+              {{ $t("sessions.revokeAccount") }}
+            </button>
           </td>
         </tr>
         <tr v-if="vm.accounts.length === 0">

@@ -8,6 +8,9 @@ export interface TokenClaims {
   aud?: string;
   roles: string[];
   exp?: number;
+  /** Session-family id this token was minted for — used to flag "this device" in
+   * the active-sessions list (the refresh cookie is HttpOnly, unreadable by JS). */
+  sid?: string;
 }
 
 function base64UrlDecode(input: string): string {
@@ -27,6 +30,7 @@ export function decodeClaims(accessToken: string): TokenClaims {
       sub: typeof json.sub === "string" ? json.sub : undefined,
       aud: typeof json.aud === "string" ? json.aud : undefined,
       exp: typeof json.exp === "number" ? json.exp : undefined,
+      sid: typeof json.sid === "string" ? json.sid : undefined,
       roles,
     };
   } catch {

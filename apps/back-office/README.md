@@ -97,6 +97,24 @@ the build-time CSP `<meta>`):
 - `Strict-Transport-Security: max-age=63072000; includeSubDomains; preload` (HSTS), so the
   `Secure` cookie is never attempted over plain HTTP.
 
+### Session management & revocation
+
+The **Sessions** view (`/sessions`) lists this account's active sessions and lets the
+user revoke one device or **sign out everywhere**; an admin can revoke a compromised
+account's sessions from the Roles directory (change: `add-session-management`). All of
+this goes through the authenticated gRPC `AuthService` (`ListSessions` / `RevokeSession`
+/ `RevokeAllSessions` / admin `RevokeAccountSessions`); "this device" is flagged by
+matching the access token's `sid` claim. Sign-out-everywhere also calls the existing
+`/web/auth/logout` to clear this browser's cookie.
+
+**Residual window (important):** revocation takes effect immediately at the **refresh**
+layer — a revoked session can no longer mint new access tokens. But an **access token
+already issued stays valid until it expires** (~15 min), because it is a stateless JWT
+verified offline (no per-request DB check). So a revoked/compromised session's in-flight
+calls keep working until the short TTL lapses; there is no instant cut-off without
+shortening the access-token TTL or adding token introspection (out of scope). The admin
+revoke is recorded durably in `auth.session_revocation_audit`.
+
 ## Preview (notation)
 
 `ScorePreview.vue` is the isolated preview seam. Today it shows metadata and confirms

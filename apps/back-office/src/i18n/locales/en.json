@@ -23,7 +23,25 @@
     "title": "Access denied",
     "body": "This account is signed in but is not a moderator or admin, so no moderation actions are available. Ask an admin to grant you the moderator role."
   },
-  "nav": { "queue": "Catalog review", "catalog": "Catalog", "roles": "Roles", "menu": "Menu" },
+  "nav": {
+    "queue": "Catalog review",
+    "catalog": "Catalog",
+    "roles": "Roles",
+    "sessions": "Sessions",
+    "menu": "Menu"
+  },
+  "sessions": {
+    "title": "Active sessions",
+    "intro": "Devices and apps currently signed in to this account. Revoke a session to sign that device out, or sign out of every session at once.",
+    "thisDevice": "This device",
+    "app": "App",
+    "id": "Session",
+    "revoke": "Revoke",
+    "signOutAll": "Sign out everywhere",
+    "empty": "No active sessions.",
+    "revokeAccount": "Revoke sessions",
+    "revokeAccountConfirm": "Revoke all sessions for this account?"
+  },
   "catalog": { "title": "Catalog", "count": "{n} score | {n} scores" },
   "queue": {
     "title": "Catalog review",
