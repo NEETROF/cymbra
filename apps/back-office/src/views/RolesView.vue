@@ -1,12 +1,30 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { computed, ref } from "vue";
+import { match } from "ts-pattern";
 import { useRolesStore } from "@/stores/roles";
+import type { RoleGrant } from "@/gen/user_pb";
 
 // Admin-only (route-gated + server-guarded by require_admin). Grant/revoke a role
 // for an account by its user id, and view that account's audit history.
 const store = useRolesStore();
 const userId = ref("");
 const role = ref("moderator");
+
+const grants = computed(() =>
+  match(store.grants)
+    .with({ status: "success" }, ({ data }) => data)
+    .otherwise(() => [] as RoleGrant[]),
+);
+const busy = computed(() => store.op.status === "loading");
+const error = computed(() =>
+  match(store.op)
+    .with({ status: "error" }, ({ error }) => error)
+    .otherwise(() =>
+      match(store.grants)
+        .with({ status: "error" }, ({ error }) => error)
+        .otherwise(() => null),
+    ),
+);
 
 async function load() {
   if (userId.value) await store.listGrants(userId.value);
@@ -37,14 +55,14 @@ function when(atSeconds: bigint | number): string {
       <option value="moderator">moderator</option>
       <option value="admin">admin</option>
     </select>
-    <button :disabled="store.busy || !userId" @click="grant">Grant</button>
-    <button :disabled="store.busy || !userId" @click="revoke">Revoke</button>
+    <button :disabled="busy || !userId" @click="grant">Grant</button>
+    <button :disabled="busy || !userId" @click="revoke">Revoke</button>
     <button :disabled="!userId" @click="load">Load history</button>
   </div>
 
-  <p v-if="store.error" class="error" role="alert">{{ store.error }}</p>
+  <p v-if="error" class="error" role="alert">{{ error }}</p>
 
-  <table v-if="store.grants.length">
+  <table v-if="grants.length">
     <thead>
       <tr>
         <th>When</th>
@@ -55,7 +73,7 @@ function when(atSeconds: bigint | number): string {
       </tr>
     </thead>
     <tbody>
-      <tr v-for="(g, i) in store.grants" :key="i">
+      <tr v-for="(g, i) in grants" :key="i">
         <td>{{ when(g.at) }}</td>
         <td>{{ g.action }}</td>
         <td>{{ g.scope }}</td>

@@ -1,15 +1,23 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import { useRouter } from "vue-router";
+import { match } from "ts-pattern";
 import { useAuthStore } from "@/stores/auth";
+import { type Async, idle, run } from "@/lib/async";
 
 const auth = useAuthStore();
 const router = useRouter();
 const email = ref("");
 const password = ref("");
-const error = ref<string | null>(null);
-const busy = ref(false);
+const submit = ref<Async<void>>(idle);
 const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+
+const busy = computed(() => submit.value.status === "loading");
+const error = computed(() =>
+  match(submit.value)
+    .with({ status: "error" }, ({ error }) => error)
+    .otherwise(() => null),
+);
 
 async function afterSignIn() {
   // A signed-in user without moderator/admin lands on the access-denied state.
@@ -17,32 +25,16 @@ async function afterSignIn() {
 }
 
 async function submitLocal() {
-  error.value = null;
-  busy.value = true;
-  try {
-    await auth.signInLocal(email.value, password.value);
-    await afterSignIn();
-  } catch (e) {
-    error.value = e instanceof Error ? e.message : "Sign-in failed";
-  } finally {
-    busy.value = false;
-  }
+  const outcome = await run(submit, () => auth.signInLocal(email.value, password.value));
+  if (outcome.status === "success") await afterSignIn();
 }
 
 // OIDC seam: when a Google client id is configured, exchange a Google credential
 // (id_token) for a Cymbra token via SignInOidc. Wired for production; the local
 // form above is the always-available path.
 async function submitGoogleCredential(idToken: string) {
-  error.value = null;
-  busy.value = true;
-  try {
-    await auth.signInOidc(idToken);
-    await afterSignIn();
-  } catch (e) {
-    error.value = e instanceof Error ? e.message : "Sign-in failed";
-  } finally {
-    busy.value = false;
-  }
+  const outcome = await run(submit, () => auth.signInOidc(idToken));
+  if (outcome.status === "success") await afterSignIn();
 }
 defineExpose({ submitGoogleCredential });
 </script>
@@ -61,7 +53,7 @@ defineExpose({ submitGoogleCredential });
         autocomplete="current-password"
         required
       />
-      <button type="submit" :disabled="busy">Sign in</button>
+      <button type="submit" :disabled="busy">{{ busy ? "Signing in…" : "Sign in" }}</button>
     </form>
 
     <p v-if="googleClientId" class="muted">

@@ -20,8 +20,11 @@ describe("catalog store", () => {
     expect(state.searchCalls).toHaveLength(1);
     expect(state.searchCalls[0].moderationStatus).toBe("pending");
     expect(state.searchCalls[0].sort).toEqual([{ field: "status_rank", descending: true }]);
-    expect(store.total).toBe(1);
-    expect(store.hits).toHaveLength(1);
+    expect(store.result.status).toBe("success");
+    if (store.result.status === "success") {
+      expect(store.result.data.total).toBe(1);
+      expect(store.result.data.hits).toHaveLength(1);
+    }
   });
 
   it("queue ordering sends the default review-priority sort list", async () => {
@@ -60,7 +63,7 @@ describe("catalog store", () => {
     setClientsForTest(clients);
     const store = useCatalogStore();
     await store.search({ moderationStatus: "pending" });
-    expect(store.error).toBe("boom");
-    expect(store.hits).toEqual([]);
+    expect(store.result.status).toBe("error");
+    if (store.result.status === "error") expect(store.result.error).toBe("boom");
   });
 });

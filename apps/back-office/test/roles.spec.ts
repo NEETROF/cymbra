@@ -18,9 +18,13 @@ describe("roles store", () => {
     await store.grant("t", "moderator");
 
     expect(state.grantCalls).toEqual([{ userId: "t", scope: "music", role: "moderator" }]);
+    expect(store.op.status).toBe("success");
     // The audit history was reloaded and surfaced.
-    expect(store.grants).toHaveLength(1);
-    expect((store.grants[0] as { action: string }).action).toBe("grant");
+    expect(store.grants.status).toBe("success");
+    if (store.grants.status === "success") {
+      expect(store.grants.data).toHaveLength(1);
+      expect((store.grants.data[0] as { action: string }).action).toBe("grant");
+    }
   });
 
   it("revokes a role", async () => {
@@ -31,13 +35,16 @@ describe("roles store", () => {
     expect(state.revokeCalls).toEqual([{ userId: "t", scope: "music", role: "moderator" }]);
   });
 
-  it("captures an error from a denied grant", async () => {
+  it("captures a denied grant in the op state instead of throwing", async () => {
     const { clients } = makeFakeClients();
     (clients.user as unknown as { grantRole: () => Promise<never> }).grantRole = () =>
       Promise.reject(new Error("permission denied"));
     setClientsForTest(clients);
     const store = useRolesStore();
-    await expect(store.grant("t", "admin")).rejects.toThrow();
-    expect(store.error).toBe("permission denied");
+    // The union captures the failure — the action does not throw.
+    const outcome = await store.grant("t", "admin");
+    expect(outcome.status).toBe("error");
+    expect(store.op.status).toBe("error");
+    if (store.op.status === "error") expect(store.op.error).toBe("permission denied");
   });
 });

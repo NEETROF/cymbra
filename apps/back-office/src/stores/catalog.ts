@@ -1,6 +1,7 @@
 import { reactive, ref } from "vue";
 import { defineStore } from "pinia";
 import { api } from "@/lib/api";
+import { type Async, idle, run } from "@/lib/async";
 import type { CatalogHit } from "@/gen/score_pb";
 
 export type ModerationStatus = "pending" | "accepted" | "rejected";
@@ -31,6 +32,12 @@ export interface SearchParams {
   offset?: number;
 }
 
+export interface CatalogResult {
+  hits: CatalogHit[];
+  total: number;
+  nextOffset: number;
+}
+
 // The queue's default "review priority" ordering (design D5): flagged re-reviews
 // first (inert until #2), then pending, then the most substantial scores.
 export const QUEUE_SORT: SortKeyInit[] = [
@@ -41,18 +48,13 @@ export const QUEUE_SORT: SortKeyInit[] = [
 ];
 
 export const useCatalogStore = defineStore("catalog", () => {
-  const hits = ref<CatalogHit[]>([]);
-  const total = ref(0);
-  const nextOffset = ref(0);
-  const loading = ref(false);
-  const error = ref<string | null>(null);
+  // One value for the whole search lifecycle — views match on it exhaustively.
+  const result = ref<Async<CatalogResult>>(idle);
   const lastParams = reactive<SearchParams>({ limit: 50, offset: 0 });
 
   async function search(params: SearchParams) {
-    loading.value = true;
-    error.value = null;
     Object.assign(lastParams, { limit: 50, offset: 0 }, params);
-    try {
+    await run(result, async () => {
       const resp = await api().score.searchCatalog({
         query: params.query ?? "",
         author: params.author,
@@ -63,16 +65,8 @@ export const useCatalogStore = defineStore("catalog", () => {
         limit: params.limit ?? 50,
         offset: params.offset ?? 0,
       });
-      hits.value = resp.hits;
-      total.value = resp.total;
-      nextOffset.value = resp.nextOffset;
-    } catch (e) {
-      error.value = e instanceof Error ? e.message : String(e);
-      hits.value = [];
-      total.value = 0;
-    } finally {
-      loading.value = false;
-    }
+      return { hits: resp.hits, total: resp.total, nextOffset: resp.nextOffset };
+    });
   }
 
   /** Evaluate a score; on success re-run the last query so the row reflects it. */
@@ -86,5 +80,5 @@ export const useCatalogStore = defineStore("catalog", () => {
     return resp.data;
   }
 
-  return { hits, total, nextOffset, loading, error, lastParams, search, setModerationStatus, fetchBytes };
+  return { result, lastParams, search, setModerationStatus, fetchBytes };
 });

@@ -1,61 +1,64 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
+import { match } from "ts-pattern";
 import ScorePreview from "@/components/ScorePreview.vue";
 import { useCatalogStore, type ModerationStatus } from "@/stores/catalog";
 import { useAuthStore } from "@/stores/auth";
+import { type Async, idle, run } from "@/lib/async";
 
 const props = defineProps<{ id: string }>();
 const store = useCatalogStore();
 const auth = useAuthStore();
 const router = useRouter();
 
-const bytes = ref<Uint8Array | null>(null);
-const loading = ref(true);
-const acting = ref(false);
-const error = ref<string | null>(null);
-
 // Metadata comes from the list the moderator navigated from (avoids a second
 // round-trip); bytes are always fetched fresh (moderators may fetch non-accepted).
-const hit = computed(() => store.hits.find((h) => h.id === props.id) ?? null);
+const hit = computed(() =>
+  match(store.result)
+    .with({ status: "success" }, ({ data }) => data.hits.find((h) => h.id === props.id) ?? null)
+    .otherwise(() => null),
+);
 
-onMounted(async () => {
-  try {
-    bytes.value = await store.fetchBytes(props.id);
-  } catch (e) {
-    error.value = e instanceof Error ? e.message : "Could not load score bytes";
-  } finally {
-    loading.value = false;
-  }
-});
+const bytes = ref<Async<Uint8Array>>(idle);
+const decision = ref<Async<void>>(idle);
+
+const bytesVm = computed(() =>
+  match(bytes.value)
+    .with({ status: "success" }, ({ data }) => ({ loading: false, bytes: data, error: null as string | null }))
+    .with({ status: "error" }, ({ error }) => ({ loading: false, bytes: null, error }))
+    .otherwise(() => ({ loading: true, bytes: null, error: null as string | null })),
+);
+const acting = computed(() => decision.value.status === "loading");
+const decisionError = computed(() =>
+  match(decision.value)
+    .with({ status: "error" }, ({ error }) => error)
+    .otherwise(() => null),
+);
+
+onMounted(() => run(bytes, () => store.fetchBytes(props.id)));
 
 async function decide(status: ModerationStatus) {
-  acting.value = true;
-  error.value = null;
-  try {
-    await store.setModerationStatus(props.id, status);
-    await router.push({ name: "queue" });
-  } catch (e) {
-    error.value = e instanceof Error ? e.message : "Action failed";
-    acting.value = false;
-  }
+  const outcome = await run(decision, () => store.setModerationStatus(props.id, status));
+  if (outcome.status === "success") await router.push({ name: "queue" });
 }
 </script>
 
 <template>
   <div class="head">
     <button @click="router.back()">← Back</button>
-    <div class="actions" v-if="auth.isModerator">
+    <div v-if="auth.isModerator" class="actions">
       <button class="accept" :disabled="acting" @click="decide('accepted')">Accept</button>
       <button class="reject" :disabled="acting" @click="decide('rejected')">Reject</button>
-      <button :disabled="acting" @click="decide('pending')" title="Send back to the queue">
+      <button :disabled="acting" title="Send back to the queue" @click="decide('pending')">
         Re-queue
       </button>
     </div>
   </div>
   <h1>{{ hit?.title || "Score" }}</h1>
-  <p v-if="error" class="error" role="alert">{{ error }}</p>
-  <ScorePreview :hit="hit" :bytes="bytes" :loading="loading" />
+  <p v-if="bytesVm.error" class="error" role="alert">{{ bytesVm.error }}</p>
+  <p v-if="decisionError" class="error" role="alert">{{ decisionError }}</p>
+  <ScorePreview :hit="hit" :bytes="bytesVm.bytes" :loading="bytesVm.loading" />
 </template>
 
 <style scoped>

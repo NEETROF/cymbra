@@ -25,6 +25,18 @@ admin account must exist (see `backend/scripts/seed_admin.sh`).
 - `pnpm test` — Vitest component/store tests (its own gate, outside the Flutter/Rust CI).
 - `pnpm build` — type-check + production build.
 
+## Architecture
+
+- **Components never call the API.** Only Pinia stores (`src/stores/`) import
+  `api()`; views/components depend on stores. The gRPC-web clients live behind
+  `src/lib/api.ts` (injectable — tests swap fakes via `setClientsForTest`).
+- **Async state is a discriminated union, matched with `ts-pattern`.** Every remote
+  resource is one `Async<T>` value (`idle | loading | success | error`, see
+  `src/lib/async.ts`) — impossible states (loading + error at once) can't be
+  represented. Views fold it into a template view-model with
+  `match(...).exhaustive()`, so forgetting a state is a compile error. Errors land
+  in the union (`{ status: "error" }`), not exceptions.
+
 ## Auth & access
 
 Sign-in targets the `music` audience so `music`-scoped roles (`moderator`/`admin`)
