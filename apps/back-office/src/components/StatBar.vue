@@ -21,9 +21,9 @@ function num(v: number | undefined): string {
 }
 
 const cards = computed(() => [
-  { key: "stats.total", value: num(vm.value?.total), accent: "accent", icon: "M4 7h16M4 12h16M4 17h10" },
-  { key: "stats.approved", value: num(vm.value?.accepted), accent: "green", icon: "M20 6 9 17l-5-5" },
-  { key: "stats.pending", value: num(vm.value?.pending), accent: "amber", icon: "M12 7v5l3 2M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Z" },
+  { id: "total", key: "stats.total", value: num(vm.value?.total), accent: "accent", icon: "M4 7h16M4 12h16M4 17h10" },
+  { id: "approved", key: "stats.approved", value: num(vm.value?.accepted), accent: "green", icon: "M20 6 9 17l-5-5" },
+  { id: "pending", key: "stats.pending", value: num(vm.value?.pending), accent: "amber", icon: "M12 7v5l3 2M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Z" },
 ]);
 
 onMounted(() => store.loadStats());
@@ -31,10 +31,10 @@ onMounted(() => store.loadStats());
 
 <template>
   <div class="stats">
-    <div v-for="c in cards" :key="c.key" class="stat" :class="c.accent">
+    <div v-for="c in cards" :key="c.key" class="stat" :class="c.accent" :data-testid="`stat-${c.id}`">
       <div class="stat-body">
         <span class="stat-label">{{ t(c.key) }}</span>
-        <span class="stat-value">{{ c.value }}</span>
+        <span class="stat-value" data-testid="stat-value">{{ c.value }}</span>
       </div>
       <span class="stat-ic">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"

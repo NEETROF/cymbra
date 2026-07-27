@@ -1,5 +1,10 @@
 node_modules/
 dist/
+# Playwright e2e artifacts
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
 # Generated gRPC-web/protobuf stubs (produced by `yarn gen`, like the Flutter app's).
 src/gen/
 *.local
