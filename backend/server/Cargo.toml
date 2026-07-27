@@ -43,3 +43,5 @@ dotenvy.workspace = true
 [dev-dependencies]
 # `ServiceExt::oneshot` drives the Axum router in web-auth handler tests (no socket).
 tower.workspace = true
+# Implement the `AuthPort` test double (a fake, no signing key) for the handler tests.
+async-trait.workspace = true

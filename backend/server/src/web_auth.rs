@@ -278,20 +278,16 @@ async fn logout(State(s): State<WebAuthState>, headers: HeaderMap) -> Response {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use async_trait::async_trait;
     use axum::body::{Body, to_bytes};
     use axum::http::Request;
-    use cymbra_auth::{
-        AuthConfig, AuthModule, CredentialRepo, FakeCredentialRepo, FakeOidcVerifier,
-        FakeSessionStore, OidcVerifier, SessionStore,
-    };
-    use cymbra_platform::cache::{Cache, FakeCache};
-    use cymbra_platform::email::{EmailSender, FakeEmail};
-    use cymbra_user::{FakeUserRepo, UserModule};
-    use cymbra_user_port::UserPort;
+    use cymbra_auth::{FakeSessionStore, SessionStore};
+    use cymbra_auth_port::TokenPair;
+    use cymbra_platform::Result;
     use tower::ServiceExt;
 
-    const PRIV: &str = "-----BEGIN PRIVATE KEY-----\nMC4CAQAwBQYDK2VwBCIEIPlT7JHCc7NTTIZVmlCgVeNNEkqsENhAZoscpnG+jSSw\n-----END PRIVATE KEY-----\n";
-    const PW: &str = "a-strong-passphrase";
+    // Not a secret — a canned password for the auth double below.
+    const PW: &str = "correct-horse-battery-staple";
     const ORIGIN: &str = "https://bo.cymbra.app";
 
     fn cfg() -> WebAuthConfig {
@@ -304,35 +300,86 @@ mod tests {
         }
     }
 
-    /// Build an auth module over fakes and provision one verified local user.
-    async fn auth_with_verified_user(email: &str) -> Arc<dyn AuthPort> {
-        let user: Arc<dyn UserPort> = Arc::new(UserModule::new(FakeUserRepo::default()));
-        let creds = Arc::new(FakeCredentialRepo::default());
-        let cache: Arc<dyn Cache> = Arc::new(FakeCache::default());
-        let email_dyn: Arc<dyn EmailSender> = Arc::new(FakeEmail::default());
-        let oidc: Arc<dyn OidcVerifier> = Arc::new(FakeOidcVerifier::default());
-        let sessions: Arc<dyn SessionStore> = Arc::new(FakeSessionStore::default());
-        let creds_dyn: Arc<dyn CredentialRepo> = creds.clone();
-        let conf = AuthConfig::new(
-            Duration::from_secs(900),
-            Duration::from_secs(2_592_000),
-            vec!["music".into()],
-            12,
-            3,
-            Duration::from_secs(60),
-            5,
-            Duration::from_secs(3600),
-            Duration::from_secs(86_400),
-            Duration::from_secs(3600),
-        );
-        let module = AuthModule::new(
-            user, creds_dyn, cache, email_dyn, oidc, sessions, PRIV, "k1", conf,
-        )
-        .unwrap();
-        module.sign_up_local(email, PW).await.unwrap();
-        let tok = creds.peek_verification_token(email).unwrap();
-        module.verify_email(&tok).await.unwrap();
-        Arc::new(module)
+    /// Minimal [`AuthPort`] test double: real rotation + reuse detection via
+    /// [`FakeSessionStore`], with a canned access token (these handler tests exercise
+    /// cookie handling, not JWT contents). Avoids wiring the whole auth module — and
+    /// therefore any signing key — into a transport-level test.
+    struct FakeAuth {
+        sessions: FakeSessionStore,
+        email: String,
+        password: String,
+    }
+
+    #[async_trait]
+    impl AuthPort for FakeAuth {
+        async fn sign_in_local(
+            &self,
+            email: &str,
+            password: &str,
+            audience: &str,
+        ) -> Result<TokenPair> {
+            if email != self.email || password != self.password {
+                return Err(AppError::Unauthenticated("invalid credentials".into()));
+            }
+            let refresh_token = self.sessions.create(email, audience).await?;
+            Ok(TokenPair {
+                access_token: "test.access.token".into(),
+                refresh_token,
+            })
+        }
+        async fn sign_in_oidc(&self, _id_token: &str, audience: &str) -> Result<TokenPair> {
+            let refresh_token = self.sessions.create(&self.email, audience).await?;
+            Ok(TokenPair {
+                access_token: "test.access.token".into(),
+                refresh_token,
+            })
+        }
+        async fn refresh(&self, refresh_token: &str) -> Result<TokenPair> {
+            let rotated = self.sessions.rotate(refresh_token).await?;
+            Ok(TokenPair {
+                access_token: "test.access.token".into(),
+                refresh_token: rotated.refresh_token,
+            })
+        }
+        async fn logout(&self, refresh_token: &str) -> Result<()> {
+            self.sessions.revoke(refresh_token).await
+        }
+        // The web-auth surface never calls the methods below.
+        async fn sign_up_local(&self, _email: &str, _password: &str) -> Result<()> {
+            unreachable!()
+        }
+        async fn verify_email(&self, _token: &str) -> Result<()> {
+            unreachable!()
+        }
+        async fn resend_verification(&self, _email: &str) -> Result<()> {
+            unreachable!()
+        }
+        async fn request_password_reset(&self, _email: &str) -> Result<()> {
+            unreachable!()
+        }
+        async fn reset_password(&self, _token: &str, _new_password: &str) -> Result<()> {
+            unreachable!()
+        }
+        async fn link_identity(&self, _user_id: &str, _id_token: &str) -> Result<()> {
+            unreachable!()
+        }
+        async fn unlink_identity(
+            &self,
+            _user_id: &str,
+            _provider: &str,
+            _subject: &str,
+        ) -> Result<()> {
+            unreachable!()
+        }
+    }
+
+    /// A signed-up, verified user backed by the fake session store.
+    fn auth_with_verified_user(email: &str) -> Arc<dyn AuthPort> {
+        Arc::new(FakeAuth {
+            sessions: FakeSessionStore::default(),
+            email: email.into(),
+            password: PW.into(),
+        })
     }
 
     fn router(auth: Arc<dyn AuthPort>) -> Router {
@@ -363,7 +410,7 @@ mod tests {
 
     #[tokio::test]
     async fn signin_sets_httponly_cookie_and_returns_access_no_refresh() {
-        let auth = auth_with_verified_user("a@x.dev").await;
+        let auth = auth_with_verified_user("a@x.dev");
         let json =
             format!(r#"{{"kind":"local","email":"a@x.dev","password":"{PW}","audience":"music"}}"#);
         let resp = router(auth).oneshot(signin_req(&json, true)).await.unwrap();
@@ -393,7 +440,7 @@ mod tests {
 
     #[tokio::test]
     async fn signin_bad_credentials_401_and_no_cookie() {
-        let auth = auth_with_verified_user("a@x.dev").await;
+        let auth = auth_with_verified_user("a@x.dev");
         let json = r#"{"kind":"local","email":"a@x.dev","password":"wrong-passphrase","audience":"music"}"#;
         let resp = router(auth).oneshot(signin_req(json, true)).await.unwrap();
         assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
@@ -402,7 +449,7 @@ mod tests {
 
     #[tokio::test]
     async fn signin_without_csrf_header_is_forbidden() {
-        let auth = auth_with_verified_user("a@x.dev").await;
+        let auth = auth_with_verified_user("a@x.dev");
         let json =
             format!(r#"{{"kind":"local","email":"a@x.dev","password":"{PW}","audience":"music"}}"#);
         let resp = router(auth)
@@ -415,7 +462,7 @@ mod tests {
 
     #[tokio::test]
     async fn refresh_reads_cookie_rotates_and_resets() {
-        let auth = auth_with_verified_user("a@x.dev").await;
+        let auth = auth_with_verified_user("a@x.dev");
         let app = router(auth);
         let json =
             format!(r#"{{"kind":"local","email":"a@x.dev","password":"{PW}","audience":"music"}}"#);
@@ -438,7 +485,7 @@ mod tests {
 
     #[tokio::test]
     async fn refresh_without_cookie_401_and_clears() {
-        let auth = auth_with_verified_user("a@x.dev").await;
+        let auth = auth_with_verified_user("a@x.dev");
         let req = Request::builder()
             .method(Method::POST)
             .uri("/web/auth/refresh")
@@ -453,7 +500,7 @@ mod tests {
 
     #[tokio::test]
     async fn refresh_with_reused_cookie_401_and_clears() {
-        let auth = auth_with_verified_user("a@x.dev").await;
+        let auth = auth_with_verified_user("a@x.dev");
         let app = router(auth);
         let json =
             format!(r#"{{"kind":"local","email":"a@x.dev","password":"{PW}","audience":"music"}}"#);
@@ -487,7 +534,7 @@ mod tests {
 
     #[tokio::test]
     async fn logout_clears_cookie_and_revokes_session() {
-        let auth = auth_with_verified_user("a@x.dev").await;
+        let auth = auth_with_verified_user("a@x.dev");
         let app = router(auth);
         let json =
             format!(r#"{{"kind":"local","email":"a@x.dev","password":"{PW}","audience":"music"}}"#);
@@ -528,7 +575,7 @@ mod tests {
 
     #[tokio::test]
     async fn credentialed_cors_echoes_exact_origin_never_wildcard() {
-        let auth = auth_with_verified_user("a@x.dev").await;
+        let auth = auth_with_verified_user("a@x.dev");
         // A CORS preflight for the refresh endpoint from an allowed origin.
         let preflight = Request::builder()
             .method(Method::OPTIONS)
