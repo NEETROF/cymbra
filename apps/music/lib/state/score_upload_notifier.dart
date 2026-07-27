@@ -20,7 +20,6 @@ import '../services/file_picker_service.dart';
 import '../services/notation_engine.dart';
 import '../services/score_upload_service.dart';
 import '../src/rust/api/musicxml.dart' show ScoreSummary;
-import 'contributed_scores.dart';
 import 'score_catalog.dart' show PracticeLevel;
 
 part 'score_upload_notifier.freezed.dart';
@@ -196,11 +195,10 @@ class ScoreUploadNotifier extends _$ScoreUploadNotifier {
             fallbackTitle: state.fallbackTitle,
             fallbackComposer: state.fallbackComposer,
           );
+      // Setting `result` is the signal: `MyUploads` listens for this transition
+      // and refreshes itself (which cascades to myContributedScores +
+      // favoriteScores). The uploader does NOT invalidate a sibling provider.
       state = state.copyWith(submitting: false, result: record);
-      // Refresh the uploads source so the new (auto-favorited) score shows on the
-      // home favorites and in the hub's "mes partitions" immediately. Invalidating
-      // myUploads cascades to myContributedScores + favoriteScores.
-      ref.invalidate(myUploadsProvider);
     } catch (e) {
       state = state.copyWith(
         submitting: false,
