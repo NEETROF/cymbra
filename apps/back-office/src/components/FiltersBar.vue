@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { reactive, watch } from "vue";
+import { useI18n } from "vue-i18n";
 import type { Filters, ModerationStatus } from "@/stores/catalog";
 
 // Reuses the app-hub filters (text/author/level/piano) plus the back-office-only
 // moderation-status selector. Emits the current filter set whenever it changes.
 const emit = defineEmits<{ change: [Filters] }>();
+const { t } = useI18n();
 
 const props = withDefaults(defineProps<{ status?: ModerationStatus }>(), { status: "pending" });
 
@@ -25,22 +27,36 @@ watch(
 
 <template>
   <div class="filters">
-    <input v-model="f.query" type="search" placeholder="title or composer" aria-label="search" />
-    <input v-model="f.author" type="text" placeholder="composer" aria-label="composer" />
-    <select v-model="f.level" aria-label="level">
-      <option value="">any level</option>
-      <option value="beginner">beginner</option>
-      <option value="intermediate">intermediate</option>
-      <option value="advanced">advanced</option>
+    <input
+      v-model="f.query"
+      type="search"
+      :placeholder="t('filters.query')"
+      :aria-label="t('filters.searchLabel')"
+    />
+    <input
+      v-model="f.author"
+      type="text"
+      :placeholder="t('filters.composer')"
+      :aria-label="t('filters.composerLabel')"
+    />
+    <select v-model="f.level" :aria-label="t('filters.levelLabel')">
+      <option value="">{{ t("level.any") }}</option>
+      <option value="beginner">{{ t("level.beginner") }}</option>
+      <option value="intermediate">{{ t("level.intermediate") }}</option>
+      <option value="advanced">{{ t("level.advanced") }}</option>
     </select>
     <label class="piano">
-      <input type="checkbox" :checked="f.isPiano === true" @change="f.isPiano = f.isPiano ? undefined : true" />
-      piano only
+      <input
+        type="checkbox"
+        :checked="f.isPiano === true"
+        @change="f.isPiano = f.isPiano ? undefined : true"
+      />
+      {{ t("filters.pianoOnly") }}
     </label>
-    <select v-model="f.moderationStatus" aria-label="moderation status" class="status">
-      <option value="pending">pending</option>
-      <option value="accepted">accepted</option>
-      <option value="rejected">rejected</option>
+    <select v-model="f.moderationStatus" :aria-label="t('filters.statusLabel')" class="status">
+      <option value="pending">{{ t("status.pending") }}</option>
+      <option value="accepted">{{ t("status.accepted") }}</option>
+      <option value="rejected">{{ t("status.rejected") }}</option>
     </select>
   </div>
 </template>

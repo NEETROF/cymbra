@@ -66,10 +66,10 @@ onMounted(run);
 </script>
 
 <template>
-  <h1>Catalog</h1>
+  <h1>{{ $t("catalog.title") }}</h1>
   <FiltersBar :status="status" @change="onFilters" />
   <p v-if="vm.error" class="error" role="alert">{{ vm.error }}</p>
-  <p class="muted">{{ vm.loading ? "Loading…" : `${vm.total} score(s)` }}</p>
+  <p class="muted">{{ vm.loading ? $t("common.loading") : $t("catalog.count", vm.total) }}</p>
   <CatalogTable
     :hits="vm.hits"
     :status="status"

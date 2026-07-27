@@ -2,6 +2,11 @@ import { describe, expect, it } from "vitest";
 import { mount } from "@vue/test-utils";
 import CatalogTable from "@/components/CatalogTable.vue";
 import FiltersBar from "@/components/FiltersBar.vue";
+import { i18n } from "@/i18n";
+
+// The components use vue-i18n (useI18n), so the plugin must be installed. Default
+// locale is `en`, and the English strings match the selectors below.
+const withI18n = { plugins: [i18n] };
 
 describe("CatalogTable", () => {
   const hits = [
@@ -10,7 +15,7 @@ describe("CatalogTable", () => {
   ];
 
   it("renders a row per hit with the active status badge", () => {
-    const w = mount(CatalogTable, { props: { hits: hits as never, status: "pending", sort: [] } });
+    const w = mount(CatalogTable, { global: withI18n, props: { hits: hits as never, status: "pending", sort: [] } });
     const rows = w.findAll("tbody tr");
     expect(rows).toHaveLength(2);
     expect(w.text()).toContain("Alpha");
@@ -18,26 +23,26 @@ describe("CatalogTable", () => {
   });
 
   it("emits a sort field when a sortable header is clicked", async () => {
-    const w = mount(CatalogTable, { props: { hits: hits as never, status: "pending", sort: [] } });
+    const w = mount(CatalogTable, { global: withI18n, props: { hits: hits as never, status: "pending", sort: [] } });
     await w.get('[aria-label="sort by Notes"]').trigger("click");
     expect(w.emitted("sort")?.[0]).toEqual(["note_count"]);
   });
 
   it("emits the row id when a row is clicked", async () => {
-    const w = mount(CatalogTable, { props: { hits: hits as never, status: "pending", sort: [] } });
+    const w = mount(CatalogTable, { global: withI18n, props: { hits: hits as never, status: "pending", sort: [] } });
     await w.findAll("tbody tr")[1].trigger("click");
     expect(w.emitted("select")?.[0]).toEqual(["b"]);
   });
 
   it("shows an empty state when there are no hits", () => {
-    const w = mount(CatalogTable, { props: { hits: [] as never, status: "accepted", sort: [] } });
+    const w = mount(CatalogTable, { global: withI18n, props: { hits: [] as never, status: "accepted", sort: [] } });
     expect(w.text()).toContain("No scores.");
   });
 });
 
 describe("FiltersBar", () => {
   it("emits the selected moderation status (BO-only filter)", async () => {
-    const w = mount(FiltersBar, { props: { status: "pending" } });
+    const w = mount(FiltersBar, { global: withI18n, props: { status: "pending" } });
     await w.get('[aria-label="moderation status"]').setValue("accepted");
     const events = w.emitted("change");
     expect(events).toBeTruthy();
@@ -46,7 +51,7 @@ describe("FiltersBar", () => {
   });
 
   it("emits the text query change", async () => {
-    const w = mount(FiltersBar, { props: { status: "pending" } });
+    const w = mount(FiltersBar, { global: withI18n, props: { status: "pending" } });
     await w.get('[aria-label="search"]').setValue("chopin");
     const last = w.emitted("change")!.at(-1)![0] as { query: string };
     expect(last.query).toBe("chopin");

@@ -41,24 +41,30 @@ defineExpose({ submitGoogleCredential });
 
 <template>
   <section class="signin">
-    <h1>Cymbra moderation</h1>
-    <p class="muted">Sign in with a moderator or admin account.</p>
+    <h1>{{ $t("signin.title") }}</h1>
+    <p class="muted">{{ $t("signin.subtitle") }}</p>
 
     <form @submit.prevent="submitLocal">
-      <input v-model="email" type="email" placeholder="email" autocomplete="username" required />
+      <input
+        v-model="email"
+        type="email"
+        :placeholder="$t('signin.email')"
+        autocomplete="username"
+        required
+      />
       <input
         v-model="password"
         type="password"
-        placeholder="password"
+        :placeholder="$t('signin.password')"
         autocomplete="current-password"
         required
       />
-      <button type="submit" :disabled="busy">{{ busy ? "Signing in…" : "Sign in" }}</button>
+      <button type="submit" :disabled="busy">
+        {{ busy ? $t("signin.submitting") : $t("signin.submit") }}
+      </button>
     </form>
 
-    <p v-if="googleClientId" class="muted">
-      Google sign-in is configured — the Google button targets the same account.
-    </p>
+    <p v-if="googleClientId" class="muted">{{ $t("signin.googleConfigured") }}</p>
 
     <p v-if="error" class="error" role="alert">{{ error }}</p>
   </section>

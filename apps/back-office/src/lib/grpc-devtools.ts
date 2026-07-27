@@ -29,10 +29,12 @@ function safeJson(schema: DescMessage, message: unknown): unknown {
 
 export const grpcWebDevtoolsInterceptor: Interceptor = (next) => async (req) => {
   const method = `/${req.method.parent.typeName}/${req.method.name}`;
-  const request = req.stream ? undefined : safeJson(req.method.input, req.message);
+  // Always send objects (never undefined) — the extension drops entries whose
+  // request/response is falsy, which would hide successful calls.
+  const request = (req.stream ? {} : safeJson(req.method.input, req.message)) ?? {};
   try {
     const res = await next(req);
-    const response = res.stream ? undefined : safeJson(req.method.output, res.message);
+    const response = (res.stream ? {} : safeJson(req.method.output, res.message)) ?? {};
     post({ method, methodType: "unary", request, response });
     return res;
   } catch (e) {

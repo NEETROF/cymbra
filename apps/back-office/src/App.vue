@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { RouterLink, RouterView, useRouter } from "vue-router";
+import { useI18n } from "vue-i18n";
 import { useAuthStore } from "@/stores/auth";
+import { currentLocale, setLocale, SUPPORTED_LOCALES } from "@/i18n";
 
 const auth = useAuthStore();
 const router = useRouter();
+const { t } = useI18n();
 
 function signOut() {
   auth.signOut();
@@ -12,15 +15,31 @@ function signOut() {
 </script>
 
 <template>
-  <header v-if="auth.isAuthenticated && auth.isModerator" class="topbar">
-    <nav>
-      <RouterLink to="/queue">Queue</RouterLink>
-      <RouterLink to="/">Catalog</RouterLink>
-      <RouterLink v-if="auth.isAdmin" to="/roles">Roles</RouterLink>
+  <header class="topbar">
+    <nav v-if="auth.isAuthenticated && auth.isModerator">
+      <RouterLink to="/queue">{{ t("nav.queue") }}</RouterLink>
+      <RouterLink to="/">{{ t("nav.catalog") }}</RouterLink>
+      <RouterLink v-if="auth.isAdmin" to="/roles">{{ t("nav.roles") }}</RouterLink>
     </nav>
+    <span v-else />
     <div class="who">
-      <span class="badge">{{ auth.isAdmin ? "admin" : "moderator" }}</span>
-      <button @click="signOut">Sign out</button>
+      <span v-if="auth.isAuthenticated && auth.isModerator" class="badge">
+        {{ auth.isAdmin ? t("role.admin") : t("role.moderator") }}
+      </span>
+      <!-- Language toggle is always available (incl. the sign-in page). -->
+      <div class="lang" role="group" aria-label="language">
+        <button
+          v-for="l in SUPPORTED_LOCALES"
+          :key="l"
+          :class="{ active: currentLocale() === l }"
+          @click="setLocale(l)"
+        >
+          {{ l.toUpperCase() }}
+        </button>
+      </div>
+      <button v-if="auth.isAuthenticated && auth.isModerator" @click="signOut">
+        {{ t("common.signOut") }}
+      </button>
     </div>
   </header>
   <main class="content">
@@ -49,6 +68,18 @@ nav a.router-link-active {
   display: flex;
   gap: 0.6rem;
   align-items: center;
+}
+.lang {
+  display: inline-flex;
+  gap: 0.2rem;
+}
+.lang button {
+  padding: 0.2rem 0.5rem;
+  font-size: 0.8rem;
+}
+.lang button.active {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 .content {
   max-width: 1100px;

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from "vue-i18n";
 import type { CatalogHit } from "@/gen/score_pb";
 
 // Isolated preview module (design D5). Today it shows metadata + confirms the
@@ -8,20 +9,21 @@ import type { CatalogHit } from "@/gen/score_pb";
 // this component the single seam means that renderer drops in without touching the
 // rest of the console — or is swapped for a JS fallback if the wasm cost is too high.
 const props = defineProps<{ hit: CatalogHit | null; bytes: Uint8Array | null; loading: boolean }>();
+const { t } = useI18n();
 
 function meta(): { label: string; value: string }[] {
   const h = props.hit;
   if (!h) return [];
   return [
-    { label: "Title", value: h.title || "—" },
-    { label: "Composer", value: h.composer || "—" },
-    { label: "Arranger", value: h.arranger || "—" },
-    { label: "Level", value: h.level || "—" },
-    { label: "Licence", value: h.license },
-    { label: "Source", value: h.source },
-    { label: "Time signature", value: h.timeSig || "—" },
-    { label: "Notes", value: h.noteCount != null ? String(h.noteCount) : "—" },
-    { label: "Tempo (BPM)", value: h.tempoBpm != null ? String(h.tempoBpm) : "—" },
+    { label: t("preview.title"), value: h.title || "—" },
+    { label: t("preview.composer"), value: h.composer || "—" },
+    { label: t("preview.arranger"), value: h.arranger || "—" },
+    { label: t("preview.level"), value: h.level || "—" },
+    { label: t("preview.licence"), value: h.license },
+    { label: t("preview.source"), value: h.source },
+    { label: t("preview.timeSig"), value: h.timeSig || "—" },
+    { label: t("preview.notes"), value: h.noteCount != null ? String(h.noteCount) : "—" },
+    { label: t("preview.tempo"), value: h.tempoBpm != null ? String(h.tempoBpm) : "—" },
   ];
 }
 </script>
@@ -36,12 +38,11 @@ function meta(): { label: string; value: string }[] {
     </dl>
 
     <div class="notation" aria-label="score preview">
-      <p v-if="loading" class="muted">Loading score…</p>
+      <p v-if="loading" class="muted">{{ t("preview.loading") }}</p>
       <p v-else-if="bytes" class="muted">
-        Score loaded ({{ bytes.length.toLocaleString() }} bytes). Notation rendering
-        (Rust <code>layout_systems</code> → wasm) is not wired yet in this slice.
+        {{ t("preview.loaded", { bytes: bytes.length.toLocaleString() }) }}
       </p>
-      <p v-else class="muted">No score bytes.</p>
+      <p v-else class="muted">{{ t("preview.noBytes") }}</p>
     </div>
   </div>
 </template>

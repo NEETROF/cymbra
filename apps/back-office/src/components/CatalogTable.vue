@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from "vue-i18n";
 import type { CatalogHit } from "@/gen/score_pb";
 import type { ModerationStatus, SortKeyInit } from "@/stores/catalog";
 
@@ -12,13 +13,14 @@ const props = defineProps<{
   sort: SortKeyInit[];
 }>();
 const emit = defineEmits<{ sort: [field: string]; select: [id: string] }>();
+const { t } = useI18n();
 
-const columns: { field: string; label: string }[] = [
-  { field: "title", label: "Title" },
-  { field: "composer", label: "Composer" },
-  { field: "level", label: "Level" },
-  { field: "note_count", label: "Notes" },
-  { field: "tempo_bpm", label: "BPM" },
+const columns: { field: string; labelKey: string }[] = [
+  { field: "title", labelKey: "table.title" },
+  { field: "composer", labelKey: "table.composer" },
+  { field: "level", labelKey: "table.level" },
+  { field: "note_count", labelKey: "table.notes" },
+  { field: "tempo_bpm", labelKey: "table.bpm" },
 ];
 
 function arrow(field: string): string {
@@ -37,13 +39,13 @@ function arrow(field: string): string {
           :key="c.field"
           class="sortable"
           role="button"
-          :aria-label="`sort by ${c.label}`"
+          :aria-label="t('table.sortBy', { field: t(c.labelKey) })"
           @click="emit('sort', c.field)"
         >
-          {{ c.label }}{{ arrow(c.field) }}
+          {{ t(c.labelKey) }}{{ arrow(c.field) }}
         </th>
-        <th>Source</th>
-        <th>Status</th>
+        <th>{{ t("table.source") }}</th>
+        <th>{{ t("table.status") }}</th>
       </tr>
     </thead>
     <tbody>
@@ -54,10 +56,10 @@ function arrow(field: string): string {
         <td>{{ h.noteCount ?? "—" }}</td>
         <td>{{ h.tempoBpm ?? "—" }}</td>
         <td>{{ h.source }}</td>
-        <td><span class="badge" :class="status">{{ status }}</span></td>
+        <td><span class="badge" :class="status">{{ t(`status.${status}`) }}</span></td>
       </tr>
       <tr v-if="hits.length === 0">
-        <td colspan="7" class="empty">No scores.</td>
+        <td colspan="7" class="empty">{{ t("table.empty") }}</td>
       </tr>
     </tbody>
   </table>

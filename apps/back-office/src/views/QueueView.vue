@@ -43,12 +43,11 @@ onMounted(run);
 
 <template>
   <div class="head">
-    <h1>Review queue</h1>
-    <button @click="resetToPriority">Priority order</button>
+    <h1>{{ $t("queue.title") }}</h1>
+    <button @click="resetToPriority">{{ $t("queue.priorityOrder") }}</button>
   </div>
   <p class="muted">
-    {{ vm.loading ? "Loading…" : `${vm.total} pending` }} — most substantial first.
-    Re-review flagging arrives with app ratings (#2).
+    {{ vm.loading ? $t("common.loading") : $t("queue.pending", vm.total) }} — {{ $t("queue.hint") }}
   </p>
   <p v-if="vm.error" class="error" role="alert">{{ vm.error }}</p>
   <CatalogTable

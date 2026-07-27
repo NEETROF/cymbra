@@ -13,12 +13,9 @@ function signOut() {
 
 <template>
   <section class="denied">
-    <h1>Access denied</h1>
-    <p class="muted">
-      This account is signed in but is not a moderator or admin, so no moderation
-      actions are available. Ask an admin to grant you the <code>moderator</code> role.
-    </p>
-    <button @click="signOut">Sign out</button>
+    <h1>{{ $t("denied.title") }}</h1>
+    <p class="muted">{{ $t("denied.body") }}</p>
+    <button @click="signOut">{{ $t("common.signOut") }}</button>
   </section>
 </template>
 

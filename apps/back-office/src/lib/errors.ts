@@ -1,9 +1,9 @@
 import { Code, ConnectError } from "@connectrpc/connect";
+import { t } from "@/i18n";
 
-// Map any thrown error to a short, user-facing message. Raw gRPC/Connect codes and
-// messages (e.g. "[unauthenticated] invalid credentials") must NEVER reach the UI —
-// the technical cause is logged to the console instead. Kept generic per gRPC code;
-// callers that need finer wording can map before calling `run`.
+// Map any thrown error to a short, user-facing (localized) message. Raw gRPC/Connect
+// codes and messages (e.g. "[unauthenticated] invalid credentials") must NEVER reach
+// the UI — the technical cause is logged to the console instead.
 export function humanError(e: unknown): string {
   // Log the real cause for debugging; never shown to the user.
   console.error("action failed:", e);
@@ -11,20 +11,20 @@ export function humanError(e: unknown): string {
   if (e instanceof ConnectError) {
     switch (e.code) {
       case Code.Unauthenticated:
-        return "Identifiants invalides ou session expirée.";
+        return t("errors.unauthenticated");
       case Code.PermissionDenied:
-        return "Accès refusé.";
+        return t("errors.permissionDenied");
       case Code.NotFound:
-        return "Élément introuvable.";
+        return t("errors.notFound");
       case Code.InvalidArgument:
-        return "Requête invalide.";
+        return t("errors.invalidArgument");
       case Code.ResourceExhausted:
-        return "Trop de tentatives. Réessaie plus tard.";
+        return t("errors.resourceExhausted");
       case Code.Unavailable:
-        return "Service indisponible. Réessaie.";
+        return t("errors.unavailable");
       default:
-        return "Une erreur est survenue. Réessaie.";
+        return t("errors.generic");
     }
   }
-  return "Une erreur est survenue. Réessaie.";
+  return t("errors.generic");
 }

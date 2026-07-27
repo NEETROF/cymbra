@@ -43,21 +43,23 @@ function when(atSeconds: bigint | number): string {
 </script>
 
 <template>
-  <h1>Roles</h1>
-  <p class="muted">
-    Grant or revoke a role for an account (by its user id) within the
-    <code>music</code> scope. Every change is recorded in the audit trail below.
-  </p>
+  <h1>{{ $t("roles.title") }}</h1>
+  <p class="muted">{{ $t("roles.intro") }}</p>
 
   <div class="form">
-    <input v-model="userId" type="text" placeholder="target user id (UUID)" aria-label="user id" />
-    <select v-model="role" aria-label="role">
-      <option value="moderator">moderator</option>
-      <option value="admin">admin</option>
+    <input
+      v-model="userId"
+      type="text"
+      :placeholder="$t('roles.userIdPlaceholder')"
+      :aria-label="$t('roles.userIdLabel')"
+    />
+    <select v-model="role" :aria-label="$t('roles.roleLabel')">
+      <option value="moderator">{{ $t("role.moderator") }}</option>
+      <option value="admin">{{ $t("role.admin") }}</option>
     </select>
-    <button :disabled="busy || !userId" @click="grant">Grant</button>
-    <button :disabled="busy || !userId" @click="revoke">Revoke</button>
-    <button :disabled="!userId" @click="load">Load history</button>
+    <button :disabled="busy || !userId" @click="grant">{{ $t("roles.grant") }}</button>
+    <button :disabled="busy || !userId" @click="revoke">{{ $t("roles.revoke") }}</button>
+    <button :disabled="!userId" @click="load">{{ $t("roles.loadHistory") }}</button>
   </div>
 
   <p v-if="error" class="error" role="alert">{{ error }}</p>
@@ -65,11 +67,11 @@ function when(atSeconds: bigint | number): string {
   <table v-if="grants.length">
     <thead>
       <tr>
-        <th>When</th>
-        <th>Action</th>
-        <th>Scope</th>
-        <th>Role</th>
-        <th>By admin</th>
+        <th>{{ $t("roles.when") }}</th>
+        <th>{{ $t("roles.action") }}</th>
+        <th>{{ $t("roles.scope") }}</th>
+        <th>{{ $t("roles.role") }}</th>
+        <th>{{ $t("roles.byAdmin") }}</th>
       </tr>
     </thead>
     <tbody>
