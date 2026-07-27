@@ -149,24 +149,38 @@ impl SessionStore for PgSessionStore {
         Ok(())
     }
 
-    async fn record_admin_revocation(
+    async fn revoke_account_sessions_audited(
         &self,
         target_user_id: &str,
         acting_admin: &str,
-        revoked_count: i64,
-    ) -> Result<()> {
+        audience: &str,
+    ) -> Result<i64> {
+        let mut tx = self.pool.begin().await.map_err(internal)?;
+        // Audience-scoped delete; `rows_affected` is the exact count (no pre-count race).
+        let deleted = sqlx::query("DELETE FROM sessions WHERE user_id = $1 AND audience = $2")
+            .bind(target_user_id)
+            .bind(audience)
+            .execute(&mut *tx)
+            .await
+            .map_err(internal)?
+            .rows_affected() as i64;
+        // Audit in the SAME transaction: a revoked account is always traceable, and a
+        // failure here rolls the delete back rather than losing the trail.
         sqlx::query(
-            "INSERT INTO session_revocation_audit (id, target_user_id, acting_admin, revoked_count) \
-             VALUES ($1, $2, $3, $4)",
+            "INSERT INTO session_revocation_audit \
+                 (id, target_user_id, acting_admin, audience, revoked_count) \
+             VALUES ($1, $2, $3, $4, $5)",
         )
         .bind(session_core::new_id())
         .bind(target_user_id)
         .bind(acting_admin)
-        .bind(revoked_count as i32)
-        .execute(&self.pool)
+        .bind(audience)
+        .bind(deleted as i32)
+        .execute(&mut *tx)
         .await
         .map_err(internal)?;
-        Ok(())
+        tx.commit().await.map_err(internal)?;
+        Ok(deleted)
     }
 
     async fn list_for_user(&self, user_id: &str) -> Result<Vec<SessionInfo>> {

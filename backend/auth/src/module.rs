@@ -304,14 +304,14 @@ impl AuthPort for AuthModule {
         &self,
         acting_admin: &str,
         target_user_id: &str,
+        audience: &str,
     ) -> Result<()> {
-        // Count live sessions first (for the audit), then revoke and record. The audit
-        // is durable so a compromised-account cut-off is always traceable.
-        let count = self.sessions.list_for_user(target_user_id).await?.len() as i64;
-        self.sessions.revoke_all(target_user_id).await?;
+        // One transactional, audience-scoped delete + audit in the store: the count is
+        // exact (from the delete) and the trail can't be lost on a partial failure.
         self.sessions
-            .record_admin_revocation(target_user_id, acting_admin, count)
-            .await
+            .revoke_account_sessions_audited(target_user_id, acting_admin, audience)
+            .await?;
+        Ok(())
     }
 
     async fn request_password_reset(&self, email: &str) -> Result<()> {
@@ -576,29 +576,32 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn admin_revoke_account_sessions_records_durable_audit() {
+    async fn admin_revoke_account_sessions_is_audience_scoped_and_audited() {
         let h = harness();
-        let a = h.m.sign_in_oidc("target", "music").await.unwrap();
-        let _b = h.m.sign_in_oidc("target", "live").await.unwrap();
-        let target = sub_of(&a.access_token, "music");
+        let music = h.m.sign_in_oidc("target", "music").await.unwrap();
+        let live = h.m.sign_in_oidc("target", "live").await.unwrap();
+        let target = sub_of(&music.access_token, "music");
 
-        h.m.revoke_account_sessions("admin-9", &target)
+        // A music-scoped admin revoke cuts ONLY the target's music sessions.
+        h.m.revoke_account_sessions("admin-9", &target, "music")
             .await
             .unwrap();
 
-        // Every target session is cut; the original refresh fails.
-        assert!(h.m.list_sessions(&target).await.unwrap().is_empty());
+        // The music session is gone; the live session survives (out of scope).
+        assert_eq!(h.m.list_sessions(&target).await.unwrap().len(), 1);
         assert!(matches!(
-            h.m.refresh(&a.refresh_token).await,
+            h.m.refresh(&music.refresh_token).await,
             Err(AppError::Unauthenticated(_))
         ));
+        assert!(h.m.refresh(&live.refresh_token).await.is_ok());
 
-        // A durable audit entry records the acting admin, the target, and the count.
+        // A durable audit entry records admin, target, audience, and the exact count.
         let audit = h.sessions.admin_revocations();
         assert_eq!(audit.len(), 1);
         assert_eq!(audit[0].acting_admin, "admin-9");
         assert_eq!(audit[0].target_user_id, target);
-        assert_eq!(audit[0].revoked_count, 2);
+        assert_eq!(audit[0].audience, "music");
+        assert_eq!(audit[0].revoked_count, 1);
     }
 
     #[tokio::test]

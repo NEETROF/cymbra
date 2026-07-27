@@ -199,14 +199,17 @@ impl<P: AuthPort + 'static> AuthService for AuthGrpc<P> {
         &self,
         req: Request<proto::RevokeAccountSessionsRequest>,
     ) -> Result<Response<proto::RevokeAccountSessionsResponse>, Status> {
-        // Admin-gated: only an admin may cut off another account's sessions.
-        let admin = {
+        // Admin-gated: only an admin may cut off another account's sessions, and only
+        // within the audience their admin role is scoped to (the token's audience).
+        let (admin, audience) = {
             let id = identity(&req)?;
             cymbra_platform::guard::require_admin(id)?;
-            id.user_id.clone()
+            (id.user_id.clone(), id.audience.clone())
         };
         let target = req.into_inner().user_id;
-        self.port.revoke_account_sessions(&admin, &target).await?;
+        self.port
+            .revoke_account_sessions(&admin, &target, &audience)
+            .await?;
         Ok(Response::new(proto::RevokeAccountSessionsResponse {}))
     }
 }
@@ -225,7 +228,7 @@ mod tests {
         list_for: Mutex<Vec<String>>,
         revoke_session: Mutex<Vec<(String, String)>>,
         revoke_all: Mutex<Vec<String>>,
-        admin_revoke: Mutex<Vec<(String, String)>>,
+        admin_revoke: Mutex<Vec<(String, String, String)>>,
     }
 
     struct FakeAuth {
@@ -251,12 +254,17 @@ mod tests {
             self.calls.revoke_all.lock().unwrap().push(user_id.into());
             Ok(())
         }
-        async fn revoke_account_sessions(&self, admin: &str, target: &str) -> Result<()> {
-            self.calls
-                .admin_revoke
-                .lock()
-                .unwrap()
-                .push((admin.into(), target.into()));
+        async fn revoke_account_sessions(
+            &self,
+            admin: &str,
+            target: &str,
+            audience: &str,
+        ) -> Result<()> {
+            self.calls.admin_revoke.lock().unwrap().push((
+                admin.into(),
+                target.into(),
+                audience.into(),
+            ));
             Ok(())
         }
         // The session-management RPCs never touch the methods below.
@@ -374,9 +382,14 @@ mod tests {
         ))
         .await
         .unwrap();
+        // The admin's own token audience ("music") scopes the revocation.
         assert_eq!(
             *calls.admin_revoke.lock().unwrap(),
-            vec![("admin-1".to_string(), "target".to_string())]
+            vec![(
+                "admin-1".to_string(),
+                "target".to_string(),
+                "music".to_string()
+            )]
         );
     }
 

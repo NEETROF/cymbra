@@ -7,7 +7,8 @@ CREATE TABLE session_revocation_audit (
     id             UUID        PRIMARY KEY,          -- UUIDv7, generated app-side
     target_user_id TEXT        NOT NULL,             -- account whose sessions were revoked
     acting_admin   TEXT        NOT NULL,             -- admin who performed the revocation
-    revoked_count  INTEGER     NOT NULL,             -- live sessions cut at the time
+    audience       TEXT        NOT NULL,             -- app scope the revocation was limited to
+    revoked_count  INTEGER     NOT NULL,             -- live sessions cut in that audience
     at             TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 

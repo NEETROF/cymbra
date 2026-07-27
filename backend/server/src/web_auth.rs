@@ -366,7 +366,12 @@ mod tests {
             self.sessions.revoke_all(user_id).await
         }
         // The web-auth surface never calls the methods below.
-        async fn revoke_account_sessions(&self, _admin: &str, _target: &str) -> Result<()> {
+        async fn revoke_account_sessions(
+            &self,
+            _admin: &str,
+            _target: &str,
+            _audience: &str,
+        ) -> Result<()> {
             unreachable!()
         }
         async fn sign_up_local(&self, _email: &str, _password: &str) -> Result<()> {

@@ -57,15 +57,17 @@ pub trait SessionStore: Send + Sync {
     async fn revoke_all(&self, user_id: &str) -> Result<()>;
     /// The account's non-expired session families.
     async fn list_for_user(&self, user_id: &str) -> Result<Vec<SessionInfo>>;
-    /// Append a **durable** audit record for an admin-initiated revocation of
-    /// `target_user_id`'s sessions (who, whom, how many) — a queryable trail, not a
-    /// log line lost in the stream.
-    async fn record_admin_revocation(
+    /// Admin-revoke every session of `target_user_id` **scoped to `audience`** and write
+    /// a **durable** audit entry (acting admin + target + audience + count) in the SAME
+    /// transaction as the delete — so a revoked account is always traceable and the
+    /// count can't drift. Returns the number of sessions revoked. Audience-scoped so a
+    /// caller can't cut sessions in an app they don't administer.
+    async fn revoke_account_sessions_audited(
         &self,
         target_user_id: &str,
         acting_admin: &str,
-        revoked_count: i64,
-    ) -> Result<()>;
+        audience: &str,
+    ) -> Result<i64>;
 }
 
 /// One admin-revocation audit entry (the fake exposes these for tests).
@@ -73,6 +75,7 @@ pub trait SessionStore: Send + Sync {
 pub struct AdminRevocation {
     pub target_user_id: String,
     pub acting_admin: String,
+    pub audience: String,
     pub revoked_count: i64,
 }
 
@@ -202,18 +205,26 @@ impl SessionStore for FakeSessionStore {
         Ok(())
     }
 
-    async fn record_admin_revocation(
+    async fn revoke_account_sessions_audited(
         &self,
         target_user_id: &str,
         acting_admin: &str,
-        revoked_count: i64,
-    ) -> Result<()> {
+        audience: &str,
+    ) -> Result<i64> {
+        let count = {
+            let mut fams = self.fams.lock().unwrap();
+            let before = fams.len();
+            // Audience-scoped: only the target's sessions in this app are cut.
+            fams.retain(|_, f| !(f.user_id == target_user_id && f.audience == audience));
+            (before - fams.len()) as i64
+        };
         self.audit.lock().unwrap().push(AdminRevocation {
             target_user_id: target_user_id.into(),
             acting_admin: acting_admin.into(),
-            revoked_count,
+            audience: audience.into(),
+            revoked_count: count,
         });
-        Ok(())
+        Ok(count)
     }
 
     async fn list_for_user(&self, user_id: &str) -> Result<Vec<SessionInfo>> {

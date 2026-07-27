@@ -34,6 +34,10 @@ const opError = computed(() =>
 const busy = computed(() => sessions.op.status === "loading");
 
 const isCurrent = (s: SessionRow): boolean => !!auth.sessionId && s.id === auth.sessionId;
+// Only offer per-row revoke when we can tell which session is the current one; without
+// a `sid` claim we can't, so we hide it (revoking your own session mid-use would sign
+// you out) and leave "sign out everywhere" as the safe lever.
+const currentKnown = computed(() => !!auth.sessionId);
 const shortId = (id: string): string => id.slice(0, 8);
 
 async function revoke(id: string) {
@@ -73,7 +77,7 @@ async function signOutEverywhere() {
           <span class="id">{{ $t("sessions.id") }} {{ shortId(s.id) }}</span>
         </div>
         <span v-if="isCurrent(s)" class="badge">{{ $t("sessions.thisDevice") }}</span>
-        <button v-else type="button" :disabled="busy" @click="revoke(s.id)">
+        <button v-else-if="currentKnown" type="button" :disabled="busy" @click="revoke(s.id)">
           {{ $t("sessions.revoke") }}
         </button>
       </li>

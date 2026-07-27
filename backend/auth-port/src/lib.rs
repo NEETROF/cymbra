@@ -50,11 +50,16 @@ pub trait AuthPort: Send + Sync {
     async fn revoke_session(&self, user_id: &str, session_id: &str) -> Result<()>;
     /// Revoke every session for `user_id` (self sign-out-everywhere).
     async fn revoke_all_sessions(&self, user_id: &str) -> Result<()>;
-    /// Revoke every session for `target_user_id` **as an admin action**, recording a
-    /// durable audit entry (acting admin + target + count). Authorization (the admin
-    /// role) is enforced by the caller — the gRPC adapter.
-    async fn revoke_account_sessions(&self, acting_admin: &str, target_user_id: &str)
-    -> Result<()>;
+    /// Revoke every session for `target_user_id` **within `audience`** as an admin
+    /// action, recording a durable audit entry (acting admin + target + audience +
+    /// count). Scoped to `audience` so a caller can't cut sessions in an app they don't
+    /// administer; authorization (the admin role) is enforced by the caller (gRPC adapter).
+    async fn revoke_account_sessions(
+        &self,
+        acting_admin: &str,
+        target_user_id: &str,
+        audience: &str,
+    ) -> Result<()>;
     async fn request_password_reset(&self, email: &str) -> Result<()>;
     async fn reset_password(&self, token: &str, new_password: &str) -> Result<()>;
     async fn link_identity(&self, user_id: &str, id_token: &str) -> Result<()>;
