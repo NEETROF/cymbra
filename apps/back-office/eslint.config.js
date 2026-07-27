@@ -23,5 +23,14 @@ export default defineConfigWithVueTs(
     files: ["src/App.vue"],
     rules: { "vue/multi-word-component-names": "off" },
   },
+  {
+    // XSS guard-rails: no raw HTML injection, and no `javascript:`/`vbscript:` URLs
+    // in bound attributes. Rendering untrusted HTML must go through a sanitizer.
+    name: "app/security",
+    rules: {
+      "vue/no-v-html": "error",
+      "vue/no-template-target-blank": "error",
+    },
+  },
   skipFormatting,
 );
