@@ -17,7 +17,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../l10n/gen/app_localizations.dart';
 import '../../services/auth_service.dart';
-import '../../services/grpc_client.dart';
 import '../../services/oidc_token_source.dart';
 import '../../state/auth_flow.dart';
 import '../../state/session_notifier.dart';
@@ -61,8 +60,9 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
       if (!mounted) return;
       final confirmed = await _confirmIrreversible();
       if (confirmed != true) return; // explicit confirmation required
-      await ref.read(accountServiceProvider).deleteAccount();
-      await ref.read(sessionNotifierProvider.notifier).onAccountDeleted();
+      // Delete + end the session through the notifier — the UI never calls the
+      // account service directly.
+      await ref.read(sessionNotifierProvider.notifier).deleteAccount();
       if (mounted) Navigator.of(context).popUntil((r) => r.isFirst);
     } on AuthException catch (e) {
       if (mounted) {

@@ -18,8 +18,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../l10n/gen/app_localizations.dart';
-import '../services/catalog_service.dart';
-import '../services/score_upload_service.dart';
 import '../state/contributed_scores.dart';
 import '../state/favorite_scores.dart';
 import '../state/player_preferences.dart';
@@ -28,6 +26,7 @@ import '../state/score_catalog.dart';
 import '../state/session_notifier.dart';
 import '../theme/cymbra_theme.dart';
 import '../widgets/language_selector.dart';
+import '../widgets/library_listeners.dart';
 import '../widgets/score_card.dart';
 import 'auth/account_menu.dart';
 import 'open_score.dart';
@@ -59,28 +58,30 @@ class LibraryScreen extends ConsumerWidget {
     final l10n = AppLocalizations.of(context);
     final signedIn = ref.watch(canUseOnlineServicesProvider);
 
-    return Scaffold(
-      backgroundColor: CymbraColors.background,
-      appBar: AppBar(
-        title: Text(l10n.libraryTitle),
-        backgroundColor: CymbraColors.surfaceContainerLowest,
-        actions: [
-          if (signedIn)
-            IconButton(
-              icon: const Icon(Icons.search),
-              tooltip: l10n.scoreHubEntryTooltip,
-              onPressed: () => _openHub(context),
-            ),
-          const LanguageSelectorButton(),
-          const AccountMenu(),
-          const SizedBox(width: 8),
-        ],
-      ),
-      body: SafeArea(
-        top: false,
-        child: signedIn
-            ? _FavoritesBody(l10n: l10n)
-            : _bundledBody(context, ref),
+    return LibraryListeners(
+      child: Scaffold(
+        backgroundColor: CymbraColors.background,
+        appBar: AppBar(
+          title: Text(l10n.libraryTitle),
+          backgroundColor: CymbraColors.surfaceContainerLowest,
+          actions: [
+            if (signedIn)
+              IconButton(
+                icon: const Icon(Icons.search),
+                tooltip: l10n.scoreHubEntryTooltip,
+                onPressed: () => _openHub(context),
+              ),
+            const LanguageSelectorButton(),
+            const AccountMenu(),
+            const SizedBox(width: 8),
+          ],
+        ),
+        body: SafeArea(
+          top: false,
+          child: signedIn
+              ? _FavoritesBody(l10n: l10n)
+              : _bundledBody(context, ref),
+        ),
       ),
     );
   }
@@ -188,13 +189,13 @@ class _FavoritesBody extends ConsumerWidget {
   /// Remove from favorites: for a saved catalog score, remove it from the
   /// library; for an upload, un-favorite it (the upload is kept, still in the
   /// hub's "mes partitions"). Never deletes anything here.
-  Future<void> _removeFromFavorites(WidgetRef ref, CatalogEntry entry) async {
+  void _removeFromFavorites(WidgetRef ref, CatalogEntry entry) {
+    // Delegate to the owning notifier (which reloads itself + surfaces failures via
+    // its state) — the UI never calls the service or invalidates a provider itself.
     if (entry.catalogId case final id?) {
-      await ref.read(catalogServiceProvider).remove(id);
-      ref.invalidate(savedCatalogScoresProvider);
+      ref.read(savedCatalogScoresProvider.notifier).remove(id);
     } else if (entry.contributedId case final id?) {
-      await ref.read(scoreUploadServiceProvider).setFavorite(id, false);
-      ref.invalidate(myUploadsProvider);
+      ref.read(myUploadsProvider.notifier).toggleFavorite(id, favorite: false);
     }
   }
 }

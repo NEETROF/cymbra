@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../services/catalog_service.dart';
@@ -20,6 +19,18 @@ import 'score_catalog.dart';
 import 'session_notifier.dart';
 
 part 'saved_catalog_scores.g.dart';
+
+/// A monotonic bump signal for library changes made *outside* this provider (e.g.
+/// saving/un-saving a score from the hub). Mutations bump it **after** they
+/// persist; dependents `ref.listen` it and refresh themselves — so no one has to
+/// invalidate a sibling provider (architecture rule 2).
+@riverpod
+class LibraryRevision extends _$LibraryRevision {
+  @override
+  int build() => 0;
+
+  void bump() => state = state + 1;
+}
 
 /// Maps a backend [CatalogHit] to a [CatalogEntry] (byte-sourced from the
 /// catalog by [CatalogEntry.catalogId]) so a saved catalog score slots into the
@@ -42,11 +53,34 @@ CatalogEntry catalogEntryFromHit(CatalogHit h) => CatalogEntry(
 );
 
 /// The signed-in user's saved catalog scores, as [CatalogEntry]s, newest-saved
-/// first. Empty when signed out (the home section is then not shown). Invalidate
-/// to refresh after a save or a remove.
+/// first. Empty when signed out (the home section is then not shown).
+///
+/// Owns the "remove from library" mutation so widgets never call the catalog
+/// service directly — they call this notifier, which reloads itself
+/// (`AsyncValue.guard` keeps a failure in the state, not thrown).
 @riverpod
-Future<List<CatalogEntry>> savedCatalogScores(Ref ref) async {
-  if (!ref.watch(canUseOnlineServicesProvider)) return const [];
-  final hits = await ref.read(catalogServiceProvider).listSaved();
-  return [for (final h in hits) catalogEntryFromHit(h)];
+class SavedCatalogScores extends _$SavedCatalogScores {
+  @override
+  Future<List<CatalogEntry>> build() {
+    // Refresh when a library change happened elsewhere (e.g. the hub's save
+    // toggle bumps the revision after it persists) — reactive, not invalidated.
+    ref.listen(libraryRevisionProvider, (_, _) => ref.invalidateSelf());
+    if (!ref.watch(canUseOnlineServicesProvider)) {
+      return Future.value(const <CatalogEntry>[]);
+    }
+    return _fetch();
+  }
+
+  Future<List<CatalogEntry>> _fetch() async {
+    final hits = await ref.read(catalogServiceProvider).listSaved();
+    return [for (final h in hits) catalogEntryFromHit(h)];
+  }
+
+  /// Remove a saved catalog score from the caller's library, then reload.
+  Future<void> remove(String catalogId) async {
+    state = await AsyncValue.guard(() async {
+      await ref.read(catalogServiceProvider).remove(catalogId);
+      return _fetch();
+    });
+  }
 }

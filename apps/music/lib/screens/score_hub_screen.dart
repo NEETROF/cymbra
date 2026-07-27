@@ -16,11 +16,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../l10n/gen/app_localizations.dart';
-import '../services/score_upload_service.dart';
 import '../state/catalog_search_notifier.dart';
 import '../state/contributed_scores.dart';
 import '../state/score_catalog.dart';
 import '../theme/cymbra_theme.dart';
+import '../widgets/library_listeners.dart';
 import '../widgets/score_card.dart';
 import 'open_score.dart';
 import 'score_upload_screen.dart';
@@ -42,41 +42,43 @@ class ScoreHubScreen extends ConsumerWidget {
         state.level != null ||
         state.author.isNotEmpty;
 
-    return Scaffold(
-      backgroundColor: CymbraColors.background,
-      endDrawer: _FiltersDrawer(state: state, notifier: notifier, l10n: l10n),
-      appBar: AppBar(
-        title: Text(l10n.scoreHubTitle),
-        backgroundColor: CymbraColors.surfaceContainerLowest,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.library_add_outlined),
-            tooltip: l10n.scoreHubContributeTooltip,
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => const ScoreUploadScreen(),
-              ),
-            ),
-          ),
-          Builder(
-            builder: (ctx) => Padding(
-              padding: const EdgeInsets.only(right: 4),
-              child: IconButton.filledTonal(
-                icon: Badge(
-                  isLabelVisible: filtersActive,
-                  smallSize: 8,
-                  child: const Icon(Icons.tune),
+    return LibraryListeners(
+      child: Scaffold(
+        backgroundColor: CymbraColors.background,
+        endDrawer: _FiltersDrawer(state: state, notifier: notifier, l10n: l10n),
+        appBar: AppBar(
+          title: Text(l10n.scoreHubTitle),
+          backgroundColor: CymbraColors.surfaceContainerLowest,
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.library_add_outlined),
+              tooltip: l10n.scoreHubContributeTooltip,
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const ScoreUploadScreen(),
                 ),
-                tooltip: l10n.scoreHubAdvancedFilters,
-                onPressed: () => Scaffold.of(ctx).openEndDrawer(),
               ),
             ),
-          ),
-        ],
-      ),
-      body: SafeArea(
-        top: false,
-        child: _Results(state: state, notifier: notifier, l10n: l10n),
+            Builder(
+              builder: (ctx) => Padding(
+                padding: const EdgeInsets.only(right: 4),
+                child: IconButton.filledTonal(
+                  icon: Badge(
+                    isLabelVisible: filtersActive,
+                    smallSize: 8,
+                    child: const Icon(Icons.tune),
+                  ),
+                  tooltip: l10n.scoreHubAdvancedFilters,
+                  onPressed: () => Scaffold.of(ctx).openEndDrawer(),
+                ),
+              ),
+            ),
+          ],
+        ),
+        body: SafeArea(
+          top: false,
+          child: _Results(state: state, notifier: notifier, l10n: l10n),
+        ),
       ),
     );
   }
@@ -185,6 +187,11 @@ class _Results extends StatelessWidget {
             floating: true,
             snap: true,
             automaticallyImplyLeading: false,
+            // The Scaffold owns an endDrawer, and an AppBar with no actions
+            // auto-inserts a second end-drawer (≡) button. Filters are already
+            // reachable via the tune button in the main AppBar, so pass an
+            // explicit (non-empty) actions list to suppress the duplicate.
+            actions: const [SizedBox.shrink()],
             backgroundColor: CymbraColors.background,
             surfaceTintColor: Colors.transparent,
             elevation: 0,
@@ -355,13 +362,15 @@ class _HubCard extends ConsumerWidget {
   );
 
   /// Favorite / un-favorite one of the caller's uploads from the hub (updates
-  /// the home favorites too). Never deletes the upload.
-  Future<void> _toggleFavorite(WidgetRef ref) async {
+  /// the home favorites too). Never deletes the upload. Delegates to the notifier
+  /// (which reloads itself); the catalog list already reacts to that change, so no
+  /// manual invalidate/refresh here.
+  void _toggleFavorite(WidgetRef ref) {
     final id = entry.contributedId;
     if (id == null) return;
-    await ref.read(scoreUploadServiceProvider).setFavorite(id, !entry.favorite);
-    ref.invalidate(myUploadsProvider);
-    await ref.read(catalogSearchProvider.notifier).refresh();
+    ref
+        .read(myUploadsProvider.notifier)
+        .toggleFavorite(id, favorite: !entry.favorite);
   }
 
   /// Delete one of the caller's own uploads (destructive) with a confirm dialog,
@@ -387,9 +396,9 @@ class _HubCard extends ConsumerWidget {
       ),
     );
     if (ok != true) return;
-    await ref.read(scoreUploadServiceProvider).deleteScore(id);
-    ref.invalidate(myUploadsProvider);
-    await ref.read(catalogSearchProvider.notifier).refresh();
+    // Fire the notifier action; failures surface via the listener widget, and the
+    // catalog list reacts to the uploads change on its own.
+    ref.read(myUploadsProvider.notifier).delete(id);
   }
 }
 

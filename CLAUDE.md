@@ -30,6 +30,19 @@ Mandatory for all app state:
   [midi_service.dart](apps/music/lib/services/midi_service.dart).
 - `riverpod_lint`/`custom_lint` is enforced (`dart run custom_lint`).
 
+**Layering & reactivity rules** (see the `flutter-riverpod-architecture` skill):
+- **UI never calls a service directly.** Only notifiers call `services/`/gRPC
+  clients; widgets/screens call *notifier* methods, never `ref.read(*ServiceProvider)`
+  to invoke a side effect.
+- **A provider never imperatively invalidates a *sibling* provider.** The dependent
+  provider `ref.listen`s the source and `ref.invalidateSelf()`s (invalidating *itself*
+  is fine; poking another is not).
+- **Never `await` a notifier action's return in the UI and branch on it.** Fire the
+  action; react to the resulting state (`AsyncValue` loading/data/error) via a listener.
+- **Isolate `ref.listen` side effects** (navigation, snackbars, dialogs, reacting
+  invalidations) in a **dedicated listener widget** near the top of the feature
+  subtree — not scattered in build methods.
+
 **Codegen**: generated `*.g.dart`/`*.freezed.dart` are gitignored and produced by
 `build_runner` — run it before analyze/test (CI does this automatically):
 ```bash

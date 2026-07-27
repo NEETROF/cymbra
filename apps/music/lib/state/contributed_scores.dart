@@ -17,16 +17,67 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../services/score_upload_service.dart';
 import 'score_catalog.dart';
+import 'score_upload_notifier.dart';
 import 'session_notifier.dart';
 
 part 'contributed_scores.g.dart';
 
 /// The signed-in user's raw uploads (all of them, favorite or not). Empty when
-/// signed out. Invalidate to refresh after an upload, delete, or favorite toggle.
+/// signed out.
+///
+/// Owns the upload mutations (favorite toggle, delete) so widgets never call the
+/// upload service directly — they call this notifier, which reloads itself
+/// (`AsyncValue.guard` keeps failures in the state, never thrown). It also
+/// *listens* for a completed upload and refreshes itself, rather than the uploader
+/// reaching across to invalidate it (architecture rules: no sibling invalidation,
+/// UI never calls services, actions surface via state not awaited returns).
 @riverpod
-Future<List<ContributedScore>> myUploads(Ref ref) async {
-  if (!ref.watch(canUseOnlineServicesProvider)) return const [];
-  return ref.read(scoreUploadServiceProvider).listMyScores();
+class MyUploads extends _$MyUploads {
+  @override
+  Future<List<ContributedScore>> build() {
+    // The dependent listens to what it depends on: a new successful upload
+    // (`result` transitions non-null) refreshes the list.
+    ref.listen(scoreUploadNotifierProvider.select((s) => s.result), (
+      prev,
+      next,
+    ) {
+      if (next != null && next != prev) ref.invalidateSelf();
+    });
+    // `watch` so sign-in/out rebuilds the list; mutations reload via `_fetch`.
+    if (!ref.watch(canUseOnlineServicesProvider)) {
+      return Future.value(const <ContributedScore>[]);
+    }
+    return ref.read(scoreUploadServiceProvider).listMyScores();
+  }
+
+  Future<List<ContributedScore>> _fetch() {
+    if (!ref.read(canUseOnlineServicesProvider)) {
+      return Future.value(const <ContributedScore>[]);
+    }
+    return ref.read(scoreUploadServiceProvider).listMyScores();
+  }
+
+  /// Favorite / un-favorite one of the caller's uploads, then reload. A failure
+  /// lands in the state (surfaced by a listener), never thrown to the caller.
+  Future<void> toggleFavorite(
+    String contributedId, {
+    required bool favorite,
+  }) async {
+    state = await AsyncValue.guard(() async {
+      await ref
+          .read(scoreUploadServiceProvider)
+          .setFavorite(contributedId, favorite);
+      return _fetch();
+    });
+  }
+
+  /// Delete one of the caller's uploads (destructive), then reload.
+  Future<void> delete(String contributedId) async {
+    state = await AsyncValue.guard(() async {
+      await ref.read(scoreUploadServiceProvider).deleteScore(contributedId);
+      return _fetch();
+    });
+  }
 }
 
 /// The signed-in user's contributed scores, as [CatalogEntry]s (byte-sourced from

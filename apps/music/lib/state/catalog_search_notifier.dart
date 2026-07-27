@@ -308,7 +308,7 @@ class CatalogSearch extends _$CatalogSearch {
   }
 
   /// Add or remove a catalog result from the user's library (optimistic), then
-  /// persist through the backend and refresh the saved-scores provider.
+  /// persist through the backend and signal dependents to refresh.
   Future<void> toggleSave(CatalogEntry entry) async {
     final id = entry.catalogId;
     if (id == null) return;
@@ -319,7 +319,9 @@ class CatalogSearch extends _$CatalogSearch {
     try {
       final service = ref.read(catalogServiceProvider);
       wasSaved ? await service.remove(id) : await service.save(id);
-      ref.invalidate(savedCatalogScoresProvider);
+      // Bump the library signal (post-persistence) so savedCatalogScores refreshes
+      // itself — no sibling-provider invalidation (architecture rule 2).
+      ref.read(libraryRevisionProvider.notifier).bump();
     } catch (_) {
       // Revert the optimistic toggle on failure.
       final reverted = {...state.savedIds};

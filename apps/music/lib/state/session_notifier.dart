@@ -134,6 +134,14 @@ class SessionNotifier extends _$SessionNotifier {
 
   /// Local-only teardown after account deletion (the caller already invoked
   /// `DeleteAccount`).
+  /// Delete the caller's account (server-side) and end the local session. Owns the
+  /// account-service call so the UI never touches the service directly; the caller
+  /// re-authenticates first (deletion is destructive).
+  Future<void> deleteAccount() async {
+    await _account.deleteAccount();
+    await onAccountDeleted();
+  }
+
   Future<void> onAccountDeleted() async {
     await _tokens.clear();
     state = const SessionState.unauthenticated();
