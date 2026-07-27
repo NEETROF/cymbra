@@ -344,6 +344,27 @@ mod tests {
         async fn logout(&self, refresh_token: &str) -> Result<()> {
             self.sessions.revoke(refresh_token).await
         }
+        async fn list_sessions(
+            &self,
+            user_id: &str,
+        ) -> Result<Vec<cymbra_auth_port::SessionSummary>> {
+            Ok(self
+                .sessions
+                .list_for_user(user_id)
+                .await?
+                .into_iter()
+                .map(|s| cymbra_auth_port::SessionSummary {
+                    id: s.id,
+                    audience: s.audience,
+                })
+                .collect())
+        }
+        async fn revoke_session(&self, user_id: &str, session_id: &str) -> Result<()> {
+            self.sessions.revoke_by_id(user_id, session_id).await
+        }
+        async fn revoke_all_sessions(&self, user_id: &str) -> Result<()> {
+            self.sessions.revoke_all(user_id).await
+        }
         // The web-auth surface never calls the methods below.
         async fn sign_up_local(&self, _email: &str, _password: &str) -> Result<()> {
             unreachable!()

@@ -44,6 +44,11 @@ pub trait SessionStore: Send + Sync {
     async fn rotate(&self, refresh_token: &str) -> Result<Rotated>;
     /// Revoke the session that owns `refresh_token` (logout).
     async fn revoke(&self, refresh_token: &str) -> Result<()>;
+    /// Revoke the session `session_id` **only if it belongs to `user_id`** — so a
+    /// caller can end one of their own devices/sessions by id without holding its
+    /// refresh token. A foreign, absent, expired, or malformed id is a successful
+    /// no-op (it neither errors nor reveals another account's data).
+    async fn revoke_by_id(&self, user_id: &str, session_id: &str) -> Result<()>;
     /// Revoke every session for `user_id` — `DELETE FROM sessions WHERE user_id
     /// = $1`. This is the auth module's **erasure path** for account deletion
     /// (it removes all refresh tokens for the user) as well as the
@@ -153,6 +158,17 @@ impl SessionStore for FakeSessionStore {
         Ok(())
     }
 
+    async fn revoke_by_id(&self, user_id: &str, session_id: &str) -> Result<()> {
+        if let Ok(id) = Uuid::parse_str(session_id) {
+            let mut fams = self.fams.lock().unwrap();
+            // Scoped to the owner: a foreign/absent id removes nothing.
+            if fams.get(&id).is_some_and(|f| f.user_id == user_id) {
+                fams.remove(&id);
+            }
+        }
+        Ok(())
+    }
+
     async fn revoke_all(&self, user_id: &str) -> Result<()> {
         self.fams
             .lock()
@@ -252,6 +268,34 @@ mod tests {
 
         // revoking a malformed token is a no-op (no panic/err)
         s.revoke("garbage").await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn fake_revoke_by_id_is_owner_scoped() {
+        let s = FakeSessionStore::default();
+        let a = s.create("u1", "music").await.unwrap();
+        let b = s.create("u1", "live").await.unwrap();
+        let c = s.create("u2", "music").await.unwrap();
+        let id_a = session_core::parse_id(&a).unwrap().to_string();
+
+        // A different account cannot revoke u1's session (owner-scoped) → no-op.
+        s.revoke_by_id("u2", &id_a).await.unwrap();
+        assert_eq!(s.list_for_user("u1").await.unwrap().len(), 2);
+
+        // The owner revokes that session by id: it ends, the other survives.
+        s.revoke_by_id("u1", &id_a).await.unwrap();
+        assert!(matches!(
+            s.rotate(&a).await,
+            Err(AppError::Unauthenticated(_))
+        ));
+        assert!(s.rotate(&b).await.is_ok());
+
+        // A malformed or unknown id is a successful no-op; u2 is unaffected.
+        s.revoke_by_id("u1", "not-a-uuid").await.unwrap();
+        s.revoke_by_id("u1", &Uuid::new_v4().to_string())
+            .await
+            .unwrap();
+        assert!(s.rotate(&c).await.is_ok());
     }
 
     #[tokio::test]

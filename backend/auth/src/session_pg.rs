@@ -125,6 +125,21 @@ impl SessionStore for PgSessionStore {
         Ok(())
     }
 
+    async fn revoke_by_id(&self, user_id: &str, session_id: &str) -> Result<()> {
+        // Malformed id → nothing to revoke. The `user_id` guard scopes the delete to
+        // the owner, so a foreign id affects zero rows (no-op, no enumeration).
+        let Ok(id) = uuid::Uuid::parse_str(session_id) else {
+            return Ok(());
+        };
+        sqlx::query("DELETE FROM sessions WHERE id = $1 AND user_id = $2")
+            .bind(id)
+            .bind(user_id)
+            .execute(&self.pool)
+            .await
+            .map_err(internal)?;
+        Ok(())
+    }
+
     async fn revoke_all(&self, user_id: &str) -> Result<()> {
         sqlx::query("DELETE FROM sessions WHERE user_id = $1")
             .bind(user_id)

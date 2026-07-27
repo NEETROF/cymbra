@@ -6,7 +6,7 @@ use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use async_trait::async_trait;
-use cymbra_auth_port::{AuthPort, TokenPair};
+use cymbra_auth_port::{AuthPort, SessionSummary, TokenPair};
 use cymbra_platform::cache::Cache;
 use cymbra_platform::email::EmailSender;
 use cymbra_platform::{AppError, Result, password, ratelimit, token};
@@ -271,6 +271,25 @@ impl AuthPort for AuthModule {
         self.sessions.revoke(refresh_token).await
     }
 
+    async fn list_sessions(&self, user_id: &str) -> Result<Vec<SessionSummary>> {
+        let sessions = self.sessions.list_for_user(user_id).await?;
+        Ok(sessions
+            .into_iter()
+            .map(|s| SessionSummary {
+                id: s.id,
+                audience: s.audience,
+            })
+            .collect())
+    }
+
+    async fn revoke_session(&self, user_id: &str, session_id: &str) -> Result<()> {
+        self.sessions.revoke_by_id(user_id, session_id).await
+    }
+
+    async fn revoke_all_sessions(&self, user_id: &str) -> Result<()> {
+        self.sessions.revoke_all(user_id).await
+    }
+
     async fn request_password_reset(&self, email: &str) -> Result<()> {
         ratelimit::check(
             self.cache.as_ref(),
@@ -485,6 +504,30 @@ mod tests {
         // the family is now revoked: the rotated token is dead too
         assert!(matches!(
             h.m.refresh(&p2.refresh_token).await,
+            Err(AppError::Unauthenticated(_))
+        ));
+    }
+
+    #[tokio::test]
+    async fn list_revoke_and_sign_out_everywhere() {
+        let h = harness();
+        // Two sessions for one account (same OIDC subject, two apps).
+        let a = h.m.sign_in_oidc("g1", "music").await.unwrap();
+        let _b = h.m.sign_in_oidc("g1", "live").await.unwrap();
+        let uid = sub_of(&a.access_token, "music");
+
+        let sessions = h.m.list_sessions(&uid).await.unwrap();
+        assert_eq!(sessions.len(), 2);
+
+        // Revoke one by id → that session dies, the other survives.
+        h.m.revoke_session(&uid, &sessions[0].id).await.unwrap();
+        assert_eq!(h.m.list_sessions(&uid).await.unwrap().len(), 1);
+
+        // Sign out everywhere → none left, and the original refresh fails.
+        h.m.revoke_all_sessions(&uid).await.unwrap();
+        assert!(h.m.list_sessions(&uid).await.unwrap().is_empty());
+        assert!(matches!(
+            h.m.refresh(&a.refresh_token).await,
             Err(AppError::Unauthenticated(_))
         ));
     }

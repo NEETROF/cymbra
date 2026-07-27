@@ -1,12 +1,12 @@
 ## 1. Session store — revoke by id
 
-- [ ] 1.1 Add `revoke_by_id(user_id, session_id)` to `SessionStore` (auth): revoke a family only when it belongs to `user_id`; absent/foreign/already-revoked → successful no-op. Implement in `PgSessionStore` (scoped `DELETE`/mark) and `FakeSessionStore`.
-- [ ] 1.2 Host-testable tests: revoke-by-id ends only the targeted session; a foreign id is a no-op and reveals nothing; `list_for_user` reflects the change.
+- [x] 1.1 Add `revoke_by_id(user_id, session_id)` to `SessionStore` (auth): revoke a family only when it belongs to `user_id`; absent/foreign/already-revoked → successful no-op. Implement in `PgSessionStore` (scoped `DELETE`/mark) and `FakeSessionStore`.
+- [x] 1.2 Host-testable tests: revoke-by-id ends only the targeted session; a foreign id is a no-op and reveals nothing; `list_for_user` reflects the change.
 
 ## 2. Auth module + port — authenticated session ops
 
-- [ ] 2.1 Extend `AuthPort` (auth-port) with `list_sessions(user_id)`, `revoke_session(user_id, session_id)`, `revoke_all_sessions(user_id)`, and `revoke_account_sessions(user_id)` (admin path); implement in `AuthModule` over the session store.
-- [ ] 2.2 Unit-test the module ops (list scoping, revoke-by-id, sign-out-everywhere), reusing the existing fakes.
+- [x] 2.1 Extend `AuthPort` (auth-port) with `list_sessions(user_id)`, `revoke_session(user_id, session_id)`, `revoke_all_sessions(user_id)` (the admin path reuses `revoke_all_sessions(target)` with authorization enforced at the gRPC layer); implement in `AuthModule` over the session store.
+- [x] 2.2 Unit-test the module ops (list scoping, revoke-by-id, sign-out-everywhere), reusing the existing fakes.
 
 ## 3. gRPC AuthService
 
