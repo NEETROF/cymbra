@@ -1,9 +1,9 @@
 ---
 name: vue-frontend-architecture
-description: Architecture rules for Vue 3 + TypeScript front-ends in this repo (e.g. apps/back-office). Use when creating or editing any Vue screen/component, Pinia store, composable, gRPC-web/API client call, or async/loading/error state. Enforces two hard rules — components never call an API directly (only stores/composables do), and every async resource is one ts-pattern discriminated union (Async<T>), never scattered loading/error/data refs.
+description: Architecture rules for Vue 3 + TypeScript front-ends in this repo (e.g. apps/back-office). Use when creating or editing any Vue screen/component, Pinia store, composable, gRPC-web/API client call, async/loading/error state, or Playwright e2e tests. Enforces two hard rules — components never call an API directly (only stores/composables do), and every async resource is one ts-pattern discriminated union (Async<T>), never scattered loading/error/data refs — plus the e2e pattern (a gated fake-client seam driven by Playwright, no backend).
 metadata:
   author: cymbra
-  version: "1.0"
+  version: "1.1"
 ---
 
 # Vue front-end architecture (Cymbra)
@@ -87,11 +87,67 @@ Model **every** async thing this way: list fetches, a submit/action outcome
 (`Async<void>`), sign-in, byte fetches. A denied action is `{ status: "error" }`,
 asserted in tests — not a thrown exception.
 
-## Testing
+## Unit tests
 
 Stores are the unit under test: `setClientsForTest(fake)` then assert on the
 union (`store.result.status === "success"` / `"error"`), not on booleans. Vitest +
 `@vue/test-utils`; it's the front-end's own gate, outside the Flutter/Rust CI.
+
+## End-to-end tests (Playwright)
+
+Run the **real app in a browser with no backend** by reusing the same client seam
+(`setClientsForTest`) — but installed from inside the page. This exercises routing,
+guards, stores, i18n and error mapping together. Reference: `apps/back-office/`
+(`src/lib/e2e-seam.ts`, `playwright.config.ts`, `e2e/`).
+
+**Gated seam (never ships to prod).** A tiny module reads canned data off `window`
+and installs fake clients; `main.ts` imports it **dynamically, behind a build-time
+env flag**, so it's dead-code-eliminated from normal builds (verify: `grep
+__CYMBRA_E2E__ dist/assets` is empty).
+
+```ts
+// main.ts — the ONLY wiring change
+if (import.meta.env.VITE_E2E) {
+  const { installE2EClients } = await import("./lib/e2e-seam"); // tree-shaken when unset
+  installE2EClients();
+} else {
+  initApi(() => auth.accessToken);
+}
+
+// lib/e2e-seam.ts — build fake Clients from window.__CYMBRA_E2E__, then
+// setClientsForTest(fakes). Throw a real ConnectError to exercise error mapping.
+```
+
+**Playwright drives it.** `webServer` runs the dev server with the flag; tests seed
+data (and optional auth) via `addInitScript` **before** boot:
+
+```ts
+// playwright.config.ts
+webServer: { command: `yarn dev --port 5180 --strictPort`, port: 5180,
+             reuseExistingServer: !process.env.CI, env: { VITE_E2E: "1" } },
+use: { baseURL: "http://localhost:5180", locale: "en-US" },
+
+// e2e/fixtures.ts — seed BEFORE goto()
+export async function seed(page, { data = {}, loginAs } = {}) {
+  await page.addInitScript(() => localStorage.setItem("cymbra.bo.locale", "en")); // force locale
+  await page.addInitScript((d) => { window.__CYMBRA_E2E__ = d; }, data);
+  if (loginAs) await page.addInitScript((t) => localStorage.setItem("cymbra.bo.tokens",
+    JSON.stringify({ accessToken: t, refreshToken: "r" })), tokenFor(loginAs));
+}
+```
+
+Rules:
+- **Force the locale** in every test (seed `cymbra.bo.locale` + `use.locale`) so i18n
+  assertions don't depend on the runner. Assert against the app's own strings.
+- **Assert user-visible outcomes**: URL, headings, localized text — and that raw
+  error codes/messages never leak (`await expect(page.locator("body")).not
+  .toContainText("unauthenticated")`).
+- Cover the flows a store test can't: route guards, redirects, deep-link/refresh
+  self-sufficiency, sign-in → landing, action → navigation.
+- Reporter: `[["list"], ["html", { open: "never" }]]` (always write the report so
+  `yarn e2e:report` works locally and CI can upload it).
+- CI must generate the gitignored gRPC-web stubs (`yarn gen`, needs `protoc`) before
+  typecheck/test, then `yarn playwright install --with-deps chromium` + `yarn e2e`.
 
 ## Checklist
 
@@ -100,3 +156,5 @@ union (`store.result.status === "success"` / `"error"`), not on booleans. Vitest
 - [ ] Views use `match(...).exhaustive()` in `<script setup>`.
 - [ ] Errors captured in the union; actions don't throw for expected failures.
 - [ ] Store tests inject fakes via `setClientsForTest` and assert on `status`.
+- [ ] E2E seam is dynamically imported behind an env flag (absent from `dist/`).
+- [ ] E2E tests force the locale and assert no raw error code leaks into the DOM.
