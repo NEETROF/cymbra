@@ -87,6 +87,15 @@ Model **every** async thing this way: list fetches, a submit/action outcome
 (`Async<void>`), sign-in, byte fetches. A denied action is `{ status: "error" }`,
 asserted in tests — not a thrown exception.
 
+## Lint & format
+
+ESLint (flat config) + Prettier gate the app. ESLint uses
+`eslint-plugin-vue` + `@vue/eslint-config-typescript` for code-quality/Vue rules and
+`@vue/eslint-config-prettier` **skip-formatting** so it never fights Prettier;
+Prettier owns all whitespace/quotes. Ignore generated stubs (`src/gen/**`) in both.
+`yarn lint` / `yarn format:check` are CI steps — fix with `yarn lint:fix` /
+`yarn format`. Type-checking stays `vue-tsc` (not ESLint), so no type-aware parsing.
+
 ## Unit tests
 
 Stores are the unit under test: `setClientsForTest(fake)` then assert on the
@@ -158,3 +167,4 @@ Rules:
 - [ ] Store tests inject fakes via `setClientsForTest` and assert on `status`.
 - [ ] E2E seam is dynamically imported behind an env flag (absent from `dist/`).
 - [ ] E2E tests force the locale and assert no raw error code leaks into the DOM.
+- [ ] `yarn lint` + `yarn format:check` pass (ESLint flat config with skip-formatting; Prettier owns formatting; `src/gen/**` ignored).

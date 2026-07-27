@@ -66,24 +66,24 @@ function when(atSeconds: bigint | number): string {
 
   <div v-if="grants.length" class="table-card">
     <table>
-    <thead>
-      <tr>
-        <th>{{ $t("roles.when") }}</th>
-        <th>{{ $t("roles.action") }}</th>
-        <th>{{ $t("roles.scope") }}</th>
-        <th>{{ $t("roles.role") }}</th>
-        <th>{{ $t("roles.byAdmin") }}</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr v-for="(g, i) in grants" :key="i">
-        <td>{{ when(g.at) }}</td>
-        <td>{{ g.action }}</td>
-        <td>{{ g.scope }}</td>
-        <td>{{ g.role }}</td>
-        <td class="mono">{{ g.actingAdmin }}</td>
-      </tr>
-    </tbody>
+      <thead>
+        <tr>
+          <th>{{ $t("roles.when") }}</th>
+          <th>{{ $t("roles.action") }}</th>
+          <th>{{ $t("roles.scope") }}</th>
+          <th>{{ $t("roles.role") }}</th>
+          <th>{{ $t("roles.byAdmin") }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr v-for="(g, i) in grants" :key="i">
+          <td>{{ when(g.at) }}</td>
+          <td>{{ g.action }}</td>
+          <td>{{ g.scope }}</td>
+          <td>{{ g.role }}</td>
+          <td class="mono">{{ g.actingAdmin }}</td>
+        </tr>
+      </tbody>
     </table>
   </div>
 </template>

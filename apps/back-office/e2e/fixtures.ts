@@ -30,9 +30,12 @@ export async function seed(page: Page, opts: SeedOptions = {}): Promise<void> {
     localStorage.setItem("cymbra.bo.locale", "en");
   });
 
-  await page.addInitScript((d) => {
-    window.__CYMBRA_E2E__ = d as E2EData;
-  }, (opts.data ?? {}) as E2EData);
+  await page.addInitScript(
+    (d) => {
+      window.__CYMBRA_E2E__ = d as E2EData;
+    },
+    (opts.data ?? {}) as E2EData,
+  );
 
   if (opts.loginAs) {
     const token = tokenFor(opts.loginAs);

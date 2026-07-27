@@ -21,7 +21,11 @@ const decision = ref<Async<void>>(idle);
 
 const hitVm = computed(() =>
   match(hit.value)
-    .with({ status: "success" }, ({ data }) => ({ loading: false, hit: data as CatalogHit | null, error: null as string | null }))
+    .with({ status: "success" }, ({ data }) => ({
+      loading: false,
+      hit: data as CatalogHit | null,
+      error: null as string | null,
+    }))
     .with({ status: "error" }, ({ error }) => ({ loading: false, hit: null, error }))
     .otherwise(() => ({ loading: true, hit: null, error: null as string | null })),
 );
@@ -30,7 +34,11 @@ const hitVm = computed(() =>
 // shown as an informational note inside the preview, not a page-level error.
 const bytesVm = computed(() =>
   match(bytes.value)
-    .with({ status: "success" }, ({ data }) => ({ loading: false, bytes: data as Uint8Array | null, error: null as string | null }))
+    .with({ status: "success" }, ({ data }) => ({
+      loading: false,
+      bytes: data as Uint8Array | null,
+      error: null as string | null,
+    }))
     .with({ status: "error" }, ({ error }) => ({ loading: false, bytes: null, error }))
     .otherwise(() => ({ loading: true, bytes: null, error: null as string | null })),
 );

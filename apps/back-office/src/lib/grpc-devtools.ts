@@ -42,10 +42,7 @@ export const grpcWebDevtoolsInterceptor: Interceptor = (next) => async (req) => 
       method,
       methodType: "unary",
       request,
-      error:
-        e instanceof ConnectError
-          ? { code: e.code, message: e.rawMessage }
-          : { message: String(e) },
+      error: e instanceof ConnectError ? { code: e.code, message: e.rawMessage } : { message: String(e) },
     });
     throw e;
   }

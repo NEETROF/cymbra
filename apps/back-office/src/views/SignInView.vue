@@ -49,13 +49,7 @@ defineExpose({ submitGoogleCredential });
     <p class="muted">{{ $t("signin.subtitle") }}</p>
 
     <form @submit.prevent="submitLocal">
-      <input
-        v-model="email"
-        type="email"
-        :placeholder="$t('signin.email')"
-        autocomplete="username"
-        required
-      />
+      <input v-model="email" type="email" :placeholder="$t('signin.email')" autocomplete="username" required />
       <input
         v-model="password"
         type="password"
@@ -101,16 +95,27 @@ defineExpose({ submitGoogleCredential });
   font-weight: 800;
   font-size: 1.2rem;
 }
-.brand-name { font-weight: 800; font-size: 1.3rem; }
-h1 { margin: 0 0 0.35rem; font-size: 1.25rem; }
+.brand-name {
+  font-weight: 800;
+  font-size: 1.3rem;
+}
+h1 {
+  margin: 0 0 0.35rem;
+  font-size: 1.25rem;
+}
 form {
   display: flex;
   flex-direction: column;
   gap: 0.6rem;
   margin-top: 1.25rem;
 }
-.muted { color: var(--muted); }
-.small { font-size: 0.82rem; margin-top: 0.9rem; }
+.muted {
+  color: var(--muted);
+}
+.small {
+  font-size: 0.82rem;
+  margin-top: 0.9rem;
+}
 .error {
   color: var(--reject);
   margin-top: 1rem;

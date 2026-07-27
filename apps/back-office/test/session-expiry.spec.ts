@@ -23,8 +23,6 @@ describe("session expiry notifier", () => {
 
   it("is a no-op when no handler is registered", () => {
     setUnauthenticatedHandler(null);
-    expect(() =>
-      notifyIfUnauthenticated(new ConnectError("x", Code.Unauthenticated)),
-    ).not.toThrow();
+    expect(() => notifyIfUnauthenticated(new ConnectError("x", Code.Unauthenticated))).not.toThrow();
   });
 });

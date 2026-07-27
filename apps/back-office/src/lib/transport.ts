@@ -1,11 +1,4 @@
-import {
-  Code,
-  ConnectError,
-  createClient,
-  type Client,
-  type Interceptor,
-  type Transport,
-} from "@connectrpc/connect";
+import { Code, ConnectError, createClient, type Client, type Interceptor, type Transport } from "@connectrpc/connect";
 import { createGrpcWebTransport } from "@connectrpc/connect-web";
 import { grpcWebDevtoolsInterceptor } from "./grpc-devtools";
 import { AuthService } from "@/gen/auth_pb";
@@ -75,9 +68,7 @@ const devLogInterceptor: Interceptor = (next) => async (req) => {
     return await next(req);
   } catch (e) {
     if (e instanceof ConnectError) {
-      console.error(
-        `gRPC ${req.method.name} → ${Code[e.code]} (${e.code}): ${e.rawMessage}`,
-      );
+      console.error(`gRPC ${req.method.name} → ${Code[e.code]} (${e.code}): ${e.rawMessage}`);
     }
     throw e;
   }

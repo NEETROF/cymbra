@@ -52,8 +52,16 @@ function signOut() {
 
       <nav class="nav">
         <RouterLink v-for="item in nav" :key="item.to" :to="item.to" class="nav-item">
-          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <svg
+            class="ic"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
             <path :d="ICONS[item.icon]" />
           </svg>
           <span>{{ t(item.key) }}</span>
@@ -138,8 +146,16 @@ function signOut() {
   font-weight: 800;
   font-size: 1.15rem;
 }
-.brand-text { display: flex; flex-direction: column; line-height: 1.1; }
-.brand-name { font-weight: 800; font-size: 1.15rem; color: var(--text); }
+.brand-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+}
+.brand-name {
+  font-weight: 800;
+  font-size: 1.15rem;
+  color: var(--text);
+}
 .brand-suite {
   font-family: var(--mono);
   font-size: 0.62rem;
@@ -148,7 +164,11 @@ function signOut() {
   color: var(--muted);
 }
 
-.nav { display: flex; flex-direction: column; gap: 0.25rem; }
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
 .nav-item {
   display: flex;
   align-items: center;
@@ -159,15 +179,31 @@ function signOut() {
   font-weight: 600;
   font-size: 0.92rem;
 }
-.nav-item:hover { background: var(--panel-2); color: var(--text); }
+.nav-item:hover {
+  background: var(--panel-2);
+  color: var(--text);
+}
 .nav-item.router-link-active {
   background: color-mix(in srgb, var(--accent-strong) 22%, transparent);
   color: var(--accent);
 }
-.nav-item .ic { width: 19px; height: 19px; flex: none; }
+.nav-item .ic {
+  width: 19px;
+  height: 19px;
+  flex: none;
+}
 
-.foot { margin-top: auto; display: flex; flex-direction: column; gap: 0.7rem; }
-.user-chip { display: flex; align-items: center; gap: 0.6rem; }
+.foot {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+.user-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
 .avatar {
   display: grid;
   place-items: center;
@@ -186,10 +222,22 @@ function signOut() {
   border-color: color-mix(in srgb, var(--accent) 28%, transparent);
   text-transform: capitalize;
 }
-.lang { display: inline-flex; gap: 0.25rem; }
-.lang button { padding: 0.25rem 0.55rem; font-size: 0.75rem; border-radius: 8px; }
-.lang button.active { border-color: var(--accent); color: var(--accent); }
-.signout { width: 100%; }
+.lang {
+  display: inline-flex;
+  gap: 0.25rem;
+}
+.lang button {
+  padding: 0.25rem 0.55rem;
+  font-size: 0.75rem;
+  border-radius: 8px;
+}
+.lang button.active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.signout {
+  width: 100%;
+}
 
 .main {
   min-width: 0;
@@ -197,20 +245,44 @@ function signOut() {
   max-width: 1240px;
 }
 
-.plain { min-height: 100vh; }
+.plain {
+  min-height: 100vh;
+}
 .plain-top {
   display: flex;
   justify-content: flex-end;
   padding: 1rem 1.25rem;
 }
-.plain-top .lang button { padding: 0.25rem 0.55rem; font-size: 0.75rem; }
-.plain-top .lang button.active { border-color: var(--accent); color: var(--accent); }
+.plain-top .lang button {
+  padding: 0.25rem 0.55rem;
+  font-size: 0.75rem;
+}
+.plain-top .lang button.active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
 
 @media (max-width: 720px) {
-  .shell { grid-template-columns: 1fr; }
-  .sidebar { position: static; height: auto; flex-direction: row; flex-wrap: wrap; align-items: center; }
-  .foot { margin: 0 0 0 auto; flex-direction: row; align-items: center; }
-  .signout { width: auto; }
-  .main { padding: 1.25rem; }
+  .shell {
+    grid-template-columns: 1fr;
+  }
+  .sidebar {
+    position: static;
+    height: auto;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .foot {
+    margin: 0 0 0 auto;
+    flex-direction: row;
+    align-items: center;
+  }
+  .signout {
+    width: auto;
+  }
+  .main {
+    padding: 1.25rem;
+  }
 }
 </style>

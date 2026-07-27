@@ -16,7 +16,12 @@ const sort = ref<SortKeyInit[]>([...QUEUE_SORT]);
 
 const vm = computed(() =>
   match(store.result)
-    .with({ status: "idle" }, () => ({ loading: false, error: null as string | null, hits: [] as CatalogHit[], total: 0 }))
+    .with({ status: "idle" }, () => ({
+      loading: false,
+      error: null as string | null,
+      hits: [] as CatalogHit[],
+      total: 0,
+    }))
     .with({ status: "loading" }, () => ({ loading: true, error: null, hits: [] as CatalogHit[], total: 0 }))
     .with({ status: "error" }, ({ error }) => ({ loading: false, error, hits: [] as CatalogHit[], total: 0 }))
     .with({ status: "success" }, ({ data }) => ({ loading: false, error: null, hits: data.hits, total: data.total }))

@@ -5,12 +5,7 @@ import { match } from "ts-pattern";
 import FiltersBar from "@/components/FiltersBar.vue";
 import CatalogTable from "@/components/CatalogTable.vue";
 import StatBar from "@/components/StatBar.vue";
-import {
-  useCatalogStore,
-  type Filters,
-  type ModerationStatus,
-  type SortKeyInit,
-} from "@/stores/catalog";
+import { useCatalogStore, type Filters, type ModerationStatus, type SortKeyInit } from "@/stores/catalog";
 import type { CatalogHit } from "@/gen/score_pb";
 
 // Free browse of the catalog by status + hub filters, with click-to-sort columns.
@@ -30,7 +25,12 @@ let filters: Filters = {
 // — `.exhaustive()` makes a forgotten state a compile error.
 const vm = computed(() =>
   match(store.result)
-    .with({ status: "idle" }, () => ({ loading: false, error: null as string | null, hits: [] as CatalogHit[], total: 0 }))
+    .with({ status: "idle" }, () => ({
+      loading: false,
+      error: null as string | null,
+      hits: [] as CatalogHit[],
+      total: 0,
+    }))
     .with({ status: "loading" }, () => ({ loading: true, error: null, hits: [] as CatalogHit[], total: 0 }))
     .with({ status: "error" }, ({ error }) => ({ loading: false, error, hits: [] as CatalogHit[], total: 0 }))
     .with({ status: "success" }, ({ data }) => ({ loading: false, error: null, hits: data.hits, total: data.total }))

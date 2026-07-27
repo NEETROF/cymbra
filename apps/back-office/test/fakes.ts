@@ -2,8 +2,7 @@ import type { Clients } from "@/lib/transport";
 
 // A minimal JWT (unsigned; decodeClaims only reads the payload) carrying roles.
 export function makeJwt(payload: Record<string, unknown>): string {
-  const b64url = (o: unknown) =>
-    btoa(JSON.stringify(o)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  const b64url = (o: unknown) => btoa(JSON.stringify(o)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
   return `${b64url({ alg: "EdDSA" })}.${b64url(payload)}.sig`;
 }
 

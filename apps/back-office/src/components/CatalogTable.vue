@@ -63,8 +63,14 @@ function levelLabel(level: string): string {
         <td>
           <div class="title-cell">
             <span class="thumb" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                   stroke-linecap="round" stroke-linejoin="round">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
                 <path d="M9 18V5l12-2v13" />
                 <circle cx="6" cy="18" r="3" />
                 <circle cx="18" cy="16" r="3" />
@@ -83,8 +89,12 @@ function levelLabel(level: string): string {
         </td>
         <td class="num">{{ h.noteCount ?? "—" }}</td>
         <td class="num">{{ h.tempoBpm ?? "—" }}</td>
-        <td><span class="src">{{ h.source }}</span></td>
-        <td><span class="badge" :class="status">{{ t(`status.${status}`) }}</span></td>
+        <td>
+          <span class="src">{{ h.source }}</span>
+        </td>
+        <td>
+          <span class="badge" :class="status">{{ t(`status.${status}`) }}</span>
+        </td>
       </tr>
       <tr v-if="hits.length === 0">
         <td colspan="7" class="empty">{{ t("table.empty") }}</td>
@@ -94,12 +104,27 @@ function levelLabel(level: string): string {
 </template>
 
 <style scoped>
-.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
-.sortable:hover { color: var(--text); }
-.row { cursor: pointer; transition: background 0.12s; }
-.row:hover { background: var(--panel-2); }
+.sortable {
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+.sortable:hover {
+  color: var(--text);
+}
+.row {
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.row:hover {
+  background: var(--panel-2);
+}
 
-.title-cell { display: flex; align-items: center; gap: 0.8rem; }
+.title-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
 .thumb {
   display: grid;
   place-items: center;
@@ -110,12 +135,30 @@ function levelLabel(level: string): string {
   background: color-mix(in srgb, var(--accent-strong) 20%, transparent);
   color: var(--accent);
 }
-.thumb svg { width: 18px; height: 18px; }
-.title-text { display: flex; flex-direction: column; line-height: 1.25; }
-.t-name { font-weight: 600; color: var(--text); }
-.t-id { font-family: var(--mono); font-size: 0.68rem; color: var(--faint); letter-spacing: 0.05em; }
+.thumb svg {
+  width: 18px;
+  height: 18px;
+}
+.title-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+}
+.t-name {
+  font-weight: 600;
+  color: var(--text);
+}
+.t-id {
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  color: var(--faint);
+  letter-spacing: 0.05em;
+}
 
-.num { font-variant-numeric: tabular-nums; color: var(--text); }
+.num {
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
 
 .pill {
   display: inline-block;
@@ -127,11 +170,27 @@ function levelLabel(level: string): string {
   color: var(--muted);
   text-transform: capitalize;
 }
-.pill.lvl-beginner { color: var(--green); border-color: color-mix(in srgb, var(--green) 35%, transparent); }
-.pill.lvl-intermediate { color: var(--teal); border-color: color-mix(in srgb, var(--teal) 35%, transparent); }
-.pill.lvl-advanced { color: var(--amber); border-color: color-mix(in srgb, var(--amber) 35%, transparent); }
+.pill.lvl-beginner {
+  color: var(--green);
+  border-color: color-mix(in srgb, var(--green) 35%, transparent);
+}
+.pill.lvl-intermediate {
+  color: var(--teal);
+  border-color: color-mix(in srgb, var(--teal) 35%, transparent);
+}
+.pill.lvl-advanced {
+  color: var(--amber);
+  border-color: color-mix(in srgb, var(--amber) 35%, transparent);
+}
 
-.src { color: var(--green); font-weight: 500; }
+.src {
+  color: var(--green);
+  font-weight: 500;
+}
 
-.empty { color: var(--muted); text-align: center; padding: 2rem; }
+.empty {
+  color: var(--muted);
+  text-align: center;
+  padding: 2rem;
+}
 </style>

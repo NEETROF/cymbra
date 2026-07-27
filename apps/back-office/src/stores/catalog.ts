@@ -93,11 +93,7 @@ export const useCatalogStore = defineStore("catalog", () => {
         api()
           .score.searchCatalog({ query: "", moderationStatus, sort: [], limit: 1, offset: 0 })
           .then((r) => r.total);
-      const [pending, accepted, rejected] = await Promise.all([
-        count("pending"),
-        count("accepted"),
-        count("rejected"),
-      ]);
+      const [pending, accepted, rejected] = await Promise.all([count("pending"), count("accepted"), count("rejected")]);
       return { pending, accepted, rejected, total: pending + accepted + rejected };
     });
   }

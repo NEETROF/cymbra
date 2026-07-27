@@ -18,21 +18,12 @@ const f = reactive<Filters>({
   moderationStatus: props.status,
 });
 
-watch(
-  f,
-  () => emit("change", { ...f }),
-  { deep: true },
-);
+watch(f, () => emit("change", { ...f }), { deep: true });
 </script>
 
 <template>
   <div class="filters">
-    <input
-      v-model="f.query"
-      type="search"
-      :placeholder="t('filters.query')"
-      :aria-label="t('filters.searchLabel')"
-    />
+    <input v-model="f.query" type="search" :placeholder="t('filters.query')" :aria-label="t('filters.searchLabel')" />
     <input
       v-model="f.author"
       type="text"
@@ -46,11 +37,7 @@ watch(
       <option value="advanced">{{ t("level.advanced") }}</option>
     </select>
     <label class="piano">
-      <input
-        type="checkbox"
-        :checked="f.isPiano === true"
-        @change="f.isPiano = f.isPiano ? undefined : true"
-      />
+      <input type="checkbox" :checked="f.isPiano === true" @change="f.isPiano = f.isPiano ? undefined : true" />
       {{ t("filters.pianoOnly") }}
     </label>
     <select v-model="f.moderationStatus" :aria-label="t('filters.statusLabel')" class="status">
@@ -78,7 +65,9 @@ watch(
   background: var(--panel-2);
   border-radius: 999px;
 }
-.filters input[type="search"] { min-width: 12rem; }
+.filters input[type="search"] {
+  min-width: 12rem;
+}
 .piano {
   display: flex;
   gap: 0.35rem;
@@ -88,5 +77,7 @@ watch(
   padding: 0 0.3rem;
   white-space: nowrap;
 }
-.piano input { accent-color: var(--accent-strong); }
+.piano input {
+  accent-color: var(--accent-strong);
+}
 </style>
