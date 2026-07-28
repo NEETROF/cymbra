@@ -94,9 +94,11 @@ class RatingDeck extends _$RatingDeck {
   /// cursor, so the top of the deck rarely stalls waiting on the network.
   static const int _prefetchThreshold = 5;
 
-  /// Fraction of a card's preview that must play before its rating unlocks
-  /// ("listen before rating" — the user's chosen gate: a share of the piece).
-  static const double previewUnlockFraction = 0.25;
+  /// Normalized preview progress (0..1) at which a card's rating unlocks. The
+  /// in-card preview reports progress toward "listened enough" — the sooner of a
+  /// share of the piece or a fixed note count — so `1.0` means the threshold is
+  /// reached.
+  static const double previewUnlockProgress = 1.0;
 
   @override
   RatingDeckState build() {
@@ -194,12 +196,12 @@ class RatingDeck extends _$RatingDeck {
     return RatingVerdict.dislike;
   }
 
-  /// Report how far the top card's in-card preview has played (0..1). Once it
-  /// crosses [previewUnlockFraction] the card's rating unlocks (sticky). A no-op
-  /// once already unlocked or below the threshold, so it is cheap to call every
-  /// preview frame.
-  void markPreviewed(String catalogId, double fraction) {
-    if (fraction < previewUnlockFraction) return;
+  /// Report the top card's in-card preview progress toward "listened enough"
+  /// (0..1). Once it reaches [previewUnlockProgress] the card's rating unlocks
+  /// (sticky). A no-op below the threshold or once already unlocked, so it is
+  /// cheap to call every preview frame.
+  void markPreviewed(String catalogId, double progress) {
+    if (progress < previewUnlockProgress) return;
     if (state.unlockedIds.contains(catalogId)) return;
     state = state.copyWith(unlockedIds: {...state.unlockedIds, catalogId});
   }

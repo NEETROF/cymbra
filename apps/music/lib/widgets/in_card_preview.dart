@@ -58,6 +58,12 @@ class _InCardPreviewState extends ConsumerState<InCardPreview>
   /// player's size).
   static const double _noteScale = 0.7;
 
+  /// Rating unlocks at the SOONER of these two: a fraction of the piece, or a
+  /// number of notes heard. 25% alone is too long on a long piece, so 25 notes
+  /// caps the wait.
+  static const double _unlockTimeFraction = 0.25;
+  static const int _unlockNoteCount = 25;
+
   late final Ticker _ticker;
 
   /// Captured in [initState] so [dispose] never reads a provider on a disposing
@@ -70,6 +76,9 @@ class _InCardPreviewState extends ConsumerState<InCardPreview>
   /// Pitches currently sounding (audio-only), so each note is released when the
   /// playhead passes its end — mirrors the player's `_sounding` set.
   final Set<int> _sounding = <int>{};
+
+  /// Notes whose onset the playhead has crossed (for the note-count unlock cap).
+  int _notesPlayed = 0;
 
   @override
   void initState() {
@@ -126,8 +135,9 @@ class _InCardPreviewState extends ConsumerState<InCardPreview>
         _audio.noteOn(p);
         _sounding.add(p);
       }
+      _notesPlayed += edges.starts.length;
     }
-    _reportProgress(score, next);
+    _reportUnlockProgress(score, next);
     setState(() => _elapsedMs = next);
   }
 
@@ -142,12 +152,17 @@ class _InCardPreviewState extends ConsumerState<InCardPreview>
     return (measureMs * _measuresAhead).clamp(1800.0, 5000.0);
   }
 
-  /// Fraction of the piece the playhead has reached (0..1), reported to the deck.
-  void _reportProgress(CardPreviewScore score, double playhead) {
+  /// Normalized progress toward unlocking rating (0..1, unlocked at 1). Reports the
+  /// SOONER of the time and note-count thresholds, so a long piece unlocks after
+  /// [_unlockNoteCount] notes rather than a long [_unlockTimeFraction] wait.
+  void _reportUnlockProgress(CardPreviewScore score, double playhead) {
     final span = score.songEndMs - score.startMs;
-    if (span <= 0) return;
-    final fraction = ((playhead - score.startMs) / span).clamp(0.0, 1.0);
-    widget.onProgress?.call(fraction);
+    final byTime = span <= 0
+        ? 0.0
+        : ((playhead - score.startMs) / span) / _unlockTimeFraction;
+    final byNotes = _notesPlayed / _unlockNoteCount;
+    final progress = (byTime > byNotes ? byTime : byNotes).clamp(0.0, 1.0);
+    widget.onProgress?.call(progress);
   }
 
   @override

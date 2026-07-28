@@ -116,12 +116,13 @@ class _RatingCardState extends State<RatingCard> {
                 height: _UnlockBar.height,
                 child: ValueListenableBuilder<double>(
                   valueListenable: _progress,
-                  builder: (context, played, _) {
-                    const threshold = RatingDeck.previewUnlockFraction;
-                    if (played >= threshold) return const SizedBox.shrink();
-                    return _UnlockBar(
-                      value: (played / threshold).clamp(0.0, 1.0),
-                    );
+                  builder: (context, progress, _) {
+                    // Progress is already normalized (1.0 = unlocked): a full bar
+                    // means the required listening is done, so hide it.
+                    if (progress >= RatingDeck.previewUnlockProgress) {
+                      return const SizedBox.shrink();
+                    }
+                    return _UnlockBar(value: progress.clamp(0.0, 1.0));
                   },
                 ),
               ),

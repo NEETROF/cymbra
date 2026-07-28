@@ -198,12 +198,12 @@ void main() {
       expect(rating.submissions, isEmpty);
       expect(_topId(c), 'c0');
       // Below the threshold stays locked…
-      notifier.markPreviewed('c0', RatingDeck.previewUnlockFraction - 0.05);
+      notifier.markPreviewed('c0', RatingDeck.previewUnlockProgress - 0.05);
       expect(c.read(ratingDeckProvider).topUnlocked, isFalse);
       await notifier.rate(RatingVerdict.like);
       expect(rating.submissions, isEmpty);
       // …reaching the threshold unlocks it, and the rating goes through.
-      notifier.markPreviewed('c0', RatingDeck.previewUnlockFraction);
+      notifier.markPreviewed('c0', RatingDeck.previewUnlockProgress);
       expect(c.read(ratingDeckProvider).topUnlocked, isTrue);
       await notifier.rate(RatingVerdict.like);
       expect(rating.submissions.single.catalogId, 'c0');
