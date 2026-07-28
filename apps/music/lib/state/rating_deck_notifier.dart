@@ -19,6 +19,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../services/catalog_service.dart';
 import '../services/rating_service.dart';
+import 'rating_activity_notifier.dart';
 import 'saved_catalog_scores.dart' show catalogEntryFromHit;
 import 'score_catalog.dart';
 
@@ -221,6 +222,8 @@ class RatingDeck extends _$RatingDeck {
       await ref
           .read(ratingServiceProvider)
           .submit(catalogId: id, verdict: verdict, stars: stars);
+      // Record the activity so the library's "rate some scores" nudge resets.
+      unawaited(ref.read(ratingActivityProvider.notifier).markRatedNow());
     } catch (e) {
       // Revert the optimistic advance and drop the card from "seen" so it can be
       // re-rated (mirrors the hub's toggleSave revert).

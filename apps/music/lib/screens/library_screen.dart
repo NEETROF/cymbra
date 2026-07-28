@@ -27,6 +27,7 @@ import '../state/session_notifier.dart';
 import '../theme/cymbra_theme.dart';
 import '../widgets/language_selector.dart';
 import '../widgets/library_listeners.dart';
+import '../widgets/rating_invite_banner.dart';
 import '../widgets/score_card.dart';
 import 'auth/account_menu.dart';
 import 'open_score.dart';
@@ -86,7 +87,14 @@ class LibraryScreen extends ConsumerWidget {
         body: SafeArea(
           top: false,
           child: signedIn
-              ? _FavoritesBody(l10n: l10n)
+              ? Column(
+                  children: [
+                    // Nudge to rate scores after a lull (renders nothing when not
+                    // due), pinned above the favorites list.
+                    const RatingInviteBanner(),
+                    Expanded(child: _FavoritesBody(l10n: l10n)),
+                  ],
+                )
               : _bundledBody(context, ref),
         ),
       ),
