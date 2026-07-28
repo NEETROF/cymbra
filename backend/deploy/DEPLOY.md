@@ -165,6 +165,25 @@ curl -s https://api.<your-domain>/.well-known/jwks.json
   it to read a `CYMBRA_GRPC_SECURE` define). See
   [grpc_client.dart](../../apps/music/lib/services/grpc_client.dart).
 
+### Back office console (`bo.cymbra.app`)
+
+The moderation console is a static SPA on **Cloudflare Pages** (not this box) — see
+[apps/back-office/README.md](../../apps/back-office/README.md) "Deploy". It reaches the
+same `api.<your-domain>` over gRPC-web + the web-auth cookie endpoints, so the backend
+needs two things (both already in `.env.prod.example`):
+
+- `CYMBRA_BACK_OFFICE_ORIGINS=https://bo.<your-domain>` — CORS allow-list for the
+  gRPC-web CorsLayer **and** the web-auth cookie. Empty (default) = the console is
+  blocked.
+- `CYMBRA_WEB_AUTH_COOKIE_DOMAIN=<your-domain>` — the registrable domain shared by
+  `api.` and `bo.`, so the refresh cookie is first-party for the console. Host-only
+  (unset) is never sent by `bo.*` → sign-in won't persist.
+
+DNS for `bo.<your-domain>` is a **custom domain on the Pages project**, not an A record
+to this box. The Caddyfile already routes `/web/auth/*` + gRPC-web (incl. the CORS
+preflight) correctly; roll the server after setting the two vars:
+`docker compose -f docker-compose.prod.yml up -d`.
+
 ## 7. Backups (do this before you invite users)
 
 ```bash
