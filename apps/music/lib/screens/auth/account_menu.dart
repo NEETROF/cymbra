@@ -51,6 +51,8 @@ class AccountMenu extends ConsumerWidget {
           switch (value) {
             case 'signout':
               ref.read(sessionNotifierProvider.notifier).signOut();
+            case 'signout-all':
+              _confirmSignOutEverywhere(context, ref, l10n);
             case 'delete':
               Navigator.of(context).push(
                 MaterialPageRoute<void>(
@@ -72,6 +74,11 @@ class AccountMenu extends ConsumerWidget {
           PopupMenuItem<String>(
             value: 'signout',
             child: Text(l10n.accountSignOut),
+          ),
+          PopupMenuItem<String>(
+            key: const Key('account-signout-all'),
+            value: 'signout-all',
+            child: Text(l10n.accountSignOutAll),
           ),
           PopupMenuItem<String>(
             value: 'delete',
@@ -98,6 +105,46 @@ class AccountMenu extends ConsumerWidget {
       ),
       _ => const SizedBox.shrink(),
     };
+  }
+
+  /// Confirm, then revoke every session. On success the notifier tears down the
+  /// local session (routing back to entry); on failure the session is kept and a
+  /// generic, localized error is shown — the raw exception is never surfaced.
+  Future<void> _confirmSignOutEverywhere(
+    BuildContext context,
+    WidgetRef ref,
+    AppLocalizations l10n,
+  ) async {
+    // Capture the messenger before any `await` so we don't touch `context`
+    // across an async gap.
+    final messenger = ScaffoldMessenger.of(context);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(l10n.accountSignOutAllTitle),
+        content: Text(l10n.accountSignOutAllBody),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(l10n.cancel),
+          ),
+          TextButton(
+            key: const Key('account-signout-all-confirm'),
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(l10n.accountSignOutAllConfirm),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      await ref.read(sessionNotifierProvider.notifier).signOutEverywhere();
+    } catch (_) {
+      // Session kept (the revoke failed): tell the user, never the raw error.
+      messenger.showSnackBar(
+        SnackBar(content: Text(l10n.accountSignOutAllError)),
+      );
+    }
   }
 }
 

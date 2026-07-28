@@ -194,6 +194,44 @@ void main() {
       expect(auth.calls, contains('logout:r'));
       expect(c.read(sessionNotifierProvider), isA<SessionUnauthenticated>());
     });
+
+    testWidgets('sign out from all devices confirms then revokes', (
+      tester,
+    ) async {
+      final auth = FakeAuthService();
+      final c = await _signedIn(tester, const AccountMenu(), auth: auth);
+
+      await tester.tap(find.byKey(const Key('account-menu')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('account-signout-all')));
+      await tester.pumpAndSettle();
+      // The destructive action is confirmed before anything happens.
+      expect(find.text('Sign out from all devices?'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('account-signout-all-confirm')));
+      await tester.pump();
+      await tester.pump();
+
+      expect(auth.calls, contains('revokeAllSessions'));
+      expect(c.read(sessionNotifierProvider), isA<SessionUnauthenticated>());
+    });
+
+    testWidgets('cancelling sign-out-from-all keeps the session', (
+      tester,
+    ) async {
+      final auth = FakeAuthService();
+      final c = await _signedIn(tester, const AccountMenu(), auth: auth);
+
+      await tester.tap(find.byKey(const Key('account-menu')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('account-signout-all')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Cancel'));
+      await tester.pump();
+      await tester.pump();
+
+      expect(auth.calls, isNot(contains('revokeAllSessions')));
+      expect(c.read(sessionNotifierProvider), isA<SessionAuthenticated>());
+    });
   });
 
   group('Account deletion (task 7.4/7.5)', () {

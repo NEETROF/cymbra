@@ -296,6 +296,56 @@ void main() {
       expect(store.tokens, isNull);
       expect(c.read(sessionNotifierProvider), isA<SessionUnauthenticated>());
     });
+
+    test(
+      'signOutEverywhere revokes all sessions then clears locally',
+      () async {
+        final store = FakeTokenStore(
+          tokens: const StoredTokens(accessToken: 'a', refreshToken: 'r'),
+        );
+        final auth = FakeAuthService();
+        final oidc = FakeOidcTokenSource();
+        final c = makeContainer(
+          store: store,
+          auth: auth,
+          account: FakeAccountService(account: account(handle: 'a')),
+          oidc: oidc,
+        );
+        c.read(sessionNotifierProvider);
+        await pumpEventQueue();
+
+        await c.read(sessionNotifierProvider.notifier).signOutEverywhere();
+
+        expect(auth.calls, contains('revokeAllSessions'));
+        expect(oidc.calls, contains('oidcSignOut')); // shared teardown ran
+        expect(store.tokens, isNull); // current device signed out immediately
+        expect(c.read(sessionNotifierProvider), isA<SessionUnauthenticated>());
+      },
+    );
+
+    test('a failed revoke keeps the user signed in (tokens kept)', () async {
+      final store = FakeTokenStore(
+        tokens: const StoredTokens(accessToken: 'a', refreshToken: 'r'),
+      );
+      final auth = FakeAuthService()
+        ..revokeAllError = const AuthException(AuthError.unavailable);
+      final c = makeContainer(
+        store: store,
+        auth: auth,
+        account: FakeAccountService(account: account(handle: 'a')),
+      );
+      c.read(sessionNotifierProvider);
+      await pumpEventQueue();
+
+      await expectLater(
+        c.read(sessionNotifierProvider.notifier).signOutEverywhere(),
+        throwsA(isA<AuthException>()),
+      );
+
+      // Session preserved: not torn down locally while other devices stay live.
+      expect(store.tokens, isNotNull);
+      expect(c.read(sessionNotifierProvider), isA<SessionAuthenticated>());
+    });
   });
 
   group('guest gating guards (task 3.6)', () {

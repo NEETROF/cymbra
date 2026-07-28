@@ -126,6 +126,12 @@ abstract class AuthService {
   /// Revoke the refresh token server-side (best-effort on sign-out).
   Future<void> logout(String refreshToken);
 
+  /// Revoke **all** of the caller's sessions server-side ("sign out from all
+  /// devices"). Authenticated by the access token — no refresh token argument.
+  /// This kills the current device's session too, so the caller tears down the
+  /// local session on success.
+  Future<void> revokeAllSessions();
+
   /// Begin a password reset for [email] (no account enumeration).
   Future<void> requestPasswordReset(String email);
 
