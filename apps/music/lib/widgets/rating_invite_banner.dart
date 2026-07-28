@@ -32,7 +32,10 @@ class RatingInviteBanner extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (!ref.watch(ratingInviteVisibleProvider)) return const SizedBox.shrink();
+    // Async: false / loading / error all hide the banner (no flash, no nudge
+    // when there's nothing to rate).
+    final visible = ref.watch(ratingInviteVisibleProvider).valueOrNull ?? false;
+    if (!visible) return const SizedBox.shrink();
     final l10n = AppLocalizations.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),

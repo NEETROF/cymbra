@@ -33,4 +33,16 @@ snooze window; only repeated explicit dismissals reach the terminal stop.
 
 - **WHEN** the user dismisses the invite fewer times than the stop threshold
 - **THEN** it is snoozed for the normal window and may appear again later
+
+### Requirement: The rating invite only shows when there is something to rate
+
+The library invite SHALL be shown only when the deck source can offer the user at
+least one un-rated score. When the user has rated everything available (the deck
+would open empty), the invite MUST NOT be shown even if it is otherwise due.
+
+#### Scenario: Nothing left to rate hides the invite
+
+- **WHEN** the invite would otherwise be due but the user has rated every score
+  the deck can source
+- **THEN** the invite is not shown
 </content>

@@ -20,6 +20,8 @@
 - [x] 3.1 Persist a dismissal count in `RatingActivity`; after a configured number
       of dismissals `ratingInviteVisible` returns false permanently. A rating still
       resets the snooze window.
+- [x] 3.2 Show the invite only when there is something to rate: `ratingInviteVisible`
+      probes the deck source (`ratingDeck(limit: 1)`) and hides when it's empty.
 
 ## 4. Tests & verification
 

@@ -14,11 +14,13 @@
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:music/services/catalog_service.dart';
 import 'package:music/services/preferences_service.dart';
 import 'package:music/state/rating_activity_notifier.dart';
 import 'package:music/state/session_notifier.dart';
 
 import '../support/prefs_fakes.dart';
+import '../support/rating_fakes.dart';
 
 final _now = DateTime(2026, 7, 28, 12);
 
@@ -26,17 +28,26 @@ ProviderContainer _make({
   required FakePreferencesService prefs,
   DateTime? now,
   bool signedIn = true,
+  int scoresToRate = 3,
 }) {
   final c = ProviderContainer(
     overrides: [
       preferencesServiceProvider.overrideWithValue(prefs),
       canUseOnlineServicesProvider.overrideWithValue(signedIn),
       nowFnProvider.overrideWithValue(() => now ?? _now),
+      // The invite also probes the deck source; default to some un-rated scores.
+      catalogServiceProvider.overrideWithValue(
+        FakeDeckCatalogService(deckCorpus(scoresToRate)),
+      ),
     ],
   );
   addTearDown(c.dispose);
   return c;
 }
+
+/// Reads the (now async) invite visibility.
+Future<bool> _visible(ProviderContainer c) =>
+    c.read(ratingInviteVisibleProvider.future);
 
 String _millis(DateTime d) => d.millisecondsSinceEpoch.toString();
 
@@ -90,13 +101,20 @@ void main() {
   test('signed-out never shows the invite', () async {
     final c = _make(prefs: FakePreferencesService(), signedIn: false);
     await c.read(ratingActivityProvider.future);
-    expect(c.read(ratingInviteVisibleProvider), isFalse);
+    expect(await _visible(c), isFalse);
   });
 
   test('signed-in first-run (never rated) shows the invite', () async {
     final c = _make(prefs: FakePreferencesService());
     await c.read(ratingActivityProvider.future);
-    expect(c.read(ratingInviteVisibleProvider), isTrue);
+    expect(await _visible(c), isTrue);
+  });
+
+  test('no invite when there is nothing left to rate', () async {
+    // Due to be nudged, but the deck source returns no un-rated scores.
+    final c = _make(prefs: FakePreferencesService(), scoresToRate: 0);
+    await c.read(ratingActivityProvider.future);
+    expect(await _visible(c), isFalse);
   });
 
   test('a recent stored rating suppresses the invite', () async {
@@ -105,7 +123,7 @@ void main() {
     });
     final c = _make(prefs: prefs);
     await c.read(ratingActivityProvider.future);
-    expect(c.read(ratingInviteVisibleProvider), isFalse);
+    expect(await _visible(c), isFalse);
   });
 
   test('a stale stored rating re-shows the invite', () async {
@@ -114,17 +132,17 @@ void main() {
     });
     final c = _make(prefs: prefs);
     await c.read(ratingActivityProvider.future);
-    expect(c.read(ratingInviteVisibleProvider), isTrue);
+    expect(await _visible(c), isTrue);
   });
 
   test('markRatedNow hides the invite and persists the timestamp', () async {
     final prefs = FakePreferencesService();
     final c = _make(prefs: prefs);
     await c.read(ratingActivityProvider.future);
-    expect(c.read(ratingInviteVisibleProvider), isTrue); // never rated yet
+    expect(await _visible(c), isTrue); // never rated yet
 
     await c.read(ratingActivityProvider.notifier).markRatedNow();
-    expect(c.read(ratingInviteVisibleProvider), isFalse);
+    expect(await _visible(c), isFalse);
     expect(prefs.store[RatingActivity.prefsKey], _millis(_now));
   });
 
@@ -133,7 +151,7 @@ void main() {
     final c = _make(prefs: prefs);
     await c.read(ratingActivityProvider.future);
     await c.read(ratingActivityProvider.notifier).snooze();
-    expect(c.read(ratingInviteVisibleProvider), isFalse);
+    expect(await _visible(c), isFalse);
     expect(prefs.store[RatingActivity.prefsKey], _millis(_now));
   });
 
@@ -163,6 +181,6 @@ void main() {
     );
     // Far in the future (well past the snooze window) it still never shows again.
     day = 100;
-    expect(c.read(ratingInviteVisibleProvider), isFalse);
+    expect(await _visible(c), isFalse);
   });
 }

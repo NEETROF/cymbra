@@ -15,6 +15,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../services/catalog_service.dart';
 import '../services/preferences_service.dart';
 import 'session_notifier.dart';
 
@@ -114,15 +115,28 @@ class RatingActivity extends _$RatingActivity {
 }
 
 /// Whether the library should show the rating invite right now: only for a
-/// signed-in user, once the persisted state has loaded, and only when
-/// [shouldInviteToRate] says so (not snoozed, not permanently dismissed).
+/// signed-in user, once the persisted state has loaded, when [shouldInviteToRate]
+/// says so (not snoozed, not permanently dismissed), AND only when the user
+/// actually has something to rate — the deck source returns at least one un-rated
+/// score. Async because that last check hits the backend (cheap: one row).
 @riverpod
-bool ratingInviteVisible(Ref ref) {
+Future<bool> ratingInviteVisible(Ref ref) async {
   if (!ref.watch(canUseOnlineServicesProvider)) return false;
   final activity = ref.watch(ratingActivityProvider);
   final now = ref.watch(nowFnProvider)();
-  return activity.maybeWhen(
+  final due = activity.maybeWhen(
     data: (data) => shouldInviteToRate(data, now),
-    orElse: () => false, // still loading / error → don't flash the banner
+    orElse: () => false, // still loading / error → don't nudge yet
   );
+  if (!due) return false;
+  // Nothing to rate → don't nudge (e.g. the user has rated everything, so the
+  // deck would open empty). One-row probe of the deck source.
+  try {
+    final page = await ref
+        .read(catalogServiceProvider)
+        .ratingDeck(limit: 1, offset: 0);
+    return page.hits.isNotEmpty;
+  } catch (_) {
+    return false; // can't tell / offline → don't nudge
+  }
 }

@@ -54,7 +54,10 @@ Future<void> _pump(
       child: localizedApp(const Scaffold(body: RatingInviteBanner())),
     ),
   );
-  await tester.pump(); // resolve the async last-rated read
+  // Resolve the async invite (persisted state + a one-row deck probe).
+  for (var i = 0; i < 6; i++) {
+    await tester.pump(const Duration(milliseconds: 16));
+  }
 }
 
 void main() {
@@ -89,7 +92,9 @@ void main() {
     await _pump(tester, prefs: prefs);
     expect(find.byType(NoticeCallout), findsOneWidget);
     await tester.tap(find.byIcon(Icons.close));
-    await tester.pump();
+    for (var i = 0; i < 4; i++) {
+      await tester.pump(const Duration(milliseconds: 16)); // async recompute
+    }
     expect(find.byType(NoticeCallout), findsNothing); // snoozed
     expect(prefs.store.containsKey(RatingActivity.prefsKey), isTrue);
   });

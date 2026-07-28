@@ -243,10 +243,13 @@ void main() {
     final c = engagementContainer(FakePreferencesService());
     await _settled(c);
     await c.read(ratingActivityProvider.future);
-    expect(c.read(ratingInviteVisibleProvider), isTrue); // never rated → due
+    expect(
+      await c.read(ratingInviteVisibleProvider.future),
+      isTrue,
+    ); // never rated → due
     _unlockTop(c);
     await c.read(ratingDeckProvider.notifier).rate(RatingVerdict.like);
-    expect(c.read(ratingInviteVisibleProvider), isFalse);
+    expect(await c.read(ratingInviteVisibleProvider.future), isFalse);
   });
 
   test(
@@ -255,10 +258,10 @@ void main() {
       final c = engagementContainer(FakePreferencesService());
       await _settled(c);
       await c.read(ratingActivityProvider.future);
-      expect(c.read(ratingInviteVisibleProvider), isTrue);
+      expect(await c.read(ratingInviteVisibleProvider.future), isTrue);
       // Just advancing the deck — a skip, no rating — counts as engagement.
       c.read(ratingDeckProvider.notifier).skip();
-      expect(c.read(ratingInviteVisibleProvider), isFalse);
+      expect(await c.read(ratingInviteVisibleProvider.future), isFalse);
     },
   );
 }
