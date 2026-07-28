@@ -17,6 +17,7 @@ pub mod module;
 pub mod pg;
 pub mod pg_user_scores;
 pub mod repo;
+pub mod score_rating;
 pub mod user_library;
 pub mod user_scores;
 
@@ -25,9 +26,12 @@ pub use catalog_search::{
 };
 pub use grpc::ScoreGrpc;
 pub use module::{ScoreModule, UploadInput};
-pub use pg::{PgCatalogRepo, PgCatalogSearchRepo};
+pub use pg::{PgCatalogRepo, PgCatalogSearchRepo, PgScoreRatingRepo};
 pub use pg_user_scores::{PgUserLibraryRepo, PgUserScoreRepo};
 pub use repo::{CatalogEntry, CatalogRepo, FakeCatalogRepo, ScoreFacets, ScoreMeta};
+pub use score_rating::{
+    FakeScoreRatingRepo, RatingAggregate, RatingConfig, ScoreRatingRepo, Verdict,
+};
 pub use user_library::{FakeUserLibraryRepo, UserLibraryRepo};
 pub use user_scores::{FakeUserScoreRepo, UserScore, UserScoreRepo};
 

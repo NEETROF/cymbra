@@ -15,7 +15,8 @@ use cymbra_auth::{CredentialRepo, OidcProviderCfg, OidcVerifier, SessionStore};
 use cymbra_auth_port::proto::auth_service_server::AuthServiceServer;
 use cymbra_music::proto::score_service_server::ScoreServiceServer;
 use cymbra_music::{
-    PgCatalogSearchRepo, PgUserLibraryRepo, PgUserScoreRepo, ScoreGrpc, ScoreModule,
+    PgCatalogSearchRepo, PgScoreRatingRepo, PgUserLibraryRepo, PgUserScoreRepo, ScoreGrpc,
+    ScoreModule,
 };
 use cymbra_platform::cache::{Cache, RedisCache};
 use cymbra_platform::config::Config;
@@ -151,7 +152,8 @@ async fn main() -> anyhow::Result<()> {
             let module = Arc::new(ScoreModule::new(
                 Arc::new(PgUserScoreRepo::new(music_pool.clone())),
                 Arc::new(PgCatalogSearchRepo::new(music_pool.clone())),
-                Arc::new(PgUserLibraryRepo::new(music_pool)),
+                Arc::new(PgUserLibraryRepo::new(music_pool.clone())),
+                Arc::new(PgScoreRatingRepo::new(music_pool)),
                 storage,
                 cfg.upload_quota_max,
                 cfg.upload_quota_window_days,

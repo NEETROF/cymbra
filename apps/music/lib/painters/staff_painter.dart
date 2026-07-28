@@ -60,6 +60,18 @@ class StaffPainter extends CustomPainter {
   /// normal playback; populated by the mistake replay.
   final Map<int, Color> mistakeColors;
 
+  /// Visible time window (ms) to the right of the playhead. A larger window fits
+  /// more of the score across the same width — smaller, denser notation (used by
+  /// the in-card rating preview). Defaults to [_defaultLookAheadMs] (the player's
+  /// original 4 s window), so the player is unaffected.
+  final double lookAheadMs;
+
+  /// Multiplier on the staff size (and therefore the note glyphs, stems, clefs
+  /// and armature — everything derives from the staff line gap). `1.0` is the
+  /// player's size; the in-card preview uses a smaller value to shrink the
+  /// notation without changing the horizontal note spacing (that is [lookAheadMs]).
+  final double noteScale;
+
   const StaffPainter({
     required this.notes,
     required this.elapsedMs,
@@ -72,10 +84,12 @@ class StaffPainter extends CustomPainter {
     this.beatType = 4,
     this.measureStartMs = const [],
     this.mistakeColors = const {},
+    this.lookAheadMs = _defaultLookAheadMs,
+    this.noteScale = 1.0,
   });
 
-  // Visible time window to the right of the playhead.
-  static const double _lookAheadMs = 4000;
+  // Default visible time window to the right of the playhead.
+  static const double _defaultLookAheadMs = 4000;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -93,12 +107,17 @@ class StaffPainter extends CustomPainter {
     // The kept staff when a single hand is shown: its clef/armature are drawn on
     // the lone staff (bass when only staff 2+ remains, else treble).
     final soloStaff = !twoStaff && hasBass ? 2 : 1;
-    final lineGap = (size.height * (twoStaff ? 0.055 : 0.10)).clamp(8.0, 18.0);
+    // The staff line gap sizes ALL notation (notes, stems, glyphs, armature);
+    // `noteScale` shrinks it for the small in-card preview without touching the
+    // player (scale 1.0). Applied after the clamp so it can go below the player's
+    // 8 px floor when deliberately scaled down.
+    final lineGap =
+        (size.height * (twoStaff ? 0.055 : 0.10)).clamp(8.0, 18.0) * noteScale;
     final stepGap = lineGap / 2;
 
     // Playhead fixed at the left quarter; time advances toward the left.
     final playLineX = size.width * 0.25;
-    final pxPerMs = (size.width - playLineX - margin) / _lookAheadMs;
+    final pxPerMs = (size.width - playLineX - margin) / lookAheadMs;
     double xForTime(double tMs) => playLineX + (tMs - elapsedMs) * pxPerMs;
 
     // Vertical placement of the staff/staves. Stems are always drawn upward, so
@@ -208,7 +227,7 @@ class StaffPainter extends CustomPainter {
       );
     }
     hx += keyW;
-    Smufl.drawTimeSignature(
+    final timeW = Smufl.drawTimeSignature(
       canvas,
       hx,
       trebleBottom,
@@ -228,6 +247,11 @@ class StaffPainter extends CustomPainter {
         headColor,
       );
     }
+    // Right edge of the fixed head (clef + armature + metre). The scrolling
+    // glyphs (bar lines, notes, rests, beams) are kept to the right of this so
+    // they slide UNDER the head as they travel left, instead of drawing on top of
+    // the clef/armature.
+    final headEnd = hx + timeW + lineGap * 0.4;
 
     // 2) Scrolling measure bars (span the whole system). Drawn at the real
     // measure boundaries from [measureStartMs] (plus the final bar at songEnd) so
@@ -243,7 +267,8 @@ class StaffPainter extends CustomPainter {
     void drawBar(double t, {bool beforeDownbeat = true}) {
       if (t <= 0) return; // no bar before the first measure
       final x = xForTime(t) - (beforeDownbeat ? barGap : 0);
-      if (x < margin || x > size.width - margin) return;
+      // Clip to the right of the head so a bar line never crosses the clef/armature.
+      if (x < headEnd || x > size.width - margin) return;
       canvas.drawLine(Offset(x, systemTop), Offset(x, systemBottom), barPaint);
     }
 
@@ -321,6 +346,11 @@ class StaffPainter extends CustomPainter {
       }
       return handColor; // upcoming, by hand
     }
+
+    // Keep every scrolling glyph to the right of the fixed head, so notes/beams
+    // slide under the clef/armature instead of painting over it.
+    canvas.save();
+    canvas.clipRect(Rect.fromLTRB(headEnd, 0, size.width, size.height));
 
     // 4) Scrolling notes, routed to their staff.
     for (var i = 0; i < notes.length; i++) {
@@ -411,6 +441,8 @@ class StaffPainter extends CustomPainter {
       if (pts.every((p) => !visible(p.dx))) continue;
       _drawBeam(canvas, pts, group, lineGap);
     }
+
+    canvas.restore(); // end the scrolling-glyph clip
   }
 
   void _drawStaffLines(
@@ -680,5 +712,7 @@ class StaffPainter extends CustomPainter {
       old.notes != notes ||
       old.rests != rests ||
       old.measureStartMs != measureStartMs ||
-      old.mistakeColors != mistakeColors;
+      old.mistakeColors != mistakeColors ||
+      old.lookAheadMs != lookAheadMs ||
+      old.noteScale != noteScale;
 }

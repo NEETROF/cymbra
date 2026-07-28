@@ -135,6 +135,12 @@ abstract class CatalogService {
 
   /// Fetch a catalog score's bytes to open it in the player.
   Future<Uint8List> fetchBytes(String catalogId);
+
+  /// Source the swipe-rating deck (change: improve-rating-deck-sourcing): the
+  /// caller's **un-rated** `accepted` scores, least-rated first, paginated. A
+  /// score already rated by the caller is never returned, so the deck empties
+  /// once everything is rated.
+  Future<CatalogSearchPage> ratingDeck({int limit, int offset});
 }
 
 /// Wire form of a [PracticeLevel] for the backend's `level` filter.
@@ -269,6 +275,21 @@ class GrpcCatalogService implements CatalogService {
     );
     return Uint8List.fromList(resp.data);
   });
+
+  @override
+  Future<CatalogSearchPage> ratingDeck({int limit = 20, int offset = 0}) =>
+      _authed((bearer) async {
+        final resp = await _client.listRatingDeck(
+          score.ListRatingDeckRequest(limit: limit, offset: offset),
+          options: bearerOptions(bearer),
+        );
+        return CatalogSearchPage(
+          hits: resp.hits.map(_toHit).toList(),
+          nextOffset: resp.nextOffset,
+          total:
+              resp.hits.length, // no separate total; the page length suffices
+        );
+      });
 }
 
 /// Production catalog-service provider. Override in tests with a fake.
