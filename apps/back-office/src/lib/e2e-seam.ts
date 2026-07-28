@@ -100,7 +100,7 @@ export function installE2EClients(): void {
       },
     },
     score: {
-      searchCatalog: async (req: { moderationStatus?: string; limit?: number }) => {
+      searchCatalog: async (req: { moderationStatus?: string; limit?: number; offset?: number }) => {
         failOnceIfSet("searchCatalog");
         failIfSet("searchCatalog");
         // The header stat cards issue count-only queries (limit 1); return the
@@ -109,7 +109,11 @@ export function installE2EClients(): void {
           const total = counts[(req.moderationStatus ?? "pending") as keyof typeof counts] ?? 0;
           return { hits: [], total, nextOffset: 0 };
         }
-        return { hits, total: hits.length, nextOffset: hits.length };
+        // Real list query: paginate over the seeded rows exactly like the server, so
+        // the offset/limit window (and the pager driven by `total`) can be exercised.
+        const offset = req.offset ?? 0;
+        const page = hits.slice(offset, offset + (req.limit ?? 50));
+        return { hits: page, total: hits.length, nextOffset: offset + page.length };
       },
       setModerationStatus: async () => {
         failIfSet("setModerationStatus");

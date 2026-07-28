@@ -4,7 +4,8 @@ import { useRouter } from "vue-router";
 import { match } from "ts-pattern";
 import CatalogTable from "@/components/CatalogTable.vue";
 import StatBar from "@/components/StatBar.vue";
-import { useCatalogStore, QUEUE_SORT, type SortKeyInit } from "@/stores/catalog";
+import TablePager from "@/components/TablePager.vue";
+import { PAGE_SIZE, useCatalogStore, QUEUE_SORT, type SortKeyInit } from "@/stores/catalog";
 import type { CatalogHit } from "@/gen/score_pb";
 
 // The review queue: pending scores ordered by the default review-priority sort
@@ -13,6 +14,7 @@ import type { CatalogHit } from "@/gen/score_pb";
 const store = useCatalogStore();
 const router = useRouter();
 const sort = ref<SortKeyInit[]>([...QUEUE_SORT]);
+const offset = ref(0);
 
 const vm = computed(() =>
   match(store.result)
@@ -29,18 +31,29 @@ const vm = computed(() =>
 );
 
 function run() {
-  store.search({ moderationStatus: "pending", sort: sort.value });
+  store.search({ moderationStatus: "pending", sort: sort.value, offset: offset.value });
+}
+
+// A new sort resets to the first page; only the pager advances the offset.
+function runFromFirstPage() {
+  offset.value = 0;
+  run();
 }
 
 function onSort(field: string) {
   const cur = sort.value[0];
   const descending = cur?.field === field ? !cur.descending : true;
   sort.value = [{ field, descending }];
-  run();
+  runFromFirstPage();
 }
 
 function resetToPriority() {
   sort.value = [...QUEUE_SORT];
+  runFromFirstPage();
+}
+
+function onPage(newOffset: number) {
+  offset.value = newOffset;
   run();
 }
 
@@ -67,5 +80,6 @@ onMounted(run);
       @sort="onSort"
       @select="(id) => router.push({ name: 'music-score', params: { id } })"
     />
+    <TablePager :offset="offset" :limit="PAGE_SIZE" :total="vm.total" @page="onPage" />
   </div>
 </template>

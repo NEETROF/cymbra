@@ -24,6 +24,31 @@ test.describe("queue", () => {
     await expect(page.getByTestId("stat-pending").getByTestId("stat-value")).toHaveText("5");
   });
 
+  test("paginates when the results exceed one page", async ({ page }) => {
+    const many = Array.from({ length: 60 }, (_, i) =>
+      sampleHit({ id: `${String(i).padStart(8, "0")}-0000-0000-0000-000000000000`, title: `Score ${i + 1}` }),
+    );
+    await seed(page, { loginAs: "moderator", data: { hits: many, counts: { pending: 60, accepted: 0, rejected: 0 } } });
+    await page.goto("/music/catalog");
+
+    // Page 1: the first window of 50, Previous disabled, Next available.
+    await expect(page.locator("tbody tr")).toHaveCount(50);
+    await expect(page.getByText("1–50 of 60")).toBeVisible();
+    await expect(page.getByRole("button", { name: /Previous/ })).toBeDisabled();
+
+    await page.getByRole("button", { name: /Next/ }).click();
+
+    // Page 2: the remaining 10 rows, Next now disabled.
+    await expect(page.getByText("51–60 of 60")).toBeVisible();
+    await expect(page.locator("tbody tr")).toHaveCount(10);
+    await expect(page.getByText("Score 51")).toBeVisible();
+    await expect(page.getByRole("button", { name: /Next/ })).toBeDisabled();
+
+    await page.getByRole("button", { name: /Previous/ }).click();
+    await expect(page.getByText("1–50 of 60")).toBeVisible();
+    await expect(page.locator("tbody tr")).toHaveCount(50);
+  });
+
   test("clicking a row opens its detail page (self-sufficient on deep-link)", async ({ page }) => {
     await seed(page, { loginAs: "moderator", data: { hits: [sampleHit()] } });
     await page.goto("/music/queue");

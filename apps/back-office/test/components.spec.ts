@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { mount } from "@vue/test-utils";
 import CatalogTable from "@/components/CatalogTable.vue";
 import FiltersBar from "@/components/FiltersBar.vue";
+import TablePager from "@/components/TablePager.vue";
 import { i18n } from "@/i18n";
 
 // The components use vue-i18n (useI18n), so the plugin must be installed. Default
@@ -55,5 +56,37 @@ describe("FiltersBar", () => {
     await w.get('[aria-label="search"]').setValue("chopin");
     const last = w.emitted("change")!.at(-1)![0] as { query: string };
     expect(last.query).toBe("chopin");
+  });
+});
+
+describe("TablePager", () => {
+  const buttons = (w: ReturnType<typeof mount>) => w.findAll(".pager button");
+
+  it("is hidden when a single page holds every row", () => {
+    const w = mount(TablePager, { global: withI18n, props: { offset: 0, limit: 50, total: 42 } });
+    expect(w.find(".pager").exists()).toBe(false);
+  });
+
+  it("renders the current window and disables Previous on the first page", () => {
+    const w = mount(TablePager, { global: withI18n, props: { offset: 0, limit: 50, total: 130 } });
+    expect(w.text()).toContain("1–50 of 130");
+    const [prev, next] = buttons(w);
+    expect(prev.attributes("disabled")).toBeDefined();
+    expect(next.attributes("disabled")).toBeUndefined();
+  });
+
+  it("emits the next offset when Next is clicked", async () => {
+    const w = mount(TablePager, { global: withI18n, props: { offset: 0, limit: 50, total: 130 } });
+    await buttons(w)[1].trigger("click");
+    expect(w.emitted("page")?.[0]).toEqual([50]);
+  });
+
+  it("emits the previous offset and disables Next on the last page", async () => {
+    const w = mount(TablePager, { global: withI18n, props: { offset: 100, limit: 50, total: 130 } });
+    expect(w.text()).toContain("101–130 of 130");
+    const [prev, next] = buttons(w);
+    expect(next.attributes("disabled")).toBeDefined();
+    await prev.trigger("click");
+    expect(w.emitted("page")?.[0]).toEqual([50]);
   });
 });
