@@ -1,6 +1,6 @@
 name: sonar
 
-# SonarCloud analysis (Rust + Dart, both natively supported).
+# SonarCloud analysis (Rust + Dart + Vue/TS, all fed into one SonarCloud project).
 # Requires the SONAR_TOKEN repository secret (set by a maintainer) and a
 # SonarCloud project. Adjust organization/projectKey in sonar-project.properties.
 on:
@@ -13,77 +13,126 @@ permissions:
   pull-requests: write # Required for Sonar to decorate the PR with analysis results
 
 jobs:
-  # A skipped job reports "success" and satisfies the required check. Sonar covers
-  # both ecosystems, so it runs when any backend OR app source changes.
+  # A skipped job reports "success" and satisfies the required check. The scan
+  # itself always runs when the job runs; the per-ecosystem coverage-generation
+  # blocks below are each gated on their own paths (rust/app/bo) so a change to
+  # one ecosystem doesn't pay to recompute coverage for the others. On push to
+  # main every block runs, to keep the baseline complete.
   changes:
     runs-on: ubuntu-latest
     outputs:
-      code: ${{ steps.f.outputs.code }}
+      rust: ${{ steps.f.outputs.rust }}
+      app: ${{ steps.f.outputs.app }}
+      bo: ${{ steps.f.outputs.bo }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
         id: f
         with:
           filters: |
-            code:
+            rust:
               - 'backend/**'
               - 'crates/**'
-              - 'apps/**'
+              - 'apps/*/rust/**'
               - 'Cargo.toml'
               - 'Cargo.lock'
               - 'rust-toolchain.toml'
+              - '.github/workflows/sonar.yml'
+            app:
+              - 'apps/music/**'
               - 'melos.yaml'
               - 'pubspec.yaml'
               - 'pubspec.lock'
               - '.github/workflows/sonar.yml'
+            bo:
+              - 'apps/back-office/**'
+              - 'backend/auth-port/proto/**'
+              - 'backend/user-port/proto/**'
+              - 'backend/music/proto/**'
+              - '.github/workflows/sonar.yml'
 
   sonar:
     needs: changes
-    if: ${{ github.event_name != 'pull_request' || needs.changes.outputs.code == 'true' }}
+    if: >-
+      github.event_name != 'pull_request' ||
+      needs.changes.outputs.rust == 'true' ||
+      needs.changes.outputs.app == 'true' ||
+      needs.changes.outputs.bo == 'true'
     runs-on: ubuntu-latest
+    # Per-ecosystem gates (true on any push to main; on PRs only when that
+    # ecosystem's paths changed). Each expensive coverage block reads its flag.
+    env:
+      RUN_RUST: ${{ github.event_name != 'pull_request' || needs.changes.outputs.rust == 'true' }}
+      RUN_APP: ${{ github.event_name != 'pull_request' || needs.changes.outputs.app == 'true' }}
+      RUN_BO: ${{ github.event_name != 'pull_request' || needs.changes.outputs.bo == 'true' }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0 # full history for accurate blame/new-code detection
-      # Coverage must exist before the scan. Regenerate Rust + Flutter (unit/widget +
-      # integration) lcov here; the hard 80% gate lives in rust.yml / flutter.yml.
-      # Sonar stays non-blocking (no qualitygate.wait) — PR decoration only.
-      - name: Install build deps
-        run: sudo apt-get update && sudo apt-get install -y libasound2-dev ninja-build libgtk-3-dev libsecret-1-dev clang cmake pkg-config xvfb protobuf-compiler
+
+      # --- Rust coverage (only when Rust sources changed) ---------------------
+      # The hard 80% gate lives in rust.yml; here we only feed lcov to Sonar.
+      - name: Install Rust build deps
+        if: env.RUN_RUST == 'true'
+        run: sudo apt-get update && sudo apt-get install -y libasound2-dev clang cmake pkg-config protobuf-compiler
       - uses: dtolnay/rust-toolchain@stable
+        if: env.RUN_RUST == 'true'
         with:
           components: llvm-tools-preview
       - uses: taiki-e/install-action@cargo-llvm-cov
+        if: env.RUN_RUST == 'true'
       - uses: Swatinem/rust-cache@v2
+        if: env.RUN_RUST == 'true'
       - name: Rust coverage
+        if: env.RUN_RUST == 'true'
         run: >-
           cargo llvm-cov --workspace --lcov --output-path target/lcov.info
           --ignore-filename-regex 'frb_generated|cymbra\.(auth|user)\.v1|/lib\.rs|/main\.rs|/midi\.rs|/musicxml\.rs|/audio\.rs|/grpc\.rs|/pg\.rs|/creds_pg\.rs|/session_pg\.rs|/verifier\.rs|/telemetry\.rs|/metrics\.rs|/cache\.rs|/email\.rs|/db\.rs|/jwks\.rs|/interceptor\.rs|/logging\.rs|/engine\.rs|/scheduler\.rs|/handlers\.rs'
+
+      # --- Flutter coverage (only when the app changed) -----------------------
+      # The hard 80% gate lives in flutter.yml; here we only feed lcov to Sonar.
+      - name: Install Flutter build deps
+        if: env.RUN_APP == 'true'
+        run: sudo apt-get update && sudo apt-get install -y libasound2-dev ninja-build libgtk-3-dev libsecret-1-dev clang cmake pkg-config xvfb protobuf-compiler
       - uses: subosito/flutter-action@v2
+        if: env.RUN_APP == 'true'
         with:
           channel: stable
       - name: Activate Melos
+        if: env.RUN_APP == 'true'
         run: dart pub global activate melos
       - name: Bootstrap
+        if: env.RUN_APP == 'true'
         run: melos bootstrap
       - name: Generate gRPC stubs (protoc)
+        if: env.RUN_APP == 'true'
         run: melos run gen-grpc
       - name: Generate code (riverpod_generator + freezed)
+        if: env.RUN_APP == 'true'
         run: melos run generate
       - name: Flutter coverage (unit + widget)
+        if: env.RUN_APP == 'true'
         run: melos run test
       - name: Enable Linux desktop
+        if: env.RUN_APP == 'true'
         run: flutter config --enable-linux-desktop
       - name: Flutter coverage (integration)
+        if: env.RUN_APP == 'true'
         working-directory: apps/music
         run: xvfb-run -a flutter test integration_test -d linux --coverage --coverage-path coverage/integration.lcov.info
-      # Back-office (Vue/TS): generate stubs + unit coverage. `protobuf-compiler` is
-      # already installed above (used by `yarn gen`). lcov paths are emitted relative
-      # to the app, so rewrite them to repo-root-relative for the root-run scanner.
+
+      # --- Back-office coverage (only when the Vue app / its protos changed) ---
+      # Vue/TS: generate stubs + unit coverage. lcov paths are emitted relative to
+      # the app, so rewrite them to repo-root-relative for the root-run scanner.
+      - name: Install protoc (back-office stubs)
+        if: env.RUN_BO == 'true'
+        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
       - uses: actions/setup-node@v4
+        if: env.RUN_BO == 'true'
         with:
           node-version: "22"
       - name: Back-office coverage
+        if: env.RUN_BO == 'true'
         working-directory: apps/back-office
         run: |
           corepack enable
@@ -91,6 +140,10 @@ jobs:
           yarn gen
           yarn test:coverage
           sed -i 's|^SF:src/|SF:apps/back-office/src/|' coverage/lcov.info
+
+      # Single scan over whatever coverage was produced. The Quality Gate is on the
+      # PR's new code, so skipping an unchanged ecosystem's coverage is safe: a
+      # back-office-only PR has no new Rust/Dart lines to cover.
       - name: SonarCloud scan (blocks on Quality Gate)
         uses: SonarSource/sonarqube-scan-action@v6
         with:
