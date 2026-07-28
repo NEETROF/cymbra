@@ -21,11 +21,13 @@
 //! *before* calling the repo, so the adapter only matches an already-normalised
 //! query against the persisted `title_norm`/`composer_norm` columns.
 
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
 use cymbra_musicxml_core::normalize_text;
 use cymbra_platform::Result;
+
+use crate::score_rating::FakeScoreRatingRepo;
 
 /// One catalog score as surfaced by search or the saved list: attribution-
 /// complete, but WITHOUT bytes (bytes are fetched separately, by id).
@@ -196,6 +198,14 @@ pub trait CatalogSearchRepo: Send + Sync {
         status: &str,
         reviewer_id: &str,
     ) -> Result<bool>;
+
+    /// The rating deck's source (change: improve-rating-deck-sourcing): the
+    /// caller's **un-rated** `accepted` scores, ordered **least-rated first**
+    /// (fewest existing ratings, so the scores that most need community signal
+    /// come first) with an `id` tiebreak, paginated. A score `user_id` has already
+    /// rated is excluded, so the deck reaches its empty state once everything is
+    /// rated. Not owner-scoped data, but the exclusion is per caller.
+    async fn rating_deck(&self, user_id: &str, limit: i64, offset: i64) -> Result<Vec<CatalogHit>>;
 }
 
 /// A seed row for [`FakeCatalogSearchRepo`]. Norm keys are derived on the fly, so
@@ -314,6 +324,11 @@ impl FakeCatalogRow {
 #[derive(Default)]
 pub struct FakeCatalogSearchRepo {
     rows: Mutex<Vec<FakeCatalogRow>>,
+    /// Optional shared ratings view for the deck-sourcing query (mirrors the Pg
+    /// adapter reading the same tables): both fakes point at one
+    /// [`FakeScoreRatingRepo`] so "un-rated by me" / rating-count ordering match
+    /// what the module actually wrote.
+    ratings: Mutex<Option<Arc<FakeScoreRatingRepo>>>,
 }
 
 impl FakeCatalogSearchRepo {
@@ -321,6 +336,7 @@ impl FakeCatalogSearchRepo {
     pub fn with(rows: Vec<FakeCatalogRow>) -> Self {
         Self {
             rows: Mutex::new(rows),
+            ratings: Mutex::new(None),
         }
     }
 
@@ -328,6 +344,12 @@ impl FakeCatalogSearchRepo {
     /// crawler re-ingest that dropped or changed a catalog entry.
     pub fn set_rows(&self, rows: Vec<FakeCatalogRow>) {
         *self.rows.lock().expect("catalog search fake lock") = rows;
+    }
+
+    /// Point the deck-sourcing query at the shared ratings fake, so
+    /// `rating_deck` excludes what the module rated and orders by count.
+    pub fn set_rating_view(&self, ratings: Arc<FakeScoreRatingRepo>) {
+        *self.ratings.lock().expect("catalog search fake lock") = Some(ratings);
     }
 }
 
@@ -420,6 +442,29 @@ impl CatalogSearchRepo for FakeCatalogSearchRepo {
             }
             None => Ok(false),
         }
+    }
+
+    async fn rating_deck(&self, user_id: &str, limit: i64, offset: i64) -> Result<Vec<CatalogHit>> {
+        let rows = self.rows.lock().expect("catalog search fake lock");
+        let ratings = self.ratings.lock().expect("catalog search fake lock");
+        // Exclude the caller's already-rated scores; order least-rated first
+        // (fewest ratings), then `id` (mirrors the Pg `ORDER BY count ASC, id`).
+        let rated = ratings
+            .as_ref()
+            .map(|r| r.rated_ids(user_id))
+            .unwrap_or_default();
+        let count = |id: &str| ratings.as_ref().map(|r| r.rating_count(id)).unwrap_or(0);
+        let mut candidates: Vec<&FakeCatalogRow> = rows
+            .iter()
+            .filter(|r| r.moderation_status == "accepted" && !rated.contains(&r.id))
+            .collect();
+        candidates.sort_by(|a, b| count(&a.id).cmp(&count(&b.id)).then(a.id.cmp(&b.id)));
+        Ok(candidates
+            .into_iter()
+            .skip(offset.max(0) as usize)
+            .take(limit.max(0) as usize)
+            .map(FakeCatalogRow::to_hit)
+            .collect())
     }
 }
 

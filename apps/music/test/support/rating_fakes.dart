@@ -53,6 +53,15 @@ class FakeDeckCatalogService implements CatalogService {
   FakeDeckCatalogService(this.rows);
   final List<CatalogHit> rows;
 
+  CatalogSearchPage _page(int limit, int offset) {
+    final page = rows.skip(offset).take(limit).toList();
+    return CatalogSearchPage(
+      hits: page,
+      nextOffset: offset + page.length,
+      total: rows.length,
+    );
+  }
+
   @override
   Future<CatalogSearchPage> search({
     String query = '',
@@ -61,14 +70,13 @@ class FakeDeckCatalogService implements CatalogService {
     CatalogFilters filters = const CatalogFilters(),
     int limit = 20,
     int offset = 0,
-  }) async {
-    final page = rows.skip(offset).take(limit).toList();
-    return CatalogSearchPage(
-      hits: page,
-      nextOffset: offset + page.length,
-      total: rows.length,
-    );
-  }
+  }) async => _page(limit, offset);
+
+  @override
+  Future<CatalogSearchPage> ratingDeck({
+    int limit = 20,
+    int offset = 0,
+  }) async => _page(limit, offset);
 
   @override
   Future<void> save(String catalogId) async {}

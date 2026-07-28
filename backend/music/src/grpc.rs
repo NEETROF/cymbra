@@ -32,7 +32,8 @@ use crate::proto::{
     CatalogHit as ProtoCatalogHit, DeleteScoreRequest, DeleteScoreResponse,
     GetCatalogScoreBytesRequest, GetCatalogScoreBytesResponse, GetCatalogScoreRequest,
     GetScoreBytesRequest, GetScoreBytesResponse, ListMyScoresRequest, ListMyScoresResponse,
-    ListSavedCatalogScoresRequest, ListSavedCatalogScoresResponse, RemoveSavedCatalogScoreRequest,
+    ListRatingDeckRequest, ListRatingDeckResponse, ListSavedCatalogScoresRequest,
+    ListSavedCatalogScoresResponse, RemoveSavedCatalogScoreRequest,
     RemoveSavedCatalogScoreResponse, SaveCatalogScoreRequest, SaveCatalogScoreResponse,
     ScoreRecord, SearchCatalogRequest, SearchCatalogResponse, SetModerationStatusRequest,
     SetModerationStatusResponse, SetScoreFavoriteRequest, SetScoreFavoriteResponse,
@@ -349,6 +350,26 @@ impl ScoreService for ScoreGrpc {
             dislike_count: agg.dislike.clamp(0, i32::MAX as i64) as i32,
             like_count: agg.like.clamp(0, i32::MAX as i64) as i32,
             love_count: agg.love.clamp(0, i32::MAX as i64) as i32,
+        }))
+    }
+
+    async fn list_rating_deck(
+        &self,
+        req: Request<ListRatingDeckRequest>,
+    ) -> Result<Response<ListRatingDeckResponse>, Status> {
+        // Authenticated-only; the un-rated exclusion is per caller (change:
+        // improve-rating-deck-sourcing).
+        let user_id = owner(&req)?;
+        let r = req.into_inner();
+        let offset = r.offset;
+        let hits = self
+            .module
+            .list_rating_deck(&user_id, r.limit as i64, r.offset as i64)
+            .await?;
+        let next_offset = offset.max(0) + hits.len() as i32;
+        Ok(Response::new(ListRatingDeckResponse {
+            hits: hits.into_iter().map(to_hit).collect(),
+            next_offset,
         }))
     }
 }
@@ -782,5 +803,35 @@ mod tests {
             .await
             .unwrap_err();
         assert_eq!(err.code(), tonic::Code::NotFound);
+    }
+
+    #[tokio::test]
+    async fn list_rating_deck_requires_auth_and_sources_accepted_only() {
+        let g = grpc().await;
+        // Unauthenticated → rejected.
+        let err = g
+            .list_rating_deck(Request::new(ListRatingDeckRequest {
+                limit: 50,
+                offset: 0,
+            }))
+            .await
+            .unwrap_err();
+        assert_eq!(err.code(), tonic::Code::Unauthenticated);
+        // A signed-in caller gets only the accepted scores (the pending one is
+        // never offered), un-rated.
+        let resp = g
+            .list_rating_deck(authed(
+                ListRatingDeckRequest {
+                    limit: 50,
+                    offset: 0,
+                },
+                RATER,
+            ))
+            .await
+            .unwrap()
+            .into_inner();
+        let ids: Vec<&str> = resp.hits.iter().map(|h| h.id.as_str()).collect();
+        assert!(ids.contains(&DEBUSSY) && ids.contains(&SATIE));
+        assert!(!ids.contains(&PENDING));
     }
 }

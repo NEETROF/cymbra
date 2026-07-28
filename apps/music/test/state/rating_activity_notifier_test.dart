@@ -41,25 +41,47 @@ ProviderContainer _make({
 String _millis(DateTime d) => d.millisecondsSinceEpoch.toString();
 
 void main() {
+  RatingActivityData at(DateTime? lastAt, {int dismissals = 0}) =>
+      RatingActivityData(lastAt: lastAt, dismissals: dismissals);
+
   group('shouldInviteToRate', () {
     test('never rated → invited', () {
-      expect(shouldInviteToRate(null, _now), isTrue);
+      expect(shouldInviteToRate(at(null), _now), isTrue);
     });
     test('rated long ago → invited', () {
       expect(
-        shouldInviteToRate(_now.subtract(const Duration(days: 5)), _now),
+        shouldInviteToRate(at(_now.subtract(const Duration(days: 5))), _now),
         isTrue,
       );
     });
     test('rated recently → not invited', () {
       expect(
-        shouldInviteToRate(_now.subtract(const Duration(days: 1)), _now),
+        shouldInviteToRate(at(_now.subtract(const Duration(days: 1))), _now),
         isFalse,
       );
     });
     test('exactly at the threshold → invited (inclusive)', () {
       expect(
-        shouldInviteToRate(_now.subtract(RatingActivity.inviteAfter), _now),
+        shouldInviteToRate(at(_now.subtract(RatingActivity.inviteAfter)), _now),
+        isTrue,
+      );
+    });
+    test('stops for good after enough dismissals', () {
+      // Even long-stale, once dismissed the max times it never shows again.
+      final old = _now.subtract(const Duration(days: 30));
+      expect(
+        shouldInviteToRate(
+          at(old, dismissals: RatingActivity.maxDismissals),
+          _now,
+        ),
+        isFalse,
+      );
+      // One below the threshold still shows when stale.
+      expect(
+        shouldInviteToRate(
+          at(old, dismissals: RatingActivity.maxDismissals - 1),
+          _now,
+        ),
         isTrue,
       );
     });
@@ -113,5 +135,34 @@ void main() {
     await c.read(ratingActivityProvider.notifier).snooze();
     expect(c.read(ratingInviteVisibleProvider), isFalse);
     expect(prefs.store[RatingActivity.prefsKey], _millis(_now));
+  });
+
+  test('repeated dismissals stop the invite for good', () async {
+    final prefs = FakePreferencesService();
+    // A different "now" per read so staleness alone would re-show it.
+    var day = 0;
+    final c = ProviderContainer(
+      overrides: [
+        preferencesServiceProvider.overrideWithValue(prefs),
+        canUseOnlineServicesProvider.overrideWithValue(true),
+        nowFnProvider.overrideWithValue(
+          () => _now.add(Duration(days: 30 * day)),
+        ),
+      ],
+    );
+    addTearDown(c.dispose);
+    await c.read(ratingActivityProvider.future);
+    final notifier = c.read(ratingActivityProvider.notifier);
+    for (var i = 0; i < RatingActivity.maxDismissals; i++) {
+      day = i + 1;
+      await notifier.snooze();
+    }
+    expect(
+      prefs.store[RatingActivity.dismissKey],
+      '${RatingActivity.maxDismissals}',
+    );
+    // Far in the future (well past the snooze window) it still never shows again.
+    day = 100;
+    expect(c.read(ratingInviteVisibleProvider), isFalse);
   });
 }

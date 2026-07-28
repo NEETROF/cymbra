@@ -452,6 +452,21 @@ impl ScoreModule {
         self.ratings.aggregate(catalog_id).await
     }
 
+    /// Source the swipe-rating deck (change: improve-rating-deck-sourcing): the
+    /// caller's un-rated `accepted` scores, least-rated first, paginated. Excludes
+    /// what the user already rated, so the deck empties once everything is rated.
+    /// `limit` is clamped to the server page maximum.
+    pub async fn list_rating_deck(
+        &self,
+        user_id: &str,
+        limit: i64,
+        offset: i64,
+    ) -> Result<Vec<CatalogHit>> {
+        self.catalog
+            .rating_deck(user_id, limit.clamp(1, SEARCH_MAX_LIMIT), offset.max(0))
+            .await
+    }
+
     /// Whether a validated score is eligible for moderator re-review under the
     /// hybrid flag (design D4): at least `min_count` ratings AND an average
     /// effective value at or below `review_threshold`. Derived on demand from the
@@ -1404,6 +1419,83 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(ratings.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn rating_deck_excludes_rated_and_orders_least_rated_first() {
+        let ratings = Arc::new(FakeScoreRatingRepo::default());
+        let catalog = Arc::new(FakeCatalogSearchRepo::with(vec![
+            FakeCatalogRow::new(DEBUSSY_1, "A", "X", Some("beginner")),
+            FakeCatalogRow::new(SATIE, "B", "Y", Some("beginner")),
+            FakeCatalogRow::new(DEBUSSY_2, "C", "Z", Some("beginner")),
+        ]));
+        // Share the ratings view so the deck query sees what the module writes.
+        catalog.set_rating_view(ratings.clone());
+        let m = ScoreModule::new(
+            Arc::new(FakeUserScoreRepo::default()),
+            catalog,
+            Arc::new(FakeUserLibraryRepo::default()),
+            ratings.clone(),
+            Arc::new(FakeStore::default()),
+            5,
+            7,
+            8 * 1024 * 1024,
+        );
+        // Other users rate SATIE twice and DEBUSSY_2 once; DEBUSSY_1 has none.
+        m.submit_rating("other1", SATIE, "like", None)
+            .await
+            .unwrap();
+        m.submit_rating("other2", SATIE, "like", None)
+            .await
+            .unwrap();
+        m.submit_rating("other1", DEBUSSY_2, "like", None)
+            .await
+            .unwrap();
+        // u1 rated nothing → all three, least-rated first (0, 1, 2 ratings).
+        let deck = m.list_rating_deck("u1", 50, 0).await.unwrap();
+        assert_eq!(
+            deck.iter().map(|h| h.id.as_str()).collect::<Vec<_>>(),
+            [DEBUSSY_1, DEBUSSY_2, SATIE]
+        );
+        // u1 rates DEBUSSY_1 → it's excluded next time.
+        m.submit_rating("u1", DEBUSSY_1, "love", None)
+            .await
+            .unwrap();
+        let deck = m.list_rating_deck("u1", 50, 0).await.unwrap();
+        assert_eq!(deck.len(), 2);
+        assert!(!deck.iter().any(|h| h.id == DEBUSSY_1));
+        // u1 rates the rest → the deck empties (natural last-card state).
+        m.submit_rating("u1", DEBUSSY_2, "like", None)
+            .await
+            .unwrap();
+        m.submit_rating("u1", SATIE, "dislike", None).await.unwrap();
+        assert!(m.list_rating_deck("u1", 50, 0).await.unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn rating_deck_only_sources_accepted_scores() {
+        let ratings = Arc::new(FakeScoreRatingRepo::default());
+        let catalog = Arc::new(FakeCatalogSearchRepo::with(vec![
+            FakeCatalogRow::new(DEBUSSY_1, "A", "X", Some("beginner")),
+            FakeCatalogRow::new(PENDING_ID, "P", "Q", Some("beginner"))
+                .with_moderation_status("pending"),
+        ]));
+        catalog.set_rating_view(ratings.clone());
+        let m = ScoreModule::new(
+            Arc::new(FakeUserScoreRepo::default()),
+            catalog,
+            Arc::new(FakeUserLibraryRepo::default()),
+            ratings,
+            Arc::new(FakeStore::default()),
+            5,
+            7,
+            8 * 1024 * 1024,
+        );
+        let deck = m.list_rating_deck("u1", 50, 0).await.unwrap();
+        assert_eq!(
+            deck.iter().map(|h| h.id.as_str()).collect::<Vec<_>>(),
+            [DEBUSSY_1] // the pending score is never offered
+        );
     }
 
     #[tokio::test]

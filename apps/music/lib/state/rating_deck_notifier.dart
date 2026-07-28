@@ -105,10 +105,9 @@ class RatingDeck extends _$RatingDeck {
     return const RatingDeckState();
   }
 
-  /// The piano-only catalog filter (the corpus is piano-only, matching the hub).
-  CatalogFilters get _filters => const CatalogFilters(isPiano: true);
-
-  /// Load the first page of accepted cards, replacing any existing deck.
+  /// Load the first page of un-rated accepted cards, replacing any existing deck.
+  /// Sources through the backend deck read (least-rated first, excluding what the
+  /// caller already rated — change: improve-rating-deck-sourcing).
   Future<void> _loadFirstPage() async {
     state = state.copyWith(
       loading: true,
@@ -121,7 +120,7 @@ class RatingDeck extends _$RatingDeck {
     try {
       final page = await ref
           .read(catalogServiceProvider)
-          .search(filters: _filters, limit: _pageSize, offset: 0);
+          .ratingDeck(limit: _pageSize, offset: 0);
       final fresh = _newCards(page.hits, const <String>{});
       state = state.copyWith(
         loading: false,
@@ -142,11 +141,7 @@ class RatingDeck extends _$RatingDeck {
     try {
       final page = await ref
           .read(catalogServiceProvider)
-          .search(
-            filters: _filters,
-            limit: _pageSize,
-            offset: state.nextOffset,
-          );
+          .ratingDeck(limit: _pageSize, offset: state.nextOffset);
       state = state.copyWith(
         loadingMore: false,
         cards: [...state.cards, ..._newCards(page.hits, state.seenIds)],

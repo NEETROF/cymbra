@@ -182,6 +182,19 @@ message SubmitScoreRatingResponse {
   int32 love_count = 5;
 }
 
+// Source the swipe-rating deck (change: improve-rating-deck-sourcing): the caller's
+// UN-RATED `accepted` scores, least-rated first (fewest existing ratings), so a
+// score they already rated is never offered again and the deck empties once
+// everything is rated. Identity is the authenticated caller.
+message ListRatingDeckRequest {
+  int32 limit = 1;  // page size; clamped to a server maximum
+  int32 offset = 2; // page offset
+}
+message ListRatingDeckResponse {
+  repeated CatalogHit hits = 1;
+  int32 next_offset = 2; // offset to request the next page (offset + hits.len)
+}
+
 service ScoreService {
   rpc UploadScore(UploadScoreRequest) returns (ScoreRecord);
   rpc ListMyScores(ListMyScoresRequest) returns (ListMyScoresResponse);
@@ -203,4 +216,8 @@ service ScoreService {
   // Score rating (change: add-app-score-rating). Any signed-in user rates an
   // `accepted` catalog score; one updatable rating per user per score.
   rpc SubmitScoreRating(SubmitScoreRatingRequest) returns (SubmitScoreRatingResponse);
+
+  // Rating deck source (change: improve-rating-deck-sourcing): the caller's
+  // un-rated accepted scores, least-rated first.
+  rpc ListRatingDeck(ListRatingDeckRequest) returns (ListRatingDeckResponse);
 }

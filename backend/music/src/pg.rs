@@ -422,6 +422,38 @@ impl CatalogSearchRepo for PgCatalogSearchRepo {
         .map_err(search_internal)?;
         Ok(result.rows_affected() > 0)
     }
+
+    async fn rating_deck(
+        &self,
+        user_id: &str,
+        limit: i64,
+        offset: i64,
+    ) -> PlatformResult<Vec<CatalogHit>> {
+        let Ok(user) = uuid::Uuid::parse_str(user_id) else {
+            return Ok(Vec::new()); // malformed identity → nothing to rate
+        };
+        // The caller's un-rated accepted scores, least-rated first. A LEFT JOIN to
+        // the caller's own ratings + `r.user_id IS NULL` excludes what they already
+        // rated; the correlated COUNT orders by how many ratings each score has
+        // (fewest first — those most need signal), with an `id` tiebreak for stable
+        // paging (change: improve-rating-deck-sourcing).
+        let rows = sqlx::query(&format!(
+            "SELECT {HIT_COLS} FROM music.catalog_scores cs \
+             LEFT JOIN music.score_ratings r \
+               ON r.catalog_score_id = cs.id AND r.user_id = $1 \
+             WHERE cs.moderation_status = 'accepted' AND r.user_id IS NULL \
+             ORDER BY (SELECT COUNT(*) FROM music.score_ratings x \
+                       WHERE x.catalog_score_id = cs.id) ASC, cs.id ASC \
+             LIMIT $2 OFFSET $3"
+        ))
+        .bind(user)
+        .bind(limit)
+        .bind(offset)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(search_internal)?;
+        Ok(rows.iter().map(row_to_hit).collect())
+    }
 }
 
 // ---------------------------------------------------------------------------

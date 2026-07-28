@@ -172,6 +172,28 @@ impl FakeScoreRatingRepo {
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
+
+    /// The catalog-score ids `user_id` has already rated — the deck-sourcing
+    /// exclusion set (mirrors the Pg `LEFT JOIN … r.user_id IS NULL`).
+    pub fn rated_ids(&self, user_id: &str) -> std::collections::HashSet<String> {
+        self.rows
+            .lock()
+            .expect("score_rating fake lock")
+            .iter()
+            .filter(|r| r.user_id == user_id)
+            .map(|r| r.catalog_score_id.clone())
+            .collect()
+    }
+
+    /// How many ratings a score has (the deck orders least-rated first).
+    pub fn rating_count(&self, catalog_score_id: &str) -> i64 {
+        self.rows
+            .lock()
+            .expect("score_rating fake lock")
+            .iter()
+            .filter(|r| r.catalog_score_id == catalog_score_id)
+            .count() as i64
+    }
 }
 
 #[async_trait]
