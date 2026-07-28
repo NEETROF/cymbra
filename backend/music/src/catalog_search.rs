@@ -267,6 +267,12 @@ impl FakeCatalogRow {
         self
     }
 
+    /// Mark the row as a piano score (the rating deck sources piano scores only).
+    pub fn piano(mut self) -> Self {
+        self.is_piano = Some(true);
+        self
+    }
+
     /// Set the facet fields used by the facet-filter tests (piano, fastest note
     /// value, tempo, ambitus).
     pub fn with_facets(
@@ -456,7 +462,11 @@ impl CatalogSearchRepo for FakeCatalogSearchRepo {
         let count = |id: &str| ratings.as_ref().map(|r| r.rating_count(id)).unwrap_or(0);
         let mut candidates: Vec<&FakeCatalogRow> = rows
             .iter()
-            .filter(|r| r.moderation_status == "accepted" && !rated.contains(&r.id))
+            .filter(|r| {
+                r.moderation_status == "accepted"
+                    && r.is_piano == Some(true)
+                    && !rated.contains(&r.id)
+            })
             .collect();
         candidates.sort_by(|a, b| count(&a.id).cmp(&count(&b.id)).then(a.id.cmp(&b.id)));
         Ok(candidates

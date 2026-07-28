@@ -401,8 +401,9 @@ mod tests {
                 .unwrap();
         }
         let catalog = Arc::new(FakeCatalogSearchRepo::with(vec![
-            FakeCatalogRow::new(DEBUSSY, "Clair de Lune", "Claude Debussy", Some("advanced")),
-            FakeCatalogRow::new(SATIE, "Gymnopédie", "Erik Satie", Some("beginner")),
+            FakeCatalogRow::new(DEBUSSY, "Clair de Lune", "Claude Debussy", Some("advanced"))
+                .piano(),
+            FakeCatalogRow::new(SATIE, "Gymnopédie", "Erik Satie", Some("beginner")).piano(),
             FakeCatalogRow::new(PENDING, "Pending Piece", "Anon", Some("beginner"))
                 .with_moderation_status("pending"),
         ]));

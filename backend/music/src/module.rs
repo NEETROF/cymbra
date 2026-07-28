@@ -1425,9 +1425,9 @@ mod tests {
     async fn rating_deck_excludes_rated_and_orders_least_rated_first() {
         let ratings = Arc::new(FakeScoreRatingRepo::default());
         let catalog = Arc::new(FakeCatalogSearchRepo::with(vec![
-            FakeCatalogRow::new(DEBUSSY_1, "A", "X", Some("beginner")),
-            FakeCatalogRow::new(SATIE, "B", "Y", Some("beginner")),
-            FakeCatalogRow::new(DEBUSSY_2, "C", "Z", Some("beginner")),
+            FakeCatalogRow::new(DEBUSSY_1, "A", "X", Some("beginner")).piano(),
+            FakeCatalogRow::new(SATIE, "B", "Y", Some("beginner")).piano(),
+            FakeCatalogRow::new(DEBUSSY_2, "C", "Z", Some("beginner")).piano(),
         ]));
         // Share the ratings view so the deck query sees what the module writes.
         catalog.set_rating_view(ratings.clone());
@@ -1476,8 +1476,9 @@ mod tests {
     async fn rating_deck_only_sources_accepted_scores() {
         let ratings = Arc::new(FakeScoreRatingRepo::default());
         let catalog = Arc::new(FakeCatalogSearchRepo::with(vec![
-            FakeCatalogRow::new(DEBUSSY_1, "A", "X", Some("beginner")),
+            FakeCatalogRow::new(DEBUSSY_1, "A", "X", Some("beginner")).piano(),
             FakeCatalogRow::new(PENDING_ID, "P", "Q", Some("beginner"))
+                .piano()
                 .with_moderation_status("pending"),
         ]));
         catalog.set_rating_view(ratings.clone());

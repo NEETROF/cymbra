@@ -112,4 +112,43 @@ void main() {
     }
     expect(maxFraction, greaterThan(0));
   });
+
+  testWidgets('a failed preview unlocks rating (reports full progress)', (
+    tester,
+  ) async {
+    var progress = 0.0;
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          catalogServiceProvider.overrideWithValue(
+            FakeDeckCatalogService(deckCorpus(1)),
+          ),
+          // Parsing throws → the preview can't load.
+          notationEngineProvider.overrideWithValue(
+            FakeNotationEngine(parseError: Exception('boom')),
+          ),
+          audioServiceProvider.overrideWithValue(RecordingAudioService()),
+        ],
+        child: localizedApp(
+          Center(
+            child: SizedBox(
+              width: 320,
+              height: 200,
+              child: InCardPreview(
+                catalogId: 'c0',
+                onProgress: (f) => progress = f,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    for (var i = 0; i < 4; i++) {
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    // The error is shown (EN test locale), and the gate is released so the user
+    // isn't trapped behind an un-listenable preview.
+    expect(find.text("Couldn't load the preview."), findsOneWidget);
+    expect(progress, 1.0);
+  });
 }

@@ -441,7 +441,8 @@ impl CatalogSearchRepo for PgCatalogSearchRepo {
             "SELECT {HIT_COLS} FROM music.catalog_scores cs \
              LEFT JOIN music.score_ratings r \
                ON r.catalog_score_id = cs.id AND r.user_id = $1 \
-             WHERE cs.moderation_status = 'accepted' AND r.user_id IS NULL \
+             WHERE cs.moderation_status = 'accepted' AND cs.is_piano \
+               AND r.user_id IS NULL \
              ORDER BY (SELECT COUNT(*) FROM music.score_ratings x \
                        WHERE x.catalog_score_id = cs.id) ASC, cs.id ASC \
              LIMIT $2 OFFSET $3"

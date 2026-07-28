@@ -98,7 +98,15 @@ class _InCardPreviewState extends ConsumerState<InCardPreview>
   }
 
   void _onTick(Duration elapsed) {
-    final score = ref.read(cardPreviewScoreProvider(widget.catalogId)).value;
+    final async = ref.read(cardPreviewScoreProvider(widget.catalogId));
+    if (async.hasError) {
+      // The preview couldn't load (bytes/parse failure): don't trap the user
+      // behind the listen-to-rate gate — report it as fully "listened" so the
+      // rating controls unlock (they can rate or skip). The error stays shown.
+      widget.onProgress?.call(1.0);
+      return;
+    }
+    final score = async.valueOrNull;
     if (score == null || score.isEmpty) {
       _lastTick = elapsed;
       return;
