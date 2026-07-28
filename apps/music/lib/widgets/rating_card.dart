@@ -15,6 +15,7 @@
 import 'package:flutter/material.dart';
 
 import '../l10n/gen/app_localizations.dart';
+import '../state/rating_deck_notifier.dart' show RatingDeck;
 import '../state/score_catalog.dart';
 import '../theme/cymbra_theme.dart';
 import 'difficulty_badge.dart';
@@ -24,11 +25,13 @@ import 'score_card.dart';
 /// The rating deck's card visual (change: add-app-score-rating). Reuses the
 /// shared [ScoreCard] for the title / composer / attribution, but the cover region
 /// **auto-plays** the read-only game-score preview (the notation scrolls and
-/// sounds as soon as the card is shown — no Play button). Tapping the card opens
-/// the 1–5 star rating. When [interactive] is false (the peeked next card behind
-/// the top one) the preview and affordances are omitted and it ignores pointers so
+/// sounds as soon as the card is shown — no Play button). A thin progress bar at
+/// the seam between the notation and the title fills as the required listening
+/// time elapses, then disappears once rating unlocks. Tapping the card opens the
+/// 1–5 star rating. When [interactive] is false (the peeked next card behind the
+/// top one) the preview and affordances are omitted and it ignores pointers so
 /// the swipe/tap always reaches the top card.
-class RatingCard extends StatelessWidget {
+class RatingCard extends StatefulWidget {
   const RatingCard({
     super.key,
     required this.entry,
@@ -49,8 +52,29 @@ class RatingCard extends StatelessWidget {
   final bool interactive;
 
   @override
+  State<RatingCard> createState() => _RatingCardState();
+}
+
+class _RatingCardState extends State<RatingCard> {
+  /// The preview's playback fraction (0..1). Held in a notifier so only the thin
+  /// unlock bar repaints each frame — not the whole card.
+  final ValueNotifier<double> _progress = ValueNotifier<double>(0);
+
+  @override
+  void dispose() {
+    _progress.dispose();
+    super.dispose();
+  }
+
+  void _onProgress(double fraction) {
+    widget.onPreviewProgress?.call(fraction);
+    _progress.value = fraction;
+  }
+
+  @override
   Widget build(BuildContext context) {
-    if (!interactive) {
+    final entry = widget.entry;
+    if (!widget.interactive) {
       // Decorative peek card: static cover, no preview, and ignores pointers.
       return IgnorePointer(
         child: ScoreCard(entry: entry, onTap: () {}),
@@ -65,7 +89,7 @@ class RatingCard extends StatelessWidget {
         final coverHeight = constraints.maxWidth * 11 / 16;
         return Stack(
           children: [
-            ScoreCard(entry: entry, onTap: onTapStars ?? () {}),
+            ScoreCard(entry: entry, onTap: widget.onTapStars ?? () {}),
             if (canPreview)
               Positioned(
                 top: 0,
@@ -78,8 +102,27 @@ class RatingCard extends StatelessWidget {
                   ),
                   child: InCardPreview(
                     catalogId: entry.catalogId!,
-                    onProgress: onPreviewProgress,
+                    onProgress: _onProgress,
                   ),
+                ),
+              ),
+            // Thin "listen-to-unlock" progress bar at the seam between the
+            // scrolling notation and the title; gone once rating unlocks.
+            if (canPreview)
+              Positioned(
+                left: 0,
+                right: 0,
+                top: coverHeight - _UnlockBar.height,
+                height: _UnlockBar.height,
+                child: ValueListenableBuilder<double>(
+                  valueListenable: _progress,
+                  builder: (context, played, _) {
+                    const threshold = RatingDeck.previewUnlockFraction;
+                    if (played >= threshold) return const SizedBox.shrink();
+                    return _UnlockBar(
+                      value: (played / threshold).clamp(0.0, 1.0),
+                    );
+                  },
                 ),
               ),
             // Keep the difficulty badge visible over the auto-playing preview.
@@ -91,6 +134,27 @@ class RatingCard extends StatelessWidget {
           ],
         );
       },
+    );
+  }
+}
+
+/// A very thin progress bar showing how much of the required listening time has
+/// elapsed before the card's rating unlocks.
+class _UnlockBar extends StatelessWidget {
+  const _UnlockBar({required this.value});
+
+  static const double height = 3;
+
+  /// 0..1 toward the unlock threshold.
+  final double value;
+
+  @override
+  Widget build(BuildContext context) {
+    return LinearProgressIndicator(
+      value: value,
+      minHeight: height,
+      backgroundColor: CymbraColors.onSurfaceVariant.withValues(alpha: 0.25),
+      valueColor: const AlwaysStoppedAnimation(CymbraColors.secondary),
     );
   }
 }

@@ -167,6 +167,15 @@ void main() {
     expect(find.text('Piece c0'), findsWidgets);
   });
 
+  testWidgets('the top card shows a listen-to-unlock progress bar', (
+    tester,
+  ) async {
+    await _pumpDeck(tester);
+    // The thin bar (a LinearProgressIndicator at the notation/title seam) is
+    // shown while the required listening time is still elapsing.
+    expect(find.byType(LinearProgressIndicator), findsOneWidget);
+  });
+
   testWidgets('the card is bounded and visible on a wide desktop viewport', (
     tester,
   ) async {
