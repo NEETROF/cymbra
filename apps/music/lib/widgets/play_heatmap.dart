@@ -82,7 +82,15 @@ class PlayHeatmap extends StatelessWidget {
     final end = heatmapDayKey(endDate ?? DateTime.now());
     final columns = heatmapColumns(end, weeks);
     final byDay = activity.byDay();
-    final blank = scheme.surfaceContainerHighest.withValues(alpha: 0.4);
+    // Empty-day fill: a fully-opaque muted tone (surfaceContainerHighest nudged
+    // toward the foreground) so the calendar grid stays legible on any theme —
+    // even before any activity — instead of dissolving into a dark background.
+    final blank = Color.alphaBlend(
+      scheme.onSurface.withValues(alpha: 0.10),
+      scheme.surfaceContainerHighest,
+    );
+    // Hairline that outlines every cell, so the grid reads as a grid.
+    final cellBorder = scheme.onSurface.withValues(alpha: 0.06);
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
@@ -103,6 +111,7 @@ class PlayHeatmap extends StatelessWidget {
                         end,
                         scheme,
                         blank,
+                        cellBorder,
                       ),
                     ),
                 ],
@@ -119,11 +128,12 @@ class PlayHeatmap extends StatelessWidget {
     DateTime end,
     ColorScheme scheme,
     Color blank,
+    Color border,
   ) {
     final isFuture = day.isAfter(end);
     // Empty (or future) days render blank — no tooltip.
     if (activity == null || isFuture) {
-      return _box(blank);
+      return _box(blank, border);
     }
     return Tooltip(
       // Compact, language-neutral: "84% · ×3" (avg sync % · songs played).
@@ -135,16 +145,18 @@ class PlayHeatmap extends StatelessWidget {
           low: scheme.tertiary,
           high: scheme.primary,
         ),
+        border,
       ),
     );
   }
 
-  Widget _box(Color color) => Container(
+  Widget _box(Color color, Color border) => Container(
     width: cellSize,
     height: cellSize,
     decoration: BoxDecoration(
       color: color,
       borderRadius: BorderRadius.circular(2),
+      border: Border.all(color: border, width: 0.5),
     ),
   );
 }

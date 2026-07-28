@@ -70,10 +70,14 @@ void main() {
     expect(tester.widget<Tooltip>(find.byType(Tooltip)).message, '84% · ×3');
   });
 
-  testWidgets('an empty activity renders no tooltips (all cells blank)', (
+  testWidgets('an empty activity still renders the full (blank) grid', (
     tester,
   ) async {
     await tester.pumpWidget(_host(PlayActivity.empty, DateTime(2024, 6, 15)));
+    // No played days → no tooltips...
     expect(find.byType(Tooltip), findsNothing);
+    // ...but the calendar grid is still drawn: weeks × 7 visible cells, so the
+    // heatmap reads as a grid rather than an empty gap (change: visible grid).
+    expect(find.byType(Container), findsNWidgets(4 * 7));
   });
 }
