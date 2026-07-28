@@ -15,9 +15,13 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:music/services/catalog_service.dart';
+import 'package:music/services/preferences_service.dart';
 import 'package:music/services/rating_service.dart';
+import 'package:music/state/rating_activity_notifier.dart';
 import 'package:music/state/rating_deck_notifier.dart';
+import 'package:music/state/session_notifier.dart';
 
+import '../support/prefs_fakes.dart';
 import '../support/rating_fakes.dart';
 
 List<CatalogHit> _corpus([int n = 3]) => deckCorpus(n);
@@ -215,5 +219,33 @@ void main() {
     c.read(ratingDeckProvider.notifier).skip();
     expect(_topId(c), 'c1'); // advanced without previewing
     expect(rating.submissions, isEmpty);
+  });
+
+  test('rating a card records activity so the library invite hides', () async {
+    final prefs = FakePreferencesService();
+    final c = ProviderContainer(
+      overrides: [
+        catalogServiceProvider.overrideWithValue(
+          FakeDeckCatalogService(_corpus()),
+        ),
+        ratingServiceProvider.overrideWithValue(FakeRatingService()),
+        preferencesServiceProvider.overrideWithValue(prefs),
+        canUseOnlineServicesProvider.overrideWithValue(true),
+        nowFnProvider.overrideWithValue(() => DateTime(2026, 7, 28)),
+      ],
+    );
+    final sub = c.listen(ratingDeckProvider, (_, _) {});
+    addTearDown(sub.close);
+    addTearDown(c.dispose);
+    await _settled(c);
+    // Never rated → the invite is due.
+    await c.read(ratingActivityProvider.future);
+    expect(c.read(ratingInviteVisibleProvider), isTrue);
+    // Rate the top card…
+    _unlockTop(c);
+    await c.read(ratingDeckProvider.notifier).rate(RatingVerdict.like);
+    // …which records activity, so the library invite is suppressed at once
+    // (and stays hidden as the user moves on to the next card).
+    expect(c.read(ratingInviteVisibleProvider), isFalse);
   });
 }

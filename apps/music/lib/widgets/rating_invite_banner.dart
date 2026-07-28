@@ -18,6 +18,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../l10n/gen/app_localizations.dart';
+import '../layout/device_class.dart';
 import '../screens/rating_deck_screen.dart';
 import '../state/rating_activity_notifier.dart';
 import 'notice_callout.dart';
@@ -36,6 +37,8 @@ class RatingInviteBanner extends ConsumerWidget {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
       child: NoticeCallout(
+        // A phone stays compact even in landscape (wide but small screen).
+        dense: context.isPhoneLayout,
         icon: Icons.reviews_outlined,
         title: l10n.ratingInviteTitle,
         message: l10n.ratingInviteBody,

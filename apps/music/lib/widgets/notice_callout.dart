@@ -30,6 +30,7 @@ class NoticeCallout extends StatelessWidget {
     required this.onAction,
     this.onClose,
     this.icon = Icons.info_outline,
+    this.dense,
   });
 
   /// Concise headline (kept short; put details in [message]).
@@ -50,116 +51,133 @@ class NoticeCallout extends StatelessWidget {
   /// Leading icon shown in the accent circle.
   final IconData icon;
 
+  /// Force the compact (smaller) sizing. `null` = auto by width (compact on a
+  /// narrow callout). Set `true` on a phone, where the callout can be wide
+  /// (landscape) yet should still read small.
+  final bool? dense;
+
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: CymbraColors.surfaceContainerHigh,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: CymbraColors.primary.withValues(alpha: 0.35)),
-      ),
-      padding: const EdgeInsets.fromLTRB(16, 14, 8, 16),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 34,
-            height: 34,
-            alignment: Alignment.center,
-            decoration: const BoxDecoration(
-              color: CymbraColors.primaryContainer,
-              shape: BoxShape.circle,
+    // Compact on a narrow (phone) width so the callout doesn't dominate the top
+    // of the screen; roomier on tablet/desktop.
+    return LayoutBuilder(
+      builder: (context, c) {
+        final dense = this.dense ?? c.maxWidth < 520;
+        final circle = dense ? 26.0 : 34.0;
+        return Container(
+          decoration: BoxDecoration(
+            color: CymbraColors.surfaceContainerHigh,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: CymbraColors.primary.withValues(alpha: 0.35),
             ),
-            child: Icon(icon, color: Colors.white, size: 19),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              // Size to content: the callout is often placed in an unbounded-
-              // height parent (e.g. a Column above an Expanded list).
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+          padding: dense
+              ? const EdgeInsets.fromLTRB(12, 10, 4, 12)
+              : const EdgeInsets.fromLTRB(16, 14, 8, 16),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: circle,
+                height: circle,
+                alignment: Alignment.center,
+                decoration: const BoxDecoration(
+                  color: CymbraColors.primaryContainer,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: Colors.white, size: dense ? 15 : 19),
+              ),
+              SizedBox(width: dense ? 10 : 12),
+              Expanded(
+                child: Column(
+                  // Size to content: the callout is often placed in an unbounded-
+                  // height parent (e.g. a Column above an Expanded list).
+                  mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.only(top: 6),
-                        child: Text(
-                          title,
-                          style: const TextStyle(
-                            color: CymbraColors.onSurface,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w800,
-                            height: 1.2,
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Padding(
+                            padding: EdgeInsets.only(top: dense ? 3 : 6),
+                            child: Text(
+                              title,
+                              style: TextStyle(
+                                color: CymbraColors.onSurface,
+                                fontSize: dense ? 13.5 : 16,
+                                fontWeight: FontWeight.w800,
+                                height: 1.2,
+                              ),
+                            ),
                           ),
+                        ),
+                        if (onClose != null)
+                          IconButton(
+                            icon: Icon(Icons.close, size: dense ? 16 : 18),
+                            color: CymbraColors.onSurfaceVariant,
+                            visualDensity: VisualDensity.compact,
+                            tooltip: MaterialLocalizations.of(
+                              context,
+                            ).closeButtonTooltip,
+                            onPressed: onClose,
+                          )
+                        else
+                          const SizedBox(width: 8),
+                      ],
+                    ),
+                    SizedBox(height: dense ? 1 : 2),
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: Text(
+                        message,
+                        style: TextStyle(
+                          color: CymbraColors.onSurfaceVariant,
+                          fontSize: dense ? 12 : 13.5,
+                          height: 1.3,
                         ),
                       ),
                     ),
-                    if (onClose != null)
-                      IconButton(
-                        icon: const Icon(Icons.close, size: 18),
-                        color: CymbraColors.onSurfaceVariant,
-                        visualDensity: VisualDensity.compact,
-                        tooltip: MaterialLocalizations.of(
-                          context,
-                        ).closeButtonTooltip,
-                        onPressed: onClose,
-                      )
-                    else
-                      const SizedBox(width: 8),
+                    SizedBox(height: dense ? 8 : 12),
+                    InkWell(
+                      onTap: onAction,
+                      borderRadius: BorderRadius.circular(6),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 2,
+                          vertical: 4,
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              actionLabel,
+                              style: TextStyle(
+                                color: CymbraColors.primary,
+                                fontSize: dense ? 12.5 : 14,
+                                fontWeight: FontWeight.w800,
+                                decoration: TextDecoration.underline,
+                                decorationColor: CymbraColors.primary,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Icon(
+                              Icons.arrow_forward,
+                              color: CymbraColors.primary,
+                              size: dense ? 15 : 18,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   ],
                 ),
-                const SizedBox(height: 2),
-                Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: Text(
-                    message,
-                    style: const TextStyle(
-                      color: CymbraColors.onSurfaceVariant,
-                      fontSize: 13.5,
-                      height: 1.3,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                InkWell(
-                  onTap: onAction,
-                  borderRadius: BorderRadius.circular(6),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 2,
-                      vertical: 4,
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          actionLabel,
-                          style: const TextStyle(
-                            color: CymbraColors.primary,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w800,
-                            decoration: TextDecoration.underline,
-                            decorationColor: CymbraColors.primary,
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        const Icon(
-                          Icons.arrow_forward,
-                          color: CymbraColors.primary,
-                          size: 18,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
