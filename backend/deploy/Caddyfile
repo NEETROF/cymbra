@@ -1,22 +1,29 @@
 # Cymbra backend — Caddy reverse proxy (auto-HTTPS via Let's Encrypt).
 #
-# One public host on :443 serves BOTH surfaces:
-#   * gRPC (HTTP/2, content-type application/grpc)  -> tonic  server:50051 (h2c)
-#     — the apps' AuthService/UserService calls.
-#   * everything else (JWKS, health)                -> Axum   server:8081
-#     — GET /.well-known/jwks.json, /healthz.
+# One public host on :443 serves BOTH surfaces, split by PATH:
+#   * Axum HTTP  -> server:8081 — JWKS, health/readiness, and the browser web-auth
+#     cookie endpoints:  /.well-known/jwks.json, /healthz, /readyz, /web/auth/*.
+#   * everything else -> tonic  server:50051 (h2c) — gRPC (the apps' native HTTP/2
+#     AuthService/UserService/ScoreService calls) AND gRPC-web (the bo.cymbra.app
+#     console: HTTP/1.1 or /2, plus its CORS `OPTIONS` preflight). tonic runs both
+#     framings on one port (accept_http1 + GrpcWebLayer + its own CorsLayer, which
+#     answers the preflight), so routing by path keeps the preflight with the call.
+#
+# We route by path, NOT by `protocol grpc`: that matcher only catches native gRPC
+# (HTTP/2 application/grpc), so a browser gRPC-web preflight (`OPTIONS`, no
+# application/grpc content-type) would fall through to Axum and the call would be
+# CORS-blocked. The gRPC service paths are `/<package>.<Service>/<Method>`, disjoint
+# from the Axum paths below, so "everything not Axum -> tonic" is unambiguous.
 #
 # Caddy obtains + renews the TLS cert automatically for $API_DOMAIN. The apps
 # connect with ChannelCredentials.secure() to $API_DOMAIN:443.
 
 {$API_DOMAIN} {
-	# gRPC calls are HTTP/2 with an application/grpc content-type; route them to
-	# tonic over cleartext HTTP/2 (h2c) on the internal network.
-	@grpc {
-		protocol grpc
-	}
-	reverse_proxy @grpc h2c://server:50051
+	# Axum HTTP surface (JWKS + health/readiness + web-auth cookie endpoints).
+	@http path /.well-known/* /healthz /readyz /web/auth/*
+	reverse_proxy @http server:8081
 
-	# Everything else (JWKS for offline token validation, health) -> Axum.
-	reverse_proxy server:8081
+	# gRPC + gRPC-web (incl. the CORS preflight) over cleartext HTTP/2 (h2c) on the
+	# internal network.
+	reverse_proxy h2c://server:50051
 }
