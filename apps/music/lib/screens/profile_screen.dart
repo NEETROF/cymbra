@@ -42,9 +42,13 @@ class ProfileScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(title: Text(l10n.profileTitle)),
-      body: targetId == null
-          ? Center(child: Text(l10n.profileUnavailable))
-          : _ProfileBody(targetId: targetId, isSelf: isSelf),
+      // Respect the display cutouts (notch/camera, esp. the side inset in
+      // landscape and the home indicator), like the other screens.
+      body: SafeArea(
+        child: targetId == null
+            ? Center(child: Text(l10n.profileUnavailable))
+            : _ProfileBody(targetId: targetId, isSelf: isSelf),
+      ),
     );
   }
 }
