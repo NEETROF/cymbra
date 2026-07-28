@@ -221,8 +221,7 @@ void main() {
     expect(rating.submissions, isEmpty);
   });
 
-  test('rating a card records activity so the library invite hides', () async {
-    final prefs = FakePreferencesService();
+  ProviderContainer engagementContainer(FakePreferencesService prefs) {
     final c = ProviderContainer(
       overrides: [
         catalogServiceProvider.overrideWithValue(
@@ -237,15 +236,29 @@ void main() {
     final sub = c.listen(ratingDeckProvider, (_, _) {});
     addTearDown(sub.close);
     addTearDown(c.dispose);
+    return c;
+  }
+
+  test('rating a card records activity so the library invite hides', () async {
+    final c = engagementContainer(FakePreferencesService());
     await _settled(c);
-    // Never rated → the invite is due.
     await c.read(ratingActivityProvider.future);
-    expect(c.read(ratingInviteVisibleProvider), isTrue);
-    // Rate the top card…
+    expect(c.read(ratingInviteVisibleProvider), isTrue); // never rated → due
     _unlockTop(c);
     await c.read(ratingDeckProvider.notifier).rate(RatingVerdict.like);
-    // …which records activity, so the library invite is suppressed at once
-    // (and stays hidden as the user moves on to the next card).
     expect(c.read(ratingInviteVisibleProvider), isFalse);
   });
+
+  test(
+    'going through cards (even skipping) hides the library invite',
+    () async {
+      final c = engagementContainer(FakePreferencesService());
+      await _settled(c);
+      await c.read(ratingActivityProvider.future);
+      expect(c.read(ratingInviteVisibleProvider), isTrue);
+      // Just advancing the deck — a skip, no rating — counts as engagement.
+      c.read(ratingDeckProvider.notifier).skip();
+      expect(c.read(ratingInviteVisibleProvider), isFalse);
+    },
+  );
 }

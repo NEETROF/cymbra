@@ -217,13 +217,11 @@ class RatingDeck extends _$RatingDeck {
     // card's preview has played past the unlock threshold (Skip stays allowed).
     if (!state.unlockedIds.contains(id)) return;
     final fromCursor = state.cursor;
-    _advance(card); // optimistic
+    _advance(card); // optimistic (also records deck engagement)
     try {
       await ref
           .read(ratingServiceProvider)
           .submit(catalogId: id, verdict: verdict, stars: stars);
-      // Record the activity so the library's "rate some scores" nudge resets.
-      unawaited(ref.read(ratingActivityProvider.notifier).markRatedNow());
     } catch (e) {
       // Revert the optimistic advance and drop the card from "seen" so it can be
       // re-rated (mirrors the hub's toggleSave revert).
@@ -236,8 +234,15 @@ class RatingDeck extends _$RatingDeck {
     }
   }
 
+  /// Whether this deck session has already recorded engagement (so the library
+  /// nudge is stamped once, on the first advanced card, not on every one).
+  bool _engaged = false;
+
   /// Advance the cursor past [card], mark it seen, and prefetch when the deck runs
-  /// low. Shared by rate/skip so both consume a card identically.
+  /// low. Shared by rate/skip so both consume a card identically. The first
+  /// advance (rated OR skipped) counts as engaging with rating, so the library's
+  /// "rate some scores" nudge is dismissed for the snooze window — going through
+  /// the deck makes it disappear even without a completed rating.
   void _advance(CatalogEntry card) {
     final id = card.catalogId;
     state = state.copyWith(
@@ -245,6 +250,10 @@ class RatingDeck extends _$RatingDeck {
       seenIds: id == null ? state.seenIds : {...state.seenIds, id},
       error: null,
     );
+    if (!_engaged) {
+      _engaged = true;
+      unawaited(ref.read(ratingActivityProvider.notifier).markRatedNow());
+    }
     final remaining = state.cards.length - state.cursor;
     if (remaining <= _prefetchThreshold && state.hasMore) {
       unawaited(loadMore());
