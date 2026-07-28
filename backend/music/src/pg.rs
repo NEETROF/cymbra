@@ -192,37 +192,71 @@ fn row_to_hit(r: &PgRow) -> CatalogHit {
         highest_midi: r.get::<Option<i16>, _>("highest_midi").map(i32::from),
         time_sig: r.get("time_sig"),
         key_fifths: r.get("key_fifths"),
+        // `needs_review` is a computed column present only on the moderation search;
+        // absent elsewhere → default false. `moderation_status` is a real column in
+        // `HIT_COLS`, so it is always present.
+        needs_review: r.try_get("needs_review").unwrap_or(false),
+        moderation_status: r.try_get::<String, _>("moderation_status").ok(),
     }
 }
 
 const HIT_COLS: &str = "id, title, composer, level, license, source, arranger, \
-     min_note_value, tempo_bpm, note_count, lowest_midi, highest_midi, time_sig, key_fifths";
+     min_note_value, tempo_bpm, note_count, lowest_midi, highest_midi, time_sig, key_fifths, \
+     moderation_status";
 
 /// The SQL ORDER BY expression for an allow-listed sort field, or `None` when the
-/// key produces no ordering term — either unknown (already rejected by the module —
-/// defence in depth) or not backed by a column yet. Skipped keys are simply left
-/// out of the ORDER BY. The expressions are constant and server-defined, so a field
-/// name never reaches SQL unvalidated. `status_rank` ranks the queue
-/// (`pending` > `accepted` > `rejected`).
-///
-/// `needs_review` has NO backing column until the app-rating change (#2), so it maps
-/// to `None` (skipped). It must NOT emit a bare constant like `false` — Postgres
-/// rejects a non-integer constant in ORDER BY ("non-integer constant in ORDER BY").
-fn sort_sql(field: &str) -> Option<&'static str> {
+/// key is unknown (already rejected by the module — defence in depth) and so
+/// produces no ordering term; skipped keys are simply left out of the ORDER BY.
+/// The expressions are constant and server-defined, so a field name never reaches
+/// SQL unvalidated. `status_rank` ranks the queue (`pending` > `accepted` >
+/// `rejected`); `needs_review` surfaces community-flagged scores (see
+/// [`needs_review_sql`]).
+fn sort_sql(field: &str) -> Option<String> {
     Some(match field {
-        "measure_count" => "measure_count",
-        "staff_count" => "staff_count",
-        "note_count" => "note_count",
-        "min_note_value" => "min_note_value",
-        "tempo_bpm" => "tempo_bpm",
-        "title" => "title_norm",
-        "composer" => "composer_norm",
+        "measure_count" => "measure_count".to_string(),
+        "staff_count" => "staff_count".to_string(),
+        "note_count" => "note_count".to_string(),
+        "min_note_value" => "min_note_value".to_string(),
+        "tempo_bpm" => "tempo_bpm".to_string(),
+        "title" => "title_norm".to_string(),
+        "composer" => "composer_norm".to_string(),
         "status_rank" => {
             "CASE moderation_status WHEN 'pending' THEN 2 WHEN 'accepted' THEN 1 ELSE 0 END"
+                .to_string()
         }
-        // `needs_review` (no column yet) and any unknown field: no ORDER BY term.
+        "needs_review" => needs_review_sql(),
+        // Any unknown field: no ORDER BY term.
         _ => return None,
     })
+}
+
+/// The ORDER BY expression flagging a score for moderator re-review — the SQL
+/// mirror of [`is_flagged_for_review`](crate::score_rating::is_flagged_for_review)
+/// now that the app-rating change (#2) supplies the data: the score has at least
+/// `min_count` ratings AND their average effective value (explicit stars, else the
+/// verdict's implied value: dislike 1.5 / like 3.5 / love 5) is at or below
+/// `review_threshold`. Two correlated subqueries over `score_ratings` keyed by the
+/// outer `catalog_scores.id`; ordering it DESC surfaces flagged scores first (a
+/// boolean, so no bare non-integer constant that Postgres would reject). Thresholds
+/// come from [`RatingConfig::default`](crate::score_rating::RatingConfig) so this
+/// queue sort and the module's `needs_review` share one definition. Privileged (the
+/// module gates the key to moderator/admin), so the per-row subqueries only run for
+/// an authorised reviewer.
+fn needs_review_sql() -> String {
+    let cfg = crate::score_rating::RatingConfig::default();
+    format!(
+        "((SELECT COUNT(*) FROM music.score_ratings x \
+            WHERE x.catalog_score_id = catalog_scores.id) >= {min_count} \
+          AND COALESCE((SELECT AVG(CASE \
+                WHEN x.stars IS NOT NULL THEN x.stars::float8 \
+                WHEN x.verdict = 'dislike' THEN 1.5 \
+                WHEN x.verdict = 'like' THEN 3.5 \
+                WHEN x.verdict = 'love' THEN 5.0 END) \
+             FROM music.score_ratings x \
+             WHERE x.catalog_score_id = catalog_scores.id), 0) <= {threshold})",
+        min_count = cfg.min_count,
+        threshold = cfg.review_threshold,
+    )
 }
 
 /// Build the ORDER BY body. Empty `sort` → the existing default (trigram similarity
@@ -281,8 +315,28 @@ impl CatalogSearchRepo for PgCatalogSearchRepo {
         // never raw input) followed by the same stable tiebreak (change:
         // add-moderation-back-office).
         let order_clause = order_by_clause(&p.sort);
+        // The re-review predicate (design D4). Computed as a returned column only in a
+        // privileged (back-office) context — a review-queue read, an explicit status
+        // filter, or a moderation-oriented sort — so the app hub's search never pays
+        // for the correlated subqueries (it selects a constant `false`).
+        let flag_predicate = needs_review_sql();
+        let privileged = p.review_queue
+            || p.moderation_status.is_some()
+            || p.sort
+                .iter()
+                .any(|k| crate::catalog_search::is_moderation_sort_field(&k.field));
+        let review_flag_col = if privileged {
+            flag_predicate.clone()
+        } else {
+            "false".to_string()
+        };
+        // Moderation gate. Review-queue mode ($16 = true): `pending` scores PLUS
+        // `accepted` scores flagged for re-review — the moderation work list, ignoring
+        // the single-status $13. Otherwise the single-status gate ($13, accepted-only
+        // default) unchanged, so the app hub is unaffected.
         let rows = sqlx::query(&format!(
-            "SELECT {HIT_COLS}, COUNT(*) OVER() AS total_count FROM music.catalog_scores \
+            "SELECT {HIT_COLS}, {review_flag_col} AS needs_review, \
+                    COUNT(*) OVER() AS total_count FROM music.catalog_scores \
              WHERE ($1 = '' OR title_norm ILIKE '%'||$1||'%' OR composer_norm ILIKE '%'||$1||'%') \
                AND ($2::text IS NULL OR composer_norm ILIKE '%'||$2||'%') \
                AND ($3::text IS NULL OR level = $3) \
@@ -295,25 +349,29 @@ impl CatalogSearchRepo for PgCatalogSearchRepo {
                AND ($10::int2 IS NULL OR staff_count = $10) \
                AND ($11::int4 IS NULL OR tempo_bpm >= $11) \
                AND ($12::int4 IS NULL OR tempo_bpm <= $12) \
-               AND moderation_status = COALESCE($13::text, 'accepted') \
+               AND (($16::bool AND (moderation_status = 'pending' \
+                       OR (moderation_status = 'accepted' AND {flag_predicate}))) \
+                    OR (NOT $16::bool \
+                        AND moderation_status = COALESCE($13::text, 'accepted'))) \
              ORDER BY {order_clause} \
              LIMIT $14 OFFSET $15"
         ))
         .bind(&p.text_norm)
         .bind(&p.author_norm)
         .bind(&p.level)
-        .bind(p.is_piano)
-        .bind(p.max_note_value)
-        .bind(p.has_chords)
-        .bind(p.has_tuplets)
-        .bind(p.has_dotted)
-        .bind(p.max_ambitus_semitones)
-        .bind(p.staff_count)
-        .bind(p.min_bpm)
-        .bind(p.max_bpm)
+        .bind(p.facets.is_piano)
+        .bind(p.facets.max_note_value)
+        .bind(p.facets.has_chords)
+        .bind(p.facets.has_tuplets)
+        .bind(p.facets.has_dotted)
+        .bind(p.facets.max_ambitus_semitones)
+        .bind(p.facets.staff_count)
+        .bind(p.facets.min_bpm)
+        .bind(p.facets.max_bpm)
         .bind(&p.moderation_status)
         .bind(p.limit)
         .bind(p.offset)
+        .bind(p.review_queue)
         .fetch_all(&self.pool)
         .await
         .map_err(search_internal)?;
@@ -578,18 +636,33 @@ mod tests {
         }
     }
 
-    /// The queue's default sort must produce valid SQL: `needs_review` has no column
-    /// yet, so it emits NO term (a bare `false` is rejected by Postgres with
-    /// "non-integer constant in ORDER BY"). The other keys + the stable tiebreak
-    /// are present.
+    /// The queue's default sort WIRES `needs_review` now that #2 supplies rating
+    /// data: it emits a correlated re-review predicate over `score_ratings` as the
+    /// primary key (a boolean — no bare non-integer constant that Postgres would
+    /// reject in ORDER BY), carrying the default thresholds, with the other keys +
+    /// the stable tiebreak following.
     #[test]
-    fn order_by_skips_needs_review_and_avoids_bare_constants() {
+    fn order_by_wires_needs_review_flag_first() {
         let clause = order_by_clause(&[
             key("needs_review"),
             key("status_rank"),
             key("measure_count"),
             key("staff_count"),
         ]);
+        // needs_review is now a real correlated predicate over the ratings table,
+        // not a skipped no-op, and it leads the ORDER BY.
+        assert!(
+            clause.contains("music.score_ratings"),
+            "needs_review must query the ratings table: {clause}"
+        );
+        assert!(
+            clause.trim_start().starts_with("(("),
+            "the re-review predicate must be the primary sort key: {clause}"
+        );
+        // Carries the default N/T thresholds (single source: RatingConfig::default).
+        let cfg = crate::score_rating::RatingConfig::default();
+        assert!(clause.contains(&format!(">= {}", cfg.min_count)));
+        assert!(clause.contains(&format!("<= {}", cfg.review_threshold)));
         // No bare non-integer constant that Postgres would reject in ORDER BY.
         assert!(
             !clause.contains("false"),

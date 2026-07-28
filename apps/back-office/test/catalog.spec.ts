@@ -27,6 +27,18 @@ describe("catalog store", () => {
     }
   });
 
+  it("forwards review-queue mode to the search RPC (pending + flagged accepted)", async () => {
+    const { clients, state } = makeFakeClients();
+    setClientsForTest(clients);
+    const store = useCatalogStore();
+
+    await store.search({ reviewQueue: true, sort: [...QUEUE_SORT] });
+
+    expect(state.searchCalls[0].reviewQueue).toBe(true);
+    // The review-priority sort still leads with the re-review flag.
+    expect(state.searchCalls[0].sort[0].field).toBe("needs_review");
+  });
+
   it("queue ordering sends the default review-priority sort list", async () => {
     const { clients, state } = makeFakeClients();
     setClientsForTest(clients);

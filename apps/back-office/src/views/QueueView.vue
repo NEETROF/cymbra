@@ -8,7 +8,8 @@ import TablePager from "@/components/TablePager.vue";
 import { PAGE_SIZE, useCatalogStore, QUEUE_SORT, type SortKeyInit } from "@/stores/catalog";
 import type { CatalogHit } from "@/gen/score_pb";
 
-// The review queue: pending scores ordered by the default review-priority sort
+// The review queue: the moderation work list — pending scores PLUS accepted scores
+// the community flagged for re-review — ordered by the default review-priority sort
 // (re-review flag → status → substance), sent on every request; a column click
 // overrides it with a single key and re-queries from page 1.
 const store = useCatalogStore();
@@ -31,7 +32,7 @@ const vm = computed(() =>
 );
 
 function run() {
-  store.search({ moderationStatus: "pending", sort: sort.value, offset: offset.value });
+  store.search({ reviewQueue: true, sort: sort.value, offset: offset.value });
 }
 
 // A new sort resets to the first page; only the pager advances the offset.

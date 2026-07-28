@@ -39,6 +39,23 @@ describe("CatalogTable", () => {
     const w = mount(CatalogTable, { global: withI18n, props: { hits: [] as never, status: "accepted", sort: [] } });
     expect(w.text()).toContain("No scores.");
   });
+
+  it("shows each row's own status and flags community re-reviews (mixed queue)", () => {
+    // A mixed review queue: a pending score and an accepted score flagged for
+    // re-review. Each row shows its OWN status, and the flagged one gets a badge.
+    const mixed = [
+      { id: "p", title: "Pending One", source: "pdmx", moderationStatus: "pending", needsReview: false },
+      { id: "f", title: "Flagged One", source: "pdmx", moderationStatus: "accepted", needsReview: true },
+    ];
+    const w = mount(CatalogTable, { global: withI18n, props: { hits: mixed as never, status: "pending", sort: [] } });
+    // Per-row status, not the single filter status.
+    expect(w.findAll(".badge.pending")).toHaveLength(1);
+    expect(w.findAll(".badge.accepted")).toHaveLength(1);
+    // Only the flagged accepted row carries the re-review marker.
+    const reviewBadges = w.findAll(".badge.review");
+    expect(reviewBadges).toHaveLength(1);
+    expect(reviewBadges[0].text()).toBe("Re-review");
+  });
 });
 
 describe("FiltersBar", () => {

@@ -27,6 +27,9 @@ export interface SearchParams {
   level?: string;
   isPiano?: boolean;
   moderationStatus?: ModerationStatus;
+  // Review-queue mode: the moderation work list = pending scores PLUS accepted
+  // scores flagged for re-review by community ratings. Overrides moderationStatus.
+  reviewQueue?: boolean;
   sort?: SortKeyInit[];
   limit?: number;
   offset?: number;
@@ -42,7 +45,9 @@ export interface CatalogResult {
 export const PAGE_SIZE = 50;
 
 // The queue's default "review priority" ordering (design D5): flagged re-reviews
-// first (inert until #2), then pending, then the most substantial scores.
+// first (now wired to #2's community ratings), then pending, then the most
+// substantial scores. Used with reviewQueue mode so flagged accepted scores rank
+// above the pending backlog.
 export const QUEUE_SORT: SortKeyInit[] = [
   { field: "needs_review", descending: true },
   { field: "status_rank", descending: true },
@@ -92,6 +97,7 @@ export const useCatalogStore = defineStore("catalog", () => {
         level: params.level,
         isPiano: params.isPiano,
         moderationStatus: params.moderationStatus,
+        reviewQueue: params.reviewQueue,
         sort: params.sort ?? [],
         limit: params.limit ?? PAGE_SIZE,
         offset: params.offset ?? 0,
