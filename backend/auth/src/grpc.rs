@@ -190,82 +190,12 @@ impl<P: AuthPort + 'static> AuthService for AuthGrpc<P> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use cymbra_platform::Result;
-    use std::sync::Mutex;
+    use cymbra_auth_port::MockAuthPort;
+    use mockall::predicate::eq;
 
-    /// Records which port method the adapter routed to (with args), so the tests can
-    /// assert the caller scoping + admin gate without any real session store.
-    #[derive(Default)]
-    struct Calls {
-        revoke_all: Mutex<Vec<String>>,
-        admin_revoke: Mutex<Vec<(String, String, String)>>,
-    }
-
-    struct FakeAuth {
-        calls: Arc<Calls>,
-    }
-
-    #[async_trait::async_trait]
-    impl AuthPort for FakeAuth {
-        async fn revoke_all_sessions(&self, user_id: &str) -> Result<()> {
-            self.calls.revoke_all.lock().unwrap().push(user_id.into());
-            Ok(())
-        }
-        async fn revoke_account_sessions(
-            &self,
-            admin: &str,
-            target: &str,
-            audience: &str,
-        ) -> Result<()> {
-            self.calls.admin_revoke.lock().unwrap().push((
-                admin.into(),
-                target.into(),
-                audience.into(),
-            ));
-            Ok(())
-        }
-        // The session-management RPCs never touch the methods below.
-        async fn sign_up_local(&self, _: &str, _: &str) -> Result<()> {
-            unreachable!()
-        }
-        async fn verify_email(&self, _: &str) -> Result<()> {
-            unreachable!()
-        }
-        async fn resend_verification(&self, _: &str) -> Result<()> {
-            unreachable!()
-        }
-        async fn sign_in_local(&self, _: &str, _: &str, _: &str) -> Result<TokenPair> {
-            unreachable!()
-        }
-        async fn sign_in_oidc(&self, _: &str, _: &str) -> Result<TokenPair> {
-            unreachable!()
-        }
-        async fn refresh(&self, _: &str) -> Result<TokenPair> {
-            unreachable!()
-        }
-        async fn logout(&self, _: &str) -> Result<()> {
-            unreachable!()
-        }
-        async fn request_password_reset(&self, _: &str) -> Result<()> {
-            unreachable!()
-        }
-        async fn reset_password(&self, _: &str, _: &str) -> Result<()> {
-            unreachable!()
-        }
-        async fn link_identity(&self, _: &str, _: &str) -> Result<()> {
-            unreachable!()
-        }
-        async fn unlink_identity(&self, _: &str, _: &str, _: &str) -> Result<()> {
-            unreachable!()
-        }
-    }
-
-    fn grpc() -> (AuthGrpc<FakeAuth>, Arc<Calls>) {
-        let calls = Arc::new(Calls::default());
-        let port = Arc::new(FakeAuth {
-            calls: calls.clone(),
-        });
-        (AuthGrpc::new(port), calls)
+    /// Wraps a configured mock port in the gRPC adapter under test.
+    fn grpc(port: MockAuthPort) -> AuthGrpc<MockAuthPort> {
+        AuthGrpc::new(Arc::new(port))
     }
 
     /// A request carrying a verified caller identity (as the interceptor would stamp).
@@ -281,7 +211,8 @@ mod tests {
 
     #[tokio::test]
     async fn missing_identity_is_unauthenticated() {
-        let (g, _) = grpc();
+        // No expectations: the port must never be reached when the caller is unverified.
+        let g = grpc(MockAuthPort::new());
         // No AuthIdentity extension → the interceptor rejected/omitted it.
         let err = g
             .revoke_all_sessions(Request::new(proto::RevokeAllSessionsRequest {}))
@@ -292,16 +223,28 @@ mod tests {
 
     #[tokio::test]
     async fn sign_out_everywhere_uses_the_caller_id() {
-        let (g, calls) = grpc();
+        let mut port = MockAuthPort::new();
+        // The adapter must scope the revocation to the *caller's* id.
+        port.expect_revoke_all_sessions()
+            .with(eq("u1"))
+            .times(1)
+            .returning(|_| Ok(()));
+        let g = grpc(port);
         g.revoke_all_sessions(req_as(proto::RevokeAllSessionsRequest {}, "u1", &["user"]))
             .await
             .unwrap();
-        assert_eq!(*calls.revoke_all.lock().unwrap(), vec!["u1".to_string()]);
+        // `.with` + `.times(1)` are verified on drop.
     }
 
     #[tokio::test]
     async fn admin_can_revoke_a_target_account() {
-        let (g, calls) = grpc();
+        let mut port = MockAuthPort::new();
+        // The admin's own token audience ("music") scopes the revocation.
+        port.expect_revoke_account_sessions()
+            .with(eq("admin-1"), eq("target"), eq("music"))
+            .times(1)
+            .returning(|_, _, _| Ok(()));
+        let g = grpc(port);
         g.revoke_account_sessions(req_as(
             proto::RevokeAccountSessionsRequest {
                 user_id: "target".into(),
@@ -311,20 +254,14 @@ mod tests {
         ))
         .await
         .unwrap();
-        // The admin's own token audience ("music") scopes the revocation.
-        assert_eq!(
-            *calls.admin_revoke.lock().unwrap(),
-            vec![(
-                "admin-1".to_string(),
-                "target".to_string(),
-                "music".to_string()
-            )]
-        );
     }
 
     #[tokio::test]
     async fn non_admin_cannot_revoke_a_target_account() {
-        let (g, calls) = grpc();
+        let mut port = MockAuthPort::new();
+        // The admin gate must reject before the port is ever touched.
+        port.expect_revoke_account_sessions().never();
+        let g = grpc(port);
         let err = g
             .revoke_account_sessions(req_as(
                 proto::RevokeAccountSessionsRequest {
@@ -336,6 +273,5 @@ mod tests {
             .await
             .unwrap_err();
         assert_eq!(err.code(), tonic::Code::PermissionDenied);
-        assert!(calls.admin_revoke.lock().unwrap().is_empty());
     }
 }

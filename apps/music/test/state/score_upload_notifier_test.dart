@@ -16,6 +16,8 @@ import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mockito/annotations.dart';
+import 'package:mockito/mockito.dart';
 import 'package:music/services/auth_service.dart';
 import 'package:music/services/file_picker_service.dart';
 import 'package:music/services/notation_engine.dart';
@@ -26,56 +28,71 @@ import 'package:music/state/score_upload_notifier.dart';
 
 import '../support/notation_fakes.dart';
 
-class _FakePicker implements FilePickerService {
-  _FakePicker(this.next);
-  final PickedScoreFile? next;
-  @override
-  Future<PickedScoreFile?> pickScore() async => next;
+@GenerateNiceMocks([
+  MockSpec<FilePickerService>(),
+  MockSpec<ScoreUploadService>(),
+])
+import 'score_upload_notifier_test.mocks.dart';
+
+/// A picker stubbed to return [next] once.
+MockFilePickerService _picker(PickedScoreFile? next) {
+  final p = MockFilePickerService();
+  when(p.pickScore()).thenAnswer((_) async => next);
+  return p;
 }
 
-class _FakeUpload implements ScoreUploadService {
-  Object? uploadError;
-  final List<({PracticeLevel level, RightsBasis basis, bool ack, int len})>
-  uploads = [];
-
-  @override
-  Future<ContributedScore> upload({
-    required Uint8List data,
-    required String filename,
-    required PracticeLevel level,
-    required RightsBasis rightsBasis,
-    required bool rightsAck,
-    String? fallbackTitle,
-    String? fallbackComposer,
-  }) async {
-    uploads.add((
-      level: level,
-      basis: rightsBasis,
-      ack: rightsAck,
-      len: data.length,
-    ));
-    if (uploadError != null) throw uploadError!;
+/// An upload service whose `upload()` echoes the requested level back (matching
+/// the server), unless [error] is set — then it throws it.
+MockScoreUploadService _upload({Object? error}) {
+  final u = MockScoreUploadService();
+  when(
+    u.upload(
+      data: anyNamed('data'),
+      filename: anyNamed('filename'),
+      level: anyNamed('level'),
+      rightsBasis: anyNamed('rightsBasis'),
+      rightsAck: anyNamed('rightsAck'),
+      fallbackTitle: anyNamed('fallbackTitle'),
+      fallbackComposer: anyNamed('fallbackComposer'),
+    ),
+  ).thenAnswer((inv) async {
+    if (error != null) throw error;
     return ContributedScore(
       id: 'new-id',
-      level: level,
+      level: inv.namedArguments[#level] as PracticeLevel,
       createdAt: DateTime.utc(2026),
       measureCount: 4,
       timeSig: '4/4',
       keyFifths: 0,
       title: 'Sample',
     );
-  }
-
-  @override
-  Future<List<ContributedScore>> listMyScores() async => const [];
-  @override
-  Future<void> deleteScore(String id) async {}
-  @override
-  Future<void> setFavorite(String id, bool favorite) async {}
-
-  @override
-  Future<Uint8List> fetchBytes(String id) async => Uint8List(0);
+  });
+  return u;
 }
+
+/// The whole-argument matcher for "any upload call" — for `verifyNever`.
+Future<ContributedScore> _anyUpload(MockScoreUploadService u) => u.upload(
+  data: anyNamed('data'),
+  filename: anyNamed('filename'),
+  level: anyNamed('level'),
+  rightsBasis: anyNamed('rightsBasis'),
+  rightsAck: anyNamed('rightsAck'),
+  fallbackTitle: anyNamed('fallbackTitle'),
+  fallbackComposer: anyNamed('fallbackComposer'),
+);
+
+/// Captures `(level, rightsBasis, rightsAck)` of the single upload call.
+List<Object?> _capturedInputs(MockScoreUploadService u) => verify(
+  u.upload(
+    data: anyNamed('data'),
+    filename: anyNamed('filename'),
+    level: captureAnyNamed('level'),
+    rightsBasis: captureAnyNamed('rightsBasis'),
+    rightsAck: captureAnyNamed('rightsAck'),
+    fallbackTitle: anyNamed('fallbackTitle'),
+    fallbackComposer: anyNamed('fallbackComposer'),
+  ),
+).captured;
 
 PickedScoreFile _file() => PickedScoreFile(
   name: 'x.musicxml',
@@ -85,13 +102,13 @@ PickedScoreFile _file() => PickedScoreFile(
 ProviderContainer _make({
   PickedScoreFile? pick,
   NotationEngine? engine,
-  _FakeUpload? upload,
+  MockScoreUploadService? upload,
 }) {
   final c = ProviderContainer(
     overrides: [
-      filePickerProvider.overrideWithValue(_FakePicker(pick)),
+      filePickerProvider.overrideWithValue(_picker(pick)),
       notationEngineProvider.overrideWithValue(engine ?? FakeNotationEngine()),
-      scoreUploadServiceProvider.overrideWithValue(upload ?? _FakeUpload()),
+      scoreUploadServiceProvider.overrideWithValue(upload ?? _upload()),
     ],
   );
   addTearDown(c.dispose);
@@ -148,7 +165,7 @@ void main() {
   test(
     'finalize is gated on difficulty and submits the right inputs',
     () async {
-      final upload = _FakeUpload();
+      final upload = _upload();
       final c = _make(pick: _file(), upload: upload);
       final n = c.read(scoreUploadNotifierProvider.notifier);
       await n.pickAndValidate();
@@ -157,12 +174,14 @@ void main() {
       n.goToVerify();
       n.goToConfirm();
       await n.submit(); // no level yet → blocked
-      expect(upload.uploads, isEmpty);
+      verifyNever(_anyUpload(upload));
       n.setLevel(PracticeLevel.intermediate);
       await n.submit();
-      expect(upload.uploads.single.level, PracticeLevel.intermediate);
-      expect(upload.uploads.single.basis, RightsBasis.publicDomain);
-      expect(upload.uploads.single.ack, isTrue);
+      expect(_capturedInputs(upload), [
+        PracticeLevel.intermediate,
+        RightsBasis.publicDomain,
+        true,
+      ]);
       expect(c.read(scoreUploadNotifierProvider).isDone, isTrue);
     },
   );
@@ -187,7 +206,7 @@ void main() {
           ),
         ),
       );
-      final upload = _FakeUpload();
+      final upload = _upload();
       final c = _make(pick: _file(), engine: engine, upload: upload);
       final n = c.read(scoreUploadNotifierProvider.notifier);
       await n.pickAndValidate();
@@ -198,7 +217,7 @@ void main() {
       // A difficulty alone is not enough — no title yet.
       expect(c.read(scoreUploadNotifierProvider).canFinalize, isFalse);
       await n.submit();
-      expect(upload.uploads, isEmpty);
+      verifyNever(_anyUpload(upload));
 
       // Whitespace is not a title.
       n.setFallbackTitle('   ');
@@ -208,7 +227,7 @@ void main() {
       n.setFallbackTitle('My Piece');
       expect(c.read(scoreUploadNotifierProvider).canFinalize, isTrue);
       await n.submit();
-      expect(upload.uploads.single.level, PracticeLevel.advanced);
+      expect(_capturedInputs(upload).first, PracticeLevel.advanced);
       expect(c.read(scoreUploadNotifierProvider).isDone, isTrue);
     },
   );
@@ -216,11 +235,12 @@ void main() {
   test(
     'a submit error is surfaced as a friendly message, inputs kept',
     () async {
-      final upload = _FakeUpload()
-        ..uploadError = const AuthException(
+      final upload = _upload(
+        error: const AuthException(
           AuthError.alreadyExists,
           'score already uploaded',
-        );
+        ),
+      );
       final c = _make(pick: _file(), upload: upload);
       final n = c.read(scoreUploadNotifierProvider.notifier);
       await n.pickAndValidate();

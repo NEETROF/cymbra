@@ -11,6 +11,12 @@ cymbra-platform = { path = "../platform" }
 tonic.workspace = true
 prost.workspace = true
 async-trait.workspace = true
+# Optional: generates `MockAuthPort` via `#[automock]` under the `mock` feature.
+# Consumers enable it in their [dev-dependencies]; it never ships in release.
+mockall = { workspace = true, optional = true }
+
+[features]
+mock = ["dep:mockall"]
 
 [build-dependencies]
 tonic-build.workspace = true
