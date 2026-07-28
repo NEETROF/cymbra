@@ -30,15 +30,36 @@ credentialed web-auth cookie calls, and a moderator/admin account must exist (se
 ## Debugging gRPC-web calls
 
 gRPC-web always returns **HTTP 200** — the real status is the `grpc-status` trailer
-(`0` = OK, else an error; e.g. `16` = unauthenticated), so Chrome's Network tab
-hides failures. Two dev-only aids (wired in `src/lib/transport.ts`, `import.meta.env.DEV`):
+(`0` = OK, else an error; e.g. `16` = unauthenticated), and the Network tab's
+Response is just the length-prefixed **protobuf wire bytes** (the hex/ASCII dump),
+not readable JSON. So don't debug from the Network tab. Aids wired in
+`src/lib/transport.ts`:
 
-- **Console**: every failed call logs one line — `gRPC <Method> → <Code> (<n>): <message>`.
+- **Console trace** (the reliable one): every call logs a collapsed group with its
+  method and **decoded request/response JSON** — `✓ <Service>/<Method>` on success,
+  `✗ … status <Code> (<n>): <message>` on failure. No extension needed.
 - **gRPC-Web Developer Tools** Chrome extension
-  ([SafetyCulture](https://github.com/SafetyCulture/grpc-web-devtools)): install it to
-  get a DevTools panel decoding each call's request/response/status. The interceptor
-  that feeds it (`src/lib/grpc-devtools.ts`) posts the events it listens for; no
-  extension → harmless no-op.
+  ([SafetyCulture](https://github.com/SafetyCulture/grpc-web-devtools)): optional
+  DevTools panel decoding each call. The interceptor that feeds it
+  (`src/lib/grpc-devtools.ts`) posts the events it listens for; no extension →
+  harmless no-op. It lives in a separate **"gRPC Web" DevTools tab** (not Network),
+  and you must reload the page after opening it. Dev build only.
+
+### Tracing on the deployed site (`bo.cymbra.app`)
+
+The console trace is **always on in dev** and **opt-in in a production build**. It is
+strictly off for every user unless an operator turns it on in their own browser:
+
+```js
+localStorage.setItem("cymbra:grpc-trace", "1"); // then reload
+// localStorage.removeItem("cymbra:grpc-trace"); // + reload to turn it back off
+```
+
+The flag is read once at startup, so toggling needs a reload; when it's on in prod,
+the console prints a one-line `[cymbra] gRPC trace ON …` banner. This is the safe way
+to inspect live traffic — it needs **no CORS/cookie changes on prod**. (Pointing a
+local `yarn dev` at the prod backend would require adding `localhost` to the prod CORS
+allowlist, which is a lasting security weakening — don't.)
 
 User-facing errors never show raw codes: `humanError` (`src/lib/errors.ts`) maps
 `ConnectError` codes to short messages and logs the real cause.
