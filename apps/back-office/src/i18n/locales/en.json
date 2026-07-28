@@ -1,5 +1,6 @@
 {
   "common": { "signOut": "Sign out", "back": "← Back", "loading": "Loading…" },
+  "pager": { "label": "pagination", "prev": "← Previous", "next": "Next →", "range": "{from}–{to} of {total}" },
   "brand": { "suite": "Back-office" },
   "stats": { "total": "Total catalog", "approved": "Approved", "pending": "Awaiting review" },
   "role": { "moderator": "moderator", "admin": "admin" },

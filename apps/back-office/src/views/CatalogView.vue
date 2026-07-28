@@ -5,7 +5,8 @@ import { match } from "ts-pattern";
 import FiltersBar from "@/components/FiltersBar.vue";
 import CatalogTable from "@/components/CatalogTable.vue";
 import StatBar from "@/components/StatBar.vue";
-import { useCatalogStore, type Filters, type ModerationStatus, type SortKeyInit } from "@/stores/catalog";
+import TablePager from "@/components/TablePager.vue";
+import { PAGE_SIZE, useCatalogStore, type Filters, type ModerationStatus, type SortKeyInit } from "@/stores/catalog";
 import type { CatalogHit } from "@/gen/score_pb";
 
 // Free browse of the catalog by status + hub filters, with click-to-sort columns.
@@ -13,6 +14,7 @@ const store = useCatalogStore();
 const router = useRouter();
 const status = ref<ModerationStatus>("pending");
 const sort = ref<SortKeyInit[]>([]);
+const offset = ref(0);
 let filters: Filters = {
   query: "",
   author: "",
@@ -45,13 +47,20 @@ function run() {
     isPiano: filters.isPiano,
     moderationStatus: status.value,
     sort: sort.value,
+    offset: offset.value,
   });
+}
+
+// A new filter/sort resets to the first page; only the pager advances the offset.
+function runFromFirstPage() {
+  offset.value = 0;
+  run();
 }
 
 function onFilters(f: Filters) {
   filters = f;
   status.value = f.moderationStatus;
-  run();
+  runFromFirstPage();
 }
 
 // Clicking a column rebuilds the single-key sort and re-queries from page 1 — all
@@ -60,6 +69,11 @@ function onSort(field: string) {
   const cur = sort.value[0];
   const descending = cur?.field === field ? !cur.descending : true;
   sort.value = [{ field, descending }];
+  runFromFirstPage();
+}
+
+function onPage(newOffset: number) {
+  offset.value = newOffset;
   run();
 }
 
@@ -84,5 +98,6 @@ onMounted(run);
       @sort="onSort"
       @select="(id) => router.push({ name: 'music-score', params: { id } })"
     />
+    <TablePager :offset="offset" :limit="PAGE_SIZE" :total="vm.total" @page="onPage" />
   </div>
 </template>

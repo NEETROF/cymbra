@@ -38,6 +38,9 @@ export interface CatalogResult {
   nextOffset: number;
 }
 
+/** Server page size — one screen of rows per SearchCatalog request. */
+export const PAGE_SIZE = 50;
+
 // The queue's default "review priority" ordering (design D5): flagged re-reviews
 // first (inert until #2), then pending, then the most substantial scores.
 export const QUEUE_SORT: SortKeyInit[] = [
@@ -75,13 +78,13 @@ async function fetchHit(catalogId: string): Promise<CatalogHit> {
 export const useCatalogStore = defineStore("catalog", () => {
   // One value for the whole search lifecycle — views match on it exhaustively.
   const result = ref<Async<CatalogResult>>(idle);
-  const lastParams = reactive<SearchParams>({ limit: 50, offset: 0 });
+  const lastParams = reactive<SearchParams>({ limit: PAGE_SIZE, offset: 0 });
   // Header stat cards. Kept in its own Async so a stats failure never blocks the
   // list — the cards just fall back to "—".
   const stats = ref<Async<CatalogStats>>(idle);
 
   async function search(params: SearchParams) {
-    Object.assign(lastParams, { limit: 50, offset: 0 }, params);
+    Object.assign(lastParams, { limit: PAGE_SIZE, offset: 0 }, params);
     await run(result, async () => {
       const resp = await api().score.searchCatalog({
         query: params.query ?? "",
@@ -90,7 +93,7 @@ export const useCatalogStore = defineStore("catalog", () => {
         isPiano: params.isPiano,
         moderationStatus: params.moderationStatus,
         sort: params.sort ?? [],
-        limit: params.limit ?? 50,
+        limit: params.limit ?? PAGE_SIZE,
         offset: params.offset ?? 0,
       });
       return { hits: resp.hits, total: resp.total, nextOffset: resp.nextOffset };
