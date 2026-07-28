@@ -20,6 +20,7 @@ import '../../services/legal_links.dart';
 import '../../state/app_locale.dart';
 import '../../state/session_notifier.dart';
 import '../../state/session_state.dart';
+import '../profile_screen.dart';
 import 'delete_account_screen.dart';
 
 /// App-bar account control. For a guest it offers to sign in / create an account
@@ -49,6 +50,10 @@ class AccountMenu extends ConsumerWidget {
         icon: const Icon(Icons.account_circle),
         onSelected: (value) {
           switch (value) {
+            case 'profile':
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(builder: (_) => const ProfileScreen()),
+              );
             case 'signout':
               ref.read(sessionNotifierProvider.notifier).signOut();
             case 'signout-all':
@@ -71,6 +76,11 @@ class AccountMenu extends ConsumerWidget {
               enabled: false,
               child: Text('@${account!.handle}'),
             ),
+          PopupMenuItem<String>(
+            key: const Key('account-profile'),
+            value: 'profile',
+            child: Text(l10n.accountProfile),
+          ),
           PopupMenuItem<String>(
             value: 'signout',
             child: Text(l10n.accountSignOut),

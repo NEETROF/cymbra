@@ -260,5 +260,19 @@
   "ratingCardStarsHint": "Toucher pour les étoiles",
   "ratingCoachTitle": "Balayez ou touchez les étoiles",
   "ratingCoachBody": "Balayez à gauche pour ne pas aimer, à droite pour aimer, vers le haut pour adorer. Touchez les étoiles d'une carte pour une note précise, ou utilisez les boutons ci-dessous.",
-  "ratingCoachDismiss": "Compris"
+  "ratingCoachDismiss": "Compris",
+  "accountProfile": "Mon profil",
+  "profileTitle": "Profil",
+  "profileSongsPlayed": "{count} morceaux joués",
+  "profileVisibility": "Visibilité du profil",
+  "profileVisibilityPrivate": "Privé",
+  "profileVisibilityLimited": "Limité",
+  "profileVisibilityPublic": "Public",
+  "profileGoPublicHint": "Rendez votre profil public pour que les autres joueurs voient votre activité.",
+  "profileAgeGateTitle": "Confirmez votre âge",
+  "profileAgeGateBody": "Saisissez votre date de naissance pour vérifier l'éligibilité. Elle est utilisée une seule fois et n'est pas conservée.",
+  "profileAgeGateContinue": "Continuer",
+  "profileTooYoung": "Vous n'avez pas encore l'âge requis pour rendre votre profil public.",
+  "profileVisibilityError": "Impossible de mettre à jour la visibilité de votre profil. Veuillez réessayer.",
+  "profileUnavailable": "Ce profil n'est pas disponible."
 }
