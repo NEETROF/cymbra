@@ -9,33 +9,9 @@ import { useAuthStore } from "./stores/auth";
 import { currentLocale, i18n } from "./i18n";
 import "./styles.css";
 
-// Self-heal stale deploys. When a new version ships, asset hashes change; a tab left
-// open across the deploy still holds the OLD index.html, so its lazy route chunks
-// (e.g. QueueView-*.js) 404 and the server's SPA fallback returns index.html — a
-// module MIME error that leaves the app dead until a manual reload. Vite raises
-// `vite:preloadError` for exactly this; reload ONCE to pull the fresh index.html and
-// new chunks. A sessionStorage guard prevents a reload loop if the assets are truly
-// broken; the flag is cleared on a successful mount so a later deploy heals too.
-const PRELOAD_RELOAD_FLAG = "cymbra:preload-reloaded";
-
-function installStaleDeployReload() {
-  if (typeof window === "undefined") return;
-  window.addEventListener("vite:preloadError", (event) => {
-    event.preventDefault(); // stop the unhandled rejection; we handle it by reloading
-    try {
-      if (sessionStorage.getItem(PRELOAD_RELOAD_FLAG)) return; // already tried — avoid a loop
-      sessionStorage.setItem(PRELOAD_RELOAD_FLAG, "1");
-    } catch {
-      /* storage blocked — reload anyway, once is better than a dead app */
-    }
-    window.location.reload();
-  });
-}
-
 // Wrapped in an async bootstrap so the cookie-refresh await stays inside a function —
 // a top-level `await` would force a build target the app doesn't ship (es2020/Safari 14).
 async function bootstrap() {
-  installStaleDeployReload();
   const app = createApp(App);
   const pinia = createPinia();
   app.use(pinia);
@@ -95,14 +71,6 @@ async function bootstrap() {
   });
 
   app.mount("#app");
-
-  // Booted cleanly — clear the one-shot guard so a *future* deploy (this tab may live
-  // for days) gets its own single self-heal reload.
-  try {
-    sessionStorage.removeItem(PRELOAD_RELOAD_FLAG);
-  } catch {
-    /* storage blocked — nothing to clear */
-  }
 }
 
 void bootstrap();
