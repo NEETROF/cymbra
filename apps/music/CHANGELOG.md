@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.14.0](https://github.com/NEETROF/cymbra/compare/music-v1.13.1...music-v1.14.0) (2026-07-28)
+
+
+### Features
+
+* **auth:** sign out from all devices (mobile) ([#119](https://github.com/NEETROF/cymbra/issues/119)) ([476116f](https://github.com/NEETROF/cymbra/commit/476116f89ffc528ec7a0ff87a551e01029212d76))
+* **player:** start at the first note, trimming leading silence ([#104](https://github.com/NEETROF/cymbra/issues/104)) ([3fffc56](https://github.com/NEETROF/cymbra/commit/3fffc56a9edde439db28f13cf293619a4edb8eda))
+
+
+### Bug Fixes
+
+* **catalog:** serve crawled scores immediately + hub load/count feedback ([#102](https://github.com/NEETROF/cymbra/issues/102)) ([32fd77f](https://github.com/NEETROF/cymbra/commit/32fd77f4cd979305f04dbdbb4ad64e7485ebfbfe))
+
 ## [1.13.1](https://github.com/NEETROF/cymbra/compare/music-v1.13.0...music-v1.13.1) (2026-07-17)
 
 

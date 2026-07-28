@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.8.0](https://github.com/NEETROF/cymbra/compare/backend-v0.7.0...backend-v0.8.0) (2026-07-28)
+
+
+### Features
+
+* **auth:** browser HttpOnly cookie sessions for the back office ([#114](https://github.com/NEETROF/cymbra/issues/114)) ([ec7b723](https://github.com/NEETROF/cymbra/commit/ec7b723ea5806260b06bf110b4621fa342e614b2))
+* **auth:** session revocation — admin cut-off (BO) + sign-out-everywhere API ([#116](https://github.com/NEETROF/cymbra/issues/116)) ([e26eb23](https://github.com/NEETROF/cymbra/commit/e26eb23903c23f59ce6ff499f8dd2384ef61a758))
+* **back-office:** Vue 3 moderation console + account directory ([#108](https://github.com/NEETROF/cymbra/issues/108)) ([aa158fd](https://github.com/NEETROF/cymbra/commit/aa158fd6615a6c27e383e66f1cc2b08a548b6f56))
+* **catalog:** gate hub on moderation status; hide unvalidated scores ([#106](https://github.com/NEETROF/cymbra/issues/106)) ([99c0243](https://github.com/NEETROF/cymbra/commit/99c02436a74612bec9e4a4f9fe684e53e89a4c38))
+* **moderation:** back-office backend — roles, evaluate, role admin, gRPC-web ([#107](https://github.com/NEETROF/cymbra/issues/107)) ([925b4e8](https://github.com/NEETROF/cymbra/commit/925b4e87a828fdef47be3b35b0df39f21ee24f69))
+
+
+### Bug Fixes
+
+* **catalog:** queue sort crashed — `needs_review` emitted an invalid ORDER BY ([#111](https://github.com/NEETROF/cymbra/issues/111)) ([5f3b2bf](https://github.com/NEETROF/cymbra/commit/5f3b2bf8ab09961464b0da402aa81121af41eb3a))
+* **catalog:** serve crawled scores immediately + hub load/count feedback ([#102](https://github.com/NEETROF/cymbra/issues/102)) ([32fd77f](https://github.com/NEETROF/cymbra/commit/32fd77f4cd979305f04dbdbb4ad64e7485ebfbfe))
+* **deploy:** add music to the migrator role's search_path in provision script ([#100](https://github.com/NEETROF/cymbra/issues/100)) ([37010a8](https://github.com/NEETROF/cymbra/commit/37010a823092a1dbcaeb7d113061c43d9e68e1c3))
+* **deploy:** expose the back office (bo.cymbra.app) in prod ([#123](https://github.com/NEETROF/cymbra/issues/123)) ([74996ac](https://github.com/NEETROF/cymbra/commit/74996ac6c63b468d02b2804872e3da5ed0a6ee2e))
+
 ## [0.7.0](https://github.com/NEETROF/cymbra/compare/backend-v0.6.1...backend-v0.7.0) (2026-07-17)
 
 
