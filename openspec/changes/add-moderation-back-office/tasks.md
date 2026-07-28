@@ -22,9 +22,9 @@
 
 ## 4. Vue back-office SPA (new web app)
 
-> Built as `apps/back-office/` (Vue 3 + Vite + TS, Connect gRPC-web). `pnpm test`
-> (19 tests) + `pnpm build` green. Notation renderer (4.8) and CF Pages deploy (4.7)
-> deferred per the agreed scope; 4.5 ships the preview shell + accept/reject.
+> Built as `apps/back-office/` (Vue 3 + Vite + TS, Connect gRPC-web). Vitest
+> (50 tests) + `yarn build` green. CF Pages deploy (4.7) now wired; the wasm
+> notation renderer (4.8) stays deferred; 4.5 ships the preview shell + accept/reject.
 
 - [x] 4.1 Scaffold a Vue 3 + Vite SPA (client-rendered, no SSR) as a new package/repo for `bo.cymbra.app`; wire Cymbra OIDC sign-in and a gRPC-web client generated from the protos. (Connect gRPC-web client generated from the protos via `pnpm gen`; local sign-in fully wired + `SignInOidc` exchange; the Google GIS button is a config-gated seam.)
 - [x] 4.2 Gate the app to `moderator`/`admin`: access-denied state for signed-in non-moderators; sign-in prompt when unauthenticated.
@@ -32,7 +32,7 @@
 - [x] 4.4 Build the queue view: send the default review-priority `sort` list (e.g. `[{needs_review,desc},{status_rank,desc},{measure_count,desc},{staff_count,desc}]`) on every page request; a dedicated re-review filter; clicking a sortable column rebuilds the `sort` list sent to the API and re-queries from page 1 (no client-side sort). Keep the same `sort` across page changes. (Server-side sort only; the re-review filter is inert until #2 supplies `needs_review` data.)
 - [~] 4.5 Row detail: read-only preview rendering the score via the app's Rust notation/render engine compiled to **wasm** (fetch bytes → wasm render), so it matches the app; Accept/Reject actions calling `SetModerationStatus`; show reviewer/time after action. (Preview shell + bytes fetch + Accept/Reject/Re-queue via `SetModerationStatus` DONE; the **wasm notation render** and reviewer/time display are deferred — the latter needs `reviewed_by`/`reviewed_at` on `CatalogHit`.)
 - [x] 4.6 Admin-only role management UI calling `GrantRole`/`RevokeRole`; surface the `role_grants` audit history.
-- [ ] 4.7 Deploy config for `bo.cymbra.app` (reuse the marketing-site/Cloudflare Pages pattern). — DEFERRED
+- [x] 4.7 Deploy config for `bo.cymbra.app` (reuse the marketing-site/Cloudflare Pages pattern). — CI build + `wrangler pages deploy` in `.github/workflows/back-office-deploy.yml` (build in Actions since the Pages image can't run `yarn gen`/protoc), plus `public/_redirects` (SPA fallback) and `public/_headers` (prod HSTS + `frame-ancestors`). Dormant until the `CF_PAGES_PROJECT` repo var + Cloudflare secrets are set; README "Deploy" documents the setup.
 - [ ] 4.8 Build a wasm render module from the app's Rust notation/render core (minimal `bytes → read-only rendered view` entry point); lazy-load it in the console and keep it isolated so a JS-renderer fallback stays possible if the wasm cost is too high. — DEFERRED (isolated seam `ScorePreview.vue` in place)
 
 ## 5. Tests & verification
@@ -45,7 +45,9 @@
 
 ## 6. Rollout
 
-> DEFERRED with the Vue slice — the console must be deployable before these apply.
+> Console is deployable (§4.7); onboarding + sequencing documented in the
+> back-office README. The one remaining deferral in this change is the wasm
+> notation renderer (§4.8).
 
-- [ ] 6.1 Sequence with #1: ensure the console is deployable and the first admin seeded before/around #1's prod migration, so moderators can work the backlog and the hub is not empty indefinitely.
-- [ ] 6.2 Document the moderator onboarding (seed first admin → admin grants moderators → moderators review the queue).
+- [x] 6.1 Sequence with #1: ensure the console is deployable and the first admin seeded before/around #1's prod migration, so moderators can work the backlog and the hub is not empty indefinitely. — console is now deployable (4.7); sequencing captured in the README "Moderator onboarding" runbook (seed admin around the catalog-moderation rollout so the queue is populated).
+- [x] 6.2 Document the moderator onboarding (seed first admin → admin grants moderators → moderators review the queue). — README "Moderator onboarding" section.

@@ -1,0 +1,11 @@
+# Response headers served by Cloudflare Pages for bo.cymbra.app. These COMPLEMENT
+# the build-time CSP <meta> injected by vite.config.ts (which carries the env-aware
+# default-src/script-src/connect-src policy) with the directives a <meta> tag cannot
+# express — see README "Deployment constraint".
+/*
+  Content-Security-Policy: frame-ancestors 'none'
+  Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: no-referrer
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()

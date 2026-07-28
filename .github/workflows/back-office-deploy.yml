@@ -1,0 +1,77 @@
+name: back-office-deploy
+
+# Build + deploy the moderation console (apps/back-office) to Cloudflare Pages
+# (bo.cymbra.app), reusing the marketing-site Pages pattern.
+#
+# We build in Actions rather than in Cloudflare's build image because the SPA needs
+# `protoc` (yarn gen → gRPC-web stubs) and Yarn Berry on a controlled Node — then we
+# upload the static `dist/` with wrangler. This also sidesteps the private-registry
+# quirks of the Pages build environment.
+#
+# Dormant until configured: the deploy job is gated on the `CF_PAGES_PROJECT` repo
+# variable, so until a maintainer creates the Pages project and sets the values below
+# the job is skipped (a skipped job reports success — it never blocks main).
+#
+# Required repo VARIABLES (Settings → Secrets and variables → Actions → Variables):
+#   CF_PAGES_PROJECT      Cloudflare Pages project name (e.g. cymbra-back-office)
+#   VITE_GRPC_WEB_URL     prod gRPC-web endpoint (e.g. https://api.cymbra.app)
+#   VITE_WEB_AUTH_URL     prod web-auth HTTP surface (same registrable domain as the SPA)
+#   VITE_GOOGLE_CLIENT_ID Google OIDC web client id (music audience)  [optional]
+# Required repo SECRETS:
+#   CLOUDFLARE_API_TOKEN  token with "Cloudflare Pages: Edit" on the account
+#   CLOUDFLARE_ACCOUNT_ID Cloudflare account id
+#
+# Same-site constraint (see README): bo.cymbra.app and VITE_WEB_AUTH_URL must share
+# the cymbra.app registrable domain, or the refresh cookie is not first-party.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/back-office/**"
+      - "backend/auth-port/proto/**"
+      - "backend/user-port/proto/**"
+      - "backend/music/proto/**"
+      - ".github/workflows/back-office-deploy.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: back-office-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    # Stays dormant until the Pages project is provisioned and the variable is set.
+    if: ${{ vars.CF_PAGES_PROJECT != '' }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/back-office
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install protoc
+        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Enable Corepack (Yarn Berry)
+        run: corepack enable
+      - name: Install dependencies
+        run: yarn install --immutable
+      - name: Generate gRPC-web stubs
+        run: yarn gen
+      - name: Build
+        env:
+          VITE_GRPC_WEB_URL: ${{ vars.VITE_GRPC_WEB_URL }}
+          VITE_WEB_AUTH_URL: ${{ vars.VITE_WEB_AUTH_URL }}
+          VITE_GOOGLE_CLIENT_ID: ${{ vars.VITE_GOOGLE_CLIENT_ID }}
+        run: yarn build
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: apps/back-office
+          command: pages deploy dist --project-name=${{ vars.CF_PAGES_PROJECT }} --branch=${{ github.ref_name }}

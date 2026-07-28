@@ -89,11 +89,13 @@ Firefox, Chrome). A split-domain deploy breaks the cookie — this is a hard con
 Dev uses `localhost` (cookies are shared across ports; set
 `CYMBRA_WEB_AUTH_COOKIE_SECURE=false` for plain-HTTP localhost).
 
-The reverse proxy fronting the SPA should also send, as response **headers** (complementing
-the build-time CSP `<meta>`):
+The host fronting the SPA should also send, as response **headers** (complementing
+the build-time CSP `<meta>`) — on Cloudflare Pages these ship via
+[`public/_headers`](public/_headers):
 
 - `Content-Security-Policy: frame-ancestors 'none'` (header form — clickjacking defence
-  the meta tag can't express), plus the app's `default-src`/`connect-src` policy.
+  the meta tag can't express); the `default-src`/`connect-src` policy stays in the
+  build-time `<meta>` (it is env-aware — `connect-src` is pinned to `VITE_GRPC_WEB_URL`).
 - `Strict-Transport-Security: max-age=63072000; includeSubDomains; preload` (HSTS), so the
   `Secure` cookie is never attempted over plain HTTP.
 
@@ -115,6 +117,49 @@ calls keep working until the short TTL lapses; there is no instant cut-off witho
 shortening the access-token TTL or adding token introspection (out of scope). The admin
 revoke is recorded durably in `auth.session_revocation_audit`.
 
+## Deploy (Cloudflare Pages)
+
+`bo.cymbra.app` ships to **Cloudflare Pages**, like the marketing site.
+[`back-office-deploy.yml`](../../.github/workflows/back-office-deploy.yml) builds in CI
+(the SPA needs `protoc` for `yarn gen`, which the Pages build image can't run) and
+uploads the static `dist/` with `wrangler pages deploy`. `public/_redirects` gives the
+SPA its history fallback and `public/_headers` the prod security headers above.
+
+The workflow is **dormant until configured**: its deploy job is gated on the
+`CF_PAGES_PROJECT` repo variable, so it is skipped (reported success) until a maintainer:
+
+1. Creates a Cloudflare Pages project and maps the custom domain `bo.cymbra.app`.
+2. Sets repo **variables** (Settings → Secrets and variables → Actions → Variables):
+   `CF_PAGES_PROJECT`, `VITE_GRPC_WEB_URL` (e.g. `https://api.cymbra.app`),
+   `VITE_WEB_AUTH_URL` (same registrable domain — see the same-site constraint above),
+   and optionally `VITE_GOOGLE_CLIENT_ID`.
+3. Sets repo **secrets**: `CLOUDFLARE_API_TOKEN` (scope "Cloudflare Pages: Edit") and
+   `CLOUDFLARE_ACCOUNT_ID`.
+
+Then every push to `main` touching `apps/back-office/**` (or a manual **Run workflow**)
+builds and deploys. The same-site constraint above is a **hard** requirement:
+`bo.cymbra.app` and `VITE_WEB_AUTH_URL` must share `cymbra.app`, or the refresh cookie
+is not first-party.
+
+## Moderator onboarding
+
+The access model is: **admins** grant/revoke roles; **moderators** work the review
+queue. Bootstrapping a fresh environment (sequence this with the catalog-moderation
+backend rollout so the queue is populated and the hub isn't empty indefinitely):
+
+1. **Seed the first `music/admin`** with the ops bootstrap — `backend/scripts/seed_admin.sh`
+   (documented in that change's task 1.4). There is no self-service path to admin by
+   design; the first one is seeded out-of-band.
+2. That admin signs in to the console and, from **`/roles`**, grants `moderator` (or
+   `admin`) in the `music` scope to each teammate by user id. Every grant/revoke is
+   written to the append-only `role_grants` audit table and shown in the Roles view.
+3. **Moderators** sign in → the queue (`/`) lists pending scores in review priority;
+   they open a row, preview it, and **Accept**/**Reject** (calls `SetModerationStatus`,
+   recording `reviewed_by`/`reviewed_at`). Accepted scores become servable in the app hub.
+
+Role changes take effect on the moderator's **next token refresh** (roles ride in the
+access token), not instantly — see the residual-window note above.
+
 ## Preview (notation)
 
 `ScorePreview.vue` is the isolated preview seam. Today it shows metadata and confirms
@@ -126,6 +171,5 @@ too high.
 ## Not yet wired (deferred)
 
 - The wasm notation renderer.
-- Cloudflare Pages deploy config for `bo.cymbra.app`.
 - Full Google OIDC button (the token-exchange path is wired; the GIS button needs a
   configured client id).
