@@ -227,7 +227,7 @@ class StaffPainter extends CustomPainter {
       );
     }
     hx += keyW;
-    Smufl.drawTimeSignature(
+    final timeW = Smufl.drawTimeSignature(
       canvas,
       hx,
       trebleBottom,
@@ -247,6 +247,11 @@ class StaffPainter extends CustomPainter {
         headColor,
       );
     }
+    // Right edge of the fixed head (clef + armature + metre). The scrolling
+    // glyphs (bar lines, notes, rests, beams) are kept to the right of this so
+    // they slide UNDER the head as they travel left, instead of drawing on top of
+    // the clef/armature.
+    final headEnd = hx + timeW + lineGap * 0.4;
 
     // 2) Scrolling measure bars (span the whole system). Drawn at the real
     // measure boundaries from [measureStartMs] (plus the final bar at songEnd) so
@@ -262,7 +267,8 @@ class StaffPainter extends CustomPainter {
     void drawBar(double t, {bool beforeDownbeat = true}) {
       if (t <= 0) return; // no bar before the first measure
       final x = xForTime(t) - (beforeDownbeat ? barGap : 0);
-      if (x < margin || x > size.width - margin) return;
+      // Clip to the right of the head so a bar line never crosses the clef/armature.
+      if (x < headEnd || x > size.width - margin) return;
       canvas.drawLine(Offset(x, systemTop), Offset(x, systemBottom), barPaint);
     }
 
@@ -340,6 +346,11 @@ class StaffPainter extends CustomPainter {
       }
       return handColor; // upcoming, by hand
     }
+
+    // Keep every scrolling glyph to the right of the fixed head, so notes/beams
+    // slide under the clef/armature instead of painting over it.
+    canvas.save();
+    canvas.clipRect(Rect.fromLTRB(headEnd, 0, size.width, size.height));
 
     // 4) Scrolling notes, routed to their staff.
     for (var i = 0; i < notes.length; i++) {
@@ -430,6 +441,8 @@ class StaffPainter extends CustomPainter {
       if (pts.every((p) => !visible(p.dx))) continue;
       _drawBeam(canvas, pts, group, lineGap);
     }
+
+    canvas.restore(); // end the scrolling-glyph clip
   }
 
   void _drawStaffLines(
