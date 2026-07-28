@@ -68,6 +68,7 @@ async fn main() -> anyhow::Result<()> {
         admin_pool,
         storage,
         reap_grace_secs: cfg.orphan_reap_grace.as_secs() as i64,
+        play_detail_retention_days: cfg.play_detail_retention_days as i64,
     };
 
     // --- sqlxmq runner: executes queued jobs (event-driven; design D7) ---

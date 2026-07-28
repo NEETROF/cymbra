@@ -4,12 +4,19 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use chrono::NaiveDate;
 use cymbra_jobs::{EnqueueRequest, Enqueuer, PURGE_USER};
 use cymbra_platform::{AppError, Result};
-use cymbra_user_port::{Account, AccountPage, Identity, UserPort};
+use cymbra_user_port::{Account, AccountPage, Identity, PlayerProfile, UserPort, Visibility};
 use serde::Serialize;
 
+use crate::profile_core;
 use crate::repo::UserRepo;
+
+/// Default minimum age to make a profile public (change: add-play-activity-
+/// profile, D6) — 16, the strictest EU digital-consent age. Overridable from
+/// config via [`UserModule::with_min_public_sharing_age`].
+const DEFAULT_MIN_PUBLIC_SHARING_AGE: u32 = 16;
 
 /// Recognized role values (change: add-moderation-back-office). `moderator` is
 /// added here so a grant of `music/moderator` is accepted and flows into the token
@@ -38,6 +45,9 @@ pub struct UserModule<R: UserRepo> {
     /// delete. Absent in contexts with no queue (unit tests, the worker's own
     /// reaper wiring), where the direct repo delete is used.
     enqueuer: Option<Arc<dyn Enqueuer>>,
+    /// Minimum age (years) required to make a profile public (change: add-play-
+    /// activity-profile). From config; defaults to 16.
+    min_public_sharing_age: u32,
 }
 
 impl<R: UserRepo> UserModule<R> {
@@ -45,6 +55,7 @@ impl<R: UserRepo> UserModule<R> {
         Self {
             repo,
             enqueuer: None,
+            min_public_sharing_age: DEFAULT_MIN_PUBLIC_SHARING_AGE,
         }
     }
 
@@ -53,6 +64,14 @@ impl<R: UserRepo> UserModule<R> {
     /// server composition root; the worker keeps the enqueuer unset.
     pub fn with_enqueuer(mut self, enqueuer: Arc<dyn Enqueuer>) -> Self {
         self.enqueuer = Some(enqueuer);
+        self
+    }
+
+    /// Override the minimum public-sharing age from config (change: add-play-
+    /// activity-profile). The server composition root threads
+    /// `CYMBRA_MIN_PUBLIC_SHARING_AGE` here.
+    pub fn with_min_public_sharing_age(mut self, min_age: u32) -> Self {
+        self.min_public_sharing_age = min_age;
         self
     }
 
@@ -225,6 +244,114 @@ impl<R: UserRepo> UserPort for UserModule<R> {
         self.repo
             .list_accounts(query, &handle_key, limit, offset)
             .await
+    }
+
+    async fn get_player_profile(
+        &self,
+        viewer_id: &str,
+        target_id: &str,
+        today: NaiveDate,
+    ) -> Result<PlayerProfile> {
+        let row = self.repo.profile_row(target_id).await?;
+        let visibility = Visibility::parse(&row.visibility)?;
+        // The owner always sees their own profile in full, whatever the setting.
+        if viewer_id == target_id {
+            return Ok(PlayerProfile {
+                user_id: target_id.to_string(),
+                handle: row.handle,
+                display_name: row.display_name,
+                visibility,
+            });
+        }
+        // Another player: expose only a public AND age-eligible profile; anything
+        // else is `NotFound` (fail-closed — never reveal a private profile).
+        if visibility == Visibility::Public && self.eligible_now(&row.share_eligible_from, today) {
+            Ok(PlayerProfile {
+                user_id: target_id.to_string(),
+                handle: row.handle,
+                display_name: row.display_name,
+                visibility,
+            })
+        } else {
+            Err(AppError::NotFound("profile".into()))
+        }
+    }
+
+    async fn set_profile_visibility(
+        &self,
+        user_id: &str,
+        visibility: Visibility,
+        date_of_birth: Option<NaiveDate>,
+        today: NaiveDate,
+    ) -> Result<Visibility> {
+        // Private/Limited are always allowed and never touch the age data.
+        if visibility != Visibility::Public {
+            self.repo
+                .update_visibility(user_id, visibility.as_str(), None)
+                .await?;
+            return Ok(visibility);
+        }
+
+        // Going public: resolve the eligibility date, deriving it from a supplied
+        // DOB the first time (then discarding the DOB — only the derived date is
+        // stored). The check is fail-closed: refuse when not yet eligible today.
+        let existing = self.repo.profile_row(user_id).await?.share_eligible_from;
+        let eligible_from = match existing {
+            Some(d) => d,
+            None => {
+                let dob = date_of_birth.ok_or_else(|| {
+                    AppError::FailedPrecondition(
+                        "date of birth is required to make a profile public".into(),
+                    )
+                })?;
+                if !profile_core::dob_is_plausible(dob, today) {
+                    return Err(AppError::InvalidArgument(
+                        "date of birth cannot be in the future".into(),
+                    ));
+                }
+                profile_core::derive_eligible_from(dob, self.min_public_sharing_age)
+            }
+        };
+
+        if profile_core::is_eligible(today, eligible_from) {
+            self.repo
+                .update_visibility(user_id, Visibility::Public.as_str(), Some(eligible_from))
+                .await?;
+            Ok(Visibility::Public)
+        } else {
+            // Persist the derived date (so a later attempt needs no DOB and can
+            // succeed once the date passes) but keep the profile private and refuse.
+            self.repo
+                .update_visibility(user_id, Visibility::Private.as_str(), Some(eligible_from))
+                .await?;
+            Err(AppError::FailedPrecondition(
+                "not old enough to make the profile public".into(),
+            ))
+        }
+    }
+
+    async fn activity_visible_to(
+        &self,
+        owner_id: &str,
+        viewer_id: &str,
+        today: NaiveDate,
+    ) -> Result<bool> {
+        if owner_id == viewer_id {
+            return Ok(true);
+        }
+        let row = self.repo.profile_row(owner_id).await?;
+        let visibility = Visibility::parse(&row.visibility)?;
+        Ok(visibility == Visibility::Public && self.eligible_now(&row.share_eligible_from, today))
+    }
+}
+
+impl<R: UserRepo> UserModule<R> {
+    /// Age-eligible today iff an eligibility date exists and `today` is strictly
+    /// past it (the one-day margin). No date ⇒ never eligible (fail-closed).
+    fn eligible_now(&self, share_eligible_from: &Option<NaiveDate>, today: NaiveDate) -> bool {
+        share_eligible_from
+            .map(|d| profile_core::is_eligible(today, d))
+            .unwrap_or(false)
     }
 }
 
@@ -588,5 +715,163 @@ mod tests {
         // limit <= 0 falls back to the default window rather than returning nothing.
         let page = m.list_accounts("", 0, 0).await.unwrap();
         assert_eq!(page.entries.len(), 1);
+    }
+
+    // --- Public profile / visibility (change: add-play-activity-profile) ------
+
+    fn ymd(y: i32, mo: u32, d: u32) -> chrono::NaiveDate {
+        chrono::NaiveDate::from_ymd_opt(y, mo, d).unwrap()
+    }
+    // A fixed "today" (UTC) for deterministic eligibility checks.
+    fn today() -> chrono::NaiveDate {
+        ymd(2026, 7, 28)
+    }
+
+    #[tokio::test]
+    async fn new_profile_is_private_and_owner_sees_it() {
+        let m = module();
+        let u = m.resolve_or_provision("google", "g1").await.unwrap();
+        m.update_account(&u, None, Some("ada".into()), "{}", 1)
+            .await
+            .unwrap();
+        // Owner viewing self sees the (private) profile in full.
+        let p = m.get_player_profile(&u, &u, today()).await.unwrap();
+        assert_eq!(p.visibility, Visibility::Private);
+        assert_eq!(p.handle.as_deref(), Some("ada"));
+        // Another player is refused (fail-closed: NotFound, not a private stub).
+        let other = m.resolve_or_provision("google", "g2").await.unwrap();
+        assert!(matches!(
+            m.get_player_profile(&other, &u, today()).await,
+            Err(AppError::NotFound(_))
+        ));
+    }
+
+    #[tokio::test]
+    async fn eligible_user_can_go_public_and_is_visible_to_others() {
+        let m = module();
+        let u = m.resolve_or_provision("google", "g1").await.unwrap();
+        m.update_account(&u, None, Some("ada".into()), "{}", 1)
+            .await
+            .unwrap();
+        // Born 2000 → eligible date 2016 → today (2026) is past it.
+        let now = m
+            .set_profile_visibility(&u, Visibility::Public, Some(ymd(2000, 1, 1)), today())
+            .await
+            .unwrap();
+        assert_eq!(now, Visibility::Public);
+        // Another player now sees the allow-listed public profile.
+        let other = m.resolve_or_provision("google", "g2").await.unwrap();
+        let p = m.get_player_profile(&other, &u, today()).await.unwrap();
+        assert_eq!(p.visibility, Visibility::Public);
+        assert_eq!(p.handle.as_deref(), Some("ada"));
+        // And activity is visible to others.
+        assert!(m.activity_visible_to(&u, &other, today()).await.unwrap());
+    }
+
+    #[tokio::test]
+    async fn under_age_user_is_refused_fail_closed_and_dob_not_stored() {
+        let m = module();
+        let u = m.resolve_or_provision("google", "g1").await.unwrap();
+        // Born 2015 → eligible 2031 → not eligible in 2026: refused, stays private.
+        assert!(matches!(
+            m.set_profile_visibility(&u, Visibility::Public, Some(ymd(2015, 1, 1)), today())
+                .await,
+            Err(AppError::FailedPrecondition(_))
+        ));
+        // Fail-closed: still private, and neither the owner-view nor others expose
+        // it as public. Only the DERIVED eligibility date is kept (2031-01-01) —
+        // never the DOB — so a later attempt needs no DOB and still fails until 2031.
+        let row = m.repo.profile_row(&u).await.unwrap();
+        assert_eq!(row.visibility, "private");
+        assert_eq!(row.share_eligible_from, Some(ymd(2031, 1, 1)));
+        let other = m.resolve_or_provision("google", "g2").await.unwrap();
+        assert!(!m.activity_visible_to(&u, &other, today()).await.unwrap());
+        // A retry without DOB uses the stored date and is still refused.
+        assert!(matches!(
+            m.set_profile_visibility(&u, Visibility::Public, None, today())
+                .await,
+            Err(AppError::FailedPrecondition(_))
+        ));
+    }
+
+    #[tokio::test]
+    async fn going_public_requires_dob_when_no_eligibility_yet() {
+        let m = module();
+        let u = m.resolve_or_provision("google", "g1").await.unwrap();
+        assert!(matches!(
+            m.set_profile_visibility(&u, Visibility::Public, None, today())
+                .await,
+            Err(AppError::FailedPrecondition(_))
+        ));
+    }
+
+    #[tokio::test]
+    async fn private_and_limited_need_no_dob_and_toggle_freely() {
+        let m = module();
+        let u = m.resolve_or_provision("google", "g1").await.unwrap();
+        // Establish eligibility + go public.
+        m.set_profile_visibility(&u, Visibility::Public, Some(ymd(2000, 1, 1)), today())
+            .await
+            .unwrap();
+        // Back to private without a DOB; the derived date is preserved (COALESCE).
+        assert_eq!(
+            m.set_profile_visibility(&u, Visibility::Private, None, today())
+                .await
+                .unwrap(),
+            Visibility::Private
+        );
+        assert_eq!(
+            m.repo.profile_row(&u).await.unwrap().share_eligible_from,
+            Some(ymd(2016, 1, 1))
+        );
+        // Limited likewise needs no DOB.
+        assert_eq!(
+            m.set_profile_visibility(&u, Visibility::Limited, None, today())
+                .await
+                .unwrap(),
+            Visibility::Limited
+        );
+        // Re-going public now needs no DOB (date already stored) and succeeds.
+        assert_eq!(
+            m.set_profile_visibility(&u, Visibility::Public, None, today())
+                .await
+                .unwrap(),
+            Visibility::Public
+        );
+    }
+
+    #[tokio::test]
+    async fn public_but_not_yet_eligible_is_hidden_from_others_fail_closed() {
+        // Directly craft the state a stale/modified client might try to exploit:
+        // visibility=public but the eligibility date is in the future.
+        let m = module();
+        let u = m.resolve_or_provision("google", "g1").await.unwrap();
+        m.repo
+            .update_visibility(&u, "public", Some(ymd(2031, 1, 1)))
+            .await
+            .unwrap();
+        let other = m.resolve_or_provision("google", "g2").await.unwrap();
+        // Read + activity gate both refuse (server-enforced eligibility).
+        assert!(matches!(
+            m.get_player_profile(&other, &u, today()).await,
+            Err(AppError::NotFound(_))
+        ));
+        assert!(!m.activity_visible_to(&u, &other, today()).await.unwrap());
+    }
+
+    #[tokio::test]
+    async fn min_age_override_changes_the_derived_date() {
+        // With min age 18, a 2009 birth is eligible from 2027 → still under-age in 2026.
+        let m = UserModule::new(FakeUserRepo::default()).with_min_public_sharing_age(18);
+        let u = m.resolve_or_provision("google", "g1").await.unwrap();
+        assert!(matches!(
+            m.set_profile_visibility(&u, Visibility::Public, Some(ymd(2009, 1, 1)), today())
+                .await,
+            Err(AppError::FailedPrecondition(_))
+        ));
+        assert_eq!(
+            m.repo.profile_row(&u).await.unwrap().share_eligible_from,
+            Some(ymd(2027, 1, 1))
+        );
     }
 }

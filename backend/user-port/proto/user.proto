@@ -96,6 +96,39 @@ message ListAccountsResponse {
   uint32 total = 2; // total matching accounts (for pagination)
 }
 
+// --- Public player profile (change: add-play-activity-profile) ---------------
+// A player's profile as seen by ANOTHER player: an explicit allow-list of public
+// fields only. It NEVER carries email, curator alignment/reliability, or any
+// moderation state (fail-closed — a new sensitive field is private unless added
+// here). The play heatmap + songs-played totals are read separately from the
+// music PlayService and composed client-side. `visibility` is echoed so the owner
+// can render their own control.
+message PlayerProfile {
+  string user_id = 1;
+  optional string handle = 2;
+  optional string display_name = 3;
+  string visibility = 4; // private | limited | public
+}
+
+// View another player's public profile (or one's own, always in full). The
+// server honors visibility AND age-eligibility fail-closed: a not-public or
+// not-yet-eligible profile is not exposed to anyone but its owner.
+message GetPlayerProfileRequest { string user_id = 1; }
+
+// Set the caller's own profile visibility. Making it `public` requires the user
+// to be at least the configured minimum age: the neutral age gate sends the date
+// of birth ONCE (ISO yyyy-mm-dd) only at opt-in; the server derives + stores only
+// the eligibility date and DISCARDS the DOB. The check is server-side, fail-
+// closed (a not-yet-eligible request is refused). `date_of_birth` is required the
+// first time a user goes public and ignored otherwise.
+message SetProfileVisibilityRequest {
+  string visibility = 1;              // private | limited | public
+  optional string date_of_birth = 2;  // ISO yyyy-mm-dd; only at first public opt-in; discarded
+}
+message SetProfileVisibilityResponse {
+  string visibility = 1; // the visibility now in effect
+}
+
 service UserService {
   rpc GetAccount(GetAccountRequest) returns (Account);
   rpc UpdateAccount(UpdateAccountRequest) returns (Account);
@@ -108,4 +141,8 @@ service UserService {
   rpc RevokeRole(RevokeRoleRequest) returns (RevokeRoleResponse);
   rpc ListRoleGrants(ListRoleGrantsRequest) returns (ListRoleGrantsResponse);
   rpc ListAccounts(ListAccountsRequest) returns (ListAccountsResponse);
+
+  // Public player profile (change: add-play-activity-profile).
+  rpc GetPlayerProfile(GetPlayerProfileRequest) returns (PlayerProfile);
+  rpc SetProfileVisibility(SetProfileVisibilityRequest) returns (SetProfileVisibilityResponse);
 }

@@ -22,9 +22,16 @@ prost.workspace = true
 cymbra-platform = { path = "../platform" }
 cymbra-storage = { path = "../storage" }
 cymbra-musicxml-core = { path = "../../crates/musicxml-core" }
+# Play-activity visibility gate (change: add-play-activity-profile): the music
+# PlayService checks a target's profile visibility in-process via the user PORT
+# (contract crate — an impl→port dependency, like cymbra-auth uses it), never
+# reaching into the `user_account` schema directly.
+cymbra-user-port = { path = "../user-port" }
 
 [build-dependencies]
 tonic-build.workspace = true
 
 [dev-dependencies]
 tokio = { workspace = true }
+# `MockUserPort` for the play-activity visibility gate (rust-testing default).
+cymbra-user-port = { path = "../user-port", features = ["mock"] }

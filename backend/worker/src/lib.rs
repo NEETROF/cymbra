@@ -108,6 +108,36 @@ pub async fn purge_user(admin_pool: &PgPool, user_id: &str) -> anyhow::Result<()
         .execute(&mut *tx)
         .await?;
 
+    // The user's play sessions (change: add-play-activity-profile). Play stats are
+    // profile data keyed by user_id (no cross-schema FK, so no cascade); the whole
+    // record incl. the JSONB detail is inline, so no object cleanup is needed —
+    // just drop the rows in the same transaction so no play data outlives the
+    // account (RGPD erasure, design D7).
+    sqlx::query("DELETE FROM music.play_sessions WHERE user_id = $1")
+        .bind(uid)
+        .execute(&mut *tx)
+        .await?;
+
     tx.commit().await?;
     Ok(())
+}
+
+/// Prune the heavy per-session play detail past its retention window (change:
+/// add-play-activity-profile, design D7). NULLs `session_result` (the full record
+/// used for replay) on rows older than `retention_days`, **keeping** the
+/// lightweight summary (`overall_sync_pct` + `played_at`) and the per-day
+/// aggregate it drives. Idempotent (already-pruned rows are skipped by the
+/// `session_result IS NOT NULL` guard) and safe to retry. Returns the number of
+/// rows pruned. Runs as `admin_svc` (the only actor allowed to write `music`
+/// from the worker).
+pub async fn prune_play_detail(admin_pool: &PgPool, retention_days: i64) -> anyhow::Result<u64> {
+    let res = sqlx::query(
+        "UPDATE music.play_sessions SET session_result = NULL \
+         WHERE session_result IS NOT NULL \
+         AND created_at < now() - make_interval(days => $1)",
+    )
+    .bind(retention_days as i32)
+    .execute(admin_pool)
+    .await?;
+    Ok(res.rows_affected())
 }

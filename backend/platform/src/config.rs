@@ -63,6 +63,14 @@ pub struct Config {
     /// `Secure` attribute for the web-auth refresh cookie. Defaults to `true`
     /// (fail-closed for prod); set `false` only for plain-HTTP `localhost` dev.
     pub web_auth_cookie_secure: bool,
+    /// Days the heavy per-session play detail (the full session-result JSONB) is
+    /// retained before the worker prunes it, keeping the lightweight summary +
+    /// per-day aggregate (change: add-play-activity-profile, D7). Default 90.
+    pub play_detail_retention_days: u32,
+    /// Minimum age required to make a profile public (change: add-play-activity-
+    /// profile, D6). A single global threshold — 16 is the strictest EU digital-
+    /// consent age, so compliant EU-wide without per-country detection. Default 16.
+    pub min_public_sharing_age: u32,
 }
 
 /// S3-compatible object-store connection for user scores. Maps to
@@ -161,6 +169,8 @@ pub mod config_core {
                 .cloned(),
             // Fail-closed: default Secure=true; a dev override sets it false for http localhost.
             web_auth_cookie_secure: flag(m, "CYMBRA_WEB_AUTH_COOKIE_SECURE", true),
+            play_detail_retention_days: num(m, "CYMBRA_PLAY_DETAIL_RETENTION_DAYS", 90)?,
+            min_public_sharing_age: num(m, "CYMBRA_MIN_PUBLIC_SHARING_AGE", 16)?,
         })
     }
 
@@ -397,6 +407,22 @@ mod tests {
         assert_eq!(c.upload_quota_max, 5);
         assert_eq!(c.upload_quota_window_days, 7);
         assert_eq!(c.upload_max_bytes, 8 * 1024 * 1024);
+    }
+
+    #[test]
+    fn play_activity_defaults_and_overrides() {
+        // Defaults (change: add-play-activity-profile): 90-day detail retention,
+        // minimum public-sharing age 16.
+        let c = config_core::parse(&base()).unwrap();
+        assert_eq!(c.play_detail_retention_days, 90);
+        assert_eq!(c.min_public_sharing_age, 16);
+
+        let mut m = base();
+        m.insert("CYMBRA_PLAY_DETAIL_RETENTION_DAYS".into(), "30".into());
+        m.insert("CYMBRA_MIN_PUBLIC_SHARING_AGE".into(), "18".into());
+        let c = config_core::parse(&m).unwrap();
+        assert_eq!(c.play_detail_retention_days, 30);
+        assert_eq!(c.min_public_sharing_age, 18);
     }
 
     #[test]

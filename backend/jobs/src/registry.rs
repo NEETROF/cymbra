@@ -25,6 +25,10 @@ pub const PURGE_USER: &str = "purge_user";
 /// is enqueued per user upload during account erasure (and, later, on a failed
 /// single-score object delete).
 pub const PURGE_SCORE_OBJECT: &str = "purge_score_object";
+/// Stable name of the play-detail retention prune (change: add-play-activity-
+/// profile, D7). No payload. Scheduled: NULLs the heavy `session_result` JSONB on
+/// `music.play_sessions` rows past the retention window, keeping the summary.
+pub const PLAY_DETAIL_PRUNE: &str = "play_detail_prune";
 
 /// Static description of one job type.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -94,6 +98,13 @@ pub fn builtin() -> Vec<JobSpec> {
             Channel::parallel("music", "purge"),
             RetryPolicy::new(8, Duration::from_secs(30), Duration::from_secs(3600)),
         ),
+        JobSpec::new(
+            PLAY_DETAIL_PRUNE,
+            // Maintenance sweep; dedup'd per scheduled occurrence, so ordering is
+            // moot — parallel so it never head-of-line blocks.
+            Channel::parallel("music", "maintenance"),
+            RetryPolicy::new(3, Duration::from_secs(60), Duration::from_secs(3600)),
+        ),
     ]
 }
 
@@ -114,6 +125,15 @@ mod tests {
         assert!(names.contains(&SESSION_REAP.to_string()));
         assert!(names.contains(&PURGE_USER.to_string()));
         assert!(names.contains(&PURGE_SCORE_OBJECT.to_string()));
+        assert!(names.contains(&PLAY_DETAIL_PRUNE.to_string()));
+    }
+
+    #[test]
+    fn play_detail_prune_is_parallel_maintenance_on_music() {
+        let s = spec(PLAY_DETAIL_PRUNE).unwrap();
+        assert_eq!(s.channel().name(), "music.maintenance");
+        assert!(!s.channel().is_ordered());
+        assert_eq!(s.default_retry().max_attempts(), 3);
     }
 
     #[test]

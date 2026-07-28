@@ -64,8 +64,12 @@ async fn main() -> anyhow::Result<()> {
     // performs the complete cross-schema erasure as admin_svc.
     let user_enqueuer: Arc<dyn cymbra_jobs::Enqueuer> =
         Arc::new(cymbra_jobs::PgEnqueuer::new(user_pool.clone()));
-    let user_concrete =
-        Arc::new(UserModule::new(PgUserRepo::new(user_pool)).with_enqueuer(user_enqueuer));
+    let user_concrete = Arc::new(
+        UserModule::new(PgUserRepo::new(user_pool))
+            .with_enqueuer(user_enqueuer)
+            // Public-profile age gate (change: add-play-activity-profile).
+            .with_min_public_sharing_age(cfg.min_public_sharing_age),
+    );
     let user_dyn: Arc<dyn UserPort> = user_concrete.clone();
 
     // --- auth module ---
@@ -98,7 +102,7 @@ async fn main() -> anyhow::Result<()> {
         cfg.reset_ttl,
     );
     let auth = Arc::new(AuthModule::new(
-        user_dyn,
+        user_dyn.clone(),
         creds,
         cache.clone(),
         email,
@@ -125,48 +129,73 @@ async fn main() -> anyhow::Result<()> {
         UserServiceServer::with_interceptor(UserGrpc::new(user_concrete), strict.clone());
     let auth_svc = AuthServiceServer::with_interceptor(AuthGrpc::new(auth), optional);
 
-    // --- music module: score uploads (wired only when the object store is set) ---
-    // Own pool via `music_svc`, run the module's MIGRATOR (owns `music`, so it
-    // creates/owns `user_scores`), and mount ScoreService behind the strict auth
-    // interceptor. Absent S3 config leaves the feature inert (backend ships first).
-    let score_svc = match cfg.score_storage.as_ref() {
-        Some(s3) => {
-            let db_url = cfg.music_database_url.as_deref().ok_or_else(|| {
-                anyhow::anyhow!(
-                    "CYMBRA_SCORE_S3_BUCKET is set but CYMBRA_MUSIC_DATABASE_URL is missing"
-                )
-            })?;
+    // --- music module (owns the `music` schema via `music_svc`) ---
+    // Wired whenever a music DB is configured. Own pool + one MIGRATOR run, then:
+    //   * PlayService — reliable end-of-session play stats + the profile heatmap
+    //     (change: add-play-activity-profile). Needs NO object store, so it is
+    //     available on the music DB alone. Its cross-schema-free visibility gate is
+    //     the injected user port (`user_dyn`).
+    //   * ScoreService — user uploads, ADDITIONALLY when the object store is set.
+    // Both run behind the strict auth interceptor. Absent music DB ⇒ both inert.
+    let (play_svc, score_svc) = match cfg.music_database_url.as_deref() {
+        Some(db_url) => {
             let music_pool = db::connect(db_url, 5).await?;
             cymbra_music::MIGRATOR.run(&music_pool).await?;
-            let storage: Arc<dyn ObjectStorage> = Arc::new(LocalFirstStore::from_config(
-                &cfg.score_local_root,
-                &S3Params {
-                    bucket: s3.bucket.clone(),
-                    endpoint: s3.endpoint.clone(),
-                    region: s3.region.clone(),
-                    access_key: s3.access_key.clone(),
-                    secret_key: s3.secret_key.clone(),
-                    allow_http: s3.allow_http,
-                },
-            )?);
-            let module = Arc::new(ScoreModule::new(
-                Arc::new(PgUserScoreRepo::new(music_pool.clone())),
-                Arc::new(PgCatalogSearchRepo::new(music_pool.clone())),
-                Arc::new(PgUserLibraryRepo::new(music_pool.clone())),
-                Arc::new(PgScoreRatingRepo::new(music_pool)),
-                storage,
-                cfg.upload_quota_max,
-                cfg.upload_quota_window_days,
-                cfg.upload_max_bytes,
+            let play_module = Arc::new(cymbra_music::PlayModule::new(
+                Arc::new(cymbra_music::PgPlayRepo::new(music_pool.clone())),
+                user_dyn.clone(),
             ));
-            Some(ScoreServiceServer::with_interceptor(
-                ScoreGrpc::new(module),
-                strict,
-            ))
+            let play_svc = Some(
+                cymbra_music::proto::play_service_server::PlayServiceServer::with_interceptor(
+                    cymbra_music::PlayGrpc::new(play_module),
+                    strict.clone(),
+                ),
+            );
+
+            let score_svc = match cfg.score_storage.as_ref() {
+                Some(s3) => {
+                    let storage: Arc<dyn ObjectStorage> = Arc::new(LocalFirstStore::from_config(
+                        &cfg.score_local_root,
+                        &S3Params {
+                            bucket: s3.bucket.clone(),
+                            endpoint: s3.endpoint.clone(),
+                            region: s3.region.clone(),
+                            access_key: s3.access_key.clone(),
+                            secret_key: s3.secret_key.clone(),
+                            allow_http: s3.allow_http,
+                        },
+                    )?);
+                    let module = Arc::new(ScoreModule::new(
+                        Arc::new(PgUserScoreRepo::new(music_pool.clone())),
+                        Arc::new(PgCatalogSearchRepo::new(music_pool.clone())),
+                        Arc::new(PgUserLibraryRepo::new(music_pool.clone())),
+                        Arc::new(PgScoreRatingRepo::new(music_pool)),
+                        storage,
+                        cfg.upload_quota_max,
+                        cfg.upload_quota_window_days,
+                        cfg.upload_max_bytes,
+                    ));
+                    Some(ScoreServiceServer::with_interceptor(
+                        ScoreGrpc::new(module),
+                        strict.clone(),
+                    ))
+                }
+                None => {
+                    tracing::info!("score-upload disabled (CYMBRA_SCORE_S3_BUCKET unset)");
+                    None
+                }
+            };
+            (play_svc, score_svc)
         }
         None => {
-            tracing::info!("score-upload disabled (CYMBRA_SCORE_S3_BUCKET unset)");
-            None
+            // Fail-fast: S3 configured but no music DB is a misconfiguration.
+            if cfg.score_storage.is_some() {
+                return Err(anyhow::anyhow!(
+                    "CYMBRA_SCORE_S3_BUCKET is set but CYMBRA_MUSIC_DATABASE_URL is missing"
+                ));
+            }
+            tracing::info!("music services disabled (CYMBRA_MUSIC_DATABASE_URL unset)");
+            (None, None)
         }
     };
 
@@ -221,6 +250,9 @@ async fn main() -> anyhow::Result<()> {
         .add_service(auth_svc);
     if let Some(score_svc) = score_svc {
         router = router.add_service(score_svc);
+    }
+    if let Some(play_svc) = play_svc {
+        router = router.add_service(play_svc);
     }
     let grpc = router.serve(grpc_addr);
     let listener = tokio::net::TcpListener::bind(http_addr).await?;

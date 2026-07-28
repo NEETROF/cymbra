@@ -1,0 +1,50 @@
+syntax = "proto3";
+
+package cymbra.music.v1;
+
+// PlayService — reliable ingestion of end-of-session play stats + the per-day
+// activity read that drives the profile heatmap (change: add-play-activity-
+// profile). The caller's identity comes from the internal access token (request
+// metadata), never the body. Lives in the `music` crate/schema alongside the
+// scores it references.
+
+// Record one completed play session. Idempotent by the client-generated session
+// id (a resent id is a no-op), so the app can retry-until-acked with no
+// double-count. A successful response IS the persisted-ack the client waits for
+// before dropping its durable outbox entry.
+message RecordPlaySessionRequest {
+  string session_id = 1;          // client-generated UUID v7 (the idempotency key)
+  optional string score_id = 2;   // catalog/user score identity (opaque)
+  int64 played_at_ms = 3;         // when the session ended (unix epoch ms, client wall clock)
+  int32 tz_offset_minutes = 4;    // client UTC offset at played_at (for local-day bucketing)
+  float overall_sync_pct = 5;     // the success score 0..100 (summary tier)
+  // The full immutable session-result record as JSON (performance-scoring's
+  // serializable record). Stored as-is for future replay/leaderboards; #5 uses
+  // only the summary fields above.
+  string session_result_json = 6;
+}
+message RecordPlaySessionResponse {}
+
+// One local day of activity: the number of songs played and the average overall
+// synchronization percentage that day (the heatmap cell's count + color).
+message DayActivity {
+  string day = 1;         // the player's LOCAL day, ISO yyyy-mm-dd
+  int32 count = 2;        // songs played that day
+  float avg_sync_pct = 3; // average overall synchronization % that day (0..100)
+}
+
+// Read a user's per-day play activity (the heatmap) + their songs-played total.
+// Honors the target's profile visibility fail-closed: activity for a non-public
+// (or not-yet-eligible) user is returned only to the owner themselves.
+message GetPlayActivityRequest {
+  string user_id = 1; // whose activity (the owner's own id, or a public profile's)
+}
+message GetPlayActivityResponse {
+  repeated DayActivity days = 1;
+  int32 total_sessions = 2; // songs-played total across the returned window
+}
+
+service PlayService {
+  rpc RecordPlaySession(RecordPlaySessionRequest) returns (RecordPlaySessionResponse);
+  rpc GetPlayActivity(GetPlayActivityRequest) returns (GetPlayActivityResponse);
+}

@@ -34,6 +34,9 @@ pub struct WorkerCtx {
     /// feature is unconfigured (then that job is a no-op).
     pub storage: Option<Arc<dyn ObjectStorage>>,
     pub reap_grace_secs: i64,
+    /// Retention window (days) for the `play_detail_prune` job (change: add-play-
+    /// activity-profile). Prunes `music.play_sessions` detail older than this.
+    pub play_detail_retention_days: i64,
 }
 
 /// Payload for the `verification_email` job (and any transactional email).
@@ -158,6 +161,25 @@ pub async fn purge_score_object(mut job: CurrentJob, ctx: WorkerCtx) -> Result<(
     .await
 }
 
+/// Prune the heavy per-session play detail past its retention window (change:
+/// add-play-activity-profile, D7). Scheduled (`play_detail_prune_daily`); NULLs
+/// the `session_result` JSONB on old `music.play_sessions` rows, keeping the
+/// summary. Idempotent (already-pruned rows are skipped), so a redelivery is safe.
+#[sqlxmq::job("play_detail_prune")]
+pub async fn play_detail_prune(mut job: CurrentJob, ctx: WorkerCtx) -> Result<(), BoxError> {
+    let span = tracing::info_span!("job.play_detail_prune", job_id = %job.id());
+    async move {
+        let pruned =
+            cymbra_worker::prune_play_detail(&ctx.admin_pool, ctx.play_detail_retention_days)
+                .await?;
+        tracing::info!(pruned, "play-detail retention prune complete");
+        job.complete().await?;
+        Ok(())
+    }
+    .instrument(span)
+    .await
+}
+
 /// Build the job registry with all handlers registered and the shared context set.
 pub fn registry(ctx: WorkerCtx) -> JobRegistry {
     let mut registry = JobRegistry::new(&[
@@ -166,6 +188,7 @@ pub fn registry(ctx: WorkerCtx) -> JobRegistry {
         session_reap,
         purge_user,
         purge_score_object,
+        play_detail_prune,
     ]);
     registry.set_context(ctx);
     registry
