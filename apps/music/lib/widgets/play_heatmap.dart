@@ -63,7 +63,7 @@ class PlayHeatmap extends StatelessWidget {
     super.key,
     required this.activity,
     this.endDate,
-    this.weeks = 26,
+    this.weeks = 53,
     this.cellSize = 12,
     this.cellGap = 3,
   });
@@ -72,6 +72,10 @@ class PlayHeatmap extends StatelessWidget {
 
   /// The last (most recent) day shown; defaults to today.
   final DateTime? endDate;
+
+  /// How many week-columns to show. Defaults to a rolling year (53 weeks) — the
+  /// GitHub convention and the design's ~13-month window; the grid scrolls
+  /// horizontally, so a full year fits on any screen.
   final int weeks;
   final double cellSize;
   final double cellGap;
