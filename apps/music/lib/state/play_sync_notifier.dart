@@ -120,14 +120,16 @@ class PlaySyncNotifier extends _$PlaySyncNotifier {
   Future<void> captureSession(SessionResult result) async {
     final userId = ref.read(currentUserIdProvider);
     if (userId == null) return;
+    // Stamp the real wall-clock time AT capture (session end). `result.playedAtMs`
+    // is the scorer's monotonic clock (ms since the run started, for reaction
+    // timing) — NOT an epoch — so it must not drive the heatmap's day bucketing.
+    final now = DateTime.now();
     final envelope = PlaySessionEnvelope(
       sessionId: _uuid.v7(),
       userId: userId,
       scoreId: result.pieceId.isEmpty ? null : result.pieceId,
-      playedAtMs: result.playedAtMs,
-      tzOffsetMinutes: DateTime.fromMillisecondsSinceEpoch(
-        result.playedAtMs,
-      ).timeZoneOffset.inMinutes,
+      playedAtMs: now.millisecondsSinceEpoch,
+      tzOffsetMinutes: now.timeZoneOffset.inMinutes,
       overallSyncPct: result.overallSyncPct,
       sessionResultJson: jsonEncode(result.toJson()),
     );
