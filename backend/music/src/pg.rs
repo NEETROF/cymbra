@@ -424,6 +424,96 @@ impl CatalogSearchRepo for PgCatalogSearchRepo {
     }
 }
 
+// ---------------------------------------------------------------------------
+// Score ratings (change: add-app-score-rating) — gRPC-facing, so it returns the
+// platform `Result`. Thin I/O glue (coverage-excluded); the rating math lives in
+// `score_rating.rs` + its fake, and this adapter mirrors the same arithmetic in
+// SQL (the effective value: explicit stars, else the verdict's implied value).
+// ---------------------------------------------------------------------------
+
+use crate::score_rating::{RatingAggregate, ScoreRatingRepo, Verdict};
+
+/// Postgres-backed [`ScoreRatingRepo`] over the `music_svc` pool.
+pub struct PgScoreRatingRepo {
+    pool: PgPool,
+}
+
+impl PgScoreRatingRepo {
+    pub fn new(pool: PgPool) -> Self {
+        Self { pool }
+    }
+}
+
+#[async_trait]
+impl ScoreRatingRepo for PgScoreRatingRepo {
+    async fn upsert(
+        &self,
+        user_id: &str,
+        catalog_score_id: &str,
+        verdict: Verdict,
+        stars: Option<i16>,
+    ) -> PlatformResult<()> {
+        // Both ids are UUIDs (the user from auth, the score already resolved
+        // through the accepted-only path in the module). A malformed id here is a
+        // programming error, not client input — surface it as internal rather than
+        // panicking.
+        let user = uuid::Uuid::parse_str(user_id)
+            .map_err(|e| AppError::Internal(anyhow::anyhow!("score_rating bad user id: {e}")))?;
+        let score = uuid::Uuid::parse_str(catalog_score_id)
+            .map_err(|e| AppError::Internal(anyhow::anyhow!("score_rating bad score id: {e}")))?;
+        // Upsert: one row per (user, score); a re-rating overwrites verdict/stars
+        // and bumps updated_at.
+        sqlx::query(
+            "INSERT INTO music.score_ratings (user_id, catalog_score_id, verdict, stars, updated_at) \
+             VALUES ($1, $2, $3, $4, now()) \
+             ON CONFLICT (user_id, catalog_score_id) \
+             DO UPDATE SET verdict = EXCLUDED.verdict, stars = EXCLUDED.stars, updated_at = now()",
+        )
+        .bind(user)
+        .bind(score)
+        .bind(verdict.as_str())
+        .bind(stars)
+        .execute(&self.pool)
+        .await
+        .map_err(search_internal)?;
+        Ok(())
+    }
+
+    async fn aggregate(&self, catalog_score_id: &str) -> PlatformResult<RatingAggregate> {
+        let Ok(score) = uuid::Uuid::parse_str(catalog_score_id) else {
+            return Ok(RatingAggregate::default()); // malformed id → no ratings
+        };
+        // The effective value per rating mirrors `score_rating::effective_value`:
+        // explicit stars, else the verdict's implied value (dislike 1.5 / like 3.5
+        // / love 5). AVG over the empty set is NULL → COALESCE to 0. The verdict
+        // breakdown uses FILTER counts in the same single scan.
+        let row = sqlx::query(
+            "SELECT \
+                COUNT(*) AS cnt, \
+                COALESCE(AVG(CASE \
+                    WHEN stars IS NOT NULL THEN stars::float8 \
+                    WHEN verdict = 'dislike' THEN 1.5 \
+                    WHEN verdict = 'like' THEN 3.5 \
+                    WHEN verdict = 'love' THEN 5.0 END), 0) AS avg_effective, \
+                COUNT(*) FILTER (WHERE verdict = 'dislike') AS dislike, \
+                COUNT(*) FILTER (WHERE verdict = 'like')    AS like_cnt, \
+                COUNT(*) FILTER (WHERE verdict = 'love')    AS love \
+             FROM music.score_ratings WHERE catalog_score_id = $1",
+        )
+        .bind(score)
+        .fetch_one(&self.pool)
+        .await
+        .map_err(search_internal)?;
+        Ok(RatingAggregate {
+            avg_effective: row.get::<f64, _>("avg_effective"),
+            count: row.get::<i64, _>("cnt"),
+            dislike: row.get::<i64, _>("dislike"),
+            like: row.get::<i64, _>("like_cnt"),
+            love: row.get::<i64, _>("love"),
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

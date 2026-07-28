@@ -31,6 +31,9 @@ use sha2::{Digest, Sha256};
 
 use crate::catalog_search::{CatalogHit, CatalogQuery, CatalogSearchParams, CatalogSearchRepo};
 use crate::repo::{ScoreFacets, ScoreMeta};
+use crate::score_rating::{
+    RatingAggregate, RatingConfig, ScoreRatingRepo, Verdict, is_flagged_for_review,
+};
 use crate::user_library::UserLibraryRepo;
 use crate::user_scores::{UserScore, UserScoreRepo};
 
@@ -70,23 +73,29 @@ fn clean_fallback(s: Option<String>) -> Option<String> {
         .filter(|v| !v.is_empty())
 }
 
-/// User-upload logic + catalog search / saved library, over owner-scoped repos,
-/// the public-catalog read port, and the object store.
+/// User-upload logic + catalog search / saved library / score ratings, over
+/// owner-scoped repos, the public-catalog read port, and the object store.
 pub struct ScoreModule {
     repo: Arc<dyn UserScoreRepo>,
     catalog: Arc<dyn CatalogSearchRepo>,
     library: Arc<dyn UserLibraryRepo>,
+    ratings: Arc<dyn ScoreRatingRepo>,
     storage: Arc<dyn ObjectStorage>,
     quota_max: u32,
     quota_window_days: u32,
     max_bytes: usize,
+    /// Hybrid re-review thresholds (change: add-app-score-rating, design D4).
+    /// Defaults to N=5, T=2.0; overridable via [`Self::with_rating_config`].
+    rating_config: RatingConfig,
 }
 
 impl ScoreModule {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         repo: Arc<dyn UserScoreRepo>,
         catalog: Arc<dyn CatalogSearchRepo>,
         library: Arc<dyn UserLibraryRepo>,
+        ratings: Arc<dyn ScoreRatingRepo>,
         storage: Arc<dyn ObjectStorage>,
         quota_max: u32,
         quota_window_days: u32,
@@ -96,11 +105,21 @@ impl ScoreModule {
             repo,
             catalog,
             library,
+            ratings,
             storage,
             quota_max,
             quota_window_days,
             max_bytes,
+            rating_config: RatingConfig::default(),
         }
+    }
+
+    /// Override the hybrid re-review thresholds (design D4). Defaults to N=5,
+    /// T=2.0 when unset; used to exercise the flag at a small `min_count` in tests
+    /// without seeding a full quorum of ratings.
+    pub fn with_rating_config(mut self, cfg: RatingConfig) -> Self {
+        self.rating_config = cfg;
+        self
     }
 
     /// Validate, re-derive, enforce the quota, store, and persist. Returns the
@@ -390,6 +409,59 @@ impl ScoreModule {
         self.library.remove(owner_id, catalog_id).await
     }
 
+    // --- score ratings (change: add-app-score-rating) -----------------------
+
+    /// Submit or update the caller's rating of an `accepted` catalog score.
+    /// Validates the verdict + optional 1–5 stars, rejects a non-`accepted` or
+    /// unknown target (resolved through the accepted-only path, exactly like
+    /// [`Self::save_catalog_score`]), upserts the single (user, score) row, and
+    /// returns the freshly-recomputed aggregate. `user_id` is the authenticated
+    /// caller.
+    pub async fn submit_rating(
+        &self,
+        user_id: &str,
+        catalog_id: &str,
+        verdict: &str,
+        stars: Option<i32>,
+    ) -> Result<RatingAggregate> {
+        let verdict = Verdict::parse(verdict)?;
+        let stars = match stars {
+            None => None,
+            Some(s) if (1..=5).contains(&s) => Some(s as i16),
+            Some(s) => {
+                return Err(AppError::InvalidArgument(format!(
+                    "stars must be between 1 and 5, got {s}"
+                )));
+            }
+        };
+        // Only a validated (`accepted`) score is rateable — an unvalidated/unknown
+        // id resolves as absent (a normal caller can't see it), so it can't be
+        // rated. `false` = accepted-only, mirroring save.
+        if self.catalog.object_key(catalog_id, false).await?.is_none() {
+            return Err(AppError::NotFound("catalog score not found".into()));
+        }
+        self.ratings
+            .upsert(user_id, catalog_id, verdict, stars)
+            .await?;
+        self.ratings.aggregate(catalog_id).await
+    }
+
+    /// The per-score rating aggregate (average effective value + count + verdict
+    /// breakdown), for hub ranking/recommendation.
+    pub async fn rating_aggregate(&self, catalog_id: &str) -> Result<RatingAggregate> {
+        self.ratings.aggregate(catalog_id).await
+    }
+
+    /// Whether a validated score is eligible for moderator re-review under the
+    /// hybrid flag (design D4): at least `min_count` ratings AND an average
+    /// effective value at or below `review_threshold`. Derived on demand from the
+    /// aggregate + config; it never changes `moderation_status` — change #3's queue
+    /// consumes this signal and a moderator decides.
+    pub async fn needs_review(&self, catalog_id: &str) -> Result<bool> {
+        let agg = self.ratings.aggregate(catalog_id).await?;
+        Ok(is_flagged_for_review(&agg, &self.rating_config))
+    }
+
     /// A single catalog score's metadata by id, so a detail/deep-link view is
     /// self-sufficient (change: add-moderation-back-office). `allow_unvalidated`
     /// reflects the caller's authorisation, mirroring [`Self::get_catalog_bytes`]:
@@ -491,6 +563,7 @@ mod tests {
     use cymbra_storage::FakeStore;
 
     use crate::catalog_search::{FakeCatalogRow, FakeCatalogSearchRepo};
+    use crate::score_rating::{FakeScoreRatingRepo, RatingConfig};
     use crate::user_library::FakeUserLibraryRepo;
     use crate::user_scores::FakeUserScoreRepo;
 
@@ -518,6 +591,7 @@ mod tests {
             repo.clone(),
             catalog,
             library,
+            Arc::new(FakeScoreRatingRepo::default()),
             store.clone(),
             max,
             window,
@@ -560,6 +634,7 @@ mod tests {
             repo,
             catalog.clone(),
             library.clone(),
+            Arc::new(FakeScoreRatingRepo::default()),
             store,
             5,
             7,
@@ -767,6 +842,7 @@ mod tests {
             repo.clone(),
             Arc::new(FakeCatalogSearchRepo::default()),
             Arc::new(FakeUserLibraryRepo::default()),
+            Arc::new(FakeScoreRatingRepo::default()),
             store.clone(),
             5,
             7,
@@ -902,6 +978,7 @@ mod tests {
             repo,
             catalog,
             Arc::new(FakeUserLibraryRepo::default()),
+            Arc::new(FakeScoreRatingRepo::default()),
             store,
             5,
             7,
@@ -1050,6 +1127,7 @@ mod tests {
             repo,
             catalog,
             Arc::new(FakeUserLibraryRepo::default()),
+            Arc::new(FakeScoreRatingRepo::default()),
             store,
             5,
             7,
@@ -1200,5 +1278,155 @@ mod tests {
             m.search_catalog(bad).await,
             Err(AppError::InvalidArgument(_))
         ));
+    }
+
+    // --- score ratings (change: add-app-score-rating) ------------------------
+
+    /// A module over three accepted scores, exposing the shared rating repo so a
+    /// test can assert single-row upsert, plus a small `min_count` so the
+    /// re-review flag can be exercised without seeding a full quorum.
+    fn rating_module() -> (ScoreModule, Arc<FakeScoreRatingRepo>) {
+        let catalog = Arc::new(FakeCatalogSearchRepo::with(vec![
+            FakeCatalogRow::new(
+                DEBUSSY_1,
+                "Clair de Lune",
+                "Claude Debussy",
+                Some("advanced"),
+            ),
+            FakeCatalogRow::new(SATIE, "Gymnopédie", "Erik Satie", Some("beginner")),
+        ]));
+        let ratings = Arc::new(FakeScoreRatingRepo::default());
+        let m = ScoreModule::new(
+            Arc::new(FakeUserScoreRepo::default()),
+            catalog,
+            Arc::new(FakeUserLibraryRepo::default()),
+            ratings.clone(),
+            Arc::new(FakeStore::default()),
+            5,
+            7,
+            8 * 1024 * 1024,
+        )
+        // N = 2 so two low ratings flag a score (the default N = 5 would need a quorum).
+        .with_rating_config(RatingConfig {
+            min_count: 2,
+            review_threshold: 2.0,
+        });
+        (m, ratings)
+    }
+
+    #[tokio::test]
+    async fn submit_rating_upserts_a_single_row_and_returns_the_aggregate() {
+        let (m, ratings) = rating_module();
+        // First rating: a verdict-only like (implied 3.5).
+        let agg = m
+            .submit_rating("u1", DEBUSSY_1, "like", None)
+            .await
+            .unwrap();
+        assert_eq!(agg.count, 1);
+        assert_eq!(agg.like, 1);
+        assert!((agg.avg_effective - 3.5).abs() < 1e-9);
+        // The SAME user re-rates with explicit stars → the row is updated, not
+        // duplicated, and the aggregate reflects the new value (5.0), not 3.5.
+        let agg = m
+            .submit_rating("u1", DEBUSSY_1, "love", Some(5))
+            .await
+            .unwrap();
+        assert_eq!(ratings.len(), 1); // one row per (user, score)
+        assert_eq!(agg.count, 1);
+        assert_eq!(agg.love, 1);
+        assert_eq!(agg.like, 0);
+        assert!((agg.avg_effective - 5.0).abs() < 1e-9);
+    }
+
+    #[tokio::test]
+    async fn submit_rating_validates_verdict_and_stars() {
+        let (m, ratings) = rating_module();
+        // Unknown verdict → InvalidArgument, nothing recorded.
+        assert!(matches!(
+            m.submit_rating("u1", DEBUSSY_1, "meh", None).await,
+            Err(AppError::InvalidArgument(_))
+        ));
+        // Stars out of range → InvalidArgument.
+        assert!(matches!(
+            m.submit_rating("u1", DEBUSSY_1, "like", Some(6)).await,
+            Err(AppError::InvalidArgument(_))
+        ));
+        assert!(matches!(
+            m.submit_rating("u1", DEBUSSY_1, "like", Some(0)).await,
+            Err(AppError::InvalidArgument(_))
+        ));
+        assert!(ratings.is_empty());
+    }
+
+    #[tokio::test]
+    async fn submit_rating_rejects_a_non_accepted_or_unknown_score() {
+        // The moderated corpus has one accepted + one pending + one rejected score.
+        let repo = Arc::new(FakeUserScoreRepo::default());
+        let store = Arc::new(FakeStore::default());
+        let catalog = Arc::new(FakeCatalogSearchRepo::with(vec![
+            FakeCatalogRow::new(
+                DEBUSSY_1,
+                "Clair de Lune",
+                "Claude Debussy",
+                Some("advanced"),
+            ),
+            FakeCatalogRow::new(PENDING_ID, "Pending Piece", "Anon", Some("beginner"))
+                .with_moderation_status("pending"),
+            FakeCatalogRow::new(REJECTED_ID, "Rejected Piece", "Anon", Some("beginner"))
+                .with_moderation_status("rejected"),
+        ]));
+        let ratings = Arc::new(FakeScoreRatingRepo::default());
+        let m = ScoreModule::new(
+            repo,
+            catalog,
+            Arc::new(FakeUserLibraryRepo::default()),
+            ratings.clone(),
+            store,
+            5,
+            7,
+            8 * 1024 * 1024,
+        );
+        // Pending / rejected / unknown ids are invisible to a normal caller, so
+        // they cannot be rated (not-found) and nothing is written.
+        for id in [
+            PENDING_ID,
+            REJECTED_ID,
+            "99999999-9999-7999-8999-999999999999",
+        ] {
+            assert!(matches!(
+                m.submit_rating("u1", id, "like", None).await,
+                Err(AppError::NotFound(_))
+            ));
+        }
+        assert!(ratings.is_empty());
+        // The accepted score rates fine.
+        m.submit_rating("u1", DEBUSSY_1, "love", None)
+            .await
+            .unwrap();
+        assert_eq!(ratings.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn needs_review_flags_only_at_min_count_and_low_average() {
+        let (m, _ratings) = rating_module(); // N = 2, T = 2.0
+        // One dislike (1.5): below threshold, but only one vote → not flagged.
+        m.submit_rating("u1", DEBUSSY_1, "dislike", None)
+            .await
+            .unwrap();
+        assert!(!m.needs_review(DEBUSSY_1).await.unwrap());
+        // A second dislike reaches the count with a low average → flagged now.
+        m.submit_rating("u2", DEBUSSY_1, "dislike", None)
+            .await
+            .unwrap();
+        assert!(m.needs_review(DEBUSSY_1).await.unwrap());
+        // A separate score rated highly is never flagged.
+        m.submit_rating("u1", SATIE, "love", None).await.unwrap();
+        m.submit_rating("u2", SATIE, "love", None).await.unwrap();
+        assert!(!m.needs_review(SATIE).await.unwrap());
+        // …and its aggregate reads back for hub ranking.
+        let agg = m.rating_aggregate(SATIE).await.unwrap();
+        assert_eq!(agg.count, 2);
+        assert_eq!(agg.love, 2);
+        assert!((agg.avg_effective - 5.0).abs() < 1e-9);
     }
 }

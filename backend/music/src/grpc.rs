@@ -36,7 +36,7 @@ use crate::proto::{
     RemoveSavedCatalogScoreResponse, SaveCatalogScoreRequest, SaveCatalogScoreResponse,
     ScoreRecord, SearchCatalogRequest, SearchCatalogResponse, SetModerationStatusRequest,
     SetModerationStatusResponse, SetScoreFavoriteRequest, SetScoreFavoriteResponse,
-    UploadScoreRequest,
+    SubmitScoreRatingRequest, SubmitScoreRatingResponse, UploadScoreRequest,
     score_service_server::{ScoreService, ScoreServiceServer},
 };
 use crate::user_scores::UserScore;
@@ -329,6 +329,28 @@ impl ScoreService for ScoreGrpc {
             .await?;
         Ok(Response::new(SetModerationStatusResponse {}))
     }
+
+    async fn submit_score_rating(
+        &self,
+        req: Request<SubmitScoreRatingRequest>,
+    ) -> Result<Response<SubmitScoreRatingResponse>, Status> {
+        // Any signed-in user may rate (change: add-app-score-rating). The rater is
+        // the authenticated caller — never the body. The module validates the
+        // verdict/stars and rejects a non-`accepted`/unknown target.
+        let user_id = owner(&req)?;
+        let r = req.into_inner();
+        let agg = self
+            .module
+            .submit_rating(&user_id, &r.catalog_id, &r.verdict, r.stars)
+            .await?;
+        Ok(Response::new(SubmitScoreRatingResponse {
+            rating_avg: agg.avg_effective,
+            rating_count: agg.count.clamp(0, i32::MAX as i64) as i32,
+            dislike_count: agg.dislike.clamp(0, i32::MAX as i64) as i32,
+            like_count: agg.like.clamp(0, i32::MAX as i64) as i32,
+            love_count: agg.love.clamp(0, i32::MAX as i64) as i32,
+        }))
+    }
 }
 
 #[cfg(test)]
@@ -337,6 +359,7 @@ mod tests {
     use cymbra_storage::{FakeStore, ObjectStorage};
 
     use crate::catalog_search::{FakeCatalogRow, FakeCatalogSearchRepo};
+    use crate::score_rating::FakeScoreRatingRepo;
     use crate::user_library::FakeUserLibraryRepo;
     use crate::user_scores::FakeUserScoreRepo;
 
@@ -366,6 +389,7 @@ mod tests {
             Arc::new(FakeUserScoreRepo::default()),
             catalog,
             Arc::new(FakeUserLibraryRepo::default()),
+            Arc::new(FakeScoreRatingRepo::default()),
             store,
             5,
             7,
@@ -710,5 +734,53 @@ mod tests {
             .unwrap()
             .into_inner();
         assert!(resp.hits.iter().any(|h| h.id == PENDING));
+    }
+
+    // --- score ratings (change: add-app-score-rating) ------------------------
+
+    const RATER: &str = "66666666-6666-7666-8666-666666666666";
+
+    fn rating(catalog_id: &str, verdict: &str, stars: Option<i32>) -> SubmitScoreRatingRequest {
+        SubmitScoreRatingRequest {
+            catalog_id: catalog_id.into(),
+            verdict: verdict.into(),
+            stars,
+        }
+    }
+
+    #[tokio::test]
+    async fn submit_rating_requires_authentication() {
+        let g = grpc().await;
+        // No identity in the extensions → unauthenticated.
+        let err = g
+            .submit_score_rating(Request::new(rating(DEBUSSY, "like", None)))
+            .await
+            .unwrap_err();
+        assert_eq!(err.code(), tonic::Code::Unauthenticated);
+    }
+
+    #[tokio::test]
+    async fn submit_rating_records_and_returns_the_aggregate() {
+        let g = grpc().await;
+        // A signed-in user rates an accepted score with explicit stars.
+        let resp = g
+            .submit_score_rating(authed(rating(DEBUSSY, "love", Some(5)), RATER))
+            .await
+            .unwrap()
+            .into_inner();
+        assert_eq!(resp.rating_count, 1);
+        assert_eq!(resp.love_count, 1);
+        assert!((resp.rating_avg - 5.0).abs() < 1e-9);
+    }
+
+    #[tokio::test]
+    async fn submit_rating_on_a_pending_score_is_rejected() {
+        let g = grpc().await;
+        // The pending score is invisible to a normal caller, so it can't be rated.
+        let err = g
+            .submit_score_rating(authed(rating(PENDING, "like", None), RATER))
+            .await
+            .unwrap_err();
+        assert_eq!(err.code(), tonic::Code::NotFound);
     }
 }

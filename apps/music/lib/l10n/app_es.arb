@@ -235,5 +235,24 @@
   "uploadFieldKey": "Tonalidad",
   "uploadKeyValue": "{count} alteración(es)",
   "uploadFieldTimeSig": "Compás",
-  "uploadFieldMeasureCount": "Número de compases"
+  "uploadFieldMeasureCount": "Número de compases",
+
+  "ratingDeckTitle": "Puntuar partituras",
+  "ratingDeckEntryTooltip": "Puntuar partituras",
+  "ratingDeckEmptyTitle": "Todo puntuado",
+  "ratingDeckEmptyBody": "Has puntuado todas las partituras disponibles por ahora. Vuelve más tarde.",
+  "ratingDeckLoadError": "No se pudieron cargar las partituras para puntuar.",
+  "ratingDeckRetry": "Reintentar",
+  "ratingDislike": "No me gusta",
+  "ratingLike": "Me gusta",
+  "ratingLove": "Me encanta",
+  "ratingSkip": "Saltar",
+  "ratingStarsButton": "Estrellas",
+  "ratingStarsSheetTitle": "Puntuar esta partitura",
+  "ratingPreview": "Vista previa",
+  "ratingSubmitError": "No se pudo guardar tu puntuación.",
+  "ratingCardStarsHint": "Toca para estrellas",
+  "ratingCoachTitle": "Desliza o toca las estrellas",
+  "ratingCoachBody": "Desliza a la izquierda para no me gusta, a la derecha para me gusta, arriba para me encanta. Toca las estrellas de una tarjeta para una puntuación precisa, o usa los botones de abajo.",
+  "ratingCoachDismiss": "Entendido"
 }

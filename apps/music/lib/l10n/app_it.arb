@@ -235,5 +235,24 @@
   "uploadFieldKey": "Tonalità",
   "uploadKeyValue": "{count} alterazione/i",
   "uploadFieldTimeSig": "Metro",
-  "uploadFieldMeasureCount": "Numero di misure"
+  "uploadFieldMeasureCount": "Numero di misure",
+
+  "ratingDeckTitle": "Valuta partiture",
+  "ratingDeckEntryTooltip": "Valuta partiture",
+  "ratingDeckEmptyTitle": "Tutto valutato",
+  "ratingDeckEmptyBody": "Hai valutato tutte le partiture disponibili per ora. Torna più tardi.",
+  "ratingDeckLoadError": "Impossibile caricare le partiture da valutare.",
+  "ratingDeckRetry": "Riprova",
+  "ratingDislike": "Non mi piace",
+  "ratingLike": "Mi piace",
+  "ratingLove": "Adoro",
+  "ratingSkip": "Salta",
+  "ratingStarsButton": "Stelle",
+  "ratingStarsSheetTitle": "Valuta questa partitura",
+  "ratingPreview": "Anteprima",
+  "ratingSubmitError": "Impossibile salvare la tua valutazione.",
+  "ratingCardStarsHint": "Tocca per le stelle",
+  "ratingCoachTitle": "Scorri o tocca le stelle",
+  "ratingCoachBody": "Scorri a sinistra per non mi piace, a destra per mi piace, in alto per adoro. Tocca le stelle di una carta per una valutazione precisa, o usa i pulsanti in basso.",
+  "ratingCoachDismiss": "Capito"
 }

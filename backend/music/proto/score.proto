@@ -159,6 +159,29 @@ message SetModerationStatusRequest {
 }
 message SetModerationStatusResponse {}
 
+// Submit (or update) the caller's rating of an `accepted` catalog score (change:
+// add-app-score-rating). Carries a swipe `verdict` (dislike | like | love) and an
+// OPTIONAL 1–5 `stars` value; re-rating the same score upserts (one rating per
+// user per score). The identity is the authenticated caller, never the body.
+// Rating a non-`accepted` or unknown score is rejected.
+message SubmitScoreRatingRequest {
+  string catalog_id = 1;
+  string verdict = 2;         // dislike | like | love (the swipe)
+  optional int32 stars = 3;   // explicit 1..5 star value; unset = verdict only
+}
+
+// The freshly-recomputed per-score aggregate, so the app can update its optimistic
+// UI without a second round-trip. `rating_avg` is the average effective value on
+// the 1–5 scale (explicit stars, else the verdict's implied value); the verdict
+// breakdown counts each swipe kind across all of the score's ratings.
+message SubmitScoreRatingResponse {
+  double rating_avg = 1;
+  int32 rating_count = 2;
+  int32 dislike_count = 3;
+  int32 like_count = 4;
+  int32 love_count = 5;
+}
+
 service ScoreService {
   rpc UploadScore(UploadScoreRequest) returns (ScoreRecord);
   rpc ListMyScores(ListMyScoresRequest) returns (ListMyScoresResponse);
@@ -176,4 +199,8 @@ service ScoreService {
 
   // Moderation back office (change: add-moderation-back-office). Moderator/admin only.
   rpc SetModerationStatus(SetModerationStatusRequest) returns (SetModerationStatusResponse);
+
+  // Score rating (change: add-app-score-rating). Any signed-in user rates an
+  // `accepted` catalog score; one updatable rating per user per score.
+  rpc SubmitScoreRating(SubmitScoreRatingRequest) returns (SubmitScoreRatingResponse);
 }

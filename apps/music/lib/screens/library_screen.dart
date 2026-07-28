@@ -30,6 +30,7 @@ import '../widgets/library_listeners.dart';
 import '../widgets/score_card.dart';
 import 'auth/account_menu.dart';
 import 'open_score.dart';
+import 'rating_deck_screen.dart';
 import 'score_hub_screen.dart';
 
 /// Localized name for a [PracticeLevel] section header.
@@ -65,12 +66,18 @@ class LibraryScreen extends ConsumerWidget {
           title: Text(l10n.libraryTitle),
           backgroundColor: CymbraColors.surfaceContainerLowest,
           actions: [
-            if (signedIn)
+            if (signedIn) ...[
               IconButton(
                 icon: const Icon(Icons.search),
                 tooltip: l10n.scoreHubEntryTooltip,
                 onPressed: () => _openHub(context),
               ),
+              IconButton(
+                icon: const Icon(Icons.swipe),
+                tooltip: l10n.ratingDeckEntryTooltip,
+                onPressed: () => _openRatingDeck(context),
+              ),
+            ],
             const LanguageSelectorButton(),
             const AccountMenu(),
             const SizedBox(width: 8),
@@ -107,6 +114,10 @@ class LibraryScreen extends ConsumerWidget {
   static void _openHub(BuildContext context) => Navigator.of(
     context,
   ).push(MaterialPageRoute<void>(builder: (_) => const ScoreHubScreen()));
+
+  static void _openRatingDeck(BuildContext context) => Navigator.of(
+    context,
+  ).push(MaterialPageRoute<void>(builder: (_) => const RatingDeckScreen()));
 }
 
 /// Groups [entries] into per-level card grids (only non-empty levels), in
