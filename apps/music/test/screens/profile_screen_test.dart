@@ -30,19 +30,26 @@ PlayActivity _activity() => PlayActivity(
   totalSessions: 5,
 );
 
+/// Wrap [child] in a root [ProviderContainer] (via [UncontrolledProviderScope]),
+/// the repo's widget-test convention — overriding on a root container avoids the
+/// `scoped_providers_should_specify_dependencies` lint that a nested
+/// `ProviderScope(overrides:)` would trip.
+Widget _scope(List<Override> overrides, Widget child) {
+  final container = ProviderContainer(overrides: overrides);
+  addTearDown(container.dispose);
+  return UncontrolledProviderScope(container: container, child: child);
+}
+
 Widget _harness({
   required String targetId,
   required PlayerProfile profile,
   String? currentUserId,
   String? screenUserId,
-}) => ProviderScope(
-  overrides: [
-    currentUserIdProvider.overrideWithValue(currentUserId),
-    playerProfileProvider(targetId).overrideWith((ref) async => profile),
-    playActivityProvider(targetId).overrideWith((ref) async => _activity()),
-  ],
-  child: localizedApp(ProfileScreen(userId: screenUserId)),
-);
+}) => _scope([
+  currentUserIdProvider.overrideWithValue(currentUserId),
+  playerProfileProvider(targetId).overrideWith((ref) async => profile),
+  playActivityProvider(targetId).overrideWith((ref) async => _activity()),
+], localizedApp(ProfileScreen(userId: screenUserId)));
 
 void main() {
   testWidgets('another player\'s profile shows only public fields', (
@@ -103,16 +110,13 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          currentUserIdProvider.overrideWithValue('me'),
-          // Server fail-closed: reading another player's private profile errors.
-          playerProfileProvider(
-            'other',
-          ).overrideWith((ref) async => throw Exception('not found')),
-        ],
-        child: localizedApp(const ProfileScreen(userId: 'other')),
-      ),
+      _scope([
+        currentUserIdProvider.overrideWithValue('me'),
+        // Server fail-closed: reading another player's private profile errors.
+        playerProfileProvider(
+          'other',
+        ).overrideWith((ref) async => throw Exception('not found')),
+      ], localizedApp(const ProfileScreen(userId: 'other'))),
     );
     await tester.pumpAndSettle();
 
