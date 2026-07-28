@@ -107,7 +107,7 @@ message PlayerProfile {
   string user_id = 1;
   optional string handle = 2;
   optional string display_name = 3;
-  string visibility = 4; // private | limited | public
+  string visibility = 4; // private | public
 }
 
 // View another player's public profile (or one's own, always in full). The
@@ -122,7 +122,7 @@ message GetPlayerProfileRequest { string user_id = 1; }
 // closed (a not-yet-eligible request is refused). `date_of_birth` is required the
 // first time a user goes public and ignored otherwise.
 message SetProfileVisibilityRequest {
-  string visibility = 1;              // private | limited | public
+  string visibility = 1;              // private | public
   optional string date_of_birth = 2;  // ISO yyyy-mm-dd; only at first public opt-in; discarded
 }
 message SetProfileVisibilityResponse {

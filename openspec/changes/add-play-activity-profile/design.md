@@ -85,7 +85,7 @@ A public profile read returns only an **allow-listed** field set: handle/display
 level, badges, the play heatmap, and songs-played totals. It MUST NOT include email, the
 **curator alignment/reliability** figures (a moderation-trust signal, not for other players),
 or any moderation state. A **visibility control** lets a user make their profile
-public/limited/private.
+public or private.
 - **Why allow-list (not deny-list)**: fail-closed — a new sensitive field is private by
   default unless explicitly added to the public set.
 - **Default visibility (decided): opt-in — private by default.** Going public is an explicit

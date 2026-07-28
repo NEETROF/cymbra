@@ -413,7 +413,7 @@ impl UserRepo for PgUserRepo {
         share_eligible_from: Option<chrono::NaiveDate>,
     ) -> Result<()> {
         // COALESCE keeps the stored eligibility date when the caller passes `None`
-        // (a private/limited toggle never loses the derived date).
+        // (a private toggle never loses the derived date).
         let res = sqlx::query(
             "UPDATE users SET profile_visibility = $2, \
              share_eligible_from = COALESCE($3, share_eligible_from) WHERE id = $1",

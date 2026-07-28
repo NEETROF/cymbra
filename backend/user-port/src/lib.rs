@@ -14,13 +14,12 @@ pub mod proto {
 }
 
 /// How visible a profile is to OTHER players (change: add-play-activity-profile).
-/// **Private by default** (opt-in sharing). `Limited` is reserved for a future
-/// followers-only tier; the public-profile read treats anything but `Public` as
-/// not exposed to arbitrary viewers (fail-closed).
+/// **Private by default** (opt-in sharing): the public-profile read exposes a
+/// profile to arbitrary viewers only when it is `Public` (fail-closed). A
+/// followers-only tier can be added later with its own semantics + migration.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Visibility {
     Private,
-    Limited,
     Public,
 }
 
@@ -28,7 +27,6 @@ impl Visibility {
     pub fn as_str(self) -> &'static str {
         match self {
             Visibility::Private => "private",
-            Visibility::Limited => "limited",
             Visibility::Public => "public",
         }
     }
@@ -37,7 +35,6 @@ impl Visibility {
     pub fn parse(s: &str) -> Result<Self> {
         match s {
             "private" => Ok(Visibility::Private),
-            "limited" => Ok(Visibility::Limited),
             "public" => Ok(Visibility::Public),
             other => Err(AppError::InvalidArgument(format!(
                 "unknown visibility {other:?}"
@@ -210,12 +207,13 @@ pub trait UserPort: Send + Sync {
     ) -> Result<PlayerProfile>;
 
     /// Set the caller's own visibility. Going `Public` is gated by the minimum-age
-    /// safeguard (design D6): if the account has no eligibility date yet,
-    /// `date_of_birth` MUST be supplied — the module derives
-    /// `share_eligible_from = dob + min_public_sharing_age years`, stores only that
-    /// (the DOB is discarded), and REFUSES (fail-closed) if the user is not yet
-    /// eligible on `today` (UTC, one-day margin). Returns the visibility now in
-    /// effect. `Private`/`Limited` are always allowed and never touch the age data.
+    /// safeguard (design D6): a supplied `date_of_birth` always (re-)derives
+    /// `share_eligible_from = dob + min_public_sharing_age years` and is then
+    /// discarded (only the derived date is stored); with no DOB the stored date is
+    /// used, and if there is none the call is refused. REFUSES (fail-closed) when
+    /// the user is not yet eligible on `today` (UTC, one-day margin). Returns the
+    /// visibility now in effect. `Private` is always allowed and never touches the
+    /// age data.
     async fn set_profile_visibility(
         &self,
         user_id: &str,

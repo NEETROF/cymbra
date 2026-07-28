@@ -17,7 +17,7 @@ use std::sync::Mutex;
 pub struct ProfileRow {
     pub handle: Option<String>,
     pub display_name: Option<String>,
-    /// Stored visibility (`private` | `limited` | `public`).
+    /// Stored visibility (`private` | `public`).
     pub visibility: String,
     /// Derived eligibility date (`None` until an age has been established).
     pub share_eligible_from: Option<NaiveDate>,

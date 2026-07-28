@@ -284,7 +284,7 @@ impl<R: UserRepo> UserPort for UserModule<R> {
         date_of_birth: Option<NaiveDate>,
         today: NaiveDate,
     ) -> Result<Visibility> {
-        // Private/Limited are always allowed and never touch the age data.
+        // Private is always allowed and never touches the age data.
         if visibility != Visibility::Public {
             self.repo
                 .update_visibility(user_id, visibility.as_str(), None)
@@ -840,7 +840,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn private_and_limited_need_no_dob_and_toggle_freely() {
+    async fn private_toggle_needs_no_dob_and_preserves_eligibility() {
         let m = module();
         let u = m.resolve_or_provision("google", "g1").await.unwrap();
         // Establish eligibility + go public.
@@ -857,13 +857,6 @@ mod tests {
         assert_eq!(
             m.repo.profile_row(&u).await.unwrap().share_eligible_from,
             Some(ymd(2016, 1, 1))
-        );
-        // Limited likewise needs no DOB.
-        assert_eq!(
-            m.set_profile_visibility(&u, Visibility::Limited, None, today())
-                .await
-                .unwrap(),
-            Visibility::Limited
         );
         // Re-going public now needs no DOB (date already stored) and succeeds.
         assert_eq!(

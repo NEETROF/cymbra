@@ -18,7 +18,7 @@
 
 ## 4. Public profiles (backend + app)
 
-- [x] 4.1 User model: a profile-visibility setting (**default private**; public/limited/private) + a `share_eligible_from DATE` (nullable) + config `min_public_sharing_age` (default 16). Migration additive. Do NOT store date of birth.
+- [x] 4.1 User model: a profile-visibility setting (**default private**; public/private) + a `share_eligible_from DATE` (nullable) + config `min_public_sharing_age` (default 16). Migration additive. Do NOT store date of birth.
 - [x] 4.2 `SetProfileVisibility` RPC: to set public, require the user eligible — server-side, fail-closed, `current_date_utc > share_eligible_from` (one-day margin); refuse otherwise. A neutral age-gate flow computes `share_eligible_from = DOB + min_public_sharing_age years` from a DOB entered only at opt-in and discards the DOB.
 - [x] 4.3 `GetPlayerProfile(user)` read returning only the allow-listed public fields (handle/display name, level, badges, heatmap, songs-played); NEVER email, curator alignment/reliability, or moderation state; honor visibility AND eligibility (fail-closed); reject unauthenticated.
 - [x] 4.4 App: a read-only public-profile view (reuses the #4 profile widgets with the public field set) + an entry point to open another player's profile.
