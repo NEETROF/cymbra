@@ -74,6 +74,12 @@ class _FakeCatalog implements CatalogService {
     if (err != null) throw err;
     return Uint8List(0);
   }
+
+  @override
+  Future<CatalogSearchPage> ratingDeck({
+    int limit = 20,
+    int offset = 0,
+  }) async => const CatalogSearchPage(hits: [], nextOffset: 0, total: 0);
 }
 
 class _FakeUpload implements ScoreUploadService {
