@@ -274,5 +274,6 @@
   "profileAgeGateContinue": "Continua",
   "profileTooYoung": "Non hai ancora l'età necessaria per rendere pubblico il tuo profilo.",
   "profileVisibilityError": "Impossibile aggiornare la visibilità del profilo. Riprova.",
-  "profileUnavailable": "Questo profilo non è disponibile."
+  "profileUnavailable": "Questo profilo non è disponibile.",
+  "profilePublicHint": "Il tuo profilo è visibile agli altri giocatori connessi."
 }

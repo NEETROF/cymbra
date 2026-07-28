@@ -142,16 +142,18 @@ class _VisibilityControl extends ConsumerWidget {
 
   final String current;
 
-  static const _options = ['private', 'limited', 'public'];
+  // Two effective states today: Private (hidden from others) and Public (other
+  // signed-in players can see the profile). A "limited"/followers-only tier is
+  // reserved for later and intentionally not surfaced until it has real behavior.
+  static const _options = ['private', 'public'];
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
-    String label(String v) => switch (v) {
-      'private' => l10n.profileVisibilityPrivate,
-      'limited' => l10n.profileVisibilityLimited,
-      _ => l10n.profileVisibilityPublic,
-    };
+    final isPublic = current == 'public';
+    String label(String v) => v == 'private'
+        ? l10n.profileVisibilityPrivate
+        : l10n.profileVisibilityPublic;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -166,16 +168,16 @@ class _VisibilityControl extends ConsumerWidget {
             for (final v in _options)
               ButtonSegment(value: v, label: Text(label(v))),
           ],
-          selected: {_options.contains(current) ? current : 'private'},
+          // A stored "limited" (legacy) falls back to the Private control.
+          selected: {isPublic ? 'public' : 'private'},
           onSelectionChanged: (sel) => _select(context, ref, sel.first, l10n),
         ),
-        if (current != 'public') ...[
-          const SizedBox(height: 8),
-          Text(
-            l10n.profileGoPublicHint,
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-        ],
+        const SizedBox(height: 8),
+        // Explain the current state either way (the feedback: it wasn't clear).
+        Text(
+          isPublic ? l10n.profilePublicHint : l10n.profileGoPublicHint,
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
       ],
     );
   }
@@ -225,7 +227,9 @@ class _VisibilityControl extends ConsumerWidget {
     final now = DateTime.now();
     return showDatePicker(
       context: context,
-      initialDate: DateTime(now.year - 16, now.month, now.day),
+      // A neutral adult default — NOT the exact minimum-age boundary, so a
+      // careless confirm doesn't land one day short of eligibility.
+      initialDate: DateTime(now.year - 25, now.month, now.day),
       firstDate: DateTime(1900),
       lastDate: now,
       helpText: l10n.profileAgeGateTitle,

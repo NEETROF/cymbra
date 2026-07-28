@@ -655,5 +655,7 @@
   "profileVisibilityError": "Couldn't update your profile visibility. Please try again.",
   "@profileVisibilityError": { "description": "Profile / visibility UI (change: add-play-activity-profile)." },
   "profileUnavailable": "This profile isn't available.",
-  "@profileUnavailable": { "description": "Profile / visibility UI (change: add-play-activity-profile)." }
+  "@profileUnavailable": { "description": "Profile / visibility UI (change: add-play-activity-profile)." },
+  "profilePublicHint": "Your profile is visible to other signed-in players.",
+  "@profilePublicHint": { "description": "Profile: hint shown when the profile is public." }
 }

@@ -292,18 +292,14 @@ impl<R: UserRepo> UserPort for UserModule<R> {
             return Ok(visibility);
         }
 
-        // Going public: resolve the eligibility date, deriving it from a supplied
-        // DOB the first time (then discarding the DOB — only the derived date is
-        // stored). The check is fail-closed: refuse when not yet eligible today.
-        let existing = self.repo.profile_row(user_id).await?.share_eligible_from;
-        let eligible_from = match existing {
-            Some(d) => d,
-            None => {
-                let dob = date_of_birth.ok_or_else(|| {
-                    AppError::FailedPrecondition(
-                        "date of birth is required to make a profile public".into(),
-                    )
-                })?;
+        // Going public: resolve the eligibility date. A **supplied DOB always
+        // wins** — it re-derives and overrides any stored date, so a user who
+        // mis-entered their birth date once can correct it (the DOB itself is
+        // still discarded; only the derived date is stored). With no DOB, fall
+        // back to the stored date (the "already established my age, just flip me
+        // public" path). The check is fail-closed: refuse when not yet eligible.
+        let eligible_from = match date_of_birth {
+            Some(dob) => {
                 if !profile_core::dob_is_plausible(dob, today) {
                     return Err(AppError::InvalidArgument(
                         "date of birth cannot be in the future".into(),
@@ -311,6 +307,16 @@ impl<R: UserRepo> UserPort for UserModule<R> {
                 }
                 profile_core::derive_eligible_from(dob, self.min_public_sharing_age)
             }
+            None => self
+                .repo
+                .profile_row(user_id)
+                .await?
+                .share_eligible_from
+                .ok_or_else(|| {
+                    AppError::FailedPrecondition(
+                        "date of birth is required to make a profile public".into(),
+                    )
+                })?,
         };
 
         if profile_core::is_eligible(today, eligible_from) {
@@ -792,6 +798,34 @@ mod tests {
                 .await,
             Err(AppError::FailedPrecondition(_))
         ));
+    }
+
+    #[tokio::test]
+    async fn a_fresh_dob_overrides_a_previously_stored_eligibility_date() {
+        // Regression: a mis-entered birth date must be correctable. A first attempt
+        // with a too-young DOB stores a future eligibility date and is refused...
+        let m = module();
+        let u = m.resolve_or_provision("google", "g1").await.unwrap();
+        assert!(matches!(
+            m.set_profile_visibility(&u, Visibility::Public, Some(ymd(2010, 7, 28)), today())
+                .await,
+            Err(AppError::FailedPrecondition(_))
+        ));
+        assert_eq!(
+            m.repo.profile_row(&u).await.unwrap().share_eligible_from,
+            Some(ymd(2026, 7, 28))
+        );
+        // ...but re-entering a correct, eligible DOB now succeeds: the fresh DOB
+        // wins over the stored date (previously it was ignored → stuck forever).
+        let now = m
+            .set_profile_visibility(&u, Visibility::Public, Some(ymd(1982, 7, 28)), today())
+            .await
+            .unwrap();
+        assert_eq!(now, Visibility::Public);
+        assert_eq!(
+            m.repo.profile_row(&u).await.unwrap().share_eligible_from,
+            Some(ymd(1998, 7, 28))
+        );
     }
 
     #[tokio::test]
