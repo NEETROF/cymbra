@@ -66,6 +66,12 @@ class StaffPainter extends CustomPainter {
   /// original 4 s window), so the player is unaffected.
   final double lookAheadMs;
 
+  /// Multiplier on the staff size (and therefore the note glyphs, stems, clefs
+  /// and armature — everything derives from the staff line gap). `1.0` is the
+  /// player's size; the in-card preview uses a smaller value to shrink the
+  /// notation without changing the horizontal note spacing (that is [lookAheadMs]).
+  final double noteScale;
+
   const StaffPainter({
     required this.notes,
     required this.elapsedMs,
@@ -79,6 +85,7 @@ class StaffPainter extends CustomPainter {
     this.measureStartMs = const [],
     this.mistakeColors = const {},
     this.lookAheadMs = _defaultLookAheadMs,
+    this.noteScale = 1.0,
   });
 
   // Default visible time window to the right of the playhead.
@@ -100,7 +107,12 @@ class StaffPainter extends CustomPainter {
     // The kept staff when a single hand is shown: its clef/armature are drawn on
     // the lone staff (bass when only staff 2+ remains, else treble).
     final soloStaff = !twoStaff && hasBass ? 2 : 1;
-    final lineGap = (size.height * (twoStaff ? 0.055 : 0.10)).clamp(8.0, 18.0);
+    // The staff line gap sizes ALL notation (notes, stems, glyphs, armature);
+    // `noteScale` shrinks it for the small in-card preview without touching the
+    // player (scale 1.0). Applied after the clamp so it can go below the player's
+    // 8 px floor when deliberately scaled down.
+    final lineGap =
+        (size.height * (twoStaff ? 0.055 : 0.10)).clamp(8.0, 18.0) * noteScale;
     final stepGap = lineGap / 2;
 
     // Playhead fixed at the left quarter; time advances toward the left.
@@ -687,5 +699,7 @@ class StaffPainter extends CustomPainter {
       old.notes != notes ||
       old.rests != rests ||
       old.measureStartMs != measureStartMs ||
-      old.mistakeColors != mistakeColors;
+      old.mistakeColors != mistakeColors ||
+      old.lookAheadMs != lookAheadMs ||
+      old.noteScale != noteScale;
 }

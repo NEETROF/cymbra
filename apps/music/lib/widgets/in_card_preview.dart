@@ -51,7 +51,12 @@ class _InCardPreviewState extends ConsumerState<InCardPreview>
   /// How many measures to keep ahead of the playhead in the card. Small on
   /// purpose: the card reads ~1–2 measures at a time (a phrase), not the whole
   /// line, so the notation stays large and legible in the small preview.
-  static const double _measuresAhead = 1.5;
+  static const double _measuresAhead = 1.0;
+
+  /// Shrinks the notation (notes, stems, glyphs) relative to the player's size,
+  /// so the small card doesn't render oversized noteheads. Tune here (1.0 = the
+  /// player's size).
+  static const double _noteScale = 0.7;
 
   late final Ticker _ticker;
 
@@ -178,6 +183,7 @@ class _InCardPreviewState extends ConsumerState<InCardPreview>
                   beatType: score.beatType,
                   measureStartMs: score.measureStartMs,
                   lookAheadMs: _lookAheadFor(score),
+                  noteScale: _noteScale,
                 ),
                 size: Size.infinite,
               ),
