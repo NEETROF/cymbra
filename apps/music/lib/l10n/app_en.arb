@@ -159,6 +159,11 @@
 
   "accountSignOut": "Sign out",
   "accountDelete": "Delete account",
+  "accountSignOutAll": "Sign out from all devices",
+  "accountSignOutAllTitle": "Sign out from all devices?",
+  "accountSignOutAllBody": "This ends your session on every device, including this one. You’ll need to sign in again.",
+  "accountSignOutAllConfirm": "Sign out everywhere",
+  "accountSignOutAllError": "Couldn’t sign out from all devices. Please try again.",
 
   "signInForgotPassword": "Forgot password?",
   "signInCreateAccount": "Create an account",

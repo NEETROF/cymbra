@@ -62,6 +62,7 @@ class FakeAuthService implements AuthService {
   AuthException? refreshError;
   AuthException? resetError;
   AuthException? logoutError;
+  AuthException? revokeAllError;
 
   final List<String> calls = [];
 
@@ -121,6 +122,12 @@ class FakeAuthService implements AuthService {
   Future<void> logout(String refreshToken) async {
     calls.add('logout:$refreshToken');
     if (logoutError != null) throw logoutError!;
+  }
+
+  @override
+  Future<void> revokeAllSessions() async {
+    calls.add('revokeAllSessions');
+    if (revokeAllError != null) throw revokeAllError!;
   }
 
   @override

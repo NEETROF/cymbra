@@ -122,8 +122,23 @@ class SessionNotifier extends _$SessionNotifier {
         // Offline or already-revoked: fall through to local clear.
       }
     }
+    await _endLocalSession();
+  }
+
+  /// Sign out of **all** the account's devices. Revokes every session
+  /// server-side, then — **only on success** — tears down the local session
+  /// (the current device's session is revoked too). Unlike [signOut]'s
+  /// best-effort logout, a failed revoke rethrows and leaves the user signed in:
+  /// we don't sign the current device out locally while other devices stay live.
+  Future<void> signOutEverywhere() async {
+    await _auth.revokeAllSessions();
+    await _endLocalSession();
+  }
+
+  /// Shared local teardown: forget the cached OIDC account (best-effort, never
+  /// blocks on the native SDK), clear the stored tokens, and return to entry.
+  Future<void> _endLocalSession() async {
     try {
-      // Forget the cached Google account so the next sign-in re-prompts.
       await _oidc.signOut();
     } catch (_) {
       // Best-effort: never block local sign-out on the native SDK.
