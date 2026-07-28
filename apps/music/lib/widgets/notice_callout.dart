@@ -58,12 +58,12 @@ class NoticeCallout extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Compact on a narrow (phone) width so the callout doesn't dominate the top
-    // of the screen; roomier on tablet/desktop.
+    // Compact on a narrow (phone) callout so it doesn't dominate the top of the
+    // screen; roomier on tablet/desktop.
     return LayoutBuilder(
       builder: (context, c) {
-        final dense = this.dense ?? c.maxWidth < 520;
-        final circle = dense ? 26.0 : 34.0;
+        final compact = dense ?? (c.maxWidth < 520);
+        final m = compact ? _CalloutMetrics.dense : _CalloutMetrics.regular;
         return Container(
           decoration: BoxDecoration(
             color: CymbraColors.surfaceContainerHigh,
@@ -72,112 +72,176 @@ class NoticeCallout extends StatelessWidget {
               color: CymbraColors.primary.withValues(alpha: 0.35),
             ),
           ),
-          padding: dense
-              ? const EdgeInsets.fromLTRB(12, 10, 4, 12)
-              : const EdgeInsets.fromLTRB(16, 14, 8, 16),
+          padding: m.padding,
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: circle,
-                height: circle,
-                alignment: Alignment.center,
-                decoration: const BoxDecoration(
-                  color: CymbraColors.primaryContainer,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(icon, color: Colors.white, size: dense ? 15 : 19),
-              ),
-              SizedBox(width: dense ? 10 : 12),
-              Expanded(
-                child: Column(
-                  // Size to content: the callout is often placed in an unbounded-
-                  // height parent (e.g. a Column above an Expanded list).
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: Padding(
-                            padding: EdgeInsets.only(top: dense ? 3 : 6),
-                            child: Text(
-                              title,
-                              style: TextStyle(
-                                color: CymbraColors.onSurface,
-                                fontSize: dense ? 13.5 : 16,
-                                fontWeight: FontWeight.w800,
-                                height: 1.2,
-                              ),
-                            ),
-                          ),
-                        ),
-                        if (onClose != null)
-                          IconButton(
-                            icon: Icon(Icons.close, size: dense ? 16 : 18),
-                            color: CymbraColors.onSurfaceVariant,
-                            visualDensity: VisualDensity.compact,
-                            tooltip: MaterialLocalizations.of(
-                              context,
-                            ).closeButtonTooltip,
-                            onPressed: onClose,
-                          )
-                        else
-                          const SizedBox(width: 8),
-                      ],
-                    ),
-                    SizedBox(height: dense ? 1 : 2),
-                    Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: Text(
-                        message,
-                        style: TextStyle(
-                          color: CymbraColors.onSurfaceVariant,
-                          fontSize: dense ? 12 : 13.5,
-                          height: 1.3,
-                        ),
-                      ),
-                    ),
-                    SizedBox(height: dense ? 8 : 12),
-                    InkWell(
-                      onTap: onAction,
-                      borderRadius: BorderRadius.circular(6),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 2,
-                          vertical: 4,
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              actionLabel,
-                              style: TextStyle(
-                                color: CymbraColors.primary,
-                                fontSize: dense ? 12.5 : 14,
-                                fontWeight: FontWeight.w800,
-                                decoration: TextDecoration.underline,
-                                decorationColor: CymbraColors.primary,
-                              ),
-                            ),
-                            const SizedBox(width: 6),
-                            Icon(
-                              Icons.arrow_forward,
-                              color: CymbraColors.primary,
-                              size: dense ? 15 : 18,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              _iconBadge(m),
+              SizedBox(width: m.gapAfterIcon),
+              Expanded(child: _content(context, m)),
             ],
           ),
         );
       },
     );
   }
+
+  Widget _iconBadge(_CalloutMetrics m) => Container(
+    width: m.circle,
+    height: m.circle,
+    alignment: Alignment.center,
+    decoration: const BoxDecoration(
+      color: CymbraColors.primaryContainer,
+      shape: BoxShape.circle,
+    ),
+    child: Icon(icon, color: Colors.white, size: m.iconSize),
+  );
+
+  Widget _content(BuildContext context, _CalloutMetrics m) => Column(
+    // Size to content: the callout is often placed in an unbounded-height parent
+    // (e.g. a Column above an Expanded list).
+    mainAxisSize: MainAxisSize.min,
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      _header(context, m),
+      SizedBox(height: m.gapTitleToMessage),
+      Padding(
+        padding: const EdgeInsets.only(right: 8),
+        child: Text(
+          message,
+          style: TextStyle(
+            color: CymbraColors.onSurfaceVariant,
+            fontSize: m.messageSize,
+            height: 1.3,
+          ),
+        ),
+      ),
+      SizedBox(height: m.gapBeforeLink),
+      _link(m),
+    ],
+  );
+
+  Widget _header(BuildContext context, _CalloutMetrics m) => Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Expanded(
+        child: Padding(
+          padding: EdgeInsets.only(top: m.titleTop),
+          child: Text(
+            title,
+            style: TextStyle(
+              color: CymbraColors.onSurface,
+              fontSize: m.titleSize,
+              fontWeight: FontWeight.w800,
+              height: 1.2,
+            ),
+          ),
+        ),
+      ),
+      _closeButton(context, m),
+    ],
+  );
+
+  Widget _closeButton(BuildContext context, _CalloutMetrics m) {
+    final onClose = this.onClose;
+    if (onClose == null) return const SizedBox(width: 8);
+    return IconButton(
+      icon: Icon(Icons.close, size: m.closeSize),
+      color: CymbraColors.onSurfaceVariant,
+      visualDensity: VisualDensity.compact,
+      tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
+      onPressed: onClose,
+    );
+  }
+
+  Widget _link(_CalloutMetrics m) => InkWell(
+    onTap: onAction,
+    borderRadius: BorderRadius.circular(6),
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            actionLabel,
+            style: TextStyle(
+              color: CymbraColors.primary,
+              fontSize: m.linkSize,
+              fontWeight: FontWeight.w800,
+              decoration: TextDecoration.underline,
+              decorationColor: CymbraColors.primary,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Icon(
+            Icons.arrow_forward,
+            color: CymbraColors.primary,
+            size: m.arrowSize,
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+/// The size/spacing constants for a [NoticeCallout], in a [regular] and a [dense]
+/// preset — selected once so the widget tree carries no scattered ternaries.
+class _CalloutMetrics {
+  const _CalloutMetrics({
+    required this.padding,
+    required this.circle,
+    required this.iconSize,
+    required this.gapAfterIcon,
+    required this.titleTop,
+    required this.titleSize,
+    required this.closeSize,
+    required this.gapTitleToMessage,
+    required this.messageSize,
+    required this.gapBeforeLink,
+    required this.linkSize,
+    required this.arrowSize,
+  });
+
+  final EdgeInsets padding;
+  final double circle;
+  final double iconSize;
+  final double gapAfterIcon;
+  final double titleTop;
+  final double titleSize;
+  final double closeSize;
+  final double gapTitleToMessage;
+  final double messageSize;
+  final double gapBeforeLink;
+  final double linkSize;
+  final double arrowSize;
+
+  static const regular = _CalloutMetrics(
+    padding: EdgeInsets.fromLTRB(16, 14, 8, 16),
+    circle: 34,
+    iconSize: 19,
+    gapAfterIcon: 12,
+    titleTop: 6,
+    titleSize: 16,
+    closeSize: 18,
+    gapTitleToMessage: 2,
+    messageSize: 13.5,
+    gapBeforeLink: 12,
+    linkSize: 14,
+    arrowSize: 18,
+  );
+
+  static const dense = _CalloutMetrics(
+    padding: EdgeInsets.fromLTRB(12, 10, 4, 12),
+    circle: 26,
+    iconSize: 15,
+    gapAfterIcon: 10,
+    titleTop: 3,
+    titleSize: 13.5,
+    closeSize: 16,
+    gapTitleToMessage: 1,
+    messageSize: 12,
+    gapBeforeLink: 8,
+    linkSize: 12.5,
+    arrowSize: 15,
+  );
 }
