@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -149,52 +150,82 @@ class _CardStack extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final top = deck.topCard;
     final next = deck.nextCard;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          // Behind: a static peek of the next card, slightly inset/scaled.
-          if (next != null)
-            Positioned.fill(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 14),
-                child: Transform.translate(
-                  offset: const Offset(0, 14),
-                  child: Opacity(
-                    opacity: 0.55,
-                    child: RatingCard(entry: next, interactive: false),
+    return Stack(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              // A Tinder-style card is bounded and centred — never stretched
+              // across a wide tablet/desktop viewport. Cap the width and keep a
+              // portrait aspect, shrinking to fit a short viewport.
+              const maxWidth = 420.0;
+              const widthToHeight = 0.72; // portrait card
+              var cardW = math.min(constraints.maxWidth, maxWidth);
+              var cardH = cardW / widthToHeight;
+              if (cardH > constraints.maxHeight) {
+                cardH = constraints.maxHeight;
+                cardW = math.min(cardW, cardH * widthToHeight);
+              }
+              return Center(
+                child: SizedBox(
+                  width: cardW,
+                  height: cardH,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      // Behind: a static peek of the next card, inset below.
+                      if (next != null)
+                        Positioned.fill(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            child: Transform.translate(
+                              offset: const Offset(0, 14),
+                              child: Opacity(
+                                opacity: 0.55,
+                                child: RatingCard(
+                                  entry: next,
+                                  interactive: false,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      // Front: the swipeable, interactive top card (keyed by id
+                      // so a new top card resets the swipe animation).
+                      if (top != null)
+                        Positioned.fill(
+                          child: SwipeCard(
+                            key: ValueKey(top.catalogId ?? top.id),
+                            onDislike: () => ref
+                                .read(ratingDeckProvider.notifier)
+                                .rate(RatingVerdict.dislike),
+                            onLike: () => ref
+                                .read(ratingDeckProvider.notifier)
+                                .rate(RatingVerdict.like),
+                            onLove: () => ref
+                                .read(ratingDeckProvider.notifier)
+                                .rate(RatingVerdict.love),
+                            child: RatingCard(
+                              entry: top,
+                              onTapStars: () =>
+                                  _CardStackStars.open(context, ref, top),
+                              onPreview: () => unawaited(
+                                openScorePreview(context, ref, top),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                 ),
-              ),
-            ),
-          // Front: the swipeable, interactive top card (keyed by id so a new top
-          // card resets the swipe animation). Positioned.fill gives the card the
-          // bounded constraints its inner Column/Expanded needs.
-          if (top != null)
-            Positioned.fill(
-              child: SwipeCard(
-                key: ValueKey(top.catalogId ?? top.id),
-                onDislike: () => ref
-                    .read(ratingDeckProvider.notifier)
-                    .rate(RatingVerdict.dislike),
-                onLike: () => ref
-                    .read(ratingDeckProvider.notifier)
-                    .rate(RatingVerdict.like),
-                onLove: () => ref
-                    .read(ratingDeckProvider.notifier)
-                    .rate(RatingVerdict.love),
-                child: RatingCard(
-                  entry: top,
-                  onTapStars: () => _CardStackStars.open(context, ref, top),
-                  onPreview: () =>
-                      unawaited(openScorePreview(context, ref, top)),
-                ),
-              ),
-            ),
-          const _CoachMarkOverlay(),
-        ],
-      ),
+              );
+            },
+          ),
+        ),
+        // The one-time coach mark covers the whole deck area (over the card).
+        const _CoachMarkOverlay(),
+      ],
     );
   }
 }

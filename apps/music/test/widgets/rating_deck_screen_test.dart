@@ -121,6 +121,38 @@ void main() {
     expect(find.text('Piece c0'), findsWidgets);
   });
 
+  testWidgets('the card is bounded and visible on a wide desktop viewport', (
+    tester,
+  ) async {
+    // Regression: the card used to fill the whole area, so on a wide viewport its
+    // cover overflowed and nothing rendered. It must stay a bounded, centred card
+    // (title visible, no overflow).
+    await tester.binding.setSurfaceSize(const Size(2000, 1200));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          catalogServiceProvider.overrideWithValue(
+            FakeDeckCatalogService(deckCorpus(3)),
+          ),
+          ratingServiceProvider.overrideWithValue(FakeRatingService()),
+          preferencesServiceProvider.overrideWithValue(
+            FakePreferencesService({RatingCoachMark.prefsKey: 'true'}),
+          ),
+        ],
+        child: localizedApp(const RatingDeckScreen()),
+      ),
+    );
+    await tester.pumpAndSettle();
+    // The card renders (title visible) and is capped well below the full width.
+    expect(find.text('Piece c0'), findsWidgets);
+    expect(
+      tester.getSize(find.byType(SwipeCard)).width,
+      lessThanOrEqualTo(440),
+    );
+    expect(tester.takeException(), isNull); // no overflow
+  });
+
   testWidgets('the coach mark shows once and dismisses', (tester) async {
     await _pumpDeck(tester, coachSeen: false);
     // The one-time hint is shown over the first card.
