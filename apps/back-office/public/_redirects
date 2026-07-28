@@ -1,0 +1,4 @@
+# SPA history fallback: every non-asset path is served index.html so vue-router
+# (HTML5 history mode) can resolve it client-side. Cloudflare Pages serves real
+# files first, so /assets/* and other emitted files are unaffected.
+/*    /index.html    200
