@@ -248,6 +248,7 @@
   "ratingLove": "Me encanta",
   "ratingSkip": "Saltar",
   "ratingStarsButton": "Estrellas",
+  "ratingLockedHint": "Escucha la partitura para puntuarla",
   "ratingStarsSheetTitle": "Puntuar esta partitura",
   "ratingPreview": "Vista previa",
   "ratingPreviewStop": "Detener vista previa",

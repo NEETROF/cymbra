@@ -248,6 +248,7 @@
   "ratingLove": "J'adore",
   "ratingSkip": "Passer",
   "ratingStarsButton": "Étoiles",
+  "ratingLockedHint": "Écoute la partition pour la noter",
   "ratingStarsSheetTitle": "Noter cette partition",
   "ratingPreview": "Aperçu",
   "ratingPreviewStop": "Arrêter l'aperçu",

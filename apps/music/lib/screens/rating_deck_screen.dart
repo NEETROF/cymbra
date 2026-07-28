@@ -105,10 +105,15 @@ class _RatingDeckBody extends ConsumerWidget {
       );
     }
 
+    // Rating is gated on "listened enough": the verdict/star controls are locked
+    // until the card's auto-preview has played past the threshold. Skip is always
+    // allowed.
+    final locked = !deck.topUnlocked;
     return Column(
       children: [
         Expanded(child: _CardStack(deck: deck)),
         RatingDeckControls(
+          locked: locked,
           onDislike: () =>
               ref.read(ratingDeckProvider.notifier).rate(RatingVerdict.dislike),
           onLike: () =>
@@ -116,7 +121,7 @@ class _RatingDeckBody extends ConsumerWidget {
           onLove: () =>
               ref.read(ratingDeckProvider.notifier).rate(RatingVerdict.love),
           onSkip: () => ref.read(ratingDeckProvider.notifier).skip(),
-          onStars: deck.topCard == null
+          onStars: (deck.topCard == null || locked)
               ? null
               : () => _openStars(context, ref, deck.topCard!),
         ),
@@ -156,15 +161,20 @@ class _CardStack extends ConsumerWidget {
           child: LayoutBuilder(
             builder: (context, constraints) {
               // A Tinder-style card is bounded and centred — never stretched
-              // across a wide tablet/desktop viewport. Cap the width and keep a
-              // portrait aspect, shrinking to fit a short viewport.
+              // across a wide tablet/desktop viewport. Its height is exactly the
+              // preview cover (16/11) plus a compact info strip, so there is no
+              // dead space below the card; it shrinks to fit a short viewport.
               const maxWidth = 420.0;
-              const widthToHeight = 0.72; // portrait card
+              const infoHeight =
+                  118.0; // ScoreCard title + composer + attribution
               var cardW = math.min(constraints.maxWidth, maxWidth);
-              var cardH = cardW / widthToHeight;
+              var cardH = cardW * 11 / 16 + infoHeight;
               if (cardH > constraints.maxHeight) {
                 cardH = constraints.maxHeight;
-                cardW = math.min(cardW, cardH * widthToHeight);
+                cardW = math.min(
+                  cardW,
+                  math.max(0, cardH - infoHeight) * 16 / 11,
+                );
               }
               return Center(
                 child: SizedBox(
@@ -191,11 +201,13 @@ class _CardStack extends ConsumerWidget {
                           ),
                         ),
                       // Front: the swipeable, interactive top card (keyed by id
-                      // so a new top card resets the swipe animation).
+                      // so a new top card resets the swipe animation). Swiping is
+                      // enabled only once the card is unlocked (listened enough).
                       if (top != null)
                         Positioned.fill(
                           child: SwipeCard(
                             key: ValueKey(top.catalogId ?? top.id),
+                            enabled: deck.topUnlocked,
                             onDislike: () => ref
                                 .read(ratingDeckProvider.notifier)
                                 .rate(RatingVerdict.dislike),
@@ -207,8 +219,15 @@ class _CardStack extends ConsumerWidget {
                                 .rate(RatingVerdict.love),
                             child: RatingCard(
                               entry: top,
-                              onTapStars: () =>
-                                  _CardStackStars.open(context, ref, top),
+                              onTapStars: deck.topUnlocked
+                                  ? () =>
+                                        _CardStackStars.open(context, ref, top)
+                                  : null,
+                              onPreviewProgress: top.catalogId == null
+                                  ? null
+                                  : (f) => ref
+                                        .read(ratingDeckProvider.notifier)
+                                        .markPreviewed(top.catalogId!, f),
                             ),
                           ),
                         ),

@@ -29,6 +29,7 @@ class RatingDeckControls extends StatelessWidget {
     required this.onLove,
     required this.onSkip,
     required this.onStars,
+    this.locked = false,
   });
 
   final VoidCallback onDislike;
@@ -37,8 +38,12 @@ class RatingDeckControls extends StatelessWidget {
   final VoidCallback onSkip;
 
   /// Opens the star rating for the current card; null disables the control (e.g.
-  /// no top card).
+  /// no top card, or locked).
   final VoidCallback? onStars;
+
+  /// While true the verdict/star controls are disabled (the card's preview has
+  /// not been heard enough yet); Skip stays available and a hint is shown.
+  final bool locked;
 
   @override
   Widget build(BuildContext context) {
@@ -56,14 +61,14 @@ class RatingDeckControls extends StatelessWidget {
                 icon: Icons.thumb_down,
                 color: CymbraColors.error,
                 tooltip: l10n.ratingDislike,
-                onPressed: onDislike,
+                onPressed: locked ? null : onDislike,
               ),
               _RoundAction(
                 key: const Key('rating-skip'),
                 icon: Icons.skip_next,
                 color: CymbraColors.onSurfaceVariant,
                 tooltip: l10n.ratingSkip,
-                onPressed: onSkip,
+                onPressed: onSkip, // Skip is always available
                 small: true,
               ),
               _RoundAction(
@@ -71,31 +76,53 @@ class RatingDeckControls extends StatelessWidget {
                 icon: Icons.thumb_up,
                 color: CymbraColors.secondary,
                 tooltip: l10n.ratingLike,
-                onPressed: onLike,
+                onPressed: locked ? null : onLike,
               ),
               _RoundAction(
                 key: const Key('rating-love'),
                 icon: Icons.favorite,
                 color: CymbraColors.primary,
                 tooltip: l10n.ratingLove,
-                onPressed: onLove,
+                onPressed: locked ? null : onLove,
               ),
             ],
           ),
           const SizedBox(height: 10),
-          TextButton.icon(
-            key: const Key('rating-stars'),
-            onPressed: onStars,
-            icon: const Icon(Icons.star, color: CymbraColors.primary),
-            label: Text(l10n.ratingStarsButton),
-          ),
+          // Locked → a hint to keep listening; unlocked → the star-rating entry.
+          locked
+              ? Row(
+                  key: const Key('rating-locked-hint'),
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.headphones,
+                      size: 16,
+                      color: CymbraColors.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      l10n.ratingLockedHint,
+                      style: const TextStyle(
+                        color: CymbraColors.onSurfaceVariant,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                )
+              : TextButton.icon(
+                  key: const Key('rating-stars'),
+                  onPressed: onStars,
+                  icon: const Icon(Icons.star, color: CymbraColors.primary),
+                  label: Text(l10n.ratingStarsButton),
+                ),
         ],
       ),
     );
   }
 }
 
-/// A circular action button used by the deck controls.
+/// A circular action button used by the deck controls. A null [onPressed] renders
+/// it disabled (dimmed, not tappable).
 class _RoundAction extends StatelessWidget {
   const _RoundAction({
     super.key,
@@ -109,18 +136,20 @@ class _RoundAction extends StatelessWidget {
   final IconData icon;
   final Color color;
   final String tooltip;
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed;
   final bool small;
 
   @override
   Widget build(BuildContext context) {
     final size = small ? 48.0 : 62.0;
+    final enabled = onPressed != null;
+    final tint = enabled ? color : CymbraColors.outlineVariant;
     return Tooltip(
       message: tooltip,
       child: Material(
         color: CymbraColors.surfaceContainerHigh,
         shape: CircleBorder(
-          side: BorderSide(color: color.withValues(alpha: 0.6), width: 1.5),
+          side: BorderSide(color: tint.withValues(alpha: 0.6), width: 1.5),
         ),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
@@ -128,7 +157,7 @@ class _RoundAction extends StatelessWidget {
           child: SizedBox(
             width: size,
             height: size,
-            child: Icon(icon, color: color, size: small ? 22 : 28),
+            child: Icon(icon, color: tint, size: small ? 22 : 28),
           ),
         ),
       ),

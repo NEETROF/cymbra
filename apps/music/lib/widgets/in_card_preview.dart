@@ -27,21 +27,20 @@ import '../theme/cymbra_theme.dart';
 
 /// The in-card **read-only** score preview (change: add-app-score-rating): the
 /// same horizontal game-score render as play — the notation scrolls and the notes
-/// sound — but with NO interaction, NO judging and NO scoring. It reuses the
-/// player's [StaffPainter] and audio seam directly, driven by a local ticker, so
-/// nothing about the scored player state is touched. Loops until dismissed.
+/// sound — but with NO interaction, NO judging and NO scoring. It **auto-plays**
+/// as soon as the card is shown (no Play button) and loops. Reuses the player's
+/// [StaffPainter] and audio seam directly, driven by a local ticker, so nothing
+/// about the scored player state is touched. Reports playback progress (0..1) via
+/// [onProgress] so the deck can unlock rating only once enough has been heard.
 class InCardPreview extends ConsumerStatefulWidget {
-  const InCardPreview({
-    super.key,
-    required this.catalogId,
-    required this.onClose,
-  });
+  const InCardPreview({super.key, required this.catalogId, this.onProgress});
 
   /// The catalog score to preview (its bytes are fetched + parsed on demand).
   final String catalogId;
 
-  /// Called when the user stops the preview (returns to the card face).
-  final VoidCallback onClose;
+  /// Reports the furthest-reached playback fraction (0..1) each frame, so the
+  /// deck can gate rating on "listened to enough of the score".
+  final ValueChanged<double>? onProgress;
 
   @override
   ConsumerState<InCardPreview> createState() => _InCardPreviewState();
@@ -49,6 +48,11 @@ class InCardPreview extends ConsumerStatefulWidget {
 
 class _InCardPreviewState extends ConsumerState<InCardPreview>
     with SingleTickerProviderStateMixin {
+  /// How many measures to keep ahead of the playhead in the card. Small on
+  /// purpose: the card reads ~1–2 measures at a time (a phrase), not the whole
+  /// line, so the notation stays large and legible in the small preview.
+  static const double _measuresAhead = 1.5;
+
   late final Ticker _ticker;
 
   /// Captured in [initState] so [dispose] never reads a provider on a disposing
@@ -118,7 +122,27 @@ class _InCardPreviewState extends ConsumerState<InCardPreview>
         _sounding.add(p);
       }
     }
+    _reportProgress(score, next);
     setState(() => _elapsedMs = next);
+  }
+
+  /// The visible time window (ms) so the card shows ~[_measuresAhead] measures
+  /// ahead of the playhead, derived from the piece's own tempo/metre so a slow
+  /// and a fast piece show a comparable *number* of measures (not seconds).
+  /// Clamped so an extreme tempo still reads sensibly.
+  double _lookAheadFor(CardPreviewScore score) {
+    final bpm = score.bpm <= 0 ? 90 : score.bpm;
+    final beatType = score.beatType <= 0 ? 4 : score.beatType;
+    final measureMs = (60000.0 / bpm) * score.beats * 4 / beatType;
+    return (measureMs * _measuresAhead).clamp(1800.0, 5000.0);
+  }
+
+  /// Fraction of the piece the playhead has reached (0..1), reported to the deck.
+  void _reportProgress(CardPreviewScore score, double playhead) {
+    final span = score.songEndMs - score.startMs;
+    if (span <= 0) return;
+    final fraction = ((playhead - score.startMs) / span).clamp(0.0, 1.0);
+    widget.onProgress?.call(fraction);
   }
 
   @override
@@ -127,55 +151,36 @@ class _InCardPreviewState extends ConsumerState<InCardPreview>
     final async = ref.watch(cardPreviewScoreProvider(widget.catalogId));
     return ColoredBox(
       color: CymbraColors.surfaceContainerLow,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          async.when(
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (_, _) => Center(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Text(
-                  l10n.ratingPreviewError,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: CymbraColors.error),
+      child: async.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (_, _) => Center(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Text(
+              l10n.ratingPreviewError,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: CymbraColors.error),
+            ),
+          ),
+        ),
+        data: (score) => score.isEmpty
+            ? const SizedBox.shrink()
+            : CustomPaint(
+                painter: StaffPainter(
+                  notes: score.notes,
+                  rests: score.rests,
+                  elapsedMs: _elapsedMs,
+                  activeNotes: const <int>{}, // read-only: nothing pressed
+                  bpm: score.bpm,
+                  songEndMs: score.songEndMs,
+                  keyFifths: score.keyFifths,
+                  beats: score.beats,
+                  beatType: score.beatType,
+                  measureStartMs: score.measureStartMs,
+                  lookAheadMs: _lookAheadFor(score),
                 ),
+                size: Size.infinite,
               ),
-            ),
-            data: (score) => score.isEmpty
-                ? const SizedBox.shrink()
-                : CustomPaint(
-                    painter: StaffPainter(
-                      notes: score.notes,
-                      rests: score.rests,
-                      elapsedMs: _elapsedMs,
-                      activeNotes: const <int>{}, // read-only: nothing pressed
-                      bpm: score.bpm,
-                      songEndMs: score.songEndMs,
-                      keyFifths: score.keyFifths,
-                      beats: score.beats,
-                      beatType: score.beatType,
-                      measureStartMs: score.measureStartMs,
-                    ),
-                    size: Size.infinite,
-                  ),
-          ),
-          // Stop control, top-right — returns to the card face.
-          Positioned(
-            top: 4,
-            right: 4,
-            child: Material(
-              color: Colors.black.withValues(alpha: 0.45),
-              shape: const CircleBorder(),
-              clipBehavior: Clip.antiAlias,
-              child: IconButton(
-                icon: const Icon(Icons.close, color: Colors.white),
-                tooltip: l10n.ratingPreviewStop,
-                onPressed: widget.onClose,
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }

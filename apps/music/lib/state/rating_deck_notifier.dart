@@ -44,6 +44,11 @@ abstract class RatingDeckState with _$RatingDeckState {
     /// Catalog ids judged (rated or skipped) this session — excluded from later
     /// pages so the deck never repeats a card.
     @Default(<String>{}) Set<String> seenIds,
+
+    /// Catalog ids whose in-card preview has played past the unlock threshold, so
+    /// their rating controls are enabled ("listen before rating"). Sticky per
+    /// card for the session.
+    @Default(<String>{}) Set<String> unlockedIds,
     @Default(false) bool loading,
     @Default(false) bool loadingMore,
     @Default(true) bool hasMore,
@@ -59,6 +64,14 @@ abstract class RatingDeckState with _$RatingDeckState {
   /// The next card behind the top one (for a peek/stacked visual), or `null`.
   CatalogEntry? get nextCard =>
       cursor + 1 < cards.length ? cards[cursor + 1] : null;
+
+  /// Whether the top card's rating controls are unlocked — i.e. its preview has
+  /// been heard past the threshold. `Skip` is always allowed; verdict/star rating
+  /// is gated on this.
+  bool get topUnlocked {
+    final id = topCard?.catalogId;
+    return id != null && unlockedIds.contains(id);
+  }
 
   /// Whether the deck has run out of cards after a completed load — the signal
   /// for the empty/last-card state (spec: "deck empties when all sourced scores
@@ -79,6 +92,10 @@ class RatingDeck extends _$RatingDeck {
   /// Re-query when fewer than this many un-judged cards remain ahead of the
   /// cursor, so the top of the deck rarely stalls waiting on the network.
   static const int _prefetchThreshold = 5;
+
+  /// Fraction of a card's preview that must play before its rating unlocks
+  /// ("listen before rating" — the user's chosen gate: a share of the piece).
+  static const double previewUnlockFraction = 0.25;
 
   @override
   RatingDeckState build() {
@@ -181,10 +198,23 @@ class RatingDeck extends _$RatingDeck {
     return RatingVerdict.dislike;
   }
 
+  /// Report how far the top card's in-card preview has played (0..1). Once it
+  /// crosses [previewUnlockFraction] the card's rating unlocks (sticky). A no-op
+  /// once already unlocked or below the threshold, so it is cheap to call every
+  /// preview frame.
+  void markPreviewed(String catalogId, double fraction) {
+    if (fraction < previewUnlockFraction) return;
+    if (state.unlockedIds.contains(catalogId)) return;
+    state = state.copyWith(unlockedIds: {...state.unlockedIds, catalogId});
+  }
+
   Future<void> _submit(RatingVerdict verdict, int? stars) async {
     final card = state.topCard;
     final id = card?.catalogId;
     if (card == null || id == null) return;
+    // Gated on "listened enough": a verdict/star rating is ignored until the
+    // card's preview has played past the unlock threshold (Skip stays allowed).
+    if (!state.unlockedIds.contains(id)) return;
     final fromCursor = state.cursor;
     _advance(card); // optimistic
     try {

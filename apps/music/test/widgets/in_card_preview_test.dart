@@ -38,7 +38,7 @@ List<Override> _overrides(RecordingAudioService audio) => [
 Future<void> _pumpPreview(
   WidgetTester tester, {
   required RecordingAudioService audio,
-  VoidCallback? onClose,
+  ValueChanged<double>? onProgress,
 }) async {
   await tester.pumpWidget(
     ProviderScope(
@@ -48,7 +48,7 @@ Future<void> _pumpPreview(
           child: SizedBox(
             width: 320,
             height: 200,
-            child: InCardPreview(catalogId: 'c0', onClose: onClose ?? () {}),
+            child: InCardPreview(catalogId: 'c0', onProgress: onProgress),
           ),
         ),
       ),
@@ -96,12 +96,20 @@ void main() {
     expect(container.read(performanceScorerProvider).lastResult, isNull);
   });
 
-  testWidgets('the stop control returns to the card', (tester) async {
-    var closed = false;
+  testWidgets('the preview reports playback progress for the gate', (
+    tester,
+  ) async {
+    var maxFraction = 0.0;
     final audio = RecordingAudioService();
-    await _pumpPreview(tester, audio: audio, onClose: () => closed = true);
-    await tester.tap(find.byIcon(Icons.close));
-    await tester.pump();
-    expect(closed, isTrue);
+    await _pumpPreview(
+      tester,
+      audio: audio,
+      onProgress: (f) => maxFraction = f > maxFraction ? f : maxFraction,
+    );
+    // Auto-plays: after a few frames it has reported forward progress (> 0).
+    for (var i = 0; i < 12; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    expect(maxFraction, greaterThan(0));
   });
 }

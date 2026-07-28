@@ -601,6 +601,8 @@
   "@ratingSkip": { "description": "Advance past a card without recording any rating." },
   "ratingStarsButton": "Stars",
   "@ratingStarsButton": { "description": "Button that opens the 1–5 star rating for the current card." },
+  "ratingLockedHint": "Preview the score to rate it",
+  "@ratingLockedHint": { "description": "Hint shown while the rating controls are locked until the user has previewed enough of the score." },
   "ratingStarsSheetTitle": "Rate this score",
   "@ratingStarsSheetTitle": { "description": "Title of the bottom sheet where the user picks a 1–5 star rating." },
   "ratingPreview": "Preview",

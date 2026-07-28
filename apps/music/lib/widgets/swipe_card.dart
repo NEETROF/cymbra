@@ -33,6 +33,7 @@ class SwipeCard extends StatefulWidget {
     required this.onDislike,
     required this.onLike,
     required this.onLove,
+    this.enabled = true,
   });
 
   final Widget child;
@@ -45,6 +46,10 @@ class SwipeCard extends StatefulWidget {
 
   /// Up swipe.
   final VoidCallback onLove;
+
+  /// Whether a swipe can commit. When false the card still drags (feedback) but
+  /// always snaps back — used to gate rating until the card has been previewed.
+  final bool enabled;
 
   @override
   State<SwipeCard> createState() => _SwipeCardState();
@@ -122,6 +127,7 @@ class _SwipeCardState extends State<SwipeCard>
   /// to snap back. Horizontal intent wins over vertical unless the up-fling is
   /// clearly dominant.
   SwipeDirection? _decideDirection(Offset velocity) {
+    if (!widget.enabled) return null; // locked: always snap back
     final dx = _drag.dx, dy = _drag.dy;
     final horizontal =
         dx.abs() > _commitDistance || velocity.dx.abs() > _commitVelocity;

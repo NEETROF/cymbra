@@ -60,6 +60,12 @@ class StaffPainter extends CustomPainter {
   /// normal playback; populated by the mistake replay.
   final Map<int, Color> mistakeColors;
 
+  /// Visible time window (ms) to the right of the playhead. A larger window fits
+  /// more of the score across the same width — smaller, denser notation (used by
+  /// the in-card rating preview). Defaults to [_defaultLookAheadMs] (the player's
+  /// original 4 s window), so the player is unaffected.
+  final double lookAheadMs;
+
   const StaffPainter({
     required this.notes,
     required this.elapsedMs,
@@ -72,10 +78,11 @@ class StaffPainter extends CustomPainter {
     this.beatType = 4,
     this.measureStartMs = const [],
     this.mistakeColors = const {},
+    this.lookAheadMs = _defaultLookAheadMs,
   });
 
-  // Visible time window to the right of the playhead.
-  static const double _lookAheadMs = 4000;
+  // Default visible time window to the right of the playhead.
+  static const double _defaultLookAheadMs = 4000;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -98,7 +105,7 @@ class StaffPainter extends CustomPainter {
 
     // Playhead fixed at the left quarter; time advances toward the left.
     final playLineX = size.width * 0.25;
-    final pxPerMs = (size.width - playLineX - margin) / _lookAheadMs;
+    final pxPerMs = (size.width - playLineX - margin) / lookAheadMs;
     double xForTime(double tMs) => playLineX + (tMs - elapsedMs) * pxPerMs;
 
     // Vertical placement of the staff/staves. Stems are always drawn upward, so

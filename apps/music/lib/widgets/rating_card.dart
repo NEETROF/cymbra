@@ -17,21 +17,23 @@ import 'package:flutter/material.dart';
 import '../l10n/gen/app_localizations.dart';
 import '../state/score_catalog.dart';
 import '../theme/cymbra_theme.dart';
+import 'difficulty_badge.dart';
 import 'in_card_preview.dart';
 import 'score_card.dart';
 
 /// The rating deck's card visual (change: add-app-score-rating). Reuses the
-/// shared [ScoreCard] for the cover / title / composer / attribution, and adds
-/// the deck affordances: a Play control that plays the read-only preview **in the
-/// card** (the cover region becomes the scrolling game-score render), and a tap
-/// target that opens the 1–5 star rating. When [interactive] is false (the peeked
-/// next card behind the top one) the affordances are omitted and it ignores
-/// pointers so the swipe/tap always reaches the top card.
-class RatingCard extends StatefulWidget {
+/// shared [ScoreCard] for the title / composer / attribution, but the cover region
+/// **auto-plays** the read-only game-score preview (the notation scrolls and
+/// sounds as soon as the card is shown — no Play button). Tapping the card opens
+/// the 1–5 star rating. When [interactive] is false (the peeked next card behind
+/// the top one) the preview and affordances are omitted and it ignores pointers so
+/// the swipe/tap always reaches the top card.
+class RatingCard extends StatelessWidget {
   const RatingCard({
     super.key,
     required this.entry,
     this.onTapStars,
+    this.onPreviewProgress,
     this.interactive = true,
   });
 
@@ -40,26 +42,21 @@ class RatingCard extends StatefulWidget {
   /// Opens the star rating (tapping the card). Null when non-interactive.
   final VoidCallback? onTapStars;
 
+  /// Forwards the auto-preview's playback fraction (0..1) so the deck can unlock
+  /// rating once enough of the score has been heard.
+  final ValueChanged<double>? onPreviewProgress;
+
   final bool interactive;
 
   @override
-  State<RatingCard> createState() => _RatingCardState();
-}
-
-class _RatingCardState extends State<RatingCard> {
-  /// Whether the in-card read-only preview is playing over the cover region.
-  bool _previewing = false;
-
-  @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    final entry = widget.entry;
-    if (!widget.interactive) {
-      // Decorative peek card: no affordances, and ignores pointers.
+    if (!interactive) {
+      // Decorative peek card: static cover, no preview, and ignores pointers.
       return IgnorePointer(
         child: ScoreCard(entry: entry, onTap: () {}),
       );
     }
+    final l10n = AppLocalizations.of(context);
     final canPreview = entry.catalogId != null;
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -68,17 +65,8 @@ class _RatingCardState extends State<RatingCard> {
         final coverHeight = constraints.maxWidth * 11 / 16;
         return Stack(
           children: [
-            ScoreCard(
-              entry: entry,
-              onTap: widget.onTapStars ?? () {},
-              action: (canPreview && !_previewing)
-                  ? _PreviewButton(
-                      onPressed: () => setState(() => _previewing = true),
-                      tooltip: l10n.ratingPreview,
-                    )
-                  : null,
-            ),
-            if (_previewing && canPreview)
+            ScoreCard(entry: entry, onTap: onTapStars ?? () {}),
+            if (canPreview)
               Positioned(
                 top: 0,
                 left: 0,
@@ -90,35 +78,19 @@ class _RatingCardState extends State<RatingCard> {
                   ),
                   child: InCardPreview(
                     catalogId: entry.catalogId!,
-                    onClose: () => setState(() => _previewing = false),
+                    onProgress: onPreviewProgress,
                   ),
                 ),
               ),
+            // Keep the difficulty badge visible over the auto-playing preview.
+            Positioned(
+              top: 10,
+              left: 10,
+              child: DifficultyBadge(level: entry.level, l10n: l10n),
+            ),
           ],
         );
       },
-    );
-  }
-}
-
-/// A circular Play button overlaid on the card cover, opening the preview.
-class _PreviewButton extends StatelessWidget {
-  const _PreviewButton({required this.onPressed, required this.tooltip});
-
-  final VoidCallback onPressed;
-  final String tooltip;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.black.withValues(alpha: 0.45),
-      shape: const CircleBorder(),
-      clipBehavior: Clip.antiAlias,
-      child: IconButton(
-        icon: const Icon(Icons.play_arrow, color: Colors.white),
-        tooltip: tooltip,
-        onPressed: onPressed,
-      ),
     );
   }
 }

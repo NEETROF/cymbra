@@ -52,6 +52,15 @@ Future<RatingDeckState> _settled(ProviderContainer c) async {
 String? _topId(ProviderContainer c) =>
     c.read(ratingDeckProvider).topCard?.catalogId;
 
+/// Unlock the current top card's rating (simulate its preview having played past
+/// the threshold), since rating is gated on "listened enough".
+void _unlockTop(ProviderContainer c) {
+  final id = c.read(ratingDeckProvider).topCard?.catalogId;
+  if (id != null) {
+    c.read(ratingDeckProvider.notifier).markPreviewed(id, 1.0);
+  }
+}
+
 void main() {
   test('deck sources accepted cards, top card first', () async {
     final c = _container(
@@ -67,6 +76,7 @@ void main() {
     final rating = FakeRatingService();
     final c = _container(FakeDeckCatalogService(_corpus()), rating);
     await _settled(c);
+    _unlockTop(c);
     await c.read(ratingDeckProvider.notifier).rate(RatingVerdict.like);
     // The verdict was submitted for the top card…
     expect(rating.submissions, [
@@ -82,7 +92,9 @@ void main() {
       final rating = FakeRatingService();
       final c = _container(FakeDeckCatalogService(_corpus()), rating);
       await _settled(c);
+      _unlockTop(c);
       await c.read(ratingDeckProvider.notifier).rate(RatingVerdict.dislike);
+      _unlockTop(c);
       await c.read(ratingDeckProvider.notifier).rate(RatingVerdict.love);
       expect(rating.submissions.map((s) => s.verdict).toList(), [
         RatingVerdict.dislike,
@@ -105,8 +117,11 @@ void main() {
     final rating = FakeRatingService();
     final c = _container(FakeDeckCatalogService(_corpus()), rating);
     await _settled(c);
+    _unlockTop(c);
     await c.read(ratingDeckProvider.notifier).rateStars(5); // → love
+    _unlockTop(c);
     await c.read(ratingDeckProvider.notifier).rateStars(4); // → like
+    _unlockTop(c);
     await c.read(ratingDeckProvider.notifier).rateStars(1); // → dislike
     expect(rating.submissions, [
       (catalogId: 'c0', verdict: RatingVerdict.love, stars: 5),
@@ -122,6 +137,7 @@ void main() {
     );
     await _settled(c);
     for (var i = 0; i < 3; i++) {
+      _unlockTop(c);
       await c.read(ratingDeckProvider.notifier).rate(RatingVerdict.like);
     }
     final s = c.read(ratingDeckProvider);
@@ -137,6 +153,7 @@ void main() {
         FakeRatingService(fail: true),
       );
       await _settled(c);
+      _unlockTop(c);
       await c.read(ratingDeckProvider.notifier).rate(RatingVerdict.like);
       final s = c.read(ratingDeckProvider);
       expect(s.topCard?.catalogId, 'c0'); // reverted to the same card
@@ -160,5 +177,43 @@ void main() {
     final ids = more.cards.map((e) => e.catalogId).toList();
     expect(ids.toSet().length, ids.length);
     expect(more.hasMore, isFalse);
+  });
+
+  // --- listen-before-rating gate ------------------------------------------
+
+  test(
+    'rating is ignored until the preview passes the unlock threshold',
+    () async {
+      final rating = FakeRatingService();
+      final c = _container(FakeDeckCatalogService(_corpus()), rating);
+      await _settled(c);
+      final notifier = c.read(ratingDeckProvider.notifier);
+      // Locked at first: a rate is a no-op (no submit, no advance).
+      expect(c.read(ratingDeckProvider).topUnlocked, isFalse);
+      await notifier.rate(RatingVerdict.like);
+      expect(rating.submissions, isEmpty);
+      expect(_topId(c), 'c0');
+      // Below the threshold stays locked…
+      notifier.markPreviewed('c0', RatingDeck.previewUnlockFraction - 0.05);
+      expect(c.read(ratingDeckProvider).topUnlocked, isFalse);
+      await notifier.rate(RatingVerdict.like);
+      expect(rating.submissions, isEmpty);
+      // …reaching the threshold unlocks it, and the rating goes through.
+      notifier.markPreviewed('c0', RatingDeck.previewUnlockFraction);
+      expect(c.read(ratingDeckProvider).topUnlocked, isTrue);
+      await notifier.rate(RatingVerdict.like);
+      expect(rating.submissions.single.catalogId, 'c0');
+      expect(_topId(c), 'c1');
+    },
+  );
+
+  test('skip is allowed even while the card is locked', () async {
+    final rating = FakeRatingService();
+    final c = _container(FakeDeckCatalogService(_corpus()), rating);
+    await _settled(c);
+    expect(c.read(ratingDeckProvider).topUnlocked, isFalse);
+    c.read(ratingDeckProvider.notifier).skip();
+    expect(_topId(c), 'c1'); // advanced without previewing
+    expect(rating.submissions, isEmpty);
   });
 }
