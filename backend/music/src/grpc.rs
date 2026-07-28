@@ -110,6 +110,8 @@ fn to_hit(h: CatalogHit) -> ProtoCatalogHit {
         highest_midi: h.highest_midi,
         time_sig: h.time_sig,
         key_fifths: h.key_fifths,
+        needs_review: h.needs_review,
+        moderation_status: h.moderation_status,
     }
 }
 
@@ -199,6 +201,7 @@ impl ScoreService for ScoreGrpc {
         // #1 restricted this to `admin`; this change (add-moderation-back-office)
         // widens it to admin-or-(music) moderator.
         let uses_moderation = req.get_ref().moderation_status.is_some()
+            || req.get_ref().review_queue.unwrap_or(false)
             || req
                 .get_ref()
                 .sort
@@ -213,18 +216,21 @@ impl ScoreService for ScoreGrpc {
             query: r.query,
             author: r.author,
             level: r.level,
-            is_piano: r.is_piano,
-            max_note_value: r.max_note_value.map(|v| v.clamp(0, i16::MAX as i32) as i16),
-            has_chords: r.has_chords,
-            has_tuplets: r.has_tuplets,
-            has_dotted: r.has_dotted,
-            max_ambitus_semitones: r
-                .max_ambitus_semitones
-                .map(|v| v.clamp(0, i16::MAX as i32) as i16),
-            staff_count: r.staff_count.map(|v| v.clamp(0, i16::MAX as i32) as i16),
-            min_bpm: r.min_bpm,
-            max_bpm: r.max_bpm,
+            facets: crate::catalog_search::FacetFilters {
+                is_piano: r.is_piano,
+                max_note_value: r.max_note_value.map(|v| v.clamp(0, i16::MAX as i32) as i16),
+                has_chords: r.has_chords,
+                has_tuplets: r.has_tuplets,
+                has_dotted: r.has_dotted,
+                max_ambitus_semitones: r
+                    .max_ambitus_semitones
+                    .map(|v| v.clamp(0, i16::MAX as i32) as i16),
+                staff_count: r.staff_count.map(|v| v.clamp(0, i16::MAX as i32) as i16),
+                min_bpm: r.min_bpm,
+                max_bpm: r.max_bpm,
+            },
             moderation_status: r.moderation_status,
+            review_queue: r.review_queue.unwrap_or(false),
             sort: r
                 .sort
                 .into_iter()

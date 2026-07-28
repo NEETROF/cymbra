@@ -9,6 +9,7 @@ export function makeJwt(payload: Record<string, unknown>): string {
 export interface SearchCall {
   query: string;
   moderationStatus?: string;
+  reviewQueue?: boolean;
   sort: { field: string; descending: boolean }[];
   limit: number;
   offset: number;

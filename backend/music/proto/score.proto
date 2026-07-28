@@ -84,6 +84,13 @@ message CatalogHit {
   optional int32 highest_midi = 12;
   string time_sig = 13;               // e.g. "4/4" ("" when unknown)
   int32 key_fifths = 14;              // circle-of-fifths (negative = flats)
+  // Moderation facets, populated ONLY for a privileged (moderator/admin) back-office
+  // read (a normal app caller gets the defaults). `needs_review` is the hybrid
+  // re-review flag from #2 (change: add-app-score-rating): an `accepted` score the
+  // community has rated down enough to warrant a moderator's second look. Lets the
+  // console badge flagged rows in the review queue/catalog.
+  bool needs_review = 15;
+  optional string moderation_status = 16; // pending | accepted | rejected (BO reads)
 }
 
 // Full-text search over title+composer, with optional author/difficulty filters.
@@ -117,6 +124,14 @@ message SearchCatalogRequest {
   // list is EMPTY the existing default ordering is preserved unchanged, so the app
   // hub (which sends none) is unaffected.
   repeated SortKey sort = 16;
+  // PRIVILEGED, back-office-only review-queue mode (change: add-moderation-back-
+  // office): when true the result set is the moderation work list — `pending` scores
+  // PLUS `accepted` scores flagged `needs_review` by community ratings (#2) — instead
+  // of a single moderation status. Combine with a `needs_review`-first `sort` to
+  // surface flagged re-reviews at the top. Overrides `moderation_status`. Honoured
+  // ONLY for an admin/moderator identity (PERMISSION_DENIED otherwise); the app never
+  // sets it.
+  optional bool review_queue = 17;
 }
 
 // One sort key: a column/alias from the search allow-list, ascending unless

@@ -305,14 +305,14 @@ impl ScoreModule {
         {
             return Err(AppError::InvalidArgument(format!("unknown level {l:?}")));
         }
-        if let Some(v) = q.max_note_value
+        if let Some(v) = q.facets.max_note_value
             && !NOTE_VALUE_DENOMINATORS.contains(&v)
         {
             return Err(AppError::InvalidArgument(format!(
                 "unknown note-value denominator {v}"
             )));
         }
-        if let Some(s) = q.staff_count
+        if let Some(s) = q.facets.staff_count
             && !(1..=2).contains(&s)
         {
             return Err(AppError::InvalidArgument(format!(
@@ -349,16 +349,9 @@ impl ScoreModule {
             text_norm: normalize_text(&q.query),
             author_norm,
             level: q.level,
-            is_piano: q.is_piano,
-            max_note_value: q.max_note_value,
-            has_chords: q.has_chords,
-            has_tuplets: q.has_tuplets,
-            has_dotted: q.has_dotted,
-            max_ambitus_semitones: q.max_ambitus_semitones,
-            staff_count: q.staff_count,
-            min_bpm: q.min_bpm,
-            max_bpm: q.max_bpm,
+            facets: q.facets,
             moderation_status: q.moderation_status,
+            review_queue: q.review_queue,
             sort: q.sort,
             limit: q.limit.clamp(1, SEARCH_MAX_LIMIT),
             offset: q.offset.max(0),
@@ -577,7 +570,7 @@ mod tests {
     use super::*;
     use cymbra_storage::FakeStore;
 
-    use crate::catalog_search::{FakeCatalogRow, FakeCatalogSearchRepo};
+    use crate::catalog_search::{FacetFilters, FakeCatalogRow, FakeCatalogSearchRepo};
     use crate::score_rating::{FakeScoreRatingRepo, RatingConfig};
     use crate::user_library::FakeUserLibraryRepo;
     use crate::user_scores::FakeUserScoreRepo;
@@ -942,7 +935,10 @@ mod tests {
         ));
         // A note-value denominator outside the allowed set is rejected.
         let bad_nv = CatalogQuery {
-            max_note_value: Some(7),
+            facets: FacetFilters {
+                max_note_value: Some(7),
+                ..Default::default()
+            },
             limit: 50,
             ..Default::default()
         };
@@ -952,7 +948,10 @@ mod tests {
         ));
         // A staff count outside 1..=2 is rejected.
         let bad_sc = CatalogQuery {
-            staff_count: Some(3),
+            facets: FacetFilters {
+                staff_count: Some(3),
+                ..Default::default()
+            },
             limit: 50,
             ..Default::default()
         };
@@ -1002,7 +1001,10 @@ mod tests {
 
         // "Nothing faster than an eighth" keeps only the eighth-note row.
         let only_eighths = CatalogQuery {
-            max_note_value: Some(8),
+            facets: FacetFilters {
+                max_note_value: Some(8),
+                ..Default::default()
+            },
             limit: 50,
             ..Default::default()
         };
@@ -1015,8 +1017,11 @@ mod tests {
         // Tempo range + ambitus compose; the unknown-facet row is excluded even
         // though it would pass on text.
         let slow_narrow = CatalogQuery {
-            max_bpm: Some(100),
-            max_ambitus_semitones: Some(12),
+            facets: FacetFilters {
+                max_bpm: Some(100),
+                max_ambitus_semitones: Some(12),
+                ..Default::default()
+            },
             limit: 50,
             ..Default::default()
         };
@@ -1521,5 +1526,75 @@ mod tests {
         assert_eq!(agg.count, 2);
         assert_eq!(agg.love, 2);
         assert!((agg.avg_effective - 5.0).abs() < 1e-9);
+    }
+
+    #[tokio::test]
+    async fn review_queue_returns_pending_plus_flagged_accepted_flagged_first() {
+        let ratings = Arc::new(FakeScoreRatingRepo::default());
+        let catalog = Arc::new(FakeCatalogSearchRepo::with(vec![
+            // accepted, will be community-flagged (a quorum of dislikes)
+            FakeCatalogRow::new(DEBUSSY_1, "Flagged", "X", Some("advanced")),
+            // accepted, unrated → stays healthy, must NOT enter the queue
+            FakeCatalogRow::new(SATIE, "Healthy", "Y", Some("beginner")),
+            FakeCatalogRow::new(PENDING_ID, "Pending", "Z", Some("beginner"))
+                .with_moderation_status("pending"),
+            FakeCatalogRow::new(REJECTED_ID, "Rejected", "W", Some("beginner"))
+                .with_moderation_status("rejected"),
+        ]));
+        // Share the ratings view so the search sees what the module writes.
+        catalog.set_rating_view(ratings.clone());
+        let m = ScoreModule::new(
+            Arc::new(FakeUserScoreRepo::default()),
+            catalog,
+            Arc::new(FakeUserLibraryRepo::default()),
+            ratings.clone(),
+            Arc::new(FakeStore::default()),
+            5,
+            7,
+            8 * 1024 * 1024,
+        );
+        // The search-path flag uses the default thresholds (N = 5, T = 2.0): five
+        // dislikes on DEBUSSY_1 reach the quorum with a low average → flagged. SATIE
+        // stays unrated (healthy) so it must not enter the queue.
+        for u in ["u1", "u2", "u3", "u4", "u5"] {
+            m.submit_rating(u, DEBUSSY_1, "dislike", None)
+                .await
+                .unwrap();
+        }
+
+        // Review-queue read, flagged-first ordering (the console's default sort).
+        let q = CatalogQuery {
+            review_queue: true,
+            sort: vec![crate::catalog_search::SortKey {
+                field: "needs_review".into(),
+                descending: true,
+            }],
+            limit: 50,
+            ..Default::default()
+        };
+        let (hits, total) = m.search_catalog(q).await.unwrap();
+        let ids: Vec<&str> = hits.iter().map(|h| h.id.as_str()).collect();
+        // The work list = pending + flagged accepted; healthy accepted and rejected
+        // are excluded, and the flagged re-review is surfaced first.
+        assert_eq!(total, 2);
+        assert_eq!(ids, [DEBUSSY_1, PENDING_ID]);
+        let flagged_hit = hits.iter().find(|h| h.id == DEBUSSY_1).unwrap();
+        let pending_hit = hits.iter().find(|h| h.id == PENDING_ID).unwrap();
+        assert!(flagged_hit.needs_review);
+        assert_eq!(flagged_hit.moderation_status.as_deref(), Some("accepted"));
+        assert!(!pending_hit.needs_review); // pending scores are never flagged
+        assert_eq!(pending_hit.moderation_status.as_deref(), Some("pending"));
+
+        // A normal hub search (no review_queue / moderation sort) never exposes the
+        // flag — the gate keeps the app hub's query cheap and status-blind.
+        let (hub_hits, _) = m
+            .search_catalog(CatalogQuery {
+                limit: 50,
+                ..Default::default()
+            })
+            .await
+            .unwrap();
+        let hub_flagged = hub_hits.iter().find(|h| h.id == DEBUSSY_1).unwrap();
+        assert!(!hub_flagged.needs_review);
     }
 }

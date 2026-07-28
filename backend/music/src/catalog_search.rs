@@ -27,7 +27,9 @@ use async_trait::async_trait;
 use cymbra_musicxml_core::normalize_text;
 use cymbra_platform::Result;
 
-use crate::score_rating::FakeScoreRatingRepo;
+use crate::score_rating::{
+    FakeScoreRatingRepo, RatingConfig, ScoreRatingRepo, is_flagged_for_review,
+};
 
 /// One catalog score as surfaced by search or the saved list: attribution-
 /// complete, but WITHOUT bytes (bytes are fetched separately, by id).
@@ -49,6 +51,13 @@ pub struct CatalogHit {
     pub highest_midi: Option<i32>,
     pub time_sig: String,
     pub key_fifths: i32,
+    // Moderation facets, meaningful only for a privileged back-office read (a normal
+    // caller gets the defaults). `needs_review` is the hybrid re-review flag (design
+    // D4): an `accepted` score the community has rated down enough to warrant a
+    // moderator's second look — the search adapter computes it from the ratings.
+    // `moderation_status` lets a mixed review-queue row show its own status.
+    pub needs_review: bool,
+    pub moderation_status: Option<String>,
 }
 
 /// One validated sort key (change: add-moderation-back-office): an allow-listed
@@ -64,8 +73,9 @@ pub struct SortKey {
 /// **moderation-oriented** (privileged: only a moderator/admin may sort by it).
 /// Substance/facet keys are open to any caller. The names are the wire contract;
 /// each adapter maps a name to its own storage (SQL column / fake accessor), so a
-/// name never reaches SQL unvalidated. `needs_review` is accepted but inert until
-/// the rating change (#2) adds its backing column — it degrades to a no-op order.
+/// name never reaches SQL unvalidated. `needs_review` surfaces scores the community
+/// has flagged for re-review, computed on demand from the ratings supplied by the
+/// app-rating change (#2) — see the adapter's `needs_review_sql`.
 pub const SORT_FIELDS: &[(&str, bool)] = &[
     ("measure_count", false),
     ("staff_count", false),
@@ -92,20 +102,13 @@ pub fn is_moderation_sort_field(field: &str) -> bool {
     sort_field_privilege(field) == Some(true)
 }
 
-/// Normalised, validated search parameters. The module fills these in: `text_norm`
-/// and `author_norm` are already accent/case-folded, `level` already validated
-/// against the fixed set, `limit` already clamped to the server maximum.
+/// The musical facet filters (change: score-catalog-facets), bundled so the raw
+/// query and the validated params share one definition instead of two parallel
+/// field lists. Each `None` = no constraint; when a filter is set, a row whose
+/// corresponding facet is NULL/unknown is excluded (an unknown trait can't be
+/// asserted to satisfy the filter). Mirrors the Flutter `CatalogFilters` bundle.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct CatalogSearchParams {
-    /// Accent/case-folded query; empty = browse the corpus (no text constraint).
-    pub text_norm: String,
-    /// Accent/case-folded composer filter; `None` = no composer constraint.
-    pub author_norm: Option<String>,
-    /// Difficulty filter (validated); `None` = every level (incl. unleveled).
-    pub level: Option<String>,
-    // --- musical facet filters (change: score-catalog-facets) --------------
-    // Each `None` = no constraint. When a filter is set, a row whose facet is
-    // NULL is excluded (an unknown trait can't be asserted to satisfy the filter).
+pub struct FacetFilters {
     /// Keyboard/grand-staff only.
     pub is_piano: Option<bool>,
     /// Fastest allowed note value (power-of-two denominator) → `min_note_value <= v`.
@@ -119,11 +122,32 @@ pub struct CatalogSearchParams {
     /// Tempo range (marked BPM) → `tempo_bpm BETWEEN min_bpm AND max_bpm`.
     pub min_bpm: Option<i32>,
     pub max_bpm: Option<i32>,
+}
+
+/// Normalised, validated search parameters. The module fills these in: `text_norm`
+/// and `author_norm` are already accent/case-folded, `level` already validated
+/// against the fixed set, `limit` already clamped to the server maximum.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct CatalogSearchParams {
+    /// Accent/case-folded query; empty = browse the corpus (no text constraint).
+    pub text_norm: String,
+    /// Accent/case-folded composer filter; `None` = no composer constraint.
+    pub author_norm: Option<String>,
+    /// Difficulty filter (validated); `None` = every level (incl. unleveled).
+    pub level: Option<String>,
+    /// Musical facet filters (each `None` = unconstrained).
+    pub facets: FacetFilters,
     /// Moderation-status gate (change: add-score-moderation-gating). `None` = the
     /// normal-caller default of accepted-only; `Some(status)` filters to exactly
     /// that status (a privileged, back-office-only path — the gRPC layer authorises
     /// it before it is ever set here).
     pub moderation_status: Option<String>,
+    /// Review-queue mode (change: add-moderation-back-office): when `true` the result
+    /// set is `pending` scores PLUS `accepted` scores flagged for re-review, instead
+    /// of a single moderation status — overrides [`Self::moderation_status`]. A
+    /// privileged, back-office-only path (the gRPC layer authorises it). `false` keeps
+    /// the single-status behaviour, so the app hub is unaffected.
+    pub review_queue: bool,
     /// Validated multi-key sort (change: add-moderation-back-office). Empty = the
     /// existing default ordering (so the app hub is unaffected).
     pub sort: Vec<SortKey>,
@@ -138,19 +162,16 @@ pub struct CatalogQuery {
     pub query: String,
     pub author: Option<String>,
     pub level: Option<String>,
-    pub is_piano: Option<bool>,
-    pub max_note_value: Option<i16>,
-    pub has_chords: Option<bool>,
-    pub has_tuplets: Option<bool>,
-    pub has_dotted: Option<bool>,
-    pub max_ambitus_semitones: Option<i16>,
-    pub staff_count: Option<i16>,
-    pub min_bpm: Option<i32>,
-    pub max_bpm: Option<i32>,
+    /// Musical facet filters, clamped/validated by the gRPC layer before arriving.
+    pub facets: FacetFilters,
     /// Privileged moderation-status filter (change: add-score-moderation-gating).
     /// `None` for a normal caller (accepted-only); `Some(status)` only after the
     /// gRPC handler has authorised the caller as admin/moderator.
     pub moderation_status: Option<String>,
+    /// Review-queue mode (change: add-moderation-back-office): `pending` + flagged
+    /// `accepted`. Privileged (BO-only) — the gRPC handler authorises it as
+    /// admin/moderator before it is ever set. `false` for a normal caller.
+    pub review_queue: bool,
     /// Raw sort keys from the request; validated against [`SORT_FIELDS`] by the
     /// module before they reach a repo. Empty = the default ordering.
     pub sort: Vec<SortKey>,
@@ -306,6 +327,10 @@ impl FakeCatalogRow {
             highest_midi: self.highest_midi.map(i32::from),
             time_sig: self.time_sig.clone(),
             key_fifths: self.key_fifths,
+            // `search` overrides `needs_review` after consulting the ratings view;
+            // the row itself carries its own moderation status.
+            needs_review: false,
+            moderation_status: Some(self.moderation_status.clone()),
         }
     }
 
@@ -362,7 +387,34 @@ impl FakeCatalogSearchRepo {
 #[async_trait]
 impl CatalogSearchRepo for FakeCatalogSearchRepo {
     async fn search(&self, p: &CatalogSearchParams) -> Result<(Vec<CatalogHit>, i64)> {
-        let rows = self.rows.lock().expect("catalog search fake lock");
+        // Snapshot the rows and the shared ratings view, dropping both locks before
+        // any `.await` (a std Mutex guard held across await is not Send).
+        let rows: Vec<FakeCatalogRow> = self.rows.lock().expect("catalog search fake lock").clone();
+        let ratings = self
+            .ratings
+            .lock()
+            .expect("catalog search fake lock")
+            .clone();
+        // The set of `accepted` scores flagged for re-review, computed from the shared
+        // ratings view exactly as the Pg adapter joins `score_ratings` (design D4):
+        // ≥ `min_count` ratings AND average effective value ≤ `review_threshold`. Only
+        // computed in a privileged (back-office) context — a review-queue read, an
+        // explicit status filter, or a moderation sort — mirroring the Pg adapter's
+        // gate so the app hub never sees the flag.
+        let cfg = RatingConfig::default();
+        let privileged = p.review_queue
+            || p.moderation_status.is_some()
+            || p.sort.iter().any(|k| is_moderation_sort_field(&k.field));
+        let mut flagged: std::collections::HashSet<String> = std::collections::HashSet::new();
+        if privileged && let Some(rv) = &ratings {
+            for r in &rows {
+                if r.moderation_status == "accepted"
+                    && is_flagged_for_review(&rv.aggregate(&r.id).await?, &cfg)
+                {
+                    flagged.insert(r.id.clone());
+                }
+            }
+        }
         let mut matched: Vec<&FakeCatalogRow> = rows
             .iter()
             .filter(|r| {
@@ -374,11 +426,17 @@ impl CatalogSearchRepo for FakeCatalogSearchRepo {
                     .level
                     .as_ref()
                     .is_none_or(|l| r.level.as_deref() == Some(l));
-                // Moderation gate: default to accepted-only; a set filter selects
-                // exactly that status (mirrors the Pg adapter's
-                // `moderation_status = COALESCE($n, 'accepted')`).
-                let want_status = p.moderation_status.as_deref().unwrap_or("accepted");
-                let status_ok = r.moderation_status == want_status;
+                // Moderation gate. Review-queue mode (BO): `pending` scores PLUS
+                // `accepted` scores flagged for re-review — the moderation work list.
+                // Otherwise the single-status gate: default accepted-only, a set
+                // filter selects exactly that status (mirrors the Pg adapter).
+                let status_ok = if p.review_queue {
+                    r.moderation_status == "pending"
+                        || (r.moderation_status == "accepted" && flagged.contains(&r.id))
+                } else {
+                    let want_status = p.moderation_status.as_deref().unwrap_or("accepted");
+                    r.moderation_status == want_status
+                };
                 text_ok && author_ok && level_ok && status_ok && facets_match(r, p)
             })
             .collect();
@@ -389,9 +447,14 @@ impl CatalogSearchRepo for FakeCatalogSearchRepo {
         // `(title_norm, id)` tiebreak so paging stays stable — mirroring the Pg
         // adapter, which appends the same tiebreak after the sort keys. An empty
         // `sort` leaves ONLY the default tiebreak, so the hub order is unchanged.
+        // `needs_review` orders on flagged-membership (the re-review predicate).
         matched.sort_by(|a, b| {
             for key in &p.sort {
-                let ord = sort_value(a, &key.field).cmp(&sort_value(b, &key.field));
+                let ord = if key.field == "needs_review" {
+                    i64::from(flagged.contains(&a.id)).cmp(&i64::from(flagged.contains(&b.id)))
+                } else {
+                    sort_value(a, &key.field).cmp(&sort_value(b, &key.field))
+                };
                 let ord = if key.descending { ord.reverse() } else { ord };
                 if ord != std::cmp::Ordering::Equal {
                     return ord;
@@ -403,7 +466,11 @@ impl CatalogSearchRepo for FakeCatalogSearchRepo {
             .into_iter()
             .skip(p.offset.max(0) as usize)
             .take(p.limit.max(0) as usize)
-            .map(FakeCatalogRow::to_hit)
+            .map(|r| {
+                let mut h = r.to_hit();
+                h.needs_review = flagged.contains(&r.id);
+                h
+            })
             .collect();
         Ok((hits, total))
     }
@@ -493,8 +560,9 @@ fn sort_value(r: &FakeCatalogRow, field: &str) -> i64 {
             "accepted" => 1,
             _ => 0,
         },
-        // `needs_review` (no backing data yet) and `measure_count`/`title`/`composer`
-        // (not modelled on the fake) contribute no ordering here.
+        // `needs_review` is handled by the caller (it needs the ratings view, not a
+        // row field); `measure_count`/`title`/`composer` are not modelled on the fake.
+        // All contribute no ordering here.
         _ => 0,
     }
 }
@@ -505,35 +573,36 @@ fn facets_match(r: &FakeCatalogRow, p: &CatalogSearchParams) -> bool {
     fn bool_ok(filter: Option<bool>, value: Option<bool>) -> bool {
         filter.is_none_or(|f| value == Some(f))
     }
-    if let Some(pi) = p.is_piano
+    let facets = &p.facets;
+    if let Some(pi) = facets.is_piano
         && r.is_piano != Some(pi)
     {
         return false;
     }
-    if let Some(mv) = p.max_note_value
+    if let Some(mv) = facets.max_note_value
         && !matches!(r.min_note_value, Some(v) if v <= mv)
     {
         return false;
     }
-    if !bool_ok(p.has_chords, r.has_chords)
-        || !bool_ok(p.has_tuplets, r.has_tuplets)
-        || !bool_ok(p.has_dotted, r.has_dotted)
+    if !bool_ok(facets.has_chords, r.has_chords)
+        || !bool_ok(facets.has_tuplets, r.has_tuplets)
+        || !bool_ok(facets.has_dotted, r.has_dotted)
     {
         return false;
     }
-    if let Some(span) = p.max_ambitus_semitones
+    if let Some(span) = facets.max_ambitus_semitones
         && !matches!((r.lowest_midi, r.highest_midi), (Some(lo), Some(hi)) if hi - lo <= span)
     {
         return false;
     }
-    if let Some(sc) = p.staff_count
+    if let Some(sc) = facets.staff_count
         && r.staff_count != Some(sc)
     {
         return false;
     }
-    if p.min_bpm.is_some() || p.max_bpm.is_some() {
+    if facets.min_bpm.is_some() || facets.max_bpm.is_some() {
         let Some(t) = r.tempo_bpm else { return false };
-        if p.min_bpm.is_some_and(|m| t < m) || p.max_bpm.is_some_and(|m| t > m) {
+        if facets.min_bpm.is_some_and(|m| t < m) || facets.max_bpm.is_some_and(|m| t > m) {
             return false;
         }
     }

@@ -38,6 +38,12 @@ function shortId(id: string): string {
 function levelLabel(level: string): string {
   return KNOWN_LEVELS.has(level) ? t(`level.${level}`) : level;
 }
+
+// Each row shows its OWN moderation status (the review queue mixes pending +
+// flagged accepted); fall back to the active filter when the hit carries none.
+function rowStatus(h: CatalogHit): ModerationStatus {
+  return (h.moderationStatus as ModerationStatus) || props.status;
+}
 </script>
 
 <template>
@@ -93,7 +99,10 @@ function levelLabel(level: string): string {
           <span class="src">{{ h.source }}</span>
         </td>
         <td>
-          <span class="badge" :class="status">{{ t(`status.${status}`) }}</span>
+          <span class="badge" :class="rowStatus(h)">{{ t(`status.${rowStatus(h)}`) }}</span>
+          <span v-if="h.needsReview" class="badge review" :title="t('table.needsReviewHint')">{{
+            t("table.needsReview")
+          }}</span>
         </td>
       </tr>
       <tr v-if="hits.length === 0">
@@ -197,6 +206,14 @@ function levelLabel(level: string): string {
 .src {
   color: var(--green);
   font-weight: 500;
+}
+
+/* Community-flagged re-review marker, shown beside the row's status in the queue. */
+.badge.review {
+  margin-left: 0.4rem;
+  color: var(--amber);
+  border: 1px solid color-mix(in srgb, var(--amber) 45%, transparent);
+  background: color-mix(in srgb, var(--amber) 14%, transparent);
 }
 
 .empty {
