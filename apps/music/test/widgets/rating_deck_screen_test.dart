@@ -232,4 +232,48 @@ void main() {
     expect(find.byIcon(Icons.swipe), findsOneWidget);
     expect(tester.takeException(), isNull); // no RenderFlex overflow
   });
+
+  testWidgets('phone-landscape uses a side rail so the card keeps its height', (
+    tester,
+  ) async {
+    // Short phone-landscape: the controls move to a side rail so the card gets
+    // the full height (a bottom bar would squeeze the score into a sliver).
+    await tester.binding.setSurfaceSize(const Size(760, 360));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          catalogServiceProvider.overrideWithValue(
+            FakeDeckCatalogService(deckCorpus(2)),
+          ),
+          ratingServiceProvider.overrideWithValue(FakeRatingService()),
+          notationEngineProvider.overrideWithValue(FakeNotationEngine()),
+          audioServiceProvider.overrideWithValue(RecordingAudioService()),
+          preferencesServiceProvider.overrideWithValue(
+            FakePreferencesService({RatingCoachMark.prefsKey: 'true'}),
+          ),
+        ],
+        child: localizedApp(const RatingDeckScreen()),
+      ),
+    );
+    await _settle(tester);
+    await _unlockTop(tester); // clears the locked hint → card takes full height
+    expect(find.byKey(const Key('rating-love')), findsOneWidget);
+    // Side rail → the card is tall (well beyond the ~170px a bottom bar leaves).
+    expect(tester.getSize(find.byType(SwipeCard)).height, greaterThan(240));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('the listen-before-rating caption is visible while locked', (
+    tester,
+  ) async {
+    // The gate must be explained on screen (not just a tooltip): a visible
+    // caption with the hint text while locked, gone once unlocked.
+    final rating = await _pumpDeck(tester);
+    expect(find.byKey(const Key('rating-locked-hint')), findsOneWidget);
+    expect(find.byIcon(Icons.headphones), findsOneWidget);
+    await _unlockTop(tester);
+    expect(find.byKey(const Key('rating-locked-hint')), findsNothing);
+    expect(rating.submissions, isEmpty);
+  });
 }

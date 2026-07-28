@@ -109,23 +109,49 @@ class _RatingDeckBody extends ConsumerWidget {
     // until the card's auto-preview has played past the threshold. Skip is always
     // allowed.
     final locked = !deck.topUnlocked;
-    return Column(
+    RatingDeckControls controls(Axis axis) => RatingDeckControls(
+      locked: locked,
+      axis: axis,
+      onDislike: () =>
+          ref.read(ratingDeckProvider.notifier).rate(RatingVerdict.dislike),
+      onLike: () =>
+          ref.read(ratingDeckProvider.notifier).rate(RatingVerdict.like),
+      onLove: () =>
+          ref.read(ratingDeckProvider.notifier).rate(RatingVerdict.love),
+      onSkip: () => ref.read(ratingDeckProvider.notifier).skip(),
+      onStars: (deck.topCard == null || locked)
+          ? null
+          : () => _openStars(context, ref, deck.topCard!),
+    );
+    // The "listen before rating" caption stays visible (in both layouts) while
+    // locked, so the gate is always explained — not just a tooltip.
+    final Widget cardArea = Column(
       children: [
         Expanded(child: _CardStack(deck: deck)),
-        RatingDeckControls(
-          locked: locked,
-          onDislike: () =>
-              ref.read(ratingDeckProvider.notifier).rate(RatingVerdict.dislike),
-          onLike: () =>
-              ref.read(ratingDeckProvider.notifier).rate(RatingVerdict.like),
-          onLove: () =>
-              ref.read(ratingDeckProvider.notifier).rate(RatingVerdict.love),
-          onSkip: () => ref.read(ratingDeckProvider.notifier).skip(),
-          onStars: (deck.topCard == null || locked)
-              ? null
-              : () => _openStars(context, ref, deck.topCard!),
-        ),
+        if (locked) const _ListenHint(),
       ],
+    );
+    // Decide the layout from the real available space: a short landscape viewport
+    // (phone held sideways) moves the controls to a side rail so the card keeps
+    // the full height; with room (portrait/tablet/desktop) they sit in the usual
+    // bottom bar.
+    return LayoutBuilder(
+      builder: (context, c) {
+        final sideRail = c.maxWidth > c.maxHeight && c.maxHeight < 460;
+        return sideRail
+            ? Row(
+                children: [
+                  Expanded(child: cardArea),
+                  controls(Axis.vertical),
+                ],
+              )
+            : Column(
+                children: [
+                  Expanded(child: cardArea),
+                  controls(Axis.horizontal),
+                ],
+              );
+      },
     );
   }
 
@@ -335,6 +361,43 @@ class _CoachMarkOverlay extends ConsumerWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// The persistent "listen before rating" caption, shown under the card while the
+/// rating is locked — visible in every layout (not hidden in a tooltip) so the
+/// gate is always explained.
+class _ListenHint extends StatelessWidget {
+  const _ListenHint();
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return Padding(
+      key: const Key('rating-locked-hint'),
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(
+            Icons.headphones,
+            size: 18,
+            color: CymbraColors.onSurfaceVariant,
+          ),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              l10n.ratingLockedHint,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: CymbraColors.onSurfaceVariant,
+                fontSize: 13.5,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
