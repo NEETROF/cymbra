@@ -204,4 +204,32 @@ void main() {
     await _settle(tester);
     expect(find.byIcon(Icons.swipe), findsNothing);
   });
+
+  testWidgets('the coach mark fits a short landscape viewport (no overflow)', (
+    tester,
+  ) async {
+    // Regression: on a short landscape viewport the coach mark's column
+    // overflowed; it must now fit (scroll) rather than overflow.
+    await tester.binding.setSurfaceSize(const Size(900, 400));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          catalogServiceProvider.overrideWithValue(
+            FakeDeckCatalogService(deckCorpus(2)),
+          ),
+          ratingServiceProvider.overrideWithValue(FakeRatingService()),
+          notationEngineProvider.overrideWithValue(FakeNotationEngine()),
+          audioServiceProvider.overrideWithValue(RecordingAudioService()),
+          preferencesServiceProvider.overrideWithValue(
+            FakePreferencesService(null), // never seen → coach mark shows
+          ),
+        ],
+        child: localizedApp(const RatingDeckScreen()),
+      ),
+    );
+    await _settle(tester);
+    expect(find.byIcon(Icons.swipe), findsOneWidget);
+    expect(tester.takeException(), isNull); // no RenderFlex overflow
+  });
 }

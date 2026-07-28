@@ -277,44 +277,60 @@ class _CoachMarkOverlay extends ConsumerWidget {
         onTap: () => ref.read(ratingCoachMarkProvider.notifier).markSeen(),
         child: ColoredBox(
           color: Colors.black.withValues(alpha: 0.72),
-          child: Center(
-            child: Padding(
-              padding: const EdgeInsets.all(28),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(
-                    Icons.swipe,
-                    size: 56,
-                    color: CymbraColors.primary,
-                  ),
-                  const SizedBox(height: 20),
-                  Text(
-                    l10n.ratingCoachTitle,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      color: CymbraColors.onSurface,
-                      fontSize: 20,
-                      fontWeight: FontWeight.w800,
+          // Centre the hint when it fits, and let it scroll on a short (landscape)
+          // viewport instead of overflowing.
+          child: LayoutBuilder(
+            builder: (context, constraints) => SingleChildScrollView(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 20,
+                    ),
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 420),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.swipe,
+                            size: 46,
+                            color: CymbraColors.primary,
+                          ),
+                          const SizedBox(height: 14),
+                          Text(
+                            l10n.ratingCoachTitle,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              color: CymbraColors.onSurface,
+                              fontSize: 19,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Text(
+                            l10n.ratingCoachBody,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              color: CymbraColors.onSurfaceVariant,
+                              fontSize: 14.5,
+                              height: 1.3,
+                            ),
+                          ),
+                          const SizedBox(height: 18),
+                          FilledButton(
+                            onPressed: () => ref
+                                .read(ratingCoachMarkProvider.notifier)
+                                .markSeen(),
+                            child: Text(l10n.ratingCoachDismiss),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  Text(
-                    l10n.ratingCoachBody,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      color: CymbraColors.onSurfaceVariant,
-                      fontSize: 15,
-                      height: 1.35,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  FilledButton(
-                    onPressed: () =>
-                        ref.read(ratingCoachMarkProvider.notifier).markSeen(),
-                    child: Text(l10n.ratingCoachDismiss),
-                  ),
-                ],
+                ),
               ),
             ),
           ),
