@@ -1,3 +1,4 @@
+import { toJson, type DescMessage } from "@bufbuild/protobuf";
 import { Code, ConnectError, createClient, type Client, type Interceptor, type Transport } from "@connectrpc/connect";
 import { createGrpcWebTransport } from "@connectrpc/connect-web";
 import { grpcWebDevtoolsInterceptor } from "./grpc-devtools";
@@ -95,16 +96,52 @@ export const refreshInterceptor: Interceptor = (next) => async (req) => {
   }
 };
 
-// gRPC-web always returns HTTP 200; the real status is the grpc-status trailer, so
-// the Network tab hides errors. In dev, log one clear line per failed call
-// (method + decoded code + message) to the Console so failures are obvious.
-const devLogInterceptor: Interceptor = (next) => async (req) => {
+// Full decoded trace: for EVERY call, log method + decoded request/response JSON
+// (or the gRPC status on failure) as a collapsed console group. Independent of any
+// Chrome extension — this is the reliable way to read gRPC-web traffic, since the
+// Network tab only shows the length-prefixed protobuf wire bytes.
+function traceJson(schema: DescMessage, message: unknown): unknown {
   try {
-    return await next(req);
+    return toJson(schema, message as never);
+  } catch {
+    return "<undecodable>";
+  }
+}
+
+// Opt-in flag that turns the trace on in a PRODUCTION build (it is always on in
+// dev). Stays OFF for every user of bo.cymbra.app unless an operator explicitly runs
+// `localStorage.setItem("cymbra:grpc-trace","1")` in their own browser and reloads.
+// This lets us read decoded gRPC-web traffic on the live site WITHOUT loosening prod
+// CORS/cookies (the reason we don't just point a local dev build at prod). Read once
+// at transport creation (app startup), so toggling requires a reload.
+const TRACE_FLAG = "cymbra:grpc-trace";
+
+function grpcTraceEnabled(): boolean {
+  if (import.meta.env.DEV) return true;
+  try {
+    return localStorage.getItem(TRACE_FLAG) === "1";
+  } catch {
+    return false; // localStorage blocked (private mode / hardened browser) — stay off
+  }
+}
+
+const grpcTraceInterceptor: Interceptor = (next) => async (req) => {
+  const label = `gRPC ${req.method.parent.typeName}/${req.method.name}`;
+  const request = req.stream ? "<stream>" : traceJson(req.method.input, req.message);
+  try {
+    const res = await next(req);
+    const response = res.stream ? "<stream>" : traceJson(req.method.output, res.message);
+    console.groupCollapsed(`%c✓ ${label}`, "color:#3c7");
+    console.log("request ", request);
+    console.log("response", response);
+    console.groupEnd();
+    return res;
   } catch (e) {
-    if (e instanceof ConnectError) {
-      console.error(`gRPC ${req.method.name} → ${Code[e.code]} (${e.code}): ${e.rawMessage}`);
-    }
+    console.groupCollapsed(`%c✗ ${label}`, "color:#e55");
+    console.log("request", request);
+    if (e instanceof ConnectError) console.log(`status  ${Code[e.code]} (${e.code}): ${e.rawMessage}`);
+    else console.log("error  ", e);
+    console.groupEnd();
     throw e;
   }
 };
@@ -114,11 +151,17 @@ export function createTransport(getToken: () => string | null): Transport {
   // once refresh has given up), which wraps auth (so a retry re-attaches the new
   // token).
   const interceptors: Interceptor[] = [sessionExpiryInterceptor, refreshInterceptor, authInterceptor(getToken)];
-  if (import.meta.env.DEV) {
-    // Console one-liner + the gRPC-Web Developer Tools panel (if the extension is
-    // installed). Both dev-only.
-    interceptors.push(devLogInterceptor, grpcWebDevtoolsInterceptor);
+  // Decoded request/response trace in the Console — always in dev, opt-in in prod
+  // (see grpcTraceEnabled). Announce it in a prod build so the operator knows it's on.
+  if (grpcTraceEnabled()) {
+    interceptors.push(grpcTraceInterceptor);
+    if (!import.meta.env.DEV) {
+      console.info(`[cymbra] gRPC trace ON (localStorage "${TRACE_FLAG}"). Remove the key + reload to disable.`);
+    }
   }
+  // The gRPC-Web Developer Tools panel bridge (if the extension is installed) is
+  // dev-tooling only — never shipped to the prod bundle.
+  if (import.meta.env.DEV) interceptors.push(grpcWebDevtoolsInterceptor);
   return createGrpcWebTransport({ baseUrl: baseUrl(), interceptors });
 }
 
