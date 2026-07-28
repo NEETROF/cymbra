@@ -9,15 +9,17 @@
 use std::sync::Arc;
 
 use cymbra_platform::AuthIdentity;
-use cymbra_user_port::UserPort;
 use cymbra_user_port::proto::{
     Account, AccountRow, CheckHandleAvailabilityRequest, CheckHandleAvailabilityResponse,
-    DeleteAccountRequest, DeleteAccountResponse, GetAccountRequest, GrantRoleRequest,
-    GrantRoleResponse, Identity, ListAccountsRequest, ListAccountsResponse, ListIdentitiesRequest,
-    ListIdentitiesResponse, ListRoleGrantsRequest, ListRoleGrantsResponse, RevokeRoleRequest,
-    RevokeRoleResponse, RoleGrant as ProtoRoleGrant, UpdateAccountRequest,
+    DeleteAccountRequest, DeleteAccountResponse, GetAccountRequest, GetPlayerProfileRequest,
+    GrantRoleRequest, GrantRoleResponse, Identity, ListAccountsRequest, ListAccountsResponse,
+    ListIdentitiesRequest, ListIdentitiesResponse, ListRoleGrantsRequest, ListRoleGrantsResponse,
+    PlayerProfile as ProtoPlayerProfile, RevokeRoleRequest, RevokeRoleResponse,
+    RoleGrant as ProtoRoleGrant, SetProfileVisibilityRequest, SetProfileVisibilityResponse,
+    UpdateAccountRequest,
     user_service_server::{UserService, UserServiceServer},
 };
+use cymbra_user_port::{UserPort, Visibility};
 use tonic::{Request, Response, Status};
 
 /// Wraps the user port as a tonic `UserService`.
@@ -52,6 +54,21 @@ fn to_proto(a: cymbra_user_port::Account) -> Account {
         updated_at: a.updated_at,
         handle: a.handle,
     }
+}
+
+fn to_proto_profile(p: cymbra_user_port::PlayerProfile) -> ProtoPlayerProfile {
+    ProtoPlayerProfile {
+        user_id: p.user_id,
+        handle: p.handle,
+        display_name: p.display_name,
+        visibility: p.visibility.as_str().to_string(),
+    }
+}
+
+/// Parse an ISO `yyyy-mm-dd` date-of-birth from the request (age gate).
+fn parse_dob(s: &str) -> Result<chrono::NaiveDate, Status> {
+    chrono::NaiveDate::parse_from_str(s, "%Y-%m-%d")
+        .map_err(|_| Status::invalid_argument("date_of_birth must be ISO yyyy-mm-dd"))
 }
 
 #[tonic::async_trait]
@@ -205,6 +222,43 @@ impl<P: UserPort + 'static> UserService for UserGrpc<P> {
         Ok(Response::new(ListAccountsResponse {
             accounts,
             total: page.total as u32,
+        }))
+    }
+
+    async fn get_player_profile(
+        &self,
+        req: Request<GetPlayerProfileRequest>,
+    ) -> Result<Response<ProtoPlayerProfile>, Status> {
+        // Authenticated viewers only; the port enforces visibility + eligibility
+        // fail-closed (a private/ineligible target is `NotFound` to non-owners).
+        let id = identity(&req)?;
+        let target = req.into_inner().user_id;
+        let today = chrono::Utc::now().date_naive();
+        let profile = self
+            .port
+            .get_player_profile(&id.user_id, &target, today)
+            .await?;
+        Ok(Response::new(to_proto_profile(profile)))
+    }
+
+    async fn set_profile_visibility(
+        &self,
+        req: Request<SetProfileVisibilityRequest>,
+    ) -> Result<Response<SetProfileVisibilityResponse>, Status> {
+        let id = identity(&req)?;
+        let r = req.into_inner();
+        let visibility = Visibility::parse(&r.visibility)?;
+        let dob = match r.date_of_birth {
+            Some(s) => Some(parse_dob(&s)?),
+            None => None,
+        };
+        let today = chrono::Utc::now().date_naive();
+        let now = self
+            .port
+            .set_profile_visibility(&id.user_id, visibility, dob, today)
+            .await?;
+        Ok(Response::new(SetProfileVisibilityResponse {
+            visibility: now.as_str().to_string(),
         }))
     }
 }
@@ -366,5 +420,81 @@ mod tests {
             .into_inner();
         assert_eq!(resp.total, 1);
         assert_eq!(resp.accounts[0].handle.as_deref(), Some("ada"));
+    }
+
+    #[tokio::test]
+    async fn set_visibility_then_view_profile_end_to_end() {
+        let (g, module) = grpc();
+        let owner = module.resolve_or_provision("google", "o").await.unwrap();
+        module
+            .update_account(&owner, None, Some("ada".into()), "{}", 1)
+            .await
+            .unwrap();
+        // Owner opts in to public with an eligible DOB.
+        let resp = g
+            .set_profile_visibility(authed(
+                SetProfileVisibilityRequest {
+                    visibility: "public".into(),
+                    date_of_birth: Some("2000-01-01".into()),
+                },
+                &owner,
+                &["user"],
+            ))
+            .await
+            .unwrap()
+            .into_inner();
+        assert_eq!(resp.visibility, "public");
+        // Another authenticated player reads the allow-listed public profile.
+        let p = g
+            .get_player_profile(authed(
+                GetPlayerProfileRequest {
+                    user_id: owner.clone(),
+                },
+                "viewer",
+                &["user"],
+            ))
+            .await
+            .unwrap()
+            .into_inner();
+        assert_eq!(p.handle.as_deref(), Some("ada"));
+        assert_eq!(p.visibility, "public");
+    }
+
+    #[tokio::test]
+    async fn private_profile_is_not_found_to_others() {
+        let (g, module) = grpc();
+        let owner = module.resolve_or_provision("google", "o").await.unwrap();
+        let err = g
+            .get_player_profile(authed(
+                GetPlayerProfileRequest {
+                    user_id: owner.clone(),
+                },
+                "viewer",
+                &["user"],
+            ))
+            .await
+            .unwrap_err();
+        assert_eq!(err.code(), tonic::Code::NotFound);
+    }
+
+    #[tokio::test]
+    async fn profile_rpcs_reject_unauthenticated() {
+        let (g, _module) = grpc();
+        // No identity extension → unauthenticated on both new RPCs.
+        let err = g
+            .get_player_profile(Request::new(GetPlayerProfileRequest {
+                user_id: "u".into(),
+            }))
+            .await
+            .unwrap_err();
+        assert_eq!(err.code(), tonic::Code::Unauthenticated);
+        let err = g
+            .set_profile_visibility(Request::new(SetProfileVisibilityRequest {
+                visibility: "public".into(),
+                date_of_birth: None,
+            }))
+            .await
+            .unwrap_err();
+        assert_eq!(err.code(), tonic::Code::Unauthenticated);
     }
 }

@@ -5,10 +5,23 @@
 //! [`FakeUserRepo`] lets the module be unit-tested without Postgres.
 
 use async_trait::async_trait;
+use chrono::NaiveDate;
 use cymbra_platform::{AppError, Result};
 use cymbra_user_port::{Account, AccountPage, AccountSummary, Identity, RoleGrant};
 use std::collections::HashMap;
 use std::sync::Mutex;
+
+/// The profile fields the public-profile read + visibility control need (change:
+/// add-play-activity-profile). Internal to the user crate (repo ↔ module).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ProfileRow {
+    pub handle: Option<String>,
+    pub display_name: Option<String>,
+    /// Stored visibility (`private` | `public`).
+    pub visibility: String,
+    /// Derived eligibility date (`None` until an age has been established).
+    pub share_eligible_from: Option<NaiveDate>,
+}
 
 #[async_trait]
 pub trait UserRepo: Send + Sync {
@@ -70,11 +83,25 @@ pub trait UserRepo: Send + Sync {
         limit: i64,
         offset: i64,
     ) -> Result<AccountPage>;
+
+    /// Read the profile row (identity + visibility + eligibility) for `user_id`
+    /// (change: add-play-activity-profile). `NotFound` when the account is gone.
+    async fn profile_row(&self, user_id: &str) -> Result<ProfileRow>;
+
+    /// Set `user_id`'s visibility. When `share_eligible_from` is `Some`, it is
+    /// (over)written; when `None`, the stored eligibility date is left unchanged
+    /// (COALESCE semantics), so toggling private↔public never loses the derived
+    /// date. `NotFound` when the account is gone.
+    async fn update_visibility(
+        &self,
+        user_id: &str,
+        visibility: &str,
+        share_eligible_from: Option<NaiveDate>,
+    ) -> Result<()>;
 }
 
 // --- In-memory fake (tests) -------------------------------------------------
 
-#[derive(Default)]
 struct AccountRow {
     display_name: Option<String>,
     preferences: String,
@@ -82,6 +109,25 @@ struct AccountRow {
     handle: Option<String>,
     handle_key: Option<String>,
     created_at: i64,
+    /// Profile visibility (change: add-play-activity-profile); private by default.
+    visibility: String,
+    share_eligible_from: Option<NaiveDate>,
+}
+
+impl Default for AccountRow {
+    fn default() -> Self {
+        Self {
+            display_name: None,
+            preferences: String::new(),
+            version: 0,
+            handle: None,
+            handle_key: None,
+            created_at: 0,
+            // Mirror the migration default: profiles are private until opt-in.
+            visibility: "private".into(),
+            share_eligible_from: None,
+        }
+    }
 }
 
 #[derive(Default)]
@@ -140,12 +186,9 @@ impl UserRepo for FakeUserRepo {
         s.users.insert(
             uid.clone(),
             AccountRow {
-                display_name: None,
                 preferences: "{}".into(),
                 version: 1,
-                handle: None,
-                handle_key: None,
-                created_at: 0,
+                ..Default::default()
             },
         );
         s.identities
@@ -385,5 +428,37 @@ impl UserRepo for FakeUserRepo {
             })
             .collect();
         Ok(AccountPage { entries, total })
+    }
+
+    async fn profile_row(&self, user_id: &str) -> Result<ProfileRow> {
+        let s = self.state.lock().unwrap();
+        s.users
+            .get(user_id)
+            .map(|row| ProfileRow {
+                handle: row.handle.clone(),
+                display_name: row.display_name.clone(),
+                visibility: row.visibility.clone(),
+                share_eligible_from: row.share_eligible_from,
+            })
+            .ok_or_else(|| AppError::NotFound("account".into()))
+    }
+
+    async fn update_visibility(
+        &self,
+        user_id: &str,
+        visibility: &str,
+        share_eligible_from: Option<NaiveDate>,
+    ) -> Result<()> {
+        let mut s = self.state.lock().unwrap();
+        let row = s
+            .users
+            .get_mut(user_id)
+            .ok_or_else(|| AppError::NotFound("account".into()))?;
+        row.visibility = visibility.to_string();
+        // COALESCE: only overwrite the eligibility date when a new one is derived.
+        if share_eligible_from.is_some() {
+            row.share_eligible_from = share_eligible_from;
+        }
+        Ok(())
     }
 }

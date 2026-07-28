@@ -11,6 +11,15 @@ cymbra-platform = { path = "../platform" }
 tonic.workspace = true
 prost.workspace = true
 async-trait.workspace = true
+# Dates for the public-profile age gate (change: add-play-activity-profile):
+# `share_eligible_from` + the UTC "today" the eligibility check compares against.
+chrono.workspace = true
+# Optional: generates `MockUserPort` via `#[automock]` under the `mock` feature,
+# so other capabilities (the music PlayService) can double the visibility gate.
+mockall = { workspace = true, optional = true }
+
+[features]
+mock = ["dep:mockall"]
 
 [build-dependencies]
 tonic-build.workspace = true

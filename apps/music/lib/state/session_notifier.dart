@@ -207,3 +207,13 @@ String? currentUserHandle(Ref ref) {
   final session = ref.watch(sessionNotifierProvider);
   return session is SessionAuthenticated ? session.account?.handle : null;
 }
+
+/// The signed-in user's account id, or `null` when guest / signed out / the
+/// account is not yet resolved. Used for per-user play-outbox delivery (change:
+/// add-play-activity-profile): a captured session is tied to this id and only
+/// delivered while it is the signed-in one.
+@riverpod
+String? currentUserId(Ref ref) {
+  final session = ref.watch(sessionNotifierProvider);
+  return session is SessionAuthenticated ? session.account?.userId : null;
+}

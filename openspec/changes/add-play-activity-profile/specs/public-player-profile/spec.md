@@ -27,7 +27,7 @@ player. Unauthenticated requests MUST be rejected.
 ### Requirement: Per-user profile visibility control, private by default
 
 The system SHALL let a user control the visibility of their profile to other players
-(for example public, limited, or private) and SHALL default a profile to **private** — a
+(public or private) and SHALL default a profile to **private** — a
 profile is exposed to other players only after the user **explicitly opts in**. When a user
 has restricted or hidden their profile, other players MUST NOT receive the restricted
 content, while the user themselves always sees their own full profile.

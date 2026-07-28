@@ -387,6 +387,48 @@ impl UserRepo for PgUserRepo {
             .collect();
         Ok(AccountPage { entries, total })
     }
+
+    async fn profile_row(&self, user_id: &str) -> Result<crate::repo::ProfileRow> {
+        let row = sqlx::query(
+            "SELECT handle, display_name, profile_visibility, share_eligible_from \
+             FROM users WHERE id = $1",
+        )
+        .bind(parse_uuid(user_id)?)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(internal)?
+        .ok_or_else(|| AppError::NotFound("account".into()))?;
+        Ok(crate::repo::ProfileRow {
+            handle: row.get("handle"),
+            display_name: row.get("display_name"),
+            visibility: row.get("profile_visibility"),
+            share_eligible_from: row.get("share_eligible_from"),
+        })
+    }
+
+    async fn update_visibility(
+        &self,
+        user_id: &str,
+        visibility: &str,
+        share_eligible_from: Option<chrono::NaiveDate>,
+    ) -> Result<()> {
+        // COALESCE keeps the stored eligibility date when the caller passes `None`
+        // (a private toggle never loses the derived date).
+        let res = sqlx::query(
+            "UPDATE users SET profile_visibility = $2, \
+             share_eligible_from = COALESCE($3, share_eligible_from) WHERE id = $1",
+        )
+        .bind(parse_uuid(user_id)?)
+        .bind(visibility)
+        .bind(share_eligible_from)
+        .execute(&self.pool)
+        .await
+        .map_err(internal)?;
+        if res.rows_affected() == 0 {
+            return Err(AppError::NotFound("account".into()));
+        }
+        Ok(())
+    }
 }
 
 fn parse_uuid(s: &str) -> Result<uuid::Uuid> {

@@ -5,11 +5,55 @@
 //! crate — never `cymbra-user` directly (design D0).
 
 use async_trait::async_trait;
-use cymbra_platform::Result;
+use chrono::NaiveDate;
+use cymbra_platform::{AppError, Result};
 
 /// Generated protobuf messages + tonic client/server stubs for `cymbra.user.v1`.
 pub mod proto {
     tonic::include_proto!("cymbra.user.v1");
+}
+
+/// How visible a profile is to OTHER players (change: add-play-activity-profile).
+/// **Private by default** (opt-in sharing): the public-profile read exposes a
+/// profile to arbitrary viewers only when it is `Public` (fail-closed). A
+/// followers-only tier can be added later with its own semantics + migration.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Visibility {
+    Private,
+    Public,
+}
+
+impl Visibility {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Visibility::Private => "private",
+            Visibility::Public => "public",
+        }
+    }
+
+    /// Parse the wire/stored form; unknown values are rejected (fail-closed).
+    pub fn parse(s: &str) -> Result<Self> {
+        match s {
+            "private" => Ok(Visibility::Private),
+            "public" => Ok(Visibility::Public),
+            other => Err(AppError::InvalidArgument(format!(
+                "unknown visibility {other:?}"
+            ))),
+        }
+    }
+}
+
+/// A player's profile as exposed to another player (change: add-play-activity-
+/// profile): an explicit allow-list of public fields. It NEVER carries email,
+/// curator alignment/reliability, or moderation state. The play heatmap +
+/// songs-played totals are read separately (music `PlayService`) and composed
+/// client-side.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PlayerProfile {
+    pub user_id: String,
+    pub handle: Option<String>,
+    pub display_name: Option<String>,
+    pub visibility: Visibility,
 }
 
 /// Account aggregate (domain DTO, independent of protobuf/SQL).
@@ -72,6 +116,9 @@ pub struct AccountPage {
 ///
 /// Implemented in-process by the direct adapter (`cymbra-user`) and — for the
 /// public account-management subset — over the wire by [`GrpcUserClient`].
+// `#[automock]` sits ABOVE `#[async_trait]` (gated on the `mock` feature) so the
+// music PlayService can double the play-activity visibility gate in unit tests.
+#[cfg_attr(feature = "mock", mockall::automock)]
 #[async_trait]
 pub trait UserPort: Send + Sync {
     /// Resolve the account for `(provider, subject)`, provisioning it (with the
@@ -144,6 +191,48 @@ pub trait UserPort: Send + Sync {
     /// email; an empty `query` lists all accounts. Authorization (admin-only) is
     /// enforced by the caller.
     async fn list_accounts(&self, query: &str, limit: i64, offset: i64) -> Result<AccountPage>;
+
+    // --- Public player profile (change: add-play-activity-profile) -----------
+
+    /// Read the profile of `target_id` as seen by `viewer_id`. The owner always
+    /// sees their own profile in full; another player sees it only when it is
+    /// `Public` AND the owner is age-eligible — otherwise this is `NotFound`
+    /// (fail-closed: never reveal a private profile's existence). `today` is the
+    /// current UTC date, injected so the eligibility check is deterministic.
+    async fn get_player_profile(
+        &self,
+        viewer_id: &str,
+        target_id: &str,
+        today: NaiveDate,
+    ) -> Result<PlayerProfile>;
+
+    /// Set the caller's own visibility. Going `Public` is gated by the minimum-age
+    /// safeguard (design D6): a supplied `date_of_birth` always (re-)derives
+    /// `share_eligible_from = dob + min_public_sharing_age years` and is then
+    /// discarded (only the derived date is stored); with no DOB the stored date is
+    /// used, and if there is none the call is refused. REFUSES (fail-closed) when
+    /// the user is not yet eligible on `today` (UTC, one-day margin). Returns the
+    /// visibility now in effect. `Private` is always allowed and never touches the
+    /// age data.
+    async fn set_profile_visibility(
+        &self,
+        user_id: &str,
+        visibility: Visibility,
+        date_of_birth: Option<NaiveDate>,
+        today: NaiveDate,
+    ) -> Result<Visibility>;
+
+    /// Whether `viewer_id` may see `owner_id`'s play activity (the heatmap): true
+    /// when the viewer IS the owner, or the owner's profile is `Public` AND the
+    /// owner is age-eligible. Fail-closed. Used in-process by the music
+    /// `PlayService` to gate the activity read without crossing schemas. `today`
+    /// is the current UTC date.
+    async fn activity_visible_to(
+        &self,
+        owner_id: &str,
+        viewer_id: &str,
+        today: NaiveDate,
+    ) -> Result<bool>;
 }
 
 /// gRPC **client** adapter for the public account-management surface — used to

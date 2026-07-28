@@ -959,6 +959,7 @@ dependencies = [
  "cymbra-musicxml-core",
  "cymbra-platform",
  "cymbra-storage",
+ "cymbra-user-port",
  "prost 0.13.5",
  "serde",
  "sha2",
@@ -1060,6 +1061,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
+ "chrono",
  "cymbra-jobs",
  "cymbra-platform",
  "cymbra-user-port",
@@ -1076,7 +1078,9 @@ name = "cymbra-user-port"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "chrono",
  "cymbra-platform",
+ "mockall",
  "prost 0.13.5",
  "tonic 0.12.3",
  "tonic-build",

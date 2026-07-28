@@ -41,6 +41,10 @@ pub struct WorkerConfig {
     pub score_storage: Option<cymbra_platform::config::ScoreStorageConfig>,
     /// Local warm-cache root (mirrors the server's `CYMBRA_SCORE_LOCAL_ROOT`).
     pub score_local_root: String,
+    /// Retention window (days) for the heavy per-session play detail before the
+    /// `play_detail_prune` job NULLs it (change: add-play-activity-profile, D7).
+    /// Mirrors the server's `CYMBRA_PLAY_DETAIL_RETENTION_DAYS`. Default 90.
+    pub play_detail_retention_days: usize,
 }
 
 impl WorkerConfig {
@@ -82,6 +86,7 @@ pub mod core {
             otlp_enabled: flag(m, "CYMBRA_OTLP_ENABLED", false),
             score_storage: score_storage(m)?,
             score_local_root: opt(m, "CYMBRA_SCORE_LOCAL_ROOT", "/srv/cymbra/scores"),
+            play_detail_retention_days: num(m, "CYMBRA_PLAY_DETAIL_RETENTION_DAYS", 90)?,
         })
     }
 
@@ -171,6 +176,15 @@ mod tests {
         assert_eq!(c.smtp_from, "no-reply@cymbra.dev");
         assert!(!c.otlp_enabled);
         assert_eq!(c.otlp_endpoint, None);
+        // Default play-detail retention (change: add-play-activity-profile).
+        assert_eq!(c.play_detail_retention_days, 90);
+    }
+
+    #[test]
+    fn play_detail_retention_override() {
+        let mut m = base();
+        m.insert("CYMBRA_PLAY_DETAIL_RETENTION_DAYS".into(), "30".into());
+        assert_eq!(core::parse(&m).unwrap().play_detail_retention_days, 30);
     }
 
     #[test]

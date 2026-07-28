@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -34,6 +35,7 @@ import '../state/notation_data.dart';
 import '../state/notation_notifier.dart';
 import '../state/score_catalog.dart';
 import '../state/performance_scoring.dart';
+import '../state/play_sync_notifier.dart';
 import '../state/player_data.dart';
 import '../state/player_notifier.dart';
 import '../state/session_summary.dart';
@@ -399,6 +401,12 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
   /// the player can still retry or close.
   Future<void> _onScoredRunFinished(SessionResult result) async {
     await ref.read(sessionSummaryStoreProvider).save(result);
+    // Capture the session into the durable play-activity outbox (change: add-play-
+    // activity-profile) — before any network attempt, so the stat is never lost;
+    // the sender delivers it reliably (retry-until-acked). A no-op for guests.
+    unawaited(
+      ref.read(playSyncNotifierProvider.notifier).captureSession(result),
+    );
     // Capture the score context now — the piece is unchanged after the run.
     final score = ReplayScore.fromPlayer(ref.read(playerProvider));
     while (true) {
