@@ -51,16 +51,8 @@ import 'score_load_message.dart';
 
 /// Main screen of the Cymbra player: top bar, rendering area
 /// (Synthesia or Staff), keyboard, and transport bar.
-///
-/// In [preview] mode (change: add-app-score-rating) the SAME render + playback
-/// engine drives a **read-only** preview for the rating deck: the score renders
-/// and the notes sound, but the pre-play setup, input judging, scored-run summary
-/// and Wait Mode are all suppressed. Playback autostarts and stops at the end.
 class PlayerScreen extends ConsumerStatefulWidget {
-  const PlayerScreen({super.key, this.preview = false});
-
-  /// Whether this is a read-only preview (no interaction, no scoring).
-  final bool preview;
+  const PlayerScreen({super.key});
 
   @override
   ConsumerState<PlayerScreen> createState() => _PlayerScreenState();
@@ -143,18 +135,6 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
   void initState() {
     super.initState();
     _ticker = createTicker(_onTick)..start();
-    if (widget.preview) {
-      // Read-only preview: never show the pre-play setup, and once this frame is
-      // laid out put the player into preview mode and autostart playback so the
-      // score plays through read-only behind the deck card.
-      _setupShown = true;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        final notifier = ref.read(playerProvider.notifier);
-        notifier.setPreview(true);
-        notifier.setPlaying(true);
-      });
-    }
   }
 
   void _onTick(Duration elapsed) {
@@ -173,8 +153,6 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
   /// (satisfying Wait Mode); the near-miss keys play a random nearby wrong note.
   /// Exact, arbitrary notes are played with the on-screen keyboard instead.
   KeyEventResult _onKey(FocusNode node, KeyEvent event) {
-    // Read-only preview: the computer-keyboard assist keys are inert.
-    if (widget.preview) return KeyEventResult.ignored;
     final key = event.logicalKey;
     final bool rightHand;
     final bool nearMiss;
@@ -251,8 +229,6 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     PianoLayout layout,
     double keyboardHeight,
   ) {
-    // Read-only preview: the on-screen keyboard is display-only.
-    if (widget.preview) return;
     final pitch = layout.pitchAt(event.localPosition, keyboardHeight);
     if (pitch == null) return;
     _keyboardPointers[event.pointer] = pitch;
@@ -274,18 +250,15 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
 
   @override
   Widget build(BuildContext context) {
-    // A scored run just finished: persist the summary and show the modal. Never
-    // in read-only preview (no run is ever scored there).
-    if (!widget.preview) {
-      ref.listen(performanceScorerProvider.select((s) => s.lastResult), (
-        prev,
-        next,
-      ) {
-        if (next != null && !identical(next, prev)) {
-          _onScoredRunFinished(next);
-        }
-      });
-    }
+    // A scored run just finished: persist the summary and show the modal.
+    ref.listen(performanceScorerProvider.select((s) => s.lastResult), (
+      prev,
+      next,
+    ) {
+      if (next != null && !identical(next, prev)) {
+        _onScoredRunFinished(next);
+      }
+    });
     // Show the pre-play setup modal once, as soon as the score has loaded. The
     // openScore guard usually pre-loads before this screen mounts, so the
     // build-body call catches the already-loaded case; the listener covers a

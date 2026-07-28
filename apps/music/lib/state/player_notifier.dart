@@ -115,10 +115,6 @@ class Player extends _$Player {
   /// (the scorer resets its own state on [PerformanceScorer.startRun]).
   void _maybeStartRun() {
     final s = state;
-    // Read-only preview never opens a scored run, so every `PerformanceScorer`
-    // method stays an inert no-op and no scoring/performance events fire (change:
-    // add-app-score-rating).
-    if (s.preview) return;
     if (s.visibleNotes.isEmpty || !_atStart(s)) return;
     _scorer.startRun(
       pieceId: s.title ?? 'demo',
@@ -266,10 +262,6 @@ class Player extends _$Player {
   // --- Input (real MIDI or keyboard fallback) ---------------------------
 
   void noteOn(int pitch) {
-    // Read-only preview: no user interaction on the played score — ignore every
-    // input source so nothing sounds from a press, no gate is touched, and the
-    // scorer is never fed (change: add-app-score-rating).
-    if (state.preview) return;
     // Every input source converges here, so a single hook sounds the piano for
     // the on-screen keyboard, the computer keyboard, and MIDI alike — during
     // playback and while stopped.
@@ -304,8 +296,6 @@ class Player extends _$Player {
   }
 
   void noteOff(int pitch) {
-    // Preview ignores input (see [noteOn]): no release, no scorer note-off.
-    if (state.preview) return;
     _audio.noteOff(pitch);
     // The hold ended: drop it from the held set and clear its consumed mark so a
     // re-press starts fresh.
@@ -353,25 +343,9 @@ class Player extends _$Player {
   // rather than discarding it.
   void setMode(RenderMode m) => state = state.copyWith(mode: m);
 
-  /// Enters (or leaves) read-only preview mode (change: add-app-score-rating):
-  /// forces Wait Mode off (with input disabled nothing could satisfy its gate)
-  /// and cancels any scored run, so the render plays through read-only. Called by
-  /// the deck's in-card preview before autostarting playback.
-  void setPreview(bool preview) {
-    if (preview) {
-      _scorer.cancelRun();
-      state = state.copyWith(preview: true, waitMode: false, blocked: false);
-    } else {
-      state = state.copyWith(preview: false);
-    }
-  }
-
   // Re-arm the onset gate at the current playhead when toggling Wait Mode on,
   // and silence any in-flight score voices so none hang across the switch.
   void toggleWaitMode() {
-    // Inert in read-only preview (Wait Mode would freeze playback waiting on
-    // input that is disabled).
-    if (state.preview) return;
     _silenceAll();
     state = state.copyWith(
       waitMode: !state.waitMode,
@@ -514,17 +488,11 @@ class Player extends _$Player {
 
     var loop = false;
     var finishScoredRun = false;
-    var previewEnded = false;
     if (s.songEndMs > 0 && next >= s.songEndMs) {
       if (ref.read(performanceScorerProvider).active) {
         // A scored run ends the piece (produces the summary) instead of looping.
         next = s.songEndMs;
         finishScoredRun = true;
-      } else if (s.preview) {
-        // Read-only preview plays through once and stops at the end (no loop),
-        // so it doesn't run forever behind the deck card.
-        next = s.songEndMs;
-        previewEnded = true;
       } else {
         next = s.startMs; // simple loop — wrap to the trimmed start, not 0
         loop = true;
@@ -582,10 +550,6 @@ class Player extends _$Player {
     if (finishScoredRun) {
       _silenceAll();
       _scorer.finishRun(next, waitMode: s.waitMode);
-      state = state.copyWith(isPlaying: false);
-    } else if (previewEnded) {
-      // Read-only preview reached the end: silence and stop (no summary, no loop).
-      _silenceAll();
       state = state.copyWith(isPlaying: false);
     }
   }

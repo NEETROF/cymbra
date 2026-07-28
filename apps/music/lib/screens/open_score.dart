@@ -41,9 +41,8 @@ const _minSpinnerVisible = Duration(milliseconds: 550);
 Future<void> openScore(
   BuildContext context,
   WidgetRef ref,
-  CatalogEntry entry, {
-  bool preview = false,
-}) async {
+  CatalogEntry entry,
+) async {
   final l10n = AppLocalizations.of(context);
   final messenger = ScaffoldMessenger.of(context);
   final navigator = Navigator.of(context);
@@ -103,11 +102,7 @@ Future<void> openScore(
 
   if (loaded) {
     navigator
-        .push(
-          MaterialPageRoute<void>(
-            builder: (_) => PlayerScreen(preview: preview),
-          ),
-        )
+        .push(MaterialPageRoute<void>(builder: (_) => const PlayerScreen()))
         .whenComplete(sub.close);
   } else {
     // Surface the specific (but localized) cause — missing, not-ready, offline…
@@ -117,14 +112,3 @@ Future<void> openScore(
     showAppSnackBar(messenger, scoreLoadFailureMessage(l10n, failure));
   }
 }
-
-/// Opens [entry] in the player's **read-only preview** (change:
-/// add-app-score-rating): the same pre-flight load + render as [openScore], but
-/// the player mounts in preview mode (notation renders and notes sound, with no
-/// interaction or scoring) and stopping/returning pops back to the caller (the
-/// rating deck). Thin wrapper over [openScore] so both share the load guard.
-Future<void> openScorePreview(
-  BuildContext context,
-  WidgetRef ref,
-  CatalogEntry entry,
-) => openScore(context, ref, entry, preview: true);

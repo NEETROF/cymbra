@@ -183,13 +183,6 @@ abstract class PlayerData with _$PlayerData {
     @Default(true) bool waitMode,
     @Default(false) bool isPlaying,
 
-    /// Read-only preview mode (change: add-app-score-rating): the notation renders
-    /// and the notes sound, but ALL user interaction is disabled — no input
-    /// judging, no scored run, no wait-mode freeze, no scoring. Used by the
-    /// rating deck's in-card Play to preview a score without playing it. When set,
-    /// the playhead plays through once and stops (no loop) rather than judging.
-    @Default(false) bool preview,
-
     /// Remaining pre-start countdown in ms (0 = none). While > 0, playback is
     /// "armed" ([isPlaying] is true) but the playhead is frozen so the player has
     /// time to get ready; the screen shows a 5…1…GO countdown. Counts down in

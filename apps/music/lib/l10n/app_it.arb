@@ -250,6 +250,8 @@
   "ratingStarsButton": "Stelle",
   "ratingStarsSheetTitle": "Valuta questa partitura",
   "ratingPreview": "Anteprima",
+  "ratingPreviewStop": "Ferma anteprima",
+  "ratingPreviewError": "Impossibile caricare l'anteprima.",
   "ratingSubmitError": "Impossibile salvare la tua valutazione.",
   "ratingCardStarsHint": "Tocca per le stelle",
   "ratingCoachTitle": "Scorri o tocca le stelle",

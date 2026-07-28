@@ -21,9 +21,9 @@
 
 ## 4. In-card read-only preview (app)
 
-- [x] 4.1 Add a read-only preview mode to the player render: drive the existing horizontal game-score render/playback with a flag that disables all input judging, editing, wait-mode, and scoring. — `PlayerData.preview` + notifier gates (`noteOn`/`noteOff`/`_maybeStartRun`/`toggleWaitMode`/song-end stop) + `setPreview`.
-- [x] 4.2 Add a Play control on the card that opens the read-only preview and a stop path back to the deck; keep the native render behind the existing injectable seam. — `RatingCard` Play → `openScorePreview` → `PlayerScreen(preview: true)` (same render seam); back pops to the deck.
-- [x] 4.3 Assert (test) that no scoring/performance events fire while in preview mode. — `player_preview_test.dart`: run stays inactive, no `lastResult`, input ignored, stops at end.
+- [x] 4.1 Add a read-only preview mode to the player render: drive the existing horizontal game-score render/playback with a flag that disables all input judging, editing, wait-mode, and scoring. — **In-card** `InCardPreview`: drives the player's `StaffPainter` (the horizontal game-score render) + the audio seam via a local ticker, read-only — no notifier, no input, no scorer.
+- [x] 4.2 Add a Play control on the card that opens the read-only preview and a stop path back to the deck; keep the native render behind the existing injectable seam. — `RatingCard` Play toggles the preview over the card's cover region (title stays visible); a Stop control returns to the card. Bytes/parse go through the injectable `catalogService`/`notationEngine` seams (`cardPreviewScoreProvider`).
+- [x] 4.3 Assert (test) that no scoring/performance events fire while in preview mode. — `in_card_preview_test.dart`: the preview sounds the score (audio seam receives note-ons) while `performanceScorer` stays inactive with no `lastResult`.
 
 ## 5. Discoverability
 

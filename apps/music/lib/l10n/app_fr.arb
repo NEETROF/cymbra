@@ -250,6 +250,8 @@
   "ratingStarsButton": "Étoiles",
   "ratingStarsSheetTitle": "Noter cette partition",
   "ratingPreview": "Aperçu",
+  "ratingPreviewStop": "Arrêter l'aperçu",
+  "ratingPreviewError": "Impossible de charger l'aperçu.",
   "ratingSubmitError": "Impossible d'enregistrer votre note.",
   "ratingCardStarsHint": "Toucher pour les étoiles",
   "ratingCoachTitle": "Balayez ou touchez les étoiles",

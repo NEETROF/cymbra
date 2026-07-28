@@ -17,19 +17,21 @@ import 'package:flutter/material.dart';
 import '../l10n/gen/app_localizations.dart';
 import '../state/score_catalog.dart';
 import '../theme/cymbra_theme.dart';
+import 'in_card_preview.dart';
 import 'score_card.dart';
 
 /// The rating deck's card visual (change: add-app-score-rating). Reuses the
 /// shared [ScoreCard] for the cover / title / composer / attribution, and adds
-/// the deck affordances: a Play control that opens the read-only preview, and a
-/// tap target that opens the 1–5 star rating. When [interactive] is false (the
-/// peeked next card behind the top one) the affordances are omitted.
-class RatingCard extends StatelessWidget {
+/// the deck affordances: a Play control that plays the read-only preview **in the
+/// card** (the cover region becomes the scrolling game-score render), and a tap
+/// target that opens the 1–5 star rating. When [interactive] is false (the peeked
+/// next card behind the top one) the affordances are omitted and it ignores
+/// pointers so the swipe/tap always reaches the top card.
+class RatingCard extends StatefulWidget {
   const RatingCard({
     super.key,
     required this.entry,
     this.onTapStars,
-    this.onPreview,
     this.interactive = true,
   });
 
@@ -38,26 +40,64 @@ class RatingCard extends StatelessWidget {
   /// Opens the star rating (tapping the card). Null when non-interactive.
   final VoidCallback? onTapStars;
 
-  /// Opens the read-only preview (the card's Play control). Null when
-  /// non-interactive.
-  final VoidCallback? onPreview;
-
   final bool interactive;
+
+  @override
+  State<RatingCard> createState() => _RatingCardState();
+}
+
+class _RatingCardState extends State<RatingCard> {
+  /// Whether the in-card read-only preview is playing over the cover region.
+  bool _previewing = false;
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final card = ScoreCard(
-      entry: entry,
-      onTap: onTapStars ?? () {},
-      action: interactive && onPreview != null
-          ? _PreviewButton(onPressed: onPreview!, tooltip: l10n.ratingPreview)
-          : null,
+    final entry = widget.entry;
+    if (!widget.interactive) {
+      // Decorative peek card: no affordances, and ignores pointers.
+      return IgnorePointer(
+        child: ScoreCard(entry: entry, onTap: () {}),
+      );
+    }
+    final canPreview = entry.catalogId != null;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // The preview sits over the card's cover region (ScoreCard uses a 16/11
+        // cover), leaving the title/composer visible below it.
+        final coverHeight = constraints.maxWidth * 11 / 16;
+        return Stack(
+          children: [
+            ScoreCard(
+              entry: entry,
+              onTap: widget.onTapStars ?? () {},
+              action: (canPreview && !_previewing)
+                  ? _PreviewButton(
+                      onPressed: () => setState(() => _previewing = true),
+                      tooltip: l10n.ratingPreview,
+                    )
+                  : null,
+            ),
+            if (_previewing && canPreview)
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                height: coverHeight,
+                child: ClipRRect(
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(18),
+                  ),
+                  child: InCardPreview(
+                    catalogId: entry.catalogId!,
+                    onClose: () => setState(() => _previewing = false),
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
     );
-    // A non-interactive card (the peeked next card behind the top one) is purely
-    // decorative: it must not absorb any pointer, so the swipe/tap always reaches
-    // the top card.
-    return interactive ? card : IgnorePointer(child: card);
   }
 }
 

@@ -28,7 +28,6 @@ import '../widgets/app_snackbar.dart';
 import '../widgets/rating_card.dart';
 import '../widgets/rating_deck_controls.dart';
 import '../widgets/swipe_card.dart';
-import 'open_score.dart';
 
 /// The Tinder-style swipe-rating deck (change: add-app-score-rating): a stack of
 /// `accepted` catalog cards the user rates by swiping (left = dislike, right =
@@ -210,9 +209,6 @@ class _CardStack extends ConsumerWidget {
                               entry: top,
                               onTapStars: () =>
                                   _CardStackStars.open(context, ref, top),
-                              onPreview: () => unawaited(
-                                openScorePreview(context, ref, top),
-                              ),
                             ),
                           ),
                         ),

@@ -250,6 +250,8 @@
   "ratingStarsButton": "Estrellas",
   "ratingStarsSheetTitle": "Puntuar esta partitura",
   "ratingPreview": "Vista previa",
+  "ratingPreviewStop": "Detener vista previa",
+  "ratingPreviewError": "No se pudo cargar la vista previa.",
   "ratingSubmitError": "No se pudo guardar tu puntuación.",
   "ratingCardStarsHint": "Toca para estrellas",
   "ratingCoachTitle": "Desliza o toca las estrellas",
