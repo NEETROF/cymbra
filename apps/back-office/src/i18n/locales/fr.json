@@ -1,10 +1,32 @@
 {
-  "common": { "signOut": "Se déconnecter", "back": "← Retour", "loading": "Chargement…" },
-  "pager": { "label": "pagination", "prev": "← Précédent", "next": "Suivant →", "range": "{from}–{to} sur {total}" },
-  "brand": { "suite": "Back-office" },
-  "stats": { "total": "Catalogue total", "approved": "Acceptées", "pending": "En attente" },
-  "role": { "moderator": "modérateur", "admin": "admin" },
-  "status": { "pending": "en attente", "accepted": "acceptée", "rejected": "rejetée" },
+  "common": {
+    "signOut": "Se déconnecter",
+    "back": "← Retour",
+    "loading": "Chargement…"
+  },
+  "pager": {
+    "label": "pagination",
+    "prev": "← Précédent",
+    "next": "Suivant →",
+    "range": "{from}–{to} sur {total}"
+  },
+  "brand": {
+    "suite": "Back-office"
+  },
+  "stats": {
+    "total": "Catalogue total",
+    "approved": "Acceptées",
+    "pending": "En attente"
+  },
+  "role": {
+    "moderator": "modérateur",
+    "admin": "admin"
+  },
+  "status": {
+    "pending": "en attente",
+    "accepted": "acceptée",
+    "rejected": "rejetée"
+  },
   "level": {
     "any": "tous niveaux",
     "beginner": "débutant",
@@ -18,18 +40,27 @@
     "password": "mot de passe",
     "submit": "Se connecter",
     "submitting": "Connexion…",
-    "googleConfigured": "La connexion Google est configurée — le bouton Google cible le même compte."
+    "or": "ou",
+    "googleUnavailable": "La connexion Google est indisponible pour le moment — utilise ton e-mail et ton mot de passe."
   },
   "denied": {
     "title": "Accès refusé",
     "body": "Ce compte est connecté mais n'est ni modérateur ni admin : aucune action de modération n'est disponible. Demande à un admin de t'attribuer le rôle modérateur."
   },
-  "nav": { "queue": "Revue du catalogue", "catalog": "Catalogue", "roles": "Rôles", "menu": "Menu" },
+  "nav": {
+    "queue": "Revue du catalogue",
+    "catalog": "Catalogue",
+    "roles": "Rôles",
+    "menu": "Menu"
+  },
   "sessions": {
     "revokeAccount": "Révoquer les sessions",
     "revokeAccountConfirm": "Révoquer toutes les sessions de ce compte ?"
   },
-  "catalog": { "title": "Catalogue", "count": "{n} partition | {n} partitions" },
+  "catalog": {
+    "title": "Catalogue",
+    "count": "{n} partition | {n} partitions"
+  },
   "queue": {
     "title": "Revue du catalogue",
     "priorityOrder": "Ordre de priorité",

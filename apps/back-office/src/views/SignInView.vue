@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, onMounted, ref, useTemplateRef } from "vue";
 import { useRouter } from "vue-router";
 import { match } from "ts-pattern";
 import { useAuthStore } from "@/stores/auth";
 import { type Async, idle, run } from "@/lib/async";
+import { currentLocale } from "@/i18n";
+import { useGoogleSignIn } from "@/composables/useGoogleSignIn";
 
 const auth = useAuthStore();
 const router = useRouter();
@@ -37,6 +39,19 @@ async function submitGoogleCredential(idToken: string) {
   if (outcome.status === "success") await afterSignIn();
 }
 defineExpose({ submitGoogleCredential });
+
+// Render the Google Identity Services button only when a client id is configured
+// (unset in dev/e2e → the local form is the sole path). GSI hands us an id_token,
+// which `submitGoogleCredential` exchanges for a Cymbra token.
+const googleButton = useTemplateRef<HTMLDivElement>("googleButton");
+const google = googleClientId ? useGoogleSignIn(googleClientId, submitGoogleCredential) : null;
+const googleLoadFailed = computed(() => google?.status.value.status === "error");
+
+onMounted(() => {
+  if (google && googleButton.value) {
+    void google.render(googleButton.value, { locale: currentLocale() });
+  }
+});
 </script>
 
 <template>
@@ -72,7 +87,14 @@ defineExpose({ submitGoogleCredential });
       </button>
     </form>
 
-    <p v-if="googleClientId" class="muted small">{{ $t("signin.googleConfigured") }}</p>
+    <template v-if="googleClientId">
+      <div class="divider">
+        <span>{{ $t("signin.or") }}</span>
+      </div>
+      <!-- GSI renders its own button into this slot on mount. -->
+      <div ref="googleButton" class="google-slot"></div>
+      <p v-if="googleLoadFailed" class="muted small">{{ $t("signin.googleUnavailable") }}</p>
+    </template>
 
     <p v-if="error" class="error" role="alert">{{ error }}</p>
   </section>
@@ -125,6 +147,26 @@ form {
 .small {
   font-size: 0.82rem;
   margin-top: 0.9rem;
+}
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 1.25rem 0 1rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+.divider::before,
+.divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+.google-slot {
+  display: flex;
+  justify-content: center;
+  min-height: 40px;
 }
 .error {
   color: var(--reject);
