@@ -29,8 +29,10 @@ extension once audio exists.
 - Add a **piano picker to the settings drawer** (the existing right end-drawer),
   showing the available pianos and the current selection.
 - **Optionally** support **download-on-first-use** for larger/realistic
-  SoundFonts so the base app bundle stays small (behind the same injectable seam;
-  fully degradable — a failed download falls back to the bundled default).
+  SoundFonts so the base app bundle stays small — fetched from the backend
+  SoundFont-delivery route `GET /soundfonts/{id}` (private bucket, change
+  `add-soundfont-delivery`) with the app's `music` access token, behind the same
+  injectable seam; fully degradable — a failed download falls back to the bundled default.
 - Keep everything behind the existing injectable `AudioService` seam so the
   picker, persistence and swap are testable with a fake and **degrade gracefully**
   (selection still persists and the UI still works even if audio is unavailable).
@@ -54,6 +56,11 @@ extension once audio exists.
 - **Depends on `piano-sound-output`** landing first (this builds directly on its
   `AudioService` seam, the `audio.rs`/`audio_core.rs` modules and the bundled-asset
   mechanism). Sequence after it.
+- **Download-on-first-use depends on `add-soundfont-delivery`** being deployed (the
+  private `cymbra-soundfonts` bucket + the `GET /soundfonts/{id}` route). The
+  download-source `kind` targets that route by font id; bundled + user-imported pianos
+  need no backend, so the picker still ships without it (downloadable grands simply
+  can't be fetched until the route is live).
 - **Rust engine** (public API → re-run `flutter_rust_bridge_codegen`):
   - `api/audio.rs` — add a `set_soundfont(sf2_bytes)` (or `audio_load_soundfont`)
     FFI that rebuilds the `rustysynth` synthesizer from new bytes on the audio

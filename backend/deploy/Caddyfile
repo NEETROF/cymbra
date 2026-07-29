@@ -19,8 +19,11 @@
 # connect with ChannelCredentials.secure() to $API_DOMAIN:443.
 
 {$API_DOMAIN} {
-	# Axum HTTP surface (JWKS + health/readiness + web-auth cookie endpoints).
-	@http path /.well-known/* /healthz /readyz /web/auth/*
+	# Axum HTTP surface (JWKS + health/readiness + web-auth cookie endpoints +
+	# SoundFont delivery streaming route, change: add-soundfont-delivery). The
+	# /soundfonts/* route is authenticated (Bearer) + range-capable, disjoint from the
+	# gRPC service paths, so it belongs on the Axum port with the other HTTP endpoints.
+	@http path /.well-known/* /healthz /readyz /web/auth/* /soundfonts/*
 	reverse_proxy @http server:8081
 
 	# gRPC + gRPC-web (incl. the CORS preflight) over cleartext HTTP/2 (h2c) on the
