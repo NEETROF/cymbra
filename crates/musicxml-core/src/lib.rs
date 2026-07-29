@@ -24,6 +24,7 @@
 pub mod meta;
 pub mod model;
 pub mod mxl;
+mod pitch_alter;
 pub mod playback;
 pub mod validate;
 
@@ -189,6 +190,13 @@ struct Parser {
     directions: Vec<Direction>,
     measure_clefs: Vec<Clef>,
     measures: Vec<NotationMeasure>,
+    /// Key signature in force for each emitted measure (parallel to `measures`),
+    /// so key-signature inference honors mid-piece key changes.
+    measure_fifths: Vec<i32>,
+    /// Whether any note carried an explicit `<alter>` or `<accidental>`. When this
+    /// stays false for the whole document, the score has no alteration data and the
+    /// key signature is inferred onto every note (see `into_document`).
+    saw_alteration: bool,
     // per-element builders
     note: Option<NoteEvent>,
     pitch: Option<Pitch>,
@@ -231,6 +239,8 @@ impl Parser {
             directions: Vec::new(),
             measure_clefs: Vec::new(),
             measures: Vec::new(),
+            measure_fifths: Vec::new(),
+            saw_alteration: false,
             note: None,
             pitch: None,
             clef_number: 1,
@@ -477,6 +487,7 @@ impl Parser {
             b"alter" => {
                 if let (Some(pt), Ok(v)) = (self.pitch.as_mut(), text.parse()) {
                     pt.alter = v;
+                    self.saw_alteration = true;
                 }
             }
             b"pitch" => {
@@ -503,6 +514,7 @@ impl Parser {
             b"accidental" => {
                 if let Some(n) = self.note.as_mut() {
                     n.accidental = Some(text.to_string());
+                    self.saw_alteration = true;
                 }
             }
             b"voice" => {
@@ -656,13 +668,30 @@ impl Parser {
                 clefs,
                 min_width: width,
             });
+            self.measure_fifths.push(self.key_fifths);
             self.measure_index += 1;
         }
         self.cursor = 0;
         self.last_onset = 0;
     }
 
-    fn into_document(self) -> ScoreDocument {
+    fn into_document(mut self) -> ScoreDocument {
+        // A score with no alteration data anywhere (no `<alter>`, no `<accidental>`)
+        // drew an armure but never marked its notes: infer the key signature onto
+        // every pitch. Conforming exporters always emit some alteration, so this
+        // never runs for them and their pitches are untouched.
+        if !self.saw_alteration {
+            for (measure, &fifths) in self.measures.iter_mut().zip(self.measure_fifths.iter()) {
+                if fifths == 0 {
+                    continue;
+                }
+                for note in &mut measure.notes {
+                    if let Some(pitch) = note.pitch.as_mut() {
+                        pitch.alter = pitch_alter::key_signature_alter(fifths, pitch.step);
+                    }
+                }
+            }
+        }
         ScoreDocument {
             meta: ScoreMeta {
                 title: self.title,
@@ -978,6 +1007,86 @@ mod tests {
         let n = doc.measures[0].notes.iter().find(|n| n.tie_start).unwrap();
         assert_eq!(n.pitch.as_ref().unwrap().alter, -1);
         assert_eq!(n.accidental.as_deref(), Some("flat"));
+    }
+
+    // --- Key-signature inference for unmarked scores ---------------------
+
+    /// Alteration of the `idx`-th note in `measure`.
+    fn alter_at(doc: &ScoreDocument, measure: usize, idx: usize) -> i32 {
+        doc.measures[measure].notes[idx]
+            .pitch
+            .as_ref()
+            .expect("pitched note")
+            .alter
+    }
+
+    #[test]
+    fn key_signature_inferred_when_no_alteration_data() {
+        // No <alter>/<accidental> anywhere + three flats → B/E/A flattened, C not.
+        let doc = parse_ok(
+            r#"<score-partwise><part-list><score-part id="P1"/></part-list>
+            <part id="P1"><measure number="1">
+              <attributes><divisions>1</divisions><key><fifths>-3</fifths></key></attributes>
+              <note><pitch><step>B</step><octave>4</octave></pitch><duration>1</duration></note>
+              <note><pitch><step>E</step><octave>4</octave></pitch><duration>1</duration></note>
+              <note><pitch><step>A</step><octave>4</octave></pitch><duration>1</duration></note>
+              <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration></note>
+            </measure></part></score-partwise>"#,
+        );
+        assert_eq!(alter_at(&doc, 0, 0), -1, "B♭");
+        assert_eq!(alter_at(&doc, 0, 1), -1, "E♭");
+        assert_eq!(alter_at(&doc, 0, 2), -1, "A♭");
+        assert_eq!(alter_at(&doc, 0, 3), 0, "C is unaffected");
+    }
+
+    #[test]
+    fn a_single_alteration_disables_inference_document_wide() {
+        // One explicit <alter> anywhere ⇒ inference off; other bare notes stay natural.
+        let doc = parse_ok(
+            r#"<score-partwise><part-list><score-part id="P1"/></part-list>
+            <part id="P1"><measure number="1">
+              <attributes><divisions>1</divisions><key><fifths>-3</fifths></key></attributes>
+              <note><pitch><step>G</step><alter>1</alter><octave>4</octave></pitch><duration>1</duration></note>
+              <note><pitch><step>B</step><octave>4</octave></pitch><duration>1</duration></note>
+            </measure></part></score-partwise>"#,
+        );
+        assert_eq!(alter_at(&doc, 0, 0), 1, "explicit G♯ kept");
+        assert_eq!(alter_at(&doc, 0, 1), 0, "B stays natural — no inference");
+    }
+
+    #[test]
+    fn an_accidental_also_disables_inference() {
+        // An <accidental> (even without <alter>) counts as alteration data.
+        let doc = parse_ok(
+            r#"<score-partwise><part-list><score-part id="P1"/></part-list>
+            <part id="P1"><measure number="1">
+              <attributes><divisions>1</divisions><key><fifths>-3</fifths></key></attributes>
+              <note><pitch><step>B</step><octave>4</octave></pitch><accidental>natural</accidental><duration>1</duration></note>
+              <note><pitch><step>E</step><octave>4</octave></pitch><duration>1</duration></note>
+            </measure></part></score-partwise>"#,
+        );
+        assert_eq!(alter_at(&doc, 0, 0), 0, "explicit natural B");
+        assert_eq!(alter_at(&doc, 0, 1), 0, "E stays natural — no inference");
+    }
+
+    #[test]
+    fn inference_honors_mid_piece_key_change() {
+        // Unmarked score: B is B♭ under -3 fifths, B natural once the key changes to 0.
+        let doc = parse_ok(
+            r#"<score-partwise><part-list><score-part id="P1"/></part-list>
+            <part id="P1">
+              <measure number="1">
+                <attributes><divisions>1</divisions><key><fifths>-3</fifths></key></attributes>
+                <note><pitch><step>B</step><octave>4</octave></pitch><duration>1</duration></note>
+              </measure>
+              <measure number="2">
+                <attributes><key><fifths>0</fifths></key></attributes>
+                <note><pitch><step>B</step><octave>4</octave></pitch><duration>1</duration></note>
+              </measure>
+            </part></score-partwise>"#,
+        );
+        assert_eq!(alter_at(&doc, 0, 0), -1, "B♭ in the flat measure");
+        assert_eq!(alter_at(&doc, 1, 0), 0, "B natural after the key change");
     }
 
     #[test]
