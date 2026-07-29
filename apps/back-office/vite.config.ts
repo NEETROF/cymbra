@@ -78,6 +78,7 @@ export default defineConfig(({ mode }) => {
         include: ["src/**/*.{ts,vue}"],
         exclude: [
           "src/gen/**",
+          "src/wasm/**",
           "src/main.ts",
           "src/router.ts",
           "src/App.vue",
@@ -87,6 +88,13 @@ export default defineConfig(({ mode }) => {
           "src/lib/transport.ts",
           "src/lib/grpc-devtools.ts",
           "src/lib/e2e-seam.ts",
+          // Untestable-in-jsdom seams (dynamic wasm import, Web Audio, SVG DOM) — the
+          // pure logic behind them (painter, schedule, review session, soundfont fetch)
+          // stays measured. Mirrored in sonar-project.properties.
+          "src/lib/notation/wasm.ts",
+          "src/lib/audio/synth.ts",
+          "src/composables/useScorePlayer.ts",
+          "src/composables/usePlayhead.ts",
           "**/*.d.ts",
         ],
       },

@@ -106,6 +106,30 @@ describe("loadSoundFont (backend delivery route)", () => {
     expect(bytes).toEqual(new Uint8Array([9]));
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
+
+  it("persists in the Cache API: fetch on a miss, then serve from cache", async () => {
+    const cacheStore = new Map<string, Response>();
+    vi.stubGlobal("caches", {
+      open: async () => ({
+        match: async (url: string) => cacheStore.get(url),
+        put: async (url: string, resp: Response) => {
+          cacheStore.set(url, resp);
+        },
+      }),
+    });
+    const fetchMock = vi.fn(() => Promise.resolve(new Response(new Uint8Array([7, 7]), { status: 200 })));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const first = await loadSoundFont("t"); // miss → fetch → cache.put
+    expect(first).toEqual(new Uint8Array([7, 7]));
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(cacheStore.size).toBe(1);
+
+    setSoundFontForTest(null); // drop the in-memory cache so the Cache API path runs
+    const second = await loadSoundFont("t"); // hit → no fetch
+    expect(second).toEqual(new Uint8Array([7, 7]));
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("usePlayhead click-to-seek", () => {
