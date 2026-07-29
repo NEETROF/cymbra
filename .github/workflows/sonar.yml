@@ -49,6 +49,9 @@ jobs:
               - 'backend/auth-port/proto/**'
               - 'backend/user-port/proto/**'
               - 'backend/music/proto/**'
+              - 'crates/musicxml-wasm/**'
+              - 'crates/audio-wasm/**'
+              - 'crates/musicxml-core/**'
               - '.github/workflows/sonar.yml'
 
   sonar:
@@ -127,6 +130,11 @@ jobs:
       - name: Install protoc (back-office stubs)
         if: env.RUN_BO == 'true'
         run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
+      - name: Install Rust wasm toolchain (back-office wasm modules)
+        if: env.RUN_BO == 'true'
+        run: |
+          rustup target add wasm32-unknown-unknown
+          curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
       - uses: actions/setup-node@v4
         if: env.RUN_BO == 'true'
         with:
@@ -138,6 +146,7 @@ jobs:
           corepack enable
           yarn install --immutable
           yarn gen
+          yarn gen:wasm
           yarn test:coverage
           sed -i 's|^SF:src/|SF:apps/back-office/src/|' coverage/lcov.info
 
