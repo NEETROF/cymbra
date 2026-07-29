@@ -1,0 +1,32 @@
+# Thin WebAssembly wrapper around cymbra-musicxml-core (change: add-wasm-notation-preview).
+# Exposes ONE read-only entry point — score bytes -> laid-out notation geometry —
+# so the back-office console renders notation with the app's own layout engine.
+# Depends only on the pure core crate; never on rust_lib_music (cpal/midir/frb are
+# native-only). The wasm-bindgen glue is compiled for the wasm target only, so host
+# `cargo test` exercises the pure geometry function without a wasm toolchain.
+[package]
+name = "cymbra-musicxml-wasm"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[lib]
+# cdylib for the wasm artifact; rlib so host tests (and other crates) can call the
+# pure `render_geometry` entry point directly.
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+cymbra-musicxml-core = { path = "../musicxml-core", features = ["serde"] }
+anyhow = "1"
+serde = { version = "1", features = ["derive"] }
+
+# wasm-only glue: pulled in solely when building for wasm32, so host builds/tests
+# stay free of the wasm-bindgen toolchain.
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen = "0.2"
+serde-wasm-bindgen = "0.6"
+
+[dev-dependencies]
+# Host test asserts the geometry serializes for the JS boundary.
+serde_json = "1"

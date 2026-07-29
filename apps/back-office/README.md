@@ -11,6 +11,7 @@ and accept/reject them, and admins grant/revoke roles. It talks to the backend o
 cd apps/back-office
 yarn install
 yarn gen        # generate TS gRPC stubs from the backend protos (needs protoc)
+yarn gen:wasm   # build the notation renderer wasm (needs wasm-pack + wasm32 target)
 cp .env.example .env   # set VITE_GRPC_WEB_URL + VITE_WEB_AUTH_URL to your backend
 yarn dev
 ```
@@ -24,8 +25,10 @@ credentialed web-auth cookie calls, and a moderator/admin account must exist (se
 ## Scripts
 
 - `yarn gen` — regenerate `src/gen/*` from `backend/*/proto/*.proto` (gitignored).
+- `yarn gen:wasm` — build the notation renderer wasm from `crates/musicxml-wasm` into
+  `src/wasm/pkg/` (gitignored). Needs `wasm-pack` + `wasm32-unknown-unknown`.
 - `yarn test` — Vitest component/store tests (its own gate, outside the Flutter/Rust CI).
-- `yarn build` — type-check + production build.
+- `yarn build` — type-check + production build (run `yarn gen` + `yarn gen:wasm` first).
 
 ## Debugging gRPC-web calls
 
@@ -183,14 +186,41 @@ access token), not instantly — see the residual-window note above.
 
 ## Preview (notation)
 
-`ScorePreview.vue` is the isolated preview seam. Today it shows metadata and confirms
-the fetched bytes; the notation renderer (compile the app's Rust `layout_systems` to
-wasm + a JS/SVG SMuFL painter, so it matches the app exactly) is a deferred module that
-drops in behind this component — or is swapped for a JS fallback if the wasm cost is
-too high.
+`ScorePreview.vue` renders each score's notation **read-only**, faithfully to the app,
+by reusing the app's own layout engine compiled to WebAssembly. This fulfils the
+`moderation-console` "Read-only score preview" requirement and closes
+`add-moderation-back-office` task 4.8 (change: `add-wasm-notation-preview`).
+
+Pipeline:
+
+1. **`crates/musicxml-wasm`** — a thin `wasm-bindgen` wrapper over
+   `cymbra-musicxml-core` exposing one read-only entry point, `render(bytes, width)`,
+   which runs the app's `parse` + `layout_systems` and returns the geometry
+   (`{ document, systems }`). It depends only on the pure core crate — never on
+   `rust_lib_music` (cpal/midir/frb are native-only).
+2. **`yarn gen:wasm`** (`tool/gen_wasm.sh`) — `wasm-pack build --target web` into the
+   gitignored `src/wasm/pkg/`. Needs the wasm toolchain:
+   `rustup target add wasm32-unknown-unknown` + `wasm-pack`. Like `yarn gen`, CI builds
+   it (the Cloudflare Pages image has no Rust toolchain).
+3. **`composables/useScoreRenderer.ts`** — the isolated renderer seam: lazy-`import()`s
+   and instantiates the wasm module once (a separate bundle chunk, so nothing pays for
+   it until a preview is opened), then paints the geometry with the SVG SMuFL painter
+   (`lib/notation/painter.ts` + `smufl.ts`), mirroring the app's `partition_painter.dart`.
+   The render lifecycle is an `Async<T>`; any load/instantiate/render failure degrades to
+   a placeholder — never a page error. Swapping the wasm renderer for a pure-JS fallback
+   is a one-file change behind `lib/notation/wasm.ts`.
+
+The Bravura SMuFL font (SIL OFL 1.1, the app's exact `Bravura.otf`) is served
+same-origin from `public/fonts/` via an `@font-face` in `styles.css`, under
+`font-src 'self'`. Instantiating wasm needs the narrow **`wasm-unsafe-eval`** token in
+`script-src` (set in the Vite CSP meta plugin) — it does not permit JS `eval()`.
+
+v1 draws staves, clefs, key/time signatures, barlines, note heads, stems, flags,
+beams, accidentals, augmentation dots, rests and ledger lines. Expression/dynamics
+directions, lyrics, ties, slurs and tuplet brackets are best-effort follow-ups (not
+part of the preview contract).
 
 ## Not yet wired (deferred)
 
-- The wasm notation renderer.
 - Full Google OIDC button (the token-exchange path is wired; the GIS button needs a
   configured client id).

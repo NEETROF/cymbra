@@ -70,7 +70,8 @@
     "notes": "Notes",
     "tempo": "Tempo (BPM)",
     "loading": "Loading score…",
-    "loaded": "Score loaded ({bytes} bytes). Notation rendering (Rust layout_systems → wasm) is not wired yet in this slice.",
+    "rendering": "Rendering notation…",
+    "renderError": "Notation could not be rendered.",
     "noBytes": "No score bytes."
   },
   "roles": {

@@ -75,7 +75,8 @@
     "notes": "Notes",
     "tempo": "Tempo (BPM)",
     "loading": "Chargement de la partition…",
-    "loaded": "Partition chargée ({bytes} octets). Le rendu de notation (Rust layout_systems → wasm) n'est pas encore branché dans cette tranche.",
+    "rendering": "Rendu de la notation…",
+    "renderError": "Impossible de rendre la notation.",
     "noBytes": "Aucun octet de partition."
   },
   "roles": {

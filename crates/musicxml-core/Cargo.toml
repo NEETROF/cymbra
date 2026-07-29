@@ -17,3 +17,10 @@ quick-xml = "0.36"
 zip = { version = "2", default-features = false, features = ["deflate"] }
 # NFD folding for title/work-key normalisation (shared search/dedup keys).
 unicode-normalization = "0.1"
+# Optional: derive Serialize/Deserialize on the notation model so the wasm
+# renderer can ship geometry across the JS boundary. Off by default — the app
+# FFI engine and backend never enable it, so their builds are unchanged.
+serde = { version = "1", features = ["derive"], optional = true }
+
+[features]
+serde = ["dep:serde"]

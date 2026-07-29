@@ -6,6 +6,7 @@ import ScorePreview from "@/components/ScorePreview.vue";
 import { useCatalogStore, type ModerationStatus } from "@/stores/catalog";
 import { useAuthStore } from "@/stores/auth";
 import { type Async, idle, run } from "@/lib/async";
+import { useScoreRenderer } from "@/composables/useScoreRenderer";
 import type { CatalogHit } from "@/gen/score_pb";
 
 const props = defineProps<{ id: string }>();
@@ -42,6 +43,9 @@ const bytesVm = computed(() =>
     .with({ status: "error" }, ({ error }) => ({ loading: false, bytes: null, error }))
     .otherwise(() => ({ loading: true, bytes: null, error: null as string | null })),
 );
+// Render the notation from the fetched bytes via the isolated wasm seam. Reacts to
+// the bytes Async; failures degrade to a placeholder inside the preview.
+const { notation } = useScoreRenderer(computed(() => bytesVm.value.bytes));
 const acting = computed(() => decision.value.status === "loading");
 const decisionError = computed(() =>
   match(decision.value)
@@ -84,6 +88,7 @@ async function decide(status: ModerationStatus) {
       :bytes="bytesVm.bytes"
       :loading="bytesVm.loading || hitVm.loading"
       :bytes-error="bytesVm.error"
+      :notation="notation"
     />
   </div>
 </template>

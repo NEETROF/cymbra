@@ -1,39 +1,39 @@
 ## 1. Wasm wrapper crate (Rust)
 
-- [ ] 1.1 Add a new workspace crate `crates/musicxml-wasm/` (`crate-type = ["cdylib"]`) depending only on `cymbra-musicxml-core` + `wasm-bindgen` (and `serde`/`serde-wasm-bindgen` or `serde_json` for the boundary); register it in the workspace `Cargo.toml` members. Do NOT depend on `rust_lib_music`.
-- [ ] 1.2 Expose one read-only entry point `render(bytes: &[u8], available_width: f64) -> Result<JsValue, JsError>` that runs `parse` then `layout_systems` and serializes `{ document, systems }` (design D2). No IO, no FFI, no mutation.
-- [ ] 1.3 Ensure the serialized geometry carries what the painter needs (measures + `min_width`, notes with positions/stem/beams/dots/accidental, clefs, systems' measure ranges). Add `serde` derives to the core model behind a feature if not already serializable, keeping app behavior unchanged.
-- [ ] 1.4 Host-side Rust unit test: a fixture score parses+lays out and the entry point returns non-empty systems; malformed bytes return a typed error (no panic).
+- [x] 1.1 Add a new workspace crate `crates/musicxml-wasm/` (`crate-type = ["cdylib"]`) depending only on `cymbra-musicxml-core` + `wasm-bindgen` (and `serde`/`serde-wasm-bindgen` or `serde_json` for the boundary); register it in the workspace `Cargo.toml` members. Do NOT depend on `rust_lib_music`. (Auto-registered via the `crates/*` glob; `crate-type = ["cdylib","rlib"]` so host tests run; wasm-bindgen/serde-wasm-bindgen gated to the wasm32 target so host builds stay toolchain-free.)
+- [x] 1.2 Expose one read-only entry point `render(bytes: &[u8], available_width: f64) -> Result<JsValue, JsError>` that runs `parse` then `layout_systems` and serializes `{ document, systems }` (design D2). No IO, no FFI, no mutation. (Pure host-testable `render_geometry` + a thin `#[wasm_bindgen]` `render` shell; gated on the shared `validate()` so malformed/oversized/undecodable input is a typed `RejectReason` and `.mxl` is decoded like the app.)
+- [x] 1.3 Ensure the serialized geometry carries what the painter needs (measures + `min_width`, notes with positions/stem/beams/dots/accidental, clefs, systems' measure ranges). Add `serde` derives to the core model behind a feature if not already serializable, keeping app behavior unchanged. (Optional `serde` feature on `musicxml-core` derives Serialize/Deserialize on the whole model; off by default so the app FFI/backend build unchanged.)
+- [x] 1.4 Host-side Rust unit test: a fixture score parses+lays out and the entry point returns non-empty systems; malformed bytes return a typed error (no panic). (3 tests: lays-out, JSON serialization carries `document`/`systems`, malformed → `RejectReason::Unparseable`.)
 
 ## 2. Wasm build & toolchain
 
-- [ ] 2.1 Add a `wasm-pack build --target web` (or `wasm-bindgen` + `cargo build --target wasm32-unknown-unknown`) build for `musicxml-wasm`; output an ES module + `.wasm` asset consumable by Vite.
-- [ ] 2.2 Wire the wasm build into the back-office `package.json` (e.g. a `gen:wasm`/`build` step) so `yarn build` produces the artifact locally.
-- [ ] 2.3 Add the wasm build to CI (GitHub Actions) before the Cloudflare Pages deploy — build in Actions since the Pages image lacks the Rust/wasm toolchain (design D5); publish the built artifact with the SPA.
-- [ ] 2.4 Add a CI check that `musicxml-core` (via `musicxml-wasm`) compiles for `wasm32-unknown-unknown`, satisfying the `shared-musicxml-crate` wasm-buildability requirement.
+- [x] 2.1 Add a `wasm-pack build --target web` (or `wasm-bindgen` + `cargo build --target wasm32-unknown-unknown`) build for `musicxml-wasm`; output an ES module + `.wasm` asset consumable by Vite. (`tool/gen_wasm.sh` → `wasm-pack build --target web --no-pack` into gitignored `src/wasm/pkg/`; verified: emits `musicxml_wasm.js` + a 308KB `wasm-opt`'d `_bg.wasm` with `render(bytes, width): any` and a default init fetching the wasm via `import.meta.url`.)
+- [x] 2.2 Wire the wasm build into the back-office `package.json` (e.g. a `gen:wasm`/`build` step) so `yarn build` produces the artifact locally. (`"gen:wasm": "bash tool/gen_wasm.sh"`, mirroring `yarn gen`; `src/wasm/pkg/` gitignored.)
+- [x] 2.3 Add the wasm build to CI (GitHub Actions) before the Cloudflare Pages deploy — build in Actions since the Pages image lacks the Rust/wasm toolchain (design D5); publish the built artifact with the SPA. (Rust wasm toolchain + `yarn gen:wasm` step added to both `back-office-deploy.yml` (before Build) and `back-office.yml` (before Typecheck), plus `crates/musicxml-{wasm,core}` path triggers.)
+- [x] 2.4 Add a CI check that `musicxml-core` (via `musicxml-wasm`) compiles for `wasm32-unknown-unknown`, satisfying the `shared-musicxml-crate` wasm-buildability requirement. (`rust.yml`: `targets: wasm32-unknown-unknown` + `cargo build -p cymbra-musicxml-wasm --target wasm32-unknown-unknown`; runs on every `crates/**` PR.)
 
 ## 3. Browser renderer (back office)
 
-- [ ] 3.1 Add a typed TS mirror of the serialized geometry (`ScoreDocument`/`System`/`NoteEvent` shape) under `apps/back-office/src/` for the painter to consume.
-- [ ] 3.2 Implement an SVG SMuFL painter (`renderNotation(geometry) -> SVG`) mirroring `partition_painter.dart` + `smufl.dart`: staves, clefs, note heads, stems, beams, accidentals, dots, rests, ledger lines (design D3). Read-only, no interaction handlers.
-- [ ] 3.3 Bundle the Bravura SMuFL font same-origin as a static asset; reference it from the painter without any external fetch (respect the strict CSP).
-- [ ] 3.4 Add a lazy loader/composable `useScoreRenderer` that dynamic-`import()`s and instantiates the wasm module once, exposing `render(bytes, width) -> Async<SVG-or-model>` as a ts-pattern `Async<T>` union (design D4). Keep it the single isolated seam (JS-fallback-swappable).
+- [x] 3.1 Add a typed TS mirror of the serialized geometry (`ScoreDocument`/`System`/`NoteEvent` shape) under `apps/back-office/src/` for the painter to consume. (`src/lib/notation/geometry.ts`, snake_case keys matching serde; optionals tolerate null/undefined.)
+- [x] 3.2 Implement an SVG SMuFL painter (`renderNotation(geometry) -> SVG`) mirroring `partition_painter.dart` + `smufl.dart`: staves, clefs, note heads, stems, beams, accidentals, dots, rests, ledger lines (design D3). Read-only, no interaction handlers. (`src/lib/notation/painter.ts` + `smufl.ts`; also key/time sigs, barlines, grand-staff bracket. Visually verified against the real Bravura font. Directions/lyrics/ties/slurs/tuplets are best-effort/deferred — not in the preview contract.)
+- [x] 3.3 Bundle the Bravura SMuFL font same-origin as a static asset; reference it from the painter without any external fetch (respect the strict CSP). (`public/fonts/Bravura.otf` — the app's exact file — + `OFL.txt`; `@font-face` in `styles.css`; `font-src 'self'` unchanged.)
+- [x] 3.4 Add a lazy loader/composable `useScoreRenderer` that dynamic-`import()`s and instantiates the wasm module once, exposing `render(bytes, width) -> Async<SVG-or-model>` as a ts-pattern `Async<T>` union (design D4). Keep it the single isolated seam (JS-fallback-swappable). (`composables/useScoreRenderer.ts` → `Async<string>` of SVG; wasm behind `lib/notation/wasm.ts` `loadNotationWasm()` (cached once) with a `setNotationWasmForTest` seam. Build confirms the wasm is a separate lazy chunk.)
 
 ## 4. Wire into the console
 
-- [ ] 4.1 Drive the renderer from the store/composable seam (not the leaf component): feed the existing `bytes: Uint8Array` from `stores/catalog.ts` (`GetCatalogScoreBytes`) into `useScoreRenderer`; keep `ScorePreview.vue` presentational.
-- [ ] 4.2 Update `ScorePreview.vue` `.notation` block to render the SVG on `success`, and fall back to the existing informational placeholder on `idle`/`loading`/`error` (no page-level error; design D4).
-- [ ] 4.3 Add the `wasm-unsafe-eval` allowance to `script-src` in the Vite CSP meta plugin and `public/_headers`, leaving `object-src 'none'` and same-origin scripts unchanged (design D6).
+- [x] 4.1 Drive the renderer from the store/composable seam (not the leaf component): feed the existing `bytes: Uint8Array` from `stores/catalog.ts` (`GetCatalogScoreBytes`) into `useScoreRenderer`; keep `ScorePreview.vue` presentational. (`ScoreDetailView` calls `useScoreRenderer(computed(bytesVm.bytes))` and passes `notation` down; `ScorePreview` takes it as a prop and stays presentation-only.)
+- [x] 4.2 Update `ScorePreview.vue` `.notation` block to render the SVG on `success`, and fall back to the existing informational placeholder on `idle`/`loading`/`error` (no page-level error; design D4). (v-html of the painter-generated SVG on success; `match` folds loading→"Rendering…", error→localized "Notation could not be rendered.", idle→bytes/loading/noBytes.)
+- [x] 4.3 Add the `wasm-unsafe-eval` allowance to `script-src` in the Vite CSP meta plugin and `public/_headers`, leaving `object-src 'none'` and same-origin scripts unchanged (design D6). (Added to `script-src` in the Vite CSP meta plugin — the sole place script-src is set; `_headers` complements it with frame-ancestors/HSTS and needs no script-src change.)
 
 ## 5. Tests & verification
 
-- [ ] 5.1 Vitest: the SVG painter draws expected nodes (staff lines, a clef, note heads, a beam) for a fixture geometry; the read-only view exposes no edit affordance.
-- [ ] 5.2 Vitest: `useScoreRenderer` is lazy (module not imported until first render), instantiates once, and a load/instantiate/render failure yields the `error` union → placeholder (graceful degradation).
-- [ ] 5.3 Vitest/component: `ScoreDetailView`/`ScorePreview` shows notation on success and the placeholder otherwise; `yarn build` (with the wasm artifact) is green.
-- [ ] 5.4 Rust: `cargo fmt`/`clippy` clean for `musicxml-wasm`; `cargo llvm-cov` unaffected (wrapper is thin; core logic tested in `musicxml-core`).
-- [ ] 5.5 `openspec validate add-wasm-notation-preview --strict` passes.
+- [x] 5.1 Vitest: the SVG painter draws expected nodes (staff lines, a clef, note heads, a beam) for a fixture geometry; the read-only view exposes no edit affordance. (`test/notation.spec.ts`: asserts 5 staff lines, treble clef glyph, note heads, stem, beam, Bravura font; and no `<button>`/`<input>`/`onclick`/`contenteditable`.)
+- [x] 5.2 Vitest: `useScoreRenderer` is lazy (module not imported until first render), instantiates once, and a load/instantiate/render failure yields the `error` union → placeholder (graceful degradation). (Renderer not called while bytes null → called once on first bytes; `loadNotationWasm` returns one cached instance; a throwing renderer yields `error("render_failed")`, never a throw.)
+- [x] 5.3 Vitest/component: `ScoreDetailView`/`ScorePreview` shows notation on success and the placeholder otherwise; `yarn build` (with the wasm artifact) is green. (ScorePreview: SVG injected on success + no edit controls; localized placeholder on error; "Rendering…" while loading. `yarn build` green — wasm emitted as a separate lazy chunk.)
+- [x] 5.4 Rust: `cargo fmt`/`clippy` clean for `musicxml-wasm`; `cargo llvm-cov` unaffected (wrapper is thin; core logic tested in `musicxml-core`). (`cargo fmt --all --check` clean; clippy `-D warnings` clean on host AND `wasm32-unknown-unknown`; core crate 57 tests pass with the `serde` feature.)
+- [x] 5.5 `openspec validate add-wasm-notation-preview --strict` passes.
 
 ## 6. Docs & rollout
 
-- [ ] 6.1 Document the wasm build + local dev in the back-office README (how to build the artifact, the CI step, the CSP note) and the JS-fallback escape hatch.
-- [ ] 6.2 Note in the back-office README that this fulfills `moderation-console`'s read-only preview requirement and closes `add-moderation-back-office` task 4.8.
+- [x] 6.1 Document the wasm build + local dev in the back-office README (how to build the artifact, the CI step, the CSP note) and the JS-fallback escape hatch. (README "Preview (notation)" section + Develop/Scripts updated with `yarn gen:wasm`, the toolchain, the CSP `wasm-unsafe-eval` note, and the one-file JS-fallback seam.)
+- [x] 6.2 Note in the back-office README that this fulfills `moderation-console`'s read-only preview requirement and closes `add-moderation-back-office` task 4.8. (Stated at the top of the "Preview (notation)" section.)

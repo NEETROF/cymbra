@@ -16,7 +16,10 @@ import vue from "@vitejs/plugin-vue";
 function cspMetaPlugin(apiOrigin: string): Plugin {
   const csp = [
     "default-src 'self'",
-    "script-src 'self'",
+    // 'wasm-unsafe-eval' is the narrow, wasm-only allowance browsers require to
+    // instantiate a WebAssembly module (the notation renderer) under a restrictive
+    // CSP — it does NOT permit JS eval(). Scripts stay same-origin.
+    "script-src 'self' 'wasm-unsafe-eval'",
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data:",
     "font-src 'self'",

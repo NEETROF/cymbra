@@ -47,6 +47,11 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy, llvm-tools-preview
+          # wasm32 so the notation-render wrapper (and thus musicxml-core) is
+          # proven to still compile for the browser — the shared-musicxml-crate
+          # wasm-buildability contract. A native-only dep creeping into the core
+          # fails this build.
+          targets: wasm32-unknown-unknown
       - uses: taiki-e/install-action@cargo-llvm-cov
       - uses: Swatinem/rust-cache@v2
       - name: Module boundaries (no impl->impl deps)
@@ -73,3 +78,8 @@ jobs:
           --ignore-filename-regex 'frb_generated|cymbra\.(auth|user|music)\.v1|/lib\.rs|/main\.rs|/midi\.rs|/musicxml\.rs|/audio\.rs|/grpc\.rs|/play_grpc\.rs|/pg\.rs|/pg_play\.rs|/creds_pg\.rs|/verifier\.rs|/telemetry\.rs|/metrics\.rs|/cache\.rs|/email\.rs|/db\.rs|/jwks\.rs|/interceptor\.rs|/logging\.rs|/session\.rs|/engine\.rs|/scheduler\.rs|/handlers\.rs'
       - name: Build
         run: cargo build --workspace
+      # Regression guard for the shared-musicxml-crate wasm-buildability requirement:
+      # the notation-render wrapper (and its cymbra-musicxml-core dependency) must keep
+      # compiling for the browser target that the back-office preview ships.
+      - name: Build wasm notation renderer (wasm32)
+        run: cargo build -p cymbra-musicxml-wasm --target wasm32-unknown-unknown
