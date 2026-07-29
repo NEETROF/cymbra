@@ -250,6 +250,7 @@
   "ratingStarsButton": "Étoiles",
   "ratingLockedHint": "Écoute la partition pour la noter",
   "ratingStarsSheetTitle": "Noter cette partition",
+  "ratingPendingBadge": "Potentielle nouvelle partition",
   "ratingPreview": "Aperçu",
   "ratingPreviewStop": "Arrêter l'aperçu",
   "ratingPreviewError": "Impossible de charger l'aperçu.",

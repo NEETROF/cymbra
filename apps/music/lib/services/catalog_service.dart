@@ -49,6 +49,16 @@ class CatalogHit {
   final String timeSig;
   final int keyFifths;
 
+  /// Moderation status (`pending` | `accepted`), populated for deck cards so a
+  /// `pending` candidate can be labelled "potential new score" (change:
+  /// rate-pending-scores). `null` when the surface doesn't carry it (e.g. hub
+  /// search, which only ever returns `accepted`).
+  final String? moderationStatus;
+
+  /// Whether this is a `pending` (not-yet-validated) candidate the community is
+  /// helping evaluate — drives the deck's "potential new score" framing.
+  bool get isPending => moderationStatus == 'pending';
+
   const CatalogHit({
     required this.id,
     required this.license,
@@ -64,6 +74,7 @@ class CatalogHit {
     this.highestMidi,
     this.timeSig = '',
     this.keyFifths = 0,
+    this.moderationStatus,
   });
 }
 
@@ -133,8 +144,15 @@ abstract class CatalogService {
   /// The caller's saved catalog scores, newest-saved first.
   Future<List<CatalogHit>> listSaved();
 
-  /// Fetch a catalog score's bytes to open it in the player.
+  /// Fetch a catalog score's bytes to open it in the player. Accepted-only for a
+  /// normal caller (the moderation gate).
   Future<Uint8List> fetchBytes(String catalogId);
+
+  /// Fetch a catalog score's bytes for the rating deck's **read-only preview**
+  /// (change: rate-pending-scores). Unlike [fetchBytes] (player open), this serves
+  /// a `pending` candidate too so a rater can hear it before rating; it never opens
+  /// the full player and is not a library save.
+  Future<Uint8List> ratingPreviewBytes(String catalogId);
 
   /// Source the swipe-rating deck (change: improve-rating-deck-sourcing): the
   /// caller's **un-rated** `accepted` scores, least-rated first, paginated. A
@@ -206,6 +224,7 @@ class GrpcCatalogService implements CatalogService {
     highestMidi: h.hasHighestMidi() ? h.highestMidi : null,
     timeSig: h.timeSig,
     keyFifths: h.keyFifths,
+    moderationStatus: h.hasModerationStatus() ? h.moderationStatus : null,
   );
 
   @override
@@ -275,6 +294,16 @@ class GrpcCatalogService implements CatalogService {
     );
     return Uint8List.fromList(resp.data);
   });
+
+  @override
+  Future<Uint8List> ratingPreviewBytes(String catalogId) =>
+      _authed((bearer) async {
+        final resp = await _client.getRatingPreviewBytes(
+          score.GetRatingPreviewBytesRequest(catalogId: catalogId),
+          options: bearerOptions(bearer),
+        );
+        return Uint8List.fromList(resp.data);
+      });
 
   @override
   Future<CatalogSearchPage> ratingDeck({int limit = 20, int offset = 0}) =>

@@ -158,6 +158,13 @@ message ListSavedCatalogScoresResponse { repeated CatalogHit hits = 1; }
 message GetCatalogScoreBytesRequest { string catalog_id = 1; }
 message GetCatalogScoreBytesResponse { bytes data = 1; }
 
+// Rating-preview bytes (change: rate-pending-scores): serves a `pending` or
+// `accepted` score's bytes to a signed-in rater for the deck's read-only preview.
+// Never a `rejected`/unknown score. Separate from the player-open bytes so that
+// gate (accepted-only) and library save stay unchanged.
+message GetRatingPreviewBytesRequest { string catalog_id = 1; }
+message GetRatingPreviewBytesResponse { bytes data = 1; }
+
 // Fetch a single catalog score's metadata by id (change: add-moderation-back-
 // office), so a detail/deep-link view is self-sufficient (not dependent on a prior
 // list). Gated like the bytes fetch: a normal caller resolves only `accepted`
@@ -232,7 +239,14 @@ service ScoreService {
   // `accepted` catalog score; one updatable rating per user per score.
   rpc SubmitScoreRating(SubmitScoreRatingRequest) returns (SubmitScoreRatingResponse);
 
-  // Rating deck source (change: improve-rating-deck-sourcing): the caller's
-  // un-rated accepted scores, least-rated first.
+  // Rating deck source (change: improve-rating-deck-sourcing, widened by
+  // rate-pending-scores): the caller's un-rated pending + accepted scores,
+  // least-rated first.
   rpc ListRatingDeck(ListRatingDeckRequest) returns (ListRatingDeckResponse);
+
+  // Rating-preview bytes (change: rate-pending-scores): a signed-in rater fetches a
+  // `pending` OR `accepted` score's bytes to preview it read-only in the deck before
+  // rating. Distinct from GetCatalogScoreBytes (player open, accepted-only): it serves
+  // pending too, but never rejected; it is not a player open and not a library save.
+  rpc GetRatingPreviewBytes(GetRatingPreviewBytesRequest) returns (GetRatingPreviewBytesResponse);
 }

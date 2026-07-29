@@ -76,6 +76,9 @@ class _FakeCatalog implements CatalogService {
   }
 
   @override
+  Future<Uint8List> ratingPreviewBytes(String catalogId) async => Uint8List(0);
+
+  @override
   Future<CatalogSearchPage> ratingDeck({
     int limit = 20,
     int offset = 0,

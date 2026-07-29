@@ -132,9 +132,57 @@ class _RatingCardState extends State<RatingCard> {
               left: 10,
               child: DifficultyBadge(level: entry.level, l10n: l10n),
             ),
+            // A pending card is a candidate the community is helping evaluate:
+            // label it a "potential new score" (positive framing) — change:
+            // rate-pending-scores.
+            if (entry.isPending)
+              Positioned(
+                top: 10,
+                right: 10,
+                child: _PendingBadge(label: l10n.ratingPendingBadge),
+              ),
           ],
         );
       },
+    );
+  }
+}
+
+/// A small chip marking a `pending` deck card as a "potential new score" the
+/// community is helping evaluate (change: rate-pending-scores). Positive framing,
+/// not a warning — it sets the expectation that the score is a candidate.
+class _PendingBadge extends StatelessWidget {
+  const _PendingBadge({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: CymbraColors.secondary.withValues(alpha: 0.92),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(
+            Icons.auto_awesome,
+            size: 13,
+            color: CymbraColors.surfaceContainerLowest,
+          ),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: const TextStyle(
+              color: CymbraColors.surfaceContainerLowest,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

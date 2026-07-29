@@ -31,13 +31,14 @@ use crate::module::{ScoreModule, UploadInput};
 use crate::proto::{
     CatalogHit as ProtoCatalogHit, DeleteScoreRequest, DeleteScoreResponse,
     GetCatalogScoreBytesRequest, GetCatalogScoreBytesResponse, GetCatalogScoreRequest,
-    GetScoreBytesRequest, GetScoreBytesResponse, ListMyScoresRequest, ListMyScoresResponse,
-    ListRatingDeckRequest, ListRatingDeckResponse, ListSavedCatalogScoresRequest,
-    ListSavedCatalogScoresResponse, RemoveSavedCatalogScoreRequest,
-    RemoveSavedCatalogScoreResponse, SaveCatalogScoreRequest, SaveCatalogScoreResponse,
-    ScoreRecord, SearchCatalogRequest, SearchCatalogResponse, SetModerationStatusRequest,
-    SetModerationStatusResponse, SetScoreFavoriteRequest, SetScoreFavoriteResponse,
-    SubmitScoreRatingRequest, SubmitScoreRatingResponse, UploadScoreRequest,
+    GetRatingPreviewBytesRequest, GetRatingPreviewBytesResponse, GetScoreBytesRequest,
+    GetScoreBytesResponse, ListMyScoresRequest, ListMyScoresResponse, ListRatingDeckRequest,
+    ListRatingDeckResponse, ListSavedCatalogScoresRequest, ListSavedCatalogScoresResponse,
+    RemoveSavedCatalogScoreRequest, RemoveSavedCatalogScoreResponse, SaveCatalogScoreRequest,
+    SaveCatalogScoreResponse, ScoreRecord, SearchCatalogRequest, SearchCatalogResponse,
+    SetModerationStatusRequest, SetModerationStatusResponse, SetScoreFavoriteRequest,
+    SetScoreFavoriteResponse, SubmitScoreRatingRequest, SubmitScoreRatingResponse,
+    UploadScoreRequest,
     score_service_server::{ScoreService, ScoreServiceServer},
 };
 use crate::user_scores::UserScore;
@@ -304,6 +305,20 @@ impl ScoreService for ScoreGrpc {
         Ok(Response::new(GetCatalogScoreBytesResponse { data }))
     }
 
+    async fn get_rating_preview_bytes(
+        &self,
+        req: Request<GetRatingPreviewBytesRequest>,
+    ) -> Result<Response<GetRatingPreviewBytesResponse>, Status> {
+        // Authenticated-only (any signed-in rater). Serves a `pending` or `accepted`
+        // score's bytes for the deck's read-only preview; a `rejected`/unknown id is
+        // not-found. The player-open bytes path and library save stay accepted-only
+        // (change: rate-pending-scores).
+        let _ = identity(&req)?;
+        let catalog_id = req.into_inner().catalog_id;
+        let data = self.module.rating_preview_bytes(&catalog_id).await?;
+        Ok(Response::new(GetRatingPreviewBytesResponse { data }))
+    }
+
     async fn get_catalog_score(
         &self,
         req: Request<GetCatalogScoreRequest>,
@@ -393,14 +408,16 @@ mod tests {
     const DEBUSSY: &str = "11111111-1111-7111-8111-111111111111";
     const SATIE: &str = "22222222-2222-7222-8222-222222222222";
     const PENDING: &str = "44444444-4444-7444-8444-444444444444";
+    const REJECTED: &str = "55555555-5555-7555-8555-555555555555";
 
     /// A `ScoreGrpc` over a seeded catalog + an object store holding the catalog
     /// scores' bytes, so byte fetches resolve. The catalog carries two `accepted`
-    /// scores and one `pending` score (change: add-score-moderation-gating), so the
-    /// moderation gate can be exercised at the handler layer.
+    /// scores, one `pending` score, and one `rejected` score (change:
+    /// add-score-moderation-gating / rate-pending-scores), so the moderation gate and
+    /// the rating/preview paths can be exercised at the handler layer.
     async fn grpc() -> ScoreGrpc {
         let store = Arc::new(FakeStore::default());
-        for id in [DEBUSSY, SATIE, PENDING] {
+        for id in [DEBUSSY, SATIE, PENDING, REJECTED] {
             store
                 .put(&format!("safe/pdmx/{id}.mxl"), b"<score/>".to_vec())
                 .await
@@ -412,6 +429,8 @@ mod tests {
             FakeCatalogRow::new(SATIE, "Gymnopédie", "Erik Satie", Some("beginner")).piano(),
             FakeCatalogRow::new(PENDING, "Pending Piece", "Anon", Some("beginner"))
                 .with_moderation_status("pending"),
+            FakeCatalogRow::new(REJECTED, "Rejected Piece", "Anon", Some("beginner"))
+                .with_moderation_status("rejected"),
         ]));
         let module = Arc::new(ScoreModule::new(
             Arc::new(FakeUserScoreRepo::default()),
@@ -802,18 +821,99 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn submit_rating_on_a_pending_score_is_rejected() {
+    async fn submit_rating_on_a_pending_score_succeeds() {
         let g = grpc().await;
-        // The pending score is invisible to a normal caller, so it can't be rated.
-        let err = g
+        // change: rate-pending-scores — a signed-in user CAN rate a pending candidate
+        // (the community helps moderate); the rating is recorded.
+        let resp = g
             .submit_score_rating(authed(rating(PENDING, "like", None), RATER))
+            .await
+            .unwrap()
+            .into_inner();
+        assert_eq!(resp.rating_count, 1);
+        assert_eq!(resp.like_count, 1);
+    }
+
+    #[tokio::test]
+    async fn submit_rating_on_a_rejected_score_is_rejected() {
+        let g = grpc().await;
+        // A `rejected` score is never rateable.
+        let err = g
+            .submit_score_rating(authed(rating(REJECTED, "like", None), RATER))
             .await
             .unwrap_err();
         assert_eq!(err.code(), tonic::Code::NotFound);
     }
 
     #[tokio::test]
-    async fn list_rating_deck_requires_auth_and_sources_accepted_only() {
+    async fn rating_preview_bytes_serves_pending_and_accepted_refuses_rejected() {
+        let g = grpc().await;
+        // A signed-in rater previews both an accepted score and a pending candidate.
+        for id in [DEBUSSY, PENDING] {
+            let resp = g
+                .get_rating_preview_bytes(authed(
+                    GetRatingPreviewBytesRequest {
+                        catalog_id: id.into(),
+                    },
+                    RATER,
+                ))
+                .await
+                .unwrap()
+                .into_inner();
+            assert!(!resp.data.is_empty());
+        }
+        // A rejected score is never previewable.
+        let err = g
+            .get_rating_preview_bytes(authed(
+                GetRatingPreviewBytesRequest {
+                    catalog_id: REJECTED.into(),
+                },
+                RATER,
+            ))
+            .await
+            .unwrap_err();
+        assert_eq!(err.code(), tonic::Code::NotFound);
+        // Unauthenticated → rejected.
+        let err = g
+            .get_rating_preview_bytes(Request::new(GetRatingPreviewBytesRequest {
+                catalog_id: DEBUSSY.into(),
+            }))
+            .await
+            .unwrap_err();
+        assert_eq!(err.code(), tonic::Code::Unauthenticated);
+    }
+
+    #[tokio::test]
+    async fn player_open_bytes_stays_accepted_only_for_a_normal_caller() {
+        let g = grpc().await;
+        // The player-open path is unchanged by rate-pending-scores: a normal caller
+        // still cannot open a pending score there…
+        let err = g
+            .get_catalog_score_bytes(authed(
+                GetCatalogScoreBytesRequest {
+                    catalog_id: PENDING.into(),
+                },
+                RATER,
+            ))
+            .await
+            .unwrap_err();
+        assert_eq!(err.code(), tonic::Code::NotFound);
+        // …but the accepted score opens fine.
+        let resp = g
+            .get_catalog_score_bytes(authed(
+                GetCatalogScoreBytesRequest {
+                    catalog_id: DEBUSSY.into(),
+                },
+                RATER,
+            ))
+            .await
+            .unwrap()
+            .into_inner();
+        assert!(!resp.data.is_empty());
+    }
+
+    #[tokio::test]
+    async fn list_rating_deck_requires_auth() {
         let g = grpc().await;
         // Unauthenticated → rejected.
         let err = g
@@ -824,8 +924,9 @@ mod tests {
             .await
             .unwrap_err();
         assert_eq!(err.code(), tonic::Code::Unauthenticated);
-        // A signed-in caller gets only the accepted scores (the pending one is
-        // never offered), un-rated.
+        // A signed-in caller gets the un-rated piano scores. The pending/rejected rows
+        // in this fixture are non-piano, so they are excluded by the deck's piano gate
+        // regardless of status (pending sourcing is covered by the module test).
         let resp = g
             .list_rating_deck(authed(
                 ListRatingDeckRequest {

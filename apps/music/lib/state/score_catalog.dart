@@ -80,6 +80,15 @@ class CatalogEntry {
   /// "{handle} · Cymbra"); `null` for bundled/catalog entries.
   final String? uploaderHandle;
 
+  /// Moderation status (`pending` | `accepted`) for a rating-deck card, so a
+  /// `pending` candidate can be labelled "potential new score" (change:
+  /// rate-pending-scores). `null` for every other surface (bundled/upload/saved).
+  final String? moderationStatus;
+
+  /// Whether this deck card is a `pending` (not-yet-validated) candidate the
+  /// community is helping evaluate.
+  bool get isPending => moderationStatus == 'pending';
+
   const CatalogEntry({
     required this.id,
     required this.title,
@@ -99,6 +108,7 @@ class CatalogEntry {
     this.keyFifths,
     this.favorite = true,
     this.uploaderHandle,
+    this.moderationStatus,
   });
 
   /// Whether this is a user upload (byte-sourced) rather than a bundled score.

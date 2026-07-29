@@ -61,7 +61,12 @@ class CardPreviewScore {
 /// so it is exercisable in tests without the native library or a live backend.
 @riverpod
 Future<CardPreviewScore> cardPreviewScore(Ref ref, String catalogId) async {
-  final bytes = await ref.read(catalogServiceProvider).fetchBytes(catalogId);
+  // The deck previews `pending` candidates too, so it fetches through the
+  // rating-preview path (not the accepted-only player-open `fetchBytes`) — change:
+  // rate-pending-scores.
+  final bytes = await ref
+      .read(catalogServiceProvider)
+      .ratingPreviewBytes(catalogId);
   final document = await ref.read(notationEngineProvider).parse(bytes);
   final derived = notationToTimedNotes(document);
   return CardPreviewScore(

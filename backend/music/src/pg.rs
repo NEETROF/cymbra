@@ -490,7 +490,8 @@ impl CatalogSearchRepo for PgCatalogSearchRepo {
         let Ok(user) = uuid::Uuid::parse_str(user_id) else {
             return Ok(Vec::new()); // malformed identity → nothing to rate
         };
-        // The caller's un-rated accepted scores, least-rated first. A LEFT JOIN to
+        // The caller's un-rated `pending` + `accepted` scores, least-rated first —
+        // `rejected` is never sourced (change: rate-pending-scores). A LEFT JOIN to
         // the caller's own ratings + `r.user_id IS NULL` excludes what they already
         // rated; the correlated COUNT orders by how many ratings each score has
         // (fewest first — those most need signal), with an `id` tiebreak for stable
@@ -499,7 +500,7 @@ impl CatalogSearchRepo for PgCatalogSearchRepo {
             "SELECT {HIT_COLS} FROM music.catalog_scores cs \
              LEFT JOIN music.score_ratings r \
                ON r.catalog_score_id = cs.id AND r.user_id = $1 \
-             WHERE cs.moderation_status = 'accepted' AND cs.is_piano \
+             WHERE cs.moderation_status IN ('pending', 'accepted') AND cs.is_piano \
                AND r.user_id IS NULL \
              ORDER BY (SELECT COUNT(*) FROM music.score_ratings x \
                        WHERE x.catalog_score_id = cs.id) ASC, cs.id ASC \
