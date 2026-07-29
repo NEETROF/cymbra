@@ -869,6 +869,16 @@ mod tests {
                 "object store unavailable"
             )))
         }
+        async fn size(&self, key: &str) -> cymbra_storage::Result<u64> {
+            self.inner.size(key).await
+        }
+        async fn get_range(
+            &self,
+            key: &str,
+            range: std::ops::Range<usize>,
+        ) -> cymbra_storage::Result<Vec<u8>> {
+            self.inner.get_range(key, range).await
+        }
     }
 
     #[tokio::test]

@@ -37,6 +37,10 @@ pub struct Config {
     /// score-upload feature (backend ships inert until configured); a *partial*
     /// S3 config is a hard error (fail-fast), not a silent disable.
     pub score_storage: Option<ScoreStorageConfig>,
+    /// Dedicated private object store for served SoundFonts (change: add-soundfont-
+    /// delivery). `None` (bucket unset) disables the SoundFont delivery route; a
+    /// *partial* config is a hard error, like `score_storage`.
+    pub soundfont_storage: Option<SoundfontStorageConfig>,
     /// Postgres URL for the `music` schema (role `music_svc`). Required to wire the
     /// score-upload service; `None` leaves it unwired (the feature stays inert).
     pub music_database_url: Option<String>,
@@ -86,6 +90,23 @@ pub struct ScoreStorageConfig {
     pub allow_http: bool,
 }
 
+/// S3-compatible object-store connection for the **SoundFont** delivery bucket
+/// (change: add-soundfont-delivery) — a dedicated PRIVATE bucket, separate from the
+/// scores bucket. Endpoint/region/credentials may reuse the OVH account but the
+/// bucket + local warm-cache root are distinct. `None` (bucket unset) disables the
+/// SoundFont delivery route.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SoundfontStorageConfig {
+    pub bucket: String,
+    pub endpoint: String,
+    pub region: String,
+    pub access_key: String,
+    pub secret_key: String,
+    pub allow_http: bool,
+    /// Local warm-cache root for served SoundFonts (separate from the scores cache).
+    pub local_root: String,
+}
+
 /// A trusted external OIDC provider.
 #[derive(Debug, Clone)]
 pub struct OidcProvider {
@@ -122,7 +143,8 @@ impl Config {
 /// Pure, host-testable parsing/validation over a key/value map.
 pub mod config_core {
     use super::{
-        AppError, Config, Duration, HashMap, OidcProvider, Result, ScoreStorageConfig, TokenConfig,
+        AppError, Config, Duration, HashMap, OidcProvider, Result, ScoreStorageConfig,
+        SoundfontStorageConfig, TokenConfig,
     };
 
     pub fn parse(m: &HashMap<String, String>) -> Result<Config> {
@@ -153,6 +175,7 @@ pub mod config_core {
             otlp_endpoint: m.get("CYMBRA_OTLP_ENDPOINT").cloned(),
             otlp_enabled: flag(m, "CYMBRA_OTLP_ENABLED", false),
             score_storage: score_storage(m)?,
+            soundfont_storage: soundfont_storage(m)?,
             music_database_url: m
                 .get("CYMBRA_MUSIC_DATABASE_URL")
                 .filter(|v| !v.is_empty())
@@ -191,6 +214,29 @@ pub mod config_core {
             access_key: req(m, "CYMBRA_SCORE_S3_ACCESS_KEY")?,
             secret_key: req(m, "CYMBRA_SCORE_S3_SECRET_KEY")?,
             allow_http: flag(m, "CYMBRA_SCORE_S3_ALLOW_HTTP", false),
+        }))
+    }
+
+    /// Build the SoundFont object-store config (change: add-soundfont-delivery).
+    /// Enabled when `CYMBRA_SOUNDFONT_S3_BUCKET` is set; then every other S3 key is
+    /// required (a partial config fails fast). Absent bucket ⇒ `None` (the delivery
+    /// route stays disabled). Endpoint/region/keys may reuse the OVH account, but the
+    /// bucket and local cache root are distinct from the scores store.
+    fn soundfont_storage(m: &HashMap<String, String>) -> Result<Option<SoundfontStorageConfig>> {
+        if m.get("CYMBRA_SOUNDFONT_S3_BUCKET")
+            .filter(|v| !v.is_empty())
+            .is_none()
+        {
+            return Ok(None);
+        }
+        Ok(Some(SoundfontStorageConfig {
+            bucket: req(m, "CYMBRA_SOUNDFONT_S3_BUCKET")?,
+            endpoint: req(m, "CYMBRA_SOUNDFONT_S3_ENDPOINT")?,
+            region: req(m, "CYMBRA_SOUNDFONT_S3_REGION")?,
+            access_key: req(m, "CYMBRA_SOUNDFONT_S3_ACCESS_KEY")?,
+            secret_key: req(m, "CYMBRA_SOUNDFONT_S3_SECRET_KEY")?,
+            allow_http: flag(m, "CYMBRA_SOUNDFONT_S3_ALLOW_HTTP", false),
+            local_root: opt(m, "CYMBRA_SOUNDFONT_LOCAL_ROOT", "/srv/cymbra/soundfonts"),
         }))
     }
 
@@ -454,5 +500,71 @@ mod tests {
         m.insert("CYMBRA_SCORE_S3_BUCKET".into(), "cymbra-scores".into());
         let err = config_core::parse(&m).unwrap_err();
         assert!(matches!(err, AppError::Config(msg) if msg.contains("CYMBRA_SCORE_S3_ENDPOINT")));
+    }
+
+    #[test]
+    fn soundfont_storage_absent_disables_delivery() {
+        let c = config_core::parse(&base()).unwrap();
+        assert!(c.soundfont_storage.is_none());
+    }
+
+    #[test]
+    fn soundfont_storage_present_parses_with_own_root() {
+        let mut m = base();
+        for (k, v) in [
+            ("CYMBRA_SOUNDFONT_S3_BUCKET", "cymbra-soundfonts"),
+            (
+                "CYMBRA_SOUNDFONT_S3_ENDPOINT",
+                "https://s3.gra.io.cloud.ovh.net",
+            ),
+            ("CYMBRA_SOUNDFONT_S3_REGION", "gra"),
+            ("CYMBRA_SOUNDFONT_S3_ACCESS_KEY", "ak"),
+            ("CYMBRA_SOUNDFONT_S3_SECRET_KEY", "sk"),
+            ("CYMBRA_SOUNDFONT_LOCAL_ROOT", "/data/soundfonts"),
+        ] {
+            m.insert(k.into(), v.into());
+        }
+        let s = config_core::parse(&m)
+            .unwrap()
+            .soundfont_storage
+            .expect("configured");
+        assert_eq!(s.bucket, "cymbra-soundfonts");
+        assert_eq!(s.region, "gra");
+        assert_eq!(s.local_root, "/data/soundfonts");
+        assert!(!s.allow_http); // defaults false (prod-safe)
+    }
+
+    #[test]
+    fn soundfont_local_root_defaults_and_is_distinct_from_scores() {
+        let mut m = base();
+        for (k, v) in [
+            ("CYMBRA_SOUNDFONT_S3_BUCKET", "cymbra-soundfonts"),
+            (
+                "CYMBRA_SOUNDFONT_S3_ENDPOINT",
+                "https://s3.gra.io.cloud.ovh.net",
+            ),
+            ("CYMBRA_SOUNDFONT_S3_REGION", "gra"),
+            ("CYMBRA_SOUNDFONT_S3_ACCESS_KEY", "ak"),
+            ("CYMBRA_SOUNDFONT_S3_SECRET_KEY", "sk"),
+        ] {
+            m.insert(k.into(), v.into());
+        }
+        let c = config_core::parse(&m).unwrap();
+        let s = c.soundfont_storage.expect("configured");
+        assert_eq!(s.local_root, "/srv/cymbra/soundfonts");
+        assert_ne!(s.local_root, c.score_local_root); // separate warm caches
+    }
+
+    #[test]
+    fn partial_soundfont_storage_fails_fast() {
+        let mut m = base();
+        m.insert(
+            "CYMBRA_SOUNDFONT_S3_BUCKET".into(),
+            "cymbra-soundfonts".into(),
+        );
+        let err = config_core::parse(&m).unwrap_err();
+        assert!(
+            matches!(err, AppError::Config(msg) if msg.contains("CYMBRA_SOUNDFONT_S3_ENDPOINT"))
+        );
     }
 }

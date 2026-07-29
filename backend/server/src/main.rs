@@ -123,6 +123,8 @@ async fn main() -> anyhow::Result<()> {
     // --- interceptors (strict for user; optional for auth's public methods) ---
     let keys = cymbra_server::interceptor_keys(&cfg)?;
     let strict = AuthInterceptor::new(keys.clone(), cfg.allowed_audiences.clone());
+    // SoundFont delivery authenticates the same access tokens (Bearer) as gRPC.
+    let soundfont_auth = cymbra_server::JwtAuth::new(keys.clone(), cfg.allowed_audiences.clone());
     let optional = OptionalAuthInterceptor::new(keys, cfg.allowed_audiences.clone());
 
     let user_svc =
@@ -211,8 +213,38 @@ async fn main() -> anyhow::Result<()> {
         refresh_ttl: cfg.token.refresh_ttl,
         allowed_origins: cfg.back_office_origins.clone(),
     };
+    // SoundFont delivery (change: add-soundfont-delivery): a dedicated PRIVATE store,
+    // separate from scores, streamed through an authenticated route. Unconfigured
+    // (bucket unset) ⇒ the route is mounted but responds 503.
+    let soundfont_store: Option<Arc<dyn ObjectStorage>> = match cfg.soundfont_storage.as_ref() {
+        Some(sf) => Some(Arc::new(LocalFirstStore::from_config(
+            &sf.local_root,
+            &S3Params {
+                bucket: sf.bucket.clone(),
+                endpoint: sf.endpoint.clone(),
+                region: sf.region.clone(),
+                access_key: sf.access_key.clone(),
+                secret_key: sf.secret_key.clone(),
+                allow_http: sf.allow_http,
+            },
+        )?)),
+        None => {
+            tracing::info!("soundfont delivery disabled (CYMBRA_SOUNDFONT_S3_BUCKET unset)");
+            None
+        }
+    };
+    let soundfont_state = cymbra_server::SoundfontState {
+        store: soundfont_store,
+        auth: Arc::new(soundfont_auth),
+        // No paid fonts yet — the entitlement source is the seam for future purchases.
+        entitlements: Arc::new(cymbra_server::NoPaidEntitlements),
+    };
     let http = cymbra_server::http_router(jwks, ready_pool, cache.clone())
-        .merge(cymbra_server::web_auth_router(auth_port, web_auth_cfg));
+        .merge(cymbra_server::web_auth_router(auth_port, web_auth_cfg))
+        .merge(cymbra_server::soundfont_router(
+            soundfont_state,
+            cfg.back_office_origins.clone(),
+        ));
 
     let grpc_addr: SocketAddr = cfg.grpc_addr.parse()?;
     let http_addr: SocketAddr = cfg.http_addr.parse()?;

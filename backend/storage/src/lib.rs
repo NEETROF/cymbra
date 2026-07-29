@@ -58,6 +58,13 @@ pub trait ObjectStorage: Send + Sync {
     async fn get(&self, key: &str) -> Result<Vec<u8>>;
     /// Removes the object at `key`. Deleting a missing key is a no-op (idempotent).
     async fn delete(&self, key: &str) -> Result<()>;
+    /// Total byte size of the object at `key` (for `Content-Length` / `Content-Range`
+    /// when serving large assets), or [`StorageError::NotFound`].
+    async fn size(&self, key: &str) -> Result<u64>;
+    /// Fetches the half-open byte range `[range.start, range.end)` of `key`, so large
+    /// assets (SoundFonts) can be delivered in parts rather than buffered whole. The
+    /// range is clamped to the object; an out-of-range start yields an empty slice.
+    async fn get_range(&self, key: &str, range: std::ops::Range<usize>) -> Result<Vec<u8>>;
 }
 
 /// In-memory [`ObjectStorage`] for unit tests — no disk, no network.
@@ -109,6 +116,30 @@ impl ObjectStorage for FakeStore {
         self.objects.lock().expect("fake store lock").remove(key);
         Ok(())
     }
+
+    async fn size(&self, key: &str) -> Result<u64> {
+        self.objects
+            .lock()
+            .expect("fake store lock")
+            .get(key)
+            .map(|v| v.len() as u64)
+            .ok_or_else(|| StorageError::NotFound(key.to_string()))
+    }
+
+    async fn get_range(&self, key: &str, range: std::ops::Range<usize>) -> Result<Vec<u8>> {
+        let guard = self.objects.lock().expect("fake store lock");
+        let v = guard
+            .get(key)
+            .ok_or_else(|| StorageError::NotFound(key.to_string()))?;
+        Ok(slice_range(v, range))
+    }
+}
+
+/// Clamp a half-open range to `data` and return the slice (empty if start ≥ len).
+fn slice_range(data: &[u8], range: std::ops::Range<usize>) -> Vec<u8> {
+    let end = range.end.min(data.len());
+    let start = range.start.min(end);
+    data[start..end].to_vec()
 }
 
 /// Connection parameters for the S3-compatible origin bucket.
@@ -187,6 +218,12 @@ async fn get_from(store: &Arc<dyn ObjectStore>, key: &str) -> Result<Bytes> {
     got.bytes().await.map_err(|e| map_err(key, e))
 }
 
+async fn head_size(store: &Arc<dyn ObjectStore>, key: &str) -> Result<u64> {
+    let path = ObjPath::from(key);
+    let meta = store.head(&path).await.map_err(|e| map_err(key, e))?;
+    Ok(meta.size as u64)
+}
+
 #[async_trait]
 impl ObjectStorage for LocalFirstStore {
     async fn put(&self, key: &str, bytes: Vec<u8>) -> Result<()> {
@@ -220,6 +257,30 @@ impl ObjectStorage for LocalFirstStore {
         // Best-effort cache eviction.
         let _ = self.local.delete(&path).await;
         Ok(())
+    }
+
+    async fn size(&self, key: &str) -> Result<u64> {
+        match head_size(&self.local, key).await {
+            Ok(n) => Ok(n),
+            Err(StorageError::NotFound(_)) => head_size(&self.origin, key).await,
+            Err(e) => Err(e),
+        }
+    }
+
+    async fn get_range(&self, key: &str, range: std::ops::Range<usize>) -> Result<Vec<u8>> {
+        // Serve the range from the local cache; on a miss, warm the whole object from
+        // the origin (so subsequent ranges are local) and slice it. Warming keeps the
+        // read path identical to `get`, at the cost of pulling the whole object once.
+        let path = ObjPath::from(key);
+        match self.local.get_range(&path, range.clone()).await {
+            Ok(b) => Ok(b.to_vec()),
+            Err(object_store::Error::NotFound { .. }) => {
+                let whole = get_from(&self.origin, key).await?;
+                let _ = put_to(&self.local, key, whole.clone()).await;
+                Ok(slice_range(&whole, range))
+            }
+            Err(e) => Err(map_err(key, e)),
+        }
     }
 }
 
@@ -315,6 +376,63 @@ mod tests {
             count(&local, "user-scores/u/1.mxl").await,
             "warmed after fallback"
         );
+    }
+
+    #[tokio::test]
+    async fn size_and_range_local_hit() {
+        let (store, local, _origin) = local_first();
+        local
+            .put(
+                &ObjPath::from("assets/font.sf2"),
+                Bytes::from_static(b"0123456789").into(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(store.size("assets/font.sf2").await.unwrap(), 10);
+        assert_eq!(
+            store.get_range("assets/font.sf2", 2..5).await.unwrap(),
+            b"234"
+        );
+        // Range clamps to the object rather than erroring.
+        assert_eq!(
+            store.get_range("assets/font.sf2", 8..100).await.unwrap(),
+            b"89"
+        );
+    }
+
+    #[tokio::test]
+    async fn range_falls_back_to_origin_and_warms() {
+        let (store, local, origin) = local_first();
+        origin
+            .put(
+                &ObjPath::from("assets/font.sf2"),
+                Bytes::from_static(b"abcdefgh").into(),
+            )
+            .await
+            .unwrap();
+        assert!(!count(&local, "assets/font.sf2").await, "not cached yet");
+        assert_eq!(
+            store.get_range("assets/font.sf2", 1..4).await.unwrap(),
+            b"bcd"
+        );
+        // The range miss warmed the whole object into the local cache.
+        assert!(
+            count(&local, "assets/font.sf2").await,
+            "warmed after range miss"
+        );
+        assert_eq!(store.size("assets/font.sf2").await.unwrap(), 8);
+    }
+
+    #[tokio::test]
+    async fn fake_size_and_range() {
+        let s = FakeStore::default();
+        s.put("k", b"hello world".to_vec()).await.unwrap();
+        assert_eq!(s.size("k").await.unwrap(), 11);
+        assert_eq!(s.get_range("k", 0..5).await.unwrap(), b"hello");
+        assert!(matches!(
+            s.size("missing").await,
+            Err(StorageError::NotFound(_))
+        ));
     }
 
     #[tokio::test]
