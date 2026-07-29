@@ -76,7 +76,8 @@
     "play": "▶ Play",
     "pause": "⏸ Pause",
     "audioLoading": "Loading audio…",
-    "audioError": "Audio unavailable."
+    "audioError": "Audio unavailable.",
+    "seekHint": "Click a measure to play from there."
   },
   "roles": {
     "title": "Roles",

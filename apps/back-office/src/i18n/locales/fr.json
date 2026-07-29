@@ -81,7 +81,8 @@
     "play": "▶ Lecture",
     "pause": "⏸ Pause",
     "audioLoading": "Chargement de l'audio…",
-    "audioError": "Audio indisponible."
+    "audioError": "Audio indisponible.",
+    "seekHint": "Cliquez une mesure pour lire à partir de là."
   },
   "roles": {
     "title": "Rôles",

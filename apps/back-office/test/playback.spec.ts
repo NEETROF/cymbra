@@ -3,6 +3,8 @@ import { effectScope, ref } from "vue";
 import { flushPromises } from "@vue/test-utils";
 import { measureAt, playingNoteIds, type PlaybackSchedule } from "@/lib/notation/schedule";
 import { useScorePlayer } from "@/composables/useScorePlayer";
+import { usePlayhead } from "@/composables/usePlayhead";
+import type { MeasureRect } from "@/lib/notation/painter";
 import { setNotationWasmForTest } from "@/lib/notation/wasm";
 import { setAudioWasmForTest } from "@/lib/audio/synth";
 import { loadSoundFont, setSoundFontForTest } from "@/lib/audio/soundfont";
@@ -103,5 +105,38 @@ describe("loadSoundFont (backend delivery route)", () => {
     const bytes = await loadSoundFont("t"); // retry after (re-)auth
     expect(bytes).toEqual(new Uint8Array([9]));
     expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("usePlayhead click-to-seek", () => {
+  it("emits the measure index when a measure is clicked", async () => {
+    const container = document.createElement("div");
+    container.innerHTML = "<svg></svg>";
+    document.body.appendChild(container);
+    const measures: MeasureRect[] = [
+      { index: 0, x: 0, width: 100, top: 0, bottom: 50 },
+      { index: 1, x: 100, width: 100, top: 0, bottom: 50 },
+    ];
+    const seek = vi.fn();
+    const scope = effectScope();
+    scope.run(() =>
+      usePlayhead({
+        container: ref(container),
+        svg: ref("<svg></svg>"),
+        layout: ref({ measures }),
+        schedule: ref(null),
+        elapsedMs: ref(0),
+        playing: ref(false),
+        onSeekMeasure: seek,
+      }),
+    );
+    await flushPromises();
+
+    const hit = container.querySelector('[data-measure="1"]');
+    expect(hit).toBeTruthy();
+    hit!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(seek).toHaveBeenCalledWith(1);
+    scope.stop();
+    container.remove();
   });
 });

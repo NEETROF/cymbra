@@ -22,6 +22,8 @@ interface ScorePlayer {
   canPlay: Ref<boolean>;
   toggle: () => void;
   stop: () => void;
+  /** Start playback from an absolute time (ms) — e.g. a clicked measure's start. */
+  playFrom: (ms: number) => void;
 }
 
 type Ctx = typeof AudioContext;
@@ -89,13 +91,20 @@ export function useScorePlayer(bytes: Ref<Uint8Array | null | undefined>): Score
     raf = requestAnimationFrame(tick);
   }
 
-  async function play(): Promise<void> {
-    const value = bytes.value;
-    if (value == null || playing.value) return;
+  /** Onset of the first sounding note (notes are onset-sorted), so a fresh Play skips
+   *  the leading empty measures many scores have. 0 when unknown. */
+  function firstNoteMs(): number {
+    const s = schedule.value;
+    return s.status === "success" && s.data.notes.length > 0 ? s.data.notes[0].onset_ms : 0;
+  }
+
+  /** Ensure the AudioContext + the rendered buffer exist. Returns false (and sets the
+   *  `audio` error/loading state) when audio is unavailable or the row changed mid-load. */
+  async function ensureAudio(value: Uint8Array): Promise<boolean> {
     const Ctor = audioContextCtor();
     if (!Ctor) {
       audio.value = failure("audio_failed");
-      return;
+      return false;
     }
     try {
       ctx ??= new Ctor();
@@ -107,7 +116,7 @@ export function useScorePlayer(bytes: Ref<Uint8Array | null | undefined>): Score
         // that stub audio never need a Pinia instance).
         const token = useAuthStore().accessToken;
         const [wasm, sf2] = await Promise.all([loadAudioWasm(), loadSoundFont(token)]);
-        if (bytes.value !== value) return; // row changed mid-load
+        if (bytes.value !== value) return false; // row changed mid-load
         const pcm = wasm.render(value, sf2, ctx.sampleRate);
         const frames = Math.floor(pcm.length / 2);
         buffer = ctx.createBuffer(2, Math.max(frames, 1), ctx.sampleRate);
@@ -120,11 +129,34 @@ export function useScorePlayer(bytes: Ref<Uint8Array | null | undefined>): Score
         playDurationMs = buffer.duration * 1000;
         audio.value = success(undefined);
       }
-      startSource();
+      return true;
     } catch {
       audio.value = failure("audio_failed");
       playing.value = false;
+      return false;
     }
+  }
+
+  async function play(): Promise<void> {
+    const value = bytes.value;
+    if (value == null || playing.value) return;
+    if (!(await ensureAudio(value))) return;
+    // Fresh start (not resuming from a pause) begins at the first note.
+    if (offsetSec === 0) offsetSec = firstNoteMs() / 1000;
+    startSource();
+  }
+
+  /** Seek to `ms` and play from there (a clicked measure's start). */
+  async function playFrom(ms: number): Promise<void> {
+    const value = bytes.value;
+    if (value == null) return;
+    if (!(await ensureAudio(value))) return;
+    stopSource();
+    cancelAnimationFrame(raf);
+    const maxSec = buffer ? buffer.duration : Number.POSITIVE_INFINITY;
+    offsetSec = Math.min(Math.max(0, ms) / 1000, maxSec);
+    elapsedMs.value = offsetSec * 1000; // jump the cursor immediately
+    startSource();
   }
 
   function pause(): void {
@@ -167,5 +199,14 @@ export function useScorePlayer(bytes: Ref<Uint8Array | null | undefined>): Score
     void ctx?.close();
   });
 
-  return { schedule, audio, playing, elapsedMs, canPlay, toggle, stop };
+  return {
+    schedule,
+    audio,
+    playing,
+    elapsedMs,
+    canPlay,
+    toggle,
+    stop,
+    playFrom: (ms) => void playFrom(ms),
+  };
 }

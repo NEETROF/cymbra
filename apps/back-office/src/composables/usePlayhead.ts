@@ -1,8 +1,11 @@
 // The playback overlay for the rendered notation SVG: a moving cursor line, the
-// highlight on currently-sounding note heads, and auto-scroll to follow the playhead.
-// It manipulates the injected SVG DOM directly (the SVG is set once via v-html and is
+// highlight on currently-sounding note heads, and click-to-seek per measure. It
+// manipulates the injected SVG DOM directly (the SVG is set once via v-html and is
 // static during playback), driven by the pure playhead maths in schedule.ts. Isolated
 // here so ScorePreview stays presentational.
+//
+// No auto-scroll: this is a back-office validation view, so the moderator keeps control
+// of the viewport. Clicking a measure seeks playback to that measure's start.
 
 import { nextTick, watch, type Ref } from "vue";
 import { type PlaybackSchedule, measureAt, playingNoteIds } from "@/lib/notation/schedule";
@@ -17,6 +20,8 @@ interface Options {
   schedule: Ref<PlaybackSchedule | null>;
   elapsedMs: Ref<number>;
   playing: Ref<boolean>;
+  /** Called when a measure is clicked, with its index — the caller seeks to it. */
+  onSeekMeasure?: (measureIndex: number) => void;
 }
 
 export function usePlayhead(opts: Options): void {
@@ -35,20 +40,48 @@ export function usePlayhead(opts: Options): void {
       heads = new Map();
       lit = new Set();
       if (!svgEl) return;
-      cursor = document.createElementNS(SVG_NS, "line");
-      cursor.setAttribute("class", "cursor");
-      cursor.style.display = "none";
-      svgEl.appendChild(cursor);
+
+      // Transparent per-measure hit areas for click-to-seek (added first, so they sit
+      // under the glyphs visually but still receive clicks over their whole box).
+      for (const m of opts.layout.value?.measures ?? []) {
+        const hit = document.createElementNS(SVG_NS, "rect");
+        hit.setAttribute("x", String(m.x));
+        hit.setAttribute("y", String(m.top));
+        hit.setAttribute("width", String(m.width));
+        hit.setAttribute("height", String(m.bottom - m.top));
+        hit.setAttribute("fill", "transparent");
+        hit.setAttribute("class", "measure-hit");
+        hit.setAttribute("data-measure", String(m.index));
+        hit.style.cursor = "pointer";
+        svgEl.appendChild(hit);
+      }
+      svgEl.addEventListener("click", onClick);
+
       for (const el of Array.from(svgEl.querySelectorAll<SVGElement>("[data-note]"))) {
         const id = el.getAttribute("data-note");
         if (id) heads.set(id, el);
       }
+
+      // Cursor last, so it paints on top of the notes; pointer-events:none so it never
+      // swallows a measure click.
+      cursor = document.createElementNS(SVG_NS, "line");
+      cursor.setAttribute("class", "cursor");
+      cursor.style.display = "none";
+      cursor.style.pointerEvents = "none";
+      svgEl.appendChild(cursor);
       update();
     },
     { immediate: true },
   );
 
   watch([opts.elapsedMs, opts.playing], update);
+
+  function onClick(e: Event): void {
+    const el = (e.target as Element | null)?.closest("[data-measure]");
+    if (!el) return;
+    const idx = Number(el.getAttribute("data-measure"));
+    if (Number.isFinite(idx)) opts.onSeekMeasure?.(idx);
+  }
 
   function update(): void {
     if (!svgEl || !cursor) return;
@@ -70,23 +103,11 @@ export function usePlayhead(opts: Options): void {
     cursor.style.display = "";
 
     setLit(schedule ? playingNoteIds(schedule, opts.elapsedMs.value) : new Set());
-    if (opts.playing.value) scrollIntoView();
   }
 
   function setLit(ids: Set<string>): void {
     for (const id of lit) if (!ids.has(id)) heads.get(id)?.classList.remove("playing");
     for (const id of ids) if (!lit.has(id)) heads.get(id)?.classList.add("playing");
     lit = ids;
-  }
-
-  // Keep the cursor's line comfortably inside the scroll container.
-  function scrollIntoView(): void {
-    const box = opts.container.value;
-    if (!box || !cursor) return;
-    const c = cursor.getBoundingClientRect();
-    const b = box.getBoundingClientRect();
-    const margin = 24;
-    if (c.top < b.top + margin) box.scrollTop -= b.top + margin - c.top;
-    else if (c.bottom > b.bottom - margin) box.scrollTop += c.bottom - (b.bottom - margin);
   }
 }

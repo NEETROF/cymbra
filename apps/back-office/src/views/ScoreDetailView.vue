@@ -99,6 +99,7 @@ async function decide(status: ModerationStatus) {
       :playing="player.playing.value"
       :can-play="player.canPlay.value"
       @toggle="player.toggle"
+      @seek="player.playFrom"
     />
   </div>
 </template>
