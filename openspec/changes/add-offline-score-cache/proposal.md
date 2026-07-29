@@ -30,6 +30,13 @@ must be cryptographically useless on its own.
   when offline** so the home renders and favorites are navigable. Each favorite
   indicates whether its bytes are cached (**playable offline**) or not (visible
   but shows the "unavailable offline" message when opened).
+- **The favorites index survives even without a keystore**: the index is
+  non-sensitive metadata (no licensed bytes), so it is stored in **plaintext**
+  local storage, **decoupled from the encrypted byte cache**. The fail-closed
+  rule ("no keystore ⇒ no cache") applies **only to score bytes**; a user on a
+  no-keystore install (or one that later loses keystore access) still sees their
+  full favorites list offline and never "loses" it — only offline *playback* of
+  the bytes is unavailable there.
 - Encryption uses **per-file envelope encryption** (AES-256-GCM with a random
   data key). The data key is wrapped by a key derived (HKDF) from: a
   hardware-backed device key (Secure Enclave / Android Keystore where available,

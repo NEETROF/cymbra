@@ -103,11 +103,14 @@ key localize blast radius.
 | Windows | DPAPI (`CurrentUser`); optional TPM later | OS-user-bound (hardware if TPM added) |
 | Linux | Secret Service / libsecret (Keyring/KWallet) | session-bound; may be absent |
 
-**Fail-closed**: a `KeystoreProbe` checks at startup whether secure key material
-can be written+read back. If not (e.g. headless Linux with no Secret Service),
-the offline cache is **disabled** for that install: scores load online-only and
-nothing is ever written to disk. This preserves the invariant "never persist a
-file whose key isn't in a secure keystore."
+**Fail-closed (score bytes only)**: a `KeystoreProbe` checks at startup whether
+secure key material can be written+read back. If not (e.g. headless Linux with no
+Secret Service), the **encrypted byte cache** is **disabled** for that install:
+scores load online-only and **no score bytes** are ever written to disk. This
+preserves the invariant "never persist a *score-bytes* file whose key isn't in a
+secure keystore." The favorites **index** (metadata only, no bytes) is explicitly
+exempt and still persisted in plaintext (D8), so the favorites list survives
+offline even with no keystore.
 
 The keystore items reuse the existing best-effort discipline from
 [token_store.dart](apps/music/lib/services/token_store.dart) (macOS legacy
@@ -216,11 +219,17 @@ offline.
   `ScoreLoadFailure` when opened without network — no separate error path.
 
 **Sensitivity / storage**: the index holds only titles/composers/ids the user
-saved, not licensed bytes. For a single fail-closed policy and uniform key
-custody, the snapshot is stored through the **same envelope** (cache key
-`favorites-index:<userId>`) rather than a second plaintext store — so a
-no-keystore install simply has no snapshot (home is empty offline, i.e. today's
-behavior), consistent with D3.
+saved, not licensed bytes — so it is **deliberately NOT subject to the byte
+cache's encryption or fail-closed rule**. It is persisted in **plaintext** local
+storage (a JSON document under app support / the existing `local-preferences`
+store), keyed by `currentUserId`, and is **decoupled from the keystore**. This is
+a direct requirement: a user must never lose their favorites list offline just
+because the platform has no secure keystore. On a no-keystore install (or one
+that loses keystore access), the index still renders offline; only the encrypted
+*bytes* are unavailable there, so those favorites show but are not offline-
+playable. The mild privacy trade-off (device-local titles/composers are readable
+in plaintext) is accepted and matches how `local-preferences` already treats
+non-secret data; licensed bytes remain encrypted and fail-closed regardless.
 
 _Alternative rejected_: keep the favorites list online-only and cache bytes
 only. Then offline-at-launch shows an empty/error home and the whole feature is

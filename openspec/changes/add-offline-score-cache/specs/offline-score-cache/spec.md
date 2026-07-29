@@ -99,11 +99,14 @@ Because the favorites list is backend-fetched, the app SHALL persist a
 last-known-good snapshot of the authenticated user's favorites index — entry
 metadata only (id, kind, catalog/contributed id, title, composer, level) and
 **never score bytes** — on every successful online fetch, scoped to the user.
-When the online fetch fails (e.g. no network at launch), the app SHALL render the
-home from this snapshot instead of showing an error, so favorites are visible and
-navigable offline. Each listed favorite SHALL indicate whether its encrypted
-bytes are cached (playable offline) or not. The snapshot SHALL be cleared on
-sign-out and MUST be empty for a guest / signed-out session.
+Because this snapshot carries no licensed bytes, it SHALL be stored in plaintext
+local storage, **independent of the secure keystore**, so the favorites list is
+never lost offline even on an install with no usable keystore. When the online
+fetch fails (e.g. no network at launch), the app SHALL render the home from this
+snapshot instead of showing an error, so favorites are visible and navigable
+offline. Each listed favorite SHALL indicate whether its encrypted bytes are
+cached (playable offline) or not. The snapshot SHALL be cleared on sign-out and
+MUST be empty for a guest / signed-out session.
 
 #### Scenario: Offline launch renders favorites from the snapshot
 
@@ -154,19 +157,27 @@ re-fetch when online.
 - **WHEN** a decrypted file's recomputed hash does not match its stored hash
 - **THEN** the entry is treated as a cache miss and re-fetched when online
 
-### Requirement: Fail-closed when no secure keystore is available
+### Requirement: Fail-closed byte cache when no secure keystore is available
 
 The app SHALL verify at startup that secure key material can be written to and
 read back from the OS keystore. If no usable secure keystore is available on the
-platform, the offline cache MUST be disabled for that install: scores load
-online-only and no bytes are ever written to disk. A keystore failure MUST NOT
-crash the app or degrade online playback.
+platform, the **encrypted byte cache** MUST be disabled for that install: scores
+load online-only and no score bytes are ever written to disk. This fail-closed
+rule applies to score bytes only; the favorites index (metadata, no bytes) is
+exempt and MUST still be persisted (see "Offline favorites list"). A keystore
+failure MUST NOT crash the app or degrade online playback.
 
-#### Scenario: No keystore disables caching
+#### Scenario: No keystore disables the byte cache
 
 - **WHEN** the platform exposes no usable secure keystore (e.g. headless Linux
   with no Secret Service)
 - **THEN** no score bytes are written to disk and scores load online-only
+
+#### Scenario: Favorites list still survives without a keystore
+
+- **WHEN** the app launches offline on an install with no usable keystore
+- **THEN** the favorites list still renders from the plaintext index snapshot,
+  and its entries are shown as not offline-playable
 
 #### Scenario: Keystore failure never crashes
 

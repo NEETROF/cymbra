@@ -80,9 +80,10 @@
 
 ## 4b. App — offline favorites index snapshot
 
-- [ ] 4b.1 Add a `favorites-index:<userId>` snapshot to the cache service
-  (envelope-encrypted, metadata only — no bytes): `writeIndex(entries)` /
-  `readIndex()`.
+- [ ] 4b.1 Add a `favorites-index:<userId>` snapshot store (metadata only — no
+  bytes): `writeIndex(entries)` / `readIndex()`. Store in **plaintext** local
+  storage (JSON under app support / the `local-preferences` store),
+  **decoupled from the keystore** so it survives on a no-keystore install.
 - [ ] 4b.2 Write the snapshot whenever
   [saved_catalog_scores.dart](apps/music/lib/state/saved_catalog_scores.dart) /
   [contributed_scores.dart](apps/music/lib/state/contributed_scores.dart) fetch
@@ -95,7 +96,8 @@
 - [ ] 4b.5 Clear the snapshot on sign-out (folded into `purgeAll`).
 - [ ] 4b.6 Tests: offline-launch renders from snapshot, successful fetch rewrites
   snapshot, guest/signed-out empty, playable flag reflects byte-cache presence,
-  sign-out clears snapshot.
+  sign-out clears snapshot, **no-keystore install still lists favorites offline**
+  (index survives while byte cache is disabled).
 
 ## 5. App — eviction wiring
 
