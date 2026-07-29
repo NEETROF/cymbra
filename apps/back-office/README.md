@@ -156,14 +156,35 @@ The workflow is **dormant until configured**: its deploy job is gated on the
 2. Sets repo **variables** (Settings → Secrets and variables → Actions → Variables):
    `CF_PAGES_PROJECT`, `VITE_GRPC_WEB_URL` (e.g. `https://api.cymbra.app`),
    `VITE_WEB_AUTH_URL` (same registrable domain — see the same-site constraint above),
-   and optionally `VITE_GOOGLE_CLIENT_ID`.
+   and optionally the SSO client ids (see **Social sign-in** below).
 3. Sets repo **secrets**: `CLOUDFLARE_API_TOKEN` (scope "Cloudflare Pages: Edit") and
    `CLOUDFLARE_ACCOUNT_ID`.
 
-Then every push to `main` touching `apps/back-office/**` (or a manual **Run workflow**)
-builds and deploys. The same-site constraint above is a **hard** requirement:
-`bo.cymbra.app` and `VITE_WEB_AUTH_URL` must share `cymbra.app`, or the refresh cookie
-is not first-party.
+The console is **versioned like the other modules** via release-please
+(`component: back-office`, tag `back-office-vX.Y.Z`). Deploy is **release-driven, not
+merge-driven**: the workflow triggers on a `back-office-v*` tag (cut when the
+back-office Release PR is merged) or a manual **Run workflow** — never on every merge to
+`main`. The same-site constraint above is a **hard** requirement: `bo.cymbra.app` and
+`VITE_WEB_AUTH_URL` must share `cymbra.app`, or the refresh cookie is not first-party.
+
+## Social sign-in (Google & Apple)
+
+Both are **optional and inert until their client id is set** — with none configured the
+email/password form is the sole path (the buttons don't render). Each provider mints an
+id_token in the browser that the app exchanges via `SignInOidc`; the backend picks the
+provider from the token's issuer and verifies its `aud` against the matching
+`CYMBRA_*_AUDIENCE` (both accept a comma-separated set).
+
+- **Google** — set `VITE_GOOGLE_CLIENT_ID` to the Google **Web** OAuth client id (the
+  same value as the backend's `CYMBRA_GOOGLE_AUDIENCE`). Add `https://bo.cymbra.app` to
+  that client's _Authorized JavaScript origins_ in Google Cloud Console.
+- **Apple** — set `VITE_APPLE_CLIENT_ID` to a **Services ID** (e.g. `com.cymbra.bo.web`),
+  **not** the app bundle id, and optionally `VITE_APPLE_REDIRECT_URI` (defaults to the SPA
+  origin). In the Apple Developer portal the Services ID must register the domain
+  `bo.cymbra.app` + a matching Return URL, and the domain must be verified by hosting
+  `apple-developer-domain-association.txt` under `https://bo.cymbra.app/.well-known/`.
+  Add the Services ID to the backend's `CYMBRA_APPLE_AUDIENCE` (alongside the app bundle,
+  comma-separated) so web tokens verify — no backend code change needed.
 
 ## Moderator onboarding
 

@@ -41,7 +41,9 @@
     "submit": "Se connecter",
     "submitting": "Connexion…",
     "or": "ou",
-    "googleUnavailable": "La connexion Google est indisponible pour le moment — utilise ton e-mail et ton mot de passe."
+    "googleUnavailable": "La connexion Google est indisponible pour le moment — utilise ton e-mail et ton mot de passe.",
+    "signinWithApple": "Se connecter avec Apple",
+    "appleUnavailable": "La connexion Apple est indisponible pour le moment — utilise ton e-mail et ton mot de passe."
   },
   "denied": {
     "title": "Accès refusé",

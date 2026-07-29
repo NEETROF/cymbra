@@ -24,6 +24,8 @@ name: back-office-deploy
 #   VITE_GRPC_WEB_URL     prod gRPC-web endpoint (e.g. https://api.cymbra.app)
 #   VITE_WEB_AUTH_URL     prod web-auth HTTP surface (same registrable domain as the SPA)
 #   VITE_GOOGLE_CLIENT_ID Google OIDC web client id (music audience)  [optional]
+#   VITE_APPLE_CLIENT_ID  Apple "Sign in with Apple" Services ID (not the app bundle)  [optional]
+#   VITE_APPLE_REDIRECT_URI Apple Return URL; defaults to the SPA origin  [optional]
 # Required repo SECRETS:
 #   CLOUDFLARE_API_TOKEN  token with "Cloudflare Pages: Edit" on the account
 #   CLOUDFLARE_ACCOUNT_ID Cloudflare account id
@@ -75,6 +77,11 @@ jobs:
           VITE_GRPC_WEB_URL: ${{ vars.VITE_GRPC_WEB_URL }}
           VITE_WEB_AUTH_URL: ${{ vars.VITE_WEB_AUTH_URL }}
           VITE_GOOGLE_CLIENT_ID: ${{ vars.VITE_GOOGLE_CLIENT_ID }}
+          # Apple sign-in (optional): a Services ID, NOT the app bundle id. Setting it
+          # bakes the Apple button + widens the CSP for appleid.apple.com (see
+          # vite.config.ts). VITE_APPLE_REDIRECT_URI defaults to the SPA origin.
+          VITE_APPLE_CLIENT_ID: ${{ vars.VITE_APPLE_CLIENT_ID }}
+          VITE_APPLE_REDIRECT_URI: ${{ vars.VITE_APPLE_REDIRECT_URI }}
         run: yarn build
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
