@@ -76,6 +76,26 @@ void main() {
     expect(s.topCard?.catalogId, 'c0');
   });
 
+  test(
+    'a pending card surfaces as a candidate (change: rate-pending-scores)',
+    () async {
+      // The deck now sources pending candidates too; a pending card carries its
+      // status so the UI can label it a "potential new score".
+      final c = _container(
+        FakeDeckCatalogService([
+          deckHit('c0', moderationStatus: 'pending'),
+          deckHit('c1'), // accepted
+        ]),
+        FakeRatingService(),
+      );
+      final s = await _settled(c);
+      final pending = s.cards.firstWhere((e) => e.catalogId == 'c0');
+      final accepted = s.cards.firstWhere((e) => e.catalogId == 'c1');
+      expect(pending.isPending, isTrue);
+      expect(accepted.isPending, isFalse);
+    },
+  );
+
   test('a swipe/button rating is submitted and the deck advances', () async {
     final rating = FakeRatingService();
     final c = _container(FakeDeckCatalogService(_corpus()), rating);

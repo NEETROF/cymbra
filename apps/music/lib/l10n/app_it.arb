@@ -250,6 +250,7 @@
   "ratingStarsButton": "Stelle",
   "ratingLockedHint": "Ascolta la partitura per valutarla",
   "ratingStarsSheetTitle": "Valuta questa partitura",
+  "ratingPendingBadge": "Possibile nuovo spartito",
   "ratingPreview": "Anteprima",
   "ratingPreviewStop": "Ferma anteprima",
   "ratingPreviewError": "Impossibile caricare l'anteprima.",

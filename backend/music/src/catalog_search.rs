@@ -220,12 +220,14 @@ pub trait CatalogSearchRepo: Send + Sync {
         reviewer_id: &str,
     ) -> Result<bool>;
 
-    /// The rating deck's source (change: improve-rating-deck-sourcing): the
-    /// caller's **un-rated** `accepted` scores, ordered **least-rated first**
-    /// (fewest existing ratings, so the scores that most need community signal
-    /// come first) with an `id` tiebreak, paginated. A score `user_id` has already
-    /// rated is excluded, so the deck reaches its empty state once everything is
-    /// rated. Not owner-scoped data, but the exclusion is per caller.
+    /// The rating deck's source (change: improve-rating-deck-sourcing, widened by
+    /// rate-pending-scores): the caller's **un-rated** `pending` + `accepted` scores
+    /// (never `rejected`), ordered **least-rated first** (fewest existing ratings, so
+    /// the scores that most need community signal come first) with an `id` tiebreak,
+    /// paginated. Sourcing pending too lets community ratings feed the moderation
+    /// backlog. A score `user_id` has already rated is excluded, so the deck reaches
+    /// its empty state once everything is rated. Not owner-scoped data, but the
+    /// exclusion is per caller.
     async fn rating_deck(&self, user_id: &str, limit: i64, offset: i64) -> Result<Vec<CatalogHit>>;
 }
 
@@ -530,7 +532,8 @@ impl CatalogSearchRepo for FakeCatalogSearchRepo {
         let mut candidates: Vec<&FakeCatalogRow> = rows
             .iter()
             .filter(|r| {
-                r.moderation_status == "accepted"
+                // `pending` + `accepted` (never `rejected`) — change: rate-pending-scores.
+                (r.moderation_status == "pending" || r.moderation_status == "accepted")
                     && r.is_piano == Some(true)
                     && !rated.contains(&r.id)
             })

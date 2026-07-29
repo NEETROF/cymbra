@@ -605,6 +605,8 @@
   "@ratingLockedHint": { "description": "Hint shown while the rating controls are locked until the user has previewed enough of the score." },
   "ratingStarsSheetTitle": "Rate this score",
   "@ratingStarsSheetTitle": { "description": "Title of the bottom sheet where the user picks a 1–5 star rating." },
+  "ratingPendingBadge": "Potential new score",
+  "@ratingPendingBadge": { "description": "Badge on a rating-deck card for a pending (not-yet-validated) score, framing it positively as a candidate the community is helping evaluate." },
   "ratingPreview": "Preview",
   "@ratingPreview": { "description": "Tooltip for the in-card control that opens the read-only score preview." },
   "ratingPreviewStop": "Stop preview",

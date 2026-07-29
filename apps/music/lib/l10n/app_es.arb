@@ -250,6 +250,7 @@
   "ratingStarsButton": "Estrellas",
   "ratingLockedHint": "Escucha la partitura para puntuarla",
   "ratingStarsSheetTitle": "Puntuar esta partitura",
+  "ratingPendingBadge": "Posible nueva partitura",
   "ratingPreview": "Vista previa",
   "ratingPreviewStop": "Detener vista previa",
   "ratingPreviewError": "No se pudo cargar la vista previa.",
