@@ -87,7 +87,7 @@ void main() {
     });
 
     test('stays clamped to the 88-key bounds', () {
-      final r = computeKeyboardRange(KeyboardRangeMode.keys76, const [21, 108]);
+      final r = computeKeyboardRange(KeyboardRangeMode.keys61, const [21, 108]);
       expect(r.low, greaterThanOrEqualTo(kPianoLowest));
       expect(r.high, lessThanOrEqualTo(kPianoHighest));
     });
@@ -97,10 +97,8 @@ void main() {
     test('presetKeyCount maps each mode', () {
       expect(presetKeyCount(KeyboardRangeMode.auto), isNull);
       expect(presetKeyCount(KeyboardRangeMode.keys25), 25);
-      expect(presetKeyCount(KeyboardRangeMode.keys37), 37);
       expect(presetKeyCount(KeyboardRangeMode.keys49), 49);
       expect(presetKeyCount(KeyboardRangeMode.keys61), 61);
-      expect(presetKeyCount(KeyboardRangeMode.keys76), 76);
       expect(presetKeyCount(KeyboardRangeMode.keys88), 88);
     });
 

@@ -258,9 +258,10 @@ abstract class PlayerData with _$PlayerData {
     /// note-on (fresh attack) and on note-off; wholesale on gate re-arm.
     @Default(<int>{}) Set<int> consumedHeld,
 
-    /// On-screen keyboard range mode. Defaults to the full 88-key piano; the
-    /// user can switch to auto-fit or a smaller preset from the chooser.
-    @Default(KeyboardRangeMode.keys88) KeyboardRangeMode keyboardRange,
+    /// On-screen keyboard range mode. Defaults to auto-fit (sized to the loaded
+    /// piece); the user can pin a fixed controller size from the chooser. Seeded
+    /// from (and written back to) the persisted play preferences.
+    @Default(KeyboardRangeMode.auto) KeyboardRangeMode keyboardRange,
 
     /// Whether the on-screen keyboard is shown. Only honoured in the notation
     /// modes (Staff/Partition), where hiding it hands the freed height to the

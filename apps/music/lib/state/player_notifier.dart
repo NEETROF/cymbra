@@ -98,6 +98,7 @@ class Player extends _$Player {
       selectedHands: prefs.hands,
       speed: prefs.speed,
       metronomeEnabled: prefs.metronome,
+      keyboardRange: prefs.keyboardRange,
     );
   }
 
@@ -412,8 +413,11 @@ class Player extends _$Player {
     _track(UsageActions.settingsChange, variant: UsageVariants.tempo);
   }
 
-  void setKeyboardRange(KeyboardRangeMode m) =>
-      state = state.copyWith(keyboardRange: m);
+  /// Sets the on-screen keyboard range and remembers it across scores/restarts.
+  void setKeyboardRange(KeyboardRangeMode m) {
+    ref.read(playerPreferencesProvider.notifier).setKeyboardRange(m);
+    state = state.copyWith(keyboardRange: m);
+  }
   void setKeyboardVisible(bool visible) =>
       state = state.copyWith(keyboardVisible: visible);
   // Re-arm the onset gate so a hand switch can't leave the cascade frozen on an

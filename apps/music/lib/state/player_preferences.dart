@@ -17,6 +17,7 @@ import 'dart:convert';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../painters/keyboard_range.dart';
 import '../services/preferences_service.dart';
 import 'player_data.dart' show Hand;
 
@@ -32,6 +33,9 @@ abstract class PlayerPrefs with _$PlayerPrefs {
     @Default(Hand.both) Hand hands,
     @Default(1.0) double speed,
     @Default(false) bool metronome,
+
+    /// On-screen keyboard range mode; defaults to auto-fit.
+    @Default(KeyboardRangeMode.auto) KeyboardRangeMode keyboardRange,
 
     /// Preferred MIDI input port name; null = auto (first real device).
     String? midiPort,
@@ -70,6 +74,8 @@ class PlayerPreferences extends _$PlayerPreferences {
       _update(state.copyWith(speed: speed.clamp(0.25, 2.0)));
   void setMetronome({required bool enabled}) =>
       _update(state.copyWith(metronome: enabled));
+  void setKeyboardRange(KeyboardRangeMode mode) =>
+      _update(state.copyWith(keyboardRange: mode));
   void setMidiPort(String? port) => _update(state.copyWith(midiPort: port));
 
   void _update(PlayerPrefs next) {
@@ -92,6 +98,7 @@ class PlayerPreferences extends _$PlayerPreferences {
     'hands': p.hands.name,
     'speed': p.speed,
     'metronome': p.metronome,
+    'keyboardRange': p.keyboardRange.name,
     'midiPort': p.midiPort,
   });
 
@@ -103,6 +110,9 @@ class PlayerPreferences extends _$PlayerPreferences {
         hands: Hand.values.asNameMap()[handName] ?? Hand.both,
         speed: (m['speed'] as num?)?.toDouble().clamp(0.25, 2.0) ?? 1.0,
         metronome: m['metronome'] as bool? ?? false,
+        keyboardRange:
+            KeyboardRangeMode.values.asNameMap()[m['keyboardRange'] as String?] ??
+            KeyboardRangeMode.auto,
         midiPort: m['midiPort'] as String?,
       );
     } catch (_) {

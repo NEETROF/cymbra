@@ -155,17 +155,17 @@ void main() {
 
     test('setKeyboardRange updates mode and keyboardBounds', () async {
       await build();
-      // Defaults to the full 88-key piano.
-      expect(read().keyboardRange, KeyboardRangeMode.keys88);
-      expect(read().keyboardBounds.low, 21);
-      expect(read().keyboardBounds.high, 108);
-
-      // Switching to auto fits the fake score (pitches 60 & 62).
-      notifier().setKeyboardRange(KeyboardRangeMode.auto);
+      // Defaults to auto-fit, sized to the fake score (pitches 60 & 62).
       expect(read().keyboardRange, KeyboardRangeMode.auto);
       final auto = read().keyboardBounds;
       expect(auto.low, lessThanOrEqualTo(60));
       expect(auto.high, greaterThanOrEqualTo(62));
+
+      // Pinning the 88-key preset shows the full piano.
+      notifier().setKeyboardRange(KeyboardRangeMode.keys88);
+      expect(read().keyboardRange, KeyboardRangeMode.keys88);
+      expect(read().keyboardBounds.low, 21);
+      expect(read().keyboardBounds.high, 108);
     });
   });
 

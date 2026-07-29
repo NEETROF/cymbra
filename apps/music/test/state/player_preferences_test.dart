@@ -37,6 +37,7 @@ void main() {
     expect(p.hands, Hand.both);
     expect(p.speed, 1.0);
     expect(p.metronome, isFalse);
+    expect(p.keyboardRange, KeyboardRangeMode.auto);
     expect(p.midiPort, isNull);
   });
 
@@ -46,6 +47,7 @@ void main() {
         'hands': 'left',
         'speed': 1.5,
         'metronome': true,
+        'keyboardRange': 'keys61',
         'midiPort': 'Synth',
       }),
     };
@@ -57,6 +59,7 @@ void main() {
     expect(p.hands, Hand.left);
     expect(p.speed, 1.5);
     expect(p.metronome, isTrue);
+    expect(p.keyboardRange, KeyboardRangeMode.keys61);
     expect(p.midiPort, 'Synth');
   });
 
@@ -68,6 +71,7 @@ void main() {
     notifier.setHands(Hand.right);
     notifier.setSpeed(1.25);
     notifier.setMetronome(enabled: true);
+    notifier.setKeyboardRange(KeyboardRangeMode.keys25);
     notifier.setMidiPort('Piano');
     await Future<void>.delayed(Duration.zero);
 
@@ -77,6 +81,7 @@ void main() {
     expect(saved['hands'], 'right');
     expect(saved['speed'], 1.25);
     expect(saved['metronome'], isTrue);
+    expect(saved['keyboardRange'], 'keys25');
     expect(saved['midiPort'], 'Piano');
   });
 

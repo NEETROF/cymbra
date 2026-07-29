@@ -16,7 +16,7 @@ import 'dart:math' as math;
 
 /// On-screen keyboard range modes: [auto] fits the loaded piece; the rest are
 /// fixed key-count presets.
-enum KeyboardRangeMode { auto, keys25, keys37, keys49, keys61, keys76, keys88 }
+enum KeyboardRangeMode { auto, keys25, keys49, keys61, keys88 }
 
 /// Lowest / highest MIDI pitch of an 88-key piano (A0 .. C8).
 const int kPianoLowest = 21;
@@ -36,10 +36,8 @@ extension KeyboardRangeModeLabel on KeyboardRangeMode {
   String get label => switch (this) {
     KeyboardRangeMode.auto => 'Auto',
     KeyboardRangeMode.keys25 => '25',
-    KeyboardRangeMode.keys37 => '37',
     KeyboardRangeMode.keys49 => '49',
     KeyboardRangeMode.keys61 => '61',
-    KeyboardRangeMode.keys76 => '76',
     KeyboardRangeMode.keys88 => '88',
   };
 }
@@ -48,20 +46,16 @@ extension KeyboardRangeModeLabel on KeyboardRangeMode {
 int? presetKeyCount(KeyboardRangeMode mode) => switch (mode) {
   KeyboardRangeMode.auto => null,
   KeyboardRangeMode.keys25 => 25,
-  KeyboardRangeMode.keys37 => 37,
   KeyboardRangeMode.keys49 => 49,
   KeyboardRangeMode.keys61 => 61,
-  KeyboardRangeMode.keys76 => 76,
   KeyboardRangeMode.keys88 => 88,
 };
 
 /// Standard low anchor (MIDI pitch) for each preset window.
 int _presetAnchorLow(KeyboardRangeMode mode) => switch (mode) {
   KeyboardRangeMode.keys25 => 48, // C3 .. C5
-  KeyboardRangeMode.keys37 => 48, // C3 .. C6
   KeyboardRangeMode.keys49 => 36, // C2 .. C6
   KeyboardRangeMode.keys61 => 36, // C2 .. C7
-  KeyboardRangeMode.keys76 => 28, // E1 .. G7
   KeyboardRangeMode.keys88 => kPianoLowest, // A0 .. C8
   KeyboardRangeMode.auto => _defaultLow,
 };
