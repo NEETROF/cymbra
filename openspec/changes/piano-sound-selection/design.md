@@ -45,9 +45,14 @@ into our own repo/infra — no runtime dependency on FreePats**:
 - **Upright Piano KW** — **CC0** (public domain, no attribution), ~27 MiB →
   **bundled default** (vendored by `piano-sound-output`; always present, no network).
 - **YDP Grand Piano** — **CC-BY 3.0** (credit Roberto / Zenph Studios), ~36 MiB →
-  download-on-first-use from our **self-hosted** copy.
+  download-on-first-use via `GET /soundfonts/ydp-grand` (private bucket, `add-soundfont-delivery`).
 - **Salamander Grand Piano** — **CC-BY 3.0** (credit Alexander Holm), ~296 MiB →
-  download-on-first-use from our **self-hosted** copy.
+  download-on-first-use via `GET /soundfonts/salamander-grand`.
+
+Both are CC-BY (free — served to any signed-in identity, `Tier::Free` in the delivery
+catalog); their required attribution is recorded in the delivery catalog entry AND surfaced
+in the in-app acknowledgements. The delivery route's `Tier::Paid` + entitlement seam is what
+a future **paid** font would use.
 
 The licenses (CC0 / CC-BY) explicitly permit redistribution, so we copy each file
 once and host it ourselves; the original source is just provenance, not a
@@ -107,12 +112,15 @@ concern. Reuse the same `set_soundfont` swap path as bundled/download pianos.
 
 ### Decision: Optional download-on-first-use behind the same byte-loader seam
 Bytes for a chosen piano come from a `SoundFontSource` seam keyed by `kind`:
-bundled assets load from the asset bundle; download sources fetch once, cache to
-app storage, and load from cache thereafter; **user** sources load from the copied
-imported file. A failed/absent download — or a now-missing imported file — **falls
-back to the bundled default** and surfaces a non-fatal message. **Why:** keeps the
-base bundle small while staying fully degradable; tests use a fake source returning
-fixed bytes.
+bundled assets load from the asset bundle; **download** sources fetch once from the
+backend SoundFont-delivery route **`GET /soundfonts/{id}`** (change
+`add-soundfont-delivery`) — sent with the app's `music` access token — cache to app
+storage, and load from cache thereafter; **user** sources load from the copied imported
+file. A failed/absent download — or a now-missing imported file — **falls back to the
+bundled default** and surfaces a non-fatal message. **Why:** keeps the base bundle small
+while staying fully degradable; the private route (not a public bucket) is what lets
+**paid** fonts be gated later behind the delivery route's entitlement check; tests use a
+fake source returning fixed bytes.
 **Trade-off:** download adds first-use latency and a cache to manage — keep it
 optional and out of the critical path (default piano is always bundled).
 
@@ -173,8 +181,12 @@ requirement exists to modify.
 
 ## Open Questions
 
-- **Download hosting** — decided: **self-host** our own copies of the CC-BY grands
-  (no runtime dependency on FreePats). Remaining detail: which bucket/CDN.
+- **Download hosting** — **decided** (change `add-soundfont-delivery`): the fonts live in
+  a dedicated **private** OVH S3 bucket `cymbra-soundfonts` and are served by the backend
+  route **`GET /soundfonts/{id}`** (authenticated, range-capable), *not* a public bucket/CDN.
+  The app's download source fetches from that route with its `music` access token, keyed by
+  the same **font ids** the delivery catalog exposes (e.g. `upright-piano-kw`,
+  `ydp-grand`, `salamander-grand`). Same host + ids as the back-office preview playback.
 - **Imported-file size cap** — clamp very large `.sf2` imports (e.g. multi-hundred-MB
   banks) or warn only? Decide during implementation.
 - **Per-piano gain normalization** — different SoundFonts have different loudness;
