@@ -287,93 +287,111 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
           children: [
             SafeArea(
               bottom: !context.isPhoneLayout,
-              child: Column(
-                children: [
-                  const _TopBar(),
-                  Expanded(
-                    child: Consumer(
-                      builder: (context, ref, child) {
-                        final data = ref.watch(playerProvider);
-                        // Load state of the selected score, surfaced in every
-                        // render mode (not just Partition): a fetch in flight
-                        // shows a spinner, a failure shows an error banner.
-                        final notation = ref.watch(notationProvider);
-                        final hasSelection =
-                            ref.watch(selectedScoreProvider) != null;
-                        return LayoutBuilder(
-                          builder: (context, constraints) {
-                            final bounds = data.keyboardBounds;
-                            final layout = PianoLayout(
-                              width: constraints.maxWidth,
-                              lowPitch: bounds.low,
-                              highPitch: bounds.high,
-                            );
-                            final keyboardHeight = _keyboardHeightFor(
-                              constraints.maxHeight,
-                              isPhone: context.isPhoneLayout,
-                            );
-                            // Synthesia always shows the keyboard (its cascade aligns
-                            // to the keys); the notation modes honour the user's
-                            // hide-keyboard setting, handing the freed height to the
-                            // score.
-                            final showKeyboard =
-                                data.mode == RenderMode.synthesia ||
-                                data.keyboardVisible;
-                            return Column(
-                              children: [
-                                // Clip the render area so a painter (e.g. high notes /
-                                // beams in Staff mode) never draws over the top bar or
-                                // the keyboard below.
-                                Expanded(
-                                  child: ClipRect(
-                                    child: _buildRenderArea(
-                                      layout,
-                                      data,
-                                      notation,
-                                      hasSelection: hasSelection,
-                                      isPhone: context.isPhoneLayout,
-                                    ),
+              child: Builder(
+                builder: (context) {
+                  final isPhone = context.isPhoneLayout;
+                  final Widget renderArea = Consumer(
+                    builder: (context, ref, child) {
+                      final data = ref.watch(playerProvider);
+                      // Load state of the selected score, surfaced in every
+                      // render mode (not just Partition): a fetch in flight
+                      // shows a spinner, a failure shows an error banner.
+                      final notation = ref.watch(notationProvider);
+                      final hasSelection =
+                          ref.watch(selectedScoreProvider) != null;
+                      return LayoutBuilder(
+                        builder: (context, constraints) {
+                          final bounds = data.keyboardBounds;
+                          final layout = PianoLayout(
+                            width: constraints.maxWidth,
+                            lowPitch: bounds.low,
+                            highPitch: bounds.high,
+                          );
+                          final keyboardHeight = _keyboardHeightFor(
+                            constraints.maxHeight,
+                            isPhone: context.isPhoneLayout,
+                          );
+                          // Synthesia always shows the keyboard (its cascade aligns
+                          // to the keys); the notation modes honour the user's
+                          // hide-keyboard setting, handing the freed height to the
+                          // score.
+                          final showKeyboard =
+                              data.mode == RenderMode.synthesia ||
+                              data.keyboardVisible;
+                          return Column(
+                            children: [
+                              // Clip the render area so a painter (e.g. high notes /
+                              // beams in Staff mode) never draws over the top bar or
+                              // the keyboard below.
+                              Expanded(
+                                child: ClipRect(
+                                  child: _buildRenderArea(
+                                    layout,
+                                    data,
+                                    notation,
+                                    hasSelection: hasSelection,
+                                    isPhone: context.isPhoneLayout,
                                   ),
                                 ),
-                                if (showKeyboard)
-                                  SizedBox(
-                                    height: keyboardHeight,
-                                    child: Listener(
-                                      key: const Key('onscreen-keyboard'),
-                                      onPointerDown: (e) =>
-                                          _onKeyboardPointerDown(
-                                            e,
-                                            layout,
-                                            keyboardHeight,
-                                          ),
-                                      onPointerUp: _onKeyboardPointerUp,
-                                      onPointerCancel: _onKeyboardPointerUp,
-                                      child: CustomPaint(
-                                        size: Size(
-                                          constraints.maxWidth,
+                              ),
+                              if (showKeyboard)
+                                SizedBox(
+                                  height: keyboardHeight,
+                                  child: Listener(
+                                    key: const Key('onscreen-keyboard'),
+                                    onPointerDown: (e) =>
+                                        _onKeyboardPointerDown(
+                                          e,
+                                          layout,
                                           keyboardHeight,
                                         ),
-                                        painter: PianoKeyboardPainter(
-                                          layout: layout,
-                                          activeNotes: data.activeNotes,
-                                          requiredNotes: data.expectedKeys,
-                                          leftHandNotes: data
-                                              .expectedKeysForHand(
-                                                rightHand: false,
-                                              ),
+                                    onPointerUp: _onKeyboardPointerUp,
+                                    onPointerCancel: _onKeyboardPointerUp,
+                                    child: CustomPaint(
+                                      size: Size(
+                                        constraints.maxWidth,
+                                        keyboardHeight,
+                                      ),
+                                      painter: PianoKeyboardPainter(
+                                        layout: layout,
+                                        activeNotes: data.activeNotes,
+                                        requiredNotes: data.expectedKeys,
+                                        leftHandNotes: data.expectedKeysForHand(
+                                          rightHand: false,
                                         ),
                                       ),
                                     ),
                                   ),
-                              ],
-                            );
-                          },
-                        );
-                      },
-                    ),
-                  ),
-                  _TransportBar(),
-                ],
+                                ),
+                            ],
+                          );
+                        },
+                      );
+                    },
+                  );
+                  // Phone (landscape-locked): keep the transport controls off
+                  // the bottom home-indicator zone by railing them on the right,
+                  // giving the render area + keyboard the full height. Tablet/
+                  // desktop keep the classic bottom bar.
+                  return Column(
+                    children: [
+                      const _TopBar(),
+                      if (isPhone)
+                        Expanded(
+                          child: Row(
+                            children: [
+                              Expanded(child: renderArea),
+                              const _TransportBar(axis: Axis.vertical),
+                            ],
+                          ),
+                        )
+                      else ...[
+                        Expanded(child: renderArea),
+                        const _TransportBar(),
+                      ],
+                    ],
+                  );
+                },
               ),
             ),
             // Race-game style get-ready countdown, centred over everything.
@@ -1273,32 +1291,111 @@ class _MidiStatusIndicator extends ConsumerWidget {
   }
 }
 
-/// Floating transport bar: restart, play/pause, speed, loop, Wait Mode.
+/// Floating transport controls: restart, play/pause, speed, Wait Mode.
+///
+/// On a phone the app runs landscape-locked, where the bottom edge is the iOS
+/// home-indicator zone — a horizontal bar there overlaps it. So the phone lays
+/// these out as a vertical [Axis.vertical] side rail on the right (like the
+/// rating deck), clearing the indicator and handing the freed height back to
+/// the keyboard. Tablet/desktop keep the roomier horizontal floating pill.
 class _TransportBar extends ConsumerWidget {
+  const _TransportBar({this.axis = Axis.horizontal});
+
+  /// Layout direction: a bottom bar ([Axis.horizontal]) or a side rail
+  /// ([Axis.vertical], used on phones).
+  final Axis axis;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final data = ref.watch(playerProvider);
     final notifier = ref.read(playerProvider.notifier);
 
-    // On a phone the landscape height is scarce, so the transport bar slims
-    // down: tighter margin/padding, a smaller play button, and denser icon
-    // buttons — reclaiming vertical space for the render area. Tablet/desktop
-    // keep the roomier floating pill.
+    // On a phone the landscape space is scarce, so the controls slim down:
+    // tighter margin/padding, a smaller play button, and denser icon buttons.
     final isPhone = context.isPhoneLayout;
+    final vertical = axis == Axis.vertical;
     final density = isPhone ? VisualDensity.compact : VisualDensity.standard;
     final playRadius = isPhone ? 19.0 : 26.0;
     final playIcon = isPhone ? 22.0 : 28.0;
     final gapL = isPhone ? 8.0 : 16.0;
     final gapS = isPhone ? 4.0 : 8.0;
 
+    final restart = IconButton(
+      visualDensity: density,
+      // Restart from the top, replaying the get-ready countdown.
+      onPressed: notifier.restartFromTop,
+      icon: const Icon(Icons.skip_previous, color: CymbraColors.onSurface),
+    );
+    // Play / pause. Play arms the get-ready countdown (from the top); pause
+    // stops immediately.
+    final playPause = GestureDetector(
+      onTap: data.isPlaying
+          ? () => notifier.setPlaying(false)
+          : notifier.startPlayback,
+      child: CircleAvatar(
+        radius: playRadius,
+        backgroundColor: CymbraColors.primaryContainer,
+        child: Icon(
+          data.isPlaying ? Icons.pause : Icons.play_arrow,
+          color: Colors.white,
+          size: playIcon,
+        ),
+      ),
+    );
+    final speedDown = IconButton(
+      visualDensity: density,
+      onPressed: () => notifier.setSpeed(data.speed - 0.25),
+      icon: const Icon(Icons.remove, color: CymbraColors.onSurfaceVariant),
+    );
+    final speedUp = IconButton(
+      visualDensity: density,
+      onPressed: () => notifier.setSpeed(data.speed + 0.25),
+      icon: const Icon(Icons.add, color: CymbraColors.onSurfaceVariant),
+    );
+    // The narrow rail drops the "SPD" suffix to stay slim.
+    final speedLabel = Text(
+      vertical
+          ? '${(data.speed * 100).round()}%'
+          : '${(data.speed * 100).round()}% SPD',
+      style: const TextStyle(
+        color: CymbraColors.onSurface,
+        fontWeight: FontWeight.w600,
+      ),
+    );
+    // Wait Mode — an icon-only toggle in the rail (labelled in the bottom bar).
+    final waitColor = data.waitMode
+        ? CymbraColors.secondary
+        : CymbraColors.onSurfaceVariant;
+    final waitIcon = Icon(
+      data.waitMode ? Icons.hourglass_top : Icons.hourglass_disabled,
+      color: waitColor,
+    );
+    final wait = vertical
+        ? IconButton(
+            visualDensity: density,
+            tooltip: 'Wait',
+            onPressed: notifier.toggleWaitMode,
+            icon: waitIcon,
+          )
+        : TextButton.icon(
+            style: TextButton.styleFrom(visualDensity: density),
+            onPressed: notifier.toggleWaitMode,
+            icon: waitIcon,
+            label: Text('Wait', style: TextStyle(color: waitColor)),
+          );
+
     return Container(
       key: const Key('transport-bar'),
-      // Hug the bottom edge on phones (small top gap off the keyboard, minimal
-      // gap below); the roomier all-round pill stays on tablet/desktop.
-      margin: isPhone
+      // Rail: hug the right edge, centred vertically. Bottom bar: hug the
+      // bottom edge on phones, roomier all-round pill on tablet/desktop.
+      margin: vertical
+          ? const EdgeInsets.symmetric(vertical: 8, horizontal: 4)
+          : isPhone
           ? const EdgeInsets.only(left: 12, right: 12, top: 4, bottom: 2)
           : const EdgeInsets.all(16),
-      padding: isPhone
+      padding: vertical
+          ? const EdgeInsets.symmetric(horizontal: 2, vertical: 8)
+          : isPhone
           ? const EdgeInsets.symmetric(horizontal: 12, vertical: 2)
           : const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       decoration: BoxDecoration(
@@ -1306,79 +1403,36 @@ class _TransportBar extends ConsumerWidget {
         borderRadius: BorderRadius.circular(999),
         border: Border.all(color: CymbraColors.outlineVariant),
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          IconButton(
-            visualDensity: density,
-            // Restart from the top, replaying the get-ready countdown.
-            onPressed: notifier.restartFromTop,
-            icon: const Icon(
-              Icons.skip_previous,
-              color: CymbraColors.onSurface,
+      child: vertical
+          ? Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                playPause,
+                SizedBox(height: gapL),
+                restart,
+                SizedBox(height: gapL),
+                speedUp,
+                speedLabel,
+                speedDown,
+                SizedBox(height: gapS),
+                wait,
+              ],
+            )
+          : Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                restart,
+                SizedBox(width: gapS),
+                playPause,
+                SizedBox(width: gapL),
+                speedDown,
+                speedLabel,
+                speedUp,
+                SizedBox(width: gapS),
+                wait,
+              ],
             ),
-          ),
-          SizedBox(width: gapS),
-          // Play / pause. Play arms the get-ready countdown (from the top);
-          // pause stops immediately.
-          GestureDetector(
-            onTap: data.isPlaying
-                ? () => notifier.setPlaying(false)
-                : notifier.startPlayback,
-            child: CircleAvatar(
-              radius: playRadius,
-              backgroundColor: CymbraColors.primaryContainer,
-              child: Icon(
-                data.isPlaying ? Icons.pause : Icons.play_arrow,
-                color: Colors.white,
-                size: playIcon,
-              ),
-            ),
-          ),
-          SizedBox(width: gapL),
-          // Speed.
-          IconButton(
-            visualDensity: density,
-            onPressed: () => notifier.setSpeed(data.speed - 0.25),
-            icon: const Icon(
-              Icons.remove,
-              color: CymbraColors.onSurfaceVariant,
-            ),
-          ),
-          Text(
-            '${(data.speed * 100).round()}% SPD',
-            style: const TextStyle(
-              color: CymbraColors.onSurface,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          IconButton(
-            visualDensity: density,
-            onPressed: () => notifier.setSpeed(data.speed + 0.25),
-            icon: const Icon(Icons.add, color: CymbraColors.onSurfaceVariant),
-          ),
-          SizedBox(width: gapS),
-          // Wait Mode.
-          TextButton.icon(
-            style: TextButton.styleFrom(visualDensity: density),
-            onPressed: notifier.toggleWaitMode,
-            icon: Icon(
-              data.waitMode ? Icons.hourglass_top : Icons.hourglass_disabled,
-              color: data.waitMode
-                  ? CymbraColors.secondary
-                  : CymbraColors.onSurfaceVariant,
-            ),
-            label: Text(
-              'Wait',
-              style: TextStyle(
-                color: data.waitMode
-                    ? CymbraColors.secondary
-                    : CymbraColors.onSurfaceVariant,
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

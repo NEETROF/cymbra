@@ -580,16 +580,6 @@ void main() {
     double keyboardHeight(WidgetTester tester) =>
         tester.getSize(find.byKey(const Key('onscreen-keyboard'))).height;
 
-    // Full vertical footprint of the transport bar (its margin included).
-    double transportFootprint(WidgetTester tester) {
-      final bar = find.byKey(const Key('transport-bar'));
-      final container = tester.widget<Container>(bar);
-      final margin = (container.margin ?? EdgeInsets.zero).resolve(
-        TextDirection.ltr,
-      );
-      return tester.getSize(bar).height + margin.vertical;
-    }
-
     double titleFontSize(WidgetTester tester) =>
         tester.widget<Text>(find.text('Cymbra Music')).style!.fontSize!;
 
@@ -706,7 +696,7 @@ void main() {
         expect(
           bottomInsets(tester),
           contains(false),
-          reason: 'phone lets the transport bar reach the bottom edge',
+          reason: 'phone lets the keyboard reach the bottom edge',
         );
         await teardownScreen(tester);
 
@@ -720,23 +710,39 @@ void main() {
       });
     });
 
-    testWidgets('transport bar is slimmer on a phone than on a tablet', (
-      tester,
-    ) async {
+    testWidgets('transport controls rail on the right on a phone, bottom bar '
+        'on a tablet', (tester) async {
       await onMobile(tester, () async {
         await pumpAt(tester, phone);
-        final phoneBar = transportFootprint(tester);
+        final phoneBar = tester.getRect(find.byKey(const Key('transport-bar')));
+        final phoneKb = tester.getRect(
+          find.byKey(const Key('onscreen-keyboard')),
+        );
+        // A vertical side rail: taller than wide, sitting to the right of the
+        // keyboard rather than below it — clear of the bottom home indicator.
+        expect(
+          phoneBar.height,
+          greaterThan(phoneBar.width),
+          reason: 'the phone controls form a vertical side rail',
+        );
+        expect(
+          phoneBar.left,
+          greaterThanOrEqualTo(phoneKb.right - 1),
+          reason: 'the rail sits to the right of the keyboard',
+        );
         await teardownScreen(tester);
 
         await pumpAt(tester, tablet);
-        final tabletBar = transportFootprint(tester);
-        await teardownScreen(tester);
-
-        expect(
-          phoneBar,
-          lessThan(tabletBar),
-          reason: 'the phone transport bar reclaims vertical space',
+        final tabletBar = tester.getRect(
+          find.byKey(const Key('transport-bar')),
         );
+        // The tablet keeps the classic horizontal bottom bar.
+        expect(
+          tabletBar.width,
+          greaterThan(tabletBar.height),
+          reason: 'tablet keeps a horizontal bottom bar',
+        );
+        await teardownScreen(tester);
       });
     });
   });
