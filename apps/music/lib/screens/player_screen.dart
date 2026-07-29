@@ -289,7 +289,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
               bottom: !context.isPhoneLayout,
               child: Builder(
                 builder: (context) {
-                  final isPhone = context.isPhoneLayout;
+                  // Touch form factors (phone + tablet) rail the transport
+                  // controls on the right; desktop keeps the bottom bar.
+                  final useRail = context.deviceClass != DeviceClass.desktop;
                   final Widget renderArea = Consumer(
                     builder: (context, ref, child) {
                       final data = ref.watch(playerProvider);
@@ -371,12 +373,13 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                   );
                   // Phone (landscape-locked): keep the transport controls off
                   // the bottom home-indicator zone by railing them on the right,
-                  // giving the render area + keyboard the full height. Tablet/
-                  // desktop keep the classic bottom bar.
+                  // giving the render area + keyboard the full height. The tablet
+                  // rails them too (consistency + freed height); only the desktop
+                  // keeps the classic bottom bar.
                   return Column(
                     children: [
                       const _TopBar(),
-                      if (isPhone)
+                      if (useRail)
                         Expanded(
                           child: Row(
                             children: [
@@ -1294,15 +1297,17 @@ class _MidiStatusIndicator extends ConsumerWidget {
 /// Floating transport controls: restart, play/pause, speed, Wait Mode.
 ///
 /// On a phone the app runs landscape-locked, where the bottom edge is the iOS
-/// home-indicator zone — a horizontal bar there overlaps it. So the phone lays
-/// these out as a vertical [Axis.vertical] side rail on the right (like the
-/// rating deck), clearing the indicator and handing the freed height back to
-/// the keyboard. Tablet/desktop keep the roomier horizontal floating pill.
+/// home-indicator zone — a horizontal bar there overlaps it. So touch form
+/// factors lay these out as a vertical [Axis.vertical] side rail on the right
+/// (like the rating deck), clearing the indicator and handing the freed height
+/// back to the keyboard: slim on the phone, roomier on the tablet (bigger play
+/// button, "Wait" label, "% SPD"). Only the desktop keeps the horizontal
+/// floating pill along the bottom.
 class _TransportBar extends ConsumerWidget {
   const _TransportBar({this.axis = Axis.horizontal});
 
-  /// Layout direction: a bottom bar ([Axis.horizontal]) or a side rail
-  /// ([Axis.vertical], used on phones).
+  /// Layout direction: the desktop bottom bar ([Axis.horizontal]) or the
+  /// phone/tablet side rail ([Axis.vertical]).
   final Axis axis;
 
   @override
@@ -1352,9 +1357,10 @@ class _TransportBar extends ConsumerWidget {
       onPressed: () => notifier.setSpeed(data.speed + 0.25),
       icon: const Icon(Icons.add, color: CymbraColors.onSurfaceVariant),
     );
-    // The narrow rail drops the "SPD" suffix to stay slim.
+    // The slim phone rail drops the "SPD" suffix; the roomier tablet rail and
+    // the desktop bottom bar keep it.
     final speedLabel = Text(
-      vertical
+      isPhone
           ? '${(data.speed * 100).round()}%'
           : '${(data.speed * 100).round()}% SPD',
       style: const TextStyle(
@@ -1362,7 +1368,8 @@ class _TransportBar extends ConsumerWidget {
         fontWeight: FontWeight.w600,
       ),
     );
-    // Wait Mode — an icon-only toggle in the rail (labelled in the bottom bar).
+    // Wait Mode — an icon-only toggle on the slim phone rail, labelled
+    // everywhere else (tablet rail + desktop bottom bar).
     final waitColor = data.waitMode
         ? CymbraColors.secondary
         : CymbraColors.onSurfaceVariant;
@@ -1370,7 +1377,7 @@ class _TransportBar extends ConsumerWidget {
       data.waitMode ? Icons.hourglass_top : Icons.hourglass_disabled,
       color: waitColor,
     );
-    final wait = vertical
+    final wait = isPhone
         ? IconButton(
             visualDensity: density,
             tooltip: 'Wait',
@@ -1386,8 +1393,9 @@ class _TransportBar extends ConsumerWidget {
 
     return Container(
       key: const Key('transport-bar'),
-      // Rail: hug the right edge, centred vertically. Bottom bar: hug the
-      // bottom edge on phones, roomier all-round pill on tablet/desktop.
+      // Rail (phone + tablet): hug the right edge, centred vertically. Bottom
+      // bar (desktop only): the roomier all-round floating pill. The phone
+      // branch of the horizontal case is kept for robustness if reused.
       margin: vertical
           ? const EdgeInsets.symmetric(vertical: 8, horizontal: 4)
           : isPhone
