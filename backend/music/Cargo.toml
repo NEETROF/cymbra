@@ -8,6 +8,8 @@ description = "Cymbra music-domain module — the public score catalog (crawler-
 
 [dependencies]
 async-trait.workspace = true
+# Per-row progress/skip logging for the title backfill maintenance path.
+tracing.workspace = true
 sqlx.workspace = true
 serde = { workspace = true }
 uuid.workspace = true

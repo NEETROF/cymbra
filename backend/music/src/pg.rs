@@ -606,6 +606,82 @@ impl ScoreRatingRepo for PgScoreRatingRepo {
     }
 }
 
+// ---------------------------------------------------------------------------
+// Title backfill (recompute catalog titles from stored bytes) — thin SQL glue for
+// [`crate::backfill`]. `anyhow`-based like the ingestion path (run by a one-off
+// maintenance binary, not over gRPC). Coverage-excluded; the paging/keyset logic
+// and the plan/apply orchestration are host-tested with fakes in `backfill.rs`.
+// ---------------------------------------------------------------------------
+
+use crate::backfill::{BackfillRow, TitleBackfillRepo, TitleUpdate};
+
+/// Postgres-backed [`TitleBackfillRepo`] over an ingestion/admin pool.
+pub struct PgTitleBackfillRepo {
+    pool: PgPool,
+}
+
+impl PgTitleBackfillRepo {
+    pub fn new(pool: PgPool) -> Self {
+        Self { pool }
+    }
+}
+
+#[async_trait]
+impl TitleBackfillRepo for PgTitleBackfillRepo {
+    async fn page(
+        &self,
+        after: &str,
+        source: Option<&str>,
+        limit: i64,
+    ) -> Result<Vec<BackfillRow>> {
+        // Keyset paging on the UUID PK: `id > $1` (NULL $1 → from the start),
+        // ordered by `id` for a stable, resumable scan. An optional `source` scopes
+        // the sweep (e.g. only `openscore`). `after` is a UUID text; an unparseable
+        // value (including "") means "from the start".
+        let after_uuid = uuid::Uuid::parse_str(after).ok();
+        let rows = sqlx::query(
+            "SELECT id, object_key, title FROM music.catalog_scores \
+             WHERE ($1::uuid IS NULL OR id > $1) \
+               AND ($2::text IS NULL OR source = $2) \
+             ORDER BY id ASC LIMIT $3",
+        )
+        .bind(after_uuid)
+        .bind(source)
+        .bind(limit)
+        .fetch_all(&self.pool)
+        .await
+        .context("backfill page")?;
+        Ok(rows
+            .iter()
+            .map(|r| BackfillRow {
+                id: r.get::<uuid::Uuid, _>("id").to_string(),
+                object_key: r.get("object_key"),
+                title: r.get("title"),
+            })
+            .collect())
+    }
+
+    async fn update_title(&self, id: &str, update: &TitleUpdate) -> Result<()> {
+        let uuid = uuid::Uuid::parse_str(id).context("backfill update: bad id")?;
+        // Rewrite the display title AND its search key + work key together, so
+        // `title`/`title_norm`/`work_key` stay mutually consistent (search matches
+        // `title_norm`, never the display `title`).
+        sqlx::query(
+            "UPDATE music.catalog_scores \
+             SET title = $2, title_norm = $3, work_key = $4 \
+             WHERE id = $1",
+        )
+        .bind(uuid)
+        .bind(&update.title)
+        .bind(&update.title_norm)
+        .bind(&update.work_key)
+        .execute(&self.pool)
+        .await
+        .context("backfill update_title")?;
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
