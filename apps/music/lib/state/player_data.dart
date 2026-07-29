@@ -130,6 +130,27 @@ double effectiveStartMs(
   return start < 0 ? 0 : start;
 }
 
+/// The playhead position a fresh run/transport should stop (finish or loop) at
+/// for [visibleNotes]: the resolution of the last note — the largest
+/// `startMs + durationMs` — so trailing rests / empty trailing measures after
+/// the last note are skipped. Clamped to no later than [songEndMs] so a note
+/// held past the raw end can never push it out, and falls back to [songEndMs]
+/// when there are no notes (nothing to trim). Pure and host-testable;
+/// [visibleNotes] need not be sorted.
+double effectiveEndMs(
+  List<TimedNote> visibleNotes, {
+  required double songEndMs,
+}) {
+  if (visibleNotes.isEmpty) return songEndMs;
+  var lastEnd = (visibleNotes.first.startMs + visibleNotes.first.durationMs)
+      .toDouble();
+  for (final n in visibleNotes) {
+    final end = (n.startMs + n.durationMs).toDouble();
+    if (end > lastEnd) lastEnd = end;
+  }
+  return lastEnd < songEndMs ? lastEnd : songEndMs;
+}
+
 /// Immutable player state (replaces the former `ChangeNotifier`).
 ///
 /// Held by the `Player` Riverpod notifier; the UI watches it and mutates it via
@@ -267,6 +288,12 @@ abstract class PlayerData with _$PlayerData {
   /// (see [effectiveStartMs]), so leading rests / empty measures are trimmed.
   /// `0` when the selection has no notes or already starts near the beginning.
   double get startMs => effectiveStartMs(visibleNotes);
+
+  /// Effective end of the current selection — where a fresh run finishes (scored)
+  /// or loops (unscored). The last visible note's resolution (see
+  /// [effectiveEndMs]), so trailing rests / empty measures are trimmed. Falls
+  /// back to [songEndMs] when the selection has no notes.
+  double get endMs => effectiveEndMs(visibleNotes, songEndMs: songEndMs);
 
   /// Whether the loaded piece has any left-hand (staff 2+) notes, so isolating a
   /// hand is meaningful. The hand selector is shown only then — a single-staff
