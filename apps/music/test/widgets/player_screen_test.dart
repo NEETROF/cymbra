@@ -543,10 +543,12 @@ void main() {
 
   group('adaptive smartphone layout', () {
     // A phone / tablet landscape viewport (shortest side 375 / 768), plus a
-    // deliberately narrow phone (iPhone-SE-class) to stress the top-bar fit.
+    // deliberately narrow phone (iPhone-SE-class) to stress the top-bar fit and
+    // a desktop-class viewport (shortest side ≥ 900) for the bottom-bar path.
     const phone = Size(812, 375);
     const smallPhone = Size(667, 375);
     const tablet = Size(1024, 768);
+    const desktop = Size(1600, 1000);
 
     // Forces the target platform to iOS so the size-based device-class path
     // drives the layout (not the desktop-platform override), then resets it
@@ -579,16 +581,6 @@ void main() {
 
     double keyboardHeight(WidgetTester tester) =>
         tester.getSize(find.byKey(const Key('onscreen-keyboard'))).height;
-
-    // Full vertical footprint of the transport bar (its margin included).
-    double transportFootprint(WidgetTester tester) {
-      final bar = find.byKey(const Key('transport-bar'));
-      final container = tester.widget<Container>(bar);
-      final margin = (container.margin ?? EdgeInsets.zero).resolve(
-        TextDirection.ltr,
-      );
-      return tester.getSize(bar).height + margin.vertical;
-    }
 
     double titleFontSize(WidgetTester tester) =>
         tester.widget<Text>(find.text('Cymbra Music')).style!.fontSize!;
@@ -706,7 +698,7 @@ void main() {
         expect(
           bottomInsets(tester),
           contains(false),
-          reason: 'phone lets the transport bar reach the bottom edge',
+          reason: 'phone lets the keyboard reach the bottom edge',
         );
         await teardownScreen(tester);
 
@@ -720,23 +712,63 @@ void main() {
       });
     });
 
-    testWidgets('transport bar is slimmer on a phone than on a tablet', (
-      tester,
-    ) async {
-      await onMobile(tester, () async {
-        await pumpAt(tester, phone);
-        final phoneBar = transportFootprint(tester);
-        await teardownScreen(tester);
-
-        await pumpAt(tester, tablet);
-        final tabletBar = transportFootprint(tester);
-        await teardownScreen(tester);
-
+    testWidgets('transport controls rail on the right on touch form factors, '
+        'bottom bar on desktop', (tester) async {
+      // A right-side vertical rail: taller than wide, sitting to the right of
+      // the keyboard rather than below it — clear of the bottom home indicator.
+      Future<void> expectRail(WidgetTester tester, Size size) async {
+        await pumpAt(tester, size);
+        final bar = tester.getRect(find.byKey(const Key('transport-bar')));
+        final kb = tester.getRect(find.byKey(const Key('onscreen-keyboard')));
         expect(
-          phoneBar,
-          lessThan(tabletBar),
-          reason: 'the phone transport bar reclaims vertical space',
+          bar.height,
+          greaterThan(bar.width),
+          reason: 'controls form a vertical side rail at $size',
         );
+        expect(
+          bar.left,
+          greaterThanOrEqualTo(kb.right - 1),
+          reason: 'the rail sits to the right of the keyboard at $size',
+        );
+        await teardownScreen(tester);
+      }
+
+      await onMobile(tester, () async {
+        // Phone (slim rail) and tablet (roomier rail) both rail on the right.
+        await expectRail(tester, phone);
+        await expectRail(tester, tablet);
+
+        // The desktop-class viewport keeps the classic horizontal bottom bar.
+        await pumpAt(tester, desktop);
+        final desktopBar = tester.getRect(
+          find.byKey(const Key('transport-bar')),
+        );
+        expect(
+          desktopBar.width,
+          greaterThan(desktopBar.height),
+          reason: 'desktop keeps a horizontal bottom bar',
+        );
+        await teardownScreen(tester);
+      });
+    });
+
+    testWidgets('the tablet rail keeps the full "% SPD" label and a labelled '
+        'Wait, the phone rail slims them', (tester) async {
+      await onMobile(tester, () async {
+        // Phone (slim rail): the "SPD" suffix is dropped and Wait is icon-only
+        // (a plain "100%" label would clash with the scoring overlay's own
+        // percentage, so we assert on the suffix that's unique to the speed
+        // label instead).
+        await pumpAt(tester, phone);
+        expect(find.text('100% SPD'), findsNothing);
+        expect(find.widgetWithText(TextButton, 'Wait'), findsNothing);
+        await teardownScreen(tester);
+
+        // Tablet (roomier rail): the full label and the labelled Wait button.
+        await pumpAt(tester, tablet);
+        expect(find.text('100% SPD'), findsOneWidget);
+        expect(find.widgetWithText(TextButton, 'Wait'), findsOneWidget);
+        await teardownScreen(tester);
       });
     });
   });
