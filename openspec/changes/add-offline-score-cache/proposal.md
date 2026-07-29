@@ -21,6 +21,15 @@ must be cryptographically useless on its own.
 - At score open, the app **prefers the local encrypted copy** when present, so a
   favorited-and-once-opened score plays even with no connection at startup. The
   network fetch remains the source of truth and refresh path when online.
+- **Offline favorites list**: the favorites list is itself backend-fetched
+  today (`savedCatalogScoresProvider` / `myUploadsProvider`), so with no network
+  at launch the home would fail to populate and the cached bytes would be
+  unreachable. The app therefore also persists a **last-known-good snapshot of
+  the favorites index** (entry metadata only — id, kind, title, composer, level;
+  **no score bytes**) on every successful online fetch, and **falls back to it
+  when offline** so the home renders and favorites are navigable. Each favorite
+  indicates whether its bytes are cached (**playable offline**) or not (visible
+  but shows the "unavailable offline" message when opened).
 - Encryption uses **per-file envelope encryption** (AES-256-GCM with a random
   data key). The data key is wrapped by a key derived (HKDF) from: a
   hardware-backed device key (Secure Enclave / Android Keystore where available,

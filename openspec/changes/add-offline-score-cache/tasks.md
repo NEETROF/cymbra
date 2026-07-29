@@ -78,6 +78,25 @@
   the localized failure, matching-hash skips re-download, changed-hash rewrites,
   corrupted-file → miss.
 
+## 4b. App — offline favorites index snapshot
+
+- [ ] 4b.1 Add a `favorites-index:<userId>` snapshot to the cache service
+  (envelope-encrypted, metadata only — no bytes): `writeIndex(entries)` /
+  `readIndex()`.
+- [ ] 4b.2 Write the snapshot whenever
+  [saved_catalog_scores.dart](apps/music/lib/state/saved_catalog_scores.dart) /
+  [contributed_scores.dart](apps/music/lib/state/contributed_scores.dart) fetch
+  successfully (persist the resolved `CatalogEntry` list, no bytes).
+- [ ] 4b.3 Fallback: when the online fetch fails (offline), return the snapshot
+  from those providers instead of surfacing `AsyncError`, so the home renders.
+- [ ] 4b.4 Annotate each favorite with a "bytes cached / playable offline" flag
+  (probe the cache) for the home to render; opening a non-cached favorite offline
+  hits the existing "unavailable offline" typed failure.
+- [ ] 4b.5 Clear the snapshot on sign-out (folded into `purgeAll`).
+- [ ] 4b.6 Tests: offline-launch renders from snapshot, successful fetch rewrites
+  snapshot, guest/signed-out empty, playable flag reflects byte-cache presence,
+  sign-out clears snapshot.
+
 ## 5. App — eviction wiring
 
 - [ ] 5.1 On remove-saved-catalog-score

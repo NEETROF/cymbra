@@ -189,6 +189,43 @@ _Alternative rejected_: periodic background polling / a "last-modified" timestam
 — unnecessary given content-addressing, and it would add network chatter and a
 mutable field the schema deliberately doesn't have.
 
+### D8 — Offline favorites index snapshot (the home must render offline)
+
+Caching bytes is not enough: the favorites list itself is backend-fetched
+(`SavedCatalogScores._fetch` → `listSaved()`, `MyUploads.build` →
+`listMyScores()`), so with no network at launch both providers land in
+`AsyncError` and the home never shows a tile to tap — the encrypted bytes would
+be unreachable. The session does stay authenticated offline (a transient
+`getAccount()` failure keeps `SessionState.authenticated()`), so
+`canUseOnlineServices` is true and the favorites path runs; it just can't reach
+the backend.
+
+Fix: persist a **last-known-good favorites index snapshot** and fall back to it
+offline.
+
+- **Write**: on every successful online favorites fetch, persist the resolved
+  `CatalogEntry` list (id, kind, `catalogId`/`contributedId`, title, composer,
+  level — **no bytes**), scoped to `currentUserId`.
+- **Read/fallback**: when the online fetch fails (offline), the providers return
+  the snapshot instead of erroring — stale-while-offline. When it succeeds, the
+  snapshot is refreshed. Guest/signed-out still yields an empty list, and
+  sign-out clears the snapshot (part of the D6 purge).
+- **Playable flag**: each favorite is annotated with whether its encrypted bytes
+  are present in the cache. Byte-cached favorites play offline; the rest are
+  shown but resolve to the existing typed "unavailable offline"
+  `ScoreLoadFailure` when opened without network — no separate error path.
+
+**Sensitivity / storage**: the index holds only titles/composers/ids the user
+saved, not licensed bytes. For a single fail-closed policy and uniform key
+custody, the snapshot is stored through the **same envelope** (cache key
+`favorites-index:<userId>`) rather than a second plaintext store — so a
+no-keystore install simply has no snapshot (home is empty offline, i.e. today's
+behavior), consistent with D3.
+
+_Alternative rejected_: keep the favorites list online-only and cache bytes
+only. Then offline-at-launch shows an empty/error home and the whole feature is
+unusable exactly when it is needed most.
+
 ## Risks / Trade-offs
 
 - **[Full device compromise decrypts the cache]** → Out of scope by definition

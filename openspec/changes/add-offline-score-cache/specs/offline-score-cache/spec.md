@@ -93,6 +93,41 @@ the file alone.
 - **THEN** authenticated decryption fails and the entry is treated as a cache
   miss (re-fetched when online)
 
+### Requirement: Offline favorites list from a last-known-good snapshot
+
+Because the favorites list is backend-fetched, the app SHALL persist a
+last-known-good snapshot of the authenticated user's favorites index — entry
+metadata only (id, kind, catalog/contributed id, title, composer, level) and
+**never score bytes** — on every successful online fetch, scoped to the user.
+When the online fetch fails (e.g. no network at launch), the app SHALL render the
+home from this snapshot instead of showing an error, so favorites are visible and
+navigable offline. Each listed favorite SHALL indicate whether its encrypted
+bytes are cached (playable offline) or not. The snapshot SHALL be cleared on
+sign-out and MUST be empty for a guest / signed-out session.
+
+#### Scenario: Offline launch renders favorites from the snapshot
+
+- **WHEN** the app launches with no network for an authenticated user who has a
+  saved favorites snapshot
+- **THEN** the home lists those favorites (from the snapshot) rather than showing
+  an error or empty state
+
+#### Scenario: Successful online fetch refreshes the snapshot
+
+- **WHEN** the favorites list is fetched successfully online
+- **THEN** the local snapshot is updated to match, with no score bytes stored in it
+
+#### Scenario: A favorite without cached bytes is visible but not offline-playable
+
+- **WHEN** the home renders offline and a listed favorite has no cached bytes
+- **THEN** the favorite is shown, and opening it offline surfaces the localized
+  "unavailable offline" message
+
+#### Scenario: Sign-out clears the snapshot
+
+- **WHEN** the user signs out or their account is deleted
+- **THEN** the favorites snapshot is cleared along with the rest of the cache
+
 ### Requirement: Content-hash freshness and integrity guard
 
 The app SHALL store the score's server content hash (ETag) alongside each cache
