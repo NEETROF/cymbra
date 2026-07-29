@@ -28,8 +28,12 @@ must be cryptographically useless on its own.
   the favorites index** (entry metadata only — id, kind, title, composer, level;
   **no score bytes**) on every successful online fetch, and **falls back to it
   when offline** so the home renders and favorites are navigable. Each favorite
-  indicates whether its bytes are cached (**playable offline**) or not (visible
-  but shows the "unavailable offline" message when opened).
+  indicates whether its bytes are cached (**playable offline**) or not.
+- **Clear offline feedback**: non-playable favorites are visibly marked while
+  offline, and opening one shows a **dedicated** localized "not available
+  offline" message (a new `ScoreLoadFailure` variant, distinct from the generic
+  server-unavailable message) — never a raw error, and the user stays put rather
+  than entering an empty player.
 - **The favorites index survives even without a keystore**: the index is
   non-sensitive metadata (no licensed bytes), so it is stored in **plaintext**
   local storage, **decoupled from the encrypted byte cache**. The fail-closed

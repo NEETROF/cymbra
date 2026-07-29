@@ -67,8 +67,14 @@
 - [ ] 4.2 On a successful network fetch of a favorited entry with caching
   enabled, write the encrypted copy ("opened once while favorited").
 - [ ] 4.3 Keep bundled assets and non-favorited entries out of the cache path.
-- [ ] 4.4 Offline + no cache → existing typed `ScoreLoadFailure` mapped to a
-  localized "unavailable offline" message (no raw errors).
+- [ ] 4.4 Add a `ScoreLoadFailure.offlineUnavailable` variant + l10n string; the
+  load path classifies to it when there is no local copy and connectivity is
+  offline (else keep `unavailable`). Wire it into
+  [score_load_message.dart](apps/music/lib/screens/score_load_message.dart);
+  no raw errors, user stays put (existing snackbar-on-failure path).
+- [ ] 4.4b Home/library: mark favorites without cached bytes as "not available
+  offline" while the app is offline (drive off the index's playable flag +
+  `connectivityService`).
 - [ ] 4.5 Store the server content hash (ETag) with each cache entry; on online
   open do a conditional fetch — unchanged ⇒ keep cache (no re-encrypt),
   mismatch ⇒ rewrite. On read, recompute the hash and treat a mismatch (corrupt/

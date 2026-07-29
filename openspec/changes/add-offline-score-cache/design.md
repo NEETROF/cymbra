@@ -132,6 +132,17 @@ Cache key = a stable per-entry id (`contributed:<id>` / `catalog:<id>`). The
 write happens **after** a successful fetch of a favorited entry — "opened once
 while favorited" — matching the requirement exactly.
 
+**Offline feedback**: the existing typed-failure path
+([score_load_message.dart](apps/music/lib/screens/score_load_message.dart),
+snackbar on failure while staying on the library — [open_score.dart](apps/music/lib/screens/open_score.dart))
+is reused, with a **new `ScoreLoadFailure.offlineUnavailable` variant** and l10n
+string so the offline-not-cached case reads honestly ("not available offline")
+instead of the generic `playerScoreUnavailable`. The load path classifies to it
+when the entry has no local copy and connectivity is offline (via
+`connectivityService`), else keeps `unavailable` for an online-but-failing
+backend. Proactively, the home uses the index's per-entry "bytes cached" flag to
+mark non-playable favorites while offline, so the state is visible before a tap.
+
 Per the architecture rules, the cache/keystore are **services** invoked only by
 the notifier; widgets never touch them. Eviction reactions live in a dedicated
 listener, not scattered in build methods.

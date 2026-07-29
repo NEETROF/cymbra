@@ -53,11 +53,13 @@ the network and rewrite the cache.
   it rewrites the local copy only if the hash differs, and otherwise leaves the
   cache untouched (no re-download, no re-encrypt)
 
-#### Scenario: Uncached favorite offline surfaces a typed failure
+#### Scenario: Uncached favorite offline surfaces a dedicated message
 
 - **WHEN** the app is offline and a favorited score with no local copy is opened
-- **THEN** a typed, localized "unavailable offline" message is shown and no raw
-  technical error is surfaced
+- **THEN** a dedicated, localized "not available offline" message is shown
+  (distinct from the generic server-unavailable message), no raw technical error
+  is surfaced, and the user stays on the current screen rather than entering an
+  empty player
 
 ### Requirement: Envelope encryption bound to user, install, and server secret
 
@@ -130,6 +132,36 @@ MUST be empty for a guest / signed-out session.
 
 - **WHEN** the user signs out or their account is deleted
 - **THEN** the favorites snapshot is cleared along with the rest of the cache
+
+### Requirement: Clear offline availability feedback
+
+The app SHALL make offline availability legible both before and after a tap. On
+the home/library, a favorite that cannot be played offline (no cached bytes)
+SHALL be visibly marked as such **while the app is offline**, so the user knows
+before opening it. When such a favorite is opened offline, the app SHALL show a
+**dedicated** localized message that names the real cause (not offline-available
+/ needs a connection) — separate from the generic server-unavailable message used
+when the app is online but the backend fails — and MUST NOT surface any raw
+exception or gRPC text. The user MUST remain on the current screen rather than
+being navigated into an empty player.
+
+#### Scenario: Non-playable favorites are marked offline
+
+- **WHEN** the home renders while the app is offline
+- **THEN** favorites without cached bytes are visibly marked as not available
+  offline, distinct from those that are playable offline
+
+#### Scenario: Dedicated offline message on open
+
+- **WHEN** an offline, non-cached favorite is opened
+- **THEN** a dedicated localized "not available offline" message is shown, and it
+  is not the same message shown for an online-but-unavailable backend
+
+#### Scenario: No raw error is ever shown
+
+- **WHEN** any offline load failure occurs
+- **THEN** only a localized message is shown and the underlying exception is kept
+  to logs
 
 ### Requirement: Content-hash freshness and integrity guard
 
