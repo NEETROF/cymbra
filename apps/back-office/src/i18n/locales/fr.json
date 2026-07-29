@@ -77,7 +77,11 @@
     "loading": "Chargement de la partition…",
     "rendering": "Rendu de la notation…",
     "renderError": "Impossible de rendre la notation.",
-    "noBytes": "Aucun octet de partition."
+    "noBytes": "Aucun octet de partition.",
+    "play": "▶ Lecture",
+    "pause": "⏸ Pause",
+    "audioLoading": "Chargement de l'audio…",
+    "audioError": "Audio indisponible."
   },
   "roles": {
     "title": "Rôles",

@@ -30,11 +30,11 @@ class Svg {
     this.parts.push(`<line x1="${r(x1)}" y1="${r(y1)}" x2="${r(x2)}" y2="${r(y2)}" class="${cls}"${extra}/>`);
   }
 
-  glyph(g: string, x: number, y: number, size: number, cls = "ink", center = false): void {
+  glyph(g: string, x: number, y: number, size: number, cls = "ink", center = false, extra = ""): void {
     if (!g) return;
     const anchor = center ? ` text-anchor="middle"` : "";
     this.parts.push(
-      `<text x="${r(x)}" y="${r(y)}" class="glyph ${cls}" font-size="${r(size * 4)}"${anchor}>${escapeText(g)}</text>`,
+      `<text x="${r(x)}" y="${r(y)}" class="glyph ${cls}" font-size="${r(size * 4)}"${anchor}${extra}>${escapeText(g)}</text>`,
     );
   }
 
@@ -54,6 +54,9 @@ class Svg {
       `.notation-svg .ledger{stroke:var(--muted);stroke-width:${r(S.legerLineThickness * s)};opacity:.8}` +
       `.notation-svg .bar{stroke:currentColor;stroke-width:${r(S.thinBarlineThickness * s)};opacity:.7}` +
       `.notation-svg .bracket{stroke:currentColor;stroke-width:${r(s * 0.35)};stroke-linecap:round;opacity:.8}` +
+      // Playback overlay: the moving cursor and the currently-sounding note heads.
+      `.notation-svg .cursor{stroke:var(--teal, #44e2cd);stroke-width:${r(s * 0.18)};stroke-linecap:round}` +
+      `.notation-svg .glyph.playing{fill:var(--teal, #44e2cd)}` +
       `</style>` +
       this.parts.join("") +
       `</svg>`
@@ -61,25 +64,46 @@ class Svg {
   }
 }
 
+/** A measure's box in SVG coordinates — lets the playhead map an elapsed time to an
+ *  on-screen cursor position and scroll it into view. */
+export interface MeasureRect {
+  index: number;
+  x: number;
+  width: number;
+  top: number;
+  bottom: number;
+}
+
+/** The painted SVG plus a layout map for the playback overlay. */
+export interface RenderResult {
+  svg: string;
+  layout: { width: number; height: number; measures: MeasureRect[] };
+}
+
 /** Render laid-out geometry to an SVG string sized to `width` (the same width handed
- *  to the wasm layout, so the systems' line breaks match). */
-export function renderNotation(rendered: RenderedScore, width: number): string {
+ *  to the wasm layout, so the systems' line breaks match), plus a layout map. Each
+ *  pitched note head carries `data-note="<measureIndex>:<noteIndex>"` so the playhead
+ *  can highlight sounding notes. */
+export function renderNotation(rendered: RenderedScore, width: number): RenderResult {
   const svg = new Svg();
   const { document: doc, systems } = rendered;
   const twoStaff = doc.staves >= 2;
   const systemHeight = topPad + staffHeight + (twoStaff ? interStaff + staffHeight : 0) + bottomPad;
   const height = systems.length * (systemHeight + systemGap) + systemGap;
-  if (systems.length === 0) return svg.toString(width, systemHeight);
+  const measures: MeasureRect[] = [];
+  if (systems.length === 0) {
+    return { svg: svg.toString(width, systemHeight), layout: { width, height: systemHeight, measures } };
+  }
 
   const divPerMeasure = divisionsPerMeasure(doc);
   const clefAt = computeClefAt(doc);
 
   let y = systemGap;
   for (let i = 0; i < systems.length; i++) {
-    paintSystem(svg, doc, systems[i], width, y, divPerMeasure, i === 0, twoStaff, clefAt);
+    paintSystem(svg, doc, systems[i], width, y, divPerMeasure, i === 0, twoStaff, clefAt, measures);
     y += systemHeight + systemGap;
   }
-  return svg.toString(width, height);
+  return { svg: svg.toString(width, height), layout: { width, height, measures } };
 }
 
 function divisionsPerMeasure(doc: ScoreDocument): number {
@@ -115,6 +139,7 @@ function paintSystem(
   isFirst: boolean,
   twoStaff: boolean,
   clefAt: Map<number, Clef>[],
+  measures: MeasureRect[],
 ): void {
   const trebleBottom = yTop + topPad + staffHeight;
   const bassBottom = trebleBottom + interStaff + staffHeight;
@@ -156,6 +181,7 @@ function paintSystem(
     const measure = doc.measures[idx];
     const mWidth = measure.min_width * scale;
     svg.line(x + mWidth, systemTop, x + mWidth, systemBottom, "bar");
+    measures.push({ index: idx, x, width: mWidth, top: systemTop, bottom: systemBottom });
     paintMeasure(svg, doc, idx, x, mWidth, divPerMeasure, trebleBottom, bassBottom, clefAt[idx], twoStaff);
     x += mWidth;
   }
@@ -224,7 +250,8 @@ function paintMeasure(
 
   const beamGroups = new Map<string, StemNote[]>();
 
-  for (const note of measure.notes) {
+  for (let ni = 0; ni < measure.notes.length; ni++) {
+    const note = measure.notes[ni];
     const isBass = note.staff >= 2 && twoStaff;
     const staffBottom = isBass ? bassBottom : trebleBottom;
     const x = xForPosition(note.position_divisions);
@@ -241,7 +268,9 @@ function paintMeasure(
 
     const head = S.headGlyph(note, doc.attributes.divisions);
     const headLeft = x - (S.noteheadWidth * s) / 2;
-    svg.glyph(head, headLeft, y, s);
+    // data-note correlates this head with its scheduled note so the playhead can
+    // highlight it while it sounds.
+    svg.glyph(head, headLeft, y, s, "ink", false, ` data-note="${measureIdx}:${ni}"`);
 
     if (note.accidental) {
       const glyph = S.accidentalGlyph(note.accidental);

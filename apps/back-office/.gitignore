@@ -9,8 +9,10 @@ blob-report/
 playwright/.cache/
 # Generated gRPC-web/protobuf stubs (produced by `yarn gen`, like the Flutter app's).
 src/gen/
-# Generated wasm notation renderer (produced by `yarn gen:wasm` from crates/musicxml-wasm).
+# Generated wasm modules + staged SoundFont (produced by `yarn gen:wasm`).
 src/wasm/pkg/
+src/wasm/pkg-audio/
+public/soundfonts/
 *.local
 .env
 

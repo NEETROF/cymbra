@@ -7,7 +7,7 @@
 
 import { ref, watch, type Ref } from "vue";
 import { type Async, failure, idle, loading, success } from "@/lib/async";
-import { renderNotation } from "@/lib/notation/painter";
+import { renderNotation, type RenderResult } from "@/lib/notation/painter";
 import { loadNotationWasm } from "@/lib/notation/wasm";
 
 // Layout width handed to the engine (and thus the SVG's intrinsic width). The SVG
@@ -20,9 +20,9 @@ const RENDER_WIDTH = 1000;
  * @returns `notation` — Async<string> of the rendered SVG markup
  */
 export function useScoreRenderer(bytes: Ref<Uint8Array | null | undefined>): {
-  notation: Ref<Async<string>>;
+  notation: Ref<Async<RenderResult>>;
 } {
-  const notation = ref<Async<string>>(idle);
+  const notation = ref<Async<RenderResult>>(idle);
 
   watch(
     bytes,
@@ -38,8 +38,8 @@ export function useScoreRenderer(bytes: Ref<Uint8Array | null | undefined>): {
       try {
         const wasm = await loadNotationWasm();
         const geometry = wasm.render(started, RENDER_WIDTH);
-        const svg = renderNotation(geometry, RENDER_WIDTH);
-        if (bytes.value === started) notation.value = success(svg);
+        const result = renderNotation(geometry, RENDER_WIDTH);
+        if (bytes.value === started) notation.value = success(result);
       } catch {
         // The error is a stable code the component localizes — never a raw wasm
         // string shown to the user (see the no-raw-technical-errors rule).

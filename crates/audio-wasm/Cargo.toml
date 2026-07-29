@@ -1,0 +1,24 @@
+# WebAssembly audio renderer for the back-office score preview
+# (change: add-wasm-notation-preview, playback slice). Wraps the pure-Rust
+# `rustysynth` SoundFont synth to render a whole score to a PCM buffer, driven by the
+# shared playback schedule from `cymbra-musicxml-core`. Depends only on those two
+# pure crates — never on `rust_lib_music` (cpal/midir are native-only; here Web Audio
+# is the output sink, not cpal). The `wasm-bindgen` glue is wasm-target-only so host
+# `cargo test` exercises the pure `render_pcm` without a wasm toolchain.
+[package]
+name = "cymbra-audio-wasm"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+cymbra-musicxml-core = { path = "../musicxml-core" }
+# Pure-Rust SoundFont synth (zero deps) — same engine the app uses, wasm-compilable.
+rustysynth = "1.3"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen = "0.2"

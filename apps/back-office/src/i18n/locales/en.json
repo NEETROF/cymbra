@@ -72,7 +72,11 @@
     "loading": "Loading score…",
     "rendering": "Rendering notation…",
     "renderError": "Notation could not be rendered.",
-    "noBytes": "No score bytes."
+    "noBytes": "No score bytes.",
+    "play": "▶ Play",
+    "pause": "⏸ Pause",
+    "audioLoading": "Loading audio…",
+    "audioError": "Audio unavailable."
   },
   "roles": {
     "title": "Roles",

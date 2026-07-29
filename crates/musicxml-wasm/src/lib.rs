@@ -26,7 +26,7 @@
 //! over it.
 
 use cymbra_musicxml_core::{
-    RejectReason, ScoreDocument, System, layout_systems, mxl, parse, validate,
+    PlaybackSchedule, RejectReason, ScoreDocument, System, decode_and_parse, layout_systems,
 };
 use serde::Serialize;
 
@@ -39,28 +39,21 @@ pub struct RenderedScore {
     pub systems: Vec<System>,
 }
 
-/// Parse `bytes` and lay the score out at `available_width`, returning the
-/// geometry to paint. Pure and read-only — the host-testable core of the wasm
-/// entry point.
-///
-/// The bytes first pass the shared [`validate`] gate — the same one the app
-/// preview and the backend upload use — so non-MusicXML, oversized, or
-/// undecodable input is a typed [`RejectReason`] rather than empty/partial
-/// geometry, and a compressed `.mxl` is decoded like the app does. Never panics.
+/// Parse `bytes` and lay the score out at `available_width`, returning the geometry
+/// to paint. Pure and read-only — the host-testable core of the `render` entry point.
+/// The shared [`decode_and_parse`] gate rejects non-MusicXML/oversized/undecodable
+/// input as a typed [`RejectReason`] and decodes `.mxl`. Never panics.
 pub fn render_geometry(bytes: &[u8], available_width: f64) -> Result<RenderedScore, RejectReason> {
-    // Shared client/server gate: rejects arbitrary XML / oversized / undecodable
-    // and confirms a playable score before we lay anything out.
-    validate(bytes)?;
-    // Decode the .mxl container when present, mirroring the gate, then parse the
-    // full document for layout.
-    let xml = if mxl::is_mxl(bytes) {
-        mxl::decode(bytes).map_err(|_| RejectReason::Undecodable)?
-    } else {
-        bytes.to_vec()
-    };
-    let document = parse(&xml).map_err(|_| RejectReason::Unparseable)?;
+    let document = decode_and_parse(bytes)?;
     let systems = layout_systems(&document, available_width);
     Ok(RenderedScore { document, systems })
+}
+
+/// Derive the playback schedule (onset-sorted notes + measure times + tempo) from
+/// `bytes`. Pure and host-testable — the core of the `schedule` entry point.
+pub fn schedule_for(bytes: &[u8]) -> Result<PlaybackSchedule, RejectReason> {
+    let document = decode_and_parse(bytes)?;
+    Ok(cymbra_musicxml_core::schedule(&document))
 }
 
 /// wasm-bindgen entry point: `bytes -> { document, systems }` as a JS value.
@@ -79,6 +72,16 @@ pub fn render(
         .map_err(|e| wasm_bindgen::JsValue::from_str(e.code()))?;
     serde_wasm_bindgen::to_value(&rendered)
         .map_err(|e| wasm_bindgen::JsValue::from_str(&e.to_string()))
+}
+
+/// wasm-bindgen entry point: `bytes -> playback schedule` as a JS value (notes with
+/// onset/duration ms, per-measure start times, tempo) for driving the audio + the
+/// animated playhead. Compiled for the wasm target only.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen::prelude::wasm_bindgen]
+pub fn schedule(bytes: &[u8]) -> Result<wasm_bindgen::JsValue, wasm_bindgen::JsValue> {
+    let s = schedule_for(bytes).map_err(|e| wasm_bindgen::JsValue::from_str(e.code()))?;
+    serde_wasm_bindgen::to_value(&s).map_err(|e| wasm_bindgen::JsValue::from_str(&e.to_string()))
 }
 
 #[cfg(test)]
@@ -129,6 +132,15 @@ mod tests {
         assert!(json.contains("\"document\""));
         assert!(json.contains("\"systems\""));
         assert!(json.contains("Little Tune"));
+    }
+
+    #[test]
+    fn schedule_for_returns_timed_notes() {
+        let s = schedule_for(MINIMAL.as_bytes()).expect("valid score schedules");
+        assert_eq!(s.notes.len(), 2); // two quarter notes
+        assert_eq!(s.notes[0].onset_ms, 0);
+        assert!(s.song_end_ms > 0);
+        assert_eq!(s.measure_start_ms, vec![0]);
     }
 
     #[test]

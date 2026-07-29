@@ -24,11 +24,13 @@
 pub mod meta;
 pub mod model;
 pub mod mxl;
+pub mod playback;
 pub mod validate;
 
 pub use meta::{ScoreFacets, ScoreSummary, normalize_text};
 pub use model::*;
-pub use validate::{RejectReason, validate};
+pub use playback::{DEFAULT_VELOCITY, PlaybackSchedule, TimedNote, midi_of_pitch, schedule};
+pub use validate::{RejectReason, decode_and_parse, validate};
 
 use std::collections::BTreeMap;
 

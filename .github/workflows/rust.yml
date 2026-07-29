@@ -81,5 +81,7 @@ jobs:
       # Regression guard for the shared-musicxml-crate wasm-buildability requirement:
       # the notation-render wrapper (and its cymbra-musicxml-core dependency) must keep
       # compiling for the browser target that the back-office preview ships.
-      - name: Build wasm notation renderer (wasm32)
-        run: cargo build -p cymbra-musicxml-wasm --target wasm32-unknown-unknown
+      - name: Build wasm modules (wasm32)
+        run: |
+          cargo build -p cymbra-musicxml-wasm --target wasm32-unknown-unknown
+          cargo build -p cymbra-audio-wasm --target wasm32-unknown-unknown

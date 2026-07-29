@@ -79,9 +79,14 @@ function makeGeometry(): RenderedScore {
 const gClef = "\u{E050}";
 const noteheadBlack = "\u{E0A4}";
 
+const wasmStub = (geo = makeGeometry()) => ({
+  render: vi.fn(() => geo),
+  schedule: vi.fn(() => ({ notes: [], measure_start_ms: [0], song_end_ms: 0, bpm: 90 })),
+});
+
 describe("notation painter", () => {
   it("draws staves, a clef, note heads, a stem and a beam", () => {
-    const svg = renderNotation(makeGeometry(), 1000);
+    const { svg, layout } = renderNotation(makeGeometry(), 1000);
     expect(svg.startsWith("<svg")).toBe(true);
     // Five staff lines for the single staff.
     expect((svg.match(/class="staff"/g) ?? []).length).toBe(5);
@@ -90,10 +95,21 @@ describe("notation painter", () => {
     expect(svg).toContain('class="stem"'); // the quarter note's stem
     expect(svg).toContain('class="beam"'); // the beamed eighth pair
     expect(svg).toContain("font-family:'Bravura'");
+    // Layout map exposes the one measure for the playhead.
+    expect(layout.measures).toHaveLength(1);
+    expect(layout.measures[0].index).toBe(0);
   });
 
-  it("renders read-only — no interactive/edit affordances", () => {
-    const svg = renderNotation(makeGeometry(), 1000);
+  it("tags pitched note heads with data-note for the playhead", () => {
+    const { svg } = renderNotation(makeGeometry(), 1000);
+    // Three pitched notes in measure 0 → indices 0,1,2.
+    expect(svg).toContain('data-note="0:0"');
+    expect(svg).toContain('data-note="0:1"');
+    expect(svg).toContain('data-note="0:2"');
+  });
+
+  it("renders read-only — no interactive/edit affordances in the SVG", () => {
+    const { svg } = renderNotation(makeGeometry(), 1000);
     expect(svg).not.toContain("<button");
     expect(svg).not.toContain("<input");
     expect(svg).not.toContain("onclick");
@@ -105,29 +121,29 @@ describe("useScoreRenderer", () => {
   afterEach(() => setNotationWasmForTest(null));
 
   it("does not render until bytes arrive, then renders once", async () => {
-    const render = vi.fn(() => makeGeometry());
-    setNotationWasmForTest({ render });
+    const stub = wasmStub();
+    setNotationWasmForTest(stub);
     const bytes = ref<Uint8Array | null>(null);
     const scope = effectScope();
     const api = scope.run(() => useScoreRenderer(bytes))!;
 
     await flushPromises();
     expect(api.notation.value.status).toBe("idle");
-    expect(render).not.toHaveBeenCalled();
+    expect(stub.render).not.toHaveBeenCalled();
 
     bytes.value = new Uint8Array([1, 2, 3]);
     await flushPromises();
-    expect(render).toHaveBeenCalledTimes(1);
+    expect(stub.render).toHaveBeenCalledTimes(1);
     expect(api.notation.value.status).toBe("success");
     if (api.notation.value.status === "success") {
-      expect(api.notation.value.data).toContain("<svg");
+      expect(api.notation.value.data.svg).toContain("<svg");
+      expect(api.notation.value.data.layout.measures.length).toBeGreaterThan(0);
     }
     scope.stop();
   });
 
   it("instantiates the wasm module once and reuses it", async () => {
-    const stub = { render: vi.fn(() => makeGeometry()) };
-    setNotationWasmForTest(stub);
+    setNotationWasmForTest(wasmStub());
     const a = await loadNotationWasm();
     const b = await loadNotationWasm();
     expect(a).toBe(b); // one cached instance
@@ -138,6 +154,7 @@ describe("useScoreRenderer", () => {
       render: () => {
         throw new Error("unparseable");
       },
+      schedule: () => ({ notes: [], measure_start_ms: [], song_end_ms: 0, bpm: 90 }),
     });
     const bytes = ref<Uint8Array | null>(new Uint8Array([9]));
     const scope = effectScope();
@@ -157,16 +174,65 @@ describe("ScorePreview notation states", () => {
   const withI18n = { plugins: [i18n] };
   const hit = { title: "T", composer: "C", license: "CC0", source: "pdmx" };
 
-  it("injects the rendered SVG on success", () => {
-    const svg = renderNotation(makeGeometry(), 1000);
+  it("injects the rendered SVG and a Play control on success", () => {
+    const result = renderNotation(makeGeometry(), 1000);
     const w = mount(ScorePreview, {
       global: withI18n,
-      props: { hit: hit as never, bytes: new Uint8Array([1]), loading: false, notation: success(svg) },
+      props: {
+        hit: hit as never,
+        bytes: new Uint8Array([1]),
+        loading: false,
+        notation: success(result),
+        canPlay: true,
+      },
     });
     expect(w.find(".svg-wrap svg").exists()).toBe(true);
-    // Presentational + read-only: no edit controls in the preview.
-    expect(w.findAll("button")).toHaveLength(0);
+    // The ONLY control is Play/Pause (read-only otherwise: no edit affordances/inputs).
+    const buttons = w.findAll("button");
+    expect(buttons).toHaveLength(1);
+    expect(buttons[0].text()).toContain("Play");
     expect(w.findAll("input")).toHaveLength(0);
+  });
+
+  it("emits toggle when Play is clicked", async () => {
+    const result = renderNotation(makeGeometry(), 1000);
+    const w = mount(ScorePreview, {
+      global: withI18n,
+      props: {
+        hit: hit as never,
+        bytes: new Uint8Array([1]),
+        loading: false,
+        notation: success(result),
+        canPlay: true,
+      },
+    });
+    await w.get("button.play").trigger("click");
+    expect(w.emitted("toggle")).toHaveLength(1);
+  });
+
+  it("disables Play until it can play, and shows Pause while playing", () => {
+    const result = renderNotation(makeGeometry(), 1000);
+    const base = { hit: hit as never, bytes: new Uint8Array([1]), loading: false, notation: success(result) };
+    const off = mount(ScorePreview, { global: withI18n, props: { ...base, canPlay: false } });
+    expect(off.get("button.play").attributes("disabled")).toBeDefined();
+    const on = mount(ScorePreview, { global: withI18n, props: { ...base, canPlay: true, playing: true } });
+    expect(on.get("button.play").text()).toContain("Pause");
+  });
+
+  it("surfaces a non-fatal audio message, not a raw error", () => {
+    const result = renderNotation(makeGeometry(), 1000);
+    const w = mount(ScorePreview, {
+      global: withI18n,
+      props: {
+        hit: hit as never,
+        bytes: new Uint8Array([1]),
+        loading: false,
+        notation: success(result),
+        canPlay: true,
+        audio: failure("audio_failed"),
+      },
+    });
+    expect(w.text()).toContain("Audio unavailable.");
   });
 
   it("shows a placeholder (not a raw error) when rendering fails", () => {

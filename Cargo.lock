@@ -895,6 +895,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "cymbra-audio-wasm"
+version = "0.1.0"
+dependencies = [
+ "cymbra-musicxml-core",
+ "rustysynth",
+ "wasm-bindgen",
+]
+
+[[package]]
 name = "cymbra-auth"
 version = "0.1.0"
 dependencies = [

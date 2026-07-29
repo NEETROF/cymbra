@@ -7,6 +7,7 @@ import { useCatalogStore, type ModerationStatus } from "@/stores/catalog";
 import { useAuthStore } from "@/stores/auth";
 import { type Async, idle, run } from "@/lib/async";
 import { useScoreRenderer } from "@/composables/useScoreRenderer";
+import { useScorePlayer } from "@/composables/useScorePlayer";
 import type { CatalogHit } from "@/gen/score_pb";
 
 const props = defineProps<{ id: string }>();
@@ -45,7 +46,10 @@ const bytesVm = computed(() =>
 );
 // Render the notation from the fetched bytes via the isolated wasm seam. Reacts to
 // the bytes Async; failures degrade to a placeholder inside the preview.
-const { notation } = useScoreRenderer(computed(() => bytesVm.value.bytes));
+const scoreBytes = computed(() => bytesVm.value.bytes);
+const { notation } = useScoreRenderer(scoreBytes);
+// Audio playback + playhead clock (Play/Pause only), reusing the app's synth/schedule.
+const player = useScorePlayer(scoreBytes);
 const acting = computed(() => decision.value.status === "loading");
 const decisionError = computed(() =>
   match(decision.value)
@@ -89,6 +93,12 @@ async function decide(status: ModerationStatus) {
       :loading="bytesVm.loading || hitVm.loading"
       :bytes-error="bytesVm.error"
       :notation="notation"
+      :schedule="player.schedule.value"
+      :audio="player.audio.value"
+      :elapsed-ms="player.elapsedMs.value"
+      :playing="player.playing.value"
+      :can-play="player.canPlay.value"
+      @toggle="player.toggle"
     />
   </div>
 </template>

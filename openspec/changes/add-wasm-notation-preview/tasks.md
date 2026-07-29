@@ -37,3 +37,15 @@
 
 - [x] 6.1 Document the wasm build + local dev in the back-office README (how to build the artifact, the CI step, the CSP note) and the JS-fallback escape hatch. (README "Preview (notation)" section + Develop/Scripts updated with `yarn gen:wasm`, the toolchain, the CSP `wasm-unsafe-eval` note, and the one-file JS-fallback seam.)
 - [x] 6.2 Note in the back-office README that this fulfills `moderation-console`'s read-only preview requirement and closes `add-moderation-back-office` task 4.8. (Stated at the top of the "Preview (notation)" section.)
+
+## 7. Playback (added on-branch — Play/Pause + animated playhead)
+
+> Added at the user's request after the read-only preview landed, implemented directly
+> on this branch (not a separate change). "Read-only" now means no *editing* — a
+> Play/Pause transport is the only interaction. Deep-dive in the README "Playback" section.
+
+- [x] 7.1 Lift the app's `notationToTimedNotes` into `cymbra-musicxml-core::schedule` (pure, `serde`, host-tested): onset-sorted timed notes + per-measure start times + tempo; expose `schedule(bytes)` from `musicxml-wasm`.
+- [x] 7.2 New crate `cymbra-audio-wasm`: wrap pure-Rust `rustysynth` to render the whole score to interleaved-stereo PCM (`render(scoreBytes, sf2, sampleRate)`) via the shared schedule; depends only on the pure crates (no `rust_lib_music`). Host tests + wasm32 build in CI; real-SoundFont render behind `#[ignore]`.
+- [x] 7.3 Stage the app's exact `UprightPianoKW-20220221.sf2` (CC0) via `gen_wasm.sh` (copied, not committed) into gitignored `public/soundfonts/`; fetched on demand + Cache-API-persisted (`lib/audio/soundfont.ts`). **Deploy caveat documented**: 57 MB > CF Pages 25 MiB/file → host off-Pages (R2/API) before prod playback.
+- [x] 7.4 `useScorePlayer` (Web Audio `AudioBufferSourceNode` + rAF `elapsedMs` clock, Play/Pause, graceful degradation) and `usePlayhead` (cursor + `.playing` highlight on `data-note` heads + auto-scroll); painter tags heads + returns a measure-rect layout. Pure playhead maths (`measureAt`/`playingNoteIds`) unit-tested.
+- [x] 7.5 Wire into `ScoreDetailView`/`ScorePreview` (Play/Pause only, no other interaction). Vitest: schedule maths, player schedule + graceful no-AudioContext, transport states. Rust fmt/clippy (host+wasm) + full SPA gate green; visually verified (playhead + highlighted notes render with the real Bravura font).
