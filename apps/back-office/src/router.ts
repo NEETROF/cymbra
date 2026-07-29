@@ -10,6 +10,7 @@ const routes: RouteRecordRaw[] = [
   { path: "/denied", name: "denied", component: () => import("@/views/AccessDeniedView.vue"), meta: { public: true } },
   { path: "/music/catalog", name: "music-catalog", component: () => import("@/views/CatalogView.vue") },
   { path: "/music/queue", name: "music-queue", component: () => import("@/views/QueueView.vue") },
+  { path: "/music/review", name: "music-review", component: () => import("@/views/ReviewView.vue") },
   {
     path: "/music/score/:id",
     name: "music-score",

@@ -106,10 +106,29 @@ export const useCatalogStore = defineStore("catalog", () => {
     });
   }
 
+  /** Evaluate a score (raw RPC, no list refresh) — used by the review session, which
+   * advances the deck itself instead of re-querying. */
+  async function evaluate(scoreId: string, status: ModerationStatus) {
+    await api().score.setModerationStatus({ scoreId, status });
+  }
+
   /** Evaluate a score; on success re-run the last query so the row reflects it. */
   async function setModerationStatus(scoreId: string, status: ModerationStatus) {
-    await api().score.setModerationStatus({ scoreId, status });
+    await evaluate(scoreId, status);
     await search(lastParams);
+  }
+
+  /** Fetch one page of the review queue (pending + community-flagged, priority-sorted)
+   * WITHOUT touching `result` — the review session owns its own deck state. */
+  async function fetchReviewPage(offset: number): Promise<CatalogResult> {
+    const resp = await api().score.searchCatalog({
+      query: "",
+      reviewQueue: true,
+      sort: QUEUE_SORT,
+      limit: PAGE_SIZE,
+      offset,
+    });
+    return { hits: resp.hits, total: resp.total, nextOffset: resp.nextOffset };
   }
 
   /** Per-status counts for the header cards — three cheap count-only queries
@@ -125,5 +144,16 @@ export const useCatalogStore = defineStore("catalog", () => {
     });
   }
 
-  return { result, lastParams, stats, search, loadStats, setModerationStatus, fetchBytes, fetchHit };
+  return {
+    result,
+    lastParams,
+    stats,
+    search,
+    loadStats,
+    evaluate,
+    setModerationStatus,
+    fetchReviewPage,
+    fetchBytes,
+    fetchHit,
+  };
 });
