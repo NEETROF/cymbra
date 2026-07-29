@@ -181,6 +181,24 @@ message SetModerationStatusRequest {
 }
 message SetModerationStatusResponse {}
 
+// Edit a public-corpus catalog score's CURATORIAL metadata (change:
+// add-catalog-metadata-editing). Moderator/admin only. ONLY these descriptive fields
+// are editable — the MusicXML-derived facts (time signature, note/measure/staff counts,
+// tempo, facets) stay read-only and authoritative from the score bytes. A present field
+// replaces the stored value (empty composer/arranger/level clears it; an empty title is
+// rejected — a title is mandatory); an ABSENT field is left unchanged. The server
+// recomputes the derived search keys (title_norm/composer_norm/work_key) via the same
+// normalize_text the ingest uses, records the edit in the append-only audit trail, and
+// marks the row as manually edited. `catalog_scores` has no owner, so this is corpus-only.
+message UpdateCatalogScoreRequest {
+  string score_id = 1;
+  optional string title = 2;
+  optional string composer = 3;
+  optional string arranger = 4;
+  optional string level = 5; // beginner | intermediate | advanced (empty clears)
+}
+message UpdateCatalogScoreResponse {}
+
 // Submit (or update) the caller's rating of an `accepted` catalog score (change:
 // add-app-score-rating). Carries a swipe `verdict` (dislike | like | love) and an
 // OPTIONAL 1–5 `stars` value; re-rating the same score upserts (one rating per
@@ -234,6 +252,11 @@ service ScoreService {
 
   // Moderation back office (change: add-moderation-back-office). Moderator/admin only.
   rpc SetModerationStatus(SetModerationStatusRequest) returns (SetModerationStatusResponse);
+
+  // Curatorial metadata editing (change: add-catalog-metadata-editing). Moderator/admin
+  // only; corpus scores only. Edits title/composer/arranger/level, recomputes the search
+  // keys, and audits the change.
+  rpc UpdateCatalogScore(UpdateCatalogScoreRequest) returns (UpdateCatalogScoreResponse);
 
   // Score rating (change: add-app-score-rating). Any signed-in user rates an
   // `accepted` catalog score; one updatable rating per user per score.

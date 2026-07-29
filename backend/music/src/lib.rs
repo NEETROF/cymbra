@@ -12,6 +12,7 @@
 //! platform error type.
 
 pub mod backfill;
+pub mod catalog_edit;
 pub mod catalog_search;
 pub mod grpc;
 pub mod module;

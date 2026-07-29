@@ -220,6 +220,21 @@ pub trait CatalogSearchRepo: Send + Sync {
         reviewer_id: &str,
     ) -> Result<bool>;
 
+    /// Apply a curatorial metadata edit (change: add-catalog-metadata-editing) in ONE
+    /// transaction: update the curatorial fields + the recomputed derived search keys
+    /// (`title_norm`/`composer_norm`/`work_key`), stamp the provenance
+    /// (`edited_by`/`edited_at`, and `level_source = 'manual'` when the level changed),
+    /// and insert one `catalog_edits` audit row per changed field. Returns `true` when a
+    /// row was updated, `false` when no score has that id. Authorization is the gRPC
+    /// layer's job; the store just writes. `plan.changes` is assumed non-empty (the
+    /// module treats an empty diff as a no-op and never calls this).
+    async fn apply_metadata_edit(
+        &self,
+        score_id: &str,
+        editor: &str,
+        plan: &crate::catalog_edit::EditPlan,
+    ) -> Result<bool>;
+
     /// The rating deck's source (change: improve-rating-deck-sourcing, widened by
     /// rate-pending-scores): the caller's **un-rated** `pending` + `accepted` scores
     /// (never `rejected`), ordered **least-rated first** (fewest existing ratings, so
@@ -362,6 +377,9 @@ pub struct FakeCatalogSearchRepo {
     /// [`FakeScoreRatingRepo`] so "un-rated by me" / rating-count ordering match
     /// what the module actually wrote.
     ratings: Mutex<Option<Arc<FakeScoreRatingRepo>>>,
+    /// Records applied metadata edits (score id, editor, per-field diff) so tests can
+    /// assert the audit trail (change: add-catalog-metadata-editing).
+    edits: Mutex<Vec<(String, String, Vec<crate::catalog_edit::FieldChange>)>>,
 }
 
 impl FakeCatalogSearchRepo {
@@ -370,7 +388,13 @@ impl FakeCatalogSearchRepo {
         Self {
             rows: Mutex::new(rows),
             ratings: Mutex::new(None),
+            edits: Mutex::new(Vec::new()),
         }
+    }
+
+    /// The metadata edits applied so far (score id, editor, changed fields).
+    pub fn edit_calls(&self) -> Vec<(String, String, Vec<crate::catalog_edit::FieldChange>)> {
+        self.edits.lock().expect("catalog search fake lock").clone()
     }
 
     /// Replace the stored rows (through a shared `Arc`) — e.g. to simulate a
@@ -513,6 +537,30 @@ impl CatalogSearchRepo for FakeCatalogSearchRepo {
             Some(row) => {
                 row.moderation_status = status.to_string();
                 row.reviewed_by = Some(reviewer_id.to_string());
+                Ok(true)
+            }
+            None => Ok(false),
+        }
+    }
+
+    async fn apply_metadata_edit(
+        &self,
+        score_id: &str,
+        editor: &str,
+        plan: &crate::catalog_edit::EditPlan,
+    ) -> Result<bool> {
+        let mut rows = self.rows.lock().expect("catalog search fake lock");
+        match rows.iter_mut().find(|r| r.id == score_id) {
+            Some(row) => {
+                row.title = plan.title.clone();
+                row.composer = plan.composer.clone();
+                row.arranger = plan.arranger.clone();
+                row.level = plan.level.clone();
+                self.edits.lock().expect("catalog search fake lock").push((
+                    score_id.to_string(),
+                    editor.to_string(),
+                    plan.changes.clone(),
+                ));
                 Ok(true)
             }
             None => Ok(false),
