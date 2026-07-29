@@ -86,17 +86,23 @@ class FakeDeckCatalogService implements CatalogService {
   Future<List<CatalogHit>> listSaved() async => const [];
   @override
   Future<Uint8List> fetchBytes(String catalogId) async => Uint8List(0);
+  @override
+  Future<Uint8List> ratingPreviewBytes(String catalogId) async => Uint8List(0);
 }
 
-/// A minimal `accepted` catalog hit for the deck tests.
-CatalogHit deckHit(String id) => CatalogHit(
-  id: id,
-  title: 'Piece $id',
-  composer: 'Composer',
-  level: PracticeLevel.beginner,
-  license: 'CC-BY-4.0',
-  source: 'pdmx',
-);
+/// A minimal catalog hit for the deck tests. Defaults to `accepted`; pass
+/// `moderationStatus: 'pending'` to model a not-yet-validated candidate (change:
+/// rate-pending-scores).
+CatalogHit deckHit(String id, {String moderationStatus = 'accepted'}) =>
+    CatalogHit(
+      id: id,
+      title: 'Piece $id',
+      composer: 'Composer',
+      level: PracticeLevel.beginner,
+      license: 'CC-BY-4.0',
+      source: 'pdmx',
+      moderationStatus: moderationStatus,
+    );
 
 /// `n` accepted hits (`c0`, `c1`, …).
 List<CatalogHit> deckCorpus([int n = 3]) => [

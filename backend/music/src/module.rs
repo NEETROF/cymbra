@@ -427,10 +427,10 @@ impl ScoreModule {
                 )));
             }
         };
-        // Only a validated (`accepted`) score is rateable — an unvalidated/unknown
-        // id resolves as absent (a normal caller can't see it), so it can't be
-        // rated. `false` = accepted-only, mirroring save.
-        if self.catalog.object_key(catalog_id, false).await?.is_none() {
+        // A `pending` or `accepted` score is rateable (change: rate-pending-scores):
+        // the community rates candidates too, so ratings feed the moderation backlog.
+        // A `rejected` or unknown id is not rateable → not-found.
+        if !self.is_pending_or_accepted(catalog_id).await? {
             return Err(AppError::NotFound("catalog score not found".into()));
         }
         self.ratings
@@ -445,10 +445,11 @@ impl ScoreModule {
         self.ratings.aggregate(catalog_id).await
     }
 
-    /// Source the swipe-rating deck (change: improve-rating-deck-sourcing): the
-    /// caller's un-rated `accepted` scores, least-rated first, paginated. Excludes
-    /// what the user already rated, so the deck empties once everything is rated.
-    /// `limit` is clamped to the server page maximum.
+    /// Source the swipe-rating deck (change: improve-rating-deck-sourcing, widened by
+    /// rate-pending-scores): the caller's un-rated `pending` + `accepted` scores
+    /// (never `rejected`), least-rated first, paginated. Excludes what the user
+    /// already rated, so the deck empties once everything is rated. `limit` is clamped
+    /// to the server page maximum.
     pub async fn list_rating_deck(
         &self,
         user_id: &str,
@@ -535,6 +536,36 @@ impl ScoreModule {
             other => AppError::Internal(anyhow::anyhow!("read catalog score: {other}")),
         })?;
         decode_canonical(&raw)
+    }
+
+    /// Whether `catalog_id` exists and is in a status the community may rate or
+    /// preview — `pending` or `accepted`, never `rejected` (change:
+    /// rate-pending-scores). Shared gate for [`Self::submit_rating`] and
+    /// [`Self::rating_preview_bytes`]; resolves the score in any status and checks
+    /// its moderation status, so an unknown/`rejected` id is not rateable.
+    async fn is_pending_or_accepted(&self, catalog_id: &str) -> Result<bool> {
+        Ok(matches!(
+            self.catalog
+                .hit_by_id(catalog_id, true)
+                .await?
+                .and_then(|h| h.moderation_status),
+            Some(ref s) if s == "pending" || s == "accepted"
+        ))
+    }
+
+    /// Fetch a catalog score's bytes for the **rating deck's read-only preview**
+    /// (change: rate-pending-scores). Unlike [`Self::get_catalog_bytes`] (the
+    /// player-open path, `accepted`-only for a normal caller), this deck-scoped path
+    /// serves a `pending` score too so a signed-in rater can hear a candidate before
+    /// rating it; a `rejected`/unknown id is a typed not-found. It is NOT a player
+    /// open and does not affect library save — both stay `accepted`-only.
+    pub async fn rating_preview_bytes(&self, catalog_id: &str) -> Result<Vec<u8>> {
+        if !self.is_pending_or_accepted(catalog_id).await? {
+            return Err(AppError::NotFound("catalog score not found".into()));
+        }
+        // Status is already gated to pending/accepted here, so resolving the bytes in
+        // any status (`true`) can only reach a previewable score.
+        self.get_catalog_bytes(catalog_id, true).await
     }
 }
 
@@ -1379,8 +1410,9 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn submit_rating_rejects_a_non_accepted_or_unknown_score() {
-        // The moderated corpus has one accepted + one pending + one rejected score.
+    async fn submit_rating_allows_pending_accepted_rejects_rejected_or_unknown() {
+        // change: rate-pending-scores — pending + accepted are rateable (community
+        // helps moderate); rejected and unknown are not.
         let repo = Arc::new(FakeUserScoreRepo::default());
         let store = Arc::new(FakeStore::default());
         let catalog = Arc::new(FakeCatalogSearchRepo::with(vec![
@@ -1406,24 +1438,24 @@ mod tests {
             7,
             8 * 1024 * 1024,
         );
-        // Pending / rejected / unknown ids are invisible to a normal caller, so
-        // they cannot be rated (not-found) and nothing is written.
-        for id in [
-            PENDING_ID,
-            REJECTED_ID,
-            "99999999-9999-7999-8999-999999999999",
-        ] {
+        // Rejected / unknown ids are not rateable (not-found) and nothing is written.
+        for id in [REJECTED_ID, "99999999-9999-7999-8999-999999999999"] {
             assert!(matches!(
                 m.submit_rating("u1", id, "like", None).await,
                 Err(AppError::NotFound(_))
             ));
         }
         assert!(ratings.is_empty());
-        // The accepted score rates fine.
-        m.submit_rating("u1", DEBUSSY_1, "love", None)
+        // A pending candidate rates fine (feeds the moderation backlog)…
+        m.submit_rating("u1", PENDING_ID, "like", None)
             .await
             .unwrap();
         assert_eq!(ratings.len(), 1);
+        // …and so does an accepted score.
+        m.submit_rating("u1", DEBUSSY_1, "love", None)
+            .await
+            .unwrap();
+        assert_eq!(ratings.len(), 2);
     }
 
     #[tokio::test]
@@ -1478,13 +1510,18 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn rating_deck_only_sources_accepted_scores() {
+    async fn rating_deck_sources_pending_and_accepted_never_rejected() {
+        // change: rate-pending-scores — the deck sources pending + accepted so the
+        // community can help clear the backlog; rejected is never offered.
         let ratings = Arc::new(FakeScoreRatingRepo::default());
         let catalog = Arc::new(FakeCatalogSearchRepo::with(vec![
             FakeCatalogRow::new(DEBUSSY_1, "A", "X", Some("beginner")).piano(),
             FakeCatalogRow::new(PENDING_ID, "P", "Q", Some("beginner"))
                 .piano()
                 .with_moderation_status("pending"),
+            FakeCatalogRow::new(REJECTED_ID, "R", "S", Some("beginner"))
+                .piano()
+                .with_moderation_status("rejected"),
         ]));
         catalog.set_rating_view(ratings.clone());
         let m = ScoreModule::new(
@@ -1498,10 +1535,12 @@ mod tests {
             8 * 1024 * 1024,
         );
         let deck = m.list_rating_deck("u1", 50, 0).await.unwrap();
-        assert_eq!(
-            deck.iter().map(|h| h.id.as_str()).collect::<Vec<_>>(),
-            [DEBUSSY_1] // the pending score is never offered
-        );
+        let ids: Vec<&str> = deck.iter().map(|h| h.id.as_str()).collect();
+        // Both the accepted and the pending score are offered; the rejected one never.
+        assert!(ids.contains(&DEBUSSY_1));
+        assert!(ids.contains(&PENDING_ID));
+        assert!(!ids.contains(&REJECTED_ID));
+        assert_eq!(ids.len(), 2);
     }
 
     #[tokio::test]
