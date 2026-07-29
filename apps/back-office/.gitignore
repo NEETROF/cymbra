@@ -9,6 +9,10 @@ blob-report/
 playwright/.cache/
 # Generated gRPC-web/protobuf stubs (produced by `yarn gen`, like the Flutter app's).
 src/gen/
+# Generated wasm modules (produced by `yarn gen:wasm`). The SoundFont is no longer
+# staged here — it is served by the backend delivery route at runtime.
+src/wasm/pkg/
+src/wasm/pkg-audio/
 *.local
 .env
 

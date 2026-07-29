@@ -69,7 +69,12 @@ onMounted(run);
         {{ vm.loading ? $t("common.loading") : $t("queue.pending", vm.total) }} — {{ $t("queue.hint") }}
       </p>
     </div>
-    <button type="button" @click="resetToPriority">{{ $t("queue.priorityOrder") }}</button>
+    <div class="head-actions">
+      <button type="button" class="btn-primary" @click="router.push({ name: 'music-review' })">
+        {{ $t("review.enter") }}
+      </button>
+      <button type="button" @click="resetToPriority">{{ $t("queue.priorityOrder") }}</button>
+    </div>
   </div>
   <StatBar />
   <p v-if="vm.error" class="error" role="alert">{{ vm.error }}</p>
@@ -84,3 +89,11 @@ onMounted(run);
     <TablePager :offset="offset" :limit="PAGE_SIZE" :total="vm.total" @page="onPage" />
   </div>
 </template>
+
+<style scoped>
+.head-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+</style>

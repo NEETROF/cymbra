@@ -16,7 +16,10 @@ import vue from "@vitejs/plugin-vue";
 function cspMetaPlugin(apiOrigin: string): Plugin {
   const csp = [
     "default-src 'self'",
-    "script-src 'self'",
+    // 'wasm-unsafe-eval' is the narrow, wasm-only allowance browsers require to
+    // instantiate a WebAssembly module (the notation renderer) under a restrictive
+    // CSP — it does NOT permit JS eval(). Scripts stay same-origin.
+    "script-src 'self' 'wasm-unsafe-eval'",
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data:",
     "font-src 'self'",
@@ -75,6 +78,7 @@ export default defineConfig(({ mode }) => {
         include: ["src/**/*.{ts,vue}"],
         exclude: [
           "src/gen/**",
+          "src/wasm/**",
           "src/main.ts",
           "src/router.ts",
           "src/App.vue",
@@ -84,6 +88,13 @@ export default defineConfig(({ mode }) => {
           "src/lib/transport.ts",
           "src/lib/grpc-devtools.ts",
           "src/lib/e2e-seam.ts",
+          // Untestable-in-jsdom seams (dynamic wasm import, Web Audio, SVG DOM) — the
+          // pure logic behind them (painter, schedule, review session, soundfont fetch)
+          // stays measured. Mirrored in sonar-project.properties.
+          "src/lib/notation/wasm.ts",
+          "src/lib/audio/synth.ts",
+          "src/composables/useScorePlayer.ts",
+          "src/composables/usePlayhead.ts",
           "**/*.d.ts",
         ],
       },

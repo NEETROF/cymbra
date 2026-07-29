@@ -11,6 +11,7 @@ and accept/reject them, and admins grant/revoke roles. It talks to the backend o
 cd apps/back-office
 yarn install
 yarn gen        # generate TS gRPC stubs from the backend protos (needs protoc)
+yarn gen:wasm   # build the notation renderer wasm (needs wasm-pack + wasm32 target)
 cp .env.example .env   # set VITE_GRPC_WEB_URL + VITE_WEB_AUTH_URL to your backend
 yarn dev
 ```
@@ -24,8 +25,10 @@ credentialed web-auth cookie calls, and a moderator/admin account must exist (se
 ## Scripts
 
 - `yarn gen` — regenerate `src/gen/*` from `backend/*/proto/*.proto` (gitignored).
+- `yarn gen:wasm` — build the notation renderer wasm from `crates/musicxml-wasm` into
+  `src/wasm/pkg/` (gitignored). Needs `wasm-pack` + `wasm32-unknown-unknown`.
 - `yarn test` — Vitest component/store tests (its own gate, outside the Flutter/Rust CI).
-- `yarn build` — type-check + production build.
+- `yarn build` — type-check + production build (run `yarn gen` + `yarn gen:wasm` first).
 
 ## Debugging gRPC-web calls
 
@@ -183,14 +186,78 @@ access token), not instantly — see the residual-window note above.
 
 ## Preview (notation)
 
-`ScorePreview.vue` is the isolated preview seam. Today it shows metadata and confirms
-the fetched bytes; the notation renderer (compile the app's Rust `layout_systems` to
-wasm + a JS/SVG SMuFL painter, so it matches the app exactly) is a deferred module that
-drops in behind this component — or is swapped for a JS fallback if the wasm cost is
-too high.
+`ScorePreview.vue` renders each score's notation **read-only**, faithfully to the app,
+by reusing the app's own layout engine compiled to WebAssembly. This fulfils the
+`moderation-console` "Read-only score preview" requirement and closes
+`add-moderation-back-office` task 4.8 (change: `add-wasm-notation-preview`).
+
+Pipeline:
+
+1. **`crates/musicxml-wasm`** — a thin `wasm-bindgen` wrapper over
+   `cymbra-musicxml-core` exposing one read-only entry point, `render(bytes, width)`,
+   which runs the app's `parse` + `layout_systems` and returns the geometry
+   (`{ document, systems }`). It depends only on the pure core crate — never on
+   `rust_lib_music` (cpal/midir/frb are native-only).
+2. **`yarn gen:wasm`** (`tool/gen_wasm.sh`) — `wasm-pack build --target web` into the
+   gitignored `src/wasm/pkg/`. Needs the wasm toolchain:
+   `rustup target add wasm32-unknown-unknown` + `wasm-pack`. Like `yarn gen`, CI builds
+   it (the Cloudflare Pages image has no Rust toolchain).
+3. **`composables/useScoreRenderer.ts`** — the isolated renderer seam: lazy-`import()`s
+   and instantiates the wasm module once (a separate bundle chunk, so nothing pays for
+   it until a preview is opened), then paints the geometry with the SVG SMuFL painter
+   (`lib/notation/painter.ts` + `smufl.ts`), mirroring the app's `partition_painter.dart`.
+   The render lifecycle is an `Async<T>`; any load/instantiate/render failure degrades to
+   a placeholder — never a page error. Swapping the wasm renderer for a pure-JS fallback
+   is a one-file change behind `lib/notation/wasm.ts`.
+
+The Bravura SMuFL font (SIL OFL 1.1, the app's exact `Bravura.otf`) is served
+same-origin from `public/fonts/` via an `@font-face` in `styles.css`, under
+`font-src 'self'`. Instantiating wasm needs the narrow **`wasm-unsafe-eval`** token in
+`script-src` (set in the Vite CSP meta plugin) — it does not permit JS `eval()`.
+
+### Playback (Play/Pause + animated playhead)
+
+A **Play/Pause** control (no other interaction) plays the score's audio and sweeps a
+playhead over the notation, highlighting the sounding notes — the same engine the app's
+play mode uses:
+
+- **`crates/audio-wasm`** — wraps the app's pure-Rust `rustysynth` synth to render the
+  whole score to one interleaved-stereo PCM buffer (`render(scoreBytes, sf2, sampleRate)`),
+  driven by the shared schedule from `cymbra-musicxml-core`. Depends only on the two pure
+  crates; **Web Audio** (`AudioBufferSourceNode`) is the output sink here, replacing the
+  app's native `cpal`. Built by `yarn gen:wasm` into `src/wasm/pkg-audio/`.
+- **Timing** lives in the core crate: `schedule(bytes)` (exposed from `musicxml-wasm`)
+  mirrors the app's `notationToTimedNotes` — onset-sorted notes + per-measure start times
+  - tempo. `composables/useScorePlayer.ts` owns Web Audio + a `requestAnimationFrame`
+    clock (`elapsedMs`); `composables/usePlayhead.ts` positions the cursor, toggles the
+    `.playing` highlight on the `data-note`-tagged heads, and auto-scrolls. Both the
+    measure→cursor maths (`measureAt`) and the sounding-notes maths (`playingNoteIds`) are
+    pure and unit-tested.
+- **SoundFont**: the app's exact `UprightPianoKW-20220221.sf2` (CC0, ~57 MB), served by
+  the **backend delivery route** `GET /soundfonts/{id}` (change `add-soundfont-delivery`)
+  from a private OVH bucket — _not_ bundled (57 MB > Cloudflare Pages' 25 MiB/file limit).
+  `lib/audio/soundfont.ts` fetches it **on demand** (only when a moderator hits Play) with
+  the caller's **access token** (`Authorization: Bearer`), and persists it in the **Cache
+  API** so it downloads at most once and is never unloaded. The URL is
+  `${VITE_WEB_AUTH_URL}/soundfonts/upright-piano-kw` by default (override with
+  `VITE_SOUNDFONT_URL`); the route's origin is already allowed by the app's CSP `connect-src`.
+- A small **spinner** in the transport (`ScorePreview`) shows while that first-play
+  download is in flight (`audio` = loading).
+- Playback degrades gracefully: no `AudioContext`, a failed SoundFont fetch, or a render
+  error surface as a small "Audio unavailable" note, never a thrown error or a broken page.
+
+> **Deploy dependency.** Playback in prod needs `add-soundfont-delivery` deployed (the
+> private `cymbra-soundfonts` bucket + the `/soundfonts/*` route) so the SoundFont is
+> reachable — this resolves the old Cloudflare Pages 25 MiB blocker. In dev, point
+> `VITE_WEB_AUTH_URL` (or `VITE_SOUNDFONT_URL`) at a backend running the route with the
+> bucket configured. The rest of the console deploys unaffected.
+
+v1 draws staves, clefs, key/time signatures, barlines, note heads, stems, flags,
+beams, accidentals, augmentation dots, rests and ledger lines. Expression/dynamics
+directions, lyrics, ties, slurs and tuplet brackets are best-effort follow-ups (not
+part of the preview contract).
 
 ## Not yet wired (deferred)
 
-- The wasm notation renderer.
 - Full Google OIDC button (the token-exchange path is wired; the GIS button needs a
   configured client id).

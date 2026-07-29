@@ -36,6 +36,22 @@
     "pending": "{n} à revoir",
     "hint": "re-revues signalées par la communauté d'abord, puis la file en attente."
   },
+  "review": {
+    "enter": "🔁 Revue enchaînée",
+    "title": "Revue enchaînée",
+    "back": "← Retour à la file",
+    "progress": "{reviewed} traitées",
+    "remaining": "{n} restantes dans ce lot",
+    "accept": "Accepter (A)",
+    "reject": "Rejeter (R)",
+    "requeue": "Remettre en file (P)",
+    "skip": "Passer (S)",
+    "keys": "A accepter · R rejeter · P remettre · S passer · Espace lecture",
+    "loading": "Chargement de la file…",
+    "done": "Plus rien à revoir 🎉",
+    "loadError": "Impossible de charger la file de revue.",
+    "decideError": "Impossible d'enregistrer la décision — réessaie."
+  },
   "table": {
     "title": "Titre",
     "composer": "Compositeur",
@@ -75,8 +91,14 @@
     "notes": "Notes",
     "tempo": "Tempo (BPM)",
     "loading": "Chargement de la partition…",
-    "loaded": "Partition chargée ({bytes} octets). Le rendu de notation (Rust layout_systems → wasm) n'est pas encore branché dans cette tranche.",
-    "noBytes": "Aucun octet de partition."
+    "rendering": "Rendu de la notation…",
+    "renderError": "Impossible de rendre la notation.",
+    "noBytes": "Aucun octet de partition.",
+    "play": "▶ Lecture",
+    "pause": "⏸ Pause",
+    "audioLoading": "Chargement de l'audio…",
+    "audioError": "Audio indisponible.",
+    "seekHint": "Cliquez une mesure pour lire à partir de là."
   },
   "roles": {
     "title": "Rôles",

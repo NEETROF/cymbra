@@ -36,6 +36,22 @@
     "pending": "{n} to review",
     "hint": "community-flagged re-reviews first, then the pending backlog."
   },
+  "review": {
+    "enter": "🔁 Review mode",
+    "title": "Review mode",
+    "back": "← Back to queue",
+    "progress": "{reviewed} reviewed",
+    "remaining": "{n} left in this batch",
+    "accept": "Accept (A)",
+    "reject": "Reject (R)",
+    "requeue": "Re-queue (P)",
+    "skip": "Skip (S)",
+    "keys": "A accept · R reject · P re-queue · S skip · Space play",
+    "loading": "Loading the queue…",
+    "done": "Nothing left to review 🎉",
+    "loadError": "Couldn't load the review queue.",
+    "decideError": "Couldn't save the decision — try again."
+  },
   "table": {
     "title": "Title",
     "composer": "Composer",
@@ -70,8 +86,14 @@
     "notes": "Notes",
     "tempo": "Tempo (BPM)",
     "loading": "Loading score…",
-    "loaded": "Score loaded ({bytes} bytes). Notation rendering (Rust layout_systems → wasm) is not wired yet in this slice.",
-    "noBytes": "No score bytes."
+    "rendering": "Rendering notation…",
+    "renderError": "Notation could not be rendered.",
+    "noBytes": "No score bytes.",
+    "play": "▶ Play",
+    "pause": "⏸ Pause",
+    "audioLoading": "Loading audio…",
+    "audioError": "Audio unavailable.",
+    "seekHint": "Click a measure to play from there."
   },
   "roles": {
     "title": "Roles",

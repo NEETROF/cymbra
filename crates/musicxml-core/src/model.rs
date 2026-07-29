@@ -19,10 +19,16 @@
 //!
 //! All numeric fields use `u32`/`i32`/`f64` (never `u64`) so the app's
 //! flutter_rust_bridge codegen avoids Dart `BigInt`.
+//!
+//! Under the optional `serde` feature the model derives `Serialize`/`Deserialize`
+//! so a non-FFI consumer (the wasm notation renderer) can ship the geometry across
+//! the WebAssembly boundary. The feature is off by default, so the app engine and
+//! backend build unchanged.
 
 /// A parsed MusicXML document: metadata, staff count, starting attributes, and
 /// the ordered measures with their notes, directions, and computed geometry.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ScoreDocument {
     pub meta: ScoreMeta,
     /// Number of staves in the (single) part — e.g. 2 for a piano grand staff.
@@ -33,6 +39,7 @@ pub struct ScoreDocument {
 
 /// Score metadata; fields are absent (`None`) rather than failing when missing.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ScoreMeta {
     pub title: Option<String>,
     pub composer: Option<String>,
@@ -40,6 +47,7 @@ pub struct ScoreMeta {
 
 /// Starting musical attributes of the part (most-recent values win).
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Attributes {
     /// Divisions (ticks) per quarter note — the unit for every `duration`.
     pub divisions: u32,
@@ -52,6 +60,7 @@ pub struct Attributes {
 
 /// A clef on one staff: e.g. treble = `G`/2 on staff 1, bass = `F`/4 on staff 2.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Clef {
     pub staff: u32,
     pub sign: char,
@@ -60,6 +69,7 @@ pub struct Clef {
 
 /// A time signature, e.g. 3/4 → `beats = 3`, `beat_type = 4`.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct TimeSignature {
     pub beats: u32,
     pub beat_type: u32,
@@ -68,6 +78,7 @@ pub struct TimeSignature {
 /// A measure: its notes and directions in document order, plus the engraving
 /// minimum width computed from note density.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct NotationMeasure {
     /// 0-based position in the part.
     pub index: u32,
@@ -83,6 +94,7 @@ pub struct NotationMeasure {
 
 /// A single note (or rest) event.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct NoteEvent {
     pub staff: u32,
     pub voice: u32,
@@ -113,6 +125,7 @@ pub struct NoteEvent {
 
 /// A pitch: diatonic step, octave, and chromatic alteration (semitones).
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Pitch {
     pub step: char,
     pub octave: i32,
@@ -121,6 +134,7 @@ pub struct Pitch {
 
 /// Tuplet ratio from `time-modification` — e.g. a triplet is `3:2`.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Tuplet {
     pub actual: u32,
     pub normal: u32,
@@ -128,6 +142,7 @@ pub struct Tuplet {
 
 /// Stem direction.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum StemDir {
     Up,
     Down,
@@ -135,6 +150,7 @@ pub enum StemDir {
 
 /// Beam state at a note within a beam group.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum BeamState {
     Begin,
     Continue,
@@ -143,6 +159,7 @@ pub enum BeamState {
 
 /// A lyric syllable attached to a note.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Lyric {
     pub syllabic: Option<String>,
     pub text: String,
@@ -150,6 +167,7 @@ pub struct Lyric {
 
 /// A measure direction (expression/tempo) anchored at a staff and time position.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Direction {
     pub staff: u32,
     pub position_divisions: u32,
@@ -158,6 +176,7 @@ pub struct Direction {
 
 /// The supported direction kinds; unknown ones are dropped at parse time.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum DirectionKind {
     /// Free expression/tempo text (e.g. "Andantino", "dolce").
     Words(String),
@@ -173,6 +192,7 @@ pub enum DirectionKind {
 /// One staff line of music: the measure indices it contains, in order, plus the
 /// staff count so a grand staff lays out together.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct System {
     pub measures: Vec<u32>,
     pub staves: u32,

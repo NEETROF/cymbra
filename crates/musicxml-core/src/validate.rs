@@ -23,6 +23,7 @@
 use std::fmt;
 
 use crate::meta::ScoreSummary;
+use crate::model::ScoreDocument;
 use crate::mxl;
 use crate::parse;
 
@@ -94,6 +95,21 @@ pub fn validate(bytes: &[u8]) -> Result<ScoreSummary, RejectReason> {
         return Err(RejectReason::NoNotes);
     }
     Ok(summary)
+}
+
+/// Gate, decode a `.mxl` container when present, and fully parse `bytes` into a
+/// [`ScoreDocument`]. The shared front door for consumers that need the parsed
+/// document (notation layout, playback schedule, audio render): non-MusicXML /
+/// oversized / undecodable input is a typed [`RejectReason`], never partial output.
+/// Never panics.
+pub fn decode_and_parse(bytes: &[u8]) -> Result<ScoreDocument, RejectReason> {
+    validate(bytes)?;
+    let xml = if mxl::is_mxl(bytes) {
+        mxl::decode(bytes).map_err(|_| RejectReason::Undecodable)?
+    } else {
+        bytes.to_vec()
+    };
+    parse(&xml).map_err(|_| RejectReason::Unparseable)
 }
 
 #[cfg(test)]

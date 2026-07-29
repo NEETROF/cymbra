@@ -4,9 +4,10 @@ name: back-office-deploy
 # (bo.cymbra.app), reusing the marketing-site Pages pattern.
 #
 # We build in Actions rather than in Cloudflare's build image because the SPA needs
-# `protoc` (yarn gen → gRPC-web stubs) and Yarn Berry on a controlled Node — then we
-# upload the static `dist/` with wrangler. This also sidesteps the private-registry
-# quirks of the Pages build environment.
+# `protoc` (yarn gen → gRPC-web stubs), the Rust + wasm toolchain (yarn gen:wasm →
+# the notation renderer wasm from crates/musicxml-wasm) and Yarn Berry on a controlled
+# Node — then we upload the static `dist/` with wrangler. This also sidesteps the
+# private-registry quirks of the Pages build environment.
 #
 # Dormant until configured: the deploy job is gated on the `CF_PAGES_PROJECT` repo
 # variable, so until a maintainer creates the Pages project and sets the values below
@@ -31,6 +32,8 @@ on:
       - "backend/auth-port/proto/**"
       - "backend/user-port/proto/**"
       - "backend/music/proto/**"
+      - "crates/musicxml-wasm/**"
+      - "crates/musicxml-core/**"
       - ".github/workflows/back-office-deploy.yml"
   workflow_dispatch:
 
@@ -53,6 +56,10 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install protoc
         run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
+      - name: Install Rust wasm toolchain
+        run: |
+          rustup target add wasm32-unknown-unknown
+          curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
@@ -62,6 +69,8 @@ jobs:
         run: yarn install --immutable
       - name: Generate gRPC-web stubs
         run: yarn gen
+      - name: Build wasm notation renderer
+        run: yarn gen:wasm
       - name: Build
         env:
           VITE_GRPC_WEB_URL: ${{ vars.VITE_GRPC_WEB_URL }}

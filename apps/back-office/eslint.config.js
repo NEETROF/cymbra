@@ -13,7 +13,15 @@ export default defineConfigWithVueTs(
   },
   {
     name: "app/files-to-ignore",
-    ignores: ["dist/**", "src/gen/**", "coverage/**", "playwright-report/**", "test-results/**"],
+    ignores: [
+      "dist/**",
+      "src/gen/**",
+      "src/wasm/pkg/**",
+      "src/wasm/pkg-audio/**",
+      "coverage/**",
+      "playwright-report/**",
+      "test-results/**",
+    ],
   },
   pluginVue.configs["flat/recommended"],
   vueTsConfigs.recommended,

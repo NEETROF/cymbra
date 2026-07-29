@@ -56,7 +56,10 @@ test.describe("queue", () => {
     await page.locator("tbody tr").first().click();
     await expect(page).toHaveURL(/\/music\/score\/11111111-1111-1111-1111-111111111111$/);
     await expect(page.getByRole("heading", { name: "Clair de Lune" })).toBeVisible();
-    await expect(page.getByText(/Score loaded \(3 bytes\)/)).toBeVisible();
+    // The preview fetched the bytes and ran the wasm renderer on them; the fake seam's
+    // 3 placeholder bytes aren't valid MusicXML, so it degrades to the render-failed
+    // note (proving the bytes path is self-sufficient on a deep link).
+    await expect(page.getByText("Notation could not be rendered.")).toBeVisible();
   });
 });
 

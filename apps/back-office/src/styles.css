@@ -1,3 +1,13 @@
+/* Bravura — the reference SMuFL music font (Steinberg, SIL OFL 1.1), the same
+   Bravura.otf the Flutter app bundles. Served same-origin from public/fonts/ so the
+   wasm-rendered notation preview draws with the app's glyphs under the strict CSP
+   (font-src 'self'). Licence: public/fonts/OFL.txt. */
+@font-face {
+  font-family: "Bravura";
+  src: url("/fonts/Bravura.otf") format("opentype");
+  font-display: swap;
+}
+
 :root {
   /* Cymbra palette — mirrors the Flutter app's CymbraColors (cymbra_theme.dart). */
   --bg: #0b1326; /* background */
