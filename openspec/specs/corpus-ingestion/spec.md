@@ -24,6 +24,41 @@ the source of truth for a corpus entry.
 - **THEN** the same ingestion code writes to a local folder in dev and to the
   bucket in prod, with no code change
 
+### Requirement: Title derived from the score, filename only as fallback
+
+The system SHALL derive each `catalog_scores` row's display `title` from the
+score's own embedded metadata (the parsed `<work-title>`), and SHALL fall back to
+the source adapter's title ONLY when the score carries no embedded title. A source
+adapter's title — for git corpora the file stem, which for OpenScore Lieder is an
+opaque id such as `lc28971056` — SHALL NEVER shadow an embedded title.
+
+The persisted search key SHALL stay consistent with the display title: `title`,
+the normalised `title_norm`, and the `work_key` SHALL all be derived from the same
+parsed title (via the shared `ScoreSummary` derivation), so a score is findable by
+its real title through the catalog search (which matches `title_norm`, normalised
+the same way as the query).
+
+NOTE: rows ingested before this requirement — which stored the filename id as the
+title — are reconciled by a one-off maintenance backfill (`backfill-titles`) that
+re-reads each stored `.mxl`, re-derives the title, and rewrites
+`title`/`title_norm`/`work_key` together. Re-running the crawler cannot repair
+them: SHA-256 dedup skips already-ingested content.
+
+#### Scenario: Embedded title preferred over the adapter title
+- **WHEN** a retained score embeds a `<work-title>` and its source adapter also
+  supplies a title (e.g. an opaque filename id)
+- **THEN** the `catalog_scores` row's `title` is the embedded work-title, and
+  `title_norm`/`work_key` are derived from that same title
+
+#### Scenario: Adapter title used only when the score has none
+- **WHEN** a retained score carries no embedded title
+- **THEN** the row's `title` falls back to the adapter-supplied title
+
+#### Scenario: Title stays searchable
+- **WHEN** a caller searches for a term contained in a score's embedded title
+- **THEN** the score matches, because its `title_norm` was derived from that same
+  title with the normalisation the query also uses
+
 ### Requirement: Confidence separation in the store
 
 The system SHALL keep `verified` (high-confidence) and `unverified`

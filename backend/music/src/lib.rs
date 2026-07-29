@@ -11,6 +11,7 @@
 //! score-crawler tool, not over gRPC), so consumers need not depend on the
 //! platform error type.
 
+pub mod backfill;
 pub mod catalog_search;
 pub mod grpc;
 pub mod module;
@@ -26,12 +27,16 @@ pub mod score_rating;
 pub mod user_library;
 pub mod user_scores;
 
+pub use backfill::{
+    BackfillReport, BackfillRow, TitleBackfillRepo, TitleUpdate, plan_title_update,
+    run_title_backfill,
+};
 pub use catalog_search::{
     CatalogHit, CatalogSearchParams, CatalogSearchRepo, FakeCatalogRow, FakeCatalogSearchRepo,
 };
 pub use grpc::ScoreGrpc;
 pub use module::{ScoreModule, UploadInput};
-pub use pg::{PgCatalogRepo, PgCatalogSearchRepo, PgScoreRatingRepo};
+pub use pg::{PgCatalogRepo, PgCatalogSearchRepo, PgScoreRatingRepo, PgTitleBackfillRepo};
 pub use pg_play::PgPlayRepo;
 pub use pg_user_scores::{PgUserLibraryRepo, PgUserScoreRepo};
 pub use play::{DayActivity, FakePlayRepo, PlayActivity, PlayRepo, PlaySession, SessionPoint};

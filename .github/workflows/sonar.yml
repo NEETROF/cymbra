@@ -90,7 +90,7 @@ jobs:
         if: env.RUN_RUST == 'true'
         run: >-
           cargo llvm-cov --workspace --lcov --output-path target/lcov.info
-          --ignore-filename-regex 'frb_generated|cymbra\.(auth|user)\.v1|/lib\.rs|/main\.rs|/midi\.rs|/musicxml\.rs|/audio\.rs|/grpc\.rs|/pg\.rs|/creds_pg\.rs|/session_pg\.rs|/verifier\.rs|/telemetry\.rs|/metrics\.rs|/cache\.rs|/email\.rs|/db\.rs|/jwks\.rs|/interceptor\.rs|/logging\.rs|/engine\.rs|/scheduler\.rs|/handlers\.rs'
+          --ignore-filename-regex 'frb_generated|cymbra\.(auth|user)\.v1|/lib\.rs|/main\.rs|/backfill_titles\.rs|/midi\.rs|/musicxml\.rs|/audio\.rs|/grpc\.rs|/pg\.rs|/creds_pg\.rs|/session_pg\.rs|/verifier\.rs|/telemetry\.rs|/metrics\.rs|/cache\.rs|/email\.rs|/db\.rs|/jwks\.rs|/interceptor\.rs|/logging\.rs|/engine\.rs|/scheduler\.rs|/handlers\.rs'
 
       # --- Flutter coverage (only when the app changed) -----------------------
       # The hard 80% gate lives in flutter.yml; here we only feed lcov to Sonar.

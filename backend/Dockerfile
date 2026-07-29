@@ -1,6 +1,8 @@
-# Cymbra backend image — builds BOTH binaries (cymbra-server + cymbra-worker)
-# into one small runtime image; the compose file picks the binary per service via
-# `command:`. Build context is the REPO ROOT (the workspace Cargo.lock lives there):
+# Cymbra backend image — builds the server + worker binaries (plus the one-off
+# `backfill-titles` maintenance bin, run via `docker compose run --rm server
+# backfill-titles …`) into one small runtime image; the compose file picks the
+# binary per service via `command:`. Build context is the REPO ROOT (the workspace
+# Cargo.lock lives there):
 #   docker build -f backend/Dockerfile -t cymbra-backend .
 #
 # The workspace also contains the Flutter FFI crates under apps/*/rust; they are
@@ -19,7 +21,8 @@ COPY . .
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/src/target \
     cargo build --release --locked -p cymbra-server -p cymbra-worker \
-    && cp target/release/cymbra-server target/release/cymbra-worker /usr/local/bin/
+    && cp target/release/cymbra-server target/release/cymbra-worker \
+          target/release/backfill-titles /usr/local/bin/
 
 FROM debian:bookworm-slim AS runtime
 # ca-certificates: outbound TLS to Google/Apple JWKS, OIDC discovery, SMTP.
