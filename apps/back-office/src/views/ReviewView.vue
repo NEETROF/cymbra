@@ -42,6 +42,22 @@ const bytesVm = computed(() =>
 
 const { notation } = useScoreRenderer(bytesData);
 const player = useScorePlayer(bytesData);
+
+// Hands-free review: auto-play each score once, as soon as it's playable (a decided
+// score leaves and the next one starts on its own). Only once per score — pausing is
+// respected and a finished score isn't restarted. Entering review mode / deciding are
+// user gestures, so the browser's autoplay policy allows this.
+let autoplayedFor: string | null = null;
+watch(
+  () => [session.current.value?.id, player.canPlay.value] as const,
+  ([id, can]) => {
+    if (id && can && !player.playing.value && autoplayedFor !== id) {
+      autoplayedFor = id;
+      player.toggle();
+    }
+  },
+);
+
 const acting = computed(() => session.deciding.value.status === "loading");
 const decideError = computed(() => session.deciding.value.status === "error");
 
