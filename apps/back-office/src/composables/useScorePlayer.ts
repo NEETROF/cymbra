@@ -28,6 +28,13 @@ interface ScorePlayer {
 
 type Ctx = typeof AudioContext;
 
+/** The AudioContext constructor (with the webkit fallback), or null when Web Audio is
+ *  unavailable (e.g. jsdom). */
+function audioContextCtor(): Ctx | null {
+  const w = globalThis as unknown as { AudioContext?: Ctx; webkitAudioContext?: Ctx };
+  return w.AudioContext ?? w.webkitAudioContext ?? null;
+}
+
 export function useScorePlayer(bytes: Ref<Uint8Array | null | undefined>): ScorePlayer {
   const schedule = ref<Async<PlaybackSchedule>>(idle);
   const audio = ref<Async<void>>(idle);
@@ -64,11 +71,6 @@ export function useScorePlayer(bytes: Ref<Uint8Array | null | undefined>): Score
     },
     { immediate: true },
   );
-
-  function audioContextCtor(): Ctx | null {
-    const w = globalThis as unknown as { AudioContext?: Ctx; webkitAudioContext?: Ctx };
-    return w.AudioContext ?? w.webkitAudioContext ?? null;
-  }
 
   function tick(): void {
     if (!playing.value || !ctx) return;

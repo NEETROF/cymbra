@@ -24,7 +24,7 @@ const stepOrder: Record<string, number> = { C: 0, D: 1, E: 2, F: 3, G: 4, A: 5, 
 
 // A tiny SVG string builder — keeps the paint routines declarative and testable.
 class Svg {
-  private parts: string[] = [];
+  private readonly parts: string[] = [];
 
   line(x1: number, y1: number, x2: number, y2: number, cls: string, extra = ""): void {
     this.parts.push(`<line x1="${r(x1)}" y1="${r(y1)}" x2="${r(x2)}" y2="${r(y2)}" class="${cls}"${extra}/>`);
@@ -80,6 +80,18 @@ export interface RenderResult {
   layout: { width: number; height: number; measures: MeasureRect[] };
 }
 
+/** Invariant render state threaded through the paint routines (keeps their parameter
+ *  lists small). `measures` is accumulated as systems are painted. */
+interface Ctx {
+  svg: Svg;
+  doc: ScoreDocument;
+  width: number;
+  divPerMeasure: number;
+  twoStaff: boolean;
+  clefAt: Map<number, Clef>[];
+  measures: MeasureRect[];
+}
+
 /** Render laid-out geometry to an SVG string sized to `width` (the same width handed
  *  to the wasm layout, so the systems' line breaks match), plus a layout map. Each
  *  pitched note head carries `data-note="<measureIndex>:<noteIndex>"` so the playhead
@@ -95,12 +107,19 @@ export function renderNotation(rendered: RenderedScore, width: number): RenderRe
     return { svg: svg.toString(width, systemHeight), layout: { width, height: systemHeight, measures } };
   }
 
-  const divPerMeasure = divisionsPerMeasure(doc);
-  const clefAt = computeClefAt(doc);
+  const ctx: Ctx = {
+    svg,
+    doc,
+    width,
+    divPerMeasure: divisionsPerMeasure(doc),
+    twoStaff,
+    clefAt: computeClefAt(doc),
+    measures,
+  };
 
   let y = systemGap;
   for (let i = 0; i < systems.length; i++) {
-    paintSystem(svg, doc, systems[i], width, y, divPerMeasure, i === 0, twoStaff, clefAt, measures);
+    paintSystem(ctx, systems[i], y, i === 0);
     y += systemHeight + systemGap;
   }
   return { svg: svg.toString(width, height), layout: { width, height, measures } };
@@ -129,23 +148,13 @@ function clefFor(clefs: Map<number, Clef>, staff: number): Clef {
   return clefs.get(staff) ?? (staff >= 2 ? { staff: 2, sign: "F", line: 4 } : { staff: 1, sign: "G", line: 2 });
 }
 
-function paintSystem(
-  svg: Svg,
-  doc: ScoreDocument,
-  system: System,
-  width: number,
-  yTop: number,
-  divPerMeasure: number,
-  isFirst: boolean,
-  twoStaff: boolean,
-  clefAt: Map<number, Clef>[],
-  measures: MeasureRect[],
-): void {
+function paintSystem(ctx: Ctx, system: System, yTop: number, isFirst: boolean): void {
+  const { svg, doc, width, twoStaff } = ctx;
   const trebleBottom = yTop + topPad + staffHeight;
   const bassBottom = trebleBottom + interStaff + staffHeight;
   const systemBottom = twoStaff ? bassBottom : trebleBottom;
   const systemTop = trebleBottom - staffHeight;
-  const headerClefs = clefAt[system.measures[0]];
+  const headerClefs = ctx.clefAt[system.measures[0]];
 
   drawStaffLines(svg, trebleBottom, width);
   if (twoStaff) drawStaffLines(svg, bassBottom, width);
@@ -178,11 +187,10 @@ function paintSystem(
 
   let x = headerX;
   for (const idx of system.measures) {
-    const measure = doc.measures[idx];
-    const mWidth = measure.min_width * scale;
+    const mWidth = doc.measures[idx].min_width * scale;
     svg.line(x + mWidth, systemTop, x + mWidth, systemBottom, "bar");
-    measures.push({ index: idx, x, width: mWidth, top: systemTop, bottom: systemBottom });
-    paintMeasure(svg, doc, idx, x, mWidth, divPerMeasure, trebleBottom, bassBottom, clefAt[idx], twoStaff);
+    ctx.measures.push({ index: idx, x, width: mWidth, top: systemTop, bottom: systemBottom });
+    paintMeasure(ctx, idx, x, mWidth, trebleBottom, bassBottom);
     x += mWidth;
   }
 }
@@ -229,77 +237,107 @@ interface StemNote {
 }
 
 function paintMeasure(
-  svg: Svg,
-  doc: ScoreDocument,
+  ctx: Ctx,
   measureIdx: number,
   measureX: number,
   measureWidth: number,
-  divPerMeasure: number,
   trebleBottom: number,
   bassBottom: number,
-  clefs: Map<number, Clef>,
-  twoStaff: boolean,
 ): void {
-  const measure = doc.measures[measureIdx];
+  const measure = ctx.doc.measures[measureIdx];
+  const clefs = ctx.clefAt[measureIdx];
+  const beamGroups = new Map<string, StemNote[]>();
 
   const xForPosition = (position: number): number => {
-    const frac = divPerMeasure > 0 ? clamp(position / divPerMeasure, 0, 1) : 0;
-    const left = measureX + s;
-    return left + frac * (measureWidth - 2.4 * s);
+    const frac = ctx.divPerMeasure > 0 ? clamp(position / ctx.divPerMeasure, 0, 1) : 0;
+    return measureX + s + frac * (measureWidth - 2.4 * s);
   };
-
-  const beamGroups = new Map<string, StemNote[]>();
 
   for (let ni = 0; ni < measure.notes.length; ni++) {
     const note = measure.notes[ni];
-    const isBass = note.staff >= 2 && twoStaff;
-    const staffBottom = isBass ? bassBottom : trebleBottom;
-    const x = xForPosition(note.position_divisions);
-
-    if (note.is_rest) {
-      svg.glyph(S.restGlyph(note), x, staffBottom - 2 * s, s, "ink", true);
-      continue;
-    }
-    const pitch = note.pitch;
-    if (pitch == null) continue;
-
-    const y = yForPitch(pitch.step, pitch.octave, staffBottom, clefFor(clefs, note.staff));
-    drawLedgerLines(svg, x, y, staffBottom);
-
-    const head = S.headGlyph(note, doc.attributes.divisions);
-    const headLeft = x - (S.noteheadWidth * s) / 2;
-    // data-note correlates this head with its scheduled note so the playhead can
-    // highlight it while it sounds.
-    svg.glyph(head, headLeft, y, s, "ink", false, ` data-note="${measureIdx}:${ni}"`);
-
-    if (note.accidental) {
-      const glyph = S.accidentalGlyph(note.accidental);
-      if (glyph) svg.glyph(glyph, headLeft - s * 1.5, y, s);
-    }
-    drawDots(svg, x, y, note.dots);
-
-    // Stem + beam grouping (chord members share the principal note's stem; whole
-    // notes have no stem).
-    if (head !== S.noteheadWhole && !note.is_chord) {
-      const midY = staffBottom - 2 * s;
-      const up = note.stem != null ? note.stem === "Up" : y >= midY;
-      const n: StemNote = { x, y, up, note };
-      if (note.beams.length === 0) {
-        drawStemAndFlag(svg, n);
-      } else {
-        const key = `${note.staff}_${note.voice}`;
-        const group = beamGroups.get(key) ?? [];
-        group.push(n);
-        beamGroups.set(key, group);
-        if (note.beams.includes("End")) {
-          drawBeamGroup(svg, group);
-          beamGroups.delete(key);
-        }
-      }
-    }
+    paintNote(ctx, {
+      note,
+      ni,
+      measureIdx,
+      x: xForPosition(note.position_divisions),
+      trebleBottom,
+      bassBottom,
+      clefs,
+      beamGroups,
+    });
   }
   // Any beam group left open at the barline (defensive).
-  for (const group of beamGroups.values()) drawBeamGroup(svg, group);
+  for (const group of beamGroups.values()) drawBeamGroup(ctx.svg, group);
+}
+
+interface PaintNoteOpts {
+  note: NoteEvent;
+  ni: number;
+  measureIdx: number;
+  x: number;
+  trebleBottom: number;
+  bassBottom: number;
+  clefs: Map<number, Clef>;
+  beamGroups: Map<string, StemNote[]>;
+}
+
+function paintNote(ctx: Ctx, o: PaintNoteOpts): void {
+  const { svg } = ctx;
+  const { note, x } = o;
+  const isBass = note.staff >= 2 && ctx.twoStaff;
+  const staffBottom = isBass ? o.bassBottom : o.trebleBottom;
+
+  if (note.is_rest) {
+    svg.glyph(S.restGlyph(note), x, staffBottom - 2 * s, s, "ink", true);
+    return;
+  }
+  const pitch = note.pitch;
+  if (pitch == null) return;
+
+  const y = yForPitch(pitch.step, pitch.octave, staffBottom, clefFor(o.clefs, note.staff));
+  drawLedgerLines(svg, x, y, staffBottom);
+
+  const head = S.headGlyph(note, ctx.doc.attributes.divisions);
+  const headLeft = x - (S.noteheadWidth * s) / 2;
+  // data-note correlates this head with its scheduled note so the playhead can
+  // highlight it while it sounds.
+  svg.glyph(head, headLeft, y, s, "ink", false, ` data-note="${o.measureIdx}:${o.ni}"`);
+
+  if (note.accidental) {
+    const glyph = S.accidentalGlyph(note.accidental);
+    if (glyph) svg.glyph(glyph, headLeft - s * 1.5, y, s);
+  }
+  drawDots(svg, x, y, note.dots);
+
+  queueStem(svg, { x, y, up: false, note }, staffBottom, head, o.beamGroups);
+}
+
+// Stem + beam grouping (chord members share the principal note's stem; whole notes
+// have no stem). Draws a lone stem/flag immediately, or accumulates a beam group and
+// flushes it on the group's End note.
+function queueStem(
+  svg: Svg,
+  n: StemNote,
+  staffBottom: number,
+  head: string,
+  beamGroups: Map<string, StemNote[]>,
+): void {
+  if (head === S.noteheadWhole || n.note.is_chord) return;
+  const midY = staffBottom - 2 * s;
+  const stem: StemNote = { ...n, up: n.note.stem != null ? n.note.stem === "Up" : n.y >= midY };
+
+  if (n.note.beams.length === 0) {
+    drawStemAndFlag(svg, stem);
+    return;
+  }
+  const key = `${n.note.staff}_${n.note.voice}`;
+  const group = beamGroups.get(key) ?? [];
+  group.push(stem);
+  beamGroups.set(key, group);
+  if (n.note.beams.includes("End")) {
+    drawBeamGroup(svg, group);
+    beamGroups.delete(key);
+  }
 }
 
 function yForPitch(step: string, octave: number, bottomLineY: number, clef: Clef): number {
@@ -307,21 +345,22 @@ function yForPitch(step: string, octave: number, bottomLineY: number, clef: Clef
   return bottomLineY - (diatonic - clefBottomDiatonic(clef)) * (s / 2);
 }
 
+// Diatonic value of a clef's bottom staff line (G→G4, F→F3, C→C4; each line = 2 steps).
+function clefRefDiatonic(sign: string): number {
+  if (sign === "F") return 3 * 7 + 3;
+  if (sign === "C") return 4 * 7 + 0;
+  return 4 * 7 + 4;
+}
+
 function clefBottomDiatonic(clef: Clef): number {
-  const refOnLine = clef.sign === "F" ? 3 * 7 + 3 : clef.sign === "C" ? 4 * 7 + 0 : 4 * 7 + 4;
-  return refOnLine - (clef.line - 1) * 2;
+  return clefRefDiatonic(clef.sign) - (clef.line - 1) * 2;
 }
 
 function stemAnchor(n: StemNote): { x: number; y: number } {
+  const baseX = n.x - (S.noteheadWidth * s) / 2;
   return n.up
-    ? {
-        x: n.x - (S.noteheadWidth * s) / 2 + S.stemUpAnchorX * s,
-        y: n.y - S.stemUpAnchorY * s,
-      }
-    : {
-        x: n.x - (S.noteheadWidth * s) / 2 + S.stemDownAnchorX * s,
-        y: n.y - S.stemDownAnchorY * s,
-      };
+    ? { x: baseX + S.stemUpAnchorX * s, y: n.y - S.stemUpAnchorY * s }
+    : { x: baseX + S.stemDownAnchorX * s, y: n.y - S.stemDownAnchorY * s };
 }
 
 function drawStemAndFlag(svg: Svg, n: StemNote): void {
@@ -340,15 +379,14 @@ function drawBeamGroup(svg: Svg, group: StemNote[]): void {
   }
   const up = group[0].up;
   const anchors = group.map(stemAnchor);
-  const beamY = up
-    ? Math.min(...anchors.map((a) => a.y)) - stemLen * s
-    : Math.max(...anchors.map((a) => a.y)) + stemLen * s;
+  const ys = anchors.map((a) => a.y);
+  const beamY = up ? Math.min(...ys) - stemLen * s : Math.max(...ys) + stemLen * s;
   for (const a of anchors) svg.line(a.x, a.y, a.x, beamY, "stem");
-  svg.line(anchors[0].x, beamY, anchors[anchors.length - 1].x, beamY, "beam");
+  const last = anchors.at(-1)!;
+  svg.line(anchors[0].x, beamY, last.x, beamY, "beam");
 
   // Secondary beam for consecutive 16th-or-shorter notes.
-  const dir = up ? 1 : -1;
-  const off = dir * (S.beamThickness + 0.2) * s;
+  const off = (up ? 1 : -1) * (S.beamThickness + 0.2) * s;
   for (let i = 0; i < group.length - 1; i++) {
     if (S.flagCount(group[i].note) >= 2 && S.flagCount(group[i + 1].note) >= 2) {
       svg.line(anchors[i].x, beamY + off, anchors[i + 1].x, beamY + off, "beam");
@@ -371,7 +409,7 @@ function drawLedgerLines(svg: Svg, x: number, y: number, bottomLineY: number): v
 }
 
 function clamp(v: number, lo: number, hi: number): number {
-  return v < lo ? lo : v > hi ? hi : v;
+  return Math.min(Math.max(v, lo), hi);
 }
 
 // Round to 2 decimals to keep the SVG compact and stable across platforms.
@@ -380,5 +418,5 @@ function r(v: number): string {
 }
 
 function escapeText(t: string): string {
-  return t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return t.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
 }

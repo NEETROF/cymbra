@@ -12,8 +12,9 @@ const CACHE = "cymbra-soundfont-v1";
 function soundfontUrl(): string {
   const explicit = import.meta.env.VITE_SOUNDFONT_URL as string | undefined;
   if (explicit) return explicit;
-  const base = (import.meta.env.VITE_WEB_AUTH_URL as string | undefined) ?? "http://localhost:8081";
-  return `${base.replace(/\/+$/, "")}/soundfonts/upright-piano-kw`;
+  let base = (import.meta.env.VITE_WEB_AUTH_URL as string | undefined) ?? "http://localhost:8081";
+  while (base.endsWith("/")) base = base.slice(0, -1); // trim trailing slashes (no regex)
+  return `${base}/soundfonts/upright-piano-kw`;
 }
 
 let cached: Promise<Uint8Array> | null = null;

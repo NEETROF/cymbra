@@ -51,14 +51,14 @@ export function usePlayhead(opts: Options): void {
         hit.setAttribute("height", String(m.bottom - m.top));
         hit.setAttribute("fill", "transparent");
         hit.setAttribute("class", "measure-hit");
-        hit.setAttribute("data-measure", String(m.index));
+        hit.dataset.measure = String(m.index);
         hit.style.cursor = "pointer";
         svgEl.appendChild(hit);
       }
       svgEl.addEventListener("click", onClick);
 
       for (const el of Array.from(svgEl.querySelectorAll<SVGElement>("[data-note]"))) {
-        const id = el.getAttribute("data-note");
+        const id = el.dataset.note;
         if (id) heads.set(id, el);
       }
 
@@ -77,9 +77,10 @@ export function usePlayhead(opts: Options): void {
   watch([opts.elapsedMs, opts.playing], update);
 
   function onClick(e: Event): void {
-    const el = (e.target as Element | null)?.closest("[data-measure]");
-    if (!el) return;
-    const idx = Number(el.getAttribute("data-measure"));
+    const el = (e.target as Element | null)?.closest<SVGElement>("[data-measure]");
+    const raw = el?.dataset.measure;
+    if (raw == null) return;
+    const idx = Number(raw);
     if (Number.isFinite(idx)) opts.onSeekMeasure?.(idx);
   }
 
