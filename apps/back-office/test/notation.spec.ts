@@ -219,6 +219,23 @@ describe("ScorePreview notation states", () => {
     expect(on.get("button.play").text()).toContain("Pause");
   });
 
+  it("shows a loading spinner while audio (the SoundFont) downloads", () => {
+    const result = renderNotation(makeGeometry(), 1000);
+    const w = mount(ScorePreview, {
+      global: withI18n,
+      props: {
+        hit: hit as never,
+        bytes: new Uint8Array([1]),
+        loading: false,
+        notation: success(result),
+        canPlay: true,
+        audio: loading,
+      },
+    });
+    expect(w.find(".spinner").exists()).toBe(true);
+    expect(w.text()).toContain("Loading audio…");
+  });
+
   it("surfaces a non-fatal audio message, not a raw error", () => {
     const result = renderNotation(makeGeometry(), 1000);
     const w = mount(ScorePreview, {

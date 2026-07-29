@@ -37,11 +37,9 @@ build() {
 build musicxml-wasm "$APP_DIR/src/wasm/pkg" musicxml_wasm
 build audio-wasm "$APP_DIR/src/wasm/pkg-audio" audio_wasm
 
-# Stage the app's SoundFont (single committed copy under apps/music/assets — do NOT
-# duplicate it in git; copy it at build time). Served same-origin under font/connect
-# CSP; fetched on demand + cached when a moderator hits Play.
-SF2="UprightPianoKW-20220221.sf2"
-mkdir -p "$APP_DIR/public/soundfonts"
-cp "$REPO_ROOT/apps/music/assets/soundfonts/$SF2" "$APP_DIR/public/soundfonts/$SF2"
+# NOTE: the SoundFont is NOT bundled here. It is served by the backend delivery route
+# (change: add-soundfont-delivery) and fetched at runtime with the caller's token —
+# see lib/audio/soundfont.ts / VITE_SOUNDFONT_URL. (Bundling a 57MB asset would exceed
+# Cloudflare Pages' 25MiB/file limit.)
 
-echo "Built wasm modules (notation + audio) and staged the SoundFont"
+echo "Built wasm modules (notation + audio)"

@@ -10,6 +10,7 @@ import type { PlaybackSchedule } from "@/lib/notation/schedule";
 import { loadNotationWasm } from "@/lib/notation/wasm";
 import { loadAudioWasm } from "@/lib/audio/synth";
 import { loadSoundFont } from "@/lib/audio/soundfont";
+import { useAuthStore } from "@/stores/auth";
 
 interface ScorePlayer {
   /** Schedule for the playhead (measure times, sounding notes) — Async. */
@@ -101,7 +102,11 @@ export function useScorePlayer(bytes: Ref<Uint8Array | null | undefined>): Score
       await ctx.resume();
       if (!buffer) {
         audio.value = loading;
-        const [wasm, sf2] = await Promise.all([loadAudioWasm(), loadSoundFont()]);
+        // Fetch the SoundFont from the backend delivery route with the caller's access
+        // token (resolved here — reached only with a real AudioContext, so unit tests
+        // that stub audio never need a Pinia instance).
+        const token = useAuthStore().accessToken;
+        const [wasm, sf2] = await Promise.all([loadAudioWasm(), loadSoundFont(token)]);
         if (bytes.value !== value) return; // row changed mid-load
         const pcm = wasm.render(value, sf2, ctx.sampleRate);
         const frames = Math.floor(pcm.length / 2);

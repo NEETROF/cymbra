@@ -5,7 +5,7 @@ import { measureAt, playingNoteIds, type PlaybackSchedule } from "@/lib/notation
 import { useScorePlayer } from "@/composables/useScorePlayer";
 import { setNotationWasmForTest } from "@/lib/notation/wasm";
 import { setAudioWasmForTest } from "@/lib/audio/synth";
-import { setSoundFontForTest } from "@/lib/audio/soundfont";
+import { loadSoundFont, setSoundFontForTest } from "@/lib/audio/soundfont";
 
 const schedule: PlaybackSchedule = {
   notes: [
@@ -75,5 +75,33 @@ describe("useScorePlayer", () => {
     expect(player.playing.value).toBe(false);
     expect(player.audio.value.status).toBe("error");
     scope.stop();
+  });
+});
+
+describe("loadSoundFont (backend delivery route)", () => {
+  afterEach(() => {
+    setSoundFontForTest(null);
+    vi.unstubAllGlobals();
+  });
+
+  it("fetches from the delivery route with the bearer token and returns bytes", async () => {
+    const fetchMock = vi.fn(() => Promise.resolve(new Response(new Uint8Array([1, 2, 3]), { status: 200 })));
+    vi.stubGlobal("fetch", fetchMock);
+    const bytes = await loadSoundFont("tok123");
+    expect(bytes).toEqual(new Uint8Array([1, 2, 3]));
+    const init = (fetchMock.mock.calls[0] as unknown[])[1] as RequestInit | undefined;
+    expect(init?.headers).toMatchObject({ Authorization: "Bearer tok123" });
+  });
+
+  it("does not permanently cache a failure — a retry can succeed", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response("no", { status: 401 }))
+      .mockResolvedValueOnce(new Response(new Uint8Array([9]), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(loadSoundFont("t")).rejects.toThrow();
+    const bytes = await loadSoundFont("t"); // retry after (re-)auth
+    expect(bytes).toEqual(new Uint8Array([9]));
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });

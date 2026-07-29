@@ -233,21 +233,24 @@ play mode uses:
     `.playing` highlight on the `data-note`-tagged heads, and auto-scrolls. Both the
     measure→cursor maths (`measureAt`) and the sounding-notes maths (`playingNoteIds`) are
     pure and unit-tested.
-- **SoundFont**: the app's exact `UprightPianoKW-20220221.sf2` (CC0, ~57 MB). It is _not_
-  duplicated in git — `gen_wasm.sh` copies it from `apps/music/assets/soundfonts/` into
-  the gitignored `public/soundfonts/` at build time. The browser fetches it **on demand**
-  (only when a moderator hits Play) and persists it in the **Cache API**, so it downloads
-  at most once. Served same-origin under `connect-src 'self'`.
+- **SoundFont**: the app's exact `UprightPianoKW-20220221.sf2` (CC0, ~57 MB), served by
+  the **backend delivery route** `GET /soundfonts/{id}` (change `add-soundfont-delivery`)
+  from a private OVH bucket — _not_ bundled (57 MB > Cloudflare Pages' 25 MiB/file limit).
+  `lib/audio/soundfont.ts` fetches it **on demand** (only when a moderator hits Play) with
+  the caller's **access token** (`Authorization: Bearer`), and persists it in the **Cache
+  API** so it downloads at most once and is never unloaded. The URL is
+  `${VITE_WEB_AUTH_URL}/soundfonts/upright-piano-kw` by default (override with
+  `VITE_SOUNDFONT_URL`); the route's origin is already allowed by the app's CSP `connect-src`.
+- A small **spinner** in the transport (`ScorePreview`) shows while that first-play
+  download is in flight (`audio` = loading).
 - Playback degrades gracefully: no `AudioContext`, a failed SoundFont fetch, or a render
   error surface as a small "Audio unavailable" note, never a thrown error or a broken page.
 
-> **Deployment caveat (SoundFont hosting).** Cloudflare Pages caps a single asset at
-> **25 MiB**; the 57 MB `.sf2` exceeds that, so it cannot ship as a Pages static file in
-> prod. Local dev (Vite) serves it fine. Before enabling playback on `bo.cymbra.app`,
-> host the SoundFont off-Pages — e.g. a **Cloudflare R2** bucket or the API origin — and
-> point `lib/audio/soundfont.ts` `SF2_URL` at it (adding that origin to the CSP
-> `connect-src`). Until then, playback is a dev/self-hosted feature; the rest of the
-> console deploys unaffected.
+> **Deploy dependency.** Playback in prod needs `add-soundfont-delivery` deployed (the
+> private `cymbra-soundfonts` bucket + the `/soundfonts/*` route) so the SoundFont is
+> reachable — this resolves the old Cloudflare Pages 25 MiB blocker. In dev, point
+> `VITE_WEB_AUTH_URL` (or `VITE_SOUNDFONT_URL`) at a backend running the route with the
+> bucket configured. The rest of the console deploys unaffected.
 
 v1 draws staves, clefs, key/time signatures, barlines, note heads, stems, flags,
 beams, accidentals, augmentation dots, rests and ledger lines. Expression/dynamics

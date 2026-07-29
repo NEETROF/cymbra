@@ -54,6 +54,9 @@ const audioMsg = computed(() =>
     .with({ status: "error" }, () => t("preview.audioError"))
     .otherwise(() => null),
 );
+// Whether the first-play data fetch (the ~57 MB SoundFont) is in flight — drives a
+// small spinner so the moderator sees something is loading during the download.
+const audioLoading = computed(() => (props.audio ?? idle).status === "loading");
 
 const wrapRef = ref<HTMLElement | null>(null);
 const svgString = computed(() => (notationView.value.kind === "svg" ? notationView.value.svg : null));
@@ -99,6 +102,7 @@ function meta(): { label: string; value: string }[] {
         <button type="button" class="play" :disabled="!canPlay" @click="emit('toggle')">
           {{ playing ? t("preview.pause") : t("preview.play") }}
         </button>
+        <span v-if="audioLoading" class="spinner" role="status" :aria-label="audioMsg ?? ''"></span>
         <span v-if="audioMsg" class="muted">{{ audioMsg }}</span>
       </div>
       <!-- eslint-disable-next-line vue/no-v-html -- SVG is painter-generated, not user input -->
@@ -152,6 +156,20 @@ function meta(): { label: string; value: string }[] {
 }
 .play {
   min-width: 5rem;
+}
+/* Small spinner shown while the first-play data (SoundFont) downloads. */
+.spinner {
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid var(--border-2);
+  border-top-color: var(--teal);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 .svg-wrap {
   border: 1px solid var(--border);
