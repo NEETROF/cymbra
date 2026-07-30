@@ -1,10 +1,32 @@
 {
-  "common": { "signOut": "Sign out", "back": "← Back", "loading": "Loading…" },
-  "pager": { "label": "pagination", "prev": "← Previous", "next": "Next →", "range": "{from}–{to} of {total}" },
-  "brand": { "suite": "Back-office" },
-  "stats": { "total": "Total catalog", "approved": "Approved", "pending": "Awaiting review" },
-  "role": { "moderator": "moderator", "admin": "admin" },
-  "status": { "pending": "pending", "accepted": "accepted", "rejected": "rejected" },
+  "common": {
+    "signOut": "Sign out",
+    "back": "← Back",
+    "loading": "Loading…"
+  },
+  "pager": {
+    "label": "pagination",
+    "prev": "← Previous",
+    "next": "Next →",
+    "range": "{from}–{to} of {total}"
+  },
+  "brand": {
+    "suite": "Back-office"
+  },
+  "stats": {
+    "total": "Total catalog",
+    "approved": "Approved",
+    "pending": "Awaiting review"
+  },
+  "role": {
+    "moderator": "moderator",
+    "admin": "admin"
+  },
+  "status": {
+    "pending": "pending",
+    "accepted": "accepted",
+    "rejected": "rejected"
+  },
   "level": {
     "any": "any level",
     "beginner": "beginner",
@@ -18,18 +40,29 @@
     "password": "password",
     "submit": "Sign in",
     "submitting": "Signing in…",
-    "googleConfigured": "Google sign-in is configured — the Google button targets the same account."
+    "or": "or",
+    "googleUnavailable": "Google sign-in is unavailable right now — use your email and password.",
+    "signinWithApple": "Sign in with Apple",
+    "appleUnavailable": "Apple sign-in is unavailable right now — use your email and password."
   },
   "denied": {
     "title": "Access denied",
     "body": "This account is signed in but is not a moderator or admin, so no moderation actions are available. Ask an admin to grant you the moderator role."
   },
-  "nav": { "queue": "Catalog review", "catalog": "Catalog", "roles": "Roles", "menu": "Menu" },
+  "nav": {
+    "queue": "Catalog review",
+    "catalog": "Catalog",
+    "roles": "Roles",
+    "menu": "Menu"
+  },
   "sessions": {
     "revokeAccount": "Revoke sessions",
     "revokeAccountConfirm": "Revoke all sessions for this account?"
   },
-  "catalog": { "title": "Catalog", "count": "{n} score | {n} scores" },
+  "catalog": {
+    "title": "Catalog",
+    "count": "{n} score | {n} scores"
+  },
   "queue": {
     "title": "Catalog review",
     "priorityOrder": "Priority order",

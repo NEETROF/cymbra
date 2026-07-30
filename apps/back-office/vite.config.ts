@@ -10,23 +10,47 @@ import vue from "@vitejs/plugin-vue";
 // XSS still can't exfiltrate tokens to an attacker host.
 //
 // NOTE: `frame-ancestors`, `report-uri` and `sandbox` are ignored in a <meta> CSP —
-// the reverse proxy should ALSO send the header form in prod (with those + HSTS). If
-// Google Identity Services is wired for sign-in later, extend script-src/connect-src
-// /frame-src for `accounts.google.com`.
-function cspMetaPlugin(apiOrigin: string): Plugin {
+// the reverse proxy should ALSO send the header form in prod (with those + HSTS).
+//
+// Social sign-in widens the policy PER PROVIDER, and only when that provider's client
+// id is set at build time — so a build with neither keeps the tight `'self'` policy.
+// Google Identity Services and Sign in with Apple each need their script/style/frame
+// /connect origins allow-listed (Google's are documented at
+// developers.google.com/identity/gsi/web/guides/csp).
+function cspMetaPlugin(opts: { apiOrigin: string; google: boolean; apple: boolean }): Plugin {
+  const { apiOrigin, google, apple } = opts;
+  // 'wasm-unsafe-eval' is the narrow, wasm-only allowance browsers require to
+  // instantiate a WebAssembly module (the notation renderer) under a restrictive
+  // CSP — it does NOT permit JS eval(). Scripts otherwise stay same-origin.
+  const scriptSrc = ["'self'", "'wasm-unsafe-eval'"];
+  const styleSrc = ["'self'", "'unsafe-inline'"];
+  const connectSrc = ["'self'"];
+  const frameSrc: string[] = [];
+  const formAction = ["'self'"];
+  if (apiOrigin) connectSrc.push(apiOrigin);
+  if (google) {
+    scriptSrc.push("https://accounts.google.com/gsi/client");
+    styleSrc.push("https://accounts.google.com/gsi/style");
+    connectSrc.push("https://accounts.google.com/gsi/");
+    frameSrc.push("https://accounts.google.com/gsi/");
+  }
+  if (apple) {
+    scriptSrc.push("https://appleid.cdn-apple.com");
+    connectSrc.push("https://appleid.apple.com");
+    frameSrc.push("https://appleid.apple.com");
+    formAction.push("https://appleid.apple.com");
+  }
   const csp = [
     "default-src 'self'",
-    // 'wasm-unsafe-eval' is the narrow, wasm-only allowance browsers require to
-    // instantiate a WebAssembly module (the notation renderer) under a restrictive
-    // CSP — it does NOT permit JS eval(). Scripts stay same-origin.
-    "script-src 'self' 'wasm-unsafe-eval'",
-    "style-src 'self' 'unsafe-inline'",
+    `script-src ${scriptSrc.join(" ")}`,
+    `style-src ${styleSrc.join(" ")}`,
     "img-src 'self' data:",
     "font-src 'self'",
-    `connect-src 'self'${apiOrigin ? ` ${apiOrigin}` : ""}`,
+    `connect-src ${connectSrc.join(" ")}`,
     "object-src 'none'",
     "base-uri 'none'",
-    "form-action 'self'",
+    `form-action ${formAction.join(" ")}`,
+    ...(frameSrc.length ? [`frame-src ${frameSrc.join(" ")}`] : []),
   ].join("; ");
   return {
     name: "inject-csp-meta",
@@ -53,9 +77,14 @@ export default defineConfig(({ mode }) => {
   } catch {
     apiOrigin = "";
   }
+  const csp = {
+    apiOrigin,
+    google: !!env.VITE_GOOGLE_CLIENT_ID,
+    apple: !!env.VITE_APPLE_CLIENT_ID,
+  };
 
   return {
-    plugins: [vue(), cspMetaPlugin(apiOrigin)],
+    plugins: [vue(), cspMetaPlugin(csp)],
     resolve: {
       alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) },
     },

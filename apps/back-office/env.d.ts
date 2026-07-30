@@ -8,6 +8,12 @@ interface ImportMetaEnv {
   readonly VITE_WEB_AUTH_URL?: string;
   /** Google OIDC web client id used for back-office sign-in (targets the `music` audience). */
   readonly VITE_GOOGLE_CLIENT_ID?: string;
+  /** Apple "Sign in with Apple" web client id — a Services ID (NOT the app bundle id),
+   * registered with the SPA domain + Return URL. Unset → the Apple button is hidden. */
+  readonly VITE_APPLE_CLIENT_ID?: string;
+  /** Apple Return URL that must exactly match one registered on the Services ID.
+   * Defaults to the SPA origin when unset. */
+  readonly VITE_APPLE_REDIRECT_URI?: string;
   /** Set to "1" only by the Playwright dev server: installs fake gRPC-web clients
    * (see lib/e2e-seam.ts) so the app runs end-to-end with no backend. Never set in
    * production builds. */

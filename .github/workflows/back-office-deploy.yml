@@ -9,15 +9,23 @@ name: back-office-deploy
 # Node — then we upload the static `dist/` with wrangler. This also sidesteps the
 # private-registry quirks of the Pages build environment.
 #
+# Release-driven: deploys only when release-please cuts a `back-office-vX.Y.Z` tag
+# (or on a manual `workflow_dispatch`), never on every merge to main. This mirrors
+# how `music` and `backend` ship — version bump via release-please, then deploy the
+# tagged release. To cut a release, merge the back-office Release PR; its tag fires
+# this workflow.
+#
 # Dormant until configured: the deploy job is gated on the `CF_PAGES_PROJECT` repo
 # variable, so until a maintainer creates the Pages project and sets the values below
-# the job is skipped (a skipped job reports success — it never blocks main).
+# the job is skipped (a skipped job reports success — it never blocks a release).
 #
 # Required repo VARIABLES (Settings → Secrets and variables → Actions → Variables):
 #   CF_PAGES_PROJECT      Cloudflare Pages project name (e.g. cymbra-back-office)
 #   VITE_GRPC_WEB_URL     prod gRPC-web endpoint (e.g. https://api.cymbra.app)
 #   VITE_WEB_AUTH_URL     prod web-auth HTTP surface (same registrable domain as the SPA)
 #   VITE_GOOGLE_CLIENT_ID Google OIDC web client id (music audience)  [optional]
+#   VITE_APPLE_CLIENT_ID  Apple "Sign in with Apple" Services ID (not the app bundle)  [optional]
+#   VITE_APPLE_REDIRECT_URI Apple Return URL; defaults to the SPA origin  [optional]
 # Required repo SECRETS:
 #   CLOUDFLARE_API_TOKEN  token with "Cloudflare Pages: Edit" on the account
 #   CLOUDFLARE_ACCOUNT_ID Cloudflare account id
@@ -26,15 +34,8 @@ name: back-office-deploy
 # the cymbra.app registrable domain, or the refresh cookie is not first-party.
 on:
   push:
-    branches: [main]
-    paths:
-      - "apps/back-office/**"
-      - "backend/auth-port/proto/**"
-      - "backend/user-port/proto/**"
-      - "backend/music/proto/**"
-      - "crates/musicxml-wasm/**"
-      - "crates/musicxml-core/**"
-      - ".github/workflows/back-office-deploy.yml"
+    tags:
+      - "back-office-v*"
   workflow_dispatch:
 
 permissions:
@@ -76,6 +77,11 @@ jobs:
           VITE_GRPC_WEB_URL: ${{ vars.VITE_GRPC_WEB_URL }}
           VITE_WEB_AUTH_URL: ${{ vars.VITE_WEB_AUTH_URL }}
           VITE_GOOGLE_CLIENT_ID: ${{ vars.VITE_GOOGLE_CLIENT_ID }}
+          # Apple sign-in (optional): a Services ID, NOT the app bundle id. Setting it
+          # bakes the Apple button + widens the CSP for appleid.apple.com (see
+          # vite.config.ts). VITE_APPLE_REDIRECT_URI defaults to the SPA origin.
+          VITE_APPLE_CLIENT_ID: ${{ vars.VITE_APPLE_CLIENT_ID }}
+          VITE_APPLE_REDIRECT_URI: ${{ vars.VITE_APPLE_REDIRECT_URI }}
         run: yarn build
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
@@ -83,4 +89,7 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: apps/back-office
-          command: pages deploy dist --project-name=${{ vars.CF_PAGES_PROJECT }} --branch=${{ github.ref_name }}
+          # --branch=main targets the Cloudflare Pages *production* branch. On a tag
+          # push github.ref_name is the tag (e.g. back-office-v0.1.0), which CF would
+          # treat as a preview deploy — so pin it to the production branch explicitly.
+          command: pages deploy dist --project-name=${{ vars.CF_PAGES_PROJECT }} --branch=main
