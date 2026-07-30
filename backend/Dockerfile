@@ -31,6 +31,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 COPY --from=builder /usr/local/bin/cymbra-server /usr/local/bin/cymbra-server
 COPY --from=builder /usr/local/bin/cymbra-worker /usr/local/bin/cymbra-worker
+# One-off maintenance bin, run via `docker compose run --rm server backfill-titles`.
+COPY --from=builder /usr/local/bin/backfill-titles /usr/local/bin/backfill-titles
 USER 1000:1000
 # Overridden per service in docker-compose (server vs worker).
 CMD ["cymbra-server"]
