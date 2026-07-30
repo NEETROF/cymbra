@@ -2,12 +2,14 @@
 layout: ../layouts/Legal.astro
 title: Politique de confidentialité
 lang: fr
-updated: 07/07/2026
+updated: 30/07/2026
 ---
 
-La présente politique explique quelles données personnelles l'application **Cymbra**
-traite, pourquoi, sur quelle base légale, avec qui elles sont partagées, combien de
-temps elles sont conservées, et quels sont vos droits.
+La présente politique explique quelles données personnelles les **services Cymbra**
+(édités par **NEETROF**) traitent, pourquoi, sur quelle base légale, avec qui elles sont
+partagées, combien de temps elles sont conservées, et quels sont vos droits. Elle couvre
+le **compte Cymbra**, partagé entre les services Cymbra ; les traitements propres à un
+produit figurent en **annexe** (voir *Annexe A — Cymbra Music*).
 
 ## 1. Responsable du traitement
 
@@ -94,3 +96,21 @@ sera modifiée en conséquence. En cas de changement important, nous vous en inf
 ## 10. Contact
 
 **gfortin@neetrof.fr** — NEETROF, 42 IMPASSE DUFERMONT, 59510 HEM, FRANCE.
+
+---
+
+## Annexe A — Cymbra Music
+
+Le service **Cymbra Music** vous permet de téléverser vos propres contenus. À ce titre,
+en complément du §2, nous traitons :
+
+| Donnée | Origine | Finalité |
+|---|---|---|
+| Fichiers téléversés (partitions, sons de piano / *soundfonts*) | vous | fournir les fonctions de lecture et de pratique |
+| Métadonnées associées (nom du fichier, attestation d'origine, horodatage) | vous | gestion et traçabilité de vos contenus |
+
+- **Base légale** : exécution du contrat (fourniture de la fonctionnalité).
+- **Conservation** : tant que vous conservez le contenu ; la **suppression** retire le
+  fichier et son enregistrement (voir CGU, *Annexe A — Cymbra Music*).
+- Ces fichiers sont **hébergés dans l'Union européenne** (France), comme le reste de vos
+  données.
