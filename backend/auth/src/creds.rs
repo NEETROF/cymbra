@@ -19,6 +19,10 @@ pub struct Credential {
 pub trait CredentialRepo: Send + Sync {
     /// Create a credential (unverified). `AlreadyExists` if the email is taken.
     async fn insert(&self, email: &str, password_hash: &str) -> Result<()>;
+    /// Create a credential that is **already verified** (used by the verify-time
+    /// set-password bind, where ownership was just proven). `AlreadyExists` if the
+    /// email is taken.
+    async fn insert_verified(&self, email: &str, password_hash: &str) -> Result<()>;
     async fn get(&self, email: &str) -> Result<Option<Credential>>;
     /// Store a single-use verification token + expiry (unix seconds).
     async fn set_verification(&self, email: &str, token: &str, expires_at: i64) -> Result<()>;
@@ -97,6 +101,22 @@ impl CredentialRepo for FakeCredentialRepo {
             email.into(),
             Row {
                 hash: password_hash.into(),
+                ..Default::default()
+            },
+        );
+        Ok(())
+    }
+
+    async fn insert_verified(&self, email: &str, password_hash: &str) -> Result<()> {
+        let mut rows = self.rows.lock().unwrap();
+        if rows.contains_key(email) {
+            return Err(AppError::AlreadyExists("email already registered".into()));
+        }
+        rows.insert(
+            email.into(),
+            Row {
+                hash: password_hash.into(),
+                verified: true,
                 ..Default::default()
             },
         );

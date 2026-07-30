@@ -44,6 +44,28 @@ impl CredentialRepo for PgCredentialRepo {
         }
     }
 
+    async fn insert_verified(&self, email: &str, password_hash: &str) -> Result<()> {
+        let res = sqlx::query(
+            "INSERT INTO local_credentials (email, password_hash, email_verified) \
+             VALUES ($1, $2, true)",
+        )
+        .bind(email)
+        .bind(password_hash)
+        .execute(&self.pool)
+        .await;
+        match res {
+            Ok(_) => Ok(()),
+            Err(e)
+                if e.as_database_error()
+                    .map(|d| d.is_unique_violation())
+                    .unwrap_or(false) =>
+            {
+                Err(AppError::AlreadyExists("email already registered".into()))
+            }
+            Err(e) => Err(internal(e)),
+        }
+    }
+
     async fn get(&self, email: &str) -> Result<Option<Credential>> {
         let row = sqlx::query(
             "SELECT password_hash, email_verified FROM local_credentials WHERE email = $1",

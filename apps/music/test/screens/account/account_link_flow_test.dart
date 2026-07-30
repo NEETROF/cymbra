@@ -60,7 +60,7 @@ Future<void> _pushScreen(
 
 void main() {
   group('SetPasswordScreen', () {
-    testWidgets('submitting adds the credential and pops on success', (
+    testWidgets('submitting routes to the code-entry screen on success', (
       tester,
     ) async {
       final auth = FakeAuthService();
@@ -82,9 +82,10 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(auth.calls, contains('setLocalCredential:me@x.dev'));
-      // Popped back to the home button (success).
+      // Success routes straight to the code-entry screen (verify in place, still
+      // signed in) rather than popping back.
       expect(find.byKey(const Key('set-password-submit')), findsNothing);
-      expect(find.byKey(const Key('open')), findsOneWidget);
+      expect(find.byKey(const Key('otp-code')), findsOneWidget);
     });
 
     testWidgets('a collision keeps the screen and shows an error', (

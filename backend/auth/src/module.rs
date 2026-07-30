@@ -15,6 +15,7 @@ use cymbra_user_port::UserPort;
 use jsonwebtoken::EncodingKey;
 
 use crate::creds::CredentialRepo;
+use crate::pending_setpw::{PendingCredentialStore, PendingLocalCredential};
 use crate::session::SessionStore;
 use crate::verifier::OidcVerifier;
 
@@ -40,6 +41,8 @@ pub struct AuthModule {
     user: Arc<dyn UserPort>,
     creds: Arc<dyn CredentialRepo>,
     cache: Arc<dyn Cache>,
+    /// Parked set-password submissions awaiting email verification (design D1).
+    pending: Arc<dyn PendingCredentialStore>,
     email: Arc<dyn EmailSender>,
     oidc: Arc<dyn OidcVerifier>,
     sessions: Arc<dyn SessionStore>,
@@ -85,6 +88,7 @@ impl AuthModule {
         user: Arc<dyn UserPort>,
         creds: Arc<dyn CredentialRepo>,
         cache: Arc<dyn Cache>,
+        pending: Arc<dyn PendingCredentialStore>,
         email: Arc<dyn EmailSender>,
         oidc: Arc<dyn OidcVerifier>,
         sessions: Arc<dyn SessionStore>,
@@ -97,6 +101,7 @@ impl AuthModule {
             user,
             creds,
             cache,
+            pending,
             email,
             oidc,
             sessions,
@@ -186,6 +191,36 @@ impl AuthPort for AuthModule {
     }
 
     async fn verify_email(&self, token: &str) -> Result<()> {
+        // Pending set-password path (change: verify-before-local-credential-link):
+        // a token parked by `set_local_credential` binds the credential + `local`
+        // identity only now, once ownership of the email is proven.
+        if let Some(p) = self.pending.take(token).await? {
+            // A prior pending for the same account may have bound a local identity
+            // already — keep the one-local-credential-per-account invariant.
+            if self
+                .user
+                .list_identities(&p.user_id)
+                .await?
+                .iter()
+                .any(|i| i.provider == "local")
+            {
+                return Err(AppError::AlreadyExists(
+                    "account already has a password".into(),
+                ));
+            }
+            // The email was free when submitted; bind it now (verified). If it was
+            // taken meanwhile, `insert_verified`/`link_identity` fails cleanly —
+            // nothing was ever reserved.
+            self.creds
+                .insert_verified(&p.email, &p.password_hash)
+                .await?;
+            if let Err(e) = self.user.link_identity(&p.user_id, "local", &p.email).await {
+                let _ = self.creds.delete_credentials(&p.email).await;
+                return Err(e);
+            }
+            return Ok(());
+        }
+        // Sign-up path (unchanged): mark an existing unverified credential verified.
         match self.creds.verify_by_token(token, now_secs()).await? {
             Some(_) => Ok(()),
             None => Err(AppError::InvalidArgument(
@@ -351,7 +386,19 @@ impl AuthPort for AuthModule {
     }
 
     async fn unlink_identity(&self, user_id: &str, provider: &str, subject: &str) -> Result<()> {
-        self.user.unlink_identity(user_id, provider, subject).await
+        self.user
+            .unlink_identity(user_id, provider, subject)
+            .await?;
+        // A `local` identity's secret lives in the auth schema (`local_credentials`),
+        // separate from `user_identities`. Erase it too once the identity is gone, so
+        // the email is freed for reuse — otherwise a re-link fails with AlreadyExists.
+        // `subject` is the email for a local identity; `delete_credentials` is a
+        // no-op for anything else. Run after the unlink so the last-identity guard
+        // still protects it.
+        if provider == "local" {
+            self.creds.delete_credentials(subject).await?;
+        }
+        Ok(())
     }
 
     async fn set_local_credential(
@@ -362,7 +409,7 @@ impl AuthPort for AuthModule {
         locale: &str,
     ) -> Result<()> {
         password::check_policy(password, self.cfg.password_min_length)?;
-        // One local credential per account: refuse a second password.
+        // One local credential per account: refuse if a password is already bound.
         if self
             .user
             .list_identities(user_id)
@@ -374,29 +421,37 @@ impl AuthPort for AuthModule {
                 "account already has a password".into(),
             ));
         }
-        let hash = password::hash(password)?;
-        self.creds.insert(email, &hash).await?; // AlreadyExists if the email is taken
-        // Bind the `local` identity to THIS account (rejects an email owned
-        // elsewhere). On failure, compensate by erasing the just-inserted
-        // credential so a retry isn't blocked by a dangling row.
-        if let Err(e) = self.user.link_identity(user_id, "local", email).await {
-            let _ = self.creds.delete_credentials(email).await;
-            return Err(e);
+        // Friendly up-front rejection of an email that already has a credential. The
+        // authoritative free-email check is at verify time (design D3); this does
+        // NOT reserve the email.
+        if self.creds.get(email).await?.is_some() {
+            return Err(AppError::AlreadyExists("email already registered".into()));
         }
-        // Verify ownership of the typed email before the password is usable: the
-        // credential stays unverified until the emailed code is confirmed (design:
-        // add-account-identity-linking). Enqueued transactionally, like sign-up.
+        // Do NOT bind yet (change: verify-before-local-credential-link). Park the
+        // submission keyed by the token with a TTL; the credential + `local` identity
+        // are created only when the emailed code is confirmed, so an unverified email
+        // is never reserved and an abandoned set-password self-expires.
+        let hash = password::hash(password)?;
         let tok = uuid::Uuid::new_v4().to_string();
-        let exp = now_secs() + self.cfg.verify_ttl.as_secs() as i64;
-        let job = verification_email_job(
-            email,
+        self.pending
+            .put(
+                &tok,
+                &PendingLocalCredential {
+                    user_id: user_id.to_string(),
+                    email: email.to_string(),
+                    password_hash: hash,
+                },
+                self.cfg.verify_ttl,
+            )
+            .await?;
+        // Send the branded/localized verification email inline (like resend): there
+        // is no DB row to enqueue a job transactionally against.
+        let rendered = email_template::verification_email(
             &tok,
             SupportedLocale::parse(Some(locale)),
             self.cfg.email_logo_url.as_deref(),
-        )?;
-        self.creds
-            .set_verification_with_job(email, &tok, exp, &job)
-            .await?;
+        );
+        self.email.send(email, &rendered).await?;
         Ok(())
     }
 }
@@ -421,6 +476,7 @@ mod tests {
         m: AuthModule,
         creds: Arc<FakeCredentialRepo>,
         email: Arc<FakeEmail>,
+        pending: Arc<crate::pending_setpw::FakePendingStore>,
         sessions: Arc<crate::session::FakeSessionStore>,
     }
 
@@ -428,6 +484,8 @@ mod tests {
         let user: Arc<dyn UserPort> = Arc::new(UserModule::new(FakeUserRepo::default()));
         let creds = Arc::new(FakeCredentialRepo::default());
         let cache: Arc<dyn Cache> = Arc::new(FakeCache::default());
+        let pending = Arc::new(crate::pending_setpw::FakePendingStore::default());
+        let pending_dyn: Arc<dyn PendingCredentialStore> = pending.clone();
         let email = Arc::new(FakeEmail::default());
         let email_dyn: Arc<dyn EmailSender> = email.clone();
         let oidc = Arc::new(FakeOidcVerifier::default());
@@ -450,6 +508,7 @@ mod tests {
             user,
             creds.clone(),
             cache,
+            pending_dyn,
             email_dyn,
             oidc,
             sessions_dyn,
@@ -462,6 +521,7 @@ mod tests {
             m,
             creds,
             email,
+            pending,
             sessions,
         }
     }
@@ -661,30 +721,105 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn set_local_credential_adds_unverified_password_then_verify_enables_signin() {
+    async fn set_local_credential_defers_binding_until_verify_then_enables_signin() {
         let h = harness();
         // Start from a Google-only account.
         let g = h.m.sign_in_oidc("g-sub", "music").await.unwrap();
         let uid = sub_of(&g.access_token, "music");
 
-        // Add a password: the account gains an (unverified) local identity.
+        // Submit a password: the branded verification email is sent inline, but
+        // NOTHING is bound yet — no credential, no local identity (design A).
         h.m.set_local_credential(&uid, "me@x.dev", PW, "")
             .await
             .unwrap();
-        // A verification email job was enqueued (off the request path), not sent inline.
-        assert!(h.email.sent.lock().unwrap().is_empty());
-        assert_eq!(h.creds.enqueued_jobs().len(), 1);
+        assert_eq!(h.email.sent.lock().unwrap().len(), 1);
+        assert!(
+            h.creds.get("me@x.dev").await.unwrap().is_none(),
+            "email must not be reserved before verification"
+        );
 
-        // Sign-in is blocked until the email is verified …
+        // Sign-in fails as "no such credential" (unauthenticated), not "unverified".
         assert!(matches!(
             h.m.sign_in_local("me@x.dev", PW, "music").await,
-            Err(AppError::FailedPrecondition(_))
+            Err(AppError::Unauthenticated(_))
         ));
-        // … then works, resolving to the SAME account (no second account created).
-        let tok = h.creds.peek_verification_token("me@x.dev").unwrap();
+
+        // Verifying the emailed code binds the credential (already verified) + the
+        // local identity, resolving to the SAME account (no second account).
+        let tok = h.pending.only_token();
         h.m.verify_email(&tok).await.unwrap();
         let pair = h.m.sign_in_local("me@x.dev", PW, "music").await.unwrap();
         assert_eq!(sub_of(&pair.access_token, "music"), uid);
+    }
+
+    #[tokio::test]
+    async fn unconfirmed_set_password_reserves_no_email() {
+        let h = harness();
+        let g = h.m.sign_in_oidc("g-sub", "music").await.unwrap();
+        let uid = sub_of(&g.access_token, "music");
+        // Submit a set-password for an email the caller does not own …
+        h.m.set_local_credential(&uid, "victim@x.dev", PW, "")
+            .await
+            .unwrap();
+        // … the email is NOT reserved: a fresh sign-up can still register it.
+        h.m.sign_up_local("victim@x.dev", PW, "").await.unwrap();
+        assert!(h.creds.get("victim@x.dev").await.unwrap().is_some());
+    }
+
+    #[tokio::test]
+    async fn abandoned_pending_set_password_binds_nothing() {
+        let h = harness();
+        let g = h.m.sign_in_oidc("g-sub", "music").await.unwrap();
+        let uid = sub_of(&g.access_token, "music");
+        h.m.set_local_credential(&uid, "me@x.dev", PW, "")
+            .await
+            .unwrap();
+        // Simulate the TTL expiring: drop the pending record without verifying.
+        let tok = h.pending.only_token();
+        let _ = h.pending.take(&tok).await.unwrap();
+        // Verifying the now-expired token binds nothing and reports invalid.
+        assert!(matches!(
+            h.m.verify_email(&tok).await,
+            Err(AppError::InvalidArgument(_))
+        ));
+        assert!(h.creds.get("me@x.dev").await.unwrap().is_none());
+    }
+
+    #[tokio::test]
+    async fn contended_email_first_to_verify_wins() {
+        let h = harness();
+        let a = h.m.sign_in_oidc("g-a", "music").await.unwrap();
+        let uid_a = sub_of(&a.access_token, "music");
+        let b = h.m.sign_in_oidc("g-b", "music").await.unwrap();
+        let _uid_b = sub_of(&b.access_token, "music");
+
+        // Both submit a set-password for the same currently-free email.
+        h.m.set_local_credential(&uid_a, "shared@x.dev", PW, "")
+            .await
+            .unwrap();
+        let tok_a = h.pending.only_token();
+        h.m.set_local_credential(&_uid_b, "shared@x.dev", PW, "")
+            .await
+            .unwrap();
+        let tok_b = h
+            .pending
+            .tokens()
+            .into_iter()
+            .find(|t| *t != tok_a)
+            .unwrap();
+
+        // A verifies first → binds the email to A; B's later verify fails cleanly.
+        h.m.verify_email(&tok_a).await.unwrap();
+        assert!(matches!(
+            h.m.verify_email(&tok_b).await,
+            Err(AppError::AlreadyExists(_))
+        ));
+        // The email resolves to A's account.
+        let pair =
+            h.m.sign_in_local("shared@x.dev", PW, "music")
+                .await
+                .unwrap();
+        assert_eq!(sub_of(&pair.access_token, "music"), uid_a);
     }
 
     #[tokio::test]
@@ -692,16 +827,18 @@ mod tests {
         let h = harness();
         let g = h.m.sign_in_oidc("g-sub", "music").await.unwrap();
         let uid = sub_of(&g.access_token, "music");
+        // Bind a first password (submit then verify).
         h.m.set_local_credential(&uid, "me@x.dev", PW, "")
             .await
             .unwrap();
+        h.m.verify_email(&h.pending.only_token()).await.unwrap();
 
-        // A second password on the same account is refused.
+        // A second password on the now-bound account is refused up front.
         assert!(matches!(
             h.m.set_local_credential(&uid, "other@x.dev", PW, "").await,
             Err(AppError::AlreadyExists(_))
         ));
-        // Weak passwords are rejected up front (no credential created).
+        // Weak passwords are rejected up front (nothing parked).
         let g2 = h.m.sign_in_oidc("g-sub-2", "music").await.unwrap();
         let uid2 = sub_of(&g2.access_token, "music");
         assert!(matches!(
@@ -729,6 +866,37 @@ mod tests {
         ));
         // A can still sign in — its credential survived the failed claim.
         h.m.sign_in_local("me@x.dev", PW, "music").await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn unlinking_local_frees_the_email_for_relink() {
+        let h = harness();
+        let g = h.m.sign_in_oidc("g-sub", "music").await.unwrap();
+        let uid = sub_of(&g.access_token, "music");
+
+        // Bind a password (submit + verify).
+        h.m.set_local_credential(&uid, "me@x.dev", PW, "")
+            .await
+            .unwrap();
+        h.m.verify_email(&h.pending.only_token()).await.unwrap();
+        assert!(h.creds.get("me@x.dev").await.unwrap().is_some());
+
+        // Unlink the local identity → its credential is erased, freeing the email.
+        h.m.unlink_identity(&uid, "local", "me@x.dev")
+            .await
+            .unwrap();
+        assert!(
+            h.creds.get("me@x.dev").await.unwrap().is_none(),
+            "unlinking a local identity must free its credential"
+        );
+
+        // Re-linking the same email now works (no stale AlreadyExists).
+        h.m.set_local_credential(&uid, "me@x.dev", PW, "")
+            .await
+            .unwrap();
+        h.m.verify_email(&h.pending.only_token()).await.unwrap();
+        let pair = h.m.sign_in_local("me@x.dev", PW, "music").await.unwrap();
+        assert_eq!(sub_of(&pair.access_token, "music"), uid);
     }
 
     #[tokio::test]
