@@ -1,0 +1,368 @@
+//! The code registry of declared keys (design D7).
+//!
+//! Every flag/config key is declared here with a typed default, its app scope,
+//! default rollout intent, safe fail-direction, sensitivity, and a short doc.
+//! An absent stored override resolves to the code default; only declared keys are
+//! editable. The back office lists exactly this registry (no free-form typos).
+//!
+//! Feature on/off flags default to their **safe (disabled)** state so a store
+//! outage — or simply the feature not yet being turned on — never silently enables
+//! an unshipped capability (design D2 fail-direction). Enforcement gates for each
+//! feature are wired as those features land (task 2.1); this change only declares
+//! the keys + serves the platform.
+
+use crate::context::{APP_ALL, RolloutScope};
+use crate::value::{FlagValue, ValueType};
+use serde_json::json;
+
+/// The `music` app scope.
+pub const APP_MUSIC: &str = "music";
+
+// --- key names (stable identifiers; features read these) --------------------
+
+// Feature on/off flags (safe state = disabled).
+pub const RATING_ENABLED: &str = "rating.enabled";
+pub const REWARDS_ENABLED: &str = "rewards.enabled";
+pub const REWARDS_SHOP_ENABLED: &str = "rewards.shop.enabled";
+pub const PROFILES_PUBLIC_ENABLED: &str = "profiles.public.enabled";
+pub const LEADERBOARD_PER_PIECE_ENABLED: &str = "leaderboard.per_piece.enabled";
+pub const LEADERBOARD_GLOBAL_ENABLED: &str = "leaderboard.global.enabled";
+pub const ONBOARDING_ENABLED: &str = "onboarding.enabled";
+
+/// Shared cross-app kill-switch: when on, apps show an "under maintenance" state.
+pub const PLATFORM_MAINTENANCE: &str = "platform.maintenance";
+
+// Config tunables (the scattered straw-man values live here).
+pub const RATING_REVIEW_MIN_VOTES: &str = "rating.review.min_votes";
+pub const RATING_REVIEW_THRESHOLD: &str = "rating.review.threshold";
+pub const REWARDS_POINTS_DAILY_CAP: &str = "rewards.points.daily_cap";
+pub const REWARDS_POINTS_BANDS: &str = "rewards.points.bands";
+pub const REWARDS_LEVELS: &str = "rewards.levels";
+pub const REWARDS_SHOP_COSTS: &str = "rewards.shop.costs";
+pub const LEADERBOARD_GLOBAL_BEST_N: &str = "leaderboard.global.best_n";
+pub const LEADERBOARD_DIFFICULTY_WEIGHTS: &str = "leaderboard.difficulty_weights";
+pub const LEADERBOARD_SEASON_LENGTH_DAYS: &str = "leaderboard.season.length_days";
+
+// Sensitive legal/infra values (not casually editable).
+pub const ACCOUNT_MIN_PUBLIC_SHARING_AGE: &str = "account.min_public_sharing_age";
+pub const DATA_RETENTION_PLAY_DETAIL_DAYS: &str = "data.retention.play_detail_days";
+
+/// A single declared key.
+#[derive(Debug, Clone, PartialEq)]
+pub struct KeyDef {
+    pub key: &'static str,
+    /// `all` (shared) or a specific app (`music`, `live`, …).
+    pub app: &'static str,
+    pub value_type: ValueType,
+    /// The safe code default used when there is no applicable override.
+    pub default: FlagValue,
+    /// The default rollout intent shown in the BO; the actual override's rollout
+    /// is what an evaluation checks.
+    pub rollout: RolloutScope,
+    /// Legal/infra value — visibly distinguished, requires confirmation to change.
+    pub sensitive: bool,
+    pub doc: &'static str,
+}
+
+fn flag(
+    key: &'static str,
+    app: &'static str,
+    default: bool,
+    sensitive: bool,
+    doc: &'static str,
+) -> KeyDef {
+    KeyDef {
+        key,
+        app,
+        value_type: ValueType::Bool,
+        default: FlagValue::Bool(default),
+        rollout: RolloutScope::Global,
+        sensitive,
+        doc,
+    }
+}
+
+fn cfg(
+    key: &'static str,
+    app: &'static str,
+    default: FlagValue,
+    sensitive: bool,
+    doc: &'static str,
+) -> KeyDef {
+    KeyDef {
+        key,
+        app,
+        value_type: default.value_type(),
+        default,
+        rollout: RolloutScope::Global,
+        sensitive,
+        doc,
+    }
+}
+
+/// Every declared key. This is the canonical, editable set.
+pub fn builtin() -> Vec<KeyDef> {
+    vec![
+        // -- feature flags (safe state disabled) --
+        flag(
+            RATING_ENABLED,
+            APP_MUSIC,
+            false,
+            false,
+            "Score re-rating / review flow.",
+        ),
+        flag(
+            REWARDS_ENABLED,
+            APP_MUSIC,
+            false,
+            false,
+            "Curation reward points.",
+        ),
+        flag(
+            REWARDS_SHOP_ENABLED,
+            APP_MUSIC,
+            false,
+            false,
+            "Reward shop redemptions.",
+        ),
+        flag(
+            PROFILES_PUBLIC_ENABLED,
+            APP_MUSIC,
+            false,
+            false,
+            "Public player profiles.",
+        ),
+        flag(
+            LEADERBOARD_PER_PIECE_ENABLED,
+            APP_MUSIC,
+            false,
+            false,
+            "Per-piece performance leaderboards.",
+        ),
+        flag(
+            LEADERBOARD_GLOBAL_ENABLED,
+            APP_MUSIC,
+            false,
+            false,
+            "The global performance leaderboard.",
+        ),
+        flag(
+            ONBOARDING_ENABLED,
+            APP_MUSIC,
+            false,
+            false,
+            "Welcome onboarding flow.",
+        ),
+        flag(
+            PLATFORM_MAINTENANCE,
+            APP_ALL,
+            false,
+            false,
+            "Shared kill-switch: put every app into an under-maintenance state.",
+        ),
+        // -- config tunables --
+        cfg(
+            RATING_REVIEW_MIN_VOTES,
+            APP_MUSIC,
+            FlagValue::Int(5),
+            false,
+            "Votes required before a score's rating is re-reviewed.",
+        ),
+        cfg(
+            RATING_REVIEW_THRESHOLD,
+            APP_MUSIC,
+            FlagValue::Number(2.0),
+            false,
+            "Average-rating threshold below which a score is flagged for review.",
+        ),
+        cfg(
+            REWARDS_POINTS_DAILY_CAP,
+            APP_MUSIC,
+            FlagValue::Int(100),
+            false,
+            "Max reward points a user can earn per day.",
+        ),
+        cfg(
+            REWARDS_POINTS_BANDS,
+            APP_MUSIC,
+            FlagValue::Json(json!({"rate": 5, "upload": 20, "first_of_day": 10})),
+            false,
+            "Point award bands per curation action.",
+        ),
+        cfg(
+            REWARDS_LEVELS,
+            APP_MUSIC,
+            FlagValue::Json(json!([0, 100, 500, 2000])),
+            false,
+            "Cumulative point thresholds for each reward level.",
+        ),
+        cfg(
+            REWARDS_SHOP_COSTS,
+            APP_MUSIC,
+            FlagValue::Json(json!({"theme": 200, "badge": 50})),
+            false,
+            "Reward-shop item costs in points.",
+        ),
+        cfg(
+            LEADERBOARD_GLOBAL_BEST_N,
+            APP_MUSIC,
+            FlagValue::Int(20),
+            false,
+            "How many best scores feed a user's global standing.",
+        ),
+        cfg(
+            LEADERBOARD_DIFFICULTY_WEIGHTS,
+            APP_MUSIC,
+            FlagValue::Json(json!({"easy": 1.0, "medium": 1.5, "hard": 2.0})),
+            false,
+            "Per-difficulty score multipliers for the leaderboard.",
+        ),
+        cfg(
+            LEADERBOARD_SEASON_LENGTH_DAYS,
+            APP_MUSIC,
+            FlagValue::Int(90),
+            false,
+            "Length of a leaderboard season in days.",
+        ),
+        // -- sensitive legal/infra values --
+        cfg(
+            ACCOUNT_MIN_PUBLIC_SHARING_AGE,
+            APP_ALL,
+            FlagValue::Int(16),
+            true,
+            "Minimum age to make a profile public (legal — EU digital-consent age).",
+        ),
+        cfg(
+            DATA_RETENTION_PLAY_DETAIL_DAYS,
+            APP_ALL,
+            FlagValue::Int(90),
+            true,
+            "Days the heavy per-session play detail is retained before pruning.",
+        ),
+    ]
+}
+
+/// A code registry: fast lookup of declared keys by `(app, key)`.
+#[derive(Debug, Clone)]
+pub struct Registry {
+    defs: Vec<KeyDef>,
+}
+
+impl Default for Registry {
+    fn default() -> Self {
+        Self::new(builtin())
+    }
+}
+
+impl Registry {
+    pub fn new(defs: Vec<KeyDef>) -> Self {
+        Self { defs }
+    }
+
+    /// All declared keys.
+    pub fn all(&self) -> &[KeyDef] {
+        &self.defs
+    }
+
+    /// Look up a declaration by its `(app, key)` pair. The app must match exactly
+    /// (a `music` key is not the same identifier as an `all` key of the same name).
+    pub fn get(&self, app: &str, key: &str) -> Option<&KeyDef> {
+        self.defs.iter().find(|d| d.app == app && d.key == key)
+    }
+
+    /// Look up by key name alone (used for direct server-side evaluation where the
+    /// caller knows the key's app is `all` or its own).
+    pub fn get_by_key(&self, key: &str) -> Option<&KeyDef> {
+        self.defs.iter().find(|d| d.key == key)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashSet;
+
+    #[test]
+    fn keys_are_unique_per_app() {
+        let mut seen = HashSet::new();
+        for d in builtin() {
+            assert!(
+                seen.insert((d.app, d.key)),
+                "duplicate key {}/{}",
+                d.app,
+                d.key
+            );
+        }
+    }
+
+    #[test]
+    fn declared_defaults_match_declared_type() {
+        for d in builtin() {
+            assert_eq!(
+                d.default.value_type(),
+                d.value_type,
+                "type mismatch for {}",
+                d.key
+            );
+        }
+    }
+
+    #[test]
+    fn feature_flags_default_off_and_are_safe() {
+        let r = Registry::default();
+        for key in [
+            RATING_ENABLED,
+            REWARDS_ENABLED,
+            REWARDS_SHOP_ENABLED,
+            PROFILES_PUBLIC_ENABLED,
+            LEADERBOARD_PER_PIECE_ENABLED,
+            LEADERBOARD_GLOBAL_ENABLED,
+            ONBOARDING_ENABLED,
+            PLATFORM_MAINTENANCE,
+        ] {
+            assert_eq!(r.get_by_key(key).unwrap().default, FlagValue::Bool(false));
+        }
+    }
+
+    #[test]
+    fn straw_man_defaults_present() {
+        let r = Registry::default();
+        assert_eq!(
+            r.get(APP_MUSIC, RATING_REVIEW_MIN_VOTES).unwrap().default,
+            FlagValue::Int(5)
+        );
+        assert_eq!(
+            r.get(APP_MUSIC, RATING_REVIEW_THRESHOLD).unwrap().default,
+            FlagValue::Number(2.0)
+        );
+        assert_eq!(
+            r.get(APP_MUSIC, LEADERBOARD_GLOBAL_BEST_N).unwrap().default,
+            FlagValue::Int(20)
+        );
+    }
+
+    #[test]
+    fn legal_infra_values_are_sensitive() {
+        let r = Registry::default();
+        assert!(
+            r.get(APP_ALL, ACCOUNT_MIN_PUBLIC_SHARING_AGE)
+                .unwrap()
+                .sensitive
+        );
+        assert!(
+            r.get(APP_ALL, DATA_RETENTION_PLAY_DETAIL_DAYS)
+                .unwrap()
+                .sensitive
+        );
+        // ordinary flags are not sensitive
+        assert!(!r.get_by_key(RATING_ENABLED).unwrap().sensitive);
+    }
+
+    #[test]
+    fn shared_keys_scoped_all() {
+        let r = Registry::default();
+        assert_eq!(r.get_by_key(PLATFORM_MAINTENANCE).unwrap().app, APP_ALL);
+        assert!(r.get("music", PLATFORM_MAINTENANCE).is_none());
+        assert!(r.get(APP_ALL, PLATFORM_MAINTENANCE).is_some());
+    }
+}

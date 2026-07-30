@@ -2,6 +2,7 @@
 import { useI18n } from "vue-i18n";
 import type { CatalogHit } from "@/gen/score_pb";
 import type { ModerationStatus, SortKeyInit } from "@/stores/catalog";
+import AppTag from "@/components/AppTag.vue";
 
 // Sortable columns: only fields that are both displayable here AND in the server
 // sort allow-list. Clicking a header rebuilds the single-key `sort` sent to the API
@@ -99,10 +100,10 @@ function rowStatus(h: CatalogHit): ModerationStatus {
           <span class="src">{{ h.source }}</span>
         </td>
         <td>
-          <span class="badge" :class="rowStatus(h)">{{ t(`status.${rowStatus(h)}`) }}</span>
-          <span v-if="h.needsReview" class="badge review" :title="t('table.needsReviewHint')">{{
+          <AppTag :variant="rowStatus(h)">{{ t(`status.${rowStatus(h)}`) }}</AppTag>
+          <AppTag v-if="h.needsReview" variant="review" class="review-gap" :title="t('table.needsReviewHint')">{{
             t("table.needsReview")
-          }}</span>
+          }}</AppTag>
         </td>
       </tr>
       <tr v-if="hits.length === 0">
@@ -209,11 +210,8 @@ function rowStatus(h: CatalogHit): ModerationStatus {
 }
 
 /* Community-flagged re-review marker, shown beside the row's status in the queue. */
-.badge.review {
+.review-gap {
   margin-left: 0.4rem;
-  color: var(--amber);
-  border: 1px solid color-mix(in srgb, var(--amber) 45%, transparent);
-  background: color-mix(in srgb, var(--amber) 14%, transparent);
 }
 
 .empty {

@@ -74,6 +74,12 @@ dependencies:
   # seam so state/widgets are testable with an in-memory fake.
   shared_preferences: ^2.3.2
 
+  # Shared, app-agnostic runtime feature-flag client (change:
+  # add-runtime-feature-flags). Fetches the caller's effective flags on
+  # launch/resume; feature entry points read it as each feature lands.
+  cymbra_flags:
+    path: ../../packages/cymbra_flags
+
   # Client-generated UUID v7 session ids for the play-activity outbox (change:
   # add-play-activity-profile): each captured session gets a stable id BEFORE any
   # network attempt, so the server dedupes retried deliveries (idempotency key).

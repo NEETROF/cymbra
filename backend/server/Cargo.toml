@@ -30,6 +30,10 @@ cymbra-music = { path = "../music" }
 cymbra-storage = { path = "../storage" }
 # DeleteAccount enqueues a `purge_user` job via the jobs.enqueue seam.
 cymbra-jobs = { path = "../jobs" }
+# Shared runtime feature-flag & config service (change: add-runtime-feature-flags).
+cymbra-feature-flags = { path = "../feature-flags" }
+async-trait.workspace = true
+uuid.workspace = true
 tokio.workspace = true
 tonic.workspace = true
 # gRPC-web + CORS for the browser back office (change: add-moderation-back-office).

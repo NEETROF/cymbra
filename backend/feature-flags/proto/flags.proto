@@ -1,0 +1,172 @@
+syntax = "proto3";
+
+// Shared, app-agnostic runtime feature-flag & config surface (change:
+// add-runtime-feature-flags). One service reused by every Cymbra app: the app
+// scope of each key is resolved from the caller's token audience (`music` /
+// `live` / …), so a `music` build sees only `all` + `music` keys.
+package cymbra.flags.v1;
+
+service FlagService {
+  // Client read: the caller's EFFECTIVE flags/config (app + rollout scope +
+  // identity applied) plus a version/ETag. Authenticated returns the identity-
+  // scoped set; unauthenticated returns the anonymous global (non-staff) set so
+  // pre-account UI respects kill-switches. Send `known_version` to get a cheap
+  // `unchanged` answer when nothing changed.
+  rpc GetEffectiveFlags(GetEffectiveFlagsRequest) returns (GetEffectiveFlagsResponse);
+
+  // Admin: the full declared registry for the back office (defaults + current
+  // effective value + override state + rollout scope + sensitivity), filterable
+  // by app. Admin-gated.
+  rpc ListFlagDefinitions(ListFlagDefinitionsRequest) returns (ListFlagDefinitionsResponse);
+
+  // Admin: set a boolean feature flag's override. Admin-gated; app-scoped
+  // (per-app admin only its app; platform admin any app + `all`). Sensitive keys
+  // require `confirm = true`. Audited + invalidated.
+  rpc SetFlag(SetFlagRequest) returns (SetFlagResponse);
+
+  // Admin: set a typed config value's override. Same gating/audit/invalidation as
+  // SetFlag; validates the value against the key's declared type.
+  rpc SetConfig(SetConfigRequest) returns (SetConfigResponse);
+
+  // Admin: clear a key's override, reverting it to its code default. Audited.
+  rpc ClearOverride(ClearOverrideRequest) returns (ClearOverrideResponse);
+
+  // Admin: recent change audit (who changed which key old->new, when), newest
+  // first, filterable by app.
+  rpc ListFlagChanges(ListFlagChangesRequest) returns (ListFlagChangesResponse);
+}
+
+// A typed value. Exactly one field is set, matching the key's declared type.
+message FlagValue {
+  oneof kind {
+    bool bool_value = 1;
+    int64 int_value = 2;
+    double number_value = 3;
+    string string_value = 4;
+    // Small JSON object/array, serialized as a compact JSON string.
+    string json_value = 5;
+  }
+}
+
+message EffectiveFlag {
+  string key = 1;
+  FlagValue value = 2;
+}
+
+message GetEffectiveFlagsRequest {
+  // The caller's last known version; empty on first fetch.
+  string known_version = 1;
+  // App to resolve keys for. Used ONLY on unauthenticated calls (pre-account UI);
+  // authenticated calls always use the token audience and ignore this field, so
+  // it cannot be used to widen an authenticated caller's set. Empty defaults to
+  // the shared `all` keys only.
+  string app = 2;
+}
+
+message GetEffectiveFlagsResponse {
+  // A stable hash of the effective set; send it back as `known_version`.
+  string version = 1;
+  // True when `known_version` already matched — `flags` is then empty.
+  bool unchanged = 2;
+  repeated EffectiveFlag flags = 3;
+}
+
+// A declared key with its metadata + current state (admin view).
+message FlagDefinition {
+  string key = 1;
+  // `all` | `music` | `live` | …
+  string app = 2;
+  // `bool` | `int` | `number` | `string` | `json`
+  string value_type = 3;
+  FlagValue default_value = 4;
+  FlagValue effective_value = 5;
+  // True when a stored override exists (else the value is the code default).
+  bool has_override = 6;
+  // `global` | `staff_only`
+  string rollout_scope = 7;
+  // Legal/infra value — not casually editable; edits require confirmation.
+  bool sensitive = 8;
+  string doc = 9;
+  // Whether THIS caller may change this key (per-app admins can't edit `all`-scoped
+  // keys — only a platform admin can). The panel hides the controls when false;
+  // the backend still enforces it regardless.
+  bool editable = 10;
+  // Last editor's account id + when they last set it — empty when the key has no
+  // stored override (it's on its code default). Handle/name resolution needs the
+  // user directory, which the isolated flags schema can't read.
+  string updated_by = 11;
+  // RFC-3339 timestamp of the last override write, or empty.
+  string updated_at = 12;
+}
+
+message ListFlagDefinitionsRequest {
+  // Restrict to a single app (`all`, `music`, …); empty = every app the caller
+  // is allowed to see.
+  string app_filter = 1;
+}
+
+message ListFlagDefinitionsResponse {
+  repeated FlagDefinition definitions = 1;
+}
+
+message SetFlagRequest {
+  string key = 1;
+  string app = 2;
+  bool enabled = 3;
+  // `global` | `staff_only`; empty keeps/uses the declared default.
+  string rollout_scope = 4;
+  // Required (true) to change a sensitive key.
+  bool confirm = 5;
+}
+
+message SetFlagResponse {
+  FlagDefinition definition = 1;
+}
+
+message SetConfigRequest {
+  string key = 1;
+  string app = 2;
+  FlagValue value = 3;
+  string rollout_scope = 4;
+  bool confirm = 5;
+}
+
+message SetConfigResponse {
+  FlagDefinition definition = 1;
+}
+
+message ClearOverrideRequest {
+  string key = 1;
+  string app = 2;
+  bool confirm = 3;
+}
+
+message ClearOverrideResponse {
+  FlagDefinition definition = 1;
+}
+
+message FlagChange {
+  string key = 1;
+  string app = 2;
+  // Previous stored value as a display string (empty when there was none).
+  string old_value = 3;
+  string new_value = 4;
+  // Acting admin's account id.
+  string actor = 5;
+  // Acting admin's handle if still resolvable (empty if the account is gone).
+  string actor_handle = 6;
+  // RFC-3339 timestamp.
+  string at = 7;
+}
+
+message ListFlagChangesRequest {
+  string app_filter = 1;
+  uint32 limit = 2;
+  // Restrict to a single key (empty = every key). Used by the per-parameter audit
+  // in the edit drawer.
+  string key = 3;
+}
+
+message ListFlagChangesResponse {
+  repeated FlagChange changes = 1;
+}

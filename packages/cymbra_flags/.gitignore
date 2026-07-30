@@ -1,0 +1,7 @@
+# Generated gRPC Dart stubs (produced by tool/gen_grpc.sh / `melos run gen-grpc`),
+# like the app's lib/src/grpc. Regenerated in CI; never committed.
+lib/src/grpc/
+
+# Dart/Flutter tooling
+.dart_tool/
+build/

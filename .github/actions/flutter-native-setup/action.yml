@@ -22,6 +22,16 @@ runs:
       run: |
         flutter pub get
         bash tool/gen_grpc.sh
+    # The shared cymbra_flags package (a path dependency of apps/music) owns its
+    # own gRPC stubs + riverpod codegen. build_runner only generates the package
+    # it runs in, so the app build fails unless the package is generated first.
+    - name: Generate shared cymbra_flags package (stubs + codegen)
+      working-directory: packages/cymbra_flags
+      shell: bash
+      run: |
+        flutter pub get
+        bash tool/gen_grpc.sh
+        dart run build_runner build --delete-conflicting-outputs
     - name: Generate code (riverpod_generator + freezed)
       working-directory: apps/music
       shell: bash

@@ -20,7 +20,7 @@ describe("CatalogTable", () => {
     const rows = w.findAll("tbody tr");
     expect(rows).toHaveLength(2);
     expect(w.text()).toContain("Alpha");
-    expect(w.findAll(".badge.pending")).toHaveLength(2);
+    expect(w.findAll(".tag.pending")).toHaveLength(2);
   });
 
   it("emits a sort field when a sortable header is clicked", async () => {
@@ -49,10 +49,10 @@ describe("CatalogTable", () => {
     ];
     const w = mount(CatalogTable, { global: withI18n, props: { hits: mixed as never, status: "pending", sort: [] } });
     // Per-row status, not the single filter status.
-    expect(w.findAll(".badge.pending")).toHaveLength(1);
-    expect(w.findAll(".badge.accepted")).toHaveLength(1);
+    expect(w.findAll(".tag.pending")).toHaveLength(1);
+    expect(w.findAll(".tag.accepted")).toHaveLength(1);
     // Only the flagged accepted row carries the re-review marker.
-    const reviewBadges = w.findAll(".badge.review");
+    const reviewBadges = w.findAll(".tag.review");
     expect(reviewBadges).toHaveLength(1);
     expect(reviewBadges[0].text()).toBe("Re-review");
   });

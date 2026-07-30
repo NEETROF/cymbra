@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'package:cymbra_flags/cymbra_flags.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -21,6 +22,7 @@ import 'dart:async';
 import 'l10n/gen/app_localizations.dart';
 import 'screens/auth/session_gate.dart';
 import 'services/audio_service.dart';
+import 'services/flags_integration.dart';
 import 'src/rust/frb_generated.dart';
 import 'state/app_locale.dart';
 import 'theme/cymbra_theme.dart';
@@ -39,11 +41,16 @@ Future<void> main() async {
   // ready before the user picks a piece — keeping the heavy one-time load off
   // the score-selection path. The container is shared with the app so the
   // player reuses this already-initialized AudioService instance.
-  final container = ProviderContainer();
+  final container = ProviderContainer(overrides: cymbraFlagOverrides());
   unawaited(container.read(audioServiceProvider).init());
 
+  // Fetch the caller's effective feature flags on launch (identity-scoped,
+  // flicker-free from the persisted cache); the observer refreshes on resume.
+  container.read(flagsProvider);
+
   // Silence the synth when the OS backgrounds/hides the app, so a held voice
-  // (note pressed, no note-off yet) doesn't keep ringing while paused.
+  // (note pressed, no note-off yet) doesn't keep ringing while paused; refresh
+  // the feature flags when the app returns to the foreground.
   WidgetsBinding.instance.addObserver(_AudioLifecycleObserver(container));
 
   runApp(
@@ -65,6 +72,10 @@ class _AudioLifecycleObserver with WidgetsBindingObserver {
         state == AppLifecycleState.hidden ||
         state == AppLifecycleState.detached) {
       _container.read(audioServiceProvider).allNotesOff();
+    } else if (state == AppLifecycleState.resumed) {
+      // Re-fetch effective flags on foreground (cheap when unchanged via the
+      // version/ETag) so a kill-switch flip is picked up without a restart.
+      unawaited(_container.read(flagsProvider.notifier).refresh());
     }
   }
 }
