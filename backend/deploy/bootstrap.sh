@@ -186,6 +186,15 @@ SCORES_ENTRY="0 4 * * * $SCORES_LINE"
 ) | crontab -
 systemctl enable --now cron 2>/dev/null || true
 
+log "10. Local-first store roots (writable by the container UID 1000)"
+# The server builds LocalFirstStores that create_dir_all() + warm these dirs at boot,
+# so each bind-mounted host dir MUST be owned by the container UID (1000) or the server
+# crash-loops with "local root ...: Permission denied (os error 13)". Idempotent.
+for d in /var/lib/cymbra/scores /var/lib/cymbra/soundfonts; do
+  mkdir -p "$d"
+  chown -R 1000:1000 "$d"
+done
+
 log "DONE"
 cat <<EOF
 Next (secrets restored OUT of this script):

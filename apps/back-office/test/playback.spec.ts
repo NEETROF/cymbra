@@ -130,6 +130,31 @@ describe("loadSoundFont (backend delivery route)", () => {
     expect(second).toEqual(new Uint8Array([7, 7]));
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
+
+  it("rejects a misrouted empty grpc 200 without poisoning the cache", async () => {
+    const cacheStore = new Map<string, Response>();
+    vi.stubGlobal("caches", {
+      open: async () => ({
+        match: async (url: string) => cacheStore.get(url),
+        put: async (url: string, resp: Response) => {
+          cacheStore.set(url, resp);
+        },
+      }),
+    });
+    // A Caddy misroute to the gRPC upstream: 200 OK, application/grpc, empty body.
+    const grpc = () => new Response(new Uint8Array(), { status: 200, headers: { "content-type": "application/grpc" } });
+    const good = () => new Response(new Uint8Array([1, 2, 3]), { status: 200 });
+    const fetchMock = vi.fn().mockResolvedValueOnce(grpc()).mockResolvedValueOnce(good());
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(loadSoundFont("t")).rejects.toThrow(); // rejected, not cached
+    expect(cacheStore.size).toBe(0); // cache NOT poisoned by the empty response
+
+    setSoundFontForTest(null); // drop the in-memory promise so a retry re-fetches
+    const bytes = await loadSoundFont("t"); // backend fixed → real bytes
+    expect(bytes).toEqual(new Uint8Array([1, 2, 3]));
+    expect(cacheStore.size).toBe(1);
+  });
 });
 
 describe("usePlayhead click-to-seek", () => {

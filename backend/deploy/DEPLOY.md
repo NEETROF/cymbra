@@ -382,6 +382,28 @@ is set. To turn it on:
    `music.catalog_scores` + `music.user_scores`, and the log shows the ScoreService
    mounted instead of `score-upload disabled`.
 
+## Enabling SoundFont delivery (`/soundfonts/*`)
+
+Turned on by the `CYMBRA_SOUNDFONT_S3_BUCKET` block in `.env` (see `.env.prod.example`
+→ "SoundFont delivery"). Like the score store, the server builds a **LocalFirstStore**
+over S3 and warms a **writable local cache** — a store SEPARATE from scores, rooted at
+`CYMBRA_SOUNDFONT_LOCAL_ROOT` (default container path `/srv/cymbra/soundfonts`).
+
+> ⚠️ The store `create_dir_all()`s + writes this root at boot. `/srv/cymbra` is
+> root-owned in the image, so the container UID (1000) cannot create the dir there —
+> the server would crash-loop with `local root /srv/cymbra/soundfonts: Permission
+> denied (os error 13)` and the deploy rolls back. The compose bind-mounts the host
+> `SOUNDFONTS_DIR` there; make it writable by 1000 (a fresh `bootstrap.sh` does this
+> for you — step 10):
+> ```bash
+> sudo mkdir -p "${SOUNDFONTS_DIR:-/var/lib/cymbra/soundfonts}"
+> sudo chown -R 1000:1000 "${SOUNDFONTS_DIR:-/var/lib/cymbra/soundfonts}"
+> ```
+
+Only `server` mounts it (the worker builds no soundfont store). Leave the bucket unset
+to disable the route (it then responds 503). Seed the default font once — see the
+`aws s3 cp` snippet in `.env.prod.example`.
+
 ## Before you invite testers — checklist (the easy-to-forget bits)
 
 - [ ] **Uptime monitor** — there's no HA/alerting. Point a free UptimeRobot/BetterStack

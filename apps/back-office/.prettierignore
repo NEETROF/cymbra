@@ -1,5 +1,6 @@
 dist/
 src/gen/
+CHANGELOG.md
 coverage/
 playwright-report/
 test-results/
