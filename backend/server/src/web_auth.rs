@@ -356,16 +356,16 @@ mod tests {
         ) -> Result<()> {
             unreachable!()
         }
-        async fn sign_up_local(&self, _email: &str, _password: &str) -> Result<()> {
+        async fn sign_up_local(&self, _email: &str, _password: &str, _locale: &str) -> Result<()> {
             unreachable!()
         }
         async fn verify_email(&self, _token: &str) -> Result<()> {
             unreachable!()
         }
-        async fn resend_verification(&self, _email: &str) -> Result<()> {
+        async fn resend_verification(&self, _email: &str, _locale: &str) -> Result<()> {
             unreachable!()
         }
-        async fn request_password_reset(&self, _email: &str) -> Result<()> {
+        async fn request_password_reset(&self, _email: &str, _locale: &str) -> Result<()> {
             unreachable!()
         }
         async fn reset_password(&self, _token: &str, _new_password: &str) -> Result<()> {
@@ -387,6 +387,7 @@ mod tests {
             _user_id: &str,
             _email: &str,
             _password: &str,
+            _locale: &str,
         ) -> Result<()> {
             unreachable!()
         }

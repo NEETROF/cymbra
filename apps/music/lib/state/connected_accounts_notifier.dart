@@ -73,8 +73,13 @@ class ConnectedAccountsNotifier extends _$ConnectedAccountsNotifier {
   Future<void> linkEmailPassword({
     required String email,
     required String password,
+    String? locale,
   }) => _runAction(ConnectedAccountsAction.setPassword, () async {
-    await _auth.setLocalCredential(email: email, password: password);
+    await _auth.setLocalCredential(
+      email: email,
+      password: password,
+      locale: locale,
+    );
     return true;
   });
 

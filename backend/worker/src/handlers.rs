@@ -39,12 +39,15 @@ pub struct WorkerCtx {
     pub play_detail_retention_days: i64,
 }
 
-/// Payload for the `verification_email` job (and any transactional email).
+/// Payload for the `verification_email` job (and any transactional email). The
+/// producer renders the branded multipart body (design D2); the worker only
+/// transports `{to, subject, html, text}`.
 #[derive(Deserialize)]
 struct EmailJob {
     to: String,
     subject: String,
-    body: String,
+    html: String,
+    text: String,
 }
 
 /// Send a transactional email. Idempotency is the producer's responsibility
@@ -58,7 +61,12 @@ pub async fn verification_email(mut job: CurrentJob, ctx: WorkerCtx) -> Result<(
         let p: EmailJob = job
             .json()?
             .ok_or("verification_email: missing JSON payload")?;
-        ctx.email.send(&p.to, &p.subject, &p.body).await?;
+        let email = cymbra_platform::email_template::RenderedEmail {
+            subject: p.subject,
+            html: p.html,
+            text: p.text,
+        };
+        ctx.email.send(&p.to, &email).await?;
         job.complete().await?;
         Ok(())
     }

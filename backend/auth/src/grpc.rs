@@ -58,7 +58,9 @@ impl<P: AuthPort + 'static> AuthService for AuthGrpc<P> {
         req: Request<proto::SignUpLocalRequest>,
     ) -> Result<Response<proto::SignUpLocalResponse>, Status> {
         let r = req.into_inner();
-        self.port.sign_up_local(&r.email, &r.password).await?;
+        self.port
+            .sign_up_local(&r.email, &r.password, &r.locale)
+            .await?;
         Ok(Response::new(proto::SignUpLocalResponse {}))
     }
 
@@ -74,9 +76,8 @@ impl<P: AuthPort + 'static> AuthService for AuthGrpc<P> {
         &self,
         req: Request<proto::ResendVerificationRequest>,
     ) -> Result<Response<proto::ResendVerificationResponse>, Status> {
-        self.port
-            .resend_verification(&req.into_inner().email)
-            .await?;
+        let r = req.into_inner();
+        self.port.resend_verification(&r.email, &r.locale).await?;
         Ok(Response::new(proto::ResendVerificationResponse {}))
     }
 
@@ -121,8 +122,9 @@ impl<P: AuthPort + 'static> AuthService for AuthGrpc<P> {
         &self,
         req: Request<proto::RequestPasswordResetRequest>,
     ) -> Result<Response<proto::RequestPasswordResetResponse>, Status> {
+        let r = req.into_inner();
         self.port
-            .request_password_reset(&req.into_inner().email)
+            .request_password_reset(&r.email, &r.locale)
             .await?;
         Ok(Response::new(proto::RequestPasswordResetResponse {}))
     }
@@ -166,7 +168,7 @@ impl<P: AuthPort + 'static> AuthService for AuthGrpc<P> {
         let user_id = caller(&req)?;
         let r = req.into_inner();
         self.port
-            .set_local_credential(&user_id, &r.email, &r.password)
+            .set_local_credential(&user_id, &r.email, &r.password, &r.locale)
             .await?;
         Ok(Response::new(proto::SetLocalCredentialResponse {}))
     }

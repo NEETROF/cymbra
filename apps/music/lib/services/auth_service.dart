@@ -102,13 +102,18 @@ class AuthException implements Exception {
 /// override the provider with an in-memory fake. Failures throw [AuthException].
 abstract class AuthService {
   /// Create a local (email + password) account. Advances to verification.
-  Future<void> signUpLocal({required String email, required String password});
+  /// [locale] (e.g. `"fr"`) localizes the verification email; null = server default.
+  Future<void> signUpLocal({
+    required String email,
+    required String password,
+    String? locale,
+  });
 
   /// Verify a newly-registered email with the emailed OTP [code].
   Future<void> verifyEmail(String code);
 
-  /// Re-send the verification code to [email].
-  Future<void> resendVerification(String email);
+  /// Re-send the verification code to [email]. [locale] localizes the email.
+  Future<void> resendVerification(String email, {String? locale});
 
   /// Sign in with email + password (audience `music`). Returns the session.
   Future<AuthTokens> signInLocal({
@@ -129,8 +134,9 @@ abstract class AuthService {
   /// local session on success.
   Future<void> revokeAllSessions();
 
-  /// Begin a password reset for [email] (no account enumeration).
-  Future<void> requestPasswordReset(String email);
+  /// Begin a password reset for [email] (no account enumeration). [locale]
+  /// localizes the reset email.
+  Future<void> requestPasswordReset(String email, {String? locale});
 
   /// Complete a password reset with the emailed [code] and a new password.
   Future<void> resetPassword({
@@ -162,5 +168,6 @@ abstract class AuthService {
   Future<void> setLocalCredential({
     required String email,
     required String password,
+    String? locale,
   });
 }

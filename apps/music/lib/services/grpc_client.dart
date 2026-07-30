@@ -181,21 +181,24 @@ class GrpcAuthService implements AuthService {
   }
 
   @override
-  Future<void> signUpLocal({required String email, required String password}) =>
-      _map(
-        () => _client.signUpLocal(
-          auth.SignUpLocalRequest(email: email, password: password),
-        ),
-      );
+  Future<void> signUpLocal({
+    required String email,
+    required String password,
+    String? locale,
+  }) => _map(
+    () => _client.signUpLocal(
+      auth.SignUpLocalRequest(email: email, password: password, locale: locale),
+    ),
+  );
 
   @override
   Future<void> verifyEmail(String code) =>
       _map(() => _client.verifyEmail(auth.VerifyEmailRequest(token: code)));
 
   @override
-  Future<void> resendVerification(String email) => _map(
+  Future<void> resendVerification(String email, {String? locale}) => _map(
     () => _client.resendVerification(
-      auth.ResendVerificationRequest(email: email),
+      auth.ResendVerificationRequest(email: email, locale: locale),
     ),
   );
 
@@ -242,9 +245,9 @@ class GrpcAuthService implements AuthService {
   );
 
   @override
-  Future<void> requestPasswordReset(String email) => _map(
+  Future<void> requestPasswordReset(String email, {String? locale}) => _map(
     () => _client.requestPasswordReset(
-      auth.RequestPasswordResetRequest(email: email),
+      auth.RequestPasswordResetRequest(email: email, locale: locale),
     ),
   );
 
@@ -281,9 +284,14 @@ class GrpcAuthService implements AuthService {
   Future<void> setLocalCredential({
     required String email,
     required String password,
+    String? locale,
   }) => _authed(
     (bearer) async => _client.setLocalCredential(
-      auth.SetLocalCredentialRequest(email: email, password: password),
+      auth.SetLocalCredentialRequest(
+        email: email,
+        password: password,
+        locale: locale,
+      ),
       options: bearerOptions(bearer),
     ),
   );

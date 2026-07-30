@@ -98,6 +98,7 @@ class FakeAuthService implements AuthService {
   Future<void> signUpLocal({
     required String email,
     required String password,
+    String? locale,
   }) async {
     calls.add('signUpLocal:$email');
     if (signUpError != null) throw signUpError!;
@@ -110,7 +111,7 @@ class FakeAuthService implements AuthService {
   }
 
   @override
-  Future<void> resendVerification(String email) async {
+  Future<void> resendVerification(String email, {String? locale}) async {
     calls.add('resendVerification:$email');
     if (resendError != null) throw resendError!;
   }
@@ -145,7 +146,7 @@ class FakeAuthService implements AuthService {
   }
 
   @override
-  Future<void> requestPasswordReset(String email) async {
+  Future<void> requestPasswordReset(String email, {String? locale}) async {
     calls.add('requestPasswordReset:$email');
   }
 
@@ -183,6 +184,7 @@ class FakeAuthService implements AuthService {
   Future<void> setLocalCredential({
     required String email,
     required String password,
+    String? locale,
   }) async {
     calls.add('setLocalCredential:$email');
     if (setLocalCredentialError != null) throw setLocalCredentialError!;

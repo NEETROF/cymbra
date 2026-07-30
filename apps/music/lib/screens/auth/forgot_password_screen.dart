@@ -57,7 +57,9 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
     final l10n = AppLocalizations.of(context);
     setState(() => _busy = true);
     try {
-      await ref.read(authFlowProvider).requestPasswordReset(email);
+      await ref
+          .read(authFlowProvider)
+          .requestPasswordReset(email, locale: l10n.localeName);
       // No-enumeration: the same confirmation regardless of whether it exists.
       if (mounted) {
         setState(() => _requested = true);

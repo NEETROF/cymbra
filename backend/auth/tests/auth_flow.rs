@@ -58,6 +58,7 @@ async fn local_lifecycle_signup_verify_signin_refresh_reuse() -> Result<()> {
         Duration::from_secs(3600),
         Duration::from_secs(86_400),
         Duration::from_secs(3600),
+        None,
     );
     let sessions: Arc<dyn SessionStore> =
         Arc::new(PgSessionStore::new(auth_pool.clone(), cfg.refresh_ttl));
@@ -66,7 +67,7 @@ async fn local_lifecycle_signup_verify_signin_refresh_reuse() -> Result<()> {
     // Unique email per run.
     let email_addr = format!("it-{}@x.dev", uuid::Uuid::new_v4());
 
-    m.sign_up_local(&email_addr, PW).await?;
+    m.sign_up_local(&email_addr, PW, "").await?;
     // Pull the verification token straight from the auth schema.
     let token: String =
         sqlx::query_scalar("SELECT verification_token FROM local_credentials WHERE email = $1")

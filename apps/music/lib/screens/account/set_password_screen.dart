@@ -54,7 +54,11 @@ class _SetPasswordScreenState extends ConsumerState<SetPasswordScreen> {
     _pendingSeq = ref.read(connectedAccountsNotifierProvider).actionSeq;
     ref
         .read(connectedAccountsNotifierProvider.notifier)
-        .linkEmailPassword(email: email, password: password);
+        .linkEmailPassword(
+          email: email,
+          password: password,
+          locale: AppLocalizations.of(context).localeName,
+        );
   }
 
   @override
