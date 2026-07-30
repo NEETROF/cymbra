@@ -488,10 +488,15 @@ class Player extends _$Player {
 
     var loop = false;
     var finishScoredRun = false;
-    if (s.songEndMs > 0 && next >= s.songEndMs) {
+    // Stop at the effective end (last note's resolution) rather than the raw
+    // songEndMs, so trailing rests / empty trailing measures are trimmed — the
+    // symmetric counterpart of the trimmed start. endMs falls back to songEndMs
+    // when the selection has no notes, so behaviour is unchanged there.
+    final endMs = s.endMs;
+    if (endMs > 0 && next >= endMs) {
       if (ref.read(performanceScorerProvider).active) {
         // A scored run ends the piece (produces the summary) instead of looping.
-        next = s.songEndMs;
+        next = endMs;
         finishScoredRun = true;
       } else {
         next = s.startMs; // simple loop — wrap to the trimmed start, not 0

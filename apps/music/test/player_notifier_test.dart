@@ -16,14 +16,28 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:music/services/audio_service.dart';
 import 'package:music/services/midi_service.dart';
+import 'package:music/src/rust/api/musicxml.dart';
 import 'package:music/src/rust/api/score.dart';
 import 'package:music/state/countdown.dart';
+import 'package:music/state/notation_data.dart';
+import 'package:music/state/notation_notifier.dart';
 import 'package:music/state/performance_scoring.dart';
 import 'package:music/state/player_data.dart';
 import 'package:music/state/player_notifier.dart';
 import 'package:music/state/player_preferences.dart';
 
 import 'support/fakes.dart';
+import 'support/notation_fakes.dart';
+
+/// A [Notation] whose state is fixed to a parsed document, so the player loads a
+/// real timeline (notes + rests) without touching the byte sources — the only
+/// way to get trailing rests (songEndMs > last note) into the player state.
+class _FixedNotation extends Notation {
+  _FixedNotation(this._value);
+  final NotationData _value;
+  @override
+  NotationData build() => _value;
+}
 
 /// Lets the async score load and the broadcast MIDI stream settle.
 Future<void> _flush() => Future<void>.delayed(Duration.zero);
@@ -40,6 +54,7 @@ void main() {
     FakeMidiService? service,
     RecordingAudioService? audioService,
     Score? score,
+    ScoreDocument? document,
   }) async {
     midi = service ?? FakeMidiService();
     audio = audioService ?? RecordingAudioService();
@@ -48,6 +63,12 @@ void main() {
         midiServiceProvider.overrideWithValue(midi),
         scoreSourceProvider.overrideWithValue(FakeScoreSource(score)),
         audioServiceProvider.overrideWithValue(audio),
+        // A parsed document loads a real timeline (with rests) instead of the
+        // demo; used by the "stop at last note" group to get trailing silence.
+        if (document != null)
+          notationProvider.overrideWith(
+            () => _FixedNotation(NotationData(document: document)),
+          ),
       ],
     );
     addTearDown(container.dispose);
@@ -907,6 +928,159 @@ void main() {
       notifier().advance(50);
       expect(read().blocked, isFalse);
       expect(read().elapsedMs, greaterThan(6000));
+    });
+  });
+
+  group('stop at the last note (trim trailing silence)', () {
+    // A single treble note followed by a trailing rest, so the last note
+    // resolves well before songEndMs (which the rest inflates). endMs is the
+    // note's resolution; songEndMs runs on to the end of the rest.
+    ScoreDocument trailingRestDoc() => ScoreDocument(
+      meta: const ScoreMeta(title: 'Trail', composer: 'T'),
+      staves: 1,
+      attributes: const Attributes(
+        divisions: 4,
+        clefs: [Clef(staff: 1, sign: 'G', line: 2)],
+        keyFifths: 0,
+        time: TimeSignature(beats: 4, beatType: 4),
+      ),
+      measures: [
+        NotationMeasure(
+          index: 0,
+          clefs: const [],
+          minWidth: 120,
+          directions: const [],
+          notes: [
+            noteEvent(
+              staff: 1,
+              positionDivisions: 0,
+              pitch: const Pitch(step: 'C', octave: 4, alter: 0),
+              durationDivisions: 4, // quarter note
+            ),
+            // Three beats of trailing rest — no note, only silence.
+            noteEvent(
+              staff: 1,
+              positionDivisions: 4,
+              isRest: true,
+              durationDivisions: 12,
+              noteType: 'half',
+              dots: 1,
+            ),
+          ],
+        ),
+      ],
+    );
+
+    // A grand-staff document whose right hand (staff 1) plays into a 2nd
+    // measure while the left hand (staff 2) stops in the 1st — so each hand
+    // has a different last-note resolution.
+    ScoreDocument grandStaffDoc() => ScoreDocument(
+      meta: const ScoreMeta(title: 'Grand', composer: 'T'),
+      staves: 2,
+      attributes: const Attributes(
+        divisions: 4,
+        clefs: [
+          Clef(staff: 1, sign: 'G', line: 2),
+          Clef(staff: 2, sign: 'F', line: 4),
+        ],
+        keyFifths: 0,
+        time: TimeSignature(beats: 4, beatType: 4),
+      ),
+      measures: [
+        NotationMeasure(
+          index: 0,
+          clefs: const [],
+          minWidth: 120,
+          directions: const [],
+          notes: [
+            noteEvent(
+              staff: 1,
+              positionDivisions: 0,
+              pitch: const Pitch(step: 'C', octave: 5, alter: 0),
+            ),
+            noteEvent(
+              staff: 2,
+              positionDivisions: 0,
+              pitch: const Pitch(step: 'C', octave: 3, alter: 0),
+              durationDivisions: 16, // left hand's last note (whole)
+              noteType: 'whole',
+            ),
+          ],
+        ),
+        NotationMeasure(
+          index: 1,
+          clefs: const [],
+          minWidth: 120,
+          directions: const [],
+          notes: [
+            noteEvent(
+              staff: 1,
+              positionDivisions: 0,
+              pitch: const Pitch(
+                step: 'D',
+                octave: 5,
+                alter: 0,
+              ), // right hand plays on
+            ),
+          ],
+        ),
+      ],
+    );
+
+    test(
+      'a scored run finishes at the last note, not the trailing rest',
+      () async {
+        await build(document: trailingRestDoc());
+        notifier().toggleWaitMode(); // free run so the playhead advances freely
+        notifier().togglePlay(); // Synthesia from the top → scored run
+        expect(container.read(performanceScorerProvider).active, isTrue);
+        final end = read().endMs;
+        expect(end, lessThan(read().songEndMs)); // there IS trailing silence
+        // Advance just past the last note but before songEndMs.
+        notifier().advance(end + 1);
+        expect(read().isPlaying, isFalse); // the run finished…
+        expect(read().elapsedMs, end); // …clamped to endMs, not songEndMs
+      },
+    );
+
+    test('an unscored run loops at the last note back to the start', () async {
+      await build(document: trailingRestDoc());
+      notifier().toggleWaitMode(); // free run
+      notifier().togglePlay();
+      // Reach the unscored loop path (every mode is scored otherwise).
+      container.read(performanceScorerProvider.notifier).cancelRun();
+      final end = read().endMs;
+      final start = read().startMs;
+      expect(end, lessThan(read().songEndMs));
+      // Advance just past the last note but before songEndMs: already loops.
+      notifier().advance(end + 1);
+      expect(read().elapsedMs, start); // wrapped to the trimmed start, not held
+    });
+
+    test('Wait Mode completes the run at the last note', () async {
+      await build(document: trailingRestDoc()); // Wait Mode on by default
+      notifier().togglePlay(); // scored run
+      notifier().advance(50);
+      expect(read().blocked, isTrue); // frozen on the only onset (C4 at 0)
+      notifier().noteOn(60); // hit the last note
+      final end = read().endMs;
+      // Advance past the last note; the trailing rest is not an onset to gate.
+      notifier().advance(end + 1);
+      expect(read().isPlaying, isFalse); // completed at the last note…
+      expect(read().elapsedMs, end); // …without gating through the rest
+    });
+
+    test('changing hands recomputes the effective end for that hand', () async {
+      await build(document: grandStaffDoc());
+      final bothEnd = read().copyWith(selectedHands: Hand.both).endMs;
+      notifier().setSelectedHands(Hand.left);
+      final leftEnd = read().endMs;
+      notifier().setSelectedHands(Hand.right);
+      final rightEnd = read().endMs;
+      // The right hand plays into the 2nd measure; the left hand stops in the
+      // 1st, so its end is earlier and both-hands equals the later (right) end.
+      expect(leftEnd, lessThan(rightEnd));
+      expect(bothEnd, rightEnd);
     });
   });
 }
