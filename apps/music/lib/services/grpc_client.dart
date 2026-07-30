@@ -288,9 +288,14 @@ class GrpcAuthService implements AuthService {
   Future<void> setLocalCredential({
     required String email,
     required String password,
+    String? locale,
   }) => _authed(
     (bearer) async => _client.setLocalCredential(
-      auth.SetLocalCredentialRequest(email: email, password: password),
+      auth.SetLocalCredentialRequest(
+        email: email,
+        password: password,
+        locale: locale,
+      ),
       options: bearerOptions(bearer),
     ),
   );

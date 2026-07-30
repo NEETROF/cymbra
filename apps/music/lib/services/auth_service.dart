@@ -168,5 +168,6 @@ abstract class AuthService {
   Future<void> setLocalCredential({
     required String email,
     required String password,
+    String? locale,
   });
 }

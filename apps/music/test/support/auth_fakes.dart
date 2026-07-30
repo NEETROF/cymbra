@@ -184,6 +184,7 @@ class FakeAuthService implements AuthService {
   Future<void> setLocalCredential({
     required String email,
     required String password,
+    String? locale,
   }) async {
     calls.add('setLocalCredential:$email');
     if (setLocalCredentialError != null) throw setLocalCredentialError!;

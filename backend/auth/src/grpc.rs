@@ -168,7 +168,7 @@ impl<P: AuthPort + 'static> AuthService for AuthGrpc<P> {
         let user_id = caller(&req)?;
         let r = req.into_inner();
         self.port
-            .set_local_credential(&user_id, &r.email, &r.password)
+            .set_local_credential(&user_id, &r.email, &r.password, &r.locale)
             .await?;
         Ok(Response::new(proto::SetLocalCredentialResponse {}))
     }

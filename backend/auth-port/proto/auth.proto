@@ -41,7 +41,7 @@ message UnlinkIdentityResponse {}
 // also sign in with email (change: add-account-identity-linking). The credential
 // is created UNVERIFIED and a verification email is sent — the password is only
 // usable once the email is confirmed (mirrors SignUpLocal). Caller from the token.
-message SetLocalCredentialRequest { string email = 1; string password = 2; }
+message SetLocalCredentialRequest { string email = 1; string password = 2; string locale = 3; }
 message SetLocalCredentialResponse {}
 
 // Session revocation (change: add-session-management). Caller identity comes from the

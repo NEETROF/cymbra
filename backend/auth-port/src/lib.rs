@@ -60,5 +60,11 @@ pub trait AuthPort: Send + Sync {
     /// verification email is sent — the password is usable only after the email
     /// is confirmed (mirrors `sign_up_local`). `AlreadyExists` if the account
     /// already has a local credential or the email is bound to another account.
-    async fn set_local_credential(&self, user_id: &str, email: &str, password: &str) -> Result<()>;
+    async fn set_local_credential(
+        &self,
+        user_id: &str,
+        email: &str,
+        password: &str,
+        locale: &str,
+    ) -> Result<()>;
 }
