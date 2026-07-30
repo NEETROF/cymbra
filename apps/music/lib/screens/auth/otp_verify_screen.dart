@@ -78,7 +78,9 @@ class _OtpVerifyScreenState extends ConsumerState<OtpVerifyScreen> {
   Future<void> _resend() async {
     final l10n = AppLocalizations.of(context);
     try {
-      await ref.read(authFlowProvider).resendVerification(widget.email);
+      await ref
+          .read(authFlowProvider)
+          .resendVerification(widget.email, locale: l10n.localeName);
       if (mounted) {
         showAppSnackBar(ScaffoldMessenger.of(context), l10n.otpResentSnack);
       }

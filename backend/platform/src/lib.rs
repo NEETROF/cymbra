@@ -10,6 +10,7 @@ pub mod cache;
 pub mod config;
 pub mod db;
 pub mod email;
+pub mod email_template;
 pub mod error;
 pub mod guard;
 pub mod identity;

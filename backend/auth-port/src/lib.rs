@@ -29,9 +29,11 @@ pub struct TokenPair {
 #[cfg_attr(feature = "mock", mockall::automock)]
 #[async_trait]
 pub trait AuthPort: Send + Sync {
-    async fn sign_up_local(&self, email: &str, password: &str) -> Result<()>;
+    /// `locale` (optional; empty string = unset) selects the transactional-email
+    /// language, falling back to English (change: template-backend-emails).
+    async fn sign_up_local(&self, email: &str, password: &str, locale: &str) -> Result<()>;
     async fn verify_email(&self, token: &str) -> Result<()>;
-    async fn resend_verification(&self, email: &str) -> Result<()>;
+    async fn resend_verification(&self, email: &str, locale: &str) -> Result<()>;
     async fn sign_in_local(&self, email: &str, password: &str, audience: &str)
     -> Result<TokenPair>;
     async fn sign_in_oidc(&self, id_token: &str, audience: &str) -> Result<TokenPair>;
@@ -49,7 +51,7 @@ pub trait AuthPort: Send + Sync {
         target_user_id: &str,
         audience: &str,
     ) -> Result<()>;
-    async fn request_password_reset(&self, email: &str) -> Result<()>;
+    async fn request_password_reset(&self, email: &str, locale: &str) -> Result<()>;
     async fn reset_password(&self, token: &str, new_password: &str) -> Result<()>;
     async fn link_identity(&self, user_id: &str, id_token: &str) -> Result<()>;
     async fn unlink_identity(&self, user_id: &str, provider: &str, subject: &str) -> Result<()>;

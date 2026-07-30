@@ -9,6 +9,7 @@ use async_trait::async_trait;
 use cymbra_auth_port::{AuthPort, TokenPair};
 use cymbra_platform::cache::Cache;
 use cymbra_platform::email::EmailSender;
+use cymbra_platform::email_template::{self, SupportedLocale};
 use cymbra_platform::{AppError, Result, password, ratelimit, token};
 use cymbra_user_port::UserPort;
 use jsonwebtoken::EncodingKey;
@@ -30,6 +31,8 @@ pub struct AuthConfig {
     pub email_window: Duration,
     pub verify_ttl: Duration,
     pub reset_ttl: Duration,
+    /// Hosted "Cymbra ID" logo URL for branded emails; `None` = text wordmark only.
+    pub email_logo_url: Option<String>,
 }
 
 /// In-process auth implementation.
@@ -52,17 +55,25 @@ fn now_secs() -> i64 {
         .as_secs() as i64
 }
 
-/// Build the enqueue request for a verification email. The worker's
-/// `verification_email` handler consumes `{to, subject, body}`. Idempotency is
+/// Build the enqueue request for a verification email. The producer renders the
+/// branded multipart email here, so the worker's `verification_email` handler just
+/// transports the `{to, subject, html, text}` payload (design D2). Idempotency is
 /// provided by the single-use token: a re-delivered job re-sends the same code.
-fn verification_email_job(email: &str, token: &str) -> Result<cymbra_jobs::EnqueueRequest> {
+fn verification_email_job(
+    email: &str,
+    token: &str,
+    locale: SupportedLocale,
+    logo_url: Option<&str>,
+) -> Result<cymbra_jobs::EnqueueRequest> {
     let spec = cymbra_jobs::registry::spec(cymbra_jobs::VERIFICATION_EMAIL).ok_or_else(|| {
         AppError::Internal(anyhow::anyhow!("missing verification_email job spec"))
     })?;
+    let rendered = email_template::verification_email(token, locale, logo_url);
     let payload = serde_json::json!({
         "to": email,
-        "subject": "Verify your Cymbra account",
-        "body": format!("Confirm your email with this code: {token}"),
+        "subject": rendered.subject,
+        "html": rendered.html,
+        "text": rendered.text,
     });
     cymbra_jobs::EnqueueRequest::for_job(&spec, &payload, None)
         .map_err(|e| AppError::Internal(anyhow::anyhow!("build verification email job: {e}")))
@@ -131,6 +142,7 @@ impl AuthConfig {
         email_window: Duration,
         verify_ttl: Duration,
         reset_ttl: Duration,
+        email_logo_url: Option<String>,
     ) -> Self {
         Self {
             access_ttl,
@@ -143,13 +155,14 @@ impl AuthConfig {
             email_window,
             verify_ttl,
             reset_ttl,
+            email_logo_url,
         }
     }
 }
 
 #[async_trait]
 impl AuthPort for AuthModule {
-    async fn sign_up_local(&self, email: &str, password: &str) -> Result<()> {
+    async fn sign_up_local(&self, email: &str, password: &str, locale: &str) -> Result<()> {
         password::check_policy(password, self.cfg.password_min_length)?;
         let hash = password::hash(password)?;
         self.creds.insert(email, &hash).await?; // AlreadyExists if taken
@@ -160,7 +173,12 @@ impl AuthPort for AuthModule {
         // Enqueue the verification email as a job in the same transaction as the
         // verification write — SMTP is now off the request path, so a mail
         // failure can never fail an account that already exists (design D10).
-        let job = verification_email_job(email, &tok)?;
+        let job = verification_email_job(
+            email,
+            &tok,
+            SupportedLocale::parse(Some(locale)),
+            self.cfg.email_logo_url.as_deref(),
+        )?;
         self.creds
             .set_verification_with_job(email, &tok, exp, &job)
             .await?;
@@ -176,7 +194,7 @@ impl AuthPort for AuthModule {
         }
     }
 
-    async fn resend_verification(&self, email: &str) -> Result<()> {
+    async fn resend_verification(&self, email: &str, locale: &str) -> Result<()> {
         ratelimit::check(
             self.cache.as_ref(),
             "verify_email",
@@ -191,13 +209,12 @@ impl AuthPort for AuthModule {
             let tok = uuid::Uuid::new_v4().to_string();
             let exp = now_secs() + self.cfg.verify_ttl.as_secs() as i64;
             self.creds.set_verification(email, &tok, exp).await?;
-            self.email
-                .send(
-                    email,
-                    "Verify your Cymbra account",
-                    &format!("Confirm your email with this code: {tok}"),
-                )
-                .await?;
+            let rendered = email_template::verification_email(
+                &tok,
+                SupportedLocale::parse(Some(locale)),
+                self.cfg.email_logo_url.as_deref(),
+            );
+            self.email.send(email, &rendered).await?;
         }
         Ok(()) // never reveals whether the email exists / is verified
     }
@@ -289,7 +306,7 @@ impl AuthPort for AuthModule {
         Ok(())
     }
 
-    async fn request_password_reset(&self, email: &str) -> Result<()> {
+    async fn request_password_reset(&self, email: &str, locale: &str) -> Result<()> {
         ratelimit::check(
             self.cache.as_ref(),
             "reset_email",
@@ -302,13 +319,12 @@ impl AuthPort for AuthModule {
             let tok = uuid::Uuid::new_v4().to_string();
             let exp = now_secs() + self.cfg.reset_ttl.as_secs() as i64;
             self.creds.set_reset(email, &tok, exp).await?;
-            self.email
-                .send(
-                    email,
-                    "Reset your Cymbra password",
-                    &format!("Reset your password with this code: {tok}"),
-                )
-                .await?;
+            let rendered = email_template::password_reset_email(
+                &tok,
+                SupportedLocale::parse(Some(locale)),
+                self.cfg.email_logo_url.as_deref(),
+            );
+            self.email.send(email, &rendered).await?;
         }
         Ok(()) // uniform response — no account enumeration
     }
@@ -382,6 +398,7 @@ mod tests {
             Duration::from_secs(3600),
             Duration::from_secs(86_400),
             Duration::from_secs(3600),
+            None,
         );
         let m = AuthModule::new(
             user,
@@ -414,7 +431,7 @@ mod tests {
     #[tokio::test]
     async fn signup_verify_signin_issues_scoped_token() {
         let h = harness();
-        h.m.sign_up_local("a@x.dev", PW).await.unwrap();
+        h.m.sign_up_local("a@x.dev", PW, "").await.unwrap();
         let tok = h.creds.peek_verification_token("a@x.dev").unwrap();
         h.m.verify_email(&tok).await.unwrap();
         let pair = h.m.sign_in_local("a@x.dev", PW, "music").await.unwrap();
@@ -426,7 +443,7 @@ mod tests {
     #[tokio::test]
     async fn signup_enqueues_email_off_request_path() {
         let h = harness();
-        h.m.sign_up_local("a@x.dev", PW).await.unwrap();
+        h.m.sign_up_local("a@x.dev", PW, "").await.unwrap();
         // SMTP is no longer on the sign-up request path (design D10).
         assert!(
             h.email.sent.lock().unwrap().is_empty(),
@@ -446,13 +463,13 @@ mod tests {
     #[tokio::test]
     async fn duplicate_and_weak_password() {
         let h = harness();
-        h.m.sign_up_local("a@x.dev", PW).await.unwrap();
+        h.m.sign_up_local("a@x.dev", PW, "").await.unwrap();
         assert!(matches!(
-            h.m.sign_up_local("a@x.dev", PW).await,
+            h.m.sign_up_local("a@x.dev", PW, "").await,
             Err(AppError::AlreadyExists(_))
         ));
         assert!(matches!(
-            h.m.sign_up_local("b@x.dev", "short").await,
+            h.m.sign_up_local("b@x.dev", "short", "").await,
             Err(AppError::InvalidArgument(_))
         ));
     }
@@ -460,7 +477,7 @@ mod tests {
     #[tokio::test]
     async fn unverified_blocked_then_wrong_password_then_lockout() {
         let h = harness();
-        h.m.sign_up_local("a@x.dev", PW).await.unwrap();
+        h.m.sign_up_local("a@x.dev", PW, "").await.unwrap();
         // unverified
         assert!(matches!(
             h.m.sign_in_local("a@x.dev", PW, "music").await,
@@ -576,12 +593,12 @@ mod tests {
     #[tokio::test]
     async fn password_reset_invalidates_sessions() {
         let h = harness();
-        h.m.sign_up_local("b@x.dev", PW).await.unwrap();
+        h.m.sign_up_local("b@x.dev", PW, "").await.unwrap();
         let vt = h.creds.peek_verification_token("b@x.dev").unwrap();
         h.m.verify_email(&vt).await.unwrap();
         let pair = h.m.sign_in_local("b@x.dev", PW, "music").await.unwrap();
 
-        h.m.request_password_reset("b@x.dev").await.unwrap();
+        h.m.request_password_reset("b@x.dev", "").await.unwrap();
         let rt = h.creds.peek_reset_token("b@x.dev").unwrap();
         let new_pw = format!("Pw-{}-Aa1!", uuid::Uuid::new_v4());
         h.m.reset_password(&rt, &new_pw).await.unwrap();
@@ -615,5 +632,45 @@ mod tests {
             h.m.unlink_identity(&uid_a, "google", "g1").await,
             Err(AppError::FailedPrecondition(_))
         ));
+    }
+
+    #[tokio::test]
+    async fn resend_verification_sends_branded_multipart_email() {
+        let h = harness();
+        h.m.sign_up_local("v@x.dev", PW, "").await.unwrap();
+        // Sign-up enqueues a job (no direct send yet).
+        assert!(h.email.sent.lock().unwrap().is_empty());
+
+        h.m.resend_verification("v@x.dev", "").await.unwrap();
+        let sent = h.email.sent.lock().unwrap();
+        let msg = sent.first().expect("resend should send one email");
+        let code = h.creds.peek_verification_token("v@x.dev").unwrap();
+        assert_eq!(msg.to, "v@x.dev");
+        assert_eq!(msg.subject, "Verify your Cymbra account");
+        // Branded HTML + plain-text alternative, both carrying the code.
+        assert!(msg.html.contains("Cymbra ID"));
+        assert!(msg.html.contains("#7C3AED"));
+        assert!(msg.html.contains(&code));
+        assert!(msg.text.contains(&code));
+    }
+
+    #[tokio::test]
+    async fn password_reset_sends_branded_localized_email() {
+        let h = harness();
+        h.m.sign_up_local("r@x.dev", PW, "").await.unwrap();
+        let vt = h.creds.peek_verification_token("r@x.dev").unwrap();
+        h.m.verify_email(&vt).await.unwrap();
+
+        // French locale -> French subject + French legal links.
+        h.m.request_password_reset("r@x.dev", "fr-FR")
+            .await
+            .unwrap();
+        let sent = h.email.sent.lock().unwrap();
+        let msg = sent.first().expect("reset should send one email");
+        let code = h.creds.peek_reset_token("r@x.dev").unwrap();
+        assert_eq!(msg.subject, "Réinitialisez votre mot de passe Cymbra");
+        assert!(msg.html.contains("https://cymbra.app/cgu/"));
+        assert!(msg.html.contains(&code));
+        assert!(msg.text.contains(&code));
     }
 }

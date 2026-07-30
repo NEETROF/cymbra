@@ -10,13 +10,15 @@ message TokenPair {
   string refresh_token = 2;  // long, sliding, rotated on use
 }
 
-message SignUpLocalRequest { string email = 1; string password = 2; }
+// `locale` (optional, additive): the client's UI locale (e.g. "fr", "es-ES") so
+// transactional email renders in the user's language; empty falls back to English.
+message SignUpLocalRequest { string email = 1; string password = 2; string locale = 3; }
 message SignUpLocalResponse {}
 
 message VerifyEmailRequest { string token = 1; }
 message VerifyEmailResponse {}
 
-message ResendVerificationRequest { string email = 1; }
+message ResendVerificationRequest { string email = 1; string locale = 2; }
 message ResendVerificationResponse {}
 
 message SignInLocalRequest { string email = 1; string password = 2; string audience = 3; }
@@ -26,7 +28,7 @@ message RefreshRequest { string refresh_token = 1; }
 message LogoutRequest { string refresh_token = 1; }
 message LogoutResponse {}
 
-message RequestPasswordResetRequest { string email = 1; }
+message RequestPasswordResetRequest { string email = 1; string locale = 2; }
 message RequestPasswordResetResponse {}
 message ResetPasswordRequest { string token = 1; string new_password = 2; }
 message ResetPasswordResponse {}

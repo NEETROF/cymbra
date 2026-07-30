@@ -126,6 +126,7 @@ mod build_tests {
             Duration::from_secs(3600),
             Duration::from_secs(86_400),
             Duration::from_secs(3600),
+            None,
         );
         let auth = Arc::new(
             AuthModule::new(

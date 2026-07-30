@@ -56,7 +56,9 @@ class _EmailSignUpScreenState extends ConsumerState<EmailSignUpScreen> {
     final l10n = AppLocalizations.of(context);
     setState(() => _busy = true);
     try {
-      await ref.read(authFlowProvider).signUp(email: email, password: password);
+      await ref
+          .read(authFlowProvider)
+          .signUp(email: email, password: password, locale: l10n.localeName);
       if (mounted) {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute<void>(

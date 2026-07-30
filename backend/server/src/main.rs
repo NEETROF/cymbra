@@ -100,6 +100,7 @@ async fn main() -> anyhow::Result<()> {
         cfg.email_window,
         cfg.verify_ttl,
         cfg.reset_ttl,
+        cfg.email_logo_url.clone(),
     );
     let auth = Arc::new(AuthModule::new(
         user_dyn.clone(),

@@ -36,16 +36,19 @@ class AuthFlow {
   OidcTokenSource get _oidc => _ref.read(oidcTokenSourceProvider);
   SessionNotifier get _session => _ref.read(sessionNotifierProvider.notifier);
 
-  Future<void> signUp({required String email, required String password}) =>
-      _auth.signUpLocal(email: email, password: password);
+  Future<void> signUp({
+    required String email,
+    required String password,
+    String? locale,
+  }) => _auth.signUpLocal(email: email, password: password, locale: locale);
 
   Future<void> verifyEmail(String code) => _auth.verifyEmail(code);
 
-  Future<void> resendVerification(String email) =>
-      _auth.resendVerification(email);
+  Future<void> resendVerification(String email, {String? locale}) =>
+      _auth.resendVerification(email, locale: locale);
 
-  Future<void> requestPasswordReset(String email) =>
-      _auth.requestPasswordReset(email);
+  Future<void> requestPasswordReset(String email, {String? locale}) =>
+      _auth.requestPasswordReset(email, locale: locale);
 
   Future<void> resetPassword({
     required String code,

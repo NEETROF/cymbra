@@ -23,7 +23,12 @@ pub struct Config {
     pub signin_max_attempts: u32,
     pub signin_lockout: Duration,
     pub smtp_url: String,
+    /// `From` for transactional mail; accepts a display-name form, e.g.
+    /// `"Cymbra ID <no-reply@cymbra.app>"` (change: template-backend-emails).
     pub smtp_from: String,
+    /// Hosted neutral "Cymbra ID" logo URL shown in branded email headers. `None`
+    /// (the default) ships the text wordmark alone until the asset exists.
+    pub email_logo_url: Option<String>,
     /// Max verification/reset emails per window.
     pub email_max: u32,
     pub email_window: Duration,
@@ -166,7 +171,11 @@ pub mod config_core {
             signin_max_attempts: num(m, "CYMBRA_SIGNIN_MAX_ATTEMPTS", 5)?,
             signin_lockout: dur(m, "CYMBRA_SIGNIN_LOCKOUT", "15m")?,
             smtp_url: req(m, "CYMBRA_SMTP_URL")?,
-            smtp_from: opt(m, "CYMBRA_SMTP_FROM", "no-reply@cymbra.dev"),
+            smtp_from: opt(m, "CYMBRA_SMTP_FROM", "Cymbra ID <no-reply@cymbra.dev>"),
+            email_logo_url: m
+                .get("CYMBRA_EMAIL_LOGO_URL")
+                .filter(|v| !v.is_empty())
+                .cloned(),
             email_max: email_rate(m)?.0,
             email_window: email_rate(m)?.1,
             verify_ttl: dur(m, "CYMBRA_VERIFY_TOKEN_TTL", "24h")?,
