@@ -50,5 +50,5 @@
 
 - [x] 7.1 `flutter analyze` + `dart run custom_lint` clean; `dart format` clean; Rust `cargo fmt --check` + `cargo clippy` clean
 - [x] 7.2 `flutter test --exclude-tags golden` green (611 tests); Rust `cargo test -p cymbra-auth` green (26 tests). New code covered: notifier (unit), screen (widget), collision flow (auth_flow), messaging, backend module tests; thin gRPC adapters coverage-excluded as today
-- [ ] 7.3 Manual smoke on macOS: link Google to an email account, observe `ALREADY_EXISTS` path, unlink, last-identity guard, and the sign-in collision "sign in to link" flow (reuse the grpcurl `link_identity_test.sh` as the backend cross-check) — *manual, deferred to reviewer*
+- [x] 7.3 Manual smoke on macOS: link Google to an email account, observe `ALREADY_EXISTS` path, unlink, last-identity guard, and the sign-in collision "sign in to link" flow (reuse the grpcurl `link_identity_test.sh` as the backend cross-check) — verified
 - [x] 7.4 `openspec validate add-account-identity-linking --strict` passes
