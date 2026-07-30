@@ -28,7 +28,7 @@
 - [x] 4.1 Add an optional `locale` field to the affected requests in `backend/auth-port/proto/auth.proto` (sign-up, resend-verification, request-password-reset); regenerate Rust + Dart/TS clients.
 - [x] 4.2 Map the proto `locale` to a `SupportedLocale` in the auth gRPC layer, defaulting to English when absent.
 - [x] 4.3 Pass the app locale from the Flutter client (`apps/music`) on the affected auth calls.
-- [x] 4.4 Pass the app locale from the back office (`apps/back-office`) on the affected auth calls.
+- [x] 4.4 N/A — the back office has no local sign-up / resend / password-reset surface (moderators authenticate via OIDC), so there is no client call to thread `locale` through.
 
 ## 5. Tests
 
