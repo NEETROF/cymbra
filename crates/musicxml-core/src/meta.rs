@@ -417,4 +417,20 @@ mod tests {
         assert_eq!(s.highest_midi, None);
         assert_eq!(s.note_count, 0);
     }
+
+    #[test]
+    fn ambitus_reflects_inferred_key_signature() {
+        // An unmarked score (no <alter>/<accidental>) under three flats: a bare E4
+        // sounds E♭4 = 63 and a bare A4 sounds A♭4 = 68, so the ambitus reflects the
+        // inferred pitches — proof that pitch_to_midi consumes the inferred alteration.
+        let xml = r#"<score-partwise><part-list><score-part id="P1"/></part-list>
+        <part id="P1"><measure number="1">
+          <attributes><divisions>1</divisions><key><fifths>-3</fifths></key></attributes>
+          <note><pitch><step>E</step><octave>4</octave></pitch><duration>1</duration></note>
+          <note><pitch><step>A</step><octave>4</octave></pitch><duration>1</duration></note>
+        </measure></part></score-partwise>"#;
+        let s = ScoreFacets::from_document(&parse(xml.as_bytes()).unwrap());
+        assert_eq!(s.lowest_midi, Some(63)); // E♭4, not E♮ (64)
+        assert_eq!(s.highest_midi, Some(68)); // A♭4, not A♮ (69)
+    }
 }
