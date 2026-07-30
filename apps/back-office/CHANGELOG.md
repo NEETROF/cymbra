@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/NEETROF/cymbra/compare/back-office-v0.2.0...back-office-v0.2.1) (2026-07-30)
+
+
+### Bug Fixes
+
+* **deploy:** mount SoundFont warm-cache on server + harden bo cache ([#143](https://github.com/NEETROF/cymbra/issues/143)) ([004caec](https://github.com/NEETROF/cymbra/commit/004caec3cfe1913323ff03f950f27d9748b55af8))
+
 ## [0.2.0](https://github.com/NEETROF/cymbra/compare/back-office-v0.1.0...back-office-v0.2.0) (2026-07-30)
 
 
