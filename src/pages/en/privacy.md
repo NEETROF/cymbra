@@ -2,11 +2,14 @@
 layout: ../../layouts/Legal.astro
 title: Privacy Policy
 lang: en
-updated: 07/07/2026
+updated: 30/07/2026
 ---
 
-This policy explains what personal data the **Cymbra** application processes, why, on
-what legal basis, who it is shared with, how long it is kept, and what your rights are.
+This policy explains what personal data the **Cymbra services** (published by
+**NEETROF**) process, why, on what legal basis, who it is shared with, how long it is
+kept, and what your rights are. It covers the **Cymbra account**, shared across the
+Cymbra services; processing specific to a product is set out in an **annex** (see
+*Annex A — Cymbra Music*).
 
 ## 1. Data controller
 
@@ -90,3 +93,20 @@ will inform you of any material change.
 ## 10. Contact
 
 **gfortin@neetrof.fr** — NEETROF, 42 IMPASSE DUFERMONT, 59510 HEM, FRANCE.
+
+---
+
+## Annex A — Cymbra Music
+
+The **Cymbra Music** service lets you upload your own content. For that purpose, in
+addition to §2, we process:
+
+| Data | Source | Purpose |
+|---|---|---|
+| Uploaded files (scores, piano sounds / *soundfonts*) | you | provide playback and practice features |
+| Associated metadata (file name, origin attestation, timestamp) | you | management and traceability of your content |
+
+- **Legal basis**: performance of a contract (providing the feature).
+- **Retention**: for as long as you keep the content; **deletion** removes the file and
+  its record (see Terms of Service, *Annex A — Cymbra Music*).
+- These files are **hosted in the European Union** (France), like the rest of your data.
