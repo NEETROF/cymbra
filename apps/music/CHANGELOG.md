@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.15.0](https://github.com/NEETROF/cymbra/compare/music-v1.14.0...music-v1.15.0) (2026-07-30)
+
+
+### Features
+
+* **music:** play-activity heatmap, reliable stats sync, and public profiles ([#129](https://github.com/NEETROF/cymbra/issues/129)) ([d124d0d](https://github.com/NEETROF/cymbra/commit/d124d0d2604c73c0a2c867389f5ec3719a4d6256))
+* **player:** stop the game at the last note, trimming trailing silence ([#142](https://github.com/NEETROF/cymbra/issues/142)) ([ab56c80](https://github.com/NEETROF/cymbra/commit/ab56c80834c9efe7fc5682439b2dfb0768ce6c23))
+* **rating:** let the community rate pending scores in the deck ([#133](https://github.com/NEETROF/cymbra/issues/133)) ([885bf51](https://github.com/NEETROF/cymbra/commit/885bf5155ea159005c57753e677b90fac78f1530))
+* swipe + star score rating deck, backend, and in-card preview ([#128](https://github.com/NEETROF/cymbra/issues/128)) ([e4ced64](https://github.com/NEETROF/cymbra/commit/e4ced64df93ee207fc4d2650b601352d8bc5401c))
+
+
+### Bug Fixes
+
+* **player:** rail the transport controls on the right on phone & tablet ([#134](https://github.com/NEETROF/cymbra/issues/134)) ([e9214db](https://github.com/NEETROF/cymbra/commit/e9214db87970c2ad471813ac75cab19d5e606e37))
+
 ## [1.14.0](https://github.com/NEETROF/cymbra/compare/music-v1.13.1...music-v1.14.0) (2026-07-28)
 
 
