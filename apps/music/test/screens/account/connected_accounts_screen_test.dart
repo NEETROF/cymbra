@@ -134,14 +134,11 @@ void main() {
       tester,
     ) async {
       await tester.pumpWidget(
-        _scope(
-          [
-            ...authOverrides(store: FakeTokenStore(guest: true)),
-            appLocaleProvider.overrideWith(_FixedLocale.new),
-            legalLinkLauncherProvider.overrideWithValue(_NoopLauncher()),
-          ],
-          localizedApp(const Scaffold(body: AccountMenu())),
-        ),
+        _scope([
+          ...authOverrides(store: FakeTokenStore(guest: true)),
+          appLocaleProvider.overrideWith(_FixedLocale.new),
+          legalLinkLauncherProvider.overrideWithValue(_NoopLauncher()),
+        ], localizedApp(const Scaffold(body: AccountMenu()))),
       );
       await tester.pumpAndSettle();
 
@@ -156,22 +153,16 @@ void main() {
       tester,
     ) async {
       await tester.pumpWidget(
-        _scope(
-          [
-            ...authOverrides(
-              store: FakeTokenStore(
-                tokens: const StoredTokens(
-                  accessToken: 'a',
-                  refreshToken: 'r',
-                ),
-              ),
-              account: FakeAccountService(account: fakeAccount(handle: 'a')),
+        _scope([
+          ...authOverrides(
+            store: FakeTokenStore(
+              tokens: const StoredTokens(accessToken: 'a', refreshToken: 'r'),
             ),
-            appLocaleProvider.overrideWith(_FixedLocale.new),
-            legalLinkLauncherProvider.overrideWithValue(_NoopLauncher()),
-          ],
-          localizedApp(const Scaffold(body: AccountMenu())),
-        ),
+            account: FakeAccountService(account: fakeAccount(handle: 'a')),
+          ),
+          appLocaleProvider.overrideWith(_FixedLocale.new),
+          legalLinkLauncherProvider.overrideWithValue(_NoopLauncher()),
+        ], localizedApp(const Scaffold(body: AccountMenu()))),
       );
       await tester.pumpAndSettle();
 

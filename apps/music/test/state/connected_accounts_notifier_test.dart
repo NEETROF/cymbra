@@ -102,25 +102,28 @@ void main() {
       expect(account.calls.where((s) => s == 'listIdentities').length, 1);
     });
 
-    test('ALREADY_EXISTS surfaces as an action error, list untouched', () async {
-      final auth = FakeAuthService()
-        ..linkErrors.add(const AuthException(AuthError.alreadyExists));
-      final account = FakeAccountService(
-        identities: [_identity(LinkedIdentity.providerLocal)],
-      );
-      final c = _live(auth: auth, account: account);
-      final notifier = c.read(connectedAccountsNotifierProvider.notifier);
-      await pumpEventQueue();
+    test(
+      'ALREADY_EXISTS surfaces as an action error, list untouched',
+      () async {
+        final auth = FakeAuthService()
+          ..linkErrors.add(const AuthException(AuthError.alreadyExists));
+        final account = FakeAccountService(
+          identities: [_identity(LinkedIdentity.providerLocal)],
+        );
+        final c = _live(auth: auth, account: account);
+        final notifier = c.read(connectedAccountsNotifierProvider.notifier);
+        await pumpEventQueue();
 
-      await notifier.linkGoogle();
+        await notifier.linkGoogle();
 
-      final state = c.read(connectedAccountsNotifierProvider);
-      expect(state.actionError?.error, AuthError.alreadyExists);
-      expect(state.lastAction, ConnectedAccountsAction.linkGoogle);
-      expect(state.hasGoogle, isFalse);
-      // No refetch on failure.
-      expect(account.calls.where((s) => s == 'listIdentities').length, 1);
-    });
+        final state = c.read(connectedAccountsNotifierProvider);
+        expect(state.actionError?.error, AuthError.alreadyExists);
+        expect(state.lastAction, ConnectedAccountsAction.linkGoogle);
+        expect(state.hasGoogle, isFalse);
+        // No refetch on failure.
+        expect(account.calls.where((s) => s == 'listIdentities').length, 1);
+      },
+    );
 
     test('unlink removes an identity and re-fetches', () async {
       final auth = FakeAuthService();
@@ -166,28 +169,31 @@ void main() {
       expect(state.lastAction, ConnectedAccountsAction.unlink);
     });
 
-    test('linkEmailPassword calls setLocalCredential then re-fetches', () async {
-      final auth = FakeAuthService();
-      final account = FakeAccountService(
-        identities: [_identity(LinkedIdentity.providerGoogle)],
-      );
-      final c = _live(auth: auth, account: account);
-      final notifier = c.read(connectedAccountsNotifierProvider.notifier);
-      await pumpEventQueue();
+    test(
+      'linkEmailPassword calls setLocalCredential then re-fetches',
+      () async {
+        final auth = FakeAuthService();
+        final account = FakeAccountService(
+          identities: [_identity(LinkedIdentity.providerGoogle)],
+        );
+        final c = _live(auth: auth, account: account);
+        final notifier = c.read(connectedAccountsNotifierProvider.notifier);
+        await pumpEventQueue();
 
-      account.identities = [
-        _identity(LinkedIdentity.providerGoogle),
-        _identity(LinkedIdentity.providerLocal),
-      ];
-      await notifier.linkEmailPassword(
-        email: 'me@x.dev',
-        password: 'longenoughpassword',
-      );
+        account.identities = [
+          _identity(LinkedIdentity.providerGoogle),
+          _identity(LinkedIdentity.providerLocal),
+        ];
+        await notifier.linkEmailPassword(
+          email: 'me@x.dev',
+          password: 'longenoughpassword',
+        );
 
-      final state = c.read(connectedAccountsNotifierProvider);
-      expect(auth.calls, contains('setLocalCredential:me@x.dev'));
-      expect(state.hasLocal, isTrue);
-      expect(state.actionError, isNull);
-    });
+        final state = c.read(connectedAccountsNotifierProvider);
+        expect(auth.calls, contains('setLocalCredential:me@x.dev'));
+        expect(state.hasLocal, isTrue);
+        expect(state.actionError, isNull);
+      },
+    );
   });
 }

@@ -21,25 +21,37 @@ import 'package:music/state/connected_accounts_state.dart';
 void main() {
   final l10n = AppLocalizationsEn();
 
-  group('authErrorMessage — UNAUTHENTICATED is no longer the password copy', () {
-    test('the default for UNAUTHENTICATED is the neutral sign-in message', () {
-      final msg = authErrorMessage(
-        l10n,
-        const AuthException(AuthError.unauthenticated),
+  group(
+    'authErrorMessage — UNAUTHENTICATED is no longer the password copy',
+    () {
+      test(
+        'the default for UNAUTHENTICATED is the neutral sign-in message',
+        () {
+          final msg = authErrorMessage(
+            l10n,
+            const AuthException(AuthError.unauthenticated),
+          );
+          expect(msg, l10n.authErrSignInFailed);
+          expect(
+            msg,
+            isNot(l10n.authErrUnauthenticated),
+          ); // not "Incorrect email…"
+        },
       );
-      expect(msg, l10n.authErrSignInFailed);
-      expect(msg, isNot(l10n.authErrUnauthenticated)); // not "Incorrect email…"
-    });
 
-    test('the local sign-in flow still reads the password copy via fallback', () {
-      final msg = authErrorMessage(
-        l10n,
-        const AuthException(AuthError.unauthenticated),
-        fallback: l10n.authErrUnauthenticated,
+      test(
+        'the local sign-in flow still reads the password copy via fallback',
+        () {
+          final msg = authErrorMessage(
+            l10n,
+            const AuthException(AuthError.unauthenticated),
+            fallback: l10n.authErrUnauthenticated,
+          );
+          expect(msg, 'Incorrect email or password.');
+        },
       );
-      expect(msg, 'Incorrect email or password.');
-    });
-  });
+    },
+  );
 
   group('linkErrorMessage — action-aware link/unlink copy', () {
     test('a social-link collision reads "already linked elsewhere"', () {

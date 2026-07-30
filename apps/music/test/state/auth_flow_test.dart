@@ -174,12 +174,14 @@ void main() {
       // The existing-account re-auth fails.
       auth.signInError = const AuthException(AuthError.unauthenticated);
       await expectLater(
-        c.read(authFlowProvider).linkExisting(
-          pending: pending,
-          authenticateExisting: () => c
-              .read(authFlowProvider)
-              .reauthEmail(email: 'me@x.dev', password: 'nope'),
-        ),
+        c
+            .read(authFlowProvider)
+            .linkExisting(
+              pending: pending,
+              authenticateExisting: () => c
+                  .read(authFlowProvider)
+                  .reauthEmail(email: 'me@x.dev', password: 'nope'),
+            ),
         throwsA(isA<AuthException>()),
       );
 

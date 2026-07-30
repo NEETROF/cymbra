@@ -44,9 +44,9 @@ Future<void> _pushScreen(
           body: Builder(
             builder: (context) => ElevatedButton(
               key: const Key('open'),
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(builder: (_) => screen),
-              ),
+              onPressed: () => Navigator.of(
+                context,
+              ).push(MaterialPageRoute<void>(builder: (_) => screen)),
               child: const Text('open'),
             ),
           ),
@@ -140,10 +140,7 @@ void main() {
       expect(find.byKey(const Key('link-with-google')), findsNothing);
       expect(find.byKey(const Key('link-with-apple')), findsOneWidget);
 
-      await tester.enterText(
-        find.byKey(const Key('link-email')),
-        'me@x.dev',
-      );
+      await tester.enterText(find.byKey(const Key('link-email')), 'me@x.dev');
       await tester.enterText(
         find.byKey(const Key('link-password')),
         'longenoughpass',
