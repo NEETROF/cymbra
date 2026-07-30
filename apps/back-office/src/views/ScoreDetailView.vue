@@ -104,6 +104,18 @@ async function saveEdit(edit: MetadataEdit) {
   <h1 class="page-title detail-title">{{ hitVm.hit?.title || $t("detail.score") }}</h1>
   <p v-if="hitVm.error" class="error" role="alert">{{ hitVm.error }}</p>
   <p v-if="decisionError" class="error" role="alert">{{ decisionError }}</p>
+  <!-- Metadata surface. For a moderator this IS the edit form (curatorial fields
+       editable, derived facets read-only) — it replaces the read-only list so the
+       info isn't shown twice. A non-moderator gets the read-only list inside the
+       preview below instead. -->
+  <ScoreEditForm
+    v-if="auth.isModerator"
+    class="edit-card"
+    :hit="hitVm.hit"
+    :submitting="submitting"
+    :error="submitError"
+    @submit="saveEdit"
+  />
   <div class="preview-card">
     <ScorePreview
       :hit="hitVm.hit"
@@ -116,20 +128,11 @@ async function saveEdit(edit: MetadataEdit) {
       :elapsed-ms="player.elapsedMs.value"
       :playing="player.playing.value"
       :can-play="player.canPlay.value"
+      :show-meta="!auth.isModerator"
       @toggle="player.toggle"
       @seek="player.playFrom"
     />
   </div>
-  <!-- Curatorial edit form: moderator/admin only (the server guard is the real
-       boundary; this is the UX gate). -->
-  <ScoreEditForm
-    v-if="auth.isModerator"
-    class="edit-card"
-    :hit="hitVm.hit"
-    :submitting="submitting"
-    :error="submitError"
-    @submit="saveEdit"
-  />
 </template>
 
 <style scoped>
@@ -153,7 +156,7 @@ async function saveEdit(edit: MetadataEdit) {
   padding: 1.5rem;
 }
 .edit-card {
-  margin-top: 1rem;
+  margin-bottom: 1rem;
 }
 .error {
   color: var(--reject);
