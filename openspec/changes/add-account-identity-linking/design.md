@@ -6,7 +6,9 @@ merges by email, so a user who has an email account and later signs in with Goog
 silently gets a **second** account. The backend already exposes the fix —
 `AuthService.LinkIdentity(id_token)`, `AuthService.UnlinkIdentity(provider,
 subject)`, `UserService.ListIdentities()` — but the app wires none of it. This
-change adds the app surface only; **no server work**.
+change adds the app surface plus **one** additive server RPC — `SetLocalCredential`
+(the "Set a password" primitive, see D8) — since linking a local credential has no
+existing RPC. The OIDC link/unlink/list primitives are used as-is.
 
 Existing seams to build on: `AuthService` / `AccountService` (injectable, gRPC-backed
 in `grpc_client.dart`), `OidcTokenSource` (native Google/Apple `id_token`s behind a
@@ -33,7 +35,8 @@ MODIFIED delta on the now-existing `account-access` capability (see the delta sp
 **Non-Goals:**
 - Cross-account **merge** (combining two existing accounts' data).
 - Auto-linking by email at sign-in time.
-- Any backend/proto change; the `live` audience.
+- Any backend/proto change **beyond** the single additive `SetLocalCredential` RPC
+  (D8); the `live` audience.
 
 ## Decisions
 
@@ -109,6 +112,23 @@ social identity is still owned by the orphan and the link returns `ALREADY_EXIST
 - **Auto-link by email at sign-in** — rejected: classic pre-hijacking risk; owning the
   email is not the same as controlling the existing account. Re-auth into the existing
   account is required.
+
+### D8 — "Set a password" needs a new backend RPC, with the email verified
+Linking a *local* credential has no existing primitive: `LinkIdentity` takes an
+OIDC `id_token` only, and `SignUpLocal` provisions a *new* account. So this change
+adds an authenticated `AuthService.SetLocalCredential(email, password)` RPC. The
+caller's `user_id` comes from the validated access token. Because the account has
+no server-known email (Google/Apple subjects are opaque, not addresses), the user
+**types** the email — which they may not own — so the credential is created
+**unverified** and a verification email is sent; the password is usable only after
+verification, exactly like sign-up. *Alternatives considered:* (a) create it
+**verified** since the user is already authenticated — rejected: authenticating the
+*account* doesn't prove control of the *typed email*, so it would allow binding an
+address you don't own; (b) drop "Set a password" from v1 — rejected here (the user
+chose to add the RPC). Consistency: `SetLocalCredential` mirrors `sign_up_local`
+(insert credential → link `(local, email)` identity → enqueue verification email),
+guards one local credential per account, and compensates (erases the credential) if
+the identity bind fails, so a retry isn't blocked.
 
 ## Risks / Trade-offs
 

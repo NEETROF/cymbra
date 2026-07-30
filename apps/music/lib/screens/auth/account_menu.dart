@@ -20,6 +20,7 @@ import '../../services/legal_links.dart';
 import '../../state/app_locale.dart';
 import '../../state/session_notifier.dart';
 import '../../state/session_state.dart';
+import '../account/connected_accounts_screen.dart';
 import '../profile_screen.dart';
 import 'delete_account_screen.dart';
 
@@ -54,6 +55,12 @@ class AccountMenu extends ConsumerWidget {
               Navigator.of(context).push(
                 MaterialPageRoute<void>(builder: (_) => const ProfileScreen()),
               );
+            case 'connected':
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const ConnectedAccountsScreen(),
+                ),
+              );
             case 'signout':
               ref.read(sessionNotifierProvider.notifier).signOut();
             case 'signout-all':
@@ -80,6 +87,11 @@ class AccountMenu extends ConsumerWidget {
             key: const Key('account-profile'),
             value: 'profile',
             child: Text(l10n.accountProfile),
+          ),
+          PopupMenuItem<String>(
+            key: const Key('account-connected'),
+            value: 'connected',
+            child: Text(l10n.connectedAccountsManage),
           ),
           PopupMenuItem<String>(
             value: 'signout',

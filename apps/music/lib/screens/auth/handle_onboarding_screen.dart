@@ -21,9 +21,11 @@ import '../../l10n/gen/app_localizations.dart';
 import '../../services/auth_policy.dart';
 import '../../services/auth_service.dart';
 import '../../services/grpc_client.dart';
+import '../../state/pending_social_link.dart';
 import '../../state/session_notifier.dart';
 import '../../state/session_state.dart';
 import '../../theme/cymbra_theme.dart';
+import '../account/sign_in_to_link_screen.dart';
 import 'auth_messages.dart';
 import 'auth_scaffold.dart';
 
@@ -97,6 +99,7 @@ class _HandleOnboardingScreenState
     setState(() => _busy = true);
     try {
       await ref.read(sessionNotifierProvider.notifier).abandonOnboarding();
+      ref.read(pendingSocialLinkControllerProvider.notifier).clear();
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -118,6 +121,8 @@ class _HandleOnboardingScreenState
           .read(accountServiceProvider)
           .updateHandle(handle: handle, expectedVersion: version);
       ref.read(sessionNotifierProvider.notifier).setAccount(updated);
+      // Kept this account — no orphan to link anymore.
+      ref.read(pendingSocialLinkControllerProvider.notifier).clear();
       // The gate re-routes to the library once the account has a handle.
     } on AuthException catch (e) {
       if (!mounted) return;
@@ -145,9 +150,18 @@ class _HandleOnboardingScreenState
     _ => CymbraColors.onSurfaceVariant,
   };
 
+  void _goToLink(PendingSocialLink pending) => Navigator.of(context).push(
+    MaterialPageRoute<void>(
+      builder: (_) => SignInToLinkScreen(pending: pending),
+    ),
+  );
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    // Offered only after a social sign-in that just provisioned this account —
+    // never claims an account already exists (D7: no enumeration).
+    final pending = ref.watch(pendingSocialLinkControllerProvider);
     return AuthScaffold(
       title: l10n.handleTitle,
       children: [
@@ -196,6 +210,12 @@ class _HandleOnboardingScreenState
           onPressed: _busy ? null : _abandon,
           child: Text(l10n.useDifferentAccount),
         ),
+        if (pending != null)
+          TextButton(
+            key: const Key('handle-sign-in-to-link'),
+            onPressed: _busy ? null : () => _goToLink(pending),
+            child: Text(l10n.signInToLinkPrompt),
+          ),
       ],
     );
   }

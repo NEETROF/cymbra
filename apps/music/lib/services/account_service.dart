@@ -33,6 +33,26 @@ class Account {
   bool get needsHandle => handle == null || handle!.isEmpty;
 }
 
+/// A sign-in identity bound to an account (change: add-account-identity-linking),
+/// as returned by `UserService.ListIdentities`. [provider] is `local`, `google`,
+/// or `apple`; [subject] is the opaque provider key used to unlink — never
+/// displayed. [linkedAt] is when the identity was attached.
+class LinkedIdentity {
+  final String provider;
+  final String subject;
+  final DateTime linkedAt;
+
+  const LinkedIdentity({
+    required this.provider,
+    required this.subject,
+    required this.linkedAt,
+  });
+
+  static const String providerLocal = 'local';
+  static const String providerGoogle = 'google';
+  static const String providerApple = 'apple';
+}
+
 /// Seam over Cymbra ID's `UserService` account surface (task 3.3). Protected by
 /// the bearer session; the production implementation refreshes transparently on
 /// `UNAUTHENTICATED`. Tests override the provider with an in-memory fake.
@@ -54,4 +74,8 @@ abstract class AccountService {
 
   /// Permanently delete the caller's account.
   Future<void> deleteAccount();
+
+  /// List the sign-in identities currently linked to the caller's account
+  /// (change: add-account-identity-linking). Drives the Connected accounts screen.
+  Future<List<LinkedIdentity>> listIdentities();
 }

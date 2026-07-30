@@ -259,6 +259,36 @@ class GrpcAuthService implements AuthService {
       auth.ResetPasswordRequest(token: code, newPassword: newPassword),
     ),
   );
+
+  @override
+  Future<void> linkIdentity(String idToken) => _authed(
+    (bearer) async => _client.linkIdentity(
+      auth.LinkIdentityRequest(idToken: idToken),
+      options: bearerOptions(bearer),
+    ),
+  );
+
+  @override
+  Future<void> unlinkIdentity({
+    required String provider,
+    required String subject,
+  }) => _authed(
+    (bearer) async => _client.unlinkIdentity(
+      auth.UnlinkIdentityRequest(provider: provider, subject: subject),
+      options: bearerOptions(bearer),
+    ),
+  );
+
+  @override
+  Future<void> setLocalCredential({
+    required String email,
+    required String password,
+  }) => _authed(
+    (bearer) async => _client.setLocalCredential(
+      auth.SetLocalCredentialRequest(email: email, password: password),
+      options: bearerOptions(bearer),
+    ),
+  );
 }
 
 /// Production [AccountService] over the generated `UserServiceClient`. Protected
@@ -357,6 +387,21 @@ class GrpcAccountService implements AccountService {
       user.DeleteAccountRequest(),
       options: bearerOptions(bearer),
     ),
+  );
+
+  @override
+  Future<List<LinkedIdentity>> listIdentities() => _authed(
+    (bearer) async => (await _client.listIdentities(
+      user.ListIdentitiesRequest(),
+      options: bearerOptions(bearer),
+    )).identities.map(_toLinkedIdentity).toList(),
+  );
+
+  LinkedIdentity _toLinkedIdentity(user.Identity i) => LinkedIdentity(
+    provider: i.provider,
+    subject: i.subject,
+    // `linked_at` is unix seconds (backend `extract(epoch …)`).
+    linkedAt: DateTime.fromMillisecondsSinceEpoch(i.linkedAt.toInt() * 1000),
   );
 }
 
