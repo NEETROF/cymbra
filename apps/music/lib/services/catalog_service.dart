@@ -22,8 +22,6 @@ import '../src/grpc/score.pbgrpc.dart' as score;
 import '../state/score_catalog.dart' show PracticeLevel;
 import 'grpc_client.dart';
 import 'score_upload_service.dart' show practiceLevelFromWire;
-import 'token_refresher.dart';
-import 'token_store.dart';
 
 part 'catalog_service.g.dart';
 
@@ -170,30 +168,12 @@ String? _levelWire(PracticeLevel? level) => level?.name;
 class GrpcCatalogService implements CatalogService {
   GrpcCatalogService({
     required ClientChannel channel,
-    required TokenStore tokenStore,
-    required TokenRefresher refresher,
+    required AuthedRunner authed,
   }) : _client = score.ScoreServiceClient(channel),
-       _tokenStore = tokenStore,
-       _refresher = refresher;
+       _authed = authed;
 
   final score.ScoreServiceClient _client;
-  final TokenStore _tokenStore;
-  final TokenRefresher _refresher;
-
-  Future<String?> _accessToken() async =>
-      (await _tokenStore.readTokens())?.accessToken;
-
-  Future<T> _authed<T>(Future<T> Function(String? bearer) call) async {
-    try {
-      return await authedCall(
-        call,
-        accessToken: _accessToken,
-        refresh: _refresher.refresh,
-      );
-    } on GrpcError catch (e) {
-      throw authExceptionFromGrpc(e);
-    }
-  }
+  final AuthedRunner _authed;
 
   CatalogHit _toHit(score.CatalogHit h) => CatalogHit(
     id: h.id,
@@ -311,6 +291,5 @@ class GrpcCatalogService implements CatalogService {
 @Riverpod(keepAlive: true)
 CatalogService catalogService(Ref ref) => GrpcCatalogService(
   channel: ref.watch(cymbraChannelProvider),
-  tokenStore: ref.watch(tokenStoreProvider),
-  refresher: ref.watch(tokenRefresherProvider),
+  authed: ref.watch(authedRunnerProvider),
 );

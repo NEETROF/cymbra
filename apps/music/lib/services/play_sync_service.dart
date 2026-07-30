@@ -21,8 +21,6 @@ import '../src/grpc/play.pbgrpc.dart' as play;
 import '../state/play_activity.dart';
 import '../state/play_session_envelope.dart';
 import 'grpc_client.dart';
-import 'token_refresher.dart';
-import 'token_store.dart';
 
 part 'play_sync_service.g.dart';
 
@@ -47,21 +45,12 @@ abstract class PlaySyncService {
 class GrpcPlaySyncService implements PlaySyncService {
   GrpcPlaySyncService({
     required ClientChannel channel,
-    required TokenStore tokenStore,
-    required TokenRefresher refresher,
+    required AuthedRunner authed,
   }) : _client = play.PlayServiceClient(channel),
-       _tokenStore = tokenStore,
-       _refresher = refresher;
+       _authed = authed;
 
   final play.PlayServiceClient _client;
-  final TokenStore _tokenStore;
-  final TokenRefresher _refresher;
-
-  Future<String?> _accessToken() async =>
-      (await _tokenStore.readTokens())?.accessToken;
-
-  Future<T> _authed<T>(Future<T> Function(String? bearer) call) =>
-      authedCall(call, accessToken: _accessToken, refresh: _refresher.refresh);
+  final AuthedRunner _authed;
 
   @override
   Future<void> recordSession(PlaySessionEnvelope e) => _authed((bearer) async {
@@ -104,6 +93,5 @@ class GrpcPlaySyncService implements PlaySyncService {
 @Riverpod(keepAlive: true)
 PlaySyncService playSyncService(Ref ref) => GrpcPlaySyncService(
   channel: ref.watch(cymbraChannelProvider),
-  tokenStore: ref.watch(tokenStoreProvider),
-  refresher: ref.watch(tokenRefresherProvider),
+  authed: ref.watch(authedRunnerProvider),
 );

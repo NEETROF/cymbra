@@ -17,11 +17,20 @@ import 'package:grpc/grpc.dart';
 import 'package:music/services/auth_service.dart';
 import 'package:music/services/grpc_client.dart';
 import 'package:music/services/token_refresher.dart';
+import 'package:music/services/token_store.dart';
+
+import '../support/auth_fakes.dart';
 
 /// Marker error standing in for a gRPC `UNAUTHENTICATED` so the test needs no
 /// real channel.
 const _unauth = 'UNAUTHENTICATED';
 bool _isUnauth(Object e) => e == _unauth;
+
+StoredTokens _tokens({String access = 'at'}) =>
+    StoredTokens(accessToken: access, refreshToken: 'rt');
+
+Matcher _authErr(AuthError e) =>
+    throwsA(isA<AuthException>().having((x) => x.error, 'error', e));
 
 void main() {
   group('authedCall refresh/retry', () {
@@ -134,6 +143,85 @@ void main() {
         throwsA('boom'),
       );
       expect(refreshed, isFalse);
+    });
+  });
+
+  group('AuthedRunner', () {
+    test('runs with the stored access token; no refresh on success', () async {
+      final store = FakeTokenStore(tokens: _tokens(access: 'at'));
+      final refresher = FakeTokenRefresher(const RefreshTransient());
+      final runner = AuthedRunner(tokenStore: store, refresher: refresher);
+
+      final seen = <String?>[];
+      final result = await runner.call((bearer) async {
+        seen.add(bearer);
+        return 7;
+      });
+
+      expect(result, 7);
+      expect(seen, ['at']);
+      expect(refresher.calls, 0);
+    });
+
+    test(
+      'refreshes once on UNAUTHENTICATED and retries with the new token',
+      () async {
+        final store = FakeTokenStore(tokens: _tokens(access: 'stale'));
+        final refresher = FakeTokenRefresher(const RefreshRefreshed('fresh'));
+        final runner = AuthedRunner(tokenStore: store, refresher: refresher);
+
+        final seen = <String?>[];
+        final result = await runner.call((bearer) async {
+          seen.add(bearer);
+          if (seen.length == 1) throw GrpcError.unauthenticated();
+          return 'ok';
+        });
+
+        expect(result, 'ok');
+        expect(seen, ['stale', 'fresh']);
+        expect(refresher.calls, 1);
+      },
+    );
+
+    test(
+      'a rejected refresh surfaces as AuthException(unauthenticated)',
+      () async {
+        final runner = AuthedRunner(
+          tokenStore: FakeTokenStore(tokens: _tokens()),
+          refresher: FakeTokenRefresher(const RefreshRejected()),
+        );
+        await expectLater(
+          runner.call((bearer) async => throw GrpcError.unauthenticated()),
+          _authErr(AuthError.unauthenticated),
+        );
+      },
+    );
+
+    test(
+      'a transient refresh surfaces as AuthException(unavailable)',
+      () async {
+        final runner = AuthedRunner(
+          tokenStore: FakeTokenStore(tokens: _tokens()),
+          refresher: FakeTokenRefresher(const RefreshTransient()),
+        );
+        await expectLater(
+          runner.call((bearer) async => throw GrpcError.unauthenticated()),
+          _authErr(AuthError.unavailable),
+        );
+      },
+    );
+
+    test('a non-401 GrpcError is mapped without refreshing', () async {
+      final refresher = FakeTokenRefresher(const RefreshRefreshed('x'));
+      final runner = AuthedRunner(
+        tokenStore: FakeTokenStore(tokens: _tokens()),
+        refresher: refresher,
+      );
+      await expectLater(
+        runner.call((bearer) async => throw GrpcError.notFound()),
+        _authErr(AuthError.notFound),
+      );
+      expect(refresher.calls, 0);
     });
   });
 

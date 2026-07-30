@@ -15,6 +15,7 @@
 import 'package:music/services/account_service.dart';
 import 'package:music/services/auth_service.dart';
 import 'package:music/services/oidc_token_source.dart';
+import 'package:music/services/token_refresher.dart';
 import 'package:music/services/token_store.dart';
 
 /// In-memory [TokenStore] for tests — no platform channel.
@@ -46,6 +47,21 @@ class FakeTokenStore implements TokenStore {
   Future<void> clear() async {
     tokens = null;
     guest = false;
+  }
+}
+
+/// Scriptable [TokenRefresher] fake: returns a canned [RefreshOutcome] and counts
+/// how many times it was asked to refresh (to assert single-flight / no-refresh).
+class FakeTokenRefresher implements TokenRefresher {
+  FakeTokenRefresher(this.outcome);
+
+  RefreshOutcome outcome;
+  int calls = 0;
+
+  @override
+  Future<RefreshOutcome> refresh() async {
+    calls++;
+    return outcome;
   }
 }
 

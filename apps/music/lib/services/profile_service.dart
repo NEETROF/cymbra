@@ -18,8 +18,6 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../src/grpc/user.pbgrpc.dart' as user;
 import 'grpc_client.dart';
-import 'token_refresher.dart';
-import 'token_store.dart';
 
 part 'profile_service.g.dart';
 
@@ -65,21 +63,12 @@ abstract class ProfileService {
 class GrpcProfileService implements ProfileService {
   GrpcProfileService({
     required ClientChannel channel,
-    required TokenStore tokenStore,
-    required TokenRefresher refresher,
+    required AuthedRunner authed,
   }) : _client = user.UserServiceClient(channel),
-       _tokenStore = tokenStore,
-       _refresher = refresher;
+       _authed = authed;
 
   final user.UserServiceClient _client;
-  final TokenStore _tokenStore;
-  final TokenRefresher _refresher;
-
-  Future<String?> _accessToken() async =>
-      (await _tokenStore.readTokens())?.accessToken;
-
-  Future<T> _authed<T>(Future<T> Function(String? bearer) call) =>
-      authedCall(call, accessToken: _accessToken, refresh: _refresher.refresh);
+  final AuthedRunner _authed;
 
   @override
   Future<PlayerProfile> getPlayerProfile(String userId) =>
@@ -123,6 +112,5 @@ class GrpcProfileService implements ProfileService {
 @Riverpod(keepAlive: true)
 ProfileService profileService(Ref ref) => GrpcProfileService(
   channel: ref.watch(cymbraChannelProvider),
-  tokenStore: ref.watch(tokenStoreProvider),
-  refresher: ref.watch(tokenRefresherProvider),
+  authed: ref.watch(authedRunnerProvider),
 );

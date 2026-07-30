@@ -18,8 +18,6 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../src/grpc/score.pbgrpc.dart' as score;
 import 'grpc_client.dart';
-import 'token_refresher.dart';
-import 'token_store.dart';
 
 part 'rating_service.g.dart';
 
@@ -76,30 +74,12 @@ abstract class RatingService {
 class GrpcRatingService implements RatingService {
   GrpcRatingService({
     required ClientChannel channel,
-    required TokenStore tokenStore,
-    required TokenRefresher refresher,
+    required AuthedRunner authed,
   }) : _client = score.ScoreServiceClient(channel),
-       _tokenStore = tokenStore,
-       _refresher = refresher;
+       _authed = authed;
 
   final score.ScoreServiceClient _client;
-  final TokenStore _tokenStore;
-  final TokenRefresher _refresher;
-
-  Future<String?> _accessToken() async =>
-      (await _tokenStore.readTokens())?.accessToken;
-
-  Future<T> _authed<T>(Future<T> Function(String? bearer) call) async {
-    try {
-      return await authedCall(
-        call,
-        accessToken: _accessToken,
-        refresh: _refresher.refresh,
-      );
-    } on GrpcError catch (e) {
-      throw authExceptionFromGrpc(e);
-    }
-  }
+  final AuthedRunner _authed;
 
   @override
   Future<RatingAggregate> submit({
@@ -129,6 +109,5 @@ class GrpcRatingService implements RatingService {
 @Riverpod(keepAlive: true)
 RatingService ratingService(Ref ref) => GrpcRatingService(
   channel: ref.watch(cymbraChannelProvider),
-  tokenStore: ref.watch(tokenStoreProvider),
-  refresher: ref.watch(tokenRefresherProvider),
+  authed: ref.watch(authedRunnerProvider),
 );
