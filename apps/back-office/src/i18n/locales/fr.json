@@ -80,6 +80,14 @@
     "requeue": "Remettre en file",
     "score": "Partition"
   },
+  "edit": {
+    "heading": "Modifier les métadonnées",
+    "hint": "Corrigez uniquement les champs descriptifs. Les facettes ci-dessous sont dérivées de la partition et ne sont pas modifiables.",
+    "levelNone": "— aucun —",
+    "derivedLabel": "Facettes dérivées (lecture seule)",
+    "save": "Enregistrer",
+    "saving": "Enregistrement…"
+  },
   "preview": {
     "title": "Titre",
     "composer": "Compositeur",

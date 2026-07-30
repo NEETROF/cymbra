@@ -3,7 +3,8 @@ import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import { match } from "ts-pattern";
 import ScorePreview from "@/components/ScorePreview.vue";
-import { useCatalogStore, type ModerationStatus } from "@/stores/catalog";
+import ScoreEditForm from "@/components/ScoreEditForm.vue";
+import { useCatalogStore, type MetadataEdit, type ModerationStatus } from "@/stores/catalog";
 import { useAuthStore } from "@/stores/auth";
 import { type Async, idle, run } from "@/lib/async";
 import { useScoreRenderer } from "@/composables/useScoreRenderer";
@@ -20,6 +21,9 @@ const router = useRouter();
 const hit = ref<Async<CatalogHit>>(idle);
 const bytes = ref<Async<Uint8Array>>(idle);
 const decision = ref<Async<void>>(idle);
+// The curatorial-edit submit state (moderator-only form). Separate from `decision`
+// so a save never blocks accept/reject and vice-versa.
+const submit = ref<Async<void>>(idle);
 
 const hitVm = computed(() =>
   match(hit.value)
@@ -66,6 +70,20 @@ async function decide(status: ModerationStatus) {
   const outcome = await run(decision, () => store.setModerationStatus(props.id, status));
   if (outcome.status === "success") await router.push({ name: "music-queue" });
 }
+
+const submitting = computed(() => submit.value.status === "loading");
+const submitError = computed(() =>
+  match(submit.value)
+    .with({ status: "error" }, ({ error }) => error)
+    .otherwise(() => null),
+);
+
+// Save a curatorial edit, then re-fetch the hit so the form + preview reflect the
+// recomputed metadata (the server also recomputes the derived search keys + audits).
+async function saveEdit(edit: MetadataEdit) {
+  const outcome = await run(submit, () => store.updateCatalogScore(props.id, edit));
+  if (outcome.status === "success") await run(hit, () => store.fetchHit(props.id));
+}
 </script>
 
 <template>
@@ -86,6 +104,18 @@ async function decide(status: ModerationStatus) {
   <h1 class="page-title detail-title">{{ hitVm.hit?.title || $t("detail.score") }}</h1>
   <p v-if="hitVm.error" class="error" role="alert">{{ hitVm.error }}</p>
   <p v-if="decisionError" class="error" role="alert">{{ decisionError }}</p>
+  <!-- Metadata surface. For a moderator this IS the edit form (curatorial fields
+       editable, derived facets read-only) — it replaces the read-only list so the
+       info isn't shown twice. A non-moderator gets the read-only list inside the
+       preview below instead. -->
+  <ScoreEditForm
+    v-if="auth.isModerator"
+    class="edit-card"
+    :hit="hitVm.hit"
+    :submitting="submitting"
+    :error="submitError"
+    @submit="saveEdit"
+  />
   <div class="preview-card">
     <ScorePreview
       :hit="hitVm.hit"
@@ -98,6 +128,7 @@ async function decide(status: ModerationStatus) {
       :elapsed-ms="player.elapsedMs.value"
       :playing="player.playing.value"
       :can-play="player.canPlay.value"
+      :show-meta="!auth.isModerator"
       @toggle="player.toggle"
       @seek="player.playFrom"
     />
@@ -123,6 +154,9 @@ async function decide(status: ModerationStatus) {
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   padding: 1.5rem;
+}
+.edit-card {
+  margin-bottom: 1rem;
 }
 .error {
   color: var(--reject);

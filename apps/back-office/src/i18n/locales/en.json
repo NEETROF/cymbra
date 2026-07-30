@@ -75,6 +75,14 @@
     "statusLabel": "moderation status"
   },
   "detail": { "accept": "Accept", "reject": "Reject", "requeue": "Re-queue", "score": "Score" },
+  "edit": {
+    "heading": "Edit metadata",
+    "hint": "Correct the descriptive fields only. The facets below are derived from the score and cannot be edited.",
+    "levelNone": "— none —",
+    "derivedLabel": "Derived facets (read-only)",
+    "save": "Save changes",
+    "saving": "Saving…"
+  },
   "preview": {
     "title": "Title",
     "composer": "Composer",

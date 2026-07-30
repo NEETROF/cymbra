@@ -481,6 +481,73 @@ impl CatalogSearchRepo for PgCatalogSearchRepo {
         Ok(result.rows_affected() > 0)
     }
 
+    async fn apply_metadata_edit(
+        &self,
+        score_id: &str,
+        editor: &str,
+        plan: &crate::catalog_edit::EditPlan,
+    ) -> PlatformResult<bool> {
+        let Ok(id) = uuid::Uuid::parse_str(score_id) else {
+            return Ok(false); // malformed id → not found
+        };
+        let Ok(editor_id) = uuid::Uuid::parse_str(editor) else {
+            return Ok(false); // non-UUID editor is a programming error, not a 500
+        };
+
+        // One transaction: the row update + the recomputed search keys + provenance,
+        // then one audit row per changed field (change: add-catalog-metadata-editing).
+        let mut tx = self.pool.begin().await.map_err(search_internal)?;
+
+        // `level_source` becomes 'manual' only when the level actually changed. The
+        // recomputed title_norm/composer_norm/work_key keep search consistent with the
+        // edit; edited_by/edited_at mark the row as manually edited (refresh-skip).
+        let updated = sqlx::query(
+            "UPDATE music.catalog_scores SET \
+                title = $2, composer = $3, arranger = $4, level = $5, \
+                title_norm = $6, composer_norm = $7, work_key = $8, \
+                level_source = CASE WHEN $9 THEN 'manual' ELSE level_source END, \
+                edited_by = $10, edited_at = now() \
+             WHERE id = $1",
+        )
+        .bind(id)
+        .bind(&plan.title)
+        .bind(&plan.composer)
+        .bind(&plan.arranger)
+        .bind(&plan.level)
+        .bind(&plan.title_norm)
+        .bind(&plan.composer_norm)
+        .bind(&plan.work_key)
+        .bind(plan.level_changed())
+        .bind(editor_id)
+        .execute(&mut *tx)
+        .await
+        .map_err(search_internal)?;
+
+        if updated.rows_affected() == 0 {
+            tx.rollback().await.map_err(search_internal)?;
+            return Ok(false);
+        }
+
+        for c in &plan.changes {
+            sqlx::query(
+                "INSERT INTO music.catalog_edits \
+                    (catalog_score_id, editor, field, old_value, new_value) \
+                 VALUES ($1, $2, $3, $4, $5)",
+            )
+            .bind(id)
+            .bind(editor_id)
+            .bind(c.field)
+            .bind(&c.old)
+            .bind(&c.new)
+            .execute(&mut *tx)
+            .await
+            .map_err(search_internal)?;
+        }
+
+        tx.commit().await.map_err(search_internal)?;
+        Ok(true)
+    }
+
     async fn rating_deck(
         &self,
         user_id: &str,
@@ -638,11 +705,16 @@ impl TitleBackfillRepo for PgTitleBackfillRepo {
         // ordered by `id` for a stable, resumable scan. An optional `source` scopes
         // the sweep (e.g. only `openscore`). `after` is a UUID text; an unparseable
         // value (including "") means "from the start".
+        //
+        // Anti-clobber (change: add-catalog-metadata-editing): skip rows that carry
+        // the manual-edit marker (`edited_by IS NOT NULL`) so this automated
+        // metadata-refresh path never overwrites a moderator's correction.
         let after_uuid = uuid::Uuid::parse_str(after).ok();
         let rows = sqlx::query(
             "SELECT id, object_key, title FROM music.catalog_scores \
              WHERE ($1::uuid IS NULL OR id > $1) \
                AND ($2::text IS NULL OR source = $2) \
+               AND edited_by IS NULL \
              ORDER BY id ASC LIMIT $3",
         )
         .bind(after_uuid)

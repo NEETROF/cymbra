@@ -67,6 +67,23 @@ describe("catalog store", () => {
     expect(state.searchCalls).toHaveLength(2);
   });
 
+  it("update forwards only the curatorial fields to the edit RPC", async () => {
+    const { clients, state } = makeFakeClients();
+    setClientsForTest(clients);
+    const store = useCatalogStore();
+
+    await store.updateCatalogScore("score-3", {
+      title: "Clair de Lune",
+      composer: "Claude Debussy",
+      arranger: "",
+      level: "advanced",
+    });
+
+    expect(state.editCalls).toEqual([
+      { scoreId: "score-3", title: "Clair de Lune", composer: "Claude Debussy", arranger: "", level: "advanced" },
+    ]);
+  });
+
   it("loads per-status counts for the header stat cards", async () => {
     const { clients, state } = makeFakeClients({ total: 4 });
     setClientsForTest(clients);

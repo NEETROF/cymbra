@@ -26,6 +26,7 @@ use std::sync::Arc;
 use cymbra_platform::AuthIdentity;
 use tonic::{Request, Response, Status};
 
+use crate::catalog_edit::MetadataChanges;
 use crate::catalog_search::{CatalogHit, CatalogQuery, SortKey, is_moderation_sort_field};
 use crate::module::{ScoreModule, UploadInput};
 use crate::proto::{
@@ -38,7 +39,7 @@ use crate::proto::{
     SaveCatalogScoreResponse, ScoreRecord, SearchCatalogRequest, SearchCatalogResponse,
     SetModerationStatusRequest, SetModerationStatusResponse, SetScoreFavoriteRequest,
     SetScoreFavoriteResponse, SubmitScoreRatingRequest, SubmitScoreRatingResponse,
-    UploadScoreRequest,
+    UpdateCatalogScoreRequest, UpdateCatalogScoreResponse, UploadScoreRequest,
     score_service_server::{ScoreService, ScoreServiceServer},
 };
 use crate::user_scores::UserScore;
@@ -350,6 +351,28 @@ impl ScoreService for ScoreGrpc {
             .set_moderation_status(&id.user_id, &r.score_id, &r.status)
             .await?;
         Ok(Response::new(SetModerationStatusResponse {}))
+    }
+
+    async fn update_catalog_score(
+        &self,
+        req: Request<UpdateCatalogScoreRequest>,
+    ) -> Result<Response<UpdateCatalogScoreResponse>, Status> {
+        // Curatorial metadata edit (change: add-catalog-metadata-editing): moderator/
+        // admin only. The editor is the authenticated caller, never the body; only the
+        // descriptive fields are editable (the request shape can't carry derived facts).
+        let id = identity(&req)?;
+        cymbra_platform::guard::require_moderator_or_admin(&id)?;
+        let r = req.into_inner();
+        let changes = MetadataChanges {
+            title: r.title,
+            composer: r.composer,
+            arranger: r.arranger,
+            level: r.level,
+        };
+        self.module
+            .update_catalog_score(&id.user_id, &r.score_id, changes)
+            .await?;
+        Ok(Response::new(UpdateCatalogScoreResponse {}))
     }
 
     async fn submit_score_rating(
@@ -781,6 +804,31 @@ mod tests {
             .unwrap()
             .into_inner();
         assert!(resp.hits.iter().any(|h| h.id == PENDING));
+    }
+
+    #[tokio::test]
+    async fn update_catalog_score_requires_moderator_or_admin() {
+        let g = grpc().await;
+        let req = || UpdateCatalogScoreRequest {
+            score_id: PENDING.into(),
+            title: Some("Corrected Title".into()),
+            composer: None,
+            arranger: None,
+            level: None,
+        };
+        // A normal caller is denied and nothing changes.
+        let err = g
+            .update_catalog_score(authed(req(), "u1"))
+            .await
+            .unwrap_err();
+        assert_eq!(err.code(), tonic::Code::PermissionDenied);
+        // A moderator succeeds.
+        g.update_catalog_score(authed_moderator(
+            req(),
+            "77777777-7777-7777-8777-777777777777",
+        ))
+        .await
+        .unwrap();
     }
 
     // --- score ratings (change: add-app-score-rating) ------------------------

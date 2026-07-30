@@ -86,6 +86,23 @@ async function evaluate(scoreId: string, status: ModerationStatus) {
   await api().score.setModerationStatus({ scoreId, status });
 }
 
+/** A moderator's curatorial edit — only descriptive/attribution fields (never the
+ * MusicXML-derived facets). Each field present is applied (an empty string clears
+ * composer/arranger/level; an empty title is rejected server-side). */
+export interface MetadataEdit {
+  title?: string;
+  composer?: string;
+  arranger?: string;
+  level?: string;
+}
+
+/** Persist a curatorial metadata edit (raw RPC behind the api() seam). The backend
+ * recomputes the derived search keys and audits the change; the caller refreshes the
+ * hit on success. Guarded server-side by `require_moderator_or_admin`. */
+async function updateCatalogScore(scoreId: string, edit: MetadataEdit) {
+  await api().score.updateCatalogScore({ scoreId, ...edit });
+}
+
 /** Fetch one page of the review queue (pending + community-flagged, priority-sorted)
  * WITHOUT touching `result` — the review session owns its own deck state. */
 async function fetchReviewPage(offset: number): Promise<CatalogResult> {
@@ -155,5 +172,6 @@ export const useCatalogStore = defineStore("catalog", () => {
     fetchReviewPage,
     fetchBytes,
     fetchHit,
+    updateCatalogScore,
   };
 });
