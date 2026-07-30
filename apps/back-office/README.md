@@ -180,10 +180,12 @@ provider from the token's issuer and verifies its `aud` against the matching
   that client's _Authorized JavaScript origins_ in Google Cloud Console.
 - **Apple** — set `VITE_APPLE_CLIENT_ID` to a **Services ID** (e.g. `com.cymbra.bo.web`),
   **not** the app bundle id, and optionally `VITE_APPLE_REDIRECT_URI` (defaults to the SPA
-  origin). In the Apple Developer portal the Services ID must register the domain
-  `bo.cymbra.app` + a matching Return URL, and the domain must be verified by hosting
-  `apple-developer-domain-association.txt` under `https://bo.cymbra.app/.well-known/`.
-  Add the Services ID to the backend's `CYMBRA_APPLE_AUDIENCE` (alongside the app bundle,
+  origin — we use `https://bo.cymbra.app/signin`). In the Apple Developer portal, on that
+  Services ID: enable "Sign in with Apple" → Configure → pick the primary App ID
+  (`com.cymbra.music`) → register the domain `bo.cymbra.app` and the Return URL
+  `https://bo.cymbra.app/signin` (comma-delimited lists) → Done → Continue → Save. Apple's
+  current flow needs **no** domain-association file / `.well-known` hosting. Add the
+  Services ID to the backend's `CYMBRA_APPLE_AUDIENCE` (alongside the app bundle,
   comma-separated) so web tokens verify — no backend code change needed.
 
 ## Moderator onboarding
