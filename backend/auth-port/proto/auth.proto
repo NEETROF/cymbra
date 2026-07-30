@@ -37,6 +37,12 @@ message LinkIdentityRequest { string id_token = 1; }       // link an OIDC provi
 message LinkIdentityResponse {}
 message UnlinkIdentityRequest { string provider = 1; string subject = 2; }
 message UnlinkIdentityResponse {}
+// Add a local (email+password) credential to the authenticated account so it can
+// also sign in with email (change: add-account-identity-linking). The credential
+// is created UNVERIFIED and a verification email is sent — the password is only
+// usable once the email is confirmed (mirrors SignUpLocal). Caller from the token.
+message SetLocalCredentialRequest { string email = 1; string password = 2; }
+message SetLocalCredentialResponse {}
 
 // Session revocation (change: add-session-management). Caller identity comes from the
 // validated access token; no refresh token is ever surfaced.
@@ -57,6 +63,7 @@ service AuthService {
   rpc ResetPassword(ResetPasswordRequest) returns (ResetPasswordResponse);
   rpc LinkIdentity(LinkIdentityRequest) returns (LinkIdentityResponse);
   rpc UnlinkIdentity(UnlinkIdentityRequest) returns (UnlinkIdentityResponse);
+  rpc SetLocalCredential(SetLocalCredentialRequest) returns (SetLocalCredentialResponse);
   // Session revocation (caller from the access token; the admin one is role-gated).
   rpc RevokeAllSessions(RevokeAllSessionsRequest) returns (RevokeAllSessionsResponse);
   rpc RevokeAccountSessions(RevokeAccountSessionsRequest) returns (RevokeAccountSessionsResponse);

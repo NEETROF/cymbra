@@ -161,6 +161,18 @@ impl<P: AuthPort + 'static> AuthService for AuthGrpc<P> {
         Ok(Response::new(proto::UnlinkIdentityResponse {}))
     }
 
+    async fn set_local_credential(
+        &self,
+        req: Request<proto::SetLocalCredentialRequest>,
+    ) -> Result<Response<proto::SetLocalCredentialResponse>, Status> {
+        let user_id = caller(&req)?;
+        let r = req.into_inner();
+        self.port
+            .set_local_credential(&user_id, &r.email, &r.password)
+            .await?;
+        Ok(Response::new(proto::SetLocalCredentialResponse {}))
+    }
+
     async fn revoke_all_sessions(
         &self,
         req: Request<proto::RevokeAllSessionsRequest>,

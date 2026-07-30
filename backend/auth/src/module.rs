@@ -353,6 +353,41 @@ impl AuthPort for AuthModule {
     async fn unlink_identity(&self, user_id: &str, provider: &str, subject: &str) -> Result<()> {
         self.user.unlink_identity(user_id, provider, subject).await
     }
+
+    async fn set_local_credential(&self, user_id: &str, email: &str, password: &str) -> Result<()> {
+        password::check_policy(password, self.cfg.password_min_length)?;
+        // One local credential per account: refuse a second password.
+        if self
+            .user
+            .list_identities(user_id)
+            .await?
+            .iter()
+            .any(|i| i.provider == "local")
+        {
+            return Err(AppError::AlreadyExists(
+                "account already has a password".into(),
+            ));
+        }
+        let hash = password::hash(password)?;
+        self.creds.insert(email, &hash).await?; // AlreadyExists if the email is taken
+        // Bind the `local` identity to THIS account (rejects an email owned
+        // elsewhere). On failure, compensate by erasing the just-inserted
+        // credential so a retry isn't blocked by a dangling row.
+        if let Err(e) = self.user.link_identity(user_id, "local", email).await {
+            let _ = self.creds.delete_credentials(email).await;
+            return Err(e);
+        }
+        // Verify ownership of the typed email before the password is usable: the
+        // credential stays unverified until the emailed code is confirmed (design:
+        // add-account-identity-linking). Enqueued transactionally, like sign-up.
+        let tok = uuid::Uuid::new_v4().to_string();
+        let exp = now_secs() + self.cfg.verify_ttl.as_secs() as i64;
+        let job = verification_email_job(email, &tok)?;
+        self.creds
+            .set_verification_with_job(email, &tok, exp, &job)
+            .await?;
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -612,6 +647,76 @@ mod tests {
         h.m.sign_in_local("b@x.dev", &new_pw, "music")
             .await
             .unwrap();
+    }
+
+    #[tokio::test]
+    async fn set_local_credential_adds_unverified_password_then_verify_enables_signin() {
+        let h = harness();
+        // Start from a Google-only account.
+        let g = h.m.sign_in_oidc("g-sub", "music").await.unwrap();
+        let uid = sub_of(&g.access_token, "music");
+
+        // Add a password: the account gains an (unverified) local identity.
+        h.m.set_local_credential(&uid, "me@x.dev", PW)
+            .await
+            .unwrap();
+        // A verification email job was enqueued (off the request path), not sent inline.
+        assert!(h.email.sent.lock().unwrap().is_empty());
+        assert_eq!(h.creds.enqueued_jobs().len(), 1);
+
+        // Sign-in is blocked until the email is verified …
+        assert!(matches!(
+            h.m.sign_in_local("me@x.dev", PW, "music").await,
+            Err(AppError::FailedPrecondition(_))
+        ));
+        // … then works, resolving to the SAME account (no second account created).
+        let tok = h.creds.peek_verification_token("me@x.dev").unwrap();
+        h.m.verify_email(&tok).await.unwrap();
+        let pair = h.m.sign_in_local("me@x.dev", PW, "music").await.unwrap();
+        assert_eq!(sub_of(&pair.access_token, "music"), uid);
+    }
+
+    #[tokio::test]
+    async fn set_local_credential_rejects_second_password_and_weak_password() {
+        let h = harness();
+        let g = h.m.sign_in_oidc("g-sub", "music").await.unwrap();
+        let uid = sub_of(&g.access_token, "music");
+        h.m.set_local_credential(&uid, "me@x.dev", PW)
+            .await
+            .unwrap();
+
+        // A second password on the same account is refused.
+        assert!(matches!(
+            h.m.set_local_credential(&uid, "other@x.dev", PW).await,
+            Err(AppError::AlreadyExists(_))
+        ));
+        // Weak passwords are rejected up front (no credential created).
+        let g2 = h.m.sign_in_oidc("g-sub-2", "music").await.unwrap();
+        let uid2 = sub_of(&g2.access_token, "music");
+        assert!(matches!(
+            h.m.set_local_credential(&uid2, "n@x.dev", "short").await,
+            Err(AppError::InvalidArgument(_))
+        ));
+    }
+
+    #[tokio::test]
+    async fn set_local_credential_rejects_email_owned_by_another_account() {
+        let h = harness();
+        // Account A owns me@x.dev via a verified local credential.
+        h.m.sign_up_local("me@x.dev", PW).await.unwrap();
+        let vt = h.creds.peek_verification_token("me@x.dev").unwrap();
+        h.m.verify_email(&vt).await.unwrap();
+
+        // Account B (Google) tries to claim the same email — rejected, and the
+        // compensating erase must NOT wipe A's credential.
+        let g = h.m.sign_in_oidc("g-sub", "music").await.unwrap();
+        let uid_b = sub_of(&g.access_token, "music");
+        assert!(matches!(
+            h.m.set_local_credential(&uid_b, "me@x.dev", PW).await,
+            Err(AppError::AlreadyExists(_))
+        ));
+        // A can still sign in — its credential survived the failed claim.
+        h.m.sign_in_local("me@x.dev", PW, "music").await.unwrap();
     }
 
     #[tokio::test]

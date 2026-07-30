@@ -1,5 +1,8 @@
-## ADDED Requirements
+# account-linking Specification
 
+## Purpose
+TBD - created by archiving change add-account-identity-linking. Update Purpose after archive.
+## Requirements
 ### Requirement: View connected identities
 
 A signed-in user SHALL be able to view the sign-in identities currently linked to
@@ -96,6 +99,11 @@ already-linked-elsewhere, and last-identity refusal.
 - **WHEN** a Google sign-in or link fails with `UNAUTHENTICATED`
 - **THEN** the message reflects the provider/link context, not "Incorrect email or password."
 
+#### Scenario: Refused unlink is not shown as an email-verification error
+
+- **WHEN** an unlink is refused by the server with `FAILED_PRECONDITION` (last-identity guard)
+- **THEN** the message reads "You can't remove your only sign-in method." — not the email-verification copy the default `FAILED_PRECONDITION` mapping would otherwise produce
+
 ### Requirement: Link an existing account from the sign-in collision point
 
 The app SHALL offer, after a social sign-in that lands on handle onboarding, a
@@ -150,3 +158,4 @@ before performing the action.
 
 - **WHEN** a link or unlink is attempted without a valid session
 - **THEN** the action is not performed and the user is routed to sign in
+

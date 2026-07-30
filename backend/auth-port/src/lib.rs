@@ -55,4 +55,10 @@ pub trait AuthPort: Send + Sync {
     async fn reset_password(&self, token: &str, new_password: &str) -> Result<()>;
     async fn link_identity(&self, user_id: &str, id_token: &str) -> Result<()>;
     async fn unlink_identity(&self, user_id: &str, provider: &str, subject: &str) -> Result<()>;
+    /// Add a local (email+password) credential to `user_id` so the account can
+    /// also sign in with email. The credential is created **unverified** and a
+    /// verification email is sent — the password is usable only after the email
+    /// is confirmed (mirrors `sign_up_local`). `AlreadyExists` if the account
+    /// already has a local credential or the email is bound to another account.
+    async fn set_local_credential(&self, user_id: &str, email: &str, password: &str) -> Result<()>;
 }
