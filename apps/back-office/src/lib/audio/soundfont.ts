@@ -5,7 +5,22 @@
 // Cache API** so it downloads at most once across sessions; in memory it is cached for
 // the tab's lifetime and never unloaded. Injectable for unit tests.
 
-const CACHE = "cymbra-soundfont-v1";
+// Bumped v1 → v2 to evict entries poisoned before the delivery-route fix: a misrouted
+// backend (Caddy forwarding /soundfonts/* to the gRPC upstream) answered `200
+// application/grpc` with a 0-byte body, which the old code happily cached — serving 0
+// bytes forever after. v2 misses those, and `isPlausibleSoundFont` below stops it
+// recurring.
+const CACHE = "cymbra-soundfont-v2";
+
+/** Guard against caching a non-SoundFont `200`. A misrouted backend answers `200
+ *  application/grpc` with an empty body; caching it poisons every later load (a `200`
+ *  passes `resp.ok`). We don't parse the SF2 here — that's the synth's job — we only
+ *  reject the empty / wrong-framing payload that must never reach the cache. */
+function isPlausibleSoundFont(resp: Response, bytes: Uint8Array): boolean {
+  const contentType = resp.headers.get("content-type") ?? "";
+  if (contentType.startsWith("application/grpc")) return false;
+  return bytes.length > 0;
+}
 
 /** Absolute URL of the default SoundFont. `VITE_SOUNDFONT_URL` overrides; otherwise
  *  it is the delivery route on the web-auth/API origin (same host as sign-in). */
@@ -36,17 +51,23 @@ export function loadSoundFont(token: string | null): Promise<Uint8Array> {
         if (hit) return new Uint8Array(await hit.arrayBuffer());
         const resp = await authedFetch(url, token);
         if (!resp.ok) throw new Error(`soundfont ${resp.status}`);
-        await cache.put(url, resp.clone());
-        return new Uint8Array(await resp.arrayBuffer());
+        const bytes = new Uint8Array(await resp.arrayBuffer());
+        if (!isPlausibleSoundFont(resp, bytes)) throw new Error("soundfont empty-or-misframed");
+        // Body already consumed — re-wrap the validated bytes to cache them.
+        await cache.put(url, new Response(bytes));
+        return bytes;
       } catch (e) {
-        // A real HTTP failure propagates; a Cache-API fault (private mode, quota) falls
-        // through to a plain fetch.
+        // A real HTTP failure or a rejected payload propagates (message starts with
+        // "soundfont "); a Cache-API fault (private mode, quota) falls through to a
+        // plain fetch.
         if (e instanceof Error && e.message.startsWith("soundfont ")) throw e;
       }
     }
     const resp = await authedFetch(url, token);
     if (!resp.ok) throw new Error(`soundfont ${resp.status}`);
-    return new Uint8Array(await resp.arrayBuffer());
+    const bytes = new Uint8Array(await resp.arrayBuffer());
+    if (!isPlausibleSoundFont(resp, bytes)) throw new Error("soundfont empty-or-misframed");
+    return bytes;
   })();
   cached = p;
   // Don't cache a failure permanently — reset so a retry (after re-auth) can work. A

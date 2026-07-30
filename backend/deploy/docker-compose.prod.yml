@@ -88,6 +88,14 @@ services:
     # sync-scores.sh populates SCORES_DIR from the crawler output + mirrors to S3.
     volumes:
       - ${SCORES_DIR:-/var/lib/cymbra/scores}:/srv/cymbra/scores
+      # SoundFont delivery (change: add-soundfont-delivery) warms a LOCAL-FIRST cache
+      # at CYMBRA_SOUNDFONT_LOCAL_ROOT (default /srv/cymbra/soundfonts), a store SEPARATE
+      # from scores. LocalFirstStore create_dir_all()s it at boot and writes the S3
+      # origin through it, so it must be WRITABLE — the container UID (1000) can't create
+      # a dir under the root-owned /srv/cymbra, hence this bind-mount. Host dir must be
+      # owned by 1000: `sudo chown -R 1000:1000 $SOUNDFONTS_DIR`. Only `server` builds
+      # the soundfont store (the worker does not), so it is mounted here only.
+      - ${SOUNDFONTS_DIR:-/var/lib/cymbra/soundfonts}:/srv/cymbra/soundfonts
 
   worker:
     image: ${CYMBRA_IMAGE:-ghcr.io/neetrof/cymbra-backend:latest}
