@@ -386,7 +386,19 @@ impl AuthPort for AuthModule {
     }
 
     async fn unlink_identity(&self, user_id: &str, provider: &str, subject: &str) -> Result<()> {
-        self.user.unlink_identity(user_id, provider, subject).await
+        self.user
+            .unlink_identity(user_id, provider, subject)
+            .await?;
+        // A `local` identity's secret lives in the auth schema (`local_credentials`),
+        // separate from `user_identities`. Erase it too once the identity is gone, so
+        // the email is freed for reuse — otherwise a re-link fails with AlreadyExists.
+        // `subject` is the email for a local identity; `delete_credentials` is a
+        // no-op for anything else. Run after the unlink so the last-identity guard
+        // still protects it.
+        if provider == "local" {
+            self.creds.delete_credentials(subject).await?;
+        }
+        Ok(())
     }
 
     async fn set_local_credential(
@@ -854,6 +866,37 @@ mod tests {
         ));
         // A can still sign in — its credential survived the failed claim.
         h.m.sign_in_local("me@x.dev", PW, "music").await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn unlinking_local_frees_the_email_for_relink() {
+        let h = harness();
+        let g = h.m.sign_in_oidc("g-sub", "music").await.unwrap();
+        let uid = sub_of(&g.access_token, "music");
+
+        // Bind a password (submit + verify).
+        h.m.set_local_credential(&uid, "me@x.dev", PW, "")
+            .await
+            .unwrap();
+        h.m.verify_email(&h.pending.only_token()).await.unwrap();
+        assert!(h.creds.get("me@x.dev").await.unwrap().is_some());
+
+        // Unlink the local identity → its credential is erased, freeing the email.
+        h.m.unlink_identity(&uid, "local", "me@x.dev")
+            .await
+            .unwrap();
+        assert!(
+            h.creds.get("me@x.dev").await.unwrap().is_none(),
+            "unlinking a local identity must free its credential"
+        );
+
+        // Re-linking the same email now works (no stale AlreadyExists).
+        h.m.set_local_credential(&uid, "me@x.dev", PW, "")
+            .await
+            .unwrap();
+        h.m.verify_email(&h.pending.only_token()).await.unwrap();
+        let pair = h.m.sign_in_local("me@x.dev", PW, "music").await.unwrap();
+        assert_eq!(sub_of(&pair.access_token, "music"), uid);
     }
 
     #[tokio::test]

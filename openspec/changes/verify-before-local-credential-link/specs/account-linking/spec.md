@@ -48,3 +48,30 @@ SHALL still leave nothing reserved.
 
 - **WHEN** the account already has a `local` identity
 - **THEN** the "Set a password" action is not offered
+
+### Requirement: Unlink an identity with last-identity guard
+
+A signed-in user SHALL be able to unlink an identity via
+`AuthService.UnlinkIdentity(provider, subject)`, except the **last remaining**
+identity, which cannot be removed (anti-lockout). The app SHALL prevent the action
+for the last identity and SHALL surface the backend's refusal if it still occurs.
+
+Unlinking a `local` identity SHALL also erase its stored credential, so the email is
+freed and can be set again later. After unlinking, re-adding the same email as a new
+local credential SHALL succeed.
+
+#### Scenario: Unlink a non-last identity
+
+- **WHEN** an account has both `local` and `google` identities and the user unlinks Google
+- **THEN** the app calls `UnlinkIdentity` and the list refreshes to show only the `local` identity
+
+#### Scenario: Last identity cannot be unlinked
+
+- **WHEN** only one identity remains
+- **THEN** its unlink action is disabled with an explanation, and any server `FAILED_PRECONDITION` is shown as "You can't remove your only sign-in method."
+
+#### Scenario: Unlinking a local identity frees the email
+
+- **WHEN** a user unlinks their `local` (email + password) identity
+- **THEN** the stored credential for that email is erased
+- **AND** the user can set a password again with the same email (no "already exists" error)

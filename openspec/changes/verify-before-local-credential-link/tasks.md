@@ -16,6 +16,7 @@
 - [x] 3.1 In `verify_email(token)`, first `pending_store.take(token)`: on a hit, insert the `local_credential` as **already verified** + `link_identity(user_id, "local", email)`; map an email-taken race to a clean `AlreadyExists` (pending already consumed, so nothing lingers).
 - [x] 3.2 On a miss, fall through to the existing sign-up path (`creds.verify_by_token`) unchanged.
 - [x] 3.3 Add the credential-store primitive to insert an already-verified credential (or insert+verify in one transaction) so the password is usable immediately; implement in the in-memory fake and the pg repo.
+- [x] 3.4 (bug, pre-existing from #147) `unlink_identity` for a `local` identity must also `delete_credentials(subject)` (the credential lives in the auth schema, separate from `user_identities`), so unlinking frees the email and a re-link no longer fails `AlreadyExists`. Run the erase after a successful unlink (last-identity guard first).
 
 ## 4. Tests
 
@@ -25,6 +26,7 @@
 - [x] 4.4 Abandoned/expired pending: a `take` miss (expired) leaves no credential/identity and no reservation.
 - [x] 4.5 Eager rejects still fire on submit: weak password; account already has a `local` identity.
 - [x] 4.6 The existing sign-up verification path (unverified `local_credentials` row) still verifies (regression).
+- [x] 4.8 Unlink→re-link cycle: after binding a local credential, unlinking it frees the email and setting the same email again succeeds.
 - [x] 4.7 Keep Rust line coverage ≥ 80% (`cargo llvm-cov --workspace --fail-under-lines 80 ...`).
 
 ## 5. Finalize
