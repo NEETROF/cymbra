@@ -21,6 +21,7 @@ import '../src/grpc/auth.pbgrpc.dart' as auth;
 import '../src/grpc/user.pbgrpc.dart' as user;
 import 'account_service.dart';
 import 'auth_service.dart';
+import 'token_refresher.dart';
 import 'token_store.dart';
 
 part 'grpc_client.g.dart';
@@ -80,18 +81,21 @@ bool isUnauthenticatedError(Object error) =>
 AuthException authExceptionFromGrpc(GrpcError e) =>
     AuthException(authErrorFromCode(e.code), e.message);
 
-/// Refresh-on-`UNAUTHENTICATED` retry orchestration (task 3.4), extracted from
-/// the grpc plumbing so it is unit-testable with fakes (no channel needed).
+/// Refresh-on-`UNAUTHENTICATED` retry orchestration, extracted from the grpc
+/// plumbing so it is unit-testable with fakes (no channel needed).
 ///
 /// Runs [call] with the current access token; on an unauthenticated failure it
-/// asks [refreshAccessToken] for a new token, retries [call] **once** on success,
-/// and invokes [onExpired] then rethrows when refresh gives up. The bearer header
-/// is attached by [call] from the token it receives.
+/// asks the coordinated [refresh] for a fresh token and, per the outcome:
+/// - [RefreshRefreshed] → retries [call] **once** with the new bearer;
+/// - [RefreshRejected] → the session is terminal (cleared by the refresher), so
+///   the original `UNAUTHENTICATED` is rethrown to route the user to entry;
+/// - [RefreshTransient] → throws a non-`UNAUTHENTICATED` error (`UNAVAILABLE`) so
+///   callers (and the session bootstrap) keep the user signed in and retry later
+///   instead of signing out on a flaky network.
 Future<T> authedCall<T>(
   Future<T> Function(String? bearer) call, {
   required Future<String?> Function() accessToken,
-  required Future<String?> Function() refreshAccessToken,
-  required void Function() onExpired,
+  required Future<RefreshOutcome> Function() refresh,
   bool Function(Object error) isUnauthenticated = isUnauthenticatedError,
 }) async {
   final token = await accessToken();
@@ -99,12 +103,17 @@ Future<T> authedCall<T>(
     return await call(token);
   } catch (e) {
     if (!isUnauthenticated(e)) rethrow;
-    final fresh = await refreshAccessToken();
-    if (fresh == null) {
-      onExpired();
-      rethrow;
+    final outcome = await refresh();
+    switch (outcome) {
+      case RefreshRefreshed(:final accessToken):
+        return await call(accessToken);
+      case RefreshRejected():
+        rethrow;
+      case RefreshTransient():
+        throw const GrpcError.unavailable(
+          'session refresh failed transiently; keeping the session',
+        );
     }
-    return await call(fresh);
   }
 }
 
@@ -114,58 +123,58 @@ CallOptions bearerOptions(String? token) => (token == null || token.isEmpty)
     ? CallOptions()
     : CallOptions(metadata: {'authorization': 'Bearer $token'});
 
+/// The authenticated-RPC seam every gRPC adapter shares: it reads the current
+/// access token and runs a protected call through [authedCall] (refresh once on
+/// `UNAUTHENTICATED` via the coordinated [TokenRefresher]), mapping a
+/// [GrpcError] to an [AuthException] for the UI.
+///
+/// Instances are **callable**, so an adapter holds one as `_authed` and invokes
+/// `_authed((bearer) => stub.rpc(..., options: bearerOptions(bearer)))`. Sharing
+/// this one tested implementation removes the per-adapter token/refresh plumbing.
+class AuthedRunner {
+  AuthedRunner({
+    required TokenStore tokenStore,
+    required TokenRefresher refresher,
+  }) : _tokenStore = tokenStore,
+       _refresher = refresher;
+
+  final TokenStore _tokenStore;
+  final TokenRefresher _refresher;
+
+  Future<String?> _accessToken() async =>
+      (await _tokenStore.readTokens())?.accessToken;
+
+  Future<T> call<T>(Future<T> Function(String? bearer) rpc) async {
+    try {
+      return await authedCall(
+        rpc,
+        accessToken: _accessToken,
+        refresh: _refresher.refresh,
+      );
+    } on GrpcError catch (e) {
+      throw authExceptionFromGrpc(e);
+    }
+  }
+}
+
 // --- Production gRPC adapters ------------------------------------------------
 
 /// Production [AuthService] over the generated `AuthServiceClient`. Every method
 /// is a thin translate-and-map: build the request, call the stub, map a
 /// [GrpcError] to an [AuthException]. Sign-in calls carry the `music` audience.
 class GrpcAuthService implements AuthService {
-  GrpcAuthService(ClientChannel channel, {required TokenStore tokenStore})
+  GrpcAuthService(ClientChannel channel, {required AuthedRunner authed})
     : _client = auth.AuthServiceClient(channel),
-      _tokenStore = tokenStore;
+      _authed = authed;
 
   final auth.AuthServiceClient _client;
-  // Only the authenticated RPCs (revokeAllSessions) read the stored session; the
-  // public sign-in/refresh calls do not.
-  final TokenStore _tokenStore;
+  // Only the authenticated RPCs (revokeAllSessions) go through `_authed`; the
+  // public sign-in/refresh calls use `_map` directly.
+  final AuthedRunner _authed;
 
   Future<T> _map<T>(Future<T> Function() call) async {
     try {
       return await call();
-    } on GrpcError catch (e) {
-      throw authExceptionFromGrpc(e);
-    }
-  }
-
-  Future<String?> _accessToken() async =>
-      (await _tokenStore.readTokens())?.accessToken;
-
-  /// Silently refresh the session (the Refresh RPC is unauthenticated), store the
-  /// rotated pair, and return the fresh access token — or null (clearing the
-  /// session) when refresh fails. Mirrors [GrpcAccountService]'s helper.
-  Future<String?> _refreshAccess() async {
-    final stored = await _tokenStore.readTokens();
-    if (stored == null) return null;
-    try {
-      final fresh = await refresh(stored.refreshToken);
-      await _tokenStore.writeTokens(fresh.toStored());
-      return fresh.accessToken;
-    } catch (_) {
-      await _tokenStore.clear();
-      return null;
-    }
-  }
-
-  /// Run an authenticated RPC, refreshing the access token once on an
-  /// `UNAUTHENTICATED` failure and retrying (mirrors [GrpcAccountService]).
-  Future<T> _authed<T>(Future<T> Function(String? bearer) call) async {
-    try {
-      return await authedCall(
-        call,
-        accessToken: _accessToken,
-        refreshAccessToken: _refreshAccess,
-        onExpired: () {},
-      );
     } on GrpcError catch (e) {
       throw authExceptionFromGrpc(e);
     }
@@ -212,17 +221,6 @@ class GrpcAuthService implements AuthService {
   Future<AuthTokens> signInOidc(String idToken) => _map(() async {
     final tp = await _client.signInOidc(
       auth.SignInOidcRequest(idToken: idToken, audience: kMusicAudience),
-    );
-    return AuthTokens(
-      accessToken: tp.accessToken,
-      refreshToken: tp.refreshToken,
-    );
-  });
-
-  @override
-  Future<AuthTokens> refresh(String refreshToken) => _map(() async {
-    final tp = await _client.refresh(
-      auth.RefreshRequest(refreshToken: refreshToken),
     );
     return AuthTokens(
       accessToken: tp.accessToken,
@@ -297,47 +295,12 @@ class GrpcAuthService implements AuthService {
 class GrpcAccountService implements AccountService {
   GrpcAccountService({
     required ClientChannel channel,
-    required TokenStore tokenStore,
-    required AuthService authService,
+    required AuthedRunner authed,
   }) : _client = user.UserServiceClient(channel),
-       _tokenStore = tokenStore,
-       _authService = authService;
+       _authed = authed;
 
   final user.UserServiceClient _client;
-  final TokenStore _tokenStore;
-  final AuthService _authService;
-
-  Future<String?> _accessToken() async =>
-      (await _tokenStore.readTokens())?.accessToken;
-
-  /// Refresh the session out-of-band (the Refresh RPC is unauthenticated), store
-  /// the rotated pair, and return the fresh access token — or null (clearing the
-  /// session) when refresh fails.
-  Future<String?> _refreshAccess() async {
-    final stored = await _tokenStore.readTokens();
-    if (stored == null) return null;
-    try {
-      final fresh = await _authService.refresh(stored.refreshToken);
-      await _tokenStore.writeTokens(fresh.toStored());
-      return fresh.accessToken;
-    } catch (_) {
-      await _tokenStore.clear();
-      return null;
-    }
-  }
-
-  Future<T> _authed<T>(Future<T> Function(String? bearer) call) async {
-    try {
-      return await authedCall(
-        call,
-        accessToken: _accessToken,
-        refreshAccessToken: _refreshAccess,
-        onExpired: () {},
-      );
-    } on GrpcError catch (e) {
-      throw authExceptionFromGrpc(e);
-    }
-  }
+  final AuthedRunner _authed;
 
   Account _toAccount(user.Account a) => Account(
     userId: a.userId,
@@ -405,17 +368,48 @@ class GrpcAccountService implements AccountService {
   );
 }
 
+/// Shared coordinated token refresher (change: fix-token-refresh-silent-signout).
+/// The single keepAlive instance serialises `Refresh` across every authenticated
+/// adapter, so concurrent expiries never replay (and revoke) the same refresh
+/// token. It owns the unauthenticated `Refresh` RPC directly — depending on the
+/// channel + token store only, never on [authServiceProvider] — so the auth
+/// service can consume it without a provider cycle.
+@Riverpod(keepAlive: true)
+TokenRefresher tokenRefresher(Ref ref) {
+  final client = auth.AuthServiceClient(ref.watch(cymbraChannelProvider));
+  return CoordinatedTokenRefresher(
+    tokenStore: ref.watch(tokenStoreProvider),
+    // A raw GrpcError propagates: the refresher classifies it by status code.
+    refreshRpc: (refreshToken) async {
+      final tp = await client.refresh(
+        auth.RefreshRequest(refreshToken: refreshToken),
+      );
+      return AuthTokens(
+        accessToken: tp.accessToken,
+        refreshToken: tp.refreshToken,
+      );
+    },
+  );
+}
+
+/// The shared authenticated-RPC runner (token read + coordinated refresh) that
+/// every gRPC adapter is constructed with.
+@Riverpod(keepAlive: true)
+AuthedRunner authedRunner(Ref ref) => AuthedRunner(
+  tokenStore: ref.watch(tokenStoreProvider),
+  refresher: ref.watch(tokenRefresherProvider),
+);
+
 /// Production auth-service provider. Override in tests with a fake.
 @Riverpod(keepAlive: true)
 AuthService authService(Ref ref) => GrpcAuthService(
   ref.watch(cymbraChannelProvider),
-  tokenStore: ref.watch(tokenStoreProvider),
+  authed: ref.watch(authedRunnerProvider),
 );
 
 /// Production account-service provider. Override in tests with a fake.
 @Riverpod(keepAlive: true)
 AccountService accountService(Ref ref) => GrpcAccountService(
   channel: ref.watch(cymbraChannelProvider),
-  tokenStore: ref.watch(tokenStoreProvider),
-  authService: ref.watch(authServiceProvider),
+  authed: ref.watch(authedRunnerProvider),
 );

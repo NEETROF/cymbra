@@ -20,10 +20,8 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../src/grpc/score.pbgrpc.dart' as score;
 import '../state/score_catalog.dart' show PracticeLevel;
-import 'auth_service.dart';
 import 'grpc_client.dart';
 import 'score_upload_service.dart' show practiceLevelFromWire;
-import 'token_store.dart';
 
 part 'catalog_service.g.dart';
 
@@ -170,44 +168,12 @@ String? _levelWire(PracticeLevel? level) => level?.name;
 class GrpcCatalogService implements CatalogService {
   GrpcCatalogService({
     required ClientChannel channel,
-    required TokenStore tokenStore,
-    required AuthService authService,
+    required AuthedRunner authed,
   }) : _client = score.ScoreServiceClient(channel),
-       _tokenStore = tokenStore,
-       _authService = authService;
+       _authed = authed;
 
   final score.ScoreServiceClient _client;
-  final TokenStore _tokenStore;
-  final AuthService _authService;
-
-  Future<String?> _accessToken() async =>
-      (await _tokenStore.readTokens())?.accessToken;
-
-  Future<String?> _refreshAccess() async {
-    final stored = await _tokenStore.readTokens();
-    if (stored == null) return null;
-    try {
-      final fresh = await _authService.refresh(stored.refreshToken);
-      await _tokenStore.writeTokens(fresh.toStored());
-      return fresh.accessToken;
-    } catch (_) {
-      await _tokenStore.clear();
-      return null;
-    }
-  }
-
-  Future<T> _authed<T>(Future<T> Function(String? bearer) call) async {
-    try {
-      return await authedCall(
-        call,
-        accessToken: _accessToken,
-        refreshAccessToken: _refreshAccess,
-        onExpired: () {},
-      );
-    } on GrpcError catch (e) {
-      throw authExceptionFromGrpc(e);
-    }
-  }
+  final AuthedRunner _authed;
 
   CatalogHit _toHit(score.CatalogHit h) => CatalogHit(
     id: h.id,
@@ -325,6 +291,5 @@ class GrpcCatalogService implements CatalogService {
 @Riverpod(keepAlive: true)
 CatalogService catalogService(Ref ref) => GrpcCatalogService(
   channel: ref.watch(cymbraChannelProvider),
-  tokenStore: ref.watch(tokenStoreProvider),
-  authService: ref.watch(authServiceProvider),
+  authed: ref.watch(authedRunnerProvider),
 );

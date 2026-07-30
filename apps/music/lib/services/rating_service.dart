@@ -17,9 +17,7 @@ import 'package:grpc/grpc.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../src/grpc/score.pbgrpc.dart' as score;
-import 'auth_service.dart';
 import 'grpc_client.dart';
-import 'token_store.dart';
 
 part 'rating_service.g.dart';
 
@@ -58,7 +56,7 @@ class RatingAggregate {
 /// caller's rating of an `accepted` catalog score. Every call is bearer-
 /// authenticated; the production impl refreshes transparently on
 /// `UNAUTHENTICATED`. Tests override the provider with an in-memory fake.
-/// Failures throw [AuthException].
+/// Failures throw `AuthException`.
 abstract class RatingService {
   /// Submit (or update) the caller's rating of the catalog score [catalogId],
   /// carrying a swipe [verdict] and an optional 1–5 [stars] value. Returns the
@@ -76,44 +74,12 @@ abstract class RatingService {
 class GrpcRatingService implements RatingService {
   GrpcRatingService({
     required ClientChannel channel,
-    required TokenStore tokenStore,
-    required AuthService authService,
+    required AuthedRunner authed,
   }) : _client = score.ScoreServiceClient(channel),
-       _tokenStore = tokenStore,
-       _authService = authService;
+       _authed = authed;
 
   final score.ScoreServiceClient _client;
-  final TokenStore _tokenStore;
-  final AuthService _authService;
-
-  Future<String?> _accessToken() async =>
-      (await _tokenStore.readTokens())?.accessToken;
-
-  Future<String?> _refreshAccess() async {
-    final stored = await _tokenStore.readTokens();
-    if (stored == null) return null;
-    try {
-      final fresh = await _authService.refresh(stored.refreshToken);
-      await _tokenStore.writeTokens(fresh.toStored());
-      return fresh.accessToken;
-    } catch (_) {
-      await _tokenStore.clear();
-      return null;
-    }
-  }
-
-  Future<T> _authed<T>(Future<T> Function(String? bearer) call) async {
-    try {
-      return await authedCall(
-        call,
-        accessToken: _accessToken,
-        refreshAccessToken: _refreshAccess,
-        onExpired: () {},
-      );
-    } on GrpcError catch (e) {
-      throw authExceptionFromGrpc(e);
-    }
-  }
+  final AuthedRunner _authed;
 
   @override
   Future<RatingAggregate> submit({
@@ -143,6 +109,5 @@ class GrpcRatingService implements RatingService {
 @Riverpod(keepAlive: true)
 RatingService ratingService(Ref ref) => GrpcRatingService(
   channel: ref.watch(cymbraChannelProvider),
-  tokenStore: ref.watch(tokenStoreProvider),
-  authService: ref.watch(authServiceProvider),
+  authed: ref.watch(authedRunnerProvider),
 );

@@ -15,6 +15,7 @@
 import 'package:music/services/account_service.dart';
 import 'package:music/services/auth_service.dart';
 import 'package:music/services/oidc_token_source.dart';
+import 'package:music/services/token_refresher.dart';
 import 'package:music/services/token_store.dart';
 
 /// In-memory [TokenStore] for tests — no platform channel.
@@ -49,6 +50,21 @@ class FakeTokenStore implements TokenStore {
   }
 }
 
+/// Scriptable [TokenRefresher] fake: returns a canned [RefreshOutcome] and counts
+/// how many times it was asked to refresh (to assert single-flight / no-refresh).
+class FakeTokenRefresher implements TokenRefresher {
+  FakeTokenRefresher(this.outcome);
+
+  RefreshOutcome outcome;
+  int calls = 0;
+
+  @override
+  Future<RefreshOutcome> refresh() async {
+    calls++;
+    return outcome;
+  }
+}
+
 /// Scriptable [AuthService] fake: returns canned tokens, throws canned errors,
 /// and records every call so tests can assert audience/credentials behaviour.
 class FakeAuthService implements AuthService {
@@ -59,7 +75,6 @@ class FakeAuthService implements AuthService {
   AuthException? signUpError;
   AuthException? verifyError;
   AuthException? resendError;
-  AuthException? refreshError;
   AuthException? resetError;
   AuthException? logoutError;
   AuthException? revokeAllError;
@@ -114,13 +129,6 @@ class FakeAuthService implements AuthService {
   Future<AuthTokens> signInOidc(String idToken) async {
     calls.add('signInOidc:$idToken');
     if (signInError != null) throw signInError!;
-    return tokens;
-  }
-
-  @override
-  Future<AuthTokens> refresh(String refreshToken) async {
-    calls.add('refresh:$refreshToken');
-    if (refreshError != null) throw refreshError!;
     return tokens;
   }
 

@@ -120,9 +120,6 @@ abstract class AuthService {
   /// `music`). New accounts are auto-provisioned on first sign-in.
   Future<AuthTokens> signInOidc(String idToken);
 
-  /// Exchange a refresh token for a fresh token pair.
-  Future<AuthTokens> refresh(String refreshToken);
-
   /// Revoke the refresh token server-side (best-effort on sign-out).
   Future<void> logout(String refreshToken);
 
