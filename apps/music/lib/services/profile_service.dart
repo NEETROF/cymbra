@@ -17,8 +17,8 @@ import 'package:grpc/grpc.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../src/grpc/user.pbgrpc.dart' as user;
-import 'auth_service.dart';
 import 'grpc_client.dart';
+import 'token_refresher.dart';
 import 'token_store.dart';
 
 part 'profile_service.g.dart';
@@ -66,37 +66,20 @@ class GrpcProfileService implements ProfileService {
   GrpcProfileService({
     required ClientChannel channel,
     required TokenStore tokenStore,
-    required AuthService authService,
+    required TokenRefresher refresher,
   }) : _client = user.UserServiceClient(channel),
        _tokenStore = tokenStore,
-       _authService = authService;
+       _refresher = refresher;
 
   final user.UserServiceClient _client;
   final TokenStore _tokenStore;
-  final AuthService _authService;
+  final TokenRefresher _refresher;
 
   Future<String?> _accessToken() async =>
       (await _tokenStore.readTokens())?.accessToken;
 
-  Future<String?> _refreshAccess() async {
-    final stored = await _tokenStore.readTokens();
-    if (stored == null) return null;
-    try {
-      final fresh = await _authService.refresh(stored.refreshToken);
-      await _tokenStore.writeTokens(fresh.toStored());
-      return fresh.accessToken;
-    } catch (_) {
-      await _tokenStore.clear();
-      return null;
-    }
-  }
-
-  Future<T> _authed<T>(Future<T> Function(String? bearer) call) => authedCall(
-    call,
-    accessToken: _accessToken,
-    refreshAccessToken: _refreshAccess,
-    onExpired: () {},
-  );
+  Future<T> _authed<T>(Future<T> Function(String? bearer) call) =>
+      authedCall(call, accessToken: _accessToken, refresh: _refresher.refresh);
 
   @override
   Future<PlayerProfile> getPlayerProfile(String userId) =>
@@ -141,5 +124,5 @@ class GrpcProfileService implements ProfileService {
 ProfileService profileService(Ref ref) => GrpcProfileService(
   channel: ref.watch(cymbraChannelProvider),
   tokenStore: ref.watch(tokenStoreProvider),
-  authService: ref.watch(authServiceProvider),
+  refresher: ref.watch(tokenRefresherProvider),
 );

@@ -59,7 +59,6 @@ class FakeAuthService implements AuthService {
   AuthException? signUpError;
   AuthException? verifyError;
   AuthException? resendError;
-  AuthException? refreshError;
   AuthException? resetError;
   AuthException? logoutError;
   AuthException? revokeAllError;
@@ -108,13 +107,6 @@ class FakeAuthService implements AuthService {
   Future<AuthTokens> signInOidc(String idToken) async {
     calls.add('signInOidc:$idToken');
     if (signInError != null) throw signInError!;
-    return tokens;
-  }
-
-  @override
-  Future<AuthTokens> refresh(String refreshToken) async {
-    calls.add('refresh:$refreshToken');
-    if (refreshError != null) throw refreshError!;
     return tokens;
   }
 

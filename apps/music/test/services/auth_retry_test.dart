@@ -13,8 +13,10 @@
 // limitations under the License.
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:grpc/grpc.dart';
 import 'package:music/services/auth_service.dart';
 import 'package:music/services/grpc_client.dart';
+import 'package:music/services/token_refresher.dart';
 
 /// Marker error standing in for a gRPC `UNAUTHENTICATED` so the test needs no
 /// real channel.
@@ -22,7 +24,7 @@ const _unauth = 'UNAUTHENTICATED';
 bool _isUnauth(Object e) => e == _unauth;
 
 void main() {
-  group('authedCall refresh/retry (task 3.4)', () {
+  group('authedCall refresh/retry', () {
     test(
       'passes the access token through and does not refresh on success',
       () async {
@@ -34,11 +36,10 @@ void main() {
             return 42;
           },
           accessToken: () async => 'access-1',
-          refreshAccessToken: () async {
+          refresh: () async {
             refreshed = true;
-            return 'access-2';
+            return const RefreshRefreshed('access-2');
           },
-          onExpired: () {},
           isUnauthenticated: _isUnauth,
         );
 
@@ -59,8 +60,7 @@ void main() {
             return 'ok';
           },
           accessToken: () async => 'stale',
-          refreshAccessToken: () async => 'fresh',
-          onExpired: () {},
+          refresh: () async => const RefreshRefreshed('fresh'),
           isUnauthenticated: _isUnauth,
         );
 
@@ -72,25 +72,52 @@ void main() {
       },
     );
 
-    test('clears the session and rethrows when refresh gives up', () async {
-      var expired = false;
-      var attempts = 0;
-      await expectLater(
-        authedCall<String>(
-          (bearer) async {
-            attempts++;
-            throw _unauth;
-          },
-          accessToken: () async => 'stale',
-          refreshAccessToken: () async => null, // refresh token no longer valid
-          onExpired: () => expired = true,
-          isUnauthenticated: _isUnauth,
-        ),
-        throwsA(_unauth),
-      );
-      expect(expired, isTrue);
-      expect(attempts, 1); // no retry when refresh fails
-    });
+    test(
+      'rethrows the original UNAUTHENTICATED when refresh is rejected (terminal)',
+      () async {
+        var attempts = 0;
+        await expectLater(
+          authedCall<String>(
+            (bearer) async {
+              attempts++;
+              throw _unauth;
+            },
+            accessToken: () async => 'stale',
+            refresh: () async => const RefreshRejected(),
+            isUnauthenticated: _isUnauth,
+          ),
+          throwsA(_unauth),
+        );
+        expect(attempts, 1); // no retry when the refresh token is rejected
+      },
+    );
+
+    test(
+      'throws a non-UNAUTHENTICATED (UNAVAILABLE) error on a transient refresh, '
+      'so the caller keeps the session',
+      () async {
+        var attempts = 0;
+        await expectLater(
+          authedCall<String>(
+            (bearer) async {
+              attempts++;
+              throw _unauth;
+            },
+            accessToken: () async => 'stale',
+            refresh: () async => const RefreshTransient(),
+            isUnauthenticated: _isUnauth,
+          ),
+          throwsA(
+            isA<GrpcError>().having(
+              (e) => e.code,
+              'code',
+              StatusCode.unavailable,
+            ),
+          ),
+        );
+        expect(attempts, 1); // no retry; surfaced as a transient failure
+      },
+    );
 
     test('rethrows a non-auth error without refreshing', () async {
       var refreshed = false;
@@ -98,11 +125,10 @@ void main() {
         authedCall<String>(
           (bearer) async => throw 'boom',
           accessToken: () async => 'access-1',
-          refreshAccessToken: () async {
+          refresh: () async {
             refreshed = true;
-            return 'access-2';
+            return const RefreshRefreshed('access-2');
           },
-          onExpired: () {},
           isUnauthenticated: _isUnauth,
         ),
         throwsA('boom'),

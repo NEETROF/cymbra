@@ -20,8 +20,8 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../src/grpc/play.pbgrpc.dart' as play;
 import '../state/play_activity.dart';
 import '../state/play_session_envelope.dart';
-import 'auth_service.dart';
 import 'grpc_client.dart';
+import 'token_refresher.dart';
 import 'token_store.dart';
 
 part 'play_sync_service.g.dart';
@@ -48,37 +48,20 @@ class GrpcPlaySyncService implements PlaySyncService {
   GrpcPlaySyncService({
     required ClientChannel channel,
     required TokenStore tokenStore,
-    required AuthService authService,
+    required TokenRefresher refresher,
   }) : _client = play.PlayServiceClient(channel),
        _tokenStore = tokenStore,
-       _authService = authService;
+       _refresher = refresher;
 
   final play.PlayServiceClient _client;
   final TokenStore _tokenStore;
-  final AuthService _authService;
+  final TokenRefresher _refresher;
 
   Future<String?> _accessToken() async =>
       (await _tokenStore.readTokens())?.accessToken;
 
-  Future<String?> _refreshAccess() async {
-    final stored = await _tokenStore.readTokens();
-    if (stored == null) return null;
-    try {
-      final fresh = await _authService.refresh(stored.refreshToken);
-      await _tokenStore.writeTokens(fresh.toStored());
-      return fresh.accessToken;
-    } catch (_) {
-      await _tokenStore.clear();
-      return null;
-    }
-  }
-
-  Future<T> _authed<T>(Future<T> Function(String? bearer) call) => authedCall(
-    call,
-    accessToken: _accessToken,
-    refreshAccessToken: _refreshAccess,
-    onExpired: () {},
-  );
+  Future<T> _authed<T>(Future<T> Function(String? bearer) call) =>
+      authedCall(call, accessToken: _accessToken, refresh: _refresher.refresh);
 
   @override
   Future<void> recordSession(PlaySessionEnvelope e) => _authed((bearer) async {
@@ -122,5 +105,5 @@ class GrpcPlaySyncService implements PlaySyncService {
 PlaySyncService playSyncService(Ref ref) => GrpcPlaySyncService(
   channel: ref.watch(cymbraChannelProvider),
   tokenStore: ref.watch(tokenStoreProvider),
-  authService: ref.watch(authServiceProvider),
+  refresher: ref.watch(tokenRefresherProvider),
 );
