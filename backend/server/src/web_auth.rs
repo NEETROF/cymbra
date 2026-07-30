@@ -387,6 +387,7 @@ mod tests {
             _user_id: &str,
             _email: &str,
             _password: &str,
+            _locale: &str,
         ) -> Result<()> {
             unreachable!()
         }
