@@ -1,0 +1,15 @@
+PLACEHOLDER — Sign in with Apple domain verification.
+
+Replace the ENTIRE contents of this file with the token Apple gives you when you
+register the domain on the "Sign in with Apple" Services ID:
+
+  Apple Developer → Certificates, Identifiers & Profiles → Identifiers →
+  your Services ID (e.g. com.cymbra.bo.web) → Configure → Web Authentication
+  Configuration → add domain "bo.cymbra.app" → Download the association file.
+
+It must be served verbatim at:
+  https://bo.cymbra.app/.well-known/apple-developer-domain-association.txt
+
+Cloudflare Pages serves real files before the SPA `_redirects` fallback, so this
+path is returned as-is (not rewritten to index.html). Until the real token is in
+place, Apple's domain verification will fail — that is expected.
