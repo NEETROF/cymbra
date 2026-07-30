@@ -15,9 +15,19 @@ export interface SearchCall {
   offset: number;
 }
 
+export interface EditCall {
+  scoreId: string;
+  title?: string;
+  composer?: string;
+  arranger?: string;
+  level?: string;
+}
+
 export interface FakeState {
   searchCalls: SearchCall[];
   evaluateCalls: { scoreId: string; status: string }[];
+  editCalls: EditCall[];
+  getCatalogScoreCalls: number;
   grantCalls: { userId: string; scope: string; role: string }[];
   revokeCalls: { userId: string; scope: string; role: string }[];
   listAccountsCalls: { query: string; limit: number; offset: number }[];
@@ -34,6 +44,8 @@ export function makeFakeClients(state: Partial<FakeState> = {}): { clients: Clie
   const s: FakeState = {
     searchCalls: [],
     evaluateCalls: [],
+    editCalls: [],
+    getCatalogScoreCalls: 0,
     grantCalls: [],
     revokeCalls: [],
     listAccountsCalls: [],
@@ -58,7 +70,14 @@ export function makeFakeClients(state: Partial<FakeState> = {}): { clients: Clie
         s.evaluateCalls.push(req);
         return {};
       },
-      getCatalogScore: async (req: { catalogId: string }) => s.hits[0] ?? { id: req.catalogId },
+      updateCatalogScore: async (req: EditCall) => {
+        s.editCalls.push(req);
+        return {};
+      },
+      getCatalogScore: async (req: { catalogId: string }) => {
+        s.getCatalogScoreCalls += 1;
+        return s.hits[0] ?? { id: req.catalogId };
+      },
       getCatalogScoreBytes: async () => ({ data: new Uint8Array([1, 2, 3]) }),
     },
     user: {

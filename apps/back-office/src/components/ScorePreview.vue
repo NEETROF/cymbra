@@ -24,6 +24,9 @@ const props = defineProps<{
   elapsedMs?: number;
   playing?: boolean;
   canPlay?: boolean;
+  // Whether to show the read-only metadata list. Off when a moderator edit form is
+  // shown above (it already displays every field), so the info isn't duplicated.
+  showMeta?: boolean;
 }>();
 const emit = defineEmits<{ toggle: []; seek: [ms: number] }>();
 const { t } = useI18n();
@@ -95,7 +98,7 @@ function meta(): { label: string; value: string }[] {
 
 <template>
   <div class="preview">
-    <dl class="meta">
+    <dl v-if="showMeta !== false" class="meta">
       <template v-for="m in meta()" :key="m.label">
         <dt>{{ m.label }}</dt>
         <dd>{{ m.value }}</dd>

@@ -29,6 +29,7 @@ use cymbra_platform::{AppError, Result};
 use cymbra_storage::{ObjectStorage, StorageError};
 use sha2::{Digest, Sha256};
 
+use crate::catalog_edit::{CurrentMeta, MetadataChanges, plan_edit};
 use crate::catalog_search::{CatalogHit, CatalogQuery, CatalogSearchParams, CatalogSearchRepo};
 use crate::repo::{ScoreFacets, ScoreMeta};
 use crate::score_rating::{
@@ -385,6 +386,44 @@ impl ScoreModule {
         Ok(())
     }
 
+    /// Edit a public-corpus catalog score's curatorial metadata (change:
+    /// add-catalog-metadata-editing). Restricted to moderator/admin at the gRPC layer;
+    /// here we resolve the current values, plan + validate the edit (title mandatory,
+    /// level enum), and — if anything actually changed — apply it in one transaction
+    /// (row + recomputed search keys + audit + provenance). A no-op edit is an idempotent
+    /// success; an unknown score id is not-found. `catalog_scores` has no owner, so this
+    /// is inherently corpus-only (user uploads live in a separate table and are untouched).
+    pub async fn update_catalog_score(
+        &self,
+        editor_id: &str,
+        score_id: &str,
+        changes: MetadataChanges,
+    ) -> Result<()> {
+        let hit = self
+            .catalog
+            .hit_by_id(score_id, true)
+            .await?
+            .ok_or_else(|| AppError::NotFound("catalog score not found".into()))?;
+        let current = CurrentMeta {
+            title: hit.title,
+            composer: hit.composer,
+            arranger: hit.arranger,
+            level: hit.level,
+        };
+        let plan = plan_edit(&current, &changes)?;
+        if plan.changes.is_empty() {
+            return Ok(()); // nothing actually changed — idempotent, no audit rows
+        }
+        if !self
+            .catalog
+            .apply_metadata_edit(score_id, editor_id, &plan)
+            .await?
+        {
+            return Err(AppError::NotFound("catalog score not found".into()));
+        }
+        Ok(())
+    }
+
     /// Save a public catalog score to the caller's library. Validates the catalog
     /// id exists first, then records an idempotent owner-scoped save.
     pub async fn save_catalog_score(&self, owner_id: &str, catalog_id: &str) -> Result<()> {
@@ -680,6 +719,78 @@ mod tests {
             8 * 1024 * 1024,
         );
         (m, catalog, library)
+    }
+
+    // The seeded editable score: Clair de Lune / Claude Debussy / intermediate.
+    const EDIT_ID: &str = "11111111-1111-7111-8111-111111111111";
+
+    #[tokio::test]
+    async fn update_catalog_score_edits_and_audits_changed_fields() {
+        let (m, catalog, _lib) = catalog_module();
+        m.update_catalog_score(
+            "mod-abc",
+            EDIT_ID,
+            crate::catalog_edit::MetadataChanges {
+                composer: Some("Debussy".into()),
+                level: Some("advanced".into()),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+
+        let edits = catalog.edit_calls();
+        assert_eq!(edits.len(), 1);
+        let (sid, editor, changes) = &edits[0];
+        assert_eq!(sid, EDIT_ID);
+        assert_eq!(editor, "mod-abc");
+        // Both the composer (Claude Debussy → Debussy) and level (intermediate →
+        // advanced) changed → one audit entry each; title/arranger untouched.
+        assert_eq!(changes.len(), 2);
+        assert!(
+            changes
+                .iter()
+                .any(|c| c.field == "composer" && c.new.as_deref() == Some("Debussy"))
+        );
+        assert!(
+            changes
+                .iter()
+                .any(|c| c.field == "level" && c.new.as_deref() == Some("advanced"))
+        );
+    }
+
+    #[tokio::test]
+    async fn update_catalog_score_noop_when_nothing_changed() {
+        let (m, catalog, _lib) = catalog_module();
+        // Same composer as stored → no diff → idempotent success, no audit rows.
+        m.update_catalog_score(
+            "mod-abc",
+            EDIT_ID,
+            crate::catalog_edit::MetadataChanges {
+                composer: Some("Claude Debussy".into()),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+        assert!(catalog.edit_calls().is_empty());
+    }
+
+    #[tokio::test]
+    async fn update_catalog_score_unknown_id_is_not_found() {
+        let (m, _catalog, _lib) = catalog_module();
+        let err = m
+            .update_catalog_score(
+                "mod-abc",
+                "99999999-9999-7999-8999-999999999999",
+                crate::catalog_edit::MetadataChanges {
+                    title: Some("X".into()),
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap_err();
+        assert!(matches!(err, AppError::NotFound(_)));
     }
 
     fn input(data: &str, level: &str, basis: &str, ack: bool) -> UploadInput {
