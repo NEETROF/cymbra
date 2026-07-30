@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.9.0](https://github.com/NEETROF/cymbra/compare/backend-v0.8.0...backend-v0.9.0) (2026-07-30)
+
+
+### Features
+
+* **moderation:** wire community re-review flag into the back-office queue ([#131](https://github.com/NEETROF/cymbra/issues/131)) ([29f5b1b](https://github.com/NEETROF/cymbra/commit/29f5b1b1d2bc163261cfd500661a5226f4ecacc2))
+* **music:** moderator/admin editing of catalog curatorial metadata ([#141](https://github.com/NEETROF/cymbra/issues/141)) ([b822ccf](https://github.com/NEETROF/cymbra/commit/b822ccf88ba6a4d5d01883e06cad7233c4eea491))
+* **music:** play-activity heatmap, reliable stats sync, and public profiles ([#129](https://github.com/NEETROF/cymbra/issues/129)) ([d124d0d](https://github.com/NEETROF/cymbra/commit/d124d0d2604c73c0a2c867389f5ec3719a4d6256))
+* **rating:** let the community rate pending scores in the deck ([#133](https://github.com/NEETROF/cymbra/issues/133)) ([885bf51](https://github.com/NEETROF/cymbra/commit/885bf5155ea159005c57753e677b90fac78f1530))
+* **soundfont:** serve SoundFonts from a private bucket via an authenticated route ([#137](https://github.com/NEETROF/cymbra/issues/137)) ([6cbfdf3](https://github.com/NEETROF/cymbra/commit/6cbfdf3da58538e0406fe83d70f4a5f2463de51a))
+* swipe + star score rating deck, backend, and in-card preview ([#128](https://github.com/NEETROF/cymbra/issues/128)) ([e4ced64](https://github.com/NEETROF/cymbra/commit/e4ced64df93ee207fc4d2650b601352d8bc5401c))
+
+
+### Bug Fixes
+
+* **crawler:** use embedded work-title for scores; backfill existing titles ([#139](https://github.com/NEETROF/cymbra/issues/139)) ([204af65](https://github.com/NEETROF/cymbra/commit/204af6598e8a222afb2093b6dbe0cb5ccffa7269))
+
 ## [0.8.0](https://github.com/NEETROF/cymbra/compare/backend-v0.7.0...backend-v0.8.0) (2026-07-28)
 
 
