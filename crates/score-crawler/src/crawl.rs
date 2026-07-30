@@ -237,7 +237,11 @@ impl Orchestrator {
             // AND the object-store key (see OutputWriter::object_key). Provenance
             // stays in `source` + `source_item_id`, not the id.
             id: uuid::Uuid::now_v7().to_string(),
-            title: item.title.clone().or(meta.title),
+            // Prefer the real title parsed from the score's `<work-title>`; only
+            // fall back to the adapter's title when the score carries none. Git
+            // corpora name files by an opaque id (OpenScore Lieder: `lc28971056`),
+            // so the adapter title is that id — never let it shadow the human title.
+            title: meta.title.or_else(|| item.title.clone()),
             composer: item.composer.clone().or(meta.composer),
             arranger: item.arranger.clone(),
             source: adapter.name().to_string(),
@@ -330,6 +334,17 @@ mod tests {
 <clef><sign>G</sign><line>2</line></clef></attributes>
 <note><pitch><step>G</step><octave>4</octave></pitch><duration>3</duration><type>half</type></note></measure></part></score-partwise>"#;
 
+    // Same music as SCORE_A but carrying a real `<work-title>` — the OpenScore
+    // shape, where the file is named by an opaque id yet the score embeds the
+    // human title.
+    const SCORE_TITLED: &str = r#"<?xml version="1.0"?>
+<score-partwise version="4.0"><work><work-title>Der Lindenbaum</work-title></work>
+<part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+<part id="P1"><measure number="1"><attributes><divisions>1</divisions>
+<key><fifths>0</fifths></key><time><beats>4</beats><beat-type>4</beat-type></time>
+<clef><sign>G</sign><line>2</line></clef></attributes>
+<note><pitch><step>C</step><octave>4</octave></pitch><duration>4</duration><type>whole</type></note></measure></part></score-partwise>"#;
+
     // SCORE_A re-encoded: same note (C4 whole) but a different editor/divisions,
     // so different bytes (different sha256) yet identical music (same fingerprint).
     const SCORE_A_REENCODED: &str = r#"<?xml version="1.0"?>
@@ -415,6 +430,37 @@ mod tests {
         let out = Orchestrator::new().run(&a, None).await;
         assert_eq!(out.stats.low_confidence, 1);
         assert_eq!(out.prepared[0].entry.confidence, Confidence::Unverified);
+    }
+
+    #[tokio::test]
+    async fn parsed_work_title_wins_over_source_filename_title() {
+        // OpenScore-style: the adapter's title is the opaque filename id
+        // ("Piece lc28971056"), but the score embeds a real `<work-title>`. The
+        // human title must win, never the id.
+        let (a, _) = adapter(
+            vec![(
+                item("lc28971056"),
+                RawLicense::verified("CC0"),
+                score(SCORE_TITLED),
+            )],
+            vec![],
+        );
+        let out = Orchestrator::new().run(&a, None).await;
+        assert_eq!(
+            out.prepared[0].entry.title.as_deref(),
+            Some("Der Lindenbaum")
+        );
+    }
+
+    #[tokio::test]
+    async fn falls_back_to_source_title_when_score_has_no_work_title() {
+        // No `<work-title>` in SCORE_A → keep the adapter-provided title.
+        let (a, _) = adapter(
+            vec![(item("x"), RawLicense::verified("CC0"), score(SCORE_A))],
+            vec![],
+        );
+        let out = Orchestrator::new().run(&a, None).await;
+        assert_eq!(out.prepared[0].entry.title.as_deref(), Some("Piece x"));
     }
 
     #[tokio::test]

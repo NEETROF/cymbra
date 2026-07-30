@@ -324,6 +324,38 @@ uploads (`user-scores/…`) share one keyspace.
 > (default `/srv/cymbra/scores`) and `CYMBRA_SCORE_S3_*` configures the S3
 > origin/fallback. The corpus layout above is exactly what it expects.
 
+### Maintenance: backfill catalog titles
+
+If catalog titles show an opaque id (e.g. `lc28971056`) instead of the real name,
+those rows were ingested before the crawler preferred the embedded `<work-title>`
+over the source filename. **Re-running the crawler will NOT fix them** — ingestion
+dedups on the content SHA-256, and a title-only fix leaves the `.mxl` bytes
+unchanged, so every existing row is skipped. Repair them with the `backfill-titles`
+maintenance bin, which re-reads each stored `.mxl`, re-derives the title, and
+rewrites `title` + `title_norm` + `work_key` together (so the score stays findable
+by its real title — catalog search matches `title_norm`).
+
+It ships in the backend image, so run it as a **one-off container from the `server`
+service** (same `.env`, same DB + S3 + score-volume access) — the running server is
+untouched:
+
+```bash
+cd /opt/cymbra/backend/deploy
+./backup.sh                                                   # snapshot the DB first
+
+# dry run — writes nothing, prints what WOULD change
+docker compose -f docker-compose.prod.yml run --rm server backfill-titles --source openscore
+
+# apply once the counts look right
+docker compose -f docker-compose.prod.yml run --rm server backfill-titles --apply --source openscore
+```
+
+Verify: re-run the dry run (idempotent — `would rewrite: 0` when done), or
+`select title, title_norm from music.catalog_scores where source='openscore' limit 10;`,
+then search a real title in the app. Drop `--source openscore` to sweep every
+source (it only rewrites titles that actually differ). Idempotent and resumable —
+per-row failures are logged and skipped, never fatal.
+
 ### Enabling user score upload (the ScoreService)
 
 Off by default — the server logs `score-upload disabled` until `CYMBRA_SCORE_S3_BUCKET`

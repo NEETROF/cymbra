@@ -14,6 +14,11 @@ path = "src/lib.rs"
 name = "cymbra-server"
 path = "src/main.rs"
 
+# One-off maintenance: recompute catalog titles from stored score bytes.
+[[bin]]
+name = "backfill-titles"
+path = "src/bin/backfill_titles.rs"
+
 [dependencies]
 cymbra-platform = { path = "../platform" }
 cymbra-auth = { path = "../auth" }
@@ -34,6 +39,8 @@ http.workspace = true
 axum.workspace = true
 anyhow.workspace = true
 tracing.workspace = true
+# Structured logging for the standalone maintenance bin (backfill-titles).
+tracing-subscriber.workspace = true
 jsonwebtoken.workspace = true
 sqlx.workspace = true
 serde.workspace = true
