@@ -16,7 +16,12 @@ account and see what's connected.
   `ListIdentities`), and offers per-provider actions.
 - **Link an identity**: *Link Google* / *Link Apple* mint a fresh `id_token` via
   the existing `OidcTokenSource` and call `LinkIdentity`; *Set a password* links a
-  local (email+password) credential where one isn't present.
+  local (email+password) credential where one isn't present. **Backend addition**:
+  linking a *local* credential has no existing RPC (`LinkIdentity` is OIDC-only,
+  `SignUpLocal` makes a *new* account), so this change adds an authenticated
+  `AuthService.SetLocalCredential(email, password)` RPC to Cymbra ID. It creates
+  the credential **unverified** and sends a verification email — the password is
+  usable only after verification (mirrors sign-up); this is the one server change.
 - **Unlink an identity**, with the backend's anti-lockout guard surfaced in the
   UI: the **last remaining** identity cannot be unlinked (action disabled +
   explained), matching the server's `FAILED_PRECONDITION`.
@@ -38,7 +43,8 @@ account and see what's connected.
   uses only existing RPCs.
 - **Service seam wiring**: add `linkIdentity` / `unlinkIdentity` / `listIdentities`
   to the injectable `AuthService` / `AccountService` seams and their gRPC adapters,
-  with fakes for tests. No backend changes — the RPCs already exist.
+  with fakes for tests. The OIDC link/unlink/list RPCs already exist; only the new
+  `SetLocalCredential` RPC is added server-side (see Modified Capabilities).
 
 ## Capabilities
 
@@ -49,10 +55,18 @@ account and see what's connected.
   behavior, optional recent-auth gating, and provider-appropriate error messaging.
 
 ### Modified Capabilities
-<!-- account-access / account-management (from add-music-account-access) are not
-     yet archived into openspec/specs/, so there is no delta target here. The
-     UNAUTHENTICATED error-message fix that lives in those flows is captured as a
-     requirement of account-linking and in design.md/tasks.md. -->
+- `backend-auth`: adds an authenticated `SetLocalCredential(email, password)` RPC
+  (create an unverified `local` credential on the caller's account + send a
+  verification email; `ALREADY_EXISTS` on a second password or an email owned
+  elsewhere). This is the single, additive server change; the OIDC link/unlink/list
+  primitives already existed. (Supersedes the original "No backend changes" note.)
+- `account-access`: The Google/Apple sign-in requirements are amended so an OIDC
+  `SignInOidc` failure (`UNAUTHENTICATED`) no longer surfaces the email-credential
+  copy "Incorrect email or password." — it shows a provider-appropriate message.
+  (`add-music-account-access` is now archived into `openspec/specs/`, so this fix
+  is a proper MODIFIED delta on `account-access` rather than only an
+  `account-linking` requirement. Local email sign-in keeps its invalid-credentials
+  copy, so `account-management` is unchanged.)
 
 ## Impact
 
@@ -68,14 +82,18 @@ account and see what's connected.
     for non-local `UNAUTHENTICATED`; add link/unlink-specific messages.
   - Reuse `OidcTokenSource` for Google/Apple `id_token`s; native SDKs stay behind
     the injectable seam.
-- **No new dependencies. No backend changes** — `LinkIdentity`, `UnlinkIdentity`,
-  `ListIdentities` already ship in Cymbra ID.
+- **No new dependencies.** `LinkIdentity`, `UnlinkIdentity`, `ListIdentities`
+  already ship in Cymbra ID; the one server addition is `SetLocalCredential`
+  (proto + `AuthPort` + module + gRPC adapter + Rust tests, ≥80% Rust coverage).
 - **Re-auth consideration**: decide in design.md whether link/unlink needs a
   recent-auth gate (mirroring the delete-account decision D8).
 - **Tests/coverage**: ≥80% (Flutter) maintained; new state/widgets covered with
   fakes, the thin gRPC/SDK adapters coverage-excluded as today.
-- **Depends on** `fix-handle-onboarding-escape` for the handle-screen escape action and
-  orphan-account deletion; this change adds the "sign in to link" option alongside that
-  escape and reuses its abandon/delete-orphan path before calling `LinkIdentity`.
+- **Depends on** `fix-handle-onboarding-escape` (now **archived** into
+  `openspec/specs/handle-onboarding/`) for the handle-screen escape action and
+  orphan-account deletion (`DeleteAccount`); this change adds the "sign in to link"
+  option alongside that escape and reuses its abandon/delete-orphan path before
+  calling `LinkIdentity`. The dependency is satisfied — no longer a blocker.
 - **Out of scope**: cross-account *merge*, auto-linking by email, revealing an existing
-  account's sign-in method, the `live` audience, any server-side change.
+  account's sign-in method, the `live` audience. The only server-side change is the
+  additive `SetLocalCredential` RPC; nothing else on the backend changes.

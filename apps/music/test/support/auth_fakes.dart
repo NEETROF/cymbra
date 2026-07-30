@@ -78,6 +78,12 @@ class FakeAuthService implements AuthService {
   AuthException? resetError;
   AuthException? logoutError;
   AuthException? revokeAllError;
+  AuthException? unlinkError;
+
+  /// Errors thrown by successive `linkIdentity` calls, consumed in order — lets a
+  /// test model "fails once (stale token) then succeeds after a re-mint". A null
+  /// entry (or running past the end) is a success.
+  final List<AuthException?> linkErrors = [];
 
   final List<String> calls = [];
 
@@ -151,6 +157,36 @@ class FakeAuthService implements AuthService {
     calls.add('resetPassword:$code');
     if (resetError != null) throw resetError!;
   }
+
+  int _linkCount = 0;
+
+  @override
+  Future<void> linkIdentity(String idToken) async {
+    calls.add('linkIdentity:$idToken');
+    final err = _linkCount < linkErrors.length ? linkErrors[_linkCount] : null;
+    _linkCount++;
+    if (err != null) throw err;
+  }
+
+  @override
+  Future<void> unlinkIdentity({
+    required String provider,
+    required String subject,
+  }) async {
+    calls.add('unlinkIdentity:$provider:$subject');
+    if (unlinkError != null) throw unlinkError!;
+  }
+
+  AuthException? setLocalCredentialError;
+
+  @override
+  Future<void> setLocalCredential({
+    required String email,
+    required String password,
+  }) async {
+    calls.add('setLocalCredential:$email');
+    if (setLocalCredentialError != null) throw setLocalCredentialError!;
+  }
 }
 
 /// Scriptable [AccountService] fake: holds an account, a set of taken handles,
@@ -161,6 +197,15 @@ class FakeAccountService implements AccountService {
   AuthException? getError;
   AuthException? updateError;
   AuthException? deleteError;
+  AuthException? listIdentitiesError;
+
+  /// The account [getAccount] returns *after* a [deleteAccount] — models the
+  /// account switch in the collision-link flow (delete the orphan, then resolve
+  /// the existing account). Defaults to null (a plain deletion clears the account).
+  Account? postDeleteAccount;
+
+  /// Identities returned by [listIdentities]; mutate to model link/unlink refetch.
+  List<LinkedIdentity> identities;
 
   final List<String> calls = [];
 
@@ -170,7 +215,10 @@ class FakeAccountService implements AccountService {
     this.getError,
     this.updateError,
     this.deleteError,
-  }) : takenHandles = takenHandles ?? <String>{};
+    this.listIdentitiesError,
+    List<LinkedIdentity>? identities,
+  }) : takenHandles = takenHandles ?? <String>{},
+       identities = identities ?? <LinkedIdentity>[];
 
   @override
   Future<Account> getAccount() async {
@@ -209,7 +257,14 @@ class FakeAccountService implements AccountService {
   Future<void> deleteAccount() async {
     calls.add('deleteAccount');
     if (deleteError != null) throw deleteError!;
-    account = null;
+    account = postDeleteAccount;
+  }
+
+  @override
+  Future<List<LinkedIdentity>> listIdentities() async {
+    calls.add('listIdentities');
+    if (listIdentitiesError != null) throw listIdentitiesError!;
+    return List.unmodifiable(identities);
   }
 }
 

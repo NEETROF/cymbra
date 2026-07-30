@@ -96,6 +96,11 @@ already-linked-elsewhere, and last-identity refusal.
 - **WHEN** a Google sign-in or link fails with `UNAUTHENTICATED`
 - **THEN** the message reflects the provider/link context, not "Incorrect email or password."
 
+#### Scenario: Refused unlink is not shown as an email-verification error
+
+- **WHEN** an unlink is refused by the server with `FAILED_PRECONDITION` (last-identity guard)
+- **THEN** the message reads "You can't remove your only sign-in method." — not the email-verification copy the default `FAILED_PRECONDITION` mapping would otherwise produce
+
 ### Requirement: Link an existing account from the sign-in collision point
 
 The app SHALL offer, after a social sign-in that lands on handle onboarding, a

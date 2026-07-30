@@ -137,4 +137,30 @@ abstract class AuthService {
     required String code,
     required String newPassword,
   });
+
+  /// Attach an additional sign-in identity (Google/Apple) to the **current**
+  /// account (change: add-account-identity-linking). [idToken] is a fresh
+  /// provider `id_token`; the identity binds to the caller's session (bearer),
+  /// not a new account. A social identity that already belongs to a *different*
+  /// account surfaces as [AuthError.alreadyExists] (the app does not merge).
+  Future<void> linkIdentity(String idToken);
+
+  /// Remove a sign-in identity from the current account. The backend refuses to
+  /// unlink the **last** remaining identity (anti-lockout) with
+  /// [AuthError.failedPrecondition]. [provider]/[subject] come from
+  /// [AccountService.listIdentities]; the subject is opaque and never displayed.
+  Future<void> unlinkIdentity({
+    required String provider,
+    required String subject,
+  });
+
+  /// Add a local (email + password) credential to the **current** account so it
+  /// can also sign in with email. The credential is created **unverified** and a
+  /// verification email is sent — the password is usable only after the email is
+  /// confirmed (mirrors sign-up). [AuthError.alreadyExists] when the account
+  /// already has a password or the email belongs to another account.
+  Future<void> setLocalCredential({
+    required String email,
+    required String password,
+  });
 }

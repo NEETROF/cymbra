@@ -162,6 +162,20 @@ class SessionNotifier extends _$SessionNotifier {
     state = const SessionState.unauthenticated();
   }
 
+  /// Delete the just-created social **orphan** during the collision-link flow
+  /// (change: add-account-identity-linking, D7): removes the brand-new account
+  /// server-side — freeing its `(provider, subject)` before `LinkIdentity` — and
+  /// clears the local session. Unlike [abandonOnboarding] this is **not**
+  /// best-effort: a failed delete rethrows so the caller aborts the link (the
+  /// social identity would still be owned by the orphan → `ALREADY_EXISTS`). The
+  /// caller immediately adopts the existing account via [onSignedIn], so this
+  /// deliberately does not route to the entry screen.
+  Future<void> deleteOrphanForLink() async {
+    await _account.deleteAccount();
+    await _tokens.clear();
+    state = const SessionState.unknown();
+  }
+
   /// Leave an in-progress sign-in from the handle gate. A **brand-new** account
   /// (just provisioned, no handle yet) is deleted so it does not linger as an
   /// orphan; an established account (already has a handle) is only signed out.

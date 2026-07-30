@@ -6,12 +6,21 @@ merges by email, so a user who has an email account and later signs in with Goog
 silently gets a **second** account. The backend already exposes the fix —
 `AuthService.LinkIdentity(id_token)`, `AuthService.UnlinkIdentity(provider,
 subject)`, `UserService.ListIdentities()` — but the app wires none of it. This
-change adds the app surface only; **no server work**.
+change adds the app surface plus **one** additive server RPC — `SetLocalCredential`
+(the "Set a password" primitive, see D8) — since linking a local credential has no
+existing RPC. The OIDC link/unlink/list primitives are used as-is.
 
 Existing seams to build on: `AuthService` / `AccountService` (injectable, gRPC-backed
 in `grpc_client.dart`), `OidcTokenSource` (native Google/Apple `id_token`s behind a
 fake-able seam), `SessionNotifier` (current session/bearer), and the
 delete-account screen as a precedent for sensitive account actions.
+
+Since this change was drafted, both prerequisites have been **archived** into
+`openspec/specs/`: `add-music-account-access` (→ `account-access` /
+`account-management`) and `fix-handle-onboarding-escape` (→ `handle-onboarding`,
+providing the escape action and the `DeleteAccount` orphan-cleanup path this
+change's D7 flow reuses). The `SignInOidc`/link error-message fix is therefore a
+MODIFIED delta on the now-existing `account-access` capability (see the delta spec).
 
 ## Goals / Non-Goals
 
@@ -26,7 +35,8 @@ delete-account screen as a precedent for sensitive account actions.
 **Non-Goals:**
 - Cross-account **merge** (combining two existing accounts' data).
 - Auto-linking by email at sign-in time.
-- Any backend/proto change; the `live` audience.
+- Any backend/proto change **beyond** the single additive `SetLocalCredential` RPC
+  (D8); the `live` audience.
 
 ## Decisions
 
@@ -64,6 +74,16 @@ an explicit fallback; OIDC sign-in and link/unlink pass their own fallbacks
 (link failed / already linked elsewhere / can't remove only sign-in method). This
 also repairs the existing Google sign-in failure UX.
 
+**`FAILED_PRECONDITION` is overloaded — disambiguate by context.** `authErrorMessage`
+currently maps `AuthError.failedPrecondition → authErrUnverified` (email not verified,
+from the local sign-up/sign-in flow). The unlink last-identity guard *also* returns
+`FAILED_PRECONDITION`. Reusing the default mapping would show "email not verified" when
+an unlink is refused. The unlink call site therefore MUST pass an explicit
+`fallback` ("You can't remove your only sign-in method.") rather than rely on the
+default — the same per-screen fallback seam already used for `UNAUTHENTICATED`. Client
+state still disables the action for the last identity (D4); this fallback only covers
+the stale-state race where the server refuses.
+
 ### D6 — No re-auth gate for v1 link/unlink
 Unlike account deletion (D8 in the prior change), link/unlink does not require a
 recent-auth step in v1: linking is additive, and the last-identity guard prevents
@@ -76,7 +96,8 @@ After a social sign-in that lands on handle onboarding, offer "Already have an a
 Sign in to link." The flow is **user-driven**: the user chooses their existing method
 and re-authenticates, proving ownership of the existing account. The app then (1)
 deletes the just-created orphan social account (reusing the abandon/delete path from
-`fix-handle-onboarding-escape`, freeing `(provider, subject)`), (2) signs in to the
+`fix-handle-onboarding-escape`, now archived and shipping in `handle-onboarding`,
+freeing `(provider, subject)`), (2) signs in to the
 existing account, and (3) calls `LinkIdentity` with the still-valid social `id_token`
 to attach the identity. Net result: one account with both identities.
 
@@ -91,6 +112,23 @@ social identity is still owned by the orphan and the link returns `ALREADY_EXIST
 - **Auto-link by email at sign-in** — rejected: classic pre-hijacking risk; owning the
   email is not the same as controlling the existing account. Re-auth into the existing
   account is required.
+
+### D8 — "Set a password" needs a new backend RPC, with the email verified
+Linking a *local* credential has no existing primitive: `LinkIdentity` takes an
+OIDC `id_token` only, and `SignUpLocal` provisions a *new* account. So this change
+adds an authenticated `AuthService.SetLocalCredential(email, password)` RPC. The
+caller's `user_id` comes from the validated access token. Because the account has
+no server-known email (Google/Apple subjects are opaque, not addresses), the user
+**types** the email — which they may not own — so the credential is created
+**unverified** and a verification email is sent; the password is usable only after
+verification, exactly like sign-up. *Alternatives considered:* (a) create it
+**verified** since the user is already authenticated — rejected: authenticating the
+*account* doesn't prove control of the *typed email*, so it would allow binding an
+address you don't own; (b) drop "Set a password" from v1 — rejected here (the user
+chose to add the RPC). Consistency: `SetLocalCredential` mirrors `sign_up_local`
+(insert credential → link `(local, email)` identity → enqueue verification email),
+guards one local credential per account, and compensates (erases the credential) if
+the identity bind fails, so a retry isn't blocked.
 
 ## Risks / Trade-offs
 

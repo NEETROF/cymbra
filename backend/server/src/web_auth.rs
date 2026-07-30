@@ -382,6 +382,14 @@ mod tests {
         ) -> Result<()> {
             unreachable!()
         }
+        async fn set_local_credential(
+            &self,
+            _user_id: &str,
+            _email: &str,
+            _password: &str,
+        ) -> Result<()> {
+            unreachable!()
+        }
     }
 
     /// A signed-up, verified user backed by the fake session store.
