@@ -13,6 +13,13 @@ in `grpc_client.dart`), `OidcTokenSource` (native Google/Apple `id_token`s behin
 fake-able seam), `SessionNotifier` (current session/bearer), and the
 delete-account screen as a precedent for sensitive account actions.
 
+Since this change was drafted, both prerequisites have been **archived** into
+`openspec/specs/`: `add-music-account-access` (→ `account-access` /
+`account-management`) and `fix-handle-onboarding-escape` (→ `handle-onboarding`,
+providing the escape action and the `DeleteAccount` orphan-cleanup path this
+change's D7 flow reuses). The `SignInOidc`/link error-message fix is therefore a
+MODIFIED delta on the now-existing `account-access` capability (see the delta spec).
+
 ## Goals / Non-Goals
 
 **Goals:**
@@ -64,6 +71,16 @@ an explicit fallback; OIDC sign-in and link/unlink pass their own fallbacks
 (link failed / already linked elsewhere / can't remove only sign-in method). This
 also repairs the existing Google sign-in failure UX.
 
+**`FAILED_PRECONDITION` is overloaded — disambiguate by context.** `authErrorMessage`
+currently maps `AuthError.failedPrecondition → authErrUnverified` (email not verified,
+from the local sign-up/sign-in flow). The unlink last-identity guard *also* returns
+`FAILED_PRECONDITION`. Reusing the default mapping would show "email not verified" when
+an unlink is refused. The unlink call site therefore MUST pass an explicit
+`fallback` ("You can't remove your only sign-in method.") rather than rely on the
+default — the same per-screen fallback seam already used for `UNAUTHENTICATED`. Client
+state still disables the action for the last identity (D4); this fallback only covers
+the stale-state race where the server refuses.
+
 ### D6 — No re-auth gate for v1 link/unlink
 Unlike account deletion (D8 in the prior change), link/unlink does not require a
 recent-auth step in v1: linking is additive, and the last-identity guard prevents
@@ -76,7 +93,8 @@ After a social sign-in that lands on handle onboarding, offer "Already have an a
 Sign in to link." The flow is **user-driven**: the user chooses their existing method
 and re-authenticates, proving ownership of the existing account. The app then (1)
 deletes the just-created orphan social account (reusing the abandon/delete path from
-`fix-handle-onboarding-escape`, freeing `(provider, subject)`), (2) signs in to the
+`fix-handle-onboarding-escape`, now archived and shipping in `handle-onboarding`,
+freeing `(provider, subject)`), (2) signs in to the
 existing account, and (3) calls `LinkIdentity` with the still-valid social `id_token`
 to attach the identity. Net result: one account with both identities.
 

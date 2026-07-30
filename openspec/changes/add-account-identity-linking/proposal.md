@@ -49,10 +49,13 @@ account and see what's connected.
   behavior, optional recent-auth gating, and provider-appropriate error messaging.
 
 ### Modified Capabilities
-<!-- account-access / account-management (from add-music-account-access) are not
-     yet archived into openspec/specs/, so there is no delta target here. The
-     UNAUTHENTICATED error-message fix that lives in those flows is captured as a
-     requirement of account-linking and in design.md/tasks.md. -->
+- `account-access`: The Google/Apple sign-in requirements are amended so an OIDC
+  `SignInOidc` failure (`UNAUTHENTICATED`) no longer surfaces the email-credential
+  copy "Incorrect email or password." — it shows a provider-appropriate message.
+  (`add-music-account-access` is now archived into `openspec/specs/`, so this fix
+  is a proper MODIFIED delta on `account-access` rather than only an
+  `account-linking` requirement. Local email sign-in keeps its invalid-credentials
+  copy, so `account-management` is unchanged.)
 
 ## Impact
 
@@ -74,8 +77,10 @@ account and see what's connected.
   recent-auth gate (mirroring the delete-account decision D8).
 - **Tests/coverage**: ≥80% (Flutter) maintained; new state/widgets covered with
   fakes, the thin gRPC/SDK adapters coverage-excluded as today.
-- **Depends on** `fix-handle-onboarding-escape` for the handle-screen escape action and
-  orphan-account deletion; this change adds the "sign in to link" option alongside that
-  escape and reuses its abandon/delete-orphan path before calling `LinkIdentity`.
+- **Depends on** `fix-handle-onboarding-escape` (now **archived** into
+  `openspec/specs/handle-onboarding/`) for the handle-screen escape action and
+  orphan-account deletion (`DeleteAccount`); this change adds the "sign in to link"
+  option alongside that escape and reuses its abandon/delete-orphan path before
+  calling `LinkIdentity`. The dependency is satisfied — no longer a blocker.
 - **Out of scope**: cross-account *merge*, auto-linking by email, revealing an existing
   account's sign-in method, the `live` audience, any server-side change.

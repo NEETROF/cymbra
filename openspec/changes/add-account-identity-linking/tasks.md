@@ -2,7 +2,7 @@
 
 - [ ] 1.1 Add `listIdentities()` to the `AccountService` seam returning a Freezed `LinkedIdentity` list (`provider`, `subject`, `linkedAt`); implement in `GrpcAccountService` via the generated `ListIdentities` stub
 - [ ] 1.2 Add `linkIdentity(idToken)` and `unlinkIdentity(provider, subject)` to the `AuthService` seam; implement in `GrpcAuthService` via the generated `LinkIdentity`/`UnlinkIdentity` stubs (bearer from the current session)
-- [ ] 1.3 Map gRPC statuses to typed errors for the new calls (`ALREADY_EXISTS` → already-linked-elsewhere, `FAILED_PRECONDITION` → last-identity, `UNAUTHENTICATED` → re-auth/sign-in)
+- [ ] 1.3 Map gRPC statuses to typed errors for the new calls (`ALREADY_EXISTS` → already-linked-elsewhere, `FAILED_PRECONDITION` → last-identity, `UNAUTHENTICATED` → re-auth/sign-in). NOTE: `FAILED_PRECONDITION` is overloaded — the default `authErrorMessage` mapping is `authErrUnverified` (email not verified). The unlink call site MUST pass an explicit "only sign-in method" fallback so a refused unlink never reads "email not verified" (design D5).
 - [ ] 1.4 Extend the in-memory fakes (fake auth + account services / OIDC source) to cover list/link/unlink success and each error
 
 ## 2. State (Riverpod 2 + Freezed)
@@ -26,7 +26,11 @@
 
 ## 5. Sign-in collision: user-driven "sign in to link" (design D7)
 
-- [ ] 5.1 On the handle-onboarding screen, add an "Already have an account? Sign in to link" option next to the escape action from `fix-handle-onboarding-escape` (no claim that an account exists; no method disclosed)
+> Prerequisite `fix-handle-onboarding-escape` is **archived** (shipping in the
+> `handle-onboarding` capability): the escape action and the `DeleteAccount`
+> orphan-cleanup path this section reuses already exist.
+
+- [ ] 5.1 On the handle-onboarding screen, add an "Already have an account? Sign in to link" option next to the existing escape action (from `handle-onboarding`) (no claim that an account exists; no method disclosed)
 - [ ] 5.2 Collision-link flow: prompt the user to choose+authenticate an existing method → delete the orphan social account (reuse the abandon/delete path) → sign in to the existing account → `LinkIdentity(socialIdToken)`; enforce delete-before-link ordering
 - [ ] 5.3 Re-mint the social `id_token` via `OidcTokenSource` if it expired before `LinkIdentity` runs
 - [ ] 5.4 Tests: happy path (Google→email account, ends on existing account, no new handle/account), wrong existing credentials, and the expired-token re-mint branch
