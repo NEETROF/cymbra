@@ -110,7 +110,7 @@ Future<T> authedCall<T>(
       case RefreshRejected():
         rethrow;
       case RefreshTransient():
-        throw GrpcError.unavailable(
+        throw const GrpcError.unavailable(
           'session refresh failed transiently; keeping the session',
         );
     }
