@@ -20,9 +20,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../src/grpc/score.pbgrpc.dart' as score;
 import '../state/score_catalog.dart' show PracticeLevel;
-import 'auth_service.dart';
 import 'grpc_client.dart';
-import 'token_store.dart';
 
 part 'score_upload_service.g.dart';
 
@@ -80,7 +78,7 @@ class ContributedScore {
 /// Seam over the backend `ScoreService` — the app's contribution surface. Every
 /// call is bearer-authenticated; the production impl refreshes transparently on
 /// `UNAUTHENTICATED`. Tests override the provider with an in-memory fake.
-/// Failures throw [AuthException] (see auth_service.dart).
+/// Failures throw `AuthException` (see auth_service.dart).
 abstract class ScoreUploadService {
   /// Upload a contribution. The bytes, chosen [level], and rights attestation are
   /// sent; [fallbackTitle]/[fallbackComposer] are used by the server ONLY when the
@@ -124,44 +122,12 @@ PracticeLevel practiceLevelFromWire(String s) => switch (s) {
 class GrpcScoreUploadService implements ScoreUploadService {
   GrpcScoreUploadService({
     required ClientChannel channel,
-    required TokenStore tokenStore,
-    required AuthService authService,
+    required AuthedRunner authed,
   }) : _client = score.ScoreServiceClient(channel),
-       _tokenStore = tokenStore,
-       _authService = authService;
+       _authed = authed;
 
   final score.ScoreServiceClient _client;
-  final TokenStore _tokenStore;
-  final AuthService _authService;
-
-  Future<String?> _accessToken() async =>
-      (await _tokenStore.readTokens())?.accessToken;
-
-  Future<String?> _refreshAccess() async {
-    final stored = await _tokenStore.readTokens();
-    if (stored == null) return null;
-    try {
-      final fresh = await _authService.refresh(stored.refreshToken);
-      await _tokenStore.writeTokens(fresh.toStored());
-      return fresh.accessToken;
-    } catch (_) {
-      await _tokenStore.clear();
-      return null;
-    }
-  }
-
-  Future<T> _authed<T>(Future<T> Function(String? bearer) call) async {
-    try {
-      return await authedCall(
-        call,
-        accessToken: _accessToken,
-        refreshAccessToken: _refreshAccess,
-        onExpired: () {},
-      );
-    } on GrpcError catch (e) {
-      throw authExceptionFromGrpc(e);
-    }
-  }
+  final AuthedRunner _authed;
 
   ContributedScore _toScore(score.ScoreRecord r) => ContributedScore(
     id: r.id,
@@ -249,6 +215,5 @@ class GrpcScoreUploadService implements ScoreUploadService {
 @Riverpod(keepAlive: true)
 ScoreUploadService scoreUploadService(Ref ref) => GrpcScoreUploadService(
   channel: ref.watch(cymbraChannelProvider),
-  tokenStore: ref.watch(tokenStoreProvider),
-  authService: ref.watch(authServiceProvider),
+  authed: ref.watch(authedRunnerProvider),
 );
