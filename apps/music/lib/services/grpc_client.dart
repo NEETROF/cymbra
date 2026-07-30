@@ -187,11 +187,7 @@ class GrpcAuthService implements AuthService {
     String? locale,
   }) => _map(
     () => _client.signUpLocal(
-      auth.SignUpLocalRequest(
-        email: email,
-        password: password,
-        locale: locale,
-      ),
+      auth.SignUpLocalRequest(email: email, password: password, locale: locale),
     ),
   );
 

@@ -705,7 +705,8 @@ mod tests {
         let g2 = h.m.sign_in_oidc("g-sub-2", "music").await.unwrap();
         let uid2 = sub_of(&g2.access_token, "music");
         assert!(matches!(
-            h.m.set_local_credential(&uid2, "n@x.dev", "short", "").await,
+            h.m.set_local_credential(&uid2, "n@x.dev", "short", "")
+                .await,
             Err(AppError::InvalidArgument(_))
         ));
     }
