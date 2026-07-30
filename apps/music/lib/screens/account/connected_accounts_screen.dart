@@ -151,11 +151,17 @@ class _Content extends ConsumerWidget {
             label: l10n.setPasswordAction,
             onPressed: busy
                 ? null
-                : () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => const SetPasswordScreen(),
-                    ),
-                  ),
+                : () async {
+                    await Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const SetPasswordScreen(),
+                      ),
+                    );
+                    // The set-password → verify flow binds the `local` identity at
+                    // verify time (change: verify-before-local-credential-link), so
+                    // reload on return to surface the newly linked identity.
+                    await notifier.load();
+                  },
           ),
       ],
     );
