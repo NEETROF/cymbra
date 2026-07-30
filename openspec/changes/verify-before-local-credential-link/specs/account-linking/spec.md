@@ -19,7 +19,7 @@ SHALL still leave nothing reserved.
 #### Scenario: Submitting sends a code without binding yet
 
 - **WHEN** a Google-only user chooses "Set a password" and submits a valid email and password
-- **THEN** a verification email is sent and the user is told to check their email
+- **THEN** a verification email is sent and the user is taken to the code-entry screen to verify in place (staying signed in)
 - **AND** the account does not yet gain a `local` identity and the email is not reserved
 
 #### Scenario: Verifying the code binds the credential

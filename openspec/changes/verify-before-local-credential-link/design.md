@@ -76,12 +76,18 @@ This is acceptable: neither reserved the email before proving ownership, and the
 loser sees a clean error. (This is a deliberate weakening of the current
 "immediately reserved" behavior — that is the whole point.)
 
-### D4 — Preserve UX and the send rate limit
-The response and screens are unchanged: the app shows "check your email to activate
-your password", and verification happens through the existing `OtpVerifyScreen`
-reached from the sign-in `FailedPrecondition` path. `set_local_credential` keeps
-sending exactly one verification email per submit under the existing 3/hour limit,
-bounding the unsolicited-email vector.
+### D4 — Route to the code screen in place (small client change); keep the rate limit
+Because binding is deferred, **no unverified credential exists before
+verification**, so the old "sign in → `FailedPrecondition` → OTP" route no longer
+fires — a pre-verify sign-in now returns `Unauthenticated` ("invalid credentials"),
+which the app does not route to the code screen. The set-password flow therefore
+**navigates directly to the existing `OtpVerifyScreen` after submit**, where the
+user enters the emailed code while staying signed in via their OIDC session
+(`OtpVerifyScreen` with no password simply verifies and pops back — no re-login).
+This is a small but **necessary** Flutter change: without it, after deferring the
+bind there would be no reachable way to enter the code. `set_local_credential`
+still sends exactly one verification email per submit under the existing 3/hour
+limit.
 
 ## Risks / Trade-offs
 

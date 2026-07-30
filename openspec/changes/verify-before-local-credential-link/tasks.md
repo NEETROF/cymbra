@@ -9,6 +9,7 @@
 - [x] 2.1 In `backend/auth/src/module.rs::set_local_credential`, keep the eager validation (weak-password reject; reject if the account already has a `local` identity via `list_identities`).
 - [x] 2.2 Replace `creds.insert` + `link_identity` with: hash the password, mint a UUID token, `pending_store.put(token, {user_id, email, hash}, verify_ttl)`.
 - [x] 2.3 Send the verification email via the existing branded/localized path (`email_template::verification_email` + the enqueued job or direct send), carrying the token — content unchanged.
+- [x] 2.4 (client, required) `apps/music` set-password flow: on submit success, navigate straight to the existing `OtpVerifyScreen` (email only, no password) so the user verifies in place while staying signed in — the deferred bind removes the old sign-in→`FailedPrecondition`→OTP route. Update the widget test.
 
 ## 3. Bind on verification in `verify_email`
 

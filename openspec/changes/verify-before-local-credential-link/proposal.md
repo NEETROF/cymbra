@@ -33,8 +33,10 @@ without ever proving they control it.
   loser never reserved anything).
 - **Self-cleaning, no reaper**: the pending record lives in the cache with a TTL,
   so an abandoned set-password simply expires — no squat, nothing to reap.
-- Keep the current UX (the "check your email" message + the existing OTP screen via
-  the sign-in `FailedPrecondition` path) and the 3/hour send rate limit.
+- **Route the set-password flow straight to the code-entry screen** after submit, so
+  the user verifies in place while staying signed in. This is required: with deferred
+  binding there is no unverified credential, so the old "sign in →
+  `FailedPrecondition` → OTP" route no longer fires. Keep the 3/hour send rate limit.
 
 ## Capabilities
 
@@ -58,7 +60,10 @@ without ever proving they control it.
   - Serialization of the pending record (`{user_id, email, password_hash}`) —
     argon2 hash only, never plaintext.
 - **No DB migration**, no proto/API change (`VerifyEmail`/`SetLocalCredential`
-  signatures unchanged), no client/Flutter change.
+  signatures unchanged).
+  - **Small client change (required)**: `apps/music` set-password flow navigates to
+    the existing code-entry screen (`OtpVerifyScreen`) on submit instead of popping,
+    since the deferred bind removes the old sign-in-based route to that screen.
 - **Depends on / builds on** the existing branded, localized verification email
   (`template-backend-emails`) — email content is unchanged.
 - **Security**: removes the email-squatting/DoS + eliminates the unbounded
