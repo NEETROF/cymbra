@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.9.1](https://github.com/NEETROF/cymbra/compare/backend-v0.9.0...backend-v0.9.1) (2026-07-30)
+
+
+### Bug Fixes
+
+* **backend:** copy backfill-titles into the runtime image ([#144](https://github.com/NEETROF/cymbra/issues/144)) ([b71021a](https://github.com/NEETROF/cymbra/commit/b71021ad73392917a4211eb58815bcfece7615c5))
+* **deploy:** mount SoundFont warm-cache on server + harden bo cache ([#143](https://github.com/NEETROF/cymbra/issues/143)) ([004caec](https://github.com/NEETROF/cymbra/commit/004caec3cfe1913323ff03f950f27d9748b55af8))
+
 ## [0.9.0](https://github.com/NEETROF/cymbra/compare/backend-v0.8.0...backend-v0.9.0) (2026-07-30)
 
 
