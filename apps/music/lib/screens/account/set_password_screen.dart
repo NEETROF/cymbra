@@ -82,11 +82,22 @@ class _SetPasswordScreenState extends ConsumerState<SetPasswordScreen> {
       if (state.lastAction != ConnectedAccountsAction.setPassword) return;
       _pendingSeq = null;
       if (state.actionError == null && mounted) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute<void>(
-            builder: (_) => OtpVerifyScreen(email: _email.text.trim()),
-          ),
-        );
+        // Push the code screen (do NOT replace this route): replacing would
+        // complete the parent's `await push(SetPasswordScreen)` immediately, firing
+        // its list-refresh before verification. Instead, wait for the code screen to
+        // return, then pop ourselves — so the parent refreshes only after the
+        // identity is actually bound (at verify time).
+        final email = _email.text.trim();
+        final navigator = Navigator.of(context);
+        navigator
+            .push(
+              MaterialPageRoute<void>(
+                builder: (_) => OtpVerifyScreen(email: email),
+              ),
+            )
+            .then((_) {
+              if (mounted) navigator.pop();
+            });
       }
     });
 
