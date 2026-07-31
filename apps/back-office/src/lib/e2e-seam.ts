@@ -35,6 +35,9 @@ export interface E2EData {
   bytes?: number[] | null;
   /** Audit rows for `listRoleGrants`. */
   grants?: Record<string, unknown>[];
+  /** The account's stored language returned by `getAccount` (change: sync-account-
+   * language-preference); `setLocale` writes it here so a re-read reflects it. */
+  accountLocale?: string;
   /** Accounts for the admin directory (`listAccounts`); roles are mutated in place
    * by grant/revoke so the UI reflects the change on re-list. */
   accounts?: DirectoryAccount[];
@@ -142,6 +145,15 @@ export function installE2EClients(): void {
         return {};
       },
       listRoleGrants: async () => ({ grants: data.grants ?? [] }),
+      getAccount: async () => {
+        failIfSet("getAccount");
+        return { userId: "u1", locale: data.accountLocale };
+      },
+      setLocale: async (req: { locale: string }) => {
+        failIfSet("setLocale");
+        if (req.locale) data.accountLocale = req.locale; // reflect the write
+        return { userId: "u1", locale: data.accountLocale };
+      },
       listAccounts: async (req: { query: string; limit: number; offset: number }) => {
         failIfSet("listAccounts");
         const q = (req.query ?? "").toLowerCase();

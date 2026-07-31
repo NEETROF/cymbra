@@ -135,7 +135,7 @@ impl UserRepo for PgUserRepo {
 
     async fn get_account(&self, user_id: &str) -> Result<Account> {
         let row = sqlx::query(
-            "SELECT display_name, handle, preferences::text AS preferences, version, \
+            "SELECT display_name, handle, locale, preferences::text AS preferences, version, \
              extract(epoch FROM updated_at)::bigint AS updated_at FROM users WHERE id = $1",
         )
         .bind(parse_uuid(user_id)?)
@@ -150,6 +150,7 @@ impl UserRepo for PgUserRepo {
             version: row.get("version"),
             updated_at: row.get("updated_at"),
             handle: row.get("handle"),
+            locale: row.get("locale"),
         })
     }
 
@@ -200,7 +201,7 @@ impl UserRepo for PgUserRepo {
             "UPDATE users SET display_name = $2, preferences = $3::jsonb, version = version + 1, \
              updated_at = now(), handle = COALESCE($5, handle), \
              handle_key = COALESCE($6, handle_key) WHERE id = $1 AND version = $4 \
-             RETURNING display_name, handle, preferences::text AS preferences, version, \
+             RETURNING display_name, handle, locale, preferences::text AS preferences, version, \
              extract(epoch FROM updated_at)::bigint AS updated_at",
         )
         .bind(uid)
@@ -228,6 +229,7 @@ impl UserRepo for PgUserRepo {
                 version: row.get("version"),
                 updated_at: row.get("updated_at"),
                 handle: row.get("handle"),
+                locale: row.get("locale"),
             }),
             None => {
                 // Distinguish a stale write from a missing account.

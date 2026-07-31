@@ -14,6 +14,9 @@ message Account {
   int64 version = 4;
   int64 updated_at = 5; // unix seconds
   optional string handle = 6; // unique display handle; null until onboarded
+  // Preferred language tag (change: sync-account-language-preference); null until
+  // the identity system records one. Backend-owned (kept out of `preferences`).
+  optional string locale = 7;
 }
 
 message Identity {
@@ -23,6 +26,12 @@ message Identity {
 }
 
 message GetAccountRequest {}
+
+// Set the caller's own preferred language (change: sync-account-language-
+// preference). The account whose locale is written is the authenticated caller's,
+// resolved from the request identity — never a body-supplied id. An empty locale is
+// a no-op that leaves any stored value unchanged. Returns the updated account.
+message SetLocaleRequest { string locale = 1; }
 
 message UpdateAccountRequest {
   optional string display_name = 1;
@@ -132,6 +141,8 @@ message SetProfileVisibilityResponse {
 service UserService {
   rpc GetAccount(GetAccountRequest) returns (Account);
   rpc UpdateAccount(UpdateAccountRequest) returns (Account);
+  // Set the caller's preferred language (change: sync-account-language-preference).
+  rpc SetLocale(SetLocaleRequest) returns (Account);
   rpc CheckHandleAvailability(CheckHandleAvailabilityRequest) returns (CheckHandleAvailabilityResponse);
   rpc ListIdentities(ListIdentitiesRequest) returns (ListIdentitiesResponse);
   rpc DeleteAccount(DeleteAccountRequest) returns (DeleteAccountResponse);

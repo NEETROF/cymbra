@@ -67,6 +67,9 @@ pub struct Account {
     pub updated_at: i64,
     /// Unique display handle; `None` until the user completes onboarding.
     pub handle: Option<String>,
+    /// Preferred language tag (change: sync-account-language-preference); `None`
+    /// until the identity system records one.
+    pub locale: Option<String>,
 }
 
 /// A provider identity linked to an account.

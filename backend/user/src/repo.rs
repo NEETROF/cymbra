@@ -175,6 +175,7 @@ impl FakeUserRepo {
             version: row.version,
             updated_at: 0,
             handle: row.handle.clone(),
+            locale: row.locale.clone(),
         }
     }
 }
