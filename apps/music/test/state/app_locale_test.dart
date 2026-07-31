@@ -16,7 +16,6 @@ import 'dart:ui' show Locale;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:music/services/account_service.dart';
 import 'package:music/services/grpc_client.dart';
 import 'package:music/services/preferences_service.dart';
 import 'package:music/state/app_language.dart';
