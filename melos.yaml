@@ -16,8 +16,8 @@ ignore:
 
 scripts:
   gen-grpc:
-    description: Generate the Cymbra ID gRPC Dart stubs from the backend protos.
-    run: bash apps/music/tool/gen_grpc.sh
+    description: Generate the Cymbra ID gRPC Dart stubs from the backend protos (app + shared flag package).
+    run: bash apps/music/tool/gen_grpc.sh && bash packages/cymbra_flags/tool/gen_grpc.sh
 
   gen-l10n:
     description: Generate the AppLocalizations from the ARB files (lib/l10n/).

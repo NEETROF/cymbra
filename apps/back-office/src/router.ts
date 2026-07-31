@@ -18,6 +18,7 @@ const routes: RouteRecordRaw[] = [
     props: true,
   },
   { path: "/roles", name: "roles", component: () => import("@/views/RolesView.vue"), meta: { admin: true } },
+  { path: "/flags", name: "flags", component: () => import("@/views/FlagsView.vue"), meta: { admin: true } },
   // Root + anything unknown land on the review queue (the primary work surface).
   { path: "/", redirect: { name: "music-queue" } },
   { path: "/:pathMatch(.*)*", redirect: { name: "music-queue" } },

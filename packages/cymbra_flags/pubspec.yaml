@@ -1,0 +1,33 @@
+name: cymbra_flags
+description: >
+  Shared, app-agnostic Cymbra runtime feature-flag client. Fetches the caller's
+  effective flags/config via the FlagService gRPC, caches a per-identity snapshot
+  (stale-while-revalidate, flicker-free cold start), refreshes on launch/resume
+  with a version/ETag, and resets on sign-out / user switch. Reusable by music,
+  live, and future apps.
+publish_to: 'none'
+version: 0.1.0
+
+environment:
+  sdk: ^3.10.9
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_riverpod: ^2.6.1
+  riverpod_annotation: ^2.6.1
+  grpc: ^4.0.4
+  protobuf: ^4.2.0
+  fixnum: ^1.1.1
+  shared_preferences: ^2.3.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+  build_runner: ^2.4.13
+  riverpod_generator: ^2.6.5
+  riverpod_lint: ^2.6.5
+  custom_lint: ^0.7.0
+  # Default test-double: mockito with generated mocks (flutter-testing skill).
+  mockito: ^5.4.4

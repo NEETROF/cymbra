@@ -14,6 +14,8 @@ OUT_DIR="$APP_DIR/src/gen"
 AUTH_PROTO_DIR="$REPO_ROOT/backend/auth-port/proto"
 USER_PROTO_DIR="$REPO_ROOT/backend/user-port/proto"
 MUSIC_PROTO_DIR="$REPO_ROOT/backend/music/proto"
+# Shared, app-agnostic feature-flag service (change: add-runtime-feature-flags).
+FLAGS_PROTO_DIR="$REPO_ROOT/backend/feature-flags/proto"
 
 command -v protoc >/dev/null 2>&1 || {
   echo "error: protoc not found on PATH (brew install protobuf)" >&2
@@ -33,9 +35,10 @@ protoc \
   --proto_path="$AUTH_PROTO_DIR" \
   --proto_path="$USER_PROTO_DIR" \
   --proto_path="$MUSIC_PROTO_DIR" \
+  --proto_path="$FLAGS_PROTO_DIR" \
   --plugin=protoc-gen-es="$PLUGIN" \
   --es_out="$OUT_DIR" \
   --es_opt=target=ts \
-  auth.proto user.proto score.proto
+  auth.proto user.proto score.proto flags.proto
 
 echo "Generated TS gRPC stubs into $OUT_DIR"

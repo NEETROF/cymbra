@@ -36,6 +36,14 @@ export interface FakeState {
   grants: unknown[];
   accounts: unknown[];
   tokens: { accessToken: string; refreshToken: string };
+  // feature-flags panel
+  setFlagCalls: { key: string; app: string; enabled: boolean; rolloutScope: string; confirm: boolean }[];
+  setConfigCalls: { key: string; app: string; rolloutScope: string; confirm: boolean; value: unknown }[];
+  clearCalls: { key: string; app: string; confirm: boolean }[];
+  listDefinitionsCalls: { appFilter: string }[];
+  listChangesCalls: { appFilter: string; key: string }[];
+  flagDefs: unknown[];
+  flagChanges: unknown[];
 }
 
 // Build a fake `Clients` recording calls, castable to the real (large) generated
@@ -54,6 +62,13 @@ export function makeFakeClients(state: Partial<FakeState> = {}): { clients: Clie
     grants: state.grants ?? [],
     accounts: state.accounts ?? [],
     tokens: state.tokens ?? { accessToken: makeJwt({ roles: ["moderator"], sub: "u1" }), refreshToken: "r" },
+    setFlagCalls: [],
+    setConfigCalls: [],
+    clearCalls: [],
+    listDefinitionsCalls: [],
+    listChangesCalls: [],
+    flagDefs: state.flagDefs ?? [],
+    flagChanges: state.flagChanges ?? [],
   };
   const clients = {
     auth: {
@@ -93,6 +108,28 @@ export function makeFakeClients(state: Partial<FakeState> = {}): { clients: Clie
       listAccounts: async (req: { query: string; limit: number; offset: number }) => {
         s.listAccountsCalls.push(req);
         return { accounts: s.accounts, total: s.accounts.length };
+      },
+    },
+    flags: {
+      listFlagDefinitions: async (req: { appFilter: string }) => {
+        s.listDefinitionsCalls.push(req);
+        return { definitions: s.flagDefs };
+      },
+      listFlagChanges: async (req: { appFilter?: string; key?: string }) => {
+        s.listChangesCalls.push({ appFilter: req.appFilter ?? "", key: req.key ?? "" });
+        return { changes: s.flagChanges };
+      },
+      setFlag: async (req: { key: string; app: string; enabled: boolean; rolloutScope: string; confirm: boolean }) => {
+        s.setFlagCalls.push(req);
+        return {};
+      },
+      setConfig: async (req: { key: string; app: string; rolloutScope: string; confirm: boolean; value: unknown }) => {
+        s.setConfigCalls.push(req);
+        return {};
+      },
+      clearOverride: async (req: { key: string; app: string; confirm: boolean }) => {
+        s.clearCalls.push(req);
+        return {};
       },
     },
   } as unknown as Clients;

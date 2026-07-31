@@ -49,6 +49,11 @@ pub struct Config {
     /// Postgres URL for the `music` schema (role `music_svc`). Required to wire the
     /// score-upload service; `None` leaves it unwired (the feature stays inert).
     pub music_database_url: Option<String>,
+    /// Postgres URL for the `feature_flags` schema (role `flags_svc`; change:
+    /// add-runtime-feature-flags). `None` runs the flag service in defaults-only
+    /// mode (every key resolves to its code default, admin edits refused) — a valid
+    /// fail-safe posture, so the feature is never a hard dependency.
+    pub flags_database_url: Option<String>,
     /// Local warm-cache root the score reads serve from (crawler corpus + pulled
     /// uploads); the S3 fallback populates it on a miss.
     pub score_local_root: String,
@@ -187,6 +192,10 @@ pub mod config_core {
             soundfont_storage: soundfont_storage(m)?,
             music_database_url: m
                 .get("CYMBRA_MUSIC_DATABASE_URL")
+                .filter(|v| !v.is_empty())
+                .cloned(),
+            flags_database_url: m
+                .get("CYMBRA_FLAGS_DATABASE_URL")
                 .filter(|v| !v.is_empty())
                 .cloned(),
             score_local_root: opt(m, "CYMBRA_SCORE_LOCAL_ROOT", "/srv/cymbra/scores"),

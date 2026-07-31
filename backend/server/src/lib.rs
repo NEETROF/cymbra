@@ -17,6 +17,9 @@ use sqlx::PgPool;
 pub mod web_auth;
 pub use web_auth::{WebAuthConfig, web_auth_router};
 
+pub mod flags;
+pub use flags::{build_flag_service, spawn_flag_refreshers};
+
 pub mod soundfont;
 pub use soundfont::{
     Entitlements, JwtAuth, NoPaidEntitlements, SoundfontAuth, SoundfontState, soundfont_router,

@@ -13,6 +13,7 @@ use cymbra_auth::{
 };
 use cymbra_auth::{CredentialRepo, OidcProviderCfg, OidcVerifier, SessionStore};
 use cymbra_auth_port::proto::auth_service_server::AuthServiceServer;
+use cymbra_feature_flags::proto::flag_service_server::FlagServiceServer;
 use cymbra_music::proto::score_service_server::ScoreServiceServer;
 use cymbra_music::{
     PgCatalogSearchRepo, PgScoreRatingRepo, PgUserLibraryRepo, PgUserScoreRepo, ScoreGrpc,
@@ -50,6 +51,7 @@ async fn main() -> anyhow::Result<()> {
     let auth_pool = db::connect(&cfg.auth_database_url, 5).await?;
     let user_pool = db::connect(&cfg.user_database_url, 5).await?;
     let ready_pool = user_pool.clone(); // for the readiness probe
+    let flags_resolver_pool = user_pool.clone(); // platform-admin scope resolver
     cymbra_auth::MIGRATOR.run(&auth_pool).await?;
     cymbra_user::MIGRATOR.run(&user_pool).await?;
 
@@ -133,7 +135,18 @@ async fn main() -> anyhow::Result<()> {
 
     let user_svc =
         UserServiceServer::with_interceptor(UserGrpc::new(user_concrete), strict.clone());
-    let auth_svc = AuthServiceServer::with_interceptor(AuthGrpc::new(auth), optional);
+    let auth_svc = AuthServiceServer::with_interceptor(AuthGrpc::new(auth), optional.clone());
+
+    // --- feature flags (shared, app-agnostic; change: add-runtime-feature-flags) ---
+    // Mounted behind the OPTIONAL interceptor so `GetEffectiveFlags` works with or
+    // without a token (pre-account UI respects kill-switches), while the admin
+    // methods still require an authenticated admin. Defaults-only when no flags DB.
+    let flag_service = cymbra_server::build_flag_service(&cfg, flags_resolver_pool).await?;
+    let flag_svc = FlagServiceServer::with_interceptor(
+        cymbra_feature_flags::grpc::FlagGrpc::new(flag_service.clone()),
+        optional,
+    );
+    cymbra_server::spawn_flag_refreshers(&cfg, flag_service);
 
     // --- music module (owns the `music` schema via `music_svc`) ---
     // Wired whenever a music DB is configured. Own pool + one MIGRATOR run, then:
@@ -283,7 +296,8 @@ async fn main() -> anyhow::Result<()> {
         .layer(GrpcWebLayer::new())
         .layer(metrics::ObserveLayer::new(red))
         .add_service(user_svc)
-        .add_service(auth_svc);
+        .add_service(auth_svc)
+        .add_service(flag_svc);
     if let Some(score_svc) = score_svc {
         router = router.add_service(score_svc);
     }

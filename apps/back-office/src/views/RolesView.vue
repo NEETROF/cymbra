@@ -5,6 +5,7 @@ import { match } from "ts-pattern";
 import { PAGE_SIZE, useRolesStore } from "@/stores/roles";
 import { useSessionsStore } from "@/stores/sessions";
 import type { AccountRow, RoleGrant } from "@/gen/user_pb";
+import AppTag from "@/components/AppTag.vue";
 
 // Admin-only (route- + server-guarded). A paginated directory of accounts with
 // their music-scope roles; an admin filters by handle/email and grants/revokes per
@@ -125,8 +126,10 @@ onMounted(() => store.list("", 0));
           <td class="handle">{{ a.handle || $t("roles.noHandle") }}</td>
           <td>{{ a.displayName || "—" }}</td>
           <td>
-            <span v-for="r in a.roles" :key="r" class="badge role">{{ $t(`role.${r}`) }}</span>
-            <span v-if="a.roles.length === 0" class="muted">—</span>
+            <div class="rolechips">
+              <AppTag v-for="r in a.roles" :key="r" variant="accent" cap>{{ $t(`role.${r}`) }}</AppTag>
+              <span v-if="a.roles.length === 0" class="muted">—</span>
+            </div>
           </td>
           <td class="actions">
             <button
@@ -210,12 +213,11 @@ onMounted(() => store.list("", 0));
   gap: 0.4rem;
   flex-wrap: wrap;
 }
-.badge.role {
-  color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 12%, transparent);
-  border-color: color-mix(in srgb, var(--accent) 28%, transparent);
-  text-transform: capitalize;
-  margin-right: 0.3rem;
+.rolechips {
+  display: flex;
+  gap: 0.3rem;
+  flex-wrap: wrap;
+  align-items: center;
 }
 .toggle {
   font-size: 0.8rem;

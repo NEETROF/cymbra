@@ -4,6 +4,7 @@ import { RouterLink, RouterView, useRoute, useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
 import { useAuthStore } from "@/stores/auth";
 import { currentLocale, setLocale, SUPPORTED_LOCALES } from "@/i18n";
+import AppTag from "@/components/AppTag.vue";
 
 const auth = useAuthStore();
 const router = useRouter();
@@ -30,6 +31,7 @@ const ICONS: Record<string, string> = {
   queue: "M3 5h18M3 12h18M3 19h12",
   catalog: "M9 18V5l12-2v13M9 13l12-2M9 18a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm12-2a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z",
   roles: "M12 2 4 6v6c0 5 3.5 8 8 10 4.5-2 8-5 8-10V6l-8-4Z",
+  flags: "M4 22V4m0 0 8-2 8 3v9l-8-2-8 2",
 };
 
 const nav = computed(() => {
@@ -37,7 +39,9 @@ const nav = computed(() => {
     { to: "/music/queue", key: "nav.queue", icon: "queue" },
     { to: "/music/catalog", key: "nav.catalog", icon: "catalog" },
   ];
-  if (auth.isAdmin) items.push({ to: "/roles", key: "nav.roles", icon: "roles" });
+  if (auth.isAdmin) {
+    items.push({ to: "/roles", key: "nav.roles", icon: "roles" }, { to: "/flags", key: "nav.flags", icon: "flags" });
+  }
   return items;
 });
 
@@ -103,7 +107,7 @@ async function signOut() {
               <circle cx="12" cy="7" r="4" />
             </svg>
           </span>
-          <span class="badge role">{{ auth.isAdmin ? t("role.admin") : t("role.moderator") }}</span>
+          <AppTag variant="accent" cap>{{ auth.isAdmin ? t("role.admin") : t("role.moderator") }}</AppTag>
         </div>
         <div class="lang" role="toolbar" aria-label="language">
           <button
@@ -250,12 +254,6 @@ async function signOut() {
 .avatar svg {
   width: 17px;
   height: 17px;
-}
-.badge.role {
-  color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 12%, transparent);
-  border-color: color-mix(in srgb, var(--accent) 28%, transparent);
-  text-transform: capitalize;
 }
 .lang {
   display: inline-flex;
