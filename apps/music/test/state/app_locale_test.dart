@@ -40,9 +40,7 @@ ProviderContainer makeContainer({
       // Override the derived bool directly (the established test seam) so the real
       // session graph is never built.
       canUseOnlineServicesProvider.overrideWithValue(online),
-      accountServiceProvider.overrideWithValue(
-        account ?? FakeAccountService(),
-      ),
+      accountServiceProvider.overrideWithValue(account ?? FakeAccountService()),
     ],
   );
   addTearDown(container.dispose);
@@ -142,27 +140,24 @@ void main() {
     expect(account.calls, isEmpty);
   });
 
-  test(
-    'syncOnLogin: a displayable server locale wins over the local choice '
-    'and is persisted without echoing a push',
-    () async {
-      final account = FakeAccountService();
-      final prefs = FakePreferencesService({AppLocale.prefsKey: 'en'});
-      final container = makeContainer(
-        prefs: prefs,
-        device: const Locale('en'),
-        online: true,
-        account: account,
-      );
-      await pumpEventQueue();
+  test('syncOnLogin: a displayable server locale wins over the local choice '
+      'and is persisted without echoing a push', () async {
+    final account = FakeAccountService();
+    final prefs = FakePreferencesService({AppLocale.prefsKey: 'en'});
+    final container = makeContainer(
+      prefs: prefs,
+      device: const Locale('en'),
+      online: true,
+      account: account,
+    );
+    await pumpEventQueue();
 
-      await container.read(appLocaleProvider.notifier).syncOnLogin('fr');
+    await container.read(appLocaleProvider.notifier).syncOnLogin('fr');
 
-      expect(container.read(appLocaleProvider), const Locale('fr'));
-      expect(prefs.store[AppLocale.prefsKey], 'fr'); // persisted locally
-      expect(account.lastSetLocale, isNull); // server-wins path never pushes
-    },
-  );
+    expect(container.read(appLocaleProvider), const Locale('fr'));
+    expect(prefs.store[AppLocale.prefsKey], 'fr'); // persisted locally
+    expect(account.lastSetLocale, isNull); // server-wins path never pushes
+  });
 
   test(
     'syncOnLogin: an unset server locale keeps the local choice and pushes it up',

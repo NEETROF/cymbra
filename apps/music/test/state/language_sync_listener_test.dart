@@ -72,7 +72,9 @@ void main() {
               as _TestSessionNotifier;
 
       // Sign in as u1 whose account language is French → UI switches to French.
-      session.emit(SessionState.authenticated(account: _acct('u1', locale: 'fr')));
+      session.emit(
+        SessionState.authenticated(account: _acct('u1', locale: 'fr')),
+      );
       await tester.pumpAndSettle();
       expect(container.read(appLocaleProvider), const Locale('fr'));
 
@@ -82,13 +84,17 @@ void main() {
 
       // Re-resolving the SAME account (e.g. after handle onboarding) must NOT
       // re-reconcile — the UI stays on the user's later local choice.
-      session.emit(SessionState.authenticated(account: _acct('u1', locale: 'fr')));
+      session.emit(
+        SessionState.authenticated(account: _acct('u1', locale: 'fr')),
+      );
       await tester.pumpAndSettle();
       expect(container.read(appLocaleProvider), const Locale('en'));
 
       // A different user (u2 = Italian) signs in → reconciles again.
       session.emit(const SessionState.unauthenticated());
-      session.emit(SessionState.authenticated(account: _acct('u2', locale: 'it')));
+      session.emit(
+        SessionState.authenticated(account: _acct('u2', locale: 'it')),
+      );
       await tester.pumpAndSettle();
       expect(container.read(appLocaleProvider), const Locale('it'));
     },

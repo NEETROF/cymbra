@@ -100,9 +100,7 @@ test.describe("i18n", () => {
     await expect(page.getByRole("heading", { name: "Revue du catalogue" })).toBeVisible();
   });
 
-  test("a signed-in account's stored language reconciles over the local choice on load", async ({
-    page,
-  }) => {
+  test("a signed-in account's stored language reconciles over the local choice on load", async ({ page }) => {
     // The account language is French (e.g. chosen on another device); the local key
     // is English (seed forces it). On boot the app reconciles the account language —
     // no click — proving cross-device propagation end-to-end (change: sync-account-
