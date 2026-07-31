@@ -36,6 +36,12 @@ pub trait UserRepo: Send + Sync {
     async fn count_identities(&self, user_id: &str) -> Result<usize>;
     async fn list_identities(&self, user_id: &str) -> Result<Vec<Identity>>;
     async fn get_account(&self, user_id: &str) -> Result<Account>;
+    /// Overwrite `user_id`'s stored preferred locale (change: persist-user-locale).
+    /// Unconditional write — the empty-input no-op is enforced one layer up in the
+    /// module, so the storage primitive stays a plain upsert.
+    async fn set_locale(&self, user_id: &str, locale: &str) -> Result<()>;
+    /// Read `user_id`'s stored preferred locale (`None` when unset).
+    async fn locale(&self, user_id: &str) -> Result<Option<String>>;
     /// `user_id` whose normalized handle key is `handle_key`, if any.
     async fn handle_owner(&self, handle_key: &str) -> Result<Option<String>>;
     /// Conditional update: applies only if the stored version == `expected_version`.
@@ -112,6 +118,8 @@ struct AccountRow {
     /// Profile visibility (change: add-play-activity-profile); private by default.
     visibility: String,
     share_eligible_from: Option<NaiveDate>,
+    /// Preferred locale (change: persist-user-locale); `None` until recorded.
+    locale: Option<String>,
 }
 
 impl Default for AccountRow {
@@ -126,6 +134,7 @@ impl Default for AccountRow {
             // Mirror the migration default: profiles are private until opt-in.
             visibility: "private".into(),
             share_eligible_from: None,
+            locale: None,
         }
     }
 }
@@ -235,6 +244,21 @@ impl UserRepo for FakeUserRepo {
             .get(user_id)
             .map(|row| Self::account(row, user_id))
             .ok_or_else(|| AppError::NotFound("account".into()))
+    }
+
+    async fn set_locale(&self, user_id: &str, locale: &str) -> Result<()> {
+        let mut s = self.state.lock().unwrap();
+        let row = s
+            .users
+            .get_mut(user_id)
+            .ok_or_else(|| AppError::NotFound("account".into()))?;
+        row.locale = Some(locale.to_string());
+        Ok(())
+    }
+
+    async fn locale(&self, user_id: &str) -> Result<Option<String>> {
+        let s = self.state.lock().unwrap();
+        Ok(s.users.get(user_id).and_then(|row| row.locale.clone()))
     }
 
     async fn handle_owner(&self, handle_key: &str) -> Result<Option<String>> {

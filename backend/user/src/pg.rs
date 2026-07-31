@@ -153,6 +153,28 @@ impl UserRepo for PgUserRepo {
         })
     }
 
+    async fn set_locale(&self, user_id: &str, locale: &str) -> Result<()> {
+        let res = sqlx::query("UPDATE users SET locale = $2, updated_at = now() WHERE id = $1")
+            .bind(parse_uuid(user_id)?)
+            .bind(locale)
+            .execute(&self.pool)
+            .await
+            .map_err(internal)?;
+        if res.rows_affected() == 0 {
+            return Err(AppError::NotFound("account".into()));
+        }
+        Ok(())
+    }
+
+    async fn locale(&self, user_id: &str) -> Result<Option<String>> {
+        let row = sqlx::query("SELECT locale FROM users WHERE id = $1")
+            .bind(parse_uuid(user_id)?)
+            .fetch_optional(&self.pool)
+            .await
+            .map_err(internal)?;
+        Ok(row.and_then(|r| r.get::<Option<String>, _>("locale")))
+    }
+
     async fn handle_owner(&self, handle_key: &str) -> Result<Option<String>> {
         let row = sqlx::query("SELECT id FROM users WHERE handle_key = $1")
             .bind(handle_key)
