@@ -22,6 +22,11 @@
     "moderator": "modérateur",
     "admin": "admin"
   },
+  "scope": {
+    "global": "global",
+    "music": "music",
+    "live": "live"
+  },
   "status": {
     "pending": "en attente",
     "accepted": "acceptée",
@@ -195,7 +200,7 @@
   },
   "roles": {
     "title": "Rôles",
-    "intro": "Parcours les comptes et attribue ou retire les rôles modérateur et admin (scope music). Filtre par handle ou e-mail. Chaque changement est enregistré dans l'historique d'audit du compte.",
+    "intro": "Parcours les comptes et attribue ou retire les rôles modérateur et admin dans un scope que tu administres. Choisis le scope, puis filtre par handle ou e-mail. Chaque changement est enregistré dans l'historique d'audit du compte.",
     "searchPlaceholder": "filtrer par handle ou e-mail",
     "search": "Rechercher",
     "colHandle": "Handle",

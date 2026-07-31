@@ -20,6 +20,36 @@ test.describe("roles directory (admin only)", () => {
     await expect(page.getByRole("button", { name: "Revoke moderator" })).toBeVisible();
   });
 
+  test("a music-only admin sees no scope selector (single scope)", async ({ page }) => {
+    await seed(page, { loginAs: "admin", data: { accounts: [ada] } });
+    await page.goto("/roles");
+
+    await expect(page.getByRole("heading", { name: "Roles" })).toBeVisible();
+    // Only `music` is authorized → the scope picker is hidden.
+    await expect(page.getByRole("combobox", { name: "Scope" })).toHaveCount(0);
+  });
+
+  test("a global admin switches scope and grants a role in the selected scope", async ({ page }) => {
+    const tara = {
+      userId: "u-tara",
+      handle: "tara",
+      displayName: "Tara",
+      rolesByScope: { global: [] as string[], music: [], live: [] },
+    };
+    await seed(page, { loginAs: "global-admin", data: { accounts: [tara] } });
+    await page.goto("/roles");
+
+    // A global admin gets the scope selector (global/music/live).
+    const scope = page.getByRole("combobox", { name: "Scope" });
+    await expect(scope).toBeVisible();
+    await scope.selectOption("live");
+
+    // Granting now targets the `live` scope; the row reflects it after the re-list.
+    await expect(page.getByRole("button", { name: "Grant moderator" })).toBeVisible();
+    await page.getByRole("button", { name: "Grant moderator" }).click();
+    await expect(page.getByRole("button", { name: "Revoke moderator" })).toBeVisible();
+  });
+
   test("filtering by handle narrows the directory", async ({ page }) => {
     await seed(page, { loginAs: "admin", data: { accounts: [ada, bob] } });
     await page.goto("/roles");

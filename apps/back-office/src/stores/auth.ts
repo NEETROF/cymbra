@@ -1,11 +1,12 @@
 import { defineStore } from "pinia";
 import { webAuth } from "@/lib/web-auth";
-import { decodeClaims, isAdmin, isModerator, type TokenClaims } from "@/lib/jwt";
+import { adminScopes, decodeClaims, isAdmin, isModerator, type Scope, type TokenClaims } from "@/lib/jwt";
 import { useLocaleStore } from "@/stores/locale";
 
-// The back office targets the `music` audience so `music`-scoped roles
-// (moderator/admin) flow into the token (design D2).
-const AUDIENCE = "music";
+// The back office targets the dedicated `back-office` audience: its token carries
+// the admin's real roles across global/music/live, so a single session can
+// administer every scope they are entitled to (change: scope-aware-role-admin).
+const AUDIENCE = "back-office";
 
 interface AuthState {
   // Memory-only: the access token is NEVER persisted (localStorage/sessionStorage/
@@ -21,7 +22,7 @@ interface AuthState {
 export const useAuthStore = defineStore("auth", {
   state: (): AuthState => ({
     accessToken: null,
-    claims: { roles: [] },
+    claims: { roles: [], rolesByScope: {} },
     bootstrapped: false,
   }),
   getters: {
@@ -30,6 +31,10 @@ export const useAuthStore = defineStore("auth", {
     isModerator: (s): boolean => isModerator(s.claims.roles),
     isAdmin: (s): boolean => isAdmin(s.claims.roles),
     userId: (s): string | undefined => s.claims.sub,
+    /** The scopes the signed-in admin may administer (empty for a non-admin). The
+     * Roles page and its scope selector are driven by this — a `music`-only admin
+     * never sees `live` or `global` (change: scope-aware-role-admin). */
+    adminScopes: (s): Scope[] => adminScopes(s.claims.rolesByScope),
   },
   actions: {
     setToken(accessToken: string) {
@@ -73,7 +78,7 @@ export const useAuthStore = defineStore("auth", {
     async signOut() {
       await webAuth().logout();
       this.accessToken = null;
-      this.claims = { roles: [] };
+      this.claims = { roles: [], rolesByScope: {} };
     },
   },
 });
