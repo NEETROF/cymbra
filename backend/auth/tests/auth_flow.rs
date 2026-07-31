@@ -62,7 +62,11 @@ async fn local_lifecycle_signup_verify_signin_refresh_reuse() -> Result<()> {
     );
     let sessions: Arc<dyn SessionStore> =
         Arc::new(PgSessionStore::new(auth_pool.clone(), cfg.refresh_ttl));
-    let m = AuthModule::new(user, creds, cache, email, oidc, sessions, PRIV, "k1", cfg)?;
+    let pending: Arc<dyn cymbra_auth::PendingCredentialStore> =
+        Arc::new(cymbra_auth::CachePendingStore::new(cache.clone()));
+    let m = AuthModule::new(
+        user, creds, cache, pending, email, oidc, sessions, PRIV, "k1", cfg,
+    )?;
 
     // Unique email per run.
     let email_addr = format!("it-{}@x.dev", uuid::Uuid::new_v4());

@@ -111,6 +111,8 @@ mod build_tests {
         let user_for_auth: Arc<dyn UserPort> = Arc::new(UserModule::new(FakeUserRepo::default()));
         let creds: Arc<dyn CredentialRepo> = Arc::new(FakeCredentialRepo::default());
         let cache: Arc<dyn Cache> = Arc::new(FakeCache::default());
+        let pending: Arc<dyn cymbra_auth::PendingCredentialStore> =
+            Arc::new(cymbra_auth::FakePendingStore::default());
         let email: Arc<dyn EmailSender> = Arc::new(FakeEmail::default());
         let oidc: Arc<dyn OidcVerifier> = Arc::new(FakeOidcVerifier::default());
         let sessions: Arc<dyn cymbra_auth::SessionStore> =
@@ -133,6 +135,7 @@ mod build_tests {
                 user_for_auth,
                 creds,
                 cache,
+                pending,
                 email,
                 oidc,
                 sessions,

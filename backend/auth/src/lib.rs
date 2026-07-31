@@ -10,6 +10,7 @@ pub mod creds;
 pub mod creds_pg;
 pub mod grpc;
 pub mod module;
+pub mod pending_setpw;
 pub mod session;
 pub mod session_pg;
 pub mod verifier;
@@ -18,6 +19,9 @@ pub use creds::{Credential, CredentialRepo, FakeCredentialRepo};
 pub use creds_pg::PgCredentialRepo;
 pub use grpc::AuthGrpc;
 pub use module::{AuthConfig, AuthModule};
+pub use pending_setpw::{
+    CachePendingStore, FakePendingStore, PendingCredentialStore, PendingLocalCredential,
+};
 pub use session::{AdminRevocation, FakeSessionStore, Rotated, SessionInfo, SessionStore};
 pub use session_pg::{PgSessionStore, reap_expired_sessions};
 pub use verifier::{FakeOidcVerifier, OidcProviderCfg, OidcVerifier, RealOidcVerifier};

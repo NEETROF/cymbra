@@ -102,10 +102,13 @@ async fn main() -> anyhow::Result<()> {
         cfg.reset_ttl,
         cfg.email_logo_url.clone(),
     );
+    let pending: Arc<dyn cymbra_auth::PendingCredentialStore> =
+        Arc::new(cymbra_auth::CachePendingStore::new(cache.clone()));
     let auth = Arc::new(AuthModule::new(
         user_dyn.clone(),
         creds,
         cache.clone(),
+        pending,
         email,
         oidc,
         sessions,

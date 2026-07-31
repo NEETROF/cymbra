@@ -19,13 +19,15 @@ import '../../l10n/gen/app_localizations.dart';
 import '../../state/connected_accounts_notifier.dart';
 import '../../state/connected_accounts_state.dart';
 import '../auth/auth_scaffold.dart';
+import '../auth/otp_verify_screen.dart';
 
 /// "Set a password" sub-flow (change: add-account-identity-linking): collects an
-/// email + password and adds a local credential to the current account. The
-/// action runs on [ConnectedAccountsNotifier]; this screen fires it and reacts to
-/// the resulting state — it pops itself once the credential is added (the parent
-/// screen's listener surfaces the "verify your email" message). Only offered when
-/// the account has no `local` identity yet.
+/// email + password for the current account. The action runs on
+/// [ConnectedAccountsNotifier]; this screen fires it and, on success, goes
+/// straight to the code-entry screen ([OtpVerifyScreen]) so the user verifies the
+/// email in place — the credential is bound only once the code is confirmed
+/// (change: verify-before-local-credential-link). The user stays signed in via
+/// their existing session. Only offered when the account has no `local` identity yet.
 class SetPasswordScreen extends ConsumerStatefulWidget {
   const SetPasswordScreen({super.key});
 
@@ -68,8 +70,9 @@ class _SetPasswordScreenState extends ConsumerState<SetPasswordScreen> {
       connectedAccountsNotifierProvider.select((s) => s.busy),
     );
 
-    // React to our action completing: pop on success (the parent screen shows the
-    // "verify your email" snackbar); stay on failure (the parent shows the error).
+    // React to our action completing: on success, go straight to the code-entry
+    // screen so the user verifies the email in place (the credential binds only on
+    // verification); stay on failure (the parent surfaces the error).
     ref.listen(connectedAccountsNotifierProvider.select((s) => s.actionSeq), (
       previous,
       next,
@@ -78,7 +81,24 @@ class _SetPasswordScreenState extends ConsumerState<SetPasswordScreen> {
       final state = ref.read(connectedAccountsNotifierProvider);
       if (state.lastAction != ConnectedAccountsAction.setPassword) return;
       _pendingSeq = null;
-      if (state.actionError == null && mounted) Navigator.of(context).pop();
+      if (state.actionError == null && mounted) {
+        // Push the code screen (do NOT replace this route): replacing would
+        // complete the parent's `await push(SetPasswordScreen)` immediately, firing
+        // its list-refresh before verification. Instead, wait for the code screen to
+        // return, then pop ourselves — so the parent refreshes only after the
+        // identity is actually bound (at verify time).
+        final email = _email.text.trim();
+        final navigator = Navigator.of(context);
+        navigator
+            .push(
+              MaterialPageRoute<void>(
+                builder: (_) => OtpVerifyScreen(email: email),
+              ),
+            )
+            .then((_) {
+              if (mounted) navigator.pop();
+            });
+      }
     });
 
     return AuthScaffold(
