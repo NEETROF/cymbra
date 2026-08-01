@@ -421,7 +421,9 @@ mod tests {
         bo_mod.audience = cymbra_platform::BACKOFFICE_AUDIENCE.into();
         for _ in 0..50 {
             l.check_download(&bo_mod).await.expect("back-office exempt");
-            l.check_enumeration(&bo_mod).await.expect("back-office exempt");
+            l.check_enumeration(&bo_mod)
+                .await
+                .expect("back-office exempt");
         }
     }
 
