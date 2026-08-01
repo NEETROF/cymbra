@@ -167,7 +167,12 @@
     "levelLabel": "level",
     "statusLabel": "moderation status"
   },
-  "detail": { "accept": "Accept", "reject": "Reject", "requeue": "Re-queue", "score": "Score" },
+  "detail": {
+    "accept": "Accept",
+    "reject": "Reject",
+    "requeue": "Re-queue",
+    "score": "Score"
+  },
   "edit": {
     "heading": "Edit metadata",
     "hint": "Correct the descriptive fields only. The facets below are derived from the score and cannot be edited.",
@@ -228,5 +233,11 @@
     "resourceExhausted": "Too many attempts. Try again later.",
     "unavailable": "Service unavailable. Try again.",
     "generic": "Something went wrong. Try again."
+  },
+  "id": {
+    "reveal": "Show full ID",
+    "full": "Full identifier",
+    "copy": "Copy",
+    "copied": "Copied"
   }
 }

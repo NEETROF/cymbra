@@ -356,6 +356,31 @@ then search a real title in the app. Drop `--source openscore` to sweep every
 source (it only rewrites titles that actually differ). Idempotent and resumable —
 per-row failures are logged and skipped, never fatal.
 
+**Mutopia is the exception.** Its titles show as `bwv 1001 1` (the source
+filename), and `backfill-titles` above will NOT fix them: the LilyPond→MusicXML
+conversion drops the title, so the stored `.mxl` has no `<work-title>` to re-derive
+from (those rows count as `no title`). The real title lives only in the source
+`.ly` `\header`, so a dedicated bin re-reads it from a fresh MutopiaProject
+checkout. It ships in the **crawler** image (which has git + the DB env), so run it
+as a one-off from the crawler compose, overriding the entrypoint:
+
+```bash
+cd /opt/cymbra/backend/deploy
+./backup.sh                                                   # snapshot the DB first
+
+# dry run — clones MutopiaProject, prints what WOULD change, writes nothing
+docker compose --env-file .env -f docker-compose.crawler.prod.yml \
+  run --rm --entrypoint backfill-mutopia-titles mutopia
+
+# apply once the counts look right
+docker compose --env-file .env -f docker-compose.crawler.prod.yml \
+  run --rm --entrypoint backfill-mutopia-titles mutopia --apply
+```
+
+It only rewrites the `title` (the composer already came from the MusicXML) and its
+`title_norm`/`work_key`, never a curator-edited row. Idempotent — a second dry run
+reports `updated: 0`.
+
 ### Enabling user score upload (the ScoreService)
 
 Off by default — the server logs `score-upload disabled` until `CYMBRA_SCORE_S3_BUCKET`

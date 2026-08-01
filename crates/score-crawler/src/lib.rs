@@ -20,6 +20,7 @@
 //! the heart; the git/dataset adapters and Postgres ingestion sit on top. The
 //! operator interface is the CLI and the Docker fan-out (`docker-compose.yml`).
 
+pub mod backfill;
 pub mod catalog;
 pub mod cli;
 pub mod config;

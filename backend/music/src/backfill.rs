@@ -46,6 +46,13 @@ pub struct BackfillRow {
     pub object_key: String,
     /// The currently-stored display title (possibly the wrong filename id).
     pub title: Option<String>,
+    /// Source-relative path of the original file (e.g. the Mutopia `.ly`). The
+    /// stored-bytes title backfill ignores it; the Mutopia backfill locates the
+    /// source `\header` with it (the converted MusicXML carries no title).
+    pub source_item_id: String,
+    /// The currently-stored composer. Read-only here — the Mutopia backfill reuses
+    /// it to keep `work_key`/`composer_norm` consistent when only the title moves.
+    pub composer: Option<String>,
 }
 
 /// The title triple to persist. Kept together so the display title (`title`) and
@@ -279,6 +286,8 @@ mod tests {
             id: id.into(),
             object_key: key.into(),
             title: title.map(Into::into),
+            source_item_id: format!("{id}.ly"),
+            composer: None,
         }
     }
 

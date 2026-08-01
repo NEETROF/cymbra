@@ -233,5 +233,11 @@
     "resourceExhausted": "Trop de tentatives. Réessaie plus tard.",
     "unavailable": "Service indisponible. Réessaie.",
     "generic": "Une erreur est survenue. Réessaie."
+  },
+  "id": {
+    "reveal": "Afficher l'ID complet",
+    "full": "Identifiant complet",
+    "copy": "Copier",
+    "copied": "Copié"
   }
 }

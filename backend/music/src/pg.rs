@@ -731,7 +731,7 @@ impl TitleBackfillRepo for PgTitleBackfillRepo {
         // metadata-refresh path never overwrites a moderator's correction.
         let after_uuid = uuid::Uuid::parse_str(after).ok();
         let rows = sqlx::query(
-            "SELECT id, object_key, title FROM music.catalog_scores \
+            "SELECT id, object_key, title, source_item_id, composer FROM music.catalog_scores \
              WHERE ($1::uuid IS NULL OR id > $1) \
                AND ($2::text IS NULL OR source = $2) \
                AND edited_by IS NULL \
@@ -749,6 +749,8 @@ impl TitleBackfillRepo for PgTitleBackfillRepo {
                 id: r.get::<uuid::Uuid, _>("id").to_string(),
                 object_key: r.get("object_key"),
                 title: r.get("title"),
+                source_item_id: r.get("source_item_id"),
+                composer: r.get("composer"),
             })
             .collect())
     }

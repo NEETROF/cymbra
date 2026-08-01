@@ -35,6 +35,9 @@ RUN apt-get update \
 # backend can `docker run cymbra/musescore …` against a mounted host socket.
 COPY --from=docker:cli /usr/local/bin/docker /usr/local/bin/docker
 COPY --from=build /src/target/release/score-crawler /usr/local/bin/score-crawler
+# One-off maintenance bin (run via `--entrypoint backfill-mutopia-titles`): repair
+# already-crawled Mutopia titles from the source `.ly` headers.
+COPY --from=build /src/target/release/backfill-mutopia-titles /usr/local/bin/backfill-mutopia-titles
 WORKDIR /work
 ENTRYPOINT ["score-crawler"]
 CMD ["--help"]
