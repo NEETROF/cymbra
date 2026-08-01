@@ -160,8 +160,13 @@ async fn main() -> anyhow::Result<()> {
         Some(db_url) => {
             let music_pool = db::connect(db_url, 5).await?;
             cymbra_music::MIGRATOR.run(&music_pool).await?;
+            // Shared play-session port: feeds both the PlayService and the catalog
+            // access limiter's play-aware download allowance (change: add-catalog-
+            // access-limits).
+            let play_repo: Arc<dyn cymbra_music::PlayRepo> =
+                Arc::new(cymbra_music::PgPlayRepo::new(music_pool.clone()));
             let play_module = Arc::new(cymbra_music::PlayModule::new(
-                Arc::new(cymbra_music::PgPlayRepo::new(music_pool.clone())),
+                play_repo.clone(),
                 user_dyn.clone(),
             ));
             let play_svc = Some(
@@ -194,8 +199,14 @@ async fn main() -> anyhow::Result<()> {
                         cfg.upload_quota_window_days,
                         cfg.upload_max_bytes,
                     ));
+                    // Per-user scrape guardrail over the shared Redis cache + play port.
+                    let limiter = Arc::new(cymbra_music::CatalogAccessLimiter::new(
+                        cache.clone(),
+                        play_repo.clone(),
+                        cfg.catalog_limits.clone(),
+                    ));
                     Some(ScoreServiceServer::with_interceptor(
-                        ScoreGrpc::new(module),
+                        ScoreGrpc::new(module).with_limiter(limiter),
                         strict.clone(),
                     ))
                 }

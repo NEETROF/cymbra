@@ -14,6 +14,7 @@
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:music/services/auth_service.dart';
 import 'package:music/services/notation_engine.dart';
 import 'package:music/services/score_asset_source.dart';
 import 'package:music/state/notation_data.dart';
@@ -82,6 +83,20 @@ void main() {
     // A parse error (not a backend AuthException) classifies as generic; the raw
     // exception text is logged, not stored for display.
     expect(read().failure, ScoreLoadFailure.generic);
+    expect(read().document, isNull);
+    expect(read().hasDocument, isFalse);
+  });
+
+  test('a RESOURCE_EXHAUSTED AuthException classifies as rateLimited', () async {
+    // The per-user catalog access limit surfaces as AuthError.rateLimited, which
+    // the notifier maps to a typed rate-limited failure so the UI can show the
+    // localized "slow down" message (change: add-catalog-access-limits).
+    container = build();
+    source.loadError = AuthException(AuthError.rateLimited);
+    container.read(selectedScoreProvider.notifier).select(firstEntry());
+    await _flush();
+
+    expect(read().failure, ScoreLoadFailure.rateLimited);
     expect(read().document, isNull);
     expect(read().hasDocument, isFalse);
   });

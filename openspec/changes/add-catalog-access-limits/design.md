@@ -124,11 +124,16 @@ reached under a multi-scope audience. Alternatives considered — `is_admin()`
 (scope-agnostic, over-broad) and `require_moderator_or_admin` (widens the bypass to
 moderators) — both rejected.
 
-### Decision 5: Wire `Cache` into `ScoreModule`; enforce in `grpc.rs`
-Add `Arc<dyn Cache>` to `ScoreModule::new` and its call site in `main.rs`. The
-`check` calls live in the `grpc.rs` handlers (or thin guard helpers) right after
-`identity()` resolves the caller, before any storage read — so a rejected request
-never touches the object store.
+### Decision 5: A dedicated `CatalogAccessLimiter`; enforce in `grpc.rs`
+Rather than thread `Arc<dyn Cache>` through `ScoreModule` (which owns only
+score-storage logic and has no caller identity), a dedicated `CatalogAccessLimiter`
+holds the `Cache` + play port + thresholds and exposes `check_download` /
+`check_enumeration`. `ScoreGrpc` holds it optionally (`with_limiter`) and calls it
+right after `identity()` resolves the caller, before any storage read — so a
+rejected request never touches the object store. This keeps the identity-aware guard
+at the gRPC layer (where identity lives) and leaves `ScoreModule` untouched. Unit
+tests construct `ScoreGrpc` with no limiter (un-limited) and a separate limited
+variant for the guardrail tests.
 
 ### Decision 6: `RESOURCE_EXHAUSTED` contract + config placement
 Reuse `AppError::ResourceExhausted` → gRPC `RESOURCE_EXHAUSTED`, identical to auth

@@ -27,6 +27,7 @@ use cymbra_platform::AuthIdentity;
 use tonic::{Request, Response, Status};
 
 use crate::catalog_edit::MetadataChanges;
+use crate::catalog_limits::CatalogAccessLimiter;
 use crate::catalog_search::{CatalogHit, CatalogQuery, SortKey, is_moderation_sort_field};
 use crate::module::{ScoreModule, UploadInput};
 use crate::proto::{
@@ -47,16 +48,46 @@ use crate::user_scores::UserScore;
 /// Wraps the score module as a tonic `ScoreService`.
 pub struct ScoreGrpc {
     module: Arc<ScoreModule>,
+    /// Per-user catalog access guardrail (change: add-catalog-access-limits). `None`
+    /// leaves the service un-limited (used by unit tests); production wires it via
+    /// [`Self::with_limiter`].
+    limiter: Option<Arc<CatalogAccessLimiter>>,
 }
 
 impl ScoreGrpc {
     pub fn new(module: Arc<ScoreModule>) -> Self {
-        Self { module }
+        Self {
+            module,
+            limiter: None,
+        }
+    }
+
+    /// Attach the per-user access limiter that guards browse/search/download egress.
+    pub fn with_limiter(mut self, limiter: Arc<CatalogAccessLimiter>) -> Self {
+        self.limiter = Some(limiter);
+        self
     }
 
     /// Mountable tonic server.
     pub fn into_server(self) -> ScoreServiceServer<Self> {
         ScoreServiceServer::new(self)
+    }
+
+    /// Enforce the download guardrail (burst + play-aware volume) when a limiter is
+    /// wired; a breach surfaces as `RESOURCE_EXHAUSTED` before any storage read.
+    async fn guard_download(&self, id: &AuthIdentity) -> Result<(), Status> {
+        if let Some(l) = &self.limiter {
+            l.check_download(id).await?;
+        }
+        Ok(())
+    }
+
+    /// Enforce the enumeration (browse/search/deck) request-rate cap when wired.
+    async fn guard_enumeration(&self, id: &AuthIdentity) -> Result<(), Status> {
+        if let Some(l) = &self.limiter {
+            l.check_enumeration(id).await?;
+        }
+        Ok(())
     }
 }
 
@@ -197,6 +228,7 @@ impl ScoreService for ScoreGrpc {
         req: Request<SearchCatalogRequest>,
     ) -> Result<Response<SearchCatalogResponse>, Status> {
         let id = identity(&req)?; // authenticated-only (catalog is public, not owner-scoped)
+        self.guard_enumeration(&id).await?; // per-user browse cap (scrape guard)
         // The moderation-status filter and any moderation-oriented sort key are
         // privileged and back-office-only: when the caller uses either, they MUST be
         // authorised — reject with PERMISSION_DENIED and run no query otherwise.
@@ -297,6 +329,7 @@ impl ScoreService for ScoreGrpc {
         // gets not-found otherwise (change: add-score-moderation-gating, widened to
         // moderator by add-moderation-back-office).
         let id = identity(&req)?;
+        self.guard_download(&id).await?; // per-user download guardrail (scrape guard)
         let allow_unvalidated = id.is_admin() || id.has_role("moderator");
         let catalog_id = req.into_inner().catalog_id;
         let data = self
@@ -314,7 +347,8 @@ impl ScoreService for ScoreGrpc {
         // score's bytes for the deck's read-only preview; a `rejected`/unknown id is
         // not-found. The player-open bytes path and library save stay accepted-only
         // (change: rate-pending-scores).
-        let _ = identity(&req)?;
+        let id = identity(&req)?;
+        self.guard_download(&id).await?; // shares the per-user download guardrail
         let catalog_id = req.into_inner().catalog_id;
         let data = self.module.rating_preview_bytes(&catalog_id).await?;
         Ok(Response::new(GetRatingPreviewBytesResponse { data }))
@@ -328,6 +362,7 @@ impl ScoreService for ScoreGrpc {
         // caller only `accepted` (non-`accepted` id → not-found). Lets a detail view
         // load by id without depending on a prior list.
         let id = identity(&req)?;
+        self.guard_enumeration(&id).await?; // per-user browse cap (scrape guard)
         let allow_unvalidated = id.is_admin() || id.has_role("moderator");
         let catalog_id = req.into_inner().catalog_id;
         let hit = self
@@ -403,7 +438,9 @@ impl ScoreService for ScoreGrpc {
     ) -> Result<Response<ListRatingDeckResponse>, Status> {
         // Authenticated-only; the un-rated exclusion is per caller (change:
         // improve-rating-deck-sourcing).
-        let user_id = owner(&req)?;
+        let id = identity(&req)?;
+        self.guard_enumeration(&id).await?; // per-user browse cap (scrape guard)
+        let user_id = id.user_id;
         let r = req.into_inner();
         let offset = r.offset;
         let hits = self
@@ -468,6 +505,32 @@ mod tests {
         ScoreGrpc::new(module)
     }
 
+    /// Like [`grpc`] but with the per-user access limiter enabled at tiny thresholds
+    /// (download floor 2, burst 3, enum 2) so the guardrail trips quickly in tests
+    /// (change: add-catalog-access-limits).
+    async fn grpc_limited() -> ScoreGrpc {
+        use crate::catalog_limits::CatalogAccessLimiter;
+        use cymbra_platform::cache::FakeCache;
+        use cymbra_platform::config::CatalogLimitsConfig;
+        let cfg = CatalogLimitsConfig {
+            enabled: true,
+            download_burst_max: 3,
+            download_burst_window: std::time::Duration::from_secs(60),
+            volume_window: std::time::Duration::from_secs(24 * 3600),
+            volume_base_floor: 2,
+            volume_per_play: 2,
+            volume_hard_ceiling: 20,
+            enum_max: 2,
+            enum_window: std::time::Duration::from_secs(60),
+        };
+        let limiter = Arc::new(CatalogAccessLimiter::new(
+            Arc::new(FakeCache::default()),
+            Arc::new(crate::play::FakePlayRepo::default()),
+            cfg,
+        ));
+        grpc().await.with_limiter(limiter)
+    }
+
     /// Attach an authenticated identity to a request (as the interceptor would).
     fn authed<T>(msg: T, user_id: &str) -> Request<T> {
         authed_with(msg, user_id, &["user"])
@@ -526,6 +589,59 @@ mod tests {
             .await
             .unwrap_err();
         assert_eq!(err.code(), tonic::Code::Unauthenticated);
+    }
+
+    #[tokio::test]
+    async fn access_limits_reject_download_and_enumeration_floods() {
+        let g = grpc_limited().await;
+        // Download floor is 2 (no plays) → the 3rd catalog-bytes fetch is rejected
+        // with RESOURCE_EXHAUSTED (before any storage read).
+        for _ in 0..2 {
+            g.get_catalog_score_bytes(authed(
+                GetCatalogScoreBytesRequest {
+                    catalog_id: DEBUSSY.into(),
+                },
+                "u1",
+            ))
+            .await
+            .expect("within download floor");
+        }
+        let err = g
+            .get_catalog_score_bytes(authed(
+                GetCatalogScoreBytesRequest {
+                    catalog_id: DEBUSSY.into(),
+                },
+                "u1",
+            ))
+            .await
+            .unwrap_err();
+        assert_eq!(err.code(), tonic::Code::ResourceExhausted);
+
+        // Rating-preview bytes share the same per-user download counter, so u1 is
+        // already over budget on that path too.
+        let err = g
+            .get_rating_preview_bytes(authed(
+                GetRatingPreviewBytesRequest {
+                    catalog_id: PENDING.into(),
+                },
+                "u1",
+            ))
+            .await
+            .unwrap_err();
+        assert_eq!(err.code(), tonic::Code::ResourceExhausted);
+
+        // Enumeration cap is 2 → the 3rd search by a fresh user is throttled while
+        // the page-size clamp is unaffected.
+        for _ in 0..2 {
+            g.search_catalog(authed(search("", None, None), "u2"))
+                .await
+                .expect("within enum cap");
+        }
+        let err = g
+            .search_catalog(authed(search("", None, None), "u2"))
+            .await
+            .unwrap_err();
+        assert_eq!(err.code(), tonic::Code::ResourceExhausted);
     }
 
     #[tokio::test]
