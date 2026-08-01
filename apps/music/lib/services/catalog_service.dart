@@ -157,6 +157,11 @@ abstract class CatalogService {
   /// score already rated by the caller is never returned, so the deck empties
   /// once everything is rated.
   Future<CatalogSearchPage> ratingDeck({int limit, int offset});
+
+  /// The caller's per-user offline-cache secret — created on first request and
+  /// stable thereafter (change: add-offline-score-cache). One input to the app's
+  /// local offline-cache key derivation; the same value across the user's devices.
+  Future<Uint8List> getOfflineCacheKey();
 }
 
 /// Wire form of a [PracticeLevel] for the backend's `level` filter.
@@ -285,6 +290,15 @@ class GrpcCatalogService implements CatalogService {
               resp.hits.length, // no separate total; the page length suffices
         );
       });
+
+  @override
+  Future<Uint8List> getOfflineCacheKey() => _authed((bearer) async {
+    final resp = await _client.getOfflineCacheKey(
+      score.GetOfflineCacheKeyRequest(),
+      options: bearerOptions(bearer),
+    );
+    return Uint8List.fromList(resp.secret);
+  });
 }
 
 /// Production catalog-service provider. Override in tests with a fake.

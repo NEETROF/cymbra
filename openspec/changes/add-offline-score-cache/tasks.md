@@ -33,36 +33,40 @@
 
 ## 2. App — crypto + key provider seams
 
-- [ ] 2.1 Add `path_provider` dependency; confirm AES-256-GCM + HKDF-SHA256
-  primitives (via `crypto`/`cryptography`) and pin choice.
-- [ ] 2.2 Define an injectable `OfflineKeyProvider` seam: derives the KEK via
-  HKDF over {keystore device key, server per-user secret, user uuid, per-install
-  seed}; generates + persists the per-install seed in `flutter_secure_storage`;
-  build version deliberately excluded. Provide a production impl + a fake.
-- [ ] 2.3 Add a `KeystoreProbe` that write-reads-back a canary in the keystore to
-  detect a usable secure store (fail-closed signal). Best-effort, never throws to
-  UI (mirror [token_store.dart](apps/music/lib/services/token_store.dart)).
-- [ ] 2.4 Fetch + cache the server per-user secret (new backend RPC) behind a
-  service seam; keep it in the keystore, refresh opportunistically when online.
-- [ ] 2.5 Unit tests: HKDF determinism for fixed inputs, per-install-seed
-  uniqueness, KEK changes when any input changes, keystore-probe true/false.
+- [x] 2.1 Added `path_provider` + `cryptography` (AES-256-GCM + HKDF-SHA256, pure
+  Dart so it unit-tests off-device) to `pubspec.yaml`.
+- [x] 2.2 `OfflineKeyProvider` seam (`offline_key_provider.dart`): `HkdfOfflineKeyProvider`
+  derives the KEK via HKDF-SHA256 over {keystore device key, server secret, user
+  uuid, per-install seed}; device key + seed generated once via the injectable
+  `SecureBytesStore` (flutter_secure_storage); build version excluded. Prod +
+  in-memory/unavailable fakes.
+- [x] 2.3 `hasUsableKeystore()` write-reads-back a canary (fail-closed signal),
+  best-effort like [token_store.dart](apps/music/lib/services/token_store.dart)
+  (swallows platform failures, never throws to UI).
+- [x] 2.4 `OfflineServerSecretService` (`offline_server_secret_service.dart`):
+  fetches the server secret via the new `getOfflineCacheKey` RPC on `CatalogService`,
+  caches it in the keystore, refreshes opportunistically, falls back to cache offline.
+- [x] 2.5 Unit tests (`offline_key_provider_test.dart`): HKDF determinism,
+  per-install-seed uniqueness, KEK changes on any input change, probe true/false,
+  fail-closed, clear-forces-new-key.
 
 ## 3. App — encrypted cache store
 
-- [ ] 3.1 Define an injectable `OfflineScoreCache` seam over the app's private
-  cache directory: `write(entryKey, bytes)`, `read(entryKey) -> bytes?`,
-  `evict(entryKey)`, `purgeAll()`, keyed by stable `catalog:<id>` /
-  `contributed:<id>`.
-- [ ] 3.2 Implement envelope encryption on write (random DEK, AES-256-GCM, DEK
-  wrapped by the KEK; wrapped DEK + nonce in the file header). No plaintext on
-  disk.
-- [ ] 3.3 Implement decrypt on read; on auth-tag failure or missing key material,
-  treat as a miss (delete the file, return null).
-- [ ] 3.4 Wire fail-closed: when `KeystoreProbe` reports no usable keystore,
-  `write` is a no-op and `read` returns null (online-only).
-- [ ] 3.5 Provide a production impl + an in-memory fake; register providers.
-- [ ] 3.6 Unit tests: round-trip write→read, tamper→miss, cross-seed file →
-  undecryptable, no-keystore → no write, purgeAll clears everything.
+- [x] 3.1 `OfflineScoreCache` seam (`offline_score_cache.dart`): `write`, `read`,
+  `has`, `evict`, `purgeAll`, keyed by `catalog:<id>` / `contributed:<id>` (file
+  name is the SHA-256 of the key, so ids don't leak).
+- [x] 3.2 Envelope encryption on write (random per-file DEK, AES-256-GCM, DEK
+  wrapped by the KEK; header carries wrap nonce + wrapped DEK + payload nonce +
+  plaintext SHA + ETag). Temp-write-then-rename; no plaintext on disk.
+- [x] 3.3 Decrypt on read; auth-tag failure / parse error / integrity-hash
+  mismatch → miss (delete the file, return null).
+- [x] 3.4 Fail-closed: when the keystore is unusable (KEK null), `write` is a
+  no-op and `read` returns null (also for guest / no server secret).
+- [x] 3.5 Production `EncryptedFileOfflineScoreCache` + in-memory
+  `InMemoryOfflineScoreCache` fake; `offlineScoreCacheProvider` registered.
+- [x] 3.6 Unit tests (`offline_score_cache_test.dart`): round-trip, no-plaintext,
+  tamper→miss, integrity-hash mismatch→miss, cross-install→undecryptable,
+  no-keystore/guest/no-secret→no write, evict, purgeAll.
 
 ## 4. App — load path integration
 
