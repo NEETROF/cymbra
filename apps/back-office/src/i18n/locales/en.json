@@ -148,7 +148,10 @@
     "needsReview": "Re-review",
     "needsReviewHint": "Flagged by community ratings — an accepted score rated down enough to warrant a second look.",
     "empty": "No scores.",
-    "sortBy": "sort by {field}"
+    "sortBy": "sort by {field}",
+    "actions": "Actions",
+    "download": "Download MusicXML",
+    "downloading": "Downloading…"
   },
   "filters": {
     "query": "title or composer",
