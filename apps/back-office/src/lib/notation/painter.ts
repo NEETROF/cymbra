@@ -166,9 +166,19 @@ function paintSystem(ctx: Ctx, system: System, yTop: number, isFirst: boolean): 
   if (twoStaff) drawClef(svg, clefFor(headerClefs, 2), s * 0.4, bassBottom, s);
   let hx = s * 3.0;
 
-  const fifths = doc.attributes.key_fifths;
-  const keyWidth = drawKeySignature(svg, hx, trebleBottom, fifths, false);
-  if (twoStaff) drawKeySignature(svg, hx, bassBottom, fifths, true);
+  // Armure of THIS system: the key in force at its first measure, not one
+  // document-wide value — so a piece that modulates shows the right signature on
+  // every line, and a key change at the system boundary shows the change
+  // (cancelling naturals + new signature).
+  const firstIdx = system.measures[0];
+  const systemKey = doc.measures[firstIdx].key_fifths;
+  const prevKey = firstIdx > 0 ? doc.measures[firstIdx - 1].key_fifths : null;
+  const drawHeaderKey = (sb: number, bass: boolean): number =>
+    prevKey !== null && prevKey !== systemKey
+      ? drawKeyChange(svg, hx, sb, prevKey, systemKey, bass)
+      : drawKeySignature(svg, hx, sb, systemKey, bass);
+  const keyWidth = drawHeaderKey(trebleBottom, false);
+  if (twoStaff) drawHeaderKey(bassBottom, true);
   hx += keyWidth;
 
   if (isFirst) {
@@ -186,11 +196,13 @@ function paintSystem(ctx: Ctx, system: System, yTop: number, isFirst: boolean): 
   const scale = totalMin > 0 ? usable / totalMin : 1.0;
 
   let x = headerX;
-  for (const idx of system.measures) {
+  for (let k = 0; k < system.measures.length; k++) {
+    const idx = system.measures[k];
     const mWidth = doc.measures[idx].min_width * scale;
     svg.line(x + mWidth, systemTop, x + mWidth, systemBottom, "bar");
     ctx.measures.push({ index: idx, x, width: mWidth, top: systemTop, bottom: systemBottom });
-    paintMeasure(ctx, idx, x, mWidth, trebleBottom, bassBottom);
+    const previousKeyFifths = k > 0 ? doc.measures[system.measures[k - 1]].key_fifths : null;
+    paintMeasure(ctx, idx, x, mWidth, trebleBottom, bassBottom, previousKeyFifths);
     x += mWidth;
   }
 }
@@ -221,6 +233,38 @@ function drawKeySignature(svg: Svg, xStart: number, staffBottom: number, fifths:
   return count * adv * s + s * 0.4;
 }
 
+// A key change from oldFifths to newFifths: a natural cancels every accidental
+// that leaves the signature (on its old staff position), then the new signature
+// follows. Returns the width it consumed.
+function drawKeyChange(
+  svg: Svg,
+  xStart: number,
+  staffBottom: number,
+  oldFifths: number,
+  newFifths: number,
+  isBass: boolean,
+): number {
+  const oldSharp = oldFifths > 0;
+  const oldSteps = oldSharp ? S.sharpSteps : S.flatSteps;
+  const oldCount = Math.min(Math.abs(oldFifths), 7);
+  const newSharp = newFifths > 0;
+  const newSteps = newSharp ? S.sharpSteps : S.flatSteps;
+  const newCount = Math.min(Math.abs(newFifths), 7);
+  const kept = new Set<number>();
+  if (oldSharp === newSharp) for (let i = 0; i < newCount; i++) kept.add(newSteps[i]);
+
+  const adv = 0.95;
+  let x = xStart;
+  for (let i = 0; i < oldCount; i++) {
+    const step = oldSteps[i];
+    if (kept.has(step)) continue;
+    svg.glyph(S.accidentalNatural, x, staffBottom - (step - (isBass ? 2 : 0)) * (s / 2), s);
+    x += adv * s;
+  }
+  const newWidth = drawKeySignature(svg, x, staffBottom, newFifths, isBass);
+  return x - xStart + newWidth;
+}
+
 function drawTimeSignature(svg: Svg, xStart: number, staffBottom: number, beats: number, beatType: number): number {
   const midY = staffBottom - 2 * s;
   const cx = xStart + s * 0.9;
@@ -243,14 +287,24 @@ function paintMeasure(
   measureWidth: number,
   trebleBottom: number,
   bassBottom: number,
+  previousKeyFifths: number | null,
 ): void {
   const measure = ctx.doc.measures[measureIdx];
   const clefs = ctx.clefAt[measureIdx];
   const beamGroups = new Map<string, StemNote[]>();
 
+  // A mid-system key change (modulation): cancelling naturals + the new
+  // signature at the measure start, reserving space before the first note.
+  let keyLead = 0;
+  if (previousKeyFifths !== null && measure.key_fifths !== previousKeyFifths) {
+    keyLead = drawKeyChange(ctx.svg, measureX + s * 0.3, trebleBottom, previousKeyFifths, measure.key_fifths, false);
+    if (ctx.twoStaff)
+      drawKeyChange(ctx.svg, measureX + s * 0.3, bassBottom, previousKeyFifths, measure.key_fifths, true);
+  }
+
   const xForPosition = (position: number): number => {
     const frac = ctx.divPerMeasure > 0 ? clamp(position / ctx.divPerMeasure, 0, 1) : 0;
-    return measureX + s + frac * (measureWidth - 2.4 * s);
+    return measureX + s + keyLead + frac * (measureWidth - keyLead - 2.4 * s);
   };
 
   for (let ni = 0; ni < measure.notes.length; ni++) {

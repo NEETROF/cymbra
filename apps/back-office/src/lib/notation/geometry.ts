@@ -68,6 +68,10 @@ export interface NotationMeasure {
   notes: NoteEvent[];
   // directions are present in the model but not drawn by the v1 painter.
   clefs: Clef[];
+  // Key signature (fifths) in force during this measure, carried from the last
+  // <key> change — so the painter draws the right armure per system and a key
+  // change where it differs from the previous measure.
+  key_fifths: number;
   min_width: number;
 }
 
