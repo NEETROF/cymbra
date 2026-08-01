@@ -61,6 +61,18 @@ const Map<String, int> _semitoneOfStep = {
   'B': 11,
 };
 
+/// Diatonic index of a step within its octave (C=0…B=6) — for the note's
+/// written staff position (line/space), independent of any alteration.
+const Map<String, int> _diatonicOfStep = {
+  'C': 0,
+  'D': 1,
+  'E': 2,
+  'F': 3,
+  'G': 4,
+  'A': 5,
+  'B': 6,
+};
+
 /// MIDI note number for a [Pitch] (C4 = 60). Octave 4, step C, alter 0 → 60.
 int midiOfPitch(Pitch pitch) {
   final base = _semitoneOfStep[pitch.step] ?? 0;
@@ -146,6 +158,7 @@ DerivedPlayback notationToTimedNotes(ScoreDocument document) {
           clefLine: c?.line ?? (note.staff >= 2 ? 4 : 2),
           noteType: note.noteType,
           dots: note.dots,
+          diatonic: pitch.octave * 7 + (_diatonicOfStep[pitch.step] ?? 0),
         ),
       );
       if (startMs + durationMs > songEndMs) songEndMs = startMs + durationMs;

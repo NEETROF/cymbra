@@ -268,5 +268,23 @@ void main() {
       expect(d.measureKeyFifths, [-4, -4, -1]);
       expect(d.measureKeyFifths, hasLength(d.measureStartMs.length));
     });
+
+    test('carries the written diatonic step, not the MIDI collapse', () {
+      // A♭4 (step A, octave 4, alter −1) must sit on the A line/space, like the
+      // engraved Partition — never collapsed onto G via its MIDI number. The
+      // Staff painter positions by this value so the two views agree.
+      final doc = _docWith(
+        notes: [
+          noteEvent(
+            durationDivisions: 16,
+            pitch: const Pitch(step: 'A', octave: 4, alter: -1),
+          ),
+        ],
+      );
+      final aFlat = notationToTimedNotes(doc).notes.single;
+      expect(aFlat.diatonic, 4 * 7 + 5, reason: 'written A4 position');
+      // A G4 would be one diatonic step lower — the two must not coincide.
+      expect(aFlat.diatonic, isNot(4 * 7 + 4));
+    });
   });
 }

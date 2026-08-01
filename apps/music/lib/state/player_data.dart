@@ -63,6 +63,13 @@ class TimedNote {
   /// dotted notes faithfully.
   final int dots;
 
+  /// Written diatonic staff step (`octave*7 + step`, C=0…B=6) — the note's
+  /// **line/space**, from its spelled step, not [pitch] (MIDI). Lets the Staff
+  /// painter place e.g. an A♭ on the A line like the engraved Partition, instead
+  /// of collapsing it onto G via the MIDI number. Null for the demo score and
+  /// replay journal (MIDI-only), where the painter falls back to [pitch].
+  final int? diatonic;
+
   const TimedNote({
     required this.pitch,
     required this.startMs,
@@ -73,6 +80,7 @@ class TimedNote {
     this.clefLine = 2,
     this.noteType,
     this.dots = 0,
+    this.diatonic,
   });
 }
 
