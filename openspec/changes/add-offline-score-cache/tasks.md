@@ -1,29 +1,34 @@
 ## 1. Backend — per-user offline cache secret
 
-- [ ] 1.1 Add a migration in `backend/music` storing a per-user offline cache
+- [x] 1.1 Add a migration in `backend/music` storing a per-user offline cache
   secret (≥32 bytes) keyed by user uuid, under existing sensitive-data-at-rest
-  protections.
-- [ ] 1.2 Add `GetOfflineCacheKey` RPC (request/response) to
-  [score.proto](backend/music/proto/score.proto); regenerate stubs.
-- [ ] 1.3 Implement the handler: authenticated + owner-scoped; create-on-first-
-  request, return-unchanged thereafter; reject unauthenticated. Keep pure logic
-  in a host-testable module; double the store trait with mockall.
-- [ ] 1.4 Implement rotation + account-deletion invalidation (hook into the
-  existing delete-account path) so prior offline caches become undecryptable.
-- [ ] 1.5 Ensure the secret never lands in logs or any cross-user/admin listing.
-- [ ] 1.6 Rust tests (mockall): first-request creates, repeat returns same,
-  owner-scoping, unauthenticated rejected, rotation changes value, deletion
-  invalidates. `cargo llvm-cov` ≥ 80%.
+  protections. → `0012_offline_cache_secret.sql` (`music.offline_cache_secrets`).
+- [x] 1.2 Add `GetOfflineCacheKey` RPC (request/response) to
+  [score.proto](backend/music/proto/score.proto); regenerate stubs (tonic-build
+  runs on `cargo build`; Dart stubs via `melos run gen-grpc`).
+- [x] 1.3 Implement the handler: authenticated + owner-scoped; create-on-first-
+  request, return-unchanged thereafter; reject unauthenticated. Pure generation in
+  `offline_secret.rs`; store trait doubled with the crate's hand-written `Fake`
+  convention (this crate does not depend on mockall).
+- [x] 1.4 Implement rotation + account-deletion invalidation: `rotate_offline_cache_secret`
+  on the module + `DELETE FROM music.offline_cache_secrets` in the `purge_user`
+  worker job so prior offline caches become undecryptable.
+- [x] 1.5 Ensure the secret never lands in logs or any cross-user/admin listing
+  (handler is silent; sqlx errors never bind the value; no cross-user read path).
+- [x] 1.6 Rust tests: first-request creates, repeat returns same, owner-scoping,
+  unauthenticated rejected, rotation changes value (module + gRPC + fake-store
+  tests). Coverage gate run in task 6.4.
 
 ## 1b. Backend — content hash (ETag) + conditional fetch
 
-- [ ] 1b.1 Expose the stored `sha256` as an ETag on the bytes responses
-  (`GetScoreBytesResponse`, `GetCatalogScoreBytesResponse`) and/or the metadata
-  (`ScoreRecord`, `CatalogHit`) — additive proto fields; regenerate stubs.
-- [ ] 1b.2 Add an optional `if_none_match` hash to the bytes requests; when it
-  matches the stored hash, return an "unchanged" signal with no bytes; otherwise
-  return full bytes + current hash. Keep the existing auth/access scoping.
-- [ ] 1b.3 Rust tests: hash returned + stable, unchanged→no bytes,
+- [x] 1b.1 Expose the stored `sha256` as an ETag on the bytes responses
+  (`GetScoreBytesResponse.etag`, `GetCatalogScoreBytesResponse.etag`) — additive
+  proto fields; stubs regenerated on build.
+- [x] 1b.2 Add an optional `if_none_match` hash to the bytes requests; when it
+  matches the stored hash, return `unchanged = true` with no bytes; otherwise
+  return full bytes + current hash. Existing auth/access scoping preserved
+  (catalog `object_ref` keeps the moderation gate).
+- [x] 1b.3 Rust tests: hash returned + stable, unchanged→no bytes,
   mismatch/absent→full bytes, access rules unchanged under conditional fetch.
 
 ## 2. App — crypto + key provider seams

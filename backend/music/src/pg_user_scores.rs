@@ -25,6 +25,7 @@ use chrono::{DateTime, Utc};
 use cymbra_platform::{AppError, Result};
 use sqlx::{PgPool, Row, postgres::PgRow};
 
+use crate::offline_secret::OfflineSecretRepo;
 use crate::pg::{META_COLS, bind_meta, meta_from_row};
 use crate::user_library::UserLibraryRepo;
 use crate::user_scores::{UserScore, UserScoreRepo};
@@ -294,5 +295,71 @@ impl UserLibraryRepo for PgUserLibraryRepo {
             .iter()
             .map(|r| r.get::<uuid::Uuid, _>("catalog_id").to_string())
             .collect())
+    }
+}
+
+/// Postgres-backed [`OfflineSecretRepo`] over the `music_svc` pool — the per-user
+/// offline-cache secret (change: add-offline-score-cache). Every statement is
+/// owner-scoped by `user_id`; the secret value is never logged (sqlx errors are
+/// funneled through the generic [`internal`] without binding the value into any
+/// message).
+pub struct PgOfflineSecretRepo {
+    pool: PgPool,
+}
+
+impl PgOfflineSecretRepo {
+    pub fn new(pool: PgPool) -> Self {
+        Self { pool }
+    }
+}
+
+#[async_trait]
+impl OfflineSecretRepo for PgOfflineSecretRepo {
+    async fn get(&self, user_id: &str) -> Result<Option<Vec<u8>>> {
+        let uid = parse_uuid(user_id)?;
+        let row = sqlx::query("SELECT secret FROM music.offline_cache_secrets WHERE user_id = $1")
+            .bind(uid)
+            .fetch_optional(&self.pool)
+            .await
+            .map_err(internal)?;
+        Ok(row.map(|r| r.get::<Vec<u8>, _>("secret")))
+    }
+
+    async fn create_if_absent(&self, user_id: &str, candidate: &[u8]) -> Result<Vec<u8>> {
+        let uid = parse_uuid(user_id)?;
+        // Atomic get-or-create: insert the candidate, but on a pre-existing row do
+        // nothing; the `RETURNING` from the INSERT is empty on conflict, so a second
+        // SELECT resolves the value that actually won (existing on a race). One
+        // round-trip in the common (create) path.
+        let inserted = sqlx::query_scalar::<_, Vec<u8>>(
+            "INSERT INTO music.offline_cache_secrets (user_id, secret) VALUES ($1, $2) \
+             ON CONFLICT (user_id) DO NOTHING RETURNING secret",
+        )
+        .bind(uid)
+        .bind(candidate)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(internal)?;
+        if let Some(secret) = inserted {
+            return Ok(secret);
+        }
+        // Conflict: a secret already existed — return the stored value unchanged.
+        self.get(user_id)
+            .await?
+            .ok_or_else(|| AppError::Internal(anyhow::anyhow!("offline secret vanished on race")))
+    }
+
+    async fn rotate(&self, user_id: &str, secret: &[u8]) -> Result<()> {
+        let uid = parse_uuid(user_id)?;
+        sqlx::query(
+            "INSERT INTO music.offline_cache_secrets (user_id, secret) VALUES ($1, $2) \
+             ON CONFLICT (user_id) DO UPDATE SET secret = EXCLUDED.secret, rotated_at = now()",
+        )
+        .bind(uid)
+        .bind(secret)
+        .execute(&self.pool)
+        .await
+        .map_err(internal)?;
+        Ok(())
     }
 }
