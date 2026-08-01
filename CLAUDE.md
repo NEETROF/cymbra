@@ -124,6 +124,37 @@ a compliant short message.
   per machine (see `README`/SUPPORT); auto-activates each session. `/caveman lite`
   or uninstall to disable.
 
+## Code knowledge graphs (Graphify — opt-in)
+
+Optional local tooling that lets an AI assistant answer *relationship* questions
+("what calls X", "blast radius of changing Y", "what are the architectural hubs")
+from a knowledge graph instead of blind grepping. Local AST only — no API key, no
+tokens, nothing leaves the machine. **Not** in CI, **not** required to build.
+
+Install once per machine, then build the graphs:
+```bash
+uv tool install graphifyy && graphify install   # once
+scripts/graphify.sh                              # build/refresh all three (~5s)
+scripts/graphify.sh install-hook                 # optional: background refresh after every commit
+```
+
+Three separate per-stack graphs (git-ignored, rebuilt locally):
+- `graphify-out/graph.json` — **Rust workspace** (backend + crates + apps/music/rust;
+  `frb_generated.rs` excluded). High quality: method-level call graph.
+- `apps/music/graphify-out/graph.json` — **Flutter** app. Coarser (file/import-level;
+  Dart extraction is weaker — `_` nodes pollute the hubs).
+- `apps/back-office/graphify-out/graph.json` — **Vue** back office. Good quality.
+
+Query from repo root (add `--graph <path>` for the app graphs):
+```bash
+graphify god-nodes --top 10
+graphify explain "EnqueueRequest"
+graphify affected "EnqueueRequest" --depth 2
+```
+Best for Rust impact/orientation. It **complements** grep — it points to `file:line`
+anchors, it doesn't replace reading them. Cross-stack (Rust↔Dart↔Vue) is deliberately
+NOT linked: each graph is one language; cross the boundary via the `.proto` / frb API contract.
+
 ## Before opening a PR
 
 - `melos run analyze` and `dart format` clean
