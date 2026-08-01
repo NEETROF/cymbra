@@ -124,11 +124,37 @@ pub fn plan_edit(current: &CurrentMeta, changes: &MetadataChanges) -> Result<Edi
     diff(&mut ch, "arranger", &current.arranger, &arranger);
     diff(&mut ch, "level", &current.level, &level);
 
-    // Derived search keys from the FINAL title/composer, via the same normalization the
-    // ingest/backfill use (so the trigram index + work_key grouping stay consistent).
-    let title_norm = title.as_deref().map(cymbra_musicxml_core::normalize_text);
+    // Derived search keys from the FINAL title/composer.
+    let keys = derive_keys(title.as_deref(), composer.as_deref());
+
+    Ok(EditPlan {
+        title,
+        composer,
+        arranger,
+        level,
+        title_norm: keys.title_norm,
+        composer_norm: keys.composer_norm,
+        work_key: keys.work_key,
+        changes: ch,
+    })
+}
+
+/// The derived search keys recomputed from a row's final title/composer.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DerivedKeys {
+    pub title_norm: Option<String>,
+    pub composer_norm: String,
+    pub work_key: String,
+}
+
+/// Recomputes the derived search keys (`title_norm`, `composer_norm`, `work_key`)
+/// from a title/composer via the same `normalize_text` the ingest uses. This is
+/// the single home of that formula — shared by curator edits ([`plan_edit`]) and
+/// source-data backfills — so the trigram index and same-work grouping stay
+/// consistent however a row's descriptive fields change.
+pub fn derive_keys(title: Option<&str>, composer: Option<&str>) -> DerivedKeys {
+    let title_norm = title.map(cymbra_musicxml_core::normalize_text);
     let composer_norm = composer
-        .as_deref()
         .map(cymbra_musicxml_core::normalize_text)
         .unwrap_or_default();
     let work_key = format!(
@@ -136,17 +162,11 @@ pub fn plan_edit(current: &CurrentMeta, changes: &MetadataChanges) -> Result<Edi
         composer_norm,
         title_norm.clone().unwrap_or_default()
     );
-
-    Ok(EditPlan {
-        title,
-        composer,
-        arranger,
-        level,
+    DerivedKeys {
         title_norm,
         composer_norm,
         work_key,
-        changes: ch,
-    })
+    }
 }
 
 fn diff(

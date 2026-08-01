@@ -13,6 +13,13 @@ authors.workspace = true
 name = "score-crawler"
 path = "src/main.rs"
 
+# One-off maintenance bin: repair already-crawled Mutopia titles from the source
+# `.ly` headers (the converted `.mxl` carries no `<work-title>`, so the shared
+# stored-bytes `backfill-titles` can't). Ships in the crawler image.
+[[bin]]
+name = "backfill-mutopia-titles"
+path = "src/bin/backfill_mutopia_titles.rs"
+
 [dependencies]
 # Shared notation engine: validation + .mxl re-parse + the parsed model that
 # metadata/difficulty read. Single source of truth across app/backend/crawler.

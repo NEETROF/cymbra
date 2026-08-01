@@ -76,16 +76,26 @@ impl MutopiaSource {
 /// ("BWV 1001 Adagio") is preferred over the shared `title` ("Sonata I BWV
 /// 1001") so sibling movements don't collapse to one name.
 fn enrich_from_header(item: &mut Item, ly: &str) {
-    if let Some(title) =
-        parse_ly_header_field(ly, "mutopiatitle").or_else(|| parse_ly_header_field(ly, "title"))
-    {
+    let (title, composer) = header_title_composer(ly);
+    if let Some(title) = title {
         item.title = Some(title);
     }
-    // `composer` is the human name ("Johann Sebastian Bach (1685-1750)"); the
-    // sibling `mutopiacomposer` is an opaque id ("BachJS") — never use it.
-    if let Some(composer) = parse_ly_header_field(ly, "composer") {
+    if let Some(composer) = composer {
         item.composer = Some(composer);
     }
+}
+
+/// The source-authoritative `(title, composer)` from a `.ly` `\header`, each
+/// `None` when its field is absent. Shared by discovery ([`enrich_from_header`])
+/// and the catalog title backfill so both derive them identically. Prefers the
+/// movement-distinct `mutopiatitle` over the shared `title`; `composer` is the
+/// human name ("Johann Sebastian Bach (1685-1750)") — never the opaque
+/// `mutopiacomposer` id ("BachJS").
+pub fn header_title_composer(ly: &str) -> (Option<String>, Option<String>) {
+    let title =
+        parse_ly_header_field(ly, "mutopiatitle").or_else(|| parse_ly_header_field(ly, "title"));
+    let composer = parse_ly_header_field(ly, "composer");
+    (title, composer)
 }
 
 #[async_trait]
