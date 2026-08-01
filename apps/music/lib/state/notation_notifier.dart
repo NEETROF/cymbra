@@ -17,10 +17,13 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../services/auth_service.dart';
 import '../services/catalog_service.dart';
+import '../services/connectivity_service.dart';
 import '../services/notation_engine.dart';
+import '../services/offline_score_cache.dart';
 import '../services/score_asset_source.dart';
 import '../services/score_upload_service.dart';
 import 'notation_data.dart';
+import 'saved_catalog_scores.dart';
 import 'score_catalog.dart';
 
 part 'notation_notifier.g.dart';
@@ -58,22 +61,14 @@ class Notation extends _$Notation {
     final width = state.availableWidth > 0
         ? state.availableWidth
         : _initialWidth;
+    final cacheKey = _cacheKey(entry);
     try {
-      // Bytes come from: the backend contributed-score source (a user upload),
-      // the catalog byte source (a saved public-catalog score), or the asset
-      // bundle (a bundled score). Same parse → layout path either way.
-      final Uint8List bytes;
-      if (entry.contributedId != null) {
-        bytes = await ref
-            .read(scoreUploadServiceProvider)
-            .fetchBytes(entry.contributedId!);
-      } else if (entry.catalogId != null) {
-        bytes = await ref
-            .read(catalogServiceProvider)
-            .fetchBytes(entry.catalogId!);
-      } else {
-        bytes = await _source.load(entry.assetPath);
-      }
+      // Bytes come from: a byte-sourced score (a user upload or a saved public-
+      // catalog score) via the offline-preferred cache path, or the asset bundle
+      // (a bundled score). Same parse → layout path either way.
+      final Uint8List bytes = cacheKey != null
+          ? await _loadByteSourced(entry, cacheKey)
+          : await _source.load(entry.assetPath);
       final document = await _engine.parse(bytes);
       // Guard against a selection change while we were loading.
       if (ref.read(selectedScoreProvider) != entry) return;
@@ -89,8 +84,76 @@ class Notation extends _$Notation {
       // message keyed off the typed [ScoreLoadFailure], never the raw
       // exception/gRPC text.
       debugPrint('Notation load failed for ${entry.id}: $e');
-      state = NotationData(failure: _classify(e), availableWidth: width);
+      final failure = await _classifyLoad(entry, cacheKey, e);
+      if (ref.read(selectedScoreProvider) != entry) return;
+      state = NotationData(failure: failure, availableWidth: width);
     }
+  }
+
+  /// Stable cache key for a byte-sourced entry, or `null` for a bundled asset
+  /// (bundled scores are already local and public — never cached).
+  static String? _cacheKey(CatalogEntry entry) {
+    if (entry.contributedId != null) return 'contributed:${entry.contributedId}';
+    if (entry.catalogId != null) return 'catalog:${entry.catalogId}';
+    return null;
+  }
+
+  /// Load a byte-sourced score, preferring a valid local encrypted copy so a
+  /// favorited-and-once-opened score plays offline. On a cache miss the network
+  /// fetch is the source of truth, and its bytes are cached when the entry is a
+  /// favorite (the "opened once while favorited" write). Caching is a no-op when
+  /// unavailable (guest / no keystore / offline).
+  Future<Uint8List> _loadByteSourced(CatalogEntry entry, String cacheKey) async {
+    final cache = ref.read(offlineScoreCacheProvider);
+    final cached = await cache.read(cacheKey);
+    if (cached != null) {
+      // Content is immutable under a stable id, so a cache hit is authoritative;
+      // no online round-trip is needed to play it.
+      return cached.bytes;
+    }
+    final bytes = await _fetchBytes(entry);
+    if (await _isFavorite(entry)) {
+      // The ETag round-trip is a separate optimization; the plaintext-hash
+      // integrity check inside the cache guards the entry regardless.
+      await cache.write(cacheKey, bytes, etag: '');
+    }
+    return bytes;
+  }
+
+  Future<Uint8List> _fetchBytes(CatalogEntry entry) {
+    if (entry.contributedId != null) {
+      return ref.read(scoreUploadServiceProvider).fetchBytes(entry.contributedId!);
+    }
+    return ref.read(catalogServiceProvider).fetchBytes(entry.catalogId!);
+  }
+
+  /// Whether [entry] is currently in the user's favorites (the cache-write gate).
+  /// Uploads carry their own flag; a catalog entry is a favorite iff it is in the
+  /// saved-library list.
+  Future<bool> _isFavorite(CatalogEntry entry) async {
+    if (entry.contributedId != null) return entry.favorite;
+    if (entry.catalogId != null) {
+      final saved = ref.read(savedCatalogScoresProvider).valueOrNull ?? const [];
+      return saved.any((e) => e.catalogId == entry.catalogId);
+    }
+    return false;
+  }
+
+  /// Classify a load failure. A byte-sourced favorite with no cached copy while
+  /// the device is offline gets the dedicated "not available offline" message
+  /// instead of the generic server-unavailable one.
+  Future<ScoreLoadFailure> _classifyLoad(
+    CatalogEntry entry,
+    String? cacheKey,
+    Object e,
+  ) async {
+    if (cacheKey != null &&
+        e is AuthException &&
+        e.error == AuthError.unavailable) {
+      final online = await ref.read(connectivityServiceProvider).isOnline();
+      if (!online) return ScoreLoadFailure.offlineUnavailable;
+    }
+    return _classify(e);
   }
 
   /// Maps a load exception to a typed [ScoreLoadFailure] so the UI can show a

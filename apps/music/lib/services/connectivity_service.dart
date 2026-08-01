@@ -25,6 +25,11 @@ abstract class ConnectivityService {
   /// Emits an event whenever connectivity is (re)gained (a transition to any
   /// non-`none` transport). The sender re-drains the outbox on each event.
   Stream<void> get onOnline;
+
+  /// A point-in-time reachability check (change: add-offline-score-cache): `true`
+  /// when any non-`none` transport is present. Used to tell "app is offline" from
+  /// "online but the backend failed" when classifying a score-load failure.
+  Future<bool> isOnline();
 }
 
 /// Production [ConnectivityService] over `connectivity_plus`.
@@ -38,6 +43,18 @@ class ConnectivityPlusService implements ConnectivityService {
   Stream<void> get onOnline => _connectivity.onConnectivityChanged
       .where((results) => results.any((r) => r != ConnectivityResult.none))
       .map((_) {});
+
+  @override
+  Future<bool> isOnline() async {
+    try {
+      final results = await _connectivity.checkConnectivity();
+      return results.any((r) => r != ConnectivityResult.none);
+    } catch (_) {
+      // If the platform can't answer, assume offline so the byte cache is the
+      // source of truth (never a false "online" that would suppress the cache).
+      return false;
+    }
+  }
 }
 
 /// Production connectivity-service provider. Override in tests with a fake.

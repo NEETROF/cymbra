@@ -18,6 +18,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../analytics/usage_actions.dart';
+import '../services/offline_score_cache.dart';
 import '../services/score_upload_service.dart';
 import 'score_catalog.dart';
 import 'score_upload_notifier.dart';
@@ -88,14 +89,25 @@ class MyUploads extends _$MyUploads {
               subjectId: contributedId,
             ),
       );
+      // Un-favoriting removes it from the home → drop the offline cache file
+      // (change: add-offline-score-cache). Favoriting keeps any existing copy.
+      if (!favorite) {
+        await ref
+            .read(offlineScoreCacheProvider)
+            .evict('contributed:$contributedId');
+      }
       return _fetch();
     });
   }
 
-  /// Delete one of the caller's uploads (destructive), then reload.
+  /// Delete one of the caller's uploads (destructive), then reload. Also evicts
+  /// its offline cache file (change: add-offline-score-cache).
   Future<void> delete(String contributedId) async {
     state = await AsyncValue.guard(() async {
       await ref.read(scoreUploadServiceProvider).deleteScore(contributedId);
+      await ref
+          .read(offlineScoreCacheProvider)
+          .evict('contributed:$contributedId');
       return _fetch();
     });
   }
