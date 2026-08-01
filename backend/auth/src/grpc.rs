@@ -219,6 +219,7 @@ mod tests {
             user_id: user_id.into(),
             audience: "music".into(),
             roles: roles.iter().map(|r| r.to_string()).collect(),
+            ..Default::default()
         });
         req
     }

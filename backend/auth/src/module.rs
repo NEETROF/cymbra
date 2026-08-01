@@ -58,6 +58,18 @@ fn now_secs() -> i64 {
         .as_secs() as i64
 }
 
+/// Resolve the effective transactional-email locale (change: persist-user-locale,
+/// D4) — the precedence **request → stored → English**, defined once. A non-empty
+/// request locale always wins; otherwise the account's stored preference is used;
+/// absent both, [`SupportedLocale::parse`] maps `None` to English.
+fn effective_locale(request_locale: &str, stored_locale: Option<&str>) -> SupportedLocale {
+    if request_locale.is_empty() {
+        SupportedLocale::parse(stored_locale)
+    } else {
+        SupportedLocale::parse(Some(request_locale))
+    }
+}
+
 /// Build the enqueue request for a verification email. The producer renders the
 /// branded multipart email here, so the worker's `verification_email` handler just
 /// transports the `{to, subject, html, text}` payload (design D2). Idempotency is
@@ -121,10 +133,31 @@ impl AuthModule {
         }
     }
 
+    /// Build the signed access-token claims for `user_id` at `audience`, carrying
+    /// roles grouped by scope so authorization can be scope-matched. The
+    /// `back-office` console aggregates the admin's roles across `global` + every app
+    /// scope; an app audience stays single-scope (`global` + that app) (change:
+    /// scope-aware-role-admin).
+    async fn access_claims(&self, user_id: &str, audience: &str) -> Result<token::Claims> {
+        let scopes: Vec<String> = if audience == cymbra_platform::BACKOFFICE_AUDIENCE {
+            let mut v = vec!["global".to_string()];
+            v.extend(cymbra_platform::APP_SCOPES.iter().map(|s| s.to_string()));
+            v
+        } else {
+            vec!["global".to_string(), audience.to_string()]
+        };
+        let roles_by_scope = self.user.scoped_effective_roles(user_id, &scopes).await?;
+        Ok(token::new_claims_scoped(
+            user_id,
+            audience,
+            roles_by_scope,
+            self.cfg.access_ttl,
+        ))
+    }
+
     /// Mint an access (signed) + refresh (session) token pair for `audience`.
     async fn issue(&self, user_id: &str, audience: &str) -> Result<TokenPair> {
-        let roles = self.user.effective_roles(user_id, audience).await?;
-        let claims = token::new_claims(user_id, audience, roles, self.cfg.access_ttl);
+        let claims = self.access_claims(user_id, audience).await?;
         let access = token::sign(&claims, &self.kid, &self.signing_key)?;
         let refresh = self.sessions.create(user_id, audience).await?;
         Ok(TokenPair {
@@ -171,8 +204,11 @@ impl AuthPort for AuthModule {
         password::check_policy(password, self.cfg.password_min_length)?;
         let hash = password::hash(password)?;
         self.creds.insert(email, &hash).await?; // AlreadyExists if taken
-        // Provision the shared account + its `local` identity.
-        self.user.resolve_or_provision("local", email).await?;
+        // Provision the shared account + its `local` identity, then record the
+        // request locale as the account's preference (no-op on empty — change:
+        // persist-user-locale).
+        let uid = self.user.resolve_or_provision("local", email).await?;
+        self.user.set_locale(&uid, locale).await?;
         let tok = uuid::Uuid::new_v4().to_string();
         let exp = now_secs() + self.cfg.verify_ttl.as_secs() as i64;
         // Enqueue the verification email as a job in the same transaction as the
@@ -241,12 +277,18 @@ impl AuthPort for AuthModule {
         if let Some(cred) = self.creds.get(email).await?
             && !cred.email_verified
         {
+            // Refresh the stored locale (no-op on empty) and render in the
+            // effective locale: request → stored → English (change:
+            // persist-user-locale).
+            let uid = self.user.resolve_or_provision("local", email).await?;
+            self.user.set_locale(&uid, locale).await?;
+            let stored = self.user.locale(&uid).await?;
             let tok = uuid::Uuid::new_v4().to_string();
             let exp = now_secs() + self.cfg.verify_ttl.as_secs() as i64;
             self.creds.set_verification(email, &tok, exp).await?;
             let rendered = email_template::verification_email(
                 &tok,
-                SupportedLocale::parse(Some(locale)),
+                effective_locale(locale, stored.as_deref()),
                 self.cfg.email_logo_url.as_deref(),
             );
             self.email.send(email, &rendered).await?;
@@ -307,11 +349,10 @@ impl AuthPort for AuthModule {
 
     async fn refresh(&self, refresh_token: &str) -> Result<TokenPair> {
         let rot = self.sessions.rotate(refresh_token).await?;
-        let roles = self
-            .user
-            .effective_roles(&rot.user_id, &rot.audience)
-            .await?;
-        let claims = token::new_claims(&rot.user_id, &rot.audience, roles, self.cfg.access_ttl);
+        // Re-resolve the caller's current per-scope roles and preserve the session's
+        // audience, so a role change takes effect on the next refresh and a
+        // back-office session stays multi-scope (change: scope-aware-role-admin).
+        let claims = self.access_claims(&rot.user_id, &rot.audience).await?;
         let access = token::sign(&claims, &self.kid, &self.signing_key)?;
         Ok(TokenPair {
             access_token: access,
@@ -351,12 +392,18 @@ impl AuthPort for AuthModule {
         )
         .await?;
         if let Some(_cred) = self.creds.get(email).await? {
+            // Locale refresh + stored-locale fallback lookup live INSIDE the
+            // account-exists branch (design D5), so they add no observable
+            // difference between existing and non-existing accounts.
+            let uid = self.user.resolve_or_provision("local", email).await?;
+            self.user.set_locale(&uid, locale).await?;
+            let stored = self.user.locale(&uid).await?;
             let tok = uuid::Uuid::new_v4().to_string();
             let exp = now_secs() + self.cfg.reset_ttl.as_secs() as i64;
             self.creds.set_reset(email, &tok, exp).await?;
             let rendered = email_template::password_reset_email(
                 &tok,
-                SupportedLocale::parse(Some(locale)),
+                effective_locale(locale, stored.as_deref()),
                 self.cfg.email_logo_url.as_deref(),
             );
             self.email.send(email, &rendered).await?;
@@ -478,6 +525,7 @@ mod tests {
         email: Arc<FakeEmail>,
         pending: Arc<crate::pending_setpw::FakePendingStore>,
         sessions: Arc<crate::session::FakeSessionStore>,
+        user: Arc<dyn UserPort>,
     }
 
     fn harness() -> Harness {
@@ -494,7 +542,11 @@ mod tests {
         let cfg = AuthConfig::new(
             Duration::from_secs(900),
             Duration::from_secs(2_592_000),
-            vec!["music".into(), "live".into()],
+            vec![
+                "music".into(),
+                "live".into(),
+                cymbra_platform::BACKOFFICE_AUDIENCE.into(),
+            ],
             12,
             3,
             Duration::from_secs(60),
@@ -505,7 +557,7 @@ mod tests {
             None,
         );
         let m = AuthModule::new(
-            user,
+            user.clone(),
             creds.clone(),
             cache,
             pending_dyn,
@@ -523,6 +575,7 @@ mod tests {
             email,
             pending,
             sessions,
+            user,
         }
     }
 
@@ -544,6 +597,51 @@ mod tests {
         let claims = ptoken::verify(&pair.access_token, &keys(), &["music"]).unwrap();
         assert_eq!(claims.aud, "music");
         assert!(claims.roles.contains(&"user".to_string()));
+        // An app audience stays single-scope: only `global` (+ its own scope) roles.
+        assert!(claims.roles_by_scope.contains_key("global"));
+        assert!(!claims.roles_by_scope.contains_key("live"));
+    }
+
+    #[tokio::test]
+    async fn back_office_signin_carries_every_scope_and_refresh_reflects_changes() {
+        let h = harness();
+        h.m.sign_up_local("adm@x.dev", PW, "").await.unwrap();
+        let tok = h.creds.peek_verification_token("adm@x.dev").unwrap();
+        h.m.verify_email(&tok).await.unwrap();
+        // The account is a music/admin and a live/moderator (but not global).
+        let uid = h
+            .user
+            .resolve_or_provision("local", "adm@x.dev")
+            .await
+            .unwrap();
+        h.user
+            .grant_role("seed", &uid, "music", "admin")
+            .await
+            .unwrap();
+        h.user
+            .grant_role("seed", &uid, "live", "moderator")
+            .await
+            .unwrap();
+
+        let ba = cymbra_platform::BACKOFFICE_AUDIENCE;
+        let pair = h.m.sign_in_local("adm@x.dev", PW, ba).await.unwrap();
+        let claims = ptoken::verify(&pair.access_token, &keys(), &[ba]).unwrap();
+        assert_eq!(claims.aud, ba);
+        // The back-office token carries the real per-scope roles across all scopes.
+        assert_eq!(claims.roles_by_scope["music"], vec!["admin".to_string()]);
+        assert_eq!(claims.roles_by_scope["live"], vec!["moderator".to_string()]);
+        assert_eq!(claims.roles_by_scope["global"], vec!["user".to_string()]);
+
+        // A role change takes effect on the next refresh, audience preserved.
+        h.user
+            .revoke_role("seed", &uid, "live", "moderator")
+            .await
+            .unwrap();
+        let refreshed = h.m.refresh(&pair.refresh_token).await.unwrap();
+        let claims = ptoken::verify(&refreshed.access_token, &keys(), &[ba]).unwrap();
+        assert_eq!(claims.aud, ba);
+        assert!(!claims.roles_by_scope.contains_key("live"));
+        assert_eq!(claims.roles_by_scope["music"], vec!["admin".to_string()]);
     }
 
     #[tokio::test]
@@ -937,6 +1035,67 @@ mod tests {
         assert!(msg.html.contains("#7C3AED"));
         assert!(msg.html.contains(&code));
         assert!(msg.text.contains(&code));
+    }
+
+    // --- Persisted locale as the email fallback (change: persist-user-locale) --
+
+    #[tokio::test]
+    async fn sign_up_records_locale_and_resend_falls_back_to_it() {
+        let h = harness();
+        // Sign up carrying French → the account's stored locale becomes fr.
+        h.m.sign_up_local("a@x.dev", PW, "fr-FR").await.unwrap();
+        // A later resend that carries NO locale renders in the STORED (French)
+        // locale, not English.
+        h.m.resend_verification("a@x.dev", "").await.unwrap();
+        let sent = h.email.sent.lock().unwrap();
+        let msg = sent.first().expect("resend should send one email");
+        assert_eq!(msg.subject, "Vérifiez votre compte Cymbra");
+    }
+
+    #[tokio::test]
+    async fn request_locale_overrides_stored_locale() {
+        let h = harness();
+        // Stored locale is French from sign-up …
+        h.m.sign_up_local("a@x.dev", PW, "fr").await.unwrap();
+        // … but an explicit Italian request wins over the stored French.
+        h.m.resend_verification("a@x.dev", "it").await.unwrap();
+        let sent = h.email.sent.lock().unwrap();
+        let msg = sent.first().expect("resend should send one email");
+        assert_eq!(msg.subject, "Verifica il tuo account Cymbra");
+    }
+
+    #[tokio::test]
+    async fn no_stored_and_no_request_locale_renders_in_english() {
+        let h = harness();
+        // No locale at sign-up → nothing stored.
+        h.m.sign_up_local("a@x.dev", PW, "").await.unwrap();
+        // Resend with no locale either → English fallback.
+        h.m.resend_verification("a@x.dev", "").await.unwrap();
+        let sent = h.email.sent.lock().unwrap();
+        let msg = sent.first().expect("resend should send one email");
+        assert_eq!(msg.subject, "Verify your Cymbra account");
+    }
+
+    #[tokio::test]
+    async fn password_reset_is_enumeration_uniform_with_stored_locale_lookup() {
+        let h = harness();
+        // An existing, verified account whose stored locale is French.
+        h.m.sign_up_local("real@x.dev", PW, "fr").await.unwrap();
+        let vt = h.creds.peek_verification_token("real@x.dev").unwrap();
+        h.m.verify_email(&vt).await.unwrap();
+
+        // Both an existing and a non-existing address return the SAME uniform Ok(()).
+        h.m.request_password_reset("real@x.dev", "").await.unwrap();
+        h.m.request_password_reset("ghost@x.dev", "").await.unwrap();
+
+        // Only the existing account produced an email — the stored-locale lookup
+        // (inside the account-exists branch) adds no externally observable
+        // difference; the ghost address yields nothing.
+        let sent = h.email.sent.lock().unwrap();
+        assert_eq!(sent.len(), 1);
+        assert_eq!(sent[0].to, "real@x.dev");
+        // …and with no request locale it rendered in the stored (French) locale.
+        assert_eq!(sent[0].subject, "Réinitialisez votre mot de passe Cymbra");
     }
 
     #[tokio::test]

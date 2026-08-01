@@ -3,10 +3,14 @@ import { computed, ref } from "vue";
 import { RouterLink, RouterView, useRoute, useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
 import { useAuthStore } from "@/stores/auth";
-import { currentLocale, setLocale, SUPPORTED_LOCALES } from "@/i18n";
+import { useLocaleStore } from "@/stores/locale";
+import { currentLocale, SUPPORTED_LOCALES } from "@/i18n";
 import AppTag from "@/components/AppTag.vue";
 
 const auth = useAuthStore();
+// Language selection goes through the store so a signed-in choice is also recorded
+// on the account (change: sync-account-language-preference).
+const locale = useLocaleStore();
 const router = useRouter();
 const route = useRoute();
 const { t } = useI18n();
@@ -115,7 +119,7 @@ async function signOut() {
             :key="l"
             type="button"
             :class="{ active: currentLocale() === l }"
-            @click="setLocale(l)"
+            @click="locale.choose(l)"
           >
             {{ l.toUpperCase() }}
           </button>
@@ -138,7 +142,7 @@ async function signOut() {
           :key="l"
           type="button"
           :class="{ active: currentLocale() === l }"
-          @click="setLocale(l)"
+          @click="locale.choose(l)"
         >
           {{ l.toUpperCase() }}
         </button>

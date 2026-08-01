@@ -7,7 +7,7 @@
 use async_trait::async_trait;
 use chrono::NaiveDate;
 use cymbra_platform::{AppError, Result};
-use cymbra_user_port::{Account, AccountPage, AccountSummary, Identity, RoleGrant};
+use cymbra_user_port::{Account, AccountPage, AccountSummary, Identity, RoleGrant, ScopeRoles};
 use std::collections::HashMap;
 use std::sync::Mutex;
 
@@ -36,6 +36,12 @@ pub trait UserRepo: Send + Sync {
     async fn count_identities(&self, user_id: &str) -> Result<usize>;
     async fn list_identities(&self, user_id: &str) -> Result<Vec<Identity>>;
     async fn get_account(&self, user_id: &str) -> Result<Account>;
+    /// Overwrite `user_id`'s stored preferred locale (change: persist-user-locale).
+    /// Unconditional write — the empty-input no-op is enforced one layer up in the
+    /// module, so the storage primitive stays a plain upsert.
+    async fn set_locale(&self, user_id: &str, locale: &str) -> Result<()>;
+    /// Read `user_id`'s stored preferred locale (`None` when unset).
+    async fn locale(&self, user_id: &str) -> Result<Option<String>>;
     /// `user_id` whose normalized handle key is `handle_key`, if any.
     async fn handle_owner(&self, handle_key: &str) -> Result<Option<String>>;
     /// Conditional update: applies only if the stored version == `expected_version`.
@@ -56,6 +62,13 @@ pub trait UserRepo: Send + Sync {
     async fn delete_orphans_before(&self, cutoff_unix: i64) -> Result<u64>;
     /// Roles whose scope is in `scopes` (e.g. `["global", "live"]`).
     async fn roles_for_scope(&self, user_id: &str, scopes: &[&str]) -> Result<Vec<String>>;
+    /// Roles the user holds in each of `scopes`, as `(scope, role)` pairs — the
+    /// per-scope breakdown a back-office token needs (change: scope-aware-role-admin).
+    async fn roles_by_scope(
+        &self,
+        user_id: &str,
+        scopes: &[String],
+    ) -> Result<Vec<(String, String)>>;
     async fn grant_role(&self, user_id: &str, scope: &str, role: &str) -> Result<()>;
     /// Remove `(user_id, scope, role)` if present (idempotent; change:
     /// add-moderation-back-office).
@@ -73,15 +86,18 @@ pub trait UserRepo: Send + Sync {
     /// The audit history for `user_id`, most recent first.
     async fn list_role_grants(&self, user_id: &str) -> Result<Vec<RoleGrant>>;
     /// A page of the account directory (change: add-admin-account-directory):
-    /// accounts (with their `music`-scope roles) matching `query` — empty matches
-    /// all; otherwise a `handle_key` prefix OR a `local` identity whose email equals
-    /// `query` — ordered by handle (nulls last) then creation, plus the total count.
+    /// accounts (with their roles grouped by the given `scopes`) matching `query` —
+    /// empty matches all; otherwise a `handle_key` prefix OR a `local` identity whose
+    /// email equals `query` — ordered by handle (nulls last) then creation, plus the
+    /// total count. Only roles in `scopes` are returned (change:
+    /// scope-aware-role-admin).
     async fn list_accounts(
         &self,
         query: &str,
         handle_key: &str,
         limit: i64,
         offset: i64,
+        scopes: &[String],
     ) -> Result<AccountPage>;
 
     /// Read the profile row (identity + visibility + eligibility) for `user_id`
@@ -112,6 +128,8 @@ struct AccountRow {
     /// Profile visibility (change: add-play-activity-profile); private by default.
     visibility: String,
     share_eligible_from: Option<NaiveDate>,
+    /// Preferred locale (change: persist-user-locale); `None` until recorded.
+    locale: Option<String>,
 }
 
 impl Default for AccountRow {
@@ -126,6 +144,7 @@ impl Default for AccountRow {
             // Mirror the migration default: profiles are private until opt-in.
             visibility: "private".into(),
             share_eligible_from: None,
+            locale: None,
         }
     }
 }
@@ -166,6 +185,7 @@ impl FakeUserRepo {
             version: row.version,
             updated_at: 0,
             handle: row.handle.clone(),
+            locale: row.locale.clone(),
         }
     }
 }
@@ -235,6 +255,21 @@ impl UserRepo for FakeUserRepo {
             .get(user_id)
             .map(|row| Self::account(row, user_id))
             .ok_or_else(|| AppError::NotFound("account".into()))
+    }
+
+    async fn set_locale(&self, user_id: &str, locale: &str) -> Result<()> {
+        let mut s = self.state.lock().unwrap();
+        let row = s
+            .users
+            .get_mut(user_id)
+            .ok_or_else(|| AppError::NotFound("account".into()))?;
+        row.locale = Some(locale.to_string());
+        Ok(())
+    }
+
+    async fn locale(&self, user_id: &str) -> Result<Option<String>> {
+        let s = self.state.lock().unwrap();
+        Ok(s.users.get(user_id).and_then(|row| row.locale.clone()))
     }
 
     async fn handle_owner(&self, handle_key: &str) -> Result<Option<String>> {
@@ -315,6 +350,19 @@ impl UserRepo for FakeUserRepo {
             .collect())
     }
 
+    async fn roles_by_scope(
+        &self,
+        user_id: &str,
+        scopes: &[String],
+    ) -> Result<Vec<(String, String)>> {
+        let s = self.state.lock().unwrap();
+        Ok(s.roles
+            .iter()
+            .filter(|(u, sc, _)| u == user_id && scopes.iter().any(|x| x == sc))
+            .map(|(_, sc, r)| (sc.clone(), r.clone()))
+            .collect())
+    }
+
     async fn grant_role(&self, user_id: &str, scope: &str, role: &str) -> Result<()> {
         let mut s = self.state.lock().unwrap();
         let tuple = (user_id.to_string(), scope.to_string(), role.to_string());
@@ -375,6 +423,7 @@ impl UserRepo for FakeUserRepo {
         handle_key: &str,
         limit: i64,
         offset: i64,
+        scopes: &[String],
     ) -> Result<AccountPage> {
         let s = self.state.lock().unwrap();
         let email = query.to_lowercase();
@@ -419,11 +468,20 @@ impl UserRepo for FakeUserRepo {
                 user_id: uid.clone(),
                 handle: row.handle.clone(),
                 display_name: row.display_name.clone(),
-                roles: s
-                    .roles
+                // Roles grouped per authorized scope, in the order `scopes` lists
+                // them; a scope with no role still yields an (empty) entry so the UI
+                // can render every authorized scope column consistently.
+                roles_by_scope: scopes
                     .iter()
-                    .filter(|(u, sc, _)| u == uid && sc == "music")
-                    .map(|(_, _, r)| r.clone())
+                    .map(|sc| ScopeRoles {
+                        scope: sc.clone(),
+                        roles: s
+                            .roles
+                            .iter()
+                            .filter(|(u, rsc, _)| u == uid && rsc == sc)
+                            .map(|(_, _, r)| r.clone())
+                            .collect(),
+                    })
                     .collect(),
             })
             .collect();

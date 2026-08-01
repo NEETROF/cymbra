@@ -315,6 +315,7 @@ class GrpcAccountService implements AccountService {
     version: a.version.toInt(),
     handle: a.hasHandle() ? a.handle : null,
     displayName: a.hasDisplayName() ? a.displayName : null,
+    locale: a.hasLocale() ? a.locale : null,
   );
 
   @override
@@ -339,6 +340,16 @@ class GrpcAccountService implements AccountService {
           preferences: '{}',
           expectedVersion: Int64(expectedVersion),
         ),
+        options: bearerOptions(bearer),
+      ),
+    ),
+  );
+
+  @override
+  Future<Account> setLocale(String locale) => _authed(
+    (bearer) async => _toAccount(
+      await _client.setLocale(
+        user.SetLocaleRequest(locale: locale),
         options: bearerOptions(bearer),
       ),
     ),

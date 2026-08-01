@@ -22,6 +22,11 @@
     "moderator": "moderator",
     "admin": "admin"
   },
+  "scope": {
+    "global": "global",
+    "music": "music",
+    "live": "live"
+  },
   "status": {
     "pending": "pending",
     "accepted": "accepted",
@@ -193,7 +198,7 @@
   },
   "roles": {
     "title": "Roles",
-    "intro": "Browse accounts and grant or revoke the moderator and admin roles (music scope). Filter by handle or email. Every change is recorded in each account's audit history.",
+    "intro": "Browse accounts and grant or revoke the moderator and admin roles in a scope you administer. Pick the scope, then filter by handle or email. Every change is recorded in each account's audit history.",
     "searchPlaceholder": "filter by handle or email",
     "search": "Search",
     "colHandle": "Handle",

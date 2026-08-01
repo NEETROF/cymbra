@@ -249,6 +249,29 @@ class FakeAccountService implements AccountService {
     return updated;
   }
 
+  /// The most recent locale written via [setLocale] (change: sync-account-
+  /// language-preference), so tests can assert the push without re-reading.
+  String? lastSetLocale;
+
+  @override
+  Future<Account> setLocale(String locale) async {
+    calls.add('setLocale:$locale');
+    lastSetLocale = locale;
+    // Mirror the server: an empty locale is a no-op; otherwise store it on the
+    // cached account so a later getAccount reads it back.
+    if (locale.isNotEmpty) {
+      final a = account;
+      account = Account(
+        userId: a?.userId ?? 'user-1',
+        version: a?.version ?? 0,
+        handle: a?.handle,
+        displayName: a?.displayName,
+        locale: locale,
+      );
+    }
+    return account ?? Account(userId: 'user-1', version: 0, locale: locale);
+  }
+
   @override
   Future<bool> checkHandleAvailability(String handle) async {
     calls.add('checkHandleAvailability:$handle');

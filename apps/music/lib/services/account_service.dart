@@ -22,11 +22,16 @@ class Account {
   /// Optimistic-concurrency version; echoed back on `UpdateAccount`.
   final int version;
 
+  /// The account's preferred language tag (change: sync-account-language-
+  /// preference), or `null` when none has been recorded yet.
+  final String? locale;
+
   const Account({
     required this.userId,
     required this.version,
     this.handle,
     this.displayName,
+    this.locale,
   });
 
   /// Whether the user still needs to choose a handle (drives onboarding).
@@ -67,6 +72,11 @@ abstract class AccountService {
     required String handle,
     required int expectedVersion,
   });
+
+  /// Persist the caller's preferred language on the account (change: sync-account-
+  /// language-preference), returning the updated account. An empty [locale] is a
+  /// server-side no-op (it never clears a stored value).
+  Future<Account> setLocale(String locale);
 
   /// Advisory availability check for [handle] (the write path is authoritative).
   /// An invalid handle surfaces as `AuthError.invalidArgument`.

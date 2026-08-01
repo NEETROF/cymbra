@@ -9,7 +9,7 @@ use jsonwebtoken::{
     Algorithm, DecodingKey, EncodingKey, Header, Validation, decode, decode_header, encode,
 };
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 /// Internal access-token claims.
@@ -19,8 +19,17 @@ pub struct Claims {
     pub sub: String,
     /// App audience the token is scoped to.
     pub aud: String,
-    /// Effective role names for the audience.
+    /// Effective role names for the audience — the union across every scope in
+    /// `roles_by_scope` (kept for the coarse `has_role`/`require_admin` guards and
+    /// backward compatibility).
     pub roles: Vec<String>,
+    /// Roles grouped by the scope they are held in (`global` / `music` / `live`),
+    /// so authorization can ask "is the caller admin **in scope S**" — not just
+    /// "does the caller hold admin somewhere". Empty on legacy/flat tokens; absent
+    /// entries mean the account holds no role in that scope (change:
+    /// scope-aware-role-admin).
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub roles_by_scope: BTreeMap<String, Vec<String>>,
     /// Issued-at (unix seconds).
     pub iat: usize,
     /// Expiry (unix seconds).
@@ -29,7 +38,9 @@ pub struct Claims {
     pub jti: String,
 }
 
-/// Build a fresh claim set expiring `access_ttl` from now.
+/// Build a fresh claim set expiring `access_ttl` from now, carrying a flat role
+/// set only (no per-scope breakdown). Retained for callers/tests that don't need
+/// scope-matched authorization.
 pub fn new_claims(
     user_id: &str,
     audience: &str,
@@ -41,6 +52,37 @@ pub fn new_claims(
         sub: user_id.to_string(),
         aud: audience.to_string(),
         roles,
+        roles_by_scope: BTreeMap::new(),
+        iat: now,
+        exp: now + access_ttl.as_secs() as usize,
+        jti: uuid::Uuid::now_v7().to_string(),
+    }
+}
+
+/// Build a fresh claim set from roles **grouped by scope**. The flat `roles` field
+/// is derived as the de-duplicated union across scopes, so the coarse guards keep
+/// working while `roles_by_scope` powers scope-matched checks (change:
+/// scope-aware-role-admin).
+pub fn new_claims_scoped(
+    user_id: &str,
+    audience: &str,
+    roles_by_scope: BTreeMap<String, Vec<String>>,
+    access_ttl: Duration,
+) -> Claims {
+    let now = unix_now();
+    let mut roles: Vec<String> = Vec::new();
+    for scope_roles in roles_by_scope.values() {
+        for r in scope_roles {
+            if !roles.contains(r) {
+                roles.push(r.clone());
+            }
+        }
+    }
+    Claims {
+        sub: user_id.to_string(),
+        aud: audience.to_string(),
+        roles,
+        roles_by_scope,
         iat: now,
         exp: now + access_ttl.as_secs() as usize,
         jti: uuid::Uuid::now_v7().to_string(),
@@ -137,6 +179,26 @@ mod tests {
     }
 
     #[test]
+    fn scoped_claims_derive_flat_union_and_roundtrip() {
+        let ek = encoding_key(PRIV).unwrap();
+        let by_scope = BTreeMap::from([
+            ("global".to_string(), vec!["user".to_string()]),
+            ("music".to_string(), vec!["admin".to_string()]),
+            ("live".to_string(), vec!["moderator".to_string()]),
+        ]);
+        let claims = new_claims_scoped("u1", "back-office", by_scope, Duration::from_secs(900));
+        // Flat roles are the de-duplicated union across scopes.
+        assert!(claims.roles.contains(&"user".to_string()));
+        assert!(claims.roles.contains(&"admin".to_string()));
+        assert!(claims.roles.contains(&"moderator".to_string()));
+        // Per-scope breakdown survives the JWT round-trip.
+        let tok = sign(&claims, "k1", &ek).unwrap();
+        let got = verify(&tok, &keys(), &["back-office"]).unwrap();
+        assert_eq!(got.roles_by_scope["music"], vec!["admin".to_string()]);
+        assert_eq!(got.roles_by_scope["live"], vec!["moderator".to_string()]);
+    }
+
+    #[test]
     fn wrong_audience_rejected() {
         let ek = encoding_key(PRIV).unwrap();
         let claims = new_claims("u1", "music", vec![], Duration::from_secs(900));
@@ -155,6 +217,7 @@ mod tests {
             sub: "u1".into(),
             aud: "music".into(),
             roles: vec![],
+            roles_by_scope: BTreeMap::new(),
             iat: now - 1000,
             exp: now - 600, // past, beyond default leeway
             jti: "j".into(),

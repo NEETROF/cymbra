@@ -31,10 +31,13 @@ export interface FakeState {
   grantCalls: { userId: string; scope: string; role: string }[];
   revokeCalls: { userId: string; scope: string; role: string }[];
   listAccountsCalls: { query: string; limit: number; offset: number }[];
+  setLocaleCalls: string[];
   hits: unknown[];
   total: number;
   grants: unknown[];
   accounts: unknown[];
+  /** The account's stored language `getAccount` returns; `setLocale` writes it. */
+  accountLocale?: string;
   tokens: { accessToken: string; refreshToken: string };
   // feature-flags panel
   setFlagCalls: { key: string; app: string; enabled: boolean; rolloutScope: string; confirm: boolean }[];
@@ -57,10 +60,12 @@ export function makeFakeClients(state: Partial<FakeState> = {}): { clients: Clie
     grantCalls: [],
     revokeCalls: [],
     listAccountsCalls: [],
+    setLocaleCalls: [],
     hits: state.hits ?? [],
     total: state.total ?? 0,
     grants: state.grants ?? [],
     accounts: state.accounts ?? [],
+    accountLocale: state.accountLocale,
     tokens: state.tokens ?? { accessToken: makeJwt({ roles: ["moderator"], sub: "u1" }), refreshToken: "r" },
     setFlagCalls: [],
     setConfigCalls: [],
@@ -108,6 +113,12 @@ export function makeFakeClients(state: Partial<FakeState> = {}): { clients: Clie
       listAccounts: async (req: { query: string; limit: number; offset: number }) => {
         s.listAccountsCalls.push(req);
         return { accounts: s.accounts, total: s.accounts.length };
+      },
+      getAccount: async () => ({ userId: "u1", locale: s.accountLocale }),
+      setLocale: async (req: { locale: string }) => {
+        s.setLocaleCalls.push(req.locale);
+        if (req.locale) s.accountLocale = req.locale;
+        return { userId: "u1", locale: s.accountLocale };
       },
     },
     flags: {

@@ -17,8 +17,10 @@ import 'dart:ui' show Locale, PlatformDispatcher;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../services/grpc_client.dart';
 import '../services/preferences_service.dart';
 import 'app_language.dart';
+import 'session_notifier.dart';
 
 part 'app_locale.g.dart';
 
@@ -76,14 +78,55 @@ class AppLocale extends _$AppLocale {
     }
   }
 
-  /// Switches the UI to [language] immediately and persists the choice. The
-  /// switch is applied even if persistence fails, so the UI never gets stuck.
+  /// Switches the UI to [language] immediately, persists the choice, and — when a
+  /// session is authenticated — records it on the account (change: sync-account-
+  /// language-preference). The switch is applied even if persistence or the sync
+  /// fails, so the UI never gets stuck.
   Future<void> select(AppLanguage language) async {
     state = language.locale;
     try {
       await ref
           .read(preferencesServiceProvider)
           .setString(prefsKey, language.code);
+    } catch (_) {}
+    await _pushLocale(language.code);
+  }
+
+  /// Applies [language] as the active UI language and persists it locally
+  /// **without** pushing it back to the account (change: sync-account-language-
+  /// preference). The reconcile path uses this so applying the server's value
+  /// never echoes a redundant `SetLocale`.
+  Future<void> applyFromAccount(AppLanguage language) async {
+    state = language.locale;
+    try {
+      await ref
+          .read(preferencesServiceProvider)
+          .setString(prefsKey, language.code);
+    } catch (_) {}
+  }
+
+  /// Reconciles the account's stored language into the UI after sign-in (change:
+  /// sync-account-language-preference, design D4):
+  /// - a set, displayable server locale wins → apply + persist locally (no echo);
+  /// - an unset (`null`/empty) server locale → keep the local choice and push it up;
+  /// - a set but undisplayable server locale → leave the UI and the stored value.
+  Future<void> syncOnLogin(String? serverLocale) async {
+    if (serverLocale == null || serverLocale.isEmpty) {
+      await _pushLocale(state.languageCode);
+      return;
+    }
+    final language = AppLanguage.fromCode(serverLocale);
+    if (language == null) return; // not displayable here — leave both untouched
+    await applyFromAccount(language);
+  }
+
+  /// Best-effort push of [code] to the account: a no-op when the session cannot
+  /// use online services (guest / signed out / not yet resolved), and swallows
+  /// failures so a sync never blocks or breaks the local switch.
+  Future<void> _pushLocale(String code) async {
+    if (!ref.read(canUseOnlineServicesProvider)) return;
+    try {
+      await ref.read(accountServiceProvider).setLocale(code);
     } catch (_) {}
   }
 }

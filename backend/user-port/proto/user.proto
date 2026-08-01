@@ -14,6 +14,9 @@ message Account {
   int64 version = 4;
   int64 updated_at = 5; // unix seconds
   optional string handle = 6; // unique display handle; null until onboarded
+  // Preferred language tag (change: sync-account-language-preference); null until
+  // the identity system records one. Backend-owned (kept out of `preferences`).
+  optional string locale = 7;
 }
 
 message Identity {
@@ -23,6 +26,12 @@ message Identity {
 }
 
 message GetAccountRequest {}
+
+// Set the caller's own preferred language (change: sync-account-language-
+// preference). The account whose locale is written is the authenticated caller's,
+// resolved from the request identity — never a body-supplied id. An empty locale is
+// a no-op that leaves any stored value unchanged. Returns the updated account.
+message SetLocaleRequest { string locale = 1; }
 
 message UpdateAccountRequest {
   optional string display_name = 1;
@@ -77,19 +86,27 @@ message ListRoleGrantsRequest { string user_id = 1; }
 message ListRoleGrantsResponse { repeated RoleGrant grants = 1; }
 
 // Admin account directory (change: add-admin-account-directory). A paginated list
-// of accounts with their music-scope roles, so an admin can browse users and act
-// on each row. `query` is an optional filter matching a handle (prefix,
-// case-insensitive) or the email of a `local` identity; an empty query lists all.
+// of accounts with their roles grouped by scope, so an admin can browse users and
+// act on each row. The server returns only the scopes the calling admin may
+// administer (change: scope-aware-role-admin). `query` is an optional filter
+// matching a handle (prefix, case-insensitive) or the email of a `local` identity;
+// an empty query lists all.
 message ListAccountsRequest {
   uint32 limit = 1;
   uint32 offset = 2;
   string query = 3;
 }
+// Roles an account holds in one scope (change: scope-aware-role-admin).
+message ScopeRoles {
+  string scope = 1; // global | music | live
+  repeated string roles = 2;
+}
 message AccountRow {
   string user_id = 1;
   optional string handle = 2;
   optional string display_name = 3;
-  repeated string roles = 4; // roles held in the `music` scope
+  // Roles grouped by scope, restricted to the scopes the caller may administer.
+  repeated ScopeRoles roles_by_scope = 4;
 }
 message ListAccountsResponse {
   repeated AccountRow accounts = 1;
@@ -132,6 +149,8 @@ message SetProfileVisibilityResponse {
 service UserService {
   rpc GetAccount(GetAccountRequest) returns (Account);
   rpc UpdateAccount(UpdateAccountRequest) returns (Account);
+  // Set the caller's preferred language (change: sync-account-language-preference).
+  rpc SetLocale(SetLocaleRequest) returns (Account);
   rpc CheckHandleAvailability(CheckHandleAvailabilityRequest) returns (CheckHandleAvailabilityResponse);
   rpc ListIdentities(ListIdentitiesRequest) returns (ListIdentitiesResponse);
   rpc DeleteAccount(DeleteAccountRequest) returns (DeleteAccountResponse);
