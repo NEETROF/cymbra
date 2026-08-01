@@ -243,18 +243,39 @@ class PartitionPainter extends CustomPainter {
     }
     var hx = _s * 3.0; // after the clef
 
-    final fifths = document.attributes.keyFifths;
-    final keyWidth = Smufl.drawKeySignature(
-      canvas,
-      hx,
-      trebleBottom,
-      _s,
-      fifths,
-      topStaff >= 2, // bass-clef placement when the lone staff is the left hand
-      _ink,
-    );
+    // Armure of THIS system: the key in force at its first measure, not one
+    // document-wide value — so a piece that modulates shows the right signature
+    // on every line. When the key changes at this system's boundary, the header
+    // shows the change (cancelling naturals + the new signature).
+    final firstIdx = system.measures.first;
+    final systemKey = document.measures[firstIdx].keyFifths;
+    final prevKey = firstIdx > 0
+        ? document.measures[firstIdx - 1].keyFifths
+        : null;
+    final headerKeyChanged = prevKey != null && prevKey != systemKey;
+    double drawHeaderKey(double staffBottom, bool bass) => headerKeyChanged
+        ? Smufl.drawKeyChange(
+            canvas,
+            hx,
+            staffBottom,
+            _s,
+            prevKey,
+            systemKey,
+            bass,
+            _ink,
+          )
+        : Smufl.drawKeySignature(
+            canvas,
+            hx,
+            staffBottom,
+            _s,
+            systemKey,
+            bass,
+            _ink,
+          );
+    final keyWidth = drawHeaderKey(trebleBottom, topStaff >= 2);
     if (_twoStaff) {
-      Smufl.drawKeySignature(canvas, hx, bassBottom, _s, fifths, true, _ink);
+      drawHeaderKey(bassBottom, true);
     }
     hx += keyWidth;
 
@@ -316,6 +337,7 @@ class PartitionPainter extends CustomPainter {
         bassBottom,
         clefAt[idx],
         k == 0, // first measure of the system → clef already in the header
+        k > 0 ? document.measures[indices[k - 1]].keyFifths : null,
         words,
         arcs,
         isCursorMeasure ? cursor.fraction * divPerMeasure : null,
@@ -371,6 +393,7 @@ class PartitionPainter extends CustomPainter {
     double bassBottom,
     Map<int, Clef> clefs,
     bool isSystemFirst,
+    int? previousKeyFifths,
     _TextLanes words,
     _Arcs arcs,
     double? cursorDiv,
@@ -388,12 +411,47 @@ class PartitionPainter extends CustomPainter {
       }
     }
 
+    // A mid-system key change (modulation): cancelling naturals + the new
+    // signature, after any clef change, reserving space before the first note.
+    final keyChanged =
+        !isSystemFirst &&
+        previousKeyFifths != null &&
+        measure.keyFifths != previousKeyFifths;
+    var keyLead = 0.0;
+    if (keyChanged) {
+      final kx = measureX + _s * 0.3 + clefLead;
+      final soloBass = !_twoStaff && _soloStaff >= 2;
+      keyLead = Smufl.drawKeyChange(
+        canvas,
+        kx,
+        trebleBottom,
+        _s,
+        previousKeyFifths,
+        measure.keyFifths,
+        _twoStaff ? false : soloBass,
+        _ink,
+      );
+      if (_twoStaff) {
+        Smufl.drawKeyChange(
+          canvas,
+          kx,
+          bassBottom,
+          _s,
+          previousKeyFifths,
+          measure.keyFifths,
+          true,
+          _ink,
+        );
+      }
+    }
+    final lead = clefLead + keyLead;
+
     double xForPosition(int position) {
       final frac = divPerMeasure > 0
           ? (position / divPerMeasure).clamp(0.0, 1.0)
           : 0.0;
-      final left = measureX + _s + clefLead;
-      return left + frac * (measureWidth - clefLead - 2.4 * _s);
+      final left = measureX + _s + lead;
+      return left + frac * (measureWidth - lead - 2.4 * _s);
     }
 
     for (final dir in measure.directions) {

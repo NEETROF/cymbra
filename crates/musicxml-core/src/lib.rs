@@ -190,9 +190,6 @@ struct Parser {
     directions: Vec<Direction>,
     measure_clefs: Vec<Clef>,
     measures: Vec<NotationMeasure>,
-    /// Key signature in force for each emitted measure (parallel to `measures`),
-    /// so key-signature inference honors mid-piece key changes.
-    measure_fifths: Vec<i32>,
     /// Whether any note carried an explicit `<alter>` or `<accidental>`. When this
     /// stays false for the whole document, the score has no alteration data and the
     /// key signature is inferred onto every note (see `into_document`).
@@ -239,7 +236,6 @@ impl Parser {
             directions: Vec::new(),
             measure_clefs: Vec::new(),
             measures: Vec::new(),
-            measure_fifths: Vec::new(),
             saw_alteration: false,
             note: None,
             pitch: None,
@@ -666,9 +662,9 @@ impl Parser {
                 notes,
                 directions,
                 clefs,
+                key_fifths: self.key_fifths,
                 min_width: width,
             });
-            self.measure_fifths.push(self.key_fifths);
             self.measure_index += 1;
         }
         self.cursor = 0;
@@ -678,10 +674,15 @@ impl Parser {
     fn into_document(mut self) -> ScoreDocument {
         // A score with no alteration data anywhere (no `<alter>`, no `<accidental>`)
         // drew an armure but never marked its notes: infer the key signature onto
-        // every pitch. Conforming exporters always emit some alteration, so this
-        // never runs for them and their pitches are untouched.
+        // every pitch, honoring mid-piece key changes via each measure's own key.
+        // Conforming exporters always emit some alteration (MuseScore writes an
+        // explicit `<alter>` on every sounding-altered note), so this never runs
+        // for them and their pitches — including notes that are natural only
+        // because a same-pitch note in another voice carries the accidental — are
+        // left exactly as authored.
         if !self.saw_alteration {
-            for (measure, &fifths) in self.measures.iter_mut().zip(self.measure_fifths.iter()) {
+            for measure in &mut self.measures {
+                let fifths = measure.key_fifths;
                 if fifths == 0 {
                     continue;
                 }
@@ -1041,7 +1042,11 @@ mod tests {
 
     #[test]
     fn a_single_alteration_disables_inference_document_wide() {
-        // One explicit <alter> anywhere ⇒ inference off; other bare notes stay natural.
+        // One explicit <alter> anywhere ⇒ inference off; other bare notes stay
+        // natural. This matches conforming exporters: MuseScore writes <alter> on
+        // every sounding-altered note, so a bare note is deliberately natural
+        // (e.g. a repeat left natural because another voice carries the accidental)
+        // and must never be re-derived from the key signature.
         let doc = parse_ok(
             r#"<score-partwise><part-list><score-part id="P1"/></part-list>
             <part id="P1"><measure number="1">
@@ -1087,6 +1092,36 @@ mod tests {
         );
         assert_eq!(alter_at(&doc, 0, 0), -1, "B♭ in the flat measure");
         assert_eq!(alter_at(&doc, 1, 0), 0, "B natural after the key change");
+    }
+
+    #[test]
+    fn each_measure_records_the_key_in_force() {
+        // A modulating piece (like Haydn's canzonet): starts in 4 flats, then
+        // changes to 1 flat. Every measure must carry the key in force during it,
+        // carried forward across measures with no `<key>` — so the renderer can
+        // draw the correct armure per system instead of one document-wide value.
+        let doc = parse_ok(
+            r#"<score-partwise><part-list><score-part id="P1"/></part-list>
+            <part id="P1">
+              <measure number="1">
+                <attributes><divisions>1</divisions><key><fifths>-4</fifths></key></attributes>
+                <note><pitch><step>C</step><octave>5</octave></pitch><duration>1</duration></note>
+              </measure>
+              <measure number="2">
+                <note><pitch><step>C</step><octave>5</octave></pitch><duration>1</duration></note>
+              </measure>
+              <measure number="3">
+                <attributes><key><fifths>-1</fifths></key></attributes>
+                <note><pitch><step>C</step><octave>5</octave></pitch><duration>1</duration></note>
+              </measure>
+            </part></score-partwise>"#,
+        );
+        assert_eq!(doc.measures[0].key_fifths, -4, "opening key");
+        assert_eq!(
+            doc.measures[1].key_fifths, -4,
+            "carried across an un-marked measure"
+        );
+        assert_eq!(doc.measures[2].key_fifths, -1, "modulation takes effect");
     }
 
     #[test]
@@ -1355,6 +1390,7 @@ mod tests {
                     notes: Vec::new(),
                     directions: Vec::new(),
                     clefs: Vec::new(),
+                    key_fifths: 0,
                     min_width: w,
                 })
                 .collect(),

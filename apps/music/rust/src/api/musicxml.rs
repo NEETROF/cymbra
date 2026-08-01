@@ -101,6 +101,11 @@ pub struct _NotationMeasure {
     /// renderer can switch clefs mid-piece (e.g. a left hand that starts in
     /// treble and moves to bass).
     pub clefs: Vec<Clef>,
+    /// Key signature (fifths on the circle, negative = flats) in force during
+    /// this measure, carried forward from the last `<key>` change. Lets the
+    /// renderer draw the correct armure per system — and a key change where it
+    /// differs from the previous measure — for a piece that modulates.
+    pub key_fifths: i32,
     /// Minimum engraving width (pixels) from the non-linear spacing function.
     pub min_width: f64,
 }

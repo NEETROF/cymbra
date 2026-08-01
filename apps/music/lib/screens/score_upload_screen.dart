@@ -517,6 +517,7 @@ class _VerifyStepViewState extends ConsumerState<_VerifyStepView>
                             bpm: playback.bpm,
                             songEndMs: playback.songEndMs,
                             keyFifths: _doc?.attributes.keyFifths ?? 0,
+                            measureKeyFifths: playback.measureKeyFifths,
                             beats: _doc?.attributes.time.beats ?? 4,
                             beatType: _doc?.attributes.time.beatType ?? 4,
                             measureStartMs: playback.measureStartMs,

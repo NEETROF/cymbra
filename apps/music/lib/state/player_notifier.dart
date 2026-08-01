@@ -185,6 +185,7 @@ class Player extends _$Player {
       rests: derived.rests,
       songEndMs: derived.songEndMs,
       measureStartMs: derived.measureStartMs,
+      measureKeyFifths: derived.measureKeyFifths,
       isPlaying: false,
     );
     // Start a short lead-in before the first note, skipping leading rests/empty

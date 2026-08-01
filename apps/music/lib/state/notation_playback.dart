@@ -33,12 +33,18 @@ class DerivedPlayback {
   /// it.
   final List<int> measureStartMs;
 
+  /// Key signature (fifths) in force during each measure, aligned with
+  /// [measureStartMs]. Lets the scrolling staff show the armure at the playhead
+  /// so a mid-piece modulation is reflected as you scroll past it.
+  final List<int> measureKeyFifths;
+
   const DerivedPlayback({
     required this.notes,
     this.rests = const [],
     required this.songEndMs,
     required this.bpm,
     this.measureStartMs = const [],
+    this.measureKeyFifths = const [],
   });
 }
 
@@ -82,6 +88,7 @@ DerivedPlayback notationToTimedNotes(ScoreDocument document) {
   final notes = <TimedNote>[];
   final rests = <TimedRest>[];
   final measureStartMs = <int>[];
+  final measureKeyFifths = <int>[];
   var songEndMs = 0.0;
   var measureStartDiv = 0;
 
@@ -93,6 +100,7 @@ DerivedPlayback notationToTimedNotes(ScoreDocument document) {
 
   for (final measure in document.measures) {
     measureStartMs.add((measureStartDiv * msPerDivision).round());
+    measureKeyFifths.add(measure.keyFifths);
     for (final c in measure.clefs) {
       clef[c.staff] = c;
     }
@@ -153,6 +161,7 @@ DerivedPlayback notationToTimedNotes(ScoreDocument document) {
     songEndMs: songEndMs,
     bpm: bpm,
     measureStartMs: measureStartMs,
+    measureKeyFifths: measureKeyFifths,
   );
 }
 

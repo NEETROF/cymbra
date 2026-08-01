@@ -136,6 +136,7 @@ ScoreDocument sampleTieSlurDocument() => ScoreDocument(
     NotationMeasure(
       index: 0,
       clefs: const [],
+      keyFifths: 0,
       minWidth: 200,
       directions: const [],
       notes: [
@@ -210,6 +211,7 @@ ScoreDocument sampleBeamedDocument() {
       NotationMeasure(
         index: 0,
         clefs: const [],
+        keyFifths: 0,
         minWidth: 200,
         directions: const [],
         notes: [
@@ -245,6 +247,7 @@ ScoreDocument sampleClefChangeDocument() => ScoreDocument(
     NotationMeasure(
       index: 0,
       clefs: const [],
+      keyFifths: 0,
       minWidth: 140,
       directions: const [
         Direction(
@@ -266,6 +269,7 @@ ScoreDocument sampleClefChangeDocument() => ScoreDocument(
     NotationMeasure(
       index: 1,
       clefs: const [Clef(staff: 2, sign: 'F', line: 4)], // → bass clef
+      keyFifths: 0,
       minWidth: 140,
       directions: const [],
       notes: [
@@ -292,6 +296,7 @@ ScoreDocument tallDocument(int count) => ScoreDocument(
       NotationMeasure(
         index: i,
         clefs: const [],
+        keyFifths: 0,
         minWidth: 120,
         directions: const [],
         notes: [
@@ -324,6 +329,7 @@ ScoreDocument sampleGrandStaffDocument() => ScoreDocument(
     NotationMeasure(
       index: 0,
       clefs: const [],
+      keyFifths: 0,
       minWidth: 120,
       directions: const [
         Direction(

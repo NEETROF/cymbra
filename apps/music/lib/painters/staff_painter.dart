@@ -44,8 +44,12 @@ class StaffPainter extends CustomPainter {
   final double songEndMs;
 
   /// Key signature (fifths) and time signature of the loaded piece, drawn as the
-  /// armature + meter at the head of the system.
+  /// armature + meter at the head of the system. [keyFifths] is the fallback when
+  /// no per-measure data is supplied; [measureKeyFifths] (aligned with
+  /// [measureStartMs]) lets the head show the armure in force at the playhead, so
+  /// a mid-piece modulation is reflected as the score scrolls past it.
   final int keyFifths;
+  final List<int> measureKeyFifths;
   final int beats;
   final int beatType;
 
@@ -80,6 +84,7 @@ class StaffPainter extends CustomPainter {
     required this.songEndMs,
     this.rests = const [],
     this.keyFifths = 0,
+    this.measureKeyFifths = const [],
     this.beats = 4,
     this.beatType = 4,
     this.measureStartMs = const [],
@@ -203,15 +208,18 @@ class StaffPainter extends CustomPainter {
       );
     }
 
-    // Key signature (armature) + time signature at the head of the system.
+    // Key signature (armature) + time signature at the head of the system. The
+    // armure reflects the key at the playhead, so a mid-piece modulation appears
+    // as you scroll past it (like the clef above).
     const headColor = CymbraColors.onSurfaceVariant;
+    final headKey = _keyFifthsAtPlayhead();
     var hx = 6 + lineGap * 2.8;
     final keyW = Smufl.drawKeySignature(
       canvas,
       hx,
       trebleBottom,
       lineGap,
-      keyFifths,
+      headKey,
       topStaff >= 2, // bass-clef placement when the lone staff is the left hand
       headColor,
     );
@@ -221,7 +229,7 @@ class StaffPainter extends CustomPainter {
         hx,
         bassBottom,
         lineGap,
-        keyFifths,
+        headKey,
         true,
         headColor,
       );
@@ -471,6 +479,22 @@ class StaffPainter extends CustomPainter {
     return _diatonic(refMidi) - (line - 1) * 2;
   }
 
+  /// Key signature (fifths) in force at the playhead: the armure of the measure
+  /// containing [elapsedMs]. Falls back to the fixed [keyFifths] when no
+  /// per-measure data is supplied (e.g. the demo score).
+  int _keyFifthsAtPlayhead() {
+    if (measureKeyFifths.isEmpty || measureStartMs.isEmpty) return keyFifths;
+    var idx = 0;
+    for (var m = 0; m < measureStartMs.length; m++) {
+      if (measureStartMs[m] <= elapsedMs) {
+        idx = m;
+      } else {
+        break;
+      }
+    }
+    return idx < measureKeyFifths.length ? measureKeyFifths[idx] : keyFifths;
+  }
+
   /// The clef (sign, line) in effect on [staff] at the current playhead — the
   /// latest note at/before [elapsedMs], else the first note on that staff.
   (String, int) _clefAtPlayhead(int staff) {
@@ -712,6 +736,7 @@ class StaffPainter extends CustomPainter {
       old.notes != notes ||
       old.rests != rests ||
       old.measureStartMs != measureStartMs ||
+      old.measureKeyFifths != measureKeyFifths ||
       old.mistakeColors != mistakeColors ||
       old.lookAheadMs != lookAheadMs ||
       old.noteScale != noteScale;

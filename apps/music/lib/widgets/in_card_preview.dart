@@ -202,6 +202,7 @@ class _InCardPreviewState extends ConsumerState<InCardPreview>
                   bpm: score.bpm,
                   songEndMs: score.songEndMs,
                   keyFifths: score.keyFifths,
+                  measureKeyFifths: score.measureKeyFifths,
                   beats: score.beats,
                   beatType: score.beatType,
                   measureStartMs: score.measureStartMs,

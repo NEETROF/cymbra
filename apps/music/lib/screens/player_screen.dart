@@ -506,6 +506,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                 bpm: data.bpm,
                 songEndMs: data.songEndMs,
                 keyFifths: data.keyFifths,
+                measureKeyFifths: data.measureKeyFifths,
                 beats: data.beats,
                 beatType: data.beatType,
                 measureStartMs: data.measureStartMs,

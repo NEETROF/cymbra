@@ -200,6 +200,11 @@ abstract class PlayerData with _$PlayerData {
     /// Empty for the demo score; populated from a parsed MusicXML document.
     @Default(<int>[]) List<int> measureStartMs,
 
+    /// Key signature (fifths) in force during each measure, aligned with
+    /// [measureStartMs] — so the scrolling staff shows the armure at the playhead
+    /// and a mid-piece modulation is reflected. Empty for the demo score.
+    @Default(<int>[]) List<int> measureKeyFifths,
+
     @Default(RenderMode.synthesia) RenderMode mode,
     @Default(true) bool waitMode,
     @Default(false) bool isPlaying,
