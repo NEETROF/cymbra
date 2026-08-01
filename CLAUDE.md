@@ -145,15 +145,24 @@ Three separate per-stack graphs (git-ignored, rebuilt locally):
   Dart extraction is weaker — `_` nodes pollute the hubs).
 - `apps/back-office/graphify-out/graph.json` — **Vue** back office. Good quality.
 
-Query from repo root (add `--graph <path>` for the app graphs):
+Query from the **repo root** (default graph is `./graphify-out/graph.json` = Rust;
+add `--graph <path>` to hit an app graph):
 ```bash
-graphify god-nodes --top 10
-graphify explain "EnqueueRequest"
-graphify affected "EnqueueRequest" --depth 2
+graphify god-nodes --top 10                  # the most-connected symbols = architectural hubs
+graphify explain "EnqueueRequest"            # a symbol + everything wired to it (callers/callees), with file:line
+graphify affected "EnqueueRequest" --depth 2 # reverse impact: what breaks if you change it (run before a refactor)
+graphify god-nodes --graph apps/back-office/graphify-out/graph.json   # query the Vue graph instead
 ```
-Best for Rust impact/orientation. It **complements** grep — it points to `file:line`
-anchors, it doesn't replace reading them. Cross-stack (Rust↔Dart↔Vue) is deliberately
-NOT linked: each graph is one language; cross the boundary via the `.proto` / frb API contract.
+Symbol names must be **exact** (weak fuzzy matching). Best for Rust impact/orientation.
+It **complements** grep — it points to `file:line` anchors, it doesn't replace reading
+them. Cross-stack (Rust↔Dart↔Vue) is deliberately NOT linked: each graph is one
+language; cross the boundary via the `.proto` / frb API contract.
+
+**First run / gotchas.** The graphs are **git-ignored — they are never committed**, so a
+fresh clone or a new worktree has none: run `scripts/graphify.sh` there once to build them
+(each checkout keeps its own under its own `graphify-out/`). After `uv tool install`, open a
+**new shell** (or `hash -r`) so `graphify` is found. `command not found` → new shell;
+`graph.json` not found → you're not at the repo root, or you haven't built the graphs yet.
 
 ## Before opening a PR
 
