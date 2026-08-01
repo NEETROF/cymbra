@@ -82,10 +82,19 @@ impl CatalogAccessLimiter {
         Self { cache, plays, cfg }
     }
 
-    /// A `music`-scope admin (incl. the `global` break-glass) is exempt; every other
-    /// caller — moderators, other-scope admins, regular users — is subject.
+    /// Who bypasses the guardrail. Exempt:
+    /// - the **back-office** audience — a trusted, CORS-gated curator console (a
+    ///   different audience than the music app). The scrape threat model is the
+    ///   music-app token, and the play-aware allowance is meaningless for a console
+    ///   whose users never play (they'd sit permanently at the base floor); and
+    /// - a **`music`-scope admin** (a `music/admin` or the `global/admin`
+    ///   break-glass), for legitimate bulk operations.
+    ///
+    /// Every other caller — music-app moderators, other-scope admins, regular users
+    /// — is subject.
     fn exempt(&self, id: &AuthIdentity) -> bool {
-        id.has_role_in_scope("music", "admin")
+        id.audience == cymbra_platform::BACKOFFICE_AUDIENCE
+            || id.has_role_in_scope("music", "admin")
     }
 
     /// Burst cap + play-aware volume allowance on raw-bytes egress. `Ok` when the
@@ -324,6 +333,20 @@ mod tests {
                 .await
                 .expect("global admin exempt");
             l.check_enumeration(&music_admin).await.expect("exempt");
+        }
+    }
+
+    #[tokio::test]
+    async fn back_office_audience_is_exempt_even_as_moderator() {
+        // The curator console reuses GetCatalogScoreBytes but is a trusted, CORS-gated
+        // audience with no play activity — it must never be limited, even for a
+        // moderator (who would otherwise sit at the base floor).
+        let l = limiter(Arc::new(FakePlayRepo::default()));
+        let mut bo_mod = user("bo1", &[("global", &["user"]), ("music", &["moderator"])]);
+        bo_mod.audience = cymbra_platform::BACKOFFICE_AUDIENCE.into();
+        for _ in 0..50 {
+            l.check_download(&bo_mod).await.expect("back-office exempt");
+            l.check_enumeration(&bo_mod).await.expect("back-office exempt");
         }
     }
 

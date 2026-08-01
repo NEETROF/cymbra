@@ -86,18 +86,32 @@ exceeded, the system SHALL respond with `RESOURCE_EXHAUSTED`.
   enumeration rate
 - **THEN** excess requests are rejected with `RESOURCE_EXHAUSTED`
 
-### Requirement: Music-scope admins are exempt; moderators and other-scope admins are not
+### Requirement: Exemptions — back-office audience and music-scope admins
 
-The catalog is a music-domain resource, so the system SHALL exempt from all catalog
-access limits (burst cap, play-aware volume allowance, and enumeration cap) exactly
-the callers who hold the `admin` role **in the music scope** — i.e. a `music/admin`
-or the `global/admin` break-glass — since they perform legitimate bulk operations.
-The exemption SHALL be evaluated with the scope-matched role primitive
-(`has_role_in_scope("music", "admin")`), not a scope-agnostic admin check. Every
-other caller SHALL be subject to the limits exactly like a regular user; in
-particular the `moderator` role SHALL NOT confer any exemption, and an `admin` held
-only in an unrelated scope (e.g. `live`) SHALL NOT confer an exemption on the music
-catalog.
+The threat model is a music-app token used for scraping, so the system SHALL exempt
+from all catalog access limits (burst cap, play-aware volume allowance, and
+enumeration cap) exactly these callers:
+
+- Any caller on the **back-office audience** — the trusted, CORS-gated curator
+  console (a different audience than the music app). Its users never play, so the
+  play-aware allowance is meaningless for them, and the console is not the scrape
+  vector. This exemption applies regardless of the caller's role (including a
+  back-office `moderator`).
+- A caller holding the `admin` role **in the music scope** — a `music/admin` or the
+  `global/admin` break-glass — for legitimate bulk operations, evaluated with the
+  scope-matched role primitive (`has_role_in_scope("music", "admin")`), not a
+  scope-agnostic admin check.
+
+Every other caller SHALL be subject to the limits exactly like a regular user. In
+particular, on the **music-app audience** the `moderator` role SHALL NOT confer any
+exemption, and an `admin` held only in an unrelated scope (e.g. `live`) SHALL NOT
+confer an exemption on the music catalog.
+
+#### Scenario: Back-office console is exempt regardless of role
+- **WHEN** a caller on the back-office audience (e.g. a back-office `moderator`
+  downloading a catalog score's MusicXML) issues catalog browse or download requests
+- **THEN** no catalog access limit is applied and the requests are not rejected with
+  `RESOURCE_EXHAUSTED` on account of these limits
 
 #### Scenario: Music-scope admin bypasses the guardrail
 - **WHEN** a caller holding `admin` in the music scope (a `music/admin`, or a
@@ -110,9 +124,9 @@ catalog.
   not in `music` or `global` — exceeds a catalog access limit
 - **THEN** the request is rejected with `RESOURCE_EXHAUSTED` like a regular user
 
-#### Scenario: Moderator is subject to the limits
-- **WHEN** a caller holding the `moderator` role (but not music-scope admin) exceeds
-  a catalog access limit
+#### Scenario: Music-app moderator is subject to the limits
+- **WHEN** a caller on the music-app audience holding the `moderator` role (but not
+  music-scope admin) exceeds a catalog access limit
 - **THEN** the request is rejected with `RESOURCE_EXHAUSTED` just as for a regular
   user
 

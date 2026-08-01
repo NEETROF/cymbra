@@ -99,20 +99,32 @@ per-user rolling download counter against `effective`, computed from a
 approximately fresh). Enumeration (Decision covered in its own requirement) stays a
 single request-rate window; the page-size clamp already bounds per-request volume.
 
-### Decision 4: Scope-matched admin bypass (music-scope only), moderators subject
-Roles are now **scope-aware** (change `scope-aware-role-admin`): `AuthIdentity` carries
-`roles_by_scope` and the scope-matched primitive `has_role_in_scope(scope, role)`
-(true for the scope itself or the `global` break-glass). The catalog is a
-music-domain resource, so the guard short-circuits (no limit) precisely for
-`id.has_role_in_scope("music", "admin")` — a `music/admin` or a `global/admin` — and
-**not** for a scope-agnostic `is_admin()`. This matters because `is_admin()` is true
-for an `admin` held in *any* scope, so a `live`-only admin would wrongly bypass the
-music catalog; the scope-matched check closes that. The identity is already in the
-handler, so this is a cheap check before any counter work.
+### Decision 4: Exempt the back-office audience + music-scope admins; music-app moderators subject
+Two exemptions, both short-circuiting the guard (no limit) before any counter work,
+since the identity is already in the handler:
 
-Moderators are deliberately **not** exempt: their role authorises content review,
-not corpus egress, and exempting them would reopen the exact scrape vector via a
-privileged account.
+1. **Back-office audience.** `ScoreService` is a single service mounted once, so the
+   gRPC-web curator console (change `#155`, which downloads a catalog score's
+   MusicXML by reusing `GetCatalogScoreBytes`) hits the same limiter as the music
+   app. The back-office is a *different audience* — a trusted, CORS-gated admin
+   surface — and its users never play, so the play-aware volume allowance would peg
+   them at the base floor for no security benefit. The scrape threat model is the
+   music-app token, not the console. So `id.audience == BACKOFFICE_AUDIENCE` is
+   exempt regardless of role (including a back-office `moderator`).
+
+2. **Music-scope admin.** Roles are **scope-aware** (change `scope-aware-role-admin`):
+   `AuthIdentity` carries `roles_by_scope` + `has_role_in_scope(scope, role)` (true
+   for the scope itself or the `global` break-glass). The catalog is a music-domain
+   resource, so the guard exempts precisely `id.has_role_in_scope("music", "admin")`
+   — a `music/admin` or a `global/admin` — and **not** a scope-agnostic `is_admin()`
+   (which is true for an `admin` held in *any* scope, so a `live`-only admin would
+   wrongly bypass; the scope-matched check closes that).
+
+On the **music-app audience**, moderators are deliberately **not** exempt: their role
+authorises content review, not corpus egress, and exempting them there would reopen
+the exact scrape vector via a privileged account. (A moderator acting through the
+back-office console is exempt by exemption #1, which is where moderation actually
+happens.)
 
 Note on token shape: `ScoreService` is mounted under the **music audience**, and a
 music-audience access token is minted with `scopes = [global, music]`

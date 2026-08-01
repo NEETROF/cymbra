@@ -28,12 +28,13 @@ need per-user access limits so a token cannot be weaponised to scrape the catalo
 - Reuse the existing `cymbra_platform::ratelimit::check` primitive (windowed Redis
   `INCR`+TTL) and wire the always-on `Cache` handle into `ScoreModule`, which does
   not currently receive it.
-- **Music-scope admins are exempt** from all catalog access limits (legitimate bulk
-  operations), evaluated with the scope-matched role primitive
-  `has_role_in_scope("music", "admin")` — a `music/admin` or the `global/admin`
-  break-glass. **Moderators are not exempt**, and neither is an `admin` held only in
-  an unrelated scope (e.g. `live`); all are subject to the limits like a regular
-  user. (Aligns with the new scope-aware role model, change `scope-aware-role-admin`.)
+- **Exemptions**: the **back-office audience** (the trusted, CORS-gated curator
+  console, which reuses `GetCatalogScoreBytes` and whose users never play) and
+  **music-scope admins** (`has_role_in_scope("music", "admin")` — a `music/admin` or
+  the `global/admin` break-glass) bypass all catalog access limits. On the music-app
+  audience, **moderators are not exempt**, and neither is an `admin` held only in an
+  unrelated scope (e.g. `live`). (Aligns with the scope-aware role model, change
+  `scope-aware-role-admin`.)
 - On breach, return gRPC `RESOURCE_EXHAUSTED` (`AppError::ResourceExhausted`) — the
   same contract the auth throttles already use.
 - **Configurable, operator-tunable thresholds** (window + max per tier) via the

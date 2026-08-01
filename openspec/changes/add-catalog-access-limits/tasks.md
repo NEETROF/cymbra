@@ -18,7 +18,7 @@
 
 ## 4. Rate-limit enforcement in ScoreService
 
-- [x] 4.1 Guard helper (`CatalogAccessLimiter::check_download` / `check_enumeration`) calls `cymbra_platform::ratelimit::check`, honours the kill-switch, and short-circuits (no limit) when `id.has_role_in_scope("music", "admin")` (music/admin or global break-glass), applying limits normally to every other caller — moderators and `live`-only admins included.
+- [x] 4.1 Guard helper (`CatalogAccessLimiter::check_download` / `check_enumeration`) calls `cymbra_platform::ratelimit::check`, honours the kill-switch, and short-circuits (no limit) for the **back-office audience** (`id.audience == BACKOFFICE_AUDIENCE`, the curator console reuses `GetCatalogScoreBytes` per #155) and for a **music-scope admin** (`id.has_role_in_scope("music", "admin")`), applying limits normally to every other caller — music-app moderators and `live`-only admins included.
 - [x] 4.2 Enforce the **burst cap** (pure rate, scope `cat_dl_burst`) in `get_catalog_score_bytes`, before any storage read; reject with `RESOURCE_EXHAUSTED` when exceeded.
 - [x] 4.3 Enforce the **play-aware volume allowance** in `get_catalog_score_bytes` (scope `cat_dl_vol`): count vs `effective = min(hard_ceiling, base_floor + k * plays_in_window)`; reject with `RESOURCE_EXHAUSTED` on breach.
 - [x] 4.4 Apply the same burst + play-aware guardrail to `get_rating_preview_bytes` (shares the download counters).
@@ -37,7 +37,7 @@
 
 ## 7. Tests
 
-- [x] 7.1 Rust unit tests (`catalog_limits.rs`) using `FakeCache`: burst cap rejects; play-aware allowance = `min(hard_ceiling, base_floor + k*plays)`; ratio-healthy user (downloads ∝ plays) is never rejected; download-heavy/play-light user stops at the floor; hard ceiling backstops a high play count; new user (0 plays) allowed up to the floor; per-user isolation; scope-matched bypass — `music/admin` and `global/admin` bypass, `music/moderator` + `live`-only admin + regular users enforced; kill-switch disables enforcement; defaults verified in `config.rs` tests.
+- [x] 7.1 Rust unit tests (`catalog_limits.rs`) using `FakeCache`: burst cap rejects; play-aware allowance = `min(hard_ceiling, base_floor + k*plays)`; ratio-healthy user (downloads ∝ plays) is never rejected; download-heavy/play-light user stops at the floor; hard ceiling backstops a high play count; new user (0 plays) allowed up to the floor; per-user isolation; exemptions — back-office audience (even a moderator) and `music/admin`/`global/admin` bypass, while `music/moderator` + `live`-only admin + regular users are enforced; kill-switch disables enforcement; defaults verified in `config.rs` tests.
 - [x] 7.2 Rust handler-level test (`grpc.rs`): `get_catalog_score_bytes` / `get_rating_preview_bytes` return `RESOURCE_EXHAUSTED` on breach; `search_catalog` throttled while the page-size clamp still applies.
 - [x] 7.3 Flutter tests: `notation_notifier_test` asserts an `AuthError.rateLimited` classifies as `ScoreLoadFailure.rateLimited`; `player_load_feedback_test` asserts the localized "slow down" message renders (no raw enum/gRPC text). Full non-golden suite green (640 tests).
 - [x] 7.4 New code is covered by the added unit/handler/widget tests; the 80% line-coverage gate itself runs in CI (`cargo llvm-cov` + `very_good_coverage`) — not re-measured locally here.
