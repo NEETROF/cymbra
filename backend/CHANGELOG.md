@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.10.0](https://github.com/NEETROF/cymbra/compare/backend-v0.9.1...backend-v0.10.0) (2026-08-01)
+
+
+### Features
+
+* **account:** link sign-in identities across providers (Connected accounts) ([#147](https://github.com/NEETROF/cymbra/issues/147)) ([abe4913](https://github.com/NEETROF/cymbra/commit/abe4913df1c30528079474f764cdab286529083c))
+* **auth:** verify email before binding a set-password credential ([#150](https://github.com/NEETROF/cymbra/issues/150)) ([452d93a](https://github.com/NEETROF/cymbra/commit/452d93a746a80f9eccc5b5c2bf0a34fcd0231933))
+* **email:** brand and localize transactional emails with the Cymbra ID design system ([#149](https://github.com/NEETROF/cymbra/issues/149)) ([84211ba](https://github.com/NEETROF/cymbra/commit/84211ba1d46ef9b93d0aacd3f3ad7ed69f7e9394))
+* **feature-flags:** add shared runtime feature-flag & config platform ([#152](https://github.com/NEETROF/cymbra/issues/152)) ([a8e487b](https://github.com/NEETROF/cymbra/commit/a8e487bc02ab378a016ce74d29f93be1edc86c29))
+* **music:** per-user catalog access limits to prevent token scraping ([#156](https://github.com/NEETROF/cymbra/issues/156)) ([654bfc0](https://github.com/NEETROF/cymbra/commit/654bfc0abf359ef05493e4ef48f677e9ec7d99b2))
+* persist and sync the account language preference ([#153](https://github.com/NEETROF/cymbra/issues/153)) ([30ff982](https://github.com/NEETROF/cymbra/commit/30ff9820c47707b02910c62115b7f74dccd32ab4))
+* **roles:** scope-matched role administration across global/music/live ([#154](https://github.com/NEETROF/cymbra/issues/154)) ([d03fa29](https://github.com/NEETROF/cymbra/commit/d03fa29fa0eaa477ea56c9475bbd0c5786a1efec))
+
 ## [0.9.1](https://github.com/NEETROF/cymbra/compare/backend-v0.9.0...backend-v0.9.1) (2026-07-30)
 
 
