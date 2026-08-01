@@ -85,6 +85,37 @@ pub struct Config {
     /// profile, D6). A single global threshold — 16 is the strictest EU digital-
     /// consent age, so compliant EU-wide without per-country detection. Default 16.
     pub min_public_sharing_age: u32,
+    /// Per-user catalog access limits (change: add-catalog-access-limits) guarding
+    /// `ScoreService` browse/search/download egress against token-driven scraping.
+    pub catalog_limits: CatalogLimitsConfig,
+}
+
+/// Thresholds for the per-user catalog access guardrail (change: add-catalog-access-
+/// limits). A short-window download **burst** cap (pure rate) plus a **play-aware
+/// volume** allowance (`min(hard_ceiling, base_floor + per_play * plays_in_window)`)
+/// on raw-bytes egress, and a request-rate **enumeration** cap on browse/search.
+/// `enabled` is the kill-switch; every value defaults to a permissive, human-safe
+/// number so egress is never unlimited when unset. A `music`-scope admin (or the
+/// `global` break-glass) is exempt at the enforcement layer.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CatalogLimitsConfig {
+    /// Kill-switch: when false, no catalog access limit is enforced.
+    pub enabled: bool,
+    /// Max raw-bytes downloads per `download_burst_window` (pure rate).
+    pub download_burst_max: u32,
+    pub download_burst_window: Duration,
+    /// Rolling window over which the play-aware volume allowance is counted.
+    pub volume_window: Duration,
+    /// Downloads always allowed in the window regardless of engagement (the floor).
+    pub volume_base_floor: u32,
+    /// Extra download headroom earned per in-window engagement event — a play
+    /// session **or** a score rating (`k`).
+    pub volume_per_engagement: u32,
+    /// Absolute ceiling on the volume allowance, whatever the play count.
+    pub volume_hard_ceiling: u32,
+    /// Max enumeration requests (search/browse/deck) per `enum_window`.
+    pub enum_max: u32,
+    pub enum_window: Duration,
 }
 
 /// S3-compatible object-store connection for user scores. Maps to
@@ -153,8 +184,8 @@ impl Config {
 /// Pure, host-testable parsing/validation over a key/value map.
 pub mod config_core {
     use super::{
-        AppError, Config, Duration, HashMap, OidcProvider, Result, ScoreStorageConfig,
-        SoundfontStorageConfig, TokenConfig,
+        AppError, CatalogLimitsConfig, Config, Duration, HashMap, OidcProvider, Result,
+        ScoreStorageConfig, SoundfontStorageConfig, TokenConfig,
     };
 
     pub fn parse(m: &HashMap<String, String>) -> Result<Config> {
@@ -212,6 +243,24 @@ pub mod config_core {
             web_auth_cookie_secure: flag(m, "CYMBRA_WEB_AUTH_COOKIE_SECURE", true),
             play_detail_retention_days: num(m, "CYMBRA_PLAY_DETAIL_RETENTION_DAYS", 90)?,
             min_public_sharing_age: num(m, "CYMBRA_MIN_PUBLIC_SHARING_AGE", 16)?,
+            catalog_limits: catalog_limits(m)?,
+        })
+    }
+
+    /// Parse the per-user catalog access limits (change: add-catalog-access-limits).
+    /// Every knob has a permissive, human-safe default so egress is bounded even when
+    /// unset; `CYMBRA_CATALOG_LIMIT_ENABLED=false` is the operator kill-switch.
+    fn catalog_limits(m: &HashMap<String, String>) -> Result<CatalogLimitsConfig> {
+        Ok(CatalogLimitsConfig {
+            enabled: flag(m, "CYMBRA_CATALOG_LIMIT_ENABLED", true),
+            download_burst_max: num(m, "CYMBRA_CATALOG_DL_BURST_MAX", 20)?,
+            download_burst_window: dur(m, "CYMBRA_CATALOG_DL_BURST_WINDOW", "1m")?,
+            volume_window: dur(m, "CYMBRA_CATALOG_DL_VOLUME_WINDOW", "24h")?,
+            volume_base_floor: num(m, "CYMBRA_CATALOG_DL_BASE_FLOOR", 30)?,
+            volume_per_engagement: num(m, "CYMBRA_CATALOG_DL_PER_ENGAGEMENT", 3)?,
+            volume_hard_ceiling: num(m, "CYMBRA_CATALOG_DL_HARD_CEILING", 500)?,
+            enum_max: num(m, "CYMBRA_CATALOG_ENUM_MAX", 60)?,
+            enum_window: dur(m, "CYMBRA_CATALOG_ENUM_WINDOW", "1m")?,
         })
     }
 
@@ -487,6 +536,35 @@ mod tests {
         let c = config_core::parse(&m).unwrap();
         assert_eq!(c.play_detail_retention_days, 30);
         assert_eq!(c.min_public_sharing_age, 18);
+    }
+
+    #[test]
+    fn catalog_limits_defaults_and_overrides() {
+        // Defaults (change: add-catalog-access-limits): enabled, permissive numbers.
+        let c = config_core::parse(&base()).unwrap();
+        let cl = &c.catalog_limits;
+        assert!(cl.enabled);
+        assert_eq!(cl.download_burst_max, 20);
+        assert_eq!(cl.download_burst_window, Duration::from_secs(60));
+        assert_eq!(cl.volume_window, Duration::from_secs(24 * 3600));
+        assert_eq!(cl.volume_base_floor, 30);
+        assert_eq!(cl.volume_per_engagement, 3);
+        assert_eq!(cl.volume_hard_ceiling, 500);
+        assert_eq!(cl.enum_max, 60);
+        assert_eq!(cl.enum_window, Duration::from_secs(60));
+
+        let mut m = base();
+        m.insert("CYMBRA_CATALOG_LIMIT_ENABLED".into(), "false".into());
+        m.insert("CYMBRA_CATALOG_DL_BASE_FLOOR".into(), "10".into());
+        m.insert("CYMBRA_CATALOG_DL_PER_ENGAGEMENT".into(), "5".into());
+        m.insert("CYMBRA_CATALOG_DL_HARD_CEILING".into(), "1000".into());
+        m.insert("CYMBRA_CATALOG_DL_VOLUME_WINDOW".into(), "12h".into());
+        let cl = config_core::parse(&m).unwrap().catalog_limits;
+        assert!(!cl.enabled);
+        assert_eq!(cl.volume_base_floor, 10);
+        assert_eq!(cl.volume_per_engagement, 5);
+        assert_eq!(cl.volume_hard_ceiling, 1000);
+        assert_eq!(cl.volume_window, Duration::from_secs(12 * 3600));
     }
 
     #[test]

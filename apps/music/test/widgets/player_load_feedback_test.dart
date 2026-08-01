@@ -120,6 +120,29 @@ void main() {
     await _teardown(tester, c);
   });
 
+  testWidgets('a rate-limit failure shows the localized slow-down message', (
+    tester,
+  ) async {
+    // RESOURCE_EXHAUSTED from the backend surfaces as a specific, localized
+    // "slow down" message — not the generic error, and not raw gRPC/enum text
+    // (change: add-catalog-access-limits).
+    final c = await _pump(
+      tester,
+      notation: const NotationData(failure: ScoreLoadFailure.rateLimited),
+      selected: _entry,
+    );
+    expect(
+      find.text(
+        "You're opening scores too quickly. Please wait a moment and try again.",
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Could not load this score.'), findsNothing);
+    expect(find.textContaining('ScoreLoadFailure'), findsNothing);
+    expect(find.textContaining('RESOURCE_EXHAUSTED'), findsNothing);
+    await _teardown(tester, c);
+  });
+
   testWidgets('Staff mode also shows the error banner', (tester) async {
     final container = await _pump(
       tester,

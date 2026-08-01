@@ -31,6 +31,11 @@ enum ScoreLoadFailure {
   /// The backend is unreachable / offline.
   unavailable,
 
+  /// The per-user catalog access limit was hit (too many downloads too fast, or
+  /// beyond the play-aware allowance) — the backend reports RESOURCE_EXHAUSTED
+  /// (change: add-catalog-access-limits).
+  rateLimited,
+
   /// Any other failure (parse error, unexpected).
   generic,
 }
