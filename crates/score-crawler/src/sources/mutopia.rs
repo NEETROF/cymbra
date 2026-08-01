@@ -53,6 +53,8 @@ impl MutopiaSource {
         }
         let rel = path.strip_prefix(&self.checkout).ok()?;
         let rel_str = rel.to_string_lossy().replace('\\', "/");
+        // Filename fallback only — `enrich_from_header` replaces this with the
+        // real `\header` title (e.g. `bwv-1001_1` → "BWV 1001 Adagio").
         let title = path
             .file_stem()
             .map(|s| s.to_string_lossy().replace(['_', '-'], " "));
@@ -64,6 +66,25 @@ impl MutopiaSource {
             arranger: None,
             source_grade: None,
         })
+    }
+}
+
+/// Overwrites an item's `title`/`composer` with the source-authoritative values
+/// from the `.ly` `\header`, when present. Mutopia names files by an opaque id
+/// (`bwv-1001_1`), so the filename-derived title is a poor last resort; the
+/// header carries the real work title. The movement-distinct `mutopiatitle`
+/// ("BWV 1001 Adagio") is preferred over the shared `title` ("Sonata I BWV
+/// 1001") so sibling movements don't collapse to one name.
+fn enrich_from_header(item: &mut Item, ly: &str) {
+    if let Some(title) =
+        parse_ly_header_field(ly, "mutopiatitle").or_else(|| parse_ly_header_field(ly, "title"))
+    {
+        item.title = Some(title);
+    }
+    // `composer` is the human name ("Johann Sebastian Bach (1685-1750)"); the
+    // sibling `mutopiacomposer` is an opaque id ("BachJS") — never use it.
+    if let Some(composer) = parse_ly_header_field(ly, "composer") {
+        item.composer = Some(composer);
     }
 }
 
@@ -88,16 +109,17 @@ impl SourceAdapter for MutopiaSource {
         // A Mutopia repo holds real piece files (a `\header` with `license = …`)
         // AND many `-lys/` includes + `contrib/templates` with no licence. Keep
         // only the real pieces; skip the rest silently (they are not failures).
+        // Read each `.ly` once: the licence gates it in or out, and its `\header`
+        // supplies the real title/composer (the filename is only a fallback).
         let items = files
             .iter()
-            .filter(|p| self.item_for(p).is_some())
-            .filter(|p| {
-                std::fs::read_to_string(p)
-                    .ok()
-                    .and_then(|t| parse_ly_license(&t))
-                    .is_some()
+            .filter_map(|p| {
+                let mut item = self.item_for(p)?;
+                let ly = std::fs::read_to_string(p).ok()?;
+                parse_ly_license(&ly)?; // real piece only
+                enrich_from_header(&mut item, &ly);
+                Some(item)
             })
-            .filter_map(|p| self.item_for(p))
             .collect();
         Ok(items)
     }
@@ -138,6 +160,24 @@ pub fn parse_ly_license(ly: &str) -> Option<String> {
             {
                 return Some(value);
             }
+        }
+    }
+    None
+}
+
+/// Extracts the value of a quoted `\header` field (`key = "value"`). Same quote
+/// discipline as [`parse_ly_license`]: a quote must sit right after `=`, so a
+/// `\markup { … }` value never leaks through, and the `= ` guard means `title`
+/// won't match `subtitle`/`mutopiatitle`. Pure; testable offline.
+pub fn parse_ly_header_field(ly: &str, key: &str) -> Option<String> {
+    for line in ly.lines() {
+        if let Some(rest) = line.trim().strip_prefix(key)
+            && let Some(rest) = rest.trim_start().strip_prefix('=')
+            && rest.trim_start().starts_with('"')
+            && let Some(value) = between_quotes(rest.trim_start())
+            && !value.is_empty()
+        {
+            return Some(value);
         }
     }
     None
@@ -186,11 +226,102 @@ mod tests {
         );
     }
 
+    // A realistic Mutopia `\header` (BachJS/BWV1001/bwv-1001_1): the file is named
+    // by an opaque id, and the real metadata lives in the header.
+    const BWV_1001_1: &str = r#"\header {
+        title = "Sonata I BWV 1001"
+        subtitle = "\"Sechs Sonaten für Violine\""
+        piece = "1. Adagio"
+        mutopiatitle = "BWV 1001 Adagio"
+        composer = "Johann Sebastian Bach (1685-1750)"
+        mutopiacomposer = "BachJS"
+        opus = "BWV 1001"
+        copyright = "Creative Commons Attribution-ShareAlike 3.0"
+    }"#;
+
+    #[test]
+    fn header_field_respects_the_equals_guard() {
+        // `title` must not be shadowed by `subtitle`/`mutopiatitle`.
+        assert_eq!(
+            parse_ly_header_field(BWV_1001_1, "title").as_deref(),
+            Some("Sonata I BWV 1001")
+        );
+        assert_eq!(
+            parse_ly_header_field(BWV_1001_1, "mutopiatitle").as_deref(),
+            Some("BWV 1001 Adagio")
+        );
+        // `composer`, not the opaque `mutopiacomposer` id.
+        assert_eq!(
+            parse_ly_header_field(BWV_1001_1, "composer").as_deref(),
+            Some("Johann Sebastian Bach (1685-1750)")
+        );
+        assert_eq!(parse_ly_header_field(BWV_1001_1, "arranger"), None);
+    }
+
+    #[test]
+    fn enrich_prefers_mutopiatitle_and_real_composer_over_filename() {
+        // Start from the filename-derived fallback the walker would produce.
+        let mut item = Item {
+            source_item_id: "ftp/BachJS/BWV1001/bwv-1001_1/bwv-1001_1.ly".into(),
+            url: "url".into(),
+            title: Some("bwv 1001 1".into()),
+            composer: None,
+            arranger: None,
+            source_grade: None,
+        };
+        enrich_from_header(&mut item, BWV_1001_1);
+        // The movement-distinct mutopiatitle wins over the shared `title`...
+        assert_eq!(item.title.as_deref(), Some("BWV 1001 Adagio"));
+        // ...and the human composer name is filled in (never "BachJS").
+        assert_eq!(
+            item.composer.as_deref(),
+            Some("Johann Sebastian Bach (1685-1750)")
+        );
+    }
+
+    #[test]
+    fn enrich_falls_back_to_title_then_keeps_filename() {
+        // No `mutopiatitle`: the plain `title` is used.
+        let mut item = Item {
+            source_item_id: "x.ly".into(),
+            url: "url".into(),
+            title: Some("x".into()),
+            composer: None,
+            arranger: None,
+            source_grade: None,
+        };
+        enrich_from_header(&mut item, "\\header {\n  title = \"Prelude\"\n}");
+        assert_eq!(item.title.as_deref(), Some("Prelude"));
+
+        // No title field at all: the filename fallback survives untouched.
+        let mut bare = Item {
+            source_item_id: "y.ly".into(),
+            url: "url".into(),
+            title: Some("my file".into()),
+            composer: None,
+            arranger: None,
+            source_grade: None,
+        };
+        enrich_from_header(&mut bare, "\\header {\n  license = \"Public Domain\"\n}");
+        assert_eq!(bare.title.as_deref(), Some("my file"));
+        assert_eq!(bare.composer, None);
+    }
+
     #[tokio::test]
     async fn per_file_gate_accepts_free_and_rejects_nc() {
         let src = MutopiaSource::new(fixture());
         let items = src.discover().await.unwrap();
         assert_eq!(items.len(), 3, "three .ly fixtures");
+
+        // discover() enriches from the `\header`: titles/composers come from the
+        // header fields, not the filenames (`pd.ly` → "Old Piece", not "pd").
+        let titled: std::collections::HashMap<_, _> = items
+            .iter()
+            .map(|i| (i.source_item_id.clone(), i))
+            .collect();
+        assert_eq!(titled["pd.ly"].title.as_deref(), Some("Old Piece"));
+        assert_eq!(titled["pd.ly"].composer.as_deref(), Some("J. S. Bach"));
+        assert_eq!(titled["free_sa.ly"].title.as_deref(), Some("Free Piece"));
 
         // Each file's own header drives the decision.
         let mut by_id = std::collections::HashMap::new();
