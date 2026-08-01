@@ -15,22 +15,28 @@
 //! Per-user catalog access guardrail (change: add-catalog-access-limits).
 //!
 //! Stops an authenticated token from being used to scrape the whole catalog while
-//! never penalising a user whose downloads track their play. Two guardrails, keyed
+//! never penalising a user who genuinely engages with the app. Two guardrails, keyed
 //! on the caller's `AuthIdentity.user_id`, enforced at the gRPC layer before any
 //! storage read:
 //!
 //! - **Download** (`GetCatalogScoreBytes` / `GetRatingPreviewBytes`): a short-window
-//!   **burst** cap (pure rate) plus a **play-aware volume** allowance
-//!   `min(hard_ceiling, base_floor + per_play * plays_in_window)` — so downloads
-//!   proportional to play are never blocked, and only a download-heavy/play-light
-//!   profile falls back to the floor.
+//!   **burst** cap (pure rate) plus an **engagement-aware volume** allowance
+//!   `min(hard_ceiling, base_floor + per_engagement * engagement_in_window)`, where
+//!   `engagement` = **play sessions + score ratings** in the window. Both playing a
+//!   score and rating it in the swipe deck are genuine engagement that legitimately
+//!   involves downloading a score, so both earn download headroom. A user whose
+//!   downloads track their engagement is never blocked; only a download-heavy /
+//!   engagement-light profile (the bot signature) falls back to the floor. Note the
+//!   rating deck's preview bytes are the *full* MusicXML, so they must stay under the
+//!   guardrail — but each rating both spends one download and earns `per_engagement`
+//!   headroom, so a real rater is net-positive while a preview-only scraper is not.
 //! - **Enumeration** (`SearchCatalog` / `GetCatalogScore` / `ListRatingDeck`): a
 //!   request-rate cap to slow programmatic catalog walk-through.
 //!
-//! A **music-scope admin** (a `music/admin` or the `global/admin` break-glass) is
-//! exempt; moderators and admins scoped only to another domain (e.g. `live`) are
-//! not. `enabled=false` is the kill-switch. Counters ride the shared `Cache` via
-//! `cymbra_platform::ratelimit::check`, so limits hold across instances.
+//! The **back-office** audience and a **music-scope admin** are exempt; music-app
+//! moderators and other-scope admins are not. `enabled=false` is the kill-switch.
+//! Counters ride the shared `Cache` via `cymbra_platform::ratelimit::check`, so
+//! limits hold across instances.
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -40,27 +46,29 @@ use cymbra_platform::config::CatalogLimitsConfig;
 use cymbra_platform::{AppError, AuthIdentity, Result, ratelimit};
 
 use crate::play::PlayRepo;
+use crate::score_rating::ScoreRatingRepo;
 
-/// TTL for the cached per-user in-window play count. The allowance only needs to be
-/// approximately fresh, so a short TTL keeps the hot download path off `PlayRepo`.
-const PLAYS_CACHE_TTL: Duration = Duration::from_secs(60);
+/// TTL for the cached per-user in-window engagement count. The allowance only needs
+/// to be approximately fresh, so a short TTL keeps the hot download path off the DB.
+const ENGAGEMENT_CACHE_TTL: Duration = Duration::from_secs(60);
 
 /// Pure, host-testable allowance math (no I/O, no clock).
 pub mod catalog_limits_core {
-    /// The play-aware download allowance:
-    /// `min(hard_ceiling, base_floor + per_play * plays)`.
+    /// The engagement-aware download allowance:
+    /// `min(hard_ceiling, base_floor + per_engagement * engagement)`.
     pub fn effective_allowance(
         base_floor: u32,
-        per_play: u32,
-        plays: u64,
+        per_engagement: u32,
+        engagement: u64,
         hard_ceiling: u32,
     ) -> u32 {
-        let earned = (base_floor as u64).saturating_add((per_play as u64).saturating_mul(plays));
+        let earned =
+            (base_floor as u64).saturating_add((per_engagement as u64).saturating_mul(engagement));
         earned.min(hard_ceiling as u64) as u32
     }
 
-    /// Count play-session timestamps that fall within `[now_ms - window_ms, now_ms]`.
-    pub fn plays_in_window<I: IntoIterator<Item = i64>>(
+    /// Count event timestamps that fall within `[now_ms - window_ms, now_ms]`.
+    pub fn count_in_window<I: IntoIterator<Item = i64>>(
         points_ms: I,
         now_ms: i64,
         window_ms: i64,
@@ -70,16 +78,28 @@ pub mod catalog_limits_core {
     }
 }
 
-/// Enforces the per-user catalog access limits over the shared cache and play port.
+/// Enforces the per-user catalog access limits over the shared cache, play port, and
+/// rating port.
 pub struct CatalogAccessLimiter {
     cache: Arc<dyn Cache>,
     plays: Arc<dyn PlayRepo>,
+    ratings: Arc<dyn ScoreRatingRepo>,
     cfg: CatalogLimitsConfig,
 }
 
 impl CatalogAccessLimiter {
-    pub fn new(cache: Arc<dyn Cache>, plays: Arc<dyn PlayRepo>, cfg: CatalogLimitsConfig) -> Self {
-        Self { cache, plays, cfg }
+    pub fn new(
+        cache: Arc<dyn Cache>,
+        plays: Arc<dyn PlayRepo>,
+        ratings: Arc<dyn ScoreRatingRepo>,
+        cfg: CatalogLimitsConfig,
+    ) -> Self {
+        Self {
+            cache,
+            plays,
+            ratings,
+            cfg,
+        }
     }
 
     /// Who bypasses the guardrail. Exempt:
@@ -118,12 +138,12 @@ impl CatalogAccessLimiter {
             subject,
             "download-burst",
         )?;
-        // Tier 2 — play-aware volume allowance.
-        let plays = self.plays_in_window(subject).await;
+        // Tier 2 — engagement-aware volume allowance.
+        let engagement = self.engagement_in_window(subject).await;
         let effective = catalog_limits_core::effective_allowance(
             self.cfg.volume_base_floor,
-            self.cfg.volume_per_play,
-            plays,
+            self.cfg.volume_per_engagement,
+            engagement,
             self.cfg.volume_hard_ceiling,
         );
         log_reject(
@@ -159,30 +179,39 @@ impl CatalogAccessLimiter {
         )
     }
 
-    /// In-window play-session count, cached in the shared cache with a short TTL so
-    /// the hot download path avoids a `PlayRepo` round-trip. Any cache/`PlayRepo`
-    /// error fails safe to 0 plays — the caller then gets exactly the base floor.
-    async fn plays_in_window(&self, user_id: &str) -> u64 {
-        let key = format!("catplays:{user_id}");
+    /// In-window engagement = play sessions + score ratings, cached in the shared
+    /// cache with a short TTL so the hot download path avoids repeat DB reads. Any
+    /// cache/repo error fails safe toward 0 — the caller then gets the base floor.
+    async fn engagement_in_window(&self, user_id: &str) -> u64 {
+        let key = format!("catengage:{user_id}");
         if let Ok(Some(v)) = self.cache.get(&key).await
             && let Ok(n) = v.parse::<u64>()
         {
             return n;
         }
+        let window = self.cfg.volume_window;
+        // Plays: filter the user's session timestamps to the window.
         let now_ms = chrono::Utc::now().timestamp_millis();
-        let window_ms = self.cfg.volume_window.as_millis() as i64;
-        let n = match self.plays.session_points(user_id).await {
-            Ok(points) => catalog_limits_core::plays_in_window(
+        let window_ms = window.as_millis() as i64;
+        let plays = match self.plays.session_points(user_id).await {
+            Ok(points) => catalog_limits_core::count_in_window(
                 points.iter().map(|p| p.played_at_ms),
                 now_ms,
                 window_ms,
             ),
-            Err(_) => 0, // fail-safe: unavailable play data ⇒ base floor
+            Err(_) => 0, // fail-safe: unavailable play data ⇒ contributes 0
         };
+        // Ratings: the swipe deck is genuine engagement too.
+        let ratings = self
+            .ratings
+            .count_recent_by_user(user_id, window)
+            .await
+            .unwrap_or(0);
+        let n = plays.saturating_add(ratings);
         // Best-effort cache write; a failure just means we recompute next time.
         let _ = self
             .cache
-            .set_ex(&key, &n.to_string(), PLAYS_CACHE_TTL)
+            .set_ex(&key, &n.to_string(), ENGAGEMENT_CACHE_TTL)
             .await;
         n
     }
@@ -201,6 +230,7 @@ fn log_reject(r: Result<()>, subject: &str, which: &str) -> Result<()> {
 mod tests {
     use super::*;
     use crate::play::{FakePlayRepo, PlaySession};
+    use crate::score_rating::{FakeScoreRatingRepo, Verdict};
     use cymbra_platform::cache::FakeCache;
     use std::collections::BTreeMap;
 
@@ -211,7 +241,7 @@ mod tests {
             download_burst_window: Duration::from_secs(60),
             volume_window: Duration::from_secs(24 * 3600),
             volume_base_floor: 3,
-            volume_per_play: 2,
+            volume_per_engagement: 2,
             volume_hard_ceiling: 20,
             enum_max: 4,
             enum_window: Duration::from_secs(60),
@@ -238,7 +268,23 @@ mod tests {
     }
 
     fn limiter(plays: Arc<FakePlayRepo>) -> CatalogAccessLimiter {
-        CatalogAccessLimiter::new(Arc::new(FakeCache::default()), plays, cfg())
+        limiter_with(plays, Arc::new(FakeScoreRatingRepo::default()))
+    }
+
+    fn limiter_with(
+        plays: Arc<FakePlayRepo>,
+        ratings: Arc<FakeScoreRatingRepo>,
+    ) -> CatalogAccessLimiter {
+        CatalogAccessLimiter::new(Arc::new(FakeCache::default()), plays, ratings, cfg())
+    }
+
+    /// Seed `n` ratings for `user_id` (distinct scores, so the fake stores n rows).
+    async fn seed_ratings(repo: &FakeScoreRatingRepo, user_id: &str, n: usize) {
+        for i in 0..n {
+            repo.upsert(user_id, &format!("score-{i}"), Verdict::Like, None)
+                .await
+                .unwrap();
+        }
     }
 
     /// Seed `n` recent play sessions for `user_id` (all inside the volume window).
@@ -268,10 +314,10 @@ mod tests {
     }
 
     #[test]
-    fn plays_in_window_counts_only_recent() {
+    fn count_in_window_counts_only_recent() {
         // window 1000ms ending at now=10_000 ⇒ cutoff 9_000.
         let pts = [9_500i64, 9_000, 8_999, 10_000];
-        assert_eq!(catalog_limits_core::plays_in_window(pts, 10_000, 1_000), 3);
+        assert_eq!(catalog_limits_core::count_in_window(pts, 10_000, 1_000), 3);
     }
 
     #[tokio::test]
@@ -318,6 +364,35 @@ mod tests {
             l.check_download(&id).await,
             Err(AppError::ResourceExhausted(_))
         ));
+    }
+
+    #[tokio::test]
+    async fn ratings_unlock_download_allowance_like_plays() {
+        // A user who rates scores in the swipe deck (no play sessions) still earns
+        // download headroom: allowance = min(20, 3 + 2*8_ratings) = 19, so downloads
+        // above the base floor of 3 keep succeeding.
+        let ratings = Arc::new(FakeScoreRatingRepo::default());
+        seed_ratings(&ratings, "u1", 8).await;
+        let l = limiter_with(Arc::new(FakePlayRepo::default()), ratings);
+        let id = regular("u1");
+        for _ in 0..5 {
+            l.check_download(&id).await.expect("rater not blocked");
+        }
+    }
+
+    #[tokio::test]
+    async fn plays_and_ratings_add_up_in_the_allowance() {
+        // 2 plays + 2 ratings = 4 engagement ⇒ allowance min(20, 3 + 2*4) = 11.
+        let plays = Arc::new(FakePlayRepo::default());
+        seed_plays(&plays, "u1", 2).await;
+        let ratings = Arc::new(FakeScoreRatingRepo::default());
+        seed_ratings(&ratings, "u1", 2).await;
+        let l = limiter_with(plays, ratings);
+        let id = regular("u1");
+        // 5 downloads (> floor 3) all succeed thanks to the combined engagement.
+        for _ in 0..5 {
+            l.check_download(&id).await.expect("combined engagement");
+        }
     }
 
     #[tokio::test]
@@ -387,6 +462,7 @@ mod tests {
         let l = CatalogAccessLimiter::new(
             Arc::new(FakeCache::default()),
             Arc::new(FakePlayRepo::default()),
+            Arc::new(FakeScoreRatingRepo::default()),
             c,
         );
         let id = regular("u1");

@@ -518,7 +518,7 @@ mod tests {
             download_burst_window: std::time::Duration::from_secs(60),
             volume_window: std::time::Duration::from_secs(24 * 3600),
             volume_base_floor: 2,
-            volume_per_play: 2,
+            volume_per_engagement: 2,
             volume_hard_ceiling: 20,
             enum_max: 2,
             enum_window: std::time::Duration::from_secs(60),
@@ -526,6 +526,7 @@ mod tests {
         let limiter = Arc::new(CatalogAccessLimiter::new(
             Arc::new(FakeCache::default()),
             Arc::new(crate::play::FakePlayRepo::default()),
+            Arc::new(crate::score_rating::FakeScoreRatingRepo::default()),
             cfg,
         ));
         grpc().await.with_limiter(limiter)

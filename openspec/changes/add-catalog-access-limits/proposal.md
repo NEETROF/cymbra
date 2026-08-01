@@ -16,12 +16,14 @@ need per-user access limits so a token cannot be weaponised to scrape the catalo
   handlers:
   - A **download guardrail** on `GetCatalogScoreBytes` and `GetRatingPreviewBytes`
     (the raw-MusicXML paths) with two tiers: a short-window **burst cap** (pure
-    rate — nobody opens hundreds of files in seconds), and a **play-aware volume
-    allowance** instead of a flat daily cap. The volume allowance is a base floor
-    plus headroom earned from the user's actual play activity (`PlayService`
-    sessions), under a high hard ceiling. A user whose download volume tracks how
-    much they play is never blocked; only the "downloads a lot, plays nothing"
-    profile (the bot signature) falls back to the floor.
+    rate — nobody opens hundreds of files in seconds), and an **engagement-aware
+    volume allowance** instead of a flat daily cap. The volume allowance is a base
+    floor plus headroom earned from the user's actual engagement — **play sessions
+    plus score ratings** (the swipe deck's preview returns the score's bytes, so
+    rating legitimately involves a download) — under a high hard ceiling. A user
+    whose download volume tracks how much they play or rate is never blocked; only
+    the "downloads a lot, engages with nothing" profile (the bot signature) falls
+    back to the floor.
   - An **enumeration guardrail** on `SearchCatalog`, `GetCatalogScore`, and
     `ListRatingDeck` — a per-window request cap to slow catalog walk-through
     (the existing page-size clamp stays; this adds a request-rate ceiling).

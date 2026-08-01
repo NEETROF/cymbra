@@ -24,41 +24,52 @@ gRPC status `RESOURCE_EXHAUSTED` and MUST NOT return the score bytes.
 - **WHEN** user A has hit the burst cap
 - **THEN** user B's downloads are unaffected because counters are keyed by `user_id`
 
-### Requirement: Play-aware download volume allowance
+### Requirement: Engagement-aware download volume allowance
 
 The system SHALL bound each user's total download volume over a rolling window with
-a **play-aware allowance** rather than a flat cap, so a user whose downloads track
-their real usage is not penalised. The effective allowance SHALL be a configured
-base floor plus additional headroom derived from the user's play activity
-(`PlayService` sessions) over the window, and SHALL never exceed a configured high
-hard ceiling. When a user's download volume in the window exceeds their current
-effective allowance, the system SHALL reject further score-bytes requests with
+an **engagement-aware allowance** rather than a flat cap, so a user whose downloads
+track their real usage is not penalised. The effective allowance SHALL be a
+configured base floor plus additional headroom derived from the user's **engagement**
+over the window, where engagement is the sum of the user's **play sessions and score
+ratings** (both are genuine app activity that legitimately involves downloading a
+score — playing a score, and rating it in the swipe deck, whose read-only preview
+returns the score's bytes). The allowance SHALL never exceed a configured high hard
+ceiling. When a user's download volume in the window exceeds their current effective
+allowance, the system SHALL reject further score-bytes requests with
 `RESOURCE_EXHAUSTED`. The allowance SHALL be keyed on `AuthIdentity.user_id`.
 
-#### Scenario: Downloads proportional to play are not blocked
+#### Scenario: Downloads proportional to engagement are not blocked
 - **WHEN** a user's download volume over the window stays in proportion to their
-  play activity (they play the scores they download)
+  engagement (they play or rate the scores they download)
 - **THEN** their downloads continue to succeed even well above the base floor
 - **AND** they are not rejected with `RESOURCE_EXHAUSTED`
 
-#### Scenario: Download-heavy, play-light profile falls back to the floor
-- **WHEN** a user downloads far more scores than their play activity justifies
-  (the scraping signature)
-- **THEN** once their download volume exceeds the base floor plus play-earned
+#### Scenario: Rating scores earns download headroom like playing
+- **WHEN** a user rates scores in the swipe deck (earning engagement) even without
+  playing them
+- **THEN** their effective download allowance grows with their ratings, so they are
+  not blocked at the base floor
+
+#### Scenario: Download-heavy, engagement-light profile falls back to the floor
+- **WHEN** a user downloads far more scores than their engagement (plays + ratings)
+  justifies — e.g. pulling rating-preview bytes without actually rating (the
+  scraping signature)
+- **THEN** once their download volume exceeds the base floor plus engagement-earned
   headroom, further requests are rejected with `RESOURCE_EXHAUSTED`
 
-#### Scenario: Hard ceiling backstops even very active players
-- **WHEN** a user's play-earned headroom would exceed the configured hard ceiling
+#### Scenario: Hard ceiling backstops even very engaged users
+- **WHEN** a user's engagement-earned headroom would exceed the configured hard
+  ceiling
 - **THEN** the effective allowance is capped at the hard ceiling
 - **AND** download volume beyond the hard ceiling is rejected with
   `RESOURCE_EXHAUSTED`
 
 #### Scenario: New user can download up to the base floor
-- **WHEN** a user with no play activity yet downloads scores
+- **WHEN** a user with no engagement yet downloads scores
 - **THEN** they may download up to the base floor before any rejection
 
 #### Scenario: Allowance is isolated per user
-- **WHEN** user A has exhausted their play-aware allowance
+- **WHEN** user A has exhausted their engagement-aware allowance
 - **THEN** user B's allowance is unaffected because it is computed per `user_id`
 
 ### Requirement: Per-user enumeration rate limiting on catalog browse
