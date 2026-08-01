@@ -15,8 +15,8 @@ use cymbra_user_port::proto::{
     GrantRoleRequest, GrantRoleResponse, Identity, ListAccountsRequest, ListAccountsResponse,
     ListIdentitiesRequest, ListIdentitiesResponse, ListRoleGrantsRequest, ListRoleGrantsResponse,
     PlayerProfile as ProtoPlayerProfile, RevokeRoleRequest, RevokeRoleResponse,
-    RoleGrant as ProtoRoleGrant, SetLocaleRequest, SetProfileVisibilityRequest,
-    SetProfileVisibilityResponse, UpdateAccountRequest,
+    RoleGrant as ProtoRoleGrant, ScopeRoles as ProtoScopeRoles, SetLocaleRequest,
+    SetProfileVisibilityRequest, SetProfileVisibilityResponse, UpdateAccountRequest,
     user_service_server::{UserService, UserServiceServer},
 };
 use cymbra_user_port::{UserPort, Visibility};
@@ -161,12 +161,13 @@ impl<P: UserPort + 'static> UserService for UserGrpc<P> {
         &self,
         req: Request<GrantRoleRequest>,
     ) -> Result<Response<GrantRoleResponse>, Status> {
-        // Admin-only (change: add-moderation-back-office). Because every grant is
-        // gated on `admin`, granting the `admin` role also requires the caller to be
-        // an admin. The acting admin is the authenticated caller, never the body.
+        // Scope-matched admin (change: scope-aware-role-admin): granting a role in
+        // scope `S` requires `admin` in `S` or `global/admin`. A `music/admin` can no
+        // longer touch `live`, and granting `admin` itself is gated the same way. The
+        // acting admin is the authenticated caller, never the body.
         let id = identity(&req)?;
-        cymbra_platform::guard::require_admin(&id)?;
         let r = req.into_inner();
+        cymbra_platform::guard::require_admin_in_scope(&id, &r.scope)?;
         self.port
             .grant_role(&id.user_id, &r.user_id, &r.scope, &r.role)
             .await?;
@@ -178,8 +179,8 @@ impl<P: UserPort + 'static> UserService for UserGrpc<P> {
         req: Request<RevokeRoleRequest>,
     ) -> Result<Response<RevokeRoleResponse>, Status> {
         let id = identity(&req)?;
-        cymbra_platform::guard::require_admin(&id)?;
         let r = req.into_inner();
+        cymbra_platform::guard::require_admin_in_scope(&id, &r.scope)?;
         self.port
             .revoke_role(&id.user_id, &r.user_id, &r.scope, &r.role)
             .await?;
@@ -214,15 +215,19 @@ impl<P: UserPort + 'static> UserService for UserGrpc<P> {
         &self,
         req: Request<ListAccountsRequest>,
     ) -> Result<Response<ListAccountsResponse>, Status> {
-        // Admin-only (change: add-admin-account-directory): the directory reveals
-        // who holds which role, so it is gated exactly like the grant/revoke it
-        // feeds. Moderators and normal users are refused.
+        // Admin-only, scope-matched (change: scope-aware-role-admin): the directory
+        // reveals who holds which role, so it exposes only the scopes the caller may
+        // administer. A caller who is admin in no scope is refused, exactly like the
+        // grant/revoke this feeds.
         let id = identity(&req)?;
-        cymbra_platform::guard::require_admin(&id)?;
+        let scopes = id.admin_scopes(&crate::module::SCOPES);
+        if scopes.is_empty() {
+            return Err(Status::permission_denied("requires `admin` in a scope"));
+        }
         let r = req.into_inner();
         let page = self
             .port
-            .list_accounts(&r.query, r.limit as i64, r.offset as i64)
+            .list_accounts(&r.query, r.limit as i64, r.offset as i64, &scopes)
             .await?;
         let accounts = page
             .entries
@@ -231,7 +236,14 @@ impl<P: UserPort + 'static> UserService for UserGrpc<P> {
                 user_id: a.user_id,
                 handle: a.handle,
                 display_name: a.display_name,
-                roles: a.roles,
+                roles_by_scope: a
+                    .roles_by_scope
+                    .into_iter()
+                    .map(|sr| ProtoScopeRoles {
+                        scope: sr.scope,
+                        roles: sr.roles,
+                    })
+                    .collect(),
             })
             .collect();
         Ok(Response::new(ListAccountsResponse {
@@ -294,12 +306,34 @@ mod tests {
         (UserGrpc::new(module.clone()), module)
     }
 
+    /// A back-office request whose caller holds `roles` **in the `music` scope**
+    /// (the common case for these tests). Scope-matched auth treats it as a
+    /// `music`-scope caller.
     fn authed<T>(msg: T, user_id: &str, roles: &[&str]) -> Request<T> {
+        authed_scoped(msg, user_id, &[("music", roles)])
+    }
+
+    /// A back-office request whose caller holds the given roles per scope — used to
+    /// exercise scope-matched authorization across `global`/`music`/`live`.
+    fn authed_scoped<T>(msg: T, user_id: &str, pairs: &[(&str, &[&str])]) -> Request<T> {
+        let roles_by_scope: std::collections::BTreeMap<String, Vec<String>> = pairs
+            .iter()
+            .map(|(s, rs)| (s.to_string(), rs.iter().map(|r| (*r).to_string()).collect()))
+            .collect();
+        let mut roles: Vec<String> = Vec::new();
+        for rs in roles_by_scope.values() {
+            for r in rs {
+                if !roles.contains(r) {
+                    roles.push(r.clone());
+                }
+            }
+        }
         let mut req = Request::new(msg);
         req.extensions_mut().insert(AuthIdentity {
             user_id: user_id.into(),
-            audience: "music".into(),
-            roles: roles.iter().map(|r| (*r).into()).collect(),
+            audience: "back-office".into(),
+            roles,
+            roles_by_scope,
         });
         req
     }
@@ -435,6 +469,157 @@ mod tests {
             .into_inner();
         assert_eq!(resp.total, 1);
         assert_eq!(resp.accounts[0].handle.as_deref(), Some("ada"));
+    }
+
+    #[tokio::test]
+    async fn grant_is_scope_matched_across_scopes() {
+        let (g, module) = grpc();
+        let target = module.resolve_or_provision("google", "t").await.unwrap();
+        let live_grant = || GrantRoleRequest {
+            user_id: target.clone(),
+            scope: "live".into(),
+            role: "moderator".into(),
+        };
+
+        // A music-only admin cannot touch the `live` scope.
+        let err = g
+            .grant_role(authed_scoped(live_grant(), "m", &[("music", &["admin"])]))
+            .await
+            .unwrap_err();
+        assert_eq!(err.code(), tonic::Code::PermissionDenied);
+        assert!(
+            !module
+                .effective_roles(&target, "live")
+                .await
+                .unwrap()
+                .contains(&"moderator".to_string())
+        );
+
+        // A global admin (break-glass) can grant in `live`.
+        g.grant_role(authed_scoped(live_grant(), "g", &[("global", &["admin"])]))
+            .await
+            .unwrap();
+        assert!(
+            module
+                .effective_roles(&target, "live")
+                .await
+                .unwrap()
+                .contains(&"moderator".to_string())
+        );
+    }
+
+    #[tokio::test]
+    async fn global_role_is_grantable_only_by_global_admin() {
+        let (g, module) = grpc();
+        let target = module.resolve_or_provision("google", "t").await.unwrap();
+        let global_grant = || GrantRoleRequest {
+            user_id: target.clone(),
+            scope: "global".into(),
+            role: "admin".into(),
+        };
+
+        // A music admin cannot grant in the `global` scope.
+        let err = g
+            .grant_role(authed_scoped(global_grant(), "m", &[("music", &["admin"])]))
+            .await
+            .unwrap_err();
+        assert_eq!(err.code(), tonic::Code::PermissionDenied);
+
+        // A global admin can promote another account to `global/admin`.
+        g.grant_role(authed_scoped(
+            global_grant(),
+            "g",
+            &[("global", &["admin"])],
+        ))
+        .await
+        .unwrap();
+        assert!(
+            module
+                .effective_roles(&target, "music")
+                .await
+                .unwrap()
+                .contains(&"admin".to_string())
+        );
+    }
+
+    #[tokio::test]
+    async fn directory_exposes_only_authorized_scopes() {
+        let (g, module) = grpc();
+        let target = module
+            .resolve_or_provision("local", "t@x.dev")
+            .await
+            .unwrap();
+        module
+            .update_account(&target, None, Some("tara".into()), "{}", 1)
+            .await
+            .unwrap();
+        // Target holds a role in each app scope.
+        module
+            .grant_role("seed", &target, "music", "moderator")
+            .await
+            .unwrap();
+        module
+            .grant_role("seed", &target, "live", "moderator")
+            .await
+            .unwrap();
+
+        // A music-only admin sees a `music` column but no `live` roles at all.
+        let resp = g
+            .list_accounts(authed_scoped(
+                ListAccountsRequest {
+                    limit: 25,
+                    offset: 0,
+                    query: "tara".into(),
+                },
+                "m",
+                &[("music", &["admin"])],
+            ))
+            .await
+            .unwrap()
+            .into_inner();
+        let scopes: Vec<&str> = resp.accounts[0]
+            .roles_by_scope
+            .iter()
+            .map(|sr| sr.scope.as_str())
+            .collect();
+        assert_eq!(scopes, vec!["music"]);
+
+        // A global admin sees all three scopes.
+        let resp = g
+            .list_accounts(authed_scoped(
+                ListAccountsRequest {
+                    limit: 25,
+                    offset: 0,
+                    query: "tara".into(),
+                },
+                "gg",
+                &[("global", &["admin"])],
+            ))
+            .await
+            .unwrap()
+            .into_inner();
+        let mut scopes: Vec<&str> = resp.accounts[0]
+            .roles_by_scope
+            .iter()
+            .map(|sr| sr.scope.as_str())
+            .collect();
+        scopes.sort();
+        assert_eq!(scopes, vec!["global", "live", "music"]);
+
+        // A caller who is admin in no scope is refused outright.
+        let err = g
+            .list_accounts(authed_scoped(
+                ListAccountsRequest {
+                    limit: 25,
+                    offset: 0,
+                    query: String::new(),
+                },
+                "u",
+                &[("music", &["moderator"])],
+            ))
+            .await
+            .unwrap_err();
+        assert_eq!(err.code(), tonic::Code::PermissionDenied);
     }
 
     #[tokio::test]

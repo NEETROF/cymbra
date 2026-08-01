@@ -23,14 +23,14 @@ describe("roles store", () => {
     }
   });
 
-  it("grants a role (music scope by default) then re-lists the current page", async () => {
-    const accounts = [{ userId: "t", handle: "ada", roles: [] }];
+  it("grants a role in the given scope then re-lists the current page", async () => {
+    const accounts = [{ userId: "t", handle: "ada", rolesByScope: [{ scope: "music", roles: [] }] }];
     const { clients, state } = makeFakeClients({ accounts });
     setClientsForTest(clients);
     const store = useRolesStore();
     await store.list("", 0); // sets the current page
 
-    await store.grant("t", "moderator");
+    await store.grant("t", "moderator", "music");
 
     expect(state.grantCalls).toEqual([{ userId: "t", scope: "music", role: "moderator" }]);
     expect(store.op.status).toBe("success");
@@ -43,7 +43,7 @@ describe("roles store", () => {
     const { clients, state } = makeFakeClients();
     setClientsForTest(clients);
     const store = useRolesStore();
-    await store.revoke("t", "moderator");
+    await store.revoke("t", "moderator", "music");
     expect(state.revokeCalls).toEqual([{ userId: "t", scope: "music", role: "moderator" }]);
   });
 
@@ -71,7 +71,7 @@ describe("roles store", () => {
     setClientsForTest(clients);
     const store = useRolesStore();
     // The union captures the failure — the action does not throw.
-    const outcome = await store.grant("t", "admin");
+    const outcome = await store.grant("t", "admin", "music");
     expect(outcome.status).toBe("error");
     expect(store.op.status).toBe("error");
     // A user-facing message, not the raw error text.

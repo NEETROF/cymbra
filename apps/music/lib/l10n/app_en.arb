@@ -432,6 +432,9 @@
   "playerScoreUnavailable": "Can't reach the server. Check your connection and try again.",
   "@playerScoreUnavailable": { "description": "Shown when the backend is unreachable while loading a score." },
 
+  "playerScoreRateLimited": "You're opening scores too quickly. Please wait a moment and try again.",
+  "@playerScoreRateLimited": { "description": "Shown when the per-user catalog access limit is hit while loading a score (backend RESOURCE_EXHAUSTED)." },
+
   "prePlayHands": "Play with",
   "@prePlayHands": { "description": "Pre-play setup modal: section header for the hand chooser." },
 

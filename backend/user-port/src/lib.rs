@@ -7,6 +7,7 @@
 use async_trait::async_trait;
 use chrono::NaiveDate;
 use cymbra_platform::{AppError, Result};
+use std::collections::BTreeMap;
 
 /// Generated protobuf messages + tonic client/server stubs for `cymbra.user.v1`.
 pub mod proto {
@@ -96,16 +97,25 @@ pub struct RoleGrant {
     pub acting_admin_handle: Option<String>,
 }
 
+/// The roles an account holds in one scope (change: scope-aware-role-admin).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ScopeRoles {
+    pub scope: String,
+    pub roles: Vec<String>,
+}
+
 /// One row of the admin account directory (change: add-admin-account-directory):
-/// an account with the roles it holds in the `music` scope. Handle/display_name are
-/// optional (handle-less accounts are onboarding-incomplete).
+/// an account with the roles it holds, **grouped by scope** and restricted to the
+/// scopes the calling admin may administer (change: scope-aware-role-admin).
+/// Handle/display_name are optional (handle-less accounts are onboarding-incomplete).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AccountSummary {
     pub user_id: String,
     pub handle: Option<String>,
     pub display_name: Option<String>,
-    /// Roles held in the `music` scope (e.g. `moderator`, `admin`).
-    pub roles: Vec<String>,
+    /// Roles grouped by scope (only the caller's authorized scopes), ordered by the
+    /// scope list the caller was authorized for.
+    pub roles_by_scope: Vec<ScopeRoles>,
 }
 
 /// A page of the admin account directory plus the total matching count.
@@ -173,6 +183,16 @@ pub trait UserPort: Send + Sync {
     /// Effective roles for `scope` (the account's `global` roles plus that scope).
     async fn effective_roles(&self, user_id: &str, scope: &str) -> Result<Vec<String>>;
 
+    /// Roles grouped by scope, for each requested scope the account actually holds a
+    /// role in (change: scope-aware-role-admin). Used to mint a back-office token
+    /// that carries the admin's real roles across `global`/`music`/`live` so
+    /// authorization can be scope-matched. Scopes with no role are omitted.
+    async fn scoped_effective_roles(
+        &self,
+        user_id: &str,
+        scopes: &[String],
+    ) -> Result<BTreeMap<String, Vec<String>>>;
+
     /// Grant `role` in `scope` to `user_id`, idempotently (granting a held role is a
     /// no-op success), recording an audit entry attributed to `acting_admin`
     /// (change: add-moderation-back-office). The role/scope are validated against the
@@ -200,11 +220,19 @@ pub trait UserPort: Send + Sync {
     async fn list_role_grants(&self, user_id: &str) -> Result<Vec<RoleGrant>>;
 
     /// A page of the admin account directory (change: add-admin-account-directory):
-    /// accounts with their `music`-scope roles, plus the total matching count.
-    /// `query` filters by handle (prefix, case-insensitive) or a `local` identity's
-    /// email; an empty `query` lists all accounts. Authorization (admin-only) is
-    /// enforced by the caller.
-    async fn list_accounts(&self, query: &str, limit: i64, offset: i64) -> Result<AccountPage>;
+    /// accounts with their roles **grouped by `scopes`**, plus the total matching
+    /// count. Only roles in `scopes` are returned, so the caller passes exactly the
+    /// scopes it is authorized to administer and the directory can never leak roles
+    /// from another scope (change: scope-aware-role-admin). `query` filters by handle
+    /// (prefix, case-insensitive) or a `local` identity's email; an empty `query`
+    /// lists all accounts. Authorization (admin-only) is enforced by the caller.
+    async fn list_accounts(
+        &self,
+        query: &str,
+        limit: i64,
+        offset: i64,
+        scopes: &[String],
+    ) -> Result<AccountPage>;
 
     // --- Public player profile (change: add-play-activity-profile) -----------
 

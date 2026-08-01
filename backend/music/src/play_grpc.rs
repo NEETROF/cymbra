@@ -135,6 +135,7 @@ mod tests {
             user_id: user_id.into(),
             audience: "music".into(),
             roles: vec!["user".into()],
+            ..Default::default()
         });
         req
     }

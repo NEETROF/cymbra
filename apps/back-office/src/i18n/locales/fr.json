@@ -22,6 +22,11 @@
     "moderator": "modérateur",
     "admin": "admin"
   },
+  "scope": {
+    "global": "global",
+    "music": "music",
+    "live": "live"
+  },
   "status": {
     "pending": "en attente",
     "accepted": "acceptée",
@@ -148,7 +153,10 @@
     "needsReview": "Re-revue",
     "needsReviewHint": "Signalée par les notes de la communauté — une partition acceptée notée assez bas pour mériter un second regard.",
     "empty": "Aucune partition.",
-    "sortBy": "trier par {field}"
+    "sortBy": "trier par {field}",
+    "actions": "Actions",
+    "download": "Télécharger le MusicXML",
+    "downloading": "Téléchargement…"
   },
   "filters": {
     "query": "titre ou compositeur",
@@ -195,7 +203,7 @@
   },
   "roles": {
     "title": "Rôles",
-    "intro": "Parcours les comptes et attribue ou retire les rôles modérateur et admin (scope music). Filtre par handle ou e-mail. Chaque changement est enregistré dans l'historique d'audit du compte.",
+    "intro": "Parcours les comptes et attribue ou retire les rôles modérateur et admin dans un scope que tu administres. Choisis le scope, puis filtre par handle ou e-mail. Chaque changement est enregistré dans l'historique d'audit du compte.",
     "searchPlaceholder": "filtrer par handle ou e-mail",
     "search": "Rechercher",
     "colHandle": "Handle",

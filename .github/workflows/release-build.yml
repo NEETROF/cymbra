@@ -74,13 +74,19 @@ jobs:
         uses: arduino/setup-protoc@v3
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Generate code (gRPC + riverpod + freezed)
-        working-directory: apps/music
+      - name: Generate code (bootstrap workspace + gRPC + riverpod + freezed)
+        # Bootstrap the whole Melos workspace, not just apps/music, so shared
+        # packages (e.g. packages/cymbra_flags) also get their gitignored gRPC
+        # stubs + build_runner output. Mirrors flutter.yml: doing pub-get/codegen
+        # only inside apps/music silently dropped cymbra_flags and broke the
+        # release archive (music-v1.16.0). `dart pub global run melos` avoids
+        # relying on the pub-cache bin being on PATH (it isn't on Windows).
         shell: bash
         run: |
-          flutter pub get
-          bash tool/gen_grpc.sh
-          dart run build_runner build --delete-conflicting-outputs
+          dart pub global activate melos
+          dart pub global run melos bootstrap
+          dart pub global run melos run gen-grpc
+          dart pub global run melos run generate
       - name: Build
         working-directory: apps/music
         # prod.json carries the gRPC endpoint; the desktop Google client id +
@@ -114,13 +120,19 @@ jobs:
         uses: arduino/setup-protoc@v3
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Generate code (gRPC + riverpod + freezed)
-        working-directory: apps/music
+      - name: Generate code (bootstrap workspace + gRPC + riverpod + freezed)
+        # Bootstrap the whole Melos workspace, not just apps/music, so shared
+        # packages (e.g. packages/cymbra_flags) also get their gitignored gRPC
+        # stubs + build_runner output. Mirrors flutter.yml: doing pub-get/codegen
+        # only inside apps/music silently dropped cymbra_flags and broke the
+        # release archive (music-v1.16.0). `dart pub global run melos` avoids
+        # relying on the pub-cache bin being on PATH (it isn't on Windows).
         shell: bash
         run: |
-          flutter pub get
-          bash tool/gen_grpc.sh
-          dart run build_runner build --delete-conflicting-outputs
+          dart pub global activate melos
+          dart pub global run melos bootstrap
+          dart pub global run melos run gen-grpc
+          dart pub global run melos run generate
       - name: Inject Google OAuth client ID (optional)
         working-directory: apps/music
         shell: bash
@@ -178,13 +190,19 @@ jobs:
         uses: arduino/setup-protoc@v3
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Generate code (gRPC + riverpod + freezed)
-        working-directory: apps/music
+      - name: Generate code (bootstrap workspace + gRPC + riverpod + freezed)
+        # Bootstrap the whole Melos workspace, not just apps/music, so shared
+        # packages (e.g. packages/cymbra_flags) also get their gitignored gRPC
+        # stubs + build_runner output. Mirrors flutter.yml: doing pub-get/codegen
+        # only inside apps/music silently dropped cymbra_flags and broke the
+        # release archive (music-v1.16.0). `dart pub global run melos` avoids
+        # relying on the pub-cache bin being on PATH (it isn't on Windows).
         shell: bash
         run: |
-          flutter pub get
-          bash tool/gen_grpc.sh
-          dart run build_runner build --delete-conflicting-outputs
+          dart pub global activate melos
+          dart pub global run melos bootstrap
+          dart pub global run melos run gen-grpc
+          dart pub global run melos run generate
       - name: Build
         working-directory: apps/music
         # See the linux job: prod.json + the desktop client id/secret enable
@@ -220,13 +238,19 @@ jobs:
         uses: arduino/setup-protoc@v3
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Generate code (gRPC + riverpod + freezed)
-        working-directory: apps/music
+      - name: Generate code (bootstrap workspace + gRPC + riverpod + freezed)
+        # Bootstrap the whole Melos workspace, not just apps/music, so shared
+        # packages (e.g. packages/cymbra_flags) also get their gitignored gRPC
+        # stubs + build_runner output. Mirrors flutter.yml: doing pub-get/codegen
+        # only inside apps/music silently dropped cymbra_flags and broke the
+        # release archive (music-v1.16.0). `dart pub global run melos` avoids
+        # relying on the pub-cache bin being on PATH (it isn't on Windows).
         shell: bash
         run: |
-          flutter pub get
-          bash tool/gen_grpc.sh
-          dart run build_runner build --delete-conflicting-outputs
+          dart pub global activate melos
+          dart pub global run melos bootstrap
+          dart pub global run melos run gen-grpc
+          dart pub global run melos run generate
       - name: Set up release signing (Play upload key)
         working-directory: apps/music/android
         shell: bash
@@ -279,13 +303,19 @@ jobs:
         uses: arduino/setup-protoc@v3
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Generate code (gRPC + riverpod + freezed)
-        working-directory: apps/music
+      - name: Generate code (bootstrap workspace + gRPC + riverpod + freezed)
+        # Bootstrap the whole Melos workspace, not just apps/music, so shared
+        # packages (e.g. packages/cymbra_flags) also get their gitignored gRPC
+        # stubs + build_runner output. Mirrors flutter.yml: doing pub-get/codegen
+        # only inside apps/music silently dropped cymbra_flags and broke the
+        # release archive (music-v1.16.0). `dart pub global run melos` avoids
+        # relying on the pub-cache bin being on PATH (it isn't on Windows).
         shell: bash
         run: |
-          flutter pub get
-          bash tool/gen_grpc.sh
-          dart run build_runner build --delete-conflicting-outputs
+          dart pub global activate melos
+          dart pub global run melos bootstrap
+          dart pub global run melos run gen-grpc
+          dart pub global run melos run generate
       - name: Check iOS signing secrets
         env:
           CERT: ${{ secrets.IOS_DIST_CERT_BASE64 }}

@@ -40,6 +40,47 @@ describe("CatalogTable", () => {
     expect(w.text()).toContain("No scores.");
   });
 
+  it("hides the download control when the operator cannot download (non-moderator)", () => {
+    const w = mount(CatalogTable, { global: withI18n, props: { hits: hits as never, status: "pending", sort: [] } });
+    expect(w.find(".dl-btn").exists()).toBe(false);
+    // No Actions header either.
+    expect(w.text()).not.toContain("Actions");
+  });
+
+  it("renders a per-row download control for an authorized operator and emits the hit", async () => {
+    const w = mount(CatalogTable, {
+      global: withI18n,
+      props: { hits: hits as never, status: "pending", sort: [], canDownload: true },
+    });
+    const buttons = w.findAll(".dl-btn");
+    expect(buttons).toHaveLength(2);
+    await buttons[1].trigger("click");
+    const emitted = w.emitted("download");
+    expect(emitted).toBeTruthy();
+    expect((emitted![0][0] as { id: string }).id).toBe("b");
+    // Clicking the download must NOT also select the row (the button stops it).
+    expect(w.emitted("select")).toBeFalsy();
+  });
+
+  it("reflects a row's download loading and error state without touching other rows", () => {
+    const downloads = {
+      a: { status: "loading" as const },
+      b: { status: "error" as const, error: "Not available yet. Try again later." },
+    };
+    const w = mount(CatalogTable, {
+      global: withI18n,
+      props: { hits: hits as never, status: "pending", sort: [], canDownload: true, downloads },
+    });
+    const buttons = w.findAll(".dl-btn");
+    // Row A is loading → its button is disabled; row B is not loading → enabled.
+    expect(buttons[0].attributes("disabled")).toBeDefined();
+    expect(buttons[1].attributes("disabled")).toBeUndefined();
+    // Row B's error message is shown (localized), row A shows none.
+    const errors = w.findAll(".dl-error");
+    expect(errors).toHaveLength(1);
+    expect(errors[0].text()).toContain("Not available yet");
+  });
+
   it("shows each row's own status and flags community re-reviews (mixed queue)", () => {
     // A mixed review queue: a pending score and an accepted score flagged for
     // re-review. Each row shows its OWN status, and the flagged one gets a badge.

@@ -1,23 +1,46 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { match } from "ts-pattern";
 import { PAGE_SIZE, useRolesStore } from "@/stores/roles";
 import { useSessionsStore } from "@/stores/sessions";
+import { useAuthStore } from "@/stores/auth";
+import type { Scope } from "@/lib/jwt";
 import type { AccountRow, RoleGrant } from "@/gen/user_pb";
 import AppTag from "@/components/AppTag.vue";
 
 // Admin-only (route- + server-guarded). A paginated directory of accounts with
-// their music-scope roles; an admin filters by handle/email and grants/revokes per
-// row. Selecting a row loads its audit history. All API work lives in the store;
-// this view only matches on the Async unions.
+// their roles grouped by scope; an admin picks a scope they may administer, filters
+// by handle/email and grants/revokes per row within that scope. A `music`-only admin
+// only ever sees `music`; a `global/admin` can switch across global/music/live
+// (change: scope-aware-role-admin). All API work lives in the store; this view only
+// matches on the Async unions.
 const store = useRolesStore();
 const sessions = useSessionsStore();
+const auth = useAuthStore();
 const { t } = useI18n();
 const filter = ref("");
 const selected = ref<string | null>(null);
 
 const MANAGED_ROLES = ["moderator", "admin"] as const;
+
+// The scopes this admin may administer, and the one currently selected. Default to
+// the first authorized scope; if the set changes (e.g. after refresh) and the
+// current pick is no longer valid, fall back to the first.
+const authorizedScopes = computed<Scope[]>(() => auth.adminScopes);
+const selectedScope = ref<Scope>(authorizedScopes.value[0] ?? ("music" as Scope));
+watch(
+  authorizedScopes,
+  (scopes) => {
+    if (!scopes.includes(selectedScope.value) && scopes.length > 0) selectedScope.value = scopes[0];
+  },
+  { immediate: true },
+);
+
+/** The roles an account holds in the currently selected scope. */
+function rolesInScope(account: AccountRow): string[] {
+  return account.rolesByScope.find((sr) => sr.scope === selectedScope.value)?.roles ?? [];
+}
 
 const vm = computed(() =>
   match(store.directory)
@@ -73,8 +96,8 @@ function next() {
   if (canNext.value) store.list(store.params.query, offset.value + PAGE_SIZE);
 }
 function toggle(account: AccountRow, role: string) {
-  if (account.roles.includes(role)) store.revoke(account.userId, role);
-  else store.grant(account.userId, role);
+  if (rolesInScope(account).includes(role)) store.revoke(account.userId, role, selectedScope.value);
+  else store.grant(account.userId, role, selectedScope.value);
 }
 function history(userId: string) {
   selected.value = userId;
@@ -99,6 +122,12 @@ onMounted(() => store.list("", 0));
   <p class="muted">{{ $t("roles.intro") }}</p>
 
   <div class="filter">
+    <label v-if="authorizedScopes.length > 1" class="scope-picker">
+      {{ $t("roles.scope") }}
+      <select v-model="selectedScope" :aria-label="$t('roles.scope')">
+        <option v-for="s in authorizedScopes" :key="s" :value="s">{{ $t(`scope.${s}`) }}</option>
+      </select>
+    </label>
     <input
       v-model="filter"
       type="search"
@@ -127,8 +156,8 @@ onMounted(() => store.list("", 0));
           <td>{{ a.displayName || "—" }}</td>
           <td>
             <div class="rolechips">
-              <AppTag v-for="r in a.roles" :key="r" variant="accent" cap>{{ $t(`role.${r}`) }}</AppTag>
-              <span v-if="a.roles.length === 0" class="muted">—</span>
+              <AppTag v-for="r in rolesInScope(a)" :key="r" variant="accent" cap>{{ $t(`role.${r}`) }}</AppTag>
+              <span v-if="rolesInScope(a).length === 0" class="muted">—</span>
             </div>
           </td>
           <td class="actions">
@@ -137,16 +166,16 @@ onMounted(() => store.list("", 0));
               :key="r"
               type="button"
               class="toggle"
-              :class="{ held: a.roles.includes(r) }"
+              :class="{ held: rolesInScope(a).includes(r) }"
               :disabled="acting"
               :aria-label="
-                a.roles.includes(r)
+                rolesInScope(a).includes(r)
                   ? $t('roles.revokeRole', { role: $t(`role.${r}`) })
                   : $t('roles.grantRole', { role: $t(`role.${r}`) })
               "
               @click="toggle(a, r)"
             >
-              {{ a.roles.includes(r) ? "−" : "+" }} {{ $t(`role.${r}`) }}
+              {{ rolesInScope(a).includes(r) ? "−" : "+" }} {{ $t(`role.${r}`) }}
             </button>
             <button type="button" :disabled="acting" @click="history(a.userId)">{{ $t("roles.history") }}</button>
             <button type="button" :disabled="acting" @click="revokeSessions(a.userId)">
@@ -204,6 +233,16 @@ onMounted(() => store.list("", 0));
 }
 .filter input[type="search"] {
   min-width: 16rem;
+}
+.scope-picker {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+.scope-picker select {
+  text-transform: capitalize;
 }
 .handle {
   font-weight: 600;

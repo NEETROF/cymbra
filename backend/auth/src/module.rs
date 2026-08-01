@@ -133,10 +133,31 @@ impl AuthModule {
         }
     }
 
+    /// Build the signed access-token claims for `user_id` at `audience`, carrying
+    /// roles grouped by scope so authorization can be scope-matched. The
+    /// `back-office` console aggregates the admin's roles across `global` + every app
+    /// scope; an app audience stays single-scope (`global` + that app) (change:
+    /// scope-aware-role-admin).
+    async fn access_claims(&self, user_id: &str, audience: &str) -> Result<token::Claims> {
+        let scopes: Vec<String> = if audience == cymbra_platform::BACKOFFICE_AUDIENCE {
+            let mut v = vec!["global".to_string()];
+            v.extend(cymbra_platform::APP_SCOPES.iter().map(|s| s.to_string()));
+            v
+        } else {
+            vec!["global".to_string(), audience.to_string()]
+        };
+        let roles_by_scope = self.user.scoped_effective_roles(user_id, &scopes).await?;
+        Ok(token::new_claims_scoped(
+            user_id,
+            audience,
+            roles_by_scope,
+            self.cfg.access_ttl,
+        ))
+    }
+
     /// Mint an access (signed) + refresh (session) token pair for `audience`.
     async fn issue(&self, user_id: &str, audience: &str) -> Result<TokenPair> {
-        let roles = self.user.effective_roles(user_id, audience).await?;
-        let claims = token::new_claims(user_id, audience, roles, self.cfg.access_ttl);
+        let claims = self.access_claims(user_id, audience).await?;
         let access = token::sign(&claims, &self.kid, &self.signing_key)?;
         let refresh = self.sessions.create(user_id, audience).await?;
         Ok(TokenPair {
@@ -328,11 +349,10 @@ impl AuthPort for AuthModule {
 
     async fn refresh(&self, refresh_token: &str) -> Result<TokenPair> {
         let rot = self.sessions.rotate(refresh_token).await?;
-        let roles = self
-            .user
-            .effective_roles(&rot.user_id, &rot.audience)
-            .await?;
-        let claims = token::new_claims(&rot.user_id, &rot.audience, roles, self.cfg.access_ttl);
+        // Re-resolve the caller's current per-scope roles and preserve the session's
+        // audience, so a role change takes effect on the next refresh and a
+        // back-office session stays multi-scope (change: scope-aware-role-admin).
+        let claims = self.access_claims(&rot.user_id, &rot.audience).await?;
         let access = token::sign(&claims, &self.kid, &self.signing_key)?;
         Ok(TokenPair {
             access_token: access,
@@ -505,6 +525,7 @@ mod tests {
         email: Arc<FakeEmail>,
         pending: Arc<crate::pending_setpw::FakePendingStore>,
         sessions: Arc<crate::session::FakeSessionStore>,
+        user: Arc<dyn UserPort>,
     }
 
     fn harness() -> Harness {
@@ -521,7 +542,11 @@ mod tests {
         let cfg = AuthConfig::new(
             Duration::from_secs(900),
             Duration::from_secs(2_592_000),
-            vec!["music".into(), "live".into()],
+            vec![
+                "music".into(),
+                "live".into(),
+                cymbra_platform::BACKOFFICE_AUDIENCE.into(),
+            ],
             12,
             3,
             Duration::from_secs(60),
@@ -532,7 +557,7 @@ mod tests {
             None,
         );
         let m = AuthModule::new(
-            user,
+            user.clone(),
             creds.clone(),
             cache,
             pending_dyn,
@@ -550,6 +575,7 @@ mod tests {
             email,
             pending,
             sessions,
+            user,
         }
     }
 
@@ -571,6 +597,51 @@ mod tests {
         let claims = ptoken::verify(&pair.access_token, &keys(), &["music"]).unwrap();
         assert_eq!(claims.aud, "music");
         assert!(claims.roles.contains(&"user".to_string()));
+        // An app audience stays single-scope: only `global` (+ its own scope) roles.
+        assert!(claims.roles_by_scope.contains_key("global"));
+        assert!(!claims.roles_by_scope.contains_key("live"));
+    }
+
+    #[tokio::test]
+    async fn back_office_signin_carries_every_scope_and_refresh_reflects_changes() {
+        let h = harness();
+        h.m.sign_up_local("adm@x.dev", PW, "").await.unwrap();
+        let tok = h.creds.peek_verification_token("adm@x.dev").unwrap();
+        h.m.verify_email(&tok).await.unwrap();
+        // The account is a music/admin and a live/moderator (but not global).
+        let uid = h
+            .user
+            .resolve_or_provision("local", "adm@x.dev")
+            .await
+            .unwrap();
+        h.user
+            .grant_role("seed", &uid, "music", "admin")
+            .await
+            .unwrap();
+        h.user
+            .grant_role("seed", &uid, "live", "moderator")
+            .await
+            .unwrap();
+
+        let ba = cymbra_platform::BACKOFFICE_AUDIENCE;
+        let pair = h.m.sign_in_local("adm@x.dev", PW, ba).await.unwrap();
+        let claims = ptoken::verify(&pair.access_token, &keys(), &[ba]).unwrap();
+        assert_eq!(claims.aud, ba);
+        // The back-office token carries the real per-scope roles across all scopes.
+        assert_eq!(claims.roles_by_scope["music"], vec!["admin".to_string()]);
+        assert_eq!(claims.roles_by_scope["live"], vec!["moderator".to_string()]);
+        assert_eq!(claims.roles_by_scope["global"], vec!["user".to_string()]);
+
+        // A role change takes effect on the next refresh, audience preserved.
+        h.user
+            .revoke_role("seed", &uid, "live", "moderator")
+            .await
+            .unwrap();
+        let refreshed = h.m.refresh(&pair.refresh_token).await.unwrap();
+        let claims = ptoken::verify(&refreshed.access_token, &keys(), &[ba]).unwrap();
+        assert_eq!(claims.aud, ba);
+        assert!(!claims.roles_by_scope.contains_key("live"));
+        assert_eq!(claims.roles_by_scope["music"], vec!["admin".to_string()]);
     }
 
     #[tokio::test]
