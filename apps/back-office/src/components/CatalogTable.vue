@@ -117,7 +117,7 @@ function rowStatus(h: CatalogHit): ModerationStatus {
             </span>
             <span class="title-text">
               <span class="t-name">{{ h.title || "—" }}</span>
-              <span class="t-id">ID: {{ shortId(h.id) }}</span>
+              <span class="t-id" :title="h.id">ID: {{ shortId(h.id) }}</span>
             </span>
           </div>
         </td>
@@ -235,6 +235,11 @@ function rowStatus(h: CatalogHit): ModerationStatus {
   font-size: 0.68rem;
   color: var(--faint);
   letter-spacing: 0.05em;
+  cursor: help;
+}
+
+.t-id:hover {
+  text-decoration: underline dotted;
 }
 
 .num {
