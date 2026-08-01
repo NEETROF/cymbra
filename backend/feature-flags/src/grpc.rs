@@ -8,7 +8,7 @@
 
 use crate::proto::flag_service_server::{FlagService as FlagServiceTrait, FlagServiceServer};
 use crate::proto::{self};
-use crate::service::{Actor, FlagService, KeyState};
+use crate::service::{Actor, ConsoleScopes, FlagService, KeyState};
 use crate::store::ChangeRecord;
 use crate::value::FlagValue;
 use crate::{EvalContext, RolloutScope};
@@ -41,10 +41,20 @@ impl FlagGrpc {
             .cloned()
             .ok_or_else(|| Status::unauthenticated("missing identity"))?;
         cymbra_platform::guard::require_admin(&id)?;
+        // The back-office admin console (dedicated audience) administers multiple
+        // scopes: derive its per-app admin set + platform flag from the token's
+        // scoped roles, so the flags panel lists every app and gates edits per scope
+        // instead of keying on a single app audience (change: scope-aware-role-admin).
+        let console =
+            (id.audience == cymbra_platform::BACKOFFICE_AUDIENCE).then(|| ConsoleScopes {
+                admin_apps: id.admin_scopes(&cymbra_platform::APP_SCOPES),
+                platform: id.has_role_in_scope("global", "admin"),
+            });
         Ok(Actor {
             user_id: id.user_id,
             app: id.audience,
             is_admin: true,
+            console,
         })
     }
 }
@@ -332,6 +342,66 @@ mod tests {
             ..Default::default()
         });
         req
+    }
+
+    /// A back-office console request whose caller holds the given per-scope roles.
+    fn console_req<T>(msg: T, pairs: &[(&str, &[&str])]) -> Request<T> {
+        let roles_by_scope: std::collections::BTreeMap<String, Vec<String>> = pairs
+            .iter()
+            .map(|(s, rs)| (s.to_string(), rs.iter().map(|r| (*r).to_string()).collect()))
+            .collect();
+        let mut roles: Vec<String> = Vec::new();
+        for rs in roles_by_scope.values() {
+            for r in rs {
+                if !roles.contains(r) {
+                    roles.push(r.clone());
+                }
+            }
+        }
+        let mut req = Request::new(msg);
+        req.extensions_mut().insert(AuthIdentity {
+            user_id: "00000000-0000-0000-0000-0000000000aa".into(),
+            audience: cymbra_platform::BACKOFFICE_AUDIENCE.into(),
+            roles,
+            roles_by_scope,
+        });
+        req
+    }
+
+    #[tokio::test]
+    async fn back_office_console_lists_every_app_and_gates_edit_by_scope() {
+        // A music-only admin on the console: sees ALL apps' flags, but may edit only
+        // `music` keys — shared `all` keys stay locked (regression guard for the
+        // scope-aware audience change).
+        let g = grpc(false);
+        let resp = g
+            .list_flag_definitions(console_req(
+                proto::ListFlagDefinitionsRequest {
+                    app_filter: String::new(),
+                },
+                &[("music", &["admin"])],
+            ))
+            .await
+            .unwrap()
+            .into_inner();
+        let apps: std::collections::BTreeSet<&str> =
+            resp.definitions.iter().map(|d| d.app.as_str()).collect();
+        // More than just the shared `all` app is listed — `music` keys are present.
+        assert!(apps.contains("all"));
+        assert!(apps.contains(APP_MUSIC));
+        // Editability is scope-matched.
+        assert!(
+            resp.definitions
+                .iter()
+                .filter(|d| d.app == APP_MUSIC)
+                .all(|d| d.editable)
+        );
+        assert!(
+            resp.definitions
+                .iter()
+                .filter(|d| d.app == "all")
+                .all(|d| !d.editable)
+        );
     }
 
     #[tokio::test]
