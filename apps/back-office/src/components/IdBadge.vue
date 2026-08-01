@@ -73,8 +73,8 @@ onBeforeUnmount(() => {
       ID: {{ short(id) }}
     </button>
 
-    <span v-if="open" class="pop" role="dialog" :aria-label="t('id.full')" @click.stop>
-      <code class="full">{{ id }}</code>
+    <span v-if="open" class="pop" @click.stop>
+      <code class="full" :aria-label="t('id.full')">{{ id }}</code>
       <button type="button" class="copy" :class="{ done: copied }" @click="copy">
         {{ copied ? t("id.copied") : t("id.copy") }}
       </button>
