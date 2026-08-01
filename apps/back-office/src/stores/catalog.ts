@@ -1,4 +1,4 @@
-import { reactive, ref } from "vue";
+import { reactive, ref, toRef } from "vue";
 import { defineStore } from "pinia";
 import { api } from "@/lib/api";
 import { type Async, idle, run } from "@/lib/async";
@@ -123,6 +123,11 @@ export const useCatalogStore = defineStore("catalog", () => {
   // Header stat cards. Kept in its own Async so a stats failure never blocks the
   // list — the cards just fall back to "—".
   const stats = ref<Async<CatalogStats>>(idle);
+  // Per-row download state, keyed by catalog id, so each row shows its OWN
+  // loading/error and one slow/failed download never blocks the rest of the table.
+  // Only the loading/error signal lives here — the bytes are handed to the caller and
+  // dropped on success (see `downloadBytes`), never pinned in the store.
+  const downloads = reactive<Record<string, Async<Uint8Array>>>({});
 
   async function search(params: SearchParams) {
     Object.assign(lastParams, { limit: PAGE_SIZE, offset: 0 }, params);
@@ -148,6 +153,22 @@ export const useCatalogStore = defineStore("catalog", () => {
     await search(lastParams);
   }
 
+  /** Fetch one score's decoded MusicXML bytes for a local download, tracking the
+   * per-row `Async` state in `downloads`. Reuses `GetCatalogScoreBytes` (already gated
+   * to moderator/admin server-side). Returns the bytes on success (which the caller
+   * saves to disk) and `null` on failure — the row's error state carries a localized
+   * message; a raw gRPC/exception string is never surfaced. Never throws. */
+  async function downloadBytes(catalogId: string): Promise<Uint8Array | null> {
+    const outcome = await run(toRef(downloads, catalogId), () => fetchBytes(catalogId));
+    if (outcome.status === "success") {
+      // The row only needed the loading/error signal; drop the bytes so we don't pin
+      // every downloaded score in memory.
+      delete downloads[catalogId];
+      return outcome.data;
+    }
+    return null;
+  }
+
   /** Per-status counts for the header cards — three cheap count-only queries
    * (limit 1, we only read `total`) run in parallel. */
   async function loadStats() {
@@ -165,12 +186,14 @@ export const useCatalogStore = defineStore("catalog", () => {
     result,
     lastParams,
     stats,
+    downloads,
     search,
     loadStats,
     evaluate,
     setModerationStatus,
     fetchReviewPage,
     fetchBytes,
+    downloadBytes,
     fetchHit,
     updateCatalogScore,
   };

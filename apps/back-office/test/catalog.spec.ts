@@ -130,4 +130,56 @@ describe("catalog store", () => {
       expect(store.result.error.length).toBeGreaterThan(0);
     }
   });
+
+  it("downloadBytes returns the score's bytes and leaves no lingering per-row state", async () => {
+    const { clients } = makeFakeClients();
+    setClientsForTest(clients);
+    const store = useCatalogStore();
+
+    const bytes = await store.downloadBytes("score-1");
+
+    expect(bytes).toBeInstanceOf(Uint8Array);
+    expect(bytes).toHaveLength(3);
+    // On success the transient row state is dropped — the bytes are handed to the
+    // caller (to save to disk), never pinned in the store.
+    expect(store.downloads["score-1"]).toBeUndefined();
+  });
+
+  it("downloadBytes surfaces a localized per-row error without throwing", async () => {
+    const { clients } = makeFakeClients();
+    (clients.score as unknown as { getCatalogScoreBytes: () => Promise<never> }).getCatalogScoreBytes = () =>
+      Promise.reject(new Error("kaboom"));
+    setClientsForTest(clients);
+    const store = useCatalogStore();
+
+    const bytes = await store.downloadBytes("score-x");
+
+    expect(bytes).toBeNull();
+    const st = store.downloads["score-x"];
+    expect(st?.status).toBe("error");
+    if (st?.status === "error") {
+      // A user-facing message, never the raw technical error.
+      expect(st.error).not.toContain("kaboom");
+      expect(st.error.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("tracks each row's download independently — one failure does not affect another", async () => {
+    const { clients } = makeFakeClients();
+    (
+      clients.score as unknown as {
+        getCatalogScoreBytes: (r: { catalogId: string }) => Promise<{ data: Uint8Array }>;
+      }
+    ).getCatalogScoreBytes = ({ catalogId }) =>
+      catalogId === "bad" ? Promise.reject(new Error("nope")) : Promise.resolve({ data: new Uint8Array([9]) });
+    setClientsForTest(clients);
+    const store = useCatalogStore();
+
+    const [ok, bad] = await Promise.all([store.downloadBytes("good"), store.downloadBytes("bad")]);
+
+    expect(ok).toHaveLength(1);
+    expect(bad).toBeNull();
+    expect(store.downloads["good"]).toBeUndefined(); // cleared on success
+    expect(store.downloads["bad"]?.status).toBe("error"); // its own error, retained
+  });
 });

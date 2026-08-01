@@ -153,7 +153,10 @@
     "needsReview": "Re-revue",
     "needsReviewHint": "Signalée par les notes de la communauté — une partition acceptée notée assez bas pour mériter un second regard.",
     "empty": "Aucune partition.",
-    "sortBy": "trier par {field}"
+    "sortBy": "trier par {field}",
+    "actions": "Actions",
+    "download": "Télécharger le MusicXML",
+    "downloading": "Téléchargement…"
   },
   "filters": {
     "query": "titre ou compositeur",

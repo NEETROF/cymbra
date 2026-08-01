@@ -1,20 +1,48 @@
 <script setup lang="ts">
+import { computed } from "vue";
 import { useI18n } from "vue-i18n";
+import { match } from "ts-pattern";
 import type { CatalogHit } from "@/gen/score_pb";
 import type { ModerationStatus, SortKeyInit } from "@/stores/catalog";
+import { type Async, idle } from "@/lib/async";
 import AppTag from "@/components/AppTag.vue";
 
 // Sortable columns: only fields that are both displayable here AND in the server
 // sort allow-list. Clicking a header rebuilds the single-key `sort` sent to the API
 // (server-side sort across the whole set — no client-side sort) and toggles the
 // direction. The active moderation status is the current filter, shown per row.
-const props = defineProps<{
-  hits: CatalogHit[];
-  status: ModerationStatus;
-  sort: SortKeyInit[];
-}>();
-const emit = defineEmits<{ sort: [field: string]; select: [id: string] }>();
+// `canDownload` is the moderator/admin gate (provenance): the download control is
+// rendered only for authorized operators; `downloads` carries each row's own
+// download `Async` so a slow/failed one never blocks the table.
+const props = withDefaults(
+  defineProps<{
+    hits: CatalogHit[];
+    status: ModerationStatus;
+    sort: SortKeyInit[];
+    canDownload?: boolean;
+    downloads?: Record<string, Async<Uint8Array>>;
+  }>(),
+  { canDownload: false, downloads: () => ({}) },
+);
+const emit = defineEmits<{ sort: [field: string]; select: [id: string]; download: [hit: CatalogHit] }>();
 const { t } = useI18n();
+
+// Total column count, so the empty-state row spans the full width (the download
+// column only exists for authorized operators).
+const colCount = computed(() => columns.length + 2 + (props.canDownload ? 1 : 0));
+
+// This row's download state (defaults to idle when it has never been triggered).
+function downloadState(id: string): Async<Uint8Array> {
+  return props.downloads[id] ?? idle;
+}
+function isDownloading(id: string): boolean {
+  return downloadState(id).status === "loading";
+}
+function downloadError(id: string): string | null {
+  return match(downloadState(id))
+    .with({ status: "error" }, ({ error }) => error)
+    .otherwise(() => null);
+}
 
 const columns: { field: string; labelKey: string }[] = [
   { field: "title", labelKey: "table.title" },
@@ -63,6 +91,7 @@ function rowStatus(h: CatalogHit): ModerationStatus {
         </th>
         <th>{{ t("table.source") }}</th>
         <th>{{ t("table.status") }}</th>
+        <th v-if="canDownload" class="dl-col">{{ t("table.actions") }}</th>
       </tr>
     </thead>
     <tbody>
@@ -105,9 +134,38 @@ function rowStatus(h: CatalogHit): ModerationStatus {
             t("table.needsReview")
           }}</AppTag>
         </td>
+        <!-- Download the linked MusicXML to the operator's machine. Moderator/admin
+             only (provenance gate). @click.stop so it never triggers the row's select. -->
+        <td v-if="canDownload" class="dl-col" @click.stop>
+          <button
+            type="button"
+            class="dl-btn"
+            :disabled="isDownloading(h.id)"
+            :aria-label="isDownloading(h.id) ? t('table.downloading') : t('table.download')"
+            :title="downloadError(h.id) ?? t('table.download')"
+            @click="emit('download', h)"
+          >
+            <span v-if="isDownloading(h.id)" aria-hidden="true">…</span>
+            <svg
+              v-else
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+          </button>
+          <span v-if="downloadError(h.id)" class="dl-error" role="alert">{{ downloadError(h.id) }}</span>
+        </td>
       </tr>
       <tr v-if="hits.length === 0">
-        <td colspan="7" class="empty">{{ t("table.empty") }}</td>
+        <td :colspan="colCount" class="empty">{{ t("table.empty") }}</td>
       </tr>
     </tbody>
   </table>
@@ -212,6 +270,48 @@ function rowStatus(h: CatalogHit): ModerationStatus {
 /* Community-flagged re-review marker, shown beside the row's status in the queue. */
 .review-gap {
   margin-left: 0.4rem;
+}
+
+/* Per-row MusicXML download (moderator/admin only). */
+.dl-col {
+  width: 1%;
+  white-space: nowrap;
+  text-align: center;
+}
+.dl-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 1px solid var(--border-2);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--muted);
+  cursor: pointer;
+  transition:
+    color 0.12s,
+    border-color 0.12s,
+    background 0.12s;
+}
+.dl-btn:hover:not(:disabled) {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  background: color-mix(in srgb, var(--accent-strong) 12%, transparent);
+}
+.dl-btn:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+.dl-btn svg {
+  width: 16px;
+  height: 16px;
+}
+.dl-error {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.7rem;
+  color: var(--reject);
 }
 
 .empty {
