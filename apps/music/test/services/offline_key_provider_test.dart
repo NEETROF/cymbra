@@ -33,13 +33,16 @@ void main() {
     expect(a, b); // same device key + seed + inputs → identical KEK
   });
 
-  test('the per-install seed makes two installs derive different KEKs', () async {
-    final p1 = HkdfOfflineKeyProvider(InMemorySecureBytesStore());
-    final p2 = HkdfOfflineKeyProvider(InMemorySecureBytesStore());
-    final a = await _kek(p1, userId: 'u1', secret: const [1, 2, 3]);
-    final b = await _kek(p2, userId: 'u1', secret: const [1, 2, 3]);
-    expect(a, isNot(b)); // different install seed / device key
-  });
+  test(
+    'the per-install seed makes two installs derive different KEKs',
+    () async {
+      final p1 = HkdfOfflineKeyProvider(InMemorySecureBytesStore());
+      final p2 = HkdfOfflineKeyProvider(InMemorySecureBytesStore());
+      final a = await _kek(p1, userId: 'u1', secret: const [1, 2, 3]);
+      final b = await _kek(p2, userId: 'u1', secret: const [1, 2, 3]);
+      expect(a, isNot(b)); // different install seed / device key
+    },
+  );
 
   test('KEK changes when the user or the server secret changes', () async {
     final p = HkdfOfflineKeyProvider(InMemorySecureBytesStore());
@@ -52,12 +55,15 @@ void main() {
 
   test('keystore probe reports usable vs unavailable', () async {
     expect(
-      await HkdfOfflineKeyProvider(InMemorySecureBytesStore()).hasUsableKeystore(),
+      await HkdfOfflineKeyProvider(
+        InMemorySecureBytesStore(),
+      ).hasUsableKeystore(),
       isTrue,
     );
     expect(
-      await HkdfOfflineKeyProvider(UnavailableSecureBytesStore())
-          .hasUsableKeystore(),
+      await HkdfOfflineKeyProvider(
+        UnavailableSecureBytesStore(),
+      ).hasUsableKeystore(),
       isFalse,
     );
   });

@@ -16,7 +16,6 @@ import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mockito/mockito.dart';
 import 'package:music/services/catalog_service.dart';
 import 'package:music/services/offline_score_cache.dart';
 import 'package:music/services/score_upload_service.dart';
@@ -87,7 +86,9 @@ void main() {
     await c
         .read(myUploadsProvider.notifier)
         .toggleFavorite('a', favorite: false);
-    await c.read(myUploadsProvider.notifier).toggleFavorite('b', favorite: true);
+    await c
+        .read(myUploadsProvider.notifier)
+        .toggleFavorite('b', favorite: true);
     expect(await cache.has('contributed:a'), isFalse, reason: 'un-favorited');
     expect(await cache.has('contributed:b'), isTrue, reason: 'still favorite');
   });

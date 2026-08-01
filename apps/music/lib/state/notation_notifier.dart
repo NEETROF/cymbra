@@ -93,8 +93,10 @@ class Notation extends _$Notation {
   /// Stable cache key for a byte-sourced entry, or `null` for a bundled asset
   /// (bundled scores are already local and public — never cached).
   static String? _cacheKey(CatalogEntry entry) {
-    if (entry.contributedId != null) return 'contributed:${entry.contributedId}';
-    if (entry.catalogId != null) return 'catalog:${entry.catalogId}';
+    final contributedId = entry.contributedId;
+    if (contributedId != null) return 'contributed:$contributedId';
+    final catalogId = entry.catalogId;
+    if (catalogId != null) return 'catalog:$catalogId';
     return null;
   }
 
@@ -103,7 +105,10 @@ class Notation extends _$Notation {
   /// fetch is the source of truth, and its bytes are cached when the entry is a
   /// favorite (the "opened once while favorited" write). Caching is a no-op when
   /// unavailable (guest / no keystore / offline).
-  Future<Uint8List> _loadByteSourced(CatalogEntry entry, String cacheKey) async {
+  Future<Uint8List> _loadByteSourced(
+    CatalogEntry entry,
+    String cacheKey,
+  ) async {
     final cache = ref.read(offlineScoreCacheProvider);
     final cached = await cache.read(cacheKey);
     if (cached != null) {
@@ -122,7 +127,9 @@ class Notation extends _$Notation {
 
   Future<Uint8List> _fetchBytes(CatalogEntry entry) {
     if (entry.contributedId != null) {
-      return ref.read(scoreUploadServiceProvider).fetchBytes(entry.contributedId!);
+      return ref
+          .read(scoreUploadServiceProvider)
+          .fetchBytes(entry.contributedId!);
     }
     return ref.read(catalogServiceProvider).fetchBytes(entry.catalogId!);
   }
@@ -133,7 +140,8 @@ class Notation extends _$Notation {
   Future<bool> _isFavorite(CatalogEntry entry) async {
     if (entry.contributedId != null) return entry.favorite;
     if (entry.catalogId != null) {
-      final saved = ref.read(savedCatalogScoresProvider).valueOrNull ?? const [];
+      final saved =
+          ref.read(savedCatalogScoresProvider).valueOrNull ?? const [];
       return saved.any((e) => e.catalogId == entry.catalogId);
     }
     return false;

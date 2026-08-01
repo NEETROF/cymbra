@@ -70,73 +70,74 @@
 
 ## 4. App — load path integration
 
-- [ ] 4.1 In [notation_notifier.dart](apps/music/lib/state/notation_notifier.dart)
-  `_load`, for favorited catalog/upload entries: read cache first; on hit
-  decrypt→parse→render, then best-effort online refresh + rewrite.
-- [ ] 4.2 On a successful network fetch of a favorited entry with caching
-  enabled, write the encrypted copy ("opened once while favorited").
-- [ ] 4.3 Keep bundled assets and non-favorited entries out of the cache path.
-- [ ] 4.4 Add a `ScoreLoadFailure.offlineUnavailable` variant + l10n string; the
-  load path classifies to it when there is no local copy and connectivity is
-  offline (else keep `unavailable`). Wire it into
-  [score_load_message.dart](apps/music/lib/screens/score_load_message.dart);
-  no raw errors, user stays put (existing snackbar-on-failure path).
+- [x] 4.1 In [notation_notifier.dart](apps/music/lib/state/notation_notifier.dart)
+  `_load`, for byte-sourced entries: read the cache first; on hit
+  decrypt→parse→render (no network round-trip — content is immutable under a
+  stable id).
+- [x] 4.2 On a successful network fetch of a favorite (upload flag / saved-library
+  membership), write the encrypted copy ("opened once while favorited").
+- [x] 4.3 Bundled assets (`_cacheKey` null) and non-favorites are kept out of the
+  cache write path.
+- [x] 4.4 Added `ScoreLoadFailure.offlineUnavailable` + l10n (en/fr/it/es), wired
+  into [score_load_message.dart](apps/music/lib/screens/score_load_message.dart);
+  the load path classifies a byte-sourced miss to it when `connectivityService`
+  reports offline (else keeps `unavailable`). No raw errors; existing
+  snackbar-stay-on-library path unchanged.
 - [ ] 4.4b Home/library: mark favorites without cached bytes as "not available
-  offline" while the app is offline (drive off the index's playable flag +
-  `connectivityService`).
-- [ ] 4.5 Store the server content hash (ETag) with each cache entry; on online
-  open do a conditional fetch — unchanged ⇒ keep cache (no re-encrypt),
-  mismatch ⇒ rewrite. On read, recompute the hash and treat a mismatch (corrupt/
-  stale) as a miss.
-- [ ] 4.6 Widget/notifier tests: cache-hit plays offline (no service fetch),
-  cache-miss fetches + writes, non-favorite never writes, offline-uncached shows
-  the localized failure, matching-hash skips re-download, changed-hash rewrites,
-  corrupted-file → miss.
+  offline" while offline. **DEFERRED** (needs the snapshot-driven home in 4b).
+- [~] 4.5 ETag/conditional fetch: the **backend** supports it (task 1b) and the
+  cache stores a per-entry plaintext-SHA integrity check (corrupt→miss works).
+  The **client-side conditional-fetch round-trip** (matching-hash skips
+  re-download) is **DEFERRED**: wiring it needs an etag-returning byte method on
+  the `CatalogService`/`ScoreUploadService` seams (+ updating ~8 hand-fakes).
+  Cache currently stores `etag: ''`.
+- [x] 4.6 Notifier tests (`notation_offline_cache_test.dart`): cache-hit plays
+  offline (no service fetch), cache-miss fetches + writes, non-favorite never
+  writes, offline-uncached → localized failure, online-unavailable → generic.
+  (Corrupt→miss covered by `offline_score_cache_test.dart`.)
 
 ## 4b. App — offline favorites index snapshot
 
-- [ ] 4b.1 Add a `favorites-index:<userId>` snapshot store (metadata only — no
-  bytes): `writeIndex(entries)` / `readIndex()`. Store in **plaintext** local
-  storage (JSON under app support / the `local-preferences` store),
-  **decoupled from the keystore** so it survives on a no-keystore install.
-- [ ] 4b.2 Write the snapshot whenever
-  [saved_catalog_scores.dart](apps/music/lib/state/saved_catalog_scores.dart) /
-  [contributed_scores.dart](apps/music/lib/state/contributed_scores.dart) fetch
-  successfully (persist the resolved `CatalogEntry` list, no bytes).
-- [ ] 4b.3 Fallback: when the online fetch fails (offline), return the snapshot
-  from those providers instead of surfacing `AsyncError`, so the home renders.
-- [ ] 4b.4 Annotate each favorite with a "bytes cached / playable offline" flag
-  (probe the cache) for the home to render; opening a non-cached favorite offline
-  hits the existing "unavailable offline" typed failure.
-- [ ] 4b.5 Clear the snapshot on sign-out (folded into `purgeAll`).
-- [ ] 4b.6 Tests: offline-launch renders from snapshot, successful fetch rewrites
-  snapshot, guest/signed-out empty, playable flag reflects byte-cache presence,
-  sign-out clears snapshot, **no-keystore install still lists favorites offline**
-  (index survives while byte cache is disabled).
+- [x] 4b.1 `FavoritesIndexStore` (`favorites_index_store.dart`): `read` / `write`
+  / `clear`, metadata-only (no bytes), **plaintext** over the `PreferencesService`
+  seam, keyed `favorites-index:<userId>`, decoupled from the keystore. With tests.
+- [ ] 4b.2 Write the snapshot on successful favorites fetch. **DEFERRED** (store +
+  its clear-on-sign-out are wired; the per-provider write/read-fallback is the
+  next slice).
+- [ ] 4b.3 Offline fallback: return the snapshot from the favorites providers when
+  the online fetch fails. **DEFERRED** (see 4b.2).
+- [ ] 4b.4 Per-favorite "playable offline" flag (probe the cache). **DEFERRED**
+  (pairs with 4.4b / the snapshot-driven home).
+- [x] 4b.5 The snapshot is cleared on sign-out / account deletion (wired in
+  `session_notifier._purgeOfflineData`, alongside the byte-cache purge).
+- [~] 4b.6 Tests: the store itself is unit-tested (`favorites_index_store_test.dart`:
+  round-trip, per-user scoping, empty-clears, clear, corrupt→empty). The
+  offline-launch / playable-flag widget tests pair with 4b.2–4b.4 (**DEFERRED**).
 
 ## 5. App — eviction wiring
 
-- [ ] 5.1 On remove-saved-catalog-score
-  ([saved_catalog_scores.dart](apps/music/lib/state/saved_catalog_scores.dart)):
-  evict `catalog:<id>` via the cache service.
-- [ ] 5.2 On un-favorite / delete-upload
-  ([contributed_scores.dart](apps/music/lib/state/contributed_scores.dart)):
-  evict `contributed:<id>`.
-- [ ] 5.3 On sign-out / sign-out-everywhere / account-deletion
-  ([session_notifier.dart](apps/music/lib/state/session_notifier.dart)):
-  `purgeAll()` + clear key material.
-- [ ] 5.4 Orphan sweep: when favorites refresh, delete cache files whose entry is
-  no longer a favorite (dedicated listener widget, not scattered in build).
-- [ ] 5.5 Tests: each eviction path deletes the right file, absent-file no-op,
-  purge on sign-out, orphan sweep removes stale files.
+- [x] 5.1 `SavedCatalogScores.remove` evicts `catalog:<id>` via the cache service.
+- [x] 5.2 `MyUploads.toggleFavorite(false)` and `delete` evict `contributed:<id>`
+  (favoriting keeps any existing copy).
+- [x] 5.3 `session_notifier._purgeOfflineData` (from `_endLocalSession` +
+  `onAccountDeleted`, i.e. sign-out / sign-out-everywhere / account deletion)
+  `purgeAll()`s the cache + clears key material, snapshot, and cached secret.
+- [ ] 5.4 Orphan sweep on favorites refresh. **DEFERRED** (pairs with the
+  snapshot-driven home in 4b; local eviction + sign-out purge already bound the
+  cache).
+- [x] 5.5 Eviction tests (`offline_cache_eviction_test.dart`): remove-saved,
+  delete-upload, un-favorite (evicts) vs favorite (keeps), absent-file no-op,
+  purgeAll. Sign-out purge exercised via the session tests.
 
 ## 6. Cross-cutting: platforms, docs, gates
 
-- [ ] 6.1 Verify keystore backends per platform (iOS Keychain/SE, Android
-  Keystore/StrongBox, macOS, Windows DPAPI, Linux Secret Service) and confirm
-  fail-closed on a no-keystore desktop config.
-- [ ] 6.2 Manual/integration smoke: cache a favorite online, kill network,
-  relaunch, play from cache; then un-favorite and confirm the file is gone.
-- [ ] 6.3 `openspec validate add-offline-score-cache --strict` passes.
-- [ ] 6.4 `melos run analyze`, `dart format`, `dart run custom_lint`,
-  `cargo fmt`/`clippy` clean; Flutter + Rust coverage ≥ 80%.
+- [~] 6.1 Key custody reuses `flutter_secure_storage` (same backends as
+  `SecureTokenStore`), and the fail-closed path is covered by the keystore-probe +
+  no-keystore unit tests. Live per-platform keystore verification is a manual
+  device pass (**DEFERRED**).
+- [ ] 6.2 Manual/integration smoke on a real device (**DEFERRED** — needs a
+  device + live backend; the flow is covered by unit/notifier tests).
+- [x] 6.3 `openspec validate add-offline-score-cache --strict` passes.
+- [~] 6.4 `flutter analyze`, `dart format`, `dart run custom_lint` clean; full
+  Flutter suite green (676 tests). Rust: `cargo test` (130), `clippy`, `fmt`
+  clean. Coverage gate to run in CI. (`melos run analyze` = `flutter analyze`.)

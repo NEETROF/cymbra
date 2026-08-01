@@ -78,41 +78,53 @@ void main() {
     expect(utf8.decode(raw, allowMalformed: true).contains('<score'), isFalse);
   });
 
-  test('tampered ciphertext is treated as a miss and the file is dropped', () async {
-    final c = _cache(dir, usable());
-    await c.write('catalog:x', _bytes('hello'), etag: 'e');
-    final file = (await dir.list().toList()).whereType<File>().single;
-    final raw = await file.readAsBytes();
-    raw[raw.length - 1] ^= 0xFF; // flip a byte of the payload GCM tag
-    await file.writeAsBytes(raw, flush: true);
+  test(
+    'tampered ciphertext is treated as a miss and the file is dropped',
+    () async {
+      final c = _cache(dir, usable());
+      await c.write('catalog:x', _bytes('hello'), etag: 'e');
+      final file = (await dir.list().toList()).whereType<File>().single;
+      final raw = await file.readAsBytes();
+      raw[raw.length - 1] ^= 0xFF; // flip a byte of the payload GCM tag
+      await file.writeAsBytes(raw, flush: true);
 
-    expect(await c.read('catalog:x'), isNull);
-    expect(await file.exists(), isFalse); // corrupt entry deleted
-  });
+      expect(await c.read('catalog:x'), isNull);
+      expect(await file.exists(), isFalse); // corrupt entry deleted
+    },
+  );
 
-  test('integrity-hash mismatch (valid GCM, wrong plaintext hash) is a miss', () async {
-    final c = _cache(dir, usable());
-    await c.write('catalog:x', _bytes('hello'), etag: 'e');
-    final file = (await dir.list().toList()).whereType<File>().single;
-    final raw = await file.readAsBytes();
-    // The stored plaintext SHA sits at offset 77 (4+1+12+32+16+12); corrupt it
-    // without touching the still-valid payload ciphertext.
-    raw[77] ^= 0xFF;
-    await file.writeAsBytes(raw, flush: true);
+  test(
+    'integrity-hash mismatch (valid GCM, wrong plaintext hash) is a miss',
+    () async {
+      final c = _cache(dir, usable());
+      await c.write('catalog:x', _bytes('hello'), etag: 'e');
+      final file = (await dir.list().toList()).whereType<File>().single;
+      final raw = await file.readAsBytes();
+      // The stored plaintext SHA sits at offset 77 (4+1+12+32+16+12); corrupt it
+      // without touching the still-valid payload ciphertext.
+      raw[77] ^= 0xFF;
+      await file.writeAsBytes(raw, flush: true);
 
-    expect(await c.read('catalog:x'), isNull);
-  });
+      expect(await c.read('catalog:x'), isNull);
+    },
+  );
 
-  test('a file from another install (different seed) does not decrypt', () async {
-    final a = _cache(dir, usable());
-    await a.write('catalog:x', _bytes('secret score'), etag: 'e');
-    // Same directory + file, but a different install's key material.
-    final b = _cache(dir, usable());
-    expect(await b.read('catalog:x'), isNull);
-  });
+  test(
+    'a file from another install (different seed) does not decrypt',
+    () async {
+      final a = _cache(dir, usable());
+      await a.write('catalog:x', _bytes('secret score'), etag: 'e');
+      // Same directory + file, but a different install's key material.
+      final b = _cache(dir, usable());
+      expect(await b.read('catalog:x'), isNull);
+    },
+  );
 
   test('no usable keystore fails closed: nothing is written', () async {
-    final c = _cache(dir, HkdfOfflineKeyProvider(UnavailableSecureBytesStore()));
+    final c = _cache(
+      dir,
+      HkdfOfflineKeyProvider(UnavailableSecureBytesStore()),
+    );
     await c.write('catalog:x', _bytes('x'), etag: 'e');
     expect(await c.has('catalog:x'), isFalse);
     expect(await c.read('catalog:x'), isNull);

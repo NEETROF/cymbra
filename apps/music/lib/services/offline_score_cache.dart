@@ -111,9 +111,14 @@ class EncryptedFileOfflineScoreCache implements OfflineScoreCache {
   }
 
   @override
-  Future<void> write(String entryKey, Uint8List bytes, {required String etag}) async {
+  Future<void> write(
+    String entryKey,
+    Uint8List bytes, {
+    required String etag,
+  }) async {
+    // Fail-closed: never write a decryptable-if-leaked file.
     final kek = await _kek();
-    if (kek == null) return; // fail-closed: never write a decryptable-if-leaked file
+    if (kek == null) return;
 
     // Per-file random DEK; wrap it under the KEK (AES-256-GCM).
     final dek = randomBytes(32);
@@ -203,7 +208,9 @@ class EncryptedFileOfflineScoreCache implements OfflineScoreCache {
       return CachedScore(Uint8List.fromList(plain), etag);
     } catch (e) {
       // Auth-tag failure, truncation, or any parse error → cache miss.
-      debugPrint('offline cache read failed for $entryKey ($e); treating as miss.');
+      debugPrint(
+        'offline cache read failed for $entryKey ($e); treating as miss.',
+      );
       return _miss(file);
     }
   }
@@ -239,7 +246,8 @@ class EncryptedFileOfflineScoreCache implements OfflineScoreCache {
     await _keys.clearKeyMaterial();
   }
 
-  static Uint8List _u16(int v) => Uint8List(2)..buffer.asByteData().setUint16(0, v);
+  static Uint8List _u16(int v) =>
+      Uint8List(2)..buffer.asByteData().setUint16(0, v);
   static int _readU16(List<int> b) =>
       ByteData.sublistView(Uint8List.fromList(b)).getUint16(0);
 }
@@ -254,7 +262,11 @@ class InMemoryOfflineScoreCache implements OfflineScoreCache {
   InMemoryOfflineScoreCache({this.enabled = true});
 
   @override
-  Future<void> write(String entryKey, Uint8List bytes, {required String etag}) async {
+  Future<void> write(
+    String entryKey,
+    Uint8List bytes, {
+    required String etag,
+  }) async {
     if (!enabled) return;
     _items[entryKey] = CachedScore(Uint8List.fromList(bytes), etag);
   }
@@ -264,7 +276,8 @@ class InMemoryOfflineScoreCache implements OfflineScoreCache {
       enabled ? _items[entryKey] : null;
 
   @override
-  Future<bool> has(String entryKey) async => enabled && _items.containsKey(entryKey);
+  Future<bool> has(String entryKey) async =>
+      enabled && _items.containsKey(entryKey);
 
   @override
   Future<void> evict(String entryKey) async => _items.remove(entryKey);

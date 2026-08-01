@@ -24,6 +24,7 @@ import 'package:music/services/catalog_service.dart';
 import 'package:music/services/course_catalog_service.dart';
 import 'package:music/services/midi_service.dart';
 import 'package:music/services/notation_engine.dart';
+import 'package:music/services/offline_score_cache.dart';
 import 'package:music/services/preferences_service.dart';
 import 'package:music/services/score_asset_source.dart';
 import 'package:music/services/score_upload_service.dart';
@@ -36,7 +37,6 @@ import '../support/notation_fakes.dart';
 import '../support/prefs_fakes.dart';
 
 class _FakeCatalog implements CatalogService {
-
   @override
   Future<Uint8List> getOfflineCacheKey() async => Uint8List(0);
   _FakeCatalog(this.saved);
@@ -182,6 +182,9 @@ ProviderContainer _container(
       catalogServiceProvider.overrideWithValue(catalog),
       scoreUploadServiceProvider.overrideWithValue(upload),
       canUseOnlineServicesProvider.overrideWithValue(signedIn),
+      // In-memory offline cache so eviction on remove/delete is instant (the real
+      // impl touches path_provider, which isn't available in a widget test).
+      offlineScoreCacheProvider.overrideWithValue(InMemoryOfflineScoreCache()),
     ],
   );
   addTearDown(c.dispose);

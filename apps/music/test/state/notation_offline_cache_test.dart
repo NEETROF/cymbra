@@ -16,7 +16,6 @@ import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mockito/mockito.dart';
 import 'package:music/services/auth_service.dart';
 import 'package:music/services/connectivity_service.dart';
 import 'package:music/services/notation_engine.dart';
@@ -103,18 +102,25 @@ void main() {
     expect(c.read(notationProvider).hasDocument, isTrue);
   });
 
-  test('a cache miss fetches and writes the encrypted copy (favorite)', () async {
-    final cache = InMemoryOfflineScoreCache();
-    final upload = _FakeUpload(bytes());
-    final c = build(cache: cache, upload: upload);
+  test(
+    'a cache miss fetches and writes the encrypted copy (favorite)',
+    () async {
+      final cache = InMemoryOfflineScoreCache();
+      final upload = _FakeUpload(bytes());
+      final c = build(cache: cache, upload: upload);
 
-    c.read(selectedScoreProvider.notifier).select(_upload());
-    await _flush();
+      c.read(selectedScoreProvider.notifier).select(_upload());
+      await _flush();
 
-    expect(upload.fetchCalls, 1);
-    expect(await cache.has('contributed:1'), isTrue, reason: 'cached on open');
-    expect(c.read(notationProvider).hasDocument, isTrue);
-  });
+      expect(upload.fetchCalls, 1);
+      expect(
+        await cache.has('contributed:1'),
+        isTrue,
+        reason: 'cached on open',
+      );
+      expect(c.read(notationProvider).hasDocument, isTrue);
+    },
+  );
 
   test('a non-favorite upload is fetched but never cached', () async {
     final cache = InMemoryOfflineScoreCache();
@@ -139,20 +145,26 @@ void main() {
     c.read(selectedScoreProvider.notifier).select(_upload());
     await _flush();
 
-    expect(c.read(notationProvider).failure, ScoreLoadFailure.offlineUnavailable);
-  });
-
-  test('online-but-unavailable backend → generic unavailable failure', () async {
-    final cache = InMemoryOfflineScoreCache();
-    final upload = _FakeUpload(
-      bytes(),
-      error: AuthException(AuthError.unavailable),
+    expect(
+      c.read(notationProvider).failure,
+      ScoreLoadFailure.offlineUnavailable,
     );
-    final c = build(cache: cache, upload: upload, online: true);
-
-    c.read(selectedScoreProvider.notifier).select(_upload());
-    await _flush();
-
-    expect(c.read(notationProvider).failure, ScoreLoadFailure.unavailable);
   });
+
+  test(
+    'online-but-unavailable backend → generic unavailable failure',
+    () async {
+      final cache = InMemoryOfflineScoreCache();
+      final upload = _FakeUpload(
+        bytes(),
+        error: AuthException(AuthError.unavailable),
+      );
+      final c = build(cache: cache, upload: upload, online: true);
+
+      c.read(selectedScoreProvider.notifier).select(_upload());
+      await _flush();
+
+      expect(c.read(notationProvider).failure, ScoreLoadFailure.unavailable);
+    },
+  );
 }

@@ -60,7 +60,9 @@ class BackendOfflineServerSecretService implements OfflineServerSecretService {
     } catch (e) {
       // Offline / backend unreachable → the last cached value (may be null on a
       // first-ever offline run, which keeps the byte cache disabled).
-      debugPrint('offline server secret fetch failed ($e); using cached value.');
+      debugPrint(
+        'offline server secret fetch failed ($e); using cached value.',
+      );
       return _store.read(_key(userId));
     }
   }
