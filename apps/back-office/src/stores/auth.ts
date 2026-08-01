@@ -1,10 +1,12 @@
 import { defineStore } from "pinia";
 import { webAuth } from "@/lib/web-auth";
-import { decodeClaims, isAdmin, isModerator, type TokenClaims } from "@/lib/jwt";
+import { adminScopes, decodeClaims, isAdmin, isModerator, type Scope, type TokenClaims } from "@/lib/jwt";
+import { useLocaleStore } from "@/stores/locale";
 
-// The back office targets the `music` audience so `music`-scoped roles
-// (moderator/admin) flow into the token (design D2).
-const AUDIENCE = "music";
+// The back office targets the dedicated `back-office` audience: its token carries
+// the admin's real roles across global/music/live, so a single session can
+// administer every scope they are entitled to (change: scope-aware-role-admin).
+const AUDIENCE = "back-office";
 
 interface AuthState {
   // Memory-only: the access token is NEVER persisted (localStorage/sessionStorage/
@@ -20,7 +22,7 @@ interface AuthState {
 export const useAuthStore = defineStore("auth", {
   state: (): AuthState => ({
     accessToken: null,
-    claims: { roles: [] },
+    claims: { roles: [], rolesByScope: {} },
     bootstrapped: false,
   }),
   getters: {
@@ -29,6 +31,10 @@ export const useAuthStore = defineStore("auth", {
     isModerator: (s): boolean => isModerator(s.claims.roles),
     isAdmin: (s): boolean => isAdmin(s.claims.roles),
     userId: (s): string | undefined => s.claims.sub,
+    /** The scopes the signed-in admin may administer (empty for a non-admin). The
+     * Roles page and its scope selector are driven by this — a `music`-only admin
+     * never sees `live` or `global` (change: scope-aware-role-admin). */
+    adminScopes: (s): Scope[] => adminScopes(s.claims.rolesByScope),
   },
   actions: {
     setToken(accessToken: string) {
@@ -38,10 +44,14 @@ export const useAuthStore = defineStore("auth", {
     async signInLocal(email: string, password: string) {
       const { accessToken } = await webAuth().signInLocal(email, password, AUDIENCE);
       this.setToken(accessToken);
+      // Reconcile the account language into the UI (change: sync-account-language-
+      // preference). Fire-and-forget so sign-in never blocks on it.
+      void useLocaleStore().reconcile();
     },
     async signInOidc(idToken: string) {
       const { accessToken } = await webAuth().signInOidc(idToken, AUDIENCE);
       this.setToken(accessToken);
+      void useLocaleStore().reconcile();
     },
     /** Mint a fresh access token from the refresh cookie. Throws if there is no
      * valid session (caller decides: silent on boot, sign-out on a live 401). */
@@ -54,6 +64,10 @@ export const useAuthStore = defineStore("auth", {
     async bootstrap() {
       try {
         await this.refresh();
+        // Session re-minted from the cookie: reconcile the account language into the
+        // UI (change: sync-account-language-preference). Fire-and-forget so boot is
+        // never blocked on it.
+        void useLocaleStore().reconcile();
       } catch {
         // No session; stay signed out (no console noise).
       } finally {
@@ -64,7 +78,7 @@ export const useAuthStore = defineStore("auth", {
     async signOut() {
       await webAuth().logout();
       this.accessToken = null;
-      this.claims = { roles: [] };
+      this.claims = { roles: [], rolesByScope: {} };
     },
   },
 });

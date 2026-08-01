@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.3.0](https://github.com/NEETROF/cymbra/compare/back-office-v0.2.1...back-office-v0.3.0) (2026-08-01)
+
+
+### Features
+
+* **back-office:** download a catalog score's MusicXML from the table ([#155](https://github.com/NEETROF/cymbra/issues/155)) ([db3b85d](https://github.com/NEETROF/cymbra/commit/db3b85d4db984c3ef2ae29b6d185ad02667aa8c1))
+* **feature-flags:** add shared runtime feature-flag & config platform ([#152](https://github.com/NEETROF/cymbra/issues/152)) ([a8e487b](https://github.com/NEETROF/cymbra/commit/a8e487bc02ab378a016ce74d29f93be1edc86c29))
+* persist and sync the account language preference ([#153](https://github.com/NEETROF/cymbra/issues/153)) ([30ff982](https://github.com/NEETROF/cymbra/commit/30ff9820c47707b02910c62115b7f74dccd32ab4))
+* **roles:** scope-matched role administration across global/music/live ([#154](https://github.com/NEETROF/cymbra/issues/154)) ([d03fa29](https://github.com/NEETROF/cymbra/commit/d03fa29fa0eaa477ea56c9475bbd0c5786a1efec))
+
 ## [0.2.1](https://github.com/NEETROF/cymbra/compare/back-office-v0.2.0...back-office-v0.2.1) (2026-07-30)
 
 

@@ -24,6 +24,7 @@
 //! mirrors the same arithmetic in SQL.
 
 use std::sync::Mutex;
+use std::time::Duration;
 
 use async_trait::async_trait;
 use cymbra_platform::{AppError, Result};
@@ -144,6 +145,12 @@ pub trait ScoreRatingRepo: Send + Sync {
     /// (average effective value + count + verdict breakdown). A score with no
     /// ratings yields the default (count 0, avg 0.0).
     async fn aggregate(&self, catalog_score_id: &str) -> Result<RatingAggregate>;
+
+    /// How many ratings `user_id` has recorded within the last `window` (by
+    /// `updated_at`). Feeds the catalog access limiter's engagement allowance
+    /// (change: add-catalog-access-limits): rating a score in the swipe deck is
+    /// genuine engagement, so it earns download headroom just like playing.
+    async fn count_recent_by_user(&self, user_id: &str, window: Duration) -> Result<u64>;
 }
 
 /// In-memory [`ScoreRatingRepo`] for unit tests. Computes the aggregate in Rust
@@ -246,6 +253,13 @@ impl ScoreRatingRepo for FakeScoreRatingRepo {
             sum / agg.count as f64
         };
         Ok(agg)
+    }
+
+    /// The in-memory fake carries no timestamps, so it counts **all** of the user's
+    /// ratings (the `window` is ignored). Tests control the count by seeding rows.
+    async fn count_recent_by_user(&self, user_id: &str, _window: Duration) -> Result<u64> {
+        let rows = self.rows.lock().expect("score_rating fake lock");
+        Ok(rows.iter().filter(|r| r.user_id == user_id).count() as u64)
     }
 }
 

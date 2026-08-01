@@ -13,6 +13,7 @@
 
 pub mod backfill;
 pub mod catalog_edit;
+pub mod catalog_limits;
 pub mod catalog_search;
 pub mod grpc;
 pub mod module;
@@ -32,6 +33,7 @@ pub use backfill::{
     BackfillReport, BackfillRow, TitleBackfillRepo, TitleUpdate, plan_title_update,
     run_title_backfill,
 };
+pub use catalog_limits::CatalogAccessLimiter;
 pub use catalog_search::{
     CatalogHit, CatalogSearchParams, CatalogSearchRepo, FakeCatalogRow, FakeCatalogSearchRepo,
 };

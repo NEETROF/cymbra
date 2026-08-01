@@ -189,6 +189,7 @@
   "playerScoreNotFound": "Esta partitura ya no existe.",
   "playerScoreNotAvailableYet": "Esta partitura aún no está disponible. Inténtalo de nuevo más tarde.",
   "playerScoreUnavailable": "No se puede conectar con el servidor. Comprueba tu conexión e inténtalo de nuevo.",
+  "playerScoreRateLimited": "Estás abriendo partituras demasiado rápido. Espera un momento e inténtalo de nuevo.",
   "prePlayHands": "Tocar con",
   "prePlayTempo": "Tempo",
   "prePlayStart": "Tocar",

@@ -8,16 +8,28 @@ export function makeJwt(payload: Record<string, unknown>): string {
   return `${b64({ alg: "EdDSA" })}.${b64(payload)}.sig`;
 }
 
-export function tokenFor(role: "moderator" | "admin" | "none"): string {
-  const roles = role === "admin" ? ["admin"] : role === "moderator" ? ["moderator"] : [];
-  return makeJwt({ sub: "u1", aud: "music", roles, exp: 4102444800 });
+// The signed-in caller's roles. `admin` is a `music`-scope admin (the common case:
+// the Roles page shows only `music`); `global-admin` is a break-glass admin across
+// every scope (the scope selector appears). The token carries `roles_by_scope` so
+// the back office can derive the scopes the admin may administer.
+export function tokenFor(role: "moderator" | "admin" | "global-admin" | "none"): string {
+  const rolesByScope: Record<string, string[]> =
+    role === "global-admin"
+      ? { global: ["admin"] }
+      : role === "admin"
+        ? { music: ["admin"] }
+        : role === "moderator"
+          ? { music: ["moderator"] }
+          : { global: ["user"] };
+  const roles = [...new Set(Object.values(rolesByScope).flat())];
+  return makeJwt({ sub: "u1", aud: "back-office", roles, roles_by_scope: rolesByScope, exp: 4102444800 });
 }
 
 export interface SeedOptions {
   /** Canned data the fake gRPC-web clients serve (see lib/e2e-seam.ts). */
   data?: E2EData;
   /** Start already authenticated by persisting a token for this role. */
-  loginAs?: "moderator" | "admin";
+  loginAs?: "moderator" | "admin" | "global-admin";
 }
 
 // Seed the e2e data (and optionally a signed-in session) BEFORE the app boots, so

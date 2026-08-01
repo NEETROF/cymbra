@@ -671,6 +671,26 @@ impl ScoreRatingRepo for PgScoreRatingRepo {
             love: row.get::<i64, _>("love"),
         })
     }
+
+    async fn count_recent_by_user(
+        &self,
+        user_id: &str,
+        window: std::time::Duration,
+    ) -> PlatformResult<u64> {
+        let Ok(user) = uuid::Uuid::parse_str(user_id) else {
+            return Ok(0); // malformed id → no ratings
+        };
+        let row = sqlx::query(
+            "SELECT COUNT(*) AS cnt FROM music.score_ratings \
+             WHERE user_id = $1 AND updated_at >= now() - make_interval(secs => $2)",
+        )
+        .bind(user)
+        .bind(window.as_secs_f64())
+        .fetch_one(&self.pool)
+        .await
+        .map_err(search_internal)?;
+        Ok(row.get::<i64, _>("cnt").max(0) as u64)
+    }
 }
 
 // ---------------------------------------------------------------------------

@@ -18,9 +18,12 @@ import 'package:music/services/notation_engine.dart';
 import 'package:music/services/score_asset_source.dart';
 import 'package:music/src/rust/api/musicxml.dart';
 
-/// [ScoreAssetSource] returning fixed in-memory bytes (no asset bundle).
+/// [ScoreAssetSource] returning fixed in-memory bytes (no asset bundle). Set
+/// [loadError] to make `load` throw instead (e.g. a backend `AuthException`), to
+/// exercise the notifier's failure classification.
 class FakeScoreAssetSource implements ScoreAssetSource {
   Uint8List bytes;
+  Object? loadError;
   final List<String> loaded = <String>[];
 
   FakeScoreAssetSource([Uint8List? bytes])
@@ -29,6 +32,7 @@ class FakeScoreAssetSource implements ScoreAssetSource {
   @override
   Future<Uint8List> load(String assetPath) async {
     loaded.add(assetPath);
+    if (loadError != null) throw loadError!;
     return bytes;
   }
 }

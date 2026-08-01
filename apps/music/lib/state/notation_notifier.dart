@@ -104,6 +104,8 @@ class Notation extends _$Notation {
         // pending review) — the backend reports this as FAILED_PRECONDITION.
         AuthError.failedPrecondition => ScoreLoadFailure.notAvailableYet,
         AuthError.unavailable => ScoreLoadFailure.unavailable,
+        // Per-user catalog access limit hit (change: add-catalog-access-limits).
+        AuthError.rateLimited => ScoreLoadFailure.rateLimited,
         _ => ScoreLoadFailure.generic,
       };
     }

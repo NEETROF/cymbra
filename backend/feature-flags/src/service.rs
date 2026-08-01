@@ -57,14 +57,42 @@ pub struct EffectiveSet {
     pub version: String,
 }
 
+/// The apps a back-office **console** caller may administer, derived from the
+/// token's per-scope roles (change: scope-aware-role-admin). The console lists
+/// every app's flags but may only edit those it is scoped for.
+#[derive(Debug, Clone)]
+pub struct ConsoleScopes {
+    /// App scopes (e.g. `music`, `live`) in which the caller holds `admin`.
+    pub admin_apps: Vec<String>,
+    /// Whether the caller is a platform (`global`) admin — required to edit `all`
+    /// (shared) keys and any app the caller is not directly scoped for.
+    pub platform: bool,
+}
+
 /// The acting admin for a write (identity already authenticated by the gRPC
 /// interceptor; `is_admin` already asserted by the handler guard).
 #[derive(Debug, Clone)]
 pub struct Actor {
     pub user_id: String,
-    /// The caller's token audience (app).
+    /// The caller's token audience (app). For a back-office console token this is
+    /// the console audience, not a real app — see `console`.
     pub app: String,
     pub is_admin: bool,
+    /// Present when the caller is the back-office admin console: it lists every
+    /// app's flags, with per-app editability from `admin_apps`/`platform` — instead
+    /// of the single-app-token view keyed on `app` (change: scope-aware-role-admin).
+    pub console: Option<ConsoleScopes>,
+}
+
+/// Whether a back-office console caller may edit a key in `app`: admin in that app
+/// scope, or a platform (`global`) admin for shared `all` keys and any app it is
+/// not directly scoped for (change: scope-aware-role-admin).
+fn console_can_edit(c: &ConsoleScopes, app: &str) -> bool {
+    if app == crate::context::APP_ALL {
+        c.platform
+    } else {
+        c.platform || c.admin_apps.iter().any(|a| a.as_str() == app)
+    }
 }
 
 /// Default L1 TTL backstop (design open-question default).
@@ -263,6 +291,18 @@ impl FlagService {
             .collect()
     }
 
+    /// Every declared key across **all** apps (plus shared `all` keys), optionally
+    /// narrowed to one app — the back-office console view, which is not tied to a
+    /// single app audience (change: scope-aware-role-admin).
+    pub fn definitions_all(&self, app_filter: Option<&str>) -> Vec<KeyState> {
+        self.registry
+            .all()
+            .iter()
+            .filter(|def| app_filter.is_none_or(|a| a.is_empty() || def.app == a))
+            .map(|def| self.key_state(def))
+            .collect()
+    }
+
     /// Like [`definitions`], but also resolves, per key, whether `actor` may edit
     /// it — a per-app admin can change only its own app's keys; `all`/other-app
     /// keys need a platform admin. Costs at most one resolver call. The UI uses
@@ -272,6 +312,20 @@ impl FlagService {
         actor: &Actor,
         app_filter: Option<&str>,
     ) -> Result<Vec<(KeyState, bool)>> {
+        // Back-office console: list EVERY app's keys; editability comes from the
+        // token's per-scope roles (no resolver call). A key is editable when the
+        // caller is admin in that key's app scope, or a platform admin for shared
+        // `all` keys (change: scope-aware-role-admin).
+        if let Some(c) = &actor.console {
+            return Ok(self
+                .definitions_all(app_filter)
+                .into_iter()
+                .map(|ks| {
+                    let editable = console_can_edit(c, ks.def.app);
+                    (ks, editable)
+                })
+                .collect());
+        }
         let platform = if actor.is_admin {
             self.resolver
                 .is_platform_admin(&actor.user_id)
@@ -456,6 +510,18 @@ impl FlagService {
     async fn authorize_write(&self, actor: &Actor, def: &KeyDef) -> Result<()> {
         if !actor.is_admin {
             return Err(AppError::PermissionDenied("requires role `admin`".into()));
+        }
+        // Back-office console: authorize from the token's per-scope roles — admin in
+        // the key's app scope, or platform admin for shared `all`/other-app keys
+        // (change: scope-aware-role-admin).
+        if let Some(c) = &actor.console {
+            if !console_can_edit(c, def.app) {
+                return Err(AppError::PermissionDenied(format!(
+                    "changing `{}`-scoped keys requires admin in that scope",
+                    def.app
+                )));
+            }
+            return Ok(());
         }
         let needs_platform = def.app == crate::context::APP_ALL || def.app != actor.app;
         if needs_platform && !self.resolver.is_platform_admin(&actor.user_id).await? {
@@ -717,7 +783,108 @@ mod tests {
             user_id: "00000000-0000-0000-0000-0000000000aa".into(),
             app: app.into(),
             is_admin,
+            console: None,
         }
+    }
+
+    /// A back-office console actor administering `admin_apps`, `platform` global.
+    fn console_actor(admin_apps: &[&str], platform: bool) -> Actor {
+        Actor {
+            user_id: "00000000-0000-0000-0000-0000000000aa".into(),
+            app: "back-office".into(),
+            is_admin: true,
+            console: Some(ConsoleScopes {
+                admin_apps: admin_apps.iter().map(|s| s.to_string()).collect(),
+                platform,
+            }),
+        }
+    }
+
+    #[tokio::test]
+    async fn console_write_is_scope_matched() {
+        // A music-only console admin may edit a music key (no resolver call).
+        let svc = writable_service(Arc::new(RecordingBus::default()), resolver(false), |w| {
+            w.app == APP_MUSIC && w.key == registry::REWARDS_ENABLED
+        });
+        let out = svc
+            .set_value(
+                &console_actor(&["music"], false),
+                APP_MUSIC,
+                registry::REWARDS_ENABLED,
+                FlagValue::Bool(true),
+                None,
+                false,
+            )
+            .await
+            .unwrap();
+        assert!(out.has_override);
+
+        // …but not a shared `all` key — that needs a platform (global) admin.
+        let svc = FlagService::new(
+            Registry::default(),
+            Some(Arc::new({
+                let mut s = MockFlagStore::new();
+                s.expect_load_all().returning(|| Ok(vec![]));
+                s
+            })),
+            Arc::new(NoopBus),
+            resolver(false),
+        );
+        let err = svc
+            .set_value(
+                &console_actor(&["music"], false),
+                APP_ALL,
+                registry::PLATFORM_MAINTENANCE,
+                FlagValue::Bool(true),
+                None,
+                false,
+            )
+            .await
+            .unwrap_err();
+        assert!(matches!(err, AppError::PermissionDenied(_)));
+    }
+
+    #[tokio::test]
+    async fn console_platform_admin_can_change_shared_key() {
+        // The console's platform flag comes from the token, not the resolver.
+        let svc = writable_service(Arc::new(RecordingBus::default()), resolver(false), |w| {
+            w.app == APP_ALL && w.key == registry::PLATFORM_MAINTENANCE
+        });
+        let out = svc
+            .set_value(
+                &console_actor(&["music", "live"], true),
+                APP_ALL,
+                registry::PLATFORM_MAINTENANCE,
+                FlagValue::Bool(true),
+                Some(RolloutScope::Global),
+                false,
+            )
+            .await
+            .unwrap();
+        assert!(out.has_override);
+    }
+
+    #[tokio::test]
+    async fn console_definitions_list_all_apps_and_platform_can_edit_shared() {
+        let svc = service_with(vec![]).await;
+        // A platform console admin: every app is listed and shared keys are editable.
+        let defs = svc
+            .definitions_for(&console_actor(&["music", "live"], true), None)
+            .await
+            .unwrap();
+        assert!(defs.iter().any(|(ks, _)| ks.def.app == APP_MUSIC));
+        assert!(
+            defs.iter()
+                .filter(|(ks, _)| ks.def.app == APP_ALL)
+                .all(|(_, editable)| *editable)
+        );
+        // The app_filter narrows the console view to a single app.
+        let only_music = svc
+            .definitions_for(&console_actor(&["music"], false), Some(APP_MUSIC))
+            .await
+            .unwrap();
+        assert!(!only_music.is_empty());
+        assert!(only_music.iter().all(|(ks, _)| ks.def.app == APP_MUSIC));
     }
 
     /// A service whose store records the upsert it receives.

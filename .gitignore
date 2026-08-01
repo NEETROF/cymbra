@@ -40,3 +40,7 @@
 .DS_Store
 **/.DS_Store
 /output/
+
+# --- Graphify code knowledge graphs (opt-in dev tooling, rebuilt locally) ---
+graphify-out/
+.graphifyignore

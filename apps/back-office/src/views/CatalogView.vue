@@ -7,10 +7,13 @@ import CatalogTable from "@/components/CatalogTable.vue";
 import StatBar from "@/components/StatBar.vue";
 import TablePager from "@/components/TablePager.vue";
 import { PAGE_SIZE, useCatalogStore, type Filters, type ModerationStatus, type SortKeyInit } from "@/stores/catalog";
+import { useAuthStore } from "@/stores/auth";
+import { musicxmlFileName, saveBytesAsFile } from "@/lib/download";
 import type { CatalogHit } from "@/gen/score_pb";
 
 // Free browse of the catalog by status + hub filters, with click-to-sort columns.
 const store = useCatalogStore();
+const auth = useAuthStore();
 const router = useRouter();
 const status = ref<ModerationStatus>("pending");
 const sort = ref<SortKeyInit[]>([]);
@@ -77,6 +80,15 @@ function onPage(newOffset: number) {
   run();
 }
 
+// Download a row's linked MusicXML to the operator's machine. The store owns the RPC
+// (per the architecture rule) and folds it into per-row Async state; the actual save
+// (Blob + `<a download>`) is a DOM concern done here. On failure the store's per-row
+// error state renders in the table — nothing to do here.
+async function onDownload(hit: CatalogHit) {
+  const bytes = await store.downloadBytes(hit.id);
+  if (bytes) saveBytesAsFile(bytes, musicxmlFileName(hit.title, hit.id));
+}
+
 onMounted(run);
 </script>
 
@@ -95,8 +107,11 @@ onMounted(run);
       :hits="vm.hits"
       :status="status"
       :sort="sort"
+      :can-download="auth.isModerator"
+      :downloads="store.downloads"
       @sort="onSort"
       @select="(id) => router.push({ name: 'music-score', params: { id } })"
+      @download="onDownload"
     />
     <TablePager :offset="offset" :limit="PAGE_SIZE" :total="vm.total" @page="onPage" />
   </div>

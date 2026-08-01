@@ -124,6 +124,46 @@ a compliant short message.
   per machine (see `README`/SUPPORT); auto-activates each session. `/caveman lite`
   or uninstall to disable.
 
+## Code knowledge graphs (Graphify — opt-in)
+
+Optional local tooling that lets an AI assistant answer *relationship* questions
+("what calls X", "blast radius of changing Y", "what are the architectural hubs")
+from a knowledge graph instead of blind grepping. Local AST only — no API key, no
+tokens, nothing leaves the machine. **Not** in CI, **not** required to build.
+
+Install once per machine, then build the graphs:
+```bash
+uv tool install graphifyy && graphify install   # once
+scripts/graphify.sh                              # build/refresh all three (~5s)
+scripts/graphify.sh install-hook                 # optional: background refresh after every commit
+```
+
+Three separate per-stack graphs (git-ignored, rebuilt locally):
+- `graphify-out/graph.json` — **Rust workspace** (backend + crates + apps/music/rust;
+  `frb_generated.rs` excluded). High quality: method-level call graph.
+- `apps/music/graphify-out/graph.json` — **Flutter** app. Coarser (file/import-level;
+  Dart extraction is weaker — `_` nodes pollute the hubs).
+- `apps/back-office/graphify-out/graph.json` — **Vue** back office. Good quality.
+
+Query from the **repo root** (default graph is `./graphify-out/graph.json` = Rust;
+add `--graph <path>` to hit an app graph):
+```bash
+graphify god-nodes --top 10                  # the most-connected symbols = architectural hubs
+graphify explain "EnqueueRequest"            # a symbol + everything wired to it (callers/callees), with file:line
+graphify affected "EnqueueRequest" --depth 2 # reverse impact: what breaks if you change it (run before a refactor)
+graphify god-nodes --graph apps/back-office/graphify-out/graph.json   # query the Vue graph instead
+```
+Symbol names must be **exact** (weak fuzzy matching). Best for Rust impact/orientation.
+It **complements** grep — it points to `file:line` anchors, it doesn't replace reading
+them. Cross-stack (Rust↔Dart↔Vue) is deliberately NOT linked: each graph is one
+language; cross the boundary via the `.proto` / frb API contract.
+
+**First run / gotchas.** The graphs are **git-ignored — they are never committed**, so a
+fresh clone or a new worktree has none: run `scripts/graphify.sh` there once to build them
+(each checkout keeps its own under its own `graphify-out/`). After `uv tool install`, open a
+**new shell** (or `hash -r`) so `graphify` is found. `command not found` → new shell;
+`graph.json` not found → you're not at the repo root, or you haven't built the graphs yet.
+
 ## Before opening a PR
 
 - `melos run analyze` and `dart format` clean

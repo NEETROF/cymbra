@@ -35,6 +35,9 @@ export interface E2EData {
   bytes?: number[] | null;
   /** Audit rows for `listRoleGrants`. */
   grants?: Record<string, unknown>[];
+  /** The account's stored language returned by `getAccount` (change: sync-account-
+   * language-preference); `setLocale` writes it here so a re-read reflects it. */
+  accountLocale?: string;
   /** Accounts for the admin directory (`listAccounts`); roles are mutated in place
    * by grant/revoke so the UI reflects the change on re-list. */
   accounts?: DirectoryAccount[];
@@ -49,7 +52,10 @@ interface DirectoryAccount {
   userId: string;
   handle?: string;
   displayName?: string;
-  roles: string[];
+  /** Roles in the `music` scope (shorthand). Seeds may use this OR `rolesByScope`. */
+  roles?: string[];
+  /** Roles grouped by scope (`global`/`music`/`live`); scope-aware role admin. */
+  rolesByScope?: Record<string, string[]>;
 }
 
 declare global {
@@ -63,8 +69,16 @@ export function installE2EClients(): void {
   const hits = data.hits ?? [];
   const counts = { pending: 0, accepted: 0, rejected: 0, ...(data.counts ?? {}) };
   const tokens = data.tokens ?? { accessToken: "", refreshToken: "r" };
-  // Mutable copy so grant/revoke change roles and the next listAccounts reflects it.
-  const accounts: DirectoryAccount[] = (data.accounts ?? []).map((a) => ({ ...a, roles: [...(a.roles ?? [])] }));
+  // Mutable per-scope copy so grant/revoke change roles in the right scope and the
+  // next listAccounts reflects it. A seed's flat `roles` is treated as `music`.
+  const byScope: { userId: string; handle?: string; displayName?: string; roles: Record<string, string[]> }[] = (
+    data.accounts ?? []
+  ).map((a) => {
+    const roles: Record<string, string[]> = {};
+    const src = a.rolesByScope ?? { music: a.roles ?? [] };
+    for (const [scope, rs] of Object.entries(src)) roles[scope] = [...rs];
+    return { userId: a.userId, handle: a.handle, displayName: a.displayName, roles };
+  });
 
   function failIfSet(method: string): void {
     const f = data.fail?.[method];
@@ -129,28 +143,45 @@ export function installE2EClients(): void {
       },
     },
     user: {
-      grantRole: async (req: { userId: string; role: string }) => {
+      grantRole: async (req: { userId: string; scope: string; role: string }) => {
         failIfSet("grantRole");
-        const acc = accounts.find((a) => a.userId === req.userId);
-        if (acc && !acc.roles.includes(req.role)) acc.roles.push(req.role);
+        const acc = byScope.find((a) => a.userId === req.userId);
+        if (acc) {
+          const rs = (acc.roles[req.scope] ??= []);
+          if (!rs.includes(req.role)) rs.push(req.role);
+        }
         return {};
       },
-      revokeRole: async (req: { userId: string; role: string }) => {
+      revokeRole: async (req: { userId: string; scope: string; role: string }) => {
         failIfSet("revokeRole");
-        const acc = accounts.find((a) => a.userId === req.userId);
-        if (acc) acc.roles = acc.roles.filter((r) => r !== req.role);
+        const acc = byScope.find((a) => a.userId === req.userId);
+        if (acc && acc.roles[req.scope]) acc.roles[req.scope] = acc.roles[req.scope].filter((r) => r !== req.role);
         return {};
       },
       listRoleGrants: async () => ({ grants: data.grants ?? [] }),
+      getAccount: async () => {
+        failIfSet("getAccount");
+        return { userId: "u1", locale: data.accountLocale };
+      },
+      setLocale: async (req: { locale: string }) => {
+        failIfSet("setLocale");
+        if (req.locale) data.accountLocale = req.locale; // reflect the write
+        return { userId: "u1", locale: data.accountLocale };
+      },
       listAccounts: async (req: { query: string; limit: number; offset: number }) => {
         failIfSet("listAccounts");
         const q = (req.query ?? "").toLowerCase();
         const filtered = q
-          ? accounts.filter(
+          ? byScope.filter(
               (a) => (a.handle ?? "").toLowerCase().includes(q) || (a.displayName ?? "").toLowerCase().includes(q),
             )
-          : accounts;
-        const page = filtered.slice(req.offset ?? 0, (req.offset ?? 0) + (req.limit ?? 25));
+          : byScope;
+        const page = filtered.slice(req.offset ?? 0, (req.offset ?? 0) + (req.limit ?? 25)).map((a) => ({
+          userId: a.userId,
+          handle: a.handle,
+          displayName: a.displayName,
+          rolesByScope: Object.entries(a.roles).map(([scope, roles]) => ({ scope, roles })),
+        }));
         return { accounts: page, total: filtered.length };
       },
     },
