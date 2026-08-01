@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.1](https://github.com/NEETROF/cymbra/compare/backend-v0.10.0...backend-v0.10.1) (2026-08-01)
+
+
+### Bug Fixes
+
+* **flags:** keep the back-office console showing every app's flags ([#158](https://github.com/NEETROF/cymbra/issues/158)) ([28a181f](https://github.com/NEETROF/cymbra/commit/28a181f673e8ff41dbf6b851f98b227d6765dde3))
+
 ## [0.10.0](https://github.com/NEETROF/cymbra/compare/backend-v0.9.1...backend-v0.10.0) (2026-08-01)
 
 
