@@ -361,5 +361,15 @@
   "signInToLinkPrompt": "Hai già un account? Accedi per collegarlo.",
   "signInToLinkTitle": "Accedi per collegare",
   "signInToLinkIntro": "Accedi con un metodo che hai già usato e collegheremo questo nuovo accesso a quell'account.",
-  "signInToLinkSuccess": "Accesso effettuato: i tuoi account sono ora collegati."
+  "signInToLinkSuccess": "Accesso effettuato: i tuoi account sono ora collegati.",
+  "leaderboardTitle": "Classifica",
+  "leaderboardError": "Impossibile caricare la classifica.",
+  "leaderboardRetry": "Riprova",
+  "leaderboardEmpty": "Ancora nessuna voce — sii il primo!",
+  "leaderboardYou": "tu",
+  "leaderboardAnonymous": "Anonimo",
+  "leaderboardYourStanding": "La tua posizione",
+  "leaderboardYourRank": "Posizione n°{rank} su {total}",
+  "leaderboardBest": "Record {pct}%",
+  "leaderboardOpenFull": "Vedi la classifica"
 }

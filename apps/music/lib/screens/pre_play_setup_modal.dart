@@ -25,6 +25,7 @@ import '../state/score_catalog.dart';
 import '../state/selected_piano.dart';
 import '../theme/cymbra_theme.dart';
 import '../widgets/difficulty_badge.dart';
+import '../widgets/leaderboard_view.dart';
 import '../widgets/otg_guidance.dart';
 import '../widgets/setting_option_row.dart';
 import '../widgets/sound_selector_field.dart';
@@ -164,7 +165,7 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
             sound,
           ]);
 
-    final header = _header(l10n, title, composer, entry?.level, phone);
+    final header = _header(l10n, title, composer, entry, phone);
     final button = Padding(
       padding: EdgeInsets.only(top: phone ? 8 : 12),
       child: FilledButton(
@@ -222,7 +223,7 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
     AppLocalizations l10n,
     String title,
     String? composer,
-    PracticeLevel? level,
+    CatalogEntry? entry,
     bool phone,
   ) => Row(
     crossAxisAlignment: CrossAxisAlignment.start,
@@ -254,17 +255,30 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
                   ),
                 ),
               ),
-            if (level != null)
+            if (entry?.level != null)
               Padding(
                 padding: EdgeInsets.only(top: phone ? 4 : 8),
                 child: Align(
                   alignment: Alignment.centerLeft,
-                  child: DifficultyBadge(level: level, l10n: l10n),
+                  child: DifficultyBadge(level: entry!.level, l10n: l10n),
                 ),
               ),
           ],
         ),
       ),
+      // Open this piece's leaderboards (change: add-play-leaderboards). Shown when
+      // a catalog score is selected; an unranked piece just shows an empty board.
+      if (entry != null)
+        IconButton(
+          icon: const Icon(
+            Icons.leaderboard,
+            color: CymbraColors.onSurfaceVariant,
+          ),
+          tooltip: l10n.leaderboardTitle,
+          visualDensity: VisualDensity.compact,
+          onPressed: () =>
+              showLeaderboard(context, scoreId: entry.id, title: title),
+        ),
       IconButton(
         icon: const Icon(Icons.close, color: CymbraColors.onSurfaceVariant),
         tooltip: l10n.cancel,

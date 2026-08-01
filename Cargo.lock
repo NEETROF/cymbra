@@ -1046,6 +1046,7 @@ dependencies = [
  "cymbra-user-port",
  "prost 0.13.5",
  "serde",
+ "serde_json",
  "sha2",
  "sqlx",
  "tokio",

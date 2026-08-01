@@ -810,5 +810,17 @@
   "signInToLinkPrompt": "Already have an account? Sign in to link.",
   "signInToLinkTitle": "Sign in to link",
   "signInToLinkIntro": "Sign in with a method you've used before, and we'll link this new sign-in to that account.",
-  "signInToLinkSuccess": "Signed in — your accounts are now linked."
+  "signInToLinkSuccess": "Signed in — your accounts are now linked.",
+  "leaderboardTitle": "Leaderboard",
+  "leaderboardError": "Couldn't load the leaderboard.",
+  "leaderboardRetry": "Retry",
+  "leaderboardEmpty": "No entries yet — be the first!",
+  "leaderboardYou": "you",
+  "leaderboardAnonymous": "Anonymous",
+  "leaderboardYourStanding": "Your standing",
+  "leaderboardYourRank": "Rank #{rank} of {total}",
+  "@leaderboardYourRank": {"placeholders": {"rank": {"type": "int"}, "total": {"type": "int"}}, "description": "Leaderboard: the viewer's own rank among the public entries."},
+  "leaderboardBest": "Best {pct}%",
+  "@leaderboardBest": {"placeholders": {"pct": {"type": "int"}}, "description": "Leaderboard: the viewer's personal-best sub-score."},
+  "leaderboardOpenFull": "View leaderboard"
 }

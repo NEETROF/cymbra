@@ -384,6 +384,35 @@ impl<R: UserRepo> UserPort for UserModule<R> {
         let visibility = Visibility::parse(&row.visibility)?;
         Ok(visibility == Visibility::Public && self.eligible_now(&row.share_eligible_from, today))
     }
+
+    async fn listable_profiles(
+        &self,
+        user_ids: &[String],
+        today: NaiveDate,
+    ) -> Result<Vec<PlayerProfile>> {
+        let mut out = Vec::new();
+        for id in user_ids {
+            // A deleted/unknown id is simply not listed (fail-closed); a transient
+            // read error still propagates rather than silently dropping a player.
+            let row = match self.repo.profile_row(id).await {
+                Ok(row) => row,
+                Err(AppError::NotFound(_)) => continue,
+                Err(e) => return Err(e),
+            };
+            let visibility = Visibility::parse(&row.visibility)?;
+            if visibility == Visibility::Public
+                && self.eligible_now(&row.share_eligible_from, today)
+            {
+                out.push(PlayerProfile {
+                    user_id: id.clone(),
+                    handle: row.handle,
+                    display_name: row.display_name,
+                    visibility,
+                });
+            }
+        }
+        Ok(out)
+    }
 }
 
 impl<R: UserRepo> UserModule<R> {

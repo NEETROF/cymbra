@@ -1,0 +1,48 @@
+syntax = "proto3";
+
+package cymbra.music.v1;
+
+// LeaderboardService — per-piece, per-mode rankings derived from the play data
+// #5 ingests (change: add-play-leaderboards). Reads only: the personal bests are
+// maintained on the `RecordPlaySession` ingest path, not here. The caller's
+// identity comes from the internal access token (request metadata), never the
+// body. Lives in the `music` crate/schema alongside the pieces it ranks.
+
+// One ranked entry on a board. Carries only NON-SENSITIVE public fields (handle +
+// display name) — never an email, curator alignment/reliability, or moderation
+// state. `tiebreak_metric` is normalised so smaller is better (|mean tempo
+// offset| on the tempo board, mean reaction ms on the reaction board).
+message LeaderboardEntry {
+  int32 rank = 1;             // 1-based rank among the public entries
+  string user_id = 2;         // the ranked player's id (opaque)
+  string handle = 3;          // public handle, empty if none
+  string display_name = 4;    // public display name, empty if none
+  float subscore = 5;         // the per-mode synchronization sub-score 0..100 (rank primary)
+  float tiebreak_metric = 6;  // normalised timing tie-break, smaller = better
+  int64 achieved_at_ms = 7;   // when this best was achieved (unix epoch ms)
+}
+
+// Read one board: the ranked PUBLIC + age-eligible entries for `score_id` in
+// `mode`, plus the caller's own standing. `mode` is "tempo" or "reaction".
+message GetLeaderboardRequest {
+  string score_id = 1;  // the piece (an accepted catalog score id)
+  string mode = 2;      // "tempo" | "reaction"
+  int32 offset = 3;     // paging offset into the ranked public entries
+  int32 limit = 4;      // page size (server clamps to a sane maximum)
+}
+message GetLeaderboardResponse {
+  // The requested page of ranked PUBLIC entries (private/ineligible players are
+  // never listed to others).
+  repeated LeaderboardEntry entries = 1;
+  // Total number of public entries on this board (for paging).
+  int32 total = 2;
+  // The CALLER's own best + rank among the public entries, always returned when
+  // the caller has a best on this board — even if the caller is private/ineligible
+  // (they see themselves without being listed to others). Absent (message-presence
+  // false) when the caller has never scored on this board.
+  optional LeaderboardEntry own = 3;
+}
+
+service LeaderboardService {
+  rpc GetLeaderboard(GetLeaderboardRequest) returns (GetLeaderboardResponse);
+}

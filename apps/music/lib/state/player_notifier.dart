@@ -116,9 +116,15 @@ class Player extends _$Player {
   void _maybeStartRun() {
     final s = state;
     if (s.visibleNotes.isEmpty || !_atStart(s)) return;
+    // The piece IDENTITY is the selected score's id (the catalog UUID for a public
+    // score, a user-upload id otherwise) — the identity the server ranks by
+    // (change: add-play-leaderboards). Only accepted catalog scores get a board;
+    // a user upload or the demo (no selection, id falls back to the title) simply
+    // never matches an accepted catalog id, so it has no shared board.
+    final entry = ref.read(selectedScoreProvider);
     _scorer.startRun(
-      pieceId: s.title ?? 'demo',
-      title: s.title ?? 'Demo',
+      pieceId: entry?.id ?? s.title ?? 'demo',
+      title: entry?.title ?? s.title ?? 'Demo',
       hands: s.selectedHands.name,
       speed: s.speed,
       notes: s.visibleNotes,

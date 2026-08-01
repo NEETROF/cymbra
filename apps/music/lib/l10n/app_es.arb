@@ -361,5 +361,15 @@
   "signInToLinkPrompt": "¿Ya tienes una cuenta? Inicia sesión para vincularla.",
   "signInToLinkTitle": "Iniciar sesión para vincular",
   "signInToLinkIntro": "Inicia sesión con un método que ya hayas usado y vincularemos este nuevo inicio de sesión a esa cuenta.",
-  "signInToLinkSuccess": "Sesión iniciada: tus cuentas ya están vinculadas."
+  "signInToLinkSuccess": "Sesión iniciada: tus cuentas ya están vinculadas.",
+  "leaderboardTitle": "Clasificación",
+  "leaderboardError": "No se pudo cargar la clasificación.",
+  "leaderboardRetry": "Reintentar",
+  "leaderboardEmpty": "Aún no hay entradas: ¡sé el primero!",
+  "leaderboardYou": "tú",
+  "leaderboardAnonymous": "Anónimo",
+  "leaderboardYourStanding": "Tu posición",
+  "leaderboardYourRank": "Puesto n.º{rank} de {total}",
+  "leaderboardBest": "Récord {pct}%",
+  "leaderboardOpenFull": "Ver la clasificación"
 }

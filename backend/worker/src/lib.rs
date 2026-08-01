@@ -118,6 +118,15 @@ pub async fn purge_user(admin_pool: &PgPool, user_id: &str) -> anyhow::Result<()
         .execute(&mut *tx)
         .await?;
 
+    // The user's leaderboard personal bests (change: add-play-leaderboards). These
+    // are a durable per-(piece, mode) summary keyed by user_id (no cross-schema FK,
+    // so no cascade from the account row); erase them in the same transaction so no
+    // ranking data outlives the account (RGPD erasure, design D3).
+    sqlx::query("DELETE FROM music.leaderboard_bests WHERE user_id = $1")
+        .bind(uid)
+        .execute(&mut *tx)
+        .await?;
+
     tx.commit().await?;
     Ok(())
 }

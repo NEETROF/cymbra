@@ -361,5 +361,15 @@
   "signInToLinkPrompt": "Tu as déjà un compte ? Connecte-toi pour le lier.",
   "signInToLinkTitle": "Se connecter pour lier",
   "signInToLinkIntro": "Connecte-toi avec une méthode que tu as déjà utilisée : nous lierons cette nouvelle connexion à ce compte.",
-  "signInToLinkSuccess": "Connecté — tes comptes sont maintenant liés."
+  "signInToLinkSuccess": "Connecté — tes comptes sont maintenant liés.",
+  "leaderboardTitle": "Classement",
+  "leaderboardError": "Impossible de charger le classement.",
+  "leaderboardRetry": "Réessayer",
+  "leaderboardEmpty": "Aucune entrée pour l'instant — sois le premier !",
+  "leaderboardYou": "toi",
+  "leaderboardAnonymous": "Anonyme",
+  "leaderboardYourStanding": "Ton classement",
+  "leaderboardYourRank": "Rang n°{rank} sur {total}",
+  "leaderboardBest": "Record {pct}%",
+  "leaderboardOpenFull": "Voir le classement"
 }
