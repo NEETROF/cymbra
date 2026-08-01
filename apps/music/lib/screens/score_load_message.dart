@@ -25,6 +25,7 @@ String scoreLoadFailureMessage(
   ScoreLoadFailure.notFound => l10n.playerScoreNotFound,
   ScoreLoadFailure.notAvailableYet => l10n.playerScoreNotAvailableYet,
   ScoreLoadFailure.unavailable => l10n.playerScoreUnavailable,
+  ScoreLoadFailure.offlineUnavailable => l10n.playerScoreOfflineUnavailable,
   ScoreLoadFailure.rateLimited => l10n.playerScoreRateLimited,
   ScoreLoadFailure.generic => l10n.playerScoreLoadError,
 };

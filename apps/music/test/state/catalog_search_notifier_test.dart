@@ -25,6 +25,9 @@ import 'package:music/state/session_notifier.dart';
 
 /// In-memory [CatalogService] mirroring the backend's substring/filter search.
 class _FakeCatalog implements CatalogService {
+
+  @override
+  Future<Uint8List> getOfflineCacheKey() async => Uint8List(0);
   _FakeCatalog(this.rows);
   final List<CatalogHit> rows;
   final Set<String> saved = {};

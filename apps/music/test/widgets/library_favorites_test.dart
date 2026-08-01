@@ -36,6 +36,9 @@ import '../support/notation_fakes.dart';
 import '../support/prefs_fakes.dart';
 
 class _FakeCatalog implements CatalogService {
+
+  @override
+  Future<Uint8List> getOfflineCacheKey() async => Uint8List(0);
   _FakeCatalog(this.saved);
   final List<CatalogHit> saved;
   final List<String> removed = [];

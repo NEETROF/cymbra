@@ -31,6 +31,12 @@ enum ScoreLoadFailure {
   /// The backend is unreachable / offline.
   unavailable,
 
+  /// The app is offline and this favorited score has no cached local copy, so it
+  /// can't be played until a connection is available (change:
+  /// add-offline-score-cache). Distinct from [unavailable] (online-but-failing
+  /// backend) so the message reads honestly ("not available offline").
+  offlineUnavailable,
+
   /// The per-user catalog access limit was hit (too many downloads too fast, or
   /// beyond the play-aware allowance) — the backend reports RESOURCE_EXHAUSTED
   /// (change: add-catalog-access-limits).

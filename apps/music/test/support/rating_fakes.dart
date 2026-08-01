@@ -63,6 +63,9 @@ class FakeRatingService implements RatingService {
 /// hits (the backend gate guarantees only validated scores reach the app). Only
 /// `search` is used by the rating deck; the rest are inert.
 class FakeDeckCatalogService implements CatalogService {
+
+  @override
+  Future<Uint8List> getOfflineCacheKey() async => Uint8List(0);
   FakeDeckCatalogService(this.rows);
   final List<CatalogHit> rows;
 
