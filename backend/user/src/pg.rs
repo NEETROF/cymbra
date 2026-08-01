@@ -3,7 +3,7 @@
 
 use async_trait::async_trait;
 use cymbra_platform::{AppError, Result};
-use cymbra_user_port::{Account, AccountPage, AccountSummary, Identity, RoleGrant};
+use cymbra_user_port::{Account, AccountPage, AccountSummary, Identity, RoleGrant, ScopeRoles};
 use sqlx::{PgPool, Row};
 
 use crate::repo::UserRepo;
@@ -284,6 +284,26 @@ impl UserRepo for PgUserRepo {
             .collect())
     }
 
+    async fn roles_by_scope(
+        &self,
+        user_id: &str,
+        scopes: &[String],
+    ) -> Result<Vec<(String, String)>> {
+        let scope_vec: Vec<String> = scopes.to_vec();
+        let rows = sqlx::query(
+            "SELECT scope, role FROM user_roles WHERE user_id = $1 AND scope = ANY($2)",
+        )
+        .bind(parse_uuid(user_id)?)
+        .bind(&scope_vec)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(internal)?;
+        Ok(rows
+            .into_iter()
+            .map(|r| (r.get::<String, _>("scope"), r.get::<String, _>("role")))
+            .collect())
+    }
+
     async fn grant_role(&self, user_id: &str, scope: &str, role: &str) -> Result<()> {
         sqlx::query(
             "INSERT INTO user_roles (user_id, scope, role) VALUES ($1, $2, $3) \
@@ -366,6 +386,7 @@ impl UserRepo for PgUserRepo {
         handle_key: &str,
         limit: i64,
         offset: i64,
+        scopes: &[String],
     ) -> Result<AccountPage> {
         // Filter predicate (shared by count + page): empty query = all; else a
         // handle-key prefix OR a `local` identity email equal to the query.
@@ -382,13 +403,11 @@ impl UserRepo for PgUserRepo {
             .await
             .map_err(internal)?;
 
+        // Page the matching accounts first (identity only) …
         let rows = sqlx::query(&format!(
-            "SELECT u.id, u.handle, u.display_name, \
-                    COALESCE(array_agg(r.role) FILTER (WHERE r.role IS NOT NULL), ARRAY[]::text[]) AS roles \
+            "SELECT u.id, u.handle, u.display_name \
              FROM users u \
-             LEFT JOIN user_roles r ON r.user_id = u.id AND r.scope = 'music' \
              WHERE {WHERE} \
-             GROUP BY u.id, u.handle, u.display_name, u.created_at \
              ORDER BY u.handle ASC NULLS LAST, u.created_at, u.id \
              LIMIT $3 OFFSET $4"
         ))
@@ -400,13 +419,57 @@ impl UserRepo for PgUserRepo {
         .await
         .map_err(internal)?;
 
+        let ids: Vec<uuid::Uuid> = rows.iter().map(|r| r.get::<uuid::Uuid, _>("id")).collect();
+        let scope_vec: Vec<String> = scopes.to_vec();
+
+        // … then fetch just this page's roles, restricted to the authorized scopes,
+        // and group them per (user, scope) in memory. Only the caller's authorized
+        // scopes are queried, so the directory can never leak another scope's roles.
+        use std::collections::HashMap;
+        let mut roles_map: HashMap<uuid::Uuid, HashMap<String, Vec<String>>> = HashMap::new();
+        if !ids.is_empty() && !scope_vec.is_empty() {
+            let role_rows = sqlx::query(
+                "SELECT user_id, scope, role FROM user_roles \
+                 WHERE user_id = ANY($1) AND scope = ANY($2)",
+            )
+            .bind(&ids)
+            .bind(&scope_vec)
+            .fetch_all(&self.pool)
+            .await
+            .map_err(internal)?;
+            for r in role_rows {
+                let uid: uuid::Uuid = r.get("user_id");
+                let scope: String = r.get("scope");
+                let role: String = r.get("role");
+                roles_map
+                    .entry(uid)
+                    .or_default()
+                    .entry(scope)
+                    .or_default()
+                    .push(role);
+            }
+        }
+
         let entries = rows
             .into_iter()
-            .map(|r| AccountSummary {
-                user_id: r.get::<uuid::Uuid, _>("id").to_string(),
-                handle: r.get("handle"),
-                display_name: r.get("display_name"),
-                roles: r.get("roles"),
+            .map(|r| {
+                let uid: uuid::Uuid = r.get("id");
+                let per_scope = roles_map.remove(&uid).unwrap_or_default();
+                // Emit an entry for every authorized scope (empty when no role), in
+                // the caller's scope order, so the UI renders columns consistently.
+                let roles_by_scope = scopes
+                    .iter()
+                    .map(|sc| ScopeRoles {
+                        scope: sc.clone(),
+                        roles: per_scope.get(sc).cloned().unwrap_or_default(),
+                    })
+                    .collect();
+                AccountSummary {
+                    user_id: uid.to_string(),
+                    handle: r.get("handle"),
+                    display_name: r.get("display_name"),
+                    roles_by_scope,
+                }
             })
             .collect();
         Ok(AccountPage { entries, total })

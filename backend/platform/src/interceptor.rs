@@ -47,6 +47,7 @@ impl Interceptor for AuthInterceptor {
             user_id: claims.sub,
             audience: claims.aud,
             roles: claims.roles,
+            roles_by_scope: claims.roles_by_scope,
         });
         Ok(req)
     }
@@ -85,6 +86,7 @@ impl Interceptor for OptionalAuthInterceptor {
                     user_id: claims.sub,
                     audience: claims.aud,
                     roles: claims.roles,
+                    roles_by_scope: claims.roles_by_scope,
                 });
             }
         }

@@ -12,11 +12,12 @@ export interface AccountDirectory {
   total: number;
 }
 
-// Admin-only role administration (the server enforces `require_admin`; the UI just
-// hides these actions for non-admins). Scope defaults to `music`. The account
-// directory, the per-account audit listing, and the last grant/revoke outcome are
-// each an `Async` union so views match on them — a denied action lands in `op` as
-// `{ status: "error" }`, never a throw.
+// Admin-only role administration. The server enforces scope-matched authorization
+// (`require_admin_in_scope`) and returns only the scopes the caller may administer;
+// the UI mirrors that by asking for an explicit `scope` on every grant/revoke
+// (change: scope-aware-role-admin). The account directory, the per-account audit
+// listing, and the last grant/revoke outcome are each an `Async` union so views
+// match on them — a denied action lands in `op` as `{ status: "error" }`, never a throw.
 export const useRolesStore = defineStore("roles", () => {
   const directory = ref<Async<AccountDirectory>>(idle);
   const grants = ref<Async<RoleGrant[]>>(idle);
@@ -39,7 +40,7 @@ export const useRolesStore = defineStore("roles", () => {
     await run(grants, async () => (await api().user.listRoleGrants({ userId })).grants);
   }
 
-  async function grant(userId: string, role: string, scope = "music") {
+  async function grant(userId: string, role: string, scope: string) {
     const outcome = await run(op, async () => {
       await api().user.grantRole({ userId, scope, role });
     });
@@ -48,7 +49,7 @@ export const useRolesStore = defineStore("roles", () => {
     return outcome;
   }
 
-  async function revoke(userId: string, role: string, scope = "music") {
+  async function revoke(userId: string, role: string, scope: string) {
     const outcome = await run(op, async () => {
       await api().user.revokeRole({ userId, scope, role });
     });

@@ -329,6 +329,7 @@ mod tests {
             user_id: "00000000-0000-0000-0000-0000000000aa".into(),
             audience: audience.into(),
             roles: vec!["admin".into()],
+            ..Default::default()
         });
         req
     }

@@ -1,6 +1,7 @@
 //! The user module's **direct adapter** (task 3.4): implements [`UserPort`] with
 //! the account invariants on top of a [`UserRepo`].
 
+use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -23,7 +24,8 @@ const DEFAULT_MIN_PUBLIC_SHARING_AGE: u32 = 16;
 /// via `effective_roles`.
 const ROLES: [&str; 3] = ["user", "admin", "moderator"];
 /// Recognized authorization scopes (module audiences + the `global` break-glass).
-const SCOPES: [&str; 3] = ["global", "music", "live"];
+/// `pub(crate)` so the gRPC layer can compute a caller's authorized scopes.
+pub(crate) const SCOPES: [&str; 3] = ["global", "music", "live"];
 /// Account-directory paging bounds (change: add-admin-account-directory): a `0`/
 /// negative request means "default page", capped so a caller can't pull the whole
 /// table in one call.
@@ -203,6 +205,19 @@ impl<R: UserRepo> UserPort for UserModule<R> {
         self.repo.roles_for_scope(user_id, &["global", scope]).await
     }
 
+    async fn scoped_effective_roles(
+        &self,
+        user_id: &str,
+        scopes: &[String],
+    ) -> Result<BTreeMap<String, Vec<String>>> {
+        let pairs = self.repo.roles_by_scope(user_id, scopes).await?;
+        let mut out: BTreeMap<String, Vec<String>> = BTreeMap::new();
+        for (scope, role) in pairs {
+            out.entry(scope).or_default().push(role);
+        }
+        Ok(out)
+    }
+
     async fn grant_role(
         &self,
         acting_admin: &str,
@@ -237,9 +252,16 @@ impl<R: UserRepo> UserPort for UserModule<R> {
         self.repo.list_role_grants(user_id).await
     }
 
-    async fn list_accounts(&self, query: &str, limit: i64, offset: i64) -> Result<AccountPage> {
+    async fn list_accounts(
+        &self,
+        query: &str,
+        limit: i64,
+        offset: i64,
+        scopes: &[String],
+    ) -> Result<AccountPage> {
         // Clamp paging (default when unset, capped) so a caller can't drain the
-        // table; authorization (admin-only) is enforced at the gRPC layer.
+        // table; authorization (admin-only, per authorized scope) is enforced at the
+        // gRPC layer, which also picks the `scopes` this directory may expose.
         let limit = if limit <= 0 {
             DEFAULT_PAGE
         } else {
@@ -255,7 +277,7 @@ impl<R: UserRepo> UserPort for UserModule<R> {
             crate::handle_core::normalize(query)
         };
         self.repo
-            .list_accounts(query, &handle_key, limit, offset)
+            .list_accounts(query, &handle_key, limit, offset, scopes)
             .await
     }
 
@@ -395,6 +417,11 @@ mod tests {
 
     fn module() -> UserModule<FakeUserRepo> {
         UserModule::new(FakeUserRepo::default())
+    }
+
+    /// Owned scope list for the `&[String]` directory/role APIs.
+    fn sc(v: &[&str]) -> Vec<String> {
+        v.iter().map(|s| s.to_string()).collect()
     }
 
     #[tokio::test]
@@ -693,10 +720,10 @@ mod tests {
             .unwrap();
 
         // Unfiltered: all four accounts, total independent of the page window.
-        let page = m.list_accounts("", 2, 0).await.unwrap();
+        let page = m.list_accounts("", 2, 0, &sc(&["music"])).await.unwrap();
         assert_eq!(page.total, 4);
         assert_eq!(page.entries.len(), 2);
-        let page2 = m.list_accounts("", 2, 2).await.unwrap();
+        let page2 = m.list_accounts("", 2, 2, &sc(&["music"])).await.unwrap();
         assert_eq!(page2.entries.len(), 2);
         let first_ids: Vec<&String> = page.entries.iter().map(|e| &e.user_id).collect();
         assert!(
@@ -706,23 +733,30 @@ mod tests {
                 .all(|e| !first_ids.contains(&&e.user_id))
         );
 
-        // Filter by handle prefix (case-insensitive) + role aggregation.
-        let by_handle = m.list_accounts("AD", 25, 0).await.unwrap();
+        // Filter by handle prefix (case-insensitive) + role aggregation per scope.
+        let by_handle = m.list_accounts("AD", 25, 0, &sc(&["music"])).await.unwrap();
         assert_eq!(by_handle.total, 1);
         assert_eq!(by_handle.entries[0].handle.as_deref(), Some("ada"));
-        assert!(
-            by_handle.entries[0]
-                .roles
-                .contains(&"moderator".to_string())
-        );
+        let music = by_handle.entries[0]
+            .roles_by_scope
+            .iter()
+            .find(|sr| sr.scope == "music")
+            .unwrap();
+        assert!(music.roles.contains(&"moderator".to_string()));
 
         // Filter by the email of a local identity.
-        let by_email = m.list_accounts("ada@x.dev", 25, 0).await.unwrap();
+        let by_email = m
+            .list_accounts("ada@x.dev", 25, 0, &sc(&["music"]))
+            .await
+            .unwrap();
         assert_eq!(by_email.total, 1);
         assert_eq!(by_email.entries[0].user_id, a);
 
         // No match → empty page, total 0 (not an error).
-        let none = m.list_accounts("nobody", 25, 0).await.unwrap();
+        let none = m
+            .list_accounts("nobody", 25, 0, &sc(&["music"]))
+            .await
+            .unwrap();
         assert_eq!(none.total, 0);
         assert!(none.entries.is_empty());
     }
@@ -732,7 +766,7 @@ mod tests {
         let m = module();
         m.resolve_or_provision("google", "x").await.unwrap();
         // limit <= 0 falls back to the default window rather than returning nothing.
-        let page = m.list_accounts("", 0, 0).await.unwrap();
+        let page = m.list_accounts("", 0, 0, &sc(&["music"])).await.unwrap();
         assert_eq!(page.entries.len(), 1);
     }
 
@@ -762,6 +796,26 @@ mod tests {
         // An empty locale must never clear an already-stored preference.
         m.set_locale(&u, "").await.unwrap();
         assert_eq!(m.locale(&u).await.unwrap().as_deref(), Some("fr"));
+    }
+
+    #[tokio::test]
+    async fn scoped_effective_roles_groups_by_scope() {
+        let m = module();
+        let a = m.resolve_or_provision("google", "g1").await.unwrap();
+        // Default global/user, plus a music/admin and a live/moderator.
+        m.repo.grant_role(&a, "music", "admin").await.unwrap();
+        m.repo.grant_role(&a, "live", "moderator").await.unwrap();
+        let by_scope = m
+            .scoped_effective_roles(&a, &sc(&["global", "music", "live"]))
+            .await
+            .unwrap();
+        assert_eq!(by_scope["global"], vec!["user".to_string()]);
+        assert_eq!(by_scope["music"], vec!["admin".to_string()]);
+        assert_eq!(by_scope["live"], vec!["moderator".to_string()]);
+        // A scope with no role is omitted entirely.
+        let only_music = m.scoped_effective_roles(&a, &sc(&["music"])).await.unwrap();
+        assert_eq!(only_music.len(), 1);
+        assert!(only_music.contains_key("music"));
     }
 
     // --- Public profile / visibility (change: add-play-activity-profile) ------

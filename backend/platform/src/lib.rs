@@ -26,3 +26,20 @@ pub mod token;
 
 pub use error::{AppError, Result};
 pub use identity::AuthIdentity;
+
+/// The authorization scopes a role can be held in: the `global` break-glass plus
+/// each app scope. `global` unions into every scope; the app scopes are isolated
+/// from one another (change: scope-aware-role-admin, mirrors the user module's
+/// `SCOPES`).
+pub const SCOPES: [&str; 3] = ["global", "music", "live"];
+
+/// The app scopes an administrator can be scoped to (everything in [`SCOPES`]
+/// except the `global` break-glass) — the audiences the back-office session
+/// aggregates.
+pub const APP_SCOPES: [&str; 2] = ["music", "live"];
+
+/// The dedicated audience the back office authenticates against: its access token
+/// carries the administrator's real roles across `global ∪ music ∪ live`, so one
+/// session can administer every scope they are entitled to (change:
+/// scope-aware-role-admin). App clients keep using their single app audience.
+pub const BACKOFFICE_AUDIENCE: &str = "back-office";

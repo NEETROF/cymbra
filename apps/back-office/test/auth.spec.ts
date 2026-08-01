@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createPinia, setActivePinia } from "pinia";
-import { decodeClaims, isAdmin, isModerator } from "@/lib/jwt";
+import { adminScopes, decodeClaims, hasRoleInScope, isAdmin, isModerator } from "@/lib/jwt";
 import { useAuthStore } from "@/stores/auth";
 import { setWebAuthClientForTest, WebAuthError, type WebAuthClient } from "@/lib/web-auth";
 import { setClientsForTest } from "@/lib/api";
@@ -36,6 +36,27 @@ describe("jwt role decoding", () => {
 
   it("tolerates a malformed token", () => {
     expect(decodeClaims("garbage").roles).toEqual([]);
+    expect(decodeClaims("garbage").rolesByScope).toEqual({});
+  });
+
+  it("decodes per-scope roles and derives the admin's authorized scopes", () => {
+    // A music-only admin: admin in music, not live/global.
+    const music = decodeClaims(
+      makeJwt({ sub: "m", roles: ["user", "admin"], roles_by_scope: { global: ["user"], music: ["admin"] } }),
+    );
+    expect(music.rolesByScope.music).toEqual(["admin"]);
+    expect(hasRoleInScope(music.rolesByScope, "music", "admin")).toBe(true);
+    expect(hasRoleInScope(music.rolesByScope, "live", "admin")).toBe(false);
+    expect(adminScopes(music.rolesByScope)).toEqual(["music"]);
+
+    // A global admin is admin in every scope (break-glass).
+    const global = decodeClaims(makeJwt({ sub: "g", roles: ["admin"], roles_by_scope: { global: ["admin"] } }));
+    expect(hasRoleInScope(global.rolesByScope, "live", "admin")).toBe(true);
+    expect(adminScopes(global.rolesByScope)).toEqual(["global", "music", "live"]);
+
+    // A non-admin has no authorized scopes.
+    const mod = decodeClaims(makeJwt({ sub: "u", roles: ["moderator"], roles_by_scope: { music: ["moderator"] } }));
+    expect(adminScopes(mod.rolesByScope)).toEqual([]);
   });
 });
 
