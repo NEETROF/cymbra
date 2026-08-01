@@ -6,6 +6,7 @@ import type { CatalogHit } from "@/gen/score_pb";
 import type { ModerationStatus, SortKeyInit } from "@/stores/catalog";
 import { type Async, idle } from "@/lib/async";
 import AppTag from "@/components/AppTag.vue";
+import IdBadge from "@/components/IdBadge.vue";
 
 // Sortable columns: only fields that are both displayable here AND in the server
 // sort allow-list. Clicking a header rebuilds the single-key `sort` sent to the API
@@ -60,13 +61,6 @@ function arrow(field: string): string {
   return key.descending ? " ↓" : " ↑";
 }
 
-function shortId(id: string): string {
-  // Catalog ids are UUID v7: the leading hex is a millisecond timestamp shared
-  // by every score of the same crawl, so a prefix looks like a duplicate. Show
-  // the trailing (random) hex instead — that's what actually distinguishes rows.
-  return id.replaceAll("-", "").slice(-8).toUpperCase();
-}
-
 function levelLabel(level: string): string {
   return KNOWN_LEVELS.has(level) ? t(`level.${level}`) : level;
 }
@@ -117,7 +111,7 @@ function rowStatus(h: CatalogHit): ModerationStatus {
             </span>
             <span class="title-text">
               <span class="t-name">{{ h.title || "—" }}</span>
-              <span class="t-id" :title="h.id">ID: {{ shortId(h.id) }}</span>
+              <IdBadge :id="h.id" @click.stop />
             </span>
           </div>
         </td>
@@ -229,17 +223,6 @@ function rowStatus(h: CatalogHit): ModerationStatus {
 .t-name {
   font-weight: 600;
   color: var(--text);
-}
-.t-id {
-  font-family: var(--mono);
-  font-size: 0.68rem;
-  color: var(--faint);
-  letter-spacing: 0.05em;
-  cursor: help;
-}
-
-.t-id:hover {
-  text-decoration: underline dotted;
 }
 
 .num {
