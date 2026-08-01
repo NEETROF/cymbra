@@ -61,7 +61,10 @@ function arrow(field: string): string {
 }
 
 function shortId(id: string): string {
-  return id.replaceAll("-", "").slice(0, 8).toUpperCase();
+  // Catalog ids are UUID v7: the leading hex is a millisecond timestamp shared
+  // by every score of the same crawl, so a prefix looks like a duplicate. Show
+  // the trailing (random) hex instead — that's what actually distinguishes rows.
+  return id.replaceAll("-", "").slice(-8).toUpperCase();
 }
 
 function levelLabel(level: string): string {
