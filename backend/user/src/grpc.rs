@@ -15,8 +15,8 @@ use cymbra_user_port::proto::{
     GrantRoleRequest, GrantRoleResponse, Identity, ListAccountsRequest, ListAccountsResponse,
     ListIdentitiesRequest, ListIdentitiesResponse, ListRoleGrantsRequest, ListRoleGrantsResponse,
     PlayerProfile as ProtoPlayerProfile, RevokeRoleRequest, RevokeRoleResponse,
-    RoleGrant as ProtoRoleGrant, SetProfileVisibilityRequest, SetProfileVisibilityResponse,
-    UpdateAccountRequest,
+    RoleGrant as ProtoRoleGrant, SetLocaleRequest, SetProfileVisibilityRequest,
+    SetProfileVisibilityResponse, UpdateAccountRequest,
     user_service_server::{UserService, UserServiceServer},
 };
 use cymbra_user_port::{UserPort, Visibility};
@@ -53,6 +53,7 @@ fn to_proto(a: cymbra_user_port::Account) -> Account {
         version: a.version,
         updated_at: a.updated_at,
         handle: a.handle,
+        locale: a.locale,
     }
 }
 
@@ -98,6 +99,20 @@ impl<P: UserPort + 'static> UserService for UserGrpc<P> {
                 r.expected_version,
             )
             .await?;
+        Ok(Response::new(to_proto(acc)))
+    }
+
+    async fn set_locale(
+        &self,
+        req: Request<SetLocaleRequest>,
+    ) -> Result<Response<Account>, Status> {
+        // The account written is always the authenticated caller's — the locale
+        // comes from the body, the target from the token (change: sync-account-
+        // language-preference). `set_locale` is a no-op on empty input.
+        let id = identity(&req)?;
+        let locale = req.into_inner().locale;
+        self.port.set_locale(&id.user_id, &locale).await?;
+        let acc = self.port.get_account(&id.user_id).await?;
         Ok(Response::new(to_proto(acc)))
     }
 
@@ -492,6 +507,116 @@ mod tests {
             .set_profile_visibility(Request::new(SetProfileVisibilityRequest {
                 visibility: "public".into(),
                 date_of_birth: None,
+            }))
+            .await
+            .unwrap_err();
+        assert_eq!(err.code(), tonic::Code::Unauthenticated);
+    }
+
+    // --- Preferred locale (change: sync-account-language-preference) -----------
+
+    #[tokio::test]
+    async fn set_locale_writes_caller_account_and_get_account_returns_it() {
+        let (g, module) = grpc();
+        let uid = module.resolve_or_provision("google", "g1").await.unwrap();
+        // No locale yet → GetAccount reports none.
+        let acc = g
+            .get_account(authed(GetAccountRequest {}, &uid, &["user"]))
+            .await
+            .unwrap()
+            .into_inner();
+        assert_eq!(acc.locale, None);
+        // SetLocale writes the caller's account and echoes the updated account.
+        let echoed = g
+            .set_locale(authed(
+                SetLocaleRequest {
+                    locale: "fr".into(),
+                },
+                &uid,
+                &["user"],
+            ))
+            .await
+            .unwrap()
+            .into_inner();
+        assert_eq!(echoed.locale.as_deref(), Some("fr"));
+        // A subsequent GetAccount reflects the stored value.
+        let acc = g
+            .get_account(authed(GetAccountRequest {}, &uid, &["user"]))
+            .await
+            .unwrap()
+            .into_inner();
+        assert_eq!(acc.locale.as_deref(), Some("fr"));
+    }
+
+    #[tokio::test]
+    async fn set_locale_is_a_noop_on_empty_input() {
+        let (g, module) = grpc();
+        let uid = module.resolve_or_provision("google", "g1").await.unwrap();
+        g.set_locale(authed(
+            SetLocaleRequest {
+                locale: "fr".into(),
+            },
+            &uid,
+            &["user"],
+        ))
+        .await
+        .unwrap();
+        // An empty locale leaves the stored value unchanged.
+        let echoed = g
+            .set_locale(authed(
+                SetLocaleRequest {
+                    locale: String::new(),
+                },
+                &uid,
+                &["user"],
+            ))
+            .await
+            .unwrap()
+            .into_inner();
+        assert_eq!(echoed.locale.as_deref(), Some("fr"));
+    }
+
+    #[tokio::test]
+    async fn set_locale_targets_only_the_caller_identity() {
+        let (g, module) = grpc();
+        let a = module.resolve_or_provision("google", "a").await.unwrap();
+        let b = module.resolve_or_provision("google", "b").await.unwrap();
+        // The target is the token identity — there is no account id in the body to
+        // spoof, so each caller writes only their own account.
+        g.set_locale(authed(
+            SetLocaleRequest {
+                locale: "fr".into(),
+            },
+            &a,
+            &["user"],
+        ))
+        .await
+        .unwrap();
+        g.set_locale(authed(
+            SetLocaleRequest {
+                locale: "es".into(),
+            },
+            &b,
+            &["user"],
+        ))
+        .await
+        .unwrap();
+        assert_eq!(
+            module.get_account(&a).await.unwrap().locale.as_deref(),
+            Some("fr")
+        );
+        assert_eq!(
+            module.get_account(&b).await.unwrap().locale.as_deref(),
+            Some("es")
+        );
+    }
+
+    #[tokio::test]
+    async fn set_locale_rejects_unauthenticated() {
+        let (g, _module) = grpc();
+        let err = g
+            .set_locale(Request::new(SetLocaleRequest {
+                locale: "fr".into(),
             }))
             .await
             .unwrap_err();

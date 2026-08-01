@@ -125,6 +125,19 @@ impl<R: UserRepo> UserPort for UserModule<R> {
         self.repo.get_account(user_id).await
     }
 
+    async fn set_locale(&self, user_id: &str, locale: &str) -> Result<()> {
+        // No-op on empty input (change: persist-user-locale, D3): a locale-less
+        // call must never clear a previously recorded preference.
+        if locale.is_empty() {
+            return Ok(());
+        }
+        self.repo.set_locale(user_id, locale).await
+    }
+
+    async fn locale(&self, user_id: &str) -> Result<Option<String>> {
+        self.repo.locale(user_id).await
+    }
+
     async fn update_account(
         &self,
         user_id: &str,
@@ -721,6 +734,34 @@ mod tests {
         // limit <= 0 falls back to the default window rather than returning nothing.
         let page = m.list_accounts("", 0, 0).await.unwrap();
         assert_eq!(page.entries.len(), 1);
+    }
+
+    // --- Preferred locale (change: persist-user-locale) -----------------------
+
+    #[tokio::test]
+    async fn set_locale_writes_reads_back_and_is_last_writer_wins() {
+        // State-based round-trip: FakeUserRepo is a behavioural in-memory adapter
+        // (rust-testing skill special case), so write-then-read reads clearer here
+        // than mock expectation chains.
+        let m = module();
+        let u = m.resolve_or_provision("google", "g1").await.unwrap();
+        // No locale recorded yet → None (callers treat this as English).
+        assert_eq!(m.locale(&u).await.unwrap(), None);
+        // First write records it; a later non-empty write overwrites it.
+        m.set_locale(&u, "fr").await.unwrap();
+        assert_eq!(m.locale(&u).await.unwrap().as_deref(), Some("fr"));
+        m.set_locale(&u, "es").await.unwrap();
+        assert_eq!(m.locale(&u).await.unwrap().as_deref(), Some("es"));
+    }
+
+    #[tokio::test]
+    async fn set_locale_is_a_noop_on_empty_input() {
+        let m = module();
+        let u = m.resolve_or_provision("google", "g1").await.unwrap();
+        m.set_locale(&u, "fr").await.unwrap();
+        // An empty locale must never clear an already-stored preference.
+        m.set_locale(&u, "").await.unwrap();
+        assert_eq!(m.locale(&u).await.unwrap().as_deref(), Some("fr"));
     }
 
     // --- Public profile / visibility (change: add-play-activity-profile) ------

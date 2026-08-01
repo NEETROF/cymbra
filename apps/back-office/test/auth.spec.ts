@@ -3,7 +3,8 @@ import { createPinia, setActivePinia } from "pinia";
 import { decodeClaims, isAdmin, isModerator } from "@/lib/jwt";
 import { useAuthStore } from "@/stores/auth";
 import { setWebAuthClientForTest, WebAuthError, type WebAuthClient } from "@/lib/web-auth";
-import { makeJwt } from "./fakes";
+import { setClientsForTest } from "@/lib/api";
+import { makeFakeClients, makeJwt } from "./fakes";
 
 // A fake web-auth client (the injectable seam the store depends on). Override just the
 // method a test cares about; the rest return a default moderator token.
@@ -43,6 +44,9 @@ describe("auth store — memory-only session", () => {
     setActivePinia(createPinia());
     localStorage.clear();
     sessionStorage.clear();
+    // A successful sign-in/bootstrap now reconciles the account language over gRPC
+    // (change: sync-account-language-preference), so the API seam must be wired.
+    setClientsForTest(makeFakeClients().clients);
   });
 
   it("keeps the access token in memory and writes nothing to web storage on sign-in", async () => {

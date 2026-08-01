@@ -135,7 +135,7 @@ impl UserRepo for PgUserRepo {
 
     async fn get_account(&self, user_id: &str) -> Result<Account> {
         let row = sqlx::query(
-            "SELECT display_name, handle, preferences::text AS preferences, version, \
+            "SELECT display_name, handle, locale, preferences::text AS preferences, version, \
              extract(epoch FROM updated_at)::bigint AS updated_at FROM users WHERE id = $1",
         )
         .bind(parse_uuid(user_id)?)
@@ -150,7 +150,30 @@ impl UserRepo for PgUserRepo {
             version: row.get("version"),
             updated_at: row.get("updated_at"),
             handle: row.get("handle"),
+            locale: row.get("locale"),
         })
+    }
+
+    async fn set_locale(&self, user_id: &str, locale: &str) -> Result<()> {
+        let res = sqlx::query("UPDATE users SET locale = $2, updated_at = now() WHERE id = $1")
+            .bind(parse_uuid(user_id)?)
+            .bind(locale)
+            .execute(&self.pool)
+            .await
+            .map_err(internal)?;
+        if res.rows_affected() == 0 {
+            return Err(AppError::NotFound("account".into()));
+        }
+        Ok(())
+    }
+
+    async fn locale(&self, user_id: &str) -> Result<Option<String>> {
+        let row = sqlx::query("SELECT locale FROM users WHERE id = $1")
+            .bind(parse_uuid(user_id)?)
+            .fetch_optional(&self.pool)
+            .await
+            .map_err(internal)?;
+        Ok(row.and_then(|r| r.get::<Option<String>, _>("locale")))
     }
 
     async fn handle_owner(&self, handle_key: &str) -> Result<Option<String>> {
@@ -178,7 +201,7 @@ impl UserRepo for PgUserRepo {
             "UPDATE users SET display_name = $2, preferences = $3::jsonb, version = version + 1, \
              updated_at = now(), handle = COALESCE($5, handle), \
              handle_key = COALESCE($6, handle_key) WHERE id = $1 AND version = $4 \
-             RETURNING display_name, handle, preferences::text AS preferences, version, \
+             RETURNING display_name, handle, locale, preferences::text AS preferences, version, \
              extract(epoch FROM updated_at)::bigint AS updated_at",
         )
         .bind(uid)
@@ -206,6 +229,7 @@ impl UserRepo for PgUserRepo {
                 version: row.get("version"),
                 updated_at: row.get("updated_at"),
                 handle: row.get("handle"),
+                locale: row.get("locale"),
             }),
             None => {
                 // Distinguish a stale write from a missing account.

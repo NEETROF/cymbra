@@ -25,6 +25,7 @@ import 'services/audio_service.dart';
 import 'services/flags_integration.dart';
 import 'src/rust/frb_generated.dart';
 import 'state/app_locale.dart';
+import 'state/language_sync_listener.dart';
 import 'theme/cymbra_theme.dart';
 
 Future<void> main() async {
@@ -99,7 +100,9 @@ class CymbraApp extends ConsumerWidget {
       locale: locale,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
-      home: const SessionGate(),
+      // Reconcile the account language into the UI after sign-in (change:
+      // sync-account-language-preference), isolated in a dedicated listener.
+      home: const LanguageSyncListener(child: SessionGate()),
     );
   }
 }

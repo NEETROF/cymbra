@@ -1,6 +1,7 @@
 import { defineStore } from "pinia";
 import { webAuth } from "@/lib/web-auth";
 import { decodeClaims, isAdmin, isModerator, type TokenClaims } from "@/lib/jwt";
+import { useLocaleStore } from "@/stores/locale";
 
 // The back office targets the `music` audience so `music`-scoped roles
 // (moderator/admin) flow into the token (design D2).
@@ -38,10 +39,14 @@ export const useAuthStore = defineStore("auth", {
     async signInLocal(email: string, password: string) {
       const { accessToken } = await webAuth().signInLocal(email, password, AUDIENCE);
       this.setToken(accessToken);
+      // Reconcile the account language into the UI (change: sync-account-language-
+      // preference). Fire-and-forget so sign-in never blocks on it.
+      void useLocaleStore().reconcile();
     },
     async signInOidc(idToken: string) {
       const { accessToken } = await webAuth().signInOidc(idToken, AUDIENCE);
       this.setToken(accessToken);
+      void useLocaleStore().reconcile();
     },
     /** Mint a fresh access token from the refresh cookie. Throws if there is no
      * valid session (caller decides: silent on boot, sign-out on a live 401). */
@@ -54,6 +59,10 @@ export const useAuthStore = defineStore("auth", {
     async bootstrap() {
       try {
         await this.refresh();
+        // Session re-minted from the cookie: reconcile the account language into the
+        // UI (change: sync-account-language-preference). Fire-and-forget so boot is
+        // never blocked on it.
+        void useLocaleStore().reconcile();
       } catch {
         // No session; stay signed out (no console noise).
       } finally {
