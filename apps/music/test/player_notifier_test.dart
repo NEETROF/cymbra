@@ -948,6 +948,7 @@ void main() {
         NotationMeasure(
           index: 0,
           clefs: const [],
+          keyFifths: 0,
           minWidth: 120,
           directions: const [],
           notes: [
@@ -990,6 +991,7 @@ void main() {
         NotationMeasure(
           index: 0,
           clefs: const [],
+          keyFifths: 0,
           minWidth: 120,
           directions: const [],
           notes: [
@@ -1010,6 +1012,7 @@ void main() {
         NotationMeasure(
           index: 1,
           clefs: const [],
+          keyFifths: 0,
           minWidth: 120,
           directions: const [],
           notes: [

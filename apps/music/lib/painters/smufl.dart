@@ -109,6 +109,60 @@ class Smufl {
     return count * adv * s + s * 0.4;
   }
 
+  /// Draws a key change from [oldFifths] to [newFifths] at a modulation: a
+  /// natural cancels every accidental that leaves the signature (drawn on its
+  /// old staff position), then the new signature follows. Returns the width it
+  /// consumed. With no accidentals to cancel it is just the new signature.
+  static double drawKeyChange(
+    Canvas canvas,
+    double xStart,
+    double staffBottom,
+    double s,
+    int oldFifths,
+    int newFifths,
+    bool isBass,
+    Color color,
+  ) {
+    final oldSharp = oldFifths > 0;
+    final oldSteps = oldSharp ? _sharpSteps : _flatSteps;
+    final oldCount = oldFifths.abs().clamp(0, 7);
+    final newSharp = newFifths > 0;
+    final newSteps = newSharp ? _sharpSteps : _flatSteps;
+    final newCount = newFifths.abs().clamp(0, 7);
+    // A step keeps its accidental only if the new signature alters the same step
+    // the same way; otherwise a natural cancels it.
+    final kept = <int>{
+      if (oldSharp == newSharp)
+        for (var i = 0; i < newCount; i++) newSteps[i],
+    };
+
+    const adv = 0.95;
+    var x = xStart;
+    for (var i = 0; i < oldCount; i++) {
+      final step = oldSteps[i];
+      if (kept.contains(step)) continue;
+      draw(
+        canvas,
+        accidentalNatural,
+        x,
+        staffBottom - (step - (isBass ? 2 : 0)) * (s / 2),
+        s,
+        color,
+      );
+      x += adv * s;
+    }
+    final newWidth = drawKeySignature(
+      canvas,
+      x,
+      staffBottom,
+      s,
+      newFifths,
+      isBass,
+      color,
+    );
+    return (x - xStart) + newWidth;
+  }
+
   /// Draws a time signature (beats over beat-type) centred on a staff whose
   /// bottom line is at [staffBottom]; returns the width it consumed.
   static double drawTimeSignature(

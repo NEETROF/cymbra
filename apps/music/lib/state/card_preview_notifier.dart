@@ -34,6 +34,7 @@ class CardPreviewScore {
     required this.songEndMs,
     required this.bpm,
     required this.keyFifths,
+    this.measureKeyFifths = const [],
     required this.beats,
     required this.beatType,
     required this.measureStartMs,
@@ -45,6 +46,7 @@ class CardPreviewScore {
   final double songEndMs;
   final int bpm;
   final int keyFifths;
+  final List<int> measureKeyFifths;
   final int beats;
   final int beatType;
   final List<int> measureStartMs;
@@ -75,6 +77,7 @@ Future<CardPreviewScore> cardPreviewScore(Ref ref, String catalogId) async {
     songEndMs: derived.songEndMs,
     bpm: derived.bpm,
     keyFifths: document.attributes.keyFifths,
+    measureKeyFifths: derived.measureKeyFifths,
     beats: document.attributes.time.beats,
     beatType: document.attributes.time.beatType,
     measureStartMs: derived.measureStartMs,

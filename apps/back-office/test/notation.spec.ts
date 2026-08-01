@@ -52,6 +52,7 @@ function makeGeometry(): RenderedScore {
           index: 0,
           min_width: 100,
           clefs: [],
+          key_fifths: 0,
           notes: [
             note({ position_divisions: 0 }),
             note({
@@ -114,6 +115,41 @@ describe("notation painter", () => {
     expect(svg).not.toContain("<input");
     expect(svg).not.toContain("onclick");
     expect(svg).not.toContain("contenteditable");
+  });
+
+  it("draws the armure per system and a key change at a modulation", () => {
+    const flat = "\u{E260}";
+    const natural = "\u{E261}";
+    const measure = (index: number, keyFifths: number) => ({
+      index,
+      min_width: 100,
+      clefs: [],
+      key_fifths: keyFifths,
+      notes: [note({ position_divisions: 0, pitch: { step: "C", octave: 5, alter: 0 } })],
+    });
+    // Modulates 4 flats → 1 flat, one measure per system (like Haydn's canzonet).
+    const geo = {
+      document: {
+        meta: { title: "Mod", composer: null },
+        staves: 1,
+        attributes: {
+          divisions: 4,
+          clefs: [{ staff: 1, sign: "G", line: 2 }],
+          key_fifths: -1,
+          time: { beats: 4, beat_type: 4 },
+        },
+        measures: [measure(0, -4), measure(1, -1)],
+      },
+      systems: [
+        { measures: [0], staves: 1 },
+        { measures: [1], staves: 1 },
+      ],
+    };
+    const { svg } = renderNotation(geo, 1000);
+    // System 1 shows 4 flats; system 2's header shows the change: the three
+    // removed flats cancelled by naturals, then the remaining 1 flat.
+    expect(svg.split(flat).length - 1).toBeGreaterThanOrEqual(5);
+    expect(svg).toContain(natural);
   });
 });
 

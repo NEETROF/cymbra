@@ -55,6 +55,7 @@ class ReplayScore {
   final int bpm;
   final double songEndMs;
   final int keyFifths;
+  final List<int> measureKeyFifths;
   final int beats;
   final int beatType;
   final List<int> measureStartMs;
@@ -64,6 +65,7 @@ class ReplayScore {
     required this.bpm,
     required this.songEndMs,
     required this.keyFifths,
+    this.measureKeyFifths = const [],
     required this.beats,
     required this.beatType,
     required this.measureStartMs,
@@ -75,6 +77,7 @@ class ReplayScore {
     bpm: d.bpm,
     songEndMs: d.songEndMs,
     keyFifths: d.keyFifths,
+    measureKeyFifths: d.measureKeyFifths,
     beats: d.beats,
     beatType: d.beatType,
     measureStartMs: d.measureStartMs,
@@ -270,6 +273,7 @@ class _ReplayDialogState extends ConsumerState<_ReplayDialog>
                 bpm: _score.bpm,
                 songEndMs: _score.songEndMs,
                 keyFifths: _score.keyFifths,
+                measureKeyFifths: _score.measureKeyFifths,
                 beats: _score.beats,
                 beatType: _score.beatType,
                 measureStartMs: _score.measureStartMs,

@@ -589,6 +589,7 @@ const _: fn() = || {
         let _: Vec<crate::api::musicxml::NoteEvent> = NotationMeasure.notes;
         let _: Vec<crate::api::musicxml::Direction> = NotationMeasure.directions;
         let _: Vec<crate::api::musicxml::Clef> = NotationMeasure.clefs;
+        let _: i32 = NotationMeasure.key_fifths;
         let _: f64 = NotationMeasure.min_width;
     }
     {
@@ -1003,12 +1004,14 @@ impl SseDecode for crate::api::musicxml::NotationMeasure {
         let mut var_notes = <Vec<crate::api::musicxml::NoteEvent>>::sse_decode(deserializer);
         let mut var_directions = <Vec<crate::api::musicxml::Direction>>::sse_decode(deserializer);
         let mut var_clefs = <Vec<crate::api::musicxml::Clef>>::sse_decode(deserializer);
+        let mut var_keyFifths = <i32>::sse_decode(deserializer);
         let mut var_minWidth = <f64>::sse_decode(deserializer);
         return crate::api::musicxml::NotationMeasure {
             index: var_index,
             notes: var_notes,
             directions: var_directions,
             clefs: var_clefs,
+            key_fifths: var_keyFifths,
             min_width: var_minWidth,
         };
     }
@@ -1569,6 +1572,7 @@ impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::musicxml::Notation
             self.0.notes.into_into_dart().into_dart(),
             self.0.directions.into_into_dart().into_dart(),
             self.0.clefs.into_into_dart().into_dart(),
+            self.0.key_fifths.into_into_dart().into_dart(),
             self.0.min_width.into_into_dart().into_dart(),
         ]
         .into_dart()
@@ -2143,6 +2147,7 @@ impl SseEncode for crate::api::musicxml::NotationMeasure {
         <Vec<crate::api::musicxml::NoteEvent>>::sse_encode(self.notes, serializer);
         <Vec<crate::api::musicxml::Direction>>::sse_encode(self.directions, serializer);
         <Vec<crate::api::musicxml::Clef>>::sse_encode(self.clefs, serializer);
+        <i32>::sse_encode(self.key_fifths, serializer);
         <f64>::sse_encode(self.min_width, serializer);
     }
 }

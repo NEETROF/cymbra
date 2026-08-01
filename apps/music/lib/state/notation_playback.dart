@@ -33,12 +33,18 @@ class DerivedPlayback {
   /// it.
   final List<int> measureStartMs;
 
+  /// Key signature (fifths) in force during each measure, aligned with
+  /// [measureStartMs]. Lets the scrolling staff show the armure at the playhead
+  /// so a mid-piece modulation is reflected as you scroll past it.
+  final List<int> measureKeyFifths;
+
   const DerivedPlayback({
     required this.notes,
     this.rests = const [],
     required this.songEndMs,
     required this.bpm,
     this.measureStartMs = const [],
+    this.measureKeyFifths = const [],
   });
 }
 
@@ -53,6 +59,18 @@ const Map<String, int> _semitoneOfStep = {
   'G': 7,
   'A': 9,
   'B': 11,
+};
+
+/// Diatonic index of a step within its octave (C=0…B=6) — for the note's
+/// written staff position (line/space), independent of any alteration.
+const Map<String, int> _diatonicOfStep = {
+  'C': 0,
+  'D': 1,
+  'E': 2,
+  'F': 3,
+  'G': 4,
+  'A': 5,
+  'B': 6,
 };
 
 /// MIDI note number for a [Pitch] (C4 = 60). Octave 4, step C, alter 0 → 60.
@@ -82,6 +100,7 @@ DerivedPlayback notationToTimedNotes(ScoreDocument document) {
   final notes = <TimedNote>[];
   final rests = <TimedRest>[];
   final measureStartMs = <int>[];
+  final measureKeyFifths = <int>[];
   var songEndMs = 0.0;
   var measureStartDiv = 0;
 
@@ -93,6 +112,7 @@ DerivedPlayback notationToTimedNotes(ScoreDocument document) {
 
   for (final measure in document.measures) {
     measureStartMs.add((measureStartDiv * msPerDivision).round());
+    measureKeyFifths.add(measure.keyFifths);
     for (final c in measure.clefs) {
       clef[c.staff] = c;
     }
@@ -138,6 +158,7 @@ DerivedPlayback notationToTimedNotes(ScoreDocument document) {
           clefLine: c?.line ?? (note.staff >= 2 ? 4 : 2),
           noteType: note.noteType,
           dots: note.dots,
+          diatonic: pitch.octave * 7 + (_diatonicOfStep[pitch.step] ?? 0),
         ),
       );
       if (startMs + durationMs > songEndMs) songEndMs = startMs + durationMs;
@@ -153,6 +174,7 @@ DerivedPlayback notationToTimedNotes(ScoreDocument document) {
     songEndMs: songEndMs,
     bpm: bpm,
     measureStartMs: measureStartMs,
+    measureKeyFifths: measureKeyFifths,
   );
 }
 

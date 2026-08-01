@@ -172,6 +172,12 @@ class NotationMeasure {
   /// treble and moves to bass).
   final List<Clef> clefs;
 
+  /// Key signature (fifths on the circle, negative = flats) in force during
+  /// this measure, carried forward from the last `<key>` change. Lets the
+  /// renderer draw the correct armure per system — and a key change where it
+  /// differs from the previous measure — for a piece that modulates.
+  final int keyFifths;
+
   /// Minimum engraving width (pixels) from the non-linear spacing function.
   final double minWidth;
 
@@ -180,6 +186,7 @@ class NotationMeasure {
     required this.notes,
     required this.directions,
     required this.clefs,
+    required this.keyFifths,
     required this.minWidth,
   });
 
@@ -189,6 +196,7 @@ class NotationMeasure {
       notes.hashCode ^
       directions.hashCode ^
       clefs.hashCode ^
+      keyFifths.hashCode ^
       minWidth.hashCode;
 
   @override
@@ -200,6 +208,7 @@ class NotationMeasure {
           notes == other.notes &&
           directions == other.directions &&
           clefs == other.clefs &&
+          keyFifths == other.keyFifths &&
           minWidth == other.minWidth;
 }
 

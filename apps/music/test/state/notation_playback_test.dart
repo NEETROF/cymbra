@@ -37,6 +37,7 @@ ScoreDocument _docWith({
     NotationMeasure(
       index: 0,
       clefs: const [],
+      keyFifths: 0,
       minWidth: 100,
       directions: directions,
       notes: notes,
@@ -201,6 +202,7 @@ void main() {
             NotationMeasure(
               index: 0,
               clefs: const [],
+              keyFifths: 0,
               minWidth: 100,
               directions: const [],
               notes: [
@@ -214,6 +216,7 @@ void main() {
             NotationMeasure(
               index: 1,
               clefs: const [],
+              keyFifths: 0,
               minWidth: 100,
               directions: const [],
               notes: [
@@ -233,5 +236,55 @@ void main() {
         expect(d.notes[1].startMs, closeTo(measureMs, 1));
       },
     );
+
+    test('exposes the per-measure key signature for a modulating piece', () {
+      NotationMeasure measure(int index, int keyFifths) => NotationMeasure(
+        index: index,
+        clefs: const [],
+        keyFifths: keyFifths,
+        minWidth: 100,
+        directions: const [],
+        notes: [
+          noteEvent(
+            positionDivisions: 0,
+            durationDivisions: 16,
+            pitch: const Pitch(step: 'C', octave: 5, alter: 0),
+          ),
+        ],
+      );
+      final doc = ScoreDocument(
+        meta: const ScoreMeta(title: 'T', composer: 'C'),
+        staves: 1,
+        attributes: const Attributes(
+          divisions: 4,
+          clefs: [],
+          keyFifths: -1,
+          time: TimeSignature(beats: 4, beatType: 4),
+        ),
+        // Starts in 4 flats, modulates to 1 flat — like Haydn's canzonet.
+        measures: [measure(0, -4), measure(1, -4), measure(2, -1)],
+      );
+      final d = notationToTimedNotes(doc);
+      expect(d.measureKeyFifths, [-4, -4, -1]);
+      expect(d.measureKeyFifths, hasLength(d.measureStartMs.length));
+    });
+
+    test('carries the written diatonic step, not the MIDI collapse', () {
+      // A♭4 (step A, octave 4, alter −1) must sit on the A line/space, like the
+      // engraved Partition — never collapsed onto G via its MIDI number. The
+      // Staff painter positions by this value so the two views agree.
+      final doc = _docWith(
+        notes: [
+          noteEvent(
+            durationDivisions: 16,
+            pitch: const Pitch(step: 'A', octave: 4, alter: -1),
+          ),
+        ],
+      );
+      final aFlat = notationToTimedNotes(doc).notes.single;
+      expect(aFlat.diatonic, 4 * 7 + 5, reason: 'written A4 position');
+      // A G4 would be one diatonic step lower — the two must not coincide.
+      expect(aFlat.diatonic, isNot(4 * 7 + 4));
+    });
   });
 }

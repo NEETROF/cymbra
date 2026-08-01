@@ -45,6 +45,7 @@ ScoreDocument _threeFour() {
   NotationMeasure measure(int index, List<NoteEvent> notes) => NotationMeasure(
     index: index,
     clefs: const [],
+    keyFifths: 0,
     minWidth: 120,
     directions: const [],
     notes: notes,

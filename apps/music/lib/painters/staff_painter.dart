@@ -44,8 +44,12 @@ class StaffPainter extends CustomPainter {
   final double songEndMs;
 
   /// Key signature (fifths) and time signature of the loaded piece, drawn as the
-  /// armature + meter at the head of the system.
+  /// armature + meter at the head of the system. [keyFifths] is the fallback when
+  /// no per-measure data is supplied; [measureKeyFifths] (aligned with
+  /// [measureStartMs]) lets the head show the armure in force at the playhead, so
+  /// a mid-piece modulation is reflected as the score scrolls past it.
   final int keyFifths;
+  final List<int> measureKeyFifths;
   final int beats;
   final int beatType;
 
@@ -80,6 +84,7 @@ class StaffPainter extends CustomPainter {
     required this.songEndMs,
     this.rests = const [],
     this.keyFifths = 0,
+    this.measureKeyFifths = const [],
     this.beats = 4,
     this.beatType = 4,
     this.measureStartMs = const [],
@@ -203,15 +208,18 @@ class StaffPainter extends CustomPainter {
       );
     }
 
-    // Key signature (armature) + time signature at the head of the system.
+    // Key signature (armature) + time signature at the head of the system. The
+    // armure reflects the key at the playhead, so a mid-piece modulation appears
+    // as you scroll past it (like the clef above).
     const headColor = CymbraColors.onSurfaceVariant;
+    final headKey = _keyFifthsAtPlayhead();
     var hx = 6 + lineGap * 2.8;
     final keyW = Smufl.drawKeySignature(
       canvas,
       hx,
       trebleBottom,
       lineGap,
-      keyFifths,
+      headKey,
       topStaff >= 2, // bass-clef placement when the lone staff is the left hand
       headColor,
     );
@@ -221,7 +229,7 @@ class StaffPainter extends CustomPainter {
         hx,
         bassBottom,
         lineGap,
-        keyFifths,
+        headKey,
         true,
         headColor,
       );
@@ -301,9 +309,13 @@ class StaffPainter extends CustomPainter {
     double noteY(TimedNote n) {
       final isBass = bassBottom != null && n.staff >= 2;
       final base = isBass ? bassBottom : trebleBottom;
-      // Position by the clef in effect for this note (not its staff index).
+      // Position by the clef in effect for this note (not its staff index), and
+      // by the note's *written* staff step when known (so an A♭ sits on the A
+      // line like the engraved Partition), falling back to the MIDI number for
+      // MIDI-only sources (demo/replay).
       final bottom = _clefBottomDiatonic(n.clefSign, n.clefLine);
-      return base - (_diatonic(n.pitch) - bottom) * stepGap;
+      final dia = n.diatonic ?? _diatonic(n.pitch);
+      return base - (dia - bottom) * stepGap;
     }
 
     final quarterMs = bpm > 0 ? 60000.0 / bpm : 500.0;
@@ -460,8 +472,8 @@ class StaffPainter extends CustomPainter {
   }
 
   /// Diatonic value of the bottom staff line for a clef (sign on its `line`).
-  /// Uses MIDI reference pitches so it matches [_diatonic] (which keys on MIDI
-  /// numbers, not the musical octave).
+  /// Uses MIDI reference pitches through [_diatonic], so it shares the same
+  /// written-diatonic scale as both [_diatonic] and [TimedNote.diatonic].
   int _clefBottomDiatonic(String sign, int line) {
     final refMidi = switch (sign) {
       'F' => 53, // F3
@@ -469,6 +481,22 @@ class StaffPainter extends CustomPainter {
       _ => 67, // G4
     };
     return _diatonic(refMidi) - (line - 1) * 2;
+  }
+
+  /// Key signature (fifths) in force at the playhead: the armure of the measure
+  /// containing [elapsedMs]. Falls back to the fixed [keyFifths] when no
+  /// per-measure data is supplied (e.g. the demo score).
+  int _keyFifthsAtPlayhead() {
+    if (measureKeyFifths.isEmpty || measureStartMs.isEmpty) return keyFifths;
+    var idx = 0;
+    for (var m = 0; m < measureStartMs.length; m++) {
+      if (measureStartMs[m] <= elapsedMs) {
+        idx = m;
+      } else {
+        break;
+      }
+    }
+    return idx < measureKeyFifths.length ? measureKeyFifths[idx] : keyFifths;
   }
 
   /// The clef (sign, line) in effect on [staff] at the current playhead — the
@@ -484,6 +512,10 @@ class StaffPainter extends CustomPainter {
     return (chosen.clefSign, chosen.clefLine);
   }
 
+  /// Written-diatonic staff step for a MIDI pitch (fallback when a note carries
+  /// no spelled [TimedNote.diatonic]). Uses the musical octave (`pitch~/12 - 1`,
+  /// so MIDI 60 = C4) to match [TimedNote.diatonic]'s `octave*7 + step` scale.
+  /// Enharmonics collapse (A♭→G) — acceptable for the MIDI-only demo/replay.
   int _diatonic(int pitch) {
     const whiteInOctave = {
       0: 0,
@@ -499,7 +531,7 @@ class StaffPainter extends CustomPainter {
       10: 5,
       11: 6,
     };
-    final octave = pitch ~/ 12;
+    final octave = pitch ~/ 12 - 1;
     final semitone = pitch % 12;
     return octave * 7 + (whiteInOctave[semitone] ?? 0);
   }
@@ -712,6 +744,7 @@ class StaffPainter extends CustomPainter {
       old.notes != notes ||
       old.rests != rests ||
       old.measureStartMs != measureStartMs ||
+      old.measureKeyFifths != measureKeyFifths ||
       old.mistakeColors != mistakeColors ||
       old.lookAheadMs != lookAheadMs ||
       old.noteScale != noteScale;
