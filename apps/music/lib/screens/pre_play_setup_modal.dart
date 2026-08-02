@@ -127,34 +127,30 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
       ),
     );
 
-    // Phone-landscape is short: the sound picker spans the full width (so its
-    // dropdown menu has room for long font names), then the rest sits in two
-    // columns (left: hands + metronome; right: MIDI + tempo + keyboard) so the
-    // modal fits without scrolling. Larger screens keep a single scrollable column.
+    Widget col(List<Widget?> children) => Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [for (final c in children) ?c],
+    );
+
+    // Phone-landscape is short and now carries many controls, so the whole body
+    // scrolls as one unit (the Play button stays pinned below). The sound picker
+    // spans the full width (its dropdown menu follows the field width, so long
+    // font names + the "Add…" item need the room); the rest sits in two compact
+    // columns to cut the scroll distance. Larger screens keep a single column.
     final Widget body = phone
-        ? Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
+        ? SingleChildScrollView(
+            child: col([
               sound,
               const SizedBox(height: 8),
-              Expanded(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(child: scrollCol([?hands, metronome])),
-                    const SizedBox(width: 24),
-                    Expanded(
-                      child: scrollCol([
-                        midi,
-                        tempo,
-                        keyboardSize,
-                        ?keyboardVisibility,
-                      ]),
-                    ),
-                  ],
-                ),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: col([?hands, metronome, keyboardSize])),
+                  const SizedBox(width: 24),
+                  Expanded(child: col([midi, tempo, ?keyboardVisibility])),
+                ],
               ),
-            ],
+            ]),
           )
         : scrollCol([
             facts,
