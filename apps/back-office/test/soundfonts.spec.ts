@@ -210,16 +210,14 @@ describe("soundfonts store", () => {
     const { clients } = makeFakeClients();
     withSoundfonts(clients);
     setClientsForTest(clients);
-    const fetchMock = vi.fn((_url: RequestInfo | URL) =>
-      Promise.resolve(new Response(new Uint8Array([9, 8, 7]), { status: 200 })),
-    );
+    const fetchMock = vi.fn(() => Promise.resolve(new Response(new Uint8Array([9, 8, 7]), { status: 200 })));
     vi.stubGlobal("fetch", fetchMock);
     const store = useSoundFontsStore();
 
     const bytes = await store.fontBytes("ydp-grand");
 
     expect(bytes).toEqual(new Uint8Array([9, 8, 7]));
-    expect(String(fetchMock.mock.calls[0][0])).toContain("/soundfonts/ydp-grand");
+    expect(String((fetchMock.mock.calls[0] as unknown[])[0])).toContain("/soundfonts/ydp-grand");
   });
 
   it("fontBytes throws on a non-200 so the caller can surface it", async () => {
