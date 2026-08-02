@@ -116,14 +116,20 @@ class Player extends _$Player {
   void _maybeStartRun() {
     final s = state;
     if (s.visibleNotes.isEmpty || !_atStart(s)) return;
-    // The piece IDENTITY is the selected score's id (the catalog UUID for a public
-    // score, a user-upload id otherwise) — the identity the server ranks by
-    // (change: add-play-leaderboards). Only accepted catalog scores get a board;
-    // a user upload or the demo (no selection, id falls back to the title) simply
-    // never matches an accepted catalog id, so it has no shared board.
+    // The piece IDENTITY is the BACKEND id the server ranks by (change: add-play-
+    // leaderboards): the bare catalog UUID (`catalogId`) for a public catalog
+    // score — which is what the leaderboard's accepted-catalog check matches —
+    // else the upload id, else the app id / title. `CatalogEntry.id` is namespaced
+    // (`catalog-…`/`contrib-…`), so it must NOT be used here. Only accepted catalog
+    // scores get a board; an upload, bundled, or demo id never matches one.
     final entry = ref.read(selectedScoreProvider);
     _scorer.startRun(
-      pieceId: entry?.id ?? s.title ?? 'demo',
+      pieceId:
+          entry?.catalogId ??
+          entry?.contributedId ??
+          entry?.id ??
+          s.title ??
+          'demo',
       title: entry?.title ?? s.title ?? 'Demo',
       hands: s.selectedHands.name,
       speed: s.speed,

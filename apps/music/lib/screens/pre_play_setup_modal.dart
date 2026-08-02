@@ -266,9 +266,10 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
           ],
         ),
       ),
-      // Open this piece's leaderboards (change: add-play-leaderboards). Shown when
-      // a catalog score is selected; an unranked piece just shows an empty board.
-      if (entry != null)
+      // Open this piece's leaderboards (change: add-play-leaderboards). Only an
+      // accepted catalog score has a shared board, so the button is shown only for
+      // a catalog entry, keyed by the bare catalog UUID the server ranks by.
+      if (entry?.catalogId != null)
         IconButton(
           icon: const Icon(
             Icons.leaderboard,
@@ -276,8 +277,11 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
           ),
           tooltip: l10n.leaderboardTitle,
           visualDensity: VisualDensity.compact,
-          onPressed: () =>
-              showLeaderboard(context, scoreId: entry.id, title: title),
+          onPressed: () => showLeaderboard(
+            context,
+            scoreId: entry!.catalogId!,
+            title: title,
+          ),
         ),
       IconButton(
         icon: const Icon(Icons.close, color: CymbraColors.onSurfaceVariant),
