@@ -88,6 +88,10 @@ export default defineConfig(({ mode }) => {
     resolve: {
       alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) },
     },
+    // The score engine worker (lib/worker/) lazy-imports the wasm modules, so its
+    // bundle is code-split — which requires ES-module worker output (the default
+    // "iife" can't code-split). Matches the `{ type: "module" }` worker we create.
+    worker: { format: "es" },
     test: {
       environment: "jsdom",
       globals: true,
@@ -122,6 +126,10 @@ export default defineConfig(({ mode }) => {
           // stays measured. Mirrored in sonar-project.properties.
           "src/lib/notation/wasm.ts",
           "src/lib/audio/synth.ts",
+          // The score engine Web Worker + its main-thread client: jsdom can't spawn
+          // the worker, and unit tests inject stubs at the seam above it. The pure
+          // logic it runs (painter, schedule) stays measured on the main-thread path.
+          "src/lib/worker/**",
           "src/composables/useScorePlayer.ts",
           "src/composables/usePlayhead.ts",
           "**/*.d.ts",
