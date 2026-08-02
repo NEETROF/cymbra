@@ -106,18 +106,18 @@ Future<void> _openDropdown(WidgetTester tester) async {
 }
 
 void main() {
-  testWidgets('lists the catalog sounds and offers import', (tester) async {
+  testWidgets('lists the catalog sounds', (tester) async {
     final container = _container();
     addTearDown(container.dispose);
     await _pumpField(tester, container, onChanged: (_) {});
 
     await _openDropdown(tester);
 
-    // The menu lists the built-in default + the server grands + the import item.
+    // The menu lists the built-in default + the server grands. (Importing and
+    // managing sounds now lives on the dedicated management screen, not here.)
     expect(find.text('Upright Piano KW'), findsWidgets);
     expect(find.text('YDP Grand Piano'), findsOneWidget);
     expect(find.text('Salamander Grand Piano'), findsOneWidget);
-    expect(find.text('Add SoundFont…'), findsOneWidget);
   });
 
   testWidgets('picking a sound reports its id via onChanged', (tester) async {
@@ -147,44 +147,20 @@ void main() {
     expect(find.textContaining('Alexander Holm'), findsOneWidget);
   });
 
-  testWidgets('the add item runs the import and selects the imported font', (
-    tester,
-  ) async {
-    final imported = fakeUserPiano(id: 'mine', label: 'My Imported Piano');
-    final container = _container(
-      importer: FakeSoundFontImporter(next: imported),
-    );
-    addTearDown(container.dispose);
-    String? picked;
-    await _pumpField(tester, container, onChanged: (id) => picked = id);
-
-    await _openDropdown(tester);
-    await tester.tap(find.text('Add SoundFont…').last);
-    await tester.pumpAndSettle();
-
-    expect(picked, 'mine');
-  });
-
-  testWidgets('imported sounds are removable from the manage sheet', (
-    tester,
-  ) async {
+  testWidgets('a user-imported sound is listed and selectable', (tester) async {
     final imported = fakeUserPiano(id: 'mine', label: 'My Imported Piano');
     final prefs = FakePreferencesService({
       ImportedSoundFonts.prefsKey: _encodeRegistry([imported]),
     });
     final container = _container(prefs: prefs);
     addTearDown(container.dispose);
-    await _pumpField(tester, container, onChanged: (_) {});
+    String? picked;
+    await _pumpField(tester, container, onChanged: (id) => picked = id);
 
-    // The manage affordance appears once there is an import; it opens a sheet
-    // that lists the import with a delete button.
-    await tester.tap(find.byIcon(Icons.tune));
-    await tester.pumpAndSettle();
-    expect(find.text('My Imported Piano'), findsOneWidget);
-
-    await tester.tap(find.byIcon(Icons.delete_outline));
+    await _openDropdown(tester);
+    await tester.tap(find.text('My Imported Piano').last);
     await tester.pumpAndSettle();
 
-    expect(container.read(importedSoundFontsProvider).requireValue, isEmpty);
+    expect(picked, 'mine');
   });
 }

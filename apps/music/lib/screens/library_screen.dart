@@ -33,6 +33,7 @@ import 'auth/account_menu.dart';
 import 'open_score.dart';
 import 'rating_deck_screen.dart';
 import 'score_hub_screen.dart';
+import 'soundfonts_screen.dart';
 
 /// Localized name for a [PracticeLevel] section header.
 String _levelLabel(AppLocalizations l10n, PracticeLevel level) =>
@@ -79,6 +80,12 @@ class LibraryScreen extends ConsumerWidget {
                 onPressed: () => _openRatingDeck(context),
               ),
             ],
+            if (signedIn)
+              IconButton(
+                icon: const Icon(Icons.library_music_outlined),
+                tooltip: l10n.soundfontsEntryTooltip,
+                onPressed: () => _openSoundFonts(context),
+              ),
             const LanguageSelectorButton(),
             const AccountMenu(),
             const SizedBox(width: 8),
@@ -126,6 +133,10 @@ class LibraryScreen extends ConsumerWidget {
   static void _openRatingDeck(BuildContext context) => Navigator.of(
     context,
   ).push(MaterialPageRoute<void>(builder: (_) => const RatingDeckScreen()));
+
+  static void _openSoundFonts(BuildContext context) => Navigator.of(
+    context,
+  ).push(MaterialPageRoute<void>(builder: (_) => const SoundFontsScreen()));
 }
 
 /// Groups [entries] into per-level card grids (only non-empty levels), in

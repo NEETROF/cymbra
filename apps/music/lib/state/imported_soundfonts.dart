@@ -14,6 +14,7 @@
 
 import 'dart:convert';
 import 'dart:io' show File;
+import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show listEquals;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -155,6 +156,41 @@ class ImportedSoundFonts extends _$ImportedSoundFonts {
     state = AsyncData(next);
     await _persist(next);
     return synced;
+  }
+
+  /// Saves a picked `.sf2` under [label] into the private library (copy locally +
+  /// upload to the server) and appends it. Used by the dedicated management
+  /// screen's add drawer, where the user sets the label before committing. A
+  /// failed upload is non-fatal (kept local, syncs later).
+  Future<PianoEntry> addImport(Uint8List bytes, String label) async {
+    final entry = await ref.read(soundFontImporterProvider).save(bytes, label);
+    var synced = entry;
+    try {
+      final remote = await ref
+          .read(privateSoundFontServiceProvider)
+          .import(bytes, entry.label);
+      synced = entry.copyWith(remoteId: remote.id);
+    } catch (_) {
+      // Offline / server error: keep the local import; it migrates on next sync.
+    }
+    final next = <PianoEntry>[...?state.valueOrNull, synced];
+    state = AsyncData(next);
+    await _persist(next);
+    return synced;
+  }
+
+  /// Renames an imported font. Local-only + persisted: the sync keeps entries it
+  /// already holds, so a rename survives re-syncs without a server round-trip.
+  Future<void> rename(String id, String label) async {
+    final current = state.valueOrNull ?? const <PianoEntry>[];
+    final trimmed = label.trim();
+    if (trimmed.isEmpty) return;
+    final next = <PianoEntry>[
+      for (final e in current)
+        if (e.id == id) e.copyWith(label: trimmed) else e,
+    ];
+    state = AsyncData(next);
+    await _persist(next);
   }
 
   /// Proposes an imported font to the public catalog with a mandatory licence

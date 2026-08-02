@@ -44,16 +44,39 @@ class FakeSoundFontSource implements SoundFontSource {
 /// cancel), or throws [SoundFontImportException] to model an invalid file.
 /// Records deletions so a test can assert the copied file was cleaned up.
 class FakeSoundFontImporter implements SoundFontImporter {
-  FakeSoundFontImporter({this.next, this.throwInvalid = false});
+  FakeSoundFontImporter({this.next, this.throwInvalid = false, this.picked});
 
   /// The entry a successful import returns; `null` models the user cancelling.
   PianoEntry? next;
 
-  /// When true, [importSoundFont] throws [SoundFontImportException].
+  /// What [pick] returns (a chosen file), or `null` for a cancel.
+  PickedSoundFont? picked;
+
+  /// When true, [importSoundFont]/[pick] throw [SoundFontImportException].
   bool throwInvalid;
 
   int importCalls = 0;
+  int pickCalls = 0;
+  final List<({Uint8List bytes, String label})> saved = [];
   final List<PianoEntry> deleted = [];
+
+  @override
+  Future<PickedSoundFont?> pick() async {
+    pickCalls++;
+    if (throwInvalid) throw const SoundFontImportException();
+    return picked;
+  }
+
+  @override
+  Future<PianoEntry> save(Uint8List bytes, String label) async {
+    saved.add((bytes: bytes, label: label));
+    return PianoEntry(
+      id: 'saved-${saved.length}',
+      label: label,
+      kind: PianoKind.user,
+      source: '/saved/${saved.length}.sf2',
+    );
+  }
 
   @override
   Future<PianoEntry?> importSoundFont() async {
