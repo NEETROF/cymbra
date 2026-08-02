@@ -1294,10 +1294,39 @@ class _PartitionViewState extends ConsumerState<_PartitionView> {
             children: [
               SingleChildScrollView(
                 controller: _scroll,
-                child: CustomPaint(
-                  key: const Key('partition-canvas'),
-                  painter: painter,
-                  size: Size(engraveWidth, painter.heightFor(engraveWidth)),
+                // Rebuild the canvas as the view scrolls so the painter can cull
+                // to the visible systems (only ~2–3 lines are engraved per frame
+                // instead of the whole score — the fix for large-score lag).
+                child: ListenableBuilder(
+                  listenable: _scroll,
+                  builder: (context, _) {
+                    // The position isn't fully attached on the first build(s):
+                    // guard pixels/viewport before reading them, falling back to
+                    // the layout height (paints from the top — offset 0).
+                    final pos = _scroll.hasClients ? _scroll.position : null;
+                    final viewTop = pos != null && pos.hasPixels
+                        ? pos.pixels
+                        : 0.0;
+                    final viewHeight =
+                        pos != null && pos.hasViewportDimension
+                        ? pos.viewportDimension
+                        : constraints.maxHeight;
+                    return CustomPaint(
+                      key: const Key('partition-canvas'),
+                      painter: PartitionPainter(
+                        document: notation.document!,
+                        systems: notation.systems,
+                        elapsedMs: data.elapsedMs,
+                        measureStartMs: data.measureStartMs,
+                        songEndMs: data.songEndMs,
+                        activeNotes: data.activeNotes,
+                        selectedHands: data.selectedHands,
+                        viewTop: viewTop,
+                        viewBottom: viewTop + viewHeight,
+                      ),
+                      size: Size(engraveWidth, painter.heightFor(engraveWidth)),
+                    );
+                  },
                 ),
               ),
               if (overlay != null) Positioned(left: 8, top: 8, child: overlay),
