@@ -80,9 +80,11 @@ function makeGeometry(): RenderedScore {
 const gClef = "\u{E050}";
 const noteheadBlack = "\u{E0A4}";
 
+// The seam now paints in the worker, so `render` resolves a finished RenderResult
+// (not raw geometry). The stub mirrors that: lay the fixture out on the spot.
 const wasmStub = (geo = makeGeometry()) => ({
-  render: vi.fn(() => geo),
-  schedule: vi.fn(() => ({ notes: [], measure_start_ms: [0], song_end_ms: 0, bpm: 90 })),
+  render: vi.fn(async () => renderNotation(geo, 1000)),
+  schedule: vi.fn(async () => ({ notes: [], measure_start_ms: [0], song_end_ms: 0, bpm: 90 })),
 });
 
 describe("notation painter", () => {
@@ -187,10 +189,10 @@ describe("useScoreRenderer", () => {
 
   it("degrades to an error state when rendering fails (no throw)", async () => {
     setNotationWasmForTest({
-      render: () => {
+      render: async () => {
         throw new Error("unparseable");
       },
-      schedule: () => ({ notes: [], measure_start_ms: [], song_end_ms: 0, bpm: 90 }),
+      schedule: async () => ({ notes: [], measure_start_ms: [], song_end_ms: 0, bpm: 90 }),
     });
     const bytes = ref<Uint8Array | null>(new Uint8Array([9]));
     const scope = effectScope();

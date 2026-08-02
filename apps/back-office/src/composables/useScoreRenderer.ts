@@ -7,7 +7,7 @@
 
 import { ref, watch, type Ref } from "vue";
 import { type Async, failure, idle, loading, success } from "@/lib/async";
-import { renderNotation, type RenderResult } from "@/lib/notation/painter";
+import type { RenderResult } from "@/lib/notation/painter";
 import { loadNotationWasm } from "@/lib/notation/wasm";
 
 // Layout width handed to the engine (and thus the SVG's intrinsic width). The SVG
@@ -37,8 +37,7 @@ export function useScoreRenderer(bytes: Ref<Uint8Array | null | undefined>): {
       const started = value;
       try {
         const wasm = await loadNotationWasm();
-        const geometry = wasm.render(started, RENDER_WIDTH);
-        const result = renderNotation(geometry, RENDER_WIDTH);
+        const result = await wasm.render(started, RENDER_WIDTH);
         if (bytes.value === started) notation.value = success(result);
       } catch {
         // The error is a stable code the component localizes — never a raw wasm

@@ -76,7 +76,8 @@ export function useScorePlayer(
       const started = value;
       try {
         const wasm = await loadNotationWasm();
-        if (bytes.value === started) schedule.value = success(wasm.schedule(started));
+        const result = await wasm.schedule(started);
+        if (bytes.value === started) schedule.value = success(result);
       } catch {
         if (bytes.value === started) schedule.value = failure("schedule_failed");
       }
@@ -145,14 +146,14 @@ export function useScorePlayer(
           return false;
         }
         if (bytes.value !== value) return false; // row changed mid-load
-        const pcm = wasm.render(value, sf2, ctx.sampleRate);
-        const frames = Math.floor(pcm.length / 2);
+        // The synth runs in the worker and hands back deinterleaved planar channels
+        // (transferred, zero-copy); we just drop them into the AudioBuffer.
+        const { left, right, frames } = await wasm.render(value, sf2, ctx.sampleRate);
+        if (bytes.value !== value) return false; // row changed while the worker rendered
         buffer = ctx.createBuffer(2, Math.max(frames, 1), ctx.sampleRate);
-        const left = buffer.getChannelData(0);
-        const right = buffer.getChannelData(1);
-        for (let i = 0; i < frames; i++) {
-          left[i] = pcm[i * 2];
-          right[i] = pcm[i * 2 + 1];
+        if (frames > 0) {
+          buffer.copyToChannel(left, 0);
+          buffer.copyToChannel(right, 1);
         }
         playDurationMs = buffer.duration * 1000;
         audio.value = success(undefined);

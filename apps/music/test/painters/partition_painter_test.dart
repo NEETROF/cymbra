@@ -105,6 +105,79 @@ void main() {
     expect(a.shouldRepaint(other), isTrue);
   });
 
+  test('shouldRepaint reflects the visible window (viewport cull)', () {
+    final doc = sampleGrandStaffDocument();
+    final systems = FakeNotationEngine().layout(doc, 600);
+    final a = PartitionPainter(
+      document: doc,
+      systems: systems,
+      viewTop: 0,
+      viewBottom: 200,
+    );
+    final sameWindow = PartitionPainter(
+      document: doc,
+      systems: systems,
+      viewTop: 0,
+      viewBottom: 200,
+    );
+    final scrolled = PartitionPainter(
+      document: doc,
+      systems: systems,
+      viewTop: 500,
+      viewBottom: 700,
+    );
+    expect(a.shouldRepaint(sameWindow), isFalse);
+    expect(a.shouldRepaint(scrolled), isTrue);
+  });
+
+  test('viewport cull skips systems outside the visible window', () async {
+    // Stack many systems so most fall off-screen, then paint once with the whole
+    // score visible (no window) and once with only the top window; a band over a
+    // far-down system must carry ink in the first and none in the second.
+    final doc = sampleBeamedDocument();
+    final allMeasures = Uint32List.fromList([
+      for (var i = 0; i < doc.measures.length; i++) i,
+    ]);
+    const systemCount = 8;
+    final systems = [
+      for (var i = 0; i < systemCount; i++)
+        System(measures: allMeasures, staves: doc.staves),
+    ];
+    const width = 600.0;
+
+    final full = PartitionPainter(document: doc, systems: systems);
+    final height = full.heightFor(width);
+    // Window shows only the first system; systems further down are culled.
+    final windowed = PartitionPainter(
+      document: doc,
+      systems: systems,
+      viewTop: 0,
+      viewBottom: full.systemStride,
+    );
+
+    // A thin horizontal band across the last (far-down) system.
+    final bandY = full.systemTopY(systemCount - 1) + full.systemStride / 2;
+
+    Future<bool> hasInkInBand(PartitionPainter painter) async {
+      final recorder = ui.PictureRecorder();
+      painter.paint(Canvas(recorder), Size(width, height));
+      final image = await recorder.endRecording().toImage(
+        width.toInt(),
+        height.toInt(),
+      );
+      final bytes = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+      final w = image.width;
+      final y = bandY.toInt().clamp(0, image.height - 1);
+      for (var x = 0; x < w; x++) {
+        if (bytes!.getUint8((y * w + x) * 4 + 3) != 0) return true; // alpha > 0
+      }
+      return false;
+    }
+
+    expect(await hasInkInBand(full), isTrue); // whole score → last system drawn
+    expect(await hasInkInBand(windowed), isFalse); // culled → nothing there
+  });
+
   testWidgets('partition tie/slur golden', (tester) async {
     final document = sampleTieSlurDocument();
     final painter = PartitionPainter(

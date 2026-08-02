@@ -41,6 +41,14 @@ class PartitionPainter extends CustomPainter {
   /// staff is collapsed entirely (lines, clef, signatures and notes).
   final Hand selectedHands;
 
+  /// Visible vertical window (content coordinates) for viewport culling: only
+  /// systems intersecting `[viewTop, viewBottom]` (plus a small margin) are
+  /// engraved, so a long score doesn't re-draw every off-screen system on each
+  /// playback frame. When either is null (previews, single-system overlays,
+  /// tests) the whole score is painted — the previous behaviour.
+  final double? viewTop;
+  final double? viewBottom;
+
   PartitionPainter({
     required this.document,
     required this.systems,
@@ -49,6 +57,8 @@ class PartitionPainter extends CustomPainter {
     this.songEndMs = 0,
     this.activeNotes = const {},
     this.selectedHands = Hand.both,
+    this.viewTop,
+    this.viewBottom,
   });
 
   static const Map<String, int> _semitoneOfStep = {
@@ -150,18 +160,27 @@ class PartitionPainter extends CustomPainter {
     final divPerMeasure = _divisionsPerMeasure();
     final clefAt = _computeClefAt();
     final cursor = _cursor;
+    // Cull to the visible window when one is supplied, keeping one extra system
+    // of margin on each side so scrolling never reveals an unpainted line.
+    final vt = viewTop, vb = viewBottom;
+    final cull = vt != null && vb != null;
+    final margin = systemStride;
     var y = _systemGap;
     for (var i = 0; i < systems.length; i++) {
-      _paintSystem(
-        canvas,
-        systems[i],
-        size.width,
-        y,
-        divPerMeasure,
-        i == 0,
-        clefAt,
-        cursor,
-      );
+      final onScreen =
+          !cull || (y + _systemHeight >= vt - margin && y <= vb + margin);
+      if (onScreen) {
+        _paintSystem(
+          canvas,
+          systems[i],
+          size.width,
+          y,
+          divPerMeasure,
+          i == 0,
+          clefAt,
+          cursor,
+        );
+      }
       y += _systemHeight + _systemGap;
     }
   }
@@ -899,7 +918,9 @@ class PartitionPainter extends CustomPainter {
       old.systems != systems ||
       old.elapsedMs != elapsedMs ||
       old.activeNotes != activeNotes ||
-      old.selectedHands != selectedHands;
+      old.selectedHands != selectedHands ||
+      old.viewTop != viewTop ||
+      old.viewBottom != viewBottom;
 }
 
 /// A note's drawn geometry (head centre + stem direction), used for beaming.
