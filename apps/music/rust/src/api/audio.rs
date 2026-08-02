@@ -30,7 +30,7 @@
 //! (Android — using the NDK context initialized in `JNI_OnLoad`, see lib.rs).
 
 use std::fs::File;
-use std::io::BufReader;
+use std::io::{BufReader, Read};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{Arc, Mutex};
@@ -42,13 +42,31 @@ use cpal::{FromSample, SizedSample};
 use flutter_rust_bridge::frb;
 use rustysynth::{SoundFont, Synthesizer, SynthesizerSettings};
 
-use super::audio_core::{AudioEvent, ClickVoice, PIANO_CHANNEL, VoiceTracker};
+use super::audio_core::{AudioEvent, ClickVoice, PIANO_CHANNEL, VoiceTracker, is_valid_soundfont};
 
-/// Sender used by the FFI entry points to hand control events to the audio
-/// thread. Published as soon as [`audio_init`] starts (so note events queue
-/// while the device spins up) and cleared if setup fails, so calls without a
-/// working device are silently dropped — graceful degradation.
-static EVENT_TX: Mutex<Option<Sender<AudioEvent>>> = Mutex::new(None);
+/// A message handed from the UI/FFI thread to the audio thread over the lock-free
+/// queue. Most are plain control [`AudioEvent`]s (tiny, `Copy`); a runtime
+/// SoundFont swap additionally carries an already-parsed instrument.
+///
+/// Routing the swap through the *same* queue keeps it in FIFO order with the
+/// notes around it: notes queued before the swap sound on the old instrument,
+/// notes after it on the new one, and the swap itself applies an all-notes-off so
+/// nothing hangs across it.
+enum AudioCommand {
+    /// A note/all-off/click control event (see [`AudioEvent`]).
+    Control(AudioEvent),
+    /// Replace the active synthesizer with one built from this SoundFont,
+    /// silencing every sounding voice across the swap. The heavy parse already
+    /// happened off the audio thread (see [`audio_load_soundfont`]); the callback
+    /// only builds the synth and swaps it in.
+    ReplaceSynth(Arc<SoundFont>),
+}
+
+/// Sender used by the FFI entry points to hand commands to the audio thread.
+/// Published as soon as [`audio_init`] starts (so note events queue while the
+/// device spins up) and cleared if setup fails, so calls without a working device
+/// are silently dropped — graceful degradation.
+static EVENT_TX: Mutex<Option<Sender<AudioCommand>>> = Mutex::new(None);
 
 /// Guards against launching more than one audio engine. Reset on setup failure
 /// so a later call can retry.
@@ -68,7 +86,7 @@ pub fn audio_init(sf2_path: String) {
         return; // already initialized (or initializing)
     }
 
-    let (tx, rx) = mpsc::channel::<AudioEvent>();
+    let (tx, rx) = mpsc::channel::<AudioCommand>();
     // Publish the sender now so notes pressed during startup queue up; they are
     // drained once the stream's callback begins.
     *EVENT_TX.lock().unwrap() = Some(tx);
@@ -111,6 +129,32 @@ pub fn all_notes_off() {
     send(AudioEvent::AllOff);
 }
 
+/// Swaps the synthesizer's active SoundFont at runtime from a `.sf2` file path,
+/// so a newly chosen piano sounds for every later note **without** tearing down
+/// or re-acquiring the audio output stream.
+///
+/// A silent no-op if the engine is not running. Returns immediately: the heavy
+/// read/parse of the ~27–296 MB SoundFont runs on a short-lived worker thread
+/// (never the UI isolate, never the real-time audio callback), reading straight
+/// from disk exactly like [`audio_init`] — no large buffer crosses the bridge.
+/// Once parsed, the instrument is handed to the audio thread, which applies an
+/// all-notes-off and installs it. If the file is missing/invalid the current
+/// piano is kept (graceful fallback); the queued note stream is undisturbed.
+#[frb(sync)]
+pub fn audio_load_soundfont(sf2_path: String) {
+    // Snapshot the sender; if the engine never started (or failed), do nothing.
+    let tx = match EVENT_TX.lock().unwrap().as_ref() {
+        Some(tx) => tx.clone(),
+        None => return,
+    };
+    thread::spawn(move || match load_sound_font(&sf2_path) {
+        Ok(sound_font) => {
+            let _ = tx.send(AudioCommand::ReplaceSynth(sound_font));
+        }
+        Err(e) => eprintln!("[cymbra-audio] soundfont swap skipped, keeping current: {e}"),
+    });
+}
+
 /// Sounds a short metronome click — a synthesized tick mixed into the output
 /// independently of the piano SoundFont. `accent` marks the downbeat (higher and
 /// louder). Self-terminating: there is no matching off.
@@ -119,23 +163,40 @@ pub fn metronome_click(accent: bool) {
     send(AudioEvent::Click { accent });
 }
 
-/// Pushes an event to the audio thread if the engine is running; otherwise a
-/// silent no-op.
+/// Pushes a control event to the audio thread if the engine is running;
+/// otherwise a silent no-op.
 fn send(event: AudioEvent) {
     if let Some(tx) = EVENT_TX.lock().unwrap().as_ref() {
-        let _ = tx.send(event);
+        let _ = tx.send(AudioCommand::Control(event));
     }
+}
+
+/// Reads and parses a SoundFont (`.sf2`) from `path`, cheaply rejecting a file
+/// whose RIFF/`sfbk` header is wrong before the full parse. Shared by
+/// [`audio_init`] (initial load) and [`audio_load_soundfont`] (runtime swap);
+/// streams from disk via a `BufReader` so no multi-MB buffer is held in memory.
+fn load_sound_font(path: &str) -> Result<Arc<SoundFont>> {
+    // Fast pre-check: read just the 12-byte preamble and reject non-SoundFonts
+    // (e.g. a WAV, a truncated file) without parsing the whole bank.
+    let mut header = [0u8; 12];
+    let read = File::open(path)
+        .and_then(|mut f| f.read(&mut header))
+        .map_err(|e| anyhow!("open SoundFont {path}: {e}"))?;
+    if !is_valid_soundfont(&header[..read]) {
+        return Err(anyhow!("not a SoundFont (bad RIFF/sfbk header): {path}"));
+    }
+    let file = File::open(path).map_err(|e| anyhow!("open SoundFont {path}: {e}"))?;
+    let mut reader = BufReader::new(file);
+    let sound_font = SoundFont::new(&mut reader).map_err(|e| anyhow!("invalid SoundFont: {e}"))?;
+    Ok(Arc::new(sound_font))
 }
 
 /// Reads and parses the SoundFont from `sf2_path`, opens the default output
 /// device and builds the synth stream for its native sample format. Runs on the
 /// dedicated audio thread, so the multi-second SoundFont read/parse never blocks
 /// the UI.
-fn run_audio_thread(sf2_path: String, rx: Receiver<AudioEvent>) -> Result<cpal::Stream> {
-    let file = File::open(&sf2_path).map_err(|e| anyhow!("open SoundFont {sf2_path}: {e}"))?;
-    let mut reader = BufReader::new(file);
-    let sound_font =
-        Arc::new(SoundFont::new(&mut reader).map_err(|e| anyhow!("invalid SoundFont: {e}"))?);
+fn run_audio_thread(sf2_path: String, rx: Receiver<AudioCommand>) -> Result<cpal::Stream> {
+    let sound_font = load_sound_font(&sf2_path)?;
 
     let host = cpal::default_host();
     let device = host
@@ -159,7 +220,7 @@ fn build_stream<T>(
     device: &cpal::Device,
     config: &cpal::StreamConfig,
     sound_font: Arc<SoundFont>,
-    rx: Receiver<AudioEvent>,
+    rx: Receiver<AudioCommand>,
 ) -> Result<cpal::Stream>
 where
     T: SizedSample + FromSample<f32>,
@@ -181,24 +242,41 @@ where
     let stream = device.build_output_stream(
         *config,
         move |output: &mut [T], _: &cpal::OutputCallbackInfo| {
-            // Apply every queued control event in FIFO order.
-            while let Ok(ev) = rx.try_recv() {
-                match ev {
-                    AudioEvent::NoteOn { pitch, velocity } => {
-                        tracker.apply(ev);
-                        synth.note_on(PIANO_CHANNEL, pitch as i32, velocity as i32);
-                    }
-                    AudioEvent::NoteOff { .. } => {
-                        for pitch in tracker.apply(ev) {
-                            synth.note_off(PIANO_CHANNEL, pitch as i32);
+            // Apply every queued command in FIFO order.
+            while let Ok(cmd) = rx.try_recv() {
+                match cmd {
+                    AudioCommand::Control(ev) => match ev {
+                        AudioEvent::NoteOn { pitch, velocity } => {
+                            tracker.apply(ev);
+                            synth.note_on(PIANO_CHANNEL, pitch as i32, velocity as i32);
                         }
-                    }
-                    AudioEvent::AllOff => {
-                        tracker.apply(ev);
+                        AudioEvent::NoteOff { .. } => {
+                            for pitch in tracker.apply(ev) {
+                                synth.note_off(PIANO_CHANNEL, pitch as i32);
+                            }
+                        }
+                        AudioEvent::AllOff => {
+                            tracker.apply(ev);
+                            synth.note_off_all(true);
+                        }
+                        AudioEvent::Click { accent } => {
+                            click = Some(ClickVoice::new(accent, sample_rate as f32));
+                        }
+                    },
+                    // Runtime SoundFont swap: silence every voice across the swap
+                    // (the tracker mirror and the outgoing synth), then install a
+                    // synth built from the new instrument. If the build fails, keep
+                    // the current one so audio never drops out.
+                    AudioCommand::ReplaceSynth(new_sound_font) => {
+                        tracker.clear_for_swap();
                         synth.note_off_all(true);
-                    }
-                    AudioEvent::Click { accent } => {
-                        click = Some(ClickVoice::new(accent, sample_rate as f32));
+                        let settings = SynthesizerSettings::new(sample_rate);
+                        match Synthesizer::new(&new_sound_font, &settings) {
+                            Ok(next) => synth = next,
+                            Err(e) => eprintln!(
+                                "[cymbra-audio] swap synth build failed, keeping current: {e}"
+                            ),
+                        }
                     }
                 }
             }

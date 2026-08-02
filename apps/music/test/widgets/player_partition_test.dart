@@ -145,24 +145,23 @@ void main() {
         .whereType<T>()
         .first;
 
-    /// Opens the gear end drawer (the screen's Ticker never settles, so pump
-    /// explicitly past the open animation).
+    /// Opens the settings surface — the pre-play popup reopened in-game (the gear
+    /// button). The screen's Ticker never settles, so pump explicitly.
     Future<void> openSettings(WidgetTester tester) async {
       await tester.tap(find.byIcon(Icons.tune));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
     }
 
-    /// Opens the drawer and drills into the "Hand" category.
+    /// The hands live inline in the popup (a 3-way toggle), so opening the popup
+    /// is enough to reach them.
     Future<void> openHandCategory(WidgetTester tester) async {
       await openSettings(tester);
-      await tester.tap(find.text('Hand'));
-      await tester.pump();
     }
 
-    /// Dismisses the drawer by tapping the scrim left of the right-side panel.
+    /// Dismisses the popup via its Apply button (commits any drafted change).
     Future<void> closeSettings(WidgetTester tester) async {
-      await tester.tapAt(const Offset(20, 400));
+      await tester.tap(find.widgetWithText(FilledButton, 'Apply'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
     }
@@ -171,13 +170,14 @@ void main() {
       tester,
     ) async {
       final container = await _pumpPlayer(tester);
-      // The two-staff sample makes the Hand category meaningful → it is offered.
+      // The two-staff sample makes the hands toggle meaningful → it is offered.
       await openHandCategory(tester);
-      expect(find.text('Both'), findsOneWidget); // current selection is listed
+      expect(find.text('Both'), findsOneWidget); // current selection is shown
 
+      // The choice is a draft; committing it on Apply dispatches the setter.
       await tester.tap(find.text('Left'));
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 600));
+      await closeSettings(tester);
 
       expect(container.read(playerProvider).selectedHands, Hand.left);
       await _teardown(tester, container);
@@ -204,12 +204,12 @@ void main() {
       tester,
     ) async {
       // No score selected → the demo (all staff 1) loads, so there is no hand
-      // to isolate and the Hand category is not offered.
+      // to isolate and the hands toggle is not offered.
       final container = await _pumpPlayer(tester, select: false);
       expect(container.read(playerProvider).hasMultipleStaves, isFalse);
       await openSettings(tester);
-      expect(find.text('Hand'), findsNothing);
-      // The other categories are still offered.
+      expect(find.text('Left'), findsNothing); // no hands toggle
+      // The other settings are still offered.
       expect(find.text('Keyboard size'), findsOneWidget);
       await _teardown(tester, container);
     });

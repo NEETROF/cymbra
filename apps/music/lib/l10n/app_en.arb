@@ -39,6 +39,26 @@
   "settingsCategoryLanguage": "Language",
   "@settingsCategoryLanguage": { "description": "Settings category: choose the app language." },
 
+  "settingsCategoryPiano": "Piano sound",
+  "@settingsCategoryPiano": { "description": "Settings category: choose the piano SoundFont the synthesizer uses." },
+
+  "pianoGroupBuiltIn": "Built-in",
+  "@pianoGroupBuiltIn": { "description": "Group header in the piano picker for the built-in (bundled and downloadable) pianos." },
+
+  "pianoGroupImported": "Imported",
+  "@pianoGroupImported": { "description": "Group header in the piano picker for the user's imported SoundFonts." },
+
+  "pianoAddSoundFont": "Add SoundFont…",
+  "@pianoAddSoundFont": { "description": "Action in the piano picker to import a .sf2 SoundFont from the device." },
+
+  "pianoRemove": "Remove",
+  "@pianoRemove": { "description": "Tooltip on the button that removes an imported piano." },
+  "pianoManage": "Manage sounds",
+  "@pianoManage": { "description": "Title/label for the sheet that manages (removes) imported instrument sounds." },
+
+  "pianoImportInvalid": "That file isn't a valid SoundFont.",
+  "@pianoImportInvalid": { "description": "Non-fatal message shown when the picked file is not a loadable .sf2 SoundFont." },
+
   "settingsAuto": "Auto",
   "@settingsAuto": { "description": "Short label for an automatic setting value (shown as the current value)." },
 
@@ -443,6 +463,9 @@
 
   "prePlayStart": "Play",
   "@prePlayStart": { "description": "Pre-play setup modal: the validate button that applies the settings and starts playing." },
+
+  "prePlayApply": "Apply",
+  "@prePlayApply": { "description": "Pre-play setup modal reopened in-game (settings surface): the button that applies the changes and closes." },
 
   "prePlayKey": "Key",
   "@prePlayKey": { "description": "Pre-play setup modal: label for the score's key/tonic chip." },

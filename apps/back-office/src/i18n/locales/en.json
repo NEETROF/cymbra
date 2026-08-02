@@ -59,7 +59,42 @@
     "catalog": "Catalog",
     "roles": "Roles",
     "flags": "Feature flags",
+    "soundfonts": "Sound fonts",
     "menu": "Menu"
+  },
+  "soundfonts": {
+    "title": "Sound fonts",
+    "intro": "Manage the instrument SoundFont catalog. Adding a font uploads its .sf2 and records the catalog row together.",
+    "add": "Add SoundFont",
+    "id": "Id",
+    "label": "Label",
+    "license": "License",
+    "attribution": "Attribution",
+    "instrument": "Instrument",
+    "instr": { "piano": "Piano" },
+    "licenseDesc": {
+      "cc0": "CC0 1.0 — Public domain: no attribution required, free to reuse for any purpose.",
+      "ccby": "CC BY — Free to use, including commercially, as long as the author is credited.",
+      "ccbysa": "CC BY-SA — Attribution required, and derivatives must keep the same licence (ShareAlike)."
+    },
+    "file": "SoundFont file (.sf2)",
+    "save": "Save",
+    "cancel": "Cancel",
+    "edit": "Edit",
+    "remove": "Remove",
+    "empty": "No SoundFonts yet.",
+    "confirmRemove": "Remove this SoundFont? Its catalog row and stored file are both deleted.",
+    "createTitle": "Add a SoundFont",
+    "editTitle": "Edit SoundFont",
+    "idHint": "e.g. ydp-grand",
+    "preview": "Preview",
+    "previewHint": "Pick a catalog piece and listen to it played with this SoundFont before saving.",
+    "choosePiece": "Choose a piece…",
+    "play": "Play",
+    "pause": "Pause",
+    "previewFailed": "Could not play the preview.",
+    "previewNoFont": "The stored SoundFont could not be loaded for preview.",
+    "previewNoPiece": "The chosen piece could not be loaded."
   },
   "flags": {
     "title": "Feature flags",
@@ -199,7 +234,10 @@
     "pause": "⏸ Pause",
     "audioLoading": "Loading audio…",
     "audioError": "Audio unavailable.",
-    "seekHint": "Click a measure to play from there."
+    "seekHint": "Click a measure to play from there.",
+    "sound": "Sound",
+    "soundLoading": "Loading sound…",
+    "soundError": "Could not load this sound."
   },
   "roles": {
     "title": "Roles",

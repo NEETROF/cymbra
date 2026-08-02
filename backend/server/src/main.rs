@@ -148,6 +148,28 @@ async fn main() -> anyhow::Result<()> {
     );
     cymbra_server::spawn_flag_refreshers(&cfg, flag_service);
 
+    // SoundFont delivery (change: add-soundfont-delivery): a dedicated PRIVATE store,
+    // separate from scores. Built here (before the music module) so it is shared by
+    // the ScoreService admin RPCs (delete removes the object) and the delivery/upload
+    // route. Unconfigured (bucket unset) ⇒ the routes report unavailable.
+    let soundfont_store: Option<Arc<dyn ObjectStorage>> = match cfg.soundfont_storage.as_ref() {
+        Some(sf) => Some(Arc::new(LocalFirstStore::from_config(
+            &sf.local_root,
+            &S3Params {
+                bucket: sf.bucket.clone(),
+                endpoint: sf.endpoint.clone(),
+                region: sf.region.clone(),
+                access_key: sf.access_key.clone(),
+                secret_key: sf.secret_key.clone(),
+                allow_http: sf.allow_http,
+            },
+        )?)),
+        None => {
+            tracing::info!("soundfont delivery disabled (CYMBRA_SOUNDFONT_S3_BUCKET unset)");
+            None
+        }
+    };
+
     // --- music module (owns the `music` schema via `music_svc`) ---
     // Wired whenever a music DB is configured. Own pool + one MIGRATOR run, then:
     //   * PlayService — reliable end-of-session play stats + the profile heatmap
@@ -156,10 +178,15 @@ async fn main() -> anyhow::Result<()> {
     //     the injected user port (`user_dyn`).
     //   * ScoreService — user uploads, ADDITIONALLY when the object store is set.
     // Both run behind the strict auth interceptor. Absent music DB ⇒ both inert.
-    let (play_svc, score_svc) = match cfg.music_database_url.as_deref() {
+    let (play_svc, score_svc, soundfont_repo) = match cfg.music_database_url.as_deref() {
         Some(db_url) => {
             let music_pool = db::connect(db_url, 5).await?;
             cymbra_music::MIGRATOR.run(&music_pool).await?;
+            // Persisted SoundFont catalog (change: add-soundfont-catalog-db): one
+            // source of truth read by both the ListSoundFonts RPC and the delivery
+            // route below.
+            let soundfont_repo: Arc<dyn cymbra_music::SoundFontRepo> =
+                Arc::new(cymbra_music::PgSoundFontRepo::new(music_pool.clone()));
             // Shared play-session port: feeds both the PlayService and the catalog
             // access limiter's play-aware download allowance (change: add-catalog-
             // access-limits).
@@ -212,7 +239,10 @@ async fn main() -> anyhow::Result<()> {
                         cfg.catalog_limits.clone(),
                     ));
                     Some(ScoreServiceServer::with_interceptor(
-                        ScoreGrpc::new(module).with_limiter(limiter),
+                        ScoreGrpc::new(module)
+                            .with_limiter(limiter)
+                            .with_soundfonts(soundfont_repo.clone())
+                            .with_soundfont_store_opt(soundfont_store.clone()),
                         strict.clone(),
                     ))
                 }
@@ -221,7 +251,7 @@ async fn main() -> anyhow::Result<()> {
                     None
                 }
             };
-            (play_svc, score_svc)
+            (play_svc, score_svc, Some(soundfont_repo))
         }
         None => {
             // Fail-fast: S3 configured but no music DB is a misconfiguration.
@@ -231,7 +261,7 @@ async fn main() -> anyhow::Result<()> {
                 ));
             }
             tracing::info!("music services disabled (CYMBRA_MUSIC_DATABASE_URL unset)");
-            (None, None)
+            (None, None, None)
         }
     };
 
@@ -247,31 +277,12 @@ async fn main() -> anyhow::Result<()> {
         refresh_ttl: cfg.token.refresh_ttl,
         allowed_origins: cfg.back_office_origins.clone(),
     };
-    // SoundFont delivery (change: add-soundfont-delivery): a dedicated PRIVATE store,
-    // separate from scores, streamed through an authenticated route. Unconfigured
-    // (bucket unset) ⇒ the route is mounted but responds 503.
-    let soundfont_store: Option<Arc<dyn ObjectStorage>> = match cfg.soundfont_storage.as_ref() {
-        Some(sf) => Some(Arc::new(LocalFirstStore::from_config(
-            &sf.local_root,
-            &S3Params {
-                bucket: sf.bucket.clone(),
-                endpoint: sf.endpoint.clone(),
-                region: sf.region.clone(),
-                access_key: sf.access_key.clone(),
-                secret_key: sf.secret_key.clone(),
-                allow_http: sf.allow_http,
-            },
-        )?)),
-        None => {
-            tracing::info!("soundfont delivery disabled (CYMBRA_SOUNDFONT_S3_BUCKET unset)");
-            None
-        }
-    };
     let soundfont_state = cymbra_server::SoundfontState {
         store: soundfont_store,
+        // The persisted catalog (change: add-soundfont-catalog-db) resolves id →
+        // object_key; absent music DB ⇒ the route reports 503.
+        repo: soundfont_repo,
         auth: Arc::new(soundfont_auth),
-        // No paid fonts yet — the entitlement source is the seam for future purchases.
-        entitlements: Arc::new(cymbra_server::NoPaidEntitlements),
     };
     let http = cymbra_server::http_router(jwks, ready_pool, cache.clone())
         .merge(cymbra_server::web_auth_router(auth_port, web_auth_cfg))

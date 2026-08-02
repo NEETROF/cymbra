@@ -246,6 +246,9 @@ const desc = computed(() => (props.row ? flagDescription(props.row.key, props.ro
   position: fixed;
   top: 0;
   right: 0;
+  /* Cancel the browser's UA `dialog { left: 0 }`, which otherwise wins over `right`
+     when the width is fixed and pins the drawer to the LEFT. */
+  left: auto;
   height: 100vh;
   max-height: 100vh;
   width: min(460px, 94vw);

@@ -182,7 +182,7 @@ void main() {
     await _teardown(tester, container);
   });
 
-  testWidgets('phone landscape lays out in two columns without overflow', (
+  testWidgets('phone landscape lays out without overflow and stays scrollable', (
     tester,
   ) async {
     // isPhoneLayout needs a mobile platform + a small MediaQuery. MediaQuery.size
@@ -199,11 +199,23 @@ void main() {
         size: const Size(812, 375),
       );
 
-      // Every control is present without needing to scroll.
+      // The many controls don't fit a short landscape at once, so the body
+      // scrolls as one unit with the Play button pinned. Every control is in the
+      // tree and reachable (scrolled into view), and the sound picker is full
+      // width (so its dropdown menu isn't cramped).
+      expect(find.byType(SingleChildScrollView), findsWidgets);
       expect(find.widgetWithText(FilledButton, 'Play'), findsOneWidget);
-      expect(find.text('Left'), findsOneWidget); // hands (multi-staff)
-      expect(find.text('Tempo'), findsOneWidget); // tempo section
-      expect(find.text('MIDI device'), findsOneWidget); // midi section
+      for (final label in const [
+        'Piano sound',
+        'Left', // hands (multi-staff)
+        'Metronome',
+        'Tempo',
+        'MIDI device',
+        'Keyboard size',
+      ]) {
+        await tester.ensureVisible(find.text(label).first);
+        expect(find.text(label), findsWidgets, reason: '$label unreachable');
+      }
       await _teardown(tester, container);
     } finally {
       debugDefaultTargetPlatformOverride = null;

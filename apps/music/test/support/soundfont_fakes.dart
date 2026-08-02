@@ -1,0 +1,102 @@
+// Copyright 2026 NEETROF
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+import 'package:music/services/soundfont_catalog_service.dart';
+import 'package:music/services/soundfont_importer.dart';
+import 'package:music/services/soundfont_source.dart';
+import 'package:music/state/piano_catalog.dart';
+
+/// In-memory [SoundFontSource]: resolves each entry to a deterministic fake path
+/// and records the entries it was asked for. Ids in [failIds] throw
+/// [SoundFontUnavailableException] so tests can drive the download/missing-file
+/// fallback without touching assets, network, or the filesystem.
+class FakeSoundFontSource implements SoundFontSource {
+  FakeSoundFontSource({this.failIds = const {}});
+
+  final Set<String> failIds;
+  final List<PianoEntry> resolved = [];
+
+  @override
+  Future<String> resolve(PianoEntry entry) async {
+    resolved.add(entry);
+    if (failIds.contains(entry.id)) {
+      throw SoundFontUnavailableException('forced failure for ${entry.id}');
+    }
+    return '/fake/soundfonts/${entry.id}.sf2';
+  }
+}
+
+/// In-memory [SoundFontImporter]: returns a canned entry (or `null` to model a
+/// cancel), or throws [SoundFontImportException] to model an invalid file.
+/// Records deletions so a test can assert the copied file was cleaned up.
+class FakeSoundFontImporter implements SoundFontImporter {
+  FakeSoundFontImporter({this.next, this.throwInvalid = false});
+
+  /// The entry a successful import returns; `null` models the user cancelling.
+  PianoEntry? next;
+
+  /// When true, [importSoundFont] throws [SoundFontImportException].
+  bool throwInvalid;
+
+  int importCalls = 0;
+  final List<PianoEntry> deleted = [];
+
+  @override
+  Future<PianoEntry?> importSoundFont() async {
+    importCalls++;
+    if (throwInvalid) throw const SoundFontImportException();
+    return next;
+  }
+
+  @override
+  Future<void> deleteImport(PianoEntry entry) async => deleted.add(entry);
+}
+
+/// In-memory [SoundFontCatalogService]: returns a fixed set of `download`-kind
+/// pianos (the server's list). The production service already swallows errors to
+/// an empty list, so tests model "listing unavailable" with `downloadable: []`.
+class FakeSoundFontCatalogService implements SoundFontCatalogService {
+  FakeSoundFontCatalogService({this.downloadable = const []});
+
+  List<PianoEntry> downloadable;
+  int listCalls = 0;
+
+  @override
+  Future<List<PianoEntry>> listDownloadable() async {
+    listCalls++;
+    return downloadable;
+  }
+}
+
+/// A `download`-kind [PianoEntry] as the server catalog would yield.
+PianoEntry fakeDownloadPiano({
+  required String id,
+  required String label,
+  String license = 'CC-BY 3.0',
+  String? attribution,
+}) => PianoEntry(
+  id: id,
+  label: label,
+  kind: PianoKind.download,
+  source: id,
+  license: license,
+  attribution: attribution,
+);
+
+/// A user-kind [PianoEntry] for tests.
+PianoEntry fakeUserPiano({
+  String id = 'user-1',
+  String label = 'My Piano',
+  String source = '/copied/user-1.sf2',
+}) => PianoEntry(id: id, label: label, kind: PianoKind.user, source: source);

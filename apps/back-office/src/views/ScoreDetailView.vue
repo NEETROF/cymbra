@@ -4,11 +4,13 @@ import { useRouter } from "vue-router";
 import { match } from "ts-pattern";
 import ScorePreview from "@/components/ScorePreview.vue";
 import ScoreEditForm from "@/components/ScoreEditForm.vue";
+import SoundFontPicker from "@/components/SoundFontPicker.vue";
 import { useCatalogStore, type MetadataEdit, type ModerationStatus } from "@/stores/catalog";
 import { useAuthStore } from "@/stores/auth";
 import { type Async, idle, run } from "@/lib/async";
 import { useScoreRenderer } from "@/composables/useScoreRenderer";
 import { useScorePlayer } from "@/composables/useScorePlayer";
+import { useSoundFontChoice } from "@/composables/useSoundFontChoice";
 import type { CatalogHit } from "@/gen/score_pb";
 
 const props = defineProps<{ id: string }>();
@@ -52,8 +54,10 @@ const bytesVm = computed(() =>
 // the bytes Async; failures degrade to a placeholder inside the preview.
 const scoreBytes = computed(() => bytesVm.value.bytes);
 const { notation } = useScoreRenderer(scoreBytes);
+// Preview instrument sound: default piano, or a catalog font the moderator picks.
+const { fonts, selectedId, sf2Bytes, loading: soundLoading, error: soundError } = useSoundFontChoice();
 // Audio playback + playhead clock (Play/Pause only), reusing the app's synth/schedule.
-const player = useScorePlayer(scoreBytes);
+const player = useScorePlayer(scoreBytes, sf2Bytes);
 const acting = computed(() => decision.value.status === "loading");
 const decisionError = computed(() =>
   match(decision.value)
@@ -117,6 +121,13 @@ async function saveEdit(edit: MetadataEdit) {
     @submit="saveEdit"
   />
   <div class="preview-card">
+    <SoundFontPicker
+      v-model="selectedId"
+      class="sound-row"
+      :fonts="fonts"
+      :loading="soundLoading"
+      :error="soundError"
+    />
     <ScorePreview
       :hit="hitVm.hit"
       :bytes="bytesVm.bytes"
@@ -154,6 +165,9 @@ async function saveEdit(edit: MetadataEdit) {
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   padding: 1.5rem;
+}
+.sound-row {
+  margin-bottom: 1rem;
 }
 .edit-card {
   margin-bottom: 1rem;

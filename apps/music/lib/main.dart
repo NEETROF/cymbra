@@ -26,6 +26,7 @@ import 'services/flags_integration.dart';
 import 'src/rust/frb_generated.dart';
 import 'state/app_locale.dart';
 import 'state/language_sync_listener.dart';
+import 'state/selected_piano.dart';
 import 'theme/cymbra_theme.dart';
 
 Future<void> main() async {
@@ -44,6 +45,12 @@ Future<void> main() async {
   // player reuses this already-initialized AudioService instance.
   final container = ProviderContainer(overrides: cymbraFlagOverrides());
   unawaited(container.read(audioServiceProvider).init());
+
+  // Restore the user's chosen piano and swap the synth to it once audio is up
+  // (a no-op for the default, which init already loaded). Reading the provider
+  // kicks off its persisted-selection restore at launch, so the choice survives
+  // relaunches without waiting for the settings drawer to be opened.
+  container.read(selectedPianoProvider);
 
   // Fetch the caller's effective feature flags on launch (identity-scoped,
   // flicker-free from the persisted cache); the observer refreshes on resume.

@@ -6,7 +6,8 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `build_stream`, `run_audio_thread`, `send`
+// These functions are ignored because they are not marked as `pub`: `build_stream`, `load_sound_font`, `run_audio_thread`, `send`
+// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `AudioCommand`
 
 /// Initializes the synthesizer from a SoundFont (`.sf2`) file path and starts
 /// the audio output. Idempotent: a second call keeps the first engine.
@@ -30,6 +31,20 @@ void noteOff({required int pitch}) =>
 
 /// Releases every sounding voice (stop / restart / seek / loop).
 void allNotesOff() => RustLib.instance.api.crateApiAudioAllNotesOff();
+
+/// Swaps the synthesizer's active SoundFont at runtime from a `.sf2` file path,
+/// so a newly chosen piano sounds for every later note **without** tearing down
+/// or re-acquiring the audio output stream.
+///
+/// A silent no-op if the engine is not running. Returns immediately: the heavy
+/// read/parse of the ~27–296 MB SoundFont runs on a short-lived worker thread
+/// (never the UI isolate, never the real-time audio callback), reading straight
+/// from disk exactly like [`audio_init`] — no large buffer crosses the bridge.
+/// Once parsed, the instrument is handed to the audio thread, which applies an
+/// all-notes-off and installs it. If the file is missing/invalid the current
+/// piano is kept (graceful fallback); the queued note stream is undisturbed.
+void audioLoadSoundfont({required String sf2Path}) =>
+    RustLib.instance.api.crateApiAudioAudioLoadSoundfont(sf2Path: sf2Path);
 
 /// Sounds a short metronome click — a synthesized tick mixed into the output
 /// independently of the piano SoundFont. `accent` marks the downbeat (higher and

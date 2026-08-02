@@ -21,7 +21,7 @@ import '../state/app_locale.dart';
 import '../theme/cymbra_theme.dart';
 
 /// Localized display name for a language — the accessible label announced behind
-/// its flag. Shared by the settings drawer picker and [LanguageSelectorButton].
+/// its flag, used by [LanguageSelectorButton]'s dialog.
 String languageName(AppLocalizations l10n, AppLanguage language) =>
     switch (language) {
       AppLanguage.en => l10n.languageEnglish,

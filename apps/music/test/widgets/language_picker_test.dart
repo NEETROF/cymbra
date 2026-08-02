@@ -16,21 +16,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:music/l10n/gen/app_localizations.dart';
-import 'package:music/screens/player_screen.dart';
-import 'package:music/services/audio_service.dart';
-import 'package:music/services/midi_service.dart';
-import 'package:music/services/platform_info.dart';
 import 'package:music/services/preferences_service.dart';
 import 'package:music/state/app_language.dart';
 import 'package:music/state/app_locale.dart';
+import 'package:music/widgets/language_selector.dart';
 
-import '../support/fakes.dart';
 import '../support/prefs_fakes.dart';
 
 /// Minimal app whose locale is driven by [appLocaleProvider] — mirrors the real
 /// `CymbraApp` wiring so a language change hot-swaps localized strings.
 class _MiniApp extends ConsumerWidget {
-  const _MiniApp();
+  const _MiniApp({this.home});
+
+  final Widget? home;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -38,9 +36,11 @@ class _MiniApp extends ConsumerWidget {
       locale: ref.watch(appLocaleProvider),
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
-      home: Builder(
-        builder: (context) => Text(AppLocalizations.of(context).settings),
-      ),
+      home:
+          home ??
+          Builder(
+            builder: (context) => Text(AppLocalizations.of(context).settings),
+          ),
     );
   }
 }
@@ -74,66 +74,50 @@ void main() {
     expect(find.text('Settings'), findsNothing);
   });
 
-  testWidgets('the settings drawer language picker shows flags and selects one', (
+  testWidgets('the language selector button shows flags and selects one', (
     tester,
   ) async {
-    await tester.binding.setSurfaceSize(const Size(1600, 900));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
-
+    // Language now lives outside the player — in the LanguageSelectorButton on the
+    // library/entry screens (the in-game settings no longer carry a language menu).
     final prefs = FakePreferencesService();
-    final midi = FakeMidiService(ports: const ['Piano'], connected: 'Piano');
     final container = ProviderContainer(
       overrides: [
-        midiServiceProvider.overrideWithValue(midi),
-        scoreSourceProvider.overrideWithValue(FakeScoreSource()),
-        audioServiceProvider.overrideWithValue(RecordingAudioService()),
-        isAndroidProvider.overrideWithValue(false),
         preferencesServiceProvider.overrideWithValue(prefs),
         deviceLocaleProvider.overrideWithValue(const Locale('en')),
       ],
     );
+    addTearDown(container.dispose);
 
     await tester.pumpWidget(
       UncontrolledProviderScope(
         container: container,
-        child: MaterialApp(
-          locale: container.read(appLocaleProvider),
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          home: const PlayerScreen(),
+        child: const _MiniApp(
+          home: Scaffold(body: Center(child: LanguageSelectorButton())),
         ),
       ),
     );
-    await tester.pump();
+    await tester.pumpAndSettle();
 
-    // Open the settings drawer and drill into the Language category. The player
-    // screen runs a continuous Ticker, so settle with timed pumps rather than
-    // pumpAndSettle (which would never converge).
-    await tester.tap(find.byTooltip('Settings'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300)); // drawer slide-in
-    await tester.tap(find.text('Language'));
-    await tester.pump();
+    // Open the language dialog.
+    await tester.tap(find.byType(LanguageSelectorButton));
+    await tester.pumpAndSettle();
 
-    // All four flags are listed, with exactly one marked active (English).
+    // All four flags are listed in the dialog, with exactly one marked active
+    // (English). Scope to the dialog since the button itself shows the active flag.
+    final dialog = find.byType(SimpleDialog);
     for (final flag in ['🇬🇧', '🇫🇷', '🇮🇹', '🇪🇸']) {
-      expect(find.text(flag), findsOneWidget);
+      expect(
+        find.descendant(of: dialog, matching: find.text(flag)),
+        findsOneWidget,
+      );
     }
     expect(find.byIcon(Icons.check_circle), findsOneWidget);
 
     // Selecting Italian updates the state and persists the code.
     await tester.tap(find.text('🇮🇹'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 50));
+    await tester.pumpAndSettle();
 
     expect(container.read(appLocaleProvider), const Locale('it'));
     expect(prefs.store[AppLocale.prefsKey], 'it');
-
-    // Unmount and dispose within the body so the player's status timer is
-    // cancelled before the test framework's pending-timer check.
-    await tester.pumpWidget(const SizedBox());
-    await tester.pump();
-    container.dispose();
-    await midi.close();
   });
 }

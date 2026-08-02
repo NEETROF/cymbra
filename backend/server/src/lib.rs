@@ -21,9 +21,7 @@ pub mod flags;
 pub use flags::{build_flag_service, spawn_flag_refreshers};
 
 pub mod soundfont;
-pub use soundfont::{
-    Entitlements, JwtAuth, NoPaidEntitlements, SoundfontAuth, SoundfontState, soundfont_router,
-};
+pub use soundfont::{JwtAuth, SoundfontAuth, SoundfontState, soundfont_router};
 
 /// Liveness/readiness logic (pure; the HTTP/gRPC surfaces apply it).
 pub mod health {

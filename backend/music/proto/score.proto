@@ -235,8 +235,76 @@ message ListRatingDeckResponse {
   int32 next_offset = 2; // offset to request the next page (offset + hits.len)
 }
 
+// A selectable playback SoundFont in the server-owned catalog (change:
+// add-soundfont-catalog-db). `attribution` is empty when none is required;
+// `instrument` is the instrument family (e.g. "piano").
+message SoundFont {
+  string id = 1;
+  string label = 2;
+  string license = 3;
+  string attribution = 4;
+  string instrument = 5;
+}
+
+message ListSoundFontsRequest {}
+
+message ListSoundFontsResponse {
+  repeated SoundFont soundfonts = 1;
+}
+
+// Admin view of a catalog font (change: add-soundfont-back-office-management):
+// carries the storage-facing fields the user listing omits. `has_object` reports
+// whether the bytes are present in the private store.
+message AdminSoundFont {
+  string id = 1;
+  string label = 2;
+  string object_key = 3;
+  string instrument = 4;
+  string license = 5;
+  string attribution = 6;
+  int64 size_bytes = 7;
+  bool has_object = 8;
+}
+
+message AdminListSoundFontsRequest {}
+
+message AdminListSoundFontsResponse {
+  repeated AdminSoundFont soundfonts = 1;
+}
+
+// Metadata-only edit (id and object_key are immutable; bytes are replaced by
+// re-upload through the HTTP route).
+message UpdateSoundFontRequest {
+  string id = 1;
+  string label = 2;
+  string license = 3;
+  string attribution = 4;
+}
+
+message UpdateSoundFontResponse {}
+
+message DeleteSoundFontRequest {
+  string id = 1;
+}
+
+message DeleteSoundFontResponse {}
+
 service ScoreService {
   rpc UploadScore(UploadScoreRequest) returns (ScoreRecord);
+
+  // SoundFont catalog listing (change: add-soundfont-catalog-db): the available
+  // playback SoundFonts from the server-owned catalog, so the client offers only
+  // fonts that actually exist. Authenticated; bytes are fetched separately via the
+  // GET /soundfonts/{id} delivery route.
+  rpc ListSoundFonts(ListSoundFontsRequest) returns (ListSoundFontsResponse);
+
+  // SoundFont catalog administration (change: add-soundfont-back-office-management).
+  // Music-scope moderator/admin only. Metadata list/edit/delete; adding a font (with
+  // its bytes) goes through the admin HTTP upload route. Delete removes row + object.
+  rpc AdminListSoundFonts(AdminListSoundFontsRequest) returns (AdminListSoundFontsResponse);
+  rpc UpdateSoundFont(UpdateSoundFontRequest) returns (UpdateSoundFontResponse);
+  rpc DeleteSoundFont(DeleteSoundFontRequest) returns (DeleteSoundFontResponse);
+
   rpc ListMyScores(ListMyScoresRequest) returns (ListMyScoresResponse);
   rpc DeleteScore(DeleteScoreRequest) returns (DeleteScoreResponse);
   rpc GetScoreBytes(GetScoreBytesRequest) returns (GetScoreBytesResponse);

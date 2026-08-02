@@ -27,10 +27,7 @@ import '../painters/piano_keyboard_painter.dart';
 import '../painters/piano_layout.dart';
 import '../painters/staff_painter.dart';
 import '../painters/synthesia_painter.dart';
-import '../services/platform_info.dart';
 import '../src/rust/api/musicxml.dart' show System;
-import '../state/app_language.dart';
-import '../state/app_locale.dart';
 import '../state/notation_data.dart';
 import '../state/notation_notifier.dart';
 import '../state/score_catalog.dart';
@@ -42,12 +39,9 @@ import '../state/session_summary.dart';
 import '../state/session_summary_store.dart';
 import '../theme/cymbra_theme.dart';
 import '../widgets/countdown_overlay.dart';
-import '../widgets/language_selector.dart';
 import '../widgets/mistake_replay.dart';
-import '../widgets/otg_guidance.dart';
 import '../widgets/scoring_overlay.dart';
 import '../widgets/session_summary_modal.dart';
-import '../widgets/setting_option_row.dart';
 import 'pre_play_setup_modal.dart';
 import 'score_load_message.dart';
 
@@ -110,28 +104,6 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
   /// Assist keys → the pitches each fired on key-down, so key-up note-offs
   /// exactly those (a near-miss picks a fresh random pitch each press).
   final Map<LogicalKeyboardKey, Set<int>> _assistPressed = {};
-
-  /// Whether playback was running when the settings drawer opened, so closing it
-  /// restores that state (the drawer pauses the session while open).
-  bool _wasPlayingBeforeDrawer = false;
-
-  /// Lets [_onEndDrawerChanged] reset the drawer to its category list each time
-  /// it opens (its navigation state otherwise persists across open/close).
-  final GlobalKey<_SettingsDrawerState> _settingsDrawerKey = GlobalKey();
-
-  /// Pause the session while the settings drawer is open; restore the prior
-  /// play/pause state when it closes. Also resets the drawer to its root.
-  void _onEndDrawerChanged(bool isOpen) {
-    final notifier = ref.read(playerProvider.notifier);
-    if (isOpen) {
-      _settingsDrawerKey.currentState?.resetToRoot();
-      _wasPlayingBeforeDrawer = ref.read(playerProvider).isPlaying;
-      if (_wasPlayingBeforeDrawer) notifier.setPlaying(false);
-    } else {
-      if (_wasPlayingBeforeDrawer) notifier.setPlaying(true);
-      _wasPlayingBeforeDrawer = false;
-    }
-  }
 
   @override
   void initState() {
@@ -274,10 +246,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
       autofocus: true,
       onKeyEvent: _onKey,
       child: Scaffold(
-        // Settings live in an end drawer (slides in from the right). Opening it
-        // pauses the session; closing restores the prior play/pause state.
-        endDrawer: _SettingsDrawer(key: _settingsDrawerKey),
-        onEndDrawerChanged: _onEndDrawerChanged,
+        // Settings open as the pre-play popup (the gear button), so there is no
+        // end drawer here — it is the same modal shown at the start of the game.
         // On a phone the bottom safe-area inset (home-indicator zone) wastes
         // scarce landscape height below the transport bar, so we let the bar
         // extend into it (its own small margin keeps a hair of clearance, and
@@ -678,372 +648,25 @@ class _TopBar extends ConsumerWidget {
   }
 }
 
-/// Gear button that opens the settings **end drawer** (slides in from the
-/// right). A drawer is a modal route with a scrim, so — unlike the dropdown
-/// menus that flickered on iPad — it cannot dismiss itself; opening it also
-/// pauses the session (see [_PlayerScreenState._onEndDrawerChanged]).
-class _SettingsMenu extends StatelessWidget {
+/// Gear button that reopens the **pre-play setup popup** as the in-game settings
+/// surface — the same modal shown at the start of the game, for consistency (no
+/// separate drawer / language menu). It pauses the session while open and
+/// restores the prior play/pause state when it closes.
+class _SettingsMenu extends ConsumerWidget {
   const _SettingsMenu();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return IconButton(
       icon: const Icon(Icons.tune, color: CymbraColors.onSurface),
       tooltip: AppLocalizations.of(context).settings,
-      onPressed: () => Scaffold.of(context).openEndDrawer(),
-    );
-  }
-}
-
-/// The settings categories shown in the drawer. Used as a stable key so the
-/// selected category survives localization (the display titles are translated,
-/// but the key that drives navigation is not).
-enum _SettingsCategory {
-  midiDevice,
-  keyboardSize,
-  keyboardVisibility,
-  hand,
-  language,
-}
-
-/// A setting category shown in the drawer's top-level list: its stable key,
-/// localized title, icon, and a short label of the value currently in effect.
-typedef _Category = ({
-  _SettingsCategory key,
-  String title,
-  IconData icon,
-  String current,
-});
-
-/// The settings drawer: a master-detail panel. The first screen lists the
-/// setting **categories** (MIDI device, Keyboard size, Hand); tapping one shows
-/// just that category's values, so the options are never all on screen at once.
-/// Reads/updates the live [PlayerData] selection.
-class _SettingsDrawer extends ConsumerStatefulWidget {
-  const _SettingsDrawer({super.key});
-
-  @override
-  ConsumerState<_SettingsDrawer> createState() => _SettingsDrawerState();
-}
-
-class _SettingsDrawerState extends ConsumerState<_SettingsDrawer> {
-  /// The category whose values are shown; null shows the category list.
-  _SettingsCategory? _category;
-
-  /// Returns the drawer to its top-level category list (called when it opens).
-  void resetToRoot() {
-    if (mounted && _category != null) setState(() => _category = null);
-  }
-
-  /// Localized title for a settings [category], resolved independently of the
-  /// master list so the detail header renders even when a category is
-  /// conditionally hidden (e.g. Hand for single-staff pieces).
-  String _categoryTitle(AppLocalizations l10n, _SettingsCategory category) =>
-      switch (category) {
-        _SettingsCategory.midiDevice => l10n.settingsCategoryMidiDevice,
-        _SettingsCategory.keyboardSize => l10n.settingsCategoryKeyboardSize,
-        _SettingsCategory.keyboardVisibility =>
-          l10n.settingsCategoryKeyboardVisibility,
-        _SettingsCategory.hand => l10n.settingsCategoryHand,
-        _SettingsCategory.language => l10n.settingsCategoryLanguage,
-      };
-
-  String _keyboardVisibilityLabel(AppLocalizations l10n, bool visible) =>
-      visible ? l10n.keyboardShown : l10n.keyboardHidden;
-
-  String _handLabel(AppLocalizations l10n, Hand hand) => handLabel(l10n, hand);
-
-  String _rangeLabel(AppLocalizations l10n, KeyboardRangeMode m) =>
-      m == KeyboardRangeMode.auto
-      ? l10n.keyboardAutoFit
-      : l10n.keyboardKeys(m.label);
-
-  /// A radio-style value row with a leading "selected" check.
-  Widget _option({
-    required bool selected,
-    required String label,
-    required VoidCallback? onTap,
-  }) => SettingOptionRow(selected: selected, label: label, onTap: onTap);
-
-  /// A language row: the flag is the visible content, with an accessible label
-  /// so screen readers announce the language name rather than the emoji.
-  Widget _languageOption({
-    required bool selected,
-    required String flag,
-    required String semanticLabel,
-    required VoidCallback? onTap,
-  }) => Semantics(
-    label: semanticLabel,
-    selected: selected,
-    button: true,
-    child: ListTile(
-      leading: Icon(
-        selected ? Icons.check_circle : Icons.radio_button_unchecked,
-        size: 20,
-        color: selected ? CymbraColors.tertiary : CymbraColors.onSurfaceVariant,
-      ),
-      title: Text(flag, style: const TextStyle(fontSize: 26)),
-      onTap: onTap,
-    ),
-  );
-
-  /// The value rows for [category], built from the current selection.
-  List<Widget> _valuesFor(
-    _SettingsCategory category, {
-    required AppLocalizations l10n,
-    required List<String> midiPorts,
-    required String? connectedDevice,
-    required KeyboardRangeMode keyboardRange,
-    required bool keyboardVisible,
-    required Hand selectedHands,
-    required AppLanguage activeLanguage,
-    required Player notifier,
-    required bool isAndroid,
-  }) {
-    switch (category) {
-      case _SettingsCategory.midiDevice:
-        return [
-          _option(
-            selected: connectedDevice == null,
-            label: l10n.midiAutoFirstDevice,
-            onTap: () => notifier.selectMidiPort(null),
-          ),
-          for (final p in midiPorts)
-            _option(
-              selected: p == connectedDevice,
-              label: p,
-              onTap: () => notifier.selectMidiPort(p),
-            ),
-          // When no port is found on Android, the cause is usually USB OTG being
-          // off or a charge-only cable — neither of which the app can fix — so
-          // surface actionable guidance instead of a dead-end "No device" row.
-          // Other platforms keep the plain empty row. The guidance clears on its
-          // own once a port appears, since this branch only runs when empty.
-          if (midiPorts.isEmpty && isAndroid)
-            const OtgGuidance()
-          else if (midiPorts.isEmpty)
-            _option(
-              selected: false,
-              label: l10n.midiNoDeviceDetected,
-              onTap: null,
-            ),
-        ];
-      case _SettingsCategory.keyboardSize:
-        return [
-          for (final m in KeyboardRangeMode.values)
-            _option(
-              selected: m == keyboardRange,
-              label: _rangeLabel(l10n, m),
-              onTap: () => notifier.setKeyboardRange(m),
-            ),
-        ];
-      case _SettingsCategory.keyboardVisibility:
-        return [
-          for (final visible in const [true, false])
-            _option(
-              selected: visible == keyboardVisible,
-              label: _keyboardVisibilityLabel(l10n, visible),
-              onTap: () => notifier.setKeyboardVisible(visible),
-            ),
-        ];
-      case _SettingsCategory.hand:
-        return [
-          for (final h in Hand.values)
-            _option(
-              selected: h == selectedHands,
-              label: _handLabel(l10n, h),
-              onTap: () => notifier.setSelectedHands(h),
-            ),
-        ];
-      case _SettingsCategory.language:
-        return [
-          for (final language in AppLanguage.values)
-            _languageOption(
-              selected: language == activeLanguage,
-              flag: language.flag,
-              semanticLabel: languageName(l10n, language),
-              onTap: () =>
-                  ref.read(appLocaleProvider.notifier).select(language),
-            ),
-        ];
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    final notifier = ref.read(playerProvider.notifier);
-    // Behind a provider so tests can drive the Android/non-Android empty-state
-    // guidance deterministically (the test VM reports the host OS otherwise).
-    final isAndroid = ref.watch(isAndroidProvider);
-    // The active language marks the selected flag; state is always a supported
-    // locale, so this never falls back in practice.
-    final activeLanguage =
-        AppLanguage.fromCode(ref.watch(appLocaleProvider).languageCode) ??
-        AppLanguage.en;
-    final (
-      midiPorts,
-      connectedDevice,
-      keyboardRange,
-      keyboardVisible,
-      selectedHands,
-      twoStaves,
-      mode,
-    ) = ref.watch(
-      playerProvider.select(
-        (d) => (
-          d.midiPorts,
-          d.connectedDevice,
-          d.keyboardRange,
-          d.keyboardVisible,
-          d.selectedHands,
-          d.hasMultipleStaves,
-          d.mode,
-        ),
-      ),
-    );
-    // The hide-keyboard toggle only makes sense in the notation modes; Synthesia
-    // needs the keyboard for its cascade, so the category is omitted there.
-    final canHideKeyboard = mode != RenderMode.synthesia;
-
-    // Top-level categories (with the value currently in effect as a subtitle).
-    final categories = <_Category>[
-      (
-        key: _SettingsCategory.midiDevice,
-        title: _categoryTitle(l10n, _SettingsCategory.midiDevice),
-        icon: Icons.piano,
-        current: connectedDevice ?? l10n.settingsAuto,
-      ),
-      (
-        key: _SettingsCategory.keyboardSize,
-        title: _categoryTitle(l10n, _SettingsCategory.keyboardSize),
-        icon: Icons.straighten,
-        current: keyboardRange == KeyboardRangeMode.auto
-            ? l10n.settingsAuto
-            : keyboardRange.label,
-      ),
-      if (canHideKeyboard)
-        (
-          key: _SettingsCategory.keyboardVisibility,
-          title: _categoryTitle(l10n, _SettingsCategory.keyboardVisibility),
-          icon: keyboardVisible ? Icons.piano : Icons.piano_off,
-          current: _keyboardVisibilityLabel(l10n, keyboardVisible),
-        ),
-      if (twoStaves)
-        (
-          key: _SettingsCategory.hand,
-          title: _categoryTitle(l10n, _SettingsCategory.hand),
-          icon: Icons.front_hand,
-          current: _handLabel(l10n, selectedHands),
-        ),
-      (
-        key: _SettingsCategory.language,
-        title: _categoryTitle(l10n, _SettingsCategory.language),
-        icon: Icons.language,
-        current: activeLanguage.flag,
-      ),
-    ];
-
-    final Widget body;
-    if (_category == null) {
-      // Master view: the list of categories.
-      body = ListView(
-        padding: EdgeInsets.zero,
-        children: [
-          _DrawerHeader(title: l10n.settings),
-          for (final c in categories)
-            ListTile(
-              leading: Icon(c.icon, color: CymbraColors.onSurfaceVariant),
-              title: Text(
-                c.title,
-                style: const TextStyle(color: CymbraColors.onSurface),
-              ),
-              subtitle: Text(
-                c.current,
-                style: const TextStyle(color: CymbraColors.onSurfaceVariant),
-              ),
-              trailing: const Icon(
-                Icons.chevron_right,
-                color: CymbraColors.onSurfaceVariant,
-              ),
-              onTap: () => setState(() => _category = c.key),
-            ),
-        ],
-      );
-    } else {
-      // Detail view: just the selected category's values, with a back affordance.
-      body = ListView(
-        padding: EdgeInsets.zero,
-        children: [
-          _DrawerHeader(
-            title: _categoryTitle(l10n, _category!),
-            onBack: () => setState(() => _category = null),
-          ),
-          ..._valuesFor(
-            _category!,
-            l10n: l10n,
-            midiPorts: midiPorts,
-            connectedDevice: connectedDevice,
-            keyboardRange: keyboardRange,
-            keyboardVisible: keyboardVisible,
-            selectedHands: selectedHands,
-            activeLanguage: activeLanguage,
-            notifier: notifier,
-            isAndroid: isAndroid,
-          ),
-        ],
-      );
-    }
-
-    return Drawer(
-      backgroundColor: CymbraColors.surfaceContainerHigh,
-      child: SafeArea(child: body),
-    );
-  }
-}
-
-/// Drawer header: a title, optionally preceded by a back button (in the detail
-/// view), with a bottom divider.
-class _DrawerHeader extends StatelessWidget {
-  final String title;
-  final VoidCallback? onBack;
-  const _DrawerHeader({required this.title, this.onBack});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Padding(
-          padding: EdgeInsets.fromLTRB(onBack != null ? 4 : 20, 14, 12, 12),
-          child: Row(
-            children: [
-              if (onBack != null) ...[
-                IconButton(
-                  tooltip: AppLocalizations.of(context).settingsBack,
-                  icon: const Icon(
-                    Icons.arrow_back,
-                    color: CymbraColors.onSurfaceVariant,
-                  ),
-                  onPressed: onBack,
-                ),
-                const SizedBox(width: 4),
-              ],
-              Expanded(
-                child: Text(
-                  title,
-                  style: const TextStyle(
-                    color: CymbraColors.onSurface,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const Divider(height: 1, color: CymbraColors.outlineVariant),
-      ],
+      onPressed: () async {
+        final notifier = ref.read(playerProvider.notifier);
+        final wasPlaying = ref.read(playerProvider).isPlaying;
+        if (wasPlaying) notifier.setPlaying(false);
+        await showPrePlaySetup(context, inGame: true);
+        if (wasPlaying) notifier.setPlaying(true);
+      },
     );
   }
 }

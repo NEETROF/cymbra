@@ -74,10 +74,20 @@ class RecordingAudioService implements AudioService {
   /// Flat log of calls in order, for sequencing assertions.
   final List<String> calls = [];
 
+  /// Every SoundFont path handed to [loadSoundFont], in order — lets a test
+  /// assert which piano was swapped in.
+  final List<String> loadedSoundFonts = [];
+
   @override
   Future<void> init() async {
     initCount++;
     calls.add(failInit ? 'init:fail' : 'init');
+  }
+
+  @override
+  Future<void> loadSoundFont(String sf2Path) async {
+    loadedSoundFonts.add(sf2Path);
+    calls.add('load:$sf2Path');
   }
 
   @override
