@@ -9,15 +9,26 @@ interface SfState {
   adminListCalls: number;
   updateCalls: unknown[];
   deleteCalls: unknown[];
+  moderationCalls: unknown[];
 }
 
 /** Patch the fake `score` client with the SoundFont admin RPCs, recording calls. */
 function withSoundfonts(clients: ReturnType<typeof makeFakeClients>["clients"], initial: unknown[] = []): SfState {
-  const state: SfState = { list: [...initial], adminListCalls: 0, updateCalls: [], deleteCalls: [] };
+  const state: SfState = {
+    list: [...initial],
+    adminListCalls: 0,
+    updateCalls: [],
+    deleteCalls: [],
+    moderationCalls: [],
+  };
   const score = clients.score as unknown as Record<string, (req: unknown) => Promise<unknown>>;
   score.adminListSoundFonts = async () => {
     state.adminListCalls++;
     return { soundfonts: state.list };
+  };
+  score.setSoundFontModerationStatus = async (req: unknown) => {
+    state.moderationCalls.push(req);
+    return {};
   };
   score.updateSoundFont = async (req: unknown) => {
     state.updateCalls.push(req);
@@ -160,6 +171,33 @@ describe("soundfonts store", () => {
     const outcome = await store.update({ id: "ydp-grand", label: "x", license: "x", attribution: "" });
 
     expect(outcome.status).toBe("error");
+  });
+
+  it("accepts a font via setSoundFontModerationStatus then re-lists", async () => {
+    const { clients } = makeFakeClients();
+    const sf = withSoundfonts(clients, [row("ydp-grand", { moderationStatus: "pending" })]);
+    setClientsForTest(clients);
+    const store = useSoundFontsStore();
+
+    const outcome = await store.setModerationStatus("ydp-grand", "accepted");
+
+    expect(outcome.status).toBe("success");
+    expect(sf.moderationCalls).toEqual([{ id: "ydp-grand", status: "accepted" }]);
+    expect(sf.adminListCalls).toBe(1); // re-listed after the decision
+  });
+
+  it("captures a denied moderation decision in op instead of throwing", async () => {
+    const { clients } = makeFakeClients();
+    withSoundfonts(clients, [row("ydp-grand")]);
+    const score = clients.score as unknown as Record<string, () => Promise<never>>;
+    score.setSoundFontModerationStatus = () => Promise.reject(new Error("permission denied"));
+    setClientsForTest(clients);
+    const store = useSoundFontsStore();
+
+    const outcome = await store.setModerationStatus("ydp-grand", "rejected");
+
+    expect(outcome.status).toBe("error");
+    expect(store.op.status).toBe("error");
   });
 
   // --- Preview data (used by the create/edit drawer's audition feature) ---

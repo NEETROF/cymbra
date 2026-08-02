@@ -84,6 +84,17 @@
     "remove": "Remove",
     "empty": "No SoundFonts yet.",
     "confirmRemove": "Remove this SoundFont? Its catalog row and stored file are both deleted.",
+    "statusCol": "Status",
+    "status": { "pending": "Pending", "accepted": "Accepted", "rejected": "Rejected" },
+    "accept": "Accept",
+    "reject": "Reject",
+    "filter": {
+      "label": "Filter by status",
+      "pending": "Pending",
+      "accepted": "Accepted",
+      "rejected": "Rejected",
+      "all": "All"
+    },
     "createTitle": "Add a SoundFont",
     "editTitle": "Edit SoundFont",
     "idHint": "e.g. ydp-grand",

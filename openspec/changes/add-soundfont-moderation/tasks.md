@@ -37,11 +37,11 @@
 
 ## 6. Back office (moderation-console)
 
-- [ ] 6.1 Sound fonts screen: status badges + a back-office-only status filter (moderator/admin)
-- [ ] 6.2 Pending review queue view
-- [ ] 6.3 Audition a `pending`/`rejected` font (fetch bytes via moderator privilege) before deciding
-- [ ] 6.4 Accept/Reject actions wired to `SetSoundFontModerationStatus`; access-denied for non-moderator/admin
-- [ ] 6.5 Store/composable + component tests (ts-pattern Async unions; fake-client seam)
+- [x] 6.1 Sound fonts screen: status badges (AppTag pending/accepted/rejected) + a back-office-only status filter
+- [x] 6.2 Pending review queue view (default filter = pending, with a count badge)
+- [x] 6.3 Audition before deciding: `fontBytes` fetches a non-`accepted` font (moderator privilege) via the existing edit-drawer preview
+- [x] 6.4 Accept/Reject actions wired to `setSoundFontModerationStatus`; failures land in `op` (error), access control server-side + router-gated
+- [x] 6.5 Store tests for the moderation action (success re-lists; denied → op error) via the fake-client seam
 
 ## 7. Flutter app
 

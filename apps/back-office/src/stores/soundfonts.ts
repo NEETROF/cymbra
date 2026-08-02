@@ -103,6 +103,16 @@ export const useSoundFontsStore = defineStore("soundfonts", () => {
     return outcome;
   }
 
+  /** Set a font's moderation status (accept/reject/re-queue), then re-list
+   *  (change: add-soundfont-moderation). */
+  async function setModerationStatus(id: string, status: string) {
+    const outcome = await run(op, async () => {
+      await api().score.setSoundFontModerationStatus({ id, status });
+    });
+    if (outcome.status === "success") await list();
+    return outcome;
+  }
+
   /** The public catalog listing (id/label/…), for the preview font picker on the review
    *  and detail screens — usable by moderators, unlike the admin listing. */
   async function publicList(): Promise<SoundFont[]> {
@@ -138,7 +148,19 @@ export const useSoundFontsStore = defineStore("soundfonts", () => {
     return new Uint8Array(await resp.arrayBuffer());
   }
 
-  return { catalog, op, list, publicList, add, update, remove, previewPieces, pieceBytes, fontBytes };
+  return {
+    catalog,
+    op,
+    list,
+    publicList,
+    add,
+    update,
+    remove,
+    setModerationStatus,
+    previewPieces,
+    pieceBytes,
+    fontBytes,
+  };
 });
 
 // Re-export so the view can render an upload failure through the same mapper.

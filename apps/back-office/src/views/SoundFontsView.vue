@@ -26,6 +26,29 @@ const vm = computed(() =>
 const acting = computed(() => store.op.status === "loading");
 const opError = computed(() => (store.op.status === "error" ? store.op.error : null));
 
+// Moderation review (change: add-soundfont-moderation): a back-office-only status
+// filter (defaults to the pending review queue) and accept/reject actions.
+type StatusFilter = "pending" | "accepted" | "rejected" | "all";
+const statusFilter = ref<StatusFilter>("pending");
+const filteredRows = computed(() =>
+  statusFilter.value === "all"
+    ? vm.value.rows
+    : vm.value.rows.filter((r) => (r.moderationStatus || "pending") === statusFilter.value),
+);
+const pendingCount = computed(
+  () => vm.value.rows.filter((r) => (r.moderationStatus || "pending") === "pending").length,
+);
+
+async function setStatus(id: string, status: string) {
+  await store.setModerationStatus(id, status);
+}
+
+// Normalise a row's (possibly empty) moderation status to a known badge variant.
+function statusOf(row: AdminSoundFont): "pending" | "accepted" | "rejected" {
+  const s = row.moderationStatus || "pending";
+  return s === "accepted" ? "accepted" : s === "rejected" ? "rejected" : "pending";
+}
+
 // Drawer for create/edit (right-to-left).
 const drawerMode = ref<"create" | "edit" | null>(null);
 const drawerEntry = ref<AdminSoundFont | null>(null);
@@ -68,14 +91,30 @@ function licenseDesc(license: string): string {
 
     <p v-if="opError" class="error" role="alert">{{ opError }}</p>
 
+    <div class="filters" role="tablist" :aria-label="t('soundfonts.filter.label')">
+      <button
+        v-for="f in (['pending', 'accepted', 'rejected', 'all'] as const)"
+        :key="f"
+        type="button"
+        role="tab"
+        :aria-selected="statusFilter === f"
+        :class="{ chip: true, active: statusFilter === f }"
+        @click="statusFilter = f"
+      >
+        {{ t(`soundfonts.filter.${f}`) }}
+        <span v-if="f === 'pending' && pendingCount > 0" class="count">{{ pendingCount }}</span>
+      </button>
+    </div>
+
     <p v-if="vm.loading" class="muted">…</p>
     <p v-else-if="vm.error" class="error" role="alert">{{ vm.error }}</p>
-    <p v-else-if="vm.rows.length === 0" class="muted">{{ t("soundfonts.empty") }}</p>
+    <p v-else-if="filteredRows.length === 0" class="muted">{{ t("soundfonts.empty") }}</p>
 
     <table v-else class="grid">
       <thead>
         <tr>
           <th>{{ t("soundfonts.label") }}</th>
+          <th>{{ t("soundfonts.statusCol") }}</th>
           <th>{{ t("soundfonts.id") }}</th>
           <th>{{ t("soundfonts.instrument") }}</th>
           <th>{{ t("soundfonts.license") }}</th>
@@ -84,8 +123,11 @@ function licenseDesc(license: string): string {
         </tr>
       </thead>
       <tbody>
-        <tr v-for="row in vm.rows" :key="row.id">
+        <tr v-for="row in filteredRows" :key="row.id">
           <td>{{ row.label }}</td>
+          <td>
+            <AppTag :variant="statusOf(row)">{{ t(`soundfonts.status.${statusOf(row)}`) }}</AppTag>
+          </td>
           <td class="mono">{{ row.id }}</td>
           <td>
             <AppTag variant="neutral">{{ t(`soundfonts.instr.${row.instrument || "piano"}`) }}</AppTag>
@@ -98,6 +140,24 @@ function licenseDesc(license: string): string {
           </td>
           <td>{{ row.attribution }}</td>
           <td class="actions">
+            <button
+              v-if="(row.moderationStatus || 'pending') !== 'accepted'"
+              type="button"
+              class="accept"
+              :disabled="acting"
+              @click="setStatus(row.id, 'accepted')"
+            >
+              {{ t("soundfonts.accept") }}
+            </button>
+            <button
+              v-if="(row.moderationStatus || 'pending') !== 'rejected'"
+              type="button"
+              class="reject"
+              :disabled="acting"
+              @click="setStatus(row.id, 'rejected')"
+            >
+              {{ t("soundfonts.reject") }}
+            </button>
             <button type="button" @click="openEdit(row)">{{ t("soundfonts.edit") }}</button>
             <button type="button" :disabled="acting" @click="remove(row.id)">{{ t("soundfonts.remove") }}</button>
           </td>
@@ -158,6 +218,44 @@ function licenseDesc(license: string): string {
 .actions {
   display: flex;
   gap: 0.4rem;
+  flex-wrap: wrap;
+}
+.actions .accept {
+  border-color: var(--ok, #2e7d32);
+  color: var(--ok, #2e7d32);
+}
+.actions .reject {
+  border-color: var(--danger, #c0392b);
+  color: var(--danger, #c0392b);
+}
+.filters {
+  display: flex;
+  gap: 0.4rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+.chip {
+  border: 1px solid var(--outline, #333);
+  background: transparent;
+  color: inherit;
+  padding: 0.3rem 0.7rem;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.chip.active {
+  background: var(--accent, #7c5cff);
+  border-color: var(--accent, #7c5cff);
+  color: #fff;
+}
+.chip .count {
+  display: inline-block;
+  margin-left: 0.35rem;
+  min-width: 1.2em;
+  padding: 0 0.35em;
+  border-radius: 999px;
+  background: var(--danger, #c0392b);
+  color: #fff;
+  font-size: 0.78em;
 }
 .error {
   color: var(--danger, #c0392b);

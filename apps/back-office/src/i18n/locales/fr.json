@@ -84,6 +84,17 @@
     "remove": "Supprimer",
     "empty": "Aucune SoundFont pour l’instant.",
     "confirmRemove": "Supprimer cette SoundFont ? Sa ligne de catalogue et son fichier stocké sont supprimés.",
+    "statusCol": "Statut",
+    "status": { "pending": "En attente", "accepted": "Acceptée", "rejected": "Rejetée" },
+    "accept": "Accepter",
+    "reject": "Rejeter",
+    "filter": {
+      "label": "Filtrer par statut",
+      "pending": "En attente",
+      "accepted": "Acceptées",
+      "rejected": "Rejetées",
+      "all": "Toutes"
+    },
     "createTitle": "Ajouter une SoundFont",
     "editTitle": "Modifier la SoundFont",
     "idHint": "ex. ydp-grand",
