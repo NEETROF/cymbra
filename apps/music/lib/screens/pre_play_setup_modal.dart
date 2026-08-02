@@ -22,23 +22,33 @@ import '../state/notation_notifier.dart';
 import '../state/player_data.dart';
 import '../state/player_notifier.dart';
 import '../state/score_catalog.dart';
+import '../state/selected_piano.dart';
 import '../theme/cymbra_theme.dart';
 import '../widgets/difficulty_badge.dart';
 import '../widgets/otg_guidance.dart';
 import '../widgets/setting_option_row.dart';
+import '../widgets/sound_selector_field.dart';
 
 /// Shows the pre-play setup modal, centered over the player. Lets the user review
-/// the score and set the hands, tempo, metronome and MIDI device before playing.
-/// **Validate** applies the choices; the close (X) keeps the current settings.
-/// Either way the caller stays on the player.
-Future<void> showPrePlaySetup(BuildContext context) => showDialog<void>(
-  context: context,
-  barrierDismissible: false,
-  builder: (_) => const PopScope(canPop: false, child: _PrePlaySetupDialog()),
-);
+/// the score and set the sound, hands, tempo, metronome, MIDI device and keyboard
+/// display before playing. **Validate** applies the choices; the close (X) keeps
+/// the current settings. Either way the caller stays on the player.
+///
+/// It doubles as the in-game settings surface (the gear button reopens it): pass
+/// [inGame] so the action reads "Apply" rather than "Play".
+Future<void> showPrePlaySetup(BuildContext context, {bool inGame = false}) =>
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) =>
+          PopScope(canPop: false, child: _PrePlaySetupDialog(inGame: inGame)),
+    );
 
 class _PrePlaySetupDialog extends ConsumerStatefulWidget {
-  const _PrePlaySetupDialog();
+  const _PrePlaySetupDialog({required this.inGame});
+
+  /// Whether reopened in-game (changes the primary action's label).
+  final bool inGame;
 
   @override
   ConsumerState<_PrePlaySetupDialog> createState() =>
@@ -51,6 +61,9 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
   late double _speed;
   late bool _metronome;
   late String? _port; // null = auto (first real device)
+  late String _soundId;
+  late KeyboardRangeMode _range;
+  late bool _keyboardVisible;
 
   @override
   void initState() {
@@ -60,6 +73,9 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
     _speed = data.speed;
     _metronome = data.metronomeEnabled;
     _port = data.connectedDevice;
+    _soundId = ref.read(selectedPianoProvider);
+    _range = data.keyboardRange;
+    _keyboardVisible = data.keyboardVisible;
   }
 
   void _apply() {
@@ -69,6 +85,13 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
     if (_speed != current.speed) notifier.setSpeed(_speed);
     if (_metronome != current.metronomeEnabled) notifier.toggleMetronome();
     if (_port != current.connectedDevice) notifier.selectMidiPort(_port);
+    if (_range != current.keyboardRange) notifier.setKeyboardRange(_range);
+    if (_keyboardVisible != current.keyboardVisible) {
+      notifier.setKeyboardVisible(_keyboardVisible);
+    }
+    if (_soundId != ref.read(selectedPianoProvider)) {
+      ref.read(selectedPianoProvider.notifier).select(_soundId);
+    }
     Navigator.of(context).pop();
   }
 
@@ -85,10 +108,17 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
     final maxHeight = MediaQuery.of(context).size.height * 0.92;
 
     final facts = _facts(l10n, data, entry);
+    final sound = _soundSection(l10n);
     final hands = data.hasMultipleStaves ? _handsSection(l10n) : null;
     final metronome = _metronomeTile(l10n);
     final tempo = _tempoTile(l10n, data);
     final midi = _midiSection(l10n, data);
+    final keyboardSize = _keyboardSizeSection(l10n);
+    // Hiding the keyboard only makes sense in the notation modes — Synthesia needs
+    // it for the cascade — so the toggle is omitted there.
+    final keyboardVisibility = data.mode != RenderMode.synthesia
+        ? _keyboardVisibilityTile(l10n)
+        : null;
 
     Widget scrollCol(List<Widget> children) => SingleChildScrollView(
       child: Column(
@@ -97,24 +127,43 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
       ),
     );
 
-    // Phone-landscape is short: facts on top, then controls in two columns
-    // (left: hands + metronome, right: MIDI + tempo) so the modal fits without
-    // scrolling. Larger screens keep a single scrollable column.
+    // Phone-landscape is short: facts on top, then controls in two columns so the
+    // modal fits without scrolling (left: sound + hands + metronome; right: MIDI +
+    // tempo + keyboard). Larger screens keep a single scrollable column.
     final Widget body = phone
         ? Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(child: scrollCol([?hands, metronome])),
+              Expanded(child: scrollCol([sound, ?hands, metronome])),
               const SizedBox(width: 24),
-              Expanded(child: scrollCol([midi, tempo])),
+              Expanded(
+                child: scrollCol([
+                  midi,
+                  tempo,
+                  keyboardSize,
+                  ?keyboardVisibility,
+                ]),
+              ),
             ],
           )
-        : scrollCol([facts, ?hands, metronome, tempo, midi]);
+        : scrollCol([
+            facts,
+            sound,
+            ?hands,
+            metronome,
+            tempo,
+            keyboardSize,
+            ?keyboardVisibility,
+            midi,
+          ]);
 
     final header = _header(l10n, title, composer, entry?.level, phone);
     final button = Padding(
       padding: EdgeInsets.only(top: phone ? 8 : 12),
-      child: FilledButton(onPressed: _apply, child: Text(l10n.prePlayStart)),
+      child: FilledButton(
+        onPressed: _apply,
+        child: Text(widget.inGame ? l10n.prePlayApply : l10n.prePlayStart),
+      ),
     );
 
     // Phone: full-screen so all controls fit without scrolling. Larger screens:
@@ -302,6 +351,71 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
       ],
     );
   }
+
+  /// Instrument sound picker (combobox), correlated to the score's instrument
+  /// (piano for now). A draft — applied on Validate like the other settings.
+  Widget _soundSection(AppLocalizations l10n) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      _sectionTitle(l10n.settingsCategoryPiano),
+      SoundSelectorField(
+        value: _soundId,
+        onChanged: (id) => setState(() => _soundId = id),
+      ),
+    ],
+  );
+
+  String _rangeLabel(AppLocalizations l10n, KeyboardRangeMode m) =>
+      m == KeyboardRangeMode.auto
+      ? l10n.keyboardAutoFit
+      : l10n.keyboardKeys(m.label);
+
+  /// On-screen keyboard size (a dropdown, like the MIDI device).
+  Widget _keyboardSizeSection(AppLocalizations l10n) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      _sectionTitle(l10n.settingsCategoryKeyboardSize),
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+          color: CymbraColors.surfaceContainerHigh,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: DropdownButtonHideUnderline(
+          child: DropdownButton<KeyboardRangeMode>(
+            isExpanded: true,
+            value: _range,
+            dropdownColor: CymbraColors.surfaceContainerHigh,
+            iconEnabledColor: CymbraColors.onSurfaceVariant,
+            style: const TextStyle(color: CymbraColors.onSurface),
+            items: [
+              for (final m in KeyboardRangeMode.values)
+                DropdownMenuItem<KeyboardRangeMode>(
+                  value: m,
+                  child: Text(_rangeLabel(l10n, m)),
+                ),
+            ],
+            onChanged: (m) => setState(() => _range = m ?? _range),
+          ),
+        ),
+      ),
+    ],
+  );
+
+  /// On-screen keyboard visibility (a switch, like the metronome).
+  Widget _keyboardVisibilityTile(AppLocalizations l10n) => SwitchListTile(
+    contentPadding: EdgeInsets.zero,
+    title: Text(
+      l10n.settingsCategoryKeyboardVisibility,
+      style: const TextStyle(color: CymbraColors.onSurface),
+    ),
+    subtitle: Text(
+      _keyboardVisible ? l10n.keyboardShown : l10n.keyboardHidden,
+      style: const TextStyle(color: CymbraColors.onSurfaceVariant),
+    ),
+    value: _keyboardVisible,
+    onChanged: (v) => setState(() => _keyboardVisible = v),
+  );
 
   /// Metronome on/off — placed before the tempo control.
   Widget _metronomeTile(AppLocalizations l10n) => SwitchListTile(

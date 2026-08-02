@@ -23,10 +23,12 @@ import '../services/rating_service.dart';
 import '../state/rating_coach_notifier.dart';
 import '../state/rating_deck_notifier.dart';
 import '../state/score_catalog.dart';
+import '../state/selected_piano.dart';
 import '../theme/cymbra_theme.dart';
 import '../widgets/app_snackbar.dart';
 import '../widgets/rating_card.dart';
 import '../widgets/rating_deck_controls.dart';
+import '../widgets/sound_selector_field.dart';
 import '../widgets/swipe_card.dart';
 
 /// The Tinder-style swipe-rating deck (change: add-app-score-rating): a stack of
@@ -44,6 +46,22 @@ class RatingDeckScreen extends ConsumerWidget {
       appBar: AppBar(
         title: Text(l10n.ratingDeckTitle),
         backgroundColor: CymbraColors.surfaceContainerLowest,
+        // Swap the instrument sound the card auto-preview plays with — a compact
+        // combobox so the moderator can audition scores with any catalog sound.
+        actions: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+            child: SizedBox(
+              width: 190,
+              child: SoundSelectorField(
+                dense: true,
+                value: ref.watch(selectedPianoProvider),
+                onChanged: (id) =>
+                    ref.read(selectedPianoProvider.notifier).select(id),
+              ),
+            ),
+          ),
+        ],
       ),
       // The deck's side effects (a failed submit → snackbar) live in a dedicated
       // listener widget near the top of the subtree (architecture rule 4).

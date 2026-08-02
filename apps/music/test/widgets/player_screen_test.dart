@@ -138,49 +138,62 @@ void main() {
     await teardownScreen(tester);
   });
 
-  testWidgets('settings menu › keyboard size updates the range mode', (
+  /// Opens the settings surface — the pre-play popup reopened in-game (the gear
+  /// button). The screen runs a Ticker (never settles), so pump explicitly.
+  Future<void> openSettingsPopup(WidgetTester tester) async {
+    await tester.tap(find.byIcon(Icons.tune));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+  }
+
+  /// Taps the popup's Apply button, which commits the drafted settings.
+  Future<void> applyPopup(WidgetTester tester) async {
+    await tester.tap(find.widgetWithText(FilledButton, 'Apply'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+  }
+
+  testWidgets('settings popup › keyboard size updates the range mode', (
     tester,
   ) async {
     await pumpScreen(tester);
     // Defaults to the full 88-key piano.
     expect(state().keyboardRange, KeyboardRangeMode.keys88);
 
-    // The screen runs a Ticker (never settles), so pump explicitly rather than
-    // pumpAndSettle. 300ms lets the drawer open animation finish. Master-detail:
-    // open the gear (end drawer) → pick the "Keyboard size" category → pick Auto.
-    await tester.tap(find.byIcon(Icons.tune));
+    // Keyboard size is a dropdown in the popup; open it, pick Auto, then Apply.
+    await openSettingsPopup(tester);
+    final dropdown = find.byType(DropdownButton<KeyboardRangeMode>);
+    await tester.ensureVisible(dropdown);
+    await tester.tap(dropdown);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
-    await tester.tap(find.text('Keyboard size'));
+    await tester.tap(find.text('Auto (fit piece)').last);
     await tester.pump();
-    await tester.tap(find.text('Auto (fit piece)'));
-    await tester.pump();
+    await applyPopup(tester);
 
     expect(state().keyboardRange, KeyboardRangeMode.auto);
     await teardownScreen(tester);
   });
 
-  testWidgets('settings menu › MIDI device selects a port', (tester) async {
+  testWidgets('settings popup › MIDI device selects a port', (tester) async {
     await pumpScreen(tester, ports: ['Piano', 'Synth'], connected: 'Piano');
-    await tester.tap(find.byIcon(Icons.tune));
+    await openSettingsPopup(tester);
+    final dropdown = find.byType(DropdownButton<String?>);
+    await tester.ensureVisible(dropdown);
+    await tester.tap(dropdown);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
-    await tester.tap(find.text('MIDI device'));
+    await tester.tap(find.text('Synth').last);
     await tester.pump();
-    await tester.tap(find.text('Synth'));
-    await tester.pump();
+    await applyPopup(tester);
 
     expect(state().connectedDevice, 'Synth');
     await teardownScreen(tester);
   });
 
-  /// Opens the settings end drawer and drills into the "MIDI device" category.
+  /// Opens the settings popup (the MIDI section is shown inline, no drill-in).
   Future<void> openMidiDeviceCategory(WidgetTester tester) async {
-    await tester.tap(find.byIcon(Icons.tune));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
-    await tester.tap(find.text('MIDI device'));
-    await tester.pump();
+    await openSettingsPopup(tester);
   }
 
   testWidgets('settings menu › MIDI device shows OTG guidance on Android when '
@@ -219,7 +232,7 @@ void main() {
     await teardownScreen(tester);
   });
 
-  testWidgets('settings drawer pauses playback and resumes on close', (
+  testWidgets('settings popup pauses playback and resumes on close', (
     tester,
   ) async {
     await pumpScreen(tester);
@@ -227,16 +240,12 @@ void main() {
     await tester.pump();
     expect(state().isPlaying, isTrue);
 
-    // Opening the end drawer pauses the session.
-    await tester.tap(find.byIcon(Icons.tune));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
+    // Opening the settings popup pauses the session.
+    await openSettingsPopup(tester);
     expect(state().isPlaying, isFalse);
 
-    // Closing it (tap the scrim left of the right-side drawer) restores play.
-    await tester.tapAt(const Offset(20, 400));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
+    // Closing it (Apply) restores the prior play state.
+    await applyPopup(tester);
     expect(state().isPlaying, isTrue);
     await teardownScreen(tester);
   });
@@ -524,17 +533,21 @@ void main() {
       await teardownScreen(tester);
     });
 
-    testWidgets('choosing "Hidden" in the drawer hides the keyboard', (
+    testWidgets('toggling the visibility switch off hides the keyboard', (
       tester,
     ) async {
       await pumpScreen(tester);
       notifier().setMode(RenderMode.staff);
       await tester.pump();
       await openSettings(tester);
-      await tester.tap(find.text('Keyboard display'));
+      // The visibility control is a switch (default on); toggle it off, Apply.
+      final tile = find.widgetWithText(SwitchListTile, 'Keyboard display');
+      await tester.ensureVisible(tile);
+      await tester.tap(tile);
       await tester.pump();
-      await tester.tap(find.text('Hidden'));
+      await tester.tap(find.widgetWithText(FilledButton, 'Apply'));
       await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
       expect(state().keyboardVisible, isFalse);
       expect(find.byKey(const Key('onscreen-keyboard')), findsNothing);
       await teardownScreen(tester);

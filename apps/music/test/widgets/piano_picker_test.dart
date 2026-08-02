@@ -17,179 +17,168 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:music/screens/player_screen.dart';
-import 'package:music/services/audio_service.dart';
-import 'package:music/services/midi_service.dart';
-import 'package:music/services/notation_engine.dart';
 import 'package:music/services/preferences_service.dart';
-import 'package:music/services/score_asset_source.dart';
 import 'package:music/services/soundfont_catalog_service.dart';
 import 'package:music/services/soundfont_importer.dart';
 import 'package:music/services/soundfont_source.dart';
 import 'package:music/state/imported_soundfonts.dart';
 import 'package:music/state/piano_catalog.dart';
-import 'package:music/state/score_catalog.dart';
-import 'package:music/state/selected_piano.dart';
+import 'package:music/widgets/sound_selector_field.dart';
 
-import '../support/fakes.dart';
 import '../support/localized.dart';
-import '../support/notation_fakes.dart';
 import '../support/prefs_fakes.dart';
 import '../support/soundfont_fakes.dart';
 
-const _entry = CatalogEntry(
-  id: 'sample',
-  title: 'Sample Piece',
-  composer: 'Tester',
-  assetPath: 'assets/scores/beginner/sample.musicxml',
-  level: PracticeLevel.beginner,
-);
+// The instrument-sound combobox (SoundSelectorField), used at every play entry
+// point (the pre-play popup and the rating deck). Driven in isolation over the
+// fake catalog/import seams — no player, no backend.
 
 String _encodeRegistry(List<PianoEntry> entries) =>
     jsonEncode([for (final e in entries) e.toJson()]);
 
-Future<ProviderContainer> _pumpPlayer(
-  WidgetTester tester, {
+ProviderContainer _container({
   FakePreferencesService? prefs,
   FakeSoundFontImporter? importer,
   List<PianoEntry>? serverFonts,
+}) => ProviderContainer(
+  overrides: [
+    preferencesServiceProvider.overrideWithValue(
+      prefs ?? FakePreferencesService(),
+    ),
+    soundFontSourceProvider.overrideWithValue(FakeSoundFontSource()),
+    soundFontImporterProvider.overrideWithValue(
+      importer ?? FakeSoundFontImporter(),
+    ),
+    soundFontCatalogServiceProvider.overrideWithValue(
+      FakeSoundFontCatalogService(
+        downloadable:
+            serverFonts ??
+            [
+              fakeDownloadPiano(
+                id: 'ydp-grand',
+                label: 'YDP Grand Piano',
+                attribution: 'Roberto / Zenph Studios',
+              ),
+              fakeDownloadPiano(
+                id: 'salamander-grand',
+                label: 'Salamander Grand Piano',
+                attribution: 'Alexander Holm',
+              ),
+            ],
+      ),
+    ),
+  ],
+);
+
+Future<void> _pumpField(
+  WidgetTester tester,
+  ProviderContainer container, {
+  String value = defaultPianoId,
+  required ValueChanged<String> onChanged,
 }) async {
-  await tester.binding.setSurfaceSize(const Size(1400, 900));
-  final container = ProviderContainer(
-    overrides: [
-      scoreCatalogProvider.overrideWithValue(const [_entry]),
-      scoreAssetSourceProvider.overrideWithValue(FakeScoreAssetSource()),
-      notationEngineProvider.overrideWithValue(FakeNotationEngine()),
-      midiServiceProvider.overrideWithValue(FakeMidiService()),
-      scoreSourceProvider.overrideWithValue(FakeScoreSource()),
-      audioServiceProvider.overrideWithValue(RecordingAudioService()),
-      preferencesServiceProvider.overrideWithValue(
-        prefs ?? FakePreferencesService(),
-      ),
-      soundFontSourceProvider.overrideWithValue(FakeSoundFontSource()),
-      soundFontImporterProvider.overrideWithValue(
-        importer ?? FakeSoundFontImporter(),
-      ),
-      // The server's downloadable grands (now server-listed, not hardcoded).
-      soundFontCatalogServiceProvider.overrideWithValue(
-        FakeSoundFontCatalogService(
-          downloadable:
-              serverFonts ??
-              [
-                fakeDownloadPiano(
-                  id: 'ydp-grand',
-                  label: 'YDP Grand Piano',
-                  attribution: 'Roberto / Zenph Studios',
-                ),
-                fakeDownloadPiano(
-                  id: 'salamander-grand',
-                  label: 'Salamander Grand Piano',
-                  attribution: 'Alexander Holm',
-                ),
-              ],
-        ),
-      ),
-    ],
-  );
-  container.read(selectedScoreProvider.notifier).select(_entry);
   await tester.pumpWidget(
     UncontrolledProviderScope(
       container: container,
-      child: localizedApp(const PlayerScreen()),
+      child: localizedApp(
+        Scaffold(
+          body: Center(
+            child: SoundSelectorField(value: value, onChanged: onChanged),
+          ),
+        ),
+      ),
     ),
   );
-  for (var i = 0; i < 12; i++) {
+  // Let the async catalog sources (server list + imports) resolve.
+  for (var i = 0; i < 6; i++) {
     await tester.pump(const Duration(milliseconds: 50));
   }
-  final validate = find.widgetWithText(FilledButton, 'Play');
-  if (validate.evaluate().isNotEmpty) {
-    await tester.tap(validate);
-    for (var i = 0; i < 6; i++) {
-      await tester.pump(const Duration(milliseconds: 50));
-    }
-  }
-  return container;
 }
 
-Future<void> _teardown(WidgetTester tester, ProviderContainer container) async {
-  await tester.pumpWidget(const SizedBox());
-  await tester.pump();
-  container.dispose();
-}
-
-Future<void> _openPianoCategory(WidgetTester tester) async {
-  await tester.tap(find.byIcon(Icons.tune));
-  await tester.pump();
-  await tester.pump(const Duration(milliseconds: 300));
-  await tester.tap(find.text('Piano sound'));
-  await tester.pump();
-  await tester.pump(const Duration(milliseconds: 100));
+Future<void> _openDropdown(WidgetTester tester) async {
+  await tester.tap(find.byType(DropdownButton<String>));
+  await tester.pumpAndSettle();
 }
 
 void main() {
-  testWidgets('lists the built-in pianos and the active one is default', (
-    tester,
-  ) async {
-    final container = await _pumpPlayer(tester);
-    await _openPianoCategory(tester);
+  testWidgets('lists the catalog sounds and offers import', (tester) async {
+    final container = _container();
+    addTearDown(container.dispose);
+    await _pumpField(tester, container, onChanged: (_) {});
 
-    expect(find.text('Upright Piano KW'), findsOneWidget);
+    await _openDropdown(tester);
+
+    // The menu lists the built-in default + the server grands + the import item.
+    expect(find.text('Upright Piano KW'), findsWidgets);
     expect(find.text('YDP Grand Piano'), findsOneWidget);
     expect(find.text('Salamander Grand Piano'), findsOneWidget);
-    // CC-BY attribution is surfaced in-app.
-    expect(find.textContaining('Alexander Holm'), findsOneWidget);
-    // The default is the active selection.
-    expect(container.read(selectedPianoProvider), defaultPianoId);
-    // The import action is offered.
     expect(find.text('Add SoundFont…'), findsOneWidget);
-
-    await _teardown(tester, container);
   });
 
-  testWidgets('tapping a piano changes and persists the selection', (
+  testWidgets('picking a sound reports its id via onChanged', (tester) async {
+    final container = _container();
+    addTearDown(container.dispose);
+    String? picked;
+    await _pumpField(tester, container, onChanged: (id) => picked = id);
+
+    await _openDropdown(tester);
+    await tester.tap(find.text('YDP Grand Piano').last);
+    await tester.pumpAndSettle();
+
+    expect(picked, 'ydp-grand');
+  });
+
+  testWidgets('surfaces the selected sound CC-BY attribution', (tester) async {
+    final container = _container();
+    addTearDown(container.dispose);
+    await _pumpField(
+      tester,
+      container,
+      value: 'salamander-grand',
+      onChanged: (_) {},
+    );
+
+    // The required CC-BY credit is shown under the combobox for the selection.
+    expect(find.textContaining('Alexander Holm'), findsOneWidget);
+  });
+
+  testWidgets('the add item runs the import and selects the imported font', (
     tester,
   ) async {
-    final prefs = FakePreferencesService();
-    final container = await _pumpPlayer(tester, prefs: prefs);
-    await _openPianoCategory(tester);
+    final imported = fakeUserPiano(id: 'mine', label: 'My Imported Piano');
+    final container = _container(
+      importer: FakeSoundFontImporter(next: imported),
+    );
+    addTearDown(container.dispose);
+    String? picked;
+    await _pumpField(tester, container, onChanged: (id) => picked = id);
 
-    await tester.tap(find.text('YDP Grand Piano'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 100));
+    await _openDropdown(tester);
+    await tester.tap(find.text('Add SoundFont…').last);
+    await tester.pumpAndSettle();
 
-    expect(container.read(selectedPianoProvider), 'ydp-grand');
-    expect(prefs.store[SelectedPiano.prefsKey], 'ydp-grand');
-
-    await _teardown(tester, container);
+    expect(picked, 'mine');
   });
 
-  testWidgets('an imported piano is listed with a remove affordance', (
+  testWidgets('imported sounds are removable from the manage sheet', (
     tester,
   ) async {
     final imported = fakeUserPiano(id: 'mine', label: 'My Imported Piano');
     final prefs = FakePreferencesService({
       ImportedSoundFonts.prefsKey: _encodeRegistry([imported]),
     });
-    final container = await _pumpPlayer(
-      tester,
-      prefs: prefs,
-      importer: FakeSoundFontImporter(),
-    );
-    await _openPianoCategory(tester);
+    final container = _container(prefs: prefs);
+    addTearDown(container.dispose);
+    await _pumpField(tester, container, onChanged: (_) {});
 
+    // The manage affordance appears once there is an import; it opens a sheet
+    // that lists the import with a delete button.
+    await tester.tap(find.byIcon(Icons.tune));
+    await tester.pumpAndSettle();
     expect(find.text('My Imported Piano'), findsOneWidget);
-    // Imported group header and the remove (delete) button are present.
-    expect(find.text('Imported'), findsOneWidget);
-    expect(find.byIcon(Icons.delete_outline), findsOneWidget);
 
-    // Removing it drops it from the list.
     await tester.tap(find.byIcon(Icons.delete_outline));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pumpAndSettle();
 
-    expect(find.text('My Imported Piano'), findsNothing);
     expect(container.read(importedSoundFontsProvider).requireValue, isEmpty);
-
-    await _teardown(tester, container);
   });
 }
