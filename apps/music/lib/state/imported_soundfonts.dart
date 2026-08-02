@@ -13,11 +13,15 @@
 // limitations under the License.
 
 import 'dart:convert';
+import 'dart:io' show File;
 
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../services/preferences_service.dart';
+import '../services/private_soundfont_service.dart';
 import '../services/soundfont_importer.dart';
+import '../services/soundfont_storage.dart';
 import 'piano_catalog.dart';
 
 part 'imported_soundfonts.g.dart';
@@ -39,6 +43,18 @@ class ImportedSoundFonts extends _$ImportedSoundFonts {
 
   @override
   Future<List<PianoEntry>> build() async {
+    final local = await _loadLocal();
+    // Best-effort server sync (change: add-soundfont-moderation): imports are now
+    // server-backed and follow the user across devices. Offline / unauthenticated
+    // → the local registry stands, and syncs on a later build.
+    try {
+      return await _sync(local);
+    } catch (_) {
+      return local;
+    }
+  }
+
+  Future<List<PianoEntry>> _loadLocal() async {
     try {
       final raw = await ref
           .read(preferencesServiceProvider)
@@ -49,28 +65,144 @@ class ImportedSoundFonts extends _$ImportedSoundFonts {
     }
   }
 
-  /// Runs the import flow (pick → validate → copy) and, on success, appends the
-  /// new piano to the registry and persists it. Returns the imported entry, or
-  /// `null` when the user cancels. Rethrows [SoundFontImportException] for an
-  /// invalid file so the caller can show a non-fatal message; the registry is
-  /// left unchanged in that case.
+  /// Reconciles the local registry with the private server library: migrates any
+  /// local-only import up (idempotent by content), then pulls the server library
+  /// down, caching each font's bytes to a local file the engine can load.
+  Future<List<PianoEntry>> _sync(List<PianoEntry> local) async {
+    final service = ref.read(privateSoundFontServiceProvider);
+
+    // 1. Migration: upload local imports that have no server id yet. Guard with a
+    //    synchronous existence check so a missing file never spawns real file I/O
+    //    (which would otherwise leave `build()` pending in a widget test).
+    final migrated = <PianoEntry>[];
+    for (final e in local) {
+      if (e.remoteId != null || !File(e.source).existsSync()) {
+        migrated.add(e);
+        continue;
+      }
+      try {
+        final bytes = await File(e.source).readAsBytes();
+        final remote = await service.import(bytes, e.label);
+        migrated.add(e.copyWith(remoteId: remote.id));
+      } catch (_) {
+        migrated.add(e); // keep as a local-only import; retries next build
+      }
+    }
+
+    // 2. Pull the private library; add any font not already held, downloading its
+    //    bytes to a cache file so the FFI can load it by path.
+    final remoteList = await service.list();
+    final held = {
+      for (final e in migrated)
+        if (e.remoteId != null) e.remoteId!,
+    };
+    final result = <PianoEntry>[...migrated];
+    final toFetch = remoteList.where((r) => !held.contains(r.id)).toList();
+    if (toFetch.isNotEmpty) {
+      // Only resolve the (platform-backed) storage dir when there's actually a
+      // font to cache, so a no-op sync never depends on path_provider.
+      final dir = await ref.read(soundFontStorageDirProvider.future);
+      for (final r in toFetch) {
+        try {
+          final file = File('${dir.path}/remote-${r.id}.sf2');
+          if (!file.existsSync()) {
+            await file.writeAsBytes(await service.download(r.id), flush: true);
+          }
+          result.add(
+            PianoEntry(
+              id: r.id,
+              label: r.label,
+              kind: PianoKind.user,
+              source: file.path,
+              remoteId: r.id,
+            ),
+          );
+        } catch (_) {
+          // Skip a font whose bytes we couldn't fetch; it stays server-side.
+        }
+      }
+    }
+    // Only persist when the sync actually changed the registry, so a no-op sync
+    // never writes (keeping "nothing imported ⇒ nothing persisted" true).
+    if (!listEquals(local, result)) await _persist(result);
+    return result;
+  }
+
+  /// Runs the import flow (pick → validate → copy), uploads the font to the
+  /// user's private server library so it syncs across devices, and appends it to
+  /// the registry. Returns the imported entry, or `null` when the user cancels.
+  /// Rethrows [SoundFontImportException] for an invalid file (registry
+  /// unchanged). A failed **upload** is non-fatal: the import stays local-only and
+  /// syncs on a later build.
   Future<PianoEntry?> importSoundFont() async {
     final entry = await ref.read(soundFontImporterProvider).importSoundFont();
     if (entry == null) return null;
-    final next = <PianoEntry>[...?state.valueOrNull, entry];
+    var synced = entry;
+    try {
+      // `existsSync` guard: only touch the filesystem for a real copied file, so a
+      // fake importer (tests) doesn't spawn real I/O the widget harness can't drain.
+      if (File(entry.source).existsSync()) {
+        final bytes = await File(entry.source).readAsBytes();
+        final remote = await ref
+            .read(privateSoundFontServiceProvider)
+            .import(bytes, entry.label);
+        synced = entry.copyWith(remoteId: remote.id);
+      }
+    } catch (_) {
+      // Offline / server error: keep the local import; it migrates on next sync.
+    }
+    final next = <PianoEntry>[...?state.valueOrNull, synced];
     state = AsyncData(next);
     await _persist(next);
-    return entry;
+    return synced;
   }
 
-  /// Removes an imported piano: deletes its copied file and drops it from the
-  /// registry. A no-op for an unknown id. If the removed piano was selected, the
-  /// selection notifier (watching the catalog) falls back to the default.
+  /// Proposes an imported font to the public catalog with a mandatory licence
+  /// declaration + right-to-distribute [attestation] (change:
+  /// add-soundfont-moderation). Throws [PrivateSoundFontException] if the font has
+  /// not synced to the server yet or the server refuses the proposal.
+  Future<void> proposeToPublicCatalog(
+    String id, {
+    required String license,
+    String attribution = '',
+    required bool attestation,
+  }) async {
+    final current = state.valueOrNull ?? const <PianoEntry>[];
+    final matches = current.where((e) => e.id == id);
+    if (matches.isEmpty) return;
+    final remoteId = matches.first.remoteId;
+    if (remoteId == null) {
+      throw const PrivateSoundFontException('font not synced yet');
+    }
+    await ref
+        .read(privateSoundFontServiceProvider)
+        .propose(
+          remoteId,
+          license: license,
+          attribution: attribution,
+          attestation: attestation,
+        );
+  }
+
+  /// Removes an imported piano: deletes its private server copy (so it stops
+  /// syncing to other devices), deletes the local cached file, and drops it from
+  /// the registry. A no-op for an unknown id. If the removed piano was selected,
+  /// the selection notifier (watching the catalog) falls back to the default.
   Future<void> remove(String id) async {
     final current = state.valueOrNull ?? const <PianoEntry>[];
     final matches = current.where((e) => e.id == id);
     if (matches.isEmpty) return;
-    await ref.read(soundFontImporterProvider).deleteImport(matches.first);
+    final entry = matches.first;
+    // Remove server-side first (best-effort) so it doesn't re-sync back.
+    final remoteId = entry.remoteId;
+    if (remoteId != null) {
+      try {
+        await ref.read(privateSoundFontServiceProvider).delete(remoteId);
+      } catch (_) {
+        // Best-effort: a failed server delete must not block local removal.
+      }
+    }
+    await ref.read(soundFontImporterProvider).deleteImport(entry);
     final next = <PianoEntry>[
       for (final e in current)
         if (e.id != id) e,

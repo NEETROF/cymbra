@@ -48,6 +48,7 @@ class PianoEntry {
     required this.source,
     this.license,
     this.attribution,
+    this.remoteId,
   });
 
   /// Hand-rolled JSON (the repo does not use `json_serializable`), used to
@@ -61,6 +62,7 @@ class PianoEntry {
     source: json['source'] as String,
     license: json['license'] as String?,
     attribution: json['attribution'] as String?,
+    remoteId: json['remoteId'] as String?,
   );
 
   final String id;
@@ -70,6 +72,24 @@ class PianoEntry {
   final String? license;
   final String? attribution;
 
+  /// Id of this font in the user's **private server library**, once uploaded
+  /// (change: add-soundfont-moderation). Set for `user` pianos that have synced;
+  /// `null` for a purely local import or a non-user piano. Drives cross-device
+  /// sync and the "propose to catalog" action.
+  final String? remoteId;
+
+  /// A copy with individual fields replaced (only what the sync flow needs).
+  PianoEntry copyWith({String? label, String? source, String? remoteId}) =>
+      PianoEntry(
+        id: id,
+        label: label ?? this.label,
+        kind: kind,
+        source: source ?? this.source,
+        license: license,
+        attribution: attribution,
+        remoteId: remoteId ?? this.remoteId,
+      );
+
   Map<String, dynamic> toJson() => {
     'id': id,
     'label': label,
@@ -77,6 +97,7 @@ class PianoEntry {
     'source': source,
     if (license != null) 'license': license,
     if (attribution != null) 'attribution': attribution,
+    if (remoteId != null) 'remoteId': remoteId,
   };
 
   @override
@@ -87,11 +108,12 @@ class PianoEntry {
       other.kind == kind &&
       other.source == source &&
       other.license == license &&
-      other.attribution == attribution;
+      other.attribution == attribution &&
+      other.remoteId == remoteId;
 
   @override
   int get hashCode =>
-      Object.hash(id, label, kind, source, license, attribution);
+      Object.hash(id, label, kind, source, license, attribution, remoteId);
 }
 
 /// Id of the bundled CC0 default piano — the fallback whenever a chosen piano

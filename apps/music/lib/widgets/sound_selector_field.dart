@@ -16,6 +16,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../l10n/gen/app_localizations.dart';
+import '../services/private_soundfont_service.dart'
+    show PrivateSoundFontException;
 import '../services/soundfont_importer.dart' show SoundFontImportException;
 import '../state/imported_soundfonts.dart';
 import '../state/piano_catalog.dart';
@@ -265,21 +267,148 @@ class _SoundManagerSheet extends ConsumerWidget {
                   p.label,
                   style: const TextStyle(color: CymbraColors.onSurface),
                 ),
-                trailing: IconButton(
-                  tooltip: l10n.pianoRemove,
-                  icon: const Icon(
-                    Icons.delete_outline,
-                    color: CymbraColors.onSurfaceVariant,
-                  ),
-                  onPressed: () {
-                    ref.read(importedSoundFontsProvider.notifier).remove(p.id);
-                    if (p.id == selectedId) onRemovedSelected();
-                  },
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Propose to the public catalog — only once the font has
+                    // synced to the server (change: add-soundfont-moderation).
+                    if (p.remoteId != null)
+                      IconButton(
+                        tooltip: l10n.pianoPropose,
+                        icon: const Icon(
+                          Icons.publish_outlined,
+                          color: CymbraColors.onSurfaceVariant,
+                        ),
+                        onPressed: () => _propose(context, ref, p),
+                      ),
+                    IconButton(
+                      tooltip: l10n.pianoRemove,
+                      icon: const Icon(
+                        Icons.delete_outline,
+                        color: CymbraColors.onSurfaceVariant,
+                      ),
+                      onPressed: () {
+                        ref
+                            .read(importedSoundFontsProvider.notifier)
+                            .remove(p.id);
+                        if (p.id == selectedId) onRemovedSelected();
+                      },
+                    ),
+                  ],
                 ),
               ),
           const SizedBox(height: 8),
         ],
       ),
+    );
+  }
+
+  /// Opens the propose dialog (licence + attestation) and, on submit, proposes
+  /// the imported font to the public catalog.
+  Future<void> _propose(
+    BuildContext context,
+    WidgetRef ref,
+    PianoEntry p,
+  ) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final l10n = AppLocalizations.of(context);
+    final result = await showDialog<({String license, String attribution})>(
+      context: context,
+      builder: (_) => _ProposeDialog(fontLabel: p.label),
+    );
+    if (result == null) return; // cancelled
+    try {
+      await ref
+          .read(importedSoundFontsProvider.notifier)
+          .proposeToPublicCatalog(
+            p.id,
+            license: result.license,
+            attribution: result.attribution,
+            attestation: true,
+          );
+      showAppSnackBar(messenger, l10n.proposeDone);
+    } on PrivateSoundFontException {
+      showAppSnackBar(messenger, l10n.proposeError);
+    } catch (_) {
+      showAppSnackBar(messenger, l10n.proposeError);
+    }
+  }
+}
+
+/// Dialog to propose an imported sound font to the public catalog: a mandatory
+/// licence declaration + right-to-distribute attestation (a sound font is
+/// third-party sample data). Returns `(license, attribution)` on submit, or
+/// `null` when cancelled. Submit stays disabled until a licence is entered and
+/// the attestation is checked.
+class _ProposeDialog extends StatefulWidget {
+  const _ProposeDialog({required this.fontLabel});
+
+  final String fontLabel;
+
+  @override
+  State<_ProposeDialog> createState() => _ProposeDialogState();
+}
+
+class _ProposeDialogState extends State<_ProposeDialog> {
+  final _license = TextEditingController();
+  final _attribution = TextEditingController();
+  bool _attested = false;
+
+  @override
+  void dispose() {
+    _license.dispose();
+    _attribution.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final canSubmit = _attested && _license.text.trim().isNotEmpty;
+    return AlertDialog(
+      title: Text(l10n.proposeTitle),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(l10n.proposeIntro),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _license,
+              decoration: InputDecoration(labelText: l10n.proposeLicense),
+              onChanged: (_) => setState(() {}),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _attribution,
+              decoration: InputDecoration(labelText: l10n.proposeAttribution),
+            ),
+            const SizedBox(height: 8),
+            CheckboxListTile(
+              contentPadding: EdgeInsets.zero,
+              value: _attested,
+              onChanged: (v) => setState(() => _attested = v ?? false),
+              title: Text(l10n.proposeAttest),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(l10n.proposeCancel),
+        ),
+        FilledButton(
+          onPressed: canSubmit
+              ? () => Navigator.of(context).pop((
+                  license: _license.text.trim(),
+                  attribution: _attribution.text.trim(),
+                ))
+              : null,
+          child: Text(l10n.proposeSubmit),
+        ),
+      ],
     );
   }
 }

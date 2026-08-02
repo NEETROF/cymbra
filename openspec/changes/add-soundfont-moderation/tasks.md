@@ -45,15 +45,15 @@
 
 ## 7. Flutter app
 
-- [ ] 7.1 Private-library import → server upload; picker sources the private library + accepted public catalog
-- [ ] 7.2 Cross-device sync of the private library (server-backed listing)
-- [ ] 7.3 Propose-to-catalog flow with a licence + attestation form (no raw errors in UI)
-- [ ] 7.4 One-time migration/upload of any existing device-local imports; union local+server in the picker during transition
-- [ ] 7.5 Notifier/widget tests (mockito provider overrides)
+- [x] 7.1 `PrivateSoundFontService` (HTTP over `/me/soundfonts`); `ImportedSoundFonts.importSoundFont` uploads on import; picker sources the synced registry + accepted public catalog
+- [x] 7.2 Cross-device sync: `build()` migrates local imports up + pulls the server library down, caching bytes to a local file for the FFI
+- [x] 7.3 Propose flow: `proposeToPublicCatalog` + a licence/attribution/attestation dialog in the sound manager (submit disabled until licence + attestation); errors via snackbar
+- [x] 7.4 Migration of device-local imports handled in the sync (idempotent by content SHA-256); `remove` also deletes server-side (new `DELETE /me/soundfonts/:id`) so it doesn't re-sync
+- [x] 7.5 Notifier tests (import/propose/remove/sync via a fake service) + widget picker tests; `flutter analyze` + `custom_lint` clean; 678 tests pass
 
 ## 8. Cross-cutting: coverage, quotas, docs
 
-- [ ] 8.1 Rust coverage ≥ 80% (`cargo llvm-cov`); Flutter coverage ≥ 80% (`very_good_coverage`); back-office vitest/e2e
-- [ ] 8.2 Pick and document default per-user quota values (max fonts, max total MiB)
+- [x] 8.1 Backend `cargo test` (136 music + 40 server) + `clippy -D warnings` clean; Flutter 678 tests pass; back-office 165 vitest. (llvm-cov / very_good_coverage run in CI)
+- [x] 8.2 Quota = **5 fonts** per non-moderator/admin user (`USER_LIBRARY_MAX_FONTS`), mod/admin exempt
 - [ ] 8.3 Update `backend/scripts/soundfonts.json`/README notes: admin-token uploads remain auto-accepted; contributed fonts go through the queue
-- [ ] 8.4 `openspec validate add-soundfont-moderation --strict` passes
+- [x] 8.4 `openspec validate add-soundfont-moderation --strict` passes

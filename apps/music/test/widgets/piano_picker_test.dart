@@ -18,6 +18,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:music/services/preferences_service.dart';
+import 'package:music/services/private_soundfont_service.dart';
 import 'package:music/services/soundfont_catalog_service.dart';
 import 'package:music/services/soundfont_importer.dart';
 import 'package:music/services/soundfont_source.dart';
@@ -48,6 +49,11 @@ ProviderContainer _container({
     soundFontSourceProvider.overrideWithValue(FakeSoundFontSource()),
     soundFontImporterProvider.overrideWithValue(
       importer ?? FakeSoundFontImporter(),
+    ),
+    // Private library seam: empty (offline-equivalent) so the registry stays
+    // local — the widget tests exercise import/remove, not server sync.
+    privateSoundFontServiceProvider.overrideWithValue(
+      FakePrivateSoundFontService(),
     ),
     soundFontCatalogServiceProvider.overrideWithValue(
       FakeSoundFontCatalogService(

@@ -16,6 +16,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:music/services/audio_service.dart';
 import 'package:music/services/preferences_service.dart';
+import 'package:music/services/private_soundfont_service.dart';
 import 'package:music/services/soundfont_catalog_service.dart';
 import 'package:music/services/soundfont_importer.dart';
 import 'package:music/services/soundfont_source.dart';
@@ -43,6 +44,11 @@ ProviderContainer _container({
       ),
       soundFontImporterProvider.overrideWithValue(
         importer ?? FakeSoundFontImporter(),
+      ),
+      // Private library seam: empty (offline-equivalent) so the registry stays
+      // local and never hits the network during selection-restore tests.
+      privateSoundFontServiceProvider.overrideWithValue(
+        FakePrivateSoundFontService(),
       ),
       // The server's downloadable pianos (YDP/Salamander live here now, not in
       // the built-in list); defaults to the two CC-BY grands.

@@ -58,6 +58,9 @@ pub trait UserSoundFontRepo: Send + Sync {
     async fn lookup(&self, user_id: &str, id: &str) -> Result<Option<UserFontEntry>>;
     /// Insert a new private font row.
     async fn insert(&self, entry: &UserFontEntry) -> Result<()>;
+    /// Delete a font the caller owns, returning the removed row (its `object_key`
+    /// drives object cleanup); `None` if absent or not theirs.
+    async fn delete(&self, user_id: &str, id: &str) -> Result<Option<UserFontEntry>>;
 }
 
 fn row_to_entry(row: &PgRow) -> UserFontEntry {
@@ -167,6 +170,23 @@ impl UserSoundFontRepo for PgUserSoundFontRepo {
         .context("insert user soundfont")?;
         Ok(())
     }
+
+    async fn delete(&self, user_id: &str, id: &str) -> Result<Option<UserFontEntry>> {
+        let (Ok(uid), Ok(fid)) = (uuid::Uuid::parse_str(user_id), uuid::Uuid::parse_str(id)) else {
+            return Ok(None);
+        };
+        // Owner-scoped DELETE … RETURNING so the caller can clean up the object.
+        let row = sqlx::query(&format!(
+            "DELETE FROM music.user_soundfonts \
+             WHERE user_id = $1 AND id = $2 RETURNING {COLS}"
+        ))
+        .bind(uid)
+        .bind(fid)
+        .fetch_optional(&self.pool)
+        .await
+        .context("delete user soundfont")?;
+        Ok(row.as_ref().map(row_to_entry))
+    }
 }
 
 /// In-memory [`UserSoundFontRepo`] for tests (no database).
@@ -234,6 +254,15 @@ impl UserSoundFontRepo for FakeUserSoundFontRepo {
         self.rows.lock().unwrap().push(entry.clone());
         Ok(())
     }
+
+    async fn delete(&self, user_id: &str, id: &str) -> Result<Option<UserFontEntry>> {
+        let mut rows = self.rows.lock().unwrap();
+        if let Some(i) = rows.iter().position(|e| e.user_id == user_id && e.id == id) {
+            Ok(Some(rows.remove(i)))
+        } else {
+            Ok(None)
+        }
+    }
 }
 
 #[cfg(test)]
@@ -289,5 +318,20 @@ mod tests {
         // Lookup is owner-scoped: u2 can't fetch u1's font.
         assert!(repo.lookup("u1", "a").await.unwrap().is_some());
         assert!(repo.lookup("u2", "a").await.unwrap().is_none());
+    }
+
+    #[tokio::test]
+    async fn delete_is_owner_scoped() {
+        let repo = FakeUserSoundFontRepo::default();
+        repo.insert(&entry("a", "u1", "sha-a")).await.unwrap();
+        // Another user can't delete it.
+        assert!(repo.delete("u2", "a").await.unwrap().is_none());
+        assert_eq!(repo.count("u1").await.unwrap(), 1);
+        // The owner can, and gets the removed row back (for object cleanup).
+        let removed = repo.delete("u1", "a").await.unwrap();
+        assert_eq!(removed.map(|e| e.object_key), Some("user/u1/a.sf2".into()));
+        assert_eq!(repo.count("u1").await.unwrap(), 0);
+        // Deleting again is a no-op not-found.
+        assert!(repo.delete("u1", "a").await.unwrap().is_none());
     }
 }

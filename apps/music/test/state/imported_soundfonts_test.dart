@@ -18,6 +18,7 @@ import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:music/services/preferences_service.dart';
+import 'package:music/services/private_soundfont_service.dart';
 import 'package:music/services/soundfont_catalog_service.dart';
 import 'package:music/services/soundfont_importer.dart';
 import 'package:music/state/imported_soundfonts.dart';
@@ -28,8 +29,9 @@ import '../support/soundfont_fakes.dart';
 
 ProviderContainer _container(
   FakePreferencesService prefs,
-  FakeSoundFontImporter importer,
-) {
+  FakeSoundFontImporter importer, {
+  FakePrivateSoundFontService? private,
+}) {
   final container = ProviderContainer(
     overrides: [
       preferencesServiceProvider.overrideWithValue(prefs),
@@ -37,6 +39,11 @@ ProviderContainer _container(
       // No server download list needed for import/registry tests.
       soundFontCatalogServiceProvider.overrideWithValue(
         FakeSoundFontCatalogService(),
+      ),
+      // Private library seam: empty by default (offline-equivalent), so the
+      // registry stays local unless a test seeds/inspects it.
+      privateSoundFontServiceProvider.overrideWithValue(
+        private ?? FakePrivateSoundFontService(),
       ),
     ],
   );

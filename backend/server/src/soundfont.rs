@@ -231,7 +231,7 @@ pub fn soundfont_router(state: SoundfontState, allowed_origins: Vec<String>) -> 
         // Private per-user library (change: add-soundfont-moderation): list + import
         // (`/me/soundfonts`) and owner-scoped delivery (`/me/soundfonts/:id`).
         .route("/me/soundfonts", get(list_mine).post(import_mine))
-        .route("/me/soundfonts/:id", get(serve_mine))
+        .route("/me/soundfonts/:id", get(serve_mine).delete(delete_mine))
         // Opt-in: propose a private font to the public catalog (enters `pending`).
         .route("/me/soundfonts/:id/propose", post(propose_mine))
         .layer(DefaultBodyLimit::max(MAX_UPLOAD_BYTES))
@@ -502,6 +502,38 @@ async fn serve_mine(
         return status(StatusCode::SERVICE_UNAVAILABLE);
     };
     stream(store.as_ref(), &font.object_key, &headers).await
+}
+
+/// Remove a private-library font (owner-only): delete the row, then best-effort
+/// delete the stored object.
+async fn delete_mine(
+    State(s): State<SoundfontState>,
+    Path(id): Path<String>,
+    headers: HeaderMap,
+) -> Response {
+    let Some(user) = s.auth.identify(&headers) else {
+        return status(StatusCode::UNAUTHORIZED);
+    };
+    let Some(repo) = s.user_repo.as_ref() else {
+        return status(StatusCode::SERVICE_UNAVAILABLE);
+    };
+    let removed = match repo.delete(&user, &id).await {
+        Ok(r) => r,
+        Err(_) => return status(StatusCode::INTERNAL_SERVER_ERROR),
+    };
+    // A font that isn't the caller's (or doesn't exist) is not-found.
+    let Some(removed) = removed else {
+        return status(StatusCode::NOT_FOUND);
+    };
+    if let Some(store) = s.store.as_ref()
+        && let Err(e) = store.delete(&removed.object_key).await
+    {
+        tracing::warn!(
+            "private soundfont object {} not deleted: {e}",
+            removed.object_key
+        );
+    }
+    status(StatusCode::NO_CONTENT)
 }
 
 /// Query for proposing a private font to the public catalog. A soundfont is
@@ -1228,6 +1260,44 @@ mod tests {
         let other = private_app(repo, store, ident("u2", &["user"]));
         let resp = other.oneshot(get("/me/soundfonts/f1")).await.unwrap();
         assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn delete_mine_is_owner_scoped() {
+        let store = Arc::new(FakeStore::default());
+        store.put("user/u1/f1.sf2", sf2_bytes()).await.unwrap();
+        let repo: Arc<dyn UserSoundFontRepo> =
+            Arc::new(FakeUserSoundFontRepo::with(vec![user_entry(
+                "f1", "u1", "sha",
+            )]));
+        // Another user cannot delete it → not-found, object untouched.
+        let other = private_app(repo.clone(), store.clone(), ident("u2", &["user"]));
+        let resp = other
+            .oneshot(
+                Request::builder()
+                    .method("DELETE")
+                    .uri("/me/soundfonts/f1")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+        assert!(store.size("user/u1/f1.sf2").await.is_ok());
+        // The owner deletes it (row + object gone).
+        let owner = private_app(repo, store.clone(), ident("u1", &["user"]));
+        let resp = owner
+            .oneshot(
+                Request::builder()
+                    .method("DELETE")
+                    .uri("/me/soundfonts/f1")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::NO_CONTENT);
+        assert!(store.size("user/u1/f1.sf2").await.is_err());
     }
 
     #[tokio::test]
