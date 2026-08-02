@@ -50,7 +50,7 @@ pub use repo::{CatalogEntry, CatalogRepo, FakeCatalogRepo, ScoreFacets, ScoreMet
 pub use score_rating::{
     FakeScoreRatingRepo, RatingAggregate, RatingConfig, ScoreRatingRepo, Verdict,
 };
-pub use soundfont::{FakeSoundFontRepo, FontEntry, PgSoundFontRepo, SoundFontRepo};
+pub use soundfont::{FakeSoundFontRepo, FontEntry, PgSoundFontRepo, SoundFontRepo, sha256_hex};
 pub use user_library::{FakeUserLibraryRepo, UserLibraryRepo};
 pub use user_scores::{FakeUserScoreRepo, UserScore, UserScoreRepo};
 

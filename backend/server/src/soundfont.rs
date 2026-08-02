@@ -35,7 +35,7 @@ use axum::http::{HeaderMap, StatusCode, header};
 use axum::http::{HeaderValue, Method};
 use axum::response::{IntoResponse, Response};
 use axum::routing::get;
-use cymbra_music::{FontEntry, SoundFontRepo};
+use cymbra_music::{FontEntry, SoundFontRepo, sha256_hex};
 use cymbra_platform::{AuthIdentity, guard, token};
 use cymbra_storage::{ObjectStorage, StorageError};
 use jsonwebtoken::DecodingKey;
@@ -69,16 +69,29 @@ pub enum Decision {
 }
 
 /// Decide a delivery request purely from the already-resolved inputs: authenticate,
-/// then require the font to exist. Kept pure (the id → `font` resolution is an async
+/// then apply the moderation gate. Kept pure (the id → `font` resolution is an async
 /// repo read done by the caller) so a refusal never depends on whether the object
 /// exists.
-pub fn decide(user_id: Option<&str>, font: Option<&FontEntry>) -> Decision {
+///
+/// A normal caller may only fetch an `accepted` font; an unvalidated
+/// (`pending`/`rejected`) font is reported as not-found so its existence isn't leaked.
+/// A moderator/admin (`can_view_unvalidated`) may fetch a font of any status, so a
+/// reviewer can audition it (change: add-soundfont-moderation).
+pub fn decide(
+    user_id: Option<&str>,
+    can_view_unvalidated: bool,
+    font: Option<&FontEntry>,
+) -> Decision {
     if user_id.is_none() {
         return Decision::Unauthenticated;
     }
     match font {
-        Some(font) => Decision::Serve(font.object_key.clone()),
-        None => Decision::NotFound,
+        Some(font) if font.is_accepted() || can_view_unvalidated => {
+            Decision::Serve(font.object_key.clone())
+        }
+        // Unvalidated font hidden from a normal caller, and an unknown id, are both
+        // not-found — indistinguishable so visibility can't be probed.
+        Some(_) | None => Decision::NotFound,
     }
 }
 
@@ -275,12 +288,30 @@ async fn upload(
     let (Some(store), Some(repo)) = (s.store.as_ref(), s.repo.as_ref()) else {
         return status(StatusCode::SERVICE_UNAVAILABLE);
     };
+    // decide_upload only returns Accept with an authenticated, authorised identity.
+    let identity = identity.expect("decide_upload guarantees an identity on Accept");
     // Refuse a duplicate id rather than silently overwriting an existing font.
     match repo.lookup(&id).await {
         Ok(Some(_)) => return status(StatusCode::CONFLICT),
         Ok(None) => {}
         Err(_) => return status(StatusCode::INTERNAL_SERVER_ERROR),
     }
+    // Refuse byte-identical content already present under any (non-rejected) id, so the
+    // catalog never lists the same font twice (change: add-soundfont-moderation).
+    let content_sha256 = sha256_hex(&body);
+    match repo.find_by_content(&content_sha256).await {
+        Ok(Some(_)) => return status(StatusCode::CONFLICT),
+        Ok(None) => {}
+        Err(_) => return status(StatusCode::INTERNAL_SERVER_ERROR),
+    }
+
+    // Status branches on the uploader's role: an admin's upload is auto-`accepted`; a
+    // moderator's lands `pending` for a second reviewer.
+    let moderation_status = if guard::require_admin(&identity).is_ok() {
+        "accepted"
+    } else {
+        "pending"
+    };
 
     let object_key = format!("{id}.sf2");
     let size = body.len() as i64;
@@ -304,6 +335,11 @@ async fn upload(
         license: meta.license,
         attribution,
         size_bytes: Some(size),
+        moderation_status: moderation_status.to_string(),
+        reviewed_by: None,
+        reviewed_at: None,
+        uploaded_by: Some(identity.user_id.clone()),
+        content_sha256: Some(content_sha256),
     };
     if repo.insert(&entry).await.is_err() {
         let _ = store.delete(&object_key).await;
@@ -323,6 +359,13 @@ async fn serve(
     if user.is_none() {
         return status(StatusCode::UNAUTHORIZED);
     }
+    // A music-scope moderator/admin may audition unvalidated fonts; a normal caller
+    // only sees `accepted` ones (change: add-soundfont-moderation).
+    let can_view_unvalidated = s
+        .auth
+        .identify_admin(&headers)
+        .as_ref()
+        .is_some_and(|i| guard::require_moderator_or_admin(i).is_ok());
     let Some(repo) = s.repo.as_ref() else {
         // Feature unconfigured (no music DB / catalog) — the route is disabled.
         return status(StatusCode::SERVICE_UNAVAILABLE);
@@ -331,7 +374,7 @@ async fn serve(
         Ok(f) => f,
         Err(_) => return status(StatusCode::INTERNAL_SERVER_ERROR),
     };
-    let key = match decide(user.as_deref(), font.as_ref()) {
+    let key = match decide(user.as_deref(), can_view_unvalidated, font.as_ref()) {
         Decision::Unauthenticated => return status(StatusCode::UNAUTHORIZED),
         Decision::NotFound => return status(StatusCode::NOT_FOUND),
         Decision::Serve(key) => key,
@@ -417,8 +460,9 @@ mod tests {
 
     // --- Pure logic ------------------------------------------------------
 
-    /// A test [`FontEntry`] (owned fields, as the DB repo yields).
-    fn entry(id: &str, object_key: &str, license: &str) -> FontEntry {
+    /// A test [`FontEntry`] with the given moderation status (owned fields, as the DB
+    /// repo yields).
+    fn entry_status(id: &str, object_key: &str, license: &str, moderation: &str) -> FontEntry {
         FontEntry {
             id: id.into(),
             label: id.into(),
@@ -427,7 +471,17 @@ mod tests {
             license: license.into(),
             attribution: None,
             size_bytes: None,
+            moderation_status: moderation.into(),
+            reviewed_by: None,
+            reviewed_at: None,
+            uploaded_by: None,
+            content_sha256: Some(sha256_hex(id.as_bytes())),
         }
+    }
+
+    /// An `accepted` (publicly visible) test font.
+    fn entry(id: &str, object_key: &str, license: &str) -> FontEntry {
+        entry_status(id, object_key, license, "accepted")
     }
 
     fn upright() -> FontEntry {
@@ -435,13 +489,24 @@ mod tests {
     }
 
     #[test]
-    fn decide_requires_auth_then_the_font_to_exist() {
+    fn decide_requires_auth_then_applies_the_moderation_gate() {
         let font = upright();
-        assert_eq!(decide(None, Some(&font)), Decision::Unauthenticated);
-        assert_eq!(decide(Some("u"), None), Decision::NotFound);
+        // Unauthenticated is refused regardless.
+        assert_eq!(decide(None, false, Some(&font)), Decision::Unauthenticated);
+        // Authenticated + unknown id is not-found.
+        assert_eq!(decide(Some("u"), false, None), Decision::NotFound);
+        // Authenticated + accepted font is served.
         assert_eq!(
-            decide(Some("u"), Some(&font)),
+            decide(Some("u"), false, Some(&font)),
             Decision::Serve("UprightPianoKW-20220221.sf2".to_string())
+        );
+        // An unvalidated font is not-found to a normal caller…
+        let pending = entry_status("ydp", "ydp.sf2", "CC-BY 3.0", "pending");
+        assert_eq!(decide(Some("u"), false, Some(&pending)), Decision::NotFound);
+        // …but a moderator/admin may audition it.
+        assert_eq!(
+            decide(Some("m"), true, Some(&pending)),
+            Decision::Serve("ydp.sf2".to_string())
         );
     }
 
@@ -709,6 +774,63 @@ mod tests {
         assert_eq!(row.license, "CC-BY 3.0");
         // Instrument defaults to piano when not supplied.
         assert_eq!(row.instrument, "piano");
+        // An admin upload is auto-accepted, attributed to the uploader, with a digest.
+        assert_eq!(row.moderation_status, "accepted");
+        assert_eq!(row.uploaded_by.as_deref(), Some("a"));
+        assert_eq!(row.content_sha256, Some(sha256_hex(&sf2_bytes())));
+    }
+
+    #[tokio::test]
+    async fn upload_by_moderator_is_pending() {
+        let store = Arc::new(FakeStore::default());
+        let repo = Arc::new(cymbra_music::FakeSoundFontRepo::default());
+        let r = soundfont_router(
+            SoundfontState {
+                store: Some(store),
+                repo: Some(repo.clone()),
+                auth: Arc::new(FixedAdminAuth(Some(ident("m", &["moderator"])))),
+            },
+            vec!["https://bo.cymbra.app".to_string()],
+        );
+        let resp = r.oneshot(post(UPLOAD_URI, sf2_bytes())).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::CREATED);
+        // A moderator upload lands pending (awaiting a second reviewer) and is hidden
+        // from the public listing until accepted.
+        let row = repo.lookup("ydp-grand").await.unwrap().unwrap();
+        assert_eq!(row.moderation_status, "pending");
+        assert!(repo.list_accepted().await.unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn upload_duplicate_content_is_409() {
+        // A different id but byte-identical content is refused as a duplicate.
+        let store = Arc::new(FakeStore::default());
+        let existing = FontEntry {
+            id: "already-here".into(),
+            label: "existing".into(),
+            object_key: "already-here.sf2".into(),
+            instrument: "piano".into(),
+            license: "CC0-1.0".into(),
+            attribution: None,
+            size_bytes: None,
+            moderation_status: "accepted".into(),
+            reviewed_by: None,
+            reviewed_at: None,
+            uploaded_by: None,
+            content_sha256: Some(sha256_hex(&sf2_bytes())),
+        };
+        let repo: Arc<dyn SoundFontRepo> =
+            Arc::new(cymbra_music::FakeSoundFontRepo::with(vec![existing]));
+        let r = soundfont_router(
+            SoundfontState {
+                store: Some(store),
+                repo: Some(repo),
+                auth: Arc::new(FixedAdminAuth(Some(ident("a", &["admin"])))),
+            },
+            vec!["https://bo.cymbra.app".to_string()],
+        );
+        let resp = r.oneshot(post(UPLOAD_URI, sf2_bytes())).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::CONFLICT);
     }
 
     #[tokio::test]
@@ -723,6 +845,11 @@ mod tests {
                 license: "CC-BY 3.0".into(),
                 attribution: None,
                 size_bytes: None,
+                moderation_status: "accepted".into(),
+                reviewed_by: None,
+                reviewed_at: None,
+                uploaded_by: None,
+                content_sha256: Some("different-content".into()),
             }]));
         let r = soundfont_router(
             SoundfontState {

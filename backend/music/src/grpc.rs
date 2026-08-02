@@ -41,7 +41,8 @@ use crate::proto::{
     RemoveSavedCatalogScoreRequest, RemoveSavedCatalogScoreResponse, SaveCatalogScoreRequest,
     SaveCatalogScoreResponse, ScoreRecord, SearchCatalogRequest, SearchCatalogResponse,
     SetModerationStatusRequest, SetModerationStatusResponse, SetScoreFavoriteRequest,
-    SetScoreFavoriteResponse, SoundFont as ProtoSoundFont, SubmitScoreRatingRequest,
+    SetScoreFavoriteResponse, SetSoundFontModerationStatusRequest,
+    SetSoundFontModerationStatusResponse, SoundFont as ProtoSoundFont, SubmitScoreRatingRequest,
     SubmitScoreRatingResponse, UpdateCatalogScoreRequest, UpdateCatalogScoreResponse,
     UpdateSoundFontRequest, UpdateSoundFontResponse, UploadScoreRequest,
     score_service_server::{ScoreService, ScoreServiceServer},
@@ -255,10 +256,12 @@ impl ScoreService for ScoreGrpc {
         &self,
         req: Request<ListSoundFontsRequest>,
     ) -> Result<Response<ListSoundFontsResponse>, Status> {
-        identity(&req)?; // authenticated-only; the catalog is the same for everyone
+        identity(&req)?; // authenticated-only; the public catalog is the same for everyone
         let repo = self.soundfont_repo()?;
+        // Public listing: only validated (`accepted`) fonts are offered. Unvalidated
+        // fonts are visible only through the admin listing (change: add-soundfont-moderation).
         let fonts = repo
-            .list()
+            .list_accepted()
             .await
             .map_err(|e| Status::internal(format!("list soundfonts: {e}")))?;
         let soundfonts = fonts
@@ -302,6 +305,11 @@ impl ScoreService for ScoreGrpc {
                 attribution: f.attribution.unwrap_or_default(),
                 size_bytes: f.size_bytes.unwrap_or(0),
                 has_object,
+                moderation_status: f.moderation_status,
+                reviewed_by: f.reviewed_by.unwrap_or_default(),
+                reviewed_at: f.reviewed_at.map(|t| t.to_rfc3339()).unwrap_or_default(),
+                uploaded_by: f.uploaded_by.unwrap_or_default(),
+                content_sha256: f.content_sha256.unwrap_or_default(),
             });
         }
         Ok(Response::new(AdminListSoundFontsResponse { soundfonts }))
@@ -353,6 +361,32 @@ impl ScoreService for ScoreGrpc {
             tracing::warn!("soundfont object {} not deleted: {e}", entry.object_key);
         }
         Ok(Response::new(DeleteSoundFontResponse {}))
+    }
+
+    /// Set a font's moderation status (change: add-soundfont-moderation). Music-scope
+    /// moderator/admin only; the reviewer is the authenticated caller (never the body)
+    /// and is stamped as `reviewed_by` alongside the status.
+    async fn set_sound_font_moderation_status(
+        &self,
+        req: Request<SetSoundFontModerationStatusRequest>,
+    ) -> Result<Response<SetSoundFontModerationStatusResponse>, Status> {
+        let id = identity(&req)?;
+        cymbra_platform::guard::require_moderator_or_admin(&id)?;
+        let r = req.into_inner();
+        if !matches!(r.status.as_str(), "pending" | "accepted" | "rejected") {
+            return Err(Status::invalid_argument(
+                "status must be pending, accepted, or rejected",
+            ));
+        }
+        let repo = self.soundfont_repo()?;
+        let matched = repo
+            .set_moderation_status(&r.id, &r.status, &id.user_id)
+            .await
+            .map_err(|e| Status::internal(format!("set soundfont moderation status: {e}")))?;
+        if !matched {
+            return Err(Status::not_found("soundfont not found"));
+        }
+        Ok(Response::new(SetSoundFontModerationStatusResponse {}))
     }
 
     async fn set_score_favorite(
@@ -682,8 +716,13 @@ mod tests {
         grpc().await.with_limiter(limiter)
     }
 
-    /// A test SoundFont catalog entry.
+    /// A test SoundFont catalog entry (accepted / publicly visible by default).
     fn font(id: &str, attr: Option<&str>) -> crate::soundfont::FontEntry {
+        font_status(id, attr, "accepted")
+    }
+
+    /// A test SoundFont catalog entry with an explicit moderation status.
+    fn font_status(id: &str, attr: Option<&str>, status: &str) -> crate::soundfont::FontEntry {
         crate::soundfont::FontEntry {
             id: id.into(),
             label: format!("{id} label"),
@@ -692,6 +731,11 @@ mod tests {
             license: "CC0-1.0".into(),
             attribution: attr.map(Into::into),
             size_bytes: None,
+            moderation_status: status.into(),
+            reviewed_by: None,
+            reviewed_at: None,
+            uploaded_by: None,
+            content_sha256: Some(crate::soundfont::sha256_hex(id.as_bytes())),
         }
     }
 
@@ -866,6 +910,93 @@ mod tests {
             .await
             .unwrap_err();
         assert_eq!(err.code(), tonic::Code::NotFound);
+    }
+
+    #[tokio::test]
+    async fn list_soundfonts_hides_unvalidated() {
+        use crate::soundfont::FakeSoundFontRepo;
+        let svc = grpc()
+            .await
+            .with_soundfonts(Arc::new(FakeSoundFontRepo::with(vec![
+                font_status("accepted-one", None, "accepted"),
+                font_status("pending-one", None, "pending"),
+                font_status("rejected-one", None, "rejected"),
+            ])));
+        let resp = svc
+            .list_sound_fonts(authed(ListSoundFontsRequest {}, "u"))
+            .await
+            .unwrap()
+            .into_inner();
+        // Only the accepted font is offered publicly.
+        assert_eq!(resp.soundfonts.len(), 1);
+        assert_eq!(resp.soundfonts[0].id, "accepted-one");
+    }
+
+    #[tokio::test]
+    async fn set_soundfont_moderation_status_gates_and_transitions() {
+        use crate::soundfont::FakeSoundFontRepo;
+        let repo = Arc::new(FakeSoundFontRepo::with(vec![font_status(
+            "ydp-grand",
+            None,
+            "pending",
+        )]));
+        let svc = grpc().await.with_soundfonts(repo.clone());
+
+        // A plain user is refused.
+        let denied = svc
+            .set_sound_font_moderation_status(authed(
+                SetSoundFontModerationStatusRequest {
+                    id: "ydp-grand".into(),
+                    status: "accepted".into(),
+                },
+                "u",
+            ))
+            .await
+            .unwrap_err();
+        assert_eq!(denied.code(), tonic::Code::PermissionDenied);
+
+        // An invalid status value is rejected.
+        let bad = svc
+            .set_sound_font_moderation_status(authed_moderator(
+                SetSoundFontModerationStatusRequest {
+                    id: "ydp-grand".into(),
+                    status: "banana".into(),
+                },
+                "mod-1",
+            ))
+            .await
+            .unwrap_err();
+        assert_eq!(bad.code(), tonic::Code::InvalidArgument);
+
+        // A moderator accepts it → it becomes publicly visible, stamped with the reviewer.
+        // The reviewer id is a UUID (as the real AuthIdentity.user_id is).
+        let mod_uuid = "11111111-1111-1111-1111-111111111111";
+        svc.set_sound_font_moderation_status(authed_moderator(
+            SetSoundFontModerationStatusRequest {
+                id: "ydp-grand".into(),
+                status: "accepted".into(),
+            },
+            mod_uuid,
+        ))
+        .await
+        .unwrap();
+        let e = repo.lookup("ydp-grand").await.unwrap().unwrap();
+        assert_eq!(e.moderation_status, "accepted");
+        assert_eq!(e.reviewed_by.as_deref(), Some(mod_uuid));
+        assert_eq!(repo.list_accepted().await.unwrap().len(), 1);
+
+        // An unknown id is not-found.
+        let missing = svc
+            .set_sound_font_moderation_status(authed_moderator(
+                SetSoundFontModerationStatusRequest {
+                    id: "nope".into(),
+                    status: "accepted".into(),
+                },
+                mod_uuid,
+            ))
+            .await
+            .unwrap_err();
+        assert_eq!(missing.code(), tonic::Code::NotFound);
     }
 
     /// Attach an authenticated identity to a request (as the interceptor would).

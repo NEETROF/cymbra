@@ -1,0 +1,59 @@
+## 1. Database migrations
+
+- [x] 1.1 Migration on `music.soundfonts`: add `moderation_status TEXT NOT NULL DEFAULT 'pending' CHECK IN ('pending','accepted','rejected')`, `reviewed_by UUID`, `reviewed_at TIMESTAMPTZ`, `uploaded_by UUID`, `content_sha256 TEXT`; index on `moderation_status`
+- [x] 1.2 Backfill in the same migration: `upright-piano-kw` → `accepted`; all other existing rows → `pending`
+- [x] 1.3 Backfill `content_sha256` for existing rows (compute from stored objects, or leave NULL + note that dedup only guards new uploads until re-hashed)
+- [x] 1.4 New table `music.user_soundfonts` (owner `user_id`, `label`, `object_key`, `content_sha256`, `size_bytes`, timestamps) with an index on `user_id`; additive + reversible
+
+## 2. Backend — public catalog moderation (soundfont-moderation)
+
+- [x] 2.1 Extend `FontEntry` + `SoundFontRepo` (backend/music) with `moderation_status`, `reviewed_by`, `reviewed_at`, `uploaded_by`, `content_sha256`
+- [x] 2.2 Repo reads: public `list_accepted` returns `accepted` only; `list` (admin) returns any status; `lookup` any status; `FakeSoundFontRepo` in parity
+- [x] 2.3 `set_moderation_status(id, status, reviewer_id)` stamping `reviewed_by`/`reviewed_at`; reject unknown id; `rejected` keeps row + object
+- [x] 2.4 Content-identity lookup by `content_sha256` (against non-`rejected` rows) used before insert
+- [x] 2.5 Host-tested pure logic + repo tests (fake) for gating, status transitions, dedup
+
+## 3. Backend — delivery + upload gating (soundfont-delivery)
+
+- [x] 3.1 Delivery `decide()`: normal caller → `accepted` only (else not-found); moderator/admin → any status. (private-library owner path in phase 4)
+- [x] 3.2 Upload handler: compute SHA-256, refuse byte-identical duplicate (409 + existing id), branch status by role (admin → `accepted`, else → `pending`), record `uploaded_by`; back-office-audience uploads stay admin/moderator-only
+- [ ] 3.3 Route the app-audience upload path to the private library (not the public catalog)
+- [x] 3.4 Handler tests: accepted-only gate, moderator audition, duplicate refusal, role branching (audience routing in 3.3)
+
+## 4. Backend — private library + proposal (user-soundfont-library)
+
+- [ ] 4.1 `UserSoundFontRepo` + private per-user storage prefix; list/import/get scoped by `user_id`; idempotent import by `content_sha256`
+- [ ] 4.2 Per-user quota (max count + max total bytes) enforced on import with a typed error
+- [ ] 4.3 Propose endpoint/RPC: require licence declaration + right-to-distribute attestation; create a `pending` catalog row attributed to the proposer; refuse duplicate content
+- [ ] 4.4 Endpoints/RPCs: list private library, import, propose; auth by app audience
+- [ ] 4.5 Tests: owner-only visibility, cross-device listing, idempotent import, quota, proposal validation + dedup
+
+## 5. gRPC / proto
+
+- [x] 5.1 Gate `ListSoundFonts` to `accepted`; `AdminListSoundFonts` now carries moderation status/reviewer/uploader/content_sha256
+- [x] 5.2 Add `SetSoundFontModerationStatus(id, status)` (music-scope moderator/admin)
+- [ ] 5.3 Add private-library + propose messages/RPCs (or document the HTTP routes if kept HTTP)
+- [ ] 5.4 Regenerate proto/bridge/clients (backend proto regenerated via tonic-build; Dart `gen-grpc` + Vue gRPC-web still to do)
+
+## 6. Back office (moderation-console)
+
+- [ ] 6.1 Sound fonts screen: status badges + a back-office-only status filter (moderator/admin)
+- [ ] 6.2 Pending review queue view
+- [ ] 6.3 Audition a `pending`/`rejected` font (fetch bytes via moderator privilege) before deciding
+- [ ] 6.4 Accept/Reject actions wired to `SetSoundFontModerationStatus`; access-denied for non-moderator/admin
+- [ ] 6.5 Store/composable + component tests (ts-pattern Async unions; fake-client seam)
+
+## 7. Flutter app
+
+- [ ] 7.1 Private-library import → server upload; picker sources the private library + accepted public catalog
+- [ ] 7.2 Cross-device sync of the private library (server-backed listing)
+- [ ] 7.3 Propose-to-catalog flow with a licence + attestation form (no raw errors in UI)
+- [ ] 7.4 One-time migration/upload of any existing device-local imports; union local+server in the picker during transition
+- [ ] 7.5 Notifier/widget tests (mockito provider overrides)
+
+## 8. Cross-cutting: coverage, quotas, docs
+
+- [ ] 8.1 Rust coverage ≥ 80% (`cargo llvm-cov`); Flutter coverage ≥ 80% (`very_good_coverage`); back-office vitest/e2e
+- [ ] 8.2 Pick and document default per-user quota values (max fonts, max total MiB)
+- [ ] 8.3 Update `backend/scripts/soundfonts.json`/README notes: admin-token uploads remain auto-accepted; contributed fonts go through the queue
+- [ ] 8.4 `openspec validate add-soundfont-moderation --strict` passes
