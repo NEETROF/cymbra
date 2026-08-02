@@ -127,22 +127,32 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
       ),
     );
 
-    // Phone-landscape is short: facts on top, then controls in two columns so the
-    // modal fits without scrolling (left: sound + hands + metronome; right: MIDI +
-    // tempo + keyboard). Larger screens keep a single scrollable column.
+    // Phone-landscape is short: the sound picker spans the full width (so its
+    // dropdown menu has room for long font names), then the rest sits in two
+    // columns (left: hands + metronome; right: MIDI + tempo + keyboard) so the
+    // modal fits without scrolling. Larger screens keep a single scrollable column.
     final Widget body = phone
-        ? Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+        ? Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Expanded(child: scrollCol([sound, ?hands, metronome])),
-              const SizedBox(width: 24),
+              sound,
+              const SizedBox(height: 8),
               Expanded(
-                child: scrollCol([
-                  midi,
-                  tempo,
-                  keyboardSize,
-                  ?keyboardVisibility,
-                ]),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(child: scrollCol([?hands, metronome])),
+                    const SizedBox(width: 24),
+                    Expanded(
+                      child: scrollCol([
+                        midi,
+                        tempo,
+                        keyboardSize,
+                        ?keyboardVisibility,
+                      ]),
+                    ),
+                  ],
+                ),
               ),
             ],
           )

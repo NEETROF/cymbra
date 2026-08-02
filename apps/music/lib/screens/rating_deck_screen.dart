@@ -52,7 +52,9 @@ class RatingDeckScreen extends ConsumerWidget {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
             child: SizedBox(
-              width: 190,
+              // Wide enough that the "Add a SoundFont…" item fits the dropdown
+              // menu (its width follows the field) without truncating.
+              width: 260,
               child: SoundSelectorField(
                 dense: true,
                 value: ref.watch(selectedPianoProvider),
