@@ -104,7 +104,6 @@ class SoundSelectorField extends ConsumerWidget {
             DropdownMenuItem<String>(
               value: _addValue,
               child: Row(
-                mainAxisSize: MainAxisSize.min,
                 children: [
                   const Icon(
                     Icons.add,
@@ -112,7 +111,12 @@ class SoundSelectorField extends ConsumerWidget {
                     color: CymbraColors.onSurfaceVariant,
                   ),
                   const SizedBox(width: 8),
-                  Text(l10n.pianoAddSoundFont),
+                  Flexible(
+                    child: Text(
+                      l10n.pianoAddSoundFont,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
                 ],
               ),
             ),
