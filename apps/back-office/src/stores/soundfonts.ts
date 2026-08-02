@@ -2,7 +2,7 @@ import { ref } from "vue";
 import { defineStore } from "pinia";
 import { api } from "@/lib/api";
 import { type Async, idle, run } from "@/lib/async";
-import { humanError } from "@/lib/errors";
+import { humanError, SoundFontUploadError } from "@/lib/errors";
 import type { AdminSoundFont, CatalogHit, SoundFont } from "@/gen/score_pb";
 import { useAuthStore } from "./auth";
 
@@ -55,8 +55,8 @@ async function httpUpload(font: NewSoundFont, token: string | null): Promise<voi
     body: font.file,
   });
   if (!resp.ok) {
-    // Raw status is logged, never surfaced (humanError maps it to a message).
-    throw new Error(`soundfont upload failed: HTTP ${resp.status}`);
+    // Typed so humanError can map the status (e.g. 409 → "already exists").
+    throw new SoundFontUploadError(resp.status);
   }
 }
 

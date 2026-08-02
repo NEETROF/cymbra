@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createPinia, setActivePinia } from "pinia";
 import { type NewSoundFont, setUploadForTest, useSoundFontsStore } from "@/stores/soundfonts";
+import { SoundFontUploadError } from "@/lib/errors";
 import { setClientsForTest } from "@/lib/api";
 import { makeFakeClients } from "./fakes";
 
@@ -158,6 +159,29 @@ describe("soundfonts store", () => {
 
     expect(outcome.status).toBe("error");
     expect(store.op.status).toBe("error");
+  });
+
+  it("maps a 409 upload conflict to an 'already exists' message", async () => {
+    const { clients } = makeFakeClients();
+    withSoundfonts(clients);
+    setClientsForTest(clients);
+    setUploadForTest(async () => {
+      throw new SoundFontUploadError(409); // duplicate id or identical content
+    });
+    const store = useSoundFontsStore();
+
+    const outcome = await store.add({
+      id: "dup",
+      label: "Dup",
+      license: "CC0-1.0",
+      attribution: "",
+      instrument: "piano",
+      file,
+    });
+
+    expect(outcome.status).toBe("error");
+    // A clear, dedicated message — not the generic fallback.
+    expect(store.op.status === "error" && /exist/i.test(store.op.error)).toBe(true);
   });
 
   it("captures a denied edit in op instead of throwing", async () => {

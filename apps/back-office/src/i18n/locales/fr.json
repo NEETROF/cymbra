@@ -281,7 +281,10 @@
     "invalidArgument": "Requête invalide.",
     "resourceExhausted": "Trop de tentatives. Réessaie plus tard.",
     "unavailable": "Service indisponible. Réessaie.",
-    "generic": "Une erreur est survenue. Réessaie."
+    "generic": "Une erreur est survenue. Réessaie.",
+    "soundfontExists": "Cette SoundFont existe déjà (même id, ou un fichier identique est déjà au catalogue).",
+    "soundfontInvalid": "Ce fichier n’est pas une SoundFont (.sf2) valide.",
+    "soundfontTooLarge": "Ce fichier SoundFont est trop volumineux."
   },
   "id": {
     "reveal": "Afficher l'ID complet",
