@@ -165,9 +165,7 @@ void main() {
         width.toInt(),
         height.toInt(),
       );
-      final bytes = await image.toByteData(
-        format: ui.ImageByteFormat.rawRgba,
-      );
+      final bytes = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
       final w = image.width;
       final y = bandY.toInt().clamp(0, image.height - 1);
       for (var x = 0; x < w; x++) {

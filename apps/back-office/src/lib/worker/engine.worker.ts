@@ -56,8 +56,7 @@ const ctx = self as unknown as {
   onmessage: ((e: MessageEvent<Req>) => void) | null;
 };
 
-ctx.onmessage = async (e: MessageEvent<Req>) => {
-  const req = e.data;
+async function handle(req: Req): Promise<void> {
   try {
     if (req.kind === "schedule") {
       const result = (await notation()).schedule(req.bytes);
@@ -82,4 +81,10 @@ ctx.onmessage = async (e: MessageEvent<Req>) => {
     // Async error state (never shown raw to the user).
     ctx.postMessage({ id: req.id, ok: false, error: String(err) });
   }
+}
+
+// `handle` catches its own errors and reports them back to the caller, so the
+// floating promise is intentional (the void-returning onmessage slot).
+ctx.onmessage = (e: MessageEvent<Req>) => {
+  void handle(e.data);
 };

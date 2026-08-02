@@ -1307,8 +1307,7 @@ class _PartitionViewState extends ConsumerState<_PartitionView> {
                     final viewTop = pos != null && pos.hasPixels
                         ? pos.pixels
                         : 0.0;
-                    final viewHeight =
-                        pos != null && pos.hasViewportDimension
+                    final viewHeight = pos != null && pos.hasViewportDimension
                         ? pos.viewportDimension
                         : constraints.maxHeight;
                     return CustomPaint(

@@ -65,7 +65,9 @@ describe("useScorePlayer", () => {
   it("degrades to audio error when no AudioContext is available (jsdom)", async () => {
     // jsdom has no AudioContext, so toggle() must fail gracefully, not throw.
     setNotationWasmForTest({ render: vi.fn(), schedule: async () => schedule });
-    setAudioWasmForTest({ render: async () => ({ left: new Float32Array([0]), right: new Float32Array([0]), frames: 1 }) });
+    setAudioWasmForTest({
+      render: async () => ({ left: new Float32Array([0]), right: new Float32Array([0]), frames: 1 }),
+    });
     setSoundFontForTest(new Uint8Array([1, 2, 3]));
     const bytes = ref<Uint8Array | null>(new Uint8Array([1]));
     const scope = effectScope();
