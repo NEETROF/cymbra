@@ -32,8 +32,8 @@
 
 - [x] 5.1 Gate `ListSoundFonts` to `accepted`; `AdminListSoundFonts` now carries moderation status/reviewer/uploader/content_sha256
 - [x] 5.2 Add `SetSoundFontModerationStatus(id, status)` (music-scope moderator/admin)
-- [ ] 5.3 Add private-library + propose messages/RPCs (or document the HTTP routes if kept HTTP)
-- [ ] 5.4 Regenerate proto/bridge/clients (backend proto regenerated via tonic-build; Dart `gen-grpc` + Vue gRPC-web still to do)
+- [x] 5.3 Private-library + propose kept as HTTP routes under `/me/soundfonts` (no proto/gRPC needed); the app + delivery already use HTTP for bytes
+- [x] 5.4 Regenerated clients: backend proto via tonic-build, Vue gRPC-web via `yarn gen`. Dart `gen-grpc` not needed — the app calls the unchanged `ListSoundFonts` + the HTTP routes
 
 ## 6. Back office (moderation-console)
 
