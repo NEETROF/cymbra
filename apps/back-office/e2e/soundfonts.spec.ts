@@ -11,7 +11,15 @@ test.describe("sound fonts admin", () => {
     await seed(page, {
       loginAs: "admin",
       data: {
-        soundfonts: [{ id: "upright-piano-kw", label: "Upright Piano KW", instrument: "piano", license: "CC0-1.0", attribution: "" }],
+        soundfonts: [
+          {
+            id: "upright-piano-kw",
+            label: "Upright Piano KW",
+            instrument: "piano",
+            license: "CC0-1.0",
+            attribution: "",
+          },
+        ],
       },
     });
     await page.goto("/soundfonts");
@@ -37,7 +45,10 @@ test.describe("sound fonts admin", () => {
     await expect(page.getByText("YDP Grand Piano")).toBeVisible();
 
     // Edit it via the drawer.
-    await page.getByRole("row", { name: /YDP Grand Piano/ }).getByRole("button", { name: "Edit" }).click();
+    await page
+      .getByRole("row", { name: /YDP Grand Piano/ })
+      .getByRole("button", { name: "Edit" })
+      .click();
     const editDrawer = page.getByRole("dialog");
     await expect(editDrawer.getByRole("heading", { name: "Edit SoundFont" })).toBeVisible();
     await editDrawer.getByLabel("label").fill("YDP Grand (edited)");

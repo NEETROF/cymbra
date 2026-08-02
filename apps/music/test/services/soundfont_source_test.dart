@@ -28,7 +28,11 @@ void main() {
 
     test('derives https on the standard TLS port for a secure endpoint', () {
       // Prod fronts everything with Caddy on 443, so no explicit port is emitted.
-      const ep = CymbraEndpoint(host: 'api.example.com', port: 443, secure: true);
+      const ep = CymbraEndpoint(
+        host: 'api.example.com',
+        port: 443,
+        secure: true,
+      );
       expect(soundFontDeliveryOrigin(ep), 'https://api.example.com');
     });
   });

@@ -176,80 +176,80 @@ const audioState = computed(() => player.audio.value.status);
   <Teleport to="body">
     <div v-if="mode" class="overlay" @click.self="emit('close')">
       <dialog class="drawer" open aria-modal="true" @keydown.esc="emit('close')">
-      <header>
-        <h2>{{ isEdit ? t("soundfonts.editTitle") : t("soundfonts.createTitle") }}</h2>
-        <button type="button" class="x" :aria-label="t('soundfonts.cancel')" @click="emit('close')">✕</button>
-      </header>
+        <header>
+          <h2>{{ isEdit ? t("soundfonts.editTitle") : t("soundfonts.createTitle") }}</h2>
+          <button type="button" class="x" :aria-label="t('soundfonts.cancel')" @click="emit('close')">✕</button>
+        </header>
 
-      <p v-if="opError" class="error" role="alert">{{ opError }}</p>
+        <p v-if="opError" class="error" role="alert">{{ opError }}</p>
 
-      <form class="body" @submit.prevent="save">
-        <label>
-          <span>{{ t("soundfonts.id") }}</span>
-          <input v-model="form.id" aria-label="id" :disabled="isEdit" :placeholder="t('soundfonts.idHint')" />
-        </label>
-        <label>
-          <span>{{ t("soundfonts.label") }}</span>
-          <input v-model="form.label" aria-label="label" />
-        </label>
-        <label>
-          <span>{{ t("soundfonts.instrument") }}</span>
-          <!-- Only piano is offered for now (mandatory); the list grows later. -->
-          <select v-model="form.instrument" aria-label="instrument" :disabled="isEdit">
-            <option v-for="i in INSTRUMENTS" :key="i" :value="i">{{ t(`soundfonts.instr.${i}`) }}</option>
-          </select>
-        </label>
-        <label>
-          <span>{{ t("soundfonts.license") }}</span>
-          <select v-model="form.license" aria-label="license">
-            <option v-for="l in licenseOptions" :key="l" :value="l">{{ l }}</option>
-          </select>
-          <small v-if="licenseHint" class="fieldhint">{{ licenseHint }}</small>
-        </label>
-        <label>
-          <span>{{ t("soundfonts.attribution") }}</span>
-          <input v-model="form.attribution" aria-label="attribution" />
-        </label>
-        <label v-if="!isEdit">
-          <span>{{ t("soundfonts.file") }}</span>
-          <input type="file" accept=".sf2" :aria-label="t('soundfonts.file')" @change="onFile" />
-        </label>
-
-        <!-- Preview -->
-        <fieldset class="preview">
-          <legend>{{ t("soundfonts.preview") }}</legend>
-          <p class="hint">{{ t("soundfonts.previewHint") }}</p>
-          <div class="row">
-            <select v-model="selectedPiece" :aria-label="t('soundfonts.choosePiece')">
-              <option value="">{{ t("soundfonts.choosePiece") }}</option>
-              <option v-for="p in pieces" :key="p.id" :value="p.id">
-                {{ p.title || p.id }}{{ p.composer ? ` — ${p.composer}` : "" }}
-              </option>
+        <form class="body" @submit.prevent="save">
+          <label>
+            <span>{{ t("soundfonts.id") }}</span>
+            <input v-model="form.id" aria-label="id" :disabled="isEdit" :placeholder="t('soundfonts.idHint')" />
+          </label>
+          <label>
+            <span>{{ t("soundfonts.label") }}</span>
+            <input v-model="form.label" aria-label="label" />
+          </label>
+          <label>
+            <span>{{ t("soundfonts.instrument") }}</span>
+            <!-- Only piano is offered for now (mandatory); the list grows later. -->
+            <select v-model="form.instrument" aria-label="instrument" :disabled="isEdit">
+              <option v-for="i in INSTRUMENTS" :key="i" :value="i">{{ t(`soundfonts.instr.${i}`) }}</option>
             </select>
-            <button
-              type="button"
-              class="play"
-              :disabled="!player.canPlay.value || sf2Bytes == null"
-              @click="player.toggle()"
-            >
-              {{ player.playing.value ? t("soundfonts.pause") : t("soundfonts.play") }}
-            </button>
-          </div>
-          <p v-if="previewError" class="hint err">{{ previewError }}</p>
-          <p v-else-if="audioState === 'loading'" class="hint">…</p>
-          <p v-else-if="audioState === 'error'" class="hint err">{{ t("soundfonts.previewFailed") }}</p>
-        </fieldset>
+          </label>
+          <label>
+            <span>{{ t("soundfonts.license") }}</span>
+            <select v-model="form.license" aria-label="license">
+              <option v-for="l in licenseOptions" :key="l" :value="l">{{ l }}</option>
+            </select>
+            <small v-if="licenseHint" class="fieldhint">{{ licenseHint }}</small>
+          </label>
+          <label>
+            <span>{{ t("soundfonts.attribution") }}</span>
+            <input v-model="form.attribution" aria-label="attribution" />
+          </label>
+          <label v-if="!isEdit">
+            <span>{{ t("soundfonts.file") }}</span>
+            <input type="file" accept=".sf2" :aria-label="t('soundfonts.file')" @change="onFile" />
+          </label>
 
-        <footer>
-          <button type="submit" class="primary" :disabled="!canSave || acting">
-            {{ isEdit ? t("soundfonts.save") : t("soundfonts.add") }}
-          </button>
-          <button type="button" class="ghost" :disabled="acting" @click="emit('close')">
-            {{ t("soundfonts.cancel") }}
-          </button>
-        </footer>
-      </form>
-    </dialog>
+          <!-- Preview -->
+          <fieldset class="preview">
+            <legend>{{ t("soundfonts.preview") }}</legend>
+            <p class="hint">{{ t("soundfonts.previewHint") }}</p>
+            <div class="row">
+              <select v-model="selectedPiece" :aria-label="t('soundfonts.choosePiece')">
+                <option value="">{{ t("soundfonts.choosePiece") }}</option>
+                <option v-for="p in pieces" :key="p.id" :value="p.id">
+                  {{ p.title || p.id }}{{ p.composer ? ` — ${p.composer}` : "" }}
+                </option>
+              </select>
+              <button
+                type="button"
+                class="play"
+                :disabled="!player.canPlay.value || sf2Bytes == null"
+                @click="player.toggle()"
+              >
+                {{ player.playing.value ? t("soundfonts.pause") : t("soundfonts.play") }}
+              </button>
+            </div>
+            <p v-if="previewError" class="hint err">{{ previewError }}</p>
+            <p v-else-if="audioState === 'loading'" class="hint">…</p>
+            <p v-else-if="audioState === 'error'" class="hint err">{{ t("soundfonts.previewFailed") }}</p>
+          </fieldset>
+
+          <footer>
+            <button type="submit" class="primary" :disabled="!canSave || acting">
+              {{ isEdit ? t("soundfonts.save") : t("soundfonts.add") }}
+            </button>
+            <button type="button" class="ghost" :disabled="acting" @click="emit('close')">
+              {{ t("soundfonts.cancel") }}
+            </button>
+          </footer>
+        </form>
+      </dialog>
     </div>
   </Teleport>
 </template>

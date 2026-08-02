@@ -31,7 +31,17 @@ function withSoundfonts(clients: ReturnType<typeof makeFakeClients>["clients"], 
 }
 
 function row(id: string, extra: Record<string, unknown> = {}) {
-  return { id, label: id, objectKey: `${id}.sf2`, instrument: "piano", license: "CC0-1.0", attribution: "", sizeBytes: 0n, hasObject: true, ...extra };
+  return {
+    id,
+    label: id,
+    objectKey: `${id}.sf2`,
+    instrument: "piano",
+    license: "CC0-1.0",
+    attribution: "",
+    sizeBytes: 0n,
+    hasObject: true,
+    ...extra,
+  };
 }
 
 const file = new File([new Uint8Array([1, 2, 3])], "ydp.sf2");

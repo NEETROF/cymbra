@@ -87,7 +87,9 @@ function licenseDesc(license: string): string {
         <tr v-for="row in vm.rows" :key="row.id">
           <td>{{ row.label }}</td>
           <td class="mono">{{ row.id }}</td>
-          <td><AppTag variant="neutral">{{ t(`soundfonts.instr.${row.instrument || "piano"}`) }}</AppTag></td>
+          <td>
+            <AppTag variant="neutral">{{ t(`soundfonts.instr.${row.instrument || "piano"}`) }}</AppTag>
+          </td>
           <td>
             <span v-if="licenseDesc(row.license)" class="license-help" :title="licenseDesc(row.license)">{{
               row.license
