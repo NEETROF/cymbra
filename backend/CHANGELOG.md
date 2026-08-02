@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.11.0](https://github.com/NEETROF/cymbra/compare/backend-v0.10.1...backend-v0.11.0) (2026-08-02)
+
+
+### Features
+
+* selectable instrument sounds — catalog, back-office management, and in-app picker ([#164](https://github.com/NEETROF/cymbra/issues/164)) ([548b252](https://github.com/NEETROF/cymbra/commit/548b252577a7b48587d6d81ab32571faa9763a40))
+
+
+### Bug Fixes
+
+* **catalog:** Mutopia titles from .ly headers + back-office id display ([#162](https://github.com/NEETROF/cymbra/issues/162)) ([19d6818](https://github.com/NEETROF/cymbra/commit/19d68183313d40e0886424e33715796e0aba7194))
+
 ## [0.10.1](https://github.com/NEETROF/cymbra/compare/backend-v0.10.0...backend-v0.10.1) (2026-08-01)
 
 
