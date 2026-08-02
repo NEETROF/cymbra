@@ -17,7 +17,7 @@
 
 - [x] 3.1 Delivery `decide()`: normal caller → `accepted` only (else not-found); moderator/admin → any status. (private-library owner path in phase 4)
 - [x] 3.2 Upload handler: compute SHA-256, refuse byte-identical duplicate (409 + existing id), branch status by role (admin → `accepted`, else → `pending`), record `uploaded_by`; back-office-audience uploads stay admin/moderator-only
-- [ ] 3.3 Route the app-audience upload path to the private library (not the public catalog)
+- [x] 3.3 App uploads target the private library via the new `/me/soundfonts` routes (open to any authenticated user), separate from the admin catalog upload
 - [x] 3.4 Handler tests: accepted-only gate, moderator audition, duplicate refusal, role branching (audience routing in 3.3)
 
 ## 4. Backend — private library + proposal (user-soundfont-library)
