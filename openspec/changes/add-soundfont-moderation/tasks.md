@@ -55,5 +55,5 @@
 
 - [x] 8.1 Backend `cargo test` (136 music + 40 server) + `clippy -D warnings` clean; Flutter 678 tests pass; back-office 165 vitest. (llvm-cov / very_good_coverage run in CI)
 - [x] 8.2 Quota = **5 fonts** per non-moderator/admin user (`USER_LIBRARY_MAX_FONTS`), mod/admin exempt
-- [ ] 8.3 Update `backend/scripts/soundfonts.json`/README notes: admin-token uploads remain auto-accepted; contributed fonts go through the queue
+- [x] 8.3 `backend/scripts/soundfonts.json` documents that admin-token uploads stay auto-accepted while moderator/user contributions go through the review queue
 - [x] 8.4 `openspec validate add-soundfont-moderation --strict` passes
