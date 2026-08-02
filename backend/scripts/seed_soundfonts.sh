@@ -26,17 +26,12 @@
 #   CYMBRA_EMAIL      admin email (prompted if unset)
 #   CYMBRA_PASSWORD   admin password (prompted with -s if unset)
 #   AUDIENCE          token audience / scope (default music)
-#   POLYPHONE_BIN     path to the Polyphone binary used to transcode SF3→SF2
-#                     (default: `polyphone` on PATH; on macOS it lives at
-#                     /Applications/Polyphone.app/Contents/MacOS/polyphone)
 #
-# SF3 (Ogg-Vorbis-compressed) fonts can't be played by rustysynth (it rejects the
-# `OggS` sample format), so a compressed font is transcoded to plain SF2 with
-# Polyphone before upload — the bucket/runtime only ever hold uncompressed SF2. If
-# Polyphone isn't available, such a font is skipped with guidance rather than
-# uploaded broken.
+# SF2 only: rustysynth rejects compressed SF3 (the `OggS` sample format), so the
+# catalog holds uncompressed SF2 exclusively. A source that turns out to be SF3 is
+# skipped with a clear message (curate the manifest with SF2 sources instead).
 #
-# Deps: curl, jq (always); Polyphone only when a source is SF3.
+# Deps: curl, jq.
 set -euo pipefail
 
 BASE_URL="${BASE_URL:-http://localhost:8081}"
@@ -84,21 +79,8 @@ trap 'rm -rf "$WORK"' EXIT
 is_sf2() { [[ "$(head -c4 "$1" 2>/dev/null)" == "RIFF" && "$(dd if="$1" bs=1 skip=8 count=4 2>/dev/null)" == "sfbk" ]]; }
 # Compressed SF3 stores Ogg-Vorbis samples → the 'OggS' magic appears in the pool.
 # Uncompressed SF2 (what rustysynth needs) does not. This mirrors rustysynth's own
-# `four_cc == b"OggS"` reject check.
+# `four_cc == b"OggS"` reject check, so we catch an unplayable font before upload.
 looks_sf3() { LC_ALL=C grep -qa 'OggS' "$1"; }
-
-# Transcode a compressed SF3 to uncompressed SF2 with Polyphone: `-1` = export SF2,
-# `-i` input, `-o` output name, `-d` output dir. Echoes the produced .sf2 on success.
-# Returns 2 when Polyphone is absent (caller reports a skip), 1 on any other failure.
-convert_sf3() {
-  local in="$1" name="$2" out="$WORK/converted-$name" bin="${POLYPHONE_BIN:-polyphone}"
-  command -v "$bin" >/dev/null 2>&1 || return 2
-  mkdir -p "$out"
-  "$bin" -1 -i "$in" -o "$name" -d "$out" >/dev/null 2>&1 || return 1
-  local made; made="$(find "$out" -type f -iname '*.sf2' | head -1)"
-  [[ -n "$made" ]] && is_sf2 "$made" && ! looks_sf3 "$made" && { printf '%s' "$made"; return 0; }
-  return 1
-}
 
 # Resolve the entry's payload to a single .sf2 path, extracting an archive if needed.
 resolve_sf2() {
@@ -139,21 +121,8 @@ for i in $(seq 0 $((count - 1))); do
   fi
   sf2="$(resolve_sf2 "$raw")" || { echo "   fail: no valid .sf2 found in payload"; failed=$((failed + 1)); continue; }
   if looks_sf3 "$sf2"; then
-    echo "   note: compressed SF3 — transcoding to uncompressed SF2 (Polyphone)…"
-    if converted="$(convert_sf3 "$sf2" "$id")"; then
-      sf2="$converted"
-      echo "   transcoded to SF2 ($(wc -c <"$sf2" | tr -d ' ') bytes)"
-    else
-      rc=$?
-      if [[ "$rc" -eq 2 ]]; then
-        echo "   skip: SF3 needs Polyphone to transcode, but it wasn't found (set POLYPHONE_BIN)."
-        skipped=$((skipped + 1))
-      else
-        echo "   fail: SF3→SF2 transcode failed."
-        failed=$((failed + 1))
-      fi
-      continue
-    fi
+    echo "   skip: compressed SF3 — rustysynth can't play it. Use an uncompressed SF2 source instead."
+    skipped=$((skipped + 1)); continue
   fi
 
   # POST /soundfonts/{id}?label&license&attribution&instrument  (raw .sf2 body)
