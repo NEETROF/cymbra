@@ -133,15 +133,14 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
     );
 
     // Phone-landscape is short and now carries many controls, so the whole body
-    // scrolls as one unit (the Play button stays pinned below). The sound picker
-    // spans the full width (its dropdown menu follows the field width, so long
-    // font names + the "Add…" item need the room); the rest sits in two compact
-    // columns to cut the scroll distance. Larger screens keep a single column.
+    // scrolls as one unit (the Play button stays pinned below). The everyday
+    // controls come first in two compact columns; the sound picker — rarely
+    // changed — sits last, full width (its dropdown menu follows the field width,
+    // so long font names + the "Add…" item need the room). Larger screens keep a
+    // single column with the sound last for the same reason.
     final Widget body = phone
         ? SingleChildScrollView(
             child: col([
-              sound,
-              const SizedBox(height: 8),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -150,17 +149,19 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
                   Expanded(child: col([midi, tempo, ?keyboardVisibility])),
                 ],
               ),
+              const SizedBox(height: 8),
+              sound,
             ]),
           )
         : scrollCol([
             facts,
-            sound,
             ?hands,
             metronome,
             tempo,
             keyboardSize,
             ?keyboardVisibility,
             midi,
+            sound,
           ]);
 
     final header = _header(l10n, title, composer, entry?.level, phone);
