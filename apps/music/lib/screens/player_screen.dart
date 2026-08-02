@@ -28,9 +28,13 @@ import '../painters/piano_layout.dart';
 import '../painters/staff_painter.dart';
 import '../painters/synthesia_painter.dart';
 import '../services/platform_info.dart';
+import '../services/soundfont_importer.dart' show SoundFontImportException;
 import '../src/rust/api/musicxml.dart' show System;
 import '../state/app_language.dart';
 import '../state/app_locale.dart';
+import '../state/imported_soundfonts.dart';
+import '../state/piano_catalog.dart';
+import '../state/selected_piano.dart';
 import '../state/notation_data.dart';
 import '../state/notation_notifier.dart';
 import '../state/score_catalog.dart';
@@ -41,6 +45,7 @@ import '../state/player_notifier.dart';
 import '../state/session_summary.dart';
 import '../state/session_summary_store.dart';
 import '../theme/cymbra_theme.dart';
+import '../widgets/app_snackbar.dart';
 import '../widgets/countdown_overlay.dart';
 import '../widgets/language_selector.dart';
 import '../widgets/mistake_replay.dart';
@@ -700,6 +705,7 @@ class _SettingsMenu extends StatelessWidget {
 /// but the key that drives navigation is not).
 enum _SettingsCategory {
   midiDevice,
+  piano,
   keyboardSize,
   keyboardVisibility,
   hand,
@@ -741,6 +747,7 @@ class _SettingsDrawerState extends ConsumerState<_SettingsDrawer> {
   String _categoryTitle(AppLocalizations l10n, _SettingsCategory category) =>
       switch (category) {
         _SettingsCategory.midiDevice => l10n.settingsCategoryMidiDevice,
+        _SettingsCategory.piano => l10n.settingsCategoryPiano,
         _SettingsCategory.keyboardSize => l10n.settingsCategoryKeyboardSize,
         _SettingsCategory.keyboardVisibility =>
           l10n.settingsCategoryKeyboardVisibility,
@@ -787,6 +794,87 @@ class _SettingsDrawerState extends ConsumerState<_SettingsDrawer> {
     ),
   );
 
+  /// A group header inside the piano picker ("Built-in" / "Imported").
+  Widget _pianoGroupHeader(String label) => Padding(
+    padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
+    child: Text(
+      label,
+      style: const TextStyle(
+        color: CymbraColors.onSurfaceVariant,
+        fontSize: 12,
+        fontWeight: FontWeight.w700,
+        letterSpacing: 0.4,
+      ),
+    ),
+  );
+
+  /// Short license/attribution line for a piano row — the CC-BY grands' required
+  /// visible attribution; null for a user import (no license to show).
+  String? _pianoLicenseLabel(PianoEntry piano) {
+    final license = piano.license;
+    if (license == null) return null;
+    final attribution = piano.attribution;
+    return attribution == null ? license : '$license · $attribution';
+  }
+
+  /// A selectable piano row: a leading "selected" check, the label, an optional
+  /// license/attribution subtitle, and (for imported pianos) a remove button.
+  Widget _pianoOption(
+    PianoEntry piano, {
+    required bool selected,
+    required String removeTooltip,
+  }) {
+    final subtitle = _pianoLicenseLabel(piano);
+    return ListTile(
+      leading: Icon(
+        selected ? Icons.check_circle : Icons.radio_button_unchecked,
+        size: 20,
+        color: selected ? CymbraColors.tertiary : CymbraColors.onSurfaceVariant,
+      ),
+      title: Text(
+        piano.label,
+        style: const TextStyle(color: CymbraColors.onSurface),
+      ),
+      subtitle: subtitle == null
+          ? null
+          : Text(
+              subtitle,
+              style: const TextStyle(
+                color: CymbraColors.onSurfaceVariant,
+                fontSize: 12,
+              ),
+            ),
+      trailing: piano.kind == PianoKind.user
+          ? IconButton(
+              tooltip: removeTooltip,
+              icon: const Icon(
+                Icons.delete_outline,
+                color: CymbraColors.onSurfaceVariant,
+              ),
+              onPressed: () => ref
+                  .read(importedSoundFontsProvider.notifier)
+                  .remove(piano.id),
+            )
+          : null,
+      onTap: () => ref.read(selectedPianoProvider.notifier).select(piano.id),
+    );
+  }
+
+  /// Runs the SoundFont import flow. A picked, valid `.sf2` joins the catalog
+  /// (the list rebuilds); an invalid file is rejected with a non-fatal message;
+  /// a cancel is silent.
+  Future<void> _addSoundFont() async {
+    final messenger = ScaffoldMessenger.of(context);
+    final l10n = AppLocalizations.of(context);
+    try {
+      await ref.read(importedSoundFontsProvider.notifier).importSoundFont();
+    } on SoundFontImportException {
+      showAppSnackBar(messenger, l10n.pianoImportInvalid);
+    } catch (_) {
+      // Cancelled or a transient picker error — nothing to surface.
+    }
+  }
+
   /// The value rows for [category], built from the current selection.
   List<Widget> _valuesFor(
     _SettingsCategory category, {
@@ -797,6 +885,8 @@ class _SettingsDrawerState extends ConsumerState<_SettingsDrawer> {
     required bool keyboardVisible,
     required Hand selectedHands,
     required AppLanguage activeLanguage,
+    required List<PianoEntry> pianoCatalog,
+    required String selectedPiano,
     required Player notifier,
     required bool isAndroid,
   }) {
@@ -827,6 +917,40 @@ class _SettingsDrawerState extends ConsumerState<_SettingsDrawer> {
               label: l10n.midiNoDeviceDetected,
               onTap: null,
             ),
+        ];
+      case _SettingsCategory.piano:
+        final builtIn = pianoCatalog
+            .where((p) => p.kind != PianoKind.user)
+            .toList();
+        final imported = pianoCatalog
+            .where((p) => p.kind == PianoKind.user)
+            .toList();
+        return [
+          _pianoGroupHeader(l10n.pianoGroupBuiltIn),
+          for (final p in builtIn)
+            _pianoOption(
+              p,
+              selected: p.id == selectedPiano,
+              removeTooltip: l10n.pianoRemove,
+            ),
+          if (imported.isNotEmpty) _pianoGroupHeader(l10n.pianoGroupImported),
+          for (final p in imported)
+            _pianoOption(
+              p,
+              selected: p.id == selectedPiano,
+              removeTooltip: l10n.pianoRemove,
+            ),
+          ListTile(
+            leading: const Icon(
+              Icons.add,
+              color: CymbraColors.onSurfaceVariant,
+            ),
+            title: Text(
+              l10n.pianoAddSoundFont,
+              style: const TextStyle(color: CymbraColors.onSurface),
+            ),
+            onTap: _addSoundFont,
+          ),
         ];
       case _SettingsCategory.keyboardSize:
         return [
@@ -906,6 +1030,13 @@ class _SettingsDrawerState extends ConsumerState<_SettingsDrawer> {
     // needs the keyboard for its cascade, so the category is omitted there.
     final canHideKeyboard = mode != RenderMode.synthesia;
 
+    // The catalog of pianos and the active selection drive the piano picker.
+    final pianoCatalog = ref.watch(pianoCatalogProvider);
+    final selectedPiano = ref.watch(selectedPianoProvider);
+    final activePianoLabel = pianoCatalog
+        .firstWhere((p) => p.id == selectedPiano, orElse: () => defaultPiano)
+        .label;
+
     // Top-level categories (with the value currently in effect as a subtitle).
     final categories = <_Category>[
       (
@@ -913,6 +1044,12 @@ class _SettingsDrawerState extends ConsumerState<_SettingsDrawer> {
         title: _categoryTitle(l10n, _SettingsCategory.midiDevice),
         icon: Icons.piano,
         current: connectedDevice ?? l10n.settingsAuto,
+      ),
+      (
+        key: _SettingsCategory.piano,
+        title: _categoryTitle(l10n, _SettingsCategory.piano),
+        icon: Icons.library_music,
+        current: activePianoLabel,
       ),
       (
         key: _SettingsCategory.keyboardSize,
@@ -988,6 +1125,8 @@ class _SettingsDrawerState extends ConsumerState<_SettingsDrawer> {
             keyboardVisible: keyboardVisible,
             selectedHands: selectedHands,
             activeLanguage: activeLanguage,
+            pianoCatalog: pianoCatalog,
+            selectedPiano: selectedPiano,
             notifier: notifier,
             isAndroid: isAndroid,
           ),

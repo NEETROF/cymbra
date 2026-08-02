@@ -59,7 +59,42 @@
     "catalog": "Catalogue",
     "roles": "Rôles",
     "flags": "Feature flags",
+    "soundfonts": "Sons d’instruments",
     "menu": "Menu"
+  },
+  "soundfonts": {
+    "title": "Sons d’instruments",
+    "intro": "Gérez le catalogue de SoundFonts d’instruments. Ajouter un son téléverse son .sf2 et enregistre la ligne du catalogue ensemble.",
+    "add": "Ajouter une SoundFont",
+    "id": "Id",
+    "label": "Nom",
+    "license": "Licence",
+    "attribution": "Attribution",
+    "instrument": "Instrument",
+    "instr": { "piano": "Piano" },
+    "licenseDesc": {
+      "cc0": "CC0 1.0 — Domaine public : aucune attribution requise, réutilisation libre pour tout usage.",
+      "ccby": "CC BY — Utilisation libre, y compris commerciale, à condition de créditer l’auteur.",
+      "ccbysa": "CC BY-SA — Attribution requise et les œuvres dérivées doivent garder la même licence (partage à l’identique)."
+    },
+    "file": "Fichier SoundFont (.sf2)",
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "edit": "Modifier",
+    "remove": "Supprimer",
+    "empty": "Aucune SoundFont pour l’instant.",
+    "confirmRemove": "Supprimer cette SoundFont ? Sa ligne de catalogue et son fichier stocké sont supprimés.",
+    "createTitle": "Ajouter une SoundFont",
+    "editTitle": "Modifier la SoundFont",
+    "idHint": "ex. ydp-grand",
+    "preview": "Aperçu",
+    "previewHint": "Choisissez une pièce du catalogue et écoutez-la jouée avec cette SoundFont avant d’enregistrer.",
+    "choosePiece": "Choisir une pièce…",
+    "play": "Écouter",
+    "pause": "Pause",
+    "previewFailed": "Impossible de lire l’aperçu.",
+    "previewNoFont": "La SoundFont stockée n’a pas pu être chargée pour l’aperçu.",
+    "previewNoPiece": "La pièce choisie n’a pas pu être chargée."
   },
   "flags": {
     "title": "Feature flags",
@@ -199,7 +234,10 @@
     "pause": "⏸ Pause",
     "audioLoading": "Chargement de l'audio…",
     "audioError": "Audio indisponible.",
-    "seekHint": "Cliquez une mesure pour lire à partir de là."
+    "seekHint": "Cliquez une mesure pour lire à partir de là.",
+    "sound": "Son",
+    "soundLoading": "Chargement du son…",
+    "soundError": "Impossible de charger ce son."
   },
   "roles": {
     "title": "Rôles",

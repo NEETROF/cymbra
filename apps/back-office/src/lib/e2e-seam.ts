@@ -2,6 +2,7 @@ import { Code, ConnectError } from "@connectrpc/connect";
 import { setClientsForTest } from "@/lib/api";
 import type { Clients } from "@/lib/transport";
 import { setWebAuthClientForTest, WebAuthError, type WebAuthClient } from "@/lib/web-auth";
+import { setUploadForTest } from "@/stores/soundfonts";
 
 // E2E test seam (loaded ONLY when VITE_E2E=1 — see main.ts). Playwright seeds
 // `window.__CYMBRA_E2E__` with canned data via addInitScript before the app boots;
@@ -41,6 +42,9 @@ export interface E2EData {
   /** Accounts for the admin directory (`listAccounts`); roles are mutated in place
    * by grant/revoke so the UI reflects the change on re-list. */
   accounts?: DirectoryAccount[];
+  /** SoundFont catalog rows for the admin management screen (change:
+   * add-soundfont-back-office-management). Mutated in place by add/edit/delete. */
+  soundfonts?: Record<string, unknown>[];
   /** Force a method to reject with a ConnectError, keyed by method name. */
   fail?: Record<string, E2EFailure>;
   /** Force a method to reject with a ConnectError exactly ONCE (then succeed) —
@@ -69,6 +73,8 @@ export function installE2EClients(): void {
   const hits = data.hits ?? [];
   const counts = { pending: 0, accepted: 0, rejected: 0, ...(data.counts ?? {}) };
   const tokens = data.tokens ?? { accessToken: "", refreshToken: "r" };
+  // Mutable copy so add/edit/delete change the catalog the next list reflects.
+  const soundfonts: Record<string, unknown>[] = (data.soundfonts ?? []).map((f) => ({ ...f }));
   // Mutable per-scope copy so grant/revoke change roles in the right scope and the
   // next listAccounts reflects it. A seed's flat `roles` is treated as `music`.
   const byScope: { userId: string; handle?: string; displayName?: string; roles: Record<string, string[]> }[] = (
@@ -140,6 +146,25 @@ export function installE2EClients(): void {
       getCatalogScoreBytes: async () => {
         failIfSet("getCatalogScoreBytes");
         return { data: Uint8Array.from(data.bytes ?? [1, 2, 3]) };
+      },
+      // Public catalog listing (preview font picker on review/detail).
+      listSoundFonts: async () => ({ soundfonts: soundfonts.map(({ id, label }) => ({ id, label })) }),
+      // SoundFont catalog admin (change: add-soundfont-back-office-management).
+      adminListSoundFonts: async () => {
+        failIfSet("adminListSoundFonts");
+        return { soundfonts: soundfonts.map((f) => ({ hasObject: true, ...f })) };
+      },
+      updateSoundFont: async (req: { id: string } & Record<string, unknown>) => {
+        failIfSet("updateSoundFont");
+        const f = soundfonts.find((s) => s.id === req.id);
+        if (f) Object.assign(f, req);
+        return {};
+      },
+      deleteSoundFont: async (req: { id: string }) => {
+        failIfSet("deleteSoundFont");
+        const i = soundfonts.findIndex((s) => s.id === req.id);
+        if (i >= 0) soundfonts.splice(i, 1);
+        return {};
       },
     },
     user: {
@@ -220,6 +245,24 @@ export function installE2EClients(): void {
       session = false;
     },
   };
+
+  // The `.sf2` upload is an HTTP route (not a gRPC client), so route it through the
+  // same seed: a successful "upload" appends the font, which the next admin-list shows.
+  setUploadForTest(async (font) => {
+    if (data.fail?.upload) {
+      const f = data.fail.upload;
+      throw new ConnectError(f.message, f.code as Code);
+    }
+    soundfonts.push({
+      id: font.id,
+      label: font.label,
+      objectKey: `${font.id}.sf2`,
+      instrument: font.instrument,
+      license: font.license,
+      attribution: font.attribution,
+      hasObject: true,
+    });
+  });
 
   setClientsForTest(clients);
   setWebAuthClientForTest(webAuthClient);

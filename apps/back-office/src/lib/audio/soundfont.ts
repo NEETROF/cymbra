@@ -22,6 +22,11 @@ function isPlausibleSoundFont(resp: Response, bytes: Uint8Array): boolean {
   return bytes.length > 0;
 }
 
+/** Catalog id of the app's default piano — the one `loadSoundFont` serves. The preview
+ *  font picker pre-selects this row (and keeps using this lazy loader for it, rather than
+ *  eagerly fetching its bytes). Single source of truth for "the default sound". */
+export const DEFAULT_SOUNDFONT_ID = "upright-piano-kw";
+
 /** Absolute URL of the default SoundFont. `VITE_SOUNDFONT_URL` overrides; otherwise
  *  it is the delivery route on the web-auth/API origin (same host as sign-in). */
 function soundfontUrl(): string {
@@ -29,7 +34,7 @@ function soundfontUrl(): string {
   if (explicit) return explicit;
   let base = (import.meta.env.VITE_WEB_AUTH_URL as string | undefined) ?? "http://localhost:8081";
   while (base.endsWith("/")) base = base.slice(0, -1); // trim trailing slashes (no regex)
-  return `${base}/soundfonts/upright-piano-kw`;
+  return `${base}/soundfonts/${DEFAULT_SOUNDFONT_ID}`;
 }
 
 let cached: Promise<Uint8Array> | null = null;

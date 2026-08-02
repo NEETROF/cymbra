@@ -81,6 +81,30 @@ pub(crate) fn clamp7(v: u8) -> u8 {
     v.min(127)
 }
 
+/// Whether `bytes` look like a loadable SoundFont (`.sf2`) — a RIFF container
+/// tagged `sfbk`. This is the same cheap header check the app runs before
+/// accepting a user-imported file, mirrored here so the engine can reject a
+/// bogus swap **before** it drops the working synth: a SoundFont swap only
+/// proceeds if the incoming bytes pass this test, otherwise the current
+/// instrument is kept (graceful fallback, no hanging swap).
+///
+/// A `.sf2` file begins with the ASCII bytes `RIFF`, a 4-byte little-endian
+/// chunk size, then the form type `sfbk`. This validates the tags without
+/// parsing the (multi-MB) sample data.
+pub(crate) fn is_valid_soundfont(bytes: &[u8]) -> bool {
+    bytes.len() >= 12 && &bytes[0..4] == b"RIFF" && &bytes[8..12] == b"sfbk"
+}
+
+impl VoiceTracker {
+    /// Clears the tracker for a SoundFont swap, returning every pitch that was
+    /// sounding so the audio thread can release them across the swap (an
+    /// all-notes-off) — otherwise a held voice on the outgoing synth would hang.
+    /// Semantically an [`AudioEvent::AllOff`]; named for the swap call site.
+    pub(crate) fn clear_for_swap(&mut self) -> Vec<u8> {
+        self.apply(AudioEvent::AllOff)
+    }
+}
+
 /// Tracks which pitches are currently sounding so the audio thread can release
 /// them precisely on an [`AudioEvent::AllOff`] and so the model is testable
 /// without a synthesizer.
@@ -390,5 +414,44 @@ mod tests {
         let mut c = ClickVoice::new(true, 0.0);
         assert!(c.is_active());
         assert!(c.next_sample().is_finite());
+    }
+
+    #[test]
+    fn clear_for_swap_releases_every_held_voice() {
+        // Swapping the SoundFont must release the outgoing synth's voices so none
+        // hang; clear_for_swap returns them all and empties the tracker.
+        let mut v = VoiceTracker::new();
+        for p in [60, 64, 67] {
+            v.apply(AudioEvent::note_on(p, 100));
+        }
+        let mut released = v.clear_for_swap();
+        released.sort_unstable();
+        assert_eq!(released, vec![60, 64, 67]);
+        // Nothing left to release after the swap cleared it.
+        assert!(v.clear_for_swap().is_empty());
+    }
+
+    #[test]
+    fn valid_soundfont_header_is_accepted() {
+        // RIFF <size> sfbk ... — the minimal well-formed SoundFont preamble.
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(b"RIFF");
+        bytes.extend_from_slice(&0u32.to_le_bytes());
+        bytes.extend_from_slice(b"sfbk");
+        assert!(is_valid_soundfont(&bytes));
+    }
+
+    #[test]
+    fn non_soundfont_bytes_are_rejected() {
+        // A WAV (RIFF/WAVE), a too-short buffer, and arbitrary junk must all be
+        // rejected so a bad swap keeps the working synth.
+        let mut wav = Vec::new();
+        wav.extend_from_slice(b"RIFF");
+        wav.extend_from_slice(&0u32.to_le_bytes());
+        wav.extend_from_slice(b"WAVE");
+        assert!(!is_valid_soundfont(&wav));
+        assert!(!is_valid_soundfont(b"RIFF"));
+        assert!(!is_valid_soundfont(b""));
+        assert!(!is_valid_soundfont(b"not a soundfont at all"));
     }
 }

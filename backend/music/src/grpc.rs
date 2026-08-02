@@ -31,19 +31,24 @@ use crate::catalog_limits::CatalogAccessLimiter;
 use crate::catalog_search::{CatalogHit, CatalogQuery, SortKey, is_moderation_sort_field};
 use crate::module::{ScoreModule, UploadInput};
 use crate::proto::{
-    CatalogHit as ProtoCatalogHit, DeleteScoreRequest, DeleteScoreResponse,
-    GetCatalogScoreBytesRequest, GetCatalogScoreBytesResponse, GetCatalogScoreRequest,
-    GetRatingPreviewBytesRequest, GetRatingPreviewBytesResponse, GetScoreBytesRequest,
-    GetScoreBytesResponse, ListMyScoresRequest, ListMyScoresResponse, ListRatingDeckRequest,
-    ListRatingDeckResponse, ListSavedCatalogScoresRequest, ListSavedCatalogScoresResponse,
+    AdminListSoundFontsRequest, AdminListSoundFontsResponse, AdminSoundFont,
+    CatalogHit as ProtoCatalogHit, DeleteScoreRequest, DeleteScoreResponse, DeleteSoundFontRequest,
+    DeleteSoundFontResponse, GetCatalogScoreBytesRequest, GetCatalogScoreBytesResponse,
+    GetCatalogScoreRequest, GetRatingPreviewBytesRequest, GetRatingPreviewBytesResponse,
+    GetScoreBytesRequest, GetScoreBytesResponse, ListMyScoresRequest, ListMyScoresResponse,
+    ListRatingDeckRequest, ListRatingDeckResponse, ListSavedCatalogScoresRequest,
+    ListSavedCatalogScoresResponse, ListSoundFontsRequest, ListSoundFontsResponse,
     RemoveSavedCatalogScoreRequest, RemoveSavedCatalogScoreResponse, SaveCatalogScoreRequest,
     SaveCatalogScoreResponse, ScoreRecord, SearchCatalogRequest, SearchCatalogResponse,
     SetModerationStatusRequest, SetModerationStatusResponse, SetScoreFavoriteRequest,
-    SetScoreFavoriteResponse, SubmitScoreRatingRequest, SubmitScoreRatingResponse,
-    UpdateCatalogScoreRequest, UpdateCatalogScoreResponse, UploadScoreRequest,
+    SetScoreFavoriteResponse, SoundFont as ProtoSoundFont, SubmitScoreRatingRequest,
+    SubmitScoreRatingResponse, UpdateCatalogScoreRequest, UpdateCatalogScoreResponse,
+    UpdateSoundFontRequest, UpdateSoundFontResponse, UploadScoreRequest,
     score_service_server::{ScoreService, ScoreServiceServer},
 };
+use crate::soundfont::SoundFontRepo;
 use crate::user_scores::UserScore;
+use cymbra_storage::ObjectStorage;
 
 /// Wraps the score module as a tonic `ScoreService`.
 pub struct ScoreGrpc {
@@ -52,6 +57,14 @@ pub struct ScoreGrpc {
     /// leaves the service un-limited (used by unit tests); production wires it via
     /// [`Self::with_limiter`].
     limiter: Option<Arc<CatalogAccessLimiter>>,
+    /// Persisted SoundFont catalog (change: add-soundfont-catalog-db). `None` leaves
+    /// `ListSoundFonts` reporting the feature as unavailable; production wires it via
+    /// [`Self::with_soundfonts`].
+    soundfonts: Option<Arc<dyn SoundFontRepo>>,
+    /// Private SoundFont object store (change: add-soundfont-back-office-management),
+    /// so `DeleteSoundFont` can remove the object alongside the row and the admin list
+    /// can report object presence. `None` when the store is unconfigured.
+    soundfont_store: Option<Arc<dyn ObjectStorage>>,
 }
 
 impl ScoreGrpc {
@@ -59,6 +72,8 @@ impl ScoreGrpc {
         Self {
             module,
             limiter: None,
+            soundfonts: None,
+            soundfont_store: None,
         }
     }
 
@@ -66,6 +81,34 @@ impl ScoreGrpc {
     pub fn with_limiter(mut self, limiter: Arc<CatalogAccessLimiter>) -> Self {
         self.limiter = Some(limiter);
         self
+    }
+
+    /// Attach the persisted SoundFont catalog that backs `ListSoundFonts` and the
+    /// admin catalog RPCs.
+    pub fn with_soundfonts(mut self, soundfonts: Arc<dyn SoundFontRepo>) -> Self {
+        self.soundfonts = Some(soundfonts);
+        self
+    }
+
+    /// Attach the private SoundFont object store so `DeleteSoundFont` removes the
+    /// object with the row and the admin list can report object presence.
+    pub fn with_soundfont_store(mut self, store: Arc<dyn ObjectStorage>) -> Self {
+        self.soundfont_store = Some(store);
+        self
+    }
+
+    /// Like [`Self::with_soundfont_store`] but takes an already-optional store (the
+    /// store is `None` when unconfigured at the call site).
+    pub fn with_soundfont_store_opt(mut self, store: Option<Arc<dyn ObjectStorage>>) -> Self {
+        self.soundfont_store = store;
+        self
+    }
+
+    /// The wired SoundFont catalog, or `UNAVAILABLE` when unconfigured.
+    fn soundfont_repo(&self) -> Result<&Arc<dyn SoundFontRepo>, Status> {
+        self.soundfonts
+            .as_ref()
+            .ok_or_else(|| Status::unavailable("soundfont catalog unavailable"))
     }
 
     /// Mountable tonic server.
@@ -203,6 +246,113 @@ impl ScoreService for ScoreGrpc {
         let id = req.into_inner().id;
         let data = self.module.get_bytes(&owner_id, &id).await?;
         Ok(Response::new(GetScoreBytesResponse { data }))
+    }
+
+    /// Lists the server-owned SoundFont catalog (change: add-soundfont-catalog-db)
+    /// so the client offers only fonts that actually exist. Authenticated; the bytes
+    /// are fetched separately via the `GET /soundfonts/{id}` delivery route.
+    async fn list_sound_fonts(
+        &self,
+        req: Request<ListSoundFontsRequest>,
+    ) -> Result<Response<ListSoundFontsResponse>, Status> {
+        identity(&req)?; // authenticated-only; the catalog is the same for everyone
+        let repo = self.soundfont_repo()?;
+        let fonts = repo
+            .list()
+            .await
+            .map_err(|e| Status::internal(format!("list soundfonts: {e}")))?;
+        let soundfonts = fonts
+            .into_iter()
+            .map(|f| ProtoSoundFont {
+                id: f.id,
+                label: f.label,
+                license: f.license,
+                attribution: f.attribution.unwrap_or_default(),
+                instrument: f.instrument,
+            })
+            .collect();
+        Ok(Response::new(ListSoundFontsResponse { soundfonts }))
+    }
+
+    /// Admin list of the SoundFont catalog (change:
+    /// add-soundfont-back-office-management). Music-scope moderator/admin only; carries
+    /// the storage-facing fields the user listing omits and reports object presence.
+    async fn admin_list_sound_fonts(
+        &self,
+        req: Request<AdminListSoundFontsRequest>,
+    ) -> Result<Response<AdminListSoundFontsResponse>, Status> {
+        cymbra_platform::guard::require_moderator_or_admin(&identity(&req)?)?;
+        let repo = self.soundfont_repo()?;
+        let fonts = repo
+            .list()
+            .await
+            .map_err(|e| Status::internal(format!("list soundfonts: {e}")))?;
+        let mut soundfonts = Vec::with_capacity(fonts.len());
+        for f in fonts {
+            let has_object = match &self.soundfont_store {
+                Some(s) => s.size(&f.object_key).await.is_ok(),
+                None => false,
+            };
+            soundfonts.push(AdminSoundFont {
+                id: f.id,
+                label: f.label,
+                object_key: f.object_key,
+                instrument: f.instrument,
+                license: f.license,
+                attribution: f.attribution.unwrap_or_default(),
+                size_bytes: f.size_bytes.unwrap_or(0),
+                has_object,
+            });
+        }
+        Ok(Response::new(AdminListSoundFontsResponse { soundfonts }))
+    }
+
+    /// Edit a font's metadata (music-scope moderator/admin only). Id and object_key
+    /// are immutable; bytes are replaced by re-upload through the HTTP route.
+    async fn update_sound_font(
+        &self,
+        req: Request<UpdateSoundFontRequest>,
+    ) -> Result<Response<UpdateSoundFontResponse>, Status> {
+        cymbra_platform::guard::require_moderator_or_admin(&identity(&req)?)?;
+        let repo = self.soundfont_repo()?;
+        let r = req.into_inner();
+        let attribution = (!r.attribution.is_empty()).then_some(r.attribution.as_str());
+        let updated = repo
+            .update_meta(&r.id, &r.label, &r.license, attribution)
+            .await
+            .map_err(|e| Status::internal(format!("update soundfont: {e}")))?;
+        if !updated {
+            return Err(Status::not_found("soundfont not found"));
+        }
+        Ok(Response::new(UpdateSoundFontResponse {}))
+    }
+
+    /// Remove a font (music-scope moderator/admin only): delete the catalog row, then
+    /// best-effort delete the stored object. The row is removed even if object deletion
+    /// fails, so the font immediately stops being offered.
+    async fn delete_sound_font(
+        &self,
+        req: Request<DeleteSoundFontRequest>,
+    ) -> Result<Response<DeleteSoundFontResponse>, Status> {
+        cymbra_platform::guard::require_moderator_or_admin(&identity(&req)?)?;
+        let repo = self.soundfont_repo()?;
+        let font_id = req.into_inner().id;
+        let entry = repo
+            .lookup(&font_id)
+            .await
+            .map_err(|e| Status::internal(format!("lookup soundfont: {e}")))?;
+        let Some(entry) = entry else {
+            return Err(Status::not_found("soundfont not found"));
+        };
+        repo.delete(&font_id)
+            .await
+            .map_err(|e| Status::internal(format!("delete soundfont: {e}")))?;
+        if let Some(store) = &self.soundfont_store
+            && let Err(e) = store.delete(&entry.object_key).await
+        {
+            tracing::warn!("soundfont object {} not deleted: {e}", entry.object_key);
+        }
+        Ok(Response::new(DeleteSoundFontResponse {}))
     }
 
     async fn set_score_favorite(
@@ -530,6 +680,192 @@ mod tests {
             cfg,
         ));
         grpc().await.with_limiter(limiter)
+    }
+
+    /// A test SoundFont catalog entry.
+    fn font(id: &str, attr: Option<&str>) -> crate::soundfont::FontEntry {
+        crate::soundfont::FontEntry {
+            id: id.into(),
+            label: format!("{id} label"),
+            object_key: format!("{id}.sf2"),
+            instrument: "piano".into(),
+            license: "CC0-1.0".into(),
+            attribution: attr.map(Into::into),
+            size_bytes: None,
+        }
+    }
+
+    #[tokio::test]
+    async fn list_soundfonts_returns_the_catalog_for_an_authed_caller() {
+        use crate::soundfont::FakeSoundFontRepo;
+        let svc = grpc()
+            .await
+            .with_soundfonts(Arc::new(FakeSoundFontRepo::with(vec![
+                font("upright-piano-kw", None),
+                font("ydp-grand", Some("Roberto / Zenph Studios")),
+            ])));
+        let resp = svc
+            .list_sound_fonts(authed(ListSoundFontsRequest {}, "u"))
+            .await
+            .unwrap()
+            .into_inner();
+        assert_eq!(resp.soundfonts.len(), 2);
+        let ydp = resp
+            .soundfonts
+            .iter()
+            .find(|f| f.id == "ydp-grand")
+            .unwrap();
+        assert_eq!(ydp.attribution, "Roberto / Zenph Studios");
+        assert_eq!(ydp.instrument, "piano");
+        // A missing attribution maps to an empty string on the wire.
+        let up = resp
+            .soundfonts
+            .iter()
+            .find(|f| f.id == "upright-piano-kw")
+            .unwrap();
+        assert_eq!(up.attribution, "");
+        assert_eq!(up.instrument, "piano");
+    }
+
+    #[tokio::test]
+    async fn list_soundfonts_requires_auth() {
+        use crate::soundfont::FakeSoundFontRepo;
+        let svc = grpc()
+            .await
+            .with_soundfonts(Arc::new(FakeSoundFontRepo::default()));
+        let err = svc
+            .list_sound_fonts(Request::new(ListSoundFontsRequest {}))
+            .await
+            .unwrap_err();
+        assert_eq!(err.code(), tonic::Code::Unauthenticated);
+    }
+
+    #[tokio::test]
+    async fn list_soundfonts_unavailable_without_a_repo() {
+        let svc = grpc().await; // no catalog wired
+        let err = svc
+            .list_sound_fonts(authed(ListSoundFontsRequest {}, "u"))
+            .await
+            .unwrap_err();
+        assert_eq!(err.code(), tonic::Code::Unavailable);
+    }
+
+    /// A ScoreGrpc with the SoundFont catalog + a store seeded with the font object.
+    async fn grpc_soundfont_admin() -> (
+        ScoreGrpc,
+        std::sync::Arc<crate::soundfont::FakeSoundFontRepo>,
+        std::sync::Arc<FakeStore>,
+    ) {
+        use crate::soundfont::FakeSoundFontRepo;
+        let repo = Arc::new(FakeSoundFontRepo::with(vec![font(
+            "ydp-grand",
+            Some("Roberto"),
+        )]));
+        let store = Arc::new(FakeStore::default());
+        store.put("ydp-grand.sf2", b"SF2".to_vec()).await.unwrap();
+        let svc = grpc()
+            .await
+            .with_soundfonts(repo.clone())
+            .with_soundfont_store(store.clone());
+        (svc, repo, store)
+    }
+
+    #[tokio::test]
+    async fn admin_soundfont_ops_require_moderator_or_admin() {
+        let (svc, _repo, _store) = grpc_soundfont_admin().await;
+        // A plain user (no moderator/admin) is refused on every admin op.
+        let list = svc
+            .admin_list_sound_fonts(authed(AdminListSoundFontsRequest {}, "u"))
+            .await
+            .unwrap_err();
+        assert_eq!(list.code(), tonic::Code::PermissionDenied);
+        let upd = svc
+            .update_sound_font(authed(
+                UpdateSoundFontRequest {
+                    id: "ydp-grand".into(),
+                    label: "x".into(),
+                    license: "x".into(),
+                    attribution: String::new(),
+                },
+                "u",
+            ))
+            .await
+            .unwrap_err();
+        assert_eq!(upd.code(), tonic::Code::PermissionDenied);
+        let del = svc
+            .delete_sound_font(authed(
+                DeleteSoundFontRequest {
+                    id: "ydp-grand".into(),
+                },
+                "u",
+            ))
+            .await
+            .unwrap_err();
+        assert_eq!(del.code(), tonic::Code::PermissionDenied);
+    }
+
+    #[tokio::test]
+    async fn admin_updates_metadata() {
+        let (svc, repo, _store) = grpc_soundfont_admin().await;
+        svc.update_sound_font(authed_admin(
+            UpdateSoundFontRequest {
+                id: "ydp-grand".into(),
+                label: "YDP Grand (edited)".into(),
+                license: "CC-BY 3.0".into(),
+                attribution: "Roberto / Zenph".into(),
+            },
+            "admin-1",
+        ))
+        .await
+        .unwrap();
+        let e = repo.lookup("ydp-grand").await.unwrap().unwrap();
+        assert_eq!(e.label, "YDP Grand (edited)");
+        assert_eq!(e.attribution.as_deref(), Some("Roberto / Zenph"));
+        // Instrument is immutable across a metadata edit.
+        assert_eq!(e.instrument, "piano");
+
+        // An unknown id is not-found.
+        let err = svc
+            .update_sound_font(authed_admin(
+                UpdateSoundFontRequest {
+                    id: "nope".into(),
+                    label: "x".into(),
+                    license: "x".into(),
+                    attribution: String::new(),
+                },
+                "admin-1",
+            ))
+            .await
+            .unwrap_err();
+        assert_eq!(err.code(), tonic::Code::NotFound);
+    }
+
+    #[tokio::test]
+    async fn admin_delete_removes_row_and_object() {
+        let (svc, repo, store) = grpc_soundfont_admin().await;
+        svc.delete_sound_font(authed_admin(
+            DeleteSoundFontRequest {
+                id: "ydp-grand".into(),
+            },
+            "admin-1",
+        ))
+        .await
+        .unwrap();
+        assert!(repo.list().await.unwrap().is_empty());
+        // The stored object is gone too.
+        assert!(store.size("ydp-grand.sf2").await.is_err());
+
+        // Deleting an unknown id is not-found.
+        let err = svc
+            .delete_sound_font(authed_admin(
+                DeleteSoundFontRequest {
+                    id: "ydp-grand".into(),
+                },
+                "admin-1",
+            ))
+            .await
+            .unwrap_err();
+        assert_eq!(err.code(), tonic::Code::NotFound);
     }
 
     /// Attach an authenticated identity to a request (as the interceptor would).

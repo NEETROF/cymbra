@@ -36,6 +36,7 @@ const ICONS: Record<string, string> = {
   catalog: "M9 18V5l12-2v13M9 13l12-2M9 18a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm12-2a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z",
   roles: "M12 2 4 6v6c0 5 3.5 8 8 10 4.5-2 8-5 8-10V6l-8-4Z",
   flags: "M4 22V4m0 0 8-2 8 3v9l-8-2-8 2",
+  soundfonts: "M9 18V5l12-2v13M9 13l12-2M9 18a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm12-2a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z",
 };
 
 const nav = computed(() => {
@@ -44,7 +45,11 @@ const nav = computed(() => {
     { to: "/music/catalog", key: "nav.catalog", icon: "catalog" },
   ];
   if (auth.isAdmin) {
-    items.push({ to: "/roles", key: "nav.roles", icon: "roles" }, { to: "/flags", key: "nav.flags", icon: "flags" });
+    items.push(
+      { to: "/roles", key: "nav.roles", icon: "roles" },
+      { to: "/flags", key: "nav.flags", icon: "flags" },
+      { to: "/soundfonts", key: "nav.soundfonts", icon: "soundfonts" },
+    );
   }
   return items;
 });

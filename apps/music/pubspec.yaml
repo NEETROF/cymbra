@@ -63,10 +63,17 @@ dependencies:
   http: ^1.6.0
   crypto: ^3.0.7
 
-  # Native file picker for the score-contribution flow (.musicxml/.xml/.mxl),
-  # behind the injectable `filePickerProvider` seam so the wizard is testable
-  # without the native picker (change: add-user-score-upload).
+  # Native file picker for the score-contribution flow (.musicxml/.xml/.mxl) and
+  # the SoundFont import flow (.sf2), behind the injectable `filePickerProvider` /
+  # `soundFontImporterProvider` seams so both are testable without the native
+  # picker (changes: add-user-score-upload, piano-sound-selection).
   file_picker: ^8.1.2
+
+  # Durable per-app storage directory for imported / downloaded SoundFonts, so a
+  # user's chosen `.sf2` survives relaunches (unlike the OS temp dir). Resolved
+  # behind an injectable provider so tests use a throwaway directory (change:
+  # piano-sound-selection).
+  path_provider: ^2.1.4
 
   # Local, on-device key-value store for small user preferences (starting with
   # the selected UI language). Kept separate from flutter_secure_storage, which

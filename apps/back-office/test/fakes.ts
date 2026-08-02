@@ -99,6 +99,7 @@ export function makeFakeClients(state: Partial<FakeState> = {}): { clients: Clie
         return s.hits[0] ?? { id: req.catalogId };
       },
       getCatalogScoreBytes: async () => ({ data: new Uint8Array([1, 2, 3]) }),
+      listSoundFonts: async () => ({ soundfonts: [] }),
     },
     user: {
       grantRole: async (req: { userId: string; scope: string; role: string }) => {

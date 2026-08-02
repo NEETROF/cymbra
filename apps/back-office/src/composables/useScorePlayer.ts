@@ -35,11 +35,23 @@ function audioContextCtor(): Ctx | null {
   return w.AudioContext ?? w.webkitAudioContext ?? null;
 }
 
-export function useScorePlayer(bytes: Ref<Uint8Array | null | undefined>): ScorePlayer {
+export function useScorePlayer(
+  bytes: Ref<Uint8Array | null | undefined>,
+  // Optional SoundFont bytes to render with. When omitted — or provided but currently
+  // `null` — the app's default piano is fetched from the delivery route (the original
+  // behaviour). When it holds bytes, the score is rendered with them: the SoundFont admin
+  // preview passes a candidate `.sf2` (a picked file, or an existing font's bytes) to
+  // audition it, and the review/detail preview passes a picked catalog font (null = the
+  // default piano). A change to these bytes re-renders (change:
+  // add-soundfont-back-office-management).
+  sf2Bytes?: Ref<Uint8Array | null | undefined>,
+): ScorePlayer {
   const schedule = ref<Async<PlaybackSchedule>>(idle);
   const audio = ref<Async<void>>(idle);
   const playing = ref(false);
   const elapsedMs = ref(0);
+  // A `null` custom font is NOT a blocker: playback falls back to the default piano, so
+  // canPlay depends only on the schedule + score bytes.
   const canPlay = computed(() => schedule.value.status === "success" && bytes.value != null);
 
   let ctx: AudioContext | null = null;
@@ -71,6 +83,15 @@ export function useScorePlayer(bytes: Ref<Uint8Array | null | undefined>): Score
     },
     { immediate: true },
   );
+
+  // A change of candidate SoundFont invalidates the rendered PCM so the next Play
+  // re-renders the same score with the new font.
+  if (sf2Bytes) {
+    watch(sf2Bytes, () => {
+      stop();
+      buffer = null;
+    });
+  }
 
   function tick(): void {
     if (!playing.value || !ctx) return;
@@ -113,11 +134,16 @@ export function useScorePlayer(bytes: Ref<Uint8Array | null | undefined>): Score
       await ctx.resume();
       if (!buffer) {
         audio.value = loading;
-        // Fetch the SoundFont from the backend delivery route with the caller's access
-        // token (resolved here — reached only with a real AudioContext, so unit tests
-        // that stub audio never need a Pinia instance).
-        const token = useAuthStore().accessToken;
-        const [wasm, sf2] = await Promise.all([loadAudioWasm(), loadSoundFont(token)]);
+        // Render with the provided candidate SoundFont, else fetch the app default from
+        // the delivery route (with the caller's access token — resolved here, reached
+        // only with a real AudioContext, so unit tests that stub audio need no Pinia).
+        const wasm = await loadAudioWasm();
+        const sf2 =
+          sf2Bytes && sf2Bytes.value != null ? sf2Bytes.value : await loadSoundFont(useAuthStore().accessToken);
+        if (sf2 == null) {
+          audio.value = failure("audio_failed");
+          return false;
+        }
         if (bytes.value !== value) return false; // row changed mid-load
         const pcm = wasm.render(value, sf2, ctx.sampleRate);
         const frames = Math.floor(pcm.length / 2);

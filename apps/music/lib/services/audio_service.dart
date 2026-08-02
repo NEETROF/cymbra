@@ -49,6 +49,16 @@ abstract class AudioService {
   /// stays a silent no-op and the app keeps working.
   Future<void> init();
 
+  /// Swaps the synthesizer's active SoundFont at runtime from the `.sf2` file at
+  /// [sf2Path], so later notes (on-screen, computer keyboard, MIDI, playback)
+  /// sound with the newly chosen piano — without restarting the audio output.
+  ///
+  /// Non-throwing and degradable: a no-op when audio never started, and a
+  /// missing/invalid file leaves the current piano in place (the engine keeps
+  /// the working synth). An all-notes-off is applied across the swap so a held
+  /// voice does not hang.
+  Future<void> loadSoundFont(String sf2Path);
+
   /// Sounds a piano voice for [pitch] (7-bit MIDI) at [velocity].
   void noteOn(int pitch, {int velocity = defaultVelocity});
 
@@ -116,6 +126,20 @@ class FrbAudioService implements AudioService {
       );
     }
     return file.path;
+  }
+
+  @override
+  Future<void> loadSoundFont(String sf2Path) async {
+    // Even if init never ran, forwarding is harmless: the engine drops the swap
+    // when no audio thread is running. Guarding on [_failed] avoids the bridge
+    // call once we know audio is unavailable this session.
+    if (_failed) return;
+    try {
+      // Tiny sync call: the engine reads/parses the file off the UI isolate and
+      // hands the parsed instrument to the audio thread. The path (not the
+      // bytes) crosses the bridge, so a large SoundFont never freezes the UI.
+      audio_api.audioLoadSoundfont(sf2Path: sf2Path);
+    } catch (_) {}
   }
 
   @override

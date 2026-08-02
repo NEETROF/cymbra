@@ -3,9 +3,11 @@ import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { match } from "ts-pattern";
 import ScorePreview from "@/components/ScorePreview.vue";
+import SoundFontPicker from "@/components/SoundFontPicker.vue";
 import { useReviewSession } from "@/composables/useReviewSession";
 import { useScoreRenderer } from "@/composables/useScoreRenderer";
 import { useScorePlayer } from "@/composables/useScorePlayer";
+import { useSoundFontChoice } from "@/composables/useSoundFontChoice";
 import { type Async, idle, run } from "@/lib/async";
 import type { ModerationStatus } from "@/stores/catalog";
 import type { CatalogHit } from "@/gen/score_pb";
@@ -41,7 +43,9 @@ const bytesVm = computed(() =>
 );
 
 const { notation } = useScoreRenderer(bytesData);
-const player = useScorePlayer(bytesData);
+// Preview instrument sound: default piano, or a catalog font the moderator picks.
+const { fonts, selectedId, sf2Bytes, loading: soundLoading, error: soundError } = useSoundFontChoice();
+const player = useScorePlayer(bytesData, sf2Bytes);
 
 // Hands-free review: auto-play each score once, as soon as it's playable (a decided
 // score leaves and the next one starts on its own). Only once per score — pausing is
@@ -145,6 +149,13 @@ const currentHit = computed(() => session.current.value as CatalogHit | null);
     </div>
     <h2 class="score-title">{{ currentHit.title || $t("detail.score") }}</h2>
     <div class="preview-card">
+      <SoundFontPicker
+        v-model="selectedId"
+        class="sound-row"
+        :fonts="fonts"
+        :loading="soundLoading"
+        :error="soundError"
+      />
       <ScorePreview
         :hit="currentHit"
         :bytes="bytesVm.bytes"
@@ -184,6 +195,9 @@ const currentHit = computed(() => session.current.value as CatalogHit | null);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   padding: 1.5rem;
+}
+.sound-row {
+  margin-bottom: 1rem;
 }
 .review-empty {
   display: flex;
