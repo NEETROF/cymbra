@@ -107,8 +107,7 @@ class SoundFontSourceImpl implements SoundFontSource {
     if (await file.exists()) return file.path;
 
     final ep = _ref.read(cymbraEndpointProvider);
-    final scheme = ep.secure ? 'https' : 'http';
-    final uri = Uri.parse('$scheme://${ep.host}/soundfonts/$fontId');
+    final uri = Uri.parse('${soundFontDeliveryOrigin(ep)}/soundfonts/$fontId');
     try {
       final tokens = await _ref.read(tokenStoreProvider).readTokens();
       final token = tokens?.accessToken;
@@ -132,6 +131,27 @@ class SoundFontSourceImpl implements SoundFontSource {
       throw SoundFontUnavailableException('download $fontId: $e');
     }
   }
+}
+
+/// Base origin of the SoundFont delivery route (`GET /soundfonts/{id}`).
+///
+/// The delivery route is served by the backend's HTTP server, which — unlike a
+/// deployed setup — does **not** share a port/origin with gRPC in local dev:
+///  - **prod**: Caddy fronts everything on the standard TLS port, so the delivery
+///    route lives at `https://<gRPC host>` (443, no explicit port).
+///  - **dev**: gRPC is on `:50051` but the HTTP server is on `:8081`, a different
+///    port — so deriving the origin from the gRPC endpoint alone (which drops the
+///    port) would hit `http://<host>` on port 80 and fail, silently reverting the
+///    piano selection to the bundled default.
+///
+/// Resolution: an explicit `--dart-define=CYMBRA_SOUNDFONT_ORIGIN=<origin>` wins;
+/// otherwise a secure endpoint derives `https://<host>` (prod/Caddy) and a
+/// plaintext one derives `http://<host>:8081` (the dev HTTP port).
+String soundFontDeliveryOrigin(CymbraEndpoint ep) {
+  const override = String.fromEnvironment('CYMBRA_SOUNDFONT_ORIGIN');
+  if (override.isNotEmpty) return override;
+  if (ep.secure) return 'https://${ep.host}';
+  return 'http://${ep.host}:8081';
 }
 
 /// Production source provider. Override in tests with a fake returning a fixed
