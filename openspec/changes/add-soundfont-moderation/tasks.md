@@ -24,7 +24,7 @@
 
 - [x] 4.1 `UserSoundFontRepo` + private per-user storage prefix (`user/{uid}/{id}.sf2`); list/import/get scoped by `user_id`; idempotent import by `content_sha256`
 - [x] 4.2 Per-user quota (max 5 fonts for non-moderator/admin; mod/admin exempt) enforced on import (403)
-- [ ] 4.3 Propose endpoint/RPC: require licence declaration + right-to-distribute attestation; create a `pending` catalog row attributed to the proposer; refuse duplicate content
+- [x] 4.3 Propose route `POST /me/soundfonts/:id/propose` (license + attribution + attestation): copies bytes to a public key, creates a `pending` catalog row attributed to the proposer; refuses missing licence/attestation (400), non-owned (404), duplicate content/id (409)
 - [x] 4.4 Routes: `GET/POST /me/soundfonts` (list + import) + `GET /me/soundfonts/:id` (owner delivery); propose in 4.3
 - [x] 4.5 Tests: owner-only visibility + listing, idempotent import, quota (proposal validation + dedup with 4.3)
 

@@ -33,7 +33,7 @@ use axum::extract::{DefaultBodyLimit, Path, Query, State};
 use axum::http::{HeaderMap, StatusCode, header};
 use axum::http::{HeaderValue, Method};
 use axum::response::{IntoResponse, Response};
-use axum::routing::get;
+use axum::routing::{get, post};
 use axum::{Json, Router};
 use cymbra_music::{FontEntry, SoundFontRepo, UserFontEntry, UserSoundFontRepo, sha256_hex};
 use cymbra_platform::{AuthIdentity, guard, token};
@@ -232,6 +232,8 @@ pub fn soundfont_router(state: SoundfontState, allowed_origins: Vec<String>) -> 
         // (`/me/soundfonts`) and owner-scoped delivery (`/me/soundfonts/:id`).
         .route("/me/soundfonts", get(list_mine).post(import_mine))
         .route("/me/soundfonts/:id", get(serve_mine))
+        // Opt-in: propose a private font to the public catalog (enters `pending`).
+        .route("/me/soundfonts/:id/propose", post(propose_mine))
         .layer(DefaultBodyLimit::max(MAX_UPLOAD_BYTES))
         .layer(cors)
         .with_state(state)
@@ -500,6 +502,95 @@ async fn serve_mine(
         return status(StatusCode::SERVICE_UNAVAILABLE);
     };
     stream(store.as_ref(), &font.object_key, &headers).await
+}
+
+/// Query for proposing a private font to the public catalog. A soundfont is
+/// third-party sample data, so an explicit licence declaration **and** a
+/// right-to-distribute attestation are mandatory (the CGU authorship attestation is
+/// not sufficient on its own).
+#[derive(Debug, Deserialize)]
+pub struct ProposeMeta {
+    #[serde(default)]
+    pub license: String,
+    #[serde(default)]
+    pub attribution: String,
+    /// Explicit "I have the right to distribute this" flag; must be `true`.
+    #[serde(default)]
+    pub attestation: bool,
+}
+
+/// Propose one of the caller's private fonts to the public catalog (change:
+/// add-soundfont-moderation). Copies the bytes to a public key and records a
+/// `pending` catalog row attributed to the proposer, awaiting moderator review.
+async fn propose_mine(
+    State(s): State<SoundfontState>,
+    Path(id): Path<String>,
+    Query(meta): Query<ProposeMeta>,
+    headers: HeaderMap,
+) -> Response {
+    let Some(identity) = s.auth.identify_admin(&headers) else {
+        return status(StatusCode::UNAUTHORIZED);
+    };
+    // Mandatory licence declaration + right-to-distribute attestation.
+    if meta.license.trim().is_empty() || !meta.attestation {
+        return status(StatusCode::BAD_REQUEST);
+    }
+    let (Some(store), Some(user_repo), Some(catalog)) =
+        (s.store.as_ref(), s.user_repo.as_ref(), s.repo.as_ref())
+    else {
+        return status(StatusCode::SERVICE_UNAVAILABLE);
+    };
+    let user_id = identity.user_id.clone();
+    // The font must be one the caller owns privately.
+    let private = match user_repo.lookup(&user_id, &id).await {
+        Ok(f) => f,
+        Err(_) => return status(StatusCode::INTERNAL_SERVER_ERROR),
+    };
+    let Some(private) = private else {
+        return status(StatusCode::NOT_FOUND);
+    };
+    // Refuse if identical content is already in the catalog (non-rejected), or if this
+    // font was already proposed (its id would collide).
+    match catalog.find_by_content(&private.content_sha256).await {
+        Ok(Some(_)) => return status(StatusCode::CONFLICT),
+        Ok(None) => {}
+        Err(_) => return status(StatusCode::INTERNAL_SERVER_ERROR),
+    }
+    match catalog.lookup(&id).await {
+        Ok(Some(_)) => return status(StatusCode::CONFLICT),
+        Ok(None) => {}
+        Err(_) => return status(StatusCode::INTERNAL_SERVER_ERROR),
+    }
+    // Copy the bytes to the public catalog key (the catalog id reuses the private id).
+    let bytes = match store.get(&private.object_key).await {
+        Ok(b) => b,
+        Err(_) => return status(StatusCode::INTERNAL_SERVER_ERROR),
+    };
+    let object_key = format!("{id}.sf2");
+    if store.put(&object_key, bytes).await.is_err() {
+        return status(StatusCode::INTERNAL_SERVER_ERROR);
+    }
+    let attribution = (!meta.attribution.trim().is_empty()).then(|| meta.attribution.clone());
+    let entry = FontEntry {
+        id,
+        label: private.label,
+        object_key: object_key.clone(),
+        instrument: "piano".to_string(),
+        license: meta.license,
+        attribution,
+        size_bytes: Some(private.size_bytes),
+        // A user proposal always enters pending, attributed to the proposer.
+        moderation_status: "pending".to_string(),
+        reviewed_by: None,
+        reviewed_at: None,
+        uploaded_by: Some(user_id),
+        content_sha256: Some(private.content_sha256),
+    };
+    if catalog.insert(&entry).await.is_err() {
+        let _ = store.delete(&object_key).await;
+        return status(StatusCode::INTERNAL_SERVER_ERROR);
+    }
+    status(StatusCode::CREATED)
 }
 
 async fn serve(
@@ -1164,5 +1255,148 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+    }
+
+    /// A router wired with both a private-library repo and an inspectable catalog repo.
+    fn propose_app(
+        user_repo: Arc<dyn UserSoundFontRepo>,
+        catalog: Arc<dyn SoundFontRepo>,
+        store: Arc<dyn ObjectStorage>,
+        identity: AuthIdentity,
+    ) -> Router {
+        soundfont_router(
+            SoundfontState {
+                store: Some(store),
+                repo: Some(catalog),
+                user_repo: Some(user_repo),
+                auth: Arc::new(FixedAdminAuth(Some(identity))),
+            },
+            vec!["https://bo.cymbra.app".to_string()],
+        )
+    }
+
+    #[tokio::test]
+    async fn propose_requires_license_and_attestation() {
+        let store = Arc::new(FakeStore::default());
+        store.put("user/u/f1.sf2", sf2_bytes()).await.unwrap();
+        let seed = vec![user_entry("f1", "u", "sha1")];
+        // Missing attestation → refused.
+        let r = propose_app(
+            Arc::new(FakeUserSoundFontRepo::with(seed.clone())),
+            Arc::new(cymbra_music::FakeSoundFontRepo::default()),
+            store.clone(),
+            ident("u", &["user"]),
+        );
+        let resp = r
+            .oneshot(post(
+                "/me/soundfonts/f1/propose?license=CC0-1.0",
+                Vec::new(),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+        // Missing licence (even with attestation) → refused.
+        let r = propose_app(
+            Arc::new(FakeUserSoundFontRepo::with(seed)),
+            Arc::new(cymbra_music::FakeSoundFontRepo::default()),
+            store,
+            ident("u", &["user"]),
+        );
+        let resp = r
+            .oneshot(post(
+                "/me/soundfonts/f1/propose?attestation=true",
+                Vec::new(),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[tokio::test]
+    async fn propose_creates_pending_catalog_row() {
+        let store = Arc::new(FakeStore::default());
+        store.put("user/u/f1.sf2", b"BYTES".to_vec()).await.unwrap();
+        let user_repo: Arc<dyn UserSoundFontRepo> =
+            Arc::new(FakeUserSoundFontRepo::with(vec![user_entry(
+                "f1", "u", "shaX",
+            )]));
+        let catalog = Arc::new(cymbra_music::FakeSoundFontRepo::default());
+        let r = propose_app(
+            user_repo,
+            catalog.clone(),
+            store.clone(),
+            ident("u", &["user"]),
+        );
+        let resp = r
+            .oneshot(post(
+                "/me/soundfonts/f1/propose?license=CC-BY-3.0&attribution=Someone&attestation=true",
+                Vec::new(),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::CREATED);
+        // A pending catalog row attributed to the proposer; bytes copied to the public key.
+        let row = catalog.lookup("f1").await.unwrap().unwrap();
+        assert_eq!(row.moderation_status, "pending");
+        assert_eq!(row.uploaded_by.as_deref(), Some("u"));
+        assert_eq!(row.license, "CC-BY-3.0");
+        assert_eq!(row.object_key, "f1.sf2");
+        assert!(store.size("f1.sf2").await.is_ok());
+        // Not publicly visible until a moderator accepts it.
+        assert!(catalog.list_accepted().await.unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn propose_not_owned_is_404() {
+        let r = propose_app(
+            Arc::new(FakeUserSoundFontRepo::default()),
+            Arc::new(cymbra_music::FakeSoundFontRepo::default()),
+            Arc::new(FakeStore::default()),
+            ident("u", &["user"]),
+        );
+        let resp = r
+            .oneshot(post(
+                "/me/soundfonts/ghost/propose?license=CC0-1.0&attestation=true",
+                Vec::new(),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn propose_of_already_cataloged_content_is_409() {
+        let store = Arc::new(FakeStore::default());
+        store.put("user/u/f1.sf2", b"BYTES".to_vec()).await.unwrap();
+        let user_repo: Arc<dyn UserSoundFontRepo> =
+            Arc::new(FakeUserSoundFontRepo::with(vec![user_entry(
+                "f1", "u", "dupsha",
+            )]));
+        // The catalog already holds a font with identical content.
+        let existing = FontEntry {
+            id: "already".into(),
+            label: "x".into(),
+            object_key: "already.sf2".into(),
+            instrument: "piano".into(),
+            license: "CC0-1.0".into(),
+            attribution: None,
+            size_bytes: None,
+            moderation_status: "accepted".into(),
+            reviewed_by: None,
+            reviewed_at: None,
+            uploaded_by: None,
+            content_sha256: Some("dupsha".into()),
+        };
+        let catalog: Arc<dyn SoundFontRepo> =
+            Arc::new(cymbra_music::FakeSoundFontRepo::with(vec![existing]));
+        let r = propose_app(user_repo, catalog, store, ident("u", &["user"]));
+        let resp = r
+            .oneshot(post(
+                "/me/soundfonts/f1/propose?license=CC0-1.0&attestation=true",
+                Vec::new(),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::CONFLICT);
     }
 }
