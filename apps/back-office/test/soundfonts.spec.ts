@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createPinia, setActivePinia } from "pinia";
 import { type NewSoundFont, setUploadForTest, useSoundFontsStore } from "@/stores/soundfonts";
 import { setClientsForTest } from "@/lib/api";
@@ -161,4 +161,81 @@ describe("soundfonts store", () => {
 
     expect(outcome.status).toBe("error");
   });
+
+  // --- Preview data (used by the create/edit drawer's audition feature) ---
+
+  it("publicList returns the server's downloadable catalog", async () => {
+    const { clients } = makeFakeClients();
+    const score = clients.score as unknown as Record<string, () => Promise<unknown>>;
+    score.listSoundFonts = async () => ({
+      soundfonts: [
+        { id: "ydp-grand", label: "YDP Grand", license: "CC-BY 3.0", attribution: "R", instrument: "piano" },
+      ],
+    });
+    setClientsForTest(clients);
+    const store = useSoundFontsStore();
+
+    const list = await store.publicList();
+
+    expect(list).toHaveLength(1);
+    expect(list[0].id).toBe("ydp-grand");
+  });
+
+  it("previewPieces queries accepted catalog scores", async () => {
+    const { clients } = makeFakeClients({ hits: [{ id: "p1", title: "Bella Ciao" } as never] });
+    withSoundfonts(clients);
+    setClientsForTest(clients);
+    const store = useSoundFontsStore();
+
+    const pieces = await store.previewPieces("bella");
+
+    expect(pieces).toHaveLength(1);
+    expect(pieces[0].id).toBe("p1");
+  });
+
+  it("pieceBytes returns the MusicXML bytes for a catalog piece", async () => {
+    const { clients } = makeFakeClients();
+    withSoundfonts(clients);
+    const score = clients.score as unknown as Record<string, () => Promise<unknown>>;
+    score.getCatalogScoreBytes = async () => ({ data: new Uint8Array([1, 2, 3]) });
+    setClientsForTest(clients);
+    const store = useSoundFontsStore();
+
+    const bytes = await store.pieceBytes("p1");
+
+    expect(bytes).toEqual(new Uint8Array([1, 2, 3]));
+  });
+
+  it("fontBytes fetches the stored font from the delivery route", async () => {
+    const { clients } = makeFakeClients();
+    withSoundfonts(clients);
+    setClientsForTest(clients);
+    const fetchMock = vi.fn((_url: RequestInfo | URL) =>
+      Promise.resolve(new Response(new Uint8Array([9, 8, 7]), { status: 200 })),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const store = useSoundFontsStore();
+
+    const bytes = await store.fontBytes("ydp-grand");
+
+    expect(bytes).toEqual(new Uint8Array([9, 8, 7]));
+    expect(String(fetchMock.mock.calls[0][0])).toContain("/soundfonts/ydp-grand");
+  });
+
+  it("fontBytes throws on a non-200 so the caller can surface it", async () => {
+    const { clients } = makeFakeClients();
+    withSoundfonts(clients);
+    setClientsForTest(clients);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => Promise.resolve(new Response("no", { status: 404 }))),
+    );
+    const store = useSoundFontsStore();
+
+    await expect(store.fontBytes("missing")).rejects.toThrow();
+  });
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
 });
