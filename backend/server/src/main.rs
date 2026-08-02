@@ -178,92 +178,103 @@ async fn main() -> anyhow::Result<()> {
     //     the injected user port (`user_dyn`).
     //   * ScoreService — user uploads, ADDITIONALLY when the object store is set.
     // Both run behind the strict auth interceptor. Absent music DB ⇒ both inert.
-    let (play_svc, score_svc, soundfont_repo) = match cfg.music_database_url.as_deref() {
-        Some(db_url) => {
-            let music_pool = db::connect(db_url, 5).await?;
-            cymbra_music::MIGRATOR.run(&music_pool).await?;
-            // Persisted SoundFont catalog (change: add-soundfont-catalog-db): one
-            // source of truth read by both the ListSoundFonts RPC and the delivery
-            // route below.
-            let soundfont_repo: Arc<dyn cymbra_music::SoundFontRepo> =
-                Arc::new(cymbra_music::PgSoundFontRepo::new(music_pool.clone()));
-            // Shared play-session port: feeds both the PlayService and the catalog
-            // access limiter's play-aware download allowance (change: add-catalog-
-            // access-limits).
-            let play_repo: Arc<dyn cymbra_music::PlayRepo> =
-                Arc::new(cymbra_music::PgPlayRepo::new(music_pool.clone()));
-            let play_module = Arc::new(cymbra_music::PlayModule::new(
-                play_repo.clone(),
-                user_dyn.clone(),
-            ));
-            let play_svc = Some(
-                cymbra_music::proto::play_service_server::PlayServiceServer::with_interceptor(
-                    cymbra_music::PlayGrpc::new(play_module),
-                    strict.clone(),
-                ),
-            );
-
-            let score_svc = match cfg.score_storage.as_ref() {
-                Some(s3) => {
-                    let storage: Arc<dyn ObjectStorage> = Arc::new(LocalFirstStore::from_config(
-                        &cfg.score_local_root,
-                        &S3Params {
-                            bucket: s3.bucket.clone(),
-                            endpoint: s3.endpoint.clone(),
-                            region: s3.region.clone(),
-                            access_key: s3.access_key.clone(),
-                            secret_key: s3.secret_key.clone(),
-                            allow_http: s3.allow_http,
-                        },
-                    )?);
-                    // Shared rating port: feeds both the score module and the limiter's
-                    // engagement allowance (a rating earns download headroom like a play).
-                    let rating_repo: Arc<dyn cymbra_music::ScoreRatingRepo> =
-                        Arc::new(PgScoreRatingRepo::new(music_pool.clone()));
-                    let module = Arc::new(ScoreModule::new(
-                        Arc::new(PgUserScoreRepo::new(music_pool.clone())),
-                        Arc::new(PgCatalogSearchRepo::new(music_pool.clone())),
-                        Arc::new(PgUserLibraryRepo::new(music_pool.clone())),
-                        rating_repo.clone(),
-                        storage,
-                        cfg.upload_quota_max,
-                        cfg.upload_quota_window_days,
-                        cfg.upload_max_bytes,
-                    ));
-                    // Per-user scrape guardrail over the shared Redis cache + play &
-                    // rating ports (engagement = plays + ratings).
-                    let limiter = Arc::new(cymbra_music::CatalogAccessLimiter::new(
-                        cache.clone(),
-                        play_repo.clone(),
-                        rating_repo,
-                        cfg.catalog_limits.clone(),
-                    ));
-                    Some(ScoreServiceServer::with_interceptor(
-                        ScoreGrpc::new(module)
-                            .with_limiter(limiter)
-                            .with_soundfonts(soundfont_repo.clone())
-                            .with_soundfont_store_opt(soundfont_store.clone()),
-                        strict.clone(),
-                    ))
-                }
-                None => {
-                    tracing::info!("score-upload disabled (CYMBRA_SCORE_S3_BUCKET unset)");
-                    None
-                }
-            };
-            (play_svc, score_svc, Some(soundfont_repo))
-        }
-        None => {
-            // Fail-fast: S3 configured but no music DB is a misconfiguration.
-            if cfg.score_storage.is_some() {
-                return Err(anyhow::anyhow!(
-                    "CYMBRA_SCORE_S3_BUCKET is set but CYMBRA_MUSIC_DATABASE_URL is missing"
+    let (play_svc, score_svc, soundfont_repo, user_soundfont_repo) =
+        match cfg.music_database_url.as_deref() {
+            Some(db_url) => {
+                let music_pool = db::connect(db_url, 5).await?;
+                cymbra_music::MIGRATOR.run(&music_pool).await?;
+                // Persisted SoundFont catalog (change: add-soundfont-catalog-db): one
+                // source of truth read by both the ListSoundFonts RPC and the delivery
+                // route below.
+                let soundfont_repo: Arc<dyn cymbra_music::SoundFontRepo> =
+                    Arc::new(cymbra_music::PgSoundFontRepo::new(music_pool.clone()));
+                // Private, per-user SoundFont library (change: add-soundfont-moderation):
+                // owner-scoped store behind the `/me/soundfonts` routes.
+                let user_soundfont_repo: Arc<dyn cymbra_music::UserSoundFontRepo> =
+                    Arc::new(cymbra_music::PgUserSoundFontRepo::new(music_pool.clone()));
+                // Shared play-session port: feeds both the PlayService and the catalog
+                // access limiter's play-aware download allowance (change: add-catalog-
+                // access-limits).
+                let play_repo: Arc<dyn cymbra_music::PlayRepo> =
+                    Arc::new(cymbra_music::PgPlayRepo::new(music_pool.clone()));
+                let play_module = Arc::new(cymbra_music::PlayModule::new(
+                    play_repo.clone(),
+                    user_dyn.clone(),
                 ));
+                let play_svc = Some(
+                    cymbra_music::proto::play_service_server::PlayServiceServer::with_interceptor(
+                        cymbra_music::PlayGrpc::new(play_module),
+                        strict.clone(),
+                    ),
+                );
+
+                let score_svc = match cfg.score_storage.as_ref() {
+                    Some(s3) => {
+                        let storage: Arc<dyn ObjectStorage> =
+                            Arc::new(LocalFirstStore::from_config(
+                                &cfg.score_local_root,
+                                &S3Params {
+                                    bucket: s3.bucket.clone(),
+                                    endpoint: s3.endpoint.clone(),
+                                    region: s3.region.clone(),
+                                    access_key: s3.access_key.clone(),
+                                    secret_key: s3.secret_key.clone(),
+                                    allow_http: s3.allow_http,
+                                },
+                            )?);
+                        // Shared rating port: feeds both the score module and the limiter's
+                        // engagement allowance (a rating earns download headroom like a play).
+                        let rating_repo: Arc<dyn cymbra_music::ScoreRatingRepo> =
+                            Arc::new(PgScoreRatingRepo::new(music_pool.clone()));
+                        let module = Arc::new(ScoreModule::new(
+                            Arc::new(PgUserScoreRepo::new(music_pool.clone())),
+                            Arc::new(PgCatalogSearchRepo::new(music_pool.clone())),
+                            Arc::new(PgUserLibraryRepo::new(music_pool.clone())),
+                            rating_repo.clone(),
+                            storage,
+                            cfg.upload_quota_max,
+                            cfg.upload_quota_window_days,
+                            cfg.upload_max_bytes,
+                        ));
+                        // Per-user scrape guardrail over the shared Redis cache + play &
+                        // rating ports (engagement = plays + ratings).
+                        let limiter = Arc::new(cymbra_music::CatalogAccessLimiter::new(
+                            cache.clone(),
+                            play_repo.clone(),
+                            rating_repo,
+                            cfg.catalog_limits.clone(),
+                        ));
+                        Some(ScoreServiceServer::with_interceptor(
+                            ScoreGrpc::new(module)
+                                .with_limiter(limiter)
+                                .with_soundfonts(soundfont_repo.clone())
+                                .with_soundfont_store_opt(soundfont_store.clone()),
+                            strict.clone(),
+                        ))
+                    }
+                    None => {
+                        tracing::info!("score-upload disabled (CYMBRA_SCORE_S3_BUCKET unset)");
+                        None
+                    }
+                };
+                (
+                    play_svc,
+                    score_svc,
+                    Some(soundfont_repo),
+                    Some(user_soundfont_repo),
+                )
             }
-            tracing::info!("music services disabled (CYMBRA_MUSIC_DATABASE_URL unset)");
-            (None, None, None)
-        }
-    };
+            None => {
+                // Fail-fast: S3 configured but no music DB is a misconfiguration.
+                if cfg.score_storage.is_some() {
+                    return Err(anyhow::anyhow!(
+                        "CYMBRA_SCORE_S3_BUCKET is set but CYMBRA_MUSIC_DATABASE_URL is missing"
+                    ));
+                }
+                tracing::info!("music services disabled (CYMBRA_MUSIC_DATABASE_URL unset)");
+                (None, None, None, None)
+            }
+        };
 
     // --- HTTP surface (JWKS + health + web-auth cookie endpoints) ---
     // The web-auth surface (change: add-web-auth-cookies) carries the refresh token
@@ -282,6 +293,9 @@ async fn main() -> anyhow::Result<()> {
         // The persisted catalog (change: add-soundfont-catalog-db) resolves id →
         // object_key; absent music DB ⇒ the route reports 503.
         repo: soundfont_repo,
+        // Private per-user library (change: add-soundfont-moderation) backing the
+        // `/me/soundfonts` routes.
+        user_repo: user_soundfont_repo,
         auth: Arc::new(soundfont_auth),
     };
     let http = cymbra_server::http_router(jwks, ready_pool, cache.clone())

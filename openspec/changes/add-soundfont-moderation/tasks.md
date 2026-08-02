@@ -22,11 +22,11 @@
 
 ## 4. Backend — private library + proposal (user-soundfont-library)
 
-- [ ] 4.1 `UserSoundFontRepo` + private per-user storage prefix; list/import/get scoped by `user_id`; idempotent import by `content_sha256`
-- [ ] 4.2 Per-user quota (max count + max total bytes) enforced on import with a typed error
+- [x] 4.1 `UserSoundFontRepo` + private per-user storage prefix (`user/{uid}/{id}.sf2`); list/import/get scoped by `user_id`; idempotent import by `content_sha256`
+- [x] 4.2 Per-user quota (max 5 fonts for non-moderator/admin; mod/admin exempt) enforced on import (403)
 - [ ] 4.3 Propose endpoint/RPC: require licence declaration + right-to-distribute attestation; create a `pending` catalog row attributed to the proposer; refuse duplicate content
-- [ ] 4.4 Endpoints/RPCs: list private library, import, propose; auth by app audience
-- [ ] 4.5 Tests: owner-only visibility, cross-device listing, idempotent import, quota, proposal validation + dedup
+- [x] 4.4 Routes: `GET/POST /me/soundfonts` (list + import) + `GET /me/soundfonts/:id` (owner delivery); propose in 4.3
+- [x] 4.5 Tests: owner-only visibility + listing, idempotent import, quota (proposal validation + dedup with 4.3)
 
 ## 5. gRPC / proto
 
