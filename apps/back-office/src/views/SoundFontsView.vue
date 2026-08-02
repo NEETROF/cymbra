@@ -89,7 +89,10 @@ function licenseDesc(license: string): string {
       <button type="button" class="primary" @click="openCreate">{{ t("soundfonts.add") }}</button>
     </header>
 
-    <p v-if="opError" class="error" role="alert">{{ opError }}</p>
+    <!-- The op error is shared with the add/edit drawer; while it's open the drawer
+         owns the message, so only surface it here (above the grid) for list-level
+         actions (accept/reject/delete) when the drawer is closed. -->
+    <p v-if="opError && drawerMode === null" class="error" role="alert">{{ opError }}</p>
 
     <div class="filters" role="tablist" :aria-label="t('soundfonts.filter.label')">
       <button

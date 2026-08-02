@@ -18,6 +18,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../l10n/gen/app_localizations.dart';
 import '../services/private_soundfont_service.dart'
     show PrivateSoundFontException;
+import '../services/soundfont_catalog_service.dart' show serverSoundFontsProvider;
 import '../services/soundfont_importer.dart' show SoundFontImportException;
 import '../state/imported_soundfonts.dart';
 import '../state/piano_catalog.dart';
@@ -35,7 +36,7 @@ import 'app_snackbar.dart';
 /// to matching sounds (every sound is a piano today, so it's a no-op until scores
 /// carry an instrument). [dense] drops the caption + manage affordance for a
 /// compact form that fits an app bar.
-class SoundSelectorField extends ConsumerWidget {
+class SoundSelectorField extends ConsumerStatefulWidget {
   const SoundSelectorField({
     super.key,
     required this.value,
@@ -60,21 +61,37 @@ class SoundSelectorField extends ConsumerWidget {
   /// selecting an existing sound.
   static const String _addValue = '__add_soundfont__';
 
+  @override
+  ConsumerState<SoundSelectorField> createState() => _SoundSelectorFieldState();
+}
+
+class _SoundSelectorFieldState extends ConsumerState<SoundSelectorField> {
+  @override
+  void initState() {
+    super.initState();
+    // Refresh the server-sourced downloadable catalog each time the picker is
+    // shown, so a font accepted/added on the server appears without an app
+    // restart (the provider otherwise fetches once and caches).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) ref.invalidate(serverSoundFontsProvider);
+    });
+  }
+
   /// Whether [p] belongs to [instrument]. `PianoEntry` has no instrument field
   /// yet and every catalog sound is a piano, so this is a no-op today; filter on
   /// the entry's instrument here once scores/sounds are typed.
   bool _matches(PianoEntry p, String instrument) => true;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final catalog = ref.watch(pianoCatalogProvider);
-    final sounds = catalog.where((p) => _matches(p, instrument)).toList();
+    final sounds = catalog.where((p) => _matches(p, widget.instrument)).toList();
 
     // The dropdown value must match an item; fall back to the default if the
     // current selection isn't in the (filtered) catalog.
-    final selectedId = sounds.any((p) => p.id == value)
-        ? value
+    final selectedId = sounds.any((p) => p.id == widget.value)
+        ? widget.value
         : (sounds.isNotEmpty ? sounds.first.id : defaultPianoId);
     final selected = sounds.firstWhere(
       (p) => p.id == selectedId,
@@ -92,7 +109,7 @@ class SoundSelectorField extends ConsumerWidget {
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
           isExpanded: true,
-          isDense: dense,
+          isDense: widget.dense,
           value: selectedId,
           dropdownColor: CymbraColors.surfaceContainerHigh,
           iconEnabledColor: CymbraColors.onSurfaceVariant,
@@ -104,7 +121,7 @@ class SoundSelectorField extends ConsumerWidget {
                 child: Text(p.label, overflow: TextOverflow.ellipsis),
               ),
             DropdownMenuItem<String>(
-              value: _addValue,
+              value: SoundSelectorField._addValue,
               child: Row(
                 children: [
                   const Icon(
@@ -123,12 +140,12 @@ class SoundSelectorField extends ConsumerWidget {
               ),
             ),
           ],
-          onChanged: (v) => _onPicked(context, ref, v),
+          onChanged: (v) => _onPicked(context, v),
         ),
       ),
     );
 
-    if (dense) return dropdown;
+    if (widget.dense) return dropdown;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -145,7 +162,7 @@ class SoundSelectorField extends ConsumerWidget {
                     Icons.tune,
                     color: CymbraColors.onSurfaceVariant,
                   ),
-                  onPressed: () => _openManager(context, ref),
+                  onPressed: () => _openManager(context),
                 ),
               ),
           ],
@@ -176,14 +193,10 @@ class SoundSelectorField extends ConsumerWidget {
 
   /// Handles a dropdown pick: the add sentinel runs the import (and selects the
   /// imported font on success); anything else selects that sound.
-  Future<void> _onPicked(
-    BuildContext context,
-    WidgetRef ref,
-    String? picked,
-  ) async {
+  Future<void> _onPicked(BuildContext context, String? picked) async {
     if (picked == null) return;
-    if (picked != _addValue) {
-      onChanged(picked);
+    if (picked != SoundSelectorField._addValue) {
+      widget.onChanged(picked);
       return;
     }
     final messenger = ScaffoldMessenger.of(context);
@@ -192,7 +205,7 @@ class SoundSelectorField extends ConsumerWidget {
       final entry = await ref
           .read(importedSoundFontsProvider.notifier)
           .importSoundFont();
-      if (entry != null) onChanged(entry.id);
+      if (entry != null) widget.onChanged(entry.id);
     } on SoundFontImportException {
       showAppSnackBar(messenger, l10n.pianoImportInvalid);
     } catch (_) {
@@ -201,16 +214,16 @@ class SoundSelectorField extends ConsumerWidget {
   }
 
   /// Opens the manage sheet to remove imported sounds.
-  void _openManager(BuildContext context, WidgetRef ref) {
+  void _openManager(BuildContext context) {
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: CymbraColors.surfaceContainerHigh,
       builder: (_) => _SoundManagerSheet(
         onRemovedSelected: () {
           // If the removed sound was selected, fall back to the default.
-          onChanged(defaultPianoId);
+          widget.onChanged(defaultPianoId);
         },
-        selectedId: value,
+        selectedId: widget.value,
       ),
     );
   }
