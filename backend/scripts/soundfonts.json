@@ -1,0 +1,15 @@
+{
+  "//": "Curated, license-cleared SoundFont sources for backend/scripts/seed_soundfonts.sh.",
+  "//license": "ONLY add fonts whose licence you have VERIFIED allows redistribution in-app (CC0 or CC-BY). The script does not — and cannot — judge a licence; that stays a human step. See CLAUDE.md / the soundfont-licensing memory (reject producersbuzz, GeneralUser GS, and anything without a clear libre licence).",
+  "//format": "Each font is fetched from `url` (a raw .sf2, or a .zip/.tar.* archive containing exactly one .sf2). It MUST be uncompressed SF2 — rustysynth cannot play compressed SF3 (the script warns and skips SF3). `attribution` is required for CC-BY, empty for CC0. `instrument` defaults to piano.",
+  "fonts": [
+    {
+      "id": "salamander-grand",
+      "label": "Salamander Grand Piano",
+      "license": "CC-BY-3.0",
+      "attribution": "Alexander Holm — Salamander Grand Piano",
+      "instrument": "piano",
+      "url": "VERIFY-BEFORE-RUN: direct .sf2 (or zip containing one) build of Salamander Grand; the native distribution is SFZ and must be pre-converted to SF2 with Polyphone"
+    }
+  ]
+}
