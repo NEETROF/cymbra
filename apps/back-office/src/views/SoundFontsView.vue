@@ -144,7 +144,6 @@ function licenseDesc(license: string): string {
         <tr>
           <th>{{ t("soundfonts.label") }}</th>
           <th>{{ t("soundfonts.statusCol") }}</th>
-          <th>{{ t("soundfonts.id") }}</th>
           <th>{{ t("soundfonts.instrument") }}</th>
           <th>{{ t("soundfonts.license") }}</th>
           <th>{{ t("soundfonts.attribution") }}</th>
@@ -157,7 +156,6 @@ function licenseDesc(license: string): string {
           <td>
             <AppTag :variant="statusOf(row)">{{ t(`soundfonts.status.${statusOf(row)}`) }}</AppTag>
           </td>
-          <td class="mono">{{ row.id }}</td>
           <td>
             <AppTag variant="neutral">{{ t(`soundfonts.instr.${row.instrument || "piano"}`) }}</AppTag>
           </td>
