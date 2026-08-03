@@ -30,9 +30,11 @@ part 'sound_preview_sample.g.dart';
 const String soundPreviewSampleAsset = 'assets/scores/beginner/ode_to_joy.musicxml';
 
 /// Loads + parses [soundPreviewSampleAsset] into a playback-ready [CardPreviewScore].
-/// Cached (the sample never changes); reuses the injectable [notationEngineProvider]
-/// so it is testable without the native library.
-@riverpod
+/// `keepAlive` because the sample never changes AND the hub only `ref.read`s it (no
+/// widget `watch`es it): an autoDispose future would be disposed + re-created on every
+/// audition tick, so `valueOrNull` would stay null and nothing would ever play. Reuses
+/// the injectable [notationEngineProvider] so it is testable without the native library.
+@Riverpod(keepAlive: true)
 Future<CardPreviewScore> soundPreviewSample(Ref ref) async {
   final data = await rootBundle.load(soundPreviewSampleAsset);
   final bytes = data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);

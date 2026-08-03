@@ -82,6 +82,9 @@ class _SoundFontsScreenState extends ConsumerState<SoundFontsScreen>
     _audio = ref.read(audioServiceProvider);
     unawaited(_audio.init());
     _ticker = createTicker(_onTick);
+    // Pre-warm the (kept-alive) audition sample so the first tap plays without a
+    // parse delay.
+    ref.read(soundPreviewSampleProvider);
     unawaited(_captureRestore());
     // Refresh server-sourced sounds so the catalog reflects the current server
     // state each time the hub is opened.
