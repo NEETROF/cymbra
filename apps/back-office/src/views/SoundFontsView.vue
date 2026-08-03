@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, ref, shallowRef } from "vue";
 import { useI18n } from "vue-i18n";
 import { match } from "ts-pattern";
+import { useScorePlayer } from "@/composables/useScorePlayer";
+import { sampleScoreBytes } from "@/lib/sampleScore";
 import { useSoundFontsStore } from "@/stores/soundfonts";
 import type { AdminSoundFont } from "@/gen/score_pb";
 import AppTag from "@/components/AppTag.vue";
@@ -50,6 +52,30 @@ function statusOf(row: AdminSoundFont): "pending" | "accepted" | "rejected" {
 }
 
 // Drawer for create/edit (right-to-left).
+// Per-row audition: play the shared sample (Ode to Joy — same as the app) with a
+// row's font. One row plays at a time.
+const previewingId = ref<string | null>(null);
+const previewScore = shallowRef<Uint8Array | null>(sampleScoreBytes);
+const previewSf2 = shallowRef<Uint8Array | null>(null);
+const rowPlayer = useScorePlayer(previewScore, previewSf2);
+
+async function togglePlay(row: AdminSoundFont) {
+  if (previewingId.value === row.id) {
+    rowPlayer.stop();
+    previewingId.value = null;
+    return;
+  }
+  rowPlayer.stop();
+  previewingId.value = row.id;
+  try {
+    previewSf2.value = await store.fontBytes(row.id);
+  } catch {
+    previewingId.value = null;
+    return;
+  }
+  rowPlayer.playFrom(0);
+}
+
 const drawerMode = ref<"create" | "edit" | null>(null);
 const drawerEntry = ref<AdminSoundFont | null>(null);
 function openCreate() {
@@ -143,6 +169,15 @@ function licenseDesc(license: string): string {
           </td>
           <td>{{ row.attribution }}</td>
           <td class="actions">
+            <button
+              type="button"
+              class="play-row"
+              :aria-label="t('soundfonts.play')"
+              :title="t('soundfonts.play')"
+              @click="togglePlay(row)"
+            >
+              {{ previewingId === row.id && rowPlayer.playing.value ? "⏸" : "▶" }}
+            </button>
             <button
               v-if="(row.moderationStatus || 'pending') !== 'accepted'"
               type="button"
