@@ -19,12 +19,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:music/screens/soundfonts_screen.dart';
+import 'package:music/services/audio_service.dart';
 import 'package:music/services/preferences_service.dart';
 import 'package:music/services/private_soundfont_service.dart';
+import 'package:music/services/soundfont_catalog_service.dart';
 import 'package:music/services/soundfont_importer.dart';
+import 'package:music/services/soundfont_source.dart';
+import 'package:music/state/card_preview_notifier.dart' show CardPreviewScore;
 import 'package:music/state/imported_soundfonts.dart';
 import 'package:music/state/piano_catalog.dart';
+import 'package:music/state/sound_preview_sample.dart';
 
+import '../support/fakes.dart';
 import '../support/localized.dart';
 import '../support/prefs_fakes.dart';
 import '../support/soundfont_fakes.dart';
@@ -35,6 +41,8 @@ ProviderContainer _container({
   FakePreferencesService? prefs,
   FakeSoundFontImporter? importer,
   FakePrivateSoundFontService? private,
+  RecordingAudioService? audio,
+  List<PianoEntry>? serverFonts,
 }) {
   final c = ProviderContainer(
     overrides: [
@@ -46,6 +54,27 @@ ProviderContainer _container({
       ),
       privateSoundFontServiceProvider.overrideWithValue(
         private ?? FakePrivateSoundFontService(),
+      ),
+      soundFontSourceProvider.overrideWithValue(FakeSoundFontSource()),
+      soundFontCatalogServiceProvider.overrideWithValue(
+        FakeSoundFontCatalogService(downloadable: serverFonts ?? const []),
+      ),
+      audioServiceProvider.overrideWithValue(audio ?? RecordingAudioService()),
+      // The audition sample is parsed via the native notation engine, which is
+      // absent in unit tests — override it with a trivial (empty) score so the
+      // audition wiring runs without FFI.
+      soundPreviewSampleProvider.overrideWith(
+        (ref) async => const CardPreviewScore(
+          notes: [],
+          rests: [],
+          songEndMs: 0,
+          bpm: 120,
+          keyFifths: 0,
+          beats: 4,
+          beatType: 4,
+          measureStartMs: [],
+          startMs: 0,
+        ),
       ),
     ],
   );
@@ -97,7 +126,7 @@ void main() {
     await _pump(tester, c);
 
     // Open the add drawer.
-    await tester.tap(find.byIcon(Icons.add));
+    await tester.tap(find.byIcon(Icons.library_add_outlined));
     await tester.pumpAndSettle();
     // Choose the file (fake picker returns the canned pick).
     await tester.tap(find.byIcon(Icons.folder_open));
@@ -145,11 +174,37 @@ void main() {
 
     await tester.tap(find.byIcon(Icons.edit_outlined));
     await tester.pumpAndSettle();
-    await tester.enterText(find.byType(TextField), 'New Name');
+    // The drawer's name field (the screen also has a search field).
+    await tester.enterText(
+      find.descendant(of: find.byType(Drawer), matching: find.byType(TextField)),
+      'New Name',
+    );
     await tester.tap(find.widgetWithText(FilledButton, 'Rename'));
     await tester.pumpAndSettle();
 
     final registry = c.read(importedSoundFontsProvider).requireValue;
     expect(registry.single.label, 'New Name');
+  });
+
+  testWidgets('tapping a sound loads its font to audition it', (tester) async {
+    final prefs = FakePreferencesService({
+      ImportedSoundFonts.prefsKey: _encode([_synced('a', 'My Grand')]),
+    });
+    final audio = RecordingAudioService();
+    final c = _container(prefs: prefs, audio: audio);
+    await _pump(tester, c);
+
+    final loadsBefore = audio.loadedSoundFonts.length;
+    // Tap the card body to audition (not an action icon).
+    await tester.tap(find.text('My Grand'));
+    await tester.pump();
+    await tester.pump();
+
+    // The sound's font was resolved and swapped into the synth.
+    expect(audio.loadedSoundFonts.length, greaterThan(loadsBefore));
+    // The card now offers a stop control; tap it so the looping ticker doesn't
+    // outlive the test.
+    await tester.tap(find.byIcon(Icons.stop_circle));
+    await tester.pump();
   });
 }

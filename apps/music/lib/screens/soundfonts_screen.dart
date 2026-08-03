@@ -12,24 +12,34 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../l10n/gen/app_localizations.dart';
+import '../services/audio_service.dart';
 import '../services/private_soundfont_service.dart'
     show PrivateSoundFontException;
+import '../services/soundfont_catalog_service.dart' show serverSoundFontsProvider;
 import '../services/soundfont_importer.dart'
     show PickedSoundFont, SoundFontImportException, soundFontImporterProvider;
+import '../services/soundfont_source.dart' show soundFontSourceProvider;
 import '../state/imported_soundfonts.dart';
 import '../state/piano_catalog.dart';
+import '../state/player_data.dart' show scoreNoteEdges;
+import '../state/selected_piano.dart';
+import '../state/sound_preview_sample.dart';
 import '../theme/cymbra_theme.dart';
 import '../widgets/app_snackbar.dart';
 
-/// A dedicated screen to manage the user's own SoundFonts (the private,
-/// server-synced library, change: add-soundfont-moderation). Reached from the
-/// home top bar. Lists the imports with remove + propose-to-catalog, and an add
-/// affordance that opens a right end-drawer to pick a `.sf2` and name it — an
-/// edit opens the same drawer to rename.
+/// The instrument-sound **hub** (change: add-soundfont-moderation), reached from
+/// the home top bar. Modelled on the score hub: a search field over the sounds,
+/// with "My instrument sounds" (the user's private, server-synced imports) first,
+/// then the "Catalog" (built-in + downloadable). Tapping a sound auditions it by
+/// playing a short bundled sample with that SoundFont loaded. Adding/renaming a
+/// user sound opens a right end-drawer (the back-office-style flow).
 class SoundFontsScreen extends ConsumerStatefulWidget {
   const SoundFontsScreen({super.key});
 
@@ -37,14 +47,73 @@ class SoundFontsScreen extends ConsumerStatefulWidget {
   ConsumerState<SoundFontsScreen> createState() => _SoundFontsScreenState();
 }
 
-class _SoundFontsScreenState extends ConsumerState<SoundFontsScreen> {
+class _SoundFontsScreenState extends ConsumerState<SoundFontsScreen>
+    with SingleTickerProviderStateMixin {
   final _scaffoldKey = GlobalKey<ScaffoldState>();
 
-  /// The font being renamed; `null` puts the drawer in add mode.
+  /// The font being renamed; `null` puts the add/edit drawer in add mode.
   PianoEntry? _editing;
 
-  /// Bumped on every open so the drawer form resets its fields.
+  /// Bumped on every drawer open so the form resets its fields.
   int _openSeq = 0;
+
+  /// Lowercased search query over sound labels.
+  String _query = '';
+
+  // --- Audition (sample playback) ------------------------------------------
+  late final AudioService _audio;
+  late final Ticker _ticker;
+
+  /// The selected piano's font path, captured on entry so we can restore the
+  /// synth when leaving (auditioning swaps the active font globally).
+  String? _restorePath;
+
+  /// The id of the sound currently being auditioned, or `null`.
+  String? _previewingId;
+
+  bool _seeded = false;
+  Duration _lastTick = Duration.zero;
+  double _elapsedMs = 0;
+  final Set<int> _sounding = <int>{};
+
+  @override
+  void initState() {
+    super.initState();
+    _audio = ref.read(audioServiceProvider);
+    unawaited(_audio.init());
+    _ticker = createTicker(_onTick);
+    unawaited(_captureRestore());
+    // Refresh server-sourced sounds so the catalog reflects the current server
+    // state each time the hub is opened.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) ref.invalidate(serverSoundFontsProvider);
+    });
+  }
+
+  @override
+  void dispose() {
+    _ticker.dispose();
+    _audio.allNotesOff();
+    // Best-effort restore of the selected sound's font (captured reference — no
+    // provider read during dispose).
+    final path = _restorePath;
+    if (path != null) unawaited(_audio.loadSoundFont(path));
+    super.dispose();
+  }
+
+  Future<void> _captureRestore() async {
+    try {
+      final id = ref.read(selectedPianoProvider);
+      final entry = ref
+          .read(pianoCatalogProvider)
+          .firstWhere((e) => e.id == id, orElse: () => defaultPiano);
+      _restorePath = await ref.read(soundFontSourceProvider).resolve(entry);
+    } catch (_) {
+      // Non-fatal: without a restore path we just leave the last-loaded font.
+    }
+  }
+
+  // --- Drawer (add / rename) -----------------------------------------------
 
   void _openAdd() {
     setState(() {
@@ -81,6 +150,7 @@ class _SoundFontsScreenState extends ConsumerState<SoundFontsScreen> {
       ),
     );
     if (confirmed ?? false) {
+      if (_previewingId == entry.id) await _stopPreview();
       await ref.read(importedSoundFontsProvider.notifier).remove(entry.id);
     }
   }
@@ -110,10 +180,103 @@ class _SoundFontsScreenState extends ConsumerState<SoundFontsScreen> {
     }
   }
 
+  // --- Audition ------------------------------------------------------------
+
+  Future<void> _togglePreview(PianoEntry entry) async {
+    if (_previewingId == entry.id) {
+      await _stopPreview();
+      return;
+    }
+    final messenger = ScaffoldMessenger.of(context);
+    final l10n = AppLocalizations.of(context);
+    try {
+      final path = await ref.read(soundFontSourceProvider).resolve(entry);
+      await _audio.loadSoundFont(path);
+    } catch (_) {
+      showAppSnackBar(messenger, l10n.soundfontsPreviewError);
+      return;
+    }
+    if (!mounted) return;
+    // Kick the sample load (parsed lazily; the ticker waits for it).
+    ref.read(soundPreviewSampleProvider);
+    _ticker.stop();
+    _audio.allNotesOff();
+    _sounding.clear();
+    _seeded = false;
+    _lastTick = Duration.zero;
+    _elapsedMs = 0;
+    setState(() => _previewingId = entry.id);
+    _ticker.start();
+  }
+
+  Future<void> _stopPreview() async {
+    _ticker.stop();
+    _audio.allNotesOff();
+    _sounding.clear();
+    if (mounted) setState(() => _previewingId = null);
+    final path = _restorePath;
+    if (path != null) {
+      try {
+        await _audio.loadSoundFont(path);
+      } catch (_) {}
+    }
+  }
+
+  void _onTick(Duration elapsed) {
+    final sample = ref.read(soundPreviewSampleProvider).valueOrNull;
+    if (sample == null || sample.isEmpty) {
+      _lastTick = elapsed;
+      return;
+    }
+    if (!_seeded) {
+      _elapsedMs = sample.startMs;
+      _seeded = true;
+      _lastTick = elapsed;
+      return;
+    }
+    final dtMs = (elapsed - _lastTick).inMicroseconds / 1000.0;
+    _lastTick = elapsed;
+    if (dtMs <= 0 || dtMs > 100) return; // skip a stalled/huge frame
+
+    var next = _elapsedMs + dtMs;
+    if (sample.songEndMs > 0 && next >= sample.songEndMs) {
+      // Loop the audition until the user stops it.
+      _audio.allNotesOff();
+      _sounding.clear();
+      next = sample.startMs;
+    } else {
+      final edges = scoreNoteEdges(
+        visible: sample.notes,
+        from: _elapsedMs,
+        to: next,
+        sounding: _sounding,
+      );
+      for (final p in edges.stops) {
+        _audio.noteOff(p);
+        _sounding.remove(p);
+      }
+      for (final p in edges.starts) {
+        _audio.noteOn(p);
+        _sounding.add(p);
+      }
+    }
+    _elapsedMs = next;
+  }
+
+  // --- Build ---------------------------------------------------------------
+
+  bool _matchesQuery(PianoEntry p) =>
+      _query.isEmpty || p.label.toLowerCase().contains(_query);
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final registry = ref.watch(importedSoundFontsProvider);
+    final catalog = ref.watch(pianoCatalogProvider).where(_matchesQuery);
+    final mine = catalog.where((p) => p.kind == PianoKind.user).toList();
+    final cat = catalog
+        .where((p) => p.kind != PianoKind.user)
+        .toList(growable: false);
+
     return Scaffold(
       key: _scaffoldKey,
       backgroundColor: CymbraColors.background,
@@ -122,7 +285,7 @@ class _SoundFontsScreenState extends ConsumerState<SoundFontsScreen> {
         backgroundColor: CymbraColors.surfaceContainerLowest,
         actions: [
           IconButton(
-            icon: const Icon(Icons.add),
+            icon: const Icon(Icons.library_add_outlined),
             tooltip: l10n.soundfontsAdd,
             onPressed: _openAdd,
           ),
@@ -130,92 +293,181 @@ class _SoundFontsScreenState extends ConsumerState<SoundFontsScreen> {
         ],
       ),
       endDrawer: _SoundFontFormDrawer(
-        // Key by the target + open sequence so the form resets each open.
         key: ValueKey('${_editing?.id ?? "add"}-$_openSeq'),
         editing: _editing,
         onDone: () => _scaffoldKey.currentState?.closeEndDrawer(),
       ),
       body: SafeArea(
-        child: registry.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (_, _) => Center(
-            child: Text(
-              l10n.soundfontsError,
-              style: const TextStyle(color: CymbraColors.onSurfaceVariant),
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+              child: TextField(
+                onChanged: (v) => setState(() => _query = v.trim().toLowerCase()),
+                style: const TextStyle(color: CymbraColors.onSurface),
+                decoration: InputDecoration(
+                  hintText: l10n.soundfontsSearchHint,
+                  prefixIcon: const Icon(
+                    Icons.search,
+                    color: CymbraColors.outline,
+                  ),
+                  filled: true,
+                  fillColor: CymbraColors.surfaceContainerHigh,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+              ),
             ),
-          ),
-          data: (fonts) => fonts.isEmpty
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Text(
-                      l10n.soundfontsEmpty,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.only(bottom: 24),
+                children: [
+                  _SectionHeader(l10n.soundfontsSectionMine),
+                  if (mine.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
+                      child: Text(
+                        l10n.soundfontsEmpty,
+                        style: const TextStyle(
+                          color: CymbraColors.onSurfaceVariant,
+                        ),
+                      ),
+                    )
+                  else
+                    for (final p in mine)
+                      _SoundCard(
+                        entry: p,
+                        playing: _previewingId == p.id,
+                        onTap: () => _togglePreview(p),
+                        onRename: () => _openEdit(p),
+                        onRemove: () => _remove(p),
+                        onPropose: p.remoteId != null ? () => _propose(p) : null,
+                      ),
+                  _SectionHeader(l10n.soundfontsSectionCatalog),
+                  for (final p in cat)
+                    _SoundCard(
+                      entry: p,
+                      playing: _previewingId == p.id,
+                      onTap: () => _togglePreview(p),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader(this.text);
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+    child: Text(
+      text,
+      style: const TextStyle(
+        color: CymbraColors.onSurface,
+        fontSize: 16,
+        fontWeight: FontWeight.w700,
+      ),
+    ),
+  );
+}
+
+/// One sound row/card: a play/stop leading control (audition), the label + its
+/// licence, and (for a user sound) rename / remove / propose actions. The whole
+/// card is tappable to toggle the audition.
+class _SoundCard extends StatelessWidget {
+  const _SoundCard({
+    required this.entry,
+    required this.playing,
+    required this.onTap,
+    this.onRename,
+    this.onRemove,
+    this.onPropose,
+  });
+
+  final PianoEntry entry;
+  final bool playing;
+  final VoidCallback onTap;
+  final VoidCallback? onRename;
+  final VoidCallback? onRemove;
+  final VoidCallback? onPropose;
+
+  String? get _subtitle {
+    final license = entry.license;
+    if (license == null) return null;
+    final attribution = entry.attribution;
+    return attribution == null ? license : '$license · $attribution';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final subtitle = _subtitle;
+    return Card(
+      color: CymbraColors.surfaceContainerHigh,
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      child: ListTile(
+        onTap: onTap,
+        leading: Icon(
+          playing ? Icons.stop_circle : Icons.play_circle_outline,
+          color: playing ? CymbraColors.primary : CymbraColors.onSurfaceVariant,
+          semanticLabel: playing ? l10n.soundfontsStop : l10n.soundfontsPlay,
+        ),
+        title: Text(
+          entry.label,
+          style: const TextStyle(color: CymbraColors.onSurface),
+        ),
+        subtitle: subtitle == null
+            ? null
+            : Text(
+                subtitle,
+                style: const TextStyle(
+                  color: CymbraColors.onSurfaceVariant,
+                  fontSize: 12,
+                ),
+              ),
+        trailing: (onRename == null && onRemove == null && onPropose == null)
+            ? null
+            : Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (onPropose != null)
+                    IconButton(
+                      tooltip: l10n.pianoPropose,
+                      icon: const Icon(
+                        Icons.publish_outlined,
                         color: CymbraColors.onSurfaceVariant,
                       ),
+                      onPressed: onPropose,
                     ),
-                  ),
-                )
-              : ListView.separated(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  itemCount: fonts.length,
-                  separatorBuilder: (_, _) => const Divider(height: 1),
-                  itemBuilder: (context, i) {
-                    final p = fonts[i];
-                    final subtitle = p.license == null
-                        ? null
-                        : (p.attribution == null
-                              ? p.license!
-                              : '${p.license} · ${p.attribution}');
-                    return ListTile(
-                      title: Text(
-                        p.label,
-                        style: const TextStyle(color: CymbraColors.onSurface),
+                  if (onRename != null)
+                    IconButton(
+                      tooltip: l10n.soundfontsRename,
+                      icon: const Icon(
+                        Icons.edit_outlined,
+                        color: CymbraColors.onSurfaceVariant,
                       ),
-                      subtitle: subtitle == null
-                          ? null
-                          : Text(
-                              subtitle,
-                              style: const TextStyle(
-                                color: CymbraColors.onSurfaceVariant,
-                                fontSize: 12,
-                              ),
-                            ),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          if (p.remoteId != null)
-                            IconButton(
-                              tooltip: l10n.pianoPropose,
-                              icon: const Icon(
-                                Icons.publish_outlined,
-                                color: CymbraColors.onSurfaceVariant,
-                              ),
-                              onPressed: () => _propose(p),
-                            ),
-                          IconButton(
-                            tooltip: l10n.soundfontsRename,
-                            icon: const Icon(
-                              Icons.edit_outlined,
-                              color: CymbraColors.onSurfaceVariant,
-                            ),
-                            onPressed: () => _openEdit(p),
-                          ),
-                          IconButton(
-                            tooltip: l10n.pianoRemove,
-                            icon: const Icon(
-                              Icons.delete_outline,
-                              color: CymbraColors.onSurfaceVariant,
-                            ),
-                            onPressed: () => _remove(p),
-                          ),
-                        ],
+                      onPressed: onRename,
+                    ),
+                  if (onRemove != null)
+                    IconButton(
+                      tooltip: l10n.pianoRemove,
+                      icon: const Icon(
+                        Icons.delete_outline,
+                        color: CymbraColors.onSurfaceVariant,
                       ),
-                    );
-                  },
-                ),
-        ),
+                      onPressed: onRemove,
+                    ),
+                ],
+              ),
       ),
     );
   }
@@ -224,13 +476,18 @@ class _SoundFontsScreenState extends ConsumerState<SoundFontsScreen> {
 /// The add/rename end-drawer. In add mode it picks a `.sf2` and names it; in edit
 /// mode ([editing] set) it renames.
 class _SoundFontFormDrawer extends ConsumerStatefulWidget {
-  const _SoundFontFormDrawer({super.key, required this.editing, required this.onDone});
+  const _SoundFontFormDrawer({
+    super.key,
+    required this.editing,
+    required this.onDone,
+  });
 
   final PianoEntry? editing;
   final VoidCallback onDone;
 
   @override
-  ConsumerState<_SoundFontFormDrawer> createState() => _SoundFontFormDrawerState();
+  ConsumerState<_SoundFontFormDrawer> createState() =>
+      _SoundFontFormDrawerState();
 }
 
 class _SoundFontFormDrawerState extends ConsumerState<_SoundFontFormDrawer> {
@@ -349,8 +606,6 @@ class _SoundFontFormDrawerState extends ConsumerState<_SoundFontFormDrawer> {
 }
 
 /// Propose dialog (licence + attribution + right-to-distribute attestation).
-/// Returns `(license, attribution)` on submit; submit stays disabled until a
-/// licence is entered and the attestation is checked.
 class _ProposeDialog extends StatefulWidget {
   @override
   State<_ProposeDialog> createState() => _ProposeDialogState();

@@ -28,8 +28,8 @@ const opError = computed(() => (store.op.status === "error" ? store.op.error : n
 
 // Moderation review (change: add-soundfont-moderation): a back-office-only status
 // filter (defaults to the pending review queue) and accept/reject actions.
-type StatusFilter = "pending" | "accepted" | "rejected" | "all";
-const statusFilter = ref<StatusFilter>("pending");
+type StatusFilter = "all" | "pending" | "accepted" | "rejected";
+const statusFilter = ref<StatusFilter>("all");
 const filteredRows = computed(() =>
   statusFilter.value === "all"
     ? vm.value.rows
@@ -96,7 +96,7 @@ function licenseDesc(license: string): string {
 
     <div class="filters" role="tablist" :aria-label="t('soundfonts.filter.label')">
       <button
-        v-for="f in (['pending', 'accepted', 'rejected', 'all'] as const)"
+        v-for="f in (['all', 'pending', 'accepted', 'rejected'] as const)"
         :key="f"
         type="button"
         role="tab"
