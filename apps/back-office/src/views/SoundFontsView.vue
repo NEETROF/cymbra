@@ -161,7 +161,7 @@ function licenseDesc(license: string): string {
 
     <div class="filters" role="tablist" :aria-label="t('soundfonts.filter.label')">
       <button
-        v-for="f in (['all', 'pending', 'accepted', 'rejected'] as const)"
+        v-for="f in ['all', 'pending', 'accepted', 'rejected'] as const"
         :key="f"
         type="button"
         role="tab"
@@ -241,7 +241,9 @@ function licenseDesc(license: string): string {
 
     <nav v-if="!vm.loading && !vm.error && store.total > 0" class="pager" :aria-label="t('soundfonts.pager.label')">
       <button type="button" :disabled="!canPrev" @click="prevPage">{{ t("soundfonts.pager.prev") }}</button>
-      <span class="range">{{ t("soundfonts.pager.range", { start: pageStart, end: pageEnd, total: store.total }) }}</span>
+      <span class="range">{{
+        t("soundfonts.pager.range", { start: pageStart, end: pageEnd, total: store.total })
+      }}</span>
       <button type="button" :disabled="!canNext" @click="nextPage">{{ t("soundfonts.pager.next") }}</button>
     </nav>
 

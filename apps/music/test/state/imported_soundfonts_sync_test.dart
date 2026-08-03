@@ -71,26 +71,29 @@ void main() {
     );
   }
 
-  test('import uploads to the private library and records the remote id', () async {
-    final entry = await realImport('u1', 'My Grand');
-    final private = FakePrivateSoundFontService();
-    final c = container(
-      importer: FakeSoundFontImporter(next: entry),
-      private: private,
-    );
-    await c.read(importedSoundFontsProvider.future);
+  test(
+    'import uploads to the private library and records the remote id',
+    () async {
+      final entry = await realImport('u1', 'My Grand');
+      final private = FakePrivateSoundFontService();
+      final c = container(
+        importer: FakeSoundFontImporter(next: entry),
+        private: private,
+      );
+      await c.read(importedSoundFontsProvider.future);
 
-    final imported = await c
-        .read(importedSoundFontsProvider.notifier)
-        .importSoundFont();
+      final imported = await c
+          .read(importedSoundFontsProvider.notifier)
+          .importSoundFont();
 
-    expect(private.imported, ['My Grand']); // uploaded
-    expect(imported?.remoteId, isNotNull); // server id recorded
-    expect(
-      c.read(importedSoundFontsProvider).requireValue.single.remoteId,
-      imported?.remoteId,
-    );
-  });
+      expect(private.imported, ['My Grand']); // uploaded
+      expect(imported?.remoteId, isNotNull); // server id recorded
+      expect(
+        c.read(importedSoundFontsProvider).requireValue.single.remoteId,
+        imported?.remoteId,
+      );
+    },
+  );
 
   test('proposeToPublicCatalog forwards licence + attestation', () async {
     final entry = await realImport('u1', 'My Grand');
@@ -119,27 +122,34 @@ void main() {
     expect(private.proposed.single.id, imported.remoteId);
   });
 
-  test('proposing an un-synced font throws instead of a silent no-op', () async {
-    // A local-only entry (import upload failed): no remote id yet.
-    final entry = await realImport('u1', 'My Grand');
-    final private = FakePrivateSoundFontService()..failImport = true;
-    final c = container(
-      importer: FakeSoundFontImporter(next: entry),
-      private: private,
-    );
-    await c.read(importedSoundFontsProvider.future);
-    final imported = await c
-        .read(importedSoundFontsProvider.notifier)
-        .importSoundFont();
-    expect(imported?.remoteId, isNull);
-
-    expect(
-      () => c
+  test(
+    'proposing an un-synced font throws instead of a silent no-op',
+    () async {
+      // A local-only entry (import upload failed): no remote id yet.
+      final entry = await realImport('u1', 'My Grand');
+      final private = FakePrivateSoundFontService()..failImport = true;
+      final c = container(
+        importer: FakeSoundFontImporter(next: entry),
+        private: private,
+      );
+      await c.read(importedSoundFontsProvider.future);
+      final imported = await c
           .read(importedSoundFontsProvider.notifier)
-          .proposeToPublicCatalog(imported!.id, license: 'x', attestation: true),
-      throwsA(isA<PrivateSoundFontException>()),
-    );
-  });
+          .importSoundFont();
+      expect(imported?.remoteId, isNull);
+
+      expect(
+        () => c
+            .read(importedSoundFontsProvider.notifier)
+            .proposeToPublicCatalog(
+              imported!.id,
+              license: 'x',
+              attestation: true,
+            ),
+        throwsA(isA<PrivateSoundFontException>()),
+      );
+    },
+  );
 
   test('remove deletes the font server-side so it stops syncing', () async {
     final entry = await realImport('u1', 'My Grand');
@@ -159,70 +169,73 @@ void main() {
     expect(c.read(importedSoundFontsProvider).requireValue, isEmpty);
   });
 
-  test('build pulls a server-only font into the registry (cross-device sync)', () async {
-    // The server library already has a font this device never imported — and it
-    // was already proposed (accepted). Changing device must recover both.
-    final private = FakePrivateSoundFontService(
-      library: const [
-        RemoteSoundFont(
-          id: 'remote-x',
-          label: 'Shared Grand',
-          sizeBytes: 12,
-          proposalStatus: 'accepted',
-        ),
-      ],
-    );
-    final c = container(
-      importer: FakeSoundFontImporter(),
-      private: private,
-    );
-
-    final synced = await c.read(importedSoundFontsProvider.future);
-
-    // It appears as a user piano backed by a downloaded cache file, carrying the
-    // server's proposal status so the tag shows on the new device too.
-    final font = synced.singleWhere((e) => e.remoteId == 'remote-x');
-    expect(font.label, 'Shared Grand');
-    expect(font.kind, PianoKind.user);
-    expect(File(font.source).existsSync(), isTrue);
-    expect(font.proposalStatus, 'accepted');
-  });
-
-  test('refresh upgrades a proposal status after a moderation decision', () async {
-    // The device holds a font whose proposal is pending.
-    final private = FakePrivateSoundFontService(
-      library: const [
-        RemoteSoundFont(
-          id: 'remote-u1',
-          label: 'My Grand',
-          sizeBytes: 1,
-          proposalStatus: 'pending',
-        ),
-      ],
-    );
-    final c = container(importer: FakeSoundFontImporter(), private: private);
-    await c.read(importedSoundFontsProvider.future);
-    expect(
-      c.read(importedSoundFontsProvider).requireValue.single.proposalStatus,
-      'pending',
-    );
-
-    // A moderator accepts it in the back office; the app re-syncs on hub open.
-    private.library
-      ..clear()
-      ..add(
-        const RemoteSoundFont(
-          id: 'remote-u1',
-          label: 'My Grand',
-          sizeBytes: 1,
-          proposalStatus: 'accepted',
-        ),
+  test(
+    'build pulls a server-only font into the registry (cross-device sync)',
+    () async {
+      // The server library already has a font this device never imported — and it
+      // was already proposed (accepted). Changing device must recover both.
+      final private = FakePrivateSoundFontService(
+        library: const [
+          RemoteSoundFont(
+            id: 'remote-x',
+            label: 'Shared Grand',
+            sizeBytes: 12,
+            proposalStatus: 'accepted',
+          ),
+        ],
       );
-    await c.read(importedSoundFontsProvider.notifier).refresh();
+      final c = container(importer: FakeSoundFontImporter(), private: private);
 
-    expect(
-      c.read(importedSoundFontsProvider).requireValue.single.proposalStatus,
-      'accepted',
-    );
-  });
+      final synced = await c.read(importedSoundFontsProvider.future);
+
+      // It appears as a user piano backed by a downloaded cache file, carrying the
+      // server's proposal status so the tag shows on the new device too.
+      final font = synced.singleWhere((e) => e.remoteId == 'remote-x');
+      expect(font.label, 'Shared Grand');
+      expect(font.kind, PianoKind.user);
+      expect(File(font.source).existsSync(), isTrue);
+      expect(font.proposalStatus, 'accepted');
+    },
+  );
+
+  test(
+    'refresh upgrades a proposal status after a moderation decision',
+    () async {
+      // The device holds a font whose proposal is pending.
+      final private = FakePrivateSoundFontService(
+        library: const [
+          RemoteSoundFont(
+            id: 'remote-u1',
+            label: 'My Grand',
+            sizeBytes: 1,
+            proposalStatus: 'pending',
+          ),
+        ],
+      );
+      final c = container(importer: FakeSoundFontImporter(), private: private);
+      await c.read(importedSoundFontsProvider.future);
+      expect(
+        c.read(importedSoundFontsProvider).requireValue.single.proposalStatus,
+        'pending',
+      );
+
+      // A moderator accepts it in the back office; the app re-syncs on hub open.
+      private.library
+        ..clear()
+        ..add(
+          const RemoteSoundFont(
+            id: 'remote-u1',
+            label: 'My Grand',
+            sizeBytes: 1,
+            proposalStatus: 'accepted',
+          ),
+        );
+      await c.read(importedSoundFontsProvider.notifier).refresh();
+
+      expect(
+        c.read(importedSoundFontsProvider).requireValue.single.proposalStatus,
+        'accepted',
+      );
+    },
+  );
 }

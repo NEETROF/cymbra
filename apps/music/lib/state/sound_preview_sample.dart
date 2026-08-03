@@ -27,7 +27,8 @@ part 'sound_preview_sample.g.dart';
 /// (change: add-soundfont-moderation) — parsed through the SAME notation pipeline
 /// the player uses, so tapping a sound plays a real embedded piece with that
 /// SoundFont loaded. Kept small and recognisable (Ode to Joy).
-const String soundPreviewSampleAsset = 'assets/scores/beginner/ode_to_joy.musicxml';
+const String soundPreviewSampleAsset =
+    'assets/scores/beginner/ode_to_joy.musicxml';
 
 /// Loads + parses [soundPreviewSampleAsset] into a playback-ready [CardPreviewScore].
 /// `keepAlive` because the sample never changes AND the hub only `ref.read`s it (no

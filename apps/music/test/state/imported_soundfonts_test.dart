@@ -110,28 +110,31 @@ void main() {
     expect(e.proposalStatus, 'pending');
   });
 
-  test('a proposed status survives a relaunch even if the server omits it', () async {
-    // Persisted 'pending' + an empty server library (e.g. offline / old backend):
-    // the sync must keep the tag, not clear it.
-    const entry = PianoEntry(
-      id: 'u1',
-      label: 'My Grand',
-      kind: PianoKind.user,
-      source: '/x/u1.sf2',
-      remoteId: 'remote-u1',
-      proposalStatus: 'pending',
-    );
-    final prefs = FakePreferencesService({
-      ImportedSoundFonts.prefsKey: _encodeRegistry([entry]),
-    });
-    final container = _container(prefs, FakeSoundFontImporter());
-    await container.read(importedSoundFontsProvider.future);
-    final e = container
-        .read(importedSoundFontsProvider)
-        .requireValue
-        .firstWhere((x) => x.id == 'u1');
-    expect(e.proposalStatus, 'pending');
-  });
+  test(
+    'a proposed status survives a relaunch even if the server omits it',
+    () async {
+      // Persisted 'pending' + an empty server library (e.g. offline / old backend):
+      // the sync must keep the tag, not clear it.
+      const entry = PianoEntry(
+        id: 'u1',
+        label: 'My Grand',
+        kind: PianoKind.user,
+        source: '/x/u1.sf2',
+        remoteId: 'remote-u1',
+        proposalStatus: 'pending',
+      );
+      final prefs = FakePreferencesService({
+        ImportedSoundFonts.prefsKey: _encodeRegistry([entry]),
+      });
+      final container = _container(prefs, FakeSoundFontImporter());
+      await container.read(importedSoundFontsProvider.future);
+      final e = container
+          .read(importedSoundFontsProvider)
+          .requireValue
+          .firstWhere((x) => x.id == 'u1');
+      expect(e.proposalStatus, 'pending');
+    },
+  );
 
   test('an imported piano survives a relaunch', () async {
     // A "previous launch" persisted one user piano.

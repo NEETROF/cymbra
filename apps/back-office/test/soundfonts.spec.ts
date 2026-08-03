@@ -1,11 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createPinia, setActivePinia } from "pinia";
-import {
-  type NewSoundFont,
-  setUploadForTest,
-  SOUNDFONTS_PAGE_SIZE,
-  useSoundFontsStore,
-} from "@/stores/soundfonts";
+import { type NewSoundFont, setUploadForTest, SOUNDFONTS_PAGE_SIZE, useSoundFontsStore } from "@/stores/soundfonts";
 import { SoundFontUploadError } from "@/lib/errors";
 import { setClientsForTest } from "@/lib/api";
 import { makeFakeClients } from "./fakes";
@@ -33,9 +28,7 @@ function withSoundfonts(clients: ReturnType<typeof makeFakeClients>["clients"], 
     const r = (req ?? {}) as { limit?: number; offset?: number; moderationStatus?: string };
     const status = r.moderationStatus ?? "";
     const filtered = status
-      ? state.list.filter(
-          (f) => (((f as Record<string, unknown>).moderationStatus as string) || "pending") === status,
-        )
+      ? state.list.filter((f) => (((f as Record<string, unknown>).moderationStatus as string) || "pending") === status)
       : state.list;
     const offset = r.offset ?? 0;
     const limit = r.limit && r.limit > 0 ? r.limit : filtered.length;
@@ -127,10 +120,7 @@ describe("soundfonts store", () => {
 
   it("passes the status filter to the server and resets the page", async () => {
     const { clients } = makeFakeClients();
-    withSoundfonts(clients, [
-      row("a", { moderationStatus: "accepted" }),
-      row("b", { moderationStatus: "pending" }),
-    ]);
+    withSoundfonts(clients, [row("a", { moderationStatus: "accepted" }), row("b", { moderationStatus: "pending" })]);
     setClientsForTest(clients);
     const store = useSoundFontsStore();
 

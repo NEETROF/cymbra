@@ -15,13 +15,7 @@ defineProps<{ items: StatItem[] }>();
 
 <template>
   <div class="stats">
-    <div
-      v-for="c in items"
-      :key="c.id"
-      class="stat"
-      :class="c.accent"
-      :data-testid="`stat-${c.id}`"
-    >
+    <div v-for="c in items" :key="c.id" class="stat" :class="c.accent" :data-testid="`stat-${c.id}`">
       <div class="stat-body">
         <span class="stat-label">{{ c.label }}</span>
         <span class="stat-value" data-testid="stat-value">{{ c.value }}</span>

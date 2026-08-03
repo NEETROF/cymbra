@@ -15,7 +15,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../services/soundfont_catalog_service.dart' show serverSoundFontsProvider;
+import '../services/soundfont_catalog_service.dart'
+    show serverSoundFontsProvider;
 import '../state/piano_catalog.dart';
 import '../theme/cymbra_theme.dart';
 
@@ -76,7 +77,9 @@ class _SoundSelectorFieldState extends ConsumerState<SoundSelectorField> {
   @override
   Widget build(BuildContext context) {
     final catalog = ref.watch(pianoCatalogProvider);
-    final sounds = catalog.where((p) => _matches(p, widget.instrument)).toList();
+    final sounds = catalog
+        .where((p) => _matches(p, widget.instrument))
+        .toList();
 
     // The dropdown value must match an item; fall back to the default if the
     // current selection isn't in the (filtered) catalog.

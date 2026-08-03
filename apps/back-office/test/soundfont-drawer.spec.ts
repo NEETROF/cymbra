@@ -85,9 +85,7 @@ describe("SoundFontDrawer", () => {
     expect(uploaded).toHaveLength(1);
     expect(uploaded[0]).toMatchObject({ label: "YDP Grand", instrument: "piano" });
     // A generated uuidv7 (version nibble 7, RFC-4122 variant).
-    expect(uploaded[0].id).toMatch(
-      /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
-    );
+    expect(uploaded[0].id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
     expect(w.emitted("close")).toBeTruthy();
   });
 

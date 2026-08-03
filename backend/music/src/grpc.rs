@@ -966,7 +966,13 @@ mod tests {
             .into_inner();
         assert_eq!(p1.total, 5);
         assert_eq!(p1.next_offset, 2);
-        assert_eq!(p1.soundfonts.iter().map(|f| f.id.clone()).collect::<Vec<_>>(), ["a", "b"]);
+        assert_eq!(
+            p1.soundfonts
+                .iter()
+                .map(|f| f.id.clone())
+                .collect::<Vec<_>>(),
+            ["a", "b"]
+        );
         // KPI counts are catalog-wide, independent of the filter/page.
         assert_eq!(p1.total_count, 5);
         assert_eq!(p1.accepted_count, 3);
@@ -988,7 +994,11 @@ mod tests {
             .into_inner();
         assert_eq!(pending.total, 2);
         assert_eq!(
-            pending.soundfonts.iter().map(|f| f.id.clone()).collect::<Vec<_>>(),
+            pending
+                .soundfonts
+                .iter()
+                .map(|f| f.id.clone())
+                .collect::<Vec<_>>(),
             ["b", "d"]
         );
     }

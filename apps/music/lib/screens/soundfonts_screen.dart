@@ -22,7 +22,8 @@ import '../l10n/gen/app_localizations.dart';
 import '../services/audio_service.dart';
 import '../services/private_soundfont_service.dart'
     show PrivateSoundFontException;
-import '../services/soundfont_catalog_service.dart' show serverSoundFontsProvider;
+import '../services/soundfont_catalog_service.dart'
+    show serverSoundFontsProvider;
 import '../services/soundfont_importer.dart'
     show PickedSoundFont, SoundFontImportException, soundFontImporterProvider;
 import '../services/soundfont_source.dart' show soundFontSourceProvider;
@@ -313,7 +314,8 @@ class _SoundFontsScreenState extends ConsumerState<SoundFontsScreen>
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
               child: TextField(
-                onChanged: (v) => setState(() => _query = v.trim().toLowerCase()),
+                onChanged: (v) =>
+                    setState(() => _query = v.trim().toLowerCase()),
                 style: const TextStyle(color: CymbraColors.onSurface),
                 decoration: InputDecoration(
                   hintText: l10n.soundfontsSearchHint,

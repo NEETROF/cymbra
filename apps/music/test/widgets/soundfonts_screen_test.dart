@@ -35,7 +35,8 @@ import '../support/localized.dart';
 import '../support/prefs_fakes.dart';
 import '../support/soundfont_fakes.dart';
 
-String _encode(List<PianoEntry> e) => jsonEncode([for (final x in e) x.toJson()]);
+String _encode(List<PianoEntry> e) =>
+    jsonEncode([for (final x in e) x.toJson()]);
 
 ProviderContainer _container({
   FakePreferencesService? prefs,
@@ -176,7 +177,10 @@ void main() {
     await tester.pumpAndSettle();
     // The drawer's name field (the screen also has a search field).
     await tester.enterText(
-      find.descendant(of: find.byType(Drawer), matching: find.byType(TextField)),
+      find.descendant(
+        of: find.byType(Drawer),
+        matching: find.byType(TextField),
+      ),
       'New Name',
     );
     await tester.tap(find.widgetWithText(FilledButton, 'Rename'));
