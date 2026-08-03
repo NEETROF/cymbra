@@ -48,6 +48,8 @@ import 'practice_range_test.mocks.dart';
 class _SilentConnectivity implements ConnectivityService {
   @override
   Stream<void> get onOnline => const Stream<void>.empty();
+  @override
+  Future<bool> isOnline() async => true;
 }
 
 /// No-op retry scheduler so a failed drain doesn't arm a real timer.

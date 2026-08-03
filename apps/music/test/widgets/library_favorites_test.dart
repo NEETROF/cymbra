@@ -21,6 +21,7 @@ import 'package:music/courses/course_manifest.dart';
 import 'package:music/screens/library_screen.dart';
 import 'package:music/services/audio_service.dart';
 import 'package:music/services/catalog_service.dart';
+import 'package:music/services/connectivity_service.dart';
 import 'package:music/services/course_catalog_service.dart';
 import 'package:music/services/midi_service.dart';
 import 'package:music/services/notation_engine.dart';
@@ -161,11 +162,22 @@ const _bundled = [
   ),
 ];
 
+class _FakeConnectivity extends Fake implements ConnectivityService {
+  _FakeConnectivity(this.online);
+  final bool online;
+  @override
+  Stream<void> get onOnline => const Stream.empty();
+  @override
+  Future<bool> isOnline() async => online;
+}
+
 ProviderContainer _container(
   _FakeCatalog catalog,
   _FakeUpload upload, {
   bool signedIn = true,
   bool withCourses = false,
+  bool online = true,
+  OfflineScoreCache? cache,
 }) {
   final c = ProviderContainer(
     overrides: [
@@ -182,9 +194,12 @@ ProviderContainer _container(
       catalogServiceProvider.overrideWithValue(catalog),
       scoreUploadServiceProvider.overrideWithValue(upload),
       canUseOnlineServicesProvider.overrideWithValue(signedIn),
+      connectivityServiceProvider.overrideWithValue(_FakeConnectivity(online)),
       // In-memory offline cache so eviction on remove/delete is instant (the real
       // impl touches path_provider, which isn't available in a widget test).
-      offlineScoreCacheProvider.overrideWithValue(InMemoryOfflineScoreCache()),
+      offlineScoreCacheProvider.overrideWithValue(
+        cache ?? InMemoryOfflineScoreCache(),
+      ),
     ],
   );
   addTearDown(c.dispose);
@@ -321,6 +336,32 @@ void main() {
     }
     expect(catalog.removed, ['c1']);
     expect(find.text('Saved Piece'), findsNothing);
+    await _teardown(tester);
+  });
+
+  testWidgets('offline: uncached favorites are marked "not available offline'
+      '", cached ones are not', (tester) async {
+    // c1's bytes are cached (playable offline); c2's are not.
+    final cache = InMemoryOfflineScoreCache();
+    await cache.write('catalog:c1', Uint8List.fromList(const [1]), etag: 'e');
+    final c = _container(
+      _FakeCatalog([
+        _saved('c1', 'Cached Piece'),
+        _saved('c2', 'Uncached Piece'),
+      ]),
+      _FakeUpload(const []),
+      online: false,
+      cache: cache,
+    );
+    await _pump(tester, c);
+
+    // Both favorites are listed offline (from the live fetch here; the snapshot
+    // fallback is covered in favorite_scores_test).
+    expect(find.text('Cached Piece'), findsOneWidget);
+    expect(find.text('Uncached Piece'), findsOneWidget);
+    // Only the uncached one carries the "not available offline" badge.
+    expect(find.text('Not available offline'), findsOneWidget);
+    expect(find.byIcon(Icons.cloud_off), findsOneWidget);
     await _teardown(tester);
   });
 }

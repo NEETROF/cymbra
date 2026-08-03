@@ -61,7 +61,7 @@ class Notation extends _$Notation {
     final width = state.availableWidth > 0
         ? state.availableWidth
         : _initialWidth;
-    final cacheKey = _cacheKey(entry);
+    final cacheKey = offlineCacheKeyFor(entry);
     try {
       // Bytes come from: a byte-sourced score (a user upload or a saved public-
       // catalog score) via the offline-preferred cache path, or the asset bundle
@@ -88,16 +88,6 @@ class Notation extends _$Notation {
       if (ref.read(selectedScoreProvider) != entry) return;
       state = NotationData(failure: failure, availableWidth: width);
     }
-  }
-
-  /// Stable cache key for a byte-sourced entry, or `null` for a bundled asset
-  /// (bundled scores are already local and public — never cached).
-  static String? _cacheKey(CatalogEntry entry) {
-    final contributedId = entry.contributedId;
-    if (contributedId != null) return 'contributed:$contributedId';
-    final catalogId = entry.catalogId;
-    if (catalogId != null) return 'catalog:$catalogId';
-    return null;
   }
 
   /// Load a byte-sourced score, preferring a valid local encrypted copy so a

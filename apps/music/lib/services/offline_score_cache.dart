@@ -23,11 +23,24 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../state/score_catalog.dart';
 import '../state/session_notifier.dart';
 import 'offline_key_provider.dart';
 import 'offline_server_secret_service.dart';
 
 part 'offline_score_cache.g.dart';
+
+/// The stable offline-cache key for a byte-sourced [entry], or `null` for a
+/// bundled asset (bundled scores are local + public — never cached). Shared by the
+/// load path, the eviction wiring, and the playable-offline probe so the key
+/// format stays in one place.
+String? offlineCacheKeyFor(CatalogEntry entry) {
+  final contributedId = entry.contributedId;
+  if (contributedId != null) return 'contributed:$contributedId';
+  final catalogId = entry.catalogId;
+  if (catalogId != null) return 'catalog:$catalogId';
+  return null;
+}
 
 /// Decrypted bytes of a cached score plus the server content hash (ETag) stored
 /// alongside them (change: add-offline-score-cache).
@@ -58,6 +71,11 @@ abstract class OfflineScoreCache {
 
   /// Delete [entryKey]'s encrypted file (idempotent no-op if absent).
   Future<void> evict(String entryKey);
+
+  /// Delete every cached file whose entry key is NOT in [keepKeys] — the orphan
+  /// sweep run when the favorites list refreshes, so a score removed on another
+  /// device stops occupying disk. Best-effort; never throws.
+  Future<void> sweep(Set<String> keepKeys);
 
   /// Purge every cached file and clear the key material, making any residual file
   /// inert (sign-out / account deletion).
@@ -236,6 +254,29 @@ class EncryptedFileOfflineScoreCache implements OfflineScoreCache {
   }
 
   @override
+  Future<void> sweep(Set<String> keepKeys) async {
+    try {
+      final dir = await _dir();
+      if (!await dir.exists()) return;
+      // File names are SHA-256(entryKey); compute the keep-set of names.
+      final keepNames = keepKeys
+          .map((k) => '${crypto.sha256.convert(utf8.encode(k))}.enc')
+          .toSet();
+      await for (final ent in dir.list()) {
+        if (ent is! File || !ent.path.endsWith('.enc')) continue;
+        final name = ent.uri.pathSegments.last;
+        if (!keepNames.contains(name)) {
+          try {
+            await ent.delete();
+          } catch (_) {}
+        }
+      }
+    } catch (e) {
+      debugPrint('offline cache sweep failed ($e); ignoring.');
+    }
+  }
+
+  @override
   Future<void> purgeAll() async {
     try {
       final dir = await _dir();
@@ -281,6 +322,10 @@ class InMemoryOfflineScoreCache implements OfflineScoreCache {
 
   @override
   Future<void> evict(String entryKey) async => _items.remove(entryKey);
+
+  @override
+  Future<void> sweep(Set<String> keepKeys) async =>
+      _items.removeWhere((k, _) => !keepKeys.contains(k));
 
   @override
   Future<void> purgeAll() async => _items.clear();

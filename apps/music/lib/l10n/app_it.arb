@@ -259,6 +259,7 @@
   "playerScoreNotAvailableYet": "Questa partitura non è ancora disponibile. Riprova più tardi.",
   "playerScoreUnavailable": "Server irraggiungibile. Controlla la connessione e riprova.",
   "playerScoreOfflineUnavailable": "Questo preferito non è ancora disponibile offline. Connettiti a Internet per aprirlo una volta, poi sarà riproducibile offline.",
+  "libraryNotAvailableOffline": "Non disponibile offline",
   "playerScoreRateLimited": "Stai aprendo partiture troppo velocemente. Attendi un momento e riprova.",
   "prePlayHands": "Suona con",
   "prePlayTempo": "Tempo",

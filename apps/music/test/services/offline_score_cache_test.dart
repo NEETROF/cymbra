@@ -154,6 +154,18 @@ void main() {
     await c.evict('catalog:a');
   });
 
+  test('sweep deletes only the entries not in the keep-set', () async {
+    final c = _cache(dir, usable());
+    await c.write('catalog:a', _bytes('A'), etag: 'e');
+    await c.write('catalog:b', _bytes('B'), etag: 'e');
+    await c.write('contributed:c', _bytes('C'), etag: 'e');
+    // Keep a and c; b is an orphan.
+    await c.sweep({'catalog:a', 'contributed:c'});
+    expect(await c.has('catalog:a'), isTrue);
+    expect(await c.has('contributed:c'), isTrue);
+    expect(await c.has('catalog:b'), isFalse);
+  });
+
   test('purgeAll clears every entry', () async {
     final c = _cache(dir, usable());
     await c.write('catalog:a', _bytes('A'), etag: 'e');

@@ -60,3 +60,10 @@ class ConnectivityPlusService implements ConnectivityService {
 /// Production connectivity-service provider. Override in tests with a fake.
 @Riverpod(keepAlive: true)
 ConnectivityService connectivityService(Ref ref) => ConnectivityPlusService();
+
+/// A point-in-time "is the device online right now?" check for the UI (change:
+/// add-offline-score-cache). Re-evaluated when watched fresh (e.g. the home
+/// rebuilds); defaults callers to "online" until it resolves. Auto-disposed.
+@riverpod
+Future<bool> isOnlineNow(Ref ref) =>
+    ref.watch(connectivityServiceProvider).isOnline();

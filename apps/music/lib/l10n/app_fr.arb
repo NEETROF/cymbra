@@ -259,6 +259,7 @@
   "playerScoreNotAvailableYet": "Cette partition n'est pas encore disponible. Réessayez plus tard.",
   "playerScoreUnavailable": "Serveur injoignable. Vérifiez votre connexion et réessayez.",
   "playerScoreOfflineUnavailable": "Ce favori n'est pas encore disponible hors ligne. Connectez-vous à Internet pour l'ouvrir une fois, puis il se jouera hors ligne.",
+  "libraryNotAvailableOffline": "Indisponible hors ligne",
   "playerScoreRateLimited": "Vous ouvrez des partitions trop rapidement. Patientez un instant et réessayez.",
   "prePlayHands": "Jouer avec",
   "prePlayTempo": "Tempo",

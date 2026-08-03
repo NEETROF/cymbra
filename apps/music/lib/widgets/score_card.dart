@@ -60,6 +60,7 @@ class ScoreCard extends StatelessWidget {
     required this.onTap,
     this.action,
     this.statusTag,
+    this.offlineUnavailable = false,
   });
 
   final CatalogEntry entry;
@@ -71,6 +72,11 @@ class ScoreCard extends StatelessWidget {
   /// Optional bottom-left overlay tag (e.g. a proposal status pill). Kept out of the
   /// top row so a long label never collides with the difficulty badge or [action].
   final Widget? statusTag;
+
+  /// When true, the cover is dimmed and a "not available offline" badge is shown —
+  /// the app is offline and this favorite has no cached bytes (change:
+  /// add-offline-score-cache).
+  final bool offlineUnavailable;
 
   @override
   Widget build(BuildContext context) {
@@ -90,6 +96,12 @@ class ScoreCard extends StatelessWidget {
                 fit: StackFit.expand,
                 children: [
                   _CoverArt(entry: entry),
+                  if (offlineUnavailable)
+                    Positioned.fill(
+                      child: ColoredBox(
+                        color: Colors.black.withValues(alpha: 0.4),
+                      ),
+                    ),
                   Positioned(
                     top: 10,
                     left: 10,
@@ -97,7 +109,13 @@ class ScoreCard extends StatelessWidget {
                   ),
                   if (action != null)
                     Positioned(top: 4, right: 4, child: action!),
-                  if (statusTag != null)
+                  if (offlineUnavailable)
+                    Positioned(
+                      bottom: 8,
+                      left: 10,
+                      child: _OfflineUnavailableBadge(l10n: l10n),
+                    )
+                  else if (statusTag != null)
                     Positioned(bottom: 8, left: 10, child: statusTag!),
                   // Leaderboard badge — only for an accepted catalog score (the
                   // only kind with a shared board). Shows a bare trophy, plus the
@@ -170,6 +188,43 @@ class ScoreCard extends StatelessWidget {
                     ],
                   ],
                 ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A small "not available offline" pill (cloud-off icon + label) overlaid on a
+/// favorite whose bytes aren't cached while the app is offline.
+class _OfflineUnavailableBadge extends StatelessWidget {
+  const _OfflineUnavailableBadge({required this.l10n});
+
+  final AppLocalizations l10n;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: l10n.libraryNotAvailableOffline,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.55),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.cloud_off, size: 13, color: Colors.white),
+            const SizedBox(width: 5),
+            Text(
+              l10n.libraryNotAvailableOffline,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ],

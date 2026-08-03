@@ -83,8 +83,9 @@
   the load path classifies a byte-sourced miss to it when `connectivityService`
   reports offline (else keeps `unavailable`). No raw errors; existing
   snackbar-stay-on-library path unchanged.
-- [ ] 4.4b Home/library: mark favorites without cached bytes as "not available
-  offline" while offline. **DEFERRED** (needs the snapshot-driven home in 4b).
+- [x] 4.4b Home/library: favorites without cached bytes are marked "not available
+  offline" while offline — `ScoreCard.offlineUnavailable` badge, driven by
+  `offlinePlayableIdsProvider` + `isOnlineNowProvider` in `_FavoritesBody`.
 - [~] 4.5 ETag/conditional fetch: the **backend** supports it (task 1b) and the
   cache stores a per-entry plaintext-SHA integrity check (corrupt→miss works).
   The **client-side conditional-fetch round-trip** (matching-hash skips
@@ -101,18 +102,21 @@
 - [x] 4b.1 `FavoritesIndexStore` (`favorites_index_store.dart`): `read` / `write`
   / `clear`, metadata-only (no bytes), **plaintext** over the `PreferencesService`
   seam, keyed `favorites-index:<userId>`, decoupled from the keystore. With tests.
-- [ ] 4b.2 Write the snapshot on successful favorites fetch. **DEFERRED** (store +
-  its clear-on-sign-out are wired; the per-provider write/read-fallback is the
-  next slice).
-- [ ] 4b.3 Offline fallback: return the snapshot from the favorites providers when
-  the online fetch fails. **DEFERRED** (see 4b.2).
-- [ ] 4b.4 Per-favorite "playable offline" flag (probe the cache). **DEFERRED**
-  (pairs with 4.4b / the snapshot-driven home).
+- [x] 4b.2 `favoriteScores` write-through the snapshot (metadata only) on every
+  successful online fetch of the favorites union.
+- [x] 4b.3 Offline fallback: when the fetch fails and a snapshot exists,
+  `favoriteScores` returns it (stale-while-offline) so the home renders; with no
+  snapshot it surfaces the original failure.
+- [x] 4b.4 `offlinePlayableIdsProvider` probes the cache per favorite → the set of
+  ids playable offline (drives the home badge).
 - [x] 4b.5 The snapshot is cleared on sign-out / account deletion (wired in
   `session_notifier._purgeOfflineData`, alongside the byte-cache purge).
-- [~] 4b.6 Tests: the store itself is unit-tested (`favorites_index_store_test.dart`:
-  round-trip, per-user scoping, empty-clears, clear, corrupt→empty). The
-  offline-launch / playable-flag widget tests pair with 4b.2–4b.4 (**DEFERRED**).
+- [x] 4b.6 Tests (`favorite_scores_test.dart` + `library_favorites_test.dart`):
+  successful fetch writes snapshot + sweeps orphans, offline falls back to the
+  snapshot, no-snapshot surfaces the failure, guest empty, playable-ids reflect the
+  cache, and the home badges an uncached favorite offline (not a cached one). Store
+  unit tests in `favorites_index_store_test.dart`. (No-keystore-still-lists is the
+  same code path — the index is keystore-independent.)
 
 ## 5. App — eviction wiring
 
@@ -122,10 +126,11 @@
 - [x] 5.3 `session_notifier._purgeOfflineData` (from `_endLocalSession` +
   `onAccountDeleted`, i.e. sign-out / sign-out-everywhere / account deletion)
   `purgeAll()`s the cache + clears key material, snapshot, and cached secret.
-- [ ] 5.4 Orphan sweep on favorites refresh. **DEFERRED** (pairs with the
-  snapshot-driven home in 4b; local eviction + sign-out purge already bound the
-  cache).
-- [x] 5.5 Eviction tests (`offline_cache_eviction_test.dart`): remove-saved,
+- [x] 5.4 Orphan sweep: `OfflineScoreCache.sweep(keepKeys)` deletes cache files
+  whose entry is no longer a favorite; run from `favoriteScores` on each successful
+  refresh (keep-set = the union's cache keys).
+- [x] 5.5 Eviction tests (`offline_cache_eviction_test.dart` + `offline_score_cache_test.dart`
+  sweep test + `favorite_scores_test.dart` orphan-sweep): remove-saved,
   delete-upload, un-favorite (evicts) vs favorite (keeps), absent-file no-op,
   purgeAll. Sign-out purge exercised via the session tests.
 
