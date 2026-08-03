@@ -62,6 +62,8 @@ pub fn to_catalog_entry(e: &ManifestEntry) -> CatalogEntry {
         voicing: e.voicing.clone(),
         level: e.level.as_ref().map(variant),
         level_source: e.level_source.as_ref().map(variant),
+        // Crawler-ingested rows have no proposer (change: add-score-catalog-proposal).
+        proposed_by: None,
         // The shared descriptive + facet block, carried straight through to the
         // catalog row so the search filters + generated cover have it at ingest
         // (no backfill). Facets map via the shared `from_core`.

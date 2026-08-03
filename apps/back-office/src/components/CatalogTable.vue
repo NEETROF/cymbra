@@ -70,7 +70,7 @@ function levelLabel(level: string): string {
 function rowStatus(h: CatalogHit): ModerationStatus {
   // In "Tous" mode (props.status === "") the row carries its own status; fall back to
   // "pending" only in the impossible case where neither is set.
-  return (h.moderationStatus as ModerationStatus) || (props.status || "pending");
+  return (h.moderationStatus as ModerationStatus) || props.status || "pending";
 }
 </script>
 

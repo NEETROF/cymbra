@@ -158,24 +158,27 @@ void main() {
     },
   );
 
-  test('refresh re-fetches the uploads (picks up server-side status changes)', () async {
-    final upload = MockScoreUploadService();
-    var status = 'accepted';
-    when(
-      upload.listMyScores(),
-    ).thenAnswer((_) async => [_upload('a', status: status)]);
+  test(
+    'refresh re-fetches the uploads (picks up server-side status changes)',
+    () async {
+      final upload = MockScoreUploadService();
+      var status = 'accepted';
+      when(
+        upload.listMyScores(),
+      ).thenAnswer((_) async => [_upload('a', status: status)]);
 
-    final c = _container(upload);
-    var list = await c.read(myUploadsProvider.future); // build (call 1)
-    expect(list.single.proposalStatus, 'accepted');
+      final c = _container(upload);
+      var list = await c.read(myUploadsProvider.future); // build (call 1)
+      expect(list.single.proposalStatus, 'accepted');
 
-    // A moderator flips it to pending server-side; a refresh must reflect it.
-    status = 'pending';
-    await c.read(myUploadsProvider.notifier).refresh(); // call 2
-    verify(upload.listMyScores()).called(2);
-    list = c.read(myUploadsProvider).requireValue;
-    expect(list.single.proposalStatus, 'pending');
-  });
+      // A moderator flips it to pending server-side; a refresh must reflect it.
+      status = 'pending';
+      await c.read(myUploadsProvider.notifier).refresh(); // call 2
+      verify(upload.listMyScores()).called(2);
+      list = c.read(myUploadsProvider).requireValue;
+      expect(list.single.proposalStatus, 'pending');
+    },
+  );
 
   test('contributedEntry carries the proposal status + rejection reason', () {
     final entry = contributedEntry(
