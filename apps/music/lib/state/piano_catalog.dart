@@ -49,6 +49,7 @@ class PianoEntry {
     this.license,
     this.attribution,
     this.remoteId,
+    this.proposalStatus,
   });
 
   /// Hand-rolled JSON (the repo does not use `json_serializable`), used to
@@ -78,17 +79,27 @@ class PianoEntry {
   /// sync and the "propose to catalog" action.
   final String? remoteId;
 
+  /// Moderation status of this font's public-catalog proposal, or `null` when not
+  /// proposed (change: add-soundfont-moderation): `pending`/`accepted`/`rejected`.
+  /// Server-derived (refreshed on sync) — not persisted.
+  final String? proposalStatus;
+
   /// A copy with individual fields replaced (only what the sync flow needs).
-  PianoEntry copyWith({String? label, String? source, String? remoteId}) =>
-      PianoEntry(
-        id: id,
-        label: label ?? this.label,
-        kind: kind,
-        source: source ?? this.source,
-        license: license,
-        attribution: attribution,
-        remoteId: remoteId ?? this.remoteId,
-      );
+  PianoEntry copyWith({
+    String? label,
+    String? source,
+    String? remoteId,
+    String? proposalStatus,
+  }) => PianoEntry(
+    id: id,
+    label: label ?? this.label,
+    kind: kind,
+    source: source ?? this.source,
+    license: license,
+    attribution: attribution,
+    remoteId: remoteId ?? this.remoteId,
+    proposalStatus: proposalStatus ?? this.proposalStatus,
+  );
 
   Map<String, dynamic> toJson() => {
     'id': id,
@@ -109,11 +120,20 @@ class PianoEntry {
       other.source == source &&
       other.license == license &&
       other.attribution == attribution &&
-      other.remoteId == remoteId;
+      other.remoteId == remoteId &&
+      other.proposalStatus == proposalStatus;
 
   @override
-  int get hashCode =>
-      Object.hash(id, label, kind, source, license, attribution, remoteId);
+  int get hashCode => Object.hash(
+    id,
+    label,
+    kind,
+    source,
+    license,
+    attribution,
+    remoteId,
+    proposalStatus,
+  );
 }
 
 /// Id of the bundled CC0 default piano — the fallback whenever a chosen piano

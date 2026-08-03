@@ -35,6 +35,7 @@ class RemoteSoundFont {
     required this.id,
     required this.label,
     required this.sizeBytes,
+    this.proposalStatus,
   });
 
   factory RemoteSoundFont.fromJson(Map<String, dynamic> json) =>
@@ -42,6 +43,7 @@ class RemoteSoundFont {
         id: json['id'] as String,
         label: (json['label'] as String?) ?? '',
         sizeBytes: (json['sizeBytes'] as num?)?.toInt() ?? 0,
+        proposalStatus: json['proposalStatus'] as String?,
       );
 
   /// Server-assigned id (also the delivery id: `GET /me/soundfonts/{id}`).
@@ -49,22 +51,30 @@ class RemoteSoundFont {
   final String label;
   final int sizeBytes;
 
+  /// The moderation status of this font's public-catalog proposal, or `null` when
+  /// it has not been proposed (change: add-soundfont-moderation). One of
+  /// `pending`/`accepted`/`rejected`.
+  final String? proposalStatus;
+
   @override
   bool operator ==(Object other) =>
       other is RemoteSoundFont &&
       other.id == id &&
       other.label == label &&
-      other.sizeBytes == sizeBytes;
+      other.sizeBytes == sizeBytes &&
+      other.proposalStatus == proposalStatus;
 
   @override
-  int get hashCode => Object.hash(id, label, sizeBytes);
+  int get hashCode => Object.hash(id, label, sizeBytes, proposalStatus);
 }
 
 /// Thrown when a private-library request fails (network, auth, quota, or the
 /// server rejecting the operation). The caller surfaces a non-fatal message.
+/// [statusCode] carries the HTTP status when known (e.g. 409 = already proposed).
 class PrivateSoundFontException implements Exception {
-  const PrivateSoundFontException(this.message);
+  const PrivateSoundFontException(this.message, {this.statusCode});
   final String message;
+  final int? statusCode;
 
   @override
   String toString() => 'PrivateSoundFontException: $message';
@@ -217,7 +227,12 @@ class HttpPrivateSoundFontService implements PrivateSoundFontService {
     try {
       final resp = await _client.post(uri, headers: await _authHeaders());
       if (resp.statusCode != 201) {
-        throw PrivateSoundFontException('propose: HTTP ${resp.statusCode}');
+        // 409 = the font is already in the catalog (already proposed, or identical
+        // content) — surfaced distinctly by the caller.
+        throw PrivateSoundFontException(
+          'propose: HTTP ${resp.statusCode}',
+          statusCode: resp.statusCode,
+        );
       }
     } on PrivateSoundFontException {
       rethrow;

@@ -125,8 +125,17 @@ class ImportedSoundFonts extends _$ImportedSoundFonts {
     }
     // Only persist when the sync actually changed the registry, so a no-op sync
     // never writes (keeping "nothing imported ⇒ nothing persisted" true).
+    // `result` carries no proposal status, so the comparison stays structural.
     if (!listEquals(local, result)) await _persist(result);
-    return result;
+    // Attach each font's (server-derived, non-persisted) proposal moderation
+    // status so the UI can show a tag + hide the propose action once submitted.
+    final statusByRemote = {for (final r in remoteList) r.id: r.proposalStatus};
+    return [
+      for (final e in result)
+        (e.remoteId != null && statusByRemote[e.remoteId] != null)
+            ? e.copyWith(proposalStatus: statusByRemote[e.remoteId])
+            : e,
+    ];
   }
 
   /// Runs the import flow (pick → validate → copy), uploads the font to the
@@ -218,6 +227,13 @@ class ImportedSoundFonts extends _$ImportedSoundFonts {
           attribution: attribution,
           attestation: attestation,
         );
+    // Optimistically reflect the pending submission so the UI updates immediately
+    // (the next sync confirms/updates it from the server).
+    final next = <PianoEntry>[
+      for (final e in current)
+        if (e.id == id) e.copyWith(proposalStatus: 'pending') else e,
+    ];
+    state = AsyncData(next);
   }
 
   /// Removes an imported piano: deletes its private server copy (so it stops

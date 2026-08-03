@@ -186,6 +186,30 @@ void main() {
     expect(registry.single.label, 'New Name');
   });
 
+  testWidgets('a proposed font shows a status tag and hides propose', (
+    tester,
+  ) async {
+    final prefs = FakePreferencesService({
+      ImportedSoundFonts.prefsKey: _encode([_synced('a', 'My Grand')]),
+    });
+    // The server reports the font's proposal is pending review.
+    final private = FakePrivateSoundFontService(
+      library: const [
+        RemoteSoundFont(
+          id: 'remote-a',
+          label: 'My Grand',
+          sizeBytes: 1,
+          proposalStatus: 'pending',
+        ),
+      ],
+    );
+    await _pump(tester, _container(prefs: prefs, private: private));
+
+    // A status tag is shown, and the propose action is gone (already submitted).
+    expect(find.text('Pending review'), findsOneWidget);
+    expect(find.byIcon(Icons.publish_outlined), findsNothing);
+  });
+
   testWidgets('tapping a sound loads its font to audition it', (tester) async {
     final prefs = FakePreferencesService({
       ImportedSoundFonts.prefsKey: _encode([_synced('a', 'My Grand')]),

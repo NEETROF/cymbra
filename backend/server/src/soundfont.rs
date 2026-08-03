@@ -370,11 +370,16 @@ pub struct ImportMeta {
 }
 
 /// A private-library font as returned to its owner (no storage-facing fields).
+/// `proposal_status` is the moderation status of this font's public-catalog
+/// proposal (`pending`/`accepted`/`rejected`), or `None` when it hasn't been
+/// proposed. camelCase on the wire to match the app's JSON parser.
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 struct MyFont {
     id: String,
     label: String,
     size_bytes: i64,
+    proposal_status: Option<String>,
 }
 
 /// Import a `.sf2` into the caller's private library (change: add-soundfont-moderation).
@@ -408,6 +413,7 @@ async fn import_mine(
                 id: existing.id,
                 label: existing.label,
                 size_bytes: existing.size_bytes,
+                proposal_status: None,
             })
             .into_response();
         }
@@ -448,6 +454,7 @@ async fn import_mine(
             id: entry.id,
             label: entry.label,
             size_bytes: entry.size_bytes,
+            proposal_status: None,
         }),
     )
         .into_response()
@@ -461,20 +468,32 @@ async fn list_mine(State(s): State<SoundfontState>, headers: HeaderMap) -> Respo
     let Some(repo) = s.user_repo.as_ref() else {
         return status(StatusCode::SERVICE_UNAVAILABLE);
     };
-    match repo.list(&user).await {
-        Ok(fonts) => Json(
-            fonts
-                .into_iter()
-                .map(|f| MyFont {
-                    id: f.id,
-                    label: f.label,
-                    size_bytes: f.size_bytes,
-                })
-                .collect::<Vec<_>>(),
-        )
-        .into_response(),
-        Err(_) => status(StatusCode::INTERNAL_SERVER_ERROR),
+    let fonts = match repo.list(&user).await {
+        Ok(f) => f,
+        Err(_) => return status(StatusCode::INTERNAL_SERVER_ERROR),
+    };
+    let mut out = Vec::with_capacity(fonts.len());
+    for f in fonts {
+        // A public-catalog row with the same id means this private font was proposed
+        // (propose reuses the private id); its moderation status is the proposal
+        // status. No catalog wired ⇒ never proposed.
+        let proposal_status = match s.repo.as_ref() {
+            Some(catalog) => catalog
+                .lookup(&f.id)
+                .await
+                .ok()
+                .flatten()
+                .map(|e| e.moderation_status),
+            None => None,
+        };
+        out.push(MyFont {
+            id: f.id,
+            label: f.label,
+            size_bytes: f.size_bytes,
+            proposal_status,
+        });
     }
+    Json(out).into_response()
 }
 
 /// Stream a private-library font's bytes — only to its owner (range-aware).
@@ -1414,6 +1433,42 @@ mod tests {
         assert!(store.size("f1.sf2").await.is_ok());
         // Not publicly visible until a moderator accepts it.
         assert!(catalog.list_accepted().await.unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn list_mine_reports_the_proposal_status() {
+        // A private font whose id matches a (pending) catalog row reads as proposed.
+        let store = Arc::new(FakeStore::default());
+        let user_repo: Arc<dyn UserSoundFontRepo> = Arc::new(FakeUserSoundFontRepo::with(vec![
+            user_entry("proposed", "u", "sha1"),
+            user_entry("private-only", "u", "sha2"),
+        ]));
+        let cataloged = FontEntry {
+            id: "proposed".into(),
+            label: "Proposed".into(),
+            object_key: "proposed.sf2".into(),
+            instrument: "piano".into(),
+            license: "CC0-1.0".into(),
+            attribution: None,
+            size_bytes: None,
+            moderation_status: "pending".into(),
+            reviewed_by: None,
+            reviewed_at: None,
+            uploaded_by: Some("u".into()),
+            content_sha256: Some("sha1".into()),
+        };
+        let catalog: Arc<dyn SoundFontRepo> =
+            Arc::new(cymbra_music::FakeSoundFontRepo::with(vec![cataloged]));
+        let r = propose_app(user_repo, catalog, store, ident("u", &["user"]));
+        let resp = r.oneshot(get("/me/soundfonts")).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        let v: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        let arr = v.as_array().unwrap();
+        let proposed = arr.iter().find(|e| e["id"] == "proposed").unwrap();
+        assert_eq!(proposed["proposalStatus"], "pending");
+        let private_only = arr.iter().find(|e| e["id"] == "private-only").unwrap();
+        assert!(private_only["proposalStatus"].is_null());
     }
 
     #[tokio::test]

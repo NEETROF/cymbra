@@ -176,8 +176,12 @@ class _SoundFontsScreenState extends ConsumerState<SoundFontsScreen>
             attestation: true,
           );
       showAppSnackBar(messenger, l10n.proposeDone);
-    } on PrivateSoundFontException {
-      showAppSnackBar(messenger, l10n.proposeError);
+    } on PrivateSoundFontException catch (e) {
+      // 409 = already in the catalog (already proposed, or identical content).
+      showAppSnackBar(
+        messenger,
+        e.statusCode == 409 ? l10n.proposeAlreadyDone : l10n.proposeError,
+      );
     } catch (_) {
       showAppSnackBar(messenger, l10n.proposeError);
     }
@@ -346,7 +350,12 @@ class _SoundFontsScreenState extends ConsumerState<SoundFontsScreen>
                         onTap: () => _togglePreview(p),
                         onRename: () => _openEdit(p),
                         onRemove: () => _remove(p),
-                        onPropose: p.remoteId != null ? () => _propose(p) : null,
+                        // Propose only when synced AND not already proposed; once
+                        // proposed the card shows a status tag instead.
+                        onPropose:
+                            (p.remoteId != null && p.proposalStatus == null)
+                            ? () => _propose(p)
+                            : null,
                       ),
                   _SectionHeader(l10n.soundfontsSectionCatalog),
                   for (final p in cat)
@@ -437,11 +446,17 @@ class _SoundCard extends StatelessWidget {
                   fontSize: 12,
                 ),
               ),
-        trailing: (onRename == null && onRemove == null && onPropose == null)
+        trailing:
+            (onRename == null &&
+                onRemove == null &&
+                onPropose == null &&
+                entry.proposalStatus == null)
             ? null
             : Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  if (entry.proposalStatus != null)
+                    _ProposalTag(status: entry.proposalStatus!),
                   if (onPropose != null)
                     IconButton(
                       tooltip: l10n.pianoPropose,
@@ -471,6 +486,40 @@ class _SoundCard extends StatelessWidget {
                     ),
                 ],
               ),
+      ),
+    );
+  }
+}
+
+/// A small pill showing a proposed sound's moderation status.
+class _ProposalTag extends StatelessWidget {
+  const _ProposalTag({required this.status});
+
+  /// `pending` / `accepted` / `rejected`.
+  final String status;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final (label, color) = switch (status) {
+      'accepted' => (l10n.proposalStatusAccepted, CymbraColors.primary),
+      'rejected' => (l10n.proposalStatusRejected, CymbraColors.error),
+      _ => (l10n.proposalStatusPending, CymbraColors.onSurfaceVariant),
+    };
+    return Container(
+      margin: const EdgeInsets.only(right: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+        ),
       ),
     );
   }
@@ -608,28 +657,44 @@ class _SoundFontFormDrawerState extends ConsumerState<_SoundFontFormDrawer> {
   }
 }
 
-/// Propose dialog (licence + attribution + right-to-distribute attestation).
+/// The predefined libre licences a user may declare when proposing a sound (only
+/// CC0 / CC-BY family — the catalog rejects anything else).
+const List<String> _proposeLicenses = [
+  'CC0-1.0',
+  'CC-BY 3.0',
+  'CC-BY 4.0',
+  'CC-BY-SA 4.0',
+];
+
+/// Propose dialog: a licence **combobox** (predefined choices) with a short
+/// description of the selection, plus attribution + a right-to-distribute
+/// attestation. Returns `(license, attribution)` on submit.
 class _ProposeDialog extends StatefulWidget {
   @override
   State<_ProposeDialog> createState() => _ProposeDialogState();
 }
 
 class _ProposeDialogState extends State<_ProposeDialog> {
-  final _license = TextEditingController();
+  String _license = _proposeLicenses.first;
   final _attribution = TextEditingController();
   bool _attested = false;
 
   @override
   void dispose() {
-    _license.dispose();
     _attribution.dispose();
     super.dispose();
+  }
+
+  String _licenseDescription(AppLocalizations l10n) {
+    if (_license.startsWith('CC0')) return l10n.licenseDescCc0;
+    if (_license.startsWith('CC-BY-SA')) return l10n.licenseDescCcbysa;
+    return l10n.licenseDescCcby;
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final canSubmit = _attested && _license.text.trim().isNotEmpty;
+    final canSubmit = _attested; // a licence is always selected
     return AlertDialog(
       title: Text(l10n.proposeTitle),
       content: SingleChildScrollView(
@@ -639,10 +704,24 @@ class _ProposeDialogState extends State<_ProposeDialog> {
           children: [
             Text(l10n.proposeIntro),
             const SizedBox(height: 12),
-            TextField(
-              controller: _license,
+            DropdownButtonFormField<String>(
+              initialValue: _license,
               decoration: InputDecoration(labelText: l10n.proposeLicense),
-              onChanged: (_) => setState(() {}),
+              items: [
+                for (final l in _proposeLicenses)
+                  DropdownMenuItem<String>(value: l, child: Text(l)),
+              ],
+              onChanged: (v) => setState(() => _license = v ?? _license),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text(
+                _licenseDescription(l10n),
+                style: const TextStyle(
+                  color: CymbraColors.onSurfaceVariant,
+                  fontSize: 12,
+                ),
+              ),
             ),
             const SizedBox(height: 8),
             TextField(
@@ -667,7 +746,7 @@ class _ProposeDialogState extends State<_ProposeDialog> {
         FilledButton(
           onPressed: canSubmit
               ? () => Navigator.of(context).pop((
-                  license: _license.text.trim(),
+                  license: _license,
                   attribution: _attribution.text.trim(),
                 ))
               : null,
