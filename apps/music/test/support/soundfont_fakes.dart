@@ -128,8 +128,9 @@ class FakePrivateSoundFontService implements PrivateSoundFontService {
 
   @override
   Future<RemoteSoundFont> import(Uint8List bytes, String label) async {
-    if (failImport)
+    if (failImport) {
       throw const PrivateSoundFontException('forced import failure');
+    }
     imported.add(label);
     final existing = library.where((f) => f.label == label);
     if (existing.isNotEmpty) return existing.first;

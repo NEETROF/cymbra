@@ -31,8 +31,8 @@ test.describe("sound fonts admin", () => {
     const drawer = page.getByRole("dialog");
     await expect(drawer.getByRole("heading", { name: "Add a SoundFont" })).toBeVisible();
 
-    // Fill the form + pick a file, then save (scoped to the drawer).
-    await drawer.getByLabel("id").fill("ydp-grand");
+    // Fill the form + pick a file, then save (scoped to the drawer). The id is
+    // auto-minted (uuidv7) on create — there is no id field to fill.
     await drawer.getByLabel("label").fill("YDP Grand Piano");
     await drawer.getByLabel("license").selectOption("CC-BY 3.0");
     await drawer.getByLabel("attribution").fill("Roberto / Zenph Studios");
