@@ -8,21 +8,22 @@ import type { Filters, StatusFilter } from "@/stores/catalog";
 const emit = defineEmits<{ change: [Filters] }>();
 const { t } = useI18n();
 
-// Default the status filter to "" (Tous) — the BO catalog shows every status
-// (change: add-score-catalog-proposal).
-const props = withDefaults(defineProps<{ status?: StatusFilter; source?: string }>(), {
+// `initial` seeds the bar from the caller's persisted browse state (so filters —
+// including the source and the "" = Tous status — survive a detail-page round-trip);
+// `status`/`source` are the back-compat fallbacks when no full filter set is supplied.
+// The BO catalog defaults the status to "" (Tous): every moderation status (change:
+// add-score-catalog-proposal).
+const props = withDefaults(defineProps<{ status?: StatusFilter; source?: string; initial?: Filters }>(), {
   status: "",
   source: "",
+  initial: undefined,
 });
 
-const f = reactive<Filters>({
-  query: "",
-  author: "",
-  level: "",
-  isPiano: undefined,
-  moderationStatus: props.status,
-  source: props.source,
-});
+const f = reactive<Filters>(
+  props.initial
+    ? { ...props.initial }
+    : { query: "", author: "", level: "", isPiano: undefined, moderationStatus: props.status, source: props.source },
+);
 
 watch(f, () => emit("change", { ...f }), { deep: true });
 </script>
