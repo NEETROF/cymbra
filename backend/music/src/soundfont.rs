@@ -76,6 +76,16 @@ impl FontEntry {
     }
 }
 
+/// Catalog-wide counts by moderation status (change: add-soundfont-moderation),
+/// independent of any filter/page — backs the back-office KPI cards.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct SoundFontStatusCounts {
+    pub pending: i64,
+    pub accepted: i64,
+    pub rejected: i64,
+    pub total: i64,
+}
+
 /// Read + admin-write access to the persisted SoundFont catalog. Behind a trait so
 /// the delivery route, the listing/admin RPCs, and the upload route are testable
 /// with an in-memory [`FakeSoundFontRepo`].
@@ -95,6 +105,8 @@ pub trait SoundFontRepo: Send + Sync {
         limit: i64,
         offset: i64,
     ) -> Result<(Vec<FontEntry>, i64)>;
+    /// Catalog-wide counts by moderation status (all statuses, no filter/page).
+    async fn status_counts(&self) -> Result<SoundFontStatusCounts>;
     /// Resolve a client-facing id to its entry (any status), or `None` if unknown.
     async fn lookup(&self, id: &str) -> Result<Option<FontEntry>>;
     /// First non-`rejected` catalog font whose content digest matches `sha256`, used to
@@ -229,6 +241,26 @@ impl SoundFontRepo for PgSoundFontRepo {
             }
         };
         Ok((rows.iter().map(row_to_entry).collect(), total))
+    }
+
+    async fn status_counts(&self) -> Result<SoundFontStatusCounts> {
+        let row = sqlx::query(
+            "SELECT \
+               count(*) FILTER (WHERE moderation_status = 'pending')  AS pending, \
+               count(*) FILTER (WHERE moderation_status = 'accepted') AS accepted, \
+               count(*) FILTER (WHERE moderation_status = 'rejected') AS rejected, \
+               count(*) AS total \
+             FROM music.soundfonts",
+        )
+        .fetch_one(&self.pool)
+        .await
+        .context("soundfont status counts")?;
+        Ok(SoundFontStatusCounts {
+            pending: row.get::<i64, _>("pending"),
+            accepted: row.get::<i64, _>("accepted"),
+            rejected: row.get::<i64, _>("rejected"),
+            total: row.get::<i64, _>("total"),
+        })
     }
 
     async fn lookup(&self, id: &str) -> Result<Option<FontEntry>> {
@@ -397,6 +429,17 @@ impl SoundFontRepo for FakeSoundFontRepo {
             .take(limit.max(0) as usize)
             .collect();
         Ok((page, total))
+    }
+
+    async fn status_counts(&self) -> Result<SoundFontStatusCounts> {
+        let e = self.entries.lock().unwrap();
+        let count = |s: &str| e.iter().filter(|x| x.moderation_status == s).count() as i64;
+        Ok(SoundFontStatusCounts {
+            pending: count("pending"),
+            accepted: count("accepted"),
+            rejected: count("rejected"),
+            total: e.len() as i64,
+        })
     }
 
     async fn lookup(&self, id: &str) -> Result<Option<FontEntry>> {

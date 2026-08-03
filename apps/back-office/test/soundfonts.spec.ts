@@ -40,7 +40,17 @@ function withSoundfonts(clients: ReturnType<typeof makeFakeClients>["clients"], 
     const offset = r.offset ?? 0;
     const limit = r.limit && r.limit > 0 ? r.limit : filtered.length;
     const page = filtered.slice(offset, offset + limit);
-    return { soundfonts: page, total: filtered.length, nextOffset: offset + page.length };
+    const by = (s: string) =>
+      state.list.filter((f) => (((f as Record<string, unknown>).moderationStatus as string) || "pending") === s).length;
+    return {
+      soundfonts: page,
+      total: filtered.length,
+      nextOffset: offset + page.length,
+      totalCount: state.list.length,
+      pendingCount: by("pending"),
+      acceptedCount: by("accepted"),
+      rejectedCount: by("rejected"),
+    };
   };
   score.setSoundFontModerationStatus = async (req: unknown) => {
     state.moderationCalls.push(req);
@@ -129,6 +139,8 @@ describe("soundfonts store", () => {
     if (store.catalog.status === "success") {
       expect(store.catalog.data.map((f) => f.id)).toEqual(["b"]);
     }
+    // The KPI counts stay catalog-wide, not scoped to the pending filter.
+    expect(store.counts).toEqual({ total: 2, pending: 1, accepted: 1, rejected: 0 });
   });
 
   it("adds a font via the upload seam then re-lists", async () => {

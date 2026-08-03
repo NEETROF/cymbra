@@ -8,6 +8,8 @@ import { SOUNDFONTS_PAGE_SIZE, useSoundFontsStore } from "@/stores/soundfonts";
 import type { AdminSoundFont } from "@/gen/score_pb";
 import AppTag from "@/components/AppTag.vue";
 import SoundFontDrawer from "@/components/SoundFontDrawer.vue";
+import StatCards, { type StatItem } from "@/components/StatCards.vue";
+import { currentLocale } from "@/i18n";
 
 const store = useSoundFontsStore();
 const { t } = useI18n();
@@ -24,6 +26,33 @@ const vm = computed(() =>
     .with({ status: "success" }, ({ data }) => ({ loading: false, error: null, rows: data }))
     .exhaustive(),
 );
+
+// Catalog-wide KPI cards (same look/labels as the score catalog), independent of
+// the current filter/page.
+const num = (v: number) => v.toLocaleString(currentLocale());
+const statCards = computed<StatItem[]>(() => [
+  {
+    id: "total",
+    label: t("stats.total"),
+    value: num(store.counts.total),
+    accent: "accent",
+    icon: "M4 7h16M4 12h16M4 17h10",
+  },
+  {
+    id: "accepted",
+    label: t("stats.approved"),
+    value: num(store.counts.accepted),
+    accent: "green",
+    icon: "M20 6 9 17l-5-5",
+  },
+  {
+    id: "pending",
+    label: t("stats.pending"),
+    value: num(store.counts.pending),
+    accent: "amber",
+    icon: "M12 7v5l3 2M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Z",
+  },
+]);
 
 const acting = computed(() => store.op.status === "loading");
 const opError = computed(() => (store.op.status === "error" ? store.op.error : null));
@@ -127,6 +156,8 @@ function licenseDesc(license: string): string {
          owns the message, so only surface it here (above the grid) for list-level
          actions (accept/reject/delete) when the drawer is closed. -->
     <p v-if="opError && drawerMode === null" class="error" role="alert">{{ opError }}</p>
+
+    <StatCards :items="statCards" />
 
     <div class="filters" role="tablist" :aria-label="t('soundfonts.filter.label')">
       <button

@@ -302,6 +302,11 @@ impl ScoreService for ScoreGrpc {
             .list_admin_page(status, limit as i64, offset as i64)
             .await
             .map_err(|e| Status::internal(format!("list soundfonts: {e}")))?;
+        // Catalog-wide counts for the KPI cards (independent of the filter/page).
+        let counts = repo
+            .status_counts()
+            .await
+            .map_err(|e| Status::internal(format!("soundfont counts: {e}")))?;
         let page_len = fonts.len() as i32;
         let mut soundfonts = Vec::with_capacity(fonts.len());
         for f in fonts {
@@ -329,6 +334,10 @@ impl ScoreService for ScoreGrpc {
             soundfonts,
             next_offset: offset + page_len,
             total: total as i32,
+            pending_count: counts.pending as i32,
+            accepted_count: counts.accepted as i32,
+            rejected_count: counts.rejected as i32,
+            total_count: counts.total as i32,
         }))
     }
 
@@ -958,6 +967,11 @@ mod tests {
         assert_eq!(p1.total, 5);
         assert_eq!(p1.next_offset, 2);
         assert_eq!(p1.soundfonts.iter().map(|f| f.id.clone()).collect::<Vec<_>>(), ["a", "b"]);
+        // KPI counts are catalog-wide, independent of the filter/page.
+        assert_eq!(p1.total_count, 5);
+        assert_eq!(p1.accepted_count, 3);
+        assert_eq!(p1.pending_count, 2);
+        assert_eq!(p1.rejected_count, 0);
 
         // Filter to pending: total 2 regardless of paging.
         let pending = svc

@@ -285,8 +285,14 @@ message AdminListSoundFontsRequest {
 
 message AdminListSoundFontsResponse {
   repeated AdminSoundFont soundfonts = 1;
-  int32 next_offset = 2;  // offset to request the next page (offset + soundfonts.len)
-  int32 total = 3;        // total rows matching the status filter, independent of paging
+  int32 next_offset = 2;   // offset to request the next page (offset + soundfonts.len)
+  int32 total = 3;         // total rows matching the status filter, independent of paging
+  // Catalog-wide counts (ALL statuses, independent of the filter/page) for the
+  // dashboard KPI cards.
+  int32 pending_count = 4;
+  int32 accepted_count = 5;
+  int32 rejected_count = 6;
+  int32 total_count = 7;
 }
 
 // Metadata-only edit (id and object_key are immutable; bytes are replaced by

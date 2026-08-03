@@ -77,6 +77,8 @@ export const useSoundFontsStore = defineStore("soundfonts", () => {
   const total = ref(0);
   const offset = ref(0);
   const statusFilter = ref(""); // "" = all, else pending/accepted/rejected
+  // Catalog-wide counts for the KPI cards (independent of the filter/page).
+  const counts = ref({ total: 0, pending: 0, accepted: 0, rejected: 0 });
 
   /** Load one page of the admin catalog listing (server-side status filter +
    *  pagination). Passing `status`/`offset` updates the current query; omitting
@@ -91,6 +93,12 @@ export const useSoundFontsStore = defineStore("soundfonts", () => {
         moderationStatus: statusFilter.value,
       });
       total.value = resp.total;
+      counts.value = {
+        total: resp.totalCount ?? 0,
+        pending: resp.pendingCount ?? 0,
+        accepted: resp.acceptedCount ?? 0,
+        rejected: resp.rejectedCount ?? 0,
+      };
       return resp.soundfonts;
     });
   }
@@ -173,6 +181,7 @@ export const useSoundFontsStore = defineStore("soundfonts", () => {
     total,
     offset,
     statusFilter,
+    counts,
     list,
     publicList,
     add,
