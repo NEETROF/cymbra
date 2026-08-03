@@ -85,15 +85,15 @@
     "empty": "Aucune SoundFont pour l’instant.",
     "confirmRemove": "Supprimer cette SoundFont ? Sa ligne de catalogue et son fichier stocké sont supprimés.",
     "statusCol": "Statut",
-    "status": { "pending": "En attente", "accepted": "Acceptée", "rejected": "Rejetée" },
+    "status": { "pending": "En attente", "accepted": "Accepté", "rejected": "Rejeté" },
     "accept": "Accepter",
     "reject": "Rejeter",
     "filter": {
       "label": "Filtrer par statut",
       "pending": "En attente",
-      "accepted": "Acceptées",
-      "rejected": "Rejetées",
-      "all": "Toutes"
+      "accepted": "Acceptés",
+      "rejected": "Rejetés",
+      "all": "Tous"
     },
     "createTitle": "Ajouter une SoundFont",
     "editTitle": "Modifier la SoundFont",
