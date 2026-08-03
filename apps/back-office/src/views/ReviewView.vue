@@ -164,9 +164,11 @@ const currentHit = computed(() => session.current.value as CatalogHit | null);
         {{ $t("review.reject") }}
       </button>
       <input
+        id="review-reject-reason"
         v-model="rejectReason"
         class="reason"
         type="text"
+        :aria-label="$t('review.rejectReasonPlaceholder')"
         :placeholder="$t('review.rejectReasonPlaceholder')"
         :disabled="acting"
       />

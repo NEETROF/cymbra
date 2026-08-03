@@ -286,6 +286,42 @@ void main() {
     await _teardown(tester, c);
   });
 
+  testWidgets('"mes partitions" upload can be proposed to the catalog', (
+    tester,
+  ) async {
+    final upload = _FakeUpload([
+      ContributedScore(
+        id: 'u1',
+        level: PracticeLevel.beginner,
+        createdAt: DateTime.utc(2026, 5, 1),
+        measureCount: 4,
+        timeSig: '4/4',
+        keyFifths: 0,
+        title: 'My Upload',
+        composer: 'Me',
+        // proposalStatus null → the card offers the propose (globe) action.
+      ),
+    ]);
+    final c = _container(_FakeCatalog(const []), uploadFake: upload);
+    await _pump(tester, c);
+    await tester.tap(find.widgetWithText(FilterChip, 'My scores'));
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 40));
+    }
+    // Open the propose dialog from the card's globe action, attest, and submit.
+    await tester.tap(find.byIcon(Icons.public));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(Checkbox));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Propose'));
+    await tester.pumpAndSettle();
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 40));
+    }
+    expect(upload.proposeCalls.map((e) => e.id).toList(), ['u1']);
+    await _teardown(tester, c);
+  });
+
   testWidgets('advanced-filters drawer applies a facet filter', (tester) async {
     final catalog = _FakeCatalog([_hit('c1', 'Clair de Lune')]);
     final c = _container(catalog);
