@@ -85,7 +85,9 @@ async function setStatus(id: string, status: string) {
 // Normalise a row's (possibly empty) moderation status to a known badge variant.
 function statusOf(row: AdminSoundFont): "pending" | "accepted" | "rejected" {
   const s = row.moderationStatus || "pending";
-  return s === "accepted" ? "accepted" : s === "rejected" ? "rejected" : "pending";
+  if (s === "accepted") return "accepted";
+  if (s === "rejected") return "rejected";
+  return "pending";
 }
 
 // Drawer for create/edit (right-to-left).
@@ -325,7 +327,8 @@ function licenseDesc(license: string): string {
   cursor: pointer;
 }
 .chip.active {
-  background: var(--accent, #7c5cff);
+  /* Darken the accent so white label text meets the WCAG AA contrast ratio. */
+  background: color-mix(in srgb, var(--accent, #7c5cff) 78%, #000);
   border-color: var(--accent, #7c5cff);
   color: #fff;
 }

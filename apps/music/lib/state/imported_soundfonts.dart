@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import 'dart:convert';
-import 'dart:io' show File;
+import 'dart:io' show Directory, File;
 import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show listEquals;
@@ -86,10 +86,23 @@ class ImportedSoundFonts extends _$ImportedSoundFonts {
   /// down, caching each font's bytes to a local file the engine can load.
   Future<List<PianoEntry>> _sync(List<PianoEntry> local) async {
     final service = ref.read(privateSoundFontServiceProvider);
+    final migrated = await _migrateLocalImports(local, service);
+    final remoteList = await service.list();
+    final result = await _pullServerLibrary(migrated, remoteList, service);
+    // Only persist when the sync actually changed the registry, so a no-op sync
+    // never writes. `result` carries no proposal status, so the comparison stays
+    // structural.
+    if (!listEquals(local, result)) await _persist(result);
+    return _withProposalStatus(result, remoteList);
+  }
 
-    // 1. Migration: upload local imports that have no server id yet. Guard with a
-    //    synchronous existence check so a missing file never spawns real file I/O
-    //    (which would otherwise leave `build()` pending in a widget test).
+  /// Upload any local-only import (no server id yet) to the private library. Guards
+  /// with a synchronous existence check so a missing file never spawns real file
+  /// I/O (which would otherwise leave `build()` pending in a widget test).
+  Future<List<PianoEntry>> _migrateLocalImports(
+    List<PianoEntry> local,
+    PrivateSoundFontService service,
+  ) async {
     final migrated = <PianoEntry>[];
     for (final e in local) {
       if (e.remoteId != null || !File(e.source).existsSync()) {
@@ -104,46 +117,62 @@ class ImportedSoundFonts extends _$ImportedSoundFonts {
         migrated.add(e); // keep as a local-only import; retries next build
       }
     }
+    return migrated;
+  }
 
-    // 2. Pull the private library; add any font not already held, downloading its
-    //    bytes to a cache file so the FFI can load it by path.
-    final remoteList = await service.list();
+  /// Add any server font not already held, downloading its bytes to a cache file.
+  Future<List<PianoEntry>> _pullServerLibrary(
+    List<PianoEntry> migrated,
+    List<RemoteSoundFont> remoteList,
+    PrivateSoundFontService service,
+  ) async {
     final held = {
       for (final e in migrated)
         if (e.remoteId != null) e.remoteId!,
     };
-    final result = <PianoEntry>[...migrated];
     final toFetch = remoteList.where((r) => !held.contains(r.id)).toList();
-    if (toFetch.isNotEmpty) {
-      // Only resolve the (platform-backed) storage dir when there's actually a
-      // font to cache, so a no-op sync never depends on path_provider.
-      final dir = await ref.read(soundFontStorageDirProvider.future);
-      for (final r in toFetch) {
-        try {
-          final file = File('${dir.path}/remote-${r.id}.sf2');
-          if (!file.existsSync()) {
-            await file.writeAsBytes(await service.download(r.id), flush: true);
-          }
-          result.add(
-            PianoEntry(
-              id: r.id,
-              label: r.label,
-              kind: PianoKind.user,
-              source: file.path,
-              remoteId: r.id,
-            ),
-          );
-        } catch (_) {
-          // Skip a font whose bytes we couldn't fetch; it stays server-side.
-        }
-      }
+    if (toFetch.isEmpty) return migrated;
+    // Only resolve the (platform-backed) storage dir when there's a font to cache,
+    // so a no-op sync never depends on path_provider.
+    final dir = await ref.read(soundFontStorageDirProvider.future);
+    final result = <PianoEntry>[...migrated];
+    for (final r in toFetch) {
+      final entry = await _cacheServerFont(r, dir, service);
+      if (entry != null) result.add(entry);
     }
-    // Only persist when the sync actually changed the registry, so a no-op sync
-    // never writes (keeping "nothing imported ⇒ nothing persisted" true).
-    // `result` carries no proposal status, so the comparison stays structural.
-    if (!listEquals(local, result)) await _persist(result);
-    // Attach each font's (server-derived, non-persisted) proposal moderation
-    // status so the UI can show a tag + hide the propose action once submitted.
+    return result;
+  }
+
+  /// Download + cache one server font's bytes to a local file the FFI can load;
+  /// `null` when the bytes couldn't be fetched (it stays server-side).
+  Future<PianoEntry?> _cacheServerFont(
+    RemoteSoundFont r,
+    Directory dir,
+    PrivateSoundFontService service,
+  ) async {
+    try {
+      final file = File('${dir.path}/remote-${r.id}.sf2');
+      if (!file.existsSync()) {
+        await file.writeAsBytes(await service.download(r.id), flush: true);
+      }
+      return PianoEntry(
+        id: r.id,
+        label: r.label,
+        kind: PianoKind.user,
+        source: file.path,
+        remoteId: r.id,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Attach each font's (server-derived, non-persisted) proposal moderation status
+  /// so the UI can show a tag + hide the propose action once submitted.
+  List<PianoEntry> _withProposalStatus(
+    List<PianoEntry> result,
+    List<RemoteSoundFont> remoteList,
+  ) {
     final statusByRemote = {for (final r in remoteList) r.id: r.proposalStatus};
     return [
       for (final e in result)
