@@ -226,16 +226,20 @@ async fn main() -> anyhow::Result<()> {
                         // engagement allowance (a rating earns download headroom like a play).
                         let rating_repo: Arc<dyn cymbra_music::ScoreRatingRepo> =
                             Arc::new(PgScoreRatingRepo::new(music_pool.clone()));
-                        let module = Arc::new(ScoreModule::new(
-                            Arc::new(PgUserScoreRepo::new(music_pool.clone())),
-                            Arc::new(PgCatalogSearchRepo::new(music_pool.clone())),
-                            Arc::new(PgUserLibraryRepo::new(music_pool.clone())),
-                            rating_repo.clone(),
-                            storage,
-                            cfg.upload_quota_max,
-                            cfg.upload_quota_window_days,
-                            cfg.upload_max_bytes,
-                        ));
+                        let module = Arc::new(
+                            ScoreModule::new(
+                                Arc::new(PgUserScoreRepo::new(music_pool.clone())),
+                                Arc::new(PgCatalogSearchRepo::new(music_pool.clone())),
+                                Arc::new(PgUserLibraryRepo::new(music_pool.clone())),
+                                rating_repo.clone(),
+                                storage,
+                                cfg.upload_quota_max,
+                                cfg.upload_quota_window_days,
+                                cfg.upload_max_bytes,
+                            )
+                            // Resolve proposer attribution (change: add-score-catalog-proposal).
+                            .with_user(user_dyn.clone()),
+                        );
                         // Per-user scrape guardrail over the shared Redis cache + play &
                         // rating ports (engagement = plays + ratings).
                         let limiter = Arc::new(cymbra_music::CatalogAccessLimiter::new(

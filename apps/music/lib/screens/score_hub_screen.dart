@@ -20,8 +20,10 @@ import '../state/catalog_search_notifier.dart';
 import '../state/contributed_scores.dart';
 import '../state/score_catalog.dart';
 import '../theme/cymbra_theme.dart';
+import '../widgets/app_snackbar.dart';
 import '../widgets/library_listeners.dart';
 import '../widgets/score_card.dart';
+import '../widgets/score_propose_sheet.dart';
 import 'open_score.dart';
 import 'score_upload_screen.dart';
 
@@ -29,11 +31,30 @@ import 'score_upload_screen.dart';
 /// partitions" source toggle, and musical-facet filters in an end-drawer. Add or
 /// remove catalog scores from the personal library. Signed-in only (the entry
 /// point on the library is gated), so it always has an authenticated identity.
-class ScoreHubScreen extends ConsumerWidget {
+class ScoreHubScreen extends ConsumerStatefulWidget {
   const ScoreHubScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ScoreHubScreen> createState() => _ScoreHubScreenState();
+}
+
+class _ScoreHubScreenState extends ConsumerState<ScoreHubScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // A moderator may have changed a contribution's proposal status in the back office;
+    // the app can't observe that locally, and `MyUploads` is kept alive by the home
+    // screen (so it never refetches on its own). Refresh "mes partitions" each time the
+    // hub opens so a stale `pending`/`accepted`/`rejected` tag can't linger (change:
+    // add-score-catalog-proposal). `refresh()` keeps the current cards visible while it
+    // re-fetches, so there is no loading flicker.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) ref.read(myUploadsProvider.notifier).refresh();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final state = ref.watch(catalogSearchProvider);
     final notifier = ref.read(catalogSearchProvider.notifier);
@@ -158,7 +179,7 @@ class _SearchBar extends StatelessWidget {
   }
 }
 
-class _Results extends StatelessWidget {
+class _Results extends ConsumerWidget {
   const _Results({
     required this.state,
     required this.notifier,
@@ -170,38 +191,46 @@ class _Results extends StatelessWidget {
   final AppLocalizations l10n;
 
   @override
-  Widget build(BuildContext context) {
-    return NotificationListener<ScrollNotification>(
-      onNotification: (n) {
-        if (n.metrics.pixels >= n.metrics.maxScrollExtent - 320) {
-          notifier.loadMore();
-        }
-        return false;
-      },
-      child: CustomScrollView(
-        slivers: [
-          // The search + "mes partitions" chip live in a FLOATING app bar: it
-          // shows on entry, scrolls away as the grid scrolls, and snaps back on
-          // any upward flick — so short mobile screens aren't half-eaten by it.
-          SliverAppBar(
-            floating: true,
-            snap: true,
-            automaticallyImplyLeading: false,
-            // The Scaffold owns an endDrawer, and an AppBar with no actions
-            // auto-inserts a second end-drawer (≡) button. Filters are already
-            // reachable via the tune button in the main AppBar, so pass an
-            // explicit (non-empty) actions list to suppress the duplicate.
-            actions: const [SizedBox.shrink()],
-            backgroundColor: CymbraColors.background,
-            surfaceTintColor: Colors.transparent,
-            elevation: 0,
-            scrolledUnderElevation: 0,
-            titleSpacing: 0,
-            toolbarHeight: 112,
-            title: _SearchBar(state: state, notifier: notifier, l10n: l10n),
-          ),
-          ..._resultSlivers(),
-        ],
+  Widget build(BuildContext context, WidgetRef ref) {
+    return RefreshIndicator(
+      // Pull-to-refresh re-fetches the caller's uploads so a proposal status a
+      // moderator changed in the back office is picked up immediately (change:
+      // add-score-catalog-proposal).
+      onRefresh: () => ref.read(myUploadsProvider.notifier).refresh(),
+      child: NotificationListener<ScrollNotification>(
+        onNotification: (n) {
+          if (n.metrics.pixels >= n.metrics.maxScrollExtent - 320) {
+            notifier.loadMore();
+          }
+          return false;
+        },
+        child: CustomScrollView(
+          // Always scrollable so pull-to-refresh works even when the grid is short.
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            // The search + "mes partitions" chip live in a FLOATING app bar: it
+            // shows on entry, scrolls away as the grid scrolls, and snaps back on
+            // any upward flick — so short mobile screens aren't half-eaten by it.
+            SliverAppBar(
+              floating: true,
+              snap: true,
+              automaticallyImplyLeading: false,
+              // The Scaffold owns an endDrawer, and an AppBar with no actions
+              // auto-inserts a second end-drawer (≡) button. Filters are already
+              // reachable via the tune button in the main AppBar, so pass an
+              // explicit (non-empty) actions list to suppress the duplicate.
+              actions: const [SizedBox.shrink()],
+              backgroundColor: CymbraColors.background,
+              surfaceTintColor: Colors.transparent,
+              elevation: 0,
+              scrolledUnderElevation: 0,
+              titleSpacing: 0,
+              toolbarHeight: 112,
+              title: _SearchBar(state: state, notifier: notifier, l10n: l10n),
+            ),
+            ..._resultSlivers(),
+          ],
+        ),
       ),
     );
   }
@@ -304,10 +333,17 @@ class _HubCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
+    final status = entry.proposalStatus;
     return ScoreCard(
       entry: entry,
       onTap: () => openScore(context, ref, entry),
       action: _action(context, ref, l10n),
+      // The proposal status pill sits at the bottom-left of the cover (its own slot),
+      // so a long label like "En attente de vérification" never overlaps the difficulty
+      // badge or the action buttons (change: add-score-catalog-proposal).
+      statusTag: deletable && status != null
+          ? ScoreProposalTag(status: status)
+          : null,
     );
   }
 
@@ -315,9 +351,20 @@ class _HubCard extends ConsumerWidget {
   /// delete; for catalog results a save toggle (or nothing when not saveable).
   Widget? _action(BuildContext context, WidgetRef ref, AppLocalizations l10n) {
     if (deletable) {
+      final status = entry.proposalStatus;
       return Row(
         mainAxisSize: MainAxisSize.min,
         children: [
+          // Public-catalog proposal (change: add-score-catalog-proposal): the status pill
+          // is rendered by ScoreCard (bottom-left); here only the opt-in propose action
+          // (shown when not yet proposed, or to re-propose a rejected score).
+          if (status == null || status == 'rejected')
+            _overlayButton(
+              icon: Icons.public,
+              color: CymbraColors.onSurface,
+              tooltip: l10n.scoreProposeAction,
+              onPressed: () => _propose(context, ref),
+            ),
           _overlayButton(
             icon: entry.favorite ? Icons.favorite : Icons.favorite_border,
             color: entry.favorite ? CymbraColors.error : CymbraColors.onSurface,
@@ -399,6 +446,34 @@ class _HubCard extends ConsumerWidget {
     // Fire the notifier action; failures surface via the listener widget, and the
     // catalog list reacts to the uploads change on its own.
     ref.read(myUploadsProvider.notifier).delete(id);
+  }
+
+  /// Propose (or re-propose, when rejected) one of the caller's uploads to the public
+  /// catalog (change: add-score-catalog-proposal). Opens the licence + attestation
+  /// sheet; for a rejected score it shows the reason and requires a justification.
+  /// Fires the notifier action and reacts to state (no awaited-return branching).
+  Future<void> _propose(BuildContext context, WidgetRef ref) async {
+    final id = entry.contributedId;
+    if (id == null) return;
+    final rejected = entry.proposalStatus == 'rejected';
+    final messenger = ScaffoldMessenger.of(context);
+    final l10n = AppLocalizations.of(context);
+    final r = await showScoreProposeDialog(
+      context,
+      rejected: rejected,
+      rejectionReason: entry.proposalRejectionReason,
+    );
+    if (r == null) return;
+    ref
+        .read(myUploadsProvider.notifier)
+        .proposeToPublicCatalog(
+          id,
+          license: r.license,
+          attestation: true,
+          attribution: r.attribution,
+          resubmissionNote: r.justification,
+        );
+    showAppSnackBar(messenger, l10n.scoreProposeDone);
   }
 }
 

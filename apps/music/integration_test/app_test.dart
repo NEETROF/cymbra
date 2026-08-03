@@ -257,6 +257,15 @@ class _FixturePicker implements FilePickerService {
 
 /// A [ScoreUploadService] that records the submit inputs instead of hitting gRPC.
 class _RecordingUpload implements ScoreUploadService {
+  @override
+  Future<void> propose({
+    required String scoreId,
+    required String license,
+    required bool attestation,
+    String attribution = '',
+    String? resubmissionNote,
+  }) async {}
+
   final List<({PracticeLevel level, RightsBasis basis, int len})> uploads = [];
 
   @override

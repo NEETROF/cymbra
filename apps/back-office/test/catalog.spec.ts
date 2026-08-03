@@ -27,6 +27,20 @@ describe("catalog store", () => {
     }
   });
 
+  it("forwards the all-statuses mode and the source filter to the search RPC", async () => {
+    const { clients, state } = makeFakeClients({ hits: [{ id: "a" }], total: 1 });
+    setClientsForTest(clients);
+    const store = useCatalogStore();
+
+    await store.search({ allStatuses: true, source: "user-proposal" });
+
+    expect(state.searchCalls[0].allStatuses).toBe(true);
+    expect(state.searchCalls[0].source).toBe("user-proposal");
+    // An empty source is normalised to undefined (no filter).
+    await store.search({ allStatuses: true, source: "" });
+    expect(state.searchCalls[1].source).toBeUndefined();
+  });
+
   it("forwards review-queue mode to the search RPC (pending + flagged accepted)", async () => {
     const { clients, state } = makeFakeClients();
     setClientsForTest(clients);

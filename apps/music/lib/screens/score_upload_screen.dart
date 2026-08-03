@@ -23,9 +23,12 @@ import '../services/notation_engine.dart';
 import '../services/score_upload_service.dart';
 import '../src/rust/api/musicxml.dart' show ScoreDocument, ScoreSummary;
 import '../state/notation_playback.dart';
+import '../state/contributed_scores.dart';
 import '../state/player_data.dart' show TimedNote;
 import '../state/score_catalog.dart';
 import '../state/score_upload_notifier.dart';
+import '../widgets/app_snackbar.dart';
+import '../widgets/score_propose_sheet.dart';
 
 /// The three-step contribution wizard (design 7). Reached via `Navigator.push`
 /// from the library, only when signed in. Step gating is enforced by
@@ -567,6 +570,32 @@ class _ConfirmStepView extends ConsumerWidget {
     final notifier = ref.read(scoreUploadNotifierProvider.notifier);
 
     if (state.isDone) {
+      final uploaded = state.result!;
+      void closeWizard() {
+        Navigator.of(context).pop();
+        ref.read(scoreUploadNotifierProvider.notifier).reset();
+      }
+
+      // Opt-in proposal step (change: add-score-catalog-proposal): after a successful
+      // upload the score is PRIVATE; the user may explicitly propose it to the public
+      // catalog. Declining (Not now) leaves it private — never a pre-ticked default.
+      Future<void> propose() async {
+        final messenger = ScaffoldMessenger.of(context);
+        final r = await showScoreProposeDialog(context);
+        if (r == null) return;
+        // Fire the action on the contributions notifier; the list reacts to state.
+        ref
+            .read(myUploadsProvider.notifier)
+            .proposeToPublicCatalog(
+              uploaded.id,
+              license: r.license,
+              attestation: true,
+              attribution: r.attribution,
+            );
+        showAppSnackBar(messenger, l10n.scoreProposeDone);
+        closeWizard();
+      }
+
       return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -574,13 +603,22 @@ class _ConfirmStepView extends ConsumerWidget {
             const Icon(Icons.check_circle, color: Colors.green, size: 64),
             const SizedBox(height: 12),
             Text(l10n.uploadDoneMessage),
-            const SizedBox(height: 16),
-            FilledButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                ref.read(scoreUploadNotifierProvider.notifier).reset();
-              },
-              child: Text(l10n.uploadDoneButton),
+            const SizedBox(height: 24),
+            Text(
+              l10n.scoreProposeWizardPrompt,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 12),
+            FilledButton.icon(
+              icon: const Icon(Icons.public),
+              label: Text(l10n.scoreProposeAction),
+              onPressed: propose,
+            ),
+            const SizedBox(height: 4),
+            TextButton(
+              onPressed: closeWizard,
+              child: Text(l10n.scoreProposeSkip),
             ),
           ],
         ),

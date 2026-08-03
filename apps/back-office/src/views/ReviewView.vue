@@ -65,9 +65,29 @@ watch(
 const acting = computed(() => session.deciding.value.status === "loading");
 const decideError = computed(() => session.deciding.value.status === "error");
 
+// The moderator's rejection motive, surfaced back to a user-proposer (change:
+// add-score-catalog-proposal). Only sent on a reject; cleared after each decision.
+const rejectReason = ref("");
+
 async function decide(status: ModerationStatus) {
-  await session.decide(status);
+  const reason = status === "rejected" ? rejectReason.value.trim() || undefined : undefined;
+  await session.decide(status, reason);
+  rejectReason.value = "";
 }
+
+// Proposal attribution for the current score: whether it is a user proposal (vs a
+// crawler-ingested corpus row), the proposer's pseudo, and any resubmission note — all
+// from the privileged read the backend only returns to a moderator/admin.
+const attribution = computed(() => {
+  const h = session.current.value as CatalogHit | null;
+  if (!h) return null;
+  const isUserProposed = h.source === "user-proposal" || !!h.proposedBy;
+  return {
+    isUserProposed,
+    proposer: h.proposerDisplayName || null,
+    resubmission: h.resubmissionNote || null,
+  };
+});
 
 function onKey(e: KeyboardEvent) {
   if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
@@ -143,11 +163,30 @@ const currentHit = computed(() => session.current.value as CatalogHit | null);
       <button type="button" class="reject" :disabled="acting" @click="decide('rejected')">
         {{ $t("review.reject") }}
       </button>
+      <input
+        id="review-reject-reason"
+        v-model="rejectReason"
+        class="reason"
+        type="text"
+        :aria-label="$t('review.rejectReasonPlaceholder')"
+        :placeholder="$t('review.rejectReasonPlaceholder')"
+        :disabled="acting"
+      />
       <button type="button" :disabled="acting" @click="decide('pending')">{{ $t("review.requeue") }}</button>
       <button type="button" :disabled="acting" @click="session.skip()">{{ $t("review.skip") }}</button>
       <span class="muted keys">{{ $t("review.keys") }}</span>
     </div>
     <h2 class="score-title">{{ currentHit.title || $t("detail.score") }}</h2>
+    <!-- Proposal attribution (moderator/admin-only privileged fields). -->
+    <div v-if="attribution?.isUserProposed" class="attribution">
+      <span class="badge">{{ $t("review.userProposed") }}</span>
+      <span v-if="attribution.proposer" class="muted">
+        · {{ $t("review.proposedBy", { name: attribution.proposer }) }}
+      </span>
+      <p v-if="attribution.resubmission" class="resub">
+        {{ $t("review.resubmission", { note: attribution.resubmission }) }}
+      </p>
+    </div>
     <div class="preview-card">
       <SoundFontPicker
         v-model="selectedId"
@@ -188,7 +227,32 @@ const currentHit = computed(() => session.current.value as CatalogHit | null);
 }
 .score-title {
   font-size: 1.4rem;
+  margin: 0 0 0.25rem;
+}
+.reason {
+  flex: 1 1 12rem;
+  min-width: 8rem;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 6px);
+  background: var(--panel);
+  color: inherit;
+}
+.attribution {
   margin: 0 0 0.75rem;
+  font-size: 0.9rem;
+}
+.attribution .badge {
+  display: inline-block;
+  padding: 0.1rem 0.5rem;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent, #6c8) 20%, transparent);
+  font-weight: 600;
+  font-size: 0.8rem;
+}
+.attribution .resub {
+  margin: 0.35rem 0 0;
+  color: var(--muted);
 }
 .preview-card {
   background: var(--panel);

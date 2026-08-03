@@ -64,13 +64,44 @@ test.describe("queue", () => {
 });
 
 test.describe("score detail", () => {
-  test("accepting a score records the decision and returns to the queue", async ({ page }) => {
+  test("accepting a deep-linked score returns to the queue (no in-app history)", async ({ page }) => {
     await seed(page, { loginAs: "moderator", data: { hit: sampleHit(), hits: [sampleHit()] } });
     await page.goto("/music/score/11111111-1111-1111-1111-111111111111");
 
     await expect(page.getByRole("heading", { name: "Clair de Lune" })).toBeVisible();
     await page.getByRole("button", { name: "Accept" }).click();
     await expect(page).toHaveURL(/\/music\/queue$/);
+  });
+
+  test("deciding on a score opened from the catalog returns to the catalog", async ({ page }) => {
+    await seed(page, { loginAs: "moderator", data: { hit: sampleHit(), hits: [sampleHit()] } });
+    await page.goto("/music/catalog");
+
+    // Enter the detail from the catalog list, so there IS an in-app history entry to
+    // return to (the bug was landing on the review queue regardless of origin).
+    await page.locator("tbody tr").first().click();
+    await expect(page).toHaveURL(/\/music\/score\/11111111-1111-1111-1111-111111111111$/);
+    await page.getByRole("button", { name: "Accept" }).click();
+    await expect(page).toHaveURL(/\/music\/catalog$/);
+  });
+
+  test("catalog filters survive a round-trip through a score's detail page", async ({ page }) => {
+    await seed(page, { loginAs: "moderator", data: { hit: sampleHit(), hits: [sampleHit()] } });
+    await page.goto("/music/catalog");
+
+    // Narrow the browse: a text query + the accepted-status filter.
+    await page.getByLabel("search").fill("debussy");
+    await page.getByLabel("moderation status").selectOption("accepted");
+
+    // Open a score and come back via the detail's Back button.
+    await page.locator("tbody tr").first().click();
+    await expect(page).toHaveURL(/\/music\/score\//);
+    await page.getByRole("button", { name: "Back" }).click();
+    await expect(page).toHaveURL(/\/music\/catalog$/);
+
+    // The filters are still applied — they are not reset on remount (the bug).
+    await expect(page.getByLabel("search")).toHaveValue("debussy");
+    await expect(page.getByLabel("moderation status")).toHaveValue("accepted");
   });
 
   test("a bytes fetch failure degrades gracefully — metadata still shows", async ({ page }) => {

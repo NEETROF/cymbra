@@ -92,6 +92,10 @@ pub struct CatalogEntry {
     pub voicing: Option<String>,
     pub level: Option<String>,
     pub level_source: Option<String>,
+    /// The proposer's user id for a user-proposed row (change: add-score-catalog-
+    /// proposal); `None` for a crawler-ingested row. A plain uuid (no cross-schema FK),
+    /// resolved to a pseudo at read time.
+    pub proposed_by: Option<String>,
     /// Shared descriptive + facet metadata (title/composer/key/time-sig/facets…),
     /// stored flat in `catalog_scores` but held here as one block.
     pub meta: ScoreMeta,
@@ -172,6 +176,7 @@ mod tests {
             voicing: None,
             level: Some("beginner".into()),
             level_source: Some("heuristic".into()),
+            proposed_by: None,
             meta: ScoreMeta {
                 title: Some("T".into()),
                 composer: Some("C".into()),

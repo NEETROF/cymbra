@@ -58,6 +58,18 @@ pub struct CatalogHit {
     // `moderation_status` lets a mixed review-queue row show its own status.
     pub needs_review: bool,
     pub moderation_status: Option<String>,
+    // Proposal attribution + moderation feedback (change: add-score-catalog-proposal).
+    // `proposed_by` is the proposer's user id, present on a user-proposed row (a real
+    // column). `proposer_display_name`/`resubmission_note`/`review_reason` are surfaced
+    // only to a privileged (moderator/admin) read; `contributor_credit` is the opt-in,
+    // public "proposé par @pseudo" (present only for an `accepted`, user-proposed score
+    // whose proposer opted into a public profile). The module fills the two resolved
+    // names via `UserPort`; the store leaves them `None`.
+    pub proposed_by: Option<String>,
+    pub proposer_display_name: Option<String>,
+    pub contributor_credit: Option<String>,
+    pub review_reason: Option<String>,
+    pub resubmission_note: Option<String>,
 }
 
 /// One validated sort key (change: add-moderation-back-office): an allow-listed
@@ -148,6 +160,10 @@ pub struct CatalogSearchParams {
     /// privileged, back-office-only path (the gRPC layer authorises it). `false` keeps
     /// the single-status behaviour, so the app hub is unaffected.
     pub review_queue: bool,
+    /// All-statuses mode (privileged BO catalog view) — every moderation status.
+    pub all_statuses: bool,
+    /// Origin filter (`user-proposal` / crawler dataset); `None` = any source.
+    pub source: Option<String>,
     /// Validated multi-key sort (change: add-moderation-back-office). Empty = the
     /// existing default ordering (so the app hub is unaffected).
     pub sort: Vec<SortKey>,
@@ -172,6 +188,13 @@ pub struct CatalogQuery {
     /// `accepted`. Privileged (BO-only) — the gRPC handler authorises it as
     /// admin/moderator before it is ever set. `false` for a normal caller.
     pub review_queue: bool,
+    /// All-statuses mode (change: add-score-catalog-proposal): the privileged BO
+    /// catalog view showing every moderation status (`pending`/`accepted`/`rejected`).
+    /// Gated to admin/moderator at the gRPC layer; `false` for a normal caller.
+    pub all_statuses: bool,
+    /// Origin filter (change: add-score-catalog-proposal): e.g. `user-proposal` vs a
+    /// crawler dataset; `None` = any source. Composes with the status gate.
+    pub source: Option<String>,
     /// Raw sort keys from the request; validated against [`SORT_FIELDS`] by the
     /// module before they reach a repo. Empty = the default ordering.
     pub sort: Vec<SortKey>,
@@ -212,13 +235,39 @@ pub trait CatalogSearchRepo: Send + Sync {
     /// `moderation_status` and stamp `reviewed_by = reviewer_id` + `reviewed_at =
     /// now()` in one write. Returns `true` when a row was updated, `false` when no
     /// score has that id (so the caller can surface not-found). Authorization is the
-    /// gRPC layer's job; the store just writes.
+    /// gRPC layer's job; the store just writes. `reason` (change: add-score-catalog-
+    /// proposal) is the moderator's motive: stored as `review_reason` when `status`
+    /// is `rejected`, cleared otherwise, so a rejected proposal can tell its proposer
+    /// why.
     async fn set_moderation_status(
         &self,
         score_id: &str,
         status: &str,
         reviewer_id: &str,
+        reason: Option<&str>,
     ) -> Result<bool>;
+
+    /// The (id, moderation_status) of the catalog row whose content digest is `sha256`,
+    /// or `None` when no row has it (change: add-score-catalog-proposal). Content is
+    /// unique in the catalog, so at most one row matches; the propose path uses it to
+    /// detect a duplicate (non-`rejected`) or a reopenable (`rejected`) match.
+    async fn find_by_sha(&self, sha256: &str) -> Result<Option<(String, String)>>;
+
+    /// Insert a user-proposed catalog row (change: add-score-catalog-proposal) with
+    /// `proposed_by = entry.proposed_by` and `moderation_status` = `accepted` when
+    /// `accepted` (an admin proposal) else `pending`. Never reads a client-supplied
+    /// status. Returns `true` when a row was inserted.
+    async fn insert_proposed(
+        &self,
+        entry: &crate::repo::CatalogEntry,
+        accepted: bool,
+    ) -> Result<bool>;
+
+    /// Reopen a `rejected` catalog row on a motivated re-proposal (change: add-score-
+    /// catalog-proposal): status → `pending`, `proposed_by = proposer_id`, clear
+    /// `review_reason`, store `resubmission_note = note`. Returns `true` when a row was
+    /// updated, `false` when no score has that id.
+    async fn reopen_rejected(&self, score_id: &str, proposer_id: &str, note: &str) -> Result<bool>;
 
     /// Apply a curatorial metadata edit (change: add-catalog-metadata-editing) in ONE
     /// transaction: update the curatorial fields + the recomputed derived search keys
@@ -279,6 +328,15 @@ pub struct FakeCatalogRow {
     /// The last reviewer stamped by an evaluate (change: add-moderation-back-office);
     /// `None` until a `set_moderation_status` writes it. Lets tests assert audit.
     pub reviewed_by: Option<String>,
+    /// Proposal attribution + feedback (change: add-score-catalog-proposal): the
+    /// proposer id, the moderator's rejection reason, and the proposer's resubmission
+    /// justification. All `None` for a crawler-ingested row.
+    pub proposed_by: Option<String>,
+    pub review_reason: Option<String>,
+    pub resubmission_note: Option<String>,
+    /// Exact-byte content digest, so [`FakeCatalogSearchRepo::find_by_sha`] can resolve
+    /// a proposal's content match (change: add-score-catalog-proposal). Empty by default.
+    pub sha256: String,
 }
 
 impl FakeCatalogRow {
@@ -308,6 +366,26 @@ impl FakeCatalogRow {
     /// Mark the row as a piano score (the rating deck sources piano scores only).
     pub fn piano(mut self) -> Self {
         self.is_piano = Some(true);
+        self
+    }
+
+    /// Mark the row as user-proposed by `proposed_by` (change: add-score-catalog-
+    /// proposal), tagging its origin `user-proposal`.
+    pub fn proposed_by(mut self, proposed_by: &str) -> Self {
+        self.proposed_by = Some(proposed_by.into());
+        self.source = "user-proposal".into();
+        self
+    }
+
+    /// Seed a stored resubmission justification (for the review-queue read tests).
+    pub fn with_resubmission_note(mut self, note: &str) -> Self {
+        self.resubmission_note = Some(note.into());
+        self
+    }
+
+    /// Seed the content digest so `find_by_sha` resolves this row (propose tests).
+    pub fn with_sha(mut self, sha256: &str) -> Self {
+        self.sha256 = sha256.into();
         self
     }
 
@@ -348,6 +426,13 @@ impl FakeCatalogRow {
             // the row itself carries its own moderation status.
             needs_review: false,
             moderation_status: Some(self.moderation_status.clone()),
+            proposed_by: self.proposed_by.clone(),
+            // Resolved names are filled by the module (UserPort); the row itself carries
+            // only the stored columns.
+            proposer_display_name: None,
+            contributor_credit: None,
+            review_reason: self.review_reason.clone(),
+            resubmission_note: self.resubmission_note.clone(),
         }
     }
 
@@ -430,6 +515,7 @@ impl CatalogSearchRepo for FakeCatalogSearchRepo {
         let cfg = RatingConfig::default();
         let privileged = p.review_queue
             || p.moderation_status.is_some()
+            || p.all_statuses
             || p.sort.iter().any(|k| is_moderation_sort_field(&k.field));
         let mut flagged: std::collections::HashSet<String> = std::collections::HashSet::new();
         if privileged && let Some(rv) = &ratings {
@@ -459,11 +545,16 @@ impl CatalogSearchRepo for FakeCatalogSearchRepo {
                 let status_ok = if p.review_queue {
                     r.moderation_status == "pending"
                         || (r.moderation_status == "accepted" && flagged.contains(&r.id))
+                } else if p.all_statuses {
+                    true // privileged BO catalog view: every moderation status
                 } else {
                     let want_status = p.moderation_status.as_deref().unwrap_or("accepted");
                     r.moderation_status == want_status
                 };
-                text_ok && author_ok && level_ok && status_ok && facets_match(r, p)
+                // Origin filter (change: add-score-catalog-proposal): composes with all
+                // the above; `None` = any source.
+                let source_ok = p.source.as_ref().is_none_or(|s| &r.source == s);
+                text_ok && author_ok && level_ok && status_ok && source_ok && facets_match(r, p)
             })
             .collect();
         // Total over the full filtered set, before pagination (mirrors the Pg
@@ -531,12 +622,68 @@ impl CatalogSearchRepo for FakeCatalogSearchRepo {
         score_id: &str,
         status: &str,
         reviewer_id: &str,
+        reason: Option<&str>,
     ) -> Result<bool> {
         let mut rows = self.rows.lock().expect("catalog search fake lock");
         match rows.iter_mut().find(|r| r.id == score_id) {
             Some(row) => {
                 row.moderation_status = status.to_string();
                 row.reviewed_by = Some(reviewer_id.to_string());
+                // The reason is the rejection motive: keep it only on `rejected`.
+                row.review_reason = if status == "rejected" {
+                    reason.map(str::to_string)
+                } else {
+                    None
+                };
+                Ok(true)
+            }
+            None => Ok(false),
+        }
+    }
+
+    async fn find_by_sha(&self, sha256: &str) -> Result<Option<(String, String)>> {
+        let rows = self.rows.lock().expect("catalog search fake lock");
+        Ok(rows
+            .iter()
+            .find(|r| !r.sha256.is_empty() && r.sha256 == sha256)
+            .map(|r| (r.id.clone(), r.moderation_status.clone())))
+    }
+
+    async fn insert_proposed(
+        &self,
+        entry: &crate::repo::CatalogEntry,
+        accepted: bool,
+    ) -> Result<bool> {
+        let mut rows = self.rows.lock().expect("catalog search fake lock");
+        if rows.iter().any(|r| r.id == entry.id) {
+            return Ok(false);
+        }
+        let mut row = FakeCatalogRow::new(
+            &entry.id,
+            entry.meta.title.as_deref().unwrap_or_default(),
+            entry.meta.composer.as_deref().unwrap_or_default(),
+            entry.level.as_deref(),
+        );
+        row.source = entry.source.clone();
+        row.object_key = entry.object_key.clone();
+        row.is_piano = Some(entry.meta.is_piano);
+        row.time_sig = entry.meta.time_sig.clone();
+        row.key_fifths = entry.meta.key_fifths;
+        row.moderation_status = if accepted { "accepted" } else { "pending" }.to_string();
+        row.proposed_by = entry.proposed_by.clone();
+        row.sha256 = entry.sha256.clone();
+        rows.push(row);
+        Ok(true)
+    }
+
+    async fn reopen_rejected(&self, score_id: &str, proposer_id: &str, note: &str) -> Result<bool> {
+        let mut rows = self.rows.lock().expect("catalog search fake lock");
+        match rows.iter_mut().find(|r| r.id == score_id) {
+            Some(row) => {
+                row.moderation_status = "pending".to_string();
+                row.proposed_by = Some(proposer_id.to_string());
+                row.review_reason = None;
+                row.resubmission_note = Some(note.to_string());
                 Ok(true)
             }
             None => Ok(false),
@@ -934,7 +1081,7 @@ mod tests {
         let repo = moderated();
         // Evaluate the pending row → accepted, stamping the reviewer.
         assert!(
-            repo.set_moderation_status("p", "accepted", "mod-1")
+            repo.set_moderation_status("p", "accepted", "mod-1", None)
                 .await
                 .unwrap()
         );
@@ -953,7 +1100,7 @@ mod tests {
         let repo = moderated();
         assert!(
             !repo
-                .set_moderation_status("does-not-exist", "accepted", "mod-1")
+                .set_moderation_status("does-not-exist", "accepted", "mod-1", None)
                 .await
                 .unwrap()
         );
