@@ -3,7 +3,9 @@ import { computed, ref, shallowRef, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { type NewSoundFont, type SoundFontEdit, useSoundFontsStore } from "@/stores/soundfonts";
 import { useScorePlayer } from "@/composables/useScorePlayer";
-import type { AdminSoundFont, CatalogHit } from "@/gen/score_pb";
+import { sampleScoreBytes } from "@/lib/sampleScore";
+import { uuidv7 } from "@/lib/uuid";
+import type { AdminSoundFont } from "@/gen/score_pb";
 
 // Right-to-left drawer to create OR edit a catalog font (change:
 // add-soundfont-back-office-management). On create it uploads the picked `.sf2` +
@@ -60,7 +62,8 @@ watch(
         instrument: e.instrument || "piano",
       };
     } else {
-      form.value = { id: "", label: "", license: "CC0-1.0", attribution: "", instrument: "piano" };
+      // The id is auto-minted (uuidv7) and never shown/edited on create.
+      form.value = { id: uuidv7(), label: "", license: "CC0-1.0", attribution: "", instrument: "piano" };
     }
   },
   { immediate: true },
@@ -102,38 +105,24 @@ function metaFields() {
   };
 }
 
-// --- Preview (audition the font on a catalog piece) ---
-const pieces = ref<CatalogHit[]>([]);
-const selectedPiece = ref("");
-const scoreBytes = shallowRef<Uint8Array | null>(null);
+// --- Preview: audition the font on the shared sample (Ode to Joy), the same
+// piece the Flutter app plays. No piece choice — one "Listen" button. ---
+const scoreBytes = shallowRef<Uint8Array | null>(sampleScoreBytes);
 const sf2Bytes = shallowRef<Uint8Array | null>(null);
-// Two independent, self-clearing errors: the chosen piece couldn't load, and (edit
-// mode) the stored font couldn't load. Each clears when its own thing succeeds, so a
-// stale piece error never lingers after a good piece is selected.
-const pieceError = ref<string | null>(null);
+// The stored font (edit mode) couldn't load — self-clearing on a good load.
 const fontError = ref<string | null>(null);
-const previewError = computed(() => fontError.value ?? pieceError.value);
+const previewError = computed(() => fontError.value);
 
 const player = useScorePlayer(scoreBytes, sf2Bytes);
 
-// Load a few pieces to choose from when the drawer opens.
+// When the drawer opens, reset the candidate font (in edit, fetch the stored one).
 watch(
   () => props.mode,
   async (mode) => {
     if (!mode) return;
-    selectedPiece.value = "";
-    scoreBytes.value = null;
+    player.stop();
     sf2Bytes.value = null;
-    pieceError.value = null;
     fontError.value = null;
-    try {
-      pieces.value = await store.previewPieces();
-      // Default to the first piece so the preview is ready without an extra click.
-      selectedPiece.value = pieces.value[0]?.id ?? "";
-    } catch {
-      pieces.value = [];
-    }
-    // In edit mode the candidate font is the stored one; fetch it eagerly.
     if (mode === "edit" && props.entry) {
       try {
         sf2Bytes.value = await store.fontBytes(props.entry.id);
@@ -152,23 +141,6 @@ watch(file, async (f) => {
   sf2Bytes.value = f ? new Uint8Array(await f.arrayBuffer()) : null;
 });
 
-// Fetch the chosen piece's bytes. Clear any stale piece error first, so a good
-// selection after a failed one no longer shows the error.
-watch(selectedPiece, async (id) => {
-  player.stop();
-  pieceError.value = null;
-  if (!id) {
-    scoreBytes.value = null;
-    return;
-  }
-  try {
-    scoreBytes.value = await store.pieceBytes(id);
-  } catch {
-    scoreBytes.value = null;
-    pieceError.value = t("soundfonts.previewNoPiece");
-  }
-});
-
 const audioState = computed(() => player.audio.value.status);
 </script>
 
@@ -184,9 +156,11 @@ const audioState = computed(() => player.audio.value.status);
         <p v-if="opError" class="error" role="alert">{{ opError }}</p>
 
         <form class="body" @submit.prevent="save">
-          <label>
+          <!-- The id is auto-generated (uuidv7) and immutable: hidden on create,
+               shown read-only on edit. -->
+          <label v-if="isEdit">
             <span>{{ t("soundfonts.id") }}</span>
-            <input v-model="form.id" aria-label="id" :disabled="isEdit" :placeholder="t('soundfonts.idHint')" />
+            <input v-model="form.id" aria-label="id" disabled readonly />
           </label>
           <label>
             <span>{{ t("soundfonts.label") }}</span>
@@ -215,17 +189,11 @@ const audioState = computed(() => player.audio.value.status);
             <input type="file" accept=".sf2" :aria-label="t('soundfonts.file')" @change="onFile" />
           </label>
 
-          <!-- Preview -->
+          <!-- Preview: audition the font on the shared sample (same as the app). -->
           <fieldset class="preview">
             <legend>{{ t("soundfonts.preview") }}</legend>
             <p class="hint">{{ t("soundfonts.previewHint") }}</p>
             <div class="row">
-              <select v-model="selectedPiece" :aria-label="t('soundfonts.choosePiece')">
-                <option value="">{{ t("soundfonts.choosePiece") }}</option>
-                <option v-for="p in pieces" :key="p.id" :value="p.id">
-                  {{ p.title || p.id }}{{ p.composer ? ` — ${p.composer}` : "" }}
-                </option>
-              </select>
               <button
                 type="button"
                 class="play"

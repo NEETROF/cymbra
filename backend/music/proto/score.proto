@@ -254,7 +254,11 @@ message ListSoundFontsResponse {
 
 // Admin view of a catalog font (change: add-soundfont-back-office-management):
 // carries the storage-facing fields the user listing omits. `has_object` reports
-// whether the bytes are present in the private store.
+// whether the bytes are present in the private store. Moderation fields
+// (change: add-soundfont-moderation): `moderation_status` is one of
+// "pending"/"accepted"/"rejected"; `reviewed_by`/`reviewed_at` are empty until a
+// decision is made; `uploaded_by` is who contributed the font; `content_sha256` is
+// the exact-byte digest used for identical-content detection.
 message AdminSoundFont {
   string id = 1;
   string label = 2;
@@ -264,12 +268,31 @@ message AdminSoundFont {
   string attribution = 6;
   int64 size_bytes = 7;
   bool has_object = 8;
+  string moderation_status = 9;
+  string reviewed_by = 10;
+  string reviewed_at = 11;
+  string uploaded_by = 12;
+  string content_sha256 = 13;
 }
 
-message AdminListSoundFontsRequest {}
+// Paginated admin listing (change: add-soundfont-moderation). `moderation_status`
+// filters to a single status ("" = all); `limit`/`offset` page the results.
+message AdminListSoundFontsRequest {
+  int32 limit = 1;                 // page size; clamped to a server maximum
+  int32 offset = 2;                // page offset
+  string moderation_status = 3;    // "" = all, else pending/accepted/rejected
+}
 
 message AdminListSoundFontsResponse {
   repeated AdminSoundFont soundfonts = 1;
+  int32 next_offset = 2;   // offset to request the next page (offset + soundfonts.len)
+  int32 total = 3;         // total rows matching the status filter, independent of paging
+  // Catalog-wide counts (ALL statuses, independent of the filter/page) for the
+  // dashboard KPI cards.
+  int32 pending_count = 4;
+  int32 accepted_count = 5;
+  int32 rejected_count = 6;
+  int32 total_count = 7;
 }
 
 // Metadata-only edit (id and object_key are immutable; bytes are replaced by
@@ -289,6 +312,15 @@ message DeleteSoundFontRequest {
 
 message DeleteSoundFontResponse {}
 
+// Set a catalog font's moderation status (change: add-soundfont-moderation).
+// Music-scope moderator/admin only. `status` is "pending"/"accepted"/"rejected".
+message SetSoundFontModerationStatusRequest {
+  string id = 1;
+  string status = 2;
+}
+
+message SetSoundFontModerationStatusResponse {}
+
 service ScoreService {
   rpc UploadScore(UploadScoreRequest) returns (ScoreRecord);
 
@@ -304,6 +336,9 @@ service ScoreService {
   rpc AdminListSoundFonts(AdminListSoundFontsRequest) returns (AdminListSoundFontsResponse);
   rpc UpdateSoundFont(UpdateSoundFontRequest) returns (UpdateSoundFontResponse);
   rpc DeleteSoundFont(DeleteSoundFontRequest) returns (DeleteSoundFontResponse);
+  // Set a font's moderation status (change: add-soundfont-moderation). Music-scope
+  // moderator/admin only; stamps reviewer + time.
+  rpc SetSoundFontModerationStatus(SetSoundFontModerationStatusRequest) returns (SetSoundFontModerationStatusResponse);
 
   rpc ListMyScores(ListMyScoresRequest) returns (ListMyScoresResponse);
   rpc DeleteScore(DeleteScoreRequest) returns (DeleteScoreResponse);

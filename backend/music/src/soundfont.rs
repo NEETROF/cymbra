@@ -27,11 +27,30 @@ use std::sync::Mutex;
 
 use anyhow::{Context, Result, bail};
 use async_trait::async_trait;
+use chrono::{DateTime, Utc};
+use sha2::{Digest, Sha256};
 use sqlx::{PgPool, Row, postgres::PgRow};
+
+/// Exact-byte SHA-256 of `bytes` as a lowercase hex string — the content digest used
+/// for identical-soundfont detection across uploads (change: add-soundfont-moderation).
+pub fn sha256_hex(bytes: &[u8]) -> String {
+    let digest = Sha256::digest(bytes);
+    let mut s = String::with_capacity(64);
+    for b in digest {
+        use std::fmt::Write;
+        let _ = write!(s, "{b:02x}");
+    }
+    s
+}
 
 /// A catalog entry: the client-facing id, the storage key inside the private
 /// SoundFont bucket, the instrument family, and the licence/attribution (recorded
 /// for CC-BY redistribution). Sourced from `music.soundfonts`.
+///
+/// Moderation fields (change: add-soundfont-moderation): `moderation_status` is one of
+/// `pending`/`accepted`/`rejected`; `reviewed_by`/`reviewed_at` are set once a decision
+/// is made; `uploaded_by` is who contributed the font; `content_sha256` is the exact-byte
+/// digest used to detect identical content across uploads.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FontEntry {
     pub id: String,
@@ -43,6 +62,28 @@ pub struct FontEntry {
     pub license: String,
     pub attribution: Option<String>,
     pub size_bytes: Option<i64>,
+    pub moderation_status: String,
+    pub reviewed_by: Option<String>,
+    pub reviewed_at: Option<DateTime<Utc>>,
+    pub uploaded_by: Option<String>,
+    pub content_sha256: Option<String>,
+}
+
+impl FontEntry {
+    /// Whether this font is publicly visible (validated).
+    pub fn is_accepted(&self) -> bool {
+        self.moderation_status == "accepted"
+    }
+}
+
+/// Catalog-wide counts by moderation status (change: add-soundfont-moderation),
+/// independent of any filter/page — backs the back-office KPI cards.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct SoundFontStatusCounts {
+    pub pending: i64,
+    pub accepted: i64,
+    pub rejected: i64,
+    pub total: i64,
 }
 
 /// Read + admin-write access to the persisted SoundFont catalog. Behind a trait so
@@ -50,10 +91,35 @@ pub struct FontEntry {
 /// with an in-memory [`FakeSoundFontRepo`].
 #[async_trait]
 pub trait SoundFontRepo: Send + Sync {
-    /// Every catalog font (for the listing/admin endpoints), ordered by label.
+    /// Every catalog font regardless of moderation status (the admin listing),
+    /// ordered by label.
     async fn list(&self) -> Result<Vec<FontEntry>>;
-    /// Resolve a client-facing id to its entry, or `None` if unknown.
+    /// Only `accepted` fonts (the public listing / `ListSoundFonts`), ordered by label.
+    async fn list_accepted(&self) -> Result<Vec<FontEntry>>;
+    /// A page of the admin listing filtered by moderation status (`None` = all),
+    /// ordered by label, together with the total count matching the filter (for
+    /// pagination).
+    async fn list_admin_page(
+        &self,
+        moderation_status: Option<&str>,
+        limit: i64,
+        offset: i64,
+    ) -> Result<(Vec<FontEntry>, i64)>;
+    /// Catalog-wide counts by moderation status (all statuses, no filter/page).
+    async fn status_counts(&self) -> Result<SoundFontStatusCounts>;
+    /// Resolve a client-facing id to its entry (any status), or `None` if unknown.
     async fn lookup(&self, id: &str) -> Result<Option<FontEntry>>;
+    /// First non-`rejected` catalog font whose content digest matches `sha256`, used to
+    /// refuse a byte-identical duplicate before storing (change: add-soundfont-moderation).
+    async fn find_by_content(&self, sha256: &str) -> Result<Option<FontEntry>>;
+    /// Set a font's moderation status and stamp `reviewed_by` + `reviewed_at`. Returns
+    /// whether a row matched. `reviewer_id` is the moderator's users.id (UUID string).
+    async fn set_moderation_status(
+        &self,
+        id: &str,
+        status: &str,
+        reviewer_id: &str,
+    ) -> Result<bool>;
     /// Insert a new font row (change: add-soundfont-back-office-management). Errors if
     /// the id already exists — callers refuse a duplicate before storing the object.
     async fn insert(&self, entry: &FontEntry) -> Result<()>;
@@ -81,10 +147,20 @@ fn row_to_entry(row: &PgRow) -> FontEntry {
         license: row.get::<String, _>("license"),
         attribution: row.get::<Option<String>, _>("attribution"),
         size_bytes: row.get::<Option<i64>, _>("size_bytes"),
+        moderation_status: row.get::<String, _>("moderation_status"),
+        reviewed_by: row
+            .get::<Option<uuid::Uuid>, _>("reviewed_by")
+            .map(|u| u.to_string()),
+        reviewed_at: row.get::<Option<DateTime<Utc>>, _>("reviewed_at"),
+        uploaded_by: row
+            .get::<Option<uuid::Uuid>, _>("uploaded_by")
+            .map(|u| u.to_string()),
+        content_sha256: row.get::<Option<String>, _>("content_sha256"),
     }
 }
 
-const SELECT_COLS: &str = "id, label, object_key, instrument, license, attribution, size_bytes";
+const SELECT_COLS: &str = "id, label, object_key, instrument, license, attribution, \
+     size_bytes, moderation_status, reviewed_by, reviewed_at, uploaded_by, content_sha256";
 
 /// Postgres-backed [`SoundFontRepo`] over the `music.soundfonts` table.
 pub struct PgSoundFontRepo {
@@ -109,6 +185,84 @@ impl SoundFontRepo for PgSoundFontRepo {
         Ok(rows.iter().map(row_to_entry).collect())
     }
 
+    async fn list_accepted(&self) -> Result<Vec<FontEntry>> {
+        let rows = sqlx::query(&format!(
+            "SELECT {SELECT_COLS} FROM music.soundfonts \
+             WHERE moderation_status = 'accepted' ORDER BY label"
+        ))
+        .fetch_all(&self.pool)
+        .await
+        .context("list accepted soundfonts")?;
+        Ok(rows.iter().map(row_to_entry).collect())
+    }
+
+    async fn list_admin_page(
+        &self,
+        moderation_status: Option<&str>,
+        limit: i64,
+        offset: i64,
+    ) -> Result<(Vec<FontEntry>, i64)> {
+        let (total, rows) = match moderation_status {
+            Some(s) => {
+                let total: i64 = sqlx::query_scalar(
+                    "SELECT count(*) FROM music.soundfonts WHERE moderation_status = $1",
+                )
+                .bind(s)
+                .fetch_one(&self.pool)
+                .await
+                .context("count soundfonts by status")?;
+                let rows = sqlx::query(&format!(
+                    "SELECT {SELECT_COLS} FROM music.soundfonts \
+                     WHERE moderation_status = $1 ORDER BY label LIMIT $2 OFFSET $3"
+                ))
+                .bind(s)
+                .bind(limit)
+                .bind(offset)
+                .fetch_all(&self.pool)
+                .await
+                .context("list soundfonts page by status")?;
+                (total, rows)
+            }
+            None => {
+                let total: i64 = sqlx::query_scalar("SELECT count(*) FROM music.soundfonts")
+                    .fetch_one(&self.pool)
+                    .await
+                    .context("count soundfonts")?;
+                let rows = sqlx::query(&format!(
+                    "SELECT {SELECT_COLS} FROM music.soundfonts \
+                     ORDER BY label LIMIT $1 OFFSET $2"
+                ))
+                .bind(limit)
+                .bind(offset)
+                .fetch_all(&self.pool)
+                .await
+                .context("list soundfonts page")?;
+                (total, rows)
+            }
+        };
+        Ok((rows.iter().map(row_to_entry).collect(), total))
+    }
+
+    async fn status_counts(&self) -> Result<SoundFontStatusCounts> {
+        let row = sqlx::query(
+            "SELECT \
+               count(*) FILTER (WHERE moderation_status = 'pending')  AS pending, \
+               count(*) FILTER (WHERE moderation_status = 'accepted') AS accepted, \
+               count(*) FILTER (WHERE moderation_status = 'rejected') AS rejected, \
+               count(*) AS total \
+             FROM music.soundfonts",
+        )
+        .fetch_one(&self.pool)
+        .await
+        .context("soundfont status counts")?;
+        Ok(SoundFontStatusCounts {
+            pending: row.get::<i64, _>("pending"),
+            accepted: row.get::<i64, _>("accepted"),
+            rejected: row.get::<i64, _>("rejected"),
+            total: row.get::<i64, _>("total"),
+        })
+    }
+
     async fn lookup(&self, id: &str) -> Result<Option<FontEntry>> {
         let row = sqlx::query(&format!(
             "SELECT {SELECT_COLS} FROM music.soundfonts WHERE id = $1"
@@ -120,13 +274,58 @@ impl SoundFontRepo for PgSoundFontRepo {
         Ok(row.as_ref().map(row_to_entry))
     }
 
+    async fn find_by_content(&self, sha256: &str) -> Result<Option<FontEntry>> {
+        // Dedup against non-`rejected` rows only, so a rejected id never permanently
+        // blocks a later corrected/relicensed submission of the same bytes.
+        let row = sqlx::query(&format!(
+            "SELECT {SELECT_COLS} FROM music.soundfonts \
+             WHERE content_sha256 = $1 AND moderation_status <> 'rejected' LIMIT 1"
+        ))
+        .bind(sha256)
+        .fetch_optional(&self.pool)
+        .await
+        .context("find soundfont by content")?;
+        Ok(row.as_ref().map(row_to_entry))
+    }
+
+    async fn set_moderation_status(
+        &self,
+        id: &str,
+        status: &str,
+        reviewer_id: &str,
+    ) -> Result<bool> {
+        // A reviewer id that isn't a UUID is a caller/programming error; treat it as a
+        // no-op not-found rather than failing the query (mirrors the score path).
+        let Ok(reviewer) = uuid::Uuid::parse_str(reviewer_id) else {
+            return Ok(false);
+        };
+        let r = sqlx::query(
+            "UPDATE music.soundfonts \
+             SET moderation_status = $2, reviewed_by = $3, reviewed_at = now() \
+             WHERE id = $1",
+        )
+        .bind(id)
+        .bind(status)
+        .bind(reviewer)
+        .execute(&self.pool)
+        .await
+        .context("set soundfont moderation status")?;
+        Ok(r.rows_affected() > 0)
+    }
+
     async fn insert(&self, entry: &FontEntry) -> Result<()> {
         // Plain INSERT (no ON CONFLICT) so a duplicate id errors — the id's primary
-        // key is the backstop for the caller's pre-check.
+        // key is the backstop for the caller's pre-check. `uploaded_by` is bound as a
+        // UUID (NULL when absent); `reviewed_by`/`reviewed_at` stay NULL until a decision.
+        let uploaded_by = entry
+            .uploaded_by
+            .as_deref()
+            .and_then(|s| uuid::Uuid::parse_str(s).ok());
         sqlx::query(
             "INSERT INTO music.soundfonts \
-             (id, label, object_key, instrument, license, attribution, size_bytes) \
-             VALUES ($1, $2, $3, $4, $5, $6, $7)",
+             (id, label, object_key, instrument, license, attribution, size_bytes, \
+              moderation_status, uploaded_by, content_sha256) \
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
         )
         .bind(&entry.id)
         .bind(&entry.label)
@@ -135,6 +334,9 @@ impl SoundFontRepo for PgSoundFontRepo {
         .bind(&entry.license)
         .bind(&entry.attribution)
         .bind(entry.size_bytes)
+        .bind(&entry.moderation_status)
+        .bind(uploaded_by)
+        .bind(&entry.content_sha256)
         .execute(&self.pool)
         .await
         .context("insert soundfont")?;
@@ -194,6 +396,52 @@ impl SoundFontRepo for FakeSoundFontRepo {
         Ok(self.entries.lock().unwrap().clone())
     }
 
+    async fn list_accepted(&self) -> Result<Vec<FontEntry>> {
+        Ok(self
+            .entries
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|e| e.is_accepted())
+            .cloned()
+            .collect())
+    }
+
+    async fn list_admin_page(
+        &self,
+        moderation_status: Option<&str>,
+        limit: i64,
+        offset: i64,
+    ) -> Result<(Vec<FontEntry>, i64)> {
+        let mut all: Vec<FontEntry> = self
+            .entries
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|e| moderation_status.is_none_or(|s| e.moderation_status == s))
+            .cloned()
+            .collect();
+        all.sort_by(|a, b| a.label.cmp(&b.label));
+        let total = all.len() as i64;
+        let page = all
+            .into_iter()
+            .skip(offset.max(0) as usize)
+            .take(limit.max(0) as usize)
+            .collect();
+        Ok((page, total))
+    }
+
+    async fn status_counts(&self) -> Result<SoundFontStatusCounts> {
+        let e = self.entries.lock().unwrap();
+        let count = |s: &str| e.iter().filter(|x| x.moderation_status == s).count() as i64;
+        Ok(SoundFontStatusCounts {
+            pending: count("pending"),
+            accepted: count("accepted"),
+            rejected: count("rejected"),
+            total: e.len() as i64,
+        })
+    }
+
     async fn lookup(&self, id: &str) -> Result<Option<FontEntry>> {
         Ok(self
             .entries
@@ -202,6 +450,39 @@ impl SoundFontRepo for FakeSoundFontRepo {
             .iter()
             .find(|e| e.id == id)
             .cloned())
+    }
+
+    async fn find_by_content(&self, sha256: &str) -> Result<Option<FontEntry>> {
+        Ok(self
+            .entries
+            .lock()
+            .unwrap()
+            .iter()
+            .find(|e| {
+                e.moderation_status != "rejected" && e.content_sha256.as_deref() == Some(sha256)
+            })
+            .cloned())
+    }
+
+    async fn set_moderation_status(
+        &self,
+        id: &str,
+        status: &str,
+        reviewer_id: &str,
+    ) -> Result<bool> {
+        if uuid::Uuid::parse_str(reviewer_id).is_err() {
+            return Ok(false);
+        }
+        let mut e = self.entries.lock().unwrap();
+        match e.iter_mut().find(|x| x.id == id) {
+            Some(x) => {
+                x.moderation_status = status.to_string();
+                x.reviewed_by = Some(reviewer_id.to_string());
+                x.reviewed_at = Some(Utc::now());
+                Ok(true)
+            }
+            None => Ok(false),
+        }
     }
 
     async fn insert(&self, entry: &FontEntry) -> Result<()> {
@@ -244,6 +525,8 @@ impl SoundFontRepo for FakeSoundFontRepo {
 mod tests {
     use super::*;
 
+    const REVIEWER: &str = "11111111-1111-1111-1111-111111111111";
+
     fn upright() -> FontEntry {
         FontEntry {
             id: "upright-piano-kw".into(),
@@ -253,6 +536,29 @@ mod tests {
             license: "CC0-1.0".into(),
             attribution: None,
             size_bytes: None,
+            moderation_status: "accepted".into(),
+            reviewed_by: None,
+            reviewed_at: None,
+            uploaded_by: None,
+            content_sha256: Some("deadbeef".into()),
+        }
+    }
+
+    /// A `pending` font with a distinct content digest.
+    fn pending(id: &str, sha: &str) -> FontEntry {
+        FontEntry {
+            id: id.into(),
+            label: id.into(),
+            object_key: format!("{id}.sf2"),
+            instrument: "piano".into(),
+            license: "CC-BY 3.0".into(),
+            attribution: Some("Someone".into()),
+            size_bytes: Some(42),
+            moderation_status: "pending".into(),
+            reviewed_by: None,
+            reviewed_at: None,
+            uploaded_by: Some(REVIEWER.into()),
+            content_sha256: Some(sha.into()),
         }
     }
 
@@ -271,15 +577,7 @@ mod tests {
     async fn fake_repo_insert_rejects_duplicate_id() {
         let repo = FakeSoundFontRepo::with(vec![upright()]);
         // A different font inserts.
-        let ydp = FontEntry {
-            id: "ydp-grand".into(),
-            label: "YDP".into(),
-            object_key: "ydp-grand.sf2".into(),
-            instrument: "piano".into(),
-            license: "CC-BY 3.0".into(),
-            attribution: Some("Roberto".into()),
-            size_bytes: Some(42),
-        };
+        let ydp = pending("ydp-grand", "cafe");
         repo.insert(&ydp).await.unwrap();
         assert_eq!(repo.list().await.unwrap().len(), 2);
         // Re-inserting an existing id errors.
@@ -307,5 +605,62 @@ mod tests {
         assert!(repo.delete("upright-piano-kw").await.unwrap());
         assert!(repo.list().await.unwrap().is_empty());
         assert!(!repo.delete("upright-piano-kw").await.unwrap());
+    }
+
+    #[tokio::test]
+    async fn list_accepted_hides_unvalidated() {
+        let repo = FakeSoundFontRepo::with(vec![upright(), pending("ydp-grand", "cafe")]);
+        // The admin listing sees both; the public listing only the accepted one.
+        assert_eq!(repo.list().await.unwrap().len(), 2);
+        let accepted = repo.list_accepted().await.unwrap();
+        assert_eq!(accepted.len(), 1);
+        assert_eq!(accepted[0].id, "upright-piano-kw");
+    }
+
+    #[tokio::test]
+    async fn find_by_content_matches_non_rejected_only() {
+        let repo = FakeSoundFontRepo::with(vec![pending("ydp-grand", "cafe")]);
+        // A non-rejected byte-identical match is found (dedup guard).
+        assert_eq!(
+            repo.find_by_content("cafe").await.unwrap().map(|e| e.id),
+            Some("ydp-grand".to_string())
+        );
+        // Unknown content → no match.
+        assert!(repo.find_by_content("beef").await.unwrap().is_none());
+        // A rejected font no longer blocks its content.
+        repo.set_moderation_status("ydp-grand", "rejected", REVIEWER)
+            .await
+            .unwrap();
+        assert!(repo.find_by_content("cafe").await.unwrap().is_none());
+    }
+
+    #[tokio::test]
+    async fn set_moderation_status_stamps_reviewer() {
+        let repo = FakeSoundFontRepo::with(vec![pending("ydp-grand", "cafe")]);
+        assert!(
+            repo.set_moderation_status("ydp-grand", "accepted", REVIEWER)
+                .await
+                .unwrap()
+        );
+        let e = repo.lookup("ydp-grand").await.unwrap().unwrap();
+        assert_eq!(e.moderation_status, "accepted");
+        assert_eq!(e.reviewed_by.as_deref(), Some(REVIEWER));
+        assert!(e.reviewed_at.is_some());
+        // Now publicly visible.
+        assert_eq!(repo.list_accepted().await.unwrap().len(), 1);
+        // Unknown id → no row matched.
+        assert!(
+            !repo
+                .set_moderation_status("nope", "accepted", REVIEWER)
+                .await
+                .unwrap()
+        );
+        // A non-UUID reviewer is a no-op not-found.
+        assert!(
+            !repo
+                .set_moderation_status("ydp-grand", "pending", "not-a-uuid")
+                .await
+                .unwrap()
+        );
     }
 }

@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createPinia, setActivePinia } from "pinia";
-import { type NewSoundFont, setUploadForTest, useSoundFontsStore } from "@/stores/soundfonts";
+import { type NewSoundFont, setUploadForTest, SOUNDFONTS_PAGE_SIZE, useSoundFontsStore } from "@/stores/soundfonts";
+import { SoundFontUploadError } from "@/lib/errors";
 import { setClientsForTest } from "@/lib/api";
 import { makeFakeClients } from "./fakes";
 
@@ -9,15 +10,44 @@ interface SfState {
   adminListCalls: number;
   updateCalls: unknown[];
   deleteCalls: unknown[];
+  moderationCalls: unknown[];
 }
 
 /** Patch the fake `score` client with the SoundFont admin RPCs, recording calls. */
 function withSoundfonts(clients: ReturnType<typeof makeFakeClients>["clients"], initial: unknown[] = []): SfState {
-  const state: SfState = { list: [...initial], adminListCalls: 0, updateCalls: [], deleteCalls: [] };
+  const state: SfState = {
+    list: [...initial],
+    adminListCalls: 0,
+    updateCalls: [],
+    deleteCalls: [],
+    moderationCalls: [],
+  };
   const score = clients.score as unknown as Record<string, (req: unknown) => Promise<unknown>>;
-  score.adminListSoundFonts = async () => {
+  score.adminListSoundFonts = async (req: unknown) => {
     state.adminListCalls++;
-    return { soundfonts: state.list };
+    const r = (req ?? {}) as { limit?: number; offset?: number; moderationStatus?: string };
+    const status = r.moderationStatus ?? "";
+    const filtered = status
+      ? state.list.filter((f) => (((f as Record<string, unknown>).moderationStatus as string) || "pending") === status)
+      : state.list;
+    const offset = r.offset ?? 0;
+    const limit = r.limit && r.limit > 0 ? r.limit : filtered.length;
+    const page = filtered.slice(offset, offset + limit);
+    const by = (s: string) =>
+      state.list.filter((f) => (((f as Record<string, unknown>).moderationStatus as string) || "pending") === s).length;
+    return {
+      soundfonts: page,
+      total: filtered.length,
+      nextOffset: offset + page.length,
+      totalCount: state.list.length,
+      pendingCount: by("pending"),
+      acceptedCount: by("accepted"),
+      rejectedCount: by("rejected"),
+    };
+  };
+  score.setSoundFontModerationStatus = async (req: unknown) => {
+    state.moderationCalls.push(req);
+    return {};
   };
   score.updateSoundFont = async (req: unknown) => {
     state.updateCalls.push(req);
@@ -63,6 +93,44 @@ describe("soundfonts store", () => {
     expect(sf.adminListCalls).toBe(1);
     expect(store.catalog.status).toBe("success");
     if (store.catalog.status === "success") expect(store.catalog.data).toHaveLength(1);
+  });
+
+  it("paginates the admin listing and tracks the total", async () => {
+    const { clients } = makeFakeClients();
+    withSoundfonts(
+      clients,
+      Array.from({ length: 30 }, (_, i) => row(`f${String(i).padStart(2, "0")}`)),
+    );
+    setClientsForTest(clients);
+    const store = useSoundFontsStore();
+
+    await store.list({ status: "", offset: 0 });
+    expect(store.total).toBe(30);
+    if (store.catalog.status === "success") {
+      expect(store.catalog.data).toHaveLength(SOUNDFONTS_PAGE_SIZE);
+    }
+
+    // Next page: only the remainder.
+    await store.list({ offset: SOUNDFONTS_PAGE_SIZE });
+    expect(store.offset).toBe(SOUNDFONTS_PAGE_SIZE);
+    if (store.catalog.status === "success") {
+      expect(store.catalog.data).toHaveLength(30 - SOUNDFONTS_PAGE_SIZE);
+    }
+  });
+
+  it("passes the status filter to the server and resets the page", async () => {
+    const { clients } = makeFakeClients();
+    withSoundfonts(clients, [row("a", { moderationStatus: "accepted" }), row("b", { moderationStatus: "pending" })]);
+    setClientsForTest(clients);
+    const store = useSoundFontsStore();
+
+    await store.list({ status: "pending", offset: 0 });
+    expect(store.total).toBe(1);
+    if (store.catalog.status === "success") {
+      expect(store.catalog.data.map((f) => f.id)).toEqual(["b"]);
+    }
+    // The KPI counts stay catalog-wide, not scoped to the pending filter.
+    expect(store.counts).toEqual({ total: 2, pending: 1, accepted: 1, rejected: 0 });
   });
 
   it("adds a font via the upload seam then re-lists", async () => {
@@ -149,6 +217,29 @@ describe("soundfonts store", () => {
     expect(store.op.status).toBe("error");
   });
 
+  it("maps a 409 upload conflict to an 'already exists' message", async () => {
+    const { clients } = makeFakeClients();
+    withSoundfonts(clients);
+    setClientsForTest(clients);
+    setUploadForTest(async () => {
+      throw new SoundFontUploadError(409); // duplicate id or identical content
+    });
+    const store = useSoundFontsStore();
+
+    const outcome = await store.add({
+      id: "dup",
+      label: "Dup",
+      license: "CC0-1.0",
+      attribution: "",
+      instrument: "piano",
+      file,
+    });
+
+    expect(outcome.status).toBe("error");
+    // A clear, dedicated message — not the generic fallback.
+    expect(store.op.status === "error" && /exist/i.test(store.op.error)).toBe(true);
+  });
+
   it("captures a denied edit in op instead of throwing", async () => {
     const { clients } = makeFakeClients();
     withSoundfonts(clients, [row("ydp-grand")]);
@@ -160,6 +251,33 @@ describe("soundfonts store", () => {
     const outcome = await store.update({ id: "ydp-grand", label: "x", license: "x", attribution: "" });
 
     expect(outcome.status).toBe("error");
+  });
+
+  it("accepts a font via setSoundFontModerationStatus then re-lists", async () => {
+    const { clients } = makeFakeClients();
+    const sf = withSoundfonts(clients, [row("ydp-grand", { moderationStatus: "pending" })]);
+    setClientsForTest(clients);
+    const store = useSoundFontsStore();
+
+    const outcome = await store.setModerationStatus("ydp-grand", "accepted");
+
+    expect(outcome.status).toBe("success");
+    expect(sf.moderationCalls).toEqual([{ id: "ydp-grand", status: "accepted" }]);
+    expect(sf.adminListCalls).toBe(1); // re-listed after the decision
+  });
+
+  it("captures a denied moderation decision in op instead of throwing", async () => {
+    const { clients } = makeFakeClients();
+    withSoundfonts(clients, [row("ydp-grand")]);
+    const score = clients.score as unknown as Record<string, () => Promise<never>>;
+    score.setSoundFontModerationStatus = () => Promise.reject(new Error("permission denied"));
+    setClientsForTest(clients);
+    const store = useSoundFontsStore();
+
+    const outcome = await store.setModerationStatus("ydp-grand", "rejected");
+
+    expect(outcome.status).toBe("error");
+    expect(store.op.status).toBe("error");
   });
 
   // --- Preview data (used by the create/edit drawer's audition feature) ---

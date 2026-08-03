@@ -18,6 +18,7 @@ import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:music/services/preferences_service.dart';
+import 'package:music/services/private_soundfont_service.dart';
 import 'package:music/services/soundfont_catalog_service.dart';
 import 'package:music/services/soundfont_importer.dart';
 import 'package:music/state/imported_soundfonts.dart';
@@ -28,8 +29,9 @@ import '../support/soundfont_fakes.dart';
 
 ProviderContainer _container(
   FakePreferencesService prefs,
-  FakeSoundFontImporter importer,
-) {
+  FakeSoundFontImporter importer, {
+  FakePrivateSoundFontService? private,
+}) {
   final container = ProviderContainer(
     overrides: [
       preferencesServiceProvider.overrideWithValue(prefs),
@@ -37,6 +39,11 @@ ProviderContainer _container(
       // No server download list needed for import/registry tests.
       soundFontCatalogServiceProvider.overrideWithValue(
         FakeSoundFontCatalogService(),
+      ),
+      // Private library seam: empty by default (offline-equivalent), so the
+      // registry stays local unless a test seeds/inspects it.
+      privateSoundFontServiceProvider.overrideWithValue(
+        private ?? FakePrivateSoundFontService(),
       ),
     ],
   );
@@ -77,6 +84,57 @@ void main() {
     // Persisted for the next launch.
     expect(prefs.store[ImportedSoundFonts.prefsKey], contains('u1'));
   });
+
+  test('proposing optimistically marks the font pending', () async {
+    const entry = PianoEntry(
+      id: 'u1',
+      label: 'My Grand',
+      kind: PianoKind.user,
+      source: '/x/u1.sf2',
+      remoteId: 'remote-u1',
+    );
+    final prefs = FakePreferencesService({
+      ImportedSoundFonts.prefsKey: _encodeRegistry([entry]),
+    });
+    final container = _container(prefs, FakeSoundFontImporter());
+    await container.read(importedSoundFontsProvider.future);
+
+    await container
+        .read(importedSoundFontsProvider.notifier)
+        .proposeToPublicCatalog('u1', license: 'CC0-1.0', attestation: true);
+
+    final e = container
+        .read(importedSoundFontsProvider)
+        .requireValue
+        .firstWhere((x) => x.id == 'u1');
+    expect(e.proposalStatus, 'pending');
+  });
+
+  test(
+    'a proposed status survives a relaunch even if the server omits it',
+    () async {
+      // Persisted 'pending' + an empty server library (e.g. offline / old backend):
+      // the sync must keep the tag, not clear it.
+      const entry = PianoEntry(
+        id: 'u1',
+        label: 'My Grand',
+        kind: PianoKind.user,
+        source: '/x/u1.sf2',
+        remoteId: 'remote-u1',
+        proposalStatus: 'pending',
+      );
+      final prefs = FakePreferencesService({
+        ImportedSoundFonts.prefsKey: _encodeRegistry([entry]),
+      });
+      final container = _container(prefs, FakeSoundFontImporter());
+      await container.read(importedSoundFontsProvider.future);
+      final e = container
+          .read(importedSoundFontsProvider)
+          .requireValue
+          .firstWhere((x) => x.id == 'u1');
+      expect(e.proposalStatus, 'pending');
+    },
+  );
 
   test('an imported piano survives a relaunch', () async {
     // A "previous launch" persisted one user piano.

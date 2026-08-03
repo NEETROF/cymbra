@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:typed_data';
+
+import 'package:music/services/private_soundfont_service.dart';
 import 'package:music/services/soundfont_catalog_service.dart';
 import 'package:music/services/soundfont_importer.dart';
 import 'package:music/services/soundfont_source.dart';
@@ -41,16 +44,39 @@ class FakeSoundFontSource implements SoundFontSource {
 /// cancel), or throws [SoundFontImportException] to model an invalid file.
 /// Records deletions so a test can assert the copied file was cleaned up.
 class FakeSoundFontImporter implements SoundFontImporter {
-  FakeSoundFontImporter({this.next, this.throwInvalid = false});
+  FakeSoundFontImporter({this.next, this.throwInvalid = false, this.picked});
 
   /// The entry a successful import returns; `null` models the user cancelling.
   PianoEntry? next;
 
-  /// When true, [importSoundFont] throws [SoundFontImportException].
+  /// What [pick] returns (a chosen file), or `null` for a cancel.
+  PickedSoundFont? picked;
+
+  /// When true, [importSoundFont]/[pick] throw [SoundFontImportException].
   bool throwInvalid;
 
   int importCalls = 0;
+  int pickCalls = 0;
+  final List<({Uint8List bytes, String label})> saved = [];
   final List<PianoEntry> deleted = [];
+
+  @override
+  Future<PickedSoundFont?> pick() async {
+    pickCalls++;
+    if (throwInvalid) throw const SoundFontImportException();
+    return picked;
+  }
+
+  @override
+  Future<PianoEntry> save(Uint8List bytes, String label) async {
+    saved.add((bytes: bytes, label: label));
+    return PianoEntry(
+      id: 'saved-${saved.length}',
+      label: label,
+      kind: PianoKind.user,
+      source: '/saved/${saved.length}.sf2',
+    );
+  }
 
   @override
   Future<PianoEntry?> importSoundFont() async {
@@ -76,6 +102,70 @@ class FakeSoundFontCatalogService implements SoundFontCatalogService {
   Future<List<PianoEntry>> listDownloadable() async {
     listCalls++;
     return downloadable;
+  }
+}
+
+/// In-memory [PrivateSoundFontService]: models the per-user server library.
+/// Records imports/proposals/deletions so tests can assert the sync flow without
+/// network or a token store. `import` is idempotent by label (stands in for the
+/// server's content dedup) and assigns a deterministic `remote-N` id.
+class FakePrivateSoundFontService implements PrivateSoundFontService {
+  FakePrivateSoundFontService({List<RemoteSoundFont>? library})
+    : library = [...?library];
+
+  final List<RemoteSoundFont> library;
+  final List<String> imported = [];
+  final List<
+    ({String id, String license, String attribution, bool attestation})
+  >
+  proposed = [];
+  final List<String> deleted = [];
+  bool failImport = false;
+  int _seq = 0;
+
+  @override
+  Future<List<RemoteSoundFont>> list() async => List.of(library);
+
+  @override
+  Future<RemoteSoundFont> import(Uint8List bytes, String label) async {
+    if (failImport) {
+      throw const PrivateSoundFontException('forced import failure');
+    }
+    imported.add(label);
+    final existing = library.where((f) => f.label == label);
+    if (existing.isNotEmpty) return existing.first;
+    final font = RemoteSoundFont(
+      id: 'remote-${_seq++}',
+      label: label,
+      sizeBytes: bytes.length,
+    );
+    library.add(font);
+    return font;
+  }
+
+  @override
+  Future<Uint8List> download(String id) async =>
+      Uint8List.fromList('RIFF____sfbk$id'.codeUnits);
+
+  @override
+  Future<void> delete(String id) async {
+    deleted.add(id);
+    library.removeWhere((f) => f.id == id);
+  }
+
+  @override
+  Future<void> propose(
+    String id, {
+    required String license,
+    String attribution = '',
+    required bool attestation,
+  }) async {
+    proposed.add((
+      id: id,
+      license: license,
+      attribution: attribution,
+      attestation: attestation,
+    ));
   }
 }
 

@@ -166,6 +166,13 @@ export function installE2EClients(): void {
         if (i >= 0) soundfonts.splice(i, 1);
         return {};
       },
+      // Moderation decision (change: add-soundfont-moderation).
+      setSoundFontModerationStatus: async (req: { id: string; status: string }) => {
+        failIfSet("setSoundFontModerationStatus");
+        const f = soundfonts.find((s) => s.id === req.id);
+        if (f) f.moderationStatus = req.status;
+        return {};
+      },
     },
     user: {
       grantRole: async (req: { userId: string; scope: string; role: string }) => {

@@ -29,6 +29,7 @@ pub mod score_rating;
 pub mod soundfont;
 pub mod user_library;
 pub mod user_scores;
+pub mod user_soundfont;
 
 pub use backfill::{
     BackfillReport, BackfillRow, TitleBackfillRepo, TitleUpdate, plan_title_update,
@@ -50,9 +51,14 @@ pub use repo::{CatalogEntry, CatalogRepo, FakeCatalogRepo, ScoreFacets, ScoreMet
 pub use score_rating::{
     FakeScoreRatingRepo, RatingAggregate, RatingConfig, ScoreRatingRepo, Verdict,
 };
-pub use soundfont::{FakeSoundFontRepo, FontEntry, PgSoundFontRepo, SoundFontRepo};
+pub use soundfont::{
+    FakeSoundFontRepo, FontEntry, PgSoundFontRepo, SoundFontRepo, SoundFontStatusCounts, sha256_hex,
+};
 pub use user_library::{FakeUserLibraryRepo, UserLibraryRepo};
 pub use user_scores::{FakeUserScoreRepo, UserScore, UserScoreRepo};
+pub use user_soundfont::{
+    FakeUserSoundFontRepo, PgUserSoundFontRepo, UserFontEntry, UserSoundFontRepo,
+};
 
 /// Generated protobuf messages + tonic client/server stubs for `cymbra.music.v1`
 /// (the ScoreService — user uploads).

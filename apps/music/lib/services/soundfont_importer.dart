@@ -46,14 +46,31 @@ bool isValidSoundFont(Uint8List bytes) =>
     bytes[10] == 0x62 && // 'b'
     bytes[11] == 0x6b; // 'k'
 
+/// A `.sf2` the user picked (and that passed validation) but hasn't been saved
+/// yet — its bytes plus a suggested label from the filename. The management
+/// drawer lets the user edit the label before committing via [SoundFontImporter.save].
+class PickedSoundFont {
+  const PickedSoundFont({required this.bytes, required this.suggestedLabel});
+  final Uint8List bytes;
+  final String suggestedLabel;
+}
+
 /// Seam over the SoundFont import flow (pick → validate → copy into app
 /// storage), so the settings drawer can be driven by an in-memory fake in tests
 /// (no native picker, no filesystem). Mirrors [FilePickerService].
 abstract class SoundFontImporter {
-  /// Prompts the user to pick a `.sf2`, validates it is a loadable SoundFont,
-  /// copies it into durable app storage, and returns a `user`-kind catalog
-  /// entry. Resolves to `null` when the user cancels. Throws
+  /// Prompts the user to pick a `.sf2` and validates it is a loadable SoundFont,
+  /// **without** copying it yet. Resolves to `null` when the user cancels. Throws
   /// [SoundFontImportException] when the picked file is not a valid SoundFont.
+  Future<PickedSoundFont?> pick();
+
+  /// Copies [bytes] into durable app storage under the given [label] and returns
+  /// a `user`-kind catalog entry. Called after the user confirms a [pick].
+  Future<PianoEntry> save(Uint8List bytes, String label);
+
+  /// One-shot pick + save with the filename as label (the picker dropdown's
+  /// "Add" affordance). `null` on cancel; throws [SoundFontImportException] for an
+  /// invalid file.
   Future<PianoEntry?> importSoundFont();
 
   /// Deletes the copied file backing an imported [entry] (best-effort; a missing
@@ -68,7 +85,7 @@ class SoundFontImporterImpl implements SoundFontImporter {
   final Ref _ref;
 
   @override
-  Future<PianoEntry?> importSoundFont() async {
+  Future<PickedSoundFont?> pick() async {
     // Desktop dialogs filter by extension nicely; mobile pickers key off
     // system-registered UTIs/MIME types, and `.sf2` is registered as neither —
     // a `custom` filter would grey the file out. So filter on desktop only and
@@ -85,24 +102,36 @@ class SoundFontImporterImpl implements SoundFontImporter {
     if (bytes == null || !isValidSoundFont(bytes)) {
       throw const SoundFontImportException();
     }
-
-    final id = const Uuid().v4();
-    final dir = await _ref.read(soundFontStorageDirProvider.future);
-    final dest = File('${dir.path}/$id.sf2');
-    await dest.writeAsBytes(bytes, flush: true);
-
-    // Label defaults to the filename without extension; user-editable later.
+    // Suggested label = filename without the .sf2 extension.
     final name = picked.name;
     final label = name.toLowerCase().endsWith('.sf2')
         ? name.substring(0, name.length - 4)
         : name;
+    return PickedSoundFont(
+      bytes: bytes,
+      suggestedLabel: label.isEmpty ? name : label,
+    );
+  }
 
+  @override
+  Future<PianoEntry> save(Uint8List bytes, String label) async {
+    final id = const Uuid().v4();
+    final dir = await _ref.read(soundFontStorageDirProvider.future);
+    final dest = File('${dir.path}/$id.sf2');
+    await dest.writeAsBytes(bytes, flush: true);
     return PianoEntry(
       id: id,
-      label: label.isEmpty ? name : label,
+      label: label.trim().isEmpty ? id : label.trim(),
       kind: PianoKind.user,
       source: dest.path,
     );
+  }
+
+  @override
+  Future<PianoEntry?> importSoundFont() async {
+    final picked = await pick();
+    if (picked == null) return null;
+    return save(picked.bytes, picked.suggestedLabel);
   }
 
   @override

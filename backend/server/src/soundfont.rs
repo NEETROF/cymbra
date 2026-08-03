@@ -28,18 +28,18 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use axum::Router;
 use axum::body::{Body, Bytes};
 use axum::extract::{DefaultBodyLimit, Path, Query, State};
 use axum::http::{HeaderMap, StatusCode, header};
 use axum::http::{HeaderValue, Method};
 use axum::response::{IntoResponse, Response};
-use axum::routing::get;
-use cymbra_music::{FontEntry, SoundFontRepo};
+use axum::routing::{get, post};
+use axum::{Json, Router};
+use cymbra_music::{FontEntry, SoundFontRepo, UserFontEntry, UserSoundFontRepo, sha256_hex};
 use cymbra_platform::{AuthIdentity, guard, token};
 use cymbra_storage::{ObjectStorage, StorageError};
 use jsonwebtoken::DecodingKey;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use tower_http::cors::{AllowOrigin, CorsLayer};
 
 /// Largest `.sf2` upload accepted (change: add-soundfont-back-office-management).
@@ -69,16 +69,29 @@ pub enum Decision {
 }
 
 /// Decide a delivery request purely from the already-resolved inputs: authenticate,
-/// then require the font to exist. Kept pure (the id → `font` resolution is an async
+/// then apply the moderation gate. Kept pure (the id → `font` resolution is an async
 /// repo read done by the caller) so a refusal never depends on whether the object
 /// exists.
-pub fn decide(user_id: Option<&str>, font: Option<&FontEntry>) -> Decision {
+///
+/// A normal caller may only fetch an `accepted` font; an unvalidated
+/// (`pending`/`rejected`) font is reported as not-found so its existence isn't leaked.
+/// A moderator/admin (`can_view_unvalidated`) may fetch a font of any status, so a
+/// reviewer can audition it (change: add-soundfont-moderation).
+pub fn decide(
+    user_id: Option<&str>,
+    can_view_unvalidated: bool,
+    font: Option<&FontEntry>,
+) -> Decision {
     if user_id.is_none() {
         return Decision::Unauthenticated;
     }
     match font {
-        Some(font) => Decision::Serve(font.object_key.clone()),
-        None => Decision::NotFound,
+        Some(font) if font.is_accepted() || can_view_unvalidated => {
+            Decision::Serve(font.object_key.clone())
+        }
+        // Unvalidated font hidden from a normal caller, and an unknown id, are both
+        // not-found — indistinguishable so visibility can't be probed.
+        Some(_) | None => Decision::NotFound,
     }
 }
 
@@ -179,8 +192,15 @@ impl SoundfontAuth for JwtAuth {
 pub struct SoundfontState {
     pub store: Option<Arc<dyn ObjectStorage>>,
     pub repo: Option<Arc<dyn SoundFontRepo>>,
+    /// Private per-user library (change: add-soundfont-moderation); `None` disables the
+    /// `/me/soundfonts` routes (503).
+    pub user_repo: Option<Arc<dyn UserSoundFontRepo>>,
     pub auth: Arc<dyn SoundfontAuth>,
 }
+
+/// Largest private library for a plain (non-moderator/admin) user (change:
+/// add-soundfont-moderation). Moderators/admins are exempt (they curate the catalog).
+const USER_LIBRARY_MAX_FONTS: i64 = 5;
 
 /// The SoundFont delivery router (`GET /soundfonts/:id`), ready to `.merge()` into the
 /// HTTP server. Always mounted; when unconfigured it responds 503.
@@ -208,6 +228,12 @@ pub fn soundfont_router(state: SoundfontState, allowed_origins: Vec<String>) -> 
         // add-soundfont-back-office-management). The body limit is raised only for the
         // upload; metadata rides in the query so no multipart is needed.
         .route("/soundfonts/:id", get(serve).post(upload))
+        // Private per-user library (change: add-soundfont-moderation): list + import
+        // (`/me/soundfonts`) and owner-scoped delivery (`/me/soundfonts/:id`).
+        .route("/me/soundfonts", get(list_mine).post(import_mine))
+        .route("/me/soundfonts/:id", get(serve_mine).delete(delete_mine))
+        // Opt-in: propose a private font to the public catalog (enters `pending`).
+        .route("/me/soundfonts/:id/propose", post(propose_mine))
         .layer(DefaultBodyLimit::max(MAX_UPLOAD_BYTES))
         .layer(cors)
         .with_state(state)
@@ -275,12 +301,30 @@ async fn upload(
     let (Some(store), Some(repo)) = (s.store.as_ref(), s.repo.as_ref()) else {
         return status(StatusCode::SERVICE_UNAVAILABLE);
     };
+    // decide_upload only returns Accept with an authenticated, authorised identity.
+    let identity = identity.expect("decide_upload guarantees an identity on Accept");
     // Refuse a duplicate id rather than silently overwriting an existing font.
     match repo.lookup(&id).await {
         Ok(Some(_)) => return status(StatusCode::CONFLICT),
         Ok(None) => {}
         Err(_) => return status(StatusCode::INTERNAL_SERVER_ERROR),
     }
+    // Refuse byte-identical content already present under any (non-rejected) id, so the
+    // catalog never lists the same font twice (change: add-soundfont-moderation).
+    let content_sha256 = sha256_hex(&body);
+    match repo.find_by_content(&content_sha256).await {
+        Ok(Some(_)) => return status(StatusCode::CONFLICT),
+        Ok(None) => {}
+        Err(_) => return status(StatusCode::INTERNAL_SERVER_ERROR),
+    }
+
+    // Status branches on the uploader's role: an admin's upload is auto-`accepted`; a
+    // moderator's lands `pending` for a second reviewer.
+    let moderation_status = if guard::require_admin(&identity).is_ok() {
+        "accepted"
+    } else {
+        "pending"
+    };
 
     let object_key = format!("{id}.sf2");
     let size = body.len() as i64;
@@ -304,8 +348,296 @@ async fn upload(
         license: meta.license,
         attribution,
         size_bytes: Some(size),
+        moderation_status: moderation_status.to_string(),
+        reviewed_by: None,
+        reviewed_at: None,
+        uploaded_by: Some(identity.user_id.clone()),
+        content_sha256: Some(content_sha256),
     };
     if repo.insert(&entry).await.is_err() {
+        let _ = store.delete(&object_key).await;
+        return status(StatusCode::INTERNAL_SERVER_ERROR);
+    }
+    status(StatusCode::CREATED)
+}
+
+/// Metadata for a private-library import — only a display label is needed (the bytes
+/// carry everything else). Carried in the query string.
+#[derive(Debug, Deserialize)]
+pub struct ImportMeta {
+    #[serde(default)]
+    pub label: String,
+}
+
+/// A private-library font as returned to its owner (no storage-facing fields).
+/// `proposal_status` is the moderation status of this font's public-catalog
+/// proposal (`pending`/`accepted`/`rejected`), or `None` when it hasn't been
+/// proposed. camelCase on the wire to match the app's JSON parser.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct MyFont {
+    id: String,
+    label: String,
+    size_bytes: i64,
+    proposal_status: Option<String>,
+}
+
+/// Import a `.sf2` into the caller's private library (change: add-soundfont-moderation).
+/// Open to any authenticated user; the font is private (owner-only) and unmoderated.
+/// Re-importing identical bytes is idempotent; a plain user is capped at
+/// [`USER_LIBRARY_MAX_FONTS`] (moderators/admins are exempt).
+async fn import_mine(
+    State(s): State<SoundfontState>,
+    Query(meta): Query<ImportMeta>,
+    headers: HeaderMap,
+    body: Bytes,
+) -> Response {
+    let Some(identity) = s.auth.identify_admin(&headers) else {
+        return status(StatusCode::UNAUTHORIZED);
+    };
+    if !is_valid_soundfont(&body) {
+        return status(StatusCode::UNPROCESSABLE_ENTITY);
+    }
+    if meta.label.trim().is_empty() {
+        return status(StatusCode::BAD_REQUEST);
+    }
+    let (Some(store), Some(repo)) = (s.store.as_ref(), s.user_repo.as_ref()) else {
+        return status(StatusCode::SERVICE_UNAVAILABLE);
+    };
+    let user_id = identity.user_id.clone();
+    let content_sha256 = sha256_hex(&body);
+    // Idempotent: re-importing bytes already in the library returns the existing entry.
+    match repo.find_by_content(&user_id, &content_sha256).await {
+        Ok(Some(existing)) => {
+            return Json(MyFont {
+                id: existing.id,
+                label: existing.label,
+                size_bytes: existing.size_bytes,
+                proposal_status: None,
+            })
+            .into_response();
+        }
+        Ok(None) => {}
+        Err(_) => return status(StatusCode::INTERNAL_SERVER_ERROR),
+    }
+    // Quota: a plain user may hold at most USER_LIBRARY_MAX_FONTS; mod/admin are exempt.
+    if guard::require_moderator_or_admin(&identity).is_err() {
+        match repo.count(&user_id).await {
+            Ok(n) if n >= USER_LIBRARY_MAX_FONTS => return status(StatusCode::FORBIDDEN),
+            Ok(_) => {}
+            Err(_) => return status(StatusCode::INTERNAL_SERVER_ERROR),
+        }
+    }
+
+    let id = uuid::Uuid::now_v7().to_string();
+    let object_key = format!("user/{user_id}/{id}.sf2");
+    let size = body.len() as i64;
+    // Object first, then the row (best-effort object cleanup if the row write fails).
+    if store.put(&object_key, body.to_vec()).await.is_err() {
+        return status(StatusCode::INTERNAL_SERVER_ERROR);
+    }
+    let entry = UserFontEntry {
+        id,
+        user_id,
+        label: meta.label,
+        object_key: object_key.clone(),
+        content_sha256,
+        size_bytes: size,
+    };
+    if repo.insert(&entry).await.is_err() {
+        let _ = store.delete(&object_key).await;
+        return status(StatusCode::INTERNAL_SERVER_ERROR);
+    }
+    (
+        StatusCode::CREATED,
+        Json(MyFont {
+            id: entry.id,
+            label: entry.label,
+            size_bytes: entry.size_bytes,
+            proposal_status: None,
+        }),
+    )
+        .into_response()
+}
+
+/// List the caller's private library (owner-scoped), as JSON.
+async fn list_mine(State(s): State<SoundfontState>, headers: HeaderMap) -> Response {
+    let Some(user) = s.auth.identify(&headers) else {
+        return status(StatusCode::UNAUTHORIZED);
+    };
+    let Some(repo) = s.user_repo.as_ref() else {
+        return status(StatusCode::SERVICE_UNAVAILABLE);
+    };
+    let fonts = match repo.list(&user).await {
+        Ok(f) => f,
+        Err(_) => return status(StatusCode::INTERNAL_SERVER_ERROR),
+    };
+    let mut out = Vec::with_capacity(fonts.len());
+    for f in fonts {
+        // A public-catalog row with the same id means this private font was proposed
+        // (propose reuses the private id); its moderation status is the proposal
+        // status. No catalog wired ⇒ never proposed.
+        let proposal_status = match s.repo.as_ref() {
+            Some(catalog) => catalog
+                .lookup(&f.id)
+                .await
+                .ok()
+                .flatten()
+                .map(|e| e.moderation_status),
+            None => None,
+        };
+        out.push(MyFont {
+            id: f.id,
+            label: f.label,
+            size_bytes: f.size_bytes,
+            proposal_status,
+        });
+    }
+    Json(out).into_response()
+}
+
+/// Stream a private-library font's bytes — only to its owner (range-aware).
+async fn serve_mine(
+    State(s): State<SoundfontState>,
+    Path(id): Path<String>,
+    headers: HeaderMap,
+) -> Response {
+    let Some(user) = s.auth.identify(&headers) else {
+        return status(StatusCode::UNAUTHORIZED);
+    };
+    let Some(repo) = s.user_repo.as_ref() else {
+        return status(StatusCode::SERVICE_UNAVAILABLE);
+    };
+    let font = match repo.lookup(&user, &id).await {
+        Ok(f) => f,
+        Err(_) => return status(StatusCode::INTERNAL_SERVER_ERROR),
+    };
+    // A font that isn't the caller's (or doesn't exist) is not-found — an owner can't
+    // probe another user's library.
+    let Some(font) = font else {
+        return status(StatusCode::NOT_FOUND);
+    };
+    let Some(store) = s.store.as_ref() else {
+        return status(StatusCode::SERVICE_UNAVAILABLE);
+    };
+    stream(store.as_ref(), &font.object_key, &headers).await
+}
+
+/// Remove a private-library font (owner-only): delete the row, then best-effort
+/// delete the stored object.
+async fn delete_mine(
+    State(s): State<SoundfontState>,
+    Path(id): Path<String>,
+    headers: HeaderMap,
+) -> Response {
+    let Some(user) = s.auth.identify(&headers) else {
+        return status(StatusCode::UNAUTHORIZED);
+    };
+    let Some(repo) = s.user_repo.as_ref() else {
+        return status(StatusCode::SERVICE_UNAVAILABLE);
+    };
+    let removed = match repo.delete(&user, &id).await {
+        Ok(r) => r,
+        Err(_) => return status(StatusCode::INTERNAL_SERVER_ERROR),
+    };
+    // A font that isn't the caller's (or doesn't exist) is not-found.
+    let Some(removed) = removed else {
+        return status(StatusCode::NOT_FOUND);
+    };
+    if let Some(store) = s.store.as_ref()
+        && let Err(e) = store.delete(&removed.object_key).await
+    {
+        tracing::warn!(
+            "private soundfont object {} not deleted: {e}",
+            removed.object_key
+        );
+    }
+    status(StatusCode::NO_CONTENT)
+}
+
+/// Query for proposing a private font to the public catalog. A soundfont is
+/// third-party sample data, so an explicit licence declaration **and** a
+/// right-to-distribute attestation are mandatory (the CGU authorship attestation is
+/// not sufficient on its own).
+#[derive(Debug, Deserialize)]
+pub struct ProposeMeta {
+    #[serde(default)]
+    pub license: String,
+    #[serde(default)]
+    pub attribution: String,
+    /// Explicit "I have the right to distribute this" flag; must be `true`.
+    #[serde(default)]
+    pub attestation: bool,
+}
+
+/// Propose one of the caller's private fonts to the public catalog (change:
+/// add-soundfont-moderation). Copies the bytes to a public key and records a
+/// `pending` catalog row attributed to the proposer, awaiting moderator review.
+async fn propose_mine(
+    State(s): State<SoundfontState>,
+    Path(id): Path<String>,
+    Query(meta): Query<ProposeMeta>,
+    headers: HeaderMap,
+) -> Response {
+    let Some(identity) = s.auth.identify_admin(&headers) else {
+        return status(StatusCode::UNAUTHORIZED);
+    };
+    // Mandatory licence declaration + right-to-distribute attestation.
+    if meta.license.trim().is_empty() || !meta.attestation {
+        return status(StatusCode::BAD_REQUEST);
+    }
+    let (Some(store), Some(user_repo), Some(catalog)) =
+        (s.store.as_ref(), s.user_repo.as_ref(), s.repo.as_ref())
+    else {
+        return status(StatusCode::SERVICE_UNAVAILABLE);
+    };
+    let user_id = identity.user_id.clone();
+    // The font must be one the caller owns privately.
+    let private = match user_repo.lookup(&user_id, &id).await {
+        Ok(f) => f,
+        Err(_) => return status(StatusCode::INTERNAL_SERVER_ERROR),
+    };
+    let Some(private) = private else {
+        return status(StatusCode::NOT_FOUND);
+    };
+    // Refuse if identical content is already in the catalog (non-rejected), or if this
+    // font was already proposed (its id would collide).
+    match catalog.find_by_content(&private.content_sha256).await {
+        Ok(Some(_)) => return status(StatusCode::CONFLICT),
+        Ok(None) => {}
+        Err(_) => return status(StatusCode::INTERNAL_SERVER_ERROR),
+    }
+    match catalog.lookup(&id).await {
+        Ok(Some(_)) => return status(StatusCode::CONFLICT),
+        Ok(None) => {}
+        Err(_) => return status(StatusCode::INTERNAL_SERVER_ERROR),
+    }
+    // Copy the bytes to the public catalog key (the catalog id reuses the private id).
+    let bytes = match store.get(&private.object_key).await {
+        Ok(b) => b,
+        Err(_) => return status(StatusCode::INTERNAL_SERVER_ERROR),
+    };
+    let object_key = format!("{id}.sf2");
+    if store.put(&object_key, bytes).await.is_err() {
+        return status(StatusCode::INTERNAL_SERVER_ERROR);
+    }
+    let attribution = (!meta.attribution.trim().is_empty()).then(|| meta.attribution.clone());
+    let entry = FontEntry {
+        id,
+        label: private.label,
+        object_key: object_key.clone(),
+        instrument: "piano".to_string(),
+        license: meta.license,
+        attribution,
+        size_bytes: Some(private.size_bytes),
+        // A user proposal always enters pending, attributed to the proposer.
+        moderation_status: "pending".to_string(),
+        reviewed_by: None,
+        reviewed_at: None,
+        uploaded_by: Some(user_id),
+        content_sha256: Some(private.content_sha256),
+    };
+    if catalog.insert(&entry).await.is_err() {
         let _ = store.delete(&object_key).await;
         return status(StatusCode::INTERNAL_SERVER_ERROR);
     }
@@ -323,6 +655,13 @@ async fn serve(
     if user.is_none() {
         return status(StatusCode::UNAUTHORIZED);
     }
+    // A music-scope moderator/admin may audition unvalidated fonts; a normal caller
+    // only sees `accepted` ones (change: add-soundfont-moderation).
+    let can_view_unvalidated = s
+        .auth
+        .identify_admin(&headers)
+        .as_ref()
+        .is_some_and(|i| guard::require_moderator_or_admin(i).is_ok());
     let Some(repo) = s.repo.as_ref() else {
         // Feature unconfigured (no music DB / catalog) — the route is disabled.
         return status(StatusCode::SERVICE_UNAVAILABLE);
@@ -331,7 +670,7 @@ async fn serve(
         Ok(f) => f,
         Err(_) => return status(StatusCode::INTERNAL_SERVER_ERROR),
     };
-    let key = match decide(user.as_deref(), font.as_ref()) {
+    let key = match decide(user.as_deref(), can_view_unvalidated, font.as_ref()) {
         Decision::Unauthenticated => return status(StatusCode::UNAUTHORIZED),
         Decision::NotFound => return status(StatusCode::NOT_FOUND),
         Decision::Serve(key) => key,
@@ -417,8 +756,9 @@ mod tests {
 
     // --- Pure logic ------------------------------------------------------
 
-    /// A test [`FontEntry`] (owned fields, as the DB repo yields).
-    fn entry(id: &str, object_key: &str, license: &str) -> FontEntry {
+    /// A test [`FontEntry`] with the given moderation status (owned fields, as the DB
+    /// repo yields).
+    fn entry_status(id: &str, object_key: &str, license: &str, moderation: &str) -> FontEntry {
         FontEntry {
             id: id.into(),
             label: id.into(),
@@ -427,7 +767,17 @@ mod tests {
             license: license.into(),
             attribution: None,
             size_bytes: None,
+            moderation_status: moderation.into(),
+            reviewed_by: None,
+            reviewed_at: None,
+            uploaded_by: None,
+            content_sha256: Some(sha256_hex(id.as_bytes())),
         }
+    }
+
+    /// An `accepted` (publicly visible) test font.
+    fn entry(id: &str, object_key: &str, license: &str) -> FontEntry {
+        entry_status(id, object_key, license, "accepted")
     }
 
     fn upright() -> FontEntry {
@@ -435,13 +785,24 @@ mod tests {
     }
 
     #[test]
-    fn decide_requires_auth_then_the_font_to_exist() {
+    fn decide_requires_auth_then_applies_the_moderation_gate() {
         let font = upright();
-        assert_eq!(decide(None, Some(&font)), Decision::Unauthenticated);
-        assert_eq!(decide(Some("u"), None), Decision::NotFound);
+        // Unauthenticated is refused regardless.
+        assert_eq!(decide(None, false, Some(&font)), Decision::Unauthenticated);
+        // Authenticated + unknown id is not-found.
+        assert_eq!(decide(Some("u"), false, None), Decision::NotFound);
+        // Authenticated + accepted font is served.
         assert_eq!(
-            decide(Some("u"), Some(&font)),
+            decide(Some("u"), false, Some(&font)),
             Decision::Serve("UprightPianoKW-20220221.sf2".to_string())
+        );
+        // An unvalidated font is not-found to a normal caller…
+        let pending = entry_status("ydp", "ydp.sf2", "CC-BY 3.0", "pending");
+        assert_eq!(decide(Some("u"), false, Some(&pending)), Decision::NotFound);
+        // …but a moderator/admin may audition it.
+        assert_eq!(
+            decide(Some("m"), true, Some(&pending)),
+            Decision::Serve("ydp.sf2".to_string())
         );
     }
 
@@ -500,6 +861,7 @@ mod tests {
             SoundfontState {
                 store,
                 repo,
+                user_repo: None,
                 auth: Arc::new(FixedAuth(user)),
             },
             vec!["https://bo.cymbra.app".to_string()],
@@ -626,6 +988,7 @@ mod tests {
             SoundfontState {
                 store: Some(store),
                 repo: Some(Arc::new(cymbra_music::FakeSoundFontRepo::default())),
+                user_repo: None,
                 auth: Arc::new(FixedAdminAuth(identity)),
             },
             vec!["https://bo.cymbra.app".to_string()],
@@ -695,6 +1058,7 @@ mod tests {
             SoundfontState {
                 store: Some(store.clone()),
                 repo: Some(repo.clone()),
+                user_repo: None,
                 auth: Arc::new(FixedAdminAuth(Some(ident("a", &["admin"])))),
             },
             vec!["https://bo.cymbra.app".to_string()],
@@ -709,6 +1073,65 @@ mod tests {
         assert_eq!(row.license, "CC-BY 3.0");
         // Instrument defaults to piano when not supplied.
         assert_eq!(row.instrument, "piano");
+        // An admin upload is auto-accepted, attributed to the uploader, with a digest.
+        assert_eq!(row.moderation_status, "accepted");
+        assert_eq!(row.uploaded_by.as_deref(), Some("a"));
+        assert_eq!(row.content_sha256, Some(sha256_hex(&sf2_bytes())));
+    }
+
+    #[tokio::test]
+    async fn upload_by_moderator_is_pending() {
+        let store = Arc::new(FakeStore::default());
+        let repo = Arc::new(cymbra_music::FakeSoundFontRepo::default());
+        let r = soundfont_router(
+            SoundfontState {
+                store: Some(store),
+                repo: Some(repo.clone()),
+                user_repo: None,
+                auth: Arc::new(FixedAdminAuth(Some(ident("m", &["moderator"])))),
+            },
+            vec!["https://bo.cymbra.app".to_string()],
+        );
+        let resp = r.oneshot(post(UPLOAD_URI, sf2_bytes())).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::CREATED);
+        // A moderator upload lands pending (awaiting a second reviewer) and is hidden
+        // from the public listing until accepted.
+        let row = repo.lookup("ydp-grand").await.unwrap().unwrap();
+        assert_eq!(row.moderation_status, "pending");
+        assert!(repo.list_accepted().await.unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn upload_duplicate_content_is_409() {
+        // A different id but byte-identical content is refused as a duplicate.
+        let store = Arc::new(FakeStore::default());
+        let existing = FontEntry {
+            id: "already-here".into(),
+            label: "existing".into(),
+            object_key: "already-here.sf2".into(),
+            instrument: "piano".into(),
+            license: "CC0-1.0".into(),
+            attribution: None,
+            size_bytes: None,
+            moderation_status: "accepted".into(),
+            reviewed_by: None,
+            reviewed_at: None,
+            uploaded_by: None,
+            content_sha256: Some(sha256_hex(&sf2_bytes())),
+        };
+        let repo: Arc<dyn SoundFontRepo> =
+            Arc::new(cymbra_music::FakeSoundFontRepo::with(vec![existing]));
+        let r = soundfont_router(
+            SoundfontState {
+                store: Some(store),
+                repo: Some(repo),
+                user_repo: None,
+                auth: Arc::new(FixedAdminAuth(Some(ident("a", &["admin"])))),
+            },
+            vec!["https://bo.cymbra.app".to_string()],
+        );
+        let resp = r.oneshot(post(UPLOAD_URI, sf2_bytes())).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::CONFLICT);
     }
 
     #[tokio::test]
@@ -723,16 +1146,382 @@ mod tests {
                 license: "CC-BY 3.0".into(),
                 attribution: None,
                 size_bytes: None,
+                moderation_status: "accepted".into(),
+                reviewed_by: None,
+                reviewed_at: None,
+                uploaded_by: None,
+                content_sha256: Some("different-content".into()),
             }]));
         let r = soundfont_router(
             SoundfontState {
                 store: Some(store),
                 repo: Some(repo),
+                user_repo: None,
                 auth: Arc::new(FixedAdminAuth(Some(ident("a", &["admin"])))),
             },
             vec!["https://bo.cymbra.app".to_string()],
         );
         let resp = r.oneshot(post(UPLOAD_URI, sf2_bytes())).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::CONFLICT);
+    }
+
+    // --- Private per-user library ----------------------------------------
+
+    use cymbra_music::{FakeUserSoundFontRepo, UserFontEntry, UserSoundFontRepo};
+
+    /// A router wired with a private-library repo + store and a fixed identity.
+    fn private_app(
+        user_repo: Arc<dyn UserSoundFontRepo>,
+        store: Arc<dyn ObjectStorage>,
+        identity: AuthIdentity,
+    ) -> Router {
+        soundfont_router(
+            SoundfontState {
+                store: Some(store),
+                repo: Some(Arc::new(cymbra_music::FakeSoundFontRepo::default())),
+                user_repo: Some(user_repo),
+                auth: Arc::new(FixedAdminAuth(Some(identity))),
+            },
+            vec!["https://bo.cymbra.app".to_string()],
+        )
+    }
+
+    fn user_entry(id: &str, user: &str, sha: &str) -> UserFontEntry {
+        UserFontEntry {
+            id: id.into(),
+            user_id: user.into(),
+            label: format!("font {id}"),
+            object_key: format!("user/{user}/{id}.sf2"),
+            content_sha256: sha.into(),
+            size_bytes: 11,
+        }
+    }
+
+    #[tokio::test]
+    async fn import_mine_creates_then_is_idempotent() {
+        let repo = Arc::new(FakeUserSoundFontRepo::default());
+        let r = private_app(
+            repo.clone(),
+            Arc::new(FakeStore::default()),
+            ident("u", &["user"]),
+        );
+        // First import creates a private row.
+        let resp = r
+            .clone()
+            .oneshot(post("/me/soundfonts?label=Mine", sf2_bytes()))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::CREATED);
+        assert_eq!(repo.count("u").await.unwrap(), 1);
+        // Re-importing the identical bytes is idempotent (200, no second copy).
+        let resp = r
+            .oneshot(post("/me/soundfonts?label=Mine%20again", sf2_bytes()))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        assert_eq!(repo.count("u").await.unwrap(), 1);
+    }
+
+    #[tokio::test]
+    async fn import_mine_quota_caps_plain_user_but_not_moderator() {
+        // Seed the plain user at the cap with distinct content.
+        let seed: Vec<UserFontEntry> = (0..5)
+            .map(|i| user_entry(&format!("f{i}"), "u", &format!("sha{i}")))
+            .collect();
+        let repo: Arc<dyn UserSoundFontRepo> = Arc::new(FakeUserSoundFontRepo::with(seed));
+        let r = private_app(
+            repo.clone(),
+            Arc::new(FakeStore::default()),
+            ident("u", &["user"]),
+        );
+        // The 6th import for a plain user is refused (quota).
+        let resp = r
+            .oneshot(post("/me/soundfonts?label=Sixth", sf2_bytes()))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::FORBIDDEN);
+
+        // A moderator at the same count is exempt.
+        let mod_seed: Vec<UserFontEntry> = (0..5)
+            .map(|i| user_entry(&format!("m{i}"), "mod", &format!("msha{i}")))
+            .collect();
+        let mod_repo: Arc<dyn UserSoundFontRepo> = Arc::new(FakeUserSoundFontRepo::with(mod_seed));
+        let r = private_app(
+            mod_repo,
+            Arc::new(FakeStore::default()),
+            ident("mod", &["moderator"]),
+        );
+        let resp = r
+            .oneshot(post("/me/soundfonts?label=Sixth", sf2_bytes()))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::CREATED);
+    }
+
+    #[tokio::test]
+    async fn serve_mine_is_owner_scoped() {
+        let store = Arc::new(FakeStore::default());
+        store
+            .put("user/u1/f1.sf2", b"PRIVATE-SF2".to_vec())
+            .await
+            .unwrap();
+        let repo: Arc<dyn UserSoundFontRepo> =
+            Arc::new(FakeUserSoundFontRepo::with(vec![user_entry(
+                "f1", "u1", "sha",
+            )]));
+        // The owner streams their font.
+        let owner = private_app(repo.clone(), store.clone(), ident("u1", &["user"]));
+        let resp = owner.oneshot(get("/me/soundfonts/f1")).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        assert_eq!(&body[..], b"PRIVATE-SF2");
+        // A different user cannot reach it — not-found, not forbidden (no probing).
+        let other = private_app(repo, store, ident("u2", &["user"]));
+        let resp = other.oneshot(get("/me/soundfonts/f1")).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn delete_mine_is_owner_scoped() {
+        let store = Arc::new(FakeStore::default());
+        store.put("user/u1/f1.sf2", sf2_bytes()).await.unwrap();
+        let repo: Arc<dyn UserSoundFontRepo> =
+            Arc::new(FakeUserSoundFontRepo::with(vec![user_entry(
+                "f1", "u1", "sha",
+            )]));
+        // Another user cannot delete it → not-found, object untouched.
+        let other = private_app(repo.clone(), store.clone(), ident("u2", &["user"]));
+        let resp = other
+            .oneshot(
+                Request::builder()
+                    .method("DELETE")
+                    .uri("/me/soundfonts/f1")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+        assert!(store.size("user/u1/f1.sf2").await.is_ok());
+        // The owner deletes it (row + object gone).
+        let owner = private_app(repo, store.clone(), ident("u1", &["user"]));
+        let resp = owner
+            .oneshot(
+                Request::builder()
+                    .method("DELETE")
+                    .uri("/me/soundfonts/f1")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::NO_CONTENT);
+        assert!(store.size("user/u1/f1.sf2").await.is_err());
+    }
+
+    #[tokio::test]
+    async fn list_mine_is_owner_scoped() {
+        let repo: Arc<dyn UserSoundFontRepo> = Arc::new(FakeUserSoundFontRepo::with(vec![
+            user_entry("a", "u1", "sa"),
+            user_entry("b", "u1", "sb"),
+            user_entry("c", "u2", "sc"),
+        ]));
+        let r = private_app(repo, Arc::new(FakeStore::default()), ident("u1", &["user"]));
+        let resp = r.oneshot(get("/me/soundfonts")).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        let v: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        // Only u1's two fonts.
+        assert_eq!(v.as_array().unwrap().len(), 2);
+    }
+
+    #[tokio::test]
+    async fn import_mine_unauthenticated_is_401() {
+        // FixedAuth exposes no admin identity → import (which needs identity) is 401.
+        let r = app_with_repo(Some(seeded_store().await), None, None);
+        let resp = r
+            .oneshot(post("/me/soundfonts?label=x", sf2_bytes()))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+    }
+
+    /// A router wired with both a private-library repo and an inspectable catalog repo.
+    fn propose_app(
+        user_repo: Arc<dyn UserSoundFontRepo>,
+        catalog: Arc<dyn SoundFontRepo>,
+        store: Arc<dyn ObjectStorage>,
+        identity: AuthIdentity,
+    ) -> Router {
+        soundfont_router(
+            SoundfontState {
+                store: Some(store),
+                repo: Some(catalog),
+                user_repo: Some(user_repo),
+                auth: Arc::new(FixedAdminAuth(Some(identity))),
+            },
+            vec!["https://bo.cymbra.app".to_string()],
+        )
+    }
+
+    #[tokio::test]
+    async fn propose_requires_license_and_attestation() {
+        let store = Arc::new(FakeStore::default());
+        store.put("user/u/f1.sf2", sf2_bytes()).await.unwrap();
+        let seed = vec![user_entry("f1", "u", "sha1")];
+        // Missing attestation → refused.
+        let r = propose_app(
+            Arc::new(FakeUserSoundFontRepo::with(seed.clone())),
+            Arc::new(cymbra_music::FakeSoundFontRepo::default()),
+            store.clone(),
+            ident("u", &["user"]),
+        );
+        let resp = r
+            .oneshot(post(
+                "/me/soundfonts/f1/propose?license=CC0-1.0",
+                Vec::new(),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+        // Missing licence (even with attestation) → refused.
+        let r = propose_app(
+            Arc::new(FakeUserSoundFontRepo::with(seed)),
+            Arc::new(cymbra_music::FakeSoundFontRepo::default()),
+            store,
+            ident("u", &["user"]),
+        );
+        let resp = r
+            .oneshot(post(
+                "/me/soundfonts/f1/propose?attestation=true",
+                Vec::new(),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[tokio::test]
+    async fn propose_creates_pending_catalog_row() {
+        let store = Arc::new(FakeStore::default());
+        store.put("user/u/f1.sf2", b"BYTES".to_vec()).await.unwrap();
+        let user_repo: Arc<dyn UserSoundFontRepo> =
+            Arc::new(FakeUserSoundFontRepo::with(vec![user_entry(
+                "f1", "u", "shaX",
+            )]));
+        let catalog = Arc::new(cymbra_music::FakeSoundFontRepo::default());
+        let r = propose_app(
+            user_repo,
+            catalog.clone(),
+            store.clone(),
+            ident("u", &["user"]),
+        );
+        let resp = r
+            .oneshot(post(
+                "/me/soundfonts/f1/propose?license=CC-BY-3.0&attribution=Someone&attestation=true",
+                Vec::new(),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::CREATED);
+        // A pending catalog row attributed to the proposer; bytes copied to the public key.
+        let row = catalog.lookup("f1").await.unwrap().unwrap();
+        assert_eq!(row.moderation_status, "pending");
+        assert_eq!(row.uploaded_by.as_deref(), Some("u"));
+        assert_eq!(row.license, "CC-BY-3.0");
+        assert_eq!(row.object_key, "f1.sf2");
+        assert!(store.size("f1.sf2").await.is_ok());
+        // Not publicly visible until a moderator accepts it.
+        assert!(catalog.list_accepted().await.unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn list_mine_reports_the_proposal_status() {
+        // A private font whose id matches a (pending) catalog row reads as proposed.
+        let store = Arc::new(FakeStore::default());
+        let user_repo: Arc<dyn UserSoundFontRepo> = Arc::new(FakeUserSoundFontRepo::with(vec![
+            user_entry("proposed", "u", "sha1"),
+            user_entry("private-only", "u", "sha2"),
+        ]));
+        let cataloged = FontEntry {
+            id: "proposed".into(),
+            label: "Proposed".into(),
+            object_key: "proposed.sf2".into(),
+            instrument: "piano".into(),
+            license: "CC0-1.0".into(),
+            attribution: None,
+            size_bytes: None,
+            moderation_status: "pending".into(),
+            reviewed_by: None,
+            reviewed_at: None,
+            uploaded_by: Some("u".into()),
+            content_sha256: Some("sha1".into()),
+        };
+        let catalog: Arc<dyn SoundFontRepo> =
+            Arc::new(cymbra_music::FakeSoundFontRepo::with(vec![cataloged]));
+        let r = propose_app(user_repo, catalog, store, ident("u", &["user"]));
+        let resp = r.oneshot(get("/me/soundfonts")).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        let v: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        let arr = v.as_array().unwrap();
+        let proposed = arr.iter().find(|e| e["id"] == "proposed").unwrap();
+        assert_eq!(proposed["proposalStatus"], "pending");
+        let private_only = arr.iter().find(|e| e["id"] == "private-only").unwrap();
+        assert!(private_only["proposalStatus"].is_null());
+    }
+
+    #[tokio::test]
+    async fn propose_not_owned_is_404() {
+        let r = propose_app(
+            Arc::new(FakeUserSoundFontRepo::default()),
+            Arc::new(cymbra_music::FakeSoundFontRepo::default()),
+            Arc::new(FakeStore::default()),
+            ident("u", &["user"]),
+        );
+        let resp = r
+            .oneshot(post(
+                "/me/soundfonts/ghost/propose?license=CC0-1.0&attestation=true",
+                Vec::new(),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn propose_of_already_cataloged_content_is_409() {
+        let store = Arc::new(FakeStore::default());
+        store.put("user/u/f1.sf2", b"BYTES".to_vec()).await.unwrap();
+        let user_repo: Arc<dyn UserSoundFontRepo> =
+            Arc::new(FakeUserSoundFontRepo::with(vec![user_entry(
+                "f1", "u", "dupsha",
+            )]));
+        // The catalog already holds a font with identical content.
+        let existing = FontEntry {
+            id: "already".into(),
+            label: "x".into(),
+            object_key: "already.sf2".into(),
+            instrument: "piano".into(),
+            license: "CC0-1.0".into(),
+            attribution: None,
+            size_bytes: None,
+            moderation_status: "accepted".into(),
+            reviewed_by: None,
+            reviewed_at: None,
+            uploaded_by: None,
+            content_sha256: Some("dupsha".into()),
+        };
+        let catalog: Arc<dyn SoundFontRepo> =
+            Arc::new(cymbra_music::FakeSoundFontRepo::with(vec![existing]));
+        let r = propose_app(user_repo, catalog, store, ident("u", &["user"]));
+        let resp = r
+            .oneshot(post(
+                "/me/soundfonts/f1/propose?license=CC0-1.0&attestation=true",
+                Vec::new(),
+            ))
+            .await
+            .unwrap();
         assert_eq!(resp.status(), StatusCode::CONFLICT);
     }
 }

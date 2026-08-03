@@ -84,6 +84,23 @@
     "remove": "Supprimer",
     "empty": "Aucune SoundFont pour l’instant.",
     "confirmRemove": "Supprimer cette SoundFont ? Sa ligne de catalogue et son fichier stocké sont supprimés.",
+    "statusCol": "Statut",
+    "status": { "pending": "En attente", "accepted": "Accepté", "rejected": "Rejeté" },
+    "accept": "Accepter",
+    "reject": "Rejeter",
+    "filter": {
+      "label": "Filtrer par statut",
+      "pending": "En attente",
+      "accepted": "Acceptés",
+      "rejected": "Rejetés",
+      "all": "Tous"
+    },
+    "pager": {
+      "label": "Pagination",
+      "prev": "Précédent",
+      "next": "Suivant",
+      "range": "{start}–{end} sur {total}"
+    },
     "createTitle": "Ajouter une SoundFont",
     "editTitle": "Modifier la SoundFont",
     "idHint": "ex. ydp-grand",
@@ -270,7 +287,10 @@
     "invalidArgument": "Requête invalide.",
     "resourceExhausted": "Trop de tentatives. Réessaie plus tard.",
     "unavailable": "Service indisponible. Réessaie.",
-    "generic": "Une erreur est survenue. Réessaie."
+    "generic": "Une erreur est survenue. Réessaie.",
+    "soundfontExists": "Cette SoundFont existe déjà (même id, ou un fichier identique est déjà au catalogue).",
+    "soundfontInvalid": "Ce fichier n’est pas une SoundFont (.sf2) valide.",
+    "soundfontTooLarge": "Ce fichier SoundFont est trop volumineux."
   },
   "id": {
     "reveal": "Afficher l'ID complet",
