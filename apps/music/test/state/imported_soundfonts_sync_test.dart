@@ -187,4 +187,42 @@ void main() {
     expect(File(font.source).existsSync(), isTrue);
     expect(font.proposalStatus, 'accepted');
   });
+
+  test('refresh upgrades a proposal status after a moderation decision', () async {
+    // The device holds a font whose proposal is pending.
+    final private = FakePrivateSoundFontService(
+      library: const [
+        RemoteSoundFont(
+          id: 'remote-u1',
+          label: 'My Grand',
+          sizeBytes: 1,
+          proposalStatus: 'pending',
+        ),
+      ],
+    );
+    final c = container(importer: FakeSoundFontImporter(), private: private);
+    await c.read(importedSoundFontsProvider.future);
+    expect(
+      c.read(importedSoundFontsProvider).requireValue.single.proposalStatus,
+      'pending',
+    );
+
+    // A moderator accepts it in the back office; the app re-syncs on hub open.
+    private.library
+      ..clear()
+      ..add(
+        const RemoteSoundFont(
+          id: 'remote-u1',
+          label: 'My Grand',
+          sizeBytes: 1,
+          proposalStatus: 'accepted',
+        ),
+      );
+    await c.read(importedSoundFontsProvider.notifier).refresh();
+
+    expect(
+      c.read(importedSoundFontsProvider).requireValue.single.proposalStatus,
+      'accepted',
+    );
+  });
 }

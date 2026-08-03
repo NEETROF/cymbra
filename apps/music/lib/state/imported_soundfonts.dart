@@ -55,6 +55,21 @@ class ImportedSoundFonts extends _$ImportedSoundFonts {
     }
   }
 
+  /// Re-runs the server sync against the current registry — e.g. when the sound
+  /// hub is shown — so a moderation decision made elsewhere (a proposal going
+  /// `pending` → `accepted`/`rejected`) is reflected without a relaunch. Keeps the
+  /// current data visible (no loading flash) and is best-effort: an offline/error
+  /// sync leaves the current state untouched.
+  Future<void> refresh() async {
+    final current = state.valueOrNull;
+    if (current == null) return; // still loading; build() will sync
+    try {
+      state = AsyncData(await _sync(current));
+    } catch (_) {
+      // Keep the current state on a sync failure.
+    }
+  }
+
   Future<List<PianoEntry>> _loadLocal() async {
     try {
       final raw = await ref

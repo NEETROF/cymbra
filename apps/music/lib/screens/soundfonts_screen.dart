@@ -86,10 +86,13 @@ class _SoundFontsScreenState extends ConsumerState<SoundFontsScreen>
     // parse delay.
     ref.read(soundPreviewSampleProvider);
     unawaited(_captureRestore());
-    // Refresh server-sourced sounds so the catalog reflects the current server
-    // state each time the hub is opened.
+    // Refresh server-sourced state each time the hub is opened: the downloadable
+    // catalog, and the private library (so a proposal accepted/rejected elsewhere
+    // updates its status tag without a relaunch).
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) ref.invalidate(serverSoundFontsProvider);
+      if (!mounted) return;
+      ref.invalidate(serverSoundFontsProvider);
+      ref.read(importedSoundFontsProvider.notifier).refresh();
     });
   }
 
