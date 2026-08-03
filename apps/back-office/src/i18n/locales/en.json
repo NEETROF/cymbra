@@ -30,7 +30,8 @@
   "status": {
     "pending": "pending",
     "accepted": "accepted",
-    "rejected": "rejected"
+    "rejected": "rejected",
+    "all": "All"
   },
   "level": {
     "any": "any level",
@@ -71,7 +72,9 @@
     "license": "License",
     "attribution": "Attribution",
     "instrument": "Instrument",
-    "instr": { "piano": "Piano" },
+    "instr": {
+      "piano": "Piano"
+    },
     "licenseDesc": {
       "cc0": "CC0 1.0 — Public domain: no attribution required, free to reuse for any purpose.",
       "ccby": "CC BY — Free to use, including commercially, as long as the author is credited.",
@@ -85,7 +88,11 @@
     "empty": "No SoundFonts yet.",
     "confirmRemove": "Remove this SoundFont? Its catalog row and stored file are both deleted.",
     "statusCol": "Status",
-    "status": { "pending": "Pending", "accepted": "Accepted", "rejected": "Rejected" },
+    "status": {
+      "pending": "Pending",
+      "accepted": "Accepted",
+      "rejected": "Rejected"
+    },
     "accept": "Accept",
     "reject": "Reject",
     "filter": {
@@ -192,7 +199,11 @@
     "loading": "Loading the queue…",
     "done": "Nothing left to review 🎉",
     "loadError": "Couldn't load the review queue.",
-    "decideError": "Couldn't save the decision — try again."
+    "decideError": "Couldn't save the decision — try again.",
+    "rejectReasonPlaceholder": "Rejection reason (shown to the proposer)",
+    "userProposed": "User proposal",
+    "proposedBy": "Proposed by {name}",
+    "resubmission": "Re-submission: {note}"
   },
   "table": {
     "title": "Title",
@@ -217,13 +228,18 @@
     "searchLabel": "search",
     "composerLabel": "composer",
     "levelLabel": "level",
-    "statusLabel": "moderation status"
+    "statusLabel": "moderation status",
+    "sourceLabel": "Source",
+    "sourceAny": "All sources",
+    "sourceUser": "User proposals"
   },
   "detail": {
     "accept": "Accept",
     "reject": "Reject",
     "requeue": "Re-queue",
-    "score": "Score"
+    "score": "Score",
+    "source": "Source",
+    "proposedBy": "Proposed by {name}"
   },
   "edit": {
     "heading": "Edit metadata",

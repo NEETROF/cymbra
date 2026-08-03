@@ -30,7 +30,8 @@
   "status": {
     "pending": "en attente",
     "accepted": "acceptée",
-    "rejected": "rejetée"
+    "rejected": "rejetée",
+    "all": "Tous"
   },
   "level": {
     "any": "tous niveaux",
@@ -71,7 +72,9 @@
     "license": "Licence",
     "attribution": "Attribution",
     "instrument": "Instrument",
-    "instr": { "piano": "Piano" },
+    "instr": {
+      "piano": "Piano"
+    },
     "licenseDesc": {
       "cc0": "CC0 1.0 — Domaine public : aucune attribution requise, réutilisation libre pour tout usage.",
       "ccby": "CC BY — Utilisation libre, y compris commerciale, à condition de créditer l’auteur.",
@@ -85,7 +88,11 @@
     "empty": "Aucune SoundFont pour l’instant.",
     "confirmRemove": "Supprimer cette SoundFont ? Sa ligne de catalogue et son fichier stocké sont supprimés.",
     "statusCol": "Statut",
-    "status": { "pending": "En attente", "accepted": "Accepté", "rejected": "Rejeté" },
+    "status": {
+      "pending": "En attente",
+      "accepted": "Accepté",
+      "rejected": "Rejeté"
+    },
     "accept": "Accepter",
     "reject": "Rejeter",
     "filter": {
@@ -192,7 +199,11 @@
     "loading": "Chargement de la file…",
     "done": "Plus rien à revoir 🎉",
     "loadError": "Impossible de charger la file de revue.",
-    "decideError": "Impossible d'enregistrer la décision — réessaie."
+    "decideError": "Impossible d'enregistrer la décision — réessaie.",
+    "rejectReasonPlaceholder": "Motif de rejet (visible par le proposeur)",
+    "userProposed": "Proposition d’un utilisateur",
+    "proposedBy": "Proposée par {name}",
+    "resubmission": "Re-soumission : {note}"
   },
   "table": {
     "title": "Titre",
@@ -217,13 +228,18 @@
     "searchLabel": "recherche",
     "composerLabel": "compositeur",
     "levelLabel": "niveau",
-    "statusLabel": "statut de modération"
+    "statusLabel": "statut de modération",
+    "sourceLabel": "Source",
+    "sourceAny": "Toutes les sources",
+    "sourceUser": "Propositions utilisateurs"
   },
   "detail": {
     "accept": "Accepter",
     "reject": "Rejeter",
     "requeue": "Remettre en file",
-    "score": "Partition"
+    "score": "Partition",
+    "source": "Source",
+    "proposedBy": "Proposée par {name}"
   },
   "edit": {
     "heading": "Modifier les métadonnées",

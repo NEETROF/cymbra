@@ -76,13 +76,13 @@ export function useReviewSession() {
     if (index.value >= deck.value.length && !exhausted) await runLoad();
   }
 
-  async function decide(status: ModerationStatus): Promise<void> {
+  async function decide(status: ModerationStatus, reason?: string): Promise<void> {
     const cur = current.value;
     if (!cur || deciding.value.status === "loading") return;
     handled.add(cur.id);
     deciding.value = loading;
     try {
-      await store.evaluate(cur.id, status);
+      await store.evaluate(cur.id, status, reason);
       reviewedCount.value += 1;
       deciding.value = success(undefined);
     } catch {

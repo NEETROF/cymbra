@@ -56,6 +56,7 @@ class ScoreCard extends StatelessWidget {
     required this.entry,
     required this.onTap,
     this.action,
+    this.statusTag,
   });
 
   final CatalogEntry entry;
@@ -63,6 +64,10 @@ class ScoreCard extends StatelessWidget {
 
   /// Optional top-right overlay (e.g. a heart or delete button). `null` = none.
   final Widget? action;
+
+  /// Optional bottom-left overlay tag (e.g. a proposal status pill). Kept out of the
+  /// top row so a long label never collides with the difficulty badge or [action].
+  final Widget? statusTag;
 
   @override
   Widget build(BuildContext context) {
@@ -89,6 +94,8 @@ class ScoreCard extends StatelessWidget {
                   ),
                   if (action != null)
                     Positioned(top: 4, right: 4, child: action!),
+                  if (statusTag != null)
+                    Positioned(bottom: 8, left: 10, child: statusTag!),
                 ],
               ),
             ),

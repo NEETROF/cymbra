@@ -57,6 +57,14 @@ class ContributedScore {
   /// Whether this upload is in the user's favorites (shown on the home screen).
   final bool favorite;
 
+  /// Public-catalog proposal state (change: add-score-catalog-proposal): `null` when
+  /// the score has not been proposed, else `pending` / `accepted` / `rejected`.
+  final String? proposalStatus;
+
+  /// The moderator's rejection reason, surfaced to the proposer when
+  /// [proposalStatus] is `rejected` (null otherwise).
+  final String? rejectionReason;
+
   const ContributedScore({
     required this.id,
     required this.level,
@@ -72,7 +80,12 @@ class ContributedScore {
     this.lowestMidi,
     this.highestMidi,
     this.favorite = true,
+    this.proposalStatus,
+    this.rejectionReason,
   });
+
+  /// Whether this contribution has been proposed to the public catalog.
+  bool get isProposed => proposalStatus != null;
 }
 
 /// Seam over the backend `ScoreService` — the app's contribution surface. Every
@@ -96,6 +109,19 @@ abstract class ScoreUploadService {
 
   /// The caller's own contributed scores, newest first.
   Future<List<ContributedScore>> listMyScores();
+
+  /// Propose one of the caller's private scores to the public catalog (change:
+  /// add-score-catalog-proposal). Requires a licence declaration + right-to-distribute
+  /// [attestation]. [resubmissionNote] is required only when re-proposing a score whose
+  /// prior proposal was rejected (it reopens that catalog entry). Throws on a server
+  /// refusal (duplicate/already-proposed/missing attestation) so the caller can localise.
+  Future<void> propose({
+    required String scoreId,
+    required String license,
+    required bool attestation,
+    String attribution = '',
+    String? resubmissionNote,
+  });
 
   /// Delete one of the caller's contributed scores.
   Future<void> deleteScore(String id);
@@ -147,6 +173,8 @@ class GrpcScoreUploadService implements ScoreUploadService {
     lowestMidi: r.hasLowestMidi() ? r.lowestMidi : null,
     highestMidi: r.hasHighestMidi() ? r.highestMidi : null,
     favorite: r.favorite,
+    proposalStatus: r.hasProposalStatus() ? r.proposalStatus : null,
+    rejectionReason: r.hasRejectionReason() ? r.rejectionReason : null,
   );
 
   @override
@@ -182,6 +210,28 @@ class GrpcScoreUploadService implements ScoreUploadService {
       options: bearerOptions(bearer),
     );
     return resp.scores.map(_toScore).toList();
+  });
+
+  @override
+  Future<void> propose({
+    required String scoreId,
+    required String license,
+    required bool attestation,
+    String attribution = '',
+    String? resubmissionNote,
+  }) => _authed<void>((bearer) async {
+    await _client.proposeScore(
+      score.ProposeScoreRequest(
+        scoreId: scoreId,
+        license: license,
+        rightsAck: attestation,
+        attribution: attribution.isEmpty ? null : attribution,
+        resubmissionNote: (resubmissionNote == null || resubmissionNote.isEmpty)
+            ? null
+            : resubmissionNote,
+      ),
+      options: bearerOptions(bearer),
+    );
   });
 
   @override

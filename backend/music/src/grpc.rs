@@ -38,13 +38,14 @@ use crate::proto::{
     GetScoreBytesRequest, GetScoreBytesResponse, ListMyScoresRequest, ListMyScoresResponse,
     ListRatingDeckRequest, ListRatingDeckResponse, ListSavedCatalogScoresRequest,
     ListSavedCatalogScoresResponse, ListSoundFontsRequest, ListSoundFontsResponse,
-    RemoveSavedCatalogScoreRequest, RemoveSavedCatalogScoreResponse, SaveCatalogScoreRequest,
-    SaveCatalogScoreResponse, ScoreRecord, SearchCatalogRequest, SearchCatalogResponse,
-    SetModerationStatusRequest, SetModerationStatusResponse, SetScoreFavoriteRequest,
-    SetScoreFavoriteResponse, SetSoundFontModerationStatusRequest,
-    SetSoundFontModerationStatusResponse, SoundFont as ProtoSoundFont, SubmitScoreRatingRequest,
-    SubmitScoreRatingResponse, UpdateCatalogScoreRequest, UpdateCatalogScoreResponse,
-    UpdateSoundFontRequest, UpdateSoundFontResponse, UploadScoreRequest,
+    ProposeScoreRequest, ProposeScoreResponse, RemoveSavedCatalogScoreRequest,
+    RemoveSavedCatalogScoreResponse, SaveCatalogScoreRequest, SaveCatalogScoreResponse,
+    ScoreRecord, SearchCatalogRequest, SearchCatalogResponse, SetModerationStatusRequest,
+    SetModerationStatusResponse, SetScoreFavoriteRequest, SetScoreFavoriteResponse,
+    SetSoundFontModerationStatusRequest, SetSoundFontModerationStatusResponse,
+    SoundFont as ProtoSoundFont, SubmitScoreRatingRequest, SubmitScoreRatingResponse,
+    UpdateCatalogScoreRequest, UpdateCatalogScoreResponse, UpdateSoundFontRequest,
+    UpdateSoundFontResponse, UploadScoreRequest,
     score_service_server::{ScoreService, ScoreServiceServer},
 };
 use crate::soundfont::SoundFontRepo;
@@ -152,6 +153,17 @@ fn identity<T>(req: &Request<T>) -> Result<AuthIdentity, Status> {
 }
 
 fn to_record(s: UserScore) -> ScoreRecord {
+    to_record_with_proposal(s, None, None)
+}
+
+/// Build a [`ScoreRecord`] with the proposal state joined from the linked catalog row
+/// (change: add-score-catalog-proposal): `status` = not-proposed / pending / accepted /
+/// rejected, `reason` = the moderator's motive for a rejected proposal.
+fn to_record_with_proposal(
+    s: UserScore,
+    status: Option<String>,
+    reason: Option<String>,
+) -> ScoreRecord {
     let m = s.meta;
     ScoreRecord {
         id: s.id,
@@ -168,7 +180,15 @@ fn to_record(s: UserScore) -> ScoreRecord {
         lowest_midi: m.facets.lowest_midi.map(i32::from),
         highest_midi: m.facets.highest_midi.map(i32::from),
         favorite: s.favorite,
+        proposal_status: status,
+        rejection_reason: reason,
     }
+}
+
+/// Current UTC date, for the public-profile age gate when resolving a contributor
+/// credit (change: add-score-catalog-proposal).
+fn today_utc() -> chrono::NaiveDate {
+    chrono::Utc::now().date_naive()
 }
 
 fn to_hit(h: CatalogHit) -> ProtoCatalogHit {
@@ -189,6 +209,11 @@ fn to_hit(h: CatalogHit) -> ProtoCatalogHit {
         key_fifths: h.key_fifths,
         needs_review: h.needs_review,
         moderation_status: h.moderation_status,
+        proposed_by: h.proposed_by,
+        proposer_display_name: h.proposer_display_name,
+        contributor_credit: h.contributor_credit,
+        review_reason: h.review_reason,
+        resubmission_note: h.resubmission_note,
     }
 }
 
@@ -223,10 +248,36 @@ impl ScoreService for ScoreGrpc {
         req: Request<ListMyScoresRequest>,
     ) -> Result<Response<ListMyScoresResponse>, Status> {
         let owner_id = owner(&req)?;
-        let scores = self.module.list(&owner_id).await?;
+        let scores = self.module.list_contributions(&owner_id).await?;
         Ok(Response::new(ListMyScoresResponse {
-            scores: scores.into_iter().map(to_record).collect(),
+            scores: scores
+                .into_iter()
+                .map(|(s, status, reason)| to_record_with_proposal(s, status, reason))
+                .collect(),
         }))
+    }
+
+    async fn propose_score(
+        &self,
+        req: Request<ProposeScoreRequest>,
+    ) -> Result<Response<ProposeScoreResponse>, Status> {
+        let id = identity(&req)?;
+        let owner_id = id.user_id.clone();
+        // The initial catalog status branches on the caller's role, never the body: a
+        // music-scope admin proposal is auto-accepted, everyone else is pending.
+        let is_admin = id.has_role_in_scope("music", "admin");
+        let r = req.into_inner();
+        self.module
+            .propose(
+                &owner_id,
+                &r.score_id,
+                &r.license,
+                r.rights_ack,
+                r.resubmission_note.as_deref(),
+                is_admin,
+            )
+            .await?;
+        Ok(Response::new(ProposeScoreResponse {}))
     }
 
     async fn delete_score(
@@ -446,6 +497,7 @@ impl ScoreService for ScoreGrpc {
         // widens it to admin-or-(music) moderator.
         let uses_moderation = req.get_ref().moderation_status.is_some()
             || req.get_ref().review_queue.unwrap_or(false)
+            || req.get_ref().all_statuses.unwrap_or(false)
             || req
                 .get_ref()
                 .sort
@@ -475,6 +527,8 @@ impl ScoreService for ScoreGrpc {
             },
             moderation_status: r.moderation_status,
             review_queue: r.review_queue.unwrap_or(false),
+            all_statuses: r.all_statuses.unwrap_or(false),
+            source: r.source,
             sort: r
                 .sort
                 .into_iter()
@@ -486,7 +540,18 @@ impl ScoreService for ScoreGrpc {
             limit: r.limit as i64,
             offset: r.offset as i64,
         };
-        let (hits, total) = self.module.search_catalog(query).await?;
+        let privileged = uses_moderation || query.moderation_status.is_some() || query.review_queue;
+        let (mut hits, total) = self.module.search_catalog(query).await?;
+        // Proposer attribution (change: add-score-catalog-proposal): a privileged read
+        // resolves the proposer pseudo for the review queue; a normal read is sanitised
+        // (privileged fields stripped) and gets only the opt-in public credit.
+        if privileged {
+            self.module.attach_review_attribution(&mut hits).await;
+        } else {
+            self.module
+                .attach_public_credit(&mut hits, today_utc())
+                .await;
+        }
         let next_offset = offset.max(0) + hits.len() as i32;
         Ok(Response::new(SearchCatalogResponse {
             hits: hits.into_iter().map(to_hit).collect(),
@@ -524,7 +589,11 @@ impl ScoreService for ScoreGrpc {
         req: Request<ListSavedCatalogScoresRequest>,
     ) -> Result<Response<ListSavedCatalogScoresResponse>, Status> {
         let owner_id = owner(&req)?;
-        let hits = self.module.list_saved_catalog_scores(&owner_id).await?;
+        let mut hits = self.module.list_saved_catalog_scores(&owner_id).await?;
+        // Public read: sanitise privileged proposer fields, add any opt-in credit.
+        self.module
+            .attach_public_credit(&mut hits, today_utc())
+            .await;
         Ok(Response::new(ListSavedCatalogScoresResponse {
             hits: hits.into_iter().map(to_hit).collect(),
         }))
@@ -573,13 +642,18 @@ impl ScoreService for ScoreGrpc {
         // load by id without depending on a prior list.
         let id = identity(&req)?;
         self.guard_enumeration(&id).await?; // per-user browse cap (scrape guard)
-        let allow_unvalidated = id.is_admin() || id.has_role("moderator");
+        let privileged = id.is_admin() || id.has_role("moderator");
         let catalog_id = req.into_inner().catalog_id;
-        let hit = self
-            .module
-            .get_catalog_hit(&catalog_id, allow_unvalidated)
-            .await?;
-        Ok(Response::new(to_hit(hit)))
+        let hit = self.module.get_catalog_hit(&catalog_id, privileged).await?;
+        let mut hits = vec![hit];
+        if privileged {
+            self.module.attach_review_attribution(&mut hits).await;
+        } else {
+            self.module
+                .attach_public_credit(&mut hits, today_utc())
+                .await;
+        }
+        Ok(Response::new(to_hit(hits.pop().expect("one hit"))))
     }
 
     async fn set_moderation_status(
@@ -593,7 +667,7 @@ impl ScoreService for ScoreGrpc {
         cymbra_platform::guard::require_moderator_or_admin(&id)?;
         let r = req.into_inner();
         self.module
-            .set_moderation_status(&id.user_id, &r.score_id, &r.status)
+            .set_moderation_status(&id.user_id, &r.score_id, &r.status, r.reason.as_deref())
             .await?;
         Ok(Response::new(SetModerationStatusResponse {}))
     }
@@ -653,10 +727,14 @@ impl ScoreService for ScoreGrpc {
         let user_id = id.user_id;
         let r = req.into_inner();
         let offset = r.offset;
-        let hits = self
+        let mut hits = self
             .module
             .list_rating_deck(&user_id, r.limit as i64, r.offset as i64)
             .await?;
+        // Deck is a normal-caller read: sanitise privileged proposer fields.
+        self.module
+            .attach_public_credit(&mut hits, today_utc())
+            .await;
         let next_offset = offset.max(0) + hits.len() as i32;
         Ok(Response::new(ListRatingDeckResponse {
             hits: hits.into_iter().map(to_hit).collect(),
@@ -1463,6 +1541,7 @@ mod tests {
         let req = || SetModerationStatusRequest {
             score_id: PENDING.into(),
             status: "accepted".into(),
+            reason: None,
         };
         // A normal caller is denied and nothing changes.
         let err = g

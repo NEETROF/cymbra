@@ -108,6 +108,14 @@ async function saveEdit(edit: MetadataEdit) {
   <h1 class="page-title detail-title">{{ hitVm.hit?.title || $t("detail.score") }}</h1>
   <p v-if="hitVm.error" class="error" role="alert">{{ hitVm.error }}</p>
   <p v-if="decisionError" class="error" role="alert">{{ decisionError }}</p>
+  <!-- Origin: the score's source, plus the proposer's pseudo for a user upload
+       (privileged read — change: add-score-catalog-proposal). -->
+  <p v-if="hitVm.hit" class="origin">
+    {{ $t("detail.source") }}: <strong>{{ hitVm.hit.source }}</strong>
+    <span v-if="hitVm.hit.proposerDisplayName" class="muted">
+      · {{ $t("detail.proposedBy", { name: hitVm.hit.proposerDisplayName }) }}
+    </span>
+  </p>
   <!-- Metadata surface. For a moderator this IS the edit form (curatorial fields
        editable, derived facets read-only) — it replaces the read-only list so the
        info isn't shown twice. A non-moderator gets the read-only list inside the
