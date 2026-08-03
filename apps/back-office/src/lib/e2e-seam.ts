@@ -45,6 +45,16 @@ export interface E2EData {
   /** SoundFont catalog rows for the admin management screen (change:
    * add-soundfont-back-office-management). Mutated in place by add/edit/delete. */
   soundfonts?: Record<string, unknown>[];
+  /** Usage-analytics fixtures for the "Usage" console (change: add-feature-usage-
+   * analytics): the distinct-users summary, the data-driven action list, and the
+   * action breakdown. */
+  usageSummary?: {
+    totalUsers?: number;
+    byPlatform?: { platform: string; users: number }[];
+    byDeviceClass?: { deviceClass: string; users: number }[];
+  };
+  usageActions?: string[];
+  usageBreakdown?: { action: string; variant?: string; events: number }[];
   /** Force a method to reject with a ConnectError, keyed by method name. */
   fail?: Record<string, E2EFailure>;
   /** Force a method to reject with a ConnectError exactly ONCE (then succeed) —
@@ -216,6 +226,28 @@ export function installE2EClients(): void {
         }));
         return { accounts: page, total: filtered.length };
       },
+    },
+    usage: {
+      getUsersSummary: async () => {
+        failIfSet("getUsersSummary");
+        const s = data.usageSummary ?? {};
+        return {
+          totalUsers: BigInt(s.totalUsers ?? 0),
+          byPlatform: (s.byPlatform ?? []).map((p) => ({ platform: p.platform, users: BigInt(p.users) })),
+          byDeviceClass: (s.byDeviceClass ?? []).map((d) => ({ deviceClass: d.deviceClass, users: BigInt(d.users) })),
+        };
+      },
+      getActionBreakdown: async () => {
+        failIfSet("getActionBreakdown");
+        return {
+          rows: (data.usageBreakdown ?? []).map((r) => ({
+            action: r.action,
+            variant: r.variant ?? "",
+            events: BigInt(r.events),
+          })),
+        };
+      },
+      listActions: async () => ({ actions: data.usageActions ?? [] }),
     },
   } as unknown as Clients;
 

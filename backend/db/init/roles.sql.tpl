@@ -76,9 +76,26 @@ ALTER ROLE :"flags_role" WITH LOGIN PASSWORD :'flags_pw';
 CREATE SCHEMA IF NOT EXISTS feature_flags AUTHORIZATION :"flags_role";
 ALTER ROLE :"flags_role" SET search_path = feature_flags;
 
+-- analytics module (first-party feature-usage telemetry; change: add-feature-
+-- usage-analytics) — owned by analytics_svc, confined to its own schema. The
+-- server's UsageService ingests + reads here on this role; the worker's rollup +
+-- purge jobs write it as admin_svc. Deliberately decoupled from identity (rows
+-- carry only a hashed user_bucket, never a FK), so no cross-schema grants.
+SELECT format('CREATE ROLE %I LOGIN', :'analytics_role')
+WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'analytics_role')
+\gexec
+ALTER ROLE :"analytics_role" WITH LOGIN PASSWORD :'analytics_pw';
+CREATE SCHEMA IF NOT EXISTS analytics AUTHORIZATION :"analytics_role";
+ALTER ROLE :"analytics_role" SET search_path = analytics;
+-- analytics_svc owns the schema, so tables it creates via MIGRATOR (at server
+-- boot) are already its own. Belt-and-braces DML grants + default privileges.
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA analytics TO :"analytics_role";
+ALTER DEFAULT PRIVILEGES IN SCHEMA analytics
+  GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO :"analytics_role";
+
 -- Keep the module roles out of the shared `public` schema so the only namespaces
 -- each can touch are its own (+ the narrow jobs.enqueue grant from the migration).
-REVOKE ALL ON SCHEMA public FROM :"auth_role", :"user_role", :"music_role", :"worker_role", :"flags_role";
+REVOKE ALL ON SCHEMA public FROM :"auth_role", :"user_role", :"music_role", :"worker_role", :"flags_role", :"analytics_role";
 
 -- Ops role: read+write EVERY schema from a single connection (design OD1/OD2) --
 -- `pg_read_all_data` + `pg_write_all_data` cover all current AND future schemas
@@ -90,4 +107,4 @@ WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'admin_role')
 \gexec
 ALTER ROLE :"admin_role" WITH LOGIN PASSWORD :'admin_pw';
 GRANT pg_read_all_data, pg_write_all_data TO :"admin_role";
-ALTER ROLE :"admin_role" SET search_path = auth, user_account, music, jobs, feature_flags, public;
+ALTER ROLE :"admin_role" SET search_path = auth, user_account, music, jobs, feature_flags, analytics, public;

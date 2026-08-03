@@ -24,6 +24,11 @@ cymbra-user-port = { path = "../user-port" }
 # The session-reaper job calls into the auth module (which owns auth.sessions),
 # same pattern as the orphan reaper using cymbra-user.
 cymbra-auth = { path = "../auth" }
+# The usage_rollup + usage_purge jobs run the analytics rollup/purge SQL; the
+# retention window is read from the shared feature-flag service (change: add-
+# feature-usage-analytics, D4).
+cymbra-analytics = { path = "../analytics" }
+cymbra-feature-flags = { path = "../feature-flags" }
 sqlxmq.workspace = true
 sqlx.workspace = true
 uuid.workspace = true

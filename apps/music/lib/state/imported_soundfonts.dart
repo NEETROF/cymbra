@@ -13,17 +13,20 @@
 // limitations under the License.
 
 import 'dart:convert';
+import 'dart:async';
 import 'dart:io' show Directory, File;
 import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show listEquals;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../analytics/usage_actions.dart';
 import '../services/preferences_service.dart';
 import '../services/private_soundfont_service.dart';
 import '../services/soundfont_importer.dart';
 import '../services/soundfont_storage.dart';
 import 'piano_catalog.dart';
+import 'usage_tracking_notifier.dart';
 
 part 'imported_soundfonts.g.dart';
 
@@ -208,6 +211,11 @@ class ImportedSoundFonts extends _$ImportedSoundFonts {
     final next = <PianoEntry>[...?state.valueOrNull, synced];
     state = AsyncData(next);
     await _persist(next);
+    unawaited(
+      ref
+          .read(usageTrackingNotifierProvider.notifier)
+          .record(UsageActions.soundfontUpload),
+    );
     return synced;
   }
 
@@ -280,6 +288,11 @@ class ImportedSoundFonts extends _$ImportedSoundFonts {
     ];
     state = AsyncData(next);
     await _persist(next);
+    unawaited(
+      ref
+          .read(usageTrackingNotifierProvider.notifier)
+          .record(UsageActions.soundfontPropose),
+    );
   }
 
   /// Removes an imported piano: deletes its private server copy (so it stops

@@ -12,15 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:async';
 import 'dart:ui' show Locale, PlatformDispatcher;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../analytics/usage_actions.dart';
 import '../services/grpc_client.dart';
 import '../services/preferences_service.dart';
 import 'app_language.dart';
 import 'session_notifier.dart';
+import 'usage_tracking_notifier.dart';
 
 part 'app_locale.g.dart';
 
@@ -89,6 +92,13 @@ class AppLocale extends _$AppLocale {
           .read(preferencesServiceProvider)
           .setString(prefsKey, language.code);
     } catch (_) {}
+    // Usage telemetry (change: add-feature-usage-analytics): the language *setting*
+    // was changed (category only — the chosen language is never recorded).
+    unawaited(
+      ref
+          .read(usageTrackingNotifierProvider.notifier)
+          .record(UsageActions.settingsChange, variant: UsageVariants.language),
+    );
     await _pushLocale(language.code);
   }
 

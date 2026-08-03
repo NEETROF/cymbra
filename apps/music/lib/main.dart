@@ -27,6 +27,7 @@ import 'src/rust/frb_generated.dart';
 import 'state/app_locale.dart';
 import 'state/language_sync_listener.dart';
 import 'state/selected_piano.dart';
+import 'state/usage_tracking_notifier.dart';
 import 'theme/cymbra_theme.dart';
 
 Future<void> main() async {
@@ -43,7 +44,18 @@ Future<void> main() async {
   // ready before the user picks a piece — keeping the heavy one-time load off
   // the score-selection path. The container is shared with the app so the
   // player reuses this already-initialized AudioService instance.
-  final container = ProviderContainer(overrides: cymbraFlagOverrides());
+  final container = ProviderContainer(
+    overrides: [
+      ...cymbraFlagOverrides(),
+      // Wire the usage-collection kill-switch to the real remote flag in the app
+      // (its default is a plain `true` so tests never build the flag client).
+      usageCollectionKillSwitchProvider.overrideWith(
+        (ref) => ref
+            .watch(flagsProvider)
+            .getBool(kAnalyticsCollectionFlag, or: true),
+      ),
+    ],
+  );
   unawaited(container.read(audioServiceProvider).init());
 
   // Restore the user's chosen piano and swap the synth to it once audio is up
@@ -55,6 +67,14 @@ Future<void> main() async {
   // Fetch the caller's effective feature flags on launch (identity-scoped,
   // flicker-free from the persisted cache); the observer refreshes on resume.
   container.read(flagsProvider);
+
+  // Start feature-usage tracking (change: add-feature-usage-analytics): warm the
+  // tracker (delivers any events left from a previous run) + its background flush
+  // scheduler (periodic + connectivity). The scheduler is warmed ONLY here so it
+  // never spins up timers/plugins in a test that merely exercises an instrumented
+  // call site. Emission stays gated on consent + the remote kill-switch.
+  container.read(usageTrackingNotifierProvider);
+  container.read(usageFlushSchedulerProvider);
 
   // Silence the synth when the OS backgrounds/hides the app, so a held voice
   // (note pressed, no note-off yet) doesn't keep ringing while paused; refresh

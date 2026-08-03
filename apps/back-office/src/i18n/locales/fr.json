@@ -61,7 +61,28 @@
     "roles": "Rôles",
     "flags": "Feature flags",
     "soundfonts": "Sons d’instruments",
+    "usage": "Usage",
     "menu": "Menu"
+  },
+  "usage": {
+    "title": "Usage des fonctionnalités",
+    "periodCaveat": "Le nombre d’utilisateurs distincts est exact sur une période ; une plage couvrant plusieurs mois peut compter deux fois un utilisateur actif sur deux mois (sel mensuel préservant la vie privée).",
+    "from": "Du",
+    "to": "Au",
+    "platform": "Plateforme",
+    "deviceClass": "Type d’appareil",
+    "action": "Action",
+    "variant": "Variante",
+    "events": "Événements",
+    "users": "Utilisateurs",
+    "any": "Tous",
+    "apply": "Appliquer",
+    "loading": "Chargement de l’usage…",
+    "distinctUsers": "utilisateurs distincts sur la période",
+    "byPlatform": "Utilisateurs par plateforme",
+    "byDeviceClass": "Utilisateurs par type d’appareil",
+    "actionBreakdown": "Répartition des actions",
+    "noData": "Aucune donnée pour cette période"
   },
   "soundfonts": {
     "title": "Sons d’instruments",

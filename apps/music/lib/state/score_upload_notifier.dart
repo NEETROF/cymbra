@@ -12,15 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:async';
+
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../analytics/usage_actions.dart';
 import '../services/auth_service.dart' show AuthError, AuthException;
 import '../services/file_picker_service.dart';
 import '../services/notation_engine.dart';
 import '../services/score_upload_service.dart';
 import '../src/rust/api/musicxml.dart' show ScoreSummary;
 import 'score_catalog.dart' show PracticeLevel;
+import 'usage_tracking_notifier.dart';
 
 part 'score_upload_notifier.freezed.dart';
 part 'score_upload_notifier.g.dart';
@@ -199,6 +203,12 @@ class ScoreUploadNotifier extends _$ScoreUploadNotifier {
       // and refreshes itself (which cascades to myContributedScores +
       // favoriteScores). The uploader does NOT invalidate a sibling provider.
       state = state.copyWith(submitting: false, result: record);
+      // Usage telemetry (change: add-feature-usage-analytics).
+      unawaited(
+        ref
+            .read(usageTrackingNotifierProvider.notifier)
+            .record(UsageActions.scoreUpload, subjectId: record.id),
+      );
     } catch (e) {
       state = state.copyWith(
         submitting: false,

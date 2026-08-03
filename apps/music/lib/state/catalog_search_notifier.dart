@@ -17,10 +17,12 @@ import 'dart:async';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../analytics/usage_actions.dart';
 import '../services/catalog_service.dart';
 import 'contributed_scores.dart';
 import 'saved_catalog_scores.dart';
 import 'score_catalog.dart';
+import 'usage_tracking_notifier.dart';
 
 part 'catalog_search_notifier.freezed.dart';
 part 'catalog_search_notifier.g.dart';
@@ -322,6 +324,15 @@ class CatalogSearch extends _$CatalogSearch {
       // Bump the library signal (post-persistence) so savedCatalogScores refreshes
       // itself — no sibling-provider invalidation (architecture rule 2).
       ref.read(libraryRevisionProvider.notifier).bump();
+      // Usage telemetry (change: add-feature-usage-analytics).
+      unawaited(
+        ref
+            .read(usageTrackingNotifierProvider.notifier)
+            .record(
+              wasSaved ? UsageActions.favoriteRemove : UsageActions.favoriteAdd,
+              subjectId: id,
+            ),
+      );
     } catch (_) {
       // Revert the optimistic toggle on failure.
       final reverted = {...state.savedIds};

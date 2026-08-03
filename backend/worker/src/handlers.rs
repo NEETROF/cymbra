@@ -37,6 +37,10 @@ pub struct WorkerCtx {
     /// Retention window (days) for the `play_detail_prune` job (change: add-play-
     /// activity-profile). Prunes `music.play_sessions` detail older than this.
     pub play_detail_retention_days: i64,
+    /// Shared feature-flag service (change: add-feature-usage-analytics). The
+    /// `usage_purge` job reads the raw-event retention window from it so it is
+    /// BO-retunable without a redeploy (design D4).
+    pub flags: Arc<cymbra_feature_flags::FlagService>,
 }
 
 /// Payload for the `verification_email` job (and any transactional email). The
@@ -188,6 +192,57 @@ pub async fn play_detail_prune(mut job: CurrentJob, ctx: WorkerCtx) -> Result<()
     .await
 }
 
+/// Fold each closed day of `analytics.usage_events` into the permanent daily
+/// aggregates (change: add-feature-usage-analytics, D3). Scheduled
+/// (`usage_rollup_daily`) on the ordered `analytics.maintenance` channel BEFORE the
+/// purge. Idempotent (upserts recompute from raw), so a redelivery is safe. Runs as
+/// `admin_svc` (the only worker actor allowed to write across schemas).
+#[sqlxmq::job("usage_rollup")]
+pub async fn usage_rollup(mut job: CurrentJob, ctx: WorkerCtx) -> Result<(), BoxError> {
+    let span = tracing::info_span!("job.usage_rollup", job_id = %job.id());
+    async move {
+        cymbra_analytics::rollup_closed_days(&ctx.admin_pool).await?;
+        tracing::info!("usage analytics daily rollup complete");
+        job.complete().await?;
+        Ok(())
+    }
+    .instrument(span)
+    .await
+}
+
+/// Delete raw `analytics.usage_events` older than the configured retention window
+/// (change: add-feature-usage-analytics, D4). Scheduled (`usage_purge_daily`) on
+/// the ordered `analytics.maintenance` channel AFTER the rollup, so it never
+/// removes an unaggregated day. Reads the window from the feature-flag service
+/// (refreshed on demand so a BO change applies without a redeploy); idempotent and
+/// safe to retry. Runs as `admin_svc`.
+#[sqlxmq::job("usage_purge")]
+pub async fn usage_purge(mut job: CurrentJob, ctx: WorkerCtx) -> Result<(), BoxError> {
+    let span = tracing::info_span!("job.usage_purge", job_id = %job.id());
+    async move {
+        // Pick up any BO retention change (best-effort; falls back to last-known /
+        // code default on a store outage — fail-safe).
+        if let Err(e) = ctx.flags.refresh().await {
+            tracing::warn!(error = %e, "usage_purge flag refresh failed; using last-known/default");
+        }
+        let days = ctx.flags.int(
+            cymbra_feature_flags::registry::DATA_RETENTION_USAGE_EVENTS_DAYS,
+            180,
+            &cymbra_feature_flags::EvalContext::anonymous(""),
+        );
+        let purged = cymbra_analytics::purge_expired(&ctx.admin_pool, days).await?;
+        tracing::info!(
+            purged,
+            retention_days = days,
+            "usage retention purge complete"
+        );
+        job.complete().await?;
+        Ok(())
+    }
+    .instrument(span)
+    .await
+}
+
 /// Build the job registry with all handlers registered and the shared context set.
 pub fn registry(ctx: WorkerCtx) -> JobRegistry {
     let mut registry = JobRegistry::new(&[
@@ -197,6 +252,8 @@ pub fn registry(ctx: WorkerCtx) -> JobRegistry {
         purge_user,
         purge_score_object,
         play_detail_prune,
+        usage_rollup,
+        usage_purge,
     ]);
     registry.set_context(ctx);
     registry

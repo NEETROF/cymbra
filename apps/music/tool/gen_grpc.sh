@@ -21,6 +21,8 @@ AUTH_PROTO_DIR="$REPO_ROOT/backend/auth-port/proto"
 USER_PROTO_DIR="$REPO_ROOT/backend/user-port/proto"
 # The music module keeps its proto inside the crate (single crate, no *-port).
 MUSIC_PROTO_DIR="$REPO_ROOT/backend/music/proto"
+# The analytics module (feature-usage telemetry) likewise keeps its proto in-crate.
+ANALYTICS_PROTO_DIR="$REPO_ROOT/backend/analytics/proto"
 
 command -v protoc >/dev/null 2>&1 || {
   echo "error: protoc not found on PATH (brew install protobuf)" >&2
@@ -51,7 +53,8 @@ protoc \
   --proto_path="$(to_native "$AUTH_PROTO_DIR")" \
   --proto_path="$(to_native "$USER_PROTO_DIR")" \
   --proto_path="$(to_native "$MUSIC_PROTO_DIR")" \
+  --proto_path="$(to_native "$ANALYTICS_PROTO_DIR")" \
   --dart_out=grpc:"$(to_native "$OUT_DIR")" \
-  auth.proto user.proto score.proto play.proto leaderboard.proto
+  auth.proto user.proto score.proto play.proto leaderboard.proto usage.proto
 
 echo "Generated gRPC Dart stubs into $OUT_DIR"

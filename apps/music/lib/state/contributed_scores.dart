@@ -12,13 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../analytics/usage_actions.dart';
 import '../services/score_upload_service.dart';
 import 'score_catalog.dart';
 import 'score_upload_notifier.dart';
 import 'session_notifier.dart';
+import 'usage_tracking_notifier.dart';
 
 part 'contributed_scores.g.dart';
 
@@ -76,6 +80,14 @@ class MyUploads extends _$MyUploads {
       await ref
           .read(scoreUploadServiceProvider)
           .setFavorite(contributedId, favorite);
+      unawaited(
+        ref
+            .read(usageTrackingNotifierProvider.notifier)
+            .record(
+              favorite ? UsageActions.favoriteAdd : UsageActions.favoriteRemove,
+              subjectId: contributedId,
+            ),
+      );
       return _fetch();
     });
   }
@@ -110,6 +122,11 @@ class MyUploads extends _$MyUploads {
             attribution: attribution,
             resubmissionNote: resubmissionNote,
           );
+      unawaited(
+        ref
+            .read(usageTrackingNotifierProvider.notifier)
+            .record(UsageActions.scorePropose, subjectId: contributedId),
+      );
       return _fetch();
     });
   }
