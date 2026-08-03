@@ -68,7 +68,8 @@ describe("SoundFontDrawer", () => {
     await flushPromises();
 
     expect(w.find(".drawer").exists()).toBe(true);
-    await w.find('input[aria-label="id"]').setValue("ydp-grand");
+    // The id is auto-minted (uuidv7) on create — there is no id input to fill.
+    expect(w.find('input[aria-label="id"]').exists()).toBe(false);
     await w.find('input[aria-label="label"]').setValue("YDP Grand");
     await w.find('select[aria-label="license"]').setValue("CC-BY 3.0");
 
@@ -82,7 +83,11 @@ describe("SoundFontDrawer", () => {
     await flushPromises();
 
     expect(uploaded).toHaveLength(1);
-    expect(uploaded[0]).toMatchObject({ id: "ydp-grand", label: "YDP Grand", instrument: "piano" });
+    expect(uploaded[0]).toMatchObject({ label: "YDP Grand", instrument: "piano" });
+    // A generated uuidv7 (version nibble 7, RFC-4122 variant).
+    expect(uploaded[0].id).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+    );
     expect(w.emitted("close")).toBeTruthy();
   });
 

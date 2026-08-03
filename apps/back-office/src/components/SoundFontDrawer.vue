@@ -3,6 +3,7 @@ import { computed, ref, shallowRef, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { type NewSoundFont, type SoundFontEdit, useSoundFontsStore } from "@/stores/soundfonts";
 import { useScorePlayer } from "@/composables/useScorePlayer";
+import { uuidv7 } from "@/lib/uuid";
 import type { AdminSoundFont, CatalogHit } from "@/gen/score_pb";
 
 // Right-to-left drawer to create OR edit a catalog font (change:
@@ -60,7 +61,8 @@ watch(
         instrument: e.instrument || "piano",
       };
     } else {
-      form.value = { id: "", label: "", license: "CC0-1.0", attribution: "", instrument: "piano" };
+      // The id is auto-minted (uuidv7) and never shown/edited on create.
+      form.value = { id: uuidv7(), label: "", license: "CC0-1.0", attribution: "", instrument: "piano" };
     }
   },
   { immediate: true },
@@ -184,9 +186,11 @@ const audioState = computed(() => player.audio.value.status);
         <p v-if="opError" class="error" role="alert">{{ opError }}</p>
 
         <form class="body" @submit.prevent="save">
-          <label>
+          <!-- The id is auto-generated (uuidv7) and immutable: hidden on create,
+               shown read-only on edit. -->
+          <label v-if="isEdit">
             <span>{{ t("soundfonts.id") }}</span>
-            <input v-model="form.id" aria-label="id" :disabled="isEdit" :placeholder="t('soundfonts.idHint')" />
+            <input v-model="form.id" aria-label="id" disabled readonly />
           </label>
           <label>
             <span>{{ t("soundfonts.label") }}</span>
