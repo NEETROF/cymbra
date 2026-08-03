@@ -327,8 +327,9 @@ function licenseDesc(license: string): string {
   cursor: pointer;
 }
 .chip.active {
-  /* Darken the accent so white label text meets the WCAG AA contrast ratio. */
-  background: color-mix(in srgb, var(--accent, #7c5cff) 78%, #000);
+  /* A concrete darker accent (not color-mix, which the analyzer can't resolve) so
+     white label text meets the WCAG AA contrast ratio (~5:1). */
+  background: #4a37a8;
   border-color: var(--accent, #7c5cff);
   color: #fff;
 }
