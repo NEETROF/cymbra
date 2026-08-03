@@ -25,7 +25,6 @@ import '../state/saved_catalog_scores.dart';
 import '../state/score_catalog.dart';
 import '../state/session_notifier.dart';
 import '../theme/cymbra_theme.dart';
-import '../widgets/language_selector.dart';
 import '../widgets/library_listeners.dart';
 import '../widgets/rating_invite_banner.dart';
 import '../widgets/score_card.dart';
@@ -86,7 +85,7 @@ class LibraryScreen extends ConsumerWidget {
                 tooltip: l10n.soundfontsEntryTooltip,
                 onPressed: () => _openSoundFonts(context),
               ),
-            const LanguageSelectorButton(),
+            // Language selection moved into the account menu (AccountMenu).
             const AccountMenu(),
             const SizedBox(width: 8),
           ],
