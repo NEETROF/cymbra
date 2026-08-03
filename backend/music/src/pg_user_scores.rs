@@ -51,7 +51,7 @@ fn is_foreign_key_violation(e: &sqlx::Error) -> bool {
 fn user_cols() -> String {
     format!(
         "id, owner_id, level, rights_basis, rights_ack, sha256, size_bytes, \
-         object_key, created_at, favorite, {META_COLS}"
+         object_key, created_at, favorite, proposed_catalog_id, {META_COLS}"
     )
 }
 
@@ -67,6 +67,9 @@ fn row_to_score(r: &PgRow) -> UserScore {
         object_key: r.get("object_key"),
         created_at: r.get::<DateTime<Utc>, _>("created_at").timestamp(),
         favorite: r.get("favorite"),
+        proposed_catalog_id: r
+            .get::<Option<uuid::Uuid>, _>("proposed_catalog_id")
+            .map(|u| u.to_string()),
         meta: meta_from_row(r),
     }
 }
@@ -96,10 +99,14 @@ impl UserScoreRepo for PgUserScoreRepo {
             .ok_or_else(|| AppError::Internal(anyhow::anyhow!("bad created_at")))?;
         // Owner/rights/lifecycle columns ($1..$10), then the shared ScoreMeta
         // block ($11..$28) via `bind_meta`.
+        let proposed = s
+            .proposed_catalog_id
+            .as_deref()
+            .and_then(|p| uuid::Uuid::parse_str(p).ok());
         let sql = format!(
             "INSERT INTO music.user_scores ({}) \
              VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,\
-                $19,$20,$21,$22,$23,$24,$25,$26,$27,$28)",
+                $19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29)",
             user_cols()
         );
         let q = sqlx::query(&sql)
@@ -112,7 +119,8 @@ impl UserScoreRepo for PgUserScoreRepo {
             .bind(s.size_bytes)
             .bind(&s.object_key)
             .bind(created)
-            .bind(s.favorite);
+            .bind(s.favorite)
+            .bind(proposed);
         let res = bind_meta(q, &s.meta).execute(&self.pool).await;
         match res {
             Ok(_) => Ok(()),
@@ -186,6 +194,30 @@ impl UserScoreRepo for PgUserScoreRepo {
         .bind(id)
         .bind(owner)
         .bind(favorite)
+        .execute(&self.pool)
+        .await
+        .map_err(internal)?;
+        if res.rows_affected() == 0 {
+            return Err(AppError::NotFound("score not found".into()));
+        }
+        Ok(())
+    }
+
+    async fn set_proposed_catalog_id(
+        &self,
+        id: &str,
+        owner_id: &str,
+        catalog_id: &str,
+    ) -> Result<()> {
+        let (id, owner) = (parse_uuid(id)?, parse_uuid(owner_id)?);
+        let catalog = uuid::Uuid::parse_str(catalog_id)
+            .map_err(|_| AppError::Internal(anyhow::anyhow!("bad catalog id")))?;
+        let res = sqlx::query(
+            "UPDATE music.user_scores SET proposed_catalog_id = $3 WHERE id = $1 AND owner_id = $2",
+        )
+        .bind(id)
+        .bind(owner)
+        .bind(catalog)
         .execute(&self.pool)
         .await
         .map_err(internal)?;

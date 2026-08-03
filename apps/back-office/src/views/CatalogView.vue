@@ -6,7 +6,7 @@ import FiltersBar from "@/components/FiltersBar.vue";
 import CatalogTable from "@/components/CatalogTable.vue";
 import StatBar from "@/components/StatBar.vue";
 import TablePager from "@/components/TablePager.vue";
-import { PAGE_SIZE, useCatalogStore, type Filters, type ModerationStatus, type SortKeyInit } from "@/stores/catalog";
+import { PAGE_SIZE, useCatalogStore, type Filters, type SortKeyInit, type StatusFilter } from "@/stores/catalog";
 import { useAuthStore } from "@/stores/auth";
 import { musicxmlFileName, saveBytesAsFile } from "@/lib/download";
 import type { CatalogHit } from "@/gen/score_pb";
@@ -15,7 +15,9 @@ import type { CatalogHit } from "@/gen/score_pb";
 const store = useCatalogStore();
 const auth = useAuthStore();
 const router = useRouter();
-const status = ref<ModerationStatus>("pending");
+// Default the BO catalog to "" (Tous) — every moderation status (change:
+// add-score-catalog-proposal).
+const status = ref<StatusFilter>("");
 const sort = ref<SortKeyInit[]>([]);
 const offset = ref(0);
 let filters: Filters = {
@@ -23,7 +25,8 @@ let filters: Filters = {
   author: "",
   level: "",
   isPiano: undefined,
-  moderationStatus: "pending",
+  moderationStatus: "",
+  source: "",
 };
 
 // One exhaustive match folds the Async state into a flat, template-safe view model
@@ -43,12 +46,17 @@ const vm = computed(() =>
 );
 
 function run() {
+  // "" = Tous → request every status (privileged); a specific status filters to it.
+  // The ternary narrows `status.value` to a concrete ModerationStatus in the else arm.
+  const specific = status.value === "" ? undefined : status.value;
   store.search({
     query: filters.query || undefined,
     author: filters.author || undefined,
     level: filters.level || undefined,
     isPiano: filters.isPiano,
-    moderationStatus: status.value,
+    moderationStatus: specific,
+    allStatuses: specific === undefined || undefined,
+    source: filters.source || undefined,
     sort: sort.value,
     offset: offset.value,
   });

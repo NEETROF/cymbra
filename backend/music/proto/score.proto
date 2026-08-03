@@ -27,6 +27,11 @@ message ScoreRecord {
   optional int32 highest_midi = 13;
   // Whether this upload is in the caller's favorites (change: favorites-home).
   bool favorite = 14;
+  // Public-catalog proposal state (change: add-score-catalog-proposal): unset = not
+  // proposed, else pending | accepted | rejected. `rejection_reason` carries the
+  // moderator's motive when the proposal was rejected, so the owner knows why.
+  optional string proposal_status = 15;
+  optional string rejection_reason = 16;
 }
 
 message SetScoreFavoriteRequest {
@@ -91,6 +96,17 @@ message CatalogHit {
   // console badge flagged rows in the review queue/catalog.
   bool needs_review = 15;
   optional string moderation_status = 16; // pending | accepted | rejected (BO reads)
+  // Proposal attribution (change: add-score-catalog-proposal). PRIVILEGED (moderator/
+  // admin reads only): `proposed_by` (proposer id), `proposer_display_name` (pseudo),
+  // `review_reason` (moderator's rejection motive), `resubmission_note` (proposer's
+  // re-proposal justification). PUBLIC: `contributor_credit` — the opt-in "proposé par
+  // @pseudo", present only for an accepted, user-proposed score whose proposer opted
+  // into a public profile. A normal caller gets none of the privileged fields.
+  optional string proposed_by = 17;
+  optional string proposer_display_name = 18;
+  optional string contributor_credit = 19;
+  optional string review_reason = 20;
+  optional string resubmission_note = 21;
 }
 
 // Full-text search over title+composer, with optional author/difficulty filters.
@@ -132,6 +148,15 @@ message SearchCatalogRequest {
   // ONLY for an admin/moderator identity (PERMISSION_DENIED otherwise); the app never
   // sets it.
   optional bool review_queue = 17;
+  // PRIVILEGED, back-office-only "all statuses" mode (change: add-score-catalog-
+  // proposal): when true the catalog view returns every moderation status
+  // (pending/accepted/rejected) instead of the accepted-only default. Honoured ONLY for
+  // an admin/moderator identity; the app never sets it.
+  optional bool all_statuses = 18;
+  // Origin filter (change: add-score-catalog-proposal): restrict to a single `source`
+  // (e.g. `user-proposal` vs a crawler dataset). Composes with the status gate; unset =
+  // any source.
+  optional string source = 19;
 }
 
 // One sort key: a column/alias from the search allow-list, ascending unless
@@ -178,8 +203,26 @@ message GetCatalogScoreRequest { string catalog_id = 1; }
 message SetModerationStatusRequest {
   string score_id = 1;
   string status = 2; // pending | accepted | rejected
+  // The moderator's rejection motive (change: add-score-catalog-proposal), recorded on
+  // `rejected` (cleared on any other status) and surfaced back to the proposer.
+  optional string reason = 3;
 }
 message SetModerationStatusResponse {}
+
+// Propose one of the caller's private scores to the public catalog (change:
+// add-score-catalog-proposal) — the only bridge from a private upload into the
+// moderation review queue. Owner-scoped; the identity is the authenticated caller.
+// A `resubmission_note` is required only when re-proposing a previously-rejected score
+// (which reopens its catalog row); the initial moderation status is derived from the
+// caller's role (admin -> accepted, else pending), never from the body.
+message ProposeScoreRequest {
+  string score_id = 1;          // one of the caller's ListMyScores ids
+  string license = 2;           // licence declaration (required)
+  bool rights_ack = 3;          // right-to-distribute attestation; must be true
+  optional string attribution = 4;       // optional free-text attribution
+  optional string resubmission_note = 5; // required when re-proposing a rejected score
+}
+message ProposeScoreResponse {}
 
 // Edit a public-corpus catalog score's CURATORIAL metadata (change:
 // add-catalog-metadata-editing). Moderator/admin only. ONLY these descriptive fields
@@ -341,6 +384,8 @@ service ScoreService {
   rpc SetSoundFontModerationStatus(SetSoundFontModerationStatusRequest) returns (SetSoundFontModerationStatusResponse);
 
   rpc ListMyScores(ListMyScoresRequest) returns (ListMyScoresResponse);
+  // Opt-in proposal of a private score to the public catalog (change: add-score-catalog-proposal).
+  rpc ProposeScore(ProposeScoreRequest) returns (ProposeScoreResponse);
   rpc DeleteScore(DeleteScoreRequest) returns (DeleteScoreResponse);
   rpc GetScoreBytes(GetScoreBytesRequest) returns (GetScoreBytesResponse);
   rpc SetScoreFavorite(SetScoreFavoriteRequest) returns (SetScoreFavoriteResponse);

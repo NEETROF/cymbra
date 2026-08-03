@@ -44,6 +44,11 @@ pub struct UserScore {
     /// Whether this upload is in the caller's favorites (change: favorites-home).
     /// Auto-`true` on upload; un-favoriting hides it from the home but keeps it.
     pub favorite: bool,
+    /// The catalog row this private score was proposed to (change: add-score-catalog-
+    /// proposal); `None` until the owner proposes it. Links the private score to its
+    /// public-catalog entry so the app can show the proposal status and the server can
+    /// guard against re-proposing an already-open score.
+    pub proposed_catalog_id: Option<String>,
     /// Shared descriptive + facet metadata — same block the catalog carries, so
     /// uploads render a faithful cover and can be facet-filtered identically.
     pub meta: ScoreMeta,
@@ -66,6 +71,14 @@ pub trait UserScoreRepo: Send + Sync {
     /// Set the favorite flag on a score the caller owns; `NotFound` if absent or
     /// not theirs. Never deletes the upload.
     async fn set_favorite(&self, id: &str, owner_id: &str, favorite: bool) -> Result<()>;
+    /// Link a score the caller owns to the catalog row it was proposed to (change:
+    /// add-score-catalog-proposal). `NotFound` if absent or not theirs.
+    async fn set_proposed_catalog_id(
+        &self,
+        id: &str,
+        owner_id: &str,
+        catalog_id: &str,
+    ) -> Result<()>;
 }
 
 /// In-memory [`UserScoreRepo`] for unit tests.
@@ -156,6 +169,25 @@ impl UserScoreRepo for FakeUserScoreRepo {
             None => Err(AppError::NotFound("score not found".into())),
         }
     }
+
+    async fn set_proposed_catalog_id(
+        &self,
+        id: &str,
+        owner_id: &str,
+        catalog_id: &str,
+    ) -> Result<()> {
+        let mut rows = self.rows.lock().expect("user_scores fake lock");
+        match rows
+            .iter_mut()
+            .find(|r| r.id == id && r.owner_id == owner_id)
+        {
+            Some(row) => {
+                row.proposed_catalog_id = Some(catalog_id.to_string());
+                Ok(())
+            }
+            None => Err(AppError::NotFound("score not found".into())),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -175,6 +207,7 @@ mod tests {
             object_key: format!("user-scores/{owner}/{id}.mxl"),
             created_at,
             favorite: true,
+            proposed_catalog_id: None,
             meta: ScoreMeta {
                 title: Some("T".into()),
                 composer: None,

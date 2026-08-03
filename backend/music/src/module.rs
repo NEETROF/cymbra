@@ -31,7 +31,7 @@ use sha2::{Digest, Sha256};
 
 use crate::catalog_edit::{CurrentMeta, MetadataChanges, plan_edit};
 use crate::catalog_search::{CatalogHit, CatalogQuery, CatalogSearchParams, CatalogSearchRepo};
-use crate::repo::{ScoreFacets, ScoreMeta};
+use crate::repo::{CatalogEntry, ScoreFacets, ScoreMeta};
 use crate::score_rating::{
     RatingAggregate, RatingConfig, ScoreRatingRepo, Verdict, is_flagged_for_review,
 };
@@ -88,6 +88,11 @@ pub struct ScoreModule {
     /// Hybrid re-review thresholds (change: add-app-score-rating, design D4).
     /// Defaults to N=5, T=2.0; overridable via [`Self::with_rating_config`].
     rating_config: RatingConfig,
+    /// User directory, used to resolve a proposer's pseudo/visibility for attribution
+    /// (change: add-score-catalog-proposal). `None` until wired via [`Self::with_user`];
+    /// when unset, reads carry no resolved names and propose still works (attribution is
+    /// best-effort).
+    user: Option<Arc<dyn cymbra_user_port::UserPort>>,
 }
 
 impl ScoreModule {
@@ -112,6 +117,7 @@ impl ScoreModule {
             quota_window_days,
             max_bytes,
             rating_config: RatingConfig::default(),
+            user: None,
         }
     }
 
@@ -120,6 +126,13 @@ impl ScoreModule {
     /// without seeding a full quorum of ratings.
     pub fn with_rating_config(mut self, cfg: RatingConfig) -> Self {
         self.rating_config = cfg;
+        self
+    }
+
+    /// Wire the user directory used to resolve proposer attribution (change:
+    /// add-score-catalog-proposal). The server sets this; tests opt in with a mock.
+    pub fn with_user(mut self, user: Arc<dyn cymbra_user_port::UserPort>) -> Self {
+        self.user = Some(user);
         self
     }
 
@@ -230,7 +243,8 @@ impl ScoreModule {
             size_bytes: input.data.len() as i64,
             object_key: object_key.clone(),
             created_at: now_unix(),
-            favorite: true, // a new upload lands in the caller's favorites
+            favorite: true,            // a new upload lands in the caller's favorites
+            proposed_catalog_id: None, // not proposed until the owner opts in
             meta: ScoreMeta {
                 title,
                 composer,
@@ -353,6 +367,8 @@ impl ScoreModule {
             facets: q.facets,
             moderation_status: q.moderation_status,
             review_queue: q.review_queue,
+            all_statuses: q.all_statuses,
+            source: q.source.filter(|s| !s.is_empty()),
             sort: q.sort,
             limit: q.limit.clamp(1, SEARCH_MAX_LIMIT),
             offset: q.offset.max(0),
@@ -370,20 +386,209 @@ impl ScoreModule {
         reviewer_id: &str,
         score_id: &str,
         status: &str,
+        reason: Option<&str>,
     ) -> Result<()> {
         if !MODERATION_STATUSES.contains(&status) {
             return Err(AppError::InvalidArgument(format!(
                 "unknown moderation status {status:?}"
             )));
         }
+        // The reason is the rejection motive: keep it only on `rejected`, so accepting
+        // or re-queuing clears any stale reason (change: add-score-catalog-proposal).
+        let reason = reason
+            .map(str::trim)
+            .filter(|r| !r.is_empty() && status == "rejected");
         let updated = self
             .catalog
-            .set_moderation_status(score_id, status, reviewer_id)
+            .set_moderation_status(score_id, status, reviewer_id, reason)
             .await?;
         if !updated {
             return Err(AppError::NotFound("catalog score not found".into()));
         }
         Ok(())
+    }
+
+    /// Propose one of the caller's private scores to the public catalog (change:
+    /// add-score-catalog-proposal) — the ONLY bridge from a private upload into the
+    /// moderation review queue. Requires a licence declaration + rights attestation.
+    /// Branches on the catalog's content match (`sha256` is unique there): no match →
+    /// materialise a fresh row (`accepted` for an admin, else `pending`), attributed to
+    /// the proposer; a non-`rejected` match → duplicate (`AlreadyExists`, reporting the
+    /// existing id); a `rejected` match → reopen that row (→ `pending`, re-attributed,
+    /// reason cleared), requiring a non-empty `resubmission_note` justification.
+    /// `proposer_is_admin` comes from the authenticated caller's role (never the body).
+    #[allow(clippy::too_many_arguments)]
+    pub async fn propose(
+        &self,
+        owner_id: &str,
+        score_id: &str,
+        license: &str,
+        rights_ack: bool,
+        resubmission_note: Option<&str>,
+        proposer_is_admin: bool,
+    ) -> Result<()> {
+        if !rights_ack {
+            return Err(AppError::InvalidArgument(
+                "rights acknowledgement is required".into(),
+            ));
+        }
+        let license = license.trim();
+        if license.is_empty() {
+            return Err(AppError::InvalidArgument(
+                "a licence declaration is required".into(),
+            ));
+        }
+        let score = self
+            .repo
+            .get_owned(score_id, owner_id)
+            .await?
+            .ok_or_else(|| AppError::NotFound("score not found".into()))?;
+
+        match self.catalog.find_by_sha(&score.sha256).await? {
+            Some((catalog_id, status)) if status == "rejected" => {
+                let note = resubmission_note
+                    .map(str::trim)
+                    .filter(|n| !n.is_empty())
+                    .ok_or_else(|| {
+                        AppError::InvalidArgument(
+                            "a justification is required to re-propose a rejected score".into(),
+                        )
+                    })?;
+                self.catalog
+                    .reopen_rejected(&catalog_id, owner_id, note)
+                    .await?;
+                self.repo
+                    .set_proposed_catalog_id(score_id, owner_id, &catalog_id)
+                    .await?;
+                Ok(())
+            }
+            Some((catalog_id, _)) => Err(AppError::AlreadyExists(format!(
+                "this score is already in the catalog ({catalog_id})"
+            ))),
+            None => {
+                self.insert_fresh_proposal(owner_id, &score, license, proposer_is_admin)
+                    .await
+            }
+        }
+    }
+
+    /// Materialise a brand-new catalog row from a private score (the no-existing-row
+    /// branch of [`Self::propose`]): copy the bytes into a catalog object, derive the
+    /// provenance, attribute the proposer, and link the private row back.
+    async fn insert_fresh_proposal(
+        &self,
+        owner_id: &str,
+        score: &UserScore,
+        license: &str,
+        proposer_is_admin: bool,
+    ) -> Result<()> {
+        let bytes = self
+            .storage
+            .get(&score.object_key)
+            .await
+            .map_err(|e| AppError::Internal(anyhow::anyhow!("read score: {e}")))?;
+        let catalog_id = uuid::Uuid::now_v7().to_string();
+        let object_key = format!("catalog/user-proposal/{catalog_id}.musicxml");
+        self.storage
+            .put(&object_key, bytes)
+            .await
+            .map_err(|e| AppError::Internal(anyhow::anyhow!("store proposed score: {e}")))?;
+        let entry = CatalogEntry {
+            id: catalog_id.clone(),
+            arranger: None,
+            source: "user-proposal".into(),
+            source_url: String::new(),
+            source_item_id: score.id.clone(),
+            license: license.to_string(),
+            license_url: None,
+            confidence: "unverified".into(),
+            sha256: score.sha256.clone(),
+            content_fingerprint: score.sha256.clone(),
+            origin_format: "music_xml".into(),
+            conversion_status: "converted".into(),
+            object_key: object_key.clone(),
+            size_bytes: score.size_bytes,
+            composer_norm: score.meta.composer.as_deref().map(normalize_text),
+            language: None,
+            voicing: None,
+            level: Some(score.level.clone()),
+            level_source: Some("manual".into()),
+            proposed_by: Some(owner_id.to_string()),
+            meta: score.meta.clone(),
+        };
+        if !self
+            .catalog
+            .insert_proposed(&entry, proposer_is_admin)
+            .await?
+        {
+            let _ = self.storage.delete(&object_key).await;
+            return Err(AppError::AlreadyExists(
+                "this score is already in the catalog".into(),
+            ));
+        }
+        self.repo
+            .set_proposed_catalog_id(&score.id, owner_id, &catalog_id)
+            .await?;
+        Ok(())
+    }
+
+    /// The caller's contributions with each one's proposal state (change: add-score-
+    /// catalog-proposal): every private score plus, when it was proposed, the linked
+    /// catalog row's moderation status and (for a `rejected` proposal) the moderator's
+    /// reason. A not-proposed score carries `None`/`None`.
+    pub async fn list_contributions(
+        &self,
+        owner_id: &str,
+    ) -> Result<Vec<(UserScore, Option<String>, Option<String>)>> {
+        let scores = self.repo.list_by_owner(owner_id).await?;
+        let mut out = Vec::with_capacity(scores.len());
+        for s in scores {
+            let (status, reason) = match s.proposed_catalog_id.as_deref() {
+                Some(cid) => match self.catalog.hit_by_id(cid, true).await? {
+                    Some(h) => (h.moderation_status, h.review_reason),
+                    None => (None, None),
+                },
+                None => (None, None),
+            };
+            out.push((s, status, reason));
+        }
+        Ok(out)
+    }
+
+    /// Fill privileged proposer attribution on hits for a moderator/admin read: resolve
+    /// each user-proposed row's `proposed_by` to a display name (any visibility, via the
+    /// account directory). Leaves crawler rows untouched. No-op without a wired directory.
+    pub async fn attach_review_attribution(&self, hits: &mut [CatalogHit]) {
+        let Some(user) = self.user.clone() else {
+            return;
+        };
+        for h in hits.iter_mut() {
+            if let Some(pid) = h.proposed_by.clone()
+                && let Ok(acct) = user.get_account(&pid).await
+            {
+                h.proposer_display_name = acct.handle.or(acct.display_name);
+            }
+        }
+    }
+
+    /// Sanitise hits for a normal (non-moderator) read: strip every privileged proposer
+    /// field, then fill the opt-in public `contributor_credit` — the proposer's public
+    /// handle — only for an `accepted`, user-proposed row whose proposer opted into a
+    /// public profile (fail-closed: a private/unknown profile resolves as absent).
+    pub async fn attach_public_credit(&self, hits: &mut [CatalogHit], today: chrono::NaiveDate) {
+        for h in hits.iter_mut() {
+            let proposed_by = h.proposed_by.take();
+            h.proposer_display_name = None;
+            h.review_reason = None;
+            h.resubmission_note = None;
+            h.contributor_credit = None;
+            if h.moderation_status.as_deref() == Some("accepted")
+                && let (Some(user), Some(pid)) = (self.user.clone(), proposed_by)
+                && let Ok(p) = user.get_player_profile("public", &pid, today).await
+            {
+                h.contributor_credit = p.handle.or(p.display_name);
+            }
+        }
     }
 
     /// Edit a public-corpus catalog score's curatorial metadata (change:
@@ -1408,13 +1613,13 @@ mod tests {
     async fn set_moderation_status_accepts_rejects_and_requeues() {
         let m = moderated_module().await;
         // Accept the pending score → it becomes visible in the default search.
-        m.set_moderation_status("mod-1", PENDING_ID, "accepted")
+        m.set_moderation_status("mod-1", PENDING_ID, "accepted", None)
             .await
             .unwrap();
         let (hits, _) = m.search_catalog(q("", None, None, 50)).await.unwrap();
         assert!(hits.iter().any(|h| h.id == PENDING_ID));
         // Re-queue it back to pending → it leaves the accepted-only hub again.
-        m.set_moderation_status("mod-1", PENDING_ID, "pending")
+        m.set_moderation_status("mod-1", PENDING_ID, "pending", None)
             .await
             .unwrap();
         let (hits, _) = m.search_catalog(q("", None, None, 50)).await.unwrap();
@@ -1425,12 +1630,18 @@ mod tests {
     async fn set_moderation_status_rejects_unknown_id_and_bad_status() {
         let m = moderated_module().await;
         assert!(matches!(
-            m.set_moderation_status("mod-1", "99999999-9999-7999-8999-999999999999", "accepted")
-                .await,
+            m.set_moderation_status(
+                "mod-1",
+                "99999999-9999-7999-8999-999999999999",
+                "accepted",
+                None
+            )
+            .await,
             Err(AppError::NotFound(_))
         ));
         assert!(matches!(
-            m.set_moderation_status("mod-1", PENDING_ID, "bogus").await,
+            m.set_moderation_status("mod-1", PENDING_ID, "bogus", None)
+                .await,
             Err(AppError::InvalidArgument(_))
         ));
     }
@@ -1756,5 +1967,294 @@ mod tests {
             .unwrap();
         let hub_flagged = hub_hits.iter().find(|h| h.id == DEBUSSY_1).unwrap();
         assert!(!hub_flagged.needs_review);
+    }
+
+    // --- catalog proposal (change: add-score-catalog-proposal) --------------
+
+    /// A module with fresh user-scores + catalog + store fakes, all three exposed so a
+    /// propose test can upload, seed catalog content matches, and assert both sides.
+    fn propose_module() -> (
+        ScoreModule,
+        Arc<FakeUserScoreRepo>,
+        Arc<FakeCatalogSearchRepo>,
+        Arc<FakeStore>,
+    ) {
+        let repo = Arc::new(FakeUserScoreRepo::default());
+        let store = Arc::new(FakeStore::default());
+        let catalog = Arc::new(FakeCatalogSearchRepo::default());
+        let m = ScoreModule::new(
+            repo.clone(),
+            catalog.clone(),
+            Arc::new(FakeUserLibraryRepo::default()),
+            Arc::new(FakeScoreRatingRepo::default()),
+            store.clone(),
+            5,
+            7,
+            8 * 1024 * 1024,
+        );
+        (m, repo, catalog, store)
+    }
+
+    async fn upload_one(m: &ScoreModule, owner: &str) -> UserScore {
+        m.upload(owner, input(VALID, "beginner", "own_work", true))
+            .await
+            .unwrap()
+    }
+
+    #[tokio::test]
+    async fn propose_fresh_creates_pending_row_attributed_and_linked() {
+        let (m, repo, catalog, _s) = propose_module();
+        let rec = upload_one(&m, "u1").await;
+        m.propose("u1", &rec.id, "CC-BY-4.0", true, None, false)
+            .await
+            .unwrap();
+        // A catalog row now exists for this content, pending, attributed to u1.
+        let (cid, status) = catalog.find_by_sha(&rec.sha256).await.unwrap().unwrap();
+        assert_eq!(status, "pending");
+        let hit = catalog.hit_by_id(&cid, true).await.unwrap().unwrap();
+        assert_eq!(hit.proposed_by.as_deref(), Some("u1"));
+        assert_eq!(hit.source, "user-proposal");
+        // The private score is linked back to the catalog row.
+        let linked = repo
+            .rows()
+            .into_iter()
+            .find(|r| r.id == rec.id)
+            .unwrap()
+            .proposed_catalog_id;
+        assert_eq!(linked.as_deref(), Some(cid.as_str()));
+    }
+
+    #[tokio::test]
+    async fn propose_by_admin_is_auto_accepted() {
+        let (m, _repo, catalog, _s) = propose_module();
+        let rec = upload_one(&m, "u1").await;
+        m.propose("u1", &rec.id, "CC-BY-4.0", true, None, true)
+            .await
+            .unwrap();
+        let (_, status) = catalog.find_by_sha(&rec.sha256).await.unwrap().unwrap();
+        assert_eq!(status, "accepted");
+    }
+
+    #[tokio::test]
+    async fn propose_requires_licence_ack_and_ownership() {
+        let (m, _repo, _catalog, _s) = propose_module();
+        let rec = upload_one(&m, "u1").await;
+        // Missing attestation.
+        assert!(matches!(
+            m.propose("u1", &rec.id, "CC-BY-4.0", false, None, false)
+                .await,
+            Err(AppError::InvalidArgument(_))
+        ));
+        // Empty licence declaration.
+        assert!(matches!(
+            m.propose("u1", &rec.id, "  ", true, None, false).await,
+            Err(AppError::InvalidArgument(_))
+        ));
+        // Not the owner / unknown score.
+        assert!(matches!(
+            m.propose("u2", &rec.id, "CC-BY-4.0", true, None, false)
+                .await,
+            Err(AppError::NotFound(_))
+        ));
+    }
+
+    #[tokio::test]
+    async fn propose_of_non_rejected_content_is_a_duplicate() {
+        let (m, _repo, catalog, _s) = propose_module();
+        let rec = upload_one(&m, "u1").await;
+        // Seed an already-accepted catalog row with the same content.
+        catalog.set_rows(vec![
+            FakeCatalogRow::new("existing", "T", "C", None)
+                .with_sha(&rec.sha256)
+                .with_moderation_status("accepted"),
+        ]);
+        let err = m
+            .propose("u1", &rec.id, "CC-BY-4.0", true, None, false)
+            .await
+            .unwrap_err();
+        assert!(matches!(err, AppError::AlreadyExists(_)));
+    }
+
+    #[tokio::test]
+    async fn reproposing_a_rejected_score_reopens_it_and_needs_a_justification() {
+        let (m, _repo, catalog, _s) = propose_module();
+        let rec = upload_one(&m, "u1").await;
+        // Its content is already in the catalog as a rejected row.
+        catalog.set_rows(vec![
+            FakeCatalogRow::new("rej", "T", "C", None)
+                .with_sha(&rec.sha256)
+                .with_moderation_status("rejected"),
+        ]);
+        // Without a justification → refused, still rejected.
+        assert!(matches!(
+            m.propose("u1", &rec.id, "CC-BY-4.0", true, None, false)
+                .await,
+            Err(AppError::InvalidArgument(_))
+        ));
+        assert_eq!(
+            catalog.find_by_sha(&rec.sha256).await.unwrap().unwrap().1,
+            "rejected"
+        );
+        // With a justification → the SAME row reopens to pending, re-attributed.
+        m.propose(
+            "u1",
+            &rec.id,
+            "CC-BY-4.0",
+            true,
+            Some("fixed the wrong key signature"),
+            false,
+        )
+        .await
+        .unwrap();
+        let hit = catalog.hit_by_id("rej", true).await.unwrap().unwrap();
+        assert_eq!(hit.moderation_status.as_deref(), Some("pending"));
+        assert_eq!(hit.proposed_by.as_deref(), Some("u1"));
+        assert_eq!(
+            hit.resubmission_note.as_deref(),
+            Some("fixed the wrong key signature")
+        );
+    }
+
+    #[tokio::test]
+    async fn list_contributions_reports_status_and_rejection_reason() {
+        let (m, _repo, catalog, _s) = propose_module();
+        let rec = upload_one(&m, "u1").await;
+        m.propose("u1", &rec.id, "CC-BY-4.0", true, None, false)
+            .await
+            .unwrap();
+        let (cid, _) = catalog.find_by_sha(&rec.sha256).await.unwrap().unwrap();
+        // Pending right after proposing.
+        let listed = m.list_contributions("u1").await.unwrap();
+        assert_eq!(listed[0].1.as_deref(), Some("pending"));
+        assert_eq!(listed[0].2, None);
+        // A moderator rejects with a reason → surfaced to the proposer.
+        m.set_moderation_status("mod-1", &cid, "rejected", Some("poor scan"))
+            .await
+            .unwrap();
+        let listed = m.list_contributions("u1").await.unwrap();
+        assert_eq!(listed[0].1.as_deref(), Some("rejected"));
+        assert_eq!(listed[0].2.as_deref(), Some("poor scan"));
+    }
+
+    #[tokio::test]
+    async fn attach_review_attribution_resolves_pseudo_and_public_credit_is_gated() {
+        use cymbra_user_port::{Account, MockUserPort, PlayerProfile, Visibility};
+        let (base, _repo, catalog, _s) = propose_module();
+        let rec = upload_one(&base, "u1").await;
+        base.propose("u1", &rec.id, "CC-BY-4.0", true, None, true) // admin → accepted
+            .await
+            .unwrap();
+        let (cid, _) = catalog.find_by_sha(&rec.sha256).await.unwrap().unwrap();
+
+        // Privileged read: get_account resolves the pseudo regardless of visibility.
+        let mut acct_user = MockUserPort::new();
+        acct_user.expect_get_account().returning(|uid| {
+            Ok(Account {
+                user_id: uid.to_string(),
+                display_name: Some("Alice".into()),
+                preferences: "{}".into(),
+                version: 1,
+                updated_at: 0,
+                handle: Some("alice".into()),
+                locale: None,
+            })
+        });
+        let m = base.with_user(Arc::new(acct_user));
+        let mut hits = vec![catalog.hit_by_id(&cid, true).await.unwrap().unwrap()];
+        m.attach_review_attribution(&mut hits).await;
+        assert_eq!(hits[0].proposer_display_name.as_deref(), Some("alice"));
+
+        // Public read, PUBLIC profile → credit present, raw id + privileged fields stripped.
+        let mut pub_user = MockUserPort::new();
+        pub_user
+            .expect_get_player_profile()
+            .returning(|_, target, _| {
+                Ok(PlayerProfile {
+                    user_id: target.to_string(),
+                    handle: Some("alice".into()),
+                    display_name: Some("Alice".into()),
+                    visibility: Visibility::Public,
+                })
+            });
+        let mp = propose_public(catalog.clone(), Arc::new(pub_user));
+        let mut hits = vec![catalog.hit_by_id(&cid, true).await.unwrap().unwrap()];
+        mp.attach_public_credit(
+            &mut hits,
+            chrono::NaiveDate::from_ymd_opt(2026, 8, 3).unwrap(),
+        )
+        .await;
+        assert_eq!(hits[0].contributor_credit.as_deref(), Some("alice"));
+        assert!(hits[0].proposed_by.is_none());
+        assert!(hits[0].review_reason.is_none());
+
+        // Public read, PRIVATE profile (fail-closed NotFound) → no credit.
+        let mut priv_user = MockUserPort::new();
+        priv_user
+            .expect_get_player_profile()
+            .returning(|_, _, _| Err(cymbra_platform::AppError::NotFound("private".into())));
+        let mp = propose_public(catalog.clone(), Arc::new(priv_user));
+        let mut hits = vec![catalog.hit_by_id(&cid, true).await.unwrap().unwrap()];
+        mp.attach_public_credit(
+            &mut hits,
+            chrono::NaiveDate::from_ymd_opt(2026, 8, 3).unwrap(),
+        )
+        .await;
+        assert!(hits[0].contributor_credit.is_none());
+    }
+
+    #[tokio::test]
+    async fn search_all_statuses_and_source_filter() {
+        // moderated_module seeds accepted + pending + rejected rows (all source "pdmx").
+        let m = moderated_module().await;
+        // `all_statuses` (privileged): every moderation status is returned.
+        let (all, _) = m
+            .search_catalog(CatalogQuery {
+                all_statuses: true,
+                limit: 50,
+                ..Default::default()
+            })
+            .await
+            .unwrap();
+        assert_eq!(all.len(), 3);
+        // Source filter composes: `pdmx` keeps all three, `user-proposal` keeps none.
+        let (pdmx, _) = m
+            .search_catalog(CatalogQuery {
+                all_statuses: true,
+                source: Some("pdmx".into()),
+                limit: 50,
+                ..Default::default()
+            })
+            .await
+            .unwrap();
+        assert_eq!(pdmx.len(), 3);
+        let (proposals, _) = m
+            .search_catalog(CatalogQuery {
+                all_statuses: true,
+                source: Some("user-proposal".into()),
+                limit: 50,
+                ..Default::default()
+            })
+            .await
+            .unwrap();
+        assert!(proposals.is_empty());
+    }
+
+    /// A bare module over an existing catalog fake + a wired user directory, for the
+    /// read-enrichment (attribution/credit) assertions.
+    fn propose_public(
+        catalog: Arc<FakeCatalogSearchRepo>,
+        user: Arc<dyn cymbra_user_port::UserPort>,
+    ) -> ScoreModule {
+        ScoreModule::new(
+            Arc::new(FakeUserScoreRepo::default()),
+            catalog,
+            Arc::new(FakeUserLibraryRepo::default()),
+            Arc::new(FakeScoreRatingRepo::default()),
+            Arc::new(FakeStore::default()),
+            5,
+            7,
+            8 * 1024 * 1024,
+        )
+        .with_user(user)
     }
 }

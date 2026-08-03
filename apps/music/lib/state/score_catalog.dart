@@ -89,6 +89,14 @@ class CatalogEntry {
   /// community is helping evaluate.
   bool get isPending => moderationStatus == 'pending';
 
+  /// For an upload: its public-catalog proposal state — `null` (not proposed),
+  /// `pending` / `accepted` / `rejected` (change: add-score-catalog-proposal). Drives
+  /// the propose action + status tag on the "mes partitions" card.
+  final String? proposalStatus;
+
+  /// The moderator's rejection reason, shown when [proposalStatus] is `rejected`.
+  final String? proposalRejectionReason;
+
   const CatalogEntry({
     required this.id,
     required this.title,
@@ -109,6 +117,8 @@ class CatalogEntry {
     this.favorite = true,
     this.uploaderHandle,
     this.moderationStatus,
+    this.proposalStatus,
+    this.proposalRejectionReason,
   });
 
   /// Whether this is a user upload (byte-sourced) rather than a bundled score.

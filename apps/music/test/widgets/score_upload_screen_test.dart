@@ -64,12 +64,24 @@ class _FakeUpload implements ScoreUploadService {
     );
   }
 
+  final List<String> proposed = [];
+
   @override
   Future<List<ContributedScore>> listMyScores() async => const [];
   @override
   Future<void> deleteScore(String id) async {}
   @override
   Future<void> setFavorite(String id, bool favorite) async {}
+  @override
+  Future<void> propose({
+    required String scoreId,
+    required String license,
+    required bool attestation,
+    String attribution = '',
+    String? resubmissionNote,
+  }) async {
+    proposed.add(scoreId);
+  }
 
   @override
   Future<Uint8List> fetchBytes(String id) async => Uint8List(0);

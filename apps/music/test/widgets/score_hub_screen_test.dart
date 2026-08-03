@@ -89,6 +89,7 @@ class _FakeUpload implements ScoreUploadService {
   _FakeUpload(this.mine);
   final List<ContributedScore> mine;
   final List<(String, bool)> favoriteCalls = [];
+  final List<({String id, String? note})> proposeCalls = [];
 
   @override
   Future<List<ContributedScore>> listMyScores() async => mine;
@@ -97,6 +98,14 @@ class _FakeUpload implements ScoreUploadService {
   @override
   Future<void> setFavorite(String id, bool favorite) async =>
       favoriteCalls.add((id, favorite));
+  @override
+  Future<void> propose({
+    required String scoreId,
+    required String license,
+    required bool attestation,
+    String attribution = '',
+    String? resubmissionNote,
+  }) async => proposeCalls.add((id: scoreId, note: resubmissionNote));
 
   @override
   Future<Uint8List> fetchBytes(String id) async => Uint8List(0);

@@ -67,4 +67,21 @@ describe("useReviewSession (burn-down)", () => {
     expect(state.evaluateCalls).toHaveLength(0); // skip never evaluates
     scope.stop();
   });
+
+  it("passes the rejection reason through to the evaluate call", async () => {
+    const { clients, state } = makeFakeClients();
+    (clients.score as unknown as { searchCatalog: () => Promise<unknown> }).searchCatalog = () =>
+      Promise.resolve({ hits: [hit("a")], total: 1, nextOffset: 1 });
+    setClientsForTest(clients);
+
+    const scope = effectScope();
+    const s = scope.run(() => useReviewSession())!;
+    await s.start();
+    await flushPromises();
+
+    await s.decide("rejected", "blurry scan");
+    await flushPromises();
+    expect(state.evaluateCalls).toEqual([{ scoreId: "a", status: "rejected", reason: "blurry scan" }]);
+    scope.stop();
+  });
 });
