@@ -2,12 +2,30 @@ import { describe, expect, it } from "vitest";
 import { mount } from "@vue/test-utils";
 import CatalogTable from "@/components/CatalogTable.vue";
 import FiltersBar from "@/components/FiltersBar.vue";
+import StatCards, { type StatItem } from "@/components/StatCards.vue";
 import TablePager from "@/components/TablePager.vue";
 import { i18n } from "@/i18n";
 
 // The components use vue-i18n (useI18n), so the plugin must be installed. Default
 // locale is `en`, and the English strings match the selectors below.
 const withI18n = { plugins: [i18n] };
+
+describe("StatCards", () => {
+  const items: StatItem[] = [
+    { id: "total", label: "TOTAL", value: "155", accent: "accent", icon: "M4 7h16" },
+    { id: "accepted", label: "ACCEPTED", value: "32", accent: "green", icon: "M20 6" },
+    { id: "pending", label: "PENDING", value: "118", accent: "amber", icon: "M12 7" },
+  ];
+
+  it("renders a card per item with its label, value and accent", () => {
+    const w = mount(StatCards, { props: { items } });
+    expect(w.findAll(".stat").length).toBe(3);
+    const accepted = w.get('[data-testid="stat-accepted"]');
+    expect(accepted.text()).toContain("ACCEPTED");
+    expect(accepted.text()).toContain("32");
+    expect(accepted.classes()).toContain("green");
+  });
+});
 
 describe("CatalogTable", () => {
   const hits = [

@@ -28,6 +28,7 @@ import 'package:music/services/soundfont_source.dart';
 import 'package:music/state/card_preview_notifier.dart' show CardPreviewScore;
 import 'package:music/state/imported_soundfonts.dart';
 import 'package:music/state/piano_catalog.dart';
+import 'package:music/state/player_data.dart' show TimedNote;
 import 'package:music/state/sound_preview_sample.dart';
 
 import '../support/fakes.dart';
@@ -44,6 +45,7 @@ ProviderContainer _container({
   FakePrivateSoundFontService? private,
   RecordingAudioService? audio,
   List<PianoEntry>? serverFonts,
+  CardPreviewScore? sample,
 }) {
   final c = ProviderContainer(
     overrides: [
@@ -65,17 +67,19 @@ ProviderContainer _container({
       // absent in unit tests — override it with a trivial (empty) score so the
       // audition wiring runs without FFI.
       soundPreviewSampleProvider.overrideWith(
-        (ref) async => const CardPreviewScore(
-          notes: [],
-          rests: [],
-          songEndMs: 0,
-          bpm: 120,
-          keyFifths: 0,
-          beats: 4,
-          beatType: 4,
-          measureStartMs: [],
-          startMs: 0,
-        ),
+        (ref) async =>
+            sample ??
+            const CardPreviewScore(
+              notes: [],
+              rests: [],
+              songEndMs: 0,
+              bpm: 120,
+              keyFifths: 0,
+              beats: 4,
+              beatType: 4,
+              measureStartMs: [],
+              startMs: 0,
+            ),
       ),
     ],
   );
@@ -190,6 +194,74 @@ void main() {
     expect(registry.single.label, 'New Name');
   });
 
+  testWidgets('propose dialog: licence picker + attest, submit marks pending', (
+    tester,
+  ) async {
+    final prefs = FakePreferencesService({
+      ImportedSoundFonts.prefsKey: _encode([_synced('a', 'My Grand')]),
+    });
+    final private = FakePrivateSoundFontService(
+      library: const [
+        RemoteSoundFont(id: 'remote-a', label: 'My Grand', sizeBytes: 1),
+      ],
+    );
+    final c = _container(prefs: prefs, private: private);
+    await _pump(tester, c);
+
+    // Open the propose dialog from the card action.
+    await tester.tap(find.byIcon(Icons.publish_outlined));
+    await tester.pumpAndSettle();
+    // The licence combobox shows a description for the default (CC0) selection.
+    expect(find.textContaining('Public domain'), findsOneWidget);
+
+    // Check the mandatory attestation, then submit.
+    await tester.tap(find.byType(CheckboxListTile));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Propose'));
+    await tester.pumpAndSettle();
+
+    // The proposal went out with the chosen licence, and the card is now pending.
+    expect(private.proposed.single.license, 'CC0-1.0');
+    final e = c
+        .read(importedSoundFontsProvider)
+        .requireValue
+        .firstWhere((x) => x.id == 'a');
+    expect(e.proposalStatus, 'pending');
+  });
+
+  testWidgets('accepted and rejected proposals show their status tag', (
+    tester,
+  ) async {
+    final prefs = FakePreferencesService({
+      ImportedSoundFonts.prefsKey: _encode([
+        _synced('a', 'Accepted One'),
+        _synced('b', 'Rejected One'),
+      ]),
+    });
+    final private = FakePrivateSoundFontService(
+      library: const [
+        RemoteSoundFont(
+          id: 'remote-a',
+          label: 'Accepted One',
+          sizeBytes: 1,
+          proposalStatus: 'accepted',
+        ),
+        RemoteSoundFont(
+          id: 'remote-b',
+          label: 'Rejected One',
+          sizeBytes: 1,
+          proposalStatus: 'rejected',
+        ),
+      ],
+    );
+    await _pump(tester, _container(prefs: prefs, private: private));
+
+    expect(find.text('Accepted'), findsOneWidget);
+    expect(find.text('Rejected'), findsOneWidget);
+    // Both are already proposed, so no propose action remains.
+    expect(find.byIcon(Icons.publish_outlined), findsNothing);
+  });
+
   testWidgets('a proposed font shows a status tag and hides propose', (
     tester,
   ) async {
@@ -212,6 +284,41 @@ void main() {
     // A status tag is shown, and the propose action is gone (already submitted).
     expect(find.text('Pending review'), findsOneWidget);
     expect(find.byIcon(Icons.publish_outlined), findsNothing);
+  });
+
+  testWidgets('auditioning a sound plays the sample, then stops', (
+    tester,
+  ) async {
+    final audio = RecordingAudioService();
+    const sample = CardPreviewScore(
+      notes: [TimedNote(pitch: 60, startMs: 0, durationMs: 400)],
+      rests: [],
+      songEndMs: 400,
+      bpm: 120,
+      keyFifths: 0,
+      beats: 4,
+      beatType: 4,
+      measureStartMs: [0],
+      startMs: 0,
+    );
+    final prefs = FakePreferencesService({
+      ImportedSoundFonts.prefsKey: _encode([_synced('a', 'Mine')]),
+    });
+    final c = _container(prefs: prefs, audio: audio, sample: sample);
+    await _pump(tester, c);
+
+    // Tap the card → its font loads and the sample starts playing.
+    await tester.tap(find.text('Mine'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 60)); // seed the playhead
+    await tester.pump(const Duration(milliseconds: 60)); // cross the note onset
+    expect(audio.loadedSoundFonts, isNotEmpty);
+    expect(audio.noteOns.map((n) => n.pitch), contains(60));
+
+    // Tapping again stops the audition (flushes voices).
+    await tester.tap(find.text('Mine'));
+    await tester.pump();
+    expect(audio.allNotesOffCount, greaterThan(0));
   });
 
   testWidgets('tapping a sound loads its font to audition it', (tester) async {
