@@ -160,10 +160,16 @@ void main() {
   });
 
   test('build pulls a server-only font into the registry (cross-device sync)', () async {
-    // The server library already has a font this device never imported.
+    // The server library already has a font this device never imported — and it
+    // was already proposed (accepted). Changing device must recover both.
     final private = FakePrivateSoundFontService(
       library: const [
-        RemoteSoundFont(id: 'remote-x', label: 'Shared Grand', sizeBytes: 12),
+        RemoteSoundFont(
+          id: 'remote-x',
+          label: 'Shared Grand',
+          sizeBytes: 12,
+          proposalStatus: 'accepted',
+        ),
       ],
     );
     final c = container(
@@ -173,10 +179,12 @@ void main() {
 
     final synced = await c.read(importedSoundFontsProvider.future);
 
-    // It appears as a user piano backed by a downloaded cache file.
+    // It appears as a user piano backed by a downloaded cache file, carrying the
+    // server's proposal status so the tag shows on the new device too.
     final font = synced.singleWhere((e) => e.remoteId == 'remote-x');
     expect(font.label, 'Shared Grand');
     expect(font.kind, PianoKind.user);
     expect(File(font.source).existsSync(), isTrue);
+    expect(font.proposalStatus, 'accepted');
   });
 }

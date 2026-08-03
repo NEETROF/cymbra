@@ -64,6 +64,7 @@ class PianoEntry {
     license: json['license'] as String?,
     attribution: json['attribution'] as String?,
     remoteId: json['remoteId'] as String?,
+    proposalStatus: json['proposalStatus'] as String?,
   );
 
   final String id;
@@ -81,7 +82,8 @@ class PianoEntry {
 
   /// Moderation status of this font's public-catalog proposal, or `null` when not
   /// proposed (change: add-soundfont-moderation): `pending`/`accepted`/`rejected`.
-  /// Server-derived (refreshed on sync) — not persisted.
+  /// Persisted (so a submitted proposal keeps its tag across relaunches) and
+  /// upgraded by the sync from the server (`pending` → `accepted`/`rejected`).
   final String? proposalStatus;
 
   /// A copy with individual fields replaced (only what the sync flow needs).
@@ -109,6 +111,7 @@ class PianoEntry {
     if (license != null) 'license': license,
     if (attribution != null) 'attribution': attribution,
     if (remoteId != null) 'remoteId': remoteId,
+    if (proposalStatus != null) 'proposalStatus': proposalStatus,
   };
 
   @override

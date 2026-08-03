@@ -85,6 +85,54 @@ void main() {
     expect(prefs.store[ImportedSoundFonts.prefsKey], contains('u1'));
   });
 
+  test('proposing optimistically marks the font pending', () async {
+    const entry = PianoEntry(
+      id: 'u1',
+      label: 'My Grand',
+      kind: PianoKind.user,
+      source: '/x/u1.sf2',
+      remoteId: 'remote-u1',
+    );
+    final prefs = FakePreferencesService({
+      ImportedSoundFonts.prefsKey: _encodeRegistry([entry]),
+    });
+    final container = _container(prefs, FakeSoundFontImporter());
+    await container.read(importedSoundFontsProvider.future);
+
+    await container
+        .read(importedSoundFontsProvider.notifier)
+        .proposeToPublicCatalog('u1', license: 'CC0-1.0', attestation: true);
+
+    final e = container
+        .read(importedSoundFontsProvider)
+        .requireValue
+        .firstWhere((x) => x.id == 'u1');
+    expect(e.proposalStatus, 'pending');
+  });
+
+  test('a proposed status survives a relaunch even if the server omits it', () async {
+    // Persisted 'pending' + an empty server library (e.g. offline / old backend):
+    // the sync must keep the tag, not clear it.
+    const entry = PianoEntry(
+      id: 'u1',
+      label: 'My Grand',
+      kind: PianoKind.user,
+      source: '/x/u1.sf2',
+      remoteId: 'remote-u1',
+      proposalStatus: 'pending',
+    );
+    final prefs = FakePreferencesService({
+      ImportedSoundFonts.prefsKey: _encodeRegistry([entry]),
+    });
+    final container = _container(prefs, FakeSoundFontImporter());
+    await container.read(importedSoundFontsProvider.future);
+    final e = container
+        .read(importedSoundFontsProvider)
+        .requireValue
+        .firstWhere((x) => x.id == 'u1');
+    expect(e.proposalStatus, 'pending');
+  });
+
   test('an imported piano survives a relaunch', () async {
     // A "previous launch" persisted one user piano.
     final entry = fakeUserPiano(id: 'kept', label: 'Kept Piano');

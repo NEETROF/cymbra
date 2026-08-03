@@ -228,12 +228,14 @@ class ImportedSoundFonts extends _$ImportedSoundFonts {
           attestation: attestation,
         );
     // Optimistically reflect the pending submission so the UI updates immediately
-    // (the next sync confirms/updates it from the server).
+    // and survives a relaunch (persisted); the next sync upgrades it to
+    // accepted/rejected from the server.
     final next = <PianoEntry>[
       for (final e in current)
         if (e.id == id) e.copyWith(proposalStatus: 'pending') else e,
     ];
     state = AsyncData(next);
+    await _persist(next);
   }
 
   /// Removes an imported piano: deletes its private server copy (so it stops
