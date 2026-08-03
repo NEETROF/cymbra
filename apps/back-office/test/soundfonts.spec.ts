@@ -1,6 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createPinia, setActivePinia } from "pinia";
-import { type NewSoundFont, setUploadForTest, useSoundFontsStore } from "@/stores/soundfonts";
+import {
+  type NewSoundFont,
+  setUploadForTest,
+  SOUNDFONTS_PAGE_SIZE,
+  useSoundFontsStore,
+} from "@/stores/soundfonts";
 import { SoundFontUploadError } from "@/lib/errors";
 import { setClientsForTest } from "@/lib/api";
 import { makeFakeClients } from "./fakes";
@@ -23,9 +28,19 @@ function withSoundfonts(clients: ReturnType<typeof makeFakeClients>["clients"], 
     moderationCalls: [],
   };
   const score = clients.score as unknown as Record<string, (req: unknown) => Promise<unknown>>;
-  score.adminListSoundFonts = async () => {
+  score.adminListSoundFonts = async (req: unknown) => {
     state.adminListCalls++;
-    return { soundfonts: state.list };
+    const r = (req ?? {}) as { limit?: number; offset?: number; moderationStatus?: string };
+    const status = r.moderationStatus ?? "";
+    const filtered = status
+      ? state.list.filter(
+          (f) => (((f as Record<string, unknown>).moderationStatus as string) || "pending") === status,
+        )
+      : state.list;
+    const offset = r.offset ?? 0;
+    const limit = r.limit && r.limit > 0 ? r.limit : filtered.length;
+    const page = filtered.slice(offset, offset + limit);
+    return { soundfonts: page, total: filtered.length, nextOffset: offset + page.length };
   };
   score.setSoundFontModerationStatus = async (req: unknown) => {
     state.moderationCalls.push(req);
@@ -75,6 +90,45 @@ describe("soundfonts store", () => {
     expect(sf.adminListCalls).toBe(1);
     expect(store.catalog.status).toBe("success");
     if (store.catalog.status === "success") expect(store.catalog.data).toHaveLength(1);
+  });
+
+  it("paginates the admin listing and tracks the total", async () => {
+    const { clients } = makeFakeClients();
+    withSoundfonts(
+      clients,
+      Array.from({ length: 30 }, (_, i) => row(`f${String(i).padStart(2, "0")}`)),
+    );
+    setClientsForTest(clients);
+    const store = useSoundFontsStore();
+
+    await store.list({ status: "", offset: 0 });
+    expect(store.total).toBe(30);
+    if (store.catalog.status === "success") {
+      expect(store.catalog.data).toHaveLength(SOUNDFONTS_PAGE_SIZE);
+    }
+
+    // Next page: only the remainder.
+    await store.list({ offset: SOUNDFONTS_PAGE_SIZE });
+    expect(store.offset).toBe(SOUNDFONTS_PAGE_SIZE);
+    if (store.catalog.status === "success") {
+      expect(store.catalog.data).toHaveLength(30 - SOUNDFONTS_PAGE_SIZE);
+    }
+  });
+
+  it("passes the status filter to the server and resets the page", async () => {
+    const { clients } = makeFakeClients();
+    withSoundfonts(clients, [
+      row("a", { moderationStatus: "accepted" }),
+      row("b", { moderationStatus: "pending" }),
+    ]);
+    setClientsForTest(clients);
+    const store = useSoundFontsStore();
+
+    await store.list({ status: "pending", offset: 0 });
+    expect(store.total).toBe(1);
+    if (store.catalog.status === "success") {
+      expect(store.catalog.data.map((f) => f.id)).toEqual(["b"]);
+    }
   });
 
   it("adds a font via the upload seam then re-lists", async () => {

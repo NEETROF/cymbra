@@ -86,6 +86,15 @@ pub trait SoundFontRepo: Send + Sync {
     async fn list(&self) -> Result<Vec<FontEntry>>;
     /// Only `accepted` fonts (the public listing / `ListSoundFonts`), ordered by label.
     async fn list_accepted(&self) -> Result<Vec<FontEntry>>;
+    /// A page of the admin listing filtered by moderation status (`None` = all),
+    /// ordered by label, together with the total count matching the filter (for
+    /// pagination).
+    async fn list_admin_page(
+        &self,
+        moderation_status: Option<&str>,
+        limit: i64,
+        offset: i64,
+    ) -> Result<(Vec<FontEntry>, i64)>;
     /// Resolve a client-facing id to its entry (any status), or `None` if unknown.
     async fn lookup(&self, id: &str) -> Result<Option<FontEntry>>;
     /// First non-`rejected` catalog font whose content digest matches `sha256`, used to
@@ -173,6 +182,53 @@ impl SoundFontRepo for PgSoundFontRepo {
         .await
         .context("list accepted soundfonts")?;
         Ok(rows.iter().map(row_to_entry).collect())
+    }
+
+    async fn list_admin_page(
+        &self,
+        moderation_status: Option<&str>,
+        limit: i64,
+        offset: i64,
+    ) -> Result<(Vec<FontEntry>, i64)> {
+        let (total, rows) = match moderation_status {
+            Some(s) => {
+                let total: i64 = sqlx::query_scalar(
+                    "SELECT count(*) FROM music.soundfonts WHERE moderation_status = $1",
+                )
+                .bind(s)
+                .fetch_one(&self.pool)
+                .await
+                .context("count soundfonts by status")?;
+                let rows = sqlx::query(&format!(
+                    "SELECT {SELECT_COLS} FROM music.soundfonts \
+                     WHERE moderation_status = $1 ORDER BY label LIMIT $2 OFFSET $3"
+                ))
+                .bind(s)
+                .bind(limit)
+                .bind(offset)
+                .fetch_all(&self.pool)
+                .await
+                .context("list soundfonts page by status")?;
+                (total, rows)
+            }
+            None => {
+                let total: i64 = sqlx::query_scalar("SELECT count(*) FROM music.soundfonts")
+                    .fetch_one(&self.pool)
+                    .await
+                    .context("count soundfonts")?;
+                let rows = sqlx::query(&format!(
+                    "SELECT {SELECT_COLS} FROM music.soundfonts \
+                     ORDER BY label LIMIT $1 OFFSET $2"
+                ))
+                .bind(limit)
+                .bind(offset)
+                .fetch_all(&self.pool)
+                .await
+                .context("list soundfonts page")?;
+                (total, rows)
+            }
+        };
+        Ok((rows.iter().map(row_to_entry).collect(), total))
     }
 
     async fn lookup(&self, id: &str) -> Result<Option<FontEntry>> {
@@ -317,6 +373,30 @@ impl SoundFontRepo for FakeSoundFontRepo {
             .filter(|e| e.is_accepted())
             .cloned()
             .collect())
+    }
+
+    async fn list_admin_page(
+        &self,
+        moderation_status: Option<&str>,
+        limit: i64,
+        offset: i64,
+    ) -> Result<(Vec<FontEntry>, i64)> {
+        let mut all: Vec<FontEntry> = self
+            .entries
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|e| moderation_status.is_none_or(|s| e.moderation_status == s))
+            .cloned()
+            .collect();
+        all.sort_by(|a, b| a.label.cmp(&b.label));
+        let total = all.len() as i64;
+        let page = all
+            .into_iter()
+            .skip(offset.max(0) as usize)
+            .take(limit.max(0) as usize)
+            .collect();
+        Ok((page, total))
     }
 
     async fn lookup(&self, id: &str) -> Result<Option<FontEntry>> {

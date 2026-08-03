@@ -67,13 +67,32 @@ export function setUploadForTest(fn: UploadFn): void {
   uploadImpl = fn;
 }
 
+/** Admin listing page size. */
+export const SOUNDFONTS_PAGE_SIZE = 25;
+
 export const useSoundFontsStore = defineStore("soundfonts", () => {
   const catalog = ref<Async<AdminSoundFont[]>>(idle);
   const op = ref<Async<void>>(idle);
+  // Server-side pagination + status filter (change: add-soundfont-moderation).
+  const total = ref(0);
+  const offset = ref(0);
+  const statusFilter = ref(""); // "" = all, else pending/accepted/rejected
 
-  /** Load the admin catalog listing. */
-  async function list() {
-    await run(catalog, async () => (await api().score.adminListSoundFonts({})).soundfonts);
+  /** Load one page of the admin catalog listing (server-side status filter +
+   *  pagination). Passing `status`/`offset` updates the current query; omitting
+   *  them re-loads the current page (e.g. after an accept/reject). */
+  async function list(opts: { status?: string; offset?: number } = {}) {
+    if (opts.status !== undefined) statusFilter.value = opts.status;
+    if (opts.offset !== undefined) offset.value = opts.offset;
+    await run(catalog, async () => {
+      const resp = await api().score.adminListSoundFonts({
+        limit: SOUNDFONTS_PAGE_SIZE,
+        offset: offset.value,
+        moderationStatus: statusFilter.value,
+      });
+      total.value = resp.total;
+      return resp.soundfonts;
+    });
   }
 
   /** Add a font: upload its bytes + metadata, then re-list. */
@@ -151,6 +170,9 @@ export const useSoundFontsStore = defineStore("soundfonts", () => {
   return {
     catalog,
     op,
+    total,
+    offset,
+    statusFilter,
     list,
     publicList,
     add,

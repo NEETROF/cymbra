@@ -286,10 +286,23 @@ impl ScoreService for ScoreGrpc {
     ) -> Result<Response<AdminListSoundFontsResponse>, Status> {
         cymbra_platform::guard::require_moderator_or_admin(&identity(&req)?)?;
         let repo = self.soundfont_repo()?;
-        let fonts = repo
-            .list()
+        let r = req.into_inner();
+        // Paging (change: add-soundfont-moderation): clamp the page size, treat an
+        // empty status filter as "all".
+        const DEFAULT_LIMIT: i32 = 50;
+        const MAX_LIMIT: i32 = 200;
+        let limit = if r.limit <= 0 {
+            DEFAULT_LIMIT
+        } else {
+            r.limit.min(MAX_LIMIT)
+        };
+        let offset = r.offset.max(0);
+        let status = (!r.moderation_status.is_empty()).then_some(r.moderation_status.as_str());
+        let (fonts, total) = repo
+            .list_admin_page(status, limit as i64, offset as i64)
             .await
             .map_err(|e| Status::internal(format!("list soundfonts: {e}")))?;
+        let page_len = fonts.len() as i32;
         let mut soundfonts = Vec::with_capacity(fonts.len());
         for f in fonts {
             let has_object = match &self.soundfont_store {
@@ -312,7 +325,11 @@ impl ScoreService for ScoreGrpc {
                 content_sha256: f.content_sha256.unwrap_or_default(),
             });
         }
-        Ok(Response::new(AdminListSoundFontsResponse { soundfonts }))
+        Ok(Response::new(AdminListSoundFontsResponse {
+            soundfonts,
+            next_offset: offset + page_len,
+            total: total as i32,
+        }))
     }
 
     /// Edit a font's metadata (music-scope moderator/admin only). Id and object_key
@@ -819,7 +836,7 @@ mod tests {
         let (svc, _repo, _store) = grpc_soundfont_admin().await;
         // A plain user (no moderator/admin) is refused on every admin op.
         let list = svc
-            .admin_list_sound_fonts(authed(AdminListSoundFontsRequest {}, "u"))
+            .admin_list_sound_fonts(authed(AdminListSoundFontsRequest::default(), "u"))
             .await
             .unwrap_err();
         assert_eq!(list.code(), tonic::Code::PermissionDenied);
@@ -910,6 +927,56 @@ mod tests {
             .await
             .unwrap_err();
         assert_eq!(err.code(), tonic::Code::NotFound);
+    }
+
+    #[tokio::test]
+    async fn admin_list_paginates_and_filters_by_status() {
+        use crate::soundfont::FakeSoundFontRepo;
+        // 3 accepted + 2 pending; label order a..e for deterministic paging.
+        let repo = Arc::new(FakeSoundFontRepo::with(vec![
+            font_status("a", None, "accepted"),
+            font_status("b", None, "pending"),
+            font_status("c", None, "accepted"),
+            font_status("d", None, "pending"),
+            font_status("e", None, "accepted"),
+        ]));
+        let svc = grpc().await.with_soundfonts(repo);
+
+        // Page 1 of all: limit 2, offset 0 → 2 rows, total 5, next_offset 2.
+        let p1 = svc
+            .admin_list_sound_fonts(authed_admin(
+                AdminListSoundFontsRequest {
+                    limit: 2,
+                    offset: 0,
+                    moderation_status: String::new(),
+                },
+                "admin-1",
+            ))
+            .await
+            .unwrap()
+            .into_inner();
+        assert_eq!(p1.total, 5);
+        assert_eq!(p1.next_offset, 2);
+        assert_eq!(p1.soundfonts.iter().map(|f| f.id.clone()).collect::<Vec<_>>(), ["a", "b"]);
+
+        // Filter to pending: total 2 regardless of paging.
+        let pending = svc
+            .admin_list_sound_fonts(authed_admin(
+                AdminListSoundFontsRequest {
+                    limit: 50,
+                    offset: 0,
+                    moderation_status: "pending".into(),
+                },
+                "admin-1",
+            ))
+            .await
+            .unwrap()
+            .into_inner();
+        assert_eq!(pending.total, 2);
+        assert_eq!(
+            pending.soundfonts.iter().map(|f| f.id.clone()).collect::<Vec<_>>(),
+            ["b", "d"]
+        );
     }
 
     #[tokio::test]

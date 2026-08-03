@@ -4,7 +4,7 @@ import { useI18n } from "vue-i18n";
 import { match } from "ts-pattern";
 import { useScorePlayer } from "@/composables/useScorePlayer";
 import { sampleScoreBytes } from "@/lib/sampleScore";
-import { useSoundFontsStore } from "@/stores/soundfonts";
+import { SOUNDFONTS_PAGE_SIZE, useSoundFontsStore } from "@/stores/soundfonts";
 import type { AdminSoundFont } from "@/gen/score_pb";
 import AppTag from "@/components/AppTag.vue";
 import SoundFontDrawer from "@/components/SoundFontDrawer.vue";
@@ -13,7 +13,7 @@ const store = useSoundFontsStore();
 const { t } = useI18n();
 
 onMounted(() => {
-  void store.list();
+  void store.list({ status: "", offset: 0 });
 });
 
 const vm = computed(() =>
@@ -29,17 +29,25 @@ const acting = computed(() => store.op.status === "loading");
 const opError = computed(() => (store.op.status === "error" ? store.op.error : null));
 
 // Moderation review (change: add-soundfont-moderation): a back-office-only status
-// filter (defaults to the pending review queue) and accept/reject actions.
+// filter and accept/reject actions. Filtering + paging are server-side.
 type StatusFilter = "all" | "pending" | "accepted" | "rejected";
 const statusFilter = ref<StatusFilter>("all");
-const filteredRows = computed(() =>
-  statusFilter.value === "all"
-    ? vm.value.rows
-    : vm.value.rows.filter((r) => (r.moderationStatus || "pending") === statusFilter.value),
-);
-const pendingCount = computed(
-  () => vm.value.rows.filter((r) => (r.moderationStatus || "pending") === "pending").length,
-);
+function selectStatus(f: StatusFilter) {
+  statusFilter.value = f;
+  void store.list({ status: f === "all" ? "" : f, offset: 0 });
+}
+
+// Pagination (server-side): a window over `total` rows.
+const pageStart = computed(() => (store.total === 0 ? 0 : store.offset + 1));
+const pageEnd = computed(() => store.offset + vm.value.rows.length);
+const canPrev = computed(() => store.offset > 0);
+const canNext = computed(() => store.offset + SOUNDFONTS_PAGE_SIZE < store.total);
+function prevPage() {
+  void store.list({ offset: Math.max(0, store.offset - SOUNDFONTS_PAGE_SIZE) });
+}
+function nextPage() {
+  void store.list({ offset: store.offset + SOUNDFONTS_PAGE_SIZE });
+}
 
 async function setStatus(id: string, status: string) {
   await store.setModerationStatus(id, status);
@@ -128,16 +136,15 @@ function licenseDesc(license: string): string {
         role="tab"
         :aria-selected="statusFilter === f"
         :class="{ chip: true, active: statusFilter === f }"
-        @click="statusFilter = f"
+        @click="selectStatus(f)"
       >
         {{ t(`soundfonts.filter.${f}`) }}
-        <span v-if="f === 'pending' && pendingCount > 0" class="count">{{ pendingCount }}</span>
       </button>
     </div>
 
     <p v-if="vm.loading" class="muted">…</p>
     <p v-else-if="vm.error" class="error" role="alert">{{ vm.error }}</p>
-    <p v-else-if="filteredRows.length === 0" class="muted">{{ t("soundfonts.empty") }}</p>
+    <p v-else-if="vm.rows.length === 0" class="muted">{{ t("soundfonts.empty") }}</p>
 
     <table v-else class="grid">
       <thead>
@@ -151,7 +158,7 @@ function licenseDesc(license: string): string {
         </tr>
       </thead>
       <tbody>
-        <tr v-for="row in filteredRows" :key="row.id">
+        <tr v-for="row in vm.rows" :key="row.id">
           <td>{{ row.label }}</td>
           <td>
             <AppTag :variant="statusOf(row)">{{ t(`soundfonts.status.${statusOf(row)}`) }}</AppTag>
@@ -200,6 +207,12 @@ function licenseDesc(license: string): string {
         </tr>
       </tbody>
     </table>
+
+    <nav v-if="!vm.loading && !vm.error && store.total > 0" class="pager" :aria-label="t('soundfonts.pager.label')">
+      <button type="button" :disabled="!canPrev" @click="prevPage">{{ t("soundfonts.pager.prev") }}</button>
+      <span class="range">{{ t("soundfonts.pager.range", { start: pageStart, end: pageEnd, total: store.total }) }}</span>
+      <button type="button" :disabled="!canNext" @click="nextPage">{{ t("soundfonts.pager.next") }}</button>
+    </nav>
 
     <SoundFontDrawer :mode="drawerMode" :entry="drawerEntry" @close="closeDrawer" />
   </section>
@@ -298,5 +311,15 @@ function licenseDesc(license: string): string {
 }
 .muted {
   color: var(--muted, #888);
+}
+.pager {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+.pager .range {
+  color: var(--muted, #888);
+  font-variant-numeric: tabular-nums;
 }
 </style>

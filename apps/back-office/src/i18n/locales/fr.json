@@ -95,6 +95,12 @@
       "rejected": "Rejetés",
       "all": "Tous"
     },
+    "pager": {
+      "label": "Pagination",
+      "prev": "Précédent",
+      "next": "Suivant",
+      "range": "{start}–{end} sur {total}"
+    },
     "createTitle": "Ajouter une SoundFont",
     "editTitle": "Modifier la SoundFont",
     "idHint": "ex. ydp-grand",

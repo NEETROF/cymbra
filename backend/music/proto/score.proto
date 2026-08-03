@@ -275,10 +275,18 @@ message AdminSoundFont {
   string content_sha256 = 13;
 }
 
-message AdminListSoundFontsRequest {}
+// Paginated admin listing (change: add-soundfont-moderation). `moderation_status`
+// filters to a single status ("" = all); `limit`/`offset` page the results.
+message AdminListSoundFontsRequest {
+  int32 limit = 1;                 // page size; clamped to a server maximum
+  int32 offset = 2;                // page offset
+  string moderation_status = 3;    // "" = all, else pending/accepted/rejected
+}
 
 message AdminListSoundFontsResponse {
   repeated AdminSoundFont soundfonts = 1;
+  int32 next_offset = 2;  // offset to request the next page (offset + soundfonts.len)
+  int32 total = 3;        // total rows matching the status filter, independent of paging
 }
 
 // Metadata-only edit (id and object_key are immutable; bytes are replaced by
