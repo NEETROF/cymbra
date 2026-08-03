@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { match } from "ts-pattern";
 import FiltersBar from "@/components/FiltersBar.vue";
 import CatalogTable from "@/components/CatalogTable.vue";
 import StatBar from "@/components/StatBar.vue";
 import TablePager from "@/components/TablePager.vue";
-import { PAGE_SIZE, useCatalogStore, type Filters, type SortKeyInit, type StatusFilter } from "@/stores/catalog";
+import { PAGE_SIZE, useCatalogStore, type Filters } from "@/stores/catalog";
 import { useAuthStore } from "@/stores/auth";
 import { musicxmlFileName, saveBytesAsFile } from "@/lib/download";
 import type { CatalogHit } from "@/gen/score_pb";
@@ -15,19 +15,12 @@ import type { CatalogHit } from "@/gen/score_pb";
 const store = useCatalogStore();
 const auth = useAuthStore();
 const router = useRouter();
-// Default the BO catalog to "" (Tous) — every moderation status (change:
-// add-score-catalog-proposal).
-const status = ref<StatusFilter>("");
-const sort = ref<SortKeyInit[]>([]);
-const offset = ref(0);
-let filters: Filters = {
-  query: "",
-  author: "",
-  level: "",
-  isPiano: undefined,
-  moderationStatus: "",
-  source: "",
-};
+// The browse state (filters/sort/page) lives in the store so it survives opening a
+// score's detail page and returning — this view remounts on return, so local refs
+// would snap back to the defaults. The BO catalog defaults status to "" (Tous):
+// every moderation status (change: add-score-catalog-proposal).
+const view = store.catalogView;
+const status = computed(() => view.filters.moderationStatus);
 
 // One exhaustive match folds the Async state into a flat, template-safe view model
 // — `.exhaustive()` makes a forgotten state a compile error.
@@ -50,41 +43,40 @@ function run() {
   // The ternary narrows `status.value` to a concrete ModerationStatus in the else arm.
   const specific = status.value === "" ? undefined : status.value;
   store.search({
-    query: filters.query || undefined,
-    author: filters.author || undefined,
-    level: filters.level || undefined,
-    isPiano: filters.isPiano,
+    query: view.filters.query || undefined,
+    author: view.filters.author || undefined,
+    level: view.filters.level || undefined,
+    isPiano: view.filters.isPiano,
     moderationStatus: specific,
     allStatuses: specific === undefined || undefined,
-    source: filters.source || undefined,
-    sort: sort.value,
-    offset: offset.value,
+    source: view.filters.source || undefined,
+    sort: view.sort,
+    offset: view.offset,
   });
 }
 
 // A new filter/sort resets to the first page; only the pager advances the offset.
 function runFromFirstPage() {
-  offset.value = 0;
+  view.offset = 0;
   run();
 }
 
 function onFilters(f: Filters) {
-  filters = f;
-  status.value = f.moderationStatus;
+  view.filters = f;
   runFromFirstPage();
 }
 
 // Clicking a column rebuilds the single-key sort and re-queries from page 1 — all
 // sorting is server-side (correct across the whole set), never client-side.
 function onSort(field: string) {
-  const cur = sort.value[0];
+  const cur = view.sort[0];
   const descending = cur?.field === field ? !cur.descending : true;
-  sort.value = [{ field, descending }];
+  view.sort = [{ field, descending }];
   runFromFirstPage();
 }
 
 function onPage(newOffset: number) {
-  offset.value = newOffset;
+  view.offset = newOffset;
   run();
 }
 
@@ -106,7 +98,7 @@ onMounted(run);
       <h1 class="page-title">{{ $t("catalog.title") }}</h1>
       <p class="sub">{{ vm.loading ? $t("common.loading") : $t("catalog.count", vm.total) }}</p>
     </div>
-    <FiltersBar :status="status" @change="onFilters" />
+    <FiltersBar :initial="view.filters" @change="onFilters" />
   </div>
   <StatBar />
   <p v-if="vm.error" class="error" role="alert">{{ vm.error }}</p>
@@ -114,13 +106,13 @@ onMounted(run);
     <CatalogTable
       :hits="vm.hits"
       :status="status"
-      :sort="sort"
+      :sort="view.sort"
       :can-download="auth.isModerator"
       :downloads="store.downloads"
       @sort="onSort"
       @select="(id) => router.push({ name: 'music-score', params: { id } })"
       @download="onDownload"
     />
-    <TablePager :offset="offset" :limit="PAGE_SIZE" :total="vm.total" @page="onPage" />
+    <TablePager :offset="view.offset" :limit="PAGE_SIZE" :total="vm.total" @page="onPage" />
   </div>
 </template>

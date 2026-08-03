@@ -70,9 +70,17 @@ onMounted(() => {
   run(bytes, () => store.fetchBytes(props.id));
 });
 
+// Return to wherever the operator opened this score from (catalog or queue) so their
+// filters, sort and page survive the round-trip — falling back to the queue only on a
+// direct deep-link, where there is no in-app history entry to go back to.
+async function leave() {
+  if (router.options.history.state.back) router.back();
+  else await router.push({ name: "music-queue" });
+}
+
 async function decide(status: ModerationStatus) {
   const outcome = await run(decision, () => store.setModerationStatus(props.id, status));
-  if (outcome.status === "success") await router.push({ name: "music-queue" });
+  if (outcome.status === "success") await leave();
 }
 
 const submitting = computed(() => submit.value.status === "loading");
@@ -92,7 +100,7 @@ async function saveEdit(edit: MetadataEdit) {
 
 <template>
   <div class="head">
-    <button type="button" @click="router.back()">{{ $t("common.back") }}</button>
+    <button type="button" @click="leave()">{{ $t("common.back") }}</button>
     <div v-if="auth.isModerator" class="actions">
       <button type="button" class="accept" :disabled="acting" @click="decide('accepted')">
         {{ $t("detail.accept") }}

@@ -25,6 +25,25 @@ export interface Filters {
   source: string;
 }
 
+/** The catalog screen's live browse state (filters + sort + page). Lifted into the
+ * store so it survives leaving for a score's detail page and coming back — the view
+ * is remounted on return (no keep-alive), so local refs would reset to defaults. */
+export interface CatalogView {
+  filters: Filters;
+  sort: SortKeyInit[];
+  offset: number;
+}
+
+/** A fresh, unfiltered browse state: all statuses (Tous), any source, no sort, first
+ * page — the BO catalog default (change: add-score-catalog-proposal). */
+export function defaultCatalogView(): CatalogView {
+  return {
+    filters: { query: "", author: "", level: "", isPiano: undefined, moderationStatus: "", source: "" },
+    sort: [],
+    offset: 0,
+  };
+}
+
 // The hub filters (text/author/level/facets) plus the BO-only status filter and
 // the structured sort. Only fields the console actually surfaces are modelled.
 export interface SearchParams {
@@ -133,6 +152,9 @@ export const useCatalogStore = defineStore("catalog", () => {
   // One value for the whole search lifecycle — views match on it exhaustively.
   const result = ref<Async<CatalogResult>>(idle);
   const lastParams = reactive<SearchParams>({ limit: PAGE_SIZE, offset: 0 });
+  // The catalog screen's browse state, persisted across a detail-page round-trip
+  // (the view remounts on return, so its filters/sort/page must live here).
+  const catalogView = reactive<CatalogView>(defaultCatalogView());
   // Header stat cards. Kept in its own Async so a stats failure never blocks the
   // list — the cards just fall back to "—".
   const stats = ref<Async<CatalogStats>>(idle);
@@ -201,6 +223,7 @@ export const useCatalogStore = defineStore("catalog", () => {
   return {
     result,
     lastParams,
+    catalogView,
     stats,
     downloads,
     search,
