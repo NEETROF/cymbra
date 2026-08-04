@@ -270,8 +270,11 @@ Future<void> showLeaderboard(
         constraints: BoxConstraints(maxWidth: 420, maxHeight: maxHeight),
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+          // Fill a STABLE height (max + Expanded) so switching modes — or the
+          // loading→data / empty→populated swaps — never resizes the dialog; the
+          // list scrolls within, matching the inline pre-play board.
           child: Column(
-            mainAxisSize: MainAxisSize.min,
+            mainAxisSize: MainAxisSize.max,
             children: [
               Row(
                 children: [
@@ -295,7 +298,7 @@ Future<void> showLeaderboard(
                   ),
                 ],
               ),
-              Flexible(
+              Expanded(
                 child: LeaderboardView(
                   scoreId: scoreId,
                   title: title,
