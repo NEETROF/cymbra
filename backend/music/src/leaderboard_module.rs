@@ -70,9 +70,10 @@ pub struct Board {
     pub own: Option<BoardEntry>,
 }
 
-/// The caller's BEST standing on one piece across the two modes (change: add-play-
-/// leaderboards) — the smaller rank wins; `mode` says which board produced it, so a
-/// score-card tap opens the right board.
+/// A piece's score-card standing (change: add-play-leaderboards). `rank > 0` is the
+/// caller's BEST rank across the two modes (the smaller wins); `rank == 0` means the
+/// caller is not ranked but the board has public entries (a bare-trophy badge).
+/// `mode` is the board a tap should open.
 #[derive(Debug, Clone, PartialEq)]
 pub struct MyStanding {
     pub score_id: String,
@@ -225,12 +226,18 @@ impl LeaderboardModule {
         })
     }
 
-    /// Batch: the caller's own BEST standing (the smaller rank across the two
-    /// modes) on each of `score_ids` — for the score-card badges. Fetches every
-    /// board once and resolves visibility with a **single** `listable_profiles`
-    /// call, and returns only the pieces the caller is actually ranked on (a card
-    /// with no entry shows a bare trophy). `today` (UTC) drives the eligibility
-    /// gate, exactly like `get_board`.
+    /// Batch: for each of `score_ids`, the standing that drives its score-card
+    /// badge. Fetches every board once and resolves visibility with a **single**
+    /// `listable_profiles` call. A piece is returned when it has a **badge-worthy**
+    /// board:
+    /// * the caller is ranked ⇒ `rank` = their BEST rank across the two modes
+    ///   (`> 0`), `mode` = the board it came from;
+    /// * else the public listing is non-empty ⇒ `rank == 0` (a bare-trophy badge
+    ///   that still opens a populated board), `mode` = a board that has entries.
+    ///
+    /// A piece with an **empty** board (no public entries and the caller not
+    /// ranked) is **omitted** — so its card shows no badge (no click "for
+    /// nothing"). `today` (UTC) drives the eligibility gate, like `get_board`.
     pub async fn my_standings(
         &self,
         viewer_id: &str,
@@ -264,36 +271,51 @@ impl LeaderboardModule {
         let mut out = Vec::new();
         for score_id in score_ids {
             let mut best: Option<MyStanding> = None;
+            // The first mode whose PUBLIC listing is non-empty — so a not-ranked
+            // caller still gets a bare-trophy badge that opens a real board.
+            let mut public_mode: Option<Mode> = None;
             for mode in MODES {
                 let bests = boards
                     .get(&(score_id.clone(), mode))
                     .map(Vec::as_slice)
                     .unwrap_or(&[]);
-                let Some(own) = bests.iter().find(|b| b.user_id == viewer_id) else {
-                    continue;
-                };
                 let public: Vec<StoredBest> = bests
                     .iter()
                     .filter(|b| listable.contains(&b.user_id))
                     .cloned()
                     .collect();
-                let rank = leaderboard_core::own_rank(&public, own);
-                // Keep the smaller rank across the two modes (ties keep the first).
-                let better = match &best {
-                    None => true,
-                    Some(b) => rank < b.rank,
-                };
-                if better {
-                    best = Some(MyStanding {
-                        score_id: score_id.clone(),
-                        rank,
-                        subscore: own.subscore,
-                        mode,
-                    });
+                if !public.is_empty() && public_mode.is_none() {
+                    public_mode = Some(mode);
+                }
+                if let Some(own) = bests.iter().find(|b| b.user_id == viewer_id) {
+                    let rank = leaderboard_core::own_rank(&public, own);
+                    // Keep the smaller rank across the two modes (ties keep first).
+                    let better = match &best {
+                        None => true,
+                        Some(b) => rank < b.rank,
+                    };
+                    if better {
+                        best = Some(MyStanding {
+                            score_id: score_id.clone(),
+                            rank,
+                            subscore: own.subscore,
+                            mode,
+                        });
+                    }
                 }
             }
             if let Some(standing) = best {
                 out.push(standing);
+            } else if let Some(mode) = public_mode {
+                // Not ranked, but the board has public entries: emit a `rank == 0`
+                // marker so the card shows a bare trophy opening a populated board.
+                // A piece with an empty board is OMITTED entirely (no badge).
+                out.push(MyStanding {
+                    score_id: score_id.clone(),
+                    rank: 0,
+                    subscore: 0.0,
+                    mode,
+                });
             }
         }
         Ok(out)
@@ -570,17 +592,25 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn my_standings_omits_pieces_the_caller_is_not_ranked_on() {
+    async fn my_standings_flags_populated_boards_and_omits_empty_ones() {
+        use std::collections::HashMap;
         let repo = Arc::new(FakeLeaderboardRepo::default());
-        let m = module(repo.clone(), &["a"]);
-        seed(&repo, "a", "p1", Mode::Tempo, 95.0, 1).await; // caller absent
-        seed(&repo, "me", "p2", Mode::Tempo, 70.0, 1).await;
+        let m = module(repo.clone(), &["a"]); // only "a" is public
+        seed(&repo, "a", "p1", Mode::Tempo, 95.0, 1).await; // caller absent, public board
+        seed(&repo, "me", "p2", Mode::Tempo, 70.0, 1).await; // caller ranked
+        // p3: no bests at all (empty board).
         let out = m
             .my_standings("me", &["p1".into(), "p2".into(), "p3".into()], today())
             .await
             .unwrap();
-        // Only p2 (caller ranked); p1 (no caller best) and p3 (empty) are absent.
-        assert_eq!(out.len(), 1);
-        assert_eq!(out[0].score_id, "p2");
+        let by_id: HashMap<&str, &MyStanding> =
+            out.iter().map(|s| (s.score_id.as_str(), s)).collect();
+        // p1: a populated public board the caller is not on → bare trophy (rank 0).
+        assert_eq!(by_id["p1"].rank, 0);
+        // p2: the caller is ranked → a real rank.
+        assert!(by_id["p2"].rank > 0);
+        // p3: an empty board is omitted entirely (its card shows no badge).
+        assert!(!by_id.contains_key("p3"));
+        assert_eq!(out.len(), 2);
     }
 }

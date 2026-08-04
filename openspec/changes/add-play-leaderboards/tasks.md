@@ -29,5 +29,5 @@
 ## 6. Score-card standing badge (batched)
 
 - [x] 6.1 Batch RPC `GetMyStandings(score_ids[])` → the caller's **best** standing per piece (smaller rank across the two modes) + the mode it came from; one call for a page of cards. Reuses the visibility gate with a single `listable_profiles` resolve; returns only pieces the caller is ranked on.
-- [x] 6.2 Score-card trophy badge (accepted catalog scores only): a bare trophy, plus the best rank when ranked; a tap opens the shared board on that mode. Fed by a **coalesced** batch loader (one RPC per frame across all visible cards) that refreshes on outbox delivery.
+- [x] 6.2 Score-card trophy badge (accepted catalog scores only): a bare trophy, plus the best rank when ranked; a tap opens the shared board on that mode. **No badge when the board is empty** (no listed players and the viewer not ranked) — a tap never leads to an empty board. Fed by a **coalesced** batch loader (one RPC per frame across all visible cards) that refreshes on outbox delivery.
 - [x] 6.3 Tests: Rust (`my_standings` best-of-two-modes, private caller still ranked, unranked pieces omitted) + Flutter (badge ranked → rank, unranked → bare trophy, non-catalog → none).

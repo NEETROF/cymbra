@@ -94,16 +94,30 @@ void main() {
     expect(find.text('#3'), findsOneWidget);
   });
 
-  testWidgets('an unranked catalog card shows a bare trophy (no rank)', (
+  testWidgets('a populated board the player is not on shows a bare trophy', (
     tester,
   ) async {
+    // rank 0 = the caller is not ranked, but the board has entries.
+    final service = _FakeLeaderboardService({
+      'cid': const LeaderboardStanding(
+        scoreId: 'cid',
+        rank: 0,
+        subscore: 0,
+        mode: LeaderboardMode.tempo,
+      ),
+    });
+    await _pump(tester, entry: _entry(catalogId: 'cid'), service: service);
+    expect(find.byIcon(Icons.emoji_events), findsOneWidget);
+    expect(find.textContaining('#'), findsNothing);
+  });
+
+  testWidgets('an empty board (no standing) shows no badge', (tester) async {
     await _pump(
       tester,
       entry: _entry(catalogId: 'cid'),
       service: _FakeLeaderboardService(const {}),
     );
-    expect(find.byIcon(Icons.emoji_events), findsOneWidget);
-    expect(find.textContaining('#'), findsNothing);
+    expect(find.byIcon(Icons.emoji_events), findsNothing);
   });
 
   testWidgets('a non-catalog card has no leaderboard badge', (tester) async {

@@ -18,7 +18,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../l10n/gen/app_localizations.dart';
-import '../state/leaderboard.dart';
 import '../state/my_standings_notifier.dart';
 import '../state/score_catalog.dart';
 import '../theme/cymbra_theme.dart';
@@ -536,17 +535,23 @@ class _LeaderboardBadge extends ConsumerWidget {
     final standing = ref.watch(
       myStandingsProvider.select((m) => m[catalogId]),
     );
+    // No badge unless the board is worth opening — the server omits pieces with an
+    // empty board, so `null` here means "no entries yet" (or not loaded): show
+    // nothing rather than tempt a click that leads to an empty board. `rank == 0`
+    // means the caller is not ranked but others are (a bare trophy).
+    if (standing == null) return const SizedBox.shrink();
+    final ranked = standing.rank > 0;
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: () => showLeaderboard(
         context,
         scoreId: catalogId,
         title: title,
-        initialMode: standing?.mode ?? LeaderboardMode.tempo,
+        initialMode: standing.mode,
       ),
       child: Container(
         padding: EdgeInsets.symmetric(
-          horizontal: standing == null ? 6 : 8,
+          horizontal: ranked ? 8 : 6,
           vertical: 4,
         ),
         decoration: BoxDecoration(
@@ -557,7 +562,7 @@ class _LeaderboardBadge extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             const Icon(Icons.emoji_events, size: 15, color: Color(0xFFF4C542)),
-            if (standing != null) ...[
+            if (ranked) ...[
               const SizedBox(width: 3),
               Text(
                 '#${standing.rank}',

@@ -59,11 +59,14 @@ private (in which case others do not see them, but they still see themselves).
 ### Requirement: Standing badge on score cards
 
 A score shown as a card — in the score hub and the home/library — SHALL display a
-compact leaderboard badge **only when it is an accepted catalog score** (the only
-kind with a shared board): a trophy, plus the player's **best rank across the two
-modes** when they are ranked. Cards for bundled scores or user uploads SHALL NOT
-show the badge. Tapping the badge SHALL open the same leaderboard view as the
-pre-play surface, initialised on the mode that produced the shown rank. Per-card
+compact leaderboard badge **only when it is an accepted catalog score with a
+board worth opening**: the player is ranked, or the board has at least one publicly
+listed player. When the player is ranked the badge SHALL show their **best rank
+across the two modes**; otherwise it SHALL show a bare trophy. A card whose board
+is **empty** (no listed players and the viewer not ranked), a bundled score, or a
+user upload SHALL show **no badge** — so a tap never leads to an empty board.
+Tapping the badge SHALL open the same leaderboard view as the pre-play surface,
+initialised on the mode that produced the shown rank (or a populated mode). Per-card
 standings SHALL be resolved through a **single batched read** for a page of cards,
 not one read per card, and SHALL refresh after a played session is delivered.
 
@@ -72,10 +75,15 @@ not one read per card, and SHALL refresh after a played session is delivered.
 - **WHEN** a signed-in user views a catalog score they are ranked on
 - **THEN** the card shows a trophy with their best rank across the two modes
 
-#### Scenario: Unranked catalog card shows a bare trophy
+#### Scenario: Populated board the player is not on shows a bare trophy
 
-- **WHEN** a signed-in user views a catalog score they have not scored on
-- **THEN** the card shows a bare trophy with no rank
+- **WHEN** a catalog score has at least one listed player but the viewer is not ranked
+- **THEN** the card shows a bare trophy (no rank), opening a populated board
+
+#### Scenario: Empty board shows no badge
+
+- **WHEN** a catalog score has no listed players and the viewer is not ranked
+- **THEN** the card shows no leaderboard badge
 
 #### Scenario: Non-catalog card shows no badge
 
