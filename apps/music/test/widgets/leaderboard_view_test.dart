@@ -178,4 +178,34 @@ void main() {
     await _pump(tester, fake);
     expect(find.text('Retry'), findsOneWidget);
   });
+
+  testWidgets('a long entries list scrolls to reveal the last player', (
+    tester,
+  ) async {
+    // A full page of entries — taller than the view, so the list must scroll.
+    final entries = [
+      for (var i = 1; i <= 50; i++)
+        _entry('u$i', rank: i, handle: '@u$i', subscore: (100 - i).toDouble()),
+    ];
+    final fake = _FakeLeaderboardService({
+      LeaderboardMode.tempo: Leaderboard(
+        entries: entries,
+        total: 50,
+        own: null,
+      ),
+    });
+    await _pump(tester, fake);
+
+    // The top is visible; the last row isn't built yet (lazy, off-screen).
+    expect(find.text('#1'), findsOneWidget);
+    expect(find.text('#50'), findsNothing);
+
+    // Scrolling the list reaches the last player — proves it is scrollable.
+    await tester.scrollUntilVisible(
+      find.text('#50'),
+      300,
+      scrollable: find.byType(Scrollable).last,
+    );
+    expect(find.text('#50'), findsOneWidget);
+  });
 }
