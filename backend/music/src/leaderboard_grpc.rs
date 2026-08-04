@@ -30,7 +30,8 @@ use tonic::{Request, Response, Status};
 use crate::leaderboard::Mode;
 use crate::leaderboard_module::{Board, BoardEntry, LeaderboardModule};
 use crate::proto::{
-    GetLeaderboardRequest, GetLeaderboardResponse, LeaderboardEntry as ProtoEntry,
+    GetLeaderboardRequest, GetLeaderboardResponse, GetMyStandingsRequest, GetMyStandingsResponse,
+    LeaderboardEntry as ProtoEntry, MyStanding as ProtoMyStanding,
     leaderboard_service_server::{LeaderboardService, LeaderboardServiceServer},
 };
 
@@ -99,6 +100,30 @@ impl LeaderboardService for LeaderboardGrpc {
             )
             .await?;
         Ok(Response::new(to_response(board)))
+    }
+
+    async fn get_my_standings(
+        &self,
+        req: Request<GetMyStandingsRequest>,
+    ) -> Result<Response<GetMyStandingsResponse>, Status> {
+        let viewer = caller(&req)?;
+        let r = req.into_inner();
+        let today = chrono::Utc::now().date_naive();
+        let standings = self
+            .module
+            .my_standings(&viewer, &r.score_ids, today)
+            .await?;
+        Ok(Response::new(GetMyStandingsResponse {
+            standings: standings
+                .into_iter()
+                .map(|s| ProtoMyStanding {
+                    score_id: s.score_id,
+                    rank: s.rank,
+                    subscore: s.subscore,
+                    mode: s.mode.as_str().to_string(),
+                })
+                .collect(),
+        }))
     }
 }
 

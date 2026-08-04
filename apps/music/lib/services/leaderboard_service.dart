@@ -35,6 +35,11 @@ abstract class LeaderboardService {
     int offset = 0,
     int limit = 50,
   });
+
+  /// Batch: the caller's own BEST standing (smaller rank across the two modes) on
+  /// each of `scoreIds`, keyed by score id — for the score-card badges. Only
+  /// pieces the caller is ranked on are present in the map.
+  Future<Map<String, LeaderboardStanding>> getMyStandings(List<String> scoreIds);
 }
 
 /// Production [LeaderboardService] over the generated `LeaderboardServiceClient`.
@@ -72,6 +77,28 @@ class GrpcLeaderboardService implements LeaderboardService {
       // `own` is an optional message: its presence is the "has own standing" flag.
       own: resp.hasOwn() ? _toEntry(resp.own) : null,
     );
+  });
+
+  @override
+  Future<Map<String, LeaderboardStanding>> getMyStandings(
+    List<String> scoreIds,
+  ) => _authed((bearer) async {
+    if (scoreIds.isEmpty) return const {};
+    final resp = await _client.getMyStandings(
+      lb.GetMyStandingsRequest(scoreIds: scoreIds),
+      options: bearerOptions(bearer),
+    );
+    return {
+      for (final s in resp.standings)
+        s.scoreId: LeaderboardStanding(
+          scoreId: s.scoreId,
+          rank: s.rank,
+          subscore: s.subscore,
+          mode: s.mode == 'reaction'
+              ? LeaderboardMode.reaction
+              : LeaderboardMode.tempo,
+        ),
+    };
   });
 
   LeaderboardEntry _toEntry(lb.LeaderboardEntry e) => LeaderboardEntry(

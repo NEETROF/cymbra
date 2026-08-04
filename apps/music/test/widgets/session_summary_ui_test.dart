@@ -36,6 +36,11 @@ class _EmptyLeaderboardService implements LeaderboardService {
     int offset = 0,
     int limit = 50,
   }) async => Leaderboard.empty;
+
+  @override
+  Future<Map<String, LeaderboardStanding>> getMyStandings(
+    List<String> scoreIds,
+  ) async => const {};
 }
 
 /// Wraps [home] in the app localizations + a ROOT ProviderContainer with the

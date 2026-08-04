@@ -55,3 +55,34 @@ private (in which case others do not see them, but they still see themselves).
 
 - **WHEN** the viewer appears among the shown entries
 - **THEN** their own entry is distinguishable from the others
+
+### Requirement: Standing badge on score cards
+
+A score shown as a card — in the score hub and the home/library — SHALL display a
+compact leaderboard badge **only when it is an accepted catalog score** (the only
+kind with a shared board): a trophy, plus the player's **best rank across the two
+modes** when they are ranked. Cards for bundled scores or user uploads SHALL NOT
+show the badge. Tapping the badge SHALL open the same leaderboard view as the
+pre-play surface, initialised on the mode that produced the shown rank. Per-card
+standings SHALL be resolved through a **single batched read** for a page of cards,
+not one read per card, and SHALL refresh after a played session is delivered.
+
+#### Scenario: Ranked player sees their rank on the card
+
+- **WHEN** a signed-in user views a catalog score they are ranked on
+- **THEN** the card shows a trophy with their best rank across the two modes
+
+#### Scenario: Unranked catalog card shows a bare trophy
+
+- **WHEN** a signed-in user views a catalog score they have not scored on
+- **THEN** the card shows a bare trophy with no rank
+
+#### Scenario: Non-catalog card shows no badge
+
+- **WHEN** a card is a bundled score or a user upload
+- **THEN** it shows no leaderboard badge
+
+#### Scenario: Tapping the badge opens the board
+
+- **WHEN** the user taps a card's leaderboard badge
+- **THEN** the piece's leaderboard opens on the mode of the shown rank

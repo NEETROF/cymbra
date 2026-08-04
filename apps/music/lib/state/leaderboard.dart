@@ -87,3 +87,20 @@ class Leaderboard {
   bool isViewer(LeaderboardEntry entry) =>
       own != null && entry.userId == own!.userId;
 }
+
+/// The viewer's own BEST standing on one piece (the smaller rank across the two
+/// modes), for the compact score-card badge (change: add-play-leaderboards).
+/// [mode] is the board that produced the best rank — so a tap opens the right one.
+class LeaderboardStanding {
+  const LeaderboardStanding({
+    required this.scoreId,
+    required this.rank,
+    required this.subscore,
+    required this.mode,
+  });
+
+  final String scoreId;
+  final int rank;
+  final double subscore;
+  final LeaderboardMode mode;
+}

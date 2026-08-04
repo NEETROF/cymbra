@@ -70,6 +70,17 @@ pub struct Board {
     pub own: Option<BoardEntry>,
 }
 
+/// The caller's BEST standing on one piece across the two modes (change: add-play-
+/// leaderboards) — the smaller rank wins; `mode` says which board produced it, so a
+/// score-card tap opens the right board.
+#[derive(Debug, Clone, PartialEq)]
+pub struct MyStanding {
+    pub score_id: String,
+    pub rank: i32,
+    pub subscore: f32,
+    pub mode: Mode,
+}
+
 /// Leaderboard reads + the ingest maintenance hook, over the bests store and the
 /// user-port visibility gate.
 pub struct LeaderboardModule {
@@ -212,6 +223,80 @@ impl LeaderboardModule {
             total,
             own,
         })
+    }
+
+    /// Batch: the caller's own BEST standing (the smaller rank across the two
+    /// modes) on each of `score_ids` — for the score-card badges. Fetches every
+    /// board once and resolves visibility with a **single** `listable_profiles`
+    /// call, and returns only the pieces the caller is actually ranked on (a card
+    /// with no entry shows a bare trophy). `today` (UTC) drives the eligibility
+    /// gate, exactly like `get_board`.
+    pub async fn my_standings(
+        &self,
+        viewer_id: &str,
+        score_ids: &[String],
+        today: NaiveDate,
+    ) -> Result<Vec<MyStanding>> {
+        use std::collections::HashSet;
+        const MODES: [Mode; 2] = [Mode::Tempo, Mode::Reaction];
+
+        // Fetch each (piece, mode) board once; gather every owner id for one gate.
+        let mut boards: HashMap<(String, Mode), Vec<StoredBest>> = HashMap::new();
+        let mut all_ids: HashSet<String> = HashSet::new();
+        for score_id in score_ids {
+            for mode in MODES {
+                let bests = self.repo.board_bests(score_id, mode).await?;
+                for b in &bests {
+                    all_ids.insert(b.user_id.clone());
+                }
+                boards.insert((score_id.clone(), mode), bests);
+            }
+        }
+        let ids: Vec<String> = all_ids.into_iter().collect();
+        let listable: HashSet<String> = self
+            .user
+            .listable_profiles(&ids, today)
+            .await?
+            .into_iter()
+            .map(|p| p.user_id)
+            .collect();
+
+        let mut out = Vec::new();
+        for score_id in score_ids {
+            let mut best: Option<MyStanding> = None;
+            for mode in MODES {
+                let bests = boards
+                    .get(&(score_id.clone(), mode))
+                    .map(Vec::as_slice)
+                    .unwrap_or(&[]);
+                let Some(own) = bests.iter().find(|b| b.user_id == viewer_id) else {
+                    continue;
+                };
+                let public: Vec<StoredBest> = bests
+                    .iter()
+                    .filter(|b| listable.contains(&b.user_id))
+                    .cloned()
+                    .collect();
+                let rank = leaderboard_core::own_rank(&public, own);
+                // Keep the smaller rank across the two modes (ties keep the first).
+                let better = match &best {
+                    None => true,
+                    Some(b) => rank < b.rank,
+                };
+                if better {
+                    best = Some(MyStanding {
+                        score_id: score_id.clone(),
+                        rank,
+                        subscore: own.subscore,
+                        mode,
+                    });
+                }
+            }
+            if let Some(standing) = best {
+                out.push(standing);
+            }
+        }
+        Ok(out)
     }
 
     fn entry(&self, rank: i32, best: &StoredBest, profile: Option<&PlayerProfile>) -> BoardEntry {
@@ -431,5 +516,71 @@ mod tests {
         assert_eq!(page.entries.len(), 1);
         assert_eq!(page.entries[0].user_id, "b");
         assert_eq!(page.entries[0].rank, 2);
+    }
+
+    /// Seed a stored best directly (bypassing ingest) for the batch-standing tests.
+    async fn seed(
+        repo: &FakeLeaderboardRepo,
+        user: &str,
+        score: &str,
+        mode: Mode,
+        sub: f32,
+        at: i64,
+    ) {
+        repo.upsert_best(&LeaderboardBest {
+            user_id: user.into(),
+            catalog_score_id: score.into(),
+            mode,
+            subscore: sub,
+            tiebreak_metric: 5.0,
+            achieved_at_ms: at,
+        })
+        .await
+        .unwrap();
+    }
+
+    #[tokio::test]
+    async fn my_standings_takes_the_best_rank_across_modes() {
+        let repo = Arc::new(FakeLeaderboardRepo::default());
+        let m = module(repo.clone(), &["a", "me"]);
+        // Tempo: a=95 (#1), me=80 (#2). Reaction: me=99 (#1).
+        seed(&repo, "a", "p", Mode::Tempo, 95.0, 1).await;
+        seed(&repo, "me", "p", Mode::Tempo, 80.0, 1).await;
+        seed(&repo, "me", "p", Mode::Reaction, 99.0, 1).await;
+        let out = m.my_standings("me", &["p".into()], today()).await.unwrap();
+        assert_eq!(out.len(), 1);
+        assert_eq!(out[0].score_id, "p");
+        // The reaction #1 beats the tempo #2.
+        assert_eq!(out[0].rank, 1);
+        assert_eq!(out[0].mode, Mode::Reaction);
+    }
+
+    #[tokio::test]
+    async fn my_standings_ranks_a_private_caller_among_public_players() {
+        let repo = Arc::new(FakeLeaderboardRepo::default());
+        // Only "a" is public; the caller "me" is private (not listable).
+        let m = module(repo.clone(), &["a"]);
+        seed(&repo, "a", "p", Mode::Tempo, 95.0, 1).await;
+        seed(&repo, "me", "p", Mode::Tempo, 88.0, 1).await;
+        let out = m.my_standings("me", &["p".into()], today()).await.unwrap();
+        // Ranked #2 behind the public player, even though not listed to others.
+        assert_eq!(out.len(), 1);
+        assert_eq!(out[0].rank, 2);
+        assert_eq!(out[0].mode, Mode::Tempo);
+    }
+
+    #[tokio::test]
+    async fn my_standings_omits_pieces_the_caller_is_not_ranked_on() {
+        let repo = Arc::new(FakeLeaderboardRepo::default());
+        let m = module(repo.clone(), &["a"]);
+        seed(&repo, "a", "p1", Mode::Tempo, 95.0, 1).await; // caller absent
+        seed(&repo, "me", "p2", Mode::Tempo, 70.0, 1).await;
+        let out = m
+            .my_standings("me", &["p1".into(), "p2".into(), "p3".into()], today())
+            .await
+            .unwrap();
+        // Only p2 (caller ranked); p1 (no caller best) and p3 (empty) are absent.
+        assert_eq!(out.len(), 1);
+        assert_eq!(out[0].score_id, "p2");
     }
 }

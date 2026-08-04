@@ -15,11 +15,15 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../l10n/gen/app_localizations.dart';
+import '../state/leaderboard.dart';
+import '../state/my_standings_notifier.dart';
 import '../state/score_catalog.dart';
 import '../theme/cymbra_theme.dart';
 import 'difficulty_badge.dart';
+import 'leaderboard_view.dart';
 
 /// A friendly name for a crawler source code, or `null` to omit (dev/unknown).
 String? _sourceLabel(String? source) => switch (source) {
@@ -96,6 +100,19 @@ class ScoreCard extends StatelessWidget {
                     Positioned(top: 4, right: 4, child: action!),
                   if (statusTag != null)
                     Positioned(bottom: 8, left: 10, child: statusTag!),
+                  // Leaderboard badge — only for an accepted catalog score (the
+                  // only kind with a shared board). Shows a bare trophy, plus the
+                  // player's best rank across the two modes when they're ranked; a
+                  // tap opens the same board widget as the pre-play view.
+                  if (entry.catalogId != null)
+                    Positioned(
+                      bottom: 8,
+                      right: 8,
+                      child: _LeaderboardBadge(
+                        catalogId: entry.catalogId!,
+                        title: entry.title,
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -498,4 +515,62 @@ class _CoverPainter extends CustomPainter {
       old.ambitus != ambitus ||
       old.timeSig != timeSig ||
       old.keyFifths != keyFifths;
+}
+
+/// The compact leaderboard badge on a catalog score card (change: add-play-
+/// leaderboards): a trophy, plus the player's best rank across the two modes when
+/// they are ranked. Isolated as a `ConsumerWidget` so the card stays stateless; it
+/// asks [MyStandings] for its piece (coalesced into one batch RPC per frame) and
+/// reads only its own entry. A tap opens the shared board widget for the piece,
+/// initialised on the mode that produced the best rank.
+class _LeaderboardBadge extends ConsumerWidget {
+  const _LeaderboardBadge({required this.catalogId, required this.title});
+
+  final String catalogId;
+  final String title;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Request this piece's standing (idempotent + batched); watch only our entry.
+    ref.read(myStandingsProvider.notifier).request(catalogId);
+    final standing = ref.watch(
+      myStandingsProvider.select((m) => m[catalogId]),
+    );
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => showLeaderboard(
+        context,
+        scoreId: catalogId,
+        title: title,
+        initialMode: standing?.mode ?? LeaderboardMode.tempo,
+      ),
+      child: Container(
+        padding: EdgeInsets.symmetric(
+          horizontal: standing == null ? 6 : 8,
+          vertical: 4,
+        ),
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.5),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.emoji_events, size: 15, color: Color(0xFFF4C542)),
+            if (standing != null) ...[
+              const SizedBox(width: 3),
+              Text(
+                '#${standing.rank}',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
 }

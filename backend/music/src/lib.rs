@@ -50,7 +50,7 @@ pub use leaderboard::{
     StoredBest,
 };
 pub use leaderboard_grpc::LeaderboardGrpc;
-pub use leaderboard_module::{Board, BoardEntry, LeaderboardModule};
+pub use leaderboard_module::{Board, BoardEntry, LeaderboardModule, MyStanding};
 pub use module::{ScoreModule, UploadInput};
 pub use pg::{PgCatalogRepo, PgCatalogSearchRepo, PgScoreRatingRepo, PgTitleBackfillRepo};
 pub use pg_leaderboard::PgLeaderboardRepo;

@@ -40,6 +40,11 @@ class _FakeLeaderboardService implements LeaderboardService {
     if (fail) throw Exception('boom');
     return boards[mode] ?? Leaderboard.empty;
   }
+
+  @override
+  Future<Map<String, LeaderboardStanding>> getMyStandings(
+    List<String> scoreIds,
+  ) async => const {};
 }
 
 LeaderboardEntry _entry(

@@ -25,3 +25,9 @@
 - [x] 5.2 Flutter: view shows ranked public entries, tempo/reaction toggle, own rank/PB shown even when private, own entry highlighted (via fakes). `flutter test --coverage` ≥ 80%. _(All 656 app tests green; new logic files well-covered — view 77%, summary 91%, notifier 99%, model 100%. The `≥80%` gate is the CI merged unit+integration lcov; not reproducible locally without the macOS integration run.)_
 - [x] 5.3 `cargo fmt`/`clippy` + `melos run analyze`/`dart format` clean; regenerate codegen as needed. _(fmt+clippy clean; `flutter analyze` + `dart run custom_lint` clean; regenerated gRPC Dart stubs, Rust proto, riverpod codegen, and l10n.)_
 - [x] 5.4 `openspec validate add-play-leaderboards --strict` passes.
+
+## 6. Score-card standing badge (batched)
+
+- [x] 6.1 Batch RPC `GetMyStandings(score_ids[])` → the caller's **best** standing per piece (smaller rank across the two modes) + the mode it came from; one call for a page of cards. Reuses the visibility gate with a single `listable_profiles` resolve; returns only pieces the caller is ranked on.
+- [x] 6.2 Score-card trophy badge (accepted catalog scores only): a bare trophy, plus the best rank when ranked; a tap opens the shared board on that mode. Fed by a **coalesced** batch loader (one RPC per frame across all visible cards) that refreshes on outbox delivery.
+- [x] 6.3 Tests: Rust (`my_standings` best-of-two-modes, private caller still ranked, unranked pieces omitted) + Flutter (badge ranked → rank, unranked → bare trophy, non-catalog → none).

@@ -43,6 +43,26 @@ message GetLeaderboardResponse {
   optional LeaderboardEntry own = 3;
 }
 
+// Batch read of the CALLER's own standing on many pieces at once (change:
+// add-play-leaderboards) — one call for a whole page of score cards, instead of
+// one GetLeaderboard per card. Returns only the pieces where the caller is ranked
+// (a card with no entry shows a bare trophy).
+message GetMyStandingsRequest {
+  repeated string score_ids = 1; // the visible pieces (accepted catalog score ids)
+}
+// The caller's BEST standing on one piece across the two modes — the smaller rank
+// wins, and `mode` says which board it came from (so a tap opens the right board).
+message MyStanding {
+  string score_id = 1;
+  int32 rank = 2;      // best (smallest) rank across the two boards
+  float subscore = 3;  // the sub-score behind that rank
+  string mode = 4;     // "tempo" | "reaction" — the board of the best rank
+}
+message GetMyStandingsResponse {
+  repeated MyStanding standings = 1; // only pieces the caller is ranked on
+}
+
 service LeaderboardService {
   rpc GetLeaderboard(GetLeaderboardRequest) returns (GetLeaderboardResponse);
+  rpc GetMyStandings(GetMyStandingsRequest) returns (GetMyStandingsResponse);
 }

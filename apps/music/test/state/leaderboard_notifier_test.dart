@@ -38,6 +38,11 @@ class _SeqLeaderboardService implements LeaderboardService {
     calls++;
     return board;
   }
+
+  @override
+  Future<Map<String, LeaderboardStanding>> getMyStandings(
+    List<String> scoreIds,
+  ) async => const {};
 }
 
 /// A play-sync notifier whose pending count is set directly, so a test can
