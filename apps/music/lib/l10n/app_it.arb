@@ -371,5 +371,7 @@
   "leaderboardYourStanding": "La tua posizione",
   "leaderboardYourRank": "Posizione n°{rank} su {total}",
   "leaderboardBest": "Record {pct}%",
-  "leaderboardOpenFull": "Vedi la classifica"
+  "leaderboardOpenFull": "Vedi la classifica",
+  "leaderboardModeFree": "Gioco libero",
+  "leaderboardModeWait": "Modalità attesa"
 }

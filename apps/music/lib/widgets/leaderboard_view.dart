@@ -84,11 +84,11 @@ class _LeaderboardViewState extends ConsumerState<LeaderboardView> {
       segments: [
         ButtonSegment(
           value: LeaderboardMode.tempo,
-          label: Text(l10n.summaryTempo),
+          label: Text(l10n.leaderboardModeFree),
         ),
         ButtonSegment(
           value: LeaderboardMode.reaction,
-          label: Text(l10n.summaryReaction),
+          label: Text(l10n.leaderboardModeWait),
         ),
       ],
       selected: {_mode},

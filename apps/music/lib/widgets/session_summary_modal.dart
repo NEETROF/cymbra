@@ -377,8 +377,8 @@ class _StandingLine extends ConsumerWidget {
     if (own == null) return const SizedBox.shrink();
     final total = board.valueOrNull?.total ?? 0;
     final modeLabel = mode == LeaderboardMode.tempo
-        ? l10n.summaryTempo
-        : l10n.summaryReaction;
+        ? l10n.leaderboardModeFree
+        : l10n.leaderboardModeWait;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Text(

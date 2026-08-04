@@ -822,5 +822,7 @@
   "@leaderboardYourRank": {"placeholders": {"rank": {"type": "int"}, "total": {"type": "int"}}, "description": "Leaderboard: the viewer's own rank among the public entries."},
   "leaderboardBest": "Best {pct}%",
   "@leaderboardBest": {"placeholders": {"pct": {"type": "int"}}, "description": "Leaderboard: the viewer's personal-best sub-score."},
-  "leaderboardOpenFull": "View leaderboard"
+  "leaderboardOpenFull": "View leaderboard",
+  "leaderboardModeFree": "Free play",
+  "leaderboardModeWait": "Wait Mode"
 }

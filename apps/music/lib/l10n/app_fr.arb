@@ -371,5 +371,7 @@
   "leaderboardYourStanding": "Ton classement",
   "leaderboardYourRank": "Rang n°{rank} sur {total}",
   "leaderboardBest": "Record {pct}%",
-  "leaderboardOpenFull": "Voir le classement"
+  "leaderboardOpenFull": "Voir le classement",
+  "leaderboardModeFree": "Jeu libre",
+  "leaderboardModeWait": "Mode Attente"
 }
