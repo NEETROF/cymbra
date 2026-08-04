@@ -17,6 +17,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../services/leaderboard_service.dart';
 import 'leaderboard.dart';
+import 'play_sync_notifier.dart';
 
 part 'leaderboard_notifier.g.dart';
 
@@ -26,10 +27,18 @@ part 'leaderboard_notifier.g.dart';
 /// (no native library, no live backend). Keyed by the piece and mode, so the
 /// tempo/reaction toggle simply watches a different instance.
 @riverpod
-Future<Leaderboard> leaderboard(
-  Ref ref,
-  String scoreId,
-  LeaderboardMode mode,
-) => ref
-    .watch(leaderboardServiceProvider)
-    .getLeaderboard(scoreId: scoreId, mode: mode);
+Future<Leaderboard> leaderboard(Ref ref, String scoreId, LeaderboardMode mode) {
+  // Refresh once the play-session outbox delivers: a scored run is captured
+  // locally and delivered to the server asynchronously (after this board may
+  // already have been fetched — e.g. the end-of-session summary opens before the
+  // ack). The board (and the caller's own standing) only reflects the just-played
+  // result once the session lands, so re-fetch when the pending count DROPS (an
+  // entry was acked). Self-invalidation only — the provider reacts to the sync
+  // source, it does not poke a sibling (see the Riverpod reactivity rules).
+  ref.listen(playSyncNotifierProvider, (previous, next) {
+    if (previous != null && next < previous) ref.invalidateSelf();
+  });
+  return ref
+      .watch(leaderboardServiceProvider)
+      .getLeaderboard(scoreId: scoreId, mode: mode);
+}
