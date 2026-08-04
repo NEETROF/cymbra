@@ -89,7 +89,11 @@ void main() {
         mode: LeaderboardMode.tempo,
       ),
     });
-    await _pump(tester, entry: _entry(catalogId: 'cid'), service: service);
+    await _pump(
+      tester,
+      entry: _entry(catalogId: 'cid'),
+      service: service,
+    );
     expect(find.byIcon(Icons.emoji_events), findsOneWidget);
     expect(find.text('#3'), findsOneWidget);
   });
@@ -106,7 +110,11 @@ void main() {
         mode: LeaderboardMode.tempo,
       ),
     });
-    await _pump(tester, entry: _entry(catalogId: 'cid'), service: service);
+    await _pump(
+      tester,
+      entry: _entry(catalogId: 'cid'),
+      service: service,
+    );
     expect(find.byIcon(Icons.emoji_events), findsOneWidget);
     expect(find.textContaining('#'), findsNothing);
   });

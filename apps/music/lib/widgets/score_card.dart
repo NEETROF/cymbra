@@ -532,9 +532,7 @@ class _LeaderboardBadge extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     // Request this piece's standing (idempotent + batched); watch only our entry.
     ref.read(myStandingsProvider.notifier).request(catalogId);
-    final standing = ref.watch(
-      myStandingsProvider.select((m) => m[catalogId]),
-    );
+    final standing = ref.watch(myStandingsProvider.select((m) => m[catalogId]));
     // No badge unless the board is worth opening — the server omits pieces with an
     // empty board, so `null` here means "no entries yet" (or not loaded): show
     // nothing rather than tempt a click that leads to an empty board. `rank == 0`
@@ -550,10 +548,7 @@ class _LeaderboardBadge extends ConsumerWidget {
         initialMode: standing.mode,
       ),
       child: Container(
-        padding: EdgeInsets.symmetric(
-          horizontal: ranked ? 8 : 6,
-          vertical: 4,
-        ),
+        padding: EdgeInsets.symmetric(horizontal: ranked ? 8 : 6, vertical: 4),
         decoration: BoxDecoration(
           color: Colors.black.withValues(alpha: 0.5),
           borderRadius: BorderRadius.circular(10),

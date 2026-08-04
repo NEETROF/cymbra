@@ -39,7 +39,9 @@ abstract class LeaderboardService {
   /// Batch: the caller's own BEST standing (smaller rank across the two modes) on
   /// each of `scoreIds`, keyed by score id — for the score-card badges. Only
   /// pieces the caller is ranked on are present in the map.
-  Future<Map<String, LeaderboardStanding>> getMyStandings(List<String> scoreIds);
+  Future<Map<String, LeaderboardStanding>> getMyStandings(
+    List<String> scoreIds,
+  );
 }
 
 /// Production [LeaderboardService] over the generated `LeaderboardServiceClient`.
