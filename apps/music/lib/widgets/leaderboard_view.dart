@@ -16,6 +16,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../l10n/gen/app_localizations.dart';
+import '../screens/profile_screen.dart';
 import '../state/leaderboard.dart';
 import '../state/leaderboard_notifier.dart';
 import '../theme/cymbra_theme.dart';
@@ -160,47 +161,59 @@ class _LeaderboardViewState extends ConsumerState<LeaderboardView> {
   /// The viewer's own rank + personal best — always shown (even when the viewer
   /// is private and therefore not listed to others).
   Widget _ownStanding(AppLocalizations l10n, LeaderboardEntry own, int total) =>
-      Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: CymbraColors.primaryContainer,
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    l10n.leaderboardYourStanding,
-                    style: const TextStyle(
-                      fontSize: 11,
-                      color: CymbraColors.onSurfaceVariant,
-                    ),
+      Material(
+        color: CymbraColors.primaryContainer,
+        borderRadius: BorderRadius.circular(10),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: () => _openProfile(own.userId),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        l10n.leaderboardYourStanding,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: CymbraColors.onSurfaceVariant,
+                        ),
+                      ),
+                      Text(
+                        l10n.leaderboardYourRank(own.rank, total),
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: CymbraColors.onSurface,
+                        ),
+                      ),
+                    ],
                   ),
-                  Text(
-                    l10n.leaderboardYourRank(own.rank, total),
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: CymbraColors.onSurface,
-                    ),
+                ),
+                Text(
+                  l10n.leaderboardBest(own.subscore.round()),
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: CymbraColors.primary,
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-            Text(
-              l10n.leaderboardBest(own.subscore.round()),
-              style: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: CymbraColors.primary,
-              ),
-            ),
-          ],
+          ),
         ),
       );
+
+  /// Open a listed player's public profile (they are public + eligible, so the
+  /// profile read succeeds; tapping yourself opens your own profile).
+  void _openProfile(String userId) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => ProfileScreen(userId: userId)),
+    );
+  }
 
   Widget _entryRow(
     AppLocalizations l10n,
@@ -208,43 +221,48 @@ class _LeaderboardViewState extends ConsumerState<LeaderboardView> {
     required bool highlight,
   }) {
     final name = e.label ?? l10n.leaderboardAnonymous;
-    return Container(
-      color: highlight ? CymbraColors.primaryContainer : null,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 34,
-            child: Text(
-              '#${e.rank}',
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: CymbraColors.onSurfaceVariant,
+    return Material(
+      color: highlight ? CymbraColors.primaryContainer : Colors.transparent,
+      child: InkWell(
+        onTap: () => _openProfile(e.userId),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 34,
+                child: Text(
+                  '#${e.rank}',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: CymbraColors.onSurfaceVariant,
+                  ),
+                ),
               ),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              highlight ? '$name (${l10n.leaderboardYou})' : name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: highlight ? FontWeight.w600 : FontWeight.w400,
-                color: CymbraColors.onSurface,
+              Expanded(
+                child: Text(
+                  highlight ? '$name (${l10n.leaderboardYou})' : name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: highlight ? FontWeight.w600 : FontWeight.w400,
+                    color: CymbraColors.onSurface,
+                  ),
+                ),
               ),
-            ),
+              Text(
+                '${e.subscore.round()}%',
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: CymbraColors.primary,
+                ),
+              ),
+            ],
           ),
-          Text(
-            '${e.subscore.round()}%',
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              color: CymbraColors.primary,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }

@@ -94,3 +94,27 @@ not one read per card, and SHALL refresh after a played session is delivered.
 
 - **WHEN** the user taps a card's leaderboard badge
 - **THEN** the piece's leaderboard opens on the mode of the shown rank
+
+### Requirement: Open a player's profile from the leaderboard
+
+Tapping a listed player (or the viewer's own standing) on a leaderboard SHALL open
+that player's profile. Because only public, age-eligible players are listed, their
+profiles are viewable — but the profile read is nonetheless **gated server-side and
+fail-closed**: a request for a non-public (or age-ineligible) player's profile
+returns not-found, so a modified client CANNOT view a profile the player has not
+made public. A player MAY always open their **own** profile.
+
+#### Scenario: Tapping a listed player opens their profile
+
+- **WHEN** a user taps a player shown on a leaderboard
+- **THEN** that player's public profile opens
+
+#### Scenario: A non-public profile cannot be viewed by others
+
+- **WHEN** a (possibly modified) client requests a non-public player's profile
+- **THEN** the server returns not-found and no profile is shown
+
+#### Scenario: A player can open their own profile
+
+- **WHEN** a user taps their own entry or standing
+- **THEN** their own profile opens
