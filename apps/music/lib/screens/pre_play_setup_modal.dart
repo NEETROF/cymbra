@@ -218,12 +218,18 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
           child: Column(
-            mainAxisSize: MainAxisSize.min,
+            // When the board is shown the modal fills a STABLE height (max), so
+            // switching modes — or the loading→data swap — never resizes the
+            // dialog; the list scrolls within. The setup view stays content-sized.
+            mainAxisSize: showingBoard ? MainAxisSize.max : MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               header,
               const SizedBox(height: 4),
-              Flexible(child: shownBody),
+              if (showingBoard)
+                Expanded(child: shownBody)
+              else
+                Flexible(child: shownBody),
               button,
             ],
           ),
