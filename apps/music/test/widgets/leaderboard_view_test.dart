@@ -119,7 +119,7 @@ void main() {
     expect(find.text('@react'), findsNothing);
 
     // Toggle to the reaction board.
-    await tester.tap(find.text('Reaction'));
+    await tester.tap(find.text('Wait Mode'));
     await tester.pumpAndSettle();
     expect(find.text('@react'), findsOneWidget);
     expect(find.text('@tempo'), findsNothing);

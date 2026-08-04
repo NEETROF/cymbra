@@ -54,15 +54,19 @@ class _LeaderboardViewState extends ConsumerState<LeaderboardView> {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          widget.title,
-          style: const TextStyle(
-            fontSize: 13,
-            color: CymbraColors.onSurfaceVariant,
+        // The title is optional — when embedded (e.g. the pre-play modal already
+        // shows the piece name in its header), pass an empty title to skip it.
+        if (widget.title.isNotEmpty) ...[
+          Text(
+            widget.title,
+            style: const TextStyle(
+              fontSize: 13,
+              color: CymbraColors.onSurfaceVariant,
+            ),
+            textAlign: TextAlign.center,
           ),
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 8),
+          const SizedBox(height: 8),
+        ],
         _modeToggle(l10n),
         const SizedBox(height: 12),
         Flexible(
