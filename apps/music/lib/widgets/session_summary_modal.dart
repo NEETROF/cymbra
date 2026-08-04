@@ -347,7 +347,7 @@ class _PostSessionStanding extends ConsumerWidget {
         for (final mode in modes)
           _StandingLine(pieceId: result.pieceId, mode: mode),
         TextButton.icon(
-          icon: const Icon(Icons.leaderboard, size: 18),
+          icon: const Icon(Icons.emoji_events, size: 18),
           label: Text(l10n.leaderboardOpenFull),
           onPressed: () => showLeaderboard(
             context,

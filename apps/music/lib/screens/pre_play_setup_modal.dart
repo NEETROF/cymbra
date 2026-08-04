@@ -272,7 +272,7 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
       if (entry?.catalogId != null)
         IconButton(
           icon: const Icon(
-            Icons.leaderboard,
+            Icons.emoji_events,
             color: CymbraColors.onSurfaceVariant,
           ),
           tooltip: l10n.leaderboardTitle,
