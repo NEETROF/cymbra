@@ -26,6 +26,7 @@ import '../state/score_catalog.dart';
 import '../state/selected_piano.dart';
 import '../theme/cymbra_theme.dart';
 import '../widgets/app_snackbar.dart';
+import '../widgets/curator_chip.dart';
 import '../widgets/rating_card.dart';
 import '../widgets/rating_deck_controls.dart';
 import '../widgets/sound_selector_field.dart';
@@ -49,6 +50,9 @@ class RatingDeckScreen extends ConsumerWidget {
         // Swap the instrument sound the card auto-preview plays with — a compact
         // combobox so the moderator can audition scores with any catalog sound.
         actions: [
+          // Persistent curator standing chip (change: add-curation-rewards) —
+          // opens the curator profile; shows a dot for unseen deferred awards.
+          const CuratorChip(),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
             child: SizedBox(
@@ -87,6 +91,18 @@ class _RatingDeckListeners extends ConsumerWidget {
     ref.listen(ratingDeckProvider.select((s) => s.error), (prev, next) {
       if (next != null && next != prev) {
         showAppSnackBar(ScaffoldMessenger.of(context), l10n.ratingSubmitError);
+      }
+    });
+    // Immediate "+N" curator-points cue on a rating that earned coverage points
+    // (change: add-curation-rewards). The seq bump fires it on repeat awards.
+    ref.listen(ratingDeckProvider.select((s) => s.pointsCueSeq), (prev, next) {
+      if (prev == null || next == prev) return;
+      final points = ref.read(ratingDeckProvider).lastPointsAwarded;
+      if (points != null && points > 0) {
+        showAppSnackBar(
+          ScaffoldMessenger.of(context),
+          l10n.ratingPointsCue(points),
+        );
       }
     });
     return child;

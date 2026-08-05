@@ -25,6 +25,7 @@ import '../state/saved_catalog_scores.dart';
 import '../state/score_catalog.dart';
 import '../state/session_notifier.dart';
 import '../theme/cymbra_theme.dart';
+import '../widgets/curator_chip.dart';
 import '../widgets/library_listeners.dart';
 import '../widgets/rating_invite_banner.dart';
 import '../widgets/score_card.dart';
@@ -85,6 +86,9 @@ class LibraryScreen extends ConsumerWidget {
                 tooltip: l10n.soundfontsEntryTooltip,
                 onPressed: () => _openSoundFonts(context),
               ),
+            // Persistent curator standing chip (change: add-curation-rewards) —
+            // opens the curator profile; shows a dot for unseen deferred awards.
+            if (signedIn) const CuratorChip(),
             // Language selection moved into the account menu (AccountMenu).
             const AccountMenu(),
             const SizedBox(width: 8),

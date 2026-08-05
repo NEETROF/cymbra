@@ -22,11 +22,11 @@
 - [x] 4.1 Derive **lifetime points, spendable balance, and level** (monotonic, config thresholds) from the ledger; expose them + next-level progress via an RPC.
 - [x] 4.2 Reward shop: list redeemable items (pianos/SoundFonts) with costs; a `RedeemReward` RPC that checks balance, deducts (append a `redeem` ledger event), is idempotent, and grants the item durably wired into `piano-sound-selection`; refuse if balance insufficient; premium item listed but not redeemable.
 - [x] 4.3 Grant badges at milestones (first ratings, N aligned ratings, rare-score coverage…); earned only, durable, not purchasable.
-- [ ] 4.5 App: a **full-screen curator profile** (Riverpod notifier + service seam) — header (level, lifetime points, progress), **spendable balance + reward-shop entry**, badge grid (earned + locked with hints), and personal stats (rating count, coverage contribution, own alignment rate).
-- [ ] 4.6 App: a persistent level/points **chip** in the hub + rating-deck app bars that opens the curator profile; reflects live standing.
-- [ ] 4.7 App: **immediate "+N"** coverage cue on rating, and a **celebration** modal on level-up / reward redeemed / badge earned (reuse `gamified-feedback` / `session_summary_modal` patterns).
-- [ ] 4.8 App: surface **deferred honesty awards** — a notification cue on the profile entry point + a recent-activity list stating each award's amount and source (consensus vs moderator). Needs a backend read for recent award events (from the ledger).
-- [ ] 4.9 App: the **reward shop** screen (redeem chosen items with balance) and, in `piano-sound-selection`, show not-yet-redeemed pianos with a lock affordance, their **cost**, and a redeem action.
+- [x] 4.5 App: a **full-screen curator profile** (Riverpod notifier + service seam) — header (level, lifetime points, progress), **spendable balance + reward-shop entry**, badge grid (earned + locked with hints), and personal stats (rating count, coverage contribution, own alignment rate).
+- [x] 4.6 App: a persistent level/points **chip** in the hub + rating-deck app bars that opens the curator profile; reflects live standing.
+- [x] 4.7 App: **immediate "+N"** coverage cue on rating, and a **celebration** modal on level-up / reward redeemed / badge earned (reuse `gamified-feedback` / `session_summary_modal` patterns).
+- [x] 4.8 App: surface **deferred honesty awards** — a notification cue on the profile entry point + a recent-activity list stating each award's amount and source (consensus vs moderator). Needs a backend read for recent award events (from the ledger).
+- [x] 4.9 App: the **reward shop** screen (redeem chosen items with balance) and, in `piano-sound-selection`, show not-yet-redeemed pianos with a lock affordance, their **cost**, and a redeem action.
 
 ## 5. Curator reliability indicator (BO)
 
@@ -37,7 +37,7 @@
 
 - [x] 6.1 Rust: coverage diminishing + daily cap + engagement gate; honesty aligned vs floor (never negative) + award-once; moderator-outweighs-consensus; no self-settlement; consensus sweep idempotent; ledger lifetime vs spendable balance; redemption deducts once, refuses when balance insufficient, never negative, spending doesn't lower level. `cargo llvm-cov ... --fail-under-lines 80`.
 - [x] 6.2 Rust: staff app-rating earns points; BO actions award nothing.
-- [ ] 6.3 Flutter (via fakes): curator profile (level/lifetime points/balance/shop entry/badges/stats); app-bar chip opens it; "+N" cue on rating; deferred-award activity list + notification cue; reward shop redeems an affordable item and refuses an unaffordable one; locked piano shows cost and becomes selectable once redeemed. `flutter test --coverage` ≥ 80%.
+- [x] 6.3 Flutter (via fakes): curator profile (level/lifetime points/balance/shop entry/badges/stats); app-bar chip opens it; "+N" cue on rating; deferred-award activity list + notification cue; reward shop redeems an affordable item and refuses an unaffordable one; locked piano shows cost and becomes selectable once redeemed. `flutter test --coverage` ≥ 80%.
 - [x] 6.4 Vue: reliability panel renders and is gated to moderator/admin (own test setup).
-- [ ] 6.5 `cargo fmt`/`clippy` + `melos run analyze`/`dart format` clean; regenerate codegen as needed.
+- [x] 6.5 `cargo fmt`/`clippy` + `melos run analyze`/`dart format` clean; regenerate codegen as needed.
 - [x] 6.6 `openspec validate add-curation-rewards --strict` passes.

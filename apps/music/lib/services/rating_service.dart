@@ -42,6 +42,7 @@ class RatingAggregate {
     required this.dislikeCount,
     required this.likeCount,
     required this.loveCount,
+    this.pointsAwarded = 0,
   });
 
   /// Average effective value on the 1–5 scale (0 when there are no ratings).
@@ -50,6 +51,11 @@ class RatingAggregate {
   final int dislikeCount;
   final int likeCount;
   final int loveCount;
+
+  /// Curator coverage points earned by THIS rating (change: add-curation-rewards),
+  /// so the deck can show an immediate "+N" cue. 0 when nothing was awarded
+  /// (daily cap hit, not engaged, already rated, or a fully-covered score).
+  final int pointsAwarded;
 }
 
 /// Seam over the backend `ScoreService`'s rating surface — submit/update the
@@ -101,6 +107,7 @@ class GrpcRatingService implements RatingService {
       dislikeCount: resp.dislikeCount,
       likeCount: resp.likeCount,
       loveCount: resp.loveCount,
+      pointsAwarded: resp.pointsAwarded,
     );
   });
 }
