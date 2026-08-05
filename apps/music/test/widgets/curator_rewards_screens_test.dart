@@ -76,13 +76,15 @@ List<Override> _overrides(CuratorRewardsService service) => [
 ];
 
 void main() {
-  testWidgets('curator chip shows the level/points standing', (tester) async {
+  testWidgets('curator standing pill shows the level/points', (tester) async {
     final service = MockCuratorRewardsService();
     when(service.getRewards()).thenAnswer((_) async => _rewards());
     await tester.pumpWidget(
       ProviderScope(
         overrides: _overrides(service),
-        child: localizedApp(const Scaffold(body: Center(child: CuratorChip()))),
+        child: localizedApp(
+          const Scaffold(body: Center(child: CuratorStandingPill())),
+        ),
       ),
     );
     await tester.pumpAndSettle();

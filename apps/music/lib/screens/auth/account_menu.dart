@@ -22,6 +22,7 @@ import '../../state/app_locale.dart';
 import '../../state/session_notifier.dart';
 import '../../state/session_state.dart';
 import '../../state/usage_consent.dart';
+import '../../widgets/curator_chip.dart';
 import '../../widgets/language_selector.dart' show showLanguageDialog;
 import '../account/connected_accounts_screen.dart';
 import '../profile_screen.dart';
@@ -56,7 +57,14 @@ class AccountMenu extends ConsumerWidget {
       ),
       SessionAuthenticated(:final account) => PopupMenuButton<String>(
         key: const Key('account-menu'),
-        icon: const Icon(Icons.account_circle),
+        // The curator standing pill IS the account control (change: add-curation-
+        // rewards): it replaces the plain person icon; tapping it opens this menu,
+        // whose "profile" entry shows the full rewards.
+        tooltip: l10n.curatorEntryTooltip,
+        child: const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+          child: CuratorStandingPill(),
+        ),
         onSelected: (value) {
           switch (value) {
             case 'profile':

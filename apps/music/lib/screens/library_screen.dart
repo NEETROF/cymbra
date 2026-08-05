@@ -25,7 +25,6 @@ import '../state/saved_catalog_scores.dart';
 import '../state/score_catalog.dart';
 import '../state/session_notifier.dart';
 import '../theme/cymbra_theme.dart';
-import '../widgets/curator_chip.dart';
 import '../widgets/library_listeners.dart';
 import '../widgets/rating_invite_banner.dart';
 import '../widgets/score_card.dart';
@@ -86,10 +85,9 @@ class LibraryScreen extends ConsumerWidget {
                 tooltip: l10n.soundfontsEntryTooltip,
                 onPressed: () => _openSoundFonts(context),
               ),
-            // Persistent curator standing chip (change: add-curation-rewards) —
-            // opens the user profile (where the rewards live); shows a dot for
-            // unseen deferred awards.
-            if (signedIn) const CuratorChip(),
+            // The account control is the curator standing pill (change: add-
+            // curation-rewards) — it replaces the plain person icon and opens the
+            // account menu (→ profile, where the rewards live).
             const AccountMenu(),
             const SizedBox(width: 8),
           ],

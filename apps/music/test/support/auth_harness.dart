@@ -15,11 +15,42 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:music/services/account_service.dart';
+import 'package:music/services/curator_rewards_service.dart';
 import 'package:music/services/grpc_client.dart';
 import 'package:music/services/oidc_token_source.dart';
+import 'package:music/services/preferences_service.dart';
 import 'package:music/services/token_store.dart';
 
 import 'auth_fakes.dart';
+import 'prefs_fakes.dart';
+
+/// A no-op curator-rewards seam: the account control now renders the standing
+/// pill, so any test pumping `AccountMenu` needs this seam wired (returns an empty
+/// standing so the pill shows its fallback without touching a channel).
+class FakeCuratorRewardsService implements CuratorRewardsService {
+  const FakeCuratorRewardsService();
+
+  @override
+  Future<CuratorRewardsView> getRewards() async => const CuratorRewardsView(
+    lifetimePoints: 0,
+    spendableBalance: 0,
+    level: 0,
+    levelFloor: 0,
+    nextLevelAt: 50,
+    totalRatings: 0,
+    coverageContribution: 0,
+    alignmentRate: 0,
+    badges: [],
+    recent: [],
+  );
+
+  @override
+  Future<List<RewardShopItemView>> listShop() async => const [];
+
+  @override
+  Future<RedeemResultView> redeem(String rewardKey) async =>
+      const RedeemResultView(owned: true, newBalance: 0);
+}
 
 /// Override list for the Cymbra ID seams, so nothing touches a channel or
 /// platform plugin. Compose with extra overrides (e.g. `scoreCatalogProvider`).
@@ -33,6 +64,12 @@ List<Override> authOverrides({
   authServiceProvider.overrideWithValue(auth ?? FakeAuthService()),
   accountServiceProvider.overrideWithValue(account ?? FakeAccountService()),
   oidcTokenSourceProvider.overrideWithValue(oidc ?? FakeOidcTokenSource()),
+  // The account control renders the curator standing pill (change: add-curation-
+  // rewards), so wire its seam here too.
+  curatorRewardsServiceProvider.overrideWithValue(
+    const FakeCuratorRewardsService(),
+  ),
+  preferencesServiceProvider.overrideWithValue(FakePreferencesService()),
 ];
 
 /// A [ProviderContainer] with every Cymbra ID seam overridden by a fake.

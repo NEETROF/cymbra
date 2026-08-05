@@ -16,19 +16,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../l10n/gen/app_localizations.dart';
-import '../screens/profile_screen.dart';
 import '../state/curator_profile_notifier.dart';
 import '../theme/cymbra_theme.dart';
 
-/// A compact, persistent chip for the app bar (change: add-curation-rewards):
-/// shows the curator's level + lifetime points, with a notification dot when a
-/// deferred honesty/adjustment award has landed since the profile was last
-/// opened. Tapping it opens the user **profile**, where the full rewards live.
+/// The compact curator standing pill for the app bar (change: add-curation-
+/// rewards): the level + lifetime points, with a notification dot when a deferred
+/// honesty/adjustment award has landed since the profile was last opened.
 ///
-/// It reads the curator profile notifier directly (a value read, not a
-/// side-effectful service call), so it stays live as points/level change.
-class CuratorChip extends ConsumerWidget {
-  const CuratorChip({super.key});
+/// Presentational only — it carries no tap handler. It is used as the **account
+/// control's button** (`AccountMenu`): the pill replaces the plain person icon, so
+/// tapping it opens the account menu (which routes to the profile, where the full
+/// rewards live). It reads the reward providers directly (a value read), so it
+/// stays live as level/points change.
+class CuratorStandingPill extends ConsumerWidget {
+  const CuratorStandingPill({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -40,67 +41,51 @@ class CuratorChip extends ConsumerWidget {
         ? l10n.curatorEntryTooltip
         : l10n.curatorChipLabel(rewards.level, rewards.lifetimePoints);
 
-    return Padding(
+    return Container(
       key: const Key('curator-chip'),
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-      child: Tooltip(
-        message: l10n.curatorEntryTooltip,
-        child: Material(
-          color: CymbraColors.surfaceContainerHigh,
-          borderRadius: BorderRadius.circular(20),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(20),
-            onTap: () => _open(context),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      const Icon(
-                        Icons.workspace_premium,
-                        size: 18,
-                        color: CymbraColors.primary,
-                      ),
-                      if (hasUnseen)
-                        Positioned(
-                          right: -2,
-                          top: -2,
-                          child: Container(
-                            key: const Key('curator-chip-dot'),
-                            width: 8,
-                            height: 8,
-                            decoration: const BoxDecoration(
-                              color: CymbraColors.error,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    label,
-                    style: const TextStyle(
-                      color: CymbraColors.onSurface,
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w700,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: CymbraColors.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              const Icon(
+                Icons.workspace_premium,
+                size: 18,
+                color: CymbraColors.primary,
+              ),
+              if (hasUnseen)
+                Positioned(
+                  right: -2,
+                  top: -2,
+                  child: Container(
+                    key: const Key('curator-chip-dot'),
+                    width: 8,
+                    height: 8,
+                    decoration: const BoxDecoration(
+                      color: CymbraColors.error,
+                      shape: BoxShape.circle,
                     ),
                   ),
-                ],
-              ),
+                ),
+            ],
+          ),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: const TextStyle(
+              color: CymbraColors.onSurface,
+              fontSize: 12.5,
+              fontWeight: FontWeight.w700,
             ),
           ),
-        ),
+        ],
       ),
     );
   }
-
-  /// Open the user profile — the rewards live there now (change: add-curation-
-  /// rewards); passing no `userId` shows the signed-in user's own profile.
-  static void _open(BuildContext context) => Navigator.of(
-    context,
-  ).push(MaterialPageRoute<void>(builder: (_) => const ProfileScreen()));
 }
