@@ -1,22 +1,29 @@
 <script setup lang="ts">
 import { reactive, watch } from "vue";
 import { useI18n } from "vue-i18n";
-import type { Filters, ModerationStatus } from "@/stores/catalog";
+import type { Filters, StatusFilter } from "@/stores/catalog";
 
 // Reuses the app-hub filters (text/author/level/piano) plus the back-office-only
-// moderation-status selector. Emits the current filter set whenever it changes.
+// moderation-status + source selectors. Emits the current filter set whenever it changes.
 const emit = defineEmits<{ change: [Filters] }>();
 const { t } = useI18n();
 
-const props = withDefaults(defineProps<{ status?: ModerationStatus }>(), { status: "pending" });
-
-const f = reactive<Filters>({
-  query: "",
-  author: "",
-  level: "",
-  isPiano: undefined,
-  moderationStatus: props.status,
+// `initial` seeds the bar from the caller's persisted browse state (so filters —
+// including the source and the "" = Tous status — survive a detail-page round-trip);
+// `status`/`source` are the back-compat fallbacks when no full filter set is supplied.
+// The BO catalog defaults the status to "" (Tous): every moderation status (change:
+// add-score-catalog-proposal).
+const props = withDefaults(defineProps<{ status?: StatusFilter; source?: string; initial?: Filters }>(), {
+  status: "",
+  source: "",
+  initial: undefined,
 });
+
+const f = reactive<Filters>(
+  props.initial
+    ? { ...props.initial }
+    : { query: "", author: "", level: "", isPiano: undefined, moderationStatus: props.status, source: props.source },
+);
 
 watch(f, () => emit("change", { ...f }), { deep: true });
 </script>
@@ -41,9 +48,14 @@ watch(f, () => emit("change", { ...f }), { deep: true });
       {{ t("filters.pianoOnly") }}
     </label>
     <select v-model="f.moderationStatus" :aria-label="t('filters.statusLabel')" class="status">
+      <option value="">{{ t("status.all") }}</option>
       <option value="pending">{{ t("status.pending") }}</option>
       <option value="accepted">{{ t("status.accepted") }}</option>
       <option value="rejected">{{ t("status.rejected") }}</option>
+    </select>
+    <select v-model="f.source" :aria-label="t('filters.sourceLabel')" class="source">
+      <option value="">{{ t("filters.sourceAny") }}</option>
+      <option value="user-proposal">{{ t("filters.sourceUser") }}</option>
     </select>
   </div>
 </template>

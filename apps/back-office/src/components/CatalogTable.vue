@@ -3,7 +3,7 @@ import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import { match } from "ts-pattern";
 import type { CatalogHit } from "@/gen/score_pb";
-import type { ModerationStatus, SortKeyInit } from "@/stores/catalog";
+import type { ModerationStatus, SortKeyInit, StatusFilter } from "@/stores/catalog";
 import { type Async, idle } from "@/lib/async";
 import AppTag from "@/components/AppTag.vue";
 import IdBadge from "@/components/IdBadge.vue";
@@ -18,7 +18,7 @@ import IdBadge from "@/components/IdBadge.vue";
 const props = withDefaults(
   defineProps<{
     hits: CatalogHit[];
-    status: ModerationStatus;
+    status: StatusFilter;
     sort: SortKeyInit[];
     canDownload?: boolean;
     downloads?: Record<string, Async<Uint8Array>>;
@@ -68,7 +68,9 @@ function levelLabel(level: string): string {
 // Each row shows its OWN moderation status (the review queue mixes pending +
 // flagged accepted); fall back to the active filter when the hit carries none.
 function rowStatus(h: CatalogHit): ModerationStatus {
-  return (h.moderationStatus as ModerationStatus) || props.status;
+  // In "Tous" mode (props.status === "") the row carries its own status; fall back to
+  // "pending" only in the impossible case where neither is set.
+  return (h.moderationStatus as ModerationStatus) || props.status || "pending";
 }
 </script>
 
@@ -124,6 +126,8 @@ function rowStatus(h: CatalogHit): ModerationStatus {
         <td class="num">{{ h.tempoBpm ?? "—" }}</td>
         <td>
           <span class="src">{{ h.source }}</span>
+          <!-- For a user upload, show the proposer's pseudo (privileged read). -->
+          <span v-if="h.proposerDisplayName" class="proposer">· @{{ h.proposerDisplayName }}</span>
         </td>
         <td>
           <AppTag :variant="rowStatus(h)">{{ t(`status.${rowStatus(h)}`) }}</AppTag>
@@ -256,6 +260,11 @@ function rowStatus(h: CatalogHit): ModerationStatus {
 .src {
   color: var(--green);
   font-weight: 500;
+}
+.proposer {
+  margin-left: 0.35rem;
+  color: var(--muted);
+  font-size: 0.85rem;
 }
 
 /* Community-flagged re-review marker, shown beside the row's status in the queue. */

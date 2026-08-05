@@ -197,12 +197,30 @@ fn row_to_hit(r: &PgRow) -> CatalogHit {
         // `HIT_COLS`, so it is always present.
         needs_review: r.try_get("needs_review").unwrap_or(false),
         moderation_status: r.try_get::<String, _>("moderation_status").ok(),
+        // Proposal attribution (change: add-score-catalog-proposal). `proposed_by`,
+        // `review_reason` and `resubmission_note` are real columns; the resolved names
+        // (`proposer_display_name`/`contributor_credit`) are filled by the module.
+        proposed_by: r
+            .try_get::<Option<uuid::Uuid>, _>("proposed_by")
+            .ok()
+            .flatten()
+            .map(|u| u.to_string()),
+        proposer_display_name: None,
+        contributor_credit: None,
+        review_reason: r
+            .try_get::<Option<String>, _>("review_reason")
+            .ok()
+            .flatten(),
+        resubmission_note: r
+            .try_get::<Option<String>, _>("resubmission_note")
+            .ok()
+            .flatten(),
     }
 }
 
 const HIT_COLS: &str = "id, title, composer, level, license, source, arranger, \
      min_note_value, tempo_bpm, note_count, lowest_midi, highest_midi, time_sig, key_fifths, \
-     moderation_status";
+     moderation_status, proposed_by, review_reason, resubmission_note";
 
 /// The SQL ORDER BY expression for an allow-listed sort field, or `None` when the
 /// key is unknown (already rejected by the module — defence in depth) and so
@@ -322,6 +340,7 @@ impl CatalogSearchRepo for PgCatalogSearchRepo {
         let flag_predicate = needs_review_sql();
         let privileged = p.review_queue
             || p.moderation_status.is_some()
+            || p.all_statuses
             || p.sort
                 .iter()
                 .any(|k| crate::catalog_search::is_moderation_sort_field(&k.field));
@@ -349,10 +368,12 @@ impl CatalogSearchRepo for PgCatalogSearchRepo {
                AND ($10::int2 IS NULL OR staff_count = $10) \
                AND ($11::int4 IS NULL OR tempo_bpm >= $11) \
                AND ($12::int4 IS NULL OR tempo_bpm <= $12) \
-               AND (($16::bool AND (moderation_status = 'pending' \
+               AND ($17::bool \
+                    OR ($16::bool AND (moderation_status = 'pending' \
                        OR (moderation_status = 'accepted' AND {flag_predicate}))) \
                     OR (NOT $16::bool \
                         AND moderation_status = COALESCE($13::text, 'accepted'))) \
+               AND ($18::text IS NULL OR source = $18) \
              ORDER BY {order_clause} \
              LIMIT $14 OFFSET $15"
         ))
@@ -372,6 +393,8 @@ impl CatalogSearchRepo for PgCatalogSearchRepo {
         .bind(p.limit)
         .bind(p.offset)
         .bind(p.review_queue)
+        .bind(p.all_statuses)
+        .bind(&p.source)
         .fetch_all(&self.pool)
         .await
         .map_err(search_internal)?;
@@ -455,6 +478,7 @@ impl CatalogSearchRepo for PgCatalogSearchRepo {
         score_id: &str,
         status: &str,
         reviewer_id: &str,
+        reason: Option<&str>,
     ) -> PlatformResult<bool> {
         let Ok(id) = uuid::Uuid::parse_str(score_id) else {
             return Ok(false); // malformed id → not found (no row updated)
@@ -464,17 +488,108 @@ impl CatalogSearchRepo for PgCatalogSearchRepo {
         let Ok(reviewer) = uuid::Uuid::parse_str(reviewer_id) else {
             return Ok(false);
         };
-        // Single conditional UPDATE: set the status and stamp reviewer + time in one
-        // write (change: add-moderation-back-office). rows_affected tells us whether
-        // the score existed.
+        // Single conditional UPDATE: set the status, stamp reviewer + time, and store or
+        // clear the rejection reason in one write (changes: add-moderation-back-office,
+        // add-score-catalog-proposal). The module already restricts `reason` to Some only
+        // on `rejected`; binding it directly keeps the invariant local to that method.
         let result = sqlx::query(
             "UPDATE music.catalog_scores \
-             SET moderation_status = $2, reviewed_by = $3, reviewed_at = now() \
+             SET moderation_status = $2, reviewed_by = $3, reviewed_at = now(), review_reason = $4 \
              WHERE id = $1",
         )
         .bind(id)
         .bind(status)
         .bind(reviewer)
+        .bind(reason)
+        .execute(&self.pool)
+        .await
+        .map_err(search_internal)?;
+        Ok(result.rows_affected() > 0)
+    }
+
+    async fn find_by_sha(&self, sha256: &str) -> PlatformResult<Option<(String, String)>> {
+        let row = sqlx::query(
+            "SELECT id, moderation_status FROM music.catalog_scores WHERE sha256 = $1 LIMIT 1",
+        )
+        .bind(sha256)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(search_internal)?;
+        Ok(row.map(|r| {
+            (
+                r.get::<uuid::Uuid, _>("id").to_string(),
+                r.get::<String, _>("moderation_status"),
+            )
+        }))
+    }
+
+    async fn insert_proposed(&self, entry: &CatalogEntry, accepted: bool) -> PlatformResult<bool> {
+        let id = uuid::Uuid::parse_str(&entry.id).unwrap_or_else(|_| uuid::Uuid::now_v7());
+        let proposer = entry
+            .proposed_by
+            .as_deref()
+            .and_then(|p| uuid::Uuid::parse_str(p).ok());
+        let status = if accepted { "accepted" } else { "pending" };
+        // Mirror the crawler INSERT (catalog-specific cols + shared META block) but with a
+        // role-derived status, the proposer attribution, and the user-proposal source.
+        let sql = format!(
+            "INSERT INTO music.catalog_scores (\
+                id, arranger, source, source_url, source_item_id, license, license_url, \
+                confidence, sha256, origin_format, conversion_status, object_key, size_bytes, \
+                composer_norm, language, voicing, level, level_source, content_fingerprint, \
+                moderation_status, proposed_by, {META_COLS}) \
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,\
+                $20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39) \
+             ON CONFLICT (sha256) DO NOTHING"
+        );
+        let q = sqlx::query(&sql)
+            .bind(id)
+            .bind(&entry.arranger)
+            .bind(&entry.source)
+            .bind(&entry.source_url)
+            .bind(&entry.source_item_id)
+            .bind(&entry.license)
+            .bind(&entry.license_url)
+            .bind(&entry.confidence)
+            .bind(&entry.sha256)
+            .bind(&entry.origin_format)
+            .bind(&entry.conversion_status)
+            .bind(&entry.object_key)
+            .bind(entry.size_bytes)
+            .bind(&entry.composer_norm)
+            .bind(&entry.language)
+            .bind(&entry.voicing)
+            .bind(&entry.level)
+            .bind(&entry.level_source)
+            .bind(&entry.content_fingerprint)
+            .bind(status)
+            .bind(proposer);
+        let result = bind_meta(q, &entry.meta)
+            .execute(&self.pool)
+            .await
+            .map_err(search_internal)?;
+        Ok(result.rows_affected() > 0)
+    }
+
+    async fn reopen_rejected(
+        &self,
+        score_id: &str,
+        proposer_id: &str,
+        note: &str,
+    ) -> PlatformResult<bool> {
+        let Ok(id) = uuid::Uuid::parse_str(score_id) else {
+            return Ok(false);
+        };
+        let proposer = uuid::Uuid::parse_str(proposer_id).ok();
+        let result = sqlx::query(
+            "UPDATE music.catalog_scores \
+             SET moderation_status = 'pending', proposed_by = $2, review_reason = NULL, \
+                 resubmission_note = $3, reviewed_by = NULL, reviewed_at = NULL \
+             WHERE id = $1 AND moderation_status = 'rejected'",
+        )
+        .bind(id)
+        .bind(proposer)
+        .bind(note)
         .execute(&self.pool)
         .await
         .map_err(search_internal)?;

@@ -177,5 +177,18 @@ void main() {
 
       expect(launcher.opened, [Uri.parse('https://cymbra.app/cgu/')]);
     });
+
+    testWidgets('the account menu hosts the language picker', (tester) async {
+      await pumpMenu(tester, locale: const Locale('en'));
+
+      await tester.tap(find.byKey(const Key('account-menu')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('account-language')));
+      await tester.pumpAndSettle();
+
+      // The language picker dialog opened, listing the languages (by flag).
+      expect(find.byType(SimpleDialog), findsOneWidget);
+      expect(find.text('🇫🇷'), findsOneWidget);
+    });
   });
 }

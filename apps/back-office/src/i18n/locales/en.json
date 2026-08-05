@@ -30,7 +30,8 @@
   "status": {
     "pending": "pending",
     "accepted": "accepted",
-    "rejected": "rejected"
+    "rejected": "rejected",
+    "all": "All"
   },
   "level": {
     "any": "any level",
@@ -71,7 +72,9 @@
     "license": "License",
     "attribution": "Attribution",
     "instrument": "Instrument",
-    "instr": { "piano": "Piano" },
+    "instr": {
+      "piano": "Piano"
+    },
     "licenseDesc": {
       "cc0": "CC0 1.0 — Public domain: no attribution required, free to reuse for any purpose.",
       "ccby": "CC BY — Free to use, including commercially, as long as the author is credited.",
@@ -84,6 +87,27 @@
     "remove": "Remove",
     "empty": "No SoundFonts yet.",
     "confirmRemove": "Remove this SoundFont? Its catalog row and stored file are both deleted.",
+    "statusCol": "Status",
+    "status": {
+      "pending": "Pending",
+      "accepted": "Accepted",
+      "rejected": "Rejected"
+    },
+    "accept": "Accept",
+    "reject": "Reject",
+    "filter": {
+      "label": "Filter by status",
+      "pending": "Pending",
+      "accepted": "Accepted",
+      "rejected": "Rejected",
+      "all": "All"
+    },
+    "pager": {
+      "label": "Pagination",
+      "prev": "Previous",
+      "next": "Next",
+      "range": "{start}–{end} of {total}"
+    },
     "createTitle": "Add a SoundFont",
     "editTitle": "Edit SoundFont",
     "idHint": "e.g. ydp-grand",
@@ -175,7 +199,11 @@
     "loading": "Loading the queue…",
     "done": "Nothing left to review 🎉",
     "loadError": "Couldn't load the review queue.",
-    "decideError": "Couldn't save the decision — try again."
+    "decideError": "Couldn't save the decision — try again.",
+    "rejectReasonPlaceholder": "Rejection reason (shown to the proposer)",
+    "userProposed": "User proposal",
+    "proposedBy": "Proposed by {name}",
+    "resubmission": "Re-submission: {note}"
   },
   "table": {
     "title": "Title",
@@ -200,13 +228,18 @@
     "searchLabel": "search",
     "composerLabel": "composer",
     "levelLabel": "level",
-    "statusLabel": "moderation status"
+    "statusLabel": "moderation status",
+    "sourceLabel": "Source",
+    "sourceAny": "All sources",
+    "sourceUser": "User proposals"
   },
   "detail": {
     "accept": "Accept",
     "reject": "Reject",
     "requeue": "Re-queue",
-    "score": "Score"
+    "score": "Score",
+    "source": "Source",
+    "proposedBy": "Proposed by {name}"
   },
   "edit": {
     "heading": "Edit metadata",
@@ -270,7 +303,10 @@
     "invalidArgument": "Invalid request.",
     "resourceExhausted": "Too many attempts. Try again later.",
     "unavailable": "Service unavailable. Try again.",
-    "generic": "Something went wrong. Try again."
+    "generic": "Something went wrong. Try again.",
+    "soundfontExists": "This SoundFont already exists (same id, or an identical file is already in the catalog).",
+    "soundfontInvalid": "That file isn't a valid SoundFont (.sf2).",
+    "soundfontTooLarge": "That SoundFont file is too large."
   },
   "id": {
     "reveal": "Show full ID",

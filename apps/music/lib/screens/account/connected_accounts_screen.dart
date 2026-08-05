@@ -35,7 +35,11 @@ class ConnectedAccountsScreen extends ConsumerWidget {
     final l10n = AppLocalizations.of(context);
     return Scaffold(
       appBar: AppBar(title: Text(l10n.connectedAccountsTitle)),
-      body: const ConnectedAccountsActionListener(child: _Body()),
+      // Respect the display cutouts (notch/camera, esp. the side inset in
+      // landscape and the home indicator), like the other screens.
+      body: const SafeArea(
+        child: ConnectedAccountsActionListener(child: _Body()),
+      ),
     );
   }
 }

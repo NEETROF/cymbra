@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.16.0+23
+version: 1.17.0+24
 
 environment:
   sdk: ^3.10.9
@@ -143,6 +143,14 @@ flutter_launcher_icons:
   min_sdk_android: 29
   adaptive_icon_background: "#0F1633"
   adaptive_icon_foreground: "assets/branding/icon_foreground.png"
+  # Desktop launcher icons share the same full-bleed square source as iOS.
+  macos:
+    generate: true
+    image_path: "assets/branding/icon.png"
+  windows:
+    generate: true
+    image_path: "assets/branding/icon.png"
+    icon_size: 256
 
 # Branded launch screen: the Cymbra mark centered on the navy brand color,
 # replacing the default blank screen on both platforms (incl. the Android 12+

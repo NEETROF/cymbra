@@ -42,7 +42,12 @@ function derived(): { label: string; value: string }[] {
     { label: t("preview.notes"), value: h.noteCount != null ? String(h.noteCount) : "—" },
     { label: t("preview.tempo"), value: h.tempoBpm != null ? String(h.tempoBpm) : "—" },
     { label: t("preview.licence"), value: h.license || "—" },
-    { label: t("preview.source"), value: h.source || "—" },
+    {
+      label: t("preview.source"),
+      // For a user upload, append the proposer's pseudo (privileged read) so the
+      // metadata block matches the catalog list (change: add-score-catalog-proposal).
+      value: h.proposerDisplayName ? `${h.source || "—"} · @${h.proposerDisplayName}` : h.source || "—",
+    },
   ];
 }
 

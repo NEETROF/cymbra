@@ -17,9 +17,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../l10n/gen/app_localizations.dart';
 import '../../services/legal_links.dart';
+import '../../state/app_language.dart';
 import '../../state/app_locale.dart';
 import '../../state/session_notifier.dart';
 import '../../state/session_state.dart';
+import '../../widgets/language_selector.dart' show showLanguageDialog;
 import '../account/connected_accounts_screen.dart';
 import '../profile_screen.dart';
 import 'delete_account_screen.dart';
@@ -38,6 +40,11 @@ class AccountMenu extends ConsumerWidget {
     // and open in an external browser through the injectable launcher seam.
     final links = legalLinksFor(ref.watch(appLocaleProvider).languageCode);
     final launcher = ref.read(legalLinkLauncherProvider);
+    // Language now lives in this menu (moved off the home top bar): its row shows
+    // the active language's flag.
+    final activeLanguage =
+        AppLanguage.fromCode(ref.watch(appLocaleProvider).languageCode) ??
+        AppLanguage.en;
     return switch (session) {
       SessionGuest() => TextButton.icon(
         key: const Key('account-signin'),
@@ -61,6 +68,8 @@ class AccountMenu extends ConsumerWidget {
                   builder: (_) => const ConnectedAccountsScreen(),
                 ),
               );
+            case 'language':
+              showLanguageDialog(context, ref);
             case 'signout':
               ref.read(sessionNotifierProvider.notifier).signOut();
             case 'signout-all':
@@ -92,6 +101,17 @@ class AccountMenu extends ConsumerWidget {
             key: const Key('account-connected'),
             value: 'connected',
             child: Text(l10n.connectedAccountsManage),
+          ),
+          PopupMenuItem<String>(
+            key: const Key('account-language'),
+            value: 'language',
+            child: Row(
+              children: [
+                Text(activeLanguage.flag, style: const TextStyle(fontSize: 18)),
+                const SizedBox(width: 12),
+                Expanded(child: Text(l10n.settingsCategoryLanguage)),
+              ],
+            ),
           ),
           PopupMenuItem<String>(
             value: 'signout',

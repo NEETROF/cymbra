@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.17.0](https://github.com/NEETROF/cymbra/compare/music-v1.16.0...music-v1.17.0) (2026-08-02)
+
+
+### Features
+
+* selectable instrument sounds — catalog, back-office management, and in-app picker ([#164](https://github.com/NEETROF/cymbra/issues/164)) ([548b252](https://github.com/NEETROF/cymbra/commit/548b252577a7b48587d6d81ab32571faa9763a40))
+
+
+### Bug Fixes
+
+* **music:** render the correct key signature per measure for modulating scores ([#160](https://github.com/NEETROF/cymbra/issues/160)) ([9b3bcbe](https://github.com/NEETROF/cymbra/commit/9b3bcbe8a260682a2829a1a36b0b49b5b5437559))
+* stop UI freezes when playing a score (back-office worker + Flutter viewport cull) ([#163](https://github.com/NEETROF/cymbra/issues/163)) ([bbd7759](https://github.com/NEETROF/cymbra/commit/bbd77595d878ddc81e7e95e1b79b360e9768102e))
+
 ## [1.16.0](https://github.com/NEETROF/cymbra/compare/music-v1.15.0...music-v1.16.0) (2026-08-01)
 
 

@@ -2,7 +2,7 @@ import { ref } from "vue";
 import { defineStore } from "pinia";
 import { api } from "@/lib/api";
 import { type Async, idle, run } from "@/lib/async";
-import { humanError } from "@/lib/errors";
+import { humanError, SoundFontUploadError } from "@/lib/errors";
 import type { AdminSoundFont, CatalogHit, SoundFont } from "@/gen/score_pb";
 import { useAuthStore } from "./auth";
 
@@ -55,8 +55,8 @@ async function httpUpload(font: NewSoundFont, token: string | null): Promise<voi
     body: font.file,
   });
   if (!resp.ok) {
-    // Raw status is logged, never surfaced (humanError maps it to a message).
-    throw new Error(`soundfont upload failed: HTTP ${resp.status}`);
+    // Typed so humanError can map the status (e.g. 409 → "already exists").
+    throw new SoundFontUploadError(resp.status);
   }
 }
 
@@ -67,13 +67,40 @@ export function setUploadForTest(fn: UploadFn): void {
   uploadImpl = fn;
 }
 
+/** Admin listing page size. */
+export const SOUNDFONTS_PAGE_SIZE = 25;
+
 export const useSoundFontsStore = defineStore("soundfonts", () => {
   const catalog = ref<Async<AdminSoundFont[]>>(idle);
   const op = ref<Async<void>>(idle);
+  // Server-side pagination + status filter (change: add-soundfont-moderation).
+  const total = ref(0);
+  const offset = ref(0);
+  const statusFilter = ref(""); // "" = all, else pending/accepted/rejected
+  // Catalog-wide counts for the KPI cards (independent of the filter/page).
+  const counts = ref({ total: 0, pending: 0, accepted: 0, rejected: 0 });
 
-  /** Load the admin catalog listing. */
-  async function list() {
-    await run(catalog, async () => (await api().score.adminListSoundFonts({})).soundfonts);
+  /** Load one page of the admin catalog listing (server-side status filter +
+   *  pagination). Passing `status`/`offset` updates the current query; omitting
+   *  them re-loads the current page (e.g. after an accept/reject). */
+  async function list(opts: { status?: string; offset?: number } = {}) {
+    if (opts.status !== undefined) statusFilter.value = opts.status;
+    if (opts.offset !== undefined) offset.value = opts.offset;
+    await run(catalog, async () => {
+      const resp = await api().score.adminListSoundFonts({
+        limit: SOUNDFONTS_PAGE_SIZE,
+        offset: offset.value,
+        moderationStatus: statusFilter.value,
+      });
+      total.value = resp.total;
+      counts.value = {
+        total: resp.totalCount ?? 0,
+        pending: resp.pendingCount ?? 0,
+        accepted: resp.acceptedCount ?? 0,
+        rejected: resp.rejectedCount ?? 0,
+      };
+      return resp.soundfonts;
+    });
   }
 
   /** Add a font: upload its bytes + metadata, then re-list. */
@@ -98,6 +125,16 @@ export const useSoundFontsStore = defineStore("soundfonts", () => {
   async function remove(id: string) {
     const outcome = await run(op, async () => {
       await api().score.deleteSoundFont({ id });
+    });
+    if (outcome.status === "success") await list();
+    return outcome;
+  }
+
+  /** Set a font's moderation status (accept/reject/re-queue), then re-list
+   *  (change: add-soundfont-moderation). */
+  async function setModerationStatus(id: string, status: string) {
+    const outcome = await run(op, async () => {
+      await api().score.setSoundFontModerationStatus({ id, status });
     });
     if (outcome.status === "success") await list();
     return outcome;
@@ -138,7 +175,23 @@ export const useSoundFontsStore = defineStore("soundfonts", () => {
     return new Uint8Array(await resp.arrayBuffer());
   }
 
-  return { catalog, op, list, publicList, add, update, remove, previewPieces, pieceBytes, fontBytes };
+  return {
+    catalog,
+    op,
+    total,
+    offset,
+    statusFilter,
+    counts,
+    list,
+    publicList,
+    add,
+    update,
+    remove,
+    setModerationStatus,
+    previewPieces,
+    pieceBytes,
+    fontBytes,
+  };
 });
 
 // Re-export so the view can render an upload failure through the same mapper.

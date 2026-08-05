@@ -16,8 +16,13 @@ pub mod catalog_edit;
 pub mod catalog_limits;
 pub mod catalog_search;
 pub mod grpc;
+pub mod leaderboard;
+pub mod leaderboard_core;
+pub mod leaderboard_grpc;
+pub mod leaderboard_module;
 pub mod module;
 pub mod pg;
+pub mod pg_leaderboard;
 pub mod pg_play;
 pub mod pg_user_scores;
 pub mod play;
@@ -29,6 +34,7 @@ pub mod score_rating;
 pub mod soundfont;
 pub mod user_library;
 pub mod user_scores;
+pub mod user_soundfont;
 
 pub use backfill::{
     BackfillReport, BackfillRow, TitleBackfillRepo, TitleUpdate, plan_title_update,
@@ -39,8 +45,15 @@ pub use catalog_search::{
     CatalogHit, CatalogSearchParams, CatalogSearchRepo, FakeCatalogRow, FakeCatalogSearchRepo,
 };
 pub use grpc::ScoreGrpc;
+pub use leaderboard::{
+    BestCandidate, FakeLeaderboardRepo, LeaderboardBest, LeaderboardRepo, LeaderboardSink, Mode,
+    StoredBest,
+};
+pub use leaderboard_grpc::LeaderboardGrpc;
+pub use leaderboard_module::{Board, BoardEntry, LeaderboardModule, MyStanding};
 pub use module::{ScoreModule, UploadInput};
 pub use pg::{PgCatalogRepo, PgCatalogSearchRepo, PgScoreRatingRepo, PgTitleBackfillRepo};
+pub use pg_leaderboard::PgLeaderboardRepo;
 pub use pg_play::PgPlayRepo;
 pub use pg_user_scores::{PgUserLibraryRepo, PgUserScoreRepo};
 pub use play::{DayActivity, FakePlayRepo, PlayActivity, PlayRepo, PlaySession, SessionPoint};
@@ -50,9 +63,14 @@ pub use repo::{CatalogEntry, CatalogRepo, FakeCatalogRepo, ScoreFacets, ScoreMet
 pub use score_rating::{
     FakeScoreRatingRepo, RatingAggregate, RatingConfig, ScoreRatingRepo, Verdict,
 };
-pub use soundfont::{FakeSoundFontRepo, FontEntry, PgSoundFontRepo, SoundFontRepo};
+pub use soundfont::{
+    FakeSoundFontRepo, FontEntry, PgSoundFontRepo, SoundFontRepo, SoundFontStatusCounts, sha256_hex,
+};
 pub use user_library::{FakeUserLibraryRepo, UserLibraryRepo};
 pub use user_scores::{FakeUserScoreRepo, UserScore, UserScoreRepo};
+pub use user_soundfont::{
+    FakeUserSoundFontRepo, PgUserSoundFontRepo, UserFontEntry, UserSoundFontRepo,
+};
 
 /// Generated protobuf messages + tonic client/server stubs for `cymbra.music.v1`
 /// (the ScoreService — user uploads).

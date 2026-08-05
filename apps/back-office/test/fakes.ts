@@ -10,6 +10,8 @@ export interface SearchCall {
   query: string;
   moderationStatus?: string;
   reviewQueue?: boolean;
+  allStatuses?: boolean;
+  source?: string;
   sort: { field: string; descending: boolean }[];
   limit: number;
   offset: number;
@@ -25,7 +27,7 @@ export interface EditCall {
 
 export interface FakeState {
   searchCalls: SearchCall[];
-  evaluateCalls: { scoreId: string; status: string }[];
+  evaluateCalls: { scoreId: string; status: string; reason?: string }[];
   editCalls: EditCall[];
   getCatalogScoreCalls: number;
   grantCalls: { userId: string; scope: string; role: string }[];
@@ -86,7 +88,7 @@ export function makeFakeClients(state: Partial<FakeState> = {}): { clients: Clie
         s.searchCalls.push(req);
         return { hits: s.hits, total: s.total, nextOffset: s.hits.length };
       },
-      setModerationStatus: async (req: { scoreId: string; status: string }) => {
+      setModerationStatus: async (req: { scoreId: string; status: string; reason?: string }) => {
         s.evaluateCalls.push(req);
         return {};
       },

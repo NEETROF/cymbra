@@ -2,12 +2,44 @@ import { Code, ConnectError } from "@connectrpc/connect";
 import { t } from "@/i18n";
 import { WebAuthError } from "@/lib/web-auth";
 
+/** A failed SoundFont HTTP upload, carrying the status so `humanError` can localize
+ *  it (the upload route is HTTP, not gRPC — bytes don't fit gRPC-web). */
+export class SoundFontUploadError extends Error {
+  constructor(readonly status: number) {
+    super(`soundfont upload failed: HTTP ${status}`);
+    this.name = "SoundFontUploadError";
+  }
+}
+
 // Map any thrown error to a short, user-facing (localized) message. Raw gRPC/Connect
 // codes and messages (e.g. "[unauthenticated] invalid credentials") must NEVER reach
 // the UI — the technical cause is logged to the console instead.
 export function humanError(e: unknown): string {
   // Log the real cause for debugging; never shown to the user.
   console.error("action failed:", e);
+
+  // SoundFont upload (HTTP route) failures map by status, with a clear
+  // "already exists" for the dedup conflict (same id or identical content).
+  if (e instanceof SoundFontUploadError) {
+    switch (e.status) {
+      case 409:
+        return t("errors.soundfontExists");
+      case 422:
+        return t("errors.soundfontInvalid");
+      case 413:
+        return t("errors.soundfontTooLarge");
+      case 401:
+        return t("errors.unauthenticated");
+      case 403:
+        return t("errors.permissionDenied");
+      case 400:
+        return t("errors.invalidArgument");
+      case 503:
+        return t("errors.unavailable");
+      default:
+        return t("errors.generic");
+    }
+  }
 
   // Web-auth (cookie) HTTP failures map by status to the same messages as gRPC.
   if (e instanceof WebAuthError) {

@@ -38,12 +38,14 @@ use crate::proto::{
     GetScoreBytesRequest, GetScoreBytesResponse, ListMyScoresRequest, ListMyScoresResponse,
     ListRatingDeckRequest, ListRatingDeckResponse, ListSavedCatalogScoresRequest,
     ListSavedCatalogScoresResponse, ListSoundFontsRequest, ListSoundFontsResponse,
-    RemoveSavedCatalogScoreRequest, RemoveSavedCatalogScoreResponse, SaveCatalogScoreRequest,
-    SaveCatalogScoreResponse, ScoreRecord, SearchCatalogRequest, SearchCatalogResponse,
-    SetModerationStatusRequest, SetModerationStatusResponse, SetScoreFavoriteRequest,
-    SetScoreFavoriteResponse, SoundFont as ProtoSoundFont, SubmitScoreRatingRequest,
-    SubmitScoreRatingResponse, UpdateCatalogScoreRequest, UpdateCatalogScoreResponse,
-    UpdateSoundFontRequest, UpdateSoundFontResponse, UploadScoreRequest,
+    ProposeScoreRequest, ProposeScoreResponse, RemoveSavedCatalogScoreRequest,
+    RemoveSavedCatalogScoreResponse, SaveCatalogScoreRequest, SaveCatalogScoreResponse,
+    ScoreRecord, SearchCatalogRequest, SearchCatalogResponse, SetModerationStatusRequest,
+    SetModerationStatusResponse, SetScoreFavoriteRequest, SetScoreFavoriteResponse,
+    SetSoundFontModerationStatusRequest, SetSoundFontModerationStatusResponse,
+    SoundFont as ProtoSoundFont, SubmitScoreRatingRequest, SubmitScoreRatingResponse,
+    UpdateCatalogScoreRequest, UpdateCatalogScoreResponse, UpdateSoundFontRequest,
+    UpdateSoundFontResponse, UploadScoreRequest,
     score_service_server::{ScoreService, ScoreServiceServer},
 };
 use crate::soundfont::SoundFontRepo;
@@ -151,6 +153,17 @@ fn identity<T>(req: &Request<T>) -> Result<AuthIdentity, Status> {
 }
 
 fn to_record(s: UserScore) -> ScoreRecord {
+    to_record_with_proposal(s, None, None)
+}
+
+/// Build a [`ScoreRecord`] with the proposal state joined from the linked catalog row
+/// (change: add-score-catalog-proposal): `status` = not-proposed / pending / accepted /
+/// rejected, `reason` = the moderator's motive for a rejected proposal.
+fn to_record_with_proposal(
+    s: UserScore,
+    status: Option<String>,
+    reason: Option<String>,
+) -> ScoreRecord {
     let m = s.meta;
     ScoreRecord {
         id: s.id,
@@ -167,7 +180,15 @@ fn to_record(s: UserScore) -> ScoreRecord {
         lowest_midi: m.facets.lowest_midi.map(i32::from),
         highest_midi: m.facets.highest_midi.map(i32::from),
         favorite: s.favorite,
+        proposal_status: status,
+        rejection_reason: reason,
     }
+}
+
+/// Current UTC date, for the public-profile age gate when resolving a contributor
+/// credit (change: add-score-catalog-proposal).
+fn today_utc() -> chrono::NaiveDate {
+    chrono::Utc::now().date_naive()
 }
 
 fn to_hit(h: CatalogHit) -> ProtoCatalogHit {
@@ -188,6 +209,11 @@ fn to_hit(h: CatalogHit) -> ProtoCatalogHit {
         key_fifths: h.key_fifths,
         needs_review: h.needs_review,
         moderation_status: h.moderation_status,
+        proposed_by: h.proposed_by,
+        proposer_display_name: h.proposer_display_name,
+        contributor_credit: h.contributor_credit,
+        review_reason: h.review_reason,
+        resubmission_note: h.resubmission_note,
     }
 }
 
@@ -222,10 +248,36 @@ impl ScoreService for ScoreGrpc {
         req: Request<ListMyScoresRequest>,
     ) -> Result<Response<ListMyScoresResponse>, Status> {
         let owner_id = owner(&req)?;
-        let scores = self.module.list(&owner_id).await?;
+        let scores = self.module.list_contributions(&owner_id).await?;
         Ok(Response::new(ListMyScoresResponse {
-            scores: scores.into_iter().map(to_record).collect(),
+            scores: scores
+                .into_iter()
+                .map(|(s, status, reason)| to_record_with_proposal(s, status, reason))
+                .collect(),
         }))
+    }
+
+    async fn propose_score(
+        &self,
+        req: Request<ProposeScoreRequest>,
+    ) -> Result<Response<ProposeScoreResponse>, Status> {
+        let id = identity(&req)?;
+        let owner_id = id.user_id.clone();
+        // The initial catalog status branches on the caller's role, never the body: a
+        // music-scope admin proposal is auto-accepted, everyone else is pending.
+        let is_admin = id.has_role_in_scope("music", "admin");
+        let r = req.into_inner();
+        self.module
+            .propose(
+                &owner_id,
+                &r.score_id,
+                &r.license,
+                r.rights_ack,
+                r.resubmission_note.as_deref(),
+                is_admin,
+            )
+            .await?;
+        Ok(Response::new(ProposeScoreResponse {}))
     }
 
     async fn delete_score(
@@ -255,10 +307,12 @@ impl ScoreService for ScoreGrpc {
         &self,
         req: Request<ListSoundFontsRequest>,
     ) -> Result<Response<ListSoundFontsResponse>, Status> {
-        identity(&req)?; // authenticated-only; the catalog is the same for everyone
+        identity(&req)?; // authenticated-only; the public catalog is the same for everyone
         let repo = self.soundfont_repo()?;
+        // Public listing: only validated (`accepted`) fonts are offered. Unvalidated
+        // fonts are visible only through the admin listing (change: add-soundfont-moderation).
         let fonts = repo
-            .list()
+            .list_accepted()
             .await
             .map_err(|e| Status::internal(format!("list soundfonts: {e}")))?;
         let soundfonts = fonts
@@ -283,10 +337,28 @@ impl ScoreService for ScoreGrpc {
     ) -> Result<Response<AdminListSoundFontsResponse>, Status> {
         cymbra_platform::guard::require_moderator_or_admin(&identity(&req)?)?;
         let repo = self.soundfont_repo()?;
-        let fonts = repo
-            .list()
+        let r = req.into_inner();
+        // Paging (change: add-soundfont-moderation): clamp the page size, treat an
+        // empty status filter as "all".
+        const DEFAULT_LIMIT: i32 = 50;
+        const MAX_LIMIT: i32 = 200;
+        let limit = if r.limit <= 0 {
+            DEFAULT_LIMIT
+        } else {
+            r.limit.min(MAX_LIMIT)
+        };
+        let offset = r.offset.max(0);
+        let status = (!r.moderation_status.is_empty()).then_some(r.moderation_status.as_str());
+        let (fonts, total) = repo
+            .list_admin_page(status, limit as i64, offset as i64)
             .await
             .map_err(|e| Status::internal(format!("list soundfonts: {e}")))?;
+        // Catalog-wide counts for the KPI cards (independent of the filter/page).
+        let counts = repo
+            .status_counts()
+            .await
+            .map_err(|e| Status::internal(format!("soundfont counts: {e}")))?;
+        let page_len = fonts.len() as i32;
         let mut soundfonts = Vec::with_capacity(fonts.len());
         for f in fonts {
             let has_object = match &self.soundfont_store {
@@ -302,9 +374,22 @@ impl ScoreService for ScoreGrpc {
                 attribution: f.attribution.unwrap_or_default(),
                 size_bytes: f.size_bytes.unwrap_or(0),
                 has_object,
+                moderation_status: f.moderation_status,
+                reviewed_by: f.reviewed_by.unwrap_or_default(),
+                reviewed_at: f.reviewed_at.map(|t| t.to_rfc3339()).unwrap_or_default(),
+                uploaded_by: f.uploaded_by.unwrap_or_default(),
+                content_sha256: f.content_sha256.unwrap_or_default(),
             });
         }
-        Ok(Response::new(AdminListSoundFontsResponse { soundfonts }))
+        Ok(Response::new(AdminListSoundFontsResponse {
+            soundfonts,
+            next_offset: offset + page_len,
+            total: total as i32,
+            pending_count: counts.pending as i32,
+            accepted_count: counts.accepted as i32,
+            rejected_count: counts.rejected as i32,
+            total_count: counts.total as i32,
+        }))
     }
 
     /// Edit a font's metadata (music-scope moderator/admin only). Id and object_key
@@ -355,6 +440,32 @@ impl ScoreService for ScoreGrpc {
         Ok(Response::new(DeleteSoundFontResponse {}))
     }
 
+    /// Set a font's moderation status (change: add-soundfont-moderation). Music-scope
+    /// moderator/admin only; the reviewer is the authenticated caller (never the body)
+    /// and is stamped as `reviewed_by` alongside the status.
+    async fn set_sound_font_moderation_status(
+        &self,
+        req: Request<SetSoundFontModerationStatusRequest>,
+    ) -> Result<Response<SetSoundFontModerationStatusResponse>, Status> {
+        let id = identity(&req)?;
+        cymbra_platform::guard::require_moderator_or_admin(&id)?;
+        let r = req.into_inner();
+        if !matches!(r.status.as_str(), "pending" | "accepted" | "rejected") {
+            return Err(Status::invalid_argument(
+                "status must be pending, accepted, or rejected",
+            ));
+        }
+        let repo = self.soundfont_repo()?;
+        let matched = repo
+            .set_moderation_status(&r.id, &r.status, &id.user_id)
+            .await
+            .map_err(|e| Status::internal(format!("set soundfont moderation status: {e}")))?;
+        if !matched {
+            return Err(Status::not_found("soundfont not found"));
+        }
+        Ok(Response::new(SetSoundFontModerationStatusResponse {}))
+    }
+
     async fn set_score_favorite(
         &self,
         req: Request<SetScoreFavoriteRequest>,
@@ -386,6 +497,7 @@ impl ScoreService for ScoreGrpc {
         // widens it to admin-or-(music) moderator.
         let uses_moderation = req.get_ref().moderation_status.is_some()
             || req.get_ref().review_queue.unwrap_or(false)
+            || req.get_ref().all_statuses.unwrap_or(false)
             || req
                 .get_ref()
                 .sort
@@ -415,6 +527,8 @@ impl ScoreService for ScoreGrpc {
             },
             moderation_status: r.moderation_status,
             review_queue: r.review_queue.unwrap_or(false),
+            all_statuses: r.all_statuses.unwrap_or(false),
+            source: r.source,
             sort: r
                 .sort
                 .into_iter()
@@ -426,7 +540,18 @@ impl ScoreService for ScoreGrpc {
             limit: r.limit as i64,
             offset: r.offset as i64,
         };
-        let (hits, total) = self.module.search_catalog(query).await?;
+        let privileged = uses_moderation || query.moderation_status.is_some() || query.review_queue;
+        let (mut hits, total) = self.module.search_catalog(query).await?;
+        // Proposer attribution (change: add-score-catalog-proposal): a privileged read
+        // resolves the proposer pseudo for the review queue; a normal read is sanitised
+        // (privileged fields stripped) and gets only the opt-in public credit.
+        if privileged {
+            self.module.attach_review_attribution(&mut hits).await;
+        } else {
+            self.module
+                .attach_public_credit(&mut hits, today_utc())
+                .await;
+        }
         let next_offset = offset.max(0) + hits.len() as i32;
         Ok(Response::new(SearchCatalogResponse {
             hits: hits.into_iter().map(to_hit).collect(),
@@ -464,7 +589,11 @@ impl ScoreService for ScoreGrpc {
         req: Request<ListSavedCatalogScoresRequest>,
     ) -> Result<Response<ListSavedCatalogScoresResponse>, Status> {
         let owner_id = owner(&req)?;
-        let hits = self.module.list_saved_catalog_scores(&owner_id).await?;
+        let mut hits = self.module.list_saved_catalog_scores(&owner_id).await?;
+        // Public read: sanitise privileged proposer fields, add any opt-in credit.
+        self.module
+            .attach_public_credit(&mut hits, today_utc())
+            .await;
         Ok(Response::new(ListSavedCatalogScoresResponse {
             hits: hits.into_iter().map(to_hit).collect(),
         }))
@@ -513,13 +642,18 @@ impl ScoreService for ScoreGrpc {
         // load by id without depending on a prior list.
         let id = identity(&req)?;
         self.guard_enumeration(&id).await?; // per-user browse cap (scrape guard)
-        let allow_unvalidated = id.is_admin() || id.has_role("moderator");
+        let privileged = id.is_admin() || id.has_role("moderator");
         let catalog_id = req.into_inner().catalog_id;
-        let hit = self
-            .module
-            .get_catalog_hit(&catalog_id, allow_unvalidated)
-            .await?;
-        Ok(Response::new(to_hit(hit)))
+        let hit = self.module.get_catalog_hit(&catalog_id, privileged).await?;
+        let mut hits = vec![hit];
+        if privileged {
+            self.module.attach_review_attribution(&mut hits).await;
+        } else {
+            self.module
+                .attach_public_credit(&mut hits, today_utc())
+                .await;
+        }
+        Ok(Response::new(to_hit(hits.pop().expect("one hit"))))
     }
 
     async fn set_moderation_status(
@@ -533,7 +667,7 @@ impl ScoreService for ScoreGrpc {
         cymbra_platform::guard::require_moderator_or_admin(&id)?;
         let r = req.into_inner();
         self.module
-            .set_moderation_status(&id.user_id, &r.score_id, &r.status)
+            .set_moderation_status(&id.user_id, &r.score_id, &r.status, r.reason.as_deref())
             .await?;
         Ok(Response::new(SetModerationStatusResponse {}))
     }
@@ -593,10 +727,14 @@ impl ScoreService for ScoreGrpc {
         let user_id = id.user_id;
         let r = req.into_inner();
         let offset = r.offset;
-        let hits = self
+        let mut hits = self
             .module
             .list_rating_deck(&user_id, r.limit as i64, r.offset as i64)
             .await?;
+        // Deck is a normal-caller read: sanitise privileged proposer fields.
+        self.module
+            .attach_public_credit(&mut hits, today_utc())
+            .await;
         let next_offset = offset.max(0) + hits.len() as i32;
         Ok(Response::new(ListRatingDeckResponse {
             hits: hits.into_iter().map(to_hit).collect(),
@@ -682,8 +820,13 @@ mod tests {
         grpc().await.with_limiter(limiter)
     }
 
-    /// A test SoundFont catalog entry.
+    /// A test SoundFont catalog entry (accepted / publicly visible by default).
     fn font(id: &str, attr: Option<&str>) -> crate::soundfont::FontEntry {
+        font_status(id, attr, "accepted")
+    }
+
+    /// A test SoundFont catalog entry with an explicit moderation status.
+    fn font_status(id: &str, attr: Option<&str>, status: &str) -> crate::soundfont::FontEntry {
         crate::soundfont::FontEntry {
             id: id.into(),
             label: format!("{id} label"),
@@ -692,6 +835,11 @@ mod tests {
             license: "CC0-1.0".into(),
             attribution: attr.map(Into::into),
             size_bytes: None,
+            moderation_status: status.into(),
+            reviewed_by: None,
+            reviewed_at: None,
+            uploaded_by: None,
+            content_sha256: Some(crate::soundfont::sha256_hex(id.as_bytes())),
         }
     }
 
@@ -775,7 +923,7 @@ mod tests {
         let (svc, _repo, _store) = grpc_soundfont_admin().await;
         // A plain user (no moderator/admin) is refused on every admin op.
         let list = svc
-            .admin_list_sound_fonts(authed(AdminListSoundFontsRequest {}, "u"))
+            .admin_list_sound_fonts(authed(AdminListSoundFontsRequest::default(), "u"))
             .await
             .unwrap_err();
         assert_eq!(list.code(), tonic::Code::PermissionDenied);
@@ -866,6 +1014,158 @@ mod tests {
             .await
             .unwrap_err();
         assert_eq!(err.code(), tonic::Code::NotFound);
+    }
+
+    #[tokio::test]
+    async fn admin_list_paginates_and_filters_by_status() {
+        use crate::soundfont::FakeSoundFontRepo;
+        // 3 accepted + 2 pending; label order a..e for deterministic paging.
+        let repo = Arc::new(FakeSoundFontRepo::with(vec![
+            font_status("a", None, "accepted"),
+            font_status("b", None, "pending"),
+            font_status("c", None, "accepted"),
+            font_status("d", None, "pending"),
+            font_status("e", None, "accepted"),
+        ]));
+        let svc = grpc().await.with_soundfonts(repo);
+
+        // Page 1 of all: limit 2, offset 0 → 2 rows, total 5, next_offset 2.
+        let p1 = svc
+            .admin_list_sound_fonts(authed_admin(
+                AdminListSoundFontsRequest {
+                    limit: 2,
+                    offset: 0,
+                    moderation_status: String::new(),
+                },
+                "admin-1",
+            ))
+            .await
+            .unwrap()
+            .into_inner();
+        assert_eq!(p1.total, 5);
+        assert_eq!(p1.next_offset, 2);
+        assert_eq!(
+            p1.soundfonts
+                .iter()
+                .map(|f| f.id.clone())
+                .collect::<Vec<_>>(),
+            ["a", "b"]
+        );
+        // KPI counts are catalog-wide, independent of the filter/page.
+        assert_eq!(p1.total_count, 5);
+        assert_eq!(p1.accepted_count, 3);
+        assert_eq!(p1.pending_count, 2);
+        assert_eq!(p1.rejected_count, 0);
+
+        // Filter to pending: total 2 regardless of paging.
+        let pending = svc
+            .admin_list_sound_fonts(authed_admin(
+                AdminListSoundFontsRequest {
+                    limit: 50,
+                    offset: 0,
+                    moderation_status: "pending".into(),
+                },
+                "admin-1",
+            ))
+            .await
+            .unwrap()
+            .into_inner();
+        assert_eq!(pending.total, 2);
+        assert_eq!(
+            pending
+                .soundfonts
+                .iter()
+                .map(|f| f.id.clone())
+                .collect::<Vec<_>>(),
+            ["b", "d"]
+        );
+    }
+
+    #[tokio::test]
+    async fn list_soundfonts_hides_unvalidated() {
+        use crate::soundfont::FakeSoundFontRepo;
+        let svc = grpc()
+            .await
+            .with_soundfonts(Arc::new(FakeSoundFontRepo::with(vec![
+                font_status("accepted-one", None, "accepted"),
+                font_status("pending-one", None, "pending"),
+                font_status("rejected-one", None, "rejected"),
+            ])));
+        let resp = svc
+            .list_sound_fonts(authed(ListSoundFontsRequest {}, "u"))
+            .await
+            .unwrap()
+            .into_inner();
+        // Only the accepted font is offered publicly.
+        assert_eq!(resp.soundfonts.len(), 1);
+        assert_eq!(resp.soundfonts[0].id, "accepted-one");
+    }
+
+    #[tokio::test]
+    async fn set_soundfont_moderation_status_gates_and_transitions() {
+        use crate::soundfont::FakeSoundFontRepo;
+        let repo = Arc::new(FakeSoundFontRepo::with(vec![font_status(
+            "ydp-grand",
+            None,
+            "pending",
+        )]));
+        let svc = grpc().await.with_soundfonts(repo.clone());
+
+        // A plain user is refused.
+        let denied = svc
+            .set_sound_font_moderation_status(authed(
+                SetSoundFontModerationStatusRequest {
+                    id: "ydp-grand".into(),
+                    status: "accepted".into(),
+                },
+                "u",
+            ))
+            .await
+            .unwrap_err();
+        assert_eq!(denied.code(), tonic::Code::PermissionDenied);
+
+        // An invalid status value is rejected.
+        let bad = svc
+            .set_sound_font_moderation_status(authed_moderator(
+                SetSoundFontModerationStatusRequest {
+                    id: "ydp-grand".into(),
+                    status: "banana".into(),
+                },
+                "mod-1",
+            ))
+            .await
+            .unwrap_err();
+        assert_eq!(bad.code(), tonic::Code::InvalidArgument);
+
+        // A moderator accepts it → it becomes publicly visible, stamped with the reviewer.
+        // The reviewer id is a UUID (as the real AuthIdentity.user_id is).
+        let mod_uuid = "11111111-1111-1111-1111-111111111111";
+        svc.set_sound_font_moderation_status(authed_moderator(
+            SetSoundFontModerationStatusRequest {
+                id: "ydp-grand".into(),
+                status: "accepted".into(),
+            },
+            mod_uuid,
+        ))
+        .await
+        .unwrap();
+        let e = repo.lookup("ydp-grand").await.unwrap().unwrap();
+        assert_eq!(e.moderation_status, "accepted");
+        assert_eq!(e.reviewed_by.as_deref(), Some(mod_uuid));
+        assert_eq!(repo.list_accepted().await.unwrap().len(), 1);
+
+        // An unknown id is not-found.
+        let missing = svc
+            .set_sound_font_moderation_status(authed_moderator(
+                SetSoundFontModerationStatusRequest {
+                    id: "nope".into(),
+                    status: "accepted".into(),
+                },
+                mod_uuid,
+            ))
+            .await
+            .unwrap_err();
+        assert_eq!(missing.code(), tonic::Code::NotFound);
     }
 
     /// Attach an authenticated identity to a request (as the interceptor would).
@@ -1241,6 +1541,7 @@ mod tests {
         let req = || SetModerationStatusRequest {
             score_id: PENDING.into(),
             status: "accepted".into(),
+            reason: None,
         };
         // A normal caller is denied and nothing changes.
         let err = g

@@ -5,6 +5,9 @@ import { type Async, idle, run } from "@/lib/async";
 import type { CatalogHit } from "@/gen/score_pb";
 
 export type ModerationStatus = "pending" | "accepted" | "rejected";
+/** The status filter's value in the BO catalog view: a specific status, or "" = all
+ * statuses (the default "Tous"). */
+export type StatusFilter = ModerationStatus | "";
 export interface SortKeyInit {
   field: string;
   descending: boolean;
@@ -16,7 +19,29 @@ export interface Filters {
   author: string;
   level: string;
   isPiano: boolean | undefined;
-  moderationStatus: ModerationStatus;
+  // "" = all statuses (Tous) — the BO catalog default (change: add-score-catalog-proposal).
+  moderationStatus: StatusFilter;
+  // Origin filter: "" = any source, else e.g. "user-proposal".
+  source: string;
+}
+
+/** The catalog screen's live browse state (filters + sort + page). Lifted into the
+ * store so it survives leaving for a score's detail page and coming back — the view
+ * is remounted on return (no keep-alive), so local refs would reset to defaults. */
+export interface CatalogView {
+  filters: Filters;
+  sort: SortKeyInit[];
+  offset: number;
+}
+
+/** A fresh, unfiltered browse state: all statuses (Tous), any source, no sort, first
+ * page — the BO catalog default (change: add-score-catalog-proposal). */
+export function defaultCatalogView(): CatalogView {
+  return {
+    filters: { query: "", author: "", level: "", isPiano: undefined, moderationStatus: "", source: "" },
+    sort: [],
+    offset: 0,
+  };
 }
 
 // The hub filters (text/author/level/facets) plus the BO-only status filter and
@@ -30,6 +55,11 @@ export interface SearchParams {
   // Review-queue mode: the moderation work list = pending scores PLUS accepted
   // scores flagged for re-review by community ratings. Overrides moderationStatus.
   reviewQueue?: boolean;
+  // BO catalog "Tous": return every moderation status (privileged). Overrides the
+  // accepted-only default when no specific `moderationStatus` is set.
+  allStatuses?: boolean;
+  // Origin filter (e.g. "user-proposal"); undefined/"" = any source.
+  source?: string;
   sort?: SortKeyInit[];
   limit?: number;
   offset?: number;
@@ -81,9 +111,11 @@ async function fetchHit(catalogId: string): Promise<CatalogHit> {
 }
 
 /** Evaluate a score (raw RPC, no list refresh) — used by the review session, which
- * advances the deck itself instead of re-querying. */
-async function evaluate(scoreId: string, status: ModerationStatus) {
-  await api().score.setModerationStatus({ scoreId, status });
+ * advances the deck itself instead of re-querying. `reason` is the moderator's
+ * rejection motive (change: add-score-catalog-proposal); it is recorded on `rejected`
+ * and cleared otherwise, and surfaced back to the proposer. */
+async function evaluate(scoreId: string, status: ModerationStatus, reason?: string) {
+  await api().score.setModerationStatus({ scoreId, status, reason });
 }
 
 /** A moderator's curatorial edit — only descriptive/attribution fields (never the
@@ -120,6 +152,9 @@ export const useCatalogStore = defineStore("catalog", () => {
   // One value for the whole search lifecycle — views match on it exhaustively.
   const result = ref<Async<CatalogResult>>(idle);
   const lastParams = reactive<SearchParams>({ limit: PAGE_SIZE, offset: 0 });
+  // The catalog screen's browse state, persisted across a detail-page round-trip
+  // (the view remounts on return, so its filters/sort/page must live here).
+  const catalogView = reactive<CatalogView>(defaultCatalogView());
   // Header stat cards. Kept in its own Async so a stats failure never blocks the
   // list — the cards just fall back to "—".
   const stats = ref<Async<CatalogStats>>(idle);
@@ -139,6 +174,8 @@ export const useCatalogStore = defineStore("catalog", () => {
         isPiano: params.isPiano,
         moderationStatus: params.moderationStatus,
         reviewQueue: params.reviewQueue,
+        allStatuses: params.allStatuses,
+        source: params.source || undefined,
         sort: params.sort ?? [],
         limit: params.limit ?? PAGE_SIZE,
         offset: params.offset ?? 0,
@@ -147,9 +184,10 @@ export const useCatalogStore = defineStore("catalog", () => {
     });
   }
 
-  /** Evaluate a score; on success re-run the last query so the row reflects it. */
-  async function setModerationStatus(scoreId: string, status: ModerationStatus) {
-    await evaluate(scoreId, status);
+  /** Evaluate a score; on success re-run the last query so the row reflects it.
+   * `reason` is the moderator's rejection motive (change: add-score-catalog-proposal). */
+  async function setModerationStatus(scoreId: string, status: ModerationStatus, reason?: string) {
+    await evaluate(scoreId, status, reason);
     await search(lastParams);
   }
 
@@ -185,6 +223,7 @@ export const useCatalogStore = defineStore("catalog", () => {
   return {
     result,
     lastParams,
+    catalogView,
     stats,
     downloads,
     search,

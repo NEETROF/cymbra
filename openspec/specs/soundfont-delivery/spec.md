@@ -5,7 +5,6 @@ Deliver playback SoundFonts to authenticated clients from a dedicated, private
 object-store bucket via an authenticated, range-capable backend route, gated by a
 per-font entitlement check and resolved through a server-owned font catalog so that
 free fonts ship today and paid fonts can be added later without re-architecting delivery.
-
 ## Requirements
 ### Requirement: SoundFonts stored in a dedicated private object-store bucket
 
@@ -46,9 +45,16 @@ with the private bucket as origin. A request for an unknown SoundFont id MUST re
 not-found. The bytes SHALL be served from the backend/API origin (never a direct
 browser-to-bucket fetch).
 
+The route SHALL additionally enforce the moderation gate for public catalog fonts: to a
+normal (non-moderator, non-admin) caller it SHALL serve only an `accepted` font — a
+`pending` or `rejected` catalog font MUST be treated as not-found — while a music-scope
+moderator/admin MAY fetch a catalog font of any moderation status (to audition it). A
+font in a user's **private library** SHALL be served only to its owner and is not subject
+to moderation.
+
 #### Scenario: Authenticated client fetches a font
 
-- **WHEN** an authenticated client requests an existing SoundFont by id
+- **WHEN** an authenticated client requests an existing `accepted` SoundFont by id
 - **THEN** the backend streams the SoundFont bytes from the SoundFont store (warm cache,
   else the private bucket) with a success status
 
@@ -67,6 +73,21 @@ browser-to-bucket fetch).
 
 - **WHEN** an authenticated client requests a SoundFont id that does not exist
 - **THEN** the backend responds not-found and streams nothing
+
+#### Scenario: Unvalidated catalog font hidden from a normal caller
+
+- **WHEN** a normal caller requests a `pending` or `rejected` catalog font by id
+- **THEN** the backend responds not-found and streams nothing
+
+#### Scenario: Moderator auditions an unvalidated catalog font
+
+- **WHEN** a music-scope moderator/admin requests a `pending` or `rejected` catalog font
+- **THEN** the backend streams its bytes so the reviewer can audition it
+
+#### Scenario: Private font served only to its owner
+
+- **WHEN** a user requests a private-library font they own
+- **THEN** the backend streams it, whereas any other caller receives not-found
 
 ### Requirement: Per-font entitlement check, ready for paid fonts
 
@@ -100,10 +121,12 @@ served.
 ### Requirement: Server-owned SoundFont catalog
 
 The system SHALL maintain a server-owned mapping from each **SoundFont id** to its storage
-key, its access tier (free/paid), and its licence/attribution. The delivery route and the
-entitlement check SHALL resolve fonts through this mapping, so client-facing ids are
-decoupled from bucket keys and the required attribution for redistributed (e.g. CC-BY)
-fonts is recorded alongside the font.
+key, its access tier (free/paid), its licence/attribution, its **moderation status** with
+reviewer attribution (`reviewed_by`/`reviewed_at`), its **uploader** (`uploaded_by`), and
+its exact-byte **content digest** (SHA-256). The delivery route, the moderation gate, and
+the entitlement check SHALL resolve fonts through this mapping, so client-facing ids are
+decoupled from bucket keys, the required attribution for redistributed (e.g. CC-BY) fonts
+is recorded alongside the font, and identical content is detectable across uploads.
 
 #### Scenario: Id resolves to a stored object
 
@@ -115,3 +138,10 @@ fonts is recorded alongside the font.
 
 - **WHEN** a redistributed font requiring attribution (e.g. CC-BY) is in the catalog
 - **THEN** its licence and required credit are recorded in the catalog entry
+
+#### Scenario: Moderation and content identity are recorded
+
+- **WHEN** a font is present in the catalog
+- **THEN** its moderation status, reviewer attribution, uploader, and content digest are
+  recorded alongside its storage key, tier, and licence
+

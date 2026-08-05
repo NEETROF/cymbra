@@ -25,6 +25,7 @@ import '../state/score_catalog.dart';
 import '../state/selected_piano.dart';
 import '../theme/cymbra_theme.dart';
 import '../widgets/difficulty_badge.dart';
+import '../widgets/leaderboard_view.dart';
 import '../widgets/otg_guidance.dart';
 import '../widgets/setting_option_row.dart';
 import '../widgets/sound_selector_field.dart';
@@ -64,6 +65,12 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
   late String _soundId;
   late KeyboardRangeMode _range;
   late bool _keyboardVisible;
+
+  /// When true, the modal body shows this piece's leaderboard in place of the
+  /// setup controls (a toggle via the trophy in the header) — so the board is
+  /// viewed inline, not as a modal stacked on this modal (change: add-play-
+  /// leaderboards).
+  bool _showBoard = false;
 
   @override
   void initState() {
@@ -164,7 +171,15 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
             sound,
           ]);
 
-    final header = _header(l10n, title, composer, entry?.level, phone);
+    // Inline leaderboard: the trophy swaps the body to the board (no stacked
+    // modal). Only an accepted catalog score has a board (`catalogId`), so a
+    // toggled-on board falls back to the setup if that ever changes.
+    final showingBoard = _showBoard && entry?.catalogId != null;
+    final Widget shownBody = showingBoard
+        ? LeaderboardView(scoreId: entry!.catalogId!, title: '')
+        : body;
+
+    final header = _header(l10n, title, composer, entry, phone);
     final button = Padding(
       padding: EdgeInsets.only(top: phone ? 8 : 12),
       child: FilledButton(
@@ -186,9 +201,8 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
               children: [
                 header,
                 const SizedBox(height: 4),
-                facts,
-                const SizedBox(height: 4),
-                Expanded(child: body),
+                if (!showingBoard) ...[facts, const SizedBox(height: 4)],
+                Expanded(child: shownBody),
                 button,
               ],
             ),
@@ -204,12 +218,18 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
           child: Column(
-            mainAxisSize: MainAxisSize.min,
+            // When the board is shown the modal fills a STABLE height (max), so
+            // switching modes — or the loading→data swap — never resizes the
+            // dialog; the list scrolls within. The setup view stays content-sized.
+            mainAxisSize: showingBoard ? MainAxisSize.max : MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               header,
               const SizedBox(height: 4),
-              Flexible(child: body),
+              if (showingBoard)
+                Expanded(child: shownBody)
+              else
+                Flexible(child: shownBody),
               button,
             ],
           ),
@@ -222,7 +242,7 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
     AppLocalizations l10n,
     String title,
     String? composer,
-    PracticeLevel? level,
+    CatalogEntry? entry,
     bool phone,
   ) => Row(
     crossAxisAlignment: CrossAxisAlignment.start,
@@ -254,17 +274,33 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
                   ),
                 ),
               ),
-            if (level != null)
+            if (entry?.level != null)
               Padding(
                 padding: EdgeInsets.only(top: phone ? 4 : 8),
                 child: Align(
                   alignment: Alignment.centerLeft,
-                  child: DifficultyBadge(level: level, l10n: l10n),
+                  child: DifficultyBadge(level: entry!.level, l10n: l10n),
                 ),
               ),
           ],
         ),
       ),
+      // Toggle this piece's leaderboard INLINE (change: add-play-leaderboards) —
+      // the body swaps between the setup controls and the board, no stacked modal.
+      // Only an accepted catalog score has a shared board (`catalogId`). The icon
+      // flips to a back arrow while the board is shown, to return to the settings.
+      if (entry?.catalogId != null)
+        IconButton(
+          icon: Icon(
+            _showBoard ? Icons.arrow_back : Icons.emoji_events,
+            color: CymbraColors.onSurfaceVariant,
+          ),
+          tooltip: _showBoard
+              ? MaterialLocalizations.of(context).backButtonTooltip
+              : l10n.leaderboardTitle,
+          visualDensity: VisualDensity.compact,
+          onPressed: () => setState(() => _showBoard = !_showBoard),
+        ),
       IconButton(
         icon: const Icon(Icons.close, color: CymbraColors.onSurfaceVariant),
         tooltip: l10n.cancel,

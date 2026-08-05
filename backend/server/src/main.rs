@@ -178,7 +178,10 @@ async fn main() -> anyhow::Result<()> {
     //     the injected user port (`user_dyn`).
     //   * ScoreService — user uploads, ADDITIONALLY when the object store is set.
     // Both run behind the strict auth interceptor. Absent music DB ⇒ both inert.
-    let (play_svc, score_svc, soundfont_repo) = match cfg.music_database_url.as_deref() {
+    let (play_svc, score_svc, soundfont_repo, user_soundfont_repo, leaderboard_svc) = match cfg
+        .music_database_url
+        .as_deref()
+    {
         Some(db_url) => {
             let music_pool = db::connect(db_url, 5).await?;
             cymbra_music::MIGRATOR.run(&music_pool).await?;
@@ -187,21 +190,41 @@ async fn main() -> anyhow::Result<()> {
             // route below.
             let soundfont_repo: Arc<dyn cymbra_music::SoundFontRepo> =
                 Arc::new(cymbra_music::PgSoundFontRepo::new(music_pool.clone()));
+            // Private, per-user SoundFont library (change: add-soundfont-moderation):
+            // owner-scoped store behind the `/me/soundfonts` routes.
+            let user_soundfont_repo: Arc<dyn cymbra_music::UserSoundFontRepo> =
+                Arc::new(cymbra_music::PgUserSoundFontRepo::new(music_pool.clone()));
             // Shared play-session port: feeds both the PlayService and the catalog
             // access limiter's play-aware download allowance (change: add-catalog-
             // access-limits).
             let play_repo: Arc<dyn cymbra_music::PlayRepo> =
                 Arc::new(cymbra_music::PgPlayRepo::new(music_pool.clone()));
-            let play_module = Arc::new(cymbra_music::PlayModule::new(
-                play_repo.clone(),
+            // Leaderboards (change: add-play-leaderboards): the bests store is
+            // maintained on the play-session ingest path (as a sink) and read by
+            // the LeaderboardService; both share one module + the injected user
+            // port for the public/eligible listing gate (cross-schema-free).
+            let leaderboard_module = Arc::new(cymbra_music::LeaderboardModule::new(
+                Arc::new(cymbra_music::PgLeaderboardRepo::new(music_pool.clone())),
                 user_dyn.clone(),
             ));
+            let leaderboard_sink: Arc<dyn cymbra_music::LeaderboardSink> =
+                leaderboard_module.clone();
+            let play_module = Arc::new(
+                cymbra_music::PlayModule::new(play_repo.clone(), user_dyn.clone())
+                    .with_leaderboard(leaderboard_sink),
+            );
             let play_svc = Some(
                 cymbra_music::proto::play_service_server::PlayServiceServer::with_interceptor(
                     cymbra_music::PlayGrpc::new(play_module),
                     strict.clone(),
                 ),
             );
+            let leaderboard_svc = Some(
+                    cymbra_music::proto::leaderboard_service_server::LeaderboardServiceServer::with_interceptor(
+                        cymbra_music::LeaderboardGrpc::new(leaderboard_module),
+                        strict.clone(),
+                    ),
+                );
 
             let score_svc = match cfg.score_storage.as_ref() {
                 Some(s3) => {
@@ -220,16 +243,20 @@ async fn main() -> anyhow::Result<()> {
                     // engagement allowance (a rating earns download headroom like a play).
                     let rating_repo: Arc<dyn cymbra_music::ScoreRatingRepo> =
                         Arc::new(PgScoreRatingRepo::new(music_pool.clone()));
-                    let module = Arc::new(ScoreModule::new(
-                        Arc::new(PgUserScoreRepo::new(music_pool.clone())),
-                        Arc::new(PgCatalogSearchRepo::new(music_pool.clone())),
-                        Arc::new(PgUserLibraryRepo::new(music_pool.clone())),
-                        rating_repo.clone(),
-                        storage,
-                        cfg.upload_quota_max,
-                        cfg.upload_quota_window_days,
-                        cfg.upload_max_bytes,
-                    ));
+                    let module = Arc::new(
+                        ScoreModule::new(
+                            Arc::new(PgUserScoreRepo::new(music_pool.clone())),
+                            Arc::new(PgCatalogSearchRepo::new(music_pool.clone())),
+                            Arc::new(PgUserLibraryRepo::new(music_pool.clone())),
+                            rating_repo.clone(),
+                            storage,
+                            cfg.upload_quota_max,
+                            cfg.upload_quota_window_days,
+                            cfg.upload_max_bytes,
+                        )
+                        // Resolve proposer attribution (change: add-score-catalog-proposal).
+                        .with_user(user_dyn.clone()),
+                    );
                     // Per-user scrape guardrail over the shared Redis cache + play &
                     // rating ports (engagement = plays + ratings).
                     let limiter = Arc::new(cymbra_music::CatalogAccessLimiter::new(
@@ -251,7 +278,13 @@ async fn main() -> anyhow::Result<()> {
                     None
                 }
             };
-            (play_svc, score_svc, Some(soundfont_repo))
+            (
+                play_svc,
+                score_svc,
+                Some(soundfont_repo),
+                Some(user_soundfont_repo),
+                leaderboard_svc,
+            )
         }
         None => {
             // Fail-fast: S3 configured but no music DB is a misconfiguration.
@@ -261,7 +294,7 @@ async fn main() -> anyhow::Result<()> {
                 ));
             }
             tracing::info!("music services disabled (CYMBRA_MUSIC_DATABASE_URL unset)");
-            (None, None, None)
+            (None, None, None, None, None)
         }
     };
 
@@ -282,6 +315,9 @@ async fn main() -> anyhow::Result<()> {
         // The persisted catalog (change: add-soundfont-catalog-db) resolves id →
         // object_key; absent music DB ⇒ the route reports 503.
         repo: soundfont_repo,
+        // Private per-user library (change: add-soundfont-moderation) backing the
+        // `/me/soundfonts` routes.
+        user_repo: user_soundfont_repo,
         auth: Arc::new(soundfont_auth),
     };
     let http = cymbra_server::http_router(jwks, ready_pool, cache.clone())
@@ -331,6 +367,9 @@ async fn main() -> anyhow::Result<()> {
     }
     if let Some(play_svc) = play_svc {
         router = router.add_service(play_svc);
+    }
+    if let Some(leaderboard_svc) = leaderboard_svc {
+        router = router.add_service(leaderboard_svc);
     }
     let grpc = router.serve(grpc_addr);
     let listener = tokio::net::TcpListener::bind(http_addr).await?;

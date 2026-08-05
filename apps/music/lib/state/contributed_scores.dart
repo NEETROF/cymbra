@@ -57,6 +57,15 @@ class MyUploads extends _$MyUploads {
     return ref.read(scoreUploadServiceProvider).listMyScores();
   }
 
+  /// Re-fetch the caller's uploads, keeping the current list visible while the fetch
+  /// is in flight (no loading flicker). Used to pick up server-side changes the app
+  /// can't observe locally — e.g. a moderator changing a contribution's proposal
+  /// status in the back office (change: add-score-catalog-proposal). A failure lands
+  /// in the state (surfaced by the listener), never thrown.
+  Future<void> refresh() async {
+    state = await AsyncValue.guard(_fetch);
+  }
+
   /// Favorite / un-favorite one of the caller's uploads, then reload. A failure
   /// lands in the state (surfaced by a listener), never thrown to the caller.
   Future<void> toggleFavorite(
@@ -75,6 +84,32 @@ class MyUploads extends _$MyUploads {
   Future<void> delete(String contributedId) async {
     state = await AsyncValue.guard(() async {
       await ref.read(scoreUploadServiceProvider).deleteScore(contributedId);
+      return _fetch();
+    });
+  }
+
+  /// Propose one of the caller's uploads to the public catalog (change: add-score-
+  /// catalog-proposal), then reload so the new `pending` proposal status is reflected.
+  /// [resubmissionNote] is required only when re-proposing a rejected score. A failure
+  /// lands in the state (surfaced by the library listener), never thrown to the caller —
+  /// widgets fire this and react to the resulting state, per the architecture rules.
+  Future<void> proposeToPublicCatalog(
+    String contributedId, {
+    required String license,
+    required bool attestation,
+    String attribution = '',
+    String? resubmissionNote,
+  }) async {
+    state = await AsyncValue.guard(() async {
+      await ref
+          .read(scoreUploadServiceProvider)
+          .propose(
+            scoreId: contributedId,
+            license: license,
+            attestation: attestation,
+            attribution: attribution,
+            resubmissionNote: resubmissionNote,
+          );
       return _fetch();
     });
   }
@@ -120,6 +155,8 @@ CatalogEntry contributedEntry(ContributedScore s, {String? uploaderHandle}) {
     keyFifths: s.keyFifths,
     favorite: s.favorite,
     uploaderHandle: uploaderHandle,
+    proposalStatus: s.proposalStatus,
+    proposalRejectionReason: s.rejectionReason,
   );
 }
 

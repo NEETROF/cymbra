@@ -64,6 +64,15 @@ class _FakeCatalog implements CatalogService {
 }
 
 class _FakeUpload implements ScoreUploadService {
+  @override
+  Future<void> propose({
+    required String scoreId,
+    required String license,
+    required bool attestation,
+    String attribution = '',
+    String? resubmissionNote,
+  }) async {}
+
   _FakeUpload(this.mine);
   final List<ContributedScore> mine;
   final List<String> favoritedOff = [];

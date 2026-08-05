@@ -15,25 +15,24 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../l10n/gen/app_localizations.dart';
-import '../services/soundfont_importer.dart' show SoundFontImportException;
-import '../state/imported_soundfonts.dart';
+import '../services/soundfont_catalog_service.dart'
+    show serverSoundFontsProvider;
 import '../state/piano_catalog.dart';
 import '../theme/cymbra_theme.dart';
-import 'app_snackbar.dart';
 
 /// A **combobox** to choose the instrument sound (SoundFont) the synth plays with
 /// — the same control everywhere a score is played (the pre-play setup popup and
-/// the rating deck). Mirrors the back-office soundfont picker: a dropdown of the
-/// catalog, plus an "add a SoundFont" entry that runs the import flow.
+/// the rating deck). A pure selector: importing and managing SoundFonts lives on
+/// the dedicated management screen (change: add-soundfont-moderation), reached
+/// from the home top bar — not here.
 ///
 /// Controlled: the parent owns [value] (a piano id) and reacts to [onChanged], so
 /// it can be a draft (applied on Validate in the popup) or immediate (live in the
 /// deck). [instrument] is the score's instrument family — the catalog is filtered
 /// to matching sounds (every sound is a piano today, so it's a no-op until scores
-/// carry an instrument). [dense] drops the caption + manage affordance for a
-/// compact form that fits an app bar.
-class SoundSelectorField extends ConsumerWidget {
+/// carry an instrument). [dense] drops the caption for a compact form that fits an
+/// app bar.
+class SoundSelectorField extends ConsumerStatefulWidget {
   const SoundSelectorField({
     super.key,
     required this.value,
@@ -45,7 +44,7 @@ class SoundSelectorField extends ConsumerWidget {
   /// The selected sound's catalog id.
   final String value;
 
-  /// Called with the newly chosen sound id (after a pick or a successful import).
+  /// Called with the newly chosen sound id.
   final ValueChanged<String> onChanged;
 
   /// The score's instrument family; the catalog is filtered to it.
@@ -54,9 +53,21 @@ class SoundSelectorField extends ConsumerWidget {
   /// Compact form (dropdown only) for tight spots like an app bar.
   final bool dense;
 
-  /// Sentinel dropdown value that triggers the SoundFont import flow instead of
-  /// selecting an existing sound.
-  static const String _addValue = '__add_soundfont__';
+  @override
+  ConsumerState<SoundSelectorField> createState() => _SoundSelectorFieldState();
+}
+
+class _SoundSelectorFieldState extends ConsumerState<SoundSelectorField> {
+  @override
+  void initState() {
+    super.initState();
+    // Refresh the server-sourced downloadable catalog each time the picker is
+    // shown, so a font accepted/added on the server appears without an app
+    // restart (the provider otherwise fetches once and caches).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) ref.invalidate(serverSoundFontsProvider);
+    });
+  }
 
   /// Whether [p] belongs to [instrument]. `PianoEntry` has no instrument field
   /// yet and every catalog sound is a piano, so this is a no-op today; filter on
@@ -64,21 +75,21 @@ class SoundSelectorField extends ConsumerWidget {
   bool _matches(PianoEntry p, String instrument) => true;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = AppLocalizations.of(context);
+  Widget build(BuildContext context) {
     final catalog = ref.watch(pianoCatalogProvider);
-    final sounds = catalog.where((p) => _matches(p, instrument)).toList();
+    final sounds = catalog
+        .where((p) => _matches(p, widget.instrument))
+        .toList();
 
     // The dropdown value must match an item; fall back to the default if the
     // current selection isn't in the (filtered) catalog.
-    final selectedId = sounds.any((p) => p.id == value)
-        ? value
+    final selectedId = sounds.any((p) => p.id == widget.value)
+        ? widget.value
         : (sounds.isNotEmpty ? sounds.first.id : defaultPianoId);
     final selected = sounds.firstWhere(
       (p) => p.id == selectedId,
       orElse: () => defaultPiano,
     );
-    final hasImports = sounds.any((p) => p.kind == PianoKind.user);
     final subtitle = _licenseLabel(selected);
 
     final dropdown = Container(
@@ -90,7 +101,7 @@ class SoundSelectorField extends ConsumerWidget {
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
           isExpanded: true,
-          isDense: dense,
+          isDense: widget.dense,
           value: selectedId,
           dropdownColor: CymbraColors.surfaceContainerHigh,
           iconEnabledColor: CymbraColors.onSurfaceVariant,
@@ -101,53 +112,20 @@ class SoundSelectorField extends ConsumerWidget {
                 value: p.id,
                 child: Text(p.label, overflow: TextOverflow.ellipsis),
               ),
-            DropdownMenuItem<String>(
-              value: _addValue,
-              child: Row(
-                children: [
-                  const Icon(
-                    Icons.add,
-                    size: 18,
-                    color: CymbraColors.onSurfaceVariant,
-                  ),
-                  const SizedBox(width: 8),
-                  Flexible(
-                    child: Text(
-                      l10n.pianoAddSoundFont,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
-              ),
-            ),
           ],
-          onChanged: (v) => _onPicked(context, ref, v),
+          onChanged: (v) {
+            if (v != null) widget.onChanged(v);
+          },
         ),
       ),
     );
 
-    if (dense) return dropdown;
+    if (widget.dense) return dropdown;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
-          children: [
-            Expanded(child: dropdown),
-            if (hasImports)
-              Padding(
-                padding: const EdgeInsets.only(left: 4),
-                child: IconButton(
-                  tooltip: l10n.pianoManage,
-                  icon: const Icon(
-                    Icons.tune,
-                    color: CymbraColors.onSurfaceVariant,
-                  ),
-                  onPressed: () => _openManager(context, ref),
-                ),
-              ),
-          ],
-        ),
+        dropdown,
         if (subtitle != null)
           Padding(
             padding: const EdgeInsets.only(top: 4, left: 4),
@@ -170,116 +148,5 @@ class SoundSelectorField extends ConsumerWidget {
     if (license == null) return null;
     final attribution = piano.attribution;
     return attribution == null ? license : '$license · $attribution';
-  }
-
-  /// Handles a dropdown pick: the add sentinel runs the import (and selects the
-  /// imported font on success); anything else selects that sound.
-  Future<void> _onPicked(
-    BuildContext context,
-    WidgetRef ref,
-    String? picked,
-  ) async {
-    if (picked == null) return;
-    if (picked != _addValue) {
-      onChanged(picked);
-      return;
-    }
-    final messenger = ScaffoldMessenger.of(context);
-    final l10n = AppLocalizations.of(context);
-    try {
-      final entry = await ref
-          .read(importedSoundFontsProvider.notifier)
-          .importSoundFont();
-      if (entry != null) onChanged(entry.id);
-    } on SoundFontImportException {
-      showAppSnackBar(messenger, l10n.pianoImportInvalid);
-    } catch (_) {
-      // Cancelled or a transient picker error — nothing to surface.
-    }
-  }
-
-  /// Opens the manage sheet to remove imported sounds.
-  void _openManager(BuildContext context, WidgetRef ref) {
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: CymbraColors.surfaceContainerHigh,
-      builder: (_) => _SoundManagerSheet(
-        onRemovedSelected: () {
-          // If the removed sound was selected, fall back to the default.
-          onChanged(defaultPianoId);
-        },
-        selectedId: value,
-      ),
-    );
-  }
-}
-
-/// Bottom sheet listing the imported sounds with a delete affordance (the remove
-/// that used to live in the in-game settings drawer). Selection happens in the
-/// combobox; this is management only.
-class _SoundManagerSheet extends ConsumerWidget {
-  const _SoundManagerSheet({
-    required this.onRemovedSelected,
-    required this.selectedId,
-  });
-
-  /// Called when the currently-selected sound is the one removed.
-  final VoidCallback onRemovedSelected;
-  final String selectedId;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = AppLocalizations.of(context);
-    final imported = ref
-        .watch(pianoCatalogProvider)
-        .where((p) => p.kind == PianoKind.user)
-        .toList();
-    return SafeArea(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-            child: Text(
-              l10n.pianoManage,
-              style: const TextStyle(
-                color: CymbraColors.onSurface,
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-          if (imported.isEmpty)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
-              child: Text(
-                l10n.pianoGroupImported,
-                style: const TextStyle(color: CymbraColors.onSurfaceVariant),
-              ),
-            )
-          else
-            for (final p in imported)
-              ListTile(
-                title: Text(
-                  p.label,
-                  style: const TextStyle(color: CymbraColors.onSurface),
-                ),
-                trailing: IconButton(
-                  tooltip: l10n.pianoRemove,
-                  icon: const Icon(
-                    Icons.delete_outline,
-                    color: CymbraColors.onSurfaceVariant,
-                  ),
-                  onPressed: () {
-                    ref.read(importedSoundFontsProvider.notifier).remove(p.id);
-                    if (p.id == selectedId) onRemovedSelected();
-                  },
-                ),
-              ),
-          const SizedBox(height: 8),
-        ],
-      ),
-    );
   }
 }

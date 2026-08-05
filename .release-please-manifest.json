@@ -1,5 +1,5 @@
 {
-  "apps/music": "1.16.0",
-  "backend": "0.10.1",
-  "apps/back-office": "0.3.0"
+  "apps/music": "1.17.0",
+  "backend": "0.11.0",
+  "apps/back-office": "0.4.0"
 }
