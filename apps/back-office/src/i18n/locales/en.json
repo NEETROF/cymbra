@@ -325,7 +325,8 @@
     "reliabilityCoverage": "Coverage contribution",
     "reliabilityAlignment": "Alignment rate",
     "reliabilityAlignmentNote": "{aligned} of {settled} settled ratings aligned",
-    "reliabilityEmpty": "No reliability data yet."
+    "reliabilityEmpty": "No reliability data yet.",
+    "close": "Close"
   },
   "errors": {
     "unauthenticated": "Invalid credentials or expired session.",

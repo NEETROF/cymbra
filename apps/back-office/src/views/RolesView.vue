@@ -8,6 +8,7 @@ import { useAuthStore } from "@/stores/auth";
 import type { Scope } from "@/lib/jwt";
 import type { AccountRow, RoleGrant } from "@/gen/user_pb";
 import AppTag from "@/components/AppTag.vue";
+import CuratorReliabilityDrawer from "@/components/CuratorReliabilityDrawer.vue";
 
 // Admin-only (route- + server-guarded). A paginated directory of accounts with
 // their roles grouped by scope; an admin picks a scope they may administer, filters
@@ -104,15 +105,12 @@ const reliability = computed(() =>
     .otherwise(() => null),
 );
 const reliabilityLoading = computed(() => store.reliability.status === "loading");
-
-/** Format a bigint count for display. */
-function count(v: bigint): string {
-  return Number(v).toLocaleString();
-}
-/** Alignment rate is a 0–1 ratio over settled ratings; show it as a whole percent. */
-function pct(rate: number): string {
-  return `${Math.round(rate * 100)}%`;
-}
+// Whether the reliability drawer is open (a selected row + moderator/admin).
+const reliabilityOpen = computed(() => !!selected.value && panel.value === "reliability" && auth.isModerator);
+// The handle of the selected account, for the drawer header.
+const selectedHandle = computed(
+  () => vm.value.accounts.find((a) => a.userId === selected.value)?.handle ?? "",
+);
 
 function search() {
   store.list(filter.value.trim(), 0);
@@ -140,6 +138,10 @@ function reliabilityFor(userId: string) {
   selected.value = userId;
   panel.value = "reliability";
   store.loadReliability(userId);
+}
+/** Close the reliability drawer (leaves the history panel state untouched). */
+function closeReliability() {
+  if (panel.value === "reliability") panel.value = null;
 }
 /** Admin: cut off every session of a compromised account (server-gated by require_admin).
  * Confirm first — it's destructive — and let the outcome surface via `error`. */
@@ -239,30 +241,13 @@ onMounted(() => store.list("", 0));
     </div>
   </div>
 
-  <section v-if="selected && panel === 'reliability' && auth.isModerator" class="reliability">
-    <h2>{{ $t("roles.reliabilityTitle") }}</h2>
-    <div v-if="reliability" class="rel-grid">
-      <div class="rel-stat">
-        <span class="rel-label">{{ $t("roles.reliabilityRatings") }}</span>
-        <span class="rel-value">{{ count(reliability.totalRatings) }}</span>
-      </div>
-      <div class="rel-stat">
-        <span class="rel-label">{{ $t("roles.reliabilityCoverage") }}</span>
-        <span class="rel-value">{{ count(reliability.coverageContribution) }}</span>
-      </div>
-      <div class="rel-stat">
-        <span class="rel-label">{{ $t("roles.reliabilityAlignment") }}</span>
-        <span class="rel-value">{{ pct(reliability.alignmentRate) }}</span>
-        <span class="rel-note">{{
-          $t("roles.reliabilityAlignmentNote", {
-            aligned: count(reliability.alignedCount),
-            settled: count(reliability.settledCount),
-          })
-        }}</span>
-      </div>
-    </div>
-    <p v-else class="muted">{{ reliabilityLoading ? $t("common.loading") : $t("roles.reliabilityEmpty") }}</p>
-  </section>
+  <CuratorReliabilityDrawer
+    :open="reliabilityOpen"
+    :handle="selectedHandle"
+    :reliability="reliability"
+    :loading="reliabilityLoading"
+    @close="closeReliability"
+  />
 
   <section v-if="selected && panel === 'history' && grants.length" class="history">
     <h2>{{ $t("roles.history") }}</h2>
@@ -348,42 +333,6 @@ onMounted(() => store.list("", 0));
 }
 .history h2 {
   font-size: 1.05rem;
-}
-.reliability {
-  margin-top: 2rem;
-}
-.reliability h2 {
-  font-size: 1.05rem;
-}
-.rel-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
-  gap: 1rem;
-}
-.rel-stat {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-  padding: 1rem 1.1rem;
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-}
-.rel-label {
-  font-family: var(--mono);
-  font-size: 0.68rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-.rel-value {
-  font-size: 1.5rem;
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-}
-.rel-note {
-  font-size: 0.8rem;
-  color: var(--muted);
 }
 .empty {
   color: var(--muted);

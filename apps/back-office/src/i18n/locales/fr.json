@@ -325,7 +325,8 @@
     "reliabilityCoverage": "Contribution à la couverture",
     "reliabilityAlignment": "Taux d'alignement",
     "reliabilityAlignmentNote": "{aligned} évaluations alignées sur {settled} réglées",
-    "reliabilityEmpty": "Aucune donnée de fiabilité pour l'instant."
+    "reliabilityEmpty": "Aucune donnée de fiabilité pour l'instant.",
+    "close": "Fermer"
   },
   "errors": {
     "unauthenticated": "Identifiants invalides ou session expirée.",
