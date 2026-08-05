@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.18.0](https://github.com/NEETROF/cymbra/compare/music-v1.17.0...music-v1.18.0) (2026-08-05)
+
+
+### Features
+
+* **analytics:** first-party feature-usage telemetry pipeline ([#174](https://github.com/NEETROF/cymbra/issues/174)) ([21319ae](https://github.com/NEETROF/cymbra/commit/21319aec67484c86a3b29787b152a44941c063e7))
+* **leaderboards:** per-piece tempo/reaction leaderboards ([#6](https://github.com/NEETROF/cymbra/issues/6)) ([#173](https://github.com/NEETROF/cymbra/issues/173)) ([87c3cbe](https://github.com/NEETROF/cymbra/commit/87c3cbe16fadd39d222081e4dfeb0c92d7349bb9))
+* **music:** opt-in propose of user scores to the public catalog ([#170](https://github.com/NEETROF/cymbra/issues/170)) ([43080df](https://github.com/NEETROF/cymbra/commit/43080df5d7d64c9c154a5b95a83495265ba5b9ff))
+* **soundfont:** moderation, private libraries and instrument-sound hub ([#168](https://github.com/NEETROF/cymbra/issues/168)) ([153b5a3](https://github.com/NEETROF/cymbra/commit/153b5a39abd6864ee70395a72911e05dcd6216bc))
+
+
+### Bug Fixes
+
+* **music:** use Cymbra launcher icon on macOS and Windows ([#166](https://github.com/NEETROF/cymbra/issues/166)) ([7f291c9](https://github.com/NEETROF/cymbra/commit/7f291c9fd7df04e12ed1c898c831805ecc6aad60))
+* **music:** wrap connected accounts screen body in SafeArea ([#165](https://github.com/NEETROF/cymbra/issues/165)) ([12b608c](https://github.com/NEETROF/cymbra/commit/12b608c2cfabc72d582ae45f94d42659d4cb29a1))
+
 ## [1.17.0](https://github.com/NEETROF/cymbra/compare/music-v1.16.0...music-v1.17.0) (2026-08-02)
 
 

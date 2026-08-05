@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.5.0](https://github.com/NEETROF/cymbra/compare/back-office-v0.4.0...back-office-v0.5.0) (2026-08-05)
+
+
+### Features
+
+* **analytics:** first-party feature-usage telemetry pipeline ([#174](https://github.com/NEETROF/cymbra/issues/174)) ([21319ae](https://github.com/NEETROF/cymbra/commit/21319aec67484c86a3b29787b152a44941c063e7))
+* **music:** opt-in propose of user scores to the public catalog ([#170](https://github.com/NEETROF/cymbra/issues/170)) ([43080df](https://github.com/NEETROF/cymbra/commit/43080df5d7d64c9c154a5b95a83495265ba5b9ff))
+* **soundfont:** moderation, private libraries and instrument-sound hub ([#168](https://github.com/NEETROF/cymbra/issues/168)) ([153b5a3](https://github.com/NEETROF/cymbra/commit/153b5a39abd6864ee70395a72911e05dcd6216bc))
+
+
+### Bug Fixes
+
+* **back-office:** preserve catalog origin and filters on score detail ([#169](https://github.com/NEETROF/cymbra/issues/169)) ([3aa0aa6](https://github.com/NEETROF/cymbra/commit/3aa0aa617109b54818cf7ac86bb23bf65a9030c1))
+
 ## [0.4.0](https://github.com/NEETROF/cymbra/compare/back-office-v0.3.0...back-office-v0.4.0) (2026-08-02)
 
 
