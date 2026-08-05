@@ -20,6 +20,7 @@ import 'package:mockito/mockito.dart';
 import 'package:music/screens/reward_shop_screen.dart';
 import 'package:music/services/curator_rewards_service.dart';
 import 'package:music/services/preferences_service.dart';
+import 'package:music/widgets/curator_chip.dart';
 import 'package:music/widgets/curator_rewards_section.dart';
 
 import '../support/localized.dart';
@@ -75,6 +76,23 @@ List<Override> _overrides(CuratorRewardsService service) => [
 ];
 
 void main() {
+  testWidgets('curator chip shows the level/points standing', (tester) async {
+    final service = MockCuratorRewardsService();
+    when(service.getRewards()).thenAnswer((_) async => _rewards());
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: _overrides(service),
+        child: localizedApp(const Scaffold(body: Center(child: CuratorChip()))),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('curator-chip')), findsOneWidget);
+    // The pill carries the level (2) and lifetime points (200).
+    expect(find.textContaining('2'), findsWidgets);
+    expect(find.textContaining('200'), findsWidgets);
+  });
+
   testWidgets(
     'curator rewards section renders level, points, balance, badges, stats',
     (tester) async {
