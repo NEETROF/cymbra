@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed, onMounted } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { match } from "ts-pattern";
 import { type UsageReport, useUsageStore } from "@/stores/usage";
 import { currentLocale } from "@/i18n";
+import UsageBarChart from "@/components/UsageBarChart.vue";
 
 // The back-office "Usage" screen (change: add-feature-usage-analytics, task 7.3).
 // It NEVER calls the API directly — the Pinia store does, behind the injectable
@@ -42,6 +43,23 @@ const actionOptions = computed(() =>
 
 const num = (v: number) => v.toLocaleString(currentLocale());
 
+// View mode: visual bar charts (default) or the raw tables.
+const mode = ref<"graph" | "table">("graph");
+
+// Chart data derived from the same report (single-series magnitude per panel).
+const platformChart = computed(() => ({
+  labels: vm.value.data.summary.byPlatform.map((p) => p.platform),
+  values: vm.value.data.summary.byPlatform.map((p) => p.users),
+}));
+const deviceChart = computed(() => ({
+  labels: vm.value.data.summary.byDeviceClass.map((d) => d.deviceClass),
+  values: vm.value.data.summary.byDeviceClass.map((d) => d.users),
+}));
+const actionChart = computed(() => ({
+  labels: vm.value.data.rows.map((r) => (r.variant ? `${r.action} · ${r.variant}` : r.action)),
+  values: vm.value.data.rows.map((r) => r.events),
+}));
+
 function apply() {
   void store.load();
 }
@@ -50,7 +68,32 @@ function apply() {
 <template>
   <section class="usage">
     <header class="head">
-      <h1>{{ t("usage.title") }}</h1>
+      <div class="head-row">
+        <h1>{{ t("usage.title") }}</h1>
+        <!-- Graph (default) / Table view toggle. -->
+        <div class="viewtoggle" role="tablist" :aria-label="t('usage.viewMode')">
+          <button
+            type="button"
+            role="tab"
+            :aria-selected="mode === 'graph'"
+            :class="{ active: mode === 'graph' }"
+            data-testid="view-graph"
+            @click="mode = 'graph'"
+          >
+            {{ t("usage.viewGraph") }}
+          </button>
+          <button
+            type="button"
+            role="tab"
+            :aria-selected="mode === 'table'"
+            :class="{ active: mode === 'table' }"
+            data-testid="view-table"
+            @click="mode = 'table'"
+          >
+            {{ t("usage.viewTable") }}
+          </button>
+        </div>
+      </div>
       <p class="caveat">{{ t("usage.periodCaveat") }}</p>
     </header>
 
@@ -99,7 +142,13 @@ function apply() {
       <div class="split">
         <div class="panel">
           <h2>{{ t("usage.byPlatform") }}</h2>
-          <table>
+          <UsageBarChart
+            v-if="mode === 'graph'"
+            :labels="platformChart.labels"
+            :values="platformChart.values"
+            :series-label="t('usage.users')"
+          />
+          <table v-else>
             <thead>
               <tr>
                 <th>{{ t("usage.platform") }}</th>
@@ -120,7 +169,13 @@ function apply() {
 
         <div class="panel">
           <h2>{{ t("usage.byDeviceClass") }}</h2>
-          <table>
+          <UsageBarChart
+            v-if="mode === 'graph'"
+            :labels="deviceChart.labels"
+            :values="deviceChart.values"
+            :series-label="t('usage.users')"
+          />
+          <table v-else>
             <thead>
               <tr>
                 <th>{{ t("usage.deviceClass") }}</th>
@@ -143,7 +198,13 @@ function apply() {
       <!-- Action breakdown under the applied filters. -->
       <div class="panel">
         <h2>{{ t("usage.actionBreakdown") }}</h2>
-        <table>
+        <UsageBarChart
+          v-if="mode === 'graph'"
+          :labels="actionChart.labels"
+          :values="actionChart.values"
+          :series-label="t('usage.events')"
+        />
+        <table v-else>
           <thead>
             <tr>
               <th>{{ t("usage.action") }}</th>
@@ -176,6 +237,32 @@ function apply() {
 }
 .head h1 {
   margin: 0 0 0.25rem;
+}
+.head-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.viewtoggle {
+  display: inline-flex;
+  border: 1px solid var(--border, #212a40);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.viewtoggle button {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--muted, #9aa1ba);
+  padding: 0.4rem 0.9rem;
+  font: inherit;
+  cursor: pointer;
+}
+.viewtoggle button.active {
+  background: var(--accent-strong, #7c3aed);
+  color: #fff;
 }
 .caveat {
   margin: 0;

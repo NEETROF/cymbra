@@ -25,19 +25,24 @@ test.describe("usage analytics console", () => {
     await page.goto("/usage");
 
     await expect(page.getByRole("heading", { name: "Feature usage" })).toBeVisible();
-    // Exact distinct-user total for the period.
+    // Exact distinct-user total for the period (shown in both view modes).
     await expect(page.getByTestId("total-users")).toContainText("42");
-    // Split by platform.
-    await expect(page.getByTestId("platform-row")).toHaveCount(2);
-    await expect(page.getByTestId("platform-row").first()).toContainText("ios");
-    // Action breakdown.
-    await expect(page.getByTestId("action-row")).toContainText("play_start");
+
+    // Graph is the default view: the toggle is selected and charts render on canvas.
+    await expect(page.getByTestId("view-graph")).toHaveAttribute("aria-selected", "true");
+    await expect(page.locator("canvas").first()).toBeVisible();
 
     // The action filter is data-driven from the aggregates.
     await expect(page.getByTestId("action").locator("option")).toContainText([
       "auth_sign_in",
       "play_start",
     ]);
+
+    // Switch to the Table view: the same figures appear as rows.
+    await page.getByTestId("view-table").click();
+    await expect(page.getByTestId("platform-row")).toHaveCount(2);
+    await expect(page.getByTestId("platform-row").first()).toContainText("ios");
+    await expect(page.getByTestId("action-row")).toContainText("play_start");
   });
 
   test("a non-admin moderator cannot reach the screen", async ({ page }) => {
