@@ -23,6 +23,7 @@ import '../state/play_activity_notifier.dart';
 import '../state/profile_notifier.dart';
 import '../state/session_notifier.dart';
 import '../state/usage_tracking_notifier.dart';
+import '../widgets/curator_rewards_section.dart';
 import '../widgets/play_heatmap.dart';
 
 /// A player's profile (change: add-play-activity-profile). Reuses the play
@@ -89,6 +90,12 @@ class _ProfileBody extends ConsumerWidget {
           const SizedBox(height: 24),
           _ActivitySection(targetId: targetId),
           if (isSelf) ...[
+            // Curator rewards live here now (change: add-curation-rewards) — the
+            // signed-in user's own standing, integrated into their profile rather
+            // than a separate screen. The GetCuratorRewards RPC is caller-scoped,
+            // so it is shown only on the OWN profile.
+            const SizedBox(height: 24),
+            const CuratorRewardsSection(),
             const SizedBox(height: 24),
             _VisibilityResultListener(targetId: targetId),
             _VisibilityControl(current: p.visibility),

@@ -19,9 +19,11 @@ import '../../l10n/gen/app_localizations.dart';
 import '../../services/legal_links.dart';
 import '../../state/app_language.dart';
 import '../../state/app_locale.dart';
+import '../../state/curator_profile_notifier.dart';
 import '../../state/session_notifier.dart';
 import '../../state/session_state.dart';
 import '../../state/usage_consent.dart';
+import '../../theme/cymbra_theme.dart';
 import '../../widgets/language_selector.dart' show showLanguageDialog;
 import '../account/connected_accounts_screen.dart';
 import '../profile_screen.dart';
@@ -56,7 +58,10 @@ class AccountMenu extends ConsumerWidget {
       ),
       SessionAuthenticated(:final account) => PopupMenuButton<String>(
         key: const Key('account-menu'),
-        icon: const Icon(Icons.account_circle),
+        // The curator standing (level) + unseen-award dot are merged onto the
+        // account icon (change: add-curation-rewards) — the rewards themselves
+        // live in the profile, reachable from this menu's "profile" entry.
+        icon: const _AccountRewardIcon(),
         onSelected: (value) {
           switch (value) {
             case 'profile':
@@ -200,6 +205,69 @@ class AccountMenu extends ConsumerWidget {
         SnackBar(content: Text(l10n.accountSignOutAllError)),
       );
     }
+  }
+}
+
+/// The account icon with the curator standing merged in (change: add-curation-
+/// rewards): the person glyph, a small level badge, and a dot when deferred
+/// honesty awards have landed since the profile was last opened. Reads the reward
+/// providers directly (a value read), so it stays live as level/points change.
+class _AccountRewardIcon extends ConsumerWidget {
+  const _AccountRewardIcon();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final level = ref.watch(curatorProfileProvider).valueOrNull?.level;
+    final hasUnseen = ref.watch(curatorHasUnseenAwardsProvider);
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        const Icon(Icons.account_circle),
+        if (level != null && level > 0)
+          Positioned(
+            right: -7,
+            bottom: -5,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+              decoration: BoxDecoration(
+                color: CymbraColors.primary,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: CymbraColors.surfaceContainerLowest,
+                  width: 1.5,
+                ),
+              ),
+              child: Text(
+                '$level',
+                style: const TextStyle(
+                  color: CymbraColors.surfaceContainerLowest,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  height: 1,
+                ),
+              ),
+            ),
+          ),
+        if (hasUnseen)
+          Positioned(
+            right: -1,
+            top: -1,
+            child: Container(
+              key: const Key('account-award-dot'),
+              width: 9,
+              height: 9,
+              decoration: BoxDecoration(
+                color: CymbraColors.error,
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: CymbraColors.surfaceContainerLowest,
+                  width: 1.5,
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
   }
 }
 

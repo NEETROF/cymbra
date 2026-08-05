@@ -26,7 +26,6 @@ import '../state/score_catalog.dart';
 import '../state/selected_piano.dart';
 import '../theme/cymbra_theme.dart';
 import '../widgets/app_snackbar.dart';
-import '../widgets/curator_chip.dart';
 import '../widgets/rating_card.dart';
 import '../widgets/rating_deck_controls.dart';
 import '../widgets/sound_selector_field.dart';
@@ -50,9 +49,6 @@ class RatingDeckScreen extends ConsumerWidget {
         // Swap the instrument sound the card auto-preview plays with — a compact
         // combobox so the moderator can audition scores with any catalog sound.
         actions: [
-          // Persistent curator standing chip (change: add-curation-rewards) —
-          // opens the curator profile; shows a dot for unseen deferred awards.
-          const CuratorChip(),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
             child: SizedBox(

@@ -16,121 +16,109 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../l10n/gen/app_localizations.dart';
+import '../screens/reward_shop_screen.dart';
 import '../services/curator_rewards_service.dart';
 import '../state/curator_profile_notifier.dart';
 import '../theme/cymbra_theme.dart';
-import 'reward_shop_screen.dart';
 
-/// The full-screen curator profile (change: add-curation-rewards): standing
-/// (level + lifetime points + progress), spendable balance with an entry into the
-/// reward shop, the full badge grid (earned + locked with milestone hints),
-/// personal curator stats, and the recent-activity feed. Driven entirely through
-/// [curatorProfileProvider] (loading/data/error via `.when`).
-class CuratorProfileScreen extends ConsumerWidget {
-  const CuratorProfileScreen({super.key});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = AppLocalizations.of(context);
-    return Scaffold(
-      backgroundColor: CymbraColors.background,
-      appBar: AppBar(
-        title: Text(l10n.curatorProfileTitle),
-        backgroundColor: CymbraColors.surfaceContainerLowest,
-      ),
-      // Marking recent activity as "seen" is a side effect → a dedicated listener
-      // widget near the top of the subtree (architecture rule 4).
-      body: const _CuratorProfileListeners(
-        child: SafeArea(child: _CuratorProfileBody()),
-      ),
-    );
-  }
-}
-
-/// Isolates the profile's `ref.listen` side effect: once the snapshot loads, mark
-/// its newest activity as seen so the notification dot clears.
-class _CuratorProfileListeners extends ConsumerWidget {
-  const _CuratorProfileListeners({required this.child});
-
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    ref.listen(curatorProfileProvider, (_, next) {
-      final at = next.valueOrNull?.newestActivityAt;
-      if (at != null) {
-        ref.read(curatorActivitySeenProvider.notifier).markSeen(at);
-      }
-    });
-    return child;
-  }
-}
-
-class _CuratorProfileBody extends ConsumerWidget {
-  const _CuratorProfileBody();
+/// The signed-in curator's rewards, rendered INLINE inside the user profile
+/// (change: add-curation-rewards). Previously a standalone screen; now a section
+/// of `ProfileScreen` so a user's standing lives with the rest of their profile.
+/// Standing (level + lifetime points + progress), spendable balance with a reward
+/// -shop entry, the full badge grid (earned + locked with hints), personal curator
+/// stats, and the recent-activity feed — all driven through [curatorProfileProvider]
+/// (loading/data/error via `.when`). Returns a `Column`, so it drops into the
+/// profile's scroll view (no Scaffold/ListView of its own).
+class CuratorRewardsSection extends ConsumerWidget {
+  const CuratorRewardsSection({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
     final async = ref.watch(curatorProfileProvider);
     return async.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (_, _) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(
-                Icons.cloud_off,
-                size: 56,
-                color: CymbraColors.onSurfaceVariant,
-              ),
-              const SizedBox(height: 20),
-              Text(
-                l10n.curatorLoadError,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: CymbraColors.onSurface,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 24),
-              FilledButton(
-                onPressed: () =>
-                    ref.read(curatorProfileProvider.notifier).refresh(),
-                child: Text(l10n.curatorRetry),
-              ),
-            ],
-          ),
-        ),
+      loading: () => const Padding(
+        padding: EdgeInsets.symmetric(vertical: 24),
+        child: Center(child: CircularProgressIndicator()),
       ),
-      data: (r) => RefreshIndicator(
-        onRefresh: () => ref.read(curatorProfileProvider.notifier).refresh(),
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+      // A rewards read failure degrades quietly with a retry — it must never take
+      // down the rest of the profile (activity, visibility).
+      error: (_, _) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        child: Row(
           children: [
-            _StandingCard(rewards: r),
-            const SizedBox(height: 16),
-            _BalanceCard(rewards: r),
-            const SizedBox(height: 24),
-            _SectionTitle(l10n.curatorBadgesTitle),
-            const SizedBox(height: 8),
-            _BadgeGrid(badges: r.badges),
-            const SizedBox(height: 24),
-            _SectionTitle(l10n.curatorStatsTitle),
-            const SizedBox(height: 8),
-            _StatsRow(rewards: r),
-            const SizedBox(height: 24),
-            _SectionTitle(l10n.curatorRecentTitle),
-            const SizedBox(height: 8),
-            _RecentActivity(activity: r.recent),
+            const Icon(Icons.cloud_off, color: CymbraColors.onSurfaceVariant),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                l10n.curatorLoadError,
+                style: const TextStyle(color: CymbraColors.onSurfaceVariant),
+              ),
+            ),
+            TextButton(
+              onPressed: () =>
+                  ref.read(curatorProfileProvider.notifier).refresh(),
+              child: Text(l10n.curatorRetry),
+            ),
           ],
         ),
       ),
+      data: (r) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Mark the newest activity as seen once loaded, so the account-icon
+          // notification dot clears (side effect isolated in its own widget).
+          _CuratorSeenListener(rewards: r),
+          _SectionTitle(l10n.curatorProfileTitle),
+          const SizedBox(height: 8),
+          _StandingCard(rewards: r),
+          const SizedBox(height: 16),
+          _BalanceCard(rewards: r),
+          const SizedBox(height: 24),
+          _SectionTitle(l10n.curatorBadgesTitle),
+          const SizedBox(height: 8),
+          _BadgeGrid(badges: r.badges),
+          const SizedBox(height: 24),
+          _SectionTitle(l10n.curatorStatsTitle),
+          const SizedBox(height: 8),
+          _StatsRow(rewards: r),
+          const SizedBox(height: 24),
+          _SectionTitle(l10n.curatorRecentTitle),
+          const SizedBox(height: 8),
+          _RecentActivity(activity: r.recent),
+        ],
+      ),
     );
   }
+}
+
+/// Isolates the "mark activity seen" side effect (architecture rule 4): once the
+/// snapshot has a newest activity, record it so the account-icon dot clears.
+class _CuratorSeenListener extends ConsumerStatefulWidget {
+  const _CuratorSeenListener({required this.rewards});
+
+  final CuratorRewardsView rewards;
+
+  @override
+  ConsumerState<_CuratorSeenListener> createState() =>
+      _CuratorSeenListenerState();
+}
+
+class _CuratorSeenListenerState extends ConsumerState<_CuratorSeenListener> {
+  @override
+  void initState() {
+    super.initState();
+    final at = widget.rewards.newestActivityAt;
+    if (at != null) {
+      // Defer past the first frame — never mutate providers during build.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ref.read(curatorActivitySeenProvider.notifier).markSeen(at);
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => const SizedBox.shrink();
 }
 
 class _SectionTitle extends StatelessWidget {

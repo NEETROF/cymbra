@@ -17,11 +17,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
-import 'package:music/screens/curator_profile_screen.dart';
 import 'package:music/screens/reward_shop_screen.dart';
 import 'package:music/services/curator_rewards_service.dart';
 import 'package:music/services/preferences_service.dart';
-import 'package:music/widgets/curator_chip.dart';
+import 'package:music/widgets/curator_rewards_section.dart';
 
 import '../support/localized.dart';
 import '../support/prefs_fakes.dart';
@@ -76,49 +75,60 @@ List<Override> _overrides(CuratorRewardsService service) => [
 ];
 
 void main() {
-  testWidgets('curator profile renders level, points, balance, badges, stats', (
+  testWidgets(
+    'curator rewards section renders level, points, balance, badges, stats',
+    (tester) async {
+      final service = MockCuratorRewardsService();
+      when(service.getRewards()).thenAnswer((_) async => _rewards());
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: _overrides(service),
+          // The section is a Column; host it in a scroll view like the profile does.
+          child: localizedApp(
+            const Scaffold(
+              body: SingleChildScrollView(child: CuratorRewardsSection()),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Level + lifetime points (from the standing card).
+      expect(find.textContaining('2'), findsWidgets);
+      expect(find.textContaining('200'), findsWidgets);
+      // Reward-shop entry button and the stats (alignment 75%).
+      expect(find.byIcon(Icons.card_giftcard), findsWidgets);
+      expect(find.textContaining('75'), findsWidgets);
+      // Badge grid shows both an earned and a locked badge.
+      expect(
+        find.byIcon(Icons.military_tech),
+        findsWidgets,
+      ); // earned first_note
+      expect(find.byIcon(Icons.lock_outline), findsWidgets); // locked curator_2
+    },
+  );
+
+  testWidgets('reward-shop entry from the section opens the shop', (
     tester,
   ) async {
     final service = MockCuratorRewardsService();
     when(service.getRewards()).thenAnswer((_) async => _rewards());
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: _overrides(service),
-        child: localizedApp(const CuratorProfileScreen()),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    // Level + lifetime points (from the standing card).
-    expect(find.textContaining('2'), findsWidgets);
-    expect(find.textContaining('200'), findsWidgets);
-    // Reward-shop entry button and the stats (alignment 75%).
-    expect(find.byIcon(Icons.card_giftcard), findsWidgets);
-    expect(find.textContaining('75'), findsWidgets);
-    // Badge grid shows both an earned and a locked badge.
-    expect(find.byIcon(Icons.military_tech), findsWidgets); // earned first_note
-    expect(find.byIcon(Icons.lock_outline), findsWidgets); // locked curator_2
-  });
-
-  testWidgets('curator chip shows standing and opens the profile', (
-    tester,
-  ) async {
-    final service = MockCuratorRewardsService();
-    when(service.getRewards()).thenAnswer((_) async => _rewards());
+    when(service.listShop()).thenAnswer((_) async => [_item('grand')]);
     await tester.pumpWidget(
       ProviderScope(
         overrides: _overrides(service),
         child: localizedApp(
-          const Scaffold(appBar: null, body: Center(child: CuratorChip())),
+          const Scaffold(
+            body: SingleChildScrollView(child: CuratorRewardsSection()),
+          ),
         ),
       ),
     );
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const Key('curator-chip')), findsOneWidget);
-    await tester.tap(find.byKey(const Key('curator-chip')));
+    await tester.tap(find.byIcon(Icons.card_giftcard).first);
     await tester.pumpAndSettle();
-    expect(find.byType(CuratorProfileScreen), findsOneWidget);
+    expect(find.byType(RewardShopScreen), findsOneWidget);
   });
 
   testWidgets(
