@@ -59,6 +59,7 @@
   "soundfontsPlay": "Ascolta",
   "soundfontsStop": "Ferma",
   "soundfontsPreviewError": "Impossibile caricare quel suono.",
+  "soundfontsPreviewUnavailable": "Nessuna anteprima disponibile per questo suono al momento.",
   "soundfontsEmpty": "Nessun suono importato. Aggiungi le tue SoundFont .sf2.",
   "soundfontsError": "Impossibile caricare i tuoi suoni.",
   "soundfontsAdd": "Aggiungi",

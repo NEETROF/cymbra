@@ -35,7 +35,10 @@ use axum::http::{HeaderValue, Method};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Json, Router};
-use cymbra_music::{FontEntry, SoundFontRepo, UserFontEntry, UserSoundFontRepo, sha256_hex};
+use cymbra_music::{
+    Access, FontEntry, SoundFontRepo, UserFontEntry, UserSoundFontRepo, entitlement,
+    preview_object_key, render_preview_wav, sha256_hex,
+};
 use cymbra_platform::{AuthIdentity, guard, token};
 use cymbra_storage::{ObjectStorage, StorageError};
 use jsonwebtoken::DecodingKey;
@@ -228,6 +231,13 @@ pub fn soundfont_router(state: SoundfontState, allowed_origins: Vec<String>) -> 
         // add-soundfont-back-office-management). The body limit is raised only for the
         // upload; metadata rides in the query so no multipart is needed.
         .route("/soundfonts/:id", get(serve).post(upload))
+        // Public preview clip (change: add-soundfont-entitlement-previews): `GET`
+        // auditions a font openly (moderation-visibility gate only, no entitlement);
+        // `POST` regenerates it (admin-gated, like upload).
+        .route(
+            "/soundfonts/:id/preview",
+            get(serve_preview).post(regenerate_preview),
+        )
         // Private per-user library (change: add-soundfont-moderation): list + import
         // (`/me/soundfonts`) and owner-scoped delivery (`/me/soundfonts/:id`).
         .route("/me/soundfonts", get(list_mine).post(import_mine))
@@ -353,12 +363,35 @@ async fn upload(
         reviewed_at: None,
         uploaded_by: Some(identity.user_id.clone()),
         content_sha256: Some(content_sha256),
+        // A fresh upload is always free/default-available; pricing (a shop item) is set
+        // separately by an admin. The DB defaults these too (change: add-curation-rewards).
+        point_cost: 0,
+        redeemable: true,
     };
     if repo.insert(&entry).await.is_err() {
         let _ = store.delete(&object_key).await;
         return status(StatusCode::INTERNAL_SERVER_ERROR);
     }
+    // Best-effort preview render (change: add-soundfont-entitlement-previews): render a
+    // public audition clip from the just-uploaded bytes. A render/store failure logs and
+    // leaves the preview absent (regenerable from the back office) — it never fails the
+    // upload, so the catalog row is always consistent with the stored font.
+    store_preview(store.as_ref(), &entry.id, &body).await;
     status(StatusCode::CREATED)
+}
+
+/// Render the fixed preview phrase from `font_bytes` and store it under the public
+/// preview key. Best-effort: any failure is logged, not returned (the upload/proposal
+/// still succeeds; the back-office "Generate sample" action is the recovery path).
+async fn store_preview(store: &dyn ObjectStorage, id: &str, font_bytes: &[u8]) {
+    match render_preview_wav(font_bytes) {
+        Ok(wav) => {
+            if let Err(e) = store.put(&preview_object_key(id), wav).await {
+                tracing::warn!("soundfont preview object not stored for {id}: {e}");
+            }
+        }
+        Err(e) => tracing::warn!("soundfont preview render failed for {id}: {e}"),
+    }
 }
 
 /// Metadata for a private-library import — only a display label is needed (the bytes
@@ -636,6 +669,9 @@ async fn propose_mine(
         reviewed_at: None,
         uploaded_by: Some(user_id),
         content_sha256: Some(private.content_sha256),
+        // A proposed font enters the catalog free/default-available.
+        point_cost: 0,
+        redeemable: true,
     };
     if catalog.insert(&entry).await.is_err() {
         let _ = store.delete(&object_key).await;
@@ -675,11 +711,130 @@ async fn serve(
         Decision::NotFound => return status(StatusCode::NOT_FOUND),
         Decision::Serve(key) => key,
     };
+    // Entitlement gate on the raw bytes (change: add-soundfont-entitlement-previews).
+    // `decide` returned `Serve` only for a font the caller may view, so both are `Some`.
+    let font = font.expect("decide returns Serve only for a known font");
+    let caller = user.as_deref().expect("authenticated above");
+    // Cheap checks first (free / own import / moderator-admin); only read the grants
+    // table when still not entitled, so free fonts never incur an extra query.
+    let has_grant = if font.point_cost == 0
+        || font.uploaded_by.as_deref() == Some(caller)
+        || can_view_unvalidated
+    {
+        false
+    } else {
+        match repo.has_grant(caller, &id).await {
+            Ok(g) => g,
+            Err(_) => return status(StatusCode::INTERNAL_SERVER_ERROR),
+        }
+    };
+    // A non-entitled caller is refused with the SAME not-found response as a missing
+    // font — no existence oracle for costed fonts. This also gates the in-app instrument
+    // load (`GET /soundfonts/{id}`), so a locked font can never be loaded server-side.
+    if entitlement(caller, &font, has_grant, can_view_unvalidated) == Access::Deny {
+        return status(StatusCode::NOT_FOUND);
+    }
     let Some(store) = s.store.as_ref() else {
         // Feature unconfigured (no SoundFont bucket) — the route is disabled.
         return status(StatusCode::SERVICE_UNAVAILABLE);
     };
     stream(store.as_ref(), &key, &headers).await
+}
+
+/// Serve a font's **public preview clip** (`GET /soundfonts/{id}/preview`, change:
+/// add-soundfont-entitlement-previews). Applies only the moderation-visibility gate —
+/// **no** entitlement gate, since hearing the preview is the whole point (a locked font
+/// must stay auditionable). Not-found when the font isn't visible or has no preview yet.
+async fn serve_preview(
+    State(s): State<SoundfontState>,
+    Path(id): Path<String>,
+    headers: HeaderMap,
+) -> Response {
+    let user = s.auth.identify(&headers);
+    if user.is_none() {
+        return status(StatusCode::UNAUTHORIZED);
+    }
+    let can_view_unvalidated = s
+        .auth
+        .identify_admin(&headers)
+        .as_ref()
+        .is_some_and(|i| guard::require_moderator_or_admin(i).is_ok());
+    let Some(repo) = s.repo.as_ref() else {
+        return status(StatusCode::SERVICE_UNAVAILABLE);
+    };
+    let font = match repo.lookup(&id).await {
+        Ok(f) => f,
+        Err(_) => return status(StatusCode::INTERNAL_SERVER_ERROR),
+    };
+    // Reuse the moderation-visibility split (a pending/rejected font's preview is hidden
+    // from non-moderators), but serve the PREVIEW object, not the font bytes.
+    match decide(user.as_deref(), can_view_unvalidated, font.as_ref()) {
+        Decision::Unauthenticated => return status(StatusCode::UNAUTHORIZED),
+        Decision::NotFound => return status(StatusCode::NOT_FOUND),
+        Decision::Serve(_) => {}
+    }
+    let Some(store) = s.store.as_ref() else {
+        return status(StatusCode::SERVICE_UNAVAILABLE);
+    };
+    // Previews are short; serve the whole clip (no range) with an audio content type.
+    match store.get(&preview_object_key(&id)).await {
+        Ok(bytes) => (
+            StatusCode::OK,
+            [
+                (header::CONTENT_TYPE, "audio/wav".to_string()),
+                (header::CONTENT_LENGTH, bytes.len().to_string()),
+            ],
+            Body::from(bytes),
+        )
+            .into_response(),
+        Err(StorageError::NotFound(_)) => status(StatusCode::NOT_FOUND),
+        Err(_) => status(StatusCode::INTERNAL_SERVER_ERROR),
+    }
+}
+
+/// Regenerate a font's preview clip (`POST /soundfonts/{id}/preview`, change:
+/// add-soundfont-entitlement-previews). Admin-gated like upload: re-reads the stored
+/// font bytes, renders, and overwrites the public preview object. The recovery path for
+/// fonts seeded before this change and for a failed upload-time render.
+async fn regenerate_preview(
+    State(s): State<SoundfontState>,
+    Path(id): Path<String>,
+    headers: HeaderMap,
+) -> Response {
+    match s.auth.identify_admin(&headers) {
+        None => return status(StatusCode::UNAUTHORIZED),
+        Some(identity) if guard::require_moderator_or_admin(&identity).is_err() => {
+            return status(StatusCode::FORBIDDEN);
+        }
+        Some(_) => {}
+    }
+    let (Some(store), Some(repo)) = (s.store.as_ref(), s.repo.as_ref()) else {
+        return status(StatusCode::SERVICE_UNAVAILABLE);
+    };
+    let font = match repo.lookup(&id).await {
+        Ok(f) => f,
+        Err(_) => return status(StatusCode::INTERNAL_SERVER_ERROR),
+    };
+    let Some(font) = font else {
+        return status(StatusCode::NOT_FOUND);
+    };
+    // Re-read the stored font bytes (the raw font never leaves the server for a preview).
+    let bytes = match store.get(&font.object_key).await {
+        Ok(b) => b,
+        Err(StorageError::NotFound(_)) => return status(StatusCode::NOT_FOUND),
+        Err(_) => return status(StatusCode::INTERNAL_SERVER_ERROR),
+    };
+    let wav = match render_preview_wav(&bytes) {
+        Ok(w) => w,
+        Err(e) => {
+            tracing::warn!("soundfont preview render failed for {id}: {e}");
+            return status(StatusCode::INTERNAL_SERVER_ERROR);
+        }
+    };
+    if store.put(&preview_object_key(&id), wav).await.is_err() {
+        return status(StatusCode::INTERNAL_SERVER_ERROR);
+    }
+    status(StatusCode::OK)
 }
 
 /// Stream the object (range-aware). A `Range` request yields `206 Partial Content`
@@ -772,6 +927,8 @@ mod tests {
             reviewed_at: None,
             uploaded_by: None,
             content_sha256: Some(sha256_hex(id.as_bytes())),
+            point_cost: 0,
+            redeemable: true,
         }
     }
 
@@ -961,6 +1118,287 @@ mod tests {
         assert_eq!(resp.status(), StatusCode::RANGE_NOT_SATISFIABLE);
     }
 
+    // --- Entitlement gate (change: add-soundfont-entitlement-previews) ---
+
+    /// An `accepted`, **costed** font (a shop item) uploaded by `owner`.
+    fn costed(id: &str, object_key: &str, owner: Option<&str>) -> FontEntry {
+        FontEntry {
+            point_cost: 500,
+            uploaded_by: owner.map(str::to_string),
+            ..entry(id, object_key, "CC0-1.0")
+        }
+    }
+
+    /// Store seeded with a costed font's bytes under `object_key`.
+    async fn costed_store(object_key: &str) -> Arc<dyn ObjectStorage> {
+        let s = FakeStore::default();
+        s.put(object_key, b"COSTED-SF2!!".to_vec()).await.unwrap();
+        Arc::new(s)
+    }
+
+    /// Router with the given catalog repo + store and a plain (non-admin) identity `u`.
+    fn plain_app(
+        store: Arc<dyn ObjectStorage>,
+        repo: Arc<dyn SoundFontRepo>,
+        user: Option<AuthIdentity>,
+    ) -> Router {
+        soundfont_router(
+            SoundfontState {
+                store: Some(store),
+                repo: Some(repo),
+                user_repo: None,
+                auth: Arc::new(FixedAdminAuth(user)),
+            },
+            vec!["https://bo.cymbra.app".to_string()],
+        )
+    }
+
+    #[tokio::test]
+    async fn free_font_is_served_to_any_caller() {
+        // point_cost = 0 → served regardless of grants/role.
+        let r = app(Some(seeded_store().await), Some("u")).await;
+        let resp = r
+            .oneshot(get("/soundfonts/upright-piano-kw"))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn locked_costed_font_is_refused_as_not_found() {
+        // A costed font, caller has no grant, isn't the uploader, isn't a moderator.
+        let repo: Arc<dyn SoundFontRepo> =
+            Arc::new(cymbra_music::FakeSoundFontRepo::with(vec![costed(
+                "grand",
+                "grand.sf2",
+                Some("someone-else"),
+            )]));
+        let r = plain_app(
+            costed_store("grand.sf2").await,
+            repo,
+            Some(ident("u", &["user"])),
+        );
+        let resp = r.oneshot(get("/soundfonts/grand")).await.unwrap();
+        // Refused exactly like a missing font — no existence oracle, no bytes.
+        assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+        let body = to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        assert!(body.is_empty());
+    }
+
+    #[tokio::test]
+    async fn owned_costed_font_is_served() {
+        // A redemption grant for (u, grand) unlocks the bytes.
+        let concrete = cymbra_music::FakeSoundFontRepo::with(vec![costed(
+            "grand",
+            "grand.sf2",
+            Some("someone-else"),
+        )]);
+        concrete.grant("u", "grand");
+        let repo: Arc<dyn SoundFontRepo> = Arc::new(concrete);
+        let r = plain_app(
+            costed_store("grand.sf2").await,
+            repo,
+            Some(ident("u", &["user"])),
+        );
+        let resp = r.oneshot(get("/soundfonts/grand")).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        assert_eq!(&body[..], b"COSTED-SF2!!");
+    }
+
+    #[tokio::test]
+    async fn own_import_of_costed_font_is_served_to_owner() {
+        let repo: Arc<dyn SoundFontRepo> =
+            Arc::new(cymbra_music::FakeSoundFontRepo::with(vec![costed(
+                "grand",
+                "grand.sf2",
+                Some("u"),
+            )]));
+        let r = plain_app(
+            costed_store("grand.sf2").await,
+            repo,
+            Some(ident("u", &["user"])),
+        );
+        let resp = r.oneshot(get("/soundfonts/grand")).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn music_moderator_admin_is_exempt_from_entitlement() {
+        let repo: Arc<dyn SoundFontRepo> =
+            Arc::new(cymbra_music::FakeSoundFontRepo::with(vec![costed(
+                "grand",
+                "grand.sf2",
+                Some("someone-else"),
+            )]));
+        let r = plain_app(
+            costed_store("grand.sf2").await,
+            repo,
+            Some(ident("m", &["moderator"])),
+        );
+        let resp = r.oneshot(get("/soundfonts/grand")).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
+
+    // --- Preview clip (change: add-soundfont-entitlement-previews) -------
+
+    #[tokio::test]
+    async fn preview_is_served_openly_for_a_locked_font() {
+        // A locked costed font whose bytes the caller may NOT download, but whose
+        // preview they may hear (no entitlement gate on the preview).
+        let store = FakeStore::default();
+        store
+            .put("grand.preview.wav", b"RIFF....WAVE".to_vec())
+            .await
+            .unwrap();
+        let repo: Arc<dyn SoundFontRepo> =
+            Arc::new(cymbra_music::FakeSoundFontRepo::with(vec![costed(
+                "grand",
+                "grand.sf2",
+                Some("someone-else"),
+            )]));
+        let r = plain_app(Arc::new(store), repo, Some(ident("u", &["user"])));
+        // The full font download is refused…
+        let dl = r.clone().oneshot(get("/soundfonts/grand")).await.unwrap();
+        assert_eq!(dl.status(), StatusCode::NOT_FOUND);
+        // …but the preview is served.
+        let resp = r.oneshot(get("/soundfonts/grand/preview")).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        assert_eq!(
+            resp.headers().get(header::CONTENT_TYPE).unwrap(),
+            "audio/wav"
+        );
+        let body = to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        assert_eq!(&body[..], b"RIFF....WAVE");
+    }
+
+    #[tokio::test]
+    async fn preview_absent_is_404() {
+        // Font visible, but no preview object stored yet → not-found (app greys the play).
+        let repo: Arc<dyn SoundFontRepo> =
+            Arc::new(cymbra_music::FakeSoundFontRepo::with(vec![entry(
+                "upright-piano-kw",
+                "UprightPianoKW-20220221.sf2",
+                "CC0-1.0",
+            )]));
+        let r = plain_app(
+            Arc::new(FakeStore::default()),
+            repo,
+            Some(ident("u", &["user"])),
+        );
+        let resp = r
+            .oneshot(get("/soundfonts/upright-piano-kw/preview"))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn preview_of_pending_font_hidden_from_normal_caller() {
+        // A pending font's preview is not exposed to a non-moderator.
+        let store = FakeStore::default();
+        store
+            .put("pend.preview.wav", b"WAV".to_vec())
+            .await
+            .unwrap();
+        let repo: Arc<dyn SoundFontRepo> =
+            Arc::new(cymbra_music::FakeSoundFontRepo::with(vec![entry_status(
+                "pend", "pend.sf2", "CC0-1.0", "pending",
+            )]));
+        let r = plain_app(Arc::new(store), repo, Some(ident("u", &["user"])));
+        let resp = r.oneshot(get("/soundfonts/pend/preview")).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn regenerate_preview_requires_admin() {
+        let repo: Arc<dyn SoundFontRepo> =
+            Arc::new(cymbra_music::FakeSoundFontRepo::with(vec![entry(
+                "grand",
+                "grand.sf2",
+                "CC0-1.0",
+            )]));
+        // A plain user is refused.
+        let r = plain_app(
+            costed_store("grand.sf2").await,
+            repo.clone(),
+            Some(ident("u", &["user"])),
+        );
+        let resp = r
+            .oneshot(post("/soundfonts/grand/preview", Vec::new()))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::FORBIDDEN);
+        // Unauthenticated is refused.
+        let r = plain_app(costed_store("grand.sf2").await, repo, None);
+        let resp = r
+            .oneshot(post("/soundfonts/grand/preview", Vec::new()))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+    }
+
+    #[tokio::test]
+    async fn regenerate_preview_unknown_font_is_404() {
+        let repo: Arc<dyn SoundFontRepo> = Arc::new(cymbra_music::FakeSoundFontRepo::default());
+        let r = plain_app(
+            Arc::new(FakeStore::default()),
+            repo,
+            Some(ident("a", &["admin"])),
+        );
+        let resp = r
+            .oneshot(post("/soundfonts/ghost/preview", Vec::new()))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn regenerate_preview_bad_font_bytes_is_500() {
+        // Admin regenerates a font whose stored bytes aren't a real SoundFont → the
+        // render fails and the endpoint reports failure (the pure route glue around the
+        // excluded synth is exercised).
+        let repo: Arc<dyn SoundFontRepo> =
+            Arc::new(cymbra_music::FakeSoundFontRepo::with(vec![entry(
+                "grand",
+                "grand.sf2",
+                "CC0-1.0",
+            )]));
+        let r = plain_app(
+            costed_store("grand.sf2").await,
+            repo,
+            Some(ident("a", &["admin"])),
+        );
+        let resp = r
+            .oneshot(post("/soundfonts/grand/preview", Vec::new()))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::INTERNAL_SERVER_ERROR);
+    }
+
+    #[tokio::test]
+    async fn upload_render_failure_does_not_fail_the_upload() {
+        // The stub `sf2_bytes()` passes the cheap RIFF/sfbk guard but isn't a parseable
+        // SoundFont, so the preview render fails — the upload still succeeds and no
+        // preview object is stored (recoverable via regenerate).
+        let store = Arc::new(FakeStore::default());
+        let repo = Arc::new(cymbra_music::FakeSoundFontRepo::default());
+        let r = soundfont_router(
+            SoundfontState {
+                store: Some(store.clone()),
+                repo: Some(repo.clone()),
+                user_repo: None,
+                auth: Arc::new(FixedAdminAuth(Some(ident("a", &["admin"])))),
+            },
+            vec!["https://bo.cymbra.app".to_string()],
+        );
+        let resp = r.oneshot(post(UPLOAD_URI, sf2_bytes())).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::CREATED);
+        assert!(store.contains("ydp-grand.sf2"));
+        // Preview render failed → no preview object.
+        assert!(!store.contains("ydp-grand.preview.wav"));
+    }
+
     // --- Upload (admin) --------------------------------------------------
 
     fn ident(user: &str, roles: &[&str]) -> AuthIdentity {
@@ -1118,6 +1556,8 @@ mod tests {
             reviewed_at: None,
             uploaded_by: None,
             content_sha256: Some(sha256_hex(&sf2_bytes())),
+            point_cost: 0,
+            redeemable: true,
         };
         let repo: Arc<dyn SoundFontRepo> =
             Arc::new(cymbra_music::FakeSoundFontRepo::with(vec![existing]));
@@ -1151,6 +1591,8 @@ mod tests {
                 reviewed_at: None,
                 uploaded_by: None,
                 content_sha256: Some("different-content".into()),
+                point_cost: 0,
+                redeemable: true,
             }]));
         let r = soundfont_router(
             SoundfontState {
@@ -1456,6 +1898,8 @@ mod tests {
             reviewed_at: None,
             uploaded_by: Some("u".into()),
             content_sha256: Some("sha1".into()),
+            point_cost: 0,
+            redeemable: true,
         };
         let catalog: Arc<dyn SoundFontRepo> =
             Arc::new(cymbra_music::FakeSoundFontRepo::with(vec![cataloged]));
@@ -1511,6 +1955,8 @@ mod tests {
             reviewed_at: None,
             uploaded_by: None,
             content_sha256: Some("dupsha".into()),
+            point_cost: 0,
+            redeemable: true,
         };
         let catalog: Arc<dyn SoundFontRepo> =
             Arc::new(cymbra_music::FakeSoundFontRepo::with(vec![existing]));

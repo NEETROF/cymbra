@@ -20,10 +20,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:music/screens/soundfonts_screen.dart';
 import 'package:music/services/audio_service.dart';
+import 'package:music/services/curator_rewards_service.dart';
 import 'package:music/services/preferences_service.dart';
 import 'package:music/services/private_soundfont_service.dart';
 import 'package:music/services/soundfont_catalog_service.dart';
 import 'package:music/services/soundfont_importer.dart';
+import 'package:music/services/soundfont_preview_service.dart';
 import 'package:music/services/soundfont_source.dart';
 import 'package:music/state/card_preview_notifier.dart' show CardPreviewScore;
 import 'package:music/state/imported_soundfonts.dart';
@@ -39,6 +41,49 @@ import '../support/soundfont_fakes.dart';
 String _encode(List<PianoEntry> e) =>
     jsonEncode([for (final x in e) x.toJson()]);
 
+/// A curator-rewards seam returning a fixed reward-shop list, so a catalog font can
+/// be made a **locked** reward (cost > 0, redeemable, unowned) for the audition tests.
+class _ShopFake implements CuratorRewardsService {
+  const _ShopFake(this.items);
+  final List<RewardShopItemView> items;
+
+  @override
+  Future<List<RewardShopItemView>> listShop() async => items;
+
+  @override
+  Future<CuratorRewardsView> getRewards() async => const CuratorRewardsView(
+    lifetimePoints: 0,
+    spendableBalance: 0,
+    level: 0,
+    levelFloor: 0,
+    nextLevelAt: 50,
+    totalRatings: 0,
+    coverageContribution: 0,
+    alignmentRate: 0,
+    badges: [],
+    recent: [],
+  );
+
+  @override
+  Future<RedeemResultView> redeem(String rewardKey) async =>
+      const RedeemResultView(owned: true, newBalance: 0);
+}
+
+RewardShopItemView _reward(
+  String key, {
+  required bool owned,
+  int cost = 50,
+}) => RewardShopItemView(
+  key: key,
+  label: key,
+  instrument: 'piano',
+  license: 'CC0-1.0',
+  attribution: '',
+  pointCost: cost,
+  redeemable: true,
+  owned: owned,
+);
+
 ProviderContainer _container({
   FakePreferencesService? prefs,
   FakeSoundFontImporter? importer,
@@ -46,6 +91,9 @@ ProviderContainer _container({
   RecordingAudioService? audio,
   List<PianoEntry>? serverFonts,
   CardPreviewScore? sample,
+  FakeSoundFontSource? source,
+  FakeSoundFontPreviewService? preview,
+  List<RewardShopItemView> shop = const [],
 }) {
   final c = ProviderContainer(
     overrides: [
@@ -58,7 +106,11 @@ ProviderContainer _container({
       privateSoundFontServiceProvider.overrideWithValue(
         private ?? FakePrivateSoundFontService(),
       ),
-      soundFontSourceProvider.overrideWithValue(FakeSoundFontSource()),
+      soundFontSourceProvider.overrideWithValue(source ?? FakeSoundFontSource()),
+      soundFontPreviewServiceProvider.overrideWithValue(
+        preview ?? FakeSoundFontPreviewService(),
+      ),
+      curatorRewardsServiceProvider.overrideWithValue(_ShopFake(shop)),
       soundFontCatalogServiceProvider.overrideWithValue(
         FakeSoundFontCatalogService(downloadable: serverFonts ?? const []),
       ),
@@ -339,6 +391,86 @@ void main() {
     expect(audio.loadedSoundFonts.length, greaterThan(loadsBefore));
     // The card now offers a stop control; tap it so the looping ticker doesn't
     // outlive the test.
+    await tester.tap(find.byIcon(Icons.stop_circle));
+    await tester.pump();
+  });
+
+  // --- Locked fonts audition via the preview clip (change:
+  //     add-soundfont-entitlement-previews) ---
+
+  testWidgets('a locked reward font auditions via its preview clip, never '
+      'downloading the font', (tester) async {
+    final source = FakeSoundFontSource();
+    final preview = FakeSoundFontPreviewService(available: {'grand'});
+    final c = _container(
+      serverFonts: [fakeDownloadPiano(id: 'grand', label: 'Grand Piano')],
+      shop: [_reward('grand', owned: false)],
+      source: source,
+      preview: preview,
+    );
+    await _pump(tester, c);
+
+    // Tap the locked catalog card to audition.
+    await tester.tap(find.text('Grand Piano'));
+    await tester.pump();
+
+    // Auditioned via the server preview clip…
+    expect(preview.auditioned, contains('grand'));
+    // …and the locked font's raw `.sf2` bytes were NEVER resolved/downloaded.
+    // (The selected default piano is resolved on entry to capture a restore path;
+    // that's unrelated — what matters is that 'grand' is never resolved.)
+    expect(source.resolved.map((e) => e.id), isNot(contains('grand')));
+    // The card now shows a stop control (playing).
+    expect(find.byIcon(Icons.stop_circle), findsOneWidget);
+  });
+
+  testWidgets('a locked font with no preview clip greys the play control', (
+    tester,
+  ) async {
+    final source = FakeSoundFontSource();
+    // 'grand' is NOT in `available`, so the preview fetch reports 404.
+    final preview = FakeSoundFontPreviewService(available: const {});
+    final c = _container(
+      serverFonts: [fakeDownloadPiano(id: 'grand', label: 'Grand Piano')],
+      shop: [_reward('grand', owned: false)],
+      source: source,
+      preview: preview,
+    );
+    await _pump(tester, c);
+
+    await tester.tap(find.text('Grand Piano'));
+    await tester.pumpAndSettle();
+
+    // It attempted the preview (not a download) and, finding none, greyed the
+    // control rather than erroring — the locked font's bytes were never resolved.
+    expect(preview.auditioned, contains('grand'));
+    expect(source.resolved.map((e) => e.id), isNot(contains('grand')));
+    expect(find.byIcon(Icons.music_off_outlined), findsOneWidget);
+  });
+
+  testWidgets('an owned reward font still auditions via the local synth', (
+    tester,
+  ) async {
+    final source = FakeSoundFontSource();
+    final preview = FakeSoundFontPreviewService(available: {'grand'});
+    final c = _container(
+      serverFonts: [fakeDownloadPiano(id: 'grand', label: 'Grand Piano')],
+      // Owned → not locked → the full local path is used.
+      shop: [_reward('grand', owned: true)],
+      source: source,
+      preview: preview,
+    );
+    await _pump(tester, c);
+
+    await tester.tap(find.text('Grand Piano'));
+    await tester.pump();
+    await tester.pump();
+
+    // Resolved locally (owned is entitled to the bytes); the preview clip path is
+    // not used for an owned font.
+    expect(source.resolved.map((e) => e.id), contains('grand'));
+    expect(preview.auditioned, isEmpty);
+    // Stop the looping ticker so it doesn't outlive the test.
     await tester.tap(find.byIcon(Icons.stop_circle));
     await tester.pump();
   });

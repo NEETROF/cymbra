@@ -36,6 +36,9 @@ pub mod play_module;
 pub mod repo;
 pub mod score_rating;
 pub mod soundfont;
+pub mod soundfont_access;
+pub mod soundfont_preview;
+pub mod soundfont_synth;
 pub mod user_library;
 pub mod user_scores;
 pub mod user_soundfont;
@@ -77,6 +80,12 @@ pub use score_rating::{
 pub use soundfont::{
     FakeSoundFontRepo, FontEntry, PgSoundFontRepo, SoundFontRepo, SoundFontStatusCounts, sha256_hex,
 };
+pub use soundfont_access::{Access, entitlement};
+pub use soundfont_preview::{
+    Event, Note, PREVIEW_SAMPLE_RATE, SampleSequence, encode_preview, preview_object_key,
+    sample_sequence, scheduled_events, total_samples,
+};
+pub use soundfont_synth::{render_preview_pcm, render_preview_wav};
 pub use user_library::{FakeUserLibraryRepo, UserLibraryRepo};
 pub use user_scores::{FakeUserScoreRepo, UserScore, UserScoreRepo};
 pub use user_soundfont::{

@@ -57,6 +57,25 @@ const statCards = computed<StatItem[]>(() => [
 const acting = computed(() => store.op.status === "loading");
 const opError = computed(() => (store.op.status === "error" ? store.op.error : null));
 
+// "Generate sample" (change: add-soundfont-entitlement-previews): (re)render a font's
+// server-side preview clip. Its state is the store's `preview` Async union, matched
+// exhaustively so a forgotten branch is a compile error.
+const previewVm = computed(() =>
+  match(store.preview)
+    .with({ status: "idle" }, () => ({ busy: false, error: null as string | null, done: false }))
+    .with({ status: "loading" }, () => ({ busy: true, error: null, done: false }))
+    .with({ status: "error" }, ({ error }) => ({ busy: false, error, done: false }))
+    .with({ status: "success" }, () => ({ busy: false, error: null, done: true }))
+    .exhaustive(),
+);
+/** Whether the given row is the one currently (re)generating its sample. */
+function generatingSample(id: string): boolean {
+  return store.previewTarget === id && previewVm.value.busy;
+}
+async function regenerateSample(row: AdminSoundFont) {
+  await store.regeneratePreview(row.id);
+}
+
 // Moderation review (change: add-soundfont-moderation): a back-office-only status
 // filter and accept/reject actions. Filtering + paging are server-side.
 type StatusFilter = "all" | "pending" | "accepted" | "rejected";
@@ -158,6 +177,9 @@ function licenseDesc(license: string): string {
          owns the message, so only surface it here (above the grid) for list-level
          actions (accept/reject/delete) when the drawer is closed. -->
     <p v-if="opError && drawerMode === null" class="error" role="alert">{{ opError }}</p>
+    <!-- "Generate sample" outcome (change: add-soundfont-entitlement-previews). -->
+    <p v-if="previewVm.error" class="error" role="alert">{{ previewVm.error }}</p>
+    <p v-else-if="previewVm.done" class="ok" role="status">{{ t("soundfonts.sampleGenerated") }}</p>
 
     <StatCards :items="statCards" />
 
@@ -233,6 +255,15 @@ function licenseDesc(license: string): string {
               @click="setStatus(row.id, 'rejected')"
             >
               {{ t("soundfonts.reject") }}
+            </button>
+            <button
+              type="button"
+              class="sample"
+              :disabled="previewVm.busy"
+              :title="t('soundfonts.generateSampleHint')"
+              @click="regenerateSample(row)"
+            >
+              {{ generatingSample(row.id) ? t("soundfonts.generatingSample") : t("soundfonts.generateSample") }}
             </button>
             <button type="button" @click="openEdit(row)">{{ t("soundfonts.edit") }}</button>
             <button type="button" :disabled="acting" @click="remove(row.id)">{{ t("soundfonts.remove") }}</button>
@@ -345,6 +376,9 @@ function licenseDesc(license: string): string {
 }
 .error {
   color: var(--danger, #c0392b);
+}
+.ok {
+  color: var(--ok, #2e7d32);
 }
 .muted {
   color: var(--muted, #888);

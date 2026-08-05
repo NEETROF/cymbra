@@ -1067,6 +1067,7 @@ dependencies = [
  "cymbra-storage",
  "cymbra-user-port",
  "prost 0.13.5",
+ "rustysynth",
  "serde",
  "serde_json",
  "sha2",

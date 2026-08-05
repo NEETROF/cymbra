@@ -67,12 +67,36 @@ export function setUploadForTest(fn: UploadFn): void {
   uploadImpl = fn;
 }
 
+/** (Re)generates a font's server-rendered preview clip via the admin HTTP route
+ *  (change: add-soundfont-entitlement-previews). Injected in tests, like the upload. */
+export type RegeneratePreviewFn = (id: string, token: string | null) => Promise<void>;
+
+async function httpRegeneratePreview(id: string, token: string | null): Promise<void> {
+  const resp = await fetch(`${soundfontBaseUrl()}/soundfonts/${encodeURIComponent(id)}/preview`, {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!resp.ok) {
+    throw new Error(`soundfont preview regeneration failed: HTTP ${resp.status}`);
+  }
+}
+
+let regeneratePreviewImpl: RegeneratePreviewFn = httpRegeneratePreview;
+export function setRegeneratePreviewForTest(fn: RegeneratePreviewFn): void {
+  regeneratePreviewImpl = fn;
+}
+
 /** Admin listing page size. */
 export const SOUNDFONTS_PAGE_SIZE = 25;
 
 export const useSoundFontsStore = defineStore("soundfonts", () => {
   const catalog = ref<Async<AdminSoundFont[]>>(idle);
   const op = ref<Async<void>>(idle);
+  // "Generate sample" state (change: add-soundfont-entitlement-previews): its own
+  // `Async` union so the button reflects in-flight/success/error without colliding
+  // with the other mutations in `op`. `previewTarget` is the font being (re)generated.
+  const preview = ref<Async<void>>(idle);
+  const previewTarget = ref<string | null>(null);
   // Server-side pagination + status filter (change: add-soundfont-moderation).
   const total = ref(0);
   const offset = ref(0);
@@ -140,6 +164,17 @@ export const useSoundFontsStore = defineStore("soundfonts", () => {
     return outcome;
   }
 
+  /** (Re)generate a font's server-rendered preview clip (change:
+   *  add-soundfont-entitlement-previews). No re-list — the preview object is separate
+   *  from the catalog row, so the listing is unchanged. */
+  async function regeneratePreview(id: string) {
+    previewTarget.value = id;
+    const outcome = await run(preview, async () => {
+      await regeneratePreviewImpl(id, useAuthStore().accessToken);
+    });
+    return outcome;
+  }
+
   /** The public catalog listing (id/label/…), for the preview font picker on the review
    *  and detail screens — usable by moderators, unlike the admin listing. */
   async function publicList(): Promise<SoundFont[]> {
@@ -178,6 +213,8 @@ export const useSoundFontsStore = defineStore("soundfonts", () => {
   return {
     catalog,
     op,
+    preview,
+    previewTarget,
     total,
     offset,
     statusFilter,
@@ -188,6 +225,7 @@ export const useSoundFontsStore = defineStore("soundfonts", () => {
     update,
     remove,
     setModerationStatus,
+    regeneratePreview,
     previewPieces,
     pieceBytes,
     fontBytes,

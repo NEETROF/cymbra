@@ -1,6 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createPinia, setActivePinia } from "pinia";
-import { type NewSoundFont, setUploadForTest, SOUNDFONTS_PAGE_SIZE, useSoundFontsStore } from "@/stores/soundfonts";
+import {
+  type NewSoundFont,
+  setRegeneratePreviewForTest,
+  setUploadForTest,
+  SOUNDFONTS_PAGE_SIZE,
+  useSoundFontsStore,
+} from "@/stores/soundfonts";
 import { SoundFontUploadError } from "@/lib/errors";
 import { setClientsForTest } from "@/lib/api";
 import { makeFakeClients } from "./fakes";
@@ -80,6 +86,7 @@ describe("soundfonts store", () => {
   beforeEach(() => {
     setActivePinia(createPinia());
     setUploadForTest(async () => {}); // default no-op upload; overridden per test
+    setRegeneratePreviewForTest(async () => {}); // default no-op; overridden per test
   });
 
   it("lists the admin catalog into a success state", async () => {
@@ -278,6 +285,42 @@ describe("soundfonts store", () => {
 
     expect(outcome.status).toBe("error");
     expect(store.op.status).toBe("error");
+  });
+
+  // --- Generate sample (change: add-soundfont-entitlement-previews) ---
+
+  it("regeneratePreview drives the preview Async to success and tracks the target", async () => {
+    const { clients } = makeFakeClients();
+    withSoundfonts(clients);
+    setClientsForTest(clients);
+    const called: string[] = [];
+    setRegeneratePreviewForTest(async (id) => {
+      called.push(id);
+    });
+    const store = useSoundFontsStore();
+
+    const outcome = await store.regeneratePreview("ydp-grand");
+
+    expect(outcome.status).toBe("success");
+    expect(called).toEqual(["ydp-grand"]);
+    expect(store.preview.status).toBe("success");
+    expect(store.previewTarget).toBe("ydp-grand");
+  });
+
+  it("captures a preview regeneration failure in the preview state (no throw)", async () => {
+    const { clients } = makeFakeClients();
+    withSoundfonts(clients);
+    setClientsForTest(clients);
+    setRegeneratePreviewForTest(async () => {
+      throw new Error("soundfont preview regeneration failed: HTTP 500");
+    });
+    const store = useSoundFontsStore();
+
+    const outcome = await store.regeneratePreview("ydp-grand");
+
+    expect(outcome.status).toBe("error");
+    expect(store.preview.status).toBe("error");
+    expect(store.previewTarget).toBe("ydp-grand");
   });
 
   // --- Preview data (used by the create/edit drawer's audition feature) ---

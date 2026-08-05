@@ -63,6 +63,12 @@ dependencies:
   http: ^1.6.0
   crypto: ^3.0.7
 
+  # Plays the short server-rendered SoundFont preview clip (a WAV byte buffer) so a
+  # LOCKED reward font stays auditionable without ever downloading its .sf2 bytes
+  # (change: add-soundfont-entitlement-previews). Behind the injectable
+  # `soundClipPlayerProvider` seam so state/widgets are testable without a device.
+  audioplayers: ^6.1.0
+
   # Native file picker for the score-contribution flow (.musicxml/.xml/.mxl) and
   # the SoundFont import flow (.sf2), behind the injectable `filePickerProvider` /
   # `soundFontImporterProvider` seams so both are testable without the native
