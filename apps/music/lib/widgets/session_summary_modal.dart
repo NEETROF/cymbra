@@ -13,11 +13,15 @@
 // limitations under the License.
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../l10n/gen/app_localizations.dart';
+import '../state/leaderboard.dart';
+import '../state/leaderboard_notifier.dart';
 import '../state/performance_scoring_core.dart';
 import '../state/session_summary.dart';
 import '../theme/cymbra_theme.dart';
+import 'leaderboard_view.dart';
 
 /// What the player chose to do from the summary modal.
 enum SummaryAction { replay, retry, close }
@@ -125,6 +129,11 @@ class _SummaryDialog extends StatelessWidget {
                       ),
                       const SizedBox(height: 12),
                       _verdictRow(l10n),
+                      // Post-session standing on this piece for the run's mode(s),
+                      // with a link to the full board (change: add-play-
+                      // leaderboards). A private/under-age player still sees their
+                      // own rank + PB here (the server always returns own standing).
+                      _PostSessionStanding(result: result),
                     ],
                   ),
                 ),
@@ -311,4 +320,75 @@ class _SummaryDialog extends StatelessWidget {
 
   static String _handsLabel(AppLocalizations l10n, String hands) =>
       l10n.summaryHands(hands);
+}
+
+/// The post-session standing block (change: add-play-leaderboards): for each mode
+/// the run produced, the player's rank + personal best on that piece, plus a link
+/// to open the full board. Reads through [leaderboardProvider], so a test drives
+/// it with a fake board. A piece with no shared board (a user upload) simply shows
+/// no standing lines; the link still opens the (empty) board dialog.
+class _PostSessionStanding extends ConsumerWidget {
+  const _PostSessionStanding({required this.result});
+
+  final SessionResult result;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    final modes = <LeaderboardMode>[
+      if (result.freeSyncPct != null) LeaderboardMode.tempo,
+      if (result.waitSyncPct != null) LeaderboardMode.reaction,
+    ];
+    if (modes.isEmpty) return const SizedBox.shrink();
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const SizedBox(height: 12),
+        for (final mode in modes)
+          _StandingLine(pieceId: result.pieceId, mode: mode),
+        TextButton.icon(
+          icon: const Icon(Icons.emoji_events, size: 18),
+          label: Text(l10n.leaderboardOpenFull),
+          onPressed: () => showLeaderboard(
+            context,
+            scoreId: result.pieceId,
+            title: result.title,
+            initialMode: modes.first,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// One mode's standing line in the summary — "Tempo · Rank #3 of 10 · Best 82%".
+/// Renders nothing until the board loads and the viewer has an own standing on it.
+class _StandingLine extends ConsumerWidget {
+  const _StandingLine({required this.pieceId, required this.mode});
+
+  final String pieceId;
+  final LeaderboardMode mode;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    final board = ref.watch(leaderboardProvider(pieceId, mode));
+    final own = board.valueOrNull?.own;
+    if (own == null) return const SizedBox.shrink();
+    final total = board.valueOrNull?.total ?? 0;
+    final modeLabel = mode == LeaderboardMode.tempo
+        ? l10n.leaderboardModeFree
+        : l10n.leaderboardModeWait;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Text(
+        '$modeLabel · ${l10n.leaderboardYourRank(own.rank, total)} · ${l10n.leaderboardBest(own.subscore.round())}',
+        style: const TextStyle(
+          fontSize: 12,
+          color: CymbraColors.onSurfaceVariant,
+        ),
+        textAlign: TextAlign.center,
+      ),
+    );
+  }
 }

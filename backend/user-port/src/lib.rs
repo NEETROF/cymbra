@@ -275,6 +275,20 @@ pub trait UserPort: Send + Sync {
         viewer_id: &str,
         today: NaiveDate,
     ) -> Result<bool>;
+
+    /// The subset of `user_ids` that may be **listed to other players** on a public
+    /// surface (a leaderboard), returned as their non-sensitive [`PlayerProfile`]s
+    /// (change: add-play-leaderboards). An id is included only when its profile is
+    /// `Public` AND age-eligible on `today` — exactly the play-activity gate, so a
+    /// private or under-age player is never listed. **Fail-closed**: an unknown,
+    /// private, or not-yet-eligible id is simply absent (order unspecified). Used
+    /// in-process by the music `LeaderboardService` to gate + label board entries
+    /// without crossing schemas.
+    async fn listable_profiles(
+        &self,
+        user_ids: &[String],
+        today: NaiveDate,
+    ) -> Result<Vec<PlayerProfile>>;
 }
 
 /// gRPC **client** adapter for the public account-management surface — used to

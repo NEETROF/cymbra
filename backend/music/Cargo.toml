@@ -12,6 +12,9 @@ async-trait.workspace = true
 tracing.workspace = true
 sqlx.workspace = true
 serde = { workspace = true }
+# Parses the immutable session-result record (JSON) on the leaderboard ingest path
+# to derive the per-mode sub-scores + tie-break metrics (change: add-play-leaderboards).
+serde_json = { workspace = true }
 uuid.workspace = true
 anyhow.workspace = true
 tokio.workspace = true

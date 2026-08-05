@@ -16,8 +16,13 @@ pub mod catalog_edit;
 pub mod catalog_limits;
 pub mod catalog_search;
 pub mod grpc;
+pub mod leaderboard;
+pub mod leaderboard_core;
+pub mod leaderboard_grpc;
+pub mod leaderboard_module;
 pub mod module;
 pub mod pg;
+pub mod pg_leaderboard;
 pub mod pg_play;
 pub mod pg_user_scores;
 pub mod play;
@@ -40,8 +45,15 @@ pub use catalog_search::{
     CatalogHit, CatalogSearchParams, CatalogSearchRepo, FakeCatalogRow, FakeCatalogSearchRepo,
 };
 pub use grpc::ScoreGrpc;
+pub use leaderboard::{
+    BestCandidate, FakeLeaderboardRepo, LeaderboardBest, LeaderboardRepo, LeaderboardSink, Mode,
+    StoredBest,
+};
+pub use leaderboard_grpc::LeaderboardGrpc;
+pub use leaderboard_module::{Board, BoardEntry, LeaderboardModule, MyStanding};
 pub use module::{ScoreModule, UploadInput};
 pub use pg::{PgCatalogRepo, PgCatalogSearchRepo, PgScoreRatingRepo, PgTitleBackfillRepo};
+pub use pg_leaderboard::PgLeaderboardRepo;
 pub use pg_play::PgPlayRepo;
 pub use pg_user_scores::{PgUserLibraryRepo, PgUserScoreRepo};
 pub use play::{DayActivity, FakePlayRepo, PlayActivity, PlayRepo, PlaySession, SessionPoint};

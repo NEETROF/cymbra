@@ -13,13 +13,48 @@
 // limitations under the License.
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:music/services/leaderboard_service.dart';
+import 'package:music/state/leaderboard.dart';
 import 'package:music/state/performance_scoring_core.dart';
 import 'package:music/state/session_summary.dart';
 import 'package:music/widgets/mistake_replay.dart';
 import 'package:music/widgets/session_summary_modal.dart';
 
 import '../support/localized.dart';
+
+/// The summary now surfaces a post-session leaderboard standing (change: add-
+/// play-leaderboards), so it reads the leaderboard seam through Riverpod. An
+/// empty board keeps these UI tests focused on the summary itself (no standing
+/// rows) while satisfying the required ProviderScope.
+class _EmptyLeaderboardService implements LeaderboardService {
+  @override
+  Future<Leaderboard> getLeaderboard({
+    required String scoreId,
+    required LeaderboardMode mode,
+    int offset = 0,
+    int limit = 50,
+  }) async => Leaderboard.empty;
+
+  @override
+  Future<Map<String, LeaderboardStanding>> getMyStandings(
+    List<String> scoreIds,
+  ) async => const {};
+}
+
+/// Wraps [home] in the app localizations + a ROOT ProviderContainer with the
+/// empty leaderboard seam, so the summary modal's standing section can build.
+/// A root container (not a nested ProviderScope) keeps the keepAlive override
+/// off `scoped_providers_should_specify_dependencies` — the repo convention.
+Widget _scoped(Widget home) => UncontrolledProviderScope(
+  container: ProviderContainer(
+    overrides: [
+      leaderboardServiceProvider.overrideWithValue(_EmptyLeaderboardService()),
+    ],
+  ),
+  child: localizedApp(home),
+);
 
 NoteJudgment _onset(
   int i, {
@@ -62,7 +97,7 @@ SessionResult _pureFree() => SessionResult.fromJudgments(
 
 Future<void> _open(WidgetTester tester, SessionResult r) async {
   await tester.pumpWidget(
-    localizedApp(
+    _scoped(
       Scaffold(
         body: Builder(
           builder: (context) => ElevatedButton(
@@ -110,7 +145,7 @@ void main() {
 
         SummaryAction? action;
         await tester.pumpWidget(
-          localizedApp(
+          _scoped(
             Scaffold(
               body: Builder(
                 builder: (context) => ElevatedButton(
@@ -141,7 +176,7 @@ void main() {
     ) async {
       SummaryAction? action;
       await tester.pumpWidget(
-        localizedApp(
+        _scoped(
           Scaffold(
             body: Builder(
               builder: (context) => ElevatedButton(

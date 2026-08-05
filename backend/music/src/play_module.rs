@@ -30,6 +30,7 @@ use chrono::NaiveDate;
 use cymbra_platform::{AppError, Result};
 use cymbra_user_port::UserPort;
 
+use crate::leaderboard::LeaderboardSink;
 use crate::play::{PlayActivity, PlayRepo, PlaySession};
 use crate::play_core;
 
@@ -50,15 +51,30 @@ pub struct RecordInput {
 }
 
 /// Ingestion + per-day activity, over an owner-scoped [`PlayRepo`] and the
-/// [`UserPort`] visibility gate.
+/// [`UserPort`] visibility gate. Optionally feeds a [`LeaderboardSink`] on each
+/// ingested session (change: add-play-leaderboards) to maintain the boards.
 pub struct PlayModule {
     repo: Arc<dyn PlayRepo>,
     user: Arc<dyn UserPort>,
+    /// Maintains the leaderboard bests from each persisted session. `None` where
+    /// leaderboards are not wired (then ingest is unchanged from #5).
+    leaderboard: Option<Arc<dyn LeaderboardSink>>,
 }
 
 impl PlayModule {
     pub fn new(repo: Arc<dyn PlayRepo>, user: Arc<dyn UserPort>) -> Self {
-        Self { repo, user }
+        Self {
+            repo,
+            user,
+            leaderboard: None,
+        }
+    }
+
+    /// Attach the leaderboard maintenance hook, run after each session is
+    /// persisted (change: add-play-leaderboards).
+    pub fn with_leaderboard(mut self, sink: Arc<dyn LeaderboardSink>) -> Self {
+        self.leaderboard = Some(sink);
+        self
     }
 
     /// Record one completed session for `owner_id`, idempotently by session id.
@@ -88,7 +104,14 @@ impl PlayModule {
             overall_sync_pct: input.overall_sync_pct.clamp(0.0, 100.0),
             session_result_json: input.session_result_json,
         };
-        self.repo.record(&session).await
+        self.repo.record(&session).await?;
+        // Maintain the leaderboard bests from this session (monotonic + integrity-
+        // gated). Idempotent, so a retried delivery is safe; runs after the durable
+        // record so the client ack still reflects the persisted session.
+        if let Some(sink) = &self.leaderboard {
+            sink.ingest_session(&session).await?;
+        }
+        Ok(())
     }
 
     /// Read `target_id`'s per-day activity as seen by `viewer_id`. Fail-closed: if
