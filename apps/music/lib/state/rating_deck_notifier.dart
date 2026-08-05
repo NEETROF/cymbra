@@ -55,6 +55,15 @@ abstract class RatingDeckState with _$RatingDeckState {
     @Default(true) bool hasMore,
     @Default(0) int nextOffset,
     String? error,
+
+    /// Curator coverage points earned by the most recent rating (change:
+    /// add-curation-rewards), for the transient "+N" cue. `null` when the last
+    /// rating awarded nothing.
+    int? lastPointsAwarded,
+
+    /// Increments once per rating that awarded points, so a dedicated listener
+    /// fires the "+N" cue even for two consecutive equal awards.
+    @Default(0) int pointsCueSeq,
   }) = _RatingDeckState;
 
   /// The card currently on top of the deck, or `null` when the deck is exhausted
@@ -216,9 +225,17 @@ class RatingDeck extends _$RatingDeck {
     final fromCursor = state.cursor;
     _advance(card); // optimistic (also records deck engagement)
     try {
-      await ref
+      final agg = await ref
           .read(ratingServiceProvider)
           .submit(catalogId: id, verdict: verdict, stars: stars);
+      // Surface the immediate coverage award (if any) as a "+N" cue via the
+      // listener; the seq bump lets it fire on repeat equal awards.
+      if (agg.pointsAwarded > 0) {
+        state = state.copyWith(
+          lastPointsAwarded: agg.pointsAwarded,
+          pointsCueSeq: state.pointsCueSeq + 1,
+        );
+      }
     } catch (e) {
       // Revert the optimistic advance and drop the card from "seen" so it can be
       // re-rated (mirrors the hub's toggleSave revert).

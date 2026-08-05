@@ -318,7 +318,15 @@
     "action": "Action",
     "scope": "Scope",
     "role": "Rôle",
-    "byAdmin": "Par l'admin"
+    "byAdmin": "Par l'admin",
+    "reliability": "Fiabilité",
+    "reliabilityTitle": "Fiabilité du curateur",
+    "reliabilityRatings": "Évaluations",
+    "reliabilityCoverage": "Contribution à la couverture",
+    "reliabilityAlignment": "Taux d'alignement",
+    "reliabilityAlignmentNote": "{aligned} évaluations alignées sur {settled} réglées",
+    "reliabilityEmpty": "Aucune donnée de fiabilité pour l'instant.",
+    "close": "Fermer"
   },
   "errors": {
     "unauthenticated": "Identifiants invalides ou session expirée.",

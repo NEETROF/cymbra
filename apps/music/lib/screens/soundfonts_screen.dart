@@ -20,6 +20,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../l10n/gen/app_localizations.dart';
 import '../services/audio_service.dart';
+import '../services/curator_rewards_service.dart' show RewardShopItemView;
 import '../services/private_soundfont_service.dart'
     show PrivateSoundFontException;
 import '../services/soundfont_catalog_service.dart'
@@ -30,10 +31,12 @@ import '../services/soundfont_source.dart' show soundFontSourceProvider;
 import '../state/imported_soundfonts.dart';
 import '../state/piano_catalog.dart';
 import '../state/player_data.dart' show scoreNoteEdges;
+import '../state/reward_shop_notifier.dart';
 import '../state/selected_piano.dart';
 import '../state/sound_preview_sample.dart';
 import '../theme/cymbra_theme.dart';
 import '../widgets/app_snackbar.dart';
+import '../widgets/reward_celebration.dart';
 
 /// The instrument-sound **hub** (change: add-soundfont-moderation), reached from
 /// the home top bar. Modelled on the score hub: a search field over the sounds,
@@ -191,6 +194,14 @@ class _SoundFontsScreenState extends ConsumerState<SoundFontsScreen>
     }
   }
 
+  // --- Reward unlock -------------------------------------------------------
+
+  /// Redeem the reward keyed by a locked catalog font's id (change: add-curation-
+  /// rewards). Fire-and-observe: the shop notifier persists then refreshes, and a
+  /// listener (wired in [build]) shows the celebration / error.
+  void _redeemReward(String key) =>
+      ref.read(rewardShopProvider.notifier).redeem(key);
+
   // --- Audition ------------------------------------------------------------
 
   Future<void> _togglePreview(PianoEntry entry) async {
@@ -279,6 +290,24 @@ class _SoundFontsScreenState extends ConsumerState<SoundFontsScreen>
   bool _matchesQuery(PianoEntry p) =>
       _query.isEmpty || p.label.toLowerCase().contains(_query);
 
+  /// Build a catalog sound card. A costed, redeemable, not-yet-owned reward font
+  /// (id == item key) shows its cost + a "Débloquer" affordance — but stays
+  /// **auditionable**: you must be able to hear a sound before deciding to unlock
+  /// it (only using it as the active instrument is gated, in `selectedPiano`).
+  Widget _buildCatalogCard(PianoEntry p, RewardShopItemView? item) {
+    final locked =
+        item != null && item.pointCost > 0 && item.redeemable && !item.owned;
+    return _SoundCard(
+      entry: p,
+      playing: _previewingId == p.id,
+      // Auditionable whether or not it is locked — a preview is what sells it.
+      onTap: () => _togglePreview(p),
+      locked: locked,
+      lockCost: locked ? item.pointCost : null,
+      onRedeem: locked ? () => _redeemReward(p.id) : null,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
@@ -287,6 +316,33 @@ class _SoundFontsScreenState extends ConsumerState<SoundFontsScreen>
     final cat = catalog
         .where((p) => p.kind != PianoKind.user)
         .toList(growable: false);
+    // Cross-reference catalog fonts with reward-shop items (piano id == item key)
+    // so a costed, unowned reward font shows a lock + cost + redeem affordance.
+    final shopByKey = ref.watch(rewardShopItemsByKeyProvider);
+
+    // Show a celebration (or error) exactly once per redeem, driven off the shop
+    // notifier's transient cue — a side effect kept out of the card widgets.
+    ref.listen(rewardShopProvider.select((s) => s.valueOrNull?.redeemSeq), (
+      prev,
+      next,
+    ) {
+      if (next == null || next == prev) return;
+      final state = ref.read(rewardShopProvider).valueOrNull;
+      if (state == null) return;
+      if (state.redeemError) {
+        showAppSnackBar(
+          ScaffoldMessenger.of(context),
+          l10n.rewardShopRedeemError,
+        );
+      } else if (state.lastRedeemedLabel != null) {
+        showRewardCelebration(
+          context,
+          title: l10n.rewardCelebrationRedeemedTitle,
+          message: l10n.rewardShopRedeemed(state.lastRedeemedLabel!),
+          icon: Icons.music_note,
+        );
+      }
+    });
 
     return Scaffold(
       key: _scaffoldKey,
@@ -363,12 +419,7 @@ class _SoundFontsScreenState extends ConsumerState<SoundFontsScreen>
                             : null,
                       ),
                   _SectionHeader(l10n.soundfontsSectionCatalog),
-                  for (final p in cat)
-                    _SoundCard(
-                      entry: p,
-                      playing: _previewingId == p.id,
-                      onTap: () => _togglePreview(p),
-                    ),
+                  for (final p in cat) _buildCatalogCard(p, shopByKey[p.id]),
                 ],
               ),
             ),
@@ -408,14 +459,28 @@ class _SoundCard extends StatelessWidget {
     this.onRename,
     this.onRemove,
     this.onPropose,
+    this.locked = false,
+    this.lockCost,
+    this.onRedeem,
   });
 
   final PianoEntry entry;
   final bool playing;
-  final VoidCallback onTap;
+
+  /// Tap toggles the audition; `null` disables it (a locked reward font).
+  final VoidCallback? onTap;
   final VoidCallback? onRename;
   final VoidCallback? onRemove;
   final VoidCallback? onPropose;
+
+  /// This catalog font is a costed reward the caller has not yet unlocked.
+  final bool locked;
+
+  /// The reward's point cost (when [locked]).
+  final int? lockCost;
+
+  /// Redeem this reward (when [locked]).
+  final VoidCallback? onRedeem;
 
   String? get _subtitle {
     final license = entry.license;
@@ -433,6 +498,9 @@ class _SoundCard extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       child: ListTile(
         onTap: onTap,
+        // Always a play/stop control — a locked reward font is still auditionable
+        // (you preview it, then decide to unlock); the lock is conveyed by the
+        // trailing cost + "Débloquer" affordance, not by disabling the preview.
         leading: Icon(
           playing ? Icons.stop_circle : Icons.play_circle_outline,
           color: playing ? CymbraColors.primary : CymbraColors.onSurfaceVariant,
@@ -451,11 +519,12 @@ class _SoundCard extends StatelessWidget {
                   fontSize: 12,
                 ),
               ),
-        trailing:
-            (onRename == null &&
-                onRemove == null &&
-                onPropose == null &&
-                entry.proposalStatus == null)
+        trailing: locked
+            ? _RewardLock(cost: lockCost ?? 0, onRedeem: onRedeem)
+            : (onRename == null &&
+                  onRemove == null &&
+                  onPropose == null &&
+                  entry.proposalStatus == null)
             ? null
             : Row(
                 mainAxisSize: MainAxisSize.min,
@@ -492,6 +561,40 @@ class _SoundCard extends StatelessWidget {
                 ],
               ),
       ),
+    );
+  }
+}
+
+/// The trailing affordance for a locked reward font: its point cost + an Unlock
+/// (redeem) button.
+class _RewardLock extends StatelessWidget {
+  const _RewardLock({required this.cost, required this.onRedeem});
+
+  final int cost;
+  final VoidCallback? onRedeem;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          l10n.rewardShopCost(cost),
+          style: const TextStyle(
+            color: CymbraColors.primary,
+            fontSize: 12.5,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(width: 8),
+        FilledButton.icon(
+          key: const Key('soundfont-unlock'),
+          onPressed: onRedeem,
+          icon: const Icon(Icons.workspace_premium, size: 16),
+          label: Text(l10n.soundfontsUnlock),
+        ),
+      ],
     );
   }
 }

@@ -64,6 +64,44 @@ describe("roles store", () => {
     }
   });
 
+  it("loads a user's read-only curator reliability", async () => {
+    const reliability = {
+      totalRatings: 57n,
+      coverageContribution: 42n,
+      alignmentRate: 0.82,
+      settledCount: 40n,
+      alignedCount: 33n,
+    };
+    const { clients, state } = makeFakeClients({ reliability });
+    setClientsForTest(clients);
+    const store = useRolesStore();
+
+    await store.loadReliability("t");
+
+    expect(state.reliabilityCalls).toEqual(["t"]);
+    expect(store.reliability.status).toBe("success");
+    if (store.reliability.status === "success") {
+      expect(store.reliability.data.totalRatings).toBe(57n);
+      expect(store.reliability.data.alignmentRate).toBeCloseTo(0.82);
+    }
+  });
+
+  it("captures a denied reliability read in the union instead of throwing", async () => {
+    const { clients } = makeFakeClients();
+    (clients.score as unknown as { getCuratorReliability: () => Promise<never> }).getCuratorReliability = () =>
+      Promise.reject(new Error("permission denied"));
+    setClientsForTest(clients);
+    const store = useRolesStore();
+
+    await store.loadReliability("t");
+
+    expect(store.reliability.status).toBe("error");
+    if (store.reliability.status === "error") {
+      expect(store.reliability.error).not.toContain("permission denied");
+      expect(store.reliability.error.length).toBeGreaterThan(0);
+    }
+  });
+
   it("captures a denied grant in the op state instead of throwing", async () => {
     const { clients } = makeFakeClients();
     (clients.user as unknown as { grantRole: () => Promise<never> }).grantRole = () =>

@@ -39,6 +39,11 @@ pub const USAGE_ROLLUP: &str = "usage_rollup";
 /// analytics, D4). No payload. Scheduled AFTER [`USAGE_ROLLUP`]: deletes raw
 /// `analytics.usage_events` older than the BO-configured retention window.
 pub const USAGE_PURGE: &str = "usage_purge";
+/// Stable name of the consensus honesty-settlement sweep (change: add-curation-
+/// rewards, D2/task 3.2). No payload. Scheduled: for each score past the consensus
+/// minimum, freezes its aggregate as truth and settles each unsettled rating's
+/// honesty bonus. Idempotent (settlement state), so at-least-once delivery is safe.
+pub const CONSENSUS_HONESTY_SETTLEMENT: &str = "consensus_honesty_settlement";
 
 /// Static description of one job type.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -129,6 +134,13 @@ pub fn builtin() -> Vec<JobSpec> {
             Channel::ordered("analytics", "maintenance"),
             RetryPolicy::new(3, Duration::from_secs(60), Duration::from_secs(3600)),
         ),
+        JobSpec::new(
+            CONSENSUS_HONESTY_SETTLEMENT,
+            // Maintenance sweep; dedup'd per scheduled occurrence, and idempotent by
+            // settlement state — parallel so it never head-of-line blocks.
+            Channel::parallel("music", "maintenance"),
+            RetryPolicy::new(3, Duration::from_secs(60), Duration::from_secs(3600)),
+        ),
     ]
 }
 
@@ -150,6 +162,15 @@ mod tests {
         assert!(names.contains(&PURGE_USER.to_string()));
         assert!(names.contains(&PURGE_SCORE_OBJECT.to_string()));
         assert!(names.contains(&PLAY_DETAIL_PRUNE.to_string()));
+        assert!(names.contains(&CONSENSUS_HONESTY_SETTLEMENT.to_string()));
+    }
+
+    #[test]
+    fn consensus_settlement_is_parallel_maintenance_on_music() {
+        let s = spec(CONSENSUS_HONESTY_SETTLEMENT).unwrap();
+        assert_eq!(s.channel().name(), "music.maintenance");
+        assert!(!s.channel().is_ordered());
+        assert_eq!(s.default_retry().max_attempts(), 3);
     }
 
     #[test]

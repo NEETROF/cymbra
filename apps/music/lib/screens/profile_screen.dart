@@ -23,6 +23,7 @@ import '../state/play_activity_notifier.dart';
 import '../state/profile_notifier.dart';
 import '../state/session_notifier.dart';
 import '../state/usage_tracking_notifier.dart';
+import '../widgets/curator_rewards_section.dart';
 import '../widgets/play_heatmap.dart';
 
 /// A player's profile (change: add-play-activity-profile). Reuses the play
@@ -85,13 +86,20 @@ class _ProfileBody extends ConsumerWidget {
       data: (p) => ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          _Header(profile: p),
+          // The visibility control lives in the header now (change: profile-ux),
+          // to the right of the pseudo; the self-only side-effect listener sits
+          // alongside it.
+          if (isSelf) _VisibilityResultListener(targetId: targetId),
+          _Header(profile: p, isSelf: isSelf),
           const SizedBox(height: 24),
           _ActivitySection(targetId: targetId),
           if (isSelf) ...[
+            // Curator rewards live here now (change: add-curation-rewards) — the
+            // signed-in user's own standing, integrated into their profile rather
+            // than a separate screen. The GetCuratorRewards RPC is caller-scoped,
+            // so it is shown only on the OWN profile.
             const SizedBox(height: 24),
-            _VisibilityResultListener(targetId: targetId),
-            _VisibilityControl(current: p.visibility),
+            const CuratorRewardsSection(),
           ],
         ],
       ),
@@ -100,9 +108,10 @@ class _ProfileBody extends ConsumerWidget {
 }
 
 class _Header extends StatelessWidget {
-  const _Header({required this.profile});
+  const _Header({required this.profile, this.isSelf = false});
 
   final PlayerProfile profile;
+  final bool isSelf;
 
   @override
   Widget build(BuildContext context) {
@@ -122,6 +131,11 @@ class _Header extends StatelessWidget {
             ],
           ),
         ),
+        // Compact public/private toggle to the right of the pseudo (self-only).
+        if (isSelf) ...[
+          const SizedBox(width: 12),
+          _VisibilityToggle(current: profile.visibility),
+        ],
       ],
     );
   }
@@ -154,49 +168,32 @@ class _ActivitySection extends ConsumerWidget {
   }
 }
 
-/// The self-only visibility control + neutral age gate.
-class _VisibilityControl extends ConsumerWidget {
-  const _VisibilityControl({required this.current});
+/// A compact self-only public/private visibility toggle, shown to the right of
+/// the pseudo (change: profile-ux). Tapping it flips the state — going public
+/// runs the neutral age gate first. Its tooltip explains the current state, so
+/// no separate hint line is needed (keeps the header uncluttered).
+class _VisibilityToggle extends ConsumerWidget {
+  const _VisibilityToggle({required this.current});
 
   final String current;
-
-  // Two effective states today: Private (hidden from others) and Public (other
-  // signed-in players can see the profile). A "limited"/followers-only tier is
-  // reserved for later and intentionally not surfaced until it has real behavior.
-  static const _options = ['private', 'public'];
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
     final isPublic = current == 'public';
-    String label(String v) => v == 'private'
-        ? l10n.profileVisibilityPrivate
-        : l10n.profileVisibilityPublic;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          l10n.profileVisibility,
-          style: Theme.of(context).textTheme.titleMedium,
+    return Tooltip(
+      message: isPublic ? l10n.profilePublicHint : l10n.profileGoPublicHint,
+      child: OutlinedButton.icon(
+        key: const Key('profile-visibility'),
+        icon: Icon(isPublic ? Icons.public : Icons.lock_outline, size: 18),
+        label: Text(
+          isPublic
+              ? l10n.profileVisibilityPublic
+              : l10n.profileVisibilityPrivate,
         ),
-        const SizedBox(height: 8),
-        SegmentedButton<String>(
-          key: const Key('profile-visibility'),
-          segments: [
-            for (final v in _options)
-              ButtonSegment(value: v, label: Text(label(v))),
-          ],
-          // A stored "limited" (legacy) falls back to the Private control.
-          selected: {isPublic ? 'public' : 'private'},
-          onSelectionChanged: (sel) => _select(context, ref, sel.first, l10n),
-        ),
-        const SizedBox(height: 8),
-        // Explain the current state either way (the feedback: it wasn't clear).
-        Text(
-          isPublic ? l10n.profilePublicHint : l10n.profileGoPublicHint,
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
-      ],
+        onPressed: () =>
+            _select(context, ref, isPublic ? 'private' : 'public', l10n),
+      ),
     );
   }
 

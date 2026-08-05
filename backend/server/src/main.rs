@@ -276,6 +276,15 @@ async fn main() -> anyhow::Result<()> {
                     // engagement allowance (a rating earns download headroom like a play).
                     let rating_repo: Arc<dyn cymbra_music::ScoreRatingRepo> =
                         Arc::new(PgScoreRatingRepo::new(music_pool.clone()));
+                    // Curation rewards (change: add-curation-rewards): one module backs
+                    // both the score module's producer seam (record engagement + award
+                    // coverage on rating, settle honesty on a moderator decision) and the
+                    // reward RPCs on the score service (profile / shop / redeem / reliability).
+                    let rewards_module = Arc::new(cymbra_music::CurationRewardsModule::new(
+                        Arc::new(cymbra_music::PgCurationRewardsRepo::new(music_pool.clone())),
+                    ));
+                    let rewards_sink: Arc<dyn cymbra_music::CurationRewardsSink> =
+                        rewards_module.clone();
                     let module = Arc::new(
                         ScoreModule::new(
                             Arc::new(PgUserScoreRepo::new(music_pool.clone())),
@@ -288,7 +297,9 @@ async fn main() -> anyhow::Result<()> {
                             cfg.upload_max_bytes,
                         )
                         // Resolve proposer attribution (change: add-score-catalog-proposal).
-                        .with_user(user_dyn.clone()),
+                        .with_user(user_dyn.clone())
+                        // Award coverage / settle honesty (change: add-curation-rewards).
+                        .with_rewards(rewards_sink),
                     );
                     // Per-user scrape guardrail over the shared Redis cache + play &
                     // rating ports (engagement = plays + ratings).
@@ -302,7 +313,8 @@ async fn main() -> anyhow::Result<()> {
                         ScoreGrpc::new(module)
                             .with_limiter(limiter)
                             .with_soundfonts(soundfont_repo.clone())
-                            .with_soundfont_store_opt(soundfont_store.clone()),
+                            .with_soundfont_store_opt(soundfont_store.clone())
+                            .with_rewards(rewards_module),
                         strict.clone(),
                     ))
                 }

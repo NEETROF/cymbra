@@ -15,6 +15,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:music/services/audio_service.dart';
+import 'package:music/services/curator_rewards_service.dart';
 import 'package:music/services/preferences_service.dart';
 import 'package:music/services/private_soundfont_service.dart';
 import 'package:music/services/soundfont_catalog_service.dart';
@@ -22,11 +23,52 @@ import 'package:music/services/soundfont_importer.dart';
 import 'package:music/services/soundfont_source.dart';
 import 'package:music/state/imported_soundfonts.dart';
 import 'package:music/state/piano_catalog.dart';
+import 'package:music/state/reward_shop_notifier.dart';
 import 'package:music/state/selected_piano.dart';
 
 import '../support/fakes.dart';
 import '../support/prefs_fakes.dart';
 import '../support/soundfont_fakes.dart';
+
+/// A curator-rewards seam returning a fixed reward-shop list, so the selection
+/// gate for locked reward fonts is exercisable.
+class _ShopFake implements CuratorRewardsService {
+  const _ShopFake(this.items);
+  final List<RewardShopItemView> items;
+
+  @override
+  Future<List<RewardShopItemView>> listShop() async => items;
+
+  @override
+  Future<CuratorRewardsView> getRewards() async => const CuratorRewardsView(
+    lifetimePoints: 0,
+    spendableBalance: 0,
+    level: 0,
+    levelFloor: 0,
+    nextLevelAt: 50,
+    totalRatings: 0,
+    coverageContribution: 0,
+    alignmentRate: 0,
+    badges: [],
+    recent: [],
+  );
+
+  @override
+  Future<RedeemResultView> redeem(String rewardKey) async =>
+      const RedeemResultView(owned: true, newBalance: 0);
+}
+
+RewardShopItemView _reward(String key, {required bool owned, int cost = 50}) =>
+    RewardShopItemView(
+      key: key,
+      label: key,
+      instrument: 'piano',
+      license: 'CC0-1.0',
+      attribution: '',
+      pointCost: cost,
+      redeemable: true,
+      owned: owned,
+    );
 
 ProviderContainer _container({
   required FakePreferencesService prefs,
@@ -34,11 +76,13 @@ ProviderContainer _container({
   FakeSoundFontSource? source,
   FakeSoundFontImporter? importer,
   List<PianoEntry>? serverFonts,
+  List<RewardShopItemView> shop = const [],
 }) {
   final container = ProviderContainer(
     overrides: [
       preferencesServiceProvider.overrideWithValue(prefs),
       audioServiceProvider.overrideWithValue(audio),
+      curatorRewardsServiceProvider.overrideWithValue(_ShopFake(shop)),
       soundFontSourceProvider.overrideWithValue(
         source ?? FakeSoundFontSource(),
       ),
@@ -71,6 +115,8 @@ ProviderContainer _container({
   // Keep the notifiers alive for the test (they are keepAlive in production).
   container.listen(selectedPianoProvider, (_, _) {}, fireImmediately: true);
   container.listen(pianoCatalogProvider, (_, _) {}, fireImmediately: true);
+  // Keep the reward shop alive so the selection gate sees its loaded value.
+  container.listen(rewardShopProvider, (_, _) {}, fireImmediately: true);
   return container;
 }
 
@@ -214,4 +260,34 @@ void main() {
       expect(importer.deleted.map((e) => e.id), contains('user-x'));
     },
   );
+
+  test('a locked reward font is not selectable until it is owned', () async {
+    final container = _container(
+      prefs: FakePreferencesService(),
+      audio: RecordingAudioService(),
+      serverFonts: [fakeDownloadPiano(id: 'reward-grand', label: 'Reward')],
+      shop: [_reward('reward-grand', owned: false)],
+    );
+    // Load the reward shop so the selection gate can see it.
+    await container.read(rewardShopProvider.future);
+    await pumpEventQueue();
+
+    // Locked (costed, unowned) → selecting it is refused; stays on the default.
+    await container.read(selectedPianoProvider.notifier).select('reward-grand');
+    expect(container.read(selectedPianoProvider), defaultPianoId);
+  });
+
+  test('an owned reward font is selectable', () async {
+    final container = _container(
+      prefs: FakePreferencesService(),
+      audio: RecordingAudioService(),
+      serverFonts: [fakeDownloadPiano(id: 'reward-grand', label: 'Reward')],
+      shop: [_reward('reward-grand', owned: true)],
+    );
+    await container.read(rewardShopProvider.future);
+    await pumpEventQueue();
+
+    await container.read(selectedPianoProvider.notifier).select('reward-grand');
+    expect(container.read(selectedPianoProvider), 'reward-grand');
+  });
 }

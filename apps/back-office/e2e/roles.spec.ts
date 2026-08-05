@@ -104,6 +104,52 @@ test.describe("roles directory (admin only)", () => {
     await expect(page.locator("body")).not.toContainText("backend down");
   });
 
+  test("the reliability panel renders a user's read-only curator metrics", async ({ page }) => {
+    await seed(page, {
+      loginAs: "admin",
+      data: {
+        accounts: [ada],
+        reliability: {
+          totalRatings: 57,
+          coverageContribution: 42,
+          alignmentRate: 0.82,
+          settledCount: 40,
+          alignedCount: 33,
+        },
+      },
+    });
+    await page.goto("/roles");
+
+    await page.getByRole("button", { name: "Reliability" }).click();
+
+    await expect(page.getByRole("heading", { name: "Curator reliability" })).toBeVisible();
+    // The three metrics render (rating count, coverage contribution, alignment %).
+    await expect(page.getByText("57", { exact: true })).toBeVisible();
+    await expect(page.getByText("42", { exact: true })).toBeVisible();
+    await expect(page.getByText("82%", { exact: true })).toBeVisible();
+    await expect(page.getByText("33 of 40 settled ratings aligned")).toBeVisible();
+    // Read-only: the panel never offers a role change of its own.
+  });
+
+  test("a failed reliability read surfaces a humanized error, not a raw code", async ({ page }) => {
+    await seed(page, {
+      loginAs: "admin",
+      data: {
+        accounts: [ada],
+        // Connect UNAVAILABLE = 14.
+        fail: { getCuratorReliability: { code: 14, message: "[unavailable] curator lookup down" } },
+      },
+    });
+    await page.goto("/roles");
+
+    await page.getByRole("button", { name: "Reliability" }).click();
+
+    await expect(page.getByRole("alert")).toHaveText("Service unavailable. Try again.");
+    // The raw gRPC message/code never leaks into the DOM.
+    await expect(page.locator("body")).not.toContainText("curator lookup down");
+    await expect(page.locator("body")).not.toContainText("[unavailable]");
+  });
+
   test("an empty result shows a friendly message, not a raw code", async ({ page }) => {
     await seed(page, { loginAs: "admin", data: { accounts: [ada] } });
     await page.goto("/roles");

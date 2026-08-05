@@ -85,7 +85,9 @@ class LibraryScreen extends ConsumerWidget {
                 tooltip: l10n.soundfontsEntryTooltip,
                 onPressed: () => _openSoundFonts(context),
               ),
-            // Language selection moved into the account menu (AccountMenu).
+            // The account control is the curator standing pill (change: add-
+            // curation-rewards) — it replaces the plain person icon and opens the
+            // account menu (→ profile, where the rewards live).
             const AccountMenu(),
             const SizedBox(width: 8),
           ],

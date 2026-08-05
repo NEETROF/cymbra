@@ -33,6 +33,8 @@ export interface FakeState {
   grantCalls: { userId: string; scope: string; role: string }[];
   revokeCalls: { userId: string; scope: string; role: string }[];
   listAccountsCalls: { query: string; limit: number; offset: number }[];
+  reliabilityCalls: string[];
+  reliability?: unknown;
   setLocaleCalls: string[];
   hits: unknown[];
   total: number;
@@ -62,6 +64,8 @@ export function makeFakeClients(state: Partial<FakeState> = {}): { clients: Clie
     grantCalls: [],
     revokeCalls: [],
     listAccountsCalls: [],
+    reliabilityCalls: [],
+    reliability: state.reliability,
     setLocaleCalls: [],
     hits: state.hits ?? [],
     total: state.total ?? 0,
@@ -101,6 +105,18 @@ export function makeFakeClients(state: Partial<FakeState> = {}): { clients: Clie
         return s.hits[0] ?? { id: req.catalogId };
       },
       getCatalogScoreBytes: async () => ({ data: new Uint8Array([1, 2, 3]) }),
+      getCuratorReliability: async (req: { userId: string }) => {
+        s.reliabilityCalls.push(req.userId);
+        return (
+          s.reliability ?? {
+            totalRatings: 0n,
+            coverageContribution: 0n,
+            alignmentRate: 0,
+            settledCount: 0n,
+            alignedCount: 0n,
+          }
+        );
+      },
       listSoundFonts: async () => ({ soundfonts: [] }),
     },
     user: {

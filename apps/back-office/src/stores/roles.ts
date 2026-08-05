@@ -3,6 +3,7 @@ import { defineStore } from "pinia";
 import { api } from "@/lib/api";
 import { type Async, idle, run } from "@/lib/async";
 import type { AccountRow, RoleGrant } from "@/gen/user_pb";
+import type { CuratorReliability } from "@/gen/score_pb";
 
 /** Directory page size (mirrors the server's default window). */
 export const PAGE_SIZE = 25;
@@ -21,6 +22,10 @@ export interface AccountDirectory {
 export const useRolesStore = defineStore("roles", () => {
   const directory = ref<Async<AccountDirectory>>(idle);
   const grants = ref<Async<RoleGrant[]>>(idle);
+  // Read-only per-user curator reliability (change: add-curation-rewards, task 5.2).
+  // MODERATOR/ADMIN gated server-side; it only informs manual promotion — it never
+  // triggers a role change here.
+  const reliability = ref<Async<CuratorReliability>>(idle);
   const op = ref<Async<void>>(idle);
   // Current directory query/offset, so a grant/revoke can re-list the same page.
   const params = reactive<{ query: string; offset: number }>({ query: "", offset: 0 });
@@ -40,6 +45,11 @@ export const useRolesStore = defineStore("roles", () => {
     await run(grants, async () => (await api().user.listRoleGrants({ userId })).grants);
   }
 
+  /** Load a user's curator reliability (read-only; server enforces moderator/admin). */
+  async function loadReliability(userId: string) {
+    await run(reliability, () => api().score.getCuratorReliability({ userId }));
+  }
+
   async function grant(userId: string, role: string, scope: string) {
     const outcome = await run(op, async () => {
       await api().user.grantRole({ userId, scope, role });
@@ -57,5 +67,5 @@ export const useRolesStore = defineStore("roles", () => {
     return outcome;
   }
 
-  return { directory, grants, op, params, list, listGrants, grant, revoke };
+  return { directory, grants, reliability, op, params, list, listGrants, loadReliability, grant, revoke };
 });
