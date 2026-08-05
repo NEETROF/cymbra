@@ -31,13 +31,13 @@
 ## 5. Curator reliability indicator (BO)
 
 - [x] 5.1 Backend read: per-user total ratings, coverage contribution, and alignment rate over settled ratings; guarded to `moderator`/`admin`.
-- [ ] 5.2 Vue back office: read-only per-user reliability panel (surfaced from the users/roles view); no automation.
+- [x] 5.2 Vue back office: read-only per-user reliability panel (surfaced from the users/roles view); no automation.
 
 ## 6. Tests & verification
 
 - [x] 6.1 Rust: coverage diminishing + daily cap + engagement gate; honesty aligned vs floor (never negative) + award-once; moderator-outweighs-consensus; no self-settlement; consensus sweep idempotent; ledger lifetime vs spendable balance; redemption deducts once, refuses when balance insufficient, never negative, spending doesn't lower level. `cargo llvm-cov ... --fail-under-lines 80`.
 - [x] 6.2 Rust: staff app-rating earns points; BO actions award nothing.
 - [ ] 6.3 Flutter (via fakes): curator profile (level/lifetime points/balance/shop entry/badges/stats); app-bar chip opens it; "+N" cue on rating; deferred-award activity list + notification cue; reward shop redeems an affordable item and refuses an unaffordable one; locked piano shows cost and becomes selectable once redeemed. `flutter test --coverage` ≥ 80%.
-- [ ] 6.4 Vue: reliability panel renders and is gated to moderator/admin (own test setup).
+- [x] 6.4 Vue: reliability panel renders and is gated to moderator/admin (own test setup).
 - [ ] 6.5 `cargo fmt`/`clippy` + `melos run analyze`/`dart format` clean; regenerate codegen as needed.
-- [ ] 6.6 `openspec validate add-curation-rewards --strict` passes.
+- [x] 6.6 `openspec validate add-curation-rewards --strict` passes.

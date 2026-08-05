@@ -318,7 +318,14 @@
     "action": "Action",
     "scope": "Scope",
     "role": "Role",
-    "byAdmin": "By admin"
+    "byAdmin": "By admin",
+    "reliability": "Reliability",
+    "reliabilityTitle": "Curator reliability",
+    "reliabilityRatings": "Ratings",
+    "reliabilityCoverage": "Coverage contribution",
+    "reliabilityAlignment": "Alignment rate",
+    "reliabilityAlignmentNote": "{aligned} of {settled} settled ratings aligned",
+    "reliabilityEmpty": "No reliability data yet."
   },
   "errors": {
     "unauthenticated": "Invalid credentials or expired session.",

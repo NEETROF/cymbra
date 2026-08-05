@@ -36,6 +36,10 @@ export interface E2EData {
   bytes?: number[] | null;
   /** Audit rows for `listRoleGrants`. */
   grants?: Record<string, unknown>[];
+  /** Curator reliability returned by `getCuratorReliability` (change: add-curation-
+   * rewards). Fields mirror the proto (totalRatings, coverageContribution,
+   * alignmentRate 0–1, settledCount, alignedCount). */
+  reliability?: Record<string, unknown>;
   /** The account's stored language returned by `getAccount` (change: sync-account-
    * language-preference); `setLocale` writes it here so a re-read reflects it. */
   accountLocale?: string;
@@ -156,6 +160,21 @@ export function installE2EClients(): void {
       getCatalogScoreBytes: async () => {
         failIfSet("getCatalogScoreBytes");
         return { data: Uint8Array.from(data.bytes ?? [1, 2, 3]) };
+      },
+      // Read-only curator reliability (change: add-curation-rewards); moderator/admin
+      // gated server-side. `failOnce`/`fail` exercise the retry and error-mapping paths.
+      getCuratorReliability: async () => {
+        failOnceIfSet("getCuratorReliability");
+        failIfSet("getCuratorReliability");
+        return (
+          data.reliability ?? {
+            totalRatings: 0,
+            coverageContribution: 0,
+            alignmentRate: 0,
+            settledCount: 0,
+            alignedCount: 0,
+          }
+        );
       },
       // Public catalog listing (preview font picker on review/detail).
       listSoundFonts: async () => ({ soundfonts: soundfonts.map(({ id, label }) => ({ id, label })) }),
