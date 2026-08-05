@@ -57,13 +57,6 @@ pub fn render_pcm(
     let document = decode_and_parse(score_bytes).map_err(|e| e.code().to_string())?;
     let sched = schedule(&document);
 
-    let mut cursor = Cursor::new(sf2_bytes);
-    let sound_font =
-        Arc::new(SoundFont::new(&mut cursor).map_err(|_| "bad_soundfont".to_string())?);
-    let settings = SynthesizerSettings::new(sample_rate as i32);
-    let mut synth =
-        Synthesizer::new(&sound_font, &settings).map_err(|_| "synth_init".to_string())?;
-
     let sr = f64::from(sample_rate);
     let total_ms = sched.song_end_ms + RELEASE_TAIL_MS;
     let total_frames = ((f64::from(total_ms) / 1000.0) * sr).ceil() as usize;
@@ -88,6 +81,67 @@ pub fn render_pcm(
             key: n.midi,
         });
     }
+    render_events(sf2_bytes, sample_rate, total_frames, events)
+}
+
+/// A note of the fixed preview phrase: MIDI key, onset, and duration (ms).
+struct SampleNote {
+    midi: i32,
+    onset_ms: u32,
+    duration_ms: u32,
+}
+
+/// The fixed preview phrase rendered with EVERY costed SoundFont so previews are
+/// comparable (change: add-soundfont-entitlement-previews): a rising C-major arpeggio
+/// resolving on a held C5 (~1.6s of notes; a release tail rings out after).
+const SAMPLE_PHRASE: [SampleNote; 4] = [
+    SampleNote { midi: 60, onset_ms: 0, duration_ms: 400 },
+    SampleNote { midi: 64, onset_ms: 300, duration_ms: 400 },
+    SampleNote { midi: 67, onset_ms: 600, duration_ms: 400 },
+    SampleNote { midi: 72, onset_ms: 900, duration_ms: 700 },
+];
+
+/// Render the fixed [`SAMPLE_PHRASE`] with `sf2_bytes` to interleaved-stereo PCM — the
+/// server-side audition clip for a costed SoundFont, so the raw font is never shipped
+/// to preview it. Deterministic (same font → same buffer). Errors as a stable code.
+pub fn render_sample_pcm(sf2_bytes: &[u8], sample_rate: u32) -> Result<Vec<f32>, String> {
+    let sr = f64::from(sample_rate);
+    let phrase_end_ms = SAMPLE_PHRASE
+        .iter()
+        .map(|n| n.onset_ms + n.duration_ms)
+        .max()
+        .unwrap_or(0);
+    let total_ms = phrase_end_ms + RELEASE_TAIL_MS;
+    let total_frames = ((f64::from(total_ms) / 1000.0) * sr).ceil() as usize;
+    if total_frames == 0 {
+        return Ok(Vec::new());
+    }
+    let frame_of = |ms: u32| ((f64::from(ms) / 1000.0) * sr) as usize;
+    let mut events: Vec<Ev> = Vec::with_capacity(SAMPLE_PHRASE.len() * 2);
+    for n in &SAMPLE_PHRASE {
+        let on = frame_of(n.onset_ms);
+        let off = frame_of(n.onset_ms + n.duration_ms).max(on + 1);
+        events.push(Ev { frame: on, on: true, key: n.midi });
+        events.push(Ev { frame: off, on: false, key: n.midi });
+    }
+    render_events(sf2_bytes, sample_rate, total_frames, events)
+}
+
+/// Drive `synth` with the (unsorted) `events` for `total_frames` frames, collecting
+/// interleaved-stereo PCM. Shared by the score render and the sample-preview render.
+fn render_events(
+    sf2_bytes: &[u8],
+    sample_rate: u32,
+    total_frames: usize,
+    mut events: Vec<Ev>,
+) -> Result<Vec<f32>, String> {
+    let mut cursor = Cursor::new(sf2_bytes);
+    let sound_font =
+        Arc::new(SoundFont::new(&mut cursor).map_err(|_| "bad_soundfont".to_string())?);
+    let settings = SynthesizerSettings::new(sample_rate as i32);
+    let mut synth =
+        Synthesizer::new(&sound_font, &settings).map_err(|_| "synth_init".to_string())?;
+
     events.sort_by_key(|e| e.frame);
 
     let mut left = vec![0f32; BLOCK];
@@ -114,6 +168,35 @@ pub fn render_pcm(
         frame += block;
     }
     Ok(out)
+}
+
+/// Encode interleaved-stereo f32 `pcm` (`L,R,L,R,…`, in `[-1,1]`) as a 16-bit PCM WAV
+/// container (2 channels). A compact, universally playable clip for the preview object.
+pub fn encode_wav(pcm: &[f32], sample_rate: u32) -> Vec<u8> {
+    const CHANNELS: u16 = 2;
+    const BITS: u16 = 16;
+    let block_align = CHANNELS * BITS / 8;
+    let byte_rate = sample_rate * u32::from(block_align);
+    let data_len = (pcm.len() * 2) as u32; // 2 bytes per sample
+    let mut w = Vec::with_capacity(44 + data_len as usize);
+    w.extend_from_slice(b"RIFF");
+    w.extend_from_slice(&(36 + data_len).to_le_bytes());
+    w.extend_from_slice(b"WAVE");
+    w.extend_from_slice(b"fmt ");
+    w.extend_from_slice(&16u32.to_le_bytes()); // PCM fmt chunk size
+    w.extend_from_slice(&1u16.to_le_bytes()); // audio format = PCM
+    w.extend_from_slice(&CHANNELS.to_le_bytes());
+    w.extend_from_slice(&sample_rate.to_le_bytes());
+    w.extend_from_slice(&byte_rate.to_le_bytes());
+    w.extend_from_slice(&block_align.to_le_bytes());
+    w.extend_from_slice(&BITS.to_le_bytes());
+    w.extend_from_slice(b"data");
+    w.extend_from_slice(&data_len.to_le_bytes());
+    for &s in pcm {
+        let clamped = (s.clamp(-1.0, 1.0) * f32::from(i16::MAX)) as i16;
+        w.extend_from_slice(&clamped.to_le_bytes());
+    }
+    w
 }
 
 /// wasm-bindgen entry point: interleaved-stereo PCM as a `Float32Array`. wasm target
@@ -157,6 +240,53 @@ mod tests {
         // Valid score, garbage SoundFont → typed error, no panic.
         let err = render_pcm(MINIMAL.as_bytes(), b"PK\x03\x04 not an sf2", 44_100);
         assert_eq!(err.unwrap_err(), "bad_soundfont");
+    }
+
+    #[test]
+    fn sample_render_rejects_bad_soundfont() {
+        // No score needed for the sample phrase — a garbage font is a typed error.
+        let err = render_sample_pcm(b"PK\x03\x04 not an sf2", 44_100);
+        assert_eq!(err.unwrap_err(), "bad_soundfont");
+    }
+
+    #[test]
+    fn encode_wav_writes_a_valid_pcm16_stereo_header() {
+        // Two interleaved-stereo frames (4 samples) → 44-byte header + 8 bytes data.
+        let pcm = [0.0f32, 1.0, -1.0, 0.5];
+        let wav = encode_wav(&pcm, 44_100);
+        assert_eq!(&wav[0..4], b"RIFF");
+        assert_eq!(&wav[8..12], b"WAVE");
+        assert_eq!(&wav[12..16], b"fmt ");
+        assert_eq!(&wav[36..40], b"data");
+        // PCM (1), 2 channels, 16-bit.
+        assert_eq!(u16::from_le_bytes([wav[20], wav[21]]), 1);
+        assert_eq!(u16::from_le_bytes([wav[22], wav[23]]), 2);
+        assert_eq!(u16::from_le_bytes([wav[34], wav[35]]), 16);
+        // data chunk length + total length (2 bytes/sample).
+        assert_eq!(u32::from_le_bytes([wav[40], wav[41], wav[42], wav[43]]), 8);
+        assert_eq!(wav.len(), 44 + pcm.len() * 2);
+        // Full-scale sample encodes to i16::MAX.
+        assert_eq!(i16::from_le_bytes([wav[46], wav[47]]), i16::MAX);
+    }
+
+    // Full sample render against the app's real SoundFont. Ignored by default (loads a
+    // large asset); run with `cargo test -p cymbra-audio-wasm -- --ignored`.
+    #[test]
+    #[ignore]
+    fn renders_sample_deterministically_with_real_soundfont() {
+        let sf2 = std::fs::read(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../apps/music/assets/soundfonts/UprightPianoKW-20220221.sf2"
+        ))
+        .expect("app SoundFont present");
+        let a = render_sample_pcm(&sf2, 44_100).expect("renders");
+        let b = render_sample_pcm(&sf2, 44_100).expect("renders");
+        assert_eq!(a.len(), b.len(), "same length");
+        assert_eq!(a, b, "deterministic");
+        assert!(a.iter().any(|&s| s != 0.0), "produces sound");
+        // The encoded clip round-trips to a WAV of the expected size.
+        let wav = encode_wav(&a, 44_100);
+        assert_eq!(wav.len(), 44 + a.len() * 2);
     }
 
     // Full render against the app's real SoundFont. Ignored by default (loads a

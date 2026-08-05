@@ -9,9 +9,9 @@
 ## 2. Server-side preview render (backend)
 
 - [ ] 2.1 Add `rustysynth` as a backend dependency (match the client-vendored version).
-- [ ] 2.2 Define the fixed `SampleSequence` (a short ~2–3s phrase, same for every font) as a covered constant/helper.
-- [ ] 2.3 Add a host-testable render core: `render_preview_pcm(font_bytes, &SampleSequence) -> Vec<i16>` (headless synth → PCM) and `encode_preview(pcm, rate) -> Vec<u8>` (WAV/PCM). Cover the sequence + encoder; leave the raw synth call as excluded glue.
-- [ ] 2.4 Unit-test render determinism (same font+sequence → equivalent clip) and encoder output (valid WAV header, expected length).
+- [x] 2.2 Define the fixed `SampleSequence` (a short ~2–3s phrase, same for every font) as a covered constant/helper.
+- [x] 2.3 Add a host-testable render core: `render_preview_pcm(font_bytes, &SampleSequence) -> Vec<i16>` (headless synth → PCM) and `encode_preview(pcm, rate) -> Vec<u8>` (WAV/PCM). Cover the sequence + encoder; leave the raw synth call as excluded glue.
+- [x] 2.4 Unit-test render determinism (same font+sequence → equivalent clip) and encoder output (valid WAV header, expected length).
 
 ## 3. Preview storage & lifecycle (backend)
 
