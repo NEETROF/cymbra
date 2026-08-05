@@ -254,12 +254,18 @@ export function installE2EClients(): void {
         const s = data.usageSummary ?? {};
         // Synthesise a single-day point per series so the line charts render.
         if (req.dimension === 0) {
-          return { points: (s.byPlatform ?? []).map((p) => ({ day: today, series: p.platform, value: BigInt(p.users) })) };
+          return {
+            points: (s.byPlatform ?? []).map((p) => ({ day: today, series: p.platform, value: BigInt(p.users) })),
+          };
         }
         if (req.dimension === 1) {
-          return { points: (s.byDeviceClass ?? []).map((d) => ({ day: today, series: d.deviceClass, value: BigInt(d.users) })) };
+          return {
+            points: (s.byDeviceClass ?? []).map((d) => ({ day: today, series: d.deviceClass, value: BigInt(d.users) })),
+          };
         }
-        return { points: (data.usageBreakdown ?? []).map((r) => ({ day: today, series: r.action, value: BigInt(r.events) })) };
+        return {
+          points: (data.usageBreakdown ?? []).map((r) => ({ day: today, series: r.action, value: BigInt(r.events) })),
+        };
       },
     },
   } as unknown as Clients;

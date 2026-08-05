@@ -33,10 +33,7 @@ test.describe("usage analytics console", () => {
     await expect(page.locator("canvas").first()).toBeVisible();
 
     // The action filter is data-driven from the aggregates.
-    await expect(page.getByTestId("action").locator("option")).toContainText([
-      "auth_sign_in",
-      "play_start",
-    ]);
+    await expect(page.getByTestId("action").locator("option")).toContainText(["auth_sign_in", "play_start"]);
 
     // Switch to the Table view: the same figures appear as rows.
     await page.getByTestId("view-table").click();
