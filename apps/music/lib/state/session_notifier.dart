@@ -12,15 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../analytics/usage_actions.dart';
 import '../services/account_service.dart';
 import '../services/auth_service.dart';
 import '../services/grpc_client.dart';
 import '../services/oidc_token_source.dart';
 import '../services/token_store.dart';
 import 'session_state.dart';
+import 'usage_tracking_notifier.dart';
 
 part 'session_notifier.g.dart';
 
@@ -103,6 +107,18 @@ class SessionNotifier extends _$SessionNotifier {
     await _tokens.writeTokens(tokens.toStored());
     state = const SessionState.unknown();
     await _resolveAuthenticated();
+    // Usage telemetry (change: add-feature-usage-analytics): every sign-in funnels
+    // here, so this is the single point that distinguishes a brand-new account
+    // (its first authenticated appearance = a sign-up) from a returning one.
+    final resolved = state;
+    if (resolved is SessionAuthenticated) {
+      final isNew = resolved.account?.needsHandle ?? false;
+      unawaited(
+        ref
+            .read(usageTrackingNotifierProvider.notifier)
+            .record(isNew ? UsageActions.authSignUp : UsageActions.authSignIn),
+      );
+    }
   }
 
   /// Replace the cached account after onboarding/profile changes (e.g. once a

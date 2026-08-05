@@ -8,6 +8,7 @@
 use std::net::SocketAddr;
 use std::sync::Arc;
 
+use cymbra_analytics::proto::usage_service_server::UsageServiceServer;
 use cymbra_auth::{
     AuthConfig, AuthGrpc, AuthModule, PgCredentialRepo, PgSessionStore, RealOidcVerifier,
 };
@@ -147,6 +148,38 @@ async fn main() -> anyhow::Result<()> {
         optional,
     );
     cymbra_server::spawn_flag_refreshers(&cfg, flag_service);
+
+    // --- analytics UsageService (feature-usage telemetry ingestion; change:
+    // add-feature-usage-analytics, design D5/D10). Wired only when BOTH the
+    // dedicated `analytics` DB URL AND the bucket master secret are set — a missing
+    // secret must never silently fall back to a guessable key. Own pool + one
+    // MIGRATOR run (creates analytics.usage_events + the two daily aggregates).
+    // Runs behind the strict auth interceptor (ingestion is authenticated, the
+    // anti-spam guarantee, design D9). Absent config ⇒ inert.
+    let usage_svc = match (
+        cfg.analytics_database_url.as_deref(),
+        cfg.analytics_bucket_secret.as_deref(),
+    ) {
+        (Some(db_url), Some(secret)) => {
+            let analytics_pool = cymbra_analytics::connect(db_url, 5).await?;
+            cymbra_analytics::MIGRATOR.run(&analytics_pool).await?;
+            let repo: Arc<dyn cymbra_analytics::UsageEventRepo> = Arc::new(
+                cymbra_analytics::PgUsageEventRepo::new(analytics_pool.clone()),
+            );
+            // The reporting reads (back-office console) share the analytics_svc pool.
+            let read: Arc<dyn cymbra_analytics::UsageReadRepo> =
+                Arc::new(cymbra_analytics::PgUsageReadRepo::new(analytics_pool));
+            let usage = cymbra_analytics::UsageGrpc::new(repo, read, secret.as_bytes().to_vec());
+            Some(UsageServiceServer::with_interceptor(usage, strict.clone()))
+        }
+        _ => {
+            tracing::info!(
+                "analytics UsageService disabled (CYMBRA_ANALYTICS_DATABASE_URL / \
+                 CYMBRA_ANALYTICS_BUCKET_SECRET unset)"
+            );
+            None
+        }
+    };
 
     // SoundFont delivery (change: add-soundfont-delivery): a dedicated PRIVATE store,
     // separate from scores. Built here (before the music module) so it is shared by
@@ -370,6 +403,9 @@ async fn main() -> anyhow::Result<()> {
     }
     if let Some(leaderboard_svc) = leaderboard_svc {
         router = router.add_service(leaderboard_svc);
+    }
+    if let Some(usage_svc) = usage_svc {
+        router = router.add_service(usage_svc);
     }
     let grpc = router.serve(grpc_addr);
     let listener = tokio::net::TcpListener::bind(http_addr).await?;

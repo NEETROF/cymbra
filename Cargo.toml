@@ -52,6 +52,9 @@ jsonwebtoken = { version = "10", features = ["rust_crypto"] }
 argon2 = "0.5"
 # SHA-256 for hashing refresh tokens at rest (durable sessions).
 sha2 = "0.10"
+# HMAC-SHA256 for the period-salted pseudonymous analytics `user_bucket`
+# (change: add-feature-usage-analytics) — salt = HMAC(master_secret, "YYYY-MM").
+hmac = "0.12"
 # config + errors + ids + serde
 config = "0.14"
 dotenvy = "0.15"

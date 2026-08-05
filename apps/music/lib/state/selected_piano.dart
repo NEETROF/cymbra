@@ -12,14 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:async';
+
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../analytics/usage_actions.dart';
 import '../services/audio_service.dart';
 import '../services/preferences_service.dart';
 import '../services/soundfont_catalog_service.dart';
 import '../services/soundfont_source.dart';
 import 'imported_soundfonts.dart';
 import 'piano_catalog.dart';
+import 'usage_tracking_notifier.dart';
 
 part 'selected_piano.g.dart';
 
@@ -105,6 +109,16 @@ class SelectedPiano extends _$SelectedPiano {
     final catalog = ref.read(pianoCatalogProvider);
     if (!catalog.any((e) => e.id == id)) return;
     await _apply(id, persist: true);
+    // Usage telemetry (change: add-feature-usage-analytics): the piano *setting*
+    // changed (category only — the chosen piano is never recorded).
+    unawaited(
+      ref
+          .read(usageTrackingNotifierProvider.notifier)
+          .record(
+            UsageActions.settingsChange,
+            variant: UsageVariants.pianoType,
+          ),
+    );
   }
 
   /// Sets the selection to [id], optionally persisting, and loads its SoundFont.

@@ -45,6 +45,11 @@ pub struct WorkerConfig {
     /// `play_detail_prune` job NULLs it (change: add-play-activity-profile, D7).
     /// Mirrors the server's `CYMBRA_PLAY_DETAIL_RETENTION_DAYS`. Default 90.
     pub play_detail_retention_days: usize,
+    /// `flags_svc` connection for the shared feature-flag service (change: add-
+    /// feature-usage-analytics). `None` runs the flag service in defaults-only mode,
+    /// so the usage-purge job uses the code-default retention window. Mirrors the
+    /// server's `CYMBRA_FLAGS_DATABASE_URL`.
+    pub flags_database_url: Option<String>,
 }
 
 impl WorkerConfig {
@@ -87,6 +92,10 @@ pub mod core {
             score_storage: score_storage(m)?,
             score_local_root: opt(m, "CYMBRA_SCORE_LOCAL_ROOT", "/srv/cymbra/scores"),
             play_detail_retention_days: num(m, "CYMBRA_PLAY_DETAIL_RETENTION_DAYS", 90)?,
+            flags_database_url: m
+                .get("CYMBRA_FLAGS_DATABASE_URL")
+                .filter(|v| !v.is_empty())
+                .cloned(),
         })
     }
 

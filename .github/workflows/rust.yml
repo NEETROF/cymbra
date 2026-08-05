@@ -75,7 +75,7 @@ jobs:
         run: >-
           cargo llvm-cov --workspace --lcov --output-path target/lcov.info
           --fail-under-lines 80
-          --ignore-filename-regex 'frb_generated|cymbra\.(auth|user|music)\.v1|/lib\.rs|/main\.rs|/backfill_titles\.rs|/midi\.rs|/musicxml\.rs|/audio\.rs|/grpc\.rs|/play_grpc\.rs|/pg\.rs|/pg_play\.rs|/creds_pg\.rs|/verifier\.rs|/telemetry\.rs|/metrics\.rs|/cache\.rs|/email\.rs|/db\.rs|/jwks\.rs|/interceptor\.rs|/logging\.rs|/session\.rs|/engine\.rs|/scheduler\.rs|/handlers\.rs'
+          --ignore-filename-regex 'frb_generated|cymbra\.(auth|user|music|analytics)\.v1|/lib\.rs|/main\.rs|/backfill_titles\.rs|/midi\.rs|/musicxml\.rs|/audio\.rs|/grpc\.rs|/play_grpc\.rs|/pg\.rs|/pg_play\.rs|analytics/src/repo\.rs|analytics/src/read\.rs|analytics/src/rollup\.rs|worker/src/flags\.rs|/creds_pg\.rs|/verifier\.rs|/telemetry\.rs|/metrics\.rs|/cache\.rs|/email\.rs|/db\.rs|/jwks\.rs|/interceptor\.rs|/logging\.rs|/session\.rs|/engine\.rs|/scheduler\.rs|/handlers\.rs'
       - name: Build
         run: cargo build --workspace
       # Regression guard for the shared-musicxml-crate wasm-buildability requirement:

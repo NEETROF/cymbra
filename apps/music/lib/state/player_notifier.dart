@@ -28,6 +28,8 @@ import 'player_data.dart';
 import 'notation_playback.dart';
 import 'player_preferences.dart';
 import 'score_catalog.dart';
+import 'usage_tracking_notifier.dart';
+import '../analytics/usage_actions.dart';
 
 part 'player_notifier.g.dart';
 
@@ -328,6 +330,7 @@ class Player extends _$Player {
   // Set the play/pause state explicitly (used to pause while the settings drawer
   // is open and restore the prior state when it closes).
   void setPlaying(bool playing) {
+    final wasPlaying = state.isPlaying;
     // Stopping silences any voices and cancels any pending countdown.
     if (!playing) _silenceAll();
     state = state.copyWith(
@@ -336,7 +339,26 @@ class Player extends _$Player {
     );
     // Starting cleanly from the top opens a scored run.
     if (playing) _maybeStartRun();
+    // Usage telemetry (change: add-feature-usage-analytics) on a real transition.
+    // (A settings-drawer pause/restore may add minor start/stop noise — accepted.)
+    if (playing && !wasPlaying) {
+      _track(UsageActions.playStart, subjectId: _currentScoreId);
+    } else if (!playing && wasPlaying) {
+      _track(UsageActions.playStop, subjectId: _currentScoreId);
+    }
   }
+
+  /// Fire-and-forget usage tracking (only a notifier calls the tracking notifier;
+  /// emission is gated on consent + kill-switch inside it).
+  void _track(String action, {String? variant, String? subjectId}) {
+    unawaited(
+      ref
+          .read(usageTrackingNotifierProvider.notifier)
+          .record(action, variant: variant, subjectId: subjectId),
+    );
+  }
+
+  String? get _currentScoreId => ref.read(selectedScoreProvider)?.id;
 
   /// Starts playback from the transport, arming a get-ready countdown (5…1…GO)
   /// when starting a **free-run** piece from the top, so the player has time to
@@ -354,7 +376,11 @@ class Player extends _$Player {
   // Every mode is scored and the scored note set is mode-independent, so
   // switching the render mode keeps the in-flight run (and its gauge/effects)
   // rather than discarding it.
-  void setMode(RenderMode m) => state = state.copyWith(mode: m);
+  void setMode(RenderMode m) {
+    if (m == state.mode) return;
+    state = state.copyWith(mode: m);
+    _track(UsageActions.playModeSwitch, variant: m.name);
+  }
 
   // Re-arm the onset gate at the current playhead when toggling Wait Mode on,
   // and silence any in-flight score voices so none hang across the switch.
@@ -375,6 +401,7 @@ class Player extends _$Player {
     final next = !state.metronomeEnabled;
     ref.read(playerPreferencesProvider.notifier).setMetronome(enabled: next);
     state = state.copyWith(metronomeEnabled: next);
+    _track(UsageActions.settingsChange, variant: UsageVariants.metronome);
   }
 
   /// Sets the playback speed (0.25×–2×) and remembers it across scores/restarts.
@@ -382,6 +409,7 @@ class Player extends _$Player {
     final clamped = s.clamp(0.25, 2.0);
     ref.read(playerPreferencesProvider.notifier).setSpeed(clamped);
     state = state.copyWith(speed: clamped);
+    _track(UsageActions.settingsChange, variant: UsageVariants.tempo);
   }
 
   void setKeyboardRange(KeyboardRangeMode m) =>
@@ -393,6 +421,7 @@ class Player extends _$Player {
   // silence voices so a now-hidden hand's notes don't keep sounding.
   void setSelectedHands(Hand hand) {
     ref.read(playerPreferencesProvider.notifier).setHands(hand);
+    _track(UsageActions.settingsChange, variant: UsageVariants.hand);
     _silenceAll();
     // Changing the played hand(s) changes which notes are scored, so the piece
     // restarts from the top with a fresh scored run for the new selection: the
