@@ -16,7 +16,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../l10n/gen/app_localizations.dart';
-import '../screens/reward_shop_screen.dart';
+import '../screens/curator_activity_screen.dart';
+import '../screens/soundfonts_screen.dart';
 import '../services/curator_rewards_service.dart';
 import '../state/curator_profile_notifier.dart';
 import '../theme/cymbra_theme.dart';
@@ -82,10 +83,10 @@ class CuratorRewardsSection extends ConsumerWidget {
           _SectionTitle(l10n.curatorStatsTitle),
           const SizedBox(height: 8),
           _StatsRow(rewards: r),
-          const SizedBox(height: 24),
-          _SectionTitle(l10n.curatorRecentTitle),
-          const SizedBox(height: 8),
-          _RecentActivity(activity: r.recent),
+          const SizedBox(height: 16),
+          // Recent activity is shown ON DEMAND (not inline) so the profile stays
+          // uncluttered — a tappable "Activité récente ›" row opens the full list.
+          _RecentActivityEntry(count: r.recent.length),
         ],
       ),
     );
@@ -254,16 +255,64 @@ class _BalanceCard extends StatelessWidget {
                 ],
               ),
             ),
+            // No standalone shop (change: add-curation-rewards): redeemable sounds
+            // appear directly in the SoundFont catalog with a purchase affordance.
+            // This CTA just takes the user there to spend their balance.
             FilledButton.icon(
-              icon: const Icon(Icons.card_giftcard, size: 18),
+              icon: const Icon(Icons.library_music_outlined, size: 18),
               label: Text(l10n.curatorShopButton),
               onPressed: () => Navigator.of(context).push(
                 MaterialPageRoute<void>(
-                  builder: (_) => const RewardShopScreen(),
+                  builder: (_) => const SoundFontsScreen(),
                 ),
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A tappable "Activité récente ›" entry that opens the full activity list on
+/// demand (change: add-curation-rewards) — keeps the profile uncluttered.
+class _RecentActivityEntry extends StatelessWidget {
+  const _RecentActivityEntry({required this.count});
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return Card(
+      color: CymbraColors.surfaceContainerHigh,
+      margin: EdgeInsets.zero,
+      child: ListTile(
+        key: const Key('curator-recent-entry'),
+        leading: const Icon(
+          Icons.history,
+          color: CymbraColors.onSurfaceVariant,
+        ),
+        title: Text(
+          l10n.curatorRecentTitle,
+          style: const TextStyle(
+            color: CymbraColors.onSurface,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        subtitle: count == 0
+            ? Text(
+                l10n.curatorRecentEmpty,
+                style: const TextStyle(color: CymbraColors.onSurfaceVariant),
+              )
+            : null,
+        trailing: const Icon(
+          Icons.chevron_right,
+          color: CymbraColors.onSurfaceVariant,
+        ),
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => const CuratorActivityScreen(),
+          ),
         ),
       ),
     );
@@ -440,87 +489,3 @@ class _StatBox extends StatelessWidget {
     ),
   );
 }
-
-/// The recent-activity feed. Each entry states its amount and, for a deferred
-/// honesty/adjustment award, its source (consensus vs moderator).
-class _RecentActivity extends StatelessWidget {
-  const _RecentActivity({required this.activity});
-  final List<RewardActivityView> activity;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    if (activity.isEmpty) {
-      return Text(
-        l10n.curatorRecentEmpty,
-        style: const TextStyle(color: CymbraColors.onSurfaceVariant),
-      );
-    }
-    return Column(
-      children: [for (final a in activity) _ActivityRow(activity: a)],
-    );
-  }
-}
-
-class _ActivityRow extends StatelessWidget {
-  const _ActivityRow({required this.activity});
-  final RewardActivityView activity;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    final positive = activity.amount >= 0;
-    final amountText = positive ? '+${activity.amount}' : '${activity.amount}';
-    return Card(
-      color: CymbraColors.surfaceContainerHigh,
-      margin: const EdgeInsets.symmetric(vertical: 4),
-      child: ListTile(
-        dense: true,
-        leading: Icon(_kindIcon(activity.kind), color: CymbraColors.primary),
-        title: Text(
-          _kindLabel(l10n, activity.kind),
-          style: const TextStyle(color: CymbraColors.onSurface, fontSize: 14),
-        ),
-        subtitle: _sourceLabel(l10n, activity.source) == null
-            ? null
-            : Text(
-                _sourceLabel(l10n, activity.source)!,
-                style: const TextStyle(
-                  color: CymbraColors.onSurfaceVariant,
-                  fontSize: 12,
-                ),
-              ),
-        trailing: Text(
-          amountText,
-          style: TextStyle(
-            color: positive ? CymbraColors.primary : CymbraColors.error,
-            fontSize: 15,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-IconData _kindIcon(String kind) => switch (kind) {
-  'coverage' => Icons.explore_outlined,
-  'honesty' => Icons.verified_outlined,
-  'adjustment' => Icons.tune,
-  'redeem' => Icons.card_giftcard,
-  _ => Icons.stars,
-};
-
-String _kindLabel(AppLocalizations l10n, String kind) => switch (kind) {
-  'coverage' => l10n.curatorActivityCoverage,
-  'honesty' => l10n.curatorActivityHonesty,
-  'adjustment' => l10n.curatorActivityAdjustment,
-  'redeem' => l10n.curatorActivityRedeem,
-  _ => kind,
-};
-
-String? _sourceLabel(AppLocalizations l10n, String? source) => switch (source) {
-  'consensus' => l10n.curatorActivitySourceConsensus,
-  'moderator' => l10n.curatorActivitySourceModerator,
-  _ => null,
-};

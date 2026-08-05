@@ -128,21 +128,10 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // The visibility control now sits below the curator-rewards section — scroll
-    // it into view before asserting (the ListView builds lazily).
-    await tester.scrollUntilVisible(
-      find.byKey(const Key('profile-visibility')),
-      300,
-      scrollable: find.byType(Scrollable).first,
-    );
+    // The compact visibility toggle sits in the header (right of the pseudo); a
+    // private profile shows the "Private" state.
     expect(find.byKey(const Key('profile-visibility')), findsOneWidget);
-    // A private profile invites going public.
-    expect(
-      find.text(
-        'Make your profile public so other players can see your activity.',
-      ),
-      findsOneWidget,
-    );
+    expect(find.text('Private'), findsOneWidget);
   });
 
   testWidgets('an unavailable (private/ineligible) profile is refused', (
@@ -179,16 +168,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.scrollUntilVisible(
-      find.byKey(const Key('profile-visibility')),
-      300,
-      scrollable: find.byType(Scrollable).first,
-    );
-    // Fully center the control so the segment is hit-testable (not clipped at the
-    // scroll edge).
-    await tester.ensureVisible(find.text('Public'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Public'));
+    // Tapping the header toggle (currently Private) starts going public.
+    await tester.tap(find.byKey(const Key('profile-visibility')));
     await tester.pumpAndSettle();
 
     // The neutral age gate (asks a DOB, used once) appears.

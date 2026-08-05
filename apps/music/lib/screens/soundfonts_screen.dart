@@ -591,10 +591,11 @@ class _RewardLock extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 8),
-        FilledButton(
+        FilledButton.icon(
           key: const Key('soundfont-unlock'),
           onPressed: onRedeem,
-          child: Text(l10n.soundfontsUnlock),
+          icon: const Icon(Icons.workspace_premium, size: 16),
+          label: Text(l10n.soundfontsUnlock),
         ),
       ],
     );

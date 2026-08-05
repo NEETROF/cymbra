@@ -17,7 +17,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
-import 'package:music/screens/reward_shop_screen.dart';
+import 'package:music/screens/curator_activity_screen.dart';
 import 'package:music/services/curator_rewards_service.dart';
 import 'package:music/services/preferences_service.dart';
 import 'package:music/widgets/curator_chip.dart';
@@ -28,52 +28,45 @@ import '../support/prefs_fakes.dart';
 import 'curator_rewards_screens_test.mocks.dart';
 
 @GenerateNiceMocks([MockSpec<CuratorRewardsService>()])
-CuratorRewardsView _rewards({int balance = 200}) => CuratorRewardsView(
-  lifetimePoints: 200,
-  spendableBalance: balance,
-  level: 2,
-  levelFloor: 150,
-  nextLevelAt: 350,
-  totalRatings: 12,
-  coverageContribution: 7,
-  alignmentRate: 0.75,
-  badges: const [
-    CuratorBadgeView(
-      key: 'first_note',
-      metric: 'rating_count',
-      threshold: 1,
-      earned: true,
-    ),
-    CuratorBadgeView(
-      key: 'curator_2',
-      metric: 'rating_count',
-      threshold: 100,
-      earned: false,
-    ),
-  ],
-  recent: const [],
-);
-
-RewardShopItemView _item(
-  String key, {
-  int cost = 50,
-  bool owned = false,
-  bool redeemable = true,
-}) => RewardShopItemView(
-  key: key,
-  label: 'Grand $key',
-  instrument: 'piano',
-  license: 'CC0-1.0',
-  attribution: '',
-  pointCost: cost,
-  redeemable: redeemable,
-  owned: owned,
-);
+CuratorRewardsView _rewards({List<RewardActivityView> recent = const []}) =>
+    CuratorRewardsView(
+      lifetimePoints: 200,
+      spendableBalance: 200,
+      level: 2,
+      levelFloor: 150,
+      nextLevelAt: 350,
+      totalRatings: 12,
+      coverageContribution: 7,
+      alignmentRate: 0.75,
+      badges: const [
+        CuratorBadgeView(
+          key: 'first_note',
+          metric: 'rating_count',
+          threshold: 1,
+          earned: true,
+        ),
+        CuratorBadgeView(
+          key: 'curator_2',
+          metric: 'rating_count',
+          threshold: 100,
+          earned: false,
+        ),
+      ],
+      recent: recent,
+    );
 
 List<Override> _overrides(CuratorRewardsService service) => [
   curatorRewardsServiceProvider.overrideWithValue(service),
   preferencesServiceProvider.overrideWithValue(FakePreferencesService()),
 ];
+
+Widget _hostSection(CuratorRewardsService service) => ProviderScope(
+  overrides: _overrides(service),
+  // The section is a Column; host it in a scroll view like the profile does.
+  child: localizedApp(
+    const Scaffold(body: SingleChildScrollView(child: CuratorRewardsSection())),
+  ),
+);
 
 void main() {
   testWidgets('curator standing pill shows the level/points', (tester) async {
@@ -100,24 +93,14 @@ void main() {
     (tester) async {
       final service = MockCuratorRewardsService();
       when(service.getRewards()).thenAnswer((_) async => _rewards());
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: _overrides(service),
-          // The section is a Column; host it in a scroll view like the profile does.
-          child: localizedApp(
-            const Scaffold(
-              body: SingleChildScrollView(child: CuratorRewardsSection()),
-            ),
-          ),
-        ),
-      );
+      await tester.pumpWidget(_hostSection(service));
       await tester.pumpAndSettle();
 
       // Level + lifetime points (from the standing card).
       expect(find.textContaining('2'), findsWidgets);
       expect(find.textContaining('200'), findsWidgets);
-      // Reward-shop entry button and the stats (alignment 75%).
-      expect(find.byIcon(Icons.card_giftcard), findsWidgets);
+      // Balance CTA into the SoundFont catalog + the stats (alignment 75%).
+      expect(find.byIcon(Icons.library_music_outlined), findsWidgets);
       expect(find.textContaining('75'), findsWidgets);
       // Badge grid shows both an earned and a locked badge.
       expect(
@@ -128,71 +111,33 @@ void main() {
     },
   );
 
-  testWidgets('reward-shop entry from the section opens the shop', (
+  testWidgets('recent-activity entry opens the activity screen on demand', (
     tester,
   ) async {
     final service = MockCuratorRewardsService();
-    when(service.getRewards()).thenAnswer((_) async => _rewards());
-    when(service.listShop()).thenAnswer((_) async => [_item('grand')]);
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: _overrides(service),
-        child: localizedApp(
-          const Scaffold(
-            body: SingleChildScrollView(child: CuratorRewardsSection()),
+    when(service.getRewards()).thenAnswer(
+      (_) async => _rewards(
+        recent: [
+          RewardActivityView(
+            kind: 'honesty',
+            amount: 8,
+            source: 'moderator',
+            createdAt: DateTime(2026, 8, 3),
           ),
-        ),
+        ],
       ),
     );
+    await tester.pumpWidget(_hostSection(service));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byIcon(Icons.card_giftcard).first);
+    // The profile only shows an entry row — not the full list inline.
+    expect(find.byKey(const Key('curator-recent-entry')), findsOneWidget);
+    await tester.ensureVisible(find.byKey(const Key('curator-recent-entry')));
     await tester.pumpAndSettle();
-    expect(find.byType(RewardShopScreen), findsOneWidget);
+    await tester.tap(find.byKey(const Key('curator-recent-entry')));
+    await tester.pumpAndSettle();
+
+    // The full activity list opens on its own screen.
+    expect(find.byType(CuratorActivityScreen), findsOneWidget);
   });
-
-  testWidgets(
-    'reward shop enables an affordable redeem and disables an unaffordable one',
-    (tester) async {
-      final service = MockCuratorRewardsService();
-      when(
-        service.getRewards(),
-      ).thenAnswer((_) async => _rewards(balance: 100));
-      when(service.listShop()).thenAnswer(
-        (_) async => [
-          _item('cheap', cost: 50), // affordable (balance 100)
-          _item('dear', cost: 300), // unaffordable
-          _item('soon', cost: 400, redeemable: false), // coming soon
-          _item('mine', cost: 20, owned: true), // owned
-        ],
-      );
-      when(service.redeem('cheap')).thenAnswer(
-        (_) async => const RedeemResultView(owned: true, newBalance: 50),
-      );
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: _overrides(service),
-          child: localizedApp(const RewardShopScreen()),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      final cheap = tester.widget<FilledButton>(
-        find.byKey(const Key('reward-redeem-cheap')),
-      );
-      final dear = tester.widget<FilledButton>(
-        find.byKey(const Key('reward-redeem-dear')),
-      );
-      expect(cheap.onPressed, isNotNull); // affordable → enabled
-      expect(dear.onPressed, isNull); // unaffordable → disabled
-      // Coming-soon + owned items render no redeem button.
-      expect(find.byKey(const Key('reward-redeem-soon')), findsNothing);
-      expect(find.byKey(const Key('reward-redeem-mine')), findsNothing);
-
-      // Redeeming an affordable item calls the service.
-      await tester.tap(find.byKey(const Key('reward-redeem-cheap')));
-      await tester.pump();
-      verify(service.redeem('cheap')).called(1);
-    },
-  );
 }
