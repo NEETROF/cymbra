@@ -108,9 +108,7 @@ const reliabilityLoading = computed(() => store.reliability.status === "loading"
 // Whether the reliability drawer is open (a selected row + moderator/admin).
 const reliabilityOpen = computed(() => !!selected.value && panel.value === "reliability" && auth.isModerator);
 // The handle of the selected account, for the drawer header.
-const selectedHandle = computed(
-  () => vm.value.accounts.find((a) => a.userId === selected.value)?.handle ?? "",
-);
+const selectedHandle = computed(() => vm.value.accounts.find((a) => a.userId === selected.value)?.handle ?? "");
 
 function search() {
   store.list(filter.value.trim(), 0);
