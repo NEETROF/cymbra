@@ -290,16 +290,18 @@ class _SoundFontsScreenState extends ConsumerState<SoundFontsScreen>
   bool _matchesQuery(PianoEntry p) =>
       _query.isEmpty || p.label.toLowerCase().contains(_query);
 
-  /// Build a catalog sound card, gating it behind a reward unlock when [item] is a
-  /// costed, redeemable, not-yet-owned reward matching this font (id == key).
+  /// Build a catalog sound card. A costed, redeemable, not-yet-owned reward font
+  /// (id == item key) shows its cost + a "Débloquer" affordance — but stays
+  /// **auditionable**: you must be able to hear a sound before deciding to unlock
+  /// it (only using it as the active instrument is gated, in `selectedPiano`).
   Widget _buildCatalogCard(PianoEntry p, RewardShopItemView? item) {
     final locked =
         item != null && item.pointCost > 0 && item.redeemable && !item.owned;
     return _SoundCard(
       entry: p,
       playing: _previewingId == p.id,
-      // A locked reward font is not selectable/auditionable until redeemed.
-      onTap: locked ? null : () => _togglePreview(p),
+      // Auditionable whether or not it is locked — a preview is what sells it.
+      onTap: () => _togglePreview(p),
       locked: locked,
       lockCost: locked ? item.pointCost : null,
       onRedeem: locked ? () => _redeemReward(p.id) : null,
@@ -496,18 +498,13 @@ class _SoundCard extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       child: ListTile(
         onTap: onTap,
+        // Always a play/stop control — a locked reward font is still auditionable
+        // (you preview it, then decide to unlock); the lock is conveyed by the
+        // trailing cost + "Débloquer" affordance, not by disabling the preview.
         leading: Icon(
-          locked
-              ? Icons.lock_outline
-              : (playing ? Icons.stop_circle : Icons.play_circle_outline),
-          color: locked
-              ? CymbraColors.outline
-              : (playing
-                    ? CymbraColors.primary
-                    : CymbraColors.onSurfaceVariant),
-          semanticLabel: locked
-              ? l10n.soundfontsLocked
-              : (playing ? l10n.soundfontsStop : l10n.soundfontsPlay),
+          playing ? Icons.stop_circle : Icons.play_circle_outline,
+          color: playing ? CymbraColors.primary : CymbraColors.onSurfaceVariant,
+          semanticLabel: playing ? l10n.soundfontsStop : l10n.soundfontsPlay,
         ),
         title: Text(
           entry.label,

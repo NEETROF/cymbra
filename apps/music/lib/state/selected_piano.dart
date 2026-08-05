@@ -23,6 +23,7 @@ import '../services/soundfont_catalog_service.dart';
 import '../services/soundfont_source.dart';
 import 'imported_soundfonts.dart';
 import 'piano_catalog.dart';
+import 'reward_shop_notifier.dart';
 import 'usage_tracking_notifier.dart';
 
 part 'selected_piano.g.dart';
@@ -108,6 +109,17 @@ class SelectedPiano extends _$SelectedPiano {
     if (id == state) return;
     final catalog = ref.read(pianoCatalogProvider);
     if (!catalog.any((e) => e.id == id)) return;
+    // A costed reward font stays auditionable but must be UNLOCKED before it can
+    // be used as the active instrument (change: add-curation-rewards) — otherwise
+    // the point cost is bypassable. `redeem` (a grant) flips `owned`, then this
+    // succeeds.
+    final reward = ref.read(rewardShopItemsByKeyProvider)[id];
+    if (reward != null &&
+        reward.pointCost > 0 &&
+        reward.redeemable &&
+        !reward.owned) {
+      return; // locked → not selectable until redeemed
+    }
     await _apply(id, persist: true);
     // Usage telemetry (change: add-feature-usage-analytics): the piano *setting*
     // changed (category only — the chosen piano is never recorded).
