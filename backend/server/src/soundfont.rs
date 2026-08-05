@@ -95,6 +95,25 @@ pub fn decide(
     }
 }
 
+/// Whether the caller is entitled to the **raw bytes** of `font` (change:
+/// add-soundfont-entitlement-previews). Applied *after* the moderation gate
+/// ([`decide`]), so `font` is one the caller may already see. A costed font
+/// (`point_cost > 0`) is gated: the bytes are served only to someone who is entitled
+/// via **any** of —
+///   * the font is **free** (`point_cost == 0`); or
+///   * the caller is a music-scope **moderator/admin** (exempt); or
+///   * the font is the caller's **own import** (`uploaded_by == user`); or
+///   * the caller **owns** it (`has_grant`, a redeemed reward).
+///
+/// A non-entitled caller is refused as **not-found** by the route, so the existence of
+/// costed fonts is never revealed. Pure so every branch is host-tested.
+pub fn entitled(user_id: &str, font: &FontEntry, has_grant: bool, is_moderator_admin: bool) -> bool {
+    font.is_free()
+        || is_moderator_admin
+        || font.uploaded_by.as_deref() == Some(user_id)
+        || has_grant
+}
+
 /// A parsed single HTTP byte range (`start`, inclusive `end`). Only the common
 /// `bytes=start-end` / `bytes=start-` forms are supported; anything else is ignored
 /// (served as a full response).
@@ -353,6 +372,10 @@ async fn upload(
         reviewed_at: None,
         uploaded_by: Some(identity.user_id.clone()),
         content_sha256: Some(content_sha256),
+        // An upload enters the catalog free; pricing (a reward) is set later via the
+        // back office. `redeemable` follows the DB default (offered when priced).
+        point_cost: 0,
+        redeemable: true,
     };
     if repo.insert(&entry).await.is_err() {
         let _ = store.delete(&object_key).await;
@@ -636,6 +659,9 @@ async fn propose_mine(
         reviewed_at: None,
         uploaded_by: Some(user_id),
         content_sha256: Some(private.content_sha256),
+        // A proposed font enters free; a reward price is assigned later via the BO.
+        point_cost: 0,
+        redeemable: true,
     };
     if catalog.insert(&entry).await.is_err() {
         let _ = store.delete(&object_key).await;
@@ -675,6 +701,27 @@ async fn serve(
         Decision::NotFound => return status(StatusCode::NOT_FOUND),
         Decision::Serve(key) => key,
     };
+    // Entitlement gate (change: add-soundfont-entitlement-previews): a costed font's
+    // raw bytes require ownership/exemption. `decide` returned `Serve` only for a
+    // present font the caller may see, so both are guaranteed here.
+    let font = font.as_ref().expect("Serve implies a resolved font");
+    let user_id = user.as_deref().expect("authenticated above");
+    // Only read grants when the cheap exemptions don't already entitle the caller.
+    let has_grant = if font.is_free()
+        || can_view_unvalidated
+        || font.uploaded_by.as_deref() == Some(user_id)
+    {
+        false
+    } else {
+        match repo.has_grant(user_id, &font.id).await {
+            Ok(b) => b,
+            Err(_) => return status(StatusCode::INTERNAL_SERVER_ERROR),
+        }
+    };
+    if !entitled(user_id, font, has_grant, can_view_unvalidated) {
+        // Indistinguishable from a missing font — no existence oracle for costed fonts.
+        return status(StatusCode::NOT_FOUND);
+    }
     let Some(store) = s.store.as_ref() else {
         // Feature unconfigured (no SoundFont bucket) — the route is disabled.
         return status(StatusCode::SERVICE_UNAVAILABLE);
@@ -772,6 +819,8 @@ mod tests {
             reviewed_at: None,
             uploaded_by: None,
             content_sha256: Some(sha256_hex(id.as_bytes())),
+            point_cost: 0,
+            redeemable: true,
         }
     }
 
@@ -780,8 +829,39 @@ mod tests {
         entry_status(id, object_key, license, "accepted")
     }
 
+    /// An `accepted` costed reward font (`point_cost > 0`), optionally attributed to an
+    /// uploader — for the entitlement gate tests.
+    fn costed_entry(id: &str, cost: i64, uploaded_by: Option<&str>) -> FontEntry {
+        FontEntry {
+            point_cost: cost,
+            uploaded_by: uploaded_by.map(Into::into),
+            ..entry_status(id, &format!("{id}.sf2"), "CC0-1.0", "accepted")
+        }
+    }
+
     fn upright() -> FontEntry {
         entry("upright-piano-kw", "UprightPianoKW-20220221.sf2", "CC0-1.0")
+    }
+
+    #[test]
+    fn entitled_gates_costed_bytes_but_not_free_ones() {
+        // Free font: anyone entitled, no grant/exemption needed.
+        let free = entry("ydp-grand", "ydp-grand.sf2", "CC0-1.0");
+        assert!(entitled("u", &free, false, false));
+
+        // Costed font, plain caller with no grant → NOT entitled.
+        let costed = costed_entry("reward-grand", 50, None);
+        assert!(!entitled("u", &costed, false, false));
+        // …owning a grant entitles.
+        assert!(entitled("u", &costed, true, false));
+        // …a music-scope moderator/admin is exempt without a grant.
+        assert!(entitled("u", &costed, false, true));
+
+        // Costed own-import: the uploader is entitled to their own font, no grant.
+        let mine = costed_entry("mine", 50, Some("u"));
+        assert!(entitled("u", &mine, false, false));
+        // …but not another user.
+        assert!(!entitled("other", &mine, false, false));
     }
 
     #[test]
@@ -929,6 +1009,40 @@ mod tests {
         assert_eq!(resp.headers().get(header::ACCEPT_RANGES).unwrap(), "bytes");
         let body = to_bytes(resp.into_body(), usize::MAX).await.unwrap();
         assert_eq!(&body[..], b"SF2-BYTES!!");
+    }
+
+    /// A store holding a costed reward font's bytes.
+    async fn reward_store() -> Arc<dyn ObjectStorage> {
+        let s = FakeStore::default();
+        s.put("reward-grand.sf2", b"REWARD-SF2".to_vec())
+            .await
+            .unwrap();
+        Arc::new(s)
+    }
+
+    #[tokio::test]
+    async fn locked_costed_font_is_404_for_plain_caller() {
+        // A costed font the caller doesn't own is refused exactly like a missing one
+        // (change: add-soundfont-entitlement-previews) — no existence oracle.
+        let repo: Arc<dyn SoundFontRepo> = Arc::new(cymbra_music::FakeSoundFontRepo::with(vec![
+            costed_entry("reward-grand", 50, None),
+        ]));
+        let r = app_with_repo(Some(reward_store().await), Some(repo), Some("u"));
+        let resp = r.oneshot(get("/soundfonts/reward-grand")).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn owned_costed_font_streams_for_grantee() {
+        // The same font streams once the caller holds a redemption grant.
+        let repo = cymbra_music::FakeSoundFontRepo::with(vec![costed_entry("reward-grand", 50, None)]);
+        repo.grant("u", "reward-grand");
+        let repo: Arc<dyn SoundFontRepo> = Arc::new(repo);
+        let r = app_with_repo(Some(reward_store().await), Some(repo), Some("u"));
+        let resp = r.oneshot(get("/soundfonts/reward-grand")).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        assert_eq!(&body[..], b"REWARD-SF2");
     }
 
     #[tokio::test]
@@ -1118,6 +1232,8 @@ mod tests {
             reviewed_at: None,
             uploaded_by: None,
             content_sha256: Some(sha256_hex(&sf2_bytes())),
+            point_cost: 0,
+            redeemable: true,
         };
         let repo: Arc<dyn SoundFontRepo> =
             Arc::new(cymbra_music::FakeSoundFontRepo::with(vec![existing]));
@@ -1151,6 +1267,8 @@ mod tests {
                 reviewed_at: None,
                 uploaded_by: None,
                 content_sha256: Some("different-content".into()),
+                point_cost: 0,
+                redeemable: true,
             }]));
         let r = soundfont_router(
             SoundfontState {
@@ -1456,6 +1574,8 @@ mod tests {
             reviewed_at: None,
             uploaded_by: Some("u".into()),
             content_sha256: Some("sha1".into()),
+            point_cost: 0,
+            redeemable: true,
         };
         let catalog: Arc<dyn SoundFontRepo> =
             Arc::new(cymbra_music::FakeSoundFontRepo::with(vec![cataloged]));
@@ -1511,6 +1631,8 @@ mod tests {
             reviewed_at: None,
             uploaded_by: None,
             content_sha256: Some("dupsha".into()),
+            point_cost: 0,
+            redeemable: true,
         };
         let catalog: Arc<dyn SoundFontRepo> =
             Arc::new(cymbra_music::FakeSoundFontRepo::with(vec![existing]));

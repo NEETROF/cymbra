@@ -981,6 +981,8 @@ mod tests {
             reviewed_at: None,
             uploaded_by: None,
             content_sha256: Some(crate::soundfont::sha256_hex(id.as_bytes())),
+            point_cost: 0,
+            redeemable: true,
         }
     }
 

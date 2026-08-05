@@ -1,10 +1,10 @@
 ## 1. Entitlement gate (backend)
 
-- [ ] 1.1 Extend `SoundFontRepo`'s font lookup row to surface `point_cost`, `redeemable`, and `uploaded_by` (add to the row struct + the runtime `SELECT`).
-- [ ] 1.2 Add a `has_grant(user_id, soundfont_id) -> bool` read to the rewards/soundfont repo (`SELECT 1 FROM music.curation_grants WHERE user_id = $1 AND soundfont_id = $2`).
-- [ ] 1.3 Create a host-testable `soundfont_access` core with `entitlement(caller, font, has_grant, is_music_mod_admin) -> Access` (`Allow` iff free ∨ own-import ∨ has_grant ∨ mod/admin), plus unit tests for every branch incl. the locked-deny case.
-- [ ] 1.4 Wire `entitlement(...)` into `serve` (`backend/server/src/soundfont.rs`): keep the moderation-visibility gate first, then compute `has_grant` + `is_music_mod_admin` and refuse a non-entitled caller with the **same not-found response as a missing font** (no existence oracle).
-- [ ] 1.5 Verify the in-app instrument load (`GET /soundfonts/{id}`) is now refused for a locked font (same gate; no separate path).
+- [x] 1.1 Extend `SoundFontRepo`'s font lookup row to surface `point_cost`, `redeemable`, and `uploaded_by` (add to the row struct + the runtime `SELECT`).
+- [x] 1.2 Add a `has_grant(user_id, soundfont_id) -> bool` read to the rewards/soundfont repo (`SELECT 1 FROM music.curation_grants WHERE user_id = $1 AND soundfont_id = $2`).
+- [x] 1.3 Create a host-testable `soundfont_access` core with `entitlement(caller, font, has_grant, is_music_mod_admin) -> Access` (`Allow` iff free ∨ own-import ∨ has_grant ∨ mod/admin), plus unit tests for every branch incl. the locked-deny case.
+- [x] 1.4 Wire `entitlement(...)` into `serve` (`backend/server/src/soundfont.rs`): keep the moderation-visibility gate first, then compute `has_grant` + `is_music_mod_admin` and refuse a non-entitled caller with the **same not-found response as a missing font** (no existence oracle).
+- [x] 1.5 Verify the in-app instrument load (`GET /soundfonts/{id}`) is now refused for a locked font (same gate; no separate path).
 
 ## 2. Server-side preview render (backend)
 
