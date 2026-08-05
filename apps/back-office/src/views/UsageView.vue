@@ -2,9 +2,9 @@
 import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { match } from "ts-pattern";
-import { type UsageReport, useUsageStore } from "@/stores/usage";
+import { type SeriesPoint, type UsageReport, useUsageStore } from "@/stores/usage";
 import { currentLocale } from "@/i18n";
-import UsageBarChart from "@/components/UsageBarChart.vue";
+import UsageLineChart from "@/components/UsageLineChart.vue";
 
 // The back-office "Usage" screen (change: add-feature-usage-analytics, task 7.3).
 // It NEVER calls the API directly — the Pinia store does, behind the injectable
@@ -43,22 +43,59 @@ const actionOptions = computed(() =>
 
 const num = (v: number) => v.toLocaleString(currentLocale());
 
-// View mode: visual bar charts (default) or the raw tables.
+// View mode: time-series line charts (default) or the raw tables.
 const mode = ref<"graph" | "table">("graph");
 
-// Chart data derived from the same report (single-series magnitude per panel).
-const platformChart = computed(() => ({
-  labels: vm.value.data.summary.byPlatform.map((p) => p.platform),
-  values: vm.value.data.summary.byPlatform.map((p) => p.users),
-}));
-const deviceChart = computed(() => ({
-  labels: vm.value.data.summary.byDeviceClass.map((d) => d.deviceClass),
-  values: vm.value.data.summary.byDeviceClass.map((d) => d.users),
-}));
-const actionChart = computed(() => ({
-  labels: vm.value.data.rows.map((r) => (r.variant ? `${r.action} · ${r.variant}` : r.action)),
-  values: vm.value.data.rows.map((r) => r.events),
-}));
+// Max curves per chart before the tail folds into "Other" (never generate a hue
+// beyond the validated 8-slot palette — data-viz non-negotiable).
+const MAX_SERIES = 8;
+
+/** Inclusive list of ISO days [from, to] (UTC) — the shared x-axis. */
+function dayRange(from: string, to: string): string[] {
+  const out: string[] = [];
+  const d = new Date(`${from}T00:00:00Z`);
+  const end = new Date(`${to}T00:00:00Z`);
+  // Guard against an inverted/huge range.
+  for (let i = 0; d <= end && i < 400; i++) {
+    out.push(d.toISOString().slice(0, 10));
+    d.setUTCDate(d.getUTCDate() + 1);
+  }
+  return out;
+}
+
+/** Fold per-day points into a chart: a day axis + one dataset per series key,
+ *  ordered by total (busiest first), the tail beyond MAX_SERIES summed as "Other". */
+function toChart(points: SeriesPoint[]) {
+  const days = dayRange(store.filters.fromDay, store.filters.toDay);
+  const bySeries = new Map<string, Map<string, number>>();
+  const totals = new Map<string, number>();
+  for (const p of points) {
+    (bySeries.get(p.series) ?? bySeries.set(p.series, new Map()).get(p.series)!).set(p.day, p.value);
+    totals.set(p.series, (totals.get(p.series) ?? 0) + p.value);
+  }
+  const ordered = [...totals.entries()].sort((a, b) => b[1] - a[1]).map(([k]) => k);
+  const fold = ordered.length > MAX_SERIES;
+  const keep = fold ? ordered.slice(0, MAX_SERIES - 1) : ordered;
+  const rest = fold ? ordered.slice(MAX_SERIES - 1) : [];
+  const datasets = keep.map((s) => ({ label: s, values: days.map((d) => bySeries.get(s)?.get(d) ?? 0) }));
+  if (rest.length) {
+    datasets.push({
+      label: t("usage.other"),
+      values: days.map((d) => rest.reduce((sum, s) => sum + (bySeries.get(s)?.get(d) ?? 0), 0)),
+    });
+  }
+  return { days, datasets };
+}
+
+const emptySeries = { platform: [] as SeriesPoint[], deviceClass: [] as SeriesPoint[], action: [] as SeriesPoint[] };
+const seriesData = computed(() =>
+  match(store.series)
+    .with({ status: "success" }, ({ data }) => data)
+    .otherwise(() => emptySeries),
+);
+const platformChart = computed(() => toChart(seriesData.value.platform));
+const deviceChart = computed(() => toChart(seriesData.value.deviceClass));
+const actionChart = computed(() => toChart(seriesData.value.action));
 
 function apply() {
   void store.load();
@@ -142,11 +179,11 @@ function apply() {
       <div class="split">
         <div class="panel">
           <h2>{{ t("usage.byPlatform") }}</h2>
-          <UsageBarChart
+          <UsageLineChart
             v-if="mode === 'graph'"
-            :labels="platformChart.labels"
-            :values="platformChart.values"
-            :series-label="t('usage.users')"
+            :labels="platformChart.days"
+            :datasets="platformChart.datasets"
+            :y-label="t('usage.users')"
           />
           <table v-else>
             <thead>
@@ -169,11 +206,11 @@ function apply() {
 
         <div class="panel">
           <h2>{{ t("usage.byDeviceClass") }}</h2>
-          <UsageBarChart
+          <UsageLineChart
             v-if="mode === 'graph'"
-            :labels="deviceChart.labels"
-            :values="deviceChart.values"
-            :series-label="t('usage.users')"
+            :labels="deviceChart.days"
+            :datasets="deviceChart.datasets"
+            :y-label="t('usage.users')"
           />
           <table v-else>
             <thead>
@@ -198,11 +235,11 @@ function apply() {
       <!-- Action breakdown under the applied filters. -->
       <div class="panel">
         <h2>{{ t("usage.actionBreakdown") }}</h2>
-        <UsageBarChart
+        <UsageLineChart
           v-if="mode === 'graph'"
-          :labels="actionChart.labels"
-          :values="actionChart.values"
-          :series-label="t('usage.events')"
+          :labels="actionChart.days"
+          :datasets="actionChart.datasets"
+          :y-label="t('usage.events')"
         />
         <table v-else>
           <thead>

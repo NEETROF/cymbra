@@ -95,9 +95,33 @@ message ListActionsResponse {
   repeated string actions = 1;
 }
 
+// A per-day time series, split into one curve per series key (platform / device
+// class / action). The dimension decides both the split and the metric: for
+// PLATFORM / DEVICE_CLASS the value is that day's DISTINCT users on that key; for
+// ACTION it is the event count. Each day is a single point (daily distinct users
+// are a legitimate per-day figure; only summing them across days is disallowed).
+enum SeriesDimension {
+  SERIES_PLATFORM = 0;
+  SERIES_DEVICE_CLASS = 1;
+  SERIES_ACTION = 2;
+}
+message SeriesPoint {
+  string day = 1;    // ISO yyyy-mm-dd (UTC)
+  string series = 2; // the split key (a platform / device class / action)
+  int64 value = 3;   // distinct users (platform/device) or events (action)
+}
+message GetUsageSeriesRequest {
+  UsageQuery query = 1;
+  SeriesDimension dimension = 2;
+}
+message GetUsageSeriesResponse {
+  repeated SeriesPoint points = 1;
+}
+
 service UsageService {
   rpc ReportEvents(ReportEventsRequest) returns (ReportEventsResponse);
   rpc GetUsersSummary(GetUsersSummaryRequest) returns (GetUsersSummaryResponse);
   rpc GetActionBreakdown(GetActionBreakdownRequest) returns (GetActionBreakdownResponse);
   rpc ListActions(ListActionsRequest) returns (ListActionsResponse);
+  rpc GetUsageSeries(GetUsageSeriesRequest) returns (GetUsageSeriesResponse);
 }

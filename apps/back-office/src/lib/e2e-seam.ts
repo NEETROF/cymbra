@@ -248,6 +248,19 @@ export function installE2EClients(): void {
         };
       },
       listActions: async () => ({ actions: data.usageActions ?? [] }),
+      getUsageSeries: async (req: { dimension: number }) => {
+        failIfSet("getUsageSeries");
+        const today = new Date().toISOString().slice(0, 10);
+        const s = data.usageSummary ?? {};
+        // Synthesise a single-day point per series so the line charts render.
+        if (req.dimension === 0) {
+          return { points: (s.byPlatform ?? []).map((p) => ({ day: today, series: p.platform, value: BigInt(p.users) })) };
+        }
+        if (req.dimension === 1) {
+          return { points: (s.byDeviceClass ?? []).map((d) => ({ day: today, series: d.deviceClass, value: BigInt(d.users) })) };
+        }
+        return { points: (data.usageBreakdown ?? []).map((r) => ({ day: today, series: r.action, value: BigInt(r.events) })) };
+      },
     },
   } as unknown as Clients;
 

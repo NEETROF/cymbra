@@ -69,6 +69,7 @@
     "viewMode": "View mode",
     "viewGraph": "Graph",
     "viewTable": "Table",
+    "other": "Other",
     "periodCaveat": "Distinct users are exact within a period; a range spanning months may count a user active in two months twice (privacy-preserving monthly salt).",
     "from": "From",
     "to": "To",

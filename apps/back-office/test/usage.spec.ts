@@ -30,6 +30,9 @@ function fakeUsageClients(opts: { failSummary?: boolean } = {}) {
         return { rows: [{ action: "play_start", variant: "", events: 9n }] };
       },
       listActions: async () => ({ actions: ["auth_sign_in", "play_start"] }),
+      getUsageSeries: async () => ({
+        points: [{ day: "2026-06-15", series: "ios", value: 3n }],
+      }),
     },
   } as unknown as Clients;
   return { clients, calls };

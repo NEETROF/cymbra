@@ -31,13 +31,14 @@ use tonic::{Request, Response, Status};
 
 use crate::proto::{
     ActionCount as ProtoActionCount, DeviceClassUsers as ProtoDeviceClassUsers,
-    GetActionBreakdownRequest, GetActionBreakdownResponse, GetUsersSummaryRequest,
-    GetUsersSummaryResponse, ListActionsRequest, ListActionsResponse,
-    PlatformUsers as ProtoPlatformUsers, ReportEventsRequest, ReportEventsResponse,
+    GetActionBreakdownRequest, GetActionBreakdownResponse, GetUsageSeriesRequest,
+    GetUsageSeriesResponse, GetUsersSummaryRequest, GetUsersSummaryResponse, ListActionsRequest,
+    ListActionsResponse, PlatformUsers as ProtoPlatformUsers, ReportEventsRequest,
+    ReportEventsResponse, SeriesDimension, SeriesPoint as ProtoSeriesPoint,
     UsageQuery as ProtoUsageQuery,
     usage_service_server::{UsageService, UsageServiceServer},
 };
-use crate::read::{UsageQuery, UsageReadRepo};
+use crate::read::{SeriesDim, UsageQuery, UsageReadRepo};
 use crate::repo::{UsageEventRepo, UsageRow};
 use crate::usage_core::{RawEvent, user_bucket, validate};
 
@@ -223,6 +224,33 @@ impl UsageService for UsageGrpc {
         require_music_admin(&req)?;
         let actions = self.read.list_actions().await.map_err(read_err)?;
         Ok(Response::new(ListActionsResponse { actions }))
+    }
+
+    async fn get_usage_series(
+        &self,
+        req: Request<GetUsageSeriesRequest>,
+    ) -> Result<Response<GetUsageSeriesResponse>, Status> {
+        require_music_admin(&req)?;
+        let r = req.into_inner();
+        let dim = match SeriesDimension::try_from(r.dimension)
+            .unwrap_or(SeriesDimension::SeriesPlatform)
+        {
+            SeriesDimension::SeriesPlatform => SeriesDim::Platform,
+            SeriesDimension::SeriesDeviceClass => SeriesDim::DeviceClass,
+            SeriesDimension::SeriesAction => SeriesDim::Action,
+        };
+        let q = to_query(r.query)?;
+        let points = self.read.usage_series(&q, dim).await.map_err(read_err)?;
+        Ok(Response::new(GetUsageSeriesResponse {
+            points: points
+                .into_iter()
+                .map(|p| ProtoSeriesPoint {
+                    day: p.day,
+                    series: p.series,
+                    value: p.value,
+                })
+                .collect(),
+        }))
     }
 }
 

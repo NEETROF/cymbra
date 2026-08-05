@@ -22,8 +22,8 @@ pub mod usage_core;
 
 pub use grpc::UsageGrpc;
 pub use read::{
-    ActionCount, DeviceClassUsers, PgUsageReadRepo, PlatformUsers, UsageQuery, UsageReadRepo,
-    UsersSummary,
+    ActionCount, DeviceClassUsers, PgUsageReadRepo, PlatformUsers, SeriesDim, SeriesPoint,
+    UsageQuery, UsageReadRepo, UsersSummary,
 };
 pub use repo::{PgUsageEventRepo, UsageEventRepo, UsageRow};
 pub use rollup::{purge_expired, rollup_closed_days};

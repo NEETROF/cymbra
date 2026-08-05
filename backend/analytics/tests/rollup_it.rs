@@ -93,8 +93,15 @@ async fn rollup_is_idempotent_and_purge_keeps_aggregates() {
     .get(0);
     assert_eq!(distinct_users, 2, "A present on two days counts once");
 
-    // The reporting reads answer from the aggregates (design D6).
+    // The reporting reads are a HYBRID (design D6): closed days from the aggregates
+    // + the current day live from raw. Insert two raw TODAY events (NOT rolled up)
+    // and assert they are counted on top of the 4 aggregated closed-day events —
+    // proving the speed layer works with zero rollup lag.
     use cymbra_analytics::{PgUsageReadRepo, UsageQuery, UsageReadRepo};
+    repo.insert_batch(&[event(&tag, &a, 0), event(&tag, &b, 0)])
+        .await
+        .unwrap();
+
     let read = PgUsageReadRepo::new(p.clone());
     let q = UsageQuery {
         from_day: (Utc::now() - Duration::days(4)).date_naive(),
@@ -109,11 +116,40 @@ async fn rollup_is_idempotent_and_purge_keeps_aggregates() {
         .filter(|r| r.action == tag)
         .map(|r| r.events)
         .sum();
-    assert_eq!(my_events, 4, "action_breakdown sums this run's events");
+    assert_eq!(
+        my_events, 6,
+        "hybrid: 4 aggregated closed-day events + 2 live raw today events (no rollup)"
+    );
     assert!(
         read.list_actions().await.unwrap().contains(&tag),
-        "list_actions is data-driven (new action appears)"
+        "list_actions is data-driven and includes today's raw actions"
     );
+
+    // The per-day series (line charts) is the same hybrid, split by day: its points
+    // sum to the same total (4 aggregated + 2 live raw today).
+    let series = read
+        .usage_series(&q, cymbra_analytics::SeriesDim::Action)
+        .await
+        .unwrap();
+    let series_total: i64 = series
+        .iter()
+        .filter(|pt| pt.series == tag)
+        .map(|pt| pt.value)
+        .sum();
+    assert_eq!(
+        series_total, 6,
+        "usage_series per-day points sum to the hybrid total"
+    );
+
+    // Clean up the today events so the purge assertions below stay about closed days.
+    sqlx::query(
+        "DELETE FROM analytics.usage_events WHERE action = $1 \
+         AND (occurred_at AT TIME ZONE 'UTC') >= date_trunc('day', now() AT TIME ZONE 'UTC')",
+    )
+    .bind(&tag)
+    .execute(&p)
+    .await
+    .unwrap();
 
     // Purge everything older than 1 day (all seeds are ≥2 days old).
     let purged = cymbra_analytics::purge_expired(&p, 1).await.unwrap();

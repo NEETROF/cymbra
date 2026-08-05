@@ -69,6 +69,7 @@
     "viewMode": "Mode d’affichage",
     "viewGraph": "Graphique",
     "viewTable": "Tableau",
+    "other": "Autres",
     "periodCaveat": "Le nombre d’utilisateurs distincts est exact sur une période ; une plage couvrant plusieurs mois peut compter deux fois un utilisateur actif sur deux mois (sel mensuel préservant la vie privée).",
     "from": "Du",
     "to": "Au",

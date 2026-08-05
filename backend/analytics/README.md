@@ -63,6 +63,19 @@ idempotent upserts; `usage_purge` (03:40 UTC) deletes raw older than the retenti
 window read from the flag. Rollup is strictly before purge (ordered channel +
 earlier cron), so purge only ever removes already-aggregated days.
 
+## Back-office reads (hybrid batch + speed layer, design D6)
+
+The reporting reads (`GetUsersSummary`, `GetActionBreakdown`, `GetUsageSeries`)
+merge two disjoint ranges so recent activity is **live with zero rollup lag**:
+**closed UTC days** (`day < today`) come from the permanent aggregates (cheap,
+exact, available beyond retention), and the **current UTC day** comes straight from
+raw `usage_events`. The split boundary is the start of the current UTC day, so the
+ranges never overlap and figures never double-count (distinct-user counts are taken
+over the *union* of presence rows — daily distinct counts can't be summed).
+`GetUsageSeries` returns a per-day time series split by platform / device class /
+action (one curve each) — distinct users per day for platform/device, event count
+per day for action — which the console renders as line charts.
+
 ## Runtime controls (feature flags)
 
 - `analytics.collection.enabled` — global kill-switch, **defaults on** (opt-out

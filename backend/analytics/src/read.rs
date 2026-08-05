@@ -1,8 +1,20 @@
-//! The back-office reporting reads over the permanent aggregates (change:
-//! add-feature-usage-analytics, task 7.2, design D6). Behind a trait so the
-//! reporting handlers are unit-testable with a `mockall`-generated mock. Queries
-//! hit only `analytics.usage_action_daily` / `analytics.usage_user_daily`, so they
-//! answer any window (aggregates are permanent) and never read raw.
+//! The back-office reporting reads (change: add-feature-usage-analytics, task 7.2,
+//! design D6). Behind a trait so the reporting handlers are unit-testable with a
+//! `mockall`-generated mock.
+//!
+//! **Hybrid batch + speed layer (design D6).** Each read merges two disjoint
+//! ranges so recent activity is live with zero rollup lag:
+//! - **closed UTC days** (`day < today`) come from the permanent aggregates
+//!   (`usage_action_daily` / `usage_user_daily`) — cheap, exact, available beyond
+//!   the raw retention window;
+//! - the **current UTC day** comes straight from raw `usage_events` — the moment an
+//!   event is ingested it shows, no daily rollup needed.
+//!
+//! The split boundary is the start of the current UTC day, so the two ranges never
+//! overlap and figures never double-count. (Distinct-user counts are computed over
+//! the *union* of presence rows — you can never sum daily distinct counts.)
+
+use std::collections::{BTreeMap, HashSet};
 
 use async_trait::async_trait;
 use chrono::NaiveDate;
@@ -49,6 +61,24 @@ pub struct ActionCount {
     pub events: i64,
 }
 
+/// Which dimension a time series is split by (one curve per key). The dimension
+/// also decides the metric: distinct users per day for platform/device, event
+/// count per day for action.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SeriesDim {
+    Platform,
+    DeviceClass,
+    Action,
+}
+
+/// One point of a per-day time series.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SeriesPoint {
+    pub day: String, // ISO yyyy-mm-dd (UTC)
+    pub series: String,
+    pub value: i64,
+}
+
 /// Reporting reads for the back-office "Usage" console.
 #[cfg_attr(test, mockall::automock)]
 #[async_trait]
@@ -62,6 +92,13 @@ pub trait UsageReadRepo: Send + Sync {
     async fn action_breakdown(&self, q: &UsageQuery) -> anyhow::Result<Vec<ActionCount>>;
     /// The distinct actions present in the aggregates — the data-driven filter list.
     async fn list_actions(&self) -> anyhow::Result<Vec<String>>;
+    /// A per-day time series split into one curve per key of `dim` (hybrid: closed
+    /// days from the aggregates + the current day live from raw).
+    async fn usage_series(
+        &self,
+        q: &UsageQuery,
+        dim: SeriesDim,
+    ) -> anyhow::Result<Vec<SeriesPoint>>;
 }
 
 /// Postgres-backed [`UsageReadRepo`] (role `analytics_svc`).
@@ -75,15 +112,32 @@ impl PgUsageReadRepo {
     }
 }
 
-/// Push `day BETWEEN $from AND $to` plus the optional platform/device filters onto
+/// Aggregate-side window (the batch layer): the day range, capped **strictly
+/// before today** (UTC) so it never overlaps the raw current-day range. Pushed onto
 /// a builder that already opened its `WHERE`.
-fn push_common_filters(
-    qb: &mut QueryBuilder<'_, sqlx::Postgres>,
-    q: &UsageQuery,
-    with_action: bool,
-) {
+fn push_agg_window(qb: &mut QueryBuilder<'_, sqlx::Postgres>, q: &UsageQuery, with_action: bool) {
     qb.push(" day >= ").push_bind(q.from_day);
     qb.push(" AND day <= ").push_bind(q.to_day);
+    qb.push(" AND day < (now() AT TIME ZONE 'UTC')::date");
+    if let Some(p) = &q.platform {
+        qb.push(" AND platform = ").push_bind(p.clone());
+    }
+    if let Some(d) = &q.device_class {
+        qb.push(" AND device_class = ").push_bind(d.clone());
+    }
+    if with_action && let Some(a) = &q.action {
+        qb.push(" AND action = ").push_bind(a.clone());
+    }
+}
+
+/// Raw-side window (the speed layer): only the **current** UTC day (and later),
+/// still constrained to the requested range. Empty when the range ends before today.
+fn push_raw_window(qb: &mut QueryBuilder<'_, sqlx::Postgres>, q: &UsageQuery, with_action: bool) {
+    qb.push(" (occurred_at AT TIME ZONE 'UTC') >= date_trunc('day', now() AT TIME ZONE 'UTC')");
+    qb.push(" AND (occurred_at AT TIME ZONE 'UTC')::date >= ")
+        .push_bind(q.from_day);
+    qb.push(" AND (occurred_at AT TIME ZONE 'UTC')::date <= ")
+        .push_bind(q.to_day);
     if let Some(p) = &q.platform {
         qb.push(" AND platform = ").push_bind(p.clone());
     }
@@ -98,63 +152,70 @@ fn push_common_filters(
 #[async_trait]
 impl UsageReadRepo for PgUsageReadRepo {
     async fn users_summary(&self, q: &UsageQuery) -> anyhow::Result<UsersSummary> {
-        // Total distinct.
+        // Presence set = closed days (aggregate) ∪ current day (raw, live). The
+        // action filter does not apply here (per-user presence has no action
+        // dimension). Distinct counts are computed over the DEDUPED union — daily
+        // distinct counts can never be summed.
         let mut qb = QueryBuilder::new(
-            "SELECT count(DISTINCT user_bucket) FROM analytics.usage_user_daily WHERE",
-        );
-        push_common_filters(&mut qb, q, false);
-        let total_users: i64 = qb.build_query_scalar().fetch_one(&self.pool).await?;
-
-        // By platform.
-        let mut qb = QueryBuilder::new(
-            "SELECT platform, count(DISTINCT user_bucket) AS users \
+            "SELECT user_bucket, platform, device_class \
              FROM analytics.usage_user_daily WHERE",
         );
-        push_common_filters(&mut qb, q, false);
-        qb.push(" GROUP BY platform ORDER BY platform");
-        let by_platform = qb
-            .build()
-            .fetch_all(&self.pool)
-            .await?
-            .into_iter()
-            .map(|r| PlatformUsers {
-                platform: r.get("platform"),
-                users: r.get("users"),
-            })
-            .collect();
-
-        // By device class.
-        let mut qb = QueryBuilder::new(
-            "SELECT device_class, count(DISTINCT user_bucket) AS users \
-             FROM analytics.usage_user_daily WHERE",
+        push_agg_window(&mut qb, q, false);
+        qb.push(
+            " UNION SELECT DISTINCT user_bucket, platform, device_class \
+             FROM analytics.usage_events WHERE",
         );
-        push_common_filters(&mut qb, q, false);
-        qb.push(" GROUP BY device_class ORDER BY device_class");
-        let by_device_class = qb
-            .build()
-            .fetch_all(&self.pool)
-            .await?
-            .into_iter()
-            .map(|r| DeviceClassUsers {
-                device_class: r.get("device_class"),
-                users: r.get("users"),
-            })
-            .collect();
+        push_raw_window(&mut qb, q, false);
+        let rows = qb.build().fetch_all(&self.pool).await?;
 
+        let mut all: HashSet<String> = HashSet::new();
+        let mut by_p: BTreeMap<String, HashSet<String>> = BTreeMap::new();
+        let mut by_d: BTreeMap<String, HashSet<String>> = BTreeMap::new();
+        for r in &rows {
+            let bucket: String = r.get("user_bucket");
+            all.insert(bucket.clone());
+            by_p.entry(r.get("platform"))
+                .or_default()
+                .insert(bucket.clone());
+            by_d.entry(r.get("device_class"))
+                .or_default()
+                .insert(bucket);
+        }
         Ok(UsersSummary {
-            total_users,
-            by_platform,
-            by_device_class,
+            total_users: all.len() as i64,
+            by_platform: by_p
+                .into_iter()
+                .map(|(platform, s)| PlatformUsers {
+                    platform,
+                    users: s.len() as i64,
+                })
+                .collect(),
+            by_device_class: by_d
+                .into_iter()
+                .map(|(device_class, s)| DeviceClassUsers {
+                    device_class,
+                    users: s.len() as i64,
+                })
+                .collect(),
         })
     }
 
     async fn action_breakdown(&self, q: &UsageQuery) -> anyhow::Result<Vec<ActionCount>> {
-        let mut qb = QueryBuilder::new(
-            "SELECT action, variant, sum(event_count)::bigint AS events \
+        // Closed days' pre-aggregated counts UNION ALL the current day counted live
+        // from raw; the two ranges are disjoint, so summing never double-counts.
+        let mut qb = QueryBuilder::new("SELECT action, variant, sum(cnt)::bigint AS events FROM (");
+        qb.push(
+            "SELECT action, variant, event_count AS cnt \
              FROM analytics.usage_action_daily WHERE",
         );
-        push_common_filters(&mut qb, q, true);
-        qb.push(" GROUP BY action, variant ORDER BY events DESC, action, variant");
+        push_agg_window(&mut qb, q, true);
+        qb.push(
+            " UNION ALL SELECT action, COALESCE(variant, '') AS variant, count(*) AS cnt \
+             FROM analytics.usage_events WHERE",
+        );
+        push_raw_window(&mut qb, q, true);
+        qb.push(" GROUP BY action, COALESCE(variant, '')");
+        qb.push(") s GROUP BY action, variant ORDER BY events DESC, action, variant");
         let rows = qb
             .build()
             .fetch_all(&self.pool)
@@ -170,11 +231,79 @@ impl UsageReadRepo for PgUsageReadRepo {
     }
 
     async fn list_actions(&self) -> anyhow::Result<Vec<String>> {
+        // Union the aggregates with the current day's raw actions so a brand-new
+        // action emitted today appears in the filter before the next rollup.
         let rows = sqlx::query_scalar::<_, String>(
-            "SELECT DISTINCT action FROM analytics.usage_action_daily ORDER BY action",
+            "SELECT DISTINCT action FROM ( \
+               SELECT action FROM analytics.usage_action_daily \
+               UNION \
+               SELECT action FROM analytics.usage_events \
+               WHERE (occurred_at AT TIME ZONE 'UTC') >= date_trunc('day', now() AT TIME ZONE 'UTC') \
+             ) s ORDER BY action",
         )
         .fetch_all(&self.pool)
         .await?;
         Ok(rows)
+    }
+
+    async fn usage_series(
+        &self,
+        q: &UsageQuery,
+        dim: SeriesDim,
+    ) -> anyhow::Result<Vec<SeriesPoint>> {
+        // The split column is chosen by the `dim` enum (never user input), so
+        // interpolating it into the SQL is injection-safe.
+        let rows = match dim {
+            SeriesDim::Platform | SeriesDim::DeviceClass => {
+                let col = if matches!(dim, SeriesDim::DeviceClass) {
+                    "device_class"
+                } else {
+                    "platform"
+                };
+                // Distinct users PER DAY per key: closed days (aggregate) UNION ALL
+                // the current day (raw). Disjoint days ⇒ no key appears twice.
+                let mut qb = QueryBuilder::new(format!(
+                    "SELECT to_char(day, 'YYYY-MM-DD') AS d, {col} AS series, \
+                     count(DISTINCT user_bucket) AS value \
+                     FROM analytics.usage_user_daily WHERE"
+                ));
+                push_agg_window(&mut qb, q, false);
+                qb.push(format!(
+                    " GROUP BY day, {col} \
+                     UNION ALL SELECT to_char((occurred_at AT TIME ZONE 'UTC')::date, 'YYYY-MM-DD'), \
+                     {col}, count(DISTINCT user_bucket) \
+                     FROM analytics.usage_events WHERE"
+                ));
+                push_raw_window(&mut qb, q, false);
+                qb.push(format!(" GROUP BY 1, {col}"));
+                qb.build().fetch_all(&self.pool).await?
+            }
+            SeriesDim::Action => {
+                // Events PER DAY per action: closed (summed) + current day (raw count).
+                let mut qb = QueryBuilder::new(
+                    "SELECT to_char(day, 'YYYY-MM-DD') AS d, action AS series, \
+                     sum(event_count)::bigint AS value \
+                     FROM analytics.usage_action_daily WHERE",
+                );
+                push_agg_window(&mut qb, q, true);
+                qb.push(
+                    " GROUP BY day, action \
+                     UNION ALL SELECT to_char((occurred_at AT TIME ZONE 'UTC')::date, 'YYYY-MM-DD'), \
+                     action, count(*) \
+                     FROM analytics.usage_events WHERE",
+                );
+                push_raw_window(&mut qb, q, true);
+                qb.push(" GROUP BY 1, action");
+                qb.build().fetch_all(&self.pool).await?
+            }
+        };
+        Ok(rows
+            .into_iter()
+            .map(|r| SeriesPoint {
+                day: r.get("d"),
+                series: r.get("series"),
+                value: r.get("value"),
+            })
+            .collect())
     }
 }
