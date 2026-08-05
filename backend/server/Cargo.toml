@@ -32,6 +32,8 @@ cymbra-storage = { path = "../storage" }
 cymbra-jobs = { path = "../jobs" }
 # Shared runtime feature-flag & config service (change: add-runtime-feature-flags).
 cymbra-feature-flags = { path = "../feature-flags" }
+# Analytics module (feature-usage telemetry ingestion; change: add-feature-usage-analytics).
+cymbra-analytics = { path = "../analytics" }
 async-trait.workspace = true
 uuid.workspace = true
 tokio.workspace = true

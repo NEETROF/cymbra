@@ -38,6 +38,8 @@
 
   "settingsCategoryLanguage": "Language",
   "@settingsCategoryLanguage": { "description": "Settings category: choose the app language." },
+  "usageAnalyticsSetting": "Share usage statistics",
+  "@usageAnalyticsSetting": { "description": "Settings toggle: opt in/out of anonymous, first-party feature-usage analytics." },
 
   "settingsCategoryPiano": "Piano sound",
   "@settingsCategoryPiano": { "description": "Settings category: choose the piano SoundFont the synthesizer uses." },

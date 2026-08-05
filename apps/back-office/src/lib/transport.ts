@@ -6,6 +6,7 @@ import { AuthService } from "@/gen/auth_pb";
 import { ScoreService } from "@/gen/score_pb";
 import { UserService } from "@/gen/user_pb";
 import { FlagService } from "@/gen/flags_pb";
+import { UsageService } from "@/gen/usage_pb";
 
 // The backend speaks gRPC-web (tonic-web); Connect's gRPC-web transport talks to
 // it directly. The auth interceptor attaches the bearer access token the same way
@@ -171,6 +172,7 @@ export interface Clients {
   score: Client<typeof ScoreService>;
   user: Client<typeof UserService>;
   flags: Client<typeof FlagService>;
+  usage: Client<typeof UsageService>;
 }
 
 export function createClients(transport: Transport): Clients {
@@ -179,5 +181,6 @@ export function createClients(transport: Transport): Clients {
     score: createClient(ScoreService, transport),
     user: createClient(UserService, transport),
     flags: createClient(FlagService, transport),
+    usage: createClient(UsageService, transport),
   };
 }

@@ -92,6 +92,11 @@ dependencies:
   # network attempt, so the server dedupes retried deliveries (idempotency key).
   uuid: ^4.5.3
 
+  # App version stamped on feature-usage events (change: add-feature-usage-
+  # analytics). Behind the injectable `appInfoServiceProvider` seam so state is
+  # testable without the native plugin.
+  package_info_plus: ^8.0.0
+
   # Network reachability for the play-outbox sender's "resume on regained
   # connectivity" trigger. Behind the injectable `connectivityServiceProvider`
   # seam so the sender is testable without the native plugin.

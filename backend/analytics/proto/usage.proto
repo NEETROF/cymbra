@@ -1,0 +1,127 @@
+syntax = "proto3";
+
+package cymbra.analytics.v1;
+
+// UsageService — first-party feature-usage telemetry ingestion (change:
+// add-feature-usage-analytics, design D5). A single batched, best-effort
+// `ReportEvents` RPC. The caller's identity comes from the internal access token
+// (request metadata), never the body; the server maps it to a period-salted
+// pseudonymous `user_bucket` and never stores the raw user_id. Lives in its own
+// `analytics` crate/schema (design D10), decoupled from identity.
+
+// One reported usage event. `action` and `variant` travel as SHAPE-VALIDATED
+// strings (not frozen enums, design D7) so new taxonomy actions ship with a normal
+// client release without a coordinated backend deploy. The server validates their
+// shape and skips only malformed events (the rest of the batch still lands).
+message UsageEvent {
+  string action = 1;              // taxonomy action, e.g. "play_start" (shape-validated)
+  optional string variant = 2;    // low-cardinality qualifier (play mode, settings category — never a value)
+  optional string subject_id = 3; // high-cardinality ref (e.g. score UUID); raw-only
+  string platform = 4;            // ios|android|macos|windows|linux|web
+  string device_class = 5;        // phone|tablet|desktop
+  string app_version = 6;
+  string locale = 7;
+  int64 occurred_at_ms = 8;       // client wall clock (unix epoch ms); clamped server-side
+}
+
+// A batch of events flushed from the client's offline buffer. Best-effort: a
+// malformed event is skipped, not fatal to the batch.
+message ReportEventsRequest {
+  repeated UsageEvent events = 1;
+}
+
+// How many of the submitted events were accepted (persisted) vs skipped
+// (malformed / out-of-range). The client drops its whole flushed batch on any
+// successful response — telemetry is best-effort, so skipped events are not retried.
+message ReportEventsResponse {
+  uint32 accepted = 1;
+  uint32 skipped = 2;
+}
+
+// --- reporting surface (back-office "Usage" console; design D6) --------------
+// Read RPCs answer from the permanent daily aggregates (always available, any
+// window). All filters are freely combinable; unset means "no filter on that
+// dimension". Admin-scope gated (music or global admin).
+
+// A composable query over the aggregates. Days are inclusive ISO `yyyy-mm-dd`.
+message UsageQuery {
+  string from_day = 1;               // inclusive lower bound (UTC day)
+  string to_day = 2;                 // inclusive upper bound (UTC day)
+  optional string platform = 3;      // filter to one platform
+  optional string device_class = 4;  // filter to one device class
+  optional string action = 5;        // filter to one action
+}
+
+message PlatformUsers {
+  string platform = 1;
+  int64 users = 2; // exact distinct users on that platform over the window
+}
+message DeviceClassUsers {
+  string device_class = 1;
+  int64 users = 2;
+}
+
+// Distinct users over the window, split by platform and by device class. The
+// totals are EXACT within the window (COUNT(DISTINCT user_bucket) from
+// usage_user_daily) — a range spanning months may double-count a user active in
+// two months (period-salt rotation, design D2); the console surfaces that caveat.
+message GetUsersSummaryRequest {
+  UsageQuery query = 1;
+}
+message GetUsersSummaryResponse {
+  int64 total_users = 1;
+  repeated PlatformUsers by_platform = 2;
+  repeated DeviceClassUsers by_device_class = 3;
+}
+
+// One action-volume row: how many events for an (action, variant) over the window
+// under the applied filters. `variant` is '' when the action carries none.
+message ActionCount {
+  string action = 1;
+  string variant = 2;
+  int64 events = 3;
+}
+message GetActionBreakdownRequest {
+  UsageQuery query = 1;
+}
+message GetActionBreakdownResponse {
+  repeated ActionCount rows = 1;
+}
+
+// The distinct actions present in the aggregates — the data-driven filter list
+// (no hard-coded taxonomy in the back office; new actions appear automatically).
+message ListActionsRequest {}
+message ListActionsResponse {
+  repeated string actions = 1;
+}
+
+// A per-day time series, split into one curve per series key (platform / device
+// class / action). The dimension decides both the split and the metric: for
+// PLATFORM / DEVICE_CLASS the value is that day's DISTINCT users on that key; for
+// ACTION it is the event count. Each day is a single point (daily distinct users
+// are a legitimate per-day figure; only summing them across days is disallowed).
+enum SeriesDimension {
+  SERIES_PLATFORM = 0;
+  SERIES_DEVICE_CLASS = 1;
+  SERIES_ACTION = 2;
+}
+message SeriesPoint {
+  string day = 1;    // ISO yyyy-mm-dd (UTC)
+  string series = 2; // the split key (a platform / device class / action)
+  int64 value = 3;   // distinct users (platform/device) or events (action)
+}
+message GetUsageSeriesRequest {
+  UsageQuery query = 1;
+  SeriesDimension dimension = 2;
+}
+message GetUsageSeriesResponse {
+  repeated SeriesPoint points = 1;
+}
+
+service UsageService {
+  rpc ReportEvents(ReportEventsRequest) returns (ReportEventsResponse);
+  rpc GetUsersSummary(GetUsersSummaryRequest) returns (GetUsersSummaryResponse);
+  rpc GetActionBreakdown(GetActionBreakdownRequest) returns (GetActionBreakdownResponse);
+  rpc ListActions(ListActionsRequest) returns (ListActionsResponse);
+  rpc GetUsageSeries(GetUsageSeriesRequest) returns (GetUsageSeriesResponse);
+}

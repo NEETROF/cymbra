@@ -6,6 +6,7 @@
 //! enqueues; this binary is what actually runs background work.
 
 mod config;
+mod flags;
 mod handlers;
 mod health;
 
@@ -61,6 +62,10 @@ async fn main() -> anyhow::Result<()> {
         None => None,
     };
 
+    // Shared feature-flag service (read-only) — the usage-purge job reads the
+    // raw-event retention window from it (change: add-feature-usage-analytics, D4).
+    let flag_service = flags::build_flag_service(cfg.flags_database_url.as_deref()).await?;
+
     let ctx = WorkerCtx {
         email,
         user,
@@ -69,6 +74,7 @@ async fn main() -> anyhow::Result<()> {
         storage,
         reap_grace_secs: cfg.orphan_reap_grace.as_secs() as i64,
         play_detail_retention_days: cfg.play_detail_retention_days as i64,
+        flags: flag_service,
     };
 
     // --- sqlxmq runner: executes queued jobs (event-driven; design D7) ---

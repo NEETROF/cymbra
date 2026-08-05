@@ -16,11 +16,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:grpc/grpc.dart';
 
+import '../analytics/usage_actions.dart';
 import '../l10n/gen/app_localizations.dart';
 import '../services/profile_service.dart';
 import '../state/play_activity_notifier.dart';
 import '../state/profile_notifier.dart';
 import '../state/session_notifier.dart';
+import '../state/usage_tracking_notifier.dart';
 import '../widgets/play_heatmap.dart';
 
 /// A player's profile (change: add-play-activity-profile). Reuses the play
@@ -62,6 +64,18 @@ class _ProfileBody extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
+    // Usage telemetry (change: add-feature-usage-analytics): record a view of
+    // ANOTHER player's profile once it loads (never a self-view). A listener, not
+    // a build-body service call — the notifier gates emission on consent.
+    if (!isSelf) {
+      ref.listen(playerProfileProvider(targetId), (_, next) {
+        if (next is AsyncData) {
+          ref
+              .read(usageTrackingNotifierProvider.notifier)
+              .record(UsageActions.profileView, subjectId: targetId);
+        }
+      });
+    }
     final profile = ref.watch(playerProfileProvider(targetId));
 
     return profile.when(

@@ -27,9 +27,11 @@
     "@bufbuild/protobuf": "^2.2.3",
     "@connectrpc/connect": "^2.0.1",
     "@connectrpc/connect-web": "^2.0.1",
+    "chart.js": "^4.5.1",
     "pinia": "^2.2.6",
     "ts-pattern": "^5.5.0",
     "vue": "^3.5.13",
+    "vue-chartjs": "^5.3.4",
     "vue-i18n": "^11",
     "vue-router": "^4.4.5"
   },

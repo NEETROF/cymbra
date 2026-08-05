@@ -32,6 +32,13 @@ pub const ONBOARDING_ENABLED: &str = "onboarding.enabled";
 /// Shared cross-app kill-switch: when on, apps show an "under maintenance" state.
 pub const PLATFORM_MAINTENANCE: &str = "platform.maintenance";
 
+/// Feature-usage analytics collection kill-switch (change: add-feature-usage-
+/// analytics, design D5). Unlike ordinary feature flags this defaults **on**
+/// (collection is an opt-out first-party audience-measurement regime); flipping it
+/// off stops clients emitting usage events without a client release. Distinct from
+/// the per-user consent toggle — either one off suppresses emission.
+pub const ANALYTICS_COLLECTION_ENABLED: &str = "analytics.collection.enabled";
+
 // Config tunables (the scattered straw-man values live here).
 pub const RATING_REVIEW_MIN_VOTES: &str = "rating.review.min_votes";
 pub const RATING_REVIEW_THRESHOLD: &str = "rating.review.threshold";
@@ -46,6 +53,11 @@ pub const LEADERBOARD_SEASON_LENGTH_DAYS: &str = "leaderboard.season.length_days
 // Sensitive legal/infra values (not casually editable).
 pub const ACCOUNT_MIN_PUBLIC_SHARING_AGE: &str = "account.min_public_sharing_age";
 pub const DATA_RETENTION_PLAY_DETAIL_DAYS: &str = "data.retention.play_detail_days";
+/// Raw feature-usage-event retention window in DAYS (change: add-feature-usage-
+/// analytics, design D4). The worker's purge job deletes `analytics.usage_events`
+/// older than this; the permanent daily aggregates are unaffected. Default 180 (≈6
+/// months). BO-editable so retention is retuned without a redeploy.
+pub const DATA_RETENTION_USAGE_EVENTS_DAYS: &str = "data.retention.usage_events_days";
 
 /// A single declared key.
 #[derive(Debug, Clone, PartialEq)]
@@ -160,6 +172,15 @@ pub fn builtin() -> Vec<KeyDef> {
             false,
             "Shared kill-switch: put every app into an under-maintenance state.",
         ),
+        // Analytics collection kill-switch: defaults ON (opt-out audience
+        // measurement, design D5) — deliberately NOT in the default-off set below.
+        flag(
+            ANALYTICS_COLLECTION_ENABLED,
+            APP_ALL,
+            true,
+            false,
+            "Feature-usage analytics collection master switch (defaults on; flip off to stop all clients emitting usage events without a release).",
+        ),
         // -- config tunables --
         cfg(
             RATING_REVIEW_MIN_VOTES,
@@ -238,6 +259,13 @@ pub fn builtin() -> Vec<KeyDef> {
             FlagValue::Int(90),
             true,
             "Days the heavy per-session play detail is retained before pruning.",
+        ),
+        cfg(
+            DATA_RETENTION_USAGE_EVENTS_DAYS,
+            APP_ALL,
+            FlagValue::Int(180),
+            true,
+            "Days raw feature-usage events are retained before the purge job deletes them (permanent aggregates are unaffected).",
         ),
     ]
 }
@@ -356,6 +384,37 @@ mod tests {
         );
         // ordinary flags are not sensitive
         assert!(!r.get_by_key(RATING_ENABLED).unwrap().sensitive);
+        // usage-event retention is a legal/infra value
+        assert!(
+            r.get(APP_ALL, DATA_RETENTION_USAGE_EVENTS_DAYS)
+                .unwrap()
+                .sensitive
+        );
+    }
+
+    #[test]
+    fn analytics_kill_switch_defaults_on() {
+        // The analytics collection kill-switch is the one bool that defaults ON
+        // (opt-out audience measurement, design D5) — so it is intentionally NOT
+        // in `feature_flags_default_off_and_are_safe`.
+        let r = Registry::default();
+        assert_eq!(
+            r.get(APP_ALL, ANALYTICS_COLLECTION_ENABLED)
+                .unwrap()
+                .default,
+            FlagValue::Bool(true)
+        );
+    }
+
+    #[test]
+    fn usage_retention_default_is_six_months() {
+        let r = Registry::default();
+        assert_eq!(
+            r.get(APP_ALL, DATA_RETENTION_USAGE_EVENTS_DAYS)
+                .unwrap()
+                .default,
+            FlagValue::Int(180)
+        );
     }
 
     #[test]

@@ -29,6 +29,16 @@ pub const PURGE_SCORE_OBJECT: &str = "purge_score_object";
 /// profile, D7). No payload. Scheduled: NULLs the heavy `session_result` JSONB on
 /// `music.play_sessions` rows past the retention window, keeping the summary.
 pub const PLAY_DETAIL_PRUNE: &str = "play_detail_prune";
+/// Stable name of the analytics daily rollup (change: add-feature-usage-analytics,
+/// D3/D4). No payload. Scheduled: folds each closed day of `analytics.usage_events`
+/// into the permanent daily aggregates. MUST run before [`USAGE_PURGE`] — both
+/// share the ordered `analytics.maintenance` channel and rollup is enqueued at an
+/// earlier cron time, so purge never removes an unaggregated day.
+pub const USAGE_ROLLUP: &str = "usage_rollup";
+/// Stable name of the analytics retention purge (change: add-feature-usage-
+/// analytics, D4). No payload. Scheduled AFTER [`USAGE_ROLLUP`]: deletes raw
+/// `analytics.usage_events` older than the BO-configured retention window.
+pub const USAGE_PURGE: &str = "usage_purge";
 
 /// Static description of one job type.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -105,6 +115,20 @@ pub fn builtin() -> Vec<JobSpec> {
             Channel::parallel("music", "maintenance"),
             RetryPolicy::new(3, Duration::from_secs(60), Duration::from_secs(3600)),
         ),
+        JobSpec::new(
+            USAGE_ROLLUP,
+            // Ordered `analytics.maintenance`: rollup and purge serialise on one
+            // channel so purge never runs ahead of the rollup that protects its
+            // data (design D4). Rollup is enqueued at the earlier cron time.
+            Channel::ordered("analytics", "maintenance"),
+            RetryPolicy::new(3, Duration::from_secs(60), Duration::from_secs(3600)),
+        ),
+        JobSpec::new(
+            USAGE_PURGE,
+            // Same ordered channel as the rollup → strictly after it.
+            Channel::ordered("analytics", "maintenance"),
+            RetryPolicy::new(3, Duration::from_secs(60), Duration::from_secs(3600)),
+        ),
     ]
 }
 
@@ -163,5 +187,16 @@ mod tests {
     #[test]
     fn unknown_name_has_no_spec() {
         assert!(spec("nope").is_none());
+    }
+
+    #[test]
+    fn usage_jobs_share_one_ordered_channel() {
+        // Rollup-before-purge is enforced by a single ordered channel + cron order.
+        let rollup = spec(USAGE_ROLLUP).unwrap();
+        let purge = spec(USAGE_PURGE).unwrap();
+        assert_eq!(rollup.channel().name(), "analytics.maintenance");
+        assert_eq!(purge.channel().name(), "analytics.maintenance");
+        assert!(rollup.channel().is_ordered());
+        assert!(purge.channel().is_ordered());
     }
 }

@@ -54,6 +54,15 @@ pub struct Config {
     /// mode (every key resolves to its code default, admin edits refused) — a valid
     /// fail-safe posture, so the feature is never a hard dependency.
     pub flags_database_url: Option<String>,
+    /// Postgres URL for the `analytics` schema (role `analytics_svc`; change:
+    /// add-feature-usage-analytics). `None` leaves the `UsageService` unwired (the
+    /// telemetry ingestion + reporting feature stays inert until configured).
+    pub analytics_database_url: Option<String>,
+    /// Master secret for the period-salted pseudonymous analytics `user_bucket`
+    /// (design D2, Option A): `salt(month) = HMAC(secret, "YYYY-MM")`. Required to
+    /// wire the `UsageService`; `None` leaves it unwired even if the DB is set (a
+    /// missing secret must never silently fall back to an empty/guessable key).
+    pub analytics_bucket_secret: Option<String>,
     /// Local warm-cache root the score reads serve from (crawler corpus + pulled
     /// uploads); the S3 fallback populates it on a miss.
     pub score_local_root: String,
@@ -227,6 +236,14 @@ pub mod config_core {
                 .cloned(),
             flags_database_url: m
                 .get("CYMBRA_FLAGS_DATABASE_URL")
+                .filter(|v| !v.is_empty())
+                .cloned(),
+            analytics_database_url: m
+                .get("CYMBRA_ANALYTICS_DATABASE_URL")
+                .filter(|v| !v.is_empty())
+                .cloned(),
+            analytics_bucket_secret: m
+                .get("CYMBRA_ANALYTICS_BUCKET_SECRET")
                 .filter(|v| !v.is_empty())
                 .cloned(),
             score_local_root: opt(m, "CYMBRA_SCORE_LOCAL_ROOT", "/srv/cymbra/scores"),

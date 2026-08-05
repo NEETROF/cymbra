@@ -45,6 +45,16 @@ export interface E2EData {
   /** SoundFont catalog rows for the admin management screen (change:
    * add-soundfont-back-office-management). Mutated in place by add/edit/delete. */
   soundfonts?: Record<string, unknown>[];
+  /** Usage-analytics fixtures for the "Usage" console (change: add-feature-usage-
+   * analytics): the distinct-users summary, the data-driven action list, and the
+   * action breakdown. */
+  usageSummary?: {
+    totalUsers?: number;
+    byPlatform?: { platform: string; users: number }[];
+    byDeviceClass?: { deviceClass: string; users: number }[];
+  };
+  usageActions?: string[];
+  usageBreakdown?: { action: string; variant?: string; events: number }[];
   /** Force a method to reject with a ConnectError, keyed by method name. */
   fail?: Record<string, E2EFailure>;
   /** Force a method to reject with a ConnectError exactly ONCE (then succeed) —
@@ -215,6 +225,47 @@ export function installE2EClients(): void {
           rolesByScope: Object.entries(a.roles).map(([scope, roles]) => ({ scope, roles })),
         }));
         return { accounts: page, total: filtered.length };
+      },
+    },
+    usage: {
+      getUsersSummary: async () => {
+        failIfSet("getUsersSummary");
+        const s = data.usageSummary ?? {};
+        return {
+          totalUsers: BigInt(s.totalUsers ?? 0),
+          byPlatform: (s.byPlatform ?? []).map((p) => ({ platform: p.platform, users: BigInt(p.users) })),
+          byDeviceClass: (s.byDeviceClass ?? []).map((d) => ({ deviceClass: d.deviceClass, users: BigInt(d.users) })),
+        };
+      },
+      getActionBreakdown: async () => {
+        failIfSet("getActionBreakdown");
+        return {
+          rows: (data.usageBreakdown ?? []).map((r) => ({
+            action: r.action,
+            variant: r.variant ?? "",
+            events: BigInt(r.events),
+          })),
+        };
+      },
+      listActions: async () => ({ actions: data.usageActions ?? [] }),
+      getUsageSeries: async (req: { dimension: number }) => {
+        failIfSet("getUsageSeries");
+        const today = new Date().toISOString().slice(0, 10);
+        const s = data.usageSummary ?? {};
+        // Synthesise a single-day point per series so the line charts render.
+        if (req.dimension === 0) {
+          return {
+            points: (s.byPlatform ?? []).map((p) => ({ day: today, series: p.platform, value: BigInt(p.users) })),
+          };
+        }
+        if (req.dimension === 1) {
+          return {
+            points: (s.byDeviceClass ?? []).map((d) => ({ day: today, series: d.deviceClass, value: BigInt(d.users) })),
+          };
+        }
+        return {
+          points: (data.usageBreakdown ?? []).map((r) => ({ day: today, series: r.action, value: BigInt(r.events) })),
+        };
       },
     },
   } as unknown as Clients;
