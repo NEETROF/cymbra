@@ -243,6 +243,27 @@ pub async fn usage_purge(mut job: CurrentJob, ctx: WorkerCtx) -> Result<(), BoxE
     .await
 }
 
+/// Settle honesty by community consensus (change: add-curation-rewards, task 3.2).
+/// Scheduled sweep: freezes each consensus-ready score's truth and settles its
+/// unsettled ratings. Idempotent (settlement state), so at-least-once is safe.
+#[sqlxmq::job("consensus_honesty_settlement")]
+pub async fn consensus_honesty_settlement(
+    mut job: CurrentJob,
+    ctx: WorkerCtx,
+) -> Result<(), BoxError> {
+    let span = tracing::info_span!("job.consensus_honesty_settlement", job_id = %job.id());
+    async move {
+        let settled = cymbra_worker::settle_consensus_honesty(&ctx.admin_pool).await?;
+        if settled > 0 {
+            tracing::info!(settled, "consensus honesty settlement complete");
+        }
+        job.complete().await?;
+        Ok(())
+    }
+    .instrument(span)
+    .await
+}
+
 /// Build the job registry with all handlers registered and the shared context set.
 pub fn registry(ctx: WorkerCtx) -> JobRegistry {
     let mut registry = JobRegistry::new(&[
@@ -254,6 +275,7 @@ pub fn registry(ctx: WorkerCtx) -> JobRegistry {
         play_detail_prune,
         usage_rollup,
         usage_purge,
+        consensus_honesty_settlement,
     ]);
     registry.set_context(ctx);
     registry

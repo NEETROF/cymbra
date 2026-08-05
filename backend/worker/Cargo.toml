@@ -29,6 +29,9 @@ cymbra-auth = { path = "../auth" }
 # feature-usage-analytics, D4).
 cymbra-analytics = { path = "../analytics" }
 cymbra-feature-flags = { path = "../feature-flags" }
+# The consensus honesty-settlement sweep runs the music module's rewards logic
+# (change: add-curation-rewards, task 3.2).
+cymbra-music = { path = "../music" }
 sqlxmq.workspace = true
 sqlx.workspace = true
 uuid.workspace = true
@@ -45,6 +48,3 @@ humantime.workspace = true
 
 [dev-dependencies]
 tokio = { workspace = true }
-# The purge integration test seeds + migrates the `music` schema to assert the
-# saved-catalog library is erased on account deletion (change: score-hub-search).
-cymbra-music = { path = "../music" }

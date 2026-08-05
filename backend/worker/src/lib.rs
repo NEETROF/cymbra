@@ -127,8 +127,42 @@ pub async fn purge_user(admin_pool: &PgPool, user_id: &str) -> anyhow::Result<()
         .execute(&mut *tx)
         .await?;
 
+    // The user's curation-rewards data (change: add-curation-rewards): the append-only
+    // points ledger, durable grants (redeemed rewards + earned badges), and the
+    // engagement signal — all keyed by user_id (no cross-schema FK, so no cascade);
+    // erase them in the same transaction so no rewards data outlives the account. The
+    // per-rating settlement state lives on `score_ratings`, which the user does not own
+    // (a rating references a public catalog score), so it is not erased here — it is
+    // aggregate curation signal, not personal data.
+    for table in [
+        "music.curation_points",
+        "music.curation_grants",
+        "music.score_engagements",
+    ] {
+        sqlx::query(&format!("DELETE FROM {table} WHERE user_id = $1"))
+            .bind(uid)
+            .execute(&mut *tx)
+            .await?;
+    }
+
     tx.commit().await?;
     Ok(())
+}
+
+/// Settle honesty by community consensus (change: add-curation-rewards, task 3.2) —
+/// the worker side of the [`cymbra_music::CurationRewardsModule::run_consensus_sweep`]
+/// sweep. For each score past the consensus minimum, freezes its aggregate as truth
+/// and settles each still-unsettled rating's honesty bonus. Idempotent (guarded by
+/// the per-rating + per-score settlement state), so at-least-once redelivery is safe.
+/// Returns the number of ratings settled. Runs as `admin_svc` (the only worker actor
+/// allowed to write `music`).
+pub async fn settle_consensus_honesty(admin_pool: &PgPool) -> anyhow::Result<u64> {
+    let repo = std::sync::Arc::new(cymbra_music::PgCurationRewardsRepo::new(admin_pool.clone()));
+    let module = cymbra_music::CurationRewardsModule::new(repo);
+    module
+        .run_consensus_sweep()
+        .await
+        .map_err(|e| anyhow::anyhow!("consensus honesty settlement: {e}"))
 }
 
 /// Prune the heavy per-session play detail past its retention window (change:

@@ -29,18 +29,24 @@ use tonic::{Request, Response, Status};
 use crate::catalog_edit::MetadataChanges;
 use crate::catalog_limits::CatalogAccessLimiter;
 use crate::catalog_search::{CatalogHit, CatalogQuery, SortKey, is_moderation_sort_field};
+use crate::curation_rewards::{CuratorMetrics, LedgerEntry};
+use crate::curation_rewards_core::BADGES;
+use crate::curation_rewards_module::{CurationRewardsModule, CuratorRewards};
 use crate::module::{ScoreModule, UploadInput};
 use crate::proto::{
     AdminListSoundFontsRequest, AdminListSoundFontsResponse, AdminSoundFont,
-    CatalogHit as ProtoCatalogHit, DeleteScoreRequest, DeleteScoreResponse, DeleteSoundFontRequest,
-    DeleteSoundFontResponse, GetCatalogScoreBytesRequest, GetCatalogScoreBytesResponse,
-    GetCatalogScoreRequest, GetRatingPreviewBytesRequest, GetRatingPreviewBytesResponse,
+    CatalogHit as ProtoCatalogHit, CuratorBadge, CuratorReliability,
+    CuratorRewards as ProtoRewards, DeleteScoreRequest, DeleteScoreResponse,
+    DeleteSoundFontRequest, DeleteSoundFontResponse, GetCatalogScoreBytesRequest,
+    GetCatalogScoreBytesResponse, GetCatalogScoreRequest, GetCuratorReliabilityRequest,
+    GetCuratorRewardsRequest, GetRatingPreviewBytesRequest, GetRatingPreviewBytesResponse,
     GetScoreBytesRequest, GetScoreBytesResponse, ListMyScoresRequest, ListMyScoresResponse,
-    ListRatingDeckRequest, ListRatingDeckResponse, ListSavedCatalogScoresRequest,
-    ListSavedCatalogScoresResponse, ListSoundFontsRequest, ListSoundFontsResponse,
-    ProposeScoreRequest, ProposeScoreResponse, RemoveSavedCatalogScoreRequest,
-    RemoveSavedCatalogScoreResponse, SaveCatalogScoreRequest, SaveCatalogScoreResponse,
-    ScoreRecord, SearchCatalogRequest, SearchCatalogResponse, SetModerationStatusRequest,
+    ListRatingDeckRequest, ListRatingDeckResponse, ListRewardShopRequest, ListRewardShopResponse,
+    ListSavedCatalogScoresRequest, ListSavedCatalogScoresResponse, ListSoundFontsRequest,
+    ListSoundFontsResponse, ProposeScoreRequest, ProposeScoreResponse, RedeemRewardRequest,
+    RedeemRewardResponse, RemoveSavedCatalogScoreRequest, RemoveSavedCatalogScoreResponse,
+    RewardActivity, RewardShopItem, SaveCatalogScoreRequest, SaveCatalogScoreResponse, ScoreRecord,
+    SearchCatalogRequest, SearchCatalogResponse, SetModerationStatusRequest,
     SetModerationStatusResponse, SetScoreFavoriteRequest, SetScoreFavoriteResponse,
     SetSoundFontModerationStatusRequest, SetSoundFontModerationStatusResponse,
     SoundFont as ProtoSoundFont, SubmitScoreRatingRequest, SubmitScoreRatingResponse,
@@ -67,6 +73,10 @@ pub struct ScoreGrpc {
     /// so `DeleteSoundFont` can remove the object alongside the row and the admin list
     /// can report object presence. `None` when the store is unconfigured.
     soundfont_store: Option<Arc<dyn ObjectStorage>>,
+    /// Curation-rewards service (change: add-curation-rewards). `None` leaves the
+    /// reward RPCs reporting the feature as unavailable; production wires it via
+    /// [`Self::with_rewards`].
+    rewards: Option<Arc<CurationRewardsModule>>,
 }
 
 impl ScoreGrpc {
@@ -76,7 +86,21 @@ impl ScoreGrpc {
             limiter: None,
             soundfonts: None,
             soundfont_store: None,
+            rewards: None,
         }
+    }
+
+    /// Attach the curation-rewards service that backs the reward RPCs.
+    pub fn with_rewards(mut self, rewards: Arc<CurationRewardsModule>) -> Self {
+        self.rewards = Some(rewards);
+        self
+    }
+
+    /// The wired rewards service, or `UNAVAILABLE` when unconfigured.
+    fn rewards(&self) -> Result<&Arc<CurationRewardsModule>, Status> {
+        self.rewards
+            .as_ref()
+            .ok_or_else(|| Status::unavailable("curation rewards unavailable"))
     }
 
     /// Attach the per-user access limiter that guards browse/search/download egress.
@@ -214,6 +238,71 @@ fn to_hit(h: CatalogHit) -> ProtoCatalogHit {
         contributor_credit: h.contributor_credit,
         review_reason: h.review_reason,
         resubmission_note: h.resubmission_note,
+    }
+}
+
+/// Map the domain curator standing to the wire type (change: add-curation-rewards),
+/// building the FULL badge grid (earned + locked with milestone hints) from [`BADGES`].
+fn to_proto_rewards(r: CuratorRewards) -> ProtoRewards {
+    let earned: std::collections::HashSet<&str> =
+        r.earned_badges.iter().map(String::as_str).collect();
+    let badges = BADGES
+        .iter()
+        .map(|b| CuratorBadge {
+            key: b.key.to_string(),
+            metric: b.metric.as_str().to_string(),
+            threshold: b.threshold,
+            earned: earned.contains(b.key),
+        })
+        .collect();
+    ProtoRewards {
+        lifetime_points: r.lifetime_points,
+        spendable_balance: r.spendable_balance,
+        level: r.level,
+        level_floor: r.level_floor,
+        next_level_at: r.next_level_at,
+        total_ratings: r.metrics.total_ratings,
+        coverage_contribution: r.metrics.coverage_contribution,
+        alignment_rate: r.metrics.alignment_rate(),
+        badges,
+        recent: r.recent.into_iter().map(to_proto_activity).collect(),
+    }
+}
+
+/// Map one ledger entry to the wire activity feed row.
+fn to_proto_activity(e: LedgerEntry) -> RewardActivity {
+    RewardActivity {
+        kind: e.kind.as_str().to_string(),
+        amount: e.amount.clamp(i32::MIN as i64, i32::MAX as i64) as i32,
+        catalog_id: e.catalog_score_id,
+        reward_key: e.reward_key,
+        source: e.source.map(|s| s.as_str().to_string()),
+        created_at: e.created_at_ms,
+    }
+}
+
+/// Map one reward-shop item to the wire type.
+fn to_proto_shop_item(i: crate::curation_rewards::ShopItem) -> RewardShopItem {
+    RewardShopItem {
+        key: i.key,
+        label: i.label,
+        instrument: i.instrument,
+        license: i.license,
+        attribution: i.attribution.unwrap_or_default(),
+        point_cost: i.point_cost.clamp(0, i32::MAX as i64) as i32,
+        redeemable: i.redeemable,
+        owned: i.owned,
+    }
+}
+
+/// Map curator metrics to the back-office reliability wire type.
+fn to_proto_reliability(m: CuratorMetrics) -> CuratorReliability {
+    CuratorReliability {
+        total_ratings: m.total_ratings,
+        coverage_contribution: m.coverage_contribution,
+        alignment_rate: m.alignment_rate(),
+        settled_count: m.settled_count,
+        aligned_count: m.aligned_count,
     }
 }
 
@@ -629,8 +718,59 @@ impl ScoreService for ScoreGrpc {
         let id = identity(&req)?;
         self.guard_download(&id).await?; // shares the per-user download guardrail
         let catalog_id = req.into_inner().catalog_id;
-        let data = self.module.rating_preview_bytes(&catalog_id).await?;
+        let data = self
+            .module
+            .rating_preview_bytes(&id.user_id, &catalog_id)
+            .await?;
         Ok(Response::new(GetRatingPreviewBytesResponse { data }))
+    }
+
+    async fn get_curator_rewards(
+        &self,
+        req: Request<GetCuratorRewardsRequest>,
+    ) -> Result<Response<ProtoRewards>, Status> {
+        // The signed-in curator's own standing (change: add-curation-rewards).
+        let user_id = owner(&req)?;
+        let rewards = self.rewards()?.get_rewards(&user_id).await?;
+        Ok(Response::new(to_proto_rewards(rewards)))
+    }
+
+    async fn list_reward_shop(
+        &self,
+        req: Request<ListRewardShopRequest>,
+    ) -> Result<Response<ListRewardShopResponse>, Status> {
+        let user_id = owner(&req)?;
+        let items = self.rewards()?.list_shop(&user_id).await?;
+        Ok(Response::new(ListRewardShopResponse {
+            items: items.into_iter().map(to_proto_shop_item).collect(),
+        }))
+    }
+
+    async fn redeem_reward(
+        &self,
+        req: Request<RedeemRewardRequest>,
+    ) -> Result<Response<RedeemRewardResponse>, Status> {
+        let user_id = owner(&req)?;
+        let key = req.into_inner().reward_key;
+        let res = self.rewards()?.redeem(&user_id, &key).await?;
+        Ok(Response::new(RedeemRewardResponse {
+            owned: res.owned,
+            new_balance: res.new_balance,
+        }))
+    }
+
+    async fn get_curator_reliability(
+        &self,
+        req: Request<GetCuratorReliabilityRequest>,
+    ) -> Result<Response<CuratorReliability>, Status> {
+        // Read-only per-user reliability indicator (design D7): MODERATOR/ADMIN only,
+        // informs manual promotion — never auto-promotes. A non-moderator/admin caller
+        // is refused before any read.
+        let id = identity(&req)?;
+        cymbra_platform::guard::require_moderator_or_admin(&id)?;
+        let user_id = req.into_inner().user_id;
+        let m = self.rewards()?.metrics(&user_id).await?;
+        Ok(Response::new(to_proto_reliability(m)))
     }
 
     async fn get_catalog_score(
@@ -703,7 +843,7 @@ impl ScoreService for ScoreGrpc {
         // verdict/stars and rejects a non-`accepted`/unknown target.
         let user_id = owner(&req)?;
         let r = req.into_inner();
-        let agg = self
+        let (agg, points) = self
             .module
             .submit_rating(&user_id, &r.catalog_id, &r.verdict, r.stars)
             .await?;
@@ -713,6 +853,7 @@ impl ScoreService for ScoreGrpc {
             dislike_count: agg.dislike.clamp(0, i32::MAX as i64) as i32,
             like_count: agg.like.clamp(0, i32::MAX as i64) as i32,
             love_count: agg.love.clamp(0, i32::MAX as i64) as i32,
+            points_awarded: points.clamp(0, i32::MAX as i64) as i32,
         }))
     }
 

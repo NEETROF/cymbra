@@ -263,6 +263,11 @@ message SubmitScoreRatingResponse {
   int32 dislike_count = 3;
   int32 like_count = 4;
   int32 love_count = 5;
+  // Coverage points earned by THIS rating (change: add-curation-rewards): a
+  // diminishing, daily-capped, engagement-gated award, so the app can show an
+  // immediate "+N" cue. 0 when nothing was awarded (capped / not engaged /
+  // already rated / a fully-covered score).
+  int32 points_awarded = 6;
 }
 
 // Source the swipe-rating deck (change: improve-rating-deck-sourcing): the caller's
@@ -364,6 +369,82 @@ message SetSoundFontModerationStatusRequest {
 
 message SetSoundFontModerationStatusResponse {}
 
+// --- Curation rewards (change: add-curation-rewards) -------------------------
+// The signed-in curator's points economy: coverage points (immediate,
+// diminishing, daily-capped, engagement-gated) + a deferred honesty bonus settled
+// against ground truth; levels + earned badges from LIFETIME points; a spendable
+// balance (lifetime − redeemed) spent in a reward shop. All authenticated; the
+// reliability read is moderator/admin only.
+
+message GetCuratorRewardsRequest {}
+
+// One badge in the full grid: earned or locked (with its milestone hint).
+message CuratorBadge {
+  string key = 1;       // stable key, e.g. "curator_1"
+  string metric = 2;    // rating_count | aligned_count | first_rater_count
+  int64 threshold = 3;  // the milestone that earns it (the locked hint)
+  bool earned = 4;      // whether the caller has earned it
+}
+
+// One recent points event, for the profile activity feed (esp. deferred honesty).
+message RewardActivity {
+  string kind = 1;              // coverage | honesty | adjustment | redeem
+  int32 amount = 2;            // signed (redeem is negative)
+  optional string catalog_id = 3;
+  optional string reward_key = 4;
+  optional string source = 5;  // consensus | moderator (honesty/adjustment only)
+  int64 created_at = 6;        // unix millis
+}
+
+message CuratorRewards {
+  int64 lifetime_points = 1;
+  int64 spendable_balance = 2;
+  int64 level = 3;
+  int64 level_floor = 4;    // lifetime that started the current level (progress floor)
+  int64 next_level_at = 5;  // lifetime needed for the next level (progress ceiling)
+  // Curator stats (the self-view mirror of the back-office reliability indicator).
+  int64 total_ratings = 6;
+  int64 coverage_contribution = 7;
+  double alignment_rate = 8;          // aligned / settled (0 when none settled)
+  repeated CuratorBadge badges = 9;   // full grid: earned + locked
+  repeated RewardActivity recent = 10; // newest first
+}
+
+message ListRewardShopRequest {}
+
+// A reward-shop item — a priced (or coming-soon) SoundFont from the catalog.
+message RewardShopItem {
+  string key = 1;        // soundfont id (the redeem key)
+  string label = 2;
+  string instrument = 3;
+  string license = 4;
+  string attribution = 5;
+  int32 point_cost = 6;
+  bool redeemable = 7;   // false = coming soon (listed, not redeemable yet)
+  bool owned = 8;        // already granted (or free/default)
+}
+
+message ListRewardShopResponse { repeated RewardShopItem items = 1; }
+
+message RedeemRewardRequest { string reward_key = 1; }
+
+message RedeemRewardResponse {
+  bool owned = 1;         // true on success (incl. an idempotent re-redeem)
+  int64 new_balance = 2;  // the caller's spendable balance after the redemption
+}
+
+// Per-user curator reliability (design D7). MODERATOR/ADMIN only — informs manual
+// promotion, never auto-promotes; a non-moderator/admin caller is refused.
+message GetCuratorReliabilityRequest { string user_id = 1; }
+
+message CuratorReliability {
+  int64 total_ratings = 1;
+  int64 coverage_contribution = 2;
+  double alignment_rate = 3;  // over SETTLED ratings only
+  int64 settled_count = 4;
+  int64 aligned_count = 5;
+}
+
 service ScoreService {
   rpc UploadScore(UploadScoreRequest) returns (ScoreRecord);
 
@@ -419,5 +500,14 @@ service ScoreService {
   // `pending` OR `accepted` score's bytes to preview it read-only in the deck before
   // rating. Distinct from GetCatalogScoreBytes (player open, accepted-only): it serves
   // pending too, but never rejected; it is not a player open and not a library save.
+  // Also records the engagement signal that gates coverage points (change:
+  // add-curation-rewards).
   rpc GetRatingPreviewBytes(GetRatingPreviewBytesRequest) returns (GetRatingPreviewBytesResponse);
+
+  // Curation rewards (change: add-curation-rewards). Authenticated.
+  rpc GetCuratorRewards(GetCuratorRewardsRequest) returns (CuratorRewards);
+  rpc ListRewardShop(ListRewardShopRequest) returns (ListRewardShopResponse);
+  rpc RedeemReward(RedeemRewardRequest) returns (RedeemRewardResponse);
+  // Per-user reliability indicator — MODERATOR/ADMIN only (informs manual promotion).
+  rpc GetCuratorReliability(GetCuratorReliabilityRequest) returns (CuratorReliability);
 }

@@ -31,6 +31,7 @@ use sha2::{Digest, Sha256};
 
 use crate::catalog_edit::{CurrentMeta, MetadataChanges, plan_edit};
 use crate::catalog_search::{CatalogHit, CatalogQuery, CatalogSearchParams, CatalogSearchRepo};
+use crate::curation_rewards::CurationRewardsSink;
 use crate::repo::{CatalogEntry, ScoreFacets, ScoreMeta};
 use crate::score_rating::{
     RatingAggregate, RatingConfig, ScoreRatingRepo, Verdict, is_flagged_for_review,
@@ -93,6 +94,11 @@ pub struct ScoreModule {
     /// when unset, reads carry no resolved names and propose still works (attribution is
     /// best-effort).
     user: Option<Arc<dyn cymbra_user_port::UserPort>>,
+    /// Curation-rewards producer seam (change: add-curation-rewards). `None` leaves
+    /// ratings/moderation fully functional with no points awarded (design Rollback);
+    /// wired via [`Self::with_rewards`]. The rating path records engagement + awards
+    /// coverage through it; the moderation path settles honesty through it.
+    rewards: Option<Arc<dyn CurationRewardsSink>>,
 }
 
 impl ScoreModule {
@@ -118,7 +124,16 @@ impl ScoreModule {
             max_bytes,
             rating_config: RatingConfig::default(),
             user: None,
+            rewards: None,
         }
+    }
+
+    /// Wire the curation-rewards seam (change: add-curation-rewards). The server
+    /// sets this; tests opt in with a fake. When unset, rating/moderation still
+    /// work and award nothing.
+    pub fn with_rewards(mut self, rewards: Arc<dyn CurationRewardsSink>) -> Self {
+        self.rewards = Some(rewards);
+        self
     }
 
     /// Override the hybrid re-review thresholds (design D4). Defaults to N=5,
@@ -405,6 +420,25 @@ impl ScoreModule {
         if !updated {
             return Err(AppError::NotFound("catalog score not found".into()));
         }
+        // Settle honesty against this moderator decision (change: add-curation-
+        // rewards): an accept/reject is a ground truth for every OTHER rater; a
+        // re-queue to `pending` is not a truth, so it settles nothing. The deciding
+        // moderator's own rating is skipped inside the sink (no self-settlement).
+        if let Some(rewards) = &self.rewards {
+            match status {
+                "accepted" => {
+                    rewards
+                        .settle_by_moderator(score_id, reviewer_id, true)
+                        .await?
+                }
+                "rejected" => {
+                    rewards
+                        .settle_by_moderator(score_id, reviewer_id, false)
+                        .await?
+                }
+                _ => {}
+            }
+        }
         Ok(())
     }
 
@@ -660,7 +694,7 @@ impl ScoreModule {
         catalog_id: &str,
         verdict: &str,
         stars: Option<i32>,
-    ) -> Result<RatingAggregate> {
+    ) -> Result<(RatingAggregate, i64)> {
         let verdict = Verdict::parse(verdict)?;
         let stars = match stars {
             None => None,
@@ -677,10 +711,24 @@ impl ScoreModule {
         if !self.is_pending_or_accepted(catalog_id).await? {
             return Err(AppError::NotFound("catalog score not found".into()));
         }
+        // Coverage points are sized by how covered the score ALREADY is — capture the
+        // count before this rating upserts (change: add-curation-rewards).
+        let existing = self.ratings.aggregate(catalog_id).await?.count;
         self.ratings
             .upsert(user_id, catalog_id, verdict, stars)
             .await?;
-        self.ratings.aggregate(catalog_id).await
+        let agg = self.ratings.aggregate(catalog_id).await?;
+        // Award coverage through the rewards seam (diminishing + capped + engagement-
+        // gated + once-per-score). No seam wired → no award, rating unaffected.
+        let points = match &self.rewards {
+            Some(rewards) => {
+                rewards
+                    .award_coverage(user_id, catalog_id, existing)
+                    .await?
+            }
+            None => 0,
+        };
+        Ok((agg, points))
     }
 
     /// The per-score rating aggregate (average effective value + count + verdict
@@ -803,9 +851,15 @@ impl ScoreModule {
     /// serves a `pending` score too so a signed-in rater can hear a candidate before
     /// rating it; a `rejected`/unknown id is a typed not-found. It is NOT a player
     /// open and does not affect library save — both stay `accepted`-only.
-    pub async fn rating_preview_bytes(&self, catalog_id: &str) -> Result<Vec<u8>> {
+    pub async fn rating_preview_bytes(&self, user_id: &str, catalog_id: &str) -> Result<Vec<u8>> {
         if !self.is_pending_or_accepted(catalog_id).await? {
             return Err(AppError::NotFound("catalog score not found".into()));
+        }
+        // Previewing a score IS the engagement signal that gates coverage points
+        // (change: add-curation-rewards): record it so a later rating of this score
+        // is eligible. Best-effort; failing to record must not block the preview.
+        if let Some(rewards) = &self.rewards {
+            rewards.record_engagement(user_id, catalog_id).await?;
         }
         // Status is already gated to pending/accepted here, so resolving the bytes in
         // any status (`true`) can only reach a previewable score.
@@ -1701,7 +1755,7 @@ mod tests {
     async fn submit_rating_upserts_a_single_row_and_returns_the_aggregate() {
         let (m, ratings) = rating_module();
         // First rating: a verdict-only like (implied 3.5).
-        let agg = m
+        let (agg, _points) = m
             .submit_rating("u1", DEBUSSY_1, "like", None)
             .await
             .unwrap();
@@ -1710,7 +1764,7 @@ mod tests {
         assert!((agg.avg_effective - 3.5).abs() < 1e-9);
         // The SAME user re-rates with explicit stars → the row is updated, not
         // duplicated, and the aggregate reflects the new value (5.0), not 3.5.
-        let agg = m
+        let (agg, _points) = m
             .submit_rating("u1", DEBUSSY_1, "love", Some(5))
             .await
             .unwrap();
