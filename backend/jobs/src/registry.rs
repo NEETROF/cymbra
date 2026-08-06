@@ -50,6 +50,13 @@ pub const CONSENSUS_HONESTY_SETTLEMENT: &str = "consensus_honesty_settlement";
 /// Idempotent (an already-snapshotted season is left untouched), so at-least-once
 /// delivery and a run on a day with no rollover are both safe.
 pub const GLOBAL_SEASON_SNAPSHOT: &str = "global_season_snapshot";
+/// Stable name of the generic push-notification dispatch (change:
+/// add-push-notifications, design D6). Payload `{ category, title, body, data?,
+/// user_ids?, default_pref? }`. Runs recipient selection for one category and
+/// sends. The platform ships no concrete notification *type*: a feature enqueues
+/// this job (or registers a `jobs.schedules` row for it) with its own category and
+/// message.
+pub const PUSH_DISPATCH: &str = "push_dispatch";
 
 /// Static description of one job type.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -154,6 +161,16 @@ pub fn builtin() -> Vec<JobSpec> {
             Channel::parallel("music", "maintenance"),
             RetryPolicy::new(3, Duration::from_secs(60), Duration::from_secs(3600)),
         ),
+        JobSpec::new(
+            PUSH_DISPATCH,
+            // Each dispatch targets one category and is independent → parallel, so
+            // a slow category never head-of-line blocks another's schedule hour.
+            Channel::parallel("notifications", "dispatch"),
+            // A retry re-runs selection, so it re-checks the hour gate and the
+            // kill-switch: a retry that lands outside the window sends nothing.
+            // Kept short so a retried send is still timely.
+            RetryPolicy::new(3, Duration::from_secs(60), Duration::from_secs(900)),
+        ),
     ]
 }
 
@@ -176,6 +193,17 @@ mod tests {
         assert!(names.contains(&PURGE_SCORE_OBJECT.to_string()));
         assert!(names.contains(&PLAY_DETAIL_PRUNE.to_string()));
         assert!(names.contains(&CONSENSUS_HONESTY_SETTLEMENT.to_string()));
+        assert!(names.contains(&PUSH_DISPATCH.to_string()));
+    }
+
+    #[test]
+    fn push_dispatch_is_parallel_on_its_own_channel() {
+        let s = spec(PUSH_DISPATCH).unwrap();
+        // Its own module channel: a notification send must not queue behind
+        // another module's maintenance sweep and miss its local hour.
+        assert_eq!(s.channel().name(), "notifications.dispatch");
+        assert!(!s.channel().is_ordered());
+        assert_eq!(s.default_retry().max_attempts(), 3);
     }
 
     #[test]

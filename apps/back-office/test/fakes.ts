@@ -51,6 +51,8 @@ export interface FakeState {
   listChangesCalls: { appFilter: string; key: string }[];
   flagDefs: unknown[];
   flagChanges: unknown[];
+  /** Make `listFlagDefinitions` reject, so a caller's error branch is exercised. */
+  failFlags?: boolean;
 }
 
 // Build a fake `Clients` recording calls, castable to the real (large) generated
@@ -80,6 +82,7 @@ export function makeFakeClients(state: Partial<FakeState> = {}): { clients: Clie
     listChangesCalls: [],
     flagDefs: state.flagDefs ?? [],
     flagChanges: state.flagChanges ?? [],
+    failFlags: state.failFlags,
   };
   const clients = {
     auth: {
@@ -143,6 +146,7 @@ export function makeFakeClients(state: Partial<FakeState> = {}): { clients: Clie
     flags: {
       listFlagDefinitions: async (req: { appFilter: string }) => {
         s.listDefinitionsCalls.push(req);
+        if (s.failFlags) throw new Error("flag store unavailable");
         return { definitions: s.flagDefs };
       },
       listFlagChanges: async (req: { appFilter?: string; key?: string }) => {

@@ -66,7 +66,8 @@
     "flags": "Feature flags",
     "soundfonts": "Sound fonts",
     "usage": "Usage",
-    "menu": "Menu"
+    "menu": "Menu",
+    "notifications": "Notifications"
   },
   "usage": {
     "title": "Feature usage",
@@ -91,6 +92,25 @@
     "byDeviceClass": "Users by device class",
     "actionBreakdown": "Action breakdown",
     "noData": "No data for this period"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "intro": "Push send configuration: the global kill-switch, and each notification category's enable and local schedule hour. Off is always the safe state — a disabled switch means no one is messaged. Categories appear here as the features that own them declare their notification type.",
+    "killSwitch": "Push notifications",
+    "killSwitchDoc": "Master switch. When off, no notification is sent for any category, whatever the per-category switches or users' preferences say.",
+    "colCategory": "Category",
+    "colEnabled": "Enabled",
+    "colHour": "Local hour",
+    "colActions": "Actions",
+    "on": "On",
+    "off": "Off",
+    "save": "Save",
+    "reset": "Reset to default",
+    "override": "override",
+    "hourFor": "local send hour for {category}",
+    "eventTriggered": "event-triggered",
+    "keyMissing": "not declared",
+    "noCategories": "No notification category is declared yet. One appears here as soon as a feature ships its notification type."
   },
   "soundfonts": {
     "title": "Sound fonts",

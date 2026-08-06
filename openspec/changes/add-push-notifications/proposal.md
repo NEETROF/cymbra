@@ -47,7 +47,7 @@ reminder etc. ship with their features); rich campaign/AB tooling.
 ## Capabilities
 
 ### New Capabilities
-- `push-notifications`: the server-driven push platform — an FCM device-token
+- `platform-push-notifications`: the server-driven push platform — an FCM device-token
   registry (iOS/Android/macOS), per-user timezone, per-category consent +
   flag-gated enablement, a mockable `PushSender` port with an FCM implementation, a
   recipient-selection core, and a worker entry point for scheduled/triggered sends.

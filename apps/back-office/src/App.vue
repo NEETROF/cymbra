@@ -39,6 +39,7 @@ const ICONS: Record<string, string> = {
   flags: "M4 22V4m0 0 8-2 8 3v9l-8-2-8 2",
   soundfonts: "M9 18V5l12-2v13M9 13l12-2M9 18a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm12-2a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z",
   usage: "M3 3v18h18M7 15l4-4 3 3 5-6",
+  notifications: "M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0",
 };
 
 const nav = computed(() => {
@@ -52,6 +53,7 @@ const nav = computed(() => {
       { to: "/flags", key: "nav.flags", icon: "flags" },
       { to: "/soundfonts", key: "nav.soundfonts", icon: "soundfonts" },
       { to: "/usage", key: "nav.usage", icon: "usage" },
+      { to: "/notifications", key: "nav.notifications", icon: "notifications" },
     );
   }
   return items;

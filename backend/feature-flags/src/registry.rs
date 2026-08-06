@@ -59,6 +59,37 @@ pub const DATA_RETENTION_PLAY_DETAIL_DAYS: &str = "data.retention.play_detail_da
 /// months). BO-editable so retention is retuned without a redeploy.
 pub const DATA_RETENTION_USAGE_EVENTS_DAYS: &str = "data.retention.usage_events_days";
 
+// --- push notifications (change: add-push-notifications, design D4) ----------
+//
+// The platform declares ONE key — the global kill-switch. Every other key is
+// per-**category**, and categories are owned by the features that declare them,
+// so a feature adds its own two keys (built by [`category_enabled_key`] and
+// [`category_hour_key`]) to this registry when its notification type lands. The
+// back office renders whatever it finds under the [`NOTIFICATIONS_KEY_PREFIX`].
+
+/// Common prefix of every push-notification key — how the back-office panel
+/// discovers the categories currently declared.
+pub const NOTIFICATIONS_KEY_PREFIX: &str = "notifications.";
+
+/// Global push kill-switch. Off = **no** notification is sent for any category,
+/// whatever the per-category flags or user preferences say. Defaults off (the
+/// safe direction): a store outage, or simply an unconfigured FCM project, must
+/// never result in messaging users.
+pub const NOTIFICATIONS_ENABLED: &str = "notifications.enabled";
+
+/// The per-category enable key for `category`, e.g.
+/// `notifications.category.practice_streak.enabled`.
+pub fn category_enabled_key(category: &str) -> String {
+    format!("{NOTIFICATIONS_KEY_PREFIX}category.{category}.enabled")
+}
+
+/// The per-category schedule-hour key for `category`, e.g.
+/// `notifications.category.practice_streak.hour`. The value is the **local** hour
+/// (0–23) at which the category's scheduled send fires for each user.
+pub fn category_hour_key(category: &str) -> String {
+    format!("{NOTIFICATIONS_KEY_PREFIX}category.{category}.hour")
+}
+
 /// A single declared key.
 #[derive(Debug, Clone, PartialEq)]
 pub struct KeyDef {
@@ -180,6 +211,15 @@ pub fn builtin() -> Vec<KeyDef> {
             true,
             false,
             "Feature-usage analytics collection master switch (defaults on; flip off to stop all clients emitting usage events without a release).",
+        ),
+        // Push kill-switch: safe state is OFF — an unconfigured or misbehaving
+        // send path must never message users (change: add-push-notifications).
+        flag(
+            NOTIFICATIONS_ENABLED,
+            APP_ALL,
+            false,
+            false,
+            "Global push-notification kill-switch: off suppresses every category's sends.",
         ),
         // -- config tunables --
         cfg(
@@ -347,9 +387,42 @@ mod tests {
             LEADERBOARD_GLOBAL_ENABLED,
             ONBOARDING_ENABLED,
             PLATFORM_MAINTENANCE,
+            NOTIFICATIONS_ENABLED,
         ] {
             assert_eq!(r.get_by_key(key).unwrap().default, FlagValue::Bool(false));
         }
+    }
+
+    #[test]
+    fn notification_category_keys_are_namespaced_under_the_panel_prefix() {
+        // The BO panel discovers categories by prefix, so both per-category keys
+        // must sit under it alongside the kill-switch.
+        assert!(NOTIFICATIONS_ENABLED.starts_with(NOTIFICATIONS_KEY_PREFIX));
+        assert_eq!(
+            category_enabled_key("practice_streak"),
+            "notifications.category.practice_streak.enabled"
+        );
+        assert_eq!(
+            category_hour_key("practice_streak"),
+            "notifications.category.practice_streak.hour"
+        );
+        for k in [category_enabled_key("x"), category_hour_key("x")] {
+            assert!(k.starts_with(NOTIFICATIONS_KEY_PREFIX), "{k}");
+        }
+    }
+
+    #[test]
+    fn no_concrete_notification_category_ships_with_the_platform() {
+        // The platform declares the kill-switch only; a category's two keys are
+        // added by the feature that owns the type (design D6).
+        let category_keys: Vec<_> = builtin()
+            .into_iter()
+            .filter(|d| d.key.starts_with("notifications.category."))
+            .collect();
+        assert!(
+            category_keys.is_empty(),
+            "platform must ship no concrete category: {category_keys:?}"
+        );
     }
 
     #[test]

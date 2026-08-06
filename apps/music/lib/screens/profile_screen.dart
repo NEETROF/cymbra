@@ -20,8 +20,10 @@ import '../analytics/usage_actions.dart';
 import '../l10n/gen/app_localizations.dart';
 import '../services/profile_service.dart';
 import '../state/coaching_notifier.dart';
+import '../state/notification_prefs.dart';
 import '../state/play_activity_notifier.dart';
 import '../state/profile_notifier.dart';
+import '../state/push_categories.dart';
 import '../state/session_notifier.dart';
 import '../state/usage_consent.dart';
 import '../state/usage_tracking_notifier.dart';
@@ -107,6 +109,10 @@ class _ProfileBody extends ConsumerWidget {
             // Usage-analytics consent grouped with visibility: both are
             // profile-level privacy settings (moved off the account menu).
             const _UsageConsentToggle(),
+            // Per-category notification switches (change: add-push-notifications),
+            // grouped with the other profile-level preferences. Renders nothing
+            // until a feature declares its notification type.
+            const _NotificationCategoryToggles(),
           ],
           const SizedBox(height: 24),
           _ActivitySection(targetId: targetId),
@@ -298,6 +304,38 @@ class _UsageConsentToggle extends ConsumerWidget {
       title: Text(l10n.usageAnalyticsSetting),
       value: enabled,
       onChanged: (value) => ref.read(usageConsentProvider.notifier).set(value),
+    );
+  }
+}
+
+/// One switch per declared notification category (change: add-push-notifications),
+/// sitting with the other self-only profile preferences.
+///
+/// The list is **empty** until a feature declares its notification type, so this
+/// renders nothing today — adding a category is the only change needed to grow a
+/// switch here. The UI calls the notifier, never the registry service.
+class _NotificationCategoryToggles extends ConsumerWidget {
+  const _NotificationCategoryToggles();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    final categories = ref.watch(pushCategoriesProvider);
+    if (categories.isEmpty) return const SizedBox.shrink();
+    // Watched (not read) so a flipped switch re-renders.
+    ref.watch(notificationPrefsProvider);
+    final prefs = ref.read(notificationPrefsProvider.notifier);
+    return Column(
+      children: [
+        for (final category in categories)
+          SwitchListTile.adaptive(
+            key: Key('profile-notification-${category.id}'),
+            contentPadding: EdgeInsets.zero,
+            title: Text(category.label(l10n)),
+            value: prefs.isEnabled(category),
+            onChanged: (value) => prefs.setEnabled(category, value),
+          ),
+      ],
     );
   }
 }

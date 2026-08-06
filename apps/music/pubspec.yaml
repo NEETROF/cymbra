@@ -109,6 +109,23 @@ dependencies:
   # seam so the sender is testable without the native plugin.
   connectivity_plus: ^6.1.0
 
+  # Push notifications (change: add-push-notifications). ONE provider — FCM —
+  # reaches iOS, Android and macOS (Apple platforms via FCM→APNs bridging);
+  # Windows/Linux are not FCM-capable and register nothing. Both sit behind the
+  # injectable `pushServiceProvider` seam, so state/widgets are testable without
+  # the native SDK, and initialization is guarded: with no Firebase config
+  # present the app reports push as unsupported instead of failing to start.
+  # See docs/push-notifications-setup.md for the one-time platform setup.
+  firebase_core: ^3.8.0
+  firebase_messaging: ^15.1.5
+
+  # The device's IANA timezone name (e.g. "Europe/Paris"), reported to the server
+  # so a scheduled notification fires at the user's LOCAL hour. Dart core only
+  # exposes an abbreviation ("CEST") and a UTC offset, neither of which survives
+  # DST correctly — the backend requires an IANA name. Behind the injectable
+  # `timezoneServiceProvider` seam (change: add-push-notifications).
+  flutter_timezone: ^3.0.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

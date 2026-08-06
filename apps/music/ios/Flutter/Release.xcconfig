@@ -7,3 +7,10 @@
 // Secrets.example.xcconfig).
 GOOGLE_OAUTH_CLIENT_SUFFIX = REPLACE_WITH_REVERSED_GOOGLE_CLIENT_ID
 #include? "Secrets.xcconfig"
+
+// APNs environment for the push entitlement (change: add-push-notifications).
+// `development` is the only value a development provisioning profile allows, so it
+// is the safe default for Debug, Profile AND a local Release build. The tagged
+// release workflow appends `APS_ENVIRONMENT = production` here, next to the manual
+// signing settings, so only the App Store archive claims production APNs.
+APS_ENVIRONMENT = development

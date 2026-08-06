@@ -1,0 +1,68 @@
+syntax = "proto3";
+
+package cymbra.notifications.v1;
+
+// NotificationService — the client-facing surface of the push platform (change:
+// add-push-notifications). Every method acts on the **authenticated caller**: the
+// account written is resolved from the internal access token, never from the
+// request body.
+//
+// The platform ships no concrete notification *type*: `category` is an opaque
+// identifier owned by the feature that declares one (e.g. "practice_streak").
+
+// --- device-token registry (design D2) --------------------------------------
+
+// Register or refresh this device's FCM token. Idempotent: re-registering the
+// same token refreshes its last-seen (and re-points it at the caller if the
+// device changed hands). Only FCM-capable platforms call this — `platform` is
+// one of `ios`, `android`, `macos`; Windows/Linux clients never register.
+message RegisterPushTokenRequest {
+  string token = 1;
+  string platform = 2;
+}
+message RegisterPushTokenResponse {}
+
+// Drop this device's token (logout). A no-op when the token is unknown or owned
+// by someone else — a caller can only unregister its own device.
+message UnregisterPushTokenRequest { string token = 1; }
+message UnregisterPushTokenResponse {}
+
+// --- consent + scheduling (design D3/D4) ------------------------------------
+
+// Set the caller's preference for one notification category. Absent preference
+// means "no explicit choice" and the category's product default applies.
+message SetNotificationPrefRequest {
+  string category = 1;
+  bool enabled = 2;
+}
+message SetNotificationPrefResponse {}
+
+// Set/refresh the caller's timezone as an IANA name (e.g. "Europe/Paris") so a
+// schedule expressed in local hours fires at the right moment. An empty value is
+// a no-op that leaves any stored timezone unchanged.
+message SetTimezoneRequest { string timezone = 1; }
+message SetTimezoneResponse {}
+
+// One stored category preference.
+message CategoryPref {
+  string category = 1;
+  bool enabled = 2;
+}
+
+// The caller's current notification settings, so the client can render its
+// toggles from server truth rather than local state.
+message GetNotificationSettingsRequest {}
+message GetNotificationSettingsResponse {
+  repeated CategoryPref prefs = 1;
+  optional string timezone = 2;
+  // Whether this account currently has at least one registered device token.
+  bool has_registered_device = 3;
+}
+
+service NotificationService {
+  rpc RegisterPushToken(RegisterPushTokenRequest) returns (RegisterPushTokenResponse);
+  rpc UnregisterPushToken(UnregisterPushTokenRequest) returns (UnregisterPushTokenResponse);
+  rpc SetNotificationPref(SetNotificationPrefRequest) returns (SetNotificationPrefResponse);
+  rpc SetTimezone(SetTimezoneRequest) returns (SetTimezoneResponse);
+  rpc GetNotificationSettings(GetNotificationSettingsRequest) returns (GetNotificationSettingsResponse);
+}

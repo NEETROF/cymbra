@@ -28,6 +28,7 @@ import 'src/rust/frb_generated.dart';
 import 'state/app_locale.dart';
 import 'widgets/post_play_rating.dart';
 import 'state/language_sync_listener.dart';
+import 'state/push_registration_listener.dart';
 import 'state/selected_piano.dart';
 import 'state/usage_tracking_notifier.dart';
 import 'theme/cymbra_theme.dart';
@@ -139,9 +140,12 @@ class CymbraApp extends ConsumerWidget {
       builder: (context, child) =>
           Stack(children: [?child, const CoachLayer()]),
       // Reconcile the account language into the UI after sign-in (change:
-      // sync-account-language-preference), isolated in a dedicated listener.
+      // sync-account-language-preference), and register this device for push
+      // (change: add-push-notifications) — each isolated in a dedicated listener.
       home: const PostPlayRatingToastListener(
-        child: LanguageSyncListener(child: OnboardingGate()),
+        child: LanguageSyncListener(
+          child: PushRegistrationListener(child: OnboardingGate()),
+        ),
       ),
     );
   }

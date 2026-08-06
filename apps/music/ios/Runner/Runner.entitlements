@@ -2,6 +2,16 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<!-- APNs environment for push notifications (change: add-push-notifications).
+	     iOS uses ONE entitlements file for every configuration, so the value comes
+	     from a build setting: `development` by default (Flutter/*.xcconfig), and
+	     the tagged release job appends `APS_ENVIRONMENT = production` to
+	     Release.xcconfig alongside the manual-signing settings — an App Store
+	     upload with a `development` value is rejected. Requires the Push
+	     Notifications capability on the com.cymbra.music App ID and a
+	     provisioning profile regenerated with it. -->
+	<key>aps-environment</key>
+	<string>$(APS_ENVIRONMENT)</string>
 	<key>com.apple.developer.applesignin</key>
 	<array>
 		<string>Default</string>
