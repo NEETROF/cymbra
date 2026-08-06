@@ -2,7 +2,7 @@ import { Code, ConnectError } from "@connectrpc/connect";
 import { setClientsForTest } from "@/lib/api";
 import type { Clients } from "@/lib/transport";
 import { setWebAuthClientForTest, WebAuthError, type WebAuthClient } from "@/lib/web-auth";
-import { setUploadForTest } from "@/stores/soundfonts";
+import { setRegeneratePreviewForTest, setUploadForTest } from "@/stores/soundfonts";
 
 // E2E test seam (loaded ONLY when VITE_E2E=1 — see main.ts). Playwright seeds
 // `window.__CYMBRA_E2E__` with canned data via addInitScript before the app boots;
@@ -339,6 +339,16 @@ export function installE2EClients(): void {
       attribution: font.attribution,
       hasObject: true,
     });
+  });
+
+  // "Generate sample" is likewise an HTTP route (change:
+  // add-soundfont-entitlement-previews) — a successful regeneration is a no-op here
+  // (the preview object is server-side; the console only reflects success/failure).
+  setRegeneratePreviewForTest(async () => {
+    if (data.fail?.regeneratePreview) {
+      const f = data.fail.regeneratePreview;
+      throw new ConnectError(f.message, f.code as Code);
+    }
   });
 
   setClientsForTest(clients);
