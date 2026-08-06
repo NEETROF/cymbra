@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
+import { useI18n } from "vue-i18n";
 import { match } from "ts-pattern";
 import ScorePreview from "@/components/ScorePreview.vue";
 import SoundFontPicker from "@/components/SoundFontPicker.vue";
@@ -9,6 +10,7 @@ import { useScoreRenderer } from "@/composables/useScoreRenderer";
 import { useScorePlayer } from "@/composables/useScorePlayer";
 import { useSoundFontChoice } from "@/composables/useSoundFontChoice";
 import { type Async, idle, run } from "@/lib/async";
+import { useToastsStore } from "@/stores/toasts";
 import type { ModerationStatus } from "@/stores/catalog";
 import type { CatalogHit } from "@/gen/score_pb";
 
@@ -16,6 +18,8 @@ import type { CatalogHit } from "@/gen/score_pb";
 // queue is empty. Keyboard-driven for speed. Reuses the preview + playback stack.
 const router = useRouter();
 const session = useReviewSession();
+const toasts = useToastsStore();
+const { t } = useI18n();
 
 // Bytes for the current score (prefetched by the session), fed to the renderer + player.
 const bytes = ref<Async<Uint8Array>>(idle);
@@ -63,7 +67,13 @@ watch(
 );
 
 const acting = computed(() => session.deciding.value.status === "loading");
-const decideError = computed(() => session.deciding.value.status === "error");
+// A failed decision surfaces as a toast (the queue load error stays inline).
+watch(
+  () => session.deciding.value,
+  (d) => {
+    if (d.status === "error") toasts.error(t("review.decideError"));
+  },
+);
 
 // The moderator's rejection motive, surfaced back to a user-proposer (change:
 // add-score-catalog-proposal). Only sent on a reject; cleared after each decision.
@@ -135,8 +145,6 @@ const currentHit = computed(() => session.current.value as CatalogHit | null);
     </div>
     <button type="button" @click="router.push({ name: 'music-queue' })">{{ $t("review.back") }}</button>
   </div>
-
-  <p v-if="decideError" class="error" role="alert">{{ $t("review.decideError") }}</p>
 
   <!-- Empty / done -->
   <div v-if="session.done.value" class="review-empty">

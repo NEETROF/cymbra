@@ -137,7 +137,8 @@ function openGlobal() {
     </div>
 
     <p v-if="vm.error" class="error" role="alert">{{ vm.error }}</p>
-    <p v-if="opError && !activeRow" class="error" role="alert">{{ opError }}</p>
+    <!-- Flag save/clear errors surface in the edit drawer (where the action happens);
+         only the list load error stays inline here. -->
     <p v-if="vm.loading" class="muted">{{ t("common.loading") }}</p>
 
     <div v-else class="table-card">

@@ -11,7 +11,13 @@ const { t } = useI18n();
 <template>
   <div class="toast-host" role="region" aria-live="polite" :aria-label="t('toast.region')">
     <TransitionGroup name="toast">
-      <div v-for="toast in toasts.items" :key="toast.id" class="toast" :class="toast.variant" role="status">
+      <div
+        v-for="toast in toasts.items"
+        :key="toast.id"
+        class="toast"
+        :class="toast.variant"
+        :role="toast.variant === 'error' ? 'alert' : 'status'"
+      >
         <span class="msg">{{ toast.message }}</span>
         <button type="button" class="close" :aria-label="t('toast.dismiss')" @click="toasts.dismiss(toast.id)">
           <svg

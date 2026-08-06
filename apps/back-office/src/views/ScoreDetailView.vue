@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { match } from "ts-pattern";
 import ScorePreview from "@/components/ScorePreview.vue";
@@ -7,6 +7,7 @@ import ScoreEditForm from "@/components/ScoreEditForm.vue";
 import SoundFontPicker from "@/components/SoundFontPicker.vue";
 import { useCatalogStore, type MetadataEdit, type ModerationStatus } from "@/stores/catalog";
 import { useAuthStore } from "@/stores/auth";
+import { useToastsStore } from "@/stores/toasts";
 import { type Async, idle, run } from "@/lib/async";
 import { useScoreRenderer } from "@/composables/useScoreRenderer";
 import { useScorePlayer } from "@/composables/useScorePlayer";
@@ -16,6 +17,7 @@ import type { CatalogHit } from "@/gen/score_pb";
 const props = defineProps<{ id: string }>();
 const store = useCatalogStore();
 const auth = useAuthStore();
+const toasts = useToastsStore();
 const router = useRouter();
 
 // The detail view is self-sufficient: it fetches the score's metadata AND bytes by
@@ -59,10 +61,13 @@ const { fonts, selectedId, sf2Bytes, loading: soundLoading, error: soundError } 
 // Audio playback + playhead clock (Play/Pause only), reusing the app's synth/schedule.
 const player = useScorePlayer(scoreBytes, sf2Bytes);
 const acting = computed(() => decision.value.status === "loading");
-const decisionError = computed(() =>
-  match(decision.value)
-    .with({ status: "error" }, ({ error }) => error)
-    .otherwise(() => null),
+// A failed moderation decision (accept/reject/re-queue) surfaces as a toast; the
+// score LOAD error stays inline, and the edit-form error stays in the form.
+watch(
+  () => decision.value,
+  (d) => {
+    if (d.status === "error") toasts.error(d.error);
+  },
 );
 
 onMounted(() => {
@@ -115,7 +120,6 @@ async function saveEdit(edit: MetadataEdit) {
   </div>
   <h1 class="page-title detail-title">{{ hitVm.hit?.title || $t("detail.score") }}</h1>
   <p v-if="hitVm.error" class="error" role="alert">{{ hitVm.error }}</p>
-  <p v-if="decisionError" class="error" role="alert">{{ decisionError }}</p>
   <!-- Origin: the score's source, plus the proposer's pseudo for a user upload
        (privileged read — change: add-score-catalog-proposal). -->
   <p v-if="hitVm.hit" class="origin">
