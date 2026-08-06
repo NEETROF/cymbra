@@ -404,16 +404,26 @@ impl ScoreService for ScoreGrpc {
             .list_accepted()
             .await
             .map_err(|e| Status::internal(format!("list soundfonts: {e}")))?;
-        let soundfonts = fonts
-            .into_iter()
-            .map(|f| ProtoSoundFont {
+        // `has_preview` lets the app grey a locked font's play control up front when no
+        // preview clip exists yet (change: add-soundfont-entitlement-previews).
+        let mut soundfonts = Vec::with_capacity(fonts.len());
+        for f in fonts {
+            let has_preview = match &self.soundfont_store {
+                Some(s) => s
+                    .size(&crate::soundfont_preview::preview_object_key(&f.id))
+                    .await
+                    .is_ok(),
+                None => false,
+            };
+            soundfonts.push(ProtoSoundFont {
                 id: f.id,
                 label: f.label,
                 license: f.license,
                 attribution: f.attribution.unwrap_or_default(),
                 instrument: f.instrument,
-            })
-            .collect();
+                has_preview,
+            });
+        }
         Ok(Response::new(ListSoundFontsResponse { soundfonts }))
     }
 
@@ -1159,6 +1169,41 @@ mod tests {
             .unwrap();
         let listed = svc
             .admin_list_sound_fonts(req())
+            .await
+            .unwrap()
+            .into_inner();
+        let row = listed
+            .soundfonts
+            .iter()
+            .find(|f| f.id == "ydp-grand")
+            .unwrap();
+        assert!(row.has_preview);
+    }
+
+    #[tokio::test]
+    async fn list_sound_fonts_reports_has_preview() {
+        let (svc, _repo, store) = grpc_soundfont_admin().await;
+        // No preview clip yet.
+        let listed = svc
+            .list_sound_fonts(authed(ListSoundFontsRequest {}, "u"))
+            .await
+            .unwrap()
+            .into_inner();
+        let row = listed
+            .soundfonts
+            .iter()
+            .find(|f| f.id == "ydp-grand")
+            .unwrap();
+        assert!(!row.has_preview);
+
+        // Once the preview object exists, the public listing reports it (drives the
+        // app's up-front greying of a locked font's play control).
+        store
+            .put("ydp-grand.preview.wav", b"RIFF....WAVE".to_vec())
+            .await
+            .unwrap();
+        let listed = svc
+            .list_sound_fonts(authed(ListSoundFontsRequest {}, "u"))
             .await
             .unwrap()
             .into_inner();

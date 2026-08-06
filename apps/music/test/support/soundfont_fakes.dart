@@ -222,6 +222,7 @@ PianoEntry fakeDownloadPiano({
   required String label,
   String license = 'CC-BY 3.0',
   String? attribution,
+  bool hasPreview = false,
 }) => PianoEntry(
   id: id,
   label: label,
@@ -229,6 +230,7 @@ PianoEntry fakeDownloadPiano({
   source: id,
   license: license,
   attribution: attribution,
+  hasPreview: hasPreview,
 );
 
 /// A user-kind [PianoEntry] for tests.

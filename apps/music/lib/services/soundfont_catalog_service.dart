@@ -70,6 +70,10 @@ class GrpcSoundFontCatalogService implements SoundFontCatalogService {
                 source: f.id,
                 license: f.license.isEmpty ? null : f.license,
                 attribution: f.attribution.isEmpty ? null : f.attribution,
+                // Whether a server preview clip exists (change:
+                // add-soundfont-entitlement-previews) — greys a locked font's play
+                // control up front when there is nothing to audition.
+                hasPreview: f.hasPreview,
               ),
             )
             .toList();

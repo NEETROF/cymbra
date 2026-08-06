@@ -403,7 +403,10 @@ void main() {
     final source = FakeSoundFontSource();
     final preview = FakeSoundFontPreviewService(available: {'grand'});
     final c = _container(
-      serverFonts: [fakeDownloadPiano(id: 'grand', label: 'Grand Piano')],
+      // The catalog reports a preview exists, so the control is a play button.
+      serverFonts: [
+        fakeDownloadPiano(id: 'grand', label: 'Grand Piano', hasPreview: true),
+      ],
       shop: [_reward('grand', owned: false)],
       source: source,
       preview: preview,
@@ -424,13 +427,13 @@ void main() {
     expect(find.byIcon(Icons.stop_circle), findsOneWidget);
   });
 
-  testWidgets('a locked font with no preview clip greys the play control', (
+  testWidgets('a locked font with no preview greys the play control up front', (
     tester,
   ) async {
     final source = FakeSoundFontSource();
-    // 'grand' is NOT in `available`, so the preview fetch reports 404.
     final preview = FakeSoundFontPreviewService(available: const {});
     final c = _container(
+      // The catalog reports no preview (hasPreview defaults to false).
       serverFonts: [fakeDownloadPiano(id: 'grand', label: 'Grand Piano')],
       shop: [_reward('grand', owned: false)],
       source: source,
@@ -438,14 +441,14 @@ void main() {
     );
     await _pump(tester, c);
 
-    await tester.tap(find.text('Grand Piano'));
-    await tester.pumpAndSettle();
-
-    // It attempted the preview (not a download) and, finding none, greyed the
-    // control rather than erroring — the locked font's bytes were never resolved.
-    expect(preview.auditioned, contains('grand'));
-    expect(source.resolved.map((e) => e.id), isNot(contains('grand')));
+    // Greyed UP FRONT — no tap needed (the catalog said there is no preview).
     expect(find.byIcon(Icons.music_off_outlined), findsOneWidget);
+
+    // The control is disabled: a tap does nothing (no audition, no download).
+    await tester.tap(find.text('Grand Piano'));
+    await tester.pump();
+    expect(preview.auditioned, isEmpty);
+    expect(source.resolved.map((e) => e.id), isNot(contains('grand')));
   });
 
   testWidgets('an owned reward font still auditions via the local synth', (

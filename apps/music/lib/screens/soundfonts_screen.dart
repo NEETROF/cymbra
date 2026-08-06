@@ -369,9 +369,10 @@ class _SoundFontsScreenState extends ConsumerState<SoundFontsScreen>
   Widget _buildCatalogCard(PianoEntry p, RewardShopItemView? item) {
     final locked =
         item != null && item.pointCost > 0 && item.redeemable && !item.owned;
-    // A locked font is auditioned via its preview clip; if that clip is absent the
-    // control is greyed (discovered on the first tap).
-    final noPreview = locked && _noPreview.contains(p.id);
+    // A locked font is auditioned via its preview clip. Grey the control **up front**
+    // when the catalog reports no preview (`!p.hasPreview`); `_noPreview` is a runtime
+    // fallback if a clip disappears between listing and tapping.
+    final noPreview = locked && (!p.hasPreview || _noPreview.contains(p.id));
     return _SoundCard(
       entry: p,
       playing: _previewingId == p.id,

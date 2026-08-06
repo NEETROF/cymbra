@@ -285,13 +285,17 @@ message ListRatingDeckResponse {
 
 // A selectable playback SoundFont in the server-owned catalog (change:
 // add-soundfont-catalog-db). `attribution` is empty when none is required;
-// `instrument` is the instrument family (e.g. "piano").
+// `instrument` is the instrument family (e.g. "piano"). `has_preview` reports
+// whether a server-rendered preview clip exists (change:
+// add-soundfont-entitlement-previews) — the app greys a locked font's play control
+// up front when no preview is available to audition.
 message SoundFont {
   string id = 1;
   string label = 2;
   string license = 3;
   string attribution = 4;
   string instrument = 5;
+  bool has_preview = 6;
 }
 
 message ListSoundFontsRequest {}
