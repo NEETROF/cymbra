@@ -27,6 +27,8 @@ import '../services/soundfont_catalog_service.dart'
     show serverSoundFontsProvider;
 import '../services/soundfont_importer.dart'
     show PickedSoundFont, SoundFontImportException, soundFontImporterProvider;
+import '../services/soundfont_preview_service.dart'
+    show SoundFontPreviewService, soundFontPreviewServiceProvider;
 import '../services/soundfont_source.dart' show soundFontSourceProvider;
 import '../state/imported_soundfonts.dart';
 import '../state/piano_catalog.dart';
@@ -68,12 +70,24 @@ class _SoundFontsScreenState extends ConsumerState<SoundFontsScreen>
   late final AudioService _audio;
   late final Ticker _ticker;
 
+  /// Preview-clip auditioner for **locked** reward fonts — plays the server-rendered
+  /// clip without ever downloading the font (change: add-soundfont-entitlement-previews).
+  late final SoundFontPreviewService _preview;
+
   /// The selected piano's font path, captured on entry so we can restore the
   /// synth when leaving (auditioning swaps the active font globally).
   String? _restorePath;
 
   /// The id of the sound currently being auditioned, or `null`.
   String? _previewingId;
+
+  /// Whether the current audition plays a server preview **clip** (locked font) vs.
+  /// the local synth (free/owned/imported) — so [_stopPreview] tears down the right one.
+  bool _previewViaClip = false;
+
+  /// Ids of locked fonts discovered to have **no** server preview clip yet — their
+  /// play control is greyed (degrade gracefully rather than erroring).
+  final Set<String> _noPreview = <String>{};
 
   bool _seeded = false;
   Duration _lastTick = Duration.zero;
@@ -85,6 +99,7 @@ class _SoundFontsScreenState extends ConsumerState<SoundFontsScreen>
     super.initState();
     _audio = ref.read(audioServiceProvider);
     unawaited(_audio.init());
+    _preview = ref.read(soundFontPreviewServiceProvider);
     _ticker = createTicker(_onTick);
     // Pre-warm the (kept-alive) audition sample so the first tap plays without a
     // parse delay.
@@ -104,6 +119,9 @@ class _SoundFontsScreenState extends ConsumerState<SoundFontsScreen>
   void dispose() {
     _ticker.dispose();
     _audio.allNotesOff();
+    // Stop any preview clip that may still be looping (captured reference — no
+    // provider read during dispose).
+    unawaited(_preview.stop());
     // Best-effort restore of the selected sound's font (captured reference — no
     // provider read during dispose).
     final path = _restorePath;
@@ -204,11 +222,26 @@ class _SoundFontsScreenState extends ConsumerState<SoundFontsScreen>
 
   // --- Audition ------------------------------------------------------------
 
-  Future<void> _togglePreview(PianoEntry entry) async {
+  /// Toggle auditioning [entry]. A **locked** reward font auditions via the
+  /// server-rendered preview **clip** (its `.sf2` bytes are never downloaded); every
+  /// other font (free / owned / imported) auditions via the local synth as before.
+  Future<void> _togglePreview(PianoEntry entry, {bool locked = false}) async {
     if (_previewingId == entry.id) {
       await _stopPreview();
       return;
     }
+    // Stop whatever is currently auditioning before starting a new one.
+    await _stopPreview();
+    if (locked) {
+      await _auditionClip(entry);
+    } else {
+      await _auditionLocal(entry);
+    }
+  }
+
+  /// Audition a resolvable font (free / owned / imported) with the local synth:
+  /// resolve its `.sf2`, load it, and drive the bundled sample melody via the ticker.
+  Future<void> _auditionLocal(PianoEntry entry) async {
     final messenger = ScaffoldMessenger.of(context);
     final l10n = AppLocalizations.of(context);
     try {
@@ -227,20 +260,59 @@ class _SoundFontsScreenState extends ConsumerState<SoundFontsScreen>
     _seeded = false;
     _lastTick = Duration.zero;
     _elapsedMs = 0;
-    setState(() => _previewingId = entry.id);
+    setState(() {
+      _previewViaClip = false;
+      _previewingId = entry.id;
+    });
     _ticker.start();
   }
 
+  /// Audition a **locked** reward font via its server preview clip — the raw font is
+  /// never downloaded. A missing clip (404) greys the control (no error); a real
+  /// failure surfaces a snackbar.
+  Future<void> _auditionClip(PianoEntry entry) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final l10n = AppLocalizations.of(context);
+    final bool played;
+    try {
+      played = await _preview.audition(entry.id);
+    } catch (_) {
+      if (mounted) showAppSnackBar(messenger, l10n.soundfontsPreviewError);
+      return;
+    }
+    if (!mounted) return;
+    if (!played) {
+      // No preview clip yet → grey this font's play control, hint, don't error.
+      setState(() => _noPreview.add(entry.id));
+      showAppSnackBar(messenger, l10n.soundfontsPreviewUnavailable);
+      return;
+    }
+    setState(() {
+      _previewViaClip = true;
+      _previewingId = entry.id;
+    });
+  }
+
   Future<void> _stopPreview() async {
-    _ticker.stop();
-    _audio.allNotesOff();
-    _sounding.clear();
-    if (mounted) setState(() => _previewingId = null);
-    final path = _restorePath;
-    if (path != null) {
-      try {
-        await _audio.loadSoundFont(path);
-      } catch (_) {}
+    if (_previewingId == null) return;
+    if (_previewViaClip) {
+      await _preview.stop();
+    } else {
+      _ticker.stop();
+      _audio.allNotesOff();
+      _sounding.clear();
+      final path = _restorePath;
+      if (path != null) {
+        try {
+          await _audio.loadSoundFont(path);
+        } catch (_) {}
+      }
+    }
+    if (mounted) {
+      setState(() {
+        _previewingId = null;
+        _previewViaClip = false;
+      });
     }
   }
 
@@ -297,14 +369,20 @@ class _SoundFontsScreenState extends ConsumerState<SoundFontsScreen>
   Widget _buildCatalogCard(PianoEntry p, RewardShopItemView? item) {
     final locked =
         item != null && item.pointCost > 0 && item.redeemable && !item.owned;
+    // A locked font is auditioned via its preview clip. Grey the control **up front**
+    // when the catalog reports no preview (`!p.hasPreview`); `_noPreview` is a runtime
+    // fallback if a clip disappears between listing and tapping.
+    final noPreview = locked && (!p.hasPreview || _noPreview.contains(p.id));
     return _SoundCard(
       entry: p,
       playing: _previewingId == p.id,
-      // Auditionable whether or not it is locked — a preview is what sells it.
-      onTap: () => _togglePreview(p),
+      // Auditionable whether or not it is locked — a preview is what sells it — but
+      // disabled when a locked font has no preview clip yet.
+      onTap: noPreview ? null : () => _togglePreview(p, locked: locked),
       locked: locked,
       lockCost: locked ? item.pointCost : null,
       onRedeem: locked ? () => _redeemReward(p.id) : null,
+      previewUnavailable: noPreview,
     );
   }
 
@@ -462,10 +540,15 @@ class _SoundCard extends StatelessWidget {
     this.locked = false,
     this.lockCost,
     this.onRedeem,
+    this.previewUnavailable = false,
   });
 
   final PianoEntry entry;
   final bool playing;
+
+  /// The (locked) font has no server preview clip yet — the play control is greyed
+  /// and non-interactive.
+  final bool previewUnavailable;
 
   /// Tap toggles the audition; `null` disables it (a locked reward font).
   final VoidCallback? onTap;
@@ -498,13 +581,22 @@ class _SoundCard extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       child: ListTile(
         onTap: onTap,
-        // Always a play/stop control — a locked reward font is still auditionable
-        // (you preview it, then decide to unlock); the lock is conveyed by the
-        // trailing cost + "Débloquer" affordance, not by disabling the preview.
+        // A play/stop control — a locked reward font is still auditionable (you
+        // preview it, then decide to unlock); the lock is conveyed by the trailing
+        // cost + "Débloquer" affordance. Greyed out only when a locked font has no
+        // preview clip yet (nothing to hear).
         leading: Icon(
-          playing ? Icons.stop_circle : Icons.play_circle_outline,
-          color: playing ? CymbraColors.primary : CymbraColors.onSurfaceVariant,
-          semanticLabel: playing ? l10n.soundfontsStop : l10n.soundfontsPlay,
+          previewUnavailable
+              ? Icons.music_off_outlined
+              : (playing ? Icons.stop_circle : Icons.play_circle_outline),
+          color: previewUnavailable
+              ? CymbraColors.outline
+              : (playing
+                    ? CymbraColors.primary
+                    : CymbraColors.onSurfaceVariant),
+          semanticLabel: previewUnavailable
+              ? l10n.soundfontsPreviewUnavailable
+              : (playing ? l10n.soundfontsStop : l10n.soundfontsPlay),
         ),
         title: Text(
           entry.label,

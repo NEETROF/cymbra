@@ -67,6 +67,14 @@ pub struct FontEntry {
     pub reviewed_at: Option<DateTime<Utc>>,
     pub uploaded_by: Option<String>,
     pub content_sha256: Option<String>,
+    /// Reward-shop cost in curation points (change: add-curation-rewards). `0` means
+    /// **free** — served to any authenticated caller; `> 0` gates the raw bytes behind
+    /// entitlement (change: add-soundfont-entitlement-previews).
+    pub point_cost: i64,
+    /// Whether the font is currently offered for redemption in the shop. A catalog
+    /// *display* flag only — the entitlement gate keys on `point_cost`, not this, so a
+    /// non-redeemable costed font is still gated.
+    pub redeemable: bool,
 }
 
 impl FontEntry {
@@ -109,6 +117,10 @@ pub trait SoundFontRepo: Send + Sync {
     async fn status_counts(&self) -> Result<SoundFontStatusCounts>;
     /// Resolve a client-facing id to its entry (any status), or `None` if unknown.
     async fn lookup(&self, id: &str) -> Result<Option<FontEntry>>;
+    /// Whether `user_id` holds a redemption grant for the font `soundfont_id` — a
+    /// `music.curation_grants` row (change: add-soundfont-entitlement-previews). Backs
+    /// the entitlement gate on the raw `.sf2` bytes.
+    async fn has_grant(&self, user_id: &str, soundfont_id: &str) -> Result<bool>;
     /// First non-`rejected` catalog font whose content digest matches `sha256`, used to
     /// refuse a byte-identical duplicate before storing (change: add-soundfont-moderation).
     async fn find_by_content(&self, sha256: &str) -> Result<Option<FontEntry>>;
@@ -156,11 +168,14 @@ fn row_to_entry(row: &PgRow) -> FontEntry {
             .get::<Option<uuid::Uuid>, _>("uploaded_by")
             .map(|u| u.to_string()),
         content_sha256: row.get::<Option<String>, _>("content_sha256"),
+        point_cost: row.get::<i32, _>("point_cost") as i64,
+        redeemable: row.get::<bool, _>("redeemable"),
     }
 }
 
 const SELECT_COLS: &str = "id, label, object_key, instrument, license, attribution, \
-     size_bytes, moderation_status, reviewed_by, reviewed_at, uploaded_by, content_sha256";
+     size_bytes, moderation_status, reviewed_by, reviewed_at, uploaded_by, content_sha256, \
+     point_cost, redeemable";
 
 /// Postgres-backed [`SoundFontRepo`] over the `music.soundfonts` table.
 pub struct PgSoundFontRepo {
@@ -274,6 +289,23 @@ impl SoundFontRepo for PgSoundFontRepo {
         Ok(row.as_ref().map(row_to_entry))
     }
 
+    async fn has_grant(&self, user_id: &str, soundfont_id: &str) -> Result<bool> {
+        // A non-UUID user id can never hold a grant (grants key on users.id UUIDs);
+        // treat it as no grant rather than failing the query.
+        let Ok(user) = uuid::Uuid::parse_str(user_id) else {
+            return Ok(false);
+        };
+        let found: Option<i32> = sqlx::query_scalar(
+            "SELECT 1 FROM music.curation_grants WHERE user_id = $1 AND key = $2",
+        )
+        .bind(user)
+        .bind(soundfont_id)
+        .fetch_optional(&self.pool)
+        .await
+        .context("soundfont grant lookup")?;
+        Ok(found.is_some())
+    }
+
     async fn find_by_content(&self, sha256: &str) -> Result<Option<FontEntry>> {
         // Dedup against non-`rejected` rows only, so a rejected id never permanently
         // blocks a later corrected/relicensed submission of the same bytes.
@@ -379,6 +411,9 @@ impl SoundFontRepo for PgSoundFontRepo {
 #[derive(Default)]
 pub struct FakeSoundFontRepo {
     entries: Mutex<Vec<FontEntry>>,
+    /// Seeded redemption grants as `(user_id, soundfont_id)` pairs, backing
+    /// [`has_grant`](SoundFontRepo::has_grant).
+    grants: Mutex<Vec<(String, String)>>,
 }
 
 impl FakeSoundFontRepo {
@@ -386,7 +421,16 @@ impl FakeSoundFontRepo {
     pub fn with(entries: Vec<FontEntry>) -> Self {
         Self {
             entries: Mutex::new(entries),
+            grants: Mutex::new(Vec::new()),
         }
+    }
+
+    /// Seed a redemption grant so `user_id` owns `soundfont_id` (test helper).
+    pub fn grant(&self, user_id: &str, soundfont_id: &str) {
+        self.grants
+            .lock()
+            .unwrap()
+            .push((user_id.to_string(), soundfont_id.to_string()));
     }
 }
 
@@ -450,6 +494,15 @@ impl SoundFontRepo for FakeSoundFontRepo {
             .iter()
             .find(|e| e.id == id)
             .cloned())
+    }
+
+    async fn has_grant(&self, user_id: &str, soundfont_id: &str) -> Result<bool> {
+        Ok(self
+            .grants
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|(u, s)| u == user_id && s == soundfont_id))
     }
 
     async fn find_by_content(&self, sha256: &str) -> Result<Option<FontEntry>> {
@@ -541,6 +594,8 @@ mod tests {
             reviewed_at: None,
             uploaded_by: None,
             content_sha256: Some("deadbeef".into()),
+            point_cost: 0,
+            redeemable: true,
         }
     }
 
@@ -559,6 +614,8 @@ mod tests {
             reviewed_at: None,
             uploaded_by: Some(REVIEWER.into()),
             content_sha256: Some(sha.into()),
+            point_cost: 0,
+            redeemable: true,
         }
     }
 
@@ -571,6 +628,18 @@ mod tests {
             Some(upright())
         );
         assert_eq!(repo.lookup("nope").await.unwrap(), None);
+    }
+
+    #[tokio::test]
+    async fn fake_repo_has_grant_reflects_seeded_grants() {
+        let repo = FakeSoundFontRepo::with(vec![upright()]);
+        // No grant seeded.
+        assert!(!repo.has_grant("u", "upright-piano-kw").await.unwrap());
+        repo.grant("u", "upright-piano-kw");
+        assert!(repo.has_grant("u", "upright-piano-kw").await.unwrap());
+        // Scoped to (user, font): another user / another font is not granted.
+        assert!(!repo.has_grant("other", "upright-piano-kw").await.unwrap());
+        assert!(!repo.has_grant("u", "another-font").await.unwrap());
     }
 
     #[tokio::test]

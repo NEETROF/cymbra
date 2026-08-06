@@ -241,6 +241,104 @@ impl ClickVoice {
     }
 }
 
+/// Decode a canonical 16-bit PCM WAV (`RIFF`/`WAVE`) into its sample rate and mono
+/// samples (change: add-soundfont-entitlement-previews). This is how the app plays a
+/// server-rendered SoundFont **preview clip** through the same cross-platform audio
+/// engine as the synth — no third-party audio plugin. Multi-channel input is
+/// down-mixed to mono; non-16-bit or malformed input returns `None`.
+///
+/// Pure and host-testable (the real-time mixing lives in `audio.rs`).
+pub(crate) fn decode_wav_pcm(bytes: &[u8]) -> Option<(u32, Vec<i16>)> {
+    if bytes.len() < 12 || &bytes[0..4] != b"RIFF" || &bytes[8..12] != b"WAVE" {
+        return None;
+    }
+    let mut channels = 1u16;
+    let mut sample_rate = 44_100u32;
+    let mut bits = 16u16;
+    let mut data: Option<&[u8]> = None;
+    // Walk the RIFF chunks after the 12-byte header (word-aligned).
+    let mut off = 12usize;
+    while off + 8 <= bytes.len() {
+        let id = &bytes[off..off + 4];
+        let size = u32::from_le_bytes(bytes[off + 4..off + 8].try_into().ok()?) as usize;
+        let body = off + 8;
+        let end = body.saturating_add(size).min(bytes.len());
+        if id == b"fmt " && end >= body + 16 {
+            channels = u16::from_le_bytes(bytes[body + 2..body + 4].try_into().ok()?);
+            sample_rate = u32::from_le_bytes(bytes[body + 4..body + 8].try_into().ok()?);
+            bits = u16::from_le_bytes(bytes[body + 14..body + 16].try_into().ok()?);
+        } else if id == b"data" {
+            data = Some(&bytes[body..end]);
+        }
+        off = body + size + (size & 1); // pad byte for odd-sized chunks
+    }
+    if bits != 16 {
+        return None;
+    }
+    let data = data?;
+    let ch = channels.max(1) as usize;
+    let frame = 2 * ch;
+    let mut pcm = Vec::with_capacity(data.len() / frame.max(1));
+    for f in data.chunks_exact(frame) {
+        let mut acc = 0i32;
+        for c in 0..ch {
+            acc += i16::from_le_bytes([f[2 * c], f[2 * c + 1]]) as i32;
+        }
+        pcm.push((acc / ch as i32) as i16);
+    }
+    Some((sample_rate, pcm))
+}
+
+/// A looping preview-clip voice the audio thread mixes into its output — the clip's
+/// PCM resampled (nearest-sample) from its own rate to the device rate, so a preview
+/// plays at the right pitch/speed regardless of the output device. Pure DSP (no
+/// device), so it is host-testable; `audio.rs` owns the cpal mixing.
+#[frb(ignore)]
+#[derive(Debug, Clone)]
+pub(crate) struct ClipVoice {
+    pcm: Vec<i16>,
+    /// Fractional read position into `pcm`.
+    pos: f64,
+    /// Advance per output sample = clip_rate / device_rate.
+    step: f64,
+    gain: f32,
+}
+
+impl ClipVoice {
+    /// Builds a voice for `pcm` recorded at `clip_rate`, played at `device_rate` Hz.
+    /// Non-positive rates fall back to 44.1 kHz so the voice is always well-formed.
+    pub(crate) fn new(pcm: Vec<i16>, clip_rate: u32, device_rate: f32) -> ClipVoice {
+        let device_rate = if device_rate > 0.0 {
+            device_rate
+        } else {
+            44_100.0
+        };
+        let step = if clip_rate > 0 {
+            clip_rate as f64 / device_rate as f64
+        } else {
+            1.0
+        };
+        ClipVoice {
+            pcm,
+            pos: 0.0,
+            step,
+            gain: 0.9,
+        }
+    }
+
+    /// Next mono sample (looping); `0.0` when the clip is empty.
+    pub(crate) fn next_sample(&mut self) -> f32 {
+        if self.pcm.is_empty() {
+            return 0.0;
+        }
+        let len = self.pcm.len();
+        let idx = (self.pos as usize).min(len - 1);
+        let value = self.pcm[idx] as f32 / 32768.0 * self.gain;
+        self.pos = (self.pos + self.step).rem_euclid(len as f64);
+        value
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -453,5 +551,66 @@ mod tests {
         assert!(!is_valid_soundfont(b"RIFF"));
         assert!(!is_valid_soundfont(b""));
         assert!(!is_valid_soundfont(b"not a soundfont at all"));
+    }
+
+    /// A canonical mono 16-bit PCM WAV around `samples` at `rate`.
+    fn wav(rate: u32, samples: &[i16]) -> Vec<u8> {
+        let data_len = (samples.len() * 2) as u32;
+        let mut w = b"RIFF".to_vec();
+        w.extend_from_slice(&(36 + data_len).to_le_bytes());
+        w.extend_from_slice(b"WAVE");
+        w.extend_from_slice(b"fmt ");
+        w.extend_from_slice(&16u32.to_le_bytes());
+        w.extend_from_slice(&1u16.to_le_bytes()); // PCM
+        w.extend_from_slice(&1u16.to_le_bytes()); // mono
+        w.extend_from_slice(&rate.to_le_bytes());
+        w.extend_from_slice(&(rate * 2).to_le_bytes()); // byte rate
+        w.extend_from_slice(&2u16.to_le_bytes()); // block align
+        w.extend_from_slice(&16u16.to_le_bytes()); // bits
+        w.extend_from_slice(b"data");
+        w.extend_from_slice(&data_len.to_le_bytes());
+        for s in samples {
+            w.extend_from_slice(&s.to_le_bytes());
+        }
+        w
+    }
+
+    #[test]
+    fn decode_wav_pcm_reads_rate_and_mono_samples() {
+        let (rate, pcm) = decode_wav_pcm(&wav(44_100, &[0, 100, -100, 32767])).unwrap();
+        assert_eq!(rate, 44_100);
+        assert_eq!(pcm, vec![0, 100, -100, 32767]);
+    }
+
+    #[test]
+    fn decode_wav_pcm_rejects_non_wav() {
+        assert!(decode_wav_pcm(b"").is_none());
+        assert!(decode_wav_pcm(b"RIFF____NOTWAVE__").is_none());
+    }
+
+    #[test]
+    fn clip_voice_loops_and_resamples() {
+        // Same rate → nearest-sample cycles through the buffer and loops.
+        let mut v = ClipVoice::new(vec![10, 20, 30], 44_100, 44_100.0);
+        let n = |x: i16| x as f32 / 32768.0 * 0.9;
+        assert!((v.next_sample() - n(10)).abs() < 1e-6);
+        assert!((v.next_sample() - n(20)).abs() < 1e-6);
+        assert!((v.next_sample() - n(30)).abs() < 1e-6);
+        // Loops back to the start.
+        assert!((v.next_sample() - n(10)).abs() < 1e-6);
+    }
+
+    #[test]
+    fn clip_voice_empty_is_silent() {
+        let mut v = ClipVoice::new(Vec::new(), 44_100, 48_000.0);
+        assert_eq!(v.next_sample(), 0.0);
+    }
+
+    #[test]
+    fn clip_voice_handles_degenerate_rates() {
+        // A zero device rate falls back to 44.1 kHz; a zero clip rate → step 1.
+        let mut v = ClipVoice::new(vec![5], 0, 0.0);
+        let n = 5.0f32 / 32768.0 * 0.9;
+        assert!((v.next_sample() - n).abs() < 1e-6);
     }
 }

@@ -52,6 +52,27 @@ in-flight / success / error state.
 - **WHEN** a non-admin caller invokes the regenerate endpoint
 - **THEN** the request is refused
 
+### Requirement: A preview is mandatory to accept a font
+
+The server SHALL refuse to accept a SoundFont (the `accepted` transition of
+`SetSoundFontModerationStatus`) unless a preview object already exists for that font,
+since accepting publishes it as publicly auditionable. The moderator generates the
+preview first (the back-office "Generate sample" action) and auditions it, then
+accepts. Only the `accepted` transition is gated; `pending`/`rejected` transitions need
+no preview, and an unknown font id still resolves to not-found.
+
+#### Scenario: Accepting without a preview is refused
+- **WHEN** a moderator accepts a font that has no preview object
+- **THEN** the request is refused (a failed-precondition), the font stays unaccepted, and the back office shows a hint to generate a sample first
+
+#### Scenario: Accepting after generating a preview succeeds
+- **WHEN** a moderator generates a font's preview and then accepts it
+- **THEN** the font becomes accepted
+
+#### Scenario: Rejecting needs no preview
+- **WHEN** a moderator rejects a font that has no preview object
+- **THEN** the rejection succeeds
+
 ### Requirement: Public preview delivery and in-app audition
 
 The server SHALL serve a font's preview clip at `GET /soundfonts/{id}/preview`

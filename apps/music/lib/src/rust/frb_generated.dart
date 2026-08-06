@@ -70,7 +70,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.12.0';
 
   @override
-  int get rustContentHash => 356148730;
+  int get rustContentHash => 585579761;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -115,7 +115,11 @@ abstract class RustLibApi extends BaseApi {
     required List<int> bytes,
   });
 
+  void crateApiAudioPlayPreviewClip({required List<int> wavBytes});
+
   void crateApiMidiSetMidiPort({String? name});
+
+  void crateApiAudioStopPreviewClip();
 
   Future<ValidationOutcome> crateApiMusicxmlValidateMusicxml({
     required List<int> bytes,
@@ -487,13 +491,39 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "parse_musicxml", argNames: ["bytes"]);
 
   @override
+  void crateApiAudioPlayPreviewClip({required List<int> wavBytes}) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_list_prim_u_8_loose(wavBytes, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 15)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiAudioPlayPreviewClipConstMeta,
+        argValues: [wavBytes],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiAudioPlayPreviewClipConstMeta =>
+      const TaskConstMeta(
+        debugName: "play_preview_clip",
+        argNames: ["wavBytes"],
+      );
+
+  @override
   void crateApiMidiSetMidiPort({String? name}) {
     return handler.executeSync(
       SyncTask(
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_opt_String(name, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 15)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 16)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_unit,
@@ -510,6 +540,28 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "set_midi_port", argNames: ["name"]);
 
   @override
+  void crateApiAudioStopPreviewClip() {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 17)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiAudioStopPreviewClipConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiAudioStopPreviewClipConstMeta =>
+      const TaskConstMeta(debugName: "stop_preview_clip", argNames: []);
+
+  @override
   Future<ValidationOutcome> crateApiMusicxmlValidateMusicxml({
     required List<int> bytes,
   }) {
@@ -521,7 +573,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 16,
+            funcId: 18,
             port: port_,
           );
         },

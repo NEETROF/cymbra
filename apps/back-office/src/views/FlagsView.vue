@@ -137,64 +137,71 @@ function openGlobal() {
     </div>
 
     <p v-if="vm.error" class="error" role="alert">{{ vm.error }}</p>
-    <p v-if="opError && !activeRow" class="error" role="alert">{{ opError }}</p>
+    <!-- Flag save/clear errors surface in the edit drawer (where the action happens);
+         only the list load error stays inline here. -->
     <p v-if="vm.loading" class="muted">{{ t("common.loading") }}</p>
 
-    <table v-else class="grid">
-      <thead>
-        <tr>
-          <th>{{ t("flags.colApp") }}</th>
-          <th>{{ t("flags.colKey") }}</th>
-          <th>{{ t("flags.colValue") }}</th>
-          <th>{{ t("flags.colEditor") }}</th>
-          <th>{{ t("flags.colActions") }}</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="r in visibleRows" :key="`${r.app}/${r.key}`" :class="{ sensitive: r.sensitive }">
-          <td>
-            <AppTag variant="neutral" :mono="r.app !== 'all'">{{ appLabel(r.app, t) }}</AppTag>
-          </td>
-          <td>
-            <div class="key">
-              <span class="keyline">
-                <code>{{ r.key }}</code>
-                <span v-if="!r.editable" class="lock" :title="t('flags.locked')">🔒</span>
-                <AppTag v-if="r.sensitive" variant="warn" :title="t('flags.sensitiveHint')">{{
-                  t("flags.sensitive")
-                }}</AppTag>
-              </span>
-              <span class="doc">{{ desc(r) }}</span>
-            </div>
-          </td>
-          <td class="value">
-            <div class="stack">
-              <code>{{
-                r.valueType === "bool" ? (r.effectiveBool ? t("flags.on") : t("flags.off")) : short(r.effectiveDisplay)
-              }}</code>
-              <AppTag v-if="r.hasOverride">{{ t("flags.override") }}</AppTag>
-            </div>
-          </td>
-          <td>
-            <div class="editor">
-              <template v-if="r.updatedBy">
-                <span class="uid" :title="r.updatedBy">{{ store.nameFor(r.updatedBy) }}</span>
-                <span class="when">{{ dateShort(r.updatedAt) }}</span>
-              </template>
-              <template v-else>
-                <span class="dash">—</span>
-                <AppTag>{{ t("flags.defaultTag") }}</AppTag>
-              </template>
-            </div>
-          </td>
-          <td>
-            <button type="button" :disabled="!r.editable || acting" @click="openDrawer(r)">
-              {{ t("flags.edit") }}
-            </button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+    <div v-else class="table-card">
+      <table>
+        <thead>
+          <tr>
+            <th>{{ t("flags.colApp") }}</th>
+            <th>{{ t("flags.colKey") }}</th>
+            <th>{{ t("flags.colValue") }}</th>
+            <th>{{ t("flags.colEditor") }}</th>
+            <th>{{ t("flags.colActions") }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="r in visibleRows" :key="`${r.app}/${r.key}`" :class="{ sensitive: r.sensitive }">
+            <td>
+              <AppTag variant="neutral" :mono="r.app !== 'all'">{{ appLabel(r.app, t) }}</AppTag>
+            </td>
+            <td>
+              <div class="key">
+                <span class="keyline">
+                  <code>{{ r.key }}</code>
+                  <span v-if="!r.editable" class="lock" :title="t('flags.locked')">🔒</span>
+                  <AppTag v-if="r.sensitive" variant="warn" :title="t('flags.sensitiveHint')">{{
+                    t("flags.sensitive")
+                  }}</AppTag>
+                </span>
+                <span class="doc">{{ desc(r) }}</span>
+              </div>
+            </td>
+            <td class="value">
+              <div class="stack">
+                <code>{{
+                  r.valueType === "bool"
+                    ? r.effectiveBool
+                      ? t("flags.on")
+                      : t("flags.off")
+                    : short(r.effectiveDisplay)
+                }}</code>
+                <AppTag v-if="r.hasOverride">{{ t("flags.override") }}</AppTag>
+              </div>
+            </td>
+            <td>
+              <div class="editor">
+                <template v-if="r.updatedBy">
+                  <span class="uid" :title="r.updatedBy">{{ store.nameFor(r.updatedBy) }}</span>
+                  <span class="when">{{ dateShort(r.updatedAt) }}</span>
+                </template>
+                <template v-else>
+                  <span class="dash">—</span>
+                  <AppTag>{{ t("flags.defaultTag") }}</AppTag>
+                </template>
+              </div>
+            </td>
+            <td class="actions-col">
+              <button type="button" class="btn-sm" :disabled="!r.editable || acting" @click="openDrawer(r)">
+                {{ t("flags.edit") }}
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
 
     <FlagDrawer
       :row="activeRow"
@@ -251,16 +258,19 @@ function openGlobal() {
   border-color: var(--accent);
   color: var(--accent);
 }
-.grid {
-  width: 100%;
-  border-collapse: collapse;
-}
-.grid th,
-.grid td {
-  text-align: left;
-  padding: 0.55rem 0.7rem;
-  border-bottom: 1px solid var(--border);
+/* Stacked cells (key + doc, value + override, editor) read better top-aligned; the
+   card container, header, dividers and padding come from the global table styles. */
+.table-card td {
   vertical-align: top;
+}
+.actions-col {
+  width: 1%;
+  white-space: nowrap;
+}
+.btn-sm {
+  padding: 0.32rem 0.6rem;
+  font-size: 0.8rem;
+  white-space: nowrap;
 }
 .key {
   display: flex;
@@ -307,10 +317,10 @@ function openGlobal() {
   color: var(--muted);
 }
 tr.sensitive .key code {
-  color: #d98324;
+  color: var(--amber);
 }
 .error {
-  color: var(--danger, #e55);
+  color: var(--coral);
 }
 .muted {
   color: var(--muted);

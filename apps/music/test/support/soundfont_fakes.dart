@@ -15,8 +15,10 @@
 import 'dart:typed_data';
 
 import 'package:music/services/private_soundfont_service.dart';
+import 'package:music/services/sound_clip_player.dart';
 import 'package:music/services/soundfont_catalog_service.dart';
 import 'package:music/services/soundfont_importer.dart';
+import 'package:music/services/soundfont_preview_service.dart';
 import 'package:music/services/soundfont_source.dart';
 import 'package:music/state/piano_catalog.dart';
 
@@ -169,12 +171,58 @@ class FakePrivateSoundFontService implements PrivateSoundFontService {
   }
 }
 
+/// In-memory [SoundFontPreviewService]: records the ids auditioned and reports
+/// preview availability from [available]; ids in [failIds] throw. Used to drive the
+/// locked-font audition path without network or an audio device.
+class FakeSoundFontPreviewService implements SoundFontPreviewService {
+  FakeSoundFontPreviewService({
+    this.available = const {},
+    this.failIds = const {},
+  });
+
+  /// Ids that HAVE a preview clip — [audition] returns `true` (playback started);
+  /// any other id returns `false` (no preview yet).
+  final Set<String> available;
+
+  /// Ids whose fetch fails — [audition] throws [SoundFontPreviewException].
+  final Set<String> failIds;
+
+  final List<String> auditioned = [];
+  int stopCalls = 0;
+
+  @override
+  Future<bool> audition(String fontId) async {
+    auditioned.add(fontId);
+    if (failIds.contains(fontId)) {
+      throw const SoundFontPreviewException('forced failure');
+    }
+    return available.contains(fontId);
+  }
+
+  @override
+  Future<void> stop() async => stopCalls++;
+}
+
+/// In-memory [SoundClipPlayer]: records the clips it was asked to play + stop calls,
+/// so the preview service's fetch/play wiring is testable without an audio device.
+class FakeSoundClipPlayer implements SoundClipPlayer {
+  final List<Uint8List> played = [];
+  int stopCalls = 0;
+
+  @override
+  Future<void> play(Uint8List bytes) async => played.add(bytes);
+
+  @override
+  Future<void> stop() async => stopCalls++;
+}
+
 /// A `download`-kind [PianoEntry] as the server catalog would yield.
 PianoEntry fakeDownloadPiano({
   required String id,
   required String label,
   String license = 'CC-BY 3.0',
   String? attribution,
+  bool hasPreview = false,
 }) => PianoEntry(
   id: id,
   label: label,
@@ -182,6 +230,7 @@ PianoEntry fakeDownloadPiano({
   source: id,
   license: license,
   attribution: attribution,
+  hasPreview: hasPreview,
 );
 
 /// A user-kind [PianoEntry] for tests.

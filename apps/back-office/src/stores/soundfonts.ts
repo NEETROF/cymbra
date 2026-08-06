@@ -1,8 +1,10 @@
 import { ref } from "vue";
 import { defineStore } from "pinia";
+import { Code, ConnectError } from "@connectrpc/connect";
 import { api } from "@/lib/api";
-import { type Async, idle, run } from "@/lib/async";
+import { type Async, failure, idle, loading, run, success } from "@/lib/async";
 import { humanError, SoundFontUploadError } from "@/lib/errors";
+import { t } from "@/i18n";
 import type { AdminSoundFont, CatalogHit, SoundFont } from "@/gen/score_pb";
 import { useAuthStore } from "./auth";
 
@@ -67,12 +69,36 @@ export function setUploadForTest(fn: UploadFn): void {
   uploadImpl = fn;
 }
 
+/** (Re)generates a font's server-rendered preview clip via the admin HTTP route
+ *  (change: add-soundfont-entitlement-previews). Injected in tests, like the upload. */
+export type RegeneratePreviewFn = (id: string, token: string | null) => Promise<void>;
+
+async function httpRegeneratePreview(id: string, token: string | null): Promise<void> {
+  const resp = await fetch(`${soundfontBaseUrl()}/soundfonts/${encodeURIComponent(id)}/preview`, {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!resp.ok) {
+    throw new Error(`soundfont preview regeneration failed: HTTP ${resp.status}`);
+  }
+}
+
+let regeneratePreviewImpl: RegeneratePreviewFn = httpRegeneratePreview;
+export function setRegeneratePreviewForTest(fn: RegeneratePreviewFn): void {
+  regeneratePreviewImpl = fn;
+}
+
 /** Admin listing page size. */
 export const SOUNDFONTS_PAGE_SIZE = 25;
 
 export const useSoundFontsStore = defineStore("soundfonts", () => {
   const catalog = ref<Async<AdminSoundFont[]>>(idle);
   const op = ref<Async<void>>(idle);
+  // "Generate sample" state (change: add-soundfont-entitlement-previews): its own
+  // `Async` union so the button reflects in-flight/success/error without colliding
+  // with the other mutations in `op`. `previewTarget` is the font being (re)generated.
+  const preview = ref<Async<void>>(idle);
+  const previewTarget = ref<string | null>(null);
   // Server-side pagination + status filter (change: add-soundfont-moderation).
   const total = ref(0);
   const offset = ref(0);
@@ -131,13 +157,50 @@ export const useSoundFontsStore = defineStore("soundfonts", () => {
   }
 
   /** Set a font's moderation status (accept/reject/re-queue), then re-list
-   *  (change: add-soundfont-moderation). */
+   *  (change: add-soundfont-moderation). Accepting requires a preview sample to exist
+   *  (change: add-soundfont-entitlement-previews): the server refuses with a
+   *  FailedPrecondition, which maps to a clear "generate a sample first" hint. */
   async function setModerationStatus(id: string, status: string) {
-    const outcome = await run(op, async () => {
+    op.value = loading;
+    try {
       await api().score.setSoundFontModerationStatus({ id, status });
+      op.value = success(undefined);
+      await list();
+    } catch (e) {
+      const previewMissing = status === "accepted" && e instanceof ConnectError && e.code === Code.FailedPrecondition;
+      op.value = failure(previewMissing ? t("soundfonts.previewRequired") : humanError(e));
+    }
+    return op.value;
+  }
+
+  /** (Re)generate a font's server-rendered preview clip (change:
+   *  add-soundfont-entitlement-previews). On success the endpoint has already STORED the
+   *  preview object (it returns 200 only after the `put`), so we flip the row's
+   *  `hasPreview` optimistically — its control turns from "Generate sample" into a play
+   *  button immediately. No re-list: re-reading `has_preview` right after the write could
+   *  momentarily miss it (object-store read-after-write latency) and revert the flip. */
+  async function regeneratePreview(id: string) {
+    previewTarget.value = id;
+    const outcome = await run(preview, async () => {
+      await regeneratePreviewImpl(id, useAuthStore().accessToken);
     });
-    if (outcome.status === "success") await list();
+    if (outcome.status === "success" && catalog.value.status === "success") {
+      const target = catalog.value.data.find((f) => f.id === id);
+      if (target) target.hasPreview = true;
+      catalog.value = success([...catalog.value.data]);
+    }
     return outcome;
+  }
+
+  /** Bytes of a font's preview clip (`GET /soundfonts/{id}/preview`), for the back-office
+   *  play control — auditions the same server-rendered clip the app plays. */
+  async function previewClip(id: string): Promise<Uint8Array> {
+    const token = useAuthStore().accessToken;
+    const resp = await fetch(`${soundfontBaseUrl()}/soundfonts/${encodeURIComponent(id)}/preview`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!resp.ok) throw new Error(`soundfont preview fetch failed: HTTP ${resp.status}`);
+    return new Uint8Array(await resp.arrayBuffer());
   }
 
   /** The public catalog listing (id/label/…), for the preview font picker on the review
@@ -178,6 +241,8 @@ export const useSoundFontsStore = defineStore("soundfonts", () => {
   return {
     catalog,
     op,
+    preview,
+    previewTarget,
     total,
     offset,
     statusFilter,
@@ -188,6 +253,8 @@ export const useSoundFontsStore = defineStore("soundfonts", () => {
     update,
     remove,
     setModerationStatus,
+    regeneratePreview,
+    previewClip,
     previewPieces,
     pieceBytes,
     fontBytes,

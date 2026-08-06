@@ -4,6 +4,10 @@
     "back": "← Retour",
     "loading": "Chargement…"
   },
+  "toast": {
+    "region": "Notifications",
+    "dismiss": "Fermer"
+  },
   "pager": {
     "label": "pagination",
     "prev": "← Précédent",
@@ -110,9 +114,15 @@
     "cancel": "Annuler",
     "edit": "Modifier",
     "remove": "Supprimer",
+    "generateSample": "Générer l’extrait",
+    "generatingSample": "Génération…",
+    "generateSampleHint": "Génère le court extrait audio entendu lors de l’écoute de cette sonorité dans l’app.",
+    "sampleGenerated": "Extrait généré.",
+    "previewRequired": "Générez un extrait de preview avant d’accepter cette sonorité.",
     "empty": "Aucune SoundFont pour l’instant.",
     "confirmRemove": "Supprimer cette SoundFont ? Sa ligne de catalogue et son fichier stocké sont supprimés.",
     "statusCol": "Statut",
+    "actionsCol": "Actions",
     "status": {
       "pending": "En attente",
       "accepted": "Accepté",

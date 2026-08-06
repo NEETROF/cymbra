@@ -1,7 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createPinia, setActivePinia } from "pinia";
-import { type NewSoundFont, setUploadForTest, SOUNDFONTS_PAGE_SIZE, useSoundFontsStore } from "@/stores/soundfonts";
+import {
+  type NewSoundFont,
+  setRegeneratePreviewForTest,
+  setUploadForTest,
+  SOUNDFONTS_PAGE_SIZE,
+  useSoundFontsStore,
+} from "@/stores/soundfonts";
 import { SoundFontUploadError } from "@/lib/errors";
+import { Code, ConnectError } from "@connectrpc/connect";
 import { setClientsForTest } from "@/lib/api";
 import { makeFakeClients } from "./fakes";
 
@@ -80,6 +87,7 @@ describe("soundfonts store", () => {
   beforeEach(() => {
     setActivePinia(createPinia());
     setUploadForTest(async () => {}); // default no-op upload; overridden per test
+    setRegeneratePreviewForTest(async () => {}); // default no-op; overridden per test
   });
 
   it("lists the admin catalog into a success state", async () => {
@@ -266,6 +274,22 @@ describe("soundfonts store", () => {
     expect(sf.adminListCalls).toBe(1); // re-listed after the decision
   });
 
+  it("maps a FailedPrecondition on accept to the 'generate a sample' hint", async () => {
+    const { clients } = makeFakeClients();
+    withSoundfonts(clients, [row("ydp-grand", { moderationStatus: "pending" })]);
+    const score = clients.score as unknown as Record<string, () => Promise<never>>;
+    // The server refuses acceptance until a preview sample exists.
+    score.setSoundFontModerationStatus = () => Promise.reject(new ConnectError("no preview", Code.FailedPrecondition));
+    setClientsForTest(clients);
+    const store = useSoundFontsStore();
+
+    const outcome = await store.setModerationStatus("ydp-grand", "accepted");
+
+    expect(outcome.status).toBe("error");
+    // A dedicated hint, not the generic message.
+    expect(store.op.status === "error" && /preview sample/i.test(store.op.error)).toBe(true);
+  });
+
   it("captures a denied moderation decision in op instead of throwing", async () => {
     const { clients } = makeFakeClients();
     withSoundfonts(clients, [row("ydp-grand")]);
@@ -278,6 +302,62 @@ describe("soundfonts store", () => {
 
     expect(outcome.status).toBe("error");
     expect(store.op.status).toBe("error");
+  });
+
+  // --- Generate sample (change: add-soundfont-entitlement-previews) ---
+
+  it("regeneratePreview flips the row's hasPreview optimistically without a re-list", async () => {
+    const { clients } = makeFakeClients();
+    const sf = withSoundfonts(clients, [row("ydp-grand", { hasPreview: false })]);
+    setClientsForTest(clients);
+    const called: string[] = [];
+    setRegeneratePreviewForTest(async (id) => {
+      called.push(id);
+    });
+    const store = useSoundFontsStore();
+    await store.list(); // populate the catalog (adminListCalls = 1)
+
+    const outcome = await store.regeneratePreview("ydp-grand");
+
+    expect(outcome.status).toBe("success");
+    expect(called).toEqual(["ydp-grand"]);
+    expect(store.preview.status).toBe("success");
+    expect(store.previewTarget).toBe("ydp-grand");
+    // The row's control flips to a play button immediately — no second admin list
+    // (re-reading has_preview right after the write could momentarily miss it).
+    const flipped = store.catalog.status === "success" && store.catalog.data.find((f) => f.id === "ydp-grand");
+    expect(flipped && flipped.hasPreview).toBe(true);
+    expect(sf.adminListCalls).toBe(1);
+  });
+
+  it("previewClip fetches the preview route", async () => {
+    const { clients } = makeFakeClients();
+    withSoundfonts(clients);
+    setClientsForTest(clients);
+    const fetchMock = vi.fn(() => Promise.resolve(new Response(new Uint8Array([1, 2, 3]), { status: 200 })));
+    vi.stubGlobal("fetch", fetchMock);
+    const store = useSoundFontsStore();
+
+    const bytes = await store.previewClip("ydp-grand");
+
+    expect(bytes).toEqual(new Uint8Array([1, 2, 3]));
+    expect(String((fetchMock.mock.calls[0] as unknown[])[0])).toContain("/soundfonts/ydp-grand/preview");
+  });
+
+  it("captures a preview regeneration failure in the preview state (no throw)", async () => {
+    const { clients } = makeFakeClients();
+    withSoundfonts(clients);
+    setClientsForTest(clients);
+    setRegeneratePreviewForTest(async () => {
+      throw new Error("soundfont preview regeneration failed: HTTP 500");
+    });
+    const store = useSoundFontsStore();
+
+    const outcome = await store.regeneratePreview("ydp-grand");
+
+    expect(outcome.status).toBe("error");
+    expect(store.preview.status).toBe("error");
+    expect(store.previewTarget).toBe("ydp-grand");
   });
 
   // --- Preview data (used by the create/edit drawer's audition feature) ---

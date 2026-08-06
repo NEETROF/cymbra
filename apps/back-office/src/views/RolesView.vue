@@ -5,6 +5,7 @@ import { match } from "ts-pattern";
 import { PAGE_SIZE, useRolesStore } from "@/stores/roles";
 import { useSessionsStore } from "@/stores/sessions";
 import { useAuthStore } from "@/stores/auth";
+import { useToastsStore } from "@/stores/toasts";
 import type { Scope } from "@/lib/jwt";
 import type { AccountRow, RoleGrant } from "@/gen/user_pb";
 import AppTag from "@/components/AppTag.vue";
@@ -19,6 +20,7 @@ import CuratorReliabilityDrawer from "@/components/CuratorReliabilityDrawer.vue"
 const store = useRolesStore();
 const sessions = useSessionsStore();
 const auth = useAuthStore();
+const toasts = useToastsStore();
 const { t } = useI18n();
 const filter = ref("");
 const selected = ref<string | null>(null);
@@ -66,23 +68,27 @@ const vm = computed(() =>
 // runs), and either op's error is surfaced — a failed admin session-revoke must not be
 // silent.
 const acting = computed(() => store.op.status === "loading" || sessions.op.status === "loading");
-const opError = computed(() =>
-  match(store.op)
-    .with({ status: "error" }, ({ error }) => error)
-    .otherwise(() => null),
+// Action results (a role change, an admin session-revoke) and a failed reliability
+// read surface as toasts; only the list LOAD error stays inline on the page.
+watch(
+  () => store.op,
+  (op) => {
+    if (op.status === "error") toasts.error(op.error);
+  },
 );
-const sessionOpError = computed(() =>
-  match(sessions.op)
-    .with({ status: "error" }, ({ error }) => error)
-    .otherwise(() => null),
+watch(
+  () => sessions.op,
+  (op) => {
+    if (op.status === "error") toasts.error(op.error);
+  },
 );
-// A failed reliability read must surface (humanized) in the alert, not fail silently.
-const reliabilityError = computed(() =>
-  match(store.reliability)
-    .with({ status: "error" }, ({ error }) => error)
-    .otherwise(() => null),
+watch(
+  () => store.reliability,
+  (r) => {
+    if (r.status === "error") toasts.error(r.error);
+  },
 );
-const error = computed(() => vm.value.error ?? opError.value ?? sessionOpError.value ?? reliabilityError.value);
+const error = computed(() => vm.value.error);
 
 const offset = computed(() => store.params.offset);
 const from = computed(() => (vm.value.total === 0 ? 0 : offset.value + 1));

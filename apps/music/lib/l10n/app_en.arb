@@ -134,6 +134,8 @@
   "@soundfontsStop": { "description": "Tooltip to stop the sample audition." },
   "soundfontsPreviewError": "Couldn't load that sound.",
   "@soundfontsPreviewError": { "description": "Shown when a sound can't be loaded for audition." },
+  "soundfontsPreviewUnavailable": "No preview available for this sound yet.",
+  "@soundfontsPreviewUnavailable": { "description": "Shown when a locked reward font has no server preview clip to audition." },
   "soundfontsEmpty": "No imported sounds yet. Add your own .sf2 SoundFonts.",
   "@soundfontsEmpty": { "description": "Empty state for the user's own sounds section." },
   "soundfontsError": "Couldn't load your sounds.",

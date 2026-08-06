@@ -4,6 +4,10 @@
     "back": "← Back",
     "loading": "Loading…"
   },
+  "toast": {
+    "region": "Notifications",
+    "dismiss": "Dismiss"
+  },
   "pager": {
     "label": "pagination",
     "prev": "← Previous",
@@ -110,9 +114,15 @@
     "cancel": "Cancel",
     "edit": "Edit",
     "remove": "Remove",
+    "generateSample": "Generate sample",
+    "generatingSample": "Generating…",
+    "generateSampleHint": "Render the short preview clip users hear when auditioning this font in the app.",
+    "sampleGenerated": "Sample generated.",
+    "previewRequired": "Generate a preview sample before accepting this font.",
     "empty": "No SoundFonts yet.",
     "confirmRemove": "Remove this SoundFont? Its catalog row and stored file are both deleted.",
     "statusCol": "Status",
+    "actionsCol": "Actions",
     "status": {
       "pending": "Pending",
       "accepted": "Accepted",

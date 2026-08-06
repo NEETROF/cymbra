@@ -50,6 +50,7 @@ class PianoEntry {
     this.attribution,
     this.remoteId,
     this.proposalStatus,
+    this.hasPreview = false,
   });
 
   /// Hand-rolled JSON (the repo does not use `json_serializable`), used to
@@ -65,6 +66,7 @@ class PianoEntry {
     attribution: json['attribution'] as String?,
     remoteId: json['remoteId'] as String?,
     proposalStatus: json['proposalStatus'] as String?,
+    hasPreview: json['hasPreview'] as bool? ?? false,
   );
 
   final String id;
@@ -86,12 +88,19 @@ class PianoEntry {
   /// upgraded by the sync from the server (`pending` → `accepted`/`rejected`).
   final String? proposalStatus;
 
+  /// Whether the server has a rendered preview clip for this font (change:
+  /// add-soundfont-entitlement-previews). Sourced from the catalog listing; drives
+  /// the up-front greying of a **locked** font's play control (no preview → nothing to
+  /// audition). Defaults to `false` for bundled/imported fonts (they play locally).
+  final bool hasPreview;
+
   /// A copy with individual fields replaced (only what the sync flow needs).
   PianoEntry copyWith({
     String? label,
     String? source,
     String? remoteId,
     String? proposalStatus,
+    bool? hasPreview,
   }) => PianoEntry(
     id: id,
     label: label ?? this.label,
@@ -101,6 +110,7 @@ class PianoEntry {
     attribution: attribution,
     remoteId: remoteId ?? this.remoteId,
     proposalStatus: proposalStatus ?? this.proposalStatus,
+    hasPreview: hasPreview ?? this.hasPreview,
   );
 
   Map<String, dynamic> toJson() => {
@@ -112,6 +122,7 @@ class PianoEntry {
     if (attribution != null) 'attribution': attribution,
     if (remoteId != null) 'remoteId': remoteId,
     if (proposalStatus != null) 'proposalStatus': proposalStatus,
+    if (hasPreview) 'hasPreview': hasPreview,
   };
 
   @override
@@ -124,7 +135,8 @@ class PianoEntry {
       other.license == license &&
       other.attribution == attribution &&
       other.remoteId == remoteId &&
-      other.proposalStatus == proposalStatus;
+      other.proposalStatus == proposalStatus &&
+      other.hasPreview == hasPreview;
 
   @override
   int get hashCode => Object.hash(
@@ -136,6 +148,7 @@ class PianoEntry {
     attribution,
     remoteId,
     proposalStatus,
+    hasPreview,
   );
 }
 
