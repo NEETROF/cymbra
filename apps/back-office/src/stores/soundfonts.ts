@@ -1,8 +1,10 @@
 import { ref } from "vue";
 import { defineStore } from "pinia";
+import { Code, ConnectError } from "@connectrpc/connect";
 import { api } from "@/lib/api";
-import { type Async, idle, run } from "@/lib/async";
+import { type Async, failure, idle, loading, run, success } from "@/lib/async";
 import { humanError, SoundFontUploadError } from "@/lib/errors";
+import { t } from "@/i18n";
 import type { AdminSoundFont, CatalogHit, SoundFont } from "@/gen/score_pb";
 import { useAuthStore } from "./auth";
 
@@ -155,13 +157,21 @@ export const useSoundFontsStore = defineStore("soundfonts", () => {
   }
 
   /** Set a font's moderation status (accept/reject/re-queue), then re-list
-   *  (change: add-soundfont-moderation). */
+   *  (change: add-soundfont-moderation). Accepting requires a preview sample to exist
+   *  (change: add-soundfont-entitlement-previews): the server refuses with a
+   *  FailedPrecondition, which maps to a clear "generate a sample first" hint. */
   async function setModerationStatus(id: string, status: string) {
-    const outcome = await run(op, async () => {
+    op.value = loading;
+    try {
       await api().score.setSoundFontModerationStatus({ id, status });
-    });
-    if (outcome.status === "success") await list();
-    return outcome;
+      op.value = success(undefined);
+      await list();
+    } catch (e) {
+      const previewMissing =
+        status === "accepted" && e instanceof ConnectError && e.code === Code.FailedPrecondition;
+      op.value = failure(previewMissing ? t("soundfonts.previewRequired") : humanError(e));
+    }
+    return op.value;
   }
 
   /** (Re)generate a font's server-rendered preview clip (change:

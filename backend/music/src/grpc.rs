@@ -545,6 +545,29 @@ impl ScoreService for ScoreGrpc {
             ));
         }
         let repo = self.soundfont_repo()?;
+        // Accepting a font publishes it as publicly auditionable, so a preview clip is
+        // MANDATORY (change: add-soundfont-entitlement-previews): the moderator generates
+        // it ("Generate sample"), auditions it, then accepts. Refuse acceptance until the
+        // preview object exists. Only the `accepted` transition is gated (pending/rejected
+        // need none); an unknown id still resolves to NotFound via `set_moderation_status`.
+        if r.status == "accepted"
+            && repo
+                .lookup(&r.id)
+                .await
+                .map_err(|e| Status::internal(format!("lookup soundfont: {e}")))?
+                .is_some()
+        {
+            let key = crate::soundfont_preview::preview_object_key(&r.id);
+            let has_preview = match &self.soundfont_store {
+                Some(store) => store.size(&key).await.is_ok(),
+                None => false,
+            };
+            if !has_preview {
+                return Err(Status::failed_precondition(
+                    "a preview sample must be generated before accepting this soundfont",
+                ));
+            }
+        }
         let matched = repo
             .set_moderation_status(&r.id, &r.status, &id.user_id)
             .await
@@ -1252,7 +1275,17 @@ mod tests {
             None,
             "pending",
         )]));
-        let svc = grpc().await.with_soundfonts(repo.clone());
+        // Accepting requires the font's preview object to exist (change:
+        // add-soundfont-entitlement-previews) — seed it so the accept transition passes.
+        let store = Arc::new(FakeStore::default());
+        store
+            .put("ydp-grand.preview.wav", b"RIFF....WAVE".to_vec())
+            .await
+            .unwrap();
+        let svc = grpc()
+            .await
+            .with_soundfonts(repo.clone())
+            .with_soundfont_store(store.clone());
 
         // A plain user is refused.
         let denied = svc
@@ -1309,6 +1342,86 @@ mod tests {
             .await
             .unwrap_err();
         assert_eq!(missing.code(), tonic::Code::NotFound);
+    }
+
+    #[tokio::test]
+    async fn accepting_a_soundfont_requires_a_preview_sample() {
+        use crate::soundfont::FakeSoundFontRepo;
+        let repo = Arc::new(FakeSoundFontRepo::with(vec![font_status(
+            "no-preview",
+            None,
+            "pending",
+        )]));
+        // A store WITHOUT the font's preview object.
+        let store = Arc::new(FakeStore::default());
+        let svc = grpc()
+            .await
+            .with_soundfonts(repo.clone())
+            .with_soundfont_store(store.clone());
+        let mod_uuid = "11111111-1111-1111-1111-111111111111";
+
+        // Accepting is refused while no preview exists — and the status is unchanged.
+        let refused = svc
+            .set_sound_font_moderation_status(authed_moderator(
+                SetSoundFontModerationStatusRequest {
+                    id: "no-preview".into(),
+                    status: "accepted".into(),
+                },
+                mod_uuid,
+            ))
+            .await
+            .unwrap_err();
+        assert_eq!(refused.code(), tonic::Code::FailedPrecondition);
+        assert_eq!(
+            repo.lookup("no-preview")
+                .await
+                .unwrap()
+                .unwrap()
+                .moderation_status,
+            "pending"
+        );
+
+        // Rejecting needs no preview — it still works.
+        svc.set_sound_font_moderation_status(authed_moderator(
+            SetSoundFontModerationStatusRequest {
+                id: "no-preview".into(),
+                status: "rejected".into(),
+            },
+            mod_uuid,
+        ))
+        .await
+        .unwrap();
+        assert_eq!(
+            repo.lookup("no-preview")
+                .await
+                .unwrap()
+                .unwrap()
+                .moderation_status,
+            "rejected"
+        );
+
+        // Once the preview exists, acceptance goes through.
+        store
+            .put("no-preview.preview.wav", b"RIFF....WAVE".to_vec())
+            .await
+            .unwrap();
+        svc.set_sound_font_moderation_status(authed_moderator(
+            SetSoundFontModerationStatusRequest {
+                id: "no-preview".into(),
+                status: "accepted".into(),
+            },
+            mod_uuid,
+        ))
+        .await
+        .unwrap();
+        assert_eq!(
+            repo.lookup("no-preview")
+                .await
+                .unwrap()
+                .unwrap()
+                .moderation_status,
+            "accepted"
+        );
     }
 
     /// Attach an authenticated identity to a request (as the interceptor would).

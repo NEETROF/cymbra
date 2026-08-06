@@ -114,6 +114,7 @@
     "generatingSample": "Génération…",
     "generateSampleHint": "Génère le court extrait audio entendu lors de l’écoute de cette sonorité dans l’app.",
     "sampleGenerated": "Extrait généré.",
+    "previewRequired": "Générez un extrait de preview avant d’accepter cette sonorité.",
     "empty": "Aucune SoundFont pour l’instant.",
     "confirmRemove": "Supprimer cette SoundFont ? Sa ligne de catalogue et son fichier stocké sont supprimés.",
     "statusCol": "Statut",

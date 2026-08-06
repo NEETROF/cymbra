@@ -19,12 +19,14 @@
 - [x] 3.2 Hook the render into `upload` (`POST /soundfonts/{id}`): after storing the font, render + store the public preview; a render failure logs and is non-fatal (upload still succeeds).
 - [x] 3.3 Add the admin-gated regenerate endpoint `POST /soundfonts/{id}/preview`: re-read stored font bytes → render → overwrite the public preview; return success/failure. Register the route.
 - [x] 3.4 Add `GET /soundfonts/{id}/preview`: serve the public clip with **no entitlement gate**, moderation-visibility gate only; not-found when no preview exists. Register the route.
+- [x] 3.5 Gate acceptance on a preview: `SetSoundFontModerationStatus` refuses the `accepted` transition (FailedPrecondition) unless the font's preview object exists; `pending`/`rejected` unaffected; unknown id still NotFound. Unit-test refuse/allow/reject.
 
 ## 4. Back office (Vue)
 
 - [x] 4.1 Add a `regeneratePreview(id)` call behind the injectable client seam (`lib/api.ts` + `setClientsForTest`).
 - [x] 4.2 Add a **"Generate sample"** action to the SoundFonts admin screen, its state modeled as an `Async<T>` union matched with `match(...).exhaustive()`; show in-flight/success/error.
 - [x] 4.3 Vitest coverage for the store/composable action (success + error) via the client seam.
+- [x] 4.4 Map an accept-time FailedPrecondition to a clear "generate a preview sample first" hint (i18n en/fr) instead of the generic error; vitest coverage.
 
 ## 5. App audition via preview clip (Flutter)
 

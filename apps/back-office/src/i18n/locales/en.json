@@ -114,6 +114,7 @@
     "generatingSample": "Generating…",
     "generateSampleHint": "Render the short preview clip users hear when auditioning this font in the app.",
     "sampleGenerated": "Sample generated.",
+    "previewRequired": "Generate a preview sample before accepting this font.",
     "empty": "No SoundFonts yet.",
     "confirmRemove": "Remove this SoundFont? Its catalog row and stored file are both deleted.",
     "statusCol": "Status",

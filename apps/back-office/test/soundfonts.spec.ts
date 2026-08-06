@@ -8,6 +8,7 @@ import {
   useSoundFontsStore,
 } from "@/stores/soundfonts";
 import { SoundFontUploadError } from "@/lib/errors";
+import { Code, ConnectError } from "@connectrpc/connect";
 import { setClientsForTest } from "@/lib/api";
 import { makeFakeClients } from "./fakes";
 
@@ -271,6 +272,23 @@ describe("soundfonts store", () => {
     expect(outcome.status).toBe("success");
     expect(sf.moderationCalls).toEqual([{ id: "ydp-grand", status: "accepted" }]);
     expect(sf.adminListCalls).toBe(1); // re-listed after the decision
+  });
+
+  it("maps a FailedPrecondition on accept to the 'generate a sample' hint", async () => {
+    const { clients } = makeFakeClients();
+    withSoundfonts(clients, [row("ydp-grand", { moderationStatus: "pending" })]);
+    const score = clients.score as unknown as Record<string, () => Promise<never>>;
+    // The server refuses acceptance until a preview sample exists.
+    score.setSoundFontModerationStatus = () =>
+      Promise.reject(new ConnectError("no preview", Code.FailedPrecondition));
+    setClientsForTest(clients);
+    const store = useSoundFontsStore();
+
+    const outcome = await store.setModerationStatus("ydp-grand", "accepted");
+
+    expect(outcome.status).toBe("error");
+    // A dedicated hint, not the generic message.
+    expect(store.op.status === "error" && /preview sample/i.test(store.op.error)).toBe(true);
   });
 
   it("captures a denied moderation decision in op instead of throwing", async () => {
