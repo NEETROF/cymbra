@@ -36,7 +36,8 @@ const { t } = useI18n();
 .toast-host {
   position: fixed;
   z-index: 1000;
-  top: 1rem;
+  /* Bottom-right, out of the way of the header actions. */
+  bottom: 1rem;
   right: 1rem;
   display: flex;
   flex-direction: column;
@@ -51,22 +52,20 @@ const { t } = useI18n();
   gap: 0.6rem;
   padding: 0.7rem 0.8rem 0.7rem 0.9rem;
   border-radius: var(--radius-lg, 12px);
-  border: 1px solid var(--border-2);
-  /* A left accent bar carries the variant colour; the surface stays neutral so text
-     keeps AA contrast. */
-  border-left-width: 3px;
-  background: var(--panel-2);
-  color: var(--text);
-  box-shadow: 0 8px 24px rgb(0 0 0 / 35%);
+  /* A SOLID variant-coloured fill (deliberately NOT the app's navy) so a toast pops
+     against the dark blue canvas; dark text keeps it readable. */
+  color: #10182b;
+  font-weight: 600;
+  box-shadow: 0 12px 32px rgb(0 0 0 / 45%);
 }
 .toast.success {
-  border-left-color: var(--green);
+  background: var(--green);
 }
 .toast.error {
-  border-left-color: var(--coral);
+  background: var(--coral);
 }
 .toast.info {
-  border-left-color: var(--accent);
+  background: var(--amber);
 }
 .msg {
   flex: 1;
@@ -83,19 +82,19 @@ const { t } = useI18n();
   border: 0;
   border-radius: 6px;
   background: transparent;
-  color: var(--muted);
+  color: rgb(16 24 43 / 55%);
   cursor: pointer;
 }
 .close:hover {
-  color: var(--text);
-  background: color-mix(in srgb, var(--text) 10%, transparent);
+  color: #10182b;
+  background: rgb(16 24 43 / 14%);
 }
 .close svg {
   width: 15px;
   height: 15px;
 }
 
-/* Enter/leave transitions (slide + fade from the right). */
+/* Enter/leave transitions (slide up + fade from below). */
 .toast-enter-active,
 .toast-leave-active {
   transition:
@@ -105,7 +104,7 @@ const { t } = useI18n();
 .toast-enter-from,
 .toast-leave-to {
   opacity: 0;
-  transform: translateX(12px);
+  transform: translateY(12px);
 }
 .toast-leave-active {
   position: absolute;
