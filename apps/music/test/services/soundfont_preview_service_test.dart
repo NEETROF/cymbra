@@ -30,9 +30,8 @@ import '../support/soundfont_fakes.dart';
 Provider<SoundFontPreviewService> _svc(
   http.Client client,
   FakeSoundClipPlayer player,
-) => Provider(
-  (ref) => SoundFontPreviewServiceImpl(ref, player, client: client),
-);
+) =>
+    Provider((ref) => SoundFontPreviewServiceImpl(ref, player, client: client));
 
 ProviderContainer _container() {
   final c = ProviderContainer(
@@ -42,10 +41,7 @@ ProviderContainer _container() {
       ),
       tokenStoreProvider.overrideWithValue(
         FakeTokenStore()
-          ..tokens = const StoredTokens(
-            accessToken: 'tok',
-            refreshToken: 'r',
-          ),
+          ..tokens = const StoredTokens(accessToken: 'tok', refreshToken: 'r'),
       ),
     ],
   );
@@ -65,22 +61,25 @@ void main() {
       expect(req.headers['authorization'], 'Bearer tok');
       return http.Response.bytes(Uint8List.fromList([1, 2, 3]), 200);
     });
-    final played = await _container().read(_svc(client, player)).audition(
-      'grand',
-    );
+    final played = await _container()
+        .read(_svc(client, player))
+        .audition('grand');
     expect(played, isTrue);
     expect(player.played.single, [1, 2, 3]);
   });
 
-  test('audition returns false and plays nothing when no preview (404)', () async {
-    final player = FakeSoundClipPlayer();
-    final client = MockClient((_) async => http.Response('', 404));
-    final played = await _container().read(_svc(client, player)).audition(
-      'grand',
-    );
-    expect(played, isFalse);
-    expect(player.played, isEmpty);
-  });
+  test(
+    'audition returns false and plays nothing when no preview (404)',
+    () async {
+      final player = FakeSoundClipPlayer();
+      final client = MockClient((_) async => http.Response('', 404));
+      final played = await _container()
+          .read(_svc(client, player))
+          .audition('grand');
+      expect(played, isFalse);
+      expect(player.played, isEmpty);
+    },
+  );
 
   test('audition throws on any other non-200 status', () async {
     final player = FakeSoundClipPlayer();

@@ -51,3 +51,15 @@ void audioLoadSoundfont({required String sf2Path}) =>
 /// louder). Self-terminating: there is no matching off.
 void metronomeClick({required bool accent}) =>
     RustLib.instance.api.crateApiAudioMetronomeClick(accent: accent);
+
+/// Plays a server-rendered SoundFont **preview clip** (a 16-bit PCM WAV) by mixing it
+/// into the engine's output, looping until [`stop_preview_clip`] (change:
+/// add-soundfont-entitlement-previews). This lets the app audition a **locked** reward
+/// font without downloading its `.sf2` — reusing the same cross-platform audio engine
+/// as the synth (no third-party audio plugin). A silent no-op if the engine is not
+/// running or the bytes are not a decodable WAV.
+void playPreviewClip({required List<int> wavBytes}) =>
+    RustLib.instance.api.crateApiAudioPlayPreviewClip(wavBytes: wavBytes);
+
+/// Stops the preview clip started by [`play_preview_clip`] (silent no-op if none).
+void stopPreviewClip() => RustLib.instance.api.crateApiAudioStopPreviewClip();

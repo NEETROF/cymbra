@@ -42,7 +42,10 @@ use cpal::{FromSample, SizedSample};
 use flutter_rust_bridge::frb;
 use rustysynth::{SoundFont, Synthesizer, SynthesizerSettings};
 
-use super::audio_core::{AudioEvent, ClickVoice, PIANO_CHANNEL, VoiceTracker, is_valid_soundfont};
+use super::audio_core::{
+    AudioEvent, ClickVoice, ClipVoice, PIANO_CHANNEL, VoiceTracker, decode_wav_pcm,
+    is_valid_soundfont,
+};
 
 /// A message handed from the UI/FFI thread to the audio thread over the lock-free
 /// queue. Most are plain control [`AudioEvent`]s (tiny, `Copy`); a runtime
@@ -60,6 +63,12 @@ enum AudioCommand {
     /// happened off the audio thread (see [`audio_load_soundfont`]); the callback
     /// only builds the synth and swaps it in.
     ReplaceSynth(Arc<SoundFont>),
+    /// Start (or replace) a looping preview clip, mixed into the output on top of the
+    /// synth (change: add-soundfont-entitlement-previews). `sample_rate` is the clip's
+    /// own rate; the audio thread resamples to the device rate.
+    PlayClip { pcm: Vec<i16>, sample_rate: u32 },
+    /// Stop any preview clip currently playing.
+    StopClip,
 }
 
 /// Sender used by the FFI entry points to hand commands to the audio thread.
@@ -163,6 +172,30 @@ pub fn metronome_click(accent: bool) {
     send(AudioEvent::Click { accent });
 }
 
+/// Plays a server-rendered SoundFont **preview clip** (a 16-bit PCM WAV) by mixing it
+/// into the engine's output, looping until [`stop_preview_clip`] (change:
+/// add-soundfont-entitlement-previews). This lets the app audition a **locked** reward
+/// font without downloading its `.sf2` — reusing the same cross-platform audio engine
+/// as the synth (no third-party audio plugin). A silent no-op if the engine is not
+/// running or the bytes are not a decodable WAV.
+#[frb(sync)]
+pub fn play_preview_clip(wav_bytes: Vec<u8>) {
+    let Some((sample_rate, pcm)) = decode_wav_pcm(&wav_bytes) else {
+        return;
+    };
+    if let Some(tx) = EVENT_TX.lock().unwrap().as_ref() {
+        let _ = tx.send(AudioCommand::PlayClip { pcm, sample_rate });
+    }
+}
+
+/// Stops the preview clip started by [`play_preview_clip`] (silent no-op if none).
+#[frb(sync)]
+pub fn stop_preview_clip() {
+    if let Some(tx) = EVENT_TX.lock().unwrap().as_ref() {
+        let _ = tx.send(AudioCommand::StopClip);
+    }
+}
+
 /// Pushes a control event to the audio thread if the engine is running;
 /// otherwise a silent no-op.
 fn send(event: AudioEvent) {
@@ -235,6 +268,10 @@ where
     // The currently sounding metronome click, if any. A click is a short one-shot
     // mixed in on top of the synth; a new click event simply replaces it.
     let mut click: Option<ClickVoice> = None;
+    // The currently looping preview clip, if any (change:
+    // add-soundfont-entitlement-previews). Mixed in like the click, but looping until
+    // an explicit stop.
+    let mut clip: Option<ClipVoice> = None;
     // Reused scratch buffers so the callback never allocates on the steady path.
     let mut left: Vec<f32> = Vec::new();
     let mut right: Vec<f32> = Vec::new();
@@ -278,6 +315,13 @@ where
                             ),
                         }
                     }
+                    AudioCommand::PlayClip {
+                        pcm,
+                        sample_rate: clip_rate,
+                    } => {
+                        clip = Some(ClipVoice::new(pcm, clip_rate, sample_rate as f32));
+                    }
+                    AudioCommand::StopClip => clip = None,
                 }
             }
 
@@ -301,6 +345,15 @@ where
                 }
                 if !voice.is_active() {
                     click = None;
+                }
+            }
+
+            // Mix the looping preview clip (same mono signal in both channels).
+            if let Some(voice) = clip.as_mut() {
+                for i in 0..frames {
+                    let s = voice.next_sample();
+                    l[i] += s;
+                    r[i] += s;
                 }
             }
 

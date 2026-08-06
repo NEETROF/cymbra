@@ -279,8 +279,7 @@ describe("soundfonts store", () => {
     withSoundfonts(clients, [row("ydp-grand", { moderationStatus: "pending" })]);
     const score = clients.score as unknown as Record<string, () => Promise<never>>;
     // The server refuses acceptance until a preview sample exists.
-    score.setSoundFontModerationStatus = () =>
-      Promise.reject(new ConnectError("no preview", Code.FailedPrecondition));
+    score.setSoundFontModerationStatus = () => Promise.reject(new ConnectError("no preview", Code.FailedPrecondition));
     setClientsForTest(clients);
     const store = useSoundFontsStore();
 

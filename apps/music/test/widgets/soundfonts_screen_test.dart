@@ -69,20 +69,17 @@ class _ShopFake implements CuratorRewardsService {
       const RedeemResultView(owned: true, newBalance: 0);
 }
 
-RewardShopItemView _reward(
-  String key, {
-  required bool owned,
-  int cost = 50,
-}) => RewardShopItemView(
-  key: key,
-  label: key,
-  instrument: 'piano',
-  license: 'CC0-1.0',
-  attribution: '',
-  pointCost: cost,
-  redeemable: true,
-  owned: owned,
-);
+RewardShopItemView _reward(String key, {required bool owned, int cost = 50}) =>
+    RewardShopItemView(
+      key: key,
+      label: key,
+      instrument: 'piano',
+      license: 'CC0-1.0',
+      attribution: '',
+      pointCost: cost,
+      redeemable: true,
+      owned: owned,
+    );
 
 ProviderContainer _container({
   FakePreferencesService? prefs,
@@ -106,7 +103,9 @@ ProviderContainer _container({
       privateSoundFontServiceProvider.overrideWithValue(
         private ?? FakePrivateSoundFontService(),
       ),
-      soundFontSourceProvider.overrideWithValue(source ?? FakeSoundFontSource()),
+      soundFontSourceProvider.overrideWithValue(
+        source ?? FakeSoundFontSource(),
+      ),
       soundFontPreviewServiceProvider.overrideWithValue(
         preview ?? FakeSoundFontPreviewService(),
       ),
