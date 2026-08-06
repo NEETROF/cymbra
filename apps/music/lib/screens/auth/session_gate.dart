@@ -32,7 +32,7 @@ class SessionGate extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final session = ref.watch(sessionNotifierProvider);
     return switch (session) {
-      SessionUnknown() => const _SplashLoader(),
+      SessionUnknown() => const SplashLoader(),
       SessionUnauthenticated() => const EntryScreen(),
       SessionGuest() => const LibraryScreen(),
       SessionAuthenticated() =>
@@ -43,9 +43,10 @@ class SessionGate extends ConsumerWidget {
   }
 }
 
-/// Shown while the session is being hydrated from secure storage.
-class _SplashLoader extends StatelessWidget {
-  const _SplashLoader();
+/// Shown while the session is being hydrated from secure storage — and, ahead of
+/// it, while the first-run flags are read (see `OnboardingGate`).
+class SplashLoader extends StatelessWidget {
+  const SplashLoader({super.key});
 
   @override
   Widget build(BuildContext context) {

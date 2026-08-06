@@ -20,7 +20,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:async';
 
 import 'l10n/gen/app_localizations.dart';
-import 'screens/auth/session_gate.dart';
+import 'screens/onboarding/onboarding_gate.dart';
 import 'services/audio_service.dart';
 import 'services/flags_integration.dart';
 import 'src/rust/frb_generated.dart';
@@ -29,6 +29,7 @@ import 'state/language_sync_listener.dart';
 import 'state/selected_piano.dart';
 import 'state/usage_tracking_notifier.dart';
 import 'theme/cymbra_theme.dart';
+import 'widgets/coach_layer.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -108,9 +109,9 @@ class _AudioLifecycleObserver with WidgetsBindingObserver {
   }
 }
 
-/// Root app. `home` is no longer the unconditional library: it is the
-/// [SessionGate], which routes on the resolved account session (entry screen,
-/// guest/library, or handle onboarding).
+/// Root app. `home` is the [OnboardingGate], which runs the first-run language
+/// and welcome steps (no account required) before handing over to the session
+/// routing (entry screen, guest/library, or handle onboarding).
 class CymbraApp extends ConsumerWidget {
   const CymbraApp({super.key});
 
@@ -127,9 +128,13 @@ class CymbraApp extends ConsumerWidget {
       locale: locale,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
+      // The coaching layer sits ABOVE the navigator so a spotlight can point at
+      // a control that lives inside a dialog (the pre-play setup surface).
+      builder: (context, child) =>
+          Stack(children: [?child, const CoachLayer()]),
       // Reconcile the account language into the UI after sign-in (change:
       // sync-account-language-preference), isolated in a dedicated listener.
-      home: const LanguageSyncListener(child: SessionGate()),
+      home: const LanguageSyncListener(child: OnboardingGate()),
     );
   }
 }

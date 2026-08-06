@@ -21,7 +21,7 @@ import 'package:music/services/catalog_service.dart';
 import 'package:music/services/notation_engine.dart';
 import 'package:music/services/preferences_service.dart';
 import 'package:music/services/rating_service.dart';
-import 'package:music/state/rating_coach_notifier.dart';
+import 'package:music/state/coaching_notifier.dart';
 import 'package:music/state/rating_deck_notifier.dart';
 import 'package:music/widgets/swipe_card.dart';
 
@@ -60,7 +60,7 @@ Future<FakeRatingService> _pumpDeck(
         audioServiceProvider.overrideWithValue(RecordingAudioService()),
         preferencesServiceProvider.overrideWithValue(
           FakePreferencesService(
-            coachSeen ? {RatingCoachMark.prefsKey: 'true'} : null,
+            coachSeen ? {CoachHint.ratingDeck.prefsKey: 'true'} : null,
           ),
         ),
       ],
@@ -191,7 +191,7 @@ void main() {
           notationEngineProvider.overrideWithValue(FakeNotationEngine()),
           audioServiceProvider.overrideWithValue(RecordingAudioService()),
           preferencesServiceProvider.overrideWithValue(
-            FakePreferencesService({RatingCoachMark.prefsKey: 'true'}),
+            FakePreferencesService({CoachHint.ratingDeck.prefsKey: 'true'}),
           ),
         ],
         child: localizedApp(const RatingDeckScreen()),
@@ -208,10 +208,10 @@ void main() {
 
   testWidgets('the coach mark shows once and dismisses', (tester) async {
     await _pumpDeck(tester, coachSeen: false);
-    expect(find.byIcon(Icons.swipe), findsOneWidget);
+    expect(find.byKey(const Key('coach-mark-bubble')), findsOneWidget);
     await tester.tap(find.text('Got it'));
     await _settle(tester);
-    expect(find.byIcon(Icons.swipe), findsNothing);
+    expect(find.byKey(const Key('coach-mark-bubble')), findsNothing);
   });
 
   testWidgets('the coach mark fits a short landscape viewport (no overflow)', (
@@ -238,7 +238,7 @@ void main() {
       ),
     );
     await _settle(tester);
-    expect(find.byIcon(Icons.swipe), findsOneWidget);
+    expect(find.byKey(const Key('coach-mark-bubble')), findsOneWidget);
     expect(tester.takeException(), isNull); // no RenderFlex overflow
   });
 
@@ -259,7 +259,7 @@ void main() {
           notationEngineProvider.overrideWithValue(FakeNotationEngine()),
           audioServiceProvider.overrideWithValue(RecordingAudioService()),
           preferencesServiceProvider.overrideWithValue(
-            FakePreferencesService({RatingCoachMark.prefsKey: 'true'}),
+            FakePreferencesService({CoachHint.ratingDeck.prefsKey: 'true'}),
           ),
         ],
         child: localizedApp(const RatingDeckScreen()),

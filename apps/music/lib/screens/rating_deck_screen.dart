@@ -20,12 +20,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../l10n/gen/app_localizations.dart';
 import '../services/rating_service.dart';
-import '../state/rating_coach_notifier.dart';
+import '../state/coaching_notifier.dart';
 import '../state/rating_deck_notifier.dart';
 import '../state/score_catalog.dart';
 import '../state/selected_piano.dart';
 import '../theme/cymbra_theme.dart';
 import '../widgets/app_snackbar.dart';
+import '../widgets/coach_mark.dart';
 import '../widgets/rating_card.dart';
 import '../widgets/rating_deck_controls.dart';
 import '../widgets/sound_selector_field.dart';
@@ -323,81 +324,31 @@ class _CardStackStars {
   }
 }
 
-/// The one-time coach mark (change: add-app-score-rating, task 5.1): a dismissible
-/// scrim explaining the gestures, shown only until the user has seen it once
-/// (persisted via [ratingCoachMarkProvider]).
+/// The one-time swipe-gesture hint (change: add-app-score-rating, task 5.1),
+/// now delivered through the **shared** coaching mechanism (change:
+/// add-welcome-onboarding, D4) rather than its own overlay: same look as every
+/// other first-use hint, one "seen" store, dismissible, and never blocking the
+/// deck underneath for longer than a tap.
 class _CoachMarkOverlay extends ConsumerWidget {
   const _CoachMarkOverlay();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final seen = ref.watch(ratingCoachMarkProvider);
-    // `null` = still loading the flag (show nothing yet); `true` = already seen.
-    if (seen != false) return const SizedBox.shrink();
+    final coaching = ref.watch(coachingProvider);
+    // Nothing is shown until the flags are known, so a returning user never
+    // sees it flash.
+    if (!coaching.shouldShow(CoachHint.ratingDeck)) {
+      return const SizedBox.shrink();
+    }
     final l10n = AppLocalizations.of(context);
+    void dismiss() =>
+        ref.read(coachingProvider.notifier).markSeen(CoachHint.ratingDeck);
     return Positioned.fill(
-      child: GestureDetector(
-        onTap: () => ref.read(ratingCoachMarkProvider.notifier).markSeen(),
-        child: ColoredBox(
-          color: Colors.black.withValues(alpha: 0.72),
-          // Centre the hint when it fits, and let it scroll on a short (landscape)
-          // viewport instead of overflowing.
-          child: LayoutBuilder(
-            builder: (context, constraints) => SingleChildScrollView(
-              child: ConstrainedBox(
-                constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                child: Center(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 20,
-                    ),
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 420),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(
-                            Icons.swipe,
-                            size: 46,
-                            color: CymbraColors.primary,
-                          ),
-                          const SizedBox(height: 14),
-                          Text(
-                            l10n.ratingCoachTitle,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              color: CymbraColors.onSurface,
-                              fontSize: 19,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          Text(
-                            l10n.ratingCoachBody,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              color: CymbraColors.onSurfaceVariant,
-                              fontSize: 14.5,
-                              height: 1.3,
-                            ),
-                          ),
-                          const SizedBox(height: 18),
-                          FilledButton(
-                            onPressed: () => ref
-                                .read(ratingCoachMarkProvider.notifier)
-                                .markSeen(),
-                            child: Text(l10n.ratingCoachDismiss),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
+      child: CoachMarkOverlay(
+        title: l10n.ratingCoachTitle,
+        body: l10n.ratingCoachBody,
+        nextLabel: l10n.ratingCoachDismiss,
+        onNext: dismiss,
       ),
     );
   }

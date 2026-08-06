@@ -29,6 +29,8 @@ import '../widgets/library_listeners.dart';
 import '../widgets/rating_invite_banner.dart';
 import '../widgets/score_card.dart';
 import 'auth/account_menu.dart';
+import 'help_screen.dart';
+import 'onboarding/sign_in_invitation.dart';
 import 'open_score.dart';
 import 'rating_deck_screen.dart';
 import 'score_hub_screen.dart';
@@ -67,24 +69,43 @@ class LibraryScreen extends ConsumerWidget {
           title: Text(l10n.libraryTitle),
           backgroundColor: CymbraColors.surfaceContainerLowest,
           actions: [
-            if (signedIn) ...[
-              IconButton(
-                icon: const Icon(Icons.search),
-                tooltip: l10n.scoreHubEntryTooltip,
-                onPressed: () => _openHub(context),
+            // Shown to everyone: reaching them signed out is what triggers the
+            // contextual sign-in invitation (change: add-welcome-onboarding, D3)
+            // — the benefit is named, declining keeps the user here, and
+            // accepting resumes the action they were after.
+            IconButton(
+              key: const Key('library-hub'),
+              icon: const Icon(Icons.search),
+              tooltip: l10n.scoreHubEntryTooltip,
+              onPressed: () =>
+                  _openGated(context, ref, SignInBenefit.saveLibrary, _openHub),
+            ),
+            IconButton(
+              key: const Key('library-rating-deck'),
+              icon: const Icon(Icons.swipe),
+              tooltip: l10n.ratingDeckEntryTooltip,
+              onPressed: () => _openGated(
+                context,
+                ref,
+                SignInBenefit.earnPoints,
+                _openRatingDeck,
               ),
-              IconButton(
-                icon: const Icon(Icons.swipe),
-                tooltip: l10n.ratingDeckEntryTooltip,
-                onPressed: () => _openRatingDeck(context),
-              ),
-            ],
+            ),
             if (signedIn)
               IconButton(
                 icon: const Icon(Icons.library_music_outlined),
                 tooltip: l10n.soundfontsEntryTooltip,
                 onPressed: () => _openSoundFonts(context),
               ),
+            // Help & tips: the stable entry that makes the one-time hints
+            // re-findable (change: add-welcome-onboarding, D5). Shown to every
+            // session — including a signed-out one browsing the bundled scores.
+            IconButton(
+              key: const Key('library-help'),
+              icon: const Icon(Icons.help_outline),
+              tooltip: l10n.helpTitle,
+              onPressed: () => openHelp(context),
+            ),
             // The account control is the curator standing pill (change: add-
             // curation-rewards) — it replaces the plain person icon and opens the
             // account menu (→ profile, where the rewards live).
@@ -125,6 +146,21 @@ class LibraryScreen extends ConsumerWidget {
 
   static void _open(BuildContext context, WidgetRef ref, CatalogEntry entry) {
     unawaited(openScore(context, ref, entry));
+  }
+
+  /// Runs an account-gated entry point: signed in, it opens straight away;
+  /// signed out, it invites sign-in with [benefit] and — only if the user
+  /// accepts and completes it — **resumes** by opening the screen. Declining
+  /// returns the user to the library, never a dead end.
+  static Future<void> _openGated(
+    BuildContext context,
+    WidgetRef ref,
+    SignInBenefit benefit,
+    void Function(BuildContext) open,
+  ) async {
+    if (!await inviteSignIn(context, ref, benefit)) return;
+    if (!context.mounted) return;
+    open(context);
   }
 
   static void _openHub(BuildContext context) => Navigator.of(
