@@ -164,6 +164,30 @@ fresh clone or a new worktree has none: run `scripts/graphify.sh` there once to 
 **new shell** (or `hash -r`) so `graphify` is found. `command not found` → new shell;
 `graph.json` not found → you're not at the repo root, or you haven't built the graphs yet.
 
+### Docs graph (OpenSpec — semantic, opt-in, costs tokens)
+
+Optional 4th graph over the OpenSpec corpus (`openspec/specs/` + in-flight
+`openspec/changes/`; `changes/archive/` excluded) for *terminology/concept*
+questions — "which specs mention entitlement", "how is moderation wired to
+propose/attestation" — with file anchors. Unlike the three AST graphs it is
+**LLM-extracted** (concept nodes + relations, EXTRACTED/INFERRED/AMBIGUOUS
+provenance), so building it **costs tokens**: it is NOT part of
+`scripts/graphify.sh` and must **never** run from the post-commit hook.
+
+- **First build** (from an AI session via the graphify skill): exclude the
+  archive first — `printf 'changes/archive/\n' > openspec/.graphifyignore`
+  (git-ignored) — then run the skill on `openspec/`. One-shot ~1M tokens for
+  ~190 files.
+- **Refresh**: rerun with `--update` — the per-file extraction cache
+  (`openspec/graphify-out/cache/`, keyed by content hash) makes it pay only for
+  new/changed `.md` (~6k tokens/file). Archiving a change re-extracts only the
+  touched `specs/` files.
+- **Query** (same CLI, from the repo root):
+  `graphify query|explain "<Concept>" --graph openspec/graphify-out/graph.json`.
+- **One home only**: keep the graph + cache in your main checkout; worktrees
+  query it via `--graph <main-checkout>/openspec/graphify-out/graph.json`
+  instead of rebuilding (a cache-less rebuild re-pays the whole corpus).
+
 ## Before opening a PR
 
 - `melos run analyze` and `dart format` clean
