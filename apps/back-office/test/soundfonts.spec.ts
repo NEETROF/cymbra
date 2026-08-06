@@ -307,15 +307,16 @@ describe("soundfonts store", () => {
 
   // --- Generate sample (change: add-soundfont-entitlement-previews) ---
 
-  it("regeneratePreview drives the preview Async to success, tracks the target, and re-lists", async () => {
+  it("regeneratePreview flips the row's hasPreview optimistically without a re-list", async () => {
     const { clients } = makeFakeClients();
-    const sf = withSoundfonts(clients, [row("ydp-grand")]);
+    const sf = withSoundfonts(clients, [row("ydp-grand", { hasPreview: false })]);
     setClientsForTest(clients);
     const called: string[] = [];
     setRegeneratePreviewForTest(async (id) => {
       called.push(id);
     });
     const store = useSoundFontsStore();
+    await store.list(); // populate the catalog (adminListCalls = 1)
 
     const outcome = await store.regeneratePreview("ydp-grand");
 
@@ -323,7 +324,10 @@ describe("soundfonts store", () => {
     expect(called).toEqual(["ydp-grand"]);
     expect(store.preview.status).toBe("success");
     expect(store.previewTarget).toBe("ydp-grand");
-    // Re-listed so the row's hasPreview flips (its control turns into a play button).
+    // The row's control flips to a play button immediately — no second admin list
+    // (re-reading has_preview right after the write could momentarily miss it).
+    const flipped = store.catalog.status === "success" && store.catalog.data.find((f) => f.id === "ydp-grand");
+    expect(flipped && flipped.hasPreview).toBe(true);
     expect(sf.adminListCalls).toBe(1);
   });
 

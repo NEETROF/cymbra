@@ -167,22 +167,28 @@ export const useSoundFontsStore = defineStore("soundfonts", () => {
       op.value = success(undefined);
       await list();
     } catch (e) {
-      const previewMissing =
-        status === "accepted" && e instanceof ConnectError && e.code === Code.FailedPrecondition;
+      const previewMissing = status === "accepted" && e instanceof ConnectError && e.code === Code.FailedPrecondition;
       op.value = failure(previewMissing ? t("soundfonts.previewRequired") : humanError(e));
     }
     return op.value;
   }
 
   /** (Re)generate a font's server-rendered preview clip (change:
-   *  add-soundfont-entitlement-previews), then re-list so the row's `hasPreview` flips
-   *  (its control turns from "Generate sample" into a play button). */
+   *  add-soundfont-entitlement-previews). On success the endpoint has already STORED the
+   *  preview object (it returns 200 only after the `put`), so we flip the row's
+   *  `hasPreview` optimistically — its control turns from "Generate sample" into a play
+   *  button immediately. No re-list: re-reading `has_preview` right after the write could
+   *  momentarily miss it (object-store read-after-write latency) and revert the flip. */
   async function regeneratePreview(id: string) {
     previewTarget.value = id;
     const outcome = await run(preview, async () => {
       await regeneratePreviewImpl(id, useAuthStore().accessToken);
     });
-    if (outcome.status === "success") await list();
+    if (outcome.status === "success" && catalog.value.status === "success") {
+      const target = catalog.value.data.find((f) => f.id === id);
+      if (target) target.hasPreview = true;
+      catalog.value = success([...catalog.value.data]);
+    }
     return outcome;
   }
 
