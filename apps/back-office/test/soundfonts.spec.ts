@@ -307,9 +307,9 @@ describe("soundfonts store", () => {
 
   // --- Generate sample (change: add-soundfont-entitlement-previews) ---
 
-  it("regeneratePreview drives the preview Async to success and tracks the target", async () => {
+  it("regeneratePreview drives the preview Async to success, tracks the target, and re-lists", async () => {
     const { clients } = makeFakeClients();
-    withSoundfonts(clients);
+    const sf = withSoundfonts(clients, [row("ydp-grand")]);
     setClientsForTest(clients);
     const called: string[] = [];
     setRegeneratePreviewForTest(async (id) => {
@@ -323,6 +323,22 @@ describe("soundfonts store", () => {
     expect(called).toEqual(["ydp-grand"]);
     expect(store.preview.status).toBe("success");
     expect(store.previewTarget).toBe("ydp-grand");
+    // Re-listed so the row's hasPreview flips (its control turns into a play button).
+    expect(sf.adminListCalls).toBe(1);
+  });
+
+  it("previewClip fetches the preview route", async () => {
+    const { clients } = makeFakeClients();
+    withSoundfonts(clients);
+    setClientsForTest(clients);
+    const fetchMock = vi.fn(() => Promise.resolve(new Response(new Uint8Array([1, 2, 3]), { status: 200 })));
+    vi.stubGlobal("fetch", fetchMock);
+    const store = useSoundFontsStore();
+
+    const bytes = await store.previewClip("ydp-grand");
+
+    expect(bytes).toEqual(new Uint8Array([1, 2, 3]));
+    expect(String((fetchMock.mock.calls[0] as unknown[])[0])).toContain("/soundfonts/ydp-grand/preview");
   });
 
   it("captures a preview regeneration failure in the preview state (no throw)", async () => {

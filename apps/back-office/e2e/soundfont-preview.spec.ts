@@ -1,10 +1,11 @@
 import { test, expect, seed } from "./fixtures";
 
-// Change: add-soundfont-entitlement-previews. The "Generate sample" per-row action
-// (re)renders a font's server preview clip through the injectable HTTP seam. Drives
-// it in a real browser against the fake seam (no backend) and captures screenshots.
+// Change: add-soundfont-entitlement-previews. The per-row control is merged: a font
+// with NO preview shows "Generate sample"; once a preview exists the same slot becomes
+// a play button (which auditions the server-rendered clip). Drives it in a real
+// browser against the fake seam (no backend).
 
-test("Generate sample action renders and reports success", async ({ page }) => {
+test("the play control is merged with Generate sample by preview availability", async ({ page }) => {
   await seed(page, {
     loginAs: "admin",
     data: {
@@ -16,14 +17,7 @@ test("Generate sample action renders and reports success", async ({ page }) => {
           license: "CC-BY 3.0",
           attribution: "Roberto / Zenph Studios",
           moderationStatus: "accepted",
-        },
-        {
-          id: "upright-piano-kw",
-          label: "Upright Piano KW",
-          instrument: "piano",
-          license: "CC0-1.0",
-          attribution: "",
-          moderationStatus: "accepted",
+          // No hasPreview → the slot starts as "Generate sample".
         },
       ],
     },
@@ -37,11 +31,14 @@ test("Generate sample action renders and reports success", async ({ page }) => {
   // SoundFonts screen itself renders fine underneath.
   await page.addStyleTag({ content: "vite-error-overlay{display:none !important}" });
 
-  // The new per-row action is present on every row.
+  // No preview yet → the slot is "Generate sample", and there is no play button.
   const generate = page.getByRole("button", { name: "Generate sample" });
-  await expect(generate.first()).toBeVisible();
+  await expect(generate).toBeVisible();
+  await expect(page.getByRole("button", { name: "Play" })).toHaveCount(0);
 
-  // Clicking it (re)renders the preview and reports success.
-  await generate.first().click();
+  // Generate the preview → success, and the slot becomes a play button.
+  await generate.click();
   await expect(page.getByText("Sample generated.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Play" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Generate sample" })).toHaveCount(0);
 });

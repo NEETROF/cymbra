@@ -450,9 +450,14 @@ impl ScoreService for ScoreGrpc {
         let page_len = fonts.len() as i32;
         let mut soundfonts = Vec::with_capacity(fonts.len());
         for f in fonts {
-            let has_object = match &self.soundfont_store {
-                Some(s) => s.size(&f.object_key).await.is_ok(),
-                None => false,
+            let (has_object, has_preview) = match &self.soundfont_store {
+                Some(s) => (
+                    s.size(&f.object_key).await.is_ok(),
+                    s.size(&crate::soundfont_preview::preview_object_key(&f.id))
+                        .await
+                        .is_ok(),
+                ),
+                None => (false, false),
             };
             soundfonts.push(AdminSoundFont {
                 id: f.id,
@@ -468,6 +473,7 @@ impl ScoreService for ScoreGrpc {
                 reviewed_at: f.reviewed_at.map(|t| t.to_rfc3339()).unwrap_or_default(),
                 uploaded_by: f.uploaded_by.unwrap_or_default(),
                 content_sha256: f.content_sha256.unwrap_or_default(),
+                has_preview,
             });
         }
         Ok(Response::new(AdminListSoundFontsResponse {
@@ -1116,6 +1122,52 @@ mod tests {
             .await
             .unwrap_err();
         assert_eq!(del.code(), tonic::Code::PermissionDenied);
+    }
+
+    #[tokio::test]
+    async fn admin_list_reports_has_object_and_has_preview() {
+        let (svc, _repo, store) = grpc_soundfont_admin().await;
+        let req = || {
+            authed_admin(
+                AdminListSoundFontsRequest {
+                    limit: 50,
+                    offset: 0,
+                    moderation_status: String::new(),
+                },
+                "admin-1",
+            )
+        };
+        // The font object is present; no preview clip has been rendered yet.
+        let listed = svc
+            .admin_list_sound_fonts(req())
+            .await
+            .unwrap()
+            .into_inner();
+        let row = listed
+            .soundfonts
+            .iter()
+            .find(|f| f.id == "ydp-grand")
+            .unwrap();
+        assert!(row.has_object);
+        assert!(!row.has_preview);
+
+        // Once the preview object exists, has_preview flips true (drives the BO's
+        // play / "Generate sample" control).
+        store
+            .put("ydp-grand.preview.wav", b"RIFF....WAVE".to_vec())
+            .await
+            .unwrap();
+        let listed = svc
+            .admin_list_sound_fonts(req())
+            .await
+            .unwrap()
+            .into_inner();
+        let row = listed
+            .soundfonts
+            .iter()
+            .find(|f| f.id == "ydp-grand")
+            .unwrap();
+        assert!(row.has_preview);
     }
 
     #[tokio::test]

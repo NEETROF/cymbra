@@ -1,9 +1,7 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, shallowRef } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { match } from "ts-pattern";
-import { useScorePlayer } from "@/composables/useScorePlayer";
-import { sampleScoreBytes } from "@/lib/sampleScore";
 import { SOUNDFONTS_PAGE_SIZE, useSoundFontsStore } from "@/stores/soundfonts";
 import type { AdminSoundFont } from "@/gen/score_pb";
 import AppTag from "@/components/AppTag.vue";
@@ -109,30 +107,46 @@ function statusOf(row: AdminSoundFont): "pending" | "accepted" | "rejected" {
   return "pending";
 }
 
-// Drawer for create/edit (right-to-left).
-// Per-row audition: play the shared sample (Ode to Joy — same as the app) with a
-// row's font. One row plays at a time.
+// Per-row audition (change: add-soundfont-entitlement-previews): play the SAME
+// server-rendered preview clip the app plays — no font download, no wasm synth. The
+// play control and "Generate sample" are merged: a font with no preview shows
+// "Generate sample"; once a preview exists the slot becomes a play button. One row
+// plays at a time.
 const previewingId = ref<string | null>(null);
-const previewScore = shallowRef<Uint8Array | null>(sampleScoreBytes);
-const previewSf2 = shallowRef<Uint8Array | null>(null);
-const rowPlayer = useScorePlayer(previewScore, previewSf2);
+let previewAudio: HTMLAudioElement | null = null;
+let previewUrl: string | null = null;
+
+function stopPreview() {
+  previewAudio?.pause();
+  if (previewUrl) {
+    URL.revokeObjectURL(previewUrl);
+    previewUrl = null;
+  }
+  previewAudio = null;
+  previewingId.value = null;
+}
 
 async function togglePlay(row: AdminSoundFont) {
   if (previewingId.value === row.id) {
-    rowPlayer.stop();
-    previewingId.value = null;
+    stopPreview();
     return;
   }
-  rowPlayer.stop();
-  previewingId.value = row.id;
+  stopPreview();
+  let bytes: Uint8Array;
   try {
-    previewSf2.value = await store.fontBytes(row.id);
+    bytes = await store.previewClip(row.id);
   } catch {
-    previewingId.value = null;
+    // The preview vanished (race with a delete/regenerate) — nothing to play.
     return;
   }
-  rowPlayer.playFrom(0);
+  previewUrl = URL.createObjectURL(new Blob([bytes as BlobPart], { type: "audio/wav" }));
+  previewAudio = new Audio(previewUrl);
+  previewAudio.addEventListener("ended", stopPreview);
+  previewingId.value = row.id;
+  void previewAudio.play();
 }
+
+onBeforeUnmount(stopPreview);
 
 const drawerMode = ref<"create" | "edit" | null>(null);
 const drawerEntry = ref<AdminSoundFont | null>(null);
@@ -229,14 +243,28 @@ function licenseDesc(license: string): string {
           </td>
           <td>{{ row.attribution }}</td>
           <td class="actions">
+            <!-- Merged play / "Generate sample": a font with a preview plays the clip;
+                 without one, the same slot generates it (change:
+                 add-soundfont-entitlement-previews). -->
             <button
+              v-if="row.hasPreview"
               type="button"
               class="play-row"
               :aria-label="t('soundfonts.play')"
               :title="t('soundfonts.play')"
               @click="togglePlay(row)"
             >
-              {{ previewingId === row.id && rowPlayer.playing.value ? "⏸" : "▶" }}
+              {{ previewingId === row.id ? "⏸" : "▶" }}
+            </button>
+            <button
+              v-else
+              type="button"
+              class="sample"
+              :disabled="previewVm.busy"
+              :title="t('soundfonts.generateSampleHint')"
+              @click="regenerateSample(row)"
+            >
+              {{ generatingSample(row.id) ? t("soundfonts.generatingSample") : t("soundfonts.generateSample") }}
             </button>
             <button
               v-if="(row.moderationStatus || 'pending') !== 'accepted'"
@@ -255,15 +283,6 @@ function licenseDesc(license: string): string {
               @click="setStatus(row.id, 'rejected')"
             >
               {{ t("soundfonts.reject") }}
-            </button>
-            <button
-              type="button"
-              class="sample"
-              :disabled="previewVm.busy"
-              :title="t('soundfonts.generateSampleHint')"
-              @click="regenerateSample(row)"
-            >
-              {{ generatingSample(row.id) ? t("soundfonts.generatingSample") : t("soundfonts.generateSample") }}
             </button>
             <button type="button" @click="openEdit(row)">{{ t("soundfonts.edit") }}</button>
             <button type="button" :disabled="acting" @click="remove(row.id)">{{ t("soundfonts.remove") }}</button>

@@ -306,7 +306,10 @@ message ListSoundFontsResponse {
 // (change: add-soundfont-moderation): `moderation_status` is one of
 // "pending"/"accepted"/"rejected"; `reviewed_by`/`reviewed_at` are empty until a
 // decision is made; `uploaded_by` is who contributed the font; `content_sha256` is
-// the exact-byte digest used for identical-content detection.
+// the exact-byte digest used for identical-content detection. `has_preview` reports
+// whether a server-rendered preview clip exists (change:
+// add-soundfont-entitlement-previews) — drives the back-office play/"Generate sample"
+// control and is required before a font can be accepted.
 message AdminSoundFont {
   string id = 1;
   string label = 2;
@@ -321,6 +324,7 @@ message AdminSoundFont {
   string reviewed_at = 11;
   string uploaded_by = 12;
   string content_sha256 = 13;
+  bool has_preview = 14;
 }
 
 // Paginated admin listing (change: add-soundfont-moderation). `moderation_status`

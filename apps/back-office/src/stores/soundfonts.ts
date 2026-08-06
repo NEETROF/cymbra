@@ -175,14 +175,26 @@ export const useSoundFontsStore = defineStore("soundfonts", () => {
   }
 
   /** (Re)generate a font's server-rendered preview clip (change:
-   *  add-soundfont-entitlement-previews). No re-list — the preview object is separate
-   *  from the catalog row, so the listing is unchanged. */
+   *  add-soundfont-entitlement-previews), then re-list so the row's `hasPreview` flips
+   *  (its control turns from "Generate sample" into a play button). */
   async function regeneratePreview(id: string) {
     previewTarget.value = id;
     const outcome = await run(preview, async () => {
       await regeneratePreviewImpl(id, useAuthStore().accessToken);
     });
+    if (outcome.status === "success") await list();
     return outcome;
+  }
+
+  /** Bytes of a font's preview clip (`GET /soundfonts/{id}/preview`), for the back-office
+   *  play control — auditions the same server-rendered clip the app plays. */
+  async function previewClip(id: string): Promise<Uint8Array> {
+    const token = useAuthStore().accessToken;
+    const resp = await fetch(`${soundfontBaseUrl()}/soundfonts/${encodeURIComponent(id)}/preview`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!resp.ok) throw new Error(`soundfont preview fetch failed: HTTP ${resp.status}`);
+    return new Uint8Array(await resp.arrayBuffer());
   }
 
   /** The public catalog listing (id/label/…), for the preview font picker on the review
@@ -236,6 +248,7 @@ export const useSoundFontsStore = defineStore("soundfonts", () => {
     remove,
     setModerationStatus,
     regeneratePreview,
+    previewClip,
     previewPieces,
     pieceBytes,
     fontBytes,

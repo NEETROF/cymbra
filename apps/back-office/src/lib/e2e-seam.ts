@@ -342,13 +342,16 @@ export function installE2EClients(): void {
   });
 
   // "Generate sample" is likewise an HTTP route (change:
-  // add-soundfont-entitlement-previews) — a successful regeneration is a no-op here
-  // (the preview object is server-side; the console only reflects success/failure).
-  setRegeneratePreviewForTest(async () => {
+  // add-soundfont-entitlement-previews). A successful regeneration flips the font's
+  // `has_preview` so the next admin-list turns its "Generate sample" slot into a play
+  // button (mirroring the server storing the preview object).
+  setRegeneratePreviewForTest(async (id) => {
     if (data.fail?.regeneratePreview) {
       const f = data.fail.regeneratePreview;
       throw new ConnectError(f.message, f.code as Code);
     }
+    const f = soundfonts.find((s) => s.id === id);
+    if (f) f.hasPreview = true;
   });
 
   setClientsForTest(clients);
