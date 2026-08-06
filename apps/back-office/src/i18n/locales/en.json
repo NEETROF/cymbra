@@ -4,6 +4,10 @@
     "back": "← Back",
     "loading": "Loading…"
   },
+  "toast": {
+    "region": "Notifications",
+    "dismiss": "Dismiss"
+  },
   "pager": {
     "label": "pagination",
     "prev": "← Previous",

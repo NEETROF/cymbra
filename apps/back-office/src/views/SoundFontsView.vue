@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { match } from "ts-pattern";
 import { SOUNDFONTS_PAGE_SIZE, useSoundFontsStore } from "@/stores/soundfonts";
+import { useToastsStore } from "@/stores/toasts";
 import type { AdminSoundFont } from "@/gen/score_pb";
 import AppTag from "@/components/AppTag.vue";
 import IdBadge from "@/components/IdBadge.vue";
@@ -11,6 +12,7 @@ import StatCards, { type StatItem } from "@/components/StatCards.vue";
 import { currentLocale } from "@/i18n";
 
 const store = useSoundFontsStore();
+const toasts = useToastsStore();
 const { t } = useI18n();
 
 onMounted(() => {
@@ -54,7 +56,6 @@ const statCards = computed<StatItem[]>(() => [
 ]);
 
 const acting = computed(() => store.op.status === "loading");
-const opError = computed(() => (store.op.status === "error" ? store.op.error : null));
 
 // "Generate sample" (change: add-soundfont-entitlement-previews): (re)render a font's
 // server-side preview clip. Its state is the store's `preview` Async union, matched
@@ -72,7 +73,9 @@ function generatingSample(id: string): boolean {
   return store.previewTarget === id && previewVm.value.busy;
 }
 async function regenerateSample(row: AdminSoundFont) {
-  await store.regeneratePreview(row.id);
+  const outcome = await store.regeneratePreview(row.id);
+  if (outcome.status === "error") toasts.error(outcome.error);
+  else toasts.success(t("soundfonts.sampleGenerated"));
 }
 
 // Moderation review (change: add-soundfont-moderation): a back-office-only status
@@ -97,7 +100,8 @@ function nextPage() {
 }
 
 async function setStatus(id: string, status: string) {
-  await store.setModerationStatus(id, status);
+  const outcome = await store.setModerationStatus(id, status);
+  if (outcome.status === "error") toasts.error(outcome.error);
 }
 
 // Normalise a row's (possibly empty) moderation status to a known badge variant.
@@ -165,7 +169,8 @@ function closeDrawer() {
 
 async function remove(id: string) {
   if (!window.confirm(t("soundfonts.confirmRemove"))) return;
-  await store.remove(id);
+  const outcome = await store.remove(id);
+  if (outcome.status === "error") toasts.error(outcome.error);
 }
 
 // Plain-language gloss of a licence acronym, shown as a hover tooltip on the licence
@@ -188,14 +193,8 @@ function licenseDesc(license: string): string {
       <button type="button" class="primary" @click="openCreate">{{ t("soundfonts.add") }}</button>
     </header>
 
-    <!-- The op error is shared with the add/edit drawer; while it's open the drawer
-         owns the message, so only surface it here (above the grid) for list-level
-         actions (accept/reject/delete) when the drawer is closed. -->
-    <p v-if="opError && drawerMode === null" class="error" role="alert">{{ opError }}</p>
-    <!-- "Generate sample" outcome (change: add-soundfont-entitlement-previews). -->
-    <p v-if="previewVm.error" class="error" role="alert">{{ previewVm.error }}</p>
-    <p v-else-if="previewVm.done" class="ok" role="status">{{ t("soundfonts.sampleGenerated") }}</p>
-
+    <!-- List-level action results (accept/reject/delete/generate) surface as global
+         toasts (ToastHost); the add/edit drawer keeps its own inline error. -->
     <StatCards :items="statCards" />
 
     <div class="filters" role="tablist" :aria-label="t('soundfonts.filter.label')">
@@ -532,9 +531,6 @@ function licenseDesc(license: string): string {
 }
 .error {
   color: var(--coral);
-}
-.ok {
-  color: var(--green);
 }
 .muted {
   color: var(--muted);

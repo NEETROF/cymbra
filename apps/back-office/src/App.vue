@@ -6,6 +6,7 @@ import { useAuthStore } from "@/stores/auth";
 import { useLocaleStore } from "@/stores/locale";
 import { currentLocale, SUPPORTED_LOCALES } from "@/i18n";
 import AppTag from "@/components/AppTag.vue";
+import ToastHost from "@/components/ToastHost.vue";
 
 const auth = useAuthStore();
 // Language selection goes through the store so a signed-in choice is also recorded
@@ -157,6 +158,9 @@ async function signOut() {
     </div>
     <RouterView />
   </div>
+
+  <!-- Global, dismissible action-result toasts (overlays either canvas). -->
+  <ToastHost />
 </template>
 
 <style scoped>
