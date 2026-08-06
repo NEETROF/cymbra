@@ -6,6 +6,12 @@
       "runtimeExecutable": "sh",
       "runtimeArgs": ["-c", "cd apps/back-office && yarn dev --port 5173 --strictPort"],
       "port": 5173
+    },
+    {
+      "name": "back-office-e2e",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": ["-c", "cd apps/back-office && VITE_E2E=1 yarn dev --port 5180 --strictPort"],
+      "port": 5180
     }
   ]
 }
