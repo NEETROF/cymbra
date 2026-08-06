@@ -1,10 +1,3 @@
-# Migration note
-
-This change adds `backend/music/migrations/0017_soundfont_review_feedback.sql`
-(renumbered from the provisional 0015 — `0015_leaderboard_bests.sql` and
-`0016_curation_rewards.sql` landed first):
-
-```sql
 -- music module — soundfont rejection reason + motivated re-proposal
 -- (change: add-soundfont-uploader-attribution).
 --
@@ -22,10 +15,7 @@ This change adds `backend/music/migrations/0017_soundfont_review_feedback.sql`
 --                           a resubmission.
 --
 -- Additive + reversible; no backfill. Idempotent DDL + fully-qualified names.
--- (Provisional number 0015 — if this change merges before add-score-catalog-proposal's
--- 0014, renumber to keep the sequence gap-free.)
 
 ALTER TABLE music.soundfonts
     ADD COLUMN IF NOT EXISTS review_reason     TEXT,   -- moderator's rejection motive; shown to uploader
     ADD COLUMN IF NOT EXISTS resubmission_note TEXT;   -- uploader's justification on re-proposal
-```

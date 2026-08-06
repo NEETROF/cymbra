@@ -130,6 +130,9 @@
     },
     "accept": "Accepter",
     "reject": "Rejeter",
+    "proposedBy": "Proposée par {name}",
+    "resubmission": "Re-soumission : {note}",
+    "rejectReasonPlaceholder": "Motif de rejet (visible par le contributeur)",
     "filter": {
       "label": "Filtrer par statut",
       "pending": "En attente",

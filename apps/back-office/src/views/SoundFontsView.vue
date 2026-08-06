@@ -104,6 +104,27 @@ async function setStatus(id: string, status: string) {
   if (outcome.status === "error") toasts.error(outcome.error);
 }
 
+// Reject with a motive (change: add-soundfont-uploader-attribution): clicking
+// "Reject" opens an inline reason input on that row; confirming sends the reason
+// with the evaluate call (it is surfaced back to the uploader). Mirrors the score
+// review's reject-reason input.
+const rejectTargetId = ref<string | null>(null);
+const rejectReason = ref("");
+function startReject(id: string) {
+  rejectTargetId.value = id;
+  rejectReason.value = "";
+}
+function cancelReject() {
+  rejectTargetId.value = null;
+  rejectReason.value = "";
+}
+async function confirmReject(id: string) {
+  const reason = rejectReason.value.trim() || undefined;
+  const outcome = await store.setModerationStatus(id, "rejected", reason);
+  if (outcome.status === "error") toasts.error(outcome.error);
+  else cancelReject();
+}
+
 // Normalise a row's (possibly empty) moderation status to a known badge variant.
 function statusOf(row: AdminSoundFont): "pending" | "accepted" | "rejected" {
   const s = row.moderationStatus || "pending";
@@ -246,8 +267,19 @@ function licenseDesc(license: string): string {
                   </svg>
                 </span>
                 <span class="title-text">
-                  <span class="t-name">{{ row.label }}</span>
+                  <span class="t-name">
+                    {{ row.label }}
+                    <!-- Privileged uploader pseudo (change:
+                         add-soundfont-uploader-attribution); empty for a seeded font. -->
+                    <span v-if="row.uploaderDisplayName" class="uploader"
+                      >· {{ t("soundfonts.proposedBy", { name: row.uploaderDisplayName }) }}</span
+                    >
+                  </span>
                   <IdBadge :id="row.id" />
+                  <!-- The uploader's justification when a rejected font was re-proposed. -->
+                  <span v-if="row.resubmissionNote" class="resub">{{
+                    t("soundfonts.resubmission", { note: row.resubmissionNote })
+                  }}</span>
                 </span>
               </div>
             </td>
@@ -315,15 +347,44 @@ function licenseDesc(license: string): string {
                 >
                   {{ t("soundfonts.accept") }}
                 </button>
-                <button
-                  v-if="(row.moderationStatus || 'pending') !== 'rejected'"
-                  type="button"
-                  class="btn-sm reject"
-                  :disabled="acting"
-                  @click="setStatus(row.id, 'rejected')"
-                >
-                  {{ t("soundfonts.reject") }}
-                </button>
+                <!-- Reject opens an inline reason input (change:
+                     add-soundfont-uploader-attribution): the motive is optional but
+                     surfaced back to the uploader when given. -->
+                <template v-if="(row.moderationStatus || 'pending') !== 'rejected'">
+                  <template v-if="rejectTargetId === row.id">
+                    <input
+                      :id="`soundfont-reject-reason-${row.id}`"
+                      v-model="rejectReason"
+                      class="reason"
+                      type="text"
+                      :aria-label="t('soundfonts.rejectReasonPlaceholder')"
+                      :placeholder="t('soundfonts.rejectReasonPlaceholder')"
+                      :disabled="acting"
+                      @keyup.enter="confirmReject(row.id)"
+                      @keyup.escape="cancelReject"
+                    />
+                    <button
+                      type="button"
+                      class="btn-sm reject"
+                      :disabled="acting"
+                      @click="confirmReject(row.id)"
+                    >
+                      {{ t("soundfonts.reject") }}
+                    </button>
+                    <button type="button" class="btn-sm" :disabled="acting" @click="cancelReject">
+                      {{ t("soundfonts.cancel") }}
+                    </button>
+                  </template>
+                  <button
+                    v-else
+                    type="button"
+                    class="btn-sm reject"
+                    :disabled="acting"
+                    @click="startReject(row.id)"
+                  >
+                    {{ t("soundfonts.reject") }}
+                  </button>
+                </template>
                 <button
                   type="button"
                   class="icon-btn"
@@ -438,6 +499,30 @@ function licenseDesc(license: string): string {
 .t-name {
   font-weight: 600;
   color: var(--text);
+}
+/* Privileged uploader pseudo next to the label (change:
+   add-soundfont-uploader-attribution). */
+.uploader {
+  font-weight: 400;
+  color: var(--muted);
+  font-size: 0.85em;
+}
+/* The uploader's re-submission justification, shown to the reviewer. */
+.resub {
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-style: italic;
+}
+/* Inline rejection-reason input (mirrors the score review's .reason). */
+.reason {
+  flex: 1 1 12rem;
+  min-width: 8rem;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 6px);
+  background: var(--panel);
+  color: var(--text);
+  font-size: 0.8rem;
 }
 
 /* Cue that the licence has a hover explanation (native title tooltip). */

@@ -367,6 +367,8 @@ async fn upload(
         // separately by an admin. The DB defaults these too (change: add-curation-rewards).
         point_cost: 0,
         redeemable: true,
+        review_reason: None,
+        resubmission_note: None,
     };
     if repo.insert(&entry).await.is_err() {
         let _ = store.delete(&object_key).await;
@@ -405,7 +407,9 @@ pub struct ImportMeta {
 /// A private-library font as returned to its owner (no storage-facing fields).
 /// `proposal_status` is the moderation status of this font's public-catalog
 /// proposal (`pending`/`accepted`/`rejected`), or `None` when it hasn't been
-/// proposed. camelCase on the wire to match the app's JSON parser.
+/// proposed; `rejection_reason` is the moderator's motive for a `rejected`
+/// proposal (change: add-soundfont-uploader-attribution), `None` otherwise.
+/// camelCase on the wire to match the app's JSON parser.
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct MyFont {
@@ -413,6 +417,7 @@ struct MyFont {
     label: String,
     size_bytes: i64,
     proposal_status: Option<String>,
+    rejection_reason: Option<String>,
 }
 
 /// Import a `.sf2` into the caller's private library (change: add-soundfont-moderation).
@@ -447,6 +452,7 @@ async fn import_mine(
                 label: existing.label,
                 size_bytes: existing.size_bytes,
                 proposal_status: None,
+                rejection_reason: None,
             })
             .into_response();
         }
@@ -488,6 +494,7 @@ async fn import_mine(
             label: entry.label,
             size_bytes: entry.size_bytes,
             proposal_status: None,
+            rejection_reason: None,
         }),
     )
         .into_response()
@@ -509,21 +516,27 @@ async fn list_mine(State(s): State<SoundfontState>, headers: HeaderMap) -> Respo
     for f in fonts {
         // A public-catalog row with the same id means this private font was proposed
         // (propose reuses the private id); its moderation status is the proposal
-        // status. No catalog wired ⇒ never proposed.
-        let proposal_status = match s.repo.as_ref() {
-            Some(catalog) => catalog
-                .lookup(&f.id)
-                .await
-                .ok()
-                .flatten()
-                .map(|e| e.moderation_status),
-            None => None,
+        // status, and a rejected proposal carries the moderator's motive back to the
+        // uploader (change: add-soundfont-uploader-attribution). No catalog wired ⇒
+        // never proposed.
+        let (proposal_status, rejection_reason) = match s.repo.as_ref() {
+            Some(catalog) => match catalog.lookup(&f.id).await.ok().flatten() {
+                Some(e) => {
+                    let reason = (e.moderation_status == "rejected")
+                        .then_some(e.review_reason)
+                        .flatten();
+                    (Some(e.moderation_status), reason)
+                }
+                None => (None, None),
+            },
+            None => (None, None),
         };
         out.push(MyFont {
             id: f.id,
             label: f.label,
             size_bytes: f.size_bytes,
             proposal_status,
+            rejection_reason,
         });
     }
     Json(out).into_response()
@@ -601,6 +614,10 @@ pub struct ProposeMeta {
     /// Explicit "I have the right to distribute this" flag; must be `true`.
     #[serde(default)]
     pub attestation: bool,
+    /// Justification when re-proposing a previously `rejected` font (change:
+    /// add-soundfont-uploader-attribution); mandatory in that case, ignored otherwise.
+    #[serde(default)]
+    pub resubmission_note: Option<String>,
 }
 
 /// Propose one of the caller's private fonts to the public catalog (change:
@@ -640,6 +657,35 @@ async fn propose_mine(
         Ok(None) => {}
         Err(_) => return status(StatusCode::INTERNAL_SERVER_ERROR),
     }
+    // A `rejected` byte-identical match is a RE-proposal (change:
+    // add-soundfont-uploader-attribution): reopen that row (→ pending, re-attributed,
+    // reason cleared) instead of inserting a duplicate. A justification is mandatory;
+    // without one the proposal is refused and the entry stays rejected.
+    match catalog
+        .find_rejected_by_content(&private.content_sha256)
+        .await
+    {
+        Ok(Some(rejected)) => {
+            let Some(note) = meta
+                .resubmission_note
+                .as_deref()
+                .map(str::trim)
+                .filter(|n| !n.is_empty())
+            else {
+                return status(StatusCode::BAD_REQUEST);
+            };
+            return match catalog.reopen_rejected(&rejected.id, &user_id, note).await {
+                // The row + object were kept on rejection, and the bytes are identical
+                // (digest match), so nothing is re-stored.
+                Ok(true) => status(StatusCode::CREATED),
+                // A concurrent decision changed the row's status underneath us.
+                Ok(false) => status(StatusCode::CONFLICT),
+                Err(_) => status(StatusCode::INTERNAL_SERVER_ERROR),
+            };
+        }
+        Ok(None) => {}
+        Err(_) => return status(StatusCode::INTERNAL_SERVER_ERROR),
+    }
     match catalog.lookup(&id).await {
         Ok(Some(_)) => return status(StatusCode::CONFLICT),
         Ok(None) => {}
@@ -672,6 +718,8 @@ async fn propose_mine(
         // A proposed font enters the catalog free/default-available.
         point_cost: 0,
         redeemable: true,
+        review_reason: None,
+        resubmission_note: None,
     };
     if catalog.insert(&entry).await.is_err() {
         let _ = store.delete(&object_key).await;
@@ -929,6 +977,8 @@ mod tests {
             content_sha256: Some(sha256_hex(id.as_bytes())),
             point_cost: 0,
             redeemable: true,
+            review_reason: None,
+            resubmission_note: None,
         }
     }
 
@@ -1558,6 +1608,8 @@ mod tests {
             content_sha256: Some(sha256_hex(&sf2_bytes())),
             point_cost: 0,
             redeemable: true,
+            review_reason: None,
+            resubmission_note: None,
         };
         let repo: Arc<dyn SoundFontRepo> =
             Arc::new(cymbra_music::FakeSoundFontRepo::with(vec![existing]));
@@ -1593,6 +1645,8 @@ mod tests {
                 content_sha256: Some("different-content".into()),
                 point_cost: 0,
                 redeemable: true,
+                review_reason: None,
+                resubmission_note: None,
             }]));
         let r = soundfont_router(
             SoundfontState {
@@ -1900,6 +1954,8 @@ mod tests {
             content_sha256: Some("sha1".into()),
             point_cost: 0,
             redeemable: true,
+            review_reason: None,
+            resubmission_note: None,
         };
         let catalog: Arc<dyn SoundFontRepo> =
             Arc::new(cymbra_music::FakeSoundFontRepo::with(vec![cataloged]));
@@ -1913,6 +1969,113 @@ mod tests {
         assert_eq!(proposed["proposalStatus"], "pending");
         let private_only = arr.iter().find(|e| e["id"] == "private-only").unwrap();
         assert!(private_only["proposalStatus"].is_null());
+    }
+
+    /// A `rejected` catalog row with a stored rejection reason, holding `sha`.
+    fn rejected_row(id: &str, sha: &str, reason: &str) -> FontEntry {
+        FontEntry {
+            moderation_status: "rejected".into(),
+            reviewed_by: Some("m".into()),
+            content_sha256: Some(sha.into()),
+            review_reason: Some(reason.into()),
+            ..entry_status(id, &format!("{id}.sf2"), "CC0-1.0", "rejected")
+        }
+    }
+
+    #[tokio::test]
+    async fn repropose_of_rejected_content_requires_a_justification() {
+        // The catalog holds a REJECTED font with the same bytes; a re-proposal without
+        // a justification is refused and the entry stays rejected.
+        let store = Arc::new(FakeStore::default());
+        store.put("user/u/f1.sf2", b"BYTES".to_vec()).await.unwrap();
+        let user_repo: Arc<dyn UserSoundFontRepo> =
+            Arc::new(FakeUserSoundFontRepo::with(vec![user_entry(
+                "f1", "u", "dupsha",
+            )]));
+        let catalog = Arc::new(cymbra_music::FakeSoundFontRepo::with(vec![rejected_row(
+            "old",
+            "dupsha",
+            "bad licence",
+        )]));
+        let r = propose_app(user_repo, catalog.clone(), store, ident("u", &["user"]));
+        let resp = r
+            .oneshot(post(
+                "/me/soundfonts/f1/propose?license=CC0-1.0&attestation=true",
+                Vec::new(),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+        let row = catalog.lookup("old").await.unwrap().unwrap();
+        assert_eq!(row.moderation_status, "rejected");
+        assert_eq!(row.review_reason.as_deref(), Some("bad licence"));
+    }
+
+    #[tokio::test]
+    async fn repropose_of_rejected_content_reopens_the_row() {
+        // With a justification, the rejected row REOPENS (→ pending, re-attributed,
+        // reason cleared, note stored) and no second entry is created.
+        let store = Arc::new(FakeStore::default());
+        store.put("user/u/f1.sf2", b"BYTES".to_vec()).await.unwrap();
+        let user_repo: Arc<dyn UserSoundFontRepo> =
+            Arc::new(FakeUserSoundFontRepo::with(vec![user_entry(
+                "f1", "u", "dupsha",
+            )]));
+        let catalog = Arc::new(cymbra_music::FakeSoundFontRepo::with(vec![rejected_row(
+            "old",
+            "dupsha",
+            "bad licence",
+        )]));
+        let r = propose_app(user_repo, catalog.clone(), store, ident("u", &["user"]));
+        let resp = r
+            .oneshot(post(
+                "/me/soundfonts/f1/propose?license=CC0-1.0&attestation=true&resubmission_note=now%20CC0",
+                Vec::new(),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::CREATED);
+        // The SAME row reopened — no duplicate under the private id.
+        assert_eq!(catalog.list().await.unwrap().len(), 1);
+        assert!(catalog.lookup("f1").await.unwrap().is_none());
+        let row = catalog.lookup("old").await.unwrap().unwrap();
+        assert_eq!(row.moderation_status, "pending");
+        assert_eq!(row.uploaded_by.as_deref(), Some("u"));
+        assert!(row.review_reason.is_none());
+        assert_eq!(row.resubmission_note.as_deref(), Some("now CC0"));
+    }
+
+    #[tokio::test]
+    async fn list_mine_carries_the_rejection_reason() {
+        // A private font whose proposal was rejected surfaces the moderator's motive;
+        // a pending one carries none.
+        let store = Arc::new(FakeStore::default());
+        let user_repo: Arc<dyn UserSoundFontRepo> = Arc::new(FakeUserSoundFontRepo::with(vec![
+            user_entry("refused", "u", "sha1"),
+            user_entry("waiting", "u", "sha2"),
+        ]));
+        let rejected = rejected_row("refused", "sha1", "poor samples");
+        let pending = FontEntry {
+            uploaded_by: Some("u".into()),
+            content_sha256: Some("sha2".into()),
+            ..entry_status("waiting", "waiting.sf2", "CC0-1.0", "pending")
+        };
+        let catalog: Arc<dyn SoundFontRepo> =
+            Arc::new(cymbra_music::FakeSoundFontRepo::with(vec![
+                rejected, pending,
+            ]));
+        let r = propose_app(user_repo, catalog, store, ident("u", &["user"]));
+        let resp = r.oneshot(get("/me/soundfonts")).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        let v: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        let arr = v.as_array().unwrap();
+        let refused = arr.iter().find(|e| e["id"] == "refused").unwrap();
+        assert_eq!(refused["proposalStatus"], "rejected");
+        assert_eq!(refused["rejectionReason"], "poor samples");
+        let waiting = arr.iter().find(|e| e["id"] == "waiting").unwrap();
+        assert_eq!(waiting["proposalStatus"], "pending");
+        assert!(waiting["rejectionReason"].is_null());
     }
 
     #[tokio::test]
@@ -1957,6 +2120,8 @@ mod tests {
             content_sha256: Some("dupsha".into()),
             point_cost: 0,
             redeemable: true,
+            review_reason: None,
+            resubmission_note: None,
         };
         let catalog: Arc<dyn SoundFontRepo> =
             Arc::new(cymbra_music::FakeSoundFontRepo::with(vec![existing]));

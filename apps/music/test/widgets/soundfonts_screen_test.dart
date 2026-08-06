@@ -302,6 +302,7 @@ void main() {
           label: 'Rejected One',
           sizeBytes: 1,
           proposalStatus: 'rejected',
+          rejectionReason: 'poor samples',
         ),
       ],
     );
@@ -309,8 +310,95 @@ void main() {
 
     expect(find.text('Accepted'), findsOneWidget);
     expect(find.text('Rejected'), findsOneWidget);
-    // Both are already proposed, so no propose action remains.
-    expect(find.byIcon(Icons.publish_outlined), findsNothing);
+    // The rejected card shows the moderator's motive (change:
+    // add-soundfont-uploader-attribution)…
+    expect(find.text('Rejected: poor samples'), findsOneWidget);
+    // …and only the REJECTED font may be re-proposed (accepted may not).
+    expect(find.byIcon(Icons.publish_outlined), findsOneWidget);
+  });
+
+  testWidgets('re-proposing a rejected font requires a justification', (
+    tester,
+  ) async {
+    final prefs = FakePreferencesService({
+      ImportedSoundFonts.prefsKey: _encode([_synced('b', 'Rejected One')]),
+    });
+    final private = FakePrivateSoundFontService(
+      library: const [
+        RemoteSoundFont(
+          id: 'remote-b',
+          label: 'Rejected One',
+          sizeBytes: 1,
+          proposalStatus: 'rejected',
+          rejectionReason: 'bad licence',
+        ),
+      ],
+    );
+    final c = _container(prefs: prefs, private: private);
+    await _pump(tester, c);
+
+    // Re-open the propose dialog from the rejected card.
+    await tester.tap(find.byIcon(Icons.publish_outlined));
+    await tester.pumpAndSettle();
+    // The moderator's rejection reason shows on the card AND in the dialog.
+    expect(find.text('Rejected: bad licence'), findsNWidgets(2));
+
+    // Attesting alone is NOT enough — submit stays disabled without a
+    // justification. (The dialog content scrolls; bring the checkbox on screen.)
+    await tester.ensureVisible(find.byType(CheckboxListTile));
+    await tester.tap(find.byType(CheckboxListTile));
+    await tester.pumpAndSettle();
+    FilledButton submit() => tester.widget<FilledButton>(
+      find.widgetWithText(FilledButton, 'Propose'),
+    );
+    expect(submit().onPressed, isNull);
+
+    // Filling the justification enables submit; the note rides the proposal.
+    await tester.ensureVisible(find.byType(TextField).last);
+    await tester.enterText(
+      find.byType(TextField).last,
+      'now relicensed under CC0',
+    );
+    await tester.pumpAndSettle();
+    expect(submit().onPressed, isNotNull);
+    await tester.tap(find.widgetWithText(FilledButton, 'Propose'));
+    await tester.pumpAndSettle();
+
+    expect(
+      private.proposed.single.resubmissionNote,
+      'now relicensed under CC0',
+    );
+    // The card flips back to pending and the stale reason is gone.
+    final e = c
+        .read(importedSoundFontsProvider)
+        .requireValue
+        .firstWhere((x) => x.id == 'b');
+    expect(e.proposalStatus, 'pending');
+    expect(e.proposalRejectionReason, isNull);
+  });
+
+  testWidgets('a catalog font shows its contributor credit when present', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      _container(
+        serverFonts: [
+          fakeDownloadPiano(
+            id: 'community-grand',
+            label: 'Community Grand',
+            attribution: 'Sample Author',
+            contributorCredit: 'alice',
+          ),
+          fakeDownloadPiano(id: 'plain-grand', label: 'Plain Grand'),
+        ],
+      ),
+    );
+    // The opt-in credit shows alongside (not replacing) the licence attribution…
+    expect(find.text('Proposed by @alice'), findsOneWidget);
+    expect(find.text('CC-BY 3.0 · Sample Author'), findsOneWidget);
+    // …and a font without a credit shows none.
+    expect(find.textContaining('Proposed by'), findsOneWidget);
   });
 
   testWidgets('a proposed font shows a status tag and hides propose', (

@@ -118,7 +118,13 @@ class FakePrivateSoundFontService implements PrivateSoundFontService {
   final List<RemoteSoundFont> library;
   final List<String> imported = [];
   final List<
-    ({String id, String license, String attribution, bool attestation})
+    ({
+      String id,
+      String license,
+      String attribution,
+      bool attestation,
+      String? resubmissionNote,
+    })
   >
   proposed = [];
   final List<String> deleted = [];
@@ -161,12 +167,14 @@ class FakePrivateSoundFontService implements PrivateSoundFontService {
     required String license,
     String attribution = '',
     required bool attestation,
+    String? resubmissionNote,
   }) async {
     proposed.add((
       id: id,
       license: license,
       attribution: attribution,
       attestation: attestation,
+      resubmissionNote: resubmissionNote,
     ));
   }
 }
@@ -222,6 +230,7 @@ PianoEntry fakeDownloadPiano({
   required String label,
   String license = 'CC-BY 3.0',
   String? attribution,
+  String? contributorCredit,
   bool hasPreview = false,
 }) => PianoEntry(
   id: id,
@@ -230,6 +239,7 @@ PianoEntry fakeDownloadPiano({
   source: id,
   license: license,
   attribution: attribution,
+  contributorCredit: contributorCredit,
   hasPreview: hasPreview,
 );
 

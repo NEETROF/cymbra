@@ -36,6 +36,7 @@ class RemoteSoundFont {
     required this.label,
     required this.sizeBytes,
     this.proposalStatus,
+    this.rejectionReason,
   });
 
   factory RemoteSoundFont.fromJson(Map<String, dynamic> json) =>
@@ -44,6 +45,7 @@ class RemoteSoundFont {
         label: (json['label'] as String?) ?? '',
         sizeBytes: (json['sizeBytes'] as num?)?.toInt() ?? 0,
         proposalStatus: json['proposalStatus'] as String?,
+        rejectionReason: json['rejectionReason'] as String?,
       );
 
   /// Server-assigned id (also the delivery id: `GET /me/soundfonts/{id}`).
@@ -56,16 +58,22 @@ class RemoteSoundFont {
   /// `pending`/`accepted`/`rejected`.
   final String? proposalStatus;
 
+  /// The moderator's motive when [proposalStatus] is `rejected` (change:
+  /// add-soundfont-uploader-attribution); `null` otherwise.
+  final String? rejectionReason;
+
   @override
   bool operator ==(Object other) =>
       other is RemoteSoundFont &&
       other.id == id &&
       other.label == label &&
       other.sizeBytes == sizeBytes &&
-      other.proposalStatus == proposalStatus;
+      other.proposalStatus == proposalStatus &&
+      other.rejectionReason == rejectionReason;
 
   @override
-  int get hashCode => Object.hash(id, label, sizeBytes, proposalStatus);
+  int get hashCode =>
+      Object.hash(id, label, sizeBytes, proposalStatus, rejectionReason);
 }
 
 /// Thrown when a private-library request fails (network, auth, quota, or the
@@ -101,12 +109,16 @@ abstract class PrivateSoundFontService {
 
   /// Propose a private font to the public catalog. Requires an explicit licence
   /// declaration and a right-to-distribute [attestation]; the font enters the
-  /// catalog as `pending`, awaiting moderator review.
+  /// catalog as `pending`, awaiting moderator review. When re-proposing a
+  /// previously **rejected** font, [resubmissionNote] carries the mandatory
+  /// justification shown to the moderator (change:
+  /// add-soundfont-uploader-attribution).
   Future<void> propose(
     String id, {
     required String license,
     String attribution = '',
     required bool attestation,
+    String? resubmissionNote,
   });
 }
 
@@ -215,11 +227,14 @@ class HttpPrivateSoundFontService implements PrivateSoundFontService {
     required String license,
     String attribution = '',
     required bool attestation,
+    String? resubmissionNote,
   }) async {
     final query = <String, String>{
       'license': license,
       'attribution': attribution,
       'attestation': attestation.toString(),
+      if (resubmissionNote != null && resubmissionNote.trim().isNotEmpty)
+        'resubmission_note': resubmissionNote.trim(),
     };
     final uri = Uri.parse(
       '$_origin/me/soundfonts/${Uri.encodeComponent(id)}/propose',

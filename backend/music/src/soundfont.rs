@@ -75,6 +75,14 @@ pub struct FontEntry {
     /// *display* flag only — the entitlement gate keys on `point_cost`, not this, so a
     /// non-redeemable costed font is still gated.
     pub redeemable: bool,
+    /// Moderator's rejection motive (change: add-soundfont-uploader-attribution);
+    /// `None` while pending / when accepted. Surfaced to the uploader via the
+    /// private-library proposal status.
+    pub review_reason: Option<String>,
+    /// Uploader's justification when re-proposing a previously `rejected` font
+    /// (which reopens that row); `None` until a resubmission. Surfaced to the
+    /// moderator on the privileged read.
+    pub resubmission_note: Option<String>,
 }
 
 impl FontEntry {
@@ -124,14 +132,27 @@ pub trait SoundFontRepo: Send + Sync {
     /// First non-`rejected` catalog font whose content digest matches `sha256`, used to
     /// refuse a byte-identical duplicate before storing (change: add-soundfont-moderation).
     async fn find_by_content(&self, sha256: &str) -> Result<Option<FontEntry>>;
+    /// First `rejected` catalog font whose content digest matches `sha256` — the
+    /// re-proposal target (change: add-soundfont-uploader-attribution): matching bytes
+    /// reopen that row instead of piling up a duplicate.
+    async fn find_rejected_by_content(&self, sha256: &str) -> Result<Option<FontEntry>>;
     /// Set a font's moderation status and stamp `reviewed_by` + `reviewed_at`. Returns
     /// whether a row matched. `reviewer_id` is the moderator's users.id (UUID string).
+    /// `reason` is the rejection motive: stored as `review_reason` when provided (the
+    /// caller passes it only on `rejected`); any transition overwrites the stored reason
+    /// (so accepting / re-queuing clears a stale one).
     async fn set_moderation_status(
         &self,
         id: &str,
         status: &str,
         reviewer_id: &str,
+        reason: Option<&str>,
     ) -> Result<bool>;
+    /// Reopen a `rejected` font for re-review (change:
+    /// add-soundfont-uploader-attribution): status → `pending`, re-attributed to
+    /// `uploader_id`, prior `review_reason` and reviewer stamp cleared,
+    /// `resubmission_note = note`. Returns whether a (rejected) row matched.
+    async fn reopen_rejected(&self, id: &str, uploader_id: &str, note: &str) -> Result<bool>;
     /// Insert a new font row (change: add-soundfont-back-office-management). Errors if
     /// the id already exists — callers refuse a duplicate before storing the object.
     async fn insert(&self, entry: &FontEntry) -> Result<()>;
@@ -170,12 +191,14 @@ fn row_to_entry(row: &PgRow) -> FontEntry {
         content_sha256: row.get::<Option<String>, _>("content_sha256"),
         point_cost: row.get::<i32, _>("point_cost") as i64,
         redeemable: row.get::<bool, _>("redeemable"),
+        review_reason: row.get::<Option<String>, _>("review_reason"),
+        resubmission_note: row.get::<Option<String>, _>("resubmission_note"),
     }
 }
 
 const SELECT_COLS: &str = "id, label, object_key, instrument, license, attribution, \
      size_bytes, moderation_status, reviewed_by, reviewed_at, uploaded_by, content_sha256, \
-     point_cost, redeemable";
+     point_cost, redeemable, review_reason, resubmission_note";
 
 /// Postgres-backed [`SoundFontRepo`] over the `music.soundfonts` table.
 pub struct PgSoundFontRepo {
@@ -320,11 +343,24 @@ impl SoundFontRepo for PgSoundFontRepo {
         Ok(row.as_ref().map(row_to_entry))
     }
 
+    async fn find_rejected_by_content(&self, sha256: &str) -> Result<Option<FontEntry>> {
+        let row = sqlx::query(&format!(
+            "SELECT {SELECT_COLS} FROM music.soundfonts \
+             WHERE content_sha256 = $1 AND moderation_status = 'rejected' LIMIT 1"
+        ))
+        .bind(sha256)
+        .fetch_optional(&self.pool)
+        .await
+        .context("find rejected soundfont by content")?;
+        Ok(row.as_ref().map(row_to_entry))
+    }
+
     async fn set_moderation_status(
         &self,
         id: &str,
         status: &str,
         reviewer_id: &str,
+        reason: Option<&str>,
     ) -> Result<bool> {
         // A reviewer id that isn't a UUID is a caller/programming error; treat it as a
         // no-op not-found rather than failing the query (mirrors the score path).
@@ -333,15 +369,38 @@ impl SoundFontRepo for PgSoundFontRepo {
         };
         let r = sqlx::query(
             "UPDATE music.soundfonts \
-             SET moderation_status = $2, reviewed_by = $3, reviewed_at = now() \
+             SET moderation_status = $2, reviewed_by = $3, reviewed_at = now(), \
+                 review_reason = $4 \
              WHERE id = $1",
         )
         .bind(id)
         .bind(status)
         .bind(reviewer)
+        .bind(reason)
         .execute(&self.pool)
         .await
         .context("set soundfont moderation status")?;
+        Ok(r.rows_affected() > 0)
+    }
+
+    async fn reopen_rejected(&self, id: &str, uploader_id: &str, note: &str) -> Result<bool> {
+        // Only a `rejected` row reopens; the WHERE guard makes a concurrent decision a
+        // no-op not-found rather than clobbering a pending/accepted row.
+        let Ok(uploader) = uuid::Uuid::parse_str(uploader_id) else {
+            return Ok(false);
+        };
+        let r = sqlx::query(
+            "UPDATE music.soundfonts \
+             SET moderation_status = 'pending', uploaded_by = $2, review_reason = NULL, \
+                 resubmission_note = $3, reviewed_by = NULL, reviewed_at = NULL \
+             WHERE id = $1 AND moderation_status = 'rejected'",
+        )
+        .bind(id)
+        .bind(uploader)
+        .bind(note)
+        .execute(&self.pool)
+        .await
+        .context("reopen rejected soundfont")?;
         Ok(r.rows_affected() > 0)
     }
 
@@ -517,11 +576,24 @@ impl SoundFontRepo for FakeSoundFontRepo {
             .cloned())
     }
 
+    async fn find_rejected_by_content(&self, sha256: &str) -> Result<Option<FontEntry>> {
+        Ok(self
+            .entries
+            .lock()
+            .unwrap()
+            .iter()
+            .find(|e| {
+                e.moderation_status == "rejected" && e.content_sha256.as_deref() == Some(sha256)
+            })
+            .cloned())
+    }
+
     async fn set_moderation_status(
         &self,
         id: &str,
         status: &str,
         reviewer_id: &str,
+        reason: Option<&str>,
     ) -> Result<bool> {
         if uuid::Uuid::parse_str(reviewer_id).is_err() {
             return Ok(false);
@@ -532,6 +604,28 @@ impl SoundFontRepo for FakeSoundFontRepo {
                 x.moderation_status = status.to_string();
                 x.reviewed_by = Some(reviewer_id.to_string());
                 x.reviewed_at = Some(Utc::now());
+                x.review_reason = reason.map(str::to_string);
+                Ok(true)
+            }
+            None => Ok(false),
+        }
+    }
+
+    async fn reopen_rejected(&self, id: &str, uploader_id: &str, note: &str) -> Result<bool> {
+        // Lenient on the uploader id (like `insert`), so handler tests can use plain
+        // string identities; Pg binds a UUID column and is strict.
+        let mut e = self.entries.lock().unwrap();
+        match e
+            .iter_mut()
+            .find(|x| x.id == id && x.moderation_status == "rejected")
+        {
+            Some(x) => {
+                x.moderation_status = "pending".to_string();
+                x.uploaded_by = Some(uploader_id.to_string());
+                x.review_reason = None;
+                x.resubmission_note = Some(note.to_string());
+                x.reviewed_by = None;
+                x.reviewed_at = None;
                 Ok(true)
             }
             None => Ok(false),
@@ -596,6 +690,8 @@ mod tests {
             content_sha256: Some("deadbeef".into()),
             point_cost: 0,
             redeemable: true,
+            review_reason: None,
+            resubmission_note: None,
         }
     }
 
@@ -616,6 +712,8 @@ mod tests {
             content_sha256: Some(sha.into()),
             point_cost: 0,
             redeemable: true,
+            review_reason: None,
+            resubmission_note: None,
         }
     }
 
@@ -696,18 +794,32 @@ mod tests {
         );
         // Unknown content → no match.
         assert!(repo.find_by_content("beef").await.unwrap().is_none());
-        // A rejected font no longer blocks its content.
-        repo.set_moderation_status("ydp-grand", "rejected", REVIEWER)
+        // A rejected font no longer blocks its content…
+        repo.set_moderation_status("ydp-grand", "rejected", REVIEWER, None)
             .await
             .unwrap();
         assert!(repo.find_by_content("cafe").await.unwrap().is_none());
+        // …but is found by the re-proposal lookup.
+        assert_eq!(
+            repo.find_rejected_by_content("cafe")
+                .await
+                .unwrap()
+                .map(|e| e.id),
+            Some("ydp-grand".to_string())
+        );
+        assert!(
+            repo.find_rejected_by_content("beef")
+                .await
+                .unwrap()
+                .is_none()
+        );
     }
 
     #[tokio::test]
     async fn set_moderation_status_stamps_reviewer() {
         let repo = FakeSoundFontRepo::with(vec![pending("ydp-grand", "cafe")]);
         assert!(
-            repo.set_moderation_status("ydp-grand", "accepted", REVIEWER)
+            repo.set_moderation_status("ydp-grand", "accepted", REVIEWER, None)
                 .await
                 .unwrap()
         );
@@ -720,14 +832,68 @@ mod tests {
         // Unknown id → no row matched.
         assert!(
             !repo
-                .set_moderation_status("nope", "accepted", REVIEWER)
+                .set_moderation_status("nope", "accepted", REVIEWER, None)
                 .await
                 .unwrap()
         );
         // A non-UUID reviewer is a no-op not-found.
         assert!(
             !repo
-                .set_moderation_status("ydp-grand", "pending", "not-a-uuid")
+                .set_moderation_status("ydp-grand", "pending", "not-a-uuid", None)
+                .await
+                .unwrap()
+        );
+    }
+
+    #[tokio::test]
+    async fn reject_stores_reason_and_other_statuses_clear_it() {
+        let repo = FakeSoundFontRepo::with(vec![pending("ydp-grand", "cafe")]);
+        // Rejecting with a reason stores it.
+        assert!(
+            repo.set_moderation_status("ydp-grand", "rejected", REVIEWER, Some("bad licence"))
+                .await
+                .unwrap()
+        );
+        let e = repo.lookup("ydp-grand").await.unwrap().unwrap();
+        assert_eq!(e.review_reason.as_deref(), Some("bad licence"));
+        // Any other decision clears the stale reason.
+        repo.set_moderation_status("ydp-grand", "accepted", REVIEWER, None)
+            .await
+            .unwrap();
+        let e = repo.lookup("ydp-grand").await.unwrap().unwrap();
+        assert!(e.review_reason.is_none());
+    }
+
+    #[tokio::test]
+    async fn reopen_rejected_requeues_reattributes_and_stores_the_note() {
+        let repo = FakeSoundFontRepo::with(vec![pending("ydp-grand", "cafe")]);
+        repo.set_moderation_status("ydp-grand", "rejected", REVIEWER, Some("nope"))
+            .await
+            .unwrap();
+        // A non-rejected row does not reopen.
+        assert!(
+            !repo
+                .reopen_rejected("unknown", "u2", "please")
+                .await
+                .unwrap()
+        );
+        // The rejected row reopens: pending, re-attributed, reason cleared, note stored.
+        assert!(
+            repo.reopen_rejected("ydp-grand", "u2", "please")
+                .await
+                .unwrap()
+        );
+        let e = repo.lookup("ydp-grand").await.unwrap().unwrap();
+        assert_eq!(e.moderation_status, "pending");
+        assert_eq!(e.uploaded_by.as_deref(), Some("u2"));
+        assert!(e.review_reason.is_none());
+        assert_eq!(e.resubmission_note.as_deref(), Some("please"));
+        assert!(e.reviewed_by.is_none());
+        assert!(e.reviewed_at.is_none());
+        // Reopening again is a no-op (no longer rejected).
+        assert!(
+            !repo
+                .reopen_rejected("ydp-grand", "u3", "again")
                 .await
                 .unwrap()
         );

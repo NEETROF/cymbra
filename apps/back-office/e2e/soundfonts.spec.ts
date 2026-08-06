@@ -65,6 +65,55 @@ test.describe("sound fonts admin", () => {
     await expect(page.getByText("Upright Piano KW")).toBeVisible();
   });
 
+  // Change: add-soundfont-uploader-attribution — the review queue names the
+  // contributor, surfaces a reopened font's justification, and rejecting captures
+  // a reason (sent with the evaluate call; the seam stores it on the row).
+  test("uploader pseudo + resubmission note render, and reject captures a reason", async ({ page }) => {
+    await seed(page, {
+      loginAs: "admin",
+      data: {
+        soundfonts: [
+          {
+            id: "community-grand",
+            label: "Community Grand",
+            instrument: "piano",
+            license: "CC-BY 4.0",
+            attribution: "Sample Author",
+            moderationStatus: "pending",
+            uploaderDisplayName: "alice",
+            resubmissionNote: "now relicensed under CC-BY",
+            hasPreview: true,
+          },
+          {
+            id: "upright-piano-kw",
+            label: "Upright Piano KW",
+            instrument: "piano",
+            license: "CC0-1.0",
+            attribution: "",
+            moderationStatus: "accepted",
+          },
+        ],
+      },
+    });
+    await page.goto("/soundfonts");
+
+    // The user-contributed row names its uploader and shows the justification…
+    const community = page.getByRole("row", { name: /Community Grand/ });
+    await expect(community.getByText("Proposed by alice")).toBeVisible();
+    await expect(community.getByText("Re-submission: now relicensed under CC-BY")).toBeVisible();
+    // …while the seeded font shows neither.
+    const seeded = page.getByRole("row", { name: /Upright Piano KW/ });
+    await expect(seeded.getByText(/Proposed by/)).toHaveCount(0);
+    await expect(seeded.getByText(/Re-submission/)).toHaveCount(0);
+
+    // Reject opens the inline reason input; confirming sends the reason and the
+    // row flips to Rejected.
+    await community.getByRole("button", { name: "Reject" }).click();
+    await community.getByPlaceholder("Rejection reason (shown to the uploader)").fill("blurry samples");
+    await community.getByRole("button", { name: "Reject" }).click();
+    await expect(page.getByRole("row", { name: /Community Grand/ }).getByText("Rejected")).toBeVisible();
+  });
+
   test("a non-admin moderator cannot reach the screen", async ({ page }) => {
     await seed(page, { loginAs: "moderator", data: { counts: { pending: 0, accepted: 0, rejected: 0 } } });
     await page.goto("/music/queue");

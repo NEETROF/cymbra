@@ -274,6 +274,18 @@ describe("soundfonts store", () => {
     expect(sf.adminListCalls).toBe(1); // re-listed after the decision
   });
 
+  it("rejecting with a reason sends it with the evaluate call", async () => {
+    const { clients } = makeFakeClients();
+    const sf = withSoundfonts(clients, [row("ydp-grand", { moderationStatus: "pending" })]);
+    setClientsForTest(clients);
+    const store = useSoundFontsStore();
+
+    const outcome = await store.setModerationStatus("ydp-grand", "rejected", "blurry samples");
+
+    expect(outcome.status).toBe("success");
+    expect(sf.moderationCalls).toEqual([{ id: "ydp-grand", status: "rejected", reason: "blurry samples" }]);
+  });
+
   it("maps a FailedPrecondition on accept to the 'generate a sample' hint", async () => {
     const { clients } = makeFakeClients();
     withSoundfonts(clients, [row("ydp-grand", { moderationStatus: "pending" })]);

@@ -195,11 +195,16 @@ export function installE2EClients(): void {
         if (i >= 0) soundfonts.splice(i, 1);
         return {};
       },
-      // Moderation decision (change: add-soundfont-moderation).
-      setSoundFontModerationStatus: async (req: { id: string; status: string }) => {
+      // Moderation decision (change: add-soundfont-moderation). A rejection may
+      // carry the moderator's reason (change: add-soundfont-uploader-attribution),
+      // kept on the row so a test can assert it was sent.
+      setSoundFontModerationStatus: async (req: { id: string; status: string; reason?: string }) => {
         failIfSet("setSoundFontModerationStatus");
         const f = soundfonts.find((s) => s.id === req.id);
-        if (f) f.moderationStatus = req.status;
+        if (f) {
+          f.moderationStatus = req.status;
+          f.reviewReason = req.status === "rejected" ? req.reason : undefined;
+        }
         return {};
       },
     },

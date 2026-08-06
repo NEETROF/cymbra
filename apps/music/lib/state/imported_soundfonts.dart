@@ -171,16 +171,21 @@ class ImportedSoundFonts extends _$ImportedSoundFonts {
   }
 
   /// Attach each font's (server-derived, non-persisted) proposal moderation status
-  /// so the UI can show a tag + hide the propose action once submitted.
+  /// so the UI can show a tag + hide the propose action once submitted. A
+  /// `rejected` proposal also carries the moderator's motive (change:
+  /// add-soundfont-uploader-attribution); any other status clears a stale one.
   List<PianoEntry> _withProposalStatus(
     List<PianoEntry> result,
     List<RemoteSoundFont> remoteList,
   ) {
-    final statusByRemote = {for (final r in remoteList) r.id: r.proposalStatus};
+    final byRemote = {for (final r in remoteList) r.id: r};
     return [
       for (final e in result)
-        (e.remoteId != null && statusByRemote[e.remoteId] != null)
-            ? e.copyWith(proposalStatus: statusByRemote[e.remoteId])
+        (e.remoteId != null && byRemote[e.remoteId]?.proposalStatus != null)
+            ? e.copyWith(
+                proposalStatus: byRemote[e.remoteId]!.proposalStatus,
+                proposalRejectionReason: byRemote[e.remoteId]!.rejectionReason,
+              )
             : e,
     ];
   }
@@ -256,13 +261,16 @@ class ImportedSoundFonts extends _$ImportedSoundFonts {
 
   /// Proposes an imported font to the public catalog with a mandatory licence
   /// declaration + right-to-distribute [attestation] (change:
-  /// add-soundfont-moderation). Throws [PrivateSoundFontException] if the font has
-  /// not synced to the server yet or the server refuses the proposal.
+  /// add-soundfont-moderation). Re-proposing a **rejected** font carries the
+  /// mandatory [resubmissionNote] justification (change:
+  /// add-soundfont-uploader-attribution). Throws [PrivateSoundFontException] if
+  /// the font has not synced to the server yet or the server refuses the proposal.
   Future<void> proposeToPublicCatalog(
     String id, {
     required String license,
     String attribution = '',
     required bool attestation,
+    String? resubmissionNote,
   }) async {
     final current = state.valueOrNull ?? const <PianoEntry>[];
     final matches = current.where((e) => e.id == id);
@@ -278,13 +286,18 @@ class ImportedSoundFonts extends _$ImportedSoundFonts {
           license: license,
           attribution: attribution,
           attestation: attestation,
+          resubmissionNote: resubmissionNote,
         );
     // Optimistically reflect the pending submission so the UI updates immediately
     // and survives a relaunch (persisted); the next sync upgrades it to
-    // accepted/rejected from the server.
+    // accepted/rejected from the server. A re-proposal clears the stale
+    // rejection reason (the row reopened server-side).
     final next = <PianoEntry>[
       for (final e in current)
-        if (e.id == id) e.copyWith(proposalStatus: 'pending') else e,
+        if (e.id == id)
+          e.copyWith(proposalStatus: 'pending', proposalRejectionReason: null)
+        else
+          e,
     ];
     state = AsyncData(next);
     await _persist(next);
