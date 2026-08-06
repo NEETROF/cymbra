@@ -369,3 +369,93 @@ ScoreDocument sampleGrandStaffDocument() => ScoreDocument(
     ),
   ],
 );
+
+/// A four-measure treble document with **round** playback timing, for the
+/// measure-range practice tests (change: add-measure-range-practice): a
+/// `quarter = 60` metronome mark with `divisions = 4` gives 250 ms per division
+/// and 16 divisions per 4/4 measure, so `measureStartMs` is `[0, 4000, 8000,
+/// 12000]` and `songEndMs` is 16000. Each measure holds one whole note, so every
+/// measure has an onset the Wait-Mode gate and the scorer can see.
+ScoreDocument sampleFourMeasureDocument() => ScoreDocument(
+  meta: const ScoreMeta(title: 'FourBars', composer: 'Tester'),
+  staves: 1,
+  attributes: const Attributes(
+    divisions: 4,
+    clefs: [Clef(staff: 1, sign: 'G', line: 2)],
+    keyFifths: 0,
+    time: TimeSignature(beats: 4, beatType: 4),
+  ),
+  measures: [
+    for (var i = 0; i < 4; i++)
+      NotationMeasure(
+        index: i,
+        clefs: const [],
+        keyFifths: 0,
+        minWidth: 120,
+        directions: i == 0
+            ? const [
+                Direction(
+                  staff: 1,
+                  positionDivisions: 0,
+                  kind: DirectionKind.metronome(
+                    beatUnit: 'quarter',
+                    perMinute: 60,
+                  ),
+                ),
+              ]
+            : const [],
+        notes: [
+          noteEvent(
+            staff: 1,
+            // C5, D5, E5, F5 — one distinct onset per measure.
+            pitch: Pitch(step: ['C', 'D', 'E', 'F'][i], octave: 5, alter: 0),
+            durationDivisions: 16,
+            noteType: 'whole',
+          ),
+        ],
+      ),
+  ],
+);
+
+/// Like [sampleFourMeasureDocument] but with [bars] measures, so a test can make
+/// the practice ribbon genuinely scrollable (four bars fit without scrolling,
+/// which hid the auto-scroll bug).
+ScoreDocument sampleManyMeasureDocument({int bars = 24}) => ScoreDocument(
+  meta: const ScoreMeta(title: 'ManyBars', composer: 'Tester'),
+  staves: 1,
+  attributes: const Attributes(
+    divisions: 4,
+    clefs: [Clef(staff: 1, sign: 'G', line: 2)],
+    keyFifths: 0,
+    time: TimeSignature(beats: 4, beatType: 4),
+  ),
+  measures: [
+    for (var i = 0; i < bars; i++)
+      NotationMeasure(
+        index: i,
+        clefs: const [],
+        keyFifths: 0,
+        minWidth: 120,
+        directions: i == 0
+            ? const [
+                Direction(
+                  staff: 1,
+                  positionDivisions: 0,
+                  kind: DirectionKind.metronome(
+                    beatUnit: 'quarter',
+                    perMinute: 60,
+                  ),
+                ),
+              ]
+            : const [],
+        notes: [
+          noteEvent(
+            staff: 1,
+            pitch: Pitch(step: 'CDEFGAB'[i % 7], octave: 5, alter: 0),
+            durationDivisions: 16,
+            noteType: 'whole',
+          ),
+        ],
+      ),
+  ],
+);

@@ -20,18 +20,37 @@ class DayActivity {
     required this.day,
     required this.count,
     required this.avgSyncPct,
+    this.practiceCount = 0,
   });
 
   /// The player's local calendar day (date-only; time is meaningless here).
   final DateTime day;
+
+  /// Scored plays that day — the only sessions [avgSyncPct] is computed from.
   final int count;
   final double avgSyncPct;
+
+  /// Practice (selective/unscored) sessions that day (change: add-measure-range-
+  /// practice). Practice carries no synchronization percentage, so it never
+  /// contributes to the day's success **color** — only to its intensity/tooltip.
+  final int practiceCount;
+
+  /// Whether the day was active at all (a scored play or a practice).
+  bool get hasActivity => count > 0 || practiceCount > 0;
+
+  /// Whether the day holds **only** practice — it must render as a neutral
+  /// active cell, never as a 0 %/failure colour.
+  bool get isPracticeOnly => count == 0 && practiceCount > 0;
 }
 
 /// A player's per-day activity plus their songs-played total, as read for the
 /// profile heatmap.
 class PlayActivity {
-  const PlayActivity({required this.days, required this.totalSessions});
+  const PlayActivity({
+    required this.days,
+    required this.totalSessions,
+    this.totalPractices = 0,
+  });
 
   /// Per-day activity, ordered by day. Days with no play are simply absent (the
   /// heatmap renders those cells blank).
@@ -39,6 +58,9 @@ class PlayActivity {
 
   /// Songs-played total across the returned window.
   final int totalSessions;
+
+  /// Practice-sessions total across the returned window.
+  final int totalPractices;
 
   static const PlayActivity empty = PlayActivity(days: [], totalSessions: 0);
 

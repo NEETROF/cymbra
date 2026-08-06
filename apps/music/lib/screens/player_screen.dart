@@ -47,6 +47,7 @@ import '../widgets/countdown_overlay.dart';
 import '../widgets/mistake_replay.dart';
 import '../widgets/notation_help_area.dart';
 import '../widgets/playback_progress_bar.dart';
+import '../widgets/practice_range_picker.dart';
 import '../widgets/reading_aid.dart';
 import '../widgets/score_chip.dart';
 import '../widgets/scoring_overlay.dart';
@@ -522,6 +523,20 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
         await showMistakeReplay(context, score, result);
         continue; // back to the summary after the replay
       }
+      if (action == SummaryAction.practice) {
+        // Drill a section of what was just played: pick a range, then run it
+        // unscored. Backing out of the picker returns to the summary, so the
+        // player still has to make an explicit choice.
+        final started = await showPracticeRangePicker(context);
+        if (!mounted) return;
+        if (!started) {
+          continue;
+        }
+        ref.read(performanceScorerProvider.notifier).clearLastResult();
+        // setPracticeRange already armed the range and moved the playhead.
+        ref.read(playerProvider.notifier).startPlayback();
+        return;
+      }
       ref.read(performanceScorerProvider.notifier).clearLastResult();
       if (action == SummaryAction.retry) {
         // Fresh start from the top → replays the get-ready countdown.
@@ -745,30 +760,15 @@ class _TopBar extends ConsumerWidget {
           // Expanded (instead of a fixed Column + Spacer) so the title absorbs
           // the free space and shrinks gracefully on narrow windows; the texts
           // ellipsize rather than overflowing the top bar.
+          // While a passage loops, the exit takes the title's place rather than
+          // stacking above it: the title is the least useful thing on screen
+          // then, the way out is the most useful, and replacing costs no extra
+          // height on a short phone-landscape top bar.
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Cymbra Music',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: CymbraColors.primary,
-                    fontSize: titleSize,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                Text(
-                  l10n.nowPlaying(title ?? '—'),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: CymbraColors.onSurfaceVariant,
-                    fontSize: subtitleSize,
-                  ),
-                ),
-              ],
+            child: _TopBarLead(
+              title: title,
+              titleSize: titleSize,
+              subtitleSize: subtitleSize,
             ),
           ),
           SizedBox(width: trailGap),
@@ -1251,6 +1251,31 @@ class _PartitionViewState extends ConsumerState<_PartitionView> {
   /// moves to a new line (not every frame, which would restart the animation).
   double? _lastScrollTarget;
 
+  /// Per-measure hit rectangles, refilled by the painter on every frame, so a
+  /// tap maps to the measure actually engraved under it (change: add-measure-
+  /// range-practice, D5).
+  final List<MeasureHit> _hits = [];
+
+  /// The first measure of an in-progress tap selection: the next tap closes the
+  /// range (order-normalized). Null when no selection is under way.
+  int? _pendingStart;
+
+  /// Tap-to-select: the first tap picks the range's start, the second its end;
+  /// tapping again starts a fresh selection from the tapped measure. A tap that
+  /// misses every measure (header, gutter) is ignored.
+  void _onScoreTap(TapUpDetails details) {
+    final measure = measureAtPosition(_hits, details.localPosition);
+    if (measure == null) return;
+    final start = _pendingStart;
+    if (start == null) {
+      setState(() => _pendingStart = measure);
+      return;
+    }
+    setState(() => _pendingStart = null);
+    // setPracticeRange normalizes the order, so tapping right-to-left works.
+    ref.read(playerProvider.notifier).setPracticeRange(start, measure);
+  }
+
   @override
   void dispose() {
     _scroll.dispose();
@@ -1407,26 +1432,49 @@ class _PartitionViewState extends ConsumerState<_PartitionView> {
                     final viewHeight = pos != null && pos.hasViewportDimension
                         ? pos.viewportDimension
                         : constraints.maxHeight;
+                    // While a selection is in progress the first tapped measure
+                    // is shown alone, so the pick reads back immediately.
+                    final pending = _pendingStart;
+                    final range = pending != null
+                        ? (start: pending, end: pending)
+                        : (data.practiceStartMeasure != null &&
+                              data.practiceEndMeasure != null)
+                        ? (
+                            start: data.practiceStartMeasure!,
+                            end: data.practiceEndMeasure!,
+                          )
+                        : null;
+                    // The help area (long-press → symbol help) stays outermost
+                    // since it owns the hit index the painter fills; the tap
+                    // detector wraps the canvas itself. Tap and long-press are
+                    // distinct gestures, so the arena resolves them apart.
                     return NotationHelpArea(
-                      builder: (context, hitIndex) => CustomPaint(
-                        key: const Key('partition-canvas'),
-                        painter: PartitionPainter(
-                          document: notation.document!,
-                          systems: notation.systems,
-                          elapsedMs: data.elapsedMs,
-                          measureStartMs: data.measureStartMs,
-                          songEndMs: data.songEndMs,
-                          activeNotes: data.activeNotes,
-                          selectedHands: data.selectedHands,
-                          viewTop: viewTop,
-                          viewBottom: viewTop + viewHeight,
-                          staffSpace: staffSpace,
-                          palette: palette,
-                          hitIndex: hitIndex,
-                        ),
-                        size: Size(
-                          engraveWidth,
-                          painter.heightFor(engraveWidth),
+                      builder: (context, hitIndex) => GestureDetector(
+                        // Tap-to-select the practice range directly on the score.
+                        behavior: HitTestBehavior.opaque,
+                        onTapUp: _onScoreTap,
+                        child: CustomPaint(
+                          key: const Key('partition-canvas'),
+                          painter: PartitionPainter(
+                            document: notation.document!,
+                            systems: notation.systems,
+                            elapsedMs: data.elapsedMs,
+                            measureStartMs: data.measureStartMs,
+                            songEndMs: data.songEndMs,
+                            activeNotes: data.activeNotes,
+                            selectedHands: data.selectedHands,
+                            viewTop: viewTop,
+                            viewBottom: viewTop + viewHeight,
+                            staffSpace: staffSpace,
+                            palette: palette,
+                            hitIndex: hitIndex,
+                            practiceRange: range,
+                            hitRects: _hits,
+                          ),
+                          size: Size(
+                            engraveWidth,
+                            painter.heightFor(engraveWidth),
+                          ),
                         ),
                       ),
                     );
@@ -1445,9 +1493,187 @@ class _PartitionViewState extends ConsumerState<_PartitionView> {
                   icon: Icons.touch_app_outlined,
                 ),
               ),
+              // Discoverability for the tap-on-score range picker: shown only
+              // while paused with no range chosen, so it never clutters play.
+              // Bottom-left, clear of the help hint pinned along the top.
+              if (!data.isPlaying && !data.hasPracticeRange)
+                Positioned(
+                  left: 8,
+                  bottom: 8,
+                  child: _PartitionTapHint(pending: _pendingStart != null),
+                ),
             ],
           );
         },
+      ),
+    );
+  }
+}
+
+/// Hint that the engraved score itself is a range picker (change: add-measure-
+/// range-practice, D5). Shown only while paused with no range chosen; once the
+/// first measure has been tapped it reads as the "now pick the end" step.
+class _PartitionTapHint extends StatelessWidget {
+  const _PartitionTapHint({required this.pending});
+
+  /// Whether a first measure has already been tapped.
+  final bool pending;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return Container(
+      key: const Key('partition-tap-hint'),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: CymbraColors.surfaceContainerHigh.withValues(alpha: 0.9),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: pending ? CymbraColors.tertiary : CymbraColors.outlineVariant,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(
+            Icons.touch_app_outlined,
+            size: 14,
+            color: CymbraColors.onSurfaceVariant,
+          ),
+          const SizedBox(width: 6),
+          Text(
+            pending ? l10n.practiceToBar : l10n.practiceTapHint,
+            style: const TextStyle(
+              color: CymbraColors.onSurfaceVariant,
+              fontSize: 11,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The top bar's left block: normally the app title + now-playing line, and —
+/// while a practice passage is looping — the button that ends it, in the title's
+/// place (change: add-measure-range-practice).
+class _TopBarLead extends ConsumerWidget {
+  const _TopBarLead({
+    required this.title,
+    required this.titleSize,
+    required this.subtitleSize,
+  });
+
+  final String? title;
+  final double titleSize;
+  final double subtitleSize;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final selective = ref.watch(playerProvider.select((d) => d.isSelectiveRun));
+    if (selective) {
+      return const Align(
+        alignment: Alignment.centerLeft,
+        child: _StopPracticeLoopButton(),
+      );
+    }
+    final l10n = AppLocalizations.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          'Cymbra Music',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color: CymbraColors.primary,
+            fontSize: titleSize,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        Text(
+          l10n.nowPlaying(title ?? '—'),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color: CymbraColors.onSurfaceVariant,
+            fontSize: subtitleSize,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// The exit from an endless practice loop (change: add-measure-range-practice).
+///
+/// A practice loop has no natural end — it repeats until the player stops it —
+/// so the stop is not a discreet transport control but a large, high-contrast
+/// button pinned top-centre, visible from the very first 3…2…1. It appears for a
+/// selective run only; a full run never shows it.
+class _StopPracticeLoopButton extends ConsumerWidget {
+  const _StopPracticeLoopButton();
+
+  /// Ends the loop: stop playing, drop back to a full run, and reopen the setup
+  /// panel on its whole-piece / passage choice — stopping is a return to where
+  /// the player came from, not a dead end.
+  static Future<void> _stop(BuildContext context, WidgetRef ref) async {
+    final notifier = ref.read(playerProvider.notifier);
+    notifier.setPlaying(false);
+    notifier.clearPracticeRange();
+    if (!context.mounted) return;
+    await showPrePlaySetup(context);
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final (selective, from, to) = ref.watch(
+      playerProvider.select(
+        (d) => (d.isSelectiveRun, d.practiceStartMeasure, d.practiceEndMeasure),
+      ),
+    );
+    if (!selective || from == null || to == null) {
+      return const SizedBox.shrink();
+    }
+    final l10n = AppLocalizations.of(context);
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        alignment: Alignment.centerLeft,
+        child: FilledButton.icon(
+          key: const Key('practice-stop-loop'),
+          style: FilledButton.styleFrom(
+            backgroundColor: CymbraColors.error,
+            foregroundColor: Colors.white,
+            visualDensity: VisualDensity.compact,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+            textStyle: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          onPressed: () => unawaited(_stop(context, ref)),
+          icon: const Icon(Icons.stop_rounded, size: 18),
+          // The button IS the passage indicator: which bars are looping and how
+          // to get out of them, in one place instead of two competing chips.
+          label: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(l10n.practiceStopLoop),
+              Text(
+                // Bars read 1-based for the musician; the state is 0-based.
+                l10n.practiceBars(from + 1, to + 1),
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

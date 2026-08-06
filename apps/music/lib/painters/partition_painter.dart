@@ -21,6 +21,20 @@ import 'notation_palette.dart';
 import 'smufl.dart';
 import 'staff_hit_index.dart';
 
+/// One engraved measure's tappable rectangle, in the scrollable **content**
+/// coordinates of the Partition canvas (change: add-measure-range-practice, D5).
+typedef MeasureHit = ({int measure, Rect rect});
+
+/// The measure whose rectangle contains [position], or null when the tap fell
+/// outside every measure (the header, a gutter, the gap between systems). Pure
+/// and host-testable — the whole of the tap-on-score picker's geometry logic.
+int? measureAtPosition(List<MeasureHit> rects, Offset position) {
+  for (final hit in rects) {
+    if (hit.rect.contains(position)) return hit.measure;
+  }
+  return null;
+}
+
 /// Draws engraved notation ("Partition" mode) from a parsed [ScoreDocument] and
 /// its laid-out [System]s, using SMuFL/Bravura glyphs for note heads, clefs,
 /// flags, accidentals, rests and dynamics. Stems, beams, staff and ledger lines
@@ -65,6 +79,17 @@ class PartitionPainter extends CustomPainter {
   /// every [paint]; a null index leaves rendering byte-identical.
   final StaffHitIndex? hitIndex;
 
+  /// The active practice measure range, highlighted on the score (change:
+  /// add-measure-range-practice, D5). Null for a full run — nothing is tinted.
+  final ({int start, int end})? practiceRange;
+
+  /// Sink filled during [paint] with each engraved measure's rectangle in
+  /// **content** coordinates, so the view can hit-test a tap back to a measure
+  /// (the tap-on-score range picker). Only measures actually painted are
+  /// recorded — culled, off-screen systems can't be tapped anyway. Null (the
+  /// default) disables the collection entirely.
+  final List<MeasureHit>? hitRects;
+
   PartitionPainter({
     required this.document,
     required this.systems,
@@ -79,6 +104,8 @@ class PartitionPainter extends CustomPainter {
     this.staffSpace = 12,
     this.palette = NotationPalette.dark,
     this.hitIndex,
+    this.practiceRange,
+    this.hitRects,
   });
 
   /// Font family for the engraved *words* (tempo marks, lyrics, fingerings) —
@@ -218,6 +245,9 @@ class PartitionPainter extends CustomPainter {
     // what is drawn).
     hitIndex?.clear();
     if (systems.isEmpty) return;
+    // Each frame re-derives the hit geometry from what is actually engraved, so
+    // it can never go stale against a re-layout or a scroll-driven cull.
+    hitRects?.clear();
     final divPerMeasure = _divisionsPerMeasure();
     final clefAt = _computeClefAt();
     final cursor = _cursor;
@@ -432,6 +462,17 @@ class PartitionPainter extends CustomPainter {
       final idx = indices[k];
       final measure = document.measures[idx];
       final mWidth = measure.minWidth * scale;
+      final bounds = Rect.fromLTRB(x, systemTop, x + mWidth, systemBottom);
+      hitRects?.add((measure: idx, rect: bounds));
+      // Tint the measures of the active practice range, so the selection is
+      // visible on the score itself.
+      final range = practiceRange;
+      if (range != null && idx >= range.start && idx <= range.end) {
+        canvas.drawRect(
+          bounds,
+          Paint()..color = CymbraColors.tertiary.withValues(alpha: 0.14),
+        );
+      }
       canvas.drawLine(
         Offset(x + mWidth, systemTop),
         Offset(x + mWidth, systemBottom),
@@ -1137,7 +1178,8 @@ class PartitionPainter extends CustomPainter {
       old.viewBottom != viewBottom ||
       old.textFontFamily != textFontFamily ||
       old.staffSpace != staffSpace ||
-      old.palette != palette;
+      old.palette != palette ||
+      old.practiceRange != practiceRange;
 }
 
 /// A note's drawn geometry (head centre + stem direction), used for beaming.

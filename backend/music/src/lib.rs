@@ -92,9 +92,12 @@ pub use pg_global_leaderboard::PgGlobalLeaderboardRepo;
 pub use pg_leaderboard::PgLeaderboardRepo;
 pub use pg_play::PgPlayRepo;
 pub use pg_user_scores::{PgUserLibraryRepo, PgUserScoreRepo};
-pub use play::{DayActivity, FakePlayRepo, PlayActivity, PlayRepo, PlaySession, SessionPoint};
+pub use play::{
+    DayActivity, FakePlayRepo, PlayActivity, PlayRepo, PlaySession, PracticePoint, PracticeSession,
+    SessionPoint,
+};
 pub use play_grpc::PlayGrpc;
-pub use play_module::{PlayModule, RecordInput};
+pub use play_module::{PlayModule, RecordInput, RecordPracticeInput};
 pub use repo::{CatalogEntry, CatalogRepo, FakeCatalogRepo, ScoreFacets, ScoreMeta};
 pub use score_rating::{
     FakeScoreRatingRepo, RatingAggregate, RatingConfig, ScoreRatingRepo, Verdict,

@@ -38,6 +38,16 @@ extension PracticeLevelLabel on PracticeLevel {
   };
 }
 
+/// The identity a piece is keyed by outside the app — the BACKEND id the server
+/// ranks and aggregates by (change: add-play-leaderboards), and the key its
+/// device-local per-score data is stored under: the bare catalog UUID
+/// ([CatalogEntry.catalogId]) for a public catalog score — what the leaderboard's
+/// accepted-catalog check matches — else the upload id, else the app id, else the
+/// piece [title]. [CatalogEntry.id] is namespaced (`catalog-…`/`contrib-…`), so it
+/// must never be used on its own. Pure, so every caller resolves the same id.
+String pieceIdentityOf(CatalogEntry? entry, String? title) =>
+    entry?.catalogId ?? entry?.contributedId ?? entry?.id ?? title ?? 'demo';
+
 /// One entry in the bundled score catalog: a public-domain MusicXML asset
 /// tagged with display metadata and a practice level.
 class CatalogEntry {

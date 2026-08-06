@@ -26,7 +26,15 @@ import 'leaderboard_view.dart';
 import 'post_play_rating.dart';
 
 /// What the player chose to do from the summary modal.
-enum SummaryAction { replay, retry, close }
+enum SummaryAction {
+  replay,
+
+  /// Drill a section of the piece: opens the measure-range picker and starts a
+  /// selective (unscored) practice run (change: add-measure-range-practice, D6).
+  practice,
+  retry,
+  close,
+}
 
 /// Shows the end-of-session summary for [result]. Returns the chosen
 /// [SummaryAction] (or [SummaryAction.close] if dismissed). The caller handles
@@ -307,12 +315,39 @@ class _SummaryDialog extends StatelessWidget {
         ),
       ),
       const SizedBox(height: 8),
-      SizedBox(
-        width: double.infinity,
-        child: OutlinedButton(
-          onPressed: () => Navigator.of(context).pop(SummaryAction.retry),
-          child: Text(l10n.summaryRetry),
-        ),
+      // The two secondary actions sit SIDE BY SIDE rather than stacked: on the
+      // smallest real window (a 568×320 phone on its side) a third full-width
+      // button overflows the modal, and the spec requires the actions to stay
+      // visible while only the stats scroll. As peers they also read correctly —
+      // "drill what I just missed" and "run it again" are the same weight.
+      Row(
+        children: [
+          // Drill what was just missed: opens the measure-range picker for an
+          // unscored practice run (change: add-measure-range-practice, D6).
+          Expanded(
+            child: OutlinedButton(
+              key: const Key('summary-practice'),
+              onPressed: () =>
+                  Navigator.of(context).pop(SummaryAction.practice),
+              child: Text(
+                l10n.summaryPractice,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: OutlinedButton(
+              onPressed: () => Navigator.of(context).pop(SummaryAction.retry),
+              child: Text(
+                l10n.summaryRetry,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ),
+        ],
       ),
     ],
   );

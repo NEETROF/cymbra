@@ -19,6 +19,7 @@ import 'package:flutter/material.dart';
 import '../src/rust/api/musicxml.dart' show BeamState;
 import '../state/note_density_core.dart';
 import '../state/player_data.dart';
+import '../theme/cymbra_theme.dart';
 import 'notation_palette.dart';
 import 'smufl.dart';
 import 'staff_hit_index.dart';
@@ -112,7 +113,31 @@ class StaffPainter extends CustomPainter {
     this.noteScale = 1.0,
     this.palette = NotationPalette.dark,
     this.hitIndex,
+    this.practiceRange,
+    this.measureHits,
+    this.showPlayhead = true,
+    this.timeOriginFraction = 0.25,
   });
+
+  /// Where `elapsedMs` lands across the width, as a fraction. The player keeps
+  /// the playhead at a quarter so past notes stay visible to its left; a static
+  /// ribbon wants the music to start right after the clef instead, so it passes
+  /// a small value — otherwise a wide canvas leaves a quarter of it blank before
+  /// the first note.
+  final double timeOriginFraction;
+
+  /// The active practice measure range, tinted across the system (change:
+  /// add-measure-range-practice). Null for a full run — nothing is tinted.
+  final ({int start, int end})? practiceRange;
+
+  /// Sink filled during [paint] with each measure's on-screen rectangle, so a
+  /// horizontal range picker can hit-test a tap back to a bar. Requires
+  /// [measureStartMs]; null (the default) disables the collection entirely.
+  final List<({int measure, Rect rect})>? measureHits;
+
+  /// Whether the playback line is drawn. The range picker is not playing
+  /// anything, so it turns the line off rather than implying a playhead.
+  final bool showPlayhead;
 
   /// Colour set (dark surface or paper) the staff is drawn with.
   final NotationPalette palette;
@@ -229,8 +254,10 @@ class StaffPainter extends CustomPainter {
     );
     final stepGap = lineGap / 2;
 
-    // Playhead fixed at the left quarter; time advances toward the left.
-    final playLineX = size.width * 0.25;
+    // Time origin: the player pins the playhead at the left quarter and time
+    // advances toward the left; a static ribbon pushes it hard left so the whole
+    // piece gets the width.
+    final playLineX = size.width * timeOriginFraction;
     final trackPx = size.width - playLineX - margin;
     // The window the notes are spread over: the caller's, narrowed by the
     // score's own density and by its measure length, so a fast 3/8 does not
@@ -451,6 +478,36 @@ class StaffPainter extends CustomPainter {
       );
     }
 
+    // Measure geometry for the horizontal range picker (change: add-measure-
+    // range-practice): each bar's on-screen span, derived from the SAME
+    // time→x mapping as the notes, so a tap can never disagree with what is
+    // drawn. Also paints the active range's tint under the notation.
+    measureHits?.clear();
+    if (measureStartMs.isNotEmpty &&
+        (measureHits != null || practiceRange != null)) {
+      // The same tint as the engraved Partition picker, so both surfaces read
+      // as one feature.
+      final tint = Paint()
+        ..color = CymbraColors.tertiary.withValues(alpha: 0.14);
+      for (var i = 0; i < measureStartMs.length; i++) {
+        final startX = xForTime(measureStartMs[i].toDouble());
+        final endT = i + 1 < measureStartMs.length
+            ? measureStartMs[i + 1].toDouble()
+            : songEndMs;
+        final endX = xForTime(endT);
+        // Clip to the visible track so the head never absorbs a bar's rect.
+        final l = math.max(startX, headEnd);
+        final r = math.min(endX, size.width - margin);
+        if (r <= l) continue;
+        final bounds = Rect.fromLTRB(l, systemTop, r, systemBottom);
+        measureHits?.add((measure: i, rect: bounds));
+        final range = practiceRange;
+        if (range != null && i >= range.start && i <= range.end) {
+          canvas.drawRect(bounds, tint);
+        }
+      }
+    }
+
     if (measureStartMs.isNotEmpty) {
       for (final t in measureStartMs) {
         drawBar(t.toDouble());
@@ -466,15 +523,19 @@ class StaffPainter extends CustomPainter {
       }
     }
 
-    // 3) Playhead (playback line) across the whole system.
-    final playPaint = Paint()
-      ..color = palette.accent.withValues(alpha: 0.9)
-      ..strokeWidth = 2;
-    canvas.drawLine(
-      Offset(playLineX, systemTop - lineGap * 1.5),
-      Offset(playLineX, systemBottom + lineGap * 1.5),
-      playPaint,
-    );
+    // 3) Playhead (playback line) across the whole system. Suppressed by the
+    // range picker, which shows the music as a static ribbon and has no
+    // playhead to point at.
+    if (showPlayhead) {
+      final playPaint = Paint()
+        ..color = palette.accent.withValues(alpha: 0.9)
+        ..strokeWidth = 2;
+      canvas.drawLine(
+        Offset(playLineX, systemTop - lineGap * 1.5),
+        Offset(playLineX, systemBottom + lineGap * 1.5),
+        playPaint,
+      );
+    }
 
     // Vertical position of a note on its staff.
     double noteY(TimedNote n) {
@@ -1040,5 +1101,8 @@ class StaffPainter extends CustomPainter {
       old.onsetGapMs != onsetGapMs ||
       old.measureMs != measureMs ||
       old.noteScale != noteScale ||
-      old.palette != palette;
+      old.palette != palette ||
+      old.practiceRange != practiceRange ||
+      old.showPlayhead != showPlayhead ||
+      old.timeOriginFraction != timeOriginFraction;
 }

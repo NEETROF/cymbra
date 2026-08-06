@@ -21,7 +21,7 @@ use async_trait::async_trait;
 use cymbra_platform::{AppError, Result};
 use sqlx::{PgPool, Row};
 
-use crate::play::{PlayRepo, PlaySession, SessionPoint};
+use crate::play::{PlayRepo, PlaySession, PracticePoint, PracticeSession, SessionPoint};
 
 fn internal(e: sqlx::Error) -> AppError {
     AppError::Internal(anyhow::anyhow!("play db: {e}"))
@@ -91,6 +91,48 @@ impl PlayRepo for PgPlayRepo {
                 played_at_ms: r.get::<i64, _>("played_at_ms"),
                 tz_offset_minutes: r.get("tz_offset_minutes"),
                 overall_sync_pct: r.get("overall_sync_pct"),
+            })
+            .collect())
+    }
+
+    async fn record_practice(&self, s: &PracticeSession) -> Result<()> {
+        let id = parse_uuid(&s.session_id, "session id")?;
+        let user_id = parse_uuid(&s.user_id, "user id")?;
+        let practiced_at = chrono::DateTime::from_timestamp_millis(s.practiced_at_ms)
+            .ok_or_else(|| AppError::InvalidArgument("invalid practiced_at".into()))?;
+        sqlx::query(
+            "INSERT INTO music.practice_sessions \
+             (id, user_id, score_id, practiced_at, tz_offset_minutes) \
+             VALUES ($1, $2, $3, $4, $5) \
+             ON CONFLICT (id) DO NOTHING",
+        )
+        .bind(id)
+        .bind(user_id)
+        .bind(&s.score_id)
+        .bind(practiced_at)
+        .bind(s.tz_offset_minutes)
+        .execute(&self.pool)
+        .await
+        .map_err(internal)?;
+        Ok(())
+    }
+
+    async fn practice_points(&self, user_id: &str) -> Result<Vec<PracticePoint>> {
+        let uid = parse_uuid(user_id, "user id")?;
+        let rows = sqlx::query(
+            "SELECT (extract(epoch FROM practiced_at) * 1000)::bigint AS practiced_at_ms, \
+             tz_offset_minutes \
+             FROM music.practice_sessions WHERE user_id = $1 ORDER BY practiced_at",
+        )
+        .bind(uid)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(internal)?;
+        Ok(rows
+            .into_iter()
+            .map(|r| PracticePoint {
+                practiced_at_ms: r.get::<i64, _>("practiced_at_ms"),
+                tz_offset_minutes: r.get("tz_offset_minutes"),
             })
             .collect())
     }
