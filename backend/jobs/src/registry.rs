@@ -44,6 +44,12 @@ pub const USAGE_PURGE: &str = "usage_purge";
 /// minimum, freezes its aggregate as truth and settles each unsettled rating's
 /// honesty bonus. Idempotent (settlement state), so at-least-once delivery is safe.
 pub const CONSENSUS_HONESTY_SETTLEMENT: &str = "consensus_honesty_settlement";
+/// Stable name of the global-leaderboard season rollover (change: add-global-
+/// leaderboard, D3/task 2.2). No payload. Scheduled: once the current season's
+/// window has opened, freezes the season that just CLOSED into the hall of fame.
+/// Idempotent (an already-snapshotted season is left untouched), so at-least-once
+/// delivery and a run on a day with no rollover are both safe.
+pub const GLOBAL_SEASON_SNAPSHOT: &str = "global_season_snapshot";
 
 /// Static description of one job type.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -141,6 +147,13 @@ pub fn builtin() -> Vec<JobSpec> {
             Channel::parallel("music", "maintenance"),
             RetryPolicy::new(3, Duration::from_secs(60), Duration::from_secs(3600)),
         ),
+        JobSpec::new(
+            GLOBAL_SEASON_SNAPSHOT,
+            // Maintenance sweep; dedup'd per scheduled occurrence and idempotent by
+            // the existing-snapshot guard — parallel so it never head-of-line blocks.
+            Channel::parallel("music", "maintenance"),
+            RetryPolicy::new(3, Duration::from_secs(60), Duration::from_secs(3600)),
+        ),
     ]
 }
 
@@ -163,6 +176,14 @@ mod tests {
         assert!(names.contains(&PURGE_SCORE_OBJECT.to_string()));
         assert!(names.contains(&PLAY_DETAIL_PRUNE.to_string()));
         assert!(names.contains(&CONSENSUS_HONESTY_SETTLEMENT.to_string()));
+    }
+
+    #[test]
+    fn global_season_snapshot_is_parallel_maintenance_on_music() {
+        let s = spec(GLOBAL_SEASON_SNAPSHOT).unwrap();
+        assert_eq!(s.channel().name(), "music.maintenance");
+        assert!(!s.channel().is_ordered());
+        assert_eq!(s.default_retry().max_attempts(), 3);
     }
 
     #[test]

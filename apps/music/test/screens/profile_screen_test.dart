@@ -17,6 +17,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:music/screens/profile_screen.dart';
 import 'package:music/services/curator_rewards_service.dart';
+import 'package:music/services/global_leaderboard_service.dart';
 import 'package:music/services/preferences_service.dart';
 import 'package:music/services/profile_service.dart';
 import 'package:music/state/play_activity.dart';
@@ -26,6 +27,7 @@ import 'package:music/state/session_notifier.dart';
 import 'package:music/state/usage_consent.dart';
 import 'package:music/widgets/play_heatmap.dart';
 
+import '../support/global_leaderboard_fakes.dart';
 import '../support/localized.dart';
 import '../support/prefs_fakes.dart';
 
@@ -81,6 +83,11 @@ Widget _harness({
   // The own-profile embeds the curator-rewards section (change: add-curation-
   // rewards); feed it a fake seam so the section resolves without a backend.
   curatorRewardsServiceProvider.overrideWithValue(_FakeCuratorRewards()),
+  // The own-profile also embeds the global standing (change: add-global-
+  // leaderboard); a fake seam keeps the test off the real gRPC channel.
+  globalLeaderboardServiceProvider.overrideWithValue(
+    FakeGlobalLeaderboardService(),
+  ),
   preferencesServiceProvider.overrideWithValue(FakePreferencesService()),
 ], localizedApp(ProfileScreen(userId: screenUserId)));
 
@@ -153,6 +160,11 @@ void main() {
           playActivityProvider('me').overrideWith((ref) async => _activity()),
           curatorRewardsServiceProvider.overrideWithValue(
             _FakeCuratorRewards(),
+          ),
+          // Keep the own-profile's global standing (change: add-global-
+          // leaderboard) off the real gRPC channel, like the shared harness does.
+          globalLeaderboardServiceProvider.overrideWithValue(
+            FakeGlobalLeaderboardService(),
           ),
           preferencesServiceProvider.overrideWithValue(
             FakePreferencesService(),

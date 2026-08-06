@@ -27,6 +27,7 @@ import '../state/usage_consent.dart';
 import '../state/usage_tracking_notifier.dart';
 import '../widgets/coach_mark.dart';
 import '../widgets/curator_rewards_section.dart';
+import '../widgets/global_standing_section.dart';
 import '../widgets/play_heatmap.dart';
 
 /// A player's profile (change: add-play-activity-profile). Reuses the play
@@ -110,6 +111,13 @@ class _ProfileBody extends ConsumerWidget {
           const SizedBox(height: 24),
           _ActivitySection(targetId: targetId),
           if (isSelf) ...[
+            // The player's GLOBAL season standing (change: add-global-leaderboard)
+            // and its entry into the Community screen. Caller-scoped like the
+            // rewards below, so it is shown only on the OWN profile — and it is
+            // shown even to a private/under-age player (they see their own rank,
+            // they are simply not listed to others).
+            const SizedBox(height: 24),
+            const GlobalStandingSection(),
             // Curator rewards live here now (change: add-curation-rewards) — the
             // signed-in user's own standing, integrated into their profile rather
             // than a separate screen. The GetCuratorRewards RPC is caller-scoped,

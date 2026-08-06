@@ -211,10 +211,14 @@ async fn main() -> anyhow::Result<()> {
     //     the injected user port (`user_dyn`).
     //   * ScoreService — user uploads, ADDITIONALLY when the object store is set.
     // Both run behind the strict auth interceptor. Absent music DB ⇒ both inert.
-    let (play_svc, score_svc, soundfont_repo, user_soundfont_repo, leaderboard_svc) = match cfg
-        .music_database_url
-        .as_deref()
-    {
+    let (
+        play_svc,
+        score_svc,
+        soundfont_repo,
+        user_soundfont_repo,
+        leaderboard_svc,
+        global_leaderboard_svc,
+    ) = match cfg.music_database_url.as_deref() {
         Some(db_url) => {
             let music_pool = db::connect(db_url, 5).await?;
             cymbra_music::MIGRATOR.run(&music_pool).await?;
@@ -236,10 +240,25 @@ async fn main() -> anyhow::Result<()> {
             // maintained on the play-session ingest path (as a sink) and read by
             // the LeaderboardService; both share one module + the injected user
             // port for the public/eligible listing gate (cross-schema-free).
-            let leaderboard_module = Arc::new(cymbra_music::LeaderboardModule::new(
-                Arc::new(cymbra_music::PgLeaderboardRepo::new(music_pool.clone())),
+            // The GLOBAL, seasonal boards (change: add-global-leaderboard): season
+            // bests are maintained by chaining off the per-piece ingest hook (one
+            // accepted-catalog + integrity gate for both boards), and read by the
+            // GlobalLeaderboardService behind the same user-port listing gate.
+            let global_leaderboard_module = Arc::new(cymbra_music::GlobalLeaderboardModule::new(
+                Arc::new(cymbra_music::PgGlobalLeaderboardRepo::new(
+                    music_pool.clone(),
+                )),
                 user_dyn.clone(),
             ));
+            let global_sink: Arc<dyn cymbra_music::GlobalSeasonSink> =
+                global_leaderboard_module.clone();
+            let leaderboard_module = Arc::new(
+                cymbra_music::LeaderboardModule::new(
+                    Arc::new(cymbra_music::PgLeaderboardRepo::new(music_pool.clone())),
+                    user_dyn.clone(),
+                )
+                .with_global(global_sink),
+            );
             let leaderboard_sink: Arc<dyn cymbra_music::LeaderboardSink> =
                 leaderboard_module.clone();
             let play_module = Arc::new(
@@ -255,6 +274,12 @@ async fn main() -> anyhow::Result<()> {
             let leaderboard_svc = Some(
                     cymbra_music::proto::leaderboard_service_server::LeaderboardServiceServer::with_interceptor(
                         cymbra_music::LeaderboardGrpc::new(leaderboard_module),
+                        strict.clone(),
+                    ),
+                );
+            let global_leaderboard_svc = Some(
+                    cymbra_music::proto::global_leaderboard_service_server::GlobalLeaderboardServiceServer::with_interceptor(
+                        cymbra_music::GlobalLeaderboardGrpc::new(global_leaderboard_module),
                         strict.clone(),
                     ),
                 );
@@ -332,6 +357,7 @@ async fn main() -> anyhow::Result<()> {
                 Some(soundfont_repo),
                 Some(user_soundfont_repo),
                 leaderboard_svc,
+                global_leaderboard_svc,
             )
         }
         None => {
@@ -342,7 +368,7 @@ async fn main() -> anyhow::Result<()> {
                 ));
             }
             tracing::info!("music services disabled (CYMBRA_MUSIC_DATABASE_URL unset)");
-            (None, None, None, None, None)
+            (None, None, None, None, None, None)
         }
     };
 
@@ -418,6 +444,9 @@ async fn main() -> anyhow::Result<()> {
     }
     if let Some(leaderboard_svc) = leaderboard_svc {
         router = router.add_service(leaderboard_svc);
+    }
+    if let Some(global_leaderboard_svc) = global_leaderboard_svc {
+        router = router.add_service(global_leaderboard_svc);
     }
     if let Some(usage_svc) = usage_svc {
         router = router.add_service(usage_svc);

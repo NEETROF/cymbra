@@ -264,6 +264,26 @@ pub async fn consensus_honesty_settlement(
     .await
 }
 
+/// Roll the global leaderboard over to a new season (change: add-global-
+/// leaderboard, task 2.2). Scheduled (`global_season_snapshot_daily`): freezes the
+/// season that has just closed into the hall of fame. Idempotent (an
+/// already-snapshotted season is skipped), so both a redelivery and a run on a day
+/// with no rollover are no-ops.
+#[sqlxmq::job("global_season_snapshot")]
+pub async fn global_season_snapshot(mut job: CurrentJob, ctx: WorkerCtx) -> Result<(), BoxError> {
+    let span = tracing::info_span!("job.global_season_snapshot", job_id = %job.id());
+    async move {
+        let frozen = cymbra_worker::snapshot_global_season(&ctx.admin_pool).await?;
+        if frozen > 0 {
+            tracing::info!(frozen, "global leaderboard season snapshot complete");
+        }
+        job.complete().await?;
+        Ok(())
+    }
+    .instrument(span)
+    .await
+}
+
 /// Build the job registry with all handlers registered and the shared context set.
 pub fn registry(ctx: WorkerCtx) -> JobRegistry {
     let mut registry = JobRegistry::new(&[
@@ -276,6 +296,7 @@ pub fn registry(ctx: WorkerCtx) -> JobRegistry {
         usage_rollup,
         usage_purge,
         consensus_honesty_settlement,
+        global_season_snapshot,
     ]);
     registry.set_context(ctx);
     registry

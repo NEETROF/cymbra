@@ -491,5 +491,17 @@
   "helpLeaderboardsTitle": "Les classements",
   "helpLeaderboardsBody": "Chaque partition du catalogue a son classement, qui réunit les meilleures sessions. Vous y apparaissez une fois connecté, si votre profil le permet.",
   "helpReplayPlayerTour": "Revoir le guide",
-  "helpReplayArmed": "Le guide se lancera à la prochaine partition ouverte."
+  "helpReplayArmed": "Le guide se lancera à la prochaine partition ouverte.",
+
+  "communityTitle": "Communaut\u00e9",
+  "communityEntryTooltip": "Classements globaux",
+  "communitySeasonLabel": "Saison",
+  "communitySeasonCurrent": "Saison en cours",
+  "communitySeasonPast": "Saison du {date}",
+  "globalLeaderboardEmpty": "Personne n'a encore marqu\u00e9 cette saison \u2014 soyez le premier !",
+  "globalLeaderboardScore": "{score} pts",
+  "globalLeaderboardPieces": "{count} morceaux",
+  "globalStandingTitle": "Classement global",
+  "globalStandingNone": "Pas encore de classement global cette saison \u2014 jouez un morceau du catalogue pour y entrer.",
+  "globalStandingOpen": "Voir les classements globaux"
 }
