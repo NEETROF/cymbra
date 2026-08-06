@@ -118,6 +118,7 @@
     "empty": "Aucune SoundFont pour l’instant.",
     "confirmRemove": "Supprimer cette SoundFont ? Sa ligne de catalogue et son fichier stocké sont supprimés.",
     "statusCol": "Statut",
+    "actionsCol": "Actions",
     "status": {
       "pending": "En attente",
       "accepted": "Accepté",

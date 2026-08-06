@@ -5,6 +5,7 @@ import { match } from "ts-pattern";
 import { SOUNDFONTS_PAGE_SIZE, useSoundFontsStore } from "@/stores/soundfonts";
 import type { AdminSoundFont } from "@/gen/score_pb";
 import AppTag from "@/components/AppTag.vue";
+import IdBadge from "@/components/IdBadge.vue";
 import SoundFontDrawer from "@/components/SoundFontDrawer.vue";
 import StatCards, { type StatItem } from "@/components/StatCards.vue";
 import { currentLocale } from "@/i18n";
@@ -215,81 +216,145 @@ function licenseDesc(license: string): string {
     <p v-else-if="vm.error" class="error" role="alert">{{ vm.error }}</p>
     <p v-else-if="vm.rows.length === 0" class="muted">{{ t("soundfonts.empty") }}</p>
 
-    <table v-else class="grid">
-      <thead>
-        <tr>
-          <th>{{ t("soundfonts.label") }}</th>
-          <th>{{ t("soundfonts.statusCol") }}</th>
-          <th>{{ t("soundfonts.instrument") }}</th>
-          <th>{{ t("soundfonts.license") }}</th>
-          <th>{{ t("soundfonts.attribution") }}</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="row in vm.rows" :key="row.id">
-          <td>{{ row.label }}</td>
-          <td>
-            <AppTag :variant="statusOf(row)">{{ t(`soundfonts.status.${statusOf(row)}`) }}</AppTag>
-          </td>
-          <td>
-            <AppTag variant="neutral">{{ t(`soundfonts.instr.${row.instrument || "piano"}`) }}</AppTag>
-          </td>
-          <td>
-            <span v-if="licenseDesc(row.license)" class="license-help" :title="licenseDesc(row.license)">{{
-              row.license
-            }}</span>
-            <template v-else>{{ row.license }}</template>
-          </td>
-          <td>{{ row.attribution }}</td>
-          <td class="actions">
-            <!-- Merged play / "Generate sample": a font with a preview plays the clip;
-                 without one, the same slot generates it (change:
-                 add-soundfont-entitlement-previews). -->
-            <button
-              v-if="row.hasPreview"
-              type="button"
-              class="play-row"
-              :aria-label="t('soundfonts.play')"
-              :title="t('soundfonts.play')"
-              @click="togglePlay(row)"
-            >
-              {{ previewingId === row.id ? "⏸" : "▶" }}
-            </button>
-            <button
-              v-else
-              type="button"
-              class="sample"
-              :disabled="previewVm.busy"
-              :title="t('soundfonts.generateSampleHint')"
-              @click="regenerateSample(row)"
-            >
-              {{ generatingSample(row.id) ? t("soundfonts.generatingSample") : t("soundfonts.generateSample") }}
-            </button>
-            <button
-              v-if="(row.moderationStatus || 'pending') !== 'accepted'"
-              type="button"
-              class="accept"
-              :disabled="acting"
-              @click="setStatus(row.id, 'accepted')"
-            >
-              {{ t("soundfonts.accept") }}
-            </button>
-            <button
-              v-if="(row.moderationStatus || 'pending') !== 'rejected'"
-              type="button"
-              class="reject"
-              :disabled="acting"
-              @click="setStatus(row.id, 'rejected')"
-            >
-              {{ t("soundfonts.reject") }}
-            </button>
-            <button type="button" @click="openEdit(row)">{{ t("soundfonts.edit") }}</button>
-            <button type="button" :disabled="acting" @click="remove(row.id)">{{ t("soundfonts.remove") }}</button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+    <div v-else class="table-card">
+      <table>
+        <thead>
+          <tr>
+            <th>{{ t("soundfonts.label") }}</th>
+            <th>{{ t("soundfonts.statusCol") }}</th>
+            <th>{{ t("soundfonts.instrument") }}</th>
+            <th>{{ t("soundfonts.license") }}</th>
+            <th>{{ t("soundfonts.attribution") }}</th>
+            <th class="actions-col">{{ t("soundfonts.actionsCol") }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="row in vm.rows" :key="row.id">
+            <td>
+              <div class="title-cell">
+                <span class="thumb" aria-hidden="true">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path d="M9 18V5l12-2v13" />
+                    <circle cx="6" cy="18" r="3" />
+                    <circle cx="18" cy="16" r="3" />
+                  </svg>
+                </span>
+                <span class="title-text">
+                  <span class="t-name">{{ row.label }}</span>
+                  <IdBadge :id="row.id" />
+                </span>
+              </div>
+            </td>
+            <td>
+              <AppTag :variant="statusOf(row)">{{ t(`soundfonts.status.${statusOf(row)}`) }}</AppTag>
+            </td>
+            <td>
+              <AppTag variant="neutral">{{ t(`soundfonts.instr.${row.instrument || "piano"}`) }}</AppTag>
+            </td>
+            <td>
+              <span v-if="licenseDesc(row.license)" class="license-help" :title="licenseDesc(row.license)">{{
+                row.license
+              }}</span>
+              <template v-else>{{ row.license }}</template>
+            </td>
+            <td>{{ row.attribution }}</td>
+            <td class="actions-col">
+              <div class="row-actions">
+                <!-- Merged play / "Generate sample": a font with a preview plays the clip;
+                   without one, the same slot generates it (change:
+                   add-soundfont-entitlement-previews). -->
+                <button
+                  v-if="row.hasPreview"
+                  type="button"
+                  class="icon-btn"
+                  :aria-label="t('soundfonts.play')"
+                  :title="t('soundfonts.play')"
+                  @click="togglePlay(row)"
+                >
+                  {{ previewingId === row.id ? "⏸" : "▶" }}
+                </button>
+                <button
+                  v-else
+                  type="button"
+                  class="btn-sm"
+                  :disabled="previewVm.busy"
+                  :title="t('soundfonts.generateSampleHint')"
+                  @click="regenerateSample(row)"
+                >
+                  {{ generatingSample(row.id) ? t("soundfonts.generatingSample") : t("soundfonts.generateSample") }}
+                </button>
+                <button
+                  v-if="(row.moderationStatus || 'pending') !== 'accepted'"
+                  type="button"
+                  class="btn-sm accept"
+                  :disabled="acting"
+                  @click="setStatus(row.id, 'accepted')"
+                >
+                  {{ t("soundfonts.accept") }}
+                </button>
+                <button
+                  v-if="(row.moderationStatus || 'pending') !== 'rejected'"
+                  type="button"
+                  class="btn-sm reject"
+                  :disabled="acting"
+                  @click="setStatus(row.id, 'rejected')"
+                >
+                  {{ t("soundfonts.reject") }}
+                </button>
+                <button
+                  type="button"
+                  class="icon-btn"
+                  :aria-label="t('soundfonts.edit')"
+                  :title="t('soundfonts.edit')"
+                  @click="openEdit(row)"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M12 20h9" />
+                    <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  class="icon-btn danger"
+                  :disabled="acting"
+                  :aria-label="t('soundfonts.remove')"
+                  :title="t('soundfonts.remove')"
+                  @click="remove(row.id)"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <polyline points="3 6 5 6 21 6" />
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                  </svg>
+                </button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
 
     <nav v-if="!vm.loading && !vm.error && store.total > 0" class="pager" :aria-label="t('soundfonts.pager.label')">
       <button type="button" :disabled="!canPrev" @click="prevPage">{{ t("soundfonts.pager.prev") }}</button>
@@ -306,7 +371,6 @@ function licenseDesc(license: string): string {
 <style scoped>
 .soundfonts {
   padding: 1.5rem;
-  max-width: 60rem;
 }
 .head {
   display: flex;
@@ -315,12 +379,12 @@ function licenseDesc(license: string): string {
   gap: 1rem;
 }
 .intro {
-  color: var(--muted, #888);
+  color: var(--muted);
   margin: 0.25rem 0 1rem;
   max-width: 46rem;
 }
 .primary {
-  background: var(--accent, #7c5cff);
+  background: var(--accent-strong);
   color: #fff;
   border: none;
   padding: 0.5rem 1rem;
@@ -328,40 +392,96 @@ function licenseDesc(license: string): string {
   cursor: pointer;
   white-space: nowrap;
 }
-.grid {
-  width: 100%;
-  border-collapse: collapse;
+
+/* Title cell: a thumbnail + label + id badge, matching the catalog table. */
+.title-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
 }
-.grid th,
-.grid td {
-  text-align: left;
-  padding: 0.5rem;
-  border-bottom: 1px solid var(--outline, #333);
-  vertical-align: middle;
+.thumb {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  flex: none;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent-strong) 20%, transparent);
+  color: var(--accent);
 }
-.mono {
-  font-family: ui-monospace, monospace;
-  font-size: 0.85em;
+.thumb svg {
+  width: 18px;
+  height: 18px;
 }
+.title-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  line-height: 1.25;
+}
+.t-name {
+  font-weight: 600;
+  color: var(--text);
+}
+
 /* Cue that the licence has a hover explanation (native title tooltip). */
 .license-help {
   cursor: help;
   text-decoration: underline dotted;
   text-underline-offset: 2px;
 }
-.actions {
+
+/* Actions: a compact, single-line row (the card scrolls if it overflows). */
+.actions-col {
+  width: 1%;
+}
+.row-actions {
   display: flex;
-  gap: 0.4rem;
+  align-items: center;
   flex-wrap: wrap;
+  gap: 0.35rem;
 }
-.actions .accept {
-  border-color: var(--ok, #2e7d32);
-  color: var(--ok, #2e7d32);
+.btn-sm {
+  padding: 0.32rem 0.6rem;
+  font-size: 0.8rem;
+  white-space: nowrap;
 }
-.actions .reject {
-  border-color: var(--danger, #c0392b);
-  color: var(--danger, #c0392b);
+/* accept / reject colours come from the global .accept / .reject classes. */
+.icon-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 1px solid var(--border-2);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--muted);
+  cursor: pointer;
+  transition:
+    color 0.12s,
+    border-color 0.12s,
+    background 0.12s;
 }
+.icon-btn:hover:not(:disabled) {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  background: color-mix(in srgb, var(--accent-strong) 12%, transparent);
+}
+.icon-btn.danger:hover:not(:disabled) {
+  color: var(--coral);
+  border-color: color-mix(in srgb, var(--coral) 45%, transparent);
+  background: color-mix(in srgb, var(--coral) 12%, transparent);
+}
+.icon-btn svg {
+  width: 16px;
+  height: 16px;
+}
+.icon-btn:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
 .filters {
   display: flex;
   gap: 0.4rem;
@@ -369,7 +489,7 @@ function licenseDesc(license: string): string {
   flex-wrap: wrap;
 }
 .chip {
-  border: 1px solid var(--outline, #333);
+  border: 1px solid var(--border-2);
   background: transparent;
   color: inherit;
   padding: 0.3rem 0.7rem;
@@ -380,7 +500,7 @@ function licenseDesc(license: string): string {
   /* A concrete darker accent (not color-mix, which the analyzer can't resolve) so
      white label text meets the WCAG AA contrast ratio (~5:1). */
   background: #4a37a8;
-  border-color: var(--accent, #7c5cff);
+  border-color: var(--accent);
   color: #fff;
 }
 .chip .count {
@@ -389,18 +509,18 @@ function licenseDesc(license: string): string {
   min-width: 1.2em;
   padding: 0 0.35em;
   border-radius: 999px;
-  background: var(--danger, #c0392b);
+  background: var(--coral);
   color: #fff;
   font-size: 0.78em;
 }
 .error {
-  color: var(--danger, #c0392b);
+  color: var(--coral);
 }
 .ok {
-  color: var(--ok, #2e7d32);
+  color: var(--green);
 }
 .muted {
-  color: var(--muted, #888);
+  color: var(--muted);
 }
 .pager {
   display: flex;
@@ -409,7 +529,7 @@ function licenseDesc(license: string): string {
   margin-top: 1rem;
 }
 .pager .range {
-  color: var(--muted, #888);
+  color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
 </style>

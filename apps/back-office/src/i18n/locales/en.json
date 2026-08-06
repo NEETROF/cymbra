@@ -118,6 +118,7 @@
     "empty": "No SoundFonts yet.",
     "confirmRemove": "Remove this SoundFont? Its catalog row and stored file are both deleted.",
     "statusCol": "Status",
+    "actionsCol": "Actions",
     "status": {
       "pending": "Pending",
       "accepted": "Accepted",
