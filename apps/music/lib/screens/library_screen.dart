@@ -97,15 +97,17 @@ class LibraryScreen extends ConsumerWidget {
                 tooltip: l10n.soundfontsEntryTooltip,
                 onPressed: () => _openSoundFonts(context),
               ),
-            // Help & tips: the stable entry that makes the one-time hints
-            // re-findable (change: add-welcome-onboarding, D5). Shown to every
-            // session — including a signed-out one browsing the bundled scores.
-            IconButton(
-              key: const Key('library-help'),
-              icon: const Icon(Icons.help_outline),
-              tooltip: l10n.helpTitle,
-              onPressed: () => openHelp(context),
-            ),
+            // Help & tips: signed in, it's redundant with the account menu's
+            // own "Aide et astuces" entry, so it only shows for a signed-out
+            // session (change: add-welcome-onboarding, D5) — the account menu
+            // there is just a "sign in" button with no help entry of its own.
+            if (!signedIn)
+              IconButton(
+                key: const Key('library-help'),
+                icon: const Icon(Icons.help_outline),
+                tooltip: l10n.helpTitle,
+                onPressed: () => openHelp(context),
+              ),
             // The account control is the curator standing pill (change: add-
             // curation-rewards) — it replaces the plain person icon and opens the
             // account menu (→ profile, where the rewards live).

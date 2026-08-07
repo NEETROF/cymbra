@@ -21,7 +21,6 @@ import '../../state/app_language.dart';
 import '../../state/app_locale.dart';
 import '../../state/session_notifier.dart';
 import '../../state/session_state.dart';
-import '../../state/usage_consent.dart';
 import '../../widgets/curator_chip.dart';
 import '../../widgets/language_selector.dart' show showLanguageDialog;
 import '../account/connected_accounts_screen.dart';
@@ -82,12 +81,6 @@ class AccountMenu extends ConsumerWidget {
               openHelp(context);
             case 'language':
               showLanguageDialog(context, ref);
-            case 'usage-consent':
-              // Toggle first-party usage-analytics consent (change: add-feature-
-              // usage-analytics). UI calls the notifier, never the service.
-              ref
-                  .read(usageConsentProvider.notifier)
-                  .set(!ref.read(usageConsentProvider));
             case 'signout':
               ref.read(sessionNotifierProvider.notifier).signOut();
             case 'signout-all':
@@ -135,12 +128,6 @@ class AccountMenu extends ConsumerWidget {
                 Expanded(child: Text(l10n.settingsCategoryLanguage)),
               ],
             ),
-          ),
-          CheckedPopupMenuItem<String>(
-            key: const Key('account-usage-consent'),
-            value: 'usage-consent',
-            checked: ref.watch(usageConsentProvider),
-            child: Text(l10n.usageAnalyticsSetting),
           ),
           PopupMenuItem<String>(
             value: 'signout',
