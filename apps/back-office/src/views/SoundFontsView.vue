@@ -363,25 +363,14 @@ function licenseDesc(license: string): string {
                       @keyup.enter="confirmReject(row.id)"
                       @keyup.escape="cancelReject"
                     />
-                    <button
-                      type="button"
-                      class="btn-sm reject"
-                      :disabled="acting"
-                      @click="confirmReject(row.id)"
-                    >
+                    <button type="button" class="btn-sm reject" :disabled="acting" @click="confirmReject(row.id)">
                       {{ t("soundfonts.reject") }}
                     </button>
                     <button type="button" class="btn-sm" :disabled="acting" @click="cancelReject">
                       {{ t("soundfonts.cancel") }}
                     </button>
                   </template>
-                  <button
-                    v-else
-                    type="button"
-                    class="btn-sm reject"
-                    :disabled="acting"
-                    @click="startReject(row.id)"
-                  >
+                  <button v-else type="button" class="btn-sm reject" :disabled="acting" @click="startReject(row.id)">
                     {{ t("soundfonts.reject") }}
                   </button>
                 </template>
