@@ -34,6 +34,55 @@ pub(crate) fn sort_ports_virtual_last(names: &mut [String]) {
     names.sort_by_key(|n| is_virtual_port(n));
 }
 
+/// Drops a raw message that is byte-identical to the one just before it and
+/// arrived less than [`DuplicateGuard::WINDOW_US`] later.
+///
+/// A physical keyboard cannot emit the same status/pitch/velocity triple twice
+/// inside a couple of milliseconds — a second NoteOn for a pitch requires a
+/// NoteOff in between, which differs in bytes. So this only ever fires on a
+/// driver re-delivering a message it already gave us.
+///
+/// It exists because midir's Android (AMidi) backend used to do exactly that:
+/// `AMidiOutputPort_receive` returns 0 when no message is pending and leaves
+/// its out-params untouched, and the reader loop only checked for the negative
+/// error code. After the very first key press the loop re-delivered that press
+/// forever, at full speed, flooding the Flutter sink until the UI thread
+/// starved and Android raised an ANR. We ship a patched midir (see the
+/// `[patch.crates-io]` entry in the workspace manifest), but the guard stays as
+/// a cheap backstop: any backend that re-delivers is capped at one event.
+pub(crate) struct DuplicateGuard {
+    last: Vec<u8>,
+    last_us: u64,
+}
+
+impl DuplicateGuard {
+    /// Messages closer together than this *and* byte-identical are duplicates.
+    pub(crate) const WINDOW_US: u64 = 2_000;
+
+    pub(crate) fn new() -> Self {
+        Self {
+            last: Vec::new(),
+            last_us: 0,
+        }
+    }
+
+    /// True if `message` should be forwarded to Flutter.
+    ///
+    /// The window slides on every rejection, so a sustained re-delivery loop is
+    /// suppressed entirely instead of leaking one event every `WINDOW_US`.
+    pub(crate) fn accept(&mut self, message: &[u8], now_us: u64) -> bool {
+        let duplicate =
+            self.last == message && now_us.saturating_sub(self.last_us) < Self::WINDOW_US;
+        self.last_us = now_us;
+        if duplicate {
+            return false;
+        }
+        self.last.clear();
+        self.last.extend_from_slice(message);
+        true
+    }
+}
+
 /// Parses a raw MIDI message into a [`MidiEvent`].
 ///
 /// - `0x90` (NoteOn) with velocity > 0 → NoteOn
@@ -111,6 +160,68 @@ mod tests {
     fn control_change_is_ignored() {
         // 0xB0 = Control Change → not a note event.
         assert!(parse_midi(&[0xB0, 7, 127], 0).is_none());
+    }
+
+    #[test]
+    fn guard_accepts_the_first_message() {
+        let mut guard = DuplicateGuard::new();
+        assert!(guard.accept(&[0x90, 60, 100], 0));
+    }
+
+    #[test]
+    fn guard_drops_an_immediate_byte_identical_repeat() {
+        let mut guard = DuplicateGuard::new();
+        assert!(guard.accept(&[0x90, 60, 100], 1_000));
+        assert!(!guard.accept(&[0x90, 60, 100], 1_000));
+        assert!(!guard.accept(&[0x90, 60, 100], 1_001));
+    }
+
+    #[test]
+    fn guard_keeps_suppressing_a_sustained_redelivery_loop() {
+        // The AMidi defect re-delivers at full speed: every poll is within the
+        // window of the previous one, so the window slides and nothing leaks
+        // through after the first event.
+        let mut guard = DuplicateGuard::new();
+        assert!(guard.accept(&[0x90, 60, 100], 0));
+        let leaked = (1..10_000)
+            .filter(|us| guard.accept(&[0x90, 60, 100], *us))
+            .count();
+        assert_eq!(leaked, 0);
+    }
+
+    #[test]
+    fn guard_accepts_an_identical_message_after_the_window() {
+        let mut guard = DuplicateGuard::new();
+        assert!(guard.accept(&[0x90, 60, 100], 0));
+        assert!(guard.accept(&[0x90, 60, 100], DuplicateGuard::WINDOW_US));
+    }
+
+    #[test]
+    fn guard_never_blocks_a_different_message() {
+        let mut guard = DuplicateGuard::new();
+        assert!(guard.accept(&[0x90, 60, 100], 0));
+        // Same pitch, different velocity — a genuine distinct press.
+        assert!(guard.accept(&[0x90, 60, 101], 1));
+        // The matching NoteOff, immediately after.
+        assert!(guard.accept(&[0x80, 60, 0], 2));
+        // A chord: several pitches within the same window.
+        assert!(guard.accept(&[0x90, 64, 100], 3));
+        assert!(guard.accept(&[0x90, 67, 100], 4));
+    }
+
+    #[test]
+    fn guard_lets_a_fast_trill_through() {
+        // Alternating NoteOn/NoteOff on one pitch, 500 µs apart — far inside
+        // the window, but never byte-identical back to back.
+        let mut guard = DuplicateGuard::new();
+        for i in 0..20u64 {
+            let msg: [u8; 3] = if i % 2 == 0 {
+                [0x90, 60, 100]
+            } else {
+                [0x80, 60, 0]
+            };
+            assert!(guard.accept(&msg, i * 500), "rejected message {i}");
+        }
     }
 
     #[test]

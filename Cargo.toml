@@ -17,6 +17,15 @@ edition = "2024"
 license = "Apache-2.0"
 authors = ["NEETROF"]
 
+# midir 0.11.0's Android (AMidi) backend never checks for `receive() == 0`, which
+# means "no message pending" and leaves the out-params untouched. After the first
+# key press the reader thread re-delivers that press forever, at full speed: the
+# Flutter sink is flooded, the UI thread starves and Android raises an ANR (iOS is
+# unaffected — CoreMIDI is callback-driven). Pinned to our one-commit fork until
+# the fix lands upstream (https://github.com/Boddlnagg/midir).
+[patch.crates-io]
+midir = { git = "https://github.com/NEETROF/midir", rev = "fcafd065ac2c308e6d146ec752e88b6c0a01f5dd" }
+
 # Shared dependency versions for the Cymbra ID backend (change: add-cymbra-id).
 # Declaring them here keeps versions consistent; a crate only compiles a dep when
 # it opts in via `dep.workspace = true`. The OpenTelemetry stack versions are

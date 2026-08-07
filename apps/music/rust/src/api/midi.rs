@@ -30,7 +30,7 @@ use anyhow::Result;
 use flutter_rust_bridge::frb;
 use midir::{Ignore, MidiInput, MidiInputConnection};
 
-use super::midi_core::{is_virtual_port, parse_midi, sort_ports_virtual_last};
+use super::midi_core::{DuplicateGuard, is_virtual_port, parse_midi, sort_ports_virtual_last};
 use crate::frb_generated::StreamSink;
 
 /// MIDI event type forwarded to Flutter.
@@ -195,12 +195,20 @@ fn try_connect(start: Instant) -> Result<()> {
     };
     let name = midi_in.port_name(port).unwrap_or_default();
 
+    // Per-connection: a backend that re-delivers the same message must not be
+    // able to flood the Flutter sink (see `DuplicateGuard`).
+    let mut guard = DuplicateGuard::new();
+
     let conn = midi_in
         .connect(
             port,
             "cymbra-read",
             move |_timestamp_us, message, _| {
-                if let Some(event) = parse_midi(message, start.elapsed().as_millis() as u64) {
+                let elapsed = start.elapsed();
+                if !guard.accept(message, elapsed.as_micros() as u64) {
+                    return;
+                }
+                if let Some(event) = parse_midi(message, elapsed.as_millis() as u64) {
                     // Read the current sink each message: it may have been
                     // swapped by a re-subscription since this port was opened.
                     if let Some(sink) = SINK.lock().unwrap().as_ref() {
