@@ -19,8 +19,9 @@ import '../l10n/gen/app_localizations.dart';
 import '../state/global_leaderboard.dart';
 import '../state/global_leaderboard_notifier.dart';
 import '../state/leaderboard.dart';
+import '../state/session_notifier.dart';
 import '../theme/cymbra_theme.dart';
-import 'profile_screen.dart';
+import '../widgets/player_profile_panel.dart';
 
 /// The Community / Leaderboards **destination** (change: add-global-leaderboard):
 /// the global tempo and reaction boards with a mode toggle and a season selector
@@ -255,15 +256,17 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
     required bool highlight,
   }) {
     final name = e.label ?? l10n.leaderboardAnonymous;
+    // Tapping a pseudo opens that player's profile in a side panel — never for
+    // your OWN row (you already have your profile) and never navigating away, so
+    // the board keeps its scroll, mode and season underneath.
+    final isSelf = e.userId == ref.watch(currentUserIdProvider);
     return Material(
       color: highlight ? CymbraColors.primaryContainer : Colors.transparent,
       child: InkWell(
         // Listed players are public + eligible, so their profile read succeeds.
-        onTap: () => Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder: (_) => ProfileScreen(userId: e.userId),
-          ),
-        ),
+        onTap: isSelf
+            ? null
+            : () => showPlayerProfilePanel(context, userId: e.userId),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           child: Row(

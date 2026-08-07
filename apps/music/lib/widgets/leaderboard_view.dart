@@ -16,10 +16,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../l10n/gen/app_localizations.dart';
-import '../screens/profile_screen.dart';
 import '../state/leaderboard.dart';
 import '../state/leaderboard_notifier.dart';
+import '../state/session_notifier.dart';
 import '../theme/cymbra_theme.dart';
+import 'player_profile_panel.dart';
 
 /// A piece's leaderboards (change: add-play-leaderboards): a tempo/reaction toggle
 /// over the ranked public entries, always showing the viewer their own rank +
@@ -159,61 +160,63 @@ class _LeaderboardViewState extends ConsumerState<LeaderboardView> {
   }
 
   /// The viewer's own rank + personal best — always shown (even when the viewer
-  /// is private and therefore not listed to others).
+  /// is private and therefore not listed to others). Not tappable: this row IS
+  /// the viewer, and a profile panel on yourself is a dead end.
   Widget _ownStanding(AppLocalizations l10n, LeaderboardEntry own, int total) =>
       Material(
         color: CymbraColors.primaryContainer,
         borderRadius: BorderRadius.circular(10),
         clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: () => _openProfile(own.userId),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        l10n.leaderboardYourStanding,
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: CymbraColors.onSurfaceVariant,
-                        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      l10n.leaderboardYourStanding,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: CymbraColors.onSurfaceVariant,
                       ),
-                      Text(
-                        l10n.leaderboardYourRank(own.rank, total),
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          color: CymbraColors.onSurface,
-                        ),
+                    ),
+                    Text(
+                      l10n.leaderboardYourRank(own.rank, total),
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: CymbraColors.onSurface,
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-                Text(
-                  l10n.leaderboardBest(own.subscore.round()),
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: CymbraColors.primary,
-                  ),
+              ),
+              Text(
+                l10n.leaderboardBest(own.subscore.round()),
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: CymbraColors.primary,
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       );
 
-  /// Open a listed player's public profile (they are public + eligible, so the
-  /// profile read succeeds; tapping yourself opens your own profile).
+  /// Open a listed player's public profile in a side panel (they are public +
+  /// eligible, so the profile read succeeds). Deliberately NOT a navigation: this
+  /// board also lives inside a dialog and the pre-play modal, and the user must
+  /// come back to exactly the board they were reading.
   void _openProfile(String userId) {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => ProfileScreen(userId: userId)),
-    );
+    showPlayerProfilePanel(context, userId: userId);
   }
+
+  /// Whether `userId` is the signed-in user — their own pseudo is not tappable
+  /// (they already have their profile; a panel on yourself is a dead end).
+  bool _isSelf(String userId) => userId == ref.watch(currentUserIdProvider);
 
   Widget _entryRow(
     AppLocalizations l10n,
@@ -224,7 +227,7 @@ class _LeaderboardViewState extends ConsumerState<LeaderboardView> {
     return Material(
       color: highlight ? CymbraColors.primaryContainer : Colors.transparent,
       child: InkWell(
-        onTap: () => _openProfile(e.userId),
+        onTap: _isSelf(e.userId) ? null : () => _openProfile(e.userId),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           child: Row(
