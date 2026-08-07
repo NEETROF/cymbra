@@ -61,6 +61,13 @@ export function useScorePlayer(
   let startCtxTime = 0; // ctx.currentTime when the current source started
   let offsetSec = 0; // where playback resumes from (pause point)
   let playDurationMs = 0;
+  // Monotonic token identifying the LATEST playback intent. Every play/seek/pause/stop
+  // and every score/SoundFont change bumps it, so an older `play()` that is still
+  // awaiting the SoundFont download or the worker render can never start a source: it
+  // would leak an untracked AudioBufferSourceNode that `stop()` can't reach (the
+  // moderator then hears the previous score over the next one in review mode).
+  let intent = 0;
+  const claim = (): number => ++intent;
 
   // Derive the schedule (for the playhead) whenever the bytes change, and reset audio.
   watch(
@@ -106,6 +113,7 @@ export function useScorePlayer(
 
   function startSource(): void {
     if (!ctx || !buffer) return;
+    stopSource(); // never leave a previous node connected and untracked
     source = ctx.createBufferSource();
     source.buffer = buffer;
     source.connect(ctx.destination);
@@ -123,8 +131,9 @@ export function useScorePlayer(
   }
 
   /** Ensure the AudioContext + the rendered buffer exist. Returns false (and sets the
-   *  `audio` error/loading state) when audio is unavailable or the row changed mid-load. */
-  async function ensureAudio(value: Uint8Array): Promise<boolean> {
+   *  `audio` error/loading state) when audio is unavailable, the row changed mid-load,
+   *  or `token` was superseded by a newer playback intent. */
+  async function ensureAudio(value: Uint8Array, token: number): Promise<boolean> {
     const Ctor = audioContextCtor();
     if (!Ctor) {
       audio.value = failure("audio_failed");
@@ -133,6 +142,7 @@ export function useScorePlayer(
     try {
       ctx ??= new Ctor();
       await ctx.resume();
+      if (token !== intent) return false; // superseded while the context resumed
       if (!buffer) {
         audio.value = loading;
         // Render with the provided candidate SoundFont, else fetch the app default from
@@ -145,11 +155,13 @@ export function useScorePlayer(
           audio.value = failure("audio_failed");
           return false;
         }
-        if (bytes.value !== value) return false; // row changed mid-load
+        if (bytes.value !== value || token !== intent) return false; // row changed mid-load
         // The synth runs in the worker and hands back deinterleaved planar channels
         // (transferred, zero-copy); we just drop them into the AudioBuffer.
         const { left, right, frames } = await wasm.render(value, sf2, ctx.sampleRate);
-        if (bytes.value !== value) return false; // row changed while the worker rendered
+        // Row changed (or a newer play/seek won) while the worker rendered: drop this
+        // PCM rather than caching it as `buffer` — it belongs to a stale score.
+        if (bytes.value !== value || token !== intent) return false;
         buffer = ctx.createBuffer(2, Math.max(frames, 1), ctx.sampleRate);
         if (frames > 0) {
           buffer.copyToChannel(left, 0);
@@ -169,7 +181,9 @@ export function useScorePlayer(
   async function play(): Promise<void> {
     const value = bytes.value;
     if (value == null || playing.value) return;
-    if (!(await ensureAudio(value))) return;
+    const token = claim();
+    if (!(await ensureAudio(value, token))) return;
+    if (token !== intent || bytes.value !== value) return; // a newer intent won
     // Fresh start (not resuming from a pause) begins at the first note.
     if (offsetSec === 0) offsetSec = firstNoteMs() / 1000;
     startSource();
@@ -179,7 +193,9 @@ export function useScorePlayer(
   async function playFrom(ms: number): Promise<void> {
     const value = bytes.value;
     if (value == null) return;
-    if (!(await ensureAudio(value))) return;
+    const token = claim();
+    if (!(await ensureAudio(value, token))) return;
+    if (token !== intent || bytes.value !== value) return; // a newer intent won
     stopSource();
     cancelAnimationFrame(raf);
     const maxSec = buffer ? buffer.duration : Number.POSITIVE_INFINITY;
@@ -189,6 +205,7 @@ export function useScorePlayer(
   }
 
   function pause(): void {
+    claim(); // any in-flight play/seek is now stale
     if (!playing.value || !ctx) return;
     offsetSec += ctx.currentTime - startCtxTime;
     stopSource();
@@ -209,8 +226,10 @@ export function useScorePlayer(
     }
   }
 
-  /** Stop and rewind to the start. */
+  /** Stop and rewind to the start. Also invalidates any in-flight play/seek, so a
+   *  pending render can't start playing after the caller asked for silence. */
   function stop(): void {
+    claim();
     stopSource();
     cancelAnimationFrame(raf);
     playing.value = false;

@@ -24,9 +24,15 @@ const props = defineProps<{
   elapsedMs?: number;
   playing?: boolean;
   canPlay?: boolean;
-  // Whether to show the read-only metadata list. Off when a moderator edit form is
-  // shown above (it already displays every field), so the info isn't duplicated.
+  // Opt IN to the read-only metadata summary (the moderation screens show it; a bare
+  // preview elsewhere doesn't). Absent boolean props are cast to `false` by Vue, so
+  // "off" is the default.
   showMeta?: boolean;
+  // Opt OUT of rendering the Play/Pause transport here — set in review mode, where the
+  // transport is hoisted next to the accept/reject buttons (one action row). Phrased as
+  // an opt-out because Vue casts an absent boolean prop to `false`, so the default has
+  // to be the "transport visible" case.
+  hideTransport?: boolean;
 }>();
 const emit = defineEmits<{ toggle: []; seek: [ms: number] }>();
 const { t } = useI18n();
@@ -98,7 +104,7 @@ function meta(): { label: string; value: string }[] {
 
 <template>
   <div class="preview">
-    <dl v-if="showMeta !== false" class="meta">
+    <dl v-if="showMeta" class="meta">
       <template v-for="m in meta()" :key="m.label">
         <dt>{{ m.label }}</dt>
         <dd>{{ m.value }}</dd>
@@ -106,7 +112,7 @@ function meta(): { label: string; value: string }[] {
     </dl>
 
     <div v-if="notationView.kind === 'svg'" class="score">
-      <div class="transport">
+      <div v-if="!hideTransport" class="transport">
         <button type="button" class="play" :disabled="!canPlay" @click="emit('toggle')">
           {{ playing ? t("preview.pause") : t("preview.play") }}
         </button>
@@ -114,6 +120,8 @@ function meta(): { label: string; value: string }[] {
         <span v-if="audioMsg" class="muted">{{ audioMsg }}</span>
         <span v-else class="muted hint">{{ t("preview.seekHint") }}</span>
       </div>
+      <!-- The transport moved out (review mode): keep the seek affordance visible. -->
+      <p v-else class="muted hint transport-hint">{{ t("preview.seekHint") }}</p>
       <!-- eslint-disable-next-line vue/no-v-html -- SVG is painter-generated, not user input -->
       <div ref="wrapRef" class="svg-wrap" aria-label="score preview" v-html="notationView.svg"></div>
     </div>
@@ -168,6 +176,9 @@ function meta(): { label: string; value: string }[] {
 }
 .hint {
   font-size: 0.85rem;
+}
+.transport-hint {
+  margin: 0;
 }
 /* Small spinner shown while the first-play data (SoundFont) downloads. */
 .spinner {

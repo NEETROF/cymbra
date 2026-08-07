@@ -72,7 +72,12 @@ button {
 button:hover:not(:disabled) {
   background: var(--panel-3);
 }
-button:disabled {
+/* Every disabled control dims, not just buttons — a disabled input that keeps its
+   normal appearance reads as broken rather than temporarily blocked. */
+button:disabled,
+input:disabled,
+select:disabled,
+textarea:disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }

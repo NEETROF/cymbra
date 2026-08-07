@@ -4,12 +4,15 @@ import { useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
 import { match } from "ts-pattern";
 import ScorePreview from "@/components/ScorePreview.vue";
+import ScoreEditDrawer from "@/components/ScoreEditDrawer.vue";
 import SoundFontPicker from "@/components/SoundFontPicker.vue";
 import { useReviewSession } from "@/composables/useReviewSession";
 import { useScoreRenderer } from "@/composables/useScoreRenderer";
 import { useScorePlayer } from "@/composables/useScorePlayer";
 import { useSoundFontChoice } from "@/composables/useSoundFontChoice";
-import { type Async, idle, run } from "@/lib/async";
+import { type Async, failure, idle, loading, run, success } from "@/lib/async";
+import { humanError } from "@/lib/errors";
+import { useCatalogStore, type MetadataEdit } from "@/stores/catalog";
 import { useToastsStore } from "@/stores/toasts";
 import type { ModerationStatus } from "@/stores/catalog";
 import type { CatalogHit } from "@/gen/score_pb";
@@ -18,6 +21,7 @@ import type { CatalogHit } from "@/gen/score_pb";
 // queue is empty. Keyboard-driven for speed. Reuses the preview + playback stack.
 const router = useRouter();
 const session = useReviewSession();
+const store = useCatalogStore();
 const toasts = useToastsStore();
 const { t } = useI18n();
 
@@ -26,12 +30,21 @@ const bytes = ref<Async<Uint8Array>>(idle);
 const bytesData = computed(() => (bytes.value.status === "success" ? bytes.value.data : null));
 watch(
   () => session.current.value?.id,
-  (id) => {
+  async (id) => {
     if (!id) {
       bytes.value = idle;
       return;
     }
-    run(bytes, () => session.bytesFor(id));
+    // Guarded by hand instead of `run()`: two quick decisions overlap two fetches, and a
+    // slower earlier one must never land on a newer score — the notation and the audio
+    // both read these bytes, so a stale winner would show/play the previous piece.
+    bytes.value = loading;
+    try {
+      const data = await session.bytesFor(id);
+      if (session.current.value?.id === id) bytes.value = success(data);
+    } catch (e) {
+      if (session.current.value?.id === id) bytes.value = failure(humanError(e));
+    }
   },
   { immediate: true },
 );
@@ -67,6 +80,15 @@ watch(
 );
 
 const acting = computed(() => session.deciding.value.status === "loading");
+// Audio preparation feedback for the hoisted transport (the ~57 MB SoundFont download
+// then the render): a spinner while it runs, a localized note if it fails.
+const audioLoading = computed(() => player.audio.value.status === "loading");
+const audioMsg = computed(() =>
+  match(player.audio.value)
+    .with({ status: "loading" }, () => t("preview.audioLoading"))
+    .with({ status: "error" }, () => t("preview.audioError"))
+    .otherwise(() => null),
+);
 // A failed decision surfaces as a toast (the queue load error stays inline).
 watch(
   () => session.deciding.value,
@@ -85,6 +107,43 @@ async function decide(status: ModerationStatus) {
   rejectReason.value = "";
 }
 
+// Curatorial editing without leaving the burn-down: the moderator fixes the title /
+// composer / arranger / level of the score in front of them, then keeps chaining
+// decisions. Its own Async state so a save never blocks accept/reject and vice-versa.
+const submit = ref<Async<void>>(idle);
+const submitting = computed(() => submit.value.status === "loading");
+const submitError = computed(() =>
+  match(submit.value)
+    .with({ status: "error" }, ({ error }) => error)
+    .otherwise(() => null),
+);
+const editing = ref(false);
+function openEdit() {
+  submit.value = idle;
+  editing.value = true;
+}
+// The drawer and any save failure belong to the score they were opened on — drop both
+// when the deck moves (a decision can land while the drawer is open).
+watch(
+  () => session.current.value?.id,
+  () => {
+    submit.value = idle;
+    editing.value = false;
+  },
+);
+
+async function saveEdit(edit: MetadataEdit) {
+  const id = session.current.value?.id;
+  if (!id) return;
+  const outcome = await run(submit, () => store.updateCatalogScore(id, edit));
+  // Keep the drawer open on failure so the moderator can fix and retry.
+  if (outcome.status !== "success") return;
+  editing.value = false;
+  // Re-read the row (the server recomputes the derived keys) — but only if the deck
+  // hasn't moved on under a slow save.
+  if (session.current.value?.id === id) await session.refreshCurrent();
+}
+
 // Proposal attribution for the current score: whether it is a user proposal (vs a
 // crawler-ingested corpus row), the proposer's pseudo, and any resubmission note — all
 // from the privileged read the backend only returns to a moderator/admin.
@@ -100,7 +159,17 @@ const attribution = computed(() => {
 });
 
 function onKey(e: KeyboardEvent) {
-  if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+  // Never steal a keystroke aimed at a form control — the reject reason and the edit
+  // drawer's fields live on this screen, and "a"/"r"/"p" would otherwise decide the
+  // score while the moderator is typing or picking a level.
+  const el = e.target;
+  if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || el instanceof HTMLSelectElement) return;
+  // While the drawer is open it owns the keyboard: Escape closes it (instead of
+  // leaving review mode) and nothing else decides behind it.
+  if (editing.value) {
+    if (e.key === "Escape") editing.value = false;
+    return;
+  }
   switch (e.key.toLowerCase()) {
     case "a":
       void decide("accepted");
@@ -114,6 +183,9 @@ function onKey(e: KeyboardEvent) {
     case "s":
     case "arrowright":
       void session.skip();
+      break;
+    case "e":
+      openEdit();
       break;
     case " ":
       e.preventDefault();
@@ -165,6 +237,13 @@ const currentHit = computed(() => session.current.value as CatalogHit | null);
   <!-- The current score -->
   <template v-else-if="currentHit">
     <div class="actions">
+      <!-- Listen, then decide: the transport sits in the same row as the decisions
+           (hidden inside the preview) so the moderator's hands never leave it. -->
+      <button type="button" class="play" :disabled="!player.canPlay.value" @click="player.toggle()">
+        {{ player.playing.value ? $t("preview.pause") : $t("preview.play") }}
+      </button>
+      <output v-if="audioLoading" class="spinner" :aria-label="audioMsg ?? ''"></output>
+      <span v-if="audioMsg" class="muted audio-msg">{{ audioMsg }}</span>
       <button type="button" class="accept" :disabled="acting" @click="decide('accepted')">
         {{ $t("review.accept") }}
       </button>
@@ -182,8 +261,17 @@ const currentHit = computed(() => session.current.value as CatalogHit | null);
       />
       <button type="button" :disabled="acting" @click="decide('pending')">{{ $t("review.requeue") }}</button>
       <button type="button" :disabled="acting" @click="session.skip()">{{ $t("review.skip") }}</button>
+      <button type="button" class="edit" @click="openEdit()">{{ $t("review.edit") }}</button>
       <span class="muted keys">{{ $t("review.keys") }}</span>
     </div>
+    <!-- The instrument sound belongs to the transport: right under the Play button. -->
+    <SoundFontPicker
+      v-model="selectedId"
+      class="sound-row"
+      :fonts="fonts"
+      :loading="soundLoading"
+      :error="soundError"
+    />
     <h2 class="score-title">{{ currentHit.title || $t("detail.score") }}</h2>
     <!-- Proposal attribution (moderator/admin-only privileged fields). -->
     <div v-if="attribution?.isUserProposed" class="attribution">
@@ -195,20 +283,25 @@ const currentHit = computed(() => session.current.value as CatalogHit | null);
         {{ $t("review.resubmission", { note: attribution.resubmission }) }}
       </p>
     </div>
+    <!-- Curatorial metadata: the read-only summary stays in the preview below, and the
+         drawer edits it without a round-trip to the detail page. -->
+    <ScoreEditDrawer
+      :open="editing"
+      :hit="currentHit"
+      :submitting="submitting"
+      :error="submitError"
+      @submit="saveEdit"
+      @close="editing = false"
+    />
     <div class="preview-card">
-      <SoundFontPicker
-        v-model="selectedId"
-        class="sound-row"
-        :fonts="fonts"
-        :loading="soundLoading"
-        :error="soundError"
-      />
       <ScorePreview
         :hit="currentHit"
         :bytes="bytesVm.bytes"
         :loading="bytesVm.loading"
         :bytes-error="bytesVm.error"
         :notation="notation"
+        show-meta
+        hide-transport
         :schedule="player.schedule.value"
         :audio="player.audio.value"
         :elapsed-ms="player.elapsedMs.value"
@@ -233,18 +326,36 @@ const currentHit = computed(() => session.current.value as CatalogHit | null);
   margin-left: auto;
   font-size: 0.8rem;
 }
+.actions .play {
+  min-width: 5rem;
+}
+.audio-msg {
+  font-size: 0.85rem;
+}
+/* Small spinner while the first-play data (SoundFont) downloads. */
+.spinner {
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid var(--border-2);
+  border-top-color: var(--teal);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
 .score-title {
   font-size: 1.4rem;
   margin: 0 0 0.25rem;
 }
 .reason {
+  /* Sizing only: the fill/border come from the global input style, so the field
+     reads as active next to the decision buttons instead of looking disabled. */
   flex: 1 1 12rem;
   min-width: 8rem;
-  padding: 0.4rem 0.6rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md, 6px);
-  background: var(--panel);
-  color: inherit;
+  padding: 0.5rem 0.7rem;
 }
 .attribution {
   margin: 0 0 0.75rem;
@@ -269,7 +380,8 @@ const currentHit = computed(() => session.current.value as CatalogHit | null);
   padding: 1.5rem;
 }
 .sound-row {
-  margin-bottom: 1rem;
+  /* Sits just under the transport, aligned with the Play button. */
+  margin: -0.25rem 0 0.85rem;
 }
 .review-empty {
   display: flex;

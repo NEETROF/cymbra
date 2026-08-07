@@ -233,7 +233,8 @@
     "reject": "Rejeter (R)",
     "requeue": "Remettre en file (P)",
     "skip": "Passer (S)",
-    "keys": "A accepter · R rejeter · P remettre · S passer · Espace lecture",
+    "edit": "Modifier (E)",
+    "keys": "A accepter · R rejeter · P remettre · S passer · E modifier · Espace lecture",
     "loading": "Chargement de la file…",
     "done": "Plus rien à revoir 🎉",
     "loadError": "Impossible de charger la file de revue.",
@@ -281,11 +282,13 @@
   },
   "edit": {
     "heading": "Modifier les métadonnées",
-    "hint": "Corrigez uniquement les champs descriptifs. Les facettes ci-dessous sont dérivées de la partition et ne sont pas modifiables.",
+    "open": "Modifier",
+    "hint": "Seuls les champs descriptifs sont modifiables — les facettes viennent de la partition elle-même.",
     "levelNone": "— aucun —",
     "derivedLabel": "Facettes dérivées (lecture seule)",
     "save": "Enregistrer",
-    "saving": "Enregistrement…"
+    "saving": "Enregistrement…",
+    "cancel": "Annuler"
   },
   "preview": {
     "title": "Titre",
