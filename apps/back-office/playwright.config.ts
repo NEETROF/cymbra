@@ -3,7 +3,9 @@ import { defineConfig, devices } from "@playwright/test";
 // E2E runs the real Vite app with the fake-client seam enabled (VITE_E2E=1), so the
 // whole browser stack — router, guards, Pinia stores, i18n, error mapping — is
 // exercised with no backend. Deterministic and CI-friendly.
-const PORT = 5180;
+// Overridable because `reuseExistingServer` would otherwise silently run the suite
+// against ANOTHER checkout's dev server when several worktrees are open at once.
+const PORT = Number(process.env.BO_E2E_PORT ?? 5180);
 
 export default defineConfig({
   testDir: "./e2e",

@@ -1,8 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { flushPromises, mount } from "@vue/test-utils";
 import { createPinia, setActivePinia } from "pinia";
 import { createMemoryHistory, createRouter } from "vue-router";
-import ScoreEditForm from "@/components/ScoreEditForm.vue";
+import ScoreEditDrawer from "@/components/ScoreEditDrawer.vue";
 import ScoreDetailView from "@/views/ScoreDetailView.vue";
 import { useAuthStore } from "@/stores/auth";
 import { setClientsForTest } from "@/lib/api";
@@ -22,20 +22,33 @@ const hit = {
   tempoBpm: 66,
 };
 
-describe("ScoreEditForm", () => {
+describe("ScoreEditDrawer", () => {
   const withI18n = { plugins: [i18n] };
+  const props = (over: Record<string, unknown> = {}) => ({
+    open: true,
+    hit: hit as never,
+    submitting: false,
+    error: null,
+    ...over,
+  });
+  // The drawer teleports to <body>, so assertions read the document, not the wrapper.
+  const field = (label: string) =>
+    [...document.querySelectorAll<HTMLElement>("dialog.drawer label")].find((l) => l.textContent?.startsWith(label))!;
+
+  afterEach(() => {
+    document.body.innerHTML = "";
+  });
 
   it("edits only the curatorial fields and emits them on submit", async () => {
-    const w = mount(ScoreEditForm, {
-      global: withI18n,
-      props: { hit: hit as never, submitting: false, error: null },
-    });
+    const w = mount(ScoreEditDrawer, { global: withI18n, props: props(), attachTo: document.body });
     // The form seeds from the hit's curatorial values.
-    const title = w.get('input[type="text"]');
-    expect((title.element as HTMLInputElement).value).toBe("Clair de Lune");
+    const title = field("Title").querySelector("input") as HTMLInputElement;
+    expect(title.value).toBe("Clair de Lune");
 
-    await title.setValue("Clair de lune (rev.)");
-    await w.get("form").trigger("submit");
+    title.value = "Clair de lune (rev.)";
+    title.dispatchEvent(new Event("input"));
+    await flushPromises();
+    document.querySelector("form.edit")!.dispatchEvent(new Event("submit"));
 
     const payload = w.emitted("submit")?.[0]?.[0] as Record<string, string>;
     expect(payload).toEqual({
@@ -48,30 +61,26 @@ describe("ScoreEditForm", () => {
     expect(Object.keys(payload)).toEqual(["title", "composer", "arranger", "level"]);
   });
 
-  it("shows the derived facets as read-only (no inputs)", () => {
-    const w = mount(ScoreEditForm, {
-      global: withI18n,
-      props: { hit: hit as never, submitting: false, error: null },
-    });
-    const derived = w.get("dl.derived");
-    // The derived block renders values but carries no editable control.
-    expect(derived.findAll("input, select, textarea")).toHaveLength(0);
-    expect(derived.text()).toContain("3/4");
-    expect(derived.text()).toContain("240");
-    expect(derived.text()).toContain("66");
+  it("renders nothing while closed", () => {
+    mount(ScoreEditDrawer, { global: withI18n, props: props({ open: false }), attachTo: document.body });
+    expect(document.querySelector("dialog.drawer")).toBeNull();
   });
 
   it("surfaces a localized submit error and disables the form while submitting", () => {
-    const w = mount(ScoreEditForm, {
+    const w = mount(ScoreEditDrawer, {
       global: withI18n,
-      props: { hit: hit as never, submitting: true, error: "Something went wrong." },
+      props: props({ submitting: true, error: "Something went wrong." }),
+      attachTo: document.body,
     });
-    const alert = w.get('[role="alert"]');
-    expect(alert.text()).toBe("Something went wrong.");
+    const alert = document.querySelector('[role="alert"]')!;
+    expect(alert.textContent).toBe("Something went wrong.");
     // Saving state disables the submit button and the inputs.
-    expect(w.get("button.save").attributes("disabled")).toBeDefined();
-    expect(w.get("button.save").text()).toBe("Saving…");
-    expect(w.get('input[type="text"]').attributes("disabled")).toBeDefined();
+    const save = document.querySelector("button.save") as HTMLButtonElement;
+    expect(save.disabled).toBe(true);
+    expect(save.textContent?.trim()).toBe("Saving…");
+    expect((field("Title").querySelector("input") as HTMLInputElement).disabled).toBe(true);
+    // Closing is always available, even mid-save it emits (the parent decides).
+    expect(w.emitted("close")).toBeUndefined();
   });
 });
 
@@ -109,25 +118,31 @@ function mountDetail(roles: string[]) {
 }
 
 describe("ScoreDetailView edit gate", () => {
-  it("shows the edit form for a moderator and saves via the store, then refreshes the hit", async () => {
+  it("opens the drawer for a moderator and saves via the store, then refreshes the hit", async () => {
     const { w, state } = mountDetail(["moderator"]);
     await flushPromises();
-    const form = w.findComponent(ScoreEditForm);
-    expect(form.exists()).toBe(true);
+    const drawer = w.findComponent(ScoreEditDrawer);
+    // The drawer is mounted but closed until the moderator asks for it.
+    expect(drawer.props("open")).toBe(false);
+    await w.get("button.edit").trigger("click");
+    expect(drawer.props("open")).toBe(true);
 
-    // Emitting the form's submit drives the view's saveEdit → the edit RPC…
-    form.vm.$emit("submit", { title: "New", composer: "C", arranger: "", level: "beginner" });
+    // Emitting the drawer's submit drives the view's saveEdit → the edit RPC…
+    drawer.vm.$emit("submit", { title: "New", composer: "C", arranger: "", level: "beginner" });
     await flushPromises();
 
     expect(state.editCalls).toEqual([{ scoreId: "s1", title: "New", composer: "C", arranger: "", level: "beginner" }]);
-    // …and a fresh metadata fetch so the form/preview reflect the recomputed values
+    // …and a fresh metadata fetch so the summary reflects the recomputed values
     // (mount does 1 fetchHit; the successful save triggers a 2nd).
     expect(state.getCatalogScoreCalls).toBe(2);
+    // A successful save closes the drawer; the summary underneath is the surface.
+    expect(drawer.props("open")).toBe(false);
   });
 
-  it("hides the edit form for a signed-in non-moderator", async () => {
+  it("offers no edit entry point to a signed-in non-moderator", async () => {
     const { w } = mountDetail([]);
     await flushPromises();
-    expect(w.findComponent(ScoreEditForm).exists()).toBe(false);
+    expect(w.find("button.edit").exists()).toBe(false);
+    expect(w.findComponent(ScoreEditDrawer).props("open")).toBe(false);
   });
 });
