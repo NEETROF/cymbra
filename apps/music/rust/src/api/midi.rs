@@ -30,7 +30,9 @@ use anyhow::Result;
 use flutter_rust_bridge::frb;
 use midir::{Ignore, MidiInput, MidiInputConnection};
 
-use super::midi_core::{DuplicateGuard, is_virtual_port, parse_midi, sort_ports_virtual_last};
+use super::midi_core::{
+    DuplicateGuard, MidiStreamParser, is_virtual_port, parse_midi, sort_ports_virtual_last,
+};
 use crate::frb_generated::StreamSink;
 
 /// MIDI event type forwarded to Flutter.
@@ -195,20 +197,30 @@ fn try_connect(start: Instant) -> Result<()> {
     };
     let name = midi_in.port_name(port).unwrap_or_default();
 
-    // Per-connection: a backend that re-delivers the same message must not be
-    // able to flood the Flutter sink (see `DuplicateGuard`).
+    // Per-connection state. The guard stops a backend that re-delivers the same
+    // payload from flooding the Flutter sink; the parser splits that payload
+    // into messages, because Android hands us a byte stream rather than one
+    // message per callback (see `MidiStreamParser`).
     let mut guard = DuplicateGuard::new();
+    let mut parser = MidiStreamParser::new();
+    let mut messages: Vec<[u8; 3]> = Vec::new();
 
     let conn = midi_in
         .connect(
             port,
             "cymbra-read",
-            move |_timestamp_us, message, _| {
+            move |_timestamp_us, payload, _| {
                 let elapsed = start.elapsed();
-                if !guard.accept(message, elapsed.as_micros() as u64) {
+                if !guard.accept(payload, elapsed.as_micros() as u64) {
                     return;
                 }
-                if let Some(event) = parse_midi(message, elapsed.as_millis() as u64) {
+                messages.clear();
+                parser.push(payload, &mut messages);
+                let timestamp_ms = elapsed.as_millis() as u64;
+                for message in &messages {
+                    let Some(event) = parse_midi(message, timestamp_ms) else {
+                        continue;
+                    };
                     // Read the current sink each message: it may have been
                     // swapped by a re-subscription since this port was opened.
                     if let Some(sink) = SINK.lock().unwrap().as_ref() {
