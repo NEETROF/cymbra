@@ -244,6 +244,14 @@ const currentHit = computed(() => session.current.value as CatalogHit | null);
       <button type="button" :disabled="acting" @click="session.skip()">{{ $t("review.skip") }}</button>
       <span class="muted keys">{{ $t("review.keys") }}</span>
     </div>
+    <!-- The instrument sound belongs to the transport: right under the Play button. -->
+    <SoundFontPicker
+      v-model="selectedId"
+      class="sound-row"
+      :fonts="fonts"
+      :loading="soundLoading"
+      :error="soundError"
+    />
     <h2 class="score-title">{{ currentHit.title || $t("detail.score") }}</h2>
     <!-- Proposal attribution (moderator/admin-only privileged fields). -->
     <div v-if="attribution?.isUserProposed" class="attribution">
@@ -265,13 +273,6 @@ const currentHit = computed(() => session.current.value as CatalogHit | null);
       @submit="saveEdit"
     />
     <div class="preview-card">
-      <SoundFontPicker
-        v-model="selectedId"
-        class="sound-row"
-        :fonts="fonts"
-        :loading="soundLoading"
-        :error="soundError"
-      />
       <ScorePreview
         :hit="currentHit"
         :bytes="bytesVm.bytes"
@@ -363,7 +364,8 @@ const currentHit = computed(() => session.current.value as CatalogHit | null);
   padding: 1.5rem;
 }
 .sound-row {
-  margin-bottom: 1rem;
+  /* Sits just under the transport, aligned with the Play button. */
+  margin: -0.25rem 0 0.85rem;
 }
 .review-empty {
   display: flex;
