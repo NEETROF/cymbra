@@ -345,8 +345,11 @@ class PartitionPainter extends CustomPainter {
         barPaint,
       );
       final isCursorMeasure = cursor != null && cursor.index == idx;
-      if (isCursorMeasure) cursorX = x + cursor.fraction * mWidth;
-      _paintMeasure(
+      // The cursor x comes back from _paintMeasure, which is the only place
+      // that knows the measure's note columns — a clef/key change shifts them,
+      // and they stop short of the closing bar. Placing the cursor by the raw
+      // measure fraction instead put it beside the note it points at.
+      final cx = _paintMeasure(
         canvas,
         measure,
         x,
@@ -361,6 +364,7 @@ class PartitionPainter extends CustomPainter {
         arcs,
         isCursorMeasure ? cursor.fraction * divPerMeasure : null,
       );
+      if (cx != null) cursorX = cx;
       x += mWidth;
     }
 
@@ -402,7 +406,11 @@ class PartitionPainter extends CustomPainter {
     }
   }
 
-  void _paintMeasure(
+  /// Engraves one measure and returns the playhead's x inside it when
+  /// [cursorDiv] falls in this measure (null otherwise) — mapped through the
+  /// same note-column arithmetic as the heads, so the cursor lands *on* the
+  /// note it points at rather than beside it.
+  double? _paintMeasure(
     Canvas canvas,
     NotationMeasure measure,
     double measureX,
@@ -465,13 +473,16 @@ class PartitionPainter extends CustomPainter {
     }
     final lead = clefLead + keyLead;
 
-    double xForPosition(int position) {
+    double xForPosition(num position) {
       final frac = divPerMeasure > 0
           ? (position / divPerMeasure).clamp(0.0, 1.0)
           : 0.0;
       final left = measureX + _s + lead;
       return left + frac * (measureWidth - lead - 2.4 * _s);
     }
+
+    // The playhead rides the same column mapping as the note heads.
+    final cursorX = cursorDiv == null ? null : xForPosition(cursorDiv);
 
     for (final dir in measure.directions) {
       final x = xForPosition(dir.positionDivisions);
@@ -630,6 +641,7 @@ class PartitionPainter extends CustomPainter {
     for (final acc in openTuplets.values) {
       _drawTuplet(canvas, acc);
     }
+    return cursorX;
   }
 
   /// Draws a tuplet's number (e.g. "3") centred over/under its note group, with
