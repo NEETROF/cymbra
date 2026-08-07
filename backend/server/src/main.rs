@@ -314,7 +314,10 @@ async fn main() -> anyhow::Result<()> {
                             .with_limiter(limiter)
                             .with_soundfonts(soundfont_repo.clone())
                             .with_soundfont_store_opt(soundfont_store.clone())
-                            .with_rewards(rewards_module),
+                            .with_rewards(rewards_module)
+                            // Soundfont uploader attribution (change:
+                            // add-soundfont-uploader-attribution).
+                            .with_user_port(user_dyn.clone()),
                         strict.clone(),
                     ))
                 }

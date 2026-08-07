@@ -77,6 +77,11 @@ pub struct ScoreGrpc {
     /// reward RPCs reporting the feature as unavailable; production wires it via
     /// [`Self::with_rewards`].
     rewards: Option<Arc<CurationRewardsModule>>,
+    /// User directory seam (change: add-soundfont-uploader-attribution): resolves a
+    /// font's `uploaded_by` to the uploader pseudo (privileged read) and the opt-in
+    /// public contributor credit. `None` (tests without attribution) simply leaves
+    /// both absent.
+    user: Option<Arc<dyn cymbra_user_port::UserPort>>,
 }
 
 impl ScoreGrpc {
@@ -87,7 +92,15 @@ impl ScoreGrpc {
             soundfonts: None,
             soundfont_store: None,
             rewards: None,
+            user: None,
         }
+    }
+
+    /// Attach the user directory that resolves soundfont uploader attribution
+    /// (change: add-soundfont-uploader-attribution).
+    pub fn with_user_port(mut self, user: Arc<dyn cymbra_user_port::UserPort>) -> Self {
+        self.user = Some(user);
+        self
     }
 
     /// Attach the curation-rewards service that backs the reward RPCs.
@@ -404,6 +417,29 @@ impl ScoreService for ScoreGrpc {
             .list_accepted()
             .await
             .map_err(|e| Status::internal(format!("list soundfonts: {e}")))?;
+        // Opt-in public contributor credit (change: add-soundfont-uploader-attribution):
+        // resolve every uploader id in ONE batched, fail-closed directory call — only a
+        // `Public`, age-eligible profile comes back, so a private/unresolvable/seeded
+        // uploader simply yields no credit. The raw `uploaded_by` id never leaves here.
+        let mut credits: std::collections::HashMap<String, String> = Default::default();
+        if let Some(user) = &self.user {
+            let ids: Vec<String> = {
+                let mut ids: Vec<String> =
+                    fonts.iter().filter_map(|f| f.uploaded_by.clone()).collect();
+                ids.sort();
+                ids.dedup();
+                ids
+            };
+            if !ids.is_empty()
+                && let Ok(profiles) = user.listable_profiles(&ids, today_utc()).await
+            {
+                for p in profiles {
+                    if let Some(name) = p.handle.or(p.display_name) {
+                        credits.insert(p.user_id, name);
+                    }
+                }
+            }
+        }
         // `has_preview` lets the app grey a locked font's play control up front when no
         // preview clip exists yet (change: add-soundfont-entitlement-previews).
         let mut soundfonts = Vec::with_capacity(fonts.len());
@@ -415,6 +451,11 @@ impl ScoreService for ScoreGrpc {
                     .is_ok(),
                 None => false,
             };
+            let contributor_credit = f
+                .uploaded_by
+                .as_deref()
+                .and_then(|id| credits.get(id).cloned())
+                .unwrap_or_default();
             soundfonts.push(ProtoSoundFont {
                 id: f.id,
                 label: f.label,
@@ -422,6 +463,7 @@ impl ScoreService for ScoreGrpc {
                 attribution: f.attribution.unwrap_or_default(),
                 instrument: f.instrument,
                 has_preview,
+                contributor_credit,
             });
         }
         Ok(Response::new(ListSoundFontsResponse { soundfonts }))
@@ -458,6 +500,30 @@ impl ScoreService for ScoreGrpc {
             .await
             .map_err(|e| Status::internal(format!("soundfont counts: {e}")))?;
         let page_len = fonts.len() as i32;
+        // Privileged uploader attribution (change: add-soundfont-uploader-attribution):
+        // resolve each page's `uploaded_by` ids (deduped) to the contributor's pseudo,
+        // unconditionally (audit surface — independent of profile visibility). A seeded
+        // font has no uploader and simply carries no pseudo; an unresolvable id degrades
+        // to none rather than failing the listing.
+        let mut pseudos: std::collections::HashMap<String, String> = Default::default();
+        if let Some(user) = &self.user {
+            let ids: Vec<&String> = {
+                let mut ids: Vec<&String> = fonts
+                    .iter()
+                    .filter_map(|f| f.uploaded_by.as_ref())
+                    .collect();
+                ids.sort();
+                ids.dedup();
+                ids
+            };
+            for id in ids {
+                if let Ok(acct) = user.get_account(id).await
+                    && let Some(name) = acct.handle.or(acct.display_name)
+                {
+                    pseudos.insert(id.clone(), name);
+                }
+            }
+        }
         let mut soundfonts = Vec::with_capacity(fonts.len());
         for f in fonts {
             let (has_object, has_preview) = match &self.soundfont_store {
@@ -469,6 +535,11 @@ impl ScoreService for ScoreGrpc {
                 ),
                 None => (false, false),
             };
+            let uploader_display_name = f
+                .uploaded_by
+                .as_deref()
+                .and_then(|id| pseudos.get(id).cloned())
+                .unwrap_or_default();
             soundfonts.push(AdminSoundFont {
                 id: f.id,
                 label: f.label,
@@ -484,6 +555,8 @@ impl ScoreService for ScoreGrpc {
                 uploaded_by: f.uploaded_by.unwrap_or_default(),
                 content_sha256: f.content_sha256.unwrap_or_default(),
                 has_preview,
+                uploader_display_name,
+                resubmission_note: f.resubmission_note.unwrap_or_default(),
             });
         }
         Ok(Response::new(AdminListSoundFontsResponse {
@@ -584,8 +657,16 @@ impl ScoreService for ScoreGrpc {
                 ));
             }
         }
+        // The reason is the rejection motive (change: add-soundfont-uploader-
+        // attribution): keep it only on `rejected`, so accepting or re-queuing clears
+        // any stale reason (mirrors the score path).
+        let reason = r
+            .reason
+            .as_deref()
+            .map(str::trim)
+            .filter(|s| !s.is_empty() && r.status == "rejected");
         let matched = repo
-            .set_moderation_status(&r.id, &r.status, &id.user_id)
+            .set_moderation_status(&r.id, &r.status, &id.user_id, reason)
             .await
             .map_err(|e| Status::internal(format!("set soundfont moderation status: {e}")))?;
         if !matched {
@@ -1022,6 +1103,8 @@ mod tests {
             content_sha256: Some(crate::soundfont::sha256_hex(id.as_bytes())),
             point_cost: 0,
             redeemable: true,
+            review_reason: None,
+            resubmission_note: None,
         }
     }
 
@@ -1390,6 +1473,7 @@ mod tests {
                 SetSoundFontModerationStatusRequest {
                     id: "ydp-grand".into(),
                     status: "accepted".into(),
+                    reason: None,
                 },
                 "u",
             ))
@@ -1403,6 +1487,7 @@ mod tests {
                 SetSoundFontModerationStatusRequest {
                     id: "ydp-grand".into(),
                     status: "banana".into(),
+                    reason: None,
                 },
                 "mod-1",
             ))
@@ -1417,6 +1502,7 @@ mod tests {
             SetSoundFontModerationStatusRequest {
                 id: "ydp-grand".into(),
                 status: "accepted".into(),
+                reason: None,
             },
             mod_uuid,
         ))
@@ -1433,6 +1519,7 @@ mod tests {
                 SetSoundFontModerationStatusRequest {
                     id: "nope".into(),
                     status: "accepted".into(),
+                    reason: None,
                 },
                 mod_uuid,
             ))
@@ -1463,6 +1550,7 @@ mod tests {
                 SetSoundFontModerationStatusRequest {
                     id: "no-preview".into(),
                     status: "accepted".into(),
+                    reason: None,
                 },
                 mod_uuid,
             ))
@@ -1483,6 +1571,7 @@ mod tests {
             SetSoundFontModerationStatusRequest {
                 id: "no-preview".into(),
                 status: "rejected".into(),
+                reason: None,
             },
             mod_uuid,
         ))
@@ -1506,6 +1595,7 @@ mod tests {
             SetSoundFontModerationStatusRequest {
                 id: "no-preview".into(),
                 status: "accepted".into(),
+                reason: None,
             },
             mod_uuid,
         ))
@@ -1519,6 +1609,180 @@ mod tests {
                 .moderation_status,
             "accepted"
         );
+    }
+
+    // --- Uploader attribution (change: add-soundfont-uploader-attribution) ---
+
+    /// The uploader id used by the attribution tests (a UUID, as real ids are).
+    const UPLOADER: &str = "33333333-3333-7333-8333-333333333333";
+
+    #[tokio::test]
+    async fn admin_list_resolves_uploader_pseudo_and_resubmission_note() {
+        use crate::soundfont::FakeSoundFontRepo;
+        use cymbra_user_port::{Account, MockUserPort};
+        // A user-contributed (reopened) font and a seeded font with no uploader.
+        let mut proposed = font_status("proposed-font", None, "pending");
+        proposed.uploaded_by = Some(UPLOADER.into());
+        proposed.resubmission_note = Some("fixed the licence".into());
+        let mut user = MockUserPort::new();
+        user.expect_get_account().returning(|uid| {
+            Ok(Account {
+                user_id: uid.to_string(),
+                display_name: Some("Alice".into()),
+                preferences: "{}".into(),
+                version: 1,
+                updated_at: 0,
+                handle: Some("alice".into()),
+                locale: None,
+            })
+        });
+        let svc = grpc()
+            .await
+            .with_soundfonts(Arc::new(FakeSoundFontRepo::with(vec![
+                proposed,
+                font("upright-piano-kw", None),
+            ])))
+            .with_user_port(Arc::new(user));
+        let resp = svc
+            .admin_list_sound_fonts(authed_moderator(
+                AdminListSoundFontsRequest::default(),
+                "mod-1",
+            ))
+            .await
+            .unwrap()
+            .into_inner();
+        let p = resp
+            .soundfonts
+            .iter()
+            .find(|f| f.id == "proposed-font")
+            .unwrap();
+        // The pseudo is resolved unconditionally (privileged audit surface) and the
+        // resubmission justification rides along for re-review.
+        assert_eq!(p.uploader_display_name, "alice");
+        assert_eq!(p.resubmission_note, "fixed the licence");
+        // A seeded font carries neither an uploader id nor a pseudo.
+        let s = resp
+            .soundfonts
+            .iter()
+            .find(|f| f.id == "upright-piano-kw")
+            .unwrap();
+        assert_eq!(s.uploaded_by, "");
+        assert_eq!(s.uploader_display_name, "");
+        assert_eq!(s.resubmission_note, "");
+    }
+
+    #[tokio::test]
+    async fn public_listing_credits_only_a_public_uploader() {
+        use crate::soundfont::FakeSoundFontRepo;
+        use cymbra_user_port::{MockUserPort, PlayerProfile, Visibility};
+        const PRIVATE_UPLOADER: &str = "66666666-6666-7666-8666-666666666666";
+        let mut credited = font("credited", Some("Sample Author"));
+        credited.uploaded_by = Some(UPLOADER.into());
+        let mut uncredited = font("uncredited", None);
+        uncredited.uploaded_by = Some(PRIVATE_UPLOADER.into());
+        // The directory returns ONLY the public, age-eligible uploader (fail-closed):
+        // the private one is simply absent from the batch result.
+        let mut user = MockUserPort::new();
+        user.expect_listable_profiles().returning(|ids, _| {
+            assert!(ids.contains(&UPLOADER.to_string()));
+            Ok(vec![PlayerProfile {
+                user_id: UPLOADER.to_string(),
+                handle: Some("alice".into()),
+                display_name: Some("Alice".into()),
+                visibility: Visibility::Public,
+            }])
+        });
+        let svc = grpc()
+            .await
+            .with_soundfonts(Arc::new(FakeSoundFontRepo::with(vec![
+                credited,
+                uncredited,
+                font("upright-piano-kw", Some("K. W.")),
+            ])))
+            .with_user_port(Arc::new(user));
+        let resp = svc
+            .list_sound_fonts(authed(ListSoundFontsRequest {}, "u"))
+            .await
+            .unwrap()
+            .into_inner();
+        let by_id = |id: &str| resp.soundfonts.iter().find(|f| f.id == id).unwrap();
+        // Public uploader → credit, alongside (not replacing) the licence attribution.
+        assert_eq!(by_id("credited").contributor_credit, "alice");
+        assert_eq!(by_id("credited").attribution, "Sample Author");
+        // Private/absent uploader and seeded font → no credit; licence attribution stays.
+        assert_eq!(by_id("uncredited").contributor_credit, "");
+        assert_eq!(by_id("upright-piano-kw").contributor_credit, "");
+        assert_eq!(by_id("upright-piano-kw").attribution, "K. W.");
+    }
+
+    #[tokio::test]
+    async fn public_credit_degrades_to_absent_when_the_directory_fails() {
+        use crate::soundfont::FakeSoundFontRepo;
+        use cymbra_user_port::MockUserPort;
+        let mut credited = font("credited", None);
+        credited.uploaded_by = Some(UPLOADER.into());
+        let mut user = MockUserPort::new();
+        user.expect_listable_profiles()
+            .returning(|_, _| Err(cymbra_platform::AppError::Internal(anyhow::anyhow!("down"))));
+        let svc = grpc()
+            .await
+            .with_soundfonts(Arc::new(FakeSoundFontRepo::with(vec![credited])))
+            .with_user_port(Arc::new(user));
+        let resp = svc
+            .list_sound_fonts(authed(ListSoundFontsRequest {}, "u"))
+            .await
+            .unwrap()
+            .into_inner();
+        // The listing still serves; the credit is simply omitted (fail-closed).
+        assert_eq!(resp.soundfonts.len(), 1);
+        assert_eq!(resp.soundfonts[0].contributor_credit, "");
+    }
+
+    #[tokio::test]
+    async fn rejecting_with_a_reason_stores_it_and_other_decisions_clear_it() {
+        use crate::soundfont::FakeSoundFontRepo;
+        let repo = Arc::new(FakeSoundFontRepo::with(vec![font_status(
+            "ydp-grand",
+            None,
+            "pending",
+        )]));
+        let store = Arc::new(FakeStore::default());
+        store
+            .put("ydp-grand.preview.wav", b"RIFF....WAVE".to_vec())
+            .await
+            .unwrap();
+        let svc = grpc()
+            .await
+            .with_soundfonts(repo.clone())
+            .with_soundfont_store(store);
+        let mod_uuid = "11111111-1111-1111-1111-111111111111";
+        // Rejecting with a reason stores the trimmed motive.
+        svc.set_sound_font_moderation_status(authed_moderator(
+            SetSoundFontModerationStatusRequest {
+                id: "ydp-grand".into(),
+                status: "rejected".into(),
+                reason: Some("  too noisy  ".into()),
+            },
+            mod_uuid,
+        ))
+        .await
+        .unwrap();
+        let e = repo.lookup("ydp-grand").await.unwrap().unwrap();
+        assert_eq!(e.review_reason.as_deref(), Some("too noisy"));
+        // A non-`rejected` decision ignores any carried reason and clears the stale one.
+        svc.set_sound_font_moderation_status(authed_moderator(
+            SetSoundFontModerationStatusRequest {
+                id: "ydp-grand".into(),
+                status: "accepted".into(),
+                reason: Some("ignored".into()),
+            },
+            mod_uuid,
+        ))
+        .await
+        .unwrap();
+        let e = repo.lookup("ydp-grand").await.unwrap().unwrap();
+        assert_eq!(e.moderation_status, "accepted");
+        assert!(e.review_reason.is_none());
     }
 
     /// Attach an authenticated identity to a request (as the interceptor would).

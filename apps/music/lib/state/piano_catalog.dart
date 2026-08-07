@@ -48,8 +48,10 @@ class PianoEntry {
     required this.source,
     this.license,
     this.attribution,
+    this.contributorCredit,
     this.remoteId,
     this.proposalStatus,
+    this.proposalRejectionReason,
     this.hasPreview = false,
   });
 
@@ -64,8 +66,10 @@ class PianoEntry {
     source: json['source'] as String,
     license: json['license'] as String?,
     attribution: json['attribution'] as String?,
+    contributorCredit: json['contributorCredit'] as String?,
     remoteId: json['remoteId'] as String?,
     proposalStatus: json['proposalStatus'] as String?,
+    proposalRejectionReason: json['proposalRejectionReason'] as String?,
     hasPreview: json['hasPreview'] as bool? ?? false,
   );
 
@@ -75,6 +79,12 @@ class PianoEntry {
   final String source;
   final String? license;
   final String? attribution;
+
+  /// Opt-in public "proposé par" credit of a user-contributed catalog font
+  /// (change: add-soundfont-uploader-attribution): the uploader's public
+  /// handle/display name, or `null` when they haven't opted into a public
+  /// profile. Distinct from [attribution] (the licence's sample author).
+  final String? contributorCredit;
 
   /// Id of this font in the user's **private server library**, once uploaded
   /// (change: add-soundfont-moderation). Set for `user` pianos that have synced;
@@ -88,6 +98,11 @@ class PianoEntry {
   /// upgraded by the sync from the server (`pending` → `accepted`/`rejected`).
   final String? proposalStatus;
 
+  /// The moderator's motive when [proposalStatus] is `rejected` (change:
+  /// add-soundfont-uploader-attribution); `null` otherwise. Sourced from the
+  /// private-library sync, shown so the uploader knows why it was refused.
+  final String? proposalRejectionReason;
+
   /// Whether the server has a rendered preview clip for this font (change:
   /// add-soundfont-entitlement-previews). Sourced from the catalog listing; drives
   /// the up-front greying of a **locked** font's play control (no preview → nothing to
@@ -95,11 +110,14 @@ class PianoEntry {
   final bool hasPreview;
 
   /// A copy with individual fields replaced (only what the sync flow needs).
+  /// `proposalRejectionReason` is nullable-aware (a re-proposal clears it), so it
+  /// replaces rather than coalesces.
   PianoEntry copyWith({
     String? label,
     String? source,
     String? remoteId,
     String? proposalStatus,
+    Object? proposalRejectionReason = _unset,
     bool? hasPreview,
   }) => PianoEntry(
     id: id,
@@ -108,10 +126,16 @@ class PianoEntry {
     source: source ?? this.source,
     license: license,
     attribution: attribution,
+    contributorCredit: contributorCredit,
     remoteId: remoteId ?? this.remoteId,
     proposalStatus: proposalStatus ?? this.proposalStatus,
+    proposalRejectionReason: proposalRejectionReason == _unset
+        ? this.proposalRejectionReason
+        : proposalRejectionReason as String?,
     hasPreview: hasPreview ?? this.hasPreview,
   );
+
+  static const Object _unset = Object();
 
   Map<String, dynamic> toJson() => {
     'id': id,
@@ -120,8 +144,11 @@ class PianoEntry {
     'source': source,
     if (license != null) 'license': license,
     if (attribution != null) 'attribution': attribution,
+    if (contributorCredit != null) 'contributorCredit': contributorCredit,
     if (remoteId != null) 'remoteId': remoteId,
     if (proposalStatus != null) 'proposalStatus': proposalStatus,
+    if (proposalRejectionReason != null)
+      'proposalRejectionReason': proposalRejectionReason,
     if (hasPreview) 'hasPreview': hasPreview,
   };
 
@@ -134,8 +161,10 @@ class PianoEntry {
       other.source == source &&
       other.license == license &&
       other.attribution == attribution &&
+      other.contributorCredit == contributorCredit &&
       other.remoteId == remoteId &&
       other.proposalStatus == proposalStatus &&
+      other.proposalRejectionReason == proposalRejectionReason &&
       other.hasPreview == hasPreview;
 
   @override
@@ -146,8 +175,10 @@ class PianoEntry {
     source,
     license,
     attribution,
+    contributorCredit,
     remoteId,
     proposalStatus,
+    proposalRejectionReason,
     hasPreview,
   );
 }

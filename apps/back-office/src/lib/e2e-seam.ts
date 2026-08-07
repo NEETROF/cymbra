@@ -82,8 +82,21 @@ declare global {
   }
 }
 
+/** Manual-QA fallback: when Playwright hasn't injected `window.__CYMBRA_E2E__`
+ * (e.g. a human driving the VITE_E2E dev server), the seed may be placed in
+ * `sessionStorage["cymbra.e2e-seed"]` (JSON) and survives the reload that boots
+ * the app. Still e2e-only code — never bundled without VITE_E2E. */
+function readSessionSeed(): E2EData | undefined {
+  try {
+    const raw = sessionStorage.getItem("cymbra.e2e-seed");
+    return raw ? (JSON.parse(raw) as E2EData) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export function installE2EClients(): void {
-  const data: E2EData = window.__CYMBRA_E2E__ ?? {};
+  const data: E2EData = window.__CYMBRA_E2E__ ?? readSessionSeed() ?? {};
   const hits = data.hits ?? [];
   const counts = { pending: 0, accepted: 0, rejected: 0, ...(data.counts ?? {}) };
   const tokens = data.tokens ?? { accessToken: "", refreshToken: "r" };
@@ -195,11 +208,16 @@ export function installE2EClients(): void {
         if (i >= 0) soundfonts.splice(i, 1);
         return {};
       },
-      // Moderation decision (change: add-soundfont-moderation).
-      setSoundFontModerationStatus: async (req: { id: string; status: string }) => {
+      // Moderation decision (change: add-soundfont-moderation). A rejection may
+      // carry the moderator's reason (change: add-soundfont-uploader-attribution),
+      // kept on the row so a test can assert it was sent.
+      setSoundFontModerationStatus: async (req: { id: string; status: string; reason?: string }) => {
         failIfSet("setSoundFontModerationStatus");
         const f = soundfonts.find((s) => s.id === req.id);
-        if (f) f.moderationStatus = req.status;
+        if (f) {
+          f.moderationStatus = req.status;
+          f.reviewReason = req.status === "rejected" ? req.reason : undefined;
+        }
         return {};
       },
     },

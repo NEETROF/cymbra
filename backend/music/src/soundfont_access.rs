@@ -82,6 +82,8 @@ mod tests {
             content_sha256: Some(sha256_hex(b"grand")),
             point_cost: 500,
             redeemable: true,
+            review_reason: None,
+            resubmission_note: None,
         }
     }
 

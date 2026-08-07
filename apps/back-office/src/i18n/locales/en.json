@@ -130,6 +130,9 @@
     },
     "accept": "Accept",
     "reject": "Reject",
+    "proposedBy": "Proposed by {name}",
+    "resubmission": "Re-submission: {note}",
+    "rejectReasonPlaceholder": "Rejection reason (shown to the uploader)",
     "filter": {
       "label": "Filter by status",
       "pending": "Pending",
