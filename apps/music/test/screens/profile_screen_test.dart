@@ -23,6 +23,7 @@ import 'package:music/state/play_activity.dart';
 import 'package:music/state/play_activity_notifier.dart';
 import 'package:music/state/profile_notifier.dart';
 import 'package:music/state/session_notifier.dart';
+import 'package:music/state/usage_consent.dart';
 import 'package:music/widgets/play_heatmap.dart';
 
 import '../support/localized.dart';
@@ -133,6 +134,50 @@ void main() {
     expect(find.byKey(const Key('profile-visibility')), findsOneWidget);
     expect(find.text('Private'), findsOneWidget);
   });
+
+  testWidgets(
+    'own profile shows the usage-analytics consent toggle, grouped with '
+    'visibility',
+    (tester) async {
+      final container = ProviderContainer(
+        overrides: [
+          currentUserIdProvider.overrideWithValue('me'),
+          playerProfileProvider('me').overrideWith(
+            (ref) async => const PlayerProfile(
+              userId: 'me',
+              handle: 'me',
+              displayName: null,
+              visibility: 'private',
+            ),
+          ),
+          playActivityProvider('me').overrideWith((ref) async => _activity()),
+          curatorRewardsServiceProvider.overrideWithValue(
+            _FakeCuratorRewards(),
+          ),
+          preferencesServiceProvider.overrideWithValue(
+            FakePreferencesService(),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: localizedApp(const ProfileScreen()),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Collection defaults to opt-out (on).
+      expect(container.read(usageConsentProvider), isTrue);
+      expect(find.byKey(const Key('profile-usage-consent')), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('profile-usage-consent')));
+      await tester.pumpAndSettle();
+
+      expect(container.read(usageConsentProvider), isFalse);
+    },
+  );
 
   testWidgets('an unavailable (private/ineligible) profile is refused', (
     tester,

@@ -23,6 +23,7 @@ import '../state/coaching_notifier.dart';
 import '../state/play_activity_notifier.dart';
 import '../state/profile_notifier.dart';
 import '../state/session_notifier.dart';
+import '../state/usage_consent.dart';
 import '../state/usage_tracking_notifier.dart';
 import '../widgets/coach_mark.dart';
 import '../widgets/curator_rewards_section.dart';
@@ -102,6 +103,9 @@ class _ProfileBody extends ConsumerWidget {
               hint: CoachHint.goingPublic,
               icon: Icons.public,
             ),
+            // Usage-analytics consent grouped with visibility: both are
+            // profile-level privacy settings (moved off the account menu).
+            const _UsageConsentToggle(),
           ],
           const SizedBox(height: 24),
           _ActivitySection(targetId: targetId),
@@ -266,6 +270,26 @@ class _VisibilityToggle extends ConsumerWidget {
       firstDate: DateTime(1900),
       lastDate: now,
       helpText: l10n.profileAgeGateTitle,
+    );
+  }
+}
+
+/// Self-only usage-analytics consent (change: add-feature-usage-analytics),
+/// grouped here with the visibility control since both are profile-level
+/// privacy settings (moved off the account menu).
+class _UsageConsentToggle extends ConsumerWidget {
+  const _UsageConsentToggle();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    final enabled = ref.watch(usageConsentProvider);
+    return SwitchListTile.adaptive(
+      key: const Key('profile-usage-consent'),
+      contentPadding: EdgeInsets.zero,
+      title: Text(l10n.usageAnalyticsSetting),
+      value: enabled,
+      onChanged: (value) => ref.read(usageConsentProvider.notifier).set(value),
     );
   }
 }
