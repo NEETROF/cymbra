@@ -163,6 +163,17 @@ void main() {
       expect(bubble.right, lessThanOrEqualTo(880));
       expect(bubble.bottom, lessThanOrEqualTo(360));
       expect(tester.takeException(), isNull); // no overflow
+
+      // The actions are pinned, not pushed below the fold with the copy: on a
+      // short viewport the user must never have to scroll to leave the hint.
+      for (final key in const [
+        Key('coach-mark-next'),
+        Key('coach-mark-skip'),
+      ]) {
+        final action = tester.getRect(find.byKey(key));
+        expect(bubble.contains(action.center), isTrue, reason: '$key is off');
+        expect(action.bottom, lessThanOrEqualTo(360), reason: '$key overflows');
+      }
     });
   });
 

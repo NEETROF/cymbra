@@ -42,6 +42,10 @@ class CoachTargetRegistry {
   GlobalKey keyFor(CoachAnchor anchor) =>
       _keys.putIfAbsent(anchor, () => GlobalKey(debugLabel: anchor.name));
 
+  /// The element currently rendering [anchor]'s control, or `null` when it is
+  /// not mounted. Used to scroll the control into view before spotlighting it.
+  BuildContext? contextFor(CoachAnchor anchor) => _keys[anchor]?.currentContext;
+
   /// The global rect of [anchor]'s control, or `null` when it is not laid out.
   Rect? rectFor(CoachAnchor anchor) {
     final context = _keys[anchor]?.currentContext;
@@ -135,12 +139,30 @@ class CoachMarkOverlay extends StatelessWidget {
 
   static const double _maxBubbleWidth = 360;
 
+  /// How much of the target must fall inside the viewport for the cut-out to be
+  /// worth drawing. A control that is mostly off screen — below the fold of a
+  /// scrollable surface, say — would otherwise be "highlighted" as a sliver at
+  /// the edge, pointing at nothing; the bubble is shown untargeted instead.
+  static const double _minVisibleFraction = 0.6;
+
+  /// The cut-out to draw for [hole] in a viewport of [size], or `null` when too
+  /// little of the target is actually visible.
+  Rect? _visibleSpot(Size size) {
+    final target = hole?.inflate(_holePadding);
+    if (target == null || target.isEmpty) return null;
+    final shown = target.intersect(Offset.zero & size);
+    if (shown.isEmpty) return null;
+    final visible =
+        (shown.width * shown.height) / (target.width * target.height);
+    return visible >= _minVisibleFraction ? shown : null;
+  }
+
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final size = Size(constraints.maxWidth, constraints.maxHeight);
-        final spot = hole?.inflate(_holePadding).intersect(Offset.zero & size);
+        final spot = _visibleSpot(size);
         return Stack(
           children: [
             // Visual only — the barriers below own hit-testing, so the cut-out
@@ -269,8 +291,12 @@ class CoachMarkOverlay extends StatelessWidget {
   }
 }
 
-/// The coach-mark bubble: copy plus the Skip/Next actions. Scrolls rather than
-/// overflowing when the band it was given is short.
+/// The coach-mark bubble: copy plus the Skip/Next actions.
+///
+/// Only the **copy** scrolls when the band it was given is short (the app's
+/// landscape-locked phone viewport is): the action row stays pinned at the
+/// bottom, so Next/Skip are always reachable without scrolling — the hint must
+/// never be something the user has to fight to leave.
 class _BubbleCard extends StatelessWidget {
   const _BubbleCard({
     required this.title,
@@ -304,61 +330,70 @@ class _BubbleCard extends StatelessWidget {
         elevation: 8,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (stepLabel != null)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 4),
-                    child: Text(
-                      stepLabel!,
-                      style: const TextStyle(
-                        color: CymbraColors.tertiary,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.6,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Flexible(
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (stepLabel != null)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 4),
+                          child: Text(
+                            stepLabel!,
+                            style: const TextStyle(
+                              color: CymbraColors.tertiary,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.6,
+                            ),
+                          ),
+                        ),
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          color: CymbraColors.onSurface,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                        ),
                       ),
-                    ),
-                  ),
-                Text(
-                  title,
-                  style: const TextStyle(
-                    color: CymbraColors.onSurface,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  body,
-                  style: const TextStyle(
-                    color: CymbraColors.onSurfaceVariant,
-                    fontSize: 13.5,
-                    height: 1.35,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    if (skipLabel != null)
-                      TextButton(
-                        key: const Key('coach-mark-skip'),
-                        onPressed: onSkip,
-                        child: Text(skipLabel!),
+                      const SizedBox(height: 6),
+                      Text(
+                        body,
+                        style: const TextStyle(
+                          color: CymbraColors.onSurfaceVariant,
+                          fontSize: 13.5,
+                          height: 1.35,
+                        ),
                       ),
-                    const SizedBox(width: 4),
-                    FilledButton(
-                      key: const Key('coach-mark-next'),
-                      onPressed: onNext,
-                      child: Text(nextLabel),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(height: 6),
+              // Pinned outside the scroll view: always reachable.
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  if (skipLabel != null)
+                    TextButton(
+                      key: const Key('coach-mark-skip'),
+                      onPressed: onSkip,
+                      child: Text(skipLabel!),
+                    ),
+                  const SizedBox(width: 4),
+                  FilledButton(
+                    key: const Key('coach-mark-next'),
+                    onPressed: onNext,
+                    child: Text(nextLabel),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
       ),

@@ -41,13 +41,24 @@ class _CoachLayerState extends ConsumerState<CoachLayer> {
   Rect? _hole;
   PlayerCoachStep? _resolvedFor;
 
-  /// Rects only exist post-layout, so resolve the target after the frame the
-  /// step became active — and once more on the following frame, since the
-  /// surface holding the control may still be animating in.
+  /// Resolves the control to spotlight, after the frame the step became active
+  /// (rects only exist post-layout) and retrying a few frames while the surface
+  /// holding it animates in.
+  ///
+  /// The control may sit **below the fold** of a scrollable surface — the setup
+  /// modal on a short phone viewport is exactly that — so it is first scrolled
+  /// into view: pointing at a control means pointing at it where the user can
+  /// see it. A target that still cannot be shown resolves to `null`.
   void _resolve(PlayerCoachStep step, {int retries = 6}) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || ref.read(coachingProvider).step != step) return;
-      final rect = ref.read(coachTargetRegistryProvider).rectFor(step.anchor);
+      final registry = ref.read(coachTargetRegistryProvider);
+      final target = registry.contextFor(step.anchor);
+      if (target != null && target.mounted) {
+        // Jump (not animate): the rect is read on the very next frame.
+        Scrollable.ensureVisible(target, alignment: 0.5);
+      }
+      final rect = registry.rectFor(step.anchor);
       if (rect == null && retries > 0) {
         _resolve(step, retries: retries - 1);
         return;
