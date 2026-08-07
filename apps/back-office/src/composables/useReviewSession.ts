@@ -93,6 +93,18 @@ export function useReviewSession() {
     await advance();
   }
 
+  /** Re-fetch the current score's metadata and swap it into the deck in place, after a
+   *  curatorial edit — the server recomputes the derived search keys, so the row the
+   *  moderator keeps reviewing must come back from the backend, not be patched locally.
+   *  The id is unchanged, so the already-fetched bytes/notation/audio are untouched. */
+  async function refreshCurrent(): Promise<void> {
+    const cur = current.value;
+    if (!cur) return;
+    const at = index.value;
+    const fresh = await store.fetchHit(cur.id);
+    if (deck.value[at]?.id === cur.id) deck.value[at] = fresh;
+  }
+
   async function skip(): Promise<void> {
     const cur = current.value;
     if (cur) handled.add(cur.id); // won't reappear this session
@@ -109,6 +121,7 @@ export function useReviewSession() {
     start,
     decide,
     skip,
+    refreshCurrent,
     bytesFor,
   };
 }
