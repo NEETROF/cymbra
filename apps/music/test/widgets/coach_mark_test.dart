@@ -29,6 +29,7 @@ class _SpotlightHost extends StatelessWidget {
     required this.hole,
     required this.passThrough,
     required this.onTargetTap,
+    this.onOtherTap,
     this.onNext,
     this.onSkip,
   });
@@ -36,6 +37,7 @@ class _SpotlightHost extends StatelessWidget {
   final Rect? hole;
   final bool passThrough;
   final VoidCallback onTargetTap;
+  final VoidCallback? onOtherTap;
   final VoidCallback? onNext;
   final VoidCallback? onSkip;
 
@@ -49,6 +51,17 @@ class _SpotlightHost extends StatelessWidget {
           behavior: HitTestBehavior.opaque,
           onTap: onTargetTap,
           child: const ColoredBox(color: Colors.blue),
+        ),
+      ),
+      // Another control, deliberately away from the spotlight — stands in for
+      // the Play button the user may want to press mid-sequence.
+      Positioned.fromRect(
+        rect: const Rect.fromLTWH(600, 500, 200, 60),
+        child: GestureDetector(
+          key: const Key('other-control'),
+          behavior: HitTestBehavior.opaque,
+          onTap: onOtherTap,
+          child: const ColoredBox(color: Colors.green),
         ),
       ),
       Positioned.fill(
@@ -102,7 +115,7 @@ void main() {
       expect(events, ['next', 'skip']);
     });
 
-    testWidgets('a "do it now" step leaves the real control tappable', (
+    testWidgets('a "do it now" step never gates the UI underneath', (
       tester,
     ) async {
       final events = <String>[];
@@ -112,15 +125,17 @@ void main() {
           hole: const Rect.fromLTWH(100, 200, 200, 60),
           passThrough: true,
           onTargetTap: () => events.add('control'),
+          onOtherTap: () => events.add('other'),
           onNext: () => events.add('next'),
         ),
       );
 
-      // Inside the cut-out: reaches the control underneath.
+      // Inside the cut-out: reaches the coached control.
       await tester.tapAt(const Offset(200, 230));
-      // Outside it: absorbed by the scrim, so nothing behind is triggered.
-      await tester.tapAt(const Offset(800, 600));
-      expect(events, ['control']);
+      // Outside it: still reaches the app — a guided step guides, it does not
+      // swallow the user's next action (e.g. pressing Play mid-sequence).
+      await tester.tapAt(const Offset(700, 530));
+      expect(events, ['control', 'other']);
     });
 
     testWidgets('a passive hint is dismissed by tapping anywhere', (
@@ -133,6 +148,7 @@ void main() {
           hole: null,
           passThrough: false,
           onTargetTap: () => events.add('control'),
+          onOtherTap: () => events.add('other'),
           onNext: () => events.add('next'),
         ),
       );

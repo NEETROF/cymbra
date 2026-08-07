@@ -16,6 +16,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:music/l10n/gen/app_localizations.dart';
+import 'package:music/main.dart';
 import 'package:music/screens/auth/entry_screen.dart';
 import 'package:music/screens/library_screen.dart';
 import 'package:music/screens/onboarding/language_step_screen.dart';
@@ -180,6 +181,41 @@ void main() {
     expect(find.byType(WelcomeScreen), findsNothing);
     expect(find.byKey(const Key('entry-guest')), findsOneWidget);
     expect(prefs.store[Onboarding.welcomePrefsKey], 'true');
+  });
+
+  testWidgets('the shipped CymbraApp opens on the first-run step', (
+    tester,
+  ) async {
+    // Guards what the (slow, CI-only) integration test drives: the *shipped*
+    // root widget — gate, coach layer and all — not the gate in isolation. A
+    // resumed guest session does not skip the language step, which is why the
+    // integration test has to walk it.
+    await tester.binding.setSurfaceSize(const Size(1400, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final container = _container(
+      prefs: FakePreferencesService(),
+      store: FakeTokenStore(guest: true),
+    );
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(container: container, child: const CymbraApp()),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(LanguageStepScreen), findsOneWidget);
+    expect(find.byType(LibraryScreen), findsNothing);
+
+    // Continuing hands over to the session routing: a guest skips the welcome.
+    await tester.tap(find.byKey(const Key('onboarding-language-continue')));
+    await tester.pumpAndSettle();
+    expect(find.byType(WelcomeScreen), findsNothing);
+    expect(find.byType(LibraryScreen), findsOneWidget);
+
+    // Unmount here: the library warms providers that own timers, cancelled on
+    // container dispose — which the binding checks before tear-downs run.
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump();
+    container.dispose();
   });
 
   testWidgets('a returning user sees neither first-run step', (tester) async {

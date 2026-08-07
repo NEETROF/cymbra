@@ -180,30 +180,24 @@ class CoachMarkOverlay extends StatelessWidget {
     );
   }
 
-  /// Input barriers: the full surface for a passive hint (tap anywhere to
-  /// dismiss), or the four bands around the hole when the control must stay
-  /// tappable.
+  /// Input barrier — only a **passive** hint has one: it covers the surface and
+  /// a tap anywhere dismisses it, so the hint is trivially cleared.
+  ///
+  /// A guided ("do it now") step deliberately has **none**: the whole UI stays
+  /// live under the scrim, so the user can operate the highlighted control *and*
+  /// anything else — pressing Play mid-sequence starts playing rather than being
+  /// swallowed. It guides, it never gates; the sequence ends on its own when the
+  /// surface holding the coached controls goes away.
   List<Widget> _barriers(Rect? spot, Size size) {
-    if (spot == null || !passThrough) {
-      return [
-        Positioned.fill(
-          child: GestureDetector(
-            key: const Key('coach-mark-scrim'),
-            behavior: HitTestBehavior.opaque,
-            onTap: onNext,
-          ),
-        ),
-      ];
-    }
-    Widget band(Rect rect) => Positioned.fromRect(
-      rect: rect,
-      child: const AbsorbPointer(child: SizedBox.expand()),
-    );
+    if (passThrough && spot != null) return const [];
     return [
-      band(Rect.fromLTRB(0, 0, size.width, spot.top)),
-      band(Rect.fromLTRB(0, spot.bottom, size.width, size.height)),
-      band(Rect.fromLTRB(0, spot.top, spot.left, spot.bottom)),
-      band(Rect.fromLTRB(spot.right, spot.top, size.width, spot.bottom)),
+      Positioned.fill(
+        child: GestureDetector(
+          key: const Key('coach-mark-scrim'),
+          behavior: HitTestBehavior.opaque,
+          onTap: onNext,
+        ),
+      ),
     ];
   }
 
