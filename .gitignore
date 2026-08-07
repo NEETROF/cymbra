@@ -44,3 +44,6 @@
 # --- Graphify code knowledge graphs (opt-in dev tooling, rebuilt locally) ---
 graphify-out/
 .graphifyignore
+
+# Discord provisioning secrets (webhook URLs minted by scripts/discord/provision.sh)
+scripts/discord/.webhooks.env

@@ -1,0 +1,168 @@
+{
+  "_comment": [
+    "Declarative description of the Cymbra Discord server, applied by provision.sh.",
+    "Product sections use a channel-name prefix (music-*, id-*, live-*) so mentions and",
+    "search stay unambiguous once a second product ships. A category with",
+    "\"enabled\": false is declared here but NOT created — flip it the day the product",
+    "has something to show, and re-run the script."
+  ],
+
+  "guild": {
+    "name": "Cymbra",
+    "description": "Interactive piano — play real scores on your MIDI keyboard. Free and open source.",
+    "preferred_locale": "en-US",
+    "verification_level": 2,
+    "explicit_content_filter": 2,
+    "enable_community": true
+  },
+
+  "everyone_permissions": [
+    "VIEW_CHANNEL",
+    "SEND_MESSAGES",
+    "SEND_MESSAGES_IN_THREADS",
+    "CREATE_PUBLIC_THREADS",
+    "EMBED_LINKS",
+    "ATTACH_FILES",
+    "ADD_REACTIONS",
+    "USE_EXTERNAL_EMOJIS",
+    "USE_APPLICATION_COMMANDS",
+    "READ_MESSAGE_HISTORY",
+    "CONNECT",
+    "SPEAK",
+    "USE_VAD",
+    "STREAM",
+    "CHANGE_NICKNAME",
+    "CREATE_INSTANT_INVITE"
+  ],
+
+  "roles": [
+    {
+      "name": "Mod",
+      "color": 3447003,
+      "hoist": true,
+      "mentionable": true,
+      "permissions": [
+        "VIEW_CHANNEL",
+        "SEND_MESSAGES",
+        "READ_MESSAGE_HISTORY",
+        "MANAGE_MESSAGES",
+        "MANAGE_THREADS",
+        "MODERATE_MEMBERS",
+        "KICK_MEMBERS",
+        "BAN_MEMBERS",
+        "MUTE_MEMBERS",
+        "MOVE_MEMBERS",
+        "VIEW_AUDIT_LOG",
+        "MENTION_EVERYONE"
+      ]
+    },
+    { "name": "Curator",     "color": 10181046, "hoist": true,  "mentionable": true,  "permissions": [] },
+    { "name": "Contributor", "color": 3066993,  "hoist": true,  "mentionable": true,  "permissions": [] },
+    { "name": "Verified",    "color": 15844367, "hoist": false, "mentionable": false, "permissions": [] },
+    { "name": "Beta",        "color": 9807270,  "hoist": false, "mentionable": true,  "permissions": [] }
+  ],
+
+  "categories": [
+    {
+      "name": "WELCOME",
+      "channels": [
+        {
+          "name": "welcome",
+          "type": "text",
+          "topic": "Rules and how this server works. Start here.",
+          "readonly": true,
+          "rules_channel": true
+        },
+        {
+          "name": "announcements",
+          "type": "announcement",
+          "topic": "Releases and news, all Cymbra products. Low traffic by design.",
+          "readonly": true
+        }
+      ]
+    },
+    {
+      "name": "LOUNGE",
+      "channels": [
+        { "name": "general",        "type": "text",  "topic": "Free-for-all: Cymbra, pianos, keyboards, music." },
+        { "name": "show-your-play", "type": "text",  "topic": "Clips, screenshots, runs you are proud of.", "slowmode": 30 },
+        { "name": "Practice room",  "type": "voice" }
+      ]
+    },
+    {
+      "name": "CYMBRA MUSIC",
+      "channels": [
+        { "name": "music-help",            "type": "text",  "topic": "Stuck? Ask here. Your platform + MIDI device helps a lot." },
+        { "name": "scores-and-soundfonts", "type": "text",  "topic": "Catalog additions, requests, licensing questions." },
+        { "name": "music-ideas",           "type": "forum", "topic": "One post per idea. React to support one." },
+        { "name": "music-bugs",            "type": "forum", "topic": "One post per bug. Confirmed ones move to GitHub issues." },
+        {
+          "name": "music-stats",
+          "type": "text",
+          "topic": "Daily Cymbra Music report: players, sessions, scores rated, top pieces. Bot only.",
+          "readonly": true
+        },
+        {
+          "name": "music-leaderboards",
+          "type": "text",
+          "topic": "Weekly top 50 pieces, top players and season records. Bot only.",
+          "readonly": true
+        }
+      ]
+    },
+    {
+      "name": "CYMBRA ID",
+      "channels": [
+        { "name": "id-help", "type": "text", "topic": "Accounts, sign-in, linked identities, account deletion." },
+        {
+          "name": "id-stats",
+          "type": "text",
+          "topic": "Weekly Cymbra ID report: new accounts, verifications, linked providers. Bot only.",
+          "readonly": true
+        }
+      ]
+    },
+    {
+      "name": "CYMBRA LIVE",
+      "enabled": false,
+      "channels": [
+        { "name": "live-announcements", "type": "text", "topic": "Cymbra Live news.", "readonly": true },
+        { "name": "live-help",          "type": "text", "topic": "Cymbra Live questions." },
+        { "name": "live-stats",         "type": "text", "topic": "Cymbra Live report. Bot only.", "readonly": true }
+      ]
+    },
+    {
+      "name": "DEV",
+      "channels": [
+        { "name": "dev", "type": "text", "topic": "Building Cymbra: PRs, architecture, engine internals." }
+      ]
+    },
+    {
+      "name": "STAFF",
+      "channels": [
+        {
+          "name": "mod-log",
+          "type": "text",
+          "topic": "AutoMod alerts and moderation traces.",
+          "private_to": ["Mod"],
+          "mod_updates_channel": true
+        }
+      ]
+    }
+  ],
+
+  "automod": {
+    "alert_channel": "mod-log",
+    "mention_total_limit": 6,
+    "keyword_presets": ["PROFANITY", "SEXUAL_CONTENT", "SLURS"],
+    "blocked_keywords": ["*free nitro*", "*steamcommunity*", "*discord-gift*"]
+  },
+
+  "webhooks": [
+    { "channel": "announcements",         "name": "Cymbra backend" },
+    { "channel": "scores-and-soundfonts", "name": "Cymbra backend" },
+    { "channel": "music-stats",           "name": "Cymbra backend" },
+    { "channel": "music-leaderboards",    "name": "Cymbra backend" },
+    { "channel": "id-stats",              "name": "Cymbra backend" }
+  ]
+}
