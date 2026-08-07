@@ -34,6 +34,7 @@ import 'package:music/services/score_upload_service.dart';
 import 'package:music/services/token_store.dart';
 import 'package:music/src/rust/frb_generated.dart';
 import 'package:music/state/app_locale.dart';
+import 'package:music/state/onboarding_notifier.dart';
 import 'package:music/state/score_catalog.dart';
 import 'package:music/state/session_notifier.dart';
 
@@ -48,21 +49,38 @@ const int _watchMs = int.fromEnvironment('WATCH_MS');
 /// Pins the app to English with no persisted language, so localized strings are
 /// deterministic on any host (the dev machine may report a non-English locale or
 /// carry a persisted language choice from the real app).
-List<Override> _englishLocaleOverrides() => [
+///
+/// [firstRunDone] seeds the first-run flags (change: add-welcome-onboarding) so
+/// a test whose subject is *not* onboarding boots straight into the app; pass
+/// `false` to exercise the real first-launch sequence.
+List<Override> _englishLocaleOverrides({bool firstRunDone = true}) => [
   deviceLocaleProvider.overrideWithValue(const Locale('en')),
-  preferencesServiceProvider.overrideWithValue(const _EmptyPrefs()),
+  preferencesServiceProvider.overrideWithValue(
+    _MemoryPrefs(
+      firstRunDone
+          ? {
+              Onboarding.languagePrefsKey: 'true',
+              Onboarding.welcomePrefsKey: 'true',
+            }
+          : null,
+    ),
+  ),
 ];
 
-/// An empty [PreferencesService] (nothing persisted), so [AppLocale] resolves to
-/// the pinned device locale instead of any language stored by the real app.
-class _EmptyPrefs implements PreferencesService {
-  const _EmptyPrefs();
+/// An in-memory [PreferencesService], so [AppLocale] resolves to the pinned
+/// device locale instead of any language stored by the real app, and the
+/// first-run flow can record its own steps without touching device storage.
+class _MemoryPrefs implements PreferencesService {
+  _MemoryPrefs([Map<String, String>? seed]) : _store = {...?seed};
+
+  final Map<String, String> _store;
+
   @override
-  Future<String?> getString(String key) async => null;
+  Future<String?> getString(String key) async => _store[key];
   @override
-  Future<void> setString(String key, String value) async {}
+  Future<void> setString(String key, String value) async => _store[key] = value;
   @override
-  Future<void> remove(String key) async {}
+  Future<void> remove(String key) async => _store.remove(key);
 }
 
 void main() {
@@ -97,16 +115,29 @@ void main() {
           // screen, and the in-memory store keeps the test off platform secure
           // storage (no Keychain/libsecret keyring in headless CI).
           tokenStoreProvider.overrideWithValue(const _GuestTokenStore()),
-          // Pin English + empty prefs so localized strings are deterministic
-          // regardless of the host device locale or any persisted language.
-          ..._englishLocaleOverrides(),
+          // Pin English + in-memory prefs so localized strings are deterministic
+          // regardless of the host device locale or any persisted language. This
+          // test starts from a genuine first launch (nothing recorded yet).
+          ..._englishLocaleOverrides(firstRunDone: false),
         ],
         child: const CymbraApp(),
       ),
     );
     await tester.pump(const Duration(milliseconds: 100));
 
-    // Boots into the score library; pick the fixture score.
+    // First launch opens on the language step, before anything else (change:
+    // add-welcome-onboarding). English is pre-selected from the pinned device
+    // locale, so continuing is one tap.
+    expect(find.text('Choose your language'), findsOneWidget);
+    await watch(tester);
+    await tester.tap(find.byKey(const Key('onboarding-language-continue')));
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+
+    // The welcome is for a user with no session at all — this one resumed a
+    // guest session, so it lands straight in the score library. Pick the
+    // fixture score.
     expect(find.text('Cymbra — Score Library'), findsOneWidget);
     await watch(tester);
     final entry = find.text('Ode to Joy (theme)');
@@ -170,8 +201,9 @@ void main() {
         overrides: [
           scoreCatalogProvider.overrideWithValue(const []),
           tokenStoreProvider.overrideWithValue(const _GuestTokenStore()),
-          // Pin English + empty prefs so the localized difficulty labels are
-          // deterministic regardless of the host device locale or persisted language.
+          // Pin English so the localized difficulty labels are deterministic
+          // regardless of the host device locale or persisted language, and mark
+          // the first run as done — the wizard, not onboarding, is the subject.
           ..._englishLocaleOverrides(),
           // Signed-in-equivalent so the contribution entry point is shown; the
           // picker and backend upload are faked, but validation/preview run on

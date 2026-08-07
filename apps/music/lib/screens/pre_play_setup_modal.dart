@@ -12,18 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../l10n/gen/app_localizations.dart';
 import '../layout/device_class.dart';
 import '../services/platform_info.dart';
+import '../state/coaching_notifier.dart';
 import '../state/notation_notifier.dart';
 import '../state/player_data.dart';
 import '../state/player_notifier.dart';
 import '../state/score_catalog.dart';
 import '../state/selected_piano.dart';
 import '../theme/cymbra_theme.dart';
+import '../widgets/coach_mark.dart';
 import '../widgets/difficulty_badge.dart';
 import '../widgets/leaderboard_view.dart';
 import '../widgets/otg_guidance.dart';
@@ -41,9 +45,45 @@ Future<void> showPrePlaySetup(BuildContext context, {bool inGame = false}) =>
     showDialog<void>(
       context: context,
       barrierDismissible: false,
-      builder: (_) =>
-          PopScope(canPop: false, child: _PrePlaySetupDialog(inGame: inGame)),
+      builder: (_) => PopScope(
+        canPop: false,
+        // The guided player sequence (change: add-welcome-onboarding, D8) walks
+        // the controls that live in this surface, so it is armed from here.
+        child: _PlayerTourStarter(child: _PrePlaySetupDialog(inGame: inGame)),
+      ),
     );
+
+/// Dedicated listener (CLAUDE.md rule): starts the guided player sequence once
+/// the coaching flags are known and this surface — which holds the controls it
+/// points at — is on screen. Starting is idempotent: it is a no-op when the
+/// sequence already ran (unless a replay was armed from help) or is running.
+class _PlayerTourStarter extends ConsumerStatefulWidget {
+  const _PlayerTourStarter({required this.child});
+
+  final Widget child;
+
+  @override
+  ConsumerState<_PlayerTourStarter> createState() => _PlayerTourStarterState();
+}
+
+class _PlayerTourStarterState extends ConsumerState<_PlayerTourStarter> {
+  @override
+  Widget build(BuildContext context) {
+    // The flags load asynchronously: react when they arrive, and cover the
+    // already-loaded case (every visit after the first) directly.
+    ref.listen(coachingProvider.select((s) => s.loaded), (_, loaded) {
+      if (loaded) _start();
+    });
+    if (ref.read(coachingProvider).loaded) _start();
+    return widget.child;
+  }
+
+  /// Deferred to the next frame so the controls are laid out before the
+  /// spotlight looks for their rects.
+  void _start() => WidgetsBinding.instance.addPostFrameCallback((_) {
+    if (mounted) ref.read(coachingProvider.notifier).startPlayerTour();
+  });
+}
 
 class _PrePlaySetupDialog extends ConsumerStatefulWidget {
   const _PrePlaySetupDialog({required this.inGame});
@@ -72,9 +112,13 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
   /// leaderboards).
   bool _showBoard = false;
 
+  /// Captured in [initState] so [dispose] never touches `ref` after teardown.
+  late final Coaching _coaching;
+
   @override
   void initState() {
     super.initState();
+    _coaching = ref.read(coachingProvider.notifier);
     final data = ref.read(playerProvider);
     _hands = data.selectedHands;
     _speed = data.speed;
@@ -83,6 +127,17 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
     _soundId = ref.read(selectedPianoProvider);
     _range = data.keyboardRange;
     _keyboardVisible = data.keyboardVisible;
+  }
+
+  @override
+  void dispose() {
+    // Leaving this surface takes the coached controls off screen, so the guided
+    // sequence ends here rather than pointing at nothing (it stays replayable
+    // from help). Deferred: a provider must not be written while the tree is
+    // being finalized.
+    final coaching = _coaching;
+    scheduleMicrotask(coaching.skipTour);
+    super.dispose();
   }
 
   void _apply() {
@@ -372,24 +427,28 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
       children: [
         _sectionTitle(l10n.prePlayHands),
         // A 3-way toggle (Left / Right / Both) — compact, one row instead of
-        // three radio rows.
-        LayoutBuilder(
-          builder: (context, constraints) {
-            // Three equal segments filling the width (account for the borders).
-            final segment = (constraints.maxWidth - 4) / hands.length;
-            return ToggleButtons(
-              isSelected: [for (final h in hands) h == _hands],
-              onPressed: (i) => setState(() => _hands = hands[i]),
-              borderRadius: BorderRadius.circular(10),
-              borderColor: CymbraColors.surfaceContainerHighest,
-              selectedBorderColor: CymbraColors.tertiary,
-              color: CymbraColors.onSurfaceVariant,
-              selectedColor: CymbraColors.onSurface,
-              fillColor: CymbraColors.tertiary.withValues(alpha: 0.22),
-              constraints: BoxConstraints(minHeight: 44, minWidth: segment),
-              children: [for (final h in hands) Text(handLabel(l10n, h))],
-            );
-          },
+        // three radio rows. Registered as a coach target so the guided sequence
+        // can point at the real control.
+        CoachTarget(
+          anchor: CoachAnchor.hands,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              // Three equal segments filling the width (account for borders).
+              final segment = (constraints.maxWidth - 4) / hands.length;
+              return ToggleButtons(
+                isSelected: [for (final h in hands) h == _hands],
+                onPressed: (i) => setState(() => _hands = hands[i]),
+                borderRadius: BorderRadius.circular(10),
+                borderColor: CymbraColors.surfaceContainerHighest,
+                selectedBorderColor: CymbraColors.tertiary,
+                color: CymbraColors.onSurfaceVariant,
+                selectedColor: CymbraColors.onSurface,
+                fillColor: CymbraColors.tertiary.withValues(alpha: 0.22),
+                constraints: BoxConstraints(minHeight: 44, minWidth: segment),
+                children: [for (final h in hands) Text(handLabel(l10n, h))],
+              );
+            },
+          ),
         ),
       ],
     );
@@ -401,9 +460,12 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
       _sectionTitle(l10n.settingsCategoryPiano),
-      SoundSelectorField(
-        value: _soundId,
-        onChanged: (id) => setState(() => _soundId = id),
+      CoachTarget(
+        anchor: CoachAnchor.pianoSound,
+        child: SoundSelectorField(
+          value: _soundId,
+          onChanged: (id) => setState(() => _soundId = id),
+        ),
       ),
     ],
   );
@@ -530,28 +592,31 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _sectionTitle(l10n.settingsCategoryMidiDevice),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          decoration: BoxDecoration(
-            color: CymbraColors.surfaceContainerHigh,
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<String?>(
-              isExpanded: true,
-              value: value,
-              dropdownColor: CymbraColors.surfaceContainerHigh,
-              iconEnabledColor: CymbraColors.onSurfaceVariant,
-              style: const TextStyle(color: CymbraColors.onSurface),
-              items: [
-                DropdownMenuItem<String?>(
-                  value: null,
-                  child: Text(l10n.midiAutoFirstDevice),
-                ),
-                for (final port in data.midiPorts)
-                  DropdownMenuItem<String?>(value: port, child: Text(port)),
-              ],
-              onChanged: (v) => setState(() => _port = v),
+        CoachTarget(
+          anchor: CoachAnchor.midiDevice,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              color: CymbraColors.surfaceContainerHigh,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String?>(
+                isExpanded: true,
+                value: value,
+                dropdownColor: CymbraColors.surfaceContainerHigh,
+                iconEnabledColor: CymbraColors.onSurfaceVariant,
+                style: const TextStyle(color: CymbraColors.onSurface),
+                items: [
+                  DropdownMenuItem<String?>(
+                    value: null,
+                    child: Text(l10n.midiAutoFirstDevice),
+                  ),
+                  for (final port in data.midiPorts)
+                    DropdownMenuItem<String?>(value: port, child: Text(port)),
+                ],
+                onChanged: (v) => setState(() => _port = v),
+              ),
             ),
           ),
         ),

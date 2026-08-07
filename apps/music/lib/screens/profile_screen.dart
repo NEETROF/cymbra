@@ -19,10 +19,12 @@ import 'package:grpc/grpc.dart';
 import '../analytics/usage_actions.dart';
 import '../l10n/gen/app_localizations.dart';
 import '../services/profile_service.dart';
+import '../state/coaching_notifier.dart';
 import '../state/play_activity_notifier.dart';
 import '../state/profile_notifier.dart';
 import '../state/session_notifier.dart';
 import '../state/usage_tracking_notifier.dart';
+import '../widgets/coach_mark.dart';
 import '../widgets/curator_rewards_section.dart';
 import '../widgets/play_heatmap.dart';
 
@@ -91,6 +93,16 @@ class _ProfileBody extends ConsumerWidget {
           // alongside it.
           if (isSelf) _VisibilityResultListener(targetId: targetId),
           _Header(profile: p, isSelf: isSelf),
+          if (isSelf) ...[
+            // One-time hint explaining what making a profile public means, next
+            // to the control that does it (change: add-welcome-onboarding, D4).
+            // The age gate itself stays a required step, not a dismissible hint.
+            const SizedBox(height: 12),
+            const CoachHintCallout(
+              hint: CoachHint.goingPublic,
+              icon: Icons.public,
+            ),
+          ],
           const SizedBox(height: 24),
           _ActivitySection(targetId: targetId),
           if (isSelf) ...[
@@ -99,6 +111,12 @@ class _ProfileBody extends ConsumerWidget {
             // than a separate screen. The GetCuratorRewards RPC is caller-scoped,
             // so it is shown only on the OWN profile.
             const SizedBox(height: 24),
+            // First visit to the rewards surface: what points, badges and the
+            // shop are — through the same one-time coaching mechanism.
+            const CoachHintCallout(
+              hint: CoachHint.rewards,
+              icon: Icons.emoji_events_outlined,
+            ),
             const CuratorRewardsSection(),
           ],
         ],

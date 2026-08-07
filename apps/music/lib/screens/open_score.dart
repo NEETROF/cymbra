@@ -38,6 +38,10 @@ const _minSpinnerVisible = Duration(milliseconds: 550);
 /// The pre-flight subscription is kept alive for the player's lifetime, so the
 /// score loads exactly once (the pushed player re-uses this already-loaded
 /// state) and is disposed when the player is popped.
+///
+/// The returned future completes when the player is **left**, so a caller that
+/// has something to do afterwards (the no-account try offering sign-in) can
+/// simply await it; callers that just open a score keep ignoring it.
 Future<void> openScore(
   BuildContext context,
   WidgetRef ref,
@@ -101,7 +105,7 @@ Future<void> openScore(
   if (rootNavigator.canPop()) rootNavigator.pop();
 
   if (loaded) {
-    navigator
+    await navigator
         .push(MaterialPageRoute<void>(builder: (_) => const PlayerScreen()))
         .whenComplete(sub.close);
   } else {
