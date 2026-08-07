@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.19.0](https://github.com/NEETROF/cymbra/compare/music-v1.18.0...music-v1.19.0) (2026-08-07)
+
+
+### Features
+
+* **curation-rewards:** points economy, rewards profile, reward shop ([#176](https://github.com/NEETROF/cymbra/issues/176)) ([08dfac4](https://github.com/NEETROF/cymbra/commit/08dfac4417a3aa5886b5539eca793dc52cc37809))
+* **soundfont:** entitlement-gated downloads + server-rendered preview clips ([#179](https://github.com/NEETROF/cymbra/issues/179)) ([7e8b87d](https://github.com/NEETROF/cymbra/commit/7e8b87d80c4eee7201a3ae3943a4dbe66d6d9b11))
+* **soundfont:** uploader attribution, rejection reason + motivated re-proposal ([#182](https://github.com/NEETROF/cymbra/issues/182)) ([44eea47](https://github.com/NEETROF/cymbra/commit/44eea473378e715a620c0557a6079b8c9aca1c4b))
+
+
+### Bug Fixes
+
+* **music:** stop the Android MIDI freeze and stuck virtual-piano keys ([#184](https://github.com/NEETROF/cymbra/issues/184)) ([0274485](https://github.com/NEETROF/cymbra/commit/027448501c617620ec2d37020c3426b4dac6c20a))
+
 ## [1.18.0](https://github.com/NEETROF/cymbra/compare/music-v1.17.0...music-v1.18.0) (2026-08-05)
 
 
