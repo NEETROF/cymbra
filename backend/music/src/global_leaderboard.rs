@@ -72,6 +72,12 @@ pub struct GlobalScore {
     pub contributing_pieces: i32,
     /// When the score was reached (its latest contribution). Last tie-break, asc.
     pub reached_at_ms: i64,
+    /// Whether the player had consented to being listed **when the season closed**
+    /// — only meaningful on a SNAPSHOT row, where it freezes past consent so the
+    /// archive's ranking stays stable (design D5). A live aggregation leaves it
+    /// `true`: there, the live [`cymbra_user_port::UserPort`] gate decides and this
+    /// field is never consulted.
+    pub was_listable: bool,
 }
 
 /// Storage surface for the global-leaderboard season data.
@@ -88,8 +94,9 @@ pub trait GlobalLeaderboardRepo: Send + Sync {
     async fn season_bests(&self, season_id: &str, mode: Mode) -> Result<Vec<SeasonBestRow>>;
 
     /// The snapshotted final standings of a past `(season, mode)`, empty when that
-    /// season has not been snapshotted. Raw aggregates, NOT ranks: the listing gate
-    /// and the ranking are re-applied on read.
+    /// season has not been snapshotted. Raw aggregates, NOT ranks: the ranking is
+    /// recomputed on read, and each row carries the `was_listable` consent frozen
+    /// when the season closed (the age safeguard is re-checked live).
     async fn snapshot_standings(&self, season_id: &str, mode: Mode) -> Result<Vec<GlobalScore>>;
 
     /// Freeze `standings` as the final hall-of-fame rows for `(season, mode)`.

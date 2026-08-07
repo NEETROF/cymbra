@@ -21,15 +21,22 @@
 //!   integrity checks. Each is monotonically upserted as the player's season best
 //!   for the season it was *achieved* in — idempotent under at-least-once ingest.
 //! * **Read** ([`GlobalLeaderboardModule::get_board`]): rank one `(mode, season)`,
-//!   listing only **public + age-eligible** players (the #5 gate, fail-closed) but
 //!   always returning the caller their **own** global rank + score among the public
 //!   entries, even when the caller is private or under-age. Viewing itself is open
-//!   to any authenticated user. No sensitive fields leave here.
+//!   to any authenticated user. No sensitive fields leave here. Which listing gate
+//!   applies depends on the season:
+//!   * a **live** season is gated on the CURRENT profile — public AND age-eligible
+//!     (the #5 gate, fail-closed);
+//!   * an **archived** season replays the consent frozen when it closed and
+//!     re-checks only the AGE safeguard live, so a past ranking stays stable when a
+//!     player goes private afterwards, while anyone who must not be listed at all
+//!     still disappears from it.
 //! * **Rollover** ([`GlobalLeaderboardModule::run_season_snapshot`]): freezes a
-//!   closed season's final standings into the hall of fame. Idempotent, so the
-//!   scheduled worker job is safe under at-least-once delivery.
+//!   closed season's final standings — and each player's consent to be listed — into
+//!   the hall of fame. Idempotent, so the scheduled worker job is safe under
+//!   at-least-once delivery.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -179,21 +186,30 @@ impl GlobalLeaderboardModule {
         let season = season_id
             .map(str::to_string)
             .unwrap_or_else(|| self.cfg.season_at(now.timestamp_millis()).id);
-        let all = self.standings(&season, mode).await?;
+        let (all, frozen) = self.standings(&season, mode).await?;
         let ids: Vec<String> = all.iter().map(|s| s.user_id.clone()).collect();
 
-        // The public + age-eligible subset, with their non-sensitive display fields.
-        let profiles: HashMap<String, PlayerProfile> = self
-            .user
-            .listable_profiles(&ids, today)
-            .await?
-            .into_iter()
-            .map(|p| (p.user_id.clone(), p))
-            .collect();
+        // Which gate applies depends on where the standings came from (design D5):
+        //
+        // * a LIVE season is gated on the CURRENT profile — public AND age-eligible;
+        // * a FROZEN (archived) season replays the consent recorded when it closed,
+        //   `was_listable`, and re-checks only the AGE safeguard live. That keeps a
+        //   past ranking stable when a player goes private afterwards, while still
+        //   removing anyone who must not be listed at all.
+        //
+        // Either way the map supplies the non-sensitive display fields.
+        let profiles: HashMap<String, PlayerProfile> = if frozen {
+            self.user.age_eligible_profiles(&ids, today).await?
+        } else {
+            self.user.listable_profiles(&ids, today).await?
+        }
+        .into_iter()
+        .map(|p| (p.user_id.clone(), p))
+        .collect();
 
         let public: Vec<&GlobalScore> = all
             .iter()
-            .filter(|s| profiles.contains_key(&s.user_id))
+            .filter(|s| profiles.contains_key(&s.user_id) && (!frozen || s.was_listable))
             .collect();
         let total = public.len() as i32;
 
@@ -239,24 +255,29 @@ impl GlobalLeaderboardModule {
         })
     }
 
-    /// Freeze the season that has just CLOSED at `now_ms` into the hall of fame
+    /// Freeze the season that has just CLOSED at `now` into the hall of fame
     /// (task 2.2) — see [`snapshot_closed_season`].
-    pub async fn run_season_snapshot(&self, now_ms: i64) -> Result<u64> {
-        snapshot_closed_season(self.repo.as_ref(), &self.cfg, now_ms).await
+    pub async fn run_season_snapshot(&self, now: DateTime<Utc>) -> Result<u64> {
+        snapshot_closed_season(self.repo.as_ref(), self.user.as_ref(), &self.cfg, now).await
     }
 
-    /// The standings for one `(season, mode)` in ranking order: the frozen snapshot
-    /// when the season has one, else a live aggregation of its season bests (which
-    /// also covers a closed-but-not-yet-snapshotted season).
-    async fn standings(&self, season_id: &str, mode: Mode) -> Result<Vec<GlobalScore>> {
+    /// The standings for one `(season, mode)` in ranking order, plus whether they
+    /// came from a **frozen** snapshot: the archive when the season has one, else a
+    /// live aggregation of its season bests (which also covers a closed-but-not-
+    /// yet-snapshotted season).
+    ///
+    /// The flag matters because the two carry different consent: a live aggregation
+    /// is gated on the CURRENT visibility, while a frozen one already recorded who
+    /// had consented when the season closed.
+    async fn standings(&self, season_id: &str, mode: Mode) -> Result<(Vec<GlobalScore>, bool)> {
         let snapshot = self.repo.snapshot_standings(season_id, mode).await?;
         if !snapshot.is_empty() {
             let mut ranked = snapshot;
             ranked.sort_by(global_leaderboard_core::rank_cmp);
-            return Ok(ranked);
+            return Ok((ranked, true));
         }
         let rows = self.repo.season_bests(season_id, mode).await?;
-        Ok(global_leaderboard_core::aggregate(&rows, &self.cfg))
+        Ok((global_leaderboard_core::aggregate(&rows, &self.cfg), false))
     }
 }
 
@@ -275,10 +296,12 @@ impl GlobalLeaderboardModule {
 /// snapshot stores raw aggregates and the gate is re-applied on read.
 pub async fn snapshot_closed_season(
     repo: &dyn GlobalLeaderboardRepo,
+    user: &dyn UserPort,
     cfg: &GlobalConfig,
-    now_ms: i64,
+    now: DateTime<Utc>,
 ) -> Result<u64> {
-    let season = cfg.previous_season(now_ms);
+    let season = cfg.previous_season(now.timestamp_millis());
+    let today = now.date_naive();
     let mut written = 0;
     for mode in [Mode::Tempo, Mode::Reaction] {
         // Already snapshotted ⇒ nothing to do (idempotent re-delivery).
@@ -286,9 +309,23 @@ pub async fn snapshot_closed_season(
             continue;
         }
         let rows = repo.season_bests(&season.id, mode).await?;
-        let standings = global_leaderboard_core::aggregate(&rows, cfg);
+        let mut standings = global_leaderboard_core::aggregate(&rows, cfg);
         if standings.is_empty() {
             continue;
+        }
+        // FREEZE each player's consent to be listed as it stands now, at the close
+        // of the season (design D5). This is what keeps the archive's ranking
+        // stable when someone later goes private. The age safeguard is NOT frozen
+        // with it — `get_board` re-checks it live on every archive read.
+        let ids: Vec<String> = standings.iter().map(|s| s.user_id.clone()).collect();
+        let listable: HashSet<String> = user
+            .listable_profiles(&ids, today)
+            .await?
+            .into_iter()
+            .map(|p| p.user_id)
+            .collect();
+        for s in &mut standings {
+            s.was_listable = listable.contains(&s.user_id);
         }
         written += repo.write_snapshot(&season.id, mode, &standings).await?;
     }
@@ -353,25 +390,48 @@ mod tests {
         }
     }
 
+    fn profile(id: &str) -> PlayerProfile {
+        PlayerProfile {
+            user_id: id.to_string(),
+            handle: Some(format!("@{id}")),
+            display_name: Some(id.to_string()),
+            visibility: cymbra_user_port::Visibility::Public,
+        }
+    }
+
     /// A module whose user port lists exactly `public` (each with a handle) and
-    /// resolves any own-profile self-read.
+    /// resolves any own-profile self-read. Everyone is age-eligible.
     fn module(
         repo: Arc<FakeGlobalLeaderboardRepo>,
         public: &'static [&'static str],
+    ) -> GlobalLeaderboardModule {
+        module_with_age(repo, public, None)
+    }
+
+    /// As [`module`], but `age_ok` (when `Some`) restricts who passes the MINIMUM-AGE
+    /// safeguard — the half of the gate that stays live even on a frozen season.
+    fn module_with_age(
+        repo: Arc<FakeGlobalLeaderboardRepo>,
+        public: &'static [&'static str],
+        age_ok: Option<&'static [&'static str]>,
     ) -> GlobalLeaderboardModule {
         let mut user = MockUserPort::new();
         user.expect_listable_profiles().returning(move |ids, _| {
             Ok(ids
                 .iter()
                 .filter(|id| public.contains(&id.as_str()))
-                .map(|id| PlayerProfile {
-                    user_id: id.clone(),
-                    handle: Some(format!("@{id}")),
-                    display_name: Some(id.clone()),
-                    visibility: cymbra_user_port::Visibility::Public,
-                })
+                .map(|id| profile(id))
                 .collect())
         });
+        // Visibility-blind: returns a now-private player too, gated on age only.
+        user.expect_age_eligible_profiles()
+            .returning(move |ids, _| {
+                Ok(ids
+                    .iter()
+                    .filter(|id| age_ok.is_none_or(|ok| ok.contains(&id.as_str())))
+                    .map(|id| profile(id))
+                    .collect())
+            });
         user.expect_get_player_profile().returning(|_, target, _| {
             Ok(PlayerProfile {
                 user_id: target.to_string(),
@@ -593,7 +653,7 @@ mod tests {
         play(&m, "a", "p", 90.0, t0()).await;
 
         // At an instant inside season 1, the snapshot freezes season 0.
-        let written = m.run_season_snapshot(t1()).await.unwrap();
+        let written = m.run_season_snapshot(at(t1())).await.unwrap();
         assert_eq!(written, 1);
         let s0 = GlobalConfig::default().season_at(t0()).id;
         assert_eq!(
@@ -642,9 +702,9 @@ mod tests {
         let repo = Arc::new(FakeGlobalLeaderboardRepo::default());
         let m = module(repo.clone(), &["a"]);
         play(&m, "a", "p", 90.0, t0()).await;
-        assert_eq!(m.run_season_snapshot(t1()).await.unwrap(), 1);
+        assert_eq!(m.run_season_snapshot(at(t1())).await.unwrap(), 1);
         // A re-delivered job writes nothing more (and does not duplicate).
-        assert_eq!(m.run_season_snapshot(t1()).await.unwrap(), 0);
+        assert_eq!(m.run_season_snapshot(at(t1())).await.unwrap(), 0);
         let s0 = GlobalConfig::default().season_at(t0()).id;
         assert_eq!(
             repo.snapshot_standings(&s0, Mode::Tempo)
@@ -659,37 +719,89 @@ mod tests {
     async fn rollover_of_an_empty_season_writes_nothing() {
         let repo = Arc::new(FakeGlobalLeaderboardRepo::default());
         let m = module(repo.clone(), &[]);
-        assert_eq!(m.run_season_snapshot(t1()).await.unwrap(), 0);
+        assert_eq!(m.run_season_snapshot(at(t1())).await.unwrap(), 0);
         assert!(m.seasons(t1()).await.unwrap().past_season_ids.is_empty());
     }
 
-    #[tokio::test]
-    async fn a_past_season_re_applies_the_listing_gate() {
-        let repo = Arc::new(FakeGlobalLeaderboardRepo::default());
-        // "gone" was public when the season ran but is NOT listable now.
-        let m = module(repo.clone(), &["a"]);
-        play(&m, "a", "p1", 90.0, t0()).await;
-        play(&m, "gone", "p2", 95.0, t0()).await;
-        m.run_season_snapshot(t1()).await.unwrap();
+    /// Seed a closed season with `a` (90) and `b` (95) and freeze it, with `public`
+    /// deciding who had consented to be listed AT THE CLOSE. Returns the season id.
+    async fn frozen_season(m: &GlobalLeaderboardModule) -> String {
+        play(m, "a", "p1", 90.0, t0()).await;
+        play(m, "b", "p2", 95.0, t0()).await;
+        m.run_season_snapshot(at(t1())).await.unwrap();
+        GlobalConfig::default().season_at(t0()).id
+    }
 
-        let s0 = GlobalConfig::default().season_at(t0()).id;
-        let past = m
-            .get_board(
-                "gone",
-                Mode::Tempo,
-                Some(&s0),
-                Page {
-                    offset: 0,
-                    limit: 50,
-                },
-                at(t1()),
-            )
-            .await
-            .unwrap();
-        // Not listed to others any more...
+    async fn past_board(m: &GlobalLeaderboardModule, viewer: &str, season: &str) -> GlobalBoard {
+        m.get_board(
+            viewer,
+            Mode::Tempo,
+            Some(season),
+            Page {
+                offset: 0,
+                limit: 50,
+            },
+            at(t1()),
+        )
+        .await
+        .unwrap()
+    }
+
+    #[tokio::test]
+    async fn a_past_season_keeps_a_player_who_has_since_gone_private() {
+        let repo = Arc::new(FakeGlobalLeaderboardRepo::default());
+        // Both were public when the season closed…
+        let m = module(repo.clone(), &["a", "b"]);
+        let s0 = frozen_season(&m).await;
+
+        // …then "b" goes private. The archive must NOT re-rank: history is frozen.
+        let m = module(repo.clone(), &["a"]);
+        let past = past_board(&m, "a", &s0).await;
+        assert_eq!(past.total, 2);
+        assert_eq!(past.entries[0].user_id, "b"); // still #1, still listed
+        assert_eq!(past.entries[1].user_id, "a");
+    }
+
+    #[tokio::test]
+    async fn a_past_season_never_lists_someone_who_was_private_when_it_closed() {
+        let repo = Arc::new(FakeGlobalLeaderboardRepo::default());
+        // Only "a" had consented at the close; "b" was private then.
+        let m = module(repo.clone(), &["a"]);
+        let s0 = frozen_season(&m).await;
+
+        // "b" goes public afterwards — that must NOT retro-add them to the archive.
+        let m = module(repo.clone(), &["a", "b"]);
+        let past = past_board(&m, "a", &s0).await;
         assert_eq!(past.total, 1);
         assert_eq!(past.entries[0].user_id, "a");
-        // ...but still sees their own past standing (rank 1 of the public set).
+    }
+
+    #[tokio::test]
+    async fn a_past_season_still_drops_someone_no_longer_age_eligible() {
+        let repo = Arc::new(FakeGlobalLeaderboardRepo::default());
+        // Both consented at the close, so both are frozen as listable…
+        let m = module(repo.clone(), &["a", "b"]);
+        let s0 = frozen_season(&m).await;
+
+        // …but the AGE safeguard stays live: "b" no longer passes it, so the frozen
+        // consent must not pin them in the archive.
+        let m = module_with_age(repo.clone(), &["a", "b"], Some(&["a"]));
+        let past = past_board(&m, "a", &s0).await;
+        assert_eq!(past.total, 1);
+        assert_eq!(past.entries[0].user_id, "a");
+    }
+
+    #[tokio::test]
+    async fn a_past_season_shows_a_private_caller_their_own_standing() {
+        let repo = Arc::new(FakeGlobalLeaderboardRepo::default());
+        // Only "a" consented at the close; "b" was private then and still is.
+        let m = module(repo.clone(), &["a"]);
+        let s0 = frozen_season(&m).await;
+
+        let past = past_board(&m, "b", &s0).await;
+        // Not listed to others…
+        assert!(past.entries.iter().all(|e| e.user_id != "b"));
+        // …but still sees their own past standing (95 beats a's 90 → rank 1).
         assert_eq!(past.own.expect("own standing").rank, 1);
     }
 
@@ -703,7 +815,7 @@ mod tests {
         assert!(seasons.past_season_ids.is_empty());
 
         play(&m, "a", "p", 90.0, t0()).await;
-        m.run_season_snapshot(t1()).await.unwrap();
+        m.run_season_snapshot(at(t1())).await.unwrap();
         let seasons = m.seasons(t1()).await.unwrap();
         assert_eq!(seasons.current_season_id, cfg.season_at(t1()).id);
         assert_eq!(seasons.past_season_ids, vec![cfg.season_at(t0()).id]);

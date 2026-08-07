@@ -273,7 +273,8 @@ pub async fn consensus_honesty_settlement(
 pub async fn global_season_snapshot(mut job: CurrentJob, ctx: WorkerCtx) -> Result<(), BoxError> {
     let span = tracing::info_span!("job.global_season_snapshot", job_id = %job.id());
     async move {
-        let frozen = cymbra_worker::snapshot_global_season(&ctx.admin_pool).await?;
+        let frozen =
+            cymbra_worker::snapshot_global_season(&ctx.admin_pool, ctx.user.as_ref()).await?;
         if frozen > 0 {
             tracing::info!(frozen, "global leaderboard season snapshot complete");
         }

@@ -184,6 +184,9 @@ pub fn aggregate(rows: &[SeasonBestRow], cfg: &GlobalConfig) -> Vec<GlobalScore>
                 contributing_pieces: kept.len() as i32,
                 // The current score exists only once its LAST contribution landed.
                 reached_at_ms: kept.iter().map(|(_, at)| *at).max().unwrap_or(0),
+                // A live aggregation carries no frozen consent — the live gate
+                // decides. The snapshot writer stamps the real value.
+                was_listable: true,
             })
         })
         .collect();
@@ -367,12 +370,14 @@ mod tests {
             score: 1.0,
             contributing_pieces: 1,
             reached_at_ms: 10,
+            was_listable: true,
         };
         let late = GlobalScore {
             user_id: "late".into(),
             score: 1.0,
             contributing_pieces: 1,
             reached_at_ms: 20,
+            was_listable: true,
         };
         assert_eq!(rank_cmp(&early, &late), Ordering::Less);
     }
@@ -389,6 +394,7 @@ mod tests {
             score,
             contributing_pieces: 1,
             reached_at_ms: 1,
+            was_listable: true,
         };
         let public = vec![s("a", 9.0), s("b", 5.0), s("c", 2.0)];
         // A private caller at 4.0 slots between b and c → rank 3.

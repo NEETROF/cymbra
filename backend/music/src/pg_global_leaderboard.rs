@@ -114,6 +114,7 @@ impl GlobalLeaderboardRepo for PgGlobalLeaderboardRepo {
     async fn snapshot_standings(&self, season_id: &str, mode: Mode) -> Result<Vec<GlobalScore>> {
         let rows = sqlx::query(
             "SELECT user_id::text AS user_id, global_score, contributing_pieces, \
+             was_listable, \
              (extract(epoch FROM reached_at) * 1000)::bigint AS reached_at_ms \
              FROM music.global_season_snapshots \
              WHERE season_id = $1 AND mode = $2 \
@@ -131,6 +132,7 @@ impl GlobalLeaderboardRepo for PgGlobalLeaderboardRepo {
                 score: r.get::<f32, _>("global_score") as f64,
                 contributing_pieces: r.get::<i32, _>("contributing_pieces"),
                 reached_at_ms: r.get::<i64, _>("reached_at_ms"),
+                was_listable: r.get::<bool, _>("was_listable"),
             })
             .collect())
     }
@@ -149,8 +151,9 @@ impl GlobalLeaderboardRepo for PgGlobalLeaderboardRepo {
                 .map_err(|_| AppError::InvalidArgument("invalid user id".into()))?;
             let res = sqlx::query(
                 "INSERT INTO music.global_season_snapshots \
-                 (season_id, mode, user_id, global_score, contributing_pieces, reached_at) \
-                 VALUES ($1, $2, $3, $4, $5, $6) \
+                 (season_id, mode, user_id, global_score, contributing_pieces, reached_at, \
+                  was_listable) \
+                 VALUES ($1, $2, $3, $4, $5, $6, $7) \
                  ON CONFLICT (season_id, mode, user_id) DO NOTHING",
             )
             .bind(season_id)
@@ -159,6 +162,7 @@ impl GlobalLeaderboardRepo for PgGlobalLeaderboardRepo {
             .bind(s.score as f32)
             .bind(s.contributing_pieces)
             .bind(to_datetime(s.reached_at_ms)?)
+            .bind(s.was_listable)
             .execute(&self.pool)
             .await
             .map_err(internal)?;

@@ -187,10 +187,18 @@ pub async fn settle_consensus_honesty(admin_pool: &PgPool) -> anyhow::Result<u64
 /// at-least-once redelivery — and the daily cadence on days with no rollover — are
 /// both safe. Returns the number of standings newly frozen. Runs as `admin_svc`
 /// (the only worker actor allowed to write `music`).
-pub async fn snapshot_global_season(admin_pool: &PgPool) -> anyhow::Result<u64> {
+///
+/// Needs the [`cymbra_user_port::UserPort`] because the snapshot FREEZES each
+/// player's consent to be listed as it stands at the close of the season — the
+/// archive's ranking then stays stable when someone later goes private (the age
+/// safeguard is still re-checked live on every read).
+pub async fn snapshot_global_season(
+    admin_pool: &PgPool,
+    user: &dyn cymbra_user_port::UserPort,
+) -> anyhow::Result<u64> {
     let repo = cymbra_music::PgGlobalLeaderboardRepo::new(admin_pool.clone());
     let cfg = cymbra_music::GlobalConfig::default();
-    cymbra_music::snapshot_closed_season(&repo, &cfg, chrono::Utc::now().timestamp_millis())
+    cymbra_music::snapshot_closed_season(&repo, user, &cfg, chrono::Utc::now())
         .await
         .map_err(|e| anyhow::anyhow!("global season snapshot: {e}"))
 }
