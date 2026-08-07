@@ -125,31 +125,35 @@ class StaffPainter extends CustomPainter {
     final pxPerMs = (size.width - playLineX - margin) / lookAheadMs;
     double xForTime(double tMs) => playLineX + (tMs - elapsedMs) * pxPerMs;
 
-    // Vertical placement of the staff/staves. Stems are always drawn upward, so
-    // reserve headroom above the top staff line for up-stems, beams and flags
-    // (~3.9·lineGap) plus a little ledger room; otherwise high notes near the
-    // top clip against the render area — visible on short phone-landscape
-    // viewports, where the proportional margin alone is too small.
-    final stemHeadroom = lineGap * 4.6;
+    // Vertical placement of the staff/staves. Stems follow the notation, so a
+    // note can carry its stem and beam either above or below its head: reserve
+    // the same clearance on both sides of the system (~3.9·lineGap of stem/beam
+    // plus a little ledger room). Otherwise notes near the top or bottom clip
+    // against the render area — visible on short phone-landscape viewports,
+    // where the proportional margin alone is too small.
+    final stemClearance = lineGap * 4.6;
     final double trebleBottom;
     final double? bassBottom;
     if (twoStaff) {
       // Place the staves proportionally to the viewport height: treble near the
       // top, bass near the bottom, with a margin above/below for ledger lines,
       // stems and beams. Both stay fully visible and well separated at any
-      // height (the inter-staff gap grows with a taller viewport). The top
-      // margin never drops below the stem headroom.
-      final topMargin = math.max(size.height * 0.14, stemHeadroom);
-      final bottomMargin = size.height * 0.14;
+      // height (the inter-staff gap grows with a taller viewport). Neither
+      // margin ever drops below the stem clearance.
+      final topMargin = math.max(size.height * 0.14, stemClearance);
+      final bottomMargin = math.max(size.height * 0.14, stemClearance);
       trebleBottom = topMargin + 4 * lineGap;
       bassBottom = size.height - bottomMargin;
     } else {
-      // Centre the lone staff, but guarantee the up-stem headroom above its top
-      // line so high notes stay visible on short viewports.
-      trebleBottom = math.max(
-        size.height / 2 + 2 * lineGap,
-        stemHeadroom + 4 * lineGap,
-      );
+      // Centre the lone staff, but guarantee the stem clearance above its top
+      // line and below its bottom line so extreme notes stay visible on short
+      // viewports. The top constraint wins when both cannot be met.
+      final lowest = stemClearance + 4 * lineGap; // clearance above the staff
+      final highest = size.height - stemClearance; // clearance below the staff
+      final centred = size.height / 2 + 2 * lineGap;
+      trebleBottom = highest > lowest
+          ? centred.clamp(lowest, highest)
+          : math.max(centred, lowest);
       bassBottom = null;
     }
 
@@ -318,6 +322,17 @@ class StaffPainter extends CustomPainter {
       return base - (dia - bottom) * stepGap;
     }
 
+    // Stem direction for a note: the one the notation engraves when it carries
+    // it, else the engraving default (heads below the middle line stem up).
+    // Same rule as the Partition view, so both render a run of eighths alike.
+    bool stemUpOf(TimedNote n) {
+      final carried = n.stemUp;
+      if (carried != null) return carried;
+      final isBass = bassBottom != null && n.staff >= 2;
+      final base = isBass ? bassBottom : trebleBottom;
+      return noteY(n) >= base - 2 * lineGap;
+    }
+
     final quarterMs = bpm > 0 ? 60000.0 / bpm : 500.0;
     int flagsOf(TimedNote n) {
       final ratio = n.durationMs / quarterMs;
@@ -389,10 +404,33 @@ class StaffPainter extends CustomPainter {
 
       final head = _headGlyph(n, quarterMs);
       _drawHead(canvas, Offset(x, y), lineGap, atPlayhead, color, head);
+      // Accidental engraved on this note (sharp/flat/natural…), left of the
+      // head like the Partition view — without it a D♯ reads as a plain D.
+      final token = n.accidental;
+      if (token != null) {
+        final glyph = Smufl.accidental(token);
+        if (glyph != null) {
+          Smufl.draw(
+            canvas,
+            glyph,
+            x - Smufl.noteheadWidth * lineGap / 2 - lineGap * 1.5,
+            y,
+            lineGap,
+            color,
+          );
+        }
+      }
       // Whole notes carry no stem; others do. Beamed notes get their stem/beam
       // from the group pass, so only unbeamed non-whole notes stem here.
       if (!beamed.contains(n) && head != Smufl.noteheadWhole) {
-        _drawStemFlag(canvas, Offset(x, y), lineGap, color, flagsOf(n));
+        _drawStemFlag(
+          canvas,
+          Offset(x, y),
+          lineGap,
+          color,
+          flagsOf(n),
+          stemUpOf(n),
+        );
       }
       if (n.dots > 0) _drawDots(canvas, Offset(x, y), lineGap, n.dots, color);
       final isBass = bassBottom != null && n.staff >= 2;
@@ -431,7 +469,8 @@ class StaffPainter extends CustomPainter {
       }
     }
 
-    // 5) Beams over their groups (stems up, one straight beam each).
+    // 5) Beams over (or under) their groups — one straight beam each, on the
+    // side the group's stems point to.
     for (final group in beamGroups) {
       if (group.length < 2) {
         if (group.length == 1 &&
@@ -443,6 +482,7 @@ class StaffPainter extends CustomPainter {
             lineGap,
             colorFor(n),
             flagsOf(n),
+            stemUpOf(n),
           );
         }
         continue;
@@ -451,7 +491,7 @@ class StaffPainter extends CustomPainter {
           .map((n) => Offset(xForTime(n.startMs.toDouble()), noteY(n)))
           .toList();
       if (pts.every((p) => !visible(p.dx))) continue;
-      _drawBeam(canvas, pts, group, lineGap);
+      _drawBeam(canvas, pts, group, lineGap, stemUpOf(group.first));
     }
 
     canvas.restore(); // end the scrolling-glyph clip
@@ -626,44 +666,63 @@ class StaffPainter extends CustomPainter {
     }
   }
 
-  /// Up-stem and (for unbeamed notes) flags, attached at the head anchor.
+  /// Stem length beyond the head anchor, in staff spaces (a standard octave).
+  static const double _stemLen = 3.2;
+
+  /// Stem and (for unbeamed notes) flags, attached at the head anchor on the
+  /// side the stem points to.
   void _drawStemFlag(
     Canvas canvas,
     Offset center,
     double lineGap,
     Color color,
     int flags,
+    bool up,
   ) {
-    final stemX = _stemX(center, lineGap);
-    final stemBottom = center.dy - Smufl.stemUpAnchorY * lineGap;
-    final stemTop = stemBottom - lineGap * 3.2;
+    final anchor = _stemAnchor(center, lineGap, up);
+    final tipY = up
+        ? anchor.dy - lineGap * _stemLen
+        : anchor.dy + lineGap * _stemLen;
     canvas.drawLine(
-      Offset(stemX, stemBottom),
-      Offset(stemX, stemTop),
+      anchor,
+      Offset(anchor.dx, tipY),
       Paint()
         ..color = color
         ..strokeWidth = Smufl.stemThickness * lineGap
         ..strokeCap = StrokeCap.round,
     );
     if (flags > 0) {
-      final glyph = flags >= 2 ? Smufl.flag16thUp : Smufl.flag8thUp;
-      Smufl.draw(canvas, glyph, stemX, stemTop, lineGap, color);
+      final glyph = flags >= 2
+          ? (up ? Smufl.flag16thUp : Smufl.flag16thDown)
+          : (up ? Smufl.flag8thUp : Smufl.flag8thDown);
+      Smufl.draw(canvas, glyph, anchor.dx, tipY, lineGap, color);
     }
   }
 
-  double _stemX(Offset center, double lineGap) =>
-      center.dx -
-      Smufl.noteheadWidth * lineGap / 2 +
-      Smufl.stemUpAnchorX * lineGap;
+  /// Stem-attachment point on the note head for the given direction: the head's
+  /// right edge going up, its left edge going down.
+  Offset _stemAnchor(Offset center, double lineGap, bool up) {
+    final headLeft = center.dx - Smufl.noteheadWidth * lineGap / 2;
+    return up
+        ? Offset(
+            headLeft + Smufl.stemUpAnchorX * lineGap,
+            center.dy - Smufl.stemUpAnchorY * lineGap,
+          )
+        : Offset(
+            headLeft + Smufl.stemDownAnchorX * lineGap,
+            center.dy - Smufl.stemDownAnchorY * lineGap,
+          );
+  }
 
-  /// One straight beam over a group of note heads, with stems of varying length
-  /// reaching it (matching the Partition engraving), plus a secondary beam for
-  /// consecutive sixteenths.
+  /// One straight beam across a group of note heads, on the side [up] points
+  /// to, with stems of varying length reaching it (matching the Partition
+  /// engraving), plus a secondary beam for consecutive sixteenths.
   void _drawBeam(
     Canvas canvas,
     List<Offset> pts,
     List<TimedNote> group,
     double lineGap,
+    bool up,
   ) {
     final color = CymbraColors.onSurfaceVariant.withValues(alpha: 0.75);
     final quarterMs = bpm > 0 ? 60000.0 / bpm : 500.0;
@@ -672,38 +731,30 @@ class StaffPainter extends CustomPainter {
       ..strokeWidth = Smufl.stemThickness * lineGap
       ..strokeCap = StrokeCap.round;
 
-    var beamY = double.infinity;
-    final stemBottoms = <double>[];
-    final stemXs = <double>[];
-    for (final p in pts) {
-      final sb = p.dy - Smufl.stemUpAnchorY * lineGap;
-      stemBottoms.add(sb);
-      stemXs.add(_stemX(p, lineGap));
-      final top = sb - lineGap * 3.2;
-      if (top < beamY) beamY = top;
-    }
-    for (var i = 0; i < pts.length; i++) {
-      canvas.drawLine(
-        Offset(stemXs[i], stemBottoms[i]),
-        Offset(stemXs[i], beamY),
-        stemPaint,
-      );
+    final anchors = pts.map((p) => _stemAnchor(p, lineGap, up)).toList();
+    // Flat beam clearing the extreme head of the group by the stem length.
+    final beamY = up
+        ? anchors.map((a) => a.dy).reduce(math.min) - lineGap * _stemLen
+        : anchors.map((a) => a.dy).reduce(math.max) + lineGap * _stemLen;
+    for (final a in anchors) {
+      canvas.drawLine(a, Offset(a.dx, beamY), stemPaint);
     }
     canvas.drawLine(
-      Offset(stemXs.first, beamY),
-      Offset(stemXs.last, beamY),
+      Offset(anchors.first.dx, beamY),
+      Offset(anchors.last.dx, beamY),
       Paint()
         ..color = color
         ..strokeWidth = Smufl.beamThickness * lineGap,
     );
-    // Secondary beam between consecutive sixteenths (duration < a third beat).
+    // Secondary beam between consecutive sixteenths (duration < a third beat),
+    // stacked on the staff side of the primary beam.
     bool isSixteenth(TimedNote n) => n.durationMs / quarterMs <= 0.32;
-    final off = (Smufl.beamThickness + 0.2) * lineGap;
+    final off = (up ? 1.0 : -1.0) * (Smufl.beamThickness + 0.2) * lineGap;
     for (var i = 0; i < group.length - 1; i++) {
       if (isSixteenth(group[i]) && isSixteenth(group[i + 1])) {
         canvas.drawLine(
-          Offset(stemXs[i], beamY + off),
-          Offset(stemXs[i + 1], beamY + off),
+          Offset(anchors[i].dx, beamY + off),
+          Offset(anchors[i + 1].dx, beamY + off),
           Paint()
             ..color = color
             ..strokeWidth = Smufl.beamThickness * lineGap,

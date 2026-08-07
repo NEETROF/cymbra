@@ -133,6 +133,47 @@ void main() {
       expect(d.rests, isEmpty);
     });
 
+    // The scrolling Portée engraves the accidental and follows the notation's
+    // stem direction, so both have to survive the flattening — dropping them is
+    // what made a D♯ read as a plain D there while the Partition showed it.
+    test('accidental and stem direction are carried onto the timed note', () {
+      final doc = _docWith(
+        notes: [
+          noteEvent(
+            positionDivisions: 0,
+            pitch: const Pitch(step: 'D', octave: 5, alter: 1),
+            noteType: 'eighth',
+            accidental: 'sharp',
+            stem: StemDir.down,
+          ),
+          noteEvent(
+            positionDivisions: 4,
+            pitch: const Pitch(step: 'D', octave: 5, alter: 0),
+            noteType: 'eighth',
+            accidental: 'natural',
+            stem: StemDir.up,
+          ),
+        ],
+      );
+      final d = notationToTimedNotes(doc);
+      expect(d.notes.map((n) => n.accidental), ['sharp', 'natural']);
+      expect(d.notes.map((n) => n.stemUp), [false, true]);
+    });
+
+    test('a note with no accidental or stem carries neither', () {
+      final doc = _docWith(
+        notes: [
+          noteEvent(
+            positionDivisions: 0,
+            pitch: const Pitch(step: 'C', octave: 4, alter: 0),
+          ),
+        ],
+      );
+      final d = notationToTimedNotes(doc);
+      expect(d.notes.single.accidental, isNull);
+      expect(d.notes.single.stemUp, isNull);
+    });
+
     test('a metronome direction overrides the default tempo', () {
       final doc = _docWith(
         notes: [
