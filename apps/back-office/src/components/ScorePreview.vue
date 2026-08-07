@@ -24,8 +24,9 @@ const props = defineProps<{
   elapsedMs?: number;
   playing?: boolean;
   canPlay?: boolean;
-  // Whether to show the read-only metadata list. Off when a moderator edit form is
-  // shown above (it already displays every field), so the info isn't duplicated.
+  // Opt IN to the read-only metadata summary (the moderation screens show it; a bare
+  // preview elsewhere doesn't). Absent boolean props are cast to `false` by Vue, so
+  // "off" is the default.
   showMeta?: boolean;
   // Opt OUT of rendering the Play/Pause transport here — set in review mode, where the
   // transport is hoisted next to the accept/reject buttons (one action row). Phrased as
@@ -103,7 +104,7 @@ function meta(): { label: string; value: string }[] {
 
 <template>
   <div class="preview">
-    <dl v-if="showMeta !== false" class="meta">
+    <dl v-if="showMeta" class="meta">
       <template v-for="m in meta()" :key="m.label">
         <dt>{{ m.label }}</dt>
         <dd>{{ m.value }}</dd>

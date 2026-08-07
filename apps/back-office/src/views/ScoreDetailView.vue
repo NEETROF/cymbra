@@ -3,7 +3,7 @@ import { computed, onMounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { match } from "ts-pattern";
 import ScorePreview from "@/components/ScorePreview.vue";
-import ScoreEditForm from "@/components/ScoreEditForm.vue";
+import ScoreEditDrawer from "@/components/ScoreEditDrawer.vue";
 import SoundFontPicker from "@/components/SoundFontPicker.vue";
 import { useCatalogStore, type MetadataEdit, type ModerationStatus } from "@/stores/catalog";
 import { useAuthStore } from "@/stores/auth";
@@ -95,11 +95,22 @@ const submitError = computed(() =>
     .otherwise(() => null),
 );
 
-// Save a curatorial edit, then re-fetch the hit so the form + preview reflect the
-// recomputed metadata (the server also recomputes the derived search keys + audits).
+// The edit drawer's open state. Opening resets any error from a previous attempt so
+// the form doesn't reopen on a stale alert.
+const editing = ref(false);
+function openEdit() {
+  submit.value = idle;
+  editing.value = true;
+}
+
+// Save a curatorial edit, then re-fetch the hit so the summary reflects the recomputed
+// metadata (the server also recomputes the derived search keys + audits). The drawer
+// stays open on failure, with the error inside it.
 async function saveEdit(edit: MetadataEdit) {
   const outcome = await run(submit, () => store.updateCatalogScore(props.id, edit));
-  if (outcome.status === "success") await run(hit, () => store.fetchHit(props.id));
+  if (outcome.status !== "success") return;
+  editing.value = false;
+  await run(hit, () => store.fetchHit(props.id));
 }
 </script>
 
@@ -107,6 +118,7 @@ async function saveEdit(edit: MetadataEdit) {
   <div class="head">
     <button type="button" @click="leave()">{{ $t("common.back") }}</button>
     <div v-if="auth.isModerator" class="actions">
+      <button type="button" class="edit" @click="openEdit()">{{ $t("edit.open") }}</button>
       <button type="button" class="accept" :disabled="acting" @click="decide('accepted')">
         {{ $t("detail.accept") }}
       </button>
@@ -128,17 +140,15 @@ async function saveEdit(edit: MetadataEdit) {
       · {{ $t("detail.proposedBy", { name: hitVm.hit.proposerDisplayName }) }}
     </span>
   </p>
-  <!-- Metadata surface. For a moderator this IS the edit form (curatorial fields
-       editable, derived facets read-only) — it replaces the read-only list so the
-       info isn't shown twice. A non-moderator gets the read-only list inside the
-       preview below instead. -->
-  <ScoreEditForm
-    v-if="auth.isModerator"
-    class="edit-card"
+  <!-- The metadata surface is always the read-only summary (inside the preview); a
+       moderator edits it through the drawer opened from the action row. -->
+  <ScoreEditDrawer
+    :open="editing"
     :hit="hitVm.hit"
     :submitting="submitting"
     :error="submitError"
     @submit="saveEdit"
+    @close="editing = false"
   />
   <div class="preview-card">
     <SoundFontPicker
@@ -159,7 +169,7 @@ async function saveEdit(edit: MetadataEdit) {
       :elapsed-ms="player.elapsedMs.value"
       :playing="player.playing.value"
       :can-play="player.canPlay.value"
-      :show-meta="!auth.isModerator"
+      show-meta
       @toggle="player.toggle"
       @seek="player.playFrom"
     />
@@ -187,9 +197,6 @@ async function saveEdit(edit: MetadataEdit) {
   padding: 1.5rem;
 }
 .sound-row {
-  margin-bottom: 1rem;
-}
-.edit-card {
   margin-bottom: 1rem;
 }
 .error {

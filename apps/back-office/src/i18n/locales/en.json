@@ -233,7 +233,8 @@
     "reject": "Reject (R)",
     "requeue": "Re-queue (P)",
     "skip": "Skip (S)",
-    "keys": "A accept · R reject · P re-queue · S skip · Space play",
+    "edit": "Edit (E)",
+    "keys": "A accept · R reject · P re-queue · S skip · E edit · Space play",
     "loading": "Loading the queue…",
     "done": "Nothing left to review 🎉",
     "loadError": "Couldn't load the review queue.",
@@ -281,11 +282,13 @@
   },
   "edit": {
     "heading": "Edit metadata",
-    "hint": "Correct the descriptive fields only. The facets below are derived from the score and cannot be edited.",
+    "open": "Edit",
+    "hint": "Only the descriptive fields can be changed — the facets come from the score itself.",
     "levelNone": "— none —",
     "derivedLabel": "Derived facets (read-only)",
     "save": "Save changes",
-    "saving": "Saving…"
+    "saving": "Saving…",
+    "cancel": "Cancel"
   },
   "preview": {
     "title": "Title",

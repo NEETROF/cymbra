@@ -157,6 +157,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   mounted.splice(0).forEach((w) => w.unmount());
+  document.body.innerHTML = ""; // the drawer teleports here
   setNotationWasmForTest(null);
   setAudioWasmForTest(null);
   setSoundFontForTest(null);
@@ -224,9 +225,14 @@ describe("review mode editing", () => {
     const { w, state } = mountReview();
     await flushPromises();
 
-    const form = w.get("form.edit");
-    await form.get('input[type="text"]').setValue("Gymnopédie no 1");
-    await form.trigger("submit");
+    // The metadata is read-only on the page; editing goes through the drawer.
+    expect(document.querySelector("dialog.drawer")).toBeNull();
+    await w.get("button.edit").trigger("click");
+    const title = document.querySelector("dialog.drawer input") as HTMLInputElement;
+    title.value = "Gymnopédie no 1";
+    title.dispatchEvent(new Event("input"));
+    await flushPromises();
+    document.querySelector("form.edit")!.dispatchEvent(new Event("submit"));
     await flushPromises();
 
     expect(state.editCalls).toEqual([
@@ -236,21 +242,34 @@ describe("review mode editing", () => {
     // the header reflects it, without leaving the burn-down.
     expect(state.getCatalogScoreCalls).toBe(1);
     expect(w.get("h2.score-title").text()).toBe("Gymnopédie no 1");
-    // Still on score "a" — editing doesn't consume the queue.
+    // …including the read-only summary the moderator reads (not just the header).
+    expect(w.get(".preview dl.meta").text()).toContain("Gymnopédie no 1");
+    // A successful save closes the drawer and stays on score "a" — editing doesn't
+    // consume the queue.
+    expect(document.querySelector("dialog.drawer")).toBeNull();
     expect(state.evaluateCalls).toHaveLength(0);
   });
 
-  it("keeps the decision shortcuts off the edit form's controls", async () => {
+  it("keeps the decision shortcuts off the open drawer", async () => {
     const { w, state } = mountReview({});
     await flushPromises();
 
-    // "a" typed into the level <select> (or any field of the form) must not accept.
-    w.get("form.edit select").element.dispatchEvent(new KeyboardEvent("keydown", { key: "a", bubbles: true }));
-    w.get("form.edit input").element.dispatchEvent(new KeyboardEvent("keydown", { key: "a", bubbles: true }));
+    await w.get("button.edit").trigger("click");
+    // "a" typed into the level <select> (or anywhere behind the open drawer) must
+    // not accept the score.
+    document
+      .querySelector("form.edit select")!
+      .dispatchEvent(new KeyboardEvent("keydown", { key: "a", bubbles: true }));
+    document.body.dispatchEvent(new KeyboardEvent("keydown", { key: "a", bubbles: true }));
     await flushPromises();
     expect(state.evaluateCalls).toHaveLength(0);
 
-    // …but the same key on the page still drives the burn-down.
+    // Escape closes the drawer instead of leaving review mode…
+    document.body.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    await flushPromises();
+    expect(document.querySelector("dialog.drawer")).toBeNull();
+
+    // …and the shortcuts drive the burn-down again.
     document.body.dispatchEvent(new KeyboardEvent("keydown", { key: "a", bubbles: true }));
     await flushPromises();
     expect(state.evaluateCalls).toEqual([{ scoreId: "a", status: "accepted" }]);

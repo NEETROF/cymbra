@@ -168,7 +168,10 @@ export function installE2EClients(): void {
       },
       getCatalogScore: async (req: { catalogId: string }) => {
         failIfSet("getCatalogScore");
-        return data.hit ?? hits.find((h) => h.id === req.catalogId) ?? hits[0] ?? {};
+        // A copy, like a real RPC deserializing a fresh message: callers rely on the
+        // new identity to know the row changed (the seeded object is also the one the
+        // list handed out, so returning it as-is would look like "nothing moved").
+        return { ...(data.hit ?? hits.find((h) => h.id === req.catalogId) ?? hits[0] ?? {}) };
       },
       // Curatorial metadata edit (change: add-catalog-metadata-editing), reachable
       // from the detail page AND from review mode. Applied in place so a re-read
