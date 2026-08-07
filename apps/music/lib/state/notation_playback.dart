@@ -159,6 +159,12 @@ DerivedPlayback notationToTimedNotes(ScoreDocument document) {
           noteType: note.noteType,
           dots: note.dots,
           diatonic: pitch.octave * 7 + (_diatonicOfStep[pitch.step] ?? 0),
+          accidental: note.accidental,
+          stemUp: switch (note.stem) {
+            StemDir.up => true,
+            StemDir.down => false,
+            null => null,
+          },
         ),
       );
       if (startMs + durationMs > songEndMs) songEndMs = startMs + durationMs;

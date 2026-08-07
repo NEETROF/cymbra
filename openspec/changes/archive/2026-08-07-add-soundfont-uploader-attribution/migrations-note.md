@@ -1,6 +1,8 @@
 # Migration note
 
-This change adds `backend/music/migrations/0015_soundfont_review_feedback.sql`:
+This change adds `backend/music/migrations/0017_soundfont_review_feedback.sql`
+(renumbered from the provisional 0015 — `0015_leaderboard_bests.sql` and
+`0016_curation_rewards.sql` landed first):
 
 ```sql
 -- music module — soundfont rejection reason + motivated re-proposal

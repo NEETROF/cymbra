@@ -70,6 +70,18 @@ class TimedNote {
   /// replay journal (MIDI-only), where the painter falls back to [pitch].
   final int? diatonic;
 
+  /// Accidental token carried from the notation (`"sharp"`, `"flat"`,
+  /// `"natural"`, …) when the score engraves one on this note, so the Staff
+  /// painter draws it left of the head like the engraved Partition. Null when
+  /// the note carries none (or for MIDI-only sources).
+  final String? accidental;
+
+  /// Stem direction carried from the notation (`true` = up, `false` = down), so
+  /// the Staff painter beams and stems eighth runs the same way the Partition
+  /// and the back office do. Null when the score leaves it implicit — the
+  /// painter then derives it from the head's position on the staff.
+  final bool? stemUp;
+
   const TimedNote({
     required this.pitch,
     required this.startMs,
@@ -81,6 +93,8 @@ class TimedNote {
     this.noteType,
     this.dots = 0,
     this.diatonic,
+    this.accidental,
+    this.stemUp,
   });
 }
 

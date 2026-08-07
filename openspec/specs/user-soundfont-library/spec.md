@@ -60,7 +60,11 @@ attestation SHALL NOT by itself satisfy this, because a soundfont is third-party
 data. A proposed font SHALL enter the public catalog as `pending` (subject to the
 soundfont-moderation lifecycle), recorded with the proposer as `uploaded_by`. A proposal
 whose content is byte-identical to a non-`rejected` catalog font MUST be refused as a
-duplicate.
+duplicate. When the proposer's content matches a **`rejected`** catalog font, the proposal
+is a **re-proposal**: it MUST carry a non-empty **justification** (an explanation
+motivating reconsideration) and reopens that font per the soundfont-moderation "Re-proposing
+a rejected soundfont reopens its row and requires a justification" requirement; a first
+proposal (no prior rejected entry) requires no justification.
 
 #### Scenario: Proposal requires licence and attestation
 
@@ -76,6 +80,16 @@ duplicate.
 
 - **WHEN** a user proposes a font whose bytes match a non-`rejected` catalog entry
 - **THEN** the proposal is refused as a duplicate and identifies the existing font
+
+#### Scenario: Re-proposal of a rejected font requires a justification
+
+- **WHEN** a user re-proposes a font whose catalog entry is `rejected`, with a justification
+- **THEN** that entry reopens to `pending`, re-attributed to the proposer, and no second entry is created
+
+#### Scenario: Re-proposal without a justification is refused
+
+- **WHEN** a user re-proposes a `rejected` font without a justification
+- **THEN** the proposal is refused and the entry stays `rejected`
 
 ### Requirement: Per-user private library quota
 

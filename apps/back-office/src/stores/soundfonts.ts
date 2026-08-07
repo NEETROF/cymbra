@@ -157,13 +157,15 @@ export const useSoundFontsStore = defineStore("soundfonts", () => {
   }
 
   /** Set a font's moderation status (accept/reject/re-queue), then re-list
-   *  (change: add-soundfont-moderation). Accepting requires a preview sample to exist
+   *  (change: add-soundfont-moderation). A rejection may carry the moderator's
+   *  `reason`, surfaced back to the uploader (change:
+   *  add-soundfont-uploader-attribution). Accepting requires a preview sample to exist
    *  (change: add-soundfont-entitlement-previews): the server refuses with a
    *  FailedPrecondition, which maps to a clear "generate a sample first" hint. */
-  async function setModerationStatus(id: string, status: string) {
+  async function setModerationStatus(id: string, status: string, reason?: string) {
     op.value = loading;
     try {
-      await api().score.setSoundFontModerationStatus({ id, status });
+      await api().score.setSoundFontModerationStatus({ id, status, reason });
       op.value = success(undefined);
       await list();
     } catch (e) {

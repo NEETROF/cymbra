@@ -186,10 +186,20 @@ class _SoundFontsScreenState extends ConsumerState<SoundFontsScreen>
   Future<void> _propose(PianoEntry entry) async {
     final messenger = ScaffoldMessenger.of(context);
     final l10n = AppLocalizations.of(context);
-    final result = await showDialog<({String license, String attribution})>(
-      context: context,
-      builder: (_) => _ProposeDialog(),
-    );
+    // Re-proposing a rejected font requires a justification (change:
+    // add-soundfont-uploader-attribution); the dialog gates submit on it and
+    // shows the moderator's rejection reason.
+    final rejected = entry.proposalStatus == 'rejected';
+    final result =
+        await showDialog<
+          ({String license, String attribution, String? justification})
+        >(
+          context: context,
+          builder: (_) => _ProposeDialog(
+            rejected: rejected,
+            rejectionReason: entry.proposalRejectionReason,
+          ),
+        );
     if (result == null) return;
     try {
       await ref
@@ -199,6 +209,7 @@ class _SoundFontsScreenState extends ConsumerState<SoundFontsScreen>
             license: result.license,
             attribution: result.attribution,
             attestation: true,
+            resubmissionNote: result.justification,
           );
       showAppSnackBar(messenger, l10n.proposeDone);
     } on PrivateSoundFontException catch (e) {
@@ -489,10 +500,15 @@ class _SoundFontsScreenState extends ConsumerState<SoundFontsScreen>
                         onTap: () => _togglePreview(p),
                         onRename: () => _openEdit(p),
                         onRemove: () => _remove(p),
-                        // Propose only when synced AND not already proposed; once
-                        // proposed the card shows a status tag instead.
+                        // Propose only when synced AND not already proposed —
+                        // except a REJECTED proposal, which may be re-proposed
+                        // with a justification (change:
+                        // add-soundfont-uploader-attribution). Once pending/
+                        // accepted the card shows a status tag instead.
                         onPropose:
-                            (p.remoteId != null && p.proposalStatus == null)
+                            (p.remoteId != null &&
+                                (p.proposalStatus == null ||
+                                    p.proposalStatus == 'rejected'))
                             ? () => _propose(p)
                             : null,
                       ),
@@ -576,6 +592,42 @@ class _SoundCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final subtitle = _subtitle;
+    // Opt-in public contributor credit of a user-contributed catalog font
+    // (change: add-soundfont-uploader-attribution) — absent unless the uploader
+    // has a public profile. Distinct from the licence attribution above.
+    final credit = entry.contributorCredit;
+    // The moderator's motive on a rejected proposal, shown to its uploader.
+    final rejectionReason = entry.proposalStatus == 'rejected'
+        ? entry.proposalRejectionReason
+        : null;
+    final subtitleLines = <Widget>[
+      if (subtitle != null)
+        Text(
+          subtitle,
+          style: const TextStyle(
+            color: CymbraColors.onSurfaceVariant,
+            fontSize: 12,
+          ),
+        ),
+      if (credit != null)
+        Text(
+          l10n.soundfontContributorCredit(credit),
+          style: const TextStyle(
+            color: CymbraColors.onSurfaceVariant,
+            fontSize: 12,
+            fontStyle: FontStyle.italic,
+          ),
+        ),
+      if (rejectionReason != null)
+        Text(
+          l10n.proposeRejectedReason(rejectionReason),
+          style: const TextStyle(
+            color: CymbraColors.error,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+    ];
     return Card(
       color: CymbraColors.surfaceContainerHigh,
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
@@ -602,14 +654,11 @@ class _SoundCard extends StatelessWidget {
           entry.label,
           style: const TextStyle(color: CymbraColors.onSurface),
         ),
-        subtitle: subtitle == null
+        subtitle: subtitleLines.isEmpty
             ? null
-            : Text(
-                subtitle,
-                style: const TextStyle(
-                  color: CymbraColors.onSurfaceVariant,
-                  fontSize: 12,
-                ),
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: subtitleLines,
               ),
         trailing: locked
             ? _RewardLock(cost: lockCost ?? 0, onRedeem: onRedeem)
@@ -868,8 +917,18 @@ const List<String> _proposeLicenses = [
 
 /// Propose dialog: a licence **combobox** (predefined choices) with a short
 /// description of the selection, plus attribution + a right-to-distribute
-/// attestation. Returns `(license, attribution)` on submit.
+/// attestation. Returns `(license, attribution, justification)` on submit.
+///
+/// When re-proposing a **rejected** font ([rejected], change:
+/// add-soundfont-uploader-attribution) it shows the moderator's
+/// [rejectionReason] and requires a non-empty justification before submit —
+/// mirroring the score propose sheet.
 class _ProposeDialog extends StatefulWidget {
+  const _ProposeDialog({this.rejected = false, this.rejectionReason});
+
+  final bool rejected;
+  final String? rejectionReason;
+
   @override
   State<_ProposeDialog> createState() => _ProposeDialogState();
 }
@@ -877,11 +936,13 @@ class _ProposeDialog extends StatefulWidget {
 class _ProposeDialogState extends State<_ProposeDialog> {
   String _license = _proposeLicenses.first;
   final _attribution = TextEditingController();
+  final _justification = TextEditingController();
   bool _attested = false;
 
   @override
   void dispose() {
     _attribution.dispose();
+    _justification.dispose();
     super.dispose();
   }
 
@@ -891,10 +952,13 @@ class _ProposeDialogState extends State<_ProposeDialog> {
     return l10n.licenseDescCcby;
   }
 
+  bool get _canSubmit =>
+      _attested && (!widget.rejected || _justification.text.trim().isNotEmpty);
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final canSubmit = _attested; // a licence is always selected
+    final reason = widget.rejectionReason;
     return AlertDialog(
       title: Text(l10n.proposeTitle),
       content: SingleChildScrollView(
@@ -902,6 +966,16 @@ class _ProposeDialogState extends State<_ProposeDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            if (widget.rejected && reason != null) ...[
+              Text(
+                l10n.proposeRejectedReason(reason),
+                style: const TextStyle(
+                  color: CymbraColors.error,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
             Text(l10n.proposeIntro),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
@@ -928,6 +1002,18 @@ class _ProposeDialogState extends State<_ProposeDialog> {
               controller: _attribution,
               decoration: InputDecoration(labelText: l10n.proposeAttribution),
             ),
+            if (widget.rejected) ...[
+              const SizedBox(height: 8),
+              TextField(
+                controller: _justification,
+                minLines: 2,
+                maxLines: 4,
+                decoration: InputDecoration(
+                  labelText: l10n.proposeJustification,
+                ),
+                onChanged: (_) => setState(() {}),
+              ),
+            ],
             const SizedBox(height: 8),
             CheckboxListTile(
               contentPadding: EdgeInsets.zero,
@@ -944,10 +1030,13 @@ class _ProposeDialogState extends State<_ProposeDialog> {
           child: Text(l10n.proposeCancel),
         ),
         FilledButton(
-          onPressed: canSubmit
+          onPressed: _canSubmit
               ? () => Navigator.of(context).pop((
                   license: _license,
                   attribution: _attribution.text.trim(),
+                  justification: widget.rejected
+                      ? _justification.text.trim()
+                      : null,
                 ))
               : null,
           child: Text(l10n.proposeSubmit),

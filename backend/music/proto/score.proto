@@ -288,7 +288,10 @@ message ListRatingDeckResponse {
 // `instrument` is the instrument family (e.g. "piano"). `has_preview` reports
 // whether a server-rendered preview clip exists (change:
 // add-soundfont-entitlement-previews) — the app greys a locked font's play control
-// up front when no preview is available to audition.
+// up front when no preview is available to audition. `contributor_credit` is the
+// opt-in public "proposé par" credit (change: add-soundfont-uploader-attribution):
+// the uploader's public handle/display name, present only when their profile is
+// Public (fail-closed empty otherwise); distinct from the licence `attribution`.
 message SoundFont {
   string id = 1;
   string label = 2;
@@ -296,6 +299,7 @@ message SoundFont {
   string attribution = 4;
   string instrument = 5;
   bool has_preview = 6;
+  string contributor_credit = 7;
 }
 
 message ListSoundFontsRequest {}
@@ -314,6 +318,11 @@ message ListSoundFontsResponse {
 // whether a server-rendered preview clip exists (change:
 // add-soundfont-entitlement-previews) — drives the back-office play/"Generate sample"
 // control and is required before a font can be accepted.
+// Attribution fields (change: add-soundfont-uploader-attribution), privileged
+// (moderator/admin only, never on a public surface): `uploader_display_name` is
+// `uploaded_by` resolved to the contributor's pseudo (empty for a seeded font);
+// `resubmission_note` is the uploader's justification when a rejected font was
+// re-proposed (reopened), empty otherwise.
 message AdminSoundFont {
   string id = 1;
   string label = 2;
@@ -329,6 +338,8 @@ message AdminSoundFont {
   string uploaded_by = 12;
   string content_sha256 = 13;
   bool has_preview = 14;
+  string uploader_display_name = 15;
+  string resubmission_note = 16;
 }
 
 // Paginated admin listing (change: add-soundfont-moderation). `moderation_status`
@@ -370,9 +381,13 @@ message DeleteSoundFontResponse {}
 
 // Set a catalog font's moderation status (change: add-soundfont-moderation).
 // Music-scope moderator/admin only. `status` is "pending"/"accepted"/"rejected".
+// `reason` (change: add-soundfont-uploader-attribution) is the moderator's
+// rejection motive, surfaced back to the uploader; meaningful only with
+// `rejected` (ignored otherwise), and any decision clears a previously stored one.
 message SetSoundFontModerationStatusRequest {
   string id = 1;
   string status = 2;
+  optional string reason = 3;
 }
 
 message SetSoundFontModerationStatusResponse {}
