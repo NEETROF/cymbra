@@ -3,7 +3,7 @@
 - [ ] 1.1 Create `backend/discord` (`cymbra-discord`) as a workspace member: `Cargo.toml` with workspace deps (`async-trait`, `serde`, `thiserror`, `tracing`, `reqwest`, `sqlx`), Apache header, and a `README.md` stating the port/core split
 - [ ] 1.2 Define the event model in a pure module: `AnnouncementEvent` (kind + subject ids + dedup key) and `EventCategory` (immediate tiers + digest), with the **deny-list encoded in the type** so authentication and non-accepted moderation states are not representable
 - [ ] 1.3 Define the `DiscordSender` port (`publish`, `grant_role`, `revoke_role`) + error type; add `#[automock]` for test doubles per the `rust-testing` convention
-- [ ] 1.4 Implement pure `category → channel` routing over a configuration map; an unmapped category resolves to "no channel" (no-op), never to a default channel
+- [ ] 1.4 Implement pure `(product, category) → channel` routing over a configuration map with product-namespaced categories (`music.*`, `id.*`, later `live.*`); an unmapped pair resolves to "no channel" (no-op), never to a default channel, so one product can never post in another's section
 - [ ] 1.5 Implement pure message rendering per event kind, locale-parameterised (D9), with a rendering test per kind asserting no id/email leaks into the body
 - [ ] 1.6 Implement the pure throttle + aggregate-minimum arithmetic (per-player window, minimum player count below which a figure is omitted) with unit tests on the boundaries
 - [ ] 1.7 Unit-test the pure core to the coverage bar and add the HTTP adapter paths to the `--ignore-filename-regex` list used by `cargo llvm-cov` (CI + CLAUDE.md snippet)
@@ -23,8 +23,10 @@
 - [ ] 3.3 Add `DISCORD_NOTIFY` and `DISCORD_DIGEST` name constants + `JobSpec`s + their `Channel` to `cymbra_jobs::registry`
 - [ ] 3.4 Implement `WebhookDiscordSender` (reqwest, per-channel webhook URLs, no secret in logs or errors) behind the port
 - [ ] 3.5 Add `discord: Option<Arc<dyn DiscordSender>>` to `WorkerCtx` and the `#[sqlxmq::job("discord_notify")]` handler: load event → re-evaluate flags + gate → render → publish; `None` sender or missing channel = successful no-op
-- [ ] 3.6 Implement the `discord_digest` handler (aggregate the previous closed day from existing music aggregates, apply the aggregate minimum, publish one message) and seed its schedule in `backend/jobs/migrations/`
-- [ ] 3.7 Test handler idempotency, the flag-disabled-after-enqueue path, the gate-revoked-after-enqueue path, and Discord-failure retry behaviour
+- [ ] 3.6 Implement the `discord_digest` handler: one message **per product** into that product's stats channel, at that product's flag-driven cadence, from the existing daily aggregates, with the aggregate minimum applied; seed its schedule in `backend/jobs/migrations/`
+- [ ] 3.7 Build the Music report content: active players, sessions, new accounts, scores rated (and how many reached consensus), catalog items accepted, top 10 pieces played — the top-pieces query MUST join `music.catalog_scores` and count only accepted catalog pieces, since `play_sessions.score_id` also holds **user** score ids and would otherwise publish a private upload's identity
+- [ ] 3.8 Build the top-50 surfaces: weekly post in the product's leaderboard channel and an on-demand slash command, both reusing the same pure ranking core as the top 10
+- [ ] 3.9 Test handler idempotency, the flag-disabled-after-enqueue path, the gate-revoked-after-enqueue path, per-product routing (a Music event never resolves an ID channel), and Discord-failure retry behaviour
 
 ## 4. Producers (D4)
 
@@ -36,7 +38,7 @@
 
 ## 5. Flags (D8)
 
-- [ ] 5.1 Register the `discord.enabled` kill-switch (**default off**) and one flag per event category in the flag definitions
+- [ ] 5.1 Register the `discord.enabled` kill-switch (**default off**) and one flag per product-namespaced category (`discord.music.*`, `discord.id.*`) plus each product's report cadence (daily/weekly) in the flag definitions
 - [ ] 5.2 Read the flags at publication time in both handlers; kill-switch off suppresses every category, a category flag off suppresses only its own
 - [ ] 5.3 Add the flag descriptions/copy so they are self-explanatory in the back-office flags console (no new screen)
 

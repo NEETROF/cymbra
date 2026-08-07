@@ -25,6 +25,30 @@ disabled.
 - **WHEN** Discord rejects or times out the request
 - **THEN** the originating domain operation remains committed and the failure is retried by the job engine, not propagated to the user
 
+### Requirement: Announcements are routed to the channel of the product they concern
+
+Every announceable event SHALL carry the **product** it belongs to, and SHALL be routed to a
+channel belonging to that product's section — including statistics, which belong in their own
+product's section rather than in a shared statistics channel. Routing SHALL be keyed by
+`(product, category)`. A pair with no configured channel SHALL be a **no-op**; the system MUST
+NOT fall back to a default channel, because that would publish one product's data in another
+product's section.
+
+#### Scenario: A product's statistics go to that product's channel
+
+- **WHEN** the daily report for one product is published
+- **THEN** it is posted in that product's own statistics channel and in no other product's channel
+
+#### Scenario: An unmapped product/category publishes nothing
+
+- **WHEN** an event's `(product, category)` pair has no configured channel
+- **THEN** nothing is published and no default channel is used
+
+#### Scenario: A new product cannot leak into an existing one's channels
+
+- **WHEN** a product is added without its channels being configured
+- **THEN** its events stay unpublished rather than appearing in another product's section
+
 ### Requirement: Announcements are enqueued transactionally, never sent inline
 
 An announcement SHALL be produced by enqueuing a job in the **same database transaction** as
@@ -171,6 +195,11 @@ already enqueued is still suppressed if the flag was turned off in the meantime.
 
 - **WHEN** one category's flag is disabled while the kill-switch stays enabled
 - **THEN** that category is silent and the other categories keep publishing
+
+#### Scenario: One product can be muted without affecting another
+
+- **WHEN** the flags of one product's categories are disabled
+- **THEN** that product's channels go silent and the other products keep publishing
 
 #### Scenario: Flags are honored after enqueue
 
