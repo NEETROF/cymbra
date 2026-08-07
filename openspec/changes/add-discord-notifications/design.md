@@ -71,6 +71,13 @@ rendering, throttle/aggregate-minimum arithmetic. Tests double the port with `mo
 generated mocks (per the `rust-testing` convention); the HTTP adapters go into the
 `--ignore-filename-regex` list like `api/audio.rs` and the SMTP sender.
 
+**Categories are product-namespaced** (`music.*`, `id.*`, later `live.*`), because the Discord
+server groups channels **by product**: statistics live in the section of the product they
+describe (`#music-stats`, `#id-stats`), not in one global stats section. The routing key is
+therefore `(product, category) → channel`, which keeps a second product from ever landing in the
+first one's channels and makes "mute one product's feed" expressible (D8). An unmapped pair
+stays a no-op — never a fallback to some default channel, which would silently cross products.
+
 ### D2 — Webhooks for announcements, bot REST for roles
 
 Webhooks need no bot membership, are scoped to a single channel, and can be revoked
@@ -135,15 +142,21 @@ the existing `purge_user` erasure job.
 
 `discord_notify` handles the immediate tier (accepted catalog item, release, season record).
 `discord_digest` is a **scheduled** job (seed in `backend/jobs/migrations/…_seed_discord_digest_schedule.sql`,
-following the existing schedule seeds) that aggregates the previous closed day and posts one
-message. Named announcements are throttled per player over a flag-configured window; aggregate
+following the existing schedule seeds) that aggregates the previous closed period and posts one
+message **per product**, into that product's stats channel. The **cadence is per product and
+flag-driven**, not global: a product with little traffic reports weekly and one with real volume
+reports daily, so a channel never publishes "3 players today". Long rankings are **pulled, not
+pushed** — the digest carries a top 10, the full top 50 goes to the product's leaderboard channel
+on a weekly cadence and to a slash command on demand (D3). Named announcements are throttled per player over a flag-configured window; aggregate
 figures below a flag-configured minimum player count are omitted, so an aggregate can never
 implicitly identify one person. Suppressions are counted/logged — never silent.
 
 ### D8 — Flags: kill-switch **defaults off**, one flag per category
 
 `FlagService` carries a global `discord.enabled` (default **off**, so the code deploys dark) plus
-one flag per category, read at publication time. Turning the kill-switch off suppresses jobs
+one flag per **product-namespaced** category (`discord.music.daily_report`,
+`discord.id.weekly_report`, …), read at publication time. The namespacing means one product's feed
+can be muted without touching another's — the operational unit matches the server's sections. Turning the kill-switch off suppresses jobs
 that are already enqueued.
 
 ### D9 — Announcement language: one configured server locale, default English
