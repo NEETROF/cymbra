@@ -14,10 +14,82 @@
 
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart' show mapEquals;
 import 'package:flutter/material.dart';
 
+import '../state/note_label.dart';
 import '../theme/cymbra_theme.dart';
 import 'piano_layout.dart';
+import 'smufl.dart';
+
+/// How a note label is laid out inside a key: the font size to draw at, and
+/// whether it has to be turned on its side to fit.
+class KeyLabelFit {
+  final double fontSize;
+
+  /// True when the label is rotated a quarter turn, trading the key's narrow
+  /// width budget for its far larger height budget.
+  final bool vertical;
+
+  const KeyLabelFit(this.fontSize, {required this.vertical});
+
+  @override
+  bool operator ==(Object other) =>
+      other is KeyLabelFit &&
+      other.fontSize == fontSize &&
+      other.vertical == vertical;
+
+  @override
+  int get hashCode => Object.hash(fontSize, vertical);
+
+  @override
+  String toString() => 'KeyLabelFit($fontSize, vertical: $vertical)';
+}
+
+/// Fits a note label **strictly inside** a key box of [keyWidth] by
+/// [availableHeight], or returns null when it cannot be done legibly.
+///
+/// A label centred on a key it overflows would spill onto the neighbouring
+/// keys and point at the wrong note, so overflowing is never an option. On a
+/// narrow keyboard the way out is the key's other dimension: a white key is
+/// some 15 px wide but ~96 px tall, so a label that cannot fit across fits
+/// easily along.
+///
+/// [widthPerFontUnit] is the text's width at font size 1 — the painter measures
+/// once and divides, which keeps this pure and exactly testable. Text height is
+/// taken as the font size, which holds because labels are drawn with
+/// `height: 1.0`.
+KeyLabelFit? fitKeyLabel({
+  required double widthPerFontUnit,
+  required double keyWidth,
+  required double availableHeight,
+  double maxFontSize = 15,
+  double minFontSize = 7,
+}) {
+  if (widthPerFontUnit <= 0 || keyWidth <= 0 || availableHeight <= 0) {
+    return null;
+  }
+  // Keep a hair of padding so a glyph never touches the key's edge.
+  final w = keyWidth - 2;
+  final h = availableHeight - 2;
+  if (w <= 0 || h <= 0) return null;
+
+  // Upright, the text runs across the key: its width is the binding constraint
+  // and its height must clear the band.
+  final upright = math.min(w / widthPerFontUnit, math.min(h, maxFontSize));
+  // On its side, the text runs along the key: the key's *width* now caps the
+  // font size and its height carries the text's length.
+  final sideways = math.min(w, math.min(h / widthPerFontUnit, maxFontSize));
+
+  // Whichever reads bigger wins, upright on a tie. On a wide key both peg at
+  // the cap and the label stays upright; on a narrow one turning it over is
+  // worth several font sizes, which is the whole point of not overflowing.
+  final vertical = sideways > upright;
+  final fontSize = vertical ? sideways : upright;
+  return fontSize >= minFontSize
+      ? KeyLabelFit(fontSize, vertical: vertical)
+      : null;
+}
 
 /// Visual state of a key, by precedence.
 enum _KeyState {
@@ -57,12 +129,30 @@ class PianoKeyboardPainter extends CustomPainter {
   /// a dashed boundary marks where the chosen size ends and the extra keys begin.
   final ({int low, int high})? chosenWindow;
 
+  /// Reading-aid labels to draw on the awaited keys, by pitch. Empty when the
+  /// aid is off or the gate is not holding. Each label is drawn strictly inside
+  /// its own key (see [fitKeyLabel]) so it can never point at a neighbour.
+  final Map<int, String> noteLabels;
+
+  /// Naming convention for the octave anchors: letters (C4) or solfège (Do4).
+  final bool solfege;
+  final bool frenchRe;
+
+  /// Font family for the key labels, so they follow the app's typography rather
+  /// than resolving to whatever face the platform happens to default to. Null
+  /// keeps the platform default.
+  final String? labelFontFamily;
+
   const PianoKeyboardPainter({
     required this.layout,
     required this.activeNotes,
     this.requiredNotes = const {},
     this.leftHandNotes = const {},
     this.chosenWindow,
+    this.noteLabels = const {},
+    this.solfege = false,
+    this.frenchRe = false,
+    this.labelFontFamily,
   });
 
   /// MIDI middle C (C4) — the anchor note the octave labels emphasise.
@@ -115,9 +205,91 @@ class PianoKeyboardPainter extends CustomPainter {
     // the player can orient their hands; middle C (C4) is emphasised.
     _drawOctaveLabels(canvas, whiteH);
 
-    // 4) Chosen-size boundary: when the drawn range is wider than the chosen
+    // 4) Reading-aid names, on the awaited keys themselves — no screen space of
+    // their own, and anchored on the very key the finger is going to.
+    _drawNoteLabels(canvas, whiteH, blackH);
+
+    // 5) Chosen-size boundary: when the drawn range is wider than the chosen
     // keyboard size, a dashed line marks where the chosen size ends.
     _drawChosenSizeBoundary(canvas, whiteH);
+  }
+
+  /// Draws each awaited key's note name inside that key.
+  ///
+  /// White keys use the band below the black keys (the only part of a white key
+  /// nothing is stacked on); black keys use their own lower half. A label that
+  /// cannot be fitted legibly is dropped rather than drawn over its neighbours —
+  /// the key still glows, so the player is never left without the cue.
+  void _drawNoteLabels(Canvas canvas, double whiteH, double blackH) {
+    if (noteLabels.isEmpty) return;
+    for (final entry in noteLabels.entries) {
+      final pitch = entry.key;
+      if (!layout.contains(pitch)) continue;
+      final isBlack = PianoLayout.isBlack(pitch);
+      final r = layout.keyRect(pitch);
+
+      // The vertical room this key offers, and where that room starts.
+      final bandTop = isBlack ? blackH * 0.45 : blackH;
+      final bandHeight = (isBlack ? blackH : whiteH) - bandTop;
+
+      // Measure once at a reference size; width scales linearly with it.
+      final probe = TextPainter(
+        text: TextSpan(
+          text: entry.value,
+          style: TextStyle(
+            fontFamily: labelFontFamily,
+            fontSize: 100,
+            height: 1.0,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      final fit = fitKeyLabel(
+        widthPerFontUnit: probe.width / 100,
+        keyWidth: r.width,
+        availableHeight: bandHeight,
+      );
+      if (fit == null) continue;
+
+      final tp = TextPainter(
+        text: TextSpan(
+          text: entry.value,
+          style: TextStyle(
+            fontFamily: labelFontFamily,
+            // ♯/♭/♮ are not in every UI face; the bundled music font always has
+            // them, so the alteration can never come out as a missing glyph.
+            fontFamilyFallback: const [Smufl.fontFamily],
+            fontSize: fit.fontSize,
+            height: 1.0,
+            fontWeight: FontWeight.w800,
+            // Awaited keys are always filled with a light hand/correct colour,
+            // so the label is dark whatever the state.
+            color: CymbraColors.surfaceContainerLowest,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+
+      canvas.save();
+      if (fit.vertical) {
+        // Quarter turn, reading bottom-to-top, centred in the key's band.
+        canvas.translate(
+          r.left + (r.width - tp.height) / 2,
+          bandTop + (bandHeight + tp.width) / 2,
+        );
+        canvas.rotate(-math.pi / 2);
+        tp.paint(canvas, Offset.zero);
+      } else {
+        tp.paint(
+          canvas,
+          Offset(
+            r.left + (r.width - tp.width) / 2,
+            bandTop + (bandHeight - tp.height) / 2,
+          ),
+        );
+      }
+      canvas.restore();
+    }
   }
 
   /// Draws a "C{octave}" label under every C white key. Scientific pitch
@@ -126,14 +298,16 @@ class PianoKeyboardPainter extends CustomPainter {
   void _drawOctaveLabels(Canvas canvas, double height) {
     for (var p = layout.lowPitch; p <= layout.highPitch; p++) {
       if (p % 12 != 0) continue; // C keys only
+      // A key carrying a reading-aid name says it better; don't stack both.
+      if (noteLabels.containsKey(p)) continue;
       final isMiddle = p == _middleC;
       final r = layout.keyRect(p);
-      final octave = p ~/ 12 - 1; // MIDI: C4 = 60
       final fontSize = (r.width * 0.32).clamp(6.0, 11.0);
       final tp = TextPainter(
         text: TextSpan(
-          text: 'C$octave',
+          text: octaveMarkerLabel(p, solfege: solfege, frenchRe: frenchRe),
           style: TextStyle(
+            fontFamily: labelFontFamily,
             fontSize: fontSize,
             height: 1.0,
             fontWeight: isMiddle ? FontWeight.w800 : FontWeight.w500,
@@ -248,6 +422,10 @@ class PianoKeyboardPainter extends CustomPainter {
       old.requiredNotes != requiredNotes ||
       old.leftHandNotes != leftHandNotes ||
       old.chosenWindow != chosenWindow ||
+      !mapEquals(old.noteLabels, noteLabels) ||
+      old.solfege != solfege ||
+      old.frenchRe != frenchRe ||
+      old.labelFontFamily != labelFontFamily ||
       old.layout.width != layout.width ||
       old.layout.lowPitch != layout.lowPitch ||
       old.layout.highPitch != layout.highPitch;

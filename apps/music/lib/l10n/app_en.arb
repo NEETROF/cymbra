@@ -578,6 +578,74 @@
   "prePlayMeter": "Time",
   "@prePlayMeter": { "description": "Pre-play setup modal: label for the score's time-signature chip." },
 
+  "readingAidTitle": "Note names",
+  "@readingAidTitle": { "description": "Pre-play setup modal: section header for the beginner note reading aid." },
+
+  "readingAidSubtitle": "Shown while the score waits for you to play the note.",
+  "@readingAidSubtitle": { "description": "Pre-play setup modal: explains when the note reading aid appears." },
+
+  "readingAidOff": "Off",
+  "@readingAidOff": { "description": "Reading aid level: no aid is shown." },
+
+  "readingAidName": "Note name",
+  "@readingAidName": { "description": "Reading aid level: show the awaited note's name only." },
+
+  "readingAidNameAndRhythm": "Name + rhythm",
+  "@readingAidNameAndRhythm": { "description": "Reading aid level: show the awaited note's name and its rhythmic figure." },
+
+  "readingAidChord": "Chord of {count} notes",
+  "@readingAidChord": {
+    "description": "Reading aid: shown instead of the names when the awaited onset has more notes than fit on one line.",
+    "placeholders": {
+      "count": { "type": "int", "example": "5" }
+    }
+  },
+
+  "readingAidHoldBeats": "{beats, plural, =1{hold 1 beat} other{hold {beats} beats}}",
+  "@readingAidHoldBeats": {
+    "description": "Reading aid: how long to hold the awaited note, in beats of the time signature. Half beats are shown as a decimal (e.g. 0.5).",
+    "placeholders": {
+      "beats": { "type": "num", "format": "decimalPattern", "example": "2" }
+    }
+  },
+
+  "figureDoubleWhole": "double whole note",
+  "@figureDoubleWhole": { "description": "Rhythmic figure name (breve)." },
+
+  "figureWhole": "whole note",
+  "@figureWhole": { "description": "Rhythmic figure name." },
+
+  "figureHalf": "half note",
+  "@figureHalf": { "description": "Rhythmic figure name." },
+
+  "figureQuarter": "quarter note",
+  "@figureQuarter": { "description": "Rhythmic figure name." },
+
+  "figureEighth": "eighth note",
+  "@figureEighth": { "description": "Rhythmic figure name." },
+
+  "figureSixteenth": "sixteenth note",
+  "@figureSixteenth": { "description": "Rhythmic figure name." },
+
+  "figureThirtySecond": "thirty-second note",
+  "@figureThirtySecond": { "description": "Rhythmic figure name." },
+
+  "figureDotted": "dotted {figure}",
+  "@figureDotted": {
+    "description": "Rhythmic figure name with one augmentation dot, e.g. 'dotted half note'.",
+    "placeholders": {
+      "figure": { "type": "String", "example": "half note" }
+    }
+  },
+
+  "figureDoubleDotted": "double-dotted {figure}",
+  "@figureDoubleDotted": {
+    "description": "Rhythmic figure name with two augmentation dots.",
+    "placeholders": {
+      "figure": { "type": "String", "example": "half note" }
+    }
+  },
+
   "libraryEmptyTitle": "No favorites yet",
   "@libraryEmptyTitle": { "description": "Home empty-state title when the user has no favorite scores." },
 

@@ -31,6 +31,16 @@ class Smufl {
   static const String noteheadHalf = '\u{E0A3}';
   static const String noteheadWhole = '\u{E0A2}';
 
+  // Complete note glyphs (head + stem + flag), for naming a rhythmic figure in
+  // running text — the painters build their notes from heads and stems instead.
+  static const String noteDoubleWhole = '\u{E1D0}';
+  static const String noteWhole = '\u{E1D2}';
+  static const String noteHalfUp = '\u{E1D3}';
+  static const String noteQuarterUp = '\u{E1D5}';
+  static const String note8thUp = '\u{E1D7}';
+  static const String note16thUp = '\u{E1D9}';
+  static const String note32ndUp = '\u{E1DB}';
+
   static const String gClef = '\u{E050}';
   static const String fClef = '\u{E062}';
   static const String cClef = '\u{E05C}';

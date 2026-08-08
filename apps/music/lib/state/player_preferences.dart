@@ -19,7 +19,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../painters/keyboard_range.dart';
 import '../services/preferences_service.dart';
-import 'player_data.dart' show Hand;
+import 'player_data.dart' show Hand, NoteReadingAid;
 
 part 'player_preferences.freezed.dart';
 part 'player_preferences.g.dart';
@@ -36,6 +36,10 @@ abstract class PlayerPrefs with _$PlayerPrefs {
 
     /// On-screen keyboard range mode; defaults to auto-fit.
     @Default(KeyboardRangeMode.auto) KeyboardRangeMode keyboardRange,
+
+    /// How much reading help to show at a held onset. Off by default: the aid is
+    /// opt-in, so a player who never asked for it is never given it.
+    @Default(NoteReadingAid.off) NoteReadingAid readingAid,
 
     /// Preferred MIDI input port name; null = auto (first real device).
     String? midiPort,
@@ -77,6 +81,8 @@ class PlayerPreferences extends _$PlayerPreferences {
   void setKeyboardRange(KeyboardRangeMode mode) =>
       _update(state.copyWith(keyboardRange: mode));
   void setMidiPort(String? port) => _update(state.copyWith(midiPort: port));
+  void setNoteReadingAid(NoteReadingAid aid) =>
+      _update(state.copyWith(readingAid: aid));
 
   void _update(PlayerPrefs next) {
     if (next == state) return;
@@ -99,6 +105,7 @@ class PlayerPreferences extends _$PlayerPreferences {
     'speed': p.speed,
     'metronome': p.metronome,
     'keyboardRange': p.keyboardRange.name,
+    'readingAid': p.readingAid.name,
     'midiPort': p.midiPort,
   });
 
@@ -106,6 +113,10 @@ class PlayerPreferences extends _$PlayerPreferences {
     try {
       final m = jsonDecode(raw) as Map<String, dynamic>;
       final handName = m['hands'] as String?;
+      // A record written by an earlier version carries no reading-aid level, and
+      // a future one may carry a level this build does not know: either falls
+      // back to the default rather than discarding the whole record.
+      final aidName = m['readingAid'] as String?;
       return PlayerPrefs(
         hands: Hand.values.asNameMap()[handName] ?? Hand.both,
         speed: (m['speed'] as num?)?.toDouble().clamp(0.25, 2.0) ?? 1.0,
@@ -114,6 +125,8 @@ class PlayerPreferences extends _$PlayerPreferences {
             KeyboardRangeMode.values.asNameMap()[m['keyboardRange']
                 as String?] ??
             KeyboardRangeMode.auto,
+        readingAid:
+            NoteReadingAid.values.asNameMap()[aidName] ?? NoteReadingAid.off,
         midiPort: m['midiPort'] as String?,
       );
     } catch (_) {

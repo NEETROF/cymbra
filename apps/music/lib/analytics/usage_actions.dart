@@ -86,4 +86,5 @@ abstract final class UsageVariants {
   static const tempo = 'tempo';
   static const metronome = 'metronome';
   static const language = 'language';
+  static const readingAid = 'reading_aid';
 }

@@ -41,6 +41,7 @@ import '../state/session_summary_store.dart';
 import '../theme/cymbra_theme.dart';
 import '../widgets/countdown_overlay.dart';
 import '../widgets/mistake_replay.dart';
+import '../widgets/reading_aid.dart';
 import '../widgets/scoring_overlay.dart';
 import '../widgets/post_play_rating.dart';
 import '../widgets/session_summary_modal.dart';
@@ -332,20 +333,37 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                         final showKeyboard =
                             data.mode == RenderMode.synthesia ||
                             data.keyboardVisible;
+                        // Reading aid: the awaited notes' names ride on their
+                        // own keys, so the aid takes no screen space of its own.
+                        final naming = namingConventionOf(context);
+                        final aid = readingAidViewOf(
+                          data,
+                          solfege: naming.solfege,
+                          frenchRe: naming.frenchRe,
+                        );
                         return Column(
                           children: [
                             // Clip the render area so a painter (e.g. high notes /
                             // beams in Staff mode) never draws over the top bar or
                             // the keyboard below.
                             Expanded(
-                              child: ClipRect(
-                                child: _buildRenderArea(
-                                  layout,
-                                  data,
-                                  notation,
-                                  hasSelection: hasSelection,
-                                  isPhone: context.isPhoneLayout,
-                                ),
+                              child: Stack(
+                                children: [
+                                  ClipRect(
+                                    key: const Key('render-area'),
+                                    child: _buildRenderArea(
+                                      layout,
+                                      data,
+                                      notation,
+                                      hasSelection: hasSelection,
+                                      isPhone: context.isPhoneLayout,
+                                    ),
+                                  ),
+                                  // The rhythm card floats over the bottom of
+                                  // the score, only while the gate holds — so
+                                  // it costs the render area no height at all.
+                                  const ReadingAidOverlay(),
+                                ],
                               ),
                             ),
                             if (showKeyboard)
@@ -373,6 +391,12 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                                         rightHand: false,
                                       ),
                                       chosenWindow: data.keyboardChosenWindow,
+                                      noteLabels: aid.names,
+                                      solfege: naming.solfege,
+                                      frenchRe: naming.frenchRe,
+                                      labelFontFamily: DefaultTextStyle.of(
+                                        context,
+                                      ).style.fontFamily,
                                     ),
                                   ),
                                 ),

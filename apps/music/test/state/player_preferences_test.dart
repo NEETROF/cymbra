@@ -38,6 +38,7 @@ void main() {
     expect(p.speed, 1.0);
     expect(p.metronome, isFalse);
     expect(p.keyboardRange, KeyboardRangeMode.auto);
+    expect(p.readingAid, NoteReadingAid.off);
     expect(p.midiPort, isNull);
   });
 
@@ -83,6 +84,69 @@ void main() {
     expect(saved['metronome'], isTrue);
     expect(saved['keyboardRange'], 'keys25');
     expect(saved['midiPort'], 'Piano');
+  });
+
+  test('the reading-aid level round-trips', () async {
+    final fake = FakePreferencesService();
+    final c = _container(fake);
+    c
+        .read(playerPreferencesProvider.notifier)
+        .setNoteReadingAid(NoteReadingAid.nameAndRhythm);
+    await Future<void>.delayed(Duration.zero);
+
+    final saved =
+        jsonDecode(fake.store[PlayerPreferences.prefsKey]!)
+            as Map<String, dynamic>;
+    expect(saved['readingAid'], 'nameAndRhythm');
+
+    // A fresh container restores it from that same record.
+    final restored = _container(FakePreferencesService(fake.store));
+    restored.read(playerPreferencesProvider);
+    await Future<void>.delayed(Duration.zero);
+    expect(
+      restored.read(playerPreferencesProvider).readingAid,
+      NoteReadingAid.nameAndRhythm,
+    );
+  });
+
+  test('a record written before the aid existed restores the rest', () async {
+    // No `readingAid` key at all — the aid defaults off, everything else loads.
+    final c = _container(
+      FakePreferencesService({
+        PlayerPreferences.prefsKey: jsonEncode({
+          'hands': 'right',
+          'speed': 0.75,
+          'metronome': true,
+        }),
+      }),
+    );
+    c.read(playerPreferencesProvider);
+    await Future<void>.delayed(Duration.zero);
+
+    final p = c.read(playerPreferencesProvider);
+    expect(p.readingAid, NoteReadingAid.off);
+    expect(p.hands, Hand.right);
+    expect(p.speed, 0.75);
+    expect(p.metronome, isTrue);
+  });
+
+  test('an unrecognized level falls back without losing the record', () async {
+    final c = _container(
+      FakePreferencesService({
+        PlayerPreferences.prefsKey: jsonEncode({
+          'hands': 'left',
+          'speed': 1.5,
+          'readingAid': 'holographicStaff',
+        }),
+      }),
+    );
+    c.read(playerPreferencesProvider);
+    await Future<void>.delayed(Duration.zero);
+
+    final p = c.read(playerPreferencesProvider);
+    expect(p.readingAid, NoteReadingAid.off);
+    expect(p.hands, Hand.left);
+    expect(p.speed, 1.5);
   });
 
   test('a corrupt stored value falls back to defaults', () async {
