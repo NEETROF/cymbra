@@ -49,15 +49,20 @@ pub(crate) const K: f64 = 0.6;
 pub(crate) const FLOOR: f64 = 60.0;
 /// Fixed left padding (px) for clef/key/time at the head of a measure.
 pub(crate) const LEFT_PAD: f64 = 20.0;
+/// Minimum advance (px) of any time column, however short its duration — keeps
+/// runs of 16ths/32nds readable instead of collapsing toward glyph width.
+pub(crate) const MIN_COL: f64 = 22.0;
 
 /// Non-linear spacing for a single time column of `duration` divisions.
 ///
 /// `space(d) = UNIT * (d / divisions) ^ K`. With `K < 1` the growth is
-/// sub-linear: doubling a note's duration grows its space by `2^K < 2`.
+/// sub-linear: doubling a note's duration grows its space by `2^K < 2`. The
+/// result never drops below [`MIN_COL`], so very short columns keep a legible
+/// advance (the floor only binds below a quarter note).
 pub(crate) fn space(duration: u32, divisions: u32) -> f64 {
     let div = divisions.max(1) as f64;
     let d = duration.max(1) as f64;
-    UNIT * (d / div).powf(K)
+    (UNIT * (d / div).powf(K)).max(MIN_COL)
 }
 
 /// Minimum engraving width of a measure: the left pad plus the summed spacing
@@ -83,7 +88,7 @@ pub(crate) fn min_width(notes: &[NoteEvent], divisions: u32) -> f64 {
 
 /// Upper bound on measures per system, so dense scores stay legible even on a
 /// wide viewport (a real engraving of e.g. the Arabesque uses ~3 per line).
-pub(crate) const MAX_MEASURES_PER_SYSTEM: usize = 4;
+pub(crate) const MAX_MEASURES_PER_SYSTEM: usize = 3;
 
 /// Greedily packs measures into systems for `available_width`, wrapping when the
 /// next measure overflows the line *or* the per-system cap is reached. A measure
@@ -1310,6 +1315,43 @@ mod tests {
     }
 
     #[test]
+    fn column_floor_binds_on_short_durations_only() {
+        // 16th (1 div) and 32nd-ish (below) clamp to the minimum column
+        // advance; a quarter (4 divs) keeps its non-linear value above it.
+        assert_eq!(space(1, 4), MIN_COL);
+        assert_eq!(space(2, 4), MIN_COL); // eighth: 30·0.5^0.6 ≈ 19.8 → floored
+        assert!(space(4, 4) > MIN_COL);
+        assert_eq!(space(4, 4), UNIT);
+    }
+
+    #[test]
+    fn sixteenth_runs_grow_linearly_with_the_floor() {
+        let note = |pos: u32| NoteEvent {
+            staff: 1,
+            voice: 1,
+            position_divisions: pos,
+            pitch: None,
+            is_rest: false,
+            is_chord: false,
+            duration_divisions: 1,
+            note_type: None,
+            dots: 0,
+            accidental: None,
+            tie_start: false,
+            tie_stop: false,
+            slur_start: false,
+            slur_stop: false,
+            tuplet: None,
+            stem: None,
+            beams: Vec::new(),
+            lyric: None,
+        };
+        let run: Vec<NoteEvent> = (0..8).map(note).collect();
+        // Eight 16th columns each get the full floor, not a compressed share.
+        assert!((min_width(&run, 4) - (LEFT_PAD + 8.0 * MIN_COL)).abs() < 1e-9);
+    }
+
+    #[test]
     fn shared_columns_are_not_double_counted() {
         // Two notes at the same position (e.g. a chord) form one column.
         let note = |pos: u32| NoteEvent {
@@ -1431,7 +1473,7 @@ mod tests {
         let systems = layout_systems(&doc, 100_000.0);
         assert_eq!(systems.len(), 2);
         assert_eq!(systems[0].measures.len(), MAX_MEASURES_PER_SYSTEM);
-        assert_eq!(systems[1].measures, vec![4, 5]);
+        assert_eq!(systems[1].measures, vec![3, 4, 5]);
     }
 
     #[test]

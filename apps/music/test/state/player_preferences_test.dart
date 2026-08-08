@@ -39,6 +39,7 @@ void main() {
     expect(p.metronome, isFalse);
     expect(p.keyboardRange, KeyboardRangeMode.auto);
     expect(p.readingAid, NoteReadingAid.name);
+    expect(p.scoreSize, ScoreSize.medium);
     expect(p.midiPort, isNull);
   });
 
@@ -49,6 +50,7 @@ void main() {
         'speed': 1.5,
         'metronome': true,
         'keyboardRange': 'keys61',
+        'scoreSize': 'large',
         'midiPort': 'Synth',
       }),
     };
@@ -61,8 +63,27 @@ void main() {
     expect(p.speed, 1.5);
     expect(p.metronome, isTrue);
     expect(p.keyboardRange, KeyboardRangeMode.keys61);
+    expect(p.scoreSize, ScoreSize.large);
     expect(p.midiPort, 'Synth');
   });
+
+  test(
+    'a record without scoreSize (older launch) falls back to medium',
+    () async {
+      final store = {
+        PlayerPreferences.prefsKey: jsonEncode({
+          'hands': 'both',
+          'speed': 1.0,
+          'metronome': false,
+          'midiPort': null,
+        }),
+      };
+      final c = _container(FakePreferencesService(store));
+      c.read(playerPreferencesProvider);
+      await Future<void>.delayed(Duration.zero);
+      expect(c.read(playerPreferencesProvider).scoreSize, ScoreSize.medium);
+    },
+  );
 
   test('each setter persists the whole record to the device', () async {
     final fake = FakePreferencesService();
@@ -74,6 +95,7 @@ void main() {
     notifier.setMetronome(enabled: true);
     notifier.setKeyboardRange(KeyboardRangeMode.keys25);
     notifier.setMidiPort('Piano');
+    notifier.setScoreSize(ScoreSize.small);
     await Future<void>.delayed(Duration.zero);
 
     final saved =
@@ -84,6 +106,13 @@ void main() {
     expect(saved['metronome'], isTrue);
     expect(saved['keyboardRange'], 'keys25');
     expect(saved['midiPort'], 'Piano');
+    expect(saved['scoreSize'], 'small');
+  });
+
+  test('score sizes map to their notation scale factors', () {
+    expect(ScoreSize.small.factor, 0.85);
+    expect(ScoreSize.medium.factor, 1.0);
+    expect(ScoreSize.large.factor, 1.2);
   });
 
   test('the reading-aid level round-trips', () async {

@@ -27,6 +27,18 @@
   "settingsCategoryKeyboardVisibility": "Keyboard display",
   "@settingsCategoryKeyboardVisibility": { "description": "Settings category (notation modes only): show or hide the on-screen keyboard." },
 
+  "settingsCategoryScoreSize": "Score size",
+  "@settingsCategoryScoreSize": { "description": "Settings category: notation size applied to the Partition and staff views." },
+
+  "scoreSizeSmall": "Small",
+  "@scoreSizeSmall": { "description": "Score-size option: smaller notation." },
+
+  "scoreSizeMedium": "Medium",
+  "@scoreSizeMedium": { "description": "Score-size option: default notation size." },
+
+  "scoreSizeLarge": "Large",
+  "@scoreSizeLarge": { "description": "Score-size option: larger notation." },
+
   "keyboardShown": "Shown",
   "@keyboardShown": { "description": "Keyboard-display option: the on-screen keyboard is visible." },
 

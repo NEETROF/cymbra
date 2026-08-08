@@ -20,7 +20,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:music/services/clock_service.dart';
 import 'package:music/state/performance_scoring.dart';
 import 'package:music/state/player_data.dart';
-import 'package:music/widgets/scoring_gauge.dart';
+import 'package:music/widgets/score_chip.dart';
 
 import '../support/localized.dart';
 
@@ -32,7 +32,7 @@ class _FakeClock implements Clock {
 
 void main() {
   testWidgets(
-    'gauge is hidden until a scored run is active, then shows the %',
+    'chip is hidden until a scored run is active, then shows % and combo',
     (tester) async {
       final container = ProviderContainer(
         overrides: [clockProvider.overrideWithValue(_FakeClock())],
@@ -42,7 +42,7 @@ void main() {
       await tester.pumpWidget(
         UncontrolledProviderScope(
           container: container,
-          child: localizedApp(const Scaffold(body: ScoringGauge())),
+          child: localizedApp(const Scaffold(body: ScoreChip())),
         ),
       );
 
@@ -60,8 +60,7 @@ void main() {
           );
       await tester.pump();
 
-      // Active run → the gauge shows the baseline 100%.
-      expect(find.textContaining('%'), findsOneWidget);
+      // Active run → the chip shows the baseline 100% and the combo counter.
       expect(find.text('100%'), findsOneWidget);
 
       container.read(performanceScorerProvider.notifier).cancelRun();
@@ -71,6 +70,50 @@ void main() {
       expect(find.textContaining('%'), findsNothing);
     },
   );
+
+  testWidgets('compact chip keeps the % and drops the combo text', (
+    tester,
+  ) async {
+    final container = ProviderContainer(
+      overrides: [clockProvider.overrideWithValue(_FakeClock())],
+    );
+    addTearDown(container.dispose);
+
+    Finder comboText() => find.byWidgetPredicate(
+      (w) => w is Text && (w.data ?? '').contains('×'),
+    );
+
+    // Full chip first: combo text present.
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: localizedApp(const Scaffold(body: ScoreChip())),
+      ),
+    );
+    container
+        .read(performanceScorerProvider.notifier)
+        .startRun(
+          pieceId: 'p',
+          title: 'T',
+          hands: 'both',
+          speed: 1,
+          notes: const [TimedNote(pitch: 60, startMs: 0, durationMs: 500)],
+        );
+    await tester.pump();
+    expect(find.text('100%'), findsOneWidget);
+    expect(comboText(), findsOneWidget);
+
+    // Compact variant: % only.
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: localizedApp(const Scaffold(body: ScoreChip(compact: true))),
+      ),
+    );
+    await tester.pump();
+    expect(find.text('100%'), findsOneWidget);
+    expect(comboText(), findsNothing);
+  });
 
   group('GaugeFireworkPainter', () {
     void paintAt(double progress) {

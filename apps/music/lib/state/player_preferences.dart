@@ -24,6 +24,20 @@ import 'player_data.dart' show Hand, NoteReadingAid;
 part 'player_preferences.freezed.dart';
 part 'player_preferences.g.dart';
 
+/// User-selectable notation size, applied to both notation views: it scales the
+/// engraved Partition (staff space + line re-wrap) and the horizontal Portée
+/// (staff/glyph scale + look-ahead window) together.
+enum ScoreSize { small, medium, large }
+
+extension ScoreSizeFactor on ScoreSize {
+  /// Scale factor applied to the notation. Medium is the historical 1.0.
+  double get factor => switch (this) {
+    ScoreSize.small => 0.85,
+    ScoreSize.medium => 1.0,
+    ScoreSize.large => 1.2,
+  };
+}
+
 /// The user's play settings, remembered across scores and app restarts. The
 /// pre-play setup modal and the in-game settings drawer both read and write
 /// these (via the `Player` notifier), and each score is seeded from them.
@@ -41,6 +55,9 @@ abstract class PlayerPrefs with _$PlayerPrefs {
     /// a beginner who does not know the notes is exactly the player who will not
     /// go looking for this in the settings. Turning it off is one tap away.
     @Default(NoteReadingAid.name) NoteReadingAid readingAid,
+
+    /// Notation size for both notation views (Partition + Portée).
+    @Default(ScoreSize.medium) ScoreSize scoreSize,
 
     /// Preferred MIDI input port name; null = auto (first real device).
     String? midiPort,
@@ -84,6 +101,7 @@ class PlayerPreferences extends _$PlayerPreferences {
   void setMidiPort(String? port) => _update(state.copyWith(midiPort: port));
   void setNoteReadingAid(NoteReadingAid aid) =>
       _update(state.copyWith(readingAid: aid));
+  void setScoreSize(ScoreSize size) => _update(state.copyWith(scoreSize: size));
 
   void _update(PlayerPrefs next) {
     if (next == state) return;
@@ -107,6 +125,7 @@ class PlayerPreferences extends _$PlayerPreferences {
     'metronome': p.metronome,
     'keyboardRange': p.keyboardRange.name,
     'readingAid': p.readingAid.name,
+    'scoreSize': p.scoreSize.name,
     'midiPort': p.midiPort,
   });
 
@@ -128,6 +147,9 @@ class PlayerPreferences extends _$PlayerPreferences {
             KeyboardRangeMode.auto,
         readingAid:
             NoteReadingAid.values.asNameMap()[aidName] ?? NoteReadingAid.name,
+        scoreSize:
+            ScoreSize.values.asNameMap()[m['scoreSize'] as String?] ??
+            ScoreSize.medium,
         midiPort: m['midiPort'] as String?,
       );
     } catch (_) {

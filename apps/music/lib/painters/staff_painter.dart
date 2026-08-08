@@ -89,12 +89,13 @@ class StaffPainter extends CustomPainter {
     this.beatType = 4,
     this.measureStartMs = const [],
     this.mistakeColors = const {},
-    this.lookAheadMs = _defaultLookAheadMs,
+    this.lookAheadMs = defaultLookAheadMs,
     this.noteScale = 1.0,
   });
 
-  // Default visible time window to the right of the playhead.
-  static const double _defaultLookAheadMs = 4000;
+  /// Default visible time window to the right of the playhead. The score-size
+  /// setting divides it by its factor so bigger notes get matching spacing.
+  static const double defaultLookAheadMs = 4000;
 
   @override
   void paint(Canvas canvas, Size size) {

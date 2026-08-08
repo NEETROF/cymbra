@@ -20,23 +20,23 @@ import '../painters/piano_layout.dart';
 import '../services/clock_service.dart';
 import '../state/performance_scoring.dart';
 import '../state/player_notifier.dart';
-import 'scoring_gauge.dart';
 
 /// The gamified-feedback layer stacked over a scored render area: the transient
-/// hit sparks along the note-hit line plus the [ScoringGauge] in the top-right
-/// corner. Renders nothing when no scored run is active, and is wrapped in an
-/// [IgnorePointer] so it never intercepts keyboard/gesture input — the play
-/// surface underneath stays fully interactive and legible.
+/// hit sparks along the note-hit line. The live score itself is the [ScoreChip]
+/// in the player top bar — nothing floats over the play surface. Renders
+/// nothing when no scored run is active, and is wrapped in an [IgnorePointer]
+/// so it never intercepts keyboard/gesture input — the play surface underneath
+/// stays fully interactive and legible.
 class ScoringOverlay extends ConsumerWidget {
   const ScoringOverlay({super.key, this.layout, this.showEffects = true});
 
   /// Keyboard geometry used to place the hit sparks. Null in views without a
-  /// keyboard mapping (e.g. the engraved Partition), where only the gauge shows.
+  /// keyboard mapping, where nothing is drawn.
   final PianoLayout? layout;
 
   /// Whether to draw the hit sparks. They anchor to the keyboard/note-hit line
-  /// at the bottom, so they are suppressed when the keyboard is hidden (or there
-  /// is no [layout]) — the gauge still shows.
+  /// at the bottom, so they are suppressed when the keyboard is hidden (or
+  /// there is no [layout]).
   final bool showEffects;
 
   @override
@@ -45,15 +45,9 @@ class ScoringOverlay extends ConsumerWidget {
     if (!active) return const SizedBox.shrink();
 
     final layout = this.layout;
-    return IgnorePointer(
-      child: Stack(
-        children: [
-          if (showEffects && layout != null)
-            Positioned.fill(child: _HitEffects(layout: layout)),
-          const Positioned(top: 8, right: 8, child: ScoringGauge()),
-        ],
-      ),
-    );
+    if (!showEffects || layout == null) return const SizedBox.shrink();
+    // The host wraps this in a Positioned.fill, so the paint area is tight.
+    return IgnorePointer(child: _HitEffects(layout: layout));
   }
 }
 

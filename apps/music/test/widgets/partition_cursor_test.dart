@@ -36,8 +36,7 @@ const _entry = CatalogEntry(
   level: PracticeLevel.beginner,
 );
 
-// The main (scrolling) engraving canvas — keyed so it stays unambiguous when the
-// "next line" overlay (also a PartitionPainter) is on screen.
+// The main (scrolling) engraving canvas.
 Finder _partitionPaint() => find.byKey(const Key('partition-canvas'));
 
 void main() {
@@ -90,7 +89,7 @@ void main() {
     container.dispose();
   });
 
-  testWidgets('hides the next-line overlay while the next line is on screen', (
+  testWidgets('nothing floats over the score — look-ahead is the scroll', (
     tester,
   ) async {
     await tester.binding.setSurfaceSize(const Size(1400, 900));
@@ -122,15 +121,16 @@ void main() {
     notifier.toggleWaitMode(); // off
     await tester.pump();
 
-    // At the very start (first half of the first measure) there is no overlay.
+    // No preview box at the start…
     expect(find.text('NEXT'), findsNothing);
 
     notifier.togglePlay();
     for (var i = 0; i < 40; i++) {
       await tester.pump(const Duration(milliseconds: 50));
     }
-    // This viewport is tall enough to show the next line below the current one,
-    // so the overlay must stay hidden (it would otherwise cover the score).
+    // …and none during playback either: the auto-scroll anchors the current
+    // line near the top of the viewport so the next line is visible in place,
+    // replacing the old top-left "NEXT" overlay entirely.
     expect(find.text('NEXT'), findsNothing);
 
     await tester.pumpWidget(const SizedBox());

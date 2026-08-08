@@ -178,6 +178,108 @@ void main() {
     expect(await hasInkInBand(windowed), isFalse); // culled → nothing there
   });
 
+  test('staff space scales every system dimension (score size)', () {
+    final doc = tallDocument(2);
+    final systems = [
+      System(measures: Uint32List.fromList([0]), staves: 1),
+      System(measures: Uint32List.fromList([1]), staves: 1),
+    ];
+    final base = PartitionPainter(document: doc, systems: systems);
+    final large = PartitionPainter(
+      document: doc,
+      systems: systems,
+      staffSpace: 12 * 1.2,
+    );
+    expect(large.systemStride, closeTo(base.systemStride * 1.2, 1e-6));
+    expect(large.heightFor(600), closeTo(base.heightFor(600) * 1.2, 1e-6));
+    expect(large.systemTopY(1), closeTo(base.systemTopY(1) * 1.2, 1e-6));
+    expect(base.shouldRepaint(large), isTrue); // size drives a repaint
+  });
+
+  test('systems before the playhead render dimmed, none without one', () async {
+    final doc = tallDocument(2);
+    final systems = [
+      System(measures: Uint32List.fromList([0]), staves: 1),
+      System(measures: Uint32List.fromList([1]), staves: 1),
+    ];
+    const width = 600.0;
+
+    // Max alpha along the first system's bottom staff line.
+    Future<int> maxAlphaOnFirstStaffLine(PartitionPainter painter) async {
+      final height = painter.heightFor(width);
+      final recorder = ui.PictureRecorder();
+      painter.paint(Canvas(recorder), Size(width, height));
+      final image = await recorder.endRecording().toImage(
+        width.toInt(),
+        height.toInt(),
+      );
+      final bytes = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+      // systemTop(0) + topPad(5s) + staffHeight(4s) = gap(3s) + 9s.
+      final y = (painter.staffSpace * 12).round().clamp(0, image.height - 1);
+      var maxAlpha = 0;
+      for (var x = 0; x < image.width; x++) {
+        final a = bytes!.getUint8((y * image.width + x) * 4 + 3);
+        if (a > maxAlpha) maxAlpha = a;
+      }
+      return maxAlpha;
+    }
+
+    // Playhead in measure 1 (system 1) → system 0 is fully played → dimmed.
+    final playing = PartitionPainter(
+      document: doc,
+      systems: systems,
+      elapsedMs: 1500,
+      measureStartMs: const [0, 1000],
+      songEndMs: 2000,
+    );
+    // No playhead → full opacity everywhere.
+    final idle = PartitionPainter(document: doc, systems: systems);
+
+    final dimmed = await maxAlphaOnFirstStaffLine(playing);
+    final full = await maxAlphaOnFirstStaffLine(idle);
+    expect(full, greaterThan(150)); // staff line at its normal 0.7 alpha
+    expect(dimmed, greaterThan(0)); // still drawn…
+    expect(dimmed, lessThan(120)); // …but visibly faded (~0.45×)
+  });
+
+  test('the active measure carries a background wash', () async {
+    final doc = tallDocument(2);
+    final systems = [
+      System(measures: Uint32List.fromList([0]), staves: 1),
+      System(measures: Uint32List.fromList([1]), staves: 1),
+    ];
+    const width = 600.0;
+
+    // Sample just below the first system's bottom staff line, at the right
+    // edge: inside the wash rect, clear of staff lines, glyphs and cursor.
+    Future<int> alphaBelowFirstStaff(PartitionPainter painter) async {
+      final height = painter.heightFor(width);
+      final recorder = ui.PictureRecorder();
+      painter.paint(Canvas(recorder), Size(width, height));
+      final image = await recorder.endRecording().toImage(
+        width.toInt(),
+        height.toInt(),
+      );
+      final bytes = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+      final y = (painter.staffSpace * 12.5).round().clamp(0, image.height - 1);
+      final x = image.width - 3;
+      return bytes!.getUint8((y * image.width + x) * 4 + 3);
+    }
+
+    // Playhead mid-measure 0 → its measure is washed.
+    final playing = PartitionPainter(
+      document: doc,
+      systems: systems,
+      elapsedMs: 500,
+      measureStartMs: const [0, 1000],
+      songEndMs: 2000,
+    );
+    final idle = PartitionPainter(document: doc, systems: systems);
+
+    expect(await alphaBelowFirstStaff(playing), greaterThan(0));
+    expect(await alphaBelowFirstStaff(idle), 0); // no wash when stopped
+  });
+
   testWidgets('partition tie/slur golden', (tester) async {
     final document = sampleTieSlurDocument();
     final painter = PartitionPainter(

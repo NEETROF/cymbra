@@ -25,6 +25,7 @@ import '../state/notation_notifier.dart';
 import '../state/note_label.dart';
 import '../state/player_data.dart';
 import '../state/player_notifier.dart';
+import '../state/player_preferences.dart';
 import '../state/score_catalog.dart';
 import '../state/selected_piano.dart';
 import '../theme/cymbra_theme.dart';
@@ -107,6 +108,7 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
   late KeyboardRangeMode _range;
   late bool _keyboardVisible;
   late NoteReadingAid _readingAid;
+  late ScoreSize _scoreSize;
 
   /// When true, the modal body shows this piece's leaderboard in place of the
   /// setup controls (a toggle via the trophy in the header) — so the board is
@@ -130,6 +132,7 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
     _range = data.keyboardRange;
     _keyboardVisible = data.keyboardVisible;
     _readingAid = data.readingAid;
+    _scoreSize = ref.read(playerPreferencesProvider).scoreSize;
   }
 
   @override
@@ -158,6 +161,9 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
     if (_soundId != ref.read(selectedPianoProvider)) {
       ref.read(selectedPianoProvider.notifier).select(_soundId);
     }
+    if (_scoreSize != ref.read(playerPreferencesProvider).scoreSize) {
+      ref.read(playerPreferencesProvider.notifier).setScoreSize(_scoreSize);
+    }
     Navigator.of(context).pop();
   }
 
@@ -181,6 +187,7 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
     final midi = _midiSection(l10n, data);
     final keyboardSize = _keyboardSizeSection(l10n);
     final readingAid = _readingAidSection(l10n);
+    final scoreSize = _scoreSizeSection(l10n);
     // Hiding the keyboard only makes sense in the notation modes — Synthesia needs
     // it for the cascade — so the toggle is omitted there.
     final keyboardVisibility = data.mode != RenderMode.synthesia
@@ -211,7 +218,9 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(child: col([?hands, metronome, keyboardSize])),
+                  Expanded(
+                    child: col([?hands, metronome, keyboardSize, scoreSize]),
+                  ),
                   const SizedBox(width: 24),
                   Expanded(child: col([midi, tempo, ?keyboardVisibility])),
                 ],
@@ -229,6 +238,7 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
             tempo,
             readingAid,
             keyboardSize,
+            scoreSize,
             ?keyboardVisibility,
             midi,
             sound,
@@ -581,6 +591,32 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
       ],
     );
   }
+
+  /// Notation size (S/M/L), applied to both the Partition and staff views.
+  Widget _scoreSizeSection(AppLocalizations l10n) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      _sectionTitle(l10n.settingsCategoryScoreSize),
+      SegmentedButton<ScoreSize>(
+        segments: [
+          ButtonSegment(
+            value: ScoreSize.small,
+            label: Text(l10n.scoreSizeSmall),
+          ),
+          ButtonSegment(
+            value: ScoreSize.medium,
+            label: Text(l10n.scoreSizeMedium),
+          ),
+          ButtonSegment(
+            value: ScoreSize.large,
+            label: Text(l10n.scoreSizeLarge),
+          ),
+        ],
+        selected: {_scoreSize},
+        onSelectionChanged: (s) => setState(() => _scoreSize = s.first),
+      ),
+    ],
+  );
 
   /// On-screen keyboard visibility (a switch, like the metronome).
   Widget _keyboardVisibilityTile(AppLocalizations l10n) => SwitchListTile(
