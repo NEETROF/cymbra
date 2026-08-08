@@ -43,6 +43,7 @@ import '../state/session_summary_store.dart';
 import '../theme/cymbra_theme.dart';
 import '../widgets/countdown_overlay.dart';
 import '../widgets/mistake_replay.dart';
+import '../widgets/notation_help_area.dart';
 import '../widgets/playback_progress_bar.dart';
 import '../widgets/reading_aid.dart';
 import '../widgets/score_chip.dart';
@@ -588,26 +589,29 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
         Positioned.fill(
           child: Container(
             color: palette.background,
-            child: CustomPaint(
-              painter: StaffPainter(
-                notes: data.visibleNotes,
-                rests: data.visibleRests,
-                elapsedMs: data.elapsedMs,
-                activeNotes: data.activeNotes,
-                bpm: data.bpm,
-                songEndMs: data.songEndMs,
-                keyFifths: data.keyFifths,
-                measureKeyFifths: data.measureKeyFifths,
-                beats: data.beats,
-                beatType: data.beatType,
-                measureStartMs: data.measureStartMs,
-                noteScale: sizeFactor,
-                lookAheadMs: StaffPainter.defaultLookAheadMs / sizeFactor,
-                onsetGapMs: data.onsetGapMs,
-                measureMs: data.measureMs,
-                palette: palette,
+            child: NotationHelpArea(
+              builder: (context, hitIndex) => CustomPaint(
+                painter: StaffPainter(
+                  notes: data.visibleNotes,
+                  rests: data.visibleRests,
+                  elapsedMs: data.elapsedMs,
+                  activeNotes: data.activeNotes,
+                  bpm: data.bpm,
+                  songEndMs: data.songEndMs,
+                  keyFifths: data.keyFifths,
+                  measureKeyFifths: data.measureKeyFifths,
+                  beats: data.beats,
+                  beatType: data.beatType,
+                  measureStartMs: data.measureStartMs,
+                  noteScale: sizeFactor,
+                  lookAheadMs: StaffPainter.defaultLookAheadMs / sizeFactor,
+                  onsetGapMs: data.onsetGapMs,
+                  measureMs: data.measureMs,
+                  palette: palette,
+                  hitIndex: hitIndex,
+                ),
+                size: Size.infinite,
               ),
-              size: Size.infinite,
             ),
           ),
         ),
@@ -1384,22 +1388,25 @@ class _PartitionViewState extends ConsumerState<_PartitionView> {
                 final viewHeight = pos != null && pos.hasViewportDimension
                     ? pos.viewportDimension
                     : constraints.maxHeight;
-                return CustomPaint(
-                  key: const Key('partition-canvas'),
-                  painter: PartitionPainter(
-                    document: notation.document!,
-                    systems: notation.systems,
-                    elapsedMs: data.elapsedMs,
-                    measureStartMs: data.measureStartMs,
-                    songEndMs: data.songEndMs,
-                    activeNotes: data.activeNotes,
-                    selectedHands: data.selectedHands,
-                    viewTop: viewTop,
-                    viewBottom: viewTop + viewHeight,
-                    staffSpace: staffSpace,
-                    palette: palette,
+                return NotationHelpArea(
+                  builder: (context, hitIndex) => CustomPaint(
+                    key: const Key('partition-canvas'),
+                    painter: PartitionPainter(
+                      document: notation.document!,
+                      systems: notation.systems,
+                      elapsedMs: data.elapsedMs,
+                      measureStartMs: data.measureStartMs,
+                      songEndMs: data.songEndMs,
+                      activeNotes: data.activeNotes,
+                      selectedHands: data.selectedHands,
+                      viewTop: viewTop,
+                      viewBottom: viewTop + viewHeight,
+                      staffSpace: staffSpace,
+                      palette: palette,
+                      hitIndex: hitIndex,
+                    ),
+                    size: Size(engraveWidth, painter.heightFor(engraveWidth)),
                   ),
-                  size: Size(engraveWidth, painter.heightFor(engraveWidth)),
                 );
               },
             ),

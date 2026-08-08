@@ -11,11 +11,11 @@
 
 ## 2. Long-press gesture + help bubble (`notation-help`)
 
-- [ ] 2.1 Add a Riverpod notifier holding the active help bubble state (visible `SymbolDescriptor` + anchor rect), with show/dismiss actions
-- [ ] 2.2 Add a dedicated staff-overlay/listener widget wrapping the `CustomPaint` in `player_screen.dart`: `LongPressGestureRecognizer` → query hit index → resolve descriptor → drive the bubble notifier (scoped so it does not steal play/scrub taps/drags)
-- [ ] 2.3 Wire the same overlay onto the static score/partition view
-- [ ] 2.4 Build the help-bubble overlay widget: dismissible, points at the symbol, clamps to safe area and flips anchor side in portrait/landscape; screen-reader friendly and dismissible without a single specific gesture
-- [ ] 2.5 Verify (widget test) that showing/dismissing a bubble never pauses, blocks, or alters playback and that play/scrub still work with help enabled
+- [x] 2.1 Add a Riverpod notifier holding the active help bubble state (`SymbolDescriptor` + anchor + area size), with show/dismiss actions (`lib/state/notation_help_notifier.dart`, autoDispose)
+- [x] 2.2 Add a dedicated staff-overlay widget (`lib/widgets/notation_help_area.dart`) wrapping the `CustomPaint` in `player_screen.dart` (staff view): `onLongPressStart` → query hit index → resolve descriptor → drive the bubble notifier; long-press only, so it never steals play/scrub taps/drags
+- [x] 2.3 Wire the same overlay onto the static score/partition view (inside the scroll content so press coords match painter coords)
+- [x] 2.4 Build the help-bubble overlay widget (`lib/widgets/notation_help_bubble.dart`): dismissible, points near the symbol, clamps to the area and flips anchor side (above/below); one Semantics node + explicit close button (dismissible without the long-press)
+- [x] 2.5 Widget test: long-press opens the bubble, close button + outside tap dismiss it, a plain tap passes through to the child (play/scrub unaffected), disabled area shows nothing (`test/widgets/notation_help_area_test.dart`)
 
 ## 3. Localized help content (`notation-help`)
 

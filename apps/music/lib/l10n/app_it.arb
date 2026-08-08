@@ -591,5 +591,6 @@
   "notationHelpBraceTitle": "Graffa",
   "notationHelpBraceBody": "Unisce i due pentagrammi suonati insieme: la mano destra sopra, la sinistra sotto.",
   "notationHelpDynamicsTitle": "Dinamiche",
-  "notationHelpDynamicsBody": "Quanto forte suonare: p è piano, f è forte, m sta nel mezzo (mf = mezzo forte)."
+  "notationHelpDynamicsBody": "Quanto forte suonare: p è piano, f è forte, m sta nel mezzo (mf = mezzo forte).",
+  "notationHelpClose": "Chiudi"
 }

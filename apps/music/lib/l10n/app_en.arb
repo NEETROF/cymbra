@@ -1285,5 +1285,7 @@
   "notationHelpDynamicsTitle": "Dynamics",
   "@notationHelpDynamicsTitle": { "description": "Bubble title for a dynamics marking." },
   "notationHelpDynamicsBody": "How loud to play: p is soft, f is loud, and m sits in between (mf = medium-loud).",
-  "@notationHelpDynamicsBody": { "description": "Bubble body explaining a dynamics marking." }
+  "@notationHelpDynamicsBody": { "description": "Bubble body explaining a dynamics marking." },
+  "notationHelpClose": "Close",
+  "@notationHelpClose": { "description": "Tooltip for the button that closes a notation help bubble." }
 }

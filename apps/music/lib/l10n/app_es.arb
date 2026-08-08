@@ -591,5 +591,6 @@
   "notationHelpBraceTitle": "Llave",
   "notationHelpBraceBody": "Une los dos pentagramas que se tocan juntos: la mano derecha arriba, la izquierda abajo.",
   "notationHelpDynamicsTitle": "Matices",
-  "notationHelpDynamicsBody": "El volumen al tocar: p es suave, f es fuerte y m está en medio (mf = medio fuerte)."
+  "notationHelpDynamicsBody": "El volumen al tocar: p es suave, f es fuerte y m está en medio (mf = medio fuerte).",
+  "notationHelpClose": "Cerrar"
 }

@@ -591,5 +591,6 @@
   "notationHelpBraceTitle": "Accolade",
   "notationHelpBraceBody": "Relie les deux portées jouées ensemble : la main droite en haut, la main gauche en bas.",
   "notationHelpDynamicsTitle": "Nuances",
-  "notationHelpDynamicsBody": "Le volume de jeu : p pour doux, f pour fort, m entre les deux (mf = moyennement fort)."
+  "notationHelpDynamicsBody": "Le volume de jeu : p pour doux, f pour fort, m entre les deux (mf = moyennement fort).",
+  "notationHelpClose": "Fermer"
 }
