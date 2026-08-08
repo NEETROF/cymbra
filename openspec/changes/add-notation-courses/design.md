@@ -1,130 +1,136 @@
 ## Context
 
-`add-notation-help` shipped contextual, in-place help (long-press a staff symbol → localized
-bubble) and a glossary, reusing the `feature-discovery` coach mechanism. It deliberately deferred a
-guided *course* to a "phase 2" (`notation-lessons`) sketched as local-only. This change replaces
-that sketch with a richer, decided scope: courses live **on the home screen**, are **infinitely
-replayable**, track completion **across devices** (so: backend), award a **badge**, and are written
-in a **self-contained manifest** that could later carry community-authored courses.
+`add-notation-help` shipped contextual, in-place help and deferred a guided *course* to a "phase 2"
+(`notation-lessons`) sketched as a local, viewer-only feature. This change replaces that with a
+decided, larger scope: courses are **server-stored interactive content**, delivered to the app,
+shown **on the home screen**, **infinitely replayable**, tracked **across devices** (badge on
+finish), and written in a **generic, versioned block format** that can later carry
+community-authored courses.
 
-Grounding in the existing code:
-- The home/library screen (`apps/music/lib/screens/library_screen.dart`) already reserves a slot
-  "pinned above the favorites list" (~line 140) with a `_FavoritesBody`; the Courses section slots
-  in there.
-- A rewards/badges system exists (`curation-rewards`, `reward-unlocks`,
-  `services/curator_rewards_service.dart`); the completion badge composes with it.
-- Durable, cross-device, per-user persistence already has a pattern to mirror (`play-activity-sync`,
-  leaderboards): a Rust store behind a trait seam + a gRPC on `ScoreService`, with a host-testable
-  core and mockall doubles; the Flutter side keeps the native/gRPC seam injectable.
-- Diagrams can reuse the notation painters/SMuFL glyphs from `add-notation-help`.
+Grounding in existing code/patterns:
+- Home/library screen reserves a slot above the favorites (`library_screen.dart`, `_FavoritesBody`).
+- Rewards/badges exist (`curation-rewards`, `services/curator_rewards_service.dart`).
+- Durable per-user server state has a pattern to mirror (`play-activity-sync`, leaderboards): a Rust
+  store behind a trait seam + gRPC on `ScoreService`, host-testable core, mockall doubles; Flutter
+  keeps the gRPC seam injectable.
+- Blob content + seed pipeline exists for scores (MusicXML) and sound fonts.
+- The notation renderer (`PartitionPainter`/`StaffPainter`) and the diagram content from
+  `add-notation-help` render `diagram`/`score` blocks; the MIDI + on-screen-keyboard + scoring seams
+  (`midi`, `keyboard-display`, `performance-scoring`) validate `playKey` and playable `score` blocks.
 
-State is Riverpod 2 + Freezed; UI never calls services directly; coverage gate ≥ 80% both
-ecosystems. This change is **sequenced after `add-notation-help`** (shares its notation vocabulary).
+State is Riverpod 2 + Freezed; UI never calls services directly; coverage ≥ 80% both ecosystems.
+Sequenced after `add-notation-help`.
 
 ## Goals / Non-Goals
 
-**Goals (2a + 2b):**
-- A home-screen **Courses** section above favorites, one tile per course, with a completion badge/indicator.
-- A **versioned, inline-localized, self-contained course manifest** format + at least one bundled
-  first-party course; parsing is defensive (unknown `schemaVersion` → skip, not crash).
-- A self-paced **lesson player** (explanation / diagram / quiz), skippable, quiz non-blocking,
-  **infinitely replayable**.
-- **Cross-device completion**: server-persisted for signed-in users, read back anywhere; guests
-  local until sign-in.
-- A **completion badge** on first finish (once per course), via the existing rewards system.
+**Goals:**
+- Courses **stored in the DB as a JSON (`JSONB`) manifest**, delivered by gRPC, seeded for
+  first-party content; **no bundled courses**, with a local cache for offline.
+- A **generic, versioned, forward-compatible block format** + an engine that runs it; v1 blocks:
+  `text`, `diagram`, `image`, `video`, `question`, `playKey`, `score`.
+- A **home Courses section** above favorites (tile + completion indicator); a **self-paced lesson
+  player**; skippable; **infinitely replayable**.
+- **Cross-device completion** (server-persisted, guest local until sign-in) + a **completion badge**
+  (once per course, server-decided).
 
 **Non-Goals:**
 - **2c — community-authored courses** (catalogue + propose + moderation of third-party manifests):
-  the format is *designed for it* but it is **not built here**.
-- No virtual/AI tutor, no LLM, no TTS.
-- No change to points/shop economics beyond adding one badge.
-- Not re-opening `add-notation-help`'s contextual help (only removing its superseded
-  `notation-lessons` sketch).
+  the format + server storage are built *for* it; the authoring/moderation UX is not built here.
+- **Media hosting**: `video`/`image` blocks are supported by the engine (render from a URL), but the
+  first-party media hosting pipeline (object storage/CDN) is decided later; the first seeded course
+  avoids media.
+- No virtual/AI tutor; no LLM/TTS.
+- No points/shop economy change beyond one badge.
 
 ## Decisions
 
-### 1. Course content lives in a self-describing manifest, not the app's ARB
-A course is a JSON **manifest** with `schemaVersion`, `id`, and ordered `steps`
-(`explanation | diagram | quiz`). **All copy is localized inline** as `{en, fr, es, it}` maps inside
-the manifest. First-party courses ship under `assets/courses/**`.
-- *Why:* the explicit ask is that the scripting could **later carry courses authored by others**.
-  App ARB keys can't localize arbitrary third-party text, so content must be self-contained in the
-  file. First-party courses use the same format for consistency and to dogfood it. Only the *UI
-  chrome* (buttons, section title) stays in ARB.
-- *Alternative rejected:* ARB keys per lesson string — blocks community courses, would force a
-  re-migration later.
-- *Defensive parsing:* an unknown/greater `schemaVersion` skips that course (and logs), so a newer
-  community course never crashes an older app.
+### 1. The manifest is an opaque `JSONB` blob the server stores and serves; the client owns the format
+`music.courses` holds `(id, status, order, schema_version, title JSONB, content JSONB, …)`. The
+backend treats `content` as an **opaque blob** — it validates only that it is well-formed JSON with a
+`schemaVersion`, and serves it. All block semantics and **forward-compatibility live in the client**.
+- *Why:* the format will evolve (new block types) faster than the backend should care; keeping the
+  server format-agnostic means new block types ship without a backend release, and community content
+  (2c) is just more rows. gRPC `ListCourses`/`GetCourse` deliver it; a seed script inserts
+  first-party courses (like sound fonts/scores).
+- *Alternative rejected:* a fully-typed relational schema for blocks — brittle against an evolving,
+  community-extensible DSL.
 
-### 2. Diagrams reference built-in renderers, not shipped images
-A `diagram` step references a **built-in diagram id** (e.g. "treble-clef", "quarter-vs-eighth")
-rendered by the existing notation painters/SMuFL glyphs, rather than embedding bitmaps.
-- *Why:* keeps manifests tiny/portable and diagrams crisp/themed. A future community course can only
-  pick from the app's known diagram ids (a safe, closed set) — arbitrary asset embedding is a 2c
-  concern with its own moderation.
+### 2. The interactive format is a discriminated union of typed blocks, forward-compatible
+A manifest = `{ schemaVersion, id, title/i18n, blocks:[…] }`. A **block** = `{ type, …content (i18n),
+media? (url), gate? }`. The client models blocks as a **Freezed union**, and the parser is
+**defensive**: an unknown `type` (or a block needing an unsupported capability) becomes a
+**skippable "unsupported" block**, never a parse failure — so an older app survives newer
+server-published content. Media is **URL-referenced**, never inlined.
+- *Why:* content is now server-driven and clients update independently; forward-compat is mandatory,
+  not nice-to-have. A closed, declarative vocabulary (no executable code; closed diagram-id and
+  target sets) keeps future third-party content safe.
+- v1 blocks: `text`, `diagram`, `image`, `video`, `question`, `playKey`, `score` (see §3–§4).
 
-### 3. Cross-device completion mirrors the play-activity persistence pattern
-Completion is a small per-user fact: `(userId, courseId) → { completedAt, playCount }`. Persist it
-**server-side** via a new store (trait seam + Postgres table, migration, cascade on erasure) and a
-gRPC pair on `ScoreService` — `RecordCourseCompletion(courseId)` and `GetCourseProgress()` — with a
-**host-testable award core** (idempotent: first completion awards the badge, replays only bump the
-count). The Flutter side caches completion locally and reconciles with the server through the
-injectable client seam; a **guest** keeps completion in `shared_preferences` until sign-in.
-- *Why:* reuses a proven, testable shape; keeps the ≥80% Rust core out of the thread/hardware glue.
-- *Alternative rejected:* a full durable outbox like scored runs — completion is idempotent and
-  low-stakes; a direct record + read is enough. (If offline resilience is wanted later, the same
-  outbox can wrap it.)
+### 3. `playKey` reuses the MIDI + keyboard + scoring seams
+A `playKey` block names a note/chord; the player listens on the **same input seams the game uses**
+(on-screen keyboard + connected MIDI, validated like a required note), advancing when the correct
+input arrives, always offering a non-blocking skip.
+- *Why:* the app already has the whole input+validation stack; the course should make the user *play*,
+  reusing it rather than re-implementing input.
 
-### 4. The completion badge is awarded server-side, once per course
-The award decision lives with the store (it knows "first time"), composing with `curation-rewards`,
-so replays never re-award and two devices can't double-award. The client surfaces the badge through
-the existing rewards feedback.
-- *Why:* idempotency and cross-device correctness belong on the server; the client only renders.
+### 4. `score` reuses the notation renderer and (optionally) the player
+A `score` block carries a short **inline MusicXML** excerpt (self-contained → community-ready),
+parsed by the existing engine into a `ScoreDocument` and engraved by `PartitionPainter`. Marked
+`playable`, it embeds the existing player/scoring so the user performs it (gate = performed).
+- *Why:* excerpts belong to lessons ("read this, now play it"); inline MusicXML keeps a course
+  self-contained; rendering/playing reuse existing machinery.
+- *Alternative considered:* reference a catalog `scoreId` — couples a course to catalog rows and
+  breaks self-containment; inline wins for portability (a `scoreId` variant can be added later).
 
-### 5. Home placement as a distinct section, additive to favorites
-A `_CoursesSection` renders above `_FavoritesBody` in the library. It reads the course list + a
-completion map from a Riverpod notifier; tiles are lightweight and the section never blocks the
-favorites (which stay scrollable below).
-- *Why:* the ask is explicit — courses visible on the home screen, not behind a menu.
+### 5. Cross-device completion + badge mirror the play-activity pattern, award server-side
+Completion is `(userId, courseId) → { completedAt, playCount }` in `course_progress` (migration,
+cascade on erasure). gRPC `RecordCourseCompletion(courseId)` / `GetCourseProgress()`; a **host-
+testable, idempotent award core** (first completion sets `completedAt` and awards the badge via
+`curation-rewards`; replays only bump `playCount`, never re-award). Flutter caches completion locally
+and reconciles with the server; a **guest** keeps it in `shared_preferences` and best-effort pushes
+on sign-in.
+- *Why:* proven testable shape; idempotency/anti-double-award belong on the server.
 
-### 6. Layer this cleanly over `add-notation-help`
-Reuse its painters/glossary content for diagram rendering; **remove** the now-superseded
-`notation-lessons` capability from `add-notation-help` so there is a single source of truth. The
-help/tips surface may still link to courses, but the primary entry is the home section.
+### 6. Home placement as a distinct section; supersede the old sketch
+A `_CoursesSection` above `_FavoritesBody`, reading the course list + completion map from a notifier;
+never blocks favorites. **Remove** the superseded `notation-lessons` capability from
+`add-notation-help`.
 
 ## Risks / Trade-offs
 
-- **Scope: 2b brings the backend in.** → Keep 2a (home section + manifest + bundled course + local
-  completion) independently valuable and land it first inside this change; 2b (server persistence +
-  badge) builds on it. If backend sequencing slips, the local completion still ships.
-- **Manifest format churn once community courses come (2c).** → Version it (`schemaVersion`) from day
-  one and parse defensively, so first-party and future community courses coexist; the closed diagram-
-  id set keeps third-party content safe.
-- **Double-award / device races on the badge.** → Award is server-side and idempotent per
-  `(userId, courseId)`; unit-tested in the host-testable core.
-- **Guest → sign-in completion loss.** → On sign-in, best-effort push local completions to the
-  server (idempotent), matching how other guest→account transitions are handled.
-- **Home clutter.** → One compact section above favorites; collapses/omits gracefully when there are
-  no courses.
-- **Coverage across two ecosystems.** → Host-testable Rust award/selection core (mockall store) and
-  Flutter manifest-parsing + player + sync behind seams; native lib not required for either.
+- **Big surface (backend + a content engine) in one change.** → Slice it (see Migration): backend
+  storage/delivery → the block engine + player with the cheap blocks (`text`/`diagram`/`question`) →
+  the hard interactive blocks (`playKey`, `score`) → completion+badge. Each slice ships and is tested.
+- **Forward-compat regressions.** → The "unknown block → skip" path is a first-class, tested
+  requirement; a course with an injected unknown block must still complete.
+- **`playKey`/`score` input flakiness.** → Reuse the exact game input+scoring seams (already tested);
+  fake them in widget tests; always offer skip.
+- **Manifest size / media.** → Media by URL only; `score` uses short excerpts; the blob stays small.
+- **Guest → account completion loss.** → Idempotent best-effort push on sign-in.
+- **Server storing untrusted JSON (esp. 2c).** → Server validates shape minimally and treats content
+  as data; the client never executes it; closed vocabularies; media host allow-listing is a 2c
+  moderation concern.
 
 ## Migration Plan
 
-Additive. Order:
-1. **2a:** manifest model + defensive parser + bundled course; home Courses section + tiles; lesson
-   player (explanation/diagram/quiz, replay); **local** completion. (No backend.)
-2. **2b:** Postgres table + migration (cascade on erasure); store trait + host-testable award core;
-   `RecordCourseCompletion`/`GetCourseProgress` gRPC; Flutter sync + guest→account push; completion
-   badge via `curation-rewards`.
-3. Remove the superseded `notation-lessons` capability from `add-notation-help`.
-Rollback: additive table and additive UI; disabling the section/RPC leaves play unaffected.
+Additive. Order (each a verified slice):
+1. **Backend storage + delivery:** `music.courses` (+`schema_version`,`content JSONB`) migration;
+   `CourseRepo` + gRPC `ListCourses`/`GetCourse`; seed script; minimal server validation.
+2. **Manifest model + block engine (client):** Freezed block union + defensive/forward-compat parser
+   + inline-i18n resolver; unit tests (incl. unknown-block skip).
+3. **Home Courses section + tiles + lesson player** with the display/quiz blocks
+   (`text`,`diagram`,`image`,`video`,`question`); fetch + cache.
+4. **Interactive blocks:** `playKey` (MIDI/keyboard/scoring seam) and `score` (renderer + optional play).
+5. **Completion + badge:** `course_progress` migration; store + idempotent award core; gRPC record/get;
+   Flutter cross-device sync + guest push; badge via `curation-rewards`.
+6. Remove the superseded `notation-lessons` from `add-notation-help`.
+Rollback: additive tables/RPCs/UI; disabling the section leaves play unaffected.
 
 ## Open Questions
 
-- **Course catalogue for launch:** how many first-party courses and their topics/order (at least one
-  "reading the staff" course to start; the rest can follow without format change).
-- **Badge design/threshold:** one badge per course, or a single "finished your first course" badge
-  plus a "completed all courses" badge? (Starting point: one per course, awarded once.)
-- **Diagram id set:** the initial closed list of built-in diagram ids the manifest may reference.
-- **2c community pipeline** (catalogue + propose + moderation) is deferred to its own change.
+- **Media hosting** (object storage/CDN) for `video`/`image` — deferred; the first course avoids media.
+- **First-party catalogue**: how many courses and topics/order at launch (start with one "reading &
+  playing the staff" course).
+- **Badge design**: one badge per course vs a "first course" + "all courses" pair (start: one per course).
+- **Closed sets**: the initial `diagram` id list and `playKey`/`score` note-spec shape.
+- **2c** (community catalogue + propose + moderation) is a separate later change.
