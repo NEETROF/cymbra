@@ -150,7 +150,8 @@ the piece, so the offer stands and returns on the next run.
 
 Every surface that shows the prompt SHALL therefore expose an explicit refusal
 control, since that (or a rating) is the only way for the user to stop being asked
-about a piece. A refusal SHALL be persisted through the injectable preferences seam
+about a piece. That control's label SHALL state that it stops the asking for good
+("don't ask again"), never merely defer it — dismissing the surface is what defers. A refusal SHALL be persisted through the injectable preferences seam
 and the persisted value SHALL be bounded in size so it cannot grow without limit.
 There SHALL be no global dismissal count and no cross-score snooze window.
 
@@ -172,7 +173,8 @@ There SHALL be no global dismissal count and no cross-score snooze window.
 #### Scenario: Every surface can refuse
 
 - **WHEN** the prompt is shown, on either the summary or the exit sheet
-- **THEN** an explicit refusal control is available on it
+- **THEN** an explicit refusal control is available on it, labelled as a permanent
+  refusal rather than a postponement
 
 #### Scenario: Dismissing a surface is not a refusal
 

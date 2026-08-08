@@ -315,7 +315,7 @@
   "postPlayRatingPrompt": "Che te ne pare di questo spartito?",
   "postPlayRatingThanks": "Grazie: la tua valutazione aiuta gli altri musicisti.",
   "postPlayRatingFailed": "Non è stato possibile salvare la valutazione. Tocca una stella per riprovare.",
-  "postPlayRatingSkip": "Non ora",
+  "postPlayRatingSkip": "Non chiedere più",
   "postPlayRatingStarTooltip": "{count, plural, =1{1 stella} other{{count} stelle}}",
   "ratingStarsSheetTitle": "Valuta questa partitura",
   "ratingPendingBadge": "Possibile nuovo spartito",

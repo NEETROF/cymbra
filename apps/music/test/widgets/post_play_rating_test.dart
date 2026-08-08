@@ -344,6 +344,27 @@ void main() {
       },
     );
 
+    testWidgets('fits the smallest real phone-landscape window', (
+      tester,
+    ) async {
+      // The app is landscape-locked (main.dart), so the tightest window that can
+      // actually happen is a small phone on its side — 568×320, barely taller than
+      // the modal's own chrome. The refusal label is long in several languages,
+      // hence the Wrap rather than a Row.
+      tester.view.physicalSize = const Size(568, 320);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+      final c = _container();
+      addTearDown(c.dispose);
+      await _openSummary(tester, c);
+      expect(find.byKey(const Key('post-play-star-5')), findsOneWidget);
+      expect(find.byKey(const Key('post-play-rating-skip')), findsOneWidget);
+      expect(
+        tester.getSize(find.byType(PostPlayRatingRow)).height,
+        lessThanOrEqualTo(64),
+      );
+    });
+
     testWidgets('does not crowd out the statistics on a short viewport', (
       tester,
     ) async {

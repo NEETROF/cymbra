@@ -154,9 +154,15 @@ class PostPlayRatingRow extends ConsumerWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 label,
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [...stars, const SizedBox(width: 4), decline],
+                // Wrap, not Row: "Don't ask again" is a long label in several
+                // languages, and on a narrow portrait window the stars plus the
+                // button exceed the modal's inner width. Wrapping to a second line
+                // is a graceful degradation; a Row would throw an overflow.
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 4,
+                  children: [...stars, decline],
                 ),
                 ?failure,
               ],
