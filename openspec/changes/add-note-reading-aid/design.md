@@ -43,6 +43,10 @@ Two existing facts shape the design:
 - No labels drawn on the waterfall tiles. Carrying the name down with a falling
   note is a plausible sibling design, but it would put the aid back in front of a
   *moving* score, which is the one thing this design refuses.
+- No aid during the pre-start countdown. The "time is stopped" argument does
+  reach it, but the aid answers "you are stuck on a note you cannot identify" —
+  before the first note nobody is stuck, so naming it there is noise on a screen
+  `CountdownOverlay` already owns.
 - No fourth step in the player's guided tour. It was considered as the way to make
   the setting discoverable; the default now does that job — the aid names the note
   out of the box — so the tour keeps its three steps rather than growing for
@@ -201,8 +205,5 @@ becomes unreadable.
 
 ## Open Questions
 
-- Should the aid also be shown during the pre-start countdown, naming the first
-  note before the run begins? It is the same "time is stopped" argument, but it
-  overlaps `CountdownOverlay`.
 - The default is *note name* for everyone. If the onboarding ever learns that a
   player is experienced, should that path default it to *off* instead?
