@@ -12,14 +12,14 @@
 
 ## 2. Client: manifest model + forward-compatible block engine
 
-- [ ] 2.1 Freezed `CourseManifest` (`schemaVersion`, `id`, inline-i18n `title`/`summary`, `blocks[]`) and a **Block** union: `text`, `diagram`, `image`, `video`, `question`, `playKey`, `score`, plus an `unsupported` fallback
+- [ ] 2.1 Freezed `CourseManifest` (`schemaVersion`, `id`, **`instrument`** e.g. `piano`, **`track`**, **`level`**, inline-i18n `title`/`summary`, `blocks[]`) and a **Block** union: `text`, `diagram`, `image`, `video`, `question`, `playKey`, `score`, plus an `unsupported` fallback (interactive blocks instrument-scoped)
 - [ ] 2.2 Defensive parser: unknown block `type` (or unsupported capability) → `unsupported` (skipped at play time), unknown top-level `schemaVersion` → course declined; inline-i18n resolver (current locale, fallback `en`)
 - [ ] 2.3 Course-source seam (gRPC client) + Riverpod provider for the course list, with a local cache for offline
 - [ ] 2.4 Unit-test parsing: valid manifest → ordered blocks; **injected unknown block still yields a completable course**; schema-version decline; i18n fallback; cache round-trip
 
 ## 3. Home "Cours" section + lesson player (display + quiz blocks)
 
-- [ ] 3.1 `_CoursesSection` above `_FavoritesBody` in `library_screen.dart` (no menu; never blocks favorites; omits when empty) + course **tile** with completion indicator
+- [ ] 3.1 `_CoursesSection` above `_FavoritesBody` in `library_screen.dart` (no menu; never blocks favorites; omits when empty), **grouped by track + level** + course **tile** with completion indicator
 - [ ] 3.2 `LessonPlayerScreen` running blocks at the user's pace; renders `text`, `diagram` (existing painters), `image`/`video` (from URL); a Next/skip gate; leaveable anytime
 - [ ] 3.3 `question` block: multiple-choice / true-false with immediate feedback, never hard-blocks continuing; accessible controls
 - [ ] 3.4 ARB keys for section title + player/tile chrome (en/fr/es/it) — UI chrome only (content is manifest-inline)
@@ -40,9 +40,15 @@
 - [ ] 5.5 Flutter completion notifier: local cache (`shared_preferences`, guest) reconciled with the server on load (non-blocking); record on finish; best-effort push local completions on sign-in
 - [ ] 5.6 Tests — Rust: first completion awards once, replay/other-device never re-awards (`cargo llvm-cov` ≥ 80% core). Flutter: signed-in completion shows across a fresh container, guest stays local, load-in-flight still opens the course
 
-## 6. Supersede the old sketch + quality gate
+## 6. First-wave course content (seed)
 
-- [ ] 6.1 Remove the superseded `notation-lessons` capability from `add-notation-help` (delete its delta spec, drop from that proposal/tasks); re-validate `add-notation-help --strict`
-- [ ] 6.2 `flutter analyze` + `dart format` + `dart run custom_lint` clean; `cargo fmt --check` + `cargo clippy -D warnings` clean
-- [ ] 6.3 Coverage ≥ 80% both ecosystems
-- [ ] 6.4 `openspec validate add-notation-courses --strict` passes
+- [ ] 6.1 Author the **first-wave** manifests fully in `{en,fr,es,it}` per `catalogue.md` (~11: Track A beginner `sol-portee-notes`/`sol-cles`/`sol-nom-notes`/`sol-valeurs`/`sol-silences`/`sol-mesure`/`sol-alterations` + Track B `app-prise-en-main`/`app-mode-synthesia`/`app-mode-horizontal`/`app-mode-partition`), each `instrument: "piano"` with `track`/`level`
+- [ ] 6.2 Add them to the seed script (§1.4); verify they parse + play through the engine end-to-end
+- [ ] 6.3 Leave the remaining catalogue as a documented **backlog** (data-only; no app release needed to add more)
+
+## 7. Supersede the old sketch + quality gate
+
+- [ ] 7.1 Remove the superseded `notation-lessons` capability from `add-notation-help` (delete its delta spec, drop from that proposal/tasks); re-validate `add-notation-help --strict`
+- [ ] 7.2 `flutter analyze` + `dart format` + `dart run custom_lint` clean; `cargo fmt --check` + `cargo clippy -D warnings` clean
+- [ ] 7.3 Coverage ≥ 80% both ecosystems
+- [ ] 7.4 `openspec validate add-notation-courses --strict` passes

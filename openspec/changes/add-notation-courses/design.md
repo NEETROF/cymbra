@@ -91,6 +91,15 @@ and reconciles with the server; a **guest** keeps it in `shared_preferences` and
 on sign-in.
 - *Why:* proven testable shape; idempotency/anti-double-award belong on the server.
 
+### 7. Manifests are instrument-typed and track/level-tagged; content is a backlog, not a blocker
+Every manifest carries `instrument` (`piano` now), `track` (solfège / app-usage / technique) and
+`level` (beginner / intermediate / advanced), so the home section **groups** tiles and a future
+**drums** track slots in by swapping only the interactive blocks (`playKey` → a pad block) — passive
+blocks and the engine are unchanged. The proposed first-party catalogue (~50 courses across the three
+tracks) is in `catalogue.md`; a **first wave** (beginner solfège + app basics, ~11 courses) is
+authored/seeded to prove the engine end-to-end, and the rest is a **content backlog** shipped by
+inserting rows — a course is data, so new courses need no app release.
+
 ### 6. Home placement as a distinct section; supersede the old sketch
 A `_CoursesSection` above `_FavoritesBody`, reading the course list + completion map from a notifier;
 never blocks favorites. **Remove** the superseded `notation-lessons` capability from
@@ -129,8 +138,8 @@ Rollback: additive tables/RPCs/UI; disabling the section leaves play unaffected.
 ## Open Questions
 
 - **Media hosting** (object storage/CDN) for `video`/`image` — deferred; the first course avoids media.
-- **First-party catalogue**: how many courses and topics/order at launch (start with one "reading &
-  playing the staff" course).
+- **First-party catalogue**: proposed in `catalogue.md` (~50 courses, 3 tracks, leveled); the first
+  wave to author fully is listed there. Remaining courses are a content backlog.
 - **Badge design**: one badge per course vs a "first course" + "all courses" pair (start: one per course).
 - **Closed sets**: the initial `diagram` id list and `playKey`/`score` note-spec shape.
 - **2c** (community catalogue + propose + moderation) is a separate later change.

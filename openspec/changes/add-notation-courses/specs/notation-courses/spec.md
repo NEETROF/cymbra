@@ -25,9 +25,13 @@ database.
 
 ### Requirement: Courses are a generic, versioned, forward-compatible block format
 
-A course manifest SHALL declare a `schemaVersion` and consist of inline-localized metadata and an
-**ordered list of typed blocks**, where each block carries a `type`, its localized content, an
-optional **media reference (URL)**, and an **advance gate** describing how the user proceeds. All
+A course manifest SHALL declare a `schemaVersion`, an **`instrument`** it targets (e.g. `piano`), and
+a **`track`** and **`level`** for grouping (e.g. solfège / app-usage / technique × beginner /
+intermediate / advanced), plus inline-localized metadata and an **ordered list of typed blocks**,
+where each block carries a `type`, its localized content, an optional **media reference (URL)**, and
+an **advance gate** describing how the user proceeds. Interactive block types are **instrument-scoped**
+(e.g. `playKey` targets a keyboard instrument), so the format can extend to other instruments later
+(a drum track swapping the interactive blocks) without a breaking change. All
 human-readable copy SHALL be **localized inline within the manifest** (per supported language), so a
 manifest is self-contained and independent of the app's localization resources. The format SHALL be
 **forward-compatible**: when the app encounters a block whose `type` (or required capability) it does
@@ -94,14 +98,15 @@ continue.
 ### Requirement: Courses are on the home screen, above the favorites
 
 The app SHALL present a **Courses** section on the home (library) screen, positioned **above** the
-favorited scores, with **one tile per available course** and a **completion indicator** on each. The
-section SHALL be reachable without opening a menu and MUST NOT displace or block the favorites below
-it; with no courses available it SHALL omit gracefully.
+favorited scores, with **one tile per available course** and a **completion indicator** on each,
+**grouped by track and level** (from the manifest). The section SHALL be reachable without opening a
+menu and MUST NOT displace or block the favorites below it; with no courses available it SHALL omit
+gracefully.
 
-#### Scenario: Courses appear above favorites
+#### Scenario: Courses appear above favorites, grouped by track/level
 
 - **WHEN** the user opens the home screen
-- **THEN** a Courses section is shown above the favorites, one tile per course, each with a completion indicator
+- **THEN** a Courses section is shown above the favorites, one tile per course grouped by track and level, each with a completion indicator
 
 #### Scenario: Opening a course from its tile
 
