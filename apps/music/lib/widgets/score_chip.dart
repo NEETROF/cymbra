@@ -131,6 +131,9 @@ class _ScoreChipState extends ConsumerState<ScoreChip>
                   ),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 10),
+                    // Fixed-width slots so the pill never resizes as the sync
+                    // % changes digits or the combo appears/disappears — a
+                    // twitching HUD pulls the eye away from the score.
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -142,22 +145,40 @@ class _ScoreChipState extends ConsumerState<ScoreChip>
                           child: const SizedBox(width: 8, height: 8),
                         ),
                         const SizedBox(width: 6),
-                        Text(
-                          '${pct.round()}%',
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: CymbraColors.onSurface,
-                            height: 1,
+                        SizedBox(
+                          width: 44,
+                          child: Text(
+                            '${pct.round()}%',
+                            textAlign: TextAlign.center,
+                            maxLines: 1,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: CymbraColors.onSurface,
+                              height: 1,
+                            ),
                           ),
                         ),
-                        // The combo only appears once it exists — an "×0"
-                        // before the first landed note reads as a reproach.
-                        if (!widget.compact && combo > 0) ...[
-                          const SizedBox(width: 8),
-                          Text(
-                            l10n.scoringCombo(combo),
-                            style: TextStyle(fontSize: 12, color: color),
+                        // Reserved combo slot: empty until a streak exists
+                        // (an "×0" before the first landed note reads as a
+                        // reproach), so showing it never shifts the layout.
+                        if (!widget.compact) ...[
+                          const SizedBox(width: 4),
+                          SizedBox(
+                            width: 34,
+                            child: combo > 0
+                                ? FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    child: Text(
+                                      l10n.scoringCombo(combo),
+                                      maxLines: 1,
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: color,
+                                      ),
+                                    ),
+                                  )
+                                : null,
                           ),
                         ],
                       ],
