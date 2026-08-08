@@ -71,7 +71,7 @@ void main() {
     },
   );
 
-  testWidgets('compact chip keeps the % and drops the combo text', (
+  testWidgets('combo shows only once it exists, never on the compact chip', (
     tester,
   ) async {
     final container = ProviderContainer(
@@ -83,27 +83,31 @@ void main() {
       (w) => w is Text && (w.data ?? '').contains('×'),
     );
 
-    // Full chip first: combo text present.
     await tester.pumpWidget(
       UncontrolledProviderScope(
         container: container,
         child: localizedApp(const Scaffold(body: ScoreChip())),
       ),
     );
-    container
-        .read(performanceScorerProvider.notifier)
-        .startRun(
-          pieceId: 'p',
-          title: 'T',
-          hands: 'both',
-          speed: 1,
-          notes: const [TimedNote(pitch: 60, startMs: 0, durationMs: 500)],
-        );
+    final scorer = container.read(performanceScorerProvider.notifier);
+    scorer.startRun(
+      pieceId: 'p',
+      title: 'T',
+      hands: 'both',
+      speed: 1,
+      notes: const [TimedNote(pitch: 60, startMs: 0, durationMs: 500)],
+    );
     await tester.pump();
+    // No landed note yet → no "×0" reproach on the chip.
     expect(find.text('100%'), findsOneWidget);
+    expect(comboText(), findsNothing);
+
+    // A perfect hit starts the streak → the full chip shows ×1…
+    scorer.noteOn(60, 0, waitMode: false);
+    await tester.pump();
     expect(comboText(), findsOneWidget);
 
-    // Compact variant: % only.
+    // …while the compact variant never carries the combo text.
     await tester.pumpWidget(
       UncontrolledProviderScope(
         container: container,

@@ -599,18 +599,20 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
       _sectionTitle(l10n.settingsCategoryScoreSize),
       SegmentedButton<ScoreSize>(
         segments: [
-          ButtonSegment(
-            value: ScoreSize.small,
-            label: Text(l10n.scoreSizeSmall),
-          ),
-          ButtonSegment(
-            value: ScoreSize.medium,
-            label: Text(l10n.scoreSizeMedium),
-          ),
-          ButtonSegment(
-            value: ScoreSize.large,
-            label: Text(l10n.scoreSizeLarge),
-          ),
+          for (final (size, label) in [
+            (ScoreSize.small, l10n.scoreSizeSmall),
+            (ScoreSize.medium, l10n.scoreSizeMedium),
+            (ScoreSize.large, l10n.scoreSizeLarge),
+          ])
+            ButtonSegment(
+              value: size,
+              // Scale down rather than wrap: "Moyenne" broke onto two lines
+              // in the narrow phone column.
+              label: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(label, maxLines: 1),
+              ),
+            ),
         ],
         selected: {_scoreSize},
         onSelectionChanged: (s) => setState(() => _scoreSize = s.first),

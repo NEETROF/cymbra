@@ -151,7 +151,9 @@ class _ScoreChipState extends ConsumerState<ScoreChip>
                             height: 1,
                           ),
                         ),
-                        if (!widget.compact) ...[
+                        // The combo only appears once it exists — an "×0"
+                        // before the first landed note reads as a reproach.
+                        if (!widget.compact && combo > 0) ...[
                           const SizedBox(width: 8),
                           Text(
                             l10n.scoringCombo(combo),
