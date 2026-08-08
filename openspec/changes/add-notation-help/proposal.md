@@ -30,11 +30,10 @@ help even exists.
   gesture layer can map a long-press to the symbol under the finger. Render output is unchanged.
 - **Localized content.** All help copy is authored through the app's localization (`app_en/fr/es/it.arb`),
   keyed by symbol kind, consistent with `app-localization`.
-- **Phase 2 (specified, deferred): scripted beginner reading lessons.** A short, guided
-  "reading the staff" course — self-paced **scripted** lessons (explanation + diagram + a light
-  quiz step), progress persisted locally, replayable from help/tips. No teacher, no AI.
-- **Out of scope: a virtual / AI tutor.** A conversational or LLM-backed teacher persona is a
-  future vision only; nothing in this change adds a backend, an LLM call, or TTS.
+- **Guided courses are spun out** into their own change, **`add-notation-courses`** (home-screen
+  Courses section, a versioned self-contained course-manifest format, cross-device completion, and
+  a completion badge). They are **not** part of this change, which stays the contextual, in-place
+  help. A virtual / AI tutor remains a future vision only — no backend, LLM, or TTS here.
 
 ## Capabilities
 
@@ -43,10 +42,11 @@ help even exists.
   the staff (long-press a rendered symbol → localized bubble), the one-time discovery hint routed
   through `feature-discovery`, the browsable notation glossary in help/tips, and the painter
   hit-test geometry that makes symbol-level long-press possible.
-- `notation-lessons`: **phase 2, deferred** — a self-paced set of scripted beginner
-  staff-reading lessons (explanation + diagram + light quiz), progress persisted locally and
-  replayable from help/tips. Specified here for a coherent single spec; delivered after
-  `notation-help`. Excludes any virtual/AI tutor.
+<!-- Guided courses were originally sketched here as `notation-lessons` (deferred); they have been
+     spun out into their own change `add-notation-courses` (home Courses section, versioned
+     self-contained manifest format, cross-device completion, badge). Not a capability of this
+     change. -->
+
 
 ### Modified Capabilities
 <!-- None. `notation-help` reuses feature-discovery's "seen"/help-surface mechanism without

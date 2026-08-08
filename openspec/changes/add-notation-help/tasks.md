@@ -36,9 +36,7 @@
 - [x] 5.2 Flutter line coverage ≥ 80% for all new code (`flutter test --coverage --exclude-tags golden`, 871 tests green): staff_hit_index 100%, notifier 100%, bubble 100%, staff_painter 94%, glossary 92%, content 91%, area 89%, partition_painter 87%
 - [x] 5.3 `openspec validate add-notation-help --strict` passes
 
-## 6. Phase 2 — scripted staff-reading lessons (`notation-lessons`, deferred)
+<!-- Phase 2 (guided courses) spun out into `add-notation-courses` — home Courses section, versioned
+     self-contained manifest format, cross-device completion, and a completion badge. No longer part
+     of this change. -->
 
-- [ ] 6.1 Model a lesson as an ordered list of scripted steps (`explanation | diagram | quiz`), diagrams reusing existing painters/glyphs where possible; all copy localized (en/fr/es/it)
-- [ ] 6.2 Build the lessons list + scripted-lesson player UI (skippable, never a prerequisite to play); quiz step gives immediate feedback but does not block continuing
-- [ ] 6.3 Persist lesson completion locally (`shared_preferences`); mark completed lessons across launches; make lessons reachable and replayable from the help/tips surface
-- [ ] 6.4 Widget-test lesson flow (step-through, skip, quiz feedback, completion persistence, replay) and keep Flutter coverage ≥ 80%
