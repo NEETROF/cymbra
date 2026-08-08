@@ -438,7 +438,12 @@ class PartitionPainter extends CustomPainter {
         barPaint,
       );
       _record(
-        Rect.fromLTRB(x + mWidth - _s * 0.4, systemTop, x + mWidth + _s * 0.4, systemBottom),
+        Rect.fromLTRB(
+          x + mWidth - _s * 0.4,
+          systemTop,
+          x + mWidth + _s * 0.4,
+          systemBottom,
+        ),
         const SymbolDescriptor.barLine(),
       );
       final isCursorMeasure = cursor != null && cursor.index == idx;
@@ -613,7 +618,12 @@ class PartitionPainter extends CustomPainter {
             palette.accent,
           );
           _record(
-            Rect.fromLTWH(x - _s * 0.3, trebleBottom + _s * 1.3, _s * 2.2, _s * 1.6),
+            Rect.fromLTWH(
+              x - _s * 0.3,
+              trebleBottom + _s * 1.3,
+              _s * 2.2,
+              _s * 1.6,
+            ),
             SymbolDescriptor.dynamics(token: field0),
           );
         case DirectionKind_Wedge():
@@ -709,7 +719,12 @@ class PartitionPainter extends CustomPainter {
         if (glyph != null) {
           Smufl.draw(canvas, glyph, headLeft - _s * 1.5, y, _s, _ink);
           _record(
-            Rect.fromLTWH(headLeft - _s * 1.7, y - _s * 1.4, _s * 1.4, _s * 2.6),
+            Rect.fromLTWH(
+              headLeft - _s * 1.7,
+              y - _s * 1.4,
+              _s * 1.4,
+              _s * 2.6,
+            ),
             SymbolDescriptor.accidental(token: note.accidental!),
           );
         }
@@ -888,7 +903,12 @@ class PartitionPainter extends CustomPainter {
     // The quadratic's apex is halfway to the control point; band the arc there.
     final apexY = 0.25 * (a.dy + b.dy) + 0.5 * ctrlY;
     _record(
-      Rect.fromLTRB(a.dx, apexY - _s * 0.5, b.dx, (a.dy > b.dy ? a.dy : b.dy) + _s * 0.3),
+      Rect.fromLTRB(
+        a.dx,
+        apexY - _s * 0.5,
+        b.dx,
+        (a.dy > b.dy ? a.dy : b.dy) + _s * 0.3,
+      ),
       const SymbolDescriptor.slur(),
     );
   }

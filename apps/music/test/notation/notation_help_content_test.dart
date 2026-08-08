@@ -127,18 +127,9 @@ void main() {
 
   test('note names use letters in English and solfège elsewhere', () {
     // C4 is MIDI 60.
-    expect(
-      notationPitchName(60, solfege: false, frenchRe: false),
-      'C4',
-    );
-    expect(
-      notationPitchName(60, solfege: true, frenchRe: true),
-      'Do4',
-    );
+    expect(notationPitchName(60, solfege: false, frenchRe: false), 'C4');
+    expect(notationPitchName(60, solfege: true, frenchRe: true), 'Do4');
     // A sharp/black key spells with ♯.
-    expect(
-      notationPitchName(61, solfege: false, frenchRe: false),
-      'C♯4',
-    );
+    expect(notationPitchName(61, solfege: false, frenchRe: false), 'C♯4');
   });
 }

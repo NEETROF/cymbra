@@ -141,7 +141,10 @@ NotationHelp notationHelpFor(
         body: l10n.notationHelpNoteBody,
       );
     case RestSymbol():
-      return (title: l10n.notationHelpRestTitle, body: l10n.notationHelpRestBody);
+      return (
+        title: l10n.notationHelpRestTitle,
+        body: l10n.notationHelpRestBody,
+      );
     case AccidentalSymbol(:final token):
       return switch (token) {
         'flat' => (
@@ -186,11 +189,7 @@ NotationHelp notationHelpFor(
         body: fifths == 0
             ? l10n.notationHelpKeySignatureNone
             : l10n.notationHelpKeySignatureBody(
-                notationKeyTonic(
-                  fifths,
-                  solfege: solfege,
-                  frenchRe: frenchRe,
-                ),
+                notationKeyTonic(fifths, solfege: solfege, frenchRe: frenchRe),
               ),
       );
     case TimeSignatureSymbol(:final beats, :final beatType):

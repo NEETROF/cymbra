@@ -25,16 +25,16 @@
 
 ## 4. Discovery hint + glossary via `feature-discovery` (`notation-help`)
 
-- [ ] 4.1 Register the "you can long-press symbols for help" hint through the shared `feature-discovery` coach-mark + persisted "seen" state (one-time, dismissible, non-blocking) — reuse its seam directly, no local shim
-- [ ] 4.2 Add a browsable notation glossary screen (same content as the bubbles) reachable from the `feature-discovery` help/tips surface
-- [ ] 4.3 Widget-test: hint shows once then not again; glossary lists and reads all covered symbol kinds and matches the on-staff copy
+- [x] 4.1 Register the "you can long-press symbols for help" hint through the shared `feature-discovery` coach-mark + persisted "seen" state: new `CoachHint.notationHelp`, copy via `coachHintCopy`, shown as a one-time dismissible `CoachHintCallout` on first score view in both the staff and partition views — no local shim
+- [x] 4.2 Add a browsable notation glossary screen (`lib/screens/notation_glossary_screen.dart`, same `notationHelpFor` content as the bubbles) reachable from the help/tips surface via a "Notation guide" card
+- [x] 4.3 Widget-test: hint shows once then not again (persisted "seen"); glossary lists every symbol kind and its copy matches the on-staff bubble (`test/widgets/notation_help_discovery_test.dart`)
 - [ ] 4.4 (Optional, only if `feature-usage-analytics` #171 has landed) Emit curated actions — help-bubble opened, hint dismissed, glossary opened, lesson completed — via its taxonomy, fire-and-forget and guarded so its absence never blocks the help; `variant` at most the symbol kind, no score content
 
 ## 5. Quality gate (v1)
 
-- [ ] 5.1 `melos run analyze` + `dart format` clean; `dart run custom_lint` passes
-- [ ] 5.2 Flutter line coverage ≥ 80% for the new code (`flutter test --coverage`, excluding goldens); native lib not required
-- [ ] 5.3 `openspec validate add-notation-help --strict` passes
+- [x] 5.1 `flutter analyze` clean (lib + test), `dart format` clean, `dart run custom_lint` passes (no issues)
+- [x] 5.2 Flutter line coverage ≥ 80% for all new code (`flutter test --coverage --exclude-tags golden`, 871 tests green): staff_hit_index 100%, notifier 100%, bubble 100%, staff_painter 94%, glossary 92%, content 91%, area 89%, partition_painter 87%
+- [x] 5.3 `openspec validate add-notation-help --strict` passes
 
 ## 6. Phase 2 — scripted staff-reading lessons (`notation-lessons`, deferred)
 

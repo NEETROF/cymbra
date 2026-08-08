@@ -321,7 +321,12 @@ class StaffPainter extends CustomPainter {
       palette.staffLine,
     );
     record(
-      Rect.fromLTWH(2, trebleBottom - 5.2 * lineGap, lineGap * 3.4, lineGap * 7),
+      Rect.fromLTWH(
+        2,
+        trebleBottom - 5.2 * lineGap,
+        lineGap * 3.4,
+        lineGap * 7,
+      ),
       SymbolDescriptor.clef(sign: trebleClef.$1),
     );
     if (bassBottom != null) {
@@ -335,7 +340,12 @@ class StaffPainter extends CustomPainter {
         palette.staffLine,
       );
       record(
-        Rect.fromLTWH(2, bassBottom - 4.6 * lineGap, lineGap * 3.4, lineGap * 5),
+        Rect.fromLTWH(
+          2,
+          bassBottom - 4.6 * lineGap,
+          lineGap * 3.4,
+          lineGap * 5,
+        ),
         SymbolDescriptor.clef(sign: bassClef.$1),
       );
     }
@@ -368,7 +378,12 @@ class StaffPainter extends CustomPainter {
     }
     if (keyW > 0) {
       record(
-        Rect.fromLTWH(hx, systemTop - lineGap, keyW, systemBottom - systemTop + 2 * lineGap),
+        Rect.fromLTWH(
+          hx,
+          systemTop - lineGap,
+          keyW,
+          systemBottom - systemTop + 2 * lineGap,
+        ),
         SymbolDescriptor.keySignature(fifths: headKey),
       );
     }
@@ -383,7 +398,12 @@ class StaffPainter extends CustomPainter {
       headColor,
     );
     record(
-      Rect.fromLTWH(hx, systemTop - lineGap, timeW, systemBottom - systemTop + 2 * lineGap),
+      Rect.fromLTWH(
+        hx,
+        systemTop - lineGap,
+        timeW,
+        systemBottom - systemTop + 2 * lineGap,
+      ),
       SymbolDescriptor.timeSignature(beats: beats, beatType: beatType),
     );
     if (bassBottom != null) {
@@ -421,7 +441,12 @@ class StaffPainter extends CustomPainter {
       if (x < headEnd || x > size.width - margin) return;
       canvas.drawLine(Offset(x, systemTop), Offset(x, systemBottom), barPaint);
       record(
-        Rect.fromLTRB(x - lineGap * 0.4, systemTop, x + lineGap * 0.4, systemBottom),
+        Rect.fromLTRB(
+          x - lineGap * 0.4,
+          systemTop,
+          x + lineGap * 0.4,
+          systemBottom,
+        ),
         const SymbolDescriptor.barLine(),
       );
     }

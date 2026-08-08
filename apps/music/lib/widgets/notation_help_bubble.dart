@@ -98,7 +98,10 @@ class NotationHelpBubble extends StatelessWidget {
                 visualDensity: VisualDensity.compact,
                 iconSize: 18,
                 tooltip: l10n.notationHelpClose,
-                icon: const Icon(Icons.close, color: CymbraColors.onSurfaceVariant),
+                icon: const Icon(
+                  Icons.close,
+                  color: CymbraColors.onSurfaceVariant,
+                ),
               ),
             ],
           ),

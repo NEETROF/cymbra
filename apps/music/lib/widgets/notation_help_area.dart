@@ -93,8 +93,9 @@ class _NotationHelpAreaState extends ConsumerState<NotationHelpArea> {
           Positioned.fill(
             child: GestureDetector(
               behavior: HitTestBehavior.translucent,
-              onTap: () =>
-                  ref.read(notationHelpBubbleControllerProvider.notifier).dismiss(),
+              onTap: () => ref
+                  .read(notationHelpBubbleControllerProvider.notifier)
+                  .dismiss(),
             ),
           ),
           _positioned(context, bubble),
@@ -135,7 +136,9 @@ class _NotationHelpAreaState extends ConsumerState<NotationHelpArea> {
     return Positioned(
       left: left,
       top: placeAbove ? null : bubble.anchor.dy + 18,
-      bottom: placeAbove ? math.max(8.0, area.height - bubble.anchor.dy + 14) : null,
+      bottom: placeAbove
+          ? math.max(8.0, area.height - bubble.anchor.dy + 14)
+          : null,
       child: card,
     );
   }

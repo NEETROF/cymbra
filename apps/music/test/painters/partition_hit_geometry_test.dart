@@ -34,19 +34,21 @@ PartitionPainter _painter(ScoreDocument document, {StaffHitIndex? hitIndex}) =>
       hitIndex: hitIndex,
     );
 
-PartitionPainter _oneSystem(ScoreDocument document, {StaffHitIndex? hitIndex}) =>
-    PartitionPainter(
-      document: document,
-      systems: [
-        System(
-          measures: Uint32List.fromList([
-            for (var i = 0; i < document.measures.length; i++) i,
-          ]),
-          staves: document.staves,
-        ),
-      ],
-      hitIndex: hitIndex,
-    );
+PartitionPainter _oneSystem(
+  ScoreDocument document, {
+  StaffHitIndex? hitIndex,
+}) => PartitionPainter(
+  document: document,
+  systems: [
+    System(
+      measures: Uint32List.fromList([
+        for (var i = 0; i < document.measures.length; i++) i,
+      ]),
+      staves: document.staves,
+    ),
+  ],
+  hitIndex: hitIndex,
+);
 
 Future<ui.Image> _render(PartitionPainter painter) async {
   final recorder = ui.PictureRecorder();
@@ -68,9 +70,7 @@ void main() {
     );
 
     final a = await plain.toByteData(format: ui.ImageByteFormat.rawRgba);
-    final b = await instrumented.toByteData(
-      format: ui.ImageByteFormat.rawRgba,
-    );
+    final b = await instrumented.toByteData(format: ui.ImageByteFormat.rawRgba);
     plain.dispose();
     instrumented.dispose();
 
@@ -87,8 +87,9 @@ void main() {
 
   test('grand staff records its core symbols', () async {
     final index = StaffHitIndex();
-    (await _render(_painter(sampleGrandStaffDocument(), hitIndex: index)))
-        .dispose();
+    (await _render(
+      _painter(sampleGrandStaffDocument(), hitIndex: index),
+    )).dispose();
 
     expect(
       _recordedKinds(index),
@@ -104,8 +105,9 @@ void main() {
 
   test('ties and slurs are recorded', () async {
     final index = StaffHitIndex();
-    (await _render(_oneSystem(sampleTieSlurDocument(), hitIndex: index)))
-        .dispose();
+    (await _render(
+      _oneSystem(sampleTieSlurDocument(), hitIndex: index),
+    )).dispose();
 
     final kinds = _recordedKinds(index);
     expect(kinds, contains(SymbolKind.tie));
@@ -114,16 +116,18 @@ void main() {
 
   test('beams and tuplets are recorded', () async {
     final index = StaffHitIndex();
-    (await _render(_oneSystem(sampleBeamedDocument(), hitIndex: index)))
-        .dispose();
+    (await _render(
+      _oneSystem(sampleBeamedDocument(), hitIndex: index),
+    )).dispose();
 
     expect(_recordedKinds(index), contains(SymbolKind.beam));
   });
 
   test('a press on a note head resolves to that note', () async {
     final index = StaffHitIndex();
-    (await _render(_painter(sampleGrandStaffDocument(), hitIndex: index)))
-        .dispose();
+    (await _render(
+      _painter(sampleGrandStaffDocument(), hitIndex: index),
+    )).dispose();
 
     final noteEntry = index.entries.firstWhere(
       (e) => e.descriptor is NoteSymbol,

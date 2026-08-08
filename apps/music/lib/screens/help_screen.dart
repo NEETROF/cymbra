@@ -20,6 +20,7 @@ import '../state/coaching_notifier.dart';
 import '../theme/cymbra_theme.dart';
 import '../widgets/app_snackbar.dart';
 import '../widgets/coach_copy.dart';
+import 'notation_glossary_screen.dart';
 
 /// Opens the help/tips surface from any stable entry point (the library app bar,
 /// the account menu).
@@ -68,6 +69,8 @@ class HelpScreen extends ConsumerWidget {
               _Topic(title: topic.title, body: topic.body),
             const SizedBox(height: 8),
             _ReplayCard(armed: replayArmed),
+            const SizedBox(height: 8),
+            const _NotationGuideCard(),
           ],
         ),
       ),
@@ -103,6 +106,56 @@ class _Topic extends StatelessWidget {
               color: CymbraColors.onSurfaceVariant,
               fontSize: 14,
               height: 1.35,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Opens the browsable notation glossary — the "reading the staff" guide whose
+/// explanations are the same ones shown as long-press bubbles on a score.
+class _NotationGuideCard extends StatelessWidget {
+  const _NotationGuideCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: CymbraColors.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            l10n.notationHelpGlossaryTitle,
+            style: const TextStyle(
+              color: CymbraColors.onSurface,
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            l10n.notationHelpHintBody,
+            style: const TextStyle(
+              color: CymbraColors.onSurfaceVariant,
+              fontSize: 14,
+              height: 1.35,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: FilledButton.icon(
+              key: const Key('help-open-notation-glossary'),
+              icon: const Icon(Icons.menu_book_outlined),
+              label: Text(l10n.notationHelpGlossaryOpen),
+              onPressed: () => openNotationGlossary(context),
             ),
           ),
         ],

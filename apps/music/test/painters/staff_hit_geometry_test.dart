@@ -111,9 +111,7 @@ void main() {
     final instrumented = await _render(_painter(hitIndex: StaffHitIndex()));
 
     final a = await plain.toByteData(format: ui.ImageByteFormat.rawRgba);
-    final b = await instrumented.toByteData(
-      format: ui.ImageByteFormat.rawRgba,
-    );
+    final b = await instrumented.toByteData(format: ui.ImageByteFormat.rawRgba);
     plain.dispose();
     instrumented.dispose();
 

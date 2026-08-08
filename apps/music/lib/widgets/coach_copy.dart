@@ -39,6 +39,10 @@ CoachCopy coachHintCopy(AppLocalizations l10n, CoachHint hint) =>
         title: l10n.coachPlayerTourTitle,
         body: l10n.coachPlayerTourBody,
       ),
+      CoachHint.notationHelp => (
+        title: l10n.notationHelpHintTitle,
+        body: l10n.notationHelpHintBody,
+      ),
     };
 
 /// The copy for one step of the guided player sequence.

@@ -65,10 +65,7 @@ void main() {
 
     test('empty staff area (beyond tolerance) resolves to null', () {
       final index = StaffHitIndex()
-        ..add(
-          const Rect.fromLTWH(0, 0, 10, 10),
-          const SymbolDescriptor.rest(),
-        );
+        ..add(const Rect.fromLTWH(0, 0, 10, 10), const SymbolDescriptor.rest());
 
       expect(index.hitTest(const Offset(300, 300)), isNull);
     });
