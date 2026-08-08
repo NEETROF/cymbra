@@ -333,7 +333,12 @@ ScoreDocument sampleGrandStaffDocument() => ScoreDocument(
     NotationMeasure(
       index: 0,
       clefs: const [],
-      keyFifths: 0,
+      // The parser carries the key in force into every measure, opening one
+      // included (see `key_fifths` in crates/musicxml-core/src/lib.rs), and the
+      // painters read the measure's key rather than the document's. A measure
+      // declaring 0 under a 3-sharp document is not something a real parse can
+      // produce, and it silently cost this fixture its armature coverage.
+      keyFifths: 3,
       minWidth: 120,
       directions: const [
         Direction(
