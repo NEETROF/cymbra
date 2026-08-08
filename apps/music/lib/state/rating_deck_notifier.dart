@@ -189,20 +189,15 @@ class RatingDeck extends _$RatingDeck {
 
   /// Record an explicit 1–5 star rating for the top card, deriving the verdict so
   /// swipe and stars fold into one rating (design D2): 5 → love, 3–4 → like,
-  /// 1–2 → dislike.
-  Future<void> rateStars(int stars) => _submit(_verdictForStars(stars), stars);
+  /// 1–2 → dislike. The derivation is shared with the post-play prompt
+  /// ([verdictForStars]) so the two star surfaces cannot drift apart.
+  Future<void> rateStars(int stars) => _submit(verdictForStars(stars), stars);
 
   /// Advance past the top card WITHOUT recording any rating (spec: Skip).
   void skip() {
     final card = state.topCard;
     if (card == null) return;
     _advance(card);
-  }
-
-  static RatingVerdict _verdictForStars(int stars) {
-    if (stars >= 5) return RatingVerdict.love;
-    if (stars >= 3) return RatingVerdict.like;
-    return RatingVerdict.dislike;
   }
 
   /// Report the top card's in-card preview progress toward "listened enough"

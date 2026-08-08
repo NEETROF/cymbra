@@ -44,6 +44,19 @@ class FakeRatingService implements RatingService {
       loveCount: 0,
     );
   }
+
+  /// Mirrors the server: what this fake has recorded IS what the caller rated.
+  /// Deliberately unaffected by [fail], which models a failing *write* — a test
+  /// that needs a failing read overrides the service with a mock instead.
+  @override
+  Future<MyRating> myRating({required String catalogId}) async {
+    for (final s in submissions.reversed) {
+      if (s.catalogId == catalogId) {
+        return MyRating(rated: true, verdict: s.verdict, stars: s.stars);
+      }
+    }
+    return MyRating.none;
+  }
 }
 
 /// In-memory [CatalogService] whose search returns a fixed page of `accepted`

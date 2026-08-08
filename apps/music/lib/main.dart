@@ -25,6 +25,7 @@ import 'services/audio_service.dart';
 import 'services/flags_integration.dart';
 import 'src/rust/frb_generated.dart';
 import 'state/app_locale.dart';
+import 'widgets/post_play_rating.dart';
 import 'state/language_sync_listener.dart';
 import 'state/selected_piano.dart';
 import 'state/usage_tracking_notifier.dart';
@@ -134,7 +135,9 @@ class CymbraApp extends ConsumerWidget {
           Stack(children: [?child, const CoachLayer()]),
       // Reconcile the account language into the UI after sign-in (change:
       // sync-account-language-preference), isolated in a dedicated listener.
-      home: const LanguageSyncListener(child: OnboardingGate()),
+      home: const PostPlayRatingToastListener(
+        child: LanguageSyncListener(child: OnboardingGate()),
+      ),
     );
   }
 }

@@ -34,7 +34,7 @@ use crate::catalog_search::{CatalogHit, CatalogQuery, CatalogSearchParams, Catal
 use crate::curation_rewards::CurationRewardsSink;
 use crate::repo::{CatalogEntry, ScoreFacets, ScoreMeta};
 use crate::score_rating::{
-    RatingAggregate, RatingConfig, ScoreRatingRepo, Verdict, is_flagged_for_review,
+    RatingAggregate, RatingConfig, ScoreRatingRepo, UserRating, Verdict, is_flagged_for_review,
 };
 use crate::user_library::UserLibraryRepo;
 use crate::user_scores::{UserScore, UserScoreRepo};
@@ -737,6 +737,25 @@ impl ScoreModule {
         self.ratings.aggregate(catalog_id).await
     }
 
+    /// The caller's OWN rating of one score (change: add-post-play-rating-prompt),
+    /// so the player can suppress the post-play prompt for a score already rated on
+    /// any device.
+    ///
+    /// **Fail-closed**: an unknown or `rejected` id reports `None` — the same answer
+    /// as a genuinely un-rated score — so this read can't be used to probe which
+    /// scores exist. Owner-scoped at the data layer, so another user's rating is
+    /// unreachable whatever the id.
+    pub async fn my_score_rating(
+        &self,
+        user_id: &str,
+        catalog_id: &str,
+    ) -> Result<Option<UserRating>> {
+        if !self.is_pending_or_accepted(catalog_id).await? {
+            return Ok(None);
+        }
+        self.ratings.find_by_user(user_id, catalog_id).await
+    }
+
     /// Source the swipe-rating deck (change: improve-rating-deck-sourcing, widened by
     /// rate-pending-scores): the caller's un-rated `pending` + `accepted` scores
     /// (never `rejected`), least-rated first, paginated. Excludes what the user
@@ -836,13 +855,7 @@ impl ScoreModule {
     /// [`Self::rating_preview_bytes`]; resolves the score in any status and checks
     /// its moderation status, so an unknown/`rejected` id is not rateable.
     async fn is_pending_or_accepted(&self, catalog_id: &str) -> Result<bool> {
-        Ok(matches!(
-            self.catalog
-                .hit_by_id(catalog_id, true)
-                .await?
-                .and_then(|h| h.moderation_status),
-            Some(ref s) if s == "pending" || s == "accepted"
-        ))
+        is_rateable_catalog_score(self.catalog.as_ref(), catalog_id).await
     }
 
     /// Fetch a catalog score's bytes for the **rating deck's read-only preview**
@@ -857,14 +870,67 @@ impl ScoreModule {
         }
         // Previewing a score IS the engagement signal that gates coverage points
         // (change: add-curation-rewards): record it so a later rating of this score
-        // is eligible. Best-effort; failing to record must not block the preview.
-        if let Some(rewards) = &self.rewards {
-            rewards.record_engagement(user_id, catalog_id).await?;
-        }
+        // is eligible. Best-effort — failing to record must not block the preview.
+        self.record_engagement(user_id, catalog_id).await;
         // Status is already gated to pending/accepted here, so resolving the bytes in
         // any status (`true`) can only reach a previewable score.
         self.get_catalog_bytes(catalog_id, true).await
     }
+
+    /// Fetch a catalog score's bytes for a **player open** — [`Self::get_catalog_bytes`]
+    /// plus the coverage engagement signal (change: add-post-play-rating-prompt).
+    ///
+    /// Playing a piece is stronger evidence of engagement than previewing it, so it
+    /// gates coverage points the same way; without this, a rating submitted from the
+    /// post-play prompt would silently earn nothing. Engagement is recorded only for a
+    /// *rateable* (`pending`/`accepted`) score, so a moderator opening a `rejected`
+    /// one to review it records nothing. `allow_unvalidated` and the bytes resolution
+    /// are unchanged — this only adds the signal.
+    pub async fn catalog_bytes_for_player(
+        &self,
+        user_id: &str,
+        catalog_id: &str,
+        allow_unvalidated: bool,
+    ) -> Result<Vec<u8>> {
+        if self
+            .is_pending_or_accepted(catalog_id)
+            .await
+            .unwrap_or(false)
+        {
+            self.record_engagement(user_id, catalog_id).await;
+        }
+        self.get_catalog_bytes(catalog_id, allow_unvalidated).await
+    }
+
+    /// Record the coverage engagement signal for `(user, score)`, best-effort: the
+    /// rewards seam may be unwired (no award path at all) and a storage failure must
+    /// never fail the caller's real work — a lost engagement only costs the user
+    /// coverage points on a later rating. Idempotent per (user, score) at the repo.
+    async fn record_engagement(&self, user_id: &str, catalog_id: &str) {
+        let Some(rewards) = &self.rewards else { return };
+        if let Err(e) = rewards.record_engagement(user_id, catalog_id).await {
+            tracing::warn!(
+                user_id = %user_id, catalog_id = %catalog_id, error = %e,
+                "curation: engagement not recorded"
+            );
+        }
+    }
+}
+
+/// Whether `id` is a catalog score the community may rate or preview — it exists
+/// in the catalog AND its moderation status is `pending` or `accepted`.
+///
+/// Free-standing (rather than a `ScoreModule` method) because the play-ingest path
+/// needs the same gate without owning a score module: an id that merely *looks*
+/// like a catalog id is not one. A **user upload**'s id is also a UUID but lives in
+/// `music.user_scores`, so treating UUID shape as proof would push a row that
+/// violates `score_engagements`' foreign key into the catalog (change:
+/// add-post-play-rating-prompt).
+pub async fn is_rateable_catalog_score(catalog: &dyn CatalogSearchRepo, id: &str) -> Result<bool> {
+    Ok(matches!(
+        catalog.hit_by_id(id, true).await?.and_then(|h| h.moderation_status),
+        Some(ref s) if s == "pending" || s == "accepted"
+    ))
 }
 
 /// The canonical MusicXML bytes: the decoded payload for a `.mxl`, else the input.
@@ -900,6 +966,8 @@ mod tests {
     use cymbra_storage::FakeStore;
 
     use crate::catalog_search::{FacetFilters, FakeCatalogRow, FakeCatalogSearchRepo};
+    use crate::curation_rewards::{CurationRewardsRepo, FakeCurationRewardsRepo};
+    use crate::curation_rewards_module::CurationRewardsModule;
     use crate::score_rating::{FakeScoreRatingRepo, RatingConfig};
     use crate::user_library::FakeUserLibraryRepo;
     use crate::user_scores::FakeUserScoreRepo;
@@ -1621,6 +1689,96 @@ mod tests {
         }
     }
 
+    /// [`moderated_module`] plus a real rewards module over a fake repo, returned
+    /// alongside so a test can assert what engagement was recorded.
+    async fn module_with_rewards() -> (ScoreModule, Arc<FakeCurationRewardsRepo>) {
+        let repo = Arc::new(FakeCurationRewardsRepo::default());
+        let rewards = Arc::new(CurationRewardsModule::new(repo.clone()));
+        (moderated_module().await.with_rewards(rewards), repo)
+    }
+
+    #[tokio::test]
+    async fn player_open_records_coverage_engagement() {
+        // change: add-post-play-rating-prompt — playing a score is engagement, so a
+        // rating submitted from the post-play prompt is coverage-eligible.
+        let (m, rewards) = module_with_rewards().await;
+        assert!(!rewards.has_engagement("u1", DEBUSSY_1).await.unwrap());
+        assert_eq!(
+            m.catalog_bytes_for_player("u1", DEBUSSY_1, false)
+                .await
+                .unwrap(),
+            b"<score/>"
+        );
+        assert!(rewards.has_engagement("u1", DEBUSSY_1).await.unwrap());
+        // Idempotent: opening again (or previewing the same score in the deck) does
+        // not double-record, and the preview path agrees.
+        m.catalog_bytes_for_player("u1", DEBUSSY_1, false)
+            .await
+            .unwrap();
+        m.rating_preview_bytes("u1", DEBUSSY_1).await.unwrap();
+        assert!(rewards.has_engagement("u1", DEBUSSY_1).await.unwrap());
+        // Another user's open is their own signal, not u1's.
+        assert!(!rewards.has_engagement("u2", DEBUSSY_1).await.unwrap());
+    }
+
+    #[tokio::test]
+    async fn player_open_engagement_only_for_rateable_scores() {
+        // A moderator opening a `rejected` score to review it is not "engagement":
+        // the score isn't rateable, so nothing must reach the rewards store — but the
+        // bytes are still served exactly as before.
+        let (m, rewards) = module_with_rewards().await;
+        assert_eq!(
+            m.catalog_bytes_for_player("mod1", REJECTED_ID, true)
+                .await
+                .unwrap(),
+            b"<score/>"
+        );
+        assert!(!rewards.has_engagement("mod1", REJECTED_ID).await.unwrap());
+        // A pending candidate IS rateable, so opening it does record engagement.
+        m.catalog_bytes_for_player("mod1", PENDING_ID, true)
+            .await
+            .unwrap();
+        assert!(rewards.has_engagement("mod1", PENDING_ID).await.unwrap());
+    }
+
+    #[tokio::test]
+    async fn player_open_still_gated_by_moderation_status() {
+        // The engagement signal must not widen what the player can open: a normal
+        // caller still gets not-found for pending/rejected, and records nothing.
+        let (m, rewards) = module_with_rewards().await;
+        for id in [PENDING_ID, REJECTED_ID] {
+            assert!(matches!(
+                m.catalog_bytes_for_player("u1", id, false).await,
+                Err(AppError::NotFound(_))
+            ));
+        }
+        // PENDING_ID is rateable, so the signal fired before the bytes were refused —
+        // harmless (the user did try to open it) and never a reason to fail the call.
+        assert!(!rewards.has_engagement("u1", REJECTED_ID).await.unwrap());
+    }
+
+    #[tokio::test]
+    async fn a_play_only_engagement_makes_a_later_rating_earn_coverage() {
+        // The whole point of the widening: rate a score you PLAYED (never previewed
+        // in the deck) and still earn coverage points.
+        let (m, _rewards) = module_with_rewards().await;
+        // Rating without any engagement earns nothing…
+        let (_, points) = m
+            .submit_rating("u1", DEBUSSY_1, "love", Some(5))
+            .await
+            .unwrap();
+        assert_eq!(points, 0);
+        // …but after a player open, a rating of a different score does earn.
+        m.catalog_bytes_for_player("u1", PENDING_ID, true)
+            .await
+            .unwrap();
+        let (_, points) = m
+            .submit_rating("u1", PENDING_ID, "love", Some(5))
+            .await
+            .unwrap();
+        assert!(points > 0, "a played score's rating must earn coverage");
+    }
+
     #[tokio::test]
     async fn get_catalog_hit_gated_by_moderation_status() {
         let m = moderated_module().await;
@@ -1842,6 +2000,68 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(ratings.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn my_score_rating_returns_the_callers_own_rating_only() {
+        // change: add-post-play-rating-prompt — the player's "have I rated this?"
+        // read. Owner-scoped, and fail-closed on ids the caller may not see.
+        let (m, _ratings) = rating_module();
+        // Never rated → None (the player prompts).
+        assert_eq!(m.my_score_rating("u1", DEBUSSY_1).await.unwrap(), None);
+        // After rating, the caller reads their own verdict + stars back.
+        m.submit_rating("u1", DEBUSSY_1, "love", Some(5))
+            .await
+            .unwrap();
+        assert_eq!(
+            m.my_score_rating("u1", DEBUSSY_1).await.unwrap(),
+            Some(UserRating {
+                verdict: Verdict::Love,
+                stars: Some(5),
+            })
+        );
+        // A swipe-only rating reads back with no stars.
+        m.submit_rating("u1", SATIE, "dislike", None).await.unwrap();
+        assert_eq!(
+            m.my_score_rating("u1", SATIE).await.unwrap(),
+            Some(UserRating {
+                verdict: Verdict::Dislike,
+                stars: None,
+            })
+        );
+        // ANOTHER user's rating of the same score is invisible: u2 still reads None,
+        // so u2 is still prompted.
+        assert_eq!(m.my_score_rating("u2", DEBUSSY_1).await.unwrap(), None);
+    }
+
+    #[tokio::test]
+    async fn my_score_rating_is_fail_closed_on_rejected_and_unknown_ids() {
+        // A rejected or unknown id must be INDISTINGUISHABLE from an un-rated score
+        // (no existence oracle) — `None`, not an error.
+        let catalog = Arc::new(FakeCatalogSearchRepo::with(vec![
+            FakeCatalogRow::new(REJECTED_ID, "Rejected Piece", "Anon", Some("beginner"))
+                .with_moderation_status("rejected"),
+        ]));
+        let ratings = Arc::new(FakeScoreRatingRepo::default());
+        let m = ScoreModule::new(
+            Arc::new(FakeUserScoreRepo::default()),
+            catalog,
+            Arc::new(FakeUserLibraryRepo::default()),
+            ratings.clone(),
+            Arc::new(FakeStore::default()),
+            5,
+            7,
+            8 * 1024 * 1024,
+        );
+        // Seed a rating on the rejected score directly (bypassing the module's gate)
+        // so the test proves the *status* gate hides it, not just the missing row.
+        ratings
+            .upsert("u1", REJECTED_ID, Verdict::Like, None)
+            .await
+            .unwrap();
+        for id in [REJECTED_ID, "99999999-9999-7999-8999-999999999999"] {
+            assert_eq!(m.my_score_rating("u1", id).await.unwrap(), None);
+        }
     }
 
     #[tokio::test]

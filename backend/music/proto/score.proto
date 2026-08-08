@@ -270,6 +270,21 @@ message SubmitScoreRatingResponse {
   int32 points_awarded = 6;
 }
 
+// Read the CALLER'S OWN rating of one catalog score (change:
+// add-post-play-rating-prompt), so the player can tell whether to offer the
+// post-play rating prompt without paging the deck source. Identity is the
+// authenticated caller — this never exposes another user's rating.
+message GetMyScoreRatingRequest { string catalog_id = 1; }
+
+// Fail-closed by design: an unknown or `rejected` score reports `rated = false`,
+// exactly like a real un-rated score, so this read is not an existence oracle for
+// scores the caller may not see. `verdict`/`stars` are set only when `rated`.
+message GetMyScoreRatingResponse {
+  bool rated = 1;
+  optional string verdict = 2; // dislike | like | love
+  optional int32 stars = 3;    // explicit 1..5 star value; unset = verdict only
+}
+
 // Source the swipe-rating deck (change: improve-rating-deck-sourcing): the caller's
 // UN-RATED `accepted` scores, least-rated first (fewest existing ratings), so a
 // score they already rated is never offered again and the deck empties once
@@ -513,6 +528,11 @@ service ScoreService {
   // Score rating (change: add-app-score-rating). Any signed-in user rates an
   // `accepted` catalog score; one updatable rating per user per score.
   rpc SubmitScoreRating(SubmitScoreRatingRequest) returns (SubmitScoreRatingResponse);
+
+  // The caller's own rating of one score (change: add-post-play-rating-prompt):
+  // lets the player suppress the post-play prompt for an already-rated score.
+  // Fail-closed — an unknown/`rejected` id reports `rated = false`.
+  rpc GetMyScoreRating(GetMyScoreRatingRequest) returns (GetMyScoreRatingResponse);
 
   // Rating deck source (change: improve-rating-deck-sourcing, widened by
   // rate-pending-scores): the caller's un-rated pending + accepted scores,
