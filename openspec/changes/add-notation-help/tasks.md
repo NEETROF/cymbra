@@ -2,12 +2,12 @@
 
 ## 1. Painter geometry seam (`notation-help`)
 
-- [ ] 1.1 Define `SymbolDescriptor` as a Freezed union **exhaustive over every glyph the painters draw**: `note` (pitch name + register), `rest`, `accidental` (which one), `clef` (sign), `keySignature`, `timeSignature`, `augmentationDot`, plus structural marks `stem`, `flag`, `beam`, `tieOrSlur`, `ledgerLine`, `barLine`, `brace`, `tupletNumber`
-- [ ] 1.2 Define a per-frame `StaffHitIndex` value object holding `(Rect region, SymbolDescriptor)` entries plus a nearest-hit query (contains, else nearest within a small radius, else none)
-- [ ] 1.3 In `StaffPainter` (`lib/painters/staff_painter.dart`), record each drawn glyph's region + descriptor into a `StaffHitIndex` and expose it (via `ValueNotifier`/provider), without changing draw order or output
+- [x] 1.1 Define `SymbolDescriptor` as a Freezed union **exhaustive over every glyph the painters draw**: `note` (pitch name + register), `rest`, `accidental` (which one), `clef` (sign), `keySignature`, `timeSignature`, `augmentationDot`, plus structural marks `stem`, `flag`, `beam`, `tie`, `slur`, `ledgerLine`, `barLine`, `brace`, `tuplet`, `dynamics` (`lib/painters/staff_hit_index.dart`)
+- [x] 1.2 Define a per-frame `StaffHitIndex` value object holding `(Rect region, SymbolDescriptor)` entries plus a nearest-hit query (contains → closest centre, else nearest within a small radius, else none)
+- [x] 1.3 In `StaffPainter` (`lib/painters/staff_painter.dart`), record each drawn glyph's region + descriptor into an optional `StaffHitIndex` side channel, cleared/refilled per paint, without changing draw order or output
 - [ ] 1.4 Do the same in `PartitionPainter` (`lib/painters/partition_painter.dart`) for the static score view
-- [ ] 1.5 Unit-test the hit index (containment, nearest-when-dense, empty-area→none) and add a geometry/golden test asserting rendered output is byte-identical with the seam present
-- [ ] 1.6 Add a **totality test**: every glyph the painters emit maps to a `SymbolDescriptor` that has localized content — fails if a painter draws a glyph with no descriptor/help (guards future glyphs)
+- [x] 1.5 Unit-test the hit index (containment, closest-centre-when-overlapping, nearest-when-dense, empty-area→none) and add a geometry test asserting rendered output is **byte-identical** with the seam present (`test/painters/staff_hit_index_test.dart`, `staff_hit_geometry_test.dart`)
+- [x] 1.6 Add a **totality test**: every glyph the fixture score draws is recorded as a `SymbolDescriptor` (guards dead long-presses). Content-side totality (every recorded kind has localized help) is asserted in task 3.3 once the content lookup exists.
 
 ## 2. Long-press gesture + help bubble (`notation-help`)
 
