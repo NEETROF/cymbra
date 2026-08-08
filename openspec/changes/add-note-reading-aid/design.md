@@ -40,9 +40,13 @@ Two existing facts shape the design:
   refers to notes already sounding, so the aid would always be late; a look-ahead
   variant is a separate change.
 - No octave index in the name.
-- No labels drawn on the keyboard keys or on the waterfall tiles. Those are
-  plausible sibling designs and are deliberately deferred so this change ships one
-  surface, not three.
+- No labels drawn on the waterfall tiles. Carrying the name down with a falling
+  note is a plausible sibling design, but it would put the aid back in front of a
+  *moving* score, which is the one thing this design refuses.
+- No fourth step in the player's guided tour. It was considered as the way to make
+  the setting discoverable; the default now does that job — the aid names the note
+  out of the box — so the tour keeps its three steps rather than growing for
+  everyone, including players who will never need the aid.
 - No re-implementation of MusicXML accidental resolution; the parser already did
   it.
 - No refactor of `StaffPainter`'s internal pitch→staff-degree fallback (see
@@ -200,8 +204,5 @@ becomes unreadable.
 - Should the aid also be shown during the pre-start countdown, naming the first
   note before the run begins? It is the same "time is stopped" argument, but it
   overlaps `CountdownOverlay`.
-- Should the beginner onboarding actively propose enabling it, or is discovery
-  through the setup modal enough? Promoting it belongs to the `welcome-onboarding`
-  capability and is not specified here.
 - The default is *note name* for everyone. If the onboarding ever learns that a
   player is experienced, should that path default it to *off* instead?
