@@ -185,7 +185,11 @@ class PianoKeyboardPainter extends CustomPainter {
     const dash = 5.0;
     const gap = 4.0;
     for (var y = 0.0; y < height; y += dash + gap) {
-      canvas.drawLine(Offset(x, y), Offset(x, math.min(y + dash, height)), paint);
+      canvas.drawLine(
+        Offset(x, y),
+        Offset(x, math.min(y + dash, height)),
+        paint,
+      );
     }
   }
 

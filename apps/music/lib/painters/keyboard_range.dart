@@ -100,10 +100,7 @@ int _presetAnchorLow(KeyboardRangeMode mode) => switch (mode) {
 /// Slides the fixed-size window for a preset [mode] over the music (preserving
 /// its key count), clamped to the piano bounds. Shared by [computeKeyboardRange]
 /// (which then widens it) and [chosenSizeWindow] (which does not).
-({int low, int high}) _presetWindow(
-  KeyboardRangeMode mode,
-  List<int> pitches,
-) {
+({int low, int high}) _presetWindow(KeyboardRangeMode mode, List<int> pitches) {
   final span = presetKeyCount(mode)! - 1; // contiguous semitones
   var low = _presetAnchorLow(mode);
   var high = low + span;

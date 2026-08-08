@@ -111,7 +111,8 @@ class PlayerPreferences extends _$PlayerPreferences {
         speed: (m['speed'] as num?)?.toDouble().clamp(0.25, 2.0) ?? 1.0,
         metronome: m['metronome'] as bool? ?? false,
         keyboardRange:
-            KeyboardRangeMode.values.asNameMap()[m['keyboardRange'] as String?] ??
+            KeyboardRangeMode.values.asNameMap()[m['keyboardRange']
+                as String?] ??
             KeyboardRangeMode.auto,
         midiPort: m['midiPort'] as String?,
       );

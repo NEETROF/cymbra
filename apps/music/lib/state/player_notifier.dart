@@ -418,6 +418,7 @@ class Player extends _$Player {
     ref.read(playerPreferencesProvider.notifier).setKeyboardRange(m);
     state = state.copyWith(keyboardRange: m);
   }
+
   void setKeyboardVisible(bool visible) =>
       state = state.copyWith(keyboardVisible: visible);
   // Re-arm the onset gate so a hand switch can't leave the cascade frozen on an
