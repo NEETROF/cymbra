@@ -15,6 +15,11 @@ tap outside it or a back gesture. The modal SHALL keep its action controls reach
 small/short viewports (the stats scroll while the replay/retry buttons and the close cross
 stay visible), so the player can always close or retry.
 
+When the piece just played is eligible for rating, the modal SHALL additionally carry the
+rating affordance for that score. That affordance is **not** one of the explicit choices:
+using it MUST NOT dismiss the modal, ignoring it MUST NOT block any of the three actions,
+and it MUST NOT displace the action controls on a short viewport.
+
 #### Scenario: Modal appears at song end
 - **WHEN** a scored run reaches the end of the piece
 - **THEN** the summary modal is shown with the overall percentage, per-dimension
@@ -46,6 +51,16 @@ stay visible), so the player can always close or retry.
 - **WHEN** the summary modal is shown on a short (e.g. phone-landscape) viewport
 - **THEN** the statistics scroll within the modal and the replay/retry buttons and close
   cross remain visible and tappable
+
+#### Scenario: The rating affordance rides along when the score is eligible
+- **WHEN** the summary modal is shown for a run on a score eligible for rating
+- **THEN** the modal also offers to rate that score, and the replay/retry buttons and
+  close cross remain visible and tappable on a short viewport
+
+#### Scenario: An ineligible score leaves the modal unchanged
+- **WHEN** the summary modal is shown for a run on a score that is not eligible for rating
+- **THEN** the modal shows exactly the statistics and the three explicit actions, with no
+  rating affordance
 
 ### Requirement: Mistake Replay On The Horizontal Score
 
