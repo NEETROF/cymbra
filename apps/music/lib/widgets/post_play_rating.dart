@@ -215,12 +215,15 @@ class PostPlayRatingToastListener extends ConsumerWidget {
       // it null, and must not congratulate anyone.
       if (after == null || after.submittedStars == null) return;
       final l10n = AppLocalizations.of(context);
-      final messenger = ScaffoldMessenger.of(context);
+      // The ROOT overlay: the summary is a dialog and the exit sheet is a modal
+      // route, both of which paint over a Scaffold's snackbar — and the sheet pops
+      // the player with it, so the confirmation has to outlive the route entirely.
+      final overlay = Overlay.of(context, rootOverlay: true);
       if (after.failed && !(before?.failed ?? false)) {
-        showAppSnackBar(messenger, l10n.postPlayRatingFailed);
+        showAppToast(overlay, l10n.postPlayRatingFailed);
       } else if (after.rated == RatedState.rated &&
           before?.rated != RatedState.rated) {
-        showAppSnackBar(messenger, l10n.postPlayRatingThanks);
+        showAppToast(overlay, l10n.postPlayRatingThanks);
       }
     });
     return child;

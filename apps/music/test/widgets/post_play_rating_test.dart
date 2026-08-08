@@ -26,6 +26,7 @@ import 'package:music/state/post_play_rating_notifier.dart';
 import 'package:music/state/score_catalog.dart';
 import 'package:music/state/session_summary.dart';
 import 'package:music/state/session_notifier.dart';
+import 'package:music/widgets/app_snackbar.dart';
 import 'package:music/widgets/post_play_rating.dart';
 import 'package:music/widgets/session_summary_modal.dart';
 
@@ -83,6 +84,13 @@ const _bundledEntry = CatalogEntry(
   assetPath: 'assets/scores/beginner/ode_to_joy.musicxml',
   level: PracticeLevel.beginner,
 );
+
+/// Runs out the toast's auto-dismiss timer. A test that ends while a toast is up
+/// leaves a pending timer, which the test binding reports as a failure.
+Future<void> _letToastExpire(WidgetTester tester) async {
+  await tester.pump(kToastDuration);
+  await tester.pumpAndSettle();
+}
 
 /// The summary's own close cross. Scoped to the dialog because a toast carries a
 /// close icon too, and an unscoped `byIcon` finds both.
@@ -241,6 +249,10 @@ Future<void> _openPlayer(WidgetTester tester, ProviderContainer c) async {
 }
 
 void main() {
+  // The toast lives in the root overlay with its own auto-dismiss timer; a test
+  // that ends while it is still up would leave a pending timer behind.
+  tearDown(dismissAppToast);
+
   group('summary modal', () {
     testWidgets('offers the rating for an eligible score', (tester) async {
       final c = _container();
@@ -295,7 +307,8 @@ void main() {
       expect(find.text('Retry'), findsOneWidget);
       // …and the row has retired, its outcome confirmed by a toast instead.
       expect(find.byType(PostPlayRatingRow), findsNothing);
-      expect(find.widgetWithText(SnackBar, _thanksText), findsOneWidget);
+      expect(find.widgetWithText(AppToast, _thanksText), findsOneWidget);
+      await _letToastExpire(tester);
       // Quitting still works afterwards.
       await tester.tap(_summaryClose);
       await tester.pumpAndSettle();
@@ -351,10 +364,11 @@ void main() {
       final actions = await _openSummary(tester, c);
       await tester.tap(find.byKey(const Key('post-play-star-2')));
       await tester.pumpAndSettle();
-      expect(find.widgetWithText(SnackBar, _failureText), findsOneWidget);
+      expect(find.widgetWithText(AppToast, _failureText), findsOneWidget);
       expect(find.textContaining('Exception'), findsNothing);
       // No thanks was promised for a rating that did not land.
-      expect(find.widgetWithText(SnackBar, _thanksText), findsNothing);
+      expect(find.widgetWithText(AppToast, _thanksText), findsNothing);
+      await _letToastExpire(tester);
       // The actions still work.
       await tester.tap(_summaryClose);
       await tester.pumpAndSettle();
@@ -474,7 +488,8 @@ void main() {
       // Rating answers the question, so the sheet closes and the player is left
       // in one tap; the toast confirms it from outside the player.
       expect(find.text('open'), findsOneWidget);
-      expect(find.widgetWithText(SnackBar, _thanksText), findsOneWidget);
+      expect(find.widgetWithText(AppToast, _thanksText), findsOneWidget);
+      await _letToastExpire(tester);
     });
 
     testWidgets('tapping outside the sheet also leaves', (tester) async {
@@ -499,7 +514,8 @@ void main() {
       // The player is left regardless, and the failure is reported by a toast —
       // which is why the listener has to outlive the player.
       expect(find.text('open'), findsOneWidget);
-      expect(find.widgetWithText(SnackBar, _failureText), findsOneWidget);
+      expect(find.widgetWithText(AppToast, _failureText), findsOneWidget);
+      await _letToastExpire(tester);
     });
 
     testWidgets('an ineligible score leaves immediately, with no sheet', (
