@@ -27,7 +27,9 @@ use std::sync::Arc;
 use cymbra_platform::AuthIdentity;
 use tonic::{Request, Response, Status};
 
+use crate::catalog_search::CatalogSearchRepo;
 use crate::curation_rewards::CurationRewardsSink;
+use crate::module::is_rateable_catalog_score;
 use crate::play_module::{PlayModule, RecordInput};
 use crate::proto::{
     DayActivity as ProtoDayActivity, GetPlayActivityRequest, GetPlayActivityResponse,
@@ -39,6 +41,7 @@ use crate::proto::{
 pub struct PlayGrpc {
     module: Arc<PlayModule>,
     rewards: Option<Arc<dyn CurationRewardsSink>>,
+    catalog: Option<Arc<dyn CatalogSearchRepo>>,
 }
 
 impl PlayGrpc {
@@ -46,6 +49,7 @@ impl PlayGrpc {
         Self {
             module,
             rewards: None,
+            catalog: None,
         }
     }
 
@@ -58,8 +62,18 @@ impl PlayGrpc {
     /// exists for the offline case — a score opened from the encrypted local cache
     /// never fetches bytes, so the player-open signal never fires for it, and the
     /// session ingest is the only server-observed evidence that it was played.
-    pub fn with_rewards(mut self, rewards: Arc<dyn CurationRewardsSink>) -> Self {
+    ///
+    /// `catalog` is required to tell a catalog score from anything else: a session's
+    /// `score_id` is whatever the player ranked by, which for a **user upload** is a
+    /// UUID from `music.user_scores`. Only a real, rateable catalog score may be
+    /// recorded.
+    pub fn with_rewards(
+        mut self,
+        rewards: Arc<dyn CurationRewardsSink>,
+        catalog: Arc<dyn CatalogSearchRepo>,
+    ) -> Self {
         self.rewards = Some(rewards);
+        self.catalog = Some(catalog);
         self
     }
 
@@ -69,17 +83,34 @@ impl PlayGrpc {
     }
 
     /// Record the coverage engagement signal for a just-ingested session,
-    /// best-effort. Only a **catalog** score counts: catalog ids are UUIDs, while a
-    /// bundled score's id is a slug (`"ode-to-joy"`), so a non-UUID id is a bundled
-    /// piece that is not rateable and must not reach the rewards store. A failure
-    /// only costs the user coverage points on a later rating — it never fails the
-    /// ingest, which the client is waiting on as its persisted-ack.
+    /// best-effort.
+    ///
+    /// Only a **rateable catalog** score counts, and that has to be *resolved*, not
+    /// guessed: a session's `score_id` is whatever the player ranked by — a slug for
+    /// a bundled piece (`"ode-to-joy"`), a `music.user_scores` UUID for an upload, a
+    /// `music.catalog_scores` UUID for a catalog score. Only the last is rateable,
+    /// and only it satisfies `score_engagements`' foreign key. Anything else is
+    /// skipped silently: playing your own upload is perfectly normal, not an anomaly
+    /// worth logging.
+    ///
+    /// A genuine failure only costs the user coverage points on a later rating — it
+    /// never fails the ingest, which the client is waiting on as its persisted-ack.
     async fn record_engagement(&self, user_id: &str, score_id: Option<&str>) {
-        let (Some(rewards), Some(score_id)) = (&self.rewards, score_id) else {
+        let (Some(rewards), Some(catalog), Some(score_id)) =
+            (&self.rewards, &self.catalog, score_id)
+        else {
             return;
         };
-        if uuid::Uuid::parse_str(score_id).is_err() {
-            return; // a bundled score, not a catalog one
+        match is_rateable_catalog_score(catalog.as_ref(), score_id).await {
+            Ok(true) => {}
+            Ok(false) => return, // a bundled piece or a user upload — not rateable
+            Err(e) => {
+                tracing::warn!(
+                    user_id = %user_id, score_id = %score_id, error = %e,
+                    "curation: could not resolve played score, engagement skipped"
+                );
+                return;
+            }
         }
         if let Err(e) = rewards.record_engagement(user_id, score_id).await {
             tracing::warn!(
@@ -158,6 +189,7 @@ impl PlayService for PlayGrpc {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::catalog_search::{FakeCatalogRow, FakeCatalogSearchRepo};
     use crate::curation_rewards::{CurationRewardsRepo, FakeCurationRewardsRepo};
     use crate::curation_rewards_module::CurationRewardsModule;
     use crate::play::FakePlayRepo;
@@ -218,12 +250,26 @@ mod tests {
         assert_eq!(resp.days.len(), 1);
     }
 
-    /// A [`PlayGrpc`] with the rewards seam wired, plus the fake repo so a test can
-    /// assert what engagement the ingest recorded.
+    /// A catalog holding one accepted score. A `score_id` absent from it models a
+    /// bundled piece or a user upload — neither is a catalog score.
+    const CATALOG_ID: &str = "11111111-1111-7111-8111-111111111111";
+    /// A UUID shaped exactly like a catalog id but living in `music.user_scores`:
+    /// the user-upload case that used to slip past a UUID-shape check and violate
+    /// `score_engagements`' foreign key.
+    const UPLOAD_ID: &str = "22222222-2222-7222-8222-222222222222";
+
+    /// A [`PlayGrpc`] with the rewards + catalog seams wired, plus the fake rewards
+    /// repo so a test can assert what engagement the ingest recorded.
     fn grpc_with_rewards() -> (PlayGrpc, Arc<FakeCurationRewardsRepo>) {
         let repo = Arc::new(FakeCurationRewardsRepo::default());
         let rewards = Arc::new(CurationRewardsModule::new(repo.clone()));
-        (grpc(true).with_rewards(rewards), repo)
+        let catalog = Arc::new(FakeCatalogSearchRepo::with(vec![FakeCatalogRow::new(
+            CATALOG_ID,
+            "Clair de Lune",
+            "Claude Debussy",
+            Some("advanced"),
+        )]));
+        (grpc(true).with_rewards(rewards, catalog), repo)
     }
 
     fn session(score_id: Option<&str>) -> RecordPlaySessionRequest {
@@ -243,16 +289,28 @@ mod tests {
         // the local cache never fetches bytes, so the ingest is the only evidence it
         // was played. Without this the post-play rating would earn no coverage.
         let (g, rewards) = grpc_with_rewards();
-        let catalog_id = "11111111-1111-7111-8111-111111111111";
-        g.record_play_session(authed(session(Some(catalog_id)), "u1"))
+        g.record_play_session(authed(session(Some(CATALOG_ID)), "u1"))
             .await
             .unwrap();
-        assert!(rewards.has_engagement("u1", catalog_id).await.unwrap());
+        assert!(rewards.has_engagement("u1", CATALOG_ID).await.unwrap());
         // Idempotent across repeated sessions on the same score.
-        g.record_play_session(authed(session(Some(catalog_id)), "u1"))
+        g.record_play_session(authed(session(Some(CATALOG_ID)), "u1"))
             .await
             .unwrap();
-        assert!(rewards.has_engagement("u1", catalog_id).await.unwrap());
+        assert!(rewards.has_engagement("u1", CATALOG_ID).await.unwrap());
+    }
+
+    #[tokio::test]
+    async fn ingest_ignores_a_user_upload_that_merely_looks_like_a_catalog_id() {
+        // REGRESSION: a user upload's `score_id` is a UUID too, but it lives in
+        // `music.user_scores`. Recording it violated `score_engagements`' foreign key
+        // to `music.catalog_scores` — an internal error on every session of an
+        // uploaded score. The id must be RESOLVED against the catalog, not sniffed.
+        let (g, rewards) = grpc_with_rewards();
+        g.record_play_session(authed(session(Some(UPLOAD_ID)), "u1"))
+            .await
+            .unwrap();
+        assert!(!rewards.has_engagement("u1", UPLOAD_ID).await.unwrap());
     }
 
     #[tokio::test]
@@ -271,16 +329,29 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn ingest_ignores_a_rejected_catalog_score() {
+        // A rejected score is not rateable, so playing it earns no engagement.
+        let repo = Arc::new(FakeCurationRewardsRepo::default());
+        let rewards = Arc::new(CurationRewardsModule::new(repo.clone()));
+        let catalog = Arc::new(FakeCatalogSearchRepo::with(vec![
+            FakeCatalogRow::new(CATALOG_ID, "Rejected", "Anon", Some("beginner"))
+                .with_moderation_status("rejected"),
+        ]));
+        let g = grpc(true).with_rewards(rewards, catalog);
+        g.record_play_session(authed(session(Some(CATALOG_ID)), "u1"))
+            .await
+            .unwrap();
+        assert!(!repo.has_engagement("u1", CATALOG_ID).await.unwrap());
+    }
+
+    #[tokio::test]
     async fn ingest_succeeds_without_the_rewards_seam() {
         // The seam is optional (a deployment without rewards wired): ingest — the
         // client's persisted-ack — must not depend on it.
         let g = grpc(true);
-        g.record_play_session(authed(
-            session(Some("11111111-1111-7111-8111-111111111111")),
-            "u1",
-        ))
-        .await
-        .unwrap();
+        g.record_play_session(authed(session(Some(CATALOG_ID)), "u1"))
+            .await
+            .unwrap();
     }
 
     #[tokio::test]

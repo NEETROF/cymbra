@@ -855,13 +855,7 @@ impl ScoreModule {
     /// [`Self::rating_preview_bytes`]; resolves the score in any status and checks
     /// its moderation status, so an unknown/`rejected` id is not rateable.
     async fn is_pending_or_accepted(&self, catalog_id: &str) -> Result<bool> {
-        Ok(matches!(
-            self.catalog
-                .hit_by_id(catalog_id, true)
-                .await?
-                .and_then(|h| h.moderation_status),
-            Some(ref s) if s == "pending" || s == "accepted"
-        ))
+        is_rateable_catalog_score(self.catalog.as_ref(), catalog_id).await
     }
 
     /// Fetch a catalog score's bytes for the **rating deck's read-only preview**
@@ -921,6 +915,22 @@ impl ScoreModule {
             );
         }
     }
+}
+
+/// Whether `id` is a catalog score the community may rate or preview — it exists
+/// in the catalog AND its moderation status is `pending` or `accepted`.
+///
+/// Free-standing (rather than a `ScoreModule` method) because the play-ingest path
+/// needs the same gate without owning a score module: an id that merely *looks*
+/// like a catalog id is not one. A **user upload**'s id is also a UUID but lives in
+/// `music.user_scores`, so treating UUID shape as proof would push a row that
+/// violates `score_engagements`' foreign key into the catalog (change:
+/// add-post-play-rating-prompt).
+pub async fn is_rateable_catalog_score(catalog: &dyn CatalogSearchRepo, id: &str) -> Result<bool> {
+    Ok(matches!(
+        catalog.hit_by_id(id, true).await?.and_then(|h| h.moderation_status),
+        Some(ref s) if s == "pending" || s == "accepted"
+    ))
 }
 
 /// The canonical MusicXML bytes: the decoded payload for a `.mxl`, else the input.
