@@ -18,6 +18,10 @@ pub mod catalog_search;
 pub mod curation_rewards;
 pub mod curation_rewards_core;
 pub mod curation_rewards_module;
+pub mod global_leaderboard;
+pub mod global_leaderboard_core;
+pub mod global_leaderboard_grpc;
+pub mod global_leaderboard_module;
 pub mod grpc;
 pub mod leaderboard;
 pub mod leaderboard_core;
@@ -26,6 +30,7 @@ pub mod leaderboard_module;
 pub mod module;
 pub mod pg;
 pub mod pg_curation_rewards;
+pub mod pg_global_leaderboard;
 pub mod pg_leaderboard;
 pub mod pg_play;
 pub mod pg_user_scores;
@@ -57,6 +62,15 @@ pub use curation_rewards::{
 };
 pub use curation_rewards_core::{AwardKind, BADGES, BadgeDef, BadgeMetric, RewardConfig};
 pub use curation_rewards_module::{CurationRewardsModule, CuratorRewards, RedeemResult};
+pub use global_leaderboard::{
+    FakeGlobalLeaderboardRepo, GlobalLeaderboardRepo, GlobalScore, GlobalSeasonBest,
+    GlobalSeasonSink, SeasonBestRow,
+};
+pub use global_leaderboard_core::{GlobalConfig, Season};
+pub use global_leaderboard_grpc::GlobalLeaderboardGrpc;
+pub use global_leaderboard_module::{
+    GlobalBoard, GlobalEntry, GlobalLeaderboardModule, Page, Seasons, snapshot_closed_season,
+};
 pub use grpc::ScoreGrpc;
 pub use leaderboard::{
     BestCandidate, FakeLeaderboardRepo, LeaderboardBest, LeaderboardRepo, LeaderboardSink, Mode,
@@ -67,6 +81,7 @@ pub use leaderboard_module::{Board, BoardEntry, LeaderboardModule, MyStanding};
 pub use module::{ScoreModule, UploadInput};
 pub use pg::{PgCatalogRepo, PgCatalogSearchRepo, PgScoreRatingRepo, PgTitleBackfillRepo};
 pub use pg_curation_rewards::PgCurationRewardsRepo;
+pub use pg_global_leaderboard::PgGlobalLeaderboardRepo;
 pub use pg_leaderboard::PgLeaderboardRepo;
 pub use pg_play::PgPlayRepo;
 pub use pg_user_scores::{PgUserLibraryRepo, PgUserScoreRepo};

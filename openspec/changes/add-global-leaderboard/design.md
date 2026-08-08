@@ -78,6 +78,22 @@ read (low volume) or denormalized later.
 - **Why**: consistency with #6/#5 — a global board must not become a backdoor exposing a
   private user or a minor.
 
+### D6 — A closed season freezes CONSENT, but never the age safeguard
+The end-of-season snapshot records, per player, whether they had consented to be listed
+**at the moment the season closed** (`was_listable`). Reading an archived season is then
+`was_listable AND age_eligible_now`; a live season keeps the plain D5 gate.
+- **Why freeze consent**: a hall of fame whose ranks silently shuffle is not a record. If the
+  season's winner later goes private, re-applying the live gate would promote the #2 to #1 and
+  misrepresent what happened — to *everyone*, not just the departing player.
+- **Why NOT freeze the age check**: it is a child-protection safeguard, not a preference. A
+  player who should never have been listed must disappear from the archive too, and must not be
+  pinned there by a stale snapshot. Freezing it would make the safeguard un-revocable.
+- **Alternative rejected**: freezing the rank itself. It would survive a rename or a
+  visibility change, but it also freezes the *gate*, which is exactly what must stay live —
+  and it removes the ability to change this policy later without a migration.
+- Account **deletion** is unaffected and remains absolute: erasure removes the snapshot rows
+  outright, so a deleted account leaves no trace in any past season.
+
 ## Risks / Trade-offs
 
 - **Volume/easy-farming** → best-N + difficulty weighting (D1) make grinding easy pieces

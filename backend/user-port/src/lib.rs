@@ -289,6 +289,28 @@ pub trait UserPort: Send + Sync {
         user_ids: &[String],
         today: NaiveDate,
     ) -> Result<Vec<PlayerProfile>>;
+
+    /// The subset of `user_ids` that passes the **minimum-age safeguard alone** on
+    /// `today`, ignoring profile visibility (change: add-global-leaderboard).
+    ///
+    /// This exists for **frozen history**: the global leaderboard's end-of-season
+    /// snapshot records who had consented to be listed *at the time*, so a past
+    /// season's standings stay stable when a player later goes private. The age
+    /// safeguard, however, must stay **live** — a player who should never have been
+    /// listed has to disappear from the archive too, and cannot be pinned there by a
+    /// stale snapshot. So the archive read is `was_listable_then AND age_eligible_now`,
+    /// and this method supplies the second half.
+    ///
+    /// **Fail-closed** on age (an unknown id, or one with no eligibility date, is
+    /// absent) but deliberately **visibility-blind**: it returns the non-sensitive
+    /// [`PlayerProfile`] of a currently-*private* player. Only ever compose it with a
+    /// recorded past consent — never use it to decide a *live* listing, which is what
+    /// [`Self::listable_profiles`] is for.
+    async fn age_eligible_profiles(
+        &self,
+        user_ids: &[String],
+        today: NaiveDate,
+    ) -> Result<Vec<PlayerProfile>>;
 }
 
 /// gRPC **client** adapter for the public account-management surface — used to

@@ -35,6 +35,7 @@ use chrono::NaiveDate;
 use cymbra_platform::Result;
 use cymbra_user_port::{PlayerProfile, UserPort};
 
+use crate::global_leaderboard::GlobalSeasonSink;
 use crate::leaderboard::{LeaderboardBest, LeaderboardRepo, LeaderboardSink, Mode, StoredBest};
 use crate::leaderboard_core;
 use crate::play::PlaySession;
@@ -87,11 +88,28 @@ pub struct MyStanding {
 pub struct LeaderboardModule {
     repo: Arc<dyn LeaderboardRepo>,
     user: Arc<dyn UserPort>,
+    /// Also maintains the GLOBAL season bests from the same candidates (change:
+    /// add-global-leaderboard, task 1.2). Chained here rather than off #5's ingest
+    /// directly, so the global board admits exactly the results this hook already
+    /// accepted — same accepted-catalog check, same integrity checks. `None` where
+    /// the global board is not wired.
+    global: Option<Arc<dyn GlobalSeasonSink>>,
 }
 
 impl LeaderboardModule {
     pub fn new(repo: Arc<dyn LeaderboardRepo>, user: Arc<dyn UserPort>) -> Self {
-        Self { repo, user }
+        Self {
+            repo,
+            user,
+            global: None,
+        }
+    }
+
+    /// Attach the global-leaderboard season-best maintenance hook (change:
+    /// add-global-leaderboard), fed the same integrity-checked candidates.
+    pub fn with_global(mut self, sink: Arc<dyn GlobalSeasonSink>) -> Self {
+        self.global = Some(sink);
+        self
     }
 
     /// Maintain the boards from one persisted session (the [`LeaderboardSink`]
@@ -130,7 +148,7 @@ impl LeaderboardModule {
                 "leaderboard: result failed integrity check, excluded from board"
             );
         }
-        for candidate in candidates.accepted {
+        for candidate in &candidates.accepted {
             self.repo
                 .upsert_best(&LeaderboardBest {
                     user_id: session.user_id.clone(),
@@ -140,6 +158,13 @@ impl LeaderboardModule {
                     tiebreak_metric: candidate.tiebreak_metric,
                     achieved_at_ms: candidate.achieved_at_ms,
                 })
+                .await?;
+        }
+        // Same candidates feed the GLOBAL season bests (change: add-global-
+        // leaderboard): one accepted-catalog + integrity gate for both boards.
+        if let Some(global) = &self.global {
+            global
+                .ingest_candidates(&session.user_id, score_id, &candidates.accepted)
                 .await?;
         }
         Ok(())
@@ -439,6 +464,57 @@ mod tests {
             repo.best_for("u1", "p", Mode::Tempo).unwrap().subscore,
             90.0
         );
+    }
+
+    /// Records what the chained global sink was fed (change: add-global-leaderboard).
+    #[derive(Default)]
+    struct SpySink {
+        seen: std::sync::Mutex<Vec<(String, String, usize)>>,
+    }
+
+    #[async_trait]
+    impl GlobalSeasonSink for SpySink {
+        async fn ingest_candidates(
+            &self,
+            user_id: &str,
+            score_id: &str,
+            candidates: &[crate::leaderboard::BestCandidate],
+        ) -> Result<()> {
+            self.seen.lock().unwrap().push((
+                user_id.to_string(),
+                score_id.to_string(),
+                candidates.len(),
+            ));
+            Ok(())
+        }
+    }
+
+    #[tokio::test]
+    async fn global_sink_gets_only_accepted_catalog_integrity_checked_candidates() {
+        let repo = Arc::new(FakeLeaderboardRepo::default());
+        repo.accept("p");
+        let spy = Arc::new(SpySink::default());
+        let m = module(repo.clone(), &[]).with_global(spy.clone());
+
+        // An accepted piece with a valid result → the candidate is forwarded.
+        m.maintain_from_session(&session("u1", "p", &tempo_json(80.0, 10.0), 5))
+            .await
+            .unwrap();
+        // A NON-accepted piece never reaches the global board (no call at all).
+        m.maintain_from_session(&session("u1", "nope", &tempo_json(99.0, 1.0), 6))
+            .await
+            .unwrap();
+        // An integrity-rejected result on an accepted piece forwards no candidate.
+        let bad = r#"{"freeSyncPct": 150.0, "freeOnsetCount": 4, "avgFreeOffsetMs": 5.0}"#;
+        m.maintain_from_session(&session("u1", "p", bad, 7))
+            .await
+            .unwrap();
+
+        let seen = spy.seen.lock().unwrap().clone();
+        assert_eq!(seen.len(), 2);
+        assert_eq!(seen[0], ("u1".into(), "p".into(), 1));
+        // The rejected one called through with an EMPTY candidate list.
+        assert_eq!(seen[1], ("u1".into(), "p".into(), 0));
     }
 
     #[tokio::test]

@@ -55,6 +55,6 @@ protoc \
   --proto_path="$(to_native "$MUSIC_PROTO_DIR")" \
   --proto_path="$(to_native "$ANALYTICS_PROTO_DIR")" \
   --dart_out=grpc:"$(to_native "$OUT_DIR")" \
-  auth.proto user.proto score.proto play.proto leaderboard.proto usage.proto
+  auth.proto user.proto score.proto play.proto leaderboard.proto global_leaderboard.proto usage.proto
 
 echo "Generated gRPC Dart stubs into $OUT_DIR"

@@ -491,5 +491,17 @@
   "helpLeaderboardsTitle": "Las clasificaciones",
   "helpLeaderboardsBody": "Cada partitura del catálogo tiene su clasificación con las mejores sesiones. Apareces en ella una vez que inicias sesión, si tu perfil lo permite.",
   "helpReplayPlayerTour": "Volver a ver la guía",
-  "helpReplayArmed": "La guía se lanzará con la próxima partitura que abras."
+  "helpReplayArmed": "La guía se lanzará con la próxima partitura que abras.",
+
+  "communityTitle": "Comunidad",
+  "communityEntryTooltip": "Clasificaciones globales",
+  "communitySeasonLabel": "Temporada",
+  "communitySeasonCurrent": "Temporada actual",
+  "communitySeasonPast": "Temporada del {date}",
+  "globalLeaderboardEmpty": "Nadie ha puntuado esta temporada todav\u00eda: \u00a1s\u00e9 el primero!",
+  "globalLeaderboardScore": "{score} pts",
+  "globalLeaderboardPieces": "{count} piezas",
+  "globalStandingTitle": "Clasificaci\u00f3n global",
+  "globalStandingNone": "A\u00fan sin clasificaci\u00f3n global esta temporada: toca una pieza del cat\u00e1logo para entrar.",
+  "globalStandingOpen": "Ver las clasificaciones globales"
 }

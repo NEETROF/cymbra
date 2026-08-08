@@ -59,6 +59,30 @@ accumulation rolls over.
 - **WHEN** a season ends
 - **THEN** its final global standings are recorded in a history that later seasons do not overwrite
 
+### Requirement: An archived season freezes consent but not the age safeguard
+
+When a season is snapshotted the system SHALL record, per player, whether that player was
+**listable at the moment the season closed**, and SHALL use that recorded consent when the
+archived season is later read — so a past ranking does not change because a player's visibility
+changed afterwards. The **minimum-age safeguard** SHALL NOT be frozen with it: an archived entry
+SHALL be listed only when the player was listable then **and** is age-eligible now. A caller
+SHALL always see their own archived standing.
+
+#### Scenario: Going private later does not rewrite a past season
+
+- **WHEN** a player who was listed when a season closed makes their profile private afterwards
+- **THEN** the archived season still shows them, and the other players' archived ranks are unchanged
+
+#### Scenario: Going public later does not add someone to a past season
+
+- **WHEN** a player who was private when a season closed makes their profile public afterwards
+- **THEN** they are still absent from that archived season's listing
+
+#### Scenario: The age safeguard still removes an archived entry
+
+- **WHEN** a player recorded as listable is no longer age-eligible
+- **THEN** they are not listed in the archived season either
+
 ### Requirement: Season best maintained monotonically on ingest
 
 The system SHALL keep, per (player, season, piece, mode), the player's **best season sub-score**,

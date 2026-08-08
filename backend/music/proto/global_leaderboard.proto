@@ -1,0 +1,63 @@
+syntax = "proto3";
+
+package cymbra.music.v1;
+
+// GlobalLeaderboardService — the GLOBAL, seasonal rankings that answer "who is
+// the best player overall?" (change: add-global-leaderboard). Reads only: the
+// per-(player, season, piece, mode) season bests are maintained on the
+// `RecordPlaySession` ingest path, and the end-of-season standings are frozen by
+// a worker job. The caller's identity comes from the internal access token
+// (request metadata), never the body.
+//
+// VIEWING is open to any authenticated user (including private / under-age
+// players); being LISTED requires the profile to be public and age-eligible, and
+// a caller always sees their own rank and score.
+
+// One ranked entry on a global board. Carries only NON-SENSITIVE public fields
+// (handle + display name) — never an email, curator alignment/reliability, or
+// moderation state.
+message GlobalLeaderboardEntry {
+  int32 rank = 1;                // 1-based rank among the public entries
+  string user_id = 2;            // the ranked player's id (opaque)
+  string handle = 3;             // public handle, empty if none
+  string display_name = 4;       // public display name, empty if none
+  float score = 5;               // difficulty-weighted best-N global season score (rank primary)
+  int32 contributing_pieces = 6; // how many pieces fed it (first tie-break)
+  int64 reached_at_ms = 7;       // when the score was reached (unix epoch ms, last tie-break)
+}
+
+// Read one global board: the ranked PUBLIC + age-eligible entries for `mode` in
+// `season_id`, plus the caller's own standing. `mode` is "tempo" or "reaction".
+message GetGlobalLeaderboardRequest {
+  string mode = 1;      // "tempo" | "reaction"
+  string season_id = 2; // a season id; empty = the CURRENT season
+  int32 offset = 3;     // paging offset into the ranked public entries
+  int32 limit = 4;      // page size (server clamps to a sane maximum)
+}
+message GetGlobalLeaderboardResponse {
+  // The season actually read (echoes back the current one when the request left
+  // `season_id` empty).
+  string season_id = 1;
+  // The requested page of ranked PUBLIC entries (private/ineligible players are
+  // never listed to others).
+  repeated GlobalLeaderboardEntry entries = 2;
+  // Total number of public entries on this board (for paging).
+  int32 total = 3;
+  // The CALLER's own score + rank among the public entries, always returned when
+  // the caller scored in this season — even if the caller is private/ineligible
+  // (they see themselves without being listed to others). Absent (message-presence
+  // false) when the caller has no score this season.
+  optional GlobalLeaderboardEntry own = 4;
+}
+
+// The seasons a selector may offer: the live one plus the snapshotted past ones.
+message ListGlobalSeasonsRequest {}
+message ListGlobalSeasonsResponse {
+  string current_season_id = 1;         // the live season
+  repeated string past_season_ids = 2;  // snapshotted seasons, most recent first
+}
+
+service GlobalLeaderboardService {
+  rpc GetGlobalLeaderboard(GetGlobalLeaderboardRequest) returns (GetGlobalLeaderboardResponse);
+  rpc ListGlobalSeasons(ListGlobalSeasonsRequest) returns (ListGlobalSeasonsResponse);
+}

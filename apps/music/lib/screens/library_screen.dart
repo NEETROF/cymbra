@@ -29,6 +29,7 @@ import '../widgets/library_listeners.dart';
 import '../widgets/rating_invite_banner.dart';
 import '../widgets/score_card.dart';
 import 'auth/account_menu.dart';
+import 'community_screen.dart';
 import 'help_screen.dart';
 import 'onboarding/sign_in_invitation.dart';
 import 'open_score.dart';
@@ -89,6 +90,21 @@ class LibraryScreen extends ConsumerWidget {
                 ref,
                 SignInBenefit.earnPoints,
                 _openRatingDeck,
+              ),
+            ),
+            // The Community destination — the global, seasonal boards (change:
+            // add-global-leaderboard). Gated like its neighbours: reading a board
+            // needs an identity (the RPC is authenticated), so a signed-out tap
+            // names the benefit and resumes here after signing in.
+            IconButton(
+              key: const Key('community-entry'),
+              icon: const Icon(Icons.leaderboard_outlined),
+              tooltip: l10n.communityEntryTooltip,
+              onPressed: () => _openGated(
+                context,
+                ref,
+                SignInBenefit.leaderboards,
+                _openCommunity,
               ),
             ),
             if (signedIn)
@@ -176,6 +192,10 @@ class LibraryScreen extends ConsumerWidget {
   static void _openSoundFonts(BuildContext context) => Navigator.of(
     context,
   ).push(MaterialPageRoute<void>(builder: (_) => const SoundFontsScreen()));
+
+  static void _openCommunity(BuildContext context) => Navigator.of(
+    context,
+  ).push(MaterialPageRoute<void>(builder: (_) => const CommunityScreen()));
 }
 
 /// Groups [entries] into per-level card grids (only non-empty levels), in

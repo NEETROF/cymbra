@@ -127,6 +127,19 @@ pub async fn purge_user(admin_pool: &PgPool, user_id: &str) -> anyhow::Result<()
         .execute(&mut *tx)
         .await?;
 
+    // The user's GLOBAL leaderboard data (change: add-global-leaderboard, task
+    // 3.3): the per-season bests AND the frozen end-of-season standings. Both are
+    // keyed by user_id with no cross-schema FK, so nothing cascades from the
+    // account row — erase them here so no global ranking data (live or
+    // hall-of-fame) outlives the account (RGPD erasure). The hall of fame is not
+    // exempt: a deleted account leaves no trace on a past season's board either.
+    for table in ["music.global_season_bests", "music.global_season_snapshots"] {
+        sqlx::query(&format!("DELETE FROM {table} WHERE user_id = $1"))
+            .bind(uid)
+            .execute(&mut *tx)
+            .await?;
+    }
+
     // The user's curation-rewards data (change: add-curation-rewards): the append-only
     // points ledger, durable grants (redeemed rewards + earned badges), and the
     // engagement signal — all keyed by user_id (no cross-schema FK, so no cascade);
@@ -163,6 +176,31 @@ pub async fn settle_consensus_honesty(admin_pool: &PgPool) -> anyhow::Result<u64
         .run_consensus_sweep()
         .await
         .map_err(|e| anyhow::anyhow!("consensus honesty settlement: {e}"))
+}
+
+/// Roll the global leaderboard over to a new season (change: add-global-
+/// leaderboard, task 2.2) — the worker side of
+/// [`cymbra_music::snapshot_closed_season`]. Freezes the season that has just
+/// closed into the hall of fame (per mode) so later seasons never overwrite it,
+/// while the new season accumulates from scratch. Per-piece all-time bests (#6)
+/// are untouched. Idempotent (an already-snapshotted season is skipped), so
+/// at-least-once redelivery — and the daily cadence on days with no rollover — are
+/// both safe. Returns the number of standings newly frozen. Runs as `admin_svc`
+/// (the only worker actor allowed to write `music`).
+///
+/// Needs the [`cymbra_user_port::UserPort`] because the snapshot FREEZES each
+/// player's consent to be listed as it stands at the close of the season — the
+/// archive's ranking then stays stable when someone later goes private (the age
+/// safeguard is still re-checked live on every read).
+pub async fn snapshot_global_season(
+    admin_pool: &PgPool,
+    user: &dyn cymbra_user_port::UserPort,
+) -> anyhow::Result<u64> {
+    let repo = cymbra_music::PgGlobalLeaderboardRepo::new(admin_pool.clone());
+    let cfg = cymbra_music::GlobalConfig::default();
+    cymbra_music::snapshot_closed_season(&repo, user, &cfg, chrono::Utc::now())
+        .await
+        .map_err(|e| anyhow::anyhow!("global season snapshot: {e}"))
 }
 
 /// Prune the heavy per-session play detail past its retention window (change:

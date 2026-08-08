@@ -283,3 +283,91 @@ async fn purge_erases_saved_catalog_library_but_not_the_catalog() {
         .await
         .unwrap();
 }
+
+/// add-global-leaderboard (task 3.3) — the purge erases the user's GLOBAL
+/// leaderboard data: both the live per-season bests and the frozen end-of-season
+/// standings. Neither has a cross-schema FK to the account row, so nothing
+/// cascades: only the explicit deletes in `purge_user` keep a deleted player off
+/// the hall of fame. The PUBLIC catalog piece they scored on stays untouched.
+#[tokio::test]
+#[ignore = "needs docker compose (Postgres) with per-module roles"]
+async fn purge_erases_global_leaderboard_season_data() {
+    migrate().await;
+    let music = connect("CYMBRA_MUSIC_DATABASE_URL").await;
+    cymbra_music::MIGRATOR.run(&music).await.unwrap();
+    let admin = connect("CYMBRA_ADMIN_DATABASE_URL").await;
+
+    let uid = seed_user(
+        &admin,
+        "local",
+        &format!("global-{}@x.dev", uuid::Uuid::now_v7()),
+    )
+    .await;
+    let cid = uuid::Uuid::now_v7();
+    sqlx::query(
+        "INSERT INTO music.catalog_scores \
+         (id, source, source_url, source_item_id, license, confidence, sha256, \
+          origin_format, conversion_status, object_key, work_key) \
+         VALUES ($1,'pdmx','u','1','CC-BY-4.0','verified',$2,'music_xml','converted','k','w')",
+    )
+    .bind(cid)
+    .bind(format!("sha-{cid}"))
+    .execute(&admin)
+    .await
+    .unwrap();
+    // A live season best…
+    sqlx::query(
+        "INSERT INTO music.global_season_bests \
+         (user_id, season_id, catalog_score_id, mode, best_subscore, achieved_at) \
+         VALUES ($1, '2026-01-01', $2, 'tempo', 88.0, now())",
+    )
+    .bind(uid)
+    .bind(cid)
+    .execute(&admin)
+    .await
+    .unwrap();
+    // …and a frozen hall-of-fame standing from a closed season.
+    sqlx::query(
+        "INSERT INTO music.global_season_snapshots \
+         (season_id, mode, user_id, global_score, contributing_pieces, reached_at) \
+         VALUES ('2026-01-01', 'tempo', $1, 12.5, 3, now())",
+    )
+    .bind(uid)
+    .execute(&admin)
+    .await
+    .unwrap();
+
+    cymbra_worker::purge_user(&admin, &uid.to_string())
+        .await
+        .expect("purge should succeed");
+
+    for table in ["global_season_bests", "global_season_snapshots"] {
+        assert_eq!(
+            count(
+                &admin,
+                &format!("SELECT count(*) FROM music.{table} WHERE user_id = $1::uuid"),
+                &uid.to_string(),
+            )
+            .await,
+            0,
+            "{table} rows must be purged"
+        );
+    }
+    // The PUBLIC catalog piece they scored on is untouched.
+    assert_eq!(
+        count(
+            &admin,
+            "SELECT count(*) FROM music.catalog_scores WHERE id = $1::uuid",
+            &cid.to_string(),
+        )
+        .await,
+        1,
+        "the public catalog entry must be untouched"
+    );
+
+    sqlx::query("DELETE FROM music.catalog_scores WHERE id = $1")
+        .bind(cid)
+        .execute(&admin)
+        .await
+        .unwrap();
+}

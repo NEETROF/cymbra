@@ -16,8 +16,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:music/services/leaderboard_service.dart';
+import 'package:music/services/profile_service.dart';
 import 'package:music/state/leaderboard.dart';
+import 'package:music/state/play_activity.dart';
+import 'package:music/state/play_activity_notifier.dart';
+import 'package:music/state/profile_notifier.dart';
+import 'package:music/state/session_notifier.dart';
 import 'package:music/widgets/leaderboard_view.dart';
+import 'package:music/widgets/player_profile_panel.dart';
 
 import '../support/localized.dart';
 
@@ -212,5 +218,89 @@ void main() {
       scrollable: find.byType(Scrollable).last,
     );
     expect(find.text('#50'), findsOneWidget);
+  });
+
+  group('tapping a pseudo opens the profile panel', () {
+    /// Pumps the board the way it really ships from a score card: inside a
+    /// `Dialog`, which has NO Scaffold — the case a Scaffold `endDrawer` could
+    /// not serve, and the reason the panel is a right-anchored route.
+    Future<void> pumpInDialog(
+      WidgetTester tester,
+      _FakeLeaderboardService fake, {
+      String? currentUserId = 'me',
+    }) async {
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: ProviderContainer(
+            overrides: [
+              leaderboardServiceProvider.overrideWithValue(fake),
+              currentUserIdProvider.overrideWithValue(currentUserId),
+              playerProfileProvider('a1').overrideWith(
+                (ref) async => const PlayerProfile(
+                  userId: 'a1',
+                  handle: 'ana',
+                  displayName: null,
+                  visibility: 'public',
+                ),
+              ),
+              playActivityProvider('a1').overrideWith(
+                (ref) async => PlayActivity(days: const [], totalSessions: 7),
+              ),
+            ],
+          ),
+          child: localizedApp(
+            const Dialog(
+              child: SizedBox(
+                width: 400,
+                height: 600,
+                child: LeaderboardView(scoreId: 'piece-1', title: ''),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('from inside the leaderboard dialog, without navigating', (
+      tester,
+    ) async {
+      final fake = _FakeLeaderboardService({
+        LeaderboardMode.tempo: Leaderboard(
+          entries: [_entry('a1', rank: 1, handle: '@ana')],
+          total: 1,
+          own: null,
+        ),
+      });
+      await pumpInDialog(tester, fake);
+
+      await tester.tap(find.text('@ana'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(PlayerProfileView), findsOneWidget);
+      expect(find.text('7 songs played'), findsOneWidget);
+      // The board is still mounted underneath — no navigation happened.
+      expect(find.byType(LeaderboardView), findsOneWidget);
+    });
+
+    testWidgets('but your own row is not tappable', (tester) async {
+      final fake = _FakeLeaderboardService({
+        LeaderboardMode.tempo: Leaderboard(
+          entries: [_entry('me', rank: 1, handle: '@me')],
+          total: 1,
+          own: _entry('me', rank: 1, handle: '@me'),
+        ),
+      });
+      await pumpInDialog(tester, fake);
+
+      await tester.tap(find.text('@me (you)'));
+      await tester.pumpAndSettle();
+      expect(find.byType(PlayerProfileView), findsNothing);
+
+      // Nor is the "your standing" card above the list.
+      await tester.tap(find.text('Your standing'));
+      await tester.pumpAndSettle();
+      expect(find.byType(PlayerProfileView), findsNothing);
+    });
   });
 }

@@ -413,6 +413,35 @@ impl<R: UserRepo> UserPort for UserModule<R> {
         }
         Ok(out)
     }
+
+    async fn age_eligible_profiles(
+        &self,
+        user_ids: &[String],
+        today: NaiveDate,
+    ) -> Result<Vec<PlayerProfile>> {
+        let mut out = Vec::new();
+        for id in user_ids {
+            // Same fail-closed handling as `listable_profiles`: an unknown id is
+            // simply absent, a transient read error still propagates.
+            let row = match self.repo.profile_row(id).await {
+                Ok(row) => row,
+                Err(AppError::NotFound(_)) => continue,
+                Err(e) => return Err(e),
+            };
+            // The AGE safeguard only — visibility is deliberately not consulted, so
+            // a now-private player still resolves. The caller must already hold a
+            // recorded past consent (see the port docs).
+            if self.eligible_now(&row.share_eligible_from, today) {
+                out.push(PlayerProfile {
+                    user_id: id.clone(),
+                    handle: row.handle,
+                    display_name: row.display_name,
+                    visibility: Visibility::parse(&row.visibility)?,
+                });
+            }
+        }
+        Ok(out)
+    }
 }
 
 impl<R: UserRepo> UserModule<R> {
@@ -1024,5 +1053,36 @@ mod tests {
             m.repo.profile_row(&u).await.unwrap().share_eligible_from,
             Some(ymd(2027, 1, 1))
         );
+    }
+
+    /// `age_eligible_profiles` is the AGE half of the listing gate on its own
+    /// (change: add-global-leaderboard) — it backs the frozen-history archive read,
+    /// where consent was already recorded at snapshot time.
+    #[tokio::test]
+    async fn age_eligible_profiles_is_visibility_blind_but_fails_closed_on_age() {
+        let m = module();
+        // An adult who went public, then back to private.
+        let adult = m.resolve_or_provision("google", "adult").await.unwrap();
+        m.set_profile_visibility(&adult, Visibility::Public, Some(ymd(1990, 1, 1)), today())
+            .await
+            .unwrap();
+        m.set_profile_visibility(&adult, Visibility::Private, None, today())
+            .await
+            .unwrap();
+        // An account that never established an eligibility date.
+        let unknown_age = m.resolve_or_provision("google", "noage").await.unwrap();
+
+        let ids = vec![adult.clone(), unknown_age.clone(), "ghost".to_string()];
+        let out = m.age_eligible_profiles(&ids, today()).await.unwrap();
+        let got: Vec<&str> = out.iter().map(|p| p.user_id.as_str()).collect();
+
+        // Visibility-blind: the now-PRIVATE adult still resolves…
+        assert_eq!(got, vec![adult.as_str()]);
+        // …while no eligibility date is fail-closed, and an unknown id is absent.
+        assert!(!got.contains(&unknown_age.as_str()));
+        assert!(!got.contains(&"ghost"));
+
+        // Contrast: the full listing gate drops the now-private adult.
+        assert!(m.listable_profiles(&ids, today()).await.unwrap().is_empty());
     }
 }
