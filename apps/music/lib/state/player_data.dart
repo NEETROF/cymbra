@@ -240,6 +240,14 @@ abstract class PlayerData with _$PlayerData {
     /// Playback position (playhead), in milliseconds.
     @Default(0.0) double elapsedMs,
 
+    /// The furthest the playhead has ever reached on the CURRENT score, in
+    /// milliseconds (change: add-post-play-rating-prompt). Monotonic within a
+    /// score: pausing, seeking back, looping, restarting, or switching hands never
+    /// lowers it — only loading another score resets it. Feeds
+    /// `playedNoteFraction`, which decides whether the player has heard enough of
+    /// the piece to be asked to rate it on the way out.
+    @Default(0.0) double furthestElapsedMs,
+
     /// Speed multiplier (1.0 = 100%).
     @Default(1.0) double speed,
 

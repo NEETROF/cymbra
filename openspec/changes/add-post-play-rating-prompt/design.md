@@ -100,9 +100,14 @@ with a threshold of **25%**. `PlayerData.notes` is already the piece flattened a
 sorted by start ([player_data.dart:211](apps/music/lib/state/player_data.dart:211)),
 so this is a binary search over a sorted list — a pure function of
 `(notes, furthestElapsedMs)`. The player notifier only needs to keep a high-water
-mark of `elapsedMs` (monotonic, so seeking back or pausing never lowers it); the
-threshold is a named constant in the core, sited so it can later move to
-feature-flag config without touching the predicate.
+mark of `elapsedMs`; the threshold is a named constant in the core, sited so it
+can later move to feature-flag config without touching the predicate.
+
+The mark is monotonic **per score**, and resets only when another score is loaded.
+Pausing, seeking back, restarting from the top, and switching hands all keep it:
+the question is "how much of this music has this user heard", and a restart is not
+amnesia about the half they already listened to. A loop wrap credits `endMs` rather
+than the position it wraps to, since the playhead did just reach the end.
 
 *Why notes and not time or position:* elapsed time is tempo-dependent — practising
 at 50% tempo would double the time spent for the same music — and a position

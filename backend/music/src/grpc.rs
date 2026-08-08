@@ -39,9 +39,10 @@ use crate::proto::{
     CuratorRewards as ProtoRewards, DeleteScoreRequest, DeleteScoreResponse,
     DeleteSoundFontRequest, DeleteSoundFontResponse, GetCatalogScoreBytesRequest,
     GetCatalogScoreBytesResponse, GetCatalogScoreRequest, GetCuratorReliabilityRequest,
-    GetCuratorRewardsRequest, GetRatingPreviewBytesRequest, GetRatingPreviewBytesResponse,
-    GetScoreBytesRequest, GetScoreBytesResponse, ListMyScoresRequest, ListMyScoresResponse,
-    ListRatingDeckRequest, ListRatingDeckResponse, ListRewardShopRequest, ListRewardShopResponse,
+    GetCuratorRewardsRequest, GetMyScoreRatingRequest, GetMyScoreRatingResponse,
+    GetRatingPreviewBytesRequest, GetRatingPreviewBytesResponse, GetScoreBytesRequest,
+    GetScoreBytesResponse, ListMyScoresRequest, ListMyScoresResponse, ListRatingDeckRequest,
+    ListRatingDeckResponse, ListRewardShopRequest, ListRewardShopResponse,
     ListSavedCatalogScoresRequest, ListSavedCatalogScoresResponse, ListSoundFontsRequest,
     ListSoundFontsResponse, ProposeScoreRequest, ProposeScoreResponse, RedeemRewardRequest,
     RedeemRewardResponse, RemoveSavedCatalogScoreRequest, RemoveSavedCatalogScoreResponse,
@@ -820,9 +821,12 @@ impl ScoreService for ScoreGrpc {
         self.guard_download(&id).await?; // per-user download guardrail (scrape guard)
         let allow_unvalidated = id.is_admin() || id.has_role("moderator");
         let catalog_id = req.into_inner().catalog_id;
+        // Opening a score in the player records the coverage engagement signal
+        // (change: add-post-play-rating-prompt), so a rating submitted from the
+        // post-play prompt is eligible for points just like one from the deck.
         let data = self
             .module
-            .get_catalog_bytes(&catalog_id, allow_unvalidated)
+            .catalog_bytes_for_player(&id.user_id, &catalog_id, allow_unvalidated)
             .await?;
         Ok(Response::new(GetCatalogScoreBytesResponse { data }))
     }
@@ -974,6 +978,24 @@ impl ScoreService for ScoreGrpc {
             like_count: agg.like.clamp(0, i32::MAX as i64) as i32,
             love_count: agg.love.clamp(0, i32::MAX as i64) as i32,
             points_awarded: points.clamp(0, i32::MAX as i64) as i32,
+        }))
+    }
+
+    async fn get_my_score_rating(
+        &self,
+        req: Request<GetMyScoreRatingRequest>,
+    ) -> Result<Response<GetMyScoreRatingResponse>, Status> {
+        // The caller's OWN rating (change: add-post-play-rating-prompt) — the
+        // identity comes from the interceptor, never the body, so this can only ever
+        // read the caller's row. The module answers `None` for an unknown/`rejected`
+        // id, which serialises identically to "not rated" (no existence oracle).
+        let user_id = owner(&req)?;
+        let r = req.into_inner();
+        let found = self.module.my_score_rating(&user_id, &r.catalog_id).await?;
+        Ok(Response::new(GetMyScoreRatingResponse {
+            rated: found.is_some(),
+            verdict: found.map(|f| f.verdict.as_str().to_string()),
+            stars: found.and_then(|f| f.stars).map(i32::from),
         }))
     }
 
@@ -1843,6 +1865,81 @@ mod tests {
             .await
             .unwrap_err();
         assert_eq!(err.code(), tonic::Code::Unauthenticated);
+        let err = g
+            .get_my_score_rating(Request::new(GetMyScoreRatingRequest {
+                catalog_id: DEBUSSY.into(),
+            }))
+            .await
+            .unwrap_err();
+        assert_eq!(err.code(), tonic::Code::Unauthenticated);
+    }
+
+    #[tokio::test]
+    async fn get_my_score_rating_reports_the_callers_own_rating() {
+        // change: add-post-play-rating-prompt — the wire shape the player reads.
+        let g = grpc().await;
+        // Un-rated → `rated: false` with no verdict/stars.
+        let resp = g
+            .get_my_score_rating(authed(
+                GetMyScoreRatingRequest {
+                    catalog_id: DEBUSSY.into(),
+                },
+                "u1",
+            ))
+            .await
+            .unwrap()
+            .into_inner();
+        assert!(!resp.rated);
+        assert_eq!(resp.verdict, None);
+        assert_eq!(resp.stars, None);
+        // After rating, the caller reads their verdict + stars back…
+        g.submit_score_rating(authed(
+            SubmitScoreRatingRequest {
+                catalog_id: DEBUSSY.into(),
+                verdict: "love".into(),
+                stars: Some(5),
+            },
+            "u1",
+        ))
+        .await
+        .unwrap();
+        let resp = g
+            .get_my_score_rating(authed(
+                GetMyScoreRatingRequest {
+                    catalog_id: DEBUSSY.into(),
+                },
+                "u1",
+            ))
+            .await
+            .unwrap()
+            .into_inner();
+        assert!(resp.rated);
+        assert_eq!(resp.verdict.as_deref(), Some("love"));
+        assert_eq!(resp.stars, Some(5));
+        // …while another caller still reads "not rated" for the same score.
+        let resp = g
+            .get_my_score_rating(authed(
+                GetMyScoreRatingRequest {
+                    catalog_id: DEBUSSY.into(),
+                },
+                "u2",
+            ))
+            .await
+            .unwrap()
+            .into_inner();
+        assert!(!resp.rated);
+        // An unknown id is reported as un-rated, not as an error (no existence oracle).
+        let resp = g
+            .get_my_score_rating(authed(
+                GetMyScoreRatingRequest {
+                    catalog_id: "99999999-9999-7999-8999-999999999999".into(),
+                },
+                "u1",
+            ))
+            .await
+            .unwrap()
+            .into_inner();
+        assert!(!resp.rated);
     }
 
     #[tokio::test]

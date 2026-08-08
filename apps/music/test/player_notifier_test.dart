@@ -327,6 +327,66 @@ void main() {
     });
   });
 
+  group('furthest playhead (how much of the piece was heard)', () {
+    // change: add-post-play-rating-prompt — feeds `playedNoteFraction`, which
+    // decides whether the player is asked to rate the piece on the way out.
+    test('a never-started player has heard nothing', () async {
+      await build();
+      expect(read().furthestElapsedMs, read().startMs);
+      expect(read().furthestElapsedMs, 0);
+    });
+
+    test('tracks the playhead forward', () async {
+      await build();
+      notifier().toggleWaitMode(); // free run
+      notifier().togglePlay();
+      notifier().advance(300);
+      expect(read().furthestElapsedMs, 300);
+    });
+
+    test('pausing keeps the furthest point', () async {
+      await build();
+      notifier().toggleWaitMode();
+      notifier().togglePlay();
+      notifier().advance(300);
+      notifier().togglePlay(); // pause
+      notifier().advance(100); // ignored while paused
+      expect(read().furthestElapsedMs, 300);
+    });
+
+    test('restarting from the top does not lower it', () async {
+      await build();
+      notifier().toggleWaitMode();
+      notifier().togglePlay();
+      notifier().advance(700);
+      notifier().restart();
+      // The playhead is back at the top, but the piece was still heard to 700 —
+      // a restart is not amnesia about what the user already listened to.
+      expect(read().elapsedMs, read().startMs);
+      expect(read().furthestElapsedMs, 700);
+    });
+
+    test('a loop wrap does not lower it', () async {
+      await build();
+      notifier().toggleWaitMode();
+      notifier().togglePlay();
+      container.read(performanceScorerProvider.notifier).cancelRun();
+      notifier().advance(500);
+      notifier().advance(600); // crosses songEndMs (1000) → wraps to 0
+      expect(read().elapsedMs, 0);
+      expect(read().furthestElapsedMs, 1000);
+    });
+
+    test('switching hands keeps it (same piece)', () async {
+      await build();
+      notifier().toggleWaitMode();
+      notifier().togglePlay();
+      notifier().advance(400);
+      notifier().setSelectedHands(Hand.right);
+      expect(read().furthestElapsedMs, 400);
+    });
+  });
+
   group('wait mode (onset gate)', () {
     test('a single press releases the gate without holding the note', () async {
       await build(); // demo: C4 [0,500), D4 [500,1000)

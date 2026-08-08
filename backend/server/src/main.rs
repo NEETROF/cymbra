@@ -236,6 +236,17 @@ async fn main() -> anyhow::Result<()> {
             // access-limits).
             let play_repo: Arc<dyn cymbra_music::PlayRepo> =
                 Arc::new(cymbra_music::PgPlayRepo::new(music_pool.clone()));
+            // Curation rewards (change: add-curation-rewards): one module backs the
+            // score module's producer seam (record engagement + award coverage on
+            // rating, settle honesty on a moderator decision), the reward RPCs on the
+            // score service (profile / shop / redeem / reliability), AND the play
+            // ingest's engagement signal (change: add-post-play-rating-prompt), so it
+            // is built here — above the PlayService — rather than inside the
+            // storage-gated score block below.
+            let rewards_module = Arc::new(cymbra_music::CurationRewardsModule::new(Arc::new(
+                cymbra_music::PgCurationRewardsRepo::new(music_pool.clone()),
+            )));
+            let rewards_sink: Arc<dyn cymbra_music::CurationRewardsSink> = rewards_module.clone();
             // Leaderboards (change: add-play-leaderboards): the bests store is
             // maintained on the play-session ingest path (as a sink) and read by
             // the LeaderboardService; both share one module + the injected user
@@ -267,7 +278,7 @@ async fn main() -> anyhow::Result<()> {
             );
             let play_svc = Some(
                 cymbra_music::proto::play_service_server::PlayServiceServer::with_interceptor(
-                    cymbra_music::PlayGrpc::new(play_module),
+                    cymbra_music::PlayGrpc::new(play_module).with_rewards(rewards_sink.clone()),
                     strict.clone(),
                 ),
             );
@@ -301,15 +312,6 @@ async fn main() -> anyhow::Result<()> {
                     // engagement allowance (a rating earns download headroom like a play).
                     let rating_repo: Arc<dyn cymbra_music::ScoreRatingRepo> =
                         Arc::new(PgScoreRatingRepo::new(music_pool.clone()));
-                    // Curation rewards (change: add-curation-rewards): one module backs
-                    // both the score module's producer seam (record engagement + award
-                    // coverage on rating, settle honesty on a moderator decision) and the
-                    // reward RPCs on the score service (profile / shop / redeem / reliability).
-                    let rewards_module = Arc::new(cymbra_music::CurationRewardsModule::new(
-                        Arc::new(cymbra_music::PgCurationRewardsRepo::new(music_pool.clone())),
-                    ));
-                    let rewards_sink: Arc<dyn cymbra_music::CurationRewardsSink> =
-                        rewards_module.clone();
                     let module = Arc::new(
                         ScoreModule::new(
                             Arc::new(PgUserScoreRepo::new(music_pool.clone())),

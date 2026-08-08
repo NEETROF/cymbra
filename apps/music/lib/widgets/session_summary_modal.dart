@@ -19,9 +19,11 @@ import '../l10n/gen/app_localizations.dart';
 import '../state/leaderboard.dart';
 import '../state/leaderboard_notifier.dart';
 import '../state/performance_scoring_core.dart';
+import '../state/post_play_rating_notifier.dart';
 import '../state/session_summary.dart';
 import '../theme/cymbra_theme.dart';
 import 'leaderboard_view.dart';
+import 'post_play_rating.dart';
 
 /// What the player chose to do from the summary modal.
 enum SummaryAction { replay, retry, close }
@@ -138,6 +140,11 @@ class _SummaryDialog extends StatelessWidget {
                   ),
                 ),
               ),
+              // Rate the piece just played (change: add-post-play-rating-prompt).
+              // Pinned with the actions rather than inside the scroll area, so it
+              // is never scrolled out of sight — but it is NOT a fourth choice:
+              // it never dismisses the modal, and ignoring it costs nothing.
+              const _SummaryRating(),
               const SizedBox(height: 16),
               _actions(context, l10n),
             ],
@@ -320,6 +327,38 @@ class _SummaryDialog extends StatelessWidget {
 
   static String _handsLabel(AppLocalizations l10n, String hands) =>
       l10n.summaryHands(hands);
+}
+
+/// The summary's rating affordance (change: add-post-play-rating-prompt): the
+/// shared star row, mounted only when the played score is eligible (signed in, a
+/// public-catalog score, not already rated, not already offered). A finished run
+/// always satisfies the played-enough term, hence `reachedEnd: true`. Renders
+/// nothing otherwise, so the modal is byte-for-byte its old self for a bundled
+/// score or a guest.
+class _SummaryRating extends ConsumerStatefulWidget {
+  const _SummaryRating();
+
+  @override
+  ConsumerState<_SummaryRating> createState() => _SummaryRatingState();
+}
+
+class _SummaryRatingState extends ConsumerState<_SummaryRating> {
+  /// Eligibility is **latched**: showing the row records the score as offered and
+  /// rating it marks it rated, both of which make the provider say "no" again. A
+  /// latch keeps the row on screen for the rest of this summary instead of
+  /// yanking it away the moment it appears. It can still turn on late, if the
+  /// caller's rating read resolves after the modal opened.
+  bool _shown = false;
+
+  @override
+  Widget build(BuildContext context) {
+    _shown |= ref.watch(postPlayRatingEligibleProvider(reachedEnd: true));
+    if (!_shown) return const SizedBox.shrink();
+    return const Padding(
+      padding: EdgeInsets.only(top: 8),
+      child: PostPlayRatingRow(compact: true),
+    );
+  }
 }
 
 /// The post-session standing block (change: add-play-leaderboards): for each mode

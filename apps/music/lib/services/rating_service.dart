@@ -31,6 +31,39 @@ enum RatingVerdict {
 
   /// The wire string the backend expects (matches the proto `verdict`).
   String get wire => name;
+
+  /// Parse a wire string back; null for anything unknown (a rating read back from
+  /// a newer server must never crash the app).
+  static RatingVerdict? fromWire(String? wire) => switch (wire) {
+    'dislike' => RatingVerdict.dislike,
+    'like' => RatingVerdict.like,
+    'love' => RatingVerdict.love,
+    _ => null,
+  };
+}
+
+/// The verdict a 1–5 star value implies (design D2): 5 → love, 3–4 → like,
+/// 1–2 → dislike. Shared by every star surface — the deck's star sheet and the
+/// post-play prompt — so stars and swipes can never fold onto different scales.
+RatingVerdict verdictForStars(int stars) {
+  if (stars >= 5) return RatingVerdict.love;
+  if (stars >= 3) return RatingVerdict.like;
+  return RatingVerdict.dislike;
+}
+
+/// The caller's own rating of one score (change: add-post-play-rating-prompt).
+/// [verdict] and [stars] are null when [rated] is false; [stars] is also null for
+/// a swipe-only rating.
+class MyRating {
+  const MyRating({required this.rated, this.verdict, this.stars});
+
+  /// The un-rated answer — also what a fail-closed read (unknown/rejected score)
+  /// reports, deliberately indistinguishable from a genuine "never rated".
+  static const MyRating none = MyRating(rated: false);
+
+  final bool rated;
+  final RatingVerdict? verdict;
+  final int? stars;
 }
 
 /// The per-score aggregate returned when a rating is submitted, so the UI can
@@ -72,6 +105,12 @@ abstract class RatingService {
     required RatingVerdict verdict,
     int? stars,
   });
+
+  /// The caller's OWN rating of [catalogId] (change: add-post-play-rating-prompt),
+  /// so the player can suppress the post-play prompt for a score already rated on
+  /// any device. Fail-closed server-side: an unknown or `rejected` score answers
+  /// "not rated" rather than erroring.
+  Future<MyRating> myRating({required String catalogId});
 }
 
 /// Production [RatingService] over the generated `ScoreServiceClient`. Protected
@@ -108,6 +147,22 @@ class GrpcRatingService implements RatingService {
       likeCount: resp.likeCount,
       loveCount: resp.loveCount,
       pointsAwarded: resp.pointsAwarded,
+    );
+  });
+
+  @override
+  Future<MyRating> myRating({required String catalogId}) => _authed((
+    bearer,
+  ) async {
+    final resp = await _client.getMyScoreRating(
+      score.GetMyScoreRatingRequest(catalogId: catalogId),
+      options: bearerOptions(bearer),
+    );
+    if (!resp.rated) return MyRating.none;
+    return MyRating(
+      rated: true,
+      verdict: RatingVerdict.fromWire(resp.hasVerdict() ? resp.verdict : null),
+      stars: resp.hasStars() ? resp.stars : null,
     );
   });
 }

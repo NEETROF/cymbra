@@ -126,6 +126,14 @@ pub fn is_flagged_for_review(agg: &RatingAggregate, cfg: &RatingConfig) -> bool 
     agg.count >= cfg.min_count && agg.avg_effective <= cfg.review_threshold
 }
 
+/// One user's own rating of one score, as read back (change:
+/// add-post-play-rating-prompt). `stars` is `None` for a swipe-only rating.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct UserRating {
+    pub verdict: Verdict,
+    pub stars: Option<i16>,
+}
+
 /// Owner-scoped storage for one user's rating of one catalog score. Upsert
 /// enforces the single-row-per-(user, score) invariant; the aggregate is read
 /// per score.
@@ -145,6 +153,15 @@ pub trait ScoreRatingRepo: Send + Sync {
     /// (average effective value + count + verdict breakdown). A score with no
     /// ratings yields the default (count 0, avg 0.0).
     async fn aggregate(&self, catalog_score_id: &str) -> Result<RatingAggregate>;
+
+    /// The caller's OWN rating of one score (change: add-post-play-rating-prompt),
+    /// or `None` when they have not rated it. Owner-scoped by construction — it
+    /// filters on `user_id`, so it can never surface another user's rating.
+    async fn find_by_user(
+        &self,
+        user_id: &str,
+        catalog_score_id: &str,
+    ) -> Result<Option<UserRating>>;
 
     /// How many ratings `user_id` has recorded within the last `window` (by
     /// `updated_at`). Feeds the catalog access limiter's engagement allowance
@@ -253,6 +270,21 @@ impl ScoreRatingRepo for FakeScoreRatingRepo {
             sum / agg.count as f64
         };
         Ok(agg)
+    }
+
+    async fn find_by_user(
+        &self,
+        user_id: &str,
+        catalog_score_id: &str,
+    ) -> Result<Option<UserRating>> {
+        let rows = self.rows.lock().expect("score_rating fake lock");
+        Ok(rows
+            .iter()
+            .find(|r| r.user_id == user_id && r.catalog_score_id == catalog_score_id)
+            .map(|r| UserRating {
+                verdict: r.verdict,
+                stars: r.stars,
+            }))
     }
 
     /// The in-memory fake carries no timestamps, so it counts **all** of the user's

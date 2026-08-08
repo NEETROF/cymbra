@@ -705,7 +705,7 @@ impl CatalogSearchRepo for PgCatalogSearchRepo {
 // SQL (the effective value: explicit stars, else the verdict's implied value).
 // ---------------------------------------------------------------------------
 
-use crate::score_rating::{RatingAggregate, ScoreRatingRepo, Verdict};
+use crate::score_rating::{RatingAggregate, ScoreRatingRepo, UserRating, Verdict};
 
 /// Postgres-backed [`ScoreRatingRepo`] over the `music_svc` pool.
 pub struct PgScoreRatingRepo {
@@ -785,6 +785,39 @@ impl ScoreRatingRepo for PgScoreRatingRepo {
             like: row.get::<i64, _>("like_cnt"),
             love: row.get::<i64, _>("love"),
         })
+    }
+
+    async fn find_by_user(
+        &self,
+        user_id: &str,
+        catalog_score_id: &str,
+    ) -> PlatformResult<Option<UserRating>> {
+        // Either id malformed → no rating, never an error: this read is fail-closed
+        // (an unresolvable id must be indistinguishable from an un-rated score).
+        let (Ok(user), Ok(score)) = (
+            uuid::Uuid::parse_str(user_id),
+            uuid::Uuid::parse_str(catalog_score_id),
+        ) else {
+            return Ok(None);
+        };
+        let row = sqlx::query(
+            "SELECT verdict, stars FROM music.score_ratings \
+             WHERE user_id = $1 AND catalog_score_id = $2",
+        )
+        .bind(user)
+        .bind(score)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(search_internal)?;
+        row.map(|r| {
+            Ok(UserRating {
+                // The column is written from `Verdict::as_str`, so an unparseable
+                // value is corrupt data, not client input.
+                verdict: Verdict::parse(&r.get::<String, _>("verdict"))?,
+                stars: r.get::<Option<i16>, _>("stars"),
+            })
+        })
+        .transpose()
     }
 
     async fn count_recent_by_user(

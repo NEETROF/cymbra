@@ -35,12 +35,14 @@ import '../state/performance_scoring.dart';
 import '../state/play_sync_notifier.dart';
 import '../state/player_data.dart';
 import '../state/player_notifier.dart';
+import '../state/post_play_rating_notifier.dart';
 import '../state/session_summary.dart';
 import '../state/session_summary_store.dart';
 import '../theme/cymbra_theme.dart';
 import '../widgets/countdown_overlay.dart';
 import '../widgets/mistake_replay.dart';
 import '../widgets/scoring_overlay.dart';
+import '../widgets/post_play_rating.dart';
 import '../widgets/session_summary_modal.dart';
 import 'pre_play_setup_modal.dart';
 import 'score_load_message.dart';
@@ -245,133 +247,171 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
       focusNode: _focusNode,
       autofocus: true,
       onKeyEvent: _onKey,
-      child: Scaffold(
-        // Settings open as the pre-play popup (the gear button), so there is no
-        // end drawer here — it is the same modal shown at the start of the game.
-        // On a phone the bottom safe-area inset (home-indicator zone) wastes
-        // scarce landscape height below the transport bar, so we let the bar
-        // extend into it (its own small margin keeps a hair of clearance, and
-        // the centred controls sit clear of the thin indicator). Tablet/desktop
-        // keep the full safe area.
-        body: Stack(
-          children: [
-            SafeArea(
-              bottom: !context.isPhoneLayout,
-              child: Builder(
-                builder: (context) {
-                  // Touch form factors (phone + tablet) rail the transport
-                  // controls on the right; desktop keeps the bottom bar.
-                  final useRail = context.deviceClass != DeviceClass.desktop;
-                  final Widget renderArea = Consumer(
-                    builder: (context, ref, child) {
-                      final data = ref.watch(playerProvider);
-                      // Load state of the selected score, surfaced in every
-                      // render mode (not just Partition): a fetch in flight
-                      // shows a spinner, a failure shows an error banner.
-                      final notation = ref.watch(notationProvider);
-                      final hasSelection =
-                          ref.watch(selectedScoreProvider) != null;
-                      return LayoutBuilder(
-                        builder: (context, constraints) {
-                          final bounds = data.keyboardBounds;
-                          final layout = PianoLayout(
-                            width: constraints.maxWidth,
-                            lowPitch: bounds.low,
-                            highPitch: bounds.high,
-                          );
-                          final keyboardHeight = _keyboardHeightFor(
-                            constraints.maxHeight,
-                            isPhone: context.isPhoneLayout,
-                          );
-                          // Synthesia always shows the keyboard (its cascade aligns
-                          // to the keys); the notation modes honour the user's
-                          // hide-keyboard setting, handing the freed height to the
-                          // score.
-                          final showKeyboard =
-                              data.mode == RenderMode.synthesia ||
-                              data.keyboardVisible;
-                          return Column(
-                            children: [
-                              // Clip the render area so a painter (e.g. high notes /
-                              // beams in Staff mode) never draws over the top bar or
-                              // the keyboard below.
-                              Expanded(
-                                child: ClipRect(
-                                  child: _buildRenderArea(
-                                    layout,
-                                    data,
-                                    notation,
-                                    hasSelection: hasSelection,
-                                    isPhone: context.isPhoneLayout,
-                                  ),
+      child: PopScope(
+        // Intercept the exit ONLY while a rating prompt is actually owed, so the
+        // native back gesture (and iOS's interactive swipe-back) keeps working
+        // untouched in every other case — a bundled score, a guest, an
+        // already-rated piece, or a run too short to have an opinion about.
+        // The top bar's `maybePop` funnels through here too, so both exit paths
+        // share one code path.
+        canPop: !ref.watch(postPlayRatingEligibleProvider(reachedEnd: false)),
+        onPopInvokedWithResult: (didPop, _) {
+          if (!didPop) unawaited(_requestExit());
+        },
+        child: _buildPlayer(context),
+      ),
+    );
+  }
+
+  /// Leave the player, offering to rate the piece on the way out when it is
+  /// eligible (change: add-post-play-rating-prompt).
+  ///
+  /// The sheet is **non-blocking**: whatever the user does with it — rate, skip,
+  /// tap outside, back — the pop happens. Re-entrant calls (a second back press
+  /// while the sheet is up) pop immediately rather than stacking prompts.
+  Future<void> _requestExit() async {
+    if (_leaving) return;
+    _leaving = true;
+    final navigator = Navigator.of(context);
+    if (ref.read(postPlayRatingEligibleProvider(reachedEnd: false))) {
+      await showPostPlayRatingSheet(context);
+    }
+    if (!mounted) return;
+    // `pop`, not `maybePop`: the sheet has had its one chance and the exit is not
+    // negotiable from here.
+    navigator.pop();
+  }
+
+  /// True once an exit is under way, so a second back press while the sheet is up
+  /// does not stack another prompt.
+  bool _leaving = false;
+
+  Widget _buildPlayer(BuildContext context) {
+    return Scaffold(
+      // Settings open as the pre-play popup (the gear button), so there is no
+      // end drawer here — it is the same modal shown at the start of the game.
+      // On a phone the bottom safe-area inset (home-indicator zone) wastes
+      // scarce landscape height below the transport bar, so we let the bar
+      // extend into it (its own small margin keeps a hair of clearance, and
+      // the centred controls sit clear of the thin indicator). Tablet/desktop
+      // keep the full safe area.
+      body: Stack(
+        children: [
+          SafeArea(
+            bottom: !context.isPhoneLayout,
+            child: Builder(
+              builder: (context) {
+                // Touch form factors (phone + tablet) rail the transport
+                // controls on the right; desktop keeps the bottom bar.
+                final useRail = context.deviceClass != DeviceClass.desktop;
+                final Widget renderArea = Consumer(
+                  builder: (context, ref, child) {
+                    final data = ref.watch(playerProvider);
+                    // Load state of the selected score, surfaced in every
+                    // render mode (not just Partition): a fetch in flight
+                    // shows a spinner, a failure shows an error banner.
+                    final notation = ref.watch(notationProvider);
+                    final hasSelection =
+                        ref.watch(selectedScoreProvider) != null;
+                    return LayoutBuilder(
+                      builder: (context, constraints) {
+                        final bounds = data.keyboardBounds;
+                        final layout = PianoLayout(
+                          width: constraints.maxWidth,
+                          lowPitch: bounds.low,
+                          highPitch: bounds.high,
+                        );
+                        final keyboardHeight = _keyboardHeightFor(
+                          constraints.maxHeight,
+                          isPhone: context.isPhoneLayout,
+                        );
+                        // Synthesia always shows the keyboard (its cascade aligns
+                        // to the keys); the notation modes honour the user's
+                        // hide-keyboard setting, handing the freed height to the
+                        // score.
+                        final showKeyboard =
+                            data.mode == RenderMode.synthesia ||
+                            data.keyboardVisible;
+                        return Column(
+                          children: [
+                            // Clip the render area so a painter (e.g. high notes /
+                            // beams in Staff mode) never draws over the top bar or
+                            // the keyboard below.
+                            Expanded(
+                              child: ClipRect(
+                                child: _buildRenderArea(
+                                  layout,
+                                  data,
+                                  notation,
+                                  hasSelection: hasSelection,
+                                  isPhone: context.isPhoneLayout,
                                 ),
                               ),
-                              if (showKeyboard)
-                                SizedBox(
-                                  height: keyboardHeight,
-                                  child: Listener(
-                                    key: const Key('onscreen-keyboard'),
-                                    onPointerDown: (e) =>
-                                        _onKeyboardPointerDown(
-                                          e,
-                                          layout,
-                                          keyboardHeight,
-                                        ),
-                                    onPointerUp: _onKeyboardPointerUp,
-                                    onPointerCancel: _onKeyboardPointerUp,
-                                    child: CustomPaint(
-                                      size: Size(
-                                        constraints.maxWidth,
-                                        keyboardHeight,
+                            ),
+                            if (showKeyboard)
+                              SizedBox(
+                                height: keyboardHeight,
+                                child: Listener(
+                                  key: const Key('onscreen-keyboard'),
+                                  onPointerDown: (e) => _onKeyboardPointerDown(
+                                    e,
+                                    layout,
+                                    keyboardHeight,
+                                  ),
+                                  onPointerUp: _onKeyboardPointerUp,
+                                  onPointerCancel: _onKeyboardPointerUp,
+                                  child: CustomPaint(
+                                    size: Size(
+                                      constraints.maxWidth,
+                                      keyboardHeight,
+                                    ),
+                                    painter: PianoKeyboardPainter(
+                                      layout: layout,
+                                      activeNotes: data.activeNotes,
+                                      requiredNotes: data.expectedKeys,
+                                      leftHandNotes: data.expectedKeysForHand(
+                                        rightHand: false,
                                       ),
-                                      painter: PianoKeyboardPainter(
-                                        layout: layout,
-                                        activeNotes: data.activeNotes,
-                                        requiredNotes: data.expectedKeys,
-                                        leftHandNotes: data.expectedKeysForHand(
-                                          rightHand: false,
-                                        ),
-                                        chosenWindow: data.keyboardChosenWindow,
-                                      ),
+                                      chosenWindow: data.keyboardChosenWindow,
                                     ),
                                   ),
                                 ),
-                            ],
-                          );
-                        },
-                      );
-                    },
-                  );
-                  // Phone (landscape-locked): keep the transport controls off
-                  // the bottom home-indicator zone by railing them on the right,
-                  // giving the render area + keyboard the full height. The tablet
-                  // rails them too (consistency + freed height); only the desktop
-                  // keeps the classic bottom bar.
-                  return Column(
-                    children: [
-                      const _TopBar(),
-                      if (useRail)
-                        Expanded(
-                          child: Row(
-                            children: [
-                              Expanded(child: renderArea),
-                              const _TransportBar(axis: Axis.vertical),
-                            ],
-                          ),
-                        )
-                      else ...[
-                        Expanded(child: renderArea),
-                        const _TransportBar(),
-                      ],
+                              ),
+                          ],
+                        );
+                      },
+                    );
+                  },
+                );
+                // Phone (landscape-locked): keep the transport controls off
+                // the bottom home-indicator zone by railing them on the right,
+                // giving the render area + keyboard the full height. The tablet
+                // rails them too (consistency + freed height); only the desktop
+                // keeps the classic bottom bar.
+                return Column(
+                  children: [
+                    const _TopBar(),
+                    if (useRail)
+                      Expanded(
+                        child: Row(
+                          children: [
+                            Expanded(child: renderArea),
+                            const _TransportBar(axis: Axis.vertical),
+                          ],
+                        ),
+                      )
+                    else ...[
+                      Expanded(child: renderArea),
+                      const _TransportBar(),
                     ],
-                  );
-                },
-              ),
+                  ],
+                );
+              },
             ),
-            // Race-game style get-ready countdown, centred over everything.
-            const Positioned.fill(child: CountdownOverlay()),
-          ],
-        ),
+          ),
+          // Race-game style get-ready countdown, centred over everything.
+          const Positioned.fill(child: CountdownOverlay()),
+        ],
       ),
     );
   }

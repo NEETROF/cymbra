@@ -205,7 +205,11 @@ class Player extends _$Player {
     );
     // Start a short lead-in before the first note, skipping leading rests/empty
     // measures — computed from the newly-loaded notes and current hand selection.
-    state = updated.copyWith(elapsedMs: updated.startMs);
+    // A new score also resets how much of it has been heard.
+    state = updated.copyWith(
+      elapsedMs: updated.startMs,
+      furthestElapsedMs: updated.startMs,
+    );
   }
 
   Future<void> _loadDemo() async {
@@ -238,8 +242,12 @@ class Player extends _$Player {
       songEndMs: end,
     );
     // Seed the playhead at the effective start (0 for the demo, which opens on a
-    // note) so every load path shares the same trim-leading-silence rule.
-    state = updated.copyWith(elapsedMs: updated.startMs);
+    // note) so every load path shares the same trim-leading-silence rule — and
+    // reset how much of the (new) piece has been heard.
+    state = updated.copyWith(
+      elapsedMs: updated.startMs,
+      furthestElapsedMs: updated.startMs,
+    );
   }
 
   void _onMidi(MidiEvent event) {
@@ -587,9 +595,17 @@ class Player extends _$Player {
     // Leaving the satisfied onset (or looping) re-arms the gate for the next one.
     // A held pitch stays *consumed* across a normal onset advance (so it can't
     // walk through a repeat), but a loop wrap re-arms from scratch.
+    // How much of the piece has now been heard (change: add-post-play-rating-
+    // prompt). Monotonic within the score, so a seek back keeps it; on a loop wrap
+    // `next` is the trimmed START, yet the playhead did just reach the end — credit
+    // `endMs`, not the wrapped position.
+    final reached = loop ? endMs : next;
     final leftOnset = onset.isNotEmpty && next != s.elapsedMs;
     state = s.copyWith(
       elapsedMs: next,
+      furthestElapsedMs: reached > s.furthestElapsedMs
+          ? reached
+          : s.furthestElapsedMs,
       blocked: false,
       gateSatisfied: (leftOnset || loop) ? const {} : s.gateSatisfied,
       consumedHeld: loop ? const {} : s.consumedHeld,
