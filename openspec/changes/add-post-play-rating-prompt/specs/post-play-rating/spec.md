@@ -5,7 +5,8 @@
 The end-of-song summary SHALL offer to rate the piece just played, whenever a scored run
 reaches the end of the piece and that score is **eligible for rating**, carrying a 1–5 star
 control whose verdict is derived exactly as the swipe deck derives it (so a star rating
-and a swipe fold into the same single rating). Submitting the rating SHALL go through
+and a swipe fold into the same single rating). Rating from the summary SHALL retire the
+affordance without dismissing the modal. Submitting the rating SHALL go through
 the same rating operation as the deck — there is at most one rating per user per score,
 and re-rating upserts. The affordance SHALL be optional: it MUST NOT become a fourth
 mandatory choice, MUST NOT dismiss the summary, and leaving without answering it MUST
@@ -30,7 +31,7 @@ just performed the piece, which is stronger evidence than a preview.
 
 - **WHEN** the player submits a rating from the summary
 - **THEN** the summary stays open and still awaits the explicit see-mistakes / retry /
-  quit choice
+  quit choice, with the rating affordance gone
 
 #### Scenario: The rating affordance is never mandatory
 
@@ -202,6 +203,31 @@ There SHALL be no global dismissal count and no cross-score snooze window.
 - **WHEN** the player has refused more scores than the retained maximum
 - **THEN** the persisted memory keeps at most that maximum, discarding the oldest entries
 
+### Requirement: The outcome is confirmed by a transient toast
+
+Answering the prompt SHALL retire the affordance from the surface, and the outcome
+SHALL be confirmed by a **transient toast** rather than in place: the surface that
+asked is often gone by the time the answer resolves (rating from the exit sheet
+closes it and leaves the player), so the confirmation MUST NOT depend on it. The
+toast SHALL report a success only once the rating is actually recorded, never on
+the optimistic tap, so a user is never thanked for a rating that then failed.
+
+#### Scenario: A recorded rating is confirmed by a toast
+
+- **WHEN** a rating submitted from either surface is recorded
+- **THEN** a transient confirmation is shown and the rating affordance is gone from
+  the surface
+
+#### Scenario: Rating from the exit sheet closes it
+
+- **WHEN** the player rates from the early-exit surface
+- **THEN** the surface closes, the player is left, and the confirmation still appears
+
+#### Scenario: No thanks for a rating that failed
+
+- **WHEN** a submission fails
+- **THEN** the failure is reported and no success confirmation is shown for it
+
 ### Requirement: A prompt failure is never surfaced as a technical error
 
 Submitting a rating from a player prompt SHALL be best-effort with respect to the play
@@ -218,3 +244,4 @@ see only a localized message, if anything at all.
 
 - **WHEN** a rating submitted from the summary fails
 - **THEN** the summary remains usable and the see-mistakes / retry / quit actions still work
+- **AND** the failure is reported in the user's language, outside the summary

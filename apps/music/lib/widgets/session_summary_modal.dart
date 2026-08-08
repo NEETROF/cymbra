@@ -343,27 +343,26 @@ class _SummaryRating extends ConsumerStatefulWidget {
 }
 
 class _SummaryRatingState extends ConsumerState<_SummaryRating> {
-  /// Eligibility is **latched**: rating the piece marks it rated, which makes the
-  /// provider say "no" again. The latch keeps the row on screen so it can show its
-  /// thanks state instead of vanishing the instant the star is tapped. It can
-  /// still turn on late, if the caller's rating read resolves after the modal
-  /// opened.
+  /// Eligibility is **latched** so a rating read that resolves after the modal
+  /// opened can still turn the row on, without it flickering off again the moment
+  /// the answer changes the provider's mind.
   bool _shown = false;
 
-  /// Set when the player explicitly refuses to rate this piece — the one case
-  /// where the row SHOULD disappear rather than latch.
-  bool _declined = false;
+  /// Set once the player has answered — rated or refused. The row then goes away
+  /// for good; the outcome is confirmed by a toast, so nothing has to stay on
+  /// screen to report it, and the statistics get their height back.
+  bool _answered = false;
 
   @override
   Widget build(BuildContext context) {
-    if (_declined) return const SizedBox.shrink();
+    if (_answered) return const SizedBox.shrink();
     _shown |= ref.watch(postPlayRatingEligibleProvider(reachedEnd: true));
     if (!_shown) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.only(top: 8),
       child: PostPlayRatingRow(
         compact: true,
-        onDecline: () => setState(() => _declined = true),
+        onAnswered: () => setState(() => _answered = true),
       ),
     );
   }

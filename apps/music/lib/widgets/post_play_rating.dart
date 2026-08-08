@@ -19,8 +19,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../l10n/gen/app_localizations.dart';
 import '../layout/device_class.dart';
+import '../state/post_play_rating_core.dart';
 import '../state/post_play_rating_notifier.dart';
 import '../theme/cymbra_theme.dart';
+import 'app_snackbar.dart';
 
 /// The rating affordance shown after playing a piece (change:
 /// add-post-play-rating-prompt): one compact row of 1–5 stars, which becomes a
@@ -36,49 +38,22 @@ import '../theme/cymbra_theme.dart';
 /// leave the player does not silently burn the chance to rate the piece. Callers
 /// only mount it when `postPlayRatingEligibleProvider` says so.
 class PostPlayRatingRow extends ConsumerWidget {
-  const PostPlayRatingRow({super.key, this.compact = false, this.onDecline});
+  const PostPlayRatingRow({super.key, this.compact = false, this.onAnswered});
 
   /// Tighter spacing and smaller stars, for the summary modal on a phone.
   final bool compact;
 
-  /// Run after the user explicitly refuses to rate this score (the refusal itself
-  /// is recorded here). The sheet passes a pop; the summary passes nothing, since
-  /// the refusal simply makes the row disappear.
-  final VoidCallback? onDecline;
+  /// Run once the user has **answered** — rated or refused. Both surfaces retire
+  /// the row on it: the summary hides it, the sheet pops (and so leaves the
+  /// player). The outcome itself is confirmed by a toast, not in place, so the row
+  /// never has to survive its own answer.
+  final VoidCallback? onAnswered;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
     final data = ref.watch(postPlayRatingProvider).valueOrNull;
-    final submitted = data?.submittedStars;
-    final failed = data?.failed ?? false;
     final gap = compact ? 4.0 : 8.0;
-
-    if (submitted != null && !failed) {
-      return Padding(
-        padding: EdgeInsets.symmetric(vertical: gap),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(
-              Icons.check_circle_outline,
-              size: 18,
-              color: CymbraColors.tertiary,
-            ),
-            const SizedBox(width: 8),
-            Flexible(
-              child: Text(
-                l10n.postPlayRatingThanks,
-                style: const TextStyle(
-                  fontSize: 13,
-                  color: CymbraColors.onSurfaceVariant,
-                ),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
 
     final stars = [
       for (var star = 1; star <= 5; star++)
@@ -101,8 +76,10 @@ class PostPlayRatingRow extends ConsumerWidget {
               ? VisualDensity.compact
               : VisualDensity.standard,
           icon: const Icon(Icons.star_border, color: CymbraColors.primary),
-          onPressed: () =>
-              unawaited(ref.read(postPlayRatingProvider.notifier).submit(star)),
+          onPressed: () {
+            unawaited(ref.read(postPlayRatingProvider.notifier).submit(star));
+            onAnswered?.call();
+          },
         ),
     ];
 
@@ -130,18 +107,10 @@ class PostPlayRatingRow extends ConsumerWidget {
         if (id != null) {
           unawaited(ref.read(postPlayRatingProvider.notifier).decline(id));
         }
-        onDecline?.call();
+        onAnswered?.call();
       },
       child: Text(l10n.postPlayRatingSkip),
     );
-
-    final failure = failed
-        ? Text(
-            l10n.postPlayRatingFailed,
-            textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 12, color: CymbraColors.error),
-          )
-        : null;
 
     return Padding(
       padding: EdgeInsets.symmetric(vertical: gap),
@@ -165,7 +134,6 @@ class PostPlayRatingRow extends ConsumerWidget {
                   spacing: 4,
                   children: [...stars, decline],
                 ),
-                ?failure,
               ],
             )
           : Column(
@@ -176,7 +144,6 @@ class PostPlayRatingRow extends ConsumerWidget {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: stars,
                 ),
-                ?failure,
                 // The escape hatch. Because being shown no longer retires the
                 // score, this is the ONLY way (short of rating) to stop being
                 // asked about this piece — so it is on every surface.
@@ -212,12 +179,50 @@ Future<void> showPostPlayRatingSheet(
       child: SingleChildScrollView(
         child: PostPlayRatingRow(
           compact: context.isPhoneLayout,
-          // Refusing from the sheet also leaves the player, like every other
-          // dismissal path. Dismissing the sheet WITHOUT pressing it (barrier,
-          // back, drag) records nothing: the user just wanted out.
-          onDecline: () => Navigator.of(context).pop(),
+          // Answering from the sheet also leaves the player, like every other
+          // dismissal path. Dismissing the sheet WITHOUT answering (barrier, back,
+          // drag) records nothing: the user just wanted out.
+          onAnswered: () => Navigator.of(context).pop(),
         ),
       ),
     ),
   ),
 );
+
+/// Confirms the outcome of a post-play rating with a toast (change:
+/// add-post-play-rating-prompt).
+///
+/// A dedicated listener, mounted **at the app root**, because the surface that
+/// triggered the rating is gone by the time the answer lands: the exit sheet pops
+/// and takes the player with it. Anything scoped to the player would be disposed
+/// mid-flight and the confirmation would silently never appear.
+///
+/// It fires on the *resolved* outcome, never on the optimistic tap: the thanks
+/// waits for [RatedState.rated] — which only a successful submission produces —
+/// so the user is never told "thanks" for a rating that then failed.
+class PostPlayRatingToastListener extends ConsumerWidget {
+  const PostPlayRatingToastListener({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    ref.listen(postPlayRatingProvider, (prev, next) {
+      final before = prev?.valueOrNull;
+      final after = next.valueOrNull;
+      // `submittedStars` scopes this to an actual submission from a prompt: a
+      // build that merely *reads back* an existing rating from the server leaves
+      // it null, and must not congratulate anyone.
+      if (after == null || after.submittedStars == null) return;
+      final l10n = AppLocalizations.of(context);
+      final messenger = ScaffoldMessenger.of(context);
+      if (after.failed && !(before?.failed ?? false)) {
+        showAppSnackBar(messenger, l10n.postPlayRatingFailed);
+      } else if (after.rated == RatedState.rated &&
+          before?.rated != RatedState.rated) {
+        showAppSnackBar(messenger, l10n.postPlayRatingThanks);
+      }
+    });
+    return child;
+  }
+}

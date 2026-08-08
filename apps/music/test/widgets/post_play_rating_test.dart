@@ -84,6 +84,17 @@ const _bundledEntry = CatalogEntry(
   level: PracticeLevel.beginner,
 );
 
+/// The summary's own close cross. Scoped to the dialog because a toast carries a
+/// close icon too, and an unscoped `byIcon` finds both.
+final _summaryClose = find.descendant(
+  of: find.byType(Dialog),
+  matching: find.byIcon(Icons.close),
+);
+
+/// The localized strings the toasts carry (the test app runs in English).
+const _thanksText = 'Thanks — your rating helps other players.';
+const _failureText = 'Your rating could not be saved. Tap a star to try again.';
+
 late FakeRatingService rating;
 late FakePreferencesService prefs;
 
@@ -144,12 +155,14 @@ Future<List<SummaryAction>> _openSummary(
     UncontrolledProviderScope(
       container: c,
       child: localizedApp(
-        Scaffold(
-          body: Builder(
-            builder: (context) => ElevatedButton(
-              onPressed: () async =>
-                  actions.add(await showSessionSummary(context, _result())),
-              child: const Text('go'),
+        PostPlayRatingToastListener(
+          child: Scaffold(
+            body: Builder(
+              builder: (context) => ElevatedButton(
+                onPressed: () async =>
+                    actions.add(await showSessionSummary(context, _result())),
+                child: const Text('go'),
+              ),
             ),
           ),
         ),
@@ -207,13 +220,15 @@ Future<void> _openPlayer(WidgetTester tester, ProviderContainer c) async {
     UncontrolledProviderScope(
       container: c,
       child: localizedApp(
-        Scaffold(
-          body: Builder(
-            builder: (context) => ElevatedButton(
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(builder: (_) => const _ExitHarness()),
+        PostPlayRatingToastListener(
+          child: Scaffold(
+            body: Builder(
+              builder: (context) => ElevatedButton(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(builder: (_) => const _ExitHarness()),
+                ),
+                child: const Text('open'),
               ),
-              child: const Text('open'),
             ),
           ),
         ),
@@ -278,10 +293,11 @@ void main() {
       // …the modal is still up, still awaiting an explicit choice…
       expect(actions, isEmpty);
       expect(find.text('Retry'), findsOneWidget);
-      // …and the row switched to its thanks state.
-      expect(find.byKey(const Key('post-play-star-4')), findsNothing);
+      // …and the row has retired, its outcome confirmed by a toast instead.
+      expect(find.byType(PostPlayRatingRow), findsNothing);
+      expect(find.widgetWithText(SnackBar, _thanksText), findsOneWidget);
       // Quitting still works afterwards.
-      await tester.tap(find.byIcon(Icons.close));
+      await tester.tap(_summaryClose);
       await tester.pumpAndSettle();
       expect(actions, [SummaryAction.close]);
     });
@@ -295,7 +311,7 @@ void main() {
       final c = _container();
       addTearDown(c.dispose);
       final actions = await _openSummary(tester, c);
-      await tester.tap(find.byIcon(Icons.close));
+      await tester.tap(_summaryClose);
       await tester.pumpAndSettle();
       expect(actions, [SummaryAction.close]);
       expect(rating.submissions, isEmpty);
@@ -320,29 +336,30 @@ void main() {
       expect(find.text('Retry'), findsOneWidget);
       expect(prefs.store[PostPlayRating.prefsKey], 'c1');
       // And a later summary for the same score never offers it again.
-      await tester.tap(find.byIcon(Icons.close));
+      await tester.tap(_summaryClose);
       await tester.pumpAndSettle();
       await tester.tap(find.text('go'));
       await tester.pumpAndSettle();
       expect(find.byKey(const Key('post-play-star-5')), findsNothing);
     });
 
-    testWidgets(
-      'a failed submission stays localized and keeps the modal usable',
-      (tester) async {
-        final c = _container(failSubmit: true);
-        addTearDown(c.dispose);
-        final actions = await _openSummary(tester, c);
-        await tester.tap(find.byKey(const Key('post-play-star-2')));
-        await tester.pumpAndSettle();
-        expect(find.textContaining('could not be saved'), findsOneWidget);
-        expect(find.textContaining('Exception'), findsNothing);
-        // The actions still work.
-        await tester.tap(find.byIcon(Icons.close));
-        await tester.pumpAndSettle();
-        expect(actions, [SummaryAction.close]);
-      },
-    );
+    testWidgets('a failed submission is reported by a localized toast', (
+      tester,
+    ) async {
+      final c = _container(failSubmit: true);
+      addTearDown(c.dispose);
+      final actions = await _openSummary(tester, c);
+      await tester.tap(find.byKey(const Key('post-play-star-2')));
+      await tester.pumpAndSettle();
+      expect(find.widgetWithText(SnackBar, _failureText), findsOneWidget);
+      expect(find.textContaining('Exception'), findsNothing);
+      // No thanks was promised for a rating that did not land.
+      expect(find.widgetWithText(SnackBar, _thanksText), findsNothing);
+      // The actions still work.
+      await tester.tap(_summaryClose);
+      await tester.pumpAndSettle();
+      expect(actions, [SummaryAction.close]);
+    });
 
     testWidgets('fits the smallest real phone-landscape window', (
       tester,
@@ -393,7 +410,7 @@ void main() {
       expect(find.byKey(const Key('post-play-rating-skip')), findsOneWidget);
       expect(find.text('Replay mistakes'), findsOneWidget);
       expect(find.text('Retry'), findsOneWidget);
-      expect(find.byIcon(Icons.close), findsOneWidget);
+      expect(_summaryClose, findsOneWidget);
     });
   });
 
@@ -454,10 +471,10 @@ void main() {
       expect(rating.submissions, [
         (catalogId: 'c1', verdict: RatingVerdict.love, stars: 5),
       ]);
-      // The sheet stays until dismissed (the thanks state), then leaving works.
-      await tester.tapAt(const Offset(10, 10)); // the barrier
-      await tester.pumpAndSettle();
+      // Rating answers the question, so the sheet closes and the player is left
+      // in one tap; the toast confirms it from outside the player.
       expect(find.text('open'), findsOneWidget);
+      expect(find.widgetWithText(SnackBar, _thanksText), findsOneWidget);
     });
 
     testWidgets('tapping outside the sheet also leaves', (tester) async {
@@ -479,10 +496,10 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('post-play-star-1')));
       await tester.pumpAndSettle();
-      expect(find.textContaining('could not be saved'), findsOneWidget);
-      await tester.tapAt(const Offset(10, 10)); // the barrier
-      await tester.pumpAndSettle();
+      // The player is left regardless, and the failure is reported by a toast —
+      // which is why the listener has to outlive the player.
       expect(find.text('open'), findsOneWidget);
+      expect(find.widgetWithText(SnackBar, _failureText), findsOneWidget);
     });
 
     testWidgets('an ineligible score leaves immediately, with no sheet', (

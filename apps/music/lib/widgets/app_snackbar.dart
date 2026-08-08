@@ -14,14 +14,34 @@
 
 import 'package:flutter/material.dart';
 
-/// Shows [message] as a snackbar, **replacing** any current or queued one first
-/// (so messages never stack up) and with a **close button** so the user can
-/// dismiss it manually.
+/// Widest a toast gets; beyond this it would read as a banner rather than a
+/// transient confirmation.
+const double _maxToastWidth = 420;
+
+/// Shows [message] as a **toast**: a floating card pinned to the bottom-RIGHT,
+/// auto-dismissing, **replacing** any current or queued one first (so messages
+/// never stack up) and carrying a close button for manual dismissal.
+///
+/// Bottom-right rather than the Material default (fixed, full-width, centred):
+/// the app is landscape-locked, so a full-width bar across the bottom covers the
+/// keyboard and the transport controls — exactly the surfaces the user is looking
+/// at when the message arrives.
 ///
 /// Takes a [ScaffoldMessengerState] rather than a `BuildContext` so it is safe to
 /// call after an `await` (capture `ScaffoldMessenger.of(context)` before the gap).
 void showAppSnackBar(ScaffoldMessengerState messenger, String message) {
+  // The messenger carries its own context, so the toast can size itself against
+  // the real viewport even when the caller's context is already gone.
+  final width = MediaQuery.maybeSizeOf(messenger.context)?.width ?? 0;
+  final left = (width - _maxToastWidth - 16).clamp(16.0, double.infinity);
   messenger
     ..clearSnackBars()
-    ..showSnackBar(SnackBar(content: Text(message), showCloseIcon: true));
+    ..showSnackBar(
+      SnackBar(
+        content: Text(message),
+        showCloseIcon: true,
+        behavior: SnackBarBehavior.floating,
+        margin: EdgeInsets.only(left: left, right: 16, bottom: 16),
+      ),
+    );
 }
