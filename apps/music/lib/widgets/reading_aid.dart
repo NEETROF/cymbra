@@ -179,7 +179,10 @@ class ReadingAidOverlay extends ConsumerWidget {
           child: DecoratedBox(
             key: const Key('reading-aid-figure'),
             decoration: BoxDecoration(
-              color: CymbraColors.surfaceContainerHigh.withValues(alpha: 0.92),
+              // Deliberately see-through: the card sits over the score, and the
+              // player should keep reading what is underneath it. Kept opaque
+              // enough that the text stays legible over a busy passage.
+              color: CymbraColors.surfaceContainerHigh.withValues(alpha: 0.7),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Padding(
