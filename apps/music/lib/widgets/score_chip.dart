@@ -117,7 +117,10 @@ class _ScoreChipState extends ConsumerState<ScoreChip>
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(15),
+              // Centre the (non-positioned) dot+%+combo row vertically in the
+              // pill — a Stack aligns loose children top-left by default.
               child: Stack(
+                alignment: Alignment.center,
                 children: [
                   // Left-anchored fill proportional to the sync %.
                   Positioned.fill(
