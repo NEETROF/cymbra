@@ -55,4 +55,4 @@
 - [x] 8.1 `melos run analyze`, `dart format`, and `dart run custom_lint` clean.
 - [x] 8.2 `flutter test --coverage --exclude-tags golden` green with line coverage ≥ 80%.
 - [x] 8.3 `openspec validate add-post-play-rating-prompt --strict` passes.
-- [ ] 8.4 Manual pass on a device: play a catalog score to the end and rate from the summary; abandon another past a quarter of its notes and rate from the sheet; leave a third after a handful of notes and confirm no prompt; on a fourth, close the summary WITHOUT answering and confirm the next run asks again; refuse it explicitly and confirm it never asks again; confirm a bundled score never prompts and a signed-out user never prompts.
+- [x] 8.4 Manual pass on a device: play a catalog score to the end and rate from the summary; abandon another past a quarter of its notes and rate from the sheet; leave a third after a handful of notes and confirm no prompt; on a fourth, close the summary WITHOUT answering and confirm the next run asks again; refuse it explicitly and confirm it never asks again; confirm a bundled score never prompts and a signed-out user never prompts.
