@@ -18,6 +18,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../l10n/gen/app_localizations.dart';
+import '../layout/device_class.dart';
 import '../state/post_play_rating_notifier.dart';
 import '../theme/cymbra_theme.dart';
 
@@ -202,11 +203,20 @@ Future<void> showPostPlayRatingSheet(
   builder: (context) => SafeArea(
     child: Padding(
       padding: const EdgeInsets.fromLTRB(24, 4, 24, 20),
-      child: PostPlayRatingRow(
-        // Refusing from the sheet also leaves the player, like every other
-        // dismissal path. Dismissing the sheet WITHOUT pressing it (barrier,
-        // back, drag) records nothing: the user just wanted out.
-        onDecline: () => Navigator.of(context).pop(),
+      // A bottom sheet is capped at 9/16 of the screen height. On a phone lying
+      // down — the player's only orientation — that is barely 200 px, and the
+      // home-indicator inset the SafeArea gives up takes it under what the
+      // full-size row needs. So a phone gets the same compact row as the summary,
+      // and the content scrolls rather than painting an overflow stripe if a
+      // future string or a large text scale still does not fit.
+      child: SingleChildScrollView(
+        child: PostPlayRatingRow(
+          compact: context.isPhoneLayout,
+          // Refusing from the sheet also leaves the player, like every other
+          // dismissal path. Dismissing the sheet WITHOUT pressing it (barrier,
+          // back, drag) records nothing: the user just wanted out.
+          onDecline: () => Navigator.of(context).pop(),
+        ),
       ),
     ),
   ),

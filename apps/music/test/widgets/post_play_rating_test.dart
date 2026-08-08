@@ -398,6 +398,30 @@ void main() {
   });
 
   group('early exit', () {
+    testWidgets('the sheet fits a phone-landscape viewport', (tester) async {
+      // REGRESSION: a bottom sheet is capped at 9/16 of the screen height, and on
+      // a phone lying down that is ~210px — less than the full-size star row plus
+      // the label and the refusal button needed.
+      tester.view.physicalSize = const Size(
+        852,
+        393,
+      ); // iPhone 15 Pro, landscape
+      tester.view.devicePixelRatio = 1.0;
+      // The home-indicator inset is what tips it over: the sheet's SafeArea gives
+      // up that height, and a widget test reports zero insets unless told.
+      tester.view.padding = const FakeViewPadding(bottom: 21);
+      tester.view.viewPadding = const FakeViewPadding(bottom: 21);
+      addTearDown(tester.view.reset);
+      final c = _container();
+      addTearDown(c.dispose);
+      await _openPlayer(tester, c);
+      await tester.tap(find.text('back'));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      expect(find.byKey(const Key('post-play-star-5')), findsOneWidget);
+      expect(find.byKey(const Key('post-play-rating-skip')), findsOneWidget);
+    });
+
     testWidgets('offers the rating, then leaves once it is dismissed', (
       tester,
     ) async {
