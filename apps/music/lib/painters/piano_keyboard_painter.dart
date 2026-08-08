@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../theme/cymbra_theme.dart';
@@ -50,12 +52,21 @@ class PianoKeyboardPainter extends CustomPainter {
   /// rest are right-hand. Drives the per-hand expected colour.
   final Set<int> leftHandNotes;
 
+  /// The fixed-size window the chosen keyboard size represents (exactly N keys),
+  /// or null in auto mode. When the drawn range ([layout]) is wider than this,
+  /// a dashed boundary marks where the chosen size ends and the extra keys begin.
+  final ({int low, int high})? chosenWindow;
+
   const PianoKeyboardPainter({
     required this.layout,
     required this.activeNotes,
     this.requiredNotes = const {},
     this.leftHandNotes = const {},
+    this.chosenWindow,
   });
+
+  /// MIDI middle C (C4) — the anchor note the octave labels emphasise.
+  static const int _middleC = 60;
 
   _KeyState _stateOf(int pitch) {
     final required = requiredNotes.contains(pitch);
@@ -98,6 +109,83 @@ class PianoKeyboardPainter extends CustomPainter {
       final r = layout.keyRect(p);
       final rect = Rect.fromLTWH(r.left, 0, r.width, blackH);
       _drawKey(canvas, rect, _stateOf(p), isBlack: true);
+    }
+
+    // 3) Octave anchors: label each C (C3, C4…) at the bottom of its white key so
+    // the player can orient their hands; middle C (C4) is emphasised.
+    _drawOctaveLabels(canvas, whiteH);
+
+    // 4) Chosen-size boundary: when the drawn range is wider than the chosen
+    // keyboard size, a dashed line marks where the chosen size ends.
+    _drawChosenSizeBoundary(canvas, whiteH);
+  }
+
+  /// Draws a "C{octave}" label under every C white key. Scientific pitch
+  /// notation (MIDI 60 = C4). The label is skipped when it would not fit the key
+  /// width, but middle C always keeps a small dot so it stays findable.
+  void _drawOctaveLabels(Canvas canvas, double height) {
+    for (var p = layout.lowPitch; p <= layout.highPitch; p++) {
+      if (p % 12 != 0) continue; // C keys only
+      final isMiddle = p == _middleC;
+      final r = layout.keyRect(p);
+      final octave = p ~/ 12 - 1; // MIDI: C4 = 60
+      final fontSize = (r.width * 0.32).clamp(6.0, 11.0);
+      final tp = TextPainter(
+        text: TextSpan(
+          text: 'C$octave',
+          style: TextStyle(
+            fontSize: fontSize,
+            height: 1.0,
+            fontWeight: isMiddle ? FontWeight.w800 : FontWeight.w500,
+            color: isMiddle
+                ? CymbraColors.primaryContainer
+                : const Color(0xFF64748B),
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+
+      // Middle C keeps an always-visible dot even if its label is too wide.
+      if (isMiddle) {
+        canvas.drawCircle(
+          Offset(r.left + r.width / 2, height - fontSize - 8),
+          math.max(2.0, r.width * 0.06),
+          Paint()..color = CymbraColors.primaryContainer,
+        );
+      }
+
+      if (tp.width > r.width - 2) continue; // too narrow: skip the text
+      tp.paint(
+        canvas,
+        Offset(r.left + (r.width - tp.width) / 2, height - tp.height - 3),
+      );
+    }
+  }
+
+  /// Draws a dashed vertical line where the chosen keyboard size ends, on each
+  /// side the drawn range was widened past it (see [chosenWindow]).
+  void _drawChosenSizeBoundary(Canvas canvas, double height) {
+    final window = chosenWindow;
+    if (window == null) return;
+    final paint = Paint()
+      ..color = CymbraColors.outline
+      ..strokeWidth = 1.5
+      ..strokeCap = StrokeCap.round;
+    // Extra keys below the chosen window → boundary at its low edge.
+    if (layout.lowPitch < window.low) {
+      _dashedVLine(canvas, layout.leftEdgeX(window.low), height, paint);
+    }
+    // Extra keys above the chosen window → boundary at its high edge.
+    if (layout.highPitch > window.high) {
+      _dashedVLine(canvas, layout.leftEdgeX(window.high + 1), height, paint);
+    }
+  }
+
+  void _dashedVLine(Canvas canvas, double x, double height, Paint paint) {
+    const dash = 5.0;
+    const gap = 4.0;
+    for (var y = 0.0; y < height; y += dash + gap) {
+      canvas.drawLine(Offset(x, y), Offset(x, math.min(y + dash, height)), paint);
     }
   }
 
@@ -155,6 +243,7 @@ class PianoKeyboardPainter extends CustomPainter {
       old.activeNotes != activeNotes ||
       old.requiredNotes != requiredNotes ||
       old.leftHandNotes != leftHandNotes ||
+      old.chosenWindow != chosenWindow ||
       old.layout.width != layout.width ||
       old.layout.lowPitch != layout.lowPitch ||
       old.layout.highPitch != layout.highPitch;

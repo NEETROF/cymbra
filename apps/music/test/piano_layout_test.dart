@@ -54,6 +54,15 @@ void main() {
       expect(layout.centerX(60), closeTo(5.0, 1e-9));
     });
 
+    test('leftEdgeX returns the cumulative white width before a pitch', () {
+      // C4 is the first key → nothing before it.
+      expect(layout.leftEdgeX(60), closeTo(0.0, 1e-9));
+      // D4 sits after one white key (C4).
+      expect(layout.leftEdgeX(62), closeTo(10.0, 1e-9));
+      // Right edge just past C6 (highPitch 84) → all 15 white keys.
+      expect(layout.leftEdgeX(85), closeTo(150.0, 1e-9));
+    });
+
     test('contains respects the pitch range', () {
       expect(layout.contains(60), isTrue);
       expect(layout.contains(84), isTrue);

@@ -331,6 +331,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                                         leftHandNotes: data.expectedKeysForHand(
                                           rightHand: false,
                                         ),
+                                        chosenWindow: data.keyboardChosenWindow,
                                       ),
                                     ),
                                   ),

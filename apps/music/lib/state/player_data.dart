@@ -334,6 +334,12 @@ abstract class PlayerData with _$PlayerData {
   ({int low, int high}) get keyboardBounds =>
       computeKeyboardRange(keyboardRange, [for (final n in notes) n.pitch]);
 
+  /// The fixed-size window the current [keyboardRange] represents (exactly N
+  /// keys), or null in auto mode. Keys in [keyboardBounds] outside this are the
+  /// extra keys drawn to avoid clipping notes; the keyboard marks that boundary.
+  ({int low, int high})? get keyboardChosenWindow =>
+      chosenSizeWindow(keyboardRange, [for (final n in notes) n.pitch]);
+
   /// Notes that should be held at instant [t] (playhead within the window
   /// [start, start+duration]). Acts as the "gate" for Wait Mode. Restricted to
   /// [visibleNotes] so a hidden hand is neither awaited nor shown as expected.
