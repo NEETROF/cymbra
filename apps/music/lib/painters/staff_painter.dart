@@ -18,7 +18,7 @@ import 'package:flutter/material.dart';
 
 import '../src/rust/api/musicxml.dart' show BeamState;
 import '../state/player_data.dart';
-import '../theme/cymbra_theme.dart';
+import 'notation_palette.dart';
 import 'smufl.dart';
 
 /// "Standard staff" rendering synchronized to time, like the waterfall.
@@ -91,7 +91,11 @@ class StaffPainter extends CustomPainter {
     this.mistakeColors = const {},
     this.lookAheadMs = defaultLookAheadMs,
     this.noteScale = 1.0,
+    this.palette = NotationPalette.dark,
   });
+
+  /// Colour set (dark surface or paper) the staff is drawn with.
+  final NotationPalette palette;
 
   /// Default visible time window to the right of the playhead. The score-size
   /// setting divides it by its factor so bigger notes get matching spacing.
@@ -159,10 +163,10 @@ class StaffPainter extends CustomPainter {
     }
 
     final linePaint = Paint()
-      ..color = CymbraColors.onSurfaceVariant.withValues(alpha: 0.45)
+      ..color = palette.staffLine.withValues(alpha: 0.45)
       ..strokeWidth = 1.2;
     final barPaint = Paint()
-      ..color = CymbraColors.onSurface.withValues(alpha: 0.5)
+      ..color = palette.ink.withValues(alpha: 0.5)
       ..strokeWidth = 1.4;
 
     // 1) Staff lines (treble, and bass for a grand staff).
@@ -199,7 +203,7 @@ class StaffPainter extends CustomPainter {
       6,
       trebleBottom - (trebleClef.$2 - 1) * lineGap,
       lineGap,
-      CymbraColors.onSurfaceVariant,
+      palette.staffLine,
     );
     if (bassBottom != null) {
       final bassClef = _clefAtPlayhead(2);
@@ -209,14 +213,14 @@ class StaffPainter extends CustomPainter {
         6,
         bassBottom - (bassClef.$2 - 1) * lineGap,
         lineGap,
-        CymbraColors.onSurfaceVariant,
+        palette.staffLine,
       );
     }
 
     // Key signature (armature) + time signature at the head of the system. The
     // armure reflects the key at the playhead, so a mid-piece modulation appears
     // as you scroll past it (like the clef above).
-    const headColor = CymbraColors.onSurfaceVariant;
+    final headColor = palette.staffLine;
     final headKey = _keyFifthsAtPlayhead();
     var hx = 6 + lineGap * 2.8;
     final keyW = Smufl.drawKeySignature(
@@ -302,7 +306,7 @@ class StaffPainter extends CustomPainter {
 
     // 3) Playhead (playback line) across the whole system.
     final playPaint = Paint()
-      ..color = CymbraColors.secondary.withValues(alpha: 0.9)
+      ..color = palette.accent.withValues(alpha: 0.9)
       ..strokeWidth = 2;
     canvas.drawLine(
       Offset(playLineX, systemTop - lineGap * 1.5),
@@ -362,13 +366,11 @@ class StaffPainter extends CustomPainter {
     // Notes are coloured by hand (right = blue, left = amber): brighter at the
     // playhead ("play now"), success green once correctly held.
     Color colorFor(TimedNote n) {
-      final handColor = n.staff >= 2
-          ? CymbraColors.handLeft
-          : CymbraColors.handRight;
+      final handColor = n.staff >= 2 ? palette.handLeft : palette.handRight;
       final atPlayhead =
           n.startMs <= elapsedMs && elapsedMs < n.startMs + n.durationMs;
       if (atPlayhead && activeNotes.contains(n.pitch)) {
-        return CymbraColors.tertiary; // well played
+        return palette.correct; // well played
       } else if (atPlayhead) {
         return Color.lerp(handColor, const Color(0xFFFFFFFF), 0.4)!; // play now
       }
@@ -449,7 +451,7 @@ class StaffPainter extends CustomPainter {
 
     // 4b) Scrolling rests, routed to their staff and centred on its middle line
     // (two spaces above the bottom line), like the engraved Partition view.
-    const restColor = CymbraColors.onSurfaceVariant;
+    final restColor = palette.staffLine;
     for (final r in rests) {
       final x = xForTime(r.startMs.toDouble());
       if (!visible(x)) continue;
@@ -725,7 +727,7 @@ class StaffPainter extends CustomPainter {
     double lineGap,
     bool up,
   ) {
-    final color = CymbraColors.onSurfaceVariant.withValues(alpha: 0.75);
+    final color = palette.staffLine.withValues(alpha: 0.75);
     final quarterMs = bpm > 0 ? 60000.0 / bpm : 500.0;
     final stemPaint = Paint()
       ..color = color
@@ -799,5 +801,6 @@ class StaffPainter extends CustomPainter {
       old.measureKeyFifths != measureKeyFifths ||
       old.mistakeColors != mistakeColors ||
       old.lookAheadMs != lookAheadMs ||
-      old.noteScale != noteScale;
+      old.noteScale != noteScale ||
+      old.palette != palette;
 }

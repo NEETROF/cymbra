@@ -40,6 +40,7 @@ void main() {
     expect(p.keyboardRange, KeyboardRangeMode.auto);
     expect(p.readingAid, NoteReadingAid.name);
     expect(p.scoreSize, ScoreSize.medium);
+    expect(p.notationTheme, NotationTheme.dark);
     expect(p.midiPort, isNull);
   });
 
@@ -51,6 +52,7 @@ void main() {
         'metronome': true,
         'keyboardRange': 'keys61',
         'scoreSize': 'large',
+        'notationTheme': 'paper',
         'midiPort': 'Synth',
       }),
     };
@@ -64,6 +66,7 @@ void main() {
     expect(p.metronome, isTrue);
     expect(p.keyboardRange, KeyboardRangeMode.keys61);
     expect(p.scoreSize, ScoreSize.large);
+    expect(p.notationTheme, NotationTheme.paper);
     expect(p.midiPort, 'Synth');
   });
 
@@ -96,6 +99,7 @@ void main() {
     notifier.setKeyboardRange(KeyboardRangeMode.keys25);
     notifier.setMidiPort('Piano');
     notifier.setScoreSize(ScoreSize.small);
+    notifier.setNotationTheme(NotationTheme.paper);
     await Future<void>.delayed(Duration.zero);
 
     final saved =
@@ -107,6 +111,7 @@ void main() {
     expect(saved['keyboardRange'], 'keys25');
     expect(saved['midiPort'], 'Piano');
     expect(saved['scoreSize'], 'small');
+    expect(saved['notationTheme'], 'paper');
   });
 
   test('score sizes map to their notation scale factors', () {

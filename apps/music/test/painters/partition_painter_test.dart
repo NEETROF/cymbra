@@ -17,6 +17,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:music/painters/notation_palette.dart';
 import 'package:music/painters/partition_painter.dart';
 import 'package:music/src/rust/api/musicxml.dart';
 import 'package:music/state/player_data.dart' show Hand;
@@ -178,6 +179,65 @@ void main() {
     expect(await hasInkInBand(windowed), isFalse); // culled → nothing there
   });
 
+  test('the paper palette renders without error and drives a repaint', () {
+    final doc = sampleGrandStaffDocument();
+    final systems = FakeNotationEngine().layout(doc, 600);
+    final dark = PartitionPainter(document: doc, systems: systems);
+    final paper = PartitionPainter(
+      document: doc,
+      systems: systems,
+      palette: NotationPalette.paper,
+    );
+    expect(dark.shouldRepaint(paper), isTrue);
+    final recorder = ui.PictureRecorder();
+    paper.paint(Canvas(recorder), const Size(600, 400));
+    recorder.endRecording();
+  });
+
+  test('an instrumental piece drops the empty lyrics lane', () {
+    // Same single-note document, with and without a lyric on the note: the
+    // lyric-less variant reserves less room under the bass staff, so more of
+    // the next line fits the viewport.
+    ScoreDocument doc({required bool lyric}) => ScoreDocument(
+      meta: const ScoreMeta(title: 'T', composer: null),
+      staves: 1,
+      attributes: const Attributes(
+        divisions: 4,
+        clefs: [Clef(staff: 1, sign: 'G', line: 2)],
+        keyFifths: 0,
+        time: TimeSignature(beats: 4, beatType: 4),
+      ),
+      measures: [
+        NotationMeasure(
+          index: 0,
+          clefs: const [],
+          keyFifths: 0,
+          minWidth: 120,
+          directions: const [],
+          notes: [
+            noteEvent(
+              staff: 1,
+              pitch: const Pitch(step: 'C', octave: 5, alter: 0),
+              durationDivisions: 16,
+              noteType: 'whole',
+              lyric: lyric ? const Lyric(syllabic: 'single', text: 'la') : null,
+            ),
+          ],
+        ),
+      ],
+    );
+    final systems = [
+      System(measures: Uint32List.fromList([0]), staves: 1),
+    ];
+    final sung = PartitionPainter(document: doc(lyric: true), systems: systems);
+    final instrumental = PartitionPainter(
+      document: doc(lyric: false),
+      systems: systems,
+    );
+    expect(instrumental.systemHeight, lessThan(sung.systemHeight));
+    expect(instrumental.heightFor(600), lessThan(sung.heightFor(600)));
+  });
+
   test('staff space scales every system dimension (score size)', () {
     final doc = tallDocument(2);
     final systems = [
@@ -214,8 +274,13 @@ void main() {
         height.toInt(),
       );
       final bytes = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
-      // systemTop(0) + topPad(5s) + staffHeight(4s) = gap(3s) + 9s.
-      final y = (painter.staffSpace * 12).round().clamp(0, image.height - 1);
+      // Bottom staff line of system 0 (top + words lane + 4 staff spaces).
+      final y =
+          (painter.systemTopY(0) +
+                  painter.systemTopPad +
+                  painter.staffSpace * 4)
+              .round()
+              .clamp(0, image.height - 1);
       var maxAlpha = 0;
       for (var x = 0; x < image.width; x++) {
         final a = bytes!.getUint8((y * image.width + x) * 4 + 3);
@@ -261,7 +326,13 @@ void main() {
         height.toInt(),
       );
       final bytes = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
-      final y = (painter.staffSpace * 12.5).round().clamp(0, image.height - 1);
+      // Just below the bottom staff line, inside the wash's ±1-space reach.
+      final y =
+          (painter.systemTopY(0) +
+                  painter.systemTopPad +
+                  painter.staffSpace * 4.5)
+              .round()
+              .clamp(0, image.height - 1);
       final x = image.width - 3;
       return bytes!.getUint8((y * image.width + x) * 4 + 3);
     }

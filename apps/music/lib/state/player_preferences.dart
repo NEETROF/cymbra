@@ -18,8 +18,11 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../painters/keyboard_range.dart';
+import '../painters/notation_palette.dart';
 import '../services/preferences_service.dart';
 import 'player_data.dart' show Hand, NoteReadingAid;
+
+export '../painters/notation_palette.dart' show NotationTheme;
 
 part 'player_preferences.freezed.dart';
 part 'player_preferences.g.dart';
@@ -58,6 +61,10 @@ abstract class PlayerPrefs with _$PlayerPrefs {
 
     /// Notation size for both notation views (Partition + Portée).
     @Default(ScoreSize.medium) ScoreSize scoreSize,
+
+    /// Notation rendering theme (dark surface or paper) for both notation
+    /// views.
+    @Default(NotationTheme.dark) NotationTheme notationTheme,
 
     /// Preferred MIDI input port name; null = auto (first real device).
     String? midiPort,
@@ -102,6 +109,8 @@ class PlayerPreferences extends _$PlayerPreferences {
   void setNoteReadingAid(NoteReadingAid aid) =>
       _update(state.copyWith(readingAid: aid));
   void setScoreSize(ScoreSize size) => _update(state.copyWith(scoreSize: size));
+  void setNotationTheme(NotationTheme theme) =>
+      _update(state.copyWith(notationTheme: theme));
 
   void _update(PlayerPrefs next) {
     if (next == state) return;
@@ -126,6 +135,7 @@ class PlayerPreferences extends _$PlayerPreferences {
     'keyboardRange': p.keyboardRange.name,
     'readingAid': p.readingAid.name,
     'scoreSize': p.scoreSize.name,
+    'notationTheme': p.notationTheme.name,
     'midiPort': p.midiPort,
   });
 
@@ -150,6 +160,9 @@ class PlayerPreferences extends _$PlayerPreferences {
         scoreSize:
             ScoreSize.values.asNameMap()[m['scoreSize'] as String?] ??
             ScoreSize.medium,
+        notationTheme:
+            NotationTheme.values.asNameMap()[m['notationTheme'] as String?] ??
+            NotationTheme.dark,
         midiPort: m['midiPort'] as String?,
       );
     } catch (_) {

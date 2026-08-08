@@ -193,3 +193,27 @@ changed.
 #### Scenario: Default size unchanged
 - **WHEN** the user has never touched the score size setting
 - **THEN** both views render exactly as at the medium (1.0) scale
+
+### Requirement: Notation Paper Theme
+
+The player SHALL offer a notation theme setting with two values — the app's
+dark surface (default) and a paper-like light theme — applied to both notation
+views (Partition and Portée). The paper theme SHALL render the engraving
+dark-on-light (near-black ink on an ivory background) with hand, correct and
+accent colours darkened to keep at least a 4.5:1 contrast against the paper
+background, so the per-hand colour coding survives the light background. The
+setting SHALL apply immediately when changed and SHALL NOT affect the
+Synthesia view or the rest of the app's chrome.
+
+#### Scenario: Paper renders dark-on-light with adapted colours
+- **WHEN** the user selects the paper theme and opens a notation view
+- **THEN** the background is light, glyphs are near-black, and note heads use
+  the darkened per-hand palette
+
+#### Scenario: Dark stays the default
+- **WHEN** the user has never touched the notation theme
+- **THEN** both notation views render on the dark surface exactly as before
+
+#### Scenario: Chrome is unaffected
+- **WHEN** the paper theme is active
+- **THEN** the top bar, transport and keyboard keep the app's dark theme

@@ -22,6 +22,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../l10n/gen/app_localizations.dart';
 import '../layout/device_class.dart';
+import '../painters/notation_palette.dart';
 import '../painters/partition_painter.dart';
 import '../painters/piano_keyboard_painter.dart';
 import '../painters/piano_layout.dart';
@@ -350,13 +351,16 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                           constraints.maxHeight,
                           isPhone: context.isPhoneLayout,
                         );
-                        // Synthesia always shows the keyboard (its cascade aligns
-                        // to the keys); the notation modes honour the user's
-                        // hide-keyboard setting, handing the freed height to the
-                        // score.
+                        // Synthesia always shows the keyboard (its cascade
+                        // aligns to the keys); the Portée honours the user's
+                        // hide-keyboard setting; the engraved Partition never
+                        // shows it — the notation's own expected-note emphasis
+                        // already says what to play, and the freed height is
+                        // what keeps the current + next lines on screen.
                         final showKeyboard =
                             data.mode == RenderMode.synthesia ||
-                            data.keyboardVisible;
+                            (data.mode == RenderMode.staff &&
+                                data.keyboardVisible);
                         // Reading aid: the awaited notes' names ride on their
                         // own keys, so the aid takes no screen space of its own.
                         final naming = namingConventionOf(context);
@@ -575,11 +579,14 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     final sizeFactor = ref
         .watch(playerPreferencesProvider.select((p) => p.scoreSize))
         .factor;
+    final palette = NotationPalette.of(
+      ref.watch(playerPreferencesProvider.select((p) => p.notationTheme)),
+    );
     return Stack(
       children: [
         Positioned.fill(
           child: Container(
-            color: CymbraColors.surfaceContainerLow,
+            color: palette.background,
             child: CustomPaint(
               painter: StaffPainter(
                 notes: data.visibleNotes,
@@ -595,6 +602,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                 measureStartMs: data.measureStartMs,
                 noteScale: sizeFactor,
                 lookAheadMs: StaffPainter.defaultLookAheadMs / sizeFactor,
+                palette: palette,
               ),
               size: Size.infinite,
             ),
@@ -1248,7 +1256,20 @@ class _PartitionViewState extends ConsumerState<_PartitionView> {
         0.0,
         viewport * 0.30,
       );
-      final target = (painter.systemTopY(sysIndex) - lead).clamp(0.0, max);
+      var target = (painter.systemTopY(sysIndex) - lead).clamp(0.0, max);
+      // Guarantee the NEXT line's bass staff: if the pair overflows the
+      // viewport, scroll further — sacrificing up to the current line's top
+      // padding (never its staves) — so the upcoming notes stay readable
+      // down to the bass clef.
+      if (sysIndex + 1 < systems.length) {
+        final nextBottom =
+            painter.systemTopY(sysIndex + 1) + painter.systemHeight;
+        final needed = nextBottom - viewport; // min offset for a full next line
+        if (needed > target) {
+          final cap = painter.systemTopY(sysIndex) + painter.systemTopPad;
+          target = math.min(needed, cap).clamp(0.0, max);
+        }
+      }
       // Only scroll when the line changes — re-issuing every frame would restart
       // (and stall) the animation.
       if (_lastScrollTarget != null &&
@@ -1296,8 +1317,11 @@ class _PartitionViewState extends ConsumerState<_PartitionView> {
     final sizeFactor = ref
         .watch(playerPreferencesProvider.select((p) => p.scoreSize))
         .factor;
+    final palette = NotationPalette.of(
+      ref.watch(playerPreferencesProvider.select((p) => p.notationTheme)),
+    );
     return Container(
-      color: CymbraColors.surfaceContainerLow,
+      color: palette.background,
       child: LayoutBuilder(
         builder: (context, constraints) {
           // The scoring HUD lives in the top bar (nothing floats over the
@@ -1321,6 +1345,7 @@ class _PartitionViewState extends ConsumerState<_PartitionView> {
             activeNotes: data.activeNotes,
             selectedHands: data.selectedHands,
             staffSpace: staffSpace,
+            palette: palette,
           );
           _followCursor(data, notation.systems, painter);
           return SingleChildScrollView(
@@ -1352,6 +1377,7 @@ class _PartitionViewState extends ConsumerState<_PartitionView> {
                     viewTop: viewTop,
                     viewBottom: viewTop + viewHeight,
                     staffSpace: staffSpace,
+                    palette: palette,
                   ),
                   size: Size(engraveWidth, painter.heightFor(engraveWidth)),
                 );

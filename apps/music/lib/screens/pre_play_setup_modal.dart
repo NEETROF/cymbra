@@ -109,6 +109,7 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
   late bool _keyboardVisible;
   late NoteReadingAid _readingAid;
   late ScoreSize _scoreSize;
+  late NotationTheme _notationTheme;
 
   /// When true, the modal body shows this piece's leaderboard in place of the
   /// setup controls (a toggle via the trophy in the header) — so the board is
@@ -133,6 +134,7 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
     _keyboardVisible = data.keyboardVisible;
     _readingAid = data.readingAid;
     _scoreSize = ref.read(playerPreferencesProvider).scoreSize;
+    _notationTheme = ref.read(playerPreferencesProvider).notationTheme;
   }
 
   @override
@@ -164,6 +166,11 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
     if (_scoreSize != ref.read(playerPreferencesProvider).scoreSize) {
       ref.read(playerPreferencesProvider.notifier).setScoreSize(_scoreSize);
     }
+    if (_notationTheme != ref.read(playerPreferencesProvider).notationTheme) {
+      ref
+          .read(playerPreferencesProvider.notifier)
+          .setNotationTheme(_notationTheme);
+    }
     Navigator.of(context).pop();
   }
 
@@ -188,9 +195,11 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
     final keyboardSize = _keyboardSizeSection(l10n);
     final readingAid = _readingAidSection(l10n);
     final scoreSize = _scoreSizeSection(l10n);
-    // Hiding the keyboard only makes sense in the notation modes — Synthesia needs
-    // it for the cascade — so the toggle is omitted there.
-    final keyboardVisibility = data.mode != RenderMode.synthesia
+    final scoreTheme = _scoreThemeSection(l10n);
+    // The keyboard toggle only applies to the Portée: Synthesia needs the
+    // keyboard for its cascade, and the engraved Partition never shows it
+    // (the freed height keeps the current + next lines on screen).
+    final keyboardVisibility = data.mode == RenderMode.staff
         ? _keyboardVisibilityTile(l10n)
         : null;
 
@@ -219,7 +228,13 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
-                    child: col([?hands, metronome, keyboardSize, scoreSize]),
+                    child: col([
+                      ?hands,
+                      metronome,
+                      keyboardSize,
+                      scoreSize,
+                      scoreTheme,
+                    ]),
                   ),
                   const SizedBox(width: 24),
                   Expanded(child: col([midi, tempo, ?keyboardVisibility])),
@@ -239,6 +254,7 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
             readingAid,
             keyboardSize,
             scoreSize,
+            scoreTheme,
             ?keyboardVisibility,
             midi,
             sound,
@@ -616,6 +632,31 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
         ],
         selected: {_scoreSize},
         onSelectionChanged: (s) => setState(() => _scoreSize = s.first),
+      ),
+    ],
+  );
+
+  /// Notation theme (dark surface / paper), applied to both notation views.
+  Widget _scoreThemeSection(AppLocalizations l10n) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      _sectionTitle(l10n.settingsCategoryScoreTheme),
+      SegmentedButton<NotationTheme>(
+        segments: [
+          for (final (theme, label) in [
+            (NotationTheme.dark, l10n.scoreThemeDark),
+            (NotationTheme.paper, l10n.scoreThemePaper),
+          ])
+            ButtonSegment(
+              value: theme,
+              label: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(label, maxLines: 1),
+              ),
+            ),
+        ],
+        selected: {_notationTheme},
+        onSelectionChanged: (s) => setState(() => _notationTheme = s.first),
       ),
     ],
   );

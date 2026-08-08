@@ -422,9 +422,13 @@ void main() {
     await teardownScreen(tester);
   });
 
-  testWidgets('keyboard responds in every render mode', (tester) async {
+  testWidgets('keyboard responds in every render mode that shows it', (
+    tester,
+  ) async {
     await pumpScreen(tester);
-    for (final mode in RenderMode.values) {
+    // The engraved Partition never shows the keyboard (by design), so it is
+    // exercised in the modes that do.
+    for (final mode in [RenderMode.synthesia, RenderMode.staff]) {
       container.read(playerProvider.notifier).setMode(mode);
       await tester.pump();
       final gesture = await tester.startGesture(keyPos(tester, 60));
@@ -570,6 +574,21 @@ void main() {
       await tester.pump(const Duration(milliseconds: 300));
       expect(state().keyboardVisible, isFalse);
       expect(find.byKey(const Key('onscreen-keyboard')), findsNothing);
+      await teardownScreen(tester);
+    });
+
+    testWidgets('the Partition never shows the keyboard nor offers the toggle', (
+      tester,
+    ) async {
+      await pumpScreen(tester);
+      notifier().setMode(RenderMode.partition);
+      notifier().setKeyboardVisible(true); // even explicitly visible
+      await tester.pump();
+      // The engraving takes the full height; the expected-note emphasis in the
+      // notation is the "what to play" cue.
+      expect(find.byKey(const Key('onscreen-keyboard')), findsNothing);
+      await openSettings(tester);
+      expect(find.text('Keyboard display'), findsNothing);
       await teardownScreen(tester);
     });
   });

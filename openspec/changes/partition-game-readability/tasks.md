@@ -69,3 +69,16 @@
       (`waitPulse` on `PianoKeyboardPainter` + an AnimationController that
       runs only while blocked); widget test (no banner, pulse > 0 while
       blocked, steady when released).
+
+## 8. Viewport fit & paper theme
+
+- [x] 8.1 Instrumental pieces drop the empty lyrics lane (content-aware
+      `bottomPad`) and the inter-system gap tightens, so the current + next
+      pair fits more viewports; painter geometry tests updated.
+- [x] 8.2 Auto-scroll bottom-guarantee: when the pair overflows, sacrifice up
+      to the current line's top padding — never the next line's bass staff.
+- [x] 8.3 The Partition never shows the on-screen keyboard (freed height keeps
+      the pair on screen); toggle offered only in Portée; keyboard-display
+      spec delta + tests.
+- [x] 8.4 Notation paper theme: `NotationPalette` (dark/paper) through both
+      painters, `notationTheme` preference + modal chooser + l10n; tests.

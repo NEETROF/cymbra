@@ -229,6 +229,28 @@ void main() {
     await _teardown(tester, container);
   });
 
+  testWidgets('score theme chooser applies to the shared prefs on Validate', (
+    tester,
+  ) async {
+    final container = await _pumpWithModal(tester);
+    expect(
+      container.read(playerPreferencesProvider).notationTheme,
+      NotationTheme.dark,
+    );
+
+    await tester.ensureVisible(find.text('Paper'));
+    await tester.tap(find.text('Paper'));
+    await tester.pump();
+    await tester.tap(find.widgetWithText(FilledButton, 'Play'));
+    await _pumpFrames(tester);
+
+    expect(
+      container.read(playerPreferencesProvider).notationTheme,
+      NotationTheme.paper,
+    );
+    await _teardown(tester, container);
+  });
+
   testWidgets('single-staff piece offers no hand chooser', (tester) async {
     final container = await _pumpWithModal(
       tester,

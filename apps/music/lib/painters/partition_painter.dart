@@ -17,6 +17,7 @@ import 'package:flutter/material.dart';
 import '../src/rust/api/musicxml.dart';
 import '../state/player_data.dart' show Hand;
 import '../theme/cymbra_theme.dart';
+import 'notation_palette.dart';
 import 'smufl.dart';
 
 /// Draws engraved notation ("Partition" mode) from a parsed [ScoreDocument] and
@@ -54,6 +55,9 @@ class PartitionPainter extends CustomPainter {
   /// setting passes `12 × factor` here.
   final double staffSpace;
 
+  /// Colour set (dark surface or paper) the engraving is drawn with.
+  final NotationPalette palette;
+
   PartitionPainter({
     required this.document,
     required this.systems,
@@ -66,6 +70,7 @@ class PartitionPainter extends CustomPainter {
     this.viewBottom,
     this.textFontFamily,
     this.staffSpace = 12,
+    this.palette = NotationPalette.dark,
   });
 
   /// Font family for the engraved *words* (tempo marks, lyrics, fingerings) —
@@ -112,9 +117,17 @@ class PartitionPainter extends CustomPainter {
   double get _staffHeight => 4 * _s;
   double get _interStaff => 8 * _s; // treble bottom → bass top
   double get _topPad => 5 * _s; // words/dynamics above
-  double get _bottomPad => 4.5 * _s; // lyrics below
-  double get _systemGap => 3 * _s;
+  /// Room under the bass staff: the full lyrics lane when the piece carries
+  /// lyrics, otherwise just ledger-line clearance — an instrumental piece
+  /// paying for an empty lyrics lane on every system is what pushed the next
+  /// line's bass staff off short viewports.
+  double get _bottomPad => (_hasLyrics ? 4.5 : 3.0) * _s;
+  double get _systemGap => 2.5 * _s;
   static const double _stemLen = 3.5; // staff spaces
+
+  late final bool _hasLyrics = document.measures.any(
+    (m) => m.notes.any((n) => n.lyric != null),
+  );
 
   static const Map<String, int> _stepOrder = {
     'C': 0,
@@ -126,7 +139,7 @@ class PartitionPainter extends CustomPainter {
     'B': 6,
   };
 
-  Color get _ink => CymbraColors.onSurface;
+  Color get _ink => palette.ink;
 
   /// Whether [staff]'s glyphs are drawn for the current [selectedHands]
   /// (staff 1 = right hand, staff 2+ = left hand) — the visibility predicate.
@@ -155,6 +168,14 @@ class PartitionPainter extends CustomPainter {
 
   /// Vertical distance between consecutive system tops (matches `paint`).
   double get systemStride => _systemHeight + _systemGap;
+
+  /// Height of one engraved system without the inter-system gap — the span
+  /// that must be on screen for a line to be fully readable.
+  double get systemHeight => _systemHeight;
+
+  /// Padding above a system's first staff line (words/dynamics lane) — the
+  /// part the auto-scroll may sacrifice before cutting actual staves.
+  double get systemTopPad => _topPad;
 
   /// Y of the top of system [index] in the scrollable content (matches `paint`).
   double systemTopY(int index) => _systemGap + index * systemStride;
@@ -263,7 +284,7 @@ class PartitionPainter extends CustomPainter {
     final arcs = _Arcs();
 
     final linePaint = Paint()
-      ..color = CymbraColors.onSurfaceVariant.withValues(alpha: 0.7)
+      ..color = palette.staffLine.withValues(alpha: 0.7)
       ..strokeWidth = Smufl.staffLineThickness * _s;
     final barPaint = Paint()
       ..color = _ink.withValues(alpha: 0.7)
@@ -387,7 +408,7 @@ class PartitionPainter extends CustomPainter {
       if (isCursorMeasure) {
         canvas.drawRect(
           Rect.fromLTRB(x, systemTop - _s, x + mWidth, systemBottom + _s),
-          Paint()..color = CymbraColors.secondary.withValues(alpha: 0.08),
+          Paint()..color = palette.accent.withValues(alpha: 0.08),
         );
       }
       // The cursor x comes back from _paintMeasure, which is the only place
@@ -419,7 +440,7 @@ class PartitionPainter extends CustomPainter {
         Offset(cursorX, systemTop),
         Offset(cursorX, systemBottom),
         Paint()
-          ..color = CymbraColors.secondary
+          ..color = palette.accent
           ..strokeWidth = _s * 0.18
           ..strokeCap = StrokeCap.round,
       );
@@ -537,14 +558,7 @@ class PartitionPainter extends CustomPainter {
           final w = _textWidth(field0, _s * 1.05, italic: true);
           final baseY = trebleBottom - _staffHeight - _s * 1.8;
           final y = words.yFor(x, w + _s * 0.6, baseY);
-          _text(
-            canvas,
-            field0,
-            x,
-            y,
-            italic: true,
-            color: CymbraColors.onSurfaceVariant,
-          );
+          _text(canvas, field0, x, y, italic: true, color: palette.staffLine);
         case DirectionKind_Dynamics(:final field0):
           // Dynamics sit a little below note-head size (≈ 0.78 staff spaces).
           Smufl.draw(
@@ -553,7 +567,7 @@ class PartitionPainter extends CustomPainter {
             x,
             trebleBottom + _s * 2.2,
             _s * 0.78,
-            CymbraColors.secondary,
+            palette.accent,
           );
         case DirectionKind_Wedge():
         case DirectionKind_Metronome():
@@ -592,17 +606,15 @@ class PartitionPainter extends CustomPainter {
       // Note heads are coloured by hand (right = blue, left = amber). The note
       // at the playhead is emphasised: green once its pitch is held ("correct"),
       // otherwise a brighter tint of its hand colour.
-      final handColor = note.staff >= 2
-          ? CymbraColors.handLeft
-          : CymbraColors.handRight;
+      final handColor = note.staff >= 2 ? palette.handLeft : palette.handRight;
       final isAtPlayhead =
           cursorDiv != null &&
           note.positionDivisions <= cursorDiv &&
           cursorDiv < note.positionDivisions + note.durationDivisions;
       final headColor = isAtPlayhead
           ? (activeNotes.contains(_midiOf(pitch))
-                ? CymbraColors.tertiary
-                : Color.lerp(handColor, const Color(0xFFFFFFFF), 0.55)!)
+                ? palette.correct
+                : Color.lerp(handColor, palette.emphasisTint, 0.55)!)
           : handColor;
 
       // Note head, centred on x.
@@ -881,7 +893,7 @@ class PartitionPainter extends CustomPainter {
     final ext = Smufl.legerLineExtension * _s;
     final half = Smufl.noteheadWidth * _s / 2 + ext;
     final paint = Paint()
-      ..color = CymbraColors.onSurfaceVariant.withValues(alpha: 0.8)
+      ..color = palette.staffLine.withValues(alpha: 0.8)
       ..strokeWidth = Smufl.legerLineThickness * _s;
     for (var ly = bottomLineY + _s; ly <= y + 0.5; ly += _s) {
       canvas.drawLine(Offset(x - half, ly), Offset(x + half, ly), paint);
@@ -981,7 +993,8 @@ class PartitionPainter extends CustomPainter {
       old.viewTop != viewTop ||
       old.viewBottom != viewBottom ||
       old.textFontFamily != textFontFamily ||
-      old.staffSpace != staffSpace;
+      old.staffSpace != staffSpace ||
+      old.palette != palette;
 }
 
 /// A note's drawn geometry (head centre + stem direction), used for beaming.
