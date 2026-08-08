@@ -22,14 +22,15 @@
 
 ## 4. App — eligibility core (pure, host-testable)
 
-- [ ] 4.1 Add a pure `shouldPromptRating(...)` predicate over `(signedIn, catalogId, ratedState, alreadyOffered, playback)` mirroring `shouldInviteToRate`, with the "played enough" term as `fraction >= 0.15 || playedFor >= 20s` and both thresholds as named constants.
-- [ ] 4.2 Add the pure LRU insert/trim for the offered-score memory (ordered ids, cap 200, oldest dropped).
-- [ ] 4.3 Unit tests for both: every eligibility term individually false; unknown rated state suppresses; end-of-run always satisfies the playback term; LRU keeps insertion order, dedupes, and trims at the cap.
+- [ ] 4.1 Add a pure `playedNoteFraction(List<TimedNote> notes, double furthestElapsedMs)` returning the share of the score's notes the playhead has passed — binary search over the already-sorted `notes`, counted over the whole score (not `visibleNotes`), 0 for an empty score.
+- [ ] 4.2 Add a pure `shouldPromptRating(...)` predicate over `(signedIn, catalogId, ratedState, alreadyOffered, playedNoteFraction)` mirroring `shouldInviteToRate`, with the played-enough term as `fraction >= 0.25` and the threshold as a named constant.
+- [ ] 4.3 Add the pure LRU insert/trim for the offered-score memory (ordered ids, cap 200, oldest dropped).
+- [ ] 4.4 Unit tests: `playedNoteFraction` at 0 / boundary / all notes, on an empty score, with chords sharing a `startMs`, and unaffected by hand muting; every eligibility term individually false; unknown rated state suppresses; end-of-run satisfies the playback term; LRU keeps insertion order, dedupes, and trims at the cap.
 
 ## 5. App — playback high-water mark
 
-- [ ] 5.1 Track the furthest `elapsedMs` reached and the cumulative playing duration in the player notifier/state, reset on score change and on restart-from-top.
-- [ ] 5.2 Tests: the high-water mark survives pause/seek-back, resets on a new score, and a never-started player reports zero.
+- [ ] 5.1 Track the furthest `elapsedMs` reached in the player notifier/state (monotonic), reset on score change and on restart-from-top.
+- [ ] 5.2 Tests: the high-water mark survives pause and seek-back, resets on a new score, and a never-started player reports zero.
 
 ## 6. App — the prompt notifier
 
@@ -54,4 +55,4 @@
 - [ ] 8.1 `melos run analyze`, `dart format`, and `dart run custom_lint` clean.
 - [ ] 8.2 `flutter test --coverage --exclude-tags golden` green with line coverage ≥ 80%.
 - [ ] 8.3 `openspec validate add-post-play-rating-prompt --strict` passes.
-- [ ] 8.4 Manual pass on a device: play a catalog score to the end and rate from the summary; abandon another mid-piece and rate from the sheet; replay both and confirm neither prompts again; confirm a bundled score never prompts and a signed-out user never prompts.
+- [ ] 8.4 Manual pass on a device: play a catalog score to the end and rate from the summary; abandon another past a quarter of its notes and rate from the sheet; leave a third after a handful of notes and confirm no prompt; replay them all and confirm none prompts again; confirm a bundled score never prompts and a signed-out user never prompts.

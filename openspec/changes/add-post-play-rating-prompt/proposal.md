@@ -38,7 +38,9 @@ with better data.
   session ingest.
 - **Gated to genuinely-played, rateable scores.** The prompt only appears for a
   signed-in user, on a public-catalog score (bundled and user-contributed scores
-  are not rateable), after a configured minimum of actual playback.
+  are not rateable), once the playhead has passed at least **25% of the piece's
+  notes** — counted in notes rather than in elapsed time or position, so the gate
+  is independent of the playback tempo and of how the piece's time is laid out.
 
 Not in scope: changing what a rating *is* (verdict, stars, aggregate, re-review
 flag are unchanged), the swipe deck, the library banner's own thresholds, and any

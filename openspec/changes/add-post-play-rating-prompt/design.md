@@ -88,18 +88,44 @@ prompt moments decide instantly and offline (unresolved → no prompt).
 forces a per-row join on every search page for a field only the player needs, and
 the player is often reached without a fresh search (saved library, offline cache).
 
-### D4 — Eligibility is a pure function; "played enough" is furthest position OR elapsed time
+### D4 — Eligibility is a pure function; "played enough" is 25% of the piece's notes
 
 `shouldPromptRating(...)` is a pure, host-testable predicate over
-`(signedIn, catalogId, ratedState, alreadyOffered, playback)`, mirroring
+`(signedIn, catalogId, ratedState, alreadyOffered, playedNoteFraction)`, mirroring
 `shouldInviteToRate`. The end-of-run case trivially satisfies the playback term.
-For an early exit, playback is judged by **either** the furthest playhead position
-reached as a fraction of the piece (default ≥ 15%) **or** cumulative playing time
-(default ≥ 20 s) — the disjunction so both a long piece barely started for a while
-and a short piece played through count, while opening-then-closing does not. The
-player notifier gains a high-water-mark of `elapsedMs` and a cumulative playing
-duration; both thresholds are constants in the core, sited so they can later move
-to feature-flag config without touching the predicate.
+
+Playback is measured **in notes**: the share of the score's notes the playhead has
+passed, i.e. `count(n in notes where n.startMs <= furthestElapsedMs) / notes.length`,
+with a threshold of **25%**. `PlayerData.notes` is already the piece flattened and
+sorted by start ([player_data.dart:211](apps/music/lib/state/player_data.dart:211)),
+so this is a binary search over a sorted list — a pure function of
+`(notes, furthestElapsedMs)`. The player notifier only needs to keep a high-water
+mark of `elapsedMs` (monotonic, so seeking back or pausing never lowers it); the
+threshold is a named constant in the core, sited so it can later move to
+feature-flag config without touching the predicate.
+
+*Why notes and not time or position:* elapsed time is tempo-dependent — practising
+at 50% tempo would double the time spent for the same music — and a position
+fraction over-counts a piece that opens on long held notes or rests. Counting notes
+measures how much *music* actually went by, independent of tempo and of the piece's
+time layout.
+
+*Counted over the whole score, not the selected hand:* the fraction uses `notes`,
+not `visibleNotes`, so muting the left hand does not make a run look twice as
+complete as it is.
+
+*Interpretation:* "notes played" is read as **notes the playhead passed**, not notes
+the user struck correctly. That keeps the criterion meaningful for an unscored
+practice run and for a beginner who misses a lot; in Wait Mode the two coincide
+anyway, since the gate does not advance until the note is played. The degenerate
+case it admits — pressing play and walking away — is accepted: the prompt is
+one-shot per score and dismissible in one tap. Note that a measure-range practice
+run over a small slice of a long piece will not reach 25%, which is the intended
+behaviour.
+
+*Chords:* each note of a chord counts individually, since that is what `notes`
+holds. A chordal texture therefore reaches 25% at roughly the same point in the
+music as a monophonic one, so no per-onset de-duplication is worth the complexity.
 
 ### D5 — Per-score suppression: a bounded LRU of offered catalog ids in preferences
 
@@ -198,9 +224,8 @@ is idempotent and leaves no state to unwind.
 
 ## Open Questions
 
-- Should the "played enough" thresholds (15% / 20 s) move to runtime feature flags
-  now, or stay constants until real usage tells us they are wrong? Currently sited
-  as constants in the core.
+- Should the 25% played-notes threshold move to a runtime feature flag now, or stay
+  a constant until real usage tells us it is wrong? Currently a constant in the core.
 - Should a rating submitted from the prompt show the earned coverage points ("+N",
   as the deck does), or stay silent so the summary is not turned into a rewards
   surface? Currently silent.

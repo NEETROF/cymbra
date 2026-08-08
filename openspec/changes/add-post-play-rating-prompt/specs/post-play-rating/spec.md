@@ -76,8 +76,14 @@ A played score SHALL be eligible for the rating prompt only when **all** of the
 following hold: the user is signed in; the score is a **public-catalog** score (bundled
 and user-contributed scores are not rateable and MUST NOT prompt); the caller has **not
 already rated** it; the score has **not already been offered** for rating on this
-device; and the run produced at least a configured **minimum amount of actual
-playback**. When eligibility cannot be determined — for example the already-rated state
+device; and the playhead has passed at least a configured **minimum share of the
+piece's notes** — 25% by default. That share SHALL be counted **in notes** (how many of
+the score's notes the playhead reached, over the score's total note count), not in
+elapsed time and not as a fraction of the piece's duration, so it is independent of the
+playback tempo and of how the piece's time is laid out. It SHALL be counted over the
+**whole** score rather than only the selected hand, so muting a hand does not inflate
+it, and SHALL use the furthest point reached, so pausing or seeking backwards never
+lowers it. When eligibility cannot be determined — for example the already-rated state
 is unknown because the device is offline — the prompt MUST NOT be shown.
 
 #### Scenario: A bundled score never prompts
@@ -97,9 +103,31 @@ is unknown because the device is offline — the prompt MUST NOT be shown.
 
 #### Scenario: A negligible run does not prompt
 
-- **WHEN** the user opens the player and leaves it having played less than the configured
-  minimum
+- **WHEN** the user opens the player and leaves it having reached less than the
+  configured share of the score's notes
 - **THEN** no rating prompt is presented
+
+#### Scenario: The share is counted in notes, not in time
+
+- **WHEN** the user plays the same portion of a piece at half tempo, taking twice as long
+- **THEN** eligibility is unchanged, because the same number of notes was reached
+
+#### Scenario: Muting a hand does not inflate the share
+
+- **WHEN** the user plays with one hand muted
+- **THEN** the share is still counted over the whole score's notes, not only the
+  audible hand's
+
+#### Scenario: Seeking backwards does not lower the share
+
+- **WHEN** the user reaches past the threshold and then pauses or seeks back before leaving
+- **THEN** the furthest point reached still counts and the prompt is presented
+
+#### Scenario: Practising a short range of a long piece does not prompt
+
+- **WHEN** the user loops a few measures of a long piece and leaves
+- **THEN** the share of the score's notes reached stays below the threshold and no
+  prompt is presented
 
 #### Scenario: Unknown rated state suppresses the prompt
 
