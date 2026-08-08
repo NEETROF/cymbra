@@ -79,66 +79,103 @@ class PostPlayRatingRow extends ConsumerWidget {
       );
     }
 
+    final stars = [
+      for (var star = 1; star <= 5; star++)
+        IconButton(
+          key: Key('post-play-star-$star'),
+          tooltip: l10n.postPlayRatingStarTooltip(star),
+          iconSize: compact ? 20 : 34,
+          // IconButton reserves a 48×48 Material tap target. In the summary modal
+          // that alone is taller than the whole row can afford on a phone-landscape
+          // viewport, and `constraints` does NOT override it — only shrinking the
+          // tap target does. 28×28 stays comfortably tappable for a star.
+          style: compact
+              ? IconButton.styleFrom(
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  minimumSize: const Size(28, 28),
+                  padding: EdgeInsets.zero,
+                )
+              : null,
+          visualDensity: compact
+              ? VisualDensity.compact
+              : VisualDensity.standard,
+          icon: const Icon(Icons.star_border, color: CymbraColors.primary),
+          onPressed: () =>
+              unawaited(ref.read(postPlayRatingProvider.notifier).submit(star)),
+        ),
+    ];
+
+    final label = Text(
+      l10n.postPlayRatingPrompt,
+      textAlign: TextAlign.center,
+      style: TextStyle(
+        fontSize: compact ? 12 : 13,
+        color: CymbraColors.onSurfaceVariant,
+      ),
+    );
+
+    final decline = TextButton(
+      key: const Key('post-play-rating-skip'),
+      style: compact
+          ? TextButton.styleFrom(
+              visualDensity: VisualDensity.compact,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              minimumSize: const Size(0, 28),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            )
+          : null,
+      onPressed: () {
+        final id = data?.catalogId;
+        if (id != null) {
+          unawaited(ref.read(postPlayRatingProvider.notifier).decline(id));
+        }
+        onDecline?.call();
+      },
+      child: Text(l10n.postPlayRatingSkip),
+    );
+
+    final failure = failed
+        ? Text(
+            l10n.postPlayRatingFailed,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 12, color: CymbraColors.error),
+          )
+        : null;
+
     return Padding(
       padding: EdgeInsets.symmetric(vertical: gap),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            l10n.postPlayRatingPrompt,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 13,
-              color: CymbraColors.onSurfaceVariant,
-            ),
-          ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              for (var star = 1; star <= 5; star++)
-                IconButton(
-                  key: Key('post-play-star-$star'),
-                  visualDensity: compact
-                      ? VisualDensity.compact
-                      : VisualDensity.standard,
-                  iconSize: compact ? 26 : 34,
-                  tooltip: l10n.postPlayRatingStarTooltip(star),
-                  icon: const Icon(
-                    Icons.star_border,
-                    color: CymbraColors.primary,
-                  ),
-                  onPressed: () => unawaited(
-                    ref.read(postPlayRatingProvider.notifier).submit(star),
-                  ),
+      child: compact
+          // Summary modal: two tight lines, not four. The modal caps at 420 px
+          // wide, so the question and the five stars cannot share a line — but the
+          // stars and the refusal can, and every default tap target is shrunk. What
+          // matters is the total height: the statistics above (the headline
+          // percentage first of all) need the room on a phone-landscape viewport.
+          ? Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                label,
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [...stars, const SizedBox(width: 4), decline],
                 ),
-            ],
-          ),
-          // A failed submission says so in the user's language and leaves the
-          // stars tappable for a retry — never a transport error string.
-          if (failed)
-            Text(
-              l10n.postPlayRatingFailed,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 12, color: CymbraColors.error),
+                ?failure,
+              ],
+            )
+          : Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                label,
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: stars,
+                ),
+                ?failure,
+                // The escape hatch. Because being shown no longer retires the
+                // score, this is the ONLY way (short of rating) to stop being
+                // asked about this piece — so it is on every surface.
+                decline,
+              ],
             ),
-          // The escape hatch. Because being shown no longer retires the score, this
-          // is the ONLY way (short of rating) to stop being asked about this piece —
-          // so it must be present on every surface, not just the exit sheet.
-          TextButton(
-            key: const Key('post-play-rating-skip'),
-            onPressed: () {
-              final id = data?.catalogId;
-              if (id != null) {
-                unawaited(
-                  ref.read(postPlayRatingProvider.notifier).decline(id),
-                );
-              }
-              onDecline?.call();
-            },
-            child: Text(l10n.postPlayRatingSkip),
-          ),
-        ],
-      ),
     );
   }
 }

@@ -344,16 +344,32 @@ void main() {
       },
     );
 
-    testWidgets('the actions stay reachable on a short viewport', (
+    testWidgets('does not crowd out the statistics on a short viewport', (
       tester,
     ) async {
+      // REGRESSION: the first version stacked label / stars / refuse vertically,
+      // which on phone landscape ate ~120px and clipped the overall percentage —
+      // the modal's headline number — off the top of the scroll area. Asserting
+      // the buttons exist was not enough; the row's own height is the thing that
+      // has to stay small.
       tester.view.physicalSize = const Size(1200, 480); // phone landscape
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.reset);
       final c = _container();
       addTearDown(c.dispose);
       await _openSummary(tester, c);
+
+      final rowHeight = tester.getSize(find.byType(PostPlayRatingRow)).height;
+      expect(
+        rowHeight,
+        lessThanOrEqualTo(64),
+        reason: 'the rating row must stay a single compact line in the summary',
+      );
+      // The headline statistic — the modal's whole point — is still rendered.
+      expect(find.text('100%'), findsWidgets);
+      // …and everything stays reachable.
       expect(find.byKey(const Key('post-play-star-5')), findsOneWidget);
+      expect(find.byKey(const Key('post-play-rating-skip')), findsOneWidget);
       expect(find.text('Replay mistakes'), findsOneWidget);
       expect(find.text('Retry'), findsOneWidget);
       expect(find.byIcon(Icons.close), findsOneWidget);
