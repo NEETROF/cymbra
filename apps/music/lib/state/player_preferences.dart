@@ -37,9 +37,10 @@ abstract class PlayerPrefs with _$PlayerPrefs {
     /// On-screen keyboard range mode; defaults to auto-fit.
     @Default(KeyboardRangeMode.auto) KeyboardRangeMode keyboardRange,
 
-    /// How much reading help to show at a held onset. Off by default: the aid is
-    /// opt-in, so a player who never asked for it is never given it.
-    @Default(NoteReadingAid.off) NoteReadingAid readingAid,
+    /// How much reading help to show at a held onset. Names the note by default:
+    /// a beginner who does not know the notes is exactly the player who will not
+    /// go looking for this in the settings. Turning it off is one tap away.
+    @Default(NoteReadingAid.name) NoteReadingAid readingAid,
 
     /// Preferred MIDI input port name; null = auto (first real device).
     String? midiPort,
@@ -126,7 +127,7 @@ class PlayerPreferences extends _$PlayerPreferences {
                 as String?] ??
             KeyboardRangeMode.auto,
         readingAid:
-            NoteReadingAid.values.asNameMap()[aidName] ?? NoteReadingAid.off,
+            NoteReadingAid.values.asNameMap()[aidName] ?? NoteReadingAid.name,
         midiPort: m['midiPort'] as String?,
       );
     } catch (_) {

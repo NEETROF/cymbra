@@ -33,8 +33,10 @@ enum Hand { left, right, both }
 
 /// How much reading help the player wants while Wait Mode holds at an onset:
 /// nothing, the awaited note's name, or its name plus the rhythmic figure.
-/// Off by default — the aid is opt-in so it never becomes a crutch nobody asked
-/// for.
+/// Defaults to the note's name: someone who does not know the notes will not go
+/// hunting for this setting, and the aid only ever appears once the gate has
+/// already stopped play. The rhythm level and switching it off stay one tap
+/// away in the play settings.
 enum NoteReadingAid { off, name, nameAndRhythm }
 
 /// A score note with its time bounds in milliseconds (int), more convenient to
@@ -305,7 +307,7 @@ abstract class PlayerData with _$PlayerData {
     /// How much reading help to show while Wait Mode holds at an onset. Seeded
     /// from the persisted play preferences (like [metronomeEnabled]) and changed
     /// through the setup modal / in-game settings.
-    @Default(NoteReadingAid.off) NoteReadingAid readingAid,
+    @Default(NoteReadingAid.name) NoteReadingAid readingAid,
   }) = _PlayerData;
 
   bool get midiConnected => connectedDevice != null;

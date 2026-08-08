@@ -38,7 +38,7 @@ void main() {
     expect(p.speed, 1.0);
     expect(p.metronome, isFalse);
     expect(p.keyboardRange, KeyboardRangeMode.auto);
-    expect(p.readingAid, NoteReadingAid.off);
+    expect(p.readingAid, NoteReadingAid.name);
     expect(p.midiPort, isNull);
   });
 
@@ -110,7 +110,7 @@ void main() {
   });
 
   test('a record written before the aid existed restores the rest', () async {
-    // No `readingAid` key at all — the aid defaults off, everything else loads.
+    // No `readingAid` key at all — the aid takes its default, the rest loads.
     final c = _container(
       FakePreferencesService({
         PlayerPreferences.prefsKey: jsonEncode({
@@ -124,7 +124,7 @@ void main() {
     await Future<void>.delayed(Duration.zero);
 
     final p = c.read(playerPreferencesProvider);
-    expect(p.readingAid, NoteReadingAid.off);
+    expect(p.readingAid, NoteReadingAid.name);
     expect(p.hands, Hand.right);
     expect(p.speed, 0.75);
     expect(p.metronome, isTrue);
@@ -144,10 +144,27 @@ void main() {
     await Future<void>.delayed(Duration.zero);
 
     final p = c.read(playerPreferencesProvider);
-    expect(p.readingAid, NoteReadingAid.off);
+    expect(p.readingAid, NoteReadingAid.name);
     expect(p.hands, Hand.left);
     expect(p.speed, 1.5);
   });
+
+  test(
+    'an explicit off survives — the default never overrides a choice',
+    () async {
+      final c = _container(
+        FakePreferencesService({
+          PlayerPreferences.prefsKey: jsonEncode({
+            'hands': 'both',
+            'readingAid': 'off',
+          }),
+        }),
+      );
+      c.read(playerPreferencesProvider);
+      await Future<void>.delayed(Duration.zero);
+      expect(c.read(playerPreferencesProvider).readingAid, NoteReadingAid.off);
+    },
+  );
 
   test('a corrupt stored value falls back to defaults', () async {
     final c = _container(

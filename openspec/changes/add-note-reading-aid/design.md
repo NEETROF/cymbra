@@ -29,9 +29,8 @@ Two existing facts shape the design:
   localized letter/solfège convention — at the moment the player is stuck on them.
 - Optionally name and quantify the rhythmic figure, so "half note" comes with
   "hold 2 beats".
-- Make it an ordinary persisted play setting, off by default, editable from the
-  same modal that already serves as both the pre-play setup and the in-game
-  settings drawer.
+- Make it an ordinary persisted play setting, editable from the same modal that
+  already serves as both the pre-play setup and the in-game settings drawer.
 - Keep the naming logic pure and host-testable, with a single implementation in
   the app.
 
@@ -153,11 +152,15 @@ render area is unchanged from today's layout.
 
 ## Risks / Trade-offs
 
-- **The aid becomes a crutch — the player reads the panel and never the staff.**
-  → Default *off*; shown only while the gate has already stopped play (so it can
-  never carry a moving performance); no octave index to lean on; look-ahead
-  explicitly deferred. Whether to fade it out over sessions is a product question
-  left open, not designed in.
+- **The aid becomes a crutch — the player reads the name and never the staff.**
+  → Shown only while the gate has already stopped play, so it can never carry a
+  moving performance; no octave index to lean on; look-ahead explicitly deferred.
+  The default names the note but stops there — the rhythm level, which is the one
+  that turns the aid into a running commentary, stays opt-in. Weighed against the
+  opposite risk, which decided it: a beginner who does not know the notes will not
+  go looking for this setting, so an off default means the feature never reaches
+  the people it was built for. Whether to fade it out over sessions is a product
+  question left open, not designed in.
 
 - **A wrong name is worse than no name.** → Decision 2 makes the alteration
   arithmetic exact rather than heuristic, and the pure module is tested across
@@ -187,7 +190,8 @@ render area is unchanged from today's layout.
 
 No data migration. The persisted settings record gains one optional field and
 decoding tolerates its absence, so an existing install restores its other settings
-and starts with the aid off. Rollback is either turning the setting off or
+and starts with the aid at its default (naming the note). A level the user has
+actually chosen is stored, so the default never overrides it — including *off*. Rollback is either turning the setting off or
 reverting the widget; nothing outside `apps/music` is touched and no stored state
 becomes unreadable.
 
@@ -199,5 +203,5 @@ becomes unreadable.
 - Should the beginner onboarding actively propose enabling it, or is discovery
   through the setup modal enough? Promoting it belongs to the `welcome-onboarding`
   capability and is not specified here.
-- Is `off` the right default for a player who self-identifies as a beginner during
-  onboarding, or should that path default it to *note name*?
+- The default is *note name* for everyone. If the onboarding ever learns that a
+  player is experienced, should that path default it to *off* instead?

@@ -174,8 +174,8 @@ void main() {
   ) async {
     final container = await _pumpWithModal(tester);
 
-    // Preselected from the persisted level — off by default.
-    expect(container.read(playerProvider).readingAid, NoteReadingAid.off);
+    // Preselected from the persisted level — names the note by default.
+    expect(container.read(playerProvider).readingAid, NoteReadingAid.name);
     expect(find.text('Note names'), findsOneWidget);
     expect(find.text('Off'), findsOneWidget);
     expect(find.text('Note name'), findsOneWidget);
@@ -196,12 +196,12 @@ void main() {
   testWidgets('close (X) keeps the current reading-aid level', (tester) async {
     final container = await _pumpWithModal(tester);
 
-    await tester.tap(find.text('Note name'));
+    await tester.tap(find.text('Off'));
     await tester.pump();
     await tester.tap(find.byIcon(Icons.close));
     await _pumpFrames(tester);
 
-    expect(container.read(playerProvider).readingAid, NoteReadingAid.off);
+    expect(container.read(playerProvider).readingAid, NoteReadingAid.name);
     await _teardown(tester, container);
   });
 

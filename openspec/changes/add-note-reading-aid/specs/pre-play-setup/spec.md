@@ -69,5 +69,6 @@ discarding the whole stored record.
 
 - **WHEN** the persisted settings were written by an earlier version and carry no
   reading aid level, or carry a value the app does not recognize
-- **THEN** the reading aid falls back to its default (off) while the other stored
-  settings are still restored
+- **THEN** the reading aid falls back to its default while the other stored
+  settings are still restored; a level the user *did* choose is never overridden
+  by that default

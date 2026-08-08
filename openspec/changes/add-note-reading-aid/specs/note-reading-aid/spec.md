@@ -3,17 +3,25 @@
 ### Requirement: Opt-In Reading Aid With Three Levels
 
 The player SHALL offer a note reading aid with exactly three levels: **off**,
-**note name**, and **note name and rhythm**. The aid SHALL default to *off* so
-that a player who has not asked for it is never given it. At the *note name*
-level the aid SHALL name the awaited note(s); at the *note name and rhythm* level
-it SHALL additionally show the rhythmic figure. The level SHALL be a play setting
-like the others (hands, tempo, metronome, device) rather than a per-score choice.
+**note name**, and **note name and rhythm**. The aid SHALL default to *note
+name*: a player who does not know the notes is precisely the one who will not go
+looking for this in the settings, and the aid only ever appears once the gate has
+already stopped play. At the *note name* level the aid SHALL name the awaited
+note(s); at the *note name and rhythm* level it SHALL additionally show the
+rhythmic figure. The level SHALL be a play setting like the others (hands, tempo,
+metronome, device) rather than a per-score choice.
 
-#### Scenario: Aid is absent by default
+#### Scenario: The note is named by default
 
 - **WHEN** a player who has never changed the setting opens a score and Wait Mode
   blocks at an onset
-- **THEN** no reading aid is displayed
+- **THEN** the awaited note is named, and no rhythmic figure is shown
+
+#### Scenario: Turning the aid off is honoured
+
+- **WHEN** the player sets the level to *off*
+- **THEN** nothing is displayed at any point, and that choice survives a restart
+  rather than reverting to the default
 
 #### Scenario: Note-name level names the note without the figure
 
