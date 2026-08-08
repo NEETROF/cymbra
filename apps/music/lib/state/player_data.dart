@@ -258,9 +258,10 @@ abstract class PlayerData with _$PlayerData {
     /// note-on (fresh attack) and on note-off; wholesale on gate re-arm.
     @Default(<int>{}) Set<int> consumedHeld,
 
-    /// On-screen keyboard range mode. Defaults to the full 88-key piano; the
-    /// user can switch to auto-fit or a smaller preset from the chooser.
-    @Default(KeyboardRangeMode.keys88) KeyboardRangeMode keyboardRange,
+    /// On-screen keyboard range mode. Defaults to auto-fit (sized to the loaded
+    /// piece); the user can pin a fixed controller size from the chooser. Seeded
+    /// from (and written back to) the persisted play preferences.
+    @Default(KeyboardRangeMode.auto) KeyboardRangeMode keyboardRange,
 
     /// Whether the on-screen keyboard is shown. Only honoured in the notation
     /// modes (Staff/Partition), where hiding it hands the freed height to the
@@ -332,6 +333,12 @@ abstract class PlayerData with _$PlayerData {
   /// `PianoLayout` so the keyboard and waterfall stay aligned.
   ({int low, int high}) get keyboardBounds =>
       computeKeyboardRange(keyboardRange, [for (final n in notes) n.pitch]);
+
+  /// The fixed-size window the current [keyboardRange] represents (exactly N
+  /// keys), or null in auto mode. Keys in [keyboardBounds] outside this are the
+  /// extra keys drawn to avoid clipping notes; the keyboard marks that boundary.
+  ({int low, int high})? get keyboardChosenWindow =>
+      chosenSizeWindow(keyboardRange, [for (final n in notes) n.pitch]);
 
   /// Notes that should be held at instant [t] (playhead within the window
   /// [start, start+duration]). Acts as the "gate" for Wait Mode. Restricted to

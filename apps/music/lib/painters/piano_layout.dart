@@ -73,6 +73,10 @@ class PianoLayout {
     return r.left + r.width / 2;
   }
 
+  /// X of the left edge of [pitch]'s slot — where a vertical boundary drawn just
+  /// before [pitch] sits. Equals the cumulative white-key width before [pitch].
+  double leftEdgeX(int pitch) => _whiteIndex(pitch) * whiteWidth;
+
   bool contains(int pitch) => pitch >= lowPitch && pitch <= highPitch;
 
   /// MIDI pitch of the key drawn under [p] on a keyboard of [height] pixels, or

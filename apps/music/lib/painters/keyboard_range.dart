@@ -16,7 +16,7 @@ import 'dart:math' as math;
 
 /// On-screen keyboard range modes: [auto] fits the loaded piece; the rest are
 /// fixed key-count presets.
-enum KeyboardRangeMode { auto, keys25, keys37, keys49, keys61, keys76, keys88 }
+enum KeyboardRangeMode { auto, keys25, keys49, keys61, keys88 }
 
 /// Lowest / highest MIDI pitch of an 88-key piano (A0 .. C8).
 const int kPianoLowest = 21;
@@ -36,10 +36,8 @@ extension KeyboardRangeModeLabel on KeyboardRangeMode {
   String get label => switch (this) {
     KeyboardRangeMode.auto => 'Auto',
     KeyboardRangeMode.keys25 => '25',
-    KeyboardRangeMode.keys37 => '37',
     KeyboardRangeMode.keys49 => '49',
     KeyboardRangeMode.keys61 => '61',
-    KeyboardRangeMode.keys76 => '76',
     KeyboardRangeMode.keys88 => '88',
   };
 }
@@ -48,20 +46,16 @@ extension KeyboardRangeModeLabel on KeyboardRangeMode {
 int? presetKeyCount(KeyboardRangeMode mode) => switch (mode) {
   KeyboardRangeMode.auto => null,
   KeyboardRangeMode.keys25 => 25,
-  KeyboardRangeMode.keys37 => 37,
   KeyboardRangeMode.keys49 => 49,
   KeyboardRangeMode.keys61 => 61,
-  KeyboardRangeMode.keys76 => 76,
   KeyboardRangeMode.keys88 => 88,
 };
 
 /// Standard low anchor (MIDI pitch) for each preset window.
 int _presetAnchorLow(KeyboardRangeMode mode) => switch (mode) {
   KeyboardRangeMode.keys25 => 48, // C3 .. C5
-  KeyboardRangeMode.keys37 => 48, // C3 .. C6
   KeyboardRangeMode.keys49 => 36, // C2 .. C6
   KeyboardRangeMode.keys61 => 36, // C2 .. C7
-  KeyboardRangeMode.keys76 => 28, // E1 .. G7
   KeyboardRangeMode.keys88 => kPianoLowest, // A0 .. C8
   KeyboardRangeMode.auto => _defaultLow,
 };
@@ -77,8 +71,56 @@ int _presetAnchorLow(KeyboardRangeMode mode) => switch (mode) {
   if (mode == KeyboardRangeMode.auto) {
     return _autoRange(pitches);
   }
+  final window = _presetWindow(mode, pitches);
+  if (pitches.isEmpty) return window;
+  final minP = pitches.reduce(math.min);
+  final maxP = pitches.reduce(math.max);
+  // Widen the fixed window rather than clip, so the aligned waterfall never
+  // drops a note. The chosen size then acts as a minimum; the extra keys are
+  // marked on the keyboard (see [chosenSizeWindow]).
+  var low = window.low;
+  var high = window.high;
+  if (minP < low) low = minP;
+  if (maxP > high) high = maxP;
+  return _clampWithCoverage(low, high, minP, maxP);
+}
+
+/// The fixed-size window (exactly `presetKeyCount` keys) the preset [mode]
+/// represents, slid to sit over the music but **before** any widening to cover
+/// out-of-window notes. `null` for [KeyboardRangeMode.auto] (no fixed size).
+///
+/// This is where the *chosen* keyboard size sits. Keys in the drawn range
+/// ([computeKeyboardRange]) that fall outside it are the extra keys added to
+/// avoid clipping notes, so the on-screen keyboard can mark that boundary.
+({int low, int high})? chosenSizeWindow(
+  KeyboardRangeMode mode,
+  List<int> pitches,
+) => mode == KeyboardRangeMode.auto ? null : _presetWindow(mode, pitches);
+
+/// Slides the fixed-size window for a preset [mode] over the music (preserving
+/// its key count), clamped to the piano bounds. Shared by [computeKeyboardRange]
+/// (which then widens it) and [chosenSizeWindow] (which does not).
+({int low, int high}) _presetWindow(KeyboardRangeMode mode, List<int> pitches) {
   final span = presetKeyCount(mode)! - 1; // contiguous semitones
-  return _presetRange(_presetAnchorLow(mode), span, pitches);
+  var low = _presetAnchorLow(mode);
+  var high = low + span;
+  if (pitches.isNotEmpty) {
+    final minP = pitches.reduce(math.min);
+    final maxP = pitches.reduce(math.max);
+    // Slide the fixed-size window to sit over the music.
+    if (minP < low) {
+      low = minP;
+      high = low + span;
+    }
+    if (maxP > high) {
+      high = maxP;
+      low = high - span;
+    }
+  }
+  return (
+    low: low.clamp(kPianoLowest, kPianoHighest),
+    high: high.clamp(kPianoLowest, kPianoHighest),
+  );
 }
 
 ({int low, int high}) _autoRange(List<int> pitches) {
@@ -104,33 +146,6 @@ int _presetAnchorLow(KeyboardRangeMode mode) => switch (mode) {
   }
 
   return _clampWithCoverage(low, high, minP, maxP);
-}
-
-({int low, int high}) _presetRange(int anchorLow, int span, List<int> pitches) {
-  var low = anchorLow;
-  var high = anchorLow + span;
-
-  if (pitches.isNotEmpty) {
-    final minP = pitches.reduce(math.min);
-    final maxP = pitches.reduce(math.max);
-    // Slide the fixed-size window to sit over the music.
-    if (minP < low) {
-      low = minP;
-      high = low + span;
-    }
-    if (maxP > high) {
-      high = maxP;
-      low = high - span;
-    }
-    // Piece wider than the preset: widen rather than clip.
-    if (minP < low) low = minP;
-    if (maxP > high) high = maxP;
-    return _clampWithCoverage(low, high, minP, maxP);
-  }
-  return (
-    low: low.clamp(kPianoLowest, kPianoHighest),
-    high: high.clamp(kPianoLowest, kPianoHighest),
-  );
 }
 
 /// Clamps [low]/[high] to the piano bounds, then re-asserts that the range still

@@ -157,21 +157,22 @@ void main() {
     tester,
   ) async {
     await pumpScreen(tester);
-    // Defaults to the full 88-key piano.
-    expect(state().keyboardRange, KeyboardRangeMode.keys88);
+    // Defaults to auto-fit.
+    expect(state().keyboardRange, KeyboardRangeMode.auto);
 
-    // Keyboard size is a dropdown in the popup; open it, pick Auto, then Apply.
+    // Keyboard size is a dropdown in the popup; open it, pick a non-default fixed
+    // size (88 keys), then Apply.
     await openSettingsPopup(tester);
     final dropdown = find.byType(DropdownButton<KeyboardRangeMode>);
     await tester.ensureVisible(dropdown);
     await tester.tap(dropdown);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
-    await tester.tap(find.text('Auto (fit piece)').last);
+    await tester.tap(find.text('88 keys').last);
     await tester.pump();
     await applyPopup(tester);
 
-    expect(state().keyboardRange, KeyboardRangeMode.auto);
+    expect(state().keyboardRange, KeyboardRangeMode.keys88);
     await teardownScreen(tester);
   });
 

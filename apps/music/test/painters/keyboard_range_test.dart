@@ -87,9 +87,41 @@ void main() {
     });
 
     test('stays clamped to the 88-key bounds', () {
-      final r = computeKeyboardRange(KeyboardRangeMode.keys76, const [21, 108]);
+      final r = computeKeyboardRange(KeyboardRangeMode.keys61, const [21, 108]);
       expect(r.low, greaterThanOrEqualTo(kPianoLowest));
       expect(r.high, lessThanOrEqualTo(kPianoHighest));
+    });
+  });
+
+  group('chosenSizeWindow', () {
+    test('is null for auto (no fixed size)', () {
+      expect(chosenSizeWindow(KeyboardRangeMode.auto, const [60, 72]), isNull);
+    });
+
+    test('is exactly the preset key count when the piece fits', () {
+      // 49-key preset (anchor C2..C6) over a piece inside it.
+      final w = chosenSizeWindow(KeyboardRangeMode.keys49, const [60, 72])!;
+      expect(w.high - w.low + 1, 49);
+    });
+
+    test('equals the drawn range when the piece fits the preset', () {
+      const pitches = [72, 96];
+      final drawn = computeKeyboardRange(KeyboardRangeMode.keys49, pitches);
+      final chosen = chosenSizeWindow(KeyboardRangeMode.keys49, pitches)!;
+      expect(chosen.low, drawn.low);
+      expect(chosen.high, drawn.high);
+    });
+
+    test('stays N keys and sits inside the widened drawn range', () {
+      // 25-key preset but the piece spans 41 semitones (50..90): the drawn range
+      // widens, while the chosen window stays exactly 25 keys within it.
+      const pitches = [50, 90];
+      final drawn = computeKeyboardRange(KeyboardRangeMode.keys25, pitches);
+      final chosen = chosenSizeWindow(KeyboardRangeMode.keys25, pitches)!;
+      expect(chosen.high - chosen.low + 1, 25);
+      expect(drawn.low, lessThan(chosen.low)); // extra keys on the low side
+      expect(chosen.low, greaterThanOrEqualTo(drawn.low));
+      expect(chosen.high, lessThanOrEqualTo(drawn.high));
     });
   });
 
@@ -97,10 +129,8 @@ void main() {
     test('presetKeyCount maps each mode', () {
       expect(presetKeyCount(KeyboardRangeMode.auto), isNull);
       expect(presetKeyCount(KeyboardRangeMode.keys25), 25);
-      expect(presetKeyCount(KeyboardRangeMode.keys37), 37);
       expect(presetKeyCount(KeyboardRangeMode.keys49), 49);
       expect(presetKeyCount(KeyboardRangeMode.keys61), 61);
-      expect(presetKeyCount(KeyboardRangeMode.keys76), 76);
       expect(presetKeyCount(KeyboardRangeMode.keys88), 88);
     });
 
