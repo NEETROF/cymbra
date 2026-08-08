@@ -99,6 +99,7 @@ class Player extends _$Player {
       speed: prefs.speed,
       metronomeEnabled: prefs.metronome,
       keyboardRange: prefs.keyboardRange,
+      readingAid: prefs.readingAid,
     );
   }
 
@@ -425,6 +426,15 @@ class Player extends _$Player {
   void setKeyboardRange(KeyboardRangeMode m) {
     ref.read(playerPreferencesProvider.notifier).setKeyboardRange(m);
     state = state.copyWith(keyboardRange: m);
+  }
+
+  /// Sets how much reading help is shown at a held onset, and remembers it
+  /// across scores and restarts.
+  void setReadingAid(NoteReadingAid aid) {
+    if (aid == state.readingAid) return;
+    ref.read(playerPreferencesProvider.notifier).setNoteReadingAid(aid);
+    state = state.copyWith(readingAid: aid);
+    _track(UsageActions.settingsChange, variant: UsageVariants.readingAid);
   }
 
   void setKeyboardVisible(bool visible) =>

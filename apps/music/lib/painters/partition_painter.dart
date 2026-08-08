@@ -59,7 +59,14 @@ class PartitionPainter extends CustomPainter {
     this.selectedHands = Hand.both,
     this.viewTop,
     this.viewBottom,
+    this.textFontFamily,
   });
+
+  /// Font family for the engraved *words* (tempo marks, lyrics, fingerings) —
+  /// the music glyphs come from [Smufl] regardless. Null keeps the platform
+  /// default, which is what the app ships; tests name a face so their goldens
+  /// show words instead of the framework's box glyphs.
+  final String? textFontFamily;
 
   static const Map<String, int> _semitoneOfStep = {
     'C': 0,
@@ -899,6 +906,7 @@ class PartitionPainter extends CustomPainter {
         text: TextSpan(
           text: text,
           style: TextStyle(
+            fontFamily: textFontFamily,
             color: color,
             fontSize: size,
             fontStyle: italic ? FontStyle.italic : FontStyle.normal,
@@ -915,6 +923,7 @@ class PartitionPainter extends CustomPainter {
       text: TextSpan(
         text: text,
         style: TextStyle(
+          fontFamily: textFontFamily,
           fontSize: size,
           fontStyle: italic ? FontStyle.italic : FontStyle.normal,
         ),
@@ -932,7 +941,8 @@ class PartitionPainter extends CustomPainter {
       old.activeNotes != activeNotes ||
       old.selectedHands != selectedHands ||
       old.viewTop != viewTop ||
-      old.viewBottom != viewBottom;
+      old.viewBottom != viewBottom ||
+      old.textFontFamily != textFontFamily;
 }
 
 /// A note's drawn geometry (head centre + stem direction), used for beaming.

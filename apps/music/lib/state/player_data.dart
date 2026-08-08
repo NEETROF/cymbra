@@ -31,6 +31,14 @@ enum RenderMode { staff, synthesia, partition }
 /// convention: staff 1 is the right hand, staff 2 (and above) the left hand.
 enum Hand { left, right, both }
 
+/// How much reading help the player wants while Wait Mode holds at an onset:
+/// nothing, the awaited note's name, or its name plus the rhythmic figure.
+/// Defaults to the note's name: someone who does not know the notes will not go
+/// hunting for this setting, and the aid only ever appears once the gate has
+/// already stopped play. The rhythm level and switching it off stay one tap
+/// away in the play settings.
+enum NoteReadingAid { off, name, nameAndRhythm }
+
 /// A score note with its time bounds in milliseconds (int), more convenient to
 /// handle on the Dart side than the bridge's `BigInt`.
 class TimedNote {
@@ -295,6 +303,11 @@ abstract class PlayerData with _$PlayerData {
 
     /// Whether the most recent beat ([beatCount]) was an accented downbeat.
     @Default(false) bool lastBeatAccent,
+
+    /// How much reading help to show while Wait Mode holds at an onset. Seeded
+    /// from the persisted play preferences (like [metronomeEnabled]) and changed
+    /// through the setup modal / in-game settings.
+    @Default(NoteReadingAid.name) NoteReadingAid readingAid,
   }) = _PlayerData;
 
   bool get midiConnected => connectedDevice != null;
@@ -386,45 +399,77 @@ abstract class PlayerData with _$PlayerData {
     return best;
   }
 
-  /// Keys to highlight as "expected" on the keyboard. In Wait Mode this is the
-  /// onset gate the playhead sits on, or — while travelling between onsets — the
-  /// upcoming onset, so the preview shows the next note to play. Outside Wait
-  /// Mode it is the notes sounding under the playhead.
+  /// The instant the "expected" set refers to: in Wait Mode the onset the
+  /// playhead sits on, or — while travelling between onsets — the upcoming one,
+  /// so the preview shows the next note to play; outside Wait Mode the playhead
+  /// itself. Null when Wait Mode has no onset left to point at.
+  ///
+  /// The single source of that instant: [expectedKeys], [expectedKeysForHand]
+  /// and [expectedNotes] all resolve it here, so the keyboard highlight, the
+  /// gate and the reading aid can never disagree about which notes are expected.
+  double? get expectedTimeMs {
+    if (!waitMode) return elapsedMs;
+    if (onsetPitchesAt(elapsedMs).isNotEmpty) return elapsedMs;
+    return nextOnsetAfter(elapsedMs);
+  }
+
+  /// Whether [n] belongs to the expected set at instant [t]: its *attack* lands
+  /// there in Wait Mode (the gate validates by onset), else it is sounding under
+  /// the playhead.
+  bool _isExpectedAt(TimedNote n, double t) => waitMode
+      ? (n.startMs - t).abs() <= 1.0
+      : (n.startMs <= t + 1 && t < n.startMs + n.durationMs);
+
+  /// Keys to highlight as "expected" on the keyboard.
   Set<int> get expectedKeys {
-    if (!waitMode) return requiredNotesAt(elapsedMs);
-    final here = onsetPitchesAt(elapsedMs);
-    if (here.isNotEmpty) return here;
-    final ns = nextOnsetAfter(elapsedMs);
-    return ns == null ? const {} : onsetPitchesAt(ns);
+    final t = expectedTimeMs;
+    if (t == null) return const {};
+    return waitMode ? onsetPitchesAt(t) : requiredNotesAt(t);
+  }
+
+  /// The expected notes themselves, rather than just their pitches — the reading
+  /// aid needs each note's written spelling and rhythmic figure, which a
+  /// `Set<int>` of MIDI pitches throws away. Restricted to [visibleNotes], so a
+  /// muted hand is never named.
+  List<TimedNote> get expectedNotes {
+    final t = expectedTimeMs;
+    if (t == null) return const [];
+    return [
+      for (final n in visibleNotes)
+        if (_isExpectedAt(n, t)) n,
+    ];
   }
 
   /// The subset of [expectedKeys] belonging to one hand (staff 1 = right, staff
   /// 2+ = left), so the keyboard can colour expected keys per hand.
   Set<int> expectedKeysForHand({required bool rightHand}) {
-    // The time the expected set refers to: the onset under the playhead (or the
-    // upcoming one while travelling) in Wait Mode, else the playhead itself.
-    final double t;
-    if (waitMode) {
-      if (onsetPitchesAt(elapsedMs).isEmpty) {
-        final ns = nextOnsetAfter(elapsedMs);
-        if (ns == null) return const {};
-        t = ns;
-      } else {
-        t = elapsedMs;
-      }
-    } else {
-      t = elapsedMs;
-    }
+    final t = expectedTimeMs;
+    if (t == null) return const {};
     final result = <int>{};
     for (final n in visibleNotes) {
       final isRight = n.staff == 1;
       if (rightHand != isRight) continue;
-      final hit = waitMode
-          ? (n.startMs - t).abs() <= 1.0
-          : (n.startMs <= t + 1 && t < n.startMs + n.durationMs);
-      if (hit) result.add(n.pitch);
+      if (_isExpectedAt(n, t)) result.add(n.pitch);
     }
     return result;
+  }
+
+  /// Duration (ms) of one beat at playhead [t]: the measure's span divided by
+  /// [beats] when the measure table is known, else derived from [bpm]. Mirrors
+  /// how [metronomeBeatsCrossed] derives its ticks, so the reading aid's beat
+  /// count and the metronome agree on what a beat is. Returns 0 when neither is
+  /// known.
+  double beatDurationMsAt(double t) {
+    final starts = measureStartMs;
+    final m = measureAt(t);
+    if (m != null && beats > 0) {
+      final start = starts[m.index].toDouble();
+      final end = (m.index + 1 < starts.length
+          ? starts[m.index + 1].toDouble()
+          : songEndMs);
+      if (end > start) return (end - start) / beats;
+    }
+    return bpm > 0 ? 60000.0 / bpm : 0;
   }
 
   /// The measure containing playhead [t] and the fraction (0..1) elapsed within

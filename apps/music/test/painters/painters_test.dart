@@ -193,7 +193,13 @@ void main() {
     testWidgets('piano keyboard', tags: 'golden', (tester) async {
       await tester.pumpWidget(
         _host(
-          const PianoKeyboardPainter(layout: _layout, activeNotes: {60, 64}),
+          const PianoKeyboardPainter(
+            layout: _layout,
+            activeNotes: {60, 64},
+            // Name the loaded test face so the octave anchors render as words
+            // rather than the framework's box glyphs.
+            labelFontFamily: 'Roboto',
+          ),
           const Size(600, 160),
         ),
       );
@@ -214,6 +220,7 @@ void main() {
             layout: _layout,
             activeNotes: {60, 62},
             requiredNotes: {60, 64, 61},
+            labelFontFamily: 'Roboto',
           ),
           const Size(600, 160),
         ),

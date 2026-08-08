@@ -169,6 +169,42 @@ void main() {
     await _teardown(tester, container);
   });
 
+  testWidgets('offers the three reading-aid levels, applies on Validate', (
+    tester,
+  ) async {
+    final container = await _pumpWithModal(tester);
+
+    // Preselected from the persisted level — names the note by default.
+    expect(container.read(playerProvider).readingAid, NoteReadingAid.name);
+    expect(find.text('Note names'), findsOneWidget);
+    expect(find.text('Off'), findsOneWidget);
+    expect(find.text('Note name'), findsOneWidget);
+    expect(find.text('Name + rhythm'), findsOneWidget);
+
+    await tester.tap(find.text('Name + rhythm'));
+    await tester.pump();
+    await tester.tap(find.widgetWithText(FilledButton, 'Play'));
+    await _pumpFrames(tester);
+
+    expect(
+      container.read(playerProvider).readingAid,
+      NoteReadingAid.nameAndRhythm,
+    );
+    await _teardown(tester, container);
+  });
+
+  testWidgets('close (X) keeps the current reading-aid level', (tester) async {
+    final container = await _pumpWithModal(tester);
+
+    await tester.tap(find.text('Off'));
+    await tester.pump();
+    await tester.tap(find.byIcon(Icons.close));
+    await _pumpFrames(tester);
+
+    expect(container.read(playerProvider).readingAid, NoteReadingAid.name);
+    await _teardown(tester, container);
+  });
+
   testWidgets('single-staff piece offers no hand chooser', (tester) async {
     final container = await _pumpWithModal(
       tester,

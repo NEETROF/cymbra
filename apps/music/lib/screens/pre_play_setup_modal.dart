@@ -22,6 +22,7 @@ import '../layout/device_class.dart';
 import '../services/platform_info.dart';
 import '../state/coaching_notifier.dart';
 import '../state/notation_notifier.dart';
+import '../state/note_label.dart';
 import '../state/player_data.dart';
 import '../state/player_notifier.dart';
 import '../state/score_catalog.dart';
@@ -105,6 +106,7 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
   late String _soundId;
   late KeyboardRangeMode _range;
   late bool _keyboardVisible;
+  late NoteReadingAid _readingAid;
 
   /// When true, the modal body shows this piece's leaderboard in place of the
   /// setup controls (a toggle via the trophy in the header) — so the board is
@@ -127,6 +129,7 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
     _soundId = ref.read(selectedPianoProvider);
     _range = data.keyboardRange;
     _keyboardVisible = data.keyboardVisible;
+    _readingAid = data.readingAid;
   }
 
   @override
@@ -151,6 +154,7 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
     if (_keyboardVisible != current.keyboardVisible) {
       notifier.setKeyboardVisible(_keyboardVisible);
     }
+    if (_readingAid != current.readingAid) notifier.setReadingAid(_readingAid);
     if (_soundId != ref.read(selectedPianoProvider)) {
       ref.read(selectedPianoProvider.notifier).select(_soundId);
     }
@@ -176,6 +180,7 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
     final tempo = _tempoTile(l10n, data);
     final midi = _midiSection(l10n, data);
     final keyboardSize = _keyboardSizeSection(l10n);
+    final readingAid = _readingAidSection(l10n);
     // Hiding the keyboard only makes sense in the notation modes — Synthesia needs
     // it for the cascade — so the toggle is omitted there.
     final keyboardVisibility = data.mode != RenderMode.synthesia
@@ -212,6 +217,8 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
                 ],
               ),
               const SizedBox(height: 8),
+              readingAid,
+              const SizedBox(height: 8),
               sound,
             ]),
           )
@@ -220,6 +227,7 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
             ?hands,
             metronome,
             tempo,
+            readingAid,
             keyboardSize,
             ?keyboardVisibility,
             midi,
@@ -371,7 +379,7 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
     // Note naming: letters (C, D, E…) in English, solfège (Do, Ré, Mi…) in the
     // Latin-language locales.
     final lang = Localizations.localeOf(context).languageCode;
-    final key = _keyName(
+    final key = keyName(
       data.keyFifths,
       solfege: lang != 'en',
       frenchRe: lang == 'fr',
@@ -507,6 +515,73 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
     ],
   );
 
+  String _readingAidLabel(AppLocalizations l10n, NoteReadingAid a) =>
+      switch (a) {
+        NoteReadingAid.off => l10n.readingAidOff,
+        NoteReadingAid.name => l10n.readingAidName,
+        NoteReadingAid.nameAndRhythm => l10n.readingAidNameAndRhythm,
+      };
+
+  /// Beginner reading aid: how much the player is told about the note the score
+  /// is waiting for. A 3-way toggle like the hand chooser, with a line saying
+  /// *when* it shows up so the choice is not a mystery.
+  Widget _readingAidSection(AppLocalizations l10n) {
+    const levels = NoteReadingAid.values;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _sectionTitle(l10n.readingAidTitle),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final segment = (constraints.maxWidth - 4) / levels.length;
+            return ToggleButtons(
+              key: const Key('reading-aid-toggle'),
+              isSelected: [for (final a in levels) a == _readingAid],
+              onPressed: (i) => setState(() => _readingAid = levels[i]),
+              borderRadius: BorderRadius.circular(10),
+              borderColor: CymbraColors.surfaceContainerHighest,
+              selectedBorderColor: CymbraColors.tertiary,
+              color: CymbraColors.onSurfaceVariant,
+              selectedColor: CymbraColors.onSurface,
+              fillColor: CymbraColors.tertiary.withValues(alpha: 0.22),
+              // Fixed segments: these labels are longer than the hand
+              // chooser's, so each is pinned to its third and scaled down
+              // rather than pushing the row past the modal's width.
+              constraints: BoxConstraints(
+                minHeight: 44,
+                minWidth: segment,
+                maxWidth: segment,
+              ),
+              children: [
+                for (final a in levels)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        _readingAidLabel(l10n, a),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+              ],
+            );
+          },
+        ),
+        Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Text(
+            l10n.readingAidSubtitle,
+            style: const TextStyle(
+              color: CymbraColors.onSurfaceVariant,
+              fontSize: 12,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   /// On-screen keyboard visibility (a switch, like the metronome).
   Widget _keyboardVisibilityTile(AppLocalizations l10n) => SwitchListTile(
     contentPadding: EdgeInsets.zero,
@@ -636,50 +711,4 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
       ],
     );
   }
-}
-
-/// The tonic name of a key from its number of sharps (+) / flats (−). Uses
-/// letter names (C, D, E…) or solfège (Do, Ré/Re, Mi…) so it reads for a novice
-/// in their language. Mode is unknown from the key signature alone, so this is
-/// the conventional major-tonic reading.
-String _keyName(int fifths, {required bool solfege, required bool frenchRe}) {
-  if (!solfege) {
-    return switch (fifths) {
-      -7 => 'C♭',
-      -6 => 'G♭',
-      -5 => 'D♭',
-      -4 => 'A♭',
-      -3 => 'E♭',
-      -2 => 'B♭',
-      -1 => 'F',
-      0 => 'C',
-      1 => 'G',
-      2 => 'D',
-      3 => 'A',
-      4 => 'E',
-      5 => 'B',
-      6 => 'F♯',
-      7 => 'C♯',
-      _ => 'C',
-    };
-  }
-  final re = frenchRe ? 'Ré' : 'Re';
-  return switch (fifths) {
-    -7 => 'Do♭',
-    -6 => 'Sol♭',
-    -5 => '$re♭',
-    -4 => 'La♭',
-    -3 => 'Mi♭',
-    -2 => 'Si♭',
-    -1 => 'Fa',
-    0 => 'Do',
-    1 => 'Sol',
-    2 => re,
-    3 => 'La',
-    4 => 'Mi',
-    5 => 'Si',
-    6 => 'Fa♯',
-    7 => 'Do♯',
-    _ => 'Do',
-  };
 }

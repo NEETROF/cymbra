@@ -181,6 +181,9 @@ void main() {
   testWidgets('partition tie/slur golden', (tester) async {
     final document = sampleTieSlurDocument();
     final painter = PartitionPainter(
+      // Name the loaded test face so engraved words (tempo marks, lyrics)
+      // render as words instead of the framework's box glyphs.
+      textFontFamily: 'Roboto',
       document: document,
       systems: FakeNotationEngine().layout(document, 600),
     );
@@ -206,6 +209,9 @@ void main() {
     final document = sampleClefChangeDocument();
     // Both measures in one system so the mid-system clef change is visible.
     final painter = PartitionPainter(
+      // Name the loaded test face so engraved words (tempo marks, lyrics)
+      // render as words instead of the framework's box glyphs.
+      textFontFamily: 'Roboto',
       document: document,
       systems: [
         System(measures: Uint32List.fromList([0, 1]), staves: 2),
@@ -232,6 +238,9 @@ void main() {
   testWidgets('partition beamed golden', (tester) async {
     final document = sampleBeamedDocument();
     final painter = PartitionPainter(
+      // Name the loaded test face so engraved words (tempo marks, lyrics)
+      // render as words instead of the framework's box glyphs.
+      textFontFamily: 'Roboto',
       document: document,
       systems: FakeNotationEngine().layout(document, 600),
     );
@@ -256,6 +265,9 @@ void main() {
   testWidgets('partition golden', (tester) async {
     final document = sampleGrandStaffDocument();
     final painter = PartitionPainter(
+      // Name the loaded test face so engraved words (tempo marks, lyrics)
+      // render as words instead of the framework's box glyphs.
+      textFontFamily: 'Roboto',
       document: document,
       systems: FakeNotationEngine().layout(document, 600),
     );
@@ -283,6 +295,9 @@ void main() {
     testWidgets('partition $name-hand only golden', (tester) async {
       final document = sampleGrandStaffDocument();
       final painter = PartitionPainter(
+        // Name the loaded test face so engraved words (tempo marks, lyrics)
+        // render as words instead of the framework's box glyphs.
+        textFontFamily: 'Roboto',
         document: document,
         systems: FakeNotationEngine().layout(document, 600),
         selectedHands: hand,
