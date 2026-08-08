@@ -29,19 +29,21 @@ use tonic::{Request, Response, Status};
 use crate::catalog_edit::MetadataChanges;
 use crate::catalog_limits::CatalogAccessLimiter;
 use crate::catalog_search::{CatalogHit, CatalogQuery, SortKey, is_moderation_sort_field};
+use crate::course::CourseRepo;
 use crate::curation_rewards::{CuratorMetrics, LedgerEntry};
 use crate::curation_rewards_core::BADGES;
 use crate::curation_rewards_module::{CurationRewardsModule, CuratorRewards};
 use crate::module::{ScoreModule, UploadInput};
 use crate::proto::{
     AdminListSoundFontsRequest, AdminListSoundFontsResponse, AdminSoundFont,
-    CatalogHit as ProtoCatalogHit, CuratorBadge, CuratorReliability,
-    CuratorRewards as ProtoRewards, DeleteScoreRequest, DeleteScoreResponse,
-    DeleteSoundFontRequest, DeleteSoundFontResponse, GetCatalogScoreBytesRequest,
-    GetCatalogScoreBytesResponse, GetCatalogScoreRequest, GetCuratorReliabilityRequest,
-    GetCuratorRewardsRequest, GetMyScoreRatingRequest, GetMyScoreRatingResponse,
-    GetRatingPreviewBytesRequest, GetRatingPreviewBytesResponse, GetScoreBytesRequest,
-    GetScoreBytesResponse, ListMyScoresRequest, ListMyScoresResponse, ListRatingDeckRequest,
+    CatalogHit as ProtoCatalogHit, Course as ProtoCourse, CourseSummary as ProtoCourseSummary,
+    CuratorBadge, CuratorReliability, CuratorRewards as ProtoRewards, DeleteScoreRequest,
+    DeleteScoreResponse, DeleteSoundFontRequest, DeleteSoundFontResponse,
+    GetCatalogScoreBytesRequest, GetCatalogScoreBytesResponse, GetCatalogScoreRequest,
+    GetCourseRequest, GetCourseResponse, GetCuratorReliabilityRequest, GetCuratorRewardsRequest,
+    GetMyScoreRatingRequest, GetMyScoreRatingResponse, GetRatingPreviewBytesRequest,
+    GetRatingPreviewBytesResponse, GetScoreBytesRequest, GetScoreBytesResponse, ListCoursesRequest,
+    ListCoursesResponse, ListMyScoresRequest, ListMyScoresResponse, ListRatingDeckRequest,
     ListRatingDeckResponse, ListRewardShopRequest, ListRewardShopResponse,
     ListSavedCatalogScoresRequest, ListSavedCatalogScoresResponse, ListSoundFontsRequest,
     ListSoundFontsResponse, ProposeScoreRequest, ProposeScoreResponse, RedeemRewardRequest,
@@ -83,6 +85,10 @@ pub struct ScoreGrpc {
     /// public contributor credit. `None` (tests without attribution) simply leaves
     /// both absent.
     user: Option<Arc<dyn cymbra_user_port::UserPort>>,
+    /// Persisted course catalog (change: add-notation-courses). `None` leaves
+    /// `ListCourses`/`GetCourse` reporting the feature as unavailable; production
+    /// wires it via [`Self::with_courses`].
+    courses: Option<Arc<dyn CourseRepo>>,
 }
 
 impl ScoreGrpc {
@@ -94,7 +100,21 @@ impl ScoreGrpc {
             soundfont_store: None,
             rewards: None,
             user: None,
+            courses: None,
         }
+    }
+
+    /// Attach the persisted course catalog that backs `ListCourses`/`GetCourse`.
+    pub fn with_courses(mut self, courses: Arc<dyn CourseRepo>) -> Self {
+        self.courses = Some(courses);
+        self
+    }
+
+    /// The wired course catalog, or `UNAVAILABLE` when unconfigured.
+    fn course_repo(&self) -> Result<&Arc<dyn CourseRepo>, Status> {
+        self.courses
+            .as_ref()
+            .ok_or_else(|| Status::unavailable("course catalog unavailable"))
     }
 
     /// Attach the user directory that resolves soundfont uploader attribution
@@ -468,6 +488,63 @@ impl ScoreService for ScoreGrpc {
             });
         }
         Ok(Response::new(ListSoundFontsResponse { soundfonts }))
+    }
+
+    /// The published course catalog (change: add-notation-courses) — metadata only,
+    /// grouped by track/level; the manifest body is fetched per course by
+    /// [`Self::get_course`]. Authenticated; the catalog is the same for everyone.
+    async fn list_courses(
+        &self,
+        req: Request<ListCoursesRequest>,
+    ) -> Result<Response<ListCoursesResponse>, Status> {
+        identity(&req)?; // authenticated-only
+        let repo = self.course_repo()?;
+        let summaries = repo
+            .list_published()
+            .await
+            .map_err(|e| Status::internal(format!("list courses: {e}")))?;
+        let courses = summaries
+            .into_iter()
+            .map(|s| ProtoCourseSummary {
+                id: s.id,
+                instrument: s.instrument,
+                track: s.track,
+                level: s.level,
+                sort_order: s.sort_order,
+                schema_version: s.schema_version,
+                title_json: s.title,
+            })
+            .collect();
+        Ok(Response::new(ListCoursesResponse { courses }))
+    }
+
+    /// A single published course with its manifest blob (change:
+    /// add-notation-courses). The manifest is served opaquely; the client
+    /// interprets the blocks. An unknown/unpublished id yields an absent course.
+    async fn get_course(
+        &self,
+        req: Request<GetCourseRequest>,
+    ) -> Result<Response<GetCourseResponse>, Status> {
+        identity(&req)?; // authenticated-only
+        let repo = self.course_repo()?;
+        let id = req.into_inner().id;
+        let course = repo
+            .get(&id)
+            .await
+            .map_err(|e| Status::internal(format!("get course: {e}")))?
+            .map(|c| ProtoCourse {
+                summary: Some(ProtoCourseSummary {
+                    id: c.summary.id,
+                    instrument: c.summary.instrument,
+                    track: c.summary.track,
+                    level: c.summary.level,
+                    sort_order: c.summary.sort_order,
+                    schema_version: c.summary.schema_version,
+                    title_json: c.summary.title,
+                }),
+                content_json: c.content,
+            });
+        Ok(Response::new(GetCourseResponse { course }))
     }
 
     /// Admin list of the SoundFont catalog (change:

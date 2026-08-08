@@ -137,7 +137,10 @@ Rollback: additive tables/RPCs/UI; disabling the section leaves play unaffected.
 
 ## Open Questions
 
-- **Media hosting** (object storage/CDN) for `video`/`image` — deferred; the first course avoids media.
+- **Media hosting** (object storage/CDN) for `video`/`image` — **decided: provision a dedicated OVH
+  bucket for course media** (mirroring the private sound-font bucket), referenced by URL in
+  manifests. The bucket + a delivery route are reserved now; the first course still avoids media, and
+  the upload/authoring flow for media is wired when the first media-bearing course needs it.
 - **First-party catalogue**: proposed in `catalogue.md` (~50 courses, 3 tracks, leveled); the first
   wave to author fully is listed there. Remaining courses are a content backlog.
 - **Badge design**: one badge per course vs a "first course" + "all courses" pair (start: one per course).

@@ -4,11 +4,11 @@
 
 ## 1. Backend: course storage + delivery
 
-- [ ] 1.1 Migration: `music.courses` (`id`, `status`, `sort_order`, `schema_version`, `title JSONB` inline-i18n, `content JSONB` opaque manifest, timestamps); index for listing
-- [ ] 1.2 `CourseRepo` trait + Postgres impl in `cymbra-music` (list published, get by id); minimal server-side validation (well-formed JSON + `schemaVersion` present) — content otherwise opaque
-- [ ] 1.3 gRPC `ListCourses` / `GetCourse` on `ScoreService` (proto + `melos gen-grpc`), returning metadata + the manifest blob; music-scope auth consistent with other content
-- [ ] 1.4 Seed script for first-party courses (inserts manifests, like sound fonts/scores)
-- [ ] 1.5 Rust tests (mockall repo double) for list/get + validation; `cargo llvm-cov` ≥ 80% on the core
+- [x] 1.1 Migration `0019_courses.sql`: `music.courses` (`id`, `status`, `instrument`, `track`, `level`, `sort_order`, `schema_version`, `title JSONB` inline-i18n, `content JSONB` opaque manifest, timestamps) + `courses_listing_idx`
+- [x] 1.2 `CourseRepo` trait + `PgCourseRepo` + hand `FakeCourseRepo` in `cymbra-music` (`course.rs`): `list_published` (summaries, grouped/ordered), `get` (full manifest), `upsert` (seed). Validation is the `content jsonb` cast (rejects malformed JSON); content otherwise opaque
+- [x] 1.3 gRPC `ListCourses` / `GetCourse` on `ScoreService` (proto + build.rs regen), returning summaries + the manifest blob; authenticated (`identity`), wired in `server/src/main.rs` via `.with_courses(...)`
+- [ ] 1.4 Seed script for first-party courses — deferred to §6 (needs the authored manifests); `upsert` + the migration already support seeding
+- [x] 1.5 Rust unit tests for list/get/upsert (grouping, published filter, idempotent re-seed) — 3 tests green, clippy + fmt clean; workspace `llvm-cov` gate runs at §7.3
 
 ## 2. Client: manifest model + forward-compatible block engine
 
