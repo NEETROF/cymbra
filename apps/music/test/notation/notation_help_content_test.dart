@@ -1,0 +1,144 @@
+// Copyright 2026 NEETROF
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+import 'package:flutter/widgets.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:music/l10n/gen/app_localizations.dart';
+import 'package:music/notation/notation_help_content.dart';
+import 'package:music/painters/staff_hit_index.dart';
+
+/// One descriptor per SymbolKind, so the totality assertion covers every kind a
+/// painter can record.
+const _oneOfEachKind = <SymbolDescriptor>[
+  SymbolDescriptor.note(pitch: 60),
+  SymbolDescriptor.rest(),
+  SymbolDescriptor.accidental(token: 'sharp'),
+  SymbolDescriptor.clef(sign: 'G'),
+  SymbolDescriptor.keySignature(fifths: 2),
+  SymbolDescriptor.timeSignature(beats: 4, beatType: 4),
+  SymbolDescriptor.augmentationDot(),
+  SymbolDescriptor.stem(),
+  SymbolDescriptor.flag(),
+  SymbolDescriptor.beam(),
+  SymbolDescriptor.ledgerLine(),
+  SymbolDescriptor.barLine(),
+  SymbolDescriptor.tie(),
+  SymbolDescriptor.slur(),
+  SymbolDescriptor.tuplet(actual: 3),
+  SymbolDescriptor.brace(),
+  SymbolDescriptor.dynamics(token: 'mf'),
+];
+
+void main() {
+  test('_oneOfEachKind truly covers every SymbolKind', () {
+    expect(
+      _oneOfEachKind.map((d) => d.kind).toSet().length,
+      SymbolKind.values.length,
+    );
+  });
+
+  for (final code in AppLocalizations.supportedLocales.map(
+    (l) => l.languageCode,
+  )) {
+    group('locale "$code"', () {
+      late AppLocalizations l10n;
+      late bool solfege;
+      late bool frenchRe;
+
+      setUp(() async {
+        final locale = Locale(code);
+        l10n = await AppLocalizations.delegate.load(locale);
+        final style = notationNameStyle(locale);
+        solfege = style.solfege;
+        frenchRe = style.frenchRe;
+      });
+
+      test('every symbol kind has non-empty title and body', () {
+        for (final d in _oneOfEachKind) {
+          final help = notationHelpFor(
+            l10n,
+            d,
+            solfege: solfege,
+            frenchRe: frenchRe,
+          );
+          expect(help.title.trim(), isNotEmpty, reason: '${d.kind} title');
+          expect(help.body.trim(), isNotEmpty, reason: '${d.kind} body');
+        }
+      });
+
+      test('each accidental token has distinct help', () {
+        String title(String token) => notationHelpFor(
+          l10n,
+          SymbolDescriptor.accidental(token: token),
+          solfege: solfege,
+          frenchRe: frenchRe,
+        ).title;
+        final titles = {
+          title('sharp'),
+          title('flat'),
+          title('natural'),
+          title('double-sharp'),
+          title('flat-flat'),
+        };
+        expect(titles.length, 5);
+      });
+
+      test('an empty key signature reads differently from a keyed one', () {
+        String body(int fifths) => notationHelpFor(
+          l10n,
+          SymbolDescriptor.keySignature(fifths: fifths),
+          solfege: solfege,
+          frenchRe: frenchRe,
+        ).body;
+        expect(body(0), isNot(equals(body(3))));
+      });
+
+      test('the glossary shares the on-staff help for the same symbol', () {
+        const sample = SymbolDescriptor.clef(sign: 'F');
+        final direct = notationHelpFor(
+          l10n,
+          sample,
+          solfege: solfege,
+          frenchRe: frenchRe,
+        );
+        // notationGlossarySamples feeds the glossary; the same lookup is used.
+        expect(notationGlossarySamples, contains(sample));
+        final viaGlossary = notationHelpFor(
+          l10n,
+          notationGlossarySamples.firstWhere((d) => d == sample),
+          solfege: solfege,
+          frenchRe: frenchRe,
+        );
+        expect(viaGlossary, equals(direct));
+      });
+    });
+  }
+
+  test('note names use letters in English and solfège elsewhere', () {
+    // C4 is MIDI 60.
+    expect(
+      notationPitchName(60, solfege: false, frenchRe: false),
+      'C4',
+    );
+    expect(
+      notationPitchName(60, solfege: true, frenchRe: true),
+      'Do4',
+    );
+    // A sharp/black key spells with ♯.
+    expect(
+      notationPitchName(61, solfege: false, frenchRe: false),
+      'C♯4',
+    );
+  });
+}

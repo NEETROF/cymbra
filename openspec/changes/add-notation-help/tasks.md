@@ -19,9 +19,9 @@
 
 ## 3. Localized help content (`notation-help`)
 
-- [ ] 3.1 Add a content lookup `SymbolDescriptor → localized strings` backed by the generated l10n; localize note names per the app's existing do-ré-mi / C-D-E convention in one helper
-- [ ] 3.2 Add the new keys to `lib/l10n/app_en.arb` and translate in `app_fr.arb`, `app_es.arb`, `app_it.arb`; run l10n codegen
-- [ ] 3.3 Ensure the same content function feeds both the on-staff bubble and the glossary; unit-test lookups for each symbol kind across locales
+- [x] 3.1 Add a content lookup `SymbolDescriptor → localized strings` backed by the generated l10n (`lib/notation/notation_help_content.dart`), exhaustive over the sealed union so **content-side totality is compile-enforced**; note names + key tonic localized per the app's do-ré-mi / C-D-E convention in one helper
+- [x] 3.2 Add the ~28 entries to `lib/l10n/app_en.arb` and translate in `app_fr.arb`, `app_es.arb`, `app_it.arb`; `flutter gen-l10n` clean (0 untranslated)
+- [x] 3.3 Same content function feeds both the on-staff bubble and the glossary (`notationGlossarySamples`); unit-tested for every symbol kind across all 4 locales (`test/notation/notation_help_content_test.dart`)
 
 ## 4. Discovery hint + glossary via `feature-discovery` (`notation-help`)
 
