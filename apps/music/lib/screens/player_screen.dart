@@ -1222,11 +1222,13 @@ class _PartitionViewState extends ConsumerState<_PartitionView> {
   /// Auto-scroll **per staff line (system)**, not per measure: the vertical
   /// target depends only on which system the cursor is in, so the view advances
   /// once when the playhead moves to a new line and stays put while it crosses
-  /// measures within the same line (no back-and-forth jitter). The current line
-  /// is anchored near the top of the viewport (~30%) so the next line is always
-  /// visible below it, full size and in place — look-ahead by scroll position,
-  /// not by overlay. Only while playing, so manual scrolling is undisturbed
-  /// when paused.
+  /// measures within the same line (no back-and-forth jitter). The scroll
+  /// budget goes to the **current + next** pair: the pair is centred when the
+  /// viewport is tall enough, and on shorter viewports the current line hugs
+  /// the top so the next line — the notes the player must read in a moment —
+  /// stays fully visible below. The already-played line above earns no space
+  /// (it is dimmed anyway); look-ahead is the scroll position, not an overlay.
+  /// Only while playing, so manual scrolling is undisturbed when paused.
   void _followCursor(
     PlayerData data,
     List<System> systems,
@@ -1242,10 +1244,11 @@ class _PartitionViewState extends ConsumerState<_PartitionView> {
       final max = _scroll.position.maxScrollExtent;
       if (max <= 0) return; // everything fits — no scrolling
       final viewport = _scroll.position.viewportDimension;
-      final target = (painter.systemTopY(sysIndex) - viewport * 0.30).clamp(
+      final lead = ((viewport - painter.systemStride * 2) / 2).clamp(
         0.0,
-        max,
+        viewport * 0.30,
       );
+      final target = (painter.systemTopY(sysIndex) - lead).clamp(0.0, max);
       // Only scroll when the line changes — re-issuing every frame would restart
       // (and stall) the animation.
       if (_lastScrollTarget != null &&

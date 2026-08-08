@@ -48,11 +48,12 @@ shares `musicxml-core` so layout changes propagate there by design.
 
 ### D1 — Look-ahead scroll replaces the NEXT overlay
 
-`_followCursor` anchors the top of the current system at 30% of the viewport
-height (clamped to scroll extents) instead of centring it. With systems ~340 px
-tall, any viewport ≥ ~500 px shows the full current line plus the next line
-below it. `_NextLineOverlay`, `_buildNextLineOverlay`, and their heuristics are
-deleted. Rationale: the overlay was compensating for the scroll policy; fixing
+`_followCursor` gives the scroll budget to the current + next pair: the pair is
+centred when the viewport is tall enough, and on shorter viewports the lead
+above the current system collapses to zero (capped at 30% of the viewport) so
+the current line hugs the top and the next line stays fully visible below —
+the dimmed, already-played line above earns no space. `_NextLineOverlay`,
+`_buildNextLineOverlay`, and their heuristics are deleted. Rationale: the overlay was compensating for the scroll policy; fixing
 the policy removes an entire widget + heuristic surface and the occlusion it
 caused. Alternative considered: keep the overlay but reposition/shrink it —
 rejected, still occludes and still duplicates content.
