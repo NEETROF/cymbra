@@ -32,7 +32,8 @@ to auto-dismiss (`PopScope(canPop: false)`, `barrierDismissible: false` in
   on the way out of an abandoned one.
 - Never cost the user anything: no blocked exit, no extra mandatory choice, no
   confirmation dialog, no listening gate.
-- Suppress precisely: per score, once, using server truth for "already rated".
+- Suppress precisely: per score, only once answered, using server truth for
+  "already rated".
 - Keep the rating semantics identical to the deck — same operation, same
   star→verdict derivation, same rewards path.
 
@@ -41,7 +42,7 @@ to auto-dismiss (`PopScope(canPop: false)`, `barrierDismissible: false` in
 - Touching the swipe deck, its listening lock, or the library banner's thresholds.
 - A new reward kind, or changing point values / caps.
 - Rating bundled or user-contributed scores (they are not in the catalog).
-- Server-side enforcement of "prompt at most once" — that is a client UX concern.
+- Server-side memory of refusals — that is a client UX concern.
 
 ## Decisions
 
@@ -91,7 +92,7 @@ the player is often reached without a fresh search (saved library, offline cache
 ### D4 — Eligibility is a pure function; "played enough" is 25% of the piece's notes
 
 `shouldPromptRating(...)` is a pure, host-testable predicate over
-`(signedIn, catalogId, ratedState, alreadyOffered, playedNoteFraction)`, mirroring
+`(signedIn, catalogId, ratedState, declined, playedNoteFraction)`, mirroring
 `shouldInviteToRate`. The end-of-run case trivially satisfies the playback term.
 
 Playback is measured **in notes**: the share of the score's notes the playhead has
@@ -124,7 +125,7 @@ the user struck correctly. That keeps the criterion meaningful for an unscored
 practice run and for a beginner who misses a lot; in Wait Mode the two coincide
 anyway, since the gate does not advance until the note is played. The degenerate
 case it admits — pressing play and walking away — is accepted: the prompt is
-one-shot per score and dismissible in one tap. Note that a measure-range practice
+refusable in one tap. Note that a measure-range practice
 run over a small slice of a long piece will not reach 25%, which is the intended
 behaviour.
 
@@ -132,24 +133,33 @@ behaviour.
 holds. A chordal texture therefore reaches 25% at roughly the same point in the
 music as a monophonic one, so no per-onset de-duplication is worth the complexity.
 
-### D5 — Per-score suppression: a bounded LRU of offered catalog ids in preferences
+### D5 — Per-score suppression, triggered by an answer rather than by display
 
-Per the product decision, suppression is **per score, not a global nag budget**:
-each score is offered at most once, so the prompt volume is bounded by the number
-of distinct scores the user actually plays — no global counter, no cross-score
-snooze. The memory is one preferences key holding an ordered list of catalog ids,
-capped (default 200, oldest dropped) so it cannot grow without bound; the
-insert/trim logic is a pure function. The id is recorded when the prompt is
-**shown**, not when it is answered, so a dismissal and a rating retire it alike.
+Per the product decision, suppression is **per score, not a global nag budget**. What
+retires a score is an *answer*: a rating, or an explicit refusal. Being shown the
+prompt does not, which is the point — closing a summary or dismissing the exit sheet
+is how you leave the player, not a verdict on the piece, and treating it as one
+silently burns most of the rating opportunities the feature exists to create.
+
+The consequence is deliberate: an un-rated, un-refused catalog score is offered on
+**every** run. So the refusal control cannot live only on the exit sheet — it is the
+user's sole escape hatch short of rating, and it belongs on every surface that shows
+the prompt. The row owns it, so the two surfaces cannot diverge: the sheet's refusal
+also leaves the player, the summary's simply removes the row.
+
+Only refusals are persisted (one preferences key, an ordered id list, capped at 200,
+oldest dropped, insert/trim a pure function). A rating needs no entry: the score is
+then rated, which the server reports on the next open. Dismissing a surface by its
+barrier or a back gesture records nothing — only the refusal control does.
 
 This deliberately does **not** reuse `RatingActivity` (`lastAt` + `dismissals`),
 which stays the library banner's own state. The two surfaces do not throttle each
 other: the banner asks "rate some scores you haven't played", the prompt asks "rate
 this one you just played", and a user who ignores one has not answered the other.
 
-*Trade-off:* the memory is device-local, so a user on a second device can be
-offered the same score once more — but only if they have not rated it, since D3's
-server read still suppresses it. Rated scores never re-prompt anywhere.
+*Trade-off:* refusals are device-local, so a second device can offer a score the user
+refused on the first. Ratings are not — the server read suppresses those everywhere,
+which is the case that matters.
 
 ### D6 — Playing records engagement, on both the bytes path and the session ingest
 
@@ -205,18 +215,21 @@ localized message — never a gRPC string.
 - **One extra RPC per player open** → a single indexed row read on the rating
   table, issued once per open and only for catalog scores; it is fired without
   awaiting on the play path, so a slow or failed read only means "no prompt".
-- **Users may perceive the prompt as nagging** → bounded by construction: at most
-  one prompt per distinct score played, never for an already-rated score, and never
-  for bundled scores (which is what a new user mostly plays).
+- **Users may perceive the prompt as nagging** → the prompt returns on every run of
+  an un-answered catalog score, which is the accepted cost of not treating "I closed
+  the summary" as a refusal. Bounded by never prompting for an already-rated or
+  refused score, and never for bundled scores (what a new user mostly plays); the
+  refusal control on both surfaces is the one-tap way out. Worth watching once real
+  usage exists — if it grates, a cap on offers per score is the next lever.
 - **Rating quality could drop** (a frustrated abandoner rates the piece down for
   being hard, not bad) → the existing safeguards absorb this: ratings never change
   moderation status, `needs_review` needs a minimum rating count, and the honesty
   settlement scores a rater against community consensus. Worth watching in the
   aggregate after release rather than pre-empting with a gate.
-- **Device-local prompt memory** → a reinstall or a second device can offer an
-  un-rated score once more. Accepted: the server read already prevents the only
-  outcome that matters (re-prompting a rated score), and syncing prompt history
-  server-side is not worth an RPC.
+- **Device-local refusal memory** → a reinstall or a second device can offer a score
+  refused elsewhere. Accepted: the server read already prevents the only outcome that
+  matters (re-prompting a *rated* score), and syncing refusals server-side is not
+  worth an RPC.
 
 ## Migration Plan
 

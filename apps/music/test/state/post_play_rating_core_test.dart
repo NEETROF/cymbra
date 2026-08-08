@@ -91,14 +91,14 @@ void main() {
       bool signedIn = true,
       String? catalogId = 'c1',
       RatedState rated = RatedState.notRated,
-      bool alreadyOffered = false,
+      bool declined = false,
       double playedFraction = 1.0,
       bool reachedEnd = false,
     }) => shouldPromptRating(
       signedIn: signedIn,
       catalogId: catalogId,
       rated: rated,
-      alreadyOffered: alreadyOffered,
+      declined: declined,
       playedFraction: playedFraction,
       reachedEnd: reachedEnd,
     );
@@ -111,7 +111,7 @@ void main() {
       expect(prompt(signedIn: false), isFalse);
       expect(prompt(catalogId: null), isFalse); // bundled / contributed score
       expect(prompt(rated: RatedState.rated), isFalse);
-      expect(prompt(alreadyOffered: true), isFalse);
+      expect(prompt(declined: true), isFalse);
       expect(prompt(playedFraction: 0.24), isFalse);
     });
 
@@ -139,27 +139,27 @@ void main() {
         isFalse,
       );
       expect(
-        prompt(playedFraction: 0, reachedEnd: true, alreadyOffered: true),
+        prompt(playedFraction: 0, reachedEnd: true, declined: true),
         isFalse,
       );
     });
   });
 
-  group('rememberOffered', () {
+  group('rememberDeclined', () {
     test('appends in order and does not mutate the input', () {
       const start = <String>['a', 'b'];
-      final next = rememberOffered(start, 'c');
+      final next = rememberDeclined(start, 'c');
       expect(next, ['a', 'b', 'c']);
       expect(start, ['a', 'b']);
     });
 
     test('re-offering an id moves it to the end instead of duplicating', () {
-      expect(rememberOffered(['a', 'b', 'c'], 'a'), ['b', 'c', 'a']);
+      expect(rememberDeclined(['a', 'b', 'c'], 'a'), ['b', 'c', 'a']);
     });
 
     test('trims the oldest entries at the cap', () {
       final full = [for (var i = 0; i < 5; i++) 'id$i'];
-      expect(rememberOffered(full, 'new', max: 5), [
+      expect(rememberDeclined(full, 'new', max: 5), [
         'id1',
         'id2',
         'id3',
@@ -167,13 +167,13 @@ void main() {
         'new',
       ]);
       // Already-present ids do not grow the list, so nothing is trimmed.
-      expect(rememberOffered(full, 'id0', max: 5).length, 5);
+      expect(rememberDeclined(full, 'id0', max: 5).length, 5);
     });
 
     test('the default cap keeps the persisted value bounded', () {
       var offered = <String>[];
       for (var i = 0; i < kRatingPromptMemoryMax + 50; i++) {
-        offered = rememberOffered(offered, 'id$i');
+        offered = rememberDeclined(offered, 'id$i');
       }
       expect(offered.length, kRatingPromptMemoryMax);
       expect(offered.last, 'id${kRatingPromptMemoryMax + 49}');

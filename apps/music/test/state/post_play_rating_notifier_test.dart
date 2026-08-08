@@ -147,9 +147,20 @@ void main() {
       expect(await eligible(c), isFalse);
     });
 
-    test('a score already offered is never offered again', () async {
+    test('an explicitly-refused score is never offered again', () async {
       final c = build(storedPrefs: {PostPlayRating.prefsKey: 'other,c1'});
       expect(await eligible(c), isFalse);
+    });
+
+    test('being shown the prompt does NOT consume the offer', () async {
+      // The behaviour the user asked for: only a rating or an explicit refusal
+      // retires a score. Simply having seen the stars and walked away must leave
+      // the offer standing for the next run.
+      final c = build();
+      expect(await eligible(c), isTrue);
+      expect(prefs.store[PostPlayRating.prefsKey], isNull);
+      // Still eligible after any number of re-reads.
+      expect(await eligible(c), isTrue);
     });
 
     test('too little played does not prompt on an early exit', () async {
@@ -161,11 +172,11 @@ void main() {
     });
   });
 
-  group('markOffered', () {
-    test('records the score and persists it', () async {
+  group('decline', () {
+    test('records the refusal and persists it', () async {
       final c = build();
       await c.read(postPlayRatingProvider.future);
-      await c.read(postPlayRatingProvider.notifier).markOffered('c1');
+      await c.read(postPlayRatingProvider.notifier).decline('c1');
       expect(prefs.store[PostPlayRating.prefsKey], 'c1');
       // …and the same score is no longer eligible.
       expect(c.read(postPlayRatingEligibleProvider(reachedEnd: true)), isFalse);
@@ -174,14 +185,14 @@ void main() {
     test('appends to what a previous launch stored', () async {
       final c = build(storedPrefs: {PostPlayRating.prefsKey: 'old1,old2'});
       await c.read(postPlayRatingProvider.future);
-      await c.read(postPlayRatingProvider.notifier).markOffered('c1');
+      await c.read(postPlayRatingProvider.notifier).decline('c1');
       expect(prefs.store[PostPlayRating.prefsKey], 'old1,old2,c1');
     });
 
-    test('is a no-op for a score already offered', () async {
+    test('is a no-op for a score already refused', () async {
       final c = build(storedPrefs: {PostPlayRating.prefsKey: 'c1'});
       await c.read(postPlayRatingProvider.future);
-      await c.read(postPlayRatingProvider.notifier).markOffered('c1');
+      await c.read(postPlayRatingProvider.notifier).decline('c1');
       expect(prefs.store[PostPlayRating.prefsKey], 'c1'); // not duplicated
     });
   });
@@ -212,8 +223,11 @@ void main() {
       final data = c.read(postPlayRatingProvider).requireValue;
       expect(data.submittedStars, 4);
       expect(data.failed, isFalse);
-      // The score counts as rated straight away, so nothing re-prompts.
+      // The score counts as rated straight away, so nothing re-prompts…
       expect(data.rated, RatedState.rated);
+      // …and a rating needs no entry in the refusal list to achieve that.
+      expect(prefs.store[PostPlayRating.prefsKey], isNull);
+      expect(c.read(postPlayRatingEligibleProvider(reachedEnd: true)), isFalse);
     });
 
     test('folds stars onto the deck\'s verdict scale', () async {

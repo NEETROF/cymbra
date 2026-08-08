@@ -8,8 +8,8 @@ control whose verdict is derived exactly as the swipe deck derives it (so a star
 and a swipe fold into the same single rating). Submitting the rating SHALL go through
 the same rating operation as the deck — there is at most one rating per user per score,
 and re-rating upserts. The affordance SHALL be optional: it MUST NOT become a fourth
-mandatory choice, MUST NOT dismiss the summary, and leaving without rating MUST have no
-consequence beyond retiring the prompt for that score.
+mandatory choice, MUST NOT dismiss the summary, and leaving without answering it MUST
+have no consequence at all.
 
 Unlike the deck, the offer SHALL NOT be gated on a listening threshold: the player has
 just performed the piece, which is stronger evidence than a preview.
@@ -75,7 +75,7 @@ It SHALL NOT ask the user to confirm the exit.
 A played score SHALL be eligible for the rating prompt only when **all** of the
 following hold: the user is signed in; the score is a **public-catalog** score (bundled
 and user-contributed scores are not rateable and MUST NOT prompt); the caller has **not
-already rated** it; the score has **not already been offered** for rating on this
+already rated** it; the player has **not explicitly refused** to rate it on this
 device; and the playhead has passed at least a configured **minimum share of the
 piece's notes** — 25% by default. That share SHALL be counted **in notes** (how many of
 the score's notes the playhead reached, over the score's total note count), not in
@@ -99,6 +99,11 @@ is unknown because the device is offline — the prompt MUST NOT be shown.
 #### Scenario: An already-rated score never prompts
 
 - **WHEN** the caller has already rated the played catalog score, on this or another device
+- **THEN** no rating prompt is presented
+
+#### Scenario: A refused score never prompts
+
+- **WHEN** the player has explicitly refused to rate the played score
 - **THEN** no rating prompt is presented
 
 #### Scenario: A negligible run does not prompt
@@ -135,39 +140,64 @@ is unknown because the device is offline — the prompt MUST NOT be shown.
   a failed read)
 - **THEN** no rating prompt is presented
 
-### Requirement: One prompt per score, ever
+### Requirement: A score stops being offered only when rated or refused
 
-Suppression SHALL be **per catalog score**, not a global nag budget: each score SHALL be
-offered for rating **at most once** on a device. Being offered retires the score from
-future prompts whether the user rated it or dismissed it, so replaying the same piece
-never prompts again. There SHALL be no global dismissal count and no cross-score snooze
-window — the mechanism is bounded by the number of distinct scores the user actually
-plays. The memory of offered scores SHALL be persisted through the injectable
-preferences seam and SHALL be bounded in size so it cannot grow without limit.
+Suppression SHALL be **per catalog score**, never a global nag budget, and it SHALL
+be triggered only by an **answer**: rating the score, or explicitly refusing to rate
+it. Merely having been *shown* the prompt MUST NOT retire a score — closing a
+summary or dismissing the exit sheet to leave the player is not a statement about
+the piece, so the offer stands and returns on the next run.
 
-#### Scenario: The same score is offered only once
+Every surface that shows the prompt SHALL therefore expose an explicit refusal
+control, since that (or a rating) is the only way for the user to stop being asked
+about a piece. A refusal SHALL be persisted through the injectable preferences seam
+and the persisted value SHALL be bounded in size so it cannot grow without limit.
+There SHALL be no global dismissal count and no cross-score snooze window.
 
-- **WHEN** the user has already been offered the rating prompt for a score, and plays it again
-- **THEN** no rating prompt is presented, whatever they did with the first offer
+#### Scenario: Being shown the prompt does not consume the offer
 
-#### Scenario: Dismissing one score does not silence others
+- **WHEN** the prompt is shown and the player leaves without rating or refusing
+- **THEN** nothing is recorded, and the next run of that score offers it again
 
-- **WHEN** the user dismisses the prompt for one score and then plays a different eligible score
+#### Scenario: A rating ends the offers
+
+- **WHEN** the player rates the score
+- **THEN** it is never offered again, on this or any other device
+
+#### Scenario: An explicit refusal ends the offers
+
+- **WHEN** the player uses the refusal control
+- **THEN** the refusal is recorded and that score is never offered again on this device
+
+#### Scenario: Every surface can refuse
+
+- **WHEN** the prompt is shown, on either the summary or the exit sheet
+- **THEN** an explicit refusal control is available on it
+
+#### Scenario: Dismissing a surface is not a refusal
+
+- **WHEN** the exit sheet is dismissed by its barrier or a back gesture rather than
+  its refusal control
+- **THEN** no refusal is recorded and the offer stands
+
+#### Scenario: Refusing one score does not silence others
+
+- **WHEN** the player refuses one score and then plays a different eligible score
 - **THEN** the rating prompt is presented for that other score
 
-#### Scenario: No global stop after repeated dismissals
+#### Scenario: No global stop after repeated refusals
 
-- **WHEN** the user has dismissed the prompt on many different scores
-- **THEN** a newly-played, never-offered eligible score still presents the prompt
+- **WHEN** the player has refused many different scores
+- **THEN** a newly-played, never-refused eligible score still presents the prompt
 
-#### Scenario: The offered-score memory survives a restart
+#### Scenario: A refusal survives a restart
 
-- **WHEN** the app is restarted after a score was offered
+- **WHEN** the app is restarted after a score was refused
 - **THEN** that score is still not offered again
 
-#### Scenario: The offered-score memory stays bounded
+#### Scenario: The refusal memory stays bounded
 
-- **WHEN** the user has been offered more scores than the retained maximum
+- **WHEN** the player has refused more scores than the retained maximum
 - **THEN** the persisted memory keeps at most that maximum, discarding the oldest entries
 
 ### Requirement: A prompt failure is never surfaced as a technical error

@@ -286,7 +286,12 @@ void main() {
       expect(actions, [SummaryAction.close]);
     });
 
-    testWidgets('quitting without rating records nothing', (tester) async {
+    testWidgets('quitting without answering leaves the offer standing', (
+      tester,
+    ) async {
+      // The point of the design change: closing the summary to leave is not a
+      // statement about the piece, so nothing is recorded and the next run asks
+      // again.
       final c = _container();
       addTearDown(c.dispose);
       final actions = await _openSummary(tester, c);
@@ -294,8 +299,32 @@ void main() {
       await tester.pumpAndSettle();
       expect(actions, [SummaryAction.close]);
       expect(rating.submissions, isEmpty);
-      // …but the score is retired from any future prompt.
+      expect(prefs.store[PostPlayRating.prefsKey], isNull);
+      // Re-opening the summary offers it again.
+      await tester.tap(find.text('go'));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('post-play-star-5')), findsOneWidget);
+    });
+
+    testWidgets('refusing explicitly hides the row and retires the score', (
+      tester,
+    ) async {
+      final c = _container();
+      addTearDown(c.dispose);
+      final actions = await _openSummary(tester, c);
+      await tester.tap(find.byKey(const Key('post-play-rating-skip')));
+      await tester.pumpAndSettle();
+      // The row is gone but the modal stays, still awaiting an explicit choice.
+      expect(find.byKey(const Key('post-play-star-5')), findsNothing);
+      expect(actions, isEmpty);
+      expect(find.text('Retry'), findsOneWidget);
       expect(prefs.store[PostPlayRating.prefsKey], 'c1');
+      // And a later summary for the same score never offers it again.
+      await tester.tap(find.byIcon(Icons.close));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('go'));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('post-play-star-5')), findsNothing);
     });
 
     testWidgets(
@@ -365,7 +394,7 @@ void main() {
         (catalogId: 'c1', verdict: RatingVerdict.love, stars: 5),
       ]);
       // The sheet stays until dismissed (the thanks state), then leaving works.
-      await tester.tap(find.byKey(const Key('post-play-rating-skip')));
+      await tester.tapAt(const Offset(10, 10)); // the barrier
       await tester.pumpAndSettle();
       expect(find.text('open'), findsOneWidget);
     });
@@ -390,7 +419,7 @@ void main() {
       await tester.tap(find.byKey(const Key('post-play-star-1')));
       await tester.pumpAndSettle();
       expect(find.textContaining('could not be saved'), findsOneWidget);
-      await tester.tap(find.byKey(const Key('post-play-rating-skip')));
+      await tester.tapAt(const Offset(10, 10)); // the barrier
       await tester.pumpAndSettle();
       expect(find.text('open'), findsOneWidget);
     });
@@ -419,12 +448,14 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byKey(const Key('post-play-star-3')), findsOneWidget);
       // A back gesture while the sheet is up dismisses the sheet — and then the
-      // exit completes, rather than the guard re-opening a second prompt.
+      // exit completes, rather than the guard re-opening a second prompt. It is
+      // not a refusal either: nothing is recorded.
       await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
       expect(find.byKey(const Key('post-play-star-3')), findsNothing);
       expect(find.text('open'), findsOneWidget);
       expect(rating.submissions, isEmpty);
+      expect(prefs.store[PostPlayRating.prefsKey], isNull);
     });
 
     testWidgets('re-entering the player does not prompt again', (tester) async {

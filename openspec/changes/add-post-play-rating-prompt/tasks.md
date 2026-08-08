@@ -23,8 +23,8 @@
 ## 4. App — eligibility core (pure, host-testable)
 
 - [x] 4.1 Add a pure `playedNoteFraction(List<TimedNote> notes, double furthestElapsedMs)` returning the share of the score's notes the playhead has passed — binary search over the already-sorted `notes`, counted over the whole score (not `visibleNotes`), 0 for an empty score.
-- [x] 4.2 Add a pure `shouldPromptRating(...)` predicate over `(signedIn, catalogId, ratedState, alreadyOffered, playedNoteFraction)` mirroring `shouldInviteToRate`, with the played-enough term as `fraction >= 0.25` and the threshold as a named constant.
-- [x] 4.3 Add the pure LRU insert/trim for the offered-score memory (ordered ids, cap 200, oldest dropped).
+- [x] 4.2 Add a pure `shouldPromptRating(...)` predicate over `(signedIn, catalogId, ratedState, declined, playedNoteFraction)` mirroring `shouldInviteToRate`, with the played-enough term as `fraction >= 0.25` and the threshold as a named constant.
+- [x] 4.3 Add the pure LRU insert/trim for the refused-score memory (ordered ids, cap 200, oldest dropped).
 - [x] 4.4 Unit tests: `playedNoteFraction` at 0 / boundary / all notes, on an empty score, with chords sharing a `startMs`, and unaffected by hand muting; every eligibility term individually false; unknown rated state suppresses; end-of-run satisfies the playback term; LRU keeps insertion order, dedupes, and trims at the cap.
 
 ## 5. App — playback high-water mark
@@ -36,13 +36,13 @@
 
 - [x] 6.1 Add a `PostPlayRatingPrompt` Riverpod notifier owning the resolved rated state, the offered-score memory (through the preferences seam), eligibility, and a `submit(stars)` action going through `ratingServiceProvider` — no widget touches the service.
 - [x] 6.2 Resolve the caller's rating once when the player opens a catalog score, without awaiting it on the play path; a failed or pending read means "unknown" → no prompt.
-- [x] 6.3 Record the catalog id in the offered memory when the prompt is **shown**, so a dismissal and a rating retire it alike; persist best-effort.
+- [x] 6.3 Record a refusal ONLY on an explicit "not this one" — never on mere display, and not needed on a rating (the score becomes rated); persist best-effort. Both surfaces expose the refusal control.
 - [x] 6.4 Keep submission failures inside the notifier's `AsyncValue`, surfacing at most a localized message (no gRPC/exception string).
 - [x] 6.5 Notifier tests with a mockito-generated `RatingService` mock injected via `ProviderScope` overrides: eligible → prompt; already rated → no prompt; already offered → no prompt; guest → no prompt; submit sends the derived verdict; a failed submit leaves a localized error and no crash.
 
 ## 7. App — the shared rating widget and the two surfaces
 
-- [x] 7.1 Build a compact shared star-row widget (1–5 stars, thanks state after submit) used by both surfaces, with no listening lock.
+- [x] 7.1 Build a compact shared star-row widget (1–5 stars, thanks state after submit, explicit refusal control) used by both surfaces, with no listening lock.
 - [x] 7.2 Mount it in `session_summary_modal.dart` between the scrollable stats and the pinned actions; rating must not pop the dialog and must not displace the action buttons.
 - [x] 7.3 Add the localized strings to the four ARB files (`app_en`, `app_fr`, `app_es`, `app_it`) and regenerate.
 - [x] 7.4 Funnel both exit paths in `player_screen.dart` (top-bar back button and the system back gesture) into one `_requestExit()`; make `PopScope.canPop` false only while a prompt is pending, and pop unconditionally once the sheet resolves.
@@ -55,4 +55,4 @@
 - [x] 8.1 `melos run analyze`, `dart format`, and `dart run custom_lint` clean.
 - [x] 8.2 `flutter test --coverage --exclude-tags golden` green with line coverage ≥ 80%.
 - [x] 8.3 `openspec validate add-post-play-rating-prompt --strict` passes.
-- [ ] 8.4 Manual pass on a device: play a catalog score to the end and rate from the summary; abandon another past a quarter of its notes and rate from the sheet; leave a third after a handful of notes and confirm no prompt; replay them all and confirm none prompts again; confirm a bundled score never prompts and a signed-out user never prompts.
+- [ ] 8.4 Manual pass on a device: play a catalog score to the end and rate from the summary; abandon another past a quarter of its notes and rate from the sheet; leave a third after a handful of notes and confirm no prompt; on a fourth, close the summary WITHOUT answering and confirm the next run asks again; refuse it explicitly and confirm it never asks again; confirm a bundled score never prompts and a signed-out user never prompts.

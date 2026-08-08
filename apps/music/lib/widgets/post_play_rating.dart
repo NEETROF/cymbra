@@ -30,40 +30,28 @@ import '../theme/cymbra_theme.dart';
 /// preview. Both surfaces — the summary modal and the early-exit sheet — use this
 /// same widget, so they can never diverge.
 ///
-/// Rendering it marks the score as offered, retiring it from any future prompt
-/// whether or not the user rates. Callers only mount it when
-/// `postPlayRatingEligibleProvider` says so.
-class PostPlayRatingRow extends ConsumerStatefulWidget {
-  const PostPlayRatingRow({super.key, this.compact = false});
+/// Being shown costs the score nothing: only a rating or an explicit refusal (the
+/// "not this one" button) retires it from future prompts, so closing a summary to
+/// leave the player does not silently burn the chance to rate the piece. Callers
+/// only mount it when `postPlayRatingEligibleProvider` says so.
+class PostPlayRatingRow extends ConsumerWidget {
+  const PostPlayRatingRow({super.key, this.compact = false, this.onDecline});
 
   /// Tighter spacing and smaller stars, for the summary modal on a phone.
   final bool compact;
 
-  @override
-  ConsumerState<PostPlayRatingRow> createState() => _PostPlayRatingRowState();
-}
-
-class _PostPlayRatingRowState extends ConsumerState<PostPlayRatingRow> {
-  @override
-  void initState() {
-    super.initState();
-    // Being shown IS the offer: record it now, so a dismissal retires the score
-    // exactly like a rating does. Fire-and-forget — the UI never awaits it.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      final id = ref.read(postPlayRatingProvider).valueOrNull?.catalogId;
-      if (id == null) return;
-      unawaited(ref.read(postPlayRatingProvider.notifier).markOffered(id));
-    });
-  }
+  /// Run after the user explicitly refuses to rate this score (the refusal itself
+  /// is recorded here). The sheet passes a pop; the summary passes nothing, since
+  /// the refusal simply makes the row disappear.
+  final VoidCallback? onDecline;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
     final data = ref.watch(postPlayRatingProvider).valueOrNull;
     final submitted = data?.submittedStars;
     final failed = data?.failed ?? false;
-    final gap = widget.compact ? 4.0 : 8.0;
+    final gap = compact ? 4.0 : 8.0;
 
     if (submitted != null && !failed) {
       return Padding(
@@ -110,10 +98,10 @@ class _PostPlayRatingRowState extends ConsumerState<PostPlayRatingRow> {
               for (var star = 1; star <= 5; star++)
                 IconButton(
                   key: Key('post-play-star-$star'),
-                  visualDensity: widget.compact
+                  visualDensity: compact
                       ? VisualDensity.compact
                       : VisualDensity.standard,
-                  iconSize: widget.compact ? 26 : 34,
+                  iconSize: compact ? 26 : 34,
                   tooltip: l10n.postPlayRatingStarTooltip(star),
                   icon: const Icon(
                     Icons.star_border,
@@ -133,6 +121,22 @@ class _PostPlayRatingRowState extends ConsumerState<PostPlayRatingRow> {
               textAlign: TextAlign.center,
               style: const TextStyle(fontSize: 12, color: CymbraColors.error),
             ),
+          // The escape hatch. Because being shown no longer retires the score, this
+          // is the ONLY way (short of rating) to stop being asked about this piece —
+          // so it must be present on every surface, not just the exit sheet.
+          TextButton(
+            key: const Key('post-play-rating-skip'),
+            onPressed: () {
+              final id = data?.catalogId;
+              if (id != null) {
+                unawaited(
+                  ref.read(postPlayRatingProvider.notifier).decline(id),
+                );
+              }
+              onDecline?.call();
+            },
+            child: Text(l10n.postPlayRatingSkip),
+          ),
         ],
       ),
     );
@@ -145,26 +149,22 @@ class _PostPlayRatingRowState extends ConsumerState<PostPlayRatingRow> {
 /// Non-blocking by construction: the sheet has no "stay" action, every dismissal
 /// path resolves it, and the caller leaves the player whatever happens. It never
 /// asks the user to confirm the exit.
-Future<void> showPostPlayRatingSheet(BuildContext context) =>
-    showModalBottomSheet<void>(
-      context: context,
-      isDismissible: true,
-      showDragHandle: true,
-      backgroundColor: CymbraColors.surfaceContainerLow,
-      builder: (context) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(24, 4, 24, 20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const PostPlayRatingRow(),
-              TextButton(
-                key: const Key('post-play-rating-skip'),
-                onPressed: () => Navigator.of(context).pop(),
-                child: Text(AppLocalizations.of(context).postPlayRatingSkip),
-              ),
-            ],
-          ),
-        ),
+Future<void> showPostPlayRatingSheet(
+  BuildContext context,
+) => showModalBottomSheet<void>(
+  context: context,
+  isDismissible: true,
+  showDragHandle: true,
+  backgroundColor: CymbraColors.surfaceContainerLow,
+  builder: (context) => SafeArea(
+    child: Padding(
+      padding: const EdgeInsets.fromLTRB(24, 4, 24, 20),
+      child: PostPlayRatingRow(
+        // Refusing from the sheet also leaves the player, like every other
+        // dismissal path. Dismissing the sheet WITHOUT pressing it (barrier,
+        // back, drag) records nothing: the user just wanted out.
+        onDecline: () => Navigator.of(context).pop(),
       ),
-    );
+    ),
+  ),
+);

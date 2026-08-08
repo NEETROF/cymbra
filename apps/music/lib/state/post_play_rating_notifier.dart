@@ -30,7 +30,7 @@ class PostPlayRatingData {
   const PostPlayRatingData({
     this.catalogId,
     this.rated = RatedState.unknown,
-    this.offered = const [],
+    this.declined = const [],
     this.submittedStars,
     this.failed = false,
   });
@@ -43,8 +43,10 @@ class PostPlayRatingData {
   /// the read is in flight, offline, or failed.
   final RatedState rated;
 
-  /// Catalog ids already offered for rating on this device, oldest first.
-  final List<String> offered;
+  /// Catalog ids the user has **explicitly refused** to rate on this device,
+  /// oldest first. Being shown the prompt does not put a score here — only a
+  /// deliberate "not this one" does.
+  final List<String> declined;
 
   /// The star value just submitted from a prompt, so the surface can switch to
   /// its thanks state. Null until the user rates.
@@ -54,18 +56,18 @@ class PostPlayRatingData {
   /// underlying transport error.
   final bool failed;
 
-  /// Whether this score has already been offered (so it must never be again).
-  bool get alreadyOffered => catalogId != null && offered.contains(catalogId);
+  /// Whether the user has explicitly refused to rate this score.
+  bool get isDeclined => catalogId != null && declined.contains(catalogId);
 
   PostPlayRatingData copyWith({
     RatedState? rated,
-    List<String>? offered,
+    List<String>? declined,
     int? submittedStars,
     bool? failed,
   }) => PostPlayRatingData(
     catalogId: catalogId,
     rated: rated ?? this.rated,
-    offered: offered ?? this.offered,
+    declined: declined ?? this.declined,
     submittedStars: submittedStars ?? this.submittedStars,
     failed: failed ?? this.failed,
   );
@@ -73,25 +75,26 @@ class PostPlayRatingData {
 
 /// Owns the post-play prompt's state for the score currently open in the player:
 /// the caller's existing rating (resolved once per open), the per-score
-/// "already offered" memory, and the submission.
+/// explicit-refusal memory, and the submission.
 ///
 /// The build is async and nothing awaits it on the play path — an unresolved read
 /// simply leaves `rated` at [RatedState.unknown], which suppresses the prompt.
 /// Rebuilds when the selected score changes, so opening another piece re-resolves.
 @Riverpod(keepAlive: true)
 class PostPlayRating extends _$PostPlayRating {
-  /// Preferences key holding the comma-separated catalog ids already offered.
-  static const String prefsKey = 'rating_prompt_offered';
+  /// Preferences key holding the comma-separated catalog ids the user explicitly
+  /// refused to rate.
+  static const String prefsKey = 'rating_prompt_declined';
 
   @override
   Future<PostPlayRatingData> build() async {
     final catalogId = ref.watch(selectedScoreProvider)?.catalogId;
     final online = ref.watch(canUseOnlineServicesProvider);
-    final offered = await _readOffered();
+    final declined = await _readDeclined();
     // A guest, or a score that isn't in the public catalog, can never be rated —
     // don't spend a round-trip asking.
     if (!online || catalogId == null) {
-      return PostPlayRatingData(catalogId: catalogId, offered: offered);
+      return PostPlayRatingData(catalogId: catalogId, declined: declined);
     }
     RatedState rated;
     try {
@@ -108,19 +111,24 @@ class PostPlayRating extends _$PostPlayRating {
     return PostPlayRatingData(
       catalogId: catalogId,
       rated: rated,
-      offered: offered,
+      declined: declined,
     );
   }
 
-  /// Record that the prompt was **shown** for [catalogId], retiring that score
-  /// from any future prompt. Called when the surface appears, not when it is
-  /// answered, so a dismissal and a rating retire it alike. Persisted best-effort:
-  /// losing the write only risks one extra prompt on a later run.
-  Future<void> markOffered(String catalogId) async {
+  /// Record that the user **explicitly refused** to rate [catalogId], retiring it
+  /// from any future prompt on this device.
+  ///
+  /// Only a deliberate "not this one" calls this — never the mere fact of having
+  /// been shown the prompt. Closing a summary to leave the player says nothing
+  /// about the piece, so the offer stands and returns on the next run; the user's
+  /// escape hatch is this refusal, which is why both surfaces expose it.
+  ///
+  /// Persisted best-effort: losing the write only risks one more prompt later.
+  Future<void> decline(String catalogId) async {
     final data = state.valueOrNull;
-    if (data == null || data.alreadyOffered) return;
-    final next = rememberOffered(data.offered, catalogId);
-    state = AsyncData(data.copyWith(offered: next));
+    if (data == null || data.isDeclined) return;
+    final next = rememberDeclined(data.declined, catalogId);
+    state = AsyncData(data.copyWith(declined: next));
     try {
       await ref
           .read(preferencesServiceProvider)
@@ -136,6 +144,10 @@ class PostPlayRating extends _$PostPlayRating {
   /// Optimistic: the thanks state shows immediately. A failure flips [failed] so
   /// the surface can say so in the user's language — it never throws, because the
   /// caller may be on its way out of the player and must not be blocked.
+  ///
+  /// A rating needs no entry in the declined list: the score is now rated, which
+  /// the server reports on the next open and which [RatedState.rated] reflects
+  /// straight away.
   Future<void> submit(int stars) async {
     final data = state.valueOrNull;
     final id = data?.catalogId;
@@ -155,7 +167,7 @@ class PostPlayRating extends _$PostPlayRating {
     }
   }
 
-  Future<List<String>> _readOffered() async {
+  Future<List<String>> _readDeclined() async {
     try {
       final raw = await ref
           .read(preferencesServiceProvider)
@@ -163,7 +175,7 @@ class PostPlayRating extends _$PostPlayRating {
       if (raw == null || raw.isEmpty) return const [];
       return raw.split(',').where((s) => s.isNotEmpty).toList();
     } catch (_) {
-      return const []; // storage unavailable → nothing offered yet
+      return const []; // storage unavailable → nothing declined yet
     }
   }
 }
@@ -186,7 +198,7 @@ bool postPlayRatingEligible(Ref ref, {required bool reachedEnd}) {
         signedIn: ref.watch(canUseOnlineServicesProvider),
         catalogId: data.catalogId,
         rated: data.rated,
-        alreadyOffered: data.alreadyOffered,
+        declined: data.isDeclined,
         playedFraction: playedFraction,
         reachedEnd: reachedEnd,
       );

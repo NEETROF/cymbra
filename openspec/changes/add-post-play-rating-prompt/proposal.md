@@ -20,12 +20,13 @@ with better data.
   compact, **non-blocking** bottom sheet offering the same rating. Any dismissal
   — rate, close, tap outside, back — leaves the player. The exit is never
   cancelled or confirmed.
-- **One prompt per score, ever.** The suppression is **per catalog score**, not a
-  global nag counter: a score is offered for rating at most once on the device.
-  Rating it, or skipping the prompt, retires that score permanently from the
-  prompt. There is no global dismissal count and no cross-score snooze — the
-  mechanism is self-bounding because the user only sees prompts for scores they
-  actually played.
+- **A score stops being offered only once answered.** The suppression is **per
+  catalog score**, not a global nag counter — and it takes an *answer*: rating the
+  score, or explicitly refusing to rate it. Merely being shown the prompt and
+  walking away changes nothing, because closing a summary to leave the player is
+  not a statement about the piece. Both surfaces therefore carry an explicit
+  refusal control, which (with rating) is the only way to stop being asked. No
+  global dismissal count, no cross-score snooze.
 - **Never prompt for a score already rated.** A new authenticated read exposes the
   caller's own rating of a given catalog score, so the prompt is suppressed for a
   score rated on any device (the deck already excludes rated scores; the player
@@ -52,7 +53,7 @@ new reward kind.
 - `post-play-rating`: rating a catalog score from the player — the end-of-run
   affordance in the summary modal, the non-blocking early-exit sheet, the
   eligibility gate (signed in, catalog score, played enough, not already rated),
-  and the per-score one-prompt-ever suppression.
+  and the per-score suppression triggered by a rating or an explicit refusal.
 
 ### Modified Capabilities
 - `score-rating`: adds an authenticated read returning the caller's own rating of
@@ -74,7 +75,7 @@ new reward kind.
   bytes path and the play-session ingest (`module.rs`, `play_module.rs`).
   Regenerating the Dart/TS gRPC stubs is required.
 - **Flutter app** (`apps/music`): a new rating-prompt notifier + persisted
-  per-score prompt memory (preferences seam), a shared rating-prompt widget used
+  per-score refusal memory (preferences seam), a shared rating-prompt widget used
   by both surfaces, changes to `session_summary_modal.dart` and the player's back
   affordance in `player_screen.dart`, and new localized strings in the four ARB
   files.

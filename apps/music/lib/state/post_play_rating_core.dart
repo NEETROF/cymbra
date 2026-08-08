@@ -29,9 +29,9 @@ import 'player_data.dart';
 /// count measures how much music actually went by.
 const double kRatingPromptMinPlayedFraction = 0.25;
 
-/// How many offered scores the device remembers. The memory only exists to stop a
-/// second prompt for the same piece, so an old entry falling off is harmless — the
-/// cap just keeps the persisted value bounded.
+/// How many explicitly-declined scores the device remembers. Only a bound on the
+/// persisted value: if an old entry falls off, that score may be offered once more,
+/// which is harmless.
 const int kRatingPromptMemoryMax = 200;
 
 /// What is known about the caller's existing rating of the score being played.
@@ -81,34 +81,39 @@ double playedNoteFraction(List<TimedNote> notes, double furthestElapsedMs) {
 /// neither is rateable. [reachedEnd] short-circuits the playback term: finishing a
 /// scored run is engagement whatever the note count says (a range-practice loop
 /// that ends early does not set it).
+///
+/// [declined] means the user **explicitly refused** to rate this score. Merely
+/// being shown the prompt and walking away does NOT count: closing a summary to
+/// leave is not a statement about the piece, so the offer stands and comes back on
+/// the next run. Only a rating or an explicit refusal ends it.
 bool shouldPromptRating({
   required bool signedIn,
   required String? catalogId,
   required RatedState rated,
-  required bool alreadyOffered,
+  required bool declined,
   required double playedFraction,
   required bool reachedEnd,
 }) {
   if (!signedIn) return false;
   if (catalogId == null) return false;
   if (rated != RatedState.notRated) return false;
-  if (alreadyOffered) return false;
+  if (declined) return false;
   return reachedEnd || playedFraction >= kRatingPromptMinPlayedFraction;
 }
 
-/// [offered] with [catalogId] appended as the most recent entry, de-duplicated and
-/// trimmed to [max] (oldest first out).
+/// [declined] with [catalogId] appended as the most recent entry, de-duplicated
+/// and trimmed to [max] (oldest first out).
 ///
-/// Returns a new list; the input is not mutated. Re-offering an id already present
+/// Returns a new list; the input is not mutated. Re-declining an id already present
 /// moves it to the end rather than duplicating it, so the cap counts distinct
 /// scores.
-List<String> rememberOffered(
-  List<String> offered,
+List<String> rememberDeclined(
+  List<String> declined,
   String catalogId, {
   int max = kRatingPromptMemoryMax,
 }) {
   final next = [
-    for (final id in offered)
+    for (final id in declined)
       if (id != catalogId) id,
     catalogId,
   ];
