@@ -39,6 +39,10 @@ scores are illegible.
 - **Playback progress bar**: a thin full-width bar directly above the on-screen
   keyboard showing the piece's duration and the playhead's position, in every
   render mode (at the bottom of the render area when the keyboard is hidden).
+- **Non-intrusive Wait Mode indicator**: the centred "Play the expected note to
+  continue" banner is removed; while the gate is blocked the expected keys'
+  highlight pulses gently on the keyboard instead — nothing covers the play
+  surface.
 
 ## Capabilities
 
@@ -66,6 +70,9 @@ scores are illegible.
   - *Setup modal contents*: adds the score size (S/M/L) control.
   - *Setup choices persist across scores and restarts*: the score size persists
     with the other play settings.
+- `wait-mode`:
+  - New requirement: non-intrusive wait indicator — pulsing expected-key
+    highlight while the gate is blocked, no banner over the play surface.
 
 ## Impact
 

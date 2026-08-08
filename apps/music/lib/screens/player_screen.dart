@@ -61,10 +61,15 @@ class PlayerScreen extends ConsumerStatefulWidget {
 }
 
 class _PlayerScreenState extends ConsumerState<PlayerScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   final FocusNode _focusNode = FocusNode();
   late final Ticker _ticker;
   Duration _lastTick = Duration.zero;
+
+  /// Breathing cycle of the expected-key highlight while Wait Mode holds
+  /// playback — the non-intrusive wait indicator (no banner over the play
+  /// surface). Runs only while the gate is blocked.
+  late final AnimationController _waitPulse;
 
   /// Whether the pre-play setup modal has been shown for this opening (one per
   /// pushed `PlayerScreen`, so it re-appears on every open).
@@ -115,6 +120,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
   void initState() {
     super.initState();
     _ticker = createTicker(_onTick)..start();
+    _waitPulse = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1100),
+    );
   }
 
   void _onTick(Duration elapsed) {
@@ -225,6 +234,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
   void dispose() {
     _ticker.dispose();
     _focusNode.dispose();
+    _waitPulse.dispose();
     super.dispose();
   }
 
@@ -245,6 +255,17 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     // load that resolves after mount.
     ref.listen(notationProvider.select((n) => n.hasDocument), (_, hasDoc) {
       if (hasDoc) _maybeShowSetup();
+    });
+    // Breathe the expected-key highlight only while the Wait Mode gate holds
+    // playback; back to the steady highlight the moment it releases.
+    ref.listen(playerProvider.select((d) => d.blocked), (_, blocked) {
+      if (blocked) {
+        _waitPulse.repeat();
+      } else {
+        _waitPulse
+          ..stop()
+          ..value = 0;
+      }
     });
     _maybeShowSetup();
     return Focus(
@@ -386,25 +407,40 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                                   ),
                                   onPointerUp: _onKeyboardPointerUp,
                                   onPointerCancel: _onKeyboardPointerUp,
-                                  child: CustomPaint(
-                                    size: Size(
-                                      constraints.maxWidth,
-                                      keyboardHeight,
-                                    ),
-                                    painter: PianoKeyboardPainter(
-                                      layout: layout,
-                                      activeNotes: data.activeNotes,
-                                      requiredNotes: data.expectedKeys,
-                                      leftHandNotes: data.expectedKeysForHand(
-                                        rightHand: false,
+                                  // Rebuilds each pulse frame only while the
+                                  // Wait Mode gate is blocked (the controller
+                                  // is stopped otherwise).
+                                  child: AnimatedBuilder(
+                                    animation: _waitPulse,
+                                    builder: (context, _) => CustomPaint(
+                                      size: Size(
+                                        constraints.maxWidth,
+                                        keyboardHeight,
                                       ),
-                                      chosenWindow: data.keyboardChosenWindow,
-                                      noteLabels: aid.names,
-                                      solfege: naming.solfege,
-                                      frenchRe: naming.frenchRe,
-                                      labelFontFamily: DefaultTextStyle.of(
-                                        context,
-                                      ).style.fontFamily,
+                                      painter: PianoKeyboardPainter(
+                                        layout: layout,
+                                        activeNotes: data.activeNotes,
+                                        requiredNotes: data.expectedKeys,
+                                        leftHandNotes: data.expectedKeysForHand(
+                                          rightHand: false,
+                                        ),
+                                        chosenWindow: data.keyboardChosenWindow,
+                                        noteLabels: aid.names,
+                                        solfege: naming.solfege,
+                                        frenchRe: naming.frenchRe,
+                                        labelFontFamily: DefaultTextStyle.of(
+                                          context,
+                                        ).style.fontFamily,
+                                        // 0→1→0 breathing over each cycle.
+                                        waitPulse:
+                                            0.5 -
+                                            0.5 *
+                                                math.cos(
+                                                  2 *
+                                                      math.pi *
+                                                      _waitPulse.value,
+                                                ),
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -524,7 +560,6 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
           // Gamified sync gauge + hit sparks (shown only during a scored run).
           // Synthesia always shows the keyboard, so effects are always anchored.
           Positioned.fill(child: ScoringOverlay(layout: layout)),
-          if (data.blocked) const _WaitOverlay(),
           Positioned.fill(
             child: _ScoreLoadOverlay(
               notation: notation,
@@ -1149,29 +1184,6 @@ class _TransportBar extends ConsumerWidget {
                 wait,
               ],
             ),
-    );
-  }
-}
-
-/// Overlay shown when Wait Mode freezes the cascade.
-class _WaitOverlay extends StatelessWidget {
-  const _WaitOverlay();
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-        decoration: BoxDecoration(
-          color: CymbraColors.surfaceContainer.withValues(alpha: 0.85),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: CymbraColors.secondary),
-        ),
-        child: const Text(
-          '⏸  Play the expected note to continue',
-          style: TextStyle(color: CymbraColors.secondary, fontSize: 16),
-        ),
-      ),
     );
   }
 }

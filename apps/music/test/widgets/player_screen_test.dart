@@ -17,6 +17,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:music/painters/piano_keyboard_painter.dart';
 import 'package:music/painters/piano_layout.dart';
 import 'package:music/painters/staff_painter.dart';
 import 'package:music/screens/player_screen.dart';
@@ -343,18 +344,36 @@ void main() {
     await teardownScreen(tester);
   });
 
-  testWidgets('wait-mode overlay appears when the cascade is blocked', (
-    tester,
-  ) async {
-    await pumpScreen(tester);
-    await tester.tap(find.byIcon(Icons.play_arrow)); // play, wait-mode on
-    await tester.pump(const Duration(milliseconds: 16)); // one ticker frame
-    await tester.pump(); // rebuild after blocked=true
-    expect(state().blocked, isTrue);
-    expect(find.byType(StaffPainter), findsNothing); // still synthesia mode
-    expect(find.text('⏸  Play the expected note to continue'), findsOneWidget);
-    await teardownScreen(tester);
-  });
+  testWidgets(
+    'a blocked cascade pulses the expected keys instead of a banner',
+    (tester) async {
+      await pumpScreen(tester);
+
+      PianoKeyboardPainter keyboard() =>
+          tester
+                  .widgetList<CustomPaint>(find.byType(CustomPaint))
+                  .firstWhere((w) => w.painter is PianoKeyboardPainter)
+                  .painter
+              as PianoKeyboardPainter;
+
+      // Steady highlight before playing.
+      expect(keyboard().waitPulse, 0);
+
+      await tester.tap(find.byIcon(Icons.play_arrow)); // play, wait-mode on
+      await tester.pump(const Duration(milliseconds: 16)); // one ticker frame
+      await tester.pump(); // rebuild after blocked=true
+      expect(state().blocked, isTrue);
+      expect(find.byType(StaffPainter), findsNothing); // still synthesia mode
+
+      // No text banner covers the play surface any more…
+      expect(find.text('⏸  Play the expected note to continue'), findsNothing);
+      // …the expected keys breathe instead: mid-cycle the pulse is non-zero.
+      await tester.pump(const Duration(milliseconds: 550));
+      expect(keyboard().waitPulse, greaterThan(0));
+
+      await teardownScreen(tester);
+    },
+  );
 
   testWidgets('on-screen key press/release toggles the note', (tester) async {
     await pumpScreen(tester);

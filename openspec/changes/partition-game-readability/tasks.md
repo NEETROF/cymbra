@@ -61,3 +61,11 @@
 - [x] 6.3 `openspec validate partition-game-readability --strict` passes.
 - [x] 6.4 Note the back-office stale-wasm gotcha in the PR description
       (`yarn gen:wasm` needed to see the new layout in BO).
+
+## 7. Non-intrusive wait indicator
+
+- [x] 7.1 Remove the centred `_WaitOverlay` banner; pulse the expected-key
+      highlight on the keyboard while the Wait Mode gate is blocked
+      (`waitPulse` on `PianoKeyboardPainter` + an AnimationController that
+      runs only while blocked); widget test (no banner, pulse > 0 while
+      blocked, steady when released).
