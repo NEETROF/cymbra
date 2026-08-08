@@ -39,6 +39,9 @@
   "scoreSizeLarge": "Large",
   "@scoreSizeLarge": { "description": "Score-size option: larger notation." },
 
+  "playbackProgressLabel": "Playback progress: {percent}%",
+  "@playbackProgressLabel": { "placeholders": { "percent": { "type": "int" } }, "description": "Accessibility label of the playback progress bar above the keyboard." },
+
   "keyboardShown": "Shown",
   "@keyboardShown": { "description": "Keyboard-display option: the on-screen keyboard is visible." },
 

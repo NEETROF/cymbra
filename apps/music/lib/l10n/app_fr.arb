@@ -12,6 +12,7 @@
   "scoreSizeSmall": "Petite",
   "scoreSizeMedium": "Moyenne",
   "scoreSizeLarge": "Grande",
+  "playbackProgressLabel": "Avancement de la lecture : {percent}%",
   "keyboardShown": "Affiché",
   "keyboardHidden": "Masqué",
   "settingsCategoryHand": "Main",

@@ -42,6 +42,7 @@ import '../state/session_summary_store.dart';
 import '../theme/cymbra_theme.dart';
 import '../widgets/countdown_overlay.dart';
 import '../widgets/mistake_replay.dart';
+import '../widgets/playback_progress_bar.dart';
 import '../widgets/reading_aid.dart';
 import '../widgets/score_chip.dart';
 import '../widgets/scoring_overlay.dart';
@@ -368,6 +369,11 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                                 ],
                               ),
                             ),
+                            // Thin score-duration/playhead bar, directly above
+                            // the keyboard (or closing the render area when
+                            // the keyboard is hidden). Hides itself when the
+                            // loaded score has no timing.
+                            const PlaybackProgressBar(),
                             if (showKeyboard)
                               SizedBox(
                                 height: keyboardHeight,

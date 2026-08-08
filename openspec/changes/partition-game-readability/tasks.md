@@ -46,11 +46,18 @@
 - [x] 4.3 Portée/Staff view: pass `noteScale` and scaled `lookAheadMs` from the
       score size factor; widget test.
 
-## 5. Gates & docs
+## 5. Playback progress bar
 
-- [x] 5.1 `melos run analyze`, `dart format`, `dart run custom_lint` clean;
+- [x] 5.1 New `PlaybackProgressBar` widget (thin full-width fill from
+      elapsed/songEnd, hidden without a timed score, ignores pointers) mounted
+      above the on-screen keyboard in the player column; widget test (fraction
+      advances with playback, hidden without duration).
+
+## 6. Gates & docs
+
+- [x] 6.1 `melos run analyze`, `dart format`, `dart run custom_lint` clean;
       `flutter test --coverage --exclude-tags golden` green with coverage ≥ 80%.
-- [x] 5.2 Rust gates green (fmt, clippy, llvm-cov ≥ 80%).
-- [x] 5.3 `openspec validate partition-game-readability --strict` passes.
-- [x] 5.4 Note the back-office stale-wasm gotcha in the PR description
+- [x] 6.2 Rust gates green (fmt, clippy, llvm-cov ≥ 80%).
+- [x] 6.3 `openspec validate partition-game-readability --strict` passes.
+- [x] 6.4 Note the back-office stale-wasm gotcha in the PR description
       (`yarn gen:wasm` needed to see the new layout in BO).

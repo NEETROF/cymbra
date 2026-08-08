@@ -36,12 +36,16 @@ scores are illegible.
     pace.
 - **Current-measure highlight** (Partition): a subtle background wash behind the
   measure containing the playhead, in addition to the cursor line.
+- **Playback progress bar**: a thin full-width bar directly above the on-screen
+  keyboard showing the piece's duration and the playhead's position, in every
+  render mode (at the bottom of the render area when the keyboard is hidden).
 
 ## Capabilities
 
 ### New Capabilities
 
-(none)
+- `playback-progress`: a thin progress bar above the keyboard reflecting the
+  piece's duration and the current playback position.
 
 ### Modified Capabilities
 

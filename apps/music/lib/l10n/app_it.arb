@@ -12,6 +12,7 @@
   "scoreSizeSmall": "Piccolo",
   "scoreSizeMedium": "Medio",
   "scoreSizeLarge": "Grande",
+  "playbackProgressLabel": "Avanzamento della riproduzione: {percent}%",
   "keyboardShown": "Mostrata",
   "keyboardHidden": "Nascosta",
   "settingsCategoryHand": "Mano",
