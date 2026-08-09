@@ -25,12 +25,29 @@ message RecordPlaySessionRequest {
 }
 message RecordPlaySessionResponse {}
 
-// One local day of activity: the number of songs played and the average overall
-// synchronization percentage that day (the heatmap cell's count + color).
+// Record one completed **practice** session — a selective (measure-range) run,
+// which is never scored (change: add-measure-range-practice, D4). Deliberately
+// carries NO score: practice counts as activity on the profile but never enters
+// the scored-session / leaderboard path. Idempotent by the client-generated
+// session id exactly like `RecordPlaySession`, and a successful response IS the
+// persisted-ack the client's outbox waits for.
+message RecordPracticeRequest {
+  string session_id = 1;        // client-generated UUID v7 (the idempotency key)
+  optional string score_id = 2; // catalog/user score identity (opaque)
+  int64 practiced_at_ms = 3;    // when the practice session ended (unix epoch ms)
+  int32 tz_offset_minutes = 4;  // client UTC offset at practiced_at (local-day bucketing)
+}
+message RecordPracticeResponse {}
+
+// One local day of activity: the number of songs played, the average overall
+// synchronization percentage that day (the heatmap cell's count + color), and
+// the number of practice sessions that day (count only — practice carries no
+// sync %, so it never contributes to the day's success color).
 message DayActivity {
-  string day = 1;         // the player's LOCAL day, ISO yyyy-mm-dd
-  int32 count = 2;        // songs played that day
-  float avg_sync_pct = 3; // average overall synchronization % that day (0..100)
+  string day = 1;           // the player's LOCAL day, ISO yyyy-mm-dd
+  int32 count = 2;          // songs played (scored sessions) that day
+  float avg_sync_pct = 3;   // average overall synchronization % that day (0..100)
+  int32 practice_count = 4; // practice (unscored) sessions that day
 }
 
 // Read a user's per-day play activity (the heatmap) + their songs-played total.
@@ -41,10 +58,12 @@ message GetPlayActivityRequest {
 }
 message GetPlayActivityResponse {
   repeated DayActivity days = 1;
-  int32 total_sessions = 2; // songs-played total across the returned window
+  int32 total_sessions = 2;  // songs-played total across the returned window
+  int32 total_practices = 3; // practice-sessions total across the returned window
 }
 
 service PlayService {
   rpc RecordPlaySession(RecordPlaySessionRequest) returns (RecordPlaySessionResponse);
+  rpc RecordPractice(RecordPracticeRequest) returns (RecordPracticeResponse);
   rpc GetPlayActivity(GetPlayActivityRequest) returns (GetPlayActivityResponse);
 }

@@ -70,6 +70,94 @@ void main() {
     expect(tester.widget<Tooltip>(find.byType(Tooltip)).message, '84% · ×3');
   });
 
+  testWidgets('a practice-only day is neutral, never a failure colour', (
+    tester,
+  ) async {
+    final activity = PlayActivity(
+      days: [
+        DayActivity(
+          day: DateTime(2024, 6, 13),
+          count: 0,
+          avgSyncPct: 0,
+          practiceCount: 2,
+        ),
+      ],
+      totalSessions: 0,
+      totalPractices: 2,
+    );
+    await tester.pumpWidget(_host(activity, DateTime(2024, 6, 15)));
+
+    expect(find.byType(Tooltip), findsOneWidget);
+    // Only the practice count — the day has no synchronization percentage.
+    expect(tester.widget<Tooltip>(find.byType(Tooltip)).message, '⟳×2');
+
+    // It must NOT be painted on the success scale (0 % would read as failed).
+    final scheme = ThemeData().colorScheme;
+    final cell = tester.widget<Container>(
+      find.descendant(
+        of: find.byType(Tooltip),
+        matching: find.byType(Container),
+      ),
+    );
+    final painted = (cell.decoration! as BoxDecoration).color!;
+    expect(
+      painted,
+      isNot(
+        heatColor(
+          syncPct: 0,
+          count: 2,
+          low: scheme.tertiary,
+          high: scheme.primary,
+        ),
+      ),
+    );
+    expect(
+      painted,
+      practiceColor(practiceCount: 2, neutral: scheme.onSurfaceVariant),
+    );
+  });
+
+  testWidgets('a mixed day keeps the scored colour and shows both counts', (
+    tester,
+  ) async {
+    final activity = PlayActivity(
+      days: [
+        DayActivity(
+          day: DateTime(2024, 6, 13),
+          count: 2,
+          avgSyncPct: 90,
+          practiceCount: 1,
+        ),
+      ],
+      totalSessions: 2,
+      totalPractices: 1,
+    );
+    await tester.pumpWidget(_host(activity, DateTime(2024, 6, 15)));
+
+    expect(
+      tester.widget<Tooltip>(find.byType(Tooltip)).message,
+      '90% · ×2 · ⟳×1',
+    );
+    // The hue comes from the scored average alone (practice has no sync %).
+    final scheme = ThemeData().colorScheme;
+    final cell = tester.widget<Container>(
+      find.descendant(
+        of: find.byType(Tooltip),
+        matching: find.byType(Container),
+      ),
+    );
+    final painted = (cell.decoration! as BoxDecoration).color!;
+    expect(
+      painted,
+      heatColor(
+        syncPct: 90,
+        count: 3, // busy-ness counts practice; the hue does not
+        low: scheme.tertiary,
+        high: scheme.primary,
+      ),
+    );
+  });
+
   testWidgets('an empty activity still renders the full (blank) grid', (
     tester,
   ) async {

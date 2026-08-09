@@ -90,6 +90,10 @@ class PlaySyncNotifier extends _$PlaySyncNotifier {
   // Serializes drains so concurrent triggers (launch, capture, connectivity)
   // never overlap and `await drain()` always includes the caller's own work.
   Future<void> _chain = Future<void>.value();
+  // Set once the container is gone (app shutdown). Every entry point checks it,
+  // so an in-flight or scheduled drain never reads a disposed container — the
+  // pending entries are durable and flush on the next launch anyway.
+  bool _disposed = false;
 
   PlayOutboxStore get _store => ref.read(playOutboxStoreProvider);
   PlaySyncService get _service => ref.read(playSyncServiceProvider);
@@ -104,9 +108,13 @@ class PlaySyncNotifier extends _$PlaySyncNotifier {
     final sub = ref.watch(connectivityServiceProvider).onOnline.listen((_) {
       unawaited(drain());
     });
-    ref.onDispose(sub.cancel);
+    ref.onDispose(() {
+      _disposed = true;
+      sub.cancel();
+    });
     // Resume on app launch — after build returns (never touch state early).
     Future.microtask(() async {
+      if (_disposed) return;
       state = (await _store.all()).length;
       await drain();
     });
@@ -118,6 +126,7 @@ class PlaySyncNotifier extends _$PlaySyncNotifier {
   /// A session produced with no signed-in account is not captured (it could not
   /// be attributed/delivered); the local session summary still records it.
   Future<void> captureSession(SessionResult result) async {
+    if (_disposed) return;
     final userId = ref.read(currentUserIdProvider);
     if (userId == null) return;
     // Stamp the real wall-clock time AT capture (session end). `result.playedAtMs`
@@ -138,6 +147,37 @@ class PlaySyncNotifier extends _$PlaySyncNotifier {
     await drain();
   }
 
+  /// Capture a completed **practice** session durably (change: add-measure-range-
+  /// practice, D4): a scoreless activity record — session id, score, timestamp —
+  /// carrying no sync%/`SessionResult`, written to the same durable outbox before
+  /// any network attempt and delivered through `recordPractice`.
+  ///
+  /// The caller records **once per practice session** (not per loop lap), so
+  /// looping never inflates the day's practice count; server-side de-duplication
+  /// by the session id makes a retried delivery a no-op on top of that. A
+  /// practice produced with no signed-in account is not captured (it could not be
+  /// attributed), exactly like a scored session.
+  Future<void> capturePractice({String? scoreId}) async {
+    if (_disposed) return;
+    final userId = ref.read(currentUserIdProvider);
+    if (userId == null) return;
+    final now = DateTime.now();
+    final envelope = PlaySessionEnvelope(
+      sessionId: _uuid.v7(),
+      userId: userId,
+      scoreId: (scoreId == null || scoreId.isEmpty) ? null : scoreId,
+      playedAtMs: now.millisecondsSinceEpoch,
+      tzOffsetMinutes: now.timeZoneOffset.inMinutes,
+      // No grade: practice is activity, never a score.
+      overallSyncPct: 0,
+      sessionResultJson: '',
+      isPractice: true,
+    );
+    await _store.add(envelope);
+    state = (await _store.all()).length;
+    await drain();
+  }
+
   /// Deliver every pending entry for the signed-in user, removing each **only**
   /// on the server's ack. On the first failure the remaining entries are kept and
   /// a backoff retry is scheduled — nothing un-acked is ever dropped. Drains are
@@ -150,6 +190,7 @@ class PlaySyncNotifier extends _$PlaySyncNotifier {
   }
 
   Future<void> _drainOnce() async {
+    if (_disposed) return;
     final userId = ref.read(currentUserIdProvider);
     // Not authenticated (or account unresolved): entries wait for sign-in.
     if (userId == null || !ref.read(canUseOnlineServicesProvider)) return;
@@ -159,7 +200,13 @@ class PlaySyncNotifier extends _$PlaySyncNotifier {
         // Per-user delivery: never send another account's session.
         if (e.userId != userId) continue;
         try {
-          await _service.recordSession(e);
+          // A practice entry goes to the scoreless ingest; a scored session to
+          // the scored one. Same ack/retry contract either way.
+          if (e.isPractice) {
+            await _service.recordPractice(e);
+          } else {
+            await _service.recordSession(e);
+          }
           // Persisted-ack received → safe to drop the entry.
           await _store.remove(e.sessionId);
         } catch (_) {
@@ -170,7 +217,7 @@ class PlaySyncNotifier extends _$PlaySyncNotifier {
       }
       _attempt = 0; // a clean pass resets the backoff
     } finally {
-      state = (await _store.all()).length;
+      if (!_disposed) state = (await _store.all()).length;
     }
   }
 

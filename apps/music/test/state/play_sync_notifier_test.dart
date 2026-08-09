@@ -88,6 +88,19 @@ PlaySessionEnvelope _entry(String id, {required String userId}) =>
       sessionResultJson: '{}',
     );
 
+/// A queued **practice** entry: scoreless, delivered on the practice ingest.
+PlaySessionEnvelope _practiceEntry(String id, {required String userId}) =>
+    PlaySessionEnvelope(
+      sessionId: id,
+      userId: userId,
+      scoreId: 'p',
+      playedAtMs: 1718494200000,
+      tzOffsetMinutes: 0,
+      overallSyncPct: 0,
+      sessionResultJson: '',
+      isPractice: true,
+    );
+
 ProviderContainer _container({
   required PlaySyncService service,
   required FakePreferencesService prefs,
@@ -257,6 +270,118 @@ void main() {
       expect(a.totalSessions, 3);
     },
   );
+
+  group('practice (change: add-measure-range-practice)', () {
+    test(
+      'capture enqueues a SCORELESS record on the practice ingest',
+      () async {
+        final service = MockPlaySyncService();
+        when(service.recordPractice(any)).thenAnswer((_) async {});
+        final c = _container(service: service, prefs: FakePreferencesService());
+
+        await c
+            .read(playSyncNotifierProvider.notifier)
+            .capturePractice(scoreId: 'piece-1');
+
+        final sent = verify(
+          service.recordPractice(captureAny),
+        ).captured.cast<PlaySessionEnvelope>();
+        expect(sent, hasLength(1));
+        expect(sent.single.isPractice, isTrue);
+        expect(sent.single.scoreId, 'piece-1');
+        // No grade whatsoever.
+        expect(sent.single.overallSyncPct, 0);
+        expect(sent.single.sessionResultJson, isEmpty);
+        // ...and it never touches the scored ingest.
+        verifyNever(service.recordSession(any));
+        expect(await c.read(playOutboxStoreProvider).all(), isEmpty);
+      },
+    );
+
+    test('a practice survives a restart and is retried until acked', () async {
+      final prefs = FakePreferencesService();
+      final service = MockPlaySyncService();
+      when(service.recordPractice(any)).thenThrow(Exception('offline'));
+      final c = _container(service: service, prefs: prefs);
+
+      await c.read(playSyncNotifierProvider.notifier).capturePractice();
+      // Delivery failed → the durable entry is KEPT (no loss).
+      final pending = await PlayOutboxStore(prefs).all();
+      expect(pending, hasLength(1));
+      expect(pending.single.isPractice, isTrue);
+
+      // A fresh launch on the same storage flushes the backlog.
+      reset(service);
+      when(service.recordPractice(any)).thenAnswer((_) async {});
+      final relaunched = _container(service: service, prefs: prefs);
+      relaunched.read(playSyncNotifierProvider);
+      await pumpEventQueue();
+      verify(service.recordPractice(any)).called(1);
+      expect(await PlayOutboxStore(prefs).all(), isEmpty);
+    });
+
+    test('practice and scored entries are routed separately', () async {
+      final prefs = FakePreferencesService();
+      await PlayOutboxStore(prefs).add(_entry('scored', userId: 'u1'));
+      await PlayOutboxStore(
+        prefs,
+      ).add(_practiceEntry('practice', userId: 'u1'));
+
+      final service = MockPlaySyncService();
+      when(service.recordSession(any)).thenAnswer((_) async {});
+      when(service.recordPractice(any)).thenAnswer((_) async {});
+      final c = _container(service: service, prefs: prefs);
+
+      await c.read(playSyncNotifierProvider.notifier).drain();
+
+      expect(
+        verify(
+          service.recordSession(captureAny),
+        ).captured.cast<PlaySessionEnvelope>().map((e) => e.sessionId),
+        ['scored'],
+      );
+      expect(
+        verify(
+          service.recordPractice(captureAny),
+        ).captured.cast<PlaySessionEnvelope>().map((e) => e.sessionId),
+        ['practice'],
+      );
+      expect(await PlayOutboxStore(prefs).all(), isEmpty);
+    });
+
+    test('an acked practice is never sent again (no double-count)', () async {
+      final service = MockPlaySyncService();
+      when(service.recordPractice(any)).thenAnswer((_) async {});
+      final c = _container(service: service, prefs: FakePreferencesService());
+      final notifier = c.read(playSyncNotifierProvider.notifier);
+
+      await notifier.capturePractice();
+      await notifier.drain();
+      verify(service.recordPractice(any)).called(1);
+    });
+
+    test('a guest practice is not captured', () async {
+      final service = MockPlaySyncService();
+      final prefs = FakePreferencesService();
+      final c = _container(service: service, prefs: prefs, userId: null);
+
+      await c.read(playSyncNotifierProvider.notifier).capturePractice();
+
+      verifyNever(service.recordPractice(any));
+      expect(await PlayOutboxStore(prefs).all(), isEmpty);
+    });
+
+    test('the envelope round-trips its practice flag through storage', () {
+      final e = _practiceEntry('p', userId: 'u1');
+      final back = PlaySessionEnvelope.fromJson(e.toJson());
+      expect(back.isPractice, isTrue);
+      // A pre-change entry (no flag stored) decodes as a scored session.
+      final legacy = Map<String, dynamic>.from(
+        _entry('s', userId: 'u1').toJson(),
+      )..remove('isPractice');
+      expect(PlaySessionEnvelope.fromJson(legacy).isPractice, isFalse);
+    });
+  });
 
   test('backoff grows exponentially and is bounded', () {
     // Deterministic (zero jitter) → the capped base delay.
