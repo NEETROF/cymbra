@@ -764,8 +764,9 @@ void main() {
       });
     });
 
-    testWidgets('transport controls rail on the right on touch form factors, '
-        'bottom bar on desktop', (tester) async {
+    testWidgets('transport controls rail on the right on every form factor', (
+      tester,
+    ) async {
       // A right-side vertical rail: taller than wide, sitting to the right of
       // the keyboard rather than below it — clear of the bottom home indicator.
       Future<void> expectRail(WidgetTester tester, Size size) async {
@@ -786,22 +787,13 @@ void main() {
       }
 
       await onMobile(tester, () async {
-        // Phone (slim rail) and tablet (roomier rail) both rail on the right.
+        // Every form factor rails on the right: phones clear the home
+        // indicator, and short desktop windows keep the full height for the
+        // notation + keyboard.
         await expectRail(tester, phone);
         await expectRail(tester, tablet);
-
-        // The desktop-class viewport keeps the classic horizontal bottom bar.
-        await pumpAt(tester, desktop);
-        final desktopBar = tester.getRect(
-          find.byKey(const Key('transport-bar')),
-        );
-        expect(
-          desktopBar.width,
-          greaterThan(desktopBar.height),
-          reason: 'desktop keeps a horizontal bottom bar',
-        );
-        await teardownScreen(tester);
       });
+      await expectRail(tester, desktop);
     });
 
     testWidgets('the tablet rail keeps the full "% SPD" label and a labelled '

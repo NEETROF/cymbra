@@ -97,6 +97,24 @@ class StaffPainter extends CustomPainter {
   /// Colour set (dark surface or paper) the staff is drawn with.
   final NotationPalette palette;
 
+  /// Staff line gap for a render area [height]: proportional within the usual
+  /// 8–18 px band, but **capped so the engraving always fits** — a grand staff
+  /// needs ~19.2 gaps of vertical budget (two 4-gap staves, stem/beam clearance
+  /// above and below, and at least two gaps of air between the hands), a lone
+  /// staff ~12. Without the cap a short window kept the 8 px floor and the
+  /// two staves collided. The 3 px hard floor is the readability minimum the
+  /// glyphs can shrink to. `noteScale` applies after the clamps so the in-card
+  /// preview can deliberately go smaller.
+  static double staffLineGap({
+    required double height,
+    required bool twoStaff,
+    double noteScale = 1.0,
+  }) {
+    final proportional = (height * (twoStaff ? 0.055 : 0.10)).clamp(8.0, 18.0);
+    final fitCap = height / (twoStaff ? 19.2 : 12.0);
+    return math.min(proportional, fitCap).clamp(3.0, 18.0) * noteScale;
+  }
+
   /// Default visible time window to the right of the playhead. The score-size
   /// setting divides it by its factor so bigger notes get matching spacing.
   static const double defaultLookAheadMs = 4000;
@@ -117,12 +135,12 @@ class StaffPainter extends CustomPainter {
     // The kept staff when a single hand is shown: its clef/armature are drawn on
     // the lone staff (bass when only staff 2+ remains, else treble).
     final soloStaff = !twoStaff && hasBass ? 2 : 1;
-    // The staff line gap sizes ALL notation (notes, stems, glyphs, armature);
-    // `noteScale` shrinks it for the small in-card preview without touching the
-    // player (scale 1.0). Applied after the clamp so it can go below the player's
-    // 8 px floor when deliberately scaled down.
-    final lineGap =
-        (size.height * (twoStaff ? 0.055 : 0.10)).clamp(8.0, 18.0) * noteScale;
+    // The staff line gap sizes ALL notation (notes, stems, glyphs, armature).
+    final lineGap = staffLineGap(
+      height: size.height,
+      twoStaff: twoStaff,
+      noteScale: noteScale,
+    );
     final stepGap = lineGap / 2;
 
     // Playhead fixed at the left quarter; time advances toward the left.

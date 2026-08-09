@@ -33,3 +33,35 @@ be session-scoped.
 #### Scenario: Default is visible
 - **WHEN** a session starts
 - **THEN** the on-screen keyboard is visible (in the modes that show it)
+
+### Requirement: Adaptive Keyboard Height
+
+The on-screen keyboard height SHALL be derived from the available viewport height
+rather than a fixed constant, so the keyboard scales down on small phone
+viewports and stays proportionate on tablets/desktops. The computed height SHALL
+be clamped between a legible minimum and a maximum so the keys remain playable
+without the keyboard dominating the render area, and the render area above the
+keyboard SHALL always retain a non-zero, usable height. On a viewport too short
+for the fixed minimum (e.g. a shrunken desktop window), the minimum SHALL yield
+proportionally so the notation above keeps the large majority of the height —
+the keyboard never dominates a crushed render area.
+
+#### Scenario: Keyboard shrinks on small phone viewports
+- **WHEN** the player renders on a phone-class landscape viewport shorter than a
+  tablet
+- **THEN** the keyboard height is smaller than on a tablet/desktop viewport while
+  remaining at or above the legible minimum
+
+#### Scenario: Keyboard clamped on tall viewports
+- **WHEN** the player renders on a very tall viewport
+- **THEN** the keyboard height is clamped to its maximum so it does not dominate
+  the render area
+
+#### Scenario: Render area retains usable height
+- **WHEN** the keyboard height is computed for any supported viewport
+- **THEN** the render area above the keyboard keeps a non-zero, usable height
+
+#### Scenario: The floor yields on very short viewports
+- **WHEN** the viewport is too short for the fixed keyboard minimum
+- **THEN** the keyboard shrinks below it proportionally and the notation keeps
+  the majority of the height

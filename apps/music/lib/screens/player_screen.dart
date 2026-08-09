@@ -105,7 +105,14 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     final fraction = isPhone
         ? _keyboardHeightFractionPhone
         : _keyboardHeightFraction;
-    final min = isPhone ? _minKeyboardHeightPhone : _minKeyboardHeight;
+    // On a viewport too short for the fixed floor (a shrunken desktop window),
+    // the floor yields proportionally so the notation above always keeps the
+    // large majority of the height — a dominant keyboard over a crushed staff
+    // is worse than small keys.
+    final min = math.min(
+      isPhone ? _minKeyboardHeightPhone : _minKeyboardHeight,
+      availableHeight * 0.20,
+    );
     final max = isPhone ? _maxKeyboardHeightPhone : _maxKeyboardHeight;
     return (availableHeight * fraction).clamp(min, max);
   }
@@ -327,9 +334,6 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
             bottom: !context.isPhoneLayout,
             child: Builder(
               builder: (context) {
-                // Touch form factors (phone + tablet) rail the transport
-                // controls on the right; desktop keeps the bottom bar.
-                final useRail = context.deviceClass != DeviceClass.desktop;
                 final Widget renderArea = Consumer(
                   builder: (context, ref, child) {
                     final data = ref.watch(playerProvider);
@@ -455,27 +459,21 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                     );
                   },
                 );
-                // Phone (landscape-locked): keep the transport controls off
-                // the bottom home-indicator zone by railing them on the right,
-                // giving the render area + keyboard the full height. The tablet
-                // rails them too (consistency + freed height); only the desktop
-                // keeps the classic bottom bar.
+                // The transport rails on the right on every form factor:
+                // it frees the full height for the render area + keyboard —
+                // decisive on short desktop windows — and keeps one layout
+                // across phone, tablet and desktop.
                 return Column(
                   children: [
                     const _TopBar(),
-                    if (useRail)
-                      Expanded(
-                        child: Row(
-                          children: [
-                            Expanded(child: renderArea),
-                            const _TransportBar(axis: Axis.vertical),
-                          ],
-                        ),
-                      )
-                    else ...[
-                      Expanded(child: renderArea),
-                      const _TransportBar(),
-                    ],
+                    Expanded(
+                      child: Row(
+                        children: [
+                          Expanded(child: renderArea),
+                          const _TransportBar(axis: Axis.vertical),
+                        ],
+                      ),
+                    ),
                   ],
                 );
               },
