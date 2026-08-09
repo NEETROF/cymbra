@@ -14,7 +14,7 @@
 
 - [x] 2.1 Freezed `CourseManifest` (`schemaVersion`, `id`, `instrument`, `track`, `level`, inline-i18n `title`/`summary`, `blocks[]`) and a **Block** union: `text`, `diagram`, `image`, `video`, `question`, `playKey`, `score`, plus an `unsupported` fallback (`lib/courses/course_manifest.dart`)
 - [x] 2.2 Defensive parser: unknown block `type` → `unsupported` (skipped at play time), malformed known block → `unsupported` (never throws), unknown/absent top-level `schemaVersion` → course declined (null); inline-i18n resolver (`resolveInline`, current locale → `en` → any)
-- [ ] 2.3 Course-source seam (gRPC client `ListCourses`/`GetCourse`) + Riverpod provider for the course list, with a local cache for offline
+- [x] 2.3 Course-source seam (`CourseCatalogService` + `GrpcCourseCatalogService` over `ListCourses`/`GetCourse`, `lib/services/course_catalog_service.dart`) + `coursesProvider`/`courseManifestProvider` reconciled with a `shared_preferences` offline cache (server → refresh cache; unreachable → serve cache); tested (fetch+cache, offline fallback, unknown course)
 - [x] 2.4 Unit-tested parsing (`test/courses/course_manifest_test.dart`): valid manifest → ordered typed blocks; **injected unknown block still yields a completable course**; malformed-block degradation; schema-version decline; i18n fallback. (Cache round-trip lands with §2.3.)
 
 ## 3. Home "Cours" section + lesson player (display + quiz blocks)

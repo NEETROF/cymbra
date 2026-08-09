@@ -44,6 +44,33 @@ String resolveInline(InlineText text, String languageCode) =>
     text['en'] ??
     (text.isNotEmpty ? text.values.first : '');
 
+/// Parses an inline-i18n JSON object (a `{en, fr, …}` map, as carried in the
+/// gRPC summary's `title_json`) into an [InlineText]. Non-object or malformed
+/// JSON yields an empty map.
+InlineText parseInlineJson(String source) {
+  try {
+    return _inline(jsonDecode(source));
+  } catch (_) {
+    return const {};
+  }
+}
+
+/// Lightweight listing metadata for a course — what the home screen needs to
+/// draw a tile and group it, without fetching the (potentially large) manifest
+/// body. Mirrors the gRPC `CourseSummary`.
+@freezed
+sealed class CourseListing with _$CourseListing {
+  const factory CourseListing({
+    required String id,
+    required int schemaVersion,
+    @Default('piano') String instrument,
+    @Default('solfege') String track,
+    @Default('beginner') String level,
+    @Default(0) int sortOrder,
+    @Default(<String, String>{}) InlineText title,
+  }) = _CourseListing;
+}
+
 /// A parsed course: its grouping metadata (instrument/track/level), inline
 /// titles, and the ordered blocks the lesson player runs.
 @freezed
