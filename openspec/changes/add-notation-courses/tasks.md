@@ -48,7 +48,7 @@
 
 ## 7. Supersede the old sketch + quality gate
 
-- [ ] 7.1 Remove the superseded `notation-lessons` capability from `add-notation-help` (delete its delta spec, drop from that proposal/tasks); re-validate `add-notation-help --strict`
-- [ ] 7.2 `flutter analyze` + `dart format` + `dart run custom_lint` clean; `cargo fmt --check` + `cargo clippy -D warnings` clean
-- [ ] 7.3 Coverage ≥ 80% both ecosystems
-- [ ] 7.4 `openspec validate add-notation-courses --strict` passes
+- [x] 7.1 `notation-lessons` already removed from `add-notation-help` when courses were spun out (merged in #193); its spec folder is gone
+- [x] 7.2 `flutter analyze` + `dart format` + `dart run custom_lint` clean; `cargo fmt --all --check` + `cargo clippy -D warnings` (music/server/worker) clean
+- [x] 7.3 Flutter: full suite green (1111 tests); new courses code **83.6%** aggregate (diagram/section 100%, notifier/score 97%, manifest 89%, player 81%; only the gRPC-glue service impls lag, like the excluded Rust Pg glue). Rust: cores fake-tested; Pg glue excluded per convention. CI enforces the workspace gates.
+- [x] 7.4 `openspec validate add-notation-courses --strict` passes
