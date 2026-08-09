@@ -119,6 +119,61 @@ String notationKeyTonic(
   };
 }
 
+/// The note the time-signature bottom number stands for (1 = whole … 16 =
+/// sixteenth), localized, with its symbol where it renders reliably.
+String notationBeatUnitName(AppLocalizations l10n, int beatType) =>
+    switch (beatType) {
+      1 => l10n.notationBeatUnitWhole,
+      2 => l10n.notationBeatUnitHalf,
+      4 => l10n.notationBeatUnitQuarter,
+      8 => l10n.notationBeatUnitEighth,
+      16 => l10n.notationBeatUnitSixteenth,
+      _ => l10n.notationBeatUnitOther,
+    };
+
+/// The localized rest name for a note-value type, or null for the unknown/
+/// generic case (MIDI-only sources carry no note type).
+String? notationRestTitle(AppLocalizations l10n, String? noteType) =>
+    switch (noteType) {
+      'whole' => l10n.notationRestWhole,
+      'half' => l10n.notationRestHalf,
+      'quarter' => l10n.notationRestQuarter,
+      'eighth' => l10n.notationRestEighth,
+      '16th' => l10n.notationRestSixteenth,
+      _ => null,
+    };
+
+/// A localized "how long it lasts" label in beats (quarter = one beat, the
+/// common simple-meter reading), for a note/rest value plus its dots. Returns
+/// null when the type is unknown or lands on an uncommon fraction, so the bubble
+/// simply omits the duration rather than showing something confusing.
+String? notationDurationBeats(
+  AppLocalizations l10n,
+  String? noteType,
+  int dots,
+) {
+  final base = switch (noteType) {
+    'whole' => 4.0,
+    'half' => 2.0,
+    'quarter' => 1.0,
+    'eighth' => 0.5,
+    '16th' => 0.25,
+    _ => null,
+  };
+  if (base == null) return null;
+  final beats = dots >= 1 ? base * 1.5 : base;
+  return switch (beats) {
+    4.0 => l10n.notationBeats4,
+    3.0 => l10n.notationBeats3,
+    2.0 => l10n.notationBeats2,
+    1.5 => l10n.notationBeats1half,
+    1.0 => l10n.notationBeats1,
+    0.5 => l10n.notationBeatsHalf,
+    0.25 => l10n.notationBeatsQuarter,
+    _ => null,
+  };
+}
+
 /// The localized help for a resolved staff [symbol]. Exhaustive over the
 /// [SymbolDescriptor] union, so **every** symbol a painter can record has an
 /// explanation — the compiler enforces it (a new variant fails to compile until
@@ -130,20 +185,25 @@ NotationHelp notationHelpFor(
   required bool frenchRe,
 }) {
   switch (symbol) {
-    case NoteSymbol(:final pitch):
+    case NoteSymbol(:final pitch, :final noteType, :final dots):
       final name = notationPitchName(
         pitch,
         solfege: solfege,
         frenchRe: frenchRe,
       );
+      final beats = notationDurationBeats(l10n, noteType, dots);
+      final body = beats == null
+          ? l10n.notationHelpNoteBody
+          : '${l10n.notationHelpNoteBody} ${l10n.notationHelpNoteDuration(name, beats)}';
+      return (title: l10n.notationHelpNoteTitle(name), body: body);
+    case RestSymbol(:final noteType):
+      final beats = notationDurationBeats(l10n, noteType, 0);
+      final body = beats == null
+          ? l10n.notationHelpRestBody
+          : '${l10n.notationHelpRestBody} ${l10n.notationHelpRestDuration(beats)}';
       return (
-        title: l10n.notationHelpNoteTitle(name),
-        body: l10n.notationHelpNoteBody,
-      );
-    case RestSymbol():
-      return (
-        title: l10n.notationHelpRestTitle,
-        body: l10n.notationHelpRestBody,
+        title: notationRestTitle(l10n, noteType) ?? l10n.notationHelpRestTitle,
+        body: body,
       );
     case AccidentalSymbol(:final token):
       return switch (token) {
@@ -195,7 +255,11 @@ NotationHelp notationHelpFor(
     case TimeSignatureSymbol(:final beats, :final beatType):
       return (
         title: l10n.notationHelpTimeSignatureTitle,
-        body: l10n.notationHelpTimeSignatureBody(beats, beatType),
+        body: l10n.notationHelpTimeSignatureBody(
+          beats,
+          beatType,
+          notationBeatUnitName(l10n, beatType),
+        ),
       );
     case AugmentationDotSymbol():
       return (title: l10n.notationHelpDotTitle, body: l10n.notationHelpDotBody);

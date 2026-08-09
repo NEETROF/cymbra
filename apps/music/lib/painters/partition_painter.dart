@@ -658,7 +658,7 @@ class PartitionPainter extends CustomPainter {
             width: _s * 1.6,
             height: _s * 2.4,
           ),
-          const SymbolDescriptor.rest(),
+          SymbolDescriptor.rest(noteType: note.noteType),
         );
         continue;
       }
@@ -711,6 +711,8 @@ class PartitionPainter extends CustomPainter {
           diatonic: pitch.octave * 7 + (_stepOrder[pitch.step] ?? 0),
           clefSign: clef.sign,
           staff: note.staff,
+          noteType: note.noteType,
+          dots: note.dots,
         ),
       );
 

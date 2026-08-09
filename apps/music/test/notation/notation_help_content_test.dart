@@ -125,6 +125,66 @@ void main() {
     });
   }
 
+  group('duration & rest naming (English)', () {
+    late AppLocalizations l10n;
+    setUp(() async {
+      l10n = await AppLocalizations.delegate.load(const Locale('en'));
+    });
+
+    NotationHelp help(SymbolDescriptor d) =>
+        notationHelpFor(l10n, d, solfege: false, frenchRe: false);
+
+    test('a note ends with its pitch and duration in beats', () {
+      // C6 (MIDI 84), a quarter note → "1 beat".
+      final h = help(
+        const SymbolDescriptor.note(pitch: 84, noteType: 'quarter'),
+      );
+      expect(h.title, contains('C6'));
+      expect(h.body, contains('C6'));
+      expect(h.body, contains('1 beat'));
+    });
+
+    test('a dotted half note reads three beats', () {
+      final h = help(
+        const SymbolDescriptor.note(pitch: 60, noteType: 'half', dots: 1),
+      );
+      expect(h.body, contains('3 beats'));
+    });
+
+    test('a note without a known type shows no duration suffix', () {
+      final h = help(const SymbolDescriptor.note(pitch: 60));
+      expect(h.body, equals(l10n.notationHelpNoteBody));
+    });
+
+    test('rests are named and dated by their value', () {
+      final half = help(const SymbolDescriptor.rest(noteType: 'half'));
+      expect(half.title, 'Half rest');
+      expect(half.body, contains('2 beats'));
+      final quarter = help(const SymbolDescriptor.rest(noteType: 'quarter'));
+      expect(quarter.title, 'Quarter rest');
+      expect(quarter.body, contains('1 beat'));
+      // The half rest and the quarter rest are clearly distinguished.
+      expect(half.title, isNot(equals(quarter.title)));
+    });
+
+    test('an unknown rest falls back to the generic title/body', () {
+      final h = help(const SymbolDescriptor.rest());
+      expect(h.title, l10n.notationHelpRestTitle);
+      expect(h.body, l10n.notationHelpRestBody);
+    });
+
+    test('the time signature names the note the bottom number stands for', () {
+      final h = help(
+        const SymbolDescriptor.timeSignature(beats: 4, beatType: 4),
+      );
+      expect(h.body, contains('quarter note'));
+      final sixEight = help(
+        const SymbolDescriptor.timeSignature(beats: 6, beatType: 8),
+      );
+      expect(sixEight.body, contains('eighth note'));
+    });
+  });
+
   test('note names use letters in English and solfège elsewhere', () {
     // C4 is MIDI 60.
     expect(notationPitchName(60, solfege: false, frenchRe: false), 'C4');

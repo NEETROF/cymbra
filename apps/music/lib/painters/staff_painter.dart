@@ -580,6 +580,8 @@ class StaffPainter extends CustomPainter {
           diatonic: n.diatonic,
           clefSign: n.clefSign,
           staff: n.staff,
+          noteType: n.noteType,
+          dots: n.dots,
         ),
       );
       // Accidental engraved on this note (sharp/flat/natural…), left of the
@@ -589,7 +591,9 @@ class StaffPainter extends CustomPainter {
         final glyph = Smufl.accidental(token);
         if (glyph != null) {
           final ax =
-              x - Smufl.noteheadWidth * lineGap / 2 - lineGap * _accidentalOffset;
+              x -
+              Smufl.noteheadWidth * lineGap / 2 -
+              lineGap * _accidentalOffset;
           Smufl.draw(canvas, glyph, ax, y, lineGap, color);
           record(
             Rect.fromLTWH(ax, y - lineGap * 1.4, lineGap * 1.3, lineGap * 2.6),
@@ -673,7 +677,7 @@ class StaffPainter extends CustomPainter {
           width: lineGap * 1.6,
           height: lineGap * 2.4,
         ),
-        const SymbolDescriptor.rest(),
+        SymbolDescriptor.rest(noteType: r.noteType),
       );
       if (r.dots > 0) {
         _drawDots(canvas, Offset(x, y), lineGap, r.dots, restColor);

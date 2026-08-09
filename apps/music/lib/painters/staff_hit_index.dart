@@ -60,10 +60,13 @@ sealed class SymbolDescriptor with _$SymbolDescriptor {
     int? diatonic,
     @Default('G') String clefSign,
     @Default(1) int staff,
+    String? noteType,
+    @Default(0) int dots,
   }) = NoteSymbol;
 
-  /// A rest (any duration).
-  const factory SymbolDescriptor.rest() = RestSymbol;
+  /// A rest, with its note-value type when known (`whole`/`half`/`quarter`/
+  /// `eighth`/`16th`) so the help can name it and give its duration.
+  const factory SymbolDescriptor.rest({String? noteType}) = RestSymbol;
 
   /// An accidental engraved on a note, by MusicXML token (`sharp`, `flat`,
   /// `natural`, `double-sharp`/`sharp-sharp`, `flat-flat`).
