@@ -17,7 +17,9 @@ import 'dart:convert';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../services/course_catalog_service.dart';
 import '../services/preferences_service.dart';
+import 'session_notifier.dart';
 
 part 'course_completion_notifier.freezed.dart';
 part 'course_completion_notifier.g.dart';
@@ -52,7 +54,38 @@ class CourseCompletion extends _$CourseCompletion {
   @override
   CourseCompletionState build() {
     _restore();
+    // Reconcile with the server whenever online access becomes available (sign-in
+    // or reconnect), and once now if already online.
+    ref.listen(canUseOnlineServicesProvider, (_, online) {
+      if (online) _sync();
+    });
+    if (ref.read(canUseOnlineServicesProvider)) _sync();
     return const CourseCompletionState();
+  }
+
+  /// Reconciles with the cross-device server record: pulls the server's
+  /// completed set into the local one, and pushes any local-only completions up
+  /// (so a guest's completions land on their account after sign-in). Best-effort:
+  /// any failure (offline, signed out) leaves the local set untouched.
+  Future<void> _sync() async {
+    final service = ref.read(courseProgressServiceProvider);
+    final Set<String> serverIds;
+    try {
+      serverIds = await service.completedCourseIds();
+    } catch (_) {
+      return; // offline / signed out → local only
+    }
+    if (!serverIds.every(state.completed.contains)) {
+      state = state.copyWith(
+        loaded: true,
+        completed: {...state.completed, ...serverIds},
+      );
+    }
+    for (final id in state.completed.difference(serverIds)) {
+      try {
+        await service.recordCompletion(id);
+      } catch (_) {}
+    }
   }
 
   Future<void> _restore() async {
@@ -92,5 +125,11 @@ class CourseCompletion extends _$CourseCompletion {
           .read(preferencesServiceProvider)
           .setString(_kCompletedKey, jsonEncode(next.toList()));
     } catch (_) {}
+    // Record on the server too, so it shows on the user's other devices.
+    if (ref.read(canUseOnlineServicesProvider)) {
+      try {
+        await ref.read(courseProgressServiceProvider).recordCompletion(id);
+      } catch (_) {}
+    }
   }
 }

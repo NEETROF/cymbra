@@ -91,6 +91,60 @@ CourseCatalogService courseCatalogService(Ref ref) => GrpcCourseCatalogService(
   authed: ref.watch(authedRunnerProvider),
 );
 
+/// Seam over the backend's cross-device course completion (change:
+/// add-notation-courses): `ScoreService.RecordCourseCompletion` / `GetCourseProgress`.
+/// Separate from [CourseCatalogService] so the completion notifier (and tests)
+/// depend only on what they use. Owner-scoped; both methods **throw** off-line /
+/// signed-out, which the notifier treats as "local only".
+abstract class CourseProgressService {
+  /// The ids of the courses the signed-in user has completed (any device).
+  Future<Set<String>> completedCourseIds();
+
+  /// Records a completion of [courseId] for the signed-in user (idempotent
+  /// server-side; the first one awards the badge).
+  Future<void> recordCompletion(String courseId);
+}
+
+/// Production [CourseProgressService] over the generated `ScoreServiceClient`.
+class GrpcCourseProgressService implements CourseProgressService {
+  GrpcCourseProgressService({
+    required ClientChannel channel,
+    required AuthedRunner authed,
+  }) : _client = score.ScoreServiceClient(channel),
+       _authed = authed;
+
+  final score.ScoreServiceClient _client;
+  final AuthedRunner _authed;
+
+  @override
+  Future<Set<String>> completedCourseIds() => _authed((bearer) async {
+    final resp = await _client.getCourseProgress(
+      score.GetCourseProgressRequest(),
+      options: bearerOptions(bearer),
+    );
+    return resp.progress
+        .where((p) => p.completed)
+        .map((p) => p.courseId)
+        .toSet();
+  });
+
+  @override
+  Future<void> recordCompletion(String courseId) => _authed((bearer) async {
+    await _client.recordCourseCompletion(
+      score.RecordCourseCompletionRequest(courseId: courseId),
+      options: bearerOptions(bearer),
+    );
+  });
+}
+
+/// Production course-progress service provider. Override in tests with a fake.
+@riverpod
+CourseProgressService courseProgressService(Ref ref) =>
+    GrpcCourseProgressService(
+      channel: ref.watch(cymbraChannelProvider),
+      authed: ref.watch(authedRunnerProvider),
+    );
+
 const String _kCoursesCacheKey = 'courses.listing.v1';
 String _manifestCacheKey(String id) => 'courses.manifest.v1.$id';
 

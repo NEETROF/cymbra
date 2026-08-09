@@ -37,8 +37,8 @@
 - [x] 5.2 `CourseProgressStore` trait + `PgCourseProgressStore` (idempotent upsert: first completion sets `completed_at` → `newly_completed`, replay bumps `play_count`) + `FakeCourseProgressStore` (`course_progress.rs`)
 - [x] 5.3 gRPC `RecordCourseCompletion(courseId)` (returns `newly_completed`) / `GetCourseProgress()` on `ScoreService`, owner-scoped; wired in `server/src/main.rs` via `.with_course_progress(...)`
 - [ ] 5.4 **Deferred** — add the course-completion badge to `curation-rewards` (its badges are computed from curator metrics, so a completion badge needs a new category). The server `newly_completed` signal is the once-per-course hook it will use.
-- [ ] 5.5 Flutter completion notifier: local cache (`shared_preferences`, guest) reconciled with the server on load (non-blocking); record on finish; best-effort push local completions on sign-in
-- [~] 5.6 Rust tests done (first completion `newly_completed`, replay only counts, per-user isolation; clippy+fmt clean). Flutter sync tests land with §5.5.
+- [x] 5.5 `CourseProgressService` seam (`RecordCourseCompletion`/`GetCourseProgress`); the completion notifier reconciles with the server via `ref.listen(canUseOnlineServicesProvider)` — merges the server set, records on finish, and pushes local-only completions on sign-in (guest→account); all best-effort (offline/guest → local only)
+- [x] 5.6 Rust tests (first completion `newly_completed`, replay only counts, per-user isolation) + Flutter tests (`course_completion_sync_test.dart`: server merge, guest stays local, record-on-finish, guest→account push). clippy/fmt/analyze/custom_lint clean.
 
 ## 6. First-wave course content (seed)
 
