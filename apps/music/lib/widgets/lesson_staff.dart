@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:math' as math;
+
 import 'package:flutter/foundation.dart' show listEquals, mapEquals;
 import 'package:flutter/material.dart';
 
@@ -196,15 +198,19 @@ class _LessonStaffPainter extends CustomPainter {
     }
     x += s * 0.8;
 
-    // Elements, spread over the remaining width (or stacked as a chord).
+    // Elements over the remaining width (or stacked as a chord). The gap is
+    // CAPPED at a musical distance: on a wide landscape screen, notes spread
+    // edge-to-edge stop reading as one phrase.
     if (elements.isNotEmpty) {
       final span = right - s - x;
       final gap = stacked || elements.length == 1
           ? 0.0
-          : span / (elements.length - 1);
+          : math.min(span / (elements.length - 1), 4.5 * s);
+      // Centre the (possibly narrower) run on the remaining staff.
+      final runWidth = gap * (elements.length - 1);
+      final start = stacked ? x + span / 2 : x + (span - runWidth) / 2;
       for (var i = 0; i < elements.length; i++) {
-        final cx = stacked ? x + span / 2 : x + gap * i;
-        _drawElement(canvas, i, elements[i], cx, bottom, s);
+        _drawElement(canvas, i, elements[i], start + gap * i, bottom, s);
       }
     }
 

@@ -62,6 +62,9 @@ class _EarChoiceViewState extends ConsumerState<EarChoiceView> {
   String? _wrongId; // chip currently flashing the error fill
   bool _missed = false;
   bool _done = false;
+
+  /// Anchors the reveal staff for the post-answer scroll-into-view.
+  final GlobalKey _revealKey = GlobalKey();
   bool _completed = false;
 
   @override
@@ -109,6 +112,20 @@ class _EarChoiceViewState extends ConsumerState<EarChoiceView> {
     if (option.id == widget.block.answerId) {
       setState(() => _done = true);
       _sounder.chime();
+      // On short (landscape phone) viewports the reveal can land below the
+      // fold — bring it to the learner instead of hoping they scroll.
+      if (widget.block.reveal) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          final ctx = _revealKey.currentContext;
+          if (ctx != null && mounted) {
+            Scrollable.ensureVisible(
+              ctx,
+              duration: const Duration(milliseconds: 300),
+              alignment: 0.5,
+            );
+          }
+        });
+      }
       // With the staff reveal on, hold long enough to actually READ what was
       // heard — eye and ear must meet before the lesson moves on.
       final hold = widget.block.reveal
@@ -167,6 +184,26 @@ class _EarChoiceViewState extends ConsumerState<EarChoiceView> {
             label: Text(l10n.lessonListen),
           ),
         ),
+        if (_done && b.reveal) ...[
+          const SizedBox(height: 12),
+          // The eye confirms what the ear heard — shown right where the
+          // learner is already looking (above the chips), and scrolled into
+          // view on short landscape screens.
+          LessonStaff(
+            key: _revealKey,
+            clef: b.notes.first.nearestClef,
+            elements: [
+              for (final n in b.notes)
+                LessonStaffElement(
+                  pitch: n,
+                  fig: const RhythmFigure(NoteFigure.quarter),
+                ),
+            ],
+            elementColors: {
+              for (var i = 0; i < b.notes.length; i++) i: CymbraColors.tertiary,
+            },
+          ),
+        ],
         const SizedBox(height: 16),
         Wrap(
           spacing: 8,
@@ -190,23 +227,6 @@ class _EarChoiceViewState extends ConsumerState<EarChoiceView> {
               ),
           ],
         ),
-        if (_done && b.reveal) ...[
-          const SizedBox(height: 16),
-          // The eye confirms what the ear heard.
-          LessonStaff(
-            clef: b.notes.first.nearestClef,
-            elements: [
-              for (final n in b.notes)
-                LessonStaffElement(
-                  pitch: n,
-                  fig: const RhythmFigure(NoteFigure.quarter),
-                ),
-            ],
-            elementColors: {
-              for (var i = 0; i < b.notes.length; i++) i: CymbraColors.tertiary,
-            },
-          ),
-        ],
         if (_done || _missed) ...[
           const SizedBox(height: 8),
           Text(
