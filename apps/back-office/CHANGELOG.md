@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.1](https://github.com/NEETROF/cymbra/compare/back-office-v0.6.0...back-office-v0.6.1) (2026-08-09)
+
+
+### Bug Fixes
+
+* **back-office:** stop the previous score's audio in review mode ([#186](https://github.com/NEETROF/cymbra/issues/186)) ([821b5c6](https://github.com/NEETROF/cymbra/commit/821b5c607eec24b2f0185788a7bf51d983a2417e))
+
 ## [0.6.0](https://github.com/NEETROF/cymbra/compare/back-office-v0.5.0...back-office-v0.6.0) (2026-08-07)
 
 
