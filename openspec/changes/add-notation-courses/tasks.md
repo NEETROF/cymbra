@@ -33,12 +33,12 @@
 
 ## 5. Cross-device completion + badge
 
-- [ ] 5.1 Migration: `course_progress` (`user_id`, `course_id`, `completed_at`, `play_count`), cascade on erasure
-- [ ] 5.2 `CourseProgressStore` trait + Postgres impl + **host-testable idempotent award core** (first completion sets `completed_at` + awards the badge; replay bumps `play_count` only, never re-awards)
-- [ ] 5.3 gRPC `RecordCourseCompletion(courseId)` / `GetCourseProgress()` on `ScoreService`; wire the store
-- [ ] 5.4 Add the course-completion badge to `curation-rewards`; award in the core; surface via existing badge feedback
+- [x] 5.1 Migration `0020_course_progress.sql`: `music.course_progress` (`user_id` UUID, `course_id`, `completed_at`, `play_count`, PK(user_id,course_id)); erasure via the worker `purge_user` DELETE loop (no cross-schema FK)
+- [x] 5.2 `CourseProgressStore` trait + `PgCourseProgressStore` (idempotent upsert: first completion sets `completed_at` → `newly_completed`, replay bumps `play_count`) + `FakeCourseProgressStore` (`course_progress.rs`)
+- [x] 5.3 gRPC `RecordCourseCompletion(courseId)` (returns `newly_completed`) / `GetCourseProgress()` on `ScoreService`, owner-scoped; wired in `server/src/main.rs` via `.with_course_progress(...)`
+- [ ] 5.4 **Deferred** — add the course-completion badge to `curation-rewards` (its badges are computed from curator metrics, so a completion badge needs a new category). The server `newly_completed` signal is the once-per-course hook it will use.
 - [ ] 5.5 Flutter completion notifier: local cache (`shared_preferences`, guest) reconciled with the server on load (non-blocking); record on finish; best-effort push local completions on sign-in
-- [ ] 5.6 Tests — Rust: first completion awards once, replay/other-device never re-awards (`cargo llvm-cov` ≥ 80% core). Flutter: signed-in completion shows across a fresh container, guest stays local, load-in-flight still opens the course
+- [~] 5.6 Rust tests done (first completion `newly_completed`, replay only counts, per-user isolation; clippy+fmt clean). Flutter sync tests land with §5.5.
 
 ## 6. First-wave course content (seed)
 

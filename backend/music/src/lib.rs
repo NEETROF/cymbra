@@ -16,6 +16,7 @@ pub mod catalog_edit;
 pub mod catalog_limits;
 pub mod catalog_search;
 pub mod course;
+pub mod course_progress;
 pub mod curation_rewards;
 pub mod curation_rewards_core;
 pub mod curation_rewards_module;
@@ -58,6 +59,10 @@ pub use catalog_search::{
     CatalogHit, CatalogSearchParams, CatalogSearchRepo, FakeCatalogRow, FakeCatalogSearchRepo,
 };
 pub use course::{Course, CourseRepo, CourseSummary, FakeCourseRepo, PgCourseRepo};
+pub use course_progress::{
+    CompletionOutcome, CourseProgress, CourseProgressStore, FakeCourseProgressStore,
+    PgCourseProgressStore,
+};
 pub use curation_rewards::{
     ConsensusCandidate, CurationRewardsRepo, CurationRewardsSink, CuratorMetrics,
     FakeCurationRewardsRepo, GrantKind, LedgerEntry, SettleOutcome, SettleableRating, ShopItem,

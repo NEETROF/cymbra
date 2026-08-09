@@ -30,23 +30,26 @@ use crate::catalog_edit::MetadataChanges;
 use crate::catalog_limits::CatalogAccessLimiter;
 use crate::catalog_search::{CatalogHit, CatalogQuery, SortKey, is_moderation_sort_field};
 use crate::course::CourseRepo;
+use crate::course_progress::CourseProgressStore;
 use crate::curation_rewards::{CuratorMetrics, LedgerEntry};
 use crate::curation_rewards_core::BADGES;
 use crate::curation_rewards_module::{CurationRewardsModule, CuratorRewards};
 use crate::module::{ScoreModule, UploadInput};
 use crate::proto::{
     AdminListSoundFontsRequest, AdminListSoundFontsResponse, AdminSoundFont,
-    CatalogHit as ProtoCatalogHit, Course as ProtoCourse, CourseSummary as ProtoCourseSummary,
-    CuratorBadge, CuratorReliability, CuratorRewards as ProtoRewards, DeleteScoreRequest,
-    DeleteScoreResponse, DeleteSoundFontRequest, DeleteSoundFontResponse,
-    GetCatalogScoreBytesRequest, GetCatalogScoreBytesResponse, GetCatalogScoreRequest,
-    GetCourseRequest, GetCourseResponse, GetCuratorReliabilityRequest, GetCuratorRewardsRequest,
-    GetMyScoreRatingRequest, GetMyScoreRatingResponse, GetRatingPreviewBytesRequest,
-    GetRatingPreviewBytesResponse, GetScoreBytesRequest, GetScoreBytesResponse, ListCoursesRequest,
-    ListCoursesResponse, ListMyScoresRequest, ListMyScoresResponse, ListRatingDeckRequest,
-    ListRatingDeckResponse, ListRewardShopRequest, ListRewardShopResponse,
-    ListSavedCatalogScoresRequest, ListSavedCatalogScoresResponse, ListSoundFontsRequest,
-    ListSoundFontsResponse, ProposeScoreRequest, ProposeScoreResponse, RedeemRewardRequest,
+    CatalogHit as ProtoCatalogHit, Course as ProtoCourse, CourseProgress as ProtoCourseProgress,
+    CourseSummary as ProtoCourseSummary, CuratorBadge, CuratorReliability,
+    CuratorRewards as ProtoRewards, DeleteScoreRequest, DeleteScoreResponse,
+    DeleteSoundFontRequest, DeleteSoundFontResponse, GetCatalogScoreBytesRequest,
+    GetCatalogScoreBytesResponse, GetCatalogScoreRequest, GetCourseProgressRequest,
+    GetCourseProgressResponse, GetCourseRequest, GetCourseResponse, GetCuratorReliabilityRequest,
+    GetCuratorRewardsRequest, GetMyScoreRatingRequest, GetMyScoreRatingResponse,
+    GetRatingPreviewBytesRequest, GetRatingPreviewBytesResponse, GetScoreBytesRequest,
+    GetScoreBytesResponse, ListCoursesRequest, ListCoursesResponse, ListMyScoresRequest,
+    ListMyScoresResponse, ListRatingDeckRequest, ListRatingDeckResponse, ListRewardShopRequest,
+    ListRewardShopResponse, ListSavedCatalogScoresRequest, ListSavedCatalogScoresResponse,
+    ListSoundFontsRequest, ListSoundFontsResponse, ProposeScoreRequest, ProposeScoreResponse,
+    RecordCourseCompletionRequest, RecordCourseCompletionResponse, RedeemRewardRequest,
     RedeemRewardResponse, RemoveSavedCatalogScoreRequest, RemoveSavedCatalogScoreResponse,
     RewardActivity, RewardShopItem, SaveCatalogScoreRequest, SaveCatalogScoreResponse, ScoreRecord,
     SearchCatalogRequest, SearchCatalogResponse, SetModerationStatusRequest,
@@ -89,6 +92,9 @@ pub struct ScoreGrpc {
     /// `ListCourses`/`GetCourse` reporting the feature as unavailable; production
     /// wires it via [`Self::with_courses`].
     courses: Option<Arc<dyn CourseRepo>>,
+    /// Per-user course completion (change: add-notation-courses). `None` leaves
+    /// the completion RPCs reporting the feature as unavailable.
+    course_progress: Option<Arc<dyn CourseProgressStore>>,
 }
 
 impl ScoreGrpc {
@@ -101,7 +107,21 @@ impl ScoreGrpc {
             rewards: None,
             user: None,
             courses: None,
+            course_progress: None,
         }
+    }
+
+    /// Attach the per-user course-progress store (cross-device completion).
+    pub fn with_course_progress(mut self, store: Arc<dyn CourseProgressStore>) -> Self {
+        self.course_progress = Some(store);
+        self
+    }
+
+    /// The wired course-progress store, or `UNAVAILABLE` when unconfigured.
+    fn course_progress(&self) -> Result<&Arc<dyn CourseProgressStore>, Status> {
+        self.course_progress
+            .as_ref()
+            .ok_or_else(|| Status::unavailable("course progress unavailable"))
     }
 
     /// Attach the persisted course catalog that backs `ListCourses`/`GetCourse`.
@@ -545,6 +565,49 @@ impl ScoreService for ScoreGrpc {
                 content_json: c.content,
             });
         Ok(Response::new(GetCourseResponse { course }))
+    }
+
+    /// Records that the caller completed a course (change: add-notation-courses).
+    /// Owner-scoped and idempotent: the first completion returns
+    /// `newly_completed = true` (the once-per-course badge signal), a replay only
+    /// bumps the count.
+    async fn record_course_completion(
+        &self,
+        req: Request<RecordCourseCompletionRequest>,
+    ) -> Result<Response<RecordCourseCompletionResponse>, Status> {
+        let owner_id = owner(&req)?;
+        let course_id = req.into_inner().course_id;
+        let store = self.course_progress()?;
+        let outcome = store
+            .record_completion(&owner_id, &course_id)
+            .await
+            .map_err(|e| Status::internal(format!("record course completion: {e}")))?;
+        Ok(Response::new(RecordCourseCompletionResponse {
+            newly_completed: outcome.newly_completed,
+            play_count: outcome.play_count as i32,
+        }))
+    }
+
+    /// The caller's course completion, read back on any device (change:
+    /// add-notation-courses). Owner-scoped.
+    async fn get_course_progress(
+        &self,
+        req: Request<GetCourseProgressRequest>,
+    ) -> Result<Response<GetCourseProgressResponse>, Status> {
+        let owner_id = owner(&req)?;
+        let store = self.course_progress()?;
+        let progress = store
+            .list(&owner_id)
+            .await
+            .map_err(|e| Status::internal(format!("get course progress: {e}")))?
+            .into_iter()
+            .map(|p| ProtoCourseProgress {
+                course_id: p.course_id,
+                completed: p.completed,
+                play_count: p.play_count as i32,
+            })
+            .collect();
+        Ok(Response::new(GetCourseProgressResponse { progress }))
     }
 
     /// Admin list of the SoundFont catalog (change:

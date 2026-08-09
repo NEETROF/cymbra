@@ -360,6 +360,29 @@ message GetCourseResponse {
   Course course = 1;
 }
 
+// Per-user course completion, cross-device (change: add-notation-courses).
+message CourseProgress {
+  string course_id = 1;
+  bool completed = 2;
+  int32 play_count = 3;
+}
+
+message RecordCourseCompletionRequest {
+  string course_id = 1;
+}
+
+message RecordCourseCompletionResponse {
+  // True only on the FIRST completion of this course (the badge signal).
+  bool newly_completed = 1;
+  int32 play_count = 2;
+}
+
+message GetCourseProgressRequest {}
+
+message GetCourseProgressResponse {
+  repeated CourseProgress progress = 1;
+}
+
 // Admin view of a catalog font (change: add-soundfont-back-office-management):
 // carries the storage-facing fields the user listing omits. `has_object` reports
 // whether the bytes are present in the private store. Moderation fields
@@ -534,6 +557,9 @@ service ScoreService {
   // and skips any it does not understand (forward-compatible).
   rpc ListCourses(ListCoursesRequest) returns (ListCoursesResponse);
   rpc GetCourse(GetCourseRequest) returns (GetCourseResponse);
+  // Cross-device course completion (change: add-notation-courses). Owner-scoped.
+  rpc RecordCourseCompletion(RecordCourseCompletionRequest) returns (RecordCourseCompletionResponse);
+  rpc GetCourseProgress(GetCourseProgressRequest) returns (GetCourseProgressResponse);
 
   // SoundFont catalog administration (change: add-soundfont-back-office-management).
   // Music-scope moderator/admin only. Metadata list/edit/delete; adding a font (with
