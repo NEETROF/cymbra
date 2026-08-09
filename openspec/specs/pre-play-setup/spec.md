@@ -27,7 +27,8 @@ once per opened score.
 The modal SHALL show the score's information — title, composer, difficulty, and
 the key signature, time signature and tempo when known (missing values are
 omitted, not shown as defaults). It SHALL let the user choose which hands to play
-(left / right / both), adjust the playback tempo and toggle the metronome, and
+(left / right / both), adjust the playback tempo and toggle the metronome,
+choose the score size (small / medium / large), and
 see and select the MIDI input device. The hand choice SHALL be offered only when
 the piece has more than one staff; for a single-staff piece it SHALL be omitted
 and the selection stays at both.
@@ -43,6 +44,12 @@ and the selection stays at both.
 
 - **WHEN** the modal is shown for a single-staff piece
 - **THEN** the hand chooser is not offered and the selection stays at both
+
+#### Scenario: Score size is offered
+
+- **WHEN** the modal is shown
+- **THEN** a score size chooser with small / medium / large is offered,
+  reflecting the current persisted value
 
 #### Scenario: MIDI device is shown and selectable
 
@@ -74,7 +81,8 @@ current settings unchanged. In both cases the user remains on the player.
 ### Requirement: Setup choices persist across scores and restarts
 
 The system SHALL remember the play settings (hands, tempo/playback speed,
-metronome, and the chosen MIDI device) on the device. Applied choices SHALL
+metronome, score size, and the chosen MIDI device) on the device. Applied
+choices SHALL
 persist across scores and SHALL survive an app restart, and each newly opened
 score SHALL be seeded from them. The same settings SHALL be editable both in the
 modal and in the in-game settings, and a change made in either place SHALL update
@@ -82,8 +90,8 @@ the shared, persisted value.
 
 #### Scenario: Choices are remembered on the next score
 
-- **WHEN** the user sets the hands/tempo/metronome/device (in the modal or the
-  in-game settings) and later opens another score
+- **WHEN** the user sets the hands/tempo/metronome/device/score size (in the
+  modal or the in-game settings) and later opens another score
 - **THEN** that score is seeded with the same settings
 
 #### Scenario: Choices survive an app restart
