@@ -39,12 +39,12 @@ class PianoLayout {
 
   /// The keyboard span a course exercise draws for [targets]: the notes plus
   /// two keys of context, widened symmetrically to at least [minKeys] keys —
-  /// a lesson keyboard must read as a real stretch of piano, never a handful
-  /// of giant keys — then snapped outward to white keys and clamped to the
-  /// 88-key range.
+  /// a lesson keyboard must read as a real piano (about five and a half
+  /// octaves by default), never a handful of giant keys — then snapped
+  /// outward to white keys and clamped to the 88-key range.
   static ({int low, int high}) lessonRange(
     Iterable<int> targets, {
-    int minKeys = 20,
+    int minKeys = 66,
   }) {
     var low = 60;
     var high = 60;

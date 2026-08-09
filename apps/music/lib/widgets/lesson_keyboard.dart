@@ -22,7 +22,7 @@ import '../painters/piano_layout.dart';
 /// add-notation-courses, schema v2).
 ///
 /// Owns the presentation rules a lesson keyboard shares: the range always
-/// shows a real stretch of piano ([PianoLayout.lessonRange], ≥ 20 keys, so
+/// shows a real stretch of piano ([PianoLayout.lessonRange], ≥ 66 keys, so
 /// keys keep believable proportions on any screen), octave anchors are hidden
 /// (a "Do4" puck under the awaited key reads as clutter, not guidance), and
 /// the awaited keys **breathe** — a three-cycle glow burst on every new target

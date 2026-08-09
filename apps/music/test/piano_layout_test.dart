@@ -110,9 +110,9 @@ void main() {
   });
 
   group('lessonRange', () {
-    test('always spans at least 20 keys, centred on the targets', () {
+    test('always spans at least 66 keys, centred on the targets', () {
       final r = PianoLayout.lessonRange(const [60]); // a single middle C
-      expect(r.high - r.low + 1, greaterThanOrEqualTo(20));
+      expect(r.high - r.low + 1, greaterThanOrEqualTo(66));
       expect(r.low, lessThan(60));
       expect(r.high, greaterThan(60));
       // Both ends land on white keys.
@@ -129,10 +129,10 @@ void main() {
     test('stays inside the 88 keys at the extremes', () {
       final low = PianoLayout.lessonRange(const [21]);
       expect(low.low, greaterThanOrEqualTo(21));
-      expect(low.high - low.low + 1, greaterThanOrEqualTo(20));
+      expect(low.high - low.low + 1, greaterThanOrEqualTo(66));
       final high = PianoLayout.lessonRange(const [108]);
       expect(high.high, lessThanOrEqualTo(108));
-      expect(high.high - high.low + 1, greaterThanOrEqualTo(20));
+      expect(high.high - high.low + 1, greaterThanOrEqualTo(66));
     });
   });
 }

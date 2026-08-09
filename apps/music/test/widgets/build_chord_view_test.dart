@@ -27,7 +27,7 @@ import 'package:music/widgets/build_chord_view.dart';
 import '../support/fakes.dart';
 
 /// C major (C4-E4-G4 = 60-64-67). The keyboard range is whatever the shared
-/// lesson-range policy draws for those targets (≥ 20 keys).
+/// lesson-range policy draws for those targets (≥ 66 keys).
 BuildChordBlock block() =>
     CourseBlock.buildChord(
           notes: [
