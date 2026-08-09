@@ -75,78 +75,85 @@ class _LessonCelebrationDialog extends StatelessWidget {
         constraints: const BoxConstraints(maxWidth: 380),
         child: Padding(
           padding: const EdgeInsets.fromLTRB(24, 28, 24, 20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 72,
-                height: 72,
-                decoration: BoxDecoration(
-                  color: accent.withValues(alpha: 0.15),
-                  shape: BoxShape.circle,
+          // Scrollable so a short landscape-phone viewport can never make the
+          // celebration overflow — it scrolls instead.
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 72,
+                  height: 72,
+                  decoration: BoxDecoration(
+                    color: accent.withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.school, size: 40, color: accent),
                 ),
-                child: const Icon(Icons.school, size: 40, color: accent),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                l10n.lessonCelebrationTitle,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: accent,
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                lessonTitle,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: CymbraColors.onSurface,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              if (gated > 0) ...[
-                const SizedBox(height: 10),
+                const SizedBox(height: 16),
                 Text(
-                  l10n.lessonCelebrationFlawless(flawless, gated),
-                  key: const Key('lesson-celebration-stat'),
+                  l10n.lessonCelebrationTitle,
                   textAlign: TextAlign.center,
                   style: const TextStyle(
-                    color: CymbraColors.onSurfaceVariant,
-                    fontSize: 13,
+                    color: accent,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  lessonTitle,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: CymbraColors.onSurface,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                if (gated > 0) ...[
+                  const SizedBox(height: 10),
+                  Text(
+                    l10n.lessonCelebrationFlawless(flawless, gated),
+                    key: const Key('lesson-celebration-stat'),
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: CymbraColors.onSurfaceVariant,
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 20),
+                if (nextLessonTitle != null)
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      key: const Key('lesson-celebration-next'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: CymbraColors.primaryContainer,
+                      ),
+                      onPressed: () => Navigator.of(
+                        context,
+                      ).pop(LessonCelebrationAction.next),
+                      child: Text(
+                        '${l10n.lessonContinueNext} — $nextLessonTitle',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ),
+                TextButton(
+                  key: const Key('lesson-celebration-close'),
+                  onPressed: () =>
+                      Navigator.of(context).pop(LessonCelebrationAction.close),
+                  child: Text(
+                    l10n.lessonFinish,
+                    style: const TextStyle(
+                      color: CymbraColors.onSurfaceVariant,
+                    ),
                   ),
                 ),
               ],
-              const SizedBox(height: 20),
-              if (nextLessonTitle != null)
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton(
-                    key: const Key('lesson-celebration-next'),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: CymbraColors.primaryContainer,
-                    ),
-                    onPressed: () =>
-                        Navigator.of(context).pop(LessonCelebrationAction.next),
-                    child: Text(
-                      '${l10n.lessonContinueNext} — $nextLessonTitle',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ),
-              TextButton(
-                key: const Key('lesson-celebration-close'),
-                onPressed: () =>
-                    Navigator.of(context).pop(LessonCelebrationAction.close),
-                child: Text(
-                  l10n.lessonFinish,
-                  style: const TextStyle(color: CymbraColors.onSurfaceVariant),
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ),
