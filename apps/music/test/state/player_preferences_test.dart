@@ -39,7 +39,7 @@ void main() {
     expect(p.metronome, isFalse);
     expect(p.keyboardRange, KeyboardRangeMode.auto);
     expect(p.readingAid, NoteReadingAid.name);
-    expect(p.scoreSize, ScoreSize.medium);
+    expect(p.scoreSize, isNull); // resolved per form factor at use sites
     expect(p.notationTheme, NotationTheme.dark);
     expect(p.midiPort, isNull);
   });
@@ -70,23 +70,27 @@ void main() {
     expect(p.midiPort, 'Synth');
   });
 
-  test(
-    'a record without scoreSize (older launch) falls back to medium',
-    () async {
-      final store = {
-        PlayerPreferences.prefsKey: jsonEncode({
-          'hands': 'both',
-          'speed': 1.0,
-          'metronome': false,
-          'midiPort': null,
-        }),
-      };
-      final c = _container(FakePreferencesService(store));
-      c.read(playerPreferencesProvider);
-      await Future<void>.delayed(Duration.zero);
-      expect(c.read(playerPreferencesProvider).scoreSize, ScoreSize.medium);
-    },
-  );
+  test('a record without scoreSize (older launch) stays unchosen', () async {
+    final store = {
+      PlayerPreferences.prefsKey: jsonEncode({
+        'hands': 'both',
+        'speed': 1.0,
+        'metronome': false,
+        'midiPort': null,
+      }),
+    };
+    final c = _container(FakePreferencesService(store));
+    c.read(playerPreferencesProvider);
+    await Future<void>.delayed(Duration.zero);
+    expect(c.read(playerPreferencesProvider).scoreSize, isNull);
+  });
+
+  test('the unchosen size resolves small on phones, medium elsewhere', () {
+    expect(resolveScoreSize(null, isPhone: true), ScoreSize.small);
+    expect(resolveScoreSize(null, isPhone: false), ScoreSize.medium);
+    // A stored choice always wins over the form-factor default.
+    expect(resolveScoreSize(ScoreSize.large, isPhone: true), ScoreSize.large);
+  });
 
   test('each setter persists the whole record to the device', () async {
     final fake = FakePreferencesService();

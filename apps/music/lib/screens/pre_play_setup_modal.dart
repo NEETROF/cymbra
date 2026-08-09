@@ -108,7 +108,7 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
   late KeyboardRangeMode _range;
   late bool _keyboardVisible;
   late NoteReadingAid _readingAid;
-  late ScoreSize _scoreSize;
+  ScoreSize? _scoreSizeDraft;
   late NotationTheme _notationTheme;
 
   /// When true, the modal body shows this piece's leaderboard in place of the
@@ -133,7 +133,8 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
     _range = data.keyboardRange;
     _keyboardVisible = data.keyboardVisible;
     _readingAid = data.readingAid;
-    _scoreSize = ref.read(playerPreferencesProvider).scoreSize;
+    // Resolved lazily on first build: the phone/tablet default needs the
+    // inherited layout context, unavailable in initState.
     _notationTheme = ref.read(playerPreferencesProvider).notationTheme;
   }
 
@@ -163,8 +164,10 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
     if (_soundId != ref.read(selectedPianoProvider)) {
       ref.read(selectedPianoProvider.notifier).select(_soundId);
     }
-    if (_scoreSize != ref.read(playerPreferencesProvider).scoreSize) {
-      ref.read(playerPreferencesProvider.notifier).setScoreSize(_scoreSize);
+    final scoreSizeDraft = _scoreSizeDraft;
+    if (scoreSizeDraft != null &&
+        scoreSizeDraft != ref.read(playerPreferencesProvider).scoreSize) {
+      ref.read(playerPreferencesProvider.notifier).setScoreSize(scoreSizeDraft);
     }
     if (_notationTheme != ref.read(playerPreferencesProvider).notationTheme) {
       ref
@@ -194,6 +197,10 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
     final midi = _midiSection(l10n, data);
     final keyboardSize = _keyboardSizeSection(l10n);
     final readingAid = _readingAidSection(l10n);
+    _scoreSizeDraft ??= resolveScoreSize(
+      ref.read(playerPreferencesProvider).scoreSize,
+      isPhone: phone,
+    );
     final scoreSize = _scoreSizeSection(l10n);
     final scoreTheme = _scoreThemeSection(l10n);
     // The keyboard toggle only applies to the Portée: Synthesia needs the
@@ -630,8 +637,8 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
               ),
             ),
         ],
-        selected: {_scoreSize},
-        onSelectionChanged: (s) => setState(() => _scoreSize = s.first),
+        selected: {?_scoreSizeDraft},
+        onSelectionChanged: (s) => setState(() => _scoreSizeDraft = s.first),
       ),
     ],
   );

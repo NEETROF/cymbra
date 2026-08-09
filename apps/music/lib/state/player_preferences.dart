@@ -41,6 +41,13 @@ extension ScoreSizeFactor on ScoreSize {
   };
 }
 
+/// Effective score size for a device: the user's stored choice when there is
+/// one, otherwise a form-factor default — **small on phones** (the short
+/// landscape viewport earns its legibility back through the narrower
+/// look-ahead window, not bigger glyphs), medium on tablets/desktops.
+ScoreSize resolveScoreSize(ScoreSize? stored, {required bool isPhone}) =>
+    stored ?? (isPhone ? ScoreSize.small : ScoreSize.medium);
+
 /// The user's play settings, remembered across scores and app restarts. The
 /// pre-play setup modal and the in-game settings drawer both read and write
 /// these (via the `Player` notifier), and each score is seeded from them.
@@ -59,8 +66,10 @@ abstract class PlayerPrefs with _$PlayerPrefs {
     /// go looking for this in the settings. Turning it off is one tap away.
     @Default(NoteReadingAid.name) NoteReadingAid readingAid,
 
-    /// Notation size for both notation views (Partition + Portée).
-    @Default(ScoreSize.medium) ScoreSize scoreSize,
+    /// Notation size for both notation views (Partition + Portée). Null means
+    /// "not chosen yet": the effective default is resolved per form factor by
+    /// [resolveScoreSize] (small on phones, medium elsewhere).
+    ScoreSize? scoreSize,
 
     /// Notation rendering theme (dark surface or paper) for both notation
     /// views.
@@ -134,7 +143,7 @@ class PlayerPreferences extends _$PlayerPreferences {
     'metronome': p.metronome,
     'keyboardRange': p.keyboardRange.name,
     'readingAid': p.readingAid.name,
-    'scoreSize': p.scoreSize.name,
+    'scoreSize': p.scoreSize?.name,
     'notationTheme': p.notationTheme.name,
     'midiPort': p.midiPort,
   });
@@ -157,9 +166,7 @@ class PlayerPreferences extends _$PlayerPreferences {
             KeyboardRangeMode.auto,
         readingAid:
             NoteReadingAid.values.asNameMap()[aidName] ?? NoteReadingAid.name,
-        scoreSize:
-            ScoreSize.values.asNameMap()[m['scoreSize'] as String?] ??
-            ScoreSize.medium,
+        scoreSize: ScoreSize.values.asNameMap()[m['scoreSize'] as String?],
         notationTheme:
             NotationTheme.values.asNameMap()[m['notationTheme'] as String?] ??
             NotationTheme.dark,

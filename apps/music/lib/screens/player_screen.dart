@@ -574,9 +574,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     // Standard staff mode (synchronized, horizontal scrolling). The score-size
     // setting scales the notation (noteScale) and narrows the look-ahead
     // window by the same factor so note size and spacing grow together.
-    final sizeFactor = ref
-        .watch(playerPreferencesProvider.select((p) => p.scoreSize))
-        .factor;
+    final sizeFactor = resolveScoreSize(
+      ref.watch(playerPreferencesProvider.select((p) => p.scoreSize)),
+      isPhone: context.isPhoneLayout,
+    ).factor;
     final palette = NotationPalette.of(
       ref.watch(playerPreferencesProvider.select((p) => p.notationTheme)),
     );
@@ -1328,9 +1329,10 @@ class _PartitionViewState extends ConsumerState<_PartitionView> {
       );
     }
 
-    final sizeFactor = ref
-        .watch(playerPreferencesProvider.select((p) => p.scoreSize))
-        .factor;
+    final sizeFactor = resolveScoreSize(
+      ref.watch(playerPreferencesProvider.select((p) => p.scoreSize)),
+      isPhone: context.isPhoneLayout,
+    ).factor;
     final palette = NotationPalette.of(
       ref.watch(playerPreferencesProvider.select((p) => p.notationTheme)),
     );

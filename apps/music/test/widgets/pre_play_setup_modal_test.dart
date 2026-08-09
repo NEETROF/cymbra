@@ -210,10 +210,9 @@ void main() {
     tester,
   ) async {
     final container = await _pumpWithModal(tester);
-    expect(
-      container.read(playerPreferencesProvider).scoreSize,
-      ScoreSize.medium,
-    );
+    // Nothing stored yet — the chooser preselects the form-factor default
+    // (medium on this tablet-class surface) without persisting it.
+    expect(container.read(playerPreferencesProvider).scoreSize, isNull);
 
     // Pick Large, then Validate.
     await tester.ensureVisible(find.text('Large'));
