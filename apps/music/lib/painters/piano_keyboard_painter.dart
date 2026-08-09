@@ -107,6 +107,9 @@ enum _KeyState {
 
   /// Held but not required.
   pressed,
+
+  /// Toggled on in a selection exercise (a course chord-building step).
+  selected,
 }
 
 /// Draws the piano keyboard at the bottom of the screen with feedback: keys the
@@ -148,11 +151,17 @@ class PianoKeyboardPainter extends CustomPainter {
   /// 0 (the default) renders the steady highlight.
   final double waitPulse;
 
+  /// Keys toggled on in a selection exercise (change: add-notation-courses —
+  /// the chord-building step). Persistent, unlike the momentary [activeNotes]
+  /// flash; a held key still shows its press over the selection.
+  final Set<int> selectedNotes;
+
   const PianoKeyboardPainter({
     required this.layout,
     required this.activeNotes,
     this.requiredNotes = const {},
     this.leftHandNotes = const {},
+    this.selectedNotes = const {},
     this.chosenWindow,
     this.noteLabels = const {},
     this.solfege = false,
@@ -174,6 +183,7 @@ class PianoKeyboardPainter extends CustomPainter {
           : _KeyState.expectedRight;
     }
     if (active) return _KeyState.pressed;
+    if (selectedNotes.contains(pitch)) return _KeyState.selected;
     return _KeyState.idle;
   }
 
@@ -187,6 +197,8 @@ class PianoKeyboardPainter extends CustomPainter {
     _KeyState.expectedRight => _pulsed(CymbraColors.handRight),
     _KeyState.expectedLeft => _pulsed(CymbraColors.handLeft),
     _KeyState.pressed => CymbraColors.primaryContainer,
+    // Light like the expected highlights, so key labels stay readable on it.
+    _KeyState.selected => CymbraColors.secondary,
     _KeyState.idle =>
       isBlack ? CymbraColors.pianoBlack : CymbraColors.pianoWhite,
   };
@@ -432,6 +444,7 @@ class PianoKeyboardPainter extends CustomPainter {
       old.activeNotes != activeNotes ||
       old.requiredNotes != requiredNotes ||
       old.leftHandNotes != leftHandNotes ||
+      old.selectedNotes != selectedNotes ||
       old.chosenWindow != chosenWindow ||
       !mapEquals(old.noteLabels, noteLabels) ||
       old.solfege != solfege ||

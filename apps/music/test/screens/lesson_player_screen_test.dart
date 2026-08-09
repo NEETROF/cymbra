@@ -18,17 +18,22 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:music/courses/course_manifest.dart';
 import 'package:music/l10n/gen/app_localizations.dart';
 import 'package:music/screens/lesson_player_screen.dart';
+import 'package:music/services/audio_service.dart';
 import 'package:music/services/course_catalog_service.dart';
+import 'package:music/services/midi_service.dart';
 import 'package:music/services/preferences_service.dart';
+import 'package:music/src/rust/api/midi.dart' show MidiEvent, MidiEventKind;
 import 'package:music/state/course_completion_notifier.dart';
 
+import '../support/fakes.dart';
 import '../support/prefs_fakes.dart';
 
 class _FakeService implements CourseCatalogService {
-  _FakeService(this.manifests);
+  _FakeService(this.manifests, {this.listings = const []});
   final Map<String, String> manifests;
+  final List<CourseListing> listings;
   @override
-  Future<List<CourseListing>> listCourses() async => const [];
+  Future<List<CourseListing>> listCourses() async => listings;
   @override
   Future<String?> getCourseManifestJson(String id) async => manifests[id];
 }
@@ -66,14 +71,20 @@ class _Launcher extends StatelessWidget {
 void main() {
   Future<ProviderContainer> pump(
     WidgetTester tester,
-    FakePreferencesService prefs,
-  ) async {
+    FakePreferencesService prefs, {
+    Map<String, String> manifests = const {'c1': _manifest},
+    List<CourseListing> listings = const [],
+  }) async {
+    final midi = FakeMidiService();
+    addTearDown(midi.close);
     final container = ProviderContainer(
       overrides: [
         courseCatalogServiceProvider.overrideWithValue(
-          _FakeService(const {'c1': _manifest}),
+          _FakeService(manifests, listings: listings),
         ),
         preferencesServiceProvider.overrideWithValue(prefs),
+        audioServiceProvider.overrideWithValue(RecordingAudioService()),
+        midiServiceProvider.overrideWithValue(midi),
       ],
     );
     addTearDown(container.dispose);
@@ -125,14 +136,136 @@ void main() {
       expect(find.byType(CustomPaint), findsWidgets);
       expect(find.text('Finish'), findsOneWidget);
 
-      // Finishing marks the course completed and returns.
+      // Finishing marks the course completed and celebrates before returning.
       await tester.tap(find.byKey(const Key('lesson-next')));
       await tester.pumpAndSettle();
-      expect(find.text('open'), findsOneWidget); // back on the launcher
+      expect(find.text('Lesson complete!'), findsOneWidget);
+      // No gated exercise ran, so no first-try stat is shown.
+      expect(find.byKey(const Key('lesson-celebration-stat')), findsNothing);
       expect(
         container.read(courseCompletionProvider).isCompleted('c1'),
         isTrue,
       );
+      await tester.tap(find.byKey(const Key('lesson-celebration-close')));
+      await tester.pumpAndSettle();
+      expect(find.text('open'), findsOneWidget); // back on the launcher
+    },
+  );
+
+  testWidgets('a gated exercise holds Next and only a late skip escapes', (
+    tester,
+  ) async {
+    const gated = '''
+{
+  "schemaVersion": 2, "id": "c1", "title": {"en": "Gated"},
+  "blocks": [
+    {"type": "playKey", "notes": [60], "prompt": {"en": "Play middle C."}},
+    {"type": "text", "text": {"en": "All done."}}
+  ]
+}
+''';
+    await pump(
+      tester,
+      FakePreferencesService(),
+      manifests: const {'c1': gated},
+    );
+
+    // The gate holds: no Next, and no skip yet.
+    expect(find.byKey(const Key('lesson-next')), findsNothing);
+    expect(find.byKey(const Key('lesson-skip')), findsNothing);
+
+    // The escape hatch appears only after the kindness delay.
+    await tester.pump(const Duration(seconds: 13));
+    expect(find.byKey(const Key('lesson-skip')), findsOneWidget);
+    await tester.tap(find.byKey(const Key('lesson-skip')));
+    await tester.pumpAndSettle();
+    expect(find.text('All done.'), findsOneWidget);
+
+    // Skipping earned no first-try credit: 0 of 1.
+    await tester.tap(find.byKey(const Key('lesson-next')));
+    await tester.pumpAndSettle();
+    expect(find.text('0 of 1 right on the first try'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('lesson-celebration-close')));
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets(
+    'completing the gate advances, earns the stat and chains to the next '
+    'lesson',
+    (tester) async {
+      const gated = '''
+{
+  "schemaVersion": 2, "id": "c1", "title": {"en": "Gated"},
+  "blocks": [
+    {"type": "playKey", "notes": [60], "prompt": {"en": "Play middle C."}}
+  ]
+}
+''';
+      const next = '''
+{"schemaVersion": 2, "id": "c2", "title": {"en": "Next lesson"},
+ "blocks": [{"type": "text", "text": {"en": "Second lesson body."}}]}
+''';
+      final midi = FakeMidiService();
+      addTearDown(midi.close);
+      final container = ProviderContainer(
+        overrides: [
+          courseCatalogServiceProvider.overrideWithValue(
+            _FakeService(
+              const {'c1': gated, 'c2': next},
+              listings: const [
+                CourseListing(id: 'c1', schemaVersion: 2, sortOrder: 1),
+                CourseListing(
+                  id: 'c2',
+                  schemaVersion: 2,
+                  sortOrder: 2,
+                  title: {'en': 'Next lesson'},
+                ),
+              ],
+            ),
+          ),
+          preferencesServiceProvider.overrideWithValue(
+            FakePreferencesService(),
+          ),
+          audioServiceProvider.overrideWithValue(RecordingAudioService()),
+          midiServiceProvider.overrideWithValue(midi),
+        ],
+      );
+      addTearDown(container.dispose);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            locale: const Locale('en'),
+            home: const _Launcher(),
+          ),
+        ),
+      );
+      // Let the listing fetch resolve before opening the lesson.
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+
+      // Satisfy the gate through the MIDI seam (same path as the keyboard).
+      midi.emit(
+        MidiEvent(
+          kind: MidiEventKind.noteOn,
+          pitch: 60,
+          velocity: 100,
+          timestampMs: BigInt.zero,
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 600));
+      await tester.pumpAndSettle();
+
+      // Last step satisfied → celebration with full first-try credit.
+      expect(find.text('1 of 1 right on the first try'), findsOneWidget);
+
+      // One tap chains straight into the next lesson.
+      await tester.tap(find.byKey(const Key('lesson-celebration-next')));
+      await tester.pumpAndSettle();
+      expect(find.text('Second lesson body.'), findsOneWidget);
     },
   );
 

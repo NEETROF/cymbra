@@ -17,19 +17,21 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../courses/course_manifest.dart';
 import '../l10n/gen/app_localizations.dart';
+import '../screens/learning_path_screen.dart';
 import '../screens/lesson_player_screen.dart';
 import '../services/course_catalog_service.dart';
 import '../state/course_completion_notifier.dart';
 import '../theme/cymbra_theme.dart';
 
-/// The home-screen "Courses" section (change: add-notation-courses): a compact
-/// row of course tiles pinned **above** the favorites, each with a completion
-/// indicator, opening the lesson player on tap. It **omits itself entirely**
-/// when there are no courses (loading, error, or empty), so it never blocks or
-/// crowds the favorites below.
+/// The home-screen "Courses" section (change: add-notation-courses): one
+/// **continue card** carrying the learner's next lesson — title, unit, unit
+/// progress — plus the entry into the full learning path. Pinned above the
+/// favorites; **omits itself entirely** when there are no courses (loading,
+/// error, or empty), so it never blocks or crowds the favorites below.
 ///
-/// Courses arrive from [coursesProvider] already ordered by track then level, so
-/// the row is grouped in that order; a per-tile chip shows the level.
+/// With a 40+ lesson curriculum a flat tile rail stopped scaling; the section
+/// now answers the only home-screen question that matters — "where was I?" —
+/// in one tap, and defers browsing to the path screen.
 class CoursesSection extends ConsumerWidget {
   const CoursesSection({super.key});
 
@@ -44,111 +46,129 @@ class CoursesSection extends ConsumerWidget {
     );
     final lang = Localizations.localeOf(context).languageCode;
 
+    // The next uncompleted lesson in catalogue order — or the first lesson
+    // again when everything is done (courses stay replayable).
+    final next = courses.firstWhere(
+      (c) => !completed.contains(c.id),
+      orElse: () => courses.first,
+    );
+    final unitLessons = courses
+        .where((c) => c.unit == next.unit && c.level == next.level)
+        .toList();
+    final unitDone = unitLessons.where((c) => completed.contains(c.id)).length;
+    final unitTitle = resolveInline(next.unitTitle, lang);
+
     return Column(
       key: const Key('courses-section'),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-          child: Text(
-            l10n.coursesSectionTitle,
-            style: const TextStyle(
-              color: CymbraColors.onSurface,
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ),
-        SizedBox(
-          height: 116,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: courses.length,
-            separatorBuilder: (_, _) => const SizedBox(width: 12),
-            itemBuilder: (context, i) => _CourseTile(
-              listing: courses[i],
-              completed: completed.contains(courses[i].id),
-              lang: lang,
-              l10n: l10n,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _CourseTile extends StatelessWidget {
-  const _CourseTile({
-    required this.listing,
-    required this.completed,
-    required this.lang,
-    required this.l10n,
-  });
-
-  final CourseListing listing;
-  final bool completed;
-  final String lang;
-  final AppLocalizations l10n;
-
-  @override
-  Widget build(BuildContext context) {
-    final title = resolveInline(listing.title, lang);
-    return Semantics(
-      button: true,
-      label: completed ? '$title, ${l10n.courseCompletedLabel}' : title,
-      child: InkWell(
-        key: Key('course-tile-${listing.id}'),
-        borderRadius: BorderRadius.circular(12),
-        onTap: () => openLessonPlayer(context, listing.id),
-        child: Container(
-          width: 156,
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: CymbraColors.surfaceContainerHigh,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: completed
-                  ? CymbraColors.tertiary.withValues(alpha: 0.6)
-                  : CymbraColors.onSurfaceVariant.withValues(alpha: 0.15),
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          padding: const EdgeInsets.fromLTRB(16, 12, 8, 4),
+          child: Row(
             children: [
-              Row(
-                children: [
-                  const Icon(
-                    Icons.school_outlined,
-                    size: 18,
-                    color: CymbraColors.secondary,
-                  ),
-                  const Spacer(),
-                  if (completed)
-                    const Icon(
-                      Icons.check_circle,
-                      size: 18,
-                      color: CymbraColors.tertiary,
-                    ),
-                ],
-              ),
-              const Spacer(),
               Text(
-                title,
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
+                l10n.coursesSectionTitle,
                 style: const TextStyle(
                   color: CymbraColors.onSurface,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  height: 1.2,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const Spacer(),
+              TextButton(
+                key: const Key('courses-see-path'),
+                onPressed: () => openLearningPath(context),
+                child: Text(
+                  l10n.coursesSeeAll,
+                  style: const TextStyle(color: CymbraColors.secondary),
                 ),
               ),
             ],
           ),
         ),
-      ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Semantics(
+            button: true,
+            label: resolveInline(next.title, lang),
+            child: InkWell(
+              key: const Key('courses-continue-card'),
+              borderRadius: BorderRadius.circular(14),
+              onTap: () => openLessonPlayer(context, next.id),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: CymbraColors.surfaceContainerHigh,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: CymbraColors.primary.withValues(alpha: 0.35),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 46,
+                      height: 46,
+                      decoration: BoxDecoration(
+                        color: CymbraColors.primary.withValues(alpha: 0.15),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.play_arrow,
+                        color: CymbraColors.primary,
+                        size: 26,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (unitTitle.isNotEmpty)
+                            Text(
+                              unitTitle,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: CymbraColors.onSurfaceVariant,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          Text(
+                            resolveInline(next.title, lang),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: CymbraColors.onSurface,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              height: 1.2,
+                            ),
+                          ),
+                          if (unitLessons.length > 1) ...[
+                            const SizedBox(height: 8),
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(6),
+                              child: LinearProgressIndicator(
+                                value: unitDone / unitLessons.length,
+                                minHeight: 6,
+                                backgroundColor: CymbraColors.background,
+                                color: CymbraColors.primary,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

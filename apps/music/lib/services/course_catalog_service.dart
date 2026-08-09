@@ -79,6 +79,8 @@ class GrpcCourseCatalogService implements CourseCatalogService {
     instrument: s.instrument,
     track: s.track,
     level: s.level,
+    unit: s.unit,
+    unitTitle: parseInlineJson(s.unitTitleJson),
     sortOrder: s.sortOrder,
     title: parseInlineJson(s.titleJson),
   );
@@ -148,9 +150,17 @@ CourseProgressService courseProgressService(Ref ref) =>
 const String _kCoursesCacheKey = 'courses.listing.v1';
 String _manifestCacheKey(String id) => 'courses.manifest.v1.$id';
 
+/// Drops the listings this build cannot run (a `schemaVersion` above what the
+/// parser understands) — otherwise a newer server course would render a
+/// tappable tile leading to a dead player screen.
+List<CourseListing> _supported(List<CourseListing> listings) =>
+    listings.where((l) => l.schemaVersion <= kCourseSchemaVersion).toList();
+
 /// The course listing, reconciled with an offline cache: fetches from the
 /// server and refreshes the cache, or — when the server is unreachable — falls
-/// back to the last cached listing (empty if none). Never throws.
+/// back to the last cached listing (empty if none). Never throws. Listings the
+/// build cannot run are filtered out (the cache keeps them, so an app update
+/// reveals them without a refetch).
 @riverpod
 Future<List<CourseListing>> courses(Ref ref) async {
   final prefs = ref.watch(preferencesServiceProvider);
@@ -159,10 +169,10 @@ Future<List<CourseListing>> courses(Ref ref) async {
     try {
       await prefs.setString(_kCoursesCacheKey, _encodeListings(list));
     } catch (_) {}
-    return list;
+    return _supported(list);
   } catch (_) {
     final cached = await _readCache(prefs, _kCoursesCacheKey);
-    return cached == null ? const [] : _decodeListings(cached);
+    return cached == null ? const [] : _supported(_decodeListings(cached));
   }
 }
 
@@ -204,10 +214,19 @@ String _encodeListings(List<CourseListing> listings) => jsonEncode([
       'instrument': l.instrument,
       'track': l.track,
       'level': l.level,
+      'unit': l.unit,
+      'unitTitle': l.unitTitle,
       'sortOrder': l.sortOrder,
       'title': l.title,
     },
 ]);
+
+InlineText _cachedInline(Object? raw) => {
+  if (raw is Map)
+    for (final entry in raw.entries)
+      if (entry.key is String && entry.value is String)
+        entry.key as String: entry.value as String,
+};
 
 List<CourseListing> _decodeListings(String source) {
   try {
@@ -224,13 +243,10 @@ List<CourseListing> _decodeListings(String source) {
                 : 'piano',
             track: e['track'] is String ? e['track'] as String : 'solfege',
             level: e['level'] is String ? e['level'] as String : 'beginner',
+            unit: e['unit'] is String ? e['unit'] as String : '',
+            unitTitle: _cachedInline(e['unitTitle']),
             sortOrder: e['sortOrder'] is int ? e['sortOrder'] as int : 0,
-            title: {
-              if (e['title'] is Map)
-                for (final entry in (e['title'] as Map).entries)
-                  if (entry.key is String && entry.value is String)
-                    entry.key as String: entry.value as String,
-            },
+            title: _cachedInline(e['title']),
           ),
     ];
   } catch (_) {

@@ -126,11 +126,16 @@ void main() {
     expect(find.byType(PlayKeyView), findsOneWidget);
   });
 
-  testWidgets('Next is a non-blocking skip even without playing', (
+  testWidgets('a stuck learner still escapes through the late skip', (
     tester,
   ) async {
     await pump(tester);
-    await tester.tap(find.byKey(const Key('lesson-next')));
+    // The gate holds Next back…
+    expect(find.byKey(const Key('lesson-next')), findsNothing);
+    // …but the discreet escape hatch appears after the kindness delay, so
+    // nobody is ever trapped on an exercise.
+    await tester.pump(const Duration(seconds: 13));
+    await tester.tap(find.byKey(const Key('lesson-skip')));
     await tester.pumpAndSettle();
     expect(find.text('done'), findsOneWidget);
   });

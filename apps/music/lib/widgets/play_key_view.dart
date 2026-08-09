@@ -17,8 +17,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../courses/lesson_sounder.dart';
 import '../painters/piano_keyboard_painter.dart';
 import '../painters/piano_layout.dart';
+import '../services/audio_service.dart';
 import '../services/midi_service.dart';
 import '../src/rust/api/midi.dart' show MidiEvent, MidiEventKind;
 import '../theme/cymbra_theme.dart';
@@ -50,11 +52,15 @@ class _PlayKeyViewState extends ConsumerState<PlayKeyView> {
   final Set<int> _held = {}; // brief press flash
   StreamSubscription<MidiEvent>? _sub;
   final Set<Timer> _timers = {};
+  late final LessonSounder _sounder;
   bool _done = false;
 
   @override
   void initState() {
     super.initState();
+    // On-screen taps must sound — the app is an instrument even mid-lesson.
+    // (A MIDI instrument is heard acoustically, so its input is not re-voiced.)
+    _sounder = LessonSounder(ref.read(audioServiceProvider));
     // Listen to a connected MIDI instrument too, not just on-screen taps.
     _sub = ref.read(midiServiceProvider).events().listen((e) {
       if (e.kind == MidiEventKind.noteOn && e.velocity > 0) _play(e.pitch);
@@ -67,6 +73,7 @@ class _PlayKeyViewState extends ConsumerState<PlayKeyView> {
     for (final t in _timers) {
       t.cancel();
     }
+    _sounder.dispose();
     super.dispose();
   }
 
@@ -144,7 +151,10 @@ class _PlayKeyViewState extends ConsumerState<PlayKeyView> {
             return Listener(
               onPointerDown: (e) {
                 final pitch = layout.pitchAt(e.localPosition, height);
-                if (pitch != null) _play(pitch);
+                if (pitch != null) {
+                  _sounder.tap(pitch);
+                  _play(pitch);
+                }
               },
               child: CustomPaint(
                 size: Size(constraints.maxWidth, height),
