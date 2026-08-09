@@ -118,8 +118,8 @@ void main() {
     // Completion beat: check icon + the notes the ear just heard, on a staff.
     expect(find.byIcon(Icons.check_circle), findsOneWidget);
     expect(find.byType(LessonStaff), findsOneWidget);
-    // The reveal is held a full 5 s so the learner can actually read it.
-    await tester.pump(const Duration(seconds: 4));
+    // The reveal is held a full 3 s so the learner can actually read it.
+    await tester.pump(const Duration(seconds: 2));
     expect(h.completions, isEmpty);
     expect(find.byType(LessonStaff), findsOneWidget);
     await tester.pump(const Duration(milliseconds: 1100));
@@ -153,7 +153,7 @@ void main() {
     expect(h.audio.noteOns, hasLength(4));
 
     await tester.tap(find.byKey(const Key('earchoice-chip-third')));
-    await tester.pump(const Duration(seconds: 6)); // reveal hold, then done
+    await tester.pump(const Duration(seconds: 4)); // reveal hold, then done
     expect(h.completions, [false]);
   });
 

@@ -112,7 +112,7 @@ class _EarChoiceViewState extends ConsumerState<EarChoiceView> {
       // With the staff reveal on, hold long enough to actually READ what was
       // heard — eye and ear must meet before the lesson moves on.
       final hold = widget.block.reveal
-          ? const Duration(seconds: 5)
+          ? const Duration(seconds: 3)
           : const Duration(milliseconds: 450);
       _after(hold, () {
         if (_completed) return;
