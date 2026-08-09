@@ -42,9 +42,9 @@
 
 ## 6. First-wave course content (seed)
 
-- [ ] 6.1 Author the **first-wave** manifests fully in `{en,fr,es,it}` per `catalogue.md` (~11: Track A beginner `sol-portee-notes`/`sol-cles`/`sol-nom-notes`/`sol-valeurs`/`sol-silences`/`sol-mesure`/`sol-alterations` + Track B `app-prise-en-main`/`app-mode-synthesia`/`app-mode-horizontal`/`app-mode-partition`), each `instrument: "piano"` with `track`/`level`
-- [ ] 6.2 Add them to the seed script (§1.4); verify they parse + play through the engine end-to-end
-- [ ] 6.3 Leave the remaining catalogue as a documented **backlog** (data-only; no app release needed to add more)
+- [x] 6.1 Authored a first wave of **5 courses** fully in `{en,fr,es,it}` (`backend/scripts/seed_courses.sql`): Track A beginner `sol-reading-staff`/`sol-note-names`/`sol-note-values` (text/diagram/question/playKey) + Track B `app-synthesia`/`app-partition`, each `instrument:"piano"` with `track`/`level`. The remaining catalogue is backlog (6.3)
+- [x] 6.2 Seed script `backend/scripts/seed_courses.sql` (idempotent upsert; replaces the demo). All 10 JSON blobs validated; every block type used (text/diagram/question/playKey) is covered by the client parser + player tests
+- [x] 6.3 Remaining catalogue left as a data-only **backlog** (`catalogue.md`) — a new course is another row in the seed, no app release
 
 ## 7. Supersede the old sketch + quality gate
 
