@@ -83,7 +83,8 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen> {
       m.blocks.where((b) => b is! UnsupportedBlock).toList();
 
   /// Whether [block] gates the Next control until the learner has done it.
-  /// Questions stay non-blocking by design (instant feedback, no gate).
+  /// Questions gate too — answering (right OR wrong) unlocks, so nobody is
+  /// forced into the correct answer, but nobody skips past unanswered either.
   static bool _gates(CourseBlock block) => switch (block) {
     ReadPlayBlock() ||
     NameNoteBlock() ||
@@ -91,7 +92,8 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen> {
     RhythmTapBlock() ||
     EarChoiceBlock() ||
     BuildChordBlock() ||
-    PlayKeyBlock() => true,
+    PlayKeyBlock() ||
+    QuestionBlock() => true,
     _ => false,
   };
 
@@ -240,6 +242,16 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen> {
                 _satisfied.add(index);
                 advance();
               },
+              // A question satisfies its gate WITHOUT advancing: the learner
+              // reads the feedback and moves on at their own pace.
+              onAnswered: ({required bool flawless}) {
+                setState(() {
+                  _flawless[index] = _flawless[index] ?? flawless;
+                  _satisfied.add(index);
+                  _skipTimer?.cancel();
+                  _skipVisible = false;
+                });
+              },
             ),
           ),
         ),
@@ -342,6 +354,7 @@ class _BlockView extends StatelessWidget {
     required this.l10n,
     required this.onSatisfied,
     required this.onCompleted,
+    required this.onAnswered,
   });
 
   final CourseBlock block;
@@ -354,6 +367,10 @@ class _BlockView extends StatelessWidget {
   /// Called by a v2 exercise with its first-try result (the lesson advances
   /// and the run's celebration stat grows).
   final void Function({required bool flawless}) onCompleted;
+
+  /// Called by a question on its first answer: the gate opens (Next returns)
+  /// but the lesson stays put so the feedback can be read.
+  final void Function({required bool flawless}) onAnswered;
 
   @override
   Widget build(BuildContext context) {
@@ -384,6 +401,7 @@ class _BlockView extends StatelessWidget {
         block: block as QuestionBlock,
         lang: lang,
         l10n: l10n,
+        onAnswered: onAnswered,
       ),
       PlayKeyBlock(:final notes, :final prompt) => PlayKeyView(
         notes: notes,
@@ -519,11 +537,16 @@ class _QuestionView extends ConsumerStatefulWidget {
     required this.block,
     required this.lang,
     required this.l10n,
+    required this.onAnswered,
   });
 
   final QuestionBlock block;
   final String lang;
   final AppLocalizations l10n;
+
+  /// Reports the FIRST answer (its correctness = the first-try stat); later
+  /// taps are free exploration and change nothing upstream.
+  final void Function({required bool flawless}) onAnswered;
 
   @override
   ConsumerState<_QuestionView> createState() => _QuestionViewState();
@@ -577,7 +600,13 @@ class _QuestionViewState extends ConsumerState<_QuestionView> {
             padding: const EdgeInsets.only(bottom: 8),
             child: OutlinedButton(
               key: Key('lesson-option-$i'),
-              onPressed: () => setState(() => _selected = i),
+              onPressed: () {
+                final first = _selected == null;
+                setState(() => _selected = i);
+                if (first) {
+                  widget.onAnswered(flawless: i == b.answerIndex);
+                }
+              },
               style: OutlinedButton.styleFrom(
                 alignment: Alignment.centerLeft,
                 backgroundColor: answered && i == b.answerIndex

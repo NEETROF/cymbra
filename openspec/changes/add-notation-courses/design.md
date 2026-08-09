@@ -165,7 +165,7 @@ apps never see v2 tiles (the decline path stays for the cache).
 Interactive blocks now gate Next (a lesson is something you do), but the gate never traps: a
 discreet "Passer" appears after 12 s, wrong answers cost nothing and are heard (a wrong key plays
 its own pitch — the most musical error message), and the celebration counts first-try successes
-without ever showing a failure state. Questions stay non-blocking as originally decided.
+without ever showing a failure state. Questions gate too (revised on device feedback: skipping an unanswered question read as a bug) — any answer, right or wrong, reopens Next without auto-advancing, so the feedback gets read and nobody is drilled into correctness.
 
 ### 10. Units are catalogue data; the path is the product surface
 `music.courses` gains `unit` + inline-i18n `unit_title` (migration 0021, CourseSummary fields 8/9),

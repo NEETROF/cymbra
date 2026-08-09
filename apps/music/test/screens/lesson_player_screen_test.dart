@@ -113,12 +113,14 @@ void main() {
       // Step 1: the text block.
       expect(find.text('The staff has five lines.'), findsOneWidget);
 
-      // Step 2: the question.
+      // Step 2: the question — it gates Next until an answer is given.
       await tester.tap(find.byKey(const Key('lesson-next')));
       await tester.pumpAndSettle();
       expect(find.text('Sharp does what?'), findsOneWidget);
+      expect(find.byKey(const Key('lesson-next')), findsNothing);
 
-      // Answering shows feedback but never blocks continuing.
+      // Answering shows feedback and reopens Next (no auto-advance: the
+      // feedback deserves to be read).
       await tester.tap(find.byKey(const Key('lesson-option-0')));
       await tester.pumpAndSettle();
       expect(find.text('Correct!'), findsOneWidget);
@@ -140,8 +142,8 @@ void main() {
       await tester.tap(find.byKey(const Key('lesson-next')));
       await tester.pumpAndSettle();
       expect(find.text('Lesson complete!'), findsOneWidget);
-      // No gated exercise ran, so no first-try stat is shown.
-      expect(find.byKey(const Key('lesson-celebration-stat')), findsNothing);
+      // The question counted as this run's one gated exercise — first try.
+      expect(find.text('1 of 1 right on the first try'), findsOneWidget);
       expect(
         container.read(courseCompletionProvider).isCompleted('c1'),
         isTrue,
@@ -269,14 +271,17 @@ void main() {
     },
   );
 
-  testWidgets('a wrong answer gives non-blocking feedback', (tester) async {
+  testWidgets('a wrong answer still opens the gate — kindness over drilling', (
+    tester,
+  ) async {
     await pump(tester, FakePreferencesService());
     await tester.tap(find.byKey(const Key('lesson-next')));
     await tester.pumpAndSettle();
+    expect(find.byKey(const Key('lesson-next')), findsNothing);
     await tester.tap(find.byKey(const Key('lesson-option-1'))); // wrong
     await tester.pumpAndSettle();
     expect(find.text('Not quite — keep going.'), findsOneWidget);
-    // Still advanceable.
+    // Answering — even wrongly — is enough to continue.
     expect(
       tester
           .widget<FilledButton>(find.byKey(const Key('lesson-next')))
