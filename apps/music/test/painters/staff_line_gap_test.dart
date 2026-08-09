@@ -39,6 +39,34 @@ void main() {
       expect(StaffPainter.staffLineGap(height: 40, twoStaff: true), 3.0);
     });
 
+    test('a tall window caps the inter-staff gap and centres the block', () {
+      // 800 px at the 18 px gap ceiling: without the cap the bass staff was
+      // pinned to the bottom with a huge void between the hands.
+      const g = 18.0;
+      final l = StaffPainter.grandStaffLayout(
+        height: 800,
+        lineGap: g,
+        stemClearance: 4.6 * g,
+      );
+      final interStaff = l.bassBottom - 4 * g - l.trebleBottom;
+      expect(interStaff, 8 * g); // capped at 8 line gaps
+      // Centred: as much air above the treble as below the bass.
+      final below = 800 - l.bassBottom;
+      expect(l.trebleBottom - 4 * g, closeTo(below, 0.001));
+    });
+
+    test('a short window keeps the tight fit (no regression)', () {
+      const g = 120 / 19.2;
+      final l = StaffPainter.grandStaffLayout(
+        height: 120,
+        lineGap: g,
+        stemClearance: 4.6 * g,
+      );
+      final interStaff = l.bassBottom - 4 * g - l.trebleBottom;
+      expect(interStaff, closeTo(2 * g, 0.001)); // floor: two gaps of air
+      expect(l.bassBottom, lessThanOrEqualTo(120 - 4.6 * g + 0.001));
+    });
+
     test('noteScale applies after the clamps (in-card preview)', () {
       final base = StaffPainter.staffLineGap(height: 300, twoStaff: true);
       expect(

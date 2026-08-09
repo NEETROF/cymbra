@@ -97,6 +97,26 @@ class StaffPainter extends CustomPainter {
   /// Colour set (dark surface or paper) the staff is drawn with.
   final NotationPalette palette;
 
+  /// Vertical placement of the grand staff: the treble/bass block is centred
+  /// in [height] with the inter-staff gap **clamped between 2 and 8 line
+  /// gaps** — enough air for the between-hands ledger notes, never the
+  /// pinned-to-the-edges void a tall window used to produce. The clamp floor
+  /// mirrors the fit budget of [staffLineGap], so on short heights this
+  /// degrades exactly as before.
+  static ({double trebleBottom, double bassBottom}) grandStaffLayout({
+    required double height,
+    required double lineGap,
+    required double stemClearance,
+  }) {
+    final gap = (height - 2 * stemClearance - 8 * lineGap).clamp(
+      2 * lineGap,
+      8 * lineGap,
+    );
+    final blockHeight = 8 * lineGap + gap;
+    final top = math.max((height - blockHeight) / 2, stemClearance);
+    return (trebleBottom: top + 4 * lineGap, bassBottom: top + blockHeight);
+  }
+
   /// Staff line gap for a render area [height]: proportional within the usual
   /// 8–18 px band, but **capped so the engraving always fits** — a grand staff
   /// needs ~19.2 gaps of vertical budget (two 4-gap staves, stem/beam clearance
@@ -158,15 +178,13 @@ class StaffPainter extends CustomPainter {
     final double trebleBottom;
     final double? bassBottom;
     if (twoStaff) {
-      // Place the staves proportionally to the viewport height: treble near the
-      // top, bass near the bottom, with a margin above/below for ledger lines,
-      // stems and beams. Both stay fully visible and well separated at any
-      // height (the inter-staff gap grows with a taller viewport). Neither
-      // margin ever drops below the stem clearance.
-      final topMargin = math.max(size.height * 0.14, stemClearance);
-      final bottomMargin = math.max(size.height * 0.14, stemClearance);
-      trebleBottom = topMargin + 4 * lineGap;
-      bassBottom = size.height - bottomMargin;
+      final layout = grandStaffLayout(
+        height: size.height,
+        lineGap: lineGap,
+        stemClearance: stemClearance,
+      );
+      trebleBottom = layout.trebleBottom;
+      bassBottom = layout.bassBottom;
     } else {
       // Centre the lone staff, but guarantee the stem clearance above its top
       // line and below its bottom line so extreme notes stay visible on short
