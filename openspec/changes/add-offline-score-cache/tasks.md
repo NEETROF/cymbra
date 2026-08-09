@@ -86,12 +86,13 @@
 - [x] 4.4b Home/library: favorites without cached bytes are marked "not available
   offline" while offline — `ScoreCard.offlineUnavailable` badge, driven by
   `offlinePlayableIdsProvider` + `isOnlineNowProvider` in `_FavoritesBody`.
-- [~] 4.5 ETag/conditional fetch: the **backend** supports it (task 1b) and the
-  cache stores a per-entry plaintext-SHA integrity check (corrupt→miss works).
-  The **client-side conditional-fetch round-trip** (matching-hash skips
-  re-download) is **DEFERRED**: wiring it needs an etag-returning byte method on
-  the `CatalogService`/`ScoreUploadService` seams (+ updating ~8 hand-fakes).
-  Cache currently stores `etag: ''`.
+- [x] 4.5 ETag/conditional fetch: `fetchScoreBytes(id, {ifNoneMatch}) → ScoreBytesResult`
+  on both seams (`CatalogService`/`ScoreUploadService`) returns bytes + etag +
+  `unchanged`. The load path stores the real ETag on a cache-miss write, and after
+  serving a favorite from cache does an online-only best-effort conditional refresh:
+  a matching hash returns `unchanged` (no re-download, cache kept), a changed hash
+  rewrites the entry. The per-entry plaintext-SHA integrity check (corrupt→miss)
+  stays as the on-read guard.
 - [x] 4.6 Notifier tests (`notation_offline_cache_test.dart`): cache-hit plays
   offline (no service fetch), cache-miss fetches + writes, non-favorite never
   writes, offline-uncached → localized failure, online-unavailable → generic.

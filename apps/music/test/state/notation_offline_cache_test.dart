@@ -27,18 +27,30 @@ import 'package:music/state/score_catalog.dart';
 
 import '../support/notation_fakes.dart';
 
-/// Minimal [ScoreUploadService] — only `fetchBytes` matters here.
+/// Minimal [ScoreUploadService] — only `fetchScoreBytes` matters here. Models the
+/// backend's conditional fetch: when the caller's `ifNoneMatch` equals the server's
+/// current hash ([serverEtag], default [etag]), it returns `unchanged` with no bytes.
 class _FakeUpload extends Fake implements ScoreUploadService {
-  _FakeUpload(this.bytes, {this.error});
+  _FakeUpload(this.bytes, {this.error, this.serverEtag = 'e'});
   final Uint8List bytes;
   final Object? error;
+  final String serverEtag;
   int fetchCalls = 0;
+  String? lastIfNoneMatch;
 
   @override
-  Future<Uint8List> fetchBytes(String id) async {
+  Future<ScoreBytesResult> fetchScoreBytes(
+    String id, {
+    String? ifNoneMatch,
+  }) async {
     fetchCalls++;
+    lastIfNoneMatch = ifNoneMatch;
     if (error != null) throw error!;
-    return bytes;
+    final current = serverEtag;
+    if (ifNoneMatch != null && ifNoneMatch == current) {
+      return ScoreBytesResult(data: null, etag: current, unchanged: true);
+    }
+    return ScoreBytesResult(data: bytes, etag: current, unchanged: false);
   }
 }
 
@@ -93,7 +105,8 @@ void main() {
     final cache = InMemoryOfflineScoreCache();
     await cache.write('contributed:1', bytes(), etag: 'e');
     final upload = _FakeUpload(bytes());
-    final c = build(cache: cache, upload: upload);
+    // Offline: nothing to refresh against, so not a single network call.
+    final c = build(cache: cache, upload: upload, online: false);
 
     c.read(selectedScoreProvider.notifier).select(_upload());
     await _flush();
@@ -101,6 +114,45 @@ void main() {
     expect(upload.fetchCalls, 0, reason: 'served from the encrypted cache');
     expect(c.read(notationProvider).hasDocument, isTrue);
   });
+
+  test(
+    'online cache hit: matching ETag → conditional fetch, cache kept as-is',
+    () async {
+      final cache = InMemoryOfflineScoreCache();
+      await cache.write('contributed:1', bytes(), etag: 'e');
+      final upload = _FakeUpload(bytes(), serverEtag: 'e'); // unchanged
+      final c = build(cache: cache, upload: upload, online: true);
+
+      c.read(selectedScoreProvider.notifier).select(_upload());
+      await _flush();
+
+      // Played from cache, then one conditional refresh carrying the stored ETag…
+      expect(c.read(notationProvider).hasDocument, isTrue);
+      expect(upload.fetchCalls, 1);
+      expect(upload.lastIfNoneMatch, 'e');
+      // …which reported "unchanged", so the cached entry is untouched.
+      expect((await cache.read('contributed:1'))!.etag, 'e');
+    },
+  );
+
+  test(
+    'online cache hit: changed server hash → cache rewritten with new bytes/ETag',
+    () async {
+      final cache = InMemoryOfflineScoreCache();
+      await cache.write('contributed:1', bytes(), etag: 'old');
+      final fresh = Uint8List.fromList(const [9, 9, 9]);
+      final upload = _FakeUpload(fresh, serverEtag: 'new');
+      final c = build(cache: cache, upload: upload, online: true);
+
+      c.read(selectedScoreProvider.notifier).select(_upload());
+      await _flush();
+
+      expect(upload.lastIfNoneMatch, 'old');
+      final entry = await cache.read('contributed:1');
+      expect(entry!.etag, 'new', reason: 'rewritten on a hash change');
+      expect(entry.bytes, fresh);
+    },
+  );
 
   test(
     'a cache miss fetches and writes the encrypted copy (favorite)',

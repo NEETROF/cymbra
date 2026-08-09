@@ -330,7 +330,10 @@ class _RecordingUpload implements ScoreUploadService {
   Future<void> setFavorite(String id, bool favorite) async {}
 
   @override
-  Future<Uint8List> fetchBytes(String id) async => Uint8List(0);
+  Future<ScoreBytesResult> fetchScoreBytes(
+    String id, {
+    String? ifNoneMatch,
+  }) async => ScoreBytesResult(data: Uint8List(0), etag: '', unchanged: false);
 }
 
 /// In-memory [TokenStore] reporting a persisted guest choice, so [SessionGate]

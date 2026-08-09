@@ -61,7 +61,10 @@ class _FakeCatalog implements CatalogService {
     int offset = 0,
   }) async => const CatalogSearchPage(hits: [], nextOffset: 0, total: 0);
   @override
-  Future<Uint8List> fetchBytes(String catalogId) async => Uint8List(0);
+  Future<ScoreBytesResult> fetchScoreBytes(
+    String catalogId, {
+    String? ifNoneMatch,
+  }) async => ScoreBytesResult(data: Uint8List(0), etag: '', unchanged: false);
   @override
   Future<Uint8List> ratingPreviewBytes(String catalogId) async => Uint8List(0);
   @override
@@ -95,7 +98,10 @@ class _FakeUpload implements ScoreUploadService {
   }
 
   @override
-  Future<Uint8List> fetchBytes(String id) async => Uint8List(0);
+  Future<ScoreBytesResult> fetchScoreBytes(
+    String id, {
+    String? ifNoneMatch,
+  }) async => ScoreBytesResult(data: Uint8List(0), etag: '', unchanged: false);
   @override
   Future<ContributedScore> upload({
     required Uint8List data,

@@ -27,13 +27,12 @@ import 'package:music/state/session_notifier.dart';
 import '../support/localized.dart';
 
 class _FakeCatalog implements CatalogService {
-
   @override
   Future<Uint8List> getOfflineCacheKey() async => Uint8List(0);
   _FakeCatalog(this.rows, {this.fetchError});
   final List<CatalogHit> rows;
 
-  /// When set, [fetchBytes] throws it — exercises the hub's pre-flight guard and
+  /// When set, [fetchScoreBytes] throws it — exercises the hub's pre-flight guard and
   /// the typed error → localized message mapping.
   final Object? fetchError;
   final Set<String> saved = {};
@@ -72,10 +71,13 @@ class _FakeCatalog implements CatalogService {
       rows.where((h) => saved.contains(h.id)).toList();
 
   @override
-  Future<Uint8List> fetchBytes(String catalogId) async {
+  Future<ScoreBytesResult> fetchScoreBytes(
+    String catalogId, {
+    String? ifNoneMatch,
+  }) async {
     final err = fetchError;
     if (err != null) throw err;
-    return Uint8List(0);
+    return ScoreBytesResult(data: Uint8List(0), etag: '', unchanged: false);
   }
 
   @override
@@ -111,7 +113,10 @@ class _FakeUpload implements ScoreUploadService {
   }) async => proposeCalls.add((id: scoreId, note: resubmissionNote));
 
   @override
-  Future<Uint8List> fetchBytes(String id) async => Uint8List(0);
+  Future<ScoreBytesResult> fetchScoreBytes(
+    String id, {
+    String? ifNoneMatch,
+  }) async => ScoreBytesResult(data: Uint8List(0), etag: '', unchanged: false);
   @override
   Future<ContributedScore> upload({
     required Uint8List data,

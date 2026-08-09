@@ -21,7 +21,10 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../src/grpc/score.pbgrpc.dart' as score;
 import '../state/score_catalog.dart' show PracticeLevel;
 import 'grpc_client.dart';
+import 'score_bytes_result.dart';
 import 'score_upload_service.dart' show practiceLevelFromWire;
+
+export 'score_bytes_result.dart' show ScoreBytesResult;
 
 part 'catalog_service.g.dart';
 
@@ -143,11 +146,16 @@ abstract class CatalogService {
   Future<List<CatalogHit>> listSaved();
 
   /// Fetch a catalog score's bytes to open it in the player. Accepted-only for a
-  /// normal caller (the moderation gate).
-  Future<Uint8List> fetchBytes(String catalogId);
+  /// normal caller (the moderation gate). When [ifNoneMatch] is supplied and still
+  /// matches the stored content hash, the backend returns `unchanged` with no
+  /// payload so the caller reuses its cached copy (change: add-offline-score-cache).
+  Future<ScoreBytesResult> fetchScoreBytes(
+    String catalogId, {
+    String? ifNoneMatch,
+  });
 
   /// Fetch a catalog score's bytes for the rating deck's **read-only preview**
-  /// (change: rate-pending-scores). Unlike [fetchBytes] (player open), this serves
+  /// (change: rate-pending-scores). Unlike [fetchScoreBytes] (player open), this serves
   /// a `pending` candidate too so a rater can hear it before rating; it never opens
   /// the full player and is not a library save.
   Future<Uint8List> ratingPreviewBytes(String catalogId);
@@ -258,12 +266,22 @@ class GrpcCatalogService implements CatalogService {
   });
 
   @override
-  Future<Uint8List> fetchBytes(String catalogId) => _authed((bearer) async {
+  Future<ScoreBytesResult> fetchScoreBytes(
+    String catalogId, {
+    String? ifNoneMatch,
+  }) => _authed((bearer) async {
     final resp = await _client.getCatalogScoreBytes(
-      score.GetCatalogScoreBytesRequest(catalogId: catalogId),
+      score.GetCatalogScoreBytesRequest(
+        catalogId: catalogId,
+        ifNoneMatch: ifNoneMatch,
+      ),
       options: bearerOptions(bearer),
     );
-    return Uint8List.fromList(resp.data);
+    return ScoreBytesResult(
+      data: resp.unchanged ? null : Uint8List.fromList(resp.data),
+      etag: resp.etag,
+      unchanged: resp.unchanged,
+    );
   });
 
   @override

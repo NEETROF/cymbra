@@ -25,7 +25,6 @@ import 'package:music/state/session_notifier.dart';
 
 /// In-memory [CatalogService] mirroring the backend's substring/filter search.
 class _FakeCatalog implements CatalogService {
-
   @override
   Future<Uint8List> getOfflineCacheKey() async => Uint8List(0);
   _FakeCatalog(this.rows);
@@ -86,7 +85,10 @@ class _FakeCatalog implements CatalogService {
       rows.where((h) => saved.contains(h.id)).toList();
 
   @override
-  Future<Uint8List> fetchBytes(String catalogId) async => Uint8List(0);
+  Future<ScoreBytesResult> fetchScoreBytes(
+    String catalogId, {
+    String? ifNoneMatch,
+  }) async => ScoreBytesResult(data: Uint8List(0), etag: '', unchanged: false);
   @override
   Future<Uint8List> ratingPreviewBytes(String catalogId) async => Uint8List(0);
   @override
@@ -117,7 +119,10 @@ class _FakeUpload implements ScoreUploadService {
   Future<void> setFavorite(String id, bool favorite) async {}
 
   @override
-  Future<Uint8List> fetchBytes(String id) async => Uint8List(0);
+  Future<ScoreBytesResult> fetchScoreBytes(
+    String id, {
+    String? ifNoneMatch,
+  }) async => ScoreBytesResult(data: Uint8List(0), etag: '', unchanged: false);
   @override
   Future<ContributedScore> upload({
     required Uint8List data,

@@ -63,12 +63,31 @@ class Notation extends _$Notation {
         : _initialWidth;
     final cacheKey = offlineCacheKeyFor(entry);
     try {
-      // Bytes come from: a byte-sourced score (a user upload or a saved public-
-      // catalog score) via the offline-preferred cache path, or the asset bundle
-      // (a bundled score). Same parse → layout path either way.
-      final Uint8List bytes = cacheKey != null
-          ? await _loadByteSourced(entry, cacheKey)
-          : await _source.load(entry.assetPath);
+      // Bytes come from a byte-sourced score (a user upload or a saved public-
+      // catalog score), preferring a valid local encrypted copy so a favorited-
+      // and-once-opened score plays offline; or from the asset bundle (a bundled
+      // score). Same parse → layout path either way.
+      final Uint8List bytes;
+      CachedScore? cached;
+      if (cacheKey != null) {
+        final cache = ref.read(offlineScoreCacheProvider);
+        cached = await cache.read(cacheKey);
+        if (cached != null) {
+          // A cache hit is authoritative and plays with no network round-trip.
+          bytes = cached.bytes;
+        } else {
+          // Miss: the network fetch is the source of truth; store its bytes AND
+          // its content hash (ETag) when the entry is a favorite, so a later open
+          // can do a conditional refresh instead of re-downloading.
+          final fetched = await _fetchScoreBytes(entry);
+          bytes = fetched.data!;
+          if (await _isFavorite(entry)) {
+            await cache.write(cacheKey, bytes, etag: fetched.etag);
+          }
+        }
+      } else {
+        bytes = await _source.load(entry.assetPath);
+      }
       final document = await _engine.parse(bytes);
       // Guard against a selection change while we were loading.
       if (ref.read(selectedScoreProvider) != entry) return;
@@ -78,6 +97,11 @@ class Notation extends _$Notation {
         systems: systems,
         availableWidth: width,
       );
+      // After serving from cache, best-effort refresh from the network — see
+      // [_refreshCachedEntry]. Never blocks or replaces the rendered view.
+      if (cached != null && cacheKey != null) {
+        await _refreshCachedEntry(entry, cacheKey, cached.etag);
+      }
     } catch (e) {
       if (ref.read(selectedScoreProvider) != entry) return;
       // Keep the technical cause in the logs only — the UI shows a localized
@@ -90,38 +114,51 @@ class Notation extends _$Notation {
     }
   }
 
-  /// Load a byte-sourced score, preferring a valid local encrypted copy so a
-  /// favorited-and-once-opened score plays offline. On a cache miss the network
-  /// fetch is the source of truth, and its bytes are cached when the entry is a
-  /// favorite (the "opened once while favorited" write). Caching is a no-op when
-  /// unavailable (guest / no keystore / offline).
-  Future<Uint8List> _loadByteSourced(
-    CatalogEntry entry,
-    String cacheKey,
-  ) async {
-    final cache = ref.read(offlineScoreCacheProvider);
-    final cached = await cache.read(cacheKey);
-    if (cached != null) {
-      // Content is immutable under a stable id, so a cache hit is authoritative;
-      // no online round-trip is needed to play it.
-      return cached.bytes;
-    }
-    final bytes = await _fetchBytes(entry);
-    if (await _isFavorite(entry)) {
-      // The ETag round-trip is a separate optimization; the plaintext-hash
-      // integrity check inside the cache guards the entry regardless.
-      await cache.write(cacheKey, bytes, etag: '');
-    }
-    return bytes;
-  }
-
-  Future<Uint8List> _fetchBytes(CatalogEntry entry) {
+  /// Fetch a byte-sourced score's bytes (upload or saved catalog), optionally
+  /// conditional on [ifNoneMatch] so an unchanged copy comes back without a
+  /// payload (change: add-offline-score-cache).
+  Future<ScoreBytesResult> _fetchScoreBytes(
+    CatalogEntry entry, {
+    String? ifNoneMatch,
+  }) {
     if (entry.contributedId != null) {
       return ref
           .read(scoreUploadServiceProvider)
-          .fetchBytes(entry.contributedId!);
+          .fetchScoreBytes(entry.contributedId!, ifNoneMatch: ifNoneMatch);
     }
-    return ref.read(catalogServiceProvider).fetchBytes(entry.catalogId!);
+    return ref
+        .read(catalogServiceProvider)
+        .fetchScoreBytes(entry.catalogId!, ifNoneMatch: ifNoneMatch);
+  }
+
+  /// Best-effort freshness/integrity guard after serving a favorite from cache
+  /// (design D7): only when online, send the cached ETag and rewrite the local
+  /// copy **only** if the server reports a different content hash. Score bytes are
+  /// immutable under a stable id, so this normally reports "unchanged" and skips
+  /// the re-download and re-encrypt entirely. Never throws to the caller — a
+  /// refresh failure leaves the already-rendered cache view untouched.
+  Future<void> _refreshCachedEntry(
+    CatalogEntry entry,
+    String cacheKey,
+    String cachedEtag,
+  ) async {
+    try {
+      if (!await ref.read(connectivityServiceProvider).isOnline()) return;
+      final fetched = await _fetchScoreBytes(
+        entry,
+        ifNoneMatch: cachedEtag.isEmpty ? null : cachedEtag,
+      );
+      final data = fetched.data;
+      // Hash matched (or no payload) → the cache is already fresh, keep it.
+      if (fetched.unchanged || data == null) return;
+      if (await _isFavorite(entry)) {
+        await ref
+            .read(offlineScoreCacheProvider)
+            .write(cacheKey, data, etag: fetched.etag);
+      }
+    } catch (e) {
+      debugPrint('Notation cache refresh failed for ${entry.id}: $e');
+    }
   }
 
   /// Whether [entry] is currently in the user's favorites (the cache-write gate).
