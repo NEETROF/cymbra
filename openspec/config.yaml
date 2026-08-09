@@ -1,20 +1,48 @@
 schema: spec-driven
 
-# Project context (optional)
-# This is shown to AI when creating artifacts.
-# Add your tech stack, conventions, style guides, domain knowledge, etc.
-# Example:
-#   context: |
-#     Tech stack: TypeScript, React, Node.js
-#     We use conventional commits
-#     Domain: e-commerce platform
+# Project context — shown to AI when creating artifacts.
+context: |
+  Monorepo multi-produits Cymbra, un seul root OpenSpec. Le découpage se fait
+  par PRÉFIXE de capability, pas par dossier (`specs/` est plat : un
+  sous-dossier serait lu comme une capability vide).
 
-# Per-artifact rules (optional)
-# Add custom rules for specific artifacts.
-# Example:
-#   rules:
-#     proposal:
-#       - Keep proposals under 500 words
-#       - Always include a "Non-goals" section
-#     tasks:
-#       - Break tasks into chunks of max 2 hours
+  Domaines :
+    - `id-*`       Cymbra ID : identité, comptes, sessions, profils publics
+    - `music-*`    Cymbra Music : apps/music (Flutter) + son catalogue
+    - `live-*`     Cymbra Live : web + Tauri
+    - `platform-*` socle transverse : feature flags, jobs, observabilité,
+                   i18n, accès DB, service backend
+    - `admin-*`    back-office Vue (apps/back-office)
+
+  Un produit CONSOMME le socle, il ne le redéclare jamais. Une capability
+  appartient à un seul domaine ; si elle en sert deux, c'est du `platform-*`.
+
+  Legacy : les capabilities sans préfixe sont antérieures à la convention et ne
+  sont PAS renommées en masse (les 60+ changes archivés les référencent). On les
+  renomme seulement quand un change les touche déjà. Correspondances utiles :
+    - `id-*`       ← user-account, account-access, account-linking,
+                     account-management, account-language-sync, backend-auth,
+                     web-auth-session, desktop-oidc-loopback, session-management,
+                     mobile-session-signout, handle-onboarding,
+                     public-player-profile, user-locale-preference
+    - `platform-*` ← backend-service, runtime-feature-flags, job-infrastructure,
+                     observability, ops-db-access, app-localization,
+                     local-preferences, state-management, responsive-layout
+    - `admin-*`    ← moderation-console, moderation-access-control,
+                     feature-flags-admin, admin-account-directory,
+                     back-office-admin-session
+    - `music-*`    ← tout le reste (midi, wait-mode, score-*, soundfont-*,
+                     catalog-*, leaderboards, performance-scoring, …)
+
+# Per-artifact rules
+rules:
+  specs:
+    - Préfixer toute NOUVELLE capability par id-/music-/live-/platform-/admin-.
+    - Avant de créer une capability, vérifier via `openspec list --specs` qu'une
+      capability existante (surtout `id-*` / `platform-*` et leurs équivalents
+      legacy) ne la couvre pas déjà — étendre plutôt que dupliquer.
+    - Ne pas dupliquer une capability socle par produit ; si Live et Music ont
+      besoin du même comportement, la spec est unique et `platform-*`/`id-*`.
+  proposal:
+    - Indiquer explicitement les produits impactés (ID / Music / Live /
+      back-office) et, pour chacun, ce qui est consommé vs ce qui est nouveau.
