@@ -338,6 +338,11 @@ message CourseSummary {
   int32 sort_order = 5;
   int32 schema_version = 6;
   string title_json = 7;
+  // Unit grouping within a track/level section: a stable slug (empty =
+  // ungrouped) plus its inline-localized heading ({en,fr,es,it}) as JSON.
+  // Display grouping only — listing order is unchanged.
+  string unit = 8;
+  string unit_title_json = 9;
 }
 
 message Course {

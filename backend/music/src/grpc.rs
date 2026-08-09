@@ -533,6 +533,8 @@ impl ScoreService for ScoreGrpc {
                 sort_order: s.sort_order,
                 schema_version: s.schema_version,
                 title_json: s.title,
+                unit: s.unit,
+                unit_title_json: s.unit_title,
             })
             .collect();
         Ok(Response::new(ListCoursesResponse { courses }))
@@ -561,6 +563,8 @@ impl ScoreService for ScoreGrpc {
                     sort_order: c.summary.sort_order,
                     schema_version: c.summary.schema_version,
                     title_json: c.summary.title,
+                    unit: c.summary.unit,
+                    unit_title_json: c.summary.unit_title,
                 }),
                 content_json: c.content,
             });
