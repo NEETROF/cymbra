@@ -24,6 +24,8 @@ import '../courses/lesson_sounder.dart';
 import '../l10n/gen/app_localizations.dart';
 import '../painters/smufl.dart';
 import '../services/audio_service.dart';
+import '../services/midi_service.dart';
+import '../src/rust/api/midi.dart' show MidiEvent, MidiEventKind;
 import '../state/note_label.dart' show FigureToken, NoteFigure;
 import '../state/player_data.dart' show metronomeBeatsCrossed;
 import '../theme/cymbra_theme.dart';
@@ -98,6 +100,7 @@ class _RhythmTapViewState extends ConsumerState<RhythmTapView>
   /// (count-in) through the pattern window.
   double _clockMs = 0;
   int _nextDemoOnset = 0;
+  StreamSubscription<MidiEvent>? _sub;
   final List<double> _taps = [];
   List<bool> _hit = const [];
   bool _passed = false;
@@ -113,10 +116,18 @@ class _RhythmTapViewState extends ConsumerState<RhythmTapView>
     // provider scope has been torn down (the sanctioned audition pattern).
     _audio = ref.read(audioServiceProvider);
     _sounder = LessonSounder(_audio);
+    // A connected instrument taps the rhythm too: any key is the pad. The
+    // instrument already sounds, so the pad's synth tick is not layered on.
+    _sub = ref.read(midiServiceProvider).events().listen((e) {
+      if (e.kind == MidiEventKind.noteOn && e.velocity > 0) {
+        _padTap(sound: false);
+      }
+    });
   }
 
   @override
   void dispose() {
+    _sub?.cancel();
     _ticker.dispose();
     for (final t in _timers) {
       t.cancel();
@@ -248,10 +259,10 @@ class _RhythmTapViewState extends ConsumerState<RhythmTapView>
     });
   }
 
-  void _padTap() {
+  void _padTap({bool sound = true}) {
     if (_phase != _Phase.tapping) return;
     _taps.add(_clockMs);
-    _sounder.tap(_tapPitch, durationMs: 90);
+    if (sound) _sounder.tap(_tapPitch, durationMs: 90);
     setState(() => _padFlash = true);
     _after(const Duration(milliseconds: 90), () {
       setState(() => _padFlash = false);

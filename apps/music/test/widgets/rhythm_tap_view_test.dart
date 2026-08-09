@@ -19,6 +19,7 @@ import 'package:music/courses/course_manifest.dart';
 import 'package:music/courses/lesson_rhythm.dart';
 import 'package:music/l10n/gen/app_localizations.dart';
 import 'package:music/services/audio_service.dart';
+import 'package:music/services/midi_service.dart';
 import 'package:music/state/note_label.dart' show NoteFigure;
 import 'package:music/widgets/rhythm_tap_view.dart';
 
@@ -44,9 +45,15 @@ void main() {
     required RecordingAudioService audio,
     required List<bool> completions,
     RhythmTapBlock block = _twoQuarters,
+    FakeMidiService? midi,
   }) async {
+    final fakeMidi = midi ?? FakeMidiService();
+    addTearDown(fakeMidi.close);
     final container = ProviderContainer(
-      overrides: [audioServiceProvider.overrideWithValue(audio)],
+      overrides: [
+        audioServiceProvider.overrideWithValue(audio),
+        midiServiceProvider.overrideWithValue(fakeMidi),
+      ],
     );
     addTearDown(container.dispose);
     await tester.pumpWidget(
@@ -206,5 +213,24 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     expect(audio.metronomeClicks.length, clicksBefore);
     expect(audio.noteOns.length, onsBefore);
+  });
+
+  testWidgets('a connected piano taps the rhythm on any key', (tester) async {
+    final audio = RecordingAudioService();
+    final completions = <bool>[];
+    final midi = FakeMidiService();
+    await pumpView(tester, audio: audio, completions: completions, midi: midi);
+    await startIntoTapping(tester);
+
+    // Play the two quarters from the instrument — any key counts as the pad.
+    midi.emit(noteOnEvent(48));
+    await advance(tester, 1000);
+    midi.emit(noteOnEvent(52));
+    await advance(tester, 2000); // grace, result, chime beat
+
+    expect(completions, [true]);
+    // The instrument already sounds: MIDI taps never trigger the synth tick
+    // (the only noteOns are the completion chime's).
+    expect(audio.noteOns.where((n) => n.pitch == 76), isEmpty);
   });
 }
