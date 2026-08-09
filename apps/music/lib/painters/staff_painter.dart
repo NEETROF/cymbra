@@ -17,6 +17,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../src/rust/api/musicxml.dart' show BeamState;
+import '../state/note_density_core.dart';
 import '../state/player_data.dart';
 import 'notation_palette.dart';
 import 'smufl.dart';
@@ -70,6 +71,21 @@ class StaffPainter extends CustomPainter {
   /// original 4 s window), so the player is unaffected.
   final double lookAheadMs;
 
+  /// The score's tightest characteristic note spacing (ms), from
+  /// [onsetGapMs] — when supplied, [lookAheadMs] is **narrowed** until that
+  /// spacing engraves at least [minOnsetSpaces] wide, so a dense piece is not
+  /// crushed into the same window as a slow one (see
+  /// [densityCappedLookAheadMs]). `null` disables the cap and keeps
+  /// [lookAheadMs] verbatim, which is what the fixed-scale previews want.
+  final double? onsetGapMs;
+
+  /// The score's typical measure duration (ms), from [medianMeasureMs] — when
+  /// supplied, [lookAheadMs] is also narrowed so no more than
+  /// [kMaxVisibleMeasures] measures sit ahead of the playhead. Independent of
+  /// [onsetGapMs]: spacing keeps glyphs apart, this bounds how much score the
+  /// reader faces. `null` disables it, like [onsetGapMs].
+  final double? measureMs;
+
   /// Multiplier on the staff size (and therefore the note glyphs, stems, clefs
   /// and armature — everything derives from the staff line gap). `1.0` is the
   /// player's size; the in-card preview uses a smaller value to shrink the
@@ -90,6 +106,8 @@ class StaffPainter extends CustomPainter {
     this.measureStartMs = const [],
     this.mistakeColors = const {},
     this.lookAheadMs = defaultLookAheadMs,
+    this.onsetGapMs,
+    this.measureMs,
     this.noteScale = 1.0,
     this.palette = NotationPalette.dark,
   });
@@ -147,8 +165,31 @@ class StaffPainter extends CustomPainter {
   static const double _partitionStaffSpace = 12.0;
 
   /// Default visible time window to the right of the playhead. The score-size
-  /// setting divides it by its factor so bigger notes get matching spacing.
+  /// setting divides it by its factor so bigger notes get matching spacing, and
+  /// [onsetGapMs] narrows it further on dense scores — this is the *widest* the
+  /// window ever gets, not the window itself.
   static const double defaultLookAheadMs = 4000;
+
+  /// Gap (staff spaces) between an accidental's left edge and its notehead's,
+  /// the offset the accidental is engraved at. Feeds [minOnsetSpaces].
+  static const double _accidentalOffset = 1.5;
+
+  /// Narrowest advance (staff spaces) between two consecutive onsets on one
+  /// staff that this painter can still engrave legibly — the density budget
+  /// [densityCappedLookAheadMs] sizes the look-ahead window against.
+  ///
+  /// Read off what the painter actually draws, for the worst ordinary case (a
+  /// note whose neighbour carries an accidental): half of the left head, then
+  /// the right note's accidental, which reaches [_accidentalOffset] plus half a
+  /// head to the left of its own centre. ≈ 2.68 spaces.
+  ///
+  /// Deliberately wider than the engraved Partition's `MIN_COL` (22 px at its
+  /// 12 px staff space ≈ 1.83 spaces, `crates/musicxml-core/src/lib.rs`): the
+  /// Partition wraps to a handful of measures per line and is read standing
+  /// still, while the Portée puts one unbroken line in front of a player
+  /// sight-reading it as it moves. Same glyphs, less time to decode them.
+  static const double minOnsetSpaces =
+      Smufl.noteheadWidth / 2 + _accidentalOffset + Smufl.noteheadWidth / 2;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -176,7 +217,20 @@ class StaffPainter extends CustomPainter {
 
     // Playhead fixed at the left quarter; time advances toward the left.
     final playLineX = size.width * 0.25;
-    final pxPerMs = (size.width - playLineX - margin) / lookAheadMs;
+    final trackPx = size.width - playLineX - margin;
+    // The window the notes are spread over: the caller's, narrowed by the
+    // score's own density and by its measure length, so a fast 3/8 does not
+    // engrave five cramped measures where a slow 4/2 gets one. Both bounds are
+    // constants of the piece, so the scroll speed stays linear.
+    final window = densityCappedLookAheadMs(
+      requestedMs: lookAheadMs,
+      trackPx: trackPx,
+      lineGap: lineGap,
+      minSpaces: minOnsetSpaces,
+      gapMs: onsetGapMs,
+      measureMs: measureMs,
+    );
+    final pxPerMs = trackPx / window;
     double xForTime(double tMs) => playLineX + (tMs - elapsedMs) * pxPerMs;
 
     // Vertical placement of the staff/staves. Stems follow the notation, so a
@@ -463,7 +517,7 @@ class StaffPainter extends CustomPainter {
           Smufl.draw(
             canvas,
             glyph,
-            x - Smufl.noteheadWidth * lineGap / 2 - lineGap * 1.5,
+            x - Smufl.noteheadWidth * lineGap / 2 - lineGap * _accidentalOffset,
             y,
             lineGap,
             color,
@@ -848,6 +902,8 @@ class StaffPainter extends CustomPainter {
       old.measureKeyFifths != measureKeyFifths ||
       old.mistakeColors != mistakeColors ||
       old.lookAheadMs != lookAheadMs ||
+      old.onsetGapMs != onsetGapMs ||
+      old.measureMs != measureMs ||
       old.noteScale != noteScale ||
       old.palette != palette;
 }

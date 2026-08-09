@@ -573,7 +573,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     }
     // Standard staff mode (synchronized, horizontal scrolling). The score-size
     // setting scales the notation (noteScale) and narrows the look-ahead
-    // window by the same factor so note size and spacing grow together.
+    // window by the same factor so note size and spacing grow together; the
+    // score's own note density then narrows it further (onsetGapMs) so a fast,
+    // dense piece is not engraved tighter than it can be read.
     final sizeFactor = resolveScoreSize(
       ref.watch(playerPreferencesProvider.select((p) => p.scoreSize)),
       isPhone: context.isPhoneLayout,
@@ -601,6 +603,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                 measureStartMs: data.measureStartMs,
                 noteScale: sizeFactor,
                 lookAheadMs: StaffPainter.defaultLookAheadMs / sizeFactor,
+                onsetGapMs: data.onsetGapMs,
+                measureMs: data.measureMs,
                 palette: palette,
               ),
               size: Size.infinite,
