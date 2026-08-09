@@ -26,7 +26,9 @@
 - [ ] 3.6 Implement the `discord_digest` handler: one message **per product** into that product's stats channel, at that product's flag-driven cadence, from the existing daily aggregates, with the aggregate minimum applied; seed its schedule in `backend/jobs/migrations/`
 - [ ] 3.7 Build the Music report content: active players, sessions, new accounts, scores rated (and how many reached consensus), catalog items accepted, top 10 pieces played — the top-pieces query MUST join `music.catalog_scores` and count only accepted catalog pieces, since `play_sessions.score_id` also holds **user** score ids and would otherwise publish a private upload's identity
 - [ ] 3.8 Build the top-50 surfaces: weekly post in the product's leaderboard channel and an on-demand slash command, both reusing the same pure ranking core as the top 10
-- [ ] 3.9 Test handler idempotency, the flag-disabled-after-enqueue path, the gate-revoked-after-enqueue path, per-product routing (a Music event never resolves an ID channel), and Discord-failure retry behaviour
+- [ ] 3.9 Classify Discord failures in the sender: network/timeout/`429`/`5xx` → return `Err` so the job engine retries with backoff; `400`/`401`/`403`/`404` → record the reason, log at `error`, count it, and return `Ok` so a deleted webhook cannot burn the retry budget forever
+- [ ] 3.10 Implement the "nothing to say" rule in the **pure core**: a report whose every element is zero or suppressed returns "no message", the handler posts nothing and logs the skip with its reason
+- [ ] 3.11 Test handler idempotency, the flag-disabled-after-enqueue path, the gate-revoked-after-enqueue path, per-product routing (a Music event never resolves an ID channel), retry on `5xx`/timeout, no-retry on `400`/`404`, no double-post when a retried attempt had already reached Discord, and the empty/all-suppressed report producing no call to the sender at all
 
 ## 4. Producers (D4)
 
