@@ -429,6 +429,27 @@ Only `server` mounts it (the worker builds no soundfont store). Leave the bucket
 to disable the route (it then responds 503). Seed the default font once — see the
 `aws s3 cp` snippet in `.env.prod.example`.
 
+## Course catalogue (interactive solfège lessons)
+
+The 42 first-party lessons are **data, not schema**: the `0021` migration (unit
+columns) applies itself at server startup, but the course rows are injected with
+the generated seed — once per environment, then again only when the corpus
+changes. Idempotent (upsert on id; also retires the pre-curriculum rows), so
+re-running is always safe:
+
+```bash
+# From the repo checkout on the box (or anywhere with the prod DB URL):
+set -a; . ./backend/.env; set +a
+psql "$CYMBRA_MUSIC_DATABASE_URL" -f backend/scripts/seed_courses.sql
+```
+
+`seed_courses.sql` is **generated — never edit it**. The source of truth is one
+JSON file per course under `backend/content/courses/` (authoring guide in its
+README): edit/add there, validate with the app's corpus test
+(`apps/music/test/courses/content_corpus_test.dart` — it runs the real client
+parser over every file), regenerate with `python3 backend/scripts/gen_seed_courses.py`,
+re-run the psql above. New or fixed lessons ship without an app release.
+
 ## Before you invite testers — checklist (the easy-to-forget bits)
 
 - [ ] **Uptime monitor** — there's no HA/alerting. Point a free UptimeRobot/BetterStack
@@ -436,6 +457,8 @@ to disable the route (it then responds 503). Seed the default font once — see 
 - [ ] **Backups tested** — run `backup.sh` once and actually restore the dump into a
       throwaway DB. Confirm the off-box copy lands in OVH Object Storage.
 - [ ] **Email deliverability** — SPF+DKIM+DMARC set, test mail hits the inbox (§9).
+- [ ] **Course catalogue seeded** — `psql … -f backend/scripts/seed_courses.sql` ran
+      against the prod DB, and the app's home shows the "Courses" continue card.
 - [ ] **Apple Sign in** — the current implementation is the **native flow**: the app sends
       Apple's `id_token`, the backend verifies it against Apple's JWKS (`aud` = bundle ID).
       **No `.p8` client-secret JWT is used** — `CYMBRA_APPLE_P8_KEY_PEM`/`_TEAM_ID`/`_KEY_ID`
