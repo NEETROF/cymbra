@@ -1,0 +1,172 @@
+{
+  "id": "sol-u2-06-bilan-rythme",
+  "status": "published",
+  "instrument": "piano",
+  "track": "solfege",
+  "level": "beginner",
+  "unit": "u2",
+  "unitTitle": {
+    "en": "Pulse and rhythm",
+    "fr": "La pulsation et le rythme",
+    "es": "El pulso y el ritmo",
+    "it": "La pulsazione e il ritmo"
+  },
+  "sortOrder": 206,
+  "schemaVersion": 2,
+  "title": {
+    "en": "Checkpoint: rhythm",
+    "fr": "Bilan : le rythme",
+    "es": "Repaso: el ritmo",
+    "it": "Ripasso: il ritmo"
+  },
+  "content": {
+    "schemaVersion": 2,
+    "id": "sol-u2-06-bilan-rythme",
+    "instrument": "piano",
+    "track": "solfege",
+    "level": "beginner",
+    "title": {
+      "en": "Checkpoint: rhythm",
+      "fr": "Bilan : le rythme",
+      "es": "Repaso: el ritmo",
+      "it": "Ripasso: il ritmo"
+    },
+    "summary": {
+      "en": "Everything from the rhythm unit in one run",
+      "fr": "Tout le rythme de l'unité en une seule fois",
+      "es": "Todo el ritmo de la unidad de una vez",
+      "it": "Tutto il ritmo dell'unità in una volta"
+    },
+    "blocks": [
+      {
+        "type": "text",
+        "text": {
+          "en": "Time for a victory lap: pulse, durations, rests and 3/4, all in one lesson. Ready to go?",
+          "fr": "C'est l'heure du tour d'honneur : pulsation, durées, silences et mesure à trois temps — tout en une leçon. On y va ?",
+          "es": "Hora de la vuelta de honor: pulso, duraciones, silencios y 3/4, todo en una lección. ¿Vamos?",
+          "it": "È l'ora del giro d'onore: pulsazione, durate, pause e 3/4 — tutto in una lezione. Andiamo?"
+        }
+      },
+      {
+        "type": "rhythmTap",
+        "pattern": [
+          {
+            "fig": "quarter"
+          },
+          {
+            "fig": "quarter"
+          },
+          {
+            "fig": "quarter"
+          },
+          {
+            "fig": "quarter"
+          },
+          {
+            "fig": "quarter"
+          },
+          {
+            "rest": true,
+            "fig": "quarter"
+          },
+          {
+            "fig": "half"
+          }
+        ],
+        "beats": 4,
+        "beatType": 4,
+        "bpm": 80,
+        "prompt": {
+          "en": "Two bars: four steady quarters, then quarter, rest, half — mind the silent beat.",
+          "fr": "Deux mesures : quatre noires régulières, puis noire, soupir, blanche — attention au temps silencieux.",
+          "es": "Dos compases: cuatro negras regulares y luego negra, silencio, blanca. Ojo con el tiempo mudo.",
+          "it": "Due battute: quattro semiminime regolari, poi semiminima, pausa, minima — occhio al tempo muto."
+        }
+      },
+      {
+        "type": "question",
+        "prompt": {
+          "en": "Which of these lasts the longest?",
+          "fr": "Laquelle de ces figures dure le plus longtemps ?",
+          "es": "¿Cuál de estas figuras dura más?",
+          "it": "Quale di queste figure dura di più?"
+        },
+        "options": [
+          {
+            "en": "The whole note",
+            "fr": "La ronde",
+            "es": "La redonda",
+            "it": "La semibreve"
+          },
+          {
+            "en": "The half note",
+            "fr": "La blanche",
+            "es": "La blanca",
+            "it": "La minima"
+          },
+          {
+            "en": "The quarter note",
+            "fr": "La noire",
+            "es": "La negra",
+            "it": "La semiminima"
+          }
+        ],
+        "answerIndex": 0,
+        "feedback": {
+          "en": "Right — four beats, the length of a full 4/4 measure.",
+          "fr": "Exact — quatre temps, la durée d'une mesure à 4/4 entière.",
+          "es": "Correcto: cuatro tiempos, lo que dura un compás entero de 4/4.",
+          "it": "Esatto — quattro tempi, la durata di un'intera battuta in 4/4."
+        }
+      },
+      {
+        "type": "rhythmTap",
+        "pattern": [
+          {
+            "fig": "quarter"
+          },
+          {
+            "fig": "half"
+          }
+        ],
+        "beats": 3,
+        "beatType": 4,
+        "bpm": 70,
+        "prompt": {
+          "en": "Back in three: tap on one, then a half note on two — hold it to the end of the bar.",
+          "fr": "Retour à trois temps : tape sur un, puis une blanche sur deux — tiens-la jusqu'au bout de la mesure.",
+          "es": "De vuelta al tres: toca en el uno y una blanca en el dos; mantenla hasta el final del compás.",
+          "it": "Di nuovo in tre: tocca sull'uno, poi una minima sul due — tienila fino alla fine della battuta."
+        }
+      },
+      {
+        "type": "readPlay",
+        "mode": "melody",
+        "clef": "treble",
+        "labels": "never",
+        "notes": [
+          "C4",
+          "E4",
+          "G4",
+          "E4",
+          "C4"
+        ],
+        "prompt": {
+          "en": "Rhythm done — now let the notes sing again: play C, E, G, E, C left to right.",
+          "fr": "Le rythme est acquis — maintenant, fais rechanter les notes : joue do, mi, sol, mi, do de gauche à droite.",
+          "es": "Ritmo dominado. Ahora deja cantar las notas otra vez: toca do, mi, sol, mi, do de izquierda a derecha.",
+          "it": "Ritmo fatto — ora fai cantare di nuovo le note: suona do, mi, sol, mi, do da sinistra a destra."
+        }
+      },
+      {
+        "type": "text",
+        "text": {
+          "en": "Unit complete: you keep a pulse, read three durations, count rests and dance in 3/4. Your hands and your ear are ready for what comes next.",
+          "fr": "Unité terminée : tu tiens la pulsation, tu lis trois durées, tu comptes les silences et tu danses en 3/4. Tes mains et ton oreille sont prêtes pour la suite.",
+          "es": "Unidad completada: mantienes el pulso, lees tres duraciones, cuentas los silencios y bailas en 3/4. Tus manos y tu oído están listos para lo que viene.",
+          "it": "Unità completata: tieni la pulsazione, leggi tre durate, conti le pause e balli in 3/4. Le tue mani e il tuo orecchio sono pronti per il seguito."
+        }
+      }
+    ]
+  }
+}

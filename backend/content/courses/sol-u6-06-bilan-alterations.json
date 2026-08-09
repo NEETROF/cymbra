@@ -1,0 +1,147 @@
+{
+  "id": "sol-u6-06-bilan-alterations",
+  "status": "published",
+  "instrument": "piano",
+  "track": "solfege",
+  "level": "intermediate",
+  "unit": "u6",
+  "unitTitle": {
+    "en": "Sharps, flats and keys",
+    "fr": "Dièses, bémols et tonalités",
+    "es": "Sostenidos, bemoles y tonalidades",
+    "it": "Diesis, bemolli e tonalità"
+  },
+  "sortOrder": 606,
+  "schemaVersion": 2,
+  "title": {
+    "en": "Checkpoint: accidentals",
+    "fr": "Bilan : les altérations",
+    "es": "Repaso: las alteraciones",
+    "it": "Ripasso: le alterazioni"
+  },
+  "content": {
+    "schemaVersion": 2,
+    "id": "sol-u6-06-bilan-alterations",
+    "instrument": "piano",
+    "track": "solfege",
+    "level": "intermediate",
+    "title": {
+      "en": "Checkpoint: accidentals",
+      "fr": "Bilan : les altérations",
+      "es": "Repaso: las alteraciones",
+      "it": "Ripasso: le alterazioni"
+    },
+    "summary": {
+      "en": "Review sharps, flats and key signatures",
+      "fr": "Réviser dièses, bémols et armures",
+      "es": "Repasar sostenidos, bemoles y armaduras",
+      "it": "Ripassare diesis, bemolli e armature"
+    },
+    "blocks": [
+      {
+        "type": "text",
+        "text": {
+          "en": "Time to put it all together: sharps, flats, half steps and key signatures. Show what your eyes and ears have learned.",
+          "fr": "L'heure du bilan : dièses, bémols, demi-tons et armures. Montre ce que tes yeux et tes oreilles ont appris.",
+          "es": "Hora de juntarlo todo: sostenidos, bemoles, semitonos y armaduras. Demuestra lo que tus ojos y tus oídos han aprendido.",
+          "it": "È il momento di mettere tutto insieme: diesis, bemolli, semitoni e armature. Mostra che cosa hanno imparato i tuoi occhi e le tue orecchie."
+        }
+      },
+      {
+        "type": "nameNote",
+        "clef": "treble",
+        "choiceCount": 3,
+        "notes": ["F#4", "Bb4", "C#4"],
+        "prompt": {
+          "en": "Name each note — mind the sign in front: ♯ or ♭?",
+          "fr": "Nomme chaque note — attention au signe devant : ♯ ou ♭ ?",
+          "es": "Nombra cada nota — atención al signo delante: ¿♯ o ♭?",
+          "it": "Dai il nome a ogni nota — occhio al segno davanti: ♯ o ♭?"
+        }
+      },
+      {
+        "type": "readPlay",
+        "mode": "drill",
+        "clef": "treble",
+        "labels": "never",
+        "notes": ["F#4", "Bb4", "E4"],
+        "prompt": {
+          "en": "Play the note shown — no labels this time, your reading has got this.",
+          "fr": "Joue la note affichée — sans étiquettes cette fois, ta lecture est prête.",
+          "es": "Toca la nota que se muestra — sin etiquetas esta vez, tu lectura ya puede sola.",
+          "it": "Suona la nota mostrata — senza etichette questa volta, la tua lettura è pronta."
+        }
+      },
+      {
+        "type": "earChoice",
+        "notes": ["B4", "Bb4"],
+        "answerId": "down",
+        "choices": [
+          {
+            "id": "up",
+            "label": {
+              "en": "Higher",
+              "fr": "Plus aiguë",
+              "es": "Más aguda",
+              "it": "Più acuta"
+            }
+          },
+          {
+            "id": "down",
+            "label": {
+              "en": "Lower",
+              "fr": "Plus grave",
+              "es": "Más grave",
+              "it": "Più grave"
+            }
+          }
+        ],
+        "prompt": {
+          "en": "Listen to B, then its flat: is the second note higher or lower?",
+          "fr": "Écoute si, puis son bémol : la deuxième note est-elle plus aiguë ou plus grave ?",
+          "es": "Escucha si y luego su bemol: ¿la segunda nota es más aguda o más grave?",
+          "it": "Ascolta si e poi il suo bemolle: la seconda nota è più acuta o più grave?"
+        }
+      },
+      {
+        "type": "question",
+        "prompt": {
+          "en": "A key signature with one flat: which note does it change?",
+          "fr": "Une armure avec un bémol : quelle note change-t-elle ?",
+          "es": "Una armadura con un bemol: ¿qué nota cambia?",
+          "it": "Un'armatura con un bemolle: quale nota cambia?"
+        },
+        "options": [
+          {
+            "en": "Every B, for the whole piece",
+            "fr": "Tous les si, pour toute la pièce",
+            "es": "Todos los si, durante toda la pieza",
+            "it": "Tutti i si, per tutto il brano"
+          },
+          {
+            "en": "Only the very next note",
+            "fr": "Seulement la note qui suit",
+            "es": "Solo la nota siguiente",
+            "it": "Solo la nota successiva"
+          }
+        ],
+        "answerIndex": 0,
+        "feedback": {
+          "en": "Right — that is F major's signature: every B becomes B♭ until the end.",
+          "fr": "C'est ça — c'est l'armure de fa majeur : chaque si devient si♭ jusqu'à la fin.",
+          "es": "Eso es — es la armadura de fa mayor: cada si se vuelve si♭ hasta el final.",
+          "it": "Proprio così — è l'armatura di fa maggiore: ogni si diventa si♭ fino alla fine."
+        }
+      },
+      {
+        "type": "text",
+        "text": {
+          "en": "Checkpoint cleared! You read, play and hear sharps and flats — and a key signature holds no secrets for you.",
+          "fr": "Bilan réussi ! Tu lis, joues et entends les dièses et les bémols — et l'armure n'a plus de secret pour toi.",
+          "es": "¡Repaso superado! Lees, tocas y oyes sostenidos y bemoles — y la armadura ya no tiene secretos para ti.",
+          "it": "Ripasso superato! Leggi, suoni e senti diesis e bemolli — e l'armatura non ha più segreti per te."
+        }
+      }
+    ]
+  }
+}

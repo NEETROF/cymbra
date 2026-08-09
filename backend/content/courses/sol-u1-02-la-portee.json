@@ -1,0 +1,184 @@
+{
+  "id": "sol-u1-02-la-portee",
+  "status": "published",
+  "instrument": "piano",
+  "track": "solfege",
+  "level": "beginner",
+  "unit": "u1",
+  "unitTitle": {
+    "en": "The staff and your first notes",
+    "fr": "La portée et tes premières notes",
+    "es": "El pentagrama y tus primeras notas",
+    "it": "Il pentagramma e le tue prime note"
+  },
+  "sortOrder": 102,
+  "schemaVersion": 2,
+  "title": {
+    "en": "The staff",
+    "fr": "La portée",
+    "es": "El pentagrama",
+    "it": "Il pentagramma"
+  },
+  "content": {
+    "schemaVersion": 2,
+    "id": "sol-u1-02-la-portee",
+    "instrument": "piano",
+    "track": "solfege",
+    "level": "beginner",
+    "title": {
+      "en": "The staff",
+      "fr": "La portée",
+      "es": "El pentagrama",
+      "it": "Il pentagramma"
+    },
+    "summary": {
+      "en": "Five lines, four spaces: where the notes live",
+      "fr": "Cinq lignes, quatre interlignes : la maison des notes",
+      "es": "Cinco líneas, cuatro espacios: la casa de las notas",
+      "it": "Cinque righe, quattro spazi: la casa delle note"
+    },
+    "blocks": [
+      {
+        "type": "text",
+        "text": {
+          "en": "Music is written on a staff: five lines and four spaces. The higher a note sits on it, the higher it sounds.",
+          "fr": "La musique s'écrit sur une portée : cinq lignes et quatre interlignes. Plus une note est placée haut, plus elle sonne aigu.",
+          "es": "La música se escribe en un pentagrama: cinco líneas y cuatro espacios. Cuanto más arriba está una nota, más aguda suena.",
+          "it": "La musica si scrive sul pentagramma: cinque righe e quattro spazi. Più una nota è in alto, più suona acuta."
+        }
+      },
+      {
+        "type": "diagram",
+        "id": "staff-lines"
+      },
+      {
+        "type": "staff",
+        "clef": "treble",
+        "elements": [
+          { "p": "E4", "fig": "quarter" },
+          { "p": "G4", "fig": "quarter" },
+          { "p": "B4", "fig": "quarter" }
+        ],
+        "caption": {
+          "en": "Three notes climbing: one on the first line, one on the second, one on the third.",
+          "fr": "Trois notes qui grimpent : une sur la première ligne, une sur la deuxième, une sur la troisième.",
+          "es": "Tres notas que suben: una en la primera línea, otra en la segunda y otra en la tercera.",
+          "it": "Tre note che salgono: una sulla prima riga, una sulla seconda, una sulla terza."
+        }
+      },
+      {
+        "type": "earChoice",
+        "notes": ["E4", "B4"],
+        "answerId": "up",
+        "reveal": true,
+        "choices": [
+          {
+            "id": "up",
+            "label": {
+              "en": "Higher",
+              "fr": "Plus aiguë",
+              "es": "Más aguda",
+              "it": "Più acuta"
+            }
+          },
+          {
+            "id": "down",
+            "label": {
+              "en": "Lower",
+              "fr": "Plus grave",
+              "es": "Más grave",
+              "it": "Più grave"
+            }
+          }
+        ],
+        "prompt": {
+          "en": "Listen to the first-line note, then the third-line note: is the second note higher or lower?",
+          "fr": "Écoute la note de la première ligne, puis celle de la troisième : la deuxième note est-elle plus aiguë ou plus grave ?",
+          "es": "Escucha la nota de la primera línea y luego la de la tercera: ¿la segunda nota es más aguda o más grave?",
+          "it": "Ascolta la nota della prima riga, poi quella della terza: la seconda nota è più acuta o più grave?"
+        }
+      },
+      {
+        "type": "placeNote",
+        "clef": "treble",
+        "targets": ["E4", "F4"],
+        "prompt": {
+          "en": "Place a note ON the bottom line, then IN the first space just above it.",
+          "fr": "Pose une note SUR la première ligne, puis DANS le premier interligne juste au-dessus.",
+          "es": "Coloca una nota SOBRE la primera línea y luego EN el primer espacio justo encima.",
+          "it": "Metti una nota SULLA prima riga, poi NEL primo spazio subito sopra."
+        }
+      },
+      {
+        "type": "question",
+        "prompt": {
+          "en": "A note placed higher on the staff sounds…",
+          "fr": "Une note placée plus haut sur la portée sonne…",
+          "es": "Una nota colocada más arriba en el pentagrama suena…",
+          "it": "Una nota scritta più in alto sul pentagramma suona…"
+        },
+        "options": [
+          {
+            "en": "Higher",
+            "fr": "Plus aigu",
+            "es": "Más aguda",
+            "it": "Più acuta"
+          },
+          {
+            "en": "Lower",
+            "fr": "Plus grave",
+            "es": "Más grave",
+            "it": "Più grave"
+          }
+        ],
+        "answerIndex": 0,
+        "feedback": {
+          "en": "Exactly — height on the staff mirrors pitch: higher on the lines means higher in sound.",
+          "fr": "Exactement — la hauteur sur la portée suit le son : plus haut sur les lignes, plus aigu à l'oreille.",
+          "es": "Exacto: la altura en el pentagrama refleja el sonido; cuanto más arriba, más agudo.",
+          "it": "Esatto: l'altezza sul pentagramma rispecchia il suono; più in alto, più acuto."
+        }
+      },
+      {
+        "type": "earChoice",
+        "notes": ["G4", "E4"],
+        "answerId": "down",
+        "choices": [
+          {
+            "id": "up",
+            "label": {
+              "en": "Higher",
+              "fr": "Plus aiguë",
+              "es": "Más aguda",
+              "it": "Più acuta"
+            }
+          },
+          {
+            "id": "down",
+            "label": {
+              "en": "Lower",
+              "fr": "Plus grave",
+              "es": "Más grave",
+              "it": "Più grave"
+            }
+          }
+        ],
+        "prompt": {
+          "en": "By ear now: a second-line note, then a bottom-line note. Is the second note higher or lower?",
+          "fr": "À l'oreille maintenant : une note sur la deuxième ligne, puis une sur la première. La deuxième note est-elle plus aiguë ou plus grave ?",
+          "es": "Ahora de oído: una nota en la segunda línea y luego una en la primera. ¿La segunda nota es más aguda o más grave?",
+          "it": "Ora a orecchio: una nota sulla seconda riga, poi una sulla prima. La seconda nota è più acuta o più grave?"
+        }
+      },
+      {
+        "type": "text",
+        "text": {
+          "en": "You know the staff: five lines, four spaces, and higher on it means higher in sound. Next stop: the clef that names the notes.",
+          "fr": "Tu connais la portée : cinq lignes, quatre interlignes, et plus c'est haut, plus c'est aigu. Prochaine étape : la clé qui donne leur nom aux notes.",
+          "es": "Ya conoces el pentagrama: cinco líneas, cuatro espacios, y más arriba significa más agudo. Próxima parada: la clave que da nombre a las notas.",
+          "it": "Conosci il pentagramma: cinque righe, quattro spazi, e più in alto vuol dire più acuto. Prossima tappa: la chiave che dà il nome alle note."
+        }
+      }
+    ]
+  }
+}

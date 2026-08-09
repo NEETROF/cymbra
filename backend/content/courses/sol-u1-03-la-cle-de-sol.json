@@ -1,0 +1,151 @@
+{
+  "id": "sol-u1-03-la-cle-de-sol",
+  "status": "published",
+  "instrument": "piano",
+  "track": "solfege",
+  "level": "beginner",
+  "unit": "u1",
+  "unitTitle": {
+    "en": "The staff and your first notes",
+    "fr": "La portée et tes premières notes",
+    "es": "El pentagrama y tus primeras notas",
+    "it": "Il pentagramma e le tue prime note"
+  },
+  "sortOrder": 103,
+  "schemaVersion": 2,
+  "title": {
+    "en": "The treble clef",
+    "fr": "La clé de sol",
+    "es": "La clave de sol",
+    "it": "La chiave di violino"
+  },
+  "content": {
+    "schemaVersion": 2,
+    "id": "sol-u1-03-la-cle-de-sol",
+    "instrument": "piano",
+    "track": "solfege",
+    "level": "beginner",
+    "title": {
+      "en": "The treble clef",
+      "fr": "La clé de sol",
+      "es": "La clave de sol",
+      "it": "La chiave di violino"
+    },
+    "summary": {
+      "en": "The clef that names the G line",
+      "fr": "La clé qui nomme la ligne du sol",
+      "es": "La clave que da nombre a la línea del sol",
+      "it": "La chiave che dà il nome alla riga del sol"
+    },
+    "blocks": [
+      {
+        "type": "text",
+        "text": {
+          "en": "A staff alone doesn't name its notes — a clef does. The treble clef curls around the second line and calls it G.",
+          "fr": "Une portée seule ne nomme pas ses notes — c'est le rôle de la clé. La clé de sol s'enroule autour de la deuxième ligne et la baptise sol.",
+          "es": "Un pentagrama solo no da nombre a sus notas: eso lo hace la clave. La clave de sol se enrosca en la segunda línea y la llama sol.",
+          "it": "Il pentagramma da solo non dà il nome alle note: ci pensa la chiave. La chiave di violino si avvolge attorno alla seconda riga e la chiama sol."
+        }
+      },
+      {
+        "type": "diagram",
+        "id": "treble-clef"
+      },
+      {
+        "type": "staff",
+        "clef": "treble",
+        "labels": true,
+        "elements": [
+          { "p": "G4", "fig": "quarter" }
+        ],
+        "caption": {
+          "en": "The note on the second line — the one the clef wraps — is G.",
+          "fr": "La note sur la deuxième ligne — celle que la clé entoure — est sol.",
+          "es": "La nota de la segunda línea, la que abraza la clave, es sol.",
+          "it": "La nota sulla seconda riga — quella avvolta dalla chiave — è sol."
+        }
+      },
+      {
+        "type": "readPlay",
+        "mode": "drill",
+        "clef": "treble",
+        "labels": "always",
+        "notes": ["G4"],
+        "prompt": {
+          "en": "Play the note the clef points at — its name is written to help you.",
+          "fr": "Joue la note que la clé désigne — son nom est écrit pour t'aider.",
+          "es": "Toca la nota que señala la clave: su nombre está escrito para ayudarte.",
+          "it": "Suona la nota indicata dalla chiave: il suo nome è scritto per aiutarti."
+        }
+      },
+      {
+        "type": "placeNote",
+        "clef": "treble",
+        "targets": ["G4"],
+        "prompt": {
+          "en": "Your turn: place a note on the clef's line, the second line.",
+          "fr": "À toi : pose une note sur la ligne de la clé, la deuxième ligne.",
+          "es": "Te toca: coloca una nota en la línea de la clave, la segunda línea.",
+          "it": "Tocca a te: metti una nota sulla riga della chiave, la seconda riga."
+        }
+      },
+      {
+        "type": "nameNote",
+        "clef": "treble",
+        "choiceCount": 3,
+        "notes": ["G4"],
+        "prompt": {
+          "en": "The clef gives it away — what is this note called? Tap a name to hear it.",
+          "fr": "La clé te souffle la réponse — comment s'appelle cette note ? Touche un nom pour l'entendre.",
+          "es": "La clave te da la pista: ¿cómo se llama esta nota? Toca un nombre para oírla.",
+          "it": "La chiave ti dà l'indizio: come si chiama questa nota? Tocca un nome per sentirla."
+        }
+      },
+      {
+        "type": "question",
+        "prompt": {
+          "en": "The treble clef curls around which line?",
+          "fr": "La clé de sol s'enroule autour de quelle ligne ?",
+          "es": "¿En qué línea se enrosca la clave de sol?",
+          "it": "Attorno a quale riga si avvolge la chiave di violino?"
+        },
+        "options": [
+          {
+            "en": "The second line, the G line",
+            "fr": "La deuxième ligne, celle du sol",
+            "es": "La segunda línea, la del sol",
+            "it": "La seconda riga, quella del sol"
+          },
+          {
+            "en": "The bottom line",
+            "fr": "La première ligne",
+            "es": "La primera línea",
+            "it": "La prima riga"
+          },
+          {
+            "en": "The top line",
+            "fr": "La cinquième ligne",
+            "es": "La quinta línea",
+            "it": "La quinta riga"
+          }
+        ],
+        "answerIndex": 0,
+        "feedback": {
+          "en": "That's it — the clef anchors G on the second line, and every other note is counted from there.",
+          "fr": "C'est ça — la clé fixe le sol sur la deuxième ligne, et toutes les autres notes se comptent à partir de là.",
+          "es": "Eso es: la clave fija el sol en la segunda línea, y las demás notas se cuentan desde ahí.",
+          "it": "Proprio così: la chiave fissa il sol sulla seconda riga, e tutte le altre note si contano da lì."
+        }
+      },
+      {
+        "type": "text",
+        "text": {
+          "en": "You've met the treble clef: it names the second line G, your anchor for reading. Soon you'll read notes all around it.",
+          "fr": "Tu as rencontré la clé de sol : elle nomme la deuxième ligne sol, ton point de repère pour lire. Bientôt, tu liras les notes tout autour.",
+          "es": "Ya conoces la clave de sol: nombra sol a la segunda línea, tu punto de referencia para leer. Pronto leerás las notas a su alrededor.",
+          "it": "Hai conosciuto la chiave di violino: chiama sol la seconda riga, il tuo punto di riferimento per leggere. Presto leggerai le note tutt'intorno."
+        }
+      }
+    ]
+  }
+}

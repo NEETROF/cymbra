@@ -1,0 +1,146 @@
+{
+  "id": "sol-u1-04-do-re-mi",
+  "status": "published",
+  "instrument": "piano",
+  "track": "solfege",
+  "level": "beginner",
+  "unit": "u1",
+  "unitTitle": {
+    "en": "The staff and your first notes",
+    "fr": "La portée et tes premières notes",
+    "es": "El pentagrama y tus primeras notas",
+    "it": "Il pentagramma e le tue prime note"
+  },
+  "sortOrder": 104,
+  "schemaVersion": 2,
+  "title": {
+    "en": "C, D, E",
+    "fr": "Do, ré, mi",
+    "es": "Do, re, mi",
+    "it": "Do, re, mi"
+  },
+  "content": {
+    "schemaVersion": 2,
+    "id": "sol-u1-04-do-re-mi",
+    "instrument": "piano",
+    "track": "solfege",
+    "level": "beginner",
+    "title": {
+      "en": "C, D, E",
+      "fr": "Do, ré, mi",
+      "es": "Do, re, mi",
+      "it": "Do, re, mi"
+    },
+    "summary": {
+      "en": "Read and play C, D and E",
+      "fr": "Lire et jouer do, ré et mi",
+      "es": "Leer y tocar do, re y mi",
+      "it": "Leggere e suonare do, re e mi"
+    },
+    "blocks": [
+      {
+        "type": "text",
+        "text": {
+          "en": "Three notes are enough for your first tunes: C, D and E. They live just above middle C.",
+          "fr": "Trois notes suffisent pour tes premières mélodies : do, ré et mi. Elles habitent juste au-dessus du do central.",
+          "es": "Con tres notas ya puedes tocar tus primeras melodías: do, re y mi. Viven justo encima del do central.",
+          "it": "Bastano tre note per le tue prime melodie: do, re e mi. Abitano appena sopra il do centrale."
+        }
+      },
+      {
+        "type": "staff",
+        "clef": "treble",
+        "labels": true,
+        "elements": [
+          { "p": "C4", "fig": "quarter" },
+          { "p": "D4", "fig": "quarter" },
+          { "p": "E4", "fig": "quarter" }
+        ],
+        "caption": {
+          "en": "C sits on its little ledger line, D just under the bottom line, E on the bottom line.",
+          "fr": "Do se pose sur sa petite ligne, ré juste sous la première ligne, mi sur la première ligne.",
+          "es": "Do se apoya en su pequeña línea, re justo debajo de la primera línea, mi sobre la primera línea.",
+          "it": "Do sta sulla sua lineetta, re appena sotto la prima riga, mi sulla prima riga."
+        }
+      },
+      {
+        "type": "readPlay",
+        "mode": "drill",
+        "clef": "treble",
+        "labels": "afterMiss",
+        "notes": ["C4", "D4", "E4"],
+        "prompt": {
+          "en": "Play the note shown on the staff.",
+          "fr": "Joue la note affichée sur la portée.",
+          "es": "Toca la nota que muestra el pentagrama.",
+          "it": "Suona la nota mostrata sul pentagramma."
+        }
+      },
+      {
+        "type": "nameNote",
+        "clef": "treble",
+        "choiceCount": 3,
+        "notes": ["D4", "C4", "E4"],
+        "prompt": {
+          "en": "What is this note called? Tap a name to hear it.",
+          "fr": "Comment s'appelle cette note ? Touche un nom pour l'entendre.",
+          "es": "¿Cómo se llama esta nota? Toca un nombre para oírla.",
+          "it": "Come si chiama questa nota? Tocca un nome per sentirla."
+        }
+      },
+      {
+        "type": "earChoice",
+        "notes": ["C4", "E4"],
+        "answerId": "up",
+        "choices": [
+          {
+            "id": "up",
+            "label": {
+              "en": "Higher",
+              "fr": "Plus aiguë",
+              "es": "Más aguda",
+              "it": "Più acuta"
+            }
+          },
+          {
+            "id": "down",
+            "label": {
+              "en": "Lower",
+              "fr": "Plus grave",
+              "es": "Más grave",
+              "it": "Più grave"
+            }
+          }
+        ],
+        "prompt": {
+          "en": "Listen: is the second note higher or lower?",
+          "fr": "Écoute : la deuxième note est-elle plus aiguë ou plus grave ?",
+          "es": "Escucha: ¿la segunda nota es más aguda o más grave?",
+          "it": "Ascolta: la seconda nota è più acuta o più grave?"
+        }
+      },
+      {
+        "type": "readPlay",
+        "mode": "melody",
+        "clef": "treble",
+        "labels": "never",
+        "notes": ["C4", "D4", "E4", "D4", "C4"],
+        "prompt": {
+          "en": "Your first melody: play the notes left to right.",
+          "fr": "Ta première mélodie : joue les notes de gauche à droite.",
+          "es": "Tu primera melodía: toca las notas de izquierda a derecha.",
+          "it": "La tua prima melodia: suona le note da sinistra a destra."
+        }
+      },
+      {
+        "type": "text",
+        "text": {
+          "en": "Well done! You now read C, D and E — and you just played your first melody.",
+          "fr": "Bravo ! Tu sais lire do, ré et mi — et tu viens de jouer ta première mélodie.",
+          "es": "¡Muy bien! Ya lees do, re y mi — y acabas de tocar tu primera melodía.",
+          "it": "Bravo! Ora leggi do, re e mi — e hai appena suonato la tua prima melodia."
+        }
+      }
+    ]
+  }
+}

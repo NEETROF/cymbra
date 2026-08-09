@@ -1,0 +1,133 @@
+{
+  "id": "sol-u3-06-bilan-toute-la-portee",
+  "status": "published",
+  "instrument": "piano",
+  "track": "solfege",
+  "level": "beginner",
+  "unit": "u3",
+  "unitTitle": {
+    "en": "The whole treble staff",
+    "fr": "Toute la clé de sol",
+    "es": "Toda la clave de sol",
+    "it": "Tutta la chiave di violino"
+  },
+  "sortOrder": 306,
+  "schemaVersion": 2,
+  "title": {
+    "en": "Checkpoint: the whole staff",
+    "fr": "Bilan : toute la portée",
+    "es": "Repaso: todo el pentagrama",
+    "it": "Ripasso: tutto il pentagramma"
+  },
+  "content": {
+    "schemaVersion": 2,
+    "id": "sol-u3-06-bilan-toute-la-portee",
+    "instrument": "piano",
+    "track": "solfege",
+    "level": "beginner",
+    "title": {
+      "en": "Checkpoint: the whole staff",
+      "fr": "Bilan : toute la portée",
+      "es": "Repaso: todo el pentagrama",
+      "it": "Ripasso: tutto il pentagramma"
+    },
+    "summary": {
+      "en": "Review the whole treble staff",
+      "fr": "Réviser toute la clé de sol",
+      "es": "Repasar toda la clave de sol",
+      "it": "Ripassare tutta la chiave di violino"
+    },
+    "blocks": [
+      {
+        "type": "text",
+        "text": {
+          "en": "Time to put it all together: you now read every note from middle C to high D. A famous tune awaits at the end!",
+          "fr": "L'heure du bilan : tu lis maintenant toutes les notes du do central au ré aigu. Un air célèbre t'attend à la fin !",
+          "es": "Hora del repaso: ya lees todas las notas del do central al re agudo. ¡Al final te espera una melodía famosa!",
+          "it": "È ora del ripasso: ormai leggi tutte le note dal do centrale al re acuto. Alla fine ti aspetta una melodia famosa!"
+        }
+      },
+      {
+        "type": "nameNote",
+        "clef": "treble",
+        "choiceCount": 4,
+        "notes": ["E4", "A4", "C5", "G4", "B4", "F4"],
+        "prompt": {
+          "en": "Mixed review: name each note, wherever it sits on the staff.",
+          "fr": "Révision mélangée : nomme chaque note, où qu'elle soit sur la portée.",
+          "es": "Repaso variado: nombra cada nota, esté donde esté en el pentagrama.",
+          "it": "Ripasso misto: dai un nome a ogni nota, ovunque sia sul pentagramma."
+        }
+      },
+      {
+        "type": "readPlay",
+        "mode": "drill",
+        "clef": "treble",
+        "labels": "never",
+        "notes": ["D5", "B4", "C5", "A4"],
+        "prompt": {
+          "en": "No labels this time: read each note and play it.",
+          "fr": "Sans étiquettes cette fois : lis chaque note et joue-la.",
+          "es": "Esta vez sin etiquetas: lee cada nota y tócala.",
+          "it": "Stavolta senza etichette: leggi ogni nota e suonala."
+        }
+      },
+      {
+        "type": "readPlay",
+        "mode": "melody",
+        "clef": "treble",
+        "labels": "never",
+        "notes": [
+          "E4", "E4", "F4", "G4", "G4", "F4", "E4", "D4",
+          "C4", "C4", "D4", "E4", "E4", "D4", "D4"
+        ],
+        "prompt": {
+          "en": "A famous theme — Beethoven's Ode to Joy. Read it left to right, one note at a time.",
+          "fr": "Un thème célèbre — l'Ode à la joie de Beethoven. Lis-le de gauche à droite, note après note.",
+          "es": "Un tema famoso: el Himno de la alegría de Beethoven. Léelo de izquierda a derecha, nota a nota.",
+          "it": "Un tema famoso: l'Inno alla gioia di Beethoven. Leggilo da sinistra a destra, una nota alla volta."
+        }
+      },
+      {
+        "type": "earChoice",
+        "notes": ["G4", "D5"],
+        "answerId": "up",
+        "choices": [
+          {
+            "id": "up",
+            "label": {
+              "en": "Higher",
+              "fr": "Plus aiguë",
+              "es": "Más aguda",
+              "it": "Più acuta"
+            }
+          },
+          {
+            "id": "down",
+            "label": {
+              "en": "Lower",
+              "fr": "Plus grave",
+              "es": "Más grave",
+              "it": "Più grave"
+            }
+          }
+        ],
+        "prompt": {
+          "en": "One last listen: is the second note higher or lower?",
+          "fr": "Une dernière écoute : la deuxième note est-elle plus aiguë ou plus grave ?",
+          "es": "Una última escucha: ¿la segunda nota es más aguda o más grave?",
+          "it": "Un ultimo ascolto: la seconda nota è più acuta o più grave?"
+        }
+      },
+      {
+        "type": "text",
+        "text": {
+          "en": "You read the whole treble staff — lines, spaces and ledger lines, from middle C to high D. And that was a real melody you just played!",
+          "fr": "Tu lis toute la clé de sol — lignes, interlignes et lignes supplémentaires, du do central au ré aigu. Et c'est une vraie mélodie que tu viens de jouer !",
+          "es": "Ya lees toda la clave de sol: líneas, espacios y líneas adicionales, del do central al re agudo. ¡Y acabas de tocar una melodía de verdad!",
+          "it": "Leggi tutta la chiave di violino: righe, spazi e tagli addizionali, dal do centrale al re acuto. E hai appena suonato una vera melodia!"
+        }
+      }
+    ]
+  }
+}

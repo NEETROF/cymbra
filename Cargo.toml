@@ -8,9 +8,15 @@ members = [
     "backend/*",
     "crates/*",       # shared engine crates (e.g. cymbra-musicxml-core)
 ]
-# Non-crate dirs under backend/ (dev infra, configs) that the `backend/*` glob
-# would otherwise try to load as packages.
-exclude = ["backend/db", "backend/deploy", "backend/observability", "backend/scripts"]
+# Non-crate dirs under backend/ (dev infra, configs, course content) that the
+# `backend/*` glob would otherwise try to load as packages.
+exclude = [
+    "backend/content",
+    "backend/db",
+    "backend/deploy",
+    "backend/observability",
+    "backend/scripts",
+]
 
 [workspace.package]
 edition = "2024"

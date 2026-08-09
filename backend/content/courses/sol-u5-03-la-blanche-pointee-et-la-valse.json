@@ -1,0 +1,157 @@
+{
+  "id": "sol-u5-03-la-blanche-pointee-et-la-valse",
+  "status": "published",
+  "instrument": "piano",
+  "track": "solfege",
+  "level": "intermediate",
+  "unit": "u5",
+  "unitTitle": {
+    "en": "Eighth notes and new meters",
+    "fr": "Croches et nouvelles mesures",
+    "es": "Corcheas y nuevos compases",
+    "it": "Crome e nuovi tempi"
+  },
+  "sortOrder": 503,
+  "schemaVersion": 2,
+  "title": {
+    "en": "The dotted half and the waltz",
+    "fr": "La blanche pointée et la valse",
+    "es": "La blanca con puntillo y el vals",
+    "it": "La minima col punto e il valzer"
+  },
+  "content": {
+    "schemaVersion": 2,
+    "id": "sol-u5-03-la-blanche-pointee-et-la-valse",
+    "instrument": "piano",
+    "track": "solfege",
+    "level": "intermediate",
+    "title": {
+      "en": "The dotted half and the waltz",
+      "fr": "La blanche pointée et la valse",
+      "es": "La blanca con puntillo y el vals",
+      "it": "La minima col punto e il valzer"
+    },
+    "summary": {
+      "en": "The dotted half: one note, one waltz bar",
+      "fr": "La blanche pointée : une note, une mesure de valse",
+      "es": "La blanca con puntillo: una nota, un compás de vals",
+      "it": "La minima col punto: una nota, una battuta di valzer"
+    },
+    "blocks": [
+      {
+        "type": "text",
+        "text": {
+          "en": "Put a dot on a half note and it lasts three beats — exactly one bar of 3/4. Welcome to the waltz.",
+          "fr": "Ajoute un point à une blanche et elle dure trois temps — exactement une mesure à 3/4. Bienvenue dans la valse.",
+          "es": "Ponle un puntillo a una blanca y dura tres tiempos: justo un compás de 3/4. El vals te espera.",
+          "it": "Metti un punto a una minima e dura tre movimenti: esattamente una battuta in 3/4. Il valzer ti aspetta."
+        }
+      },
+      {
+        "type": "staff",
+        "clef": "treble",
+        "time": { "beats": 3, "beatType": 4 },
+        "elements": [
+          { "p": "G4", "fig": "half", "dots": 1 }
+        ],
+        "caption": {
+          "en": "One dotted half fills the whole 3/4 bar — one note, one waltz bar.",
+          "fr": "Une blanche pointée remplit toute la mesure à 3/4 — une note, une mesure de valse.",
+          "es": "Una blanca con puntillo llena todo el compás de 3/4: una nota, un compás de vals.",
+          "it": "Una minima col punto riempie l'intera battuta in 3/4: una nota, una battuta di valzer."
+        }
+      },
+      {
+        "type": "rhythmTap",
+        "pattern": [
+          { "fig": "half", "dots": 1 }
+        ],
+        "beats": 3,
+        "beatType": 4,
+        "bpm": 60,
+        "passRatio": 1.0,
+        "prompt": {
+          "en": "One single tap on 'ONE', then let it fill all three beats of the bar.",
+          "fr": "Un seul tap sur « UN », puis laisse-le remplir les trois temps de la mesure.",
+          "es": "Un solo toque en 'UN', y deja que llene los tres tiempos del compás.",
+          "it": "Un solo colpo su 'UNO', e lascialo riempire i tre movimenti della battuta."
+        }
+      },
+      {
+        "type": "rhythmTap",
+        "pattern": [
+          { "fig": "quarter" },
+          { "fig": "quarter" },
+          { "fig": "quarter" },
+          { "fig": "half", "dots": 1 }
+        ],
+        "beats": 3,
+        "beatType": 4,
+        "bpm": 70,
+        "prompt": {
+          "en": "A waltz step: 'one, two, three', then one long note for the whole next bar.",
+          "fr": "Un pas de valse : « un, deux, trois », puis une seule note longue pour toute la mesure suivante.",
+          "es": "Un paso de vals: 'un, dos, tres', y luego una sola nota larga para todo el compás siguiente.",
+          "it": "Un passo di valzer: 'uno, due, tre', poi una sola nota lunga per tutta la battuta successiva."
+        }
+      },
+      {
+        "type": "question",
+        "prompt": {
+          "en": "In 3/4, how much of the bar does the dotted half fill?",
+          "fr": "En 3/4, quelle part de la mesure la blanche pointée remplit-elle ?",
+          "es": "En 3/4, ¿cuánto del compás llena la blanca con puntillo?",
+          "it": "In 3/4, quanta parte della battuta riempie la minima col punto?"
+        },
+        "options": [
+          {
+            "en": "The whole bar — three beats",
+            "fr": "Toute la mesure — trois temps",
+            "es": "Todo el compás: tres tiempos",
+            "it": "Tutta la battuta: tre movimenti"
+          },
+          {
+            "en": "Only the first two beats",
+            "fr": "Seulement les deux premiers temps",
+            "es": "Solo los dos primeros tiempos",
+            "it": "Solo i primi due movimenti"
+          }
+        ],
+        "answerIndex": 0,
+        "feedback": {
+          "en": "Two beats plus one from the dot: three — the whole waltz bar.",
+          "fr": "Deux temps plus un grâce au point : trois — toute la mesure de valse.",
+          "es": "Dos tiempos más uno del puntillo: tres, el compás de vals entero.",
+          "it": "Due movimenti più uno dal punto: tre, l'intera battuta di valzer."
+        }
+      },
+      {
+        "type": "rhythmTap",
+        "pattern": [
+          { "fig": "half", "dots": 1 },
+          { "fig": "quarter" },
+          { "fig": "quarter" },
+          { "fig": "quarter" }
+        ],
+        "beats": 3,
+        "beatType": 4,
+        "bpm": 70,
+        "prompt": {
+          "en": "Now the long note comes first: hold through the bar, then answer 'one, two, three'.",
+          "fr": "Cette fois la note longue vient d'abord : laisse passer la mesure, puis réponds « un, deux, trois ».",
+          "es": "Ahora la nota larga va primero: deja pasar el compás y responde 'un, dos, tres'.",
+          "it": "Ora la nota lunga viene prima: lascia passare la battuta, poi rispondi 'uno, due, tre'."
+        }
+      },
+      {
+        "type": "text",
+        "text": {
+          "en": "Dotted half note: two beats plus one, a whole waltz bar in a single note. Keep that gentle one-two-three going.",
+          "fr": "La blanche pointée : deux temps plus un, toute une mesure de valse en une seule note. Garde ce doux « un-deux-trois » en tête.",
+          "es": "La blanca con puntillo: dos tiempos más uno, todo un compás de vals en una sola nota. Guarda ese suave 'un-dos-tres'.",
+          "it": "La minima col punto: due movimenti più uno, un'intera battuta di valzer in una sola nota. Tieni con te quel dolce 'uno-due-tre'."
+        }
+      }
+    ]
+  }
+}
