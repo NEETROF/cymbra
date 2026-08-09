@@ -42,8 +42,17 @@ import 'player_data.dart';
 /// The Portée is played from, not just read: below roughly a second and a half
 /// of anticipation there is no time to place a hand, and a perfectly spaced
 /// window nobody can play in is worse than a cramped one. When this floor binds
-/// the [kMinColumnSpaces] guarantee is deliberately given up.
+/// the spacing and measure-count guarantees are deliberately given up.
 const double kMinLookAheadMs = 1500;
+
+/// How many measures the Portée shows ahead of the playhead at most.
+///
+/// Spacing alone does not bound the *count*: a fast piece in a short metre can
+/// clear the glyph budget and still put five bars on screen, which is more than
+/// a reader tracks at a time. Two is the floor of what stays playable — the
+/// measure being played plus the one to prepare; at one, the next bar only
+/// appears as the current one leaves.
+const double kMaxVisibleMeasures = 2;
 
 /// Fraction of the tightest onset gaps ignored when measuring a score.
 ///
@@ -91,30 +100,75 @@ double? onsetGapMs(
   return gaps[index].toDouble();
 }
 
-/// [requestedMs] narrowed until the score's tightest spacing ([gapMs], from
-/// [onsetGapMs]) is engraved at least [minSpaces] staff spaces wide.
+/// [requestedMs] narrowed by two independent readability bounds: the score's
+/// tightest spacing ([gapMs], from [onsetGapMs]) must engrave at least
+/// [minSpaces] staff spaces wide, and at most [maxMeasures] measures of
+/// [measureMs] (from [medianMeasureMs]) may be on screen at once. The tighter
+/// of the two wins.
+///
+/// The two answer different complaints. Spacing keeps glyphs from colliding but
+/// says nothing about how much score is in front of the reader; the measure
+/// count bounds that directly, and would happily leave a dense bar unreadable
+/// on its own. Either bound alone leaves the other failure mode open.
 ///
 /// [minSpaces] is the caller's glyph budget (`StaffPainter.minOnsetSpaces`) —
 /// this module knows about time and density, the painter knows how wide its
 /// notation draws. [trackPx] is the width right of the playhead the window is
 /// spread over and [lineGap] the staff line gap everything is drawn from, so
-/// the result follows the viewport and the score-size setting. The window is
-/// only ever **narrowed** — a score already sparse enough keeps the caller's
-/// window untouched — and never past [floorMs] (see [kMinLookAheadMs]), nor
-/// past [requestedMs] when that is already the tighter of the two.
+/// the result follows the viewport and the score-size setting. Either
+/// measurement may be `null` (nothing to go on) and is then simply not applied.
+///
+/// The window is only ever **narrowed** — a score already sparse and slow
+/// enough keeps the caller's window untouched — and never past [floorMs] (see
+/// [kMinLookAheadMs]), nor past [requestedMs] when that is already the tightest
+/// of all.
 double densityCappedLookAheadMs({
   required double requestedMs,
   required double trackPx,
   required double lineGap,
   required double minSpaces,
   double? gapMs,
+  double? measureMs,
+  double maxMeasures = kMaxVisibleMeasures,
   double floorMs = kMinLookAheadMs,
 }) {
-  if (gapMs == null || gapMs <= 0) return requestedMs;
-  if (trackPx <= 0 || lineGap <= 0 || minSpaces <= 0) return requestedMs;
-  final needed = trackPx * gapMs / (minSpaces * lineGap);
+  var needed = requestedMs;
+  if (gapMs != null &&
+      gapMs > 0 &&
+      trackPx > 0 &&
+      lineGap > 0 &&
+      minSpaces > 0) {
+    needed = math.min(needed, trackPx * gapMs / (minSpaces * lineGap));
+  }
+  if (measureMs != null && measureMs > 0 && maxMeasures > 0) {
+    needed = math.min(needed, measureMs * maxMeasures);
+  }
   if (needed >= requestedMs) return requestedMs;
   return math.max(needed, math.min(requestedMs, floorMs));
+}
+
+/// The score's typical measure duration (ms) — the **median** span between
+/// consecutive entries of [measureStartMs], with the last measure closed by
+/// [songEndMs].
+///
+/// Median, not minimum: a pickup bar or a truncated final measure is shorter
+/// than everything around it and would shrink the window for the whole piece.
+/// Median, not the measure under the playhead: a per-frame value would make the
+/// notation breathe in and out across a metre change instead of scrolling at a
+/// steady rate. `null` when the score carries no measure table (the demo score).
+double? medianMeasureMs(List<int> measureStartMs, {required double songEndMs}) {
+  if (measureStartMs.length < 2) return null;
+  final starts = measureStartMs.toList()..sort();
+  final spans = <double>[];
+  for (var i = 1; i < starts.length; i++) {
+    final span = (starts[i] - starts[i - 1]).toDouble();
+    if (span > 0) spans.add(span);
+  }
+  final tail = songEndMs - starts.last;
+  if (tail > 0) spans.add(tail);
+  if (spans.isEmpty) return null;
+  spans.sort();
+  return spans[spans.length ~/ 2];
 }
 
 /// One-entry memo over [onsetGapMs], keyed on the **identity** of the note
@@ -134,3 +188,23 @@ double? cachedOnsetGapMs(List<TimedNote> notes) {
 
 List<TimedNote>? _memoNotes;
 double? _memoGap;
+
+/// One-entry memo over [medianMeasureMs], keyed on the identity of the measure
+/// table — the same per-frame saving as [cachedOnsetGapMs].
+double? cachedMedianMeasureMs(
+  List<int> measureStartMs, {
+  required double songEndMs,
+}) {
+  if (identical(measureStartMs, _memoStarts) && songEndMs == _memoSongEnd) {
+    return _memoMeasure;
+  }
+  final measure = medianMeasureMs(measureStartMs, songEndMs: songEndMs);
+  _memoStarts = measureStartMs;
+  _memoSongEnd = songEndMs;
+  _memoMeasure = measure;
+  return measure;
+}
+
+List<int>? _memoStarts;
+double? _memoSongEnd;
+double? _memoMeasure;

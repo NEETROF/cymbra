@@ -353,6 +353,13 @@ abstract class PlayerData with _$PlayerData {
   /// there is nothing to measure.
   double? get onsetGapMs => cachedOnsetGapMs(notes);
 
+  /// The loaded piece's typical measure duration (see [cachedMedianMeasureMs]),
+  /// which the Portée caps its look-ahead against so no more than
+  /// [kMaxVisibleMeasures] measures are ever in front of the reader. `null` for
+  /// the demo score, which carries no measure table.
+  double? get measureMs =>
+      cachedMedianMeasureMs(measureStartMs, songEndMs: songEndMs);
+
   /// Whether the loaded piece has any left-hand (staff 2+) notes, so isolating a
   /// hand is meaningful. The hand selector is shown only then — a single-staff
   /// piece offers nothing to separate (and the [Hand.both] default is harmless).

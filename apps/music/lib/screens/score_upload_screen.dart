@@ -529,6 +529,10 @@ class _VerifyStepViewState extends ConsumerState<_VerifyStepView>
                             // is how the uploader checks their score parsed
                             // right, so a dense one must not arrive cramped.
                             onsetGapMs: cachedOnsetGapMs(playback.notes),
+                            measureMs: medianMeasureMs(
+                              playback.measureStartMs,
+                              songEndMs: playback.songEndMs,
+                            ),
                           ),
                         ),
                 ),

@@ -282,6 +282,10 @@ class _ReplayDialogState extends ConsumerState<_ReplayDialog>
                 // the same score at the same window, so a dense piece would be
                 // just as cramped here.
                 onsetGapMs: cachedOnsetGapMs(_score.notes),
+                measureMs: medianMeasureMs(
+                  _score.measureStartMs,
+                  songEndMs: _score.songEndMs,
+                ),
                 mistakeColors: _mistakeColors,
               ),
             ),

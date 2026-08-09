@@ -79,6 +79,13 @@ class StaffPainter extends CustomPainter {
   /// [lookAheadMs] verbatim, which is what the fixed-scale previews want.
   final double? onsetGapMs;
 
+  /// The score's typical measure duration (ms), from [medianMeasureMs] — when
+  /// supplied, [lookAheadMs] is also narrowed so no more than
+  /// [kMaxVisibleMeasures] measures sit ahead of the playhead. Independent of
+  /// [onsetGapMs]: spacing keeps glyphs apart, this bounds how much score the
+  /// reader faces. `null` disables it, like [onsetGapMs].
+  final double? measureMs;
+
   /// Multiplier on the staff size (and therefore the note glyphs, stems, clefs
   /// and armature — everything derives from the staff line gap). `1.0` is the
   /// player's size; the in-card preview uses a smaller value to shrink the
@@ -100,6 +107,7 @@ class StaffPainter extends CustomPainter {
     this.mistakeColors = const {},
     this.lookAheadMs = defaultLookAheadMs,
     this.onsetGapMs,
+    this.measureMs,
     this.noteScale = 1.0,
     this.palette = NotationPalette.dark,
   });
@@ -211,15 +219,16 @@ class StaffPainter extends CustomPainter {
     final playLineX = size.width * 0.25;
     final trackPx = size.width - playLineX - margin;
     // The window the notes are spread over: the caller's, narrowed by the
-    // score's own density so a fast 3/8 does not engrave five cramped measures
-    // where a slow 4/2 gets one. Constant for the whole run (the gap is a
-    // property of the piece), so the scroll speed stays linear.
+    // score's own density and by its measure length, so a fast 3/8 does not
+    // engrave five cramped measures where a slow 4/2 gets one. Both bounds are
+    // constants of the piece, so the scroll speed stays linear.
     final window = densityCappedLookAheadMs(
       requestedMs: lookAheadMs,
       trackPx: trackPx,
       lineGap: lineGap,
       minSpaces: minOnsetSpaces,
       gapMs: onsetGapMs,
+      measureMs: measureMs,
     );
     final pxPerMs = trackPx / window;
     double xForTime(double tMs) => playLineX + (tMs - elapsedMs) * pxPerMs;
@@ -894,6 +903,7 @@ class StaffPainter extends CustomPainter {
       old.mistakeColors != mistakeColors ||
       old.lookAheadMs != lookAheadMs ||
       old.onsetGapMs != onsetGapMs ||
+      old.measureMs != measureMs ||
       old.noteScale != noteScale ||
       old.palette != palette;
 }

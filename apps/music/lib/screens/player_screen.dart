@@ -604,6 +604,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                 noteScale: sizeFactor,
                 lookAheadMs: StaffPainter.defaultLookAheadMs / sizeFactor,
                 onsetGapMs: data.onsetGapMs,
+                measureMs: data.measureMs,
                 palette: palette,
               ),
               size: Size.infinite,

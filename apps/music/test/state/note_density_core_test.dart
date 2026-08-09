@@ -238,6 +238,85 @@ void main() {
     });
   });
 
+  group('medianMeasureMs', () {
+    test('takes the typical measure, not the shortest', () {
+      // A pickup bar, then full 750 ms measures. Sizing on the pickup would
+      // shrink the window for the whole piece.
+      expect(
+        medianMeasureMs(const [0, 250, 1000, 1750, 2500], songEndMs: 3250),
+        750,
+      );
+    });
+
+    test('closes the last measure with the end of the piece', () {
+      expect(medianMeasureMs(const [0, 1000], songEndMs: 2000), 1000);
+    });
+
+    test('a score with no measure table yields null', () {
+      expect(medianMeasureMs(const [], songEndMs: 5000), isNull);
+      expect(medianMeasureMs(const [0], songEndMs: 0), isNull);
+    });
+
+    test('survives an unsorted or duplicated table', () {
+      expect(medianMeasureMs(const [1500, 0, 750, 750], songEndMs: 2250), 750);
+    });
+  });
+
+  group('measure cap', () {
+    const trackPx = 702.0;
+    const lineGap = 12.0;
+    const minSpaces = StaffPainter.minOnsetSpaces;
+
+    double cap({double? gapMs, double? measureMs, double requestedMs = 4000}) =>
+        densityCappedLookAheadMs(
+          requestedMs: requestedMs,
+          trackPx: trackPx,
+          lineGap: lineGap,
+          minSpaces: minSpaces,
+          gapMs: gapMs,
+          measureMs: measureMs,
+        );
+
+    test('bounds how many measures face the reader', () {
+      // Für Elise: 3/8 at ♩=120 → a 750 ms measure. Spacing alone left ~4.3 on
+      // screen; two is what a reader tracks.
+      expect(cap(measureMs: 750), kMaxVisibleMeasures * 750);
+      expect(cap(measureMs: 750) / 750, kMaxVisibleMeasures);
+    });
+
+    test('a slow score is untouched by the measure bound', () {
+      // Hymn 135: 4/2 at ♩=108 → a 4444 ms measure, so two of them already
+      // exceed the window.
+      expect(cap(measureMs: 4444), 4000.0);
+    });
+
+    test('the tighter of the two bounds wins', () {
+      // Dense but long measures → spacing governs.
+      expect(cap(gapMs: 125, measureMs: 4000), closeTo(2728.7, 0.5));
+      // Sparse but short measures → the measure count governs.
+      expect(cap(gapMs: 1000, measureMs: 900), 1800.0);
+      // Both bite: the tighter one is the answer.
+      expect(cap(gapMs: 125, measureMs: 1000), 2000.0);
+    });
+
+    test('the playable floor still outranks both', () {
+      // 2/4 at ♩=160 → a 750 ms… no: a 400 ms measure. Two of them is under the
+      // floor, so anticipation wins and more than two measures show.
+      expect(cap(measureMs: 400), kMinLookAheadMs);
+      expect(cap(gapMs: 62.5, measureMs: 400), kMinLookAheadMs);
+    });
+
+    test('an unmeasured score is not capped by measures', () {
+      expect(cap(), 4000.0);
+      expect(cap(measureMs: 0), 4000.0);
+    });
+
+    test('each bound works without the other', () {
+      expect(cap(gapMs: 125), closeTo(2728.7, 0.5));
+      expect(cap(measureMs: 750), 1500.0);
+    });
+  });
+
   group('cachedOnsetGapMs', () {
     test('matches the uncached measurement', () {
       final notes = _run(40, stepMs: 125);
@@ -249,6 +328,26 @@ void main() {
       expect(cachedOnsetGapMs(_run(40, stepMs: 250)), 250.0);
       // And back, so a stale memo would show up here too.
       expect(cachedOnsetGapMs(_run(40, stepMs: 125)), 125.0);
+    });
+  });
+
+  group('cachedMedianMeasureMs', () {
+    test('matches the uncached measurement', () {
+      const starts = [0, 750, 1500];
+      expect(
+        cachedMedianMeasureMs(starts, songEndMs: 2250),
+        medianMeasureMs(starts, songEndMs: 2250),
+      );
+    });
+
+    test('re-measures when the table or the end moves', () {
+      expect(cachedMedianMeasureMs(const [0, 750], songEndMs: 1500), 750);
+      expect(cachedMedianMeasureMs(const [0, 1000], songEndMs: 2000), 1000);
+      // A changed songEndMs alone must invalidate too — same list identity, so
+      // a memo keyed on the table only would return the stale 750.
+      final starts = [0, 750];
+      expect(cachedMedianMeasureMs(starts, songEndMs: 1500), 750);
+      expect(cachedMedianMeasureMs(starts, songEndMs: 2750), 2000);
     });
   });
 }
