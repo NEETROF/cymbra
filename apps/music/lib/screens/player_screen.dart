@@ -748,25 +748,41 @@ class _TopBar extends ConsumerWidget {
             ),
           ),
           SizedBox(width: trailGap),
-          // Live score (sync % + combo) during a scored run — the single HUD
-          // location, so nothing ever floats over the play surface.
-          ScoreChip(compact: isPhone),
-          const SizedBox(width: 8),
-          // MIDI connection status (read-only at a glance); the device itself is
-          // chosen from the settings menu.
-          const _MidiStatusIndicator(),
-          const SizedBox(width: 8),
-          // Tap to toggle the metronome; pulses on each beat. Mode-independent
-          // (lives in the shared top bar), so it works in Synthesia/Staff/Partition.
-          const _TempoChip(),
-          const SizedBox(width: 8),
-          // Consolidated music settings (MIDI device, keyboard size, hand). Lives
-          // in the mode-independent top bar, so it is reachable in Synthesia,
-          // Staff and Partition alike.
-          const _SettingsMenu(),
-          const SizedBox(width: 8),
-          // Rendering mode toggle.
-          const _ModeToggle(),
+          // The whole trailing cluster scales down as one block when the
+          // window is too narrow for its natural width (a shrunken desktop
+          // window overflowed by a few pixels) — hit-testing scales with it.
+          Flexible(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerRight,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Live score (sync % + combo) during a scored run — the
+                  // single HUD location, so nothing ever floats over the play
+                  // surface.
+                  ScoreChip(compact: isPhone),
+                  const SizedBox(width: 8),
+                  // MIDI connection status (read-only at a glance); the device
+                  // itself is chosen from the settings menu.
+                  const _MidiStatusIndicator(),
+                  const SizedBox(width: 8),
+                  // Tap to toggle the metronome; pulses on each beat. Mode-
+                  // independent (lives in the shared top bar), so it works in
+                  // Synthesia/Staff/Partition.
+                  const _TempoChip(),
+                  const SizedBox(width: 8),
+                  // Consolidated music settings (MIDI device, keyboard size,
+                  // hand). Lives in the mode-independent top bar, so it is
+                  // reachable in Synthesia, Staff and Partition alike.
+                  const _SettingsMenu(),
+                  const SizedBox(width: 8),
+                  // Rendering mode toggle.
+                  const _ModeToggle(),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );

@@ -17,10 +17,11 @@ import 'package:music/painters/staff_painter.dart';
 
 void main() {
   group('StaffPainter.staffLineGap', () {
-    test('keeps the proportional band on comfortable heights', () {
-      // Tall enough that the 18 px ceiling binds before the fit cap.
-      expect(StaffPainter.staffLineGap(height: 400, twoStaff: true), 18.0);
-      expect(StaffPainter.staffLineGap(height: 250, twoStaff: false), 18.0);
+    test('settles at the Partition staff space on comfortable heights', () {
+      // Tall enough that the 12 px ceiling (the Partition's staff space)
+      // binds before the fit cap — both notation modes read at the same size.
+      expect(StaffPainter.staffLineGap(height: 400, twoStaff: true), 12.0);
+      expect(StaffPainter.staffLineGap(height: 250, twoStaff: false), 12.0);
     });
 
     test('caps the gap so a short window cannot collide the two staves', () {
@@ -42,7 +43,7 @@ void main() {
     test('a tall window caps the inter-staff gap and centres the block', () {
       // 800 px at the 18 px gap ceiling: without the cap the bass staff was
       // pinned to the bottom with a huge void between the hands.
-      const g = 18.0;
+      const g = 12.0;
       final l = StaffPainter.grandStaffLayout(
         height: 800,
         lineGap: g,

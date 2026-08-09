@@ -344,6 +344,17 @@ void main() {
     await teardownScreen(tester);
   });
 
+  testWidgets('a narrow, short desktop window lays out without overflow', (
+    tester,
+  ) async {
+    // A shrunken desktop window: the top-bar trailing cluster used to overflow
+    // by a few pixels; it now scales down as one block.
+    await pumpScreen(tester, size: const Size(820, 460));
+    expect(tester.takeException(), isNull);
+    expect(find.byKey(const Key('onscreen-keyboard')), findsOneWidget);
+    await teardownScreen(tester);
+  });
+
   testWidgets(
     'a blocked cascade pulses the expected keys instead of a banner',
     (tester) async {

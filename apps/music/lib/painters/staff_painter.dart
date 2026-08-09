@@ -118,7 +118,8 @@ class StaffPainter extends CustomPainter {
   }
 
   /// Staff line gap for a render area [height]: proportional within the usual
-  /// 8–18 px band, but **capped so the engraving always fits** — a grand staff
+  /// 8–12 px band (12 = the Partition's staff space, so both notation
+  /// modes read at the same size), **capped so the engraving always fits** — a grand staff
   /// needs ~19.2 gaps of vertical budget (two 4-gap staves, stem/beam clearance
   /// above and below, and at least two gaps of air between the hands), a lone
   /// staff ~12. Without the cap a short window kept the 8 px floor and the
@@ -130,10 +131,20 @@ class StaffPainter extends CustomPainter {
     required bool twoStaff,
     double noteScale = 1.0,
   }) {
-    final proportional = (height * (twoStaff ? 0.055 : 0.10)).clamp(8.0, 18.0);
+    final proportional = (height * (twoStaff ? 0.055 : 0.10)).clamp(
+      8.0,
+      _partitionStaffSpace,
+    );
     final fitCap = height / (twoStaff ? 19.2 : 12.0);
-    return math.min(proportional, fitCap).clamp(3.0, 18.0) * noteScale;
+    return math.min(proportional, fitCap).clamp(3.0, _partitionStaffSpace) *
+        noteScale;
   }
+
+  /// The engraved Partition's staff space (its `_s` at the medium score size):
+  /// the Portée settles at exactly this size on comfortable viewports, so the
+  /// two notation modes engrave at the same scale — the score-size setting then
+  /// multiplies both identically via [noteScale].
+  static const double _partitionStaffSpace = 12.0;
 
   /// Default visible time window to the right of the playhead. The score-size
   /// setting divides it by its factor so bigger notes get matching spacing.
