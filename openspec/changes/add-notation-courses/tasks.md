@@ -52,3 +52,26 @@
 - [x] 7.2 `flutter analyze` + `dart format` + `dart run custom_lint` clean; `cargo fmt --all --check` + `cargo clippy -D warnings` (music/server/worker) clean
 - [x] 7.3 Flutter: full suite green (1111 tests); new courses code **83.6%** aggregate (diagram/section 100%, notifier/score 97%, manifest 89%, player 81%; only the gRPC-glue service impls lag, like the excluded Rust Pg glue). Rust: cores fake-tested; Pg glue excluded per convention. CI enforces the workspace gates.
 - [x] 7.4 `openspec validate add-notation-courses --strict` passes
+
+## 8. Schema v2 — interactive solfège engine (revoie: courses must teach solfège interactively)
+
+- [x] 8.1 Pure modules: `lesson_pitch.dart` (SPN spelling ↔ MIDI ↔ staff step ↔ clef, `keySignatureAlter`) + `lesson_rhythm.dart` (figure model, onsets at tempo, `gradeRhythmTaps`) — host-tested
+- [x] 8.2 Manifest v2 (`kCourseSchemaVersion=2`): new blocks `staff`, `readPlay` (drill/melody/set), `nameNote`, `placeNote`, `rhythmTap`, `earChoice`, `buildChord`; defensive parser cases (malformed → unsupported, one bad pitch declines the block) + tests
+- [x] 8.3 `LessonStaff` teaching-staff widget (SMuFL clef/armure/meter/notes/rests/ledger, per-element colours, ghost note, tap→staff-step, armure-aware accidental suppression) + `LessonSounder` (every touch sounds; audition-widget pattern) + `PianoKeyboardPainter.selectedNotes` state
+- [x] 8.4 Exercise views + widget tests (RecordingAudioService/FakeMidiService): `ReadPlayView`, `NameNoteView`, `PlaceNoteView`, `RhythmTapView` (ticker + `metronomeBeatsCrossed`), `EarChoiceView`, `BuildChordView`; legacy `playKey` now sounds on-screen taps
+- [x] 8.5 Lesson player: interactive blocks **gate Next** (12s discreet skip escape), run first-try stats, end-of-lesson celebration (lilac accent, stat, one-tap **Continuer → next lesson**); tests updated
+- [x] 8.6 `coursesProvider` filters listings above the supported schemaVersion (no dead tiles on older apps)
+
+## 9. Units + learning path
+
+- [x] 9.1 Migration `0021_course_units.sql` (`unit` text + `unit_title` JSONB) + `course.rs` (SUMMARY_COLS/row_to_summary/upsert/Fake + round-trip test) + proto `CourseSummary` fields 8/9 + BOTH grpc.rs mapping sites; cargo fmt/clippy/test green
+- [x] 9.2 `melos run gen-grpc`; `CourseListing.unit/unitTitle` + `_listingOf` + tolerant offline-cache codec
+- [x] 9.3 `LearningPathScreen` (units in catalogue order, progress bars, meandering nodes, pulsing next-up, soft ordering — every node tappable) + `CoursesSection` → continue card + path entry; widget tests
+
+## 10. Solfège corpus — 42 courses, 7 units × 6 lessons
+
+- [x] 10.1 Corpus home `backend/content/courses/` (one JSON per course + authoring README); app-usage courses dropped — the curriculum is solfège only
+- [x] 10.2 Corpus gate `test/courses/content_corpus_test.dart`: every file parsed by the REAL `parseCourseManifest` (zero unsupported blocks), 4 locales on every i18n map, id/unit/sortOrder/level coherence, ≥4 interactive (≥2 v2) per lesson, rhythm patterns fill exactly 1–2 bars, earChoice up/down consistent with pitches
+- [x] 10.3 Generator `backend/scripts/gen_seed_courses.py` → idempotent `seed_courses.sql` (dollar-quoted, retires the 5 pre-curriculum rows)
+- [x] 10.4 42 lessons authored in en/fr/es/it (U1 portée/premières notes → U7 intervalles/accords/oreille), reviewed by a musical + an editorial pass (2 minor findings, fixed)
+- [ ] 10.5 Manual: seed a live DB (`psql -f backend/scripts/seed_courses.sql`) + on-device pass of one lesson per unit
