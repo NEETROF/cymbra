@@ -40,7 +40,11 @@ enum CoachHint {
   goingPublic('coach_going_public_seen'),
 
   /// The guided in-context player sequence (D8) has run at least once.
-  playerTour('coach_player_tour_seen');
+  playerTour('coach_player_tour_seen'),
+
+  /// That staff symbols can be long-pressed for help (change: add-notation-help).
+  /// Shown the first time a score is viewed in the player.
+  notationHelp('coach_notation_help_seen');
 
   const CoachHint(this.prefsKey);
 

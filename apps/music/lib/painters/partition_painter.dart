@@ -19,6 +19,7 @@ import '../state/player_data.dart' show Hand;
 import '../theme/cymbra_theme.dart';
 import 'notation_palette.dart';
 import 'smufl.dart';
+import 'staff_hit_index.dart';
 
 /// Draws engraved notation ("Partition" mode) from a parsed [ScoreDocument] and
 /// its laid-out [System]s, using SMuFL/Bravura glyphs for note heads, clefs,
@@ -58,6 +59,12 @@ class PartitionPainter extends CustomPainter {
   /// Colour set (dark surface or paper) the engraving is drawn with.
   final NotationPalette palette;
 
+  /// Optional side channel (change: add-notation-help, D1): when supplied, each
+  /// engraved symbol records its on-screen rect + [SymbolDescriptor] into it so a
+  /// long-press can be resolved to the symbol under the finger. Cleared/refilled
+  /// every [paint]; a null index leaves rendering byte-identical.
+  final StaffHitIndex? hitIndex;
+
   PartitionPainter({
     required this.document,
     required this.systems,
@@ -71,6 +78,7 @@ class PartitionPainter extends CustomPainter {
     this.textFontFamily,
     this.staffSpace = 12,
     this.palette = NotationPalette.dark,
+    this.hitIndex,
   });
 
   /// Font family for the engraved *words* (tempo marks, lyrics, fingerings) —
@@ -78,6 +86,11 @@ class PartitionPainter extends CustomPainter {
   /// default, which is what the app ships; tests name a face so their goldens
   /// show words instead of the framework's box glyphs.
   final String? textFontFamily;
+
+  /// Records an engraved [descriptor] at [region] into the hit index, if one is
+  /// attached. A no-op otherwise, so drawing is unaffected.
+  void _record(Rect region, SymbolDescriptor descriptor) =>
+      hitIndex?.add(region, descriptor);
 
   static const Map<String, int> _semitoneOfStep = {
     'C': 0,
@@ -201,6 +214,9 @@ class PartitionPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    // Refill the hit index from scratch every frame (side channel; no effect on
+    // what is drawn).
+    hitIndex?.clear();
     if (systems.isEmpty) return;
     final divPerMeasure = _divisionsPerMeasure();
     final clefAt = _computeClefAt();
@@ -304,6 +320,12 @@ class PartitionPainter extends CustomPainter {
         ..strokeWidth = _s * 0.35
         ..strokeCap = StrokeCap.round,
     );
+    if (_twoStaff) {
+      _record(
+        Rect.fromLTRB(0, systemTop, _s * 0.8, systemBottom),
+        const SymbolDescriptor.brace(),
+      );
+    }
 
     // --- Header: clef (in effect here), key signature, time signature. On a
     // collapsed single staff the lone staff carries the kept hand's clef. ---
@@ -354,6 +376,12 @@ class PartitionPainter extends CustomPainter {
     if (_twoStaff) {
       drawHeaderKey(bassBottom, true);
     }
+    if (keyWidth > 0) {
+      _record(
+        Rect.fromLTRB(hx, systemTop, hx + keyWidth, systemBottom),
+        SymbolDescriptor.keySignature(fifths: systemKey),
+      );
+    }
     hx += keyWidth;
 
     if (isFirst) {
@@ -378,6 +406,13 @@ class PartitionPainter extends CustomPainter {
           _ink,
         );
       }
+      _record(
+        Rect.fromLTRB(hx, systemTop, hx + timeWidth, systemBottom),
+        SymbolDescriptor.timeSignature(
+          beats: time.beats,
+          beatType: time.beatType,
+        ),
+      );
       hx += timeWidth;
     }
     final headerX = hx + _s * 0.6;
@@ -401,6 +436,15 @@ class PartitionPainter extends CustomPainter {
         Offset(x + mWidth, systemTop),
         Offset(x + mWidth, systemBottom),
         barPaint,
+      );
+      _record(
+        Rect.fromLTRB(
+          x + mWidth - _s * 0.4,
+          systemTop,
+          x + mWidth + _s * 0.4,
+          systemBottom,
+        ),
+        const SymbolDescriptor.barLine(),
       );
       final isCursorMeasure = cursor != null && cursor.index == idx;
       // Subtle wash behind the active measure (current-measure highlight): over
@@ -458,6 +502,10 @@ class PartitionPainter extends CustomPainter {
   ) {
     final baselineY = staffBottom - (clef.line - 1) * size;
     Smufl.draw(canvas, Smufl.clef(clef.sign), x, baselineY, size, _ink);
+    _record(
+      Rect.fromLTWH(x - 2, staffBottom - 4 * size - size, size * 3.2, size * 6),
+      SymbolDescriptor.clef(sign: clef.sign),
+    );
   }
 
   void _drawStaffLines(
@@ -569,6 +617,15 @@ class PartitionPainter extends CustomPainter {
             _s * 0.78,
             palette.accent,
           );
+          _record(
+            Rect.fromLTWH(
+              x - _s * 0.3,
+              trebleBottom + _s * 1.3,
+              _s * 2.2,
+              _s * 1.6,
+            ),
+            SymbolDescriptor.dynamics(token: field0),
+          );
         case DirectionKind_Wedge():
         case DirectionKind_Metronome():
           break;
@@ -595,13 +652,36 @@ class PartitionPainter extends CustomPainter {
           _ink,
           centerX: true,
         );
+        _record(
+          Rect.fromCenter(
+            center: Offset(x, staffBottom - 2.5 * _s),
+            width: _s * 1.6,
+            height: _s * 2.4,
+          ),
+          SymbolDescriptor.rest(noteType: note.noteType),
+        );
         continue;
       }
       final pitch = note.pitch;
       if (pitch == null) continue;
 
-      final y = _yForPitch(pitch, staffBottom, _clefFor(clefs, note.staff));
+      final clef = _clefFor(clefs, note.staff);
+      final y = _yForPitch(pitch, staffBottom, clef);
       _drawLedgerLines(canvas, x, y, staffBottom);
+      // Ledger lines are drawn when the head sits off the staff; record the gap
+      // so a press on one is explained rather than swallowed.
+      if (y > staffBottom + _s * 0.5 || y < staffBottom - 4 * _s - _s * 0.5) {
+        final edge = y > staffBottom ? staffBottom : staffBottom - 4 * _s;
+        _record(
+          Rect.fromLTRB(
+            x - _s * 1.1,
+            y < edge ? y : edge,
+            x + _s * 1.1,
+            y < edge ? edge : y,
+          ),
+          const SymbolDescriptor.ledgerLine(),
+        );
+      }
 
       // Note heads are coloured by hand (right = blue, left = amber). The note
       // at the playhead is emphasised: green once its pitch is held ("correct"),
@@ -620,14 +700,49 @@ class PartitionPainter extends CustomPainter {
       // Note head, centred on x.
       final headLeft = x - Smufl.noteheadWidth * _s / 2;
       Smufl.draw(canvas, _headGlyph(note), headLeft, y, _s, headColor);
+      _record(
+        Rect.fromCenter(
+          center: Offset(x, y),
+          width: Smufl.noteheadWidth * _s * 1.5,
+          height: _s * 1.7,
+        ),
+        SymbolDescriptor.note(
+          pitch: _midiOf(pitch),
+          diatonic: pitch.octave * 7 + (_stepOrder[pitch.step] ?? 0),
+          clefSign: clef.sign,
+          staff: note.staff,
+          noteType: note.noteType,
+          dots: note.dots,
+        ),
+      );
 
       if (note.accidental != null) {
         final glyph = Smufl.accidental(note.accidental!);
         if (glyph != null) {
           Smufl.draw(canvas, glyph, headLeft - _s * 1.5, y, _s, _ink);
+          _record(
+            Rect.fromLTWH(
+              headLeft - _s * 1.7,
+              y - _s * 1.4,
+              _s * 1.4,
+              _s * 2.6,
+            ),
+            SymbolDescriptor.accidental(token: note.accidental!),
+          );
         }
       }
       _drawDots(canvas, x, y, note.dots);
+      if (note.dots > 0) {
+        _record(
+          Rect.fromLTWH(
+            x + Smufl.noteheadWidth * _s / 2,
+            y - _s * 0.6,
+            _s * (0.4 + note.dots * 0.5),
+            _s * 1.2,
+          ),
+          const SymbolDescriptor.augmentationDot(),
+        );
+      }
 
       // Ties (same-pitch) and slurs (phrase), connecting to a stored start.
       final headR = Smufl.noteheadWidth * _s / 2;
@@ -730,6 +845,10 @@ class PartitionPainter extends CustomPainter {
       _ink,
       centerX: true,
     );
+    _record(
+      Rect.fromLTRB(acc.xs.first, y - _s, acc.xs.last, y + _s),
+      SymbolDescriptor.tuplet(actual: acc.actual),
+    );
 
     if (!acc.allBeamed && acc.xs.length >= 2) {
       final x0 = acc.xs.first;
@@ -761,6 +880,10 @@ class PartitionPainter extends CustomPainter {
         ..quadraticBezierTo(ctrl.dx, ctrl.dy, b.dx, b.dy),
       _arcPaint,
     );
+    _record(
+      Rect.fromLTRB(a.dx, a.dy - _s * 0.4, b.dx, ctrl.dy + _s * 0.4),
+      const SymbolDescriptor.tie(),
+    );
   }
 
   /// A phrase slur from the first to the last note, arcing above the whole
@@ -778,6 +901,17 @@ class PartitionPainter extends CustomPainter {
         ..moveTo(a.dx, a.dy)
         ..quadraticBezierTo(cx, ctrlY, b.dx, b.dy),
       _arcPaint,
+    );
+    // The quadratic's apex is halfway to the control point; band the arc there.
+    final apexY = 0.25 * (a.dy + b.dy) + 0.5 * ctrlY;
+    _record(
+      Rect.fromLTRB(
+        a.dx,
+        apexY - _s * 0.5,
+        b.dx,
+        (a.dy > b.dy ? a.dy : b.dy) + _s * 0.3,
+      ),
+      const SymbolDescriptor.slur(),
     );
   }
 
@@ -856,6 +990,15 @@ class PartitionPainter extends CustomPainter {
       Offset(anchors.first.dx, beamY),
       Offset(anchors.last.dx, beamY),
       beamPaint,
+    );
+    _record(
+      Rect.fromLTRB(
+        anchors.first.dx,
+        beamY - _s * 0.6,
+        anchors.last.dx,
+        beamY + _s * 0.6,
+      ),
+      const SymbolDescriptor.beam(),
     );
     // Secondary beam for consecutive 16th-or-shorter notes.
     final dir = up ? 1.0 : -1.0;

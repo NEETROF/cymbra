@@ -323,6 +323,43 @@ message ListSoundFontsResponse {
   repeated SoundFont soundfonts = 1;
 }
 
+// Interactive courses (change: add-notation-courses). A course is a self-
+// describing, versioned JSON manifest (a block DSL) stored server-side as an
+// opaque blob; the client owns the format + its forward-compatibility. The
+// listing carries only metadata (grouping + title); the body is fetched on open.
+// `title_json` is the inline-localized title object ({en,fr,es,it}) as JSON;
+// `content_json` is the full manifest as JSON. `instrument`/`track`/`level`
+// group the home tiles (piano now; drums later reuses the format).
+message CourseSummary {
+  string id = 1;
+  string instrument = 2;
+  string track = 3;
+  string level = 4;
+  int32 sort_order = 5;
+  int32 schema_version = 6;
+  string title_json = 7;
+}
+
+message Course {
+  CourseSummary summary = 1;
+  string content_json = 2;
+}
+
+message ListCoursesRequest {}
+
+message ListCoursesResponse {
+  repeated CourseSummary courses = 1;
+}
+
+message GetCourseRequest {
+  string id = 1;
+}
+
+message GetCourseResponse {
+  // Absent when the id is unknown or the course is not published.
+  Course course = 1;
+}
+
 // Admin view of a catalog font (change: add-soundfont-back-office-management):
 // carries the storage-facing fields the user listing omits. `has_object` reports
 // whether the bytes are present in the private store. Moderation fields
@@ -491,6 +528,12 @@ service ScoreService {
   // fonts that actually exist. Authenticated; bytes are fetched separately via the
   // GET /soundfonts/{id} delivery route.
   rpc ListSoundFonts(ListSoundFontsRequest) returns (ListSoundFontsResponse);
+
+  // Interactive courses (change: add-notation-courses). Authenticated. The
+  // server serves the manifest blob opaquely; the client interprets the blocks
+  // and skips any it does not understand (forward-compatible).
+  rpc ListCourses(ListCoursesRequest) returns (ListCoursesResponse);
+  rpc GetCourse(GetCourseRequest) returns (GetCourseResponse);
 
   // SoundFont catalog administration (change: add-soundfont-back-office-management).
   // Music-scope moderator/admin only. Metadata list/edit/delete; adding a font (with

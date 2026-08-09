@@ -21,6 +21,7 @@ import '../state/note_density_core.dart';
 import '../state/player_data.dart';
 import 'notation_palette.dart';
 import 'smufl.dart';
+import 'staff_hit_index.dart';
 
 /// "Standard staff" rendering synchronized to time, like the waterfall.
 ///
@@ -110,10 +111,18 @@ class StaffPainter extends CustomPainter {
     this.measureMs,
     this.noteScale = 1.0,
     this.palette = NotationPalette.dark,
+    this.hitIndex,
   });
 
   /// Colour set (dark surface or paper) the staff is drawn with.
   final NotationPalette palette;
+
+  /// Optional side channel (change: add-notation-help, D1): when supplied, each
+  /// drawn symbol records its on-screen rect + [SymbolDescriptor] into it, so a
+  /// long-press can be resolved to the symbol under the finger. It is cleared and
+  /// refilled every [paint] and **never** affects what is drawn — a null index
+  /// leaves rendering byte-identical.
+  final StaffHitIndex? hitIndex;
 
   /// Vertical placement of the grand staff: the treble/bass block is centred
   /// in [height] with the inter-staff gap **clamped between 2 and 8 line
@@ -193,6 +202,11 @@ class StaffPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    // Refill the hit index from scratch every frame so it always matches what is
+    // currently on screen (side channel; no effect on drawing).
+    final hits = hitIndex?..clear();
+    void record(Rect r, SymbolDescriptor d) => hits?.add(r, d);
+
     if (notes.isEmpty && rests.isEmpty) return;
 
     const margin = 48.0;
@@ -306,6 +320,15 @@ class StaffPainter extends CustomPainter {
       lineGap,
       palette.staffLine,
     );
+    record(
+      Rect.fromLTWH(
+        2,
+        trebleBottom - 5.2 * lineGap,
+        lineGap * 3.4,
+        lineGap * 7,
+      ),
+      SymbolDescriptor.clef(sign: trebleClef.$1),
+    );
     if (bassBottom != null) {
       final bassClef = _clefAtPlayhead(2);
       Smufl.draw(
@@ -315,6 +338,15 @@ class StaffPainter extends CustomPainter {
         bassBottom - (bassClef.$2 - 1) * lineGap,
         lineGap,
         palette.staffLine,
+      );
+      record(
+        Rect.fromLTWH(
+          2,
+          bassBottom - 4.6 * lineGap,
+          lineGap * 3.4,
+          lineGap * 5,
+        ),
+        SymbolDescriptor.clef(sign: bassClef.$1),
       );
     }
 
@@ -344,6 +376,17 @@ class StaffPainter extends CustomPainter {
         headColor,
       );
     }
+    if (keyW > 0) {
+      record(
+        Rect.fromLTWH(
+          hx,
+          systemTop - lineGap,
+          keyW,
+          systemBottom - systemTop + 2 * lineGap,
+        ),
+        SymbolDescriptor.keySignature(fifths: headKey),
+      );
+    }
     hx += keyW;
     final timeW = Smufl.drawTimeSignature(
       canvas,
@@ -353,6 +396,15 @@ class StaffPainter extends CustomPainter {
       beats,
       beatType,
       headColor,
+    );
+    record(
+      Rect.fromLTWH(
+        hx,
+        systemTop - lineGap,
+        timeW,
+        systemBottom - systemTop + 2 * lineGap,
+      ),
+      SymbolDescriptor.timeSignature(beats: beats, beatType: beatType),
     );
     if (bassBottom != null) {
       Smufl.drawTimeSignature(
@@ -388,6 +440,15 @@ class StaffPainter extends CustomPainter {
       // Clip to the right of the head so a bar line never crosses the clef/armature.
       if (x < headEnd || x > size.width - margin) return;
       canvas.drawLine(Offset(x, systemTop), Offset(x, systemBottom), barPaint);
+      record(
+        Rect.fromLTRB(
+          x - lineGap * 0.4,
+          systemTop,
+          x + lineGap * 0.4,
+          systemBottom,
+        ),
+        const SymbolDescriptor.barLine(),
+      );
     }
 
     if (measureStartMs.isNotEmpty) {
@@ -508,19 +569,35 @@ class StaffPainter extends CustomPainter {
 
       final head = _headGlyph(n, quarterMs);
       _drawHead(canvas, Offset(x, y), lineGap, atPlayhead, color, head);
+      record(
+        Rect.fromCenter(
+          center: Offset(x, y),
+          width: Smufl.noteheadWidth * lineGap * 1.5,
+          height: lineGap * 1.7,
+        ),
+        SymbolDescriptor.note(
+          pitch: n.pitch,
+          diatonic: n.diatonic,
+          clefSign: n.clefSign,
+          staff: n.staff,
+          noteType: n.noteType,
+          dots: n.dots,
+        ),
+      );
       // Accidental engraved on this note (sharp/flat/natural…), left of the
       // head like the Partition view — without it a D♯ reads as a plain D.
       final token = n.accidental;
       if (token != null) {
         final glyph = Smufl.accidental(token);
         if (glyph != null) {
-          Smufl.draw(
-            canvas,
-            glyph,
-            x - Smufl.noteheadWidth * lineGap / 2 - lineGap * _accidentalOffset,
-            y,
-            lineGap,
-            color,
+          final ax =
+              x -
+              Smufl.noteheadWidth * lineGap / 2 -
+              lineGap * _accidentalOffset;
+          Smufl.draw(canvas, glyph, ax, y, lineGap, color);
+          record(
+            Rect.fromLTWH(ax, y - lineGap * 1.4, lineGap * 1.3, lineGap * 2.6),
+            SymbolDescriptor.accidental(token: token),
           );
         }
       }
@@ -536,7 +613,18 @@ class StaffPainter extends CustomPainter {
           stemUpOf(n),
         );
       }
-      if (n.dots > 0) _drawDots(canvas, Offset(x, y), lineGap, n.dots, color);
+      if (n.dots > 0) {
+        _drawDots(canvas, Offset(x, y), lineGap, n.dots, color);
+        record(
+          Rect.fromLTWH(
+            x + Smufl.noteheadWidth * lineGap / 2,
+            y - lineGap * 0.6,
+            lineGap * (0.4 + n.dots * 0.5),
+            lineGap * 1.2,
+          ),
+          const SymbolDescriptor.augmentationDot(),
+        );
+      }
       final isBass = bassBottom != null && n.staff >= 2;
       final base = isBass ? bassBottom : trebleBottom;
       _drawLedgerLines(
@@ -548,6 +636,21 @@ class StaffPainter extends CustomPainter {
         lineGap,
         linePaint,
       );
+      // A note sitting above the top line or below the bottom line carries ledger
+      // lines; record the gap between the staff edge and the head so a press on
+      // one of those short lines is explained (not swallowed as empty).
+      if (y > base + lineGap * 0.5 || y < base - 4 * lineGap - lineGap * 0.5) {
+        final edge = y > base ? base : base - 4 * lineGap;
+        record(
+          Rect.fromLTRB(
+            x - lineGap * 1.1,
+            math.min(edge, y),
+            x + lineGap * 1.1,
+            math.max(edge, y),
+          ),
+          const SymbolDescriptor.ledgerLine(),
+        );
+      }
     }
 
     // 4b) Scrolling rests, routed to their staff and centred on its middle line
@@ -568,8 +671,25 @@ class StaffPainter extends CustomPainter {
         restColor,
         centerX: true,
       );
+      record(
+        Rect.fromCenter(
+          center: Offset(x, y - lineGap * 0.5),
+          width: lineGap * 1.6,
+          height: lineGap * 2.4,
+        ),
+        SymbolDescriptor.rest(noteType: r.noteType),
+      );
       if (r.dots > 0) {
         _drawDots(canvas, Offset(x, y), lineGap, r.dots, restColor);
+        record(
+          Rect.fromLTWH(
+            x + lineGap * 0.6,
+            y - lineGap * 0.6,
+            lineGap * (0.4 + r.dots * 0.5),
+            lineGap * 1.2,
+          ),
+          const SymbolDescriptor.augmentationDot(),
+        );
       }
     }
 
@@ -595,7 +715,22 @@ class StaffPainter extends CustomPainter {
           .map((n) => Offset(xForTime(n.startMs.toDouble()), noteY(n)))
           .toList();
       if (pts.every((p) => !visible(p.dx))) continue;
-      _drawBeam(canvas, pts, group, lineGap, stemUpOf(group.first));
+      final up = stemUpOf(group.first);
+      _drawBeam(canvas, pts, group, lineGap, up);
+      // The beam bar itself sits a stem length off the extreme head, on the stem
+      // side — record a thin band there so a press on the beam is explained.
+      final beamY = up
+          ? pts.map((p) => p.dy).reduce(math.min) - lineGap * _stemLen
+          : pts.map((p) => p.dy).reduce(math.max) + lineGap * _stemLen;
+      record(
+        Rect.fromLTRB(
+          pts.first.dx,
+          beamY - lineGap * 0.6,
+          pts.last.dx,
+          beamY + lineGap * 0.6,
+        ),
+        const SymbolDescriptor.beam(),
+      );
     }
 
     canvas.restore(); // end the scrolling-glyph clip

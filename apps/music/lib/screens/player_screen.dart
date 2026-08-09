@@ -41,8 +41,11 @@ import '../state/post_play_rating_notifier.dart';
 import '../state/session_summary.dart';
 import '../state/session_summary_store.dart';
 import '../theme/cymbra_theme.dart';
+import '../state/coaching_notifier.dart';
+import '../widgets/coach_mark.dart';
 import '../widgets/countdown_overlay.dart';
 import '../widgets/mistake_replay.dart';
+import '../widgets/notation_help_area.dart';
 import '../widgets/playback_progress_bar.dart';
 import '../widgets/reading_aid.dart';
 import '../widgets/score_chip.dart';
@@ -588,26 +591,29 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
         Positioned.fill(
           child: Container(
             color: palette.background,
-            child: CustomPaint(
-              painter: StaffPainter(
-                notes: data.visibleNotes,
-                rests: data.visibleRests,
-                elapsedMs: data.elapsedMs,
-                activeNotes: data.activeNotes,
-                bpm: data.bpm,
-                songEndMs: data.songEndMs,
-                keyFifths: data.keyFifths,
-                measureKeyFifths: data.measureKeyFifths,
-                beats: data.beats,
-                beatType: data.beatType,
-                measureStartMs: data.measureStartMs,
-                noteScale: sizeFactor,
-                lookAheadMs: StaffPainter.defaultLookAheadMs / sizeFactor,
-                onsetGapMs: data.onsetGapMs,
-                measureMs: data.measureMs,
-                palette: palette,
+            child: NotationHelpArea(
+              builder: (context, hitIndex) => CustomPaint(
+                painter: StaffPainter(
+                  notes: data.visibleNotes,
+                  rests: data.visibleRests,
+                  elapsedMs: data.elapsedMs,
+                  activeNotes: data.activeNotes,
+                  bpm: data.bpm,
+                  songEndMs: data.songEndMs,
+                  keyFifths: data.keyFifths,
+                  measureKeyFifths: data.measureKeyFifths,
+                  beats: data.beats,
+                  beatType: data.beatType,
+                  measureStartMs: data.measureStartMs,
+                  noteScale: sizeFactor,
+                  lookAheadMs: StaffPainter.defaultLookAheadMs / sizeFactor,
+                  onsetGapMs: data.onsetGapMs,
+                  measureMs: data.measureMs,
+                  palette: palette,
+                  hitIndex: hitIndex,
+                ),
+                size: Size.infinite,
               ),
-              size: Size.infinite,
             ),
           ),
         ),
@@ -625,6 +631,19 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
             hasSelection: hasSelection,
           ),
         ),
+        // First-view hint that staff symbols can be long-pressed for help
+        // (change: add-notation-help). One-time, dismissible, non-blocking —
+        // it hides itself once seen.
+        if (notation.hasDocument)
+          const Positioned(
+            top: 8,
+            left: 12,
+            right: 12,
+            child: CoachHintCallout(
+              hint: CoachHint.notationHelp,
+              icon: Icons.touch_app_outlined,
+            ),
+          ),
       ],
     );
   }
@@ -1368,41 +1387,65 @@ class _PartitionViewState extends ConsumerState<_PartitionView> {
             palette: palette,
           );
           _followCursor(data, notation.systems, painter);
-          return SingleChildScrollView(
-            controller: _scroll,
-            // Rebuild the canvas as the view scrolls so the painter can cull
-            // to the visible systems (only ~2–3 lines are engraved per frame
-            // instead of the whole score — the fix for large-score lag).
-            child: ListenableBuilder(
-              listenable: _scroll,
-              builder: (context, _) {
-                // The position isn't fully attached on the first build(s):
-                // guard pixels/viewport before reading them, falling back to
-                // the layout height (paints from the top — offset 0).
-                final pos = _scroll.hasClients ? _scroll.position : null;
-                final viewTop = pos != null && pos.hasPixels ? pos.pixels : 0.0;
-                final viewHeight = pos != null && pos.hasViewportDimension
-                    ? pos.viewportDimension
-                    : constraints.maxHeight;
-                return CustomPaint(
-                  key: const Key('partition-canvas'),
-                  painter: PartitionPainter(
-                    document: notation.document!,
-                    systems: notation.systems,
-                    elapsedMs: data.elapsedMs,
-                    measureStartMs: data.measureStartMs,
-                    songEndMs: data.songEndMs,
-                    activeNotes: data.activeNotes,
-                    selectedHands: data.selectedHands,
-                    viewTop: viewTop,
-                    viewBottom: viewTop + viewHeight,
-                    staffSpace: staffSpace,
-                    palette: palette,
-                  ),
-                  size: Size(engraveWidth, painter.heightFor(engraveWidth)),
-                );
-              },
-            ),
+          return Stack(
+            children: [
+              SingleChildScrollView(
+                controller: _scroll,
+                // Rebuild the canvas as the view scrolls so the painter can cull
+                // to the visible systems (only ~2–3 lines are engraved per frame
+                // instead of the whole score — the fix for large-score lag).
+                child: ListenableBuilder(
+                  listenable: _scroll,
+                  builder: (context, _) {
+                    // The position isn't fully attached on the first build(s):
+                    // guard pixels/viewport before reading them, falling back to
+                    // the layout height (paints from the top — offset 0).
+                    final pos = _scroll.hasClients ? _scroll.position : null;
+                    final viewTop = pos != null && pos.hasPixels
+                        ? pos.pixels
+                        : 0.0;
+                    final viewHeight = pos != null && pos.hasViewportDimension
+                        ? pos.viewportDimension
+                        : constraints.maxHeight;
+                    return NotationHelpArea(
+                      builder: (context, hitIndex) => CustomPaint(
+                        key: const Key('partition-canvas'),
+                        painter: PartitionPainter(
+                          document: notation.document!,
+                          systems: notation.systems,
+                          elapsedMs: data.elapsedMs,
+                          measureStartMs: data.measureStartMs,
+                          songEndMs: data.songEndMs,
+                          activeNotes: data.activeNotes,
+                          selectedHands: data.selectedHands,
+                          viewTop: viewTop,
+                          viewBottom: viewTop + viewHeight,
+                          staffSpace: staffSpace,
+                          palette: palette,
+                          hitIndex: hitIndex,
+                        ),
+                        size: Size(
+                          engraveWidth,
+                          painter.heightFor(engraveWidth),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              // First-view "long-press for help" hint (change: add-notation-help),
+              // shared with the staff view; hides itself once seen. (The next-line
+              // peek + sync gauge were removed from the Partition view upstream.)
+              const Positioned(
+                top: 8,
+                left: 12,
+                right: 12,
+                child: CoachHintCallout(
+                  hint: CoachHint.notationHelp,
+                  icon: Icons.touch_app_outlined,
+                ),
+              ),
+            ],
           );
         },
       ),
