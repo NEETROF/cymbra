@@ -23,6 +23,7 @@ import '../services/notation_engine.dart';
 import '../services/score_upload_service.dart';
 import '../src/rust/api/musicxml.dart' show ScoreDocument, ScoreSummary;
 import '../state/notation_playback.dart';
+import '../state/note_density_core.dart';
 import '../state/contributed_scores.dart';
 import '../state/player_data.dart' show TimedNote;
 import '../state/score_catalog.dart';
@@ -524,6 +525,10 @@ class _VerifyStepViewState extends ConsumerState<_VerifyStepView>
                             beats: _doc?.attributes.time.beats ?? 4,
                             beatType: _doc?.attributes.time.beatType ?? 4,
                             measureStartMs: playback.measureStartMs,
+                            // Same readability cap as the player: this preview
+                            // is how the uploader checks their score parsed
+                            // right, so a dense one must not arrive cramped.
+                            onsetGapMs: cachedOnsetGapMs(playback.notes),
                           ),
                         ),
                 ),

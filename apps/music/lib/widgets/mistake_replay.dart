@@ -19,6 +19,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../l10n/gen/app_localizations.dart';
 import '../painters/staff_painter.dart';
 import '../services/audio_service.dart';
+import '../state/note_density_core.dart';
 import '../state/performance_scoring_core.dart';
 import '../state/player_data.dart';
 import '../state/session_summary.dart';
@@ -277,6 +278,10 @@ class _ReplayDialogState extends ConsumerState<_ReplayDialog>
                 beats: _score.beats,
                 beatType: _score.beatType,
                 measureStartMs: _score.measureStartMs,
+                // Same readability cap as the live Portée: the replay scrolls
+                // the same score at the same window, so a dense piece would be
+                // just as cramped here.
+                onsetGapMs: cachedOnsetGapMs(_score.notes),
                 mistakeColors: _mistakeColors,
               ),
             ),

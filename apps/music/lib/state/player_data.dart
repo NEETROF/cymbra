@@ -17,6 +17,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import '../painters/keyboard_range.dart';
 import '../src/rust/api/musicxml.dart' show BeamState;
 import '../src/rust/api/score.dart';
+import 'note_density_core.dart';
 
 export '../painters/keyboard_range.dart'
     show KeyboardRangeMode, KeyboardRangeModeLabel;
@@ -343,6 +344,14 @@ abstract class PlayerData with _$PlayerData {
   /// [effectiveEndMs]), so trailing rests / empty measures are trimmed. Falls
   /// back to [songEndMs] when the selection has no notes.
   double get endMs => effectiveEndMs(visibleNotes, songEndMs: songEndMs);
+
+  /// The loaded piece's characteristic tightest note spacing (see
+  /// [cachedOnsetGapMs]), which the scrolling Portée caps its look-ahead window
+  /// against so a dense score is not engraved tighter than it can be read.
+  /// Measured over **all** the notes, not [visibleNotes]: the engraving scale is
+  /// a property of the piece, and muting a hand must not rescale it. `null` when
+  /// there is nothing to measure.
+  double? get onsetGapMs => cachedOnsetGapMs(notes);
 
   /// Whether the loaded piece has any left-hand (staff 2+) notes, so isolating a
   /// hand is meaningful. The hand selector is shown only then — a single-staff
