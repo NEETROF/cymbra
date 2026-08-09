@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.20.0](https://github.com/NEETROF/cymbra/compare/music-v1.19.0...music-v1.20.0) (2026-08-09)
+
+
+### Features
+
+* **leaderboard:** difficulty-weighted seasonal global leaderboard ([#191](https://github.com/NEETROF/cymbra/issues/191)) ([b19a483](https://github.com/NEETROF/cymbra/commit/b19a483ca0de17c965c917e1fa4b0a651a19b1c1))
+* **music:** beginner note reading aid on the awaited keys ([#201](https://github.com/NEETROF/cymbra/issues/201)) ([698c941](https://github.com/NEETROF/cymbra/commit/698c9418177e155e720ea9af10512ac54b61a594))
+* **music:** first-run welcome, no-account try and unified coaching ([#183](https://github.com/NEETROF/cymbra/issues/183)) ([3c14585](https://github.com/NEETROF/cymbra/commit/3c1458558a9fac7eafc850e1f4a147831a0e910d))
+* **music:** offer to rate a score after playing it ([#199](https://github.com/NEETROF/cymbra/issues/199)) ([d57ae6b](https://github.com/NEETROF/cymbra/commit/d57ae6b40abf67e1dbbe4d4b849500ffa77009d1))
+* **player:** auto-fit keyboard by default + on-screen orientation cues ([#198](https://github.com/NEETROF/cymbra/issues/198)) ([8ffa4a1](https://github.com/NEETROF/cymbra/commit/8ffa4a1c0836b723d8f32655edf8bb2b3e241f7d))
+* **player:** game-mode readability rework — decluttered HUD, fitted layouts, paper theme ([#202](https://github.com/NEETROF/cymbra/issues/202)) ([42da054](https://github.com/NEETROF/cymbra/commit/42da0545a852f0c368c142e10190ffbb9f44f7d2))
+
+
+### Bug Fixes
+
+* **music:** declutter home help icon, move usage-analytics toggle to profile ([#192](https://github.com/NEETROF/cymbra/issues/192)) ([1611698](https://github.com/NEETROF/cymbra/commit/16116981a4587b986ed90370a002180bda3cda90))
+* **music:** engrave accidentals in the scrolling staff and align the Partition playhead ([#185](https://github.com/NEETROF/cymbra/issues/185)) ([a46b227](https://github.com/NEETROF/cymbra/commit/a46b22756de3de12bb62117f5f70d9128543bab8))
+
 ## [1.19.0](https://github.com/NEETROF/cymbra/compare/music-v1.18.0...music-v1.19.0) (2026-08-07)
 
 

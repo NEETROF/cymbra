@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.14.0](https://github.com/NEETROF/cymbra/compare/backend-v0.13.0...backend-v0.14.0) (2026-08-09)
+
+
+### Features
+
+* **leaderboard:** difficulty-weighted seasonal global leaderboard ([#191](https://github.com/NEETROF/cymbra/issues/191)) ([b19a483](https://github.com/NEETROF/cymbra/commit/b19a483ca0de17c965c917e1fa4b0a651a19b1c1))
+* **music:** offer to rate a score after playing it ([#199](https://github.com/NEETROF/cymbra/issues/199)) ([d57ae6b](https://github.com/NEETROF/cymbra/commit/d57ae6b40abf67e1dbbe4d4b849500ffa77009d1))
+
+
+### Performance Improvements
+
+* **backend:** switch runtime image to distroless/cc + strip binaries ([#196](https://github.com/NEETROF/cymbra/issues/196)) ([5afb222](https://github.com/NEETROF/cymbra/commit/5afb222093801e274487dd0736ab892106d24882))
+
 ## [0.13.0](https://github.com/NEETROF/cymbra/compare/backend-v0.12.0...backend-v0.13.0) (2026-08-07)
 
 
