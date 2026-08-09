@@ -1,0 +1,182 @@
+{
+  "id": "sol-u3-05-secondes-et-tierces",
+  "status": "published",
+  "instrument": "piano",
+  "track": "solfege",
+  "level": "beginner",
+  "unit": "u3",
+  "unitTitle": {
+    "en": "The whole treble staff",
+    "fr": "Toute la clé de sol",
+    "es": "Toda la clave de sol",
+    "it": "Tutta la chiave di violino"
+  },
+  "sortOrder": 305,
+  "schemaVersion": 2,
+  "title": {
+    "en": "Steps and skips",
+    "fr": "Secondes et tierces",
+    "es": "Segundas y terceras",
+    "it": "Seconde e terze"
+  },
+  "content": {
+    "schemaVersion": 2,
+    "id": "sol-u3-05-secondes-et-tierces",
+    "instrument": "piano",
+    "track": "solfege",
+    "level": "beginner",
+    "title": {
+      "en": "Steps and skips",
+      "fr": "Secondes et tierces",
+      "es": "Segundas y terceras",
+      "it": "Seconde e terze"
+    },
+    "summary": {
+      "en": "Hear and play seconds and thirds",
+      "fr": "Entendre et jouer secondes et tierces",
+      "es": "Oír y tocar segundas y terceras",
+      "it": "Sentire e suonare seconde e terze"
+    },
+    "blocks": [
+      {
+        "type": "text",
+        "text": {
+          "en": "Melodies move by steps and skips. To the very next note is a second; skip one note and you get a third.",
+          "fr": "Les mélodies avancent par pas et par sauts. Aller à la note voisine, c'est une seconde ; sauter une note, c'est une tierce.",
+          "es": "Las melodías avanzan a pasos y a saltos. Ir a la nota vecina es una segunda; saltarse una nota es una tercera.",
+          "it": "Le melodie si muovono a passi e a salti. Andare alla nota vicina è una seconda; saltarne una è una terza."
+        }
+      },
+      {
+        "type": "staff",
+        "clef": "treble",
+        "elements": [
+          { "p": "C4", "fig": "quarter" },
+          { "p": "D4", "fig": "quarter" },
+          { "p": "C4", "fig": "quarter" },
+          { "p": "E4", "fig": "quarter" }
+        ],
+        "caption": {
+          "en": "A second, then a third: C to D is a second, C to E is a third.",
+          "fr": "Une seconde, puis une tierce : de do à ré, une seconde ; de do à mi, une tierce.",
+          "es": "Una segunda y luego una tercera: de do a re, una segunda; de do a mi, una tercera.",
+          "it": "Una seconda, poi una terza: da do a re, una seconda; da do a mi, una terza."
+        }
+      },
+      {
+        "type": "question",
+        "prompt": {
+          "en": "From a line note to the very next space note — what interval is that?",
+          "fr": "D'une note de ligne à l'interligne juste au-dessus — quel est cet intervalle ?",
+          "es": "De una nota de línea al espacio justo encima, ¿qué intervalo es?",
+          "it": "Da una nota di riga allo spazio subito sopra: che intervallo è?"
+        },
+        "options": [
+          {
+            "en": "A second",
+            "fr": "Une seconde",
+            "es": "Una segunda",
+            "it": "Una seconda"
+          },
+          {
+            "en": "A third",
+            "fr": "Une tierce",
+            "es": "Una tercera",
+            "it": "Una terza"
+          }
+        ],
+        "answerIndex": 0,
+        "feedback": {
+          "en": "Yes — neighbors on the staff, line to space, are always a second apart.",
+          "fr": "Oui — deux voisines sur la portée, ligne puis interligne, sont toujours à une seconde.",
+          "es": "Sí: dos vecinas en el pentagrama, línea y espacio, siempre están a una segunda.",
+          "it": "Sì: due vicine sul pentagramma, riga e spazio, distano sempre una seconda."
+        }
+      },
+      {
+        "type": "earChoice",
+        "notes": ["C4", "D4"],
+        "answerId": "second",
+        "choices": [
+          {
+            "id": "second",
+            "label": {
+              "en": "A second",
+              "fr": "Une seconde",
+              "es": "Una segunda",
+              "it": "Una seconda"
+            }
+          },
+          {
+            "id": "third",
+            "label": {
+              "en": "A third",
+              "fr": "Une tierce",
+              "es": "Una tercera",
+              "it": "Una terza"
+            }
+          }
+        ],
+        "prompt": {
+          "en": "Listen to C and its neighbor: do you hear a second or a third?",
+          "fr": "Écoute do et sa voisine : entends-tu une seconde ou une tierce ?",
+          "es": "Escucha do y su vecina: ¿oyes una segunda o una tercera?",
+          "it": "Ascolta il do e la sua vicina: senti una seconda o una terza?"
+        }
+      },
+      {
+        "type": "earChoice",
+        "notes": ["C4", "E4"],
+        "answerId": "third",
+        "choices": [
+          {
+            "id": "second",
+            "label": {
+              "en": "A second",
+              "fr": "Une seconde",
+              "es": "Una segunda",
+              "it": "Una seconda"
+            }
+          },
+          {
+            "id": "third",
+            "label": {
+              "en": "A third",
+              "fr": "Une tierce",
+              "es": "Una tercera",
+              "it": "Una terza"
+            }
+          }
+        ],
+        "prompt": {
+          "en": "Now C skips a note: is this a second or a third?",
+          "fr": "Cette fois do saute une note : est-ce une seconde ou une tierce ?",
+          "es": "Ahora do salta una nota: ¿es una segunda o una tercera?",
+          "it": "Ora il do salta una nota: è una seconda o una terza?"
+        }
+      },
+      {
+        "type": "readPlay",
+        "mode": "melody",
+        "clef": "treble",
+        "labels": "never",
+        "notes": ["C4", "E4", "G4", "E4", "C4"],
+        "prompt": {
+          "en": "Play in thirds: skip up from C to G, then skip back down.",
+          "fr": "Joue en tierces : monte de do à sol par sauts, puis redescends.",
+          "es": "Toca en terceras: sube de do a sol a saltos y vuelve a bajar.",
+          "it": "Suona per terze: sali da do a sol a salti, poi ridiscendi."
+        }
+      },
+      {
+        "type": "text",
+        "text": {
+          "en": "Seconds step, thirds skip — and you can now hear and play both.",
+          "fr": "La seconde marche, la tierce saute — et tu sais maintenant les entendre et les jouer.",
+          "es": "La segunda camina, la tercera salta, y ya sabes oírlas y tocarlas.",
+          "it": "La seconda cammina, la terza salta, e ora sai sentirle e suonarle."
+        }
+      }
+    ]
+  }
+}

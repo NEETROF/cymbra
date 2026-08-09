@@ -1,0 +1,170 @@
+{
+  "id": "sol-u5-05-le-contretemps",
+  "status": "published",
+  "instrument": "piano",
+  "track": "solfege",
+  "level": "intermediate",
+  "unit": "u5",
+  "unitTitle": {
+    "en": "Eighth notes and new meters",
+    "fr": "Croches et nouvelles mesures",
+    "es": "Corcheas y nuevos compases",
+    "it": "Crome e nuovi tempi"
+  },
+  "sortOrder": 505,
+  "schemaVersion": 2,
+  "title": {
+    "en": "Offbeats",
+    "fr": "Le contretemps",
+    "es": "El contratiempo",
+    "it": "Il controtempo"
+  },
+  "content": {
+    "schemaVersion": 2,
+    "id": "sol-u5-05-le-contretemps",
+    "instrument": "piano",
+    "track": "solfege",
+    "level": "intermediate",
+    "title": {
+      "en": "Offbeats",
+      "fr": "Le contretemps",
+      "es": "El contratiempo",
+      "it": "Il controtempo"
+    },
+    "summary": {
+      "en": "Tap offbeats: rests on the beat, notes on the 'and'",
+      "fr": "Taper le contretemps : silences sur le temps, notes sur le « et »",
+      "es": "Tocar el contratiempo: silencios en el tiempo, notas en el 'y'",
+      "it": "Battere il controtempo: pause sul movimento, note sul 'e'"
+    },
+    "blocks": [
+      {
+        "type": "text",
+        "text": {
+          "en": "Sometimes the music breathes on the beat and answers just after it. That answer on the 'and' is the offbeat.",
+          "fr": "Parfois la musique respire sur le temps et répond juste après. Cette réponse sur le « et », c'est le contretemps.",
+          "es": "A veces la música respira en el tiempo y responde justo después. Esa respuesta en el 'y' es el contratiempo.",
+          "it": "A volte la musica respira sul movimento e risponde subito dopo. Quella risposta sul 'e' è il controtempo."
+        }
+      },
+      {
+        "type": "staff",
+        "clef": "treble",
+        "time": { "beats": 4, "beatType": 4 },
+        "elements": [
+          { "rest": true, "fig": "eighth" },
+          { "p": "C4", "fig": "eighth" },
+          { "rest": true, "fig": "eighth" },
+          { "p": "E4", "fig": "eighth" },
+          { "p": "G4", "fig": "quarter" },
+          { "p": "E4", "fig": "quarter" }
+        ],
+        "caption": {
+          "en": "The eighth rests sit on beats one and two — the notes answer just after, on the 'and'.",
+          "fr": "Les demi-soupirs tombent sur les temps un et deux — les notes répondent juste après, sur le « et ».",
+          "es": "Los silencios de corchea caen en los tiempos uno y dos: las notas responden justo después, en el 'y'.",
+          "it": "Le pause di croma cadono sui movimenti uno e due: le note rispondono subito dopo, sul 'e'."
+        }
+      },
+      {
+        "type": "rhythmTap",
+        "pattern": [
+          { "rest": true, "fig": "eighth" },
+          { "fig": "eighth" },
+          { "rest": true, "fig": "eighth" },
+          { "fig": "eighth" },
+          { "fig": "quarter" },
+          { "fig": "quarter" }
+        ],
+        "beats": 4,
+        "beatType": 4,
+        "bpm": 60,
+        "prompt": {
+          "en": "Tap BETWEEN the clicks: the rest takes each beat, you answer on the 'and'.",
+          "fr": "Tape ENTRE les clics : le silence prend le temps, toi tu réponds sur le « et ».",
+          "es": "Toca ENTRE los clics: el silencio ocupa el tiempo y tú respondes en el 'y'.",
+          "it": "Batti TRA i clic: la pausa occupa il movimento, tu rispondi sul 'e'."
+        }
+      },
+      {
+        "type": "question",
+        "prompt": {
+          "en": "In an offbeat pattern, where do your notes land?",
+          "fr": "Dans un contretemps, où tombent tes notes ?",
+          "es": "En un contratiempo, ¿dónde caen tus notas?",
+          "it": "In un controtempo, dove cadono le tue note?"
+        },
+        "options": [
+          {
+            "en": "Just after the beat, on the 'and'",
+            "fr": "Juste après le temps, sur le « et »",
+            "es": "Justo después del tiempo, en el 'y'",
+            "it": "Subito dopo il movimento, sul 'e'"
+          },
+          {
+            "en": "Right on the beat",
+            "fr": "Pile sur le temps",
+            "es": "Justo en el tiempo",
+            "it": "Esattamente sul movimento"
+          }
+        ],
+        "answerIndex": 0,
+        "feedback": {
+          "en": "The rest takes the beat — your note answers on the 'and'.",
+          "fr": "Le silence prend le temps — ta note répond sur le « et ».",
+          "es": "El silencio ocupa el tiempo: tu nota responde en el 'y'.",
+          "it": "La pausa occupa il movimento: la tua nota risponde sul 'e'."
+        }
+      },
+      {
+        "type": "rhythmTap",
+        "pattern": [
+          { "fig": "quarter" },
+          { "rest": true, "fig": "eighth" },
+          { "fig": "eighth" },
+          { "fig": "half" }
+        ],
+        "beats": 4,
+        "beatType": 4,
+        "bpm": 60,
+        "prompt": {
+          "en": "Start on the beat this time: 'ONE', slip onto 'and-of-two', then land on the long 'THREE'.",
+          "fr": "Cette fois pars sur le temps : « UN », glisse sur « et-de-deux », puis pose-toi sur le long « TROIS ».",
+          "es": "Esta vez empieza en el tiempo: 'UN', salta al 'y-de-dos' y aterriza en el 'TRES' largo.",
+          "it": "Questa volta parti sul movimento: 'UNO', scivola su 'e-di-due', poi posati sul lungo 'TRE'."
+        }
+      },
+      {
+        "type": "rhythmTap",
+        "pattern": [
+          { "rest": true, "fig": "eighth" },
+          { "fig": "eighth" },
+          { "rest": true, "fig": "eighth" },
+          { "fig": "eighth" },
+          { "rest": true, "fig": "eighth" },
+          { "fig": "eighth" },
+          { "rest": true, "fig": "eighth" },
+          { "fig": "eighth" }
+        ],
+        "beats": 4,
+        "beatType": 4,
+        "bpm": 60,
+        "prompt": {
+          "en": "The full offbeat groove: four answers in a row, always just after the click.",
+          "fr": "Le contretemps complet : quatre réponses d'affilée, toujours juste après le clic.",
+          "es": "El contratiempo completo: cuatro respuestas seguidas, siempre justo después del clic.",
+          "it": "Il controtempo completo: quattro risposte di fila, sempre subito dopo il clic."
+        }
+      },
+      {
+        "type": "text",
+        "text": {
+          "en": "Offbeats: the rest takes the beat, your note answers on the 'and'. That little push drives dance music everywhere.",
+          "fr": "Le contretemps : le silence prend le temps, ta note répond sur le « et ». Ce petit élan fait danser des musiques du monde entier.",
+          "es": "El contratiempo: el silencio ocupa el tiempo y tu nota responde en el 'y'. Ese pequeño impulso hace bailar músicas de todo el mundo.",
+          "it": "Il controtempo: la pausa occupa il movimento, la tua nota risponde sul 'e'. Quella piccola spinta fa ballare musiche di tutto il mondo."
+        }
+      }
+    ]
+  }
+}

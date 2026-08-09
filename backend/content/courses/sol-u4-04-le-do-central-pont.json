@@ -1,0 +1,154 @@
+{
+  "id": "sol-u4-04-le-do-central-pont",
+  "status": "published",
+  "instrument": "piano",
+  "track": "solfege",
+  "level": "intermediate",
+  "unit": "u4",
+  "unitTitle": {
+    "en": "Bass clef and the left hand",
+    "fr": "La clé de fa et la main gauche",
+    "es": "La clave de fa y la mano izquierda",
+    "it": "La chiave di basso e la mano sinistra"
+  },
+  "sortOrder": 404,
+  "schemaVersion": 2,
+  "title": {
+    "en": "Middle C, the bridge",
+    "fr": "Le do central, le pont",
+    "es": "El do central, el puente",
+    "it": "Il do centrale, il ponte"
+  },
+  "content": {
+    "schemaVersion": 2,
+    "id": "sol-u4-04-le-do-central-pont",
+    "instrument": "piano",
+    "track": "solfege",
+    "level": "intermediate",
+    "title": {
+      "en": "Middle C, the bridge",
+      "fr": "Le do central, le pont",
+      "es": "El do central, el puente",
+      "it": "Il do centrale, il ponte"
+    },
+    "summary": {
+      "en": "One middle C, readable from both staves",
+      "fr": "Un seul do central, lisible depuis les deux portées",
+      "es": "Un solo do central, legible desde los dos pentagramas",
+      "it": "Un solo do centrale, leggibile da entrambi i pentagrammi"
+    },
+    "blocks": [
+      {
+        "type": "text",
+        "text": {
+          "en": "Middle C is one single key, yet both staves can write it. It sits on a small ledger line — below the treble staff, above the bass staff.",
+          "fr": "Le do central est une seule et même touche, pourtant les deux portées savent l'écrire. Il se pose sur une petite ligne — sous la portée de sol, au-dessus de la portée de fa.",
+          "es": "El do central es una única tecla, y sin embargo los dos pentagramas saben escribirlo. Se apoya en una pequeña línea: debajo de la clave de sol, encima de la clave de fa.",
+          "it": "Il do centrale è un unico tasto, eppure entrambi i pentagrammi sanno scriverlo. Sta su una lineetta: sotto la chiave di violino, sopra la chiave di basso."
+        }
+      },
+      {
+        "type": "staff",
+        "clef": "treble",
+        "labels": true,
+        "elements": [
+          { "p": "C4", "fig": "quarter" }
+        ],
+        "caption": {
+          "en": "Middle C on its ledger line, just below the treble staff.",
+          "fr": "Le do central sur sa petite ligne, juste sous la portée de sol.",
+          "es": "El do central en su pequeña línea, justo debajo de la clave de sol.",
+          "it": "Il do centrale sulla sua lineetta, appena sotto il pentagramma in chiave di violino."
+        }
+      },
+      {
+        "type": "placeNote",
+        "clef": "treble",
+        "targets": ["C4"],
+        "prompt": {
+          "en": "Place middle C on its ledger line below the treble staff.",
+          "fr": "Pose le do central sur sa petite ligne sous la portée de sol.",
+          "es": "Coloca el do central en su pequeña línea debajo de la clave de sol.",
+          "it": "Posiziona il do centrale sulla sua lineetta sotto la chiave di violino."
+        }
+      },
+      {
+        "type": "staff",
+        "clef": "bass",
+        "labels": true,
+        "elements": [
+          { "p": "C4", "fig": "quarter" }
+        ],
+        "caption": {
+          "en": "The very same C, this time just above the bass staff.",
+          "fr": "Exactement le même do, cette fois juste au-dessus de la portée de fa.",
+          "es": "Exactamente el mismo do, esta vez justo encima de la clave de fa.",
+          "it": "Esattamente lo stesso do, questa volta appena sopra la chiave di basso."
+        }
+      },
+      {
+        "type": "placeNote",
+        "clef": "bass",
+        "targets": ["C4"],
+        "prompt": {
+          "en": "Now place the same middle C above the bass staff.",
+          "fr": "Maintenant, pose le même do central au-dessus de la portée de fa.",
+          "es": "Ahora coloca el mismo do central encima de la clave de fa.",
+          "it": "Ora posiziona lo stesso do centrale sopra la chiave di basso."
+        }
+      },
+      {
+        "type": "readPlay",
+        "mode": "drill",
+        "clef": "bass",
+        "labels": "afterMiss",
+        "notes": ["C4"],
+        "prompt": {
+          "en": "Read middle C in the bass clef and play it on your keyboard.",
+          "fr": "Lis le do central en clé de fa et joue-le sur ton clavier.",
+          "es": "Lee el do central en clave de fa y tócalo en tu teclado.",
+          "it": "Leggi il do centrale in chiave di basso e suonalo sulla tua tastiera."
+        }
+      },
+      {
+        "type": "question",
+        "prompt": {
+          "en": "Middle C written in the treble clef and in the bass clef is…",
+          "fr": "Le do central écrit en clé de sol et en clé de fa, c'est…",
+          "es": "El do central escrito en clave de sol y en clave de fa es…",
+          "it": "Il do centrale scritto in chiave di violino e in chiave di basso è…"
+        },
+        "options": [
+          {
+            "en": "One key, readable in both clefs",
+            "fr": "Une seule touche, lisible dans les deux clés",
+            "es": "Una sola tecla, legible en las dos claves",
+            "it": "Un solo tasto, leggibile in entrambe le chiavi"
+          },
+          {
+            "en": "Two different keys",
+            "fr": "Deux touches différentes",
+            "es": "Dos teclas diferentes",
+            "it": "Due tasti diversi"
+          }
+        ],
+        "answerIndex": 0,
+        "feedback": {
+          "en": "Exactly — one key, two ways to write it. That's the bridge between your two hands.",
+          "fr": "Exactement — une seule touche, deux façons de l'écrire. C'est le pont entre tes deux mains.",
+          "es": "Exacto — una sola tecla, dos maneras de escribirla. Ese es el puente entre tus dos manos.",
+          "it": "Esatto — un solo tasto, due modi di scriverlo. È il ponte tra le tue due mani."
+        }
+      },
+      {
+        "type": "text",
+        "text": {
+          "en": "Middle C is the bridge: one key, written below the treble staff or above the bass staff.",
+          "fr": "Le do central est le pont : une seule touche, écrite sous la portée de sol ou au-dessus de la portée de fa.",
+          "es": "El do central es el puente: una sola tecla, escrita debajo de la clave de sol o encima de la clave de fa.",
+          "it": "Il do centrale è il ponte: un solo tasto, scritto sotto la chiave di violino o sopra la chiave di basso."
+        }
+      }
+    ]
+  }
+}

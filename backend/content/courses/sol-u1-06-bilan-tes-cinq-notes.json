@@ -1,0 +1,110 @@
+{
+  "id": "sol-u1-06-bilan-tes-cinq-notes",
+  "status": "published",
+  "instrument": "piano",
+  "track": "solfege",
+  "level": "beginner",
+  "unit": "u1",
+  "unitTitle": {
+    "en": "The staff and your first notes",
+    "fr": "La portée et tes premières notes",
+    "es": "El pentagrama y tus primeras notas",
+    "it": "Il pentagramma e le tue prime note"
+  },
+  "sortOrder": 106,
+  "schemaVersion": 2,
+  "title": {
+    "en": "Checkpoint: your first five notes",
+    "fr": "Bilan : tes cinq premières notes",
+    "es": "Repaso: tus cinco primeras notas",
+    "it": "Ripasso: le tue prime cinque note"
+  },
+  "content": {
+    "schemaVersion": 2,
+    "id": "sol-u1-06-bilan-tes-cinq-notes",
+    "instrument": "piano",
+    "track": "solfege",
+    "level": "beginner",
+    "title": {
+      "en": "Checkpoint: your first five notes",
+      "fr": "Bilan : tes cinq premières notes",
+      "es": "Repaso: tus cinco primeras notas",
+      "it": "Ripasso: le tue prime cinque note"
+    },
+    "summary": {
+      "en": "Review C to G and play a real tune",
+      "fr": "Révise de do à sol et joue une vraie mélodie",
+      "es": "Repasa de do a sol y toca una melodía de verdad",
+      "it": "Ripassa da do a sol e suona una vera melodia"
+    },
+    "blocks": [
+      {
+        "type": "text",
+        "text": {
+          "en": "Nothing new today — you already know C, D, E, F and G. Let's prove it, and end with a real tune.",
+          "fr": "Rien de nouveau aujourd'hui — tu connais déjà do, ré, mi, fa et sol. Prouvons-le, et finissons sur une vraie mélodie.",
+          "es": "Hoy no hay nada nuevo: ya conoces do, re, mi, fa y sol. Vamos a demostrarlo y a terminar con una melodía de verdad.",
+          "it": "Oggi niente di nuovo: conosci già do, re, mi, fa e sol. Dimostriamolo, e chiudiamo con una vera melodia."
+        }
+      },
+      {
+        "type": "nameNote",
+        "clef": "treble",
+        "choiceCount": 3,
+        "notes": ["C4", "E4", "G4", "D4", "F4"],
+        "prompt": {
+          "en": "All five notes, shuffled. What is this note called? Tap a name to hear it.",
+          "fr": "Tes cinq notes, mélangées. Comment s'appelle celle-ci ? Touche un nom pour l'entendre.",
+          "es": "Tus cinco notas, mezcladas. ¿Cómo se llama esta? Toca un nombre para oírla.",
+          "it": "Le tue cinque note, mescolate. Come si chiama questa? Tocca un nome per sentirla."
+        }
+      },
+      {
+        "type": "readPlay",
+        "mode": "drill",
+        "clef": "treble",
+        "labels": "never",
+        "notes": ["E4", "C4", "G4", "F4", "D4"],
+        "prompt": {
+          "en": "No labels this time: read the note and play it.",
+          "fr": "Sans étiquettes cette fois : lis la note et joue-la.",
+          "es": "Esta vez sin etiquetas: lee la nota y tócala.",
+          "it": "Questa volta senza etichette: leggi la nota e suonala."
+        }
+      },
+      {
+        "type": "placeNote",
+        "clef": "treble",
+        "targets": ["E4", "G4"],
+        "prompt": {
+          "en": "Write like a composer: place E on the bottom line, then G on the clef's line.",
+          "fr": "Écris comme un compositeur : place mi sur la première ligne, puis sol sur la ligne de la clé.",
+          "es": "Escribe como un compositor: coloca mi en la primera línea y luego sol en la línea de la clave.",
+          "it": "Scrivi come un compositore: metti mi sulla prima riga, poi sol sulla riga della chiave."
+        }
+      },
+      {
+        "type": "readPlay",
+        "mode": "melody",
+        "clef": "treble",
+        "labels": "never",
+        "notes": ["C4", "C4", "C4", "D4", "E4", "D4", "C4", "E4", "D4", "D4", "C4"],
+        "prompt": {
+          "en": "A real tune with your five notes: Au clair de la lune. Play it left to right.",
+          "fr": "Une vraie mélodie avec tes cinq notes : Au clair de la lune. Joue-la de gauche à droite.",
+          "es": "Una melodía de verdad con tus cinco notas: Au clair de la lune. Tócala de izquierda a derecha.",
+          "it": "Una vera melodia con le tue cinque note: Au clair de la lune. Suonala da sinistra a destra."
+        }
+      },
+      {
+        "type": "text",
+        "text": {
+          "en": "Bravo — you just read and played real music! Five notes, one tune, and a whole staff that now makes sense to you.",
+          "fr": "Bravo — tu viens de lire et de jouer de la vraie musique ! Cinq notes, une mélodie, et une portée qui a maintenant du sens pour toi.",
+          "es": "¡Bravo! Acabas de leer y tocar música de verdad: cinco notas, una melodía y un pentagrama que ya tiene sentido para ti.",
+          "it": "Bravo — hai appena letto e suonato musica vera! Cinque note, una melodia e un pentagramma che ora ha senso per te."
+        }
+      }
+    ]
+  }
+}

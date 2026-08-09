@@ -1,0 +1,135 @@
+{
+  "id": "sol-u4-01-la-cle-de-fa",
+  "status": "published",
+  "instrument": "piano",
+  "track": "solfege",
+  "level": "intermediate",
+  "unit": "u4",
+  "unitTitle": {
+    "en": "Bass clef and the left hand",
+    "fr": "La clé de fa et la main gauche",
+    "es": "La clave de fa y la mano izquierda",
+    "it": "La chiave di basso e la mano sinistra"
+  },
+  "sortOrder": 401,
+  "schemaVersion": 2,
+  "title": {
+    "en": "The bass clef",
+    "fr": "La clé de fa",
+    "es": "La clave de fa",
+    "it": "La chiave di basso"
+  },
+  "content": {
+    "schemaVersion": 2,
+    "id": "sol-u4-01-la-cle-de-fa",
+    "instrument": "piano",
+    "track": "solfege",
+    "level": "intermediate",
+    "title": {
+      "en": "The bass clef",
+      "fr": "La clé de fa",
+      "es": "La clave de fa",
+      "it": "La chiave di basso"
+    },
+    "summary": {
+      "en": "Meet the bass clef and its F line",
+      "fr": "Découvrir la clé de fa et sa ligne du fa",
+      "es": "Descubrir la clave de fa y su línea del fa",
+      "it": "Scoprire la chiave di basso e la sua riga del fa"
+    },
+    "blocks": [
+      {
+        "type": "text",
+        "text": {
+          "en": "Your left hand plays notes too low for the treble staff. They get their own home: the bass clef, whose two dots frame the F line.",
+          "fr": "Ta main gauche joue des notes trop graves pour la clé de sol. Elles ont leur propre maison : la clé de fa, dont les deux points encadrent la ligne du fa.",
+          "es": "Tu mano izquierda toca notas demasiado graves para la clave de sol. Tienen su propia casa: la clave de fa, cuyos dos puntos enmarcan la línea del fa.",
+          "it": "La tua mano sinistra suona note troppo gravi per la chiave di violino. Hanno una casa tutta loro: la chiave di basso, i cui due puntini incorniciano la riga del fa."
+        }
+      },
+      {
+        "type": "diagram",
+        "id": "bass-clef"
+      },
+      {
+        "type": "staff",
+        "clef": "bass",
+        "labels": true,
+        "elements": [
+          { "p": "F3", "fig": "quarter" }
+        ],
+        "caption": {
+          "en": "F sits on the line that runs between the clef's two dots.",
+          "fr": "Fa se pose sur la ligne qui passe entre les deux points de la clé.",
+          "es": "Fa se apoya en la línea que pasa entre los dos puntos de la clave.",
+          "it": "Fa sta sulla riga che passa tra i due puntini della chiave."
+        }
+      },
+      {
+        "type": "readPlay",
+        "mode": "drill",
+        "clef": "bass",
+        "labels": "always",
+        "notes": ["F3"],
+        "prompt": {
+          "en": "Play the F shown between the two dots of the bass clef.",
+          "fr": "Joue le fa affiché entre les deux points de la clé de fa.",
+          "es": "Toca el fa que aparece entre los dos puntos de la clave de fa.",
+          "it": "Suona il fa mostrato tra i due puntini della chiave di basso."
+        }
+      },
+      {
+        "type": "placeNote",
+        "clef": "bass",
+        "targets": ["F3"],
+        "prompt": {
+          "en": "Tap the line between the clef's two dots to place F.",
+          "fr": "Touche la ligne entre les deux points de la clé pour poser le fa.",
+          "es": "Toca la línea entre los dos puntos de la clave para colocar el fa.",
+          "it": "Tocca la riga tra i due puntini della chiave per posizionare il fa."
+        }
+      },
+      {
+        "type": "nameNote",
+        "clef": "bass",
+        "notes": ["F3"],
+        "prompt": {
+          "en": "What is this note framed by the two dots? Tap a name to hear it.",
+          "fr": "Comment s'appelle cette note encadrée par les deux points ? Touche un nom pour l'entendre.",
+          "es": "¿Cómo se llama esta nota enmarcada por los dos puntos? Toca un nombre para oírla.",
+          "it": "Come si chiama questa nota incorniciata dai due puntini? Tocca un nome per sentirla."
+        }
+      },
+      {
+        "type": "question",
+        "prompt": {
+          "en": "The two dots of the bass clef frame the line of which note?",
+          "fr": "Les deux points de la clé de fa encadrent la ligne de quelle note ?",
+          "es": "¿Los dos puntos de la clave de fa enmarcan la línea de qué nota?",
+          "it": "I due puntini della chiave di basso incorniciano la riga di quale nota?"
+        },
+        "options": [
+          { "en": "F", "fr": "Fa", "es": "Fa", "it": "Fa" },
+          { "en": "C", "fr": "Do", "es": "Do", "it": "Do" },
+          { "en": "G", "fr": "Sol", "es": "Sol", "it": "Sol" }
+        ],
+        "answerIndex": 0,
+        "feedback": {
+          "en": "Yes — the two dots always point to the F line. That is why it is also called the F clef.",
+          "fr": "Oui — les deux points montrent toujours la ligne du fa. C'est pour ça qu'on l'appelle la clé de fa.",
+          "es": "Sí — los dos puntos señalan siempre la línea del fa. Por eso se llama clave de fa.",
+          "it": "Sì — i due puntini indicano sempre la riga del fa: per questo si chiama anche chiave di fa."
+        }
+      },
+      {
+        "type": "text",
+        "text": {
+          "en": "You've met the bass clef: its two dots frame the F line, your left hand's first landmark.",
+          "fr": "Tu as rencontré la clé de fa : ses deux points encadrent la ligne du fa, le premier repère de ta main gauche.",
+          "es": "Ya conoces la clave de fa: sus dos puntos enmarcan la línea del fa, el primer punto de referencia de tu mano izquierda.",
+          "it": "Hai conosciuto la chiave di basso: i suoi due puntini incorniciano la riga del fa, il primo punto di riferimento della tua mano sinistra."
+        }
+      }
+    ]
+  }
+}

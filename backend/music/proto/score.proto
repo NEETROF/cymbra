@@ -338,6 +338,11 @@ message CourseSummary {
   int32 sort_order = 5;
   int32 schema_version = 6;
   string title_json = 7;
+  // Unit grouping within a track/level section: a stable slug (empty =
+  // ungrouped) plus its inline-localized heading ({en,fr,es,it}) as JSON.
+  // Display grouping only — listing order is unchanged.
+  string unit = 8;
+  string unit_title_json = 9;
 }
 
 message Course {
@@ -358,6 +363,29 @@ message GetCourseRequest {
 message GetCourseResponse {
   // Absent when the id is unknown or the course is not published.
   Course course = 1;
+}
+
+// Per-user course completion, cross-device (change: add-notation-courses).
+message CourseProgress {
+  string course_id = 1;
+  bool completed = 2;
+  int32 play_count = 3;
+}
+
+message RecordCourseCompletionRequest {
+  string course_id = 1;
+}
+
+message RecordCourseCompletionResponse {
+  // True only on the FIRST completion of this course (the badge signal).
+  bool newly_completed = 1;
+  int32 play_count = 2;
+}
+
+message GetCourseProgressRequest {}
+
+message GetCourseProgressResponse {
+  repeated CourseProgress progress = 1;
 }
 
 // Admin view of a catalog font (change: add-soundfont-back-office-management):
@@ -534,6 +562,9 @@ service ScoreService {
   // and skips any it does not understand (forward-compatible).
   rpc ListCourses(ListCoursesRequest) returns (ListCoursesResponse);
   rpc GetCourse(GetCourseRequest) returns (GetCourseResponse);
+  // Cross-device course completion (change: add-notation-courses). Owner-scoped.
+  rpc RecordCourseCompletion(RecordCourseCompletionRequest) returns (RecordCourseCompletionResponse);
+  rpc GetCourseProgress(GetCourseProgressRequest) returns (GetCourseProgressResponse);
 
   // SoundFont catalog administration (change: add-soundfont-back-office-management).
   // Music-scope moderator/admin only. Metadata list/edit/delete; adding a font (with

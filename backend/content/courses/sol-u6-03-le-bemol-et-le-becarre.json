@@ -1,0 +1,161 @@
+{
+  "id": "sol-u6-03-le-bemol-et-le-becarre",
+  "status": "published",
+  "instrument": "piano",
+  "track": "solfege",
+  "level": "intermediate",
+  "unit": "u6",
+  "unitTitle": {
+    "en": "Sharps, flats and keys",
+    "fr": "Dièses, bémols et tonalités",
+    "es": "Sostenidos, bemoles y tonalidades",
+    "it": "Diesis, bemolli e tonalità"
+  },
+  "sortOrder": 603,
+  "schemaVersion": 2,
+  "title": {
+    "en": "Flat and natural",
+    "fr": "Le bémol et le bécarre",
+    "es": "El bemol y el becuadro",
+    "it": "Il bemolle e il bequadro"
+  },
+  "content": {
+    "schemaVersion": 2,
+    "id": "sol-u6-03-le-bemol-et-le-becarre",
+    "instrument": "piano",
+    "track": "solfege",
+    "level": "intermediate",
+    "title": {
+      "en": "Flat and natural",
+      "fr": "Le bémol et le bécarre",
+      "es": "El bemol y el becuadro",
+      "it": "Il bemolle e il bequadro"
+    },
+    "summary": {
+      "en": "The flat lowers, the natural cancels",
+      "fr": "Le bémol descend, le bécarre annule",
+      "es": "El bemol baja, el becuadro anula",
+      "it": "Il bemolle abbassa, il bequadro annulla"
+    },
+    "blocks": [
+      {
+        "type": "text",
+        "text": {
+          "en": "A flat (♭) lowers a note by a half step — usually the black key just to the left. And the natural sign (♮) cancels any sharp or flat.",
+          "fr": "Le bémol (♭) descend la note d'un demi-ton — souvent la touche noire juste à gauche. Et le bécarre (♮) annule tout dièse ou bémol.",
+          "es": "El bemol (♭) baja la nota un semitono — a menudo la tecla negra justo a la izquierda. Y el becuadro (♮) anula cualquier sostenido o bemol.",
+          "it": "Il bemolle (♭) abbassa la nota di un semitono — spesso il tasto nero subito a sinistra. E il bequadro (♮) annulla qualsiasi diesis o bemolle."
+        }
+      },
+      {
+        "type": "staff",
+        "clef": "treble",
+        "labels": true,
+        "elements": [
+          { "p": "B4", "fig": "quarter" },
+          { "p": "Bb4", "fig": "quarter" }
+        ],
+        "caption": {
+          "en": "B and B♭ share the middle line — the ♭ tells you to slide a half step down.",
+          "fr": "Si et si♭ partagent la ligne du milieu — le ♭ t'invite à glisser un demi-ton plus bas.",
+          "es": "Si y si♭ comparten la línea central — el ♭ te pide bajar un semitono.",
+          "it": "Si e si♭ condividono la linea centrale — il ♭ ti chiede di scendere di un semitono."
+        }
+      },
+      {
+        "type": "readPlay",
+        "mode": "drill",
+        "clef": "treble",
+        "labels": "always",
+        "notes": ["B4", "Bb4"],
+        "prompt": {
+          "en": "Play the note shown — for B♭, take the black key just left of B.",
+          "fr": "Joue la note affichée — pour si♭, prends la touche noire juste à gauche de si.",
+          "es": "Toca la nota que se muestra — para si♭, usa la tecla negra justo a la izquierda de si.",
+          "it": "Suona la nota mostrata — per si♭, prendi il tasto nero subito a sinistra di si."
+        }
+      },
+      {
+        "type": "nameNote",
+        "clef": "treble",
+        "notes": ["Bb4", "Eb4"],
+        "prompt": {
+          "en": "Name this note — the ♭ in front is part of its name.",
+          "fr": "Nomme cette note — le ♭ devant fait partie de son nom.",
+          "es": "Nombra esta nota — el ♭ delante forma parte de su nombre.",
+          "it": "Dai il nome a questa nota — il ♭ davanti fa parte del suo nome."
+        }
+      },
+      {
+        "type": "earChoice",
+        "notes": ["E4", "Eb4"],
+        "answerId": "down",
+        "choices": [
+          {
+            "id": "up",
+            "label": {
+              "en": "Higher",
+              "fr": "Plus aiguë",
+              "es": "Más aguda",
+              "it": "Più acuta"
+            }
+          },
+          {
+            "id": "down",
+            "label": {
+              "en": "Lower",
+              "fr": "Plus grave",
+              "es": "Más grave",
+              "it": "Più grave"
+            }
+          }
+        ],
+        "prompt": {
+          "en": "Listen to E, then its flat: is the second note higher or lower?",
+          "fr": "Écoute mi, puis son bémol : la deuxième note est-elle plus aiguë ou plus grave ?",
+          "es": "Escucha mi y luego su bemol: ¿la segunda nota es más aguda o más grave?",
+          "it": "Ascolta mi e poi il suo bemolle: la seconda nota è più acuta o più grave?"
+        }
+      },
+      {
+        "type": "question",
+        "prompt": {
+          "en": "What does the natural sign (♮) do?",
+          "fr": "Que fait le bécarre (♮) ?",
+          "es": "¿Qué hace el becuadro (♮)?",
+          "it": "Che cosa fa il bequadro (♮)?"
+        },
+        "options": [
+          {
+            "en": "It cancels a sharp or a flat",
+            "fr": "Il annule un dièse ou un bémol",
+            "es": "Anula un sostenido o un bemol",
+            "it": "Annulla un diesis o un bemolle"
+          },
+          {
+            "en": "It doubles the alteration",
+            "fr": "Il double l'altération",
+            "es": "Duplica la alteración",
+            "it": "Raddoppia l'alterazione"
+          }
+        ],
+        "answerIndex": 0,
+        "feedback": {
+          "en": "Exactly — a natural brings the note back to its plain, unaltered self.",
+          "fr": "Exactement — le bécarre ramène la note à sa version naturelle, sans altération.",
+          "es": "Exacto — el becuadro devuelve la nota a su versión natural, sin alteración.",
+          "it": "Esatto — il bequadro riporta la nota alla sua versione naturale, senza alterazione."
+        }
+      },
+      {
+        "type": "text",
+        "text": {
+          "en": "Flats go down, sharps go up, naturals cancel. You can now read B♭ and E♭ — and hear what the flat does.",
+          "fr": "Le bémol descend, le dièse monte, le bécarre annule. Tu sais maintenant lire si♭ et mi♭ — et entendre l'effet du bémol.",
+          "es": "El bemol baja, el sostenido sube, el becuadro anula. Ya sabes leer si♭ y mi♭ — y oír el efecto del bemol.",
+          "it": "Il bemolle scende, il diesis sale, il bequadro annulla. Ora sai leggere si♭ e mi♭ — e sentire l'effetto del bemolle."
+        }
+      }
+    ]
+  }
+}

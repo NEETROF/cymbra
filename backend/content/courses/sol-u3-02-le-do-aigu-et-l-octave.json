@@ -1,0 +1,145 @@
+{
+  "id": "sol-u3-02-le-do-aigu-et-l-octave",
+  "status": "published",
+  "instrument": "piano",
+  "track": "solfege",
+  "level": "beginner",
+  "unit": "u3",
+  "unitTitle": {
+    "en": "The whole treble staff",
+    "fr": "Toute la clé de sol",
+    "es": "Toda la clave de sol",
+    "it": "Tutta la chiave di violino"
+  },
+  "sortOrder": 302,
+  "schemaVersion": 2,
+  "title": {
+    "en": "High C and the octave",
+    "fr": "Le do aigu et l'octave",
+    "es": "El do agudo y la octava",
+    "it": "Il do acuto e l'ottava"
+  },
+  "content": {
+    "schemaVersion": 2,
+    "id": "sol-u3-02-le-do-aigu-et-l-octave",
+    "instrument": "piano",
+    "track": "solfege",
+    "level": "beginner",
+    "title": {
+      "en": "High C and the octave",
+      "fr": "Le do aigu et l'octave",
+      "es": "El do agudo y la octava",
+      "it": "Il do acuto e l'ottava"
+    },
+    "summary": {
+      "en": "Meet high C and the octave",
+      "fr": "Découvrir le do aigu et l'octave",
+      "es": "Descubrir el do agudo y la octava",
+      "it": "Scoprire il do acuto e l'ottava"
+    },
+    "blocks": [
+      {
+        "type": "text",
+        "text": {
+          "en": "Eight steps above middle C lives another C: same name, higher home. That distance is called an octave.",
+          "fr": "Huit degrés au-dessus du do central habite un autre do : même nom, maison plus haute. Cette distance s'appelle une octave.",
+          "es": "Ocho grados por encima del do central vive otro do: mismo nombre, casa más alta. Esa distancia se llama octava.",
+          "it": "Otto gradini sopra il do centrale abita un altro do: stesso nome, casa più in alto. Quella distanza si chiama ottava."
+        }
+      },
+      {
+        "type": "staff",
+        "clef": "treble",
+        "labels": true,
+        "elements": [
+          { "p": "C4", "fig": "quarter" },
+          { "p": "C5", "fig": "quarter" }
+        ],
+        "caption": {
+          "en": "The same note, one octave apart: low C on its ledger line, high C in the third space.",
+          "fr": "La même note à une octave d'écart : do grave sur sa petite ligne, do aigu dans le troisième interligne.",
+          "es": "La misma nota a una octava de distancia: do grave en su pequeña línea, do agudo en el tercer espacio.",
+          "it": "La stessa nota a un'ottava di distanza: do grave sulla sua lineetta, do acuto nel terzo spazio."
+        }
+      },
+      {
+        "type": "readPlay",
+        "mode": "drill",
+        "clef": "treble",
+        "labels": "afterMiss",
+        "notes": ["C5", "C4", "C5"],
+        "prompt": {
+          "en": "High C or low C? Play the one the staff shows.",
+          "fr": "Do aigu ou do grave ? Joue celui que montre la portée.",
+          "es": "¿Do agudo o do grave? Toca el que muestra el pentagrama.",
+          "it": "Do acuto o do grave? Suona quello che mostra il pentagramma."
+        }
+      },
+      {
+        "type": "earChoice",
+        "notes": ["C4", "C5"],
+        "answerId": "up",
+        "choices": [
+          {
+            "id": "up",
+            "label": {
+              "en": "Higher",
+              "fr": "Plus aiguë",
+              "es": "Más aguda",
+              "it": "Più acuta"
+            }
+          },
+          {
+            "id": "down",
+            "label": {
+              "en": "Lower",
+              "fr": "Plus grave",
+              "es": "Más grave",
+              "it": "Più grave"
+            }
+          }
+        ],
+        "prompt": {
+          "en": "Two Cs in a row: is the second one higher or lower?",
+          "fr": "Deux do à la suite : le deuxième est-il plus aigu ou plus grave ?",
+          "es": "Dos do seguidos: ¿el segundo es más agudo o más grave?",
+          "it": "Due do di fila: il secondo è più acuto o più grave?"
+        }
+      },
+      {
+        "type": "readPlay",
+        "mode": "melody",
+        "clef": "treble",
+        "labels": "never",
+        "notes": ["C4", "E4", "G4", "C5"],
+        "prompt": {
+          "en": "Climb the arpeggio: C, E, G, then land on high C.",
+          "fr": "Grimpe l'arpège : do, mi, sol, puis pose-toi sur le do aigu.",
+          "es": "Sube el arpegio: do, mi, sol, y aterriza en el do agudo.",
+          "it": "Sali l'arpeggio: do, mi, sol, e atterra sul do acuto."
+        }
+      },
+      {
+        "type": "nameNote",
+        "clef": "treble",
+        "choiceCount": 3,
+        "notes": ["C5", "B4"],
+        "prompt": {
+          "en": "Third space or middle line? Name the note you see.",
+          "fr": "Troisième interligne ou ligne du milieu ? Nomme la note affichée.",
+          "es": "¿Tercer espacio o línea central? Nombra la nota que ves.",
+          "it": "Terzo spazio o riga centrale? Dai un nome alla nota che vedi."
+        }
+      },
+      {
+        "type": "text",
+        "text": {
+          "en": "You found high C and learned the octave — two Cs, eight steps apart.",
+          "fr": "Tu as trouvé le do aigu et appris l'octave — deux do à huit degrés d'écart.",
+          "es": "Encontraste el do agudo y aprendiste la octava: dos do a ocho grados de distancia.",
+          "it": "Hai trovato il do acuto e imparato l'ottava: due do a otto gradini di distanza."
+        }
+      }
+    ]
+  }
+}

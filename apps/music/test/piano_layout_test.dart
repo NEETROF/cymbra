@@ -108,4 +108,31 @@ void main() {
       });
     });
   });
+
+  group('lessonRange', () {
+    test('always spans at least 66 keys, centred on the targets', () {
+      final r = PianoLayout.lessonRange(const [60]); // a single middle C
+      expect(r.high - r.low + 1, greaterThanOrEqualTo(66));
+      expect(r.low, lessThan(60));
+      expect(r.high, greaterThan(60));
+      // Both ends land on white keys.
+      expect(PianoLayout.isBlack(r.low), isFalse);
+      expect(PianoLayout.isBlack(r.high), isFalse);
+    });
+
+    test('a wide melody keeps its own span plus context', () {
+      final r = PianoLayout.lessonRange(const [48, 84]); // C3..C6
+      expect(r.low, lessThanOrEqualTo(46));
+      expect(r.high, greaterThanOrEqualTo(86));
+    });
+
+    test('stays inside the 88 keys at the extremes', () {
+      final low = PianoLayout.lessonRange(const [21]);
+      expect(low.low, greaterThanOrEqualTo(21));
+      expect(low.high - low.low + 1, greaterThanOrEqualTo(66));
+      final high = PianoLayout.lessonRange(const [108]);
+      expect(high.high, lessThanOrEqualTo(108));
+      expect(high.high - high.low + 1, greaterThanOrEqualTo(66));
+    });
+  });
 }

@@ -151,6 +151,7 @@ pub async fn purge_user(admin_pool: &PgPool, user_id: &str) -> anyhow::Result<()
         "music.curation_points",
         "music.curation_grants",
         "music.score_engagements",
+        "music.course_progress",
     ] {
         sqlx::query(&format!("DELETE FROM {table} WHERE user_id = $1"))
             .bind(uid)

@@ -37,6 +37,38 @@ class PianoLayout {
 
   static bool isBlack(int pitch) => !_whiteSemitones.contains(pitch % 12);
 
+  /// The keyboard span a course exercise draws for [targets]: the notes plus
+  /// two keys of context, widened symmetrically to at least [minKeys] keys —
+  /// a lesson keyboard must read as a real piano (about five and a half
+  /// octaves by default), never a handful of giant keys — then snapped
+  /// outward to white keys and clamped to the 88-key range.
+  static ({int low, int high}) lessonRange(
+    Iterable<int> targets, {
+    int minKeys = 66,
+  }) {
+    var low = 60;
+    var high = 60;
+    var first = true;
+    for (final p in targets) {
+      if (first || p < low) low = p;
+      if (first || p > high) high = p;
+      first = false;
+    }
+    low = (low - 2).clamp(21, 108);
+    high = (high + 2).clamp(21, 108);
+    while (high - low + 1 < minKeys && (low > 21 || high < 108)) {
+      if (low > 21) low--;
+      if (high - low + 1 < minKeys && high < 108) high++;
+    }
+    while (isBlack(low) && low > 21) {
+      low--;
+    }
+    while (isBlack(high) && high < 108) {
+      high++;
+    }
+    return (low: low, high: high);
+  }
+
   int get _whiteCount {
     var count = 0;
     for (var p = lowPitch; p <= highPitch; p++) {

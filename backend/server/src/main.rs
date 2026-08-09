@@ -322,6 +322,9 @@ async fn main() -> anyhow::Result<()> {
                     // server-stored manifests read by ListCourses/GetCourse.
                     let course_repo: Arc<dyn cymbra_music::CourseRepo> =
                         Arc::new(cymbra_music::PgCourseRepo::new(music_pool.clone()));
+                    // Per-user course completion, cross-device (change: add-notation-courses).
+                    let course_progress: Arc<dyn cymbra_music::CourseProgressStore> =
+                        Arc::new(cymbra_music::PgCourseProgressStore::new(music_pool.clone()));
                     let module = Arc::new(
                         ScoreModule::new(
                             Arc::new(PgUserScoreRepo::new(music_pool.clone())),
@@ -352,6 +355,7 @@ async fn main() -> anyhow::Result<()> {
                             .with_soundfonts(soundfont_repo.clone())
                             .with_soundfont_store_opt(soundfont_store.clone())
                             .with_courses(course_repo.clone())
+                            .with_course_progress(course_progress.clone())
                             .with_rewards(rewards_module)
                             // Soundfont uploader attribution (change:
                             // add-soundfont-uploader-attribution).

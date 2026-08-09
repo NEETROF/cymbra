@@ -1,0 +1,163 @@
+{
+  "id": "sol-u5-01-les-croches",
+  "status": "published",
+  "instrument": "piano",
+  "track": "solfege",
+  "level": "intermediate",
+  "unit": "u5",
+  "unitTitle": {
+    "en": "Eighth notes and new meters",
+    "fr": "Croches et nouvelles mesures",
+    "es": "Corcheas y nuevos compases",
+    "it": "Crome e nuovi tempi"
+  },
+  "sortOrder": 501,
+  "schemaVersion": 2,
+  "title": {
+    "en": "Eighth notes",
+    "fr": "Les croches",
+    "es": "Las corcheas",
+    "it": "Le crome"
+  },
+  "content": {
+    "schemaVersion": 2,
+    "id": "sol-u5-01-les-croches",
+    "instrument": "piano",
+    "track": "solfege",
+    "level": "intermediate",
+    "title": {
+      "en": "Eighth notes",
+      "fr": "Les croches",
+      "es": "Las corcheas",
+      "it": "Le crome"
+    },
+    "summary": {
+      "en": "Read and tap eighth notes: two per beat",
+      "fr": "Lire et taper les croches : deux par temps",
+      "es": "Leer y tocar las corcheas: dos por tiempo",
+      "it": "Leggere e battere le crome: due per movimento"
+    },
+    "blocks": [
+      {
+        "type": "text",
+        "text": {
+          "en": "So far every note took at least one beat. Meet the eighth note: two of them share a single beat.",
+          "fr": "Jusqu'ici, chaque note durait au moins un temps. Voici la croche : elles se mettent à deux pour un seul temps.",
+          "es": "Hasta ahora cada nota duraba al menos un tiempo. Llega la corchea: dos de ellas comparten un solo tiempo.",
+          "it": "Finora ogni nota durava almeno un movimento. Ecco la croma: in due si dividono un solo movimento."
+        }
+      },
+      {
+        "type": "diagram",
+        "id": "note-eighth"
+      },
+      {
+        "type": "staff",
+        "clef": "treble",
+        "time": { "beats": 4, "beatType": 4 },
+        "elements": [
+          { "p": "C4", "fig": "quarter" },
+          { "p": "D4", "fig": "eighth" },
+          { "p": "E4", "fig": "eighth" },
+          { "p": "F4", "fig": "quarter" },
+          { "p": "G4", "fig": "quarter" }
+        ],
+        "caption": {
+          "en": "D and E share beat two: two eighth notes, one beat.",
+          "fr": "Ré et mi se partagent le deuxième temps : deux croches pour un temps.",
+          "es": "Re y mi comparten el segundo tiempo: dos corcheas para un tiempo.",
+          "it": "Re e mi si dividono il secondo movimento: due crome per un movimento."
+        }
+      },
+      {
+        "type": "rhythmTap",
+        "pattern": [
+          { "fig": "quarter" },
+          { "fig": "eighth" },
+          { "fig": "eighth" },
+          { "fig": "quarter" },
+          { "fig": "quarter" }
+        ],
+        "beats": 4,
+        "beatType": 4,
+        "bpm": 70,
+        "prompt": {
+          "en": "Tap and count 'ONE, two-and, three, four' — the two eighths share beat two.",
+          "fr": "Tape en comptant « UN, deux-et, trois, quatre » — les deux croches se partagent le deuxième temps.",
+          "es": "Toca contando 'UN, dos-y, tres, cuatro': las dos corcheas comparten el segundo tiempo.",
+          "it": "Batti contando 'UNO, due-e, tre, quattro': le due crome si dividono il secondo movimento."
+        }
+      },
+      {
+        "type": "question",
+        "prompt": {
+          "en": "How many eighth notes fit in one beat (a quarter note)?",
+          "fr": "Combien de croches tiennent dans un temps (une noire) ?",
+          "es": "¿Cuántas corcheas caben en un tiempo (una negra)?",
+          "it": "Quante crome stanno in un movimento (una semiminima)?"
+        },
+        "options": [
+          { "en": "Two", "fr": "Deux", "es": "Dos", "it": "Due" },
+          { "en": "Three", "fr": "Trois", "es": "Tres", "it": "Tre" },
+          { "en": "Four", "fr": "Quatre", "es": "Cuatro", "it": "Quattro" }
+        ],
+        "answerIndex": 0,
+        "feedback": {
+          "en": "Two eighth notes share one beat: count 'one-and'.",
+          "fr": "Deux croches se partagent un temps : compte « un-et ».",
+          "es": "Dos corcheas comparten un tiempo: cuenta 'un-y'.",
+          "it": "Due crome si dividono un movimento: conta 'uno-e'."
+        }
+      },
+      {
+        "type": "rhythmTap",
+        "pattern": [
+          { "fig": "eighth" },
+          { "fig": "eighth" },
+          { "fig": "eighth" },
+          { "fig": "eighth" },
+          { "fig": "quarter" },
+          { "fig": "quarter" }
+        ],
+        "beats": 4,
+        "beatType": 4,
+        "bpm": 70,
+        "prompt": {
+          "en": "Now two pairs: 'one-and, two-and, three, four'. Keep the eighths perfectly even.",
+          "fr": "Maintenant deux paires : « un-et, deux-et, trois, quatre ». Garde les croches bien régulières.",
+          "es": "Ahora dos parejas: 'un-y, dos-y, tres, cuatro'. Mantén las corcheas bien parejas.",
+          "it": "Ora due coppie: 'uno-e, due-e, tre, quattro'. Tieni le crome ben regolari."
+        }
+      },
+      {
+        "type": "rhythmTap",
+        "pattern": [
+          { "fig": "eighth" },
+          { "fig": "eighth" },
+          { "fig": "quarter" },
+          { "fig": "eighth" },
+          { "fig": "eighth" },
+          { "fig": "quarter" }
+        ],
+        "beats": 4,
+        "beatType": 4,
+        "bpm": 70,
+        "prompt": {
+          "en": "Last mix: 'one-and, two, three-and, four' — eighths and quarters take turns.",
+          "fr": "Dernier mélange : « un-et, deux, trois-et, quatre » — croches et noires alternent.",
+          "es": "Última mezcla: 'un-y, dos, tres-y, cuatro': corcheas y negras se alternan.",
+          "it": "Ultimo mix: 'uno-e, due, tre-e, quattro': crome e semiminime si alternano."
+        }
+      },
+      {
+        "type": "text",
+        "text": {
+          "en": "You can now split the beat in two: eighth notes, counted 'one-and'. Your rhythms just got twice as lively.",
+          "fr": "Tu sais maintenant couper le temps en deux : les croches, comptées « un-et ». Tes rythmes viennent de gagner en vivacité.",
+          "es": "Ya sabes partir el tiempo en dos: las corcheas, contadas 'un-y'. Tus ritmos acaban de ganar chispa.",
+          "it": "Ora sai dividere il movimento in due: le crome, contate 'uno-e'. I tuoi ritmi sono appena diventati più vivaci."
+        }
+      }
+    ]
+  }
+}
