@@ -28,8 +28,8 @@
 ## 4. Interactive blocks: playKey + score
 
 - [x] 4.1 `playKey` block (`lib/widgets/play_key_view.dart`): prompt + mini on-screen keyboard (`PianoLayout`/`PianoKeyboardPainter`) + MIDI listener (`midiService.events()`); playing the target note(s) via tap **or** MIDI advances (`onSatisfied`); Next is always a non-blocking skip; the target keys stay highlighted as the standing hint
-- [ ] 4.2 `score` block: parse inline MusicXML → `ScoreDocument`, engrave via `PartitionPainter`; when `playable`, embed the player/scoring so the user performs it (gate = performed)
-- [ ] 4.3 Widget-test with faked MIDI/keyboard + scoring seams: correct input advances `playKey`, skip works; `score` renders and (playable) can complete
+- [x] 4.2 `score` block (`lib/widgets/score_block_view.dart`): parse inline MusicXML via the `notationEngineProvider` seam → `ScoreDocument`, engrave via `PartitionPainter` (bounded, scrollable). Static render done; the `playable` **embedded performance** (gate = performed) is a documented follow-up
+- [x] 4.3 Widget-tested with faked seams: `playKey` — keyboard shown, MIDI note advances, wrong note doesn't, Next skips (`play_key_view_test.dart`); `score` — excerpt engraves via a fake notation engine, skippable (`score_block_view_test.dart`)
 
 ## 5. Cross-device completion + badge
 

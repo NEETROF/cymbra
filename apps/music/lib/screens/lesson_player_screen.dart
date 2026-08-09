@@ -22,6 +22,7 @@ import '../state/course_completion_notifier.dart';
 import '../theme/cymbra_theme.dart';
 import '../widgets/course_diagram.dart';
 import '../widgets/play_key_view.dart';
+import '../widgets/score_block_view.dart';
 
 /// Opens the lesson player on [courseId] (change: add-notation-courses).
 void openLessonPlayer(BuildContext context, String courseId) =>
@@ -33,8 +34,8 @@ void openLessonPlayer(BuildContext context, String courseId) =>
 
 /// Runs a course's blocks at the user's pace: read, watch, answer. Skippable and
 /// leaveable at any time; reaching the end marks the course completed (via
-/// [CourseCompletion]) and it stays replayable. Display, quiz and `playKey`
-/// blocks render here; the `score` block shows a placeholder until tranche 4b.
+/// [CourseCompletion]) and it stays replayable. All block types render here
+/// (text, diagram, image/video, question, playKey, score).
 class LessonPlayerScreen extends ConsumerStatefulWidget {
   const LessonPlayerScreen({super.key, required this.courseId});
 
@@ -189,7 +190,7 @@ class _ControlBar extends StatelessWidget {
 }
 
 /// Renders one block. `playKey` is interactive (validated input advances via
-/// [onSatisfied]); `score` shows a placeholder until tranche 4b; media
+/// [onSatisfied]); `score` engraves the inline MusicXML excerpt; media
 /// (`image`/`video`) render from their URL, degrading to a caption card.
 class _BlockView extends StatelessWidget {
   const _BlockView({
@@ -241,10 +242,12 @@ class _BlockView extends StatelessWidget {
         prompt: resolveInline(prompt, lang),
         onSatisfied: onSatisfied,
       ),
-      ScoreBlock(:final prompt) => _Placeholder(
-        icon: Icons.music_note_outlined,
-        text: resolveInline(prompt, lang),
-      ),
+      ScoreBlock(:final musicXml, :final playable, :final prompt) =>
+        ScoreBlockView(
+          musicXml: musicXml,
+          playable: playable,
+          prompt: resolveInline(prompt, lang),
+        ),
       UnsupportedBlock() => const SizedBox.shrink(),
     };
   }
@@ -303,34 +306,6 @@ class _Media extends StatelessWidget {
       ],
     );
   }
-}
-
-class _Placeholder extends StatelessWidget {
-  const _Placeholder({required this.icon, required this.text});
-
-  final IconData icon;
-  final String text;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(16),
-    decoration: BoxDecoration(
-      color: CymbraColors.surfaceContainerHigh,
-      borderRadius: BorderRadius.circular(12),
-    ),
-    child: Row(
-      children: [
-        Icon(icon, color: CymbraColors.secondary),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Text(
-            text,
-            style: const TextStyle(color: CymbraColors.onSurface, fontSize: 15),
-          ),
-        ),
-      ],
-    ),
-  );
 }
 
 /// A multiple-choice question: immediate feedback on an answer, but the user can
