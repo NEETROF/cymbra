@@ -110,6 +110,9 @@ enum _KeyState {
 
   /// Toggled on in a selection exercise (a course chord-building step).
   selected,
+
+  /// Just judged wrong (a course exercise's brief error flash).
+  wrong,
 }
 
 /// Draws the piano keyboard at the bottom of the screen with feedback: keys the
@@ -156,6 +159,11 @@ class PianoKeyboardPainter extends CustomPainter {
   /// flash; a held key still shows its press over the selection.
   final Set<int> selectedNotes;
 
+  /// Keys a course exercise just judged wrong — a brief coral flash. Beats
+  /// every state except an actually-correct hold, per the colour discipline:
+  /// a mistake must never wear a success colour.
+  final Set<int> wrongNotes;
+
   /// Whether to draw the C octave anchors (Do4/C4 + the middle-C dot). Lesson
   /// keyboards turn them off: under a highlighted key the middle-C puck reads
   /// as a second target, not as orientation.
@@ -167,6 +175,7 @@ class PianoKeyboardPainter extends CustomPainter {
     this.requiredNotes = const {},
     this.leftHandNotes = const {},
     this.selectedNotes = const {},
+    this.wrongNotes = const {},
     this.chosenWindow,
     this.noteLabels = const {},
     this.solfege = false,
@@ -183,6 +192,7 @@ class PianoKeyboardPainter extends CustomPainter {
     final required = requiredNotes.contains(pitch);
     final active = activeNotes.contains(pitch);
     if (required && active) return _KeyState.correct;
+    if (wrongNotes.contains(pitch)) return _KeyState.wrong;
     if (required) {
       return leftHandNotes.contains(pitch)
           ? _KeyState.expectedLeft
@@ -203,8 +213,10 @@ class PianoKeyboardPainter extends CustomPainter {
     _KeyState.expectedRight => _pulsed(CymbraColors.handRight),
     _KeyState.expectedLeft => _pulsed(CymbraColors.handLeft),
     _KeyState.pressed => CymbraColors.primaryContainer,
-    // Light like the expected highlights, so key labels stay readable on it.
-    _KeyState.selected => CymbraColors.secondary,
+    // Chosen-but-not-yet-judged: the light lilac reads "marked", far from the
+    // success green a validated chord earns (and labels stay readable on it).
+    _KeyState.selected => CymbraColors.primary,
+    _KeyState.wrong => CymbraColors.error,
     _KeyState.idle =>
       isBlack ? CymbraColors.pianoBlack : CymbraColors.pianoWhite,
   };
@@ -451,6 +463,7 @@ class PianoKeyboardPainter extends CustomPainter {
       old.requiredNotes != requiredNotes ||
       old.leftHandNotes != leftHandNotes ||
       old.selectedNotes != selectedNotes ||
+      old.wrongNotes != wrongNotes ||
       old.chosenWindow != chosenWindow ||
       !mapEquals(old.noteLabels, noteLabels) ||
       old.solfege != solfege ||

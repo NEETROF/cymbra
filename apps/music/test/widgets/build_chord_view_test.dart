@@ -155,10 +155,11 @@ void main() {
     await tapKey(tester, 64);
     await tapKey(tester, 65); // F4 — wrong
 
-    // The wrong attempt keeps the selection, flashes only the stray key, and
-    // never shows a success state.
+    // The wrong attempt keeps the selection, flashes only the stray key in
+    // the ERROR colour, and never shows a success state.
     expect(painter(tester).selectedNotes, {60, 64, 65});
-    expect(painter(tester).activeNotes, {65});
+    expect(painter(tester).wrongNotes, {65});
+    expect(painter(tester).activeNotes, isEmpty);
     expect(painter(tester).requiredNotes, isEmpty);
     expect(find.byIcon(Icons.check_circle), findsNothing);
 
@@ -167,8 +168,8 @@ void main() {
     expect(noteOnPitches().sublist(3), [60, 64, 65]);
 
     // Flash over, selection still editable and intact.
-    await tester.pump(const Duration(milliseconds: 600));
-    expect(painter(tester).activeNotes, isEmpty);
+    await tester.pump(const Duration(milliseconds: 700));
+    expect(painter(tester).wrongNotes, isEmpty);
     expect(painter(tester).selectedNotes, {60, 64, 65});
 
     // Fix it: F4 off, G4 on → completes, but the miss cost flawless.

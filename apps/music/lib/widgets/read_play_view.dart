@@ -75,8 +75,12 @@ class _ReadPlayViewState extends ConsumerState<ReadPlayView> {
   /// pitch in a chord still needs each of its entries.
   final Set<int> _doneIndexes = {};
 
-  /// Momentary press flash on the keyboard (any key, right or wrong).
+  /// Momentary press flash on the keyboard (a right or free press).
   final Set<int> _held = {};
+
+  /// Momentary coral flash on a judged-wrong key — a mistake must never wear
+  /// a neutral or success colour.
+  final Set<int> _wrongFlash = {};
 
   /// Wrong keys pressed on the *current* target — two of them reveal the
   /// note-name help in [LessonLabelMode.afterMiss].
@@ -126,24 +130,35 @@ class _ReadPlayViewState extends ConsumerState<ReadPlayView> {
     // Screen taps must be heard; a MIDI instrument already sounds acoustically,
     // so echoing it would double every note.
     if (fromScreen) _sounder.tap(pitch);
-    setState(() => _held.add(pitch));
+    // Judge before flashing: a wrong key flashes coral, never a colour that
+    // could read as accepted. Free presses during the validation beat stay
+    // neutral.
+    final setIdx = widget.block.mode == ReadPlayMode.set
+        ? _matchInSet(pitch)
+        : null;
+    final wrong =
+        !_advancing &&
+        (widget.block.mode == ReadPlayMode.set
+            ? setIdx == null
+            : pitch != _notes[_index.clamp(0, _notes.length - 1)].midi);
+    final flash = wrong ? _wrongFlash : _held;
+    setState(() => flash.add(pitch));
     _after(const Duration(milliseconds: 260), () {
-      setState(() => _held.remove(pitch));
+      setState(() => flash.remove(pitch));
     });
     if (_advancing) return;
 
     if (widget.block.mode == ReadPlayMode.set) {
-      final idx = _matchInSet(pitch);
-      if (idx == null) {
+      if (setIdx == null) {
         _miss();
         return;
       }
-      setState(() => _doneIndexes.add(idx));
+      setState(() => _doneIndexes.add(setIdx));
       if (_doneIndexes.length == _notes.length) _complete();
       return;
     }
 
-    if (pitch != _notes[_index].midi) {
+    if (wrong) {
       _miss();
       return;
     }
@@ -309,6 +324,7 @@ class _ReadPlayViewState extends ConsumerState<ReadPlayView> {
           rangeTargets: [for (final p in _notes) p.midi],
           activeNotes: _held,
           requiredNotes: required,
+          wrongNotes: _wrongFlash,
           noteLabels: _labels(context, required),
           solfege: naming.solfege,
           frenchRe: naming.frenchRe,

@@ -70,6 +70,7 @@ class _BuildChordViewState extends ConsumerState<BuildChordView> {
   Set<int> _selection = const {};
   Set<int> _active = const {};
   Set<int> _required = const {};
+  Set<int> _wrong = const {};
 
   StreamSubscription<MidiEvent>? _sub;
   final Set<Timer> _timers = {};
@@ -148,13 +149,14 @@ class _BuildChordViewState extends ConsumerState<BuildChordView> {
     } else {
       _missed = true;
       _validating = true;
-      // Flash only the keys that don't belong — never a success colour.
-      setState(() => _active = {..._selection.difference(_targets)});
+      // Flash only the keys that don't belong, in the ERROR colour — a wrong
+      // note must never look validated.
+      setState(() => _wrong = {..._selection.difference(_targets)});
       // Strum what was actually built, so the learner hears *why* it's wrong.
       _sounder.playSequence(_selection.toList()..sort(), gapMs: 90);
-      _after(const Duration(milliseconds: 500), () {
+      _after(const Duration(milliseconds: 600), () {
         setState(() {
-          _active = const {};
+          _wrong = const {};
           _validating = false;
         });
       });
@@ -206,6 +208,7 @@ class _BuildChordViewState extends ConsumerState<BuildChordView> {
           activeNotes: _active,
           requiredNotes: _required,
           selectedNotes: _selection,
+          wrongNotes: _wrong,
           onKeyDown: (pitch) => _toggle(pitch, sound: true),
         ),
       ],

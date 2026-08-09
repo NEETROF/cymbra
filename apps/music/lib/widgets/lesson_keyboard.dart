@@ -34,6 +34,7 @@ class LessonKeyboard extends StatefulWidget {
     this.activeNotes = const {},
     this.requiredNotes = const {},
     this.selectedNotes = const {},
+    this.wrongNotes = const {},
     this.noteLabels = const {},
     this.solfege = false,
     this.frenchRe = false,
@@ -49,6 +50,9 @@ class LessonKeyboard extends StatefulWidget {
   final Set<int> activeNotes;
   final Set<int> requiredNotes;
   final Set<int> selectedNotes;
+
+  /// Keys just judged wrong — the painter's brief coral flash.
+  final Set<int> wrongNotes;
   final Map<int, String> noteLabels;
   final bool solfege;
   final bool frenchRe;
@@ -141,6 +145,7 @@ class _LessonKeyboardState extends State<LessonKeyboard>
                 activeNotes: {...widget.activeNotes},
                 requiredNotes: {...widget.requiredNotes},
                 selectedNotes: {...widget.selectedNotes},
+                wrongNotes: {...widget.wrongNotes},
                 noteLabels: widget.noteLabels,
                 solfege: widget.solfege,
                 frenchRe: widget.frenchRe,
