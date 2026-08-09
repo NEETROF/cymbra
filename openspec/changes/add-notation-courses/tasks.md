@@ -12,10 +12,10 @@
 
 ## 2. Client: manifest model + forward-compatible block engine
 
-- [ ] 2.1 Freezed `CourseManifest` (`schemaVersion`, `id`, **`instrument`** e.g. `piano`, **`track`**, **`level`**, inline-i18n `title`/`summary`, `blocks[]`) and a **Block** union: `text`, `diagram`, `image`, `video`, `question`, `playKey`, `score`, plus an `unsupported` fallback (interactive blocks instrument-scoped)
-- [ ] 2.2 Defensive parser: unknown block `type` (or unsupported capability) → `unsupported` (skipped at play time), unknown top-level `schemaVersion` → course declined; inline-i18n resolver (current locale, fallback `en`)
-- [ ] 2.3 Course-source seam (gRPC client) + Riverpod provider for the course list, with a local cache for offline
-- [ ] 2.4 Unit-test parsing: valid manifest → ordered blocks; **injected unknown block still yields a completable course**; schema-version decline; i18n fallback; cache round-trip
+- [x] 2.1 Freezed `CourseManifest` (`schemaVersion`, `id`, `instrument`, `track`, `level`, inline-i18n `title`/`summary`, `blocks[]`) and a **Block** union: `text`, `diagram`, `image`, `video`, `question`, `playKey`, `score`, plus an `unsupported` fallback (`lib/courses/course_manifest.dart`)
+- [x] 2.2 Defensive parser: unknown block `type` → `unsupported` (skipped at play time), malformed known block → `unsupported` (never throws), unknown/absent top-level `schemaVersion` → course declined (null); inline-i18n resolver (`resolveInline`, current locale → `en` → any)
+- [ ] 2.3 Course-source seam (gRPC client `ListCourses`/`GetCourse`) + Riverpod provider for the course list, with a local cache for offline
+- [x] 2.4 Unit-tested parsing (`test/courses/course_manifest_test.dart`): valid manifest → ordered typed blocks; **injected unknown block still yields a completable course**; malformed-block degradation; schema-version decline; i18n fallback. (Cache round-trip lands with §2.3.)
 
 ## 3. Home "Cours" section + lesson player (display + quiz blocks)
 
