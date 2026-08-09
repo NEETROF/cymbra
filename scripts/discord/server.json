@@ -163,6 +163,7 @@
     { "channel": "scores-and-soundfonts", "name": "Cymbra backend" },
     { "channel": "music-stats",           "name": "Cymbra backend" },
     { "channel": "music-leaderboards",    "name": "Cymbra backend" },
-    { "channel": "id-stats",              "name": "Cymbra backend" }
+    { "channel": "id-stats",              "name": "Cymbra backend" },
+    { "channel": "dev",                   "name": "Cymbra CI" }
   ]
 }

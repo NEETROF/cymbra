@@ -4,8 +4,10 @@ Cymbra has no place where its users meet each other: support and ideas live on G
 Discussions (a developer surface), and the app itself is single-player. Growing the user
 community needs a Discord server that feels **alive without a human posting every day** —
 which means the backend must be able to announce what happens in the product (a score
-accepted into the catalog, a release, a season record) and to act on Discord (grant a role,
-answer a slash command).
+accepted into the catalog, a season record) and to act on Discord (grant a role, answer a slash
+command). Release announcements are **not** part of this: a release is a CI event that
+release-please already describes, so it is announced straight from the workflow that builds it
+(`scripts/discord/release_announce.sh`), never through the backend.
 
 Doing that naively would be harmful: publishing "player 1234 started playing" to a public
 channel discloses pseudonymous personal data without consent, and a high-frequency event
@@ -24,8 +26,7 @@ consent + rate discipline that make it safe.
   rolled-back write can never produce a phantom announcement, and retries/DLQ come for free.
   A scheduled `discord_digest` job folds high-frequency activity into one daily message.
 - **Two event tiers, one explicit deny-list**:
-  - *immediate*: score/soundfont **accepted** into the public catalog, new release, season
-    record beaten;
+  - *immediate*: score/soundfont **accepted** into the public catalog, season record beaten;
   - *daily digest*: session counts, new-player counts, best tempo of the day;
   - **never announced**: sign-ins, `pending`/`rejected` moderation state, emails, raw ids.
 - **A dedicated Discord-visibility consent**, separate from profile visibility. A player is
