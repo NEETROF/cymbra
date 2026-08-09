@@ -18,7 +18,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../courses/course_manifest.dart';
+import '../courses/lesson_sounder.dart';
 import '../l10n/gen/app_localizations.dart';
+import '../services/audio_service.dart';
 import '../services/course_catalog_service.dart';
 import '../state/course_completion_notifier.dart';
 import '../theme/cymbra_theme.dart';
@@ -26,6 +28,8 @@ import '../widgets/build_chord_view.dart';
 import '../widgets/course_diagram.dart';
 import '../widgets/ear_choice_view.dart';
 import '../widgets/lesson_celebration.dart';
+import '../widgets/lesson_keyboard.dart';
+import '../widgets/lesson_midi_chip.dart';
 import '../widgets/lesson_staff.dart';
 import '../widgets/name_note_view.dart';
 import '../widgets/place_note_view.dart';
@@ -165,6 +169,7 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen> {
               ? ''
               : resolveInline(async.value!.title, lang),
         ),
+        actions: const [LessonMidiChip(), SizedBox(width: 4)],
       ),
       body: SafeArea(
         child: switch (async) {
@@ -506,8 +511,10 @@ class _Media extends StatelessWidget {
 }
 
 /// A multiple-choice question: immediate feedback on an answer, but the user can
-/// always continue (the control bar's Next is never disabled).
-class _QuestionView extends StatefulWidget {
+/// always continue (the control bar's Next is never disabled). With
+/// [QuestionBlock.keyboard], a piano sits above the choices — tappable and
+/// audible, because a question that says "look at the keyboard" must show one.
+class _QuestionView extends ConsumerStatefulWidget {
   const _QuestionView({
     required this.block,
     required this.lang,
@@ -519,11 +526,26 @@ class _QuestionView extends StatefulWidget {
   final AppLocalizations l10n;
 
   @override
-  State<_QuestionView> createState() => _QuestionViewState();
+  ConsumerState<_QuestionView> createState() => _QuestionViewState();
 }
 
-class _QuestionViewState extends State<_QuestionView> {
+class _QuestionViewState extends ConsumerState<_QuestionView> {
   int? _selected;
+  LessonSounder? _sounder;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.block.keyboard) {
+      _sounder = LessonSounder(ref.read(audioServiceProvider));
+    }
+  }
+
+  @override
+  void dispose() {
+    _sounder?.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -542,6 +564,14 @@ class _QuestionViewState extends State<_QuestionView> {
           ),
         ),
         const SizedBox(height: 12),
+        if (b.keyboard) ...[
+          LessonKeyboard(
+            paintKey: const Key('question-keyboard'),
+            rangeTargets: const [60],
+            onKeyDown: (pitch) => _sounder?.tap(pitch),
+          ),
+          const SizedBox(height: 12),
+        ],
         for (var i = 0; i < b.options.length; i++)
           Padding(
             padding: const EdgeInsets.only(bottom: 8),

@@ -20,8 +20,10 @@ import 'package:music/l10n/gen/app_localizations.dart';
 import 'package:music/screens/learning_path_screen.dart';
 import 'package:music/screens/lesson_player_screen.dart';
 import 'package:music/services/course_catalog_service.dart';
+import 'package:music/services/midi_service.dart';
 import 'package:music/services/preferences_service.dart';
 
+import '../support/fakes.dart';
 import '../support/prefs_fakes.dart';
 
 class _FakeService implements CourseCatalogService {
@@ -52,8 +54,11 @@ final _listings = [
 ];
 
 Future<void> _pump(WidgetTester tester, {FakePreferencesService? prefs}) async {
+  final midi = FakeMidiService();
+  addTearDown(midi.close);
   final container = ProviderContainer(
     overrides: [
+      midiServiceProvider.overrideWithValue(midi),
       courseCatalogServiceProvider.overrideWithValue(_FakeService(_listings)),
       preferencesServiceProvider.overrideWithValue(
         prefs ?? FakePreferencesService(),

@@ -52,7 +52,10 @@
         "mode": "drill",
         "clef": "treble",
         "labels": "always",
-        "notes": ["E4", "F4"],
+        "notes": [
+          "E4",
+          "F4"
+        ],
         "prompt": {
           "en": "Play the note shown: E and F are direct neighbors — no black key between them.",
           "fr": "Joue la note affichée : mi et fa sont voisins directs — aucune touche noire entre eux.",
@@ -62,7 +65,10 @@
       },
       {
         "type": "earChoice",
-        "notes": ["C4", "C#4"],
+        "notes": [
+          "C4",
+          "C#4"
+        ],
         "answerId": "half",
         "choices": [
           {
@@ -93,7 +99,10 @@
       },
       {
         "type": "earChoice",
-        "notes": ["C4", "D4"],
+        "notes": [
+          "C4",
+          "D4"
+        ],
         "answerId": "whole",
         "choices": [
           {
@@ -150,7 +159,8 @@
           "fr": "Exactement : entre mi et fa (comme entre si et do), pas de touche noire — c'est un demi-ton.",
           "es": "Exacto: entre mi y fa (como entre si y do) no hay tecla negra — es un semitono.",
           "it": "Esatto: tra mi e fa (come tra si e do) non c'è tasto nero — è un semitono."
-        }
+        },
+        "keyboard": true
       },
       {
         "type": "text",

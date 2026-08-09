@@ -299,6 +299,34 @@ void main() {
     });
   });
 
+  test('a question may carry the keyboard illustration flag', () {
+    final withKeyboard =
+        parseOne({
+              'type': 'question',
+              'prompt': {'en': 'Look at the keyboard'},
+              'options': [
+                {'en': 'By 2 and 3'},
+                {'en': 'Randomly'},
+              ],
+              'answerIndex': 0,
+              'keyboard': true,
+            })
+            as QuestionBlock;
+    expect(withKeyboard.keyboard, isTrue);
+    final without =
+        parseOne({
+              'type': 'question',
+              'prompt': {'en': 'No piano here'},
+              'options': [
+                {'en': 'A'},
+                {'en': 'B'},
+              ],
+              'answerIndex': 0,
+            })
+            as QuestionBlock;
+    expect(without.keyboard, isFalse);
+  });
+
   test('a v1 manifest with v1 blocks still parses under v2', () {
     final manifest = parseCourseManifest(
       jsonEncode({

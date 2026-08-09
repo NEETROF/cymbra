@@ -20,10 +20,12 @@ import 'package:music/l10n/gen/app_localizations.dart';
 import 'package:music/screens/lesson_player_screen.dart';
 import 'package:music/services/course_catalog_service.dart';
 import 'package:music/services/notation_engine.dart';
+import 'package:music/services/midi_service.dart';
 import 'package:music/services/preferences_service.dart';
 import 'package:music/widgets/score_block_view.dart';
 
 import '../support/notation_fakes.dart';
+import '../support/fakes.dart';
 import '../support/prefs_fakes.dart';
 
 class _FakeCourses implements CourseCatalogService {
@@ -61,8 +63,11 @@ class _Launcher extends StatelessWidget {
 
 void main() {
   Future<void> pump(WidgetTester tester) async {
+    final midi = FakeMidiService();
+    addTearDown(midi.close);
     final container = ProviderContainer(
       overrides: [
+        midiServiceProvider.overrideWithValue(midi),
         courseCatalogServiceProvider.overrideWithValue(_FakeCourses(_manifest)),
         preferencesServiceProvider.overrideWithValue(FakePreferencesService()),
         // Parse is faked → a hand-built document, no native library needed.

@@ -185,12 +185,15 @@ sealed class CourseBlock with _$CourseBlock {
   }) = VideoBlock;
 
   /// A multiple-choice / true-false question; [answerIndex] is the correct
-  /// [options] entry, [feedback] is shown after answering.
+  /// [options] entry, [feedback] is shown after answering. With [keyboard], a
+  /// tappable (sounding) piano is shown above the choices — for questions that
+  /// say "look at the keyboard", the keyboard must be there to look at.
   const factory CourseBlock.question({
     required InlineText prompt,
     required List<InlineText> options,
     required int answerIndex,
     @Default(<String, String>{}) InlineText feedback,
+    @Default(false) bool keyboard,
   }) = QuestionBlock;
 
   /// Asks the user to play [notes] (MIDI) on the keyboard or a MIDI instrument.
@@ -361,6 +364,7 @@ CourseBlock _parseBlock(Object? raw) {
         options: opts,
         answerIndex: idx,
         feedback: _inline(raw['feedback']),
+        keyboard: raw['keyboard'] == true,
       );
     case 'playKey':
       final notes = raw['notes'];
