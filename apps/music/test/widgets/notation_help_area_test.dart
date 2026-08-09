@@ -18,6 +18,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:music/l10n/gen/app_localizations.dart';
 import 'package:music/painters/staff_hit_index.dart';
 import 'package:music/widgets/notation_help_area.dart';
+import 'package:music/widgets/notation_help_bubble.dart';
 
 /// A stub painter that records one symbol covering the whole area, so a
 /// long-press anywhere resolves to it — decoupling this gesture/overlay test
@@ -133,6 +134,28 @@ void main() {
     await tester.longPress(find.byType(CustomPaint).first);
     await tester.pumpAndSettle();
     expect(find.text('Flat (♭)'), findsOneWidget);
+  });
+
+  testWidgets('a bubble pressed near the top stays inside the area', (
+    tester,
+  ) async {
+    // A note gives a tall bubble (explanation + duration). Pressing near the top
+    // edge used to let it run off the top, under the app bar (a phone bug).
+    await _pump(
+      tester,
+      descriptor: const SymbolDescriptor.note(pitch: 84, noteType: 'quarter'),
+      onTap: () {},
+    );
+    final areaRect = tester.getRect(find.byType(NotationHelpArea));
+    // Long-press just below the top edge of the staff area.
+    await tester.longPressAt(areaRect.topCenter + const Offset(0, 6));
+    await tester.pumpAndSettle();
+
+    final bubbleRect = tester.getRect(find.byType(NotationHelpBubble));
+    expect(bubbleRect.top, greaterThanOrEqualTo(areaRect.top - 0.5));
+    expect(bubbleRect.bottom, lessThanOrEqualTo(areaRect.bottom + 0.5));
+    expect(bubbleRect.left, greaterThanOrEqualTo(areaRect.left - 0.5));
+    expect(bubbleRect.right, lessThanOrEqualTo(areaRect.right + 0.5));
   });
 
   testWidgets('disabled area shows no bubble on long-press', (tester) async {

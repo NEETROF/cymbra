@@ -114,32 +114,68 @@ class _NotationHelpAreaState extends ConsumerState<NotationHelpArea> {
       frenchRe: style.frenchRe,
     );
 
-    final area = bubble.areaSize;
-    final maxWidth = math.min(300.0, math.max(160.0, area.width - 16));
-    final left = (bubble.anchor.dx - maxWidth / 2)
-        .clamp(8.0, math.max(8.0, area.width - maxWidth - 8))
-        .toDouble();
-    // Place above the finger when the press is in the lower half of the area,
-    // below it otherwise, so the bubble doesn't run off the top or bottom edge.
-    final placeAbove = bubble.anchor.dy > area.height / 2;
+    final card = NotationHelpBubble(
+      title: help.title,
+      body: help.body,
+      onClose: () =>
+          ref.read(notationHelpBubbleControllerProvider.notifier).dismiss(),
+    );
 
-    final card = ConstrainedBox(
-      constraints: BoxConstraints(maxWidth: maxWidth),
-      child: NotationHelpBubble(
-        title: help.title,
-        body: help.body,
-        onClose: () =>
-            ref.read(notationHelpBubbleControllerProvider.notifier).dismiss(),
+    // Size-aware placement: the delegate lays the card out first, so it knows
+    // its real height and keeps the whole bubble inside the staff area — above
+    // the finger when it fits, otherwise below, always clamped off the edges.
+    // (Fixes a phone bug where a tall bubble ran off the top, under the app bar.)
+    return Positioned.fill(
+      child: CustomSingleChildLayout(
+        delegate: _BubbleLayoutDelegate(anchor: bubble.anchor),
+        child: card,
       ),
     );
+  }
+}
 
-    return Positioned(
-      left: left,
-      top: placeAbove ? null : bubble.anchor.dy + 18,
-      bottom: placeAbove
-          ? math.max(8.0, area.height - bubble.anchor.dy + 14)
-          : null,
-      child: card,
+/// Positions the help card near the pressed [anchor] while guaranteeing it stays
+/// fully on screen: measured against the staff area's real size, it prefers the
+/// space above the finger, falls back below, and clamps into a safe margin on
+/// every side so no edge (especially the top) ever clips the bubble.
+class _BubbleLayoutDelegate extends SingleChildLayoutDelegate {
+  _BubbleLayoutDelegate({required this.anchor});
+
+  final Offset anchor;
+
+  static const double _margin = 10;
+  static const double _gap = 16;
+  static const double _maxWidth = 300;
+
+  @override
+  BoxConstraints getConstraintsForChild(BoxConstraints constraints) {
+    final w = math.min(_maxWidth, constraints.maxWidth - 2 * _margin);
+    return BoxConstraints(
+      maxWidth: math.max(0, w),
+      maxHeight: math.max(0, constraints.maxHeight - 2 * _margin),
     );
   }
+
+  @override
+  Offset getPositionForChild(Size size, Size childSize) {
+    final maxX = math.max(_margin, size.width - childSize.width - _margin);
+    final dx = (anchor.dx - childSize.width / 2).clamp(_margin, maxX);
+
+    final above = anchor.dy - _gap - childSize.height;
+    final below = anchor.dy + _gap;
+    double dy;
+    if (above >= _margin) {
+      dy = above; // fits above the finger
+    } else if (below + childSize.height <= size.height - _margin) {
+      dy = below; // otherwise below
+    } else {
+      dy = _margin; // neither fits cleanly — pin under the top margin
+    }
+    final maxY = math.max(_margin, size.height - childSize.height - _margin);
+    return Offset(dx, dy.clamp(_margin, maxY));
+  }
+
+  @override
+  bool shouldRelayout(_BubbleLayoutDelegate oldDelegate) =>
+      oldDelegate.anchor != anchor;
 }
