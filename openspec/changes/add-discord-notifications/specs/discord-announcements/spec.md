@@ -132,8 +132,10 @@ name one person implicitly, which MUST be suppressed below a configured minimum.
 ### Requirement: Only allow-listed event categories are announceable
 
 The system SHALL announce only events from an explicit allow-list, split into an **immediate**
-tier (rare, high-value: a score or soundfont **accepted** into the public catalog, a new
-release, a season record beaten) and a **digest** tier (high-frequency activity, aggregated).
+tier (rare, high-value: a score or soundfont **accepted** into the public catalog, a season
+record beaten) and a **digest** tier (high-frequency activity, aggregated). Software releases
+are outside this capability: they are announced by the release pipeline, which owns the version
+and its notes, and the backend SHALL NOT attempt to detect or announce them.
 The following SHALL NEVER be announced on Discord: authentication events (sign-in, sign-up,
 sign-out), any moderation state other than *accepted* (in particular `pending` and `rejected`
 items and their reasons), email addresses, raw account identifiers, and any field excluded from

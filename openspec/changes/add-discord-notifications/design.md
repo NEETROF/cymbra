@@ -140,7 +140,14 @@ the existing `purge_user` erasure job.
 
 ### D7 — Two tiers, one digest, one throttle, one aggregate minimum
 
-`discord_notify` handles the immediate tier (accepted catalog item, release, season record).
+`discord_notify` handles the immediate tier (accepted catalog item, season record). **Releases
+are not in it**: release-please already produces the version and its notes in CI, so the
+announcement is posted by the workflow that builds the release
+(`scripts/discord/release_announce.sh`), after the platform jobs have attached their artifacts —
+announcing at release-creation time would link a page with no downloads. Routing that through
+the backend would mean opening an authenticated ingress for CI and would gain nothing; the
+trade-off accepted is that the back-office kill-switch does not cover release announcements,
+whose off switch is the repository secret or the job itself.
 `discord_digest` is a **scheduled** job (seed in `backend/jobs/migrations/…_seed_discord_digest_schedule.sql`,
 following the existing schedule seeds) that aggregates the previous closed period and posts one
 message **per product**, into that product's stats channel. The **cadence is per product and
