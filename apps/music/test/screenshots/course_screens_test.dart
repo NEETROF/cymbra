@@ -84,13 +84,14 @@ class _FakeCatalog implements CourseCatalogService {
 }
 
 void main() {
-  final ids = Directory(_corpusDir)
-      .listSync()
-      .whereType<File>()
-      .where((f) => f.path.endsWith('.json'))
-      .map((f) => f.uri.pathSegments.last.replaceAll('.json', ''))
-      .toList()
-    ..sort();
+  final ids =
+      Directory(_corpusDir)
+          .listSync()
+          .whereType<File>()
+          .where((f) => f.path.endsWith('.json'))
+          .map((f) => f.uri.pathSegments.last.replaceAll('.json', ''))
+          .toList()
+        ..sort();
 
   Future<void> shoot(
     WidgetTester tester,

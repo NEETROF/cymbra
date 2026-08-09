@@ -26,8 +26,8 @@ import 'package:music/widgets/build_chord_view.dart';
 
 import '../support/fakes.dart';
 
-/// C major (C4-E4-G4 = 60-64-67). The keyboard range is the chord ±2 snapped
-/// to white keys: A3 (57) … A4 (69).
+/// C major (C4-E4-G4 = 60-64-67). The keyboard range is whatever the shared
+/// lesson-range policy draws for those targets (≥ 20 keys).
 BuildChordBlock block() =>
     CourseBlock.buildChord(
           notes: [
@@ -81,11 +81,16 @@ void main() {
           as PianoKeyboardPainter;
 
   /// Taps [pitch] on the on-screen keyboard, rebuilding the widget's own
-  /// layout (range A3..A4) to find the key's centre; y=120 is the white-only
-  /// band of the 132 px keyboard.
+  /// layout (the widget's own lesson range) to find the key's centre; y=120 is
+  /// the white-only band of the 132 px keyboard.
   Future<void> tapKey(WidgetTester tester, int pitch) async {
     final rect = tester.getRect(find.byKey(const Key('buildchord-keyboard')));
-    final layout = PianoLayout(lowPitch: 57, highPitch: 69, width: rect.width);
+    final range = PianoLayout.lessonRange(const [60, 64, 67]);
+    final layout = PianoLayout(
+      lowPitch: range.low,
+      highPitch: range.high,
+      width: rect.width,
+    );
     await tester.tapAt(rect.topLeft + Offset(layout.centerX(pitch), 120));
     await tester.pump();
   }

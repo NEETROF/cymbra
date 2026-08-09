@@ -18,12 +18,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../courses/lesson_sounder.dart';
-import '../painters/piano_keyboard_painter.dart';
-import '../painters/piano_layout.dart';
 import '../services/audio_service.dart';
 import '../services/midi_service.dart';
 import '../src/rust/api/midi.dart' show MidiEvent, MidiEventKind;
 import '../theme/cymbra_theme.dart';
+import 'lesson_keyboard.dart';
 
 /// A course `playKey` step (change: add-notation-courses): asks the user to play
 /// the target [notes] and validates the input from **the on-screen keyboard or a
@@ -101,26 +100,8 @@ class _PlayKeyViewState extends ConsumerState<PlayKeyView> {
     }
   }
 
-  ({int low, int high}) _range() {
-    final min = _targets.reduce((a, b) => a < b ? a : b);
-    final max = _targets.reduce((a, b) => a > b ? a : b);
-    var low = min - 2;
-    var high = max + 2;
-    while (PianoLayout.isBlack(low)) {
-      low--;
-    }
-    while (PianoLayout.isBlack(high)) {
-      high++;
-    }
-    low = low.clamp(21, 103);
-    high = high.clamp(low + 7, 108);
-    return (low: low, high: high);
-  }
-
   @override
   Widget build(BuildContext context) {
-    final r = _range();
-    const height = 132.0;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -141,31 +122,14 @@ class _PlayKeyViewState extends ConsumerState<PlayKeyView> {
           ],
         ),
         const SizedBox(height: 12),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final layout = PianoLayout(
-              lowPitch: r.low,
-              highPitch: r.high,
-              width: constraints.maxWidth,
-            );
-            return Listener(
-              onPointerDown: (e) {
-                final pitch = layout.pitchAt(e.localPosition, height);
-                if (pitch != null) {
-                  _sounder.tap(pitch);
-                  _play(pitch);
-                }
-              },
-              child: CustomPaint(
-                size: Size(constraints.maxWidth, height),
-                painter: PianoKeyboardPainter(
-                  layout: layout,
-                  activeNotes: _held,
-                  // Still-to-play targets stay highlighted (the standing hint).
-                  requiredNotes: _targets.difference(_hit),
-                ),
-              ),
-            );
+        LessonKeyboard(
+          rangeTargets: _targets,
+          activeNotes: _held,
+          // Still-to-play targets stay highlighted (the standing hint).
+          requiredNotes: _targets.difference(_hit),
+          onKeyDown: (pitch) {
+            _sounder.tap(pitch);
+            _play(pitch);
           },
         ),
       ],

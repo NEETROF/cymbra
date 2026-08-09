@@ -21,13 +21,12 @@ import '../courses/course_manifest.dart';
 import '../courses/lesson_pitch.dart';
 import '../courses/lesson_rhythm.dart';
 import '../courses/lesson_sounder.dart';
-import '../painters/piano_keyboard_painter.dart';
-import '../painters/piano_layout.dart';
 import '../services/audio_service.dart';
 import '../services/midi_service.dart';
 import '../src/rust/api/midi.dart' show MidiEvent, MidiEventKind;
 import '../state/note_label.dart';
 import '../theme/cymbra_theme.dart';
+import 'lesson_keyboard.dart';
 import 'lesson_staff.dart';
 import 'reading_aid.dart' show namingConventionOf;
 
@@ -247,28 +246,6 @@ class _ReadPlayViewState extends ConsumerState<ReadPlayView> {
     };
   }
 
-  /// Keyboard span: every note of the block ±2 keys of context, widened to
-  /// white keys so the keyboard starts and ends on a full-height key.
-  ({int low, int high}) _range() {
-    var min = _notes.first.midi;
-    var max = min;
-    for (final p in _notes) {
-      if (p.midi < min) min = p.midi;
-      if (p.midi > max) max = p.midi;
-    }
-    var low = min - 2;
-    var high = max + 2;
-    while (PianoLayout.isBlack(low)) {
-      low--;
-    }
-    while (PianoLayout.isBlack(high)) {
-      high++;
-    }
-    low = low.clamp(21, 103);
-    high = high.clamp(low + 7, 108);
-    return (low: low, high: high);
-  }
-
   bool _dotDone(int i) => i < _index || (i == _index && (_advancing || _done));
 
   @override
@@ -276,9 +253,7 @@ class _ReadPlayViewState extends ConsumerState<ReadPlayView> {
     final block = widget.block;
     final lang = Localizations.localeOf(context).languageCode;
     final naming = namingConventionOf(context);
-    final r = _range();
     final required = _required();
-    const height = 132.0;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -329,34 +304,15 @@ class _ReadPlayViewState extends ConsumerState<ReadPlayView> {
           stacked: block.mode == ReadPlayMode.set,
         ),
         const SizedBox(height: 12),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final layout = PianoLayout(
-              lowPitch: r.low,
-              highPitch: r.high,
-              width: constraints.maxWidth,
-            );
-            return Listener(
-              onPointerDown: (e) {
-                final pitch = layout.pitchAt(e.localPosition, height);
-                if (pitch != null) _play(pitch, fromScreen: true);
-              },
-              child: CustomPaint(
-                key: const Key('readplay-keyboard'),
-                size: Size(constraints.maxWidth, height),
-                painter: PianoKeyboardPainter(
-                  layout: layout,
-                  // Fresh sets on every build: the painter compares by
-                  // identity to decide on repainting.
-                  activeNotes: {..._held},
-                  requiredNotes: required,
-                  noteLabels: _labels(context, required),
-                  solfege: naming.solfege,
-                  frenchRe: naming.frenchRe,
-                ),
-              ),
-            );
-          },
+        LessonKeyboard(
+          paintKey: const Key('readplay-keyboard'),
+          rangeTargets: [for (final p in _notes) p.midi],
+          activeNotes: _held,
+          requiredNotes: required,
+          noteLabels: _labels(context, required),
+          solfege: naming.solfege,
+          frenchRe: naming.frenchRe,
+          onKeyDown: (pitch) => _play(pitch, fromScreen: true),
         ),
       ],
     );

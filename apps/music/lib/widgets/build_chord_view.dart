@@ -21,12 +21,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../courses/course_manifest.dart';
 import '../courses/lesson_sounder.dart';
 import '../l10n/gen/app_localizations.dart';
-import '../painters/piano_keyboard_painter.dart';
-import '../painters/piano_layout.dart';
 import '../services/audio_service.dart';
 import '../services/midi_service.dart';
 import '../src/rust/api/midi.dart' show MidiEvent, MidiEventKind;
 import '../theme/cymbra_theme.dart';
+import 'lesson_keyboard.dart';
 import 'reading_aid.dart' show namingConventionOf;
 
 /// A course `buildChord` step (change: add-notation-courses, schema v2): the
@@ -162,24 +161,6 @@ class _BuildChordViewState extends ConsumerState<BuildChordView> {
     }
   }
 
-  /// Keyboard range: the chord ±2 semitones, widened to white keys so the
-  /// keyboard never starts or ends on a black one.
-  ({int low, int high}) _range() {
-    final min = _targets.reduce((a, b) => a < b ? a : b);
-    final max = _targets.reduce((a, b) => a > b ? a : b);
-    var low = min - 2;
-    var high = max + 2;
-    while (PianoLayout.isBlack(low)) {
-      low--;
-    }
-    while (PianoLayout.isBlack(high)) {
-      high++;
-    }
-    low = low.clamp(21, 103);
-    high = high.clamp(low + 7, 108);
-    return (low: low, high: high);
-  }
-
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
@@ -190,8 +171,6 @@ class _BuildChordViewState extends ConsumerState<BuildChordView> {
       for (final p in widget.block.notes)
         p.name.label(solfege: naming.solfege, frenchRe: naming.frenchRe),
     ].join(' – ');
-    final r = _range();
-    const height = 132.0;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -221,30 +200,13 @@ class _BuildChordViewState extends ConsumerState<BuildChordView> {
           ),
         ),
         const SizedBox(height: 12),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final layout = PianoLayout(
-              lowPitch: r.low,
-              highPitch: r.high,
-              width: constraints.maxWidth,
-            );
-            return Listener(
-              onPointerDown: (e) {
-                final pitch = layout.pitchAt(e.localPosition, height);
-                if (pitch != null) _toggle(pitch, sound: true);
-              },
-              child: CustomPaint(
-                key: const Key('buildchord-keyboard'),
-                size: Size(constraints.maxWidth, height),
-                painter: PianoKeyboardPainter(
-                  layout: layout,
-                  activeNotes: _active,
-                  requiredNotes: _required,
-                  selectedNotes: _selection,
-                ),
-              ),
-            );
-          },
+        LessonKeyboard(
+          paintKey: const Key('buildchord-keyboard'),
+          rangeTargets: _targets,
+          activeNotes: _active,
+          requiredNotes: _required,
+          selectedNotes: _selection,
+          onKeyDown: (pitch) => _toggle(pitch, sound: true),
         ),
       ],
     );

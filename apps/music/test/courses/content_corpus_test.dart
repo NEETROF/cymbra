@@ -231,9 +231,10 @@ void main() {
       for (final b in blocks.where((b) => b['type'] == 'rhythmTap')) {
         final beats = b['beats'] is int ? b['beats'] as int : 4;
         final beatType = b['beatType'] is int ? b['beatType'] as int : 4;
-        final total = (b['pattern'] as List)
-            .cast<Map>()
-            .fold<double>(0, (sum, fig) => sum + _figBeats(fig, beatType));
+        final total = (b['pattern'] as List).cast<Map>().fold<double>(
+          0,
+          (sum, fig) => sum + _figBeats(fig, beatType),
+        );
         final bars = total / beats;
         expect(
           bars == 1.0 || bars == 2.0,

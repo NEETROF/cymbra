@@ -156,6 +156,11 @@ class PianoKeyboardPainter extends CustomPainter {
   /// flash; a held key still shows its press over the selection.
   final Set<int> selectedNotes;
 
+  /// Whether to draw the C octave anchors (Do4/C4 + the middle-C dot). Lesson
+  /// keyboards turn them off: under a highlighted key the middle-C puck reads
+  /// as a second target, not as orientation.
+  final bool showOctaveMarkers;
+
   const PianoKeyboardPainter({
     required this.layout,
     required this.activeNotes,
@@ -168,6 +173,7 @@ class PianoKeyboardPainter extends CustomPainter {
     this.frenchRe = false,
     this.labelFontFamily,
     this.waitPulse = 0,
+    this.showOctaveMarkers = true,
   });
 
   /// MIDI middle C (C4) — the anchor note the octave labels emphasise.
@@ -226,7 +232,7 @@ class PianoKeyboardPainter extends CustomPainter {
 
     // 3) Octave anchors: label each C (C3, C4…) at the bottom of its white key so
     // the player can orient their hands; middle C (C4) is emphasised.
-    _drawOctaveLabels(canvas, whiteH);
+    if (showOctaveMarkers) _drawOctaveLabels(canvas, whiteH);
 
     // 4) Reading-aid names, on the awaited keys themselves — no screen space of
     // their own, and anchored on the very key the finger is going to.
@@ -451,6 +457,7 @@ class PianoKeyboardPainter extends CustomPainter {
       old.frenchRe != frenchRe ||
       old.labelFontFamily != labelFontFamily ||
       old.waitPulse != waitPulse ||
+      old.showOctaveMarkers != showOctaveMarkers ||
       old.layout.width != layout.width ||
       old.layout.lowPitch != layout.lowPitch ||
       old.layout.highPitch != layout.highPitch;
