@@ -27,7 +27,7 @@
 
 ## 4. Interactive blocks: playKey + score
 
-- [ ] 4.1 `playKey` block: prompt to play a note/chord, validated via the existing MIDI + on-screen-keyboard + scoring seams; advance on correct input; always a non-blocking skip; hint after N tries
+- [x] 4.1 `playKey` block (`lib/widgets/play_key_view.dart`): prompt + mini on-screen keyboard (`PianoLayout`/`PianoKeyboardPainter`) + MIDI listener (`midiService.events()`); playing the target note(s) via tap **or** MIDI advances (`onSatisfied`); Next is always a non-blocking skip; the target keys stay highlighted as the standing hint
 - [ ] 4.2 `score` block: parse inline MusicXML → `ScoreDocument`, engrave via `PartitionPainter`; when `playable`, embed the player/scoring so the user performs it (gate = performed)
 - [ ] 4.3 Widget-test with faked MIDI/keyboard + scoring seams: correct input advances `playKey`, skip works; `score` renders and (playable) can complete
 

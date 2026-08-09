@@ -21,6 +21,7 @@ import '../services/course_catalog_service.dart';
 import '../state/course_completion_notifier.dart';
 import '../theme/cymbra_theme.dart';
 import '../widgets/course_diagram.dart';
+import '../widgets/play_key_view.dart';
 
 /// Opens the lesson player on [courseId] (change: add-notation-courses).
 void openLessonPlayer(BuildContext context, String courseId) =>
@@ -32,8 +33,8 @@ void openLessonPlayer(BuildContext context, String courseId) =>
 
 /// Runs a course's blocks at the user's pace: read, watch, answer. Skippable and
 /// leaveable at any time; reaching the end marks the course completed (via
-/// [CourseCompletion]) and it stays replayable. Display + quiz blocks render
-/// here; `playKey`/`score` show a placeholder until tranche 4 wires them.
+/// [CourseCompletion]) and it stays replayable. Display, quiz and `playKey`
+/// blocks render here; the `score` block shows a placeholder until tranche 4b.
 class LessonPlayerScreen extends ConsumerStatefulWidget {
   const LessonPlayerScreen({super.key, required this.courseId});
 
@@ -101,6 +102,9 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen> {
     final index = _index.clamp(0, steps.length - 1);
     final block = steps[index];
     final isLast = index == steps.length - 1;
+    // Advancing — used by the Next control (a non-blocking skip) and by an
+    // interactive block that has been satisfied (e.g. the right key was played).
+    void advance() => isLast ? _finish() : setState(() => _index = index + 1);
 
     return Column(
       children: [
@@ -108,7 +112,12 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen> {
         Expanded(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(20),
-            child: _BlockView(block: block, lang: lang, l10n: l10n),
+            child: _BlockView(
+              block: block,
+              lang: lang,
+              l10n: l10n,
+              onSatisfied: advance,
+            ),
           ),
         ),
         _ControlBar(
@@ -116,7 +125,7 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen> {
           isLast: isLast,
           l10n: l10n,
           onBack: () => setState(() => _index = index - 1),
-          onNext: isLast ? _finish : () => setState(() => _index = index + 1),
+          onNext: advance,
         ),
       ],
     );
@@ -179,19 +188,23 @@ class _ControlBar extends StatelessWidget {
   );
 }
 
-/// Renders one block. Interactive blocks (`playKey`/`score`) show a placeholder
-/// until tranche 4; media (`image`/`video`) render from their URL, degrading to
-/// a caption card when unavailable.
+/// Renders one block. `playKey` is interactive (validated input advances via
+/// [onSatisfied]); `score` shows a placeholder until tranche 4b; media
+/// (`image`/`video`) render from their URL, degrading to a caption card.
 class _BlockView extends StatelessWidget {
   const _BlockView({
     required this.block,
     required this.lang,
     required this.l10n,
+    required this.onSatisfied,
   });
 
   final CourseBlock block;
   final String lang;
   final AppLocalizations l10n;
+
+  /// Called by an interactive block once its gate is met (the lesson advances).
+  final VoidCallback onSatisfied;
 
   @override
   Widget build(BuildContext context) {
@@ -223,9 +236,10 @@ class _BlockView extends StatelessWidget {
         lang: lang,
         l10n: l10n,
       ),
-      PlayKeyBlock(:final prompt) => _Placeholder(
-        icon: Icons.piano_outlined,
-        text: resolveInline(prompt, lang),
+      PlayKeyBlock(:final notes, :final prompt) => PlayKeyView(
+        notes: notes,
+        prompt: resolveInline(prompt, lang),
+        onSatisfied: onSatisfied,
       ),
       ScoreBlock(:final prompt) => _Placeholder(
         icon: Icons.music_note_outlined,
