@@ -33,6 +33,7 @@ class PlaySessionEnvelope {
     required this.tzOffsetMinutes,
     required this.overallSyncPct,
     required this.sessionResultJson,
+    this.isPractice = false,
   });
 
   /// Client-generated UUID v7 — the server's idempotency key.
@@ -54,8 +55,15 @@ class PlaySessionEnvelope {
   final double overallSyncPct;
 
   /// The full immutable session-result record as a JSON string (uploaded as-is
-  /// for future replay/leaderboards).
+  /// for future replay/leaderboards). Always empty for a practice entry.
   final String sessionResultJson;
+
+  /// Whether this is a **scoreless practice** record (change: add-measure-range-
+  /// practice, D4) rather than a scored session. A practice entry carries no
+  /// grade — [overallSyncPct] is 0 and [sessionResultJson] empty — and is
+  /// delivered through `recordPractice`, never the scored ingest path. Written
+  /// only when true, so entries queued before this change decode unchanged.
+  final bool isPractice;
 
   Map<String, dynamic> toJson() => {
     'sessionId': sessionId,
@@ -65,6 +73,7 @@ class PlaySessionEnvelope {
     'tzOffsetMinutes': tzOffsetMinutes,
     'overallSyncPct': overallSyncPct,
     'sessionResultJson': sessionResultJson,
+    if (isPractice) 'isPractice': true,
   };
 
   factory PlaySessionEnvelope.fromJson(Map<String, dynamic> json) =>
@@ -76,5 +85,6 @@ class PlaySessionEnvelope {
         tzOffsetMinutes: (json['tzOffsetMinutes'] as num).toInt(),
         overallSyncPct: (json['overallSyncPct'] as num).toDouble(),
         sessionResultJson: json['sessionResultJson'] as String,
+        isPractice: json['isPractice'] as bool? ?? false,
       );
 }

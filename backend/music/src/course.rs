@@ -49,6 +49,11 @@ pub struct CourseSummary {
     pub schema_version: i32,
     /// Inline-localized title object (`{en, fr, es, it}`) as raw JSON text.
     pub title: String,
+    /// Unit slug the course belongs to *within* its track/level section — a
+    /// display grouping only, never an ordering key (empty = ungrouped).
+    pub unit: String,
+    /// Inline-localized unit heading (`{en, fr, es, it}`) as raw JSON text.
+    pub unit_title: String,
 }
 
 /// A full course: its [`CourseSummary`] plus the manifest [`content`] (the block
@@ -74,8 +79,8 @@ pub trait CourseRepo: Send + Sync {
     async fn upsert(&self, course: &Course, status: &str) -> Result<()>;
 }
 
-const SUMMARY_COLS: &str =
-    "id, instrument, track, level, sort_order, schema_version, title::text AS title";
+const SUMMARY_COLS: &str = "id, instrument, track, level, sort_order, schema_version, \
+     title::text AS title, unit, unit_title::text AS unit_title";
 
 fn row_to_summary(row: &PgRow) -> CourseSummary {
     CourseSummary {
@@ -86,6 +91,8 @@ fn row_to_summary(row: &PgRow) -> CourseSummary {
         sort_order: row.get::<i32, _>("sort_order"),
         schema_version: row.get::<i32, _>("schema_version"),
         title: row.get::<String, _>("title"),
+        unit: row.get::<String, _>("unit"),
+        unit_title: row.get::<String, _>("unit_title"),
     }
 }
 
@@ -132,13 +139,15 @@ impl CourseRepo for PgCourseRepo {
         let s = &course.summary;
         sqlx::query(
             "INSERT INTO music.courses \
-             (id, status, instrument, track, level, sort_order, schema_version, title, content) \
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb) \
+             (id, status, instrument, track, level, sort_order, schema_version, title, content, \
+              unit, unit_title) \
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb, $10, $11::jsonb) \
              ON CONFLICT (id) DO UPDATE SET \
                status = EXCLUDED.status, instrument = EXCLUDED.instrument, \
                track = EXCLUDED.track, level = EXCLUDED.level, \
                sort_order = EXCLUDED.sort_order, schema_version = EXCLUDED.schema_version, \
-               title = EXCLUDED.title, content = EXCLUDED.content, updated_at = now()",
+               title = EXCLUDED.title, content = EXCLUDED.content, \
+               unit = EXCLUDED.unit, unit_title = EXCLUDED.unit_title, updated_at = now()",
         )
         .bind(&s.id)
         .bind(status)
@@ -149,6 +158,8 @@ impl CourseRepo for PgCourseRepo {
         .bind(s.schema_version)
         .bind(&s.title)
         .bind(&course.content)
+        .bind(&s.unit)
+        .bind(&s.unit_title)
         .execute(&self.pool)
         .await
         .context("upsert course")?;
@@ -246,6 +257,8 @@ mod tests {
                 sort_order: order,
                 schema_version: 1,
                 title: format!(r#"{{"en":"{id}","fr":"{id}"}}"#),
+                unit: format!("unit-{id}"),
+                unit_title: format!(r#"{{"en":"Unit {id}","fr":"Unité {id}"}}"#),
             },
             content: r#"{"schemaVersion":1,"blocks":[]}"#.into(),
         }
@@ -270,6 +283,22 @@ mod tests {
         // Grouped by (track, level) then ordered by sort_order within a group;
         // "app-usage" sorts before "solfege" by track name.
         assert_eq!(ids, vec!["a1", "s1", "s2"]);
+    }
+
+    #[tokio::test]
+    async fn unit_fields_round_trip_through_upsert_and_listing() {
+        let repo = FakeCourseRepo::default();
+        repo.upsert(&course("u1", "solfege", "beginner", 1), "published")
+            .await
+            .unwrap();
+        // The unit is a display grouping carried verbatim by both read surfaces —
+        // the listing summary and the full course.
+        let listed = repo.list_published().await.unwrap();
+        assert_eq!(listed[0].unit, "unit-u1");
+        assert_eq!(listed[0].unit_title, r#"{"en":"Unit u1","fr":"Unité u1"}"#);
+        let fetched = repo.get("u1").await.unwrap().unwrap();
+        assert_eq!(fetched.summary.unit, "unit-u1");
+        assert_eq!(fetched.summary.unit_title, listed[0].unit_title);
     }
 
     #[tokio::test]

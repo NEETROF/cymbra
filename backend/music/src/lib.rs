@@ -16,6 +16,7 @@ pub mod catalog_edit;
 pub mod catalog_limits;
 pub mod catalog_search;
 pub mod course;
+pub mod course_progress;
 pub mod curation_rewards;
 pub mod curation_rewards_core;
 pub mod curation_rewards_module;
@@ -58,6 +59,10 @@ pub use catalog_search::{
     CatalogHit, CatalogSearchParams, CatalogSearchRepo, FakeCatalogRow, FakeCatalogSearchRepo,
 };
 pub use course::{Course, CourseRepo, CourseSummary, FakeCourseRepo, PgCourseRepo};
+pub use course_progress::{
+    CompletionOutcome, CourseProgress, CourseProgressStore, FakeCourseProgressStore,
+    PgCourseProgressStore,
+};
 pub use curation_rewards::{
     ConsensusCandidate, CurationRewardsRepo, CurationRewardsSink, CuratorMetrics,
     FakeCurationRewardsRepo, GrantKind, LedgerEntry, SettleOutcome, SettleableRating, ShopItem,
@@ -87,9 +92,12 @@ pub use pg_global_leaderboard::PgGlobalLeaderboardRepo;
 pub use pg_leaderboard::PgLeaderboardRepo;
 pub use pg_play::PgPlayRepo;
 pub use pg_user_scores::{PgUserLibraryRepo, PgUserScoreRepo};
-pub use play::{DayActivity, FakePlayRepo, PlayActivity, PlayRepo, PlaySession, SessionPoint};
+pub use play::{
+    DayActivity, FakePlayRepo, PlayActivity, PlayRepo, PlaySession, PracticePoint, PracticeSession,
+    SessionPoint,
+};
 pub use play_grpc::PlayGrpc;
-pub use play_module::{PlayModule, RecordInput};
+pub use play_module::{PlayModule, RecordInput, RecordPracticeInput};
 pub use repo::{CatalogEntry, CatalogRepo, FakeCatalogRepo, ScoreFacets, ScoreMeta};
 pub use score_rating::{
     FakeScoreRatingRepo, RatingAggregate, RatingConfig, ScoreRatingRepo, Verdict,

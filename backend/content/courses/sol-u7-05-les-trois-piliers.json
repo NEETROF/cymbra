@@ -1,0 +1,143 @@
+{
+  "id": "sol-u7-05-les-trois-piliers",
+  "status": "published",
+  "instrument": "piano",
+  "track": "solfege",
+  "level": "advanced",
+  "unit": "u7",
+  "unitTitle": {
+    "en": "Intervals, chords and ear",
+    "fr": "Intervalles, accords et oreille",
+    "es": "Intervalos, acordes y oído",
+    "it": "Intervalli, accordi e orecchio"
+  },
+  "sortOrder": 705,
+  "schemaVersion": 2,
+  "title": {
+    "en": "C, F, G: the three pillars",
+    "fr": "Do, fa, sol : les trois piliers",
+    "es": "Do, fa, sol: los tres pilares",
+    "it": "Do, fa, sol: i tre pilastri"
+  },
+  "content": {
+    "schemaVersion": 2,
+    "id": "sol-u7-05-les-trois-piliers",
+    "instrument": "piano",
+    "track": "solfege",
+    "level": "advanced",
+    "title": {
+      "en": "C, F, G: the three pillars",
+      "fr": "Do, fa, sol : les trois piliers",
+      "es": "Do, fa, sol: los tres pilares",
+      "it": "Do, fa, sol: i tre pilastri"
+    },
+    "summary": {
+      "en": "Own the C, F and G chords",
+      "fr": "Maîtriser les accords de do, fa et sol",
+      "es": "Dominar los acordes de do, fa y sol",
+      "it": "Padroneggiare gli accordi di do, fa e sol"
+    },
+    "blocks": [
+      {
+        "type": "text",
+        "text": {
+          "en": "Take the major triad and plant it on C, on F and on G: chords I, IV and V. Three pillars that hold up thousands of songs.",
+          "fr": "Prends la triade majeure et plante-la sur do, sur fa et sur sol : les accords I, IV et V. Trois piliers qui portent des milliers de chansons.",
+          "es": "Toma la tríada mayor y plántala sobre do, sobre fa y sobre sol: los acordes I, IV y V. Tres pilares que sostienen miles de canciones.",
+          "it": "Prendi la triade maggiore e piantala su do, su fa e su sol: gli accordi I, IV e V. Tre pilastri che reggono migliaia di canzoni."
+        }
+      },
+      {
+        "type": "buildChord",
+        "notes": ["F4", "A4", "C5"],
+        "prompt": {
+          "en": "The F chord: build F, A and C together — same 1-3-5 shape, new home.",
+          "fr": "L'accord de fa : construis fa, la et do ensemble — même forme 1-3-5, nouvelle maison.",
+          "es": "El acorde de fa: construye fa, la y do juntos — la misma forma 1-3-5, nueva casa.",
+          "it": "L'accordo di fa: costruisci fa, la e do insieme — stessa forma 1-3-5, nuova casa."
+        }
+      },
+      {
+        "type": "buildChord",
+        "notes": ["G4", "B4", "D5"],
+        "prompt": {
+          "en": "Now the G chord: G, B and D — you built it before, make it ring again.",
+          "fr": "Maintenant l'accord de sol : sol, si et ré — tu l'as déjà construit, fais-le sonner à nouveau.",
+          "es": "Ahora el acorde de sol: sol, si y re — ya lo construiste antes, hazlo sonar otra vez.",
+          "it": "Ora l'accordo di sol: sol, si e re — l'hai già costruito, fallo risuonare di nuovo."
+        }
+      },
+      {
+        "type": "question",
+        "prompt": {
+          "en": "What can you play with just the C, F and G chords?",
+          "fr": "Que peux-tu jouer avec seulement les accords de do, fa et sol ?",
+          "es": "¿Qué puedes tocar solo con los acordes de do, fa y sol?",
+          "it": "Cosa puoi suonare con i soli accordi di do, fa e sol?"
+        },
+        "options": [
+          {
+            "en": "Thousands of songs, from folk to pop",
+            "fr": "Des milliers de chansons, du folk à la pop",
+            "es": "Miles de canciones, del folk al pop",
+            "it": "Migliaia di canzoni, dal folk al pop"
+          },
+          {
+            "en": "Almost nothing — real songs avoid them",
+            "fr": "Presque rien — les vraies chansons les évitent",
+            "es": "Casi nada: las canciones de verdad los evitan",
+            "it": "Quasi niente: le canzoni vere li evitano"
+          }
+        ],
+        "answerIndex": 0,
+        "feedback": {
+          "en": "Yes — I, IV and V are the backbone of countless tunes, and you now own all three.",
+          "fr": "Oui — I, IV et V sont la colonne vertébrale d'innombrables mélodies, et tu possèdes désormais les trois.",
+          "es": "Sí: I, IV y V son la columna vertebral de infinidad de melodías, y ya dominas los tres.",
+          "it": "Sì: I, IV e V sono la spina dorsale di innumerevoli melodie, e ora li possiedi tutti e tre."
+        }
+      },
+      {
+        "type": "earChoice",
+        "harmonic": true,
+        "notes": ["F4", "A4", "C5"],
+        "answerId": "major",
+        "choices": [
+          {
+            "id": "major",
+            "label": {
+              "en": "Major",
+              "fr": "Majeur",
+              "es": "Mayor",
+              "it": "Maggiore"
+            }
+          },
+          {
+            "id": "minor",
+            "label": {
+              "en": "Minor",
+              "fr": "Mineur",
+              "es": "Menor",
+              "it": "Minore"
+            }
+          }
+        ],
+        "prompt": {
+          "en": "Listen to the F chord ring. Same recipe as C — what colour is it?",
+          "fr": "Écoute sonner l'accord de fa. Même recette que do — quelle est sa couleur ?",
+          "es": "Escucha sonar el acorde de fa. La misma receta que do: ¿de qué color es?",
+          "it": "Ascolta suonare l'accordo di fa. Stessa ricetta di do: di che colore è?"
+        }
+      },
+      {
+        "type": "text",
+        "text": {
+          "en": "C, F, G — three major triads, three pillars. With them under your hands, whole songbooks open up.",
+          "fr": "Do, fa, sol — trois triades majeures, trois piliers. Avec eux sous les doigts, des répertoires entiers s'ouvrent à toi.",
+          "es": "Do, fa, sol — tres tríadas mayores, tres pilares. Con ellos bajo tus manos se abren cancioneros enteros.",
+          "it": "Do, fa, sol — tre triadi maggiori, tre pilastri. Con loro sotto le mani si aprono interi canzonieri."
+        }
+      }
+    ]
+  }
+}

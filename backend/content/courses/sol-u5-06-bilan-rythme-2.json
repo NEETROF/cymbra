@@ -1,0 +1,146 @@
+{
+  "id": "sol-u5-06-bilan-rythme-2",
+  "status": "published",
+  "instrument": "piano",
+  "track": "solfege",
+  "level": "intermediate",
+  "unit": "u5",
+  "unitTitle": {
+    "en": "Eighth notes and new meters",
+    "fr": "Croches et nouvelles mesures",
+    "es": "Corcheas y nuevos compases",
+    "it": "Crome e nuovi tempi"
+  },
+  "sortOrder": 506,
+  "schemaVersion": 2,
+  "title": {
+    "en": "Checkpoint: rhythm II",
+    "fr": "Bilan : rythme, niveau 2",
+    "es": "Repaso: ritmo II",
+    "it": "Ripasso: ritmo II"
+  },
+  "content": {
+    "schemaVersion": 2,
+    "id": "sol-u5-06-bilan-rythme-2",
+    "instrument": "piano",
+    "track": "solfege",
+    "level": "intermediate",
+    "title": {
+      "en": "Checkpoint: rhythm II",
+      "fr": "Bilan : rythme, niveau 2",
+      "es": "Repaso: ritmo II",
+      "it": "Ripasso: ritmo II"
+    },
+    "summary": {
+      "en": "Checkpoint: all the unit's rhythms",
+      "fr": "Bilan : tous les rythmes de l'unité",
+      "es": "Repaso: todos los ritmos de la unidad",
+      "it": "Ripasso: tutti i ritmi dell'unità"
+    },
+    "blocks": [
+      {
+        "type": "text",
+        "text": {
+          "en": "Time to put unit five together: eighths, dots, 3/4, 6/8 and offbeats. Three rhythms, one question — you have everything you need.",
+          "fr": "L'heure de rassembler l'unité cinq : croches, points, 3/4, 6/8 et contretemps. Trois rythmes, une question — tu as tout en main.",
+          "es": "Es hora de reunir la unidad cinco: corcheas, puntillos, 3/4, 6/8 y contratiempos. Tres ritmos, una pregunta: lo tienes todo a mano.",
+          "it": "È ora di mettere insieme l'unità cinque: crome, punti, 3/4, 6/8 e controtempi. Tre ritmi, una domanda: hai tutto in mano."
+        }
+      },
+      {
+        "type": "rhythmTap",
+        "pattern": [
+          { "fig": "quarter", "dots": 1 },
+          { "fig": "eighth" },
+          { "fig": "quarter" },
+          { "fig": "eighth" },
+          { "fig": "eighth" }
+        ],
+        "beats": 4,
+        "beatType": 4,
+        "bpm": 70,
+        "prompt": {
+          "en": "First figure check: 'ONE … and-of-two, three, four-and'.",
+          "fr": "Premier contrôle : « UN … et-de-deux, trois, quatre-et ».",
+          "es": "Primera prueba: 'UN… y-de-dos, tres, cuatro-y'.",
+          "it": "Prima verifica: 'UNO… e-di-due, tre, quattro-e'."
+        }
+      },
+      {
+        "type": "rhythmTap",
+        "pattern": [
+          { "fig": "quarter" },
+          { "fig": "eighth" },
+          { "fig": "eighth" },
+          { "fig": "quarter" }
+        ],
+        "beats": 3,
+        "beatType": 4,
+        "bpm": 70,
+        "prompt": {
+          "en": "Back to the waltz bar: 'one, two-and, three'.",
+          "fr": "Retour à la mesure de valse : « un, deux-et, trois ».",
+          "es": "De vuelta al compás de vals: 'un, dos-y, tres'.",
+          "it": "Di nuovo nella battuta di valzer: 'uno, due-e, tre'."
+        }
+      },
+      {
+        "type": "question",
+        "prompt": {
+          "en": "What does a dot after a note do?",
+          "fr": "Que fait un point placé après une note ?",
+          "es": "¿Qué hace un puntillo después de una nota?",
+          "it": "Cosa fa un punto dopo una nota?"
+        },
+        "options": [
+          {
+            "en": "It adds half the note's value",
+            "fr": "Il ajoute la moitié de la valeur de la note",
+            "es": "Añade la mitad del valor de la nota",
+            "it": "Aggiunge metà del valore della nota"
+          },
+          {
+            "en": "It doubles the note's value",
+            "fr": "Il double la valeur de la note",
+            "es": "Duplica el valor de la nota",
+            "it": "Raddoppia il valore della nota"
+          }
+        ],
+        "answerIndex": 0,
+        "feedback": {
+          "en": "Half again: a dotted quarter is a quarter plus an eighth.",
+          "fr": "La moitié en plus : une noire pointée vaut une noire plus une croche.",
+          "es": "La mitad más: una negra con puntillo vale una negra más una corchea.",
+          "it": "Metà in più: una semiminima col punto vale una semiminima più una croma."
+        }
+      },
+      {
+        "type": "rhythmTap",
+        "pattern": [
+          { "fig": "quarter", "dots": 1 },
+          { "fig": "eighth" },
+          { "fig": "eighth" },
+          { "fig": "eighth" }
+        ],
+        "beats": 6,
+        "beatType": 8,
+        "bpm": 90,
+        "prompt": {
+          "en": "And the 6/8 swing: one big 'ONE…', then 'four-five-six' to finish.",
+          "fr": "Et le balancement du 6/8 : un grand « UN… », puis « quatre-cinq-six » pour finir.",
+          "es": "Y el vaivén del 6/8: un gran 'UN…', y luego 'cuatro-cinco-seis' para terminar.",
+          "it": "E il dondolio del 6/8: un grande 'UNO…', poi 'quattro-cinque-sei' per finire."
+        }
+      },
+      {
+        "type": "text",
+        "text": {
+          "en": "Rhythm level two, complete: your hands now know eighths, dotted notes, the waltz, 6/8 and the offbeat. From here on you don't count these figures — you feel them.",
+          "fr": "Rythme niveau deux, terminé : tes mains connaissent les croches, les notes pointées, la valse, le 6/8 et le contretemps. Désormais tu ne comptes plus ces figures — tu les sens.",
+          "es": "Ritmo nivel dos, completado: tus manos ya conocen las corcheas, los puntillos, el vals, el 6/8 y el contratiempo. A partir de ahora no cuentas estas figuras: las sientes.",
+          "it": "Ritmo livello due, completato: le tue mani ora conoscono le crome, i punti, il valzer, il 6/8 e il controtempo. D'ora in poi non conti più queste figure: le senti."
+        }
+      }
+    ]
+  }
+}

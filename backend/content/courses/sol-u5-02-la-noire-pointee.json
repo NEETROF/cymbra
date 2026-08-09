@@ -1,0 +1,160 @@
+{
+  "id": "sol-u5-02-la-noire-pointee",
+  "status": "published",
+  "instrument": "piano",
+  "track": "solfege",
+  "level": "intermediate",
+  "unit": "u5",
+  "unitTitle": {
+    "en": "Eighth notes and new meters",
+    "fr": "Croches et nouvelles mesures",
+    "es": "Corcheas y nuevos compases",
+    "it": "Crome e nuovi tempi"
+  },
+  "sortOrder": 502,
+  "schemaVersion": 2,
+  "title": {
+    "en": "The dotted quarter",
+    "fr": "La noire pointée",
+    "es": "La negra con puntillo",
+    "it": "La semiminima col punto"
+  },
+  "content": {
+    "schemaVersion": 2,
+    "id": "sol-u5-02-la-noire-pointee",
+    "instrument": "piano",
+    "track": "solfege",
+    "level": "intermediate",
+    "title": {
+      "en": "The dotted quarter",
+      "fr": "La noire pointée",
+      "es": "La negra con puntillo",
+      "it": "La semiminima col punto"
+    },
+    "summary": {
+      "en": "Feel the dotted quarter: a beat and a half",
+      "fr": "Sentir la noire pointée : un temps et demi",
+      "es": "Sentir la negra con puntillo: un tiempo y medio",
+      "it": "Sentire la semiminima col punto: un movimento e mezzo"
+    },
+    "blocks": [
+      {
+        "type": "text",
+        "text": {
+          "en": "A small dot after a note stretches it by half its value. The dotted quarter is the heartbeat of countless melodies.",
+          "fr": "Un petit point après une note l'allonge de la moitié de sa valeur. La noire pointée est le cœur de mille mélodies.",
+          "es": "Un puntito tras una nota la alarga la mitad de su valor. La negra con puntillo late en mil melodías.",
+          "it": "Un puntino dopo una nota la allunga della metà del suo valore. La semiminima col punto batte in mille melodie."
+        }
+      },
+      {
+        "type": "staff",
+        "clef": "treble",
+        "time": { "beats": 4, "beatType": 4 },
+        "elements": [
+          { "p": "C4", "fig": "quarter", "dots": 1 },
+          { "p": "D4", "fig": "eighth" },
+          { "p": "E4", "fig": "half" }
+        ],
+        "caption": {
+          "en": "The dot stretches C to a beat and a half — D slips in on the 'and' of two.",
+          "fr": "Le point étire do sur un temps et demi — ré se glisse sur le « et » du deuxième temps.",
+          "es": "El puntillo alarga el do a un tiempo y medio: re se cuela en el 'y' del segundo tiempo.",
+          "it": "Il punto allunga il do a un movimento e mezzo: re entra sul 'e' del secondo movimento."
+        }
+      },
+      {
+        "type": "rhythmTap",
+        "pattern": [
+          { "fig": "quarter", "dots": 1 },
+          { "fig": "eighth" },
+          { "fig": "quarter" },
+          { "fig": "quarter" }
+        ],
+        "beats": 4,
+        "beatType": 4,
+        "bpm": 60,
+        "prompt": {
+          "en": "Tap on 'ONE', then wait — the next tap falls on the 'and' of two.",
+          "fr": "Tape sur « UN », puis attends — le tap suivant tombe sur le « et » du deuxième temps.",
+          "es": "Toca en 'UN' y espera: el siguiente toque cae en el 'y' del segundo tiempo.",
+          "it": "Batti su 'UNO' e aspetta: il colpo successivo cade sul 'e' del secondo movimento."
+        }
+      },
+      {
+        "type": "question",
+        "prompt": {
+          "en": "How long does a dotted quarter last?",
+          "fr": "Combien de temps dure une noire pointée ?",
+          "es": "¿Cuánto dura una negra con puntillo?",
+          "it": "Quanto dura una semiminima col punto?"
+        },
+        "options": [
+          {
+            "en": "A beat and a half",
+            "fr": "Un temps et demi",
+            "es": "Un tiempo y medio",
+            "it": "Un movimento e mezzo"
+          },
+          {
+            "en": "Two beats",
+            "fr": "Deux temps",
+            "es": "Dos tiempos",
+            "it": "Due movimenti"
+          }
+        ],
+        "answerIndex": 0,
+        "feedback": {
+          "en": "The dot adds half the value: one beat plus a half makes a beat and a half.",
+          "fr": "Le point ajoute la moitié de la valeur : un temps plus une moitié, cela fait un temps et demi.",
+          "es": "El puntillo añade la mitad del valor: un tiempo más medio hacen un tiempo y medio.",
+          "it": "Il punto aggiunge metà del valore: un movimento più mezzo fa un movimento e mezzo."
+        }
+      },
+      {
+        "type": "rhythmTap",
+        "pattern": [
+          { "fig": "quarter", "dots": 1 },
+          { "fig": "eighth" },
+          { "fig": "half" }
+        ],
+        "beats": 4,
+        "beatType": 4,
+        "bpm": 60,
+        "prompt": {
+          "en": "Same start, calm ending: 'ONE … and-of-two … THREE', and let the half note ring.",
+          "fr": "Même départ, fin posée : « UN … et-de-deux … TROIS », et laisse sonner la blanche.",
+          "es": "Mismo comienzo, final tranquilo: 'UN… y-de-dos… TRES', y deja sonar la blanca.",
+          "it": "Stesso inizio, finale calmo: 'UNO… e-di-due… TRE', e lascia suonare la minima."
+        }
+      },
+      {
+        "type": "rhythmTap",
+        "pattern": [
+          { "fig": "quarter" },
+          { "fig": "quarter", "dots": 1 },
+          { "fig": "eighth" },
+          { "fig": "quarter" }
+        ],
+        "beats": 4,
+        "beatType": 4,
+        "bpm": 60,
+        "prompt": {
+          "en": "The dotted figure moved to the middle of the bar — listen for 'one, TWO … and-of-three, four'.",
+          "fr": "La figure pointée s'est déplacée au milieu de la mesure — guette « un, DEUX … et-de-trois, quatre ».",
+          "es": "La figura con puntillo se movió al centro del compás: busca 'un, DOS… y-de-tres, cuatro'.",
+          "it": "La figura col punto si è spostata al centro della battuta: cerca 'uno, DUE… e-di-tre, quattro'."
+        }
+      },
+      {
+        "type": "text",
+        "text": {
+          "en": "The dot adds half the value: a dotted quarter lasts a beat and a half. You tapped it — now you'll recognize it everywhere.",
+          "fr": "Le point ajoute la moitié de la valeur : une noire pointée dure un temps et demi. Tu l'as tapée — tu la reconnaîtras partout.",
+          "es": "El puntillo añade la mitad del valor: una negra con puntillo dura un tiempo y medio. La tocaste, y ahora la reconocerás en todas partes.",
+          "it": "Il punto aggiunge metà del valore: una semiminima col punto dura un movimento e mezzo. L'hai battuta — ora la riconoscerai ovunque."
+        }
+      }
+    ]
+  }
+}

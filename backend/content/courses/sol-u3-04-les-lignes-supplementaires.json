@@ -1,0 +1,174 @@
+{
+  "id": "sol-u3-04-les-lignes-supplementaires",
+  "status": "published",
+  "instrument": "piano",
+  "track": "solfege",
+  "level": "beginner",
+  "unit": "u3",
+  "unitTitle": {
+    "en": "The whole treble staff",
+    "fr": "Toute la clé de sol",
+    "es": "Toda la clave de sol",
+    "it": "Tutta la chiave di violino"
+  },
+  "sortOrder": 304,
+  "schemaVersion": 2,
+  "title": {
+    "en": "Ledger lines",
+    "fr": "Les lignes supplémentaires",
+    "es": "Las líneas adicionales",
+    "it": "I tagli addizionali"
+  },
+  "content": {
+    "schemaVersion": 2,
+    "id": "sol-u3-04-les-lignes-supplementaires",
+    "instrument": "piano",
+    "track": "solfege",
+    "level": "beginner",
+    "title": {
+      "en": "Ledger lines",
+      "fr": "Les lignes supplémentaires",
+      "es": "Las líneas adicionales",
+      "it": "I tagli addizionali"
+    },
+    "summary": {
+      "en": "Read notes on ledger lines",
+      "fr": "Lire les notes sur les lignes supplémentaires",
+      "es": "Leer las notas en las líneas adicionales",
+      "it": "Leggere le note sui tagli addizionali"
+    },
+    "blocks": [
+      {
+        "type": "text",
+        "text": {
+          "en": "When the staff runs out of room, music adds little extra lines: ledger lines. Middle C already lives on one!",
+          "fr": "Quand la portée manque de place, la musique ajoute de petites lignes : les lignes supplémentaires. Le do central en habite déjà une !",
+          "es": "Cuando al pentagrama le falta sitio, la música añade pequeñas líneas: las líneas adicionales. ¡El do central ya vive en una!",
+          "it": "Quando il pentagramma non basta più, la musica aggiunge piccole linee: i tagli addizionali. Il do centrale ne abita già uno!"
+        }
+      },
+      {
+        "type": "staff",
+        "clef": "treble",
+        "labels": true,
+        "elements": [
+          {
+            "p": "C4",
+            "fig": "quarter"
+          },
+          {
+            "p": "A5",
+            "fig": "quarter"
+          }
+        ],
+        "caption": {
+          "en": "Below and above the staff: C on its ledger line underneath, A perched on one up top.",
+          "fr": "Sous et au-dessus de la portée : do sur sa ligne supplémentaire en bas, la perché sur la sienne tout en haut.",
+          "es": "Debajo y encima del pentagrama: do en su línea adicional abajo, la encaramado en la suya arriba.",
+          "it": "Sotto e sopra il pentagramma: do sul suo taglio addizionale in basso, la appollaiato sul suo in alto."
+        }
+      },
+      {
+        "type": "placeNote",
+        "clef": "treble",
+        "targets": [
+          "C4"
+        ],
+        "prompt": {
+          "en": "Put C on its little ledger line below the staff.",
+          "fr": "Pose le do sur sa petite ligne supplémentaire, sous la portée.",
+          "es": "Coloca el do en su pequeña línea adicional, bajo el pentagrama.",
+          "it": "Metti il do sul suo piccolo taglio addizionale, sotto il pentagramma."
+        }
+      },
+      {
+        "type": "readPlay",
+        "mode": "drill",
+        "clef": "treble",
+        "labels": "afterMiss",
+        "notes": [
+          "C4"
+        ],
+        "prompt": {
+          "en": "Below or above the staff? Play the ledger-line note shown.",
+          "fr": "Sous ou au-dessus de la portée ? Joue la note affichée sur sa ligne supplémentaire.",
+          "es": "¿Debajo o encima del pentagrama? Toca la nota de la línea adicional.",
+          "it": "Sotto o sopra il pentagramma? Suona la nota sul taglio addizionale."
+        }
+      },
+      {
+        "type": "earChoice",
+        "notes": [
+          "C4",
+          "A5"
+        ],
+        "answerId": "up",
+        "choices": [
+          {
+            "id": "up",
+            "label": {
+              "en": "Higher",
+              "fr": "Plus aiguë",
+              "es": "Más aguda",
+              "it": "Più acuta"
+            }
+          },
+          {
+            "id": "down",
+            "label": {
+              "en": "Lower",
+              "fr": "Plus grave",
+              "es": "Más grave",
+              "it": "Più grave"
+            }
+          }
+        ],
+        "prompt": {
+          "en": "From one ledger line to the other: is the second note higher or lower?",
+          "fr": "D'une ligne supplémentaire à l'autre : la deuxième note est-elle plus aiguë ou plus grave ?",
+          "es": "De una línea adicional a la otra: ¿la segunda nota es más aguda o más grave?",
+          "it": "Da un taglio addizionale all'altro: la seconda nota è più acuta o più grave?"
+        }
+      },
+      {
+        "type": "question",
+        "prompt": {
+          "en": "What do ledger lines do?",
+          "fr": "À quoi servent les lignes supplémentaires ?",
+          "es": "¿Para qué sirven las líneas adicionales?",
+          "it": "A cosa servono i tagli addizionali?"
+        },
+        "options": [
+          {
+            "en": "They extend the staff for higher and lower notes",
+            "fr": "Elles prolongent la portée pour les notes plus hautes et plus basses",
+            "es": "Prolongan el pentagrama para notas más agudas y más graves",
+            "it": "Prolungano il pentagramma per note più acute e più gravi"
+          },
+          {
+            "en": "They decorate the staff",
+            "fr": "Elles décorent la portée",
+            "es": "Decoran el pentagrama",
+            "it": "Decorano il pentagramma"
+          }
+        ],
+        "answerIndex": 0,
+        "feedback": {
+          "en": "Exactly — they stretch the staff so far-away notes still have a home.",
+          "fr": "Exactement — elles prolongent la portée pour que les notes éloignées aient aussi une maison.",
+          "es": "Exacto: alargan el pentagrama para que las notas lejanas también tengan casa.",
+          "it": "Esatto: allungano il pentagramma così anche le note lontane hanno una casa."
+        }
+      },
+      {
+        "type": "text",
+        "text": {
+          "en": "Ledger lines extend the staff: middle C below, high A above. No note is out of reach now.",
+          "fr": "Les lignes supplémentaires prolongent la portée : do central en bas, la aigu en haut. Plus aucune note n'est hors de portée.",
+          "es": "Las líneas adicionales prolongan el pentagrama: do central abajo, la agudo arriba. Ya ninguna nota queda fuera de tu alcance.",
+          "it": "I tagli addizionali prolungano il pentagramma: do centrale sotto, la acuto sopra. Nessuna nota è più fuori portata."
+        }
+      }
+    ]
+  }
+}

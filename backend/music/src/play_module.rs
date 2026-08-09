@@ -31,7 +31,7 @@ use cymbra_platform::{AppError, Result};
 use cymbra_user_port::UserPort;
 
 use crate::leaderboard::LeaderboardSink;
-use crate::play::{PlayActivity, PlayRepo, PlaySession};
+use crate::play::{PlayActivity, PlayRepo, PlaySession, PracticeSession};
 use crate::play_core;
 
 /// Max plausible client UTC offset (±14h) — anything larger is a bad client.
@@ -48,6 +48,18 @@ pub struct RecordInput {
     pub tz_offset_minutes: i32,
     pub overall_sync_pct: f32,
     pub session_result_json: String,
+}
+
+/// The caller-supplied fields of a **practice** session to record (change:
+/// add-measure-range-practice, D4). There is deliberately no score field: a
+/// practice is activity, never a scored session. `user_id` is the authenticated
+/// caller, set by the module.
+#[derive(Debug, Clone)]
+pub struct RecordPracticeInput {
+    pub session_id: String,
+    pub score_id: Option<String>,
+    pub practiced_at_ms: i64,
+    pub tz_offset_minutes: i32,
 }
 
 /// Ingestion + per-day activity, over an owner-scoped [`PlayRepo`] and the
@@ -114,6 +126,31 @@ impl PlayModule {
         Ok(())
     }
 
+    /// Record one completed **practice** session for `owner_id`, idempotently by
+    /// session id (change: add-measure-range-practice, D4). Validates the id and
+    /// the timezone offset exactly like the scored path, then stores it in the
+    /// separate practice table — it never reaches the leaderboard sink, so a
+    /// practice can never produce a ranking entry.
+    pub async fn record_practice(&self, owner_id: &str, input: RecordPracticeInput) -> Result<()> {
+        // A well-formed client session id (UUID v7) is the idempotency key.
+        uuid::Uuid::parse_str(&input.session_id)
+            .map_err(|_| AppError::InvalidArgument("invalid session id".into()))?;
+        if input.tz_offset_minutes.abs() > MAX_TZ_OFFSET_MINUTES {
+            return Err(AppError::InvalidArgument(
+                "implausible timezone offset".into(),
+            ));
+        }
+        self.repo
+            .record_practice(&PracticeSession {
+                session_id: input.session_id,
+                user_id: owner_id.to_string(),
+                score_id: input.score_id,
+                practiced_at_ms: input.practiced_at_ms,
+                tz_offset_minutes: input.tz_offset_minutes,
+            })
+            .await
+    }
+
     /// Read `target_id`'s per-day activity as seen by `viewer_id`. Fail-closed: if
     /// the viewer may not see the target's activity (private / not age-eligible,
     /// and not the owner), this is `NotFound` — never revealing a private heatmap.
@@ -132,7 +169,8 @@ impl PlayModule {
             return Err(AppError::NotFound("profile".into()));
         }
         let points = self.repo.session_points(target_id).await?;
-        Ok(play_core::aggregate(&points))
+        let practices = self.repo.practice_points(target_id).await?;
+        Ok(play_core::aggregate_with_practice(&points, &practices))
     }
 }
 
@@ -204,6 +242,60 @@ mod tests {
         let a = m.play_activity("viewer", "owner", today()).await.unwrap();
         assert_eq!(a.total_sessions, 2);
         assert_eq!(a.days.len(), 2);
+    }
+
+    fn practice_input(session_id: &str) -> RecordPracticeInput {
+        RecordPracticeInput {
+            session_id: session_id.into(),
+            score_id: Some("score-1".into()),
+            practiced_at_ms: 1_718_494_200_000,
+            tz_offset_minutes: 0,
+        }
+    }
+
+    #[tokio::test]
+    async fn record_practice_is_idempotent_and_stays_out_of_the_scored_table() {
+        let repo = Arc::new(FakePlayRepo::default());
+        let m = module(repo.clone(), true);
+        let sid = uuid::Uuid::now_v7().to_string();
+        m.record_practice("u1", practice_input(&sid)).await.unwrap();
+        // A retried delivery of the same id is a no-op (no double-count).
+        m.record_practice("u1", practice_input(&sid)).await.unwrap();
+        assert_eq!(repo.practice_count_for("u1"), 1);
+        // ...and it never lands among the scored sessions.
+        assert_eq!(repo.count_for("u1"), 0);
+    }
+
+    #[tokio::test]
+    async fn record_practice_rejects_a_bad_id_and_an_absurd_offset() {
+        let repo = Arc::new(FakePlayRepo::default());
+        let m = module(repo.clone(), true);
+        assert!(matches!(
+            m.record_practice("u1", practice_input("not-a-uuid")).await,
+            Err(AppError::InvalidArgument(_))
+        ));
+        let mut inp = practice_input(&uuid::Uuid::now_v7().to_string());
+        inp.tz_offset_minutes = 20 * 60;
+        assert!(matches!(
+            m.record_practice("u1", inp).await,
+            Err(AppError::InvalidArgument(_))
+        ));
+        assert_eq!(repo.practice_count_for("u1"), 0);
+    }
+
+    #[tokio::test]
+    async fn activity_reports_practice_counts_without_a_success_score() {
+        let repo = Arc::new(FakePlayRepo::default());
+        let m = module(repo.clone(), true);
+        m.record_practice("owner", practice_input(&uuid::Uuid::now_v7().to_string()))
+            .await
+            .unwrap();
+        let a = m.play_activity("viewer", "owner", today()).await.unwrap();
+        assert_eq!(a.total_sessions, 0);
+        assert_eq!(a.total_practices, 1);
+        assert_eq!(a.days.len(), 1);
+        assert_eq!(a.days[0].count, 0);
+        assert_eq!(a.days[0].practice_count, 1);
     }
 
     #[tokio::test]

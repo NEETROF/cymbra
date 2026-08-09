@@ -121,7 +121,9 @@ void main() {
       expect(find.text('Tempo'), findsOneWidget);
       expect(find.text('Reaction'), findsOneWidget);
       expect(find.text('Replay mistakes'), findsOneWidget);
-      // Explicit choices: replay, retry, or the close cross (quit). No silent dismiss.
+      // Explicit choices: replay, practice a section, retry, or the close cross
+      // (quit). No silent dismiss.
+      expect(find.text('Practice a section'), findsOneWidget);
       expect(find.text('Retry'), findsOneWidget);
       expect(find.byIcon(Icons.close), findsOneWidget);
       // Each sub-score shows an average-timing tendency line.
@@ -162,6 +164,7 @@ void main() {
 
         // The stats scroll; the buttons and the close cross stay pinned/visible.
         expect(find.text('Replay mistakes'), findsOneWidget);
+        expect(find.text('Practice a section'), findsOneWidget);
         expect(find.text('Retry'), findsOneWidget);
         expect(find.byIcon(Icons.close), findsOneWidget);
 
@@ -170,6 +173,30 @@ void main() {
         expect(action, SummaryAction.close);
       },
     );
+
+    testWidgets('practice a section returns the practice action', (
+      tester,
+    ) async {
+      SummaryAction? action;
+      await tester.pumpWidget(
+        _scoped(
+          Scaffold(
+            body: Builder(
+              builder: (context) => ElevatedButton(
+                onPressed: () async =>
+                    action = await showSessionSummary(context, _pureFree()),
+                child: const Text('go'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('go'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('summary-practice')));
+      await tester.pumpAndSettle();
+      expect(action, SummaryAction.practice);
+    });
 
     testWidgets('the close cross returns close and dismisses the modal', (
       tester,

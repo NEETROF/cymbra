@@ -1,0 +1,157 @@
+{
+  "id": "sol-u2-01-la-pulsation",
+  "status": "published",
+  "instrument": "piano",
+  "track": "solfege",
+  "level": "beginner",
+  "unit": "u2",
+  "unitTitle": {
+    "en": "Pulse and rhythm",
+    "fr": "La pulsation et le rythme",
+    "es": "El pulso y el ritmo",
+    "it": "La pulsazione e il ritmo"
+  },
+  "sortOrder": 201,
+  "schemaVersion": 2,
+  "title": {
+    "en": "The pulse",
+    "fr": "La pulsation",
+    "es": "El pulso",
+    "it": "La pulsazione"
+  },
+  "content": {
+    "schemaVersion": 2,
+    "id": "sol-u2-01-la-pulsation",
+    "instrument": "piano",
+    "track": "solfege",
+    "level": "beginner",
+    "title": {
+      "en": "The pulse",
+      "fr": "La pulsation",
+      "es": "El pulso",
+      "it": "La pulsazione"
+    },
+    "summary": {
+      "en": "Feel the steady beat with the metronome",
+      "fr": "Sentir la pulsation régulière avec le métronome",
+      "es": "Sentir el pulso constante con el metrónomo",
+      "it": "Sentire la pulsazione costante con il metronomo"
+    },
+    "blocks": [
+      {
+        "type": "text",
+        "text": {
+          "en": "Every piece of music has a heartbeat: the pulse. The metronome clicks it out so you can feel it.",
+          "fr": "Toute musique a un cœur qui bat : la pulsation. Le métronome la fait entendre pour que tu puisses la sentir.",
+          "es": "Toda la música tiene un corazón que late: el pulso. El metrónomo lo marca para que puedas sentirlo.",
+          "it": "Ogni musica ha un cuore che batte: la pulsazione. Il metronomo la scandisce perché tu possa sentirla."
+        }
+      },
+      {
+        "type": "rhythmTap",
+        "pattern": [
+          { "fig": "quarter" },
+          { "fig": "quarter" },
+          { "fig": "quarter" },
+          { "fig": "quarter" }
+        ],
+        "beats": 4,
+        "beatType": 4,
+        "bpm": 70,
+        "prompt": {
+          "en": "Tap the pad together with every click of the metronome.",
+          "fr": "Tape sur le pavé en même temps que chaque clic du métronome.",
+          "es": "Toca el pad al mismo tiempo que cada clic del metrónomo.",
+          "it": "Tocca il pad insieme a ogni clic del metronomo."
+        }
+      },
+      {
+        "type": "question",
+        "prompt": {
+          "en": "The pulse of a piece is…",
+          "fr": "La pulsation d'un morceau est…",
+          "es": "El pulso de una pieza es…",
+          "it": "La pulsazione di un brano è…"
+        },
+        "options": [
+          {
+            "en": "Steady, like a heartbeat",
+            "fr": "Régulière, comme un battement de cœur",
+            "es": "Constante, como un latido del corazón",
+            "it": "Costante, come un battito del cuore"
+          },
+          {
+            "en": "Random, different every time",
+            "fr": "Aléatoire, différente à chaque fois",
+            "es": "Aleatoria, distinta cada vez",
+            "it": "Casuale, diversa ogni volta"
+          }
+        ],
+        "answerIndex": 0,
+        "feedback": {
+          "en": "Exactly — the pulse keeps the same steady time, like a heart at rest.",
+          "fr": "Exactement — la pulsation garde un tempo régulier, comme un cœur au repos.",
+          "es": "Exacto: el pulso mantiene un tiempo constante, como un corazón en reposo.",
+          "it": "Esatto — la pulsazione mantiene un tempo costante, come un cuore a riposo."
+        }
+      },
+      {
+        "type": "rhythmTap",
+        "pattern": [
+          { "fig": "quarter" },
+          { "fig": "quarter" },
+          { "fig": "quarter" },
+          { "fig": "quarter" }
+        ],
+        "beats": 4,
+        "beatType": 4,
+        "bpm": 90,
+        "prompt": {
+          "en": "Same thing, a little faster: stay glued to every click.",
+          "fr": "La même chose, un peu plus vite : reste bien collé à chaque clic.",
+          "es": "Lo mismo, un poco más rápido: quédate pegado a cada clic.",
+          "it": "La stessa cosa, un po' più veloce: resta incollato a ogni clic."
+        }
+      },
+      {
+        "type": "question",
+        "prompt": {
+          "en": "At a faster tempo, the beats are…",
+          "fr": "Quand le tempo est plus rapide, les temps sont…",
+          "es": "Con un tempo más rápido, los tiempos están…",
+          "it": "Con un tempo più veloce, i battiti sono…"
+        },
+        "options": [
+          {
+            "en": "Closer together",
+            "fr": "Plus rapprochés",
+            "es": "Más juntos",
+            "it": "Più ravvicinati"
+          },
+          {
+            "en": "Further apart",
+            "fr": "Plus espacés",
+            "es": "Más separados",
+            "it": "Più distanziati"
+          }
+        ],
+        "answerIndex": 0,
+        "feedback": {
+          "en": "Right — tempo is the speed of the pulse: the faster it goes, the closer the clicks.",
+          "fr": "Bien vu — le tempo est la vitesse de la pulsation : plus il est rapide, plus les clics se rapprochent.",
+          "es": "Muy bien: el tempo es la velocidad del pulso; cuanto más rápido, más juntos los clics.",
+          "it": "Giusto — il tempo è la velocità della pulsazione: più è veloce, più i clic si avvicinano."
+        }
+      },
+      {
+        "type": "text",
+        "text": {
+          "en": "You can feel the pulse now — steady at any speed. Every rhythm you learn will lean on it.",
+          "fr": "Tu sais maintenant sentir la pulsation — régulière à toutes les vitesses. Tous les rythmes que tu apprendras s'appuieront dessus.",
+          "es": "Ya sabes sentir el pulso: constante a cualquier velocidad. Todos los ritmos que aprendas se apoyarán en él.",
+          "it": "Ora sai sentire la pulsazione — costante a ogni velocità. Tutti i ritmi che imparerai si appoggeranno su di essa."
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,128 @@
+{
+  "id": "sol-u4-06-bilan-cle-de-fa",
+  "status": "published",
+  "instrument": "piano",
+  "track": "solfege",
+  "level": "intermediate",
+  "unit": "u4",
+  "unitTitle": {
+    "en": "Bass clef and the left hand",
+    "fr": "La clé de fa et la main gauche",
+    "es": "La clave de fa y la mano izquierda",
+    "it": "La chiave di basso e la mano sinistra"
+  },
+  "sortOrder": 406,
+  "schemaVersion": 2,
+  "title": {
+    "en": "Checkpoint: bass clef",
+    "fr": "Bilan : la clé de fa",
+    "es": "Repaso: la clave de fa",
+    "it": "Ripasso: la chiave di basso"
+  },
+  "content": {
+    "schemaVersion": 2,
+    "id": "sol-u4-06-bilan-cle-de-fa",
+    "instrument": "piano",
+    "track": "solfege",
+    "level": "intermediate",
+    "title": {
+      "en": "Checkpoint: bass clef",
+      "fr": "Bilan : la clé de fa",
+      "es": "Repaso: la clave de fa",
+      "it": "Ripasso: la chiave di basso"
+    },
+    "summary": {
+      "en": "Review the whole bass clef, lines to middle C",
+      "fr": "Réviser toute la clé de fa, des lignes au do central",
+      "es": "Repasar toda la clave de fa, de las líneas al do central",
+      "it": "Ripassare tutta la chiave di basso, dalle righe al do centrale"
+    },
+    "blocks": [
+      {
+        "type": "text",
+        "text": {
+          "en": "Time to put the whole bass clef together: lines, spaces and middle C. Show what your left hand has learned.",
+          "fr": "L'heure est venue de rassembler toute la clé de fa : lignes, interlignes et do central. Montre ce que ta main gauche a appris.",
+          "es": "Es hora de reunir toda la clave de fa: líneas, espacios y do central. Enseña lo que ha aprendido tu mano izquierda.",
+          "it": "È ora di mettere insieme tutta la chiave di basso: righe, spazi e do centrale. Mostra cosa ha imparato la tua mano sinistra."
+        }
+      },
+      {
+        "type": "nameNote",
+        "clef": "bass",
+        "choiceCount": 4,
+        "notes": ["F3", "A3", "C3", "E3", "G3"],
+        "prompt": {
+          "en": "Five notes from all over the bass staff — name each one. Tap a name to hear it.",
+          "fr": "Cinq notes venues de toute la portée de fa — nomme chacune d'elles. Touche un nom pour l'entendre.",
+          "es": "Cinco notas de toda la clave de fa — nombra cada una. Toca un nombre para oírla.",
+          "it": "Cinque note da tutta la chiave di basso — dai un nome a ciascuna. Tocca un nome per sentirla."
+        }
+      },
+      {
+        "type": "readPlay",
+        "mode": "melody",
+        "clef": "bass",
+        "labels": "never",
+        "notes": ["C3", "D3", "E3", "F3", "G3", "F3", "E3", "D3", "C3"],
+        "prompt": {
+          "en": "A scale walk in the left hand: up from C to G, then back down.",
+          "fr": "Une gamme qui se promène à la main gauche : monte de do à sol, puis redescends.",
+          "es": "Un paseo de escala con la mano izquierda: sube de do a sol y vuelve a bajar.",
+          "it": "Una scala in passeggiata per la mano sinistra: sali da do a sol, poi ridiscendi."
+        }
+      },
+      {
+        "type": "placeNote",
+        "clef": "bass",
+        "targets": ["A3"],
+        "prompt": {
+          "en": "Place A on the top line of the bass staff.",
+          "fr": "Pose le la sur la ligne la plus haute de la portée de fa.",
+          "es": "Coloca el la en la línea más alta de la clave de fa.",
+          "it": "Posiziona il la sulla riga più alta della chiave di basso."
+        }
+      },
+      {
+        "type": "earChoice",
+        "notes": ["G2", "G3"],
+        "answerId": "up",
+        "choices": [
+          {
+            "id": "up",
+            "label": {
+              "en": "Higher",
+              "fr": "Plus aiguë",
+              "es": "Más aguda",
+              "it": "Più acuta"
+            }
+          },
+          {
+            "id": "down",
+            "label": {
+              "en": "Lower",
+              "fr": "Plus grave",
+              "es": "Más grave",
+              "it": "Più grave"
+            }
+          }
+        ],
+        "prompt": {
+          "en": "One last listen: two Gs an octave apart — is the second note higher or lower?",
+          "fr": "Une dernière écoute : deux sol à une octave d'écart — la deuxième note est-elle plus aiguë ou plus grave ?",
+          "es": "Una última escucha: dos sol a una octava de distancia — ¿la segunda nota es más aguda o más grave?",
+          "it": "Un ultimo ascolto: due sol a un'ottava di distanza — la seconda nota è più acuta o più grave?"
+        }
+      },
+      {
+        "type": "text",
+        "text": {
+          "en": "Both clefs are yours now: treble, bass and the bridge between them, middle C. Your two hands can read together!",
+          "fr": "Les deux clés sont à toi : la clé de sol, la clé de fa et le pont qui les relie, le do central. Tes deux mains savent lire ensemble !",
+          "es": "Las dos claves ya son tuyas: la de sol, la de fa y el puente que las une, el do central. ¡Tus dos manos ya leen juntas!",
+          "it": "Le due chiavi sono tue: violino, basso e il ponte che le unisce, il do centrale. Le tue due mani ora leggono insieme!"
+        }
+      }
+    ]
+  }
+}

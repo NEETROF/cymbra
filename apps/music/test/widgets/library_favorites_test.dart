@@ -17,11 +17,14 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:music/courses/course_manifest.dart';
 import 'package:music/screens/library_screen.dart';
 import 'package:music/services/audio_service.dart';
 import 'package:music/services/catalog_service.dart';
+import 'package:music/services/course_catalog_service.dart';
 import 'package:music/services/midi_service.dart';
 import 'package:music/services/notation_engine.dart';
+import 'package:music/services/preferences_service.dart';
 import 'package:music/services/score_asset_source.dart';
 import 'package:music/services/score_upload_service.dart';
 import 'package:music/state/score_catalog.dart';
@@ -30,6 +33,7 @@ import 'package:music/state/session_notifier.dart';
 import '../support/fakes.dart';
 import '../support/localized.dart';
 import '../support/notation_fakes.dart';
+import '../support/prefs_fakes.dart';
 
 class _FakeCatalog implements CatalogService {
   _FakeCatalog(this.saved);
@@ -100,6 +104,28 @@ class _FakeUpload implements ScoreUploadService {
   }) async => throw UnimplementedError();
 }
 
+/// One-lesson course catalogue, enough for the home's continue card.
+class _FakeCourses implements CourseCatalogService {
+  @override
+  Future<List<CourseListing>> listCourses() async => const [
+    CourseListing(
+      id: 'sol-u1-01',
+      schemaVersion: 2,
+      track: 'solfege',
+      level: 'beginner',
+      unit: 'u1',
+      unitTitle: {'en': 'First notes'},
+      sortOrder: 101,
+      title: {'en': 'Reading the staff'},
+    ),
+  ];
+
+  @override
+  Future<String?> getCourseManifestJson(String id) async =>
+      '{"schemaVersion":1,"id":"sol-u1-01","blocks":['
+      '{"type":"text","text":{"en":"hello"}}]}';
+}
+
 CatalogHit _saved(String id, String title) => CatalogHit(
   id: id,
   title: title,
@@ -136,9 +162,14 @@ ProviderContainer _container(
   _FakeCatalog catalog,
   _FakeUpload upload, {
   bool signedIn = true,
+  bool withCourses = false,
 }) {
   final c = ProviderContainer(
     overrides: [
+      if (withCourses) ...[
+        courseCatalogServiceProvider.overrideWithValue(_FakeCourses()),
+        preferencesServiceProvider.overrideWithValue(FakePreferencesService()),
+      ],
       scoreCatalogProvider.overrideWithValue(_bundled),
       scoreAssetSourceProvider.overrideWithValue(FakeScoreAssetSource()),
       notationEngineProvider.overrideWithValue(FakeNotationEngine()),
@@ -154,8 +185,12 @@ ProviderContainer _container(
   return c;
 }
 
-Future<void> _pump(WidgetTester tester, ProviderContainer c) async {
-  await tester.binding.setSurfaceSize(const Size(1400, 900));
+Future<void> _pump(
+  WidgetTester tester,
+  ProviderContainer c, {
+  Size size = const Size(1400, 900),
+}) async {
+  await tester.binding.setSurfaceSize(size);
   await tester.pumpWidget(
     UncontrolledProviderScope(
       container: c,
@@ -209,6 +244,35 @@ void main() {
       find.widgetWithText(FilledButton, 'Browse the Score Hub'),
       findsOneWidget,
     );
+    await _teardown(tester);
+  });
+
+  testWidgets('phone: courses and favorites scroll as one block', (
+    tester,
+  ) async {
+    final c = _container(
+      _FakeCatalog([
+        for (var i = 0; i < 6; i++) _saved('c$i', 'Saved Piece $i'),
+      ]),
+      _FakeUpload([
+        for (var i = 0; i < 4; i++) _upload('u$i', 'Fav Upload $i'),
+      ]),
+      withCourses: true,
+    );
+    // A phone viewport: the courses card alone would leave the favorites a
+    // sliver of screen if each had its own scroll view.
+    await _pump(tester, c, size: const Size(390, 700));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    expect(find.byKey(const Key('courses-continue-card')), findsOneWidget);
+
+    // One drag on the page carries the courses section away and brings the
+    // lower level section up — proof of a single vertical scroll.
+    expect(find.text('Intermediate'), findsNothing); // still below the fold
+    await tester.drag(find.byType(CustomScrollView), const Offset(0, -900));
+    await tester.pump();
+
+    expect(find.byKey(const Key('courses-continue-card')), findsNothing);
+    expect(find.text('Intermediate'), findsOneWidget);
     await _teardown(tester);
   });
 

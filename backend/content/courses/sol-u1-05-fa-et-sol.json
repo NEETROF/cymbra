@@ -1,0 +1,145 @@
+{
+  "id": "sol-u1-05-fa-et-sol",
+  "status": "published",
+  "instrument": "piano",
+  "track": "solfege",
+  "level": "beginner",
+  "unit": "u1",
+  "unitTitle": {
+    "en": "The staff and your first notes",
+    "fr": "La portée et tes premières notes",
+    "es": "El pentagrama y tus primeras notas",
+    "it": "Il pentagramma e le tue prime note"
+  },
+  "sortOrder": 105,
+  "schemaVersion": 2,
+  "title": {
+    "en": "F and G",
+    "fr": "Fa et sol",
+    "es": "Fa y sol",
+    "it": "Fa e sol"
+  },
+  "content": {
+    "schemaVersion": 2,
+    "id": "sol-u1-05-fa-et-sol",
+    "instrument": "piano",
+    "track": "solfege",
+    "level": "beginner",
+    "title": {
+      "en": "F and G",
+      "fr": "Fa et sol",
+      "es": "Fa y sol",
+      "it": "Fa e sol"
+    },
+    "summary": {
+      "en": "Add F and G and own your first five notes",
+      "fr": "Ajoute fa et sol et complète tes cinq premières notes",
+      "es": "Añade fa y sol y completa tus cinco primeras notas",
+      "it": "Aggiungi fa e sol e completa le tue prime cinque note"
+    },
+    "blocks": [
+      {
+        "type": "text",
+        "text": {
+          "en": "Two more notes and your hand covers five in a row: F in the first space, G on the clef's own line.",
+          "fr": "Deux notes de plus et ta main en couvre cinq d'affilée : fa dans le premier interligne, sol sur la ligne de la clé.",
+          "es": "Dos notas más y tu mano cubre cinco seguidas: fa en el primer espacio, sol en la línea de la clave.",
+          "it": "Due note in più e la tua mano ne copre cinque di fila: fa nel primo spazio, sol sulla riga della chiave."
+        }
+      },
+      {
+        "type": "staff",
+        "clef": "treble",
+        "labels": true,
+        "elements": [
+          { "p": "F4", "fig": "quarter" },
+          { "p": "G4", "fig": "quarter" }
+        ],
+        "caption": {
+          "en": "F fills the first space; G sits on the second line, the one the clef wraps.",
+          "fr": "Fa remplit le premier interligne ; sol se pose sur la deuxième ligne, celle que la clé entoure.",
+          "es": "Fa ocupa el primer espacio; sol se apoya en la segunda línea, la que abraza la clave.",
+          "it": "Fa riempie il primo spazio; sol sta sulla seconda riga, quella avvolta dalla chiave."
+        }
+      },
+      {
+        "type": "readPlay",
+        "mode": "drill",
+        "clef": "treble",
+        "labels": "afterMiss",
+        "notes": ["F4", "G4", "F4"],
+        "prompt": {
+          "en": "Play the note shown: space F or line G.",
+          "fr": "Joue la note affichée : fa dans l'interligne ou sol sur la ligne.",
+          "es": "Toca la nota que aparece: fa en el espacio o sol en la línea.",
+          "it": "Suona la nota mostrata: fa nello spazio o sol sulla riga."
+        }
+      },
+      {
+        "type": "nameNote",
+        "clef": "treble",
+        "choiceCount": 3,
+        "notes": ["F4", "G4", "E4"],
+        "prompt": {
+          "en": "Line or space? Name this note — tap a name to hear it.",
+          "fr": "Ligne ou interligne ? Nomme cette note — touche un nom pour l'entendre.",
+          "es": "¿Línea o espacio? Nombra esta nota: toca un nombre para oírla.",
+          "it": "Riga o spazio? Dai il nome a questa nota: tocca un nome per sentirla."
+        }
+      },
+      {
+        "type": "readPlay",
+        "mode": "melody",
+        "clef": "treble",
+        "labels": "never",
+        "notes": ["C4", "D4", "E4", "F4", "G4"],
+        "prompt": {
+          "en": "Climb your five notes, from C up to G.",
+          "fr": "Grimpe tes cinq notes, de do jusqu'à sol.",
+          "es": "Sube tus cinco notas, de do hasta sol.",
+          "it": "Sali le tue cinque note, dal do fino al sol."
+        }
+      },
+      {
+        "type": "earChoice",
+        "notes": ["G4", "C4"],
+        "answerId": "down",
+        "choices": [
+          {
+            "id": "up",
+            "label": {
+              "en": "Higher",
+              "fr": "Plus aiguë",
+              "es": "Más aguda",
+              "it": "Più acuta"
+            }
+          },
+          {
+            "id": "down",
+            "label": {
+              "en": "Lower",
+              "fr": "Plus grave",
+              "es": "Más grave",
+              "it": "Più grave"
+            }
+          }
+        ],
+        "prompt": {
+          "en": "The top of your climb, then one more note. Is the second note higher or lower?",
+          "fr": "Le sommet de ta montée, puis une autre note. La deuxième note est-elle plus aiguë ou plus grave ?",
+          "es": "La cima de tu subida y luego otra nota. ¿La segunda nota es más aguda o más grave?",
+          "it": "La cima della tua salita, poi un'altra nota. La seconda nota è più acuta o più grave?"
+        }
+      },
+      {
+        "type": "text",
+        "text": {
+          "en": "That's five notes read and played: C, D, E, F, G. Next lesson, they all come together in a real tune.",
+          "fr": "Cinq notes lues et jouées : do, ré, mi, fa, sol. À la prochaine leçon, elles se retrouvent dans une vraie mélodie.",
+          "es": "Cinco notas leídas y tocadas: do, re, mi, fa, sol. En la próxima lección se juntan en una melodía de verdad.",
+          "it": "Cinque note lette e suonate: do, re, mi, fa, sol. Nella prossima lezione si ritrovano in una vera melodia."
+        }
+      }
+    ]
+  }
+}

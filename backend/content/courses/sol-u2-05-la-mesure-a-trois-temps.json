@@ -1,0 +1,176 @@
+{
+  "id": "sol-u2-05-la-mesure-a-trois-temps",
+  "status": "published",
+  "instrument": "piano",
+  "track": "solfege",
+  "level": "beginner",
+  "unit": "u2",
+  "unitTitle": {
+    "en": "Pulse and rhythm",
+    "fr": "La pulsation et le rythme",
+    "es": "El pulso y el ritmo",
+    "it": "La pulsazione e il ritmo"
+  },
+  "sortOrder": 205,
+  "schemaVersion": 2,
+  "title": {
+    "en": "Three beats to a bar",
+    "fr": "La mesure à trois temps",
+    "es": "El compás de tres tiempos",
+    "it": "Il tempo in tre"
+  },
+  "content": {
+    "schemaVersion": 2,
+    "id": "sol-u2-05-la-mesure-a-trois-temps",
+    "instrument": "piano",
+    "track": "solfege",
+    "level": "beginner",
+    "title": {
+      "en": "Three beats to a bar",
+      "fr": "La mesure à trois temps",
+      "es": "El compás de tres tiempos",
+      "it": "Il tempo in tre"
+    },
+    "summary": {
+      "en": "3/4 time and the waltz",
+      "fr": "La mesure à 3/4 et la valse",
+      "es": "El compás de 3/4 y el vals",
+      "it": "Il tempo in 3/4 e il valzer"
+    },
+    "blocks": [
+      {
+        "type": "text",
+        "text": {
+          "en": "Not all music counts to four — the waltz counts to three. In 3/4 time each measure holds three beats: ONE-two-three.",
+          "fr": "Toute la musique ne compte pas jusqu'à quatre — la valse compte jusqu'à trois. En 3/4, chaque mesure contient trois temps : UN-deux-trois.",
+          "es": "No toda la música cuenta hasta cuatro: el vals cuenta hasta tres. En 3/4, cada compás tiene tres tiempos: UN-dos-tres.",
+          "it": "Non tutta la musica conta fino a quattro — il valzer conta fino a tre. In 3/4 ogni battuta ha tre tempi: UN-due-tre."
+        }
+      },
+      {
+        "type": "staff",
+        "clef": "treble",
+        "time": { "beats": 3, "beatType": 4 },
+        "elements": [
+          { "p": "C4", "fig": "quarter" },
+          { "p": "E4", "fig": "quarter" },
+          { "p": "G4", "fig": "quarter" }
+        ],
+        "caption": {
+          "en": "Three quarter notes fill the 3/4 bar exactly: C, E, G — one beat each.",
+          "fr": "Trois noires remplissent exactement la mesure à 3/4 : do, mi, sol — un temps chacune.",
+          "es": "Tres negras llenan exactamente el compás de 3/4: do, mi, sol, un tiempo cada una.",
+          "it": "Tre semiminime riempiono esattamente la battuta in 3/4: do, mi, sol — un tempo ciascuna."
+        }
+      },
+      {
+        "type": "rhythmTap",
+        "pattern": [
+          { "fig": "quarter" },
+          { "fig": "quarter" },
+          { "fig": "quarter" }
+        ],
+        "beats": 3,
+        "beatType": 4,
+        "bpm": 80,
+        "prompt": {
+          "en": "Tap all three beats and feel ONE-two-three, with the first beat strongest.",
+          "fr": "Tape les trois temps et sens UN-deux-trois, avec le premier temps plus appuyé.",
+          "es": "Toca los tres tiempos y siente UN-dos-tres, con el primer tiempo más marcado.",
+          "it": "Tocca tutti e tre i tempi e senti UN-due-tre, con il primo tempo più marcato."
+        }
+      },
+      {
+        "type": "question",
+        "prompt": {
+          "en": "How many beats fit in one 3/4 measure?",
+          "fr": "Combien de temps tiennent dans une mesure à 3/4 ?",
+          "es": "¿Cuántos tiempos caben en un compás de 3/4?",
+          "it": "Quanti tempi stanno in una battuta di 3/4?"
+        },
+        "options": [
+          {
+            "en": "Three",
+            "fr": "Trois",
+            "es": "Tres",
+            "it": "Tre"
+          },
+          {
+            "en": "Four",
+            "fr": "Quatre",
+            "es": "Cuatro",
+            "it": "Quattro"
+          }
+        ],
+        "answerIndex": 0,
+        "feedback": {
+          "en": "Yes — the top number of 3/4 tells you: three beats per measure.",
+          "fr": "Oui — le chiffre du haut du 3/4 te le dit : trois temps par mesure.",
+          "es": "Sí: el número de arriba del 3/4 te lo dice, tres tiempos por compás.",
+          "it": "Sì — il numero in alto del 3/4 te lo dice: tre tempi per battuta."
+        }
+      },
+      {
+        "type": "rhythmTap",
+        "pattern": [
+          { "fig": "half" },
+          { "fig": "quarter" }
+        ],
+        "beats": 3,
+        "beatType": 4,
+        "bpm": 70,
+        "prompt": {
+          "en": "Tap on one and hold two beats, then tap again on three — a real waltz swing.",
+          "fr": "Tape sur un et tiens deux temps, puis retape sur trois — un vrai balancement de valse.",
+          "es": "Toca en el uno y mantén dos tiempos, luego toca otra vez en el tres: un auténtico vaivén de vals.",
+          "it": "Tocca sull'uno e tieni due tempi, poi tocca di nuovo sul tre — un vero dondolio di valzer."
+        }
+      },
+      {
+        "type": "question",
+        "prompt": {
+          "en": "In 3/4, which beat carries the accent?",
+          "fr": "En 3/4, quel temps porte l'accent ?",
+          "es": "En 3/4, ¿qué tiempo lleva el acento?",
+          "it": "In 3/4, quale tempo porta l'accento?"
+        },
+        "options": [
+          {
+            "en": "Beat 1",
+            "fr": "Le 1er temps",
+            "es": "El tiempo 1",
+            "it": "Il primo tempo"
+          },
+          {
+            "en": "Beat 2",
+            "fr": "Le 2e temps",
+            "es": "El tiempo 2",
+            "it": "Il secondo tempo"
+          },
+          {
+            "en": "Beat 3",
+            "fr": "Le 3e temps",
+            "es": "El tiempo 3",
+            "it": "Il terzo tempo"
+          }
+        ],
+        "answerIndex": 0,
+        "feedback": {
+          "en": "Yes — the downbeat: ONE-two-three, ONE-two-three, that's what makes it dance.",
+          "fr": "Oui — le premier temps : UN-deux-trois, UN-deux-trois, c'est ça qui fait danser.",
+          "es": "Sí: el primer tiempo. UN-dos-tres, UN-dos-tres, eso es lo que hace bailar.",
+          "it": "Sì — il primo tempo: UN-due-tre, UN-due-tre, è questo che fa ballare."
+        }
+      },
+      {
+        "type": "text",
+        "text": {
+          "en": "You can now feel a bar of three: ONE-two-three, accent on the first beat. The meter is what makes music dance.",
+          "fr": "Tu sais maintenant sentir une mesure à trois temps : UN-deux-trois, accent sur le premier. C'est la mesure qui fait danser la musique.",
+          "es": "Ya sabes sentir un compás de tres tiempos: UN-dos-tres, con acento en el primero. El compás es lo que hace bailar la música.",
+          "it": "Ora sai sentire una battuta in tre: UN-due-tre, con l'accento sul primo. È il metro che fa danzare la musica."
+        }
+      }
+    ]
+  }
+}

@@ -118,6 +118,15 @@ pub async fn purge_user(admin_pool: &PgPool, user_id: &str) -> anyhow::Result<()
         .execute(&mut *tx)
         .await?;
 
+    // The user's practice sessions (change: add-measure-range-practice). Scoreless
+    // activity records, same shape of profile data as the play sessions above and
+    // keyed the same way — erase them in the same transaction so no practice data
+    // outlives the account.
+    sqlx::query("DELETE FROM music.practice_sessions WHERE user_id = $1")
+        .bind(uid)
+        .execute(&mut *tx)
+        .await?;
+
     // The user's leaderboard personal bests (change: add-play-leaderboards). These
     // are a durable per-(piece, mode) summary keyed by user_id (no cross-schema FK,
     // so no cascade from the account row); erase them in the same transaction so no
@@ -151,6 +160,7 @@ pub async fn purge_user(admin_pool: &PgPool, user_id: &str) -> anyhow::Result<()
         "music.curation_points",
         "music.curation_grants",
         "music.score_engagements",
+        "music.course_progress",
     ] {
         sqlx::query(&format!("DELETE FROM {table} WHERE user_id = $1"))
             .bind(uid)

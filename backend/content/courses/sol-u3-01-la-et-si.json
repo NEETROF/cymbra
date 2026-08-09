@@ -1,0 +1,145 @@
+{
+  "id": "sol-u3-01-la-et-si",
+  "status": "published",
+  "instrument": "piano",
+  "track": "solfege",
+  "level": "beginner",
+  "unit": "u3",
+  "unitTitle": {
+    "en": "The whole treble staff",
+    "fr": "Toute la clé de sol",
+    "es": "Toda la clave de sol",
+    "it": "Tutta la chiave di violino"
+  },
+  "sortOrder": 301,
+  "schemaVersion": 2,
+  "title": {
+    "en": "A and B",
+    "fr": "La et si",
+    "es": "La y si",
+    "it": "La e si"
+  },
+  "content": {
+    "schemaVersion": 2,
+    "id": "sol-u3-01-la-et-si",
+    "instrument": "piano",
+    "track": "solfege",
+    "level": "beginner",
+    "title": {
+      "en": "A and B",
+      "fr": "La et si",
+      "es": "La y si",
+      "it": "La e si"
+    },
+    "summary": {
+      "en": "Read and play A and B",
+      "fr": "Lire et jouer la et si",
+      "es": "Leer y tocar la y si",
+      "it": "Leggere e suonare la e si"
+    },
+    "blocks": [
+      {
+        "type": "text",
+        "text": {
+          "en": "Two new notes climb past G: A in the second space, B on the middle line.",
+          "fr": "Deux nouvelles notes grimpent au-dessus de sol : la dans le deuxième interligne, si sur la ligne du milieu.",
+          "es": "Dos notas nuevas suben más allá de sol: la en el segundo espacio, si en la línea central.",
+          "it": "Due nuove note salgono oltre il sol: il la nel secondo spazio, il si sulla riga centrale."
+        }
+      },
+      {
+        "type": "staff",
+        "clef": "treble",
+        "labels": true,
+        "elements": [
+          { "p": "A4", "fig": "quarter" },
+          { "p": "B4", "fig": "quarter" }
+        ],
+        "caption": {
+          "en": "A sits in the second space, B right on the middle line.",
+          "fr": "La se loge dans le deuxième interligne, si se pose juste sur la ligne du milieu.",
+          "es": "La se coloca en el segundo espacio, si descansa justo sobre la línea central.",
+          "it": "Il la sta nel secondo spazio, il si proprio sulla riga centrale."
+        }
+      },
+      {
+        "type": "readPlay",
+        "mode": "drill",
+        "clef": "treble",
+        "labels": "afterMiss",
+        "notes": ["A4", "B4", "A4"],
+        "prompt": {
+          "en": "Second space or middle line? Play the note the staff shows.",
+          "fr": "Deuxième interligne ou ligne du milieu ? Joue la note que montre la portée.",
+          "es": "¿Segundo espacio o línea central? Toca la nota que muestra el pentagrama.",
+          "it": "Secondo spazio o riga centrale? Suona la nota che mostra il pentagramma."
+        }
+      },
+      {
+        "type": "nameNote",
+        "clef": "treble",
+        "choiceCount": 3,
+        "notes": ["A4", "B4", "G4"],
+        "prompt": {
+          "en": "G, A or B? Name each note — tap a name to hear it.",
+          "fr": "Sol, la ou si ? Nomme chaque note — touche un nom pour l'entendre.",
+          "es": "¿Sol, la o si? Nombra cada nota: toca un nombre para oírla.",
+          "it": "Sol, la o si? Dai un nome a ogni nota: tocca un nome per sentirla."
+        }
+      },
+      {
+        "type": "readPlay",
+        "mode": "melody",
+        "clef": "treble",
+        "labels": "never",
+        "notes": ["G4", "A4", "B4", "A4", "G4"],
+        "prompt": {
+          "en": "A little climb: walk up from G to B, then back down.",
+          "fr": "Une petite ascension : monte de sol à si, puis redescends.",
+          "es": "Una pequeña subida: sube de sol a si y vuelve a bajar.",
+          "it": "Una piccola scalata: sali da sol a si, poi ridiscendi."
+        }
+      },
+      {
+        "type": "earChoice",
+        "notes": ["A4", "B4"],
+        "answerId": "up",
+        "choices": [
+          {
+            "id": "up",
+            "label": {
+              "en": "Higher",
+              "fr": "Plus aiguë",
+              "es": "Más aguda",
+              "it": "Più acuta"
+            }
+          },
+          {
+            "id": "down",
+            "label": {
+              "en": "Lower",
+              "fr": "Plus grave",
+              "es": "Más grave",
+              "it": "Più grave"
+            }
+          }
+        ],
+        "prompt": {
+          "en": "A, then its neighbor: is the second note higher or lower?",
+          "fr": "La, puis sa voisine : la deuxième note est-elle plus aiguë ou plus grave ?",
+          "es": "La y su vecina: ¿la segunda nota es más aguda o más grave?",
+          "it": "Il la e la sua vicina: la seconda nota è più acuta o più grave?"
+        }
+      },
+      {
+        "type": "text",
+        "text": {
+          "en": "You now read A and B — that makes seven notes under your fingers.",
+          "fr": "Tu sais maintenant lire la et si — cela fait déjà sept notes sous tes doigts.",
+          "es": "Ya lees la y si: ¡son siete notas bajo tus dedos!",
+          "it": "Ora leggi la e si: fanno già sette note sotto le tue dita."
+        }
+      }
+    ]
+  }
+}

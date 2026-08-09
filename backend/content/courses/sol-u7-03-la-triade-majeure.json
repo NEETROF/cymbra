@@ -1,0 +1,140 @@
+{
+  "id": "sol-u7-03-la-triade-majeure",
+  "status": "published",
+  "instrument": "piano",
+  "track": "solfege",
+  "level": "advanced",
+  "unit": "u7",
+  "unitTitle": {
+    "en": "Intervals, chords and ear",
+    "fr": "Intervalles, accords et oreille",
+    "es": "Intervalos, acordes y oído",
+    "it": "Intervalli, accordi e orecchio"
+  },
+  "sortOrder": 703,
+  "schemaVersion": 2,
+  "title": {
+    "en": "The major triad",
+    "fr": "La triade majeure",
+    "es": "La tríada mayor",
+    "it": "La triade maggiore"
+  },
+  "content": {
+    "schemaVersion": 2,
+    "id": "sol-u7-03-la-triade-majeure",
+    "instrument": "piano",
+    "track": "solfege",
+    "level": "advanced",
+    "title": {
+      "en": "The major triad",
+      "fr": "La triade majeure",
+      "es": "La tríada mayor",
+      "it": "La triade maggiore"
+    },
+    "summary": {
+      "en": "Build the major triad on C and on G",
+      "fr": "Construire la triade majeure sur do et sur sol",
+      "es": "Construir la tríada mayor sobre do y sobre sol",
+      "it": "Costruire la triade maggiore su do e su sol"
+    },
+    "blocks": [
+      {
+        "type": "text",
+        "text": {
+          "en": "Stack a third on top of a third and you get a chord: the major triad. It is the sound at the heart of most songs you know.",
+          "fr": "Empile une tierce sur une tierce et tu obtiens un accord : la triade majeure. C'est le son au cœur de presque toutes les chansons que tu connais.",
+          "es": "Apila una tercera sobre otra tercera y obtienes un acorde: la tríada mayor. Es el sonido en el corazón de casi todas las canciones que conoces.",
+          "it": "Impila una terza sopra un'altra terza e ottieni un accordo: la triade maggiore. È il suono al cuore di quasi tutte le canzoni che conosci."
+        }
+      },
+      {
+        "type": "staff",
+        "clef": "treble",
+        "labels": true,
+        "elements": [
+          { "p": "C4", "fig": "quarter" },
+          { "p": "E4", "fig": "quarter" },
+          { "p": "G4", "fig": "quarter" }
+        ],
+        "caption": {
+          "en": "C, E, G — the pillars: degrees 1, 3 and 5 of the scale.",
+          "fr": "Do, mi, sol — les piliers : les degrés 1, 3 et 5 de la gamme.",
+          "es": "Do, mi, sol — los pilares: los grados 1, 3 y 5 de la escala.",
+          "it": "Do, mi, sol — i pilastri: i gradi 1, 3 e 5 della scala."
+        }
+      },
+      {
+        "type": "buildChord",
+        "notes": ["C4", "E4", "G4"],
+        "prompt": {
+          "en": "Build C-E-G: press all three keys together and hear the triad ring.",
+          "fr": "Construis do-mi-sol : enfonce les trois touches ensemble et écoute sonner la triade.",
+          "es": "Construye do-mi-sol: pulsa las tres teclas a la vez y escucha sonar la tríada.",
+          "it": "Costruisci do-mi-sol: premi i tre tasti insieme e ascolta suonare la triade."
+        }
+      },
+      {
+        "type": "question",
+        "prompt": {
+          "en": "A triad stacks which degrees of the scale?",
+          "fr": "Une triade empile quels degrés de la gamme ?",
+          "es": "¿Qué grados de la escala apila una tríada?",
+          "it": "Quali gradi della scala impila una triade?"
+        },
+        "options": [
+          {
+            "en": "1, 3 and 5",
+            "fr": "1, 3 et 5",
+            "es": "1, 3 y 5",
+            "it": "1, 3 e 5"
+          },
+          {
+            "en": "1, 2 and 3",
+            "fr": "1, 2 et 3",
+            "es": "1, 2 y 3",
+            "it": "1, 2 e 3"
+          }
+        ],
+        "answerIndex": 0,
+        "feedback": {
+          "en": "Right — you skip a step each time, and that stack of thirds is what makes it a chord.",
+          "fr": "Exact — on saute un degré à chaque fois, et c'est cet empilement de tierces qui fait l'accord.",
+          "es": "Exacto: se salta un grado cada vez, y ese apilado de terceras es lo que hace el acorde.",
+          "it": "Esatto: si salta un grado ogni volta, ed è quella pila di terze a fare l'accordo."
+        }
+      },
+      {
+        "type": "buildChord",
+        "notes": ["G4", "B4", "D5"],
+        "prompt": {
+          "en": "Now build the G chord the same way: G, B and D, all together.",
+          "fr": "Maintenant construis l'accord de sol de la même façon : sol, si et ré, tous ensemble.",
+          "es": "Ahora construye el acorde de sol de la misma manera: sol, si y re, todos juntos.",
+          "it": "Ora costruisci l'accordo di sol allo stesso modo: sol, si e re, tutti insieme."
+        }
+      },
+      {
+        "type": "readPlay",
+        "mode": "melody",
+        "clef": "treble",
+        "labels": "never",
+        "notes": ["C4", "E4", "G4", "E4", "C4"],
+        "prompt": {
+          "en": "Play the triad as a melody: climb the pillars, then come back down.",
+          "fr": "Joue la triade en mélodie : grimpe les piliers, puis redescends.",
+          "es": "Toca la tríada como melodía: sube por los pilares y vuelve a bajar.",
+          "it": "Suona la triade come melodia: sali sui pilastri, poi ridiscendi."
+        }
+      },
+      {
+        "type": "text",
+        "text": {
+          "en": "You built your first chords: triads stacked 1-3-5, on C and on G. Songs are made of these.",
+          "fr": "Tu as construit tes premiers accords : des triades empilées 1-3-5, sur do et sur sol. Les chansons sont faites de ça.",
+          "es": "Has construido tus primeros acordes: tríadas apiladas 1-3-5, sobre do y sobre sol. Las canciones están hechas de esto.",
+          "it": "Hai costruito i tuoi primi accordi: triadi impilate 1-3-5, su do e su sol. Le canzoni sono fatte di questo."
+        }
+      }
+    ]
+  }
+}

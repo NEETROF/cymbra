@@ -1,0 +1,165 @@
+{
+  "id": "sol-u7-04-majeur-ou-mineur",
+  "status": "published",
+  "instrument": "piano",
+  "track": "solfege",
+  "level": "advanced",
+  "unit": "u7",
+  "unitTitle": {
+    "en": "Intervals, chords and ear",
+    "fr": "Intervalles, accords et oreille",
+    "es": "Intervalos, acordes y oído",
+    "it": "Intervalli, accordi e orecchio"
+  },
+  "sortOrder": 704,
+  "schemaVersion": 2,
+  "title": {
+    "en": "Major or minor",
+    "fr": "Majeur ou mineur",
+    "es": "Mayor o menor",
+    "it": "Maggiore o minore"
+  },
+  "content": {
+    "schemaVersion": 2,
+    "id": "sol-u7-04-majeur-ou-mineur",
+    "instrument": "piano",
+    "track": "solfege",
+    "level": "advanced",
+    "title": {
+      "en": "Major or minor",
+      "fr": "Majeur ou mineur",
+      "es": "Mayor o menor",
+      "it": "Maggiore o minore"
+    },
+    "summary": {
+      "en": "Hear how the third turns a chord major or minor",
+      "fr": "Entendre comment la tierce rend un accord majeur ou mineur",
+      "es": "Escuchar cómo la tercera hace un acorde mayor o menor",
+      "it": "Sentire come la terza rende un accordo maggiore o minore"
+    },
+    "blocks": [
+      {
+        "type": "text",
+        "text": {
+          "en": "Same pillars, one tiny move: lower the middle note and the chord turns from bright to shadowed. The third decides the colour.",
+          "fr": "Mêmes piliers, un tout petit geste : abaisse la note du milieu et l'accord passe de lumineux à voilé. C'est la tierce qui décide de la couleur.",
+          "es": "Los mismos pilares, un gesto mínimo: baja la nota del medio y el acorde pasa de luminoso a sombrío. La tercera decide el color.",
+          "it": "Stessi pilastri, un gesto minuscolo: abbassa la nota di mezzo e l'accordo passa da luminoso a ombroso. È la terza a decidere il colore."
+        }
+      },
+      {
+        "type": "earChoice",
+        "harmonic": true,
+        "notes": ["C4", "E4", "G4"],
+        "answerId": "major",
+        "choices": [
+          {
+            "id": "major",
+            "label": {
+              "en": "Major",
+              "fr": "Majeur",
+              "es": "Mayor",
+              "it": "Maggiore"
+            }
+          },
+          {
+            "id": "minor",
+            "label": {
+              "en": "Minor",
+              "fr": "Mineur",
+              "es": "Menor",
+              "it": "Minore"
+            }
+          }
+        ],
+        "prompt": {
+          "en": "Listen to the three notes ring together. Bright and open — major or minor?",
+          "fr": "Écoute les trois notes sonner ensemble. Lumineux et ouvert — majeur ou mineur ?",
+          "es": "Escucha las tres notas sonando juntas. Luminoso y abierto: ¿mayor o menor?",
+          "it": "Ascolta le tre note che suonano insieme. Luminoso e aperto: maggiore o minore?"
+        }
+      },
+      {
+        "type": "earChoice",
+        "harmonic": true,
+        "notes": ["C4", "Eb4", "G4"],
+        "answerId": "minor",
+        "choices": [
+          {
+            "id": "major",
+            "label": {
+              "en": "Major",
+              "fr": "Majeur",
+              "es": "Mayor",
+              "it": "Maggiore"
+            }
+          },
+          {
+            "id": "minor",
+            "label": {
+              "en": "Minor",
+              "fr": "Mineur",
+              "es": "Menor",
+              "it": "Minore"
+            }
+          }
+        ],
+        "prompt": {
+          "en": "Same chord, but the middle note slid down. How does it sound now?",
+          "fr": "Le même accord, mais la note du milieu a glissé vers le bas. Comment sonne-t-il maintenant ?",
+          "es": "El mismo acorde, pero la nota del medio bajó. ¿Cómo suena ahora?",
+          "it": "Lo stesso accordo, ma la nota di mezzo è scesa. Come suona adesso?"
+        }
+      },
+      {
+        "type": "buildChord",
+        "notes": ["C4", "Eb4", "G4"],
+        "prompt": {
+          "en": "Lower the third yourself: build C, E flat, G and feel the minor colour under your fingers.",
+          "fr": "Abaisse la tierce toi-même : construis do, mi bémol, sol et sens la couleur mineure sous tes doigts.",
+          "es": "Baja tú la tercera: construye do, mi bemol, sol y siente el color menor bajo tus dedos.",
+          "it": "Abbassa tu la terza: costruisci do, mi bemolle, sol e senti il colore minore sotto le dita."
+        }
+      },
+      {
+        "type": "question",
+        "prompt": {
+          "en": "Between C major and C minor, which note changes?",
+          "fr": "Entre do majeur et do mineur, quelle note change ?",
+          "es": "Entre do mayor y do menor, ¿qué nota cambia?",
+          "it": "Tra do maggiore e do minore, quale nota cambia?"
+        },
+        "options": [
+          {
+            "en": "The third — E becomes E flat",
+            "fr": "La tierce — mi devient mi bémol",
+            "es": "La tercera: mi se vuelve mi bemol",
+            "it": "La terza: mi diventa mi bemolle"
+          },
+          {
+            "en": "The fifth — G moves down",
+            "fr": "La quinte — sol descend",
+            "es": "La quinta: sol baja",
+            "it": "La quinta: sol scende"
+          }
+        ],
+        "answerIndex": 0,
+        "feedback": {
+          "en": "Exactly — the root and the fifth stay put; that one semitone repaints the whole chord.",
+          "fr": "Exactement — la fondamentale et la quinte ne bougent pas ; ce seul demi-ton repeint tout l'accord.",
+          "es": "Exacto: la fundamental y la quinta no se mueven; ese único semitono repinta todo el acorde.",
+          "it": "Esatto: la fondamentale e la quinta restano ferme; quel solo semitono ridipinge tutto l'accordo."
+        }
+      },
+      {
+        "type": "text",
+        "text": {
+          "en": "Major or minor is one note's decision: the third. Your ear caught it — that colour will follow you into every piece you play.",
+          "fr": "Majeur ou mineur, c'est la décision d'une seule note : la tierce. Ton oreille l'a saisi — cette couleur t'accompagnera dans chaque morceau.",
+          "es": "Mayor o menor es la decisión de una sola nota: la tercera. Tu oído lo captó — ese color te acompañará en cada pieza.",
+          "it": "Maggiore o minore è la decisione di una sola nota: la terza. Il tuo orecchio l'ha colto — quel colore ti accompagnerà in ogni brano."
+        }
+      }
+    ]
+  }
+}

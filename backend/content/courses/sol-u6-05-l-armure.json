@@ -1,0 +1,171 @@
+{
+  "id": "sol-u6-05-l-armure",
+  "status": "published",
+  "instrument": "piano",
+  "track": "solfege",
+  "level": "intermediate",
+  "unit": "u6",
+  "unitTitle": {
+    "en": "Sharps, flats and keys",
+    "fr": "Dièses, bémols et tonalités",
+    "es": "Sostenidos, bemoles y tonalidades",
+    "it": "Diesis, bemolli e tonalità"
+  },
+  "sortOrder": 605,
+  "schemaVersion": 2,
+  "title": {
+    "en": "Key signatures: G and F major",
+    "fr": "L'armure : sol majeur et fa majeur",
+    "es": "La armadura: sol mayor y fa mayor",
+    "it": "L'armatura: sol maggiore e fa maggiore"
+  },
+  "content": {
+    "schemaVersion": 2,
+    "id": "sol-u6-05-l-armure",
+    "instrument": "piano",
+    "track": "solfege",
+    "level": "intermediate",
+    "title": {
+      "en": "Key signatures: G and F major",
+      "fr": "L'armure : sol majeur et fa majeur",
+      "es": "La armadura: sol mayor y fa mayor",
+      "it": "L'armatura: sol maggiore e fa maggiore"
+    },
+    "summary": {
+      "en": "One sign at the clef alters the whole piece",
+      "fr": "Un signe à la clé altère toute la pièce",
+      "es": "Un signo junto a la clave altera toda la pieza",
+      "it": "Un segno alla chiave altera tutto il brano"
+    },
+    "blocks": [
+      {
+        "type": "text",
+        "text": {
+          "en": "Start the scale recipe on G and you need one F♯; start on F and you need one B♭. Instead of rewriting the sign every time, the key signature writes it once, right after the clef.",
+          "fr": "Commence la recette de la gamme sur sol et il te faut un fa♯ ; commence sur fa et il te faut un si♭. Plutôt que de réécrire le signe à chaque fois, l'armure l'écrit une seule fois, juste après la clé.",
+          "es": "Empieza la receta de la escala en sol y necesitas un fa♯; empieza en fa y necesitas un si♭. En vez de reescribir el signo cada vez, la armadura lo escribe una sola vez, justo después de la clave.",
+          "it": "Inizia la ricetta della scala da sol e ti serve un fa♯; inizia da fa e ti serve un si♭. Invece di riscrivere il segno ogni volta, l'armatura lo scrive una sola volta, subito dopo la chiave."
+        }
+      },
+      {
+        "type": "staff",
+        "clef": "treble",
+        "keyFifths": 1,
+        "elements": [
+          { "p": "G4", "fig": "quarter" },
+          { "p": "A4", "fig": "quarter" },
+          { "p": "B4", "fig": "quarter" },
+          { "p": "C5", "fig": "quarter" },
+          { "p": "D5", "fig": "quarter" },
+          { "p": "E5", "fig": "quarter" },
+          { "p": "F#5", "fig": "quarter" },
+          { "p": "G5", "fig": "quarter" }
+        ],
+        "caption": {
+          "en": "G major: one sharp at the clef — every F is now F♯, and nothing is rewritten on the notes.",
+          "fr": "Sol majeur : un dièse à la clé — chaque fa devient fa♯, et rien n'est réécrit sur les notes.",
+          "es": "Sol mayor: un sostenido junto a la clave — cada fa se vuelve fa♯, y nada se reescribe en las notas.",
+          "it": "Sol maggiore: un diesis alla chiave — ogni fa diventa fa♯, e nulla è riscritto sulle note."
+        }
+      },
+      {
+        "type": "readPlay",
+        "mode": "drill",
+        "clef": "treble",
+        "keyFifths": 1,
+        "labels": "always",
+        "notes": ["F#5"],
+        "prompt": {
+          "en": "The staff shows a plain F on the top line — but the key signature makes it F♯. Play it.",
+          "fr": "La portée montre un fa tout simple sur la dernière ligne — mais l'armure en fait un fa♯. Joue-le.",
+          "es": "El pentagrama muestra un fa normal en la última línea — pero la armadura lo convierte en fa♯. Tócalo.",
+          "it": "Il pentagramma mostra un fa semplice sull'ultima riga — ma l'armatura lo rende fa♯. Suonalo."
+        }
+      },
+      {
+        "type": "readPlay",
+        "mode": "melody",
+        "clef": "treble",
+        "keyFifths": 1,
+        "labels": "never",
+        "notes": ["G4", "A4", "B4", "C5", "D5"],
+        "prompt": {
+          "en": "Play the opening of the G major scale, left to right.",
+          "fr": "Joue le début de la gamme de sol majeur, de gauche à droite.",
+          "es": "Toca el comienzo de la escala de sol mayor, de izquierda a derecha.",
+          "it": "Suona l'inizio della scala di sol maggiore, da sinistra a destra."
+        }
+      },
+      {
+        "type": "staff",
+        "clef": "treble",
+        "keyFifths": -1,
+        "elements": [
+          { "p": "F4", "fig": "quarter" },
+          { "p": "G4", "fig": "quarter" },
+          { "p": "A4", "fig": "quarter" },
+          { "p": "Bb4", "fig": "quarter" }
+        ],
+        "caption": {
+          "en": "F major: one flat at the clef — every B is now B♭.",
+          "fr": "Fa majeur : un bémol à la clé — chaque si devient si♭.",
+          "es": "Fa mayor: un bemol junto a la clave — cada si se vuelve si♭.",
+          "it": "Fa maggiore: un bemolle alla chiave — ogni si diventa si♭."
+        }
+      },
+      {
+        "type": "readPlay",
+        "mode": "drill",
+        "clef": "treble",
+        "keyFifths": -1,
+        "labels": "always",
+        "notes": ["Bb4"],
+        "prompt": {
+          "en": "The staff shows a plain B — the key signature already made it B♭. Play the black key.",
+          "fr": "La portée montre un si tout simple — l'armure en a déjà fait un si♭. Joue la touche noire.",
+          "es": "El pentagrama muestra un si normal — la armadura ya lo convirtió en si♭. Toca la tecla negra.",
+          "it": "Il pentagramma mostra un si semplice — l'armatura lo ha già reso si♭. Suona il tasto nero."
+        }
+      },
+      {
+        "type": "question",
+        "prompt": {
+          "en": "What does the key signature do?",
+          "fr": "Que fait l'armure ?",
+          "es": "¿Qué hace la armadura?",
+          "it": "Che cosa fa l'armatura?"
+        },
+        "options": [
+          {
+            "en": "It alters its notes once, for the whole piece",
+            "fr": "Elle altère ses notes une fois pour toute la pièce",
+            "es": "Altera sus notas una vez para toda la pieza",
+            "it": "Altera le sue note una volta per tutto il brano"
+          },
+          {
+            "en": "It alters only the first note after the clef",
+            "fr": "Elle n'altère que la première note après la clé",
+            "es": "Solo altera la primera nota después de la clave",
+            "it": "Altera solo la prima nota dopo la chiave"
+          }
+        ],
+        "answerIndex": 0,
+        "feedback": {
+          "en": "Right — one sharp at the clef and every F in the piece is F♯, in every octave.",
+          "fr": "C'est ça — un dièse à la clé, et chaque fa de la pièce devient fa♯, à toutes les octaves.",
+          "es": "Eso es — un sostenido junto a la clave y cada fa de la pieza es fa♯, en todas las octavas.",
+          "it": "Proprio così — un diesis alla chiave e ogni fa del brano è fa♯, in tutte le ottave."
+        }
+      },
+      {
+        "type": "text",
+        "text": {
+          "en": "You read your first key signatures: G major with its F♯, F major with its B♭. One sign at the clef, and the whole piece follows.",
+          "fr": "Tu as lu tes premières armures : sol majeur avec son fa♯, fa majeur avec son si♭. Un signe à la clé, et toute la pièce suit.",
+          "es": "Leíste tus primeras armaduras: sol mayor con su fa♯, fa mayor con su si♭. Un signo junto a la clave, y toda la pieza obedece.",
+          "it": "Hai letto le tue prime armature: sol maggiore con il suo fa♯, fa maggiore con il suo si♭. Un segno alla chiave, e tutto il brano segue."
+        }
+      }
+    ]
+  }
+}

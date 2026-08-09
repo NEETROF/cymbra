@@ -30,10 +30,11 @@ use tonic::{Request, Response, Status};
 use crate::catalog_search::CatalogSearchRepo;
 use crate::curation_rewards::CurationRewardsSink;
 use crate::module::is_rateable_catalog_score;
-use crate::play_module::{PlayModule, RecordInput};
+use crate::play_module::{PlayModule, RecordInput, RecordPracticeInput};
 use crate::proto::{
     DayActivity as ProtoDayActivity, GetPlayActivityRequest, GetPlayActivityResponse,
-    RecordPlaySessionRequest, RecordPlaySessionResponse,
+    RecordPlaySessionRequest, RecordPlaySessionResponse, RecordPracticeRequest,
+    RecordPracticeResponse,
     play_service_server::{PlayService, PlayServiceServer},
 };
 
@@ -157,6 +158,27 @@ impl PlayService for PlayGrpc {
         Ok(Response::new(RecordPlaySessionResponse {}))
     }
 
+    async fn record_practice(
+        &self,
+        req: Request<RecordPracticeRequest>,
+    ) -> Result<Response<RecordPracticeResponse>, Status> {
+        let owner = caller(&req)?;
+        let r = req.into_inner();
+        // A successful return IS the persisted-ack the client's outbox waits for.
+        self.module
+            .record_practice(
+                &owner,
+                RecordPracticeInput {
+                    session_id: r.session_id,
+                    score_id: r.score_id,
+                    practiced_at_ms: r.practiced_at_ms,
+                    tz_offset_minutes: r.tz_offset_minutes,
+                },
+            )
+            .await?;
+        Ok(Response::new(RecordPracticeResponse {}))
+    }
+
     async fn get_play_activity(
         &self,
         req: Request<GetPlayActivityRequest>,
@@ -179,9 +201,11 @@ impl PlayService for PlayGrpc {
                     day: d.day.to_string(),
                     count: d.count as i32,
                     avg_sync_pct: d.avg_sync_pct,
+                    practice_count: d.practice_count as i32,
                 })
                 .collect(),
             total_sessions: activity.total_sessions as i32,
+            total_practices: activity.total_practices as i32,
         }))
     }
 }
@@ -352,6 +376,37 @@ mod tests {
         g.record_play_session(authed(session(Some(CATALOG_ID)), "u1"))
             .await
             .unwrap();
+    }
+
+    #[tokio::test]
+    async fn record_practice_shows_up_as_activity_but_not_as_a_play() {
+        let g = grpc(true);
+        g.record_practice(authed(
+            RecordPracticeRequest {
+                session_id: uuid::Uuid::now_v7().to_string(),
+                score_id: Some("s".into()),
+                practiced_at_ms: 1_718_494_200_000,
+                tz_offset_minutes: 0,
+            },
+            "u1",
+        ))
+        .await
+        .unwrap();
+        let resp = g
+            .get_play_activity(authed(
+                GetPlayActivityRequest {
+                    user_id: String::new(),
+                },
+                "u1",
+            ))
+            .await
+            .unwrap()
+            .into_inner();
+        assert_eq!(resp.total_sessions, 0);
+        assert_eq!(resp.total_practices, 1);
+        assert_eq!(resp.days.len(), 1);
+        assert_eq!(resp.days[0].count, 0);
+        assert_eq!(resp.days[0].practice_count, 1);
     }
 
     #[tokio::test]
