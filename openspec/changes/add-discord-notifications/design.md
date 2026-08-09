@@ -126,6 +126,16 @@ case.
 *Alternative considered*: relying on the job engine's exactly-once illusion. Rejected: sqlxmq is
 at-least-once by contract; the spec forbids duplicate messages.
 
+**Failure classification drives the retry.** The handler returns `Err` — which is what makes the
+job engine retry with its backoff — only for failures that a later attempt can fix: a network
+error, a timeout, a `429`, or a `5xx` from Discord. A `400` (malformed embed), a `404` (the
+webhook was deleted in the Discord UI) or a `401/403` are **terminal**: the handler marks the
+claim failed with the reason and returns `Ok`, so the job stops instead of burning its retry
+budget on something no attempt will fix. Terminal failures are logged at `error` and counted, so
+a deleted webhook surfaces as an alert rather than as silence. The retry itself can never
+double-post: the claim row already holds the dedup key, so a re-attempt of a request that
+actually reached Discord stops at the claim.
+
 ### D6 — One port method returns the **already-gated** subset
 
 Rather than exposing the Discord consent as a readable flag that every call site must combine
@@ -157,6 +167,18 @@ pushed** — the digest carries a top 10, the full top 50 goes to the product's 
 on a weekly cadence and to a slash command on demand (D3). Named announcements are throttled per player over a flag-configured window; aggregate
 figures below a flag-configured minimum player count are omitted, so an aggregate can never
 implicitly identify one person. Suppressions are counted/logged — never silent.
+
+**An empty report is not published at all.** The rendering core answers "is there anything to
+say?" *before* the sender is called: if every publishable element is zero or suppressed, the job
+completes successfully having posted nothing. This is a **product** rule, not a technical one — a
+channel showing "0 players, 0 sessions" week after week actively discourages the community it
+exists to grow, and a dash-filled table is worse than silence. The corollary is that the
+`aggregate minimum` and this rule compose: with `k = 5`, a period where 3 players played yields
+all-suppressed figures, hence no message. A report is published as soon as **one** substantive
+element survives — an accepted catalog item counts, since an item is not a person and is never
+suppressed. Every skip is logged and counted with its reason, so "nothing happened" stays
+distinguishable from "the digest is broken", which is exactly the failure mode silence would
+otherwise hide.
 
 ### D8 — Flags: kill-switch **defaults off**, one flag per category
 

@@ -83,6 +83,37 @@ re-delivered job MUST NOT publish a second message for the same event.
 - **WHEN** the same announcement job is executed twice
 - **THEN** the channel shows exactly one message for that event
 
+### Requirement: Transient delivery failures are retried, terminal ones are abandoned
+
+A failed delivery SHALL be **retried** with backoff whenever a later attempt could fix it — a
+network error, a timeout, `429`, or any `5xx` — until it succeeds or exhausts its retry budget,
+at which point it lands in the dead-letter queue. A failure no attempt can fix — a malformed
+payload (`400`), a deleted webhook (`404`), or a rejected credential (`401`/`403`) — SHALL NOT be
+retried: it is recorded with its reason and abandoned.
+Retrying MUST NOT produce a duplicate message when the failed attempt had in fact reached
+Discord. Both outcomes SHALL be logged and counted, so a permanently broken channel raises an
+alert instead of going quiet.
+
+#### Scenario: Discord is unreachable
+
+- **WHEN** the Discord request fails with a network error, a timeout, `429`, or a `5xx`
+- **THEN** the job is retried with backoff until it succeeds or is dead-lettered, and the announcement is not lost
+
+#### Scenario: A deleted webhook is not retried forever
+
+- **WHEN** Discord answers `404` because the channel webhook was deleted
+- **THEN** the announcement is abandoned with the reason recorded, and no further attempt is made
+
+#### Scenario: A malformed payload is not retried
+
+- **WHEN** Discord rejects the payload with `400`
+- **THEN** the failure is recorded and the job stops instead of consuming its retry budget
+
+#### Scenario: A retry after an uncertain failure does not double-post
+
+- **WHEN** an attempt reaches Discord but its response is lost, and the job is retried
+- **THEN** the retry detects the announcement as already handled and posts nothing
+
 ### Requirement: A named announcement requires the cumulative consent gate
 
 An announcement that identifies a player SHALL be published only when **both** conditions
@@ -179,6 +210,36 @@ MUST NOT drop an announcement silently: a suppressed or throttled event SHALL be
 
 - **WHEN** an event is suppressed by the throttle or by an aggregate minimum
 - **THEN** the suppression is recorded, so silent truncation cannot be mistaken for absence of activity
+
+### Requirement: A report with nothing to say is not published
+
+A periodic report SHALL be published only when **at least one** publishable element is
+substantive. When every figure in it is zero or suppressed, the system MUST post **nothing** —
+not a message with zeroes, and not a message of dashes. Zero-activity periods are normal for a
+young community, and a channel repeating "0 players, 0 sessions" discourages the very community
+it exists to grow. An accepted catalog item counts as substantive on its own, since an item is
+not a person and is never suppressed. Every skipped report SHALL be logged and counted with its
+reason, so an intentional silence stays distinguishable from a broken digest.
+
+#### Scenario: A period with no activity produces no message
+
+- **WHEN** the reporting period recorded no sessions, no ratings and no catalog additions
+- **THEN** nothing is posted to the channel
+
+#### Scenario: All-suppressed figures also produce no message
+
+- **WHEN** every figure of the period falls below the aggregate minimum and is therefore suppressed
+- **THEN** nothing is posted, rather than a report full of dashes
+
+#### Scenario: One substantive element is enough to publish
+
+- **WHEN** the period has no player activity to show but a score was accepted into the catalog
+- **THEN** the report is published with that item
+
+#### Scenario: A skipped report is observable
+
+- **WHEN** a report is skipped for lack of content
+- **THEN** the skip and its reason are recorded, so a silent channel can be told apart from a failing job
 
 ### Requirement: Announcements are governed by runtime flags
 
