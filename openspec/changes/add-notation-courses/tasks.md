@@ -19,11 +19,11 @@
 
 ## 3. Home "Cours" section + lesson player (display + quiz blocks)
 
-- [ ] 3.1 `_CoursesSection` above `_FavoritesBody` in `library_screen.dart` (no menu; never blocks favorites; omits when empty), **grouped by track + level** + course **tile** with completion indicator
-- [ ] 3.2 `LessonPlayerScreen` running blocks at the user's pace; renders `text`, `diagram` (existing painters), `image`/`video` (from URL); a Next/skip gate; leaveable anytime
-- [ ] 3.3 `question` block: multiple-choice / true-false with immediate feedback, never hard-blocks continuing; accessible controls
-- [ ] 3.4 ARB keys for section title + player/tile chrome (en/fr/es/it) — UI chrome only (content is manifest-inline)
-- [ ] 3.5 Widget-test: section above favorites, tile opens the player, step-through + skip, question feedback non-blocking, an `unsupported`/media block is skipped without error
+- [x] 3.1 `CoursesSection` above `_FavoritesBody` in `library_screen.dart` (compact horizontal row, no menu; never blocks favorites; omits when empty), ordered by track/level + course **tile** with completion indicator (`lib/widgets/courses_section.dart`)
+- [x] 3.2 `LessonPlayerScreen` runs blocks at the user's pace; renders `text`, `diagram` (`CourseDiagram` via SMuFL), `image`/`video` (from URL, degrading to a caption card); Next/Back + progress; leaveable anytime; unsupported blocks skipped; `playKey`/`score` placeholders until §4
+- [x] 3.3 `question` block: multiple-choice with immediate correct/incorrect feedback, Next never disabled; keyed option buttons
+- [x] 3.4 ARB keys for the section title + player/tile chrome added in en/fr/es/it (content stays manifest-inline)
+- [x] 3.5 Widget-tested: section renders above favorites + omits when empty + completion indicator + tile opens the player (`courses_section_test.dart`); player step-through, unsupported-block skip, quiz non-blocking feedback, finish→completed (`lesson_player_screen_test.dart`) + completion notifier unit tests
 
 ## 4. Interactive blocks: playKey + score
 

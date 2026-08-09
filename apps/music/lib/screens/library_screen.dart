@@ -25,6 +25,7 @@ import '../state/saved_catalog_scores.dart';
 import '../state/score_catalog.dart';
 import '../state/session_notifier.dart';
 import '../theme/cymbra_theme.dart';
+import '../widgets/courses_section.dart';
 import '../widgets/library_listeners.dart';
 import '../widgets/rating_invite_banner.dart';
 import '../widgets/score_card.dart';
@@ -139,6 +140,9 @@ class LibraryScreen extends ConsumerWidget {
                     // Nudge to rate scores after a lull (renders nothing when not
                     // due), pinned above the favorites list.
                     const RatingInviteBanner(),
+                    // Interactive courses (change: add-notation-courses), above
+                    // the favorites; omits itself when there are none.
+                    const CoursesSection(),
                     Expanded(child: _FavoritesBody(l10n: l10n)),
                   ],
                 )
