@@ -8,7 +8,13 @@ suppression rule, so the implementation has nothing left to invent.
 description, 25 fields per embed, 6000 characters per embed total. A long ranking therefore goes
 in the **description** (a 50-line list is ~2300 characters), never in 50 fields.
 
-**Two global rules**, from the spec:
+**Three global rules**, from the spec:
+
+- **Nothing to say ⇒ nothing posted.** If every element of a report is zero or suppressed, the
+  job posts **no message at all** — not zeroes, not a table of dashes. A channel repeating
+  "0 players, 0 sessions" discourages the community it exists to grow. One substantive element is
+  enough to publish, and an accepted catalog item counts on its own. The skip is logged with its
+  reason, so silence stays distinguishable from a broken job.
 
 - **Aggregate minimum `k` (default 5)**: a figure covering fewer than `k` distinct players is
   replaced by `—`, so a small count cannot implicitly name one person.
