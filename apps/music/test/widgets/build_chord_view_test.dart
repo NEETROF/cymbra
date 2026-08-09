@@ -147,7 +147,7 @@ void main() {
     expect(completions, [true]);
   });
 
-  testWidgets('a wrong full set strums, keeps the selection, and a later fix '
+  testWidgets('a wrong full set strums, drops the strays, and a later fix '
       'completes without flawless', (tester) async {
     await pump(tester);
 
@@ -167,14 +167,13 @@ void main() {
     await tester.pump(const Duration(milliseconds: 250));
     expect(noteOnPitches().sublist(3), [60, 64, 65]);
 
-    // Flash over, selection still editable and intact.
+    // Flash over: the stray left with it, the right picks stayed — the
+    // mistake never lingers looking pressed.
     await tester.pump(const Duration(milliseconds: 700));
     expect(painter(tester).wrongNotes, isEmpty);
-    expect(painter(tester).selectedNotes, {60, 64, 65});
-
-    // Fix it: F4 off, G4 on → completes, but the miss cost flawless.
-    await tapKey(tester, 65);
     expect(painter(tester).selectedNotes, {60, 64});
+
+    // Add the right third → completes, but the miss cost flawless.
     await tapKey(tester, 67);
     await tester.pump(const Duration(milliseconds: 1300));
     expect(completions, [false]);

@@ -37,10 +37,11 @@ import 'reading_aid.dart' show namingConventionOf;
 /// Once as many keys are selected as the chord has notes, the attempt
 /// auto-validates and is always **strummed**: a right chord plays itself as a
 /// reward, a wrong one plays what the learner actually built so the error is
-/// heard, not just marked. A wrong set stays on the keys for the learner to
-/// adjust (never cleared, never shown in a success colour). [onCompleted]
-/// fires exactly once, after the completion convention (check mark, chime,
-/// short pause).
+/// heard, not just marked. After a failed attempt the stray keys leave with
+/// their coral flash while the correct picks stay selected — progress is
+/// kept, the mistake never lingers looking "pressed". [onCompleted] fires
+/// exactly once, after the completion convention (check mark, chime, short
+/// pause).
 class BuildChordView extends ConsumerStatefulWidget {
   const BuildChordView({
     super.key,
@@ -122,7 +123,7 @@ class _BuildChordViewState extends ConsumerState<BuildChordView> {
           ? ({..._selection}..remove(pitch))
           : {..._selection, pitch};
     });
-    if (_selection.length == _targets.length) _validate();
+    if (_selection.length >= _targets.length) _validate();
   }
 
   void _validate() {
@@ -157,6 +158,9 @@ class _BuildChordViewState extends ConsumerState<BuildChordView> {
       _after(const Duration(milliseconds: 600), () {
         setState(() {
           _wrong = const {};
+          // The strays leave the keyboard with their flash; the right picks
+          // stay. Progress is kept — the mistake is not.
+          _selection = {..._selection.intersection(_targets)};
           _validating = false;
         });
       });
