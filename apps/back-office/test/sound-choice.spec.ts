@@ -3,7 +3,7 @@ import { flushPromises, mount } from "@vue/test-utils";
 import { defineComponent } from "vue";
 import { createPinia, setActivePinia } from "pinia";
 import { useSoundFontChoice } from "@/composables/useSoundFontChoice";
-import { DEFAULT_SOUNDFONT_ID } from "@/lib/audio/soundfont";
+import { DEFAULT_SOUNDFONT_ID, setSoundFontForTest } from "@/lib/audio/soundfont";
 import { setClientsForTest } from "@/lib/api";
 import { makeFakeClients } from "./fakes";
 
@@ -26,7 +26,12 @@ function withCatalog(fonts: { id: string; label: string }[]) {
 }
 
 describe("useSoundFontChoice", () => {
-  beforeEach(() => setActivePinia(createPinia()));
+  beforeEach(() => {
+    setActivePinia(createPinia());
+    // A picked font is cached for the tab's lifetime (Cache API + in-memory), so each
+    // case starts from an empty loader — otherwise one test's bytes answer the next.
+    setSoundFontForTest(null);
+  });
   afterEach(() => vi.unstubAllGlobals());
 
   it("loads the catalog on mount with the default pre-selected and no eager bytes", async () => {

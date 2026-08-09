@@ -210,8 +210,9 @@ const USER_LIBRARY_MAX_FONTS: i64 = 5;
 ///
 /// `allowed_origins` are the back-office browser origins permitted to fetch fonts
 /// cross-origin (the same allow-list as gRPC-web/web-auth). The CORS layer permits the
-/// `Authorization` (bearer) and `Range` request headers and exposes the range/length
-/// response headers so the browser can range-fetch and cache.
+/// `Authorization` (bearer), `Range` and conditional (`If-None-Match`) request headers
+/// and exposes the range/length **and cache** response headers so the browser can
+/// range-fetch, revalidate into a `304`, and cache.
 pub fn soundfont_router(state: SoundfontState, allowed_origins: Vec<String>) -> Router {
     let origins: Vec<HeaderValue> = allowed_origins
         .iter()
@@ -220,11 +221,18 @@ pub fn soundfont_router(state: SoundfontState, allowed_origins: Vec<String>) -> 
     let cors = CorsLayer::new()
         .allow_origin(AllowOrigin::list(origins))
         .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
-        .allow_headers([header::AUTHORIZATION, header::RANGE, header::CONTENT_TYPE])
+        .allow_headers([
+            header::AUTHORIZATION,
+            header::RANGE,
+            header::CONTENT_TYPE,
+            header::IF_NONE_MATCH,
+        ])
         .expose_headers([
             header::CONTENT_RANGE,
             header::ACCEPT_RANGES,
             header::CONTENT_LENGTH,
+            header::ETAG,
+            header::CACHE_CONTROL,
         ]);
     Router::new()
         // `GET` streams a font (delivery); `POST` uploads one (admin, change:
@@ -566,7 +574,13 @@ async fn serve_mine(
     let Some(store) = s.store.as_ref() else {
         return status(StatusCode::SERVICE_UNAVAILABLE);
     };
-    stream(store.as_ref(), &font.object_key, &headers).await
+    stream(
+        store.as_ref(),
+        &font.object_key,
+        &headers,
+        Some(&font.content_sha256),
+    )
+    .await
 }
 
 /// Remove a private-library font (owner-only): delete the row, then best-effort
@@ -786,7 +800,13 @@ async fn serve(
         // Feature unconfigured (no SoundFont bucket) — the route is disabled.
         return status(StatusCode::SERVICE_UNAVAILABLE);
     };
-    stream(store.as_ref(), &key, &headers).await
+    stream(
+        store.as_ref(),
+        &key,
+        &headers,
+        font.content_sha256.as_deref(),
+    )
+    .await
 }
 
 /// Serve a font's **public preview clip** (`GET /soundfonts/{id}/preview`, change:
@@ -885,10 +905,65 @@ async fn regenerate_preview(
     status(StatusCode::OK)
 }
 
+/// How long a client may reuse a font's bytes without revalidating. A font's content is
+/// **immutable for a given id** (the upload route refuses a duplicate id and rejects
+/// byte-identical content under another one), so the bytes behind a URL never change
+/// under the client — hence a year + `immutable`. `private` keeps a shared proxy from
+/// storing what is an authenticated, per-caller-gated response.
+const FONT_CACHE_CONTROL: &str = "private, max-age=31536000, immutable";
+
+/// Cache headers for a font response: the validator (quoted ETag) plus the freshness
+/// policy. Sent on `200`, `206` and `304` alike so a revalidation refreshes them.
+fn cache_headers(etag: Option<&str>) -> HeaderMap {
+    let mut out = HeaderMap::new();
+    out.insert(
+        header::CACHE_CONTROL,
+        HeaderValue::from_static(FONT_CACHE_CONTROL),
+    );
+    // A digest is hex, so it always parses; a malformed one simply yields no validator
+    // (the response stays cacheable by freshness alone) rather than a failed request.
+    if let Some(value) = etag.and_then(|t| HeaderValue::from_str(t).ok()) {
+        out.insert(header::ETAG, value);
+    }
+    out
+}
+
+/// Whether `If-None-Match` matches `etag` (already quoted) — the client holds these
+/// exact bytes, so the response is `304` and nothing is read from the object store.
+/// Accepts the `*` wildcard and a comma-separated list, and tolerates the `W/` weak
+/// prefix a cache may add.
+fn if_none_match(headers: &HeaderMap, etag: &str) -> bool {
+    headers
+        .get(header::IF_NONE_MATCH)
+        .and_then(|v| v.to_str().ok())
+        .is_some_and(|raw| {
+            raw.split(',')
+                .map(str::trim)
+                .any(|candidate| candidate == "*" || candidate.trim_start_matches("W/") == etag)
+        })
+}
+
 /// Stream the object (range-aware). A `Range` request yields `206 Partial Content`
 /// with `Content-Range`; a plain request yields the full `200`. A missing object is
 /// `404`, a backend fault `500`.
-async fn stream(store: &dyn ObjectStorage, key: &str, headers: &HeaderMap) -> Response {
+///
+/// `content_sha256` (when the catalog knows it) becomes the response's `ETag`, so a
+/// client that already holds the bytes revalidates into a `304` instead of
+/// re-downloading tens of MB — and, with [`FONT_CACHE_CONTROL`], normally doesn't even
+/// ask (change: cache-soundfont-delivery).
+async fn stream(
+    store: &dyn ObjectStorage,
+    key: &str,
+    headers: &HeaderMap,
+    content_sha256: Option<&str>,
+) -> Response {
+    let etag = content_sha256.map(|d| format!("\"{d}\""));
+    if let Some(tag) = etag.as_deref()
+        && if_none_match(headers, tag)
+    {
+        return (StatusCode::NOT_MODIFIED, cache_headers(Some(tag))).into_response();
+    }
+    let cache = cache_headers(etag.as_deref());
     match parse_range(headers) {
         Some(range) => {
             let total = match store.size(key).await {
@@ -915,6 +990,7 @@ async fn stream(store: &dyn ObjectStorage, key: &str, headers: &HeaderMap) -> Re
             };
             (
                 StatusCode::PARTIAL_CONTENT,
+                cache,
                 [
                     (header::CONTENT_TYPE, "application/octet-stream".to_string()),
                     (header::ACCEPT_RANGES, "bytes".to_string()),
@@ -931,6 +1007,7 @@ async fn stream(store: &dyn ObjectStorage, key: &str, headers: &HeaderMap) -> Re
         None => match store.get(key).await {
             Ok(bytes) => (
                 StatusCode::OK,
+                cache,
                 [
                     (header::CONTENT_TYPE, "application/octet-stream".to_string()),
                     (header::ACCEPT_RANGES, "bytes".to_string()),
@@ -1136,6 +1213,71 @@ mod tests {
         assert_eq!(resp.headers().get(header::ACCEPT_RANGES).unwrap(), "bytes");
         let body = to_bytes(resp.into_body(), usize::MAX).await.unwrap();
         assert_eq!(&body[..], b"SF2-BYTES!!");
+    }
+
+    /// The quoted ETag the catalog's default font is served with.
+    fn upright_etag() -> String {
+        format!("\"{}\"", sha256_hex(b"upright-piano-kw"))
+    }
+
+    #[tokio::test]
+    async fn served_font_carries_its_digest_etag_and_immutable_cache_control() {
+        let r = app(Some(seeded_store().await), Some("u")).await;
+        let resp = r
+            .oneshot(get("/soundfonts/upright-piano-kw"))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        assert_eq!(resp.headers().get(header::ETAG).unwrap(), &upright_etag());
+        assert_eq!(
+            resp.headers().get(header::CACHE_CONTROL).unwrap(),
+            FONT_CACHE_CONTROL
+        );
+    }
+
+    #[tokio::test]
+    async fn matching_if_none_match_is_304_with_no_body() {
+        let r = app(Some(seeded_store().await), Some("u")).await;
+        let req = Request::builder()
+            .uri("/soundfonts/upright-piano-kw")
+            .header(header::IF_NONE_MATCH, upright_etag())
+            .body(Body::empty())
+            .unwrap();
+        let resp = r.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::NOT_MODIFIED);
+        // The validator + policy are refreshed, and not a byte of the ~57MB font moves.
+        assert_eq!(resp.headers().get(header::ETAG).unwrap(), &upright_etag());
+        let body = to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        assert!(body.is_empty());
+    }
+
+    #[tokio::test]
+    async fn stale_if_none_match_serves_the_bytes() {
+        let r = app(Some(seeded_store().await), Some("u")).await;
+        let req = Request::builder()
+            .uri("/soundfonts/upright-piano-kw")
+            .header(header::IF_NONE_MATCH, "\"an-older-digest\"")
+            .body(Body::empty())
+            .unwrap();
+        let resp = r.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        assert_eq!(&body[..], b"SF2-BYTES!!");
+    }
+
+    #[test]
+    fn if_none_match_accepts_a_list_a_wildcard_and_a_weak_tag() {
+        let mk = |v: &str| {
+            let mut h = HeaderMap::new();
+            h.insert(header::IF_NONE_MATCH, v.parse().unwrap());
+            h
+        };
+        assert!(if_none_match(&mk("\"abc\""), "\"abc\""));
+        assert!(if_none_match(&mk("\"other\", \"abc\""), "\"abc\""));
+        assert!(if_none_match(&mk("W/\"abc\""), "\"abc\""));
+        assert!(if_none_match(&mk("*"), "\"abc\""));
+        assert!(!if_none_match(&mk("\"abd\""), "\"abc\""));
+        assert!(!if_none_match(&HeaderMap::new(), "\"abc\""));
     }
 
     #[tokio::test]

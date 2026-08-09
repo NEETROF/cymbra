@@ -13,17 +13,31 @@ import { renderNotation, type RenderResult } from "@/lib/notation/painter";
 import type { RenderedScore } from "@/lib/notation/geometry";
 import type { PlaybackSchedule } from "@/lib/notation/schedule";
 
+// An `audio` request names its SoundFont by `fontKey` and carries `sf2` only when the
+// main thread believes this worker doesn't hold that font yet — so the common case
+// posts a score, not tens of MB of samples (change: cache-soundfont-delivery).
 type Req =
   | { id: number; kind: "schedule"; bytes: Uint8Array }
   | { id: number; kind: "notation"; bytes: Uint8Array; width: number }
-  | { id: number; kind: "audio"; bytes: Uint8Array; sf2: Uint8Array; sampleRate: number };
+  | {
+      id: number;
+      kind: "audio";
+      bytes: Uint8Array;
+      fontKey: string;
+      sf2?: Uint8Array;
+      sampleRate: number;
+    };
 
 interface NotationApi {
   render(bytes: Uint8Array, width: number): RenderedScore;
   schedule(bytes: Uint8Array): PlaybackSchedule;
 }
 interface AudioApi {
-  render(bytes: Uint8Array, sf2: Uint8Array, sampleRate: number): Float32Array;
+  hasFont(key: string): boolean;
+  /** Parse + cache a font under `key` (no-op if already cached). Throws on a bad `.sf2`. */
+  loadFont(key: string, sf2: Uint8Array): void;
+  /** Render with the font cached under `key`; throws `font_not_loaded` on a miss. */
+  render(bytes: Uint8Array, key: string, sampleRate: number): Float32Array;
 }
 
 // Lazy wasm loaders — the ~300KB notation module and the audio module are only
@@ -46,7 +60,11 @@ function audio(): Promise<AudioApi> {
   audioMod ??= (async () => {
     const mod = await import("@/wasm/pkg-audio/audio_wasm.js");
     await mod.default();
-    return { render: (bytes, sf2, sr) => mod.render(bytes, sf2, sr) as Float32Array };
+    return {
+      hasFont: (key) => mod.has_soundfont(key) as boolean,
+      loadFont: (key, sf2) => mod.load_soundfont(key, sf2),
+      render: (bytes, key, sr) => mod.render_cached(bytes, key, sr) as Float32Array,
+    };
   })();
   return audioMod;
 }
@@ -66,7 +84,13 @@ async function handle(req: Req): Promise<void> {
       const result: RenderResult = renderNotation(geometry, req.width);
       ctx.postMessage({ id: req.id, ok: true, result });
     } else {
-      const pcm = (await audio()).render(req.bytes, req.sf2, req.sampleRate); // interleaved L,R
+      const api = await audio();
+      // Bytes present → (re)load the font; absent → it must already be cached here. A
+      // miss is reported so the main thread can retry once *with* the bytes rather than
+      // surfacing an audio error (the one-slot wasm cache evicts on a font switch).
+      if (req.sf2) api.loadFont(req.fontKey, req.sf2);
+      else if (!api.hasFont(req.fontKey)) throw new Error("font_not_loaded");
+      const pcm = api.render(req.bytes, req.fontKey, req.sampleRate); // interleaved L,R
       const frames = Math.floor(pcm.length / 2);
       const left = new Float32Array(frames);
       const right = new Float32Array(frames);

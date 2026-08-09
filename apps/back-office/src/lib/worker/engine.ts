@@ -41,10 +41,11 @@ function ensureWorker(): Worker {
   w.onerror = () => {
     // A worker-level failure (e.g. wasm instantiation) rejects every in-flight
     // request; each caller degrades to its Async error state. Drop the worker so a
-    // later action re-creates it.
+    // later action re-creates it — along with what we believed it had cached.
     for (const p of pending.values()) p.reject(new Error("engine_worker_error"));
     pending.clear();
     worker = null;
+    workerFonts.clear();
   };
   worker = w;
   return w;
@@ -69,7 +70,43 @@ export function engineRenderNotation(bytes: Uint8Array, width: number): Promise<
   return call<RenderResult>({ kind: "notation", bytes, width });
 }
 
-/** Whole-score PCM (deinterleaved planar channels, transferred zero-copy). */
-export function engineRenderAudio(bytes: Uint8Array, sf2: Uint8Array, sampleRate: number): Promise<AudioPcm> {
-  return call<AudioPcm>({ kind: "audio", bytes, sf2, sampleRate });
+// --- SoundFont reuse across renders -----------------------------------------
+// Parsing a `.sf2` costs seconds of CPU and posting one costs a structured clone of
+// tens of MB, and neither depends on the score. So each byte array gets a stable
+// identity key, the worker caches the *parsed* font under it, and we only ship the
+// bytes when the worker doesn't have that key (change: cache-soundfont-delivery).
+// Identity, not content: two arrays holding the same font just miss (as before) — the
+// loader hands out one instance per catalog id, so in practice it's one parse per font.
+
+let fontSeq = 0;
+const fontKeys = new WeakMap<Uint8Array, string>();
+/** Keys we believe the live worker holds. Cleared when the worker is dropped. */
+const workerFonts = new Set<string>();
+
+function fontKeyFor(sf2: Uint8Array): string {
+  let key = fontKeys.get(sf2);
+  if (key === undefined) {
+    key = `sf${++fontSeq}`;
+    fontKeys.set(sf2, key);
+  }
+  return key;
+}
+
+/** Whole-score PCM (deinterleaved planar channels, transferred zero-copy). The
+ *  SoundFont crosses to the worker at most once per byte array. */
+export async function engineRenderAudio(bytes: Uint8Array, sf2: Uint8Array, sampleRate: number): Promise<AudioPcm> {
+  const fontKey = fontKeyFor(sf2);
+  if (workerFonts.has(fontKey)) {
+    try {
+      return await call<AudioPcm>({ kind: "audio", bytes, fontKey, sampleRate });
+    } catch (e) {
+      // The worker's one-slot cache dropped it (another font was rendered since):
+      // fall through and re-send the bytes. Any other failure is the caller's.
+      if (!String(e).includes("font_not_loaded")) throw e;
+      workerFonts.delete(fontKey);
+    }
+  }
+  const pcm = await call<AudioPcm>({ kind: "audio", bytes, fontKey, sf2, sampleRate });
+  workerFonts.add(fontKey);
+  return pcm;
 }

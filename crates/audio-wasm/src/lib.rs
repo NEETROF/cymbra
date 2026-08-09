@@ -21,8 +21,16 @@
 //! replacing the app's native `cpal`. No live seek/tempo; a preview is short and
 //! rendered once on demand.
 //!
-//! The pure [`render_pcm`] is host-testable; the `#[wasm_bindgen]` `render` export
-//! (wasm target only) is a thin shell returning a `Float32Array`.
+//! The pure [`render_pcm`] is host-testable; the `#[wasm_bindgen]` exports (wasm target
+//! only) are thin shells returning a `Float32Array`.
+//!
+//! **Parsed-SoundFont cache.** Parsing a `.sf2` is the expensive part of a render (tens
+//! of MB of samples, seconds of CPU for the big grands) and it does not depend on the
+//! score. The wasm shell therefore keeps the last parsed font in a one-slot cache keyed
+//! by an opaque string the caller owns (`load_soundfont` / `has_soundfont` /
+//! `render_cached`), so replaying, re-rendering after a score change, or auditioning a
+//! second piece with the same instrument pays the parse **once** — and the caller only
+//! has to post the bytes across the worker boundary on a miss.
 
 use std::io::Cursor;
 use std::sync::Arc;
@@ -45,6 +53,15 @@ struct Ev {
     key: i32,
 }
 
+/// Parse a `.sf2` into a shareable [`SoundFont`], or the stable `bad_soundfont` code.
+/// Split out of [`render_pcm`] so the parse can be cached across renders.
+pub fn parse_soundfont(sf2_bytes: &[u8]) -> Result<Arc<SoundFont>, String> {
+    let mut cursor = Cursor::new(sf2_bytes);
+    Ok(Arc::new(
+        SoundFont::new(&mut cursor).map_err(|_| "bad_soundfont".to_string())?,
+    ))
+}
+
 /// Render `score_bytes` to interleaved-stereo (`L,R,L,R,…`) PCM at `sample_rate`,
 /// synthesised from `sf2_bytes`. Returns a stable error **code** string
 /// (`RejectReason::code()`, or `bad_soundfont`/`synth_init`) on failure — never
@@ -54,15 +71,34 @@ pub fn render_pcm(
     sf2_bytes: &[u8],
     sample_rate: u32,
 ) -> Result<Vec<f32>, String> {
+    // Score first, so an unparseable score is reported as such even when the SoundFont
+    // is *also* rubbish — the caller shows a per-cause message.
     let document = decode_and_parse(score_bytes).map_err(|e| e.code().to_string())?;
-    let sched = schedule(&document);
+    render_document(&document, &parse_soundfont(sf2_bytes)?, sample_rate)
+}
 
-    let mut cursor = Cursor::new(sf2_bytes);
-    let sound_font =
-        Arc::new(SoundFont::new(&mut cursor).map_err(|_| "bad_soundfont".to_string())?);
+/// [`render_pcm`] against an **already-parsed** SoundFont — the hot path when the same
+/// instrument renders several scores (or the same score again).
+pub fn render_pcm_with(
+    score_bytes: &[u8],
+    sound_font: &Arc<SoundFont>,
+    sample_rate: u32,
+) -> Result<Vec<f32>, String> {
+    let document = decode_and_parse(score_bytes).map_err(|e| e.code().to_string())?;
+    render_document(&document, sound_font, sample_rate)
+}
+
+/// Synthesise an already-parsed score with an already-parsed SoundFont.
+fn render_document(
+    document: &cymbra_musicxml_core::ScoreDocument,
+    sound_font: &Arc<SoundFont>,
+    sample_rate: u32,
+) -> Result<Vec<f32>, String> {
+    let sched = schedule(document);
+
     let settings = SynthesizerSettings::new(sample_rate as i32);
     let mut synth =
-        Synthesizer::new(&sound_font, &settings).map_err(|_| "synth_init".to_string())?;
+        Synthesizer::new(sound_font, &settings).map_err(|_| "synth_init".to_string())?;
 
     let sr = f64::from(sample_rate);
     let total_ms = sched.song_end_ms + RELEASE_TAIL_MS;
@@ -116,16 +152,58 @@ pub fn render_pcm(
     Ok(out)
 }
 
-/// wasm-bindgen entry point: interleaved-stereo PCM as a `Float32Array`. wasm target
-/// only. Errors surface as the stable code string.
+// The last parsed SoundFont, keyed by the caller's opaque font key. One slot: the
+// console plays one instrument at a time, and holding two decoded grands would double
+// an already large wasm heap. A miss is not an error the user ever sees — the caller
+// re-posts the bytes and reloads (see `render_cached`'s `font_not_loaded`).
+#[cfg(target_arch = "wasm32")]
+thread_local! {
+    static FONT_CACHE: std::cell::RefCell<Option<(String, Arc<SoundFont>)>> =
+        const { std::cell::RefCell::new(None) };
+}
+
+/// Whether the font cached under `key` is loaded — lets the caller skip re-posting tens
+/// of MB across the worker boundary. wasm target only.
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen::prelude::wasm_bindgen]
-pub fn render(
+pub fn has_soundfont(key: &str) -> bool {
+    FONT_CACHE.with_borrow(|slot| slot.as_ref().is_some_and(|(k, _)| k == key))
+}
+
+/// Parse `sf2_bytes` and cache them under `key`, replacing whatever was cached. A
+/// re-load of the key already held is a no-op (the parse is what we're avoiding).
+/// wasm target only; a bad font surfaces the stable `bad_soundfont` code.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen::prelude::wasm_bindgen]
+pub fn load_soundfont(key: &str, sf2_bytes: &[u8]) -> Result<(), wasm_bindgen::JsValue> {
+    if has_soundfont(key) {
+        return Ok(());
+    }
+    let font = parse_soundfont(sf2_bytes).map_err(|e| wasm_bindgen::JsValue::from_str(&e))?;
+    FONT_CACHE.with_borrow_mut(|slot| *slot = Some((key.to_string(), font)));
+    Ok(())
+}
+
+/// wasm-bindgen entry point: interleaved-stereo PCM as a `Float32Array`, rendered with
+/// the font cached under `key`. wasm target only. Errors surface as the stable code
+/// string — `font_not_loaded` when the key was evicted, which the caller answers by
+/// re-posting the bytes through [`load_soundfont`].
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen::prelude::wasm_bindgen]
+pub fn render_cached(
     score_bytes: &[u8],
-    sf2_bytes: &[u8],
+    key: &str,
     sample_rate: u32,
 ) -> Result<Vec<f32>, wasm_bindgen::JsValue> {
-    render_pcm(score_bytes, sf2_bytes, sample_rate).map_err(|e| wasm_bindgen::JsValue::from_str(&e))
+    let font = FONT_CACHE.with_borrow(|slot| match slot {
+        Some((k, font)) if k == key => Some(Arc::clone(font)),
+        _ => None,
+    });
+    let Some(font) = font else {
+        return Err(wasm_bindgen::JsValue::from_str("font_not_loaded"));
+    };
+    render_pcm_with(score_bytes, &font, sample_rate)
+        .map_err(|e| wasm_bindgen::JsValue::from_str(&e))
 }
 
 #[cfg(test)]
@@ -159,6 +237,14 @@ mod tests {
         assert_eq!(err.unwrap_err(), "bad_soundfont");
     }
 
+    #[test]
+    fn parse_soundfont_rejects_garbage() {
+        assert_eq!(
+            parse_soundfont(b"PK\x03\x04 not an sf2").unwrap_err(),
+            "bad_soundfont"
+        );
+    }
+
     // Full render against the app's real SoundFont. Ignored by default (loads a
     // ~57MB asset); run with `cargo test -p cymbra-audio-wasm -- --ignored`.
     #[test]
@@ -174,5 +260,10 @@ mod tests {
         assert!(pcm.len() > 44_100 * 2, "non-trivial buffer");
         assert_eq!(pcm.len() % 2, 0, "interleaved stereo");
         assert!(pcm.iter().any(|&s| s != 0.0), "produces sound");
+        // The cached path (parse once, render many) is byte-identical — it is the same
+        // synth fed the same font, only the parse is skipped.
+        let font = parse_soundfont(&sf2).expect("parses");
+        let again = render_pcm_with(MINIMAL.as_bytes(), &font, 44_100).expect("renders");
+        assert_eq!(pcm, again);
     }
 }

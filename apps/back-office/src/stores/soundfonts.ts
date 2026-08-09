@@ -4,6 +4,7 @@ import { Code, ConnectError } from "@connectrpc/connect";
 import { api } from "@/lib/api";
 import { type Async, failure, idle, loading, run, success } from "@/lib/async";
 import { humanError, SoundFontUploadError } from "@/lib/errors";
+import { evictSoundFont, loadSoundFontById } from "@/lib/audio/soundfont";
 import { t } from "@/i18n";
 import type { AdminSoundFont, CatalogHit, SoundFont } from "@/gen/score_pb";
 import { useAuthStore } from "./auth";
@@ -147,12 +148,17 @@ export const useSoundFontsStore = defineStore("soundfonts", () => {
     return outcome;
   }
 
-  /** Remove a font (row + object), then re-list. */
+  /** Remove a font (row + object), then re-list. Also drops its cached bytes: the
+   *  delivery route's bytes are cached as immutable-per-id, and re-uploading a
+   *  different font under a freed id would otherwise keep auditioning the old one. */
   async function remove(id: string) {
     const outcome = await run(op, async () => {
       await api().score.deleteSoundFont({ id });
     });
-    if (outcome.status === "success") await list();
+    if (outcome.status === "success") {
+      await evictSoundFont(id);
+      await list();
+    }
     return outcome;
   }
 
@@ -230,14 +236,11 @@ export const useSoundFontsStore = defineStore("soundfonts", () => {
     return (await api().score.getCatalogScoreBytes({ catalogId })).data;
   }
 
-  /** Bytes of an existing font from the delivery route (edit-mode preview). */
+  /** Bytes of an existing font from the delivery route (edit-mode preview), through the
+   *  shared lazy loader — so a font a moderator auditions is downloaded **once** (Cache
+   *  API, across sessions) instead of re-fetching tens of MB on every pick. */
   async function fontBytes(id: string): Promise<Uint8Array> {
-    const token = useAuthStore().accessToken;
-    const resp = await fetch(`${soundfontBaseUrl()}/soundfonts/${encodeURIComponent(id)}`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    });
-    if (!resp.ok) throw new Error(`soundfont fetch failed: HTTP ${resp.status}`);
-    return new Uint8Array(await resp.arrayBuffer());
+    return loadSoundFontById(id, useAuthStore().accessToken);
   }
 
   return {

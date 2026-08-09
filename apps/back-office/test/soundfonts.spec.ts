@@ -8,6 +8,7 @@ import {
   useSoundFontsStore,
 } from "@/stores/soundfonts";
 import { SoundFontUploadError } from "@/lib/errors";
+import { setSoundFontForTest } from "@/lib/audio/soundfont";
 import { Code, ConnectError } from "@connectrpc/connect";
 import { setClientsForTest } from "@/lib/api";
 import { makeFakeClients } from "./fakes";
@@ -88,6 +89,7 @@ describe("soundfonts store", () => {
     setActivePinia(createPinia());
     setUploadForTest(async () => {}); // default no-op upload; overridden per test
     setRegeneratePreviewForTest(async () => {}); // default no-op; overridden per test
+    setSoundFontForTest(null); // empty the shared font-bytes cache between cases
   });
 
   it("lists the admin catalog into a success state", async () => {
@@ -428,6 +430,48 @@ describe("soundfonts store", () => {
 
     expect(bytes).toEqual(new Uint8Array([9, 8, 7]));
     expect(String((fetchMock.mock.calls[0] as unknown[])[0])).toContain("/soundfonts/ydp-grand");
+  });
+
+  it("fontBytes downloads a font once — a second pick is served from cache", async () => {
+    const { clients } = makeFakeClients();
+    withSoundfonts(clients);
+    setClientsForTest(clients);
+    const fetchMock = vi.fn(() => Promise.resolve(new Response(new Uint8Array([9, 8, 7]), { status: 200 })));
+    vi.stubGlobal("fetch", fetchMock);
+    const store = useSoundFontsStore();
+
+    const first = await store.fontBytes("ydp-grand");
+    const second = await store.fontBytes("ydp-grand");
+
+    expect(second).toEqual(first);
+    expect(fetchMock).toHaveBeenCalledTimes(1); // tens of MB, downloaded once
+  });
+
+  it("remove evicts the deleted font's cached bytes", async () => {
+    const { clients } = makeFakeClients();
+    withSoundfonts(clients, [row("ydp-grand")]);
+    setClientsForTest(clients);
+    const cacheStore = new Map<string, Response>();
+    vi.stubGlobal("caches", {
+      open: async () => ({
+        match: async (url: string) => cacheStore.get(url),
+        put: async (url: string, resp: Response) => void cacheStore.set(url, resp),
+        delete: async (url: string) => cacheStore.delete(url),
+      }),
+    });
+    const fetchMock = vi.fn(() => Promise.resolve(new Response(new Uint8Array([1]), { status: 200 })));
+    vi.stubGlobal("fetch", fetchMock);
+    const store = useSoundFontsStore();
+    await store.fontBytes("ydp-grand");
+    expect(cacheStore.size).toBe(1);
+
+    await store.remove("ydp-grand");
+
+    // Nothing cached under a freed id: re-uploading a different font there must not
+    // audition the deleted one's samples.
+    expect(cacheStore.size).toBe(0);
+    await store.fontBytes("ydp-grand");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it("fontBytes throws on a non-200 so the caller can surface it", async () => {
