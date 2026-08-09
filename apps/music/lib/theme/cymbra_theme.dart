@@ -52,7 +52,10 @@ class CymbraColors {
   // Hand colours — used to tell the right and left hands apart on the keyboard
   // (expected keys) and on the partition (note heads). Cool blue vs warm amber
   // for an at-a-glance contrast, distinct from the green "correct" state.
-  static const handRight = Color(0xFF5B9DFF); // right hand (treble / staff 1)
+  // Right hand (treble / staff 1). Brightened from 5B9DFF (6.3:1 on the dark
+  // notation surface) to 7.9:1 so the melody hand reads as strongly as the
+  // left hand's amber (9.7:1) instead of visually yielding to it.
+  static const handRight = Color(0xFF7FB2FF);
   static const handLeft = Color(0xFFFFB454); // left hand (bass / staff 2+)
 
   // Physical piano keys.

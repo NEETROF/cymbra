@@ -39,6 +39,8 @@ void main() {
     expect(p.metronome, isFalse);
     expect(p.keyboardRange, KeyboardRangeMode.auto);
     expect(p.readingAid, NoteReadingAid.name);
+    expect(p.scoreSize, isNull); // resolved per form factor at use sites
+    expect(p.notationTheme, NotationTheme.dark);
     expect(p.midiPort, isNull);
   });
 
@@ -49,6 +51,8 @@ void main() {
         'speed': 1.5,
         'metronome': true,
         'keyboardRange': 'keys61',
+        'scoreSize': 'large',
+        'notationTheme': 'paper',
         'midiPort': 'Synth',
       }),
     };
@@ -61,7 +65,31 @@ void main() {
     expect(p.speed, 1.5);
     expect(p.metronome, isTrue);
     expect(p.keyboardRange, KeyboardRangeMode.keys61);
+    expect(p.scoreSize, ScoreSize.large);
+    expect(p.notationTheme, NotationTheme.paper);
     expect(p.midiPort, 'Synth');
+  });
+
+  test('a record without scoreSize (older launch) stays unchosen', () async {
+    final store = {
+      PlayerPreferences.prefsKey: jsonEncode({
+        'hands': 'both',
+        'speed': 1.0,
+        'metronome': false,
+        'midiPort': null,
+      }),
+    };
+    final c = _container(FakePreferencesService(store));
+    c.read(playerPreferencesProvider);
+    await Future<void>.delayed(Duration.zero);
+    expect(c.read(playerPreferencesProvider).scoreSize, isNull);
+  });
+
+  test('the unchosen size resolves small on phones, medium elsewhere', () {
+    expect(resolveScoreSize(null, isPhone: true), ScoreSize.small);
+    expect(resolveScoreSize(null, isPhone: false), ScoreSize.medium);
+    // A stored choice always wins over the form-factor default.
+    expect(resolveScoreSize(ScoreSize.large, isPhone: true), ScoreSize.large);
   });
 
   test('each setter persists the whole record to the device', () async {
@@ -74,6 +102,8 @@ void main() {
     notifier.setMetronome(enabled: true);
     notifier.setKeyboardRange(KeyboardRangeMode.keys25);
     notifier.setMidiPort('Piano');
+    notifier.setScoreSize(ScoreSize.small);
+    notifier.setNotationTheme(NotationTheme.paper);
     await Future<void>.delayed(Duration.zero);
 
     final saved =
@@ -84,6 +114,14 @@ void main() {
     expect(saved['metronome'], isTrue);
     expect(saved['keyboardRange'], 'keys25');
     expect(saved['midiPort'], 'Piano');
+    expect(saved['scoreSize'], 'small');
+    expect(saved['notationTheme'], 'paper');
+  });
+
+  test('score sizes map to their notation scale factors', () {
+    expect(ScoreSize.small.factor, 0.85);
+    expect(ScoreSize.medium.factor, 1.0);
+    expect(ScoreSize.large.factor, 1.2);
   });
 
   test('the reading-aid level round-trips', () async {

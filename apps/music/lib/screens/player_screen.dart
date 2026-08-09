@@ -22,6 +22,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../l10n/gen/app_localizations.dart';
 import '../layout/device_class.dart';
+import '../painters/notation_palette.dart';
 import '../painters/partition_painter.dart';
 import '../painters/piano_keyboard_painter.dart';
 import '../painters/piano_layout.dart';
@@ -35,13 +36,16 @@ import '../state/performance_scoring.dart';
 import '../state/play_sync_notifier.dart';
 import '../state/player_data.dart';
 import '../state/player_notifier.dart';
+import '../state/player_preferences.dart';
 import '../state/post_play_rating_notifier.dart';
 import '../state/session_summary.dart';
 import '../state/session_summary_store.dart';
 import '../theme/cymbra_theme.dart';
 import '../widgets/countdown_overlay.dart';
 import '../widgets/mistake_replay.dart';
+import '../widgets/playback_progress_bar.dart';
 import '../widgets/reading_aid.dart';
+import '../widgets/score_chip.dart';
 import '../widgets/scoring_overlay.dart';
 import '../widgets/post_play_rating.dart';
 import '../widgets/session_summary_modal.dart';
@@ -58,10 +62,15 @@ class PlayerScreen extends ConsumerStatefulWidget {
 }
 
 class _PlayerScreenState extends ConsumerState<PlayerScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   final FocusNode _focusNode = FocusNode();
   late final Ticker _ticker;
   Duration _lastTick = Duration.zero;
+
+  /// Breathing cycle of the expected-key highlight while Wait Mode holds
+  /// playback — the non-intrusive wait indicator (no banner over the play
+  /// surface). Runs only while the gate is blocked.
+  late final AnimationController _waitPulse;
 
   /// Whether the pre-play setup modal has been shown for this opening (one per
   /// pushed `PlayerScreen`, so it re-appears on every open).
@@ -96,7 +105,14 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     final fraction = isPhone
         ? _keyboardHeightFractionPhone
         : _keyboardHeightFraction;
-    final min = isPhone ? _minKeyboardHeightPhone : _minKeyboardHeight;
+    // On a viewport too short for the fixed floor (a shrunken desktop window),
+    // the floor yields proportionally so the notation above always keeps the
+    // large majority of the height — a dominant keyboard over a crushed staff
+    // is worse than small keys.
+    final min = math.min(
+      isPhone ? _minKeyboardHeightPhone : _minKeyboardHeight,
+      availableHeight * 0.20,
+    );
     final max = isPhone ? _maxKeyboardHeightPhone : _maxKeyboardHeight;
     return (availableHeight * fraction).clamp(min, max);
   }
@@ -112,6 +128,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
   void initState() {
     super.initState();
     _ticker = createTicker(_onTick)..start();
+    _waitPulse = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1100),
+    );
   }
 
   void _onTick(Duration elapsed) {
@@ -222,6 +242,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
   void dispose() {
     _ticker.dispose();
     _focusNode.dispose();
+    _waitPulse.dispose();
     super.dispose();
   }
 
@@ -242,6 +263,17 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     // load that resolves after mount.
     ref.listen(notationProvider.select((n) => n.hasDocument), (_, hasDoc) {
       if (hasDoc) _maybeShowSetup();
+    });
+    // Breathe the expected-key highlight only while the Wait Mode gate holds
+    // playback; back to the steady highlight the moment it releases.
+    ref.listen(playerProvider.select((d) => d.blocked), (_, blocked) {
+      if (blocked) {
+        _waitPulse.repeat();
+      } else {
+        _waitPulse
+          ..stop()
+          ..value = 0;
+      }
     });
     _maybeShowSetup();
     return Focus(
@@ -302,9 +334,6 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
             bottom: !context.isPhoneLayout,
             child: Builder(
               builder: (context) {
-                // Touch form factors (phone + tablet) rail the transport
-                // controls on the right; desktop keeps the bottom bar.
-                final useRail = context.deviceClass != DeviceClass.desktop;
                 final Widget renderArea = Consumer(
                   builder: (context, ref, child) {
                     final data = ref.watch(playerProvider);
@@ -326,13 +355,16 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                           constraints.maxHeight,
                           isPhone: context.isPhoneLayout,
                         );
-                        // Synthesia always shows the keyboard (its cascade aligns
-                        // to the keys); the notation modes honour the user's
-                        // hide-keyboard setting, handing the freed height to the
-                        // score.
+                        // Synthesia always shows the keyboard (its cascade
+                        // aligns to the keys); the Portée honours the user's
+                        // hide-keyboard setting; the engraved Partition never
+                        // shows it — the notation's own expected-note emphasis
+                        // already says what to play, and the freed height is
+                        // what keeps the current + next lines on screen.
                         final showKeyboard =
                             data.mode == RenderMode.synthesia ||
-                            data.keyboardVisible;
+                            (data.mode == RenderMode.staff &&
+                                data.keyboardVisible);
                         // Reading aid: the awaited notes' names ride on their
                         // own keys, so the aid takes no screen space of its own.
                         final naming = namingConventionOf(context);
@@ -366,6 +398,11 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                                 ],
                               ),
                             ),
+                            // Thin score-duration/playhead bar, directly above
+                            // the keyboard (or closing the render area when
+                            // the keyboard is hidden). Hides itself when the
+                            // loaded score has no timing.
+                            const PlaybackProgressBar(),
                             if (showKeyboard)
                               SizedBox(
                                 height: keyboardHeight,
@@ -378,25 +415,40 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                                   ),
                                   onPointerUp: _onKeyboardPointerUp,
                                   onPointerCancel: _onKeyboardPointerUp,
-                                  child: CustomPaint(
-                                    size: Size(
-                                      constraints.maxWidth,
-                                      keyboardHeight,
-                                    ),
-                                    painter: PianoKeyboardPainter(
-                                      layout: layout,
-                                      activeNotes: data.activeNotes,
-                                      requiredNotes: data.expectedKeys,
-                                      leftHandNotes: data.expectedKeysForHand(
-                                        rightHand: false,
+                                  // Rebuilds each pulse frame only while the
+                                  // Wait Mode gate is blocked (the controller
+                                  // is stopped otherwise).
+                                  child: AnimatedBuilder(
+                                    animation: _waitPulse,
+                                    builder: (context, _) => CustomPaint(
+                                      size: Size(
+                                        constraints.maxWidth,
+                                        keyboardHeight,
                                       ),
-                                      chosenWindow: data.keyboardChosenWindow,
-                                      noteLabels: aid.names,
-                                      solfege: naming.solfege,
-                                      frenchRe: naming.frenchRe,
-                                      labelFontFamily: DefaultTextStyle.of(
-                                        context,
-                                      ).style.fontFamily,
+                                      painter: PianoKeyboardPainter(
+                                        layout: layout,
+                                        activeNotes: data.activeNotes,
+                                        requiredNotes: data.expectedKeys,
+                                        leftHandNotes: data.expectedKeysForHand(
+                                          rightHand: false,
+                                        ),
+                                        chosenWindow: data.keyboardChosenWindow,
+                                        noteLabels: aid.names,
+                                        solfege: naming.solfege,
+                                        frenchRe: naming.frenchRe,
+                                        labelFontFamily: DefaultTextStyle.of(
+                                          context,
+                                        ).style.fontFamily,
+                                        // 0→1→0 breathing over each cycle.
+                                        waitPulse:
+                                            0.5 -
+                                            0.5 *
+                                                math.cos(
+                                                  2 *
+                                                      math.pi *
+                                                      _waitPulse.value,
+                                                ),
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -407,27 +459,21 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                     );
                   },
                 );
-                // Phone (landscape-locked): keep the transport controls off
-                // the bottom home-indicator zone by railing them on the right,
-                // giving the render area + keyboard the full height. The tablet
-                // rails them too (consistency + freed height); only the desktop
-                // keeps the classic bottom bar.
+                // The transport rails on the right on every form factor:
+                // it frees the full height for the render area + keyboard —
+                // decisive on short desktop windows — and keeps one layout
+                // across phone, tablet and desktop.
                 return Column(
                   children: [
                     const _TopBar(),
-                    if (useRail)
-                      Expanded(
-                        child: Row(
-                          children: [
-                            Expanded(child: renderArea),
-                            const _TransportBar(axis: Axis.vertical),
-                          ],
-                        ),
-                      )
-                    else ...[
-                      Expanded(child: renderArea),
-                      const _TransportBar(),
-                    ],
+                    Expanded(
+                      child: Row(
+                        children: [
+                          Expanded(child: renderArea),
+                          const _TransportBar(axis: Axis.vertical),
+                        ],
+                      ),
+                    ),
                   ],
                 );
               },
@@ -516,7 +562,6 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
           // Gamified sync gauge + hit sparks (shown only during a scored run).
           // Synthesia always shows the keyboard, so effects are always anchored.
           Positioned.fill(child: ScoringOverlay(layout: layout)),
-          if (data.blocked) const _WaitOverlay(),
           Positioned.fill(
             child: _ScoreLoadOverlay(
               notation: notation,
@@ -526,12 +571,21 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
         ],
       );
     }
-    // Standard staff mode (synchronized, horizontal scrolling).
+    // Standard staff mode (synchronized, horizontal scrolling). The score-size
+    // setting scales the notation (noteScale) and narrows the look-ahead
+    // window by the same factor so note size and spacing grow together.
+    final sizeFactor = resolveScoreSize(
+      ref.watch(playerPreferencesProvider.select((p) => p.scoreSize)),
+      isPhone: context.isPhoneLayout,
+    ).factor;
+    final palette = NotationPalette.of(
+      ref.watch(playerPreferencesProvider.select((p) => p.notationTheme)),
+    );
     return Stack(
       children: [
         Positioned.fill(
           child: Container(
-            color: CymbraColors.surfaceContainerLow,
+            color: palette.background,
             child: CustomPaint(
               painter: StaffPainter(
                 notes: data.visibleNotes,
@@ -545,6 +599,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                 beats: data.beats,
                 beatType: data.beatType,
                 measureStartMs: data.measureStartMs,
+                noteScale: sizeFactor,
+                lookAheadMs: StaffPainter.defaultLookAheadMs / sizeFactor,
+                palette: palette,
               ),
               size: Size.infinite,
             ),
@@ -692,21 +749,41 @@ class _TopBar extends ConsumerWidget {
             ),
           ),
           SizedBox(width: trailGap),
-          // MIDI connection status (read-only at a glance); the device itself is
-          // chosen from the settings menu.
-          const _MidiStatusIndicator(),
-          const SizedBox(width: 8),
-          // Tap to toggle the metronome; pulses on each beat. Mode-independent
-          // (lives in the shared top bar), so it works in Synthesia/Staff/Partition.
-          const _TempoChip(),
-          const SizedBox(width: 8),
-          // Consolidated music settings (MIDI device, keyboard size, hand). Lives
-          // in the mode-independent top bar, so it is reachable in Synthesia,
-          // Staff and Partition alike.
-          const _SettingsMenu(),
-          const SizedBox(width: 8),
-          // Rendering mode toggle.
-          const _ModeToggle(),
+          // The whole trailing cluster scales down as one block when the
+          // window is too narrow for its natural width (a shrunken desktop
+          // window overflowed by a few pixels) — hit-testing scales with it.
+          Flexible(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerRight,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Live score (sync % + combo) during a scored run — the
+                  // single HUD location, so nothing ever floats over the play
+                  // surface.
+                  ScoreChip(compact: isPhone),
+                  const SizedBox(width: 8),
+                  // MIDI connection status (read-only at a glance); the device
+                  // itself is chosen from the settings menu.
+                  const _MidiStatusIndicator(),
+                  const SizedBox(width: 8),
+                  // Tap to toggle the metronome; pulses on each beat. Mode-
+                  // independent (lives in the shared top bar), so it works in
+                  // Synthesia/Staff/Partition.
+                  const _TempoChip(),
+                  const SizedBox(width: 8),
+                  // Consolidated music settings (MIDI device, keyboard size,
+                  // hand). Lives in the mode-independent top bar, so it is
+                  // reachable in Synthesia, Staff and Partition alike.
+                  const _SettingsMenu(),
+                  const SizedBox(width: 8),
+                  // Rendering mode toggle.
+                  const _ModeToggle(),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -1134,33 +1211,6 @@ class _TransportBar extends ConsumerWidget {
   }
 }
 
-/// Overlay shown when Wait Mode freezes the cascade.
-class _WaitOverlay extends StatelessWidget {
-  const _WaitOverlay();
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-        decoration: BoxDecoration(
-          color: CymbraColors.surfaceContainer.withValues(alpha: 0.85),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: CymbraColors.secondary),
-        ),
-        child: const Text(
-          '⏸  Play the expected note to continue',
-          style: TextStyle(color: CymbraColors.secondary, fontSize: 16),
-        ),
-      ),
-    );
-  }
-}
-
-/// Width reserved on the right of the engraved Partition for the top-right sync
-/// gauge (88 wide at right:8, plus breathing room), so it never overlaps notes.
-const double _kGaugeGutter = 104.0;
-
 /// Engraved-notation (Partition) render mode: draws the laid-out MusicXML of the
 /// loaded score and re-lays it out as the available width changes. Shows a
 /// loading/empty state when no score notation is available (e.g. the demo).
@@ -1195,10 +1245,13 @@ class _PartitionViewState extends ConsumerState<_PartitionView> {
   /// Auto-scroll **per staff line (system)**, not per measure: the vertical
   /// target depends only on which system the cursor is in, so the view advances
   /// once when the playhead moves to a new line and stays put while it crosses
-  /// measures within the same line (no back-and-forth jitter). The current line
-  /// is centred in the viewport; look-ahead is provided by the next-line overlay
-  /// (see [_buildNextLineOverlay]), not by scrolling ahead. Only while playing,
-  /// so manual scrolling is undisturbed when paused.
+  /// measures within the same line (no back-and-forth jitter). The scroll
+  /// budget goes to the **current + next** pair: the pair is centred when the
+  /// viewport is tall enough, and on shorter viewports the current line hugs
+  /// the top so the next line — the notes the player must read in a moment —
+  /// stays fully visible below. The already-played line above earns no space
+  /// (it is dimmed anyway); look-ahead is the scroll position, not an overlay.
+  /// Only while playing, so manual scrolling is undisturbed when paused.
   void _followCursor(
     PlayerData data,
     List<System> systems,
@@ -1214,11 +1267,24 @@ class _PartitionViewState extends ConsumerState<_PartitionView> {
       final max = _scroll.position.maxScrollExtent;
       if (max <= 0) return; // everything fits — no scrolling
       final viewport = _scroll.position.viewportDimension;
-      final target =
-          (painter.systemTopY(sysIndex) +
-                  painter.systemStride / 2 -
-                  viewport / 2)
-              .clamp(0.0, max);
+      final lead = ((viewport - painter.systemStride * 2) / 2).clamp(
+        0.0,
+        viewport * 0.30,
+      );
+      var target = (painter.systemTopY(sysIndex) - lead).clamp(0.0, max);
+      // Guarantee the NEXT line's bass staff: if the pair overflows the
+      // viewport, scroll further — sacrificing up to the current line's top
+      // padding (never its staves) — so the upcoming notes stay readable
+      // down to the bass clef.
+      if (sysIndex + 1 < systems.length) {
+        final nextBottom =
+            painter.systemTopY(sysIndex + 1) + painter.systemHeight;
+        final needed = nextBottom - viewport; // min offset for a full next line
+        if (needed > target) {
+          final cap = painter.systemTopY(sysIndex) + painter.systemTopPad;
+          target = math.min(needed, cap).clamp(0.0, max);
+        }
+      }
       // Only scroll when the line changes — re-issuing every frame would restart
       // (and stall) the animation.
       if (_lastScrollTarget != null &&
@@ -1232,69 +1298,6 @@ class _PartitionViewState extends ConsumerState<_PartitionView> {
         curve: Curves.easeInOut,
       );
     });
-  }
-
-  /// A small "next up" overlay showing the first two measures of the **next**
-  /// line, pinned top-left. It appears only once the playhead is past the middle
-  /// of the current line (so the top-left, already-played area is free to cover)
-  /// and only when there is a next line. Returns null otherwise.
-  Widget? _buildNextLineOverlay(
-    PlayerData data,
-    NotationData notation,
-    double width,
-    PartitionPainter mainPainter,
-  ) {
-    final cursor = data.measureAt(data.elapsedMs);
-    if (cursor == null) return null;
-    final systems = notation.systems;
-    final sysIndex = _systemOf(cursor.index, systems);
-    if (sysIndex == null || sysIndex + 1 >= systems.length) return null;
-
-    final current = systems[sysIndex];
-    final pos = current.measures.indexOf(cursor.index);
-    if (pos < 0) return null;
-    final lineProgress = (pos + cursor.fraction) / current.measures.length;
-    if (lineProgress < 0.5) return null; // only near the end of the line
-
-    // Don't cover the score when the next line is already visible on screen
-    // (e.g. a tall viewport shows it below the current line) — the overlay is
-    // only useful when the next line is still below the fold.
-    if (_scroll.hasClients) {
-      final vpTop = _scroll.offset;
-      final vpBottom = vpTop + _scroll.position.viewportDimension;
-      final nextTop = mainPainter.systemTopY(sysIndex + 1);
-      final nextBottom = nextTop + mainPainter.systemStride;
-      final visible =
-          (nextBottom < vpBottom ? nextBottom : vpBottom) -
-          (nextTop > vpTop ? nextTop : vpTop);
-      if (visible >= mainPainter.systemStride * 0.6) return null;
-    }
-
-    // Engrave the FULL next system at the same width as the main view (so the
-    // notes are exactly the same size — no down-scaling) and clip the overlay to
-    // its first measure (a two-measure peek was too wide). The clip width follows
-    // the painter's justification: an approximate header plus that measure's
-    // share of the system width.
-    final next = systems[sysIndex + 1];
-    final measures = notation.document!.measures;
-    var total = 0.0;
-    for (final m in next.measures) {
-      total += measures[m].minWidth;
-    }
-    final firstMin = measures[next.measures.first].minWidth;
-    const headerApprox = 96.0; // clef + key + time, roughly
-    final usable = (width - headerApprox).clamp(0.0, width);
-    final boxWidth =
-        headerApprox + (total > 0 ? firstMin / total : 1.0) * usable;
-    return _NextLineOverlay(
-      painter: PartitionPainter(
-        document: notation.document!,
-        systems: [next],
-        selectedHands: data.selectedHands,
-      ),
-      fullWidth: width,
-      boxWidth: boxWidth,
-    );
   }
 
   @override
@@ -1326,18 +1329,28 @@ class _PartitionViewState extends ConsumerState<_PartitionView> {
       );
     }
 
+    final sizeFactor = resolveScoreSize(
+      ref.watch(playerPreferencesProvider.select((p) => p.scoreSize)),
+      isPhone: context.isPhoneLayout,
+    ).factor;
+    final palette = NotationPalette.of(
+      ref.watch(playerPreferencesProvider.select((p) => p.notationTheme)),
+    );
     return Container(
-      color: CymbraColors.surfaceContainerLow,
+      color: palette.background,
       child: LayoutBuilder(
         builder: (context, constraints) {
-          // Reserve a right-hand gutter so the top-right sync gauge floats in a
-          // clear strip and never paints over the engraved notes (the gauge is
-          // 88 wide at right:8). Always on so the system layout stays stable
-          // whether or not a scored run is active.
-          final width = constraints.maxWidth;
-          final engraveWidth = (width - _kGaugeGutter).clamp(0.0, width);
+          // The scoring HUD lives in the top bar (nothing floats over the
+          // engraving), so the full width is available. Systems are laid out
+          // against the width divided by the score-size factor; painting at the
+          // real width with a scaled staff space then restores exact size, so
+          // glyphs and spacing grow together and lines re-wrap.
+          final engraveWidth = constraints.maxWidth;
+          final staffSpace = 12.0 * sizeFactor;
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            ref.read(notationProvider.notifier).setAvailableWidth(engraveWidth);
+            ref
+                .read(notationProvider.notifier)
+                .setAvailableWidth(engraveWidth / sizeFactor);
           });
           final painter = PartitionPainter(
             document: notation.document!,
@@ -1347,131 +1360,47 @@ class _PartitionViewState extends ConsumerState<_PartitionView> {
             songEndMs: data.songEndMs,
             activeNotes: data.activeNotes,
             selectedHands: data.selectedHands,
+            staffSpace: staffSpace,
+            palette: palette,
           );
           _followCursor(data, notation.systems, painter);
-          final overlay = _buildNextLineOverlay(
-            data,
-            notation,
-            engraveWidth,
-            painter,
-          );
-          return Stack(
-            children: [
-              SingleChildScrollView(
-                controller: _scroll,
-                // Rebuild the canvas as the view scrolls so the painter can cull
-                // to the visible systems (only ~2–3 lines are engraved per frame
-                // instead of the whole score — the fix for large-score lag).
-                child: ListenableBuilder(
-                  listenable: _scroll,
-                  builder: (context, _) {
-                    // The position isn't fully attached on the first build(s):
-                    // guard pixels/viewport before reading them, falling back to
-                    // the layout height (paints from the top — offset 0).
-                    final pos = _scroll.hasClients ? _scroll.position : null;
-                    final viewTop = pos != null && pos.hasPixels
-                        ? pos.pixels
-                        : 0.0;
-                    final viewHeight = pos != null && pos.hasViewportDimension
-                        ? pos.viewportDimension
-                        : constraints.maxHeight;
-                    return CustomPaint(
-                      key: const Key('partition-canvas'),
-                      painter: PartitionPainter(
-                        document: notation.document!,
-                        systems: notation.systems,
-                        elapsedMs: data.elapsedMs,
-                        measureStartMs: data.measureStartMs,
-                        songEndMs: data.songEndMs,
-                        activeNotes: data.activeNotes,
-                        selectedHands: data.selectedHands,
-                        viewTop: viewTop,
-                        viewBottom: viewTop + viewHeight,
-                      ),
-                      size: Size(engraveWidth, painter.heightFor(engraveWidth)),
-                    );
-                  },
-                ),
-              ),
-              if (overlay != null) Positioned(left: 8, top: 8, child: overlay),
-              // Gamified sync gauge (no keyboard-anchored sparks in the engraved
-              // Partition view — it has no waterfall/keyboard mapping). Floats in
-              // the reserved right gutter so it clears the notes.
-              const Positioned.fill(child: ScoringOverlay()),
-            ],
+          return SingleChildScrollView(
+            controller: _scroll,
+            // Rebuild the canvas as the view scrolls so the painter can cull
+            // to the visible systems (only ~2–3 lines are engraved per frame
+            // instead of the whole score — the fix for large-score lag).
+            child: ListenableBuilder(
+              listenable: _scroll,
+              builder: (context, _) {
+                // The position isn't fully attached on the first build(s):
+                // guard pixels/viewport before reading them, falling back to
+                // the layout height (paints from the top — offset 0).
+                final pos = _scroll.hasClients ? _scroll.position : null;
+                final viewTop = pos != null && pos.hasPixels ? pos.pixels : 0.0;
+                final viewHeight = pos != null && pos.hasViewportDimension
+                    ? pos.viewportDimension
+                    : constraints.maxHeight;
+                return CustomPaint(
+                  key: const Key('partition-canvas'),
+                  painter: PartitionPainter(
+                    document: notation.document!,
+                    systems: notation.systems,
+                    elapsedMs: data.elapsedMs,
+                    measureStartMs: data.measureStartMs,
+                    songEndMs: data.songEndMs,
+                    activeNotes: data.activeNotes,
+                    selectedHands: data.selectedHands,
+                    viewTop: viewTop,
+                    viewBottom: viewTop + viewHeight,
+                    staffSpace: staffSpace,
+                    palette: palette,
+                  ),
+                  size: Size(engraveWidth, painter.heightFor(engraveWidth)),
+                );
+              },
+            ),
           );
         },
-      ),
-    );
-  }
-}
-
-/// "Next up" peek: the first measures of the upcoming line, scaled down into a
-/// small framed box (pinned top-left over the already-played start of the line).
-class _NextLineOverlay extends StatelessWidget {
-  final PartitionPainter painter;
-
-  /// Width the system is engraved at — the same as the main view, so the notes
-  /// are rendered at identical size (no scaling).
-  final double fullWidth;
-
-  /// Visible width of the peek (clips to roughly the first two measures).
-  final double boxWidth;
-
-  const _NextLineOverlay({
-    required this.painter,
-    required this.fullWidth,
-    required this.boxWidth,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final height = painter.heightFor(fullWidth);
-    return Container(
-      decoration: BoxDecoration(
-        color: CymbraColors.surfaceContainerHigh.withValues(alpha: 0.94),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: CymbraColors.outlineVariant),
-      ),
-      padding: const EdgeInsets.fromLTRB(8, 4, 8, 6),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Text(
-            'NEXT',
-            style: TextStyle(
-              color: CymbraColors.onSurfaceVariant,
-              fontSize: 9,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 1.5,
-            ),
-          ),
-          const SizedBox(height: 2),
-          // The system is painted at [fullWidth] (full size) but only [boxWidth]
-          // is shown; OverflowBox lets the wider canvas extend under the clip.
-          SizedBox(
-            width: boxWidth,
-            height: height,
-            child: ClipRect(
-              child: OverflowBox(
-                alignment: Alignment.topLeft,
-                minWidth: 0,
-                maxWidth: fullWidth,
-                minHeight: 0,
-                maxHeight: height,
-                child: SizedBox(
-                  width: fullWidth,
-                  height: height,
-                  child: CustomPaint(
-                    painter: painter,
-                    size: Size(fullWidth, height),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }

@@ -25,6 +25,7 @@ import 'package:music/services/score_asset_source.dart';
 import 'package:music/src/rust/api/musicxml.dart';
 import 'package:music/state/player_data.dart';
 import 'package:music/state/player_notifier.dart';
+import 'package:music/state/player_preferences.dart';
 import 'package:music/state/score_catalog.dart';
 
 import '../support/fakes.dart';
@@ -205,6 +206,50 @@ void main() {
     await _teardown(tester, container);
   });
 
+  testWidgets('score size chooser applies to the shared prefs on Validate', (
+    tester,
+  ) async {
+    final container = await _pumpWithModal(tester);
+    // Nothing stored yet — the chooser preselects the form-factor default
+    // (medium on this tablet-class surface) without persisting it.
+    expect(container.read(playerPreferencesProvider).scoreSize, isNull);
+
+    // Pick Large, then Validate.
+    await tester.ensureVisible(find.text('Large'));
+    await tester.tap(find.text('Large'));
+    await tester.pump();
+    await tester.tap(find.widgetWithText(FilledButton, 'Play'));
+    await _pumpFrames(tester);
+
+    expect(
+      container.read(playerPreferencesProvider).scoreSize,
+      ScoreSize.large,
+    );
+    await _teardown(tester, container);
+  });
+
+  testWidgets('score theme chooser applies to the shared prefs on Validate', (
+    tester,
+  ) async {
+    final container = await _pumpWithModal(tester);
+    expect(
+      container.read(playerPreferencesProvider).notationTheme,
+      NotationTheme.dark,
+    );
+
+    await tester.ensureVisible(find.text('Paper'));
+    await tester.tap(find.text('Paper'));
+    await tester.pump();
+    await tester.tap(find.widgetWithText(FilledButton, 'Play'));
+    await _pumpFrames(tester);
+
+    expect(
+      container.read(playerPreferencesProvider).notationTheme,
+      NotationTheme.paper,
+    );
+    await _teardown(tester, container);
+  });
+
   testWidgets('single-staff piece offers no hand chooser', (tester) async {
     final container = await _pumpWithModal(
       tester,
@@ -248,6 +293,7 @@ void main() {
         'Tempo',
         'MIDI device',
         'Keyboard size',
+        'Score size',
       ]) {
         await tester.ensureVisible(find.text(label).first);
         expect(find.text(label), findsWidgets, reason: '$label unreachable');

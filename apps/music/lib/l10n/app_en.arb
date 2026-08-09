@@ -27,6 +27,30 @@
   "settingsCategoryKeyboardVisibility": "Keyboard display",
   "@settingsCategoryKeyboardVisibility": { "description": "Settings category (notation modes only): show or hide the on-screen keyboard." },
 
+  "settingsCategoryScoreSize": "Score size",
+  "@settingsCategoryScoreSize": { "description": "Settings category: notation size applied to the Partition and staff views." },
+
+  "scoreSizeSmall": "Small",
+  "@scoreSizeSmall": { "description": "Score-size option: smaller notation." },
+
+  "scoreSizeMedium": "Medium",
+  "@scoreSizeMedium": { "description": "Score-size option: default notation size." },
+
+  "scoreSizeLarge": "Large",
+  "@scoreSizeLarge": { "description": "Score-size option: larger notation." },
+
+  "settingsCategoryScoreTheme": "Score theme",
+  "@settingsCategoryScoreTheme": { "description": "Settings category: notation rendering theme for the Partition and staff views." },
+
+  "scoreThemeDark": "Dark",
+  "@scoreThemeDark": { "description": "Score-theme option: the app's dark surface." },
+
+  "scoreThemePaper": "Paper",
+  "@scoreThemePaper": { "description": "Score-theme option: paper-like light background." },
+
+  "playbackProgressLabel": "Playback progress: {percent}%",
+  "@playbackProgressLabel": { "placeholders": { "percent": { "type": "int" } }, "description": "Accessibility label of the playback progress bar above the keyboard." },
+
   "keyboardShown": "Shown",
   "@keyboardShown": { "description": "Keyboard-display option: the on-screen keyboard is visible." },
 

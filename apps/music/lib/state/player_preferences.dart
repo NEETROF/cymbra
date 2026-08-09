@@ -18,11 +18,35 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../painters/keyboard_range.dart';
+import '../painters/notation_palette.dart';
 import '../services/preferences_service.dart';
 import 'player_data.dart' show Hand, NoteReadingAid;
 
+export '../painters/notation_palette.dart' show NotationTheme;
+
 part 'player_preferences.freezed.dart';
 part 'player_preferences.g.dart';
+
+/// User-selectable notation size, applied to both notation views: it scales the
+/// engraved Partition (staff space + line re-wrap) and the horizontal Portée
+/// (staff/glyph scale + look-ahead window) together.
+enum ScoreSize { small, medium, large }
+
+extension ScoreSizeFactor on ScoreSize {
+  /// Scale factor applied to the notation. Medium is the historical 1.0.
+  double get factor => switch (this) {
+    ScoreSize.small => 0.85,
+    ScoreSize.medium => 1.0,
+    ScoreSize.large => 1.2,
+  };
+}
+
+/// Effective score size for a device: the user's stored choice when there is
+/// one, otherwise a form-factor default — **small on phones** (the short
+/// landscape viewport earns its legibility back through the narrower
+/// look-ahead window, not bigger glyphs), medium on tablets/desktops.
+ScoreSize resolveScoreSize(ScoreSize? stored, {required bool isPhone}) =>
+    stored ?? (isPhone ? ScoreSize.small : ScoreSize.medium);
 
 /// The user's play settings, remembered across scores and app restarts. The
 /// pre-play setup modal and the in-game settings drawer both read and write
@@ -41,6 +65,15 @@ abstract class PlayerPrefs with _$PlayerPrefs {
     /// a beginner who does not know the notes is exactly the player who will not
     /// go looking for this in the settings. Turning it off is one tap away.
     @Default(NoteReadingAid.name) NoteReadingAid readingAid,
+
+    /// Notation size for both notation views (Partition + Portée). Null means
+    /// "not chosen yet": the effective default is resolved per form factor by
+    /// [resolveScoreSize] (small on phones, medium elsewhere).
+    ScoreSize? scoreSize,
+
+    /// Notation rendering theme (dark surface or paper) for both notation
+    /// views.
+    @Default(NotationTheme.dark) NotationTheme notationTheme,
 
     /// Preferred MIDI input port name; null = auto (first real device).
     String? midiPort,
@@ -84,6 +117,9 @@ class PlayerPreferences extends _$PlayerPreferences {
   void setMidiPort(String? port) => _update(state.copyWith(midiPort: port));
   void setNoteReadingAid(NoteReadingAid aid) =>
       _update(state.copyWith(readingAid: aid));
+  void setScoreSize(ScoreSize size) => _update(state.copyWith(scoreSize: size));
+  void setNotationTheme(NotationTheme theme) =>
+      _update(state.copyWith(notationTheme: theme));
 
   void _update(PlayerPrefs next) {
     if (next == state) return;
@@ -107,6 +143,8 @@ class PlayerPreferences extends _$PlayerPreferences {
     'metronome': p.metronome,
     'keyboardRange': p.keyboardRange.name,
     'readingAid': p.readingAid.name,
+    'scoreSize': p.scoreSize?.name,
+    'notationTheme': p.notationTheme.name,
     'midiPort': p.midiPort,
   });
 
@@ -128,6 +166,10 @@ class PlayerPreferences extends _$PlayerPreferences {
             KeyboardRangeMode.auto,
         readingAid:
             NoteReadingAid.values.asNameMap()[aidName] ?? NoteReadingAid.name,
+        scoreSize: ScoreSize.values.asNameMap()[m['scoreSize'] as String?],
+        notationTheme:
+            NotationTheme.values.asNameMap()[m['notationTheme'] as String?] ??
+            NotationTheme.dark,
         midiPort: m['midiPort'] as String?,
       );
     } catch (_) {

@@ -143,6 +143,11 @@ class PianoKeyboardPainter extends CustomPainter {
   /// keeps the platform default.
   final String? labelFontFamily;
 
+  /// Breathing phase (0..1) of the expected-key highlight while Wait Mode
+  /// holds playback — the non-intrusive replacement for the old text banner.
+  /// 0 (the default) renders the steady highlight.
+  final double waitPulse;
+
   const PianoKeyboardPainter({
     required this.layout,
     required this.activeNotes,
@@ -153,6 +158,7 @@ class PianoKeyboardPainter extends CustomPainter {
     this.solfege = false,
     this.frenchRe = false,
     this.labelFontFamily,
+    this.waitPulse = 0,
   });
 
   /// MIDI middle C (C4) — the anchor note the octave labels emphasise.
@@ -171,10 +177,15 @@ class PianoKeyboardPainter extends CustomPainter {
     return _KeyState.idle;
   }
 
+  /// Brightens an expected key's colour by the current [waitPulse] phase, so
+  /// awaited keys "breathe" while the Wait Mode gate is blocked.
+  Color _pulsed(Color base) =>
+      Color.lerp(base, const Color(0xFFFFFFFF), 0.35 * waitPulse)!;
+
   Color _fillFor(_KeyState state, {required bool isBlack}) => switch (state) {
     _KeyState.correct => CymbraColors.tertiary,
-    _KeyState.expectedRight => CymbraColors.handRight,
-    _KeyState.expectedLeft => CymbraColors.handLeft,
+    _KeyState.expectedRight => _pulsed(CymbraColors.handRight),
+    _KeyState.expectedLeft => _pulsed(CymbraColors.handLeft),
     _KeyState.pressed => CymbraColors.primaryContainer,
     _KeyState.idle =>
       isBlack ? CymbraColors.pianoBlack : CymbraColors.pianoWhite,
@@ -426,6 +437,7 @@ class PianoKeyboardPainter extends CustomPainter {
       old.solfege != solfege ||
       old.frenchRe != frenchRe ||
       old.labelFontFamily != labelFontFamily ||
+      old.waitPulse != waitPulse ||
       old.layout.width != layout.width ||
       old.layout.lowPitch != layout.lowPitch ||
       old.layout.highPitch != layout.highPitch;

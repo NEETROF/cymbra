@@ -17,6 +17,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:music/painters/piano_keyboard_painter.dart';
 import 'package:music/painters/piano_layout.dart';
 import 'package:music/painters/staff_painter.dart';
 import 'package:music/screens/player_screen.dart';
@@ -343,18 +344,47 @@ void main() {
     await teardownScreen(tester);
   });
 
-  testWidgets('wait-mode overlay appears when the cascade is blocked', (
+  testWidgets('a narrow, short desktop window lays out without overflow', (
     tester,
   ) async {
-    await pumpScreen(tester);
-    await tester.tap(find.byIcon(Icons.play_arrow)); // play, wait-mode on
-    await tester.pump(const Duration(milliseconds: 16)); // one ticker frame
-    await tester.pump(); // rebuild after blocked=true
-    expect(state().blocked, isTrue);
-    expect(find.byType(StaffPainter), findsNothing); // still synthesia mode
-    expect(find.text('⏸  Play the expected note to continue'), findsOneWidget);
+    // A shrunken desktop window: the top-bar trailing cluster used to overflow
+    // by a few pixels; it now scales down as one block.
+    await pumpScreen(tester, size: const Size(820, 460));
+    expect(tester.takeException(), isNull);
+    expect(find.byKey(const Key('onscreen-keyboard')), findsOneWidget);
     await teardownScreen(tester);
   });
+
+  testWidgets(
+    'a blocked cascade pulses the expected keys instead of a banner',
+    (tester) async {
+      await pumpScreen(tester);
+
+      PianoKeyboardPainter keyboard() =>
+          tester
+                  .widgetList<CustomPaint>(find.byType(CustomPaint))
+                  .firstWhere((w) => w.painter is PianoKeyboardPainter)
+                  .painter
+              as PianoKeyboardPainter;
+
+      // Steady highlight before playing.
+      expect(keyboard().waitPulse, 0);
+
+      await tester.tap(find.byIcon(Icons.play_arrow)); // play, wait-mode on
+      await tester.pump(const Duration(milliseconds: 16)); // one ticker frame
+      await tester.pump(); // rebuild after blocked=true
+      expect(state().blocked, isTrue);
+      expect(find.byType(StaffPainter), findsNothing); // still synthesia mode
+
+      // No text banner covers the play surface any more…
+      expect(find.text('⏸  Play the expected note to continue'), findsNothing);
+      // …the expected keys breathe instead: mid-cycle the pulse is non-zero.
+      await tester.pump(const Duration(milliseconds: 550));
+      expect(keyboard().waitPulse, greaterThan(0));
+
+      await teardownScreen(tester);
+    },
+  );
 
   testWidgets('on-screen key press/release toggles the note', (tester) async {
     await pumpScreen(tester);
@@ -403,9 +433,13 @@ void main() {
     await teardownScreen(tester);
   });
 
-  testWidgets('keyboard responds in every render mode', (tester) async {
+  testWidgets('keyboard responds in every render mode that shows it', (
+    tester,
+  ) async {
     await pumpScreen(tester);
-    for (final mode in RenderMode.values) {
+    // The engraved Partition never shows the keyboard (by design), so it is
+    // exercised in the modes that do.
+    for (final mode in [RenderMode.synthesia, RenderMode.staff]) {
       container.read(playerProvider.notifier).setMode(mode);
       await tester.pump();
       final gesture = await tester.startGesture(keyPos(tester, 60));
@@ -551,6 +585,21 @@ void main() {
       await tester.pump(const Duration(milliseconds: 300));
       expect(state().keyboardVisible, isFalse);
       expect(find.byKey(const Key('onscreen-keyboard')), findsNothing);
+      await teardownScreen(tester);
+    });
+
+    testWidgets('the Partition never shows the keyboard nor offers the toggle', (
+      tester,
+    ) async {
+      await pumpScreen(tester);
+      notifier().setMode(RenderMode.partition);
+      notifier().setKeyboardVisible(true); // even explicitly visible
+      await tester.pump();
+      // The engraving takes the full height; the expected-note emphasis in the
+      // notation is the "what to play" cue.
+      expect(find.byKey(const Key('onscreen-keyboard')), findsNothing);
+      await openSettings(tester);
+      expect(find.text('Keyboard display'), findsNothing);
       await teardownScreen(tester);
     });
   });
@@ -726,8 +775,9 @@ void main() {
       });
     });
 
-    testWidgets('transport controls rail on the right on touch form factors, '
-        'bottom bar on desktop', (tester) async {
+    testWidgets('transport controls rail on the right on every form factor', (
+      tester,
+    ) async {
       // A right-side vertical rail: taller than wide, sitting to the right of
       // the keyboard rather than below it — clear of the bottom home indicator.
       Future<void> expectRail(WidgetTester tester, Size size) async {
@@ -748,22 +798,13 @@ void main() {
       }
 
       await onMobile(tester, () async {
-        // Phone (slim rail) and tablet (roomier rail) both rail on the right.
+        // Every form factor rails on the right: phones clear the home
+        // indicator, and short desktop windows keep the full height for the
+        // notation + keyboard.
         await expectRail(tester, phone);
         await expectRail(tester, tablet);
-
-        // The desktop-class viewport keeps the classic horizontal bottom bar.
-        await pumpAt(tester, desktop);
-        final desktopBar = tester.getRect(
-          find.byKey(const Key('transport-bar')),
-        );
-        expect(
-          desktopBar.width,
-          greaterThan(desktopBar.height),
-          reason: 'desktop keeps a horizontal bottom bar',
-        );
-        await teardownScreen(tester);
       });
+      await expectRail(tester, desktop);
     });
 
     testWidgets('the tablet rail keeps the full "% SPD" label and a labelled '

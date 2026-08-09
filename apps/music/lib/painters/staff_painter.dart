@@ -18,7 +18,7 @@ import 'package:flutter/material.dart';
 
 import '../src/rust/api/musicxml.dart' show BeamState;
 import '../state/player_data.dart';
-import '../theme/cymbra_theme.dart';
+import 'notation_palette.dart';
 import 'smufl.dart';
 
 /// "Standard staff" rendering synchronized to time, like the waterfall.
@@ -89,12 +89,66 @@ class StaffPainter extends CustomPainter {
     this.beatType = 4,
     this.measureStartMs = const [],
     this.mistakeColors = const {},
-    this.lookAheadMs = _defaultLookAheadMs,
+    this.lookAheadMs = defaultLookAheadMs,
     this.noteScale = 1.0,
+    this.palette = NotationPalette.dark,
   });
 
-  // Default visible time window to the right of the playhead.
-  static const double _defaultLookAheadMs = 4000;
+  /// Colour set (dark surface or paper) the staff is drawn with.
+  final NotationPalette palette;
+
+  /// Vertical placement of the grand staff: the treble/bass block is centred
+  /// in [height] with the inter-staff gap **clamped between 2 and 8 line
+  /// gaps** — enough air for the between-hands ledger notes, never the
+  /// pinned-to-the-edges void a tall window used to produce. The clamp floor
+  /// mirrors the fit budget of [staffLineGap], so on short heights this
+  /// degrades exactly as before.
+  static ({double trebleBottom, double bassBottom}) grandStaffLayout({
+    required double height,
+    required double lineGap,
+    required double stemClearance,
+  }) {
+    final gap = (height - 2 * stemClearance - 8 * lineGap).clamp(
+      2 * lineGap,
+      8 * lineGap,
+    );
+    final blockHeight = 8 * lineGap + gap;
+    final top = math.max((height - blockHeight) / 2, stemClearance);
+    return (trebleBottom: top + 4 * lineGap, bassBottom: top + blockHeight);
+  }
+
+  /// Staff line gap for a render area [height]: proportional within the usual
+  /// 8–12 px band (12 = the Partition's staff space, so both notation
+  /// modes read at the same size), **capped so the engraving always fits** — a grand staff
+  /// needs ~19.2 gaps of vertical budget (two 4-gap staves, stem/beam clearance
+  /// above and below, and at least two gaps of air between the hands), a lone
+  /// staff ~12. Without the cap a short window kept the 8 px floor and the
+  /// two staves collided. The 3 px hard floor is the readability minimum the
+  /// glyphs can shrink to. `noteScale` applies after the clamps so the in-card
+  /// preview can deliberately go smaller.
+  static double staffLineGap({
+    required double height,
+    required bool twoStaff,
+    double noteScale = 1.0,
+  }) {
+    final proportional = (height * (twoStaff ? 0.055 : 0.10)).clamp(
+      8.0,
+      _partitionStaffSpace,
+    );
+    final fitCap = height / (twoStaff ? 19.2 : 12.0);
+    return math.min(proportional, fitCap).clamp(3.0, _partitionStaffSpace) *
+        noteScale;
+  }
+
+  /// The engraved Partition's staff space (its `_s` at the medium score size):
+  /// the Portée settles at exactly this size on comfortable viewports, so the
+  /// two notation modes engrave at the same scale — the score-size setting then
+  /// multiplies both identically via [noteScale].
+  static const double _partitionStaffSpace = 12.0;
+
+  /// Default visible time window to the right of the playhead. The score-size
+  /// setting divides it by its factor so bigger notes get matching spacing.
+  static const double defaultLookAheadMs = 4000;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -112,12 +166,12 @@ class StaffPainter extends CustomPainter {
     // The kept staff when a single hand is shown: its clef/armature are drawn on
     // the lone staff (bass when only staff 2+ remains, else treble).
     final soloStaff = !twoStaff && hasBass ? 2 : 1;
-    // The staff line gap sizes ALL notation (notes, stems, glyphs, armature);
-    // `noteScale` shrinks it for the small in-card preview without touching the
-    // player (scale 1.0). Applied after the clamp so it can go below the player's
-    // 8 px floor when deliberately scaled down.
-    final lineGap =
-        (size.height * (twoStaff ? 0.055 : 0.10)).clamp(8.0, 18.0) * noteScale;
+    // The staff line gap sizes ALL notation (notes, stems, glyphs, armature).
+    final lineGap = staffLineGap(
+      height: size.height,
+      twoStaff: twoStaff,
+      noteScale: noteScale,
+    );
     final stepGap = lineGap / 2;
 
     // Playhead fixed at the left quarter; time advances toward the left.
@@ -135,15 +189,13 @@ class StaffPainter extends CustomPainter {
     final double trebleBottom;
     final double? bassBottom;
     if (twoStaff) {
-      // Place the staves proportionally to the viewport height: treble near the
-      // top, bass near the bottom, with a margin above/below for ledger lines,
-      // stems and beams. Both stay fully visible and well separated at any
-      // height (the inter-staff gap grows with a taller viewport). Neither
-      // margin ever drops below the stem clearance.
-      final topMargin = math.max(size.height * 0.14, stemClearance);
-      final bottomMargin = math.max(size.height * 0.14, stemClearance);
-      trebleBottom = topMargin + 4 * lineGap;
-      bassBottom = size.height - bottomMargin;
+      final layout = grandStaffLayout(
+        height: size.height,
+        lineGap: lineGap,
+        stemClearance: stemClearance,
+      );
+      trebleBottom = layout.trebleBottom;
+      bassBottom = layout.bassBottom;
     } else {
       // Centre the lone staff, but guarantee the stem clearance above its top
       // line and below its bottom line so extreme notes stay visible on short
@@ -158,10 +210,10 @@ class StaffPainter extends CustomPainter {
     }
 
     final linePaint = Paint()
-      ..color = CymbraColors.onSurfaceVariant.withValues(alpha: 0.45)
+      ..color = palette.staffLine.withValues(alpha: 0.45)
       ..strokeWidth = 1.2;
     final barPaint = Paint()
-      ..color = CymbraColors.onSurface.withValues(alpha: 0.5)
+      ..color = palette.ink.withValues(alpha: 0.5)
       ..strokeWidth = 1.4;
 
     // 1) Staff lines (treble, and bass for a grand staff).
@@ -198,7 +250,7 @@ class StaffPainter extends CustomPainter {
       6,
       trebleBottom - (trebleClef.$2 - 1) * lineGap,
       lineGap,
-      CymbraColors.onSurfaceVariant,
+      palette.staffLine,
     );
     if (bassBottom != null) {
       final bassClef = _clefAtPlayhead(2);
@@ -208,14 +260,14 @@ class StaffPainter extends CustomPainter {
         6,
         bassBottom - (bassClef.$2 - 1) * lineGap,
         lineGap,
-        CymbraColors.onSurfaceVariant,
+        palette.staffLine,
       );
     }
 
     // Key signature (armature) + time signature at the head of the system. The
     // armure reflects the key at the playhead, so a mid-piece modulation appears
     // as you scroll past it (like the clef above).
-    const headColor = CymbraColors.onSurfaceVariant;
+    final headColor = palette.staffLine;
     final headKey = _keyFifthsAtPlayhead();
     var hx = 6 + lineGap * 2.8;
     final keyW = Smufl.drawKeySignature(
@@ -301,7 +353,7 @@ class StaffPainter extends CustomPainter {
 
     // 3) Playhead (playback line) across the whole system.
     final playPaint = Paint()
-      ..color = CymbraColors.secondary.withValues(alpha: 0.9)
+      ..color = palette.accent.withValues(alpha: 0.9)
       ..strokeWidth = 2;
     canvas.drawLine(
       Offset(playLineX, systemTop - lineGap * 1.5),
@@ -361,13 +413,11 @@ class StaffPainter extends CustomPainter {
     // Notes are coloured by hand (right = blue, left = amber): brighter at the
     // playhead ("play now"), success green once correctly held.
     Color colorFor(TimedNote n) {
-      final handColor = n.staff >= 2
-          ? CymbraColors.handLeft
-          : CymbraColors.handRight;
+      final handColor = n.staff >= 2 ? palette.handLeft : palette.handRight;
       final atPlayhead =
           n.startMs <= elapsedMs && elapsedMs < n.startMs + n.durationMs;
       if (atPlayhead && activeNotes.contains(n.pitch)) {
-        return CymbraColors.tertiary; // well played
+        return palette.correct; // well played
       } else if (atPlayhead) {
         return Color.lerp(handColor, const Color(0xFFFFFFFF), 0.4)!; // play now
       }
@@ -448,7 +498,7 @@ class StaffPainter extends CustomPainter {
 
     // 4b) Scrolling rests, routed to their staff and centred on its middle line
     // (two spaces above the bottom line), like the engraved Partition view.
-    const restColor = CymbraColors.onSurfaceVariant;
+    final restColor = palette.staffLine;
     for (final r in rests) {
       final x = xForTime(r.startMs.toDouble());
       if (!visible(x)) continue;
@@ -724,7 +774,7 @@ class StaffPainter extends CustomPainter {
     double lineGap,
     bool up,
   ) {
-    final color = CymbraColors.onSurfaceVariant.withValues(alpha: 0.75);
+    final color = palette.staffLine.withValues(alpha: 0.75);
     final quarterMs = bpm > 0 ? 60000.0 / bpm : 500.0;
     final stemPaint = Paint()
       ..color = color
@@ -798,5 +848,6 @@ class StaffPainter extends CustomPainter {
       old.measureKeyFifths != measureKeyFifths ||
       old.mistakeColors != mistakeColors ||
       old.lookAheadMs != lookAheadMs ||
-      old.noteScale != noteScale;
+      old.noteScale != noteScale ||
+      old.palette != palette;
 }

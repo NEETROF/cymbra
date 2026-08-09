@@ -73,20 +73,16 @@ void main() {
     return container;
   }
 
-  testWidgets('hides the hit sparks but keeps the gauge when effects are off', (
-    tester,
-  ) async {
+  testWidgets('hides the hit sparks when effects are off', (tester) async {
     await pumpOverlay(tester, showEffects: false);
-    // No spark layer (keyboard hidden), but the gauge still reads the sync %.
+    // No spark layer (keyboard hidden) and nothing else floats over the score
+    // — the live score lives in the top-bar ScoreChip, not in this overlay.
     expect(_hitEffects, findsNothing);
-    expect(find.textContaining('%'), findsOneWidget);
+    expect(find.textContaining('%'), findsNothing);
   });
 
-  testWidgets('with no layout (Partition) shows the gauge but no sparks', (
-    tester,
-  ) async {
+  testWidgets('with no layout (Partition) renders nothing', (tester) async {
     await pumpOverlay(tester, showEffects: true, withLayout: false);
     expect(_hitEffects, findsNothing);
-    expect(find.textContaining('%'), findsOneWidget);
   });
 }
