@@ -580,6 +580,10 @@
 
   "playerScoreUnavailable": "Can't reach the server. Check your connection and try again.",
   "@playerScoreUnavailable": { "description": "Shown when the backend is unreachable while loading a score." },
+  "playerScoreOfflineUnavailable": "This favorite isn't available offline yet. Connect to the internet to open it once, then it'll play offline.",
+  "@playerScoreOfflineUnavailable": { "description": "Shown when the app is offline and a favorited score has no cached local copy (distinct from the generic server-unavailable message)." },
+  "libraryNotAvailableOffline": "Not available offline",
+  "@libraryNotAvailableOffline": { "description": "Short badge on a favorite that has no cached bytes while the app is offline." },
 
   "playerScoreRateLimited": "You're opening scores too quickly. Please wait a moment and try again.",
   "@playerScoreRateLimited": { "description": "Shown when the per-user catalog access limit is hit while loading a score (backend RESOURCE_EXHAUSTED)." },

@@ -38,9 +38,13 @@ import 'play_sync_notifier_test.mocks.dart';
 
 /// A connectivity seam with a manually-pumped "online" event.
 class FakeConnectivityService implements ConnectivityService {
+  @override
+  Future<bool> isOnline() async => true;
   final _controller = StreamController<void>.broadcast();
   @override
   Stream<void> get onOnline => _controller.stream;
+  @override
+  Stream<bool> get onlineStatus => const Stream.empty();
   void goOnline() => _controller.add(null);
   void dispose() => _controller.close();
 }

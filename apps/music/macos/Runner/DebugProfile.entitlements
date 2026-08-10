@@ -16,5 +16,11 @@
 	<true/>
 	<key>com.apple.security.files.user-selected.read-only</key>
 	<true/>
+	<!-- Keep in sync with Release.entitlements (see the rationale there): a keychain
+	     capability that exists only in debug is exactly the bug this fixes. -->
+	<key>keychain-access-groups</key>
+	<array>
+		<string>$(AppIdentifierPrefix)com.cymbra.music</string>
+	</array>
 </dict>
 </plist>

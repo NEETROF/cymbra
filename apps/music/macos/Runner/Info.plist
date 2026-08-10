@@ -14,6 +14,15 @@
 	<string>6.0</string>
 	<key>CFBundleName</key>
 	<string>Cymbra Music</string>
+	<!-- Mac App Store validation rejects a bundle without a category. Education
+	     matches the iOS primary category (prepare-store-distribution, task 6.2). -->
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.education</string>
+	<!-- Same declaration as ios/Runner/Info.plist: the only cryptography is TLS to
+	     api.cymbra.app plus platform-provided storage encryption, both exempt. Set
+	     here too so App Store Connect stops asking on every macOS delivery. -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>

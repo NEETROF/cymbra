@@ -63,6 +63,13 @@ dependencies:
   http: ^1.6.0
   crypto: ^3.0.7
 
+  # Offline encrypted-at-rest cache of favorited scores (change:
+  # add-offline-score-cache). `cryptography` provides AES-256-GCM + HKDF-SHA256 in
+  # pure Dart (works on every platform and, crucially, on the Dart VM so the cache
+  # unit-tests without platform channels). `path_provider` (already a dependency,
+  # below) resolves the app's private support directory for the ciphertext files.
+  cryptography: ^2.7.0
+
   # Native file picker for the score-contribution flow (.musicxml/.xml/.mxl) and
   # the SoundFont import flow (.sf2), behind the injectable `filePickerProvider` /
   # `soundFontImporterProvider` seams so both are testable without the native

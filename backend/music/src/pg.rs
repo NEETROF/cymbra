@@ -473,6 +473,32 @@ impl CatalogSearchRepo for PgCatalogSearchRepo {
         Ok(row.map(|r| r.get::<String, _>("object_key")))
     }
 
+    async fn object_ref(
+        &self,
+        id: &str,
+        include_unvalidated: bool,
+    ) -> PlatformResult<Option<crate::catalog_search::CatalogObjectRef>> {
+        let Ok(uuid) = uuid::Uuid::parse_str(id) else {
+            return Ok(None); // malformed id → not found, never a 500
+        };
+        // Same moderation gate ($2) as `object_key`, plus the stored `sha256` so the
+        // byte fetch can expose the ETag and answer a conditional request without
+        // reading the blob (change: add-offline-score-cache).
+        let row = sqlx::query(
+            "SELECT object_key, sha256 FROM music.catalog_scores \
+             WHERE id = $1 AND ($2 OR moderation_status = 'accepted')",
+        )
+        .bind(uuid)
+        .bind(include_unvalidated)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(search_internal)?;
+        Ok(row.map(|r| crate::catalog_search::CatalogObjectRef {
+            object_key: r.get::<String, _>("object_key"),
+            sha256: r.get::<String, _>("sha256"),
+        }))
+    }
+
     async fn set_moderation_status(
         &self,
         score_id: &str,
