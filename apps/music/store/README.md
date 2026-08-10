@@ -22,7 +22,7 @@ store/
 - [x] Play feature graphic (1024×500)
 - [x] iOS screenshots — **6.7" iPhone** (`ios/iphone_6.7/`, 2796×1290) and **12.9" iPad** (`ios/ipad_12.9/`, 2732×2048), landscape. Captured from the iPhone 15 Pro Max and iPad Pro 12.9" simulators: score library, Synthesia falling-notes, staff, and (iPad) full-score "Partition" view.
 - [x] Android phone screenshots — `android/phone/` (2160×1080, landscape): score library, Synthesia, staff. Captured on the Pixel 3a emulator, cropped to exactly 2:1 (Play caps the long:short side ratio at 2:1; the raw 2220×1080 was 2.06:1) with a demo-mode clean status bar.
-- [x] macOS screenshots — `macos/` (1440×900, one of the four sizes the Mac App Store accepts): score library, Synthesia falling-notes, staff, full-score "Partition". Captured from a release build of the real app against a local backend, window pinned to 1440×900.
+- [x] macOS screenshots — `macos/` (1440×900, one of the four sizes the Mac App Store accepts): score library, Synthesia falling-notes, staff, full-score "Partition". **English UI**, captured from a release build of the real app against a local backend, window pinned to 1440×900. Only the `en` locale is covered — fr/it/es listings reuse these unless localized sets are captured later.
 - [x] Listing copy under `copy/` — **en, fr, it, es** (all four shipping locales): name, subtitle, short/promo, keywords, full description, categories, all within store char limits.
 
 ## Categories (decided)
@@ -35,11 +35,18 @@ store/
 
 ## Known caveat on the macOS captures
 
-The three player screenshots show **"Aucun appareil MIDI"** and **"0%"** in the
-top bar, because they were taken without a MIDI keyboard connected. Both are
-truthful UI, but they read as a warning and a bad score on a store page. Re-take
-them with a keyboard plugged in (and a few correct notes played) before the
-listing goes live.
+The three player screenshots show **"No MIDI device"** and **"0%"** in the top
+bar, because they were taken without a MIDI keyboard connected. Both are truthful
+UI, but they read as a warning and a bad score on a store page. Re-take them with
+a keyboard plugged in (and a few correct notes played) before the listing goes
+live.
+
+Two things that silently ruin a capture, both hit during the first pass:
+- Take the shot while the window is **focused**, or the traffic lights render grey
+  and the window reads as inactive. Run `open <path>.app` immediately before
+  `screencapture`.
+- Don't leave playback running between shots. The piece reaches its end and the
+  session summary ("0% · 268 missed") covers the view.
 
 ## Reproducing the macOS captures
 
