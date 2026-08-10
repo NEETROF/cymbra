@@ -4,8 +4,11 @@ name: release-build
 # the GitHub Release that release-please created for a `music-v*` tag.
 #
 # Triggered automatically when a `music-v*` tag is pushed (i.e. when the
-# release-please "Release PR" is merged), or manually via workflow_dispatch on an
-# existing tag.
+# release-please "Release PR" is merged), or manually via workflow_dispatch —
+# either on an existing tag, or with an empty `tag` input to dry-run the branch
+# you dispatched from (builds + signs everything, uploads nothing). Dispatching
+# WITH a tag checks out that tag, so it validates workflow changes only; a source
+# change has to be dry-run from its branch.
 #
 # App config comes from apps/music/config/prod.json (--dart-define-from-file):
 # api.cymbra.app:443 over TLS + the OIDC client IDs (mobile, and the desktop
@@ -64,8 +67,13 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Existing music-v* tag to build and attach assets to"
-        required: true
+        # Optional on purpose. With a tag, the run checks out that tag and
+        # attaches assets to its release. WITHOUT one, it checks out the branch
+        # you dispatched from and uploads nothing — the only way to validate a
+        # source change (not just a workflow change) before it is tagged, since
+        # `ref: <tag>` would otherwise build the tag's tree with the branch's YAML.
+        description: "Existing music-v* tag. Leave empty to dry-run the branch (builds + signs, uploads nothing)."
+        required: false
 
 permissions:
   contents: write # upload assets to the release
@@ -117,7 +125,11 @@ jobs:
       - name: Package
         working-directory: apps/music/build/linux/x64/release/bundle
         run: tar czf "$GITHUB_WORKSPACE/cymbra-${TAG}-linux-x64.tar.gz" .
-      - uses: softprops/action-gh-release@v2
+      # Release assets only for a real tag. A branch dry-run (empty `tag`
+      # input) must not create a release named after the branch.
+      - name: Attach to the GitHub Release
+        if: startsWith(env.TAG, 'music-v')
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.TAG }}
           files: cymbra-${{ env.TAG }}-linux-x64.tar.gz
@@ -348,7 +360,11 @@ jobs:
       - name: Package
         shell: pwsh
         run: Compress-Archive -Path apps/music/build/windows/x64/runner/Release/* -DestinationPath "cymbra-$env:TAG-windows-x64.zip"
-      - uses: softprops/action-gh-release@v2
+      # Release assets only for a real tag. A branch dry-run (empty `tag`
+      # input) must not create a release named after the branch.
+      - name: Attach to the GitHub Release
+        if: startsWith(env.TAG, 'music-v')
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.TAG }}
           files: cymbra-${{ env.TAG }}-windows-x64.zip
@@ -415,7 +431,11 @@ jobs:
         run: |
           cp apps/music/build/app/outputs/bundle/release/app-release.aab "cymbra-${TAG}.aab"
           cp apps/music/build/app/outputs/flutter-apk/app-release.apk "cymbra-${TAG}.apk"
-      - uses: softprops/action-gh-release@v2
+      # Release assets only for a real tag. A branch dry-run (empty `tag`
+      # input) must not create a release named after the branch.
+      - name: Attach to the GitHub Release
+        if: startsWith(env.TAG, 'music-v')
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.TAG }}
           files: |
@@ -529,7 +549,11 @@ jobs:
             --export-options-plist ios/ExportOptions-ci.plist
       - name: Rename
         run: cp apps/music/build/ios/ipa/*.ipa "cymbra-${TAG}.ipa"
-      - uses: softprops/action-gh-release@v2
+      # Release assets only for a real tag. A branch dry-run (empty `tag`
+      # input) must not create a release named after the branch.
+      - name: Attach to the GitHub Release
+        if: startsWith(env.TAG, 'music-v')
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.TAG }}
           files: cymbra-${{ env.TAG }}.ipa
