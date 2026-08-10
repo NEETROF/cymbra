@@ -186,8 +186,12 @@ jobs:
       # would silently drift apart at the next renewal. Setting MAC_DIST_CERT_*
       # still wins, for the day the two roles need to diverge. The installer cert
       # has no iOS equivalent and is always its own secret.
-      # Same throwaway-keychain sequence as the ios job; a macOS
-      # .provisionprofile installs into the same directory as an iOS one.
+      # Same throwaway-keychain sequence as the ios job. The profile is copied to
+      # BOTH profile directories: Xcode 16 moved the search path from
+      # ~/Library/MobileDevice/Provisioning Profiles to
+      # ~/Library/Developer/Xcode/UserData/Provisioning Profiles, and macos-latest
+      # tracks whatever Xcode the image ships. Copying to both costs nothing and
+      # removes a silent "no profile found" failure when the image rolls forward.
       - name: Import distribution certs + provisioning profile
         env:
           DIST_CERT_BASE64: ${{ secrets.MAC_DIST_CERT_BASE64 || secrets.IOS_DIST_CERT_BASE64 }}
@@ -212,8 +216,11 @@ jobs:
           security import "$INSTALLER_PATH" -P "$INSTALLER_CERT_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN"
           security list-keychain -d user -s "$KEYCHAIN" login.keychain-db
           security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PW" "$KEYCHAIN" >/dev/null
-          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
-          cp "$PROFILE_PATH" "$HOME/Library/MobileDevice/Provisioning Profiles/"
+          for dir in "$HOME/Library/MobileDevice/Provisioning Profiles" \
+                     "$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles"; do
+            mkdir -p "$dir"
+            cp "$PROFILE_PATH" "$dir/"
+          done
       - name: Configure manual signing + export options
         working-directory: apps/music/macos
         env:
