@@ -56,7 +56,13 @@
       (Already issued and installed: `Apple Distribution: NEETROF (VMFJ6KRW77)`, valid to
       2027-07-10, private key present. It is the multi-platform cert — it signs macOS too.)
 - [ ] 6.3 Issue a **Mac Installer Distribution** certificate and export it as `.p12`
-- [ ] 6.4 Create a **Mac App Store** provisioning profile for `com.cymbra.music`
+- [x] 6.4 Create a **Mac App Store** provisioning profile for `com.cymbra.music`
+      (`Cymbra Music macOS App Store`, created 2026-08-10, expires 2027-07-10. Decoded and
+      checked: Platform OSX, app-id `VMFJ6KRW77.com.cymbra.music`, no `get-task-allow` and no
+      `ProvisionedDevices` (so a real distribution profile), embedded cert SHA-1
+      `E1235AD371A0136582EFFB5636900D3A31B98B2E` = the Apple Distribution identity already in the
+      login keychain. Grants `keychain-access-groups = VMFJ6KRW77.*`, which authorises the 2.1
+      entitlement under App Store signing — the fix holds in production, not just in debug.)
 - [ ] 6.5 Add the macOS platform to the existing App Store Connect record (Universal Purchase, same bundle id) (D6)
 - [ ] 6.6 Set the GitHub secrets: `MAC_INSTALLER_CERT_BASE64`, `MAC_INSTALLER_CERT_PASSWORD`, `MAC_PROVISIONING_PROFILE_BASE64`, `MAC_PROVISIONING_PROFILE_NAME`
       (The app-signing cert is NOT a secret to add: `Apple Distribution: NEETROF (VMFJ6KRW77)`
