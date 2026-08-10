@@ -79,7 +79,13 @@ permissions:
   contents: write # upload assets to the release
 
 env:
-  TAG: ${{ github.event.inputs.tag || github.ref_name }}
+  # Artifact label — NOT the checkout ref (that stays `inputs.tag || ref_name`).
+  # On a branch dry-run `ref_name` is a branch name, and a branch name with a `/`
+  # in it turns `cymbra-${TAG}-macos.pkg` into a path under a directory that does
+  # not exist, which is how every job failed at its packaging step. Fall back to a
+  # fixed, slash-free label instead; `startsWith(env.TAG, 'music-v')` then also
+  # correctly skips the release uploads.
+  TAG: ${{ github.event.inputs.tag || (github.event_name == 'push' && github.ref_name) || 'dryrun' }}
 
 jobs:
   linux:
