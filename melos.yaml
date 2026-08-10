@@ -19,6 +19,10 @@ scripts:
     description: Generate the Cymbra ID gRPC Dart stubs from the backend protos (app + shared flag package).
     run: bash apps/music/tool/gen_grpc.sh && bash packages/cymbra_flags/tool/gen_grpc.sh
 
+  gen-licenses:
+    description: Generate the third-party Rust license notices bundled by the "Open Source Licenses" screen (requires `cargo about` on PATH).
+    run: bash apps/music/tool/gen_licenses.sh
+
   gen-l10n:
     description: Generate the AppLocalizations from the ARB files (lib/l10n/).
     run: melos exec -- flutter gen-l10n

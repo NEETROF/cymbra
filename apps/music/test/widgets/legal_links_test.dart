@@ -178,6 +178,21 @@ void main() {
       expect(launcher.opened, [Uri.parse('https://cymbra.app/cgu/')]);
     });
 
+    testWidgets(
+      'tapping the licenses entry opens the in-app license page, not an external browser',
+      (tester) async {
+        final launcher = await pumpMenu(tester, locale: const Locale('en'));
+
+        await tester.tap(find.byKey(const Key('account-menu')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('account-legal-licenses')));
+        await tester.pumpAndSettle();
+
+        expect(find.byType(LicensePage), findsOneWidget);
+        expect(launcher.opened, isEmpty);
+      },
+    );
+
     testWidgets('the account menu hosts the language picker', (tester) async {
       await pumpMenu(tester, locale: const Locale('en'));
 

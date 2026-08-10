@@ -23,6 +23,7 @@ import 'l10n/gen/app_localizations.dart';
 import 'screens/onboarding/onboarding_gate.dart';
 import 'services/audio_service.dart';
 import 'services/flags_integration.dart';
+import 'services/license_notices.dart';
 import 'src/rust/frb_generated.dart';
 import 'state/app_locale.dart';
 import 'widgets/post_play_rating.dart';
@@ -34,6 +35,10 @@ import 'widgets/coach_layer.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Third-party Rust crate notices for the "Open Source Licenses" screen
+  // (change: add-oss-license-attributions), alongside the Dart/Flutter pub
+  // licenses Flutter already registers on its own.
+  registerRustLicenseNotices();
   // Lock to landscape: the on-screen keyboard (up to 88 keys) is only legible in
   // landscape. No-op on desktop/web.
   await SystemChrome.setPreferredOrientations(const [

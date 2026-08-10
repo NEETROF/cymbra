@@ -213,6 +213,7 @@
 
   "legalTerms": "Conditions d'utilisation",
   "legalPrivacy": "Politique de confidentialité",
+  "legalLicenses": "Licences open source",
   "entryLegalPrefix": "En continuant, vous acceptez nos ",
   "entryLegalSeparator": " et notre ",
   "entryLegalSuffix": ".",

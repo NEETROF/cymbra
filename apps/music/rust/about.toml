@@ -1,0 +1,32 @@
+# cargo-about config for this crate's third-party license notices (change:
+# add-oss-license-attributions). Run via `melos run gen-licenses`; the JSON
+# output feeds the in-app "Open Source Licenses" page (see
+# lib/services/license_notices.dart).
+
+# SPDX identifiers accepted without cargo-about failing the run. Everything
+# currently in this crate's dependency tree resolves to one of these; add a
+# new one here (after checking it's compatible with distributing the app)
+# if a future dependency needs it.
+accepted = [
+    "MIT",
+    "Apache-2.0",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Zlib",
+    "Unicode-3.0",
+    "Unicode-DFS-2016",
+    "MPL-2.0",
+    "CC0-1.0",
+]
+
+# Build- and dev-only dependencies never ship in the app binary.
+ignore-build-dependencies = true
+ignore-dev-dependencies = true
+
+# Local path crates (this app's own FFI crate, the shared musicxml-core
+# crate) have no crates.io registry source, so cargo-about already treats
+# them as "private" and skips them — the first-party exclusion this change
+# needs, with no crate list to hand-maintain.
+[private]
+ignore = true

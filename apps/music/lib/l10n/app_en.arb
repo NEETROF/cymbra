@@ -452,6 +452,9 @@
   "legalPrivacy": "Privacy Policy",
   "@legalPrivacy": { "description": "Label/link opening the Privacy Policy page." },
 
+  "legalLicenses": "Open Source Licenses",
+  "@legalLicenses": { "description": "Label/link opening the in-app third-party open source license notices page." },
+
   "entryLegalPrefix": "By continuing, you accept our ",
   "@entryLegalPrefix": { "description": "Lead-in of the account-entry consent notice, followed by the Terms link." },
 

@@ -8,6 +8,10 @@ version = "0.1.0"
 edition.workspace = true
 license.workspace = true
 authors.workspace = true
+# Never published to crates.io (shared local crate) — also lets `cargo about`
+# (change: add-oss-license-attributions) auto-exclude it as first-party via
+# its `private.ignore` filter, see apps/music/rust/about.toml.
+publish = false
 
 [dependencies]
 anyhow = "1"
