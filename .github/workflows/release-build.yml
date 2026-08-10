@@ -33,13 +33,15 @@ name: release-build
 #     IOS_TEAM_ID                  Apple Developer team id (VMFJ6KRW77)
 #     GOOGLE_CLIENT_ID             iOS OAuth client id (reversed URL scheme)
 #   macOS (Mac App Store distribution):
-#     MAC_DIST_CERT_BASE64         base64 of the Apple Distribution cert (.p12).
-#                                  Signs the .app — NOT the same role as the
-#                                  installer cert below, and not the iOS one.
-#     MAC_DIST_CERT_PASSWORD       .p12 export password
 #     MAC_INSTALLER_CERT_BASE64    base64 of the Mac Installer Distribution cert
-#                                  (.p12). Signs the .pkg.
+#                                  (.p12). Signs the .pkg. No iOS equivalent —
+#                                  this one is always required.
 #     MAC_INSTALLER_CERT_PASSWORD  .p12 export password
+#     MAC_DIST_CERT_BASE64         OPTIONAL. Signs the .app. "Apple Distribution"
+#                                  is multi-platform, so this defaults to
+#                                  IOS_DIST_CERT_BASE64 — set it only to make the
+#                                  two roles diverge.
+#     MAC_DIST_CERT_PASSWORD       OPTIONAL, defaults to IOS_DIST_CERT_PASSWORD
 #     MAC_PROVISIONING_PROFILE_BASE64  base64 of the Mac App Store .provisionprofile
 #     MAC_PROVISIONING_PROFILE_NAME    the profile's name (as in the portal)
 #     IOS_TEAM_ID / GOOGLE_CLIENT_ID   shared with the iOS job
@@ -164,12 +166,12 @@ jobs:
           fi
       - name: Check macOS signing secrets
         env:
-          DIST_CERT: ${{ secrets.MAC_DIST_CERT_BASE64 }}
+          DIST_CERT: ${{ secrets.MAC_DIST_CERT_BASE64 || secrets.IOS_DIST_CERT_BASE64 }}
           INSTALLER_CERT: ${{ secrets.MAC_INSTALLER_CERT_BASE64 }}
           PROFILE: ${{ secrets.MAC_PROVISIONING_PROFILE_BASE64 }}
         run: |
           missing=""
-          [ -n "${DIST_CERT:-}" ] || missing="$missing MAC_DIST_CERT_BASE64"
+          [ -n "${DIST_CERT:-}" ] || missing="$missing MAC_DIST_CERT_BASE64 (or IOS_DIST_CERT_BASE64)"
           [ -n "${INSTALLER_CERT:-}" ] || missing="$missing MAC_INSTALLER_CERT_BASE64"
           [ -n "${PROFILE:-}" ] || missing="$missing MAC_PROVISIONING_PROFILE_BASE64"
           if [ -n "$missing" ]; then
@@ -178,13 +180,18 @@ jobs:
           fi
       # Mac App Store submission signs twice with two different identities: the
       # .app with Apple Distribution, the .pkg with Mac Installer Distribution.
-      # Neither role is covered by the iOS cert. Same throwaway-keychain sequence
-      # as the ios job; the .provisionprofile lives in a different directory than
-      # an iOS .mobileprovision.
+      # "Apple Distribution" is the modern multi-platform cert, so it is literally
+      # the same certificate the ios job uses — hence the fallback to
+      # IOS_DIST_CERT_* above and here, rather than a second copy of one .p12 that
+      # would silently drift apart at the next renewal. Setting MAC_DIST_CERT_*
+      # still wins, for the day the two roles need to diverge. The installer cert
+      # has no iOS equivalent and is always its own secret.
+      # Same throwaway-keychain sequence as the ios job; a macOS
+      # .provisionprofile installs into the same directory as an iOS one.
       - name: Import distribution certs + provisioning profile
         env:
-          DIST_CERT_BASE64: ${{ secrets.MAC_DIST_CERT_BASE64 }}
-          DIST_CERT_PASSWORD: ${{ secrets.MAC_DIST_CERT_PASSWORD }}
+          DIST_CERT_BASE64: ${{ secrets.MAC_DIST_CERT_BASE64 || secrets.IOS_DIST_CERT_BASE64 }}
+          DIST_CERT_PASSWORD: ${{ secrets.MAC_DIST_CERT_PASSWORD || secrets.IOS_DIST_CERT_PASSWORD }}
           INSTALLER_CERT_BASE64: ${{ secrets.MAC_INSTALLER_CERT_BASE64 }}
           INSTALLER_CERT_PASSWORD: ${{ secrets.MAC_INSTALLER_CERT_PASSWORD }}
           PROFILE_BASE64: ${{ secrets.MAC_PROVISIONING_PROFILE_BASE64 }}

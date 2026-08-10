@@ -52,11 +52,17 @@
 ## 6. Apple-side prerequisites (manual, account holder only)
 
 - [ ] 6.1 Enable the macOS platform on the `com.cymbra.music` App ID, keeping Sign in with Apple
-- [ ] 6.2 Issue an **Apple Distribution** certificate and export it as `.p12`
+- [x] 6.2 Issue an **Apple Distribution** certificate and export it as `.p12`
+      (Already issued and installed: `Apple Distribution: NEETROF (VMFJ6KRW77)`, valid to
+      2027-07-10, private key present. It is the multi-platform cert — it signs macOS too.)
 - [ ] 6.3 Issue a **Mac Installer Distribution** certificate and export it as `.p12`
 - [ ] 6.4 Create a **Mac App Store** provisioning profile for `com.cymbra.music`
 - [ ] 6.5 Add the macOS platform to the existing App Store Connect record (Universal Purchase, same bundle id) (D6)
-- [ ] 6.6 Set the GitHub secrets: `MAC_DIST_CERT_BASE64`, `MAC_DIST_CERT_PASSWORD`, `MAC_INSTALLER_CERT_BASE64`, `MAC_INSTALLER_CERT_PASSWORD`, `MAC_PROVISIONING_PROFILE_BASE64`, `MAC_PROVISIONING_PROFILE_NAME`
+- [ ] 6.6 Set the GitHub secrets: `MAC_INSTALLER_CERT_BASE64`, `MAC_INSTALLER_CERT_PASSWORD`, `MAC_PROVISIONING_PROFILE_BASE64`, `MAC_PROVISIONING_PROFILE_NAME`
+      (The app-signing cert is NOT a secret to add: `Apple Distribution: NEETROF (VMFJ6KRW77)`
+      is multi-platform and already in `IOS_DIST_CERT_BASE64`, which the macOS job falls
+      back to. Verified present in the login keychain with its private key, valid to
+      2027-07-10. So 6.2 is already satisfied and only the installer cert is new.)
 
 ## 7. Sandbox runtime verification (manual, on the signed build from 3.2)
 

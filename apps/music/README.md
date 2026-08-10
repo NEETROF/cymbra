@@ -327,11 +327,17 @@ a throwaway keychain, appends manual-signing settings to
 `macos/Runner/Configs/Release.xcconfig`, generates `ExportOptions-ci.plist`, and runs
 the three commands above. The committed Xcode project deliberately stays on
 *automatic development* signing so `flutter run -d macos` keeps working without a
-distribution cert. Secrets: `MAC_DIST_CERT_BASE64`, `MAC_DIST_CERT_PASSWORD`,
-`MAC_INSTALLER_CERT_BASE64`, `MAC_INSTALLER_CERT_PASSWORD`,
-`MAC_PROVISIONING_PROFILE_BASE64`, `MAC_PROVISIONING_PROFILE_NAME` — plus the shared
-`IOS_TEAM_ID`, `GOOGLE_CLIENT_ID` and `ASC_API_*`. **The job fails loudly if they are
-absent**, exactly like the iOS one; it does not fall back to an unsigned build.
+distribution cert. Secrets: `MAC_INSTALLER_CERT_BASE64`,
+`MAC_INSTALLER_CERT_PASSWORD`, `MAC_PROVISIONING_PROFILE_BASE64`,
+`MAC_PROVISIONING_PROFILE_NAME` — plus the shared `IOS_TEAM_ID`, `GOOGLE_CLIENT_ID`
+and `ASC_API_*`. **The job fails loudly if they are absent**, exactly like the iOS
+one; it does not fall back to an unsigned build.
+
+The cert that signs the **app** is not a fourth secret: "Apple Distribution" is the
+modern multi-platform certificate, so the macOS job reuses `IOS_DIST_CERT_BASE64` /
+`IOS_DIST_CERT_PASSWORD`. Copying the same `.p12` into a `MAC_DIST_CERT_*` pair would
+only create two values that drift apart at the next renewal. `MAC_DIST_CERT_BASE64`
+is still honoured if set, for the day the two roles need to diverge.
 
 **Sandbox.** The app ships sandboxed. `Release.entitlements` and
 `DebugProfile.entitlements` must stay in sync for every capability the shipped app
