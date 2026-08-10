@@ -108,8 +108,15 @@
 
 ## 8. Listing assets
 
-- [ ] 8.1 Capture at least one macOS screenshot of the real UI at an accepted size (2880×1800 preferred, 1440×900 acceptable) into `apps/music/store/macos/`
-- [ ] 8.2 Record the chosen macOS category alongside the existing `apps/music/store/copy/` material, reusing the en/fr/it/es description and promo text rather than duplicating it
+- [x] 8.1 Capture at least one macOS screenshot of the real UI at an accepted size (2880×1800 preferred, 1440×900 acceptable) into `apps/music/store/macos/`
+      (Four at exactly 1440×900 — library, Synthesia, staff, full-score Partition — from a
+      release build against a local backend. 2880×1800 was not reachable: the display is 1x
+      (3840×1600), so a 1440×900 window captures at 1440×900. ⚠️ The three player shots show
+      "Aucun appareil MIDI" and "0%" because no keyboard was connected; re-take with one plugged
+      in before the listing goes live. Method and caveat recorded in store/README.md.)
+- [x] 8.2 Record the chosen macOS category alongside the existing `apps/music/store/copy/` material, reusing the en/fr/it/es description and promo text rather than duplicating it
+      (Education primary / Music secondary, same as iOS, recorded in store/README.md with the
+      constraint that the primary must match `LSApplicationCategoryType` in the bundle.)
 
 ## 9. Validation
 
