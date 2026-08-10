@@ -139,3 +139,8 @@
       that exposed a second bug, `env.TAG` = a branch name containing `/`, which turned
       `cymbra-${TAG}-macos.pkg` into a path under a missing directory.)
 - [ ] 9.4 Deliver a build to App Store Connect and confirm it passes processing with no metadata or signing error
+      (**Delivered 2026-08-10 13:04 — `1.20.0 (27)`, accepted, processing.** Built by CI (run
+      31379384763, all five jobs green) and pulled from the workflow artifact, then uploaded with
+      Transporter; the CI upload step was skipped because it was gated on `push` at the time.
+      Build 27 is now consumed for the macOS platform — any further macOS delivery needs a higher
+      build number. Task closes when processing finishes with no metadata/signing rejection.)
