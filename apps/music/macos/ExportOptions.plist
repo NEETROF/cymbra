@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Mac App Store export. Unlike iOS there is no `flutter build ... --export-
+	     options-plist` for macOS: `flutter build macos` stops at the .app, so this
+	     file is consumed by an explicit xcodebuild pass. See apps/music/README.md
+	     ("macOS signing") for the three-command sequence.
+
+	     `method: app-store` makes -exportArchive emit a .pkg — a submission
+	     artifact, not something a user can double-click to install. -->
+	<key>method</key>
+	<string>app-store</string>
+	<key>teamID</key>
+	<string>VMFJ6KRW77</string>
+	<!-- Automatic signing: Xcode picks the Apple Distribution cert + the Mac App
+	     Store provisioning profile for com.cymbra.music. CI generates its own
+	     ExportOptions-ci.plist with manual signing instead (release-build.yml). -->
+	<key>signingStyle</key>
+	<string>automatic</string>
+	<!-- The package itself is signed by a *different* identity than the app: Mac
+	     Installer Distribution, not Apple Distribution. -->
+	<key>installerSigningCertificate</key>
+	<string>3rd Party Mac Developer Installer</string>
+	<key>uploadSymbols</key>
+	<true/>
+	<key>stripSwiftSymbols</key>
+	<true/>
+	<key>destination</key>
+	<string>export</string>
+</dict>
+</plist>

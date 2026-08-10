@@ -213,12 +213,13 @@ flutter build ... \
   --dart-define=CYMBRA_GRPC_SECURE=true
 ```
 
-## Release builds (mobile)
+## Release builds (mobile + macOS)
 
 Tagging a `music-v*` release (via release-please) builds and **signs** every
-platform in CI: the Android **AAB + APK** and the desktop bundles are attached to
-the GitHub Release, and the iOS **IPA** is both attached and delivered to
-**TestFlight**. Details below.
+platform in CI: the Android **AAB + APK** and the Windows/Linux bundles are attached
+to the GitHub Release, the iOS **IPA** is both attached and delivered to
+**TestFlight**, and the macOS **`.pkg`** is delivered to App Store Connect *without*
+being attached. Details below.
 
 ### Config via `--dart-define-from-file`
 
@@ -285,6 +286,67 @@ Store Connect → Users and Access → Integrations → App Store Connect API (r
 *App Manager*), then set: `ASC_API_KEY_ID`, `ASC_API_ISSUER_ID`, and
 `ASC_API_KEY_P8` (`base64 -i AuthKey_XXXX.p8`). `ITSAppUsesNonExemptEncryption`
 is `false` in `Info.plist` (TLS-only), so no export-compliance prompt.
+
+### macOS signing (Mac App Store)
+
+macOS submission signs **twice, with two different identities**: the `.app` with
+**Apple Distribution**, the installer `.pkg` with **Mac Installer Distribution**.
+The iOS distribution cert covers neither role.
+
+**Apple-side prerequisites** (account holder, one-off — none of this can be done
+from the repo):
+
+1. Enable the **macOS** platform on the `com.cymbra.music` App ID, keeping Sign in
+   with Apple.
+2. Issue an **Apple Distribution** certificate and a **Mac Installer Distribution**
+   certificate; export both as `.p12`.
+3. Create a **Mac App Store** provisioning profile for `com.cymbra.music`.
+4. In App Store Connect, add the **macOS platform to the existing app record** —
+   same bundle id as iOS, so it is a Universal Purchase rather than a second app.
+   Build numbers are tracked per platform, so iOS and macOS both deliver from the
+   same `pubspec.yaml` version without colliding.
+
+**Local store build.** There is no macOS equivalent of `flutter build ipa
+--export-options-plist`: `flutter build macos` stops at the `.app`. The Flutter pass
+still has to run first — the dart-defines live in Flutter's generated xcconfig, and
+archiving without it would ship a build pointing at the *dev* gRPC endpoint.
+
+```bash
+flutter build macos --release --dart-define-from-file=config/prod.json
+xcodebuild -workspace macos/Runner.xcworkspace -scheme Runner -configuration Release -destination 'generic/platform=macOS' -archivePath build/macos.xcarchive archive
+xcodebuild -exportArchive -archivePath build/macos.xcarchive -exportOptionsPlist macos/ExportOptions.plist -exportPath build/macos-pkg
+```
+
+Verify before submitting: `codesign -dv --verbose=4` (Apple Distribution under team
+`VMFJ6KRW77`), `codesign -d --entitlements -` (App Sandbox + the keychain access
+group), `codesign --verify --deep --strict` (no unsigned nested pod framework), and
+`lipo -archs` (`x86_64 arm64`).
+
+**CI** (`macos` job) mirrors the iOS one: it imports both certs plus the profile into
+a throwaway keychain, appends manual-signing settings to
+`macos/Runner/Configs/Release.xcconfig`, generates `ExportOptions-ci.plist`, and runs
+the three commands above. The committed Xcode project deliberately stays on
+*automatic development* signing so `flutter run -d macos` keeps working without a
+distribution cert. Secrets: `MAC_DIST_CERT_BASE64`, `MAC_DIST_CERT_PASSWORD`,
+`MAC_INSTALLER_CERT_BASE64`, `MAC_INSTALLER_CERT_PASSWORD`,
+`MAC_PROVISIONING_PROFILE_BASE64`, `MAC_PROVISIONING_PROFILE_NAME` — plus the shared
+`IOS_TEAM_ID`, `GOOGLE_CLIENT_ID` and `ASC_API_*`. **The job fails loudly if they are
+absent**, exactly like the iOS one; it does not fall back to an unsigned build.
+
+**Sandbox.** The app ships sandboxed. `Release.entitlements` and
+`DebugProfile.entitlements` must stay in sync for every capability the shipped app
+uses — notably `keychain-access-groups`, without which `flutter_secure_storage`
+cannot reach the keychain and the session is lost on every launch. Debug-only extras
+(`allow-jit`, `network.server`) are correct to keep out of Release: macOS sign-in
+uses the native Google SDK and Sign in with Apple, not the Windows/Linux loopback
+listener.
+
+**No macOS download until the listing is live.** A `method: app-store` `.pkg` is a
+submission artifact — a user cannot install it — so it is uploaded, not attached to
+the GitHub Release. It replaced an unsigned `.app` zip that Gatekeeper blocked on
+every machine but the builder's, so nothing installable was lost. A Developer ID
+notarized `.dmg` for direct download is a deliberate follow-up, not part of this
+setup.
 
 ## License
 
