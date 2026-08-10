@@ -83,7 +83,9 @@
       login keychain. Grants `keychain-access-groups = VMFJ6KRW77.*`, which authorises the 2.1
       entitlement under App Store signing — the fix holds in production, not just in debug.)
 - [ ] 6.5 Add the macOS platform to the existing App Store Connect record (Universal Purchase, same bundle id) (D6)
-- [ ] 6.6 Set the GitHub secrets: `MAC_INSTALLER_CERT_BASE64`, `MAC_INSTALLER_CERT_PASSWORD`, `MAC_PROVISIONING_PROFILE_BASE64`, `MAC_PROVISIONING_PROFILE_NAME`
+- [x] 6.6 Set the GitHub secrets: `MAC_INSTALLER_CERT_BASE64`, `MAC_INSTALLER_CERT_PASSWORD`, `MAC_PROVISIONING_PROFILE_BASE64`, `MAC_PROVISIONING_PROFILE_NAME`
+      (All four confirmed present via `gh secret list`, 2026-08-10. The shared
+      `IOS_DIST_CERT_*`, `IOS_TEAM_ID` and `ASC_API_*` were already configured.)
       (The app-signing cert is NOT a secret to add: `Apple Distribution: NEETROF (VMFJ6KRW77)`
       is multi-platform and already in `IOS_DIST_CERT_BASE64`, which the macOS job falls
       back to. Verified present in the login keychain with its private key, valid to
