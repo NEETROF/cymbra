@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.21.0](https://github.com/NEETROF/cymbra/compare/music-v1.20.0...music-v1.21.0) (2026-08-10)
+
+
+### Features
+
+* **courses:** interactive solfège curriculum — 42 lessons, exercise engine v2, learning path ([#207](https://github.com/NEETROF/cymbra/issues/207)) ([129d216](https://github.com/NEETROF/cymbra/commit/129d21647cbb2f8d7ee9653487ae4d9981cf71d9))
+* **music:** measure-range practice as unscored selective runs ([#189](https://github.com/NEETROF/cymbra/issues/189)) ([d4b6930](https://github.com/NEETROF/cymbra/commit/d4b6930461285a5b154f9d8a5bb2df2bdf875db3))
+* **music:** offline encrypted cache of favorited scores ([#194](https://github.com/NEETROF/cymbra/issues/194)) ([00aa30e](https://github.com/NEETROF/cymbra/commit/00aa30e4bdcd9793bc83cf318de5eb4e59ece4b5))
+* **music:** publish Cymbra Music to the Mac App Store ([#210](https://github.com/NEETROF/cymbra/issues/210)) ([737a9b3](https://github.com/NEETROF/cymbra/commit/737a9b33de40522884f7028d58964a42e22bf110))
+* **player:** size the Portée window from the score, not the clock ([#205](https://github.com/NEETROF/cymbra/issues/205)) ([9f7f82c](https://github.com/NEETROF/cymbra/commit/9f7f82c94cbb65fe52fe6b77d61104ffb2e2d8a0))
+
+
+### Bug Fixes
+
+* **library:** scroll the home as one block (courses + favorites) ([#209](https://github.com/NEETROF/cymbra/issues/209)) ([bfe79c2](https://github.com/NEETROF/cymbra/commit/bfe79c23583a0513db08a5e2d207604b9d150a3b))
+
 ## [1.20.0](https://github.com/NEETROF/cymbra/compare/music-v1.19.0...music-v1.20.0) (2026-08-09)
 
 
