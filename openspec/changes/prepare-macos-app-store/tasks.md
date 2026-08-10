@@ -73,7 +73,9 @@
 
 ## 6. Apple-side prerequisites (manual, account holder only)
 
-- [ ] 6.1 Enable the macOS platform on the `com.cymbra.music` App ID, keeping Sign in with Apple
+- [x] 6.1 Enable the macOS platform on the `com.cymbra.music` App ID, keeping Sign in with Apple
+      (Nothing to toggle in the end — modern explicit App IDs are already cross-platform; proven
+      by the Mac App Store profile issuing against this App ID and the build being accepted.)
 - [x] 6.2 Issue an **Apple Distribution** certificate and export it as `.p12`
       (Already issued and installed: `Apple Distribution: NEETROF (VMFJ6KRW77)`, valid to
       2027-07-10, private key present. It is the multi-platform cert — it signs macOS too.)
@@ -88,7 +90,8 @@
       `E1235AD371A0136582EFFB5636900D3A31B98B2E` = the Apple Distribution identity already in the
       login keychain. Grants `keychain-access-groups = VMFJ6KRW77.*`, which authorises the 2.1
       entitlement under App Store signing — the fix holds in production, not just in debug.)
-- [ ] 6.5 Add the macOS platform to the existing App Store Connect record (Universal Purchase, same bundle id) (D6)
+- [x] 6.5 Add the macOS platform to the existing App Store Connect record (Universal Purchase, same bundle id) (D6)
+      (Done via the app record's Add Platform; the macOS TestFlight tab now lists build 27.)
 - [x] 6.6 Set the GitHub secrets: `MAC_INSTALLER_CERT_BASE64`, `MAC_INSTALLER_CERT_PASSWORD`, `MAC_PROVISIONING_PROFILE_BASE64`, `MAC_PROVISIONING_PROFILE_NAME`
       (All four confirmed present via `gh secret list`, 2026-08-10. The shared
       `IOS_DIST_CERT_*`, `IOS_TEAM_ID` and `ASC_API_*` were already configured.)
@@ -138,9 +141,12 @@
       exercised. Fixed by making the `tag` input optional (dry-run the branch, upload nothing);
       that exposed a second bug, `env.TAG` = a branch name containing `/`, which turned
       `cymbra-${TAG}-macos.pkg` into a path under a missing directory.)
-- [ ] 9.4 Deliver a build to App Store Connect and confirm it passes processing with no metadata or signing error
+- [x] 9.4 Deliver a build to App Store Connect and confirm it passes processing with no metadata or signing error
       (**Delivered 2026-08-10 13:04 — `1.20.0 (27)`, accepted, processing.** Built by CI (run
       31379384763, all five jobs green) and pulled from the workflow artifact, then uploaded with
       Transporter; the CI upload step was skipped because it was gated on `push` at the time.
       Build 27 is now consumed for the macOS platform — any further macOS delivery needs a higher
-      build number. Task closes when processing finishes with no metadata/signing rejection.)
+      build number. **Processing finished clean** — no metadata or signing rejection; the build shows
+      "Ready to submit", 90-day expiry, and is live to the internal test group. So the
+      LSApplicationCategoryType / ITSAppUsesNonExemptEncryption / entitlement work is validated
+      by App Store Connect itself, not just locally.)
