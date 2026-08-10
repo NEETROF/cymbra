@@ -74,6 +74,16 @@ on:
         # `ref: <tag>` would otherwise build the tag's tree with the branch's YAML.
         description: "Existing music-v* tag. Leave empty to dry-run the branch (builds + signs, uploads nothing)."
         required: false
+      deliver_macos:
+        # Opt-in, because a dispatch consumes a TestFlight build number the same
+        # way a real release does — and version+build is unique per platform, so
+        # a delivered build cannot be re-delivered.
+        # macOS only on purpose: iOS delivery stays tag-only, so ticking this box
+        # can never push branch code to the iOS TestFlight by surprise.
+        description: "Also deliver the macOS .pkg to App Store Connect / TestFlight."
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write # upload assets to the release
@@ -319,10 +329,11 @@ jobs:
       # `method: app-store` .pkg cannot be installed by a user; the artifact of
       # record is the build in App Store Connect.
       #
-      # Deliver on a real release (tag push) only: manual workflow_dispatch runs
-      # build + sign to validate the chain without re-sending a build number.
+      # Deliver on a real release (tag push), or on a dispatch that explicitly
+      # asked for it via the deliver_macos input. A plain dispatch still only
+      # builds + signs, so validating the chain never re-sends a build number.
       - name: Upload to App Store Connect (API key)
-        if: ${{ github.event_name == 'push' }}
+        if: ${{ github.event_name == 'push' || inputs.deliver_macos }}
         env:
           ASC_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
           ASC_ISSUER_ID: ${{ secrets.ASC_API_ISSUER_ID }}

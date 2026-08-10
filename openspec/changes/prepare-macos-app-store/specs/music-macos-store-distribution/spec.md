@@ -84,7 +84,8 @@ sandbox.
 
 A tagged release SHALL deliver the signed macOS package to App Store Connect
 automatically, using the same App Store Connect API credentials as the iOS
-delivery, and SHALL NOT deliver from manual validation runs.
+delivery. A manual run SHALL NOT deliver unless delivery is explicitly requested,
+and SHALL make its signed package retrievable either way.
 
 #### Scenario: Tagged release delivers
 
@@ -94,9 +95,25 @@ delivery, and SHALL NOT deliver from manual validation runs.
 
 #### Scenario: Manual dispatch validates without delivering
 
-- **WHEN** the release workflow is dispatched manually rather than by a tag push
+- **WHEN** the release workflow is dispatched manually rather than by a tag push,
+  without explicitly requesting delivery
 - **THEN** the macOS job SHALL build and sign to prove the chain works, but SHALL
   NOT upload, so an already-delivered build number is never re-sent
+
+#### Scenario: Manual dispatch can deliver on request
+
+- **WHEN** the workflow is dispatched with delivery explicitly requested
+- **THEN** the signed package SHALL be uploaded, so a build can reach TestFlight
+  without cutting a release tag — and requesting delivery SHALL affect the macOS
+  package only, never another platform's store upload
+
+#### Scenario: A dry-run package is retrievable
+
+- **WHEN** the workflow is dispatched without a tag
+- **THEN** the signed package SHALL be retrievable as a private, short-lived build
+  artifact, so it can be delivered by hand — and it SHALL carry the production
+  configuration, since the build-time endpoint cannot be verified by inspecting
+  the package afterwards
 
 #### Scenario: Absent delivery credentials skip cleanly
 
