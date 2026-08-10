@@ -122,10 +122,20 @@
 
 - [x] 9.1 `openspec validate prepare-macos-app-store --strict` passes
 - [x] 9.2 `melos run analyze` and `dart format` clean (no Dart change expected — confirm the tree is untouched)
-- [ ] 9.3 Dispatch `release-build.yml` manually and confirm the `macos` job builds, signs and exports without uploading (D4)
-      (Run 1 — 31372239452, xcconfig approach: `macos` **failed**, all four other jobs green.
+- [x] 9.3 Dispatch `release-build.yml` manually and confirm the `macos` job builds, signs and exports without uploading (D4)
+      (**Run 3 — 31376265582: fully green, `macos` included.** The job switched the Release
+      config, archived with `Signing Identity: "Apple Distribution: NEETROF"`, and reached
+      `EXPORT SUCCEEDED` — the whole chain works on the runner: secret decoding, keychain
+      import, profile install, project patch, build, archive, app-store export.
+
+      Run 1 — 31372239452, xcconfig approach: `macos` **failed**, all four other jobs green.
       Also confirmed the runner still reads the legacy profile directory, so the both-paths copy
       is prevention, not a fix. Fix validated locally end to end with the CI-identical sequence:
       archive signed `Apple Distribution` + `Cymbra Music macOS App Store`, export green,
-      entitlements complete incl. app-sandbox and keychain-access-groups. Re-dispatch pending.)
+      entitlements complete incl. app-sandbox and keychain-access-groups.
+      Run 2 — 31375102952: **all five** jobs failed. `actions/checkout` used `ref: <tag>`, so runs 1
+      and 2 built the TAG's tree with the BRANCH's YAML — the branch's source changes were never
+      exercised. Fixed by making the `tag` input optional (dry-run the branch, upload nothing);
+      that exposed a second bug, `env.TAG` = a branch name containing `/`, which turned
+      `cymbra-${TAG}-macos.pkg` into a path under a missing directory.)
 - [ ] 9.4 Deliver a build to App Store Connect and confirm it passes processing with no metadata or signing error
