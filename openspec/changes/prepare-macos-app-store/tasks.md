@@ -20,10 +20,26 @@
 ## 3. Local signed archive (needs the Apple account — section 6 first)
 
 - [x] 3.1 Write `apps/music/macos/ExportOptions.plist` for local archives: `method: app-store`, `teamID VMFJ6KRW77`, automatic signing, `installerSigningCertificate` set to the Mac Installer Distribution identity (mirrors `ios/ExportOptions.plist`)
-- [ ] 3.2 Produce a `.pkg` locally: `flutter build macos --release --dart-define-from-file=config/prod.json`, then `xcodebuild -workspace macos/Runner.xcworkspace -scheme Runner -configuration Release -destination 'generic/platform=macOS' -archivePath build/macos.xcarchive archive`, then `-exportArchive -exportOptionsPlist macos/ExportOptions.plist` (D1)
-- [ ] 3.3 Verify the exported app's signature: `codesign -dv --verbose=4` shows an Apple Distribution identity under team `VMFJ6KRW77`, and `codesign -d --entitlements -` shows `app-sandbox` plus the keychain access group
-- [ ] 3.4 Verify no unsigned nested code: `codesign --verify --deep --strict --verbose=2` on the exported `.app` passes over every embedded pod framework (D-risk: `use_frameworks!`)
-- [ ] 3.5 Verify the binary is universal (`lipo -archs` shows `x86_64 arm64`), confirming cargokit built both slices of the static Rust library
+- [x] 3.2 Produce a `.pkg` locally: `flutter build macos --release --dart-define-from-file=config/prod.json`, then `xcodebuild -workspace macos/Runner.xcworkspace -scheme Runner -configuration Release -destination 'generic/platform=macOS' -archivePath build/macos.xcarchive archive`, then `-exportArchive -exportOptionsPlist macos/ExportOptions.plist` (D1)
+- [x] 3.3 Verify the exported app's signature: `codesign -dv --verbose=4` shows an Apple Distribution identity under team `VMFJ6KRW77`, and `codesign -d --entitlements -` shows `app-sandbox` plus the keychain access group
+- [x] 3.4 Verify no unsigned nested code: `codesign --verify --deep --strict --verbose=2` on the exported `.app` passes over every embedded pod framework (D-risk: `use_frameworks!`)
+- [x] 3.5 Verify the binary is universal (`lipo -archs` shows `x86_64 arm64`), confirming cargokit built both slices of the static Rust library
+      (**All of 3.2-3.5 done and green.** `Cymbra Music.pkg`, 107.2 MB, 1.20.0 build 27.
+      `DistributionSummary.plist`: cert `Apple Distribution` SHA1 E1235AD3…8B2E, profile
+      `Cymbra Music macOS App Store`, architectures `x86_64 + arm64`, entitlements exactly
+      app-sandbox / network.client / files.user-selected.read-only / applesignin /
+      keychain-access-groups — no `network.server`, no `get-task-allow`. `.pkg` signed by
+      `3rd Party Mac Developer Installer: NEETROF`. `codesign --verify --deep --strict` on the
+      expanded payload: *valid on disk*, *satisfies its Designated Requirement*, 19 nested
+      frameworks validated — the `use_frameworks!` risk from design.md did not materialise.
+
+      Two fixes this run forced, both now in the committed setup:
+      1. `ExportOptions.plist` had to move from automatic to **manual** signing. Automatic makes
+         xcodebuild query the Apple account for a profile, which it cannot do unauthenticated,
+         and the export died with `No profiles for 'com.cymbra.music' were found` despite the
+         profile being installed.
+      2. `method: app-store` is deprecated since Xcode 15.3 → `app-store-connect`, in both the
+         local plist and the CI-generated one.)
 
 ## 4. CI release job (needs the Apple account for a real run; editable before)
 
@@ -55,7 +71,10 @@
 - [x] 6.2 Issue an **Apple Distribution** certificate and export it as `.p12`
       (Already issued and installed: `Apple Distribution: NEETROF (VMFJ6KRW77)`, valid to
       2027-07-10, private key present. It is the multi-platform cert — it signs macOS too.)
-- [ ] 6.3 Issue a **Mac Installer Distribution** certificate and export it as `.p12`
+- [x] 6.3 Issue a **Mac Installer Distribution** certificate (export to `.p12` still pending, for 6.6)
+      (`3rd Party Mac Developer Installer: NEETROF (VMFJ6KRW77)`, expires 2027-08-10, installed in
+      the login keychain **with its private key** — `security find-identity -v` lists it as a full
+      identity, which a portal listing alone would not prove.)
 - [x] 6.4 Create a **Mac App Store** provisioning profile for `com.cymbra.music`
       (`Cymbra Music macOS App Store`, created 2026-08-10, expires 2027-07-10. Decoded and
       checked: Platform OSX, app-id `VMFJ6KRW77.com.cymbra.music`, no `get-task-allow` and no

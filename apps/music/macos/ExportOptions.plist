@@ -7,17 +7,28 @@
 	     file is consumed by an explicit xcodebuild pass. See apps/music/README.md
 	     ("macOS signing") for the three-command sequence.
 
-	     `method: app-store` makes -exportArchive emit a .pkg — a submission
-	     artifact, not something a user can double-click to install. -->
+	     `app-store-connect` makes -exportArchive emit a .pkg — a submission
+	     artifact, not something a user can double-click to install. (Xcode 15.3
+	     renamed the method from `app-store`, which now warns as deprecated.) -->
 	<key>method</key>
-	<string>app-store</string>
+	<string>app-store-connect</string>
 	<key>teamID</key>
 	<string>VMFJ6KRW77</string>
-	<!-- Automatic signing: Xcode picks the Apple Distribution cert + the Mac App
-	     Store provisioning profile for com.cymbra.music. CI generates its own
-	     ExportOptions-ci.plist with manual signing instead (release-build.yml). -->
+	<!-- Manual signing, same as the CI export. Automatic signing does NOT work
+	     here: it makes xcodebuild ask the Apple account for a matching profile,
+	     which it cannot do unauthenticated from the command line, and the export
+	     dies with "No profiles for 'com.cymbra.music' were found" even though the
+	     right profile is installed locally. Naming the profile explicitly also
+	     means a local export and a CI export sign identically. -->
 	<key>signingStyle</key>
-	<string>automatic</string>
+	<string>manual</string>
+	<key>signingCertificate</key>
+	<string>Apple Distribution</string>
+	<key>provisioningProfiles</key>
+	<dict>
+		<key>com.cymbra.music</key>
+		<string>Cymbra Music macOS App Store</string>
+	</dict>
 	<!-- The package itself is signed by a *different* identity than the app: Mac
 	     Installer Distribution, not Apple Distribution. -->
 	<key>installerSigningCertificate</key>

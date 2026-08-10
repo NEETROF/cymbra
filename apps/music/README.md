@@ -317,10 +317,36 @@ xcodebuild -workspace macos/Runner.xcworkspace -scheme Runner -configuration Rel
 xcodebuild -exportArchive -archivePath build/macos.xcarchive -exportOptionsPlist macos/ExportOptions.plist -exportPath build/macos-pkg
 ```
 
-Verify before submitting: `codesign -dv --verbose=4` (Apple Distribution under team
-`VMFJ6KRW77`), `codesign -d --entitlements -` (App Sandbox + the keychain access
-group), `codesign --verify --deep --strict` (no unsigned nested pod framework), and
-`lipo -archs` (`x86_64 arm64`).
+The archive itself is signed with the *development* identity from the project's
+Release configuration; `-exportArchive` re-signs it with Apple Distribution. That is
+normal — read the export's `DistributionSummary.plist`, not the archive, to see what
+actually ships.
+
+`ExportOptions.plist` uses **manual** signing on purpose. With `signingStyle:
+automatic`, `xcodebuild` asks the Apple account for a matching profile, cannot do so
+unauthenticated from the command line, and fails with `No profiles for
+'com.cymbra.music' were found` even when the right profile is installed. Naming the
+profile explicitly also makes a local export sign identically to a CI one.
+
+Verify before submitting — everything below is confirmed by the checked-in setup:
+
+```bash
+python3 -c "import plistlib;d=plistlib.load(open('build/macos-pkg/DistributionSummary.plist','rb'));print(list(d.values())[0][0])"
+```
+
+Expect `Apple Distribution` as the certificate, the Mac App Store profile by name,
+`['x86_64','arm64']` architectures, and entitlements limited to app-sandbox,
+network.client, files.user-selected.read-only, applesignin and keychain-access-groups
+— no `network.server`, no `get-task-allow`. Then check the installer signature and
+the nested pod frameworks:
+
+```bash
+pkgutil --check-signature "build/macos-pkg/Cymbra Music.pkg"
+```
+
+```bash
+pkgutil --expand-full "build/macos-pkg/Cymbra Music.pkg" /tmp/pkgx && codesign --verify --deep --strict --verbose=2 /tmp/pkgx/com.cymbra.music.pkg/Payload/music.app
+```
 
 **CI** (`macos` job) mirrors the iOS one: it imports both certs plus the profile into
 a throwaway keychain, appends manual-signing settings to
