@@ -30,23 +30,27 @@ use crate::catalog_edit::MetadataChanges;
 use crate::catalog_limits::CatalogAccessLimiter;
 use crate::catalog_search::{CatalogHit, CatalogQuery, SortKey, is_moderation_sort_field};
 use crate::course::CourseRepo;
+use crate::course_progress::CourseProgressStore;
 use crate::curation_rewards::{CuratorMetrics, LedgerEntry};
 use crate::curation_rewards_core::BADGES;
 use crate::curation_rewards_module::{CurationRewardsModule, CuratorRewards};
 use crate::module::{ScoreModule, UploadInput};
 use crate::proto::{
     AdminListSoundFontsRequest, AdminListSoundFontsResponse, AdminSoundFont,
-    CatalogHit as ProtoCatalogHit, Course as ProtoCourse, CourseSummary as ProtoCourseSummary,
-    CuratorBadge, CuratorReliability, CuratorRewards as ProtoRewards, DeleteScoreRequest,
-    DeleteScoreResponse, DeleteSoundFontRequest, DeleteSoundFontResponse,
-    GetCatalogScoreBytesRequest, GetCatalogScoreBytesResponse, GetCatalogScoreRequest,
-    GetCourseRequest, GetCourseResponse, GetCuratorReliabilityRequest, GetCuratorRewardsRequest,
-    GetMyScoreRatingRequest, GetMyScoreRatingResponse, GetRatingPreviewBytesRequest,
+    CatalogHit as ProtoCatalogHit, Course as ProtoCourse, CourseProgress as ProtoCourseProgress,
+    CourseSummary as ProtoCourseSummary, CuratorBadge, CuratorReliability,
+    CuratorRewards as ProtoRewards, DeleteScoreRequest, DeleteScoreResponse,
+    DeleteSoundFontRequest, DeleteSoundFontResponse, GetCatalogScoreBytesRequest,
+    GetCatalogScoreBytesResponse, GetCatalogScoreRequest, GetCourseProgressRequest,
+    GetCourseProgressResponse, GetCourseRequest, GetCourseResponse, GetCuratorReliabilityRequest,
+    GetCuratorRewardsRequest, GetMyScoreRatingRequest, GetMyScoreRatingResponse,
+    GetOfflineCacheKeyRequest, GetOfflineCacheKeyResponse, GetRatingPreviewBytesRequest,
     GetRatingPreviewBytesResponse, GetScoreBytesRequest, GetScoreBytesResponse, ListCoursesRequest,
     ListCoursesResponse, ListMyScoresRequest, ListMyScoresResponse, ListRatingDeckRequest,
     ListRatingDeckResponse, ListRewardShopRequest, ListRewardShopResponse,
     ListSavedCatalogScoresRequest, ListSavedCatalogScoresResponse, ListSoundFontsRequest,
-    ListSoundFontsResponse, ProposeScoreRequest, ProposeScoreResponse, RedeemRewardRequest,
+    ListSoundFontsResponse, ProposeScoreRequest, ProposeScoreResponse,
+    RecordCourseCompletionRequest, RecordCourseCompletionResponse, RedeemRewardRequest,
     RedeemRewardResponse, RemoveSavedCatalogScoreRequest, RemoveSavedCatalogScoreResponse,
     RewardActivity, RewardShopItem, SaveCatalogScoreRequest, SaveCatalogScoreResponse, ScoreRecord,
     SearchCatalogRequest, SearchCatalogResponse, SetModerationStatusRequest,
@@ -89,6 +93,9 @@ pub struct ScoreGrpc {
     /// `ListCourses`/`GetCourse` reporting the feature as unavailable; production
     /// wires it via [`Self::with_courses`].
     courses: Option<Arc<dyn CourseRepo>>,
+    /// Per-user course completion (change: add-notation-courses). `None` leaves
+    /// the completion RPCs reporting the feature as unavailable.
+    course_progress: Option<Arc<dyn CourseProgressStore>>,
 }
 
 impl ScoreGrpc {
@@ -101,7 +108,21 @@ impl ScoreGrpc {
             rewards: None,
             user: None,
             courses: None,
+            course_progress: None,
         }
+    }
+
+    /// Attach the per-user course-progress store (cross-device completion).
+    pub fn with_course_progress(mut self, store: Arc<dyn CourseProgressStore>) -> Self {
+        self.course_progress = Some(store);
+        self
+    }
+
+    /// The wired course-progress store, or `UNAVAILABLE` when unconfigured.
+    fn course_progress(&self) -> Result<&Arc<dyn CourseProgressStore>, Status> {
+        self.course_progress
+            .as_ref()
+            .ok_or_else(|| Status::unavailable("course progress unavailable"))
     }
 
     /// Attach the persisted course catalog that backs `ListCourses`/`GetCourse`.
@@ -418,9 +439,28 @@ impl ScoreService for ScoreGrpc {
         req: Request<GetScoreBytesRequest>,
     ) -> Result<Response<GetScoreBytesResponse>, Status> {
         let owner_id = owner(&req)?;
-        let id = req.into_inner().id;
-        let data = self.module.get_bytes(&owner_id, &id).await?;
-        Ok(Response::new(GetScoreBytesResponse { data }))
+        let r = req.into_inner();
+        let out = self
+            .module
+            .get_bytes(&owner_id, &r.id, r.if_none_match.as_deref())
+            .await?;
+        Ok(Response::new(GetScoreBytesResponse {
+            data: out.data,
+            etag: out.etag,
+            unchanged: out.unchanged,
+        }))
+    }
+
+    async fn get_offline_cache_key(
+        &self,
+        req: Request<GetOfflineCacheKeyRequest>,
+    ) -> Result<Response<GetOfflineCacheKeyResponse>, Status> {
+        // Owner-scoped: the secret is created on first request and returned unchanged
+        // thereafter, so the same favorites decrypt across the caller's devices. The
+        // value is sensitive — it is never logged (change: add-offline-score-cache).
+        let owner_id = owner(&req)?;
+        let secret = self.module.offline_cache_secret(&owner_id).await?;
+        Ok(Response::new(GetOfflineCacheKeyResponse { secret }))
     }
 
     /// Lists the server-owned SoundFont catalog (change: add-soundfont-catalog-db)
@@ -513,6 +553,8 @@ impl ScoreService for ScoreGrpc {
                 sort_order: s.sort_order,
                 schema_version: s.schema_version,
                 title_json: s.title,
+                unit: s.unit,
+                unit_title_json: s.unit_title,
             })
             .collect();
         Ok(Response::new(ListCoursesResponse { courses }))
@@ -541,10 +583,55 @@ impl ScoreService for ScoreGrpc {
                     sort_order: c.summary.sort_order,
                     schema_version: c.summary.schema_version,
                     title_json: c.summary.title,
+                    unit: c.summary.unit,
+                    unit_title_json: c.summary.unit_title,
                 }),
                 content_json: c.content,
             });
         Ok(Response::new(GetCourseResponse { course }))
+    }
+
+    /// Records that the caller completed a course (change: add-notation-courses).
+    /// Owner-scoped and idempotent: the first completion returns
+    /// `newly_completed = true` (the once-per-course badge signal), a replay only
+    /// bumps the count.
+    async fn record_course_completion(
+        &self,
+        req: Request<RecordCourseCompletionRequest>,
+    ) -> Result<Response<RecordCourseCompletionResponse>, Status> {
+        let owner_id = owner(&req)?;
+        let course_id = req.into_inner().course_id;
+        let store = self.course_progress()?;
+        let outcome = store
+            .record_completion(&owner_id, &course_id)
+            .await
+            .map_err(|e| Status::internal(format!("record course completion: {e}")))?;
+        Ok(Response::new(RecordCourseCompletionResponse {
+            newly_completed: outcome.newly_completed,
+            play_count: outcome.play_count as i32,
+        }))
+    }
+
+    /// The caller's course completion, read back on any device (change:
+    /// add-notation-courses). Owner-scoped.
+    async fn get_course_progress(
+        &self,
+        req: Request<GetCourseProgressRequest>,
+    ) -> Result<Response<GetCourseProgressResponse>, Status> {
+        let owner_id = owner(&req)?;
+        let store = self.course_progress()?;
+        let progress = store
+            .list(&owner_id)
+            .await
+            .map_err(|e| Status::internal(format!("get course progress: {e}")))?
+            .into_iter()
+            .map(|p| ProtoCourseProgress {
+                course_id: p.course_id,
+                completed: p.completed,
+                play_count: p.play_count as i32,
+            })
+            .collect();
+        Ok(Response::new(GetCourseProgressResponse { progress }))
     }
 
     /// Admin list of the SoundFont catalog (change:
@@ -897,15 +984,26 @@ impl ScoreService for ScoreGrpc {
         let id = identity(&req)?;
         self.guard_download(&id).await?; // per-user download guardrail (scrape guard)
         let allow_unvalidated = id.is_admin() || id.has_role("moderator");
-        let catalog_id = req.into_inner().catalog_id;
+        let r = req.into_inner();
         // Opening a score in the player records the coverage engagement signal
         // (change: add-post-play-rating-prompt), so a rating submitted from the
-        // post-play prompt is eligible for points just like one from the deck.
-        let data = self
+        // post-play prompt is eligible for points just like one from the deck; it
+        // also honours the offline cache's conditional fetch (change:
+        // add-offline-score-cache) so an unchanged copy skips the re-download.
+        let out = self
             .module
-            .catalog_bytes_for_player(&id.user_id, &catalog_id, allow_unvalidated)
+            .catalog_bytes_for_player(
+                &id.user_id,
+                &r.catalog_id,
+                allow_unvalidated,
+                r.if_none_match.as_deref(),
+            )
             .await?;
-        Ok(Response::new(GetCatalogScoreBytesResponse { data }))
+        Ok(Response::new(GetCatalogScoreBytesResponse {
+            data: out.data,
+            etag: out.etag,
+            unchanged: out.unchanged,
+        }))
     }
 
     async fn get_rating_preview_bytes(
@@ -1949,6 +2047,12 @@ mod tests {
             .await
             .unwrap_err();
         assert_eq!(err.code(), tonic::Code::Unauthenticated);
+        // The offline-cache key op is authenticated too.
+        let err = g
+            .get_offline_cache_key(Request::new(GetOfflineCacheKeyRequest {}))
+            .await
+            .unwrap_err();
+        assert_eq!(err.code(), tonic::Code::Unauthenticated);
     }
 
     #[tokio::test]
@@ -2020,6 +2124,69 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn get_offline_cache_key_is_owner_scoped_and_stable() {
+        let g = grpc().await;
+        // First authenticated request mints a >= 32-byte secret…
+        let a1 = g
+            .get_offline_cache_key(authed(GetOfflineCacheKeyRequest {}, "u1"))
+            .await
+            .unwrap()
+            .into_inner()
+            .secret;
+        assert!(a1.len() >= 32);
+        // …and repeats return exactly the same value (cross-device consistency).
+        let a2 = g
+            .get_offline_cache_key(authed(GetOfflineCacheKeyRequest {}, "u1"))
+            .await
+            .unwrap()
+            .into_inner()
+            .secret;
+        assert_eq!(a1, a2);
+        // A different caller only ever receives their own (different) secret.
+        let b = g
+            .get_offline_cache_key(authed(GetOfflineCacheKeyRequest {}, "u2"))
+            .await
+            .unwrap()
+            .into_inner()
+            .secret;
+        assert_ne!(a1, b);
+    }
+
+    #[tokio::test]
+    async fn catalog_bytes_expose_etag_and_honour_conditional_fetch() {
+        let g = grpc().await;
+        let full = g
+            .get_catalog_score_bytes(authed(
+                GetCatalogScoreBytesRequest {
+                    catalog_id: DEBUSSY.into(),
+                    if_none_match: None,
+                },
+                "u1",
+            ))
+            .await
+            .unwrap()
+            .into_inner();
+        assert!(!full.unchanged);
+        assert_eq!(full.data, b"<score/>");
+        assert_eq!(full.etag, format!("etag-{DEBUSSY}"));
+        // Echoing the ETag back → "unchanged", no bytes re-sent.
+        let cond = g
+            .get_catalog_score_bytes(authed(
+                GetCatalogScoreBytesRequest {
+                    catalog_id: DEBUSSY.into(),
+                    if_none_match: Some(full.etag.clone()),
+                },
+                "u1",
+            ))
+            .await
+            .unwrap()
+            .into_inner();
+        assert!(cond.unchanged);
+        assert!(cond.data.is_empty());
+        assert_eq!(cond.etag, full.etag);
+    }
+
+    #[tokio::test]
     async fn access_limits_reject_download_and_enumeration_floods() {
         let g = grpc_limited().await;
         // Download floor is 2 (no plays) → the 3rd catalog-bytes fetch is rejected
@@ -2028,6 +2195,7 @@ mod tests {
             g.get_catalog_score_bytes(authed(
                 GetCatalogScoreBytesRequest {
                     catalog_id: DEBUSSY.into(),
+                    if_none_match: None,
                 },
                 "u1",
             ))
@@ -2038,6 +2206,7 @@ mod tests {
             .get_catalog_score_bytes(authed(
                 GetCatalogScoreBytesRequest {
                     catalog_id: DEBUSSY.into(),
+                    if_none_match: None,
                 },
                 "u1",
             ))
@@ -2160,6 +2329,7 @@ mod tests {
             .get_catalog_score_bytes(authed(
                 GetCatalogScoreBytesRequest {
                     catalog_id: DEBUSSY.into(),
+                    if_none_match: None,
                 },
                 "u1",
             ))
@@ -2172,6 +2342,7 @@ mod tests {
             .get_catalog_score_bytes(authed(
                 GetCatalogScoreBytesRequest {
                     catalog_id: "99999999-9999-7999-8999-999999999999".into(),
+                    if_none_match: None,
                 },
                 "u1",
             ))
@@ -2239,6 +2410,7 @@ mod tests {
             .get_catalog_score_bytes(authed(
                 GetCatalogScoreBytesRequest {
                     catalog_id: PENDING.into(),
+                    if_none_match: None,
                 },
                 "u1",
             ))
@@ -2250,6 +2422,7 @@ mod tests {
             .get_catalog_score_bytes(authed_admin(
                 GetCatalogScoreBytesRequest {
                     catalog_id: PENDING.into(),
+                    if_none_match: None,
                 },
                 "admin1",
             ))
@@ -2279,6 +2452,7 @@ mod tests {
             .get_catalog_score_bytes(authed_moderator(
                 GetCatalogScoreBytesRequest {
                     catalog_id: PENDING.into(),
+                    if_none_match: None,
                 },
                 "mod1",
             ))
@@ -2486,6 +2660,7 @@ mod tests {
             .get_catalog_score_bytes(authed(
                 GetCatalogScoreBytesRequest {
                     catalog_id: PENDING.into(),
+                    if_none_match: None,
                 },
                 RATER,
             ))
@@ -2497,6 +2672,7 @@ mod tests {
             .get_catalog_score_bytes(authed(
                 GetCatalogScoreBytesRequest {
                     catalog_id: DEBUSSY.into(),
+                    if_none_match: None,
                 },
                 RATER,
             ))

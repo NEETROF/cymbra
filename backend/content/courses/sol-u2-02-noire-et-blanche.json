@@ -1,0 +1,174 @@
+{
+  "id": "sol-u2-02-noire-et-blanche",
+  "status": "published",
+  "instrument": "piano",
+  "track": "solfege",
+  "level": "beginner",
+  "unit": "u2",
+  "unitTitle": {
+    "en": "Pulse and rhythm",
+    "fr": "La pulsation et le rythme",
+    "es": "El pulso y el ritmo",
+    "it": "La pulsazione e il ritmo"
+  },
+  "sortOrder": 202,
+  "schemaVersion": 2,
+  "title": {
+    "en": "Quarter and half notes",
+    "fr": "La noire et la blanche",
+    "es": "La negra y la blanca",
+    "it": "La semiminima e la minima"
+  },
+  "content": {
+    "schemaVersion": 2,
+    "id": "sol-u2-02-noire-et-blanche",
+    "instrument": "piano",
+    "track": "solfege",
+    "level": "beginner",
+    "title": {
+      "en": "Quarter and half notes",
+      "fr": "La noire et la blanche",
+      "es": "La negra y la blanca",
+      "it": "La semiminima e la minima"
+    },
+    "summary": {
+      "en": "One-beat and two-beat notes",
+      "fr": "Des notes d'un temps et de deux temps",
+      "es": "Notas de un tiempo y de dos tiempos",
+      "it": "Note da un tempo e da due tempi"
+    },
+    "blocks": [
+      {
+        "type": "text",
+        "text": {
+          "en": "Notes don't all last the same time. The quarter note fills one beat, the half note holds for two.",
+          "fr": "Les notes ne durent pas toutes pareil. La noire remplit un temps, la blanche en tient deux.",
+          "es": "No todas las notas duran lo mismo. La negra llena un tiempo, la blanca dura dos.",
+          "it": "Le note non durano tutte allo stesso modo. La semiminima riempie un tempo, la minima ne tiene due."
+        }
+      },
+      {
+        "type": "diagram",
+        "id": "note-quarter"
+      },
+      {
+        "type": "staff",
+        "clef": "treble",
+        "time": { "beats": 4, "beatType": 4 },
+        "elements": [
+          { "p": "C4", "fig": "quarter" },
+          { "p": "D4", "fig": "quarter" },
+          { "p": "E4", "fig": "half" }
+        ],
+        "caption": {
+          "en": "C for one beat, D for one beat, then E held for two — the bar adds up to four.",
+          "fr": "Do sur un temps, ré sur un temps, puis mi tenu deux temps — la mesure fait quatre en tout.",
+          "es": "Do durante un tiempo, re durante un tiempo, y mi sostenido dos: el compás suma cuatro.",
+          "it": "Do per un tempo, re per un tempo, poi mi tenuto per due — la battuta fa quattro in tutto."
+        }
+      },
+      {
+        "type": "rhythmTap",
+        "pattern": [
+          { "fig": "quarter" },
+          { "fig": "quarter" },
+          { "fig": "half" }
+        ],
+        "beats": 4,
+        "beatType": 4,
+        "bpm": 80,
+        "prompt": {
+          "en": "Tap on beats one, two and three, then let the half note ring through beat four.",
+          "fr": "Tape sur les temps un, deux et trois, puis laisse la blanche résonner sur le quatrième.",
+          "es": "Toca en los tiempos uno, dos y tres, y deja que la blanca suene durante el cuarto.",
+          "it": "Tocca sui tempi uno, due e tre, poi lascia risuonare la minima sul quarto."
+        }
+      },
+      {
+        "type": "question",
+        "prompt": {
+          "en": "Which note lasts longer?",
+          "fr": "Quelle note dure le plus longtemps ?",
+          "es": "¿Qué nota dura más?",
+          "it": "Quale nota dura di più?"
+        },
+        "options": [
+          {
+            "en": "The half note (2 beats)",
+            "fr": "La blanche (2 temps)",
+            "es": "La blanca (2 tiempos)",
+            "it": "La minima (2 tempi)"
+          },
+          {
+            "en": "The quarter note (1 beat)",
+            "fr": "La noire (1 temps)",
+            "es": "La negra (1 tiempo)",
+            "it": "La semiminima (1 tempo)"
+          }
+        ],
+        "answerIndex": 0,
+        "feedback": {
+          "en": "Yes — one half note lasts as long as two quarter notes.",
+          "fr": "Oui — une blanche dure aussi longtemps que deux noires.",
+          "es": "Sí: una blanca dura tanto como dos negras.",
+          "it": "Sì — una minima dura quanto due semiminime."
+        }
+      },
+      {
+        "type": "rhythmTap",
+        "pattern": [
+          { "fig": "half" },
+          { "fig": "half" }
+        ],
+        "beats": 4,
+        "beatType": 4,
+        "bpm": 70,
+        "prompt": {
+          "en": "Only two taps in the bar: hold each half note for two full clicks.",
+          "fr": "Seulement deux frappes dans la mesure : tiens chaque blanche pendant deux clics entiers.",
+          "es": "Solo dos toques en el compás: mantén cada blanca durante dos clics completos.",
+          "it": "Solo due tocchi nella battuta: tieni ogni minima per due clic interi."
+        }
+      },
+      {
+        "type": "question",
+        "prompt": {
+          "en": "How many quarter notes fit inside one half note?",
+          "fr": "Combien de noires tiennent dans une blanche ?",
+          "es": "¿Cuántas negras caben en una blanca?",
+          "it": "Quante semiminime stanno in una minima?"
+        },
+        "options": [
+          {
+            "en": "Two",
+            "fr": "Deux",
+            "es": "Dos",
+            "it": "Due"
+          },
+          {
+            "en": "Four",
+            "fr": "Quatre",
+            "es": "Cuatro",
+            "it": "Quattro"
+          }
+        ],
+        "answerIndex": 0,
+        "feedback": {
+          "en": "That's it — two quarters make one half: 1 + 1 = 2 beats.",
+          "fr": "C'est ça — deux noires font une blanche : 1 + 1 = 2 temps.",
+          "es": "Eso es: dos negras hacen una blanca, 1 + 1 = 2 tiempos.",
+          "it": "Proprio così — due semiminime fanno una minima: 1 + 1 = 2 tempi."
+        }
+      },
+      {
+        "type": "text",
+        "text": {
+          "en": "You now read two durations: the quarter note (one beat) and the half note (two). Short against long is what makes a rhythm.",
+          "fr": "Tu lis maintenant deux durées : la noire (un temps) et la blanche (deux). C'est le jeu du court et du long qui fait un rythme.",
+          "es": "Ya lees dos duraciones: la negra (un tiempo) y la blanca (dos). El juego de corto y largo es lo que hace un ritmo.",
+          "it": "Ora leggi due durate: la semiminima (un tempo) e la minima (due). È il gioco di corto e lungo che crea un ritmo."
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,146 @@
+{
+  "id": "sol-u4-02-do-si-la-sol",
+  "status": "published",
+  "instrument": "piano",
+  "track": "solfege",
+  "level": "intermediate",
+  "unit": "u4",
+  "unitTitle": {
+    "en": "Bass clef and the left hand",
+    "fr": "La clé de fa et la main gauche",
+    "es": "La clave de fa y la mano izquierda",
+    "it": "La chiave di basso e la mano sinistra"
+  },
+  "sortOrder": 402,
+  "schemaVersion": 2,
+  "title": {
+    "en": "C, B, A, G going down",
+    "fr": "Do, si, la, sol : on descend",
+    "es": "Do, si, la, sol: bajamos",
+    "it": "Do, si, la, sol: si scende"
+  },
+  "content": {
+    "schemaVersion": 2,
+    "id": "sol-u4-02-do-si-la-sol",
+    "instrument": "piano",
+    "track": "solfege",
+    "level": "intermediate",
+    "title": {
+      "en": "C, B, A, G going down",
+      "fr": "Do, si, la, sol : on descend",
+      "es": "Do, si, la, sol: bajamos",
+      "it": "Do, si, la, sol: si scende"
+    },
+    "summary": {
+      "en": "Read C, B, A and G walking down in the bass clef",
+      "fr": "Lire do, si, la et sol en descendant en clé de fa",
+      "es": "Leer do, si, la y sol bajando en clave de fa",
+      "it": "Leggere do, si, la e sol scendendo in chiave di basso"
+    },
+    "blocks": [
+      {
+        "type": "text",
+        "text": {
+          "en": "From middle C, your left hand walks down step by step: C, B, A, G. In the bass clef, C sits on its little ledger line above the staff.",
+          "fr": "Depuis le do central, ta main gauche descend pas à pas : do, si, la, sol. En clé de fa, le do se pose sur sa petite ligne au-dessus de la portée.",
+          "es": "Desde el do central, tu mano izquierda baja paso a paso: do, si, la, sol. En clave de fa, el do se apoya en su pequeña línea encima del pentagrama.",
+          "it": "Dal do centrale, la tua mano sinistra scende passo dopo passo: do, si, la, sol. In chiave di basso, il do sta sulla sua lineetta sopra il pentagramma."
+        }
+      },
+      {
+        "type": "staff",
+        "clef": "bass",
+        "labels": true,
+        "elements": [
+          { "p": "C4", "fig": "quarter" },
+          { "p": "B3", "fig": "quarter" },
+          { "p": "A3", "fig": "quarter" },
+          { "p": "G3", "fig": "quarter" }
+        ],
+        "caption": {
+          "en": "Walking down from middle C: each note one step lower than the last.",
+          "fr": "On descend depuis le do central : chaque note un pas plus bas que la précédente.",
+          "es": "Bajamos desde el do central: cada nota un paso más abajo que la anterior.",
+          "it": "Si scende dal do centrale: ogni nota un passo più in basso della precedente."
+        }
+      },
+      {
+        "type": "readPlay",
+        "mode": "drill",
+        "clef": "bass",
+        "labels": "afterMiss",
+        "notes": ["C4", "B3", "A3", "G3"],
+        "prompt": {
+          "en": "Play the note shown: C, B, A or G, at the top of the bass staff.",
+          "fr": "Joue la note affichée : do, si, la ou sol, en haut de la portée de fa.",
+          "es": "Toca la nota que aparece: do, si, la o sol, en lo alto de la clave de fa.",
+          "it": "Suona la nota mostrata: do, si, la o sol, nella parte alta della chiave di basso."
+        }
+      },
+      {
+        "type": "nameNote",
+        "clef": "bass",
+        "notes": ["B3", "A3", "G3"],
+        "prompt": {
+          "en": "Which of the three notes below middle C is this? Tap a name to hear it.",
+          "fr": "Laquelle des trois notes sous le do central est-ce ? Touche un nom pour l'entendre.",
+          "es": "¿Cuál de las tres notas bajo el do central es esta? Toca un nombre para oírla.",
+          "it": "Quale delle tre note sotto il do centrale è questa? Tocca un nome per sentirla."
+        }
+      },
+      {
+        "type": "earChoice",
+        "notes": ["C4", "G3"],
+        "answerId": "down",
+        "choices": [
+          {
+            "id": "up",
+            "label": {
+              "en": "Higher",
+              "fr": "Plus aiguë",
+              "es": "Más aguda",
+              "it": "Più acuta"
+            }
+          },
+          {
+            "id": "down",
+            "label": {
+              "en": "Lower",
+              "fr": "Plus grave",
+              "es": "Más grave",
+              "it": "Più grave"
+            }
+          }
+        ],
+        "prompt": {
+          "en": "Listen: starting from C, is the second note higher or lower?",
+          "fr": "Écoute : en partant du do, la deuxième note est-elle plus aiguë ou plus grave ?",
+          "es": "Escucha: partiendo del do, ¿la segunda nota es más aguda o más grave?",
+          "it": "Ascolta: partendo dal do, la seconda nota è più acuta o più grave?"
+        }
+      },
+      {
+        "type": "readPlay",
+        "mode": "melody",
+        "clef": "bass",
+        "labels": "never",
+        "notes": ["C4", "B3", "A3", "G3", "A3", "B3", "C4"],
+        "prompt": {
+          "en": "A little walk down from C and back up — play it left to right.",
+          "fr": "Une petite promenade qui descend du do puis remonte — joue de gauche à droite.",
+          "es": "Un pequeño paseo que baja desde el do y vuelve a subir — tócalo de izquierda a derecha.",
+          "it": "Una piccola passeggiata che scende dal do e poi risale — suonala da sinistra a destra."
+        }
+      },
+      {
+        "type": "text",
+        "text": {
+          "en": "You now read C, B, A and G in the bass clef — your left hand's first four notes.",
+          "fr": "Tu lis maintenant do, si, la et sol en clé de fa — les quatre premières notes de ta main gauche.",
+          "es": "Ya lees do, si, la y sol en clave de fa — las cuatro primeras notas de tu mano izquierda.",
+          "it": "Ora leggi do, si, la e sol in chiave di basso — le prime quattro note della tua mano sinistra."
+        }
+      }
+    ]
+  }
+}

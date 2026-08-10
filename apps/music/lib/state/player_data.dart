@@ -161,6 +161,30 @@ double effectiveStartMs(
   return start < 0 ? 0 : start;
 }
 
+/// Slowest / fastest playback speed the transport is bounded by (0.25× … 2×).
+const double kMinSpeed = 0.25;
+const double kMaxSpeed = 2.0;
+
+/// Normalizes a requested practice measure range to valid indices of a piece
+/// with [measureCount] measures: each bound is clamped to `[0, measureCount-1]`
+/// and the pair is reordered so `start ≤ end`. A single-measure range
+/// (`start == end`) is valid. Returns null when the piece has no measure table
+/// (e.g. the demo score), where a measure range is meaningless.
+///
+/// Pure and host-testable — the single normalization both range pickers (setup
+/// steppers, tap-on-score) and the persistence load path go through.
+({int start, int end})? normalizePracticeRange({
+  required int start,
+  required int end,
+  required int measureCount,
+}) {
+  if (measureCount <= 0) return null;
+  final last = measureCount - 1;
+  final a = start.clamp(0, last);
+  final b = end.clamp(0, last);
+  return a <= b ? (start: a, end: b) : (start: b, end: a);
+}
+
 /// The playhead position a fresh run/transport should stop (finish or loop) at
 /// for [visibleNotes]: the resolution of the last note — the largest
 /// `startMs + durationMs` — so trailing rests / empty trailing measures after
@@ -309,6 +333,16 @@ abstract class PlayerData with _$PlayerData {
     /// from the persisted play preferences (like [metronomeEnabled]) and changed
     /// through the setup modal / in-game settings.
     @Default(NoteReadingAid.name) NoteReadingAid readingAid,
+
+    /// First measure of the **active practice range** (index into
+    /// [measureStartMs]), or null for the whole piece (change: add-measure-range-
+    /// practice, D1). Paired with [practiceEndMeasure]: both set and narrower
+    /// than the whole piece ⇒ [isSelectiveRun].
+    int? practiceStartMeasure,
+
+    /// Last measure (inclusive) of the active practice range, or null for the
+    /// whole piece.
+    int? practiceEndMeasure,
   }) = _PlayerData;
 
   bool get midiConnected => connectedDevice != null;
@@ -324,26 +358,79 @@ abstract class PlayerData with _$PlayerData {
 
   /// Notes belonging to the selected hand(s) — the input every render mode and
   /// the gate derive from, so display and Wait Mode stay consistent.
-  List<TimedNote> get visibleNotes =>
-      notes.where((n) => showsStaff(n.staff)).toList();
+  ///
+  /// During a **selective run** this is the passage's notes only. The run cannot
+  /// reach the rest of the piece, so showing it is misleading: the player cannot
+  /// see where the passage ends, and the Wait-Mode gate would otherwise hold at
+  /// an onset outside the loop. Restricting at this single source keeps the
+  /// display, the gate and the score audio in agreement by construction.
+  List<TimedNote> get visibleNotes => notes
+      .where((n) => showsStaff(n.staff) && _withinRun(n.startMs.toDouble()))
+      .toList();
 
   /// Rests belonging to the selected hand(s) — the render-only companion to
   /// [visibleNotes], so the Staff painter hides a muted hand's rests with its
-  /// notes.
-  List<TimedRest> get visibleRests =>
-      rests.where((r) => showsStaff(r.staff)).toList();
+  /// notes (and, in a selective run, everything outside the passage).
+  List<TimedRest> get visibleRests => rests
+      .where((r) => showsStaff(r.staff) && _withinRun(r.startMs.toDouble()))
+      .toList();
+
+  /// Whether onset [t] falls inside the run. Always true for a full run; for a
+  /// selective one, the half-open span of the chosen measures. Deliberately keyed
+  /// on the ONSET: a note is in the passage if it starts there.
+  bool _withinRun(double t) {
+    if (!isSelectiveRun) return true;
+    final from = measureStartMs[practiceStartMeasure!].toDouble();
+    return t >= from && t < measureEndMs(practiceEndMeasure!);
+  }
+
+  /// Number of engraved measures with known timing (0 for the demo score, which
+  /// carries no measure table).
+  int get measureCount => measureStartMs.length;
+
+  /// Index of the piece's last measure, or null when there is no measure table.
+  int? get lastMeasureIndex => measureStartMs.isEmpty ? null : measureCount - 1;
+
+  /// End (ms) of measure [i] — the next measure's start, or [songEndMs] for the
+  /// last one. The symmetric companion of `measureStartMs[i]`, so a measure range
+  /// `[a, b]` maps to `measureStartMs[a] … measureEndMs(b)`. Pure and
+  /// host-testable; returns [songEndMs] for an out-of-range index.
+  double measureEndMs(int i) => (i + 1 >= 0 && i + 1 < measureStartMs.length)
+      ? measureStartMs[i + 1].toDouble()
+      : songEndMs;
+
+  /// Whether a practice range is set at all (both bounds, on a piece that has a
+  /// measure table). A range covering the whole piece is set but **not**
+  /// selective — it is a full run.
+  bool get hasPracticeRange =>
+      practiceStartMeasure != null &&
+      practiceEndMeasure != null &&
+      measureStartMs.isNotEmpty;
+
+  /// Whether the run is a **selective (practice) run** — its active measure range
+  /// is narrower than the whole piece (change: add-measure-range-practice, D1/D2).
+  /// A selective run is never scored: it plays (and can loop) just its measures.
+  bool get isSelectiveRun =>
+      hasPracticeRange &&
+      !(practiceStartMeasure == 0 && practiceEndMeasure == lastMeasureIndex);
 
   /// Effective start of the current selection — where a fresh run/transport
-  /// places the playhead. A short lead-in before the first visible note's onset
-  /// (see [effectiveStartMs]), so leading rests / empty measures are trimmed.
-  /// `0` when the selection has no notes or already starts near the beginning.
-  double get startMs => effectiveStartMs(visibleNotes);
+  /// places the playhead. For a selective run, the first measure of the active
+  /// range; otherwise a short lead-in before the first visible note's onset (see
+  /// [effectiveStartMs]), so leading rests / empty measures are trimmed. `0` when
+  /// the selection has no notes or already starts near the beginning.
+  double get startMs => isSelectiveRun
+      ? measureStartMs[practiceStartMeasure!].toDouble()
+      : effectiveStartMs(visibleNotes);
 
-  /// Effective end of the current selection — where a fresh run finishes (scored)
-  /// or loops (unscored). The last visible note's resolution (see
-  /// [effectiveEndMs]), so trailing rests / empty measures are trimmed. Falls
-  /// back to [songEndMs] when the selection has no notes.
-  double get endMs => effectiveEndMs(visibleNotes, songEndMs: songEndMs);
+  /// Effective end of the current selection — where a fresh run finishes (scored),
+  /// loops, or stops. For a selective run, the end of the range's last measure;
+  /// otherwise the last visible note's resolution (see [effectiveEndMs]), so
+  /// trailing rests / empty measures are trimmed. Falls back to [songEndMs] when
+  /// the selection has no notes.
+  double get endMs => isSelectiveRun
+      ? measureEndMs(practiceEndMeasure!)
+      : effectiveEndMs(visibleNotes, songEndMs: songEndMs);
 
   /// The loaded piece's characteristic tightest note spacing (see
   /// [cachedOnsetGapMs]), which the scrolling Portée caps its look-ahead window

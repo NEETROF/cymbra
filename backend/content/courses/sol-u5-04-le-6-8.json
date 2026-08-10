@@ -1,0 +1,164 @@
+{
+  "id": "sol-u5-04-le-6-8",
+  "status": "published",
+  "instrument": "piano",
+  "track": "solfege",
+  "level": "intermediate",
+  "unit": "u5",
+  "unitTitle": {
+    "en": "Eighth notes and new meters",
+    "fr": "Croches et nouvelles mesures",
+    "es": "Corcheas y nuevos compases",
+    "it": "Crome e nuovi tempi"
+  },
+  "sortOrder": 504,
+  "schemaVersion": 2,
+  "title": {
+    "en": "6/8, the swaying meter",
+    "fr": "Le 6/8, la mesure qui balance",
+    "es": "El 6/8, el compás que se mece",
+    "it": "Il 6/8, il tempo che dondola"
+  },
+  "content": {
+    "schemaVersion": 2,
+    "id": "sol-u5-04-le-6-8",
+    "instrument": "piano",
+    "track": "solfege",
+    "level": "intermediate",
+    "title": {
+      "en": "6/8, the swaying meter",
+      "fr": "Le 6/8, la mesure qui balance",
+      "es": "El 6/8, el compás que se mece",
+      "it": "Il 6/8, il tempo che dondola"
+    },
+    "summary": {
+      "en": "Feel 6/8 in six steps and two big beats",
+      "fr": "Sentir le 6/8 en six pas et deux grands temps",
+      "es": "Sentir el 6/8 en seis pasos y dos tiempos grandes",
+      "it": "Sentire il 6/8 in sei passi e due grandi movimenti"
+    },
+    "blocks": [
+      {
+        "type": "text",
+        "text": {
+          "en": "6/8 counts six quick eighths per bar, but it flows in two big swaying beats. It's the meter of barcarolles and lullabies.",
+          "fr": "Le 6/8 compte six croches rapides par mesure, mais il coule en deux grands temps qui balancent. C'est la mesure des barcarolles et des berceuses.",
+          "es": "El 6/8 cuenta seis corcheas rápidas por compás, pero fluye en dos tiempos grandes que se mecen. Es el compás de las barcarolas y las canciones de cuna.",
+          "it": "Il 6/8 conta sei crome veloci per battuta, ma scorre in due grandi movimenti che dondolano. È il tempo delle barcarole e delle ninne nanne."
+        }
+      },
+      {
+        "type": "staff",
+        "clef": "treble",
+        "time": { "beats": 6, "beatType": 8 },
+        "elements": [
+          { "p": "C4", "fig": "eighth" },
+          { "p": "D4", "fig": "eighth" },
+          { "p": "E4", "fig": "eighth" },
+          { "p": "F4", "fig": "eighth" },
+          { "p": "G4", "fig": "eighth" },
+          { "p": "F4", "fig": "eighth" }
+        ],
+        "caption": {
+          "en": "Six light steps up and back — two groups of three eighth notes.",
+          "fr": "Six petits pas qui montent et reviennent — deux groupes de trois croches.",
+          "es": "Seis pasitos que suben y vuelven: dos grupos de tres corcheas.",
+          "it": "Sei piccoli passi che salgono e tornano: due gruppi di tre crome."
+        }
+      },
+      {
+        "type": "rhythmTap",
+        "pattern": [
+          { "fig": "eighth" },
+          { "fig": "eighth" },
+          { "fig": "eighth" },
+          { "fig": "eighth" },
+          { "fig": "eighth" },
+          { "fig": "eighth" }
+        ],
+        "beats": 6,
+        "beatType": 8,
+        "bpm": 100,
+        "prompt": {
+          "en": "Tap the six light steps: 'one-two-three, four-five-six', leaning gently on one and four.",
+          "fr": "Tape les six petits pas : « un-deux-trois, quatre-cinq-six », en appuyant doucement sur un et quatre.",
+          "es": "Toca los seis pasitos: 'un-dos-tres, cuatro-cinco-seis', apoyándote suavemente en el uno y el cuatro.",
+          "it": "Batti i sei piccoli passi: 'uno-due-tre, quattro-cinque-sei', appoggiandoti dolcemente su uno e quattro."
+        }
+      },
+      {
+        "type": "rhythmTap",
+        "pattern": [
+          { "fig": "quarter", "dots": 1 },
+          { "fig": "quarter", "dots": 1 }
+        ],
+        "beats": 6,
+        "beatType": 8,
+        "bpm": 90,
+        "prompt": {
+          "en": "Now feel it in TWO big beats: tap only on 'ONE' and 'FOUR' and let each one sway.",
+          "fr": "Maintenant sens-le en DEUX grands temps : tape seulement sur « UN » et « QUATRE » et laisse balancer.",
+          "es": "Ahora siéntelo en DOS tiempos grandes: toca solo en 'UN' y 'CUATRO' y déjalo mecerse.",
+          "it": "Ora sentilo in DUE grandi movimenti: batti solo su 'UNO' e 'QUATTRO' e lascialo dondolare."
+        }
+      },
+      {
+        "type": "question",
+        "prompt": {
+          "en": "How do you feel 6/8 when it flows?",
+          "fr": "Comment sens-tu le 6/8 quand il coule ?",
+          "es": "¿Cómo sientes el 6/8 cuando fluye?",
+          "it": "Come senti il 6/8 quando scorre?"
+        },
+        "options": [
+          {
+            "en": "In two big swaying beats",
+            "fr": "En deux grands temps qui balancent",
+            "es": "En dos tiempos grandes que se mecen",
+            "it": "In due grandi movimenti che dondolano"
+          },
+          {
+            "en": "In six separate little beats",
+            "fr": "En six petits temps séparés",
+            "es": "En seis tiempos pequeños separados",
+            "it": "In sei piccoli movimenti separati"
+          }
+        ],
+        "answerIndex": 0,
+        "feedback": {
+          "en": "Both are real — but the sway comes from the two big beats, three eighths each.",
+          "fr": "Les deux existent — mais le balancement vient des deux grands temps, trois croches chacun.",
+          "es": "Las dos cosas son ciertas, pero el vaivén nace de los dos tiempos grandes, tres corcheas cada uno.",
+          "it": "Sono vere entrambe — ma il dondolio nasce dai due grandi movimenti, tre crome ciascuno."
+        }
+      },
+      {
+        "type": "rhythmTap",
+        "pattern": [
+          { "fig": "eighth" },
+          { "fig": "eighth" },
+          { "fig": "eighth" },
+          { "fig": "quarter", "dots": 1 }
+        ],
+        "beats": 6,
+        "beatType": 8,
+        "bpm": 90,
+        "prompt": {
+          "en": "Half and half: three little steps, then one big swing — 'one-two-three, FOUR…'.",
+          "fr": "Moitié-moitié : trois petits pas, puis un grand balancement — « un-deux-trois, QUATRE… ».",
+          "es": "Mitad y mitad: tres pasitos y luego un gran balanceo: 'un-dos-tres, CUATRO…'.",
+          "it": "Metà e metà: tre piccoli passi, poi un grande slancio: 'uno-due-tre, QUATTRO…'."
+        }
+      },
+      {
+        "type": "text",
+        "text": {
+          "en": "6/8: six eighth notes on paper, two big beats in your body. When it sways, you're doing it right.",
+          "fr": "Le 6/8 : six croches sur le papier, deux grands temps dans le corps. Quand ça balance, c'est que tu le joues bien.",
+          "es": "El 6/8: seis corcheas en el papel, dos tiempos grandes en el cuerpo. Cuando se mece, lo estás haciendo bien.",
+          "it": "Il 6/8: sei crome sulla carta, due grandi movimenti nel corpo. Quando dondola, lo stai suonando bene."
+        }
+      }
+    ]
+  }
+}

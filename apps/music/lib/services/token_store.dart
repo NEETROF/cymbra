@@ -62,15 +62,19 @@ abstract class TokenStore {
 /// to the UI.
 class SecureTokenStore implements TokenStore {
   SecureTokenStore([FlutterSecureStorage? storage])
-    : _storage =
-          storage ??
-          // macOS: use the legacy keychain (not the data-protection keychain),
-          // which works under the app sandbox with ad-hoc signing — the data-
-          // protection keychain needs a `keychain-access-groups` entitlement and
-          // therefore a development certificate (errSecMissingEntitlement -34018).
-          const FlutterSecureStorage(
-            mOptions: MacOsOptions(usesDataProtectionKeychain: false),
-          );
+    // Defaults on every platform, including macOS, where that means the
+    // data-protection keychain.
+    //
+    // macOS used to force `usesDataProtectionKeychain: false`, because the
+    // data-protection keychain needs a `keychain-access-groups` entitlement and
+    // the macOS build was then ad-hoc signed (errSecMissingEntitlement -34018).
+    // That fell back to the legacy *login* keychain, whose items are guarded by
+    // an ACL bound to the binary's designated requirement — so the moment the
+    // signature changed (development → Apple Distribution, i.e. any TestFlight
+    // or App Store build) macOS prompted the user for their login keychain
+    // password on launch. The app now ships that entitlement, so the default is
+    // both correct and app-scoped: no ACL, no prompt.
+    : _storage = storage ?? const FlutterSecureStorage();
 
   final FlutterSecureStorage _storage;
 

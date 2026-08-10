@@ -24,6 +24,8 @@ import 'countdown.dart';
 import 'notation_data.dart';
 import 'notation_notifier.dart';
 import 'performance_scoring.dart';
+import 'play_sync_notifier.dart';
+import 'practice_settings_store.dart';
 import 'player_data.dart';
 import 'notation_playback.dart';
 import 'player_preferences.dart';
@@ -51,6 +53,22 @@ class Player extends _$Player {
   /// it lives here rather than in [PlayerData].
   final Set<int> _sounding = <int>{};
 
+  /// Whether a **countable practice session** is in flight (change: add-measure-
+  /// range-practice, D4): a selective run that has actually sounded at least one
+  /// onset (the "started then quit" threshold). It is flushed as a single
+  /// scoreless activity record when the range changes, the score changes, or the
+  /// player is left — **once per session, never per lap**, so looping cannot
+  /// inflate the day's practice count.
+  bool _practicePending = false;
+
+  /// The activity sink, captured when a practice session opens so the flush can
+  /// still run while the container disposes. Kept null until a practice actually
+  /// happens, so a player that never practises never touches the sync notifier.
+  PlaySyncNotifier? _practiceSink;
+
+  /// The piece identity the in-flight practice session belongs to.
+  String? _practiceScoreId;
+
   @override
   PlayerData build() {
     final midi = ref.watch(midiServiceProvider);
@@ -68,6 +86,9 @@ class Player extends _$Player {
     // rebuilding (which would reset the playhead and pressed keys).
     ref.listen(notationProvider, (_, next) => _applyNotation(next));
     ref.onDispose(() {
+      // Leaving the player ends any in-flight practice session: record it as a
+      // single scoreless activity event before the state goes away.
+      _flushPracticeSession();
       _statusTimer?.cancel();
       _sub?.cancel();
       // Flush any held/sounding voices so leaving the screen doesn't leave a
@@ -117,27 +138,84 @@ class Player extends _$Player {
   /// from the top. Every render mode is scored (Synthesia, the scrolling staff,
   /// and the engraved Partition). Idempotent: a run already active is left alone
   /// (the scorer resets its own state on [PerformanceScorer.startRun]).
+  ///
+  /// A **selective run** (a practice range narrower than the whole piece) is
+  /// never scored (change: add-measure-range-practice, D2): the scorer simply
+  /// never arms, so no partial `SessionResult` exists to suppress downstream.
   void _maybeStartRun() {
     final s = state;
-    if (s.visibleNotes.isEmpty || !_atStart(s)) return;
-    // The piece IDENTITY is the BACKEND id the server ranks by (change: add-play-
-    // leaderboards): the bare catalog UUID (`catalogId`) for a public catalog
-    // score — which is what the leaderboard's accepted-catalog check matches —
-    // else the upload id, else the app id / title. `CatalogEntry.id` is namespaced
-    // (`catalog-…`/`contrib-…`), so it must NOT be used here. Only accepted catalog
-    // scores get a board; an upload, bundled, or demo id never matches one.
+    if (s.visibleNotes.isEmpty || !_atStart(s) || s.isSelectiveRun) return;
     final entry = ref.read(selectedScoreProvider);
     _scorer.startRun(
-      pieceId:
-          entry?.catalogId ??
-          entry?.contributedId ??
-          entry?.id ??
-          s.title ??
-          'demo',
+      pieceId: _pieceIdentity(),
       title: entry?.title ?? s.title ?? 'Demo',
       hands: s.selectedHands.name,
       speed: s.speed,
       notes: s.visibleNotes,
+    );
+  }
+
+  /// The identity the scored-run, practice-activity and per-score-settings paths
+  /// all report this piece under (see [pieceIdentityOf]).
+  String _pieceIdentity() =>
+      pieceIdentityOf(ref.read(selectedScoreProvider), state.title);
+
+  /// Persists (or forgets) this score's practice settings after any change to
+  /// the range (change: add-measure-range-practice, D7), so
+  /// reopening the piece pre-fills what the player was last drilling. Returning
+  /// to a full run forgets the selection.
+  void _persistPracticeSettings() {
+    final s = state;
+    final store = ref.read(practiceSettingsStoreProvider);
+    final id = _pieceIdentity();
+    if (!s.isSelectiveRun) {
+      unawaited(store.clear(id));
+      return;
+    }
+    unawaited(
+      store.save(
+        id,
+        PracticeSettings(
+          startMeasure: s.practiceStartMeasure!,
+          endMeasure: s.practiceEndMeasure!,
+        ),
+      ),
+    );
+  }
+
+  /// Marks the in-flight selective run as a **countable practice session** — the
+  /// design's "at least one onset elapsed" threshold, so opening a range and
+  /// quitting without playing anything never counts. Idempotent: the session is
+  /// opened once and closed by [_flushPracticeSession].
+  void _markPracticeProgress() {
+    if (_practicePending) return;
+    _practicePending = true;
+    _practiceSink = ref.read(playSyncNotifierProvider.notifier);
+    _practiceScoreId = _pieceIdentity();
+  }
+
+  /// Ends the in-flight practice session, if any, by capturing **one** scoreless
+  /// activity record into the durable outbox (delivered idempotently by the sync
+  /// notifier). A no-op when no countable practice happened.
+  ///
+  /// Also runs from `onDispose` — leaving the player screen disposes this
+  /// (auto-dispose) notifier while the app container, and with it the sync
+  /// notifier, is still alive. When the whole container is going down instead
+  /// (app shutdown), the sink is already unreachable; the practice is then simply
+  /// not recorded rather than throwing out of a disposal callback.
+  void _flushPracticeSession() {
+    if (!_practicePending) return;
+    final sink = _practiceSink;
+    final scoreId = _practiceScoreId;
+    _practicePending = false;
+    _practiceSink = null;
+    _practiceScoreId = null;
+    if (sink == null) return;
+    unawaited(
+      // A container already tearing down (app shutdown) makes the capture fail;
+      // nothing could be delivered then anyway, so it degrades to "not recorded"
+      // instead of throwing out of a disposal callback.
+      sink.capturePractice(scoreId: scoreId).catchError((Object _) {}),
     );
   }
 
@@ -188,6 +266,8 @@ class Player extends _$Player {
   void _applyNotation(NotationData notation) {
     final document = notation.document;
     if (document == null || identical(document, _loadedDocument)) return;
+    // A different piece ends any practice session on the previous one.
+    _flushPracticeSession();
     _loadedDocument = document;
     final derived = notationToTimedNotes(document);
     final updated = state.copyWith(
@@ -203,6 +283,11 @@ class Player extends _$Player {
       measureStartMs: derived.measureStartMs,
       measureKeyFifths: derived.measureKeyFifths,
       isPlaying: false,
+      // A range chosen for the previous score means nothing here (and its indices
+      // may not even exist in this one): a freshly-loaded document always starts
+      // as a full run. The per-score saved settings re-apply it if there are any.
+      practiceStartMeasure: null,
+      practiceEndMeasure: null,
     );
     // Start a short lead-in before the first note, skipping leading rests/empty
     // measures — computed from the newly-loaded notes and current hand selection.
@@ -377,7 +462,12 @@ class Player extends _$Player {
   /// is needed. Resuming mid-piece plays immediately. Plain [setPlaying] stays
   /// countdown-free (used internally and in tests).
   void startPlayback() {
-    if (!state.waitMode && _atStart(state) && state.countdownMs == 0) {
+    // A practice loop ALWAYS opens on the countdown, Wait Mode or not: the lap
+    // is short and starts abruptly at the passage, so the 3…2…1 is what makes it
+    // playable — and every later lap re-arms it the same way (see [advance]).
+    if ((state.isSelectiveRun || !state.waitMode) &&
+        _atStart(state) &&
+        state.countdownMs == 0) {
       state = state.copyWith(countdownMs: kCountdownStartMs);
     }
     setPlaying(true);
@@ -461,6 +551,58 @@ class Player extends _$Player {
     // hand(s) — a hand that enters later starts trimmed to its own first note.
     state = updated.copyWith(elapsedMs: updated.startMs);
     if (state.isPlaying) _maybeStartRun();
+  }
+
+  // --- Practice range (change: add-measure-range-practice) ---------------
+
+  /// Sets the **active practice range** to measures `[start, end]`, normalized
+  /// and clamped to the piece (`0 ≤ start ≤ end ≤ lastMeasure`; a single-measure
+  /// range is allowed). A range narrower than the whole piece makes the run
+  /// **selective** — unscored practice — so any in-flight scored run is
+  /// discarded, the playhead moves to the range's first measure and held voices
+  /// are silenced. A no-op on a piece with no measure table (the demo score).
+  ///
+  /// The single setter both range pickers go through (setup-sheet steppers and
+  /// tap-on-score), per design D5.
+  void setPracticeRange(int start, int end) {
+    final range = normalizePracticeRange(
+      start: start,
+      end: end,
+      measureCount: state.measureCount,
+    );
+    if (range == null) return;
+    // A new range is a new practice session: close the previous one first, so it
+    // is counted once and the next range starts a fresh one.
+    _flushPracticeSession();
+    _silenceAll();
+    _scorer.cancelRun();
+    final updated = state.copyWith(
+      practiceStartMeasure: range.start,
+      practiceEndMeasure: range.end,
+      countdownMs: 0,
+      gateSatisfied: const {},
+      consumedHeld: const {},
+    );
+    state = updated.copyWith(elapsedMs: updated.startMs);
+    _persistPracticeSettings();
+  }
+
+  /// Clears the practice range back to the whole piece (a **full run**, scored
+  /// exactly as before) and returns the playhead to the piece's effective start.
+  void clearPracticeRange() {
+    // Returning to a full run ends the practice session.
+    _flushPracticeSession();
+    _silenceAll();
+    _scorer.cancelRun();
+    final updated = state.copyWith(
+      practiceStartMeasure: null,
+      practiceEndMeasure: null,
+      countdownMs: 0,
+      gateSatisfied: const {},
+      consumedHeld: const {},
+    );
+    state = updated.copyWith(elapsedMs: updated.startMs);
+    _persistPracticeSettings();
   }
 
   void restart() {
@@ -551,12 +693,17 @@ class Player extends _$Player {
       if (ns != null && next > ns) next = ns;
     }
 
+    // How far the playhead actually travelled this frame, BEFORE any wrap/stop
+    // rewinds it — the span the practice-activity threshold is measured over.
+    final travelledTo = next;
+
     var loop = false;
     var finishScoredRun = false;
-    // Stop at the effective end (last note's resolution) rather than the raw
-    // songEndMs, so trailing rests / empty trailing measures are trimmed — the
-    // symmetric counterpart of the trimmed start. endMs falls back to songEndMs
-    // when the selection has no notes, so behaviour is unchanged there.
+    // Stop at the effective end (the range's last measure for a selective run,
+    // else the last note's resolution) rather than the raw songEndMs, so trailing
+    // rests / empty trailing measures are trimmed — the symmetric counterpart of
+    // the trimmed start. endMs falls back to songEndMs when the selection has no
+    // notes, so behaviour is unchanged there.
     final endMs = s.endMs;
     if (endMs > 0 && next >= endMs) {
       if (ref.read(performanceScorerProvider).active) {
@@ -564,7 +711,9 @@ class Player extends _$Player {
         next = endMs;
         finishScoredRun = true;
       } else {
-        next = s.startMs; // simple loop — wrap to the trimmed start, not 0
+        // Simple loop — wrap to the effective start (the range's first measure
+        // for a selective run), not 0.
+        next = s.startMs;
         loop = true;
       }
     }
@@ -577,6 +726,21 @@ class Player extends _$Player {
       _silenceAll();
     } else {
       _applyScoreAudio(s, s.elapsedMs, next);
+    }
+
+    // A selective run that has actually got through at least one onset is a real
+    // practice session (see [_markPracticeProgress]) — measured over the span the
+    // playhead travelled, so a frame that also wraps still counts. Once opened
+    // the session stays open across laps, so looping never inflates the day's
+    // practice count; the guard also makes this free after the first hit.
+    if (!_practicePending && s.isSelectiveRun && travelledTo > s.elapsedMs) {
+      final crossed = scoreNoteEdges(
+        visible: s.visibleNotes,
+        from: s.elapsedMs,
+        to: travelledTo,
+        sounding: const <int>{},
+      );
+      if (crossed.starts.isNotEmpty) _markPracticeProgress();
     }
 
     // Metronome: click + pulse on each beat boundary the playhead crosses. Skipped
@@ -602,6 +766,10 @@ class Player extends _$Player {
       }
     }
 
+    // A completed lap of a selective loop: consume one of the finite repetitions
+    // and, when the tempo ramp is on, step the speed up for the next lap —
+    // clamped to the transport maximum and never below the speed the run started
+    // at (design D3). Both are no-ops for a full run or an infinite/unramped loop.
     // Leaving the satisfied onset (or looping) re-arms the gate for the next one.
     // A held pitch stays *consumed* across a normal onset advance (so it can't
     // walk through a repeat), but a loop wrap re-arms from scratch.
@@ -609,7 +777,17 @@ class Player extends _$Player {
     // prompt). Monotonic within the score, so a seek back keeps it; on a loop wrap
     // `next` is the trimmed START, yet the playhead did just reach the end — credit
     // `endMs`, not the wrapped position.
-    final reached = loop ? endMs : next;
+    //
+    // A **selective run** never credits it (change: add-measure-range-practice):
+    // drilling bars 30–32 would otherwise mark every earlier note as "played" —
+    // `playedNoteFraction` counts notes before the high-water mark, not notes
+    // actually crossed — and a two-bar practice would look like a full
+    // playthrough to the rating prompt. This extends the rule #199 already states
+    // for `reachedEnd` ("a range-practice loop that ends early does not set it")
+    // to the note-fraction term: practice is not a playthrough.
+    final reached = s.isSelectiveRun
+        ? s.furthestElapsedMs
+        : (loop ? endMs : next);
     final leftOnset = onset.isNotEmpty && next != s.elapsedMs;
     state = s.copyWith(
       elapsedMs: next,
@@ -621,6 +799,12 @@ class Player extends _$Player {
       consumedHeld: loop ? const {} : s.consumedHeld,
       beatCount: beatCount,
       lastBeatAccent: lastBeatAccent,
+      // Every lap of a practice loop opens with its own 3…2…1…GO, exactly like
+      // the first one: the player has just been thrown back to the start of the
+      // passage and needs the same beat to get their hands in place.
+      countdownMs: (loop && s.isSelectiveRun)
+          ? kCountdownStartMs
+          : s.countdownMs,
     );
 
     // End of a scored run: finalize the result (drives the summary modal) and

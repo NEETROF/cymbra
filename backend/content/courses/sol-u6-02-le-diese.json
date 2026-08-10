@@ -1,0 +1,161 @@
+{
+  "id": "sol-u6-02-le-diese",
+  "status": "published",
+  "instrument": "piano",
+  "track": "solfege",
+  "level": "intermediate",
+  "unit": "u6",
+  "unitTitle": {
+    "en": "Sharps, flats and keys",
+    "fr": "Dièses, bémols et tonalités",
+    "es": "Sostenidos, bemoles y tonalidades",
+    "it": "Diesis, bemolli e tonalità"
+  },
+  "sortOrder": 602,
+  "schemaVersion": 2,
+  "title": {
+    "en": "The sharp",
+    "fr": "Le dièse",
+    "es": "El sostenido",
+    "it": "Il diesis"
+  },
+  "content": {
+    "schemaVersion": 2,
+    "id": "sol-u6-02-le-diese",
+    "instrument": "piano",
+    "track": "solfege",
+    "level": "intermediate",
+    "title": {
+      "en": "The sharp",
+      "fr": "Le dièse",
+      "es": "El sostenido",
+      "it": "Il diesis"
+    },
+    "summary": {
+      "en": "The sharp raises a note by a half step",
+      "fr": "Le dièse monte la note d'un demi-ton",
+      "es": "El sostenido sube la nota un semitono",
+      "it": "Il diesis alza la nota di un semitono"
+    },
+    "blocks": [
+      {
+        "type": "text",
+        "text": {
+          "en": "A sharp (♯) raises a note by a half step — on the piano, that is usually the black key just to the right. Meet your first one: F♯.",
+          "fr": "Le dièse (♯) monte la note d'un demi-ton — au piano, c'est souvent la touche noire juste à droite. Voici ton premier : fa dièse.",
+          "es": "El sostenido (♯) sube la nota un semitono — en el piano suele ser la tecla negra justo a la derecha. Aquí tienes el primero: fa sostenido.",
+          "it": "Il diesis (♯) alza la nota di un semitono — al pianoforte è di solito il tasto nero subito a destra. Ecco il tuo primo: fa diesis."
+        }
+      },
+      {
+        "type": "staff",
+        "clef": "treble",
+        "labels": true,
+        "elements": [
+          { "p": "F4", "fig": "quarter" },
+          { "p": "F#4", "fig": "quarter" }
+        ],
+        "caption": {
+          "en": "F and F♯ sit in the same spot on the staff — only the ♯ tells you to play a half step higher.",
+          "fr": "Fa et fa♯ occupent la même place sur la portée — seul le ♯ t'indique de jouer un demi-ton plus haut.",
+          "es": "Fa y fa♯ ocupan el mismo lugar en el pentagrama — solo el ♯ te indica tocar un semitono más alto.",
+          "it": "Fa e fa♯ occupano lo stesso posto sul pentagramma — solo il ♯ ti dice di suonare un semitono più in alto."
+        }
+      },
+      {
+        "type": "readPlay",
+        "mode": "drill",
+        "clef": "treble",
+        "labels": "always",
+        "notes": ["F4", "F#4"],
+        "prompt": {
+          "en": "Play the note shown — for F♯, reach for the black key just right of F.",
+          "fr": "Joue la note affichée — pour fa♯, vise la touche noire juste à droite de fa.",
+          "es": "Toca la nota que se muestra — para fa♯, busca la tecla negra justo a la derecha de fa.",
+          "it": "Suona la nota mostrata — per fa♯, cerca il tasto nero subito a destra di fa."
+        }
+      },
+      {
+        "type": "nameNote",
+        "clef": "treble",
+        "notes": ["F#4", "G#4"],
+        "prompt": {
+          "en": "Name this note — check whether a ♯ stands in front of it.",
+          "fr": "Nomme cette note — regarde bien si un ♯ la précède.",
+          "es": "Nombra esta nota — fíjate si lleva un ♯ delante.",
+          "it": "Dai il nome a questa nota — controlla se c'è un ♯ davanti."
+        }
+      },
+      {
+        "type": "earChoice",
+        "notes": ["F4", "F#4"],
+        "answerId": "up",
+        "choices": [
+          {
+            "id": "up",
+            "label": {
+              "en": "Higher",
+              "fr": "Plus aiguë",
+              "es": "Más aguda",
+              "it": "Più acuta"
+            }
+          },
+          {
+            "id": "down",
+            "label": {
+              "en": "Lower",
+              "fr": "Plus grave",
+              "es": "Más grave",
+              "it": "Più grave"
+            }
+          }
+        ],
+        "prompt": {
+          "en": "Listen to F, then its sharp: is the second note higher or lower?",
+          "fr": "Écoute fa, puis son dièse : la deuxième note est-elle plus aiguë ou plus grave ?",
+          "es": "Escucha fa y luego su sostenido: ¿la segunda nota es más aguda o más grave?",
+          "it": "Ascolta fa e poi il suo diesis: la seconda nota è più acuta o più grave?"
+        }
+      },
+      {
+        "type": "question",
+        "prompt": {
+          "en": "What does a sharp do to a note?",
+          "fr": "Que fait le dièse à une note ?",
+          "es": "¿Qué le hace el sostenido a una nota?",
+          "it": "Che cosa fa il diesis a una nota?"
+        },
+        "options": [
+          {
+            "en": "It raises it by a half step",
+            "fr": "Il la monte d'un demi-ton",
+            "es": "La sube un semitono",
+            "it": "La alza di un semitono"
+          },
+          {
+            "en": "It lowers it by a half step",
+            "fr": "Il la descend d'un demi-ton",
+            "es": "La baja un semitono",
+            "it": "La abbassa di un semitono"
+          }
+        ],
+        "answerIndex": 0,
+        "feedback": {
+          "en": "Right — the sharp always pushes the note a half step up.",
+          "fr": "C'est ça — le dièse pousse toujours la note un demi-ton plus haut.",
+          "es": "Eso es — el sostenido siempre empuja la nota un semitono hacia arriba.",
+          "it": "Proprio così — il diesis spinge sempre la nota un semitono più in alto."
+        }
+      },
+      {
+        "type": "text",
+        "text": {
+          "en": "You just read and played your first sharps. F♯ and G♯ are half steps up from F and G — the ♯ sign makes it official.",
+          "fr": "Tu viens de lire et de jouer tes premiers dièses. Fa♯ et sol♯ sont un demi-ton au-dessus de fa et sol — le signe ♯ le rend officiel.",
+          "es": "Acabas de leer y tocar tus primeros sostenidos. Fa♯ y sol♯ están un semitono por encima de fa y sol — el signo ♯ lo hace oficial.",
+          "it": "Hai appena letto e suonato i tuoi primi diesis. Fa♯ e sol♯ sono un semitono sopra fa e sol — il segno ♯ lo rende ufficiale."
+        }
+      }
+    ]
+  }
+}

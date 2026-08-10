@@ -44,6 +44,21 @@ pub struct PlaySession {
     pub session_result_json: String,
 }
 
+/// One completed **practice** session (a selective/measure-range run), as
+/// ingested (change: add-measure-range-practice, D4). Deliberately carries no
+/// score: it counts as activity, never as a scored session. `session_id` is the
+/// client-generated UUID v7 (the idempotency key).
+#[derive(Debug, Clone, PartialEq)]
+pub struct PracticeSession {
+    pub session_id: String,
+    pub user_id: String,
+    pub score_id: Option<String>,
+    /// When the practice session ended (unix epoch ms, client wall clock).
+    pub practiced_at_ms: i64,
+    /// Client UTC offset at `practiced_at_ms`, for local-day bucketing.
+    pub tz_offset_minutes: i32,
+}
+
 /// The minimal per-session data the heatmap aggregation needs (summary tier).
 #[derive(Debug, Clone, PartialEq)]
 pub struct SessionPoint {
@@ -52,19 +67,31 @@ pub struct SessionPoint {
     pub overall_sync_pct: f32,
 }
 
-/// One local day of activity (a heatmap cell): count + average overall sync %.
+/// The minimal per-practice data the heatmap aggregation needs. No sync % —
+/// practice drives a day's *count*, never its success colour.
+#[derive(Debug, Clone, PartialEq)]
+pub struct PracticePoint {
+    pub practiced_at_ms: i64,
+    pub tz_offset_minutes: i32,
+}
+
+/// One local day of activity (a heatmap cell): scored-play count + average
+/// overall sync %, plus the day's practice count (scoreless, so it never enters
+/// `avg_sync_pct`).
 #[derive(Debug, Clone, PartialEq)]
 pub struct DayActivity {
     pub day: NaiveDate,
     pub count: u32,
     pub avg_sync_pct: f32,
+    pub practice_count: u32,
 }
 
-/// A user's per-day activity plus their songs-played total.
+/// A user's per-day activity plus their songs-played and practice totals.
 #[derive(Debug, Clone, PartialEq)]
 pub struct PlayActivity {
     pub days: Vec<DayActivity>,
     pub total_sessions: u32,
+    pub total_practices: u32,
 }
 
 /// Storage surface for play sessions.
@@ -76,6 +103,13 @@ pub trait PlayRepo: Send + Sync {
 
     /// A user's session points (summary tier), for on-demand aggregation.
     async fn session_points(&self, user_id: &str) -> Result<Vec<SessionPoint>>;
+
+    /// Persist a **practice** session, idempotently by `session_id`. Stored apart
+    /// from the scored sessions so practice can never be read as a play.
+    async fn record_practice(&self, session: &PracticeSession) -> Result<()>;
+
+    /// A user's practice points, for the per-day practice count.
+    async fn practice_points(&self, user_id: &str) -> Result<Vec<PracticePoint>>;
 }
 
 // --- In-memory fake (tests) -------------------------------------------------
@@ -84,6 +118,7 @@ pub trait PlayRepo: Send + Sync {
 #[derive(Default)]
 pub struct FakePlayRepo {
     sessions: Mutex<Vec<PlaySession>>,
+    practices: Mutex<Vec<PracticeSession>>,
 }
 
 #[async_trait]
@@ -109,12 +144,42 @@ impl PlayRepo for FakePlayRepo {
             })
             .collect())
     }
+
+    async fn record_practice(&self, session: &PracticeSession) -> Result<()> {
+        let mut p = self.practices.lock().unwrap();
+        if p.iter().any(|e| e.session_id == session.session_id) {
+            return Ok(());
+        }
+        p.push(session.clone());
+        Ok(())
+    }
+
+    async fn practice_points(&self, user_id: &str) -> Result<Vec<PracticePoint>> {
+        let p = self.practices.lock().unwrap();
+        Ok(p.iter()
+            .filter(|e| e.user_id == user_id)
+            .map(|e| PracticePoint {
+                practiced_at_ms: e.practiced_at_ms,
+                tz_offset_minutes: e.tz_offset_minutes,
+            })
+            .collect())
+    }
 }
 
 impl FakePlayRepo {
     /// Test helper: number of stored sessions for a user (to assert no double count).
     pub fn count_for(&self, user_id: &str) -> usize {
         self.sessions
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|e| e.user_id == user_id)
+            .count()
+    }
+
+    /// Test helper: number of stored **practice** sessions for a user.
+    pub fn practice_count_for(&self, user_id: &str) -> usize {
+        self.practices
             .lock()
             .unwrap()
             .iter()

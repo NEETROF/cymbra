@@ -1,0 +1,183 @@
+{
+  "id": "sol-u7-01-secondes-et-tierces-a-l-oreille",
+  "status": "published",
+  "instrument": "piano",
+  "track": "solfege",
+  "level": "advanced",
+  "unit": "u7",
+  "unitTitle": {
+    "en": "Intervals, chords and ear",
+    "fr": "Intervalles, accords et oreille",
+    "es": "Intervalos, acordes y oído",
+    "it": "Intervalli, accordi e orecchio"
+  },
+  "sortOrder": 701,
+  "schemaVersion": 2,
+  "title": {
+    "en": "Seconds and thirds by ear",
+    "fr": "Secondes et tierces à l'oreille",
+    "es": "Segundas y terceras de oído",
+    "it": "Seconde e terze a orecchio"
+  },
+  "content": {
+    "schemaVersion": 2,
+    "id": "sol-u7-01-secondes-et-tierces-a-l-oreille",
+    "instrument": "piano",
+    "track": "solfege",
+    "level": "advanced",
+    "title": {
+      "en": "Seconds and thirds by ear",
+      "fr": "Secondes et tierces à l'oreille",
+      "es": "Segundas y terceras de oído",
+      "it": "Seconde e terze a orecchio"
+    },
+    "summary": {
+      "en": "Tell seconds from thirds by ear",
+      "fr": "Distinguer secondes et tierces à l'oreille",
+      "es": "Distinguir segundas y terceras de oído",
+      "it": "Distinguere seconde e terze a orecchio"
+    },
+    "blocks": [
+      {
+        "type": "text",
+        "text": {
+          "en": "A second steps to the neighbour note; a third skips over one. Your ear can learn to tell them apart in a heartbeat.",
+          "fr": "Une seconde avance vers la note voisine ; une tierce en saute une. Ton oreille peut apprendre à les distinguer en un battement.",
+          "es": "Una segunda avanza a la nota vecina; una tercera se salta una. Tu oído puede aprender a distinguirlas en un instante.",
+          "it": "Una seconda passa alla nota vicina; una terza ne salta una. Il tuo orecchio può imparare a distinguerle in un attimo."
+        }
+      },
+      {
+        "type": "staff",
+        "clef": "treble",
+        "elements": [
+          { "p": "C4", "fig": "quarter" },
+          { "p": "D4", "fig": "quarter" },
+          { "p": "C4", "fig": "quarter" },
+          { "p": "E4", "fig": "quarter" }
+        ],
+        "caption": {
+          "en": "C to D is a second, C to E is a third — see them here, then hear them.",
+          "fr": "Do–ré est une seconde, do–mi une tierce — regarde-les ici, puis écoute-les.",
+          "es": "Do–re es una segunda, do–mi una tercera: míralas aquí y luego escúchalas.",
+          "it": "Do–re è una seconda, do–mi una terza: guardale qui, poi ascoltale."
+        }
+      },
+      {
+        "type": "earChoice",
+        "notes": ["C4", "D4"],
+        "answerId": "second",
+        "choices": [
+          {
+            "id": "second",
+            "label": {
+              "en": "A second",
+              "fr": "Une seconde",
+              "es": "Una segunda",
+              "it": "Una seconda"
+            }
+          },
+          {
+            "id": "third",
+            "label": {
+              "en": "A third",
+              "fr": "Une tierce",
+              "es": "Una tercera",
+              "it": "Una terza"
+            }
+          }
+        ],
+        "prompt": {
+          "en": "Listen: C climbs to its neighbour D. Which interval is that?",
+          "fr": "Écoute : do monte vers sa voisine ré. Quel est cet intervalle ?",
+          "es": "Escucha: do sube a su vecina re. ¿Qué intervalo es?",
+          "it": "Ascolta: do sale alla vicina re. Che intervallo è?"
+        }
+      },
+      {
+        "type": "earChoice",
+        "notes": ["C4", "E4"],
+        "answerId": "third",
+        "choices": [
+          {
+            "id": "second",
+            "label": {
+              "en": "A second",
+              "fr": "Une seconde",
+              "es": "Una segunda",
+              "it": "Una seconda"
+            }
+          },
+          {
+            "id": "third",
+            "label": {
+              "en": "A third",
+              "fr": "Une tierce",
+              "es": "Una tercera",
+              "it": "Una terza"
+            }
+          }
+        ],
+        "prompt": {
+          "en": "Now C jumps over D and lands on E. What do you hear?",
+          "fr": "Maintenant do saute par-dessus ré et atterrit sur mi. Qu'entends-tu ?",
+          "es": "Ahora do salta por encima de re y cae en mi. ¿Qué escuchas?",
+          "it": "Ora do salta sopra re e atterra su mi. Cosa senti?"
+        }
+      },
+      {
+        "type": "earChoice",
+        "notes": ["E4", "F4"],
+        "answerId": "second",
+        "choices": [
+          {
+            "id": "second",
+            "label": {
+              "en": "A second",
+              "fr": "Une seconde",
+              "es": "Una segunda",
+              "it": "Una seconda"
+            }
+          },
+          {
+            "id": "third",
+            "label": {
+              "en": "A third",
+              "fr": "Une tierce",
+              "es": "Una tercera",
+              "it": "Una terza"
+            }
+          }
+        ],
+        "prompt": {
+          "en": "No hints this time — new notes. Step or skip: which interval is it?",
+          "fr": "Sans indice cette fois — d'autres notes. Un pas ou un saut : quel est cet intervalle ?",
+          "es": "Sin pistas esta vez, con otras notas. ¿Paso o salto: qué intervalo es?",
+          "it": "Senza aiuti questa volta, con altre note. Passo o salto: che intervallo è?"
+        }
+      },
+      {
+        "type": "readPlay",
+        "mode": "melody",
+        "clef": "treble",
+        "labels": "never",
+        "notes": ["C4", "E4", "D4", "F4", "E4", "G4"],
+        "prompt": {
+          "en": "Play this chain of broken thirds climbing up the staff.",
+          "fr": "Joue cette chaîne de tierces brisées qui grimpe sur la portée.",
+          "es": "Toca esta cadena de terceras quebradas que sube por el pentagrama.",
+          "it": "Suona questa catena di terze spezzate che sale sul pentagramma."
+        }
+      },
+      {
+        "type": "text",
+        "text": {
+          "en": "Bravo! A second steps, a third skips — and your ear now knows it before your eyes do.",
+          "fr": "Bravo ! Une seconde avance d'un pas, une tierce saute — et ton oreille le sait désormais avant tes yeux.",
+          "es": "¡Bravo! Una segunda avanza un paso, una tercera salta — y tu oído ya lo sabe antes que tus ojos.",
+          "it": "Bravo! Una seconda fa un passo, una terza salta — e il tuo orecchio ormai lo sa prima dei tuoi occhi."
+        }
+      }
+    ]
+  }
+}

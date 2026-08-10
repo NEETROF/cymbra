@@ -1,0 +1,163 @@
+{
+  "id": "sol-u3-03-lignes-et-interlignes",
+  "status": "published",
+  "instrument": "piano",
+  "track": "solfege",
+  "level": "beginner",
+  "unit": "u3",
+  "unitTitle": {
+    "en": "The whole treble staff",
+    "fr": "Toute la clé de sol",
+    "es": "Toda la clave de sol",
+    "it": "Tutta la chiave di violino"
+  },
+  "sortOrder": 303,
+  "schemaVersion": 2,
+  "title": {
+    "en": "Lines and spaces",
+    "fr": "Lignes et interlignes",
+    "es": "Líneas y espacios",
+    "it": "Righe e spazi"
+  },
+  "content": {
+    "schemaVersion": 2,
+    "id": "sol-u3-03-lignes-et-interlignes",
+    "instrument": "piano",
+    "track": "solfege",
+    "level": "beginner",
+    "title": {
+      "en": "Lines and spaces",
+      "fr": "Lignes et interlignes",
+      "es": "Líneas y espacios",
+      "it": "Righe e spazi"
+    },
+    "summary": {
+      "en": "Name every line and space note",
+      "fr": "Nommer chaque note, ligne et interligne",
+      "es": "Nombrar cada nota, línea y espacio",
+      "it": "Nominare ogni nota, righe e spazi"
+    },
+    "blocks": [
+      {
+        "type": "text",
+        "text": {
+          "en": "E, G, B, D, F sit on the lines; F, A, C, E fill the spaces. Learn these two families and the whole staff is yours.",
+          "fr": "Mi, sol, si, ré, fa se posent sur les lignes ; fa, la, do, mi remplissent les interlignes. Apprends ces deux familles et toute la portée est à toi.",
+          "es": "Mi, sol, si, re, fa se apoyan en las líneas; fa, la, do, mi llenan los espacios. Aprende estas dos familias y todo el pentagrama será tuyo.",
+          "it": "Mi, sol, si, re, fa stanno sulle righe; fa, la, do, mi riempiono gli spazi. Impara queste due famiglie e tutto il pentagramma sarà tuo."
+        }
+      },
+      {
+        "type": "staff",
+        "clef": "treble",
+        "labels": true,
+        "elements": [
+          { "p": "E4", "fig": "quarter" },
+          { "p": "G4", "fig": "quarter" },
+          { "p": "B4", "fig": "quarter" },
+          { "p": "D5", "fig": "quarter" },
+          { "p": "F5", "fig": "quarter" }
+        ],
+        "caption": {
+          "en": "The five line notes, from bottom to top: E, G, B, D, F.",
+          "fr": "Les cinq notes de ligne, de bas en haut : mi, sol, si, ré, fa.",
+          "es": "Las cinco notas de línea, de abajo arriba: mi, sol, si, re, fa.",
+          "it": "Le cinque note di riga, dal basso in alto: mi, sol, si, re, fa."
+        }
+      },
+      {
+        "type": "nameNote",
+        "clef": "treble",
+        "choiceCount": 3,
+        "notes": ["E4", "G4", "B4"],
+        "prompt": {
+          "en": "Line notes only: name each one — tap a name to hear it.",
+          "fr": "Notes de ligne uniquement : nomme chacune — touche un nom pour l'entendre.",
+          "es": "Solo notas de línea: nombra cada una; toca un nombre para oírla.",
+          "it": "Solo note di riga: dai un nome a ciascuna; tocca un nome per sentirla."
+        }
+      },
+      {
+        "type": "staff",
+        "clef": "treble",
+        "labels": true,
+        "elements": [
+          { "p": "F4", "fig": "quarter" },
+          { "p": "A4", "fig": "quarter" },
+          { "p": "C5", "fig": "quarter" },
+          { "p": "E5", "fig": "quarter" }
+        ],
+        "caption": {
+          "en": "The four space notes spell a word: F, A, C, E.",
+          "fr": "Les quatre notes d'interligne, de bas en haut : fa, la, do, mi.",
+          "es": "Las cuatro notas de espacio, de abajo arriba: fa, la, do, mi.",
+          "it": "Le quattro note di spazio, dal basso in alto: fa, la, do, mi."
+        }
+      },
+      {
+        "type": "nameNote",
+        "clef": "treble",
+        "choiceCount": 3,
+        "notes": ["F4", "A4", "C5"],
+        "prompt": {
+          "en": "Space notes now: name each one you see.",
+          "fr": "Place aux interlignes : nomme chaque note affichée.",
+          "es": "Ahora los espacios: nombra cada nota que veas.",
+          "it": "Ora gli spazi: dai un nome a ogni nota che vedi."
+        }
+      },
+      {
+        "type": "readPlay",
+        "mode": "drill",
+        "clef": "treble",
+        "labels": "afterMiss",
+        "notes": ["B4", "D5", "C5"],
+        "prompt": {
+          "en": "Lines and spaces mixed: read each note and play it.",
+          "fr": "Lignes et interlignes mélangés : lis chaque note et joue-la.",
+          "es": "Líneas y espacios mezclados: lee cada nota y tócala.",
+          "it": "Righe e spazi mescolati: leggi ogni nota e suonala."
+        }
+      },
+      {
+        "type": "question",
+        "prompt": {
+          "en": "Climbing the staff, what sits between two line notes?",
+          "fr": "En montant sur la portée, que trouve-t-on entre deux notes de ligne ?",
+          "es": "Al subir por el pentagrama, ¿qué hay entre dos notas de línea?",
+          "it": "Salendo sul pentagramma, cosa c'è tra due note di riga?"
+        },
+        "options": [
+          {
+            "en": "A space note",
+            "fr": "Une note d'interligne",
+            "es": "Una nota de espacio",
+            "it": "Una nota di spazio"
+          },
+          {
+            "en": "Another line note",
+            "fr": "Une autre note de ligne",
+            "es": "Otra nota de línea",
+            "it": "Un'altra nota di riga"
+          }
+        ],
+        "answerIndex": 0,
+        "feedback": {
+          "en": "Right — lines and spaces always take turns as you climb.",
+          "fr": "Exact — lignes et interlignes se relaient toujours en montant.",
+          "es": "Exacto: líneas y espacios siempre se turnan al subir.",
+          "it": "Esatto: righe e spazi si alternano sempre salendo."
+        }
+      },
+      {
+        "type": "text",
+        "text": {
+          "en": "Two families, nine notes: E-G-B-D-F on the lines, F-A-C-E in the spaces. You can now name any note on the staff.",
+          "fr": "Deux familles, neuf notes : mi-sol-si-ré-fa sur les lignes, fa-la-do-mi dans les interlignes. Tu peux maintenant nommer n'importe quelle note de la portée.",
+          "es": "Dos familias, nueve notas: mi-sol-si-re-fa en las líneas, fa-la-do-mi en los espacios. Ya puedes nombrar cualquier nota del pentagrama.",
+          "it": "Due famiglie, nove note: mi-sol-si-re-fa sulle righe, fa-la-do-mi negli spazi. Ora sai nominare qualsiasi nota del pentagramma."
+        }
+      }
+    ]
+  }
+}

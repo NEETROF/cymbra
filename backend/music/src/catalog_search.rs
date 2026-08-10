@@ -203,6 +203,16 @@ pub struct CatalogQuery {
 }
 
 /// The catalog read port: search, resolve saved ids to hits, and resolve bytes.
+/// A catalog score's object-store key paired with its stored content hash
+/// (`sha256`), which the byte fetch exposes to clients as the ETag (change:
+/// add-offline-score-cache). Lets a conditional fetch short-circuit an unchanged
+/// request without reading the blob.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CatalogObjectRef {
+    pub object_key: String,
+    pub sha256: String,
+}
+
 #[async_trait]
 pub trait CatalogSearchRepo: Send + Sync {
     /// One page of attribution-complete hits matching `p`, deterministically
@@ -230,6 +240,17 @@ pub trait CatalogSearchRepo: Send + Sync {
     /// be opened and it can't be saved. When `true` (an authorised reviewer), a
     /// score in any status resolves so a moderator can open it.
     async fn object_key(&self, id: &str, include_unvalidated: bool) -> Result<Option<String>>;
+
+    /// The object key **and** stored content hash (`sha256`, exposed as the ETag) of
+    /// a catalog score, moderation-gated exactly like [`Self::object_key`]; `None`
+    /// when the id does not resolve (change: add-offline-score-cache). Lets the byte
+    /// fetch return the ETag and answer a conditional (`if_none_match`) request
+    /// without touching the object store when the hash is unchanged.
+    async fn object_ref(
+        &self,
+        id: &str,
+        include_unvalidated: bool,
+    ) -> Result<Option<CatalogObjectRef>>;
 
     /// Evaluate a score (change: add-moderation-back-office): set its
     /// `moderation_status` and stamp `reviewed_by = reviewer_id` + `reviewed_at =
@@ -334,8 +355,11 @@ pub struct FakeCatalogRow {
     pub proposed_by: Option<String>,
     pub review_reason: Option<String>,
     pub resubmission_note: Option<String>,
-    /// Exact-byte content digest, so [`FakeCatalogSearchRepo::find_by_sha`] can resolve
-    /// a proposal's content match (change: add-score-catalog-proposal). Empty by default.
+    /// Exact-byte content digest. Backs [`FakeCatalogSearchRepo::find_by_sha`]'s
+    /// proposal content match (change: add-score-catalog-proposal) AND is exposed as
+    /// the ETag by `object_ref` (change: add-offline-score-cache). `new()` seeds a
+    /// stable, id-derived value so conditional-fetch tests have a known hash;
+    /// override with [`Self::with_sha256`].
     pub sha256: String,
 }
 
@@ -352,8 +376,15 @@ impl FakeCatalogRow {
             source: "pdmx".into(),
             object_key: format!("safe/pdmx/{id}.mxl"),
             moderation_status: "accepted".into(),
+            sha256: format!("etag-{id}"),
             ..Default::default()
         }
+    }
+
+    /// Override the stored content hash (ETag) for the conditional-fetch tests.
+    pub fn with_sha256(mut self, sha256: &str) -> Self {
+        self.sha256 = sha256.into();
+        self
     }
 
     /// Override the moderation status (`pending` / `accepted` / `rejected`) for the
@@ -607,6 +638,21 @@ impl CatalogSearchRepo for FakeCatalogSearchRepo {
             .iter()
             .find(|r| r.id == id && (include_unvalidated || r.moderation_status == "accepted"))
             .map(|r| r.object_key.clone()))
+    }
+
+    async fn object_ref(
+        &self,
+        id: &str,
+        include_unvalidated: bool,
+    ) -> Result<Option<CatalogObjectRef>> {
+        let rows = self.rows.lock().expect("catalog search fake lock");
+        Ok(rows
+            .iter()
+            .find(|r| r.id == id && (include_unvalidated || r.moderation_status == "accepted"))
+            .map(|r| CatalogObjectRef {
+                object_key: r.object_key.clone(),
+                sha256: r.sha256.clone(),
+            }))
     }
 
     async fn hit_by_id(&self, id: &str, include_unvalidated: bool) -> Result<Option<CatalogHit>> {

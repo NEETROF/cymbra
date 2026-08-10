@@ -17,8 +17,8 @@ use cymbra_auth_port::proto::auth_service_server::AuthServiceServer;
 use cymbra_feature_flags::proto::flag_service_server::FlagServiceServer;
 use cymbra_music::proto::score_service_server::ScoreServiceServer;
 use cymbra_music::{
-    PgCatalogSearchRepo, PgScoreRatingRepo, PgUserLibraryRepo, PgUserScoreRepo, ScoreGrpc,
-    ScoreModule,
+    PgCatalogSearchRepo, PgOfflineSecretRepo, PgScoreRatingRepo, PgUserLibraryRepo,
+    PgUserScoreRepo, ScoreGrpc, ScoreModule,
 };
 use cymbra_platform::cache::{Cache, RedisCache};
 use cymbra_platform::config::Config;
@@ -322,6 +322,9 @@ async fn main() -> anyhow::Result<()> {
                     // server-stored manifests read by ListCourses/GetCourse.
                     let course_repo: Arc<dyn cymbra_music::CourseRepo> =
                         Arc::new(cymbra_music::PgCourseRepo::new(music_pool.clone()));
+                    // Per-user course completion, cross-device (change: add-notation-courses).
+                    let course_progress: Arc<dyn cymbra_music::CourseProgressStore> =
+                        Arc::new(cymbra_music::PgCourseProgressStore::new(music_pool.clone()));
                     let module = Arc::new(
                         ScoreModule::new(
                             Arc::new(PgUserScoreRepo::new(music_pool.clone())),
@@ -336,7 +339,12 @@ async fn main() -> anyhow::Result<()> {
                         // Resolve proposer attribution (change: add-score-catalog-proposal).
                         .with_user(user_dyn.clone())
                         // Award coverage / settle honesty (change: add-curation-rewards).
-                        .with_rewards(rewards_sink),
+                        .with_rewards(rewards_sink)
+                        // Persist the per-user offline-cache secret (change:
+                        // add-offline-score-cache); the default is an in-memory fake.
+                        .with_offline_secrets(Arc::new(
+                            PgOfflineSecretRepo::new(music_pool.clone()),
+                        )),
                     );
                     // Per-user scrape guardrail over the shared Redis cache + play &
                     // rating ports (engagement = plays + ratings).
@@ -352,6 +360,7 @@ async fn main() -> anyhow::Result<()> {
                             .with_soundfonts(soundfont_repo.clone())
                             .with_soundfont_store_opt(soundfont_store.clone())
                             .with_courses(course_repo.clone())
+                            .with_course_progress(course_progress.clone())
                             .with_rewards(rewards_module)
                             // Soundfont uploader attribution (change:
                             // add-soundfont-uploader-attribution).

@@ -1,0 +1,187 @@
+{
+  "id": "sol-u6-04-la-gamme-majeure",
+  "status": "published",
+  "instrument": "piano",
+  "track": "solfege",
+  "level": "intermediate",
+  "unit": "u6",
+  "unitTitle": {
+    "en": "Sharps, flats and keys",
+    "fr": "Dièses, bémols et tonalités",
+    "es": "Sostenidos, bemoles y tonalidades",
+    "it": "Diesis, bemolli e tonalità"
+  },
+  "sortOrder": 604,
+  "schemaVersion": 2,
+  "title": {
+    "en": "The major scale",
+    "fr": "La gamme majeure",
+    "es": "La escala mayor",
+    "it": "La scala maggiore"
+  },
+  "content": {
+    "schemaVersion": 2,
+    "id": "sol-u6-04-la-gamme-majeure",
+    "instrument": "piano",
+    "track": "solfege",
+    "level": "intermediate",
+    "title": {
+      "en": "The major scale",
+      "fr": "La gamme majeure",
+      "es": "La escala mayor",
+      "it": "La scala maggiore"
+    },
+    "summary": {
+      "en": "The whole/half-step recipe behind C major",
+      "fr": "La recette de tons et demi-tons derrière do majeur",
+      "es": "La receta de tonos y semitonos detrás de do mayor",
+      "it": "La ricetta di toni e semitoni dietro do maggiore"
+    },
+    "blocks": [
+      {
+        "type": "text",
+        "text": {
+          "en": "A major scale is a recipe of steps: whole, whole, half, whole, whole, whole, half. Start on C and the recipe uses only white keys.",
+          "fr": "Une gamme majeure est une recette d'écarts : ton, ton, demi-ton, ton, ton, ton, demi-ton. En partant de do, la recette n'utilise que des touches blanches.",
+          "es": "Una escala mayor es una receta de distancias: tono, tono, semitono, tono, tono, tono, semitono. Empezando en do, la receta solo usa teclas blancas.",
+          "it": "Una scala maggiore è una ricetta di distanze: tono, tono, semitono, tono, tono, tono, semitono. Partendo da do, la ricetta usa solo tasti bianchi."
+        }
+      },
+      {
+        "type": "staff",
+        "clef": "treble",
+        "labels": true,
+        "elements": [
+          { "p": "C4", "fig": "quarter" },
+          { "p": "D4", "fig": "quarter" },
+          { "p": "E4", "fig": "quarter" },
+          { "p": "F4", "fig": "quarter" },
+          { "p": "G4", "fig": "quarter" },
+          { "p": "A4", "fig": "quarter" },
+          { "p": "B4", "fig": "quarter" },
+          { "p": "C5", "fig": "quarter" }
+        ],
+        "caption": {
+          "en": "The C major scale — its half steps fall between E–F and B–C.",
+          "fr": "La gamme de do majeur — ses demi-tons tombent entre mi–fa et si–do.",
+          "es": "La escala de do mayor — sus semitonos caen entre mi–fa y si–do.",
+          "it": "La scala di do maggiore — i suoi semitoni cadono tra mi–fa e si–do."
+        }
+      },
+      {
+        "type": "readPlay",
+        "mode": "melody",
+        "clef": "treble",
+        "labels": "afterMiss",
+        "notes": ["C4", "D4", "E4", "F4", "G4", "A4", "B4", "C5"],
+        "prompt": {
+          "en": "Play the whole C major scale, from C to C, left to right.",
+          "fr": "Joue toute la gamme de do majeur, de do à do, de gauche à droite.",
+          "es": "Toca la escala de do mayor completa, de do a do, de izquierda a derecha.",
+          "it": "Suona tutta la scala di do maggiore, da do a do, da sinistra a destra."
+        }
+      },
+      {
+        "type": "question",
+        "prompt": {
+          "en": "In a major scale, where do the half steps sit?",
+          "fr": "Dans une gamme majeure, où se placent les demi-tons ?",
+          "es": "En una escala mayor, ¿dónde se colocan los semitonos?",
+          "it": "In una scala maggiore, dove si trovano i semitoni?"
+        },
+        "options": [
+          {
+            "en": "Between degrees 3–4 and 7–8",
+            "fr": "Entre les degrés 3–4 et 7–8",
+            "es": "Entre los grados 3–4 y 7–8",
+            "it": "Tra i gradi 3–4 e 7–8"
+          },
+          {
+            "en": "Between degrees 1–2 and 4–5",
+            "fr": "Entre les degrés 1–2 et 4–5",
+            "es": "Entre los grados 1–2 y 4–5",
+            "it": "Tra i gradi 1–2 e 4–5"
+          }
+        ],
+        "answerIndex": 0,
+        "feedback": {
+          "en": "Right — in C major that is E–F and B–C, the two white-key half steps.",
+          "fr": "C'est ça — en do majeur, ce sont mi–fa et si–do, les deux demi-tons entre touches blanches.",
+          "es": "Eso es — en do mayor son mi–fa y si–do, los dos semitonos entre teclas blancas.",
+          "it": "Proprio così — in do maggiore sono mi–fa e si–do, i due semitoni tra tasti bianchi."
+        }
+      },
+      {
+        "type": "earChoice",
+        "notes": ["E4", "F4"],
+        "answerId": "half",
+        "choices": [
+          {
+            "id": "half",
+            "label": {
+              "en": "A half step",
+              "fr": "Un demi-ton",
+              "es": "Un semitono",
+              "it": "Un semitono"
+            }
+          },
+          {
+            "id": "whole",
+            "label": {
+              "en": "A whole step",
+              "fr": "Un ton",
+              "es": "Un tono",
+              "it": "Un tono"
+            }
+          }
+        ],
+        "prompt": {
+          "en": "Here is one step from the scale: half or whole?",
+          "fr": "Voici un écart de la gamme : demi-ton ou ton ?",
+          "es": "Aquí tienes una distancia de la escala: ¿semitono o tono?",
+          "it": "Ecco una distanza della scala: semitono o tono?"
+        }
+      },
+      {
+        "type": "earChoice",
+        "notes": ["G4", "A4"],
+        "answerId": "whole",
+        "choices": [
+          {
+            "id": "half",
+            "label": {
+              "en": "A half step",
+              "fr": "Un demi-ton",
+              "es": "Un semitono",
+              "it": "Un semitono"
+            }
+          },
+          {
+            "id": "whole",
+            "label": {
+              "en": "A whole step",
+              "fr": "Un ton",
+              "es": "Un tono",
+              "it": "Un tono"
+            }
+          }
+        ],
+        "prompt": {
+          "en": "One more step from the scale: half or whole?",
+          "fr": "Encore un écart de la gamme : demi-ton ou ton ?",
+          "es": "Otra distancia de la escala: ¿semitono o tono?",
+          "it": "Un'altra distanza della scala: semitono o tono?"
+        }
+      },
+      {
+        "type": "text",
+        "text": {
+          "en": "You played the whole C major scale and spotted its recipe. The half steps hide between degrees 3–4 and 7–8 — everywhere else, whole steps.",
+          "fr": "Tu as joué toute la gamme de do majeur et repéré sa recette. Les demi-tons se cachent entre les degrés 3–4 et 7–8 — partout ailleurs, des tons.",
+          "es": "Tocaste la escala de do mayor completa y descubriste su receta. Los semitonos se esconden entre los grados 3–4 y 7–8 — en el resto, tonos.",
+          "it": "Hai suonato tutta la scala di do maggiore e scoperto la sua ricetta. I semitoni si nascondono tra i gradi 3–4 e 7–8 — altrove, toni."
+        }
+      }
+    ]
+  }
+}

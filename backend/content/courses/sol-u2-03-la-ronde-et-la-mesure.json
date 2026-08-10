@@ -1,0 +1,180 @@
+{
+  "id": "sol-u2-03-la-ronde-et-la-mesure",
+  "status": "published",
+  "instrument": "piano",
+  "track": "solfege",
+  "level": "beginner",
+  "unit": "u2",
+  "unitTitle": {
+    "en": "Pulse and rhythm",
+    "fr": "La pulsation et le rythme",
+    "es": "El pulso y el ritmo",
+    "it": "La pulsazione e il ritmo"
+  },
+  "sortOrder": 203,
+  "schemaVersion": 2,
+  "title": {
+    "en": "The whole note and the measure",
+    "fr": "La ronde et la mesure",
+    "es": "La redonda y el compás",
+    "it": "La semibreve e la battuta"
+  },
+  "content": {
+    "schemaVersion": 2,
+    "id": "sol-u2-03-la-ronde-et-la-mesure",
+    "instrument": "piano",
+    "track": "solfege",
+    "level": "beginner",
+    "title": {
+      "en": "The whole note and the measure",
+      "fr": "La ronde et la mesure",
+      "es": "La redonda y el compás",
+      "it": "La semibreve e la battuta"
+    },
+    "summary": {
+      "en": "The four-beat note and the bar lines",
+      "fr": "La note de quatre temps et les barres de mesure",
+      "es": "La nota de cuatro tiempos y las barras de compás",
+      "it": "La nota da quattro tempi e le stanghette"
+    },
+    "blocks": [
+      {
+        "type": "text",
+        "text": {
+          "en": "Meet the longest note yet: the whole note, worth four beats. Bar lines slice time into measures so you never lose count.",
+          "fr": "Voici la plus longue des notes : la ronde, qui vaut quatre temps. Les barres de mesure découpent le temps en mesures pour que tu ne perdes jamais le compte.",
+          "es": "Esta es la nota más larga: la redonda, que vale cuatro tiempos. Las barras de compás recortan el tiempo en compases para que nunca pierdas la cuenta.",
+          "it": "Ecco la nota più lunga: la semibreve, che vale quattro tempi. Le stanghette dividono il tempo in battute così non perdi mai il conto."
+        }
+      },
+      {
+        "type": "diagram",
+        "id": "note-whole"
+      },
+      {
+        "type": "staff",
+        "clef": "treble",
+        "time": { "beats": 4, "beatType": 4 },
+        "elements": [
+          { "p": "G4", "fig": "whole" }
+        ],
+        "caption": {
+          "en": "One single G fills the whole 4/4 measure — count 1-2-3-4 while it rings.",
+          "fr": "Un seul sol remplit toute la mesure à 4/4 — compte 1-2-3-4 pendant qu'il résonne.",
+          "es": "Un solo sol llena todo el compás de 4/4: cuenta 1-2-3-4 mientras suena.",
+          "it": "Un solo sol riempie l'intera battuta in 4/4 — conta 1-2-3-4 mentre risuona."
+        }
+      },
+      {
+        "type": "rhythmTap",
+        "pattern": [
+          { "fig": "half" },
+          { "fig": "half" },
+          { "fig": "whole" }
+        ],
+        "beats": 4,
+        "beatType": 4,
+        "bpm": 70,
+        "prompt": {
+          "en": "Two half notes, then one whole note: tap it and hold for four full clicks.",
+          "fr": "Deux blanches, puis une ronde : tape-la et tiens-la pendant quatre clics entiers.",
+          "es": "Dos blancas y luego una redonda: tócala y mantenla durante cuatro clics completos.",
+          "it": "Due minime, poi una semibreve: toccala e tienila per quattro clic interi."
+        }
+      },
+      {
+        "type": "question",
+        "prompt": {
+          "en": "In 4/4 time, how many beats does a whole note last?",
+          "fr": "En 4/4, combien de temps dure une ronde ?",
+          "es": "En 4/4, ¿cuántos tiempos dura una redonda?",
+          "it": "In 4/4, quanti tempi dura una semibreve?"
+        },
+        "options": [
+          {
+            "en": "Four",
+            "fr": "Quatre",
+            "es": "Cuatro",
+            "it": "Quattro"
+          },
+          {
+            "en": "Two",
+            "fr": "Deux",
+            "es": "Dos",
+            "it": "Due"
+          },
+          {
+            "en": "One",
+            "fr": "Un",
+            "es": "Uno",
+            "it": "Uno"
+          }
+        ],
+        "answerIndex": 0,
+        "feedback": {
+          "en": "Yes — the whole note fills a whole 4/4 measure on its own.",
+          "fr": "Oui — la ronde remplit à elle seule toute une mesure à 4/4.",
+          "es": "Sí: la redonda llena ella sola todo un compás de 4/4.",
+          "it": "Sì — la semibreve riempie da sola un'intera battuta in 4/4."
+        }
+      },
+      {
+        "type": "rhythmTap",
+        "pattern": [
+          { "fig": "quarter" },
+          { "fig": "quarter" },
+          { "fig": "half" },
+          { "fig": "whole" }
+        ],
+        "beats": 4,
+        "beatType": 4,
+        "bpm": 70,
+        "prompt": {
+          "en": "All three durations: two quarters, a half, then a whole note across the second bar.",
+          "fr": "Les trois durées : deux noires, une blanche, puis une ronde sur toute la deuxième mesure.",
+          "es": "Las tres duraciones: dos negras, una blanca y una redonda en todo el segundo compás.",
+          "it": "Tutte e tre le durate: due semiminime, una minima, poi una semibreve per tutta la seconda battuta."
+        }
+      },
+      {
+        "type": "question",
+        "prompt": {
+          "en": "What does a bar line do?",
+          "fr": "À quoi sert une barre de mesure ?",
+          "es": "¿Para qué sirve una barra de compás?",
+          "it": "A cosa serve una stanghetta?"
+        },
+        "options": [
+          {
+            "en": "It separates one measure from the next",
+            "fr": "Elle sépare une mesure de la suivante",
+            "es": "Separa un compás del siguiente",
+            "it": "Separa una battuta dalla successiva"
+          },
+          {
+            "en": "It makes the music louder",
+            "fr": "Elle rend la musique plus forte",
+            "es": "Hace que la música suene más fuerte",
+            "it": "Rende la musica più forte"
+          }
+        ],
+        "answerIndex": 0,
+        "feedback": {
+          "en": "Right — bar lines only organise time; they make no sound at all.",
+          "fr": "Exact — les barres de mesure organisent le temps, elles ne font aucun son.",
+          "es": "Correcto: las barras solo organizan el tiempo, no suenan.",
+          "it": "Esatto — le stanghette organizzano il tempo, non producono alcun suono."
+        }
+      },
+      {
+        "type": "text",
+        "text": {
+          "en": "The whole note is four beats, and bar lines group those beats into measures. You now read every plain duration from one to four beats.",
+          "fr": "La ronde vaut quatre temps, et les barres de mesure regroupent ces temps en mesures. Tu sais maintenant lire toutes les durées simples, d'un à quatre temps.",
+          "es": "La redonda vale cuatro tiempos, y las barras agrupan esos tiempos en compases. Ya puedes leer todas las duraciones simples, de uno a cuatro tiempos.",
+          "it": "La semibreve vale quattro tempi, e le stanghette raggruppano i tempi in battute. Ora sai leggere tutte le durate semplici, da uno a quattro tempi."
+        }
+      }
+    ]
+  }
+}

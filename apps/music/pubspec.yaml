@@ -63,6 +63,13 @@ dependencies:
   http: ^1.6.0
   crypto: ^3.0.7
 
+  # Offline encrypted-at-rest cache of favorited scores (change:
+  # add-offline-score-cache). `cryptography` provides AES-256-GCM + HKDF-SHA256 in
+  # pure Dart (works on every platform and, crucially, on the Dart VM so the cache
+  # unit-tests without platform channels). `path_provider` (already a dependency,
+  # below) resolves the app's private support directory for the ciphertext files.
+  cryptography: ^2.7.0
+
   # Native file picker for the score-contribution flow (.musicxml/.xml/.mxl) and
   # the SoundFont import flow (.sf2), behind the injectable `filePickerProvider` /
   # `soundFontImporterProvider` seams so both are testable without the native
@@ -105,6 +112,10 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+
+  # Deterministic timer control for the lesson-sounder unit tests (already a
+  # transitive dependency of flutter_test; pinned here so importing it is legal).
+  fake_async: ^1.3.3
 
   # Dart code generator for the gRPC stubs (run via `melos run gen-grpc`); the
   # `protoc` binary itself comes from the toolchain (brew/apt) in CI.

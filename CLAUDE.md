@@ -16,6 +16,26 @@ Non-trivial changes go through OpenSpec before coding:
 Specs live in `openspec/specs/`; in-flight changes in `openspec/changes/`. The
 first capability is `midi` (see `openspec/changes/ratify-midi-poc/`).
 
+**Un seul root OpenSpec pour tout le monorepo**, découpé par **préfixe de
+capability** (`specs/` est plat — un sous-dossier serait lu comme une capability
+vide, et le CLI ne remonte pas l'arborescence : il faut lancer `openspec` depuis
+la racine du repo) :
+
+| Préfixe | Périmètre |
+|---|---|
+| `id-` | Cymbra ID — identité, comptes, sessions, profils publics |
+| `music-` | Cymbra Music — `apps/music` + catalogue |
+| `live-` | Cymbra Live — web + Tauri |
+| `platform-` | socle transverse — flags, jobs, observabilité, i18n, DB |
+| `admin-` | back-office Vue |
+
+Un produit **consomme** le socle, il ne le redéclare pas : avant toute nouvelle
+capability, vérifier qu'une `id-*`/`platform-*` (ou son équivalent legacy) ne la
+couvre pas déjà. Les capabilities sans préfixe précèdent la convention et ne sont
+**pas** renommées en masse — seulement quand un change les touche déjà. Le
+mapping legacy → domaine et les règles par artefact sont dans
+[openspec/config.yaml](openspec/config.yaml).
+
 ## State management — Riverpod 2 + Freezed (codegen)
 
 Mandatory for all app state:

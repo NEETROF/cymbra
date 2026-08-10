@@ -34,6 +34,12 @@ abstract class PlaySyncService {
   /// server-side by the session id, so a re-delivery is safe.
   Future<void> recordSession(PlaySessionEnvelope envelope);
 
+  /// Deliver one captured **practice** session (change: add-measure-range-
+  /// practice, D4) — a scoreless activity record. Same ack/retry contract as
+  /// [recordSession]; the server stores it apart from the scored sessions, so a
+  /// practice never produces a grade or a leaderboard entry.
+  Future<void> recordPractice(PlaySessionEnvelope envelope);
+
   /// Read a user's per-day activity (the heatmap). Honors the target's visibility
   /// server-side (a non-public target is refused there).
   Future<PlayActivity> getPlayActivity(String userId);
@@ -68,6 +74,19 @@ class GrpcPlaySyncService implements PlaySyncService {
   });
 
   @override
+  Future<void> recordPractice(PlaySessionEnvelope e) => _authed((bearer) async {
+    await _client.recordPractice(
+      play.RecordPracticeRequest(
+        sessionId: e.sessionId,
+        scoreId: e.scoreId,
+        practicedAtMs: Int64(e.playedAtMs),
+        tzOffsetMinutes: e.tzOffsetMinutes,
+      ),
+      options: bearerOptions(bearer),
+    );
+  });
+
+  @override
   Future<PlayActivity> getPlayActivity(String userId) =>
       _authed((bearer) async {
         final resp = await _client.getPlayActivity(
@@ -81,10 +100,12 @@ class GrpcPlaySyncService implements PlaySyncService {
                   day: DateTime.parse(d.day),
                   count: d.count,
                   avgSyncPct: d.avgSyncPct,
+                  practiceCount: d.practiceCount,
                 ),
               )
               .toList(growable: false),
           totalSessions: resp.totalSessions,
+          totalPractices: resp.totalPractices,
         );
       });
 }

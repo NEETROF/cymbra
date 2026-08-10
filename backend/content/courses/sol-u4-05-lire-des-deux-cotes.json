@@ -1,0 +1,129 @@
+{
+  "id": "sol-u4-05-lire-des-deux-cotes",
+  "status": "published",
+  "instrument": "piano",
+  "track": "solfege",
+  "level": "intermediate",
+  "unit": "u4",
+  "unitTitle": {
+    "en": "Bass clef and the left hand",
+    "fr": "La clé de fa et la main gauche",
+    "es": "La clave de fa y la mano izquierda",
+    "it": "La chiave di basso e la mano sinistra"
+  },
+  "sortOrder": 405,
+  "schemaVersion": 2,
+  "title": {
+    "en": "Reading on both sides",
+    "fr": "Lire des deux côtés",
+    "es": "Leer a ambos lados",
+    "it": "Leggere da entrambi i lati"
+  },
+  "content": {
+    "schemaVersion": 2,
+    "id": "sol-u4-05-lire-des-deux-cotes",
+    "instrument": "piano",
+    "track": "solfege",
+    "level": "intermediate",
+    "title": {
+      "en": "Reading on both sides",
+      "fr": "Lire des deux côtés",
+      "es": "Leer a ambos lados",
+      "it": "Leggere da entrambi i lati"
+    },
+    "summary": {
+      "en": "Switch smoothly between treble and bass reading",
+      "fr": "Passer sans effort de la clé de sol à la clé de fa",
+      "es": "Alternar sin esfuerzo entre la clave de sol y la de fa",
+      "it": "Passare con scioltezza dalla chiave di violino a quella di basso"
+    },
+    "blocks": [
+      {
+        "type": "text",
+        "text": {
+          "en": "Pianists read two clefs at once: treble for the right hand, bass for the left. Let's train jumping from one to the other.",
+          "fr": "Au piano, on lit deux clés à la fois : clé de sol pour la main droite, clé de fa pour la main gauche. Entraîne-toi à sauter de l'une à l'autre.",
+          "es": "Al piano se leen dos claves a la vez: la de sol para la mano derecha, la de fa para la izquierda. Vamos a entrenar el salto de una a otra.",
+          "it": "Al pianoforte si leggono due chiavi insieme: violino per la mano destra, basso per la sinistra. Alleniamoci a saltare dall'una all'altra."
+        }
+      },
+      {
+        "type": "readPlay",
+        "mode": "drill",
+        "clef": "treble",
+        "labels": "never",
+        "notes": ["E4", "G4"],
+        "prompt": {
+          "en": "Treble clef first: play the E or G shown, with your right hand.",
+          "fr": "Clé de sol d'abord : joue le mi ou le sol affiché, avec ta main droite.",
+          "es": "Primero la clave de sol: toca el mi o el sol que aparece, con la mano derecha.",
+          "it": "Prima la chiave di violino: suona il mi o il sol mostrato, con la mano destra."
+        }
+      },
+      {
+        "type": "readPlay",
+        "mode": "drill",
+        "clef": "bass",
+        "labels": "never",
+        "notes": ["F3", "A3"],
+        "prompt": {
+          "en": "Now the bass clef: play the F or A shown, with your left hand.",
+          "fr": "Maintenant la clé de fa : joue le fa ou le la affiché, avec ta main gauche.",
+          "es": "Ahora la clave de fa: toca el fa o el la que aparece, con la mano izquierda.",
+          "it": "Ora la chiave di basso: suona il fa o il la mostrato, con la mano sinistra."
+        }
+      },
+      {
+        "type": "nameNote",
+        "clef": "bass",
+        "notes": ["G3", "B3"],
+        "prompt": {
+          "en": "Still in the bass clef — what is this note called? Tap a name to hear it.",
+          "fr": "Toujours en clé de fa — comment s'appelle cette note ? Touche un nom pour l'entendre.",
+          "es": "Seguimos en clave de fa: ¿cómo se llama esta nota? Toca un nombre para oírla.",
+          "it": "Sempre in chiave di basso — come si chiama questa nota? Tocca un nome per sentirla."
+        }
+      },
+      {
+        "type": "earChoice",
+        "notes": ["F3", "F4"],
+        "answerId": "up",
+        "choices": [
+          {
+            "id": "up",
+            "label": {
+              "en": "Higher",
+              "fr": "Plus aiguë",
+              "es": "Más aguda",
+              "it": "Più acuta"
+            }
+          },
+          {
+            "id": "down",
+            "label": {
+              "en": "Lower",
+              "fr": "Plus grave",
+              "es": "Más grave",
+              "it": "Più grave"
+            }
+          }
+        ],
+        "prompt": {
+          "en": "Listen: the same note name an octave apart — is the second note higher or lower?",
+          "fr": "Écoute : le même nom de note à une octave d'écart — la deuxième note est-elle plus aiguë ou plus grave ?",
+          "es": "Escucha: el mismo nombre de nota a una octava de distancia — ¿la segunda nota es más aguda o más grave?",
+          "it": "Ascolta: lo stesso nome di nota a un'ottava di distanza — la seconda nota è più acuta o più grave?"
+        }
+      },
+      {
+        "type": "text",
+        "text": {
+          "en": "You can now read on both sides of middle C — treble for the right hand, bass for the left.",
+          "fr": "Tu sais maintenant lire des deux côtés du do central — la clé de sol pour la main droite, la clé de fa pour la gauche.",
+          "es": "Ya sabes leer a ambos lados del do central — clave de sol para la mano derecha, clave de fa para la izquierda.",
+          "it": "Ora sai leggere da entrambi i lati del do centrale — chiave di violino per la mano destra, chiave di basso per la sinistra."
+        }
+      }
+    ]
+  }
+}

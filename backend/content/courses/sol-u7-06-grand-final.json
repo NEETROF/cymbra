@@ -1,0 +1,160 @@
+{
+  "id": "sol-u7-06-grand-final",
+  "status": "published",
+  "instrument": "piano",
+  "track": "solfege",
+  "level": "advanced",
+  "unit": "u7",
+  "unitTitle": {
+    "en": "Intervals, chords and ear",
+    "fr": "Intervalles, accords et oreille",
+    "es": "Intervalos, acordes y oído",
+    "it": "Intervalli, accordi e orecchio"
+  },
+  "sortOrder": 706,
+  "schemaVersion": 2,
+  "title": {
+    "en": "The grand finale",
+    "fr": "Le grand final",
+    "es": "El gran final",
+    "it": "Il gran finale"
+  },
+  "content": {
+    "schemaVersion": 2,
+    "id": "sol-u7-06-grand-final",
+    "instrument": "piano",
+    "track": "solfege",
+    "level": "advanced",
+    "title": {
+      "en": "The grand finale",
+      "fr": "Le grand final",
+      "es": "El gran final",
+      "it": "Il gran finale"
+    },
+    "summary": {
+      "en": "Read, tap, hear and build — the victory lap",
+      "fr": "Lire, frapper, écouter et construire — le tour d'honneur",
+      "es": "Leer, marcar, escuchar y construir: la vuelta de honor",
+      "it": "Leggere, battere, ascoltare e costruire: il giro d'onore"
+    },
+    "blocks": [
+      {
+        "type": "text",
+        "text": {
+          "en": "Last lesson: everything you know, in one victory lap. Eyes, ears, hands — here we go!",
+          "fr": "Dernière leçon : tout ce que tu sais, en un tour d'honneur. Yeux, oreilles, mains — c'est parti !",
+          "es": "Última lección: todo lo que sabes, en una vuelta de honor. Ojos, oídos, manos — ¡vamos!",
+          "it": "Ultima lezione: tutto ciò che sai, in un giro d'onore. Occhi, orecchie, mani — si parte!"
+        }
+      },
+      {
+        "type": "nameNote",
+        "clef": "treble",
+        "choiceCount": 4,
+        "notes": ["C4", "F#4", "A4", "C5"],
+        "prompt": {
+          "en": "Warm-up: name each note, sharps included. Tap a name to hear it.",
+          "fr": "Échauffement : nomme chaque note, dièses compris. Touche un nom pour l'entendre.",
+          "es": "Calentamiento: nombra cada nota, sostenidos incluidos. Toca un nombre para oírla.",
+          "it": "Riscaldamento: dai il nome a ogni nota, diesis compresi. Tocca un nome per sentirla."
+        }
+      },
+      {
+        "type": "readPlay",
+        "mode": "melody",
+        "clef": "treble",
+        "labels": "never",
+        "notes": [
+          "E4",
+          "E4",
+          "F4",
+          "G4",
+          "G4",
+          "F4",
+          "E4",
+          "D4",
+          "C4",
+          "C4",
+          "D4",
+          "E4",
+          "D4",
+          "C4",
+          "C4"
+        ],
+        "prompt": {
+          "en": "Ode to Joy, the complete phrase: read it and let it sing.",
+          "fr": "L'Hymne à la joie, la phrase complète : lis-la et fais-la chanter.",
+          "es": "El Himno de la Alegría, la frase completa: léela y hazla cantar.",
+          "it": "L'Inno alla gioia, la frase completa: leggila e falla cantare."
+        }
+      },
+      {
+        "type": "rhythmTap",
+        "pattern": [
+          { "fig": "quarter" },
+          { "fig": "quarter" },
+          { "fig": "half" }
+        ],
+        "beats": 4,
+        "beatType": 4,
+        "bpm": 80,
+        "prompt": {
+          "en": "The closing rhythm: two short, one long. Tap ta-ta-taa with the metronome.",
+          "fr": "Le rythme final : deux brèves, une longue. Frappe ta-ta-taa avec le métronome.",
+          "es": "El ritmo final: dos breves, una larga. Marca ta-ta-taa con el metrónomo.",
+          "it": "Il ritmo finale: due brevi, una lunga. Batti ta-ta-taa con il metronomo."
+        }
+      },
+      {
+        "type": "buildChord",
+        "notes": ["C4", "E4", "G4", "C5"],
+        "prompt": {
+          "en": "The final chord: C major with its octave on top — four notes, all together.",
+          "fr": "L'accord final : do majeur avec son octave au sommet — quatre notes, toutes ensemble.",
+          "es": "El acorde final: do mayor con su octava arriba — cuatro notas, todas juntas.",
+          "it": "L'accordo finale: do maggiore con la sua ottava in cima — quattro note, tutte insieme."
+        }
+      },
+      {
+        "type": "earChoice",
+        "notes": ["C4", "C5"],
+        "answerId": "up",
+        "choices": [
+          {
+            "id": "up",
+            "label": {
+              "en": "Higher",
+              "fr": "Plus aiguë",
+              "es": "Más aguda",
+              "it": "Più acuta"
+            }
+          },
+          {
+            "id": "down",
+            "label": {
+              "en": "Lower",
+              "fr": "Plus grave",
+              "es": "Más grave",
+              "it": "Più grave"
+            }
+          }
+        ],
+        "prompt": {
+          "en": "One last listen: a leap of a whole octave. Does it go up or down?",
+          "fr": "Une dernière écoute : un saut d'une octave entière. Monte-t-il ou descend-il ?",
+          "es": "Una última escucha: un salto de una octava entera. ¿Sube o baja?",
+          "it": "Un ultimo ascolto: un salto di un'ottava intera. Sale o scende?"
+        }
+      },
+      {
+        "type": "text",
+        "text": {
+          "en": "A grand bravo: you read, count, hear and build music. The whole staff is yours — keep playing!",
+          "fr": "Un grand bravo : tu lis, tu comptes, tu entends et tu construis la musique. Toute la portée est à toi — continue de jouer !",
+          "es": "Un gran bravo: lees, cuentas, escuchas y construyes música. Todo el pentagrama es tuyo — ¡sigue tocando!",
+          "it": "Un grande bravo: leggi, conti, ascolti e costruisci la musica. Tutto il pentagramma è tuo — continua a suonare!"
+        }
+      }
+    ]
+  }
+}

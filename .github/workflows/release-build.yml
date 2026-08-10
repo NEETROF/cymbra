@@ -4,8 +4,11 @@ name: release-build
 # the GitHub Release that release-please created for a `music-v*` tag.
 #
 # Triggered automatically when a `music-v*` tag is pushed (i.e. when the
-# release-please "Release PR" is merged), or manually via workflow_dispatch on an
-# existing tag.
+# release-please "Release PR" is merged), or manually via workflow_dispatch —
+# either on an existing tag, or with an empty `tag` input to dry-run the branch
+# you dispatched from (builds + signs everything, uploads nothing). Dispatching
+# WITH a tag checks out that tag, so it validates workflow changes only; a source
+# change has to be dry-run from its branch.
 #
 # App config comes from apps/music/config/prod.json (--dart-define-from-file):
 # api.cymbra.app:443 over TLS + the OIDC client IDs (mobile, and the desktop
@@ -32,15 +35,31 @@ name: release-build
 #     IOS_PROVISIONING_PROFILE_NAME     the profile's name (as in the portal)
 #     IOS_TEAM_ID                  Apple Developer team id (VMFJ6KRW77)
 #     GOOGLE_CLIENT_ID             iOS OAuth client id (reversed URL scheme)
-#   iOS TestFlight upload (optional — auto-deliver on tag push; absent ⇒ skipped):
+#   macOS (Mac App Store distribution):
+#     MAC_INSTALLER_CERT_BASE64    base64 of the Mac Installer Distribution cert
+#                                  (.p12). Signs the .pkg. No iOS equivalent —
+#                                  this one is always required.
+#     MAC_INSTALLER_CERT_PASSWORD  .p12 export password
+#     MAC_DIST_CERT_BASE64         OPTIONAL. Signs the .app. "Apple Distribution"
+#                                  is multi-platform, so this defaults to
+#                                  IOS_DIST_CERT_BASE64 — set it only to make the
+#                                  two roles diverge.
+#     MAC_DIST_CERT_PASSWORD       OPTIONAL, defaults to IOS_DIST_CERT_PASSWORD
+#     MAC_PROVISIONING_PROFILE_BASE64  base64 of the Mac App Store .provisionprofile
+#     MAC_PROVISIONING_PROFILE_NAME    the profile's name (as in the portal)
+#     IOS_TEAM_ID / GOOGLE_CLIENT_ID   shared with the iOS job
+#   App Store Connect upload (optional — auto-deliver on tag push; absent ⇒ skipped;
+#   shared by the iOS and macOS jobs):
 #     ASC_API_KEY_ID               App Store Connect API key id
 #     ASC_API_ISSUER_ID            App Store Connect API issuer id
 #     ASC_API_KEY_P8               base64 of the API private key (AuthKey_*.p8)
 #
 # Absent Android secrets → the release build falls back to debug signing (the
 # gradle config degrades gracefully), but this job requires them and fails loudly.
-# The macOS .app is still built unsigned (ad-hoc): the Sign in with Apple
-# entitlement is profile-restricted and CI has no macOS signing identity.
+# macOS publishes NO GitHub Release asset: a `method: app-store` .pkg is a
+# submission artifact that users cannot install, and the unsigned .app it replaced
+# was Gatekeeper-blocked anyway. The macOS download returns with Developer ID
+# notarized distribution (see openspec/changes/prepare-macos-app-store, non-goals).
 on:
   push:
     tags:
@@ -48,14 +67,35 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Existing music-v* tag to build and attach assets to"
-        required: true
+        # Optional on purpose. With a tag, the run checks out that tag and
+        # attaches assets to its release. WITHOUT one, it checks out the branch
+        # you dispatched from and uploads nothing — the only way to validate a
+        # source change (not just a workflow change) before it is tagged, since
+        # `ref: <tag>` would otherwise build the tag's tree with the branch's YAML.
+        description: "Existing music-v* tag. Leave empty to dry-run the branch (builds + signs, uploads nothing)."
+        required: false
+      deliver_macos:
+        # Opt-in, because a dispatch consumes a TestFlight build number the same
+        # way a real release does — and version+build is unique per platform, so
+        # a delivered build cannot be re-delivered.
+        # macOS only on purpose: iOS delivery stays tag-only, so ticking this box
+        # can never push branch code to the iOS TestFlight by surprise.
+        description: "Also deliver the macOS .pkg to App Store Connect / TestFlight."
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write # upload assets to the release
 
 env:
-  TAG: ${{ github.event.inputs.tag || github.ref_name }}
+  # Artifact label — NOT the checkout ref (that stays `inputs.tag || ref_name`).
+  # On a branch dry-run `ref_name` is a branch name, and a branch name with a `/`
+  # in it turns `cymbra-${TAG}-macos.pkg` into a path under a directory that does
+  # not exist, which is how every job failed at its packaging step. Fall back to a
+  # fixed, slash-free label instead; `startsWith(env.TAG, 'music-v')` then also
+  # correctly skips the release uploads.
+  TAG: ${{ github.event.inputs.tag || (github.event_name == 'push' && github.ref_name) || 'dryrun' }}
 
 jobs:
   linux:
@@ -101,7 +141,11 @@ jobs:
       - name: Package
         working-directory: apps/music/build/linux/x64/release/bundle
         run: tar czf "$GITHUB_WORKSPACE/cymbra-${TAG}-linux-x64.tar.gz" .
-      - uses: softprops/action-gh-release@v2
+      # Release assets only for a real tag. A branch dry-run (empty `tag`
+      # input) must not create a release named after the branch.
+      - name: Attach to the GitHub Release
+        if: startsWith(env.TAG, 'music-v')
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.TAG }}
           files: cymbra-${{ env.TAG }}-linux-x64.tar.gz
@@ -148,33 +192,165 @@ jobs:
           else
             echo "GOOGLE_CLIENT_ID secret not set — building with Google sign-in disabled."
           fi
-      # No Apple signing identity in CI, and the Sign in with Apple entitlement
-      # is profile-restricted, so a signed build can't resolve a provisioning
-      # profile. Disable signing (the target doesn't set CODE_SIGNING_ALLOWED, so
-      # this xcconfig value wins) → xcodebuild builds ad-hoc, no profile needed.
-      # Yields an unsigned .app; swap for real signing secrets to notarize.
-      - name: Disable code signing (unsigned macOS artifact)
+      - name: Check macOS signing secrets
+        env:
+          DIST_CERT: ${{ secrets.MAC_DIST_CERT_BASE64 || secrets.IOS_DIST_CERT_BASE64 }}
+          INSTALLER_CERT: ${{ secrets.MAC_INSTALLER_CERT_BASE64 }}
+          PROFILE: ${{ secrets.MAC_PROVISIONING_PROFILE_BASE64 }}
+        run: |
+          missing=""
+          [ -n "${DIST_CERT:-}" ] || missing="$missing MAC_DIST_CERT_BASE64 (or IOS_DIST_CERT_BASE64)"
+          [ -n "${INSTALLER_CERT:-}" ] || missing="$missing MAC_INSTALLER_CERT_BASE64"
+          [ -n "${PROFILE:-}" ] || missing="$missing MAC_PROVISIONING_PROFILE_BASE64"
+          if [ -n "$missing" ]; then
+            echo "::error::macOS signing secrets missing:$missing. See apps/music/README.md (macOS signing)."
+            exit 1
+          fi
+      # Mac App Store submission signs twice with two different identities: the
+      # .app with Apple Distribution, the .pkg with Mac Installer Distribution.
+      # "Apple Distribution" is the modern multi-platform cert, so it is literally
+      # the same certificate the ios job uses — hence the fallback to
+      # IOS_DIST_CERT_* above and here, rather than a second copy of one .p12 that
+      # would silently drift apart at the next renewal. Setting MAC_DIST_CERT_*
+      # still wins, for the day the two roles need to diverge. The installer cert
+      # has no iOS equivalent and is always its own secret.
+      # Same throwaway-keychain sequence as the ios job. The profile is copied to
+      # BOTH profile directories: Xcode 16 moved the search path from
+      # ~/Library/MobileDevice/Provisioning Profiles to
+      # ~/Library/Developer/Xcode/UserData/Provisioning Profiles, and macos-latest
+      # tracks whatever Xcode the image ships. Copying to both costs nothing and
+      # removes a silent "no profile found" failure when the image rolls forward.
+      - name: Import distribution certs + provisioning profile
+        env:
+          DIST_CERT_BASE64: ${{ secrets.MAC_DIST_CERT_BASE64 || secrets.IOS_DIST_CERT_BASE64 }}
+          DIST_CERT_PASSWORD: ${{ secrets.MAC_DIST_CERT_PASSWORD || secrets.IOS_DIST_CERT_PASSWORD }}
+          INSTALLER_CERT_BASE64: ${{ secrets.MAC_INSTALLER_CERT_BASE64 }}
+          INSTALLER_CERT_PASSWORD: ${{ secrets.MAC_INSTALLER_CERT_PASSWORD }}
+          PROFILE_BASE64: ${{ secrets.MAC_PROVISIONING_PROFILE_BASE64 }}
+        run: |
+          set -euo pipefail
+          DIST_PATH="$RUNNER_TEMP/mac_dist.p12"
+          INSTALLER_PATH="$RUNNER_TEMP/mac_installer.p12"
+          PROFILE_PATH="$RUNNER_TEMP/profile.provisionprofile"
+          KEYCHAIN="$RUNNER_TEMP/build.keychain-db"
+          KEYCHAIN_PW="$(uuidgen)"
+          echo "$DIST_CERT_BASE64" | base64 --decode > "$DIST_PATH"
+          echo "$INSTALLER_CERT_BASE64" | base64 --decode > "$INSTALLER_PATH"
+          echo "$PROFILE_BASE64" | base64 --decode > "$PROFILE_PATH"
+          security create-keychain -p "$KEYCHAIN_PW" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PW" "$KEYCHAIN"
+          security import "$DIST_PATH" -P "$DIST_CERT_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN"
+          security import "$INSTALLER_PATH" -P "$INSTALLER_CERT_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN"
+          security list-keychain -d user -s "$KEYCHAIN" login.keychain-db
+          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PW" "$KEYCHAIN" >/dev/null
+          for dir in "$HOME/Library/MobileDevice/Provisioning Profiles" \
+                     "$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles"; do
+            mkdir -p "$dir"
+            cp "$PROFILE_PATH" "$dir/"
+          done
+      - name: Switch Release to Mac App Store signing + export options
         working-directory: apps/music/macos
-        shell: bash
-        run: printf '\nCODE_SIGNING_ALLOWED = NO\n' >> Runner/Configs/Release.xcconfig
-      - name: Build
+        env:
+          TEAM_ID: ${{ secrets.IOS_TEAM_ID }}
+          PROFILE_NAME: ${{ secrets.MAC_PROVISIONING_PROFILE_NAME }}
+        run: |
+          set -euo pipefail
+          # Switch the Runner target's Release configuration to Mac App Store
+          # signing. This has to be a project-file edit, not an xcconfig and not
+          # `xcodebuild SETTING=value` — the script's docstring records why both
+          # fail (and why letting the archive go unsigned silently drops every
+          # entitlement). CI-only: the committed project keeps automatic
+          # development signing so contributors build without a dist cert.
+          python3 tool/ci_release_signing.py Runner.xcodeproj/project.pbxproj \
+            --profile "${PROFILE_NAME}" --team "${TEAM_ID}"
+          cat > ExportOptions-ci.plist <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>teamID</key><string>${TEAM_ID}</string>
+            <key>signingStyle</key><string>manual</string>
+            <key>signingCertificate</key><string>Apple Distribution</string>
+            <key>installerSigningCertificate</key><string>3rd Party Mac Developer Installer</string>
+            <key>provisioningProfiles</key>
+            <dict>
+              <key>com.cymbra.music</key><string>${PROFILE_NAME}</string>
+            </dict>
+            <key>uploadSymbols</key><true/>
+            <key>stripSwiftSymbols</key><true/>
+            <key>destination</key><string>export</string>
+          </dict>
+          </plist>
+          EOF
+      # `flutter build macos` stops at the .app — there is no macOS equivalent of
+      # `flutter build ipa --export-options-plist`. It still has to run first: the
+      # dart-defines live in Flutter's generated xcconfig, which only the Flutter
+      # tool writes, so archiving without this pass would ship a build pointing at
+      # the dev gRPC endpoint. prod.json carries api.cymbra.app:443 over TLS; the
+      # reversed Google client id comes from Secrets.xcconfig injected above.
+      - name: Build (release, prod config)
         working-directory: apps/music
-        # prod.json carries the gRPC endpoint (api.cymbra.app:443 over TLS); the
-        # reversed Google client id is injected via Secrets.xcconfig above, and
-        # GOOGLE_CLIENT_ID is also passed as a dart-define for the Dart-side flow.
         run: >-
           flutter build macos --release
           --dart-define-from-file=config/prod.json
           --dart-define=GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
-      - name: Package (.app -> zip)
-        working-directory: apps/music/build/macos/Build/Products/Release
+      - name: Archive + export .pkg (app-store)
+        working-directory: apps/music
         run: |
-          APP="$(ls -d *.app | head -1)"
-          ditto -c -k --keepParent "$APP" "$GITHUB_WORKSPACE/cymbra-${TAG}-macos.zip"
-      - uses: softprops/action-gh-release@v2
+          set -euo pipefail
+          xcodebuild -workspace macos/Runner.xcworkspace \
+            -scheme Runner \
+            -configuration Release \
+            -destination 'generic/platform=macOS' \
+            -archivePath "$RUNNER_TEMP/Runner.xcarchive" \
+            archive
+          xcodebuild -exportArchive \
+            -archivePath "$RUNNER_TEMP/Runner.xcarchive" \
+            -exportOptionsPlist macos/ExportOptions-ci.plist \
+            -exportPath "$RUNNER_TEMP/export"
+          cp "$RUNNER_TEMP"/export/*.pkg "$GITHUB_WORKSPACE/cymbra-${TAG}-macos.pkg"
+      # A workflow artifact, NOT a GitHub Release asset: private to repo
+      # collaborators and short-lived. This is how a branch dry-run yields a
+      # .pkg you can hand to Transporter — the job always builds with
+      # config/prod.json, so a dry-run package is production-configured and
+      # store-signed, which a locally rebuilt one cannot be trusted to be
+      # (the gRPC endpoint is a compile-time define, not inspectable after
+      # the fact).
+      - name: Upload the .pkg as a workflow artifact
+        uses: actions/upload-artifact@v4
         with:
-          tag_name: ${{ env.TAG }}
-          files: cymbra-${{ env.TAG }}-macos.zip
+          name: cymbra-${{ env.TAG }}-macos-pkg
+          path: cymbra-${{ env.TAG }}-macos.pkg
+          retention-days: 7
+          if-no-files-found: error
+      # No GitHub Release asset on purpose — see the header comment. A
+      # `method: app-store` .pkg cannot be installed by a user; the artifact of
+      # record is the build in App Store Connect.
+      #
+      # Deliver on a real release (tag push), or on a dispatch that explicitly
+      # asked for it via the deliver_macos input. A plain dispatch still only
+      # builds + signs, so validating the chain never re-sends a build number.
+      - name: Upload to App Store Connect (API key)
+        if: ${{ github.event_name == 'push' || inputs.deliver_macos }}
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_API_ISSUER_ID }}
+          ASC_KEY_P8: ${{ secrets.ASC_API_KEY_P8 }}
+        run: |
+          set -euo pipefail
+          if [ -z "${ASC_KEY_ID:-}" ] || [ -z "${ASC_ISSUER_ID:-}" ] || [ -z "${ASC_KEY_P8:-}" ]; then
+            echo "::warning::App Store Connect API secrets missing — skipping macOS upload."
+            exit 0
+          fi
+          mkdir -p "$HOME/private_keys"
+          KEYFILE="$HOME/private_keys/AuthKey_${ASC_KEY_ID}.p8"
+          echo "$ASC_KEY_P8" | base64 --decode > "$KEYFILE"
+          trap 'rm -f "$KEYFILE"' EXIT
+          xcrun altool --upload-app --type macos \
+            --file "cymbra-${TAG}-macos.pkg" \
+            --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID"
 
   windows:
     runs-on: windows-latest
@@ -215,7 +391,11 @@ jobs:
       - name: Package
         shell: pwsh
         run: Compress-Archive -Path apps/music/build/windows/x64/runner/Release/* -DestinationPath "cymbra-$env:TAG-windows-x64.zip"
-      - uses: softprops/action-gh-release@v2
+      # Release assets only for a real tag. A branch dry-run (empty `tag`
+      # input) must not create a release named after the branch.
+      - name: Attach to the GitHub Release
+        if: startsWith(env.TAG, 'music-v')
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.TAG }}
           files: cymbra-${{ env.TAG }}-windows-x64.zip
@@ -282,7 +462,11 @@ jobs:
         run: |
           cp apps/music/build/app/outputs/bundle/release/app-release.aab "cymbra-${TAG}.aab"
           cp apps/music/build/app/outputs/flutter-apk/app-release.apk "cymbra-${TAG}.apk"
-      - uses: softprops/action-gh-release@v2
+      # Release assets only for a real tag. A branch dry-run (empty `tag`
+      # input) must not create a release named after the branch.
+      - name: Attach to the GitHub Release
+        if: startsWith(env.TAG, 'music-v')
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.TAG }}
           files: |
@@ -396,7 +580,11 @@ jobs:
             --export-options-plist ios/ExportOptions-ci.plist
       - name: Rename
         run: cp apps/music/build/ios/ipa/*.ipa "cymbra-${TAG}.ipa"
-      - uses: softprops/action-gh-release@v2
+      # Release assets only for a real tag. A branch dry-run (empty `tag`
+      # input) must not create a release named after the branch.
+      - name: Attach to the GitHub Release
+        if: startsWith(env.TAG, 'music-v')
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.TAG }}
           files: cymbra-${{ env.TAG }}.ipa

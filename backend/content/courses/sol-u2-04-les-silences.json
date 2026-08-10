@@ -1,0 +1,174 @@
+{
+  "id": "sol-u2-04-les-silences",
+  "status": "published",
+  "instrument": "piano",
+  "track": "solfege",
+  "level": "beginner",
+  "unit": "u2",
+  "unitTitle": {
+    "en": "Pulse and rhythm",
+    "fr": "La pulsation et le rythme",
+    "es": "El pulso y el ritmo",
+    "it": "La pulsazione e il ritmo"
+  },
+  "sortOrder": 204,
+  "schemaVersion": 2,
+  "title": {
+    "en": "Rests",
+    "fr": "Les silences",
+    "es": "Los silencios",
+    "it": "Le pause"
+  },
+  "content": {
+    "schemaVersion": 2,
+    "id": "sol-u2-04-les-silences",
+    "instrument": "piano",
+    "track": "solfege",
+    "level": "beginner",
+    "title": {
+      "en": "Rests",
+      "fr": "Les silences",
+      "es": "Los silencios",
+      "it": "Le pause"
+    },
+    "summary": {
+      "en": "Counting the silence: the quarter rest",
+      "fr": "Compter le silence : le soupir",
+      "es": "Contar el silencio: el silencio de negra",
+      "it": "Contare il silenzio: la pausa di semiminima"
+    },
+    "blocks": [
+      {
+        "type": "text",
+        "text": {
+          "en": "Music breathes: some beats are silent on purpose. The quarter rest is one full beat of silence.",
+          "fr": "La musique respire : certains temps sont silencieux, exprès. Le soupir, c'est un temps entier de silence.",
+          "es": "La música respira: algunos tiempos callan a propósito. El silencio de negra es un tiempo entero de silencio.",
+          "it": "La musica respira: alcuni tempi restano in silenzio, apposta. La pausa di semiminima è un intero tempo di silenzio."
+        }
+      },
+      {
+        "type": "staff",
+        "clef": "treble",
+        "time": { "beats": 4, "beatType": 4 },
+        "elements": [
+          { "p": "C4", "fig": "quarter" },
+          { "rest": true, "fig": "quarter" },
+          { "p": "E4", "fig": "quarter" },
+          { "p": "G4", "fig": "quarter" }
+        ],
+        "caption": {
+          "en": "C, then a quarter rest on beat two, then E and G — the silence counts just like a note.",
+          "fr": "Do, puis un soupir sur le deuxième temps, puis mi et sol — le silence compte comme une note.",
+          "es": "Do, luego un silencio de negra en el segundo tiempo, y después mi y sol: el silencio cuenta como una nota.",
+          "it": "Do, poi una pausa sul secondo tempo, quindi mi e sol — il silenzio conta proprio come una nota."
+        }
+      },
+      {
+        "type": "rhythmTap",
+        "pattern": [
+          { "fig": "quarter" },
+          { "rest": true, "fig": "quarter" },
+          { "fig": "quarter" },
+          { "fig": "quarter" }
+        ],
+        "beats": 4,
+        "beatType": 4,
+        "bpm": 70,
+        "prompt": {
+          "en": "Tap beats one, three and four — but do NOT tap the rest on beat two.",
+          "fr": "Tape les temps un, trois et quatre — mais ne tape PAS le soupir du deuxième temps.",
+          "es": "Toca los tiempos uno, tres y cuatro, pero NO toques el silencio del segundo tiempo.",
+          "it": "Tocca i tempi uno, tre e quattro — ma NON toccare la pausa sul secondo tempo."
+        }
+      },
+      {
+        "type": "question",
+        "prompt": {
+          "en": "During a rest, what do you do?",
+          "fr": "Pendant un silence, que fais-tu ?",
+          "es": "Durante un silencio, ¿qué haces?",
+          "it": "Durante una pausa, cosa fai?"
+        },
+        "options": [
+          {
+            "en": "Keep counting silently",
+            "fr": "Tu continues à compter dans ta tête",
+            "es": "Sigues contando en silencio",
+            "it": "Continui a contare in silenzio"
+          },
+          {
+            "en": "Stop counting until the next note",
+            "fr": "Tu arrêtes de compter jusqu'à la note suivante",
+            "es": "Dejas de contar hasta la siguiente nota",
+            "it": "Smetti di contare fino alla nota successiva"
+          }
+        ],
+        "answerIndex": 0,
+        "feedback": {
+          "en": "Exactly — the pulse never stops; a rest is a beat you count without playing.",
+          "fr": "Exactement — la pulsation ne s'arrête jamais : le soupir est un temps que tu comptes sans jouer.",
+          "es": "Exacto: el pulso nunca se detiene; el silencio es un tiempo que cuentas sin tocar.",
+          "it": "Esatto — la pulsazione non si ferma mai: la pausa è un tempo che conti senza suonare."
+        }
+      },
+      {
+        "type": "rhythmTap",
+        "pattern": [
+          { "fig": "quarter" },
+          { "rest": true, "fig": "quarter" },
+          { "fig": "quarter" },
+          { "rest": true, "fig": "quarter" }
+        ],
+        "beats": 4,
+        "beatType": 4,
+        "bpm": 70,
+        "prompt": {
+          "en": "Two taps, two silences: tap, wait, tap, wait — keep the pulse through the gaps.",
+          "fr": "Deux frappes, deux silences : tape, attends, tape, attends — garde la pulsation pendant les vides.",
+          "es": "Dos toques, dos silencios: toca, espera, toca, espera; mantén el pulso en los huecos.",
+          "it": "Due tocchi, due pause: tocca, aspetta, tocca, aspetta — mantieni la pulsazione nei vuoti."
+        }
+      },
+      {
+        "type": "question",
+        "prompt": {
+          "en": "How long does a quarter rest last?",
+          "fr": "Combien de temps dure un soupir ?",
+          "es": "¿Cuánto dura un silencio de negra?",
+          "it": "Quanto dura una pausa di semiminima?"
+        },
+        "options": [
+          {
+            "en": "One beat, just like a quarter note",
+            "fr": "Un temps, exactement comme une noire",
+            "es": "Un tiempo, igual que una negra",
+            "it": "Un tempo, proprio come una semiminima"
+          },
+          {
+            "en": "No time at all",
+            "fr": "Aucune durée",
+            "es": "Nada de tiempo",
+            "it": "Nessuna durata"
+          }
+        ],
+        "answerIndex": 0,
+        "feedback": {
+          "en": "Yes — every rest lasts as long as its matching note.",
+          "fr": "Oui — chaque silence dure aussi longtemps que la note qui lui correspond.",
+          "es": "Sí: cada silencio dura lo mismo que su nota correspondiente.",
+          "it": "Sì — ogni pausa dura quanto la nota corrispondente."
+        }
+      },
+      {
+        "type": "text",
+        "text": {
+          "en": "You now count silence as carefully as sound: the quarter rest is one silent beat. That little pause gives your music room to breathe.",
+          "fr": "Tu comptes maintenant le silence aussi précisément que le son : le soupir est un temps muet. Cette petite pause donne à ta musique l'espace pour respirer.",
+          "es": "Ya cuentas el silencio con el mismo cuidado que el sonido: el silencio de negra es un tiempo mudo. Esa pequeña pausa deja respirar tu música.",
+          "it": "Ora conti il silenzio con la stessa cura del suono: la pausa di semiminima è un tempo muto. Quella piccola pausa fa respirare la tua musica."
+        }
+      }
+    ]
+  }
+}

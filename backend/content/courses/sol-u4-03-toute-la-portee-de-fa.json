@@ -1,0 +1,152 @@
+{
+  "id": "sol-u4-03-toute-la-portee-de-fa",
+  "status": "published",
+  "instrument": "piano",
+  "track": "solfege",
+  "level": "intermediate",
+  "unit": "u4",
+  "unitTitle": {
+    "en": "Bass clef and the left hand",
+    "fr": "La clé de fa et la main gauche",
+    "es": "La clave de fa y la mano izquierda",
+    "it": "La chiave di basso e la mano sinistra"
+  },
+  "sortOrder": 403,
+  "schemaVersion": 2,
+  "title": {
+    "en": "The whole bass staff",
+    "fr": "Toute la portée de fa",
+    "es": "Toda la clave de fa",
+    "it": "Tutta la chiave di basso"
+  },
+  "content": {
+    "schemaVersion": 2,
+    "id": "sol-u4-03-toute-la-portee-de-fa",
+    "instrument": "piano",
+    "track": "solfege",
+    "level": "intermediate",
+    "title": {
+      "en": "The whole bass staff",
+      "fr": "Toute la portée de fa",
+      "es": "Toda la clave de fa",
+      "it": "Tutta la chiave di basso"
+    },
+    "summary": {
+      "en": "Map every line and space of the bass staff",
+      "fr": "Cartographier toutes les lignes et interlignes de la portée de fa",
+      "es": "Trazar todas las líneas y espacios de la clave de fa",
+      "it": "Mappare tutte le righe e gli spazi della chiave di basso"
+    },
+    "blocks": [
+      {
+        "type": "text",
+        "text": {
+          "en": "The bass staff has five lines and four spaces, just like the treble one — only the note names change. Let's map them all.",
+          "fr": "La portée de fa a cinq lignes et quatre interlignes, comme celle de sol — seuls les noms des notes changent. Cartographions-les toutes.",
+          "es": "La clave de fa tiene cinco líneas y cuatro espacios, igual que la de sol — solo cambian los nombres de las notas. Vamos a trazarlos todos.",
+          "it": "Il pentagramma in chiave di basso ha cinque righe e quattro spazi, proprio come quello in chiave di violino — cambiano solo i nomi delle note. Mappiamoli tutti."
+        }
+      },
+      {
+        "type": "staff",
+        "clef": "bass",
+        "labels": true,
+        "elements": [
+          { "p": "G2", "fig": "quarter" },
+          { "p": "B2", "fig": "quarter" },
+          { "p": "D3", "fig": "quarter" },
+          { "p": "F3", "fig": "quarter" },
+          { "p": "A3", "fig": "quarter" }
+        ],
+        "caption": {
+          "en": "The line notes, bottom to top: G, B, D, F, A.",
+          "fr": "Les notes des lignes, de bas en haut : sol, si, ré, fa, la.",
+          "es": "Las notas de las líneas, de abajo arriba: sol, si, re, fa, la.",
+          "it": "Le note delle righe, dal basso verso l'alto: sol, si, re, fa, la."
+        }
+      },
+      {
+        "type": "nameNote",
+        "clef": "bass",
+        "notes": ["D3", "F3", "C3"],
+        "prompt": {
+          "en": "Line or space — what is this note called? Tap a name to hear it.",
+          "fr": "Ligne ou interligne — comment s'appelle cette note ? Touche un nom pour l'entendre.",
+          "es": "¿Línea o espacio? ¿Cómo se llama esta nota? Toca un nombre para oírla.",
+          "it": "Riga o spazio — come si chiama questa nota? Tocca un nome per sentirla."
+        }
+      },
+      {
+        "type": "staff",
+        "clef": "bass",
+        "labels": true,
+        "elements": [
+          { "p": "A2", "fig": "quarter" },
+          { "p": "C3", "fig": "quarter" },
+          { "p": "E3", "fig": "quarter" },
+          { "p": "G3", "fig": "quarter" }
+        ],
+        "caption": {
+          "en": "The space notes, bottom to top: A, C, E, G.",
+          "fr": "Les notes des interlignes, de bas en haut : la, do, mi, sol.",
+          "es": "Las notas de los espacios, de abajo arriba: la, do, mi, sol.",
+          "it": "Le note degli spazi, dal basso verso l'alto: la, do, mi, sol."
+        }
+      },
+      {
+        "type": "readPlay",
+        "mode": "drill",
+        "clef": "bass",
+        "labels": "afterMiss",
+        "notes": ["D3", "E3", "F3"],
+        "prompt": {
+          "en": "Play the note shown: D and F on their lines, E in the space between them.",
+          "fr": "Joue la note affichée : ré et fa sur leurs lignes, mi dans l'interligne entre les deux.",
+          "es": "Toca la nota que aparece: re y fa en sus líneas, mi en el espacio entre ellas.",
+          "it": "Suona la nota mostrata: re e fa sulle loro righe, mi nello spazio in mezzo."
+        }
+      },
+      {
+        "type": "placeNote",
+        "clef": "bass",
+        "targets": ["B2", "D3"],
+        "prompt": {
+          "en": "Tap the right line for the note asked — remember: G, B, D, F, A from the bottom.",
+          "fr": "Touche la bonne ligne pour la note demandée — souviens-toi : sol, si, ré, fa, la depuis le bas.",
+          "es": "Toca la línea correcta para la nota pedida — recuerda: sol, si, re, fa, la desde abajo.",
+          "it": "Tocca la riga giusta per la nota richiesta — ricorda: sol, si, re, fa, la dal basso."
+        }
+      },
+      {
+        "type": "question",
+        "prompt": {
+          "en": "Which note sits on the middle line of the bass staff?",
+          "fr": "Quelle note se pose sur la ligne du milieu de la portée de fa ?",
+          "es": "¿Qué nota se apoya en la línea central de la clave de fa?",
+          "it": "Quale nota sta sulla riga centrale della chiave di basso?"
+        },
+        "options": [
+          { "en": "D", "fr": "Ré", "es": "Re", "it": "Re" },
+          { "en": "B", "fr": "Si", "es": "Si", "it": "Si" },
+          { "en": "E", "fr": "Mi", "es": "Mi", "it": "Mi" }
+        ],
+        "answerIndex": 0,
+        "feedback": {
+          "en": "Yes — D holds the middle of the bass staff, a handy landmark for your left hand.",
+          "fr": "Oui — le ré tient le milieu de la portée de fa, un repère bien pratique pour ta main gauche.",
+          "es": "Sí — el re ocupa el centro de la clave de fa, una referencia muy útil para tu mano izquierda.",
+          "it": "Sì — il re occupa il centro della chiave di basso, un punto di riferimento comodo per la tua mano sinistra."
+        }
+      },
+      {
+        "type": "text",
+        "text": {
+          "en": "You've mapped the whole bass staff: lines G, B, D, F, A and spaces A, C, E, G.",
+          "fr": "Tu as cartographié toute la portée de fa : les lignes sol, si, ré, fa, la et les interlignes la, do, mi, sol.",
+          "es": "Has trazado toda la clave de fa: las líneas sol, si, re, fa, la y los espacios la, do, mi, sol.",
+          "it": "Hai mappato tutta la chiave di basso: le righe sol, si, re, fa, la e gli spazi la, do, mi, sol."
+        }
+      }
+    ]
+  }
+}

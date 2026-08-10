@@ -25,8 +25,10 @@ import '../state/saved_catalog_scores.dart';
 import '../state/score_catalog.dart';
 import '../state/session_notifier.dart';
 import '../theme/cymbra_theme.dart';
+import '../widgets/courses_section.dart';
 import '../widgets/library_listeners.dart';
 import '../widgets/rating_invite_banner.dart';
+import '../services/connectivity_service.dart';
 import '../widgets/score_card.dart';
 import 'auth/account_menu.dart';
 import 'community_screen.dart';
@@ -134,14 +136,7 @@ class LibraryScreen extends ConsumerWidget {
         body: SafeArea(
           top: false,
           child: signedIn
-              ? Column(
-                  children: [
-                    // Nudge to rate scores after a lull (renders nothing when not
-                    // due), pinned above the favorites list.
-                    const RatingInviteBanner(),
-                    Expanded(child: _FavoritesBody(l10n: l10n)),
-                  ],
-                )
+              ? _SignedInBody(l10n: l10n)
               : _bundledBody(context, ref),
         ),
       ),
@@ -205,6 +200,7 @@ List<Widget> _levelSections(
   List<CatalogEntry> entries, {
   required void Function(CatalogEntry) onOpen,
   required Widget? Function(CatalogEntry) actionFor,
+  bool Function(CatalogEntry)? offlineUnavailableFor,
 }) {
   final l10n = AppLocalizations.of(context);
   final widgets = <Widget>[];
@@ -241,6 +237,7 @@ List<Widget> _levelSections(
           entry: inLevel[i],
           onTap: () => onOpen(inLevel[i]),
           action: actionFor(inLevel[i]),
+          offlineUnavailable: offlineUnavailableFor?.call(inLevel[i]) ?? false,
         ),
       ),
     );
@@ -248,32 +245,63 @@ List<Widget> _levelSections(
   return widgets;
 }
 
-/// Signed-in body: the favorites, grouped by level, with a remove-from-favorites
-/// heart on each; an empty state points to the hub.
-class _FavoritesBody extends ConsumerWidget {
-  const _FavoritesBody({required this.l10n});
+/// Signed-in body: rating nudge, courses and the favorites (grouped by level,
+/// each with a remove-from-favorites heart) in **one vertical scroll** — on a
+/// phone the courses card alone ate most of the viewport, leaving the favorites
+/// to scroll inside a sliver of screen. An empty state points to the hub.
+class _SignedInBody extends ConsumerWidget {
+  const _SignedInBody({required this.l10n});
 
   final AppLocalizations l10n;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final favorites = ref.watch(favoriteScoresProvider);
-    return switch (favorites) {
-      AsyncData(:final value) when value.isEmpty => _Empty(l10n: l10n),
-      AsyncData(:final value) => ListView(
-        padding: const EdgeInsets.only(bottom: 24),
-        children: _levelSections(
-          context,
-          value,
-          onOpen: (entry) => LibraryScreen._open(context, ref, entry),
-          actionFor: (entry) =>
-              _FavoriteHeart(onPressed: () => _removeFromFavorites(ref, entry)),
-        ),
-      ),
-      AsyncError() => _Empty(l10n: l10n),
-      _ => const Center(child: CircularProgressIndicator()),
-    };
+    // Offline marking: a favorite with no cached bytes, while the device is
+    // offline, is shown but flagged "not available offline". Both are read
+    // non-blocking (default: online, everything playable) so they never gate the
+    // list render (change: add-offline-score-cache).
+    final online = ref.watch(isOnlineNowProvider).valueOrNull ?? true;
+    final playable =
+        ref.watch(offlinePlayableIdsProvider).valueOrNull ?? const <String>{};
+    bool offlineUnavailable(CatalogEntry entry) =>
+        !online && !playable.contains(entry.id);
+    return CustomScrollView(
+      slivers: [
+        // Nudge to rate scores after a lull (renders nothing when not due).
+        const SliverToBoxAdapter(child: RatingInviteBanner()),
+        // Interactive courses (change: add-notation-courses), above the
+        // favorites; omits itself when there are none.
+        const SliverToBoxAdapter(child: CoursesSection()),
+        switch (favorites) {
+          AsyncData(:final value) when value.isEmpty => _fill(
+            _Empty(l10n: l10n),
+          ),
+          AsyncData(:final value) => SliverPadding(
+            padding: const EdgeInsets.only(bottom: 24),
+            sliver: SliverList.list(
+              children: _levelSections(
+                context,
+                value,
+                onOpen: (entry) => LibraryScreen._open(context, ref, entry),
+                actionFor: (entry) => _FavoriteHeart(
+                  onPressed: () => _removeFromFavorites(ref, entry),
+                ),
+                offlineUnavailableFor: offlineUnavailable,
+              ),
+            ),
+          ),
+          AsyncError() => _fill(_Empty(l10n: l10n)),
+          _ => _fill(const Center(child: CircularProgressIndicator())),
+        },
+      ],
+    );
   }
+
+  /// A non-scrolling sliver that takes the space left below the courses card,
+  /// so the empty/loading state stays centered instead of hugging the header.
+  static Widget _fill(Widget child) =>
+      SliverFillRemaining(hasScrollBody: false, child: child);
 
   /// Remove from favorites: for a saved catalog score, remove it from the
   /// library; for an upload, un-favorite it (the upload is kept, still in the

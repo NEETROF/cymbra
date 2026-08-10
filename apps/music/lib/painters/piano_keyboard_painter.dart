@@ -107,6 +107,12 @@ enum _KeyState {
 
   /// Held but not required.
   pressed,
+
+  /// Toggled on in a selection exercise (a course chord-building step).
+  selected,
+
+  /// Just judged wrong (a course exercise's brief error flash).
+  wrong,
 }
 
 /// Draws the piano keyboard at the bottom of the screen with feedback: keys the
@@ -148,17 +154,35 @@ class PianoKeyboardPainter extends CustomPainter {
   /// 0 (the default) renders the steady highlight.
   final double waitPulse;
 
+  /// Keys toggled on in a selection exercise (change: add-notation-courses —
+  /// the chord-building step). Persistent, unlike the momentary [activeNotes]
+  /// flash; a held key still shows its press over the selection.
+  final Set<int> selectedNotes;
+
+  /// Keys a course exercise just judged wrong — a brief coral flash. Beats
+  /// every state except an actually-correct hold, per the colour discipline:
+  /// a mistake must never wear a success colour.
+  final Set<int> wrongNotes;
+
+  /// Whether to draw the C octave anchors (Do4/C4 + the middle-C dot). Lesson
+  /// keyboards turn them off: under a highlighted key the middle-C puck reads
+  /// as a second target, not as orientation.
+  final bool showOctaveMarkers;
+
   const PianoKeyboardPainter({
     required this.layout,
     required this.activeNotes,
     this.requiredNotes = const {},
     this.leftHandNotes = const {},
+    this.selectedNotes = const {},
+    this.wrongNotes = const {},
     this.chosenWindow,
     this.noteLabels = const {},
     this.solfege = false,
     this.frenchRe = false,
     this.labelFontFamily,
     this.waitPulse = 0,
+    this.showOctaveMarkers = true,
   });
 
   /// MIDI middle C (C4) — the anchor note the octave labels emphasise.
@@ -168,12 +192,14 @@ class PianoKeyboardPainter extends CustomPainter {
     final required = requiredNotes.contains(pitch);
     final active = activeNotes.contains(pitch);
     if (required && active) return _KeyState.correct;
+    if (wrongNotes.contains(pitch)) return _KeyState.wrong;
     if (required) {
       return leftHandNotes.contains(pitch)
           ? _KeyState.expectedLeft
           : _KeyState.expectedRight;
     }
     if (active) return _KeyState.pressed;
+    if (selectedNotes.contains(pitch)) return _KeyState.selected;
     return _KeyState.idle;
   }
 
@@ -187,6 +213,10 @@ class PianoKeyboardPainter extends CustomPainter {
     _KeyState.expectedRight => _pulsed(CymbraColors.handRight),
     _KeyState.expectedLeft => _pulsed(CymbraColors.handLeft),
     _KeyState.pressed => CymbraColors.primaryContainer,
+    // Chosen-but-not-yet-judged: the light lilac reads "marked", far from the
+    // success green a validated chord earns (and labels stay readable on it).
+    _KeyState.selected => CymbraColors.primary,
+    _KeyState.wrong => CymbraColors.error,
     _KeyState.idle =>
       isBlack ? CymbraColors.pianoBlack : CymbraColors.pianoWhite,
   };
@@ -214,7 +244,7 @@ class PianoKeyboardPainter extends CustomPainter {
 
     // 3) Octave anchors: label each C (C3, C4…) at the bottom of its white key so
     // the player can orient their hands; middle C (C4) is emphasised.
-    _drawOctaveLabels(canvas, whiteH);
+    if (showOctaveMarkers) _drawOctaveLabels(canvas, whiteH);
 
     // 4) Reading-aid names, on the awaited keys themselves — no screen space of
     // their own, and anchored on the very key the finger is going to.
@@ -432,12 +462,15 @@ class PianoKeyboardPainter extends CustomPainter {
       old.activeNotes != activeNotes ||
       old.requiredNotes != requiredNotes ||
       old.leftHandNotes != leftHandNotes ||
+      old.selectedNotes != selectedNotes ||
+      old.wrongNotes != wrongNotes ||
       old.chosenWindow != chosenWindow ||
       !mapEquals(old.noteLabels, noteLabels) ||
       old.solfege != solfege ||
       old.frenchRe != frenchRe ||
       old.labelFontFamily != labelFontFamily ||
       old.waitPulse != waitPulse ||
+      old.showOctaveMarkers != showOctaveMarkers ||
       old.layout.width != layout.width ||
       old.layout.lowPitch != layout.lowPitch ||
       old.layout.highPitch != layout.highPitch;

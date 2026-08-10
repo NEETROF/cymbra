@@ -37,8 +37,8 @@ List<List<DateTime>> heatmapColumns(DateTime end, int weeks) {
 
 /// Cell color for a played day: hue from the day's average overall
 /// synchronization percentage ([syncPct], the requested weighting), opacity from
-/// the [count] of songs played (more plays → fuller cell). Pure (colors passed
-/// in) so it is unit-testable without a `BuildContext`.
+/// the [count] of sessions that day (more sessions → fuller cell). Pure (colors
+/// passed in) so it is unit-testable without a `BuildContext`.
 Color heatColor({
   required double syncPct,
   required int count,
@@ -47,9 +47,19 @@ Color heatColor({
 }) {
   final t = (syncPct.clamp(0, 100)) / 100.0;
   final base = Color.lerp(low, high, t)!;
-  // 1 play → 45% opacity, saturating toward full by ~6 plays.
+  // 1 session → 45% opacity, saturating toward full by ~6.
   final intensity = 0.45 + 0.55 * (count.clamp(1, 6) / 6);
   return base.withValues(alpha: intensity.clamp(0.0, 1.0));
+}
+
+/// Cell color for a day that holds **only practice** (change: add-measure-range-
+/// practice): a practice carries no synchronization percentage, so it MUST NOT
+/// be coloured on the success scale — a 0 % hue would read as a failed day. It
+/// gets a neutral "active" tone instead, with the same count-driven intensity as
+/// a played day so a heavy practice day still reads as busy.
+Color practiceColor({required int practiceCount, required Color neutral}) {
+  final intensity = 0.45 + 0.55 * (practiceCount.clamp(1, 6) / 6);
+  return neutral.withValues(alpha: intensity.clamp(0.0, 1.0));
 }
 
 /// A GitHub-style contribution grid of a player's activity (change: add-play-
@@ -136,19 +146,37 @@ class PlayHeatmap extends StatelessWidget {
   ) {
     final isFuture = day.isAfter(end);
     // Empty (or future) days render blank — no tooltip.
-    if (activity == null || isFuture) {
+    if (activity == null || isFuture || !activity.hasActivity) {
       return _box(blank, border);
     }
+    // Compact, language-neutral tooltip. A scored day reads "84% · ×3"; the
+    // practice count is appended as "⟳×2" so it is legible next to, and distinct
+    // from, the songs-played count. A practice-only day shows just the practices
+    // — it has no synchronization percentage to report.
+    final practice = activity.practiceCount > 0
+        ? '⟳×${activity.practiceCount}'
+        : '';
+    final scored = '${activity.avgSyncPct.round()}% · ×${activity.count}';
+    final message = activity.isPracticeOnly
+        ? practice
+        : (practice.isEmpty ? scored : '$scored · $practice');
     return Tooltip(
-      // Compact, language-neutral: "84% · ×3" (avg sync % · songs played).
-      message: '${activity.avgSyncPct.round()}% · ×${activity.count}',
+      message: message,
       child: _box(
-        heatColor(
-          syncPct: activity.avgSyncPct,
-          count: activity.count,
-          low: scheme.tertiary,
-          high: scheme.primary,
-        ),
+        // A practice-only day is NEVER coloured on the success scale (it would
+        // read as a 0 % failure): it takes the neutral active tone.
+        activity.isPracticeOnly
+            ? practiceColor(
+                practiceCount: activity.practiceCount,
+                neutral: scheme.onSurfaceVariant,
+              )
+            : heatColor(
+                syncPct: activity.avgSyncPct,
+                // Practice adds to how busy the day looks, never to its colour.
+                count: activity.count + activity.practiceCount,
+                low: scheme.tertiary,
+                high: scheme.primary,
+              ),
         border,
       ),
     );

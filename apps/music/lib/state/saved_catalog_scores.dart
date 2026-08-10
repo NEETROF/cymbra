@@ -15,6 +15,7 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../services/catalog_service.dart';
+import '../services/offline_score_cache.dart';
 import 'score_catalog.dart';
 import 'session_notifier.dart';
 
@@ -77,10 +78,13 @@ class SavedCatalogScores extends _$SavedCatalogScores {
     return [for (final h in hits) catalogEntryFromHit(h)];
   }
 
-  /// Remove a saved catalog score from the caller's library, then reload.
+  /// Remove a saved catalog score from the caller's library, then reload. Also
+  /// evicts its offline cache file — leaving favorites deletes the local copy
+  /// (change: add-offline-score-cache).
   Future<void> remove(String catalogId) async {
     state = await AsyncValue.guard(() async {
       await ref.read(catalogServiceProvider).remove(catalogId);
+      await ref.read(offlineScoreCacheProvider).evict('catalog:$catalogId');
       return _fetch();
     });
   }

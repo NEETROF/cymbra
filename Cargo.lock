@@ -1066,6 +1066,7 @@ dependencies = [
  "cymbra-platform",
  "cymbra-storage",
  "cymbra-user-port",
+ "getrandom 0.2.17",
  "prost 0.13.5",
  "rustysynth",
  "serde",

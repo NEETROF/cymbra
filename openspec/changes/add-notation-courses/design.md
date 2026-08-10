@@ -146,3 +146,36 @@ Rollback: additive tables/RPCs/UI; disabling the section leaves play unaffected.
 - **Badge design**: one badge per course vs a "first course" + "all courses" pair (start: one per course).
 - **Closed sets**: the initial `diagram` id list and `playKey`/`score` note-spec shape.
 - **2c** (community catalogue + propose + moderation) is a separate later change.
+
+## Decisions — v2 revision (interactive solfège)
+
+### 8. Exercises are typed v2 blocks over a dedicated lesson staff
+The first wave leaned on text/quiz; the target is a curriculum the learner *does*. v2 adds seven
+blocks — `staff` (display), `readPlay` (staff→keyboard, drill/melody/set), `nameNote`, `placeNote`
+(tap the staff), `rhythmTap` (metronome + pad, pure grading), `earChoice` (synth sequence + chips),
+`buildChord` (toggle keys) — rendered by a purpose-built `LessonStaff` painter (SMuFL toolbox;
+armure-aware accidental suppression; tap→step hit-testing) rather than the score-driven engravers,
+which expose none of the exercise affordances (highlights, ghost previews, hit steps). Manifest
+pitches are written spellings (`"F#4"`), never MIDI, so staff degree and enharmonics survive; all
+sounding goes through one `LessonSounder` (every touch is audible — the silent playKey gap is
+closed). `kCourseSchemaVersion` bumps to 2 and the listing filters unsupported versions, so older
+apps never see v2 tiles (the decline path stays for the cache).
+
+### 9. Kind gating, not free skipping
+Interactive blocks now gate Next (a lesson is something you do), but the gate never traps: a
+discreet "Passer" appears after 12 s, wrong answers cost nothing and are heard (a wrong key plays
+its own pitch — the most musical error message), and the celebration counts first-try successes
+without ever showing a failure state. Questions gate too (revised on device feedback: skipping an unanswered question read as a bug) — any answer, right or wrong, reopens Next without auto-advancing, so the feedback gets read and nobody is drilled into correctness.
+
+### 10. Units are catalogue data; the path is the product surface
+`music.courses` gains `unit` + inline-i18n `unit_title` (migration 0021, CourseSummary fields 8/9),
+so the 42-lesson curriculum groups into 7 named units without an app release. Home shrinks to one
+continue card (next lesson + unit progress); a full `LearningPathScreen` lists units and lesson
+nodes — completed/next/later — with soft ordering (visual hierarchy guides; nothing is locked).
+
+### 11. The corpus is validated JSON files, compiled to seed SQL
+42 hand-escaped SQL literals would be unmaintainable; courses live as one JSON file each under
+`backend/content/courses/`, gated by a Flutter test that runs the REAL parser over every file
+(zero-unsupported, locale completeness, musical lints: bar-filling rhythms, ear answers consistent
+with pitches), and compiled by `gen_seed_courses.py` into the idempotent seed. The app-usage
+tutorials are retired: the curriculum teaches solfège, not the app.

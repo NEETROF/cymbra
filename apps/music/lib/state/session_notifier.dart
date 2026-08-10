@@ -21,8 +21,11 @@ import '../analytics/usage_actions.dart';
 import '../services/account_service.dart';
 import '../services/auth_service.dart';
 import '../services/grpc_client.dart';
+import '../services/offline_score_cache.dart';
+import '../services/offline_server_secret_service.dart';
 import '../services/oidc_token_source.dart';
 import '../services/token_store.dart';
+import 'favorites_index_store.dart';
 import 'session_state.dart';
 import 'usage_tracking_notifier.dart';
 
@@ -159,8 +162,26 @@ class SessionNotifier extends _$SessionNotifier {
     } catch (_) {
       // Best-effort: never block local sign-out on the native SDK.
     }
+    await _purgeOfflineData();
     await _tokens.clear();
     state = const SessionState.unauthenticated();
+  }
+
+  /// Purge the offline score cache + its key material and clear this user's
+  /// plaintext favorites-index snapshot and cached server secret (change:
+  /// add-offline-score-cache). Read the user id *before* the session is cleared.
+  /// Best-effort: a storage hiccup never blocks sign-out.
+  Future<void> _purgeOfflineData() async {
+    try {
+      final userId = ref.read(currentUserIdProvider);
+      await ref.read(offlineScoreCacheProvider).purgeAll();
+      if (userId != null) {
+        await ref.read(favoritesIndexStoreProvider).clear(userId);
+        await ref.read(offlineServerSecretServiceProvider).clear(userId);
+      }
+    } catch (_) {
+      // Never block teardown on cache cleanup.
+    }
   }
 
   /// Local-only teardown after account deletion (the caller already invoked
@@ -174,6 +195,7 @@ class SessionNotifier extends _$SessionNotifier {
   }
 
   Future<void> onAccountDeleted() async {
+    await _purgeOfflineData();
     await _tokens.clear();
     state = const SessionState.unauthenticated();
   }
