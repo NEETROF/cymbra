@@ -66,6 +66,15 @@ sandbox.
 - **THEN** the stored session credential SHALL be readable and the user SHALL
   remain signed in, rather than the keychain access failing under the sandbox
 
+#### Scenario: No keychain prompt on launch
+
+- **WHEN** a store-signed build reads its stored credentials
+- **THEN** the read SHALL be authorised by the app's own keychain access group and
+  SHALL NOT ask the user for their login keychain password — credentials therefore
+  SHALL be stored in the app-scoped keychain, not in a keychain whose items are
+  guarded by an ACL bound to the binary's designated requirement (which changes
+  with the signing identity, so every store build would prompt)
+
 #### Scenario: Debug and release entitlements stay consistent
 
 - **WHEN** the debug/profile and release entitlement sets are compared

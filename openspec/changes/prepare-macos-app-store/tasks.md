@@ -100,6 +100,22 @@
       back to. Verified present in the login keychain with its private key, valid to
       2027-07-10. So 6.2 is already satisfied and only the installer cert is new.)
 
+## 6bis. Keychain prompt on store-signed launch (found on TestFlight build 27)
+
+- [x] 6b.1 Drop `MacOsOptions(usesDataProtectionKeychain: false)` from `SecureTokenStore`
+      (`lib/services/token_store.dart`) so macOS uses the default data-protection keychain
+      (Build 27, installed from TestFlight, prompted for the **login keychain password** on
+      launch. Root cause was NOT the entitlement: the app deliberately opted out of the
+      data-protection keychain because that keychain needs `keychain-access-groups` and the
+      macOS build used to be ad-hoc signed (errSecMissingEntitlement -34018). The fallback is
+      the legacy *login* keychain, whose items carry an ACL bound to the binary's designated
+      requirement — so any signing-identity change (development → Apple Distribution) makes
+      macOS prompt. Task 2.1 shipped the entitlement, which makes the workaround obsolete:
+      reverting to the package default is both correct and app-scoped. macOS-only; `iOptions`
+      is untouched, and iOS has no legacy keychain.)
+- [ ] 6b.2 Verify on a build **> 27**: install from TestFlight, sign in, relaunch — no password
+      prompt, session persists. Testers on build 27 sign in once more after updating.
+
 ## 7. Sandbox runtime verification (manual, on the signed build from 3.2)
 
 - [ ] 7.1 Install the exported build and confirm it launches sandboxed (`codesign -d --entitlements -` on the installed bundle, and a container appears under `~/Library/Containers/com.cymbra.music`)
