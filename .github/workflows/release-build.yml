@@ -301,6 +301,20 @@ jobs:
             -exportOptionsPlist macos/ExportOptions-ci.plist \
             -exportPath "$RUNNER_TEMP/export"
           cp "$RUNNER_TEMP"/export/*.pkg "$GITHUB_WORKSPACE/cymbra-${TAG}-macos.pkg"
+      # A workflow artifact, NOT a GitHub Release asset: private to repo
+      # collaborators and short-lived. This is how a branch dry-run yields a
+      # .pkg you can hand to Transporter — the job always builds with
+      # config/prod.json, so a dry-run package is production-configured and
+      # store-signed, which a locally rebuilt one cannot be trusted to be
+      # (the gRPC endpoint is a compile-time define, not inspectable after
+      # the fact).
+      - name: Upload the .pkg as a workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cymbra-${{ env.TAG }}-macos-pkg
+          path: cymbra-${{ env.TAG }}-macos.pkg
+          retention-days: 7
+          if-no-files-found: error
       # No GitHub Release asset on purpose — see the header comment. A
       # `method: app-store` .pkg cannot be installed by a user; the artifact of
       # record is the build in App Store Connect.
