@@ -27,6 +27,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:music/main.dart';
+import 'package:music/services/connectivity_service.dart';
 import 'package:music/services/file_picker_service.dart';
 import 'package:music/services/preferences_service.dart';
 import 'package:music/services/score_asset_source.dart';
@@ -83,6 +84,21 @@ class _MemoryPrefs implements PreferencesService {
   Future<void> remove(String key) async => _store.remove(key);
 }
 
+/// A connectivity seam that never touches `connectivity_plus`. On the headless
+/// Linux CI the real plugin talks to NetworkManager over D-Bus, which is absent,
+/// so its listener throws a late async error that fails the test *after* it
+/// completed. This fake (always online, no streams) keeps the run deterministic —
+/// connectivity is not what these tests exercise.
+class _FakeConnectivity implements ConnectivityService {
+  const _FakeConnectivity();
+  @override
+  Stream<void> get onOnline => const Stream<void>.empty();
+  @override
+  Stream<bool> get onlineStatus => const Stream<bool>.empty();
+  @override
+  Future<bool> isOnline() async => true;
+}
+
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
   setUpAll(() async => await RustLib.init());
@@ -115,6 +131,10 @@ void main() {
           // screen, and the in-memory store keeps the test off platform secure
           // storage (no Keychain/libsecret keyring in headless CI).
           tokenStoreProvider.overrideWithValue(const _GuestTokenStore()),
+          // Avoid the real connectivity_plus plugin (no D-Bus on headless CI).
+          connectivityServiceProvider.overrideWithValue(
+            const _FakeConnectivity(),
+          ),
           // Pin English + in-memory prefs so localized strings are deterministic
           // regardless of the host device locale or any persisted language. This
           // test starts from a genuine first launch (nothing recorded yet).
@@ -201,6 +221,10 @@ void main() {
         overrides: [
           scoreCatalogProvider.overrideWithValue(const []),
           tokenStoreProvider.overrideWithValue(const _GuestTokenStore()),
+          // Avoid the real connectivity_plus plugin (no D-Bus on headless CI).
+          connectivityServiceProvider.overrideWithValue(
+            const _FakeConnectivity(),
+          ),
           // Pin English so the localized difficulty labels are deterministic
           // regardless of the host device locale or persisted language, and mark
           // the first run as done — the wizard, not onboarding, is the subject.
