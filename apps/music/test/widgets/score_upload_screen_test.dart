@@ -84,7 +84,10 @@ class _FakeUpload implements ScoreUploadService {
   }
 
   @override
-  Future<Uint8List> fetchBytes(String id) async => Uint8List(0);
+  Future<ScoreBytesResult> fetchScoreBytes(
+    String id, {
+    String? ifNoneMatch,
+  }) async => ScoreBytesResult(data: Uint8List(0), etag: '', unchanged: false);
 }
 
 PickedScoreFile _validFile() => PickedScoreFile(

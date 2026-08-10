@@ -21,7 +21,10 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../src/grpc/score.pbgrpc.dart' as score;
 import '../state/score_catalog.dart' show PracticeLevel;
 import 'grpc_client.dart';
+import 'score_bytes_result.dart';
 import 'score_upload_service.dart' show practiceLevelFromWire;
+
+export 'score_bytes_result.dart' show ScoreBytesResult;
 
 part 'catalog_service.g.dart';
 
@@ -143,11 +146,16 @@ abstract class CatalogService {
   Future<List<CatalogHit>> listSaved();
 
   /// Fetch a catalog score's bytes to open it in the player. Accepted-only for a
-  /// normal caller (the moderation gate).
-  Future<Uint8List> fetchBytes(String catalogId);
+  /// normal caller (the moderation gate). When [ifNoneMatch] is supplied and still
+  /// matches the stored content hash, the backend returns `unchanged` with no
+  /// payload so the caller reuses its cached copy (change: add-offline-score-cache).
+  Future<ScoreBytesResult> fetchScoreBytes(
+    String catalogId, {
+    String? ifNoneMatch,
+  });
 
   /// Fetch a catalog score's bytes for the rating deck's **read-only preview**
-  /// (change: rate-pending-scores). Unlike [fetchBytes] (player open), this serves
+  /// (change: rate-pending-scores). Unlike [fetchScoreBytes] (player open), this serves
   /// a `pending` candidate too so a rater can hear it before rating; it never opens
   /// the full player and is not a library save.
   Future<Uint8List> ratingPreviewBytes(String catalogId);
@@ -157,6 +165,11 @@ abstract class CatalogService {
   /// score already rated by the caller is never returned, so the deck empties
   /// once everything is rated.
   Future<CatalogSearchPage> ratingDeck({int limit, int offset});
+
+  /// The caller's per-user offline-cache secret — created on first request and
+  /// stable thereafter (change: add-offline-score-cache). One input to the app's
+  /// local offline-cache key derivation; the same value across the user's devices.
+  Future<Uint8List> getOfflineCacheKey();
 }
 
 /// Wire form of a [PracticeLevel] for the backend's `level` filter.
@@ -253,12 +266,22 @@ class GrpcCatalogService implements CatalogService {
   });
 
   @override
-  Future<Uint8List> fetchBytes(String catalogId) => _authed((bearer) async {
+  Future<ScoreBytesResult> fetchScoreBytes(
+    String catalogId, {
+    String? ifNoneMatch,
+  }) => _authed((bearer) async {
     final resp = await _client.getCatalogScoreBytes(
-      score.GetCatalogScoreBytesRequest(catalogId: catalogId),
+      score.GetCatalogScoreBytesRequest(
+        catalogId: catalogId,
+        ifNoneMatch: ifNoneMatch,
+      ),
       options: bearerOptions(bearer),
     );
-    return Uint8List.fromList(resp.data);
+    return ScoreBytesResult(
+      data: resp.unchanged ? null : Uint8List.fromList(resp.data),
+      etag: resp.etag,
+      unchanged: resp.unchanged,
+    );
   });
 
   @override
@@ -285,6 +308,15 @@ class GrpcCatalogService implements CatalogService {
               resp.hits.length, // no separate total; the page length suffices
         );
       });
+
+  @override
+  Future<Uint8List> getOfflineCacheKey() => _authed((bearer) async {
+    final resp = await _client.getOfflineCacheKey(
+      score.GetOfflineCacheKeyRequest(),
+      options: bearerOptions(bearer),
+    );
+    return Uint8List.fromList(resp.secret);
+  });
 }
 
 /// Production catalog-service provider. Override in tests with a fake.

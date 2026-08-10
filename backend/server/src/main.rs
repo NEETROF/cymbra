@@ -17,8 +17,8 @@ use cymbra_auth_port::proto::auth_service_server::AuthServiceServer;
 use cymbra_feature_flags::proto::flag_service_server::FlagServiceServer;
 use cymbra_music::proto::score_service_server::ScoreServiceServer;
 use cymbra_music::{
-    PgCatalogSearchRepo, PgScoreRatingRepo, PgUserLibraryRepo, PgUserScoreRepo, ScoreGrpc,
-    ScoreModule,
+    PgCatalogSearchRepo, PgOfflineSecretRepo, PgScoreRatingRepo, PgUserLibraryRepo,
+    PgUserScoreRepo, ScoreGrpc, ScoreModule,
 };
 use cymbra_platform::cache::{Cache, RedisCache};
 use cymbra_platform::config::Config;
@@ -339,7 +339,12 @@ async fn main() -> anyhow::Result<()> {
                         // Resolve proposer attribution (change: add-score-catalog-proposal).
                         .with_user(user_dyn.clone())
                         // Award coverage / settle honesty (change: add-curation-rewards).
-                        .with_rewards(rewards_sink),
+                        .with_rewards(rewards_sink)
+                        // Persist the per-user offline-cache secret (change:
+                        // add-offline-score-cache); the default is an in-memory fake.
+                        .with_offline_secrets(Arc::new(
+                            PgOfflineSecretRepo::new(music_pool.clone()),
+                        )),
                     );
                     // Per-user scrape guardrail over the shared Redis cache + play &
                     // rating ports (engagement = plays + ratings).

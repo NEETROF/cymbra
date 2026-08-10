@@ -28,6 +28,7 @@ import '../theme/cymbra_theme.dart';
 import '../widgets/courses_section.dart';
 import '../widgets/library_listeners.dart';
 import '../widgets/rating_invite_banner.dart';
+import '../services/connectivity_service.dart';
 import '../widgets/score_card.dart';
 import 'auth/account_menu.dart';
 import 'community_screen.dart';
@@ -199,6 +200,7 @@ List<Widget> _levelSections(
   List<CatalogEntry> entries, {
   required void Function(CatalogEntry) onOpen,
   required Widget? Function(CatalogEntry) actionFor,
+  bool Function(CatalogEntry)? offlineUnavailableFor,
 }) {
   final l10n = AppLocalizations.of(context);
   final widgets = <Widget>[];
@@ -235,6 +237,7 @@ List<Widget> _levelSections(
           entry: inLevel[i],
           onTap: () => onOpen(inLevel[i]),
           action: actionFor(inLevel[i]),
+          offlineUnavailable: offlineUnavailableFor?.call(inLevel[i]) ?? false,
         ),
       ),
     );
@@ -254,6 +257,15 @@ class _SignedInBody extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final favorites = ref.watch(favoriteScoresProvider);
+    // Offline marking: a favorite with no cached bytes, while the device is
+    // offline, is shown but flagged "not available offline". Both are read
+    // non-blocking (default: online, everything playable) so they never gate the
+    // list render (change: add-offline-score-cache).
+    final online = ref.watch(isOnlineNowProvider).valueOrNull ?? true;
+    final playable =
+        ref.watch(offlinePlayableIdsProvider).valueOrNull ?? const <String>{};
+    bool offlineUnavailable(CatalogEntry entry) =>
+        !online && !playable.contains(entry.id);
     return CustomScrollView(
       slivers: [
         // Nudge to rate scores after a lull (renders nothing when not due).
@@ -275,6 +287,7 @@ class _SignedInBody extends ConsumerWidget {
                 actionFor: (entry) => _FavoriteHeart(
                   onPressed: () => _removeFromFavorites(ref, entry),
                 ),
+                offlineUnavailableFor: offlineUnavailable,
               ),
             ),
           ),

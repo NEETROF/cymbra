@@ -32,6 +32,7 @@ use sha2::{Digest, Sha256};
 use crate::catalog_edit::{CurrentMeta, MetadataChanges, plan_edit};
 use crate::catalog_search::{CatalogHit, CatalogQuery, CatalogSearchParams, CatalogSearchRepo};
 use crate::curation_rewards::CurationRewardsSink;
+use crate::offline_secret::{FakeOfflineSecretRepo, OfflineSecretRepo, generate_offline_secret};
 use crate::repo::{CatalogEntry, ScoreFacets, ScoreMeta};
 use crate::score_rating::{
     RatingAggregate, RatingConfig, ScoreRatingRepo, UserRating, Verdict, is_flagged_for_review,
@@ -75,6 +76,22 @@ fn clean_fallback(s: Option<String>) -> Option<String> {
         .filter(|v| !v.is_empty())
 }
 
+/// The bytes of a score plus its content hash (ETag), as served by the byte-fetch
+/// paths (change: add-offline-score-cache). On a conditional fetch whose supplied
+/// hash still matches, `unchanged` is `true` and `data` is intentionally empty so
+/// the caller keeps its cached copy.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ScoreBytes {
+    /// The canonical MusicXML bytes; empty when `unchanged`.
+    pub data: Vec<u8>,
+    /// The stored content hash of those bytes (the ETag), echoed for the client's
+    /// freshness/integrity cache.
+    pub etag: String,
+    /// `true` when the caller's `if_none_match` matched the stored hash — `data` is
+    /// omitted and the caller reuses its cached bytes.
+    pub unchanged: bool,
+}
+
 /// User-upload logic + catalog search / saved library / score ratings, over
 /// owner-scoped repos, the public-catalog read port, and the object store.
 pub struct ScoreModule {
@@ -99,6 +116,11 @@ pub struct ScoreModule {
     /// wired via [`Self::with_rewards`]. The rating path records engagement + awards
     /// coverage through it; the moderation path settles honesty through it.
     rewards: Option<Arc<dyn CurationRewardsSink>>,
+    /// Per-user offline-cache secret store (change: add-offline-score-cache).
+    /// Defaults to an in-memory fake so existing call sites and tests are
+    /// unaffected; **production MUST override it** via [`Self::with_offline_secrets`]
+    /// with the Postgres-backed store, or the secret won't persist across restarts.
+    offline_secrets: Arc<dyn OfflineSecretRepo>,
 }
 
 impl ScoreModule {
@@ -125,6 +147,7 @@ impl ScoreModule {
             rating_config: RatingConfig::default(),
             user: None,
             rewards: None,
+            offline_secrets: Arc::new(FakeOfflineSecretRepo::default()),
         }
     }
 
@@ -148,6 +171,14 @@ impl ScoreModule {
     /// add-score-catalog-proposal). The server sets this; tests opt in with a mock.
     pub fn with_user(mut self, user: Arc<dyn cymbra_user_port::UserPort>) -> Self {
         self.user = Some(user);
+        self
+    }
+
+    /// Wire the persistent per-user offline-cache secret store (change:
+    /// add-offline-score-cache). Production passes the Postgres-backed
+    /// `PgOfflineSecretRepo`; the default is an in-memory fake.
+    pub fn with_offline_secrets(mut self, secrets: Arc<dyn OfflineSecretRepo>) -> Self {
+        self.offline_secrets = secrets;
         self
     }
 
@@ -306,17 +337,69 @@ impl ScoreModule {
         Ok(())
     }
 
-    /// Fetch the bytes of a score the caller owns (for the player).
-    pub async fn get_bytes(&self, owner_id: &str, id: &str) -> Result<Vec<u8>> {
+    /// Fetch the bytes of a score the caller owns (for the player), with the stored
+    /// content hash as the ETag. When `if_none_match` equals that hash the bytes are
+    /// omitted (`unchanged`) so a client with a fresh cache skips the download
+    /// (change: add-offline-score-cache). Owner-scoped: a non-owner id is not-found.
+    pub async fn get_bytes(
+        &self,
+        owner_id: &str,
+        id: &str,
+        if_none_match: Option<&str>,
+    ) -> Result<ScoreBytes> {
         let row = self
             .repo
             .get_owned(id, owner_id)
             .await?
             .ok_or_else(|| AppError::NotFound("score not found".into()))?;
-        self.storage
+        // `user_scores.sha256` is computed over the canonical bytes at upload and the
+        // stored object IS those canonical bytes, so the ETag matches what we return.
+        let etag = row.sha256.clone();
+        if if_none_match.is_some_and(|h| h == etag) {
+            return Ok(ScoreBytes {
+                data: Vec::new(),
+                etag,
+                unchanged: true,
+            });
+        }
+        let data = self
+            .storage
             .get(&row.object_key)
             .await
-            .map_err(|e| AppError::Internal(anyhow::anyhow!("read score: {e}")))
+            .map_err(|e| AppError::Internal(anyhow::anyhow!("read score: {e}")))?;
+        Ok(ScoreBytes {
+            data,
+            etag,
+            unchanged: false,
+        })
+    }
+
+    /// Get-or-create this user's stable offline-cache secret (change:
+    /// add-offline-score-cache). Created with fresh CSPRNG entropy on first request
+    /// and returned unchanged thereafter, so the same favorites decrypt across all of
+    /// the caller's devices. Owner-scoped: `owner_id` is the authenticated caller.
+    pub async fn offline_cache_secret(&self, owner_id: &str) -> Result<Vec<u8>> {
+        if let Some(secret) = self.offline_secrets.get(owner_id).await? {
+            return Ok(secret);
+        }
+        // Create-on-first-request. `create_if_absent` is atomic: on a concurrent
+        // race the already-stored value wins, so every device converges on one
+        // secret rather than clobbering each other.
+        let candidate = generate_offline_secret();
+        self.offline_secrets
+            .create_if_absent(owner_id, &candidate)
+            .await
+    }
+
+    /// Rotate this user's offline-cache secret to a fresh value (change:
+    /// add-offline-score-cache). The kill-switch lever: after rotation the next
+    /// request returns a different secret and prior offline caches stop decrypting
+    /// once devices re-derive. (Account deletion instead removes the row entirely in
+    /// the `purge_user` worker job, which has the same effect.)
+    pub async fn rotate_offline_cache_secret(&self, owner_id: &str) -> Result<Vec<u8>> {
+        let fresh = generate_offline_secret();
+        self.offline_secrets.rotate(owner_id, &fresh).await?;
+        Ok(fresh)
     }
 
     // --- catalog search + saved library (change: score-hub-search) ----------
@@ -830,23 +913,42 @@ impl ScoreModule {
         &self,
         catalog_id: &str,
         allow_unvalidated: bool,
-    ) -> Result<Vec<u8>> {
-        let object_key = self
+        if_none_match: Option<&str>,
+    ) -> Result<ScoreBytes> {
+        let obj = self
             .catalog
-            .object_key(catalog_id, allow_unvalidated)
+            .object_ref(catalog_id, allow_unvalidated)
             .await?
             .ok_or_else(|| AppError::NotFound("catalog score not found".into()))?;
-        let raw = self.storage.get(&object_key).await.map_err(|e| match e {
-            // The catalog row exists but its bytes are not in the store yet (e.g.
-            // a corpus not synced to the serving store yet). Report a distinct,
-            // typed precondition failure so the app can say "not available yet"
-            // rather than a generic internal error.
-            StorageError::NotFound(_) => {
-                AppError::FailedPrecondition("catalog score bytes not available yet".into())
-            }
-            other => AppError::Internal(anyhow::anyhow!("read catalog score: {other}")),
-        })?;
-        decode_canonical(&raw)
+        // Conditional fetch: an unchanged hash skips the object read entirely
+        // (change: add-offline-score-cache). The stored `sha256` is opaque to the
+        // client, which only ever echoes back what we gave it.
+        if if_none_match.is_some_and(|h| h == obj.sha256) {
+            return Ok(ScoreBytes {
+                data: Vec::new(),
+                etag: obj.sha256,
+                unchanged: true,
+            });
+        }
+        let raw = self
+            .storage
+            .get(&obj.object_key)
+            .await
+            .map_err(|e| match e {
+                // The catalog row exists but its bytes are not in the store yet (e.g.
+                // a corpus not synced to the serving store yet). Report a distinct,
+                // typed precondition failure so the app can say "not available yet"
+                // rather than a generic internal error.
+                StorageError::NotFound(_) => {
+                    AppError::FailedPrecondition("catalog score bytes not available yet".into())
+                }
+                other => AppError::Internal(anyhow::anyhow!("read catalog score: {other}")),
+            })?;
+        Ok(ScoreBytes {
+            data: decode_canonical(&raw)?,
+            etag: obj.sha256,
+            unchanged: false,
+        })
     }
 
     /// Whether `catalog_id` exists and is in a status the community may rate or
@@ -873,8 +975,9 @@ impl ScoreModule {
         // is eligible. Best-effort — failing to record must not block the preview.
         self.record_engagement(user_id, catalog_id).await;
         // Status is already gated to pending/accepted here, so resolving the bytes in
-        // any status (`true`) can only reach a previewable score.
-        self.get_catalog_bytes(catalog_id, true).await
+        // any status (`true`) can only reach a previewable score. The preview always
+        // wants the full bytes, so no conditional hash is supplied.
+        Ok(self.get_catalog_bytes(catalog_id, true, None).await?.data)
     }
 
     /// Fetch a catalog score's bytes for a **player open** — [`Self::get_catalog_bytes`]
@@ -885,13 +988,16 @@ impl ScoreModule {
     /// post-play prompt would silently earn nothing. Engagement is recorded only for a
     /// *rateable* (`pending`/`accepted`) score, so a moderator opening a `rejected`
     /// one to review it records nothing. `allow_unvalidated` and the bytes resolution
-    /// are unchanged — this only adds the signal.
+    /// are unchanged — this adds the signal, and threads the offline cache's
+    /// conditional fetch (`if_none_match`; change: add-offline-score-cache) through to
+    /// [`Self::get_catalog_bytes`].
     pub async fn catalog_bytes_for_player(
         &self,
         user_id: &str,
         catalog_id: &str,
         allow_unvalidated: bool,
-    ) -> Result<Vec<u8>> {
+        if_none_match: Option<&str>,
+    ) -> Result<ScoreBytes> {
         if self
             .is_pending_or_accepted(catalog_id)
             .await
@@ -899,7 +1005,8 @@ impl ScoreModule {
         {
             self.record_engagement(user_id, catalog_id).await;
         }
-        self.get_catalog_bytes(catalog_id, allow_unvalidated).await
+        self.get_catalog_bytes(catalog_id, allow_unvalidated, if_none_match)
+            .await
     }
 
     /// Record the coverage engagement signal for `(user, score)`, best-effort: the
@@ -1272,7 +1379,7 @@ mod tests {
         assert!(m.list("u2").await.unwrap().is_empty());
         // Non-owner cannot read or delete.
         assert!(matches!(
-            m.get_bytes("u2", &rec.id).await,
+            m.get_bytes("u2", &rec.id, None).await,
             Err(AppError::NotFound(_))
         ));
         assert!(matches!(
@@ -1280,7 +1387,7 @@ mod tests {
             Err(AppError::NotFound(_))
         ));
         // Owner reads the canonical bytes back, then deletes (row + object).
-        let bytes = m.get_bytes("u1", &rec.id).await.unwrap();
+        let bytes = m.get_bytes("u1", &rec.id, None).await.unwrap().data;
         assert!(!bytes.is_empty());
         m.delete("u1", &rec.id).await.unwrap();
         assert!(m.list("u1").await.unwrap().is_empty());
@@ -1572,7 +1679,7 @@ mod tests {
     async fn get_catalog_bytes_rejects_unknown_id() {
         let (m, _cat, _lib) = catalog_module();
         assert!(matches!(
-            m.get_catalog_bytes("99999999-9999-7999-8999-999999999999", false)
+            m.get_catalog_bytes("99999999-9999-7999-8999-999999999999", false, None)
                 .await,
             Err(AppError::NotFound(_))
         ));
@@ -1585,7 +1692,7 @@ mod tests {
         // app can say "not available yet", not a generic internal error.
         let (m, _cat, _lib) = catalog_module();
         assert!(matches!(
-            m.get_catalog_bytes("11111111-1111-7111-8111-111111111111", false)
+            m.get_catalog_bytes("11111111-1111-7111-8111-111111111111", false, None)
                 .await,
             Err(AppError::FailedPrecondition(_))
         ));
@@ -1675,17 +1782,23 @@ mod tests {
         let m = moderated_module().await;
         // Accepted bytes are served to a normal caller.
         assert_eq!(
-            m.get_catalog_bytes(DEBUSSY_1, false).await.unwrap(),
+            m.get_catalog_bytes(DEBUSSY_1, false, None)
+                .await
+                .unwrap()
+                .data,
             b"<score/>"
         );
         // Pending / rejected bytes are not-found for a normal caller…
         for id in [PENDING_ID, REJECTED_ID] {
             assert!(matches!(
-                m.get_catalog_bytes(id, false).await,
+                m.get_catalog_bytes(id, false, None).await,
                 Err(AppError::NotFound(_))
             ));
             // …but an authorised reviewer (allow_unvalidated) is served them.
-            assert_eq!(m.get_catalog_bytes(id, true).await.unwrap(), b"<score/>");
+            assert_eq!(
+                m.get_catalog_bytes(id, true, None).await.unwrap().data,
+                b"<score/>"
+            );
         }
     }
 
@@ -1704,15 +1817,16 @@ mod tests {
         let (m, rewards) = module_with_rewards().await;
         assert!(!rewards.has_engagement("u1", DEBUSSY_1).await.unwrap());
         assert_eq!(
-            m.catalog_bytes_for_player("u1", DEBUSSY_1, false)
+            m.catalog_bytes_for_player("u1", DEBUSSY_1, false, None)
                 .await
-                .unwrap(),
+                .unwrap()
+                .data,
             b"<score/>"
         );
         assert!(rewards.has_engagement("u1", DEBUSSY_1).await.unwrap());
         // Idempotent: opening again (or previewing the same score in the deck) does
         // not double-record, and the preview path agrees.
-        m.catalog_bytes_for_player("u1", DEBUSSY_1, false)
+        m.catalog_bytes_for_player("u1", DEBUSSY_1, false, None)
             .await
             .unwrap();
         m.rating_preview_bytes("u1", DEBUSSY_1).await.unwrap();
@@ -1728,14 +1842,15 @@ mod tests {
         // bytes are still served exactly as before.
         let (m, rewards) = module_with_rewards().await;
         assert_eq!(
-            m.catalog_bytes_for_player("mod1", REJECTED_ID, true)
+            m.catalog_bytes_for_player("mod1", REJECTED_ID, true, None)
                 .await
-                .unwrap(),
+                .unwrap()
+                .data,
             b"<score/>"
         );
         assert!(!rewards.has_engagement("mod1", REJECTED_ID).await.unwrap());
         // A pending candidate IS rateable, so opening it does record engagement.
-        m.catalog_bytes_for_player("mod1", PENDING_ID, true)
+        m.catalog_bytes_for_player("mod1", PENDING_ID, true, None)
             .await
             .unwrap();
         assert!(rewards.has_engagement("mod1", PENDING_ID).await.unwrap());
@@ -1748,7 +1863,7 @@ mod tests {
         let (m, rewards) = module_with_rewards().await;
         for id in [PENDING_ID, REJECTED_ID] {
             assert!(matches!(
-                m.catalog_bytes_for_player("u1", id, false).await,
+                m.catalog_bytes_for_player("u1", id, false, None).await,
                 Err(AppError::NotFound(_))
             ));
         }
@@ -1769,7 +1884,7 @@ mod tests {
             .unwrap();
         assert_eq!(points, 0);
         // …but after a player open, a rating of a different score does earn.
-        m.catalog_bytes_for_player("u1", PENDING_ID, true)
+        m.catalog_bytes_for_player("u1", PENDING_ID, true, None)
             .await
             .unwrap();
         let (_, points) = m
@@ -1777,6 +1892,84 @@ mod tests {
             .await
             .unwrap();
         assert!(points > 0, "a played score's rating must earn coverage");
+    }
+
+    // --- ETag / conditional fetch (change: add-offline-score-cache) ----------
+
+    #[tokio::test]
+    async fn catalog_bytes_expose_the_stored_hash_as_etag() {
+        let m = moderated_module().await;
+        let out = m.get_catalog_bytes(DEBUSSY_1, false, None).await.unwrap();
+        assert!(!out.unchanged);
+        assert_eq!(out.data, b"<score/>");
+        // The ETag is the row's stored content hash, stable across fetches.
+        assert_eq!(out.etag, format!("etag-{DEBUSSY_1}"));
+        let again = m.get_catalog_bytes(DEBUSSY_1, false, None).await.unwrap();
+        assert_eq!(again.etag, out.etag);
+    }
+
+    #[tokio::test]
+    async fn catalog_bytes_conditional_fetch_skips_unchanged() {
+        let m = moderated_module().await;
+        let etag = format!("etag-{DEBUSSY_1}");
+        // Matching hash → "unchanged", no bytes (the caller keeps its cached copy).
+        let cond = m
+            .get_catalog_bytes(DEBUSSY_1, false, Some(&etag))
+            .await
+            .unwrap();
+        assert!(cond.unchanged);
+        assert!(cond.data.is_empty());
+        assert_eq!(cond.etag, etag);
+        // A stale / non-matching hash → full bytes + the current hash.
+        let changed = m
+            .get_catalog_bytes(DEBUSSY_1, false, Some("stale-hash"))
+            .await
+            .unwrap();
+        assert!(!changed.unchanged);
+        assert_eq!(changed.data, b"<score/>");
+        assert_eq!(changed.etag, etag);
+    }
+
+    #[tokio::test]
+    async fn conditional_fetch_keeps_moderation_access_rules() {
+        let m = moderated_module().await;
+        // A normal caller supplying any hash for a pending score is still not-found —
+        // the conditional path reveals nothing the unconditional path wouldn't.
+        assert!(matches!(
+            m.get_catalog_bytes(PENDING_ID, false, Some("whatever"))
+                .await,
+            Err(AppError::NotFound(_))
+        ));
+    }
+
+    // --- offline-cache secret (change: add-offline-score-cache) ---------------
+
+    #[tokio::test]
+    async fn offline_cache_secret_is_created_once_and_stable_per_user() {
+        let secrets = Arc::new(FakeOfflineSecretRepo::default());
+        let (m, _repo, _store) = module(5, 7);
+        let m = m.with_offline_secrets(secrets.clone());
+        // First request mints a >= 32-byte secret and persists it.
+        let first = m.offline_cache_secret("u1").await.unwrap();
+        assert!(first.len() >= 32);
+        assert_eq!(secrets.stored("u1").unwrap(), first);
+        // Repeat requests return the SAME value (so a user's devices all agree).
+        assert_eq!(m.offline_cache_secret("u1").await.unwrap(), first);
+        // Owner-scoped: a different user gets a different secret.
+        assert_ne!(m.offline_cache_secret("u2").await.unwrap(), first);
+    }
+
+    #[tokio::test]
+    async fn rotate_offline_cache_secret_changes_the_returned_value() {
+        let secrets = Arc::new(FakeOfflineSecretRepo::default());
+        let (m, _repo, _store) = module(5, 7);
+        let m = m.with_offline_secrets(secrets.clone());
+        let before = m.offline_cache_secret("u1").await.unwrap();
+        let rotated = m.rotate_offline_cache_secret("u1").await.unwrap();
+        assert_ne!(rotated, before);
+        // The next fetch returns the rotated value; caches derived from `before`
+        // can no longer be re-derived (the kill-switch).
+        assert_eq!(m.offline_cache_secret("u1").await.unwrap(), rotated);
     }
 
     #[tokio::test]

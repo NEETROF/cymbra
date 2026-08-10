@@ -61,8 +61,31 @@ message DeleteScoreResponse {}
 
 // Fetch the (decoded/canonical) bytes of a contributed score the caller owns —
 // served local-first with an S3 fallback — to open it in the player.
-message GetScoreBytesRequest { string id = 1; }
-message GetScoreBytesResponse { bytes data = 1; }
+message GetScoreBytesRequest {
+  string id = 1;
+  // The content hash (ETag) the caller already holds for this id, if any (change:
+  // add-offline-score-cache). When it still matches the stored bytes the response
+  // omits the payload (`unchanged = true`); absent/non-matching returns full bytes.
+  optional string if_none_match = 2;
+}
+message GetScoreBytesResponse {
+  bytes data = 1; // the canonical bytes; EMPTY when `unchanged`
+  // Stored content hash of these bytes, echoed so the client can cache it as the
+  // freshness/integrity ETag (change: add-offline-score-cache).
+  string etag = 2;
+  // True when `if_none_match` matched the stored hash: `data` is omitted and the
+  // caller keeps its cached copy.
+  bool unchanged = 3;
+}
+
+// Issue (create-on-first, then stable) the caller's per-user offline-cache secret
+// (change: add-offline-score-cache). One input to the app's local envelope-
+// encryption key derivation; owner-scoped, authenticated. Rotating/removing it
+// server-side makes prior offline caches undecryptable once devices re-derive.
+message GetOfflineCacheKeyRequest {}
+message GetOfflineCacheKeyResponse {
+  bytes secret = 1; // the caller's stable secret (>= 32 bytes)
+}
 
 // --- Score Hub: public-catalog search + per-user saved library ---------------
 // (change: score-hub-search). All authenticated (identity from the interceptor,
@@ -180,8 +203,16 @@ message RemoveSavedCatalogScoreResponse {}
 message ListSavedCatalogScoresRequest {}
 message ListSavedCatalogScoresResponse { repeated CatalogHit hits = 1; }
 
-message GetCatalogScoreBytesRequest { string catalog_id = 1; }
-message GetCatalogScoreBytesResponse { bytes data = 1; }
+message GetCatalogScoreBytesRequest {
+  string catalog_id = 1;
+  // See GetScoreBytesRequest.if_none_match (change: add-offline-score-cache).
+  optional string if_none_match = 2;
+}
+message GetCatalogScoreBytesResponse {
+  bytes data = 1; // EMPTY when `unchanged`
+  string etag = 2; // stored content hash (ETag)
+  bool unchanged = 3; // true → `data` omitted, caller keeps its cached copy
+}
 
 // Rating-preview bytes (change: rate-pending-scores): serves a `pending` or
 // `accepted` score's bytes to a signed-in rater for the deck's read-only preview.
@@ -582,6 +613,10 @@ service ScoreService {
   rpc DeleteScore(DeleteScoreRequest) returns (DeleteScoreResponse);
   rpc GetScoreBytes(GetScoreBytesRequest) returns (GetScoreBytesResponse);
   rpc SetScoreFavorite(SetScoreFavoriteRequest) returns (SetScoreFavoriteResponse);
+
+  // Offline cache secret (change: add-offline-score-cache). Owner-scoped: issues
+  // (create-on-first, stable thereafter) the caller's per-user offline-cache secret.
+  rpc GetOfflineCacheKey(GetOfflineCacheKeyRequest) returns (GetOfflineCacheKeyResponse);
 
   // Score Hub (change: score-hub-search).
   rpc SearchCatalog(SearchCatalogRequest) returns (SearchCatalogResponse);

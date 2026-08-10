@@ -21,6 +21,9 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../src/grpc/score.pbgrpc.dart' as score;
 import '../state/score_catalog.dart' show PracticeLevel;
 import 'grpc_client.dart';
+import 'score_bytes_result.dart';
+
+export 'score_bytes_result.dart' show ScoreBytesResult;
 
 part 'score_upload_service.g.dart';
 
@@ -131,8 +134,10 @@ abstract class ScoreUploadService {
   Future<void> setFavorite(String id, bool favorite);
 
   /// Fetch a contributed score's bytes to open it in the player — the
-  /// backend-backed byte source paralleling [ScoreAssetSource] (task 6.3).
-  Future<Uint8List> fetchBytes(String id);
+  /// backend-backed byte source paralleling [ScoreAssetSource] (task 6.3). When
+  /// [ifNoneMatch] still matches the stored content hash the backend returns
+  /// `unchanged` with no payload (change: add-offline-score-cache).
+  Future<ScoreBytesResult> fetchScoreBytes(String id, {String? ifNoneMatch});
 }
 
 /// Maps a backend level string to [PracticeLevel]; defaults to beginner.
@@ -252,13 +257,18 @@ class GrpcScoreUploadService implements ScoreUploadService {
       });
 
   @override
-  Future<Uint8List> fetchBytes(String id) => _authed((bearer) async {
-    final resp = await _client.getScoreBytes(
-      score.GetScoreBytesRequest(id: id),
-      options: bearerOptions(bearer),
-    );
-    return Uint8List.fromList(resp.data);
-  });
+  Future<ScoreBytesResult> fetchScoreBytes(String id, {String? ifNoneMatch}) =>
+      _authed((bearer) async {
+        final resp = await _client.getScoreBytes(
+          score.GetScoreBytesRequest(id: id, ifNoneMatch: ifNoneMatch),
+          options: bearerOptions(bearer),
+        );
+        return ScoreBytesResult(
+          data: resp.unchanged ? null : Uint8List.fromList(resp.data),
+          etag: resp.etag,
+          unchanged: resp.unchanged,
+        );
+      });
 }
 
 /// Production score-upload-service provider. Override in tests with a fake.

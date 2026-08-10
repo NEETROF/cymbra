@@ -44,11 +44,12 @@ use crate::proto::{
     GetCatalogScoreBytesResponse, GetCatalogScoreRequest, GetCourseProgressRequest,
     GetCourseProgressResponse, GetCourseRequest, GetCourseResponse, GetCuratorReliabilityRequest,
     GetCuratorRewardsRequest, GetMyScoreRatingRequest, GetMyScoreRatingResponse,
-    GetRatingPreviewBytesRequest, GetRatingPreviewBytesResponse, GetScoreBytesRequest,
-    GetScoreBytesResponse, ListCoursesRequest, ListCoursesResponse, ListMyScoresRequest,
-    ListMyScoresResponse, ListRatingDeckRequest, ListRatingDeckResponse, ListRewardShopRequest,
-    ListRewardShopResponse, ListSavedCatalogScoresRequest, ListSavedCatalogScoresResponse,
-    ListSoundFontsRequest, ListSoundFontsResponse, ProposeScoreRequest, ProposeScoreResponse,
+    GetOfflineCacheKeyRequest, GetOfflineCacheKeyResponse, GetRatingPreviewBytesRequest,
+    GetRatingPreviewBytesResponse, GetScoreBytesRequest, GetScoreBytesResponse, ListCoursesRequest,
+    ListCoursesResponse, ListMyScoresRequest, ListMyScoresResponse, ListRatingDeckRequest,
+    ListRatingDeckResponse, ListRewardShopRequest, ListRewardShopResponse,
+    ListSavedCatalogScoresRequest, ListSavedCatalogScoresResponse, ListSoundFontsRequest,
+    ListSoundFontsResponse, ProposeScoreRequest, ProposeScoreResponse,
     RecordCourseCompletionRequest, RecordCourseCompletionResponse, RedeemRewardRequest,
     RedeemRewardResponse, RemoveSavedCatalogScoreRequest, RemoveSavedCatalogScoreResponse,
     RewardActivity, RewardShopItem, SaveCatalogScoreRequest, SaveCatalogScoreResponse, ScoreRecord,
@@ -438,9 +439,28 @@ impl ScoreService for ScoreGrpc {
         req: Request<GetScoreBytesRequest>,
     ) -> Result<Response<GetScoreBytesResponse>, Status> {
         let owner_id = owner(&req)?;
-        let id = req.into_inner().id;
-        let data = self.module.get_bytes(&owner_id, &id).await?;
-        Ok(Response::new(GetScoreBytesResponse { data }))
+        let r = req.into_inner();
+        let out = self
+            .module
+            .get_bytes(&owner_id, &r.id, r.if_none_match.as_deref())
+            .await?;
+        Ok(Response::new(GetScoreBytesResponse {
+            data: out.data,
+            etag: out.etag,
+            unchanged: out.unchanged,
+        }))
+    }
+
+    async fn get_offline_cache_key(
+        &self,
+        req: Request<GetOfflineCacheKeyRequest>,
+    ) -> Result<Response<GetOfflineCacheKeyResponse>, Status> {
+        // Owner-scoped: the secret is created on first request and returned unchanged
+        // thereafter, so the same favorites decrypt across the caller's devices. The
+        // value is sensitive — it is never logged (change: add-offline-score-cache).
+        let owner_id = owner(&req)?;
+        let secret = self.module.offline_cache_secret(&owner_id).await?;
+        Ok(Response::new(GetOfflineCacheKeyResponse { secret }))
     }
 
     /// Lists the server-owned SoundFont catalog (change: add-soundfont-catalog-db)
@@ -964,15 +984,26 @@ impl ScoreService for ScoreGrpc {
         let id = identity(&req)?;
         self.guard_download(&id).await?; // per-user download guardrail (scrape guard)
         let allow_unvalidated = id.is_admin() || id.has_role("moderator");
-        let catalog_id = req.into_inner().catalog_id;
+        let r = req.into_inner();
         // Opening a score in the player records the coverage engagement signal
         // (change: add-post-play-rating-prompt), so a rating submitted from the
-        // post-play prompt is eligible for points just like one from the deck.
-        let data = self
+        // post-play prompt is eligible for points just like one from the deck; it
+        // also honours the offline cache's conditional fetch (change:
+        // add-offline-score-cache) so an unchanged copy skips the re-download.
+        let out = self
             .module
-            .catalog_bytes_for_player(&id.user_id, &catalog_id, allow_unvalidated)
+            .catalog_bytes_for_player(
+                &id.user_id,
+                &r.catalog_id,
+                allow_unvalidated,
+                r.if_none_match.as_deref(),
+            )
             .await?;
-        Ok(Response::new(GetCatalogScoreBytesResponse { data }))
+        Ok(Response::new(GetCatalogScoreBytesResponse {
+            data: out.data,
+            etag: out.etag,
+            unchanged: out.unchanged,
+        }))
     }
 
     async fn get_rating_preview_bytes(
@@ -2016,6 +2047,12 @@ mod tests {
             .await
             .unwrap_err();
         assert_eq!(err.code(), tonic::Code::Unauthenticated);
+        // The offline-cache key op is authenticated too.
+        let err = g
+            .get_offline_cache_key(Request::new(GetOfflineCacheKeyRequest {}))
+            .await
+            .unwrap_err();
+        assert_eq!(err.code(), tonic::Code::Unauthenticated);
     }
 
     #[tokio::test]
@@ -2087,6 +2124,69 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn get_offline_cache_key_is_owner_scoped_and_stable() {
+        let g = grpc().await;
+        // First authenticated request mints a >= 32-byte secret…
+        let a1 = g
+            .get_offline_cache_key(authed(GetOfflineCacheKeyRequest {}, "u1"))
+            .await
+            .unwrap()
+            .into_inner()
+            .secret;
+        assert!(a1.len() >= 32);
+        // …and repeats return exactly the same value (cross-device consistency).
+        let a2 = g
+            .get_offline_cache_key(authed(GetOfflineCacheKeyRequest {}, "u1"))
+            .await
+            .unwrap()
+            .into_inner()
+            .secret;
+        assert_eq!(a1, a2);
+        // A different caller only ever receives their own (different) secret.
+        let b = g
+            .get_offline_cache_key(authed(GetOfflineCacheKeyRequest {}, "u2"))
+            .await
+            .unwrap()
+            .into_inner()
+            .secret;
+        assert_ne!(a1, b);
+    }
+
+    #[tokio::test]
+    async fn catalog_bytes_expose_etag_and_honour_conditional_fetch() {
+        let g = grpc().await;
+        let full = g
+            .get_catalog_score_bytes(authed(
+                GetCatalogScoreBytesRequest {
+                    catalog_id: DEBUSSY.into(),
+                    if_none_match: None,
+                },
+                "u1",
+            ))
+            .await
+            .unwrap()
+            .into_inner();
+        assert!(!full.unchanged);
+        assert_eq!(full.data, b"<score/>");
+        assert_eq!(full.etag, format!("etag-{DEBUSSY}"));
+        // Echoing the ETag back → "unchanged", no bytes re-sent.
+        let cond = g
+            .get_catalog_score_bytes(authed(
+                GetCatalogScoreBytesRequest {
+                    catalog_id: DEBUSSY.into(),
+                    if_none_match: Some(full.etag.clone()),
+                },
+                "u1",
+            ))
+            .await
+            .unwrap()
+            .into_inner();
+        assert!(cond.unchanged);
+        assert!(cond.data.is_empty());
+        assert_eq!(cond.etag, full.etag);
+    }
+
+    #[tokio::test]
     async fn access_limits_reject_download_and_enumeration_floods() {
         let g = grpc_limited().await;
         // Download floor is 2 (no plays) → the 3rd catalog-bytes fetch is rejected
@@ -2095,6 +2195,7 @@ mod tests {
             g.get_catalog_score_bytes(authed(
                 GetCatalogScoreBytesRequest {
                     catalog_id: DEBUSSY.into(),
+                    if_none_match: None,
                 },
                 "u1",
             ))
@@ -2105,6 +2206,7 @@ mod tests {
             .get_catalog_score_bytes(authed(
                 GetCatalogScoreBytesRequest {
                     catalog_id: DEBUSSY.into(),
+                    if_none_match: None,
                 },
                 "u1",
             ))
@@ -2227,6 +2329,7 @@ mod tests {
             .get_catalog_score_bytes(authed(
                 GetCatalogScoreBytesRequest {
                     catalog_id: DEBUSSY.into(),
+                    if_none_match: None,
                 },
                 "u1",
             ))
@@ -2239,6 +2342,7 @@ mod tests {
             .get_catalog_score_bytes(authed(
                 GetCatalogScoreBytesRequest {
                     catalog_id: "99999999-9999-7999-8999-999999999999".into(),
+                    if_none_match: None,
                 },
                 "u1",
             ))
@@ -2306,6 +2410,7 @@ mod tests {
             .get_catalog_score_bytes(authed(
                 GetCatalogScoreBytesRequest {
                     catalog_id: PENDING.into(),
+                    if_none_match: None,
                 },
                 "u1",
             ))
@@ -2317,6 +2422,7 @@ mod tests {
             .get_catalog_score_bytes(authed_admin(
                 GetCatalogScoreBytesRequest {
                     catalog_id: PENDING.into(),
+                    if_none_match: None,
                 },
                 "admin1",
             ))
@@ -2346,6 +2452,7 @@ mod tests {
             .get_catalog_score_bytes(authed_moderator(
                 GetCatalogScoreBytesRequest {
                     catalog_id: PENDING.into(),
+                    if_none_match: None,
                 },
                 "mod1",
             ))
@@ -2553,6 +2660,7 @@ mod tests {
             .get_catalog_score_bytes(authed(
                 GetCatalogScoreBytesRequest {
                     catalog_id: PENDING.into(),
+                    if_none_match: None,
                 },
                 RATER,
             ))
@@ -2564,6 +2672,7 @@ mod tests {
             .get_catalog_score_bytes(authed(
                 GetCatalogScoreBytesRequest {
                     catalog_id: DEBUSSY.into(),
+                    if_none_match: None,
                 },
                 RATER,
             ))

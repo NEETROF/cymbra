@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -21,9 +22,11 @@ import 'package:music/courses/course_manifest.dart';
 import 'package:music/screens/library_screen.dart';
 import 'package:music/services/audio_service.dart';
 import 'package:music/services/catalog_service.dart';
+import 'package:music/services/connectivity_service.dart';
 import 'package:music/services/course_catalog_service.dart';
 import 'package:music/services/midi_service.dart';
 import 'package:music/services/notation_engine.dart';
+import 'package:music/services/offline_score_cache.dart';
 import 'package:music/services/preferences_service.dart';
 import 'package:music/services/score_asset_source.dart';
 import 'package:music/services/score_upload_service.dart';
@@ -36,6 +39,8 @@ import '../support/notation_fakes.dart';
 import '../support/prefs_fakes.dart';
 
 class _FakeCatalog implements CatalogService {
+  @override
+  Future<Uint8List> getOfflineCacheKey() async => Uint8List(0);
   _FakeCatalog(this.saved);
   final List<CatalogHit> saved;
   final List<String> removed = [];
@@ -57,7 +62,10 @@ class _FakeCatalog implements CatalogService {
     int offset = 0,
   }) async => const CatalogSearchPage(hits: [], nextOffset: 0, total: 0);
   @override
-  Future<Uint8List> fetchBytes(String catalogId) async => Uint8List(0);
+  Future<ScoreBytesResult> fetchScoreBytes(
+    String catalogId, {
+    String? ifNoneMatch,
+  }) async => ScoreBytesResult(data: Uint8List(0), etag: '', unchanged: false);
   @override
   Future<Uint8List> ratingPreviewBytes(String catalogId) async => Uint8List(0);
   @override
@@ -91,7 +99,10 @@ class _FakeUpload implements ScoreUploadService {
   }
 
   @override
-  Future<Uint8List> fetchBytes(String id) async => Uint8List(0);
+  Future<ScoreBytesResult> fetchScoreBytes(
+    String id, {
+    String? ifNoneMatch,
+  }) async => ScoreBytesResult(data: Uint8List(0), etag: '', unchanged: false);
   @override
   Future<ContributedScore> upload({
     required Uint8List data,
@@ -158,11 +169,34 @@ const _bundled = [
   ),
 ];
 
+class _FakeConnectivity extends Fake implements ConnectivityService {
+  _FakeConnectivity(this.online);
+  bool online;
+  final _status = StreamController<bool>.broadcast();
+  @override
+  Stream<void> get onOnline => const Stream.empty();
+  @override
+  Stream<bool> get onlineStatus => _status.stream;
+  @override
+  Future<bool> isOnline() async => online;
+
+  /// Flip connectivity live (as `connectivity_plus` would on a Wi-Fi change).
+  void setOnline(bool value) {
+    online = value;
+    _status.add(value);
+  }
+
+  void dispose() => _status.close();
+}
+
 ProviderContainer _container(
   _FakeCatalog catalog,
   _FakeUpload upload, {
   bool signedIn = true,
   bool withCourses = false,
+  bool online = true,
+  OfflineScoreCache? cache,
+  _FakeConnectivity? connectivity,
 }) {
   final c = ProviderContainer(
     overrides: [
@@ -179,6 +213,14 @@ ProviderContainer _container(
       catalogServiceProvider.overrideWithValue(catalog),
       scoreUploadServiceProvider.overrideWithValue(upload),
       canUseOnlineServicesProvider.overrideWithValue(signedIn),
+      connectivityServiceProvider.overrideWithValue(
+        connectivity ?? _FakeConnectivity(online),
+      ),
+      // In-memory offline cache so eviction on remove/delete is instant (the real
+      // impl touches path_provider, which isn't available in a widget test).
+      offlineScoreCacheProvider.overrideWithValue(
+        cache ?? InMemoryOfflineScoreCache(),
+      ),
     ],
   );
   addTearDown(c.dispose);
@@ -315,6 +357,56 @@ void main() {
     }
     expect(catalog.removed, ['c1']);
     expect(find.text('Saved Piece'), findsNothing);
+    await _teardown(tester);
+  });
+
+  testWidgets('offline: uncached favorites are marked "not available offline'
+      '", cached ones are not', (tester) async {
+    // c1's bytes are cached (playable offline); c2's are not.
+    final cache = InMemoryOfflineScoreCache();
+    await cache.write('catalog:c1', Uint8List.fromList(const [1]), etag: 'e');
+    final c = _container(
+      _FakeCatalog([
+        _saved('c1', 'Cached Piece'),
+        _saved('c2', 'Uncached Piece'),
+      ]),
+      _FakeUpload(const []),
+      online: false,
+      cache: cache,
+    );
+    await _pump(tester, c);
+
+    // Both favorites are listed offline (from the live fetch here; the snapshot
+    // fallback is covered in favorite_scores_test).
+    expect(find.text('Cached Piece'), findsOneWidget);
+    expect(find.text('Uncached Piece'), findsOneWidget);
+    // Only the uncached one carries the "not available offline" badge.
+    expect(find.text('Not available offline'), findsOneWidget);
+    expect(find.byIcon(Icons.cloud_off), findsOneWidget);
+    await _teardown(tester);
+  });
+
+  testWidgets('home re-marks favorites live when Wi-Fi drops (no reload)', (
+    tester,
+  ) async {
+    final conn = _FakeConnectivity(true); // start online
+    addTearDown(conn.dispose);
+    final c = _container(
+      _FakeCatalog([_saved('c1', 'Uncached Piece')]),
+      _FakeUpload(const []),
+      connectivity: conn,
+    );
+    await _pump(tester, c);
+    // Online: nothing is flagged offline.
+    expect(find.text('Not available offline'), findsNothing);
+
+    // Wi-Fi drops → the connectivity stream emits; the home re-marks the
+    // uncached favorite without any hot reload / manual refresh.
+    conn.setOnline(false);
+    for (var i = 0; i < 8; i++) {
+      await tester.pump(const Duration(milliseconds: 20));
+    }
+    expect(find.text('Not available offline'), findsOneWidget);
     await _teardown(tester);
   });
 }
