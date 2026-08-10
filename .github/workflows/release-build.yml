@@ -221,24 +221,21 @@ jobs:
             mkdir -p "$dir"
             cp "$PROFILE_PATH" "$dir/"
           done
-      - name: Configure manual signing + export options
+      - name: Switch Release to Mac App Store signing + export options
         working-directory: apps/music/macos
         env:
           TEAM_ID: ${{ secrets.IOS_TEAM_ID }}
           PROFILE_NAME: ${{ secrets.MAC_PROVISIONING_PROFILE_NAME }}
         run: |
           set -euo pipefail
-          # Drive the archive phase to manual signing. The Runner target leaves
-          # CODE_SIGN_STYLE unset in Release, so the xcconfig value applies — the
-          # committed project stays on automatic development signing so that
-          # `flutter run -d macos` keeps working without a distribution cert.
-          cat >> Runner/Configs/Release.xcconfig <<EOF
-
-          CODE_SIGN_STYLE = Manual
-          DEVELOPMENT_TEAM = ${TEAM_ID}
-          PROVISIONING_PROFILE_SPECIFIER = ${PROFILE_NAME}
-          CODE_SIGN_IDENTITY = Apple Distribution
-          EOF
+          # Switch the Runner target's Release configuration to Mac App Store
+          # signing. This has to be a project-file edit, not an xcconfig and not
+          # `xcodebuild SETTING=value` — the script's docstring records why both
+          # fail (and why letting the archive go unsigned silently drops every
+          # entitlement). CI-only: the committed project keeps automatic
+          # development signing so contributors build without a dist cert.
+          python3 tool/ci_release_signing.py Runner.xcodeproj/project.pbxproj \
+            --profile "${PROFILE_NAME}" --team "${TEAM_ID}"
           cat > ExportOptions-ci.plist <<EOF
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">

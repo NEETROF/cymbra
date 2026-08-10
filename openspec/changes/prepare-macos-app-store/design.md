@@ -79,18 +79,38 @@ xcconfig, which only the Flutter tool writes — the app would ship pointing at 
 dev gRPC endpoint. Rejected: silent misconfiguration is the worst possible failure
 here.
 
-### D2 — Distribution signing as an `xcconfig` overlay, generated in CI
+### D2 — Distribution signing as a CI-only `project.pbxproj` patch
 
-The workflow appends `CODE_SIGN_STYLE = Manual`, `DEVELOPMENT_TEAM`,
-`PROVISIONING_PROFILE_SPECIFIER` and `CODE_SIGN_IDENTITY = Apple Distribution` to
-`macos/Runner/Configs/Release.xcconfig` at build time, exactly where it currently
-appends `CODE_SIGNING_ALLOWED = NO`, and exactly as the `ios` job does with
-`ios/Flutter/Release.xcconfig`. The Runner target leaves these unset in the project
-file, so the xcconfig value wins.
+**Superseded the original xcconfig plan.** The workflow runs
+`macos/tool/ci_release_signing.py`, which rewrites three settings inside the Runner
+target's *Release* build-settings block — the block is located by the unique anchor
+`CODE_SIGN_ENTITLEMENTS = Runner/Release.entitlements;`, and the script refuses to
+run if that anchor is missing or ambiguous. The committed project keeps automatic
+*development* signing, so contributors build without a distribution certificate.
 
-*Alternative considered:* committing distribution signing into `project.pbxproj`.
-Rejected: it breaks `flutter run -d macos` for every contributor without the
-distribution cert, and Xcode rewrites the file on any capability edit.
+The first three approaches all failed, each in an instructive way, and the script's
+docstring records them so nobody re-walks the path:
+
+1. **xcconfig overlay** (the plan, copied from the `ios` job) — cannot win. The
+   macOS Runner target sets `CODE_SIGN_STYLE`, `PROVISIONING_PROFILE_SPECIFIER` and
+   the *conditional* `CODE_SIGN_IDENTITY[sdk=macosx*] = "Apple Development"` at
+   **target** level, which outranks any xcconfig. The iOS job gets away with it only
+   because Flutter's iOS target leaves those unset. CI died with "couldn't find any
+   Mac App Development provisioning profiles" — a *development* profile, on a runner
+   that has no development identity at all.
+2. **`xcodebuild SETTING=value`** — does outrank the target (verified with
+   `-showBuildSettings`), but applies to *every* target in the workspace. All ~30
+   CocoaPods targets failed with "<pod> does not support provisioning profiles".
+3. **Unsigned archive, let `-exportArchive` re-sign** — the dangerous one. It
+   *succeeds*: signed app, signed `.pkg`, no errors. But `CODE_SIGNING_ALLOWED = NO`
+   means `CODE_SIGN_ENTITLEMENTS` is never processed, so the shipped app carries only
+   the profile-derived `application-identifier` and `team-identifier`. No App Sandbox
+   (an automatic rejection), no network, no keychain. Caught only by diffing the
+   delivered entitlements against a known-good package.
+
+*Alternative still rejected:* committing distribution signing into the project. It
+would hardcode a profile name and break `flutter build macos --release` for any
+contributor without the certificate.
 
 ### D3 — Two certificates, two signing roles
 

@@ -45,7 +45,13 @@
 
 - [x] 4.1 Replace the "Disable code signing" step in the `macos` job of `.github/workflows/release-build.yml` with a secrets presence check that fails with an explicit error naming the missing material (mirrors the `ios` job's "Check iOS signing secrets")
 - [x] 4.2 Add a step importing the Apple Distribution cert, the Mac Installer Distribution cert and the Mac App Store provisioning profile into a throwaway keychain, reusing the `ios` job's `security create-keychain` / `set-key-partition-list` sequence (D3)
-- [x] 4.3 Append `CODE_SIGN_STYLE = Manual`, `DEVELOPMENT_TEAM`, `PROVISIONING_PROFILE_SPECIFIER`, `CODE_SIGN_IDENTITY = Apple Distribution` to `macos/Runner/Configs/Release.xcconfig` at build time (D2)
+- [x] 4.3 ~~Append the signing settings to `Release.xcconfig`~~ → **replaced by a CI-only
+      `project.pbxproj` patch**, `macos/tool/ci_release_signing.py` (D2 rewritten)
+      (An xcconfig cannot override the macOS Runner target, which sets
+      `CODE_SIGN_IDENTITY[sdk=macosx*]` at *target* level. Two further approaches were tried
+      and rejected — `xcodebuild SETTING=value` breaks all ~30 pod targets, and an unsigned
+      archive re-signed at export silently ships with NO entitlements. Full write-up in D2 and
+      in the script's docstring.)
 - [x] 4.4 Generate `macos/ExportOptions-ci.plist` with `signingStyle: manual` and the bundle-id → profile-name mapping (D3)
 - [x] 4.5 Replace the `flutter build macos` + `ditto` steps with the build → archive → export sequence from 3.2, producing `cymbra-${TAG}-macos.pkg`
 - [x] 4.6 Drop the `.zip` release asset and do **not** attach the `.pkg` (D4)
@@ -110,4 +116,9 @@
 - [x] 9.1 `openspec validate prepare-macos-app-store --strict` passes
 - [x] 9.2 `melos run analyze` and `dart format` clean (no Dart change expected — confirm the tree is untouched)
 - [ ] 9.3 Dispatch `release-build.yml` manually and confirm the `macos` job builds, signs and exports without uploading (D4)
+      (Run 1 — 31372239452, xcconfig approach: `macos` **failed**, all four other jobs green.
+      Also confirmed the runner still reads the legacy profile directory, so the both-paths copy
+      is prevention, not a fix. Fix validated locally end to end with the CI-identical sequence:
+      archive signed `Apple Distribution` + `Cymbra Music macOS App Store`, export green,
+      entitlements complete incl. app-sandbox and keychain-access-groups. Re-dispatch pending.)
 - [ ] 9.4 Deliver a build to App Store Connect and confirm it passes processing with no metadata or signing error

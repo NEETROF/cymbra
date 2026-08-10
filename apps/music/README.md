@@ -317,10 +317,23 @@ xcodebuild -workspace macos/Runner.xcworkspace -scheme Runner -configuration Rel
 xcodebuild -exportArchive -archivePath build/macos.xcarchive -exportOptionsPlist macos/ExportOptions.plist -exportPath build/macos-pkg
 ```
 
-The archive itself is signed with the *development* identity from the project's
-Release configuration; `-exportArchive` re-signs it with Apple Distribution. That is
-normal — read the export's `DistributionSummary.plist`, not the archive, to see what
-actually ships.
+With the committed project (automatic *development* signing in Release), the archive
+is signed with your development identity and `-exportArchive` re-signs it with Apple
+Distribution — read the export's `DistributionSummary.plist`, not the archive, to see
+what actually ships. To reproduce the CI signing exactly, run the CI patch first:
+
+```bash
+python3 macos/tool/ci_release_signing.py macos/Runner.xcodeproj/project.pbxproj --profile "Cymbra Music macOS App Store" --team VMFJ6KRW77
+```
+
+Revert it with `git checkout macos/Runner.xcodeproj/project.pbxproj` — it must never
+be committed. Its docstring explains why signing has to be patched into the project
+rather than set from an xcconfig or an `xcodebuild` flag.
+
+**Never disable code signing for the archive.** `CODE_SIGNING_ALLOWED = NO` plus a
+re-signing export looks like it works — signed app, signed `.pkg`, no errors — but
+`CODE_SIGN_ENTITLEMENTS` is never processed, so the shipped app has no App Sandbox,
+no network and no keychain. Always diff the delivered entitlements below.
 
 `ExportOptions.plist` uses **manual** signing on purpose. With `signingStyle:
 automatic`, `xcodebuild` asks the Apple account for a matching profile, cannot do so
