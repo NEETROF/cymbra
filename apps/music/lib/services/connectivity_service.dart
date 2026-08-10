@@ -26,6 +26,12 @@ abstract class ConnectivityService {
   /// non-`none` transport). The sender re-drains the outbox on each event.
   Stream<void> get onOnline;
 
+  /// Emits the current online-ness (`true`/`false`) on **every** connectivity
+  /// transition, in both directions (change: add-offline-score-cache). Lets the
+  /// UI react live when Wi-Fi drops or comes back — unlike [onOnline], which fires
+  /// on regain only.
+  Stream<bool> get onlineStatus;
+
   /// A point-in-time reachability check (change: add-offline-score-cache): `true`
   /// when any non-`none` transport is present. Used to tell "app is offline" from
   /// "online but the backend failed" when classifying a score-load failure.
@@ -45,6 +51,11 @@ class ConnectivityPlusService implements ConnectivityService {
       .map((_) {});
 
   @override
+  Stream<bool> get onlineStatus => _connectivity.onConnectivityChanged
+      .map((results) => results.any((r) => r != ConnectivityResult.none))
+      .distinct();
+
+  @override
   Future<bool> isOnline() async {
     try {
       final results = await _connectivity.checkConnectivity();
@@ -61,9 +72,13 @@ class ConnectivityPlusService implements ConnectivityService {
 @Riverpod(keepAlive: true)
 ConnectivityService connectivityService(Ref ref) => ConnectivityPlusService();
 
-/// A point-in-time "is the device online right now?" check for the UI (change:
-/// add-offline-score-cache). Re-evaluated when watched fresh (e.g. the home
-/// rebuilds); defaults callers to "online" until it resolves. Auto-disposed.
+/// Live "is the device online right now?" for the UI (change:
+/// add-offline-score-cache): the current reachability, then every subsequent
+/// change so the home re-marks favorites the moment Wi-Fi drops or returns.
+/// Callers default to "online" until the first value resolves. Auto-disposed.
 @riverpod
-Future<bool> isOnlineNow(Ref ref) =>
-    ref.watch(connectivityServiceProvider).isOnline();
+Stream<bool> isOnlineNow(Ref ref) async* {
+  final connectivity = ref.watch(connectivityServiceProvider);
+  yield await connectivity.isOnline();
+  yield* connectivity.onlineStatus;
+}

@@ -37,6 +37,8 @@ class FakeConnectivityService implements ConnectivityService {
   @override
   Stream<void> get onOnline => _controller.stream;
   @override
+  Stream<bool> get onlineStatus => const Stream.empty();
+  @override
   Future<bool> isOnline() async => true;
   void dispose() => _controller.close();
 }

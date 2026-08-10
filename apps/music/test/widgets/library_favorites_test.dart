@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -170,11 +171,22 @@ const _bundled = [
 
 class _FakeConnectivity extends Fake implements ConnectivityService {
   _FakeConnectivity(this.online);
-  final bool online;
+  bool online;
+  final _status = StreamController<bool>.broadcast();
   @override
   Stream<void> get onOnline => const Stream.empty();
   @override
+  Stream<bool> get onlineStatus => _status.stream;
+  @override
   Future<bool> isOnline() async => online;
+
+  /// Flip connectivity live (as `connectivity_plus` would on a Wi-Fi change).
+  void setOnline(bool value) {
+    online = value;
+    _status.add(value);
+  }
+
+  void dispose() => _status.close();
 }
 
 ProviderContainer _container(
@@ -184,6 +196,7 @@ ProviderContainer _container(
   bool withCourses = false,
   bool online = true,
   OfflineScoreCache? cache,
+  _FakeConnectivity? connectivity,
 }) {
   final c = ProviderContainer(
     overrides: [
@@ -200,7 +213,9 @@ ProviderContainer _container(
       catalogServiceProvider.overrideWithValue(catalog),
       scoreUploadServiceProvider.overrideWithValue(upload),
       canUseOnlineServicesProvider.overrideWithValue(signedIn),
-      connectivityServiceProvider.overrideWithValue(_FakeConnectivity(online)),
+      connectivityServiceProvider.overrideWithValue(
+        connectivity ?? _FakeConnectivity(online),
+      ),
       // In-memory offline cache so eviction on remove/delete is instant (the real
       // impl touches path_provider, which isn't available in a widget test).
       offlineScoreCacheProvider.overrideWithValue(
@@ -368,6 +383,30 @@ void main() {
     // Only the uncached one carries the "not available offline" badge.
     expect(find.text('Not available offline'), findsOneWidget);
     expect(find.byIcon(Icons.cloud_off), findsOneWidget);
+    await _teardown(tester);
+  });
+
+  testWidgets('home re-marks favorites live when Wi-Fi drops (no reload)', (
+    tester,
+  ) async {
+    final conn = _FakeConnectivity(true); // start online
+    addTearDown(conn.dispose);
+    final c = _container(
+      _FakeCatalog([_saved('c1', 'Uncached Piece')]),
+      _FakeUpload(const []),
+      connectivity: conn,
+    );
+    await _pump(tester, c);
+    // Online: nothing is flagged offline.
+    expect(find.text('Not available offline'), findsNothing);
+
+    // Wi-Fi drops → the connectivity stream emits; the home re-marks the
+    // uncached favorite without any hot reload / manual refresh.
+    conn.setOnline(false);
+    for (var i = 0; i < 8; i++) {
+      await tester.pump(const Duration(milliseconds: 20));
+    }
+    expect(find.text('Not available offline'), findsOneWidget);
     await _teardown(tester);
   });
 }

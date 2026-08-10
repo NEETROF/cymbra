@@ -49,6 +49,8 @@ class _SilentConnectivity implements ConnectivityService {
   @override
   Stream<void> get onOnline => const Stream<void>.empty();
   @override
+  Stream<bool> get onlineStatus => const Stream.empty();
+  @override
   Future<bool> isOnline() async => true;
 }
 

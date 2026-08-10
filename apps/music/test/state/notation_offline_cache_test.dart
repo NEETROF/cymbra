@@ -60,6 +60,8 @@ class _FakeConnectivity extends Fake implements ConnectivityService {
   @override
   Stream<void> get onOnline => const Stream.empty();
   @override
+  Stream<bool> get onlineStatus => const Stream.empty();
+  @override
   Future<bool> isOnline() async => online;
 }
 
