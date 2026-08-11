@@ -35,5 +35,5 @@
 - [x] 6.1 Rust: `cargo fmt` + `clippy -D warnings`; `cargo llvm-cov --workspace --fail-under-lines 80` (selection/consent cores covered; FCM client + gRPC/worker glue excluded).
 - [x] 6.2 Flutter: `dart run build_runner build`; `melos run analyze` + `dart run custom_lint`; `flutter test --coverage` ≥ 80%.
 - [x] 6.3 Back office: `yarn lint` + `yarn test` green.
-- [ ] 6.4 Manual: register a token on iOS + Android + macOS; a test dispatch reaches all three at the local hour; opt-out + kill-switch suppress; Windows/Linux register nothing.
+- [x] 6.4 Manual: register a token on iOS + Android + macOS; a test dispatch reaches all three at the local hour; opt-out + kill-switch suppress; Windows/Linux register nothing.
 - [x] 6.5 `openspec validate add-push-notifications --strict` passes.
