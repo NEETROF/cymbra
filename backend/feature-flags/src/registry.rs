@@ -217,19 +217,9 @@ pub fn builtin() -> Vec<KeyDef> {
         flag(
             NOTIFICATIONS_ENABLED,
             APP_ALL,
-            true,
+            false,
             false,
             "Global push-notification kill-switch: off suppresses every category's sends.",
-        ),
-        // TEMPORAIRE — test local uniquement. Ne pas committer.
-        // Pas de clé `.hour` : sans elle, aucune barrière horaire, l'envoi part
-        // immédiatement au lieu d'attendre une heure locale précise.
-        flag(
-            "notifications.category.local_test.enabled",
-            APP_ALL,
-            true,
-            false,
-            "Catégorie de test local (temporaire).",
         ),
         // -- config tunables --
         cfg(
