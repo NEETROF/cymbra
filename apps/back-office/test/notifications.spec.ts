@@ -63,10 +63,7 @@ function row(p: Partial<FlagRow> & { key: string }): FlagRow {
 
 describe("notification key grouping", () => {
   it("parses a per-category key into its id and suffix", () => {
-    expect(parseCategoryKey("notifications.category.practice_streak.enabled")).toEqual([
-      "practice_streak",
-      "enabled",
-    ]);
+    expect(parseCategoryKey("notifications.category.practice_streak.enabled")).toEqual(["practice_streak", "enabled"]);
     expect(parseCategoryKey("notifications.category.practice_streak.hour")).toEqual(["practice_streak", "hour"]);
   });
 
@@ -195,9 +192,7 @@ describe("notifications view", () => {
     expect(wrapper.find('[data-testid="kill-switch"]').text()).toBe("On");
     expect(wrapper.find('[data-testid="category-practice_streak"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="enable-practice_streak"]').text()).toBe("On");
-    expect(
-      (wrapper.find('[data-testid="hour-practice_streak"]').element as HTMLInputElement).value,
-    ).toBe("20");
+    expect((wrapper.find('[data-testid="hour-practice_streak"]').element as HTMLInputElement).value).toBe("20");
   });
 
   it("says so when no category is declared yet", async () => {
