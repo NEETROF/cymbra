@@ -198,7 +198,12 @@ Then run the worker and enqueue a dispatch:
 psql "$CYMBRA_ADMIN_DATABASE_URL" -c "SELECT jobs.enqueue('push_dispatch','notifications.dispatch','',false,3,make_interval(secs=>60),make_interval(secs=>0),'{\"category\":\"local_test\",\"title\":\"Cymbra\",\"body\":\"Test\"}');"
 ```
 
-Expect `push dispatch complete ... selected=N delivered=N`. Flip
+Expect `push dispatch complete ... selected=N delivered=N`.
+
+**Background the apps before sending.** `delivered` means FCM accepted the
+message; on Android and iOS the system only displays it when the app is not in
+the foreground (macOS shows it either way). A foreground app therefore looks like
+a silent failure — see `backend/notifications/README.md`. Flip
 `notifications.enabled` to `false` and re-enqueue to confirm the kill-switch
 suppresses: `push dispatch suppressed by flags`, `selected=0`, and the registry
 is not even read.

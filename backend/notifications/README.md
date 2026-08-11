@@ -128,6 +128,26 @@ The app renders a per-category switch by calling `SetNotificationPref(category,
 enabled)`. Nothing platform-side needs to change; the toggle writes the row your
 category's selection reads.
 
+## `delivered` is not `displayed`
+
+[`SendOutcome::Delivered`] means FCM **accepted** the message, nothing more. What
+the device does next is the OS's business, and it differs per platform:
+
+| Platform | App in foreground | App backgrounded or killed |
+| --- | --- | --- |
+| Android | nothing shown — the message goes to Dart's `onMessage` | system displays it |
+| iOS | nothing shown unless the app opts in | system displays it |
+| macOS | shown | shown |
+
+The platform deliberately calls neither `setForegroundNotificationPresentationOptions`
+nor `onMessage`: interrupting someone who is already using the app is a decision
+for the feature that owns the category, not for the transport. If a feature wants
+a foreground banner, it opts in itself.
+
+The practical consequence when testing: **background the app first**, or you will
+see `delivered=N` with nothing on screen and go hunting for a bug that is not
+there.
+
 ## The gates, in order
 
 `select_recipients` applies these and nothing else decides who gets a message:
