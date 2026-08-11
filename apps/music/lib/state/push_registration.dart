@@ -14,6 +14,7 @@
 
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -70,22 +71,42 @@ class PushRegistration extends _$PushRegistration {
   /// Opt-in and best-effort: an unsupported platform, a refused permission or a
   /// failing backend all leave the app working with no notifications — nothing is
   /// surfaced to the user and no raw error escapes.
+  ///
+  /// Every early return is logged. Silence would be indistinguishable from
+  /// success, and "the token never appeared" is otherwise undiagnosable — on a
+  /// user's device as much as in local dev.
   Future<void> registerForCurrentUser() async {
     final push = ref.read(pushServiceProvider);
     final platform = push.platform;
     // Windows/Linux (and a build with no Firebase config) hold no token and are
     // never a recipient — stop before asking for anything.
     if (platform == null) {
+      debugPrint(
+        '[push] no registration: platform is not FCM-capable '
+        '(Windows/Linux/web) or no Firebase configuration is bundled.',
+      );
       state = const PushRegistrationState();
       return;
     }
 
     final permission = await push.requestPermission();
     state = state.copyWith(platform: platform, permission: permission);
-    if (permission != PushPermission.granted) return;
+    if (permission != PushPermission.granted) {
+      debugPrint('[push] no registration: OS permission is $permission.');
+      return;
+    }
 
     final token = await push.token();
-    if (token == null || token.isEmpty) return;
+    if (token == null || token.isEmpty) {
+      // The usual cause on Apple platforms is APNs registration failing — a
+      // provisioning profile without the Push Notifications capability, or no
+      // network at launch.
+      debugPrint(
+        '[push] no registration: FCM returned no token for '
+        '${platform.wireName}.',
+      );
+      return;
+    }
 
     await _register(token, platform);
     // Keep the server's copy current when FCM rotates the install's token.
@@ -104,14 +125,17 @@ class PushRegistration extends _$PushRegistration {
         await ref
             .read(notificationRegistryServiceProvider)
             .unregisterToken(token);
-      } catch (_) {
+      } catch (e) {
         // Best effort: the token is also pruned server-side on the first send
         // that reports it invalid.
+        debugPrint('[push] server-side unregister failed ($e); continuing.');
       }
     }
     try {
       await ref.read(pushServiceProvider).deleteToken();
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[push] local token delete failed ($e); continuing.');
+    }
     state = state.copyWith(token: null);
   }
 
@@ -119,10 +143,17 @@ class PushRegistration extends _$PushRegistration {
   /// the user's local hour.
   Future<void> _reportTimezone() async {
     final tz = await ref.read(timezoneServiceProvider).current();
-    if (tz == null || tz.isEmpty) return;
+    if (tz == null || tz.isEmpty) {
+      debugPrint(
+        '[push] timezone not reported: the platform gave no IANA name.',
+      );
+      return;
+    }
     try {
       await ref.read(notificationRegistryServiceProvider).setTimezone(tz);
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[push] timezone report failed ($e); keeping the stored one.');
+    }
   }
 
   Future<void> _register(String token, PushPlatform platform) async {
@@ -131,9 +162,16 @@ class PushRegistration extends _$PushRegistration {
           .read(notificationRegistryServiceProvider)
           .registerToken(token: token, platform: platform.wireName);
       state = state.copyWith(platform: platform, token: token);
-    } catch (_) {
+      debugPrint(
+        '[push] registered ${platform.wireName} token with the server.',
+      );
+    } catch (e) {
       // Offline or backend down: leave the state unregistered so the next
       // sign-in / launch retries.
+      debugPrint(
+        '[push] server registration failed ($e); will retry on the '
+        'next sign-in or launch.',
+      );
     }
   }
 }

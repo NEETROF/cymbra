@@ -16,7 +16,7 @@ import 'dart:io' show Platform;
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show debugPrint, kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -109,8 +109,12 @@ class FirebasePushService implements PushService {
     try {
       if (Firebase.apps.isEmpty) await Firebase.initializeApp();
       _ready = true;
-    } catch (_) {
+    } catch (e) {
       // No Firebase project wired into this build: degrade to "no push".
+      debugPrint(
+        '[push] Firebase init failed ($e); push is unavailable. Is '
+        'GoogleService-Info.plist / google-services.json in the bundle?',
+      );
       _ready = false;
     }
     return _ready!;
@@ -127,17 +131,57 @@ class FirebasePushService implements PushService {
         AuthorizationStatus.denied => PushPermission.denied,
         _ => PushPermission.notDetermined,
       };
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[push] permission request failed ($e); treating as denied.');
       return PushPermission.denied;
     }
+  }
+
+  /// How long to wait for the APNs device token before giving up.
+  static const _apnsTimeout = Duration(seconds: 10);
+  static const _apnsPollInterval = Duration(milliseconds: 400);
+
+  /// Wait for the APNs device token on Apple platforms.
+  ///
+  /// FCM derives its registration token from the APNs one, which the OS delivers
+  /// **asynchronously** some time after `requestPermission` returns. Calling
+  /// `getToken()` before it lands throws `apns-token-not-set` — so the first
+  /// launch after the user allows notifications would silently fail to register,
+  /// and (because registration runs once per signed-in account) the device would
+  /// stay unregistered for the whole session.
+  ///
+  /// There is no event to await, hence the poll. It is bounded: a device that
+  /// never registers with APNs — no capability on the profile, no network — must
+  /// degrade to "no push", not hang. Android has no APNs and returns immediately.
+  Future<bool> _awaitApnsToken() async {
+    if (platform == PushPlatform.android) return true;
+    final deadline = DateTime.now().add(_apnsTimeout);
+    while (DateTime.now().isBefore(deadline)) {
+      try {
+        final apns = await FirebaseMessaging.instance.getAPNSToken();
+        if (apns != null && apns.isNotEmpty) return true;
+      } catch (e) {
+        debugPrint('[push] getAPNSToken failed ($e).');
+        return false;
+      }
+      await Future<void>.delayed(_apnsPollInterval);
+    }
+    debugPrint(
+      '[push] no APNs token after ${_apnsTimeout.inSeconds}s. The provisioning '
+      'profile may lack the Push Notifications capability, or the device is '
+      'offline.',
+    );
+    return false;
   }
 
   @override
   Future<String?> token() async {
     if (!await _ensureReady()) return null;
+    if (!await _awaitApnsToken()) return null;
     try {
       return await FirebaseMessaging.instance.getToken();
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[push] getToken failed ($e).');
       return null;
     }
   }
@@ -151,8 +195,9 @@ class FirebasePushService implements PushService {
     if (!await _ensureReady()) return;
     try {
       await FirebaseMessaging.instance.deleteToken();
-    } catch (_) {
+    } catch (e) {
       // Best effort: the server-side unregister is what actually stops sends.
+      debugPrint('[push] deleteToken failed ($e); continuing.');
     }
   }
 }
