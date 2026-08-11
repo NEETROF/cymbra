@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.2](https://github.com/NEETROF/cymbra/compare/back-office-v0.6.1...back-office-v0.6.2) (2026-08-10)
+
+
+### Performance Improvements
+
+* **back-office:** cache soundfont bytes and reuse the parsed font ([#203](https://github.com/NEETROF/cymbra/issues/203)) ([1b171fe](https://github.com/NEETROF/cymbra/commit/1b171fea0f8079dc8404cb9936a21035fb07a61c))
+
 ## [0.6.1](https://github.com/NEETROF/cymbra/compare/back-office-v0.6.0...back-office-v0.6.1) (2026-08-09)
 
 
