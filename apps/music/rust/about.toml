@@ -24,6 +24,28 @@ accepted = [
 ignore-build-dependencies = true
 ignore-dev-dependencies = true
 
+# Without an explicit target list, cargo-about only resolves cfg'd
+# dependencies for the HOST it runs on — so generating on macOS (ALSA-free)
+# and generating in CI (Linux, CoreAudio-free) produce different crate sets,
+# and the "did the committed asset drift?" CI check flags a false positive.
+# List every platform the app actually ships to, so the output is the same
+# union regardless of where `melos run gen-licenses` runs.
+targets = [
+    "aarch64-apple-ios",
+    "aarch64-apple-ios-sim",
+    "x86_64-apple-ios",
+    "aarch64-apple-darwin",
+    "x86_64-apple-darwin",
+    "aarch64-linux-android",
+    "armv7-linux-androideabi",
+    "i686-linux-android",
+    "x86_64-linux-android",
+    "x86_64-pc-windows-msvc",
+    "aarch64-pc-windows-msvc",
+    "x86_64-unknown-linux-gnu",
+    "aarch64-unknown-linux-gnu",
+]
+
 # Local path crates (this app's own FFI crate, the shared musicxml-core
 # crate) have no crates.io registry source, so cargo-about already treats
 # them as "private" and skips them — the first-party exclusion this change
