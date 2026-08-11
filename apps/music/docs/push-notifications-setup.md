@@ -31,11 +31,23 @@ Server side is separate and equally required: see
      uploaded against it serves both.
 3. Download the config files and drop them in:
    - `android/app/google-services.json`
-   - `ios/Runner/GoogleService-Info.plist` — add it to the Xcode **target**
-     (drag into the Runner group with "Copy items if needed" + Runner ticked),
-     not just the folder, or it will not be in the built bundle.
-   - `macos/Runner/GoogleService-Info.plist` — the same file again, added to the
-     macOS Runner target.
+   - `GoogleService-Info.plist` — the **same file** for iOS and macOS, added to
+     each project's Runner **target**, not merely copied into the folder.
+
+   Drag it onto the Runner group in Xcode with "Copy items if needed" + the
+   Runner target ticked. Xcode decides where the file physically lands (the
+   project root, `ios/`, is as valid as `ios/Runner/`); what matters is that it
+   ends up in the target's **Copy Bundle Resources** phase, otherwise it is not
+   in the built bundle and `Firebase.initializeApp()` fails — which this app
+   degrades to "push unsupported", silently. Verify with:
+
+   ```bash
+   grep -c "GoogleService-Info.plist in Resources" ios/Runner.xcodeproj/project.pbxproj
+   grep -c "GoogleService-Info.plist in Resources" macos/Runner.xcodeproj/project.pbxproj
+   ```
+
+   Each must print `1`. Delete any stray copy Xcode did not reference — a
+   duplicate that is never read only invites editing the wrong one later.
 
    These are **not secrets** (they ship inside the app binary and only identify
    the Firebase project), so committing them is the usual choice — nothing in
