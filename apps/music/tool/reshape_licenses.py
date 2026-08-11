@@ -10,7 +10,24 @@ of "name version" packages that use it.
 """
 
 import json
+import re
 import sys
+
+
+def normalize_text(text):
+    """Collapse runs of blank lines and trailing line whitespace.
+
+    `cargo about` isn't fully deterministic in how it harvests/merges a
+    crate's license text: the same crate can come back with an extra blank
+    line depending on the machine/run (observed for `miniz_oxide`'s MIT text
+    between a local macOS run and CI's Linux run), which otherwise trips the
+    "is the committed asset stale" CI check on every run. Collapsing 3+
+    consecutive newlines to a single paragraph break removes that source of
+    drift without touching real content.
+    """
+    text = re.sub(r"[ \t]+\n", "\n", text)
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    return text.strip() + "\n"
 
 
 def reshape(raw):
@@ -24,7 +41,7 @@ def reshape(raw):
             {
                 "id": entry["id"],
                 "name": entry["name"],
-                "text": entry["text"],
+                "text": normalize_text(entry["text"]),
                 "packages": packages,
             }
         )
