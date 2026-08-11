@@ -166,3 +166,41 @@ With the config in place:
    `backend/notifications/README.md`).
 4. Sign out — the token row should disappear.
 5. Run on Windows or Linux: no permission prompt, and no new `push_tokens` row.
+
+## 7. Verifying a real send locally
+
+The platform declares no category, and nothing is enabled by default, so a local
+end-to-end test needs two things — **both** are required:
+
+1. **Declare a temporary category** in `cymbra-feature-flags`'s
+   `registry::builtin()` (do not commit it):
+
+   ```rust
+   flag("notifications.category.local_test.enabled", APP_ALL, false, false, "Local test."),
+   ```
+
+   Omitting a `.hour` key is intentional: with no hour gate the send fires
+   immediately instead of waiting for a local hour.
+
+2. **Store the overrides** — declaring the key is not enough, see
+   `backend/notifications/README.md`:
+
+   ```sql
+   INSERT INTO feature_flags.flag_overrides (app, key, value_type, value, rollout_scope, updated_by)
+   VALUES ('all','notifications.enabled','bool','true','global','00000000-0000-0000-0000-000000000000'),
+          ('all','notifications.category.local_test.enabled','bool','true','global','00000000-0000-0000-0000-000000000000')
+   ON CONFLICT (app, key) DO UPDATE SET value = EXCLUDED.value, updated_at = now();
+   ```
+
+Then run the worker and enqueue a dispatch:
+
+```bash
+psql "$CYMBRA_ADMIN_DATABASE_URL" -c "SELECT jobs.enqueue('push_dispatch','notifications.dispatch','',false,3,make_interval(secs=>60),make_interval(secs=>0),'{\"category\":\"local_test\",\"title\":\"Cymbra\",\"body\":\"Test\"}');"
+```
+
+Expect `push dispatch complete ... selected=N delivered=N`. Flip
+`notifications.enabled` to `false` and re-enqueue to confirm the kill-switch
+suppresses: `push dispatch suppressed by flags`, `selected=0`, and the registry
+is not even read.
+
+Clean up by deleting the two override rows and reverting the registry edit.

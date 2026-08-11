@@ -66,6 +66,22 @@ notifications panel, which lists everything under the `notifications.` prefix. A
 **undeclared** category resolves to `enabled = false`, so a half-landed feature
 sends nothing.
 
+**Declaring a key does not enable it.** `FlagService::bool(key, default, ctx)`
+returns the *caller's* default when no override is stored — it never reads the
+`default` declared in the registry — and `resolve_flags` passes `false` for both
+the kill-switch and the category. So a category is off until somebody stores an
+override, from the back-office panel or, locally, straight in the store:
+
+```sql
+INSERT INTO feature_flags.flag_overrides (app, key, value_type, value, rollout_scope, updated_by)
+VALUES ('all', 'notifications.enabled', 'bool', 'true', 'global', '00000000-0000-0000-0000-000000000000'),
+       ('all', 'notifications.category.<id>.enabled', 'bool', 'true', 'global', '00000000-0000-0000-0000-000000000000')
+ON CONFLICT (app, key) DO UPDATE SET value = EXCLUDED.value, updated_at = now();
+```
+
+That is deliberate — sending to real users should be an explicit act, not a
+consequence of merging code — but it does mean a feature cannot ship "on".
+
 Omitting the hour key makes the send **event-triggered**: no hour gate applies and
 the dispatch fires whenever it is enqueued.
 
