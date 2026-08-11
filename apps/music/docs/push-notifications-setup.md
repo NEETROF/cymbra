@@ -84,6 +84,17 @@ Server side is separate and equally required: see
    - `macos/Runner/DebugProfile.entitlements` → `development`
    - `macos/Runner/Release.entitlements` → `production` (macOS already has one
      entitlements file per configuration, so nothing dynamic is needed).
+
+   **The macOS key is `com.apple.developer.aps-environment`, not the bare
+   `aps-environment` iOS uses.** Sign macOS with the iOS spelling and `codesign`
+   drops the key without a word: the app builds, installs, runs — and never
+   receives an APNs token, so `getToken()` fails and no device ever registers.
+   Check the signed binary, not the source file:
+
+   ```bash
+   codesign -d --entitlements - --xml build/macos/Build/Products/Debug/music.app \
+     | plutil -convert xml1 -o - - | grep -A1 aps-environment
+   ```
 6. macOS only: the app is sandboxed and already has
    `com.apple.security.network.client`, which is what APNs needs. No extra key.
 

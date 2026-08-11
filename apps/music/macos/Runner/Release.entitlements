@@ -2,8 +2,10 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- APNs environment for push notifications (change: add-push-notifications). -->
-	<key>aps-environment</key>
+	<!-- APNs environment for push notifications (change: add-push-notifications).
+	     macOS spells this key with the `com.apple.developer.` prefix, unlike iOS
+	     - see DebugProfile.entitlements for why that matters. -->
+	<key>com.apple.developer.aps-environment</key>
 	<string>production</string>
 	<key>com.apple.developer.applesignin</key>
 	<array>
