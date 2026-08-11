@@ -95,6 +95,8 @@ class AccountMenu extends ConsumerWidget {
               launcher.open(links.terms);
             case 'privacy':
               launcher.open(links.privacy);
+            case 'licenses':
+              showLicensePage(context: context, applicationName: 'Cymbra');
           }
         },
         itemBuilder: (context) => [
@@ -159,6 +161,18 @@ class AccountMenu extends ConsumerWidget {
               label: l10n.legalPrivacy,
             ),
           ),
+          PopupMenuItem<String>(
+            key: const Key('account-legal-licenses'),
+            value: 'licenses',
+            child: _LegalMenuRow(
+              icon: Icons.article_outlined,
+              label: l10n.legalLicenses,
+              // Unlike terms/privacy, this opens an in-app page, not an
+              // external browser — a forward chevron instead of the
+              // "opens externally" hint.
+              trailingIcon: Icons.chevron_right,
+            ),
+          ),
         ],
       ),
       _ => const SizedBox.shrink(),
@@ -207,13 +221,18 @@ class AccountMenu extends ConsumerWidget {
 }
 
 /// A legal-link row in the account menu: an icon, the label, and a trailing
-/// "opens externally" hint so it reads as leaving the app rather than an
-/// in-app action like sign-out or delete.
+/// hint icon. Defaults to the "opens externally" hint (terms/privacy leave
+/// the app); pass [trailingIcon] to signal an in-app destination instead.
 class _LegalMenuRow extends StatelessWidget {
-  const _LegalMenuRow({required this.icon, required this.label});
+  const _LegalMenuRow({
+    required this.icon,
+    required this.label,
+    this.trailingIcon = Icons.open_in_new,
+  });
 
   final IconData icon;
   final String label;
+  final IconData trailingIcon;
 
   @override
   Widget build(BuildContext context) {
@@ -223,7 +242,7 @@ class _LegalMenuRow extends StatelessWidget {
         const SizedBox(width: 12),
         Expanded(child: Text(label)),
         const SizedBox(width: 12),
-        const Icon(Icons.open_in_new, size: 16),
+        Icon(trailingIcon, size: 16),
       ],
     );
   }

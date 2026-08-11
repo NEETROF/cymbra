@@ -1,0 +1,62 @@
+#!/usr/bin/env python3
+"""Reshape `cargo about generate --format json` output into the compact asset
+the app bundles and parses at startup (change: add-oss-license-attributions).
+
+`cargo about`'s raw JSON repeats full cargo metadata (absolute manifest
+paths, full dependency graphs, ...) per crate, which is both far larger than
+needed and leaks build-machine file paths. This keeps only what the license
+page renders: for each distinct license text, the SPDX id/name and the list
+of "name version" packages that use it.
+"""
+
+import json
+import re
+import sys
+
+
+def normalize_text(text):
+    """Collapse runs of blank lines and trailing line whitespace.
+
+    `cargo about` isn't fully deterministic in how it harvests/merges a
+    crate's license text: the same crate can come back with an extra blank
+    line depending on the machine/run (observed for `miniz_oxide`'s MIT text
+    between a local macOS run and CI's Linux run), which otherwise trips the
+    "is the committed asset stale" CI check on every run. Collapsing 3+
+    consecutive newlines to a single paragraph break removes that source of
+    drift without touching real content.
+    """
+    text = re.sub(r"[ \t]+\n", "\n", text)
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    return text.strip() + "\n"
+
+
+def reshape(raw):
+    licenses = []
+    for entry in raw["licenses"]:
+        packages = sorted(
+            f"{used['crate']['name']} {used['crate']['version']}"
+            for used in entry["used_by"]
+        )
+        licenses.append(
+            {
+                "id": entry["id"],
+                "name": entry["name"],
+                "text": normalize_text(entry["text"]),
+                "packages": packages,
+            }
+        )
+    licenses.sort(key=lambda lic: lic["id"])
+    return {"licenses": licenses}
+
+
+def main():
+    raw_path, out_path = sys.argv[1], sys.argv[2]
+    with open(raw_path, encoding="utf-8") as f:
+        raw = json.load(f)
+    with open(out_path, "w", encoding="utf-8") as f:
+        json.dump(reshape(raw), f, ensure_ascii=False, indent=2)
+        f.write("\n")
+
+
+if __name__ == "__main__":
+    main()

@@ -61,6 +61,19 @@ jobs:
         run: melos run gen-l10n
       - name: Generate code (riverpod_generator + freezed)
         run: melos run generate
+      # The Rust license notices asset is committed (Flutter needs it present
+      # at build time), so CI regenerates it and fails on drift rather than
+      # overwriting it silently — a stale asset would under/over-report what
+      # third-party Rust code actually ships.
+      - name: Install cargo-about
+        run: cargo install cargo-about --locked --features cli
+      - name: Regenerate Rust license notices and check for drift
+        run: |
+          melos run gen-licenses
+          git diff --exit-code -- apps/music/assets/generated/rust_licenses.json || {
+            echo "::error::apps/music/assets/generated/rust_licenses.json is stale — run 'melos run gen-licenses' and commit the result." >&2
+            exit 1
+          }
       - name: Analyze
         run: melos run analyze
       - name: Riverpod/Freezed lints
