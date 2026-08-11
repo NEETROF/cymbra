@@ -599,6 +599,67 @@ void main() {
     );
 
     test(
+      'a tied note held into a chord continuation does not deadlock the gate',
+      () async {
+        // The prod "Mariage d'Amour" freeze: C5 tied across two onsets, with a
+        // fresh E5 chord member at the second one. Holding the tied C5 (as the
+        // score demands) while attacking E5 must open the gate — the tie is a
+        // single attack, never a re-press.
+        final doc = ScoreDocument(
+          meta: const ScoreMeta(title: 'Tied', composer: 'T'),
+          staves: 1,
+          attributes: const Attributes(
+            divisions: 4,
+            clefs: [Clef(staff: 1, sign: 'G', line: 2)],
+            keyFifths: 0,
+            time: TimeSignature(beats: 4, beatType: 4),
+          ),
+          measures: [
+            NotationMeasure(
+              index: 0,
+              clefs: const [],
+              keyFifths: 0,
+              minWidth: 120,
+              directions: const [],
+              notes: [
+                noteEvent(
+                  positionDivisions: 0,
+                  pitch: const Pitch(step: 'C', octave: 5, alter: 0),
+                  tieStart: true,
+                ),
+                noteEvent(
+                  positionDivisions: 4,
+                  pitch: const Pitch(step: 'C', octave: 5, alter: 0),
+                  tieStop: true,
+                ),
+                noteEvent(
+                  positionDivisions: 4,
+                  isChord: true,
+                  pitch: const Pitch(step: 'E', octave: 5, alter: 0),
+                ),
+              ],
+            ),
+          ],
+        );
+        await build(document: doc); // Wait Mode on by default
+        notifier().togglePlay();
+        notifier().advance(50);
+        expect(read().blocked, isTrue); // waiting for the C5 attack
+
+        notifier().noteOn(72); // attack the tied C5 at its own onset…
+        notifier().advance(1500); // …hold it; clamp to the chord onset (667)
+        notifier().advance(50);
+        // Only the fresh E5 is awaited there — the held tie is not re-gated.
+        expect(read().expectedKeys, {76});
+
+        notifier().noteOn(76);
+        notifier().advance(50);
+        expect(read().blocked, isFalse);
+        expect(read().elapsedMs, greaterThan(667));
+      },
+    );
+
+    test(
       'a held pitch does not satisfy a later repeat onset (N and N+2)',
       () async {
         // C4 at 0, D4 at 500, C4 again at 1000; C4 held continuously.

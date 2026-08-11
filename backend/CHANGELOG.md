@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.15.0](https://github.com/NEETROF/cymbra/compare/backend-v0.14.0...backend-v0.15.0) (2026-08-10)
+
+
+### Features
+
+* **courses:** interactive solfège curriculum — 42 lessons, exercise engine v2, learning path ([#207](https://github.com/NEETROF/cymbra/issues/207)) ([129d216](https://github.com/NEETROF/cymbra/commit/129d21647cbb2f8d7ee9653487ae4d9981cf71d9))
+* **music:** measure-range practice as unscored selective runs ([#189](https://github.com/NEETROF/cymbra/issues/189)) ([d4b6930](https://github.com/NEETROF/cymbra/commit/d4b6930461285a5b154f9d8a5bb2df2bdf875db3))
+* **music:** offline encrypted cache of favorited scores ([#194](https://github.com/NEETROF/cymbra/issues/194)) ([00aa30e](https://github.com/NEETROF/cymbra/commit/00aa30e4bdcd9793bc83cf318de5eb4e59ece4b5))
+
+
+### Performance Improvements
+
+* **back-office:** cache soundfont bytes and reuse the parsed font ([#203](https://github.com/NEETROF/cymbra/issues/203)) ([1b171fe](https://github.com/NEETROF/cymbra/commit/1b171fea0f8079dc8404cb9936a21035fb07a61c))
+
 ## [0.14.0](https://github.com/NEETROF/cymbra/compare/backend-v0.13.0...backend-v0.14.0) (2026-08-09)
 
 
