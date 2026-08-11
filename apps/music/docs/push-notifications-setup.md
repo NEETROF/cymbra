@@ -128,8 +128,13 @@ key file. Its whole contents go into the **worker's** environment as
 `CYMBRA_FCM_SERVICE_ACCOUNT_JSON`, on one line:
 
 ```bash
-CYMBRA_FCM_SERVICE_ACCOUNT_JSON={"type":"service_account","project_id":"...","client_email":"...","private_key":"-----BEGIN PRIVATE KEY-----\n..."}
+CYMBRA_FCM_SERVICE_ACCOUNT_JSON='{"type":"service_account","project_id":"...","client_email":"...","private_key":"-----BEGIN PRIVATE KEY-----\n..."}'
 ```
+
+**The single quotes are required.** Without them the dotenv parser treats the
+JSON's own double quotes as quoting and strips them, so the worker gets
+`{type:service_account,...}` and refuses to start:
+`invalid FCM service-account JSON: key must be a string at line 1 column 2`.
 
 This one **is a secret** — it can send a notification to any of your users. Keep
 it out of git; it belongs with the deployment secrets alongside the DB URLs.
