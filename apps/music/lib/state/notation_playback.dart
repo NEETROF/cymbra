@@ -86,6 +86,14 @@ int midiOfPitch(Pitch pitch) {
 /// `ms_per_division = (60000 / bpm) / divisions`. Chord members share their
 /// onset (they already carry the same `position_divisions`); rests are skipped.
 /// The tempo is the first `metronome` `per-minute` found, else [kDefaultBpm].
+///
+/// **Tie chains are merged**: a `tie stop` continuation that abuts the note it
+/// prolongs (same staff/voice/pitch) extends that note's duration instead of
+/// becoming a playable note of its own. A tied note is a single attack, so the
+/// Wait-Mode gate and the scorer must see a single note — emitting the
+/// continuation as its own onset made the gate demand a fresh attack of a key
+/// the score says to keep holding, deadlocking Wait Mode until the player
+/// released and re-struck it (or turned Wait Mode off).
 DerivedPlayback notationToTimedNotes(ScoreDocument document) {
   final divisions = document.attributes.divisions < 1
       ? 1
@@ -104,6 +112,13 @@ DerivedPlayback notationToTimedNotes(ScoreDocument document) {
   var songEndMs = 0.0;
   var measureStartDiv = 0;
 
+  // Open tie chains, keyed by staff/voice/MIDI pitch: the index (into [notes])
+  // of the chain's first note plus where the chain currently ends, in absolute
+  // divisions. Junctions are matched exactly in divisions (integers accumulated
+  // across measures), so cross-barline ties merge and anything that does not
+  // abut falls back to a normal playable note.
+  final openTies = <String, ({int index, int endDiv})>{};
+
   // Running clef per staff, honouring mid-piece clef changes.
   final clef = <int, Clef>{};
   for (final c in document.attributes.clefs) {
@@ -121,8 +136,9 @@ DerivedPlayback notationToTimedNotes(ScoreDocument document) {
       final end = note.positionDivisions + note.durationDivisions;
       if (end > measureSpan) measureSpan = end;
 
-      final startMs =
-          (measureStartDiv + note.positionDivisions) * msPerDivision;
+      final startDiv = measureStartDiv + note.positionDivisions;
+      final endDiv = startDiv + note.durationDivisions;
+      final startMs = startDiv * msPerDivision;
       final durationMs = note.durationDivisions * msPerDivision;
 
       final pitch = note.pitch;
@@ -146,10 +162,34 @@ DerivedPlayback notationToTimedNotes(ScoreDocument document) {
         continue;
       }
 
+      final midi = midiOfPitch(pitch);
+      final tieKey = '${note.staff}/${note.voice}/$midi';
+
+      if (note.tieStop) {
+        final open = openTies.remove(tieKey);
+        if (open != null && open.endDiv == startDiv) {
+          // A continuation: extend the chain's first note to this note's end
+          // (end-aligned in ms, so rounding never drifts across a long chain).
+          final first = notes[open.index];
+          final endMs = endDiv * msPerDivision;
+          notes[open.index] = _withDuration(
+            first,
+            endMs.round() - first.startMs,
+          );
+          // A stop that also starts is the middle of a chain: keep it open.
+          if (note.tieStart) {
+            openTies[tieKey] = (index: open.index, endDiv: endDiv);
+          }
+          if (endMs > songEndMs) songEndMs = endMs;
+          continue;
+        }
+        // A dangling stop (no abutting chain) stays a normal playable note.
+      }
+
       final c = clef[note.staff];
       notes.add(
         TimedNote(
-          pitch: midiOfPitch(pitch),
+          pitch: midi,
           startMs: startMs.round(),
           durationMs: durationMs.round(),
           staff: note.staff,
@@ -167,6 +207,12 @@ DerivedPlayback notationToTimedNotes(ScoreDocument document) {
           },
         ),
       );
+      if (note.tieStart) {
+        openTies[tieKey] = (index: notes.length - 1, endDiv: endDiv);
+      } else {
+        // A fresh un-tied attack of the same key closes any stale chain.
+        openTies.remove(tieKey);
+      }
       if (startMs + durationMs > songEndMs) songEndMs = startMs + durationMs;
     }
     measureStartDiv += measureSpan;
@@ -183,6 +229,23 @@ DerivedPlayback notationToTimedNotes(ScoreDocument document) {
     measureKeyFifths: measureKeyFifths,
   );
 }
+
+/// [n] with its duration replaced — how a tie chain's first note absorbs each
+/// continuation while keeping its own onset, spelling and rhythmic figure.
+TimedNote _withDuration(TimedNote n, int durationMs) => TimedNote(
+  pitch: n.pitch,
+  startMs: n.startMs,
+  durationMs: durationMs,
+  staff: n.staff,
+  beams: n.beams,
+  clefSign: n.clefSign,
+  clefLine: n.clefLine,
+  noteType: n.noteType,
+  dots: n.dots,
+  diatonic: n.diatonic,
+  accidental: n.accidental,
+  stemUp: n.stemUp,
+);
 
 /// First `metronome` `per-minute` in the score, or [kDefaultBpm] if none.
 int _tempoOf(ScoreDocument document) {

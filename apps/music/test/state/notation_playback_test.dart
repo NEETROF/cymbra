@@ -310,6 +310,197 @@ void main() {
       expect(d.measureKeyFifths, hasLength(d.measureStartMs.length));
     });
 
+    // A tied note is a single attack: the continuation must extend the note it
+    // prolongs, never become a playable onset of its own — gating it made Wait
+    // Mode demand a re-attack of a key the score says to keep holding (the
+    // "Mariage d'Amour" freeze on chords with tied members).
+    group('tie merging', () {
+      const quarterMs = 60000 / kDefaultBpm; // divisions 4 → one quarter
+
+      test('a tie continuation extends the note instead of adding an onset', () {
+        final doc = _docWith(
+          notes: [
+            noteEvent(
+              positionDivisions: 0,
+              pitch: const Pitch(step: 'C', octave: 4, alter: 0),
+              tieStart: true,
+            ),
+            noteEvent(
+              positionDivisions: 4,
+              pitch: const Pitch(step: 'C', octave: 4, alter: 0),
+              tieStop: true,
+            ),
+          ],
+        );
+        final d = notationToTimedNotes(doc);
+        expect(d.notes, hasLength(1));
+        expect(d.notes.single.startMs, 0);
+        // End-aligned: round(end) − round(start), not a sum of rounded halves.
+        expect(d.notes.single.durationMs, (quarterMs * 2).round());
+        expect(d.songEndMs, closeTo(quarterMs * 2, 0.001));
+      });
+
+      test('a three-link chain (stop+start middle) collapses into one', () {
+        final doc = _docWith(
+          notes: [
+            noteEvent(
+              positionDivisions: 0,
+              pitch: const Pitch(step: 'C', octave: 4, alter: 0),
+              tieStart: true,
+            ),
+            noteEvent(
+              positionDivisions: 4,
+              pitch: const Pitch(step: 'C', octave: 4, alter: 0),
+              tieStop: true,
+              tieStart: true,
+            ),
+            noteEvent(
+              positionDivisions: 8,
+              pitch: const Pitch(step: 'C', octave: 4, alter: 0),
+              tieStop: true,
+            ),
+          ],
+        );
+        final d = notationToTimedNotes(doc);
+        expect(d.notes, hasLength(1));
+        expect(d.notes.single.durationMs, (quarterMs * 3).round());
+      });
+
+      test('a tie across the barline merges', () {
+        final doc = ScoreDocument(
+          meta: const ScoreMeta(title: 'T', composer: 'C'),
+          staves: 1,
+          attributes: const Attributes(
+            divisions: 4,
+            clefs: [],
+            keyFifths: 0,
+            time: TimeSignature(beats: 4, beatType: 4),
+          ),
+          measures: [
+            NotationMeasure(
+              index: 0,
+              clefs: const [],
+              keyFifths: 0,
+              minWidth: 100,
+              directions: const [],
+              notes: [
+                noteEvent(
+                  positionDivisions: 0,
+                  durationDivisions: 16,
+                  noteType: 'whole',
+                  pitch: const Pitch(step: 'C', octave: 4, alter: 0),
+                  tieStart: true,
+                ),
+              ],
+            ),
+            NotationMeasure(
+              index: 1,
+              clefs: const [],
+              keyFifths: 0,
+              minWidth: 100,
+              directions: const [],
+              notes: [
+                noteEvent(
+                  positionDivisions: 0,
+                  pitch: const Pitch(step: 'C', octave: 4, alter: 0),
+                  tieStop: true,
+                ),
+              ],
+            ),
+          ],
+        );
+        final d = notationToTimedNotes(doc);
+        expect(d.notes, hasLength(1));
+        expect(d.notes.single.durationMs, (quarterMs * 5).round());
+      });
+
+      test('a chord with one tied member gates only the fresh member', () {
+        final doc = _docWith(
+          notes: [
+            noteEvent(
+              positionDivisions: 0,
+              pitch: const Pitch(step: 'C', octave: 4, alter: 0),
+              tieStart: true,
+            ),
+            noteEvent(
+              positionDivisions: 4,
+              pitch: const Pitch(step: 'C', octave: 4, alter: 0),
+              tieStop: true,
+            ),
+            noteEvent(
+              positionDivisions: 4,
+              isChord: true,
+              pitch: const Pitch(step: 'E', octave: 4, alter: 0),
+            ),
+          ],
+        );
+        final d = notationToTimedNotes(doc);
+        // The tied C is one long note; only the fresh E starts at the second
+        // onset — so Wait Mode awaits E alone there.
+        expect(d.notes, hasLength(2));
+        final c = d.notes.singleWhere((n) => n.pitch == 60);
+        final e = d.notes.singleWhere((n) => n.pitch == 64);
+        expect(c.startMs, 0);
+        expect(c.durationMs, (quarterMs * 2).round());
+        expect(e.startMs, quarterMs.round());
+      });
+
+      test('a dangling tie stop stays a playable note', () {
+        final doc = _docWith(
+          notes: [
+            noteEvent(
+              positionDivisions: 0,
+              pitch: const Pitch(step: 'D', octave: 4, alter: 0),
+            ),
+            noteEvent(
+              positionDivisions: 4,
+              pitch: const Pitch(step: 'C', octave: 4, alter: 0),
+              tieStop: true,
+            ),
+          ],
+        );
+        final d = notationToTimedNotes(doc);
+        expect(d.notes, hasLength(2));
+      });
+
+      test('repeated same-pitch notes without ties stay separate onsets', () {
+        // The Wait-Mode honesty rule depends on this: a repeat is two attacks.
+        final doc = _docWith(
+          notes: [
+            noteEvent(
+              positionDivisions: 0,
+              pitch: const Pitch(step: 'C', octave: 4, alter: 0),
+            ),
+            noteEvent(
+              positionDivisions: 4,
+              pitch: const Pitch(step: 'C', octave: 4, alter: 0),
+            ),
+          ],
+        );
+        expect(notationToTimedNotes(doc).notes, hasLength(2));
+      });
+
+      test('ties do not merge across voices', () {
+        final doc = _docWith(
+          notes: [
+            noteEvent(
+              positionDivisions: 0,
+              voice: 1,
+              pitch: const Pitch(step: 'C', octave: 4, alter: 0),
+              tieStart: true,
+            ),
+            noteEvent(
+              positionDivisions: 4,
+              voice: 2,
+              pitch: const Pitch(step: 'C', octave: 4, alter: 0),
+              tieStop: true,
+            ),
+          ],
+        );
+        expect(notationToTimedNotes(doc).notes, hasLength(2));
+      });
+    });
+
     test('carries the written diatonic step, not the MIDI collapse', () {
       // A♭4 (step A, octave 4, alter −1) must sit on the A line/space, like the
       // engraved Partition — never collapsed onto G via its MIDI number. The
