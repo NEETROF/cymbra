@@ -87,24 +87,28 @@ Server side is separate and equally required: see
 6. macOS only: the app is sandboxed and already has
    `com.apple.security.network.client`, which is what APNs needs. No extra key.
 
-## 3. Android
+## 3. Android — already wired
 
-1. Add the Google Services Gradle plugin — **only after** `google-services.json`
-   exists, since the plugin fails the build without it:
+`google-services.json` is committed and the Google Services Gradle plugin is
+applied (`android/settings.gradle.kts` + `android/app/build.gradle.kts`). The
+plugin turns that JSON into the resources `firebase_core` reads at startup; it
+**fails the build when the file is missing**, which is why the two land together.
 
-   `android/settings.gradle.kts` (plugins block):
-   ```kotlin
-   id("com.google.gms.google-services") version "4.4.2" apply false
-   ```
+Nothing to do for the Android 13+ runtime `POST_NOTIFICATIONS` permission either:
+`firebase_messaging` declares it and `PushService.requestPermission()` triggers
+the prompt. Verified on a debug build — the merged manifest carries the
+permission, `FirebaseInitProvider` and `FirebaseMessagingService`.
 
-   `android/app/build.gradle.kts` (plugins block):
-   ```kotlin
-   id("com.google.gms.google-services")
-   ```
-2. Android 13+ (API 33) requires the runtime `POST_NOTIFICATIONS` permission.
-   `firebase_messaging` declares it in its manifest and
-   `PushService.requestPermission()` triggers the prompt — no manual manifest
-   edit needed.
+To re-check after changing the Firebase project, build once and read the
+generated values:
+
+```bash
+grep -E "project_id|gcm_defaultSenderId" \
+  apps/music/build/app/generated/res/processDebugGoogleServices/values/values.xml
+```
+
+The `gcm_defaultSenderId` must match `GCM_SENDER_ID` in the Apple plist — a
+mismatch means the two apps were registered in different Firebase projects.
 
 ## 4. Server credential (what actually sends)
 
