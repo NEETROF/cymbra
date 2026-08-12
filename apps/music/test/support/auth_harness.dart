@@ -17,6 +17,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:music/services/account_service.dart';
 import 'package:music/services/curator_rewards_service.dart';
 import 'package:music/services/grpc_client.dart';
+import 'package:music/services/notification_service.dart';
 import 'package:music/services/oidc_token_source.dart';
 import 'package:music/services/preferences_service.dart';
 import 'package:music/services/token_store.dart';
@@ -52,6 +53,35 @@ class FakeCuratorRewardsService implements CuratorRewardsService {
       const RedeemResultView(owned: true, newBalance: 0);
 }
 
+/// A no-op notification-registry seam: the account menu reads the caller's
+/// per-category notification preferences (change: add-push-notifications), so any
+/// test pumping `AccountMenu` needs this wired (returns empty settings without
+/// touching a channel).
+class FakeNotificationRegistryService implements NotificationRegistryService {
+  const FakeNotificationRegistryService();
+
+  @override
+  Future<void> registerToken({
+    required String token,
+    required String platform,
+  }) async {}
+
+  @override
+  Future<void> unregisterToken(String token) async {}
+
+  @override
+  Future<void> setPref({
+    required String category,
+    required bool enabled,
+  }) async {}
+
+  @override
+  Future<void> setTimezone(String timezone) async {}
+
+  @override
+  Future<NotificationSettings> settings() async => NotificationSettings.empty;
+}
+
 /// Override list for the Cymbra ID seams, so nothing touches a channel or
 /// platform plugin. Compose with extra overrides (e.g. `scoreCatalogProvider`).
 List<Override> authOverrides({
@@ -70,6 +100,11 @@ List<Override> authOverrides({
     const FakeCuratorRewardsService(),
   ),
   preferencesServiceProvider.overrideWithValue(FakePreferencesService()),
+  // The account menu renders a switch per declared notification category
+  // (change: add-push-notifications) and reads the stored preferences.
+  notificationRegistryServiceProvider.overrideWithValue(
+    const FakeNotificationRegistryService(),
+  ),
 ];
 
 /// A [ProviderContainer] with every Cymbra ID seam overridden by a fake.

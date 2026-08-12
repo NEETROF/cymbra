@@ -20,6 +20,7 @@ use cymbra_music::{
     PgCatalogSearchRepo, PgOfflineSecretRepo, PgScoreRatingRepo, PgUserLibraryRepo,
     PgUserScoreRepo, ScoreGrpc, ScoreModule,
 };
+use cymbra_notifications::proto::notification_service_server::NotificationServiceServer;
 use cymbra_platform::cache::{Cache, RedisCache};
 use cymbra_platform::config::Config;
 use cymbra_platform::email::{EmailSender, SmtpSender};
@@ -53,6 +54,9 @@ async fn main() -> anyhow::Result<()> {
     let user_pool = db::connect(&cfg.user_database_url, 5).await?;
     let ready_pool = user_pool.clone(); // for the readiness probe
     let flags_resolver_pool = user_pool.clone(); // platform-admin scope resolver
+    // Push registry (change: add-push-notifications) — its tables live in the
+    // `user_account` schema, so it shares this pool.
+    let notifications_pool = user_pool.clone();
     cymbra_auth::MIGRATOR.run(&auth_pool).await?;
     cymbra_user::MIGRATOR.run(&user_pool).await?;
 
@@ -137,6 +141,19 @@ async fn main() -> anyhow::Result<()> {
     let user_svc =
         UserServiceServer::with_interceptor(UserGrpc::new(user_concrete), strict.clone());
     let auth_svc = AuthServiceServer::with_interceptor(AuthGrpc::new(auth), optional.clone());
+
+    // --- push notifications (change: add-push-notifications) ---
+    // Device-token registry, per-category consent and the per-user timezone all
+    // live in `user_account`, so this shares the user_svc pool. Strict auth: every
+    // method acts on the authenticated caller's own account. Always mounted — the
+    // registry works with no Firebase project configured; only the worker's send
+    // path needs credentials.
+    let notification_svc = NotificationServiceServer::with_interceptor(
+        cymbra_notifications::NotificationGrpc::new(Arc::new(
+            cymbra_notifications::PgPushRegistry::new(notifications_pool),
+        )),
+        strict.clone(),
+    );
 
     // --- feature flags (shared, app-agnostic; change: add-runtime-feature-flags) ---
     // Mounted behind the OPTIONAL interceptor so `GetEffectiveFlags` works with or
@@ -457,7 +474,8 @@ async fn main() -> anyhow::Result<()> {
         .layer(metrics::ObserveLayer::new(red))
         .add_service(user_svc)
         .add_service(auth_svc)
-        .add_service(flag_svc);
+        .add_service(flag_svc)
+        .add_service(notification_svc);
     if let Some(score_svc) = score_svc {
         router = router.add_service(score_svc);
     }

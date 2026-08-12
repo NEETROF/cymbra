@@ -50,6 +50,10 @@ pub struct WorkerConfig {
     /// so the usage-purge job uses the code-default retention window. Mirrors the
     /// server's `CYMBRA_FLAGS_DATABASE_URL`.
     pub flags_database_url: Option<String>,
+    /// Firebase service-account key JSON for the FCM sender (change: add-push-
+    /// notifications). `None` leaves the `push_dispatch` job inert (it logs and
+    /// completes) so a deployment without a Firebase project simply sends nothing.
+    pub fcm_service_account_json: Option<String>,
 }
 
 impl WorkerConfig {
@@ -94,6 +98,10 @@ pub mod core {
             play_detail_retention_days: num(m, "CYMBRA_PLAY_DETAIL_RETENTION_DAYS", 90)?,
             flags_database_url: m
                 .get("CYMBRA_FLAGS_DATABASE_URL")
+                .filter(|v| !v.is_empty())
+                .cloned(),
+            fcm_service_account_json: m
+                .get("CYMBRA_FCM_SERVICE_ACCOUNT_JSON")
                 .filter(|v| !v.is_empty())
                 .cloned(),
         })
@@ -187,6 +195,25 @@ mod tests {
         assert_eq!(c.otlp_endpoint, None);
         // Default play-detail retention (change: add-play-activity-profile).
         assert_eq!(c.play_detail_retention_days, 90);
+        // No Firebase credentials ⇒ push dispatch is inert, not a startup failure
+        // (change: add-push-notifications).
+        assert_eq!(c.fcm_service_account_json, None);
+    }
+
+    #[test]
+    fn fcm_service_account_is_optional_but_read_when_set() {
+        let mut m = base();
+        m.insert(
+            "CYMBRA_FCM_SERVICE_ACCOUNT_JSON".into(),
+            r#"{"project_id":"cymbra"}"#.into(),
+        );
+        assert_eq!(
+            core::parse(&m).unwrap().fcm_service_account_json.as_deref(),
+            Some(r#"{"project_id":"cymbra"}"#)
+        );
+        // An empty value is the same as unset.
+        m.insert("CYMBRA_FCM_SERVICE_ACCOUNT_JSON".into(), String::new());
+        assert_eq!(core::parse(&m).unwrap().fcm_service_account_json, None);
     }
 
     #[test]

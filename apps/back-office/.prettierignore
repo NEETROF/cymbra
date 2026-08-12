@@ -6,3 +6,8 @@ playwright-report/
 test-results/
 .yarn/
 yarn.lock
+# Git-ignored knowledge graphs (scripts/graphify.sh). Absent in CI, but present
+# in a local checkout, where they would otherwise make `format:check` noisy and
+# hide a real offender.
+graphify-out/
+src/graphify-out/

@@ -10,6 +10,19 @@ set(BINARY_NAME "music")
 # versions of CMake.
 cmake_policy(VERSION 3.14...3.25)
 
+# The Firebase C++ SDK that firebase_core downloads at build time still declares
+# `cmake_minimum_required(VERSION <3.5)`, and CMake 4 removed compatibility with
+# it — the Windows build fails to configure (change: add-push-notifications).
+# Setting this before the plugins are added as subdirectories restores the old
+# behaviour for THEM without weakening anything we own: our own minimum stays
+# 3.14 above, and the policy version we opt into stays 3.14...3.25.
+#
+# Windows is deliberately NOT a push platform (no FCM), so this SDK is dead
+# weight here; it comes along only because firebase_core declares a Windows
+# implementation and Flutter builds every platform a dependency supports. Drop
+# this block once upstream ships an SDK with a modern minimum.
+set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
+
 # Define build configuration option.
 get_property(IS_MULTICONFIG GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
 if(IS_MULTICONFIG)

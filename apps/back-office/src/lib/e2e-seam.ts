@@ -59,11 +59,25 @@ export interface E2EData {
   };
   usageActions?: string[];
   usageBreakdown?: { action: string; variant?: string; events: number }[];
+  /** Declared flag/config keys for the "Notifications" panel (change:
+   * add-push-notifications), which is a filtered view over the flag registry.
+   * Mutated in place by setFlag/setConfig/clearOverride so the panel's re-read
+   * reflects the change. `value` is a bool for a flag, a number for an hour. */
+  flags?: E2EFlag[];
   /** Force a method to reject with a ConnectError, keyed by method name. */
   fail?: Record<string, E2EFailure>;
   /** Force a method to reject with a ConnectError exactly ONCE (then succeed) —
    * used to exercise the silent refresh-and-retry path. Keyed by method name. */
   failOnce?: Record<string, E2EFailure>;
+}
+
+/** One declared key as the e2e seam models it (a bool flag or an int config). */
+export interface E2EFlag {
+  key: string;
+  app?: string;
+  value: boolean | number;
+  hasOverride?: boolean;
+  editable?: boolean;
 }
 
 interface DirectoryAccount {
@@ -102,6 +116,9 @@ export function installE2EClients(): void {
   const tokens = data.tokens ?? { accessToken: "", refreshToken: "r" };
   // Mutable copy so add/edit/delete change the catalog the next list reflects.
   const soundfonts: Record<string, unknown>[] = (data.soundfonts ?? []).map((f) => ({ ...f }));
+  // Mutable copy so a flag/config write changes what the next list returns.
+  const flags: E2EFlag[] = (data.flags ?? []).map((f) => ({ ...f }));
+  const findFlag = (key: string) => flags.find((f) => f.key === key);
   // Mutable per-scope copy so grant/revoke change roles in the right scope and the
   // next listAccounts reflects it. A seed's flat `roles` is treated as `music`.
   const byScope: { userId: string; handle?: string; displayName?: string; roles: Record<string, string[]> }[] = (
@@ -317,6 +334,58 @@ export function installE2EClients(): void {
         return {
           points: (data.usageBreakdown ?? []).map((r) => ({ day: today, series: r.action, value: BigInt(r.events) })),
         };
+      },
+    },
+    flags: {
+      listFlagDefinitions: async () => {
+        failIfSet("listFlagDefinitions");
+        return {
+          definitions: flags.map((f) => {
+            const isBool = typeof f.value === "boolean";
+            const wire = isBool
+              ? { kind: { case: "boolValue", value: f.value as boolean } }
+              : { kind: { case: "intValue", value: BigInt(f.value as number) } };
+            return {
+              key: f.key,
+              app: f.app ?? "all",
+              valueType: isBool ? "bool" : "int",
+              defaultValue: wire,
+              effectiveValue: wire,
+              hasOverride: f.hasOverride ?? false,
+              rolloutScope: "global",
+              sensitive: false,
+              doc: "",
+              editable: f.editable ?? true,
+              updatedBy: "",
+              updatedAt: "",
+            };
+          }),
+        };
+      },
+      listFlagChanges: async () => ({ changes: [] }),
+      setFlag: async (req: { key: string; enabled: boolean }) => {
+        failIfSet("setFlag");
+        const f = findFlag(req.key);
+        if (f) {
+          f.value = req.enabled;
+          f.hasOverride = true;
+        }
+        return {};
+      },
+      setConfig: async (req: { key: string; value: { kind?: { case: string; value: unknown } } }) => {
+        failIfSet("setConfig");
+        const f = findFlag(req.key);
+        if (f && req.value.kind?.case === "intValue") {
+          f.value = Number(req.value.kind.value as bigint);
+          f.hasOverride = true;
+        }
+        return {};
+      },
+      clearOverride: async (req: { key: string }) => {
+        failIfSet("clearOverride");
+        const f = findFlag(req.key);
+        if (f) f.hasOverride = false;
+        return {};
       },
     },
   } as unknown as Clients;

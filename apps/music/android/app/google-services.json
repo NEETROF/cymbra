@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "225556181427",
+    "project_id": "cymbra-e4943",
+    "storage_bucket": "cymbra-e4943.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:225556181427:android:74c670786b37062fae5bc6",
+        "android_client_info": {
+          "package_name": "com.cymbra.music"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDiSySV5wj-hdEI0E8qhXBwIccsNCpKoI4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -2,6 +2,16 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<!-- APNs environment for push notifications (change: add-push-notifications).
+	     macOS reaches FCM through APNs like iOS, but the entitlement key is NOT
+	     the same: iOS uses bare `aps-environment`, macOS uses the
+	     `com.apple.developer.` prefixed form (it is what the macOS provisioning
+	     profile declares). Sign with the iOS spelling here and codesign silently
+	     DROPS the key - the app builds, installs and runs, and simply never gets
+	     an APNs token. Requires the Push Notifications capability on the macOS
+	     App ID. -->
+	<key>com.apple.developer.aps-environment</key>
+	<string>development</string>
 	<key>com.apple.developer.applesignin</key>
 	<array>
 		<string>Default</string>

@@ -6,6 +6,11 @@ plugins {
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+    // Firebase Cloud Messaging (change: add-push-notifications): processes
+    // google-services.json into the resources firebase_core reads at startup.
+    // Without it, Firebase.initializeApp() throws and the app reports push as
+    // unsupported — silently, by design.
+    id("com.google.gms.google-services")
 }
 
 // Release signing (Play App Signing upload key). key.properties is gitignored and

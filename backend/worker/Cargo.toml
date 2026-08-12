@@ -32,6 +32,9 @@ cymbra-feature-flags = { path = "../feature-flags" }
 # The consensus honesty-settlement sweep runs the music module's rewards logic
 # (change: add-curation-rewards, task 3.2).
 cymbra-music = { path = "../music" }
+# The push_dispatch job runs the notification platform's selection → send → prune
+# loop (change: add-push-notifications, design D6).
+cymbra-notifications = { path = "../notifications" }
 sqlxmq.workspace = true
 sqlx.workspace = true
 uuid.workspace = true

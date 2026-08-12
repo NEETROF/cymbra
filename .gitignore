@@ -5,7 +5,13 @@
 # --- Secrets / local env (contains dev signing keys, DB creds) ---
 .env
 **/.env
+# Any sibling variant too (.env.bak, .env.local, .env.save, an editor's backup…).
+# A single un-ignored variant is enough to commit every secret at once, and a
+# `git add -A` will happily do it — this pattern is what stops that.
+.env.*
+**/.env.*
 !**/.env.example
+!**/.env.prod.example
 
 # --- Flutter / Dart ---
 .dart_tool/

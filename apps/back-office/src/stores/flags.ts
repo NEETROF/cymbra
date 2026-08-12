@@ -88,7 +88,9 @@ export function buildValueKind(kind: FlagKind, input: string): FlagValue["kind"]
   }
 }
 
-function toRow(d: FlagDefinition): FlagRow {
+/** Map a wire definition onto the panel row shape (shared with the
+ *  notifications panel, which is a filtered view of the same registry). */
+export function toRow(d: FlagDefinition): FlagRow {
   return {
     key: d.key,
     app: d.app,

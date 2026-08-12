@@ -552,6 +552,12 @@ jobs:
           DEVELOPMENT_TEAM = ${TEAM_ID}
           PROVISIONING_PROFILE_SPECIFIER = ${PROFILE_NAME}
           CODE_SIGN_IDENTITY = Apple Distribution
+          # App Store APNs environment (change: add-push-notifications). The
+          # checked-in default is `development` — the only value a development
+          # profile allows — so the production value is set HERE, where the build
+          # is already distribution-signed. An upload with `development` is
+          # rejected by App Store Connect.
+          APS_ENVIRONMENT = production
           EOF
           # CI export options: manual, map the bundle id to the profile by name.
           cat > ExportOptions-ci.plist <<EOF

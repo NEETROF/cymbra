@@ -39,6 +39,9 @@ async fn main() -> anyhow::Result<()> {
 
     // --- per-module connections for the work the handlers perform ---
     let user_pool = db::connect(&cfg.user_database_url, 5).await?;
+    // The push registry lives in `user_account` (device tokens, category prefs,
+    // timezone), so the dispatcher reads it through the same user_svc pool.
+    let push_pool = user_pool.clone();
     let user = Arc::new(UserModule::new(PgUserRepo::new(user_pool)));
     // auth_svc pool for the session-reaper job (auth owns `auth.sessions`).
     let auth_pool = db::connect(&cfg.auth_database_url, 5).await?;
@@ -66,6 +69,29 @@ async fn main() -> anyhow::Result<()> {
     // raw-event retention window from it (change: add-feature-usage-analytics, D4).
     let flag_service = flags::build_flag_service(cfg.flags_database_url.as_deref()).await?;
 
+    // Push dispatcher for the `push_dispatch` job (change: add-push-notifications).
+    // Wired only when Firebase credentials are configured; otherwise the job stays
+    // inert so a deployment without push starts normally.
+    let push: Option<Arc<cymbra_notifications::Dispatcher>> = match cfg
+        .fcm_service_account_json
+        .as_deref()
+    {
+        Some(raw) => {
+            let sender: Arc<dyn cymbra_notifications::PushSender> = Arc::new(
+                cymbra_notifications::FcmSender::from_service_account_json(raw)?,
+            );
+            let registry: Arc<dyn cymbra_notifications::PushRegistry> =
+                Arc::new(cymbra_notifications::PgPushRegistry::new(push_pool));
+            Some(Arc::new(cymbra_notifications::Dispatcher::new(
+                registry, sender,
+            )))
+        }
+        None => {
+            tracing::info!("push notifications disabled (CYMBRA_FCM_SERVICE_ACCOUNT_JSON unset)");
+            None
+        }
+    };
+
     let ctx = WorkerCtx {
         email,
         user,
@@ -75,6 +101,7 @@ async fn main() -> anyhow::Result<()> {
         reap_grace_secs: cfg.orphan_reap_grace.as_secs() as i64,
         play_detail_retention_days: cfg.play_detail_retention_days as i64,
         flags: flag_service,
+        push,
     };
 
     // --- sqlxmq runner: executes queued jobs (event-driven; design D7) ---

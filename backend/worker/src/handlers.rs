@@ -41,6 +41,10 @@ pub struct WorkerCtx {
     /// `usage_purge` job reads the raw-event retention window from it so it is
     /// BO-retunable without a redeploy (design D4).
     pub flags: Arc<cymbra_feature_flags::FlagService>,
+    /// Push dispatcher for the `push_dispatch` job (change: add-push-notifications).
+    /// `None` when Firebase credentials are unconfigured — the job then completes
+    /// as a no-op rather than failing, so a deployment without push is inert.
+    pub push: Option<Arc<cymbra_notifications::Dispatcher>>,
 }
 
 /// Payload for the `verification_email` job (and any transactional email). The
@@ -285,6 +289,83 @@ pub async fn global_season_snapshot(mut job: CurrentJob, ctx: WorkerCtx) -> Resu
     .await
 }
 
+/// Payload for the generic `push_dispatch` job (change: add-push-notifications,
+/// design D6). The platform ships no concrete notification type: the feature that
+/// owns one supplies its `category`, its already-localized message, and — when it
+/// has its own candidate query — the `user_ids` that query resolved. Omitting
+/// `user_ids` targets every user holding a registered device.
+#[derive(Deserialize)]
+struct PushDispatchJob {
+    category: String,
+    title: String,
+    body: String,
+    /// Optional routing payload delivered with the notification.
+    #[serde(default)]
+    data: std::collections::BTreeMap<String, String>,
+    /// The feature's candidate set; absent ⇒ every registered device.
+    #[serde(default)]
+    user_ids: Option<Vec<String>>,
+    /// What an absent user preference means for this category (the owning
+    /// feature's product default). Defaults to opt-in.
+    #[serde(default = "default_true")]
+    default_pref: bool,
+}
+
+fn default_true() -> bool {
+    true
+}
+
+/// Run one category's push dispatch: resolve the flags, select recipients, send,
+/// prune dead tokens (change: add-push-notifications, design D5/D6). Scheduled by
+/// the feature that owns the category (a `jobs.schedules` row) or enqueued on an
+/// event. Idempotent enough for at-least-once delivery: a redelivery re-runs
+/// selection, so a closed kill-switch or a passed schedule hour sends nothing.
+#[sqlxmq::job("push_dispatch")]
+pub async fn push_dispatch(mut job: CurrentJob, ctx: WorkerCtx) -> Result<(), BoxError> {
+    let span = tracing::info_span!("job.push_dispatch", job_id = %job.id());
+    async move {
+        let p: PushDispatchJob = job.json()?.ok_or("push_dispatch: missing JSON payload")?;
+        match &ctx.push {
+            Some(dispatcher) => {
+                // Pick up any BO flag change (best-effort; a store outage falls
+                // back to last-known/defaults, i.e. sends nothing — fail-safe).
+                if let Err(e) = ctx.flags.refresh().await {
+                    tracing::warn!(error = %e, "push_dispatch flag refresh failed; using last-known/default");
+                }
+                let flags =
+                    cymbra_notifications::resolve_flags(&ctx.flags, &p.category, p.default_pref);
+                let audience = match p.user_ids {
+                    Some(ids) => cymbra_notifications::Audience::Users(ids),
+                    None => cymbra_notifications::Audience::All,
+                };
+                let mut msg = cymbra_notifications::PushMessage::new(p.title, p.body);
+                for (k, v) in p.data {
+                    msg = msg.with_data(k, v);
+                }
+                let report = dispatcher
+                    .dispatch(&flags, &audience, &msg, chrono::Utc::now())
+                    .await?;
+                tracing::info!(
+                    category = %p.category,
+                    selected = report.selected,
+                    delivered = report.delivered,
+                    retryable = report.retryable,
+                    pruned = report.pruned,
+                    "push dispatch complete"
+                );
+            }
+            None => tracing::warn!(
+                category = %p.category,
+                "push_dispatch skipped: FCM credentials not configured"
+            ),
+        }
+        job.complete().await?;
+        Ok(())
+    }
+    .instrument(span)
+    .await
+}
+
 /// Build the job registry with all handlers registered and the shared context set.
 pub fn registry(ctx: WorkerCtx) -> JobRegistry {
     let mut registry = JobRegistry::new(&[
@@ -298,6 +379,7 @@ pub fn registry(ctx: WorkerCtx) -> JobRegistry {
         usage_purge,
         consensus_honesty_settlement,
         global_season_snapshot,
+        push_dispatch,
     ]);
     registry.set_context(ctx);
     registry
