@@ -48,7 +48,27 @@ pub fn resolve_flags(flags: &FlagService, category: &str, default_pref: bool) ->
         schedule_hour: u32::try_from(hour).ok().filter(|h| *h <= 23),
         default_pref,
         default_timezone: DEFAULT_TIMEZONE.to_string(),
+        foreground: flags.bool(&flag_keys::category_foreground_key(category), false, &ctx),
     }
+}
+
+/// The `data` key the dispatcher stamps with the category's resolved foreground
+/// flag (change: add-foreground-notifications, design D4): `"true"` = the client
+/// surfaces the message in-app when it arrives with the app open, anything else
+/// (including absence, e.g. a hand-crafted payload) = silence. The Dart client
+/// reads the same key — keep the two in sync.
+pub const FOREGROUND_DATA_KEY: &str = "foreground";
+
+/// [`PushMessage`] with the resolved foreground decision stamped on its `data`,
+/// replacing any caller-supplied value: the flag store is the single source of
+/// that decision, a feature cannot opt itself in from a job payload.
+fn stamp_foreground(msg: &PushMessage, foreground: bool) -> PushMessage {
+    let mut stamped = msg.clone();
+    stamped.data.retain(|(k, _)| k != FOREGROUND_DATA_KEY);
+    stamped
+        .data
+        .push((FOREGROUND_DATA_KEY.to_string(), foreground.to_string()));
+    stamped
 }
 
 /// Runs one category send end to end.
@@ -92,12 +112,17 @@ impl Dispatcher {
         let candidates = self.registry.candidates(&flags.category, audience).await?;
         let tokens = select_recipients(&candidates, flags, now);
 
+        // Every message carries the category's foreground decision — stamped
+        // here, centrally, so a feature cannot forget and scheduled and
+        // event-triggered sends behave alike (design D4).
+        let msg = stamp_foreground(msg, flags.foreground);
+
         let mut report = DispatchReport {
             selected: tokens.len(),
             ..DispatchReport::default()
         };
         for token in &tokens {
-            match self.sender.send(token, msg).await? {
+            match self.sender.send(token, &msg).await? {
                 SendOutcome::Delivered => report.delivered += 1,
                 SendOutcome::Retryable(reason) => {
                     report.retryable += 1;
@@ -173,6 +198,73 @@ mod tests {
         assert_eq!(report.selected, 2);
         assert_eq!(report.delivered, 2);
         assert_eq!(report.pruned, 0);
+    }
+
+    /// Task 2.3 (add-foreground-notifications): every sent message carries the
+    /// resolved foreground decision, correct for on and off, and the flag never
+    /// changes who is selected.
+    #[tokio::test]
+    async fn the_message_carries_the_foreground_decision_without_affecting_selection() {
+        for foreground in [true, false] {
+            let mut registry = MockPushRegistry::new();
+            registry
+                .expect_candidates()
+                .returning(|_, _| Ok(vec![candidate("u1", "t1"), candidate("u2", "t2")]));
+            let mut sender = MockPushSender::new();
+            let expected = foreground.to_string();
+            sender
+                .expect_send()
+                .withf(move |_, msg| {
+                    msg.data
+                        == vec![
+                            ("route".to_string(), "/practice".to_string()),
+                            (FOREGROUND_DATA_KEY.to_string(), expected.clone()),
+                        ]
+                })
+                .times(2)
+                .returning(|_, _| Ok(SendOutcome::Delivered));
+
+            let d = Dispatcher::new(Arc::new(registry), Arc::new(sender));
+            let flags = SelectionFlags {
+                foreground,
+                ..live_flags()
+            };
+            let msg = PushMessage::new("t", "b").with_data("route", "/practice");
+            let report = d
+                .dispatch(&flags, &Audience::All, &msg, now())
+                .await
+                .unwrap();
+            assert_eq!(report.selected, 2, "selection must ignore foreground");
+            assert_eq!(report.delivered, 2);
+        }
+    }
+
+    /// The flag store is the single source of the foreground decision: a value
+    /// smuggled in through the job payload's `data` is replaced, not kept.
+    #[tokio::test]
+    async fn a_caller_supplied_foreground_entry_is_overridden() {
+        let mut registry = MockPushRegistry::new();
+        registry
+            .expect_candidates()
+            .returning(|_, _| Ok(vec![candidate("u1", "t1")]));
+        let mut sender = MockPushSender::new();
+        sender
+            .expect_send()
+            .withf(|_, msg| {
+                msg.data == vec![(FOREGROUND_DATA_KEY.to_string(), "false".to_string())]
+            })
+            .times(1)
+            .returning(|_, _| Ok(SendOutcome::Delivered));
+
+        let d = Dispatcher::new(Arc::new(registry), Arc::new(sender));
+        let flags = SelectionFlags {
+            foreground: false,
+            ..live_flags()
+        };
+        let msg = PushMessage::new("t", "b").with_data(FOREGROUND_DATA_KEY, "true");
+        d.dispatch(&flags, &Audience::All, &msg, now())
+            .await
+            .unwrap();
     }
 
     #[tokio::test]
@@ -325,11 +417,12 @@ mod tests {
         let f = resolve_flags(&service, "practice_streak", true);
         assert_eq!(f.category, "practice_streak");
         // Kill-switch defaults off, and the category's keys are not declared by
-        // the platform → disabled, no hour gate.
+        // the platform → disabled, no hour gate, silent in the foreground.
         assert!(!f.kill_switch_on);
         assert!(!f.category_enabled);
         assert_eq!(f.schedule_hour, None);
         assert!(f.default_pref);
         assert_eq!(f.default_timezone, DEFAULT_TIMEZONE);
+        assert!(!f.foreground);
     }
 }

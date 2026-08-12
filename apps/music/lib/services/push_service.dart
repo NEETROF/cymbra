@@ -59,6 +59,26 @@ PushPlatform? currentPushPlatform() {
   return null;
 }
 
+/// One notification delivered while the app is in the foreground (change:
+/// add-foreground-notifications).
+///
+/// [title] and [body] are the already-localized copy the sending feature owns;
+/// [data] is the opaque payload the platform transports end to end — including
+/// the dispatcher-stamped foreground indication and any routing entry. The seam
+/// hands the message over verbatim; deciding whether it is *surfaced* is the
+/// notifier's job, from what the message carries.
+class PushForegroundMessage {
+  const PushForegroundMessage({
+    required this.title,
+    required this.body,
+    this.data = const {},
+  });
+
+  final String title;
+  final String body;
+  final Map<String, String> data;
+}
+
 /// Injectable seam over the native push SDK (change: add-push-notifications,
 /// task 4.2).
 ///
@@ -81,6 +101,11 @@ abstract class PushService {
 
   /// Tokens emitted whenever FCM rotates this install's registration.
   Stream<String> get tokenRefreshes;
+
+  /// Messages delivered while the app is in the foreground (change:
+  /// add-foreground-notifications). Empty on platforms without push and when no
+  /// Firebase configuration is present — never an error.
+  Stream<PushForegroundMessage> get foregroundMessages;
 
   /// Drop the local registration so the device stops receiving pushes.
   Future<void> deleteToken();
@@ -116,6 +141,24 @@ class FirebasePushService implements PushService {
         'GoogleService-Info.plist / google-services.json in the bundle?',
       );
       _ready = false;
+    }
+    if (_ready! && platform != PushPlatform.android) {
+      // One foreground baseline across platforms (add-foreground-notifications,
+      // design D3): without this, macOS shows an OS banner over the open app
+      // while iOS and Android stay silent. Suppress it so the in-app layer —
+      // driven by the per-category flag the message carries — is the only thing
+      // that decides. Background delivery is untouched. Best-effort: a failure
+      // here must not take the whole push seam down.
+      try {
+        await FirebaseMessaging.instance
+            .setForegroundNotificationPresentationOptions(
+              alert: false,
+              badge: false,
+              sound: false,
+            );
+      } catch (e) {
+        debugPrint('[push] suppressing OS foreground banner failed ($e).');
+      }
     }
     return _ready!;
   }
@@ -189,6 +232,21 @@ class FirebasePushService implements PushService {
   @override
   Stream<String> get tokenRefreshes =>
       FirebaseMessaging.instance.onTokenRefresh;
+
+  @override
+  Stream<PushForegroundMessage> get foregroundMessages =>
+      // Deliberately NOT behind [_ensureReady]: `onMessage` is a static
+      // Dart-side broadcast the plugin feeds, so subscribing touches nothing
+      // native and cannot throw — and an unconfigured install (no Firebase, no
+      // token) simply never emits. Probing Firebase here instead would make
+      // merely mounting the app's listener reach for the SDK (task 5.4).
+      FirebaseMessaging.onMessage.map(
+        (m) => PushForegroundMessage(
+          title: m.notification?.title ?? '',
+          body: m.notification?.body ?? '',
+          data: m.data.map((k, v) => MapEntry(k, '$v')),
+        ),
+      );
 
   @override
   Future<void> deleteToken() async {

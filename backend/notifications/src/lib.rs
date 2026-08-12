@@ -21,8 +21,8 @@
 //!
 //! # Adding a notification type
 //!
-//! See `README.md` — a feature supplies a category id, two feature-flag keys, a
-//! candidate query and a message; the platform core is untouched.
+//! See `README.md` — a feature supplies a category id, three feature-flag keys,
+//! a candidate query and a message; the platform core is untouched.
 
 pub mod dispatch;
 pub mod fcm;
@@ -32,7 +32,7 @@ pub mod repo;
 pub mod select_core;
 pub mod sender;
 
-pub use dispatch::{DispatchReport, Dispatcher, resolve_flags};
+pub use dispatch::{DispatchReport, Dispatcher, FOREGROUND_DATA_KEY, resolve_flags};
 pub use fcm::{FcmSender, ServiceAccount};
 pub use grpc::NotificationGrpc;
 pub use pg::PgPushRegistry;

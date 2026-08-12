@@ -27,12 +27,14 @@ import 'services/license_notices.dart';
 import 'src/rust/frb_generated.dart';
 import 'state/app_locale.dart';
 import 'widgets/post_play_rating.dart';
+import 'state/foreground_notification_listener.dart';
 import 'state/language_sync_listener.dart';
 import 'state/push_registration_listener.dart';
 import 'state/selected_piano.dart';
 import 'state/usage_tracking_notifier.dart';
 import 'theme/cymbra_theme.dart';
 import 'widgets/coach_layer.dart';
+import 'widgets/foreground_notification_banner.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -136,15 +138,26 @@ class CymbraApp extends ConsumerWidget {
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
       // The coaching layer sits ABOVE the navigator so a spotlight can point at
-      // a control that lives inside a dialog (the pre-play setup surface).
-      builder: (context, child) =>
-          Stack(children: [?child, const CoachLayer()]),
+      // a control that lives inside a dialog (the pre-play setup surface); the
+      // foreground-notification banner sits there too, so it paints over
+      // whatever screen is open (change: add-foreground-notifications).
+      builder: (context, child) => Stack(
+        children: [
+          ?child,
+          const ForegroundNotificationLayer(),
+          const CoachLayer(),
+        ],
+      ),
       // Reconcile the account language into the UI after sign-in (change:
-      // sync-account-language-preference), and register this device for push
-      // (change: add-push-notifications) — each isolated in a dedicated listener.
+      // sync-account-language-preference), register this device for push
+      // (change: add-push-notifications), and surface foreground notifications
+      // (change: add-foreground-notifications) — each isolated in a dedicated
+      // listener.
       home: const PostPlayRatingToastListener(
         child: LanguageSyncListener(
-          child: PushRegistrationListener(child: OnboardingGate()),
+          child: PushRegistrationListener(
+            child: ForegroundNotificationListener(child: OnboardingGate()),
+          ),
         ),
       ),
     );

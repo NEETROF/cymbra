@@ -63,9 +63,10 @@ pub const DATA_RETENTION_USAGE_EVENTS_DAYS: &str = "data.retention.usage_events_
 //
 // The platform declares ONE key — the global kill-switch. Every other key is
 // per-**category**, and categories are owned by the features that declare them,
-// so a feature adds its own two keys (built by [`category_enabled_key`] and
-// [`category_hour_key`]) to this registry when its notification type lands. The
-// back office renders whatever it finds under the [`NOTIFICATIONS_KEY_PREFIX`].
+// so a feature adds its own three keys (built by [`category_enabled_key`],
+// [`category_hour_key`] and [`category_foreground_key`]) to this registry when
+// its notification type lands. The back office renders whatever it finds under
+// the [`NOTIFICATIONS_KEY_PREFIX`].
 
 /// Common prefix of every push-notification key — how the back-office panel
 /// discovers the categories currently declared.
@@ -88,6 +89,16 @@ pub fn category_enabled_key(category: &str) -> String {
 /// (0–23) at which the category's scheduled send fires for each user.
 pub fn category_hour_key(category: &str) -> String {
     format!("{NOTIFICATIONS_KEY_PREFIX}category.{category}.hour")
+}
+
+/// The per-category foreground-presentation key for `category`, e.g.
+/// `notifications.category.practice_streak.foreground` — the third per-category
+/// key (change: add-foreground-notifications). On = a notification for this
+/// category arriving while the app is open is surfaced in-app; off = it stays
+/// silent. Call sites default it to `false`: not interrupting is the safe
+/// direction, matching every other gate on this platform.
+pub fn category_foreground_key(category: &str) -> String {
+    format!("{NOTIFICATIONS_KEY_PREFIX}category.{category}.foreground")
 }
 
 /// A single declared key.
@@ -395,8 +406,8 @@ mod tests {
 
     #[test]
     fn notification_category_keys_are_namespaced_under_the_panel_prefix() {
-        // The BO panel discovers categories by prefix, so both per-category keys
-        // must sit under it alongside the kill-switch.
+        // The BO panel discovers categories by prefix, so all three per-category
+        // keys must sit under it alongside the kill-switch.
         assert!(NOTIFICATIONS_ENABLED.starts_with(NOTIFICATIONS_KEY_PREFIX));
         assert_eq!(
             category_enabled_key("practice_streak"),
@@ -406,7 +417,15 @@ mod tests {
             category_hour_key("practice_streak"),
             "notifications.category.practice_streak.hour"
         );
-        for k in [category_enabled_key("x"), category_hour_key("x")] {
+        assert_eq!(
+            category_foreground_key("practice_streak"),
+            "notifications.category.practice_streak.foreground"
+        );
+        for k in [
+            category_enabled_key("x"),
+            category_hour_key("x"),
+            category_foreground_key("x"),
+        ] {
             assert!(k.starts_with(NOTIFICATIONS_KEY_PREFIX), "{k}");
         }
     }
