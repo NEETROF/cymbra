@@ -4,14 +4,15 @@ import { api } from "@/lib/api";
 import { type Async, idle, run } from "@/lib/async";
 import { type FlagRow, toRow } from "./flags";
 
-// The notifications panel (change: add-push-notifications, task 5.1).
+// The notifications panel (change: add-push-notifications, task 5.1; foreground
+// column: add-foreground-notifications).
 //
 // Push send configuration IS feature-flag configuration — the global kill-switch,
-// each category's enable, and each category's local schedule hour are declared
-// keys under one prefix, already hot-reloadable and audited. So this store is a
-// *view* over the same registry rather than a second control plane: it loads the
-// declared keys, keeps only the `notifications.` ones, and groups the per-category
-// pair into a row the panel can render.
+// each category's enable, its local schedule hour, and its foreground
+// presentation are declared keys under one prefix, already hot-reloadable and
+// audited. So this store is a *view* over the same registry rather than a second
+// control plane: it loads the declared keys, keeps only the `notifications.`
+// ones, and groups the per-category triplet into a row the panel can render.
 //
 // Because the set is discovered from the registry, a feature that lands a new
 // notification type appears here on its own — nothing in this file changes.
@@ -23,7 +24,7 @@ const CATEGORY_PREFIX = `${NOTIFICATIONS_PREFIX}category.`;
 /** The global kill-switch key. */
 export const KILL_SWITCH_KEY = `${NOTIFICATIONS_PREFIX}enabled`;
 
-/** One notification category's two controls, paired for display. */
+/** One notification category's controls, grouped for display. */
 export interface CategoryRow {
   /** The category id, e.g. `practice_streak`. */
   category: string;
@@ -31,6 +32,9 @@ export interface CategoryRow {
   enabled: FlagRow | null;
   /** `notifications.category.<id>.hour` — the LOCAL hour the send fires. */
   hour: FlagRow | null;
+  /** `notifications.category.<id>.foreground` — whether a message arriving with
+   *  the app open is surfaced in-app (change: add-foreground-notifications). */
+  foreground: FlagRow | null;
 }
 
 /** Parse `notifications.category.<id>.<suffix>` → `[id, suffix]`, else `null`. */
@@ -49,9 +53,15 @@ export function groupCategories(rows: FlagRow[]): CategoryRow[] {
     const parsed = parseCategoryKey(row.key);
     if (!parsed) continue;
     const [category, suffix] = parsed;
-    const entry = byCategory.get(category) ?? { category, enabled: null, hour: null };
+    const entry = byCategory.get(category) ?? {
+      category,
+      enabled: null,
+      hour: null,
+      foreground: null,
+    };
     if (suffix === "enabled") entry.enabled = row;
     else if (suffix === "hour") entry.hour = row;
+    else if (suffix === "foreground") entry.foreground = row;
     byCategory.set(category, entry);
   }
   return [...byCategory.values()].sort((a, b) => a.category.localeCompare(b.category));
@@ -125,5 +135,30 @@ export const useNotificationsStore = defineStore("notifications", () => {
     return outcome;
   }
 
-  return { definitions, op, killSwitch, categories, load, setEnabled, setHour, reset };
+  /** Drop every stored override of a category (enabled, hour, foreground) so the
+   *  whole row falls back to code defaults — the "Reset to default" action. The
+   *  override tag lights up for *any* of the three keys, so resetting only one
+   *  would leave the tag on and read as a no-op. */
+  async function resetCategory(category: CategoryRow) {
+    const outcome = await run(op, async () => {
+      for (const row of [category.enabled, category.hour, category.foreground]) {
+        if (!row?.hasOverride) continue;
+        await api().flags.clearOverride({ key: row.key, app: row.app, confirm: row.sensitive });
+      }
+    });
+    if (outcome.status === "success") await load();
+    return outcome;
+  }
+
+  return {
+    definitions,
+    op,
+    killSwitch,
+    categories,
+    load,
+    setEnabled,
+    setHour,
+    reset,
+    resetCategory,
+  };
 });

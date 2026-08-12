@@ -7,10 +7,11 @@ import type { FlagRow } from "@/stores/flags";
 import AppTag from "@/components/AppTag.vue";
 
 // The back-office "Notifications" screen (change: add-push-notifications, task
-// 5.1): the global push kill-switch, plus each declared category's enable and its
-// local schedule hour. It NEVER calls the API directly — the Pinia store does,
-// behind the injectable client seam — and every async resource is a single
-// ts-pattern union, matched exhaustively. Admin-scope gated by the router.
+// 5.1): the global push kill-switch, plus each declared category's enable, its
+// local schedule hour, and its foreground presentation (change:
+// add-foreground-notifications). It NEVER calls the API directly — the Pinia
+// store does, behind the injectable client seam — and every async resource is a
+// single ts-pattern union, matched exhaustively. Admin-scope gated by the router.
 
 const store = useNotificationsStore();
 const { t } = useI18n();
@@ -98,6 +99,7 @@ function saveHour(row: CategoryRow) {
               <th>{{ t("notifications.colCategory") }}</th>
               <th>{{ t("notifications.colEnabled") }}</th>
               <th>{{ t("notifications.colHour") }}</th>
+              <th>{{ t("notifications.colForeground") }}</th>
               <th>{{ t("notifications.colActions") }}</th>
             </tr>
           </thead>
@@ -145,19 +147,39 @@ function saveHour(row: CategoryRow) {
                 <span v-else class="muted">{{ t("notifications.eventTriggered") }}</span>
               </td>
               <td>
-                <AppTag v-if="row.enabled?.hasOverride || row.hour?.hasOverride">{{
-                  t("notifications.override")
-                }}</AppTag>
+                <!-- Foreground presentation: whether a message arriving with the
+                     app open is surfaced in-app (add-foreground-notifications). -->
                 <button
-                  v-if="row.enabled"
+                  v-if="row.foreground"
                   type="button"
-                  class="btn-sm"
-                  :disabled="busy || !row.enabled.editable"
-                  :data-testid="`reset-${row.category}`"
-                  @click="store.reset(row.enabled)"
+                  class="toggle"
+                  :class="{ on: row.foreground.effectiveBool }"
+                  :disabled="busy || !row.foreground.editable"
+                  :data-testid="`foreground-${row.category}`"
+                  @click="toggle(row.foreground)"
                 >
-                  {{ t("notifications.reset") }}
+                  {{ row.foreground.effectiveBool ? t("notifications.on") : t("notifications.off") }}
                 </button>
+                <span v-else class="muted">{{ t("notifications.keyMissing") }}</span>
+              </td>
+              <td>
+                <div class="actions">
+                  <AppTag
+                    v-if="row.enabled?.hasOverride || row.hour?.hasOverride || row.foreground?.hasOverride"
+                    :title="t('notifications.overrideDoc')"
+                    >{{ t("notifications.override") }}</AppTag
+                  >
+                  <button
+                    v-if="row.enabled || row.hour || row.foreground"
+                    type="button"
+                    class="btn-sm"
+                    :disabled="busy"
+                    :data-testid="`reset-${row.category}`"
+                    @click="store.resetCategory(row)"
+                  >
+                    {{ t("notifications.reset") }}
+                  </button>
+                </div>
               </td>
             </tr>
           </tbody>
@@ -224,6 +246,11 @@ tbody tr:last-child td {
   display: flex;
   align-items: center;
   gap: 0.4rem;
+}
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
 }
 .hour input {
   width: 4.5rem;

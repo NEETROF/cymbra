@@ -63,8 +63,12 @@ coalescing of foreground banners; changing anything about background delivery.
 - **Backend**: one flag-key builder beside the existing two, and the dispatcher
   attaching the resolved value to each message. The selection core, the send seam
   and the wire format are untouched.
-- **Back office**: none — the notifications panel lists whatever it finds under the
-  `notifications.` prefix, so the new key appears on its own.
+- **Back office**: the *generic* flags panel picks the new key up on its own
+  (prefix discovery), but the dedicated notifications panel renders a structured
+  per-category row (enabled / hour) and silently dropped unknown suffixes — it
+  gains a **Foreground** toggle column so a category's three controls read as one
+  definition. (Discovered during the manual pass; the original assumption of "no
+  BO change" held only for the generic panel.)
 - **Coverage**: Rust unit tests for the resolved flag reaching the message; Flutter
   widget/state tests over the faked push seam — banner shown vs suppressed by what
   the message says, tap routing, dismissal, and the default (attribute absent ⇒

@@ -34,5 +34,5 @@
 
 - [x] 6.1 Rust: `cargo fmt` + `clippy -D warnings`; `cargo llvm-cov --workspace --fail-under-lines 80`.
 - [x] 6.2 Flutter: `dart run build_runner build`; `melos run analyze` + `dart run custom_lint`; `flutter test --coverage` ≥ 80%.
-- [ ] 6.3 Manual: with a temporary category, flip its foreground flag **in the back office** and confirm already-installed apps change behaviour with no rebuild — banner on iOS, Android and macOS when on, nothing when off, and **no** OS banner on macOS either way. Backgrounded, the OS notification still shows on all three.
+- [x] 6.3 Manual: with a temporary category, flip its foreground flag **in the back office** and confirm already-installed apps change behaviour with no rebuild — banner on iOS, Android and macOS when on, nothing when off, and **no** OS banner on macOS either way. Backgrounded, the OS notification still shows on all three.
 - [x] 6.4 `openspec validate add-foreground-notifications --strict` passes.
