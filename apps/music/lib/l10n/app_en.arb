@@ -1424,5 +1424,56 @@
   "prePlayNext": "Next",
   "@prePlayNext": { "description": "Primary action of the setup modal when a section run is chosen: opens the passage step." },
   "practiceStopLoop": "Stop the loop",
-  "@practiceStopLoop": { "description": "Big button shown during a practice loop; stops it and returns to the setup panel." }
+  "@practiceStopLoop": { "description": "Big button shown during a practice loop; stops it and returns to the setup panel." },
+
+  "soundOutputTitle": "Sound output",
+  "@soundOutputTitle": { "description": "Settings section: where the app's audio goes." },
+
+  "soundOutputSystemDefault": "System default",
+  "@soundOutputSystemDefault": { "description": "Output-device option that follows whatever the OS designates as default." },
+
+  "soundOutputUnknownRoute": "Unknown output",
+  "@soundOutputUnknownRoute": { "description": "Shown when the platform does not report which audio route is active." },
+
+  "soundOutputChangeRoute": "Change",
+  "@soundOutputChangeRoute": { "description": "Button that opens the operating system's audio route picker (mobile)." },
+
+  "soundOutputSelectionFailed": "That output could not be opened \u2014 the sound stays on the current one.",
+  "@soundOutputSelectionFailed": { "description": "Localized failure shown when a chosen output device refuses to open." },
+
+  "soundOutputWirelessWarning": "This wireless output delays the sound. Fine for listening, hard for playing along.",
+  "@soundOutputWirelessWarning": { "description": "Warning shown when the active audio route is Bluetooth." },
+
+  "instrumentSoundsItselfTitle": "My instrument makes its own sound",
+  "@instrumentSoundsItselfTitle": { "description": "Toggle: stop synthesizing notes the connected MIDI instrument already played." },
+
+  "instrumentSoundsItselfBody": "The app stops doubling the notes you play on it. The on-screen and computer keyboards still sound.",
+  "@instrumentSoundsItselfBody": { "description": "Explains the instrument-sounds-itself toggle." },
+
+  "instrumentSoundsItselfUnavailable": "Connect a MIDI instrument to use this.",
+  "@instrumentSoundsItselfUnavailable": { "description": "Reason shown while the instrument-sounds-itself toggle is disabled." },
+
+  "outputOffsetTitle": "Audio delay compensation",
+  "@outputOffsetTitle": { "description": "Setting that shifts the playhead and scoring to match a delayed output." },
+
+  "outputOffsetHint": "Moves the playhead and the scoring to match the sound you actually hear.",
+  "@outputOffsetHint": { "description": "Explains what the output offset does." },
+
+  "outputOffsetValue": "{ms} ms",
+  "@outputOffsetValue": {
+    "description": "Output offset value in milliseconds.",
+    "placeholders": { "ms": { "type": "int", "example": "200" } }
+  },
+
+  "outputOffsetSuggestion": "A Bluetooth output usually needs about {ms} ms.",
+  "@outputOffsetSuggestion": {
+    "description": "Suggested starting offset for a wireless route (offered, not applied).",
+    "placeholders": { "ms": { "type": "int", "example": "200" } }
+  },
+
+  "outputOffsetApplySuggestion": "Use {ms} ms",
+  "@outputOffsetApplySuggestion": {
+    "description": "Action that applies the suggested output offset.",
+    "placeholders": { "ms": { "type": "int", "example": "200" } }
+  }
 }

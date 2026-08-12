@@ -40,6 +40,23 @@ enum Hand { left, right, both }
 /// away in the play settings.
 enum NoteReadingAid { off, name, nameAndRhythm }
 
+/// Where a live note came from (change: add-audio-output-routing). Every source
+/// converges on the player's note-on/note-off entry points, which would
+/// otherwise discard the origin — but the instrument-sounds-itself rule needs
+/// it: only notes played on the connected MIDI instrument were *already* sounded
+/// by that instrument, so only those may be left unsynthesized. Scoring, key
+/// feedback and Wait Mode never consult it.
+enum NoteSource {
+  /// A note read from the connected MIDI instrument's stream.
+  midiDevice,
+
+  /// A key pressed on the app's on-screen keyboard.
+  onScreen,
+
+  /// A note from the computer-keyboard assist (no instrument involved).
+  computerKeyboard,
+}
+
 /// A score note with its time bounds in milliseconds (int), more convenient to
 /// handle on the Dart side than the bridge's `BigInt`.
 class TimedNote {
@@ -334,6 +351,23 @@ abstract class PlayerData with _$PlayerData {
     /// through the setup modal / in-game settings.
     @Default(NoteReadingAid.name) NoteReadingAid readingAid,
 
+    /// Whether the connected MIDI instrument produces its own sound, so the app
+    /// must not duplicate it (change: add-audio-output-routing). Seeded from the
+    /// persisted play preferences. Suppresses **only** the synthesis of notes
+    /// whose source is [NoteSource.midiDevice]: the on-screen and computer
+    /// keyboards keep sounding, and score playback, metronome clicks and preview
+    /// clips are untouched. Scoring, key feedback and Wait Mode are identical
+    /// either way.
+    @Default(false) bool instrumentSoundsItself,
+
+    /// Output latency compensation in milliseconds (change:
+    /// add-audio-output-routing), seeded from the persisted play preferences.
+    /// The audio the user hears at any instant is what the engine emitted this
+    /// many milliseconds ago, so [referenceMs] — the position they are actually
+    /// hearing — is what the playhead is drawn at and what attacks are judged
+    /// against. 0 (the default) makes it a no-op.
+    @Default(0) int outputOffsetMs,
+
     /// First measure of the **active practice range** (index into
     /// [measureStartMs]), or null for the whole piece (change: add-measure-range-
     /// practice, D1). Paired with [practiceEndMeasure]: both set and narrower
@@ -346,6 +380,28 @@ abstract class PlayerData with _$PlayerData {
   }) = _PlayerData;
 
   bool get midiConnected => connectedDevice != null;
+
+  /// Whether the app should synthesize a live note coming from [source]
+  /// (change: add-audio-output-routing). The single predicate behind the
+  /// instrument-sounds-itself rule: everything else the note triggers — scoring,
+  /// key feedback, the Wait Mode gate — runs regardless of what this returns.
+  bool synthesizes(NoteSource source) =>
+      !(instrumentSoundsItself && source == NoteSource.midiDevice);
+
+  /// The score position the player is **hearing** right now — the playhead
+  /// shifted back by [outputOffsetMs] (change: add-audio-output-routing).
+  ///
+  /// [elapsedMs] is the emission clock: it is what decides when a note is handed
+  /// to the audio engine. On a delayed route that sound only reaches the ear
+  /// [outputOffsetMs] later, so this is the position the highlight must show and
+  /// the reference an attack must be judged against — one number, so the two can
+  /// never drift apart. With the default offset of 0 it *is* [elapsedMs].
+  double get referenceMs => elapsedMs - outputOffsetMs;
+
+  /// Whether the instrument-sounds-itself setting can do anything right now: it
+  /// only ever suppresses notes arriving from an instrument, so with no MIDI
+  /// port connected it is offered disabled rather than silently inert.
+  bool get instrumentSoundsItselfAvailable => midiConnected;
 
   /// Whether notes on [staff] are shown for the current [selectedHands] — the
   /// single visibility predicate shared by the painters and the gate. Staff 1

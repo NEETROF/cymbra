@@ -26,6 +26,8 @@
 
 use flutter_rust_bridge::frb;
 
+use super::audio::AudioRouteKind;
+
 /// MIDI channel the piano plays on. A single-instrument synth only needs one.
 pub(crate) const PIANO_CHANNEL: i32 = 0;
 
@@ -102,6 +104,75 @@ impl VoiceTracker {
     /// Semantically an [`AudioEvent::AllOff`]; named for the swap call site.
     pub(crate) fn clear_for_swap(&mut self) -> Vec<u8> {
         self.apply(AudioEvent::AllOff)
+    }
+}
+
+/// Decides which output device the engine should open (change:
+/// add-audio-output-routing).
+///
+/// Pure so the whole selection/fallback contract is host-testable without an
+/// audio device: `requested` is the name the user remembered (`None` = follow
+/// the system default), `available` the names the host currently enumerates, and
+/// `default` the host's default output. A remembered device that is **not**
+/// present falls back to the default rather than failing — a device name is the
+/// only handle the host offers and it is not a stable identifier (a renamed
+/// interface or a USB re-enumeration must not leave the app silent).
+///
+/// Returns the name to open, or `None` when the host has nothing to offer.
+#[frb(ignore)]
+pub(crate) fn resolve_output_device(
+    requested: Option<&str>,
+    available: &[String],
+    default: Option<&str>,
+) -> Option<String> {
+    match requested {
+        Some(name) if available.iter().any(|n| n == name) => Some(name.to_string()),
+        _ => default.map(str::to_string),
+    }
+}
+
+/// Orders the host's output names for display: the system default first (it is
+/// the "follow the default" reference point), then the rest in host order, with
+/// duplicates dropped so a device enumerated twice is offered once.
+#[frb(ignore)]
+pub(crate) fn order_outputs(available: &[String], default: Option<&str>) -> Vec<String> {
+    let mut ordered: Vec<String> = Vec::with_capacity(available.len());
+    if let Some(d) = default {
+        if available.iter().any(|n| n == d) {
+            ordered.push(d.to_string());
+        }
+    }
+    for name in available {
+        if !ordered.iter().any(|n| n == name) {
+            ordered.push(name.clone());
+        }
+    }
+    ordered
+}
+
+/// Classifies a `cpal` device into the route kind the UI reasons about
+/// (change: add-audio-output-routing).
+///
+/// Wireless is decided **first**: a Bluetooth headset must be flagged as
+/// wireless even though it is also a pair of headphones, because the warning is
+/// about the transport's delay, not the form factor. Anything the host cannot
+/// describe degrades to [`AudioRouteKind::Other`] rather than breaking the
+/// section.
+#[frb(ignore)]
+pub(crate) fn route_kind_of(
+    interface: cpal::InterfaceType,
+    device: cpal::DeviceType,
+) -> AudioRouteKind {
+    match interface {
+        cpal::InterfaceType::Bluetooth => AudioRouteKind::Bluetooth,
+        cpal::InterfaceType::Usb => AudioRouteKind::Usb,
+        _ => match device {
+            cpal::DeviceType::Headphones | cpal::DeviceType::Headset => AudioRouteKind::Headphones,
+            _ => match interface {
+                cpal::InterfaceType::BuiltIn => AudioRouteKind::Builtin,
+                _ => AudioRouteKind::Other,
+            },
+        },
     }
 }
 
@@ -342,6 +413,120 @@ impl ClipVoice {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn names(list: &[&str]) -> Vec<String> {
+        list.iter().map(|s| s.to_string()).collect()
+    }
+
+    // --- Output selection / fallback (change: add-audio-output-routing) ---
+
+    #[test]
+    fn requested_device_is_chosen_when_present() {
+        let available = names(&["Built-in Output", "Scarlett 2i2"]);
+        assert_eq!(
+            resolve_output_device(Some("Scarlett 2i2"), &available, Some("Built-in Output")),
+            Some("Scarlett 2i2".to_string())
+        );
+    }
+
+    #[test]
+    fn absent_remembered_device_falls_back_to_default() {
+        let available = names(&["Built-in Output"]);
+        assert_eq!(
+            resolve_output_device(Some("Scarlett 2i2"), &available, Some("Built-in Output")),
+            Some("Built-in Output".to_string())
+        );
+    }
+
+    #[test]
+    fn unknown_name_never_errors_it_falls_back() {
+        let available = names(&["Built-in Output", "HDMI"]);
+        assert_eq!(
+            resolve_output_device(Some(""), &available, Some("HDMI")),
+            Some("HDMI".to_string())
+        );
+    }
+
+    #[test]
+    fn no_request_follows_the_system_default() {
+        let available = names(&["Built-in Output", "HDMI"]);
+        assert_eq!(
+            resolve_output_device(None, &available, Some("HDMI")),
+            Some("HDMI".to_string())
+        );
+    }
+
+    #[test]
+    fn empty_device_list_yields_the_default_or_nothing() {
+        assert_eq!(
+            resolve_output_device(Some("Scarlett 2i2"), &[], Some("Built-in Output")),
+            Some("Built-in Output".to_string())
+        );
+        assert_eq!(resolve_output_device(Some("Scarlett 2i2"), &[], None), None);
+        assert_eq!(resolve_output_device(None, &[], None), None);
+    }
+
+    #[test]
+    fn outputs_are_listed_default_first_without_duplicates() {
+        let available = names(&["HDMI", "Built-in Output", "HDMI"]);
+        assert_eq!(
+            order_outputs(&available, Some("Built-in Output")),
+            names(&["Built-in Output", "HDMI"])
+        );
+    }
+
+    #[test]
+    fn ordering_keeps_host_order_when_the_default_is_unknown() {
+        let available = names(&["HDMI", "Built-in Output"]);
+        assert_eq!(
+            order_outputs(&available, Some("Ghost Device")),
+            names(&["HDMI", "Built-in Output"])
+        );
+        assert_eq!(
+            order_outputs(&available, None),
+            names(&["HDMI", "Built-in Output"])
+        );
+    }
+
+    // --- Route classification ---
+
+    #[test]
+    fn wireless_wins_over_form_factor() {
+        // A Bluetooth headset is warned about as wireless, not shown as plain
+        // headphones: the warning is about the transport, not the shape.
+        assert_eq!(
+            route_kind_of(cpal::InterfaceType::Bluetooth, cpal::DeviceType::Headset),
+            AudioRouteKind::Bluetooth
+        );
+    }
+
+    #[test]
+    fn wired_connections_are_classified() {
+        assert_eq!(
+            route_kind_of(cpal::InterfaceType::Usb, cpal::DeviceType::Speaker),
+            AudioRouteKind::Usb
+        );
+        assert_eq!(
+            route_kind_of(cpal::InterfaceType::BuiltIn, cpal::DeviceType::Headphones),
+            AudioRouteKind::Headphones
+        );
+        assert_eq!(
+            route_kind_of(cpal::InterfaceType::BuiltIn, cpal::DeviceType::Speaker),
+            AudioRouteKind::Builtin
+        );
+    }
+
+    #[test]
+    fn undescribed_device_degrades_to_other() {
+        assert_eq!(
+            route_kind_of(cpal::InterfaceType::Unknown, cpal::DeviceType::Unknown),
+            AudioRouteKind::Other
+        );
+        assert_eq!(
+            route_kind_of(cpal::InterfaceType::Hdmi, cpal::DeviceType::Speaker),
+            AudioRouteKind::Other
+        );
+    }
 
     #[test]
     fn note_on_clamps_pitch_and_velocity() {

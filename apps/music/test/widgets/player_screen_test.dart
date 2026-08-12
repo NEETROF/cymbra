@@ -180,7 +180,7 @@ void main() {
   testWidgets('settings popup › MIDI device selects a port', (tester) async {
     await pumpScreen(tester, ports: ['Piano', 'Synth'], connected: 'Piano');
     await openSettingsPopup(tester);
-    final dropdown = find.byType(DropdownButton<String?>);
+    final dropdown = find.byKey(const Key('midi-device'));
     await tester.ensureVisible(dropdown);
     await tester.tap(dropdown);
     await tester.pump();

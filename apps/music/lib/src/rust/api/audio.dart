@@ -6,8 +6,9 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `build_stream`, `load_sound_font`, `run_audio_thread`, `send`
-// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `AudioCommand`
+// These functions are ignored because they are not marked as `pub`: `build_stream`, `describe_outputs`, `device_name`, `load_sound_font`, `open_output`, `run_audio_thread`, `send`
+// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `AudioCommand`, `DeviceCommand`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `eq`, `eq`, `fmt`, `fmt`
 
 /// Initializes the synthesizer from a SoundFont (`.sf2`) file path and starts
 /// the audio output. Idempotent: a second call keeps the first engine.
@@ -19,6 +20,33 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 /// stays silent (note events become no-ops); the app keeps working.
 void audioInit({required String sf2Path}) =>
     RustLib.instance.api.crateApiAudioAudioInit(sf2Path: sf2Path);
+
+/// Lists the host's audio output devices, the system default first (change:
+/// add-audio-output-routing). Empty when the host cannot be reached — a caller
+/// showing an empty list is the honest outcome, not an error.
+///
+/// Enumeration only: it neither opens nor changes the current output.
+List<AudioOutputInfo> listAudioOutputs() =>
+    RustLib.instance.api.crateApiAudioListAudioOutputs();
+
+/// Chooses the audio output every app sound is rendered to: `None` follows the
+/// system default, a name selects that device (change:
+/// add-audio-output-routing).
+///
+/// A silent no-op if the engine is not running. Returns immediately: the audio
+/// thread rebuilds its stream and synthesizer on the new device — the SoundFont
+/// stays in memory, so the swap does not re-read it. **A device that will not
+/// open leaves the working stream untouched**; the app is never torn down to
+/// chase a broken device. Read [`active_audio_output`] afterwards to see what is
+/// actually in use.
+void setAudioOutput({String? name}) =>
+    RustLib.instance.api.crateApiAudioSetAudioOutput(name: name);
+
+/// The output the engine is currently rendering to, or `None` when audio is not
+/// running. May differ from the last [`set_audio_output`] request — after a
+/// fallback this reports the device actually in use.
+AudioOutputInfo? activeAudioOutput() =>
+    RustLib.instance.api.crateApiAudioActiveAudioOutput();
 
 /// Sounds a piano voice for `pitch` at `velocity` (both 7-bit MIDI; 0 velocity
 /// is treated as a default mezzo-forte for sources without pressure).
@@ -63,3 +91,48 @@ void playPreviewClip({required List<int> wavBytes}) =>
 
 /// Stops the preview clip started by [`play_preview_clip`] (silent no-op if none).
 void stopPreviewClip() => RustLib.instance.api.crateApiAudioStopPreviewClip();
+
+/// An audio output the engine can render to: what to show the user, and what
+/// kind of connection it is.
+class AudioOutputInfo {
+  /// The host's name for the device — also the handle selection is persisted
+  /// under, since that is the only stable-ish one `cpal` offers.
+  final String name;
+
+  /// How it is connected (see [`AudioRouteKind`]).
+  final AudioRouteKind kind;
+
+  const AudioOutputInfo({required this.name, required this.kind});
+
+  @override
+  int get hashCode => name.hashCode ^ kind.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is AudioOutputInfo &&
+          runtimeType == other.runtimeType &&
+          name == other.name &&
+          kind == other.kind;
+}
+
+/// How an audio output is connected, as the app reasons about it (change:
+/// add-audio-output-routing). The **kind** — never the device's name — is what
+/// drives the wireless warning, so a host reporting a connection this build does
+/// not know degrades to [`AudioRouteKind::Other`] instead of breaking the UI.
+enum AudioRouteKind {
+  /// The machine's own speakers / integrated audio.
+  builtin,
+
+  /// Wired headphones or a wired headset.
+  headphones,
+
+  /// A wireless (Bluetooth) route — delayed, hence warned about.
+  bluetooth,
+
+  /// A USB audio device (interface, USB-audio piano, USB headset).
+  usb,
+
+  /// Anything the host does not describe well enough to classify.
+  other,
+}

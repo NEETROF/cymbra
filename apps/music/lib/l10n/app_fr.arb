@@ -655,5 +655,20 @@
   "practicePickStartBar": "Touchez la première mesure du passage sur la partition",
   "practicePickEndBar": "Touchez maintenant la dernière mesure",
   "prePlayNext": "Suivant",
-  "practiceStopLoop": "Arrêter la boucle"
+  "practiceStopLoop": "Arrêter la boucle",
+
+  "soundOutputTitle": "Sortie audio",
+  "soundOutputSystemDefault": "Sortie par d\u00e9faut du syst\u00e8me",
+  "soundOutputUnknownRoute": "Sortie inconnue",
+  "soundOutputChangeRoute": "Changer",
+  "soundOutputSelectionFailed": "Cette sortie n'a pas pu \u00eatre ouverte \u2014 le son reste sur la sortie actuelle.",
+  "soundOutputWirelessWarning": "Cette sortie sans fil retarde le son. Parfait pour \u00e9couter, difficile pour jouer.",
+  "instrumentSoundsItselfTitle": "Mon instrument produit son propre son",
+  "instrumentSoundsItselfBody": "L'app cesse de doubler les notes que vous y jouez. Le clavier \u00e0 l'\u00e9cran et le clavier d'ordinateur sonnent toujours.",
+  "instrumentSoundsItselfUnavailable": "Connectez un instrument MIDI pour l'utiliser.",
+  "outputOffsetTitle": "Compensation du retard audio",
+  "outputOffsetHint": "D\u00e9cale le curseur de lecture et la notation sur le son que vous entendez r\u00e9ellement.",
+  "outputOffsetValue": "{ms} ms",
+  "outputOffsetSuggestion": "Une sortie Bluetooth demande en g\u00e9n\u00e9ral environ {ms} ms.",
+  "outputOffsetApplySuggestion": "Utiliser {ms} ms"
 }
