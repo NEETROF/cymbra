@@ -24,8 +24,15 @@ part 'push_categories.g.dart';
 ///
 /// A *category* is declared by the feature that owns the notification type; the
 /// push platform itself ships none. Its [id] must match the category string the
-/// backend send job uses and the two feature-flag keys built by the backend's
-/// `registry::category_enabled_key` / `category_hour_key`.
+/// backend send job uses and the three feature-flag keys built by the backend's
+/// `registry::category_enabled_key` / `category_hour_key` /
+/// `category_foreground_key`.
+///
+/// Deliberately **no** presentation field here (add-foreground-notifications):
+/// whether a category surfaces in the foreground is a hot-reloadable back-office
+/// flag that travels on each message — a compiled-in constant would turn a
+/// product decision into an app release. This class carries only what the
+/// settings toggle needs.
 class PushCategory {
   const PushCategory({
     required this.id,

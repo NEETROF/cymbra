@@ -41,6 +41,8 @@ const DEFS = [
     defaultValue: intVal(20),
     effectiveValue: intVal(20),
   }),
+  // Foreground presentation (change: add-foreground-notifications) — off by default.
+  def({ key: "notifications.category.practice_streak.foreground" }),
 ];
 
 function row(p: Partial<FlagRow> & { key: string }): FlagRow {
@@ -65,6 +67,10 @@ describe("notification key grouping", () => {
   it("parses a per-category key into its id and suffix", () => {
     expect(parseCategoryKey("notifications.category.practice_streak.enabled")).toEqual(["practice_streak", "enabled"]);
     expect(parseCategoryKey("notifications.category.practice_streak.hour")).toEqual(["practice_streak", "hour"]);
+    expect(parseCategoryKey("notifications.category.practice_streak.foreground")).toEqual([
+      "practice_streak",
+      "foreground",
+    ]);
   });
 
   it("ignores keys that are not per-category", () => {
@@ -74,19 +80,23 @@ describe("notification key grouping", () => {
     expect(parseCategoryKey("notifications.category.oops")).toBeNull();
   });
 
-  it("pairs each category's two keys and orders by id", () => {
+  it("groups each category's keys and orders by id", () => {
     const grouped = groupCategories([
       row({ key: "notifications.category.zeta.hour" }),
       row({ key: "notifications.category.alpha.enabled" }),
       row({ key: "notifications.category.alpha.hour" }),
+      row({ key: "notifications.category.alpha.foreground" }),
       row({ key: "notifications.enabled" }),
     ]);
     expect(grouped.map((g) => g.category)).toEqual(["alpha", "zeta"]);
     expect(grouped[0].enabled?.key).toBe("notifications.category.alpha.enabled");
     expect(grouped[0].hour?.key).toBe("notifications.category.alpha.hour");
-    // A category declared with no hour key is event-triggered, not broken.
+    expect(grouped[0].foreground?.key).toBe("notifications.category.alpha.foreground");
+    // A category declared with no hour key is event-triggered, not broken; one
+    // predating the foreground key just shows it as undeclared.
     expect(grouped[1].enabled).toBeNull();
     expect(grouped[1].hour?.key).toBe("notifications.category.zeta.hour");
+    expect(grouped[1].foreground).toBeNull();
   });
 });
 
@@ -108,6 +118,8 @@ describe("notifications store", () => {
     expect(store.categories).toHaveLength(1);
     expect(store.categories[0]).toMatchObject({ category: "practice_streak" });
     expect(store.categories[0].hour?.effectiveDisplay).toBe("20");
+    expect(store.categories[0].foreground?.key).toBe("notifications.category.practice_streak.foreground");
+    expect(store.categories[0].foreground?.effectiveBool).toBe(false);
   });
 
   it("flipping a switch writes the opposite value and reloads", async () => {
@@ -152,15 +164,28 @@ describe("notifications store", () => {
     expect(state.setConfigCalls).toHaveLength(0);
   });
 
-  it("resetting clears the override", async () => {
-    const { clients, state } = makeFakeClients({ flagDefs: DEFS });
+  it("resetting a category clears every overridden key, and only those", async () => {
+    const { clients, state } = makeFakeClients({
+      flagDefs: [
+        def({ key: "notifications.category.practice_streak.enabled", hasOverride: true }),
+        def({
+          key: "notifications.category.practice_streak.hour",
+          valueType: "int",
+          defaultValue: intVal(20),
+          effectiveValue: intVal(20),
+        }),
+        def({ key: "notifications.category.practice_streak.foreground", hasOverride: true }),
+      ],
+    });
     setClientsForTest(clients);
     const store = useNotificationsStore();
     await store.load();
 
-    await store.reset(store.categories[0].enabled!);
+    await store.resetCategory(store.categories[0]);
+    // The hour has no override — clearing it too would be a pointless write.
     expect(state.clearCalls).toEqual([
       { key: "notifications.category.practice_streak.enabled", app: "all", confirm: false },
+      { key: "notifications.category.practice_streak.foreground", app: "all", confirm: false },
     ]);
   });
 
@@ -193,6 +218,29 @@ describe("notifications view", () => {
     expect(wrapper.find('[data-testid="category-practice_streak"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="enable-practice_streak"]').text()).toBe("On");
     expect((wrapper.find('[data-testid="hour-practice_streak"]').element as HTMLInputElement).value).toBe("20");
+    expect(wrapper.find('[data-testid="foreground-practice_streak"]').text()).toBe("Off");
+  });
+
+  it("toggling a category's foreground flips it through the store", async () => {
+    const { wrapper, state } = await mountView(DEFS);
+    await wrapper.find('[data-testid="foreground-practice_streak"]').trigger("click");
+    await flushPromises();
+    expect(state.setFlagCalls).toEqual([
+      {
+        key: "notifications.category.practice_streak.foreground",
+        app: "all",
+        enabled: true,
+        rolloutScope: "global",
+        confirm: false,
+      },
+    ]);
+  });
+
+  it("a category predating the foreground key shows it as undeclared", async () => {
+    const { wrapper } = await mountView(DEFS.filter((d) => !(d.key as string).endsWith(".foreground")));
+    expect(wrapper.find('[data-testid="foreground-practice_streak"]').exists()).toBe(false);
+    const cells = wrapper.find('[data-testid="category-practice_streak"]').findAll("td");
+    expect(cells[3].text()).toBe("not declared");
   });
 
   it("says so when no category is declared yet", async () => {

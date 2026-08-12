@@ -35,14 +35,14 @@ touch this crate.
 ### 1. Pick a category id
 
 A stable snake_case identifier, e.g. `practice_streak`. It is the key of the
-user's preference row and of both feature flags.
+user's preference row and of the category's feature flags.
 
-### 2. Declare the two flags
+### 2. Declare the three flags
 
 In `cymbra-feature-flags`'s `registry::builtin()`, add the keys built by
-`registry::category_enabled_key` / `registry::category_hour_key`. Declare them
-under `APP_ALL` — they are server-side send configuration, evaluated by the worker
-which has no app context:
+`registry::category_enabled_key` / `registry::category_hour_key` /
+`registry::category_foreground_key`. Declare them under `APP_ALL` — they are
+server-side send configuration, evaluated by the worker which has no app context:
 
 ```rust
 flag(
@@ -59,12 +59,22 @@ cfg(
     false,
     "Local hour (0–23) the practice-streak reminder fires.",
 ),
+flag(
+    "notifications.category.practice_streak.foreground",
+    APP_ALL,
+    false, // safe state: don't interrupt someone already in the app
+    false,
+    "Surface the reminder in-app when it arrives with the app open.",
+),
 ```
 
-Both keys are hot-reloadable and appear automatically in the back-office
+All three keys are hot-reloadable and appear automatically in the back-office
 notifications panel, which lists everything under the `notifications.` prefix. An
 **undeclared** category resolves to `enabled = false`, so a half-landed feature
-sends nothing.
+sends nothing. The `.foreground` flag decides *presentation only*: the dispatcher
+stamps its resolved value onto every message's `data` (key
+`dispatch::FOREGROUND_DATA_KEY`), and the client surfaces an in-app banner only
+when it reads `"true"` — selection is unaffected either way.
 
 **Declaring a key does not enable it.** `FlagService::bool(key, default, ctx)`
 returns the *caller's* default when no override is stored — it never reads the

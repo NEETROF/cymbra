@@ -17,7 +17,10 @@ use crate::repo::Candidate;
 /// (design D3) — a defined default rather than an arbitrary hour.
 pub const DEFAULT_TIMEZONE: &str = "Europe/Paris";
 
-/// Everything selection needs beyond the candidate rows themselves.
+/// Everything selection needs beyond the candidate rows themselves — plus the
+/// category's one *presentation* flag ([`Self::foreground`]), which rides here so
+/// the dispatcher can stamp it onto every message but is never consulted by
+/// [`select_recipients`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SelectionFlags {
     /// The category this send is for (opaque, owned by the declaring feature).
@@ -35,6 +38,11 @@ pub struct SelectionFlags {
     pub default_pref: bool,
     /// Fallback timezone for users with none stored.
     pub default_timezone: String,
+    /// Whether a message of this category is surfaced in-app when it arrives
+    /// with the app in the foreground (change: add-foreground-notifications).
+    /// Presentation only: it decides *how* the client shows the message, never
+    /// who receives it, so selection ignores it entirely.
+    pub foreground: bool,
 }
 
 impl SelectionFlags {
@@ -48,6 +56,7 @@ impl SelectionFlags {
             schedule_hour: None,
             default_pref: true,
             default_timezone: DEFAULT_TIMEZONE.to_string(),
+            foreground: false,
         }
     }
 }
