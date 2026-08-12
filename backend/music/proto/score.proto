@@ -512,8 +512,16 @@ message SetSoundFontModerationStatusResponse {}
 
 message GetCuratorRewardsRequest {}
 
-// One badge in the full grid: earned or locked (with its milestone hint).
+// One CURATION badge, earned or locked (with its milestone hint).
+//
+// DEPRECATED (change: add-achievement-badges): badges are no longer curation-
+// scoped and are read through `GetAchievements`, which returns every family with
+// progress, provenance and localized identity. This message and the
+// `CuratorRewards.badges` field that carries it stay populated with the curation
+// subset so an app version released before that change keeps rendering its grid;
+// both are dropped once those versions age out.
 message CuratorBadge {
+  option deprecated = true;
   string key = 1;       // stable key, e.g. "curator_1"
   string metric = 2;    // rating_count | aligned_count | first_rater_count
   int64 threshold = 3;  // the milestone that earns it (the locked hint)
@@ -540,7 +548,8 @@ message CuratorRewards {
   int64 total_ratings = 6;
   int64 coverage_contribution = 7;
   double alignment_rate = 8;          // aligned / settled (0 when none settled)
-  repeated CuratorBadge badges = 9;   // full grid: earned + locked
+  // DEPRECATED — the curation subset only; read badges through GetAchievements.
+  repeated CuratorBadge badges = 9 [deprecated = true];
   repeated RewardActivity recent = 10; // newest first
 }
 
@@ -565,6 +574,45 @@ message RedeemRewardRequest { string reward_key = 1; }
 message RedeemRewardResponse {
   bool owned = 1;         // true on success (incl. an idempotent re-redeem)
   int64 new_balance = 2;  // the caller's spendable balance after the redemption
+}
+
+// --- Achievement badges (change: add-achievement-badges) ---------------------
+// The signed-in user's standing on EVERY badge in the server-side registry, across
+// families (play, consistency, ranking, contribution, curation, learning) — not
+// only curation. The read grants anything newly due first, so a badge whose
+// criterion the caller already satisfies is awarded retroactively with no backfill.
+//
+// Identity is server-provided so a new badge needs no app release: `label_json`
+// and `description_json` are inline-localized objects ({en,fr,es,it}) as JSON —
+// the same shape `courses.title_json` uses — which the client resolves against its
+// ACTIVE DISPLAY language (not the account language), falling back to `en`.
+
+message AchievementBadge {
+  string key = 1;             // stable registry key, e.g. "streak_2"
+  string family = 2;          // play|consistency|ranking|contribution|curation|learning
+  string metric = 3;          // the counter it is measured against
+  int64 threshold = 4;        // the milestone that earns it
+  // Graduated series: `track` groups the tiers of one ladder (empty for a
+  // standalone badge) and `tier` is the rung within it (0 when standalone). The
+  // response carries EVERY tier, including ones already surpassed; the client
+  // collapses a track to one tile and shows the full ladder in the detail view.
+  string track = 5;
+  int32 tier = 6;
+  bool earned = 7;            // granted OR the counter currently clears the threshold
+  // The caller's current value for `metric`, CLAMPED to `threshold` when earned,
+  // so an earned badge never renders as incomplete. Locked → the real value, for
+  // a "12/25" progress indicator.
+  int64 value = 8;
+  optional int64 granted_at = 9;   // unix millis; absent until the grant is recorded
+  string label_json = 10;          // {"en":…,"fr":…,"es":…,"it":…}
+  string description_json = 11;    // {"en":…,"fr":…,"es":…,"it":…}
+}
+
+message GetAchievementsRequest {}
+
+message GetAchievementsResponse {
+  // The whole registry projected for the caller, in registry order.
+  repeated AchievementBadge badges = 1;
 }
 
 // Per-user curator reliability (design D7). MODERATOR/ADMIN only — informs manual
@@ -658,6 +706,9 @@ service ScoreService {
 
   // Curation rewards (change: add-curation-rewards). Authenticated.
   rpc GetCuratorRewards(GetCuratorRewardsRequest) returns (CuratorRewards);
+  // The caller's full cross-domain badge grid (change: add-achievement-badges).
+  // Authenticated; grants anything newly due before projecting.
+  rpc GetAchievements(GetAchievementsRequest) returns (GetAchievementsResponse);
   rpc ListRewardShop(ListRewardShopRequest) returns (ListRewardShopResponse);
   rpc RedeemReward(RedeemRewardRequest) returns (RedeemRewardResponse);
   // Per-user reliability indicator — MODERATOR/ADMIN only (informs manual promotion).

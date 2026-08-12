@@ -26,33 +26,35 @@ use std::sync::Arc;
 use cymbra_platform::AuthIdentity;
 use tonic::{Request, Response, Status};
 
+use crate::badges_core::{BadgeFamily, BadgeStanding, family_badges};
+use crate::badges_module::BadgesModule;
 use crate::catalog_edit::MetadataChanges;
 use crate::catalog_limits::CatalogAccessLimiter;
 use crate::catalog_search::{CatalogHit, CatalogQuery, SortKey, is_moderation_sort_field};
 use crate::course::CourseRepo;
 use crate::course_progress::CourseProgressStore;
 use crate::curation_rewards::{CuratorMetrics, LedgerEntry};
-use crate::curation_rewards_core::BADGES;
 use crate::curation_rewards_module::{CurationRewardsModule, CuratorRewards};
 use crate::module::{ScoreModule, UploadInput};
 use crate::proto::{
-    AdminListSoundFontsRequest, AdminListSoundFontsResponse, AdminSoundFont,
+    AchievementBadge, AdminListSoundFontsRequest, AdminListSoundFontsResponse, AdminSoundFont,
     CatalogHit as ProtoCatalogHit, Course as ProtoCourse, CourseProgress as ProtoCourseProgress,
     CourseSummary as ProtoCourseSummary, CuratorBadge, CuratorReliability,
     CuratorRewards as ProtoRewards, DeleteScoreRequest, DeleteScoreResponse,
-    DeleteSoundFontRequest, DeleteSoundFontResponse, GetCatalogScoreBytesRequest,
-    GetCatalogScoreBytesResponse, GetCatalogScoreRequest, GetCourseProgressRequest,
-    GetCourseProgressResponse, GetCourseRequest, GetCourseResponse, GetCuratorReliabilityRequest,
-    GetCuratorRewardsRequest, GetMyScoreRatingRequest, GetMyScoreRatingResponse,
-    GetOfflineCacheKeyRequest, GetOfflineCacheKeyResponse, GetRatingPreviewBytesRequest,
-    GetRatingPreviewBytesResponse, GetScoreBytesRequest, GetScoreBytesResponse, ListCoursesRequest,
-    ListCoursesResponse, ListMyScoresRequest, ListMyScoresResponse, ListRatingDeckRequest,
-    ListRatingDeckResponse, ListRewardShopRequest, ListRewardShopResponse,
-    ListSavedCatalogScoresRequest, ListSavedCatalogScoresResponse, ListSoundFontsRequest,
-    ListSoundFontsResponse, ProposeScoreRequest, ProposeScoreResponse,
-    RecordCourseCompletionRequest, RecordCourseCompletionResponse, RedeemRewardRequest,
-    RedeemRewardResponse, RemoveSavedCatalogScoreRequest, RemoveSavedCatalogScoreResponse,
-    RewardActivity, RewardShopItem, SaveCatalogScoreRequest, SaveCatalogScoreResponse, ScoreRecord,
+    DeleteSoundFontRequest, DeleteSoundFontResponse, GetAchievementsRequest,
+    GetAchievementsResponse, GetCatalogScoreBytesRequest, GetCatalogScoreBytesResponse,
+    GetCatalogScoreRequest, GetCourseProgressRequest, GetCourseProgressResponse, GetCourseRequest,
+    GetCourseResponse, GetCuratorReliabilityRequest, GetCuratorRewardsRequest,
+    GetMyScoreRatingRequest, GetMyScoreRatingResponse, GetOfflineCacheKeyRequest,
+    GetOfflineCacheKeyResponse, GetRatingPreviewBytesRequest, GetRatingPreviewBytesResponse,
+    GetScoreBytesRequest, GetScoreBytesResponse, ListCoursesRequest, ListCoursesResponse,
+    ListMyScoresRequest, ListMyScoresResponse, ListRatingDeckRequest, ListRatingDeckResponse,
+    ListRewardShopRequest, ListRewardShopResponse, ListSavedCatalogScoresRequest,
+    ListSavedCatalogScoresResponse, ListSoundFontsRequest, ListSoundFontsResponse,
+    ProposeScoreRequest, ProposeScoreResponse, RecordCourseCompletionRequest,
+    RecordCourseCompletionResponse, RedeemRewardRequest, RedeemRewardResponse,
+    RemoveSavedCatalogScoreRequest, RemoveSavedCatalogScoreResponse, RewardActivity,
+    RewardShopItem, SaveCatalogScoreRequest, SaveCatalogScoreResponse, ScoreRecord,
     SearchCatalogRequest, SearchCatalogResponse, SetModerationStatusRequest,
     SetModerationStatusResponse, SetScoreFavoriteRequest, SetScoreFavoriteResponse,
     SetSoundFontModerationStatusRequest, SetSoundFontModerationStatusResponse,
@@ -84,6 +86,10 @@ pub struct ScoreGrpc {
     /// reward RPCs reporting the feature as unavailable; production wires it via
     /// [`Self::with_rewards`].
     rewards: Option<Arc<CurationRewardsModule>>,
+    /// Cross-domain badge service (change: add-achievement-badges). `None` leaves
+    /// `GetAchievements` reporting the feature as unavailable; production wires it
+    /// via [`Self::with_badges`].
+    badges: Option<Arc<BadgesModule>>,
     /// User directory seam (change: add-soundfont-uploader-attribution): resolves a
     /// font's `uploaded_by` to the uploader pseudo (privileged read) and the opt-in
     /// public contributor credit. `None` (tests without attribution) simply leaves
@@ -106,6 +112,7 @@ impl ScoreGrpc {
             soundfonts: None,
             soundfont_store: None,
             rewards: None,
+            badges: None,
             user: None,
             courses: None,
             course_progress: None,
@@ -156,6 +163,19 @@ impl ScoreGrpc {
         self.rewards
             .as_ref()
             .ok_or_else(|| Status::unavailable("curation rewards unavailable"))
+    }
+
+    /// Attach the badge service that backs `GetAchievements`.
+    pub fn with_badges(mut self, badges: Arc<BadgesModule>) -> Self {
+        self.badges = Some(badges);
+        self
+    }
+
+    /// The wired badge service, or `UNAVAILABLE` when unconfigured.
+    fn badges(&self) -> Result<&Arc<BadgesModule>, Status> {
+        self.badges
+            .as_ref()
+            .ok_or_else(|| Status::unavailable("achievements unavailable"))
     }
 
     /// Attach the per-user access limiter that guards browse/search/download egress.
@@ -296,13 +316,16 @@ fn to_hit(h: CatalogHit) -> ProtoCatalogHit {
     }
 }
 
-/// Map the domain curator standing to the wire type (change: add-curation-rewards),
-/// building the FULL badge grid (earned + locked with milestone hints) from [`BADGES`].
+/// Map the domain curator standing to the wire type (change: add-curation-rewards).
+///
+/// The badge grid it carries is the CURATION subset of the registry, and is
+/// deprecated (design D8): it exists so an app version released before
+/// `GetAchievements` keeps rendering the grid it knows. New clients ignore it.
+#[allow(deprecated)]
 fn to_proto_rewards(r: CuratorRewards) -> ProtoRewards {
     let earned: std::collections::HashSet<&str> =
         r.earned_badges.iter().map(String::as_str).collect();
-    let badges = BADGES
-        .iter()
+    let badges = family_badges(BadgeFamily::Curation)
         .map(|b| CuratorBadge {
             key: b.key.to_string(),
             metric: b.metric.as_str().to_string(),
@@ -321,6 +344,26 @@ fn to_proto_rewards(r: CuratorRewards) -> ProtoRewards {
         alignment_rate: r.metrics.alignment_rate(),
         badges,
         recent: r.recent.into_iter().map(to_proto_activity).collect(),
+    }
+}
+
+/// Map one evaluated badge to the wire (change: add-achievement-badges). The
+/// localized label + description ship as inline JSON maps so the client renders
+/// them in its ACTIVE DISPLAY language and a new badge needs no app release
+/// (design D6).
+fn to_proto_badge(s: BadgeStanding) -> AchievementBadge {
+    AchievementBadge {
+        key: s.def.key.to_string(),
+        family: s.def.family.as_str().to_string(),
+        metric: s.def.metric.as_str().to_string(),
+        threshold: s.def.threshold,
+        track: s.def.track.unwrap_or_default().to_string(),
+        tier: s.def.tier,
+        earned: s.earned,
+        value: s.value,
+        granted_at: s.granted_at_ms,
+        label_json: s.def.label.to_json(),
+        description_json: s.def.description.to_json(),
     }
 }
 
@@ -1032,6 +1075,21 @@ impl ScoreService for ScoreGrpc {
         let user_id = owner(&req)?;
         let rewards = self.rewards()?.get_rewards(&user_id).await?;
         Ok(Response::new(to_proto_rewards(rewards)))
+    }
+
+    async fn get_achievements(
+        &self,
+        req: Request<GetAchievementsRequest>,
+    ) -> Result<Response<GetAchievementsResponse>, Status> {
+        // The caller's own grid across every family (change: add-achievement-
+        // badges). Same auth handling as GetCuratorRewards: the identity comes
+        // from the interceptor, and a request without one is UNAUTHENTICATED
+        // before any read. Grant-on-read happens inside the module (design D2).
+        let user_id = owner(&req)?;
+        let standings = self.badges()?.achievements(&user_id).await?;
+        Ok(Response::new(GetAchievementsResponse {
+            badges: standings.into_iter().map(to_proto_badge).collect(),
+        }))
     }
 
     async fn list_reward_shop(
@@ -2006,6 +2064,103 @@ mod tests {
             ..Default::default()
         });
         req
+    }
+
+    // --- achievements (change: add-achievement-badges) ---------------------
+
+    /// A `ScoreGrpc` with the badge service wired over a `MockBadgeRepo` seeded
+    /// with `counters` and no grants, so the handler is exercised end to end
+    /// without a database.
+    async fn grpc_with_badges(counters: crate::badges::RawBadgeCounters) -> ScoreGrpc {
+        use crate::badges::MockBadgeRepo;
+        use std::collections::HashMap;
+        use std::sync::Mutex;
+
+        let grants: Arc<Mutex<HashMap<String, i64>>> = Arc::new(Mutex::new(HashMap::new()));
+        let mut repo = MockBadgeRepo::new();
+        repo.expect_counters()
+            .returning(move |_| Ok(counters.clone()));
+        let read = grants.clone();
+        repo.expect_granted_badges()
+            .returning(move |_| Ok(read.lock().unwrap().clone()));
+        let write = grants.clone();
+        repo.expect_insert_grant().returning(move |_, key| {
+            let mut g = write.lock().unwrap();
+            if g.contains_key(key) {
+                return Ok(false);
+            }
+            g.insert(key.to_string(), 1_700_000_000_000);
+            Ok(true)
+        });
+        grpc()
+            .await
+            .with_badges(Arc::new(BadgesModule::new(Arc::new(repo))))
+    }
+
+    #[tokio::test]
+    async fn get_achievements_projects_the_registry_with_localized_identity() {
+        let g = grpc_with_badges(crate::badges::RawBadgeCounters {
+            session_count: 12,
+            courses_completed: 1,
+            ..Default::default()
+        })
+        .await;
+        let resp = g
+            .get_achievements(authed(GetAchievementsRequest {}, DEBUSSY))
+            .await
+            .unwrap()
+            .into_inner();
+        // Every registry entry is on the wire, earned or not — the grid needs the
+        // locked ones to render progress.
+        assert_eq!(resp.badges.len(), crate::badges_core::REGISTRY.len());
+
+        // A locked badge carries the raw standing, for a "12/25" indicator.
+        let performer = resp.badges.iter().find(|b| b.key == "performer_1").unwrap();
+        assert!(!performer.earned);
+        assert_eq!(performer.value, 12);
+        assert_eq!(performer.threshold, 25);
+        assert!(performer.granted_at.is_none());
+        assert_eq!(performer.family, "play");
+        assert_eq!(performer.track, "performer");
+        assert_eq!(performer.tier, 1);
+
+        // An earned one was granted during the read and reports its moment.
+        let student = resp.badges.iter().find(|b| b.key == "student_1").unwrap();
+        assert!(student.earned);
+        assert_eq!(student.granted_at, Some(1_700_000_000_000));
+        assert_eq!(student.value, student.threshold);
+
+        // Identity is server-provided, in every language, so no app release is
+        // needed to add a badge.
+        assert!(student.label_json.contains("\"fr\":\"Élève I\""));
+        assert!(student.description_json.contains("\"en\":"));
+        assert!(student.description_json.contains("\"it\":"));
+
+        // A standalone badge reports no track and tier 0.
+        let donor = resp.badges.iter().find(|b| b.key == "sound_donor").unwrap();
+        assert!(donor.track.is_empty());
+        assert_eq!(donor.tier, 0);
+    }
+
+    #[tokio::test]
+    async fn get_achievements_requires_authentication() {
+        let g = grpc_with_badges(crate::badges::RawBadgeCounters::default()).await;
+        // No AuthIdentity in the extensions → refused before any read.
+        let err = g
+            .get_achievements(Request::new(GetAchievementsRequest {}))
+            .await
+            .unwrap_err();
+        assert_eq!(err.code(), tonic::Code::Unauthenticated);
+    }
+
+    #[tokio::test]
+    async fn get_achievements_is_unavailable_when_the_service_is_not_wired() {
+        let g = grpc().await; // no .with_badges(...)
+        let err = g
+            .get_achievements(authed(GetAchievementsRequest {}, DEBUSSY))
+            .await
+            .unwrap_err();
+        assert_eq!(err.code(), tonic::Code::Unavailable);
     }
 
     fn search(query: &str, author: Option<&str>, level: Option<&str>) -> SearchCatalogRequest {

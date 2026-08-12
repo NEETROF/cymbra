@@ -46,3 +46,5 @@ tonic-build.workspace = true
 tokio = { workspace = true }
 # `MockUserPort` for the play-activity visibility gate (rust-testing default).
 cymbra-user-port = { path = "../user-port", features = ["mock"] }
+# `MockBadgeRepo` for the badge awarding module (rust-testing default).
+mockall = { workspace = true }

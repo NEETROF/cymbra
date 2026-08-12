@@ -16,6 +16,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:music/screens/profile_screen.dart';
+import 'package:music/services/achievements_service.dart';
 import 'package:music/services/curator_rewards_service.dart';
 import 'package:music/services/global_leaderboard_service.dart';
 import 'package:music/services/preferences_service.dart';
@@ -61,6 +62,14 @@ class _FakeCuratorRewards implements CuratorRewardsService {
       const RedeemResultView(owned: true, newBalance: 0);
 }
 
+/// The own-profile also embeds the Achievements section (change: add-achievement-
+/// badges). An empty registry keeps these tests off the real gRPC channel while
+/// still rendering the section (which then draws no family).
+class _FakeAchievements implements AchievementsService {
+  @override
+  Future<List<AchievementBadgeView>> getAchievements() async => const [];
+}
+
 /// Wrap [child] in a root [ProviderContainer] (via [UncontrolledProviderScope]),
 /// the repo's widget-test convention — overriding on a root container avoids the
 /// `scoped_providers_should_specify_dependencies` lint that a nested
@@ -83,6 +92,7 @@ Widget _harness({
   // The own-profile embeds the curator-rewards section (change: add-curation-
   // rewards); feed it a fake seam so the section resolves without a backend.
   curatorRewardsServiceProvider.overrideWithValue(_FakeCuratorRewards()),
+  achievementsServiceProvider.overrideWithValue(_FakeAchievements()),
   // The own-profile also embeds the global standing (change: add-global-
   // leaderboard); a fake seam keeps the test off the real gRPC channel.
   globalLeaderboardServiceProvider.overrideWithValue(
@@ -161,6 +171,7 @@ void main() {
           curatorRewardsServiceProvider.overrideWithValue(
             _FakeCuratorRewards(),
           ),
+          achievementsServiceProvider.overrideWithValue(_FakeAchievements()),
           // Keep the own-profile's global standing (change: add-global-
           // leaderboard) off the real gRPC channel, like the shared harness does.
           globalLeaderboardServiceProvider.overrideWithValue(

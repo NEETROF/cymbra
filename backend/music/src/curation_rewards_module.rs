@@ -30,13 +30,14 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use cymbra_platform::{AppError, Result};
 
+use crate::badges_core::{BadgeFamily, earned_curation_badges, family_badges};
 use crate::curation_rewards::{
     CurationRewardsRepo, CurationRewardsSink, CuratorMetrics, GrantKind, LedgerEntry,
     SettleOutcome, ShopItem,
 };
 use crate::curation_rewards_core::{
-    AwardKind, BADGES, RewardConfig, SettlementSource, Truth, consensus_truth, coverage_award,
-    coverage_base, earned_badges, honesty_award, level_progress, moderator_truth,
+    AwardKind, RewardConfig, SettlementSource, Truth, consensus_truth, coverage_award,
+    coverage_base, honesty_award, level_progress, moderator_truth,
 };
 
 /// A user's full curation-rewards standing for the profile RPC.
@@ -50,7 +51,10 @@ pub struct CuratorRewards {
     /// Lifetime needed for the next level (the progress-bar ceiling).
     pub next_level_at: i64,
     pub metrics: CuratorMetrics,
-    /// The badge keys the user has earned (a subset of [`BADGES`]).
+    /// The CURATION badge keys the user has earned. Deprecated on the wire (design
+    /// D8): the full cross-domain grid is read through `GetAchievements`, and this
+    /// stays populated only so an app version already in users' hands keeps
+    /// rendering the grid it knows.
     pub earned_badges: Vec<String>,
     /// The most recent ledger entries (the activity feed).
     pub recent: Vec<LedgerEntry>,
@@ -109,8 +113,7 @@ impl CurationRewardsModule {
         let balance = self.repo.spendable_balance(user_id).await?;
         let (level, level_floor, next_level_at) = level_progress(lifetime, &self.config);
         let granted = self.repo.granted_keys(user_id).await?;
-        let earned_badges = BADGES
-            .iter()
+        let earned_badges = family_badges(BadgeFamily::Curation)
             .map(|b| b.key)
             .filter(|k| granted.contains(*k))
             .map(str::to_string)
@@ -267,9 +270,12 @@ impl CurationRewardsModule {
 
     // --- badges ------------------------------------------------------------
 
-    /// Grant every milestone badge the user has newly earned (idempotent).
+    /// Grant every CURATION milestone badge the user has newly earned
+    /// (idempotent). The definitions come from the badge registry, not from this
+    /// module — curation contributes counters, it no longer owns badges. The other
+    /// families are granted on their own read (`BadgesModule`, design D2).
     async fn grant_due_badges(&self, user_id: &str, metrics: &CuratorMetrics) -> Result<()> {
-        for key in earned_badges(&metrics.badge_counts()) {
+        for key in earned_curation_badges(&metrics.badge_counts()) {
             self.repo
                 .insert_grant(user_id, key, GrantKind::Badge)
                 .await?;

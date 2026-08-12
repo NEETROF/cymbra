@@ -18,6 +18,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 import 'package:music/screens/profile_screen.dart';
+import 'package:music/services/achievements_service.dart';
 import 'package:music/services/curator_rewards_service.dart';
 import 'package:music/services/global_leaderboard_service.dart';
 import 'package:music/services/notification_service.dart';
@@ -76,6 +77,13 @@ class _FakeCuratorRewards implements CuratorRewardsService {
       const RedeemResultView(owned: true, newBalance: 0);
 }
 
+/// The own-profile also embeds the Achievements section (change: add-achievement-
+/// badges); an empty registry keeps this test off the real gRPC channel.
+class _FakeAchievements implements AchievementsService {
+  @override
+  Future<List<AchievementBadgeView>> getAchievements() async => const [];
+}
+
 void main() {
   Future<MockNotificationRegistryService> pumpProfile(
     WidgetTester tester, {
@@ -101,6 +109,7 @@ void main() {
         ),
         playActivityProvider(_me).overrideWith((ref) async => _activity()),
         curatorRewardsServiceProvider.overrideWithValue(_FakeCuratorRewards()),
+        achievementsServiceProvider.overrideWithValue(_FakeAchievements()),
         globalLeaderboardServiceProvider.overrideWithValue(
           FakeGlobalLeaderboardService(),
         ),

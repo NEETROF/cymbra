@@ -12,6 +12,9 @@
 //! platform error type.
 
 pub mod backfill;
+pub mod badges;
+pub mod badges_core;
+pub mod badges_module;
 pub mod catalog_edit;
 pub mod catalog_limits;
 pub mod catalog_search;
@@ -32,6 +35,7 @@ pub mod leaderboard_module;
 pub mod module;
 pub mod offline_secret;
 pub mod pg;
+pub mod pg_badges;
 pub mod pg_curation_rewards;
 pub mod pg_global_leaderboard;
 pub mod pg_leaderboard;
@@ -55,6 +59,12 @@ pub use backfill::{
     BackfillReport, BackfillRow, TitleBackfillRepo, TitleUpdate, plan_title_update,
     run_title_backfill,
 };
+pub use badges::{BadgeRepo, RawBadgeCounters};
+pub use badges_core::{
+    BadgeCounters, BadgeDef, BadgeFamily, BadgeMetric, BadgeStanding, LocalizedText, REGISTRY,
+    earned_curation_badges, evaluate, family_badges,
+};
+pub use badges_module::BadgesModule;
 pub use catalog_limits::CatalogAccessLimiter;
 pub use catalog_search::{
     CatalogHit, CatalogObjectRef, CatalogSearchParams, CatalogSearchRepo, FakeCatalogRow,
@@ -69,7 +79,7 @@ pub use curation_rewards::{
     ConsensusCandidate, CurationRewardsRepo, CurationRewardsSink, CuratorMetrics,
     FakeCurationRewardsRepo, GrantKind, LedgerEntry, SettleOutcome, SettleableRating, ShopItem,
 };
-pub use curation_rewards_core::{AwardKind, BADGES, BadgeDef, BadgeMetric, RewardConfig};
+pub use curation_rewards_core::{AwardKind, RewardConfig};
 pub use curation_rewards_module::{CurationRewardsModule, CuratorRewards, RedeemResult};
 pub use global_leaderboard::{
     FakeGlobalLeaderboardRepo, GlobalLeaderboardRepo, GlobalScore, GlobalSeasonBest,
@@ -92,6 +102,7 @@ pub use offline_secret::{
     FakeOfflineSecretRepo, OFFLINE_SECRET_LEN, OfflineSecretRepo, generate_offline_secret,
 };
 pub use pg::{PgCatalogRepo, PgCatalogSearchRepo, PgScoreRatingRepo, PgTitleBackfillRepo};
+pub use pg_badges::PgBadgeRepo;
 pub use pg_curation_rewards::PgCurationRewardsRepo;
 pub use pg_global_leaderboard::PgGlobalLeaderboardRepo;
 pub use pg_leaderboard::PgLeaderboardRepo;

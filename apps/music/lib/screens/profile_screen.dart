@@ -28,6 +28,7 @@ import '../state/session_notifier.dart';
 import '../state/usage_consent.dart';
 import '../state/usage_tracking_notifier.dart';
 import '../widgets/coach_mark.dart';
+import '../widgets/achievements_section.dart';
 import '../widgets/curator_rewards_section.dart';
 import '../widgets/global_standing_section.dart';
 import '../widgets/play_heatmap.dart';
@@ -136,6 +137,11 @@ class _ProfileBody extends ConsumerWidget {
               icon: Icons.emoji_events_outlined,
             ),
             const CuratorRewardsSection(),
+            // Achievements (change: add-achievement-badges): the cross-domain
+            // badge grid, no longer a leaf of the curation economy. Caller-scoped
+            // like the rewards above, so it is shown only on the OWN profile.
+            const SizedBox(height: 24),
+            const AchievementsSection(),
           ],
         ],
       ),

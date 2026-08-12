@@ -22,9 +22,12 @@ Constraints that shape this design:
   `music.global_season_snapshots` (0018), `music.catalog_scores.proposed_by` + status
   (0014), `music.soundfonts.uploaded_by` + `moderation_status` (0013),
   `music.score_ratings` (0009). All live in the `music` schema — no cross-schema reach.
-- **Courses have no server-side progress**: `music.courses` (0019) stores opaque manifests
-  served by `ListCourses`/`GetCourse`; there is no per-user completion record and no course
-  UI in `apps/music` on `main`. A learning badge has nothing to count.
+- **Courses DO have server-side progress**: `music.course_progress` (0020, from
+  `add-notation-courses`) holds one row per (user, course) with a `completed_at` set on the
+  first completion and kept thereafter — the migration itself calls it "how the badge is
+  awarded exactly once". It is written by `RecordCourseCompletion` and read by
+  `GetCourseProgress`, but nothing consumes it today. A learning badge counts completed
+  courses off it, exactly like every other family counts an existing record.
 - **`reward-unlocks` invariants are load-bearing**: badges are earned, never purchased;
   once earned, kept; spending points never removes one.
 - Coverage gate ≥ 80% both ecosystems, so evaluation logic must live in host-testable pure
@@ -46,7 +49,6 @@ Constraints that shape this design:
 **Non-Goals:**
 - Public badge showcase / pinned badges on the public profile (follow-up; the
   `public-player-profile` spec already promises it and is unimplemented).
-- A learning badge (blocked on server-side course progress).
 - Badge-driven rewards: a badge grants no points and unlocks no content. It stays a mark.
 - A back-office CRUD for badges.
 - Changing the points economy, levels, shop or activity feed.
@@ -99,7 +101,7 @@ granted in the same call, so this is only visible to a caller that reads without
 aggregates once per read, rather than one query per badge. Every query is covered by an
 existing index (`play_sessions_user_played_idx` on `(user_id, played_at)`,
 `leaderboard_bests` PK, `global_season_snapshots` PK, `catalog_scores_proposed_by_idx`,
-`soundfonts_moderation_status_idx`).
+`soundfonts_moderation_status_idx`, `course_progress_user_idx`).
 
 Distinct-local-days and longest-consecutive-day-run are **not** SQL window functions: the
 repo returns the distinct local days (`played_at` shifted by `tz_offset_minutes`, the same
@@ -166,8 +168,9 @@ is dropped in a later change once those versions age out.
 - **Localized maps drift** (a badge added with `en` only) → the fallback is defined and the
   registry is a single `const`, so a missing translation is visible in review, not at
   runtime.
-- **Learning family declared but empty** → it ships as a family with no entries and no UI
-  affordance; the section simply does not render a family that has no badges.
+- **A family could still ship empty** (a family declared ahead of its counter) → the
+  section simply does not render a family that has no badges, so declaring one early costs
+  nothing on screen.
 
 ## Migration Plan
 
@@ -179,10 +182,13 @@ seven keys it knows).
 
 ## Open Questions
 
+*(Both resolved while writing the registry.)*
+
 - **Exact thresholds per family.** The curation seven are fixed (they must not move). The
-  play / consistency / ranking / contribution milestones need a first pass tuned against
-  real `play_sessions` volume rather than guessed — to be set when writing the registry, and
-  cheap to adjust later since a raised threshold cannot un-earn a badge (D3).
+  play / consistency / ranking / contribution / learning milestones are a **first pass**,
+  set low enough that an active player sees early wins rather than a wall of padlocks, and
+  cheap to adjust later since a raised threshold cannot un-earn a badge (D3). They should be
+  revisited against real `play_sessions` volume once there is any.
 - **Whether the "new since last visit" marker reuses `curatorActivitySeenProvider`** (the
   existing seen-timestamp mechanism for the activity feed) or gets its own persisted
-  timestamp. Leaning to its own key: the two surfaces are now independent.
+  timestamp. **Its own key** — the two surfaces are now independent.

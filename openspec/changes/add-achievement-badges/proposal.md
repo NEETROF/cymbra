@@ -34,10 +34,9 @@ app release**.
     `moderation_status`).
   - **Curation** — the existing seven, migrated into the registry unchanged (same keys,
     same thresholds, already-granted rows keep working).
-- **Learning is declared as a family but ships no badge in this change**: courses are
-  opaque manifests served by `ListCourses`/`GetCourse` with **no server-side progress
-  record**, so there is no counter to measure. The family exists so a learning badge is a
-  registry entry once course progress lands.
+  - **Learning** — completed courses (`music.course_progress`, the per-user completion
+    record `add-notation-courses` introduced; its `completed_at` is exactly the
+    "earned once" signal, recorded but until now unconsumed).
 - Send **progress, identity and provenance** on the wire: the user's current value for the
   metric (for `12/25`), the `granted_at` of an earned badge, the family, and the track +
   tier for tiered badges. Labels and descriptions become **server-provided localized
@@ -84,4 +83,4 @@ app release**.
   removed from the curator section.
 - **Out of scope (follow-up)**: public badge showcase and pinned badges — the
   `public-player-profile` spec already promises "level, badges" publicly and remains
-  unimplemented; a learning badge, blocked on server-side course progress.
+  unimplemented.

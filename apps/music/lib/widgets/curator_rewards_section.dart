@@ -26,10 +26,15 @@ import '../theme/cymbra_theme.dart';
 /// (change: add-curation-rewards). Previously a standalone screen; now a section
 /// of `ProfileScreen` so a user's standing lives with the rest of their profile.
 /// Standing (level + lifetime points + progress), spendable balance with a reward
-/// -shop entry, the full badge grid (earned + locked with hints), personal curator
-/// stats, and the recent-activity feed — all driven through [curatorProfileProvider]
-/// (loading/data/error via `.when`). Returns a `Column`, so it drops into the
-/// profile's scroll view (no Scaffold/ListView of its own).
+/// -shop entry, personal curator stats, and the recent-activity feed — all driven
+/// through [curatorProfileProvider] (loading/data/error via `.when`). Returns a
+/// `Column`, so it drops into the profile's scroll view (no Scaffold/ListView of
+/// its own).
+///
+/// Badges are NOT here any more (change: add-achievement-badges): a grid of seven
+/// curation milestones inside the curator section promised an achievement system
+/// to users who never rate anything. They live in [AchievementsSection], which
+/// spans every family.
 class CuratorRewardsSection extends ConsumerWidget {
   const CuratorRewardsSection({super.key});
 
@@ -75,10 +80,6 @@ class CuratorRewardsSection extends ConsumerWidget {
           _StandingCard(rewards: r),
           const SizedBox(height: 16),
           _BalanceCard(rewards: r),
-          const SizedBox(height: 24),
-          _SectionTitle(l10n.curatorBadgesTitle),
-          const SizedBox(height: 8),
-          _BadgeGrid(badges: r.badges),
           const SizedBox(height: 24),
           _SectionTitle(l10n.curatorStatsTitle),
           const SizedBox(height: 8),
@@ -318,110 +319,6 @@ class _RecentActivityEntry extends StatelessWidget {
     );
   }
 }
-
-/// The full badge grid — all badges, earned or locked (with a milestone hint).
-class _BadgeGrid extends StatelessWidget {
-  const _BadgeGrid({required this.badges});
-  final List<CuratorBadgeView> badges;
-
-  @override
-  Widget build(BuildContext context) => GridView.builder(
-    shrinkWrap: true,
-    physics: const NeverScrollableScrollPhysics(),
-    gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-      maxCrossAxisExtent: 180,
-      mainAxisSpacing: 10,
-      crossAxisSpacing: 10,
-      childAspectRatio: 1.25,
-    ),
-    itemCount: badges.length,
-    itemBuilder: (context, i) => _BadgeTile(badge: badges[i]),
-  );
-}
-
-class _BadgeTile extends StatelessWidget {
-  const _BadgeTile({required this.badge});
-  final CuratorBadgeView badge;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    final earned = badge.earned;
-    final color = earned ? CymbraColors.primary : CymbraColors.outline;
-    return Container(
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: CymbraColors.surfaceContainerHigh,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: earned
-              ? CymbraColors.primary.withValues(alpha: 0.5)
-              : Colors.transparent,
-        ),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            earned ? Icons.military_tech : Icons.lock_outline,
-            color: color,
-            size: 30,
-          ),
-          const SizedBox(height: 6),
-          Text(
-            _badgeLabel(l10n, badge.key),
-            textAlign: TextAlign.center,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: earned
-                  ? CymbraColors.onSurface
-                  : CymbraColors.onSurfaceVariant,
-              fontSize: 12.5,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            earned
-                ? l10n.curatorBadgeEarned
-                : l10n.curatorBadgeMilestone(
-                    badge.threshold,
-                    _metricLabel(l10n, badge.metric),
-                  ),
-            textAlign: TextAlign.center,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: CymbraColors.onSurfaceVariant,
-              fontSize: 10.5,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Localized badge label for a known [key], falling back to the raw key.
-String _badgeLabel(AppLocalizations l10n, String key) => switch (key) {
-  'first_note' => l10n.curatorBadgeFirstNote,
-  'curator_1' => l10n.curatorBadgeCurator1,
-  'curator_2' => l10n.curatorBadgeCurator2,
-  'curator_3' => l10n.curatorBadgeCurator3,
-  'sharp_ear_1' => l10n.curatorBadgeSharpEar1,
-  'sharp_ear_2' => l10n.curatorBadgeSharpEar2,
-  'trailblazer' => l10n.curatorBadgeTrailblazer,
-  _ => key,
-};
-
-/// Localized name for a badge metric, for the locked milestone hint.
-String _metricLabel(AppLocalizations l10n, String metric) => switch (metric) {
-  'rating_count' => l10n.curatorMetricRatingCount,
-  'aligned_count' => l10n.curatorMetricAlignedCount,
-  'first_rater_count' => l10n.curatorMetricFirstRaterCount,
-  _ => metric,
-};
 
 /// Personal stats: total ratings, coverage points contributed, alignment rate.
 class _StatsRow extends StatelessWidget {

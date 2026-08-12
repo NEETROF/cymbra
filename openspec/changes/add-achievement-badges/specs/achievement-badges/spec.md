@@ -24,10 +24,9 @@ sufficient for it to appear, be awarded and be rendered, **without an app releas
 ### Requirement: Badge families span the app's activity, not only curation
 
 The registry SHALL organise badges into families covering the user's activity across the
-app: **play**, **consistency**, **ranking**, **contribution** and **curation**. A
-**learning** family SHALL be declared for course achievements but SHALL ship no badge in
-this change, because no server-side course progress exists to measure. A family with no
-badges SHALL NOT render.
+app: **play**, **consistency**, **ranking**, **contribution**, **curation** and
+**learning**. A family that declares no badge SHALL NOT render, so a family may be declared
+ahead of the counter that will feed it.
 
 #### Scenario: A player who never rates can still earn badges
 
@@ -35,10 +34,10 @@ badges SHALL NOT render.
 - **THEN** they earn play and consistency badges, and their achievements surface is not a
   wall of locked curation badges
 
-#### Scenario: Empty learning family is not shown
+#### Scenario: A family with no badges is not shown
 
-- **WHEN** the achievements surface is rendered and the learning family has no badges
-- **THEN** no learning section appears
+- **WHEN** the achievements surface is rendered and a declared family has no badges
+- **THEN** no section appears for that family
 
 ### Requirement: Badge metrics are sourced from existing activity records
 
@@ -54,6 +53,8 @@ per-user tracking table:
 - **contribution** — accepted catalog score proposals and accepted SoundFont contributions
   attributed to the user
 - **curation** — the existing rating, aligned-rating and first-rater counters
+- **learning** — courses the user has completed, off the existing per-user completion
+  record
 
 All counters for a badge read SHALL be gathered in **one** repository call.
 
