@@ -1,29 +1,51 @@
 ## ADDED Requirements
 
-### Requirement: Foreground presentation is a per-category choice
+### Requirement: Foreground presentation is a per-category, hot-reloadable choice
 
 A notification arriving while the app is **in the foreground** SHALL be surfaced
-only if the category that owns it declares foreground presentation. A category that
-declares nothing SHALL NOT be surfaced in the foreground — the safe default,
-matching every other gate on this platform.
+only if its category is configured to be. That configuration SHALL be a
+per-category **feature flag**, beside the per-category enable and schedule-hour
+keys, so it is changed from the back office without an app release. Its default
+SHALL be "not surfaced" — the safe direction, matching every other gate on this
+platform.
 
-The declaration SHALL live with the category (alongside its id and label), so a
-feature decides for its own notification type without touching the platform.
+The client SHALL NOT carry the decision as a compiled-in constant.
 
-#### Scenario: A category that opts in is surfaced
+#### Scenario: A category configured for the foreground is surfaced
 
-- **WHEN** a notification for a category declaring foreground presentation arrives while the app is open
+- **WHEN** a notification for a category whose foreground flag is on arrives while the app is open
 - **THEN** it is surfaced in the app
 
-#### Scenario: A category that says nothing stays silent
+#### Scenario: An unconfigured category stays silent
 
-- **WHEN** a notification for a category with no foreground declaration arrives while the app is open
+- **WHEN** a notification for a category with no foreground flag set arrives while the app is open
 - **THEN** nothing is surfaced
+
+#### Scenario: The policy changes without shipping an app
+
+- **WHEN** an administrator turns a category's foreground flag on
+- **THEN** subsequent notifications for that category are surfaced by already-installed apps
 
 #### Scenario: Background delivery is unchanged
 
 - **WHEN** a notification arrives while the app is backgrounded or killed
-- **THEN** the operating system displays it as before, whatever the category declares
+- **THEN** the operating system displays it as before, whatever the flag says
+
+### Requirement: The foreground decision travels with the notification
+
+The dispatch SHALL resolve the category's foreground flag and carry the result on
+the notification itself, so the client presents what it is told rather than
+deriving it. A notification carrying no such indication SHALL NOT be surfaced.
+
+#### Scenario: An unknown category still behaves correctly
+
+- **WHEN** a notification arrives for a category this build of the app has never heard of
+- **THEN** it is surfaced or not according to what the notification carries, not according to what the app knows
+
+#### Scenario: An indication-less notification is silent
+
+- **WHEN** a notification arrives in the foreground carrying no foreground indication
+- **THEN** nothing is surfaced
 
 ### Requirement: Foreground notifications are presented in-app
 
@@ -45,12 +67,12 @@ message it received while in the foreground.
 
 Foreground behaviour SHALL be identical on iOS, Android and macOS: the operating
 system SHALL NOT display its own banner while the app is in the foreground, so that
-the category's declaration is the only thing that decides.
+the category's configuration is the only thing that decides.
 
 #### Scenario: macOS matches the others
 
 - **WHEN** a notification arrives while the app is in the foreground on macOS
-- **THEN** no system banner is shown, and the category's declaration decides as it does on iOS and Android
+- **THEN** no system banner is shown, and the category's configuration decides as it does on iOS and Android
 
 ### Requirement: A foreground notification routes like a background one
 

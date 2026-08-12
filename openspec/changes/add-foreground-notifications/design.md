@@ -33,19 +33,35 @@ change makes the foreground a decision instead of an accident.
 
 ## Decisions
 
-### 1. The category decides, and the default is silence
+### 1. The category decides, through a back-office flag, defaulting to silence
 
-`PushCategory` gains a foreground declaration, defaulting to "do not surface".
+Foreground presentation is a **third per-category feature flag**,
+`notifications.category.<id>.foreground`, sitting beside the `.enabled` and `.hour`
+keys the platform already declares. Default `false`.
 
-The motivating case settles it: the practice-streak reminder fires in the evening
-to pull a lapsing user back. If the app is in the foreground, that user is *already
-practising* — the notification has achieved its purpose and interrupting them with
-it is worse than useless. Whereas "your score was just beaten" is only interesting
-while it is fresh.
+The motivating case settles *that* it must be per-category: the practice-streak
+reminder fires in the evening to pull a lapsing user back. If the app is in the
+foreground, that user is *already practising* — the notification has achieved its
+purpose and interrupting them with it is worse than useless. Whereas "your score was
+just beaten" is only interesting while it is fresh. A single app-wide switch cannot
+express that, and defaulting to "show" would make every future category interrupt by
+accident.
 
-A global switch cannot express that, and defaulting to "show" would make every
-future category interrupt by accident. Silence is the safe direction, consistent
-with every other gate in this platform.
+**Where** the declaration lives is the other half, and the flag is the right home
+rather than a field on the client's `PushCategory`:
+
+- Everything else about a category — whether it sends at all, at what local hour —
+  is already a hot-reloadable flag. Putting one of its three attributes in the app
+  would mean two places to configure one category.
+- "Do we interrupt someone mid-practice?" is a product judgement that will be
+  revisited. As a flag it is a back-office click; as a client constant it is an
+  **app release**, on every platform, waiting on store review.
+- The message becomes self-describing: the client needs no category lookup to
+  decide how to present it, so a category the running app has never heard of still
+  behaves correctly.
+
+`PushCategory` therefore keeps `id`, `label` and `defaultEnabled` — what the
+*settings toggle* needs — and gains nothing. Presentation is not a client constant.
 
 ### 2. In-app banner, not an OS notification
 
@@ -79,14 +95,25 @@ be the mechanism for a per-category decision (D1). Used as a baseline it is the
 right tool: it makes the OS uniformly silent in the foreground, after which the
 in-app layer applies the category's choice. One rule, three platforms.
 
-### 4. Reuse the existing `data` payload for routing
+### 4. The flag rides on the message, resolved by the dispatcher
 
 The dispatch payload already carries an opaque `data` map, transported end to end
-(`PushMessage::with_data`, the FCM `data` block). A tapped in-app banner reads the
-same keys the background tap path will, so a category describes its destination
-once.
+(`PushMessage::with_data`, the FCM `data` block). Two things ride on it:
 
-No new field, no second convention.
+- **Routing** — a tapped in-app banner reads the same keys the background tap path
+  will, so a category describes its destination once. No new field, no second
+  convention.
+- **The foreground decision** — the `Dispatcher` resolves
+  `notifications.category.<id>.foreground` and attaches it to every message it
+  sends, so the client reads an instruction instead of deriving one.
+
+The dispatcher is the right place, not the calling feature: attaching it centrally
+means a feature cannot forget, and every category is described consistently whether
+its send is scheduled or event-triggered.
+
+A message arriving **without** the attribute — an older build, a hand-crafted
+payload — is treated as "do not surface". Absence means silence, like everywhere
+else on this platform.
 
 ### 5. Where it lives
 
@@ -98,6 +125,9 @@ UI never touches the push service; the notifier does. This is the repo's
 
 The foreground message stream is exposed through the existing `PushService` seam, so
 tests drive it with a mock, exactly like token registration.
+
+The notifier reads the decision off the message and nothing else — it never consults
+the category list. That is what keeps the policy hot-reloadable end to end.
 
 ## Risks / Trade-offs
 

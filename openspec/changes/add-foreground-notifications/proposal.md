@@ -17,9 +17,11 @@ types are now coming, so the decision needs a home.
 
 ## What Changes
 
-- **Per-category foreground behaviour** — a category declares whether an arriving
-  notification is surfaced while the app is in the foreground. Default: **not**
-  surfaced, which is today's behaviour on iOS/Android and the safer choice.
+- **Per-category foreground behaviour, as a back-office flag** — a third
+  per-category key, `notifications.category.<id>.foreground`, beside the `.enabled`
+  and `.hour` keys that already exist. Default: **not** surfaced, which is today's
+  behaviour on iOS/Android and the safer choice. Hot-reloadable, so revisiting
+  "do we interrupt someone mid-practice?" is a click, not an app release.
 - **In-app presentation, not a system banner** — a foreground notification is shown
   as an **in-app** surface (a dismissible banner inside the app), not as an OS
   notification. The user is already looking at the app; a system banner over the app
@@ -28,6 +30,10 @@ types are now coming, so the decision needs a home.
 - **One consistent baseline across platforms** — macOS is brought in line with iOS
   and Android by suppressing the system banner while the app is in the foreground,
   so all three platforms behave identically and the *category* decides.
+- **The decision travels with the message** — the dispatcher resolves the flag and
+  attaches it to every message it sends, so the client presents what it is told
+  rather than deriving it from a compiled-in list. A category the running app has
+  never heard of still behaves correctly.
 - **Tap routing** — an in-app banner honours the same `data` payload the platform
   already transports (e.g. `{"route": "/practice"}`), so tapping it goes where the
   system notification would have.
@@ -50,13 +56,16 @@ coalescing of foreground banners; changing anything about background delivery.
 
 ## Impact
 
-- **App** (`apps/music`): `PushCategory` gains a foreground field; a foreground
-  message listener (a dedicated listener widget, per the Riverpod rules) that
-  reacts to `onMessage`; an in-app banner widget; the Apple foreground presentation
-  options set to suppress, so macOS matches iOS.
-- **Backend**: none. The wire format, the selection core, the dispatcher and the
-  flags are untouched — this is entirely a client presentation concern.
-- **Back office**: none.
-- **Coverage**: widget/state tests over the faked push seam — banner shown vs
-  suppressed by category, tap routing, dismissal, and the default (no declaration ⇒
+- **App** (`apps/music`): a foreground message listener (a dedicated listener
+  widget, per the Riverpod rules) reacting to `onMessage`; an in-app banner widget;
+  the Apple foreground presentation options set to suppress, so macOS matches iOS.
+  `PushCategory` is **unchanged** — presentation is not a client constant.
+- **Backend**: one flag-key builder beside the existing two, and the dispatcher
+  attaching the resolved value to each message. The selection core, the send seam
+  and the wire format are untouched.
+- **Back office**: none — the notifications panel lists whatever it finds under the
+  `notifications.` prefix, so the new key appears on its own.
+- **Coverage**: Rust unit tests for the resolved flag reaching the message; Flutter
+  widget/state tests over the faked push seam — banner shown vs suppressed by what
+  the message says, tap routing, dismissal, and the default (attribute absent ⇒
   nothing shown). No new native code, so nothing lands outside the measured surface.
