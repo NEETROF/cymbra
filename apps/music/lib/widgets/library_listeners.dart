@@ -18,6 +18,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../state/contributed_scores.dart';
 import '../state/saved_catalog_scores.dart';
 import 'app_snackbar.dart';
+import 'streak_listener.dart';
 
 /// Dedicated listener widget for the library/hub subtree (architecture rule 4:
 /// isolate `ref.listen` side effects in one place instead of scattering them
@@ -39,7 +40,9 @@ class LibraryListeners extends ConsumerWidget {
       savedCatalogScoresProvider,
       (_, next) => _surfaceError(context, next),
     );
-    return child;
+    // The streak's own effects (recovery offer, at-risk nudge, outcome) live in
+    // their own listener rather than here — one concern per listener widget.
+    return StreakListener(child: child);
   }
 
   void _surfaceError(BuildContext context, AsyncValue<Object?> value) {

@@ -166,11 +166,15 @@ pub async fn purge_user(admin_pool: &PgPool, user_id: &str) -> anyhow::Result<()
     // per-rating settlement state lives on `score_ratings`, which the user does not own
     // (a rating references a public catalog score), so it is not erased here — it is
     // aggregate curation signal, not personal data.
+    // The user's practice streak (change: add-practice-streak) goes with them:
+    // it is derived profile data keyed by user_id with no cross-schema FK, so
+    // nothing cascades from the account row.
     for table in [
         "music.curation_points",
         "music.curation_grants",
         "music.score_engagements",
         "music.course_progress",
+        "music.practice_streaks",
     ] {
         sqlx::query(&format!("DELETE FROM {table} WHERE user_id = $1"))
             .bind(uid)
@@ -221,6 +225,32 @@ pub async fn snapshot_global_season(
     cymbra_music::snapshot_closed_season(&repo, user, &cfg, chrono::Utc::now())
         .await
         .map_err(|e| anyhow::anyhow!("global season snapshot: {e}"))
+}
+
+/// Resolve the practice-streak reminder's batches (change: add-practice-streak,
+/// tasks 3.2/3.3) — the worker side of
+/// [`cymbra_music::StreakModule::reminder_groups`].
+///
+/// Returns the at-risk users (a live streak with **no play on their own local
+/// day**) grouped by locale + streak length, one group per message the platform
+/// will send. Users who already played today never appear, so no consent or
+/// schedule gate has to compensate for them.
+///
+/// Runs as `admin_svc`: the sweep joins `music.practice_streaks` with
+/// `user_account.users` for each account's timezone + locale, which the isolated
+/// `music_svc` role cannot read. Purely a read — the send itself is the caller's.
+pub async fn streak_reminder_groups(
+    admin_pool: &PgPool,
+    now: chrono::DateTime<chrono::Utc>,
+    fallback_tz: &str,
+) -> anyhow::Result<Vec<cymbra_music::ReminderGroup>> {
+    let module = cymbra_music::StreakModule::new(std::sync::Arc::new(
+        cymbra_music::PgStreakRepo::new(admin_pool.clone()),
+    ));
+    module
+        .reminder_groups(now, fallback_tz)
+        .await
+        .map_err(|e| anyhow::anyhow!("streak reminder sweep: {e}"))
 }
 
 /// Prune the heavy per-session play detail past its retention window (change:

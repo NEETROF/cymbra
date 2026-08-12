@@ -366,6 +366,75 @@ pub async fn push_dispatch(mut job: CurrentJob, ctx: WorkerCtx) -> Result<(), Bo
     .await
 }
 
+/// Send the evening practice-streak reminder (change: add-practice-streak, task
+/// 3.1). Scheduled HOURLY — the send *hour* is a per-user local hour applied by
+/// the push platform's selection gate from a back-office flag, so this job runs
+/// every hour and lets the platform keep only the users for whom it is currently
+/// that hour. Most runs therefore select nobody, which is the intended shape.
+///
+/// The feature supplies exactly what the platform asks of it (README "Adding a
+/// notification type"): the category id, the candidate set, and already-localized
+/// copy. Consent, the kill-switch, the schedule hour and platform selection are
+/// the platform's job and are not second-guessed here.
+///
+/// Idempotent enough for at-least-once: a redelivery re-resolves the at-risk set,
+/// so anyone who has since played is dropped, and a retry landing outside the
+/// configured hour sends nothing.
+#[sqlxmq::job("streak_reminder")]
+pub async fn streak_reminder(mut job: CurrentJob, ctx: WorkerCtx) -> Result<(), BoxError> {
+    let span = tracing::info_span!("job.streak_reminder", job_id = %job.id());
+    async move {
+        let Some(dispatcher) = &ctx.push else {
+            tracing::warn!("streak_reminder skipped: FCM credentials not configured");
+            job.complete().await?;
+            return Ok(());
+        };
+        // Pick up any BO change to the hour / category / kill-switch (best-effort;
+        // a store outage falls back to last-known/defaults, i.e. sends nothing).
+        if let Err(e) = ctx.flags.refresh().await {
+            tracing::warn!(error = %e, "streak_reminder flag refresh failed; using last-known/default");
+        }
+        let category = cymbra_feature_flags::registry::CATEGORY_PRACTICE_STREAK;
+        // Streak reminders are opt-in-by-default for the category: a player with
+        // a streak has already shown they want to keep it. The per-user toggle
+        // and the kill-switch still override this.
+        let flags = cymbra_notifications::resolve_flags(&ctx.flags, category, true);
+        let now = chrono::Utc::now();
+        let groups = cymbra_worker::streak_reminder_groups(
+            &ctx.admin_pool,
+            now,
+            cymbra_notifications::DEFAULT_TIMEZONE,
+        )
+        .await?;
+        let (mut selected, mut delivered) = (0u64, 0u64);
+        for group in &groups {
+            let (title, body) = cymbra_music::reminder_copy(group.locale, group.streak);
+            let msg = cymbra_notifications::PushMessage::new(title, body)
+                // Open the app on the player's practice surface, not a cold home
+                // screen: the whole point of the nudge is one more session.
+                .with_data("route".to_string(), "/".to_string());
+            let audience = cymbra_notifications::Audience::Users(group.user_ids.clone());
+            let report = dispatcher.dispatch(&flags, &audience, &msg, now).await?;
+            selected += report.selected as u64;
+            delivered += report.delivered as u64;
+        }
+        if selected > 0 {
+            tracing::info!(
+                category,
+                batches = groups.len(),
+                at_risk = groups.iter().map(|g| g.user_ids.len()).sum::<usize>(),
+                selected,
+                delivered,
+                "practice-streak reminder complete"
+            );
+        }
+        job.complete().await?;
+        Ok(())
+    }
+    .instrument(span)
+    .await
+}
+
 /// Build the job registry with all handlers registered and the shared context set.
 pub fn registry(ctx: WorkerCtx) -> JobRegistry {
     let mut registry = JobRegistry::new(&[
@@ -380,6 +449,7 @@ pub fn registry(ctx: WorkerCtx) -> JobRegistry {
         consensus_honesty_settlement,
         global_season_snapshot,
         push_dispatch,
+        streak_reminder,
     ]);
     registry.set_context(ctx);
     registry

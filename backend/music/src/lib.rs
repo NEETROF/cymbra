@@ -40,6 +40,7 @@ pub mod pg_curation_rewards;
 pub mod pg_global_leaderboard;
 pub mod pg_leaderboard;
 pub mod pg_play;
+pub mod pg_streak;
 pub mod pg_user_scores;
 pub mod play;
 pub mod play_core;
@@ -52,6 +53,9 @@ pub mod soundfont;
 pub mod soundfont_access;
 pub mod soundfont_preview;
 pub mod soundfont_synth;
+pub mod streak;
+pub mod streak_core;
+pub mod streak_module;
 pub mod user_library;
 pub mod user_scores;
 pub mod user_soundfont;
@@ -108,6 +112,7 @@ pub use pg_curation_rewards::PgCurationRewardsRepo;
 pub use pg_global_leaderboard::PgGlobalLeaderboardRepo;
 pub use pg_leaderboard::PgLeaderboardRepo;
 pub use pg_play::PgPlayRepo;
+pub use pg_streak::PgStreakRepo;
 pub use pg_user_scores::{PgOfflineSecretRepo, PgUserLibraryRepo, PgUserScoreRepo};
 pub use play::{
     DayActivity, FakePlayRepo, PlayActivity, PlayRepo, PlaySession, PracticePoint, PracticeSession,
@@ -128,6 +133,12 @@ pub use soundfont_preview::{
     sample_sequence, scheduled_events, total_samples,
 };
 pub use soundfont_synth::{render_preview_pcm, render_preview_wav};
+pub use streak::{FREEZE_REWARD_KEY, FakeStreakRepo, StreakRepo};
+pub use streak_core::{
+    DEFAULT_FREEZE_COST, DEFAULT_GRACE_DAYS, RecoverDecision, ReminderCandidate, ReminderGroup,
+    StreakConfig, StreakState, reminder_copy,
+};
+pub use streak_module::{StreakConfigSource, StreakModule, StreakStanding};
 pub use user_library::{FakeUserLibraryRepo, UserLibraryRepo};
 pub use user_scores::{FakeUserScoreRepo, UserScore, UserScoreRepo};
 pub use user_soundfont::{

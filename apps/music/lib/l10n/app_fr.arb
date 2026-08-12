@@ -648,5 +648,14 @@
   "outputOffsetValue": "{ms} ms",
   "outputOffsetSuggestion": "Une sortie Bluetooth demande en général environ {ms} ms.",
   "outputOffsetApplySuggestion": "Utiliser {ms} ms",
-  "soundOutputActuallyUsing": "Le son sort actuellement par {device}."
+  "soundOutputActuallyUsing": "Le son sort actuellement par {device}.",
+  "streakChipDays": "{days}",
+  "streakChipTooltip": "{days, plural, =0{Pas encore de série — joue aujourd'hui pour la lancer} =1{Série de 1 jour} other{Série de {days} jours}}",
+  "streakAtRiskNudge": "{days, plural, =1{Ta série de 1 jour s'arrête ce soir — joue pour la garder} other{Ta série de {days} jours s'arrête ce soir — joue pour la garder}}",
+  "streakRecoverTitle": "Récupérer ta série ?",
+  "streakRecoverBody": "{days, plural, =1{Ta série de 1 jour est brisée. Dépenser {cost} points pour la rétablir ?} other{Ta série de {days} jours est brisée. Dépenser {cost} points pour la rétablir ?}}",
+  "streakRecoverConfirm": "Dépenser {cost} points",
+  "streakRecoverDismiss": "Pas cette fois",
+  "streakRecovered": "{days, plural, =1{Ta série de 1 jour est rétablie} other{Ta série de {days} jours est rétablie}}",
+  "streakRecoverFailed": "Impossible de rétablir ta série"
 }

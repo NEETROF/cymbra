@@ -57,6 +57,13 @@ pub const GLOBAL_SEASON_SNAPSHOT: &str = "global_season_snapshot";
 /// this job (or registers a `jobs.schedules` row for it) with its own category and
 /// message.
 pub const PUSH_DISPATCH: &str = "push_dispatch";
+/// Stable name of the practice-streak reminder sweep (change: add-practice-streak,
+/// task 3.1). No payload. Scheduled HOURLY: it resolves the at-risk set (a live
+/// streak with no play on the player's own local day), batches it by locale +
+/// streak length, and hands each batch to the push platform — whose local-hour
+/// gate picks out the users for whom it is currently the configured hour. Sending
+/// nothing is the normal outcome for 23 of every 24 runs.
+pub const STREAK_REMINDER: &str = "streak_reminder";
 
 /// Static description of one job type.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -171,6 +178,16 @@ pub fn builtin() -> Vec<JobSpec> {
             // Kept short so a retried send is still timely.
             RetryPolicy::new(3, Duration::from_secs(60), Duration::from_secs(900)),
         ),
+        JobSpec::new(
+            STREAK_REMINDER,
+            // Same channel as the dispatch it feeds: a reminder sweep IS a send,
+            // and it must not queue behind a music maintenance job and miss the
+            // hour it was scheduled for.
+            Channel::parallel("notifications", "dispatch"),
+            // Like the dispatch, a retry re-resolves the at-risk set and re-checks
+            // every gate — a late retry simply sends nothing.
+            RetryPolicy::new(3, Duration::from_secs(60), Duration::from_secs(900)),
+        ),
     ]
 }
 
@@ -194,6 +211,16 @@ mod tests {
         assert!(names.contains(&PLAY_DETAIL_PRUNE.to_string()));
         assert!(names.contains(&CONSENSUS_HONESTY_SETTLEMENT.to_string()));
         assert!(names.contains(&PUSH_DISPATCH.to_string()));
+        assert!(names.contains(&STREAK_REMINDER.to_string()));
+    }
+
+    #[test]
+    fn streak_reminder_shares_the_dispatch_channel() {
+        // The sweep ends in a send, so it belongs on the notification channel
+        // rather than behind music's maintenance sweeps.
+        let s = spec(STREAK_REMINDER).unwrap();
+        assert_eq!(s.channel().name(), "notifications.dispatch");
+        assert!(!s.channel().is_ordered());
     }
 
     #[test]

@@ -34,16 +34,24 @@ use crate::play_core::local_day;
 use crate::play_module::{PlayModule, RecordInput, RecordPracticeInput};
 use crate::proto::{
     DayActivity as ProtoDayActivity, GetPlayActivityRequest, GetPlayActivityResponse,
-    RecordPlaySessionRequest, RecordPlaySessionResponse, RecordPracticeRequest,
-    RecordPracticeResponse,
+    GetStreakRequest, GetStreakResponse, RecordPlaySessionRequest, RecordPlaySessionResponse,
+    RecordPracticeRequest, RecordPracticeResponse, RecoverStreakRequest, RecoverStreakResponse,
+    StreakStanding as ProtoStreakStanding,
     play_service_server::{PlayService, PlayServiceServer},
 };
+use crate::streak_core::RecoverDecision;
+use crate::streak_module::{StreakModule, StreakStanding};
 
 /// Wraps the play module as a tonic `PlayService`.
 pub struct PlayGrpc {
     module: Arc<PlayModule>,
     rewards: Option<Arc<dyn CurationRewardsSink>>,
     catalog: Option<Arc<dyn CatalogSearchRepo>>,
+    /// Practice streak (change: add-practice-streak): advanced on each ingested
+    /// session and read by the streak RPCs. `None` where the streak is not wired
+    /// — ingest is then unchanged and the streak RPCs report a flat zero, so a
+    /// deployment without it stays fully functional (design Rollback).
+    streak: Option<Arc<StreakModule>>,
 }
 
 impl PlayGrpc {
@@ -52,7 +60,17 @@ impl PlayGrpc {
             module,
             rewards: None,
             catalog: None,
+            streak: None,
         }
+    }
+
+    /// Wire the practice-streak seam (change: add-practice-streak). Like the
+    /// rewards seam this lives at the composition edge rather than inside
+    /// [`PlayModule`]: the streak is a retention mechanic layered on the ingest,
+    /// not part of what recording a session means.
+    pub fn with_streak(mut self, streak: Arc<StreakModule>) -> Self {
+        self.streak = Some(streak);
+        self
     }
 
     /// Wire the curation-rewards seam so an ingested play session records the
@@ -203,6 +221,52 @@ impl PlayGrpc {
             }
         }
     }
+
+    /// Advance the practice streak for a just-ingested session, best-effort.
+    ///
+    /// Deliberately non-fatal: the ingest's success IS the client's persisted-ack
+    /// for a durable outbox entry, and losing a streak day is a far smaller harm
+    /// than making the client re-send a session it already delivered. A retried
+    /// delivery re-advances harmlessly — the same local day is a no-op.
+    async fn advance_streak(&self, user_id: &str, played_at_ms: i64, tz_offset_minutes: i32) {
+        let Some(streak) = &self.streak else { return };
+        if let Err(e) = streak
+            .record_play(user_id, played_at_ms, tz_offset_minutes)
+            .await
+        {
+            tracing::warn!(
+                user_id = %user_id, error = %e,
+                "streak: play not counted toward the practice streak"
+            );
+        }
+    }
+
+    /// The caller's local day, from the offset they report — the same day
+    /// convention the ingest buckets by, so the chip and the ingest can never
+    /// disagree about whether today is already secured.
+    fn today_for(tz_offset_minutes: i32) -> chrono::NaiveDate {
+        crate::play_core::local_day(chrono::Utc::now().timestamp_millis(), tz_offset_minutes)
+    }
+}
+
+/// Map a standing to the wire shape. `recoverable` is true only for an offer the
+/// user can actually accept, so the app has exactly one condition to test.
+fn to_proto_standing(s: &StreakStanding) -> ProtoStreakStanding {
+    let (recoverable, recover_cost, recoverable_streak) = match s.recover {
+        RecoverDecision::Allow { restored, cost } => (true, cost, restored),
+        // Not on offer — but still report what it WOULD cost so the app can
+        // explain an unaffordable break rather than silently hiding it.
+        RecoverDecision::InsufficientPoints { needed, .. } => (false, needed, s.state.current),
+        _ => (false, 0, 0),
+    };
+    ProtoStreakStanding {
+        current: s.state.current as i32,
+        longest: s.state.longest as i32,
+        played_today: s.played_today,
+        recoverable,
+        recover_cost: recover_cost as i32,
+        recoverable_streak: recoverable_streak as i32,
+    }
 }
 
 fn caller<T>(req: &Request<T>) -> Result<String, Status> {
@@ -227,6 +291,8 @@ impl PlayService for PlayGrpc {
         let session_id = r.session_id.clone();
         let score_id = r.score_id.clone();
         let accuracy = r.overall_sync_pct;
+
+        let (played_at_ms, tz_offset_minutes) = (r.played_at_ms, r.tz_offset_minutes);
         // A successful return IS the persisted-ack the client waits for.
         self.module
             .record_session(
@@ -246,6 +312,11 @@ impl PlayService for PlayGrpc {
         // at-least-once — and best-effort, so a failure to pay never fails the ack.
         let points_awarded = self
             .award_performance(&owner, score_id.as_deref(), accuracy, &session_id)
+            .await;
+        // Playing on a day keeps the practice streak alive (change:
+        // add-practice-streak). After the durable record, so the ack the client
+        // waits for still means "your session is stored".
+        self.advance_streak(&owner, played_at_ms, tz_offset_minutes)
             .await;
         Ok(Response::new(RecordPlaySessionResponse { points_awarded }))
     }
@@ -305,6 +376,43 @@ impl PlayService for PlayGrpc {
                 .collect(),
             total_sessions: activity.total_sessions as i32,
             total_practices: activity.total_practices as i32,
+        }))
+    }
+
+    async fn get_streak(
+        &self,
+        req: Request<GetStreakRequest>,
+    ) -> Result<Response<GetStreakResponse>, Status> {
+        let owner = caller(&req)?;
+        let offset = req.into_inner().tz_offset_minutes;
+        // Unwired streak (or a user who never played) reads as a flat zero: the
+        // chip renders its muted "start a streak" state rather than erroring.
+        let Some(streak) = &self.streak else {
+            return Ok(Response::new(GetStreakResponse {
+                standing: Some(ProtoStreakStanding::default()),
+            }));
+        };
+        let standing = streak.standing(&owner, Self::today_for(offset)).await?;
+        Ok(Response::new(GetStreakResponse {
+            standing: Some(to_proto_standing(&standing)),
+        }))
+    }
+
+    async fn recover_streak(
+        &self,
+        req: Request<RecoverStreakRequest>,
+    ) -> Result<Response<RecoverStreakResponse>, Status> {
+        let owner = caller(&req)?;
+        let offset = req.into_inner().tz_offset_minutes;
+        let streak = self
+            .streak
+            .as_ref()
+            .ok_or_else(|| Status::failed_precondition("streak recovery is not available"))?;
+        let standing = streak.recover(&owner, Self::today_for(offset)).await?;
+        let new_balance = streak.spendable_points(&owner).await?;
+        Ok(Response::new(RecoverStreakResponse {
+            standing: Some(to_proto_standing(&standing)),
+            new_balance,
         }))
     }
 }
@@ -683,6 +791,167 @@ mod tests {
         assert_eq!(resp.days.len(), 1);
         assert_eq!(resp.days[0].count, 0);
         assert_eq!(resp.days[0].practice_count, 1);
+    }
+
+    /// A [`PlayGrpc`] with the streak seam wired over an in-memory repo.
+    fn grpc_with_streak() -> (PlayGrpc, Arc<crate::streak::FakeStreakRepo>) {
+        let repo = Arc::new(crate::streak::FakeStreakRepo::default());
+        let streak = Arc::new(crate::streak_module::StreakModule::new(repo.clone()));
+        (grpc(true).with_streak(streak), repo)
+    }
+
+    #[tokio::test]
+    async fn ingesting_a_session_advances_the_streak() {
+        let (g, repo) = grpc_with_streak();
+        let mut req = session(Some("ode-to-joy"));
+        // A play "now", so it lands on the caller's current local day and the
+        // read below reports it as already secured.
+        req.played_at_ms = chrono::Utc::now().timestamp_millis();
+        g.record_play_session(authed(req, "u1")).await.unwrap();
+        let resp = g
+            .get_streak(authed(
+                GetStreakRequest {
+                    tz_offset_minutes: 0,
+                },
+                "u1",
+            ))
+            .await
+            .unwrap()
+            .into_inner();
+        let s = resp.standing.unwrap();
+        assert_eq!(s.current, 1);
+        assert_eq!(s.longest, 1);
+        assert!(s.played_today);
+        assert!(!s.recoverable, "an intact streak is never on offer");
+        assert_eq!(repo.debits(), vec![], "reading a streak spends nothing");
+    }
+
+    #[tokio::test]
+    async fn a_broken_streak_is_offered_then_recovered_on_confirmation() {
+        let (g, repo) = grpc_with_streak();
+        // A 7-day streak whose last play was the day before yesterday (broken,
+        // still inside the default one-day grace window) and enough points.
+        let today = crate::play_core::local_day(chrono::Utc::now().timestamp_millis(), 0);
+        repo.seed(
+            "u1",
+            crate::streak_core::StreakState {
+                current: 7,
+                longest: 7,
+                last_played: Some(today - chrono::Duration::days(2)),
+            },
+        );
+        repo.seed_balance("u1", 100);
+        let before = g
+            .get_streak(authed(
+                GetStreakRequest {
+                    tz_offset_minutes: 0,
+                },
+                "u1",
+            ))
+            .await
+            .unwrap()
+            .into_inner()
+            .standing
+            .unwrap();
+        assert!(before.recoverable);
+        assert_eq!(before.recover_cost, 30);
+        assert_eq!(before.recoverable_streak, 7);
+        assert!(!before.played_today);
+        // Merely LOOKING at the offer must never charge (design: no silent debit).
+        assert!(repo.debits().is_empty());
+
+        let resp = g
+            .recover_streak(authed(
+                RecoverStreakRequest {
+                    tz_offset_minutes: 0,
+                },
+                "u1",
+            ))
+            .await
+            .unwrap()
+            .into_inner();
+        let after = resp.standing.unwrap();
+        assert_eq!(after.current, 7, "the pre-break run is back");
+        assert!(after.played_today);
+        assert!(!after.recoverable);
+        assert_eq!(resp.new_balance, 70);
+        assert_eq!(repo.debits(), vec![("u1".to_string(), 30)]);
+    }
+
+    #[tokio::test]
+    async fn an_unaffordable_recovery_is_refused_without_charging() {
+        let (g, repo) = grpc_with_streak();
+        let today = crate::play_core::local_day(chrono::Utc::now().timestamp_millis(), 0);
+        repo.seed(
+            "u1",
+            crate::streak_core::StreakState {
+                current: 7,
+                longest: 7,
+                last_played: Some(today - chrono::Duration::days(2)),
+            },
+        );
+        repo.seed_balance("u1", 5);
+        // The offer is reported as unavailable, but still priced so the app can
+        // say WHY rather than hiding the broken streak.
+        let s = g
+            .get_streak(authed(
+                GetStreakRequest {
+                    tz_offset_minutes: 0,
+                },
+                "u1",
+            ))
+            .await
+            .unwrap()
+            .into_inner()
+            .standing
+            .unwrap();
+        assert!(!s.recoverable);
+        assert_eq!(s.recover_cost, 30);
+        let err = g
+            .recover_streak(authed(
+                RecoverStreakRequest {
+                    tz_offset_minutes: 0,
+                },
+                "u1",
+            ))
+            .await
+            .unwrap_err();
+        assert_eq!(err.code(), tonic::Code::FailedPrecondition);
+        assert!(repo.debits().is_empty());
+    }
+
+    #[tokio::test]
+    async fn the_streak_surface_is_inert_when_unwired() {
+        // A deployment without the streak still ingests sessions and reports a
+        // flat zero (the chip's muted state) rather than failing.
+        let g = grpc(true);
+        g.record_play_session(authed(session(None), "u1"))
+            .await
+            .unwrap();
+        let s = g
+            .get_streak(authed(
+                GetStreakRequest {
+                    tz_offset_minutes: 0,
+                },
+                "u1",
+            ))
+            .await
+            .unwrap()
+            .into_inner()
+            .standing
+            .unwrap();
+        assert_eq!((s.current, s.longest), (0, 0));
+        assert!(!s.recoverable);
+        let err = g
+            .recover_streak(authed(
+                RecoverStreakRequest {
+                    tz_offset_minutes: 0,
+                },
+                "u1",
+            ))
+            .await
+            .unwrap_err();
+        assert_eq!(err.code(), tonic::Code::FailedPrecondition);
     }
 
     #[tokio::test]
