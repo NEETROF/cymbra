@@ -48,7 +48,7 @@ use flutter_rust_bridge::frb;
 use rustysynth::{SoundFont, Synthesizer, SynthesizerSettings};
 
 use super::audio_core::{
-    AudioEvent, ClickVoice, ClipVoice, PIANO_CHANNEL, VoiceTracker, decode_wav_pcm,
+    AudioEvent, ClickVoice, ClipVoice, OutputChoice, PIANO_CHANNEL, VoiceTracker, decode_wav_pcm,
     is_valid_soundfont, order_outputs, resolve_output_device, route_kind_of,
 };
 
@@ -355,30 +355,47 @@ fn run_audio_thread(
     eprintln!("[cymbra-audio] output started");
 
     while let Ok(command) = device_rx.recv() {
-        let next_request = match command {
-            DeviceCommand::SetOutput(name) => name,
-            DeviceCommand::Reopen => requested.clone(),
+        // A `Reopen` says the current stream is already dead (its device went
+        // away, or the route moved under it). Retiring it *first* both frees the
+        // old device and stops a corpse from holding the queue; a user-initiated
+        // `SetOutput`, by contrast, must never trade working audio for a device
+        // that might not open, so there the replacement is built first.
+        let (next_request, stream_is_dead) = match command {
+            DeviceCommand::SetOutput(name) => (name, false),
+            DeviceCommand::Reopen => (requested.clone(), true),
         };
-        // Build the replacement **before** dropping the working stream: a device
-        // that will not open (busy, exclusive mode, just unplugged) must leave
-        // audio exactly as it was rather than trading it for silence.
+        let current = if stream_is_dead {
+            drop(stream); // retire the dead device before asking for another
+            None
+        } else {
+            Some(stream)
+        };
         match open_output(&host, next_request.as_deref(), &sound_font, events.clone()) {
             Ok(next) => {
                 requested = next_request;
                 // Dropping the old stream stops its callback, so no voice is left
                 // sounding on the previous device; the new synthesizer starts
                 // empty on the new device's sample rate.
-                drop(stream);
+                drop(current);
                 stream = next;
                 if let Err(e) = stream.play() {
                     eprintln!("[cymbra-audio] new output would not start: {e}");
                 }
             }
             Err(e) => {
-                // Re-publish what is really in use: `open_output` only updates it
-                // on success, so the previous value still describes the live
-                // stream. Nothing to do but report.
                 eprintln!("[cymbra-audio] output change refused, keeping current: {e}");
+                match current {
+                    // The previous stream is still live: keep it, and keep
+                    // reporting it as the active output.
+                    Some(previous) => stream = previous,
+                    // Nothing left to fall back to. Retry on the host's default
+                    // so a lost device does not end the session in silence.
+                    None => {
+                        stream = open_output(&host, None, &sound_font, events.clone())?;
+                        requested = None;
+                        stream.play()?;
+                    }
+                }
             }
         }
     }
@@ -422,7 +439,6 @@ fn open_output(
     events: SharedEvents,
 ) -> Result<cpal::Stream> {
     let default_device = host.default_output_device();
-    let default_name = default_device.as_ref().and_then(device_name);
     let available: Vec<(cpal::Device, String)> = host
         .output_devices()
         .map(|devices| {
@@ -432,16 +448,20 @@ fn open_output(
         })
         .unwrap_or_default();
     let names: Vec<String> = available.iter().map(|(_, n)| n.clone()).collect();
-    let chosen = resolve_output_device(requested, &names, default_name.as_deref());
 
-    let device = match chosen.as_deref() {
-        Some(name) => available
+    // Follow the system default by opening the host's **default handle**, never
+    // the enumerated device that happens to carry the default's name: on Android
+    // the default handle is an unspecified device, which is precisely what lets
+    // the stream move when the user changes route (a USB-audio piano, a headset).
+    // A concrete device pins the stream to one output for good. See
+    // [`OutputChoice`].
+    let device = match resolve_output_device(requested, &names) {
+        OutputChoice::SystemDefault => default_device,
+        OutputChoice::Named(name) => available
             .into_iter()
-            .find(|(_, n)| n == name)
+            .find(|(_, n)| *n == name)
             .map(|(d, _)| d)
             .or(default_device),
-        // Nothing enumerated and no default: the host may still hand us one.
-        None => default_device,
     }
     .ok_or_else(|| anyhow!("no output device"))?;
 

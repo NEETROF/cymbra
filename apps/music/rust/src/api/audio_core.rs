@@ -107,27 +107,39 @@ impl VoiceTracker {
     }
 }
 
-/// Decides which output device the engine should open (change:
-/// add-audio-output-routing).
+/// What the engine should open for its output stream.
+///
+/// The distinction is **not** cosmetic. "Follow the system default" has to mean
+/// the host's own default *device handle*, never the name that handle happens to
+/// carry right now: on Android `cpal`'s default output is a deliberately
+/// **unspecified** device, which is what lets AAudio move the stream when the
+/// user changes route (plugging a USB-audio piano, for instance). Resolving it
+/// to a name and looking that name up in the enumerated devices hands back a
+/// *concrete* device instead, which pins the stream to whatever the default was
+/// at open time — after which it never follows the route again.
+#[frb(ignore)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum OutputChoice {
+    /// Open the host's default output handle and let the system route it.
+    SystemDefault,
+    /// Open this specific device, because the user asked for it.
+    Named(String),
+}
+
+/// Decides what the engine should open (change: add-audio-output-routing).
 ///
 /// Pure so the whole selection/fallback contract is host-testable without an
 /// audio device: `requested` is the name the user remembered (`None` = follow
-/// the system default), `available` the names the host currently enumerates, and
-/// `default` the host's default output. A remembered device that is **not**
-/// present falls back to the default rather than failing — a device name is the
-/// only handle the host offers and it is not a stable identifier (a renamed
-/// interface or a USB re-enumeration must not leave the app silent).
-///
-/// Returns the name to open, or `None` when the host has nothing to offer.
+/// the system default) and `available` the names the host currently enumerates.
+/// A remembered device that is **not** present falls back to the system default
+/// rather than failing — a device name is the only handle the host offers and it
+/// is not a stable identifier (a renamed interface or a USB re-enumeration must
+/// not leave the app silent).
 #[frb(ignore)]
-pub(crate) fn resolve_output_device(
-    requested: Option<&str>,
-    available: &[String],
-    default: Option<&str>,
-) -> Option<String> {
+pub(crate) fn resolve_output_device(requested: Option<&str>, available: &[String]) -> OutputChoice {
     match requested {
-        Some(name) if available.iter().any(|n| n == name) => Some(name.to_string()),
-        _ => default.map(str::to_string),
+        Some(name) if available.iter().any(|n| n == name) => OutputChoice::Named(name.to_string()),
+        _ => OutputChoice::SystemDefault,
     }
 }
 
@@ -424,17 +436,17 @@ mod tests {
     fn requested_device_is_chosen_when_present() {
         let available = names(&["Built-in Output", "Scarlett 2i2"]);
         assert_eq!(
-            resolve_output_device(Some("Scarlett 2i2"), &available, Some("Built-in Output")),
-            Some("Scarlett 2i2".to_string())
+            resolve_output_device(Some("Scarlett 2i2"), &available),
+            OutputChoice::Named("Scarlett 2i2".to_string())
         );
     }
 
     #[test]
-    fn absent_remembered_device_falls_back_to_default() {
+    fn absent_remembered_device_falls_back_to_the_system_default() {
         let available = names(&["Built-in Output"]);
         assert_eq!(
-            resolve_output_device(Some("Scarlett 2i2"), &available, Some("Built-in Output")),
-            Some("Built-in Output".to_string())
+            resolve_output_device(Some("Scarlett 2i2"), &available),
+            OutputChoice::SystemDefault
         );
     }
 
@@ -442,28 +454,35 @@ mod tests {
     fn unknown_name_never_errors_it_falls_back() {
         let available = names(&["Built-in Output", "HDMI"]);
         assert_eq!(
-            resolve_output_device(Some(""), &available, Some("HDMI")),
-            Some("HDMI".to_string())
+            resolve_output_device(Some(""), &available),
+            OutputChoice::SystemDefault
+        );
+    }
+
+    /// The regression that made Android deaf to route changes: with no
+    /// preference the engine must open the host's *default handle*, never the
+    /// device that merely shares the default's name — the latter pins the stream
+    /// and it stops following the system route (a USB-audio piano plugged in
+    /// mid-session is then never heard).
+    #[test]
+    fn no_request_never_resolves_to_a_concrete_device() {
+        let available = names(&["Built-in Speaker", "USB Audio"]);
+        assert_eq!(
+            resolve_output_device(None, &available),
+            OutputChoice::SystemDefault
         );
     }
 
     #[test]
-    fn no_request_follows_the_system_default() {
-        let available = names(&["Built-in Output", "HDMI"]);
+    fn empty_device_list_follows_the_system_default() {
         assert_eq!(
-            resolve_output_device(None, &available, Some("HDMI")),
-            Some("HDMI".to_string())
+            resolve_output_device(Some("Scarlett 2i2"), &[]),
+            OutputChoice::SystemDefault
         );
-    }
-
-    #[test]
-    fn empty_device_list_yields_the_default_or_nothing() {
         assert_eq!(
-            resolve_output_device(Some("Scarlett 2i2"), &[], Some("Built-in Output")),
-            Some("Built-in Output".to_string())
+            resolve_output_device(None, &[]),
+            OutputChoice::SystemDefault
         );
-        assert_eq!(resolve_output_device(Some("Scarlett 2i2"), &[], None), None);
-        assert_eq!(resolve_output_device(None, &[], None), None);
     }
 
     #[test]
