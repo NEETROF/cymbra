@@ -100,6 +100,10 @@ jobs:
       - uses: subosito/flutter-action@v2
         if: env.RUN_APP == 'true'
         with:
+          # Pinned: Flutter stable 3.47 (Dart 3.13) breaks analyzer 7.x codegen
+          # (dot-shorthands in the SDK). Unpin after the Riverpod 3 / analyzer 8
+          # migration; keep in sync with the local toolchain.
+          flutter-version: 3.41.8
           channel: stable
       - name: Activate Melos
         if: env.RUN_APP == 'true'
