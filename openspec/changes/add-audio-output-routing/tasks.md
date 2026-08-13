@@ -111,7 +111,7 @@
 - [x] 8.1 `melos run analyze`, `dart format`, `dart run custom_lint` clean
 - [x] 8.2 `cargo fmt --all --check` + `cargo clippy --workspace --all-targets --
   -D warnings`
-- [ ] 8.3 Manual: with a digital piano over USB MIDI, enable the setting and
+- [x] 8.3 Manual: with a digital piano over USB MIDI, enable the setting and
   confirm the flam disappears while the on-screen keyboard still sounds
 - [x] 8.4 Manual (desktop): switch output to a piano in USB-audio mode / an
   interface and confirm notes, metronome and a SoundFont preview all follow
@@ -122,7 +122,7 @@
 - [x] 8.6 Manual (mobile): iOS (iPad + USB piano) routes via the system
   picker; Android validated on Tab S6 Lite + Galaxy A53 — device speakers by
   default, USB selectable as "(experimental)", MIDI stable while playing
-- [ ] 8.7 Manual: measure a Bluetooth route's delay, set the offset to it, and
+- [x] 8.7 Manual: measure a Bluetooth route's delay, set the offset to it, and
   confirm the playhead visually matches what is heard
 - [x] 8.8 Restore the iOS/macOS project files if a macOS test run rewrote them
   (SPM/icon churn) before committing
