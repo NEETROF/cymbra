@@ -512,6 +512,8 @@
   "coachPlayerMidiBody": "Qui compare la tua tastiera MIDI collegata. Lascia la modalità automatica oppure scegli tu il dispositivo se ne hai più di uno.",
   "coachPlayerHandsTitle": "Mano destra, sinistra o entrambe",
   "coachPlayerHandsBody": "Lavora una mano alla volta, poi uniscile. Ti vengono richieste solo le mani che scegli.",
+  "coachPlayerRewindTitle": "Riavvolgi e scegli un passaggio",
+  "coachPlayerRewindBody": "Tocca per tornare indietro di una battuta. Tieni premuto per aprire lo spartito e scegliere un passaggio da esercitare.",
 
   "helpTitle": "Aiuto e consigli",
   "helpCoreLoopTitle": "Come funziona",
@@ -635,9 +637,12 @@
   "notationHelpDynamicsTitle": "Dinamiche",
   "notationHelpDynamicsBody": "Quanto forte suonare: p è piano, f è forte, m sta nel mezzo (mf = mezzo forte).",
   "notationHelpClose": "Chiudi",
-  "practiceSectionTitle": "Esercizio",
-  "practiceRunFull": "Brano intero",
-  "practiceRunSelective": "Passaggio",
+  "transportRewindTooltip": "Indietro di una battuta (pressione lunga: scegli un passaggio)",
+  "measureSelectTitle": "Scegli un passaggio",
+  "measureSelectPending": "Battuta {from} → …",
+  "measureSelectRange": "Battute {from}–{to}",
+  "measureSelectConfirm": "Esercitati",
+  "measureSelectWholePiece": "Tutto il brano",
   "practiceFromBar": "Dalla battuta",
   "practiceToBar": "Alla battuta",
   "practiceLoopSection": "Ripeti il passaggio",
@@ -654,6 +659,5 @@
   "summaryPractice": "Esercita un passaggio",
   "practicePickStartBar": "Tocca la prima battuta del passaggio sulla partitura",
   "practicePickEndBar": "Ora tocca l'ultima battuta",
-  "prePlayNext": "Avanti",
   "practiceStopLoop": "Ferma il ciclo"
 }

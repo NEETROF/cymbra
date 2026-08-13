@@ -1961,6 +1961,14 @@
   "@coachPlayerHandsBody": {
     "description": "Body of the guided step pointing at the hand selection."
   },
+  "coachPlayerRewindTitle": "Rewind and pick a passage",
+  "@coachPlayerRewindTitle": {
+    "description": "Title of the guided step pointing at the transport measure-rewind button."
+  },
+  "coachPlayerRewindBody": "Tap to go back one bar. Long-press to open the score and pick a passage to practice.",
+  "@coachPlayerRewindBody": {
+    "description": "Body of the guided step pointing at the transport measure-rewind button."
+  },
   "helpTitle": "Help & tips",
   "@helpTitle": {
     "description": "Title of the help/tips surface, and its entry points."
@@ -2487,17 +2495,45 @@
   "@notationHelpClose": {
     "description": "Tooltip for the button that closes a notation help bubble."
   },
-  "practiceSectionTitle": "Practice",
-  "@practiceSectionTitle": {
-    "description": "Section title of the measure-range practice controls in the pre-play setup modal."
+  "transportRewindTooltip": "Back one bar (long-press: pick a passage)",
+  "@transportRewindTooltip": {
+    "description": "Tooltip of the transport measure-rewind button."
   },
-  "practiceRunFull": "Whole piece",
-  "@practiceRunFull": {
-    "description": "Run-type choice: play (and score) the whole piece."
+  "measureSelectTitle": "Pick a passage",
+  "@measureSelectTitle": {
+    "description": "Title of the measure-selection screen before any bar is tapped."
   },
-  "practiceRunSelective": "Section",
-  "@practiceRunSelective": {
-    "description": "Run-type choice: play a chosen measure range as unscored practice."
+  "measureSelectPending": "Bar {from} → …",
+  "@measureSelectPending": {
+    "description": "Title of the measure-selection screen after the first tap, awaiting the last bar (1-based).",
+    "placeholders": {
+      "from": {
+        "type": "int",
+        "example": "5"
+      }
+    }
+  },
+  "measureSelectRange": "Bars {from}–{to}",
+  "@measureSelectRange": {
+    "description": "Title of the measure-selection screen with a complete draft range (1-based bar numbers).",
+    "placeholders": {
+      "from": {
+        "type": "int",
+        "example": "5"
+      },
+      "to": {
+        "type": "int",
+        "example": "8"
+      }
+    }
+  },
+  "measureSelectConfirm": "Practice",
+  "@measureSelectConfirm": {
+    "description": "Confirm action of the measure-selection screen: applies the drafted range as an unscored practice run."
+  },
+  "measureSelectWholePiece": "Whole piece",
+  "@measureSelectWholePiece": {
+    "description": "Measure-selection screen action clearing the range back to a scored full run."
   },
   "practiceFromBar": "From bar",
   "@practiceFromBar": {
@@ -2572,10 +2608,6 @@
   "practicePickEndBar": "Now tap the last bar",
   "@practicePickEndBar": {
     "description": "Instruction above the embedded score picker once the first bar has been tapped."
-  },
-  "prePlayNext": "Next",
-  "@prePlayNext": {
-    "description": "Primary action of the setup modal when a section run is chosen: opens the passage step."
   },
   "practiceStopLoop": "Stop the loop",
   "@practiceStopLoop": {

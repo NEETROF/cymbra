@@ -52,8 +52,11 @@ enum CoachHint {
   final String prefsKey;
 }
 
-/// One step of the guided player sequence, in the order it is walked. Each step
-/// points at a real control inside the pre-play setup surface.
+/// One step of the guided player sequence, in the order it is walked. The first
+/// steps point at real controls inside the pre-play setup surface; the last one
+/// points at the transport bar behind it (the setup surface applies its drafts
+/// and closes when the sequence reaches it — see `_CoachStepListener` in the
+/// setup modal).
 enum PlayerCoachStep {
   /// Picking the piano sound (`piano-sound-selection`).
   pianoSound,
@@ -62,7 +65,12 @@ enum PlayerCoachStep {
   midiDevice,
 
   /// Choosing which hand(s) to play (`hand-selection`).
-  hands;
+  hands,
+
+  /// Rewinding one measure / long-pressing to pick a practice passage
+  /// (change: add-in-game-measure-selection). Lives on the player's transport
+  /// bar, outside the setup surface.
+  measureRewind;
 
   /// The step after this one, or `null` when this is the last.
   PlayerCoachStep? get next {
@@ -164,6 +172,17 @@ class Coaching extends _$Coaching {
   /// shown again (it stays replayable from help).
   void skipTour() {
     if (!state.tourRunning) return;
+    _endTour();
+  }
+
+  /// Called when the pre-play setup surface — home of the sequence's early
+  /// steps — leaves the screen. Ends the sequence so it never points at
+  /// controls that are gone, EXCEPT when it has already advanced to the
+  /// transport measure-rewind step, whose control lives on the player screen
+  /// behind the surface: closing the setup is then precisely what reveals it.
+  void setupSurfaceClosed() {
+    final step = state.step;
+    if (step == null || step == PlayerCoachStep.measureRewind) return;
     _endTour();
   }
 

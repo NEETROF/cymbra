@@ -660,6 +660,34 @@ class Player extends _$Player {
     startPlayback();
   }
 
+  /// Transport measure rewind (change: add-in-game-measure-selection): moves the
+  /// playhead to the start of the measure containing it — or, when already at
+  /// (or within [kRewindEpsilonMs] of) that start, the previous measure — so
+  /// repeated taps stack back one measure at a time, clamped to the run's
+  /// effective start. Held voices are silenced and the Wait-Mode latches
+  /// cleared; any in-flight scored run is discarded, and none re-arms mid-piece
+  /// (see [_maybeStartRun]), so a rewound run can never submit a score. The
+  /// playing/paused state is preserved — no countdown replay, the point is a
+  /// quick "again from the top of the bar". A no-op on a piece with no measure
+  /// table (the demo score).
+  void rewindOneMeasure() {
+    final s = state;
+    final target = rewindTargetMs(
+      elapsedMs: s.elapsedMs,
+      measureStartMs: s.measureStartMs,
+      minMs: s.startMs,
+    );
+    if (target == null) return;
+    _silenceAll();
+    _scorer.cancelRun();
+    state = s.copyWith(
+      elapsedMs: target,
+      countdownMs: 0,
+      gateSatisfied: const {},
+      consumedHeld: const {},
+    );
+  }
+
   // --- Time advance (called by the screen's Ticker) ---------------------
 
   /// Advances the playhead by [dtMs] ms (already multiplied by the speed).

@@ -629,4 +629,156 @@ void main() {
       verifyNever(service.recordPractice(any));
     });
   });
+
+  group('rewindTargetMs', () {
+    const starts = [0, 4000, 8000, 12000];
+
+    test('mid-measure lands on the top of that measure', () {
+      expect(
+        rewindTargetMs(elapsedMs: 6000, measureStartMs: starts, minMs: 0),
+        4000,
+      );
+    });
+
+    test('at (or within epsilon of) a start lands on the previous bar', () {
+      expect(
+        rewindTargetMs(elapsedMs: 4000, measureStartMs: starts, minMs: 0),
+        0,
+      );
+      expect(
+        rewindTargetMs(elapsedMs: 4200, measureStartMs: starts, minMs: 0),
+        0,
+      );
+    });
+
+    test('just past epsilon means the current bar again', () {
+      expect(
+        rewindTargetMs(elapsedMs: 4301, measureStartMs: starts, minMs: 0),
+        4000,
+      );
+    });
+
+    test('clamps at the effective start', () {
+      // Already at the piece's top.
+      expect(rewindTargetMs(elapsedMs: 0, measureStartMs: starts, minMs: 0), 0);
+      // Selective run from bar 2: stepping back from its first bar stays put.
+      expect(
+        rewindTargetMs(elapsedMs: 4100, measureStartMs: starts, minMs: 4000),
+        4000,
+      );
+    });
+
+    test('lands on the last measure from beyond it', () {
+      expect(
+        rewindTargetMs(elapsedMs: 15000, measureStartMs: starts, minMs: 0),
+        12000,
+      );
+    });
+
+    test('is null without a measure table', () {
+      expect(
+        rewindTargetMs(elapsedMs: 1000, measureStartMs: const [], minMs: 0),
+        isNull,
+      );
+    });
+  });
+
+  group('Player measure rewind', () {
+    late ProviderContainer container;
+
+    Player notifier() => container.read(playerProvider.notifier);
+    PlayerData read() => container.read(playerProvider);
+    ScoringData scoring() => container.read(performanceScorerProvider);
+
+    Future<void> build() async {
+      container = _playerContainer(_sync());
+      addTearDown(container.dispose);
+      container.listen(playerProvider, (_, _) {}, fireImmediately: true);
+      await _flush();
+    }
+
+    test('taps stack back one bar at a time, preserving playback', () async {
+      await build();
+      notifier().setPlaying(true);
+      if (read().waitMode) notifier().toggleWaitMode();
+      notifier().advance(6000); // mid bar 2
+      notifier().rewindOneMeasure();
+      expect(read().elapsedMs, _bar, reason: 'first tap: top of the bar');
+      expect(read().isPlaying, isTrue);
+      notifier().rewindOneMeasure();
+      expect(read().elapsedMs, 0, reason: 'second tap: the bar before');
+      notifier().rewindOneMeasure();
+      expect(read().elapsedMs, 0, reason: 'clamped at the piece top');
+      expect(read().isPlaying, isTrue);
+    });
+
+    test('discards the scored run and never re-arms mid-piece', () async {
+      await build();
+      notifier().setPlaying(true);
+      expect(scoring().active, isTrue);
+      if (read().waitMode) notifier().toggleWaitMode();
+      notifier().advance(6000);
+      notifier().rewindOneMeasure();
+      expect(scoring().active, isFalse);
+      // Playing on from mid-piece must not silently re-open a scored run.
+      notifier().advance(1000);
+      expect(scoring().active, isFalse);
+      // The explicit restart-from-top does re-arm, as today.
+      notifier().restartFromTop();
+      expect(scoring().active, isTrue);
+    });
+
+    test('clamps at the range start on a selective run', () async {
+      await build();
+      notifier().setPracticeRange(1, 2); // bars 2–3, playhead at 4000
+      notifier().setPlaying(true);
+      if (read().waitMode) notifier().toggleWaitMode();
+      notifier().advance(4500); // mid bar 3
+      notifier().rewindOneMeasure();
+      expect(read().elapsedMs, 8000);
+      notifier().rewindOneMeasure();
+      expect(read().elapsedMs, _bar);
+      notifier().rewindOneMeasure();
+      expect(read().elapsedMs, _bar, reason: 'never below the range start');
+    });
+
+    test('clears the Wait-Mode latches', () async {
+      await build();
+      notifier().setPlaying(true);
+      notifier().noteOn(72); // latch bar 1's C5 onset
+      expect(read().gateSatisfied, contains(72));
+      notifier().rewindOneMeasure();
+      expect(read().gateSatisfied, isEmpty);
+      expect(read().consumedHeld, isEmpty);
+    });
+
+    test('is a no-op without a measure table (the demo score)', () async {
+      // No document → the built-in demo, which has no measure table.
+      container = ProviderContainer(
+        overrides: [
+          midiServiceProvider.overrideWithValue(FakeMidiService()),
+          scoreSourceProvider.overrideWithValue(FakeScoreSource(null)),
+          audioServiceProvider.overrideWithValue(RecordingAudioService()),
+          notationProvider.overrideWith(
+            () => _FixedNotation(const NotationData()),
+          ),
+          preferencesServiceProvider.overrideWithValue(
+            FakePreferencesService(),
+          ),
+          playSyncServiceProvider.overrideWithValue(_sync()),
+          connectivityServiceProvider.overrideWithValue(_SilentConnectivity()),
+          playRetrySchedulerProvider.overrideWithValue(_NoopRetryScheduler()),
+          currentUserIdProvider.overrideWithValue('u1'),
+          canUseOnlineServicesProvider.overrideWithValue(true),
+        ],
+      );
+      addTearDown(container.dispose);
+      container.listen(playerProvider, (_, _) {}, fireImmediately: true);
+      await _flush();
+      expect(read().measureStartMs, isEmpty);
+      final before = read().elapsedMs;
+      notifier().rewindOneMeasure();
+      expect(read().elapsedMs, before);
+    });
+  });
 }

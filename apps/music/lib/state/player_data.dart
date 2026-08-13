@@ -202,6 +202,38 @@ const double kMaxSpeed = 2.0;
   return a <= b ? (start: a, end: b) : (start: b, end: a);
 }
 
+/// Song-time slack (ms) under which a rewind tap means the PREVIOUS measure:
+/// within this of a measure's start the player is "at" that start, so going
+/// back means the bar before; further in, the tap means "again from the top of
+/// this bar" — the audio-player back-button convention.
+const double kRewindEpsilonMs = 300.0;
+
+/// The playhead position (ms) one transport measure-rewind lands on from
+/// [elapsedMs]: the start of the measure containing the playhead when it is
+/// more than [epsilonMs] past that start, else the start of the previous
+/// measure — so repeated taps stack back one measure at a time. Clamped to no
+/// earlier than [minMs] (the run's effective start: the active range's first
+/// measure on a selective run, else the piece's trimmed start). Returns null
+/// when [measureStartMs] is empty (the demo score carries no measure table).
+/// Pure and host-testable.
+double? rewindTargetMs({
+  required double elapsedMs,
+  required List<int> measureStartMs,
+  required double minMs,
+  double epsilonMs = kRewindEpsilonMs,
+}) {
+  if (measureStartMs.isEmpty) return null;
+  var i = measureStartMs.length - 1;
+  while (i > 0 && elapsedMs < measureStartMs[i]) {
+    i--;
+  }
+  final start = measureStartMs[i].toDouble();
+  final target = elapsedMs > start + epsilonMs
+      ? start
+      : (i > 0 ? measureStartMs[i - 1].toDouble() : start);
+  return target < minMs ? minMs : target;
+}
+
 /// The playhead position a fresh run/transport should stop (finish or loop) at
 /// for [visibleNotes]: the resolution of the last note — the largest
 /// `startMs + durationMs` — so trailing rests / empty trailing measures after

@@ -53,6 +53,7 @@ import '../widgets/score_chip.dart';
 import '../widgets/scoring_overlay.dart';
 import '../widgets/post_play_rating.dart';
 import '../widgets/session_summary_modal.dart';
+import 'measure_select_screen.dart';
 import 'pre_play_setup_modal.dart';
 import 'score_load_message.dart';
 
@@ -1118,11 +1119,44 @@ class _TransportBar extends ConsumerWidget {
     final gapL = isPhone ? 8.0 : 16.0;
     final gapS = isPhone ? 4.0 : 8.0;
 
+    final l10n = AppLocalizations.of(context);
     final restart = IconButton(
       visualDensity: density,
       // Restart from the top, replaying the get-ready countdown.
       onPressed: notifier.restartFromTop,
       icon: const Icon(Icons.skip_previous, color: CymbraColors.onSurface),
+    );
+    // Measure rewind (change: add-in-game-measure-selection): tap = back one
+    // bar (stacking, clamped at the effective start), long-press = the
+    // full-screen measure-selection mode. Disabled without a measure table
+    // (the demo score), where both are meaningless. Registered as a coach
+    // target so the guided tour's last step can point at it.
+    final canRewind = data.measureStartMs.isNotEmpty;
+    final rewind = CoachTarget(
+      anchor: CoachAnchor.measureRewind,
+      child: GestureDetector(
+        // The long-press lives on a wrapper: IconButton has no such slot, and
+        // the gesture arena resolves tap vs hold apart. The tooltip must be
+        // MANUAL — its default touch trigger is itself a long-press, which
+        // would win the arena and swallow this gesture (hover still shows it
+        // on desktop).
+        onLongPress: canRewind ? () => openMeasureSelect(context, ref) : null,
+        child: Tooltip(
+          message: l10n.transportRewindTooltip,
+          triggerMode: TooltipTriggerMode.manual,
+          child: IconButton(
+            key: const Key('transport-rewind'),
+            visualDensity: density,
+            onPressed: canRewind ? notifier.rewindOneMeasure : null,
+            icon: Icon(
+              Icons.fast_rewind,
+              color: canRewind
+                  ? CymbraColors.onSurface
+                  : CymbraColors.onSurfaceVariant.withValues(alpha: 0.4),
+            ),
+          ),
+        ),
+      ),
     );
     // Play / pause. Play arms the get-ready countdown (from the top); pause
     // stops immediately.
@@ -1210,7 +1244,11 @@ class _TransportBar extends ConsumerWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 playPause,
-                SizedBox(height: gapL),
+                // The rewind/restart pair reads as one navigation cluster, and
+                // the tightened gaps keep the taller rail inside a short
+                // viewport.
+                SizedBox(height: gapS),
+                rewind,
                 restart,
                 SizedBox(height: gapL),
                 speedUp,
@@ -1224,6 +1262,8 @@ class _TransportBar extends ConsumerWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 restart,
+                SizedBox(width: gapS),
+                rewind,
                 SizedBox(width: gapS),
                 playPause,
                 SizedBox(width: gapL),
