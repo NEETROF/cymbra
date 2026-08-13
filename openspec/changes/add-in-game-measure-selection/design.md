@@ -28,11 +28,14 @@ render mode only — hidden on phones).
 - A deliberate, full-screen measure-selection mode reachable from the same button
   (long-press), working in **every** render mode and on phones, that never mutates the
   live session until confirmed.
+- The in-game mode becomes the **single deliberate selection surface**: the pre-play
+  setup modal's practice section/step is removed and the modal becomes range-neutral.
 
 **Non-Goals:**
-- Removing or reworking the pre-play setup modal's Section step (kept as-is).
 - Changing the existing immediate tap-select inside the in-game Partition view.
-- Loop/tempo-ramp controls in the new mode (they stay where they are).
+- Reworking the end-of-run summary's "practice this section" dialog (kept; it shares
+  `PracticeRangeControls`/`PracticeScoreStrip`). Routing it to the new mode is a
+  possible follow-up, not this change.
 - Any backend/back-office work; practice-session accounting is untouched.
 
 ## Decisions
@@ -101,7 +104,29 @@ The title bar shows the draft ("Mesures X–Y", l10n) and three actions:
 - **Whole piece** → `clearPracticeRange()` then pop (back to a scored full run).
 - **Cancel / back** → pop, session untouched (still paused where it was).
 
-Entering pre-fills the draft from the active range when the run is already selective.
+Entering pre-fills the draft from the active range when the run is already selective,
+else from the per-score saved practice settings (see D6), else empty.
+
+### D6 — The pre-play modal loses its practice step and goes range-neutral
+
+`pre_play_setup_modal.dart` drops the full-run vs section toggle (`_practiceSection`),
+the second step (`_practiceStep`/`_practiceStepBody`), and the apply/pre-fill logic
+that called `setPracticeRange`/`clearPracticeRange` on dismiss. The modal **never
+touches the active range again** — an armed range survives opening and dismissing it.
+
+What this preserves and how:
+- **D7 per-score persistence** ("pre-filled when the score is reopened") relocates:
+  the selection mode's draft pre-fills from `practice_settings_store` when no range
+  is active. The store and its save/clear sites in the notifier are unchanged.
+- **Loop settings**: none to rehome — the implementation settled on "a selective run
+  always loops endlessly", so the step carried no loop UI.
+- The end-of-run summary dialog (`showPracticeRangePicker`) keeps working — it owns
+  its widgets (`practice_range_picker.dart` + shared controls) and does not go
+  through the modal.
+
+*Alternative rejected*: keeping the modal step alongside the new mode — two
+deliberate surfaces for the same choice, double maintenance, and the modal step was
+the pain point that motivated this change.
 
 ## Risks / Trade-offs
 
@@ -118,6 +143,11 @@ Entering pre-fills the draft from the active range when the run is already selec
 - [Route on top of a live session] → notifier is auto-dispose but keep-alive is
   guaranteed by the underlying screen staying mounted; entering pauses playback so no
   audio runs behind the picker.
+- [Removing the modal step strands users who knew it] → the long-press entry is the
+  replacement; tooltip + a possible `feature-discovery` follow-up. The summary-dialog
+  path (drill what you just missed) is untouched.
+- [Archive ordering] → the `pre-play-setup` REMOVED delta targets a requirement the
+  in-flight parent change adds; archive `add-measure-range-practice` first.
 
 ## Migration Plan
 

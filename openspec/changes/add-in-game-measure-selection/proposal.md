@@ -27,9 +27,13 @@ screen itself, in every render mode, in one gesture.
   touches the live session until confirm**: confirm applies the range through the
   existing selective-run path (unscored practice, playhead to range start, per-score
   persistence); cancel returns to the game unchanged; "whole piece" clears the range.
-- The pre-play setup modal's Section step and its pickers are **kept unchanged**
-  (they remain the pre-game entry point and the fallback for scores without a
-  measure table); retiring them is out of scope.
+- **REMOVED: the pre-play setup modal's practice step** — the full-run vs section
+  run-type toggle and the second-step range picker disappear from the setup modal;
+  the in-game mode becomes the only deliberate range-selection surface. The modal
+  becomes range-neutral (it never sets or clears the active range). The per-score
+  saved-range pre-fill (D7) relocates into the new selection mode. The end-of-run
+  summary's "practice this section" picker dialog is kept (it reuses the same
+  shared widgets).
 
 ## Capabilities
 
@@ -40,10 +44,14 @@ None.
 ### Modified Capabilities
 
 - `measure-range-practice`: ADDED requirements — in-game transport measure rewind,
-  and the dedicated full-screen selection mode as a third range-selection surface.
-  Note: this capability's base spec is itself the in-flight change
+  and the dedicated full-screen selection mode as the deliberate range-selection
+  surface. Note: this capability's base spec is itself the in-flight change
   `add-measure-range-practice`; this change stacks on it and both deltas merge into
   `openspec/specs/measure-range-practice/` at archive time.
+- `pre-play-setup`: REMOVED requirement — "Full-run vs selective-practice choice in
+  setup" (added by the same in-flight parent change). **Archive-order constraint**:
+  `add-measure-range-practice` must archive before this change so the requirement
+  exists in the main spec when the removal folds in.
 
 ## Impact
 
@@ -63,7 +71,13 @@ changes.
 - `apps/music/lib/screens/player_screen.dart` — `_TransportBar` gains the rewind
   button (tap + long-press), route/overlay to the new selection view.
 - New widget/screen for the selection mode (vertical Partition, title bar, draft
-  range state).
+  range state, per-score saved-range pre-fill).
 - `player_notifier.dart` — a `rewindOneMeasure()` transport action (playhead move,
   gate/held reset, scored-run cancel).
-- l10n strings for the new button and selection-mode title bar.
+- `apps/music/lib/screens/pre_play_setup_modal.dart` — the practice section, the
+  practice step, and the modal's range apply/pre-fill logic are removed (the modal
+  no longer touches the practice range). `PracticeRangeControls` /
+  `PracticeScoreStrip` stay — the end-of-run summary dialog
+  (`practice_range_picker.dart`) still uses them.
+- l10n strings for the new button and selection-mode title bar; prune modal-only
+  practice keys that become unused.

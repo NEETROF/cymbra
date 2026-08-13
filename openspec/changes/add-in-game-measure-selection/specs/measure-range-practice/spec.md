@@ -55,7 +55,9 @@ tapping again SHALL begin a new draft; the draft SHALL be highlighted on the sco
 and displayed in the title bar. The draft SHALL NOT affect the play session until
 confirmed. The mode SHALL be unavailable when the piece has no engraved notation or
 no measure table. When the run is already selective, the draft SHALL pre-fill from
-the active range.
+the active range; otherwise it SHALL pre-fill from the score's saved practice
+settings when present (this mode is where per-score saved settings surface, now
+that the pre-play setup modal no longer carries a range picker).
 
 #### Scenario: Long-press opens the selection mode paused
 - **WHEN** the user long-presses the measure-rewind control while a piece with
@@ -88,6 +90,12 @@ the active range.
 - **WHEN** the user chooses the whole-piece action in the selection mode
 - **THEN** the mode closes, the active range clears back to a full run, and the
   playhead returns to the piece's effective start
+
+#### Scenario: Saved settings pre-fill the draft
+- **WHEN** the run is a full run, the score has per-score saved practice settings,
+  and the user opens the selection mode
+- **THEN** the draft pre-fills from the saved range (clamped to the current measure
+  count), and nothing applies until confirmed
 
 #### Scenario: Unavailable without notation or measure table
 - **WHEN** the loaded piece has no engraved notation or no measure table

@@ -32,8 +32,9 @@
       second = end order-normalized, re-tap restarts)
 - [ ] 3.2 Title bar: draft label ("Mesures X–Y"), Confirm (enabled on complete
       draft) → `setPracticeRange` + pop, Whole-piece → `clearPracticeRange` + pop,
-      Cancel/back → pop with no session mutation; pre-fill draft from the active
-      range when the run is selective
+      Cancel/back → pop with no session mutation; draft pre-fill precedence:
+      active range → per-score saved settings (`practice_settings_store`, clamped)
+      → empty
 - [ ] 3.3 Wire the long-press on the rewind button: `setPlaying(false)` then push
       the route; guard — do nothing when the score has no notation document or no
       measure table
@@ -44,10 +45,23 @@
       confirm applies the range, cancel leaves `PlayerData` untouched, whole-piece
       clears the range
 
-## 4. Gates & validation
+## 4. Pre-play modal: remove the practice step
 
-- [ ] 4.1 `melos run analyze`, `dart format`, `dart run custom_lint` clean
-- [ ] 4.2 `flutter test --coverage --exclude-tags golden` green, line coverage ≥ 80%
-- [ ] 4.3 `openspec validate add-in-game-measure-selection --strict` passes
-- [ ] 4.4 On-device feel pass (iPad + phone landscape): rewind epsilon feel, decide
+- [ ] 4.1 Strip `pre_play_setup_modal.dart`: `_practiceSection` (run-type toggle,
+      key `practice-run-type`), `_practiceStep`/`_practiceStepBody` (key
+      `practice-step-back`), the `_selective`/`_fromMeasure`/`_toMeasure` draft
+      state, `_prefillFromSaved`, and the `setPracticeRange`/`clearPracticeRange`
+      calls in the apply path — the modal never touches the range again
+- [ ] 4.2 Verify an armed range survives opening + dismissing the modal (in-game
+      entry from the settings drawer included); keep `PracticeRangeControls` /
+      `PracticeScoreStrip` (still used by the summary's `practice_range_picker.dart`)
+- [ ] 4.3 Update/remove the modal's practice widget tests; prune l10n keys that
+      became modal-only dead strings (keep those shared with the summary dialog)
+
+## 5. Gates & validation
+
+- [ ] 5.1 `melos run analyze`, `dart format`, `dart run custom_lint` clean
+- [ ] 5.2 `flutter test --coverage --exclude-tags golden` green, line coverage ≥ 80%
+- [ ] 5.3 `openspec validate add-in-game-measure-selection --strict` passes
+- [ ] 5.4 On-device feel pass (iPad + phone landscape): rewind epsilon feel, decide
       the open question on a free-run pre-roll after rewind
