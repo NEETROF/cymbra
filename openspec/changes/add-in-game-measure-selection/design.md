@@ -128,13 +128,30 @@ What this preserves and how:
 deliberate surfaces for the same choice, double maintenance, and the modal step was
 the pain point that motivated this change.
 
+### D7 — Discovery: a final guided-tour step, not a new hint
+
+The existing player guided tour (`PlayerCoachStep`: pianoSound → midiDevice → hands,
+one shared coaching controller) gains a **last step** `measureRewind`, anchored on
+the transport rewind button via a new `CoachAnchor` (registered with `CoachTarget`
+on the button). One copy teaches both gestures: tap = back one bar, long-press =
+pick a passage to practice. Per the onboarding rules a coach step installs **no
+input barrier**, and when the anchor is not mounted (e.g. the setup surface still
+covers the screen) the overlay's existing fallback — an untargeted centered bubble —
+still delivers the copy. Being a tour step makes it **replayable from the help/tips
+screen for free** (the replay re-runs the whole sequence), which is what keeps the
+possibility re-findable.
+
+*Alternative rejected*: a standalone one-time `CoachHint` + help topic — a hint
+cannot point at the control "in place" as well as the tour does, and the tour is the
+established home for "here is where to tap" player controls.
+
 ## Risks / Trade-offs
 
 - [Rewind silently un-scores the current run] → Same rule the capability already
   established for ranges (unscored by construction); restart-from-top re-arms a scored
   run. No summary appears for a rewound run — consistent with selective runs.
-- [Long-press discoverability] → tooltip on the button; the existing
-  `feature-discovery` capability can pick it up later (out of scope here).
+- [Long-press discoverability] → tooltip on the button + the guided-tour step (D7)
+  teaching both gestures, replayable from help.
 - [Desktop/mouse long-press feels unusual] → Flutter's long-press fires on mouse
   press-and-hold; acceptable. A context-menu alternative can come later if needed.
 - [Accidental rewind taps mid-performance] → cheap to recover (playback continues);
@@ -144,8 +161,9 @@ the pain point that motivated this change.
   guaranteed by the underlying screen staying mounted; entering pauses playback so no
   audio runs behind the picker.
 - [Removing the modal step strands users who knew it] → the long-press entry is the
-  replacement; tooltip + a possible `feature-discovery` follow-up. The summary-dialog
-  path (drill what you just missed) is untouched.
+  replacement, and the guided-tour step (D7) teaches it — including on replay from
+  help for existing users. The summary-dialog path (drill what you just missed) is
+  untouched.
 - [Archive ordering] → the `pre-play-setup` REMOVED delta targets a requirement the
   in-flight parent change adds; archive `add-measure-range-practice` first.
 

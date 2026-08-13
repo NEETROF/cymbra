@@ -27,6 +27,10 @@ screen itself, in every render mode, in one gesture.
   touches the live session until confirm**: confirm applies the range through the
   existing selective-run path (unscored practice, playhead to range start, per-score
   persistence); cancel returns to the game unchanged; "whole piece" clears the range.
+- **Guided-coaching step for the new control** — the player's guided tour (piano
+  sound → MIDI device → hands) gains a final step pointing at the measure-rewind
+  button, teaching both gestures (tap = back one bar, long-press = pick a passage).
+  Replayable from the help/tips screen like the rest of the tour, no input barrier.
 - **REMOVED: the pre-play setup modal's practice step** — the full-run vs section
   run-type toggle and the second-step range picker disappear from the setup modal;
   the in-game mode becomes the only deliberate range-selection surface. The modal
@@ -52,6 +56,9 @@ None.
   setup" (added by the same in-flight parent change). **Archive-order constraint**:
   `add-measure-range-practice` must archive before this change so the requirement
   exists in the main spec when the removal folds in.
+- `feature-discovery`: MODIFIED requirement — "Guided in-context coaching for the
+  player's controls" adds the measure-rewind control (tap + long-press) to the
+  guided tour's enumerated steps.
 
 ## Impact
 
@@ -79,5 +86,9 @@ changes.
   no longer touches the practice range). `PracticeRangeControls` /
   `PracticeScoreStrip` stay — the end-of-run summary dialog
   (`practice_range_picker.dart`) still uses them.
+- Coaching: `coaching_notifier.dart` (`PlayerCoachStep` gains a step),
+  `coach_mark.dart` (`CoachAnchor` for the rewind button), `coach_copy.dart` +
+  l10n for the step's copy; the help screen's replay picks it up with no further
+  change.
 - l10n strings for the new button and selection-mode title bar; prune modal-only
   practice keys that become unused.

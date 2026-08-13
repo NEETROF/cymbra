@@ -58,10 +58,22 @@
 - [ ] 4.3 Update/remove the modal's practice widget tests; prune l10n keys that
       became modal-only dead strings (keep those shared with the summary dialog)
 
-## 5. Gates & validation
+## 5. Guided-tour step (help tutorial)
 
-- [ ] 5.1 `melos run analyze`, `dart format`, `dart run custom_lint` clean
-- [ ] 5.2 `flutter test --coverage --exclude-tags golden` green, line coverage ≥ 80%
-- [ ] 5.3 `openspec validate add-in-game-measure-selection --strict` passes
-- [ ] 5.4 On-device feel pass (iPad + phone landscape): rewind epsilon feel, decide
+- [ ] 5.1 Add `PlayerCoachStep.measureRewind` (last step) in
+      `coaching_notifier.dart` and `CoachAnchor.measureRewind` in
+      `coach_mark.dart`; register a `CoachTarget` on the transport rewind button
+- [ ] 5.2 Step copy in `coach_copy.dart` + l10n keys: one bubble teaching tap =
+      back one bar, long-press = pick a passage; no input barrier (onboarding
+      rule), untargeted centered-bubble fallback when the anchor is not mounted
+- [ ] 5.3 Tests: coaching notifier walks …hands → measureRewind → done; widget
+      test that the tour step renders and that help replay re-runs the sequence
+      including the new step
+
+## 6. Gates & validation
+
+- [ ] 6.1 `melos run analyze`, `dart format`, `dart run custom_lint` clean
+- [ ] 6.2 `flutter test --coverage --exclude-tags golden` green, line coverage ≥ 80%
+- [ ] 6.3 `openspec validate add-in-game-measure-selection --strict` passes
+- [ ] 6.4 On-device feel pass (iPad + phone landscape): rewind epsilon feel, decide
       the open question on a free-run pre-roll after rewind
