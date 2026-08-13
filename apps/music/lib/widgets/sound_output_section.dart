@@ -18,6 +18,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../l10n/gen/app_localizations.dart';
 import '../state/audio_routing.dart';
 import '../state/player_data.dart';
+import '../state/player_preferences.dart';
 import '../state/player_notifier.dart';
 import '../theme/cymbra_theme.dart';
 import 'app_snackbar.dart';
@@ -129,33 +130,70 @@ class _OutputDevicePicker extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
     final names = routing.outputs.map((o) => o.name).toList();
+    // The control shows the user's **choice**, not the device in use: showing the
+    // active device made every selection look ignored, because choosing an output
+    // that resolves to the same device snapped the value straight back. Reality
+    // is reported underneath instead.
+    final chosen = ref.watch(
+      playerPreferencesProvider.select((p) => p.audioOutput),
+    );
     final active = routing.active?.name;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      decoration: BoxDecoration(
-        color: CymbraColors.surfaceContainerHigh,
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String?>(
-          key: const Key('sound-output-device'),
-          isExpanded: true,
-          value: names.contains(active) ? active : null,
-          dropdownColor: CymbraColors.surfaceContainerHigh,
-          iconEnabledColor: CymbraColors.onSurfaceVariant,
-          style: const TextStyle(color: CymbraColors.onSurface),
-          items: [
-            DropdownMenuItem<String?>(
-              value: null,
-              child: Text(l10n.soundOutputSystemDefault),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            color: CymbraColors.surfaceContainerHigh,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String?>(
+              key: const Key('sound-output-device'),
+              isExpanded: true,
+              value: names.contains(chosen) ? chosen : null,
+              dropdownColor: CymbraColors.surfaceContainerHigh,
+              iconEnabledColor: CymbraColors.onSurfaceVariant,
+              style: const TextStyle(color: CymbraColors.onSurface),
+              items: [
+                DropdownMenuItem<String?>(
+                  value: null,
+                  child: Text(l10n.soundOutputSystemDefault),
+                ),
+                for (final route in routing.outputs)
+                  DropdownMenuItem<String?>(
+                    value: route.name,
+                    // USB on Android is an informed opt-in: the platform's USB
+                    // path is unreliable below the app, so the label says so
+                    // rather than letting a broken route look endorsed.
+                    child: Text(
+                      routing.usbExperimental &&
+                              route.kind == AudioRouteKind.usb
+                          ? l10n.soundOutputExperimentalDevice(route.name)
+                          : route.name,
+                    ),
+                  ),
+              ],
+              onChanged: (name) =>
+                  ref.read(audioRoutingProvider.notifier).selectOutput(name),
             ),
-            for (final name in names)
-              DropdownMenuItem<String?>(value: name, child: Text(name)),
-          ],
-          onChanged: (name) =>
-              ref.read(audioRoutingProvider.notifier).selectOutput(name),
+          ),
         ),
-      ),
+        // What is *actually* in use, which after a fallback is not what was asked
+        // for. Stated separately so the control can express intent and this can
+        // state reality.
+        if (active != null && active != chosen)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(
+              l10n.soundOutputActuallyUsing(active),
+              style: const TextStyle(
+                fontSize: 12,
+                color: CymbraColors.onSurfaceVariant,
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

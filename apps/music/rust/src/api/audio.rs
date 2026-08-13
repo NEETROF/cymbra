@@ -36,21 +36,24 @@
 
 use std::fs::File;
 use std::io::{BufReader, Read};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{Arc, Mutex};
 use std::thread;
+use std::time::{Duration, Instant};
 
 use anyhow::{Result, anyhow};
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{FromSample, SizedSample};
 use flutter_rust_bridge::frb;
-use rustysynth::{SoundFont, Synthesizer, SynthesizerSettings};
+use rustysynth::SoundFont;
 
 use super::audio_core::{
-    AudioEvent, ClickVoice, ClipVoice, OutputChoice, PIANO_CHANNEL, VoiceTracker, decode_wav_pcm,
-    is_valid_soundfont, order_outputs, resolve_output_device, route_kind_of,
+    AudioEvent, OutputChoice, decode_wav_pcm, is_valid_soundfont, order_outputs,
+    resolve_output_device, route_kind_of,
 };
+use super::platform_log;
+use super::renderer::{RenderCommand, Renderer};
 
 /// How an audio output is connected, as the app reasons about it (change:
 /// add-audio-output-routing). The **kind** — never the device's name — is what
@@ -81,34 +84,11 @@ pub struct AudioOutputInfo {
     pub kind: AudioRouteKind,
 }
 
-/// A message handed from the UI/FFI thread to the audio thread over the lock-free
-/// queue. Most are plain control [`AudioEvent`]s (tiny, `Copy`); a runtime
-/// SoundFont swap additionally carries an already-parsed instrument.
-///
-/// Routing the swap through the *same* queue keeps it in FIFO order with the
-/// notes around it: notes queued before the swap sound on the old instrument,
-/// notes after it on the new one, and the swap itself applies an all-notes-off so
-/// nothing hangs across it.
-enum AudioCommand {
-    /// A note/all-off/click control event (see [`AudioEvent`]).
-    Control(AudioEvent),
-    /// Replace the active synthesizer with one built from this SoundFont,
-    /// silencing every sounding voice across the swap. The heavy parse already
-    /// happened off the audio thread (see [`audio_load_soundfont`]); the callback
-    /// only builds the synth and swaps it in.
-    ReplaceSynth(Arc<SoundFont>),
-    /// Start (or replace) a looping preview clip, mixed into the output on top of the
-    /// synth (change: add-soundfont-entitlement-previews). `sample_rate` is the clip's
-    /// own rate; the audio thread resamples to the device rate.
-    PlayClip { pcm: Vec<i16>, sample_rate: u32 },
-    /// Stop any preview clip currently playing.
-    StopClip,
-}
-
 /// A lifecycle request the **real-time callback cannot serve itself**: a stream
 /// cannot be rebuilt from inside its own callback, so device changes travel on
 /// their own channel, straight to the audio thread's control loop, while
-/// [`AudioCommand`]s keep flowing lock-free into the callback.
+/// [`RenderCommand`]s keep flowing lock-free into the callback.
+#[cfg_attr(target_os = "android", allow(dead_code))] // cpal path: unused on Android
 enum DeviceCommand {
     /// Rebuild the output stream on the named device (`None` = follow the
     /// system default).
@@ -122,13 +102,14 @@ enum DeviceCommand {
 /// The queue the audio callback drains, shared so a rebuilt stream keeps reading
 /// the *same* queue: notes pressed across a device change are neither lost nor
 /// reordered. Only the callback ever locks it, so it is uncontended.
-type SharedEvents = Arc<Mutex<Receiver<AudioCommand>>>;
+#[cfg_attr(target_os = "android", allow(dead_code))] // cpal path: unused on Android
+type SharedEvents = Arc<Mutex<Receiver<RenderCommand>>>;
 
 /// Sender used by the FFI entry points to hand commands to the audio thread.
 /// Published as soon as [`audio_init`] starts (so note events queue while the
 /// device spins up) and cleared if setup fails, so calls without a working device
 /// are silently dropped — graceful degradation.
-static EVENT_TX: Mutex<Option<Sender<AudioCommand>>> = Mutex::new(None);
+static EVENT_TX: Mutex<Option<Sender<RenderCommand>>> = Mutex::new(None);
 
 /// Sender for [`DeviceCommand`]s. Published and cleared alongside [`EVENT_TX`],
 /// so selecting an output before the engine is up is a silent no-op rather than
@@ -140,9 +121,35 @@ static DEVICE_TX: Mutex<Option<Sender<DeviceCommand>>> = Mutex::new(None);
 /// the UI shows reality after a fallback.
 static ACTIVE_OUTPUT: Mutex<Option<AudioOutputInfo>> = Mutex::new(None);
 
+/// Publishes the Android output's render rate for the drift monitor. Called by
+/// [`super::android_output`] whenever the platform (re)opens at a rate.
+#[cfg(target_os = "android")]
+pub(crate) fn set_stream_rate(rate: u32) {
+    STREAM_SAMPLE_RATE.store(rate, Ordering::Relaxed);
+}
+
 /// Guards against launching more than one audio engine. Reset on setup failure
 /// so a later call can retry.
 static INIT_STARTED: AtomicBool = AtomicBool::new(false);
+
+/// Frames the callback has rendered since the engine started.
+///
+/// The one number that says whether the engine is keeping time: divided by
+/// elapsed wall time it gives the rate the output is actually pulling us at,
+/// which must match the stream's sample rate. Bumped with a relaxed add — the
+/// only work the real-time callback is allowed to do for it.
+static RENDERED_FRAMES: AtomicU64 = AtomicU64::new(0);
+
+/// Sample rate of the stream currently open, for the drift check. 0 = none yet.
+static STREAM_SAMPLE_RATE: AtomicU32 = AtomicU32::new(0);
+
+/// Records frames rendered, for the drift monitor. The cpal callback bumps
+/// [`RENDERED_FRAMES`] directly; this is the same probe for the Android pull
+/// path, which lives in another module ([`super::android_output`]).
+#[cfg(target_os = "android")]
+pub(crate) fn note_frames_rendered(frames: u64) {
+    RENDERED_FRAMES.fetch_add(frames, Ordering::Relaxed);
+}
 
 /// Initializes the synthesizer from a SoundFont (`.sf2`) file path and starts
 /// the audio output. Idempotent: a second call keeps the first engine.
@@ -158,7 +165,7 @@ pub fn audio_init(sf2_path: String) {
         return; // already initialized (or initializing)
     }
 
-    let (tx, rx) = mpsc::channel::<AudioCommand>();
+    let (tx, rx) = mpsc::channel::<RenderCommand>();
     let (device_tx, device_rx) = mpsc::channel::<DeviceCommand>();
     // Publish the senders now so notes pressed — and an output remembered from
     // the last session — queue up during startup; they are applied once the
@@ -166,9 +173,31 @@ pub fn audio_init(sf2_path: String) {
     *EVENT_TX.lock().unwrap() = Some(tx);
     *DEVICE_TX.lock().unwrap() = Some(device_tx);
 
+    spawn_drift_monitor();
+    // Android: the platform's `AudioTrack` owns the stream and pulls from the
+    // engine (see [`super::android_output`]), so no `cpal` thread is started.
+    #[cfg(target_os = "android")]
+    {
+        let _ = device_rx;
+        thread::spawn(move || {
+            // The renderer's rate is chosen by the platform side (it knows the
+            // route), so install hands the parsed font to `android_output`,
+            // which builds — and can rebuild — the renderer at that rate.
+            let installed = load_sound_font(&sf2_path)
+                .map_err(|e| e.to_string())
+                .and_then(|sound_font| super::android_output::install(sound_font, rx));
+            if let Err(e) = installed {
+                platform_log::log_line("cymbra-audio", &format!("disabled: {e}"));
+                *EVENT_TX.lock().unwrap() = None;
+                INIT_STARTED.store(false, Ordering::SeqCst);
+            }
+        });
+    }
+
+    #[cfg(not(target_os = "android"))]
     thread::spawn(move || {
         if let Err(e) = run_audio_thread(sf2_path, Arc::new(Mutex::new(rx)), device_rx) {
-            eprintln!("[cymbra-audio] disabled: {e}");
+            platform_log::log_line("cymbra-audio", &format!("disabled: {e}"));
             // Drop the senders so further events are silent no-ops, and let a
             // future call retry.
             *EVENT_TX.lock().unwrap() = None;
@@ -267,9 +296,12 @@ pub fn audio_load_soundfont(sf2_path: String) {
     };
     thread::spawn(move || match load_sound_font(&sf2_path) {
         Ok(sound_font) => {
-            let _ = tx.send(AudioCommand::ReplaceSynth(sound_font));
+            let _ = tx.send(RenderCommand::ReplaceSynth(sound_font));
         }
-        Err(e) => eprintln!("[cymbra-audio] soundfont swap skipped, keeping current: {e}"),
+        Err(e) => platform_log::log_line(
+            "cymbra-audio",
+            &format!("soundfont swap skipped, keeping current: {e}"),
+        ),
     });
 }
 
@@ -293,7 +325,7 @@ pub fn play_preview_clip(wav_bytes: Vec<u8>) {
         return;
     };
     if let Some(tx) = EVENT_TX.lock().unwrap().as_ref() {
-        let _ = tx.send(AudioCommand::PlayClip { pcm, sample_rate });
+        let _ = tx.send(RenderCommand::PlayClip { pcm, sample_rate });
     }
 }
 
@@ -301,15 +333,96 @@ pub fn play_preview_clip(wav_bytes: Vec<u8>) {
 #[frb(sync)]
 pub fn stop_preview_clip() {
     if let Some(tx) = EVENT_TX.lock().unwrap().as_ref() {
-        let _ = tx.send(AudioCommand::StopClip);
+        let _ = tx.send(RenderCommand::StopClip);
     }
+}
+
+/// Watches whether the output is **keeping time**, and says so when it is not.
+///
+/// A healthy output pulls the callback at exactly the stream's sample rate. Some
+/// routes do not: AAudio driving a USB-audio device on a Samsung Tab S6 Lite
+/// (Android 13) was measured pulling +45% one session and −16% the next, never
+/// the stream's rate — so the engine either runs ahead until what is heard is
+/// tens of seconds behind, or is starved. Either way the output is unusable, and
+/// the failure is **invisible** from inside the app: no error is raised and the
+/// stream reports itself healthy. Hence one line in the log when it happens.
+///
+/// Silent while the output behaves, and silent for the first period after a
+/// (re)open, which is a legitimate burst while the buffer fills. Runs on its own
+/// thread; the real-time callback only bumps a counter. One thread per process:
+/// `audio_init` can be re-reached after a setup failure, and each retry must not
+/// stack another monitor.
+fn spawn_drift_monitor() {
+    static MONITOR_STARTED: AtomicBool = AtomicBool::new(false);
+    if MONITOR_STARTED.swap(true, Ordering::SeqCst) {
+        return;
+    }
+    thread::spawn(|| {
+        const PERIOD: Duration = Duration::from_secs(5);
+        /// How far the pull rate may stray from the sample rate before it counts
+        /// as drift rather than jitter.
+        const TOLERANCE: f64 = 0.15;
+
+        let mut last_frames = RENDERED_FRAMES.load(Ordering::Relaxed);
+        let mut last_at = Instant::now();
+        let mut last_rate = STREAM_SAMPLE_RATE.load(Ordering::Relaxed);
+        let mut consecutive = 0u32;
+        let mut reported = false;
+        loop {
+            thread::sleep(PERIOD);
+            let frames = RENDERED_FRAMES.load(Ordering::Relaxed);
+            let now = Instant::now();
+            let elapsed = now.duration_since(last_at).as_secs_f64();
+            let rendered = frames.saturating_sub(last_frames);
+            let rate = STREAM_SAMPLE_RATE.load(Ordering::Relaxed);
+            let reopened = rate != last_rate;
+            last_frames = frames;
+            last_at = now;
+            last_rate = rate;
+
+            // Nothing open yet, or the stream just changed: no verdict this round.
+            if rate == 0 || rendered == 0 || elapsed <= 0.0 || reopened {
+                consecutive = 0;
+                reported = false;
+                continue;
+            }
+            let pulled = rendered as f64 / elapsed;
+            let drift = (pulled - rate as f64) / rate as f64;
+            if drift.abs() <= TOLERANCE {
+                consecutive = 0;
+                reported = false;
+                continue;
+            }
+            // A fresh stream legitimately bursts while its buffer fills, so one
+            // bad period proves nothing: only a *sustained* mismatch is the
+            // failure worth a line — and one line per episode, not per period.
+            consecutive += 1;
+            if consecutive >= 2 && !reported {
+                platform_log::log_line(
+                    "cymbra-audio",
+                    &format!(
+                        "output is not keeping time: pulled {pulled:.0} frames/s on a {rate} Hz \
+                     stream ({:+.0}%) — {}",
+                        drift * 100.0,
+                        if drift > 0.0 {
+                            "the engine is running ahead of the device and what is heard falls further \
+                         behind every second"
+                        } else {
+                            "the device is starving the engine and the output will break up"
+                        }
+                    ),
+                );
+                reported = true;
+            }
+        }
+    });
 }
 
 /// Pushes a control event to the audio thread if the engine is running;
 /// otherwise a silent no-op.
 fn send(event: AudioEvent) {
     if let Some(tx) = EVENT_TX.lock().unwrap().as_ref() {
-        let _ = tx.send(AudioCommand::Control(event));
+        let _ = tx.send(RenderCommand::Control(event));
     }
 }
 
@@ -341,6 +454,7 @@ fn load_sound_font(path: &str) -> Result<Arc<SoundFont>> {
 /// channel: `cpal::Stream` is neither `Send` nor rebuildable from inside its own
 /// callback, so every device change is served here, on the thread that owns it.
 /// Only a failure to start at all returns (the engine then stays silent).
+#[cfg_attr(target_os = "android", allow(dead_code))] // cpal path: unused on Android
 fn run_audio_thread(
     sf2_path: String,
     events: SharedEvents,
@@ -352,9 +466,39 @@ fn run_audio_thread(
     let mut requested: Option<String> = None;
     let mut stream = open_output(&host, None, &sound_font, events.clone())?;
     stream.play()?;
-    eprintln!("[cymbra-audio] output started");
+    platform_log::log_line("cymbra-audio", "output started");
 
-    while let Ok(command) = device_rx.recv() {
+    /// How often, while a standing request is not honored, to check whether its
+    /// device came back. The steady path (request honored, or none) does no
+    /// enumeration at all.
+    const REPLUG_POLL: Duration = Duration::from_secs(2);
+
+    loop {
+        let command = match device_rx.recv_timeout(REPLUG_POLL) {
+            Ok(command) => command,
+            Err(mpsc::RecvTimeoutError::Disconnected) => break,
+            Err(mpsc::RecvTimeoutError::Timeout) => {
+                // The chosen device may have come back: a fallback keeps the
+                // request standing (see below), and this is the only side that
+                // can notice the return — the host pushes no device events.
+                let Some(name) = requested.clone() else {
+                    continue;
+                };
+                let honored = ACTIVE_OUTPUT
+                    .lock()
+                    .unwrap()
+                    .as_ref()
+                    .is_some_and(|active| active.name == name);
+                if honored || !describe_outputs(&host).iter().any(|(n, _)| *n == name) {
+                    continue;
+                }
+                platform_log::log_line(
+                    "cymbra-audio",
+                    &format!("{name:?} is back — reopening on it"),
+                );
+                DeviceCommand::SetOutput(Some(name))
+            }
+        };
         // A `Reopen` says the current stream is already dead (its device went
         // away, or the route moved under it). Retiring it *first* both frees the
         // old device and stops a corpse from holding the queue; a user-initiated
@@ -379,20 +523,27 @@ fn run_audio_thread(
                 drop(current);
                 stream = next;
                 if let Err(e) = stream.play() {
-                    eprintln!("[cymbra-audio] new output would not start: {e}");
+                    platform_log::log_line(
+                        "cymbra-audio",
+                        &format!("new output would not start: {e}"),
+                    );
                 }
             }
             Err(e) => {
-                eprintln!("[cymbra-audio] output change refused, keeping current: {e}");
+                platform_log::log_line(
+                    "cymbra-audio",
+                    &format!("output change refused, keeping current: {e}"),
+                );
                 match current {
                     // The previous stream is still live: keep it, and keep
                     // reporting it as the active output.
                     Some(previous) => stream = previous,
                     // Nothing left to fall back to. Retry on the host's default
-                    // so a lost device does not end the session in silence.
+                    // so a lost device does not end the session in silence — but
+                    // the request STANDS: the user chose that device, and the
+                    // replug watcher above re-adopts it the moment it is back.
                     None => {
                         stream = open_output(&host, None, &sound_font, events.clone())?;
-                        requested = None;
                         stream.play()?;
                     }
                 }
@@ -432,6 +583,7 @@ fn describe_outputs(host: &cpal::Host) -> Vec<(String, AudioRouteKind)> {
 /// Resolves `requested` against what the host offers, opens that device and
 /// builds a (not yet started) synth stream on it, publishing the device actually
 /// opened in [`ACTIVE_OUTPUT`].
+#[cfg_attr(target_os = "android", allow(dead_code))] // cpal path: unused on Android
 fn open_output(
     host: &cpal::Host,
     requested: Option<&str>,
@@ -476,16 +628,30 @@ fn open_output(
         other => Err(anyhow!("unsupported sample format: {other:?}")),
     }?;
 
-    *ACTIVE_OUTPUT.lock().unwrap() = device.description().ok().map(|d| AudioOutputInfo {
+    let active = device.description().ok().map(|d| AudioOutputInfo {
         name: d.name().to_string(),
         kind: route_kind_of(d.interface_type(), d.device_type()),
     });
+    STREAM_SAMPLE_RATE.store(config.sample_rate, Ordering::Relaxed);
+    platform_log::log_line(
+        "cymbra-audio",
+        &format!(
+            "opened {:?} ({:?}) — {} Hz, {} ch, {sample_format:?}, buffer {:?}",
+            active.as_ref().map(|a| a.name.as_str()).unwrap_or("?"),
+            active.as_ref().map(|a| a.kind),
+            config.sample_rate,
+            config.channels,
+            config.buffer_size,
+        ),
+    );
+    *ACTIVE_OUTPUT.lock().unwrap() = active;
     Ok(stream)
 }
 
 /// Builds a `cpal` output stream whose callback drains control events into the
 /// synthesizer and renders the next block of audio. The stream is returned
 /// **stopped** so the caller can retire the previous one first.
+#[cfg_attr(target_os = "android", allow(dead_code))] // cpal path: unused on Android
 fn build_stream<T>(
     device: &cpal::Device,
     config: &cpal::StreamConfig,
@@ -495,108 +661,22 @@ fn build_stream<T>(
 where
     T: SizedSample + FromSample<f32>,
 {
-    let sample_rate = config.sample_rate as i32;
     let channels = (config.channels as usize).max(1);
-
-    let settings = SynthesizerSettings::new(sample_rate);
-    let mut synth =
-        Synthesizer::new(sound_font, &settings).map_err(|e| anyhow!("synth init: {e}"))?;
-    let mut tracker = VoiceTracker::new();
-    // The currently sounding metronome click, if any. A click is a short one-shot
-    // mixed in on top of the synth; a new click event simply replaces it.
-    let mut click: Option<ClickVoice> = None;
-    // The currently looping preview clip, if any (change:
-    // add-soundfont-entitlement-previews). Mixed in like the click, but looping until
-    // an explicit stop.
-    let mut clip: Option<ClipVoice> = None;
-    // Reused scratch buffers so the callback never allocates on the steady path.
-    let mut left: Vec<f32> = Vec::new();
-    let mut right: Vec<f32> = Vec::new();
+    let mut renderer = Renderer::new(sound_font, config.sample_rate as i32)?;
 
     let stream = device.build_output_stream(
         *config,
         move |output: &mut [T], _: &cpal::OutputCallbackInfo| {
-            // Apply every queued command in FIFO order. The queue outlives any
-            // one stream (a device change rebuilds around it), so it is reached
-            // through a mutex — uncontended, because only this callback locks it.
-            if let Ok(rx) = events.try_lock() {
-                while let Ok(cmd) = rx.try_recv() {
-                    match cmd {
-                        AudioCommand::Control(ev) => match ev {
-                            AudioEvent::NoteOn { pitch, velocity } => {
-                                tracker.apply(ev);
-                                synth.note_on(PIANO_CHANNEL, pitch as i32, velocity as i32);
-                            }
-                            AudioEvent::NoteOff { .. } => {
-                                for pitch in tracker.apply(ev) {
-                                    synth.note_off(PIANO_CHANNEL, pitch as i32);
-                                }
-                            }
-                            AudioEvent::AllOff => {
-                                tracker.apply(ev);
-                                synth.note_off_all(true);
-                            }
-                            AudioEvent::Click { accent } => {
-                                click = Some(ClickVoice::new(accent, sample_rate as f32));
-                            }
-                        },
-                        // Runtime SoundFont swap: silence every voice across the swap
-                        // (the tracker mirror and the outgoing synth), then install a
-                        // synth built from the new instrument. If the build fails, keep
-                        // the current one so audio never drops out.
-                        AudioCommand::ReplaceSynth(new_sound_font) => {
-                            tracker.clear_for_swap();
-                            synth.note_off_all(true);
-                            let settings = SynthesizerSettings::new(sample_rate);
-                            match Synthesizer::new(&new_sound_font, &settings) {
-                                Ok(next) => synth = next,
-                                Err(e) => eprintln!(
-                                    "[cymbra-audio] swap synth build failed, keeping current: {e}"
-                                ),
-                            }
-                        }
-                        AudioCommand::PlayClip {
-                            pcm,
-                            sample_rate: clip_rate,
-                        } => {
-                            clip = Some(ClipVoice::new(pcm, clip_rate, sample_rate as f32));
-                        }
-                        AudioCommand::StopClip => clip = None,
-                    }
-                }
+            // The queue outlives any one stream (a device change rebuilds around
+            // it), so it is reached through a mutex — uncontended, because only
+            // this callback locks it.
+            if let Ok(queue) = events.try_lock() {
+                renderer.drain(&queue);
             }
 
             let frames = output.len() / channels;
-            if left.len() < frames {
-                left.resize(frames, 0.0);
-                right.resize(frames, 0.0);
-            }
-            let l = &mut left[..frames];
-            let r = &mut right[..frames];
-            synth.render(l, r);
-
-            // Mix the metronome click on top of the synth render. It is the same
-            // mono signal in both channels and decays on its own; drop it once
-            // finished so the steady path does nothing.
-            if let Some(voice) = click.as_mut() {
-                for i in 0..frames {
-                    let s = voice.next_sample();
-                    l[i] += s;
-                    r[i] += s;
-                }
-                if !voice.is_active() {
-                    click = None;
-                }
-            }
-
-            // Mix the looping preview clip (same mono signal in both channels).
-            if let Some(voice) = clip.as_mut() {
-                for i in 0..frames {
-                    let s = voice.next_sample();
-                    l[i] += s;
-                    r[i] += s;
-                }
-            }
+            RENDERED_FRAMES.fetch_add(frames as u64, Ordering::Relaxed);
+            let (l, r) = renderer.render(frames);
 
             // Interleave the stereo render into the device's frame layout. Mono
             // devices get the left channel; >2 channels mirror L/R.
@@ -608,7 +688,10 @@ where
             }
         },
         |e| {
-            eprintln!("[cymbra-audio] stream error: {e}");
+            platform_log::log_line(
+                "cymbra-audio",
+                &format!("stream error ({:?}): {e}", e.kind()),
+            );
             // The device in use vanished (unplugged, or its config was
             // invalidated): ask the audio thread to re-resolve, which falls back
             // to the system default instead of leaving the app silent. Every

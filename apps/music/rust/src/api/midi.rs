@@ -31,7 +31,8 @@ use flutter_rust_bridge::frb;
 use midir::{Ignore, MidiInput, MidiInputConnection};
 
 use super::midi_core::{
-    DuplicateGuard, MidiStreamParser, is_virtual_port, parse_midi, sort_ports_virtual_last,
+    DuplicateGuard, MidiStreamParser, is_virtual_port, parse_midi, resolves_to_connected,
+    sort_ports_virtual_last, stable_port_key,
 };
 use crate::frb_generated::StreamSink;
 
@@ -60,8 +61,13 @@ static CONNECTED_PORT: Mutex<Option<String>> = Mutex::new(None);
 static SELECTED_PORT: Mutex<Option<String>> = Mutex::new(None);
 // Last logged port list (so we only log changes).
 static LAST_LOGGED_PORTS: Mutex<Vec<String>> = Mutex::new(Vec::new());
+// The ports the watcher last saw, served to Flutter instead of re-enumerating.
+static KNOWN_PORTS: Mutex<Vec<String>> = Mutex::new(Vec::new());
 // Prevents launching multiple watcher threads.
 static WATCHER_RUNNING: AtomicBool = AtomicBool::new(false);
+// Ends the watcher's back-off nap early, so an explicit port change reconnects
+// now instead of after the current (up to 5 s) sleep.
+static WATCHER_WAKE: AtomicBool = AtomicBool::new(false);
 // The current Flutter sink. Replaced on every `midi_event_stream` call so that
 // re-subscription (screen re-entry, hot-plug after launch) routes events to the
 // live listener instead of the first, now-dead, sink. Read by the input
@@ -72,7 +78,15 @@ static SINK: Mutex<Option<Arc<StreamSink<MidiEvent>>>> = Mutex::new(None);
 /// Virtual ports ("Midi Through", rtpmidi…) are placed last.
 #[frb(sync)]
 pub fn list_midi_ports() -> Result<Vec<String>> {
-    let mut names = current_port_names();
+    // Served from the watcher's cache, never by re-enumerating.
+    //
+    // Flutter polls this once a second for the connection indicator. Asking the
+    // platform every time means recreating a `MidiInput` and querying
+    // `MidiManager` twice a second forever — which on a composite USB instrument
+    // (MIDI and audio on one device) is enough to knock the whole device off the
+    // bus, audio included. The watcher already refreshes this list; reading its
+    // copy costs nothing.
+    let mut names = KNOWN_PORTS.lock().unwrap().clone();
     sort_ports_virtual_last(&mut names);
     Ok(names)
 }
@@ -88,11 +102,49 @@ pub fn connected_port() -> Option<String> {
 /// (first non-virtual port). Forces an immediate reconnection to the new port.
 #[frb(sync)]
 pub fn set_midi_port(name: Option<String>) {
+    let connected = CONNECTED_PORT.lock().unwrap().clone();
+    // Already listening to what is being asked for? Then do **nothing**.
+    //
+    // Tearing the connection down and letting the watcher rebuild it is not free
+    // on Android: the platform's own USB MIDI driver counts a port that our
+    // dropped connection does not actually release, so every needless churn
+    // leaks one. After one or two, that driver dies ("Unexpected response") and
+    // takes the **whole composite USB device** down with it — the piano's audio
+    // interfaces included, which is why the sound vanished a few seconds after
+    // touching this setting. Choosing the device already in use, or "auto" when
+    // auto already resolves to it, must therefore cost nothing.
+    if resolves_to_connected(name.as_deref(), connected.as_deref()) {
+        *SELECTED_PORT.lock().unwrap() = name;
+        super::platform_log::log_line(
+            "cymbra-midi",
+            "selection already connected — keeping the port open",
+        );
+        return;
+    }
+
+    super::platform_log::log_line(
+        "cymbra-midi",
+        &format!(
+            "select port {name:?} (open connections: {})",
+            open_connections()
+        ),
+    );
     *SELECTED_PORT.lock().unwrap() = name;
-    // Release the current connection: the watcher thread will reconnect
-    // to the desired port on the next pass (~700 ms).
+    // Release the current connection and wake the watcher, which reconnects to
+    // the desired port on its next pass — now, not after its back-off nap.
     CONNECTIONS.lock().unwrap().clear();
     *CONNECTED_PORT.lock().unwrap() = None;
+    WATCHER_WAKE.store(true, Ordering::SeqCst);
+}
+
+/// How many MIDI input connections the engine is holding open.
+///
+/// The number that matters on Android: each open port is counted by the
+/// platform's own USB MIDI driver, and once too many accumulate it fails with
+/// "Cannot queue request" and drops the **whole composite USB device** — audio
+/// interfaces included. So this must never climb.
+fn open_connections() -> usize {
+    CONNECTIONS.lock().unwrap().len()
 }
 
 /// Starts MIDI watching and streams NoteOn/NoteOff into `sink`.
@@ -112,39 +164,95 @@ pub fn midi_event_stream(sink: StreamSink<MidiEvent>) -> Result<()> {
 
     let start = Instant::now();
 
-    eprintln!("[cymbra-midi] watcher started");
+    // Prime the served port list before the watcher's first pass: both Dart
+    // consumers list the ports synchronously right after subscribing, and an
+    // empty cache there reads as "no device" until something refreshes it. One
+    // enumeration, once per process — not the twice-a-second polling this cache
+    // exists to end.
+    *KNOWN_PORTS.lock().unwrap() = current_port_names();
+
+    super::platform_log::log_line("cymbra-midi", "watcher started");
     thread::spawn(move || {
         loop {
             let ports = current_port_names();
+            *KNOWN_PORTS.lock().unwrap() = ports.clone();
 
             // Log only when the port list changes.
             {
                 let mut last = LAST_LOGGED_PORTS.lock().unwrap();
                 if *last != ports {
-                    eprintln!("[cymbra-midi] detected ports = {ports:?}");
+                    super::platform_log::log_line(
+                        "cymbra-midi",
+                        &format!("detected ports = {ports:?}"),
+                    );
                     *last = ports.clone();
                 }
             }
 
             let connected = CONNECTED_PORT.lock().unwrap().clone();
 
+            let selected = SELECTED_PORT.lock().unwrap().clone();
+
             match connected {
                 // Connected: check that the port is still there.
                 Some(name) if !ports.contains(&name) => {
                     CONNECTIONS.lock().unwrap().clear();
                     *CONNECTED_PORT.lock().unwrap() = None;
-                    eprintln!("[cymbra-midi] Unplugged: {name}");
+                    super::platform_log::log_line("cymbra-midi", &format!("Unplugged: {name}"));
+                }
+                // Connected to a port an *explicit* selection no longer resolves
+                // to: an in-flight try_connect can land after `set_midi_port`
+                // cleared the connection, re-installing the old port. Release it
+                // here so the next pass honors the selection instead of keeping
+                // the stale connection until unplug. Auto (None) is exempt — it
+                // accepts any real port, and releasing a virtual-only connection
+                // under auto would churn connect/release forever.
+                Some(name)
+                    if selected.is_some()
+                        && !resolves_to_connected(selected.as_deref(), Some(name.as_str())) =>
+                {
+                    CONNECTIONS.lock().unwrap().clear();
+                    *CONNECTED_PORT.lock().unwrap() = None;
+                    super::platform_log::log_line(
+                        "cymbra-midi",
+                        &format!("releasing {name}: selection changed to {selected:?}"),
+                    );
                 }
                 // Not connected: try to connect to the first port.
                 None => {
                     if let Err(e) = try_connect(start) {
-                        eprintln!("[cymbra-midi] Connection failed: {e}");
+                        super::platform_log::log_line(
+                            "cymbra-midi",
+                            &format!("Connection failed: {e}"),
+                        );
                     }
                 }
                 _ => {}
             }
 
-            thread::sleep(Duration::from_millis(700));
+            // Hunt quickly for a device while there is none — hot-plug should feel
+            // immediate — then back right off once connected. Enumerating a
+            // composite USB instrument twice a second for the whole session is
+            // what the working bench never does, and what appears to bring the
+            // device down.
+            //
+            // The back-off sleep is sliced so an explicit port change does not
+            // wait out a 5 s nap before reconnecting: `set_midi_port` raises
+            // [`WATCHER_WAKE`] and the next slice ends the pass early. Checking a
+            // flag every 250 ms enumerates nothing, so the churn budget holds.
+            let idle = CONNECTED_PORT.lock().unwrap().is_none();
+            let nap = if idle {
+                Duration::from_millis(700)
+            } else {
+                Duration::from_secs(5)
+            };
+            let slice = Duration::from_millis(250);
+            let mut slept = Duration::ZERO;
+            while slept < nap && !WATCHER_WAKE.swap(false, Ordering::SeqCst) {
+                let step = slice.min(nap - slept);
+                thread::sleep(step);
+                slept += step;
+            }
         }
     });
 
@@ -182,9 +290,14 @@ fn try_connect(start: Instant) -> Result<()> {
     let desired = SELECTED_PORT.lock().unwrap().clone();
     let port = match &desired {
         // Explicitly chosen port: we find it by name.
-        Some(name) => ports
-            .iter()
-            .find(|p| midi_in.port_name(p).as_deref().ok() == Some(name.as_str())),
+        // Matched on the stable key, so a device that came back under a new
+        // instance number is still recognised as the one that was chosen.
+        Some(name) => ports.iter().find(|p| {
+            midi_in
+                .port_name(p)
+                .ok()
+                .is_some_and(|n| stable_port_key(&n) == stable_port_key(name))
+        }),
         // Auto mode: we ignore virtual "Through" ports (ALSA Midi Through,
         // etc.) and take the first real device; otherwise the first port.
         None => ports
@@ -233,7 +346,11 @@ fn try_connect(start: Instant) -> Result<()> {
         .map_err(|e| anyhow::anyhow!("could not connect to MIDI port: {e}"))?;
 
     CONNECTIONS.lock().unwrap().push(conn);
+    super::platform_log::log_line(
+        "cymbra-midi",
+        &format!("connected (open connections: {})", open_connections()),
+    );
     *CONNECTED_PORT.lock().unwrap() = Some(name.clone());
-    eprintln!("[cymbra-midi] Connected: {name}");
+    super::platform_log::log_line("cymbra-midi", &format!("Connected: {name}"));
     Ok(())
 }

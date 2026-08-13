@@ -37,18 +37,11 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
-            <!-- USB device-attach: when a class-compliant USB MIDI device is
-                 plugged in, Android matches @xml/device_filter and offers to open
-                 Cymbra. Because MainActivity is singleTop, an already-running app
-                 receives the attach via onNewIntent (no new task) — on several OEM
-                 devices this handshake is what powers/enumerates the device so the
-                 AMidi backend can see it. -->
-            <intent-filter>
-                <action android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED"/>
-            </intent-filter>
-            <meta-data
-                android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED"
-                android:resource="@xml/device_filter" />
+            <!-- EXPERIMENT (temporary): the USB device-attach filter is removed.
+                 Claiming the device grants raw USB access, which can detach the
+                 kernel drivers of its other interfaces — on a composite
+                 instrument that means the USB *audio* function dies. MIDI through
+                 `MidiManager`/AMidi does not need this permission. -->
         </activity>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->

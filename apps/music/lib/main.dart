@@ -26,6 +26,7 @@ import 'services/flags_integration.dart';
 import 'services/license_notices.dart';
 import 'src/rust/frb_generated.dart';
 import 'state/app_locale.dart';
+import 'state/audio_routing.dart';
 import 'widgets/post_play_rating.dart';
 import 'state/foreground_notification_listener.dart';
 import 'state/language_sync_listener.dart';
@@ -73,6 +74,12 @@ Future<void> main() async {
   // kicks off its persisted-selection restore at launch, so the choice survives
   // relaunches without waiting for the settings drawer to be opened.
   container.read(selectedPianoProvider);
+
+  // Same for the chosen sound output (change: add-audio-output-routing): the
+  // routing notifier's restore re-applies the remembered device, so the first
+  // sound of the session already goes where the user sent it — not only once
+  // the sound-output section has been opened.
+  container.read(audioRoutingProvider);
 
   // Fetch the caller's effective feature flags on launch (identity-scoped,
   // flicker-free from the persisted cache); the observer refreshes on resume.

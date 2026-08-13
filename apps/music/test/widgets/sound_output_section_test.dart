@@ -64,10 +64,12 @@ void main() {
     required AudioRoute? active,
     List<AudioRoute> outputs = const [],
     String? connectedMidi = 'Piano',
+    bool usbExperimental = false,
   }) async {
     await disposeLive(tester);
     service = MockAudioRoutingService();
     when(service.supportsDeviceSelection).thenReturn(canSelectDevice);
+    when(service.marksUsbExperimental).thenReturn(usbExperimental);
     when(
       service.routeChanges(),
     ).thenAnswer((_) => const Stream<AudioRoute?>.empty());
@@ -117,7 +119,38 @@ void main() {
 
     expect(find.byKey(const Key('sound-output-device')), findsOneWidget);
     expect(find.byKey(const Key('sound-output-route')), findsNothing);
+    // The control shows the user's *choice* (none yet — "System default"), with
+    // the device actually in use stated underneath; the devices themselves are
+    // offered once the control is opened.
+    expect(find.text('System default'), findsWidgets);
+    expect(
+      find.text('Currently playing through Built-in Output.'),
+      findsOneWidget,
+    );
+    await tester.tap(find.byKey(const Key('sound-output-device')));
+    await tester.pumpAndSettle();
     expect(find.text('Built-in Output'), findsWidgets);
+    expect(find.text('Scarlett 2i2'), findsWidgets);
+    await teardown(tester);
+  });
+
+  testWidgets('labels USB outputs experimental where the platform says so', (
+    tester,
+  ) async {
+    // Android: USB stays selectable, but as an informed opt-in — the platform's
+    // USB-audio path is unreliable below the app, and the label must say so.
+    await pumpSection(
+      tester,
+      canSelectDevice: true,
+      active: builtin,
+      outputs: const [builtin, iface],
+      usbExperimental: true,
+    );
+
+    await tester.tap(find.byKey(const Key('sound-output-device')));
+    await tester.pumpAndSettle();
+    expect(find.text('Scarlett 2i2 (experimental)'), findsWidgets);
+    expect(find.text('Built-in Output'), findsWidgets); // non-USB: plain label
     await teardown(tester);
   });
 

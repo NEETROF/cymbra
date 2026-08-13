@@ -20,6 +20,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../l10n/gen/app_localizations.dart';
 import '../layout/device_class.dart';
 import '../services/platform_info.dart';
+import '../state/audio_routing.dart';
 import '../state/coaching_notifier.dart';
 import '../state/notation_notifier.dart';
 import '../state/note_label.dart';
@@ -148,11 +149,22 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
   void initState() {
     super.initState();
     _coaching = ref.read(coachingProvider.notifier);
+    // Re-read the platform's outputs each time the modal opens: desktop has no
+    // route-change events, so without this the sound-output list would stay a
+    // snapshot from app launch — a piano plugged in since would never appear.
+    // Fire-and-forget; the section re-renders when the fresh state lands.
+    unawaited(ref.read(audioRoutingProvider.notifier).refresh());
     final data = ref.read(playerProvider);
     _hands = data.selectedHands;
     _speed = data.speed;
     _metronome = data.metronomeEnabled;
-    _port = data.connectedDevice;
+    // The user's *choice*, not the device that happens to be connected. Seeding
+    // this from `connectedDevice` made the control unusable: "auto" was
+    // re-displayed as the connected port on every open, so a choice never
+    // appeared to stick — and Apply then always saw a change and re-selected the
+    // port, which on Android leaks a MIDI port and eventually drops the whole USB
+    // device (audio included).
+    _port = ref.read(playerPreferencesProvider).midiPort;
     _soundId = ref.read(selectedPianoProvider);
     _range = data.keyboardRange;
     _keyboardVisible = data.keyboardVisible;
@@ -215,7 +227,13 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
     if (_hands != current.selectedHands) notifier.setSelectedHands(_hands);
     if (_speed != current.speed) notifier.setSpeed(_speed);
     if (_metronome != current.metronomeEnabled) notifier.toggleMetronome();
-    if (_port != current.connectedDevice) notifier.selectMidiPort(_port);
+    // Compared against the stored *preference*, so applying without touching the
+    // control re-selects nothing. Comparing against the connected device instead
+    // meant "auto" always looked like a change, re-opening the MIDI port on every
+    // Apply — which is what eventually took the USB audio down with it.
+    if (_port != ref.read(playerPreferencesProvider).midiPort) {
+      notifier.selectMidiPort(_port);
+    }
     if (_range != current.keyboardRange) notifier.setKeyboardRange(_range);
     if (_keyboardVisible != current.keyboardVisible) {
       notifier.setKeyboardVisible(_keyboardVisible);

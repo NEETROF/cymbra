@@ -83,7 +83,13 @@ class AudioRoute {
 /// Production audio-routing provider. Override in tests with a mock so device
 /// lists, active routes, route kinds and selection failures can be driven
 /// deterministically, with no audio hardware and no native library.
-@riverpod
+///
+/// **keepAlive**: the mobile services own the `audio_routing` method-channel
+/// handler and the route-change stream for the whole process. Auto-disposing
+/// this (it is only ever `ref.read`, never watched) unregistered that handler
+/// moments after boot, so every `routeChanged` the platform pushed was silently
+/// dropped and a replugged device could never be re-pinned.
+@Riverpod(keepAlive: true)
 AudioRoutingService audioRoutingService(Ref ref) {
   final service = _resolveRoutingService();
   ref.onDispose(service.dispose);
@@ -92,9 +98,13 @@ AudioRoutingService audioRoutingService(Ref ref) {
 
 AudioRoutingService _resolveRoutingService() {
   if (kIsWeb) return const UnavailableAudioRoutingService();
-  if (Platform.isIOS || Platform.isAndroid) {
-    return PlatformAudioRoutingService();
-  }
+  // iOS genuinely cannot choose: `AVAudioSession` owns the route, and the app
+  // may only report it and offer the system picker.
+  if (Platform.isIOS) return PlatformAudioRoutingService();
+  // Android can — for its **own** output. The engine enumerates the platform's
+  // devices and opens a chosen one, so the app gets a real device picker even
+  // though it still cannot move the *system* route.
+  if (Platform.isAndroid) return AndroidAudioRoutingService();
   return const EngineAudioRoutingService();
 }
 
@@ -125,6 +135,13 @@ abstract class AudioRoutingService {
   /// reporting the system's route and offering its picker (mobile).
   bool get supportsDeviceSelection;
 
+  /// Whether USB outputs on this platform are an experimental choice the UI
+  /// must label as such. True only on Android, where the platform's USB-audio
+  /// path proved broken below the app on every device tested (random clock on
+  /// one, all-app crackle on another) — selectable, but with eyes open. The
+  /// engine never *defaults* onto USB there regardless of this flag.
+  bool get marksUsbExperimental => false;
+
   /// Routes reported by the platform after the user changes them. Never emits
   /// where the platform has no notification to give.
   Stream<AudioRoute?> routeChanges();
@@ -144,6 +161,9 @@ class EngineAudioRoutingService implements AudioRoutingService {
 
   @override
   bool get supportsDeviceSelection => true;
+
+  @override
+  bool get marksUsbExperimental => false;
 
   @override
   Future<List<AudioRoute>> listOutputs() async {
@@ -214,6 +234,9 @@ class PlatformAudioRoutingService implements AudioRoutingService {
   @override
   bool get supportsDeviceSelection => false;
 
+  @override
+  bool get marksUsbExperimental => false;
+
   /// The system owns the route: there is no per-device list to offer, and
   /// showing one the app cannot honor would be a lie.
   @override
@@ -266,6 +289,127 @@ class PlatformAudioRoutingService implements AudioRoutingService {
   }
 }
 
+/// Android wiring: the **platform** both lists the outputs and plays.
+///
+/// On Android the engine does not own the stream — `EngineOutput.kt` does, pulling
+/// rendered samples from Rust (see the engine's `android_output` module for why:
+/// `cpal`'s AAudio path there cannot enumerate the platform's outputs and does not
+/// deliver usable audio to a USB-audio instrument). So everything about *where*
+/// the sound goes is asked of the platform, which is also the only side that can
+/// name the devices.
+class AndroidAudioRoutingService implements AudioRoutingService {
+  AndroidAudioRoutingService({MethodChannel? channel})
+    : _channel =
+          channel ??
+          const MethodChannel(PlatformAudioRoutingService.channelName) {
+    _channel.setMethodCallHandler(_onPlatformCall);
+  }
+
+  final MethodChannel _channel;
+  final StreamController<AudioRoute?> _routes =
+      StreamController<AudioRoute?>.broadcast();
+
+  /// Outputs by name, so a choice can be resolved to the id the platform needs.
+  /// Ids change when a device is replugged; names do not, so the name is what is
+  /// persisted and the id is looked up fresh.
+  final Map<String, int> _idsByName = {};
+
+  @override
+  bool get supportsDeviceSelection => true;
+
+  @override
+  bool get marksUsbExperimental => true;
+
+  @override
+  Future<List<AudioRoute>> listOutputs() async {
+    try {
+      final raw = await _channel.invokeListMethod<Object?>('allOutputs');
+      final outputs = <AudioRoute>[];
+      _idsByName.clear();
+      for (final entry in raw ?? const <Object?>[]) {
+        if (entry is! Map) continue;
+        final map = entry.cast<String, dynamic>();
+        final route = _parse(map);
+        if (route == null) continue;
+        // One route per name: the selection travels by name, and a duplicate
+        // name breaks the picker (a dropdown cannot hold two items with one
+        // value). The platform already dedupes; this keeps the invariant even
+        // if it ever stops. First wins — the list arrives priority-sorted.
+        if (_idsByName.containsKey(route.name)) continue;
+        final id = int.tryParse(map['id'] as String? ?? '');
+        if (id != null) _idsByName[route.name] = id;
+        outputs.add(route);
+      }
+      return outputs;
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  @override
+  Future<void> selectOutput(String? name) async {
+    try {
+      if (name == null) {
+        await _channel.invokeMethod<bool>('selectOutput', {'deviceId': -1});
+        return;
+      }
+      // Resolve the name to a *fresh* id on every selection: ids die on replug
+      // while names survive, so a cached id may belong to a device that no
+      // longer exists — and pinning to a dead id degrades to the system default.
+      await listOutputs();
+      final id = _idsByName[name];
+      // Gone entirely: leave the working audio alone rather than sending -1,
+      // which would un-pin. The caller sees the mismatch via the active route.
+      if (id == null) return;
+      await _channel.invokeMethod<bool>('selectOutput', {'deviceId': id});
+    } catch (_) {}
+  }
+
+  /// The route the **platform** reports for media. The engine follows it unless a
+  /// device was pinned, in which case the pinned one is what plays.
+  @override
+  Future<AudioRoute?> activeRoute() async {
+    try {
+      final raw = await _channel.invokeMapMethod<String, dynamic>(
+        'activeRoute',
+      );
+      return _parse(raw);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Nothing to present: this platform exposes no per-app output picker, and the
+  /// settings intent lands on a screen that cannot choose one. The in-app list is
+  /// the picker.
+  @override
+  Future<void> presentRoutePicker() async {}
+
+  @override
+  Stream<AudioRoute?> routeChanges() => _routes.stream;
+
+  @override
+  void dispose() {
+    _channel.setMethodCallHandler(null);
+    unawaited(_routes.close());
+  }
+
+  Future<void> _onPlatformCall(MethodCall call) async {
+    if (call.method != 'routeChanged' || _routes.isClosed) return;
+    final raw = call.arguments;
+    _routes.add(raw is Map ? _parse(raw.cast<String, dynamic>()) : null);
+  }
+
+  static AudioRoute? _parse(Map<String, dynamic>? raw) {
+    final name = raw?['name'];
+    if (name is! String || name.isEmpty) return null;
+    return AudioRoute(
+      name: name,
+      kind: AudioRouteKind.parse(raw?['kind'] as String?),
+    );
+  }
+}
+
 /// Platforms with neither an engine device list nor a system route picker (the
 /// web build). Reports nothing and accepts nothing, so the settings section
 /// simply has no sound-output row to show.
@@ -274,6 +418,9 @@ class UnavailableAudioRoutingService implements AudioRoutingService {
 
   @override
   bool get supportsDeviceSelection => false;
+
+  @override
+  bool get marksUsbExperimental => false;
 
   @override
   Future<List<AudioRoute>> listOutputs() async => const [];

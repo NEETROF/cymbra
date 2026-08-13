@@ -131,6 +131,101 @@ void main() {
     );
   });
 
+  group('Android device selection', () {
+    /// A platform whose only USB output is [name] under [id] — ids change on
+    /// every replug, names do not.
+    Object? Function(MethodCall) platformWith({
+      required String name,
+      required int id,
+    }) =>
+        (call) => switch (call.method) {
+          'allOutputs' => [
+            {'id': '$id', 'name': name, 'kind': 'usb'},
+            {'id': '2', 'name': 'Speakers', 'kind': 'builtin'},
+          ],
+          _ => null,
+        };
+
+    test('lists the platform outputs with their kinds', () async {
+      respond = platformWith(name: 'P-145', id: 21);
+      final service = AndroidAudioRoutingService();
+      addTearDown(service.dispose);
+
+      final outputs = await service.listOutputs();
+
+      expect(outputs, const [
+        AudioRoute(name: 'P-145', kind: AudioRouteKind.usb),
+        AudioRoute(name: 'Speakers', kind: AudioRouteKind.builtin),
+      ]);
+      expect(service.supportsDeviceSelection, isTrue);
+    });
+
+    test('resolves a selection to a fresh id on every call', () async {
+      // Listed once under id 21, then replugged: the same name now lives under
+      // id 42. Pinning with the cached 21 would silently un-pin.
+      respond = platformWith(name: 'P-145', id: 21);
+      final service = AndroidAudioRoutingService();
+      addTearDown(service.dispose);
+      await service.listOutputs();
+      respond = platformWith(name: 'P-145', id: 42);
+
+      await service.selectOutput('P-145');
+
+      final select = calls.lastWhere((c) => c.method == 'selectOutput');
+      expect(select.arguments, {'deviceId': 42});
+    });
+
+    test('a selection whose device is gone leaves the audio alone', () async {
+      respond = platformWith(name: 'P-145', id: 21);
+      final service = AndroidAudioRoutingService();
+      addTearDown(service.dispose);
+      await service.listOutputs();
+      respond = platformWith(name: 'Other Piano', id: 9);
+
+      await service.selectOutput('P-145');
+
+      // No pin request at all: sending -1 would move the sound to the system
+      // default, which is not what the user asked for.
+      expect(calls.map((c) => c.method), isNot(contains('selectOutput')));
+    });
+
+    test('duplicate names collapse to one route', () async {
+      // A USB instrument can expose several outputs under one product name; a
+      // dropdown with two identical values throws, so the seam de-duplicates
+      // (first wins — the platform sends the list priority-sorted).
+      respond = (call) => switch (call.method) {
+        'allOutputs' => [
+          {'id': '21', 'name': 'P-145', 'kind': 'usb'},
+          {'id': '22', 'name': 'P-145', 'kind': 'usb'},
+          {'id': '2', 'name': 'Speakers', 'kind': 'builtin'},
+        ],
+        _ => null,
+      };
+      final service = AndroidAudioRoutingService();
+      addTearDown(service.dispose);
+
+      final outputs = await service.listOutputs();
+
+      expect(outputs, const [
+        AudioRoute(name: 'P-145', kind: AudioRouteKind.usb),
+        AudioRoute(name: 'Speakers', kind: AudioRouteKind.builtin),
+      ]);
+      await service.selectOutput('P-145');
+      final select = calls.lastWhere((c) => c.method == 'selectOutput');
+      expect(select.arguments, {'deviceId': 21});
+    });
+
+    test('selecting the system default sends -1', () async {
+      final service = AndroidAudioRoutingService();
+      addTearDown(service.dispose);
+
+      await service.selectOutput(null);
+
+      final select = calls.lastWhere((c) => c.method == 'selectOutput');
+      expect(select.arguments, {'deviceId': -1});
+    });
+  });
+
   group('unavailable platforms', () {
     test('report nothing and accept nothing', () async {
       const service = UnavailableAudioRoutingService();

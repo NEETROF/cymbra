@@ -191,6 +191,96 @@ void main() {
     expect(container.read(audioRoutingProvider).isWireless, isTrue);
   });
 
+  test('a route change refreshes the device list', () async {
+    const dongle = AudioRoute(
+      name: 'USB-C Dongle',
+      kind: AudioRouteKind.headphones,
+    );
+    final container = makeContainer();
+    container.listen(audioRoutingProvider, (_, _) {}, fireImmediately: true);
+    await settle();
+    expect(container.read(audioRoutingProvider).outputs, [builtin, iface]);
+    // A device was plugged in after startup: only the change event knows.
+    when(
+      service.listOutputs(),
+    ).thenAnswer((_) async => [builtin, iface, dongle]);
+
+    routeChanges.add(builtin);
+    await settle();
+
+    expect(container.read(audioRoutingProvider).outputs, [
+      builtin,
+      iface,
+      dongle,
+    ]);
+    verifyNever(service.selectOutput(any));
+  });
+
+  test(
+    'a route change re-applies the remembered device when it is present',
+    () async {
+      // The chosen device came back from a replug: it is in the list again, but
+      // under a new platform id, so the pin must be re-applied — silently, since
+      // nothing here is a user action to answer with a failure toast.
+      final container = makeContainer(remembered: 'Scarlett 2i2');
+      container.listen(
+        playerPreferencesProvider,
+        (_, _) {},
+        fireImmediately: true,
+      );
+      container.listen(audioRoutingProvider, (_, _) {}, fireImmediately: true);
+      await settle();
+      clearInteractions(service);
+
+      routeChanges.add(builtin);
+      await settle();
+
+      verify(service.selectOutput('Scarlett 2i2')).called(1);
+      expect(container.read(audioRoutingProvider).selectionFailed, isFalse);
+    },
+  );
+
+  test(
+    're-pins even when the event already names the remembered device',
+    () async {
+      // On Android an unpinned stream's reported route is a ranked guess that
+      // often *names* the remembered USB device while the sound actually
+      // follows the system default. Trusting the report would skip exactly the
+      // re-pin that is needed — so the re-pin must not consult it.
+      final container = makeContainer(remembered: 'Scarlett 2i2');
+      container.listen(
+        playerPreferencesProvider,
+        (_, _) {},
+        fireImmediately: true,
+      );
+      container.listen(audioRoutingProvider, (_, _) {}, fireImmediately: true);
+      await settle();
+      clearInteractions(service);
+
+      routeChanges.add(iface); // the event claims the remembered device
+      await settle();
+
+      verify(service.selectOutput('Scarlett 2i2')).called(1);
+    },
+  );
+
+  test('a route change never re-pins a device that is still absent', () async {
+    final container = makeContainer(remembered: 'Ghost Interface');
+    container.listen(
+      playerPreferencesProvider,
+      (_, _) {},
+      fireImmediately: true,
+    );
+    container.listen(audioRoutingProvider, (_, _) {}, fireImmediately: true);
+    await settle();
+    clearInteractions(service);
+
+    routeChanges.add(builtin);
+    await settle();
+
+    verifyNever(service.selectOutput(any));
+  });
+
   group('mobile', () {
     setUp(() {
       when(service.supportsDeviceSelection).thenReturn(false);
@@ -210,6 +300,32 @@ void main() {
       await container.read(audioRoutingProvider.notifier).selectOutput('X');
       verifyNever(service.selectOutput(any));
     });
+
+    test(
+      'a route change reports the new route and never selects a device',
+      () async {
+        // iOS: the OS owns the route. Even with a name persisted from another
+        // platform, a route event must only update the display.
+        final container = makeContainer(remembered: 'Scarlett 2i2');
+        container.listen(
+          playerPreferencesProvider,
+          (_, _) {},
+          fireImmediately: true,
+        );
+        container.listen(
+          audioRoutingProvider,
+          (_, _) {},
+          fireImmediately: true,
+        );
+        await settle();
+
+        routeChanges.add(builtin);
+        await settle();
+
+        expect(container.read(audioRoutingProvider).active, builtin);
+        verifyNever(service.selectOutput(any));
+      },
+    );
 
     test(
       'presenting the OS picker re-reads the route it left active',

@@ -29,6 +29,37 @@ pub(crate) fn is_virtual_port(name: &str) -> bool {
 }
 
 /// Stable-sorts port names so real devices come first and virtual ports last.
+/// Whether `requested` is already satisfied by the currently `connected` port.
+///
+/// Auto (`None`) is satisfied by any real (non-virtual) port, since auto's rule is
+/// "the first real device". An explicit name is matched on the **stable** part of
+/// the port name: Android re-enumerates a replugged device under a new instance
+/// number — `Digital Piano#529` comes back as `Digital Piano#211` — so comparing
+/// raw strings would treat the same instrument as a different device, and a
+/// remembered choice would never match again.
+pub(crate) fn resolves_to_connected(requested: Option<&str>, connected: Option<&str>) -> bool {
+    let Some(connected) = connected else {
+        return false;
+    };
+    match requested {
+        None => !is_virtual_port(connected),
+        Some(name) => stable_port_key(name) == stable_port_key(connected),
+    }
+}
+
+/// A port name with the platform's volatile instance number removed, so the same
+/// physical instrument keeps one identity across replugs.
+///
+/// Android names a USB MIDI port `"<product>#<instance> MIDI 1.0 …"`, where the
+/// instance changes every time the device re-enumerates. Everything up to that
+/// `#` is stable; the rest is not.
+pub(crate) fn stable_port_key(name: &str) -> &str {
+    match name.split_once('#') {
+        Some((stable, _)) => stable.trim_end(),
+        None => name.trim_end(),
+    }
+}
+
 pub(crate) fn sort_ports_virtual_last(names: &mut [String]) {
     // Stable sort: real devices (false) before virtual ones (true).
     names.sort_by_key(|n| is_virtual_port(n));
@@ -217,6 +248,56 @@ pub(crate) fn parse_midi(message: &[u8], timestamp_ms: u64) -> Option<MidiEvent>
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // --- Port identity across replugs (change: add-audio-output-routing) ------
+
+    #[test]
+    fn stable_key_drops_the_volatile_instance_number() {
+        // Android renames a replugged device: #529 comes back as #211.
+        assert_eq!(
+            stable_port_key("Yamaha Corporation Digital Piano#529 MIDI 1.0 -  (#0)"),
+            stable_port_key("Yamaha Corporation Digital Piano#211 MIDI 1.0 -  (#0)")
+        );
+        assert_eq!(
+            stable_port_key("Yamaha Corporation Digital Piano#529 MIDI 1.0"),
+            "Yamaha Corporation Digital Piano"
+        );
+    }
+
+    #[test]
+    fn stable_key_leaves_a_name_without_an_instance_alone() {
+        assert_eq!(stable_port_key("USB MIDI Interface"), "USB MIDI Interface");
+    }
+
+    #[test]
+    fn a_different_instrument_is_not_the_same_port() {
+        assert!(!resolves_to_connected(
+            Some("Roland FP-30#1 MIDI 1.0"),
+            Some("Yamaha Digital Piano#529 MIDI 1.0")
+        ));
+    }
+
+    /// The churn that leaked a port on Android and killed the USB audio with it:
+    /// selecting the device already in use must be recognised as a no-op.
+    #[test]
+    fn selecting_the_connected_device_is_already_satisfied() {
+        assert!(resolves_to_connected(
+            Some("Yamaha Digital Piano#211 MIDI 1.0"),
+            Some("Yamaha Digital Piano#529 MIDI 1.0")
+        ));
+    }
+
+    #[test]
+    fn auto_is_satisfied_by_any_real_port_but_not_a_virtual_one() {
+        assert!(resolves_to_connected(None, Some("Yamaha Digital Piano#1")));
+        assert!(!resolves_to_connected(None, Some("Midi Through Port-0")));
+    }
+
+    #[test]
+    fn nothing_is_satisfied_while_disconnected() {
+        assert!(!resolves_to_connected(None, None));
+        assert!(!resolves_to_connected(Some("Yamaha"), None));
+    }
 
     #[test]
     fn note_on_is_parsed() {

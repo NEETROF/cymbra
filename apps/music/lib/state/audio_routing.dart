@@ -46,6 +46,10 @@ abstract class AudioRoutingState with _$AudioRoutingState {
     /// Set when the last requested device could not be opened: the previously
     /// working audio kept running and the user is told, once.
     @Default(false) bool selectionFailed,
+
+    /// Whether USB outputs must be labelled as an experimental choice (Android,
+    /// where the platform's USB-audio path proved unreliable below the app).
+    @Default(false) bool usbExperimental,
   }) = _AudioRoutingState;
 
   const AudioRoutingState._();
@@ -79,12 +83,18 @@ class AudioRouting extends _$AudioRouting {
   Future<void> _restore() async {
     // The engine publishes its command channel as part of starting up, so an
     // output remembered from the last session can only be applied once audio
-    // init has been asked for. It is idempotent.
+    // init has completed — `init()` returns the in-flight future, so awaiting
+    // it here is a real barrier even when someone else started it first.
     await ref.read(audioServiceProvider).init();
+    // The remembered device lives in the persisted preferences, which hydrate
+    // asynchronously behind synchronous defaults: reading them before that
+    // lands always sees null and silently skips the re-pin.
+    await ref.read(playerPreferencesProvider.notifier).restored;
 
     final service = _service;
     final subscription = service.routeChanges().listen((route) {
       if (route != null) state = state.copyWith(active: route);
+      unawaited(_syncAfterRouteChange());
     }, onError: (Object _) {});
     ref.onDispose(subscription.cancel);
 
@@ -92,21 +102,54 @@ class AudioRouting extends _$AudioRouting {
     if (service.supportsDeviceSelection && remembered != null) {
       await service.selectOutput(remembered);
     }
+    // Awaited into locals first: `state = state.copyWith(x: await ...)`
+    // captures the receiver before the await, silently reverting anything
+    // written to `state` in the meantime.
+    final outputs = await service.listOutputs();
+    final active = await service.activeRoute();
     state = state.copyWith(
       canSelectDevice: service.supportsDeviceSelection,
-      outputs: await service.listOutputs(),
-      active: await service.activeRoute(),
+      usbExperimental: service.marksUsbExperimental,
+      outputs: outputs,
+      active: active,
     );
+  }
+
+  /// Keeps the section honest after the platform's device set changes: the
+  /// picker's list is re-read, and the remembered device is re-applied when it
+  /// is (back) among the outputs.
+  ///
+  /// The re-pin is **silent** — no [AudioRoutingState.selectionFailed], because
+  /// nothing here is a user action to answer. It exists for the replug case: on
+  /// Android a device that comes back does so under a **new id**, so a pin made
+  /// before the unplug can never re-attach by itself (the MIDI side solves the
+  /// same problem with its stable port key). The reported active route is not
+  /// consulted first: when unpinned it is a ranked guess that often *names* the
+  /// remembered device while the stream actually follows the system default, so
+  /// trusting it would skip exactly the re-pin that is needed.
+  Future<void> _syncAfterRouteChange() async {
+    final service = _service;
+    final outputs = await service.listOutputs();
+    state = state.copyWith(outputs: outputs);
+    final remembered = ref.read(playerPreferencesProvider).audioOutput;
+    if (!service.supportsDeviceSelection || remembered == null) return;
+    if (!outputs.any((o) => o.name == remembered)) return;
+    await service.selectOutput(remembered);
+    final active = await service.activeRoute();
+    state = state.copyWith(active: active);
   }
 
   /// Re-reads the platform's outputs and active route — after the OS picker is
   /// dismissed, or when the section is opened.
   Future<void> refresh() async {
     final service = _service;
+    final outputs = await service.listOutputs();
+    final active = await service.activeRoute();
     state = state.copyWith(
       canSelectDevice: service.supportsDeviceSelection,
-      outputs: await service.listOutputs(),
-      active: await service.activeRoute(),
+      usbExperimental: service.marksUsbExperimental,
+      outputs: outputs,
+      active: active,
     );
   }
 
@@ -118,8 +161,11 @@ class AudioRouting extends _$AudioRouting {
     final service = _service;
     if (!service.supportsDeviceSelection) return;
     state = state.copyWith(selectionFailed: false);
-    await service.selectOutput(name);
+    // Remember the choice *before* applying it: a route-change sync landing
+    // mid-apply re-reads the preference, and must re-pin this choice — not the
+    // previous one over the top of it.
     ref.read(playerPreferencesProvider.notifier).setAudioOutput(name);
+    await service.selectOutput(name);
     final active = await _settledRoute(name);
     state = state.copyWith(
       active: active,

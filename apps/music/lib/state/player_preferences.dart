@@ -106,9 +106,21 @@ class PlayerPreferences extends _$PlayerPreferences {
   /// Preferences key under which the JSON-encoded [PlayerPrefs] lives.
   static const String prefsKey = 'player_prefs';
 
+  // A completion *signal*, not state — putting it in [PlayerPrefs] would force
+  // every copyWith site to thread it through for the benefit of one boot-time
+  // awaiter, hence the lint exemption.
+  // ignore: avoid_public_notifier_properties
+  /// Completes when the stored record has been read and applied (or found
+  /// absent/corrupt — defaults then stand). [build] seeds defaults synchronously
+  /// so the first frame never blocks, which means an early reader sees `null`
+  /// where storage holds a value; a caller acting on a persisted choice at
+  /// startup (the audio-routing restore) must await this first.
+  Future<void> get restored => _restored;
+  Future<void> _restored = Future.value();
+
   @override
   PlayerPrefs build() {
-    _restore();
+    _restored = _restore();
     return const PlayerPrefs();
   }
 

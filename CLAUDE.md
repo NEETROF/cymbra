@@ -93,7 +93,8 @@ code needs tests. CI fails under 80% and also reports to SonarCloud (decoration)
 - **Rust**: `cargo llvm-cov --workspace --fail-under-lines 80` (excludes the
   generated bridge, `lib.rs`, the hardware/thread glue in `api/midi.rs`, the
   thin MusicXML FFI seam in `api/musicxml.rs`, and the cpal/rustysynth audio glue
-  in `api/audio.rs`).
+  in `api/audio.rs`, `api/renderer.rs` and `api/platform_log.rs` (`api/android_output.rs`
+  is cfg-gated off the host build already).
   Keep pure, testable logic in host-testable modules like `api/midi_core.rs`,
   `api/musicxml_core.rs` and `api/audio_core.rs`. Trait dependencies are doubled
   with **mockall generated mocks by default** (hand fakes only for special cases —
@@ -106,7 +107,7 @@ code needs tests. CI fails under 80% and also reports to SonarCloud (decoration)
 
 Run locally before pushing:
 ```bash
-cargo llvm-cov --workspace --fail-under-lines 80 --ignore-filename-regex 'frb_generated|/lib\.rs|/midi\.rs|/musicxml\.rs|/audio\.rs'
+cargo llvm-cov --workspace --fail-under-lines 80 --ignore-filename-regex 'frb_generated|/lib\.rs|/midi\.rs|/musicxml\.rs|/audio\.rs|/renderer\.rs|/platform_log\.rs'
 cd apps/music && flutter test --coverage --exclude-tags golden   # then check lcov
 ```
 

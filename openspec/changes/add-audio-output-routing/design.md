@@ -237,6 +237,67 @@ listener widget near the section root.
   the `{name, kind}` shape is deliberately minimal, and `kind` is what the UI
   reasons about, so a platform reporting an unknown port type degrades to `other`
   rather than breaking the section.
+- **R8 — Android's AAudio does not reliably clock a USB-audio output**
+  (measured, not theorised). On a Galaxy Tab S6 Lite (Android 13) with a Yamaha
+  P-145 in USB-audio mode, the route is reported correctly, the stream is
+  attached to the USB output thread, no error is ever raised — and the callback
+  is pulled at the wrong rate: **+45%** of the stream's sample rate in one
+  session, **−16%** in the next, correct in a third. Over-pull makes what is
+  heard fall tens of seconds behind (indistinguishable from silence); under-pull
+  starves the output. On the built-in speaker the same engine is pulled at
+  *exactly* the stream rate, and another app (YouTube, which uses the Java
+  `AudioTrack` path rather than AAudio) plays through the same piano correctly —
+  so this is the platform's AAudio+USB path, not the engine.
+  - Neither lever available through `cpal` changes it: matching the device's
+    native 44.1 kHz, and bounding the AAudio buffer with
+    `BufferSize::Fixed`, both leave the mis-pacing untouched (the bounded buffer
+    additionally destabilised the app).
+  - **Mitigation: on Android the platform owns the stream.** The `AudioTrack`
+    path (the one YouTube uses) keeps perfect time on the same route — measured
+    +15 ms over 24 s, the producer held a constant ~120 ms ahead — and its
+    blocking `write` paces the producer, which is exactly what AAudio failed to
+    provide. So `EngineOutput.kt` runs an `AudioTrack` that **pulls** rendered
+    samples from the engine (`android_output.rs`), the inverse of the `cpal`
+    model used everywhere else. It also solves the picker: `AudioManager`
+    enumerates every output where `cpal`'s Android enumeration fails (its JNI
+    call receives no usable Context from our `JNI_OnLoad` and falls back to a
+    single placeholder device), and `setPreferredDevice` pins playback to the
+    user's choice.
+  - The drift monitor stays as the tripwire: the engine detects a sustained
+    mismatch between the rate it is pulled at and the stream's sample rate and
+    says so in the platform log — on the cpal path and the Android pull path
+    alike. The Kotlin writer carries two more: a clock watchdog (a route that
+    consumes off-clock without erroring — the Tab S6 Lite zombie — is rebuilt),
+    and a rate-snap correction (a sink clocking at the *other* standard rate,
+    measured 44.1 k consumed 1:1 on a 48 k clock, reopens the track and the
+    synth at the measured rate).
+  - **USB-audio out on Android is an experimental, informed opt-in** (settled
+    after on-device testing on two machines). The Tab S6 Lite's USB HAL clocks
+    the route at random per session (+87% measured on a fresh AudioTrack,
+    mirroring the +45%/−16% AAudio measurements), and a Galaxy A53 crackles
+    into the same piano from *every* app, YouTube included — both failures
+    live below anything an app can configure, while the app-side pipeline
+    measures clean (exact clock, zero client underruns, render 20× under
+    budget). The policy that is NOT negotiable is the default: the app never
+    *lands* on USB by itself — "system default" is policy-resolved to the best
+    non-USB output whenever the platform would route media to USB. USB devices
+    stay selectable but labelled "(experimental)" in the picker, and a USB
+    route that keeps killing tracks is abandoned by the reopen strike ladder
+    (same device → non-USB fallback → stop) rather than hammered — the rebuild
+    churn is what used to knock the composite instrument, MIDI included, off
+    the bus. The recommended Android setup remains instrument-sounds-itself:
+    the piano sounds itself over MIDI, the app plays on the device. iOS
+    (AVAudioSession/CoreAudio) and desktop keep full USB routing — they work.
+
+## Diagnosability note
+
+Engine lifecycle messages used `eprintln!`, which on Android reaches nothing: a
+process's stderr is not wired to logcat. The one subsystem that can only be
+diagnosed on a real device was therefore the one with no visibility, which is
+what made R8 take a full debugging session to pin down. Those messages now go
+through liblog on Android (plain stderr elsewhere), and the engine reports which
+device it opened, at what rate and buffer size, every stream error with its kind,
+and every reopen.
 
 ## Migration Plan
 

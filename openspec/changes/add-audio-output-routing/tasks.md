@@ -113,12 +113,15 @@
   -D warnings`
 - [ ] 8.3 Manual: with a digital piano over USB MIDI, enable the setting and
   confirm the flam disappears while the on-screen keyboard still sounds
-- [ ] 8.4 Manual (desktop): switch output to a piano in USB-audio mode / an
+- [x] 8.4 Manual (desktop): switch output to a piano in USB-audio mode / an
   interface and confirm notes, metronome and a SoundFont preview all follow
-- [ ] 8.5 Manual (desktop): unplug the selected device mid-session and confirm
+  (macOS + Yamaha P-145: selection, fallback on unplug and automatic
+  re-adoption on replug all verified on device)
+- [x] 8.5 Manual: unplug the selected device mid-session and confirm
   fallback to the default without silence or crash
-- [ ] 8.6 Manual (mobile): change route via the OS picker and confirm the
-  displayed route updates; check a Bluetooth route raises the warning
+- [x] 8.6 Manual (mobile): iOS (iPad + USB piano) routes via the system
+  picker; Android validated on Tab S6 Lite + Galaxy A53 — device speakers by
+  default, USB selectable as "(experimental)", MIDI stable while playing
 - [ ] 8.7 Manual: measure a Bluetooth route's delay, set the offset to it, and
   confirm the playhead visually matches what is heard
 - [x] 8.8 Restore the iOS/macOS project files if a macOS test run rewrote them

@@ -1,6 +1,5 @@
 {
   "@@locale": "fr",
-
   "nowPlaying": "Lecture en cours : {title}",
   "backToLibrary": "Retour à la bibliothèque",
   "settings": "Réglages",
@@ -176,7 +175,6 @@
   "levelBeginner": "Débutant",
   "levelIntermediate": "Intermédiaire",
   "levelAdvanced": "Avancé",
-
   "scoringTier": "{tier, select, 0{Continue} 1{Bien} 2{Super} 3{En feu} 4{Parfait} other{Super}}",
   "scoringCombo": "×{count}",
   "scoringGaugeLabel": "Synchronisation {percent}%",
@@ -200,24 +198,20 @@
   "replayMistimed": "Décalée",
   "replayShortSustain": "Tenue courte",
   "replayWrong": "Fausse note",
-
   "replayMeasure": "Mesure {n}",
   "replayNoMistakes": "Aucune erreur — bravo",
-
   "replayEarly": "En avance {ms} ms",
   "replayLate": "En retard {ms} ms",
   "replayReaction": "Réaction {ms} ms",
   "summaryAvgEarly": "{ms} ms en avance",
   "summaryAvgLate": "{ms} ms en retard",
   "summaryAvgReaction": "{ms} ms de réaction",
-
   "legalTerms": "Conditions d'utilisation",
   "legalPrivacy": "Politique de confidentialité",
   "legalLicenses": "Licences open source",
   "entryLegalPrefix": "En continuant, vous acceptez nos ",
   "entryLegalSeparator": " et notre ",
   "entryLegalSuffix": ".",
-
   "scoreHubTitle": "Hub de partitions",
   "scoreHubEntryTooltip": "Hub de partitions",
   "scoreHubContributeTooltip": "Contribuer une partition",
@@ -231,7 +225,6 @@
   "scoreHubRemoveFromLibrary": "Retirer de ma bibliothèque",
   "scoreHubLoadMore": "Charger plus",
   "librarySavedSection": "ENREGISTRÉES DEPUIS LE HUB",
-
   "scoreHubAdvancedFilters": "Filtres avancés",
   "scoreHubAny": "Tout",
   "scoreHubClearFilters": "Effacer",
@@ -287,7 +280,6 @@
   "libraryEmptyTitle": "Aucun favori pour l’instant",
   "libraryEmptyBody": "Enregistrez des partitions depuis le Hub ou importez les vôtres — elles apparaîtront ici.",
   "libraryEmptyAction": "Explorer le Hub",
-
   "uploadTitle": "Contribuer une partition",
   "uploadCloseTooltip": "Fermer",
   "uploadPreviousStepTooltip": "Étape précédente",
@@ -326,7 +318,6 @@
   "uploadKeyValue": "{count} altération(s)",
   "uploadFieldTimeSig": "Mesure",
   "uploadFieldMeasureCount": "Nombre de mesures",
-
   "ratingDeckTitle": "Noter les partitions",
   "ratingDeckEntryTooltip": "Noter les partitions",
   "ratingDeckEmptyTitle": "Tout est noté",
@@ -372,7 +363,6 @@
   "profileVisibilityError": "Impossible de mettre à jour la visibilité de votre profil. Veuillez réessayer.",
   "profileUnavailable": "Ce profil n'est pas disponible.",
   "profilePublicHint": "Ton profil est visible par les autres joueurs connectés.",
-
   "connectedAccountsTitle": "Comptes connectés",
   "connectedAccountsManage": "Comptes connectés",
   "connectedAccountsIntro": "Les méthodes de connexion liées à ton compte.",
@@ -411,7 +401,6 @@
   "leaderboardOpenFull": "Voir le classement",
   "leaderboardModeFree": "Jeu libre",
   "leaderboardModeWait": "Mode Attente",
-
   "curatorProfileTitle": "Curateur",
   "curatorEntryTooltip": "Profil de curateur",
   "curatorChipLabel": "Niv {level} · {points}",
@@ -449,9 +438,7 @@
   "curatorActivityRedeem": "Récompense échangée",
   "curatorActivitySourceConsensus": "par consensus de la communauté",
   "curatorActivitySourceModerator": "par un modérateur",
-
   "ratingPointsCue": "+{points} points de curateur",
-
   "rewardShopTitle": "Boutique de récompenses",
   "rewardShopLoadError": "Impossible de charger la boutique.",
   "rewardShopEmpty": "Aucune récompense disponible pour l’instant.",
@@ -462,18 +449,14 @@
   "rewardShopInsufficient": "Points insuffisants",
   "rewardShopRedeemError": "Impossible d’échanger cette récompense.",
   "rewardShopRedeemed": "{label} débloqué !",
-
   "rewardCelebrationClose": "Super !",
   "rewardCelebrationRedeemedTitle": "Récompense débloquée !",
   "rewardCelebrationLevelUpTitle": "Niveau supérieur !",
   "rewardCelebrationBadgeTitle": "Badge obtenu !",
-
   "soundfontsLocked": "Verrouillé",
   "soundfontsUnlock": "Débloquer",
-
   "onboardingLanguageTitle": "Choisissez votre langue",
   "onboardingLanguageContinue": "Continuer",
-
   "welcomeSkip": "Passer",
   "welcomeNext": "Suivant",
   "welcomeValueTitle": "Jouez du piano, la partition sous les yeux",
@@ -485,7 +468,6 @@
   "welcomeTryNow": "Essayer maintenant",
   "welcomeContinueWithoutAccount": "Continuer sans compte",
   "welcomeTryPickTitle": "Choisissez un morceau à essayer",
-
   "signInInviteTitle": "Connectez-vous pour aller plus loin",
   "signInInviteBenefitLibrary": "Connectez-vous pour enregistrer des partitions dans votre bibliothèque et les retrouver sur tous vos appareils.",
   "signInInviteBenefitPoints": "Connectez-vous pour noter des partitions et gagner des points.",
@@ -494,7 +476,6 @@
   "signInInviteBenefitProgress": "Connectez-vous pour conserver votre progression et constituer votre bibliothèque.",
   "signInInviteDecline": "Plus tard",
   "signInInviteAccept": "Se connecter",
-
   "coachNext": "Suivant",
   "coachSkip": "Passer",
   "coachDone": "C’est compris",
@@ -512,7 +493,6 @@
   "coachPlayerMidiBody": "C’est ici qu’apparaît votre clavier MIDI connecté. Laissez le mode automatique, ou choisissez vous-même l’appareil si plusieurs sont branchés.",
   "coachPlayerHandsTitle": "Main droite, main gauche ou les deux",
   "coachPlayerHandsBody": "Travaillez une main à la fois, puis réunissez-les. Seules les mains choisies vous sont demandées.",
-
   "helpTitle": "Aide et astuces",
   "helpCoreLoopTitle": "Comment ça marche",
   "helpCoreLoopBody": "Choisissez un morceau, jouez-le sur votre clavier et suivez la partition qui défile. La jauge indique en temps réel si vous êtes synchro, et le résumé de fin détaille votre timing, vos notes justes et vos erreurs.",
@@ -524,30 +504,25 @@
   "helpLeaderboardsBody": "Chaque partition du catalogue a son classement, qui réunit les meilleures sessions. Vous y apparaissez une fois connecté, si votre profil le permet.",
   "helpReplayPlayerTour": "Revoir le guide",
   "helpReplayArmed": "Le guide se lancera à la prochaine partition ouverte.",
-
-  "communityTitle": "Communaut\u00e9",
+  "communityTitle": "Communauté",
   "communityEntryTooltip": "Classements globaux",
   "communitySeasonLabel": "Saison",
   "communitySeasonCurrent": "Saison en cours",
   "communitySeasonPast": "Saison du {date}",
-  "globalLeaderboardEmpty": "Personne n'a encore marqu\u00e9 cette saison \u2014 soyez le premier !",
+  "globalLeaderboardEmpty": "Personne n'a encore marqué cette saison — soyez le premier !",
   "globalLeaderboardScore": "{score} pts",
   "globalLeaderboardPieces": "{count} morceaux",
   "globalStandingTitle": "Classement global",
-  "globalStandingNone": "Pas encore de classement global cette saison \u2014 jouez un morceau du catalogue pour y entrer.",
+  "globalStandingNone": "Pas encore de classement global cette saison — jouez un morceau du catalogue pour y entrer.",
   "globalStandingOpen": "Voir les classements globaux",
-
   "notationHelpHintTitle": "Appuie longuement sur un symbole pour de l'aide",
   "notationHelpHintBody": "Une note, un dièse ou une clé que tu ne reconnais pas ? Appuie longuement dessus sur la portée pour savoir ce que c'est. Ça marche à tout moment.",
   "notationHelpGlossaryOpen": "Guide de notation",
   "notationHelpGlossaryTitle": "Lire la portée",
-
   "notationHelpNoteTitle": "Note ({name})",
   "notationHelpNoteBody": "Une note indique quelle touche jouer et combien de temps la tenir. Sa position sur la portée donne la hauteur : plus elle est haute, plus le son est aigu.",
-
   "notationHelpRestTitle": "Silence",
   "notationHelpRestBody": "Un silence. Ne joue pas — attends sa durée, puis continue.",
-
   "notationHelpSharpTitle": "Dièse (♯)",
   "notationHelpSharpBody": "Monte la note d'un demi-ton : joue la touche juste à droite, souvent une touche noire.",
   "notationHelpFlatTitle": "Bémol (♭)",
@@ -558,18 +533,15 @@
   "notationHelpDoubleSharpBody": "Monte la note de deux demi-tons (un ton entier plus haut).",
   "notationHelpDoubleFlatTitle": "Double bémol",
   "notationHelpDoubleFlatBody": "Descend la note de deux demi-tons (un ton entier plus bas).",
-
   "notationHelpTrebleClefTitle": "Clé de sol",
   "notationHelpTrebleClefBody": "Fixe le nom des notes sur cette portée en s'enroulant autour de la ligne de sol. Elle porte en général la main droite.",
   "notationHelpBassClefTitle": "Clé de fa",
   "notationHelpBassClefBody": "Fixe le nom des notes graves en marquant la ligne de fa. Elle porte en général la main gauche.",
   "notationHelpCClefTitle": "Clé d'ut",
   "notationHelpCClefBody": "Son centre pointe le do central et fixe le nom des notes autour de lui.",
-
   "notationHelpKeySignatureTitle": "Armure",
   "notationHelpKeySignatureBody": "Les dièses ou bémols placés ici s'appliquent à toutes les notes concernées du morceau, sans être réécrits. Celle-ci indique {key}.",
   "notationHelpKeySignatureNone": "Aucun dièse ni bémol — la tonalité de Do majeur / La mineur.",
-
   "notationHelpTimeSignatureTitle": "Chiffrage de mesure",
   "notationHelpTimeSignatureBody": "Le chiffre du haut indique combien de temps il y a par mesure ; le chiffre du bas indique quelle note dure un temps. Ici {beats}/{beatType} : {beats} temps par mesure, et le {beatType} du bas correspond à la {note}.",
   "notationBeatUnitWhole": "ronde",
@@ -611,7 +583,6 @@
   "lessonContinueNext": "Continuer",
   "pathTitle": "Parcours",
   "coursesSeeAll": "Voir le parcours",
-
   "notationHelpDotTitle": "Point",
   "notationHelpDotBody": "Un point après une note (ou un silence) allonge sa durée de moitié.",
   "notationHelpStemTitle": "Hampe",
@@ -635,40 +606,41 @@
   "notationHelpDynamicsTitle": "Nuances",
   "notationHelpDynamicsBody": "Le volume de jeu : p pour doux, f pour fort, m entre les deux (mf = moyennement fort).",
   "notationHelpClose": "Fermer",
-  "practiceSectionTitle": "Entra\u00eenement",
+  "practiceSectionTitle": "Entraînement",
   "practiceRunFull": "Morceau entier",
   "practiceRunSelective": "Passage",
   "practiceFromBar": "De la mesure",
-  "practiceToBar": "\u00c0 la mesure",
+  "practiceToBar": "À la mesure",
   "practiceLoopSection": "Boucler le passage",
-  "practiceUnscoredNote": "Un passage, c'est de l'entra\u00eenement \u2014 ce n'est pas not\u00e9.",
-  "practiceBars": "Mes. {from}\u2013{to}",
+  "practiceUnscoredNote": "Un passage, c'est de l'entraînement — ce n'est pas noté.",
+  "practiceBars": "Mes. {from}–{to}",
   "practiceBadgeLoop": "boucle",
-  "practiceRepeats": "R\u00e9p\u00e9titions",
-  "practiceRepeatsInfinite": "\u221e",
-  "practiceSpeedRamp": "Acc\u00e9l\u00e9ration par tour",
+  "practiceRepeats": "Répétitions",
+  "practiceRepeatsInfinite": "∞",
+  "practiceSpeedRamp": "Accélération par tour",
   "practiceSpeedRampOff": "Aucune",
   "practicePickerTitle": "Travailler un passage",
   "practicePickerStart": "Travailler",
-  "practiceTapHint": "Touchez une mesure sur la partition pour d\u00e9finir le passage",
+  "practiceTapHint": "Touchez une mesure sur la partition pour définir le passage",
   "summaryPractice": "Travailler un passage",
   "practicePickStartBar": "Touchez la première mesure du passage sur la partition",
   "practicePickEndBar": "Touchez maintenant la dernière mesure",
   "prePlayNext": "Suivant",
   "practiceStopLoop": "Arrêter la boucle",
-
   "soundOutputTitle": "Sortie audio",
-  "soundOutputSystemDefault": "Sortie par d\u00e9faut du syst\u00e8me",
+  "soundOutputSystemDefault": "Sortie par défaut du système",
+  "soundOutputExperimentalDevice": "{device} (expérimental)",
   "soundOutputUnknownRoute": "Sortie inconnue",
   "soundOutputChangeRoute": "Changer",
-  "soundOutputSelectionFailed": "Cette sortie n'a pas pu \u00eatre ouverte \u2014 le son reste sur la sortie actuelle.",
-  "soundOutputWirelessWarning": "Cette sortie sans fil retarde le son. Parfait pour \u00e9couter, difficile pour jouer.",
+  "soundOutputSelectionFailed": "Cette sortie n'a pas pu être ouverte — le son reste sur la sortie actuelle.",
+  "soundOutputWirelessWarning": "Cette sortie sans fil retarde le son. Parfait pour écouter, difficile pour jouer.",
   "instrumentSoundsItselfTitle": "Mon instrument produit son propre son",
-  "instrumentSoundsItselfBody": "L'app cesse de doubler les notes que vous y jouez. Le clavier \u00e0 l'\u00e9cran et le clavier d'ordinateur sonnent toujours.",
+  "instrumentSoundsItselfBody": "L'app cesse de doubler les notes que vous y jouez. Le clavier à l'écran et le clavier d'ordinateur sonnent toujours.",
   "instrumentSoundsItselfUnavailable": "Connectez un instrument MIDI pour l'utiliser.",
   "outputOffsetTitle": "Compensation du retard audio",
-  "outputOffsetHint": "D\u00e9cale le curseur de lecture et la notation sur le son que vous entendez r\u00e9ellement.",
+  "outputOffsetHint": "Décale le curseur de lecture et la notation sur le son que vous entendez réellement.",
   "outputOffsetValue": "{ms} ms",
-  "outputOffsetSuggestion": "Une sortie Bluetooth demande en g\u00e9n\u00e9ral environ {ms} ms.",
-  "outputOffsetApplySuggestion": "Utiliser {ms} ms"
+  "outputOffsetSuggestion": "Une sortie Bluetooth demande en général environ {ms} ms.",
+  "outputOffsetApplySuggestion": "Utiliser {ms} ms",
+  "soundOutputActuallyUsing": "Le son sort actuellement par {device}."
 }
