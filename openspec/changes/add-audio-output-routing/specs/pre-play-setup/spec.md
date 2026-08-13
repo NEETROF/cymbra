@@ -10,8 +10,10 @@ see and select the MIDI input device. The hand choice SHALL be offered only when
 the piece has more than one staff; for a single-staff piece it SHALL be omitted
 and the selection stays at both. The modal SHALL additionally offer a sound
 output section showing where the app's audio goes — the selectable output device
-on desktop, or the active route with access to the system route picker on mobile
-— together with the instrument-sounds-itself setting.
+on desktop and Android (USB outputs labelled experimental on Android), or the
+active route with access to the system route picker on iOS — together with the
+instrument-sounds-itself setting. The output list SHALL be re-read each time the
+modal opens, so a device plugged in since the app started is offered.
 
 #### Scenario: Score information is shown
 
@@ -37,8 +39,14 @@ on desktop, or the active route with access to the system route picker on mobile
 
 - **WHEN** the modal is shown
 - **THEN** a sound output section shows where the app's audio goes — the output
-  device list on desktop, or the active route plus access to the system route
-  picker on mobile
+  device list on desktop and Android, or the active route plus access to the
+  system route picker on iOS
+
+#### Scenario: Output list is current
+
+- **WHEN** the modal is opened after an output device was plugged or unplugged
+- **THEN** the sound output section lists the outputs as they are now, not as
+  they were when the app started
 
 #### Scenario: Instrument-sounds-itself is offered with the sound output
 

@@ -78,12 +78,16 @@ across the change.
 
 ### Requirement: Output Selection Persistence And Fallback
 
-The system SHALL remember the selected output device across restarts. When the
-remembered device is not present at startup, or a requested device cannot be
-opened, the system SHALL fall back to the system default and SHALL report the
-device actually in use rather than the one requested. A failed selection SHALL
-NOT interrupt audio that is currently working, and SHALL NOT leave the app
-silent.
+The system SHALL remember the selected output device across restarts and SHALL
+apply the remembered selection at startup before the first sound, without
+requiring any screen to be opened first. When the remembered device is not
+present at startup, or a requested device cannot be opened, the system SHALL
+fall back to the system default and SHALL report the device actually in use
+rather than the one requested. A failed selection SHALL NOT interrupt audio
+that is currently working, and SHALL NOT leave the app silent. The selection
+SHALL survive the device's absence: when the selected device disappears
+mid-session and later returns, the system SHALL re-adopt it without user
+action.
 
 #### Scenario: Selection survives a restart
 
@@ -103,22 +107,28 @@ silent.
 - **THEN** the previously working audio keeps running, and a localized failure
   message is shown — never a raw platform or engine error string
 
-### Requirement: Active Route Reporting On Mobile
+#### Scenario: Returning device is re-adopted
 
-On iOS and Android the system SHALL display the audio route currently in use and
-SHALL provide access to the operating system's route picker, rather than
-presenting a device list it cannot honor. The reported route SHALL carry a kind —
-built-in, headphones, Bluetooth, USB, or other — and SHALL refresh after the user
-changes the route.
+- **WHEN** the selected device went away mid-session (audio fell back to a
+  working output) and the device is plugged back in
+- **THEN** the app's audio returns to the selected device without user action
+
+### Requirement: Active Route Reporting On iOS
+
+On iOS the system SHALL display the audio route currently in use and SHALL
+provide access to the operating system's route picker, rather than presenting a
+device list it cannot honor — the operating system owns the route there. The
+reported route SHALL carry a kind — built-in, headphones, Bluetooth, USB, or
+other — and SHALL refresh after the user changes the route.
 
 #### Scenario: Active route is displayed
 
-- **WHEN** the sound output section is opened on iOS or Android
+- **WHEN** the sound output section is opened on iOS
 - **THEN** the currently active audio route is displayed
 
 #### Scenario: System route picker is reachable
 
-- **WHEN** the user activates the route control on iOS or Android
+- **WHEN** the user activates the route control on iOS
 - **THEN** the operating system's route picker is presented
 
 #### Scenario: Route change is reflected
@@ -131,6 +141,67 @@ changes the route.
 - **WHEN** the platform reports a route whose type is not recognized
 - **THEN** the route is shown with the "other" kind and the section keeps
   functioning
+
+### Requirement: Android Audio Output Selection
+
+On Android the system SHALL list the platform's audio outputs and SHALL route
+the **app's own** audio through the selected one, without moving the
+system-wide media route. The list SHALL contain at most one entry per device
+name and SHALL NOT offer outputs the app cannot actually play on. USB-audio
+outputs SHALL be offered only as an explicitly labelled experimental choice —
+the platform's USB-audio path proved broken below the app on tested devices —
+and the app SHALL NOT route to a USB-audio output unless the user selects one:
+when the operating system would route media to USB by default, the app SHALL
+play on the best available non-USB output instead.
+
+#### Scenario: Outputs are listed and selectable
+
+- **WHEN** the sound output section is opened on Android
+- **THEN** the platform's outputs are listed, each name at most once, together
+  with an option to follow the default, and selecting one moves the app's audio
+  to it
+
+#### Scenario: USB output is an informed opt-in
+
+- **WHEN** a USB-audio output is connected on Android
+- **THEN** it appears in the list labelled as experimental, and carries the
+  app's audio only if the user selects it
+
+#### Scenario: The default never lands on USB
+
+- **WHEN** a USB-audio device is connected on Android and the user has not
+  selected an output
+- **THEN** the app's audio plays on the best non-USB output, even though the
+  operating system routes media to the USB device
+
+### Requirement: Output Route Self-Healing
+
+The system SHALL rebuild the audio output when the route carrying it stops
+delivering sound — its device disappears, the platform invalidates the stream,
+or the output stops consuming audio at the stream's nominal rate — so that
+sound survives. It SHALL fall back to a working output when the same route
+keeps failing, and SHALL stop retrying rather than rebuild against a failing
+route indefinitely. A failing audio route SHALL NOT take unrelated
+functionality — such as the MIDI connection of a composite USB instrument —
+down with it through repeated rebuild attempts.
+
+#### Scenario: Sound survives a dead route
+
+- **WHEN** the output the app is playing on stops delivering audio
+- **THEN** the app's audio continues on a working output without an app restart
+
+#### Scenario: An off-clock route is rebuilt
+
+- **WHEN** the output consumes audio at a rate that sustainably diverges from
+  the stream's sample rate
+- **THEN** the output is rebuilt rather than left playing broken audio
+  indefinitely
+
+#### Scenario: A persistently failing route is abandoned
+
+- **WHEN** rebuilding on the same route fails repeatedly within a short window
+- **THEN** the system falls back to a working output, then stops retrying, and
+  the MIDI connection of a composite instrument on that route is not disturbed
 
 ### Requirement: Wireless Route Warning
 

@@ -4,7 +4,9 @@
 
 The Rust engine SHALL provide a polyphonic piano synthesizer that renders audio
 from a bundled SoundFont (`.sf2`) to a **selectable** audio output device,
-defaulting to the system's default output device when no selection has been made.
+defaulting to the system's default output device when no selection has been made
+(on Android the default is policy-resolved and never lands on a USB-audio
+output — see the audio-output-routing capability).
 The synthesizer SHALL support multiple simultaneous voices (chords and overlapping
 notes) and SHALL expose a minimal control surface — initialize with a SoundFont,
 note-on (pitch, velocity), note-off (pitch), all-notes-off, and selecting or
