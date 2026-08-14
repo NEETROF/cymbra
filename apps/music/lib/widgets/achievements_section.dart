@@ -341,6 +341,11 @@ Future<void> showAchievementDetail(
   context: context,
   backgroundColor: CymbraColors.surfaceContainerHigh,
   showDragHandle: true,
+  // The app is landscape-only, so the sheet's height budget is the SHORT side of
+  // the screen — 402pt on an iPhone. The default bottom-sheet cap (9/16 of that)
+  // cannot hold a multi-tier ladder, which overflowed. Let it use the full
+  // height; the sheet still sizes to its content when that content is short.
+  isScrollControlled: true,
   builder: (_) =>
       AchievementDetailSheet(tile: tile, languageCode: languageCode),
 );
@@ -364,135 +369,140 @@ class AchievementDetailSheet extends StatelessWidget {
     final focus = tile.target;
     final earnedAt = tile.badge.earnedAt;
     return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  _familyIcon(focus.family),
-                  color: tile.earned
-                      ? CymbraColors.primary
-                      : CymbraColors.outline,
-                  size: 30,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        focus.labelIn(languageCode),
-                        style: const TextStyle(
-                          color: CymbraColors.onSurface,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                      Text(
-                        familyLabel(l10n, focus.family),
-                        style: const TextStyle(
-                          color: CymbraColors.onSurfaceVariant,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
+      // A long ladder (six tiers) is taller than the landscape viewport can show,
+      // so the content scrolls rather than overflowing. `mainAxisSize.min` keeps
+      // a short badge's sheet compact — this only bites when it has to.
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    _familyIcon(focus.family),
+                    color: tile.earned
+                        ? CymbraColors.primary
+                        : CymbraColors.outline,
+                    size: 30,
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            // What it takes — server copy, so a new badge explains itself.
-            Text(
-              focus.descriptionIn(languageCode),
-              style: const TextStyle(
-                color: CymbraColors.onSurfaceVariant,
-                fontSize: 13,
-              ),
-            ),
-            const SizedBox(height: 16),
-            // Where the user stands right now.
-            if (tile.next != null)
-              _Progress(badge: tile.next!)
-            else
-              Text(
-                l10n.achievementEarned,
-                style: const TextStyle(
-                  color: CymbraColors.primary,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            const SizedBox(height: 8),
-            Text(
-              earnedAt != null
-                  ? l10n.achievementEarnedOn(
-                      MaterialLocalizations.of(
-                        context,
-                      ).formatShortDate(earnedAt.toLocal()),
-                    )
-                  : l10n.achievementNotEarnedYet,
-              style: const TextStyle(
-                color: CymbraColors.onSurfaceVariant,
-                fontSize: 12,
-              ),
-            ),
-            // The full ladder, for a graduated series only — a standalone badge
-            // is a one-rung ladder and would just repeat itself.
-            if (tile.ladder.length > 1) ...[
-              const SizedBox(height: 20),
-              Text(
-                l10n.achievementTiersTitle,
-                style: const TextStyle(
-                  color: CymbraColors.primary,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.5,
-                ),
-              ),
-              const SizedBox(height: 6),
-              for (final rung in tile.ladder)
-                Padding(
-                  key: Key('achievement-ladder-${rung.key}'),
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: Row(
-                    children: [
-                      Icon(
-                        rung.earned
-                            ? Icons.check_circle
-                            : Icons.radio_button_unchecked,
-                        size: 16,
-                        color: rung.earned
-                            ? CymbraColors.primary
-                            : CymbraColors.outline,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          rung.labelIn(languageCode),
-                          style: TextStyle(
-                            color: rung.earned
-                                ? CymbraColors.onSurface
-                                : CymbraColors.onSurfaceVariant,
-                            fontSize: 13,
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          focus.labelIn(languageCode),
+                          style: const TextStyle(
+                            color: CymbraColors.onSurface,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
                           ),
                         ),
-                      ),
-                      Text(
-                        l10n.achievementProgress(rung.value, rung.threshold),
-                        style: const TextStyle(
-                          color: CymbraColors.onSurfaceVariant,
-                          fontSize: 12,
+                        Text(
+                          familyLabel(l10n, focus.family),
+                          style: const TextStyle(
+                            color: CymbraColors.onSurfaceVariant,
+                            fontSize: 12,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              // What it takes — server copy, so a new badge explains itself.
+              Text(
+                focus.descriptionIn(languageCode),
+                style: const TextStyle(
+                  color: CymbraColors.onSurfaceVariant,
+                  fontSize: 13,
+                ),
+              ),
+              const SizedBox(height: 16),
+              // Where the user stands right now.
+              if (tile.next != null)
+                _Progress(badge: tile.next!)
+              else
+                Text(
+                  l10n.achievementEarned,
+                  style: const TextStyle(
+                    color: CymbraColors.primary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
+              const SizedBox(height: 8),
+              Text(
+                earnedAt != null
+                    ? l10n.achievementEarnedOn(
+                        MaterialLocalizations.of(
+                          context,
+                        ).formatShortDate(earnedAt.toLocal()),
+                      )
+                    : l10n.achievementNotEarnedYet,
+                style: const TextStyle(
+                  color: CymbraColors.onSurfaceVariant,
+                  fontSize: 12,
+                ),
+              ),
+              // The full ladder, for a graduated series only — a standalone badge
+              // is a one-rung ladder and would just repeat itself.
+              if (tile.ladder.length > 1) ...[
+                const SizedBox(height: 20),
+                Text(
+                  l10n.achievementTiersTitle,
+                  style: const TextStyle(
+                    color: CymbraColors.primary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                for (final rung in tile.ladder)
+                  Padding(
+                    key: Key('achievement-ladder-${rung.key}'),
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Row(
+                      children: [
+                        Icon(
+                          rung.earned
+                              ? Icons.check_circle
+                              : Icons.radio_button_unchecked,
+                          size: 16,
+                          color: rung.earned
+                              ? CymbraColors.primary
+                              : CymbraColors.outline,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            rung.labelIn(languageCode),
+                            style: TextStyle(
+                              color: rung.earned
+                                  ? CymbraColors.onSurface
+                                  : CymbraColors.onSurfaceVariant,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                        Text(
+                          l10n.achievementProgress(rung.value, rung.threshold),
+                          style: const TextStyle(
+                            color: CymbraColors.onSurfaceVariant,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );

@@ -201,6 +201,55 @@ void main() {
     expect(find.text('140/500'), findsOneWidget);
   });
 
+  testWidgets('the detail sheet fits the landscape viewport of a phone', (
+    tester,
+  ) async {
+    // REGRESSION: the sheet was a plain Column in a bottom sheet capped at 9/16
+    // of the viewport height. The app is landscape-ONLY (main.dart pins it), so
+    // on an iPhone that budget is 9/16 of 402pt — and a long ladder blew through
+    // it ("BOTTOM OVERFLOWED BY 103 PIXELS" on the real device). Sized here to
+    // the actual iPhone 17 landscape frame rather than a comfortable test
+    // surface, which is exactly why the original test missed it.
+    await tester.binding.setSurfaceSize(const Size(874, 402));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      _host(
+        _serving([
+          for (var tier = 1; tier <= 6; tier++)
+            _badge(
+              'streak_$tier',
+              family: 'consistency',
+              label: 'Streak $tier',
+              description: 'Play $tier days in a row, and then some more.',
+              track: 'streak',
+              tier: tier,
+              threshold: tier * 10,
+              earned: tier == 1,
+              earnedAt: tier == 1 ? DateTime(2026, 8, 2) : null,
+            ),
+        ]),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('achievement-tile-streak')));
+    await tester.pumpAndSettle();
+
+    // No RenderFlex overflow — the content scrolls instead.
+    expect(tester.takeException(), isNull);
+    // ...and every rung is still reachable, including the deepest one.
+    expect(
+      find.byKey(const Key('achievement-ladder-streak_6')),
+      findsOneWidget,
+    );
+    await tester.drag(
+      find.byKey(const Key('achievement-ladder-streak_1')),
+      const Offset(0, -200),
+    );
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('the detail sheet shows the whole ladder, earned tiers marked', (
     tester,
   ) async {
