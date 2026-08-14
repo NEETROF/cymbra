@@ -174,5 +174,6 @@ Pure additive UI in `apps/music`; no data, schema, or API change. Ship behind no
 
 ## Open Questions
 
-- Should a rewind in free-run (non-Wait) replay a 1-beat pre-roll instead of resuming
-  instantly? Decide after on-device feel-testing; spec'd as instant resume for now.
+- ~~Should a rewind in free-run (non-Wait) replay a 1-beat pre-roll instead of
+  resuming instantly?~~ **Resolved (2026-08-14)**: instant resume validated on
+  device (macOS, Android tablet, iPhone) — no pre-roll.

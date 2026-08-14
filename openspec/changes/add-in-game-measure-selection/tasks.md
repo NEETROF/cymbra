@@ -75,5 +75,7 @@
 - [x] 6.1 `melos run analyze`, `dart format`, `dart run custom_lint` clean
 - [x] 6.2 `flutter test --coverage --exclude-tags golden` green, line coverage ≥ 80%
 - [x] 6.3 `openspec validate add-in-game-measure-selection --strict` passes
-- [ ] 6.4 On-device feel pass (iPad + phone landscape): rewind epsilon feel, decide
-      the open question on a free-run pre-roll after rewind
+- [x] 6.4 On-device feel pass (iPad + phone landscape): rewind epsilon feel, decide
+      the open question on a free-run pre-roll after rewind — validated on macOS,
+      Android tablet (SM-P610) and iPhone (2026-08-14); instant resume kept, no
+      pre-roll
