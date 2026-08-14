@@ -10,12 +10,13 @@ built from that run's session-result record. The modal SHALL show the overall
 synchronization percentage, a per-dimension breakdown (timing, correct notes, sustain),
 the best combo/streak, and a count of onsets by verdict (e.g. perfect / good / missed /
 wrong). The modal SHALL require the player to make an **explicit choice** — see the
-mistakes (replay), **practice a section**, retry the piece, or quit via a close cross — and
-SHALL NOT dismiss on a tap outside it or a back gesture. The **practice a section** action SHALL
-open the measure-range picker and start a selective (unscored) practice run of the chosen range.
-The modal SHALL keep its action controls reachable on small/short viewports (the stats scroll
-while the action buttons and the close cross stay visible), so the player can always close,
-retry, or start practicing a section.
+mistakes (replay), retry the piece, or quit via a close cross — and SHALL NOT dismiss on
+a tap outside it or a back gesture. The modal SHALL NOT offer a measure-range picker:
+drilling a passage is selected in the game screen itself (long-press the transport
+measure-rewind control), so the summary stays about the run that just ended.
+The modal SHALL keep its action controls reachable on small/short viewports (the stats
+scroll while the action buttons and the close cross stay visible), so the player can
+always close or retry.
 
 #### Scenario: Modal appears at song end
 - **WHEN** a scored run reaches the end of the piece
@@ -28,10 +29,10 @@ retry, or start practicing a section.
   restarting)
 - **THEN** no summary modal is shown
 
-#### Scenario: Practice-a-section opens the range picker
-- **WHEN** the player taps "practice a section" on the summary modal
-- **THEN** the measure-range picker opens and choosing a range starts a selective (unscored)
-  practice run of that range
+#### Scenario: No practice-a-section action on the summary
+- **WHEN** the summary modal is shown
+- **THEN** it offers no measure-range picker or practice-a-section action, and the
+  measure-range selection mode of the game screen remains the only way to arm a range
 
 #### Scenario: Mixed run shows both sub-scores
 - **WHEN** the finished run is classified `mixed` (some onsets Wait-Mode-on, some off)
@@ -44,7 +45,7 @@ retry, or start practicing a section.
 
 #### Scenario: The modal does not auto-dismiss
 - **WHEN** the player taps outside the summary modal or triggers a back gesture
-- **THEN** the modal stays open and awaits an explicit see-mistakes / practice / retry / quit choice
+- **THEN** the modal stays open and awaits an explicit see-mistakes / retry / quit choice
 
 #### Scenario: The close cross leaves play mode
 - **WHEN** the player taps the close cross on the summary modal
