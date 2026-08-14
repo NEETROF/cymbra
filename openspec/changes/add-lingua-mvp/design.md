@@ -52,6 +52,9 @@ Statuts (map lemme→statut compact), cartes (JSON), calibration, préférences 
 ### D10 — Monorepo : `crates/lingua-core`, `apps/lingua-extension`, `apps/lingua-agent`
 Le crate rejoint le workspace Cargo racine (couvert par la lane llvm-cov existante). L'extension : TS sans framework (le DOM injecté n'a pas besoin de Vue), wasm-pack `--target web`, vitest pour la logique TS, build Yarn. Pas de Flutter, pas de Tauri dans ce change.
 
+### D11 — Charte graphique : tokens Cymbra partagés
+Source de vérité = `CymbraColors` (« Sonic Luminescence », `apps/music/lib/theme/cymbra_theme.dart`). L'extension embarque une `tokens.css` qui la mirrore — exactement le précédent du back-office (`apps/back-office/src/styles.css` mirrore déjà le thème Flutter). Surfaces possédées par l'extension = charte pleine (Midnight Navy, violet primaire, rayons 12/18) ; surfaces injectées en page tierce = mêmes tokens mais lisibilité d'abord (les pages hôtes sont claires ou sombres). Coïncidence exploitée : la palette contient déjà l'ambre (`handLeft`, sémantique « pending ») et le corail (`error`) — ils deviennent les teintes de surlignage « en cours »/« inconnu », rendant le surlignage nativement Cymbra. Un lint interdit tout hex hors de `tokens.css`.
+
 ## Risks / Trade-offs
 
 - [Perf du re-scan sur SPA lourdes (Gmail, feeds virtualisés)] → re-scan par sous-arbre + IntersectionObserver (analyse du visible d'abord) + budget par frame ; page pathologique = dégradation douce (surlignage partiel), jamais de jank imputable à l'extension.

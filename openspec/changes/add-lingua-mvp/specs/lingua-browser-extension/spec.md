@@ -41,6 +41,17 @@ L'extension SHALL offrir la révision dans le **side panel natif** (la page est 
 - **WHEN** l'utilisateur ouvre le side panel puis navigue vers une autre page
 - **THEN** le side panel reste ouvert et sa session de révision continue
 
+### Requirement: Identité visuelle Cymbra
+Les surfaces d'UI possédées par l'extension (popup d'icône, side panel, pages d'extension) SHALL appliquer la charte graphique Cymbra — la palette « Sonic Luminescence » de `apps/music/lib/theme/cymbra_theme.dart`, déjà mirrorée en variables CSS par le back-office (`apps/back-office/src/styles.css`) — via une feuille de tokens unique embarquée dans l'extension. Les surfaces injectées dans les pages tierces (popup de mot, panneau flottant) SHALL consommer les mêmes tokens, la lisibilité sur page claire comme sombre primant sur la fidélité au thème sombre. Les teintes de surlignage SHALL dériver de l'ambre (`handLeft` — « en cours ») et du corail (`error` — « inconnu ») de la palette. Aucune couleur ne SHALL être codée en dur hors de la feuille de tokens.
+
+#### Scenario: Cohérence des surfaces d'extension
+- **WHEN** l'utilisateur ouvre le popup d'icône puis le side panel
+- **THEN** les deux surfaces rendent avec les tokens Cymbra (fonds Midnight Navy, primaire violet, rayons de la charte) et aucun hex hors de la feuille de tokens n'existe dans les styles (vérifié par lint)
+
+#### Scenario: Surlignage lisible sur page claire
+- **WHEN** une page à fond clair est surlignée
+- **THEN** les teintes ambre et corail des surlignages laissent le texte de la page dans sa couleur d'origine et restent distinguables entre elles
+
 ### Requirement: Posture de permissions minimale
 L'extension SHALL s'installer avec `activeTab` et déclarer `<all_urls>` en permission optionnelle : « surligner cette page » SHALL fonctionner sans grant global ; « toujours surligner » SHALL demander le grant une seule fois. Aucun texte de page ne SHALL quitter l'appareil.
 
