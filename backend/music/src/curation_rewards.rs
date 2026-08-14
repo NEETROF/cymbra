@@ -217,6 +217,35 @@ pub trait CurationRewardsRepo: Send + Sync {
         kind: AwardKind,
     ) -> Result<()>;
 
+    // --- play awards (change: add-play-rewards) ----------------------------
+
+    /// Append a PLAY award (`performance`/`practice`) carrying its durable
+    /// `award_key` — `ON CONFLICT DO NOTHING` against the partial unique index on
+    /// `(user_id, award_key)`. Returns `true` iff a row was inserted (`false` =
+    /// this event has already paid, so a retried ingest never pays twice).
+    ///
+    /// `piece_id` is the played piece for a performance award (opaque: a catalog
+    /// id, an upload id, or a bundled slug) and `None` for practice, which is
+    /// about the day rather than any one piece.
+    async fn append_play_award(
+        &self,
+        user_id: &str,
+        kind: AwardKind,
+        amount: i64,
+        piece_id: Option<&str>,
+        award_key: &str,
+    ) -> Result<bool>;
+
+    /// How many times `piece` has already paid `user` a **performance** award —
+    /// the input to the per-piece diminishing curve. Counts only `performance`
+    /// rows: the practice award and every rating award are irrelevant to it.
+    async fn performance_count_for_piece(&self, user_id: &str, piece_id: &str) -> Result<i64>;
+
+    /// Performance points `user` has earned so far today — their remaining daily
+    /// play headroom. Counts `performance` only: practice has its own once-a-day
+    /// brake and must neither consume nor be consumed by the play cap.
+    async fn performance_today(&self, user_id: &str) -> Result<i64>;
+
     // --- consensus freeze --------------------------------------------------
 
     /// Scores with at least `min_raters` distinct raters that are NOT yet frozen —
@@ -277,8 +306,14 @@ pub trait CurationRewardsRepo: Send + Sync {
     async fn shop_item(&self, user_id: &str, key: &str) -> Result<Option<ShopItem>>;
 }
 
-/// The narrow producer seam the score module depends on. The rewards module
-/// implements it; the score module calls it on the rating + moderation paths.
+/// The narrow producer seam the score + play modules depend on. The rewards
+/// module implements it; the score module calls it on the rating + moderation
+/// paths and `PlayGrpc` on the ingest path.
+///
+/// `#[automock]`ed (the rust-testing default) so a caller can prove what it does
+/// when an award FAILS — which for the play ingest is the whole point: the ack
+/// must survive it.
+#[cfg_attr(test, mockall::automock)]
 #[async_trait]
 pub trait CurationRewardsSink: Send + Sync {
     /// Record that `user` previewed/opened `score` (the coverage engagement gate).
@@ -303,6 +338,35 @@ pub trait CurationRewardsSink: Send + Sync {
         decider_user_id: &str,
         accepted: bool,
     ) -> Result<()>;
+
+    /// Award performance points for one **scored** run of `piece_id` at
+    /// `accuracy_pct` (0..100), with the piece's catalog `level` (`None` = a
+    /// bundled piece, a user upload, or an unleveled catalog row — weighed
+    /// neutrally, never zero). Gated on the quality floor, diminished by how many
+    /// times this piece has already paid, scaled by difficulty and clamped by the
+    /// daily cap (change: add-play-rewards).
+    ///
+    /// `session_id` is the client's session id — the ingest's own idempotency key —
+    /// so a re-delivered session pays exactly once. Returns the points actually
+    /// awarded (0 = below the floor / piece exhausted / capped / already paid).
+    ///
+    /// `level` is owned rather than borrowed: the caller resolves it from the
+    /// catalog and holds an `Option<String>` already, and an elided lifetime inside
+    /// the `Option` is not mockable.
+    async fn award_performance(
+        &self,
+        user_id: &str,
+        piece_id: &str,
+        accuracy_pct: f32,
+        level: Option<String>,
+        session_id: &str,
+    ) -> Result<i64>;
+
+    /// Award the flat showing-up award for a scoreless practice run, at most once
+    /// per the player's `local_day` (`YYYY-MM-DD`, derived from the session's own
+    /// timestamp + UTC offset). Returns the points actually awarded (0 = already
+    /// awarded for that day).
+    async fn award_practice(&self, user_id: &str, local_day: &str) -> Result<i64>;
 }
 
 // -------------------------------------------------------------------------
@@ -327,6 +391,10 @@ struct FakeLedger {
     catalog_score_id: Option<String>,
     reward_key: Option<String>,
     source: Option<SettlementSource>,
+    /// The played piece a `performance` award was paid for (change: add-play-rewards).
+    piece_id: Option<String>,
+    /// The event's durable idempotency key (`NULL` for every rating-side award).
+    award_key: Option<String>,
     seq: i64,
 }
 
@@ -474,6 +542,8 @@ impl CurationRewardsRepo for FakeCurationRewardsRepo {
             catalog_score_id: Some(catalog_score_id.to_string()),
             reward_key: None,
             source: None,
+            piece_id: None,
+            award_key: None,
             seq,
         });
         Ok(true)
@@ -568,9 +638,68 @@ impl CurationRewardsRepo for FakeCurationRewardsRepo {
             catalog_score_id: Some(catalog_score_id.to_string()),
             reward_key: None,
             source,
+            piece_id: None,
+            award_key: None,
             seq,
         });
         Ok(())
+    }
+
+    async fn append_play_award(
+        &self,
+        user_id: &str,
+        kind: AwardKind,
+        amount: i64,
+        piece_id: Option<&str>,
+        award_key: &str,
+    ) -> Result<bool> {
+        let mut st = self.state.lock().expect("rewards fake lock");
+        // Mirrors `curation_points_award_key_once_idx`: one row per (user, key).
+        let already = st
+            .ledger
+            .iter()
+            .any(|l| l.user_id == user_id && l.award_key.as_deref() == Some(award_key));
+        if already {
+            return Ok(false);
+        }
+        let seq = Self::next_seq(&mut st);
+        st.ledger.push(FakeLedger {
+            user_id: user_id.to_string(),
+            kind,
+            amount,
+            catalog_score_id: None,
+            reward_key: None,
+            source: None,
+            piece_id: piece_id.map(str::to_string),
+            award_key: Some(award_key.to_string()),
+            seq,
+        });
+        Ok(true)
+    }
+
+    async fn performance_count_for_piece(&self, user_id: &str, piece_id: &str) -> Result<i64> {
+        let st = self.state.lock().expect("rewards fake lock");
+        Ok(st
+            .ledger
+            .iter()
+            .filter(|l| {
+                l.user_id == user_id
+                    && l.kind == AwardKind::Performance
+                    && l.piece_id.as_deref() == Some(piece_id)
+            })
+            .count() as i64)
+    }
+
+    async fn performance_today(&self, user_id: &str) -> Result<i64> {
+        // The fake has no clock, so "today" is all of the user's performance
+        // awards (the same convention as `coverage_today`).
+        let st = self.state.lock().expect("rewards fake lock");
+        Ok(st
+            .ledger
+            .iter()
+            .filter(|l| l.user_id == user_id && l.kind == AwardKind::Performance)
+            .map(|l| l.amount)
+            .sum())
     }
 
     async fn consensus_candidates(&self, min_raters: i64) -> Result<Vec<ConsensusCandidate>> {
@@ -694,6 +823,8 @@ impl CurationRewardsRepo for FakeCurationRewardsRepo {
             catalog_score_id: None,
             reward_key: Some(key.to_string()),
             source: None,
+            piece_id: None,
+            award_key: None,
             seq,
         });
         Ok(())
@@ -783,4 +914,130 @@ fn is_owned(st: &FakeState, user_id: &str, s: &FakeShopRow) -> bool {
         || st
             .grants
             .contains_key(&(user_id.to_string(), s.key.clone()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The play-award storage semantics the Postgres adapter guarantees, proven on
+    /// the fake (change: add-play-rewards, task 2.5).
+    #[tokio::test]
+    async fn the_same_award_key_inserts_once_and_different_keys_both_insert() {
+        let repo = FakeCurationRewardsRepo::default();
+        // A first delivery of a session pays...
+        assert!(
+            repo.append_play_award(
+                "u1",
+                AwardKind::Performance,
+                8,
+                Some("p1"),
+                "performance:s1"
+            )
+            .await
+            .unwrap()
+        );
+        // ...and the outbox's retry of the SAME session does not (the partial
+        // unique index on (user_id, award_key)).
+        assert!(
+            !repo
+                .append_play_award(
+                    "u1",
+                    AwardKind::Performance,
+                    8,
+                    Some("p1"),
+                    "performance:s1"
+                )
+                .await
+                .unwrap()
+        );
+        // A different session of the same piece is a different event: it pays.
+        assert!(
+            repo.append_play_award(
+                "u1",
+                AwardKind::Performance,
+                3,
+                Some("p1"),
+                "performance:s2"
+            )
+            .await
+            .unwrap()
+        );
+        // The key is per-user: another player's session with the same id pays.
+        assert!(
+            repo.append_play_award(
+                "u2",
+                AwardKind::Performance,
+                8,
+                Some("p1"),
+                "performance:s1"
+            )
+            .await
+            .unwrap()
+        );
+        assert_eq!(repo.lifetime_points("u1").await.unwrap(), 11);
+        assert_eq!(repo.lifetime_points("u2").await.unwrap(), 8);
+    }
+
+    #[tokio::test]
+    async fn the_per_piece_count_counts_only_this_user_this_piece_and_performance() {
+        let repo = FakeCurationRewardsRepo::default();
+        repo.append_play_award("u1", AwardKind::Performance, 8, Some("p1"), "performance:a")
+            .await
+            .unwrap();
+        repo.append_play_award("u1", AwardKind::Performance, 3, Some("p1"), "performance:b")
+            .await
+            .unwrap();
+        // Another piece, another user, and a practice award must all be invisible
+        // to p1's diminishing curve.
+        repo.append_play_award("u1", AwardKind::Performance, 8, Some("p2"), "performance:c")
+            .await
+            .unwrap();
+        repo.append_play_award("u2", AwardKind::Performance, 8, Some("p1"), "performance:d")
+            .await
+            .unwrap();
+        repo.append_play_award("u1", AwardKind::Practice, 3, None, "practice:2026-08-14")
+            .await
+            .unwrap();
+        repo.record_engagement("u1", "p1").await.unwrap();
+        repo.append_coverage("u1", "p1", 10).await.unwrap(); // a rating award
+        assert_eq!(
+            repo.performance_count_for_piece("u1", "p1").await.unwrap(),
+            2
+        );
+        assert_eq!(
+            repo.performance_count_for_piece("u1", "p2").await.unwrap(),
+            1
+        );
+        assert_eq!(
+            repo.performance_count_for_piece("u1", "p3").await.unwrap(),
+            0
+        );
+        assert_eq!(
+            repo.performance_count_for_piece("u2", "p1").await.unwrap(),
+            1
+        );
+    }
+
+    #[tokio::test]
+    async fn the_daily_headroom_read_sees_performance_only() {
+        let repo = FakeCurationRewardsRepo::default();
+        repo.append_play_award("u1", AwardKind::Performance, 8, Some("p1"), "performance:a")
+            .await
+            .unwrap();
+        repo.append_play_award("u1", AwardKind::Performance, 3, Some("p2"), "performance:b")
+            .await
+            .unwrap();
+        // Practice has its OWN once-a-day brake: it must not eat the play headroom.
+        repo.append_play_award("u1", AwardKind::Practice, 3, None, "practice:2026-08-14")
+            .await
+            .unwrap();
+        repo.record_engagement("u1", "p1").await.unwrap();
+        repo.append_coverage("u1", "p1", 10).await.unwrap();
+        assert_eq!(repo.performance_today("u1").await.unwrap(), 11);
+        // ...and conversely the play awards do not consume the coverage cap.
+        assert_eq!(repo.coverage_today("u1").await.unwrap(), 10);
+        // Everything still counts toward lifetime and the balance.
+        assert_eq!(repo.lifetime_points("u1").await.unwrap(), 24);
+    }
 }

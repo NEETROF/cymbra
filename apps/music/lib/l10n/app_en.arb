@@ -1726,6 +1726,18 @@
   "@curatorActivityRedeem": {
     "description": "Activity kind: points spent redeeming a reward."
   },
+  "curatorActivityPerformance": "Piece played",
+  "@curatorActivityPerformance": {
+    "description": "Activity kind: points earned for a scored run of a piece."
+  },
+  "curatorActivityPractice": "Practice session",
+  "@curatorActivityPractice": {
+    "description": "Activity kind: the once-a-day award for a scoreless practice run."
+  },
+  "curatorActivityOther": "Points earned",
+  "@curatorActivityOther": {
+    "description": "Fallback label for an award kind this app version does not know."
+  },
   "curatorActivitySourceConsensus": "by community consensus",
   "@curatorActivitySourceConsensus": {
     "description": "Source of a deferred award: the community consensus."
@@ -1737,6 +1749,15 @@
   "ratingPointsCue": "+{points} curator points",
   "@ratingPointsCue": {
     "description": "Transient cue when a rating earns coverage points.",
+    "placeholders": {
+      "points": {
+        "type": "int"
+      }
+    }
+  },
+  "playPointsCue": "+{points} points",
+  "@playPointsCue": {
+    "description": "Cue on the session summary showing what the run just played earned.",
     "placeholders": {
       "points": {
         "type": "int"
@@ -1809,6 +1830,15 @@
   "rewardCelebrationLevelUpTitle": "Level up!",
   "@rewardCelebrationLevelUpTitle": {
     "description": "Title of the celebration shown on a curator level-up."
+  },
+  "rewardCelebrationLevelUpMessage": "You have reached level {level}.",
+  "@rewardCelebrationLevelUpMessage": {
+    "description": "Body of the celebration shown when the user crosses a level, whichever activity earned the points.",
+    "placeholders": {
+      "level": {
+        "type": "int"
+      }
+    }
   },
   "rewardCelebrationBadgeTitle": "Badge earned!",
   "@rewardCelebrationBadgeTitle": {

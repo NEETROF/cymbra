@@ -39,6 +39,7 @@ use crate::curation_rewards_core::{
     AwardKind, RewardConfig, SettlementSource, Truth, consensus_truth, coverage_award,
     coverage_base, honesty_award, level_progress, moderator_truth,
 };
+use crate::play_rewards_core::{PlayRewardConfig, meets_floor, performance_award, practice_award};
 
 /// A user's full curation-rewards standing for the profile RPC.
 #[derive(Debug, Clone, PartialEq)]
@@ -78,6 +79,7 @@ const RECENT_LIMIT: i64 = 20;
 pub struct CurationRewardsModule {
     repo: Arc<dyn CurationRewardsRepo>,
     config: RewardConfig,
+    play_config: PlayRewardConfig,
 }
 
 impl CurationRewardsModule {
@@ -86,6 +88,7 @@ impl CurationRewardsModule {
         Self {
             repo,
             config: RewardConfig::default(),
+            play_config: PlayRewardConfig::default(),
         }
     }
 
@@ -95,9 +98,23 @@ impl CurationRewardsModule {
         self
     }
 
+    /// Override the PLAY reward configuration (change: add-play-rewards). Separate
+    /// from [`Self::with_config`] because the two economies answer different
+    /// questions and must be retunable without one being a regression risk for the
+    /// other (design D1).
+    pub fn with_play_config(mut self, config: PlayRewardConfig) -> Self {
+        self.play_config = config;
+        self
+    }
+
     /// The active configuration (for the module's own tests / callers that surface costs).
     pub fn config(&self) -> &RewardConfig {
         &self.config
+    }
+
+    /// The active play-reward configuration.
+    pub fn play_config(&self) -> &PlayRewardConfig {
+        &self.play_config
     }
 
     // --- profile reads -----------------------------------------------------
@@ -377,6 +394,91 @@ impl CurationRewardsSink for CurationRewardsModule {
         }
         Ok(())
     }
+
+    async fn award_performance(
+        &self,
+        user_id: &str,
+        piece_id: &str,
+        accuracy_pct: f32,
+        level: Option<String>,
+        session_id: &str,
+    ) -> Result<i64> {
+        // Quality gate first, so a mashed or abandoned run costs no reads at all
+        // on the ingest's hot path.
+        if !meets_floor(accuracy_pct, &self.play_config) {
+            return Ok(0);
+        }
+        let times_already_paid = self
+            .repo
+            .performance_count_for_piece(user_id, piece_id)
+            .await?;
+        let already_today = self.repo.performance_today(user_id).await?;
+        let amount = performance_award(
+            accuracy_pct,
+            times_already_paid,
+            level.as_deref(),
+            already_today,
+            &self.play_config,
+        );
+        if amount <= 0 {
+            return Ok(0);
+        }
+        // Keyed on the client's session id — the ingest's own idempotency key — so
+        // a re-delivered session is a no-op HERE, independently of whether the
+        // session row itself was newly stored (design D4).
+        let inserted = self
+            .repo
+            .append_play_award(
+                user_id,
+                AwardKind::Performance,
+                amount,
+                Some(piece_id),
+                &performance_award_key(session_id),
+            )
+            .await?;
+        if !inserted {
+            return Ok(0);
+        }
+        self.grant_due_badges_for(user_id).await?;
+        Ok(amount)
+    }
+
+    async fn award_practice(&self, user_id: &str, local_day: &str) -> Result<i64> {
+        let amount = practice_award(false, &self.play_config);
+        if amount <= 0 {
+            return Ok(0);
+        }
+        // The player's LOCAL day is the key, so the award is once per day whatever
+        // the number of sessions or laps, and a retried delivery cannot pay twice
+        // (design D3/D4).
+        let inserted = self
+            .repo
+            .append_play_award(
+                user_id,
+                AwardKind::Practice,
+                amount,
+                None,
+                &practice_award_key(local_day),
+            )
+            .await?;
+        if !inserted {
+            // Already awarded for this local day.
+            return Ok(practice_award(true, &self.play_config));
+        }
+        self.grant_due_badges_for(user_id).await?;
+        Ok(amount)
+    }
+}
+
+/// The ledger idempotency key for a performance award: the client's session id,
+/// namespaced so it can never collide with a practice day.
+fn performance_award_key(session_id: &str) -> String {
+    format!("performance:{session_id}")
+}
+
+/// The ledger idempotency key for a practice award: the player's local day.
+fn practice_award_key(local_day: &str) -> String {
+    format!("practice:{local_day}")
 }
 
 #[cfg(test)]
@@ -608,6 +710,182 @@ mod tests {
         let rewards = m.get_rewards("u1").await.unwrap();
         assert!(rewards.earned_badges.contains(&"first_note".to_string()));
         assert!(!rewards.earned_badges.contains(&"curator_1".to_string()));
+    }
+
+    // --- play awards (change: add-play-rewards) ----------------------------
+
+    /// A run comfortably above the default accuracy floor.
+    const GOOD: f32 = 85.0;
+
+    #[tokio::test]
+    async fn a_good_run_pays_and_a_sub_floor_run_pays_nothing() {
+        let (m, repo) = module();
+        assert_eq!(
+            m.award_performance("u1", "p1", GOOD, Some("beginner".into()), "s1")
+                .await
+                .unwrap(),
+            8
+        );
+        // Below the floor: recorded as activity by the ingest, but worth nothing.
+        assert_eq!(
+            m.award_performance("u1", "p2", 20.0, Some("advanced".into()), "s2")
+                .await
+                .unwrap(),
+            0
+        );
+        assert_eq!(repo.lifetime_points("u1").await.unwrap(), 8);
+        assert_eq!(repo.ledger_len(), 1);
+    }
+
+    #[tokio::test]
+    async fn a_replayed_session_pays_exactly_once() {
+        // The client's outbox retries until acked, so the SAME session id arrives
+        // more than once. The durable award key makes the second one a no-op.
+        let (m, repo) = module();
+        assert_eq!(
+            m.award_performance("u1", "p1", GOOD, None, "s1")
+                .await
+                .unwrap(),
+            8
+        );
+        assert_eq!(
+            m.award_performance("u1", "p1", GOOD, None, "s1")
+                .await
+                .unwrap(),
+            0
+        );
+        assert_eq!(repo.lifetime_points("u1").await.unwrap(), 8);
+        assert_eq!(repo.ledger_len(), 1);
+    }
+
+    #[tokio::test]
+    async fn the_same_piece_pays_less_each_time_and_eventually_nothing() {
+        let (m, repo) = module();
+        let mut paid = Vec::new();
+        for n in 0..6 {
+            paid.push(
+                m.award_performance("u1", "p1", GOOD, Some("beginner".into()), &format!("s{n}"))
+                    .await
+                    .unwrap(),
+            );
+        }
+        assert_eq!(paid, vec![8, 3, 1, 1, 0, 0]);
+        // A piece the user has NOT been paid for is worth the full amount — the
+        // curve is per piece, not per player.
+        assert_eq!(
+            m.award_performance("u1", "p2", GOOD, Some("beginner".into()), "other")
+                .await
+                .unwrap(),
+            8
+        );
+        assert_eq!(repo.lifetime_points("u1").await.unwrap(), 21);
+    }
+
+    #[tokio::test]
+    async fn a_harder_piece_pays_more_and_an_unleveled_one_is_not_penalised() {
+        let (m, _repo) = module();
+        let beginner = m
+            .award_performance("u1", "easy", GOOD, Some("beginner".into()), "s1")
+            .await
+            .unwrap();
+        let advanced = m
+            .award_performance("u1", "hard", GOOD, Some("advanced".into()), "s2")
+            .await
+            .unwrap();
+        assert!(advanced > beginner, "{advanced} should beat {beginner}");
+        // A user's own upload carries no catalog level: neutral, never zero.
+        let upload = m
+            .award_performance("u1", "mine", GOOD, None, "s3")
+            .await
+            .unwrap();
+        assert_eq!(upload, beginner);
+        assert!(upload > 0);
+    }
+
+    #[tokio::test]
+    async fn the_daily_cap_clamps_and_the_next_day_restores_the_allowance() {
+        let repo = Arc::new(FakeCurationRewardsRepo::default());
+        // A tiny cap makes the clamp observable in a couple of runs.
+        let cfg = PlayRewardConfig {
+            daily_cap: 12,
+            ..PlayRewardConfig::default()
+        };
+        let m = CurationRewardsModule::new(repo.clone()).with_play_config(cfg);
+        // 8 for the first piece, then only the 4 that remain, then nothing.
+        assert_eq!(
+            m.award_performance("u1", "p1", GOOD, None, "s1")
+                .await
+                .unwrap(),
+            8
+        );
+        assert_eq!(
+            m.award_performance("u1", "p2", GOOD, None, "s2")
+                .await
+                .unwrap(),
+            4
+        );
+        assert_eq!(
+            m.award_performance("u1", "p3", GOOD, None, "s3")
+                .await
+                .unwrap(),
+            0
+        );
+        assert_eq!(repo.performance_today("u1").await.unwrap(), 12); // never above the cap
+
+        // A new day restores the allowance. The fake has no clock, so a fresh repo
+        // (nothing "today") models tomorrow; the amount is the full first band
+        // again because the cap, not the piece, was what stopped p3.
+        let tomorrow = Arc::new(FakeCurationRewardsRepo::default());
+        let m2 = CurationRewardsModule::new(tomorrow.clone()).with_play_config(PlayRewardConfig {
+            daily_cap: 12,
+            ..PlayRewardConfig::default()
+        });
+        assert_eq!(
+            m2.award_performance("u1", "p3", GOOD, None, "s4")
+                .await
+                .unwrap(),
+            8
+        );
+    }
+
+    #[tokio::test]
+    async fn practice_pays_once_per_local_day() {
+        let (m, repo) = module();
+        assert_eq!(m.award_practice("u1", "2026-08-14").await.unwrap(), 3);
+        // Further practice the same local day is recorded as activity and pays
+        // nothing more — whatever the number of sessions or laps.
+        assert_eq!(m.award_practice("u1", "2026-08-14").await.unwrap(), 0);
+        assert_eq!(m.award_practice("u1", "2026-08-14").await.unwrap(), 0);
+        // The next local day pays again.
+        assert_eq!(m.award_practice("u1", "2026-08-15").await.unwrap(), 3);
+        // Another player's day is their own.
+        assert_eq!(m.award_practice("u2", "2026-08-14").await.unwrap(), 3);
+        assert_eq!(repo.lifetime_points("u1").await.unwrap(), 6);
+        assert_eq!(repo.ledger_len(), 3);
+    }
+
+    #[tokio::test]
+    async fn play_awards_raise_lifetime_level_and_balance_like_any_other() {
+        // The point of the change: a player who never rates still progresses.
+        let repo = Arc::new(FakeCurationRewardsRepo::default());
+        let m = CurationRewardsModule::new(repo.clone());
+        for n in 0..8 {
+            m.award_performance(
+                "u1",
+                &format!("p{n}"),
+                GOOD,
+                Some("advanced".into()),
+                &format!("s{n}"),
+            )
+            .await
+            .unwrap();
+        }
+        m.award_practice("u1", "2026-08-14").await.unwrap();
+        let rewards = m.get_rewards("u1").await.unwrap();
+        assert_eq!(rewards.lifetime_points, 43); // 40 capped play + 3 practice
+        assert_eq!(rewards.spendable_balance, 43);
+        assert_eq!(rewards.level, level_for(43, m.config()));
+        assert!(rewards.metrics.total_ratings == 0, "no rating was needed");
     }
 
     #[tokio::test]

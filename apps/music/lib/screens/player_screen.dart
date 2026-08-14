@@ -46,6 +46,7 @@ import '../widgets/coach_mark.dart';
 import '../widgets/countdown_overlay.dart';
 import '../widgets/mistake_replay.dart';
 import '../widgets/notation_help_area.dart';
+import '../widgets/play_reward_listeners.dart';
 import '../widgets/playback_progress_bar.dart';
 import '../widgets/practice_range_picker.dart';
 import '../widgets/reading_aid.dart';
@@ -300,7 +301,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
         onPopInvokedWithResult: (didPop, _) {
           if (!didPop) unawaited(_requestExit());
         },
-        child: _buildPlayer(context),
+        // Celebrates a level crossed by playing, through the same path a redeem
+        // uses (change: add-play-rewards). A listener widget rather than another
+        // `ref.listen` in this build method (architecture rule 4).
+        child: PlayRewardListeners(child: _buildPlayer(context)),
       ),
     );
   }

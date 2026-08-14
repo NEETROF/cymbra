@@ -45,6 +45,7 @@ pub mod play;
 pub mod play_core;
 pub mod play_grpc;
 pub mod play_module;
+pub mod play_rewards_core;
 pub mod repo;
 pub mod score_rating;
 pub mod soundfont;

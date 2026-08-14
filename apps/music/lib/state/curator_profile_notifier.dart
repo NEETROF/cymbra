@@ -17,6 +17,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../services/curator_rewards_service.dart';
 import '../services/preferences_service.dart';
+import 'play_reward_cue.dart';
 
 part 'curator_profile_notifier.g.dart';
 
@@ -43,6 +44,13 @@ class CuratorProfile extends _$CuratorProfile {
     // Refresh when a redeem happened elsewhere (the shop bumps the revision after
     // it persists) — reactive, never invalidated by a sibling.
     ref.listen(rewardRevisionProvider, (_, _) => ref.invalidateSelf());
+    // Same shape for points earned by PLAYING (change: add-play-rewards): the
+    // outbox publishes the award as the ack lands, and the standing (lifetime,
+    // level, balance) that this snapshot carries has just moved.
+    ref.listen(
+      playRewardCueProvider.select((s) => s.seq),
+      (_, _) => ref.invalidateSelf(),
+    );
     return ref.read(curatorRewardsServiceProvider).getRewards();
   }
 

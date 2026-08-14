@@ -22,15 +22,20 @@
 //! tunable without a migration; the pure functions here are exhaustively unit
 //! tested so the settlement rules are proven without a database.
 
-/// The kind of a ledger entry (mirrors the `award_kind` CHECK in migration 0016).
-/// `Coverage`/`Honesty` are positive awards; `Adjustment` is a positive correction
-/// appended when a late moderator decision raises a consensus settlement; `Redeem`
-/// is the negative shop spend.
+/// The kind of a ledger entry (mirrors the `award_kind` CHECK in migrations
+/// 0016 and 0025). `Coverage`/`Honesty` are positive RATING awards; `Adjustment` is a
+/// positive correction appended when a late moderator decision raises a consensus
+/// settlement; `Performance`/`Practice` are the positive PLAY awards (change:
+/// add-play-rewards) — a scored run past the quality floor, and the once-a-day
+/// showing-up award for a scoreless practice run; `Redeem` is the negative shop
+/// spend.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AwardKind {
     Coverage,
     Honesty,
     Adjustment,
+    Performance,
+    Practice,
     Redeem,
 }
 
@@ -41,6 +46,8 @@ impl AwardKind {
             AwardKind::Coverage => "coverage",
             AwardKind::Honesty => "honesty",
             AwardKind::Adjustment => "adjustment",
+            AwardKind::Performance => "performance",
+            AwardKind::Practice => "practice",
             AwardKind::Redeem => "redeem",
         }
     }
@@ -387,6 +394,8 @@ mod tests {
         assert_eq!(AwardKind::Coverage.as_str(), "coverage");
         assert_eq!(AwardKind::Honesty.as_str(), "honesty");
         assert_eq!(AwardKind::Adjustment.as_str(), "adjustment");
+        assert_eq!(AwardKind::Performance.as_str(), "performance");
+        assert_eq!(AwardKind::Practice.as_str(), "practice");
         assert_eq!(AwardKind::Redeem.as_str(), "redeem");
         assert_eq!(SettlementSource::Consensus.as_str(), "consensus");
         assert_eq!(SettlementSource::Moderator.as_str(), "moderator");

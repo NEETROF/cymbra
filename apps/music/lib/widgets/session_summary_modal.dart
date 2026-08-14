@@ -19,9 +19,11 @@ import '../l10n/gen/app_localizations.dart';
 import '../state/leaderboard.dart';
 import '../state/leaderboard_notifier.dart';
 import '../state/performance_scoring_core.dart';
+import '../state/play_reward_cue.dart';
 import '../state/post_play_rating_notifier.dart';
 import '../state/session_summary.dart';
 import '../theme/cymbra_theme.dart';
+import '../theme/scoring_style.dart';
 import 'leaderboard_view.dart';
 import 'post_play_rating.dart';
 
@@ -119,6 +121,10 @@ class _SummaryDialog extends StatelessWidget {
                           color: CymbraColors.outline,
                         ),
                       ),
+                      // What this run earned (change: add-play-rewards) — shown
+                      // right under the score, where the work happened. Renders
+                      // nothing at all when the run earned nothing.
+                      const _PointsCue(),
                       const SizedBox(height: 16),
                       _subScores(l10n),
                       const SizedBox(height: 16),
@@ -362,6 +368,54 @@ class _SummaryDialog extends StatelessWidget {
 
   static String _handsLabel(AppLocalizations l10n, String hands) =>
       l10n.summaryHands(hands);
+}
+
+/// The "+N points" cue for the run just finished (change: add-play-rewards).
+///
+/// The amount is not known when the modal opens: the run is captured into the
+/// durable outbox and the server decides what it is worth, so this appears the
+/// moment the ack lands — which may be before the modal opened or a beat after.
+/// It renders **nothing** when the run earned nothing (below the quality floor,
+/// a piece that has already paid out, the daily cap reached) and nothing at all
+/// offline, so the summary is byte-for-byte its old self in those cases.
+class _PointsCue extends ConsumerWidget {
+  const _PointsCue();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final points = ref.watch(playRewardCueProvider.select((s) => s.points));
+    if (points <= 0) return const SizedBox.shrink();
+    final l10n = AppLocalizations.of(context);
+    // Gamified accent: the flawless feedback-tier colour, matching the reward
+    // celebration — not a plain success green.
+    final accent = 4.tierColor;
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Container(
+        key: const Key('summary-points-cue'),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+        decoration: BoxDecoration(
+          color: accent.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.stars_rounded, size: 15, color: accent),
+            const SizedBox(width: 6),
+            Text(
+              l10n.playPointsCue(points),
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: accent,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 /// The summary's rating affordance (change: add-post-play-rating-prompt): the

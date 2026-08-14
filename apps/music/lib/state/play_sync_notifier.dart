@@ -23,6 +23,7 @@ import 'package:uuid/uuid.dart';
 import '../services/connectivity_service.dart';
 import '../services/play_sync_service.dart';
 import 'play_outbox_store.dart';
+import 'play_reward_cue.dart';
 import 'play_session_envelope.dart';
 import 'session_notifier.dart';
 import 'session_summary.dart';
@@ -142,6 +143,10 @@ class PlaySyncNotifier extends _$PlaySyncNotifier {
       overallSyncPct: result.overallSyncPct,
       sessionResultJson: jsonEncode(result.toJson()),
     );
+    // Arm the reward cue for THIS run before any delivery, so the summary that is
+    // about to open shows what this session earned and never a previous one's
+    // number (change: add-play-rewards).
+    ref.read(playRewardCueProvider.notifier).arm(envelope.sessionId);
     await _store.add(envelope);
     state = (await _store.all()).length;
     await drain();
@@ -202,11 +207,13 @@ class PlaySyncNotifier extends _$PlaySyncNotifier {
         try {
           // A practice entry goes to the scoreless ingest; a scored session to
           // the scored one. Same ack/retry contract either way.
-          if (e.isPractice) {
-            await _service.recordPractice(e);
-          } else {
-            await _service.recordSession(e);
-          }
+          final awarded = e.isPractice
+              ? await _service.recordPractice(e)
+              : await _service.recordSession(e);
+          // The ack carries what the run earned (change: add-play-rewards);
+          // publish it for the summary. Ignored unless this is the armed run, so
+          // a backlog draining after a spell offline never mislabels the cue.
+          ref.read(playRewardCueProvider.notifier).report(e.sessionId, awarded);
           // Persisted-ack received → safe to drop the entry.
           await _store.remove(e.sessionId);
         } catch (_) {
