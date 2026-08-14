@@ -7,9 +7,11 @@ TBD - created by archiving change gamify-piano-practice. Update Purpose after ar
 
 Performance scoring SHALL be active in **every** render mode — Synthesia, the horizontal
 scrolling staff, and the engraved vertical Partition — with Wait Mode **either on or off**.
-A scored run SHALL begin when playback starts from the beginning of the piece and SHALL end
-when the playhead reaches the end of the piece. Switching the render mode during a run SHALL
-keep the run active (the scored note set does not depend on the render mode).
+A scored run SHALL begin **only for a full run** — playback starting from the beginning of the
+**whole piece** (the active measure range is the whole piece) — and SHALL end when the playhead
+reaches the end of the piece. A **selective run** (a practice run whose active measure range is
+narrower than the whole piece) SHALL NOT begin a scored run. Switching the render mode during a
+run SHALL keep the run active (the scored note set does not depend on the render mode).
 
 A scored run SHALL judge only the notes of the currently selected hand(s) and SHALL record
 which hand(s) were played, so the result reflects a single hand selection. Changing the
@@ -19,19 +21,24 @@ new selection, so the score stays coherent over the whole piece and still ends i
 
 #### Scenario: Scoring runs in Synthesia with Wait Mode off
 - **WHEN** Wait Mode is off, the render mode is Synthesia or scrolling staff, and the
-  player starts playback from the beginning
+  player starts a full run from the beginning
 - **THEN** a scored run begins and note judgments accumulate as the playhead advances
 
 #### Scenario: Scoring runs with Wait Mode on
 - **WHEN** Wait Mode is on, the render mode is Synthesia or scrolling staff, and the
-  player starts playback from the beginning
+  player starts a full run from the beginning
 - **THEN** a scored run begins and note judgments accumulate at each gated onset, using the
   Wait-Mode timing model, without altering the Wait-Mode gating behavior
 
 #### Scenario: The Partition view is scored
-- **WHEN** the render mode is the engraved Partition view and playback starts from the
-  beginning
+- **WHEN** the render mode is the engraved Partition view and the player starts a full run from
+  the beginning
 - **THEN** a scored run begins and note judgments accumulate
+
+#### Scenario: A selective run is not scored
+- **WHEN** the active measure range is narrower than the whole piece and the player starts the
+  run
+- **THEN** no scored run begins, no judgments accumulate, and the run stays unscored
 
 #### Scenario: Switching render mode keeps the run
 - **WHEN** the render mode changes (e.g. Synthesia → Partition) during an active scored run
