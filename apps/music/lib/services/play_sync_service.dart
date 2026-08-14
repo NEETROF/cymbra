@@ -32,13 +32,19 @@ abstract class PlaySyncService {
   /// persisted-ack (the signal to drop the outbox entry); throws on any failure
   /// (offline, unauthenticated, server error) so the entry is retried. Idempotent
   /// server-side by the session id, so a re-delivery is safe.
-  Future<void> recordSession(PlaySessionEnvelope envelope);
+  ///
+  /// Returns the **points the session earned** (change: add-play-rewards), which
+  /// the ack carries back so the summary can show its "+N" without a second read.
+  /// 0 when nothing was awarded — below the quality floor, this piece already paid
+  /// out, the daily cap reached, or a re-delivery of a session that already paid.
+  Future<int> recordSession(PlaySessionEnvelope envelope);
 
   /// Deliver one captured **practice** session (change: add-measure-range-
   /// practice, D4) — a scoreless activity record. Same ack/retry contract as
   /// [recordSession]; the server stores it apart from the scored sessions, so a
-  /// practice never produces a grade or a leaderboard entry.
-  Future<void> recordPractice(PlaySessionEnvelope envelope);
+  /// practice never produces a grade or a leaderboard entry. Returns the points
+  /// the practice earned (the once-a-day showing-up award, 0 thereafter).
+  Future<int> recordPractice(PlaySessionEnvelope envelope);
 
   /// Read a user's per-day activity (the heatmap). Honors the target's visibility
   /// server-side (a non-public target is refused there).
@@ -59,8 +65,8 @@ class GrpcPlaySyncService implements PlaySyncService {
   final AuthedRunner _authed;
 
   @override
-  Future<void> recordSession(PlaySessionEnvelope e) => _authed((bearer) async {
-    await _client.recordPlaySession(
+  Future<int> recordSession(PlaySessionEnvelope e) => _authed((bearer) async {
+    final resp = await _client.recordPlaySession(
       play.RecordPlaySessionRequest(
         sessionId: e.sessionId,
         scoreId: e.scoreId,
@@ -71,11 +77,12 @@ class GrpcPlaySyncService implements PlaySyncService {
       ),
       options: bearerOptions(bearer),
     );
+    return resp.pointsAwarded;
   });
 
   @override
-  Future<void> recordPractice(PlaySessionEnvelope e) => _authed((bearer) async {
-    await _client.recordPractice(
+  Future<int> recordPractice(PlaySessionEnvelope e) => _authed((bearer) async {
+    final resp = await _client.recordPractice(
       play.RecordPracticeRequest(
         sessionId: e.sessionId,
         scoreId: e.scoreId,
@@ -84,6 +91,7 @@ class GrpcPlaySyncService implements PlaySyncService {
       ),
       options: bearerOptions(bearer),
     );
+    return resp.pointsAwarded;
   });
 
   @override

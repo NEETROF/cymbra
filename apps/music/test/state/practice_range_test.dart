@@ -101,8 +101,8 @@ ProviderContainer _playerContainer(PlaySyncService sync) => ProviderContainer(
 
 MockPlaySyncService _sync() {
   final service = MockPlaySyncService();
-  when(service.recordPractice(any)).thenAnswer((_) async {});
-  when(service.recordSession(any)).thenAnswer((_) async {});
+  when(service.recordPractice(any)).thenAnswer((_) async => 0);
+  when(service.recordSession(any)).thenAnswer((_) async => 0);
   return service;
 }
 

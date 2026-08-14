@@ -449,10 +449,14 @@
   "curatorActivityHonesty": "Bonus onestà",
   "curatorActivityAdjustment": "Rettifica",
   "curatorActivityRedeem": "Ricompensa riscattata",
+  "curatorActivityPerformance": "Brano suonato",
+  "curatorActivityPractice": "Sessione di studio",
+  "curatorActivityOther": "Punti guadagnati",
   "curatorActivitySourceConsensus": "per consenso della comunità",
   "curatorActivitySourceModerator": "da un moderatore",
 
   "ratingPointsCue": "+{points} punti curatore",
+  "playPointsCue": "+{points} punti",
 
   "rewardShopTitle": "Negozio ricompense",
   "rewardShopLoadError": "Impossibile caricare il negozio.",
@@ -468,6 +472,7 @@
   "rewardCelebrationClose": "Bene!",
   "rewardCelebrationRedeemedTitle": "Ricompensa sbloccata!",
   "rewardCelebrationLevelUpTitle": "Salito di livello!",
+  "rewardCelebrationLevelUpMessage": "Hai raggiunto il livello {level}.",
   "rewardCelebrationBadgeTitle": "Distintivo ottenuto!",
 
   "soundfontsLocked": "Bloccato",

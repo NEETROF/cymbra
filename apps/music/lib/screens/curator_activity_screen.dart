@@ -113,6 +113,10 @@ IconData _kindIcon(String kind) => switch (kind) {
   'coverage' => Icons.explore_outlined,
   'honesty' => Icons.verified_outlined,
   'adjustment' => Icons.tune,
+  // The play awards (change: add-play-rewards) — the ledger now has more than
+  // one source of income, and the feed shows all of it.
+  'performance' => Icons.piano_outlined,
+  'practice' => Icons.event_available_outlined,
   'redeem' => Icons.card_giftcard,
   _ => Icons.stars,
 };
@@ -121,8 +125,13 @@ String _kindLabel(AppLocalizations l10n, String kind) => switch (kind) {
   'coverage' => l10n.curatorActivityCoverage,
   'honesty' => l10n.curatorActivityHonesty,
   'adjustment' => l10n.curatorActivityAdjustment,
+  'performance' => l10n.curatorActivityPerformance,
+  'practice' => l10n.curatorActivityPractice,
   'redeem' => l10n.curatorActivityRedeem,
-  _ => kind,
+  // An award kind a newer server knows and this build does not: the raw key
+  // would be an untranslated technical string in the UI, so fall back to the
+  // neutral "points earned" wording instead.
+  _ => l10n.curatorActivityOther,
 };
 
 String? _sourceLabel(AppLocalizations l10n, String? source) => switch (source) {

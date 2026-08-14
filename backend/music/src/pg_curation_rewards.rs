@@ -66,6 +66,8 @@ fn parse_kind(s: &str) -> AwardKind {
     match s {
         "coverage" => AwardKind::Coverage,
         "adjustment" => AwardKind::Adjustment,
+        "performance" => AwardKind::Performance,
+        "practice" => AwardKind::Practice,
         "redeem" => AwardKind::Redeem,
         _ => AwardKind::Honesty,
     }
@@ -252,6 +254,67 @@ impl CurationRewardsRepo for PgCurationRewardsRepo {
         .await
         .map_err(internal)?;
         Ok(())
+    }
+
+    async fn append_play_award(
+        &self,
+        user_id: &str,
+        kind: AwardKind,
+        amount: i64,
+        piece_id: Option<&str>,
+        award_key: &str,
+    ) -> Result<bool> {
+        // Exactly-once against `curation_points_award_key_once_idx` — a retried
+        // ingest re-attempts the award and this turns it into a no-op (design D4).
+        let res = sqlx::query(
+            "INSERT INTO music.curation_points \
+             (user_id, award_kind, amount, piece_id, award_key) \
+             VALUES ($1, $2, $3, $4, $5) \
+             ON CONFLICT (user_id, award_key) WHERE award_key IS NOT NULL DO NOTHING",
+        )
+        .bind(uid(user_id)?)
+        .bind(kind.as_str())
+        .bind(amount as i32)
+        .bind(piece_id)
+        .bind(award_key)
+        .execute(&self.pool)
+        .await
+        .map_err(internal)?;
+        Ok(res.rows_affected() > 0)
+    }
+
+    async fn performance_count_for_piece(&self, user_id: &str, piece_id: &str) -> Result<i64> {
+        // Served by `curation_points_piece_paid_idx (user_id, piece_id) WHERE
+        // award_kind = 'performance'`.
+        let n: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*)::bigint FROM music.curation_points \
+             WHERE user_id = $1 AND piece_id = $2 AND award_kind = 'performance'",
+        )
+        .bind(uid(user_id)?)
+        .bind(piece_id)
+        .fetch_one(&self.pool)
+        .await
+        .map_err(internal)?;
+        Ok(n)
+    }
+
+    async fn performance_today(&self, user_id: &str) -> Result<i64> {
+        // Server-local day, exactly like `coverage_today` — deliberately NOT the
+        // player's local day: a tz-keyed cap would let a farmer reset their
+        // allowance by changing the device clock's offset. The player-local day
+        // matters for the PRACTICE award (which is about their day, and is keyed
+        // on it durably), not for the anti-farming ceiling. Served by
+        // `curation_points_user_idx (user_id, created_at DESC)`.
+        let total: i64 = sqlx::query_scalar(
+            "SELECT COALESCE(SUM(amount), 0)::bigint FROM music.curation_points \
+             WHERE user_id = $1 AND award_kind = 'performance' \
+             AND created_at >= date_trunc('day', now())",
+        )
+        .bind(uid(user_id)?)
+        .fetch_one(&self.pool)
+        .await
+        .map_err(internal)?;
+        Ok(total)
     }
 
     async fn consensus_candidates(&self, min_raters: i64) -> Result<Vec<ConsensusCandidate>> {

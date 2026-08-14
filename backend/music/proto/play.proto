@@ -23,7 +23,13 @@ message RecordPlaySessionRequest {
   // only the summary fields above.
   string session_result_json = 6;
 }
-message RecordPlaySessionResponse {}
+message RecordPlaySessionResponse {
+  // Points this session earned (change: add-play-rewards), so the app can show
+  // the "+N" cue on the session summary without a second read. 0 when nothing
+  // was awarded — below the quality floor, this piece already paid out, the
+  // daily cap reached, or a re-delivery of a session that already paid.
+  int32 points_awarded = 1;
+}
 
 // Record one completed **practice** session — a selective (measure-range) run,
 // which is never scored (change: add-measure-range-practice, D4). Deliberately
@@ -37,7 +43,12 @@ message RecordPracticeRequest {
   int64 practiced_at_ms = 3;    // when the practice session ended (unix epoch ms)
   int32 tz_offset_minutes = 4;  // client UTC offset at practiced_at (local-day bucketing)
 }
-message RecordPracticeResponse {}
+message RecordPracticeResponse {
+  // Points this practice earned (change: add-play-rewards): the flat showing-up
+  // award the first time on the player's local day, 0 for every further practice
+  // that day and for a re-delivery.
+  int32 points_awarded = 1;
+}
 
 // One local day of activity: the number of songs played, the average overall
 // synchronization percentage that day (the heatmap cell's count + color), and

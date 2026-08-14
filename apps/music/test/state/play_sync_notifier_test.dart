@@ -26,6 +26,7 @@ import 'package:music/state/performance_scoring_core.dart';
 import 'package:music/state/play_activity.dart';
 import 'package:music/state/play_activity_notifier.dart';
 import 'package:music/state/play_outbox_store.dart';
+import 'package:music/state/play_reward_cue.dart';
 import 'package:music/state/play_session_envelope.dart';
 import 'package:music/state/play_sync_notifier.dart';
 import 'package:music/state/session_notifier.dart';
@@ -131,7 +132,7 @@ ProviderContainer _container({
 void main() {
   test('captures a session and removes it on the server ack', () async {
     final service = MockPlaySyncService();
-    when(service.recordSession(any)).thenAnswer((_) async {});
+    when(service.recordSession(any)).thenAnswer((_) async => 0);
     final prefs = FakePreferencesService();
     final c = _container(service: service, prefs: prefs);
 
@@ -157,16 +158,76 @@ void main() {
 
       // Connectivity/server recovers: the SAME entry is delivered and removed.
       reset(service);
-      when(service.recordSession(any)).thenAnswer((_) async {});
+      when(service.recordSession(any)).thenAnswer((_) async => 0);
       await notifier.drain();
       expect(await c.read(playOutboxStoreProvider).all(), isEmpty);
       verify(service.recordSession(any)).called(1);
     },
   );
 
+  // --- reward cue (change: add-play-rewards) ------------------------------
+
+  test("the ack's award reaches the reward cue", () async {
+    final service = MockPlaySyncService();
+    when(service.recordSession(any)).thenAnswer((_) async => 12);
+    final c = _container(service: service, prefs: FakePreferencesService());
+
+    await c.read(playSyncNotifierProvider.notifier).captureSession(_result());
+
+    expect(c.read(playRewardCueProvider).points, 12);
+    expect(c.read(playRewardCueProvider).seq, 1);
+  });
+
+  test('a session that earned nothing publishes no cue', () async {
+    final service = MockPlaySyncService();
+    when(service.recordSession(any)).thenAnswer((_) async => 0);
+    final c = _container(service: service, prefs: FakePreferencesService());
+
+    await c.read(playSyncNotifierProvider.notifier).captureSession(_result());
+
+    expect(c.read(playRewardCueProvider).points, 0);
+    expect(c.read(playRewardCueProvider).seq, 0);
+  });
+
+  test('a new run clears the previous run\'s award before delivery', () async {
+    final service = MockPlaySyncService();
+    when(service.recordSession(any)).thenAnswer((_) async => 7);
+    final c = _container(service: service, prefs: FakePreferencesService());
+    final notifier = c.read(playSyncNotifierProvider.notifier);
+
+    await notifier.captureSession(_result());
+    expect(c.read(playRewardCueProvider).points, 7);
+
+    // The next run earns nothing: its summary must show NO cue rather than the
+    // previous run's number.
+    reset(service);
+    when(service.recordSession(any)).thenAnswer((_) async => 0);
+    await notifier.captureSession(_result());
+    expect(c.read(playRewardCueProvider).points, 0);
+  });
+
+  test('a backlogged entry never claims the current run\'s cue', () async {
+    // A spell offline left an older session queued. When connectivity returns
+    // mid-run, its award must not be shown as what the run on screen earned.
+    final prefs = FakePreferencesService();
+    await PlayOutboxStore(prefs).add(_entry('old', userId: 'u1'));
+    final service = MockPlaySyncService();
+    when(service.recordSession(any)).thenAnswer((invocation) async {
+      final e = invocation.positionalArguments.first as PlaySessionEnvelope;
+      return e.sessionId == 'old' ? 40 : 6;
+    });
+    final c = _container(service: service, prefs: prefs);
+
+    await c.read(playSyncNotifierProvider.notifier).captureSession(_result());
+
+    // Both were delivered; only the armed (current) run set the cue.
+    expect(await c.read(playOutboxStoreProvider).all(), isEmpty);
+    expect(c.read(playRewardCueProvider).points, 6);
+  });
+
   test('an acked entry is never sent again (no double-count)', () async {
     final service = MockPlaySyncService();
-    when(service.recordSession(any)).thenAnswer((_) async {});
+    when(service.recordSession(any)).thenAnswer((_) async => 0);
     final c = _container(service: service, prefs: FakePreferencesService());
     final notifier = c.read(playSyncNotifierProvider.notifier);
 
@@ -182,7 +243,7 @@ void main() {
     await PlayOutboxStore(prefs).add(_entry('b', userId: 'u2'));
 
     final service = MockPlaySyncService();
-    when(service.recordSession(any)).thenAnswer((_) async {});
+    when(service.recordSession(any)).thenAnswer((_) async => 0);
     final c = _container(service: service, prefs: prefs, userId: 'u1');
 
     await c.read(playSyncNotifierProvider.notifier).drain();
@@ -201,7 +262,7 @@ void main() {
     await PlayOutboxStore(prefs).add(_entry('a', userId: 'u1'));
 
     final service = MockPlaySyncService();
-    when(service.recordSession(any)).thenAnswer((_) async {});
+    when(service.recordSession(any)).thenAnswer((_) async => 0);
     final c = _container(service: service, prefs: prefs);
 
     // Reading the notifier runs build(), whose launch drain flushes the backlog.
@@ -218,7 +279,7 @@ void main() {
       final prefs = FakePreferencesService();
       await PlayOutboxStore(prefs).add(_entry('a', userId: 'u1'));
       final service = MockPlaySyncService();
-      when(service.recordSession(any)).thenAnswer((_) async {});
+      when(service.recordSession(any)).thenAnswer((_) async => 0);
 
       // Signed out (no user / offline): the entry is retained, nothing is sent.
       final offline = _container(
@@ -253,7 +314,7 @@ void main() {
 
     // Connectivity returns → the sender re-drains and delivers.
     reset(service);
-    when(service.recordSession(any)).thenAnswer((_) async {});
+    when(service.recordSession(any)).thenAnswer((_) async => 0);
     conn.goOnline();
     await pumpEventQueue();
     expect(await c.read(playOutboxStoreProvider).all(), isEmpty);
@@ -280,7 +341,7 @@ void main() {
       'capture enqueues a SCORELESS record on the practice ingest',
       () async {
         final service = MockPlaySyncService();
-        when(service.recordPractice(any)).thenAnswer((_) async {});
+        when(service.recordPractice(any)).thenAnswer((_) async => 0);
         final c = _container(service: service, prefs: FakePreferencesService());
 
         await c
@@ -316,7 +377,7 @@ void main() {
 
       // A fresh launch on the same storage flushes the backlog.
       reset(service);
-      when(service.recordPractice(any)).thenAnswer((_) async {});
+      when(service.recordPractice(any)).thenAnswer((_) async => 0);
       final relaunched = _container(service: service, prefs: prefs);
       relaunched.read(playSyncNotifierProvider);
       await pumpEventQueue();
@@ -332,8 +393,8 @@ void main() {
       ).add(_practiceEntry('practice', userId: 'u1'));
 
       final service = MockPlaySyncService();
-      when(service.recordSession(any)).thenAnswer((_) async {});
-      when(service.recordPractice(any)).thenAnswer((_) async {});
+      when(service.recordSession(any)).thenAnswer((_) async => 0);
+      when(service.recordPractice(any)).thenAnswer((_) async => 0);
       final c = _container(service: service, prefs: prefs);
 
       await c.read(playSyncNotifierProvider.notifier).drain();
@@ -355,7 +416,7 @@ void main() {
 
     test('an acked practice is never sent again (no double-count)', () async {
       final service = MockPlaySyncService();
-      when(service.recordPractice(any)).thenAnswer((_) async {});
+      when(service.recordPractice(any)).thenAnswer((_) async => 0);
       final c = _container(service: service, prefs: FakePreferencesService());
       final notifier = c.read(playSyncNotifierProvider.notifier);
 

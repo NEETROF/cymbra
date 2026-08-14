@@ -92,14 +92,7 @@ impl GlobalConfig {
     /// unrecognised level falls back to [`Self::unleveled_weight`] (design D1:
     /// `level` is partly heuristic, so an unknown value must stay neutral).
     pub fn difficulty_weight(&self, level: Option<&str>) -> f64 {
-        level
-            .and_then(|l| {
-                self.level_weights
-                    .iter()
-                    .find(|(name, _)| name == l)
-                    .map(|(_, w)| *w)
-            })
-            .unwrap_or(self.unleveled_weight)
+        difficulty_weight_of(level, &self.level_weights, self.unleveled_weight)
     }
 
     /// The season containing `ts_ms` (UTC boundaries, design D3). Timestamps
@@ -124,6 +117,20 @@ impl GlobalConfig {
         let current = self.season_at(ts_ms);
         self.season_at(current.start_ms - 1)
     }
+}
+
+/// The difficulty weight of a piece with catalog `level` against a `(level,
+/// weight)` table. An absent or unrecognised level falls back to `unleveled`,
+/// NEVER to zero — `level` is partly heuristic, so an unknown value must stay
+/// neutral rather than zero out the piece.
+///
+/// Lifted out of [`GlobalConfig::difficulty_weight`] so the play-rewards economy
+/// weighs difficulty on the SAME scale the season boards rank with rather than a
+/// second one (change: add-play-rewards, task 1.4).
+pub fn difficulty_weight_of(level: Option<&str>, weights: &[(String, f64)], unleveled: f64) -> f64 {
+    level
+        .and_then(|l| weights.iter().find(|(name, _)| name == l).map(|(_, w)| *w))
+        .unwrap_or(unleveled)
 }
 
 /// Render a season id from its UTC start instant: the start date, `YYYY-MM-DD`.

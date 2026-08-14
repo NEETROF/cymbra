@@ -30,6 +30,7 @@ use tonic::{Request, Response, Status};
 use crate::catalog_search::CatalogSearchRepo;
 use crate::curation_rewards::CurationRewardsSink;
 use crate::module::is_rateable_catalog_score;
+use crate::play_core::local_day;
 use crate::play_module::{PlayModule, RecordInput, RecordPracticeInput};
 use crate::proto::{
     DayActivity as ProtoDayActivity, GetPlayActivityRequest, GetPlayActivityResponse,
@@ -120,6 +121,88 @@ impl PlayGrpc {
             );
         }
     }
+
+    /// The piece's catalog difficulty, for the play award's weighting (change:
+    /// add-play-rewards, task 4.2). Resolved through the SAME `CatalogSearchRepo`
+    /// seam that already tells a catalog score from an upload here.
+    ///
+    /// `None` for a bundled piece, a user upload, an unleveled catalog row, or a
+    /// catalog read that failed — every one of which weighs **neutrally**, never
+    /// zero: a missing level is a metadata gap, not a reason to tell a player their
+    /// run was worthless (design D7).
+    async fn piece_level(&self, score_id: &str) -> Option<String> {
+        let catalog = self.catalog.as_ref()?;
+        match catalog.hit_by_id(score_id, true).await {
+            Ok(hit) => hit.and_then(|h| h.level),
+            Err(e) => {
+                tracing::warn!(
+                    score_id = %score_id, error = %e,
+                    "play rewards: could not resolve piece difficulty, weighing it neutrally"
+                );
+                None
+            }
+        }
+    }
+
+    /// Award performance points for a just-stored session, best-effort (change:
+    /// add-play-rewards, design D5).
+    ///
+    /// **Never fails the ingest.** The client's outbox treats a failed call as
+    /// undelivered and retries the whole session, so a player would see their run
+    /// "not saved" because points could not be written. A lost award is a handful
+    /// of points; a failed ack is a user-visible bug. Returns the points awarded,
+    /// which the ack carries back (0 when the seam is not wired).
+    ///
+    /// A session with no `score_id` awards nothing: the per-piece diminishing curve
+    /// has nothing to count against, and paying an unidentifiable piece would be
+    /// precisely the infinite well the curve exists to close.
+    async fn award_performance(
+        &self,
+        user_id: &str,
+        score_id: Option<&str>,
+        accuracy_pct: f32,
+        session_id: &str,
+    ) -> i32 {
+        let (Some(rewards), Some(score_id)) = (&self.rewards, score_id) else {
+            return 0;
+        };
+        let level = self.piece_level(score_id).await;
+        match rewards
+            .award_performance(user_id, score_id, accuracy_pct, level, session_id)
+            .await
+        {
+            Ok(points) => points as i32,
+            Err(e) => {
+                tracing::warn!(
+                    user_id = %user_id, score_id = %score_id, error = %e,
+                    "play rewards: performance award not recorded"
+                );
+                0
+            }
+        }
+    }
+
+    /// Award the once-a-day practice award for a just-stored practice session,
+    /// best-effort — same ack contract as [`Self::award_performance`].
+    async fn award_practice(&self, user_id: &str, practiced_at_ms: i64, tz_offset: i32) -> i32 {
+        let Some(rewards) = &self.rewards else {
+            return 0;
+        };
+        // The PLAYER's local day, not the server's: the same bucketing the heatmap
+        // and the streak badges use, so midnight UTC falling mid-evening never
+        // costs someone their daily award (design D3).
+        let day = local_day(practiced_at_ms, tz_offset).to_string();
+        match rewards.award_practice(user_id, &day).await {
+            Ok(points) => points as i32,
+            Err(e) => {
+                tracing::warn!(
+                    user_id = %user_id, local_day = %day, error = %e,
+                    "play rewards: practice award not recorded"
+                );
+                0
+            }
+        }
+    }
 }
 
 fn caller<T>(req: &Request<T>) -> Result<String, Status> {
@@ -141,6 +224,9 @@ impl PlayService for PlayGrpc {
         // add-post-play-rating-prompt) — recorded before the ingest so it is not lost
         // if the ingest fails, and idempotent per (user, score) at the repo.
         self.record_engagement(&owner, r.score_id.as_deref()).await;
+        let session_id = r.session_id.clone();
+        let score_id = r.score_id.clone();
+        let accuracy = r.overall_sync_pct;
         // A successful return IS the persisted-ack the client waits for.
         self.module
             .record_session(
@@ -155,7 +241,13 @@ impl PlayService for PlayGrpc {
                 },
             )
             .await?;
-        Ok(Response::new(RecordPlaySessionResponse {}))
+        // The run is stored; now pay for it (change: add-play-rewards). Keyed on the
+        // session id, so this is exactly-once even though the ingest is
+        // at-least-once — and best-effort, so a failure to pay never fails the ack.
+        let points_awarded = self
+            .award_performance(&owner, score_id.as_deref(), accuracy, &session_id)
+            .await;
+        Ok(Response::new(RecordPlaySessionResponse { points_awarded }))
     }
 
     async fn record_practice(
@@ -164,6 +256,8 @@ impl PlayService for PlayGrpc {
     ) -> Result<Response<RecordPracticeResponse>, Status> {
         let owner = caller(&req)?;
         let r = req.into_inner();
+        let practiced_at_ms = r.practiced_at_ms;
+        let tz_offset_minutes = r.tz_offset_minutes;
         // A successful return IS the persisted-ack the client's outbox waits for.
         self.module
             .record_practice(
@@ -176,7 +270,12 @@ impl PlayService for PlayGrpc {
                 },
             )
             .await?;
-        Ok(Response::new(RecordPracticeResponse {}))
+        // Showing up is worth acknowledging, once for the player's local day
+        // (change: add-play-rewards). Best-effort, exactly like the scored path.
+        let points_awarded = self
+            .award_practice(&owner, practiced_at_ms, tz_offset_minutes)
+            .await;
+        Ok(Response::new(RecordPracticeResponse { points_awarded }))
     }
 
     async fn get_play_activity(
@@ -214,10 +313,13 @@ impl PlayService for PlayGrpc {
 mod tests {
     use super::*;
     use crate::catalog_search::{FakeCatalogRow, FakeCatalogSearchRepo};
-    use crate::curation_rewards::{CurationRewardsRepo, FakeCurationRewardsRepo};
+    use crate::curation_rewards::{
+        CurationRewardsRepo, FakeCurationRewardsRepo, MockCurationRewardsSink,
+    };
     use crate::curation_rewards_module::CurationRewardsModule;
     use crate::play::FakePlayRepo;
     use crate::play_module::PlayModule;
+    use cymbra_platform::AppError;
     use cymbra_user_port::MockUserPort;
 
     fn grpc(allow: bool) -> PlayGrpc {
@@ -305,6 +407,180 @@ mod tests {
             overall_sync_pct: 80.0,
             session_result_json: "{}".into(),
         }
+    }
+
+    // --- play rewards (change: add-play-rewards) ---------------------------
+
+    fn practice(at_ms: i64, tz_offset_minutes: i32) -> RecordPracticeRequest {
+        RecordPracticeRequest {
+            session_id: uuid::Uuid::now_v7().to_string(),
+            score_id: Some(CATALOG_ID.into()),
+            practiced_at_ms: at_ms,
+            tz_offset_minutes,
+        }
+    }
+
+    #[tokio::test]
+    async fn the_ack_carries_what_the_session_earned() {
+        let (g, _rewards) = grpc_with_rewards();
+        // A good run of an ADVANCED catalog piece: the first band, difficulty-weighted.
+        let resp = g
+            .record_play_session(authed(session(Some(CATALOG_ID)), "u1"))
+            .await
+            .unwrap()
+            .into_inner();
+        assert_eq!(resp.points_awarded, 16);
+    }
+
+    #[tokio::test]
+    async fn a_sub_floor_session_is_stored_and_reports_zero() {
+        let (g, _rewards) = grpc_with_rewards();
+        let mut req = session(Some(CATALOG_ID));
+        req.overall_sync_pct = 20.0; // keys mashed / walked away
+        let resp = g
+            .record_play_session(authed(req, "u1"))
+            .await
+            .unwrap()
+            .into_inner();
+        assert_eq!(resp.points_awarded, 0);
+        // Still recorded as activity — the run happened.
+        let activity = g
+            .get_play_activity(authed(
+                GetPlayActivityRequest {
+                    user_id: String::new(),
+                },
+                "u1",
+            ))
+            .await
+            .unwrap()
+            .into_inner();
+        assert_eq!(activity.total_sessions, 1);
+    }
+
+    #[tokio::test]
+    async fn a_redelivered_session_reports_zero_the_second_time() {
+        // The client's outbox retries until acked, so the SAME request arrives
+        // twice. It must pay once and report 0 on the retry.
+        let (g, _rewards) = grpc_with_rewards();
+        let req = session(Some(CATALOG_ID));
+        let first = g
+            .record_play_session(authed(req.clone(), "u1"))
+            .await
+            .unwrap()
+            .into_inner();
+        let second = g
+            .record_play_session(authed(req, "u1"))
+            .await
+            .unwrap()
+            .into_inner();
+        assert_eq!(first.points_awarded, 16);
+        assert_eq!(second.points_awarded, 0);
+    }
+
+    #[tokio::test]
+    async fn an_unleveled_piece_still_pays_neutrally() {
+        // A user upload carries no catalog level: neutral weight, never zero.
+        let (g, _rewards) = grpc_with_rewards();
+        let resp = g
+            .record_play_session(authed(session(Some(UPLOAD_ID)), "u1"))
+            .await
+            .unwrap()
+            .into_inner();
+        assert_eq!(resp.points_awarded, 8);
+    }
+
+    #[tokio::test]
+    async fn practice_pays_once_for_the_players_local_day() {
+        let (g, _rewards) = grpc_with_rewards();
+        // 2024-06-15T23:30Z at +60min is already the 16th LOCALLY...
+        const JUN15_2330Z: i64 = 1_718_494_200_000;
+        let first = g
+            .record_practice(authed(practice(JUN15_2330Z, 60), "u1"))
+            .await
+            .unwrap()
+            .into_inner();
+        assert_eq!(first.points_awarded, 3);
+        // ...so an hour later — a different UTC day, the SAME local day — pays
+        // nothing more.
+        let same_local_day = g
+            .record_practice(authed(practice(JUN15_2330Z + 3_600_000, 60), "u1"))
+            .await
+            .unwrap()
+            .into_inner();
+        assert_eq!(same_local_day.points_awarded, 0);
+        // The next local day pays again.
+        let next_day = g
+            .record_practice(authed(practice(JUN15_2330Z + 86_400_000, 60), "u1"))
+            .await
+            .unwrap()
+            .into_inner();
+        assert_eq!(next_day.points_awarded, 3);
+    }
+
+    #[tokio::test]
+    async fn a_failing_award_still_stores_and_acks_the_session() {
+        // The contract that protects the player (design D5): the outbox treats a
+        // failed call as undelivered and retries the whole session, so an award
+        // failure must NEVER fail the ack — the player would see their run "not
+        // saved" over a handful of points.
+        let mut sink = MockCurationRewardsSink::new();
+        sink.expect_record_engagement().returning(|_, _| Ok(()));
+        sink.expect_award_performance()
+            .returning(|_, _, _, _, _| Err(AppError::Internal(anyhow::anyhow!("ledger down"))));
+        sink.expect_award_practice()
+            .returning(|_, _| Err(AppError::Internal(anyhow::anyhow!("ledger down"))));
+        let catalog = Arc::new(FakeCatalogSearchRepo::with(vec![FakeCatalogRow::new(
+            CATALOG_ID,
+            "Clair de Lune",
+            "Claude Debussy",
+            Some("advanced"),
+        )]));
+        let g = grpc(true).with_rewards(Arc::new(sink), catalog);
+
+        let played = g
+            .record_play_session(authed(session(Some(CATALOG_ID)), "u1"))
+            .await
+            .expect("a failed award must not fail the ingest")
+            .into_inner();
+        assert_eq!(played.points_awarded, 0);
+        let practised = g
+            .record_practice(authed(practice(1_718_494_200_000, 0), "u1"))
+            .await
+            .expect("a failed award must not fail the ingest")
+            .into_inner();
+        assert_eq!(practised.points_awarded, 0);
+
+        // Both runs are stored and readable, which is what the client is waiting on.
+        let activity = g
+            .get_play_activity(authed(
+                GetPlayActivityRequest {
+                    user_id: String::new(),
+                },
+                "u1",
+            ))
+            .await
+            .unwrap()
+            .into_inner();
+        assert_eq!(activity.total_sessions, 1);
+        assert_eq!(activity.total_practices, 1);
+    }
+
+    #[tokio::test]
+    async fn an_unwired_rewards_seam_reports_zero() {
+        // A deployment without rewards wired: ingest works, the ack simply says 0.
+        let g = grpc(true);
+        let resp = g
+            .record_play_session(authed(session(Some(CATALOG_ID)), "u1"))
+            .await
+            .unwrap()
+            .into_inner();
+        assert_eq!(resp.points_awarded, 0);
+        let p = g
+            .record_practice(authed(practice(1_718_494_200_000, 0), "u1"))
+            .await
+            .unwrap()
+            .into_inner();
+        assert_eq!(p.points_awarded, 0);
     }
 
     #[tokio::test]

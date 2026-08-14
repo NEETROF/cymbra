@@ -449,10 +449,14 @@
   "curatorActivityHonesty": "Bonificación de honestidad",
   "curatorActivityAdjustment": "Ajuste",
   "curatorActivityRedeem": "Recompensa canjeada",
+  "curatorActivityPerformance": "Pieza tocada",
+  "curatorActivityPractice": "Sesión de práctica",
+  "curatorActivityOther": "Puntos ganados",
   "curatorActivitySourceConsensus": "por consenso de la comunidad",
   "curatorActivitySourceModerator": "por un moderador",
 
   "ratingPointsCue": "+{points} puntos de curador",
+  "playPointsCue": "+{points} puntos",
 
   "rewardShopTitle": "Tienda de recompensas",
   "rewardShopLoadError": "No se pudo cargar la tienda.",
@@ -468,6 +472,7 @@
   "rewardCelebrationClose": "¡Genial!",
   "rewardCelebrationRedeemedTitle": "¡Recompensa desbloqueada!",
   "rewardCelebrationLevelUpTitle": "¡Subiste de nivel!",
+  "rewardCelebrationLevelUpMessage": "Has alcanzado el nivel {level}.",
   "rewardCelebrationBadgeTitle": "¡Insignia obtenida!",
 
   "soundfontsLocked": "Bloqueado",

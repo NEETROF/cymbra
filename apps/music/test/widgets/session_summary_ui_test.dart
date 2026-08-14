@@ -18,6 +18,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:music/services/leaderboard_service.dart';
 import 'package:music/state/leaderboard.dart';
 import 'package:music/state/performance_scoring_core.dart';
+import 'package:music/state/play_reward_cue.dart';
 import 'package:music/state/session_summary.dart';
 import 'package:music/widgets/mistake_replay.dart';
 import 'package:music/widgets/session_summary_modal.dart';
@@ -112,6 +113,42 @@ Future<void> _open(WidgetTester tester, SessionResult r) async {
   await tester.pumpAndSettle();
 }
 
+/// Same as [_open] but over a caller-owned container, so a test can drive the
+/// play-reward cue the summary reads (change: add-play-rewards).
+Future<void> _openWith(
+  WidgetTester tester,
+  SessionResult r,
+  ProviderContainer container,
+) async {
+  await tester.pumpWidget(
+    UncontrolledProviderScope(
+      container: container,
+      child: localizedApp(
+        Scaffold(
+          body: Builder(
+            builder: (context) => ElevatedButton(
+              onPressed: () => showSessionSummary(context, r),
+              child: const Text('go'),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+  await tester.tap(find.text('go'));
+  await tester.pumpAndSettle();
+}
+
+ProviderContainer _cueContainer() {
+  final c = ProviderContainer(
+    overrides: [
+      leaderboardServiceProvider.overrideWithValue(_EmptyLeaderboardService()),
+    ],
+  );
+  addTearDown(c.dispose);
+  return c;
+}
+
 void main() {
   group('summary modal', () {
     testWidgets('a mixed run shows both tempo and reaction sub-scores', (
@@ -136,6 +173,47 @@ void main() {
       await _open(tester, _pureFree());
       expect(find.text('Tempo'), findsOneWidget);
       expect(find.text('Reaction'), findsNothing);
+    });
+
+    // --- points cue (change: add-play-rewards) ---------------------------
+
+    testWidgets('a run that earned points shows its "+N" cue', (tester) async {
+      final c = _cueContainer();
+      c.read(playRewardCueProvider.notifier)
+        ..arm('s1')
+        ..report('s1', 12);
+      await _openWith(tester, _pureFree(), c);
+      expect(find.byKey(const Key('summary-points-cue')), findsOneWidget);
+      expect(find.text('+12 points'), findsOneWidget);
+    });
+
+    testWidgets('a run that earned nothing shows no cue at all', (
+      tester,
+    ) async {
+      final c = _cueContainer();
+      // Armed but never acked with an award — a run below the quality floor, a
+      // piece already paid out, the daily cap reached, or simply offline.
+      c.read(playRewardCueProvider.notifier).arm('s1');
+      await _openWith(tester, _pureFree(), c);
+      expect(find.byKey(const Key('summary-points-cue')), findsNothing);
+      expect(find.textContaining('points'), findsNothing);
+      // ...and the summary is otherwise its old self.
+      expect(find.text('Tempo'), findsOneWidget);
+      expect(find.text('Retry'), findsOneWidget);
+    });
+
+    testWidgets('the cue appears when the ack lands after the modal opened', (
+      tester,
+    ) async {
+      // The common case: the outbox is still in flight when the summary opens.
+      final c = _cueContainer();
+      c.read(playRewardCueProvider.notifier).arm('s1');
+      await _openWith(tester, _pureFree(), c);
+      expect(find.byKey(const Key('summary-points-cue')), findsNothing);
+
+      c.read(playRewardCueProvider.notifier).report('s1', 5);
+      await tester.pumpAndSettle();
+      expect(find.text('+5 points'), findsOneWidget);
     });
 
     testWidgets(
