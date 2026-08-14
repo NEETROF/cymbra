@@ -1,0 +1,36 @@
+-- music module — index support for the badge counter read (change:
+-- add-achievement-badges, task 2.6).
+--
+-- The badge read gathers every counter for ONE user in a single pass (design D4).
+-- All but one of those queries were already served by an existing index:
+--
+--   * `play_sessions_user_played_idx (user_id, played_at)` — session count,
+--     distinct pieces, high-accuracy sessions, and the scored local-day list;
+--   * `practice_sessions_user_practiced_idx (user_id, practiced_at)` — the
+--     scoreless-practice local-day list that consistency unions in;
+--   * `leaderboard_bests` PK `(user_id, catalog_score_id, mode)` for the player's
+--     own bests, and `leaderboard_bests_board_idx (catalog_score_id, mode,
+--     best_subscore DESC)` for the correlated "how many are strictly better"
+--     placement probe;
+--   * `catalog_scores_proposed_by_idx (proposed_by)` — accepted proposals;
+--   * `course_progress_user_idx (user_id)` — completed courses;
+--   * `curation_grants` PK `(user_id, key)` — the grant read and the grant-once
+--     insert.
+--
+-- `music.soundfonts` is deliberately left alone: the accepted-contribution count
+-- filters on `uploaded_by`, which has no index, but the catalog is a small
+-- moderated table (tens of rows) where a sequential scan is cheaper than an index
+-- to maintain. Revisit if the catalog ever grows by orders of magnitude.
+--
+-- The ONE gap is `global_season_snapshots`. Its primary key is `(season_id, mode,
+-- user_id)` and `global_season_snapshots_board_idx` is `(season_id, mode)` — both
+-- lead with the season, because every existing read loads one closed season whole
+-- and ranks it. The badge counter asks the opposite question ("which closed
+-- seasons did THIS player finish on the podium of"), which is user-scoped across
+-- all seasons and would otherwise scan the whole hall of fame on every profile
+-- open. This index makes it a user-scoped lookup like every other counter.
+--
+-- Idempotent DDL + fully-qualified names, matching the existing migrations.
+
+CREATE INDEX IF NOT EXISTS global_season_snapshots_user_idx
+    ON music.global_season_snapshots (user_id);

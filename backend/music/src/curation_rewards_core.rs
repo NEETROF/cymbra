@@ -251,108 +251,14 @@ pub fn level_progress(lifetime: i64, cfg: &RewardConfig) -> (i64, i64, i64) {
     )
 }
 
-/// A badge definition (design "Starting Configuration"): a stable `key`, the
-/// metric it tracks, and the `threshold` that earns it. Badges are EARNED (never
-/// purchased) and durable once granted.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct BadgeDef {
-    pub key: &'static str,
-    pub metric: BadgeMetric,
-    pub threshold: i64,
-}
-
-/// Which counter a badge is earned against.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum BadgeMetric {
-    /// Total ratings the user has recorded.
-    RatingCount,
-    /// Ratings that settled ALIGNED with the ground truth (the honesty proxy).
-    AlignedCount,
-    /// Ratings where the user was the FIRST rater of the score (trailblazing coverage).
-    FirstRaterCount,
-}
-
-impl BadgeMetric {
-    /// The wire string exposed on the profile badge grid.
-    pub fn as_str(self) -> &'static str {
-        match self {
-            BadgeMetric::RatingCount => "rating_count",
-            BadgeMetric::AlignedCount => "aligned_count",
-            BadgeMetric::FirstRaterCount => "first_rater_count",
-        }
-    }
-}
-
-/// The badge catalogue (design "Starting Configuration"): First Note (1st rating);
-/// Curator I/II/III (10/100/500 ratings); Sharp Ear I/II (25/100 aligned);
-/// Trailblazer (20 first-rater). Static — the milestones are product, not per-env
-/// config.
-pub const BADGES: [BadgeDef; 7] = [
-    BadgeDef {
-        key: "first_note",
-        metric: BadgeMetric::RatingCount,
-        threshold: 1,
-    },
-    BadgeDef {
-        key: "curator_1",
-        metric: BadgeMetric::RatingCount,
-        threshold: 10,
-    },
-    BadgeDef {
-        key: "curator_2",
-        metric: BadgeMetric::RatingCount,
-        threshold: 100,
-    },
-    BadgeDef {
-        key: "curator_3",
-        metric: BadgeMetric::RatingCount,
-        threshold: 500,
-    },
-    BadgeDef {
-        key: "sharp_ear_1",
-        metric: BadgeMetric::AlignedCount,
-        threshold: 25,
-    },
-    BadgeDef {
-        key: "sharp_ear_2",
-        metric: BadgeMetric::AlignedCount,
-        threshold: 100,
-    },
-    BadgeDef {
-        key: "trailblazer",
-        metric: BadgeMetric::FirstRaterCount,
-        threshold: 20,
-    },
-];
-
-/// The counters badge milestones are measured against.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub struct BadgeCounts {
-    pub rating_count: i64,
-    pub aligned_count: i64,
-    pub first_rater_count: i64,
-}
-
-impl BadgeCounts {
-    fn value(&self, metric: BadgeMetric) -> i64 {
-        match metric {
-            BadgeMetric::RatingCount => self.rating_count,
-            BadgeMetric::AlignedCount => self.aligned_count,
-            BadgeMetric::FirstRaterCount => self.first_rater_count,
-        }
-    }
-}
-
-/// The badge keys earned at the given counts — every [`BADGES`] entry whose
-/// threshold the matching counter has reached. Pure; the module diffs this against
-/// the already-granted set and inserts the newcomers.
-pub fn earned_badges(counts: &BadgeCounts) -> Vec<&'static str> {
-    BADGES
-        .iter()
-        .filter(|b| counts.value(b.metric) >= b.threshold)
-        .map(|b| b.key)
-        .collect()
-}
+// Badges no longer live here (change: add-achievement-badges). They are defined
+// once in [`crate::badges_core::REGISTRY`], which spans every family — play,
+// consistency, ranking, contribution, curation and learning — instead of only the
+// three curation counters this module owns. Curation still CONTRIBUTES its
+// counters (see [`crate::curation_rewards::CuratorMetrics::badge_counts`]) and
+// still grants the curation subset on its own write paths, through
+// [`crate::badges_core::earned_curation_badges`]; it just no longer defines,
+// evaluates or renders badges itself.
 
 #[cfg(test)]
 mod tests {
@@ -474,32 +380,6 @@ mod tests {
         assert_eq!(level_progress(10, &cfg), (0, 0, 50));
         // Past the list → extended by the step.
         assert_eq!(level_progress(4200, &cfg), (8, 4200, 5400));
-    }
-
-    #[test]
-    fn badges_earned_at_thresholds() {
-        // Nothing yet.
-        assert!(earned_badges(&BadgeCounts::default()).is_empty());
-        // First rating → First Note only.
-        let one = BadgeCounts {
-            rating_count: 1,
-            ..Default::default()
-        };
-        assert_eq!(earned_badges(&one), vec!["first_note"]);
-        // 100 ratings, 25 aligned, 20 first-rater → the full expected set.
-        let seasoned = BadgeCounts {
-            rating_count: 100,
-            aligned_count: 25,
-            first_rater_count: 20,
-        };
-        let got = earned_badges(&seasoned);
-        assert!(got.contains(&"first_note"));
-        assert!(got.contains(&"curator_1")); // 10
-        assert!(got.contains(&"curator_2")); // 100
-        assert!(!got.contains(&"curator_3")); // 500 not reached
-        assert!(got.contains(&"sharp_ear_1")); // 25 aligned
-        assert!(!got.contains(&"sharp_ear_2")); // 100 aligned not reached
-        assert!(got.contains(&"trailblazer")); // 20 first-rater
     }
 
     #[test]

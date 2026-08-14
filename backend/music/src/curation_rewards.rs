@@ -34,7 +34,8 @@ use std::sync::Mutex;
 use async_trait::async_trait;
 use cymbra_platform::Result;
 
-use crate::curation_rewards_core::{AwardKind, BadgeCounts, SettlementSource};
+use crate::badges_core::BadgeCounters;
+use crate::curation_rewards_core::{AwardKind, SettlementSource};
 
 /// A durable grant's kind (mirrors the `grant_kind` CHECK in migration 0016): a
 /// redeemed shop `Reward` (piano/SoundFont) or an earned `Badge`.
@@ -121,12 +122,17 @@ impl CuratorMetrics {
         }
     }
 
-    /// The badge counters derived from these metrics.
-    pub fn badge_counts(&self) -> BadgeCounts {
-        BadgeCounts {
+    /// Curation's CONTRIBUTION to the badge registry: the three milestone counters
+    /// this domain owns, in the registry's counter shape. Every other field stays
+    /// zero — curation knows nothing about play, ranking or learning, and only the
+    /// curation subset of the registry is ever evaluated against this
+    /// (`badges_core::earned_curation_badges`).
+    pub fn badge_counts(&self) -> BadgeCounters {
+        BadgeCounters {
             rating_count: self.total_ratings,
             aligned_count: self.aligned_count,
             first_rater_count: self.first_rater_count,
+            ..Default::default()
         }
     }
 }

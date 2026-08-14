@@ -260,10 +260,19 @@ async fn main() -> anyhow::Result<()> {
             // ingest's engagement signal (change: add-post-play-rating-prompt), so it
             // is built here — above the PlayService — rather than inside the
             // storage-gated score block below.
-            let rewards_module = Arc::new(cymbra_music::CurationRewardsModule::new(Arc::new(
-                cymbra_music::PgCurationRewardsRepo::new(music_pool.clone()),
-            )));
+            let curation_repo: Arc<dyn cymbra_music::CurationRewardsRepo> =
+                Arc::new(cymbra_music::PgCurationRewardsRepo::new(music_pool.clone()));
+            let rewards_module = Arc::new(cymbra_music::CurationRewardsModule::new(
+                curation_repo.clone(),
+            ));
             let rewards_sink: Arc<dyn cymbra_music::CurationRewardsSink> = rewards_module.clone();
+            // Achievement badges (change: add-achievement-badges): the cross-domain
+            // registry read by GetAchievements. It shares the curation repo rather
+            // than re-deriving the rating counters a second way, and gathers every
+            // other family's counters in the same pass (design D4).
+            let badges_module = Arc::new(cymbra_music::BadgesModule::new(Arc::new(
+                cymbra_music::PgBadgeRepo::new(music_pool.clone(), curation_repo),
+            )));
             // Shared catalog port: the score module reads it, and the play ingest needs
             // it to tell a real catalog score from an upload before recording the
             // engagement signal (change: add-post-play-rating-prompt).
@@ -379,6 +388,7 @@ async fn main() -> anyhow::Result<()> {
                             .with_courses(course_repo.clone())
                             .with_course_progress(course_progress.clone())
                             .with_rewards(rewards_module)
+                            .with_badges(badges_module)
                             // Soundfont uploader attribution (change:
                             // add-soundfont-uploader-attribution).
                             .with_user_port(user_dyn.clone()),

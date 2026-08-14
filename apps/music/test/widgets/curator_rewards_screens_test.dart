@@ -88,28 +88,35 @@ void main() {
     expect(find.textContaining('200'), findsWidgets);
   });
 
-  testWidgets(
-    'curator rewards section renders level, points, balance, badges, stats',
-    (tester) async {
-      final service = MockCuratorRewardsService();
-      when(service.getRewards()).thenAnswer((_) async => _rewards());
-      await tester.pumpWidget(_hostSection(service));
-      await tester.pumpAndSettle();
+  testWidgets('curator rewards section renders level, points, balance, stats', (
+    tester,
+  ) async {
+    final service = MockCuratorRewardsService();
+    when(service.getRewards()).thenAnswer((_) async => _rewards());
+    await tester.pumpWidget(_hostSection(service));
+    await tester.pumpAndSettle();
 
-      // Level + lifetime points (from the standing card).
-      expect(find.textContaining('2'), findsWidgets);
-      expect(find.textContaining('200'), findsWidgets);
-      // Balance CTA into the SoundFont catalog + the stats (alignment 75%).
-      expect(find.byIcon(Icons.library_music_outlined), findsWidgets);
-      expect(find.textContaining('75'), findsWidgets);
-      // Badge grid shows both an earned and a locked badge.
-      expect(
-        find.byIcon(Icons.military_tech),
-        findsWidgets,
-      ); // earned first_note
-      expect(find.byIcon(Icons.lock_outline), findsWidgets); // locked curator_2
-    },
-  );
+    // Level + lifetime points (from the standing card).
+    expect(find.textContaining('2'), findsWidgets);
+    expect(find.textContaining('200'), findsWidgets);
+    // Balance CTA into the SoundFont catalog + the stats (alignment 75%).
+    expect(find.byIcon(Icons.library_music_outlined), findsWidgets);
+    expect(find.textContaining('75'), findsWidgets);
+  });
+
+  testWidgets('curator section carries NO badge grid any more', (tester) async {
+    // Badges moved to their own Achievements section (change: add-achievement-
+    // badges): the response still carries the deprecated curation subset, and
+    // this section must ignore it rather than render a second grid.
+    final service = MockCuratorRewardsService();
+    when(service.getRewards()).thenAnswer((_) async => _rewards());
+    await tester.pumpWidget(_hostSection(service));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(GridView), findsNothing);
+    expect(find.byIcon(Icons.military_tech), findsNothing);
+    expect(find.byIcon(Icons.lock_outline), findsNothing);
+  });
 
   testWidgets('recent-activity entry opens the activity screen on demand', (
     tester,

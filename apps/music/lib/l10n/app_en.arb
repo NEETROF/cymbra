@@ -1597,10 +1597,6 @@
   "@curatorShopButton": {
     "description": "Button on the curator profile that opens the reward shop."
   },
-  "curatorBadgesTitle": "Badges",
-  "@curatorBadgesTitle": {
-    "description": "Section title for the badge grid."
-  },
   "curatorStatsTitle": "Your stats",
   "@curatorStatsTitle": {
     "description": "Section title for the curator's personal stats."
@@ -1633,61 +1629,86 @@
   "@curatorRetry": {
     "description": "Retry button on the curator profile / reward shop error state."
   },
-  "curatorBadgeEarned": "Earned",
-  "@curatorBadgeEarned": {
-    "description": "Sub-label under an earned badge."
+  "achievementsTitle": "Achievements",
+  "@achievementsTitle": {
+    "description": "Section title for the achievements grid on the profile."
   },
-  "curatorBadgeMilestone": "{threshold} {metric}",
-  "@curatorBadgeMilestone": {
-    "description": "Milestone hint under a locked badge (count + metric).",
+  "achievementsLoadError": "Couldn't load your achievements.",
+  "@achievementsLoadError": {
+    "description": "Error state on the achievements section."
+  },
+  "achievementFamilyPlay": "Playing",
+  "@achievementFamilyPlay": {
+    "description": "Achievement family: badges earned by playing."
+  },
+  "achievementFamilyConsistency": "Consistency",
+  "@achievementFamilyConsistency": {
+    "description": "Achievement family: badges earned by playing regularly."
+  },
+  "achievementFamilyRanking": "Ranking",
+  "@achievementFamilyRanking": {
+    "description": "Achievement family: badges earned on the leaderboards."
+  },
+  "achievementFamilyContribution": "Contribution",
+  "@achievementFamilyContribution": {
+    "description": "Achievement family: badges earned by contributing scores and sounds."
+  },
+  "achievementFamilyCuration": "Curation",
+  "@achievementFamilyCuration": {
+    "description": "Achievement family: badges earned by rating scores."
+  },
+  "achievementFamilyLearning": "Learning",
+  "@achievementFamilyLearning": {
+    "description": "Achievement family: badges earned by completing courses."
+  },
+  "achievementFamilyCount": "{earned}/{total}",
+  "@achievementFamilyCount": {
+    "description": "How many badges of a family are earned, next to its title.",
     "placeholders": {
-      "threshold": {
+      "earned": {
         "type": "int"
       },
-      "metric": {
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "achievementProgress": "{value}/{threshold}",
+  "@achievementProgress": {
+    "description": "Progress on a locked badge: current value over its threshold.",
+    "placeholders": {
+      "value": {
+        "type": "int"
+      },
+      "threshold": {
+        "type": "int"
+      }
+    }
+  },
+  "achievementEarned": "Earned",
+  "@achievementEarned": {
+    "description": "Sub-label under an earned badge."
+  },
+  "achievementEarnedOn": "Earned on {date}",
+  "@achievementEarnedOn": {
+    "description": "When the badge was earned, in the detail sheet.",
+    "placeholders": {
+      "date": {
         "type": "String"
       }
     }
   },
-  "curatorBadgeFirstNote": "First note",
-  "@curatorBadgeFirstNote": {
-    "description": "Badge: recorded a first rating."
+  "achievementNew": "New",
+  "@achievementNew": {
+    "description": "Marker on a badge earned since the user last opened the section."
   },
-  "curatorBadgeCurator1": "Curator I",
-  "@curatorBadgeCurator1": {
-    "description": "Badge: 10 ratings."
+  "achievementTiersTitle": "Tiers",
+  "@achievementTiersTitle": {
+    "description": "Heading above the tier ladder in the badge detail sheet."
   },
-  "curatorBadgeCurator2": "Curator II",
-  "@curatorBadgeCurator2": {
-    "description": "Badge: 100 ratings."
-  },
-  "curatorBadgeCurator3": "Curator III",
-  "@curatorBadgeCurator3": {
-    "description": "Badge: 500 ratings."
-  },
-  "curatorBadgeSharpEar1": "Sharp ear I",
-  "@curatorBadgeSharpEar1": {
-    "description": "Badge: 25 aligned ratings."
-  },
-  "curatorBadgeSharpEar2": "Sharp ear II",
-  "@curatorBadgeSharpEar2": {
-    "description": "Badge: 100 aligned ratings."
-  },
-  "curatorBadgeTrailblazer": "Trailblazer",
-  "@curatorBadgeTrailblazer": {
-    "description": "Badge: 20 first-rater ratings."
-  },
-  "curatorMetricRatingCount": "ratings",
-  "@curatorMetricRatingCount": {
-    "description": "Metric name for a badge milestone: total ratings."
-  },
-  "curatorMetricAlignedCount": "aligned ratings",
-  "@curatorMetricAlignedCount": {
-    "description": "Metric name for a badge milestone: aligned ratings."
-  },
-  "curatorMetricFirstRaterCount": "first-rater ratings",
-  "@curatorMetricFirstRaterCount": {
-    "description": "Metric name for a badge milestone: first-rater ratings."
+  "achievementNotEarnedYet": "Not earned yet",
+  "@achievementNotEarnedYet": {
+    "description": "Standing line in the detail sheet for a badge that is still locked."
   },
   "curatorActivityCoverage": "Coverage reward",
   "@curatorActivityCoverage": {
