@@ -24,9 +24,10 @@ app release**.
 - Extend badge metrics **beyond curation** to the counters that already exist in `music`:
   - **Play** — sessions recorded, distinct pieces played, high-accuracy sessions
     (`music.play_sessions`).
-  - **Consistency** — distinct local days played, longest run of consecutive local days
-    (`play_sessions.played_at` + `tz_offset_minutes`, the same local-day bucketing the
-    activity heatmap uses).
+  - **Consistency** — distinct local days at the keyboard and the longest run of
+    consecutive such days, counting **scoreless practice** (`practice_sessions`, a chosen
+    measure range looped) alongside scored runs (`play_sessions.played_at` +
+    `tz_offset_minutes`, the same local-day bucketing the activity heatmap uses).
   - **Ranking** — per-piece board placements and closed-season standings
     (`music.leaderboard_bests`, `music.global_season_snapshots`).
   - **Contribution** — accepted catalog proposals (`catalog_scores.proposed_by` +

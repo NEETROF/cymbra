@@ -18,11 +18,13 @@
 //!
 //! Two things are worth knowing about the SQL here:
 //!
-//! * **The local-day list** mirrors [`crate::play_core::local_day`] exactly:
+//! * **The local-day lists** mirror [`crate::play_core::local_day`] exactly:
 //!   `played_at AT TIME ZONE 'UTC'` drops to a naive UTC timestamp, the session's
 //!   recorded `tz_offset_minutes` shifts it, and only then is it truncated to a
 //!   date. Casting the `timestamptz` directly would silently bucket by the
-//!   *server's* TimeZone setting instead of the player's.
+//!   *server's* TimeZone setting instead of the player's. Scored sessions and
+//!   scoreless practice are read as two lists, kept apart here and unioned by the
+//!   fold — consistency counts both, play counts only the scored ones.
 //! * **Placement** is a correlated "how many are strictly better" probe rather
 //!   than a window function, so it reads through
 //!   `leaderboard_bests_board_idx (catalog_score_id, mode, best_subscore DESC)`
@@ -124,6 +126,25 @@ impl BadgeRepo for PgBadgeRepo {
             .map(|r| r.get::<chrono::NaiveDate, _>("local_day"))
             .collect();
 
+        // Scoreless practice (a measure-range run) is read SEPARATELY and stays
+        // separate on the wire home: the fold unions it into the consistency
+        // counters only. Same local-day shift, so a day both played and drilled
+        // collapses to one.
+        let practice_rows = sqlx::query(
+            "SELECT DISTINCT \
+             ((practiced_at AT TIME ZONE 'UTC') + make_interval(mins => tz_offset_minutes))::date \
+             AS local_day \
+             FROM music.practice_sessions WHERE user_id = $1",
+        )
+        .bind(id)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(internal)?;
+        let practice_days = practice_rows
+            .iter()
+            .map(|r| r.get::<chrono::NaiveDate, _>("local_day"))
+            .collect();
+
         // --- ranking: boards entered, and how many of them are podiums ---
         let boards = sqlx::query(
             "SELECT count(*)::bigint AS entered, \
@@ -192,6 +213,7 @@ impl BadgeRepo for PgBadgeRepo {
             distinct_pieces: play.get("pieces"),
             high_accuracy_sessions: play.get("accurate"),
             play_days,
+            practice_days,
             ranked_boards: boards.get("entered"),
             top_three_finishes: boards.get("podiums"),
             season_podiums,

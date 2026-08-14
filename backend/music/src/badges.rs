@@ -20,11 +20,13 @@
 //! (`grant_kind = 'badge'`) the curation rewards introduced, so every badge
 //! already earned keeps working with no data migration.
 //!
-//! The raw read hands the consistency counters over as a **list of local days**
+//! The raw read hands the consistency counters over as **lists of local days**
 //! rather than pre-aggregated numbers: distinct-days and longest-consecutive-run
 //! are timezone-sensitive rules that belong with the badge semantics, so
 //! [`RawBadgeCounters::fold`] computes them through the pure
-//! [`crate::badges_core`] helpers instead of a SQL window function.
+//! [`crate::badges_core`] helpers instead of a SQL window function. Scored and
+//! practice days arrive separately and are unioned there — see the fold for why
+//! consistency counts both while play counts only the scored ones.
 //!
 //! The trait is `#[automock]`ed (the rust-testing default), so the module tests
 //! drive a `MockBadgeRepo` and never touch a database.
@@ -49,10 +51,14 @@ pub struct RawBadgeCounters {
     pub session_count: i64,
     pub distinct_pieces: i64,
     pub high_accuracy_sessions: i64,
-    /// One entry per recorded session: the player's LOCAL day for it (`played_at`
-    /// shifted by the `tz_offset_minutes` captured with the session — the same
-    /// bucketing the activity heatmap uses). Unordered, duplicates expected.
+    /// The player's LOCAL days with a SCORED session (`played_at` shifted by the
+    /// `tz_offset_minutes` captured with the session — the same bucketing the
+    /// activity heatmap uses). Unordered, duplicates expected.
     pub play_days: Vec<NaiveDate>,
+    // consistency (scoreless practice — see the fold)
+    /// The player's LOCAL days with a scoreless PRACTICE session (a measure-range
+    /// run). Same bucketing, from `practice_sessions`.
+    pub practice_days: Vec<NaiveDate>,
     // ranking
     pub ranked_boards: i64,
     pub top_three_finishes: i64,
@@ -66,9 +72,24 @@ pub struct RawBadgeCounters {
 
 impl RawBadgeCounters {
     /// Fold the raw read into the metric-addressable counters the registry is
-    /// evaluated against, computing the two consistency values from
-    /// [`Self::play_days`].
+    /// evaluated against.
+    ///
+    /// The two **consistency** counters run over the UNION of
+    /// [`Self::play_days`] and [`Self::practice_days`]: they answer "did you sit
+    /// down at the keyboard", and drilling a measure range in a loop answers that
+    /// as fully as a scored run. This is the same line the activity heatmap
+    /// already draws — a practice-only day is an active cell with no success
+    /// colour.
+    ///
+    /// The **play** counters deliberately stay scored-only. "25 sessions", "10
+    /// pieces" and above all "10 sessions above 90% accuracy" are claims about
+    /// performance, and a selective run is never scored (there is no
+    /// `overall_sync_pct` to read). Letting practice in there would smuggle back
+    /// exactly the pollution `music.practice_sessions` exists to make structurally
+    /// impossible.
     pub fn fold(&self) -> BadgeCounters {
+        let mut active_days = self.play_days.clone();
+        active_days.extend_from_slice(&self.practice_days);
         BadgeCounters {
             rating_count: self.rating_count,
             aligned_count: self.aligned_count,
@@ -76,8 +97,8 @@ impl RawBadgeCounters {
             session_count: self.session_count,
             distinct_pieces: self.distinct_pieces,
             high_accuracy_sessions: self.high_accuracy_sessions,
-            days_played: distinct_days(&self.play_days),
-            longest_streak: longest_streak(&self.play_days),
+            days_played: distinct_days(&active_days),
+            longest_streak: longest_streak(&active_days),
             ranked_boards: self.ranked_boards,
             top_three_finishes: self.top_three_finishes,
             season_podiums: self.season_podiums,
@@ -135,6 +156,7 @@ mod tests {
                 ymd(2026, 5, 2),
                 ymd(2026, 5, 1),
             ],
+            practice_days: Vec::new(),
             ranked_boards: 7,
             top_three_finishes: 5,
             season_podiums: 1,
@@ -163,5 +185,50 @@ mod tests {
     #[test]
     fn folding_an_empty_read_is_all_zeroes() {
         assert_eq!(RawBadgeCounters::default().fold(), BadgeCounters::default());
+    }
+
+    #[test]
+    fn practice_only_days_still_count_as_consistency() {
+        // A player who never finishes a scored run but drills a measure range
+        // every day HAS sat down at the keyboard. Consistency must see it,
+        // otherwise the surface shows padlocks to someone doing the work.
+        let raw = RawBadgeCounters {
+            practice_days: vec![ymd(2026, 6, 1), ymd(2026, 6, 2), ymd(2026, 6, 3)],
+            ..Default::default()
+        };
+        let c = raw.fold();
+        assert_eq!(c.days_played, 3);
+        assert_eq!(c.longest_streak, 3);
+        // ...and NOTHING leaks into the scored counters: a selective run has no
+        // sub-score, so it can never claim a session, a piece or an accuracy.
+        assert_eq!(c.session_count, 0);
+        assert_eq!(c.distinct_pieces, 0);
+        assert_eq!(c.high_accuracy_sessions, 0);
+    }
+
+    #[test]
+    fn a_practice_day_bridges_a_gap_between_two_scored_days() {
+        // The union is what makes the streak honest: play, drill, play is three
+        // consecutive days of work, not two runs of one.
+        let raw = RawBadgeCounters {
+            play_days: vec![ymd(2026, 6, 1), ymd(2026, 6, 3)],
+            practice_days: vec![ymd(2026, 6, 2)],
+            ..Default::default()
+        };
+        let c = raw.fold();
+        assert_eq!(c.days_played, 3);
+        assert_eq!(c.longest_streak, 3);
+    }
+
+    #[test]
+    fn a_day_both_played_and_practised_counts_once() {
+        let raw = RawBadgeCounters {
+            play_days: vec![ymd(2026, 6, 1), ymd(2026, 6, 2)],
+            practice_days: vec![ymd(2026, 6, 1), ymd(2026, 6, 2), ymd(2026, 6, 2)],
+            ..Default::default()
+        };
+        let c = raw.fold();
+        assert_eq!(c.days_played, 2);
+        assert_eq!(c.longest_streak, 2);
     }
 }

@@ -26,7 +26,10 @@
       `insert_grant`, reusing `music.curation_grants` (`grant_kind='badge'`).
 - [x] 2.2 Implement the play + consistency counters against `music.play_sessions` (session
       count, distinct `score_id`, sessions above the accuracy threshold, and the distinct
-      local-day list from `played_at` shifted by `tz_offset_minutes`).
+      local-day list from `played_at` shifted by `tz_offset_minutes`), and union
+      `music.practice_sessions`' local days into the **consistency** counters only — a
+      scoreless measure-range run is time at the keyboard, but has no sub-score to claim a
+      play counter with.
 - [x] 2.3 Implement the ranking counters against `music.leaderboard_bests` (per-piece
       placements) and `music.global_season_snapshots` (closed-season standings).
 - [x] 2.4 Implement the contribution counters against `music.catalog_scores`

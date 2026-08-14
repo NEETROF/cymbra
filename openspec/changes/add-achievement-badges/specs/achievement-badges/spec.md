@@ -44,11 +44,13 @@ ahead of the counter that will feed it.
 Badge counters SHALL be derived from the records the system already keeps, with no new
 per-user tracking table:
 
-- **play** — recorded play sessions, distinct pieces played, and sessions above an accuracy
-  threshold
-- **consistency** — distinct local days played and the longest run of consecutive local
-  days, bucketed by the player's local day (the recorded session timestamp shifted by its
-  recorded UTC offset), the same bucketing the activity heatmap uses
+- **play** — recorded **scored** sessions, distinct pieces played, and sessions above an
+  accuracy threshold
+- **consistency** — distinct local days the player was at the keyboard and the longest run
+  of consecutive such days, counting **both** a scored session and a scoreless practice run
+  over a chosen measure range, bucketed by the player's local day (the recorded session
+  timestamp shifted by its recorded UTC offset), the same bucketing the activity heatmap
+  uses
 - **ranking** — per-piece board placements and closed-season standings
 - **contribution** — accepted catalog score proposals and accepted SoundFont contributions
   attributed to the user
@@ -57,6 +59,13 @@ per-user tracking table:
   record
 
 All counters for a badge read SHALL be gathered in **one** repository call.
+
+#### Scenario: Drilling a measure range counts as showing up
+
+- **WHEN** a player only ever practises a chosen measure range, never completing a scored
+  run
+- **THEN** their consistency counters advance for each day practised, while their play
+  counters — which measure performance — stay at zero
 
 #### Scenario: Consistency uses the player's local day
 

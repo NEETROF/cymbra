@@ -109,6 +109,18 @@ bucketing the activity heatmap uses) and `badges_core` folds them into a count a
 run. Pure, host-testable, and it keeps the streak rule in the module that owns badge
 semantics.
 
+**Consistency counts practice; play does not.** A selective run over a chosen measure range
+is never scored (`add-measure-range-practice` D2 — the scorer never arms), so it lands in
+`music.practice_sessions`, not `play_sessions`. The repo returns its local days as a second
+list and the fold unions the two for `days_played` / `longest_streak`: those metrics ask
+"did you sit down at the keyboard", and drilling a passage in a loop answers that as fully
+as a scored run — a player who works every day this way must not face a wall of padlocks.
+The play metrics stay scored-only: "25 sessions", "10 pieces" and above all "10 sessions
+above 90% accuracy" are claims about *performance*, and letting practice in would smuggle
+back the pollution `practice_sessions` exists to make structurally impossible. This is the
+line the activity heatmap already draws — a practice-only day is an active cell with no
+success colour.
+
 *Trade-off*: a full-history day list per read. Bounded by retention and one indexed
 user-scoped scan; if it ever hurts, add a short-TTL per-user cache before touching the
 shape.

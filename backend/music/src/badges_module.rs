@@ -250,6 +250,30 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn a_player_who_only_drills_measure_ranges_still_builds_a_streak() {
+        use chrono::NaiveDate;
+        let day = |d: u32| NaiveDate::from_ymd_opt(2026, 4, d).unwrap();
+        // Never finishes a scored run — only loops over a measure range, every
+        // day for a week.
+        let (repo, _) = repo_with(
+            RawBadgeCounters {
+                practice_days: (1..=7).map(day).collect(),
+                ..Default::default()
+            },
+            &[],
+        );
+        let all = module(repo).achievements(U).await.unwrap();
+        // Consistency sees the work: 7 days, a run of 7.
+        assert!(standing(&all, "streak_1").earned); // 3 in a row
+        assert!(standing(&all, "streak_2").earned); // 7 in a row
+        assert_eq!(standing(&all, "regular_1").value, 7); // 7 of 10 days
+        // Play does NOT: a selective run has no sub-score to claim.
+        assert!(!standing(&all, "first_performance").earned);
+        assert_eq!(standing(&all, "performer_1").value, 0);
+        assert_eq!(standing(&all, "virtuoso_1").value, 0);
+    }
+
+    #[tokio::test]
     async fn curation_grants_written_before_this_change_are_re_read_unchanged() {
         // The migration contract: rows keyed by the seven original badge keys keep
         // their earned state and their date, with no counter behind them any more.

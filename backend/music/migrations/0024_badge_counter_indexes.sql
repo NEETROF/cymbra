@@ -5,7 +5,9 @@
 -- All but one of those queries were already served by an existing index:
 --
 --   * `play_sessions_user_played_idx (user_id, played_at)` — session count,
---     distinct pieces, high-accuracy sessions, and the local-day list;
+--     distinct pieces, high-accuracy sessions, and the scored local-day list;
+--   * `practice_sessions_user_practiced_idx (user_id, practiced_at)` — the
+--     scoreless-practice local-day list that consistency unions in;
 --   * `leaderboard_bests` PK `(user_id, catalog_score_id, mode)` for the player's
 --     own bests, and `leaderboard_bests_board_idx (catalog_score_id, mode,
 --     best_subscore DESC)` for the correlated "how many are strictly better"

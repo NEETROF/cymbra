@@ -74,17 +74,20 @@ pub enum BadgeMetric {
     AlignedCount,
     /// Ratings where the user was the FIRST rater of the score.
     FirstRaterCount,
-    // --- play (`play_sessions`) ---
-    /// Play sessions recorded.
+    // --- play (`play_sessions` — SCORED runs only; a selective measure-range run
+    // is never scored, so it feeds consistency instead) ---
+    /// Scored play sessions recorded.
     SessionCount,
-    /// Distinct pieces played.
+    /// Distinct pieces played through.
     DistinctPieces,
     /// Sessions finished above [`HIGH_ACCURACY_PCT`].
     HighAccuracySessions,
-    // --- consistency (`play_sessions`, bucketed by the player's LOCAL day) ---
-    /// Distinct local days with at least one session.
+    // --- consistency (`play_sessions` + `practice_sessions`, bucketed by the
+    // player's LOCAL day) ---
+    /// Distinct local days the player sat down at the keyboard — a scored session
+    /// OR a scoreless measure-range practice run.
     DaysPlayed,
-    /// Longest run of consecutive local days played.
+    /// Longest run of consecutive such local days.
     LongestStreak,
     // --- ranking (`leaderboard_bests` + `global_season_snapshots`) ---
     /// Per-piece boards the user holds a personal best on.
@@ -410,10 +413,10 @@ pub const REGISTRY: &[BadgeDef] = &[
         1,
         t("Regular I", "Régulier I", "Constante I", "Costante I"),
         t(
-            "Play on 10 different days.",
-            "Jouez 10 jours différents.",
-            "Toca en 10 días diferentes.",
-            "Suona in 10 giorni diversi.",
+            "Play or practise on 10 different days.",
+            "Jouez ou travaillez 10 jours différents.",
+            "Toca o practica en 10 días diferentes.",
+            "Suona o esercitati in 10 giorni diversi.",
         ),
     ),
     tiered(
@@ -425,10 +428,10 @@ pub const REGISTRY: &[BadgeDef] = &[
         2,
         t("Regular II", "Régulier II", "Constante II", "Costante II"),
         t(
-            "Play on 50 different days.",
-            "Jouez 50 jours différents.",
-            "Toca en 50 días diferentes.",
-            "Suona in 50 giorni diversi.",
+            "Play or practise on 50 different days.",
+            "Jouez ou travaillez 50 jours différents.",
+            "Toca o practica en 50 días diferentes.",
+            "Suona o esercitati in 50 giorni diversi.",
         ),
     ),
     tiered(
@@ -445,10 +448,10 @@ pub const REGISTRY: &[BadgeDef] = &[
             "Costante III",
         ),
         t(
-            "Play on 200 different days.",
-            "Jouez 200 jours différents.",
-            "Toca en 200 días diferentes.",
-            "Suona in 200 giorni diversi.",
+            "Play or practise on 200 different days.",
+            "Jouez ou travaillez 200 jours différents.",
+            "Toca o practica en 200 días diferentes.",
+            "Suona o esercitati in 200 giorni diversi.",
         ),
     ),
     tiered(
@@ -460,10 +463,10 @@ pub const REGISTRY: &[BadgeDef] = &[
         1,
         t("Streak I", "Série I", "Racha I", "Serie I"),
         t(
-            "Play 3 days in a row.",
-            "Jouez 3 jours d'affilée.",
-            "Toca 3 días seguidos.",
-            "Suona 3 giorni di fila.",
+            "Play or practise 3 days in a row.",
+            "Jouez ou travaillez 3 jours d'affilée.",
+            "Toca o practica 3 días seguidos.",
+            "Suona o esercitati 3 giorni di fila.",
         ),
     ),
     tiered(
@@ -475,10 +478,10 @@ pub const REGISTRY: &[BadgeDef] = &[
         2,
         t("Streak II", "Série II", "Racha II", "Serie II"),
         t(
-            "Play 7 days in a row.",
-            "Jouez 7 jours d'affilée.",
-            "Toca 7 días seguidos.",
-            "Suona 7 giorni di fila.",
+            "Play or practise 7 days in a row.",
+            "Jouez ou travaillez 7 jours d'affilée.",
+            "Toca o practica 7 días seguidos.",
+            "Suona o esercitati 7 giorni di fila.",
         ),
     ),
     tiered(
@@ -490,10 +493,10 @@ pub const REGISTRY: &[BadgeDef] = &[
         3,
         t("Streak III", "Série III", "Racha III", "Serie III"),
         t(
-            "Play 30 days in a row.",
-            "Jouez 30 jours d'affilée.",
-            "Toca 30 días seguidos.",
-            "Suona 30 giorni di fila.",
+            "Play or practise 30 days in a row.",
+            "Jouez ou travaillez 30 jours d'affilée.",
+            "Toca o practica 30 días seguidos.",
+            "Suona o esercitati 30 giorni di fila.",
         ),
     ),
     // --- ranking ---------------------------------------------------------
