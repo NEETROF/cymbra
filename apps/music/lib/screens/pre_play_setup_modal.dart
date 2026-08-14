@@ -20,6 +20,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../l10n/gen/app_localizations.dart';
 import '../layout/device_class.dart';
 import '../services/platform_info.dart';
+import '../state/audio_routing.dart';
 import '../state/coaching_notifier.dart';
 import '../state/notation_notifier.dart';
 import '../state/note_label.dart';
@@ -36,6 +37,7 @@ import '../widgets/leaderboard_view.dart';
 import '../widgets/otg_guidance.dart';
 import '../widgets/practice_range_controls.dart';
 import '../widgets/setting_option_row.dart';
+import '../widgets/sound_output_section.dart';
 import '../widgets/sound_selector_field.dart';
 
 /// Shows the pre-play setup modal, centered over the player. Lets the user review
@@ -53,7 +55,14 @@ Future<void> showPrePlaySetup(BuildContext context, {bool inGame = false}) =>
         canPop: false,
         // The guided player sequence (change: add-welcome-onboarding, D8) walks
         // the controls that live in this surface, so it is armed from here.
-        child: _PlayerTourStarter(child: _PrePlaySetupDialog(inGame: inGame)),
+        child: _PlayerTourStarter(
+          // The sound-output section's side effects (change:
+          // add-audio-output-routing) live here, at the section's root, rather
+          // than in any build method.
+          child: SoundOutputListener(
+            child: _PrePlaySetupDialog(inGame: inGame),
+          ),
+        ),
       ),
     );
 
@@ -140,11 +149,22 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
   void initState() {
     super.initState();
     _coaching = ref.read(coachingProvider.notifier);
+    // Re-read the platform's outputs each time the modal opens: desktop has no
+    // route-change events, so without this the sound-output list would stay a
+    // snapshot from app launch — a piano plugged in since would never appear.
+    // Fire-and-forget; the section re-renders when the fresh state lands.
+    unawaited(ref.read(audioRoutingProvider.notifier).refresh());
     final data = ref.read(playerProvider);
     _hands = data.selectedHands;
     _speed = data.speed;
     _metronome = data.metronomeEnabled;
-    _port = data.connectedDevice;
+    // The user's *choice*, not the device that happens to be connected. Seeding
+    // this from `connectedDevice` made the control unusable: "auto" was
+    // re-displayed as the connected port on every open, so a choice never
+    // appeared to stick — and Apply then always saw a change and re-selected the
+    // port, which on Android leaks a MIDI port and eventually drops the whole USB
+    // device (audio included).
+    _port = ref.read(playerPreferencesProvider).midiPort;
     _soundId = ref.read(selectedPianoProvider);
     _range = data.keyboardRange;
     _keyboardVisible = data.keyboardVisible;
@@ -207,7 +227,13 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
     if (_hands != current.selectedHands) notifier.setSelectedHands(_hands);
     if (_speed != current.speed) notifier.setSpeed(_speed);
     if (_metronome != current.metronomeEnabled) notifier.toggleMetronome();
-    if (_port != current.connectedDevice) notifier.selectMidiPort(_port);
+    // Compared against the stored *preference*, so applying without touching the
+    // control re-selects nothing. Comparing against the connected device instead
+    // meant "auto" always looked like a change, re-opening the MIDI port on every
+    // Apply — which is what eventually took the USB audio down with it.
+    if (_port != ref.read(playerPreferencesProvider).midiPort) {
+      notifier.selectMidiPort(_port);
+    }
     if (_range != current.keyboardRange) notifier.setKeyboardRange(_range);
     if (_keyboardVisible != current.keyboardVisible) {
       notifier.setKeyboardVisible(_keyboardVisible);
@@ -247,6 +273,10 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
     final metronome = _metronomeTile(l10n);
     final tempo = _tempoTile(l10n, data);
     final midi = _midiSection(l10n, data);
+    // Where the app's audio goes (change: add-audio-output-routing). Unlike the
+    // drafted settings around it, this one applies immediately: the point of
+    // picking an output is hearing the change.
+    final soundOutput = SoundOutputSection(title: _sectionTitle);
     final keyboardSize = _keyboardSizeSection(l10n);
     final readingAid = _readingAidSection(l10n);
     _scoreSizeDraft ??= resolveScoreSize(
@@ -306,6 +336,7 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
               ?practice,
               const SizedBox(height: 8),
               sound,
+              soundOutput,
             ]),
           )
         : scrollCol([
@@ -321,6 +352,7 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
             ?keyboardVisibility,
             midi,
             sound,
+            soundOutput,
           ]);
 
     // Inline leaderboard: the trophy swaps the body to the board (no stacked
@@ -923,7 +955,10 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
               borderRadius: BorderRadius.circular(10),
             ),
             child: DropdownButtonHideUnderline(
+              // Keyed: the sound-output section below carries a `String?`
+              // dropdown too, so the type alone no longer identifies this one.
               child: DropdownButton<String?>(
+                key: const Key('midi-device'),
                 isExpanded: true,
                 value: value,
                 dropdownColor: CymbraColors.surfaceContainerHigh,

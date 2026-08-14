@@ -32,6 +32,13 @@ authors = ["NEETROF"]
 [patch.crates-io]
 midir = { git = "https://github.com/NEETROF/midir", rev = "fcafd065ac2c308e6d146ec752e88b6c0a01f5dd" }
 
+# Audio DSP must hold real time even in dev builds: cargokit compiles the app's
+# Rust in `dev` for a debug APK, and an unoptimized rustysynth render eats a
+# large share of the ~23 ms/block budget on device. Optimizing only this package
+# keeps `cargo build` of our own crates fast.
+[profile.dev.package.rustysynth]
+opt-level = 3
+
 # Shared dependency versions for the Cymbra ID backend (change: add-cymbra-id).
 # Declaring them here keeps versions consistent; a crate only compiles a dep when
 # it opts in via `dep.workspace = true`. The OpenTelemetry stack versions are

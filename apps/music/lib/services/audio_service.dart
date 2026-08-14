@@ -14,8 +14,8 @@
 
 import 'dart:io';
 
-import 'package:flutter/foundation.dart' show debugPrint, kDebugMode;
-import 'package:flutter/services.dart' show rootBundle;
+import 'package:flutter/foundation.dart' show debugPrint, kDebugMode, kIsWeb;
+import 'package:flutter/services.dart' show MethodChannel, rootBundle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -83,13 +83,17 @@ abstract class AudioService {
 class FrbAudioService implements AudioService {
   FrbAudioService();
 
-  bool _initStarted = false;
+  Future<void>? _init;
   bool _failed = false;
 
+  /// Memoized: every caller gets the **in-flight** future, so awaiting init is
+  /// a real completion barrier. A boolean started-guard here let the second
+  /// caller return immediately and act (select an output at startup) before the
+  /// engine had published its command channels — the call was silently dropped.
   @override
-  Future<void> init() async {
-    if (_initStarted) return;
-    _initStarted = true;
+  Future<void> init() => _init ??= _doInit();
+
+  Future<void> _doInit() async {
     try {
       final sw = kDebugMode ? (Stopwatch()..start()) : null;
       // Hand the engine a *file path*, not the bytes: the ~50 MB SoundFont is
@@ -100,6 +104,12 @@ class FrbAudioService implements AudioService {
       // Tiny sync call: just spawns the audio thread, which reads/parses the
       // file and opens the device.
       audio_api.audioInit(sf2Path: path);
+      // Android's output is owned by the platform, not by the engine: `cpal`'s
+      // AAudio path there cannot enumerate the device's outputs and does not
+      // deliver usable audio to a USB-audio instrument, so `EngineOutput.kt` runs
+      // an `AudioTrack` that pulls rendered samples from Rust. Starting it is what
+      // makes any sound come out at all on that platform.
+      if (!kIsWeb && Platform.isAndroid) await _startAndroidOutput();
       if (sw != null) {
         debugPrint('[audio] soundfont ready: ${sw.elapsedMilliseconds}ms');
       }
@@ -108,6 +118,16 @@ class FrbAudioService implements AudioService {
       // a silent no-op for the rest of the session.
       _failed = true;
     }
+  }
+
+  /// Starts the platform-owned output on Android (see [init]). Non-throwing: a
+  /// failure leaves the app silent rather than broken, like every other path here.
+  Future<void> _startAndroidOutput() async {
+    try {
+      await const MethodChannel(
+        'org.cymbra.music/audio_routing',
+      ).invokeMethod<bool>('startOutput', {'deviceId': -1});
+    } catch (_) {}
   }
 
   /// Ensures the bundled SoundFont exists as a plain file and returns its path,

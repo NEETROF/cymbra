@@ -38,10 +38,19 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Attributes dco_decode_attributes(dynamic raw);
 
   @protected
+  AudioOutputInfo dco_decode_audio_output_info(dynamic raw);
+
+  @protected
+  AudioRouteKind dco_decode_audio_route_kind(dynamic raw);
+
+  @protected
   BeamState dco_decode_beam_state(dynamic raw);
 
   @protected
   bool dco_decode_bool(dynamic raw);
+
+  @protected
+  AudioOutputInfo dco_decode_box_autoadd_audio_output_info(dynamic raw);
 
   @protected
   Lyric dco_decode_box_autoadd_lyric(dynamic raw);
@@ -78,6 +87,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<String> dco_decode_list_String(dynamic raw);
+
+  @protected
+  List<AudioOutputInfo> dco_decode_list_audio_output_info(dynamic raw);
 
   @protected
   List<BeamState> dco_decode_list_beam_state(dynamic raw);
@@ -135,6 +147,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   String? dco_decode_opt_String(dynamic raw);
+
+  @protected
+  AudioOutputInfo? dco_decode_opt_box_autoadd_audio_output_info(dynamic raw);
 
   @protected
   Lyric? dco_decode_opt_box_autoadd_lyric(dynamic raw);
@@ -211,10 +226,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Attributes sse_decode_attributes(SseDeserializer deserializer);
 
   @protected
+  AudioOutputInfo sse_decode_audio_output_info(SseDeserializer deserializer);
+
+  @protected
+  AudioRouteKind sse_decode_audio_route_kind(SseDeserializer deserializer);
+
+  @protected
   BeamState sse_decode_beam_state(SseDeserializer deserializer);
 
   @protected
   bool sse_decode_bool(SseDeserializer deserializer);
+
+  @protected
+  AudioOutputInfo sse_decode_box_autoadd_audio_output_info(
+    SseDeserializer deserializer,
+  );
 
   @protected
   Lyric sse_decode_box_autoadd_lyric(SseDeserializer deserializer);
@@ -255,6 +281,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<String> sse_decode_list_String(SseDeserializer deserializer);
+
+  @protected
+  List<AudioOutputInfo> sse_decode_list_audio_output_info(
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<BeamState> sse_decode_list_beam_state(SseDeserializer deserializer);
@@ -314,6 +345,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   String? sse_decode_opt_String(SseDeserializer deserializer);
+
+  @protected
+  AudioOutputInfo? sse_decode_opt_box_autoadd_audio_output_info(
+    SseDeserializer deserializer,
+  );
 
   @protected
   Lyric? sse_decode_opt_box_autoadd_lyric(SseDeserializer deserializer);
@@ -396,10 +432,28 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_attributes(Attributes self, SseSerializer serializer);
 
   @protected
+  void sse_encode_audio_output_info(
+    AudioOutputInfo self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_audio_route_kind(
+    AudioRouteKind self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_beam_state(BeamState self, SseSerializer serializer);
 
   @protected
   void sse_encode_bool(bool self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_audio_output_info(
+    AudioOutputInfo self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_box_autoadd_lyric(Lyric self, SseSerializer serializer);
@@ -442,6 +496,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_list_String(List<String> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_audio_output_info(
+    List<AudioOutputInfo> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_beam_state(
@@ -520,6 +580,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_opt_String(String? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_audio_output_info(
+    AudioOutputInfo? self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_opt_box_autoadd_lyric(Lyric? self, SseSerializer serializer);

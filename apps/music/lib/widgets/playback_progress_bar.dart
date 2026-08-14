@@ -35,8 +35,11 @@ class PlaybackProgressBar extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final songEndMs = ref.watch(playerProvider.select((d) => d.songEndMs));
     if (songEndMs <= 0) return const SizedBox.shrink();
-    final elapsedMs = ref.watch(playerProvider.select((d) => d.elapsedMs));
-    final fraction = (elapsedMs / songEndMs).clamp(0.0, 1.0);
+    // The *heard* position, not the emission clock: on a delayed output the bar
+    // tracks the sound like every other playhead readout (change:
+    // add-audio-output-routing). Identical to `elapsedMs` at the default offset.
+    final heardMs = ref.watch(playerProvider.select((d) => d.referenceMs));
+    final fraction = (heardMs / songEndMs).clamp(0.0, 1.0);
 
     return IgnorePointer(
       child: Semantics(

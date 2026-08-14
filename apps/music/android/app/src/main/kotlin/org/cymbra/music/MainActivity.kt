@@ -15,6 +15,7 @@
 package org.cymbra.music
 
 import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.engine.FlutterEngine
 
 class MainActivity : FlutterActivity() {
     companion object {
@@ -26,5 +27,22 @@ class MainActivity : FlutterActivity() {
             // Android MIDI backend (AMidi).
             System.loadLibrary("rust_lib_music")
         }
+    }
+
+    /** Everything audio-routing (change: add-audio-output-routing) lives in
+     *  [AudioRouter]; the activity only owns its lifecycle. */
+    private var audioRouter: AudioRouter? = null
+
+    override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
+        super.configureFlutterEngine(flutterEngine)
+        audioRouter = AudioRouter(this).also {
+            it.attach(flutterEngine.dartExecutor.binaryMessenger)
+        }
+    }
+
+    override fun onDestroy() {
+        audioRouter?.dispose()
+        audioRouter = null
+        super.onDestroy()
     }
 }

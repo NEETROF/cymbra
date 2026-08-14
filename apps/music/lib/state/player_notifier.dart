@@ -121,6 +121,8 @@ class Player extends _$Player {
       metronomeEnabled: prefs.metronome,
       keyboardRange: prefs.keyboardRange,
       readingAid: prefs.readingAid,
+      instrumentSoundsItself: prefs.instrumentSoundsItself,
+      outputOffsetMs: prefs.outputOffsetMs,
     );
   }
 
@@ -339,9 +341,9 @@ class Player extends _$Player {
   void _onMidi(MidiEvent event) {
     switch (event.kind) {
       case MidiEventKind.noteOn:
-        noteOn(event.pitch);
+        noteOn(event.pitch, source: NoteSource.midiDevice);
       case MidiEventKind.noteOff:
-        noteOff(event.pitch);
+        noteOff(event.pitch, source: NoteSource.midiDevice);
     }
   }
 
@@ -369,13 +371,43 @@ class Player extends _$Player {
     _refreshMidiStatus();
   }
 
+  /// Turns the instrument-sounds-itself rule on or off (change:
+  /// add-audio-output-routing) and remembers it across restarts.
+  ///
+  /// Silences every sounding voice across the change: a MIDI key held while the
+  /// rule turns on would otherwise never receive its release (the note-off is
+  /// suppressed) and hang.
+  void setInstrumentSoundsItself({required bool enabled}) {
+    if (state.instrumentSoundsItself == enabled) return;
+    _silenceAll();
+    state = state.copyWith(instrumentSoundsItself: enabled);
+    ref
+        .read(playerPreferencesProvider.notifier)
+        .setInstrumentSoundsItself(enabled: enabled);
+  }
+
+  /// Sets the output latency compensation (change: add-audio-output-routing)
+  /// and remembers it. Clamped by the preferences store; the player mirrors what
+  /// was actually stored so the two cannot disagree.
+  void setOutputOffsetMs(int ms) {
+    final prefs = ref.read(playerPreferencesProvider.notifier)
+      ..setOutputOffsetMs(ms);
+    state = state.copyWith(outputOffsetMs: prefs.state.outputOffsetMs);
+  }
+
   // --- Input (real MIDI or keyboard fallback) ---------------------------
 
-  void noteOn(int pitch) {
-    // Every input source converges here, so a single hook sounds the piano for
-    // the on-screen keyboard, the computer keyboard, and MIDI alike — during
-    // playback and while stopped.
-    _audio.noteOn(pitch);
+  /// A live note-on from [source]. Every input source converges here, so a
+  /// single hook drives sounding, key feedback, the Wait Mode gate and scoring
+  /// for the on-screen keyboard, the computer keyboard and MIDI alike — during
+  /// playback and while stopped.
+  ///
+  /// [source] is consulted for **sounding only** (change:
+  /// add-audio-output-routing): a note the connected instrument already played
+  /// itself is not synthesized a second time. Everything below the audio call
+  /// runs identically for every source.
+  void noteOn(int pitch, {NoteSource source = NoteSource.onScreen}) {
+    if (state.synthesizes(source)) _audio.noteOn(pitch);
     // A fresh attack starts a new, uncounted hold: drop any prior "consumed"
     // mark so this press can satisfy the onset it lands on (and only that one).
     final active = state.activeNotes.contains(pitch)
@@ -401,12 +433,14 @@ class Player extends _$Player {
     // onset or records an extra note (a no-op when no run is active). Presses
     // made during the pre-start countdown are warm-ups and are not scored.
     if (state.countdownMs <= 0) {
-      _scorer.noteOn(pitch, state.elapsedMs, waitMode: state.waitMode);
+      _scorer.noteOn(pitch, state.referenceMs, waitMode: state.waitMode);
     }
   }
 
-  void noteOff(int pitch) {
-    _audio.noteOff(pitch);
+  /// Releases a live note from [source]. Mirrors [noteOn]: the release is only
+  /// sent to the synth when the attack was, so the two stay paired.
+  void noteOff(int pitch, {NoteSource source = NoteSource.onScreen}) {
+    if (state.synthesizes(source)) _audio.noteOff(pitch);
     // The hold ended: drop it from the held set and clear its consumed mark so a
     // re-press starts fresh.
     if (state.activeNotes.contains(pitch) ||
@@ -416,7 +450,7 @@ class Player extends _$Player {
         consumedHeld: {...state.consumedHeld}..remove(pitch),
       );
     }
-    _scorer.noteOff(pitch, state.elapsedMs);
+    _scorer.noteOff(pitch, state.referenceMs);
   }
 
   // --- Playback controls ------------------------------------------------
@@ -652,7 +686,13 @@ class Player extends _$Player {
     // miss detection in free run, sustain finalization). Runs before the Wait
     // Mode blocked early-return below so the gate-open time is stamped even while
     // the cascade is frozen. A no-op when no run is active.
-    _scorer.tick(s.elapsedMs, waitMode: s.waitMode);
+    //
+    // The scorer is driven on the **heard** clock throughout (change:
+    // add-audio-output-routing): gate-open stamps, attacks and miss windows all
+    // read [PlayerData.referenceMs], so the whole judgment timeline is one
+    // uniform translation of the playhead — identical to today whenever the
+    // output offset is 0.
+    _scorer.tick(s.referenceMs, waitMode: s.waitMode);
 
     // Wait Mode tolerance: a key already held (and not already consumed by an
     // earlier onset) when the playhead reaches this onset counts as attacked —
@@ -672,7 +712,7 @@ class Player extends _$Player {
         // no fresh attack — credit the scorer for it (reaction ≈ 0) so it is not
         // later marked missed.
         for (final p in heldDue) {
-          _scorer.noteOn(p, s.elapsedMs, waitMode: true);
+          _scorer.noteOn(p, s.referenceMs, waitMode: true);
         }
       }
     }
@@ -811,7 +851,7 @@ class Player extends _$Player {
     // pause at the last position rather than looping.
     if (finishScoredRun) {
       _silenceAll();
-      _scorer.finishRun(next, waitMode: s.waitMode);
+      _scorer.finishRun(next - s.outputOffsetMs, waitMode: s.waitMode);
       state = state.copyWith(isPlaying: false);
     }
   }

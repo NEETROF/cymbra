@@ -182,14 +182,14 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
       if (pitches.isEmpty) return KeyEventResult.handled;
       _assistPressed[key] = pitches;
       for (final p in pitches) {
-        notifier.noteOn(p);
+        notifier.noteOn(p, source: NoteSource.computerKeyboard);
       }
       return KeyEventResult.handled;
     } else if (event is KeyUpEvent) {
       final pitches = _assistPressed.remove(key);
       if (pitches != null) {
         for (final p in pitches) {
-          notifier.noteOff(p);
+          notifier.noteOff(p, source: NoteSource.computerKeyboard);
         }
       }
       return KeyEventResult.handled;
@@ -233,13 +233,17 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     final pitch = layout.pitchAt(event.localPosition, keyboardHeight);
     if (pitch == null) return;
     _keyboardPointers[event.pointer] = pitch;
-    ref.read(playerProvider.notifier).noteOn(pitch);
+    ref
+        .read(playerProvider.notifier)
+        .noteOn(pitch, source: NoteSource.onScreen);
   }
 
   void _onKeyboardPointerUp(PointerEvent event) {
     final pitch = _keyboardPointers.remove(event.pointer);
     if (pitch == null) return;
-    ref.read(playerProvider.notifier).noteOff(pitch);
+    ref
+        .read(playerProvider.notifier)
+        .noteOff(pitch, source: NoteSource.onScreen);
   }
 
   @override
@@ -572,7 +576,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
               painter: SynthesiaPainter(
                 layout: layout,
                 notes: data.visibleNotes,
-                elapsedMs: data.elapsedMs,
+                elapsedMs: data.referenceMs,
                 activeNotes: data.activeNotes,
               ),
             ),
@@ -611,7 +615,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                 painter: StaffPainter(
                   notes: data.visibleNotes,
                   rests: data.visibleRests,
-                  elapsedMs: data.elapsedMs,
+                  elapsedMs: data.referenceMs,
                   activeNotes: data.activeNotes,
                   bpm: data.bpm,
                   songEndMs: data.songEndMs,
@@ -1306,7 +1310,7 @@ class _PartitionViewState extends ConsumerState<_PartitionView> {
     PartitionPainter painter,
   ) {
     if (!data.isPlaying) return;
-    final cursor = data.measureAt(data.elapsedMs);
+    final cursor = data.measureAt(data.referenceMs);
     if (cursor == null) return;
     final sysIndex = _systemOf(cursor.index, systems);
     if (sysIndex == null) return;
@@ -1403,7 +1407,7 @@ class _PartitionViewState extends ConsumerState<_PartitionView> {
           final painter = PartitionPainter(
             document: notation.document!,
             systems: notation.systems,
-            elapsedMs: data.elapsedMs,
+            elapsedMs: data.referenceMs,
             measureStartMs: data.measureStartMs,
             songEndMs: data.songEndMs,
             activeNotes: data.activeNotes,
@@ -1458,7 +1462,7 @@ class _PartitionViewState extends ConsumerState<_PartitionView> {
                           painter: PartitionPainter(
                             document: notation.document!,
                             systems: notation.systems,
-                            elapsedMs: data.elapsedMs,
+                            elapsedMs: data.referenceMs,
                             measureStartMs: data.measureStartMs,
                             songEndMs: data.songEndMs,
                             activeNotes: data.activeNotes,

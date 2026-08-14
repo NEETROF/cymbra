@@ -12,10 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#[cfg(target_os = "android")]
+mod android_output;
 pub mod audio;
 mod audio_core;
 pub mod midi;
 mod midi_core;
 pub mod musicxml;
+mod platform_log;
+mod renderer;
 pub mod score;
 pub mod simple;

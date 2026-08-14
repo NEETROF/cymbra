@@ -42,6 +42,10 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - uses: subosito/flutter-action@v2
         with:
+          # Pinned: Flutter stable 3.47 (Dart 3.13) breaks analyzer 7.x codegen
+          # (dot-shorthands in the SDK). Unpin after the Riverpod 3 / analyzer 8
+          # migration; keep in sync with the local toolchain.
+          flutter-version: 3.41.8
           channel: stable
       - name: Install codegen
         run: cargo install flutter_rust_bridge_codegen --version 2.12.0 --locked

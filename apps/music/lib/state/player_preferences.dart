@@ -77,6 +77,23 @@ abstract class PlayerPrefs with _$PlayerPrefs {
 
     /// Preferred MIDI input port name; null = auto (first real device).
     String? midiPort,
+
+    /// Whether the connected MIDI instrument makes its own sound, so the app
+    /// must not synthesize the notes it already played (change:
+    /// add-audio-output-routing). Off by default — today's behaviour.
+    @Default(false) bool instrumentSoundsItself,
+
+    /// Preferred audio **output device name**; null = follow the system default.
+    /// A name is the only stable-ish handle the audio host offers, so a
+    /// remembered device that is absent at startup simply falls back to the
+    /// default (the *active* device is what the UI shows).
+    String? audioOutput,
+
+    /// Output latency compensation in milliseconds (change:
+    /// add-audio-output-routing). Shifts the scoring reference and the visual
+    /// playhead back by the delay a route adds, so a player following delayed
+    /// audio is not judged late. 0 = today's behaviour.
+    @Default(0) int outputOffsetMs,
   }) = _PlayerPrefs;
 }
 
@@ -89,9 +106,21 @@ class PlayerPreferences extends _$PlayerPreferences {
   /// Preferences key under which the JSON-encoded [PlayerPrefs] lives.
   static const String prefsKey = 'player_prefs';
 
+  // A completion *signal*, not state — putting it in [PlayerPrefs] would force
+  // every copyWith site to thread it through for the benefit of one boot-time
+  // awaiter, hence the lint exemption.
+  // ignore: avoid_public_notifier_properties
+  /// Completes when the stored record has been read and applied (or found
+  /// absent/corrupt — defaults then stand). [build] seeds defaults synchronously
+  /// so the first frame never blocks, which means an early reader sees `null`
+  /// where storage holds a value; a caller acting on a persisted choice at
+  /// startup (the audio-routing restore) must await this first.
+  Future<void> get restored => _restored;
+  Future<void> _restored = Future.value();
+
   @override
   PlayerPrefs build() {
-    _restore();
+    _restored = _restore();
     return const PlayerPrefs();
   }
 
@@ -120,6 +149,16 @@ class PlayerPreferences extends _$PlayerPreferences {
   void setScoreSize(ScoreSize size) => _update(state.copyWith(scoreSize: size));
   void setNotationTheme(NotationTheme theme) =>
       _update(state.copyWith(notationTheme: theme));
+  void setInstrumentSoundsItself({required bool enabled}) =>
+      _update(state.copyWith(instrumentSoundsItself: enabled));
+  void setAudioOutput(String? name) =>
+      _update(state.copyWith(audioOutput: name));
+
+  /// Sets the output latency compensation, clamped to a sane range: negative
+  /// values would judge attacks *ahead* of the clock, and beyond a couple of
+  /// seconds the reference no longer describes any real transport.
+  void setOutputOffsetMs(int ms) =>
+      _update(state.copyWith(outputOffsetMs: ms.clamp(0, 2000)));
 
   void _update(PlayerPrefs next) {
     if (next == state) return;
@@ -146,6 +185,9 @@ class PlayerPreferences extends _$PlayerPreferences {
     'scoreSize': p.scoreSize?.name,
     'notationTheme': p.notationTheme.name,
     'midiPort': p.midiPort,
+    'instrumentSoundsItself': p.instrumentSoundsItself,
+    'audioOutput': p.audioOutput,
+    'outputOffsetMs': p.outputOffsetMs,
   });
 
   static PlayerPrefs? _decode(String raw) {
@@ -171,6 +213,12 @@ class PlayerPreferences extends _$PlayerPreferences {
             NotationTheme.values.asNameMap()[m['notationTheme'] as String?] ??
             NotationTheme.dark,
         midiPort: m['midiPort'] as String?,
+        instrumentSoundsItself: m['instrumentSoundsItself'] as bool? ?? false,
+        audioOutput: m['audioOutput'] as String?,
+        outputOffsetMs: ((m['outputOffsetMs'] as num?)?.toInt() ?? 0).clamp(
+          0,
+          2000,
+        ),
       );
     } catch (_) {
       return null; // corrupt value → keep defaults
