@@ -2586,10 +2586,6 @@
   "@measureSelectWholePiece": {
     "description": "Measure-selection screen action clearing the range back to a scored full run."
   },
-  "practiceFromBar": "From bar",
-  "@practiceFromBar": {
-    "description": "Label of the first-measure stepper of the practice range."
-  },
   "practiceToBar": "To bar",
   "@practiceToBar": {
     "description": "Label of the last-measure stepper of the practice range."
@@ -2597,10 +2593,6 @@
   "practiceLoopSection": "Loop the section",
   "@practiceLoopSection": {
     "description": "Toggle: wrap back to the range start instead of stopping there."
-  },
-  "practiceUnscoredNote": "A section run is practice — it is not scored.",
-  "@practiceUnscoredNote": {
-    "description": "Explains that a selective (practice) run produces no grade."
   },
   "practiceBars": "Bars {from}–{to}",
   "@practiceBars": {
@@ -2636,21 +2628,9 @@
   "@practiceSpeedRampOff": {
     "description": "Tempo-ramp value meaning: no speed increase between laps."
   },
-  "practicePickerTitle": "Practice a section",
-  "@practicePickerTitle": {
-    "description": "Title of the measure-range picker opened from the end-of-run summary."
-  },
-  "practicePickerStart": "Practice",
-  "@practicePickerStart": {
-    "description": "Primary action of the measure-range picker: start the selective run."
-  },
   "practiceTapHint": "Tap a bar on the score to set the range",
   "@practiceTapHint": {
     "description": "Hint for the tap-to-select range picker on the engraved Partition view."
-  },
-  "summaryPractice": "Practice a section",
-  "@summaryPractice": {
-    "description": "Summary-modal action that opens the measure-range picker."
   },
   "practicePickStartBar": "Tap the first bar of the passage on the score",
   "@practicePickStartBar": {

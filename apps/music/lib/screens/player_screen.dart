@@ -48,7 +48,6 @@ import '../widgets/mistake_replay.dart';
 import '../widgets/notation_help_area.dart';
 import '../widgets/play_reward_listeners.dart';
 import '../widgets/playback_progress_bar.dart';
-import '../widgets/practice_range_picker.dart';
 import '../widgets/reading_aid.dart';
 import '../widgets/score_chip.dart';
 import '../widgets/scoring_overlay.dart';
@@ -531,20 +530,6 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
       if (action == SummaryAction.replay) {
         await showMistakeReplay(context, score, result);
         continue; // back to the summary after the replay
-      }
-      if (action == SummaryAction.practice) {
-        // Drill a section of what was just played: pick a range, then run it
-        // unscored. Backing out of the picker returns to the summary, so the
-        // player still has to make an explicit choice.
-        final started = await showPracticeRangePicker(context);
-        if (!mounted) return;
-        if (!started) {
-          continue;
-        }
-        ref.read(performanceScorerProvider.notifier).clearLastResult();
-        // setPracticeRange already armed the range and moved the playhead.
-        ref.read(playerProvider.notifier).startPlayback();
-        return;
       }
       ref.read(performanceScorerProvider.notifier).clearLastResult();
       if (action == SummaryAction.retry) {
