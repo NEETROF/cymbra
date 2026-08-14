@@ -59,6 +59,7 @@ _Les sections 2-4 testent sur des mini-fixtures synthétiques (FST/fréquences d
 - [ ] 7.9 Storage versionné avec migrations + réinitialisation ; export Anki depuis le side panel
 - [ ] 7.10 Page attributions (NOTICE du pack) + privacy note « rien ne quitte l'appareil »
 - [ ] 7.11 Vérification manuelle : load unpacked, parcours complet (calibration → lecture → +Deck → révision → export) sur 5 sites réels
+- [ ] 7.12 Charte Cymbra : `tokens.css` mirrorant `CymbraColors` (précédent : `apps/back-office/src/styles.css`), appliquée au popup d'icône, side panel, drawer et popup de mot ; surlignages dérivés de l'ambre/corail de la palette ; lint « aucun hex hors tokens.css » branché sur 9.2
 
 ## 8. Plugin Claude Code (spec lingua-agent-capture)
 
