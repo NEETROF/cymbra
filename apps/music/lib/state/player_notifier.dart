@@ -53,21 +53,13 @@ class Player extends _$Player {
   /// it lives here rather than in [PlayerData].
   final Set<int> _sounding = <int>{};
 
-  /// Whether a **countable practice session** is in flight (change: add-measure-
-  /// range-practice, D4): a selective run that has actually sounded at least one
-  /// onset (the "started then quit" threshold). It is flushed as a single
-  /// scoreless activity record when the range changes, the score changes, or the
-  /// player is left — **once per session, never per lap**, so looping cannot
-  /// inflate the day's practice count.
-  bool _practicePending = false;
-
-  /// The activity sink, captured when a practice session opens so the flush can
-  /// still run while the container disposes. Kept null until a practice actually
-  /// happens, so a player that never practises never touches the sync notifier.
-  PlaySyncNotifier? _practiceSink;
-
-  /// The piece identity the in-flight practice session belongs to.
-  String? _practiceScoreId;
+  /// Whether the current selective run has already been recorded as a
+  /// **countable practice session** (change: add-measure-range-practice, D4): a
+  /// run that has actually sounded at least one onset (the "started then quit"
+  /// threshold). Recorded **once per session, never per lap**, so looping cannot
+  /// inflate the day's practice count; the flag is cleared at a session boundary
+  /// (range change, score change) so the next one opens a fresh record.
+  bool _practiceRecorded = false;
 
   @override
   PlayerData build() {
@@ -86,9 +78,6 @@ class Player extends _$Player {
     // rebuilding (which would reset the playhead and pressed keys).
     ref.listen(notationProvider, (_, next) => _applyNotation(next));
     ref.onDispose(() {
-      // Leaving the player ends any in-flight practice session: record it as a
-      // single scoreless activity event before the state goes away.
-      _flushPracticeSession();
       _statusTimer?.cancel();
       _sub?.cancel();
       // Flush any held/sounding voices so leaving the screen doesn't leave a
@@ -185,41 +174,38 @@ class Player extends _$Player {
     );
   }
 
-  /// Marks the in-flight selective run as a **countable practice session** — the
-  /// design's "at least one onset elapsed" threshold, so opening a range and
-  /// quitting without playing anything never counts. Idempotent: the session is
-  /// opened once and closed by [_flushPracticeSession].
-  void _markPracticeProgress() {
-    if (_practicePending) return;
-    _practicePending = true;
-    _practiceSink = ref.read(playSyncNotifierProvider.notifier);
-    _practiceScoreId = _pieceIdentity();
-  }
-
-  /// Ends the in-flight practice session, if any, by capturing **one** scoreless
-  /// activity record into the durable outbox (delivered idempotently by the sync
-  /// notifier). A no-op when no countable practice happened.
+  /// Records the in-flight selective run as a **countable practice session** —
+  /// the design's "at least one onset elapsed" threshold, so opening a range and
+  /// quitting without playing anything never counts.
   ///
-  /// Also runs from `onDispose` — leaving the player screen disposes this
-  /// (auto-dispose) notifier while the app container, and with it the sync
-  /// notifier, is still alive. When the whole container is going down instead
-  /// (app shutdown), the sink is already unreachable; the practice is then simply
-  /// not recorded rather than throwing out of a disposal callback.
-  void _flushPracticeSession() {
-    if (!_practicePending) return;
-    final sink = _practiceSink;
-    final scoreId = _practiceScoreId;
-    _practicePending = false;
-    _practiceSink = null;
-    _practiceScoreId = null;
-    if (sink == null) return;
+  /// The record is captured **as soon as the session becomes countable**, not
+  /// when it ends. The outbox entry is durable from that moment, so a practice
+  /// that never gets a clean ending — the app killed mid-loop, the device dying,
+  /// a crash — still reaches the server. Waiting for the end used to drop those
+  /// silently, and now that a practice day also holds the streak, a lost record
+  /// costs the player a day they actually earned.
+  ///
+  /// Guarded by [_practiceRecorded], so a looping session is still captured
+  /// exactly once, never per lap. `practiced_at_ms` is therefore stamped when the
+  /// player started working the passage rather than when they stopped — the same
+  /// local day in every case that is not a session straddling midnight.
+  void _markPracticeProgress() {
+    if (_practiceRecorded) return;
+    _practiceRecorded = true;
     unawaited(
-      // A container already tearing down (app shutdown) makes the capture fail;
-      // nothing could be delivered then anyway, so it degrades to "not recorded"
-      // instead of throwing out of a disposal callback.
-      sink.capturePractice(scoreId: scoreId).catchError((Object _) {}),
+      ref
+          .read(playSyncNotifierProvider.notifier)
+          .capturePractice(scoreId: _pieceIdentity())
+          // Best-effort: a container already tearing down makes the capture
+          // fail, and nothing could be delivered then anyway.
+          .catchError((Object _) {}),
     );
   }
+
+  /// Closes the in-flight practice session so the next one opens a fresh record.
+  /// The record itself was already captured by [_markPracticeProgress]; this only
+  /// re-arms the guard at a session boundary (a new range, a new piece).
+  void _endPracticeSession() => _practiceRecorded = false;
 
   /// Releases every sounding score voice (stop / restart / loop / hand switch),
   /// so no note is left hanging.
@@ -269,7 +255,7 @@ class Player extends _$Player {
     final document = notation.document;
     if (document == null || identical(document, _loadedDocument)) return;
     // A different piece ends any practice session on the previous one.
-    _flushPracticeSession();
+    _endPracticeSession();
     _loadedDocument = document;
     final derived = notationToTimedNotes(document);
     final updated = state.copyWith(
@@ -607,7 +593,7 @@ class Player extends _$Player {
     if (range == null) return;
     // A new range is a new practice session: close the previous one first, so it
     // is counted once and the next range starts a fresh one.
-    _flushPracticeSession();
+    _endPracticeSession();
     _silenceAll();
     _scorer.cancelRun();
     final updated = state.copyWith(
@@ -625,7 +611,7 @@ class Player extends _$Player {
   /// exactly as before) and returns the playhead to the piece's effective start.
   void clearPracticeRange() {
     // Returning to a full run ends the practice session.
-    _flushPracticeSession();
+    _endPracticeSession();
     _silenceAll();
     _scorer.cancelRun();
     final updated = state.copyWith(
@@ -801,7 +787,7 @@ class Player extends _$Player {
     // playhead travelled, so a frame that also wraps still counts. Once opened
     // the session stays open across laps, so looping never inflates the day's
     // practice count; the guard also makes this free after the first hit.
-    if (!_practicePending && s.isSelectiveRun && travelledTo > s.elapsedMs) {
+    if (!_practiceRecorded && s.isSelectiveRun && travelledTo > s.elapsedMs) {
       final crossed = scoreNoteEdges(
         visible: s.visibleNotes,
         from: s.elapsedMs,

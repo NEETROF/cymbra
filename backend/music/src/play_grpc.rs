@@ -346,6 +346,13 @@ impl PlayService for PlayGrpc {
         let points_awarded = self
             .award_practice(&owner, practiced_at_ms, tz_offset_minutes)
             .await;
+        // Drilling a passage keeps the streak alive exactly like a scored run
+        // (change: add-practice-streak). The streak answers "did you sit down at
+        // the keyboard today", which is the same line the activity heatmap and
+        // the consistency badges already draw — and the alternative punished the
+        // player who worked hardest on the day they worked hardest.
+        self.advance_streak(&owner, practiced_at_ms, tz_offset_minutes)
+            .await;
         Ok(Response::new(RecordPracticeResponse { points_awarded }))
     }
 
@@ -824,6 +831,76 @@ mod tests {
         assert!(s.played_today);
         assert!(!s.recoverable, "an intact streak is never on offer");
         assert_eq!(repo.debits(), vec![], "reading a streak spends nothing");
+    }
+
+    #[tokio::test]
+    async fn practising_advances_the_streak_exactly_like_a_scored_run() {
+        // The streak asks "did you sit down at the keyboard today", not "did you
+        // produce a grade" — the same line the heatmap and the consistency badges
+        // draw. Drilling a measure range is never scored, so this is the ONLY
+        // thing standing between an evening of real work and a lost streak.
+        let (g, _repo) = grpc_with_streak();
+        g.record_practice(authed(
+            RecordPracticeRequest {
+                session_id: uuid::Uuid::now_v7().to_string(),
+                score_id: Some("ode-to-joy".into()),
+                practiced_at_ms: chrono::Utc::now().timestamp_millis(),
+                tz_offset_minutes: 0,
+            },
+            "u1",
+        ))
+        .await
+        .unwrap();
+        let s = g
+            .get_streak(authed(
+                GetStreakRequest {
+                    tz_offset_minutes: 0,
+                },
+                "u1",
+            ))
+            .await
+            .unwrap()
+            .into_inner()
+            .standing
+            .unwrap();
+        assert_eq!(s.current, 1);
+        assert!(s.played_today, "today is secured by practice alone");
+    }
+
+    #[tokio::test]
+    async fn a_practice_and_a_play_on_the_same_day_count_once() {
+        // Both paths advance the same streak, and `advance` is a same-day no-op —
+        // so working a passage and then playing it through is one day, not two.
+        let (g, _repo) = grpc_with_streak();
+        let now = chrono::Utc::now().timestamp_millis();
+        g.record_practice(authed(
+            RecordPracticeRequest {
+                session_id: uuid::Uuid::now_v7().to_string(),
+                score_id: Some("ode-to-joy".into()),
+                practiced_at_ms: now,
+                tz_offset_minutes: 0,
+            },
+            "u1",
+        ))
+        .await
+        .unwrap();
+        let mut req = session(Some("ode-to-joy"));
+        req.played_at_ms = now;
+        g.record_play_session(authed(req, "u1")).await.unwrap();
+        let s = g
+            .get_streak(authed(
+                GetStreakRequest {
+                    tz_offset_minutes: 0,
+                },
+                "u1",
+            ))
+            .await
+            .unwrap()
+            .into_inner()
+            .standing
+            .unwrap();
+        assert_eq!(s.current, 1);
+        assert_eq!(s.longest, 1);
     }
 
     #[tokio::test]

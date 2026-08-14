@@ -202,7 +202,7 @@ class PlaySyncNotifier extends _$PlaySyncNotifier {
     if (userId == null || !ref.read(canUseOnlineServicesProvider)) return;
     try {
       final entries = await _store.all();
-      var deliveredPlay = false;
+      var deliveredActivity = false;
       for (final e in entries) {
         // Per-user delivery: never send another account's session.
         if (e.userId != userId) continue;
@@ -216,9 +216,10 @@ class PlaySyncNotifier extends _$PlaySyncNotifier {
           // publish it for the summary. Ignored unless this is the armed run, so
           // a backlog draining after a spell offline never mislabels the cue.
           ref.read(playRewardCueProvider.notifier).report(e.sessionId, awarded);
-          // A scored session is what advances the practice streak
-          // server-side (change: add-practice-streak).
-          if (!e.isPractice) deliveredPlay = true;
+          // Either kind advances the practice streak server-side (change:
+          // add-practice-streak): the streak counts days at the keyboard, and a
+          // drilled passage is one as fully as a scored run.
+          deliveredActivity = true;
           // Persisted-ack received → safe to drop the entry.
           await _store.remove(e.sessionId);
         } catch (_) {
@@ -228,10 +229,10 @@ class PlaySyncNotifier extends _$PlaySyncNotifier {
         }
       }
       _attempt = 0; // a clean pass resets the backoff
-      if (deliveredPlay) {
-        // Signal that the server has seen a play, so anything derived from it
-        // (the practice streak) can refresh ITSELF. A bump, not a reach-in: this
-        // notifier does not know what listens.
+      if (deliveredActivity) {
+        // Signal that the server has seen today's activity, so anything derived
+        // from it (the practice streak) can refresh ITSELF. A bump, not a
+        // reach-in: this notifier does not know what listens.
         ref.read(streakRevisionProvider.notifier).bump();
       }
     } finally {

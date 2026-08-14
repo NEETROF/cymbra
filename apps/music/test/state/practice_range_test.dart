@@ -575,22 +575,50 @@ void main() {
       service.recordPractice(captureAny),
     ).captured.cast<PlaySessionEnvelope>();
 
-    test('a looping practice is recorded ONCE, on the range change', () async {
+    test('a looping practice is recorded ONCE, as soon as it sounds', () async {
       await build();
       notifier().setPracticeRange(1, 1);
       playLaps(4);
-      // Still in flight — nothing recorded mid-session.
-      verifyNever(service.recordPractice(any));
-
-      // Choosing another range closes the session: exactly one record.
-      notifier().setPracticeRange(2, 2);
       await pumpEventQueue();
+      // Durable from the first onset rather than held until the session ends
+      // (change: add-practice-streak) — see the interrupted-practice test below.
       final sent = practicesSent();
       expect(sent, hasLength(1));
       expect(sent.single.isPractice, isTrue);
       expect(sent.single.overallSyncPct, 0);
+      // Laps do not add records: the capture above is now marked verified, so
+      // `verifyNever` passes only if no FURTHER capture happened.
+      playLaps(3);
+      await pumpEventQueue();
+      verifyNever(service.recordPractice(any));
       // A practice never enters the scored path.
       verifyNever(service.recordSession(any));
+    });
+
+    test('an interrupted practice is already recorded', () async {
+      // THE point of capturing at the first onset: no range change, no return to
+      // a full run, no leaving the screen — the app is simply killed mid-loop.
+      // The record must already be in the durable outbox, because a lost practice
+      // now also costs the player a streak day they actually earned.
+      await build();
+      notifier().setPracticeRange(1, 2);
+      playLaps(2);
+      await pumpEventQueue();
+      expect(practicesSent(), hasLength(1));
+    });
+
+    test('a new range opens a fresh record', () async {
+      await build();
+      notifier().setPracticeRange(1, 1);
+      playLaps(1);
+      await pumpEventQueue();
+      expect(practicesSent(), hasLength(1));
+      // Closing the session re-arms the guard: drilling a different passage is a
+      // second practice session, not a continuation of the first.
+      notifier().setPracticeRange(2, 2);
+      playLaps(1);
+      await pumpEventQueue();
+      expect(practicesSent(), hasLength(1));
     });
 
     test('returning to a full run closes the practice session', () async {
@@ -602,7 +630,7 @@ void main() {
       expect(practicesSent(), hasLength(1));
     });
 
-    test('leaving the player records the in-flight practice', () async {
+    test('leaving the player does not re-record the practice', () async {
       await build();
       notifier().setPracticeRange(1, 2);
       playLaps(1);

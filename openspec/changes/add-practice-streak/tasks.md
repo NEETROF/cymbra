@@ -67,30 +67,21 @@
       design: merging this code messages nobody.
 - [x] 7.5 `openspec validate add-practice-streak --strict` passes.
 
-## 8. Open question after rebasing onto #220 / #222
+## 8. Resolved after rebasing onto #220 / #222
 
-Two changes landed on main while this one was in flight, and they redefine what a
-"streak" is:
+Two changes landed on main while this one was in flight and redefined what a
+"streak" is; both are now reconciled in code rather than left as a divergence.
 
-- **#220 (achievement badges)** declares `streak_1/2/3` (3/7/30 days) whose counter
-  is the longest run of days with **a play OR a practice** — "did you sit down at
-  the keyboard".
-- **#222 (play rewards)** pays points for a scored run *and* a once-a-day practice
-  award, on the same ingest.
-
-This change's streak counts **scored plays only**: `advance_streak` is called from
-`record_play_session`, never from `record_practice`. So a player who spends an
-evening drilling a measure range:
-
-  1. earns practice points (#222),
-  2. keeps their badge streak alive (#220),
-  3. **loses** the chip streak this change draws — and can then spend the points
-     they just earned to buy it back.
-
-That is incoherent as it stands. The fix is one line (call `advance_streak` from
-`record_practice` too) plus a spec amendment, but it is a product decision, not a
-rebase decision, so it is left open here rather than made silently.
-
-Related: a practice session is only recorded once it is **flushed**
-(`_flushPracticeSession`), which does not happen if the app is killed mid-loop —
-so an hour of real practice can still leave no trace on either streak.
+- [x] 8.1 **A practice day holds the streak.** `advance_streak` is called from
+      `record_practice` as well as `record_play_session`, so the chip, the activity
+      heatmap and the `Consistency` badge family (#220, whose counter is the union
+      of play and practice days) all count the same thing. Without this, the player
+      who spent the evening drilling the hardest bar earned practice points (#222)
+      and kept their badge streak, but lost the chip streak — and could then spend
+      those very points to buy it back. Spec + design + proposal amended; two gRPC
+      tests cover practice-alone and practice-then-play-same-day.
+- [x] 8.2 **An interrupted practice is no longer lost.** The practice record is
+      captured into the durable outbox at its first sounded onset instead of at a
+      clean ending, so an app killed mid-loop still delivers it. Still exactly one
+      record per session (never per lap). This mattered before, but the streak makes
+      it expensive: a dropped practice now costs a day the player actually earned.
