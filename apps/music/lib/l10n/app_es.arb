@@ -512,6 +512,8 @@
   "coachPlayerMidiBody": "Aquí aparece tu teclado MIDI conectado. Deja el modo automático o elige tú el dispositivo si hay varios conectados.",
   "coachPlayerHandsTitle": "Mano derecha, izquierda o ambas",
   "coachPlayerHandsBody": "Trabaja una mano cada vez y después júntalas. Solo se te piden las manos que elijas.",
+  "coachPlayerRewindTitle": "Rebobinar y elegir un pasaje",
+  "coachPlayerRewindBody": "Toca para retroceder un compás. Mantén pulsado para abrir la partitura y elegir un pasaje que practicar.",
 
   "helpTitle": "Ayuda y consejos",
   "helpCoreLoopTitle": "Cómo funciona",
@@ -635,9 +637,12 @@
   "notationHelpDynamicsTitle": "Matices",
   "notationHelpDynamicsBody": "El volumen al tocar: p es suave, f es fuerte y m está en medio (mf = medio fuerte).",
   "notationHelpClose": "Cerrar",
-  "practiceSectionTitle": "Pr\u00e1ctica",
-  "practiceRunFull": "Pieza completa",
-  "practiceRunSelective": "Pasaje",
+  "transportRewindTooltip": "Retroceder un compás (mantén pulsado: elegir un pasaje)",
+  "measureSelectTitle": "Elegir un pasaje",
+  "measureSelectPending": "Compás {from} → …",
+  "measureSelectRange": "Compases {from}–{to}",
+  "measureSelectConfirm": "Practicar",
+  "measureSelectWholePiece": "Pieza completa",
   "practiceFromBar": "Desde el comp\u00e1s",
   "practiceToBar": "Hasta el comp\u00e1s",
   "practiceLoopSection": "Repetir el pasaje",
@@ -654,6 +659,5 @@
   "summaryPractice": "Practicar un pasaje",
   "practicePickStartBar": "Toca el primer compás del pasaje en la partitura",
   "practicePickEndBar": "Ahora toca el último compás",
-  "prePlayNext": "Siguiente",
   "practiceStopLoop": "Detener el bucle"
 }

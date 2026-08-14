@@ -26,7 +26,7 @@ part 'coach_mark.g.dart';
 /// A coachable control the spotlight can point at. Each anchor is registered by
 /// a [CoachTarget] wrapped around the real control, so the overlay reads the
 /// control's on-screen rect instead of hard-coding coordinates.
-enum CoachAnchor { pianoSound, midiDevice, hands }
+enum CoachAnchor { pianoSound, midiDevice, hands, measureRewind }
 
 /// Registry mapping each [CoachAnchor] to the `GlobalKey` of the widget that
 /// currently renders it (D9, "target discovery").

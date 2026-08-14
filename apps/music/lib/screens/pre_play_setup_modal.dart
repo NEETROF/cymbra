@@ -27,7 +27,6 @@ import '../state/note_label.dart';
 import '../state/player_data.dart';
 import '../state/player_notifier.dart';
 import '../state/player_preferences.dart';
-import '../state/practice_settings_store.dart';
 import '../state/score_catalog.dart';
 import '../state/selected_piano.dart';
 import '../theme/cymbra_theme.dart';
@@ -35,7 +34,6 @@ import '../widgets/coach_mark.dart';
 import '../widgets/difficulty_badge.dart';
 import '../widgets/leaderboard_view.dart';
 import '../widgets/otg_guidance.dart';
-import '../widgets/practice_range_controls.dart';
 import '../widgets/setting_option_row.dart';
 import '../widgets/sound_output_section.dart';
 import '../widgets/sound_selector_field.dart';
@@ -98,6 +96,29 @@ class _PlayerTourStarterState extends ConsumerState<_PlayerTourStarter> {
   });
 }
 
+/// Dedicated listener (CLAUDE.md rule): reacts when the guided player sequence
+/// advances to [PlayerCoachStep.measureRewind] — the one step whose control
+/// (the transport rewind button, change: add-in-game-measure-selection) lives
+/// on the player screen behind the setup dialog rather than inside it. The
+/// dialog then applies its drafts and closes via [onRewindStep], so the
+/// spotlight lands on a control the user can actually see.
+class _CoachStepListener extends ConsumerWidget {
+  const _CoachStepListener({required this.onRewindStep, required this.child});
+
+  final VoidCallback onRewindStep;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    ref.listen(coachingProvider.select((s) => s.step), (prev, next) {
+      if (prev != next && next == PlayerCoachStep.measureRewind) {
+        onRewindStep();
+      }
+    });
+    return child;
+  }
+}
+
 class _PrePlaySetupDialog extends ConsumerStatefulWidget {
   const _PrePlaySetupDialog({required this.inGame});
 
@@ -121,20 +142,6 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
   late NoteReadingAid _readingAid;
   ScoreSize? _scoreSizeDraft;
   late NotationTheme _notationTheme;
-
-  /// Draft practice settings (change: add-measure-range-practice). [_selective]
-  /// is the full-run vs section-run choice; the measure bounds are 0-based
-  /// indices into `measureStartMs` (displayed 1-based).
-  late bool _selective;
-  late int _fromMeasure;
-  late int _toMeasure;
-
-  /// Whether the modal is on its **second step** — the passage settings
-  /// (change: add-measure-range-practice). Choosing "Section" turns the primary
-  /// action into "Next"; that step then gets the whole modal, so the engraved
-  /// score is big enough to actually pick bars on, instead of being squeezed in
-  /// under the general settings.
-  bool _practiceStep = false;
 
   /// When true, the modal body shows this piece's leaderboard in place of the
   /// setup controls (a toggle via the trophy in the header) — so the board is
@@ -172,58 +179,23 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
     // Resolved lazily on first build: the phone/tablet default needs the
     // inherited layout context, unavailable in initState.
     _notationTheme = ref.read(playerPreferencesProvider).notationTheme;
-    // Practice range: pre-fill from the run's current range (which the per-score
-    // saved settings have already seeded), else the whole piece.
-    final last = data.lastMeasureIndex ?? 0;
-    _selective = data.isSelectiveRun;
-    _fromMeasure = data.practiceStartMeasure ?? 0;
-    _toMeasure = data.practiceEndMeasure ?? last;
-    // Per-score saved settings pre-fill the picker (change: add-measure-range-
-    // practice, D7) — the RANGE only, never the run type: a reopened score still
-    // defaults to a full run, as the setup spec requires.
-    if (!_selective) unawaited(_prefillFromSaved());
   }
 
   @override
   void dispose() {
     // Leaving this surface takes the coached controls off screen, so the guided
     // sequence ends here rather than pointing at nothing (it stays replayable
-    // from help). Deferred: a provider must not be written while the tree is
-    // being finalized.
+    // from help) — unless it already advanced to the transport rewind step,
+    // whose control lives on the player screen this close reveals. Deferred: a
+    // provider must not be written while the tree is being finalized.
     final coaching = _coaching;
-    scheduleMicrotask(coaching.skipTour);
+    scheduleMicrotask(coaching.setupSurfaceClosed);
     super.dispose();
-  }
-
-  /// Loads this score's saved practice settings and pre-fills the (draft)
-  /// picker with them, clamped to the piece's current measure count so a
-  /// re-imported score can't leave the steppers pointing at bars that no longer
-  /// exist. A no-op when nothing was saved or the modal is already gone.
-  Future<void> _prefillFromSaved() async {
-    final scoreKey = pieceIdentityOf(
-      ref.read(selectedScoreProvider),
-      ref.read(playerProvider).title,
-    );
-    final saved = await ref.read(practiceSettingsStoreProvider).load(scoreKey);
-    if (!mounted) return;
-    final applied = saved?.clampedTo(ref.read(playerProvider).measureCount);
-    if (applied == null) return;
-    setState(() {
-      _fromMeasure = applied.startMeasure;
-      _toMeasure = applied.endMeasure;
-    });
   }
 
   void _apply() {
     final notifier = ref.read(playerProvider.notifier);
     final current = ref.read(playerProvider);
-    // Practice range first: it moves the playhead, so a hand change (which also
-    // reseeds it) must not be undone by it.
-    if (_selective) {
-      notifier.setPracticeRange(_fromMeasure, _toMeasure);
-    } else if (current.hasPracticeRange) {
-      notifier.clearPracticeRange();
-    }
     if (_hands != current.selectedHands) notifier.setSelectedHands(_hands);
     if (_speed != current.speed) notifier.setSpeed(_speed);
     if (_metronome != current.metronomeEnabled) notifier.toggleMetronome();
@@ -291,8 +263,6 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
     final keyboardVisibility = data.mode == RenderMode.staff
         ? _keyboardVisibilityTile(l10n)
         : null;
-    // Full-run vs section (practice) + the measure-range picker.
-    final practice = _practiceSection(l10n, data);
 
     Widget scrollCol(List<Widget> children) => SingleChildScrollView(
       child: Column(
@@ -333,7 +303,6 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
               ),
               const SizedBox(height: 8),
               readingAid,
-              ?practice,
               const SizedBox(height: 8),
               sound,
               soundOutput,
@@ -345,7 +314,6 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
             metronome,
             tempo,
             readingAid,
-            ?practice,
             keyboardSize,
             scoreSize,
             scoreTheme,
@@ -361,75 +329,74 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
     final showingBoard = _showBoard && entry?.catalogId != null;
     final Widget shownBody = showingBoard
         ? LeaderboardView(scoreId: entry!.catalogId!, title: '')
-        : (_practiceStep ? _practiceStepBody(l10n, data) : body);
+        : body;
 
     final header = _header(l10n, title, composer, entry, phone);
-    // Choosing "Section" makes the primary action open the passage STEP instead
-    // of starting: the bars are picked there, on a full-size score.
-    final goesToPracticeStep = _selective && !_practiceStep && !showingBoard;
     final button = Padding(
       padding: EdgeInsets.only(top: phone ? 8 : 12),
       child: FilledButton(
         key: const Key('pre-play-primary'),
-        onPressed: goesToPracticeStep
-            ? () => setState(() => _practiceStep = true)
-            : _apply,
-        child: Text(
-          goesToPracticeStep
-              ? l10n.prePlayNext
-              : (widget.inGame ? l10n.prePlayApply : l10n.prePlayStart),
-        ),
+        onPressed: _apply,
+        child: Text(widget.inGame ? l10n.prePlayApply : l10n.prePlayStart),
       ),
     );
 
     // Phone: full-screen so all controls fit without scrolling. Larger screens:
     // a centered, content-sized dialog.
-    if (phone) {
-      return Dialog.fullscreen(
-        backgroundColor: CymbraColors.surfaceContainerLow,
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 10, 20, 12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                header,
-                const SizedBox(height: 4),
-                if (!showingBoard) ...[facts, const SizedBox(height: 4)],
-                Expanded(child: shownBody),
-                button,
-              ],
+    final Widget dialog = phone
+        ? Dialog.fullscreen(
+            backgroundColor: CymbraColors.surfaceContainerLow,
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 10, 20, 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    header,
+                    const SizedBox(height: 4),
+                    if (!showingBoard) ...[facts, const SizedBox(height: 4)],
+                    Expanded(child: shownBody),
+                    button,
+                  ],
+                ),
+              ),
             ),
-          ),
-        ),
-      );
-    }
-    return Dialog(
-      backgroundColor: CymbraColors.surfaceContainerLow,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: ConstrainedBox(
-        constraints: BoxConstraints(maxWidth: 460, maxHeight: maxHeight),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
-          child: Column(
-            // When the board is shown the modal fills a STABLE height (max), so
-            // switching modes — or the loading→data swap — never resizes the
-            // dialog; the list scrolls within. The setup view stays content-sized.
-            mainAxisSize: showingBoard ? MainAxisSize.max : MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              header,
-              const SizedBox(height: 4),
-              if (showingBoard)
-                Expanded(child: shownBody)
-              else
-                Flexible(child: shownBody),
-              button,
-            ],
-          ),
-        ),
-      ),
-    );
+          )
+        : Dialog(
+            backgroundColor: CymbraColors.surfaceContainerLow,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: 460, maxHeight: maxHeight),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+                child: Column(
+                  // When the board is shown the modal fills a STABLE height
+                  // (max), so switching modes — or the loading→data swap —
+                  // never resizes the dialog; the list scrolls within. The
+                  // setup view stays content-sized.
+                  mainAxisSize: showingBoard
+                      ? MainAxisSize.max
+                      : MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    header,
+                    const SizedBox(height: 4),
+                    if (showingBoard)
+                      Expanded(child: shownBody)
+                    else
+                      Flexible(child: shownBody),
+                    button,
+                  ],
+                ),
+              ),
+            ),
+          );
+    // When the guided sequence advances to the transport rewind step — whose
+    // control lives on the player screen BEHIND this dialog — the setup applies
+    // its drafts and closes, revealing the control the spotlight points at.
+    return _CoachStepListener(onRewindStep: _apply, child: dialog);
   }
 
   Widget _header(
@@ -441,19 +408,6 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
   ) => Row(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      // On the passage step, a way back to the general settings — the step is a
-      // detour, not a dead end.
-      if (_practiceStep)
-        IconButton(
-          key: const Key('practice-step-back'),
-          icon: const Icon(
-            Icons.arrow_back,
-            color: CymbraColors.onSurfaceVariant,
-          ),
-          tooltip: MaterialLocalizations.of(context).backButtonTooltip,
-          visualDensity: VisualDensity.compact,
-          onPressed: () => setState(() => _practiceStep = false),
-        ),
       Expanded(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -571,88 +525,6 @@ class _PrePlaySetupDialogState extends ConsumerState<_PrePlaySetupDialog> {
       ),
     ),
   );
-
-  /// Full-run vs section (practice) choice + the measure-range steppers
-  /// (change: add-measure-range-practice, D5/D6). Available in **every** render
-  /// mode — the tap-on-score picker is Partition-only, so these steppers are the
-  /// universal surface. Omitted when the piece has no measure table (the demo
-  /// score) or a single measure — there is no narrower range to pick.
-  Widget? _practiceSection(AppLocalizations l10n, PlayerData data) {
-    final last = data.lastMeasureIndex;
-    if (last == null || last < 1) return null;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        _sectionTitle(l10n.practiceSectionTitle),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final segment = (constraints.maxWidth - 4) / 2;
-            return ToggleButtons(
-              key: const Key('practice-run-type'),
-              isSelected: [!_selective, _selective],
-              onPressed: (i) => setState(() {
-                _selective = i == 1;
-                // Back to a full run: the passage step no longer applies.
-                if (!_selective) _practiceStep = false;
-                // A "passage" spanning the whole piece is not a passage: it
-                // would start a SCORED run while the modal says practice is not
-                // scored. Seed a real, narrow one (the first two bars) so the
-                // choice is honest the moment it is made — the score picker on
-                // the next step is how the player then places it.
-                if (_selective && _fromMeasure == 0 && _toMeasure == last) {
-                  _toMeasure = 1;
-                }
-              }),
-              borderRadius: BorderRadius.circular(10),
-              borderColor: CymbraColors.surfaceContainerHighest,
-              selectedBorderColor: CymbraColors.tertiary,
-              color: CymbraColors.onSurfaceVariant,
-              selectedColor: CymbraColors.onSurface,
-              fillColor: CymbraColors.tertiary.withValues(alpha: 0.22),
-              constraints: BoxConstraints(minHeight: 44, minWidth: segment),
-              children: [
-                Text(l10n.practiceRunFull),
-                Text(l10n.practiceRunSelective),
-              ],
-            );
-          },
-        ),
-      ],
-    );
-  }
-
-  /// The **second step**: everything about the passage — the engraved score to
-  /// pick the bars on, the steppers, and the loop settings. It owns the whole
-  /// modal body, so the score gets real room (the reason this is a step rather
-  /// than one more section stacked under the general settings).
-  Widget _practiceStepBody(AppLocalizations l10n, PlayerData data) {
-    final last = data.lastMeasureIndex ?? 0;
-    return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          PracticeRangeControls(
-            lastMeasure: last,
-            fromMeasure: _fromMeasure,
-            toMeasure: _toMeasure,
-            // The step has the height to spare, so the score is worth showing
-            // large — this is where the bars are actually chosen.
-            scoreHeight: 320,
-            // Keep the range ordered while editing: moving one bound past the
-            // other pushes it along (the notifier also normalizes, defensively).
-            onFromChanged: (v) => setState(() {
-              _fromMeasure = v;
-              if (_toMeasure < v) _toMeasure = v;
-            }),
-            onToChanged: (v) => setState(() {
-              _toMeasure = v;
-              if (_fromMeasure > v) _fromMeasure = v;
-            }),
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _handsSection(AppLocalizations l10n) {
     const hands = Hand.values;

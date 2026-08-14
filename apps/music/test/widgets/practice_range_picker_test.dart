@@ -18,6 +18,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:music/services/audio_service.dart';
 import 'package:music/services/midi_service.dart';
 import 'package:music/services/preferences_service.dart';
+import 'package:music/src/rust/api/musicxml.dart';
 import 'package:music/state/notation_data.dart';
 import 'package:music/state/notation_notifier.dart';
 import 'package:music/state/player_notifier.dart';
@@ -38,20 +39,28 @@ class _FixedNotation extends Notation {
   NotationData build() => _value;
 }
 
+/// The audio fake of the most recent [_open], so a test can assert what the
+/// picker actually sounded.
+late RecordingAudioService lastAudio;
+
 /// Pumps a bare host that opens the picker, and returns both the container and
 /// the picker's result once it closes.
 Future<(ProviderContainer, Future<bool>)> _open(
   WidgetTester tester, {
   FakePreferencesService? prefs,
+  ScoreDocument? document,
 }) async {
   final container = ProviderContainer(
     overrides: [
       midiServiceProvider.overrideWithValue(FakeMidiService()),
       scoreSourceProvider.overrideWithValue(FakeScoreSource(null)),
-      audioServiceProvider.overrideWithValue(RecordingAudioService()),
+      audioServiceProvider.overrideWithValue(
+        lastAudio = RecordingAudioService(),
+      ),
       notationProvider.overrideWith(
-        () =>
-            _FixedNotation(NotationData(document: sampleFourMeasureDocument())),
+        () => _FixedNotation(
+          NotationData(document: document ?? sampleFourMeasureDocument()),
+        ),
       ),
       preferencesServiceProvider.overrideWithValue(
         prefs ?? FakePreferencesService(),
@@ -183,6 +192,135 @@ void main() {
     final data = container.read(playerProvider);
     expect(data.practiceStartMeasure, 2);
     expect(data.practiceEndMeasure, 3);
+    await _teardown(tester, container);
+  });
+
+  testWidgets('raising "from" past "to" pushes "to" along', (tester) async {
+    final (container, _) = await _open(tester);
+
+    // to: 4 → 2, then from: 1 → 3 (which drags "to" to 3).
+    await _step(tester, 'practice-to', up: false);
+    await _step(tester, 'practice-to', up: false);
+    await _step(tester, 'practice-from', up: true);
+    await _step(tester, 'practice-from', up: true);
+    await _tap(tester, find.byKey(const Key('practice-picker-start')));
+    await _pumpFrames(tester);
+
+    final data = container.read(playerProvider);
+    expect(data.practiceStartMeasure, 2);
+    expect(data.practiceEndMeasure, 2);
+    await _teardown(tester, container);
+  });
+
+  testWidgets('the picker auditions the chosen passage, and follows it', (
+    tester,
+  ) async {
+    // Choosing bars is something you HEAR: opening the picker plays the passage,
+    // and moving a bound re-auditions the NEW one instead of the old.
+    final (container, _) = await _open(tester);
+
+    // Opening the picker already sounds the passage from bar 1.
+    await tester.pump(const Duration(milliseconds: 600));
+    expect(
+      lastAudio.noteOns,
+      isNotEmpty,
+      reason: 'opening the picker must audition the passage',
+    );
+
+    // The fixture is C5 / D5 / E5 / F5, one per bar — so what sounds says
+    // exactly which bars were auditioned.
+    final openingPitches = lastAudio.noteOns.map((n) => n.pitch).toSet();
+    expect(openingPitches, contains(72), reason: 'bar 1 is C5');
+
+    lastAudio.noteOns.clear();
+    // Move the passage to bars 3-4 and let it play.
+    await _step(tester, 'practice-from', up: true);
+    await _step(tester, 'practice-from', up: true);
+    await _step(tester, 'practice-to', up: true);
+    await tester.pump(const Duration(milliseconds: 900));
+
+    final movedPitches = lastAudio.noteOns.map((n) => n.pitch).toSet();
+    expect(
+      movedPitches,
+      isNot(contains(72)),
+      reason: 'the audition must follow the new range, not replay bar 1',
+    );
+    expect(movedPitches, isNotEmpty);
+    await _teardown(tester, container);
+  });
+
+  testWidgets('the ribbon auto-scrolls to the bound being moved', (
+    tester,
+  ) async {
+    // With enough bars the ribbon is wider than its viewport, so a bar moved far
+    // to the right is off-screen until the picker follows it. Four bars fit
+    // without scrolling, which is why this needs its own fixture.
+    final (container, _) = await _open(
+      tester,
+      document: sampleManyMeasureDocument(),
+    );
+
+    // The horizontal ribbon is the only horizontally-scrolling view here.
+    ScrollableState ribbon() => tester
+        .stateList<ScrollableState>(find.byType(Scrollable))
+        .firstWhere((s) => s.position.axisDirection == AxisDirection.right);
+
+    expect(
+      ribbon().position.maxScrollExtent,
+      greaterThan(0),
+      reason: 'the fixture must actually be scrollable',
+    );
+    final before = ribbon().position.pixels;
+
+    // Push "from" far to the right ("to" already opens on the LAST bar here);
+    // the ribbon must follow the bound being moved.
+    for (var i = 0; i < 12; i++) {
+      await _step(tester, 'practice-from', up: true);
+    }
+    // Not pumpAndSettle: the audition timer keeps ticking, so nothing ever
+    // settles. Pump long enough for the scroll animation instead.
+    for (var i = 0; i < 20; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+
+    expect(
+      ribbon().position.pixels,
+      greaterThan(before),
+      reason: 'moving a bound must bring it into view',
+    );
+    await _teardown(tester, container);
+  });
+
+  testWidgets('the picker opens on the saved passage, already scrolled', (
+    tester,
+  ) async {
+    // The picker opens ALREADY holding the saved range, so no bound ever
+    // "changes" — without an explicit scroll on open the ribbon sat at bar 1
+    // while the passage was off-screen.
+    final prefs = FakePreferencesService();
+    final store = PracticeSettingsStore(prefs);
+    await store.save(
+      'ManyBars', // no catalog entry selected → the title is the key
+      const PracticeSettings(startMeasure: 14, endMeasure: 17),
+    );
+
+    final (container, _) = await _open(
+      tester,
+      prefs: prefs,
+      document: sampleManyMeasureDocument(),
+    );
+    for (var i = 0; i < 20; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+
+    final ribbon = tester
+        .stateList<ScrollableState>(find.byType(Scrollable))
+        .firstWhere((s) => s.position.axisDirection == AxisDirection.right);
+    expect(
+      ribbon.position.pixels,
+      greaterThan(0),
+      reason: 'the saved passage must be in view on open, not bar 1',
+    );
     await _teardown(tester, container);
   });
 }

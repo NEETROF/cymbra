@@ -103,7 +103,7 @@ Rect? _hole(WidgetTester tester) => tester
     ?.hole;
 
 void main() {
-  testWidgets('the first player visit walks the three key controls in place', (
+  testWidgets('the first player visit walks the key controls in place', (
     tester,
   ) async {
     final prefs = FakePreferencesService();
@@ -112,7 +112,7 @@ void main() {
 
     // Step 1 — the piano sound, spotlighting the real control.
     expect(find.text('Choose your piano sound'), findsOneWidget);
-    expect(find.text('1 / 3'), findsOneWidget);
+    expect(find.text('1 / 4'), findsOneWidget);
     expect(_hole(tester), isNotNull);
     expect(
       _hole(tester)!.overlaps(registry.rectFor(CoachAnchor.pianoSound)!),
@@ -128,11 +128,28 @@ void main() {
       isTrue,
     );
 
-    // Step 3 — the hand selection, and the sequence ends there.
+    // Step 3 — the hand selection, still inside the setup dialog.
     await tester.tap(find.byKey(const Key('coach-mark-next')));
     await _frames(tester);
     expect(find.text('Right hand, left hand, or both'), findsOneWidget);
     expect(_hole(tester)!.overlaps(registry.rectFor(CoachAnchor.hands)!), true);
+
+    // Step 4 — the transport measure rewind. Its control lives on the player
+    // screen BEHIND the dialog, so advancing to it applies the setup drafts
+    // and closes the dialog, revealing the spotlighted button.
+    await tester.tap(find.byKey(const Key('coach-mark-next')));
+    await _frames(tester);
+    expect(find.text('Rewind and pick a passage'), findsOneWidget);
+    expect(find.text('4 / 4'), findsOneWidget);
+    expect(
+      find.byKey(const Key('pre-play-primary')),
+      findsNothing,
+      reason: 'the setup dialog must close to reveal the transport bar',
+    );
+    expect(
+      _hole(tester)!.overlaps(registry.rectFor(CoachAnchor.measureRewind)!),
+      isTrue,
+    );
 
     await tester.tap(find.byKey(const Key('coach-mark-next')));
     await _frames(tester);

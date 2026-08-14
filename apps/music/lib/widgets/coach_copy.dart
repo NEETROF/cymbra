@@ -60,6 +60,10 @@ CoachCopy playerCoachCopy(AppLocalizations l10n, PlayerCoachStep step) =>
         title: l10n.coachPlayerHandsTitle,
         body: l10n.coachPlayerHandsBody,
       ),
+      PlayerCoachStep.measureRewind => (
+        title: l10n.coachPlayerRewindTitle,
+        body: l10n.coachPlayerRewindBody,
+      ),
     };
 
 /// The control each guided step points at.
@@ -68,5 +72,6 @@ extension PlayerCoachStepAnchor on PlayerCoachStep {
     PlayerCoachStep.pianoSound => CoachAnchor.pianoSound,
     PlayerCoachStep.midiDevice => CoachAnchor.midiDevice,
     PlayerCoachStep.hands => CoachAnchor.hands,
+    PlayerCoachStep.measureRewind => CoachAnchor.measureRewind,
   };
 }

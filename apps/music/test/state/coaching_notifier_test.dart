@@ -86,24 +86,55 @@ void main() {
   });
 
   group('guided player sequence', () {
-    test('walks piano sound → MIDI device → hands, then ends', () async {
-      final prefs = FakePreferencesService();
-      final c = _container(prefs);
-      await _flush();
-      final coaching = c.read(coachingProvider.notifier);
+    test(
+      'walks piano sound → MIDI device → hands → measure rewind, then ends',
+      () async {
+        final prefs = FakePreferencesService();
+        final c = _container(prefs);
+        await _flush();
+        final coaching = c.read(coachingProvider.notifier);
 
-      coaching.startPlayerTour();
-      expect(c.read(coachingProvider).step, PlayerCoachStep.pianoSound);
-      coaching.nextStep();
-      expect(c.read(coachingProvider).step, PlayerCoachStep.midiDevice);
-      coaching.nextStep();
-      expect(c.read(coachingProvider).step, PlayerCoachStep.hands);
+        coaching.startPlayerTour();
+        expect(c.read(coachingProvider).step, PlayerCoachStep.pianoSound);
+        coaching.nextStep();
+        expect(c.read(coachingProvider).step, PlayerCoachStep.midiDevice);
+        coaching.nextStep();
+        expect(c.read(coachingProvider).step, PlayerCoachStep.hands);
+        coaching.nextStep();
+        expect(c.read(coachingProvider).step, PlayerCoachStep.measureRewind);
 
-      coaching.nextStep();
-      expect(c.read(coachingProvider).step, isNull);
-      expect(c.read(coachingProvider).tourRunning, isFalse);
-      expect(prefs.store[CoachHint.playerTour.prefsKey], 'true');
-    });
+        coaching.nextStep();
+        expect(c.read(coachingProvider).step, isNull);
+        expect(c.read(coachingProvider).tourRunning, isFalse);
+        expect(prefs.store[CoachHint.playerTour.prefsKey], 'true');
+      },
+    );
+
+    test(
+      'closing the setup surface ends the tour only on its own steps',
+      () async {
+        final c = _container(FakePreferencesService());
+        await _flush();
+        final coaching = c.read(coachingProvider.notifier);
+
+        // On an in-modal step, closing the setup ends the sequence (it would
+        // otherwise point at controls that are gone).
+        coaching.startPlayerTour();
+        coaching.nextStep(); // midiDevice — lives in the modal
+        coaching.setupSurfaceClosed();
+        expect(c.read(coachingProvider).step, isNull);
+
+        // On the rewind step, the control lives BEHIND the modal: closing the
+        // setup is what reveals it, so the sequence keeps running.
+        coaching.armPlayerTourReplay();
+        coaching.startPlayerTour();
+        coaching.nextStep();
+        coaching.nextStep();
+        coaching.nextStep(); // measureRewind
+        coaching.setupSurfaceClosed();
+        expect(c.read(coachingProvider).step, PlayerCoachStep.measureRewind);
+      },
+    );
 
     test('skipping ends it immediately and it does not run again', () async {
       final c = _container(FakePreferencesService());
