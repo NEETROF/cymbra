@@ -287,7 +287,9 @@
     "sortBy": "trier par {field}",
     "actions": "Actions",
     "download": "Télécharger le MusicXML",
-    "downloading": "Téléchargement…"
+    "downloading": "Téléchargement…",
+    "resubmitted": "Re-soumise",
+    "resubmittedHint": "Re-proposée après un refus — {note}"
   },
   "filters": {
     "query": "titre ou compositeur",
@@ -307,7 +309,12 @@
     "requeue": "Remettre en file",
     "score": "Partition",
     "source": "Source",
-    "proposedBy": "Proposée par {name}"
+    "proposedBy": "Proposée par {name}",
+    "rejectReason": "Motif de refus (visible par le proposeur)",
+    "rejectConfirm": "Confirmer le refus",
+    "cancel": "Annuler",
+    "resubmission": "Re-soumission : {note}",
+    "reviewReason": "Motif enregistré : {reason}"
   },
   "edit": {
     "heading": "Modifier les métadonnées",

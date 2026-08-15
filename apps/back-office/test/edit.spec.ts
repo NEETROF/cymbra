@@ -86,10 +86,10 @@ describe("ScoreEditDrawer", () => {
 
 // --- View-level gate: the edit form is moderator/admin-only ---------------------
 
-function mountDetail(roles: string[]) {
+function mountDetail(roles: string[], hitOver: Record<string, unknown> = {}) {
   setActivePinia(createPinia());
   const { clients, state } = makeFakeClients({
-    hits: [hit],
+    hits: [{ ...hit, ...hitOver }],
     tokens: { accessToken: makeJwt({ roles, sub: "u1" }), refreshToken: "r" },
   });
   // Keep the notation/audio composables idle: no bytes → no wasm load in jsdom.
@@ -144,5 +144,47 @@ describe("ScoreDetailView edit gate", () => {
     await flushPromises();
     expect(w.find("button.edit").exists()).toBe(false);
     expect(w.findComponent(ScoreEditDrawer).props("open")).toBe(false);
+  });
+});
+
+// --- The moderator↔proposer loop on the detail page (add-score-catalog-proposal) ---
+
+describe("ScoreDetailView rejection motive", () => {
+  it("asks for a motive when rejecting and sends it with the decision", async () => {
+    const { w, state } = mountDetail(["moderator"]);
+    await flushPromises();
+
+    // Rejecting does not fire straight away: it reveals the reason input.
+    expect(w.find("form.reject-row").exists()).toBe(false);
+    await w.get("button.reject").trigger("click");
+    expect(state.evaluateCalls).toHaveLength(0);
+
+    const input = w.get("form.reject-row input.reason");
+    await input.setValue("blurry scan");
+    await w.get("form.reject-row").trigger("submit");
+    await flushPromises();
+
+    expect(state.evaluateCalls).toEqual([{ scoreId: "s1", status: "rejected", reason: "blurry scan" }]);
+  });
+
+  it("sends no motive on accept or re-queue", async () => {
+    const { w, state } = mountDetail(["moderator"]);
+    await flushPromises();
+    await w.get("button.accept").trigger("click");
+    await flushPromises();
+    expect(state.evaluateCalls).toEqual([{ scoreId: "s1", status: "accepted" }]);
+  });
+
+  it("shows the proposer's resubmission note and the recorded reason", async () => {
+    const { w } = mountDetail(["moderator"], {
+      source: "user-proposal",
+      proposerDisplayName: "thetyne",
+      resubmissionNote: "fixed the key signature",
+      reviewReason: "blurry scan",
+    });
+    await flushPromises();
+    expect(w.text()).toContain("thetyne");
+    expect(w.text()).toContain("fixed the key signature");
+    expect(w.text()).toContain("blurry scan");
   });
 });

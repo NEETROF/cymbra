@@ -96,6 +96,9 @@ class _FakeUpload implements ScoreUploadService {
   final List<(String, bool)> favoriteCalls = [];
   final List<({String id, String? note})> proposeCalls = [];
 
+  /// When set, `propose` throws it instead of recording the call.
+  Object? proposeError;
+
   @override
   Future<List<ContributedScore>> listMyScores() async => mine;
   @override
@@ -110,7 +113,10 @@ class _FakeUpload implements ScoreUploadService {
     required bool attestation,
     String attribution = '',
     String? resubmissionNote,
-  }) async => proposeCalls.add((id: scoreId, note: resubmissionNote));
+  }) async {
+    if (proposeError != null) throw proposeError!;
+    proposeCalls.add((id: scoreId, note: resubmissionNote));
+  }
 
   @override
   Future<ScoreBytesResult> fetchScoreBytes(
@@ -327,8 +333,63 @@ void main() {
       await tester.pump(const Duration(milliseconds: 40));
     }
     expect(upload.proposeCalls.map((e) => e.id).toList(), ['u1']);
+    // The success message comes from the listener, once the server has answered.
+    expect(find.text('Proposed — pending review.'), findsOneWidget);
     await _teardown(tester, c);
   });
+
+  testWidgets(
+    'a refused proposal says why, and keeps "mes partitions" on screen',
+    (tester) async {
+      final upload =
+          _FakeUpload([
+              ContributedScore(
+                id: 'u1',
+                level: PracticeLevel.beginner,
+                createdAt: DateTime.utc(2026, 5, 1),
+                measureCount: 4,
+                timeSig: '4/4',
+                keyFifths: 0,
+                title: 'My Upload',
+                composer: 'Me',
+              ),
+            ])
+            ..proposeError = const AuthException(
+              AuthError.alreadyExists,
+              'this score is already in the catalog (019fa309)',
+            );
+      final c = _container(_FakeCatalog(const []), uploadFake: upload);
+      await _pump(tester, c);
+      await tester.tap(find.widgetWithText(FilterChip, 'My scores'));
+      for (var i = 0; i < 10; i++) {
+        await tester.pump(const Duration(milliseconds: 40));
+      }
+
+      await tester.tap(find.byIcon(Icons.public));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byType(Checkbox));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Propose'));
+      await tester.pumpAndSettle();
+      for (var i = 0; i < 10; i++) {
+        await tester.pump(const Duration(milliseconds: 40));
+      }
+
+      // The duplicate refusal is named, not swallowed into the generic message —
+      // and never as a raw gRPC/exception string.
+      expect(
+        find.text('This score is already in the catalog.'),
+        findsOneWidget,
+      );
+      expect(find.textContaining('AuthException'), findsNothing);
+      expect(find.textContaining('019fa309'), findsNothing);
+      // No premature success, and the upload is still listed (the refusal changed
+      // nothing server-side, so it must not empty the list).
+      expect(find.text('Proposed — pending review.'), findsNothing);
+      expect(find.text('My Upload'), findsOneWidget);
+      await _teardown(tester, c);
+    },
+  );
 
   testWidgets('advanced-filters drawer applies a facet filter', (tester) async {
     final catalog = _FakeCatalog([_hit('c1', 'Clair de Lune')]);

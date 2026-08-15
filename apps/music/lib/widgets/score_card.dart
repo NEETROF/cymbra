@@ -31,20 +31,27 @@ String? _sourceLabel(String? source) => switch (source) {
   'musetrainer' => 'MuseTrainer',
   'mutopia' => 'Mutopia',
   'eduardomourar' => 'GitHub · eduardomourar',
-  null || '' || 'seed' => null,
+  // A user-proposed score has no dataset origin — it is credited to its proposer
+  // instead, and only when they opted into a public profile (change:
+  // add-score-catalog-proposal). Never surface the raw sentinel.
+  null || '' || 'seed' || 'user-proposal' => null,
   final s => s,
 };
 
 /// The attribution line for a score card. For an upload: "{handle} · Cymbra".
-/// For a catalog score: its origin (crawler source) plus the arranger when
-/// known. `null` for bundled scores (no origin to show).
-String? _attributionLine(CatalogEntry entry) {
+/// For a catalog score: its origin — the proposer's opt-in public credit
+/// ("proposé par @pseudo") for a user-proposed score, else the crawler source —
+/// plus the arranger when known. `null` for bundled scores (nothing to show).
+String? _attributionLine(CatalogEntry entry, AppLocalizations l10n) {
   if (entry.uploaderHandle case final handle? when handle.isNotEmpty) {
     return '$handle · Cymbra';
   }
   final parts = <String>[];
-  final origin = _sourceLabel(entry.source);
-  if (origin != null) parts.add('via $origin');
+  if (entry.contributorCredit case final credit? when credit.isNotEmpty) {
+    parts.add(l10n.scoreContributorCredit(credit));
+  } else if (_sourceLabel(entry.source) case final origin?) {
+    parts.add('via $origin');
+  }
   final arranger = entry.arranger;
   if (arranger != null && arranger.isNotEmpty) parts.add('arr. $arranger');
   return parts.isEmpty ? null : parts.join(' · ');
@@ -162,7 +169,8 @@ class ScoreCard extends StatelessWidget {
                         ),
                       ),
                     ],
-                    if (_attributionLine(entry) case final attribution?) ...[
+                    if (_attributionLine(entry, l10n)
+                        case final attribution?) ...[
                       const SizedBox(height: 4),
                       Row(
                         children: [

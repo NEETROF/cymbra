@@ -287,7 +287,9 @@
     "sortBy": "sort by {field}",
     "actions": "Actions",
     "download": "Download MusicXML",
-    "downloading": "Downloading…"
+    "downloading": "Downloading…",
+    "resubmitted": "Re-submitted",
+    "resubmittedHint": "Re-proposed after a rejection — {note}"
   },
   "filters": {
     "query": "title or composer",
@@ -307,7 +309,12 @@
     "requeue": "Re-queue",
     "score": "Score",
     "source": "Source",
-    "proposedBy": "Proposed by {name}"
+    "proposedBy": "Proposed by {name}",
+    "rejectReason": "Rejection reason (shown to the proposer)",
+    "rejectConfirm": "Confirm rejection",
+    "cancel": "Cancel",
+    "resubmission": "Re-submission: {note}",
+    "reviewReason": "Recorded reason: {reason}"
   },
   "edit": {
     "heading": "Edit metadata",

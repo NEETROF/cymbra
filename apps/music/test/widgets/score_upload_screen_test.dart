@@ -139,6 +139,57 @@ Future<void> _teardown(WidgetTester tester) async {
 bool _enabled(WidgetTester tester, String label) =>
     tester.widget<TextButton>(find.widgetWithText(TextButton, label)).enabled;
 
+/// Hosts the wizard on a **pushed** route: its post-upload propose step closes
+/// the wizard with `Navigator.pop`, which needs a route underneath.
+Future<void> _pumpPushed(
+  WidgetTester tester,
+  ProviderContainer container,
+) async {
+  await tester.binding.setSurfaceSize(const Size(900, 1400));
+  await tester.pumpWidget(
+    UncontrolledProviderScope(
+      container: container,
+      child: localizedApp(
+        Builder(
+          builder: (context) => Scaffold(
+            body: Center(
+              child: ElevatedButton(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const ScoreUploadScreen(),
+                  ),
+                ),
+                child: const Text('open wizard'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+  await tester.tap(find.text('open wizard'));
+  await _pumpFrames(tester);
+}
+
+/// Drives the wizard through pick → attest → verify → confirm → submit, leaving
+/// it on the success screen.
+Future<void> _driveToSuccess(WidgetTester tester) async {
+  await tester.tap(find.text('Choose a file'));
+  await _pumpFrames(tester);
+  await tester.tap(find.text('I am the author'));
+  await tester.pump();
+  await tester.tap(find.byType(CheckboxListTile));
+  await tester.pump();
+  await tester.tap(find.text('Verify'));
+  await _pumpFrames(tester);
+  await tester.tap(find.text('Continue'));
+  await _pumpFrames(tester);
+  await tester.tap(find.text('Beginner'));
+  await tester.pump();
+  await tester.tap(find.text('Submit'));
+  await _pumpFrames(tester);
+}
+
 void main() {
   testWidgets('Verify is gated on a validated file AND the rights attestation', (
     tester,
@@ -292,6 +343,55 @@ void main() {
     );
     expect(find.textContaining('AuthException'), findsNothing);
     expect(find.text('Difficulty level'), findsOneWidget);
+    await _teardown(tester);
+  });
+
+  // The opt-in propose step (change: add-score-catalog-proposal): offered AFTER a
+  // successful upload, never folded into the submission itself.
+  testWidgets(
+    'declining the post-upload propose step leaves the score private',
+    (tester) async {
+      final upload = _FakeUpload();
+      final container = _container(pick: _validFile(), upload: upload);
+      await _pumpPushed(tester, container);
+      await _driveToSuccess(tester);
+
+      // The proposal is offered as a separate, un-ticked step.
+      expect(
+        find.text('Propose this score to the public catalog?'),
+        findsOneWidget,
+      );
+      expect(find.text('Propose to catalog'), findsOneWidget);
+
+      await tester.tap(find.text('Not now'));
+      await _pumpFrames(tester, 24); // let the route pop transition finish
+
+      // Nothing proposed, and the wizard closed back to the host route.
+      expect(upload.proposed, isEmpty);
+      expect(find.byType(ScoreUploadScreen), findsNothing);
+      await _teardown(tester);
+    },
+  );
+
+  testWidgets('accepting the propose step calls the propose seam', (
+    tester,
+  ) async {
+    final upload = _FakeUpload();
+    final container = _container(pick: _validFile(), upload: upload);
+    await _pumpPushed(tester, container);
+    await _driveToSuccess(tester);
+
+    await tester.tap(find.text('Propose to catalog'));
+    await _pumpFrames(tester);
+
+    // Same shared sheet as the contributions list: gated on the attestation.
+    await tester.tap(find.byType(Checkbox));
+    await _pumpFrames(tester);
+    await tester.tap(find.widgetWithText(FilledButton, 'Propose'));
+    await _pumpFrames(tester);
+
+    // The just-uploaded score went through the injectable seam.
+    expect(upload.proposed, ['new-id']);
     await _teardown(tester);
   });
 }

@@ -59,6 +59,8 @@
   "scoreProposeJustification": "Explica qué cambió (obligatorio para volver a proponer)",
   "scoreProposeWizardPrompt": "¿Proponer esta partitura al catálogo público?",
   "scoreProposeSkip": "Ahora no",
+  "libraryActionFailed": "Ahora mismo no se puede. Inténtalo de nuevo.",
+  "scoreContributorCredit": "Propuesta por @{name}",
   "scoreTagPending": "Pendiente",
   "scoreTagAccepted": "Aceptada",
   "scoreTagRejected": "Rechazada",

@@ -134,6 +134,16 @@ function rowStatus(h: CatalogHit): ModerationStatus {
           <AppTag v-if="h.needsReview" variant="review" class="review-gap" :title="t('table.needsReviewHint')">{{
             t("table.needsReview")
           }}</AppTag>
+          <!-- A reopened proposal: the proposer's justification is the tooltip, so a
+               reviewer spots re-submissions in the queue without opening each one
+               (change: add-score-catalog-proposal). -->
+          <AppTag
+            v-if="h.resubmissionNote"
+            variant="review"
+            class="review-gap"
+            :title="t('table.resubmittedHint', { note: h.resubmissionNote })"
+            >{{ t("table.resubmitted") }}</AppTag
+          >
         </td>
         <!-- Download the linked MusicXML to the operator's machine. Moderator/admin
              only (provenance gate). @click.stop so it never triggers the row's select. -->

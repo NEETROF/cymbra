@@ -60,6 +60,12 @@ class CatalogHit {
   /// helping evaluate — drives the deck's "potential new score" framing.
   bool get isPending => moderationStatus == 'pending';
 
+  /// Opt-in public "proposé par" credit of a user-proposed catalog score (change:
+  /// add-score-catalog-proposal): the proposer's public handle/display name, or
+  /// `null` when the score is crawler-ingested or the proposer kept their profile
+  /// private (the server gates it fail-closed and never sends the raw id).
+  final String? contributorCredit;
+
   const CatalogHit({
     required this.id,
     required this.license,
@@ -76,6 +82,7 @@ class CatalogHit {
     this.timeSig = '',
     this.keyFifths = 0,
     this.moderationStatus,
+    this.contributorCredit,
   });
 }
 
@@ -204,6 +211,10 @@ class GrpcCatalogService implements CatalogService {
     timeSig: h.timeSig,
     keyFifths: h.keyFifths,
     moderationStatus: h.hasModerationStatus() ? h.moderationStatus : null,
+    contributorCredit:
+        h.hasContributorCredit() && h.contributorCredit.isNotEmpty
+        ? h.contributorCredit
+        : null,
   );
 
   @override
