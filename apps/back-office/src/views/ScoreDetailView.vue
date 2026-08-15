@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, nextTick, onMounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { match } from "ts-pattern";
 import ScorePreview from "@/components/ScorePreview.vue";
@@ -83,8 +83,25 @@ async function leave() {
   else await router.push({ name: "music-queue" });
 }
 
+// The moderator's rejection motive, recorded on the score and surfaced back to a
+// user-proposer (change: add-score-catalog-proposal). Asked for at the moment of
+// rejecting rather than parked in the action row, so accepting stays one click and a
+// refusal is never sent without the moderator being given the chance to say why.
+const rejecting = ref(false);
+const rejectReason = ref("");
+const reasonInput = ref<HTMLInputElement | null>(null);
+
+async function askReject() {
+  rejectReason.value = "";
+  rejecting.value = true;
+  await nextTick();
+  reasonInput.value?.focus();
+}
+
 async function decide(status: ModerationStatus) {
-  const outcome = await run(decision, () => store.setModerationStatus(props.id, status));
+  // The motive belongs to a rejection only: any other decision clears it server-side.
+  const reason = status === "rejected" ? rejectReason.value.trim() || undefined : undefined;
+  const outcome = await run(decision, () => store.setModerationStatus(props.id, status, reason));
   if (outcome.status === "success") await leave();
 }
 
@@ -122,7 +139,7 @@ async function saveEdit(edit: MetadataEdit) {
       <button type="button" class="accept" :disabled="acting" @click="decide('accepted')">
         {{ $t("detail.accept") }}
       </button>
-      <button type="button" class="reject" :disabled="acting" @click="decide('rejected')">
+      <button type="button" class="reject" :disabled="acting" @click="askReject()">
         {{ $t("detail.reject") }}
       </button>
       <button type="button" :disabled="acting" @click="decide('pending')">
@@ -130,6 +147,21 @@ async function saveEdit(edit: MetadataEdit) {
       </button>
     </div>
   </div>
+  <!-- Rejecting asks for the motive first: it is stored on the score and shown to the
+       proposer in the app, so they know what to fix (change: add-score-catalog-proposal). -->
+  <form v-if="rejecting" class="reject-row" @submit.prevent="decide('rejected')">
+    <input
+      ref="reasonInput"
+      v-model="rejectReason"
+      class="reason"
+      type="text"
+      :aria-label="$t('detail.rejectReason')"
+      :placeholder="$t('detail.rejectReason')"
+      :disabled="acting"
+    />
+    <button type="submit" class="reject" :disabled="acting">{{ $t("detail.rejectConfirm") }}</button>
+    <button type="button" :disabled="acting" @click="rejecting = false">{{ $t("detail.cancel") }}</button>
+  </form>
   <h1 class="page-title detail-title">{{ hitVm.hit?.title || $t("detail.score") }}</h1>
   <p v-if="hitVm.error" class="error" role="alert">{{ hitVm.error }}</p>
   <!-- Origin: the score's source, plus the proposer's pseudo for a user upload
@@ -139,6 +171,16 @@ async function saveEdit(edit: MetadataEdit) {
     <span v-if="hitVm.hit.proposerDisplayName" class="muted">
       · {{ $t("detail.proposedBy", { name: hitVm.hit.proposerDisplayName }) }}
     </span>
+  </p>
+  <!-- Why it is back: the proposer's mandatory justification when they reopened a
+       previously rejected score. Absent on a first proposal and on corpus rows. -->
+  <p v-if="hitVm.hit?.resubmissionNote" class="resub">
+    {{ $t("detail.resubmission", { note: hitVm.hit.resubmissionNote }) }}
+  </p>
+  <!-- The motive of the CURRENT rejection, so a moderator reopening the score's page
+       sees the decision that was recorded. -->
+  <p v-if="hitVm.hit?.reviewReason" class="muted">
+    {{ $t("detail.reviewReason", { reason: hitVm.hit.reviewReason }) }}
   </p>
   <!-- The metadata surface is always the read-only summary (inside the preview); a
        moderator edits it through the drawer opened from the action row. -->
@@ -201,5 +243,19 @@ async function saveEdit(edit: MetadataEdit) {
 }
 .error {
   color: var(--reject);
+}
+.reject-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.75rem;
+}
+.reject-row .reason {
+  flex: 1;
+  min-width: 0;
+}
+.resub {
+  color: var(--muted);
+  font-style: italic;
 }
 </style>
