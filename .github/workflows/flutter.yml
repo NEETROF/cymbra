@@ -89,9 +89,19 @@ jobs:
         run: flutter config --enable-linux-desktop
       # Integration tests drive the real app (real Rust lib via cargokit) on the
       # Linux desktop engine, headless under Xvfb. Locally: flutter test integration_test -d macos
+      # `capture` is the store-screenshot scenario: it needs `flutter drive` to
+      # write its images and a target/locale, and is run on demand
+      # (`melos run screenshots`), not as a gate. CI only re-checks the assets it
+      # produced, below.
       - name: Integration tests (Linux desktop, headless via Xvfb)
         working-directory: apps/music
-        run: xvfb-run -a flutter test integration_test -d linux --coverage --coverage-path coverage/integration.lcov.info
+        run: xvfb-run -a flutter test integration_test -d linux --exclude-tags capture --coverage --coverage-path coverage/integration.lcov.info
+      # Cheap: reads PNG headers, boots nothing. Catches an off-size, missing or
+      # hand-edited listing image — and one carrying the alpha channel Apple
+      # rejects — instead of finding out at submission time.
+      - name: Store listing assets match the declared manifest
+        working-directory: apps/music
+        run: dart run tool/check_store_assets.dart
       - name: Merge coverage (unit/widget + integration)
         run: lcov -a apps/music/coverage/lcov.info -a apps/music/coverage/integration.lcov.info -o apps/music/coverage/merged.lcov.info
       - name: Enforce 80% line coverage

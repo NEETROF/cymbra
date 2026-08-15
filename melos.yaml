@@ -53,7 +53,10 @@ scripts:
 
   integration:
     description: Run the e2e integration test headlessly on macOS (fast pass/fail; the window is not shown). To *watch* it, use `integration-watch`.
-    run: melos exec -- flutter test integration_test -d macos
+    # The store-screenshot scenario also lives under integration_test/, but it is
+    # an on-demand capture (it needs `flutter drive` to write its images and a
+    # target/locale), not a gate — see `screenshots`.
+    run: melos exec -- flutter test integration_test -d macos --exclude-tags capture
     packageFilters:
       dirExists: integration_test
 
@@ -71,6 +74,23 @@ scripts:
       -d "iPad Pro"
     packageFilters:
       dirExists: integration_test
+
+  screenshots:
+    description: >
+      Regenerate the store listing screenshots for one target (and, by default,
+      all four shipping locales). Takes the target as an argument:
+      `melos run screenshots -- ios/iphone_6.9`, or add locales:
+      `melos run screenshots -- macos/desktop_1440x900 fr`. Declared targets and
+      their required dimensions live in apps/music/tool/store_manifest.dart. The
+      capture needs the matching simulator/emulator booted (override the device
+      with CAPTURE_DEVICE).
+    run: bash apps/music/tool/capture_store_screenshots.sh
+
+  check-store-assets:
+    description: Verify the committed store screenshots against the declared manifest (dimensions, no alpha, none missing). Cheap — reads PNG headers, boots nothing.
+    run: melos exec -- dart run tool/check_store_assets.dart
+    packageFilters:
+      fileExists: tool/check_store_assets.dart
 
   format:
     description: Check Dart formatting.

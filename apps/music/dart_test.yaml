@@ -3,6 +3,13 @@
 # `golden`: pixel-comparison golden tests. Excluded from the cross-platform CI
 # gate (`flutter test --exclude-tags golden`) because goldens are not reliable
 # across OSes. Run/refresh locally with `flutter test --tags golden --update-goldens`.
+#
+# `capture`: the store-screenshot scenario. It lives under `integration_test/`
+# but is not a gate — it needs `flutter drive` to write its images, takes a
+# target/locale, and is run on demand by `melos run screenshots`. Excluded from
+# `melos run integration` so the e2e gate stays fast and unambiguous.
 tags:
   golden:
     description: Pixel-comparison golden tests (platform-sensitive).
+  capture:
+    description: Store-listing screenshot capture (on demand, not a gate).
