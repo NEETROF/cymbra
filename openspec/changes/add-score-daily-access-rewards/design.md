@@ -228,10 +228,10 @@ coming later" item copy (`reward-unlocks`), wired to the real offer later. Keepi
 - **Sequence** (pure, covered): `preview_sequence(schedule: &PlaybackSchedule,
   max_ms) -> SampleSequence` — take `schedule.notes` (from
   `cymbra_musicxml_core::playback::schedule(&doc)`, the same timing the app uses),
-  clip to the first `max_ms` (`catalog.preview.max_ms` flag/int, default 15 000),
+  clip to the first `max_ms` (`catalog.preview.max_ms` flag/int, default 30 000),
   truncating held notes at the boundary; deterministic. Reuse `render_preview_pcm` +
-  `encode_preview` unchanged (mono 16-bit 44.1 kHz WAV, ≈1.3 MB per 15 s — accepted;
-  size is why the default is 15 s, and why a codec is a later option).
+  `encode_preview` unchanged (mono 16-bit 44.1 kHz WAV, ≈2.6 MB per 30 s — accepted;
+  size is the trade-off for a 30 s teaser, and why a codec is a later option).
 - **Font**: `catalog.preview.soundfont_id` (string flag) names an **accepted** catalog
   SoundFont whose bytes are read from the SoundFont store; unset/unknown → render
   fails → preview absent (feature dormant, not broken).
@@ -326,8 +326,8 @@ Mirror the SoundFonts pattern: `regenerateScorePreview(id)` as an injectable tra
   mode; accepted (D5).
 - **Two "limit" systems on one RPC.** Abuse (`catalog-access-limits`) and freemium
   both gate `GetCatalogScoreBytes`. Distinct cores, abuse first, both flag-killable.
-- **Audio-only teaser is thin for scores; clips are WAV.** ≈1.3 MB per 15 s clip
-  across the corpus is real storage/egress; default 15 s, length is a flag; a codec
+- **Audio-only teaser is thin for scores; clips are WAV.** ≈2.6 MB per 30 s clip
+  across the corpus is real storage/egress; default 30 s, length is a flag; a codec
   and/or a lower sample rate are follow-ups if cost shows.
 - **Preview render depends on a configured font.** Unset → no previews (feature
   dormant, not broken); the BO filter and backfill make gaps visible and recoverable.
