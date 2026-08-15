@@ -58,17 +58,21 @@ class _ShopFake implements CuratorRewardsService {
       const RedeemResultView(owned: true, newBalance: 0);
 }
 
-RewardShopItemView _reward(String key, {required bool owned, int cost = 50}) =>
-    RewardShopItemView(
-      key: key,
-      label: key,
-      instrument: 'piano',
-      license: 'CC0-1.0',
-      attribution: '',
-      pointCost: cost,
-      redeemable: true,
-      owned: owned,
-    );
+RewardShopItemView _reward(
+  String key, {
+  required bool owned,
+  int cost = 50,
+  bool redeemable = true,
+}) => RewardShopItemView(
+  key: key,
+  label: key,
+  instrument: 'piano',
+  license: 'CC0-1.0',
+  attribution: '',
+  pointCost: cost,
+  redeemable: redeemable,
+  owned: owned,
+);
 
 ProviderContainer _container({
   required FakePreferencesService prefs,
@@ -276,6 +280,27 @@ void main() {
     await container.read(selectedPianoProvider.notifier).select('reward-grand');
     expect(container.read(selectedPianoProvider), defaultPianoId);
   });
+
+  // A costed font that the shop does not offer yet ("coming later") is still
+  // COSTED, so it must stay locked: the server's entitlement gate keys on the cost
+  // alone and would refuse its bytes with a 404. Consulting `redeemable` here used
+  // to make it selectable, which then failed on the download.
+  test(
+    'a costed font that is not redeemable yet is still not selectable',
+    () async {
+      final container = _container(
+        prefs: FakePreferencesService(),
+        audio: RecordingAudioService(),
+        serverFonts: [fakeDownloadPiano(id: 'soon-grand', label: 'Soon')],
+        shop: [_reward('soon-grand', owned: false, redeemable: false)],
+      );
+      await container.read(rewardShopProvider.future);
+      await pumpEventQueue();
+
+      await container.read(selectedPianoProvider.notifier).select('soon-grand');
+      expect(container.read(selectedPianoProvider), defaultPianoId);
+    },
+  );
 
   test('an owned reward font is selectable', () async {
     final container = _container(

@@ -300,9 +300,19 @@ pub trait CurationRewardsRepo: Send + Sync {
     /// The reward-shop catalogue for `user`: every priced/coming-soon SoundFont
     /// with the caller's ownership resolved. Free (cost 0) fonts are `owned` for
     /// everyone (available as today); costed fonts are `owned` iff granted.
+    ///
+    /// Only **accepted** fonts are offered (change: add-soundfont-reward-pricing): an
+    /// admin may price a font while it is still pending — pricing and moderation are
+    /// deliberately independent — but the app must never see an unvalidated font, and
+    /// the shop is the one read path that reaches `music.soundfonts` without going
+    /// through the moderation-visibility gate.
     async fn shop_items(&self, user_id: &str) -> Result<Vec<ShopItem>>;
 
     /// One shop item by key, with the caller's ownership resolved (`None` = unknown key).
+    ///
+    /// Applies the same accepted-only rule as [`shop_items`](Self::shop_items) — this is
+    /// the redeem path's lookup, so an unaccepted font must resolve to `None` rather than
+    /// be grantable by key.
     async fn shop_item(&self, user_id: &str, key: &str) -> Result<Option<ShopItem>>;
 }
 
@@ -412,6 +422,8 @@ struct FakeShopRow {
     attribution: Option<String>,
     point_cost: i64,
     redeemable: bool,
+    /// The backing font's moderation status — the shop offers `accepted` only.
+    moderation_status: String,
 }
 
 #[derive(Default)]
@@ -460,8 +472,23 @@ impl FakeCurationRewardsRepo {
             });
     }
 
-    /// Seed a reward-shop item (a priced/coming-soon SoundFont).
+    /// Seed a reward-shop item (a priced/coming-soon SoundFont), backed by an
+    /// **accepted** font — the normal case.
     pub fn seed_shop_item(&self, key: &str, label: &str, point_cost: i64, redeemable: bool) {
+        self.seed_shop_item_status(key, label, point_cost, redeemable, "accepted");
+    }
+
+    /// Seed a reward-shop item backed by a font in an explicit moderation status, so a
+    /// test can prove an unvalidated font is never offered (change:
+    /// add-soundfont-reward-pricing — pricing is allowed before acceptance).
+    pub fn seed_shop_item_status(
+        &self,
+        key: &str,
+        label: &str,
+        point_cost: i64,
+        redeemable: bool,
+        moderation_status: &str,
+    ) {
         self.state
             .lock()
             .expect("rewards fake lock")
@@ -474,6 +501,7 @@ impl FakeCurationRewardsRepo {
                 attribution: None,
                 point_cost,
                 redeemable,
+                moderation_status: moderation_status.to_string(),
             });
     }
 
@@ -867,6 +895,7 @@ impl CurationRewardsRepo for FakeCurationRewardsRepo {
         Ok(st
             .shop
             .iter()
+            .filter(|s| s.moderation_status == "accepted")
             .map(|s| ShopItem {
                 key: s.key.clone(),
                 label: s.label.clone(),
@@ -882,16 +911,20 @@ impl CurationRewardsRepo for FakeCurationRewardsRepo {
 
     async fn shop_item(&self, user_id: &str, key: &str) -> Result<Option<ShopItem>> {
         let st = self.state.lock().expect("rewards fake lock");
-        Ok(st.shop.iter().find(|s| s.key == key).map(|s| ShopItem {
-            key: s.key.clone(),
-            label: s.label.clone(),
-            instrument: s.instrument.clone(),
-            license: s.license.clone(),
-            attribution: s.attribution.clone(),
-            point_cost: s.point_cost,
-            redeemable: s.redeemable,
-            owned: is_owned(&st, user_id, s),
-        }))
+        Ok(st
+            .shop
+            .iter()
+            .find(|s| s.key == key && s.moderation_status == "accepted")
+            .map(|s| ShopItem {
+                key: s.key.clone(),
+                label: s.label.clone(),
+                instrument: s.instrument.clone(),
+                license: s.license.clone(),
+                attribution: s.attribution.clone(),
+                point_cost: s.point_cost,
+                redeemable: s.redeemable,
+                owned: is_owned(&st, user_id, s),
+            }))
     }
 }
 

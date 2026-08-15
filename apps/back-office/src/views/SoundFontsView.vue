@@ -125,6 +125,14 @@ async function confirmReject(id: string) {
   else cancelReject();
 }
 
+// Reward pricing (change: add-soundfont-reward-pricing) is **displayed** here and
+// **edited** in the drawer, alongside the font's other settings — the listing stays a
+// read surface. The control itself is admin-only (see SoundFontDrawer).
+/** A row's current price. */
+function priceLabel(row: AdminSoundFont): string {
+  return row.pointCost > 0 ? t("soundfonts.pricePoints", { n: num(row.pointCost) }) : t("soundfonts.priceFree");
+}
+
 // Normalise a row's (possibly empty) moderation status to a known badge variant.
 function statusOf(row: AdminSoundFont): "pending" | "accepted" | "rejected" {
   const s = row.moderationStatus || "pending";
@@ -245,6 +253,7 @@ function licenseDesc(license: string): string {
             <th>{{ t("soundfonts.instrument") }}</th>
             <th>{{ t("soundfonts.license") }}</th>
             <th>{{ t("soundfonts.attribution") }}</th>
+            <th>{{ t("soundfonts.priceCol") }}</th>
             <th class="actions-col">{{ t("soundfonts.actionsCol") }}</th>
           </tr>
         </thead>
@@ -296,6 +305,14 @@ function licenseDesc(license: string): string {
               <template v-else>{{ row.license }}</template>
             </td>
             <td>{{ row.attribution }}</td>
+            <!-- Reward price (change: add-soundfont-reward-pricing): displayed here,
+                 edited in the drawer (admin only). -->
+            <td class="price-col">
+              <span class="price-value">{{ priceLabel(row) }}</span>
+              <AppTag v-if="row.pointCost > 0 && !row.redeemable" variant="neutral">{{
+                t("soundfonts.priceComingLater")
+              }}</AppTag>
+            </td>
             <td class="actions-col">
               <div class="row-actions">
                 <!-- Merged play / "Generate sample": a font with a preview plays the clip;
@@ -512,6 +529,15 @@ function licenseDesc(license: string): string {
   background: var(--panel);
   color: var(--text);
   font-size: 0.8rem;
+}
+
+/* Reward price cell (change: add-soundfont-reward-pricing) — read-only; the control
+   lives in the edit drawer. */
+.price-col {
+  white-space: nowrap;
+}
+.price-value {
+  margin-right: 0.4rem;
 }
 
 /* Cue that the licence has a hover explanation (native title tooltip). */

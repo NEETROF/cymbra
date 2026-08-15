@@ -58,9 +58,10 @@ use crate::proto::{
     SearchCatalogRequest, SearchCatalogResponse, SetModerationStatusRequest,
     SetModerationStatusResponse, SetScoreFavoriteRequest, SetScoreFavoriteResponse,
     SetSoundFontModerationStatusRequest, SetSoundFontModerationStatusResponse,
-    SoundFont as ProtoSoundFont, SubmitScoreRatingRequest, SubmitScoreRatingResponse,
-    UpdateCatalogScoreRequest, UpdateCatalogScoreResponse, UpdateSoundFontRequest,
-    UpdateSoundFontResponse, UploadScoreRequest,
+    SetSoundFontPricingRequest, SetSoundFontPricingResponse, SoundFont as ProtoSoundFont,
+    SubmitScoreRatingRequest, SubmitScoreRatingResponse, UpdateCatalogScoreRequest,
+    UpdateCatalogScoreResponse, UpdateSoundFontRequest, UpdateSoundFontResponse,
+    UploadScoreRequest,
     score_service_server::{ScoreService, ScoreServiceServer},
 };
 use crate::soundfont::SoundFontRepo;
@@ -765,6 +766,11 @@ impl ScoreService for ScoreGrpc {
                 has_preview,
                 uploader_display_name,
                 resubmission_note: f.resubmission_note.unwrap_or_default(),
+                // Pricing (change: add-soundfont-reward-pricing) — privileged listing
+                // only, so the back office can show the current price and initialize
+                // the pricing control. Never on the public `SoundFont`.
+                point_cost: f.point_cost as i32,
+                redeemable: f.redeemable,
             });
         }
         Ok(Response::new(AdminListSoundFontsResponse {
@@ -881,6 +887,28 @@ impl ScoreService for ScoreGrpc {
             return Err(Status::not_found("soundfont not found"));
         }
         Ok(Response::new(SetSoundFontModerationStatusResponse {}))
+    }
+
+    /// Set a font's reward price (change: add-soundfont-reward-pricing). Music-scope
+    /// **admin** only — see [`crate::soundfont_pricing::decide`] for why this is a
+    /// stronger gate than the moderator-or-admin one on metadata/moderation. Writes only
+    /// `point_cost`/`redeemable`; an unknown id is `NotFound` and nothing is written.
+    async fn set_sound_font_pricing(
+        &self,
+        req: Request<SetSoundFontPricingRequest>,
+    ) -> Result<Response<SetSoundFontPricingResponse>, Status> {
+        let id = identity(&req)?;
+        let r = req.into_inner();
+        let point_cost = crate::soundfont_pricing::decide(&id, r.point_cost)?;
+        let repo = self.soundfont_repo()?;
+        let matched = repo
+            .set_pricing(&r.id, point_cost, r.redeemable)
+            .await
+            .map_err(|e| Status::internal(format!("set soundfont pricing: {e}")))?;
+        if !matched {
+            return Err(Status::not_found("soundfont not found"));
+        }
+        Ok(Response::new(SetSoundFontPricingResponse {}))
     }
 
     async fn set_score_favorite(
@@ -1498,6 +1526,10 @@ mod tests {
             .unwrap();
         assert!(row.has_object);
         assert!(!row.has_preview);
+        // Pricing (change: add-soundfont-reward-pricing) rides the same privileged row,
+        // so the back office renders the current price without a second call.
+        assert_eq!(row.point_cost, 0);
+        assert!(row.redeemable);
 
         // Once the preview object exists, has_preview flips true (drives the BO's
         // play / "Generate sample" control).
@@ -1587,6 +1619,108 @@ mod tests {
             .await
             .unwrap_err();
         assert_eq!(err.code(), tonic::Code::NotFound);
+    }
+
+    /// Pricing (change: add-soundfont-reward-pricing) writes the two economy fields and
+    /// nothing else, and reverts a costed font to free.
+    #[tokio::test]
+    async fn admin_prices_a_font_and_reverts_it_to_free() {
+        let (svc, repo, _store) = grpc_soundfont_admin().await;
+        let before = repo.lookup("ydp-grand").await.unwrap().unwrap();
+
+        svc.set_sound_font_pricing(authed_admin(
+            SetSoundFontPricingRequest {
+                id: "ydp-grand".into(),
+                point_cost: 250,
+                redeemable: true,
+            },
+            "admin-1",
+        ))
+        .await
+        .unwrap();
+        let e = repo.lookup("ydp-grand").await.unwrap().unwrap();
+        assert_eq!(e.point_cost, 250);
+        assert!(e.redeemable);
+        // The metadata, moderation state and content digest are untouched.
+        assert_eq!(
+            crate::soundfont::FontEntry {
+                point_cost: before.point_cost,
+                redeemable: before.redeemable,
+                ..e
+            },
+            before
+        );
+
+        // "Coming later": listed in the shop but not redeemable, still costed.
+        svc.set_sound_font_pricing(authed_admin(
+            SetSoundFontPricingRequest {
+                id: "ydp-grand".into(),
+                point_cost: 250,
+                redeemable: false,
+            },
+            "admin-1",
+        ))
+        .await
+        .unwrap();
+        let e = repo.lookup("ydp-grand").await.unwrap().unwrap();
+        assert_eq!(e.point_cost, 250);
+        assert!(!e.redeemable);
+
+        // Back to free.
+        svc.set_sound_font_pricing(authed_admin(
+            SetSoundFontPricingRequest {
+                id: "ydp-grand".into(),
+                point_cost: 0,
+                redeemable: true,
+            },
+            "admin-1",
+        ))
+        .await
+        .unwrap();
+        assert_eq!(repo.lookup("ydp-grand").await.unwrap().unwrap(), before);
+    }
+
+    /// Pricing is admin-only — strictly stronger than the moderator-or-admin gate the
+    /// metadata edit uses — and a refused call never writes.
+    #[tokio::test]
+    async fn pricing_is_refused_for_a_moderator_a_negative_cost_and_an_unknown_font() {
+        let (svc, repo, _store) = grpc_soundfont_admin().await;
+        let priced = |id: &str, cost: i32| SetSoundFontPricingRequest {
+            id: id.into(),
+            point_cost: cost,
+            redeemable: true,
+        };
+
+        // A moderator may edit this font's metadata but may not price it.
+        let err = svc
+            .set_sound_font_pricing(authed_moderator(priced("ydp-grand", 250), "mod-1"))
+            .await
+            .unwrap_err();
+        assert_eq!(err.code(), tonic::Code::PermissionDenied);
+        let err = svc
+            .set_sound_font_pricing(authed(priced("ydp-grand", 250), "u"))
+            .await
+            .unwrap_err();
+        assert_eq!(err.code(), tonic::Code::PermissionDenied);
+
+        // A negative cost is invalid.
+        let err = svc
+            .set_sound_font_pricing(authed_admin(priced("ydp-grand", -1), "admin-1"))
+            .await
+            .unwrap_err();
+        assert_eq!(err.code(), tonic::Code::InvalidArgument);
+
+        // An unknown id is not-found.
+        let err = svc
+            .set_sound_font_pricing(authed_admin(priced("nope", 250), "admin-1"))
+            .await
+            .unwrap_err();
+        assert_eq!(err.code(), tonic::Code::NotFound);
+
+        // None of the refusals wrote a price.
+        let e = repo.lookup("ydp-grand").await.unwrap().unwrap();
+        assert_eq!(e.point_cost, 0);
+        assert!(e.redeemable);
     }
 
     #[tokio::test]

@@ -689,6 +689,43 @@ mod tests {
         assert_eq!(after.spendable_balance, 140);
     }
 
+    /// Pricing is allowed before acceptance (an admin may set a font's price while it is
+    /// still in review — change: add-soundfont-reward-pricing), but an unvalidated font
+    /// must never reach the app: the shop is the one read path onto `music.soundfonts`
+    /// that does not go through the moderation-visibility gate.
+    #[tokio::test]
+    async fn an_unaccepted_font_is_never_offered_or_redeemable() {
+        let repo = Arc::new(FakeCurationRewardsRepo::default());
+        let m = CurationRewardsModule::new(repo.clone());
+        repo.seed_shop_item("grand", "Grand", 50, true); // accepted
+        repo.seed_shop_item_status("draft", "Priced in review", 50, true, "pending");
+        repo.seed_shop_item_status("nope", "Priced then rejected", 50, true, "rejected");
+        repo.append_award("u1", "s1", 500, AwardKind::Honesty)
+            .await
+            .unwrap();
+
+        // Only the accepted font is listed, however it is priced.
+        let keys: Vec<String> = m
+            .list_shop("u1")
+            .await
+            .unwrap()
+            .into_iter()
+            .map(|i| i.key)
+            .collect();
+        assert_eq!(keys, vec!["grand".to_string()]);
+
+        // And it cannot be redeemed by key either — the redeem lookup applies the same
+        // rule, so a crafted call is not-found rather than a grant.
+        for key in ["draft", "nope"] {
+            assert!(matches!(
+                m.redeem("u1", key).await,
+                Err(AppError::NotFound(_))
+            ));
+        }
+        // Nothing was granted and nothing was charged.
+        assert_eq!(repo.spendable_balance("u1").await.unwrap(), 500);
+    }
+
     #[tokio::test]
     async fn unknown_reward_is_not_found() {
         let (m, _repo) = module();

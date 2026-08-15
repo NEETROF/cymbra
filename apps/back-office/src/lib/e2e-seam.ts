@@ -239,6 +239,17 @@ export function installE2EClients(): void {
         if (i >= 0) soundfonts.splice(i, 1);
         return {};
       },
+      // Reward pricing (change: add-soundfont-reward-pricing). Admin-only server-side;
+      // kept on the row so a test can assert the price that was sent.
+      setSoundFontPricing: async (req: { id: string; pointCost: number; redeemable: boolean }) => {
+        failIfSet("setSoundFontPricing");
+        const f = soundfonts.find((s) => s.id === req.id);
+        if (f) {
+          f.pointCost = req.pointCost;
+          f.redeemable = req.redeemable;
+        }
+        return {};
+      },
       // Moderation decision (change: add-soundfont-moderation). A rejection may
       // carry the moderator's reason (change: add-soundfont-uploader-attribution),
       // kept on the row so a test can assert it was sent.

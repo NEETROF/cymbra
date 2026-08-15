@@ -434,6 +434,9 @@ message GetCourseProgressResponse {
 // `uploaded_by` resolved to the contributor's pseudo (empty for a seeded font);
 // `resubmission_note` is the uploader's justification when a rejected font was
 // re-proposed (reopened), empty otherwise.
+// Pricing fields (change: add-soundfont-reward-pricing), admin listing only — the
+// public `SoundFont` never carries them: `point_cost` is the reward-shop cost in
+// curation points (`0` = free) and `redeemable` whether the shop currently offers it.
 message AdminSoundFont {
   string id = 1;
   string label = 2;
@@ -451,6 +454,8 @@ message AdminSoundFont {
   bool has_preview = 14;
   string uploader_display_name = 15;
   string resubmission_note = 16;
+  int32 point_cost = 17;
+  bool redeemable = 18;
 }
 
 // Paginated admin listing (change: add-soundfont-moderation). `moderation_status`
@@ -502,6 +507,22 @@ message SetSoundFontModerationStatusRequest {
 }
 
 message SetSoundFontModerationStatusResponse {}
+
+// Set a catalog font's reward price (change: add-soundfont-reward-pricing).
+// Music-scope **admin** only — strictly stronger than the moderator-or-admin gate on
+// metadata editing/moderation, because what a font costs is a product decision.
+// `point_cost` is in curation points and must be `>= 0`: `0` reverts the font to free,
+// `> 0` makes its raw `.sf2` entitlement-gated and lists it in the reward shop.
+// `redeemable = false` marks it "coming later" (listed, not redeemable). Writes only
+// these two fields — never the label, licence, attribution, moderation status, bytes or
+// preview — and is independent of whether a preview clip exists.
+message SetSoundFontPricingRequest {
+  string id = 1;
+  int32 point_cost = 2;
+  bool redeemable = 3;
+}
+
+message SetSoundFontPricingResponse {}
 
 // --- Curation rewards (change: add-curation-rewards) -------------------------
 // The signed-in curator's points economy: coverage points (immediate,
@@ -654,6 +675,9 @@ service ScoreService {
   // Set a font's moderation status (change: add-soundfont-moderation). Music-scope
   // moderator/admin only; stamps reviewer + time.
   rpc SetSoundFontModerationStatus(SetSoundFontModerationStatusRequest) returns (SetSoundFontModerationStatusResponse);
+  // Set a font's reward price (change: add-soundfont-reward-pricing). Music-scope
+  // **admin** only — a moderator may edit metadata but not decide what a font costs.
+  rpc SetSoundFontPricing(SetSoundFontPricingRequest) returns (SetSoundFontPricingResponse);
 
   rpc ListMyScores(ListMyScoresRequest) returns (ListMyScoresResponse);
   // Opt-in proposal of a private score to the public catalog (change: add-score-catalog-proposal).

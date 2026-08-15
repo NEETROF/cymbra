@@ -122,6 +122,13 @@
     "label": "Label",
     "license": "License",
     "attribution": "Attribution",
+    "priceCol": "Price",
+    "priceFree": "Free",
+    "pricePoints": "{n} pts",
+    "priceComingLater": "Coming later",
+    "priceRedeemable": "Redeemable",
+    "priceCostLabel": "Cost in points (0 = free)",
+    "priceNoSampleHint": "This font has no sample yet: once it costs points, the app locks it and greys its play control until you generate one.",
     "instrument": "Instrument",
     "instr": {
       "piano": "Piano"

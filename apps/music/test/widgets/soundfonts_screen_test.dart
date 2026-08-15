@@ -69,17 +69,21 @@ class _ShopFake implements CuratorRewardsService {
       const RedeemResultView(owned: true, newBalance: 0);
 }
 
-RewardShopItemView _reward(String key, {required bool owned, int cost = 50}) =>
-    RewardShopItemView(
-      key: key,
-      label: key,
-      instrument: 'piano',
-      license: 'CC0-1.0',
-      attribution: '',
-      pointCost: cost,
-      redeemable: true,
-      owned: owned,
-    );
+RewardShopItemView _reward(
+  String key, {
+  required bool owned,
+  int cost = 50,
+  bool redeemable = true,
+}) => RewardShopItemView(
+  key: key,
+  label: key,
+  instrument: 'piano',
+  license: 'CC0-1.0',
+  attribution: '',
+  pointCost: cost,
+  redeemable: redeemable,
+  owned: owned,
+);
 
 ProviderContainer _container({
   FakePreferencesService? prefs,
@@ -535,6 +539,33 @@ void main() {
     await tester.tap(find.text('Grand Piano'));
     await tester.pump();
     expect(preview.auditioned, isEmpty);
+    expect(source.resolved.map((e) => e.id), isNot(contains('grand')));
+  });
+
+  // A costed font the shop does not offer yet is STILL costed: the server refuses
+  // its bytes on the cost alone, so it must read as locked and audition via its
+  // clip. It previously read as free, and tapping it tried to download the font.
+  testWidgets('a costed font that is not redeemable yet is locked and shows '
+      'coming soon instead of an unlock button', (tester) async {
+    final source = FakeSoundFontSource();
+    final preview = FakeSoundFontPreviewService(available: {'grand'});
+    final c = _container(
+      serverFonts: [
+        fakeDownloadPiano(id: 'grand', label: 'Grand Piano', hasPreview: true),
+      ],
+      shop: [_reward('grand', owned: false, redeemable: false)],
+      source: source,
+      preview: preview,
+    );
+    await _pump(tester, c);
+
+    // Costed → the price shows, but there is no unlock action yet.
+    expect(find.byKey(const Key('soundfont-unlock')), findsNothing);
+
+    // And it is auditioned via the clip — the raw font is never downloaded.
+    await tester.tap(find.text('Grand Piano'));
+    await tester.pump();
+    expect(preview.auditioned, contains('grand'));
     expect(source.resolved.map((e) => e.id), isNot(contains('grand')));
   });
 

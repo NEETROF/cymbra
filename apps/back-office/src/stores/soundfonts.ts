@@ -181,6 +181,18 @@ export const useSoundFontsStore = defineStore("soundfonts", () => {
     return op.value;
   }
 
+  /** Set a font's reward price, then re-list (change: add-soundfont-reward-pricing).
+   *  `pointCost` is in curation points (`0` = free, `> 0` makes the raw `.sf2`
+   *  entitlement-gated and lists it in the shop); `redeemable = false` marks it "coming
+   *  later". Admin-only server-side — a moderator's call lands in `op` as an error. */
+  async function setPricing(id: string, pointCost: number, redeemable: boolean) {
+    const outcome = await run(op, async () => {
+      await api().score.setSoundFontPricing({ id, pointCost, redeemable });
+    });
+    if (outcome.status === "success") await list();
+    return outcome;
+  }
+
   /** (Re)generate a font's server-rendered preview clip (change:
    *  add-soundfont-entitlement-previews). On success the endpoint has already STORED the
    *  preview object (it returns 200 only after the `put`), so we flip the row's
@@ -258,6 +270,7 @@ export const useSoundFontsStore = defineStore("soundfonts", () => {
     update,
     remove,
     setModerationStatus,
+    setPricing,
     regeneratePreview,
     previewClip,
     previewPieces,

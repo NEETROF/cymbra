@@ -165,6 +165,12 @@ pub trait SoundFontRepo: Send + Sync {
         license: &str,
         attribution: Option<&str>,
     ) -> Result<bool>;
+    /// Set a font's reward pricing (change: add-soundfont-reward-pricing):
+    /// `point_cost` in curation points (`0` = free) and `redeemable` (whether the shop
+    /// currently offers it). Returns whether a row matched. Kept apart from
+    /// [`update_meta`](SoundFontRepo::update_meta) so metadata and pricing stay
+    /// independently authorized — pricing is admin-only, metadata is moderator-or-admin.
+    async fn set_pricing(&self, id: &str, point_cost: i64, redeemable: bool) -> Result<bool>;
     /// Delete a font's row. Returns whether a row was removed. (The stored object is
     /// removed separately by the caller.)
     async fn delete(&self, id: &str) -> Result<bool>;
@@ -455,6 +461,24 @@ impl SoundFontRepo for PgSoundFontRepo {
         Ok(r.rows_affected() > 0)
     }
 
+    async fn set_pricing(&self, id: &str, point_cost: i64, redeemable: bool) -> Result<bool> {
+        // `point_cost` is an INT column; the caller (the RPC) already validates the range,
+        // so an out-of-range value here is a programming error — refuse it rather than
+        // silently truncating a price.
+        let cost = i32::try_from(point_cost)
+            .with_context(|| format!("soundfont point_cost {point_cost} out of range"))?;
+        let r = sqlx::query(
+            "UPDATE music.soundfonts SET point_cost = $2, redeemable = $3 WHERE id = $1",
+        )
+        .bind(id)
+        .bind(cost)
+        .bind(redeemable)
+        .execute(&self.pool)
+        .await
+        .context("set soundfont pricing")?;
+        Ok(r.rows_affected() > 0)
+    }
+
     async fn delete(&self, id: &str) -> Result<bool> {
         let r = sqlx::query("DELETE FROM music.soundfonts WHERE id = $1")
             .bind(id)
@@ -660,6 +684,18 @@ impl SoundFontRepo for FakeSoundFontRepo {
         }
     }
 
+    async fn set_pricing(&self, id: &str, point_cost: i64, redeemable: bool) -> Result<bool> {
+        let mut e = self.entries.lock().unwrap();
+        match e.iter_mut().find(|x| x.id == id) {
+            Some(x) => {
+                x.point_cost = point_cost;
+                x.redeemable = redeemable;
+                Ok(true)
+            }
+            None => Ok(false),
+        }
+    }
+
     async fn delete(&self, id: &str) -> Result<bool> {
         let mut e = self.entries.lock().unwrap();
         let before = e.len();
@@ -772,6 +808,41 @@ mod tests {
         assert!(repo.delete("upright-piano-kw").await.unwrap());
         assert!(repo.list().await.unwrap().is_empty());
         assert!(!repo.delete("upright-piano-kw").await.unwrap());
+    }
+
+    /// Pricing (change: add-soundfont-reward-pricing) writes only the two economy
+    /// fields: a costed font keeps its label/licence/attribution/moderation state, and an
+    /// unknown id matches nothing.
+    #[tokio::test]
+    async fn fake_repo_set_pricing_writes_only_the_economy_fields() {
+        let repo = FakeSoundFontRepo::with(vec![upright()]);
+        assert!(
+            repo.set_pricing("upright-piano-kw", 250, false)
+                .await
+                .unwrap()
+        );
+        let e = repo.lookup("upright-piano-kw").await.unwrap().unwrap();
+        assert_eq!(e.point_cost, 250);
+        assert!(!e.redeemable);
+        // Everything else is exactly the seeded font.
+        assert_eq!(
+            FontEntry {
+                point_cost: 0,
+                redeemable: true,
+                ..e.clone()
+            },
+            upright()
+        );
+
+        // Back to free, and redeemable again.
+        assert!(repo.set_pricing("upright-piano-kw", 0, true).await.unwrap());
+        assert_eq!(
+            repo.lookup("upright-piano-kw").await.unwrap(),
+            Some(upright())
+        );
+
+        // An unknown id matches nothing.
+        assert!(!repo.set_pricing("nope", 10, true).await.unwrap());
     }
 
     #[tokio::test]

@@ -2,6 +2,7 @@
 import { computed, ref, shallowRef, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { type NewSoundFont, type SoundFontEdit, useSoundFontsStore } from "@/stores/soundfonts";
+import { useAuthStore } from "@/stores/auth";
 import { useScorePlayer } from "@/composables/useScorePlayer";
 import { sampleScoreBytes } from "@/lib/sampleScore";
 import { uuidv7 } from "@/lib/uuid";
@@ -16,12 +17,28 @@ const props = defineProps<{ mode: "create" | "edit" | null; entry?: AdminSoundFo
 const emit = defineEmits<{ (e: "close"): void }>();
 
 const store = useSoundFontsStore();
+const auth = useAuthStore();
 const { t } = useI18n();
 
 const isEdit = computed(() => props.mode === "edit");
 
+// Reward pricing (change: add-soundfont-reward-pricing). Edited here, alongside the
+// rest of the font's settings, rather than in the listing. Two gates: it needs an
+// existing font (so edit mode only) and it is **admin**-only — stronger than the
+// moderator-or-admin gate on the metadata around it, because what a font costs is a
+// product decision. The server enforces the same rule.
+const canPrice = computed(() => isEdit.value && auth.isAdmin);
+
 // --- Form state ---
-const form = ref({ id: "", label: "", license: "CC0-1.0", attribution: "", instrument: "piano" });
+const form = ref({
+  id: "",
+  label: "",
+  license: "CC0-1.0",
+  attribution: "",
+  instrument: "piano",
+  pointCost: 0,
+  redeemable: true,
+});
 
 // Selectable SoundFont licences (a fixed dropdown, not free text).
 const LICENSES = ["CC0-1.0", "CC-BY 3.0", "CC-BY 4.0", "CC-BY-SA 4.0"];
@@ -47,6 +64,14 @@ const licenseHint = computed(() => {
 });
 const file = ref<File | null>(null);
 
+/** A row's pricing, normalized. Read through this on BOTH sides of the "did the price
+ *  change?" test: comparing a normalized form value against a raw row would report a
+ *  change on a row that carries no pricing fields, firing a needless (and admin-only)
+ *  write. Absent = free and redeemable, which is the column default. */
+function currentPricing(e: AdminSoundFont): { pointCost: number; redeemable: boolean } {
+  return { pointCost: e.pointCost ?? 0, redeemable: e.redeemable ?? true };
+}
+
 // (Re)seed the form whenever the drawer opens on a new target.
 watch(
   () => [props.mode, props.entry?.id] as const,
@@ -60,10 +85,20 @@ watch(
         license: e.license,
         attribution: e.attribution,
         instrument: e.instrument || "piano",
+        ...currentPricing(e),
       };
     } else {
-      // The id is auto-minted (uuidv7) and never shown/edited on create.
-      form.value = { id: uuidv7(), label: "", license: "CC0-1.0", attribution: "", instrument: "piano" };
+      // The id is auto-minted (uuidv7) and never shown/edited on create. A new font is
+      // always free: pricing needs an existing row, so it is an edit-mode concern.
+      form.value = {
+        id: uuidv7(),
+        label: "",
+        license: "CC0-1.0",
+        attribution: "",
+        instrument: "piano",
+        pointCost: 0,
+        redeemable: true,
+      };
     }
   },
   { immediate: true },
@@ -81,11 +116,20 @@ const canSave = computed(() => {
 const acting = computed(() => store.op.status === "loading");
 const opError = computed(() => (store.op.status === "error" ? store.op.error : null));
 
+/** Non-blocking hint: a costed font with no sample is locked but not auditionable — the
+ *  app greys its play control until "Generate sample" has run. Pricing is allowed either
+ *  way; the server does not couple the two. */
+const pricingNeedsSample = computed(
+  () => canPrice.value && Number(form.value.pointCost) > 0 && props.entry?.hasPreview === false,
+);
+
 async function save() {
   if (!canSave.value) return;
   if (isEdit.value) {
     const edit: SoundFontEdit = { id: form.value.id, ...metaFields() };
-    if ((await store.update(edit)).status === "success") emit("close");
+    if ((await store.update(edit)).status !== "success") return;
+    if (!(await savePricingIfChanged())) return;
+    emit("close");
   } else {
     if (!file.value) return;
     const font: NewSoundFont = {
@@ -96,6 +140,18 @@ async function save() {
     };
     if ((await store.add(font)).status === "success") emit("close");
   }
+}
+/** Pricing is a **separate**, admin-only write, sent only when it actually changed — so a
+ *  moderator saving metadata never attempts it, and an unchanged price costs no call.
+ *  Returns whether the drawer may close. */
+async function savePricingIfChanged(): Promise<boolean> {
+  if (!canPrice.value || !props.entry) return true;
+  // The server refuses a negative cost; clamp so the drawer never sends one.
+  const cost = Math.max(0, Math.trunc(Number(form.value.pointCost) || 0));
+  const { redeemable } = form.value;
+  const was = currentPricing(props.entry);
+  if (cost === was.pointCost && redeemable === was.redeemable) return true;
+  return (await store.setPricing(form.value.id, cost, redeemable)).status === "success";
 }
 function metaFields() {
   return {
@@ -188,6 +244,28 @@ const audioState = computed(() => player.audio.value.status);
             <span>{{ t("soundfonts.file") }}</span>
             <input type="file" accept=".sf2" :aria-label="t('soundfonts.file')" @change="onFile" />
           </label>
+
+          <!-- Reward pricing (change: add-soundfont-reward-pricing): edit-mode + admin
+               only. Independent of moderation — a font may be priced while still in
+               review — and independent of the preview. -->
+          <fieldset v-if="canPrice" class="pricing">
+            <legend>{{ t("soundfonts.priceCol") }}</legend>
+            <label>
+              <span>{{ t("soundfonts.priceCostLabel") }}</span>
+              <input
+                v-model.number="form.pointCost"
+                type="number"
+                min="0"
+                step="1"
+                :aria-label="t('soundfonts.priceCostLabel')"
+              />
+            </label>
+            <label class="check">
+              <input v-model="form.redeemable" type="checkbox" />
+              <span>{{ t("soundfonts.priceRedeemable") }}</span>
+            </label>
+            <p v-if="pricingNeedsSample" class="hint">{{ t("soundfonts.priceNoSampleHint") }}</p>
+          </fieldset>
 
           <!-- Preview: audition the font on the shared sample (same as the app). -->
           <fieldset class="preview">
@@ -296,6 +374,26 @@ header h2 {
   min-width: 0;
   max-width: 100%;
   box-sizing: border-box;
+}
+/* Reward pricing section (change: add-soundfont-reward-pricing). */
+.pricing {
+  border: 1px solid var(--outline, #2a2d3a);
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+/* The redeemable checkbox reads as one line, unlike the stacked text fields. */
+.pricing label.check {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.45rem;
+}
+.pricing label.check input {
+  width: auto;
+  margin: 0;
 }
 .preview {
   border: 1px solid var(--outline, #2a2d3a);
