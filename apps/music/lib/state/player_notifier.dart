@@ -258,9 +258,17 @@ class Player extends _$Player {
     _endPracticeSession();
     _loadedDocument = document;
     final derived = notationToTimedNotes(document);
+    // The engraved title wins — it is what the score itself says — but plenty of
+    // MusicXML carries no `<work-title>` (three of the bundled scores don't), and
+    // overwriting with nothing left the header reading "Now Playing: —" for a
+    // piece the library had just named. Fall back to the entry that was opened,
+    // the same precedence `_maybeStartRun` already applies to a scored run.
+    final documentTitle = document.meta.title;
     final updated = state.copyWith(
       score: null,
-      title: document.meta.title,
+      title: documentTitle == null || documentTitle.isEmpty
+          ? ref.read(selectedScoreProvider)?.title
+          : documentTitle,
       bpm: derived.bpm,
       keyFifths: document.attributes.keyFifths,
       beats: document.attributes.time.beats,

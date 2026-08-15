@@ -25,6 +25,7 @@ import 'package:music/state/performance_scoring.dart';
 import 'package:music/state/player_data.dart';
 import 'package:music/state/player_notifier.dart';
 import 'package:music/state/player_preferences.dart';
+import 'package:music/state/score_catalog.dart';
 
 import 'support/fakes.dart';
 import 'support/notation_fakes.dart';
@@ -42,6 +43,18 @@ class _FixedNotation extends Notation {
 /// Lets the async score load and the broadcast MIDI stream settle.
 Future<void> _flush() => Future<void>.delayed(Duration.zero);
 
+/// A parsed document with no `<work-title>` — what several bundled scores (and
+/// plenty of user uploads) actually look like.
+ScoreDocument _untitled() {
+  final titled = sampleFourMeasureDocument();
+  return ScoreDocument(
+    meta: const ScoreMeta(composer: 'Christian Petzold'),
+    staves: titled.staves,
+    attributes: titled.attributes,
+    measures: titled.measures,
+  );
+}
+
 void main() {
   late FakeMidiService midi;
   late RecordingAudioService audio;
@@ -55,6 +68,7 @@ void main() {
     RecordingAudioService? audioService,
     Score? score,
     ScoreDocument? document,
+    CatalogEntry? entry,
   }) async {
     midi = service ?? FakeMidiService();
     audio = audioService ?? RecordingAudioService();
@@ -72,6 +86,11 @@ void main() {
       ],
     );
     addTearDown(container.dispose);
+    // The opened library entry, recorded before the player builds — it is what
+    // names a piece whose MusicXML carries no title.
+    if (entry != null) {
+      container.read(selectedScoreProvider.notifier).select(entry);
+    }
     // Keep the auto-dispose provider alive for the duration of the test.
     container.listen(playerProvider, (_, _) {}, fireImmediately: true);
     await _flush(); // let _loadScore resolve
@@ -86,6 +105,33 @@ void main() {
       expect(read().notes.map((n) => n.pitch).toList(), [60, 62]);
       expect(read().notes.first.startMs, 0);
       expect(read().songEndMs, 1000);
+    });
+  });
+
+  group('piece title', () {
+    const entry = CatalogEntry(
+      id: 'minuet-in-g',
+      title: 'Minuet in G (BWV Anh. 114)',
+      composer: 'Christian Petzold',
+      assetPath: 'assets/scores/intermediate/minuet_in_g.musicxml',
+      level: PracticeLevel.intermediate,
+    );
+
+    test('the engraved title wins over the library entry', () async {
+      await build(document: sampleFourMeasureDocument(), entry: entry);
+      expect(read().title, 'FourBars');
+    });
+
+    test('falls back to the opened entry when the document has none', () async {
+      // Several bundled scores carry no `<work-title>`; without the fallback the
+      // header reads "Now Playing: —" for a piece the library had just named.
+      await build(document: _untitled(), entry: entry);
+      expect(read().title, 'Minuet in G (BWV Anh. 114)');
+    });
+
+    test('stays null when neither names the piece', () async {
+      await build(document: _untitled());
+      expect(read().title, isNull);
     });
   });
 

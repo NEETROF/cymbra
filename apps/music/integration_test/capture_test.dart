@@ -69,10 +69,7 @@ const String _locale = String.fromEnvironment(
 );
 
 /// The score the player surfaces are captured on: a visually dense bundled
-/// piece, so the falling notes and the staff have something to show — and one
-/// whose MusicXML carries a `work-title`, since the player's header takes its
-/// title from the document (several bundled scores have none and render
-/// "Now Playing: —", which no listing image should show).
+/// piece, so the falling notes and the staff have something to show.
 const String _scoreId = 'arabesque-l-66-no-1-in-e-major';
 
 /// Root boundary the captures are rendered from.
