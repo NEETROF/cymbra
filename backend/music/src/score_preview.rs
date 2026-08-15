@@ -29,8 +29,20 @@ use crate::soundfont_synth::render_preview_pcm;
 
 /// Object key of a catalog piece's audio teaser, stored in the SCORE store beside
 /// the piece's bytes and distinct from them. Served by `GET /scores/{id}/preview`.
-pub fn score_preview_object_key(catalog_id: &str) -> String {
-    format!("catalog-preview/{catalog_id}.wav")
+///
+/// **Versioned by the render instant** (`rendered_at`, the row's
+/// `preview_rendered_at`): the store's local warm cache treats an object as
+/// immutable under its key, so a re-render must land under a NEW key or every
+/// node that already read the old clip would keep serving it. The route derives
+/// the key from the row's marker; the renderer deletes the previous key.
+pub fn score_preview_object_key(
+    catalog_id: &str,
+    rendered_at: chrono::DateTime<chrono::Utc>,
+) -> String {
+    format!(
+        "catalog-preview/{catalog_id}/{}.wav",
+        rendered_at.timestamp_millis()
+    )
 }
 
 /// Short release tail after the last sounding note so the clip does not cut off
@@ -203,8 +215,17 @@ mod tests {
     }
 
     #[test]
-    fn object_key_lives_beside_the_score_bytes() {
-        assert_eq!(score_preview_object_key("abc"), "catalog-preview/abc.wav");
+    fn object_key_is_versioned_by_the_render_instant() {
+        let at = chrono::DateTime::from_timestamp_millis(1_700_000_000_123).unwrap();
+        assert_eq!(
+            score_preview_object_key("abc", at),
+            "catalog-preview/abc/1700000000123.wav"
+        );
+        let later = chrono::DateTime::from_timestamp_millis(1_700_000_000_124).unwrap();
+        assert_ne!(
+            score_preview_object_key("abc", at),
+            score_preview_object_key("abc", later)
+        );
     }
 
     #[test]

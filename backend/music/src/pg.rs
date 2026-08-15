@@ -512,7 +512,7 @@ impl CatalogSearchRepo for PgCatalogSearchRepo {
         // byte fetch can expose the ETag and answer a conditional request without
         // reading the blob (change: add-offline-score-cache).
         let row = sqlx::query(
-            "SELECT object_key, sha256, proposed_by::text AS proposed_by \
+            "SELECT object_key, sha256, proposed_by::text AS proposed_by, preview_rendered_at \
              FROM music.catalog_scores \
              WHERE id = $1 AND ($2 OR moderation_status = 'accepted')",
         )
@@ -525,6 +525,8 @@ impl CatalogSearchRepo for PgCatalogSearchRepo {
             object_key: r.get::<String, _>("object_key"),
             sha256: r.get::<String, _>("sha256"),
             proposed_by: r.get::<Option<String>, _>("proposed_by"),
+            preview_rendered_at: r
+                .get::<Option<chrono::DateTime<chrono::Utc>>, _>("preview_rendered_at"),
         }))
     }
 
@@ -581,20 +583,21 @@ impl CatalogSearchRepo for PgCatalogSearchRepo {
         Ok(updated)
     }
 
-    async fn set_preview_rendered(&self, id: &str, rendered: bool) -> PlatformResult<bool> {
+    async fn set_preview_rendered(
+        &self,
+        id: &str,
+        rendered_at: Option<chrono::DateTime<chrono::Utc>>,
+    ) -> PlatformResult<bool> {
         let Ok(uuid) = uuid::Uuid::parse_str(id) else {
             return Ok(false);
         };
-        let result = sqlx::query(
-            "UPDATE music.catalog_scores \
-             SET preview_rendered_at = CASE WHEN $2 THEN now() ELSE NULL END \
-             WHERE id = $1",
-        )
-        .bind(uuid)
-        .bind(rendered)
-        .execute(&self.pool)
-        .await
-        .map_err(search_internal)?;
+        let result =
+            sqlx::query("UPDATE music.catalog_scores SET preview_rendered_at = $2 WHERE id = $1")
+                .bind(uuid)
+                .bind(rendered_at)
+                .execute(&self.pool)
+                .await
+                .map_err(search_internal)?;
         Ok(result.rows_affected() > 0)
     }
 

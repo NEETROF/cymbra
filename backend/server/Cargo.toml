@@ -62,6 +62,7 @@ serde_json.workspace = true
 dotenvy.workspace = true
 
 [dev-dependencies]
+chrono.workspace = true
 # `ServiceExt::oneshot` drives the Axum router in web-auth handler tests (no socket).
 tower.workspace = true
 # Implement the `AuthPort` test double (a fake, no signing key) for the handler tests.

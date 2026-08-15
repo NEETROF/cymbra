@@ -99,19 +99,34 @@ async fn serve_preview(
     };
     // Moderation visibility: the same gate as the bytes fetch (a normal caller
     // resolves only an accepted piece), but NOT the daily quota — the teaser is
-    // what a locked piece offers.
-    match catalog.object_ref(&id, can_view_unvalidated).await {
-        Ok(Some(_)) => {}
+    // what a locked piece offers. The clip's key is derived from the row's render
+    // marker (a re-render is a new key), which doubles as a cheap validator.
+    let rendered_at = match catalog.object_ref(&id, can_view_unvalidated).await {
+        Ok(Some(obj)) => match obj.preview_rendered_at {
+            Some(at) => at,
+            None => return status(StatusCode::NOT_FOUND),
+        },
         Ok(None) => return status(StatusCode::NOT_FOUND),
         Err(_) => return status(StatusCode::INTERNAL_SERVER_ERROR),
+    };
+    let etag = format!("\"{}\"", rendered_at.timestamp_millis());
+    if headers
+        .get(header::IF_NONE_MATCH)
+        .and_then(|v| v.to_str().ok())
+        .is_some_and(|v| v.split(',').any(|t| t.trim() == etag))
+    {
+        return (StatusCode::NOT_MODIFIED, [(header::ETAG, etag)]).into_response();
     }
-    match store.get(&score_preview_object_key(&id)).await {
+    match store.get(&score_preview_object_key(&id, rendered_at)).await {
         Ok(bytes) => (
             StatusCode::OK,
             [
                 (header::CONTENT_TYPE, "audio/wav".to_string()),
                 (header::CONTENT_LENGTH, bytes.len().to_string()),
-                (header::CACHE_CONTROL, "private, max-age=86400".to_string()),
+                (header::ETAG, etag),
+                // Revalidate every time (the ETag makes it a 304); a re-render is
+                // a new key, so a stale copy can never be served past the check.
+                (header::CACHE_CONTROL, "private, no-cache".to_string()),
             ],
             Body::from(bytes),
         )
@@ -204,14 +219,17 @@ mod tests {
 
     async fn app(with_clip: bool, with_renderer: bool) -> Router {
         let store = Arc::new(FakeStore::default());
+        let at =
+            chrono::DateTime::from_timestamp_millis(FakeCatalogRow::FAKE_PREVIEW_AT_MS).unwrap();
         if with_clip {
             store
-                .put(&score_preview_object_key(ACCEPTED), b"RIFFwav".to_vec())
+                .put(&score_preview_object_key(ACCEPTED, at), b"RIFFwav".to_vec())
                 .await
                 .unwrap();
         }
         let catalog = Arc::new(FakeCatalogSearchRepo::with(vec![
-            FakeCatalogRow::new(ACCEPTED, "Clair de Lune", "Debussy", Some("advanced")),
+            FakeCatalogRow::new(ACCEPTED, "Clair de Lune", "Debussy", Some("advanced"))
+                .with_preview(with_clip),
             FakeCatalogRow::new(PENDING, "Pending", "Anon", None).with_moderation_status("pending"),
         ]));
         let renderer = with_renderer.then(|| {

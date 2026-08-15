@@ -226,6 +226,10 @@ pub struct CatalogObjectRef {
     /// contributor open their own accepted piece free (change:
     /// add-score-daily-access-rewards).
     pub proposed_by: Option<String>,
+    /// When the piece's audio teaser was last rendered (`preview_rendered_at`),
+    /// `None` when it has none — the teaser's object key is derived from it
+    /// (change: add-score-daily-access-rewards).
+    pub preview_rendered_at: Option<chrono::DateTime<chrono::Utc>>,
 }
 
 #[async_trait]
@@ -330,9 +334,15 @@ pub trait CatalogSearchRepo: Send + Sync {
     /// exclusion is per caller.
     async fn rating_deck(&self, user_id: &str, limit: i64, offset: i64) -> Result<Vec<CatalogHit>>;
 
-    /// Stamp (or clear) the audio-teaser rendered marker of `id` (change:
-    /// add-score-daily-access-rewards): `true` when a row was updated.
-    async fn set_preview_rendered(&self, id: &str, rendered: bool) -> Result<bool>;
+    /// Stamp the audio-teaser rendered marker of `id` at `rendered_at` (or clear it
+    /// with `None`) (change: add-score-daily-access-rewards): `true` when a row was
+    /// updated. The instant is the caller's so the object key derived from it
+    /// matches what was stored.
+    async fn set_preview_rendered(
+        &self,
+        id: &str,
+        rendered_at: Option<chrono::DateTime<chrono::Utc>>,
+    ) -> Result<bool>;
 
     /// Up to `limit` ids of `accepted` pieces with NO rendered marker — the
     /// backfill's work list (change: add-score-daily-access-rewards).
@@ -384,9 +394,9 @@ pub struct FakeCatalogRow {
     /// stable, id-derived value so conditional-fetch tests have a known hash;
     /// override with [`Self::with_sha256`].
     pub sha256: String,
-    /// The audio-teaser marker (change: add-score-daily-access-rewards): `true`
-    /// once a preview was rendered for the row (`preview_rendered_at IS NOT NULL`).
-    pub has_preview: bool,
+    /// The audio-teaser marker (change: add-score-daily-access-rewards): the
+    /// render instant once a preview was rendered for the row.
+    pub preview_rendered_at: Option<chrono::DateTime<chrono::Utc>>,
 }
 
 impl FakeCatalogRow {
@@ -490,14 +500,19 @@ impl FakeCatalogRow {
             contributor_credit: None,
             review_reason: self.review_reason.clone(),
             resubmission_note: self.resubmission_note.clone(),
-            has_preview: self.has_preview,
+            has_preview: self.preview_rendered_at.is_some(),
         }
     }
 
+    /// The fixed render instant [`Self::with_preview`] stamps (tests derive the
+    /// teaser's object key from it).
+    pub const FAKE_PREVIEW_AT_MS: i64 = 1_700_000_000_000;
+
     /// Mark the row as having a rendered audio teaser (change:
-    /// add-score-daily-access-rewards).
+    /// add-score-daily-access-rewards), stamped at [`Self::FAKE_PREVIEW_AT_MS`].
     pub fn with_preview(mut self, has_preview: bool) -> Self {
-        self.has_preview = has_preview;
+        self.preview_rendered_at = has_preview
+            .then(|| chrono::DateTime::from_timestamp_millis(Self::FAKE_PREVIEW_AT_MS).unwrap());
         self
     }
 
@@ -620,7 +635,9 @@ impl CatalogSearchRepo for FakeCatalogSearchRepo {
                 // the above; `None` = any source.
                 let source_ok = p.source.as_ref().is_none_or(|s| &r.source == s);
                 // Audio-teaser filter (change: add-score-daily-access-rewards).
-                let preview_ok = p.has_preview.is_none_or(|want| r.has_preview == want);
+                let preview_ok = p
+                    .has_preview
+                    .is_none_or(|want| r.preview_rendered_at.is_some() == want);
                 text_ok
                     && author_ok
                     && level_ok
@@ -695,6 +712,7 @@ impl CatalogSearchRepo for FakeCatalogSearchRepo {
                 object_key: r.object_key.clone(),
                 sha256: r.sha256.clone(),
                 proposed_by: r.proposed_by.clone(),
+                preview_rendered_at: r.preview_rendered_at,
             }))
     }
 
@@ -803,11 +821,15 @@ impl CatalogSearchRepo for FakeCatalogSearchRepo {
         }
     }
 
-    async fn set_preview_rendered(&self, id: &str, rendered: bool) -> Result<bool> {
+    async fn set_preview_rendered(
+        &self,
+        id: &str,
+        rendered_at: Option<chrono::DateTime<chrono::Utc>>,
+    ) -> Result<bool> {
         let mut rows = self.rows.lock().expect("catalog search fake lock");
         match rows.iter_mut().find(|r| r.id == id) {
             Some(row) => {
-                row.has_preview = rendered;
+                row.preview_rendered_at = rendered_at;
                 Ok(true)
             }
             None => Ok(false),
@@ -818,7 +840,7 @@ impl CatalogSearchRepo for FakeCatalogSearchRepo {
         let rows = self.rows.lock().expect("catalog search fake lock");
         Ok(rows
             .iter()
-            .filter(|r| r.moderation_status == "accepted" && !r.has_preview)
+            .filter(|r| r.moderation_status == "accepted" && r.preview_rendered_at.is_none())
             .map(|r| r.id.clone())
             .take(limit.max(0) as usize)
             .collect())

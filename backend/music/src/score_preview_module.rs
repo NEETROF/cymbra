@@ -128,11 +128,23 @@ impl ScorePreviewRenderer {
             return Ok(RenderOutcome::Silent);
         };
         let bytes = wav.len();
+        // A NEW key per render (the store's warm cache treats a key as immutable):
+        // store, stamp the same instant on the row, then evict the previous clip.
+        let rendered_at = chrono::Utc::now();
         self.score_store
-            .put(&score_preview_object_key(catalog_id), wav)
+            .put(&score_preview_object_key(catalog_id, rendered_at), wav)
             .await
             .map_err(|e| AppError::Internal(anyhow::anyhow!("store preview: {e}")))?;
-        self.catalog.set_preview_rendered(catalog_id, true).await?;
+        self.catalog
+            .set_preview_rendered(catalog_id, Some(rendered_at))
+            .await?;
+        if let Some(previous) = obj.preview_rendered_at {
+            // Best-effort: a leftover object costs storage, never correctness.
+            let _ = self
+                .score_store
+                .delete(&score_preview_object_key(catalog_id, previous))
+                .await;
+        }
         Ok(RenderOutcome::Rendered { bytes })
     }
 }
@@ -204,7 +216,10 @@ mod tests {
         assert_eq!(reqs[0].name, cymbra_jobs::registry::SCORE_PREVIEW_RENDER);
         assert!(reqs[0].payload_json.contains(A));
         // Once rendered (marked), the piece leaves the work list.
-        catalog.set_preview_rendered(A, true).await.unwrap();
+        catalog
+            .set_preview_rendered(A, Some(chrono::Utc::now()))
+            .await
+            .unwrap();
         let ids = enqueue_missing_previews(catalog.as_ref(), &q, 100)
             .await
             .unwrap();
