@@ -54,5 +54,5 @@
 - [x] 8.1 `cd apps/music && dart run build_runner build --delete-conflicting-outputs`, then `melos run analyze`, `dart format`, and `dart run custom_lint` clean.
 - [x] 8.2 `flutter test --coverage --exclude-tags golden` still passes and the coverage gate holds (the capture scenario is integration-only and must not regress unit coverage).
 - [x] 8.3 `melos run integration` still passes — the capture scenario must not disturb the existing e2e gate.
-- [ ] 8.4 Manual: run one full locale sweep per platform and eyeball the 20 images for framing, language and populated content before they go near a listing.
+- [x] 8.4 Manual: run one full locale sweep per platform and eyeball the 20 images for framing, language and populated content before they go near a listing.
 - [x] 8.5 `openspec validate add-store-screenshot-harness --strict` passes.
