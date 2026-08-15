@@ -64,6 +64,14 @@ const licenseHint = computed(() => {
 });
 const file = ref<File | null>(null);
 
+/** A row's pricing, normalized. Read through this on BOTH sides of the "did the price
+ *  change?" test: comparing a normalized form value against a raw row would report a
+ *  change on a row that carries no pricing fields, firing a needless (and admin-only)
+ *  write. Absent = free and redeemable, which is the column default. */
+function currentPricing(e: AdminSoundFont): { pointCost: number; redeemable: boolean } {
+  return { pointCost: e.pointCost ?? 0, redeemable: e.redeemable ?? true };
+}
+
 // (Re)seed the form whenever the drawer opens on a new target.
 watch(
   () => [props.mode, props.entry?.id] as const,
@@ -77,8 +85,7 @@ watch(
         license: e.license,
         attribution: e.attribution,
         instrument: e.instrument || "piano",
-        pointCost: e.pointCost,
-        redeemable: e.redeemable,
+        ...currentPricing(e),
       };
     } else {
       // The id is auto-minted (uuidv7) and never shown/edited on create. A new font is
@@ -142,7 +149,8 @@ async function savePricingIfChanged(): Promise<boolean> {
   // The server refuses a negative cost; clamp so the drawer never sends one.
   const cost = Math.max(0, Math.trunc(Number(form.value.pointCost) || 0));
   const { redeemable } = form.value;
-  if (cost === props.entry.pointCost && redeemable === props.entry.redeemable) return true;
+  const was = currentPricing(props.entry);
+  if (cost === was.pointCost && redeemable === was.redeemable) return true;
   return (await store.setPricing(form.value.id, cost, redeemable)).status === "success";
 }
 function metaFields() {

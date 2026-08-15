@@ -107,6 +107,26 @@ describe("SoundFont pricing in the edit drawer", () => {
     expect(calls.pricing).toEqual([]); // an unchanged price costs no admin-only call
   });
 
+  // Regression: a row that carries no pricing fields at all (an older listing, a fake)
+  // reads as free/redeemable. Comparing the normalized form value against the raw row
+  // reported a change, fired the admin-only write, and — when it failed — kept the
+  // drawer open, whose overlay then swallowed every later click.
+  it("treats a row without pricing fields as free and fires nothing", async () => {
+    const calls = setup(["user", "admin"]);
+    const bare = entry();
+    delete (bare as Record<string, unknown>).pointCost;
+    delete (bare as Record<string, unknown>).redeemable;
+    const w = mountDrawer({ mode: "edit", entry: bare });
+    await flushPromises();
+
+    await submit(w);
+    await flushPromises();
+
+    expect(calls.pricing).toEqual([]);
+    expect(calls.update).toHaveLength(1);
+    expect(w.emitted("close")).toBeTruthy(); // the drawer must close
+  });
+
   it("reverts a costed font to free, and marks one coming later", async () => {
     const calls = setup(["user", "admin"]);
     const w = mountDrawer({ mode: "edit", entry: entry({ pointCost: 250 }) });
