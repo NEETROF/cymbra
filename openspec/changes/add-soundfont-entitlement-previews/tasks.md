@@ -40,5 +40,5 @@
 - [x] 6.1 Rust: `cargo fmt` + `clippy -D warnings`; `cargo llvm-cov --workspace --fail-under-lines 80` (entitlement + render/sample/encoder cores covered; route/synth glue excluded via the usual regex).
 - [x] 6.2 Flutter: `dart run build_runner build`; `melos run analyze` + `dart run custom_lint`; `flutter test --coverage` ≥ 80%.
 - [x] 6.3 Back office: `yarn lint` + `yarn test` (vitest) green.
-- [ ] 6.4 Manual: upload a costed font → preview object created; as a non-entitled user, download is 404 but play (preview) works; redeem → download works; back-office "Generate sample" backfills a seeded font's preview.
+- [x] 6.4 Manual: upload a costed font → preview object created; as a non-entitled user, download is 404 but play (preview) works; redeem → download works; back-office "Generate sample" backfills a seeded font's preview.
 - [x] 6.5 `openspec validate add-soundfont-entitlement-previews --strict` passes.

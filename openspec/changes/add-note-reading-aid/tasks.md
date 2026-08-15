@@ -123,6 +123,6 @@
 - [x] 8.3 `flutter test --coverage --exclude-tags golden` passing with line
       coverage ≥ 80 %.
 - [x] 8.4 `openspec validate add-note-reading-aid --strict` passing.
-- [ ] 8.5 Manual check on a real score with a non-empty key signature: verify a
+- [x] 8.5 Manual check on a real score with a non-empty key signature: verify a
       key-signature-altered note is named with its alteration, and verify the aid
       on a phone in landscape.

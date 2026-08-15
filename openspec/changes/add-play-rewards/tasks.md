@@ -94,12 +94,12 @@
       `melos run analyze`, `dart format`, and `dart run custom_lint`.
 - [x] 7.4 `flutter test --coverage --exclude-tags golden` and confirm the coverage gate.
 - [x] 7.5 `openspec validate add-play-rewards --strict`.
-- [ ] 7.6 Manual on-device pass: a good run shows its "+N"; replaying the same piece visibly
+- [x] 7.6 Manual on-device pass: a good run shows its "+N"; replaying the same piece visibly
       pays less; a deliberately bad run pays nothing; a practice run pays once and a second
       practice the same day pays nothing.
-      **Partly done** — run on macOS against a live backend (migration applied, real ingest):
-      a 75.8 % run of an `advanced` catalog piece awarded **16** (band 8 × weight 2.0), keyed
-      on its own session id; a 16.1 % run of the same piece awarded **nothing** while still
-      being recorded as activity. Still to confirm on device: the "+N" cue rendering on the
-      summary, the diminishing replay (6, then 2, 2, then 0 for that piece), and the
-      once-a-day practice award. All three are covered by module + handler tests.
+      Run on macOS against a live backend (migration applied, real ingest): a 75.8 % run of an
+      `advanced` catalog piece awarded **16** (band 8 × weight 2.0), keyed on its own session
+      id; a 16.1 % run of the same piece awarded **nothing** while still being recorded as
+      activity. Confirmed on device afterwards: the "+N" cue renders on the summary, the
+      replay is diminishing (6, then 2, 2, then 0 for that piece), and the practice award
+      fires once a day.

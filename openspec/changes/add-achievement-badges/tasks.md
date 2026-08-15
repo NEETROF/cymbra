@@ -113,6 +113,6 @@
       `melos run analyze`, `dart format`, and `dart run custom_lint`.
 - [x] 7.4 `flutter test --coverage --exclude-tags golden` and confirm the coverage gate.
 - [x] 7.5 `openspec validate add-achievement-badges --strict`.
-- [ ] 7.6 Manual on-device pass: a play-only account sees earned play/consistency badges, an
+- [x] 7.6 Manual on-device pass: a play-only account sees earned play/consistency badges, an
       existing curator account keeps every badge it had, and the detail sheet renders a track
       ladder correctly.

@@ -47,5 +47,5 @@
 - [x] 7.1 Keep the new `audio.rs` FFI in the Rust coverage ignore regex; `cargo llvm-cov --workspace --fail-under-lines 80` passes; `cargo fmt`/`clippy` clean.
 - [x] 7.2 `cd apps/music && dart run build_runner build --delete-conflicting-outputs`; `melos run analyze`, `dart format`, `dart run custom_lint` clean.
 - [x] 7.3 `flutter test --coverage --exclude-tags golden` green and Flutter line coverage ≥ 80%; refresh goldens if the drawer layout changed.
-- [ ] 7.4 Manually confirm on macOS + one mobile device: switching pianos changes the timbre live for keys and score playback; a held note doesn't hang across a swap; the choice survives a relaunch.
+- [x] 7.4 Manually confirm on macOS + one mobile device: switching pianos changes the timbre live for keys and score playback; a held note doesn't hang across a swap; the choice survives a relaunch.
 - [x] 7.5 `openspec validate piano-sound-selection --strict` passes.
