@@ -55,10 +55,15 @@ The app SHALL show a Cymbra-branded launch/splash screen instead of the default 
 
 The repository SHALL contain the marketing image assets required by both stores, meeting each store's size and format rules, sourced from the app's actual landscape UI.
 
+Screenshot **provenance** — how the images are produced, at which size classes, and
+in which locales — is owned by `music-store-listing-capture`; this requirement only
+states that the assets exist and satisfy each store's rules.
+
 #### Scenario: iOS screenshots
 
 - **WHEN** preparing the App Store listing
-- **THEN** landscape screenshots SHALL be available for the required 6.7" iPhone and 12.9" iPad display sizes
+- **THEN** landscape screenshots SHALL be available for the iPhone and iPad display
+  classes App Store Connect currently requires
 
 #### Scenario: Android screenshots and graphics
 
