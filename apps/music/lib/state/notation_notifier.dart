@@ -12,9 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../analytics/usage_actions.dart';
 import '../services/auth_service.dart';
 import '../services/catalog_service.dart';
 import '../services/connectivity_service.dart';
@@ -22,9 +25,11 @@ import '../services/notation_engine.dart';
 import '../services/offline_score_cache.dart';
 import '../services/score_asset_source.dart';
 import '../services/score_upload_service.dart';
+import 'catalog_daily_access_notifier.dart';
 import 'notation_data.dart';
 import 'saved_catalog_scores.dart';
 import 'score_catalog.dart';
+import 'usage_tracking_notifier.dart';
 
 part 'notation_notifier.g.dart';
 
@@ -69,17 +74,51 @@ class Notation extends _$Notation {
       // score). Same parse → layout path either way.
       final Uint8List bytes;
       CachedScore? cached;
+      // Whether to run the post-render best-effort refresh (uploads only — a
+      // catalog piece served from cache online has already been decided by the
+      // server below, which doubles as its refresh).
+      var refreshAfter = false;
       if (cacheKey != null) {
         final cache = ref.read(offlineScoreCacheProvider);
         cached = await cache.read(cacheKey);
-        if (cached != null) {
-          // A cache hit is authoritative and plays with no network round-trip.
+        if (cached != null && entry.catalogId != null) {
+          // A cached CATALOG piece (change: add-score-daily-access-rewards,
+          // design D5): ONLINE the server decides first — the conditional fetch
+          // is cheap (`unchanged` skips storage) and doubles as the access
+          // decision; a locked answer never plays the cached copy (kept: access
+          // is per-day). OFFLINE (or unreachable) the cached copy plays — the
+          // documented offline grace.
+          final decided = await _decideCachedCatalogOpen(entry, cached);
+          if (decided == null) {
+            // Locked — the failure is typed; the numbers went to the daily-access
+            // provider. Nothing is played.
+            if (ref.read(selectedScoreProvider) != entry) return;
+            state = NotationData(
+              failure: ScoreLoadFailure.locked,
+              availableWidth: width,
+            );
+            return;
+          }
+          bytes = decided;
+        } else if (cached != null) {
+          // A cached upload: the cache hit is authoritative and plays with no
+          // network round-trip; refresh best-effort afterwards.
           bytes = cached.bytes;
+          refreshAfter = true;
         } else {
           // Miss: the network fetch is the source of truth; store its bytes AND
           // its content hash (ETag) when the entry is a favorite, so a later open
           // can do a conditional refresh instead of re-downloading.
           final fetched = await _fetchScoreBytes(entry);
+          _reportAccess(entry, fetched);
+          if (fetched.locked) {
+            if (ref.read(selectedScoreProvider) != entry) return;
+            state = NotationData(
+              failure: ScoreLoadFailure.locked,
+              availableWidth: width,
+            );
+            return;
+          }
           bytes = fetched.data!;
           if (await _isFavorite(entry)) {
             await cache.write(cacheKey, bytes, etag: fetched.etag);
@@ -97,9 +136,9 @@ class Notation extends _$Notation {
         systems: systems,
         availableWidth: width,
       );
-      // After serving from cache, best-effort refresh from the network — see
-      // [_refreshCachedEntry]. Never blocks or replaces the rendered view.
-      if (cached != null && cacheKey != null) {
+      // After serving an upload from cache, best-effort refresh from the network
+      // — see [_refreshCachedEntry]. Never blocks or replaces the rendered view.
+      if (refreshAfter && cached != null && cacheKey != null) {
         await _refreshCachedEntry(entry, cacheKey, cached.etag);
       }
     } catch (e) {
@@ -111,6 +150,63 @@ class Notation extends _$Notation {
       final failure = await _classifyLoad(entry, cacheKey, e);
       if (ref.read(selectedScoreProvider) != entry) return;
       state = NotationData(failure: failure, availableWidth: width);
+    }
+  }
+
+  /// Decide a cached CATALOG open (design D5). Returns the bytes to play — the
+  /// cached copy (offline / unreachable / server said unchanged) or the fresh
+  /// server bytes (content changed; the cache is rewritten when favourited) — or
+  /// `null` when the server refused the piece (locked).
+  Future<Uint8List?> _decideCachedCatalogOpen(
+    CatalogEntry entry,
+    CachedScore cached,
+  ) async {
+    if (!await ref.read(connectivityServiceProvider).isOnline()) {
+      return cached.bytes;
+    }
+    final ScoreBytesResult fetched;
+    try {
+      fetched = await _fetchScoreBytes(
+        entry,
+        ifNoneMatch: cached.etag.isEmpty ? null : cached.etag,
+      );
+    } catch (e) {
+      // Online per the connectivity probe but the server is unreachable: the
+      // offline grace applies (the copy was legitimately obtained).
+      debugPrint('Notation access check failed for ${entry.id}: $e');
+      return cached.bytes;
+    }
+    _reportAccess(entry, fetched);
+    if (fetched.locked) return null;
+    final data = fetched.data;
+    if (fetched.unchanged || data == null) return cached.bytes;
+    if (await _isFavorite(entry)) {
+      final key = offlineCacheKeyFor(entry);
+      if (key != null) {
+        await ref
+            .read(offlineScoreCacheProvider)
+            .write(key, data, etag: fetched.etag);
+      }
+    }
+    return data;
+  }
+
+  /// Push the access state a catalog fetch returned to the daily-access
+  /// provider (the chip and the unlock sheet read it there), and record the
+  /// quota-reached usage event when the piece was refused.
+  void _reportAccess(CatalogEntry entry, ScoreBytesResult fetched) {
+    final access = fetched.access;
+    if (access == null) return;
+    ref.read(catalogDailyAccessProvider.notifier).report(access);
+    if (access.locked) {
+      unawaited(
+        ref
+            .read(usageTrackingNotifierProvider.notifier)
+            .record(
+              UsageActions.catalogQuotaReached,
+              subjectId: entry.catalogId,
+            ),
+      );
     }
   }
 

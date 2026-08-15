@@ -82,9 +82,12 @@ class _ActivityRow extends StatelessWidget {
       margin: const EdgeInsets.symmetric(vertical: 4),
       child: ListTile(
         dense: true,
-        leading: Icon(_kindIcon(activity.kind), color: CymbraColors.primary),
+        leading: Icon(
+          _kindIcon(activity.kind, activity.rewardKey),
+          color: CymbraColors.primary,
+        ),
         title: Text(
-          _kindLabel(l10n, activity.kind),
+          _kindLabel(l10n, activity.kind, activity.rewardKey),
           style: const TextStyle(color: CymbraColors.onSurface, fontSize: 14),
         ),
         subtitle: _sourceLabel(l10n, activity.source) == null
@@ -109,7 +112,12 @@ class _ActivityRow extends StatelessWidget {
   }
 }
 
-IconData _kindIcon(String kind) => switch (kind) {
+/// The ledger reward key of a one-day catalog piece unlock (change:
+/// add-score-daily-access-rewards) — a `redeem` that is not a shop redemption.
+const _daySlotRewardKey = 'score_day_slot';
+
+IconData _kindIcon(String kind, String? rewardKey) => switch (kind) {
+  'redeem' when rewardKey == _daySlotRewardKey => Icons.lock_open,
   'coverage' => Icons.explore_outlined,
   'honesty' => Icons.verified_outlined,
   'adjustment' => Icons.tune,
@@ -121,7 +129,14 @@ IconData _kindIcon(String kind) => switch (kind) {
   _ => Icons.stars,
 };
 
-String _kindLabel(AppLocalizations l10n, String kind) => switch (kind) {
+String _kindLabel(
+  AppLocalizations l10n,
+  String kind,
+  String? rewardKey,
+) => switch (kind) {
+  // A points spend on a one-day catalog unlock reads as what it is, not as a
+  // generic redemption (and never as the raw reward key).
+  'redeem' when rewardKey == _daySlotRewardKey => l10n.rewardActivityDaySlot,
   'coverage' => l10n.curatorActivityCoverage,
   'honesty' => l10n.curatorActivityHonesty,
   'adjustment' => l10n.curatorActivityAdjustment,

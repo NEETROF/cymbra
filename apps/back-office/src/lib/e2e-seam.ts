@@ -3,6 +3,7 @@ import { setClientsForTest } from "@/lib/api";
 import type { Clients } from "@/lib/transport";
 import { setWebAuthClientForTest, WebAuthError, type WebAuthClient } from "@/lib/web-auth";
 import { setRegeneratePreviewForTest, setUploadForTest } from "@/stores/soundfonts";
+import { setRegenerateScorePreviewForTest } from "@/stores/catalog";
 
 // E2E test seam (loaded ONLY when VITE_E2E=1 — see main.ts). Playwright seeds
 // `window.__CYMBRA_E2E__` with canned data via addInitScript before the app boots;
@@ -464,6 +465,20 @@ export function installE2EClients(): void {
     }
     const f = soundfonts.find((s) => s.id === id);
     if (f) f.hasPreview = true;
+  });
+
+  // The score audio teaser's "Generate sample" is an HTTP route too (change:
+  // add-score-daily-access-rewards). A successful regeneration flips the piece's
+  // `hasPreview` (mirroring the server stamping the row's marker) so the detail view's
+  // slot becomes a play button.
+  setRegenerateScorePreviewForTest(async (id) => {
+    if (data.fail?.regenerateScorePreview) {
+      const f = data.fail.regenerateScorePreview;
+      throw new ConnectError(f.message, f.code as Code);
+    }
+    const h = hits.find((x) => x.id === id);
+    if (h) h.hasPreview = true;
+    if (data.hit && data.hit.id === id) data.hit.hasPreview = true;
   });
 
   setClientsForTest(clients);

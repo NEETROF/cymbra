@@ -52,6 +52,13 @@ abstract final class UsageActions {
   static const favoriteAdd = 'favorite_add';
   static const favoriteRemove = 'favorite_remove';
 
+  // Catalog daily access (change: add-score-daily-access-rewards; carry
+  // `subjectId` = the catalog id): the quota refused an open, a points day-slot
+  // was bought, a locked piece's audio teaser was auditioned.
+  static const catalogQuotaReached = 'catalog_quota_reached';
+  static const catalogDaySlotUnlock = 'catalog_day_slot_unlock';
+  static const catalogPreviewAudition = 'catalog_preview_audition';
+
   // NOTE: `guest_session_start` is deliberately DEFERRED (design D9): it is the
   // only action needing an unauthenticated ingress, so its slice ships later.
 
@@ -72,6 +79,9 @@ abstract final class UsageActions {
     profileView,
     favoriteAdd,
     favoriteRemove,
+    catalogQuotaReached,
+    catalogDaySlotUnlock,
+    catalogPreviewAudition,
   ];
 }
 

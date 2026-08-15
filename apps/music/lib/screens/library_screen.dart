@@ -25,6 +25,7 @@ import '../state/saved_catalog_scores.dart';
 import '../state/score_catalog.dart';
 import '../state/session_notifier.dart';
 import '../theme/cymbra_theme.dart';
+import '../widgets/catalog_access_widgets.dart';
 import '../widgets/courses_section.dart';
 import '../widgets/library_listeners.dart';
 import '../widgets/rating_invite_banner.dart';
@@ -270,6 +271,9 @@ class _SignedInBody extends ConsumerWidget {
       slivers: [
         // Nudge to rate scores after a lull (renders nothing when not due).
         const SliverToBoxAdapter(child: RatingInviteBanner()),
+        // Daily free-open quota (change: add-score-daily-access-rewards):
+        // renders nothing when the gate is off for this caller.
+        const SliverToBoxAdapter(child: CatalogAccessChip()),
         // Interactive courses (change: add-notation-courses), above the
         // favorites; omits itself when there are none.
         const SliverToBoxAdapter(child: CoursesSection()),

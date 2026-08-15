@@ -1,13 +1,18 @@
 import { reactive, ref, toRef } from "vue";
 import { defineStore } from "pinia";
 import { api } from "@/lib/api";
-import { type Async, idle, run } from "@/lib/async";
+import { type Async, idle, run, success } from "@/lib/async";
 import type { CatalogHit } from "@/gen/score_pb";
+import { useAuthStore } from "./auth";
+import { soundfontBaseUrl } from "./soundfonts";
 
 export type ModerationStatus = "pending" | "accepted" | "rejected";
 /** The status filter's value in the BO catalog view: a specific status, or "" = all
  * statuses (the default "Tous"). */
 export type StatusFilter = ModerationStatus | "";
+/** The audio-teaser filter (change: add-score-daily-access-rewards): "" = any,
+ * "yes" = pieces with a rendered sample, "no" = pieces WITHOUT one (the backfill view). */
+export type PreviewFilter = "" | "yes" | "no";
 export interface SortKeyInit {
   field: string;
   descending: boolean;
@@ -23,6 +28,8 @@ export interface Filters {
   moderationStatus: StatusFilter;
   // Origin filter: "" = any source, else e.g. "user-proposal".
   source: string;
+  // Audio-teaser filter (change: add-score-daily-access-rewards).
+  hasPreview: PreviewFilter;
 }
 
 /** The catalog screen's live browse state (filters + sort + page). Lifted into the
@@ -38,7 +45,15 @@ export interface CatalogView {
  * page — the BO catalog default (change: add-score-catalog-proposal). */
 export function defaultCatalogView(): CatalogView {
   return {
-    filters: { query: "", author: "", level: "", isPiano: undefined, moderationStatus: "", source: "" },
+    filters: {
+      query: "",
+      author: "",
+      level: "",
+      isPiano: undefined,
+      moderationStatus: "",
+      source: "",
+      hasPreview: "",
+    },
     sort: [],
     offset: 0,
   };
@@ -60,6 +75,8 @@ export interface SearchParams {
   allStatuses?: boolean;
   // Origin filter (e.g. "user-proposal"); undefined/"" = any source.
   source?: string;
+  // Audio-teaser filter (privileged): true = rendered only, false = missing only.
+  hasPreview?: boolean;
   sort?: SortKeyInit[];
   limit?: number;
   offset?: number;
@@ -137,6 +154,26 @@ async function updateCatalogScore(scoreId: string, edit: MetadataEdit) {
 
 /** Fetch one page of the review queue (pending + community-flagged, priority-sorted)
  * WITHOUT touching `result` — the review session owns its own deck state. */
+/** (Re)generates a catalog piece's server-rendered audio teaser via the admin HTTP
+ *  route (change: add-score-daily-access-rewards). Injected in tests, like the
+ *  SoundFont one. */
+export type RegenerateScorePreviewFn = (id: string, token: string | null) => Promise<void>;
+
+async function httpRegenerateScorePreview(id: string, token: string | null): Promise<void> {
+  const resp = await fetch(`${soundfontBaseUrl()}/scores/${encodeURIComponent(id)}/preview`, {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!resp.ok) {
+    throw new Error(`score preview regeneration failed: HTTP ${resp.status}`);
+  }
+}
+
+let regenerateScorePreviewImpl: RegenerateScorePreviewFn = httpRegenerateScorePreview;
+export function setRegenerateScorePreviewForTest(fn: RegenerateScorePreviewFn): void {
+  regenerateScorePreviewImpl = fn;
+}
+
 async function fetchReviewPage(offset: number): Promise<CatalogResult> {
   const resp = await api().score.searchCatalog({
     query: "",
@@ -163,6 +200,11 @@ export const useCatalogStore = defineStore("catalog", () => {
   // Only the loading/error signal lives here — the bytes are handed to the caller and
   // dropped on success (see `downloadBytes`), never pinned in the store.
   const downloads = reactive<Record<string, Async<Uint8Array>>>({});
+  // "Generate sample" state (change: add-score-daily-access-rewards): its own
+  // `Async` union so the button reflects in-flight/success/error without colliding
+  // with the other mutations. `previewTarget` is the piece being (re)generated.
+  const preview = ref<Async<void>>(idle);
+  const previewTarget = ref<string | null>(null);
 
   async function search(params: SearchParams) {
     Object.assign(lastParams, { limit: PAGE_SIZE, offset: 0 }, params);
@@ -176,6 +218,7 @@ export const useCatalogStore = defineStore("catalog", () => {
         reviewQueue: params.reviewQueue,
         allStatuses: params.allStatuses,
         source: params.source || undefined,
+        hasPreview: params.hasPreview,
         sort: params.sort ?? [],
         limit: params.limit ?? PAGE_SIZE,
         offset: params.offset ?? 0,
@@ -207,6 +250,34 @@ export const useCatalogStore = defineStore("catalog", () => {
     return null;
   }
 
+  /** (Re)generate a piece's server-rendered audio teaser (change:
+   *  add-score-daily-access-rewards). On success the route has already STORED the
+   *  clip and stamped the row's marker, so the loaded row's `hasPreview` is flipped
+   *  optimistically (its control turns into a play button); no re-list. */
+  async function regenerateScorePreview(id: string) {
+    previewTarget.value = id;
+    const outcome = await run(preview, async () => {
+      await regenerateScorePreviewImpl(id, useAuthStore().accessToken);
+    });
+    if (outcome.status === "success" && result.value.status === "success") {
+      const target = result.value.data.hits.find((h) => h.id === id);
+      if (target) target.hasPreview = true;
+      result.value = success({ ...result.value.data, hits: [...result.value.data.hits] });
+    }
+    return outcome;
+  }
+
+  /** Bytes of a piece's audio teaser (`GET /scores/{id}/preview`), for the
+   *  back-office play control — the same clip the app auditions on a locked piece. */
+  async function scorePreviewClip(id: string): Promise<Uint8Array> {
+    const token = useAuthStore().accessToken;
+    const resp = await fetch(`${soundfontBaseUrl()}/scores/${encodeURIComponent(id)}/preview`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!resp.ok) throw new Error(`score preview fetch failed: HTTP ${resp.status}`);
+    return new Uint8Array(await resp.arrayBuffer());
+  }
+
   /** Per-status counts for the header cards — three cheap count-only queries
    * (limit 1, we only read `total`) run in parallel. */
   async function loadStats() {
@@ -226,7 +297,11 @@ export const useCatalogStore = defineStore("catalog", () => {
     catalogView,
     stats,
     downloads,
+    preview,
+    previewTarget,
     search,
+    regenerateScorePreview,
+    scorePreviewClip,
     loadStats,
     evaluate,
     setModerationStatus,

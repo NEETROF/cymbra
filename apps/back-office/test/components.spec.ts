@@ -58,9 +58,40 @@ describe("CatalogTable", () => {
     expect(w.text()).toContain("No scores.");
   });
 
+  it("merges play / Generate sample per row by teaser availability (moderators)", async () => {
+    const rows = [
+      { ...hits[0], hasPreview: true },
+      { ...hits[1], hasPreview: false },
+    ];
+    const w = mount(CatalogTable, {
+      global: withI18n,
+      props: { hits: rows as never, status: "accepted", sort: [], canDownload: true, playingId: "a" },
+    });
+    // Row a has a sample → play control (showing "stop" while it sounds), no generate.
+    expect(w.find('[data-testid="play-sample-a"]').exists()).toBe(true);
+    expect(w.find('[data-testid="generate-sample-a"]').exists()).toBe(false);
+    expect(w.get('[data-testid="play-sample-a"]').text()).toBe("⏸");
+    // Row b has none → the same slot generates.
+    expect(w.find('[data-testid="play-sample-b"]').exists()).toBe(false);
+    await w.get('[data-testid="generate-sample-b"]').trigger("click");
+    expect((w.emitted("generateSample")?.[0]?.[0] as { id: string }).id).toBe("b");
+    await w.get('[data-testid="play-sample-a"]').trigger("click");
+    expect((w.emitted("playSample")?.[0]?.[0] as { id: string }).id).toBe("a");
+    // Neither click selected the row.
+    expect(w.emitted("select")).toBeUndefined();
+  });
+
+  it("hides the sample controls for non-moderators", () => {
+    const w = mount(CatalogTable, {
+      global: withI18n,
+      props: { hits: [{ ...hits[0], hasPreview: true }] as never, status: "accepted", sort: [] },
+    });
+    expect(w.find('[data-testid="play-sample-a"]').exists()).toBe(false);
+  });
+
   it("hides the download control when the operator cannot download (non-moderator)", () => {
     const w = mount(CatalogTable, { global: withI18n, props: { hits: hits as never, status: "pending", sort: [] } });
-    expect(w.find(".dl-btn").exists()).toBe(false);
+    expect(w.find(".download-btn").exists()).toBe(false);
     // No Actions header either.
     expect(w.text()).not.toContain("Actions");
   });
@@ -70,7 +101,7 @@ describe("CatalogTable", () => {
       global: withI18n,
       props: { hits: hits as never, status: "pending", sort: [], canDownload: true },
     });
-    const buttons = w.findAll(".dl-btn");
+    const buttons = w.findAll(".download-btn");
     expect(buttons).toHaveLength(2);
     await buttons[1].trigger("click");
     const emitted = w.emitted("download");
@@ -89,7 +120,7 @@ describe("CatalogTable", () => {
       global: withI18n,
       props: { hits: hits as never, status: "pending", sort: [], canDownload: true, downloads },
     });
-    const buttons = w.findAll(".dl-btn");
+    const buttons = w.findAll(".download-btn");
     // Row A is loading → its button is disabled; row B is not loading → enabled.
     expect(buttons[0].attributes("disabled")).toBeDefined();
     expect(buttons[1].attributes("disabled")).toBeUndefined();

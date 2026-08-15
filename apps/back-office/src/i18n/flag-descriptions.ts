@@ -31,6 +31,28 @@ const FR: Record<string, string> = {
   "account.min_public_sharing_age":
     "Âge minimum pour rendre un profil public (légal — âge du consentement numérique dans l’UE).",
   "data.retention.play_detail_days": "Nombre de jours de conservation du détail de session avant purge.",
+  "data.retention.usage_events_days":
+    "Nombre de jours de conservation des événements d’usage bruts avant leur purge (les agrégats permanents ne sont pas touchés).",
+  "analytics.collection.enabled":
+    "Interrupteur général de la collecte d’usage (actif par défaut ; couper stoppe l’émission des événements par tous les clients sans nouvelle version).",
+  "notifications.enabled": "Coupe-circuit global des notifications push : désactivé, aucune catégorie n’envoie.",
+  "notifications.category.practice_streak.enabled":
+    "Rappel du soir aux joueurs dont la série de pratique est sur le point de se rompre.",
+  "notifications.category.practice_streak.hour":
+    "Heure locale (0-23) à laquelle le rappel de série est envoyé à chaque joueur.",
+  "notifications.category.practice_streak.foreground":
+    "Afficher le rappel de série dans l’app quand il arrive alors qu’elle est ouverte.",
+  "streak.freeze_cost": "Points que coûte le rétablissement confirmé d’une série de pratique.",
+  "streak.grace_days":
+    "Nombre de jours manqués pendant lesquels une série rompue reste récupérable (0 désactive la récupération).",
+  "catalog.daily_access.enabled":
+    "Quota quotidien d’ouvertures gratuites du catalogue (désactivé = toute ouverture est servie).",
+  "catalog.daily_access.free_quota":
+    "Nombre de morceaux distincts du catalogue qu’un utilisateur peut ouvrir gratuitement par jour (jour serveur).",
+  "catalog.daily_access.day_slot_cost": "Points que coûte un morceau supplémentaire pour la journée.",
+  "catalog.preview.max_ms": "Durée maximale (ms) de l’extrait audio rendu pour un morceau du catalogue.",
+  "catalog.preview.soundfont_id":
+    "Identifiant de la SoundFont acceptée du catalogue utilisée pour rendre les extraits (vide = extraits inactifs).",
 };
 
 const BY_LOCALE: Record<string, Record<string, string>> = { fr: FR };

@@ -12,6 +12,7 @@ export interface SearchCall {
   reviewQueue?: boolean;
   allStatuses?: boolean;
   source?: string;
+  hasPreview?: boolean;
   sort: { field: string; descending: boolean }[];
   limit: number;
   offset: number;

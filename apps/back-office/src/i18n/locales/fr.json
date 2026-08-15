@@ -301,7 +301,11 @@
     "statusLabel": "statut de modération",
     "sourceLabel": "Source",
     "sourceAny": "Toutes les sources",
-    "sourceUser": "Propositions utilisateurs"
+    "sourceUser": "Propositions utilisateurs",
+    "previewLabel": "extrait audio",
+    "previewAny": "Tous (extrait)",
+    "previewYes": "Avec extrait",
+    "previewNo": "Sans extrait"
   },
   "detail": {
     "accept": "Accepter",
@@ -314,7 +318,12 @@
     "rejectConfirm": "Confirmer le refus",
     "cancel": "Annuler",
     "resubmission": "Re-soumission : {note}",
-    "reviewReason": "Motif enregistré : {reason}"
+    "reviewReason": "Motif enregistré : {reason}",
+    "generateSample": "Générer l'extrait",
+    "generateSampleHint": "Rend le court extrait audio que les utilisateurs entendent quand ce morceau est verrouillé dans l'app.",
+    "sampleGenerated": "Extrait généré.",
+    "playSample": "Écouter l'extrait",
+    "stopSample": "Arrêter l'extrait"
   },
   "edit": {
     "heading": "Modifier les métadonnées",

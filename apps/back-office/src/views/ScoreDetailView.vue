@@ -8,7 +8,8 @@ import SoundFontPicker from "@/components/SoundFontPicker.vue";
 import { useCatalogStore, type MetadataEdit, type ModerationStatus } from "@/stores/catalog";
 import { useAuthStore } from "@/stores/auth";
 import { useToastsStore } from "@/stores/toasts";
-import { type Async, idle, run } from "@/lib/async";
+import { type Async, idle, run, success } from "@/lib/async";
+import { useScoreSample } from "@/composables/useScoreSample";
 import { useScoreRenderer } from "@/composables/useScoreRenderer";
 import { useScorePlayer } from "@/composables/useScorePlayer";
 import { useSoundFontChoice } from "@/composables/useSoundFontChoice";
@@ -105,6 +106,22 @@ async function decide(status: ModerationStatus) {
   if (outcome.status === "success") await leave();
 }
 
+// Audio teaser (change: add-score-daily-access-rewards): the shared composable plays
+// the clip the app auditions on a locked piece, or (re)generates it; here we only
+// reflect a successful generation on this page's own hit.
+const sample = useScoreSample();
+const generating = computed(() => sample.generating(props.id));
+async function generateSample() {
+  const outcome = await sample.generate(props.id);
+  if (outcome.status === "success" && hit.value.status === "success") {
+    hit.value = success({ ...hit.value.data, hasPreview: true });
+  }
+}
+const samplePlaying = computed(() => sample.playingId.value === props.id);
+function toggleSample() {
+  void sample.toggle(props.id);
+}
+
 const submitting = computed(() => submit.value.status === "loading");
 const submitError = computed(() =>
   match(submit.value)
@@ -144,6 +161,28 @@ async function saveEdit(edit: MetadataEdit) {
       </button>
       <button type="button" :disabled="acting" @click="decide('pending')">
         {{ $t("detail.requeue") }}
+      </button>
+      <!-- Audio teaser (change: add-score-daily-access-rewards): play it when it exists,
+           else generate it (the recovery/backfill path for a piece without one). -->
+      <button
+        v-if="hitVm.hit?.hasPreview"
+        type="button"
+        class="sample"
+        data-testid="play-sample"
+        @click="toggleSample()"
+      >
+        {{ samplePlaying ? $t("detail.stopSample") : $t("detail.playSample") }}
+      </button>
+      <button
+        v-else-if="hitVm.hit"
+        type="button"
+        class="sample"
+        data-testid="generate-sample"
+        :disabled="sample.busy.value"
+        :title="$t('detail.generateSampleHint')"
+        @click="generateSample()"
+      >
+        {{ generating ? "…" : $t("detail.generateSample") }}
       </button>
     </div>
   </div>

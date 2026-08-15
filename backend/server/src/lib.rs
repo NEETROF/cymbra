@@ -18,10 +18,16 @@ pub mod web_auth;
 pub use web_auth::{WebAuthConfig, web_auth_router};
 
 pub mod flags;
-pub use flags::{FlagStreakConfig, build_flag_service, spawn_flag_refreshers};
+pub use flags::{
+    FlagDailyAccessConfig, FlagScorePreviewConfig, FlagStreakConfig, build_flag_service,
+    spawn_flag_refreshers,
+};
 
 pub mod soundfont;
 pub use soundfont::{JwtAuth, SoundfontAuth, SoundfontState, soundfont_router};
+
+pub mod score_preview;
+pub use score_preview::{ScorePreviewState, score_preview_router};
 
 /// Liveness/readiness logic (pure; the HTTP/gRPC surfaces apply it).
 pub mod health {

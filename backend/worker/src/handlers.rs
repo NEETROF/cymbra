@@ -45,6 +45,16 @@ pub struct WorkerCtx {
     /// `None` when Firebase credentials are unconfigured — the job then completes
     /// as a no-op rather than failing, so a deployment without push is inert.
     pub push: Option<Arc<cymbra_notifications::Dispatcher>>,
+    /// Score audio-teaser renderer for the `score_preview_render` job (change:
+    /// add-score-daily-access-rewards). `None` when the score or SoundFont store
+    /// is unconfigured — the job then completes as a no-op (dormant, not failing).
+    pub score_preview: Option<Arc<cymbra_music::ScorePreviewRenderer>>,
+}
+
+/// Payload of the `score_preview_render` job (change: add-score-daily-access-rewards).
+#[derive(Deserialize)]
+struct ScorePreviewRenderJob {
+    catalog_id: String,
 }
 
 /// Payload for the `verification_email` job (and any transactional email). The
@@ -189,6 +199,52 @@ pub async fn play_detail_prune(mut job: CurrentJob, ctx: WorkerCtx) -> Result<()
             cymbra_worker::prune_play_detail(&ctx.admin_pool, ctx.play_detail_retention_days)
                 .await?;
         tracing::info!(pruned, "play-detail retention prune complete");
+        job.complete().await?;
+        Ok(())
+    }
+    .instrument(span)
+    .await
+}
+
+/// Render a catalog piece's audio teaser (change: add-score-daily-access-rewards,
+/// design D7). Enqueued transactionally when the piece is accepted, and by the
+/// backfill for already-accepted pieces. Renders the bounded clip with the
+/// configured catalog SoundFont, stores it beside the score bytes and stamps the
+/// row's rendered marker. Idempotent (a re-render overwrites the same object), so
+/// at-least-once delivery is safe. A dormant configuration (no font) or a silent
+/// piece completes the job without a preview — accepting is never blocked on it.
+#[sqlxmq::job("score_preview_render")]
+pub async fn score_preview_render(mut job: CurrentJob, ctx: WorkerCtx) -> Result<(), BoxError> {
+    let span = tracing::info_span!("job.score_preview_render", job_id = %job.id());
+    async move {
+        let p: ScorePreviewRenderJob = job
+            .json()?
+            .ok_or("score_preview_render: missing JSON payload")?;
+        let Some(renderer) = &ctx.score_preview else {
+            tracing::info!(catalog_id = %p.catalog_id, "score preview render skipped: stores unconfigured");
+            job.complete().await?;
+            return Ok(());
+        };
+        // Pick up any BO change of the clip length / preview font (best-effort).
+        if let Err(e) = ctx.flags.refresh().await {
+            tracing::warn!(error = %e, "score_preview_render flag refresh failed; using last-known/default");
+        }
+        match renderer.render_and_store(&p.catalog_id).await {
+            Ok(cymbra_music::RenderOutcome::Rendered { bytes }) => {
+                tracing::info!(catalog_id = %p.catalog_id, bytes, "score preview rendered");
+            }
+            Ok(cymbra_music::RenderOutcome::Dormant(reason)) => {
+                tracing::info!(catalog_id = %p.catalog_id, %reason, "score preview dormant");
+            }
+            Ok(cymbra_music::RenderOutcome::Silent) => {
+                tracing::info!(catalog_id = %p.catalog_id, "score preview: piece sounds nothing in the bound");
+            }
+            // An unknown piece (deleted between accept and render) is done, not a retry.
+            Err(cymbra_platform::AppError::NotFound(_)) => {
+                tracing::info!(catalog_id = %p.catalog_id, "score preview: piece gone, nothing to render");
+            }
+            Err(e) => return Err(e.into()),
+        }
         job.complete().await?;
         Ok(())
     }
@@ -444,6 +500,7 @@ pub fn registry(ctx: WorkerCtx) -> JobRegistry {
         purge_user,
         purge_score_object,
         play_detail_prune,
+        score_preview_render,
         usage_rollup,
         usage_purge,
         consensus_honesty_settlement,

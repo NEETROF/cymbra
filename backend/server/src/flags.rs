@@ -127,6 +127,96 @@ impl cymbra_music::StreakConfigSource for FlagStreakConfig {
     }
 }
 
+/// Feature-flag-backed catalog daily-access configuration (change:
+/// add-score-daily-access-rewards, design D1). Resolved on **every** open, so the
+/// quota, the day-slot cost and the kill-switch retuned in the back office apply
+/// to the next open without a redeploy. `staff` builds a staff context so a
+/// `staff_only` rollout of the gate reaches admins/moderators first.
+///
+/// Reads are evaluation-only and never fail: an unreachable store serves the
+/// code defaults (gate OFF).
+pub struct FlagDailyAccessConfig {
+    flags: Arc<FlagService>,
+}
+
+impl FlagDailyAccessConfig {
+    pub fn new(flags: Arc<FlagService>) -> Self {
+        Self { flags }
+    }
+}
+
+impl cymbra_music::DailyAccessConfigSource for FlagDailyAccessConfig {
+    fn daily_access_config(&self, staff: bool) -> cymbra_music::DailyAccessConfig {
+        use cymbra_feature_flags::registry;
+        let ctx = if staff {
+            cymbra_feature_flags::EvalContext::authenticated(registry::APP_MUSIC, &["admin".into()])
+        } else {
+            cymbra_feature_flags::EvalContext::anonymous(registry::APP_MUSIC)
+        };
+        let defaults = cymbra_music::DailyAccessConfig::default();
+        cymbra_music::DailyAccessConfig {
+            enabled: self.flags.bool(
+                registry::CATALOG_DAILY_ACCESS_ENABLED,
+                defaults.enabled,
+                &ctx,
+            ),
+            free_quota: self
+                .flags
+                .int(
+                    registry::CATALOG_DAILY_ACCESS_FREE_QUOTA,
+                    i64::from(defaults.free_quota),
+                    &ctx,
+                )
+                .clamp(0, i64::from(u32::MAX)) as u32,
+            day_slot_cost: self
+                .flags
+                .int(
+                    registry::CATALOG_DAILY_ACCESS_DAY_SLOT_COST,
+                    defaults.day_slot_cost,
+                    &ctx,
+                )
+                .max(0),
+        }
+    }
+}
+
+/// Feature-flag-backed score audio-teaser configuration (change:
+/// add-score-daily-access-rewards, design D7): the clip length and the catalog
+/// SoundFont it is rendered with. Read per render (worker job and the back-office
+/// regenerate) so retuning needs no redeploy.
+pub struct FlagScorePreviewConfig {
+    flags: Arc<FlagService>,
+}
+
+impl FlagScorePreviewConfig {
+    pub fn new(flags: Arc<FlagService>) -> Self {
+        Self { flags }
+    }
+}
+
+impl cymbra_music::ScorePreviewConfigSource for FlagScorePreviewConfig {
+    fn score_preview_config(&self) -> cymbra_music::ScorePreviewConfig {
+        use cymbra_feature_flags::registry;
+        let ctx = cymbra_feature_flags::EvalContext::anonymous(registry::APP_MUSIC);
+        let defaults = cymbra_music::ScorePreviewConfig::default();
+        cymbra_music::ScorePreviewConfig {
+            max_ms: self
+                .flags
+                .int(
+                    registry::CATALOG_PREVIEW_MAX_MS,
+                    i64::from(defaults.max_ms),
+                    &ctx,
+                )
+                .clamp(0, i64::from(u32::MAX)) as u32,
+            soundfont_id: self.flags.string(
+                registry::CATALOG_PREVIEW_SOUNDFONT_ID,
+                &defaults.soundfont_id,
+                &ctx,
+            ),
+        }
+    }
+}
+
 /// Spawn the background refreshers: a TTL backstop tick and (when a store is
 /// configured) the Redis invalidation listener that refreshes L1 on each ping.
 pub fn spawn_flag_refreshers(cfg: &Config, service: Arc<FlagService>) {

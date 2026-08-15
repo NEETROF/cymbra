@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -20,7 +21,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../l10n/gen/app_localizations.dart';
 import '../state/my_standings_notifier.dart';
 import '../state/score_catalog.dart';
+import '../state/score_preview_playback.dart';
 import '../theme/cymbra_theme.dart';
+import 'catalog_access_widgets.dart';
 import 'difficulty_badge.dart';
 import 'leaderboard_view.dart';
 
@@ -116,6 +119,15 @@ class ScoreCard extends StatelessWidget {
                   ),
                   if (action != null)
                     Positioned(top: 4, right: 4, child: action!),
+                  // Daily-access mark (change: add-score-daily-access-rewards):
+                  // "open today" / lock+cost, left of the action so it never
+                  // collides with the heart; nothing when the gate is off.
+                  if (entry.catalogId != null)
+                    Positioned(
+                      top: 12,
+                      right: action != null ? 48 : 10,
+                      child: CatalogAccessMark(catalogId: entry.catalogId!),
+                    ),
                   if (offlineUnavailable)
                     Positioned(
                       bottom: 8,
@@ -123,7 +135,16 @@ class ScoreCard extends StatelessWidget {
                       child: _OfflineUnavailableBadge(l10n: l10n),
                     )
                   else if (statusTag != null)
-                    Positioned(bottom: 8, left: 10, child: statusTag!),
+                    Positioned(bottom: 8, left: 10, child: statusTag!)
+                  // Teaser audition (change: add-score-daily-access-rewards): a
+                  // secondary control like the trophy — hear the piece BEFORE
+                  // spending a free open; the card's main tap still opens it.
+                  else if (entry.hasPreview && entry.catalogId != null)
+                    Positioned(
+                      bottom: 8,
+                      left: 10,
+                      child: _PreviewPill(catalogId: entry.catalogId!),
+                    ),
                   // Leaderboard badge — only for an accepted catalog score (the
                   // only kind with a shared board). Shows a bare trophy, plus the
                   // player's best rank across the two modes when they're ranked; a
@@ -585,6 +606,69 @@ class _CoverPainter extends CustomPainter {
 /// asks [MyStandings] for its piece (coalesced into one batch RPC per frame) and
 /// reads only its own entry. A tap opens the shared board widget for the piece,
 /// initialised on the mode that produced the best rank.
+/// "▶ Extrait / ■ Stop" pill: plays the piece's server-rendered teaser once (never
+/// the MusicXML, never a free open); greyed once the server said none exists.
+class _PreviewPill extends ConsumerWidget {
+  const _PreviewPill({required this.catalogId});
+
+  final String catalogId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    final playback = ref.watch(scorePreviewPlaybackProvider);
+    final playing = playback.playingId == catalogId;
+    final loading = playback.loadingId == catalogId;
+    final missing = playback.missing.contains(catalogId);
+    final color = missing ? CymbraColors.outline : CymbraColors.onSurface;
+    return GestureDetector(
+      key: Key('score-preview-$catalogId'),
+      behavior: HitTestBehavior.opaque,
+      onTap: missing
+          ? null
+          : () => unawaited(
+              ref.read(scorePreviewPlaybackProvider.notifier).toggle(catalogId),
+            ),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.55),
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (loading)
+                const SizedBox.square(
+                  dimension: 12,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              else
+                Icon(
+                  playing ? Icons.stop : Icons.play_arrow,
+                  size: 14,
+                  color: color,
+                ),
+              const SizedBox(width: 4),
+              Text(
+                playing || loading
+                    ? l10n.catalogPreviewStop
+                    : l10n.catalogPreviewPlay,
+                style: TextStyle(
+                  color: color,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _LeaderboardBadge extends ConsumerWidget {
   const _LeaderboardBadge({required this.catalogId, required this.title});
 

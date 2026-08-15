@@ -176,6 +176,24 @@ fn search_internal(e: sqlx::Error) -> AppError {
     AppError::Internal(anyhow::anyhow!("catalog_search db: {e}"))
 }
 
+/// Enqueue the audio-teaser render of `catalog_id` on `tx` (change:
+/// add-score-daily-access-rewards): `SCORE_PREVIEW_RENDER` with `{ catalog_id }`,
+/// through the SECURITY DEFINER `jobs.enqueue` the music role may execute.
+pub(crate) async fn enqueue_preview_render(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    catalog_id: &str,
+) -> anyhow::Result<()> {
+    let spec = cymbra_jobs::registry::spec(cymbra_jobs::registry::SCORE_PREVIEW_RENDER)
+        .ok_or_else(|| anyhow::anyhow!("score_preview_render spec missing"))?;
+    let req = cymbra_jobs::EnqueueRequest::for_job(
+        &spec,
+        &serde_json::json!({ "catalog_id": catalog_id }),
+        None,
+    )?;
+    cymbra_jobs::transactional_enqueue(tx, &req).await?;
+    Ok(())
+}
+
 fn row_to_hit(r: &PgRow) -> CatalogHit {
     CatalogHit {
         id: r.get::<uuid::Uuid, _>("id").to_string(),
@@ -215,12 +233,19 @@ fn row_to_hit(r: &PgRow) -> CatalogHit {
             .try_get::<Option<String>, _>("resubmission_note")
             .ok()
             .flatten(),
+        // The audio-teaser marker (change: add-score-daily-access-rewards); absent
+        // on a projection that does not select it → false.
+        has_preview: r
+            .try_get::<Option<chrono::DateTime<chrono::Utc>>, _>("preview_rendered_at")
+            .ok()
+            .flatten()
+            .is_some(),
     }
 }
 
 const HIT_COLS: &str = "id, title, composer, level, license, source, arranger, \
      min_note_value, tempo_bpm, note_count, lowest_midi, highest_midi, time_sig, key_fifths, \
-     moderation_status, proposed_by, review_reason, resubmission_note";
+     moderation_status, proposed_by, review_reason, resubmission_note, preview_rendered_at";
 
 /// The SQL ORDER BY expression for an allow-listed sort field, or `None` when the
 /// key is unknown (already rejected by the module — defence in depth) and so
@@ -374,6 +399,7 @@ impl CatalogSearchRepo for PgCatalogSearchRepo {
                     OR (NOT $16::bool \
                         AND moderation_status = COALESCE($13::text, 'accepted'))) \
                AND ($18::text IS NULL OR source = $18) \
+               AND ($19::bool IS NULL OR (preview_rendered_at IS NOT NULL) = $19) \
              ORDER BY {order_clause} \
              LIMIT $14 OFFSET $15"
         ))
@@ -395,6 +421,7 @@ impl CatalogSearchRepo for PgCatalogSearchRepo {
         .bind(p.review_queue)
         .bind(p.all_statuses)
         .bind(&p.source)
+        .bind(p.has_preview)
         .fetch_all(&self.pool)
         .await
         .map_err(search_internal)?;
@@ -485,7 +512,8 @@ impl CatalogSearchRepo for PgCatalogSearchRepo {
         // byte fetch can expose the ETag and answer a conditional request without
         // reading the blob (change: add-offline-score-cache).
         let row = sqlx::query(
-            "SELECT object_key, sha256 FROM music.catalog_scores \
+            "SELECT object_key, sha256, proposed_by::text AS proposed_by, preview_rendered_at \
+             FROM music.catalog_scores \
              WHERE id = $1 AND ($2 OR moderation_status = 'accepted')",
         )
         .bind(uuid)
@@ -496,6 +524,9 @@ impl CatalogSearchRepo for PgCatalogSearchRepo {
         Ok(row.map(|r| crate::catalog_search::CatalogObjectRef {
             object_key: r.get::<String, _>("object_key"),
             sha256: r.get::<String, _>("sha256"),
+            proposed_by: r.get::<Option<String>, _>("proposed_by"),
+            preview_rendered_at: r
+                .get::<Option<chrono::DateTime<chrono::Utc>>, _>("preview_rendered_at"),
         }))
     }
 
@@ -518,6 +549,14 @@ impl CatalogSearchRepo for PgCatalogSearchRepo {
         // clear the rejection reason in one write (changes: add-moderation-back-office,
         // add-score-catalog-proposal). The module already restricts `reason` to Some only
         // on `rejected`; binding it directly keeps the invariant local to that method.
+        //
+        // In the SAME transaction, an `accepted` transition enqueues the piece's
+        // audio-teaser render (change: add-score-daily-access-rewards, design D7):
+        // the job exists iff the acceptance commits. The enqueue is best-effort —
+        // a failure (e.g. a missing grant in some environment) is logged and the
+        // acceptance still commits, since accepting is never blocked on the teaser
+        // and the backfill covers any gap.
+        let mut tx = self.pool.begin().await.map_err(search_internal)?;
         let result = sqlx::query(
             "UPDATE music.catalog_scores \
              SET moderation_status = $2, reviewed_by = $3, reviewed_at = now(), review_reason = $4 \
@@ -527,10 +566,56 @@ impl CatalogSearchRepo for PgCatalogSearchRepo {
         .bind(status)
         .bind(reviewer)
         .bind(reason)
-        .execute(&self.pool)
+        .execute(&mut *tx)
         .await
         .map_err(search_internal)?;
+        let updated = result.rows_affected() > 0;
+        if updated
+            && status == "accepted"
+            && let Err(e) = enqueue_preview_render(&mut tx, score_id).await
+        {
+            tracing::warn!(
+                catalog_id = %score_id, error = %e,
+                "score preview render not enqueued on accept (backfill will cover it)"
+            );
+        }
+        tx.commit().await.map_err(search_internal)?;
+        Ok(updated)
+    }
+
+    async fn set_preview_rendered(
+        &self,
+        id: &str,
+        rendered_at: Option<chrono::DateTime<chrono::Utc>>,
+    ) -> PlatformResult<bool> {
+        let Ok(uuid) = uuid::Uuid::parse_str(id) else {
+            return Ok(false);
+        };
+        let result =
+            sqlx::query("UPDATE music.catalog_scores SET preview_rendered_at = $2 WHERE id = $1")
+                .bind(uuid)
+                .bind(rendered_at)
+                .execute(&self.pool)
+                .await
+                .map_err(search_internal)?;
         Ok(result.rows_affected() > 0)
+    }
+
+    async fn accepted_ids_missing_preview(&self, limit: i64) -> PlatformResult<Vec<String>> {
+        // Served by the partial index `catalog_scores_missing_preview_idx`.
+        let rows = sqlx::query(
+            "SELECT id FROM music.catalog_scores \
+             WHERE moderation_status = 'accepted' AND preview_rendered_at IS NULL \
+             ORDER BY id LIMIT $1",
+        )
+        .bind(limit.max(0))
+        .fetch_all(&self.pool)
+        .await
+        .map_err(search_internal)?;
+        Ok(rows
+            .iter()
+            .map(|r| r.get::<uuid::Uuid, _>("id").to_string())
+            .collect())
     }
 
     async fn find_by_sha(&self, sha256: &str) -> PlatformResult<Option<(String, String)>> {

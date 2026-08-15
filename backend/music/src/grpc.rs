@@ -28,6 +28,7 @@ use tonic::{Request, Response, Status};
 
 use crate::badges_core::{BadgeFamily, BadgeStanding, family_badges};
 use crate::badges_module::BadgesModule;
+use crate::catalog_daily_access::AccessState;
 use crate::catalog_edit::MetadataChanges;
 use crate::catalog_limits::CatalogAccessLimiter;
 use crate::catalog_search::{CatalogHit, CatalogQuery, SortKey, is_moderation_sort_field};
@@ -35,33 +36,34 @@ use crate::course::CourseRepo;
 use crate::course_progress::CourseProgressStore;
 use crate::curation_rewards::{CuratorMetrics, LedgerEntry};
 use crate::curation_rewards_module::{CurationRewardsModule, CuratorRewards};
+use crate::module::{PlayerCaller, PlayerOpen};
 use crate::module::{ScoreModule, UploadInput};
 use crate::proto::{
     AchievementBadge, AdminListSoundFontsRequest, AdminListSoundFontsResponse, AdminSoundFont,
-    CatalogHit as ProtoCatalogHit, Course as ProtoCourse, CourseProgress as ProtoCourseProgress,
-    CourseSummary as ProtoCourseSummary, CuratorBadge, CuratorReliability,
-    CuratorRewards as ProtoRewards, DeleteScoreRequest, DeleteScoreResponse,
+    CatalogAccessState as ProtoAccessState, CatalogHit as ProtoCatalogHit, Course as ProtoCourse,
+    CourseProgress as ProtoCourseProgress, CourseSummary as ProtoCourseSummary, CuratorBadge,
+    CuratorReliability, CuratorRewards as ProtoRewards, DeleteScoreRequest, DeleteScoreResponse,
     DeleteSoundFontRequest, DeleteSoundFontResponse, GetAchievementsRequest,
-    GetAchievementsResponse, GetCatalogScoreBytesRequest, GetCatalogScoreBytesResponse,
-    GetCatalogScoreRequest, GetCourseProgressRequest, GetCourseProgressResponse, GetCourseRequest,
-    GetCourseResponse, GetCuratorReliabilityRequest, GetCuratorRewardsRequest,
-    GetMyScoreRatingRequest, GetMyScoreRatingResponse, GetOfflineCacheKeyRequest,
-    GetOfflineCacheKeyResponse, GetRatingPreviewBytesRequest, GetRatingPreviewBytesResponse,
-    GetScoreBytesRequest, GetScoreBytesResponse, ListCoursesRequest, ListCoursesResponse,
-    ListMyScoresRequest, ListMyScoresResponse, ListRatingDeckRequest, ListRatingDeckResponse,
-    ListRewardShopRequest, ListRewardShopResponse, ListSavedCatalogScoresRequest,
-    ListSavedCatalogScoresResponse, ListSoundFontsRequest, ListSoundFontsResponse,
-    ProposeScoreRequest, ProposeScoreResponse, RecordCourseCompletionRequest,
-    RecordCourseCompletionResponse, RedeemRewardRequest, RedeemRewardResponse,
-    RemoveSavedCatalogScoreRequest, RemoveSavedCatalogScoreResponse, RewardActivity,
-    RewardShopItem, SaveCatalogScoreRequest, SaveCatalogScoreResponse, ScoreRecord,
+    GetAchievementsResponse, GetCatalogDailyAccessRequest, GetCatalogDailyAccessResponse,
+    GetCatalogScoreBytesRequest, GetCatalogScoreBytesResponse, GetCatalogScoreRequest,
+    GetCourseProgressRequest, GetCourseProgressResponse, GetCourseRequest, GetCourseResponse,
+    GetCuratorReliabilityRequest, GetCuratorRewardsRequest, GetMyScoreRatingRequest,
+    GetMyScoreRatingResponse, GetOfflineCacheKeyRequest, GetOfflineCacheKeyResponse,
+    GetRatingPreviewBytesRequest, GetRatingPreviewBytesResponse, GetScoreBytesRequest,
+    GetScoreBytesResponse, ListCoursesRequest, ListCoursesResponse, ListMyScoresRequest,
+    ListMyScoresResponse, ListRatingDeckRequest, ListRatingDeckResponse, ListRewardShopRequest,
+    ListRewardShopResponse, ListSavedCatalogScoresRequest, ListSavedCatalogScoresResponse,
+    ListSoundFontsRequest, ListSoundFontsResponse, ProposeScoreRequest, ProposeScoreResponse,
+    RecordCourseCompletionRequest, RecordCourseCompletionResponse, RedeemRewardRequest,
+    RedeemRewardResponse, RemoveSavedCatalogScoreRequest, RemoveSavedCatalogScoreResponse,
+    RewardActivity, RewardShopItem, SaveCatalogScoreRequest, SaveCatalogScoreResponse, ScoreRecord,
     SearchCatalogRequest, SearchCatalogResponse, SetModerationStatusRequest,
     SetModerationStatusResponse, SetScoreFavoriteRequest, SetScoreFavoriteResponse,
     SetSoundFontModerationStatusRequest, SetSoundFontModerationStatusResponse,
     SetSoundFontPricingRequest, SetSoundFontPricingResponse, SoundFont as ProtoSoundFont,
-    SubmitScoreRatingRequest, SubmitScoreRatingResponse, UpdateCatalogScoreRequest,
-    UpdateCatalogScoreResponse, UpdateSoundFontRequest, UpdateSoundFontResponse,
-    UploadScoreRequest,
+    SubmitScoreRatingRequest, SubmitScoreRatingResponse, UnlockCatalogScoreForTodayRequest,
+    UnlockCatalogScoreForTodayResponse, UpdateCatalogScoreRequest, UpdateCatalogScoreResponse,
+    UpdateSoundFontRequest, UpdateSoundFontResponse, UploadScoreRequest,
     score_service_server::{ScoreService, ScoreServiceServer},
 };
 use crate::soundfont::SoundFontRepo;
@@ -314,6 +316,43 @@ fn to_hit(h: CatalogHit) -> ProtoCatalogHit {
         contributor_credit: h.contributor_credit,
         review_reason: h.review_reason,
         resubmission_note: h.resubmission_note,
+        has_preview: h.has_preview,
+    }
+}
+
+/// The player-open caller facts the daily-access gate needs (change:
+/// add-score-daily-access-rewards), resolved from the identity once per call.
+/// `allow_unvalidated` keeps the historical scope-agnostic test (a moderator/admin
+/// may open a score in any status); `exempt_from_quota` is scope-checked like the
+/// access limiter's exemption — the back-office audience or a music-scope
+/// moderator/admin (global break-glass included) — reviewing is not consumption.
+fn player_caller(id: &AuthIdentity) -> PlayerCaller {
+    let staff = id.is_admin() || id.has_role("moderator");
+    let exempt_from_quota = id.audience == cymbra_platform::BACKOFFICE_AUDIENCE
+        || id.has_role_in_scope("music", "admin")
+        || id.has_role_in_scope("music", "moderator");
+    PlayerCaller {
+        user_id: id.user_id.clone(),
+        allow_unvalidated: staff,
+        exempt_from_quota,
+        staff,
+    }
+}
+
+/// Map the daily-access state to the wire type (change: add-score-daily-access-rewards).
+fn to_proto_access(a: AccessState) -> ProtoAccessState {
+    ProtoAccessState {
+        enabled: a.enabled,
+        locked: a.locked,
+        free_quota: a.free_quota as i32,
+        free_used: a.free_used as i32,
+        resets_at_ms: a.resets_at_ms,
+        day_slot_cost: a.day_slot_cost,
+        spendable_balance: a.spendable_balance,
+        subscriber: a.subscriber,
+        upsell: a.upsell,
+        opened_today: a.opened_today,
+        paid_today: a.paid_today,
     }
 }
 
@@ -943,6 +982,7 @@ impl ScoreService for ScoreGrpc {
         let uses_moderation = req.get_ref().moderation_status.is_some()
             || req.get_ref().review_queue.unwrap_or(false)
             || req.get_ref().all_statuses.unwrap_or(false)
+            || req.get_ref().has_preview.is_some()
             || req
                 .get_ref()
                 .sort
@@ -974,6 +1014,7 @@ impl ScoreService for ScoreGrpc {
             review_queue: r.review_queue.unwrap_or(false),
             all_statuses: r.all_statuses.unwrap_or(false),
             source: r.source,
+            has_preview: r.has_preview,
             sort: r
                 .sort
                 .into_iter()
@@ -1053,27 +1094,59 @@ impl ScoreService for ScoreGrpc {
         // gets not-found otherwise (change: add-score-moderation-gating, widened to
         // moderator by add-moderation-back-office).
         let id = identity(&req)?;
-        self.guard_download(&id).await?; // per-user download guardrail (scrape guard)
-        let allow_unvalidated = id.is_admin() || id.has_role("moderator");
+        self.guard_download(&id).await?; // per-user download guardrail (scrape guard) — abuse cap FIRST
+        let caller = player_caller(&id);
         let r = req.into_inner();
-        // Opening a score in the player records the coverage engagement signal
-        // (change: add-post-play-rating-prompt), so a rating submitted from the
-        // post-play prompt is eligible for points just like one from the deck; it
-        // also honours the offline cache's conditional fetch (change:
+        // Opening a score in the player runs the freemium daily-access gate (change:
+        // add-score-daily-access-rewards): a locked piece answers with empty data and
+        // `access.locked` — a state, never an error, never `unchanged`. A served open
+        // records the coverage engagement signal (change: add-post-play-rating-
+        // prompt) and honours the offline cache's conditional fetch (change:
         // add-offline-score-cache) so an unchanged copy skips the re-download.
-        let out = self
+        let PlayerOpen { bytes, access } = self
             .module
-            .catalog_bytes_for_player(
-                &id.user_id,
-                &r.catalog_id,
-                allow_unvalidated,
-                r.if_none_match.as_deref(),
-            )
+            .catalog_bytes_for_player(&caller, &r.catalog_id, r.if_none_match.as_deref())
             .await?;
         Ok(Response::new(GetCatalogScoreBytesResponse {
-            data: out.data,
-            etag: out.etag,
-            unchanged: out.unchanged,
+            data: bytes.data,
+            etag: bytes.etag,
+            unchanged: bytes.unchanged,
+            access: access.map(to_proto_access),
+        }))
+    }
+
+    async fn get_catalog_daily_access(
+        &self,
+        req: Request<GetCatalogDailyAccessRequest>,
+    ) -> Result<Response<GetCatalogDailyAccessResponse>, Status> {
+        // The caller's own daily-access state (change: add-score-daily-access-
+        // rewards, design D3): one read for the hub/library chip + opened-today
+        // marks. Counts as a browse for the enumeration guard.
+        let id = identity(&req)?;
+        self.guard_enumeration(&id).await?;
+        let caller = player_caller(&id);
+        let state = self.module.catalog_daily_access(&caller).await?;
+        Ok(Response::new(GetCatalogDailyAccessResponse {
+            state: state.map(to_proto_access),
+        }))
+    }
+
+    async fn unlock_catalog_score_for_today(
+        &self,
+        req: Request<UnlockCatalogScoreForTodayRequest>,
+    ) -> Result<Response<UnlockCatalogScoreForTodayResponse>, Status> {
+        // The confirmed points day-slot (change: add-score-daily-access-rewards,
+        // design D4): not-found for a piece the caller may not see, a typed
+        // precondition failure (nothing written) when the balance is short.
+        let id = identity(&req)?;
+        let caller = player_caller(&id);
+        let catalog_id = req.into_inner().catalog_id;
+        let state = self
+            .module
+            .unlock_catalog_for_today(&caller, &catalog_id)
+            .await?;
+        Ok(Response::new(UnlockCatalogScoreForTodayResponse {
+            state: state.map(to_proto_access),
         }))
     }
 
@@ -3000,5 +3073,379 @@ mod tests {
         let ids: Vec<&str> = resp.hits.iter().map(|h| h.id.as_str()).collect();
         assert!(ids.contains(&DEBUSSY) && ids.contains(&SATIE));
         assert!(!ids.contains(&PENDING));
+    }
+
+    // --- catalog daily access (change: add-score-daily-access-rewards) --------
+
+    const CONTRIB: &str = "cccccccc-cccc-7ccc-8ccc-cccccccccccc";
+
+    /// [`grpc`] plus the freemium gate wired over the in-memory day-access repo,
+    /// ON with `free_quota` free opens and a `cost`-point day-slot; `SATIE` is a
+    /// user-proposed piece contributed by `CONTRIB`.
+    async fn grpc_gated(
+        free_quota: u32,
+        cost: i64,
+    ) -> (
+        ScoreGrpc,
+        Arc<crate::catalog_daily_access::FakeCatalogDayAccessRepo>,
+    ) {
+        use crate::catalog_daily_access::{CatalogDailyAccess, FakeCatalogDayAccessRepo};
+        use crate::catalog_daily_access_core::DailyAccessConfig;
+        let store = Arc::new(FakeStore::default());
+        for id in [DEBUSSY, SATIE, PENDING, REJECTED] {
+            store
+                .put(&format!("safe/pdmx/{id}.mxl"), b"<score/>".to_vec())
+                .await
+                .unwrap();
+        }
+        let catalog = Arc::new(FakeCatalogSearchRepo::with(vec![
+            FakeCatalogRow::new(DEBUSSY, "Clair de Lune", "Claude Debussy", Some("advanced"))
+                .piano(),
+            FakeCatalogRow::new(SATIE, "Gymnopédie", "Erik Satie", Some("beginner"))
+                .piano()
+                .proposed_by(CONTRIB),
+            FakeCatalogRow::new(PENDING, "Pending Piece", "Anon", Some("beginner"))
+                .with_moderation_status("pending"),
+            FakeCatalogRow::new(REJECTED, "Rejected Piece", "Anon", Some("beginner"))
+                .with_moderation_status("rejected"),
+        ]));
+        let repo = Arc::new(FakeCatalogDayAccessRepo::default());
+        let gate = CatalogDailyAccess::new(repo.clone()).with_config(DailyAccessConfig {
+            enabled: true,
+            free_quota,
+            day_slot_cost: cost,
+        });
+        let module = Arc::new(
+            ScoreModule::new(
+                Arc::new(FakeUserScoreRepo::default()),
+                catalog,
+                Arc::new(FakeUserLibraryRepo::default()),
+                Arc::new(FakeScoreRatingRepo::default()),
+                store,
+                5,
+                7,
+                8 * 1024 * 1024,
+            )
+            .with_daily_access(Arc::new(gate)),
+        );
+        (ScoreGrpc::new(module), repo)
+    }
+
+    fn bytes_req(id: &str, if_none_match: Option<&str>) -> GetCatalogScoreBytesRequest {
+        GetCatalogScoreBytesRequest {
+            catalog_id: id.into(),
+            if_none_match: if_none_match.map(Into::into),
+        }
+    }
+
+    /// A music-scope moderator token (`roles_by_scope`), as the auth module issues.
+    fn authed_music_moderator<T>(msg: T, user_id: &str) -> Request<T> {
+        let mut req = Request::new(msg);
+        req.extensions_mut().insert(AuthIdentity {
+            user_id: user_id.into(),
+            audience: "music".into(),
+            roles: vec!["user".into(), "moderator".into()],
+            roles_by_scope: [("music".to_string(), vec!["moderator".to_string()])]
+                .into_iter()
+                .collect(),
+        });
+        req
+    }
+
+    /// A back-office audience token (no privileged role).
+    fn authed_backoffice<T>(msg: T, user_id: &str) -> Request<T> {
+        let mut req = Request::new(msg);
+        req.extensions_mut().insert(AuthIdentity {
+            user_id: user_id.into(),
+            audience: cymbra_platform::BACKOFFICE_AUDIENCE.into(),
+            roles: vec!["user".into()],
+            ..Default::default()
+        });
+        req
+    }
+
+    #[tokio::test]
+    async fn locked_open_is_a_state_with_no_bytes_and_records_no_engagement() {
+        let (g, _repo) = grpc_gated(1, 20).await;
+        // First distinct piece: served, state attached.
+        let first = g
+            .get_catalog_score_bytes(authed(bytes_req(DEBUSSY, None), "u1"))
+            .await
+            .unwrap()
+            .into_inner();
+        assert_eq!(first.data, b"<score/>");
+        let a = first.access.expect("gate wired → state attached");
+        assert!(a.enabled && !a.locked);
+        assert_eq!((a.free_quota, a.free_used), (1, 1));
+        assert_eq!(a.opened_today, vec![DEBUSSY.to_string()]);
+        // Second distinct piece: LOCKED — empty data, not unchanged, state says so.
+        let locked = g
+            .get_catalog_score_bytes(authed(bytes_req(SATIE, None), "u1"))
+            .await
+            .unwrap()
+            .into_inner();
+        assert!(locked.data.is_empty());
+        assert!(!locked.unchanged);
+        let a = locked.access.unwrap();
+        assert!(a.locked);
+        assert_eq!(a.day_slot_cost, 20);
+        assert!(a.upsell);
+        assert!(a.resets_at_ms > 0);
+        // Re-opening the first piece stays free and served.
+        let again = g
+            .get_catalog_score_bytes(authed(bytes_req(DEBUSSY, None), "u1"))
+            .await
+            .unwrap()
+            .into_inner();
+        assert_eq!(again.data, b"<score/>");
+        assert_eq!(again.access.unwrap().free_used, 1);
+    }
+
+    #[tokio::test]
+    async fn conditional_fetch_of_a_locked_piece_is_locked_not_unchanged() {
+        let (g, _repo) = grpc_gated(0, 20).await;
+        let locked = g
+            .get_catalog_score_bytes(authed(
+                bytes_req(DEBUSSY, Some(&format!("etag-{DEBUSSY}"))),
+                "u1",
+            ))
+            .await
+            .unwrap()
+            .into_inner();
+        assert!(
+            !locked.unchanged,
+            "a locked piece must never read as unchanged"
+        );
+        assert!(locked.data.is_empty());
+        assert!(locked.access.unwrap().locked);
+    }
+
+    #[tokio::test]
+    async fn moderator_backoffice_and_contributor_are_outside_the_quota() {
+        let (g, _repo) = grpc_gated(0, 20).await;
+        // Music-scope moderator: served, no gate for them.
+        let r = g
+            .get_catalog_score_bytes(authed_music_moderator(bytes_req(DEBUSSY, None), "mod1"))
+            .await
+            .unwrap()
+            .into_inner();
+        assert_eq!(r.data, b"<score/>");
+        assert!(!r.access.unwrap().enabled);
+        // Back-office audience (catalog-table download): served.
+        let r = g
+            .get_catalog_score_bytes(authed_backoffice(bytes_req(DEBUSSY, None), "bo1"))
+            .await
+            .unwrap()
+            .into_inner();
+        assert_eq!(r.data, b"<score/>");
+        // The contributor opens their own accepted piece free…
+        let r = g
+            .get_catalog_score_bytes(authed(bytes_req(SATIE, None), CONTRIB))
+            .await
+            .unwrap()
+            .into_inner();
+        assert_eq!(r.data, b"<score/>");
+        assert!(!r.access.unwrap().locked);
+        // …but is a regular player on someone else's piece.
+        let r = g
+            .get_catalog_score_bytes(authed(bytes_req(DEBUSSY, None), CONTRIB))
+            .await
+            .unwrap()
+            .into_inner();
+        assert!(r.access.unwrap().locked);
+        // A flat (scope-less) `moderator` role still may open pending bytes but IS
+        // quota'd like the access limiter treats it: allow_unvalidated without exempt.
+        let r = g
+            .get_catalog_score_bytes(authed_moderator(bytes_req(DEBUSSY, None), "flatmod"))
+            .await
+            .unwrap()
+            .into_inner();
+        assert!(r.access.unwrap().locked);
+    }
+
+    #[tokio::test]
+    async fn gate_off_serves_everything_and_reports_disabled() {
+        let g = grpc().await; // no gate wired at all
+        let r = g
+            .get_catalog_score_bytes(authed(bytes_req(DEBUSSY, None), "u1"))
+            .await
+            .unwrap()
+            .into_inner();
+        assert_eq!(r.data, b"<score/>");
+        assert!(r.access.is_none());
+        let s = g
+            .get_catalog_daily_access(authed(GetCatalogDailyAccessRequest {}, "u1"))
+            .await
+            .unwrap()
+            .into_inner();
+        assert!(s.state.is_none());
+    }
+
+    #[tokio::test]
+    async fn unlock_charges_serves_and_is_charged_once() {
+        let (g, repo) = grpc_gated(0, 20).await;
+        repo.seed_balance("u1", 25);
+        // Locked first.
+        assert!(
+            g.get_catalog_score_bytes(authed(bytes_req(DEBUSSY, None), "u1"))
+                .await
+                .unwrap()
+                .into_inner()
+                .access
+                .unwrap()
+                .locked
+        );
+        let s = g
+            .unlock_catalog_score_for_today(authed(
+                UnlockCatalogScoreForTodayRequest {
+                    catalog_id: DEBUSSY.into(),
+                },
+                "u1",
+            ))
+            .await
+            .unwrap()
+            .into_inner()
+            .state
+            .unwrap();
+        assert_eq!(s.spendable_balance, 5);
+        assert_eq!(s.paid_today, vec![DEBUSSY.to_string()]);
+        // Served now, and the state read agrees.
+        let r = g
+            .get_catalog_score_bytes(authed(bytes_req(DEBUSSY, None), "u1"))
+            .await
+            .unwrap()
+            .into_inner();
+        assert_eq!(r.data, b"<score/>");
+        let s = g
+            .get_catalog_daily_access(authed(GetCatalogDailyAccessRequest {}, "u1"))
+            .await
+            .unwrap()
+            .into_inner()
+            .state
+            .unwrap();
+        assert_eq!(s.opened_today, vec![DEBUSSY.to_string()]);
+        assert_eq!(s.free_used, 0);
+        // A second confirmation is idempotent (no second debit).
+        g.unlock_catalog_score_for_today(authed(
+            UnlockCatalogScoreForTodayRequest {
+                catalog_id: DEBUSSY.into(),
+            },
+            "u1",
+        ))
+        .await
+        .unwrap();
+        assert_eq!(repo.debits().len(), 1);
+    }
+
+    #[tokio::test]
+    async fn unlock_with_insufficient_balance_is_failed_precondition() {
+        let (g, repo) = grpc_gated(0, 20).await;
+        repo.seed_balance("u1", 3);
+        let err = g
+            .unlock_catalog_score_for_today(authed(
+                UnlockCatalogScoreForTodayRequest {
+                    catalog_id: DEBUSSY.into(),
+                },
+                "u1",
+            ))
+            .await
+            .unwrap_err();
+        assert_eq!(err.code(), tonic::Code::FailedPrecondition);
+        assert!(repo.debits().is_empty());
+        // An unknown / non-accepted piece is not-found for a normal caller.
+        let err = g
+            .unlock_catalog_score_for_today(authed(
+                UnlockCatalogScoreForTodayRequest {
+                    catalog_id: PENDING.into(),
+                },
+                "u1",
+            ))
+            .await
+            .unwrap_err();
+        assert_eq!(err.code(), tonic::Code::NotFound);
+    }
+
+    #[tokio::test]
+    async fn rating_deck_preview_and_metadata_stay_ungated() {
+        let (g, _repo) = grpc_gated(0, 20).await;
+        // Player-open is locked…
+        assert!(
+            g.get_catalog_score_bytes(authed(bytes_req(DEBUSSY, None), "u1"))
+                .await
+                .unwrap()
+                .into_inner()
+                .access
+                .unwrap()
+                .locked
+        );
+        // …but the deck's read-only preview bytes and the metadata read still work.
+        let deck = g
+            .get_rating_preview_bytes(authed(
+                GetRatingPreviewBytesRequest {
+                    catalog_id: DEBUSSY.into(),
+                },
+                "u1",
+            ))
+            .await
+            .unwrap()
+            .into_inner();
+        assert_eq!(deck.data, b"<score/>");
+        let hit = g
+            .get_catalog_score(authed(
+                GetCatalogScoreRequest {
+                    catalog_id: DEBUSSY.into(),
+                },
+                "u1",
+            ))
+            .await
+            .unwrap()
+            .into_inner();
+        assert_eq!(hit.id, DEBUSSY);
+    }
+
+    #[tokio::test]
+    async fn has_preview_filter_is_privileged_and_selects_by_marker() {
+        let g = grpc().await;
+        // A normal caller may not use it.
+        let err = g
+            .search_catalog(authed(
+                SearchCatalogRequest {
+                    has_preview: Some(false),
+                    limit: 10,
+                    ..Default::default()
+                },
+                "u1",
+            ))
+            .await
+            .unwrap_err();
+        assert_eq!(err.code(), tonic::Code::PermissionDenied);
+        // A moderator lists the pieces WITHOUT a sample (all of them here).
+        let resp = g
+            .search_catalog(authed_moderator(
+                SearchCatalogRequest {
+                    has_preview: Some(false),
+                    limit: 10,
+                    ..Default::default()
+                },
+                "mod1",
+            ))
+            .await
+            .unwrap()
+            .into_inner();
+        assert!(resp.hits.iter().all(|h| !h.has_preview));
+        assert!(resp.hits.iter().any(|h| h.id == DEBUSSY));
+        let resp = g
+            .search_catalog(authed_moderator(
+                SearchCatalogRequest {
+                    has_preview: Some(true),
+                    limit: 10,
+                    ..Default::default()
+                },
+                "mod1",
+            ))
+            .await
+            .unwrap()
+            .into_inner();
+        assert!(resp.hits.is_empty());
     }
 }

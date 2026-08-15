@@ -64,6 +64,14 @@ pub const PUSH_DISPATCH: &str = "push_dispatch";
 /// gate picks out the users for whom it is currently the configured hour. Sending
 /// nothing is the normal outcome for 23 of every 24 runs.
 pub const STREAK_REMINDER: &str = "streak_reminder";
+/// Stable name of the catalog score audio-teaser render (change:
+/// add-score-daily-access-rewards, design D7). Payload `{ catalog_id }`. Enqueued
+/// transactionally when a catalog piece is accepted (and by the backfill for
+/// already-accepted pieces): renders a bounded clip of the piece with the
+/// configured catalog SoundFont, stores it beside the score bytes and stamps the
+/// row's rendered marker. Idempotent (a re-render overwrites the same object), so
+/// at-least-once delivery is safe.
+pub const SCORE_PREVIEW_RENDER: &str = "score_preview_render";
 
 /// Static description of one job type.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -179,6 +187,14 @@ pub fn builtin() -> Vec<JobSpec> {
             RetryPolicy::new(3, Duration::from_secs(60), Duration::from_secs(900)),
         ),
         JobSpec::new(
+            SCORE_PREVIEW_RENDER,
+            // One piece per job, independent and idempotent → parallel; retry
+            // generously (a transient store/font hiccup must not leave the piece
+            // without a teaser — and the backfill/regenerate can always redo it).
+            Channel::parallel("music", "preview"),
+            RetryPolicy::new(5, Duration::from_secs(60), Duration::from_secs(3600)),
+        ),
+        JobSpec::new(
             STREAK_REMINDER,
             // Same channel as the dispatch it feeds: a reminder sweep IS a send,
             // and it must not queue behind a music maintenance job and miss the
@@ -212,6 +228,7 @@ mod tests {
         assert!(names.contains(&CONSENSUS_HONESTY_SETTLEMENT.to_string()));
         assert!(names.contains(&PUSH_DISPATCH.to_string()));
         assert!(names.contains(&STREAK_REMINDER.to_string()));
+        assert!(names.contains(&SCORE_PREVIEW_RENDER.to_string()));
     }
 
     #[test]

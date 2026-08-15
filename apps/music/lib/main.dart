@@ -27,10 +27,12 @@ import 'services/license_notices.dart';
 import 'src/rust/frb_generated.dart';
 import 'state/app_locale.dart';
 import 'state/audio_routing.dart';
+import 'state/catalog_daily_access_notifier.dart';
 import 'widgets/post_play_rating.dart';
 import 'state/foreground_notification_listener.dart';
 import 'state/language_sync_listener.dart';
 import 'state/push_registration_listener.dart';
+import 'state/score_preview_playback.dart';
 import 'state/selected_piano.dart';
 import 'state/usage_tracking_notifier.dart';
 import 'theme/cymbra_theme.dart';
@@ -117,10 +119,14 @@ class _AudioLifecycleObserver with WidgetsBindingObserver {
         state == AppLifecycleState.hidden ||
         state == AppLifecycleState.detached) {
       _container.read(audioServiceProvider).allNotesOff();
+      unawaited(_container.read(scorePreviewPlaybackProvider.notifier).stop());
     } else if (state == AppLifecycleState.resumed) {
       // Re-fetch effective flags on foreground (cheap when unchanged via the
       // version/ETag) so a kill-switch flip is picked up without a restart.
       unawaited(_container.read(flagsProvider.notifier).refresh());
+      // The daily free-open quota may have rolled over while backgrounded
+      // (change: add-score-daily-access-rewards).
+      unawaited(_container.read(catalogDailyAccessProvider.notifier).refresh());
     }
   }
 }

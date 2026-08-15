@@ -27,5 +27,8 @@ String scoreLoadFailureMessage(
   ScoreLoadFailure.unavailable => l10n.playerScoreUnavailable,
   ScoreLoadFailure.offlineUnavailable => l10n.playerScoreOfflineUnavailable,
   ScoreLoadFailure.rateLimited => l10n.playerScoreRateLimited,
+  // The unlock sheet is the normal surface for a locked piece; this line is only
+  // the fallback when a caller has no sheet to show.
+  ScoreLoadFailure.locked => l10n.catalogAccessLockedMessage,
   ScoreLoadFailure.generic => l10n.playerScoreLoadError,
 };

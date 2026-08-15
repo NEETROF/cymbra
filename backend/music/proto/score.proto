@@ -130,6 +130,11 @@ message CatalogHit {
   optional string contributor_credit = 19;
   optional string review_reason = 20;
   optional string resubmission_note = 21;
+  // Whether a server-rendered audio teaser exists for this piece (change:
+  // add-score-daily-access-rewards): drives the app's "listen" control on a
+  // locked piece and the back-office "Generate sample" / "no sample" filter.
+  // Derived from the row's rendered marker, never from a storage probe.
+  bool has_preview = 22;
 }
 
 // Full-text search over title+composer, with optional author/difficulty filters.
@@ -180,6 +185,11 @@ message SearchCatalogRequest {
   // (e.g. `user-proposal` vs a crawler dataset). Composes with the status gate; unset =
   // any source.
   optional string source = 19;
+  // PRIVILEGED, back-office-only "has an audio teaser" filter (change:
+  // add-score-daily-access-rewards): true = only pieces with a rendered preview,
+  // false = only pieces WITHOUT one (the "no sample" backfill view). Unset = any.
+  // Honoured ONLY for an admin/moderator identity; the app never sets it.
+  optional bool has_preview = 20;
 }
 
 // One sort key: a column/alias from the search allow-list, ascending unless
@@ -209,10 +219,49 @@ message GetCatalogScoreBytesRequest {
   optional string if_none_match = 2;
 }
 message GetCatalogScoreBytesResponse {
-  bytes data = 1; // EMPTY when `unchanged`
+  bytes data = 1; // EMPTY when `unchanged` — or when `access.locked`
   string etag = 2; // stored content hash (ETag)
   bool unchanged = 3; // true → `data` omitted, caller keeps its cached copy
+  // The caller's daily-access state (change: add-score-daily-access-rewards).
+  // When `access.locked` the piece was refused by the daily quota: `data` is
+  // empty AND `unchanged` is false — a locked answer is a STATE, never an
+  // "unchanged" (the offline cache must not play its copy) and never a gRPC
+  // error. Absent when the gate is not wired.
+  optional CatalogAccessState access = 4;
 }
+
+// The caller's freemium daily-access state for the current SERVER day (change:
+// add-score-daily-access-rewards, design D3). Carried by the bytes RPC and by
+// GetCatalogDailyAccess. `enabled` false = no gate for this caller (off, exempt,
+// subscriber, contributor): every catalog open serves.
+message CatalogAccessState {
+  bool enabled = 1;
+  bool locked = 2;            // this open was refused (bytes RPC only)
+  int32 free_quota = 3;       // distinct free opens per day
+  int32 free_used = 4;        // consumed today (paid slots not counted)
+  int64 resets_at_ms = 5;     // next server-day rollover, epoch ms
+  int64 day_slot_cost = 6;    // points for one extra piece today
+  int64 spendable_balance = 7;
+  bool subscriber = 8;        // has_active_subscription (billing seam, false today)
+  bool upsell = 9;            // the moment the future subscription offer is shown
+  repeated string opened_today = 10; // pieces open for the caller today (free + paid)
+  repeated string paid_today = 11;   // the subset bought with points
+}
+
+// One read of the caller's daily-access state (change: add-score-daily-access-
+// rewards): the hub/library render "N free opens left · resets in Xh", mark
+// opened-today cards and show the unlock cost from it — no per-card bytes probe.
+message GetCatalogDailyAccessRequest {}
+message GetCatalogDailyAccessResponse { CatalogAccessState state = 1; }
+
+// Buy a day-slot for a locked catalog piece after the user's EXPLICIT
+// confirmation (change: add-score-daily-access-rewards, design D4): one atomic
+// ledger debit (`redeem` / `score_day_slot`, idempotent on piece + day) + the
+// piece recorded as open (paid) for today. Consumable — tomorrow costs again.
+// Insufficient balance = FAILED_PRECONDITION, nothing written; a piece already
+// open today succeeds without a debit.
+message UnlockCatalogScoreForTodayRequest { string catalog_id = 1; }
+message UnlockCatalogScoreForTodayResponse { CatalogAccessState state = 1; }
 
 // Rating-preview bytes (change: rate-pending-scores): serves a `pending` or
 // `accepted` score's bytes to a signed-in rater for the deck's read-only preview.
@@ -697,6 +746,10 @@ service ScoreService {
   rpc ListSavedCatalogScores(ListSavedCatalogScoresRequest) returns (ListSavedCatalogScoresResponse);
   rpc GetCatalogScoreBytes(GetCatalogScoreBytesRequest) returns (GetCatalogScoreBytesResponse);
   rpc GetCatalogScore(GetCatalogScoreRequest) returns (CatalogHit);
+  // Freemium daily access on catalog opens (change: add-score-daily-access-
+  // rewards). Authenticated. The state read + the confirmed points day-slot.
+  rpc GetCatalogDailyAccess(GetCatalogDailyAccessRequest) returns (GetCatalogDailyAccessResponse);
+  rpc UnlockCatalogScoreForToday(UnlockCatalogScoreForTodayRequest) returns (UnlockCatalogScoreForTodayResponse);
 
   // Moderation back office (change: add-moderation-back-office). Moderator/admin only.
   rpc SetModerationStatus(SetModerationStatusRequest) returns (SetModerationStatusResponse);
