@@ -691,5 +691,7 @@
   "catalogUnlockInsufficient": "No tienes puntos suficientes para desbloquear esta pieza",
   "catalogUnlockFailed": "No se pudo desbloquear esta pieza",
   "catalogPreviewFailed": "No se pudo reproducir el extracto",
-  "rewardActivityDaySlot": "Pieza desbloqueada por un día"
+  "rewardActivityDaySlot": "Pieza desbloqueada por un día",
+  "catalogPreviewPlay": "Extracto",
+  "catalogPreviewStop": "Parar"
 }

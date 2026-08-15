@@ -120,6 +120,16 @@ class CatalogUnlock extends _$CatalogUnlock {
     return true;
   }
 
+  int _claimedPreviewError = 0;
+
+  /// Same once-only claim for the teaser-audition failure cue (its listener
+  /// shares the stacked mounting).
+  bool claimPreviewError(int seq) {
+    if (seq <= _claimedPreviewError) return false;
+    _claimedPreviewError = seq;
+    return true;
+  }
+
   Future<void> unlock(CatalogEntry entry) async {
     final catalogId = entry.catalogId;
     if (catalogId == null || state.busy) return;

@@ -678,5 +678,7 @@
   "catalogUnlockInsufficient": "Pas assez de points pour débloquer ce morceau",
   "catalogUnlockFailed": "Ce morceau n'a pas pu être débloqué",
   "catalogPreviewFailed": "L'extrait n'a pas pu être lu",
-  "rewardActivityDaySlot": "Morceau débloqué pour une journée"
+  "rewardActivityDaySlot": "Morceau débloqué pour une journée",
+  "catalogPreviewPlay": "Extrait",
+  "catalogPreviewStop": "Stop"
 }

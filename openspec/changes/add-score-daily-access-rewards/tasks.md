@@ -36,6 +36,7 @@
 - [x] 4.8 Activity feed: label the `score_day_slot` redeem with the piece title (no raw kind/reward key in UI).
 - [x] 4.9 Analytics actions in `usage_actions.dart`: `catalog_quota_reached`, `catalog_day_slot_unlock`, `catalog_preview_audition`.
 - [x] 4.10 l10n en/fr/it/es for every new string.
+- [x] 4.12 Card audition: `ScorePreviewPlayback` notifier (fetch + session cache, play ONCE via a WAV-duration timer, one at a time, stop on open/pause) shared by the cards and the unlock sheet; "▶ Extrait / ■ Stop" pill on `ScoreCard` when `hasPreview` (main tap unchanged); l10n ×4; tests (plays once/stops, one at a time, pill does not open the piece).
 - [x] 4.11 Tests (mockito mocks via provider overrides): quota chip; locked open shows the sheet and never fetches/plays MusicXML; audition plays the clip / greyed without preview; unlock spends and re-opens; re-open same day free; online cached favourite locked does not play, offline plays; gate-off path unchanged.
 
 ## 5. Back office (Vue)

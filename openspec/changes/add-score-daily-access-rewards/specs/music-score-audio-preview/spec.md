@@ -99,3 +99,26 @@ than erroring.
 #### Scenario: Absent preview degrades gracefully
 - **WHEN** a piece has no preview object yet
 - **THEN** the catalog read says no preview, the preview route responds not-found, and the app disables the audition control
+
+### Requirement: Audition from the catalog card, once per request
+
+When a catalog piece has an audio teaser, the app SHALL offer to audition it
+**directly from the piece's card** (hub and library) through a small, labelled
+control distinct from the card's main tap — so a user can hear a piece **before**
+spending a free open or points, and the main tap still opens the piece as before.
+An audition SHALL play the clip **once** (never looped) and stop by itself at the
+end; at most one clip SHALL sound at a time (starting another stops the current
+one); opening a piece or leaving the screen SHALL stop any audition. Cards without a
+teaser SHALL show no control.
+
+#### Scenario: Card audition never consumes the quota
+- **WHEN** a user taps the card's audition control on a piece with a teaser
+- **THEN** the clip plays once and stops by itself, and neither a free open nor points are consumed
+
+#### Scenario: The main tap still opens the piece
+- **WHEN** a user taps the card anywhere but its audition control
+- **THEN** the piece opens (or the locked flow shows) exactly as before
+
+#### Scenario: One clip at a time, stopped by opening
+- **WHEN** a user starts a second card's audition, or opens a piece, while a clip is playing
+- **THEN** the previous clip stops

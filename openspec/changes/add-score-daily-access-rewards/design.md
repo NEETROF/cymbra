@@ -281,6 +281,15 @@ coming later" item copy (`reward-unlocks`), wired to the real offer later. Keepi
   placeholder line. Confirm → `unlockNotifier.unlock(id)` (fire-and-observe); a
   dedicated listener widget reacts to the unlock state: success → re-select the score
   (now served) and bump `rewardRevisionProvider`; failure → localized snackbar.
+- **Card audition** (validated during the manual pass): a small labelled
+  "▶ Extrait / ■ Stop" pill in the cover's bottom-left slot (the trophy-badge
+  pattern — a secondary tappable control, the card's main tap still opens), shown
+  only when `hasPreview`, so a user hears a piece *before* spending a free open.
+  One `ScorePreviewPlayback` notifier (keepAlive) owns the audition for the cards
+  AND the unlock sheet: fetch (session cache by id) → play through the clip player →
+  a timer sized from the WAV header stops it after **one** pass (the engine's clip
+  player loops by design for the 2.4 s SoundFont phrase — wrong for a 30 s teaser);
+  one clip at a time; `openScore` and app pause stop it.
 - Analytics (client taxonomy, `usage_actions.dart`): `catalog_quota_reached`,
   `catalog_day_slot_unlock`, `catalog_preview_audition`.
 - l10n: en/fr/it/es for every new string.

@@ -20,11 +20,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../l10n/gen/app_localizations.dart';
 import '../screens/open_score.dart';
 import '../state/catalog_daily_access_notifier.dart';
+import '../state/score_preview_playback.dart';
 import 'app_snackbar.dart';
 
-/// Dedicated listener widget for the confirmed day-slot unlock (change:
-/// add-score-daily-access-rewards; architecture rule 4 — `ref.listen` side
-/// effects live in one place). It renders [child] and only wires the listener.
+/// Dedicated listener widget for the confirmed day-slot unlock and the teaser
+/// audition failures (change: add-score-daily-access-rewards; architecture rule
+/// 4 — `ref.listen` side effects live in one place). It renders [child] and only
+/// wires the listeners.
 ///
 /// The unlock sheet fires `unlock(entry)` and closes; the outcome lands in
 /// [catalogUnlockProvider] as state and is surfaced here: success → a snackbar
@@ -53,6 +55,21 @@ class CatalogUnlockListener extends ConsumerWidget {
       } else if (state.error) {
         showAppSnackBar(messenger, l10n.catalogUnlockFailed);
       }
+    });
+    // A teaser that could not be fetched/played (network fault — a MISSING
+    // teaser is not an error, it greys the control). Same stacked-screen claim.
+    ref.listen(scorePreviewPlaybackProvider.select((s) => s.errorSeq), (
+      previous,
+      next,
+    ) {
+      if (previous == null || next == previous) return;
+      if (!ref.read(catalogUnlockProvider.notifier).claimPreviewError(next)) {
+        return;
+      }
+      showAppSnackBar(
+        ScaffoldMessenger.of(context),
+        AppLocalizations.of(context).catalogPreviewFailed,
+      );
     });
     return child;
   }

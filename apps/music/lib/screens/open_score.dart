@@ -21,6 +21,7 @@ import '../l10n/gen/app_localizations.dart';
 import '../state/notation_data.dart';
 import '../state/notation_notifier.dart';
 import '../state/score_catalog.dart';
+import '../state/score_preview_playback.dart';
 import '../theme/cymbra_theme.dart';
 import '../widgets/app_snackbar.dart';
 import '../widgets/catalog_unlock_sheet.dart';
@@ -53,6 +54,9 @@ Future<void> openScore(
   final navigator = Navigator.of(context);
   final rootNavigator = Navigator.of(context, rootNavigator: true);
 
+  // Opening a piece silences any teaser audition (change:
+  // add-score-daily-access-rewards): the clip and the synth share the engine.
+  unawaited(ref.read(scorePreviewPlaybackProvider.notifier).stop());
   ref.read(selectedScoreProvider.notifier).select(entry);
 
   final completer = Completer<bool>();

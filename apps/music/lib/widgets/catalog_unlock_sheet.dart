@@ -17,15 +17,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../analytics/usage_actions.dart';
 import '../l10n/gen/app_localizations.dart';
 import '../services/catalog_access_state.dart';
-import '../services/score_preview_service.dart';
 import '../state/catalog_daily_access_notifier.dart';
 import '../state/score_catalog.dart';
-import '../state/usage_tracking_notifier.dart';
+import '../state/score_preview_playback.dart';
 import '../theme/cymbra_theme.dart';
-import 'app_snackbar.dart';
 
 /// The unlock flow of a catalog piece refused by the daily quota (change:
 /// add-score-daily-access-rewards, design D8): a bottom sheet naming the piece,
@@ -56,58 +53,28 @@ class _CatalogUnlockSheet extends ConsumerStatefulWidget {
 }
 
 class _CatalogUnlockSheetState extends ConsumerState<_CatalogUnlockSheet> {
-  bool _playing = false;
-  bool _noPreview = false;
-  late final ScorePreviewService _preview;
+  late final ScorePreviewPlayback _playback;
 
   @override
   void initState() {
     super.initState();
     // Resolved once so `dispose` never touches `ref` (riverpod_lint rule).
-    _preview = ref.read(scorePreviewServiceProvider);
+    _playback = ref.read(scorePreviewPlaybackProvider.notifier);
   }
 
   @override
   void dispose() {
     // Stop the teaser when the sheet goes away (fire-and-forget).
-    unawaited(_preview.stop());
+    unawaited(_playback.stop());
     super.dispose();
   }
 
-  Future<void> _toggleAudition() async {
-    final entry = widget.entry;
-    final catalogId = entry.catalogId;
+  void _toggleAudition() {
+    final catalogId = widget.entry.catalogId;
     if (catalogId == null) return;
-    final l10n = AppLocalizations.of(context);
-    final messenger = ScaffoldMessenger.of(context);
-    final service = _preview;
-    if (_playing) {
-      await service.stop();
-      if (mounted) setState(() => _playing = false);
-      return;
-    }
-    setState(() => _playing = true);
-    unawaited(
-      ref
-          .read(usageTrackingNotifierProvider.notifier)
-          .record(UsageActions.catalogPreviewAudition, subjectId: catalogId),
-    );
-    try {
-      final played = await service.audition(catalogId);
-      if (!mounted) return;
-      if (!played) {
-        // No teaser rendered yet: grey the control rather than erroring.
-        setState(() {
-          _playing = false;
-          _noPreview = true;
-        });
-      }
-    } catch (e) {
-      debugPrint('score preview audition failed for $catalogId: $e');
-      if (!mounted) return;
-      setState(() => _playing = false);
-      showAppSnackBar(messenger, l10n.catalogPreviewFailed);
-    }
+    // Fire-and-observe: playing/loading/missing/failure are state; the failure
+    // snackbar lives in the library listeners.
+    unawaited(_playback.toggle(catalogId));
   }
 
   void _confirmUnlock() {
@@ -122,7 +89,11 @@ class _CatalogUnlockSheetState extends ConsumerState<_CatalogUnlockSheet> {
     final entry = widget.entry;
     final access = ref.watch(catalogDailyAccessProvider).valueOrNull;
     final busy = ref.watch(catalogUnlockProvider.select((s) => s.busy));
-    final canListen = entry.hasPreview && !_noPreview;
+    final catalogId = entry.catalogId ?? '';
+    final playback = ref.watch(scorePreviewPlaybackProvider);
+    final playing = playback.playingId == catalogId;
+    final loading = playback.loadingId == catalogId;
+    final canListen = entry.hasPreview && !playback.missing.contains(catalogId);
     final cost = access?.daySlotCost ?? 0;
     final balance = access?.spendableBalance ?? 0;
     final affordable = access?.canAffordDaySlot ?? false;
@@ -160,11 +131,16 @@ class _CatalogUnlockSheetState extends ConsumerState<_CatalogUnlockSheet> {
             OutlinedButton.icon(
               key: const Key('catalog-unlock-listen'),
               onPressed: canListen ? _toggleAudition : null,
-              icon: Icon(_playing ? Icons.stop : Icons.play_arrow),
+              icon: loading
+                  ? const SizedBox.square(
+                      dimension: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Icon(playing ? Icons.stop : Icons.play_arrow),
               label: Text(
                 !canListen
                     ? l10n.catalogUnlockListenUnavailable
-                    : _playing
+                    : playing || loading
                     ? l10n.catalogUnlockStop
                     : l10n.catalogUnlockListen,
               ),

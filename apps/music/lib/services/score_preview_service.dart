@@ -12,12 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:typed_data';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import 'grpc_client.dart';
-import 'sound_clip_player.dart';
 import 'soundfont_source.dart' show soundFontDeliveryOrigin;
 import 'token_store.dart';
 
@@ -25,7 +26,7 @@ part 'score_preview_service.g.dart';
 
 /// Thrown when a score teaser can't be fetched for a reason other than "absent" —
 /// a network/backend fault. A *missing* teaser (HTTP 404) is NOT an error:
-/// [audition] returns `false` so the caller greys the control.
+/// [ScorePreviewService.fetchClip] returns `null` so the caller greys the control.
 class ScorePreviewException implements Exception {
   const ScorePreviewException(this.message);
   final String message;
@@ -34,33 +35,29 @@ class ScorePreviewException implements Exception {
   String toString() => 'ScorePreviewException: $message';
 }
 
-/// Auditions a **locked** catalog piece by fetching its server-rendered audio
-/// teaser (`GET /scores/{id}/preview`) and playing it (change:
-/// add-score-daily-access-rewards, design D8) — the twin of the SoundFont preview
-/// service: the piece's MusicXML is never delivered to audition it. Behind a
-/// provider so the unlock flow is testable with a fake (no network, no audio).
+/// Fetches a catalog piece's server-rendered audio teaser
+/// (`GET /scores/{id}/preview`, change: add-score-daily-access-rewards, design
+/// D8) — the twin of the SoundFont preview service: the piece's MusicXML is never
+/// delivered to audition it. Playback belongs to `ScorePreviewPlayback` (one clip
+/// at a time, played once). Behind a provider so the cards and the unlock sheet
+/// are testable with a fake (no network).
 abstract class ScorePreviewService {
-  /// Fetch + play [catalogId]'s teaser. Returns `true` when one exists and playback
-  /// started, `false` when none exists yet (404) — the caller greys the control.
-  /// Throws [ScorePreviewException] on any other failure.
-  Future<bool> audition(String catalogId);
-
-  /// Stop any current teaser playback.
-  Future<void> stop();
+  /// The WAV bytes of [catalogId]'s teaser, or `null` when none exists yet (404)
+  /// — the caller greys the control. Throws [ScorePreviewException] on any other
+  /// failure.
+  Future<Uint8List?> fetchClip(String catalogId);
 }
 
-/// Production [ScorePreviewService]: authenticated fetch of the teaser object,
-/// played through the injectable [SoundClipPlayer].
+/// Production [ScorePreviewService]: authenticated fetch of the teaser object.
 class ScorePreviewServiceImpl implements ScorePreviewService {
-  ScorePreviewServiceImpl(this._ref, this._player, {http.Client? client})
+  ScorePreviewServiceImpl(this._ref, {http.Client? client})
     : _client = client ?? http.Client();
 
   final Ref _ref;
-  final SoundClipPlayer _player;
   final http.Client _client;
 
   @override
-  Future<bool> audition(String catalogId) async {
+  Future<Uint8List?> fetchClip(String catalogId) async {
     final ep = _ref.read(cymbraEndpointProvider);
     // The score-preview route lives on the same HTTP origin as the SoundFont
     // delivery/preview routes.
@@ -81,21 +78,17 @@ class ScorePreviewServiceImpl implements ScorePreviewService {
     } catch (e) {
       throw ScorePreviewException('fetch $catalogId preview: $e');
     }
-    if (resp.statusCode == 404) return false;
+    if (resp.statusCode == 404) return null;
     if (resp.statusCode != 200) {
       throw ScorePreviewException(
         'preview $catalogId: HTTP ${resp.statusCode}',
       );
     }
-    await _player.play(resp.bodyBytes);
-    return true;
+    return resp.bodyBytes;
   }
-
-  @override
-  Future<void> stop() => _player.stop();
 }
 
 /// Production score-preview provider. Override in tests with a fake.
 @riverpod
 ScorePreviewService scorePreviewService(Ref ref) =>
-    ScorePreviewServiceImpl(ref, ref.read(soundClipPlayerProvider));
+    ScorePreviewServiceImpl(ref);

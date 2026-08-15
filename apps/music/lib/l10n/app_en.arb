@@ -2805,5 +2805,9 @@
   "catalogPreviewFailed": "The excerpt could not be played",
   "@catalogPreviewFailed": {"description": "Snackbar when the audio excerpt could not be fetched/played."},
   "rewardActivityDaySlot": "Piece unlocked for a day",
-  "@rewardActivityDaySlot": {"description": "Activity-feed label of a points spend on a one-day catalog piece unlock (ledger reward key score_day_slot)."}
+  "@rewardActivityDaySlot": {"description": "Activity-feed label of a points spend on a one-day catalog piece unlock (ledger reward key score_day_slot)."},
+  "catalogPreviewPlay": "Excerpt",
+  "@catalogPreviewPlay": {"description": "Card pill: play the piece's server-rendered audio excerpt (never consumes a free open)."},
+  "catalogPreviewStop": "Stop",
+  "@catalogPreviewStop": {"description": "Card pill while the excerpt plays: stop it."}
 }

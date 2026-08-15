@@ -691,5 +691,7 @@
   "catalogUnlockInsufficient": "Punti insufficienti per sbloccare questo brano",
   "catalogUnlockFailed": "Impossibile sbloccare questo brano",
   "catalogPreviewFailed": "Impossibile riprodurre l'estratto",
-  "rewardActivityDaySlot": "Brano sbloccato per un giorno"
+  "rewardActivityDaySlot": "Brano sbloccato per un giorno",
+  "catalogPreviewPlay": "Estratto",
+  "catalogPreviewStop": "Stop"
 }
