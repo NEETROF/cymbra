@@ -74,9 +74,12 @@ impl ScorePreviewConfigSource for FixedScorePreviewConfig {
 
 /// Convert a playback schedule into the bounded teaser sequence.
 ///
-/// - Notes are taken in onset order and every note whose onset falls before the
-///   sounding bound (`max_ms - RELEASE_MS`) is kept; a held note is truncated at
-///   that bound, so no note sounds past it.
+/// - The clip **starts at the first sounding note**: every onset is shifted by the
+///   earliest one, so leading rests / an empty pickup bar are skipped and the
+///   bounded window is spent on music, not silence.
+/// - Notes are taken in onset order and every note whose (shifted) onset falls
+///   before the sounding bound (`max_ms - RELEASE_MS`) is kept; a held note is
+///   truncated at that bound, so no note sounds past it.
 /// - A repeated pitch is cut at the next onset of the same pitch (the synth loop
 ///   pairs note-on/note-off by pitch), so overlapping repeats do not swallow each
 ///   other's note-off.
@@ -94,16 +97,25 @@ pub fn preview_sequence(schedule: &PlaybackSchedule, max_ms: u32) -> SampleSeque
             total_ms: 0,
         };
     }
+    // Skip the leading silence: the teaser starts on the first pitched note.
+    let first_onset = schedule
+        .notes
+        .iter()
+        .filter(|n| n.duration_ms > 0 && (0..=127).contains(&n.midi))
+        .map(|n| n.onset_ms)
+        .min()
+        .unwrap_or(0);
     let mut timed: Vec<(u32, u32, u8)> = schedule
         .notes
         .iter()
-        .filter(|n| n.onset_ms < bound && n.duration_ms > 0)
+        .filter(|n| n.duration_ms > 0)
         .filter_map(|n| {
             u8::try_from(n.midi)
                 .ok()
                 .filter(|p| *p <= 127)
-                .map(|p| (n.onset_ms, n.duration_ms, p))
+                .map(|p| (n.onset_ms - first_onset, n.duration_ms, p))
         })
+        .filter(|(onset, _, _)| *onset < bound)
         .collect();
     timed.sort_by_key(|(onset, _, pitch)| (*onset, *pitch));
     let mut notes: Vec<Note> = Vec::with_capacity(timed.len());
@@ -215,6 +227,25 @@ mod tests {
         let seq2 = preview_sequence(&s, 500);
         assert_eq!(seq2.total_ms, 500);
         assert_eq!(seq2.notes[0].duration_ms, 200);
+    }
+
+    #[test]
+    fn leading_silence_is_skipped_so_the_clip_starts_on_the_first_note() {
+        // Three bars of rest, then music at 3000 ms: the teaser starts at 0.
+        let s = sched(vec![
+            tn(60, 3000, 500),
+            tn(64, 3500, 500),
+            tn(67, 4000, 500),
+        ]);
+        let seq = preview_sequence(&s, 30_000);
+        assert_eq!(seq.notes[0].start_ms, 0);
+        assert_eq!(seq.notes[1].start_ms, 500);
+        assert_eq!(seq.notes[2].start_ms, 1000);
+        assert_eq!(seq.total_ms, 1500 + RELEASE_MS);
+        // The bound is spent on music: with a 1.3 s window only the first two
+        // (shifted) notes fit, not zero notes.
+        let short = preview_sequence(&s, 1_300);
+        assert_eq!(short.notes.len(), 2);
     }
 
     #[test]

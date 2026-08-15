@@ -6,8 +6,9 @@ The server SHALL enqueue a preview-render job when a catalog score is **accepted
 (the moderation transition that makes it playable), **in the same transaction** as
 the status change (the job exists iff the acceptance commits). The job SHALL render
 a short **audio-only** clip by taking the piece's playback schedule from the shared
-MusicXML crate (the same note timing the app uses), clipping it to a bounded duration
-(a runtime-configurable maximum, held notes truncated at the boundary), synthesizing it
+MusicXML crate (the same note timing the app uses), **starting at the first sounding
+note** (leading rests / an empty pickup are skipped) and clipping it to a bounded
+duration (a runtime-configurable maximum, held notes truncated at the boundary), synthesizing it
 with a **configured default catalog SoundFont** through the backend headless render
 engine, and storing the clip as an object beside the score bytes under a score-preview
 key distinct from the MusicXML. On success it SHALL stamp a **rendered marker** on the
@@ -32,6 +33,10 @@ previews absent (feature dormant), never fail the acceptance.
 #### Scenario: Sequence is bounded and deterministic
 - **WHEN** the same schedule is converted twice with the same maximum duration
 - **THEN** both sequences are identical, end at or before the maximum, and contain no note starting after it
+
+#### Scenario: The clip starts on the first note
+- **WHEN** a piece opens with rests (or a silent pickup bar) before its first note
+- **THEN** the teaser's first sounding note is at its very start and the bounded window is spent on music, not silence
 
 ### Requirement: Back-office preview regeneration
 
