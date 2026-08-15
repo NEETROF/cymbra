@@ -27,7 +27,7 @@
 //! in-memory fake mirrors the same all-or-nothing semantics (including the
 //! balance re-check) so the module's tests prove the rule without a database.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Mutex;
 
 use async_trait::async_trait;
@@ -38,6 +38,19 @@ use crate::streak_core::{ReminderCandidate, StreakState};
 /// The ledger `reward_key` a streak freeze is recorded under, so a spend is
 /// identifiable in the activity feed (and never confused with a shop redemption).
 pub const FREEZE_REWARD_KEY: &str = "streak_freeze";
+
+/// The ledger **idempotency key** for a freeze on `day` — the same
+/// `<kind>:<discriminator>` shape the play awards use (change: add-play-rewards).
+///
+/// A user can only ever pay for one freeze per local day: a granted recovery
+/// stamps `last_played_date = today`, after which the streak reads as intact and
+/// the module refuses a second one. Encoding that invariant in the key hands it to
+/// the unique index `curation_points_award_key_once_idx`, which is the only guard
+/// that survives two confirmations racing each other — the balance re-check under
+/// the row lock stops an overdraft, not a double charge.
+pub fn freeze_award_key(day: chrono::NaiveDate) -> String {
+    format!("{FREEZE_REWARD_KEY}:{day}")
+}
 
 /// Storage surface for the practice streak. Keyed by the plain `user_id` string
 /// (no cross-schema FK), like every other music-module port.
@@ -54,14 +67,18 @@ pub trait StreakRepo: Send + Sync {
     /// what the freeze is paid from.
     async fn spendable_points(&self, user_id: &str) -> Result<i64>;
 
-    /// Charge `cost` points and write `state`, atomically. Returns `false` (and
-    /// writes NOTHING) when the balance no longer covers the cost — the
-    /// last-moment re-check that makes a concurrent double-submit charge once.
+    /// Charge `cost` points under `award_key` and write `state`, atomically.
+    ///
+    /// Returns `false` (and writes NOTHING) when the balance no longer covers the
+    /// cost. Charging is **idempotent on `award_key`**: a second call for the same
+    /// key restores the streak but does not debit again, so two confirmations
+    /// racing each other cost the user one freeze, not two.
     async fn spend_and_restore(
         &self,
         user_id: &str,
         state: &StreakState,
         cost: i64,
+        award_key: &str,
     ) -> Result<bool>;
 
     /// Every user with a live streak (`current_streak > 0`), with the account's
@@ -80,11 +97,14 @@ struct FakeState {
     balances: HashMap<String, i64>,
     /// Freeze debits appended, newest last: `(user_id, cost)`.
     debits: Vec<(String, i64)>,
+    /// Award keys already charged — the fake's stand-in for the ledger's partial
+    /// unique index on `(user_id, award_key)`.
+    charged: HashSet<(String, String)>,
 }
 
 /// In-memory [`StreakRepo`] for module tests (no Postgres). Mirrors the adapter's
 /// atomic spend semantics: an unaffordable freeze writes neither the debit nor
-/// the streak.
+/// the streak, and a repeated award key restores without charging twice.
 #[derive(Default)]
 pub struct FakeStreakRepo {
     state: Mutex<FakeState>,
@@ -172,12 +192,21 @@ impl StreakRepo for FakeStreakRepo {
         user_id: &str,
         state: &StreakState,
         cost: i64,
+        award_key: &str,
     ) -> Result<bool> {
         let mut st = self.state.lock().expect("streak fake lock");
+        let key = (user_id.to_string(), award_key.to_string());
+        // Already charged under this key (the unique index's job): restore, but
+        // never debit a second time.
+        if st.charged.contains(&key) {
+            st.streaks.insert(user_id.to_string(), *state);
+            return Ok(true);
+        }
         let balance = st.balances.get(user_id).copied().unwrap_or(0);
         if balance < cost {
             return Ok(false); // all-or-nothing: nothing written
         }
+        st.charged.insert(key);
         st.balances.insert(user_id.to_string(), balance - cost);
         st.debits.push((user_id.to_string(), cost));
         st.streaks.insert(user_id.to_string(), *state);

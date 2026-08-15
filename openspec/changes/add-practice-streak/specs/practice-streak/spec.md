@@ -76,7 +76,9 @@ A missed day SHALL break the streak unless the user restores it by spending poin
 window after a break, the app SHALL offer to recover the pre-break streak for a
 (flag-configured) point cost. On confirmation the server SHALL atomically write a
 points ledger debit and restore `current_streak`, setting `last_played_date` to
-today; it SHALL reject if the balance is insufficient. Beyond the grace window the
+today; it SHALL reject if the balance is insufficient. A freeze SHALL be charged
+AT MOST ONCE per user per local day, enforced by the ledger's idempotency key
+rather than by the read-then-write decision alone. Beyond the grace window the
 streak SHALL NOT be recoverable.
 
 #### Scenario: Recover within the grace window
@@ -90,6 +92,10 @@ streak SHALL NOT be recoverable.
 #### Scenario: Insufficient balance is refused
 - **WHEN** a user tries to recover but lacks the required points
 - **THEN** no debit is written and the streak stays broken
+
+#### Scenario: Two confirmations of the same day charge once
+- **WHEN** two recovery confirmations for the same local day reach the server at once
+- **THEN** exactly one points debit is written and the streak is restored
 
 #### Scenario: Beyond the grace window there is no recovery
 - **WHEN** the grace window has elapsed since the break

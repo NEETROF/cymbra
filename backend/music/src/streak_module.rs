@@ -32,7 +32,7 @@ use chrono::{DateTime, NaiveDate, Utc};
 use cymbra_platform::{AppError, Result};
 
 use crate::play_core::local_day;
-use crate::streak::StreakRepo;
+use crate::streak::{StreakRepo, freeze_award_key};
 use crate::streak_core::{
     RecoverDecision, ReminderGroup, StreakConfig, StreakState, advance, at_risk_user_ids,
     recover_decision, recovered, reminder_groups,
@@ -174,9 +174,13 @@ impl StreakModule {
             }
         };
         let restored = recovered(&state, today);
+        // One freeze per local day, enforced in the LEDGER and not only by the
+        // decision above: a granted recovery stamps `last_played_date = today`, so
+        // a second one can never be legitimate — but two confirmations racing each
+        // other would both pass that decision and both charge.
         if !self
             .repo
-            .spend_and_restore(user_id, &restored, cost)
+            .spend_and_restore(user_id, &restored, cost, &freeze_award_key(today))
             .await?
         {
             // The balance moved between the decision and the charge (a parallel
@@ -321,6 +325,51 @@ mod tests {
             },
         );
         repo.seed_balance("u1", 100);
+    }
+
+    #[tokio::test]
+    async fn two_confirmations_of_the_same_day_charge_once() {
+        // The race the ledger's award key exists for: both callers read a broken
+        // streak and pass the decision (the row lock only re-checks the BALANCE,
+        // which is ample), so without the key each would append its own debit and
+        // the user would pay twice for one restored streak.
+        let repo = Arc::new(FakeStreakRepo::default());
+        broken_user(&repo);
+        let today = ymd(2026, 8, 14);
+        let restored = crate::streak_core::recovered(&repo.get("u1").await.unwrap(), today);
+        let key = crate::streak::freeze_award_key(today);
+        assert!(
+            repo.spend_and_restore("u1", &restored, 30, &key)
+                .await
+                .unwrap()
+        );
+        assert!(
+            repo.spend_and_restore("u1", &restored, 30, &key)
+                .await
+                .unwrap(),
+            "a repeat is a success, not a refusal — the streak IS restored"
+        );
+        assert_eq!(repo.debits(), vec![("u1".to_string(), 30)]);
+        assert_eq!(repo.spendable_points("u1").await.unwrap(), 70);
+    }
+
+    #[tokio::test]
+    async fn a_freeze_on_another_day_is_charged_again() {
+        // The key is per local day, not per user: a streak broken and recovered
+        // again next week must cost its points like any other.
+        let repo = Arc::new(FakeStreakRepo::default());
+        broken_user(&repo);
+        let state = repo.get("u1").await.unwrap();
+        for day in [ymd(2026, 8, 14), ymd(2026, 8, 21)] {
+            let restored = crate::streak_core::recovered(&state, day);
+            assert!(
+                repo.spend_and_restore("u1", &restored, 30, &crate::streak::freeze_award_key(day))
+                    .await
+                    .unwrap()
+            );
+        }
+        assert_eq!(repo.debits().len(), 2);
+        assert_eq!(repo.spendable_points("u1").await.unwrap(), 40);
     }
 
     #[tokio::test]

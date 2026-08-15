@@ -110,6 +110,7 @@ impl StreakRepo for PgStreakRepo {
         user_id: &str,
         state: &StreakState,
         cost: i64,
+        award_key: &str,
     ) -> Result<bool> {
         let uid = parse_uuid(user_id, "user id")?;
         let mut tx = self.pool.begin().await.map_err(internal)?;
@@ -132,13 +133,24 @@ impl StreakRepo for PgStreakRepo {
             // Nothing written; the transaction is dropped without committing.
             return Ok(false);
         }
+        // `DO NOTHING` against the partial unique index on (user_id, award_key)
+        // (change: add-play-rewards): the SECOND confirmation of the same day's
+        // freeze writes no row. The row lock above only re-checks the balance, so
+        // without this key two racing confirmations would each pass the check and
+        // charge the user twice for one restored streak. The index predicate is
+        // repeated because Postgres infers a partial index only from a matching
+        // one. A conflict is not an error: the streak restore below still runs,
+        // which makes the whole operation idempotent per local day.
         sqlx::query(
-            "INSERT INTO music.curation_points (user_id, award_kind, amount, reward_key) \
-             VALUES ($1, 'redeem', $2, $3)",
+            "INSERT INTO music.curation_points \
+             (user_id, award_kind, amount, reward_key, award_key) \
+             VALUES ($1, 'redeem', $2, $3, $4) \
+             ON CONFLICT (user_id, award_key) WHERE award_key IS NOT NULL DO NOTHING",
         )
         .bind(uid)
         .bind(-(cost as i32))
         .bind(FREEZE_REWARD_KEY)
+        .bind(award_key)
         .execute(&mut *tx)
         .await
         .map_err(internal)?;
