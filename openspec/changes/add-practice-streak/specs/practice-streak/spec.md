@@ -3,10 +3,14 @@
 ### Requirement: Server-tracked consecutive-day streak
 
 The server SHALL maintain, per user, a `current_streak`, a `longest_streak`, and a
-`last_played_date`, advanced on the `RecordPlaySession` path using the caller's
-**client-offset local date** (the same day convention as play activity). A second
-play on the **same** local day SHALL NOT change the streak; a play on the **next**
-day SHALL increment it; a play after a **gap** SHALL reset the current run to 1.
+`last_played_date`, advanced on **both** the `RecordPlaySession` and
+`RecordPractice` paths using the caller's **client-offset local date** (the same
+day convention as play activity). A day counts when the user either played a
+scored run **or** practised a passage: the streak measures showing up at the
+keyboard, matching the activity heatmap and the consistency badges, and never
+punishes the player on the day they worked hardest. A second activity on the
+**same** local day SHALL NOT change the streak; an activity on the **next** day
+SHALL increment it; an activity after a **gap** SHALL reset the current run to 1.
 `longest_streak` SHALL never decrease. The server is the source of truth; the client
 displays but does not compute the streak.
 
@@ -14,9 +18,17 @@ displays but does not compute the streak.
 - **WHEN** a user records their first-ever play
 - **THEN** current_streak = 1 and longest_streak = 1
 
+#### Scenario: Practice alone secures the day
+- **WHEN** a user records only a practice session (an unscored selective run) on a day
+- **THEN** the streak advances exactly as a scored run would
+
 #### Scenario: Same-day replay does not advance
 - **WHEN** a user records a second play on the same local day
 - **THEN** current_streak is unchanged
+
+#### Scenario: A practice and a play on the same day count once
+- **WHEN** a user practises a passage and then plays the piece through on the same local day
+- **THEN** current_streak advances by one day in total, not two
 
 #### Scenario: Next-day play increments
 - **WHEN** a user plays on the day after last_played_date
@@ -25,6 +37,22 @@ displays but does not compute the streak.
 #### Scenario: A gap resets the run
 - **WHEN** a user plays after skipping one or more whole days (without a freeze)
 - **THEN** current_streak resets to 1 while longest_streak is retained
+
+### Requirement: A practice reaches the server without a clean ending
+
+A practice session SHALL be captured into the client's durable outbox as soon as
+it becomes countable (its first sounded onset), not when it ends. A session that
+never gets a clean ending — the app killed mid-loop, the device dying — SHALL
+still be delivered. Capture SHALL remain once per practice session, never per
+lap, so looping cannot inflate the day's activity.
+
+#### Scenario: An interrupted practice still counts
+- **WHEN** a user drills a passage and the app is killed without the range ever being closed
+- **THEN** the practice record is already durable and is delivered on the next drain
+
+#### Scenario: Looping does not multiply records
+- **WHEN** a practice session loops several times
+- **THEN** exactly one practice record exists for that session
 
 ### Requirement: Streak shown in the app-bar standing chip
 
@@ -48,7 +76,9 @@ A missed day SHALL break the streak unless the user restores it by spending poin
 window after a break, the app SHALL offer to recover the pre-break streak for a
 (flag-configured) point cost. On confirmation the server SHALL atomically write a
 points ledger debit and restore `current_streak`, setting `last_played_date` to
-today; it SHALL reject if the balance is insufficient. Beyond the grace window the
+today; it SHALL reject if the balance is insufficient. A freeze SHALL be charged
+AT MOST ONCE per user per local day, enforced by the ledger's idempotency key
+rather than by the read-then-write decision alone. Beyond the grace window the
 streak SHALL NOT be recoverable.
 
 #### Scenario: Recover within the grace window
@@ -62,6 +92,10 @@ streak SHALL NOT be recoverable.
 #### Scenario: Insufficient balance is refused
 - **WHEN** a user tries to recover but lacks the required points
 - **THEN** no debit is written and the streak stays broken
+
+#### Scenario: Two confirmations of the same day charge once
+- **WHEN** two recovery confirmations for the same local day reach the server at once
+- **THEN** exactly one points debit is written and the streak is restored
 
 #### Scenario: Beyond the grace window there is no recovery
 - **WHEN** the grace window has elapsed since the break
@@ -89,16 +123,18 @@ SHALL keep the in-app streak cue.
 - **WHEN** an admin changes the reminder-hour flag
 - **THEN** subsequent sends use the new local hour without a deploy
 
-### Requirement: Practice-streak badges
+### Requirement: One definition of a streak across the app
 
-A `PracticeStreak` badge family SHALL be added to the badge catalogue, earned against
-`longest_streak` at defined day thresholds (e.g. 7 / 30 / 100). Streak badges SHALL
-be earned and durable like all badges (never revoked).
+This capability SHALL count a streak day exactly as the `Consistency` badge family
+does: a local day on which the user played **or** practised. It SHALL NOT declare a
+badge family of its own — the achievement registry already declares the streak
+badges and derives its own `longest_streak` from the session tables — so the chip,
+the heatmap and the badge grid never disagree about what a day of activity is.
 
-#### Scenario: Reaching a streak threshold earns the badge
-- **WHEN** a user's longest_streak reaches a streak badge threshold
-- **THEN** that badge is earned and shown on the profile badge grid
+#### Scenario: The chip and the badge agree on a practice-only day
+- **WHEN** a user practises (but does not play) on a day
+- **THEN** both the app-bar streak and the consistency badge counter treat that day as active
 
-#### Scenario: A later drop does not revoke it
-- **WHEN** the user's current streak later falls below the threshold
-- **THEN** the earned streak badge is retained
+#### Scenario: No duplicate streak badge is declared here
+- **WHEN** the badge grid is rendered
+- **THEN** the streak badges shown are the registry's, declared exactly once

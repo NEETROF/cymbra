@@ -42,7 +42,19 @@ fn advance(state, today) -> StreakState
 ```
 `today` is the client-offset local date (reuse `play_core`). Pure and unit-tested
 (same-day no-op, consecutive increment, gap reset, longest tracking). Called inside
-`RecordPlaySession`; the DB read/write is excluded glue.
+**both** `RecordPlaySession` and `RecordPractice`; the DB read/write is excluded
+glue.
+
+**A practice day counts.** A selective (measure-range) run is never scored, so it
+arrives on the practice path — but the streak asks "did you sit down at the
+keyboard", not "did you produce a grade". Counting only scored runs would break the
+streak of the player who spent the evening drilling the hardest bar of the piece,
+which is the exact opposite of the habit this mechanic exists to build. It also
+keeps three surfaces telling one story: the activity heatmap already colours a
+practice-only day as active, and the `Consistency` badge family
+(`add-achievement-badges`) measures its `longest_streak` over the union of play and
+practice days. `advance` is a same-day no-op, so practising and then playing the
+piece through is one day, not two.
 
 ### 2. Freeze = confirmed points spend within a grace window
 A missed day breaks the streak. Recovery is **user-initiated and confirmed** — never

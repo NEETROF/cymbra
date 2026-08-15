@@ -47,6 +47,14 @@ pub const REWARDS_POINTS_BANDS: &str = "rewards.points.bands";
 pub const REWARDS_LEVELS: &str = "rewards.levels";
 pub const REWARDS_SHOP_COSTS: &str = "rewards.shop.costs";
 pub const LEADERBOARD_GLOBAL_BEST_N: &str = "leaderboard.global.best_n";
+/// Points a confirmed practice-streak freeze costs (change: add-practice-streak,
+/// task 2.1). Read per call by the streak module, so retuning the price in the
+/// back office changes the next offer with no redeploy.
+pub const STREAK_FREEZE_COST: &str = "streak.freeze_cost";
+/// How many MISSED days a broken practice streak may still be recovered from
+/// (change: add-practice-streak). `1` = "you can buy back yesterday's break
+/// today"; `0` disables recovery entirely.
+pub const STREAK_GRACE_DAYS: &str = "streak.grace_days";
 pub const LEADERBOARD_DIFFICULTY_WEIGHTS: &str = "leaderboard.difficulty_weights";
 pub const LEADERBOARD_SEASON_LENGTH_DAYS: &str = "leaderboard.season.length_days";
 
@@ -100,6 +108,13 @@ pub fn category_hour_key(category: &str) -> String {
 pub fn category_foreground_key(category: &str) -> String {
     format!("{NOTIFICATIONS_KEY_PREFIX}category.{category}.foreground")
 }
+
+/// The category id of the evening practice-streak reminder (change:
+/// add-practice-streak, task 3.1) — the first concrete notification type on this
+/// platform. Its three keys are declared as literals in [`builtin`] (the
+/// declaration table needs `'static` names); a test pins them to the builders
+/// above so the two can never drift.
+pub const CATEGORY_PRACTICE_STREAK: &str = "practice_streak";
 
 /// A single declared key.
 #[derive(Debug, Clone, PartialEq)]
@@ -232,6 +247,32 @@ pub fn builtin() -> Vec<KeyDef> {
             false,
             "Global push-notification kill-switch: off suppresses every category's sends.",
         ),
+        // The practice-streak reminder category (change: add-practice-streak,
+        // task 3.1). Declared under APP_ALL: these are server-side SEND
+        // configuration, evaluated by the worker, which has no app context.
+        // Enabling it is deliberately a back-office act — merging this code
+        // messages nobody.
+        flag(
+            "notifications.category.practice_streak.enabled",
+            APP_ALL,
+            false,
+            false,
+            "Evening reminder to players whose practice streak is about to break.",
+        ),
+        cfg(
+            "notifications.category.practice_streak.hour",
+            APP_ALL,
+            FlagValue::Int(20),
+            false,
+            "Local hour (0-23) the practice-streak reminder fires for each player.",
+        ),
+        flag(
+            "notifications.category.practice_streak.foreground",
+            APP_ALL,
+            false,
+            false,
+            "Surface the streak reminder in-app when it arrives with the app open.",
+        ),
         // -- config tunables --
         cfg(
             RATING_REVIEW_MIN_VOTES,
@@ -295,6 +336,20 @@ pub fn builtin() -> Vec<KeyDef> {
             FlagValue::Int(90),
             false,
             "Length of a leaderboard season in days.",
+        ),
+        cfg(
+            STREAK_FREEZE_COST,
+            APP_MUSIC,
+            FlagValue::Int(30),
+            false,
+            "Points a confirmed practice-streak freeze costs.",
+        ),
+        cfg(
+            STREAK_GRACE_DAYS,
+            APP_MUSIC,
+            FlagValue::Int(1),
+            false,
+            "Missed days a broken practice streak may still be recovered from (0 disables recovery).",
         ),
         // -- sensitive legal/infra values --
         cfg(
@@ -431,16 +486,63 @@ mod tests {
     }
 
     #[test]
-    fn no_concrete_notification_category_ships_with_the_platform() {
-        // The platform declares the kill-switch only; a category's two keys are
-        // added by the feature that owns the type (design D6).
-        let category_keys: Vec<_> = builtin()
+    fn every_declared_category_is_owned_by_a_feature() {
+        // The platform itself declares only the kill-switch; each category's three
+        // keys come from the feature that owns the type (design D6). Today the
+        // only such feature is the practice-streak reminder — this pins the set so
+        // a stray `notifications.category.*` key cannot appear unowned.
+        let declared: Vec<&str> = builtin()
             .into_iter()
             .filter(|d| d.key.starts_with("notifications.category."))
+            .map(|d| d.key)
             .collect();
-        assert!(
-            category_keys.is_empty(),
-            "platform must ship no concrete category: {category_keys:?}"
+        let expected = [
+            category_enabled_key(CATEGORY_PRACTICE_STREAK),
+            category_hour_key(CATEGORY_PRACTICE_STREAK),
+            category_foreground_key(CATEGORY_PRACTICE_STREAK),
+        ];
+        assert_eq!(declared.len(), expected.len(), "declared: {declared:?}");
+        for key in expected {
+            assert!(declared.contains(&key.as_str()), "missing {key}");
+        }
+    }
+
+    #[test]
+    fn the_streak_reminder_category_ships_silent_but_scheduled() {
+        let r = Registry::default();
+        // Enabling a category that messages real users is a back-office act.
+        for key in [
+            category_enabled_key(CATEGORY_PRACTICE_STREAK),
+            category_foreground_key(CATEGORY_PRACTICE_STREAK),
+        ] {
+            assert_eq!(
+                r.get_by_key(&key).unwrap().default,
+                FlagValue::Bool(false),
+                "{key} must default off"
+            );
+        }
+        // ...but the hour is pre-set to a sensible evening slot, so turning the
+        // category on is the only decision an operator has to make.
+        assert_eq!(
+            r.get_by_key(&category_hour_key(CATEGORY_PRACTICE_STREAK))
+                .unwrap()
+                .default,
+            FlagValue::Int(20)
+        );
+    }
+
+    #[test]
+    fn streak_freeze_tunables_have_the_designed_defaults() {
+        let r = Registry::default();
+        assert_eq!(
+            r.get(APP_MUSIC, STREAK_FREEZE_COST).unwrap().default,
+            FlagValue::Int(30)
+        );
+        // One missed day of grace: forgiving enough to rescue a slip, short
+        // enough that a streak still means something.
+        assert_eq!(
+            r.get(APP_MUSIC, STREAK_GRACE_DAYS).unwrap().default,
+            FlagValue::Int(1)
         );
     }
 

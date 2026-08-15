@@ -661,5 +661,14 @@
   "practiceTapHint": "Toca un comp\u00e1s en la partitura para fijar el pasaje",
   "practicePickStartBar": "Toca el primer compás del pasaje en la partitura",
   "practicePickEndBar": "Ahora toca el último compás",
-  "practiceStopLoop": "Detener el bucle"
+  "practiceStopLoop": "Detener el bucle",
+  "streakChipDays": "{days}",
+  "streakChipTooltip": "{days, plural, =0{Aún no tienes racha: toca o practica hoy para empezar una} =1{Racha de 1 día} other{Racha de {days} días}}",
+  "streakAtRiskNudge": "{days, plural, =1{Tu racha de 1 día termina esta noche: toca o practica para mantenerla} other{Tu racha de {days} días termina esta noche: toca o practica para mantenerla}}",
+  "streakRecoverTitle": "¿Recuperar tu racha?",
+  "streakRecoverBody": "{days, plural, =1{Tu racha de 1 día se ha roto. ¿Gastar {cost} puntos para recuperarla?} other{Tu racha de {days} días se ha roto. ¿Gastar {cost} puntos para recuperarla?}}",
+  "streakRecoverConfirm": "Gastar {cost} puntos",
+  "streakRecoverDismiss": "Esta vez no",
+  "streakRecovered": "{days, plural, =1{Tu racha de 1 día ha vuelto} other{Tu racha de {days} días ha vuelto}}",
+  "streakRecoverFailed": "No se ha podido recuperar tu racha"
 }

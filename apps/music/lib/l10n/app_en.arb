@@ -2736,5 +2736,23 @@
         "example": "Built-in Output"
       }
     }
-  }
+  },
+  "streakChipDays": "{days}",
+  "@streakChipDays": {"description": "Day count next to the flame in the standing chip.", "placeholders": {"days": {"type": "int"}}},
+  "streakChipTooltip": "{days, plural, =0{No practice streak yet — play or practise today to start one} =1{1-day practice streak} other{{days}-day practice streak}}",
+  "@streakChipTooltip": {"description": "Tooltip/semantics for the flame segment of the standing chip.", "placeholders": {"days": {"type": "int"}}},
+  "streakAtRiskNudge": "{days, plural, =1{Your 1-day streak ends tonight — play or practise to keep it} other{Your {days}-day streak ends tonight — play or practise to keep it}}",
+  "@streakAtRiskNudge": {"description": "In-app cue at launch for a live streak with no play today (the only reminder on platforms without push).", "placeholders": {"days": {"type": "int"}}},
+  "streakRecoverTitle": "Get your streak back?",
+  "@streakRecoverTitle": {"description": "Title of the confirmation offering to spend points to restore a broken streak."},
+  "streakRecoverBody": "{days, plural, =1{Your 1-day streak broke. Spend {cost} points to restore it?} other{Your {days}-day streak broke. Spend {cost} points to restore it?}}",
+  "@streakRecoverBody": {"description": "Body of the streak-recovery confirmation: what is restored and what it costs.", "placeholders": {"days": {"type": "int"}, "cost": {"type": "int"}}},
+  "streakRecoverConfirm": "Spend {cost} points",
+  "@streakRecoverConfirm": {"description": "Confirm action of the streak-recovery dialog. Names the cost so no spend is ambiguous.", "placeholders": {"cost": {"type": "int"}}},
+  "streakRecoverDismiss": "Not this time",
+  "@streakRecoverDismiss": {"description": "Dismiss action of the streak-recovery dialog. Nothing is spent."},
+  "streakRecovered": "{days, plural, =1{Your 1-day streak is back} other{Your {days}-day streak is back}}",
+  "@streakRecovered": {"description": "Confirmation shown after a successful streak recovery.", "placeholders": {"days": {"type": "int"}}},
+  "streakRecoverFailed": "Your streak could not be restored",
+  "@streakRecoverFailed": {"description": "Shown when the recovery is refused (grace window passed, or not enough points). Never shows the raw server error."}
 }

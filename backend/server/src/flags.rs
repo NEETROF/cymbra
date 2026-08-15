@@ -88,6 +88,45 @@ pub async fn build_flag_service(cfg: &Config, user_pool: PgPool) -> Result<Arc<F
     Ok(service)
 }
 
+/// Feature-flag-backed practice-streak configuration (change: add-practice-streak,
+/// task 2.1). Resolved on **every** call, so an operator retuning the freeze cost
+/// or the grace window in the back office changes the next offer without a
+/// redeploy — the L1 snapshot behind it is kept fresh by the refreshers below.
+///
+/// Reads are evaluation-only and never fail: an unreachable store serves the
+/// caller's defaults, which are the design's starting values.
+pub struct FlagStreakConfig {
+    flags: Arc<FlagService>,
+}
+
+impl FlagStreakConfig {
+    pub fn new(flags: Arc<FlagService>) -> Self {
+        Self { flags }
+    }
+}
+
+impl cymbra_music::StreakConfigSource for FlagStreakConfig {
+    fn streak_config(&self) -> cymbra_music::StreakConfig {
+        // The keys are `music`-scoped config, but the streak is evaluated
+        // server-side with no app context — an anonymous context resolves the
+        // global override, which is the only rollout these tunables use.
+        let ctx =
+            cymbra_feature_flags::EvalContext::anonymous(cymbra_feature_flags::registry::APP_MUSIC);
+        cymbra_music::StreakConfig {
+            freeze_cost: self.flags.int(
+                cymbra_feature_flags::registry::STREAK_FREEZE_COST,
+                cymbra_music::DEFAULT_FREEZE_COST,
+                &ctx,
+            ),
+            grace_days: self.flags.int(
+                cymbra_feature_flags::registry::STREAK_GRACE_DAYS,
+                cymbra_music::DEFAULT_GRACE_DAYS,
+                &ctx,
+            ),
+        }
+    }
+}
+
 /// Spawn the background refreshers: a TTL backstop tick and (when a store is
 /// configured) the Redis invalidation listener that refreshes L1 on each ping.
 pub fn spawn_flag_refreshers(cfg: &Config, service: Arc<FlagService>) {

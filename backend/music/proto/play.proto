@@ -73,8 +73,53 @@ message GetPlayActivityResponse {
   int32 total_practices = 3; // practice-sessions total across the returned window
 }
 
+// --- Practice streak (change: add-practice-streak) ---------------------------
+// The consecutive-day streak the server maintains on the play-record path, using
+// the SAME client-offset local day as the activity heatmap. The client displays
+// it; it never computes it. `tz_offset_minutes` on both RPCs is the caller's
+// current UTC offset, which is what "today" means for that caller.
+
+// The caller's streak as of their current local day.
+message GetStreakRequest {
+  int32 tz_offset_minutes = 1; // caller's current UTC offset (defines "today")
+}
+
+// One streak standing: the counters plus everything the app needs to decide what
+// to render — the chip value, an at-risk cue, and the recovery offer.
+message StreakStanding {
+  int32 current = 1;        // consecutive local days ending at the last play
+  int32 longest = 2;        // monotonic all-time best (the badge metric)
+  bool played_today = 3;    // today already secured (no nudge, no offer)
+  // The recovery offer. `recoverable` is true ONLY when the streak is broken,
+  // still inside the grace window, AND affordable — it is the app's single
+  // condition for showing the confirmation. The other two describe the offer.
+  bool recoverable = 4;
+  int32 recover_cost = 5;   // points a confirmed freeze costs
+  int32 recoverable_streak = 6; // the streak that would be restored
+}
+
+message GetStreakResponse { StreakStanding standing = 1; }
+
+// Spend points to restore a broken streak — the CONFIRMED side of the freeze.
+// The app calls this only after the user accepts the offer; the server never
+// debits anyone who did not. Refused (FAILED_PRECONDITION) when the streak is
+// intact, past the grace window, or unaffordable.
+message RecoverStreakRequest {
+  int32 tz_offset_minutes = 1;
+}
+
+message RecoverStreakResponse {
+  StreakStanding standing = 1; // the restored standing
+  int64 new_balance = 2;       // the caller's spendable points after the debit
+}
+
 service PlayService {
   rpc RecordPlaySession(RecordPlaySessionRequest) returns (RecordPlaySessionResponse);
   rpc RecordPractice(RecordPracticeRequest) returns (RecordPracticeResponse);
   rpc GetPlayActivity(GetPlayActivityRequest) returns (GetPlayActivityResponse);
+
+  // Practice streak (change: add-practice-streak). Both owner-scoped: the caller
+  // is the subject, taken from the access token, never from the body.
+  rpc GetStreak(GetStreakRequest) returns (GetStreakResponse);
+  rpc RecoverStreak(RecoverStreakRequest) returns (RecoverStreakResponse);
 }

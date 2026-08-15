@@ -9,7 +9,7 @@ points a second, daily use (freezing a streak).
 
 ## What Changes
 
-- **Server-tracked streak** — on `RecordPlaySession` the server maintains
+- **Server-tracked streak** — on `RecordPlaySession` **and `RecordPractice`** the server maintains
   `current_streak`, `longest_streak`, and `last_played_date`, using the **client-offset
   local date** (the same day convention as `play_core`). The server is the source of
   truth (anti-cheat, multi-device correct); the client only displays.
@@ -54,7 +54,7 @@ without confirmation; leaderboards (separate feature).
   worker dispatch + `PushSender`) and `add-curation-rewards` (points ledger/balance,
   the `BADGES` catalogue + `earned_badges`). Reuses `play_core`'s client-offset date.
 - **Backend**: streak state columns + a host-testable streak-transition core updated
-  on `RecordPlaySession`; a confirmed **freeze** RPC (ledger debit + streak restore,
+  on both play and practice ingest; a confirmed **freeze** RPC (ledger debit + streak restore,
   within a grace window); a `PracticeStreak` badge metric + catalogue entries; the
   streak-reminder notification **type** (candidate query + message + schedule-hour
   flag) registered on the push worker.

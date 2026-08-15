@@ -164,7 +164,7 @@ async fn main() -> anyhow::Result<()> {
         cymbra_feature_flags::grpc::FlagGrpc::new(flag_service.clone()),
         optional,
     );
-    cymbra_server::spawn_flag_refreshers(&cfg, flag_service);
+    cymbra_server::spawn_flag_refreshers(&cfg, flag_service.clone());
 
     // --- analytics UsageService (feature-usage telemetry ingestion; change:
     // add-feature-usage-analytics, design D5/D10). Wired only when BOTH the
@@ -265,6 +265,20 @@ async fn main() -> anyhow::Result<()> {
             let rewards_module = Arc::new(cymbra_music::CurationRewardsModule::new(
                 curation_repo.clone(),
             ));
+            // Practice streak (change: add-practice-streak): advanced on the play
+            // ingest and read by the app-bar chip. Its freeze cost + grace window
+            // are resolved from the flag service on every call, so the back office
+            // retunes them without a redeploy. The streak BADGES are not wired from
+            // here: the achievement registry derives its own `longest_streak` from
+            // the session tables (change: add-achievement-badges).
+            let streak_module = Arc::new(
+                cymbra_music::StreakModule::new(Arc::new(cymbra_music::PgStreakRepo::new(
+                    music_pool.clone(),
+                )))
+                .with_config_source(Arc::new(
+                    cymbra_server::FlagStreakConfig::new(flag_service.clone()),
+                )),
+            );
             let rewards_sink: Arc<dyn cymbra_music::CurationRewardsSink> = rewards_module.clone();
             // Achievement badges (change: add-achievement-badges): the cross-domain
             // registry read by GetAchievements. It shares the curation repo rather
@@ -310,7 +324,8 @@ async fn main() -> anyhow::Result<()> {
             let play_svc = Some(
                 cymbra_music::proto::play_service_server::PlayServiceServer::with_interceptor(
                     cymbra_music::PlayGrpc::new(play_module)
-                        .with_rewards(rewards_sink.clone(), catalog_repo.clone()),
+                        .with_rewards(rewards_sink.clone(), catalog_repo.clone())
+                        .with_streak(streak_module.clone()),
                     strict.clone(),
                 ),
             );

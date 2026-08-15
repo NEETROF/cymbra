@@ -19,6 +19,10 @@ uuid.workspace = true
 anyhow.workspace = true
 tokio.workspace = true
 chrono.workspace = true
+# Per-user IANA zone → local day for the practice-streak reminder's at-risk set
+# (change: add-practice-streak): "has not played TODAY" is only meaningful in the
+# player's own timezone, exactly like the push platform's local-hour gate.
+chrono-tz.workspace = true
 sha2 = "0.10"
 # Headless SoundFont synthesis for server-rendered preview clips (change:
 # add-soundfont-entitlement-previews). Same version vendored client-side

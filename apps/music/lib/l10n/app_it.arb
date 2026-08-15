@@ -661,5 +661,14 @@
   "practiceTapHint": "Tocca una battuta sulla partitura per impostare il passaggio",
   "practicePickStartBar": "Tocca la prima battuta del passaggio sulla partitura",
   "practicePickEndBar": "Ora tocca l'ultima battuta",
-  "practiceStopLoop": "Ferma il ciclo"
+  "practiceStopLoop": "Ferma il ciclo",
+  "streakChipDays": "{days}",
+  "streakChipTooltip": "{days, plural, =0{Nessuna serie ancora: suona o esercitati oggi per iniziarne una} =1{Serie di 1 giorno} other{Serie di {days} giorni}}",
+  "streakAtRiskNudge": "{days, plural, =1{La tua serie di 1 giorno finisce stasera: suona o esercitati per mantenerla} other{La tua serie di {days} giorni finisce stasera: suona o esercitati per mantenerla}}",
+  "streakRecoverTitle": "Recuperare la tua serie?",
+  "streakRecoverBody": "{days, plural, =1{La tua serie di 1 giorno si è interrotta. Spendere {cost} punti per recuperarla?} other{La tua serie di {days} giorni si è interrotta. Spendere {cost} punti per recuperarla?}}",
+  "streakRecoverConfirm": "Spendi {cost} punti",
+  "streakRecoverDismiss": "Non stavolta",
+  "streakRecovered": "{days, plural, =1{La tua serie di 1 giorno è tornata} other{La tua serie di {days} giorni è tornata}}",
+  "streakRecoverFailed": "Non è stato possibile recuperare la tua serie"
 }
