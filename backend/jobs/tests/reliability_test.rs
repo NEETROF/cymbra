@@ -105,6 +105,18 @@ async fn dead_letter_count(pool: &sqlx::PgPool, channel: &str) -> i64 {
         .get::<i64, _>("n")
 }
 
+/// Whether a specific job id reached the dead-letter store. Keyed on the id (not
+/// the channel) so a concurrent sweep dead-lettering *another* of this test's
+/// messages can't be mistaken for this one.
+async fn is_dead_lettered(pool: &sqlx::PgPool, id: uuid::Uuid) -> bool {
+    sqlx::query("SELECT EXISTS(SELECT 1 FROM jobs.dead_letter WHERE id = $1) AS e")
+        .bind(id)
+        .fetch_one(pool)
+        .await
+        .unwrap()
+        .get::<bool, _>("e")
+}
+
 /// Poll `f` until it returns true or the timeout elapses.
 async fn wait_until<F, Fut>(timeout: Duration, mut f: F) -> bool
 where
@@ -251,36 +263,70 @@ async fn poison_job_does_not_freeze_ordered_channel() {
         None,
     )
     .unwrap();
-    let mut c = pool.acquire().await.unwrap();
-    transactional_enqueue(&mut c, &poison).await.unwrap();
-    transactional_enqueue(&mut c, &good).await.unwrap();
+    // Both in ONE transaction: the pair becomes visible atomically, so the runner
+    // cannot check out (and a sweep cannot remove) the poison in between — which
+    // would leave `good` chained behind nothing and make the test vacuous.
+    let mut tx = pool.begin().await.unwrap();
+    let poison_id = transactional_enqueue(&mut tx, &poison).await.unwrap();
+    let good_id = transactional_enqueue(&mut tx, &good).await.unwrap();
+    tx.commit().await.unwrap();
+
+    // Everything below is asserted on *terminal* facts (this job's dead-letter
+    // row, this job's handler having run), never on the queue's intermediate
+    // state: `dead_letter_sweep` is global (all channels), so the sibling
+    // `exhaustion_moves_to_dead_letter` — same process, run in parallel by the
+    // test harness — fires sweeps into the middle of this test. sqlxmq marks a
+    // 1-attempt message terminal (`attempts = 0`, `attempt_at = NULL`) at
+    // *checkout*, before the handler even runs, so any message of this test is
+    // eligible for such a sweep for as long as it is in flight.
 
     // Wait until the poison is exhausted, then sweep it to the dead-letter store.
+    // "Exhausted" = terminal in the queue *or* already dead-lettered by a
+    // concurrent sweep; polling only `mq_msgs` watched a transient state and
+    // flaked whenever that sweep got there first.
+    //
     // 30s (not 15) so the worker's poll/round-trip latency under heavy CI load
     // doesn't flake the assertion — a healthy run returns as soon as it exhausts.
     assert!(
         wait_until(Duration::from_secs(30), || async {
-            sqlx::query(
-                "SELECT COUNT(*) AS n FROM jobs.mq_msgs WHERE channel_name=$1 AND attempts<=0 AND attempt_at IS NULL",
+            let terminal_in_queue: i64 = sqlx::query(
+                "SELECT COUNT(*) AS n FROM jobs.mq_msgs \
+                 WHERE id = $1 AND attempts <= 0 AND attempt_at IS NULL",
             )
-            .bind(&name)
+            .bind(poison_id)
             .fetch_one(&pool)
             .await
             .unwrap()
-            .get::<i64, _>("n")
-                >= 1
+            .get::<i64, _>("n");
+            terminal_in_queue >= 1 || is_dead_lettered(&pool, poison_id).await
         })
         .await,
         "poison should exhaust"
     );
+    // Idempotent: a no-op when the sibling test's sweep already moved this row.
     dead_letter_sweep(&pool).await.unwrap();
+    assert!(
+        is_dead_lettered(&pool, poison_id).await,
+        "the exhausted poison must land in the dead-letter store"
+    );
 
-    // The follow-up should now drain — channel empties.
+    // The follow-up must now actually *run* — the property under test. Asserted
+    // on the handler's own attempt log rather than on the channel emptying: a
+    // concurrent global sweep can also remove `good` mid-flight, which empties
+    // the channel without proving the successor ever proceeded.
+    assert!(
+        wait_until(Duration::from_secs(30), || async {
+            ctx.attempts.lock().unwrap().contains_key(&good_id)
+        })
+        .await,
+        "successor must proceed once the poison is dead-lettered"
+    );
+    // No residue: the queue drains (the successor completes, the poison is gone).
     assert!(
         wait_until(Duration::from_secs(30), || async {
             channel_count(&pool, &name).await == 0
         })
         .await,
-        "successor must proceed once the poison is dead-lettered"
+        "the ordered channel must drain"
     );
 }
