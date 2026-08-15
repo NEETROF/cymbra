@@ -20,7 +20,6 @@ import '../state/catalog_search_notifier.dart';
 import '../state/contributed_scores.dart';
 import '../state/score_catalog.dart';
 import '../theme/cymbra_theme.dart';
-import '../widgets/app_snackbar.dart';
 import '../widgets/library_listeners.dart';
 import '../widgets/score_card.dart';
 import '../widgets/score_propose_sheet.dart';
@@ -456,14 +455,15 @@ class _HubCard extends ConsumerWidget {
     final id = entry.contributedId;
     if (id == null) return;
     final rejected = entry.proposalStatus == 'rejected';
-    final messenger = ScaffoldMessenger.of(context);
-    final l10n = AppLocalizations.of(context);
     final r = await showScoreProposeDialog(
       context,
       rejected: rejected,
       rejectionReason: entry.proposalRejectionReason,
     );
     if (r == null) return;
+    // Fire and react: the outcome (submitted / already in the catalog / refused)
+    // is surfaced by the library listener, so no message is announced here before
+    // the server has answered.
     ref
         .read(myUploadsProvider.notifier)
         .proposeToPublicCatalog(
@@ -473,7 +473,6 @@ class _HubCard extends ConsumerWidget {
           attribution: r.attribution,
           resubmissionNote: r.justification,
         );
-    showAppSnackBar(messenger, l10n.scoreProposeDone);
   }
 }
 

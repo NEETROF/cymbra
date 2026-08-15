@@ -15,6 +15,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../l10n/gen/app_localizations.dart';
 import '../state/contributed_scores.dart';
 import '../state/saved_catalog_scores.dart';
 import 'app_snackbar.dart';
@@ -40,6 +41,14 @@ class LibraryListeners extends ConsumerWidget {
       savedCatalogScoresProvider,
       (_, next) => _surfaceError(context, next),
     );
+    // The outcome of a public-catalog proposal (change: add-score-catalog-proposal):
+    // its own channel, so a refusal is phrased for what it is instead of falling into
+    // the generic mutation-failed message — and without emptying the uploads list.
+    ref.listen(scoreProposalFeedbackProvider, (_, next) {
+      if (next == null) return;
+      _surfaceProposal(context, next);
+      ref.read(scoreProposalFeedbackProvider.notifier).clear();
+    });
     // The streak's own effects (recovery offer, at-risk nudge, outcome) live in
     // their own listener rather than here — one concern per listener widget.
     return StreakListener(child: child);
@@ -50,8 +59,17 @@ class LibraryListeners extends ConsumerWidget {
       debugPrint('library action failed: $error'); // logged, never shown raw
       showAppSnackBar(
         ScaffoldMessenger.of(context),
-        'Action impossible pour le moment. Réessaie.',
+        AppLocalizations.of(context).libraryActionFailed,
       );
     }
+  }
+
+  void _surfaceProposal(BuildContext context, ScoreProposalOutcome outcome) {
+    final l10n = AppLocalizations.of(context);
+    showAppSnackBar(ScaffoldMessenger.of(context), switch (outcome) {
+      ScoreProposalOutcome.submitted => l10n.scoreProposeDone,
+      ScoreProposalOutcome.alreadyInCatalog => l10n.scoreProposeAlreadyDone,
+      ScoreProposalOutcome.failed => l10n.scoreProposeError,
+    });
   }
 }

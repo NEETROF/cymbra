@@ -18,6 +18,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../analytics/usage_actions.dart';
+import '../services/auth_service.dart';
 import '../services/offline_score_cache.dart';
 import '../services/score_upload_service.dart';
 import 'score_catalog.dart';
@@ -26,6 +27,39 @@ import 'session_notifier.dart';
 import 'usage_tracking_notifier.dart';
 
 part 'contributed_scores.g.dart';
+
+/// Outcome of a public-catalog proposal, as the UI needs to phrase it (change:
+/// add-score-catalog-proposal). Deliberately typed rather than an exception or a
+/// raw status: the listener maps it to a localized message, never to a technical
+/// string, and the refusals the server can return are each their own case.
+enum ScoreProposalOutcome {
+  /// Accepted for review — the contribution now shows `pending`.
+  submitted,
+
+  /// Refused: this content is already in the catalog (`ALREADY_EXISTS`) — either
+  /// the same score was proposed before, or someone proposed identical bytes.
+  alreadyInCatalog,
+
+  /// Any other refusal (missing attestation/justification, network, …).
+  failed,
+}
+
+/// The last proposal's outcome, or `null` when there is nothing to report.
+///
+/// A dedicated one-shot channel so a **refusal never poisons the uploads list**:
+/// a refused proposal changes nothing server-side, so [MyUploads] keeps its data
+/// and reports here instead. The library listener widget watches this, shows the
+/// localized message and clears it.
+@riverpod
+class ScoreProposalFeedback extends _$ScoreProposalFeedback {
+  @override
+  ScoreProposalOutcome? build() => null;
+
+  void report(ScoreProposalOutcome outcome) => state = outcome;
+
+  /// Consume the outcome so the same message is not shown twice.
+  void clear() => state = null;
+}
 
 /// The signed-in user's raw uploads (all of them, favorite or not). Empty when
 /// signed out.
@@ -114,9 +148,13 @@ class MyUploads extends _$MyUploads {
 
   /// Propose one of the caller's uploads to the public catalog (change: add-score-
   /// catalog-proposal), then reload so the new `pending` proposal status is reflected.
-  /// [resubmissionNote] is required only when re-proposing a rejected score. A failure
-  /// lands in the state (surfaced by the library listener), never thrown to the caller —
-  /// widgets fire this and react to the resulting state, per the architecture rules.
+  /// [resubmissionNote] is required only when re-proposing a rejected score.
+  ///
+  /// Never thrown to the caller — widgets fire this and react to state. A **refusal**
+  /// (duplicate content, already proposed, missing attestation) leaves the server
+  /// untouched, so it is reported through [ScoreProposalFeedback] and the uploads list
+  /// is left exactly as it was: turning the list into an `AsyncError` would empty
+  /// "mes partitions" over a message that only concerns one card.
   Future<void> proposeToPublicCatalog(
     String contributedId, {
     required String license,
@@ -124,7 +162,8 @@ class MyUploads extends _$MyUploads {
     String attribution = '',
     String? resubmissionNote,
   }) async {
-    state = await AsyncValue.guard(() async {
+    final feedback = ref.read(scoreProposalFeedbackProvider.notifier);
+    try {
       await ref
           .read(scoreUploadServiceProvider)
           .propose(
@@ -134,13 +173,26 @@ class MyUploads extends _$MyUploads {
             attribution: attribution,
             resubmissionNote: resubmissionNote,
           );
-      unawaited(
-        ref
-            .read(usageTrackingNotifierProvider.notifier)
-            .record(UsageActions.scorePropose, subjectId: contributedId),
+    } on AuthException catch (e) {
+      feedback.report(
+        e.error == AuthError.alreadyExists
+            ? ScoreProposalOutcome.alreadyInCatalog
+            : ScoreProposalOutcome.failed,
       );
-      return _fetch();
-    });
+      return;
+    } catch (_) {
+      feedback.report(ScoreProposalOutcome.failed);
+      return;
+    }
+    unawaited(
+      ref
+          .read(usageTrackingNotifierProvider.notifier)
+          .record(UsageActions.scorePropose, subjectId: contributedId),
+    );
+    feedback.report(ScoreProposalOutcome.submitted);
+    // Reload so the card picks up its `pending` tag. A reload failure is a plain
+    // list failure (the proposal itself went through) — it belongs in the state.
+    state = await AsyncValue.guard(_fetch);
   }
 }
 

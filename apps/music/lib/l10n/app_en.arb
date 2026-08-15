@@ -258,6 +258,10 @@
   "@scoreProposeSkip": {
     "description": "Decline the opt-in proposal step in the upload wizard."
   },
+  "libraryActionFailed": "That didn't work. Please try again.",
+  "@libraryActionFailed": {
+    "description": "Generic snackbar when a library mutation (favorite, delete, reload) fails; the technical cause is only logged."
+  },
   "scoreContributorCredit": "Proposed by @{name}",
   "@scoreContributorCredit": {
     "description": "Public contributor credit on a community score whose proposer opted into a public profile.",

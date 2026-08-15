@@ -28,7 +28,6 @@ import '../state/contributed_scores.dart';
 import '../state/player_data.dart' show TimedNote;
 import '../state/score_catalog.dart';
 import '../state/score_upload_notifier.dart';
-import '../widgets/app_snackbar.dart';
 import '../widgets/score_propose_sheet.dart';
 
 /// The three-step contribution wizard (design 7). Reached via `Navigator.push`
@@ -589,10 +588,11 @@ class _ConfirmStepView extends ConsumerWidget {
       // upload the score is PRIVATE; the user may explicitly propose it to the public
       // catalog. Declining (Not now) leaves it private — never a pre-ticked default.
       Future<void> propose() async {
-        final messenger = ScaffoldMessenger.of(context);
         final r = await showScoreProposeDialog(context);
         if (r == null) return;
-        // Fire the action on the contributions notifier; the list reacts to state.
+        // Fire the action on the contributions notifier; the list reacts to state and
+        // the library listener announces the outcome (the hub below stays mounted),
+        // so nothing is claimed here before the server has answered.
         ref
             .read(myUploadsProvider.notifier)
             .proposeToPublicCatalog(
@@ -601,7 +601,6 @@ class _ConfirmStepView extends ConsumerWidget {
               attestation: true,
               attribution: r.attribution,
             );
-        showAppSnackBar(messenger, l10n.scoreProposeDone);
         closeWizard();
       }
 

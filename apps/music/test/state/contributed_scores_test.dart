@@ -16,6 +16,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
+import 'package:music/services/auth_service.dart';
 import 'package:music/services/score_upload_service.dart';
 import 'package:music/state/contributed_scores.dart';
 import 'package:music/state/score_catalog.dart';
@@ -155,8 +156,76 @@ void main() {
       ).called(1);
       // Reloaded after the mutation: build + reload == 2 list calls.
       verify(upload.listMyScores()).called(2);
+      expect(
+        c.read(scoreProposalFeedbackProvider),
+        ScoreProposalOutcome.submitted,
+      );
     },
   );
+
+  test(
+    'a refused proposal reports the duplicate outcome and keeps the list',
+    () async {
+      final upload = MockScoreUploadService();
+      when(upload.listMyScores()).thenAnswer((_) async => [_upload('a')]);
+      when(
+        upload.propose(
+          scoreId: anyNamed('scoreId'),
+          license: anyNamed('license'),
+          attestation: anyNamed('attestation'),
+          attribution: anyNamed('attribution'),
+          resubmissionNote: anyNamed('resubmissionNote'),
+        ),
+      ).thenThrow(
+        const AuthException(
+          AuthError.alreadyExists,
+          'this score is already in the catalog (cid)',
+        ),
+      );
+
+      final c = _container(upload);
+      await c.read(myUploadsProvider.future);
+
+      await c
+          .read(myUploadsProvider.notifier)
+          .proposeToPublicCatalog('a', license: 'CC0-1.0', attestation: true);
+
+      // The refusal is typed for the UI…
+      expect(
+        c.read(scoreProposalFeedbackProvider),
+        ScoreProposalOutcome.alreadyInCatalog,
+      );
+      // …and the uploads list is untouched: the server changed nothing, so
+      // "mes partitions" must not empty itself over a per-card message.
+      expect(c.read(myUploadsProvider).hasError, isFalse);
+      expect(c.read(myUploadsProvider).requireValue.map((s) => s.id), ['a']);
+      verify(upload.listMyScores()).called(1); // no pointless reload
+    },
+  );
+
+  test('any other refusal reports the generic failure', () async {
+    final upload = MockScoreUploadService();
+    when(upload.listMyScores()).thenAnswer((_) async => [_upload('a')]);
+    when(
+      upload.propose(
+        scoreId: anyNamed('scoreId'),
+        license: anyNamed('license'),
+        attestation: anyNamed('attestation'),
+        attribution: anyNamed('attribution'),
+        resubmissionNote: anyNamed('resubmissionNote'),
+      ),
+    ).thenThrow(StateError('boom'));
+
+    final c = _container(upload);
+    await c.read(myUploadsProvider.future);
+
+    await c
+        .read(myUploadsProvider.notifier)
+        .proposeToPublicCatalog('a', license: 'CC0-1.0', attestation: true);
+
+    expect(c.read(scoreProposalFeedbackProvider), ScoreProposalOutcome.failed);
+    expect(c.read(myUploadsProvider).hasError, isFalse);
+  });
 
   test(
     'refresh re-fetches the uploads (picks up server-side status changes)',
