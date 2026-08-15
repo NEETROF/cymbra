@@ -373,13 +373,19 @@ class _SoundFontsScreenState extends ConsumerState<SoundFontsScreen>
   bool _matchesQuery(PianoEntry p) =>
       _query.isEmpty || p.label.toLowerCase().contains(_query);
 
-  /// Build a catalog sound card. A costed, redeemable, not-yet-owned reward font
-  /// (id == item key) shows its cost + a "Débloquer" affordance — but stays
-  /// **auditionable**: you must be able to hear a sound before deciding to unlock
-  /// it (only using it as the active instrument is gated, in `selectedPiano`).
+  /// Build a catalog sound card. A costed, not-yet-owned reward font (id == item
+  /// key) shows its cost + a "Débloquer" affordance — but stays **auditionable**:
+  /// you must be able to hear a sound before deciding to unlock it (only using it
+  /// as the active instrument is gated, in `selectedPiano`).
+  ///
+  /// Locked is keyed on the COST alone, mirroring the server's entitlement gate
+  /// (`soundfont_access::entitlement`, which deliberately ignores `redeemable`).
+  /// `redeemable` only decides whether the shop offers it *yet*: a costed font
+  /// awaiting release is locked and auditioned via its clip, but shown as coming
+  /// soon rather than with a dead unlock button.
   Widget _buildCatalogCard(PianoEntry p, RewardShopItemView? item) {
-    final locked =
-        item != null && item.pointCost > 0 && item.redeemable && !item.owned;
+    final locked = item != null && item.pointCost > 0 && !item.owned;
+    final comingSoon = locked && !item.redeemable;
     // A locked font is auditioned via its preview clip. Grey the control **up front**
     // when the catalog reports no preview (`!p.hasPreview`); `_noPreview` is a runtime
     // fallback if a clip disappears between listing and tapping.
@@ -392,7 +398,10 @@ class _SoundFontsScreenState extends ConsumerState<SoundFontsScreen>
       onTap: noPreview ? null : () => _togglePreview(p, locked: locked),
       locked: locked,
       lockCost: locked ? item.pointCost : null,
-      onRedeem: locked ? () => _redeemReward(p.id) : null,
+      // Only an actually-offered reward can be redeemed; a coming-soon one shows
+      // its cost with no action.
+      onRedeem: locked && item.redeemable ? () => _redeemReward(p.id) : null,
+      comingSoon: comingSoon,
       previewUnavailable: noPreview,
     );
   }
@@ -556,6 +565,7 @@ class _SoundCard extends StatelessWidget {
     this.locked = false,
     this.lockCost,
     this.onRedeem,
+    this.comingSoon = false,
     this.previewUnavailable = false,
   });
 
@@ -578,8 +588,12 @@ class _SoundCard extends StatelessWidget {
   /// The reward's point cost (when [locked]).
   final int? lockCost;
 
-  /// Redeem this reward (when [locked]).
+  /// Redeem this reward (when [locked] and actually offered).
   final VoidCallback? onRedeem;
+
+  /// The font is costed but not offered in the shop yet — locked, auditionable,
+  /// and shown as coming soon instead of carrying an unlock action.
+  final bool comingSoon;
 
   String? get _subtitle {
     final license = entry.license;
@@ -661,7 +675,11 @@ class _SoundCard extends StatelessWidget {
                 children: subtitleLines,
               ),
         trailing: locked
-            ? _RewardLock(cost: lockCost ?? 0, onRedeem: onRedeem)
+            ? _RewardLock(
+                cost: lockCost ?? 0,
+                onRedeem: onRedeem,
+                comingSoon: comingSoon,
+              )
             : (onRename == null &&
                   onRemove == null &&
                   onPropose == null &&
@@ -709,10 +727,18 @@ class _SoundCard extends StatelessWidget {
 /// The trailing affordance for a locked reward font: its point cost + an Unlock
 /// (redeem) button.
 class _RewardLock extends StatelessWidget {
-  const _RewardLock({required this.cost, required this.onRedeem});
+  const _RewardLock({
+    required this.cost,
+    required this.onRedeem,
+    this.comingSoon = false,
+  });
 
   final int cost;
   final VoidCallback? onRedeem;
+
+  /// Costed but not offered yet — show the price with a "coming soon" tag rather
+  /// than an unlock button that cannot do anything.
+  final bool comingSoon;
 
   @override
   Widget build(BuildContext context) {
@@ -729,12 +755,22 @@ class _RewardLock extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 8),
-        FilledButton.icon(
-          key: const Key('soundfont-unlock'),
-          onPressed: onRedeem,
-          icon: const Icon(Icons.workspace_premium, size: 16),
-          label: Text(l10n.soundfontsUnlock),
-        ),
+        if (comingSoon)
+          Text(
+            l10n.rewardShopComingSoon,
+            style: const TextStyle(
+              color: CymbraColors.onSurfaceVariant,
+              fontSize: 12.5,
+              fontWeight: FontWeight.w600,
+            ),
+          )
+        else
+          FilledButton.icon(
+            key: const Key('soundfont-unlock'),
+            onPressed: onRedeem,
+            icon: const Icon(Icons.workspace_premium, size: 16),
+            label: Text(l10n.soundfontsUnlock),
+          ),
       ],
     );
   }

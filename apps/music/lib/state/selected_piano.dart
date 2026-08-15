@@ -113,11 +113,14 @@ class SelectedPiano extends _$SelectedPiano {
     // be used as the active instrument (change: add-curation-rewards) — otherwise
     // the point cost is bypassable. `redeem` (a grant) flips `owned`, then this
     // succeeds.
+    //
+    // Keyed on the COST alone, never on `redeemable`: that flag says whether the
+    // shop currently offers the font, not whether it is free. The server's
+    // entitlement gate makes the same call deliberately (`soundfont_access::
+    // entitlement`), so consulting it here would let a "coming later" font be
+    // selected and then fail on a 404 from the bytes route.
     final reward = ref.read(rewardShopItemsByKeyProvider)[id];
-    if (reward != null &&
-        reward.pointCost > 0 &&
-        reward.redeemable &&
-        !reward.owned) {
+    if (reward != null && reward.pointCost > 0 && !reward.owned) {
       return; // locked → not selectable until redeemed
     }
     await _apply(id, persist: true);
