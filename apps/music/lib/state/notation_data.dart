@@ -42,6 +42,12 @@ enum ScoreLoadFailure {
   /// (change: add-catalog-access-limits).
   rateLimited,
 
+  /// The piece was refused by the freemium daily quota (change:
+  /// add-score-daily-access-rewards): not an error — the opener shows the
+  /// unlock flow (audition the teaser / spend points / upsell) instead of a
+  /// snackbar. The numbers live in the daily-access provider.
+  locked,
+
   /// Any other failure (parse error, unexpected).
   generic,
 }

@@ -21,6 +21,7 @@ import '../l10n/gen/app_localizations.dart';
 import '../state/my_standings_notifier.dart';
 import '../state/score_catalog.dart';
 import '../theme/cymbra_theme.dart';
+import 'catalog_access_widgets.dart';
 import 'difficulty_badge.dart';
 import 'leaderboard_view.dart';
 
@@ -116,6 +117,15 @@ class ScoreCard extends StatelessWidget {
                   ),
                   if (action != null)
                     Positioned(top: 4, right: 4, child: action!),
+                  // Daily-access mark (change: add-score-daily-access-rewards):
+                  // "open today" / lock+cost, left of the action so it never
+                  // collides with the heart; nothing when the gate is off.
+                  if (entry.catalogId != null)
+                    Positioned(
+                      top: 12,
+                      right: action != null ? 48 : 10,
+                      child: CatalogAccessMark(catalogId: entry.catalogId!),
+                    ),
                   if (offlineUnavailable)
                     Positioned(
                       bottom: 8,

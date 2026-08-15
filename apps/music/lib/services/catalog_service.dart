@@ -20,10 +20,12 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../src/grpc/score.pbgrpc.dart' as score;
 import '../state/score_catalog.dart' show PracticeLevel;
+import 'catalog_access_state.dart';
 import 'grpc_client.dart';
 import 'score_bytes_result.dart';
 import 'score_upload_service.dart' show practiceLevelFromWire;
 
+export 'catalog_access_state.dart' show CatalogAccessState;
 export 'score_bytes_result.dart' show ScoreBytesResult;
 
 part 'catalog_service.g.dart';
@@ -66,6 +68,11 @@ class CatalogHit {
   /// private (the server gates it fail-closed and never sends the raw id).
   final String? contributorCredit;
 
+  /// A server-rendered audio teaser exists for this piece (change:
+  /// add-score-daily-access-rewards): drives the "listen" control of a locked
+  /// piece without a probe.
+  final bool hasPreview;
+
   const CatalogHit({
     required this.id,
     required this.license,
@@ -83,6 +90,7 @@ class CatalogHit {
     this.keyFifths = 0,
     this.moderationStatus,
     this.contributorCredit,
+    this.hasPreview = false,
   });
 }
 
@@ -177,7 +185,33 @@ abstract class CatalogService {
   /// stable thereafter (change: add-offline-score-cache). One input to the app's
   /// local offline-cache key derivation; the same value across the user's devices.
   Future<Uint8List> getOfflineCacheKey();
+
+  /// The caller's daily-access state (change: add-score-daily-access-rewards):
+  /// quota, used count, reset instant, day-slot cost, balance and today's opened
+  /// ids — one read for the hub/library chip. `null` when the backend has no gate.
+  Future<CatalogAccessState?> dailyAccess();
+
+  /// Buy a day-slot for [catalogId] after the user's explicit confirmation
+  /// (change: add-score-daily-access-rewards): returns the state after the
+  /// purchase. Insufficient balance surfaces as [AuthError.failedPrecondition].
+  Future<CatalogAccessState?> unlockForToday(String catalogId);
 }
+
+/// Map the wire access state (change: add-score-daily-access-rewards).
+CatalogAccessState accessStateFromWire(score.CatalogAccessState a) =>
+    CatalogAccessState(
+      enabled: a.enabled,
+      locked: a.locked,
+      freeQuota: a.freeQuota,
+      freeUsed: a.freeUsed,
+      resetsAtMs: a.resetsAtMs.toInt(),
+      daySlotCost: a.daySlotCost.toInt(),
+      spendableBalance: a.spendableBalance.toInt(),
+      subscriber: a.subscriber,
+      upsell: a.upsell,
+      openedToday: List.unmodifiable(a.openedToday),
+      paidToday: List.unmodifiable(a.paidToday),
+    );
 
 /// Wire form of a [PracticeLevel] for the backend's `level` filter.
 String? _levelWire(PracticeLevel? level) => level?.name;
@@ -215,6 +249,7 @@ class GrpcCatalogService implements CatalogService {
         h.hasContributorCredit() && h.contributorCredit.isNotEmpty
         ? h.contributorCredit
         : null,
+    hasPreview: h.hasPreview,
   );
 
   @override
@@ -288,12 +323,36 @@ class GrpcCatalogService implements CatalogService {
       ),
       options: bearerOptions(bearer),
     );
+    final access = resp.hasAccess() ? accessStateFromWire(resp.access) : null;
     return ScoreBytesResult(
-      data: resp.unchanged ? null : Uint8List.fromList(resp.data),
+      // A locked answer carries no bytes (and is not "unchanged").
+      data: resp.unchanged || (access?.locked ?? false)
+          ? null
+          : Uint8List.fromList(resp.data),
       etag: resp.etag,
       unchanged: resp.unchanged,
+      access: access,
     );
   });
+
+  @override
+  Future<CatalogAccessState?> dailyAccess() => _authed((bearer) async {
+    final resp = await _client.getCatalogDailyAccess(
+      score.GetCatalogDailyAccessRequest(),
+      options: bearerOptions(bearer),
+    );
+    return resp.hasState() ? accessStateFromWire(resp.state) : null;
+  });
+
+  @override
+  Future<CatalogAccessState?> unlockForToday(String catalogId) =>
+      _authed((bearer) async {
+        final resp = await _client.unlockCatalogScoreForToday(
+          score.UnlockCatalogScoreForTodayRequest(catalogId: catalogId),
+          options: bearerOptions(bearer),
+        );
+        return resp.hasState() ? accessStateFromWire(resp.state) : null;
+      });
 
   @override
   Future<Uint8List> ratingPreviewBytes(String catalogId) =>

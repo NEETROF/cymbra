@@ -20,6 +20,7 @@ import '../state/catalog_search_notifier.dart';
 import '../state/contributed_scores.dart';
 import '../state/score_catalog.dart';
 import '../theme/cymbra_theme.dart';
+import '../widgets/catalog_access_widgets.dart';
 import '../widgets/library_listeners.dart';
 import '../widgets/score_card.dart';
 import '../widgets/score_propose_sheet.dart';
@@ -227,6 +228,9 @@ class _Results extends ConsumerWidget {
               toolbarHeight: 112,
               title: _SearchBar(state: state, notifier: notifier, l10n: l10n),
             ),
+            // Daily free-open quota (change: add-score-daily-access-rewards):
+            // renders nothing when the gate is off for this caller.
+            const SliverToBoxAdapter(child: CatalogAccessChip()),
             ..._resultSlivers(),
           ],
         ),

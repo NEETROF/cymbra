@@ -23,6 +23,7 @@ import '../state/notation_notifier.dart';
 import '../state/score_catalog.dart';
 import '../theme/cymbra_theme.dart';
 import '../widgets/app_snackbar.dart';
+import '../widgets/catalog_unlock_sheet.dart';
 import 'player_screen.dart';
 import 'score_load_message.dart';
 
@@ -113,6 +114,12 @@ Future<void> openScore(
     final failure =
         ref.read(notationProvider).failure ?? ScoreLoadFailure.generic;
     sub.close();
+    if (failure == ScoreLoadFailure.locked) {
+      // Refused by the daily quota (change: add-score-daily-access-rewards):
+      // not an error — offer the teaser / the points unlock / the upsell.
+      if (context.mounted) await showCatalogUnlockSheet(context, ref, entry);
+      return;
+    }
     showAppSnackBar(messenger, scoreLoadFailureMessage(l10n, failure));
   }
 }

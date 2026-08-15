@@ -9,7 +9,7 @@
 
 - [x] 2.1 Create the host-testable `catalog_daily_access_core`: `decide_open(piece, &DayState, &DailyAccessConfig, CallerKind) -> Open {Serve|ServeFree|Locked{cost, upsell}}` + `day_slot_decision(already_open, balance, cost, enabled)`; unit tests for every branch incl. gate-off, re-open-is-free, quota 0, cost 0, exempt/subscriber/contributor, next-day recharge.
 - [x] 2.2 Wire the decision into `ScoreModule::catalog_bytes_for_player` **before** the conditional-fetch short-circuit and **before** `record_engagement`; caller kind from `AuthIdentity` (back-office audience / music-scope moderator-admin → Exempt), `proposed_by == caller` → Contributor, `SubscriptionSource` → Subscriber. On Serve/ServeFree upsert the day row; on Locked return the state with empty data, `unchanged=false`, no engagement.
-- [ ] 2.3 Proto: `CatalogAccessState` message; `GetCatalogScoreBytesResponse.access`; `GetCatalogDailyAccess` RPC (state + `opened_today` + `paid_today`); `UnlockCatalogScoreForToday` RPC; `CatalogHit.has_preview`; admin catalog search `has_preview` filter param. Regenerate stubs (`melos run gen-grpc` — app **and** `packages/cymbra_flags`; BO `yarn gen`).
+- [x] 2.3 Proto: `CatalogAccessState` message; `GetCatalogScoreBytesResponse.access`; `GetCatalogDailyAccess` RPC (state + `opened_today` + `paid_today`); `UnlockCatalogScoreForToday` RPC; `CatalogHit.has_preview`; admin catalog search `has_preview` filter param. Regenerate stubs (`melos run gen-grpc` — app **and** `packages/cymbra_flags`; BO `yarn gen`).
 - [x] 2.4 Handler `UnlockCatalogScoreForToday`: identity → decision core → `spend_day_slot` → return state; insufficient balance = `FAILED_PRECONDITION` (nothing written). Keep `guard_download` order (abuse cap first) on the bytes RPC.
 - [x] 2.5 Handler `GetCatalogDailyAccess`: enumeration guard, then state (quota/used/reset instant/cost/spendable balance/subscriber/upsell + today's ids).
 - [x] 2.6 Verify `ListRatingDeck` / `GetRatingPreviewBytes` (rater path), `GetCatalogScore` / `SearchCatalog` (metadata) and `GetScoreBytes` (own uploads) stay ungated; grpc tests: locked state shape, conditional fetch of a locked piece is locked (not unchanged), moderator/BO exempt, contributor free, gate-off serves.
@@ -26,17 +26,17 @@
 
 ## 4. App (Flutter)
 
-- [ ] 4.1 `CatalogService`: `fetchScoreBytes` result carries `access` (Freezed `CatalogAccessState`); add `dailyAccess()` and `unlockForToday(id)`; `CatalogHit.hasPreview`.
-- [ ] 4.2 `ScorePreviewService` (twin of `SoundFontPreviewService`: `GET /scores/{id}/preview` with bearer, 404 → false) behind a provider; playback via `soundClipPlayerProvider`.
-- [ ] 4.3 `catalogDailyAccessProvider` (keepAlive, identity-scoped; refreshed on served open, unlock, app resume, auth change) + `catalogUnlockProvider` notifier (`unlock(id)` fire-and-observe, `AsyncValue` state, monotonic `seq`).
-- [ ] 4.4 Notation load: on `access.locked` expose `ScoreLoadFailure.locked` (no error snackbar, no engagement); **online cache-hit path performs the conditional fetch first** and treats locked as "do not play from cache"; offline keeps playing from cache.
-- [ ] 4.5 Unlock sheet from `openScore`: title/composer, "écouter un extrait" (audition; greyed when `!hasPreview`), "débloquer pour X pts aujourd'hui" (disabled with shortfall when balance < cost), upsell placeholder line reusing the shop's premium "coming later" copy; confirm → `unlock(id)`.
-- [ ] 4.6 Dedicated listener widget: unlock success → re-select the score (served) + bump `rewardRevisionProvider`; failure → localized snackbar; never await-and-branch in the UI.
-- [ ] 4.7 Surfaces: hub/library header chip "N ouvertures gratuites · réinit. dans Xh"; opened-today mark on `ScoreCard` (cover overlay — bottom-left slot is taken by offline/status tags); locked cost hint on cards.
-- [ ] 4.8 Activity feed: label the `score_day_slot` redeem with the piece title (no raw kind/reward key in UI).
-- [ ] 4.9 Analytics actions in `usage_actions.dart`: `catalog_quota_reached`, `catalog_day_slot_unlock`, `catalog_preview_audition`.
-- [ ] 4.10 l10n en/fr/it/es for every new string.
-- [ ] 4.11 Tests (mockito mocks via provider overrides): quota chip; locked open shows the sheet and never fetches/plays MusicXML; audition plays the clip / greyed without preview; unlock spends and re-opens; re-open same day free; online cached favourite locked does not play, offline plays; gate-off path unchanged.
+- [x] 4.1 `CatalogService`: `fetchScoreBytes` result carries `access` (Freezed `CatalogAccessState`); add `dailyAccess()` and `unlockForToday(id)`; `CatalogHit.hasPreview`.
+- [x] 4.2 `ScorePreviewService` (twin of `SoundFontPreviewService`: `GET /scores/{id}/preview` with bearer, 404 → false) behind a provider; playback via `soundClipPlayerProvider`.
+- [x] 4.3 `catalogDailyAccessProvider` (keepAlive, identity-scoped; refreshed on served open, unlock, app resume, auth change) + `catalogUnlockProvider` notifier (`unlock(id)` fire-and-observe, `AsyncValue` state, monotonic `seq`).
+- [x] 4.4 Notation load: on `access.locked` expose `ScoreLoadFailure.locked` (no error snackbar, no engagement); **online cache-hit path performs the conditional fetch first** and treats locked as "do not play from cache"; offline keeps playing from cache.
+- [x] 4.5 Unlock sheet from `openScore`: title/composer, "écouter un extrait" (audition; greyed when `!hasPreview`), "débloquer pour X pts aujourd'hui" (disabled with shortfall when balance < cost), upsell placeholder line reusing the shop's premium "coming later" copy; confirm → `unlock(id)`.
+- [x] 4.6 Dedicated listener widget: unlock success → re-select the score (served) + bump `rewardRevisionProvider`; failure → localized snackbar; never await-and-branch in the UI.
+- [x] 4.7 Surfaces: hub/library header chip "N ouvertures gratuites · réinit. dans Xh"; opened-today mark on `ScoreCard` (cover overlay — bottom-left slot is taken by offline/status tags); locked cost hint on cards.
+- [x] 4.8 Activity feed: label the `score_day_slot` redeem with the piece title (no raw kind/reward key in UI).
+- [x] 4.9 Analytics actions in `usage_actions.dart`: `catalog_quota_reached`, `catalog_day_slot_unlock`, `catalog_preview_audition`.
+- [x] 4.10 l10n en/fr/it/es for every new string.
+- [x] 4.11 Tests (mockito mocks via provider overrides): quota chip; locked open shows the sheet and never fetches/plays MusicXML; audition plays the clip / greyed without preview; unlock spends and re-opens; re-open same day free; online cached favourite locked does not play, offline plays; gate-off path unchanged.
 
 ## 5. Back office (Vue)
 

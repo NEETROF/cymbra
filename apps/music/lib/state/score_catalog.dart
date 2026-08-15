@@ -113,6 +113,11 @@ class CatalogEntry {
   /// private — the server gates this fail-closed, so the app just shows what it gets.
   final String? contributorCredit;
 
+  /// For a catalog score: a server-rendered audio teaser exists (change:
+  /// add-score-daily-access-rewards) — enables the "listen" control of the
+  /// unlock flow without a probe. `false` for bundled/upload entries.
+  final bool hasPreview;
+
   const CatalogEntry({
     required this.id,
     required this.title,
@@ -136,6 +141,7 @@ class CatalogEntry {
     this.proposalStatus,
     this.proposalRejectionReason,
     this.contributorCredit,
+    this.hasPreview = false,
   });
 
   /// Whether this is a user upload (byte-sourced) rather than a bundled score.

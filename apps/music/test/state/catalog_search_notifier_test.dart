@@ -27,6 +27,10 @@ import 'package:music/state/session_notifier.dart';
 class _FakeCatalog implements CatalogService {
   @override
   Future<Uint8List> getOfflineCacheKey() async => Uint8List(0);
+  @override
+  Future<CatalogAccessState?> dailyAccess() async => null;
+  @override
+  Future<CatalogAccessState?> unlockForToday(String catalogId) async => null;
   _FakeCatalog(this.rows);
   final List<CatalogHit> rows;
   final Set<String> saved = {};

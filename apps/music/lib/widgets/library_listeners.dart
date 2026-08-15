@@ -19,6 +19,7 @@ import '../l10n/gen/app_localizations.dart';
 import '../state/contributed_scores.dart';
 import '../state/saved_catalog_scores.dart';
 import 'app_snackbar.dart';
+import 'catalog_unlock_listener.dart';
 import 'streak_listener.dart';
 
 /// Dedicated listener widget for the library/hub subtree (architecture rule 4:
@@ -49,9 +50,10 @@ class LibraryListeners extends ConsumerWidget {
       _surfaceProposal(context, next);
       ref.read(scoreProposalFeedbackProvider.notifier).clear();
     });
-    // The streak's own effects (recovery offer, at-risk nudge, outcome) live in
-    // their own listener rather than here — one concern per listener widget.
-    return StreakListener(child: child);
+    // The streak's own effects (recovery offer, at-risk nudge, outcome) and the
+    // day-slot unlock outcome (change: add-score-daily-access-rewards) live in
+    // their own listeners rather than here — one concern per listener widget.
+    return CatalogUnlockListener(child: StreakListener(child: child));
   }
 
   void _surfaceError(BuildContext context, AsyncValue<Object?> value) {
