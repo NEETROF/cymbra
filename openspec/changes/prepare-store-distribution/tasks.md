@@ -71,7 +71,16 @@
 
 - [x] 7.1 `openspec validate prepare-store-distribution --strict` passes
 - [x] 7.2 `melos run analyze` and `dart format` clean after pubspec/asset changes (`flutter analyze` → No issues found; `dart format` → 0 changed)
-- [ ] 7.3 Full release build of AAB + IPA succeeds locally (or via `release-build.yml` dispatch) with the new assets
+- [x] 7.3 Full release build of AAB + IPA succeeds locally (or via `release-build.yml` dispatch) with the new assets
+      (SATISFIED BY CI — `release-build.yml` run 31391958519, tag `music-v1.21.0`, sha 25650941,
+      2026-08-10, all 5 jobs green:
+      • `✓ Built build/app/outputs/bundle/release/app-release.aab (115.3MB)` → `cymbra-music-v1.21.0.aab`
+      • `✓ Built IPA to build/ios/ipa (75.2MB)` → `cymbra-music-v1.21.0.ipa`, pushed to TestFlight
+        (`UPLOAD SUCCEEDED with no errors, 1 warning`); the macOS `.pkg` uploaded too.
+      That sha already carried every asset from this change — `INTERNET` in the main manifest,
+      `assets/branding/*`, `PrivacyInfo.xcprivacy`, and the launcher-icon/splash generator config —
+      and `git diff 25650941 HEAD` shows **zero drift** on the generated native surfaces
+      (`ios/Runner/Assets.xcassets`, `android/app/src/main/res`), so CI shipped exactly these assets.)
       (SUPERSEDED NOTE: the old dev-dependency plugin-registrant failure was a local Flutter 3.38.10
       artifact. Local Flutter is now **3.41.8** and the release build works — that blocker is gone.
       Prerequisite discovered 2026-08-15: this worktree had **stale gRPC stubs** (missing the streak
@@ -81,13 +90,11 @@
       • Android APK — `✓ Built build/app/outputs/flutter-apk/app-release.apk (76.8MB)`
       • iOS archive — `✓ Built build/ios/archive/Runner.xcarchive (291.4MB)`, codesigned
         (TeamIdentifier VMFJ6KRW77), version 1.21.0 build 28, `PrivacyInfo.xcprivacy` in the payload.
-      • iOS IPA export — **BLOCKED locally**: `exportArchive No Accounts` /
+      • iOS IPA export — not reproducible locally: `exportArchive No Accounts` /
         `No profiles for 'com.cymbra.music' were found`. This Mac's Xcode has no App Store Connect
         account signed in, so automatic signing resolves only an *Apple Development* identity and
-        cannot fetch the App Store distribution profile. Environment/credentials limitation — NOT a
-        defect in this change; the compile/archive of the new assets all succeed. Close this task by
-        dispatching `release-build.yml` (which holds the distribution credentials) or by exporting
-        once from Xcode with the account signed in.)
+        cannot fetch the App Store distribution profile. Purely an environment/credentials
+        limitation — the IPA itself is produced by CI, see the run above.)
 
 ## 8. Desktop window title (branding)
 
