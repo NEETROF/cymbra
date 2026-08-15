@@ -9,6 +9,7 @@ import TablePager from "@/components/TablePager.vue";
 import { PAGE_SIZE, useCatalogStore, type Filters } from "@/stores/catalog";
 import { useAuthStore } from "@/stores/auth";
 import { musicxmlFileName, saveBytesAsFile } from "@/lib/download";
+import { useScoreSample } from "@/composables/useScoreSample";
 import type { CatalogHit } from "@/gen/score_pb";
 
 // Free browse of the catalog by status + hub filters, with click-to-sort columns.
@@ -91,6 +92,10 @@ async function onDownload(hit: CatalogHit) {
   if (bytes) saveBytesAsFile(bytes, musicxmlFileName(hit.title, hit.id));
 }
 
+// Per-row audio teaser (change: add-score-daily-access-rewards): play the clip the
+// app auditions on a locked piece, or generate it (the backfill/recovery path).
+const sample = useScoreSample();
+
 onMounted(run);
 </script>
 
@@ -111,9 +116,14 @@ onMounted(run);
       :sort="view.sort"
       :can-download="auth.isModerator"
       :downloads="store.downloads"
+      :playing-id="sample.playingId.value"
+      :sample-busy="sample.busy.value"
+      :generating-id="store.previewTarget"
       @sort="onSort"
       @select="(id) => router.push({ name: 'music-score', params: { id } })"
       @download="onDownload"
+      @play-sample="(hit) => sample.toggle(hit.id)"
+      @generate-sample="(hit) => sample.generate(hit.id)"
     />
     <TablePager :offset="view.offset" :limit="PAGE_SIZE" :total="vm.total" @page="onPage" />
   </div>

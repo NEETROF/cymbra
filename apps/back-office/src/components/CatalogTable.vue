@@ -22,10 +22,21 @@ const props = withDefaults(
     sort: SortKeyInit[];
     canDownload?: boolean;
     downloads?: Record<string, Async<Uint8Array>>;
+    // Audio teaser (change: add-score-daily-access-rewards): the row whose sample is
+    // sounding, and whether a (re)generation is in flight (one at a time).
+    playingId?: string | null;
+    sampleBusy?: boolean;
+    generatingId?: string | null;
   }>(),
-  { canDownload: false, downloads: () => ({}) },
+  { canDownload: false, downloads: () => ({}), playingId: null, sampleBusy: false, generatingId: null },
 );
-const emit = defineEmits<{ sort: [field: string]; select: [id: string]; download: [hit: CatalogHit] }>();
+const emit = defineEmits<{
+  sort: [field: string];
+  select: [id: string];
+  download: [hit: CatalogHit];
+  playSample: [hit: CatalogHit];
+  generateSample: [hit: CatalogHit];
+}>();
 const { t } = useI18n();
 
 // Total column count, so the empty-state row spans the full width (the download
@@ -148,9 +159,51 @@ function rowStatus(h: CatalogHit): ModerationStatus {
         <!-- Download the linked MusicXML to the operator's machine. Moderator/admin
              only (provenance gate). @click.stop so it never triggers the row's select. -->
         <td v-if="canDownload" class="dl-col" @click.stop>
+          <!-- Merged play / "Generate sample" (change: add-score-daily-access-rewards):
+               a piece with a teaser plays the clip the app auditions on a locked piece;
+               without one, the same slot generates it. Same shape as the SoundFonts. -->
+          <button
+            v-if="h.hasPreview"
+            type="button"
+            class="dl-btn sample-btn"
+            :data-testid="`play-sample-${h.id}`"
+            :aria-label="playingId === h.id ? t('detail.stopSample') : t('detail.playSample')"
+            :title="playingId === h.id ? t('detail.stopSample') : t('detail.playSample')"
+            @click="emit('playSample', h)"
+          >
+            {{ playingId === h.id ? "⏸" : "▶" }}
+          </button>
+          <button
+            v-else
+            type="button"
+            class="dl-btn sample-btn"
+            :data-testid="`generate-sample-${h.id}`"
+            :disabled="sampleBusy"
+            :aria-label="t('detail.generateSample')"
+            :title="t('detail.generateSampleHint')"
+            @click="emit('generateSample', h)"
+          >
+            <span v-if="generatingId === h.id" aria-hidden="true">…</span>
+            <svg
+              v-else
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <line x1="4" y1="10" x2="4" y2="14" />
+              <line x1="8" y1="7" x2="8" y2="17" />
+              <line x1="12" y1="4" x2="12" y2="20" />
+              <line x1="16" y1="7" x2="16" y2="17" />
+              <line x1="20" y1="10" x2="20" y2="14" />
+            </svg>
+          </button>
           <button
             type="button"
-            class="dl-btn"
+            class="dl-btn download-btn"
             :disabled="isDownloading(h.id)"
             :aria-label="isDownloading(h.id) ? t('table.downloading') : t('table.download')"
             :title="downloadError(h.id) ?? t('table.download')"

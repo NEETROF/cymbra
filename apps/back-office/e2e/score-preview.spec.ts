@@ -51,3 +51,30 @@ test("the catalog filter bar offers the no-sample view", async ({ page }) => {
   await select.selectOption("no");
   await expect(select).toHaveValue("no");
 });
+
+test("the catalog table generates a sample per row, then offers to play it", async ({ page }) => {
+  await seed(page, {
+    loginAs: "moderator",
+    data: {
+      hits: [
+        sampleHit(),
+        sampleHit({ id: "22222222-2222-2222-2222-222222222222", title: "Gymnopédie", hasPreview: true }),
+      ],
+    },
+  });
+  await page.goto("/music/catalog");
+  await expect(page.getByRole("heading", { name: "Catalog" })).toBeVisible();
+  await page.addStyleTag({ content: "vite-error-overlay{display:none !important}" });
+
+  // Row 1 has no sample → generate; row 2 has one → play.
+  const gen1 = page.getByTestId("generate-sample-11111111-1111-1111-1111-111111111111");
+  await expect(gen1).toBeVisible();
+  await expect(page.getByTestId("play-sample-22222222-2222-2222-2222-222222222222")).toBeVisible();
+
+  await gen1.click();
+  await expect(page.getByText("Sample generated.")).toBeVisible();
+  await expect(page.getByTestId("play-sample-11111111-1111-1111-1111-111111111111")).toBeVisible();
+  await expect(gen1).toHaveCount(0);
+  // Neither control navigated to the detail page.
+  await expect(page).toHaveURL(/\/music\/catalog$/);
+});

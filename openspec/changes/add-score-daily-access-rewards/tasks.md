@@ -42,7 +42,7 @@
 ## 5. Back office (Vue)
 
 - [x] 5.1 `regenerateScorePreview(id)` injectable transport (`POST /scores/{id}/preview`, `setRegenerateScorePreviewForTest`) in the catalog store with a dedicated `Async<void>` `preview` ref + optimistic `hasPreview`.
-- [x] 5.2 "Generate sample" action in the score detail / table row (play when `hasPreview`, generate otherwise — SoundFonts pattern), state via `match(...).exhaustive()`; toasts.
+- [x] 5.2 "Generate sample" action in the score detail AND per table row (play when `hasPreview`, generate otherwise — SoundFonts pattern), shared `useScoreSample` composable, state via `match(...).exhaustive()`; toasts.
 - [x] 5.3 `hasPreview` filter on `FiltersBar` (`""|"yes"|"no"`) → admin search param; e2e fake seam entries.
 - [x] 5.4 Vitest (success/error/filter) + Playwright spec through the seam; en/fr strings.
 
