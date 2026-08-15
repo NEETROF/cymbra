@@ -50,6 +50,8 @@ function run() {
     moderationStatus: specific,
     allStatuses: specific === undefined || undefined,
     source: view.filters.source || undefined,
+    // Audio-teaser filter (change: add-score-daily-access-rewards): "" = any.
+    hasPreview: view.filters.hasPreview === "" ? undefined : view.filters.hasPreview === "yes",
     sort: view.sort,
     offset: view.offset,
   });

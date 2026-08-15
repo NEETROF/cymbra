@@ -40,15 +40,15 @@
 
 ## 5. Back office (Vue)
 
-- [ ] 5.1 `regenerateScorePreview(id)` injectable transport (`POST /scores/{id}/preview`, `setRegenerateScorePreviewForTest`) in the catalog store with a dedicated `Async<void>` `preview` ref + optimistic `hasPreview`.
-- [ ] 5.2 "Generate sample" action in the score detail / table row (play when `hasPreview`, generate otherwise — SoundFonts pattern), state via `match(...).exhaustive()`; toasts.
-- [ ] 5.3 `hasPreview` filter on `FiltersBar` (`""|"yes"|"no"`) → admin search param; e2e fake seam entries.
-- [ ] 5.4 Vitest (success/error/filter) + Playwright spec through the seam; en/fr strings.
+- [x] 5.1 `regenerateScorePreview(id)` injectable transport (`POST /scores/{id}/preview`, `setRegenerateScorePreviewForTest`) in the catalog store with a dedicated `Async<void>` `preview` ref + optimistic `hasPreview`.
+- [x] 5.2 "Generate sample" action in the score detail / table row (play when `hasPreview`, generate otherwise — SoundFonts pattern), state via `match(...).exhaustive()`; toasts.
+- [x] 5.3 `hasPreview` filter on `FiltersBar` (`""|"yes"|"no"`) → admin search param; e2e fake seam entries.
+- [x] 5.4 Vitest (success/error/filter) + Playwright spec through the seam; en/fr strings.
 
 ## 6. Coverage, gates & verification
 
 - [ ] 6.1 Rust: `cargo fmt` + `clippy -D warnings`; `cargo llvm-cov --workspace --fail-under-lines 80` (decision + day-slot + sequence cores and seams covered; gRPC/route/synth/worker glue excluded).
 - [ ] 6.2 Flutter: `dart run build_runner build`; `melos run analyze` + `dart run custom_lint`; `flutter test --coverage` ≥ 80%.
-- [ ] 6.3 Back office: `yarn lint` + `yarn test` + e2e green.
+- [x] 6.3 Back office: `yarn lint` + `yarn test` + e2e green.
 - [ ] 6.4 Manual (staff-only rollout, real backend): exhaust the quota → (N+1)th piece locked, clip plays, MusicXML refused; spend points → opens + re-open free; cached favourite locked online / plays offline; server-day rollover recharges; accept a piece → job renders a preview; BO "Generate sample" + "no sample" filter; backfill enqueues the corpus.
 - [ ] 6.5 `openspec validate add-score-daily-access-rewards --strict` passes.

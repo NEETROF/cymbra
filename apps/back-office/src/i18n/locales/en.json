@@ -301,7 +301,11 @@
     "statusLabel": "moderation status",
     "sourceLabel": "Source",
     "sourceAny": "All sources",
-    "sourceUser": "User proposals"
+    "sourceUser": "User proposals",
+    "previewLabel": "audio sample",
+    "previewAny": "Any sample state",
+    "previewYes": "With sample",
+    "previewNo": "No sample"
   },
   "detail": {
     "accept": "Accept",
@@ -314,7 +318,12 @@
     "rejectConfirm": "Confirm rejection",
     "cancel": "Cancel",
     "resubmission": "Re-submission: {note}",
-    "reviewReason": "Recorded reason: {reason}"
+    "reviewReason": "Recorded reason: {reason}",
+    "generateSample": "Generate sample",
+    "generateSampleHint": "Render the short audio teaser users hear when this piece is locked in the app.",
+    "sampleGenerated": "Sample generated.",
+    "playSample": "Play sample",
+    "stopSample": "Stop sample"
   },
   "edit": {
     "heading": "Edit metadata",

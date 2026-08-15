@@ -22,7 +22,15 @@ const props = withDefaults(defineProps<{ status?: StatusFilter; source?: string;
 const f = reactive<Filters>(
   props.initial
     ? { ...props.initial }
-    : { query: "", author: "", level: "", isPiano: undefined, moderationStatus: props.status, source: props.source },
+    : {
+        query: "",
+        author: "",
+        level: "",
+        isPiano: undefined,
+        moderationStatus: props.status,
+        source: props.source,
+        hasPreview: "",
+      },
 );
 
 watch(f, () => emit("change", { ...f }), { deep: true });
@@ -56,6 +64,13 @@ watch(f, () => emit("change", { ...f }), { deep: true });
     <select v-model="f.source" :aria-label="t('filters.sourceLabel')" class="source">
       <option value="">{{ t("filters.sourceAny") }}</option>
       <option value="user-proposal">{{ t("filters.sourceUser") }}</option>
+    </select>
+    <!-- Audio-teaser filter (change: add-score-daily-access-rewards): "no sample" is
+         the backfill view — pieces still missing their server-rendered clip. -->
+    <select v-model="f.hasPreview" :aria-label="t('filters.previewLabel')" class="preview">
+      <option value="">{{ t("filters.previewAny") }}</option>
+      <option value="yes">{{ t("filters.previewYes") }}</option>
+      <option value="no">{{ t("filters.previewNo") }}</option>
     </select>
   </div>
 </template>

@@ -1,6 +1,6 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createPinia, setActivePinia } from "pinia";
-import { QUEUE_SORT, useCatalogStore } from "@/stores/catalog";
+import { QUEUE_SORT, setRegenerateScorePreviewForTest, useCatalogStore } from "@/stores/catalog";
 import { setClientsForTest } from "@/lib/api";
 import { makeFakeClients } from "./fakes";
 
@@ -195,5 +195,75 @@ describe("catalog store", () => {
     expect(bad).toBeNull();
     expect(store.downloads["good"]).toBeUndefined(); // cleared on success
     expect(store.downloads["bad"]?.status).toBe("error"); // its own error, retained
+  });
+
+  // --- audio teaser (change: add-score-daily-access-rewards) -----------------
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    setRegenerateScorePreviewForTest(async () => {});
+  });
+
+  it("forwards the has-preview filter to the search RPC (undefined = any)", async () => {
+    const { clients, state } = makeFakeClients({ hits: [{ id: "a" }], total: 1 });
+    setClientsForTest(clients);
+    const store = useCatalogStore();
+
+    await store.search({ allStatuses: true, hasPreview: false });
+    expect(state.searchCalls[0].hasPreview).toBe(false);
+    await store.search({ allStatuses: true, hasPreview: true });
+    expect(state.searchCalls[1].hasPreview).toBe(true);
+    await store.search({ allStatuses: true });
+    expect(state.searchCalls[2].hasPreview).toBeUndefined();
+  });
+
+  it("regenerateScorePreview flips the loaded row's hasPreview without a re-list", async () => {
+    const { clients, state } = makeFakeClients({ hits: [{ id: "a", hasPreview: false }], total: 1 });
+    setClientsForTest(clients);
+    const called: string[] = [];
+    setRegenerateScorePreviewForTest(async (id) => {
+      called.push(id);
+    });
+    const store = useCatalogStore();
+    await store.search({ allStatuses: true });
+
+    const outcome = await store.regenerateScorePreview("a");
+
+    expect(outcome.status).toBe("success");
+    expect(called).toEqual(["a"]);
+    expect(store.preview.status).toBe("success");
+    expect(store.previewTarget).toBe("a");
+    const row =
+      store.result.status === "success" &&
+      (store.result.data.hits as { id: string; hasPreview?: boolean }[]).find((h) => h.id === "a");
+    expect(row && row.hasPreview).toBe(true);
+    expect(state.searchCalls).toHaveLength(1);
+  });
+
+  it("captures a preview regeneration failure in the preview state (no throw)", async () => {
+    const { clients } = makeFakeClients();
+    setClientsForTest(clients);
+    setRegenerateScorePreviewForTest(async () => {
+      throw new Error("HTTP 412");
+    });
+    const store = useCatalogStore();
+
+    const outcome = await store.regenerateScorePreview("a");
+
+    expect(outcome.status).toBe("error");
+    expect(store.preview.status).toBe("error");
+  });
+
+  it("scorePreviewClip fetches the score preview route", async () => {
+    const { clients } = makeFakeClients();
+    setClientsForTest(clients);
+    const fetchMock = vi.fn(() => Promise.resolve(new Response(new Uint8Array([1, 2, 3]), { status: 200 })));
+    vi.stubGlobal("fetch", fetchMock);
+    const store = useCatalogStore();
+
+    const bytes = await store.scorePreviewClip("a");
+
+    expect(bytes).toEqual(new Uint8Array([1, 2, 3]));
+    expect(String((fetchMock.mock.calls[0] as unknown[])[0])).toContain("/scores/a/preview");
   });
 });

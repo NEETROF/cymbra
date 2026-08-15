@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { match } from "ts-pattern";
 import ScorePreview from "@/components/ScorePreview.vue";
@@ -8,13 +8,15 @@ import SoundFontPicker from "@/components/SoundFontPicker.vue";
 import { useCatalogStore, type MetadataEdit, type ModerationStatus } from "@/stores/catalog";
 import { useAuthStore } from "@/stores/auth";
 import { useToastsStore } from "@/stores/toasts";
-import { type Async, idle, run } from "@/lib/async";
+import { type Async, idle, run, success } from "@/lib/async";
+import { useI18n } from "vue-i18n";
 import { useScoreRenderer } from "@/composables/useScoreRenderer";
 import { useScorePlayer } from "@/composables/useScorePlayer";
 import { useSoundFontChoice } from "@/composables/useSoundFontChoice";
 import type { CatalogHit } from "@/gen/score_pb";
 
 const props = defineProps<{ id: string }>();
+const { t } = useI18n();
 const store = useCatalogStore();
 const auth = useAuthStore();
 const toasts = useToastsStore();
@@ -105,6 +107,62 @@ async function decide(status: ModerationStatus) {
   if (outcome.status === "success") await leave();
 }
 
+// "Generate sample" (change: add-score-daily-access-rewards): (re)render the piece's
+// server-side audio teaser. Its state is the store's `preview` Async union, matched
+// exhaustively so a forgotten branch is a compile error. Once a sample exists the same
+// slot becomes a play button (the same clip the app auditions on a locked piece).
+const previewVm = computed(() =>
+  match(store.preview)
+    .with({ status: "idle" }, () => ({ busy: false, error: null as string | null, done: false }))
+    .with({ status: "loading" }, () => ({ busy: true, error: null, done: false }))
+    .with({ status: "error" }, ({ error }) => ({ busy: false, error, done: false }))
+    .with({ status: "success" }, () => ({ busy: false, error: null, done: true }))
+    .exhaustive(),
+);
+const generating = computed(() => store.previewTarget === props.id && previewVm.value.busy);
+async function generateSample() {
+  const outcome = await store.regenerateScorePreview(props.id);
+  if (outcome.status === "error") {
+    toasts.error(outcome.error);
+    return;
+  }
+  toasts.success(t("detail.sampleGenerated"));
+  // The row's marker is stamped server-side; reflect it on this page's own hit.
+  if (hit.value.status === "success") hit.value = success({ ...hit.value.data, hasPreview: true });
+}
+
+const samplePlaying = ref(false);
+let sampleAudio: HTMLAudioElement | null = null;
+let sampleUrl: string | null = null;
+function stopSample() {
+  sampleAudio?.pause();
+  if (sampleUrl) {
+    URL.revokeObjectURL(sampleUrl);
+    sampleUrl = null;
+  }
+  sampleAudio = null;
+  samplePlaying.value = false;
+}
+async function toggleSample() {
+  if (samplePlaying.value) {
+    stopSample();
+    return;
+  }
+  let clip: Uint8Array;
+  try {
+    clip = await store.scorePreviewClip(props.id);
+  } catch {
+    // The clip vanished (race with a regenerate) — nothing to play.
+    return;
+  }
+  sampleUrl = URL.createObjectURL(new Blob([clip as BlobPart], { type: "audio/wav" }));
+  sampleAudio = new Audio(sampleUrl);
+  sampleAudio.addEventListener("ended", stopSample);
+  samplePlaying.value = true;
+  void sampleAudio.play();
+}
+onBeforeUnmount(stopSample);
+
 const submitting = computed(() => submit.value.status === "loading");
 const submitError = computed(() =>
   match(submit.value)
@@ -144,6 +202,28 @@ async function saveEdit(edit: MetadataEdit) {
       </button>
       <button type="button" :disabled="acting" @click="decide('pending')">
         {{ $t("detail.requeue") }}
+      </button>
+      <!-- Audio teaser (change: add-score-daily-access-rewards): play it when it exists,
+           else generate it (the recovery/backfill path for a piece without one). -->
+      <button
+        v-if="hitVm.hit?.hasPreview"
+        type="button"
+        class="sample"
+        data-testid="play-sample"
+        @click="toggleSample()"
+      >
+        {{ samplePlaying ? $t("detail.stopSample") : $t("detail.playSample") }}
+      </button>
+      <button
+        v-else-if="hitVm.hit"
+        type="button"
+        class="sample"
+        data-testid="generate-sample"
+        :disabled="previewVm.busy"
+        :title="$t('detail.generateSampleHint')"
+        @click="generateSample()"
+      >
+        {{ generating ? "…" : $t("detail.generateSample") }}
       </button>
     </div>
   </div>
