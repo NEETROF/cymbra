@@ -113,17 +113,17 @@
       macOS prompt. Task 2.1 shipped the entitlement, which makes the workaround obsolete:
       reverting to the package default is both correct and app-scoped. macOS-only; `iOptions`
       is untouched, and iOS has no legacy keychain.)
-- [ ] 6b.2 Verify on a build **> 27**: install from TestFlight, sign in, relaunch — no password
+- [x] 6b.2 Verify on a build **> 27**: install from TestFlight, sign in, relaunch — no password
       prompt, session persists. Testers on build 27 sign in once more after updating.
 
 ## 7. Sandbox runtime verification (manual, on the signed build from 3.2)
 
-- [ ] 7.1 Install the exported build and confirm it launches sandboxed (`codesign -d --entitlements -` on the installed bundle, and a container appears under `~/Library/Containers/com.cymbra.music`)
-- [ ] 7.2 MIDI: a connected keyboard is detected, its notes drive playback and scoring, and a device plugged in **while the app runs** is picked up (hot-plug via the main-run-loop MIDI client)
-- [ ] 7.3 Audio: playing a score produces audible synthesized output
-- [ ] 7.4 SoundFont import: pick a `.sf2` through the file picker, confirm it imports and can be selected as the playback instrument
-- [ ] 7.5 Sign-in: Google and Apple sign-in both complete; relaunch the app and confirm the session persists (this is the 2.1 keychain fix under real conditions)
-- [ ] 7.6 Local storage: preferences, the local database and the encrypted offline score cache all persist across a relaunch, inside the sandbox container
+- [x] 7.1 Install the exported build and confirm it launches sandboxed (`codesign -d --entitlements -` on the installed bundle, and a container appears under `~/Library/Containers/com.cymbra.music`)
+- [x] 7.2 MIDI: a connected keyboard is detected, its notes drive playback and scoring, and a device plugged in **while the app runs** is picked up (hot-plug via the main-run-loop MIDI client)
+- [x] 7.3 Audio: playing a score produces audible synthesized output
+- [x] 7.4 SoundFont import: pick a `.sf2` through the file picker, confirm it imports and can be selected as the playback instrument
+- [x] 7.5 Sign-in: Google and Apple sign-in both complete; relaunch the app and confirm the session persists (this is the 2.1 keychain fix under real conditions)
+- [x] 7.6 Local storage: preferences, the local database and the encrypted offline score cache all persist across a relaunch, inside the sandbox container
 
 ## 8. Listing assets
 
