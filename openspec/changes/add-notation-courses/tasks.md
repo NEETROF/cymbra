@@ -7,7 +7,7 @@
 - [x] 1.1 Migration `0019_courses.sql`: `music.courses` (`id`, `status`, `instrument`, `track`, `level`, `sort_order`, `schema_version`, `title JSONB` inline-i18n, `content JSONB` opaque manifest, timestamps) + `courses_listing_idx`
 - [x] 1.2 `CourseRepo` trait + `PgCourseRepo` + hand `FakeCourseRepo` in `cymbra-music` (`course.rs`): `list_published` (summaries, grouped/ordered), `get` (full manifest), `upsert` (seed). Validation is the `content jsonb` cast (rejects malformed JSON); content otherwise opaque
 - [x] 1.3 gRPC `ListCourses` / `GetCourse` on `ScoreService` (proto + build.rs regen), returning summaries + the manifest blob; authenticated (`identity`), wired in `server/src/main.rs` via `.with_courses(...)`
-- [ ] 1.4 Seed script for first-party courses — deferred to §6 (needs the authored manifests); `upsert` + the migration already support seeding
+- [x] 1.4 Seed script for first-party courses — delivered by §6/§10: `backend/scripts/seed_courses.sql`, generated from the 42 authored manifests by `gen_seed_courses.py`, idempotent over `upsert`
 - [x] 1.5 Rust unit tests for list/get/upsert (grouping, published filter, idempotent re-seed) — 3 tests green, clippy + fmt clean; workspace `llvm-cov` gate runs at §7.3
 
 ## 2. Client: manifest model + forward-compatible block engine
@@ -36,7 +36,7 @@
 - [x] 5.1 Migration `0020_course_progress.sql`: `music.course_progress` (`user_id` UUID, `course_id`, `completed_at`, `play_count`, PK(user_id,course_id)); erasure via the worker `purge_user` DELETE loop (no cross-schema FK)
 - [x] 5.2 `CourseProgressStore` trait + `PgCourseProgressStore` (idempotent upsert: first completion sets `completed_at` → `newly_completed`, replay bumps `play_count`) + `FakeCourseProgressStore` (`course_progress.rs`)
 - [x] 5.3 gRPC `RecordCourseCompletion(courseId)` (returns `newly_completed`) / `GetCourseProgress()` on `ScoreService`, owner-scoped; wired in `server/src/main.rs` via `.with_course_progress(...)`
-- [ ] 5.4 **Deferred** — add the course-completion badge to `curation-rewards` (its badges are computed from curator metrics, so a completion badge needs a new category). The server `newly_completed` signal is the once-per-course hook it will use.
+- [x] 5.4 Course-completion badge — **landed in `achievement-badges`** instead of `curation-rewards` (which knows only curator metrics): family `learning`, tiers `student_1/2/3` at 1/10/42 completions (`badges_core.rs`), counted off `music.course_progress.completed_at` in `pg_badges.rs`. This change's `completed_at`/`newly_completed` were the hook it consumes.
 - [x] 5.5 `CourseProgressService` seam (`RecordCourseCompletion`/`GetCourseProgress`); the completion notifier reconciles with the server via `ref.listen(canUseOnlineServicesProvider)` — merges the server set, records on finish, and pushes local-only completions on sign-in (guest→account); all best-effort (offline/guest → local only)
 - [x] 5.6 Rust tests (first completion `newly_completed`, replay only counts, per-user isolation) + Flutter tests (`course_completion_sync_test.dart`: server merge, guest stays local, record-on-finish, guest→account push). clippy/fmt/analyze/custom_lint clean.
 
@@ -74,4 +74,4 @@
 - [x] 10.2 Corpus gate `test/courses/content_corpus_test.dart`: every file parsed by the REAL `parseCourseManifest` (zero unsupported blocks), 4 locales on every i18n map, id/unit/sortOrder/level coherence, ≥4 interactive (≥2 v2) per lesson, rhythm patterns fill exactly 1–2 bars, earChoice up/down consistent with pitches
 - [x] 10.3 Generator `backend/scripts/gen_seed_courses.py` → idempotent `seed_courses.sql` (dollar-quoted, retires the 5 pre-curriculum rows)
 - [x] 10.4 42 lessons authored in en/fr/es/it (U1 portée/premières notes → U7 intervalles/accords/oreille), reviewed by a musical + an editorial pass (2 minor findings, fixed)
-- [ ] 10.5 Manual: seed a live DB (`psql -f backend/scripts/seed_courses.sql`) + on-device pass of one lesson per unit
+- [x] 10.5 Manual: live DB seeded (`psql -f backend/scripts/seed_courses.sql`) + on-device pass of one lesson per unit — validated 2026-08-15
