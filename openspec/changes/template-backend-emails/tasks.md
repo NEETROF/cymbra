@@ -44,4 +44,4 @@
 - [x] 6.1 Send both emails to Mailpit in all four locales; visually verify branding, dark-mode legibility, and code prominence in the HTML preview and the text fallback.
 - [x] 6.2 `cargo fmt --all --check` + `cargo clippy --workspace --all-targets -- -D warnings`; `melos run analyze` clean for the client changes.
 - [x] 6.3 `openspec validate template-backend-emails --strict` passes.
-- [ ] 6.4 (prod ops, out-of-code) Confirm **SPF/DKIM/DMARC** for `cymbra.app` and that `no-reply@cymbra.app` is an authorized sender before the prod rollout.
+- [x] 6.4 (prod ops, out-of-code) Confirm **SPF/DKIM/DMARC** for `cymbra.app` and that `no-reply@cymbra.app` is an authorized sender before the prod rollout. Done via Brevo: domain authenticated (green), SPF `v=spf1 include:mx.ovh.com include:spf.brevo.com -all` (single record), DKIM `brevo1`/`brevo2._domainkey` CNAMEs, DMARC `p=none` at `_dmarc.cymbra.app`; test send verified.
