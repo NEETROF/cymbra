@@ -123,10 +123,14 @@ jobs:
       - name: Enable Linux desktop
         if: env.RUN_APP == 'true'
         run: flutter config --enable-linux-desktop
+      # `capture` is the store-screenshot scenario: an on-demand capture run
+      # through `flutter drive` (`melos run screenshots`), not a gate. It must be
+      # excluded here for the same reason as in flutter.yml — keep the two in
+      # sync.
       - name: Flutter coverage (integration)
         if: env.RUN_APP == 'true'
         working-directory: apps/music
-        run: xvfb-run -a flutter test integration_test -d linux --coverage --coverage-path coverage/integration.lcov.info
+        run: xvfb-run -a flutter test integration_test -d linux --exclude-tags capture --coverage --coverage-path coverage/integration.lcov.info
 
       # --- Back-office coverage (only when the Vue app / its protos changed) ---
       # Vue/TS: generate stubs + unit coverage. lcov paths are emitted relative to
