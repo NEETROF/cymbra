@@ -19,6 +19,7 @@ interface SfState {
   updateCalls: unknown[];
   deleteCalls: unknown[];
   moderationCalls: unknown[];
+  pricingCalls: unknown[];
 }
 
 /** Patch the fake `score` client with the SoundFont admin RPCs, recording calls. */
@@ -29,6 +30,7 @@ function withSoundfonts(clients: ReturnType<typeof makeFakeClients>["clients"], 
     updateCalls: [],
     deleteCalls: [],
     moderationCalls: [],
+    pricingCalls: [],
   };
   const score = clients.score as unknown as Record<string, (req: unknown) => Promise<unknown>>;
   score.adminListSoundFonts = async (req: unknown) => {
@@ -63,6 +65,10 @@ function withSoundfonts(clients: ReturnType<typeof makeFakeClients>["clients"], 
   };
   score.deleteSoundFont = async (req: unknown) => {
     state.deleteCalls.push(req);
+    return {};
+  };
+  score.setSoundFontPricing = async (req: unknown) => {
+    state.pricingCalls.push(req);
     return {};
   };
   return state;
@@ -316,6 +322,49 @@ describe("soundfonts store", () => {
 
     expect(outcome.status).toBe("error");
     expect(store.op.status).toBe("error");
+  });
+
+  // --- Reward pricing (change: add-soundfont-reward-pricing) ---
+
+  it("prices a font via setSoundFontPricing then re-lists", async () => {
+    const { clients } = makeFakeClients();
+    const sf = withSoundfonts(clients, [row("ydp-grand", { pointCost: 0, redeemable: true })]);
+    setClientsForTest(clients);
+    const store = useSoundFontsStore();
+
+    const outcome = await store.setPricing("ydp-grand", 250, true);
+
+    expect(outcome.status).toBe("success");
+    expect(sf.pricingCalls).toEqual([{ id: "ydp-grand", pointCost: 250, redeemable: true }]);
+    expect(sf.adminListCalls).toBe(1); // re-listed so the row shows the new price
+  });
+
+  it("sends a zero cost to revert a font to free", async () => {
+    const { clients } = makeFakeClients();
+    const sf = withSoundfonts(clients, [row("ydp-grand", { pointCost: 250, redeemable: true })]);
+    setClientsForTest(clients);
+    const store = useSoundFontsStore();
+
+    await store.setPricing("ydp-grand", 0, true);
+
+    expect(sf.pricingCalls).toEqual([{ id: "ydp-grand", pointCost: 0, redeemable: true }]);
+  });
+
+  it("captures a denied pricing call in op instead of throwing", async () => {
+    const { clients } = makeFakeClients();
+    const sf = withSoundfonts(clients, [row("ydp-grand")]);
+    const score = clients.score as unknown as Record<string, () => Promise<never>>;
+    // Pricing is admin-only server-side; a moderator's call is refused.
+    score.setSoundFontPricing = () => Promise.reject(new ConnectError("denied", Code.PermissionDenied));
+    setClientsForTest(clients);
+    const store = useSoundFontsStore();
+
+    const outcome = await store.setPricing("ydp-grand", 250, true);
+
+    expect(outcome.status).toBe("error");
+    expect(store.op.status).toBe("error");
+    // A refused write never re-lists (nothing changed).
+    expect(sf.adminListCalls).toBe(0);
   });
 
   // --- Generate sample (change: add-soundfont-entitlement-previews) ---

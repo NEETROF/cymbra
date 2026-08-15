@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { match } from "ts-pattern";
 import { SOUNDFONTS_PAGE_SIZE, useSoundFontsStore } from "@/stores/soundfonts";
+import { useAuthStore } from "@/stores/auth";
 import { useToastsStore } from "@/stores/toasts";
 import type { AdminSoundFont } from "@/gen/score_pb";
 import AppTag from "@/components/AppTag.vue";
@@ -12,6 +13,7 @@ import StatCards, { type StatItem } from "@/components/StatCards.vue";
 import { currentLocale } from "@/i18n";
 
 const store = useSoundFontsStore();
+const auth = useAuthStore();
 const toasts = useToastsStore();
 const { t } = useI18n();
 
@@ -123,6 +125,47 @@ async function confirmReject(id: string) {
   const outcome = await store.setModerationStatus(id, "rejected", reason);
   if (outcome.status === "error") toasts.error(outcome.error);
   else cancelReject();
+}
+
+// Reward pricing (change: add-soundfont-reward-pricing). What a font *costs* is a
+// product decision, so — unlike the metadata edit and the moderation decisions above —
+// the control is **admin**-only; the server enforces the same gate, this just avoids
+// offering an action that would be refused.
+const canPrice = computed(() => auth.isAdmin);
+
+/** A row's current price, as displayed when it is not being edited. */
+function priceLabel(row: AdminSoundFont): string {
+  return row.pointCost > 0 ? t("soundfonts.pricePoints", { n: num(row.pointCost) }) : t("soundfonts.priceFree");
+}
+
+// Clicking "Set price" opens an inline cost + redeemable editor on that row (the
+// reject-reason shape), so pricing needs no extra screen.
+const priceTargetId = ref<string | null>(null);
+const priceCost = ref(0);
+const priceRedeemable = ref(true);
+function startPricing(row: AdminSoundFont) {
+  priceTargetId.value = row.id;
+  priceCost.value = row.pointCost;
+  priceRedeemable.value = row.redeemable;
+}
+function cancelPricing() {
+  priceTargetId.value = null;
+}
+async function confirmPricing(id: string) {
+  // The server refuses a negative cost; clamp here so the control never sends one.
+  const cost = Math.max(0, Math.trunc(Number(priceCost.value) || 0));
+  const outcome = await store.setPricing(id, cost, priceRedeemable.value);
+  if (outcome.status === "error") toasts.error(outcome.error);
+  else {
+    toasts.success(t("soundfonts.priceSaved"));
+    cancelPricing();
+  }
+}
+/** Non-blocking hint: a costed font with no sample is locked but not auditionable —
+ *  the app greys its play control until "Generate sample" has run. Pricing is allowed
+ *  either way (the server does not couple the two). */
+function pricingNeedsSample(row: AdminSoundFont): boolean {
+  return priceTargetId.value === row.id && !row.hasPreview && Number(priceCost.value) > 0;
 }
 
 // Normalise a row's (possibly empty) moderation status to a known badge variant.
@@ -245,6 +288,7 @@ function licenseDesc(license: string): string {
             <th>{{ t("soundfonts.instrument") }}</th>
             <th>{{ t("soundfonts.license") }}</th>
             <th>{{ t("soundfonts.attribution") }}</th>
+            <th>{{ t("soundfonts.priceCol") }}</th>
             <th class="actions-col">{{ t("soundfonts.actionsCol") }}</th>
           </tr>
         </thead>
@@ -296,6 +340,46 @@ function licenseDesc(license: string): string {
               <template v-else>{{ row.license }}</template>
             </td>
             <td>{{ row.attribution }}</td>
+            <!-- Reward price (change: add-soundfont-reward-pricing): read-only for a
+                 moderator, editable inline for an admin. -->
+            <td class="price-col">
+              <template v-if="priceTargetId === row.id">
+                <div class="pricing">
+                  <input
+                    :id="`soundfont-price-${row.id}`"
+                    v-model.number="priceCost"
+                    class="cost"
+                    type="number"
+                    min="0"
+                    step="1"
+                    :aria-label="t('soundfonts.priceCostLabel')"
+                    :disabled="acting"
+                    @keyup.enter="confirmPricing(row.id)"
+                    @keyup.escape="cancelPricing"
+                  />
+                  <label class="redeemable">
+                    <input v-model="priceRedeemable" type="checkbox" :disabled="acting" />
+                    {{ t("soundfonts.priceRedeemable") }}
+                  </label>
+                  <button type="button" class="btn-sm accept" :disabled="acting" @click="confirmPricing(row.id)">
+                    {{ t("soundfonts.save") }}
+                  </button>
+                  <button type="button" class="btn-sm" :disabled="acting" @click="cancelPricing">
+                    {{ t("soundfonts.cancel") }}
+                  </button>
+                </div>
+                <p v-if="pricingNeedsSample(row)" class="price-hint">{{ t("soundfonts.priceNoSampleHint") }}</p>
+              </template>
+              <template v-else>
+                <span class="price-value">{{ priceLabel(row) }}</span>
+                <AppTag v-if="row.pointCost > 0 && !row.redeemable" variant="neutral">{{
+                  t("soundfonts.priceComingLater")
+                }}</AppTag>
+                <button v-if="canPrice" type="button" class="btn-sm" :disabled="acting" @click="startPricing(row)">
+                  {{ t("soundfonts.setPrice") }}
+                </button>
+              </template>
+            </td>
             <td class="actions-col">
               <div class="row-actions">
                 <!-- Merged play / "Generate sample": a font with a preview plays the clip;
@@ -512,6 +596,43 @@ function licenseDesc(license: string): string {
   background: var(--panel);
   color: var(--text);
   font-size: 0.8rem;
+}
+
+/* Reward price cell + its inline editor (change: add-soundfont-reward-pricing). */
+.price-col {
+  white-space: nowrap;
+}
+.price-value {
+  margin-right: 0.4rem;
+}
+.pricing {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+.pricing .cost {
+  width: 5.5rem;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 6px);
+  background: var(--panel);
+  color: var(--text);
+  font-size: 0.8rem;
+}
+.redeemable {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.price-hint {
+  margin: 0.35rem 0 0;
+  max-width: 22rem;
+  color: var(--muted);
+  font-size: 0.75rem;
+  white-space: normal;
 }
 
 /* Cue that the licence has a hover explanation (native title tooltip). */

@@ -122,6 +122,15 @@
     "label": "Nom",
     "license": "Licence",
     "attribution": "Attribution",
+    "priceCol": "Prix",
+    "priceFree": "Gratuit",
+    "pricePoints": "{n} pts",
+    "priceComingLater": "Bientôt",
+    "priceRedeemable": "Échangeable",
+    "priceCostLabel": "Coût en points (0 = gratuit)",
+    "setPrice": "Définir le prix",
+    "priceSaved": "Prix mis à jour.",
+    "priceNoSampleHint": "Cette sonorité n'a pas encore d'extrait : dès qu'elle coûte des points, l'app la verrouille et grise sa lecture tant qu'aucun extrait n'est généré.",
     "instrument": "Instrument",
     "instr": {
       "piano": "Piano"

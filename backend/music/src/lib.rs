@@ -52,6 +52,7 @@ pub mod score_rating;
 pub mod soundfont;
 pub mod soundfont_access;
 pub mod soundfont_preview;
+pub mod soundfont_pricing;
 pub mod soundfont_synth;
 pub mod streak;
 pub mod streak_core;
@@ -132,6 +133,7 @@ pub use soundfont_preview::{
     Event, Note, PREVIEW_SAMPLE_RATE, SampleSequence, encode_preview, preview_object_key,
     sample_sequence, scheduled_events, total_samples,
 };
+pub use soundfont_pricing::decide as decide_soundfont_pricing;
 pub use soundfont_synth::{render_preview_pcm, render_preview_wav};
 pub use streak::{FREEZE_REWARD_KEY, FakeStreakRepo, StreakRepo};
 pub use streak_core::{
