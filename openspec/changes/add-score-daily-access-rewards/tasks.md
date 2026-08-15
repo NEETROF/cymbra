@@ -47,8 +47,8 @@
 
 ## 6. Coverage, gates & verification
 
-- [ ] 6.1 Rust: `cargo fmt` + `clippy -D warnings`; `cargo llvm-cov --workspace --fail-under-lines 80` (decision + day-slot + sequence cores and seams covered; gRPC/route/synth/worker glue excluded).
-- [ ] 6.2 Flutter: `dart run build_runner build`; `melos run analyze` + `dart run custom_lint`; `flutter test --coverage` ≥ 80%.
+- [x] 6.1 Rust: `cargo fmt` + `clippy -D warnings`; `cargo llvm-cov --workspace --fail-under-lines 80` (decision + day-slot + sequence cores and seams covered; gRPC/route/synth/worker glue excluded).
+- [x] 6.2 Flutter: `dart run build_runner build`; `melos run analyze` + `dart run custom_lint`; `flutter test --coverage` ≥ 80%.
 - [x] 6.3 Back office: `yarn lint` + `yarn test` + e2e green.
 - [ ] 6.4 Manual (staff-only rollout, real backend): exhaust the quota → (N+1)th piece locked, clip plays, MusicXML refused; spend points → opens + re-open free; cached favourite locked online / plays offline; server-day rollover recharges; accept a piece → job renders a preview; BO "Generate sample" + "no sample" filter; backfill enqueues the corpus.
-- [ ] 6.5 `openspec validate add-score-daily-access-rewards --strict` passes.
+- [x] 6.5 `openspec validate add-score-daily-access-rewards --strict` passes.
