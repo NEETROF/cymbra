@@ -14,7 +14,7 @@
 ## 3. Back office (Vue)
 
 - [x] 3.1 Add a `setSoundFontPricing(id, pointCost, redeemable)` action to the soundfonts store behind the injectable `api()` client seam; model its result as an `Async<T>` union and surface success/error via the toasts.
-- [x] 3.2 On the Sound fonts admin screen, show each font's current price (`point_cost`/`redeemable`) and, **for an admin**, a control to change them (cost input + redeemable toggle). Hidden/disabled for a non-admin.
+- [x] 3.2 Show each font's current price (`point_cost`/`redeemable`) on the Sound fonts admin listing, and put the control to change them (cost input + redeemable toggle) in the font's **edit drawer**, alongside its other settings — the listing stays a read surface. Shown **only to an admin**, and only in edit mode (pricing needs an existing row); the drawer sends the pricing write only when it actually changed.
 - [x] 3.3 When pricing a font that has `has_preview = false`, show a non-blocking hint that the app will grey its play until a sample is generated.
 - [x] 3.4 Vitest: the store action (success + error) via the client seam; the admin gate (control absent for a moderator).
 

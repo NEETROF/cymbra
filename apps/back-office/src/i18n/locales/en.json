@@ -128,8 +128,6 @@
     "priceComingLater": "Coming later",
     "priceRedeemable": "Redeemable",
     "priceCostLabel": "Cost in points (0 = free)",
-    "setPrice": "Set price",
-    "priceSaved": "Price updated.",
     "priceNoSampleHint": "This font has no sample yet: once it costs points, the app locks it and greys its play control until you generate one.",
     "instrument": "Instrument",
     "instr": {

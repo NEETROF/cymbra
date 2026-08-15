@@ -67,11 +67,18 @@ $1`), returning whether a row matched (→ `NotFound` when it didn't). Kept sepa
 handler just copies them into the response so the back office renders the current price and
 the pricing control's initial state.
 
-### 4. Back office: an inline pricing control on the Sound fonts screen
-A per-row (or detail) control to set cost + redeemable, calling `SetSoundFontPricing`
-through the injectable client seam, its state an `Async<T>` union, results surfaced via the
-existing toasts. Only visible to an admin (the screen already knows the caller's scope for
-the accept/reject controls). No new screen.
+### 4. Back office: priced in the edit drawer, displayed in the listing
+The listing gains a read-only **Price** column; the control that changes it lives in the
+font's **edit drawer**, next to its label/licence/attribution — pricing is one of the
+font's settings, not a row action, and the actions column was already carrying
+play/generate, accept, reject, edit and delete. The drawer calls `SetSoundFontPricing`
+through the injectable client seam, its state the store's existing `Async<T>` union.
+
+Two gates fall out of putting it there: the section shows only in **edit** mode (pricing
+needs an existing row, so a font is never born priced) and only to an **admin**, while the
+metadata around it stays moderator-or-admin. Metadata and pricing remain **two writes**
+behind one Save, and the pricing call is sent **only when the price actually changed** — so
+a moderator saving a label never attempts the admin-only RPC. No new screen.
 
 ### 5. Pricing before acceptance, but the shop gates on it
 Pricing and moderation stay **independent**: an operator prices a font while it is still in
