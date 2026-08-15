@@ -235,6 +235,7 @@ async fn main() -> anyhow::Result<()> {
         user_soundfont_repo,
         leaderboard_svc,
         global_leaderboard_svc,
+        score_preview_parts,
     ) = match cfg.music_database_url.as_deref() {
         Some(db_url) => {
             let music_pool = db::connect(db_url, 5).await?;
@@ -342,7 +343,7 @@ async fn main() -> anyhow::Result<()> {
                     ),
                 );
 
-            let score_svc = match cfg.score_storage.as_ref() {
+            let (score_svc, score_preview_parts) = match cfg.score_storage.as_ref() {
                 Some(s3) => {
                     let storage: Arc<dyn ObjectStorage> = Arc::new(LocalFirstStore::from_config(
                         &cfg.score_local_root,
@@ -372,7 +373,7 @@ async fn main() -> anyhow::Result<()> {
                             catalog_repo.clone(),
                             Arc::new(PgUserLibraryRepo::new(music_pool.clone())),
                             rating_repo.clone(),
-                            storage,
+                            storage.clone(),
                             cfg.upload_quota_max,
                             cfg.upload_quota_window_days,
                             cfg.upload_max_bytes,
@@ -383,8 +384,21 @@ async fn main() -> anyhow::Result<()> {
                         .with_rewards(rewards_sink)
                         // Persist the per-user offline-cache secret (change:
                         // add-offline-score-cache); the default is an in-memory fake.
-                        .with_offline_secrets(Arc::new(
-                            PgOfflineSecretRepo::new(music_pool.clone()),
+                        .with_offline_secrets(Arc::new(PgOfflineSecretRepo::new(
+                            music_pool.clone(),
+                        )))
+                        // The freemium daily-access gate on catalog player-opens
+                        // (change: add-score-daily-access-rewards): flag-backed
+                        // (OFF by default, staff-only rollout first), no
+                        // subscriptions until billing exists.
+                        .with_daily_access(Arc::new(
+                            cymbra_music::CatalogDailyAccess::new(Arc::new(
+                                cymbra_music::PgCatalogDayAccessRepo::new(music_pool.clone()),
+                            ))
+                            .with_config_source(Arc::new(
+                                cymbra_server::FlagDailyAccessConfig::new(flag_service.clone()),
+                            ))
+                            .with_subscriptions(Arc::new(cymbra_music::NoSubscriptions)),
                         )),
                     );
                     // Per-user scrape guardrail over the shared Redis cache + play &
@@ -395,7 +409,7 @@ async fn main() -> anyhow::Result<()> {
                         rating_repo,
                         cfg.catalog_limits.clone(),
                     ));
-                    Some(ScoreServiceServer::with_interceptor(
+                    let score_svc = Some(ScoreServiceServer::with_interceptor(
                         ScoreGrpc::new(module)
                             .with_limiter(limiter)
                             .with_soundfonts(soundfont_repo.clone())
@@ -408,11 +422,30 @@ async fn main() -> anyhow::Result<()> {
                             // add-soundfont-uploader-attribution).
                             .with_user_port(user_dyn.clone()),
                         strict.clone(),
-                    ))
+                    ));
+                    // Score audio teasers (change: add-score-daily-access-rewards):
+                    // the HTTP delivery needs the score store + catalog; the inline
+                    // regenerate additionally needs the SoundFont store for the
+                    // configured preview font (absent ⇒ regenerate reports 503).
+                    let renderer = soundfont_store.clone().map(|font_store| {
+                        Arc::new(cymbra_music::ScorePreviewRenderer::new(
+                            storage.clone(),
+                            font_store,
+                            catalog_repo.clone(),
+                            soundfont_repo.clone(),
+                            Arc::new(cymbra_server::FlagScorePreviewConfig::new(
+                                flag_service.clone(),
+                            )),
+                        ))
+                    });
+                    (
+                        score_svc,
+                        Some((storage.clone(), catalog_repo.clone(), renderer)),
+                    )
                 }
                 None => {
                     tracing::info!("score-upload disabled (CYMBRA_SCORE_S3_BUCKET unset)");
-                    None
+                    (None, None)
                 }
             };
             (
@@ -422,6 +455,7 @@ async fn main() -> anyhow::Result<()> {
                 Some(user_soundfont_repo),
                 leaderboard_svc,
                 global_leaderboard_svc,
+                score_preview_parts,
             )
         }
         None => {
@@ -432,7 +466,7 @@ async fn main() -> anyhow::Result<()> {
                 ));
             }
             tracing::info!("music services disabled (CYMBRA_MUSIC_DATABASE_URL unset)");
-            (None, None, None, None, None, None)
+            (None, None, None, None, None, None, None)
         }
     };
 
@@ -448,6 +482,19 @@ async fn main() -> anyhow::Result<()> {
         refresh_ttl: cfg.token.refresh_ttl,
         allowed_origins: cfg.back_office_origins.clone(),
     };
+    let soundfont_auth: Arc<dyn cymbra_server::SoundfontAuth> = Arc::new(soundfont_auth);
+    // Score audio-teaser routes (change: add-score-daily-access-rewards); the same
+    // auth seam as the SoundFont routes.
+    let (sp_store, sp_catalog, sp_renderer) = match score_preview_parts {
+        Some((store, catalog, renderer)) => (Some(store), Some(catalog), renderer),
+        None => (None, None, None),
+    };
+    let score_preview_state = cymbra_server::ScorePreviewState {
+        store: sp_store,
+        catalog: sp_catalog,
+        renderer: sp_renderer,
+        auth: soundfont_auth.clone(),
+    };
     let soundfont_state = cymbra_server::SoundfontState {
         store: soundfont_store,
         // The persisted catalog (change: add-soundfont-catalog-db) resolves id →
@@ -456,12 +503,16 @@ async fn main() -> anyhow::Result<()> {
         // Private per-user library (change: add-soundfont-moderation) backing the
         // `/me/soundfonts` routes.
         user_repo: user_soundfont_repo,
-        auth: Arc::new(soundfont_auth),
+        auth: soundfont_auth,
     };
     let http = cymbra_server::http_router(jwks, ready_pool, cache.clone())
         .merge(cymbra_server::web_auth_router(auth_port, web_auth_cfg))
         .merge(cymbra_server::soundfont_router(
             soundfont_state,
+            cfg.back_office_origins.clone(),
+        ))
+        .merge(cymbra_server::score_preview_router(
+            score_preview_state,
             cfg.back_office_origins.clone(),
         ));
 

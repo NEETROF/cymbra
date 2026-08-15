@@ -15,6 +15,8 @@ pub mod backfill;
 pub mod badges;
 pub mod badges_core;
 pub mod badges_module;
+pub mod catalog_daily_access;
+pub mod catalog_daily_access_core;
 pub mod catalog_edit;
 pub mod catalog_limits;
 pub mod catalog_search;
@@ -36,6 +38,7 @@ pub mod module;
 pub mod offline_secret;
 pub mod pg;
 pub mod pg_badges;
+pub mod pg_catalog_daily_access;
 pub mod pg_curation_rewards;
 pub mod pg_global_leaderboard;
 pub mod pg_leaderboard;
@@ -48,6 +51,8 @@ pub mod play_grpc;
 pub mod play_module;
 pub mod play_rewards_core;
 pub mod repo;
+pub mod score_preview;
+pub mod score_preview_module;
 pub mod score_rating;
 pub mod soundfont;
 pub mod soundfont_access;
@@ -71,6 +76,12 @@ pub use badges_core::{
     earned_curation_badges, evaluate, family_badges,
 };
 pub use badges_module::BadgesModule;
+pub use catalog_daily_access::{
+    AccessState, CatalogDailyAccess, CatalogDayAccessRepo, DAY_SLOT_REWARD_KEY,
+    DailyAccessConfigSource, FakeCatalogDayAccessRepo, FixedDailyAccessConfig, NoSubscriptions,
+    OpenDecision, SubscriptionSource,
+};
+pub use catalog_daily_access_core::{CallerKind, DailyAccessConfig, DayState};
 pub use catalog_limits::CatalogAccessLimiter;
 pub use catalog_search::{
     CatalogHit, CatalogObjectRef, CatalogSearchParams, CatalogSearchRepo, FakeCatalogRow,
@@ -109,6 +120,7 @@ pub use offline_secret::{
 };
 pub use pg::{PgCatalogRepo, PgCatalogSearchRepo, PgScoreRatingRepo, PgTitleBackfillRepo};
 pub use pg_badges::PgBadgeRepo;
+pub use pg_catalog_daily_access::PgCatalogDayAccessRepo;
 pub use pg_curation_rewards::PgCurationRewardsRepo;
 pub use pg_global_leaderboard::PgGlobalLeaderboardRepo;
 pub use pg_leaderboard::PgLeaderboardRepo;
@@ -122,6 +134,13 @@ pub use play::{
 pub use play_grpc::PlayGrpc;
 pub use play_module::{PlayModule, RecordInput, RecordPracticeInput};
 pub use repo::{CatalogEntry, CatalogRepo, FakeCatalogRepo, ScoreFacets, ScoreMeta};
+pub use score_preview::{
+    FixedScorePreviewConfig, RELEASE_MS, ScorePreviewConfig, ScorePreviewConfigSource,
+    preview_sequence, render_score_preview_wav, score_preview_object_key,
+};
+pub use score_preview_module::{
+    RenderOutcome, ScorePreviewRenderer, enqueue_missing_previews, preview_render_request,
+};
 pub use score_rating::{
     FakeScoreRatingRepo, RatingAggregate, RatingConfig, ScoreRatingRepo, Verdict,
 };

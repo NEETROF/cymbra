@@ -55,3 +55,41 @@ pub async fn build_flag_service(
     }
     Ok(service)
 }
+
+/// Feature-flag-backed score audio-teaser configuration for the worker's
+/// `score_preview_render` job (change: add-score-daily-access-rewards, design
+/// D7): the clip length and the catalog SoundFont it is rendered with. Read per
+/// render so retuning in the back office needs no redeploy; the L1 snapshot is
+/// refreshed on demand by the handler.
+pub struct WorkerScorePreviewConfig {
+    flags: Arc<FlagService>,
+}
+
+impl WorkerScorePreviewConfig {
+    pub fn new(flags: Arc<FlagService>) -> Self {
+        Self { flags }
+    }
+}
+
+impl cymbra_music::ScorePreviewConfigSource for WorkerScorePreviewConfig {
+    fn score_preview_config(&self) -> cymbra_music::ScorePreviewConfig {
+        use cymbra_feature_flags::registry;
+        let ctx = cymbra_feature_flags::EvalContext::anonymous(registry::APP_MUSIC);
+        let defaults = cymbra_music::ScorePreviewConfig::default();
+        cymbra_music::ScorePreviewConfig {
+            max_ms: self
+                .flags
+                .int(
+                    registry::CATALOG_PREVIEW_MAX_MS,
+                    i64::from(defaults.max_ms),
+                    &ctx,
+                )
+                .clamp(0, i64::from(u32::MAX)) as u32,
+            soundfont_id: self.flags.string(
+                registry::CATALOG_PREVIEW_SOUNDFONT_ID,
+                &defaults.soundfont_id,
+                &ctx,
+            ),
+        }
+    }
+}

@@ -70,6 +70,10 @@ pub struct CatalogHit {
     pub contributor_credit: Option<String>,
     pub review_reason: Option<String>,
     pub resubmission_note: Option<String>,
+    /// A server-rendered audio teaser exists for this piece (change:
+    /// add-score-daily-access-rewards) — from the row's `preview_rendered_at`
+    /// marker, never a storage probe.
+    pub has_preview: bool,
 }
 
 /// One validated sort key (change: add-moderation-back-office): an allow-listed
@@ -164,6 +168,9 @@ pub struct CatalogSearchParams {
     pub all_statuses: bool,
     /// Origin filter (`user-proposal` / crawler dataset); `None` = any source.
     pub source: Option<String>,
+    /// Audio-teaser filter (change: add-score-daily-access-rewards; privileged,
+    /// BO-only): `Some(true)` = rendered only, `Some(false)` = missing only.
+    pub has_preview: Option<bool>,
     /// Validated multi-key sort (change: add-moderation-back-office). Empty = the
     /// existing default ordering (so the app hub is unaffected).
     pub sort: Vec<SortKey>,
@@ -195,6 +202,9 @@ pub struct CatalogQuery {
     /// Origin filter (change: add-score-catalog-proposal): e.g. `user-proposal` vs a
     /// crawler dataset; `None` = any source. Composes with the status gate.
     pub source: Option<String>,
+    /// Audio-teaser filter (change: add-score-daily-access-rewards): gated to
+    /// admin/moderator at the gRPC layer; `None` for a normal caller.
+    pub has_preview: Option<bool>,
     /// Raw sort keys from the request; validated against [`SORT_FIELDS`] by the
     /// module before they reach a repo. Empty = the default ordering.
     pub sort: Vec<SortKey>,
@@ -211,6 +221,11 @@ pub struct CatalogQuery {
 pub struct CatalogObjectRef {
     pub object_key: String,
     pub sha256: String,
+    /// The proposer's user id on a user-proposed row (change: add-score-catalog-
+    /// proposal), `None` for a crawler row. The daily-access gate reads it to let a
+    /// contributor open their own accepted piece free (change:
+    /// add-score-daily-access-rewards).
+    pub proposed_by: Option<String>,
 }
 
 #[async_trait]
@@ -314,6 +329,14 @@ pub trait CatalogSearchRepo: Send + Sync {
     /// its empty state once everything is rated. Not owner-scoped data, but the
     /// exclusion is per caller.
     async fn rating_deck(&self, user_id: &str, limit: i64, offset: i64) -> Result<Vec<CatalogHit>>;
+
+    /// Stamp (or clear) the audio-teaser rendered marker of `id` (change:
+    /// add-score-daily-access-rewards): `true` when a row was updated.
+    async fn set_preview_rendered(&self, id: &str, rendered: bool) -> Result<bool>;
+
+    /// Up to `limit` ids of `accepted` pieces with NO rendered marker — the
+    /// backfill's work list (change: add-score-daily-access-rewards).
+    async fn accepted_ids_missing_preview(&self, limit: i64) -> Result<Vec<String>>;
 }
 
 /// A seed row for [`FakeCatalogSearchRepo`]. Norm keys are derived on the fly, so
@@ -361,6 +384,9 @@ pub struct FakeCatalogRow {
     /// stable, id-derived value so conditional-fetch tests have a known hash;
     /// override with [`Self::with_sha256`].
     pub sha256: String,
+    /// The audio-teaser marker (change: add-score-daily-access-rewards): `true`
+    /// once a preview was rendered for the row (`preview_rendered_at IS NOT NULL`).
+    pub has_preview: bool,
 }
 
 impl FakeCatalogRow {
@@ -464,7 +490,15 @@ impl FakeCatalogRow {
             contributor_credit: None,
             review_reason: self.review_reason.clone(),
             resubmission_note: self.resubmission_note.clone(),
+            has_preview: self.has_preview,
         }
+    }
+
+    /// Mark the row as having a rendered audio teaser (change:
+    /// add-score-daily-access-rewards).
+    pub fn with_preview(mut self, has_preview: bool) -> Self {
+        self.has_preview = has_preview;
+        self
     }
 
     fn title_norm(&self) -> String {
@@ -585,7 +619,15 @@ impl CatalogSearchRepo for FakeCatalogSearchRepo {
                 // Origin filter (change: add-score-catalog-proposal): composes with all
                 // the above; `None` = any source.
                 let source_ok = p.source.as_ref().is_none_or(|s| &r.source == s);
-                text_ok && author_ok && level_ok && status_ok && source_ok && facets_match(r, p)
+                // Audio-teaser filter (change: add-score-daily-access-rewards).
+                let preview_ok = p.has_preview.is_none_or(|want| r.has_preview == want);
+                text_ok
+                    && author_ok
+                    && level_ok
+                    && status_ok
+                    && source_ok
+                    && preview_ok
+                    && facets_match(r, p)
             })
             .collect();
         // Total over the full filtered set, before pagination (mirrors the Pg
@@ -652,6 +694,7 @@ impl CatalogSearchRepo for FakeCatalogSearchRepo {
             .map(|r| CatalogObjectRef {
                 object_key: r.object_key.clone(),
                 sha256: r.sha256.clone(),
+                proposed_by: r.proposed_by.clone(),
             }))
     }
 
@@ -758,6 +801,27 @@ impl CatalogSearchRepo for FakeCatalogSearchRepo {
             }
             None => Ok(false),
         }
+    }
+
+    async fn set_preview_rendered(&self, id: &str, rendered: bool) -> Result<bool> {
+        let mut rows = self.rows.lock().expect("catalog search fake lock");
+        match rows.iter_mut().find(|r| r.id == id) {
+            Some(row) => {
+                row.has_preview = rendered;
+                Ok(true)
+            }
+            None => Ok(false),
+        }
+    }
+
+    async fn accepted_ids_missing_preview(&self, limit: i64) -> Result<Vec<String>> {
+        let rows = self.rows.lock().expect("catalog search fake lock");
+        Ok(rows
+            .iter()
+            .filter(|r| r.moderation_status == "accepted" && !r.has_preview)
+            .map(|r| r.id.clone())
+            .take(limit.max(0) as usize)
+            .collect())
     }
 
     async fn rating_deck(&self, user_id: &str, limit: i64, offset: i64) -> Result<Vec<CatalogHit>> {

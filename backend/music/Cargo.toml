@@ -42,6 +42,7 @@ cymbra-musicxml-core = { path = "../../crates/musicxml-core" }
 # (contract crate — an impl→port dependency, like cymbra-auth uses it), never
 # reaching into the `user_account` schema directly.
 cymbra-user-port = { path = "../user-port" }
+cymbra-jobs = { path = "../jobs" }
 
 [build-dependencies]
 tonic-build.workspace = true

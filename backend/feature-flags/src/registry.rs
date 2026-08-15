@@ -58,6 +58,24 @@ pub const STREAK_GRACE_DAYS: &str = "streak.grace_days";
 pub const LEADERBOARD_DIFFICULTY_WEIGHTS: &str = "leaderboard.difficulty_weights";
 pub const LEADERBOARD_SEASON_LENGTH_DAYS: &str = "leaderboard.season.length_days";
 
+// --- catalog daily access — the freemium gate on catalog player-opens (change:
+// add-score-daily-access-rewards, design D1). Read per call by the music module
+// through a trait seam, so every value hot-reloads. The gate is OFF by default
+// (safe direction: every open keeps being served); roll out staff-only first.
+
+/// Kill-switch of the daily free-open quota. Off = no gate, data kept.
+pub const CATALOG_DAILY_ACCESS_ENABLED: &str = "catalog.daily_access.enabled";
+/// Distinct catalog pieces a user may open for free per server day (`0` = every
+/// catalog open costs points).
+pub const CATALOG_DAILY_ACCESS_FREE_QUOTA: &str = "catalog.daily_access.free_quota";
+/// Points one extra piece for the day costs (`0` = free unlock, no effective gate).
+pub const CATALOG_DAILY_ACCESS_DAY_SLOT_COST: &str = "catalog.daily_access.day_slot_cost";
+/// Maximum length in ms of the audio teaser rendered for a catalog piece.
+pub const CATALOG_PREVIEW_MAX_MS: &str = "catalog.preview.max_ms";
+/// Id of the ACCEPTED catalog SoundFont the score teasers are rendered with.
+/// Empty = previews are dormant (nothing rendered, nothing broken).
+pub const CATALOG_PREVIEW_SOUNDFONT_ID: &str = "catalog.preview.soundfont_id";
+
 // Sensitive legal/infra values (not casually editable).
 pub const ACCOUNT_MIN_PUBLIC_SHARING_AGE: &str = "account.min_public_sharing_age";
 pub const DATA_RETENTION_PLAY_DETAIL_DAYS: &str = "data.retention.play_detail_days";
@@ -350,6 +368,42 @@ pub fn builtin() -> Vec<KeyDef> {
             FlagValue::Int(1),
             false,
             "Missed days a broken practice streak may still be recovered from (0 disables recovery).",
+        ),
+        // -- catalog daily access (freemium gate on catalog opens) --
+        flag(
+            CATALOG_DAILY_ACCESS_ENABLED,
+            APP_MUSIC,
+            false,
+            false,
+            "Daily free-open quota on catalog pieces (off = every open served).",
+        ),
+        cfg(
+            CATALOG_DAILY_ACCESS_FREE_QUOTA,
+            APP_MUSIC,
+            FlagValue::Int(3),
+            false,
+            "Distinct catalog pieces a user may open for free per server day.",
+        ),
+        cfg(
+            CATALOG_DAILY_ACCESS_DAY_SLOT_COST,
+            APP_MUSIC,
+            FlagValue::Int(20),
+            false,
+            "Points one extra catalog piece for the day costs.",
+        ),
+        cfg(
+            CATALOG_PREVIEW_MAX_MS,
+            APP_MUSIC,
+            FlagValue::Int(30_000),
+            false,
+            "Maximum length (ms) of the audio teaser rendered for a catalog piece.",
+        ),
+        cfg(
+            CATALOG_PREVIEW_SOUNDFONT_ID,
+            APP_MUSIC,
+            FlagValue::String(String::new()),
+            false,
+            "Id of the accepted catalog SoundFont score teasers are rendered with (empty = dormant).",
         ),
         // -- sensitive legal/infra values --
         cfg(

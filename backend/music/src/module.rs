@@ -29,6 +29,7 @@ use cymbra_platform::{AppError, Result};
 use cymbra_storage::{ObjectStorage, StorageError};
 use sha2::{Digest, Sha256};
 
+use crate::catalog_daily_access::{AccessState, CatalogDailyAccess, OpenDecision};
 use crate::catalog_edit::{CurrentMeta, MetadataChanges, plan_edit};
 use crate::catalog_search::{CatalogHit, CatalogQuery, CatalogSearchParams, CatalogSearchRepo};
 use crate::curation_rewards::CurationRewardsSink;
@@ -121,6 +122,63 @@ pub struct ScoreModule {
     /// unaffected; **production MUST override it** via [`Self::with_offline_secrets`]
     /// with the Postgres-backed store, or the secret won't persist across restarts.
     offline_secrets: Arc<dyn OfflineSecretRepo>,
+    /// The freemium daily-access gate on catalog player-opens (change:
+    /// add-score-daily-access-rewards). `None` = no gate at all (tests, or a
+    /// deployment without it): every open serves as before. Wired via
+    /// [`Self::with_daily_access`]; even when wired, the gate is OFF until its
+    /// flag is on.
+    daily_access: Option<Arc<CatalogDailyAccess>>,
+}
+
+/// Who is opening a catalog piece in the player (change: add-score-daily-access-
+/// rewards) — the identity facts the gate needs, resolved by the gRPC layer.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PlayerCaller {
+    pub user_id: String,
+    /// A moderator/admin may open a score in any moderation status.
+    pub allow_unvalidated: bool,
+    /// Outside the daily quota: back-office audience or music-scope moderator/admin.
+    pub exempt_from_quota: bool,
+    /// Holds a staff role (a `staff_only` rollout of the gate reaches them first).
+    pub staff: bool,
+}
+
+impl PlayerCaller {
+    /// A plain signed-in player (tests): quota'd, accepted-only.
+    pub fn regular(user_id: &str) -> Self {
+        Self {
+            user_id: user_id.to_string(),
+            allow_unvalidated: false,
+            exempt_from_quota: false,
+            staff: false,
+        }
+    }
+
+    /// A moderator/admin (tests): any status, outside the quota.
+    pub fn privileged(user_id: &str) -> Self {
+        Self {
+            user_id: user_id.to_string(),
+            allow_unvalidated: true,
+            exempt_from_quota: true,
+            staff: true,
+        }
+    }
+}
+
+/// The outcome of a catalog player-open (change: add-score-daily-access-rewards).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PlayerOpen {
+    /// The bytes (empty + `unchanged=false` when `locked`).
+    pub bytes: ScoreBytes,
+    /// The caller's daily-access state; `None` when no gate is wired.
+    pub access: Option<AccessState>,
+}
+
+impl PlayerOpen {
+    /// The piece was refused by the daily quota.
+    pub fn locked(&self) -> bool {
+        self.access.as_ref().is_some_and(|a| a.locked)
+    }
 }
 
 impl ScoreModule {
@@ -148,7 +206,15 @@ impl ScoreModule {
             user: None,
             rewards: None,
             offline_secrets: Arc::new(FakeOfflineSecretRepo::default()),
+            daily_access: None,
         }
+    }
+
+    /// Wire the freemium daily-access gate (change: add-score-daily-access-rewards).
+    /// The server sets this; tests opt in with a fake-backed gate.
+    pub fn with_daily_access(mut self, gate: Arc<CatalogDailyAccess>) -> Self {
+        self.daily_access = Some(gate);
+        self
     }
 
     /// Wire the curation-rewards seam (change: add-curation-rewards). The server
@@ -467,6 +533,7 @@ impl ScoreModule {
             review_queue: q.review_queue,
             all_statuses: q.all_statuses,
             source: q.source.filter(|s| !s.is_empty()),
+            has_preview: q.has_preview,
             sort: q.sort,
             limit: q.limit.clamp(1, SEARCH_MAX_LIMIT),
             offset: q.offset.max(0),
@@ -915,11 +982,30 @@ impl ScoreModule {
         allow_unvalidated: bool,
         if_none_match: Option<&str>,
     ) -> Result<ScoreBytes> {
-        let obj = self
-            .catalog
+        let obj = self.catalog_object(catalog_id, allow_unvalidated).await?;
+        self.serve_catalog_object(obj, if_none_match).await
+    }
+
+    /// Resolve a catalog piece's object reference (moderation-gated), or a typed
+    /// not-found.
+    async fn catalog_object(
+        &self,
+        catalog_id: &str,
+        allow_unvalidated: bool,
+    ) -> Result<crate::catalog_search::CatalogObjectRef> {
+        self.catalog
             .object_ref(catalog_id, allow_unvalidated)
             .await?
-            .ok_or_else(|| AppError::NotFound("catalog score not found".into()))?;
+            .ok_or_else(|| AppError::NotFound("catalog score not found".into()))
+    }
+
+    /// Serve a resolved catalog object: the conditional-fetch short-circuit, else
+    /// the decoded bytes.
+    async fn serve_catalog_object(
+        &self,
+        obj: crate::catalog_search::CatalogObjectRef,
+        if_none_match: Option<&str>,
+    ) -> Result<ScoreBytes> {
         // Conditional fetch: an unchanged hash skips the object read entirely
         // (change: add-offline-score-cache). The stored `sha256` is opaque to the
         // client, which only ever echoes back what we gave it.
@@ -981,32 +1067,109 @@ impl ScoreModule {
     }
 
     /// Fetch a catalog score's bytes for a **player open** — [`Self::get_catalog_bytes`]
-    /// plus the coverage engagement signal (change: add-post-play-rating-prompt).
+    /// behind the freemium daily-access gate (change: add-score-daily-access-
+    /// rewards), plus the coverage engagement signal (change: add-post-play-
+    /// rating-prompt).
+    ///
+    /// Order matters (design D2): the piece is resolved (moderation gate), then
+    /// the daily-access decision runs **before** the conditional-fetch short-circuit
+    /// — so a locked piece can never answer `unchanged`, which the offline cache
+    /// reads as "play your copy" — and **before** engagement is recorded, so a
+    /// locked open (no bytes, nothing played) records nothing. A `Locked` decision
+    /// returns empty bytes with the access state; it is data, not an error.
     ///
     /// Playing a piece is stronger evidence of engagement than previewing it, so it
     /// gates coverage points the same way; without this, a rating submitted from the
     /// post-play prompt would silently earn nothing. Engagement is recorded only for a
     /// *rateable* (`pending`/`accepted`) score, so a moderator opening a `rejected`
-    /// one to review it records nothing. `allow_unvalidated` and the bytes resolution
-    /// are unchanged — this adds the signal, and threads the offline cache's
-    /// conditional fetch (`if_none_match`; change: add-offline-score-cache) through to
-    /// [`Self::get_catalog_bytes`].
+    /// one to review it records nothing.
     pub async fn catalog_bytes_for_player(
         &self,
-        user_id: &str,
+        caller: &PlayerCaller,
         catalog_id: &str,
-        allow_unvalidated: bool,
         if_none_match: Option<&str>,
-    ) -> Result<ScoreBytes> {
+    ) -> Result<PlayerOpen> {
+        let obj = self
+            .catalog_object(catalog_id, caller.allow_unvalidated)
+            .await?;
+        let access = match &self.daily_access {
+            None => None,
+            Some(gate) => {
+                let kind = gate
+                    .caller_kind(
+                        &caller.user_id,
+                        caller.exempt_from_quota,
+                        obj.proposed_by.as_deref(),
+                    )
+                    .await;
+                match gate
+                    .open(&caller.user_id, catalog_id, kind, caller.staff)
+                    .await?
+                {
+                    OpenDecision::Locked(state) => {
+                        return Ok(PlayerOpen {
+                            bytes: ScoreBytes {
+                                data: Vec::new(),
+                                etag: obj.sha256,
+                                unchanged: false,
+                            },
+                            access: Some(state),
+                        });
+                    }
+                    OpenDecision::Serve(state) => Some(state),
+                }
+            }
+        };
         if self
             .is_pending_or_accepted(catalog_id)
             .await
             .unwrap_or(false)
         {
-            self.record_engagement(user_id, catalog_id).await;
+            self.record_engagement(&caller.user_id, catalog_id).await;
         }
-        self.get_catalog_bytes(catalog_id, allow_unvalidated, if_none_match)
-            .await
+        let bytes = self.serve_catalog_object(obj, if_none_match).await?;
+        Ok(PlayerOpen { bytes, access })
+    }
+
+    /// The caller's daily-access state (change: add-score-daily-access-rewards,
+    /// design D3) — the one read the hub/library render their quota chip and
+    /// opened-today marks from. `None` when no gate is wired.
+    pub async fn catalog_daily_access(&self, caller: &PlayerCaller) -> Result<Option<AccessState>> {
+        let Some(gate) = &self.daily_access else {
+            return Ok(None);
+        };
+        let kind = gate
+            .caller_kind(&caller.user_id, caller.exempt_from_quota, None)
+            .await;
+        Ok(Some(gate.state(&caller.user_id, kind, caller.staff).await?))
+    }
+
+    /// Buy a day-slot for `catalog_id` after the user's explicit confirmation
+    /// (change: add-score-daily-access-rewards, design D4). Not-found for a piece
+    /// the caller may not see; a typed precondition failure (nothing written) when
+    /// the balance is insufficient; `None` when no gate is wired (nothing to buy).
+    pub async fn unlock_catalog_for_today(
+        &self,
+        caller: &PlayerCaller,
+        catalog_id: &str,
+    ) -> Result<Option<AccessState>> {
+        let obj = self
+            .catalog_object(catalog_id, caller.allow_unvalidated)
+            .await?;
+        let Some(gate) = &self.daily_access else {
+            return Ok(None);
+        };
+        let kind = gate
+            .caller_kind(
+                &caller.user_id,
+                caller.exempt_from_quota,
+                obj.proposed_by.as_deref(),
+            )
+            .await;
+        Ok(Some(
+            gate.unlock_for_today(&caller.user_id, catalog_id, kind, caller.staff)
+                .await?,
+        ))
     }
 
     /// Record the coverage engagement signal for `(user, score)`, best-effort: the
@@ -1817,16 +1980,17 @@ mod tests {
         let (m, rewards) = module_with_rewards().await;
         assert!(!rewards.has_engagement("u1", DEBUSSY_1).await.unwrap());
         assert_eq!(
-            m.catalog_bytes_for_player("u1", DEBUSSY_1, false, None)
+            m.catalog_bytes_for_player(&PlayerCaller::regular("u1"), DEBUSSY_1, None)
                 .await
                 .unwrap()
+                .bytes
                 .data,
             b"<score/>"
         );
         assert!(rewards.has_engagement("u1", DEBUSSY_1).await.unwrap());
         // Idempotent: opening again (or previewing the same score in the deck) does
         // not double-record, and the preview path agrees.
-        m.catalog_bytes_for_player("u1", DEBUSSY_1, false, None)
+        m.catalog_bytes_for_player(&PlayerCaller::regular("u1"), DEBUSSY_1, None)
             .await
             .unwrap();
         m.rating_preview_bytes("u1", DEBUSSY_1).await.unwrap();
@@ -1842,15 +2006,16 @@ mod tests {
         // bytes are still served exactly as before.
         let (m, rewards) = module_with_rewards().await;
         assert_eq!(
-            m.catalog_bytes_for_player("mod1", REJECTED_ID, true, None)
+            m.catalog_bytes_for_player(&PlayerCaller::privileged("mod1"), REJECTED_ID, None)
                 .await
                 .unwrap()
+                .bytes
                 .data,
             b"<score/>"
         );
         assert!(!rewards.has_engagement("mod1", REJECTED_ID).await.unwrap());
         // A pending candidate IS rateable, so opening it does record engagement.
-        m.catalog_bytes_for_player("mod1", PENDING_ID, true, None)
+        m.catalog_bytes_for_player(&PlayerCaller::privileged("mod1"), PENDING_ID, None)
             .await
             .unwrap();
         assert!(rewards.has_engagement("mod1", PENDING_ID).await.unwrap());
@@ -1863,7 +2028,8 @@ mod tests {
         let (m, rewards) = module_with_rewards().await;
         for id in [PENDING_ID, REJECTED_ID] {
             assert!(matches!(
-                m.catalog_bytes_for_player("u1", id, false, None).await,
+                m.catalog_bytes_for_player(&PlayerCaller::regular("u1"), id, None)
+                    .await,
                 Err(AppError::NotFound(_))
             ));
         }
@@ -1884,7 +2050,7 @@ mod tests {
             .unwrap();
         assert_eq!(points, 0);
         // …but after a player open, a rating of a different score does earn.
-        m.catalog_bytes_for_player("u1", PENDING_ID, true, None)
+        m.catalog_bytes_for_player(&PlayerCaller::privileged("u1"), PENDING_ID, None)
             .await
             .unwrap();
         let (_, points) = m

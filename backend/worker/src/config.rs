@@ -41,6 +41,11 @@ pub struct WorkerConfig {
     pub score_storage: Option<cymbra_platform::config::ScoreStorageConfig>,
     /// Local warm-cache root (mirrors the server's `CYMBRA_SCORE_LOCAL_ROOT`).
     pub score_local_root: String,
+    /// SoundFont object store (change: add-score-daily-access-rewards): the
+    /// `score_preview_render` job reads the configured preview font's bytes from
+    /// it. `None` leaves that job dormant. Mirrors the server's
+    /// `CYMBRA_SOUNDFONT_S3_*` keys.
+    pub soundfont_storage: Option<cymbra_platform::config::SoundfontStorageConfig>,
     /// Retention window (days) for the heavy per-session play detail before the
     /// `play_detail_prune` job NULLs it (change: add-play-activity-profile, D7).
     /// Mirrors the server's `CYMBRA_PLAY_DETAIL_RETENTION_DAYS`. Default 90.
@@ -95,6 +100,7 @@ pub mod core {
             otlp_enabled: flag(m, "CYMBRA_OTLP_ENABLED", false),
             score_storage: score_storage(m)?,
             score_local_root: opt(m, "CYMBRA_SCORE_LOCAL_ROOT", "/srv/cymbra/scores"),
+            soundfont_storage: soundfont_storage(m)?,
             play_detail_retention_days: num(m, "CYMBRA_PLAY_DETAIL_RETENTION_DAYS", 90)?,
             flags_database_url: m
                 .get("CYMBRA_FLAGS_DATABASE_URL")
@@ -126,6 +132,28 @@ pub mod core {
             access_key: req(m, "CYMBRA_SCORE_S3_ACCESS_KEY")?,
             secret_key: req(m, "CYMBRA_SCORE_S3_SECRET_KEY")?,
             allow_http: flag(m, "CYMBRA_SCORE_S3_ALLOW_HTTP", false),
+        }))
+    }
+
+    /// SoundFont object-store config, enabled when `CYMBRA_SOUNDFONT_S3_BUCKET` is
+    /// set (then the rest is required). Mirrors the server's parsing.
+    fn soundfont_storage(
+        m: &HashMap<String, String>,
+    ) -> Result<Option<cymbra_platform::config::SoundfontStorageConfig>, String> {
+        if m.get("CYMBRA_SOUNDFONT_S3_BUCKET")
+            .filter(|v| !v.is_empty())
+            .is_none()
+        {
+            return Ok(None);
+        }
+        Ok(Some(cymbra_platform::config::SoundfontStorageConfig {
+            bucket: req(m, "CYMBRA_SOUNDFONT_S3_BUCKET")?,
+            endpoint: req(m, "CYMBRA_SOUNDFONT_S3_ENDPOINT")?,
+            region: req(m, "CYMBRA_SOUNDFONT_S3_REGION")?,
+            access_key: req(m, "CYMBRA_SOUNDFONT_S3_ACCESS_KEY")?,
+            secret_key: req(m, "CYMBRA_SOUNDFONT_S3_SECRET_KEY")?,
+            allow_http: flag(m, "CYMBRA_SOUNDFONT_S3_ALLOW_HTTP", false),
+            local_root: opt(m, "CYMBRA_SOUNDFONT_LOCAL_ROOT", "/srv/cymbra/soundfonts"),
         }))
     }
 

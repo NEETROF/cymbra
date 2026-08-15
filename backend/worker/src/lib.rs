@@ -169,12 +169,16 @@ pub async fn purge_user(admin_pool: &PgPool, user_id: &str) -> anyhow::Result<()
     // The user's practice streak (change: add-practice-streak) goes with them:
     // it is derived profile data keyed by user_id with no cross-schema FK, so
     // nothing cascades from the account row.
+    // The user's catalog day-access rows (change: add-score-daily-access-rewards)
+    // go too: per-user per-day open/paid marks, keyed by user_id with no
+    // cross-schema FK.
     for table in [
         "music.curation_points",
         "music.curation_grants",
         "music.score_engagements",
         "music.course_progress",
         "music.practice_streaks",
+        "music.catalog_day_access",
     ] {
         sqlx::query(&format!("DELETE FROM {table} WHERE user_id = $1"))
             .bind(uid)
@@ -261,7 +265,21 @@ pub async fn streak_reminder_groups(
 /// `session_result IS NOT NULL` guard) and safe to retry. Returns the number of
 /// rows pruned. Runs as `admin_svc` (the only actor allowed to write `music`
 /// from the worker).
+/// Retention window of `music.catalog_day_access` rows (change:
+/// add-score-daily-access-rewards, design D11): only today's rows are ever read.
+pub const CATALOG_DAY_ACCESS_RETENTION_DAYS: u64 = 30;
+
 pub async fn prune_play_detail(admin_pool: &PgPool, retention_days: i64) -> anyhow::Result<u64> {
+    // The catalog day-access rows (change: add-score-daily-access-rewards) ride
+    // the same daily prune: only the current server day is ever read, so anything
+    // older than the fixed 30-day window is dead weight. Idempotent.
+    let day_access = cymbra_music::PgCatalogDayAccessRepo::new(admin_pool.clone());
+    let cutoff =
+        chrono::Utc::now().date_naive() - chrono::Days::new(CATALOG_DAY_ACCESS_RETENTION_DAYS);
+    match cymbra_music::CatalogDayAccessRepo::prune_before(&day_access, cutoff).await {
+        Ok(n) => tracing::info!(pruned = n, "catalog day-access retention prune complete"),
+        Err(e) => tracing::warn!(error = %e, "catalog day-access prune failed (next run retries)"),
+    }
     let res = sqlx::query(
         "UPDATE music.play_sessions SET session_result = NULL \
          WHERE session_result IS NOT NULL \

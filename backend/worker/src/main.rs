@@ -92,6 +92,42 @@ async fn main() -> anyhow::Result<()> {
         }
     };
 
+    // Score audio-teaser renderer for the `score_preview_render` job (change:
+    // add-score-daily-access-rewards). Needs both the score store (MusicXML in,
+    // WAV out) and the SoundFont store (the configured preview font); either
+    // unconfigured leaves the job dormant. The catalog + font rows are read on the
+    // admin pool (the worker's cross-schema actor).
+    let soundfont_store: Option<Arc<dyn cymbra_storage::ObjectStorage>> =
+        match cfg.soundfont_storage.as_ref() {
+            Some(sf) => Some(Arc::new(cymbra_storage::LocalFirstStore::from_config(
+                &sf.local_root,
+                &cymbra_storage::S3Params {
+                    bucket: sf.bucket.clone(),
+                    endpoint: sf.endpoint.clone(),
+                    region: sf.region.clone(),
+                    access_key: sf.access_key.clone(),
+                    secret_key: sf.secret_key.clone(),
+                    allow_http: sf.allow_http,
+                },
+            )?)),
+            None => None,
+        };
+    let score_preview = match (storage.clone(), soundfont_store) {
+        (Some(score_store), Some(font_store)) => {
+            Some(Arc::new(cymbra_music::ScorePreviewRenderer::new(
+                score_store,
+                font_store,
+                Arc::new(cymbra_music::PgCatalogSearchRepo::new(admin_pool.clone())),
+                Arc::new(cymbra_music::PgSoundFontRepo::new(admin_pool.clone())),
+                Arc::new(flags::WorkerScorePreviewConfig::new(flag_service.clone())),
+            )))
+        }
+        _ => {
+            tracing::info!("score preview render dormant (score or soundfont store unset)");
+            None
+        }
+    };
+
     let ctx = WorkerCtx {
         email,
         user,
@@ -102,6 +138,7 @@ async fn main() -> anyhow::Result<()> {
         play_detail_retention_days: cfg.play_detail_retention_days as i64,
         flags: flag_service,
         push,
+        score_preview,
     };
 
     // --- sqlxmq runner: executes queued jobs (event-driven; design D7) ---
