@@ -2525,6 +2525,59 @@ mod tests {
         ));
     }
 
+    /// Uploading alone never bridges to the public corpus: absent an explicit `propose`,
+    /// the private score is invisible to the hub search, to the moderator review queue and
+    /// to the privileged all-statuses read, and no catalog row exists for its content —
+    /// while it stays listed (un-proposed) in its owner's contributions.
+    #[tokio::test]
+    async fn un_proposed_score_is_absent_from_every_catalog_read_path() {
+        let (m, _repo, catalog, _s) = propose_module();
+        let rec = upload_one(&m, "u1").await;
+
+        // No catalog row was materialised for the uploaded content.
+        assert!(catalog.find_by_sha(&rec.sha256).await.unwrap().is_none());
+
+        // Public hub search (accepted-only gate).
+        let (hub, hub_total) = m
+            .search_catalog(CatalogQuery {
+                limit: 50,
+                ..Default::default()
+            })
+            .await
+            .unwrap();
+        assert!(hub.is_empty());
+        assert_eq!(hub_total, 0);
+
+        // Moderator review queue (pending + flagged).
+        let (queue, queue_total) = m
+            .search_catalog(CatalogQuery {
+                review_queue: true,
+                limit: 50,
+                ..Default::default()
+            })
+            .await
+            .unwrap();
+        assert!(queue.is_empty());
+        assert_eq!(queue_total, 0);
+
+        // Even the console's privileged all-statuses catalog table sees nothing.
+        let (all, _) = m
+            .search_catalog(CatalogQuery {
+                all_statuses: true,
+                limit: 50,
+                ..Default::default()
+            })
+            .await
+            .unwrap();
+        assert!(all.is_empty());
+
+        // …and the owner still has it, reported as not proposed.
+        let mine = m.list_contributions("u1").await.unwrap();
+        assert_eq!(mine.len(), 1);
+        assert_eq!(mine[0].0.id, rec.id);
+        assert_eq!(mine[0].1, None);
+    }
+
     #[tokio::test]
     async fn propose_of_non_rejected_content_is_a_duplicate() {
         let (m, _repo, catalog, _s) = propose_module();

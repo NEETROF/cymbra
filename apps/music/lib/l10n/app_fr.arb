@@ -58,6 +58,7 @@
   "scoreProposeJustification": "Expliquez ce qui a changé (obligatoire pour re-proposer)",
   "scoreProposeWizardPrompt": "Proposer cette partition au catalogue public ?",
   "scoreProposeSkip": "Plus tard",
+  "scoreContributorCredit": "Proposé par @{name}",
   "scoreTagPending": "En attente",
   "scoreTagAccepted": "Accepté",
   "scoreTagRejected": "Refusé",

@@ -52,6 +52,7 @@ CatalogEntry catalogEntryFromHit(CatalogHit h) => CatalogEntry(
   timeSig: h.timeSig,
   keyFifths: h.keyFifths,
   moderationStatus: h.moderationStatus,
+  contributorCredit: h.contributorCredit,
 );
 
 /// The signed-in user's saved catalog scores, as [CatalogEntry]s, newest-saved

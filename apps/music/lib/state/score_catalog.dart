@@ -107,6 +107,12 @@ class CatalogEntry {
   /// The moderator's rejection reason, shown when [proposalStatus] is `rejected`.
   final String? proposalRejectionReason;
 
+  /// For an `accepted` user-proposed catalog score: the proposer's public handle,
+  /// shown as a "proposé par @pseudo" credit (change: add-score-catalog-proposal).
+  /// `null` for a crawler-ingested score or when the proposer kept their profile
+  /// private — the server gates this fail-closed, so the app just shows what it gets.
+  final String? contributorCredit;
+
   const CatalogEntry({
     required this.id,
     required this.title,
@@ -129,6 +135,7 @@ class CatalogEntry {
     this.moderationStatus,
     this.proposalStatus,
     this.proposalRejectionReason,
+    this.contributorCredit,
   });
 
   /// Whether this is a user upload (byte-sourced) rather than a bundled score.

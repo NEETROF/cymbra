@@ -37,7 +37,7 @@
 - [x] 5.1 Unit-test the propose logic on the in-memory fake repos: happy path (pending) + admin (accepted), missing licence/attestation refused, not-owned/unknown refused.
 - [x] 5.2 Test content dedup + reopen: byte-identical non-`rejected` → refused with existing id; re-propose of `pending`/`accepted` → already-proposed; `rejected` same-content → reopens the SAME row to `pending`, re-attributes `proposed_by`, clears `review_reason`, stores `resubmission_note`, no second row; reopen without a justification → refused.
 - [x] 5.3 Test that `ProposeScore` sets `proposed_by`, links `proposed_catalog_id`, and that `ListMyScores` reports the joined `proposal_status` and `rejection_reason`; and that `set_moderation_status` stores the reason on reject and clears it otherwise.
-- [ ] 5.4 Assert an un-proposed score never appears via the catalog/search/review read paths (private stays private).
+- [x] 5.4 Assert an un-proposed score never appears via the catalog/search/review read paths (private stays private).
 - [x] 5.5 Test the privileged read populates `proposer_display_name` (via `MockUserPort`) + origin for a user-proposed row, and that a normal-caller read leaves proposer id/pseudo empty.
 - [x] 5.6 Test the public `contributor_credit` gating (via `MockUserPort`): present when the proposer is `Public`, omitted when `Private`/unresolvable/handle-less, and never for a non-`accepted` or crawler row; raw id never present publicly.
 
@@ -52,14 +52,14 @@
 - [x] 7.1 In the contributions list, show each score's proposal state tag (not proposed / pending / accepted / rejected) and offer the propose action only for a not-yet-proposed score (mirror the SoundFont management screen).
 - [x] 7.2 Add an opt-in propose step at the end of the upload wizard (after a successful upload) that calls the same `proposeToPublicCatalog` seam; declining leaves the score private (no pre-ticked default).
 - [x] 7.3 Add the shared propose sheet/dialog: licence declaration field + right-to-distribute attestation checkbox; submit disabled until both are provided; hide the action once submitted. For a `rejected` contribution, show the moderator's rejection reason and require a non-empty justification field before the re-propose can submit.
-- [ ] 7.4 Show the public `contributor_credit` ("proposé par @pseudo") on the score cover/detail when present; show nothing when absent.
+- [x] 7.4 Show the public `contributor_credit` ("proposé par @pseudo") on the score cover/detail when present; show nothing when absent.
 - [x] 7.5 Add localized ARB strings (en/fr/es/it) for the propose action, the wizard step, status tags, attestation copy, the contributor credit, and refusal messages.
 
 ## 8. Flutter tests (≥ 80% lines)
 
 - [x] 8.1 Widget/state tests: propose action gated on licence + attestation; hidden once proposed; status tag rendered per state; refusal surfaces a localized message (fake service).
-- [ ] 8.2 Wizard test: the opt-in propose step is offered after upload, declining keeps the score private, accepting calls the propose seam.
-- [ ] 8.3 Credit test: the score cover/detail shows the contributor credit when present and nothing when absent (fake catalog data).
+- [x] 8.2 Wizard test: the opt-in propose step is offered after upload, declining keeps the score private, accepting calls the propose seam.
+- [x] 8.3 Credit test: the score cover/detail shows the contributor credit when present and nothing when absent (fake catalog data).
 
 ## 9. Back office (Vue)
 
@@ -70,6 +70,6 @@
 
 ## 10. Validation & housekeeping
 
-- [ ] 10.1 `openspec validate add-score-catalog-proposal --strict` passes.
-- [ ] 10.2 `melos run analyze` + `dart format` clean; `cargo fmt --all --check` + `cargo clippy --workspace --all-targets -- -D warnings` clean; back-office lint/typecheck clean.
-- [ ] 10.3 Coverage ≥ 80% (Rust `cargo llvm-cov` + Flutter `flutter test --coverage` + back-office vitest); `dart run custom_lint` clean.
+- [x] 10.1 `openspec validate add-score-catalog-proposal --strict` passes.
+- [x] 10.2 `melos run analyze` + `dart format` clean; `cargo fmt --all --check` + `cargo clippy --workspace --all-targets -- -D warnings` clean; back-office lint/typecheck clean.
+- [x] 10.3 Coverage ≥ 80% (Rust `cargo llvm-cov` + Flutter `flutter test --coverage` + back-office vitest); `dart run custom_lint` clean.

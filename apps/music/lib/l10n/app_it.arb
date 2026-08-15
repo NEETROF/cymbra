@@ -59,6 +59,7 @@
   "scoreProposeJustification": "Spiega cosa è cambiato (obbligatorio per riproporre)",
   "scoreProposeWizardPrompt": "Proporre questo spartito al catalogo pubblico?",
   "scoreProposeSkip": "Non ora",
+  "scoreContributorCredit": "Proposto da @{name}",
   "scoreTagPending": "In attesa",
   "scoreTagAccepted": "Accettato",
   "scoreTagRejected": "Rifiutato",

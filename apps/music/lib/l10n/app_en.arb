@@ -258,6 +258,15 @@
   "@scoreProposeSkip": {
     "description": "Decline the opt-in proposal step in the upload wizard."
   },
+  "scoreContributorCredit": "Proposed by @{name}",
+  "@scoreContributorCredit": {
+    "description": "Public contributor credit on a community score whose proposer opted into a public profile.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "scoreTagPending": "Pending",
   "scoreTagAccepted": "Accepted",
   "scoreTagRejected": "Rejected",
