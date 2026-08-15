@@ -119,24 +119,28 @@ class _Host extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Two nested listeners, as in the app (hub pushed over the library): the
+    // outcome must still be surfaced once.
     return CatalogUnlockListener(
-      child: Scaffold(
-        body: Column(
-          children: [
-            const CatalogAccessChip(),
-            Center(
-              child: TextButton(
-                key: const Key('open-sheet'),
-                onPressed: () => showCatalogUnlockSheet(context, ref, entry),
-                child: const Text('open'),
+      child: CatalogUnlockListener(
+        child: Scaffold(
+          body: Column(
+            children: [
+              const CatalogAccessChip(),
+              Center(
+                child: TextButton(
+                  key: const Key('open-sheet'),
+                  onPressed: () => showCatalogUnlockSheet(context, ref, entry),
+                  child: const Text('open'),
+                ),
               ),
-            ),
-            SizedBox(
-              width: 200,
-              height: 40,
-              child: CatalogAccessMark(catalogId: entry.catalogId!),
-            ),
-          ],
+              SizedBox(
+                width: 200,
+                height: 40,
+                child: CatalogAccessMark(catalogId: entry.catalogId!),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -283,7 +287,9 @@ void main() {
     }
     expect(catalog.unlockCalls, ['x']);
     expect(find.byKey(const Key('catalog-unlock-sheet')), findsNothing);
+    // Exactly one snackbar (and one re-open) despite the two stacked listeners.
     expect(find.text('Unlocked for today!'), findsOneWidget);
+    expect(find.text('Loading score…'), findsOneWidget);
     // The state now reflects the paid slot: the piece is open today.
     expect(
       c.read(catalogDailyAccessProvider).valueOrNull!.isOpenToday('x'),

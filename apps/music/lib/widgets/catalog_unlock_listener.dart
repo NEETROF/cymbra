@@ -39,6 +39,8 @@ class CatalogUnlockListener extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     ref.listen(catalogUnlockProvider.select((s) => s.seq), (previous, next) {
       if (previous == null || next == previous) return;
+      // Stacked screens each mount this listener: surface each outcome once.
+      if (!ref.read(catalogUnlockProvider.notifier).claim(next)) return;
       final l10n = AppLocalizations.of(context);
       final messenger = ScaffoldMessenger.of(context);
       final state = ref.read(catalogUnlockProvider);

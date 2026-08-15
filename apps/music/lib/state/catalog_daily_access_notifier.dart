@@ -105,8 +105,20 @@ abstract class CatalogUnlockState with _$CatalogUnlockState {
 /// reactively (no sibling invalidation).
 @Riverpod(keepAlive: true)
 class CatalogUnlock extends _$CatalogUnlock {
+  int _claimed = 0;
+
   @override
   CatalogUnlockState build() => const CatalogUnlockState();
+
+  /// Claim outcome [seq] for surfacing: `true` for the FIRST caller only. The
+  /// listener widget is mounted on stacked screens (the hub is pushed over the
+  /// library, both alive), so without this the same unlock would be surfaced —
+  /// and the piece re-opened — twice.
+  bool claim(int seq) {
+    if (seq <= _claimed) return false;
+    _claimed = seq;
+    return true;
+  }
 
   Future<void> unlock(CatalogEntry entry) async {
     final catalogId = entry.catalogId;
