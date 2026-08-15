@@ -1,48 +1,54 @@
-## 1. Daily-access core (backend)
+## 1. Config, seams & storage (backend)
 
-- [ ] 1.1 Add a `free_quota` (opens/day) + `day_slot_cost` (points) config via `cymbra-feature-flags`, with a kill-switch (quota 0 / gate off).
-- [ ] 1.2 Add per-user/day state: an `opened_today` set of catalog piece ids (with a paid/free marker) keyed by user + client-offset date; reuse the `play_core` date helper for the day key.
-- [ ] 1.3 Create a host-testable `score_access` core: `decide_open(piece_id, opened_today, free_quota, free_used, is_subscriber) -> Open` (`Serve | ServeFree | NeedsPoints{cost} | NeedsSubscription`), with unit tests for every branch incl. re-open-is-free and subscriber-bypass.
-- [ ] 1.4 Add `has_active_subscription(user) -> bool` as a stub seam returning `false` (documented for future billing).
+- [ ] 1.1 Declare the flag keys in `backend/feature-flags/src/registry.rs` (app `music`): `catalog.daily_access.enabled` (bool, default false), `catalog.daily_access.free_quota` (int, 3), `catalog.daily_access.day_slot_cost` (int, 20), `catalog.preview.max_ms` (int, 15000), `catalog.preview.soundfont_id` (string, ""). Safe defaults, doc strings, staff-only rollout available.
+- [ ] 1.2 Add music-crate traits `DailyAccessConfigSource` (enabled/quota/cost read at call time) and `SubscriptionSource` (`has_active_subscription(user_id) -> bool`, stub `false`, documented for billing); implement both in `backend/server/src/flags.rs` over the flag service (mirror `FlagStreakConfig`) and wire them into `ScoreModule`.
+- [ ] 1.3 Migration: `music.catalog_day_access (user_id, catalog_id FK ON DELETE CASCADE, day DATE, paid BOOL, opened_at, PK (user_id, catalog_id, day))` + index `(user_id, day)`; `ALTER music.catalog_scores ADD COLUMN preview_rendered_at TIMESTAMPTZ`.
+- [ ] 1.4 Repo port + Pg impl: `day_state(user_id, day)`, `record_open(user_id, catalog_id, day, paid=false)` (idempotent upsert, never downgrades a paid row), `opened_today(user_id, day)`, and the atomic `spend_day_slot(user_id, catalog_id, day, cost, award_key) -> bool` transaction (advisory xact lock per user → re-read `SUM(amount)` → `INSERT curation_points (redeem, -cost, reward_key='score_day_slot', award_key, piece_id) ON CONFLICT (user_id, award_key) … DO NOTHING` → upsert paid row) shaped like `PgStreakRepo::spend_and_restore`.
 
-## 2. Gate the player open (backend)
+## 2. Daily-access core & gate (backend)
 
-- [ ] 2.1 Wire `decide_open` into `GetCatalogScoreBytes` ([backend/music/src/grpc.rs]): keep the `add-catalog-access-limits` (abuse) cap first, then the freemium quota; on a served open, record the piece into `opened_today` (idempotent).
-- [ ] 2.2 On `NeedsPoints`, refuse the MusicXML and return the locked state + day-slot cost + upsell placeholder signal (extend the response/proto).
-- [ ] 2.3 Verify `ListRatingDeck` / `GetRatingPreviewBytes` (moderation) and `GetCatalogScore` (metadata) stay ungated.
+- [ ] 2.1 Create the host-testable `catalog_daily_access_core`: `decide_open(piece, &DayState, &DailyAccessConfig, CallerKind) -> Open {Serve|ServeFree|Locked{cost, upsell}}` + `day_slot_decision(already_open, balance, cost, enabled)`; unit tests for every branch incl. gate-off, re-open-is-free, quota 0, cost 0, exempt/subscriber/contributor, next-day recharge.
+- [ ] 2.2 Wire the decision into `ScoreModule::catalog_bytes_for_player` **before** the conditional-fetch short-circuit and **before** `record_engagement`; caller kind from `AuthIdentity` (back-office audience / music-scope moderator-admin → Exempt), `proposed_by == caller` → Contributor, `SubscriptionSource` → Subscriber. On Serve/ServeFree upsert the day row; on Locked return the state with empty data, `unchanged=false`, no engagement.
+- [ ] 2.3 Proto: `CatalogAccessState` message; `GetCatalogScoreBytesResponse.access`; `GetCatalogDailyAccess` RPC (state + `opened_today` + `paid_today`); `UnlockCatalogScoreForToday` RPC; `CatalogHit.has_preview`; admin catalog search `has_preview` filter param. Regenerate stubs (`melos run gen-grpc` — app **and** `packages/cymbra_flags`; BO `yarn gen`).
+- [ ] 2.4 Handler `UnlockCatalogScoreForToday`: identity → decision core → `spend_day_slot` → return state; insufficient balance = `FAILED_PRECONDITION` (nothing written). Keep `guard_download` order (abuse cap first) on the bytes RPC.
+- [ ] 2.5 Handler `GetCatalogDailyAccess`: enumeration guard, then state (quota/used/reset instant/cost/spendable balance/subscriber/upsell + today's ids).
+- [ ] 2.6 Verify `ListRatingDeck` / `GetRatingPreviewBytes` (rater path), `GetCatalogScore` / `SearchCatalog` (metadata) and `GetScoreBytes` (own uploads) stay ungated; grpc tests: locked state shape, conditional fetch of a locked piece is locked (not unchanged), moderator/BO exempt, contributor free, gate-off serves.
+- [ ] 2.7 Data lifecycle: `purge_user` job deletes the user's `catalog_day_access` rows; add a 30-day prune of `catalog_day_access` to the existing prune schedule (test both).
 
-## 3. Points day-slot unlock (backend)
+## 3. Score audio preview pipeline (backend + worker)
 
-- [ ] 3.1 Add an unlock RPC (e.g. `UnlockScoreForToday(catalogId)`): host-testable debit decision (enough spendable balance? already in today's set?), then an atomic tx = ledger debit (`reason=score_day_slot`, ref piece+day) + record piece into `opened_today` as paid. NO `curation_grants` row.
-- [ ] 3.2 Unit-test the debit core: sufficient/insufficient balance, already-paid-today idempotency, next-day re-charge.
+- [ ] 3.1 Pure helper `preview_sequence(&PlaybackSchedule, max_ms) -> SampleSequence` (from `cymbra_musicxml_core::playback::schedule`; clip + truncate held notes; deterministic) + `score_preview_object_key(catalog_id)` (`catalog-preview/{id}.wav`); unit-test bounding, determinism, empty score, encoder validity.
+- [ ] 3.2 Job spec `SCORE_PREVIEW_RENDER` (`Channel::parallel("music","preview")`, retry policy) in `backend/jobs/src/registry.rs`; worker handler in `backend/worker/src/handlers.rs`: load MusicXML (score store) → parse → schedule → sequence → font bytes from the SoundFont store (`catalog.preview.soundfont_id`, must be accepted) → `render_preview_pcm` + `encode_preview` → `put` → stamp `preview_rendered_at`. Unset font → log + no-op (dormant).
+- [ ] 3.3 Enqueue on accept: `SetModerationStatus(accepted)` uses `transactional_enqueue` inside the status-write transaction; test that a rolled-back accept enqueues nothing and a committed one enqueues once.
+- [ ] 3.4 HTTP routes in `backend/server` (mirror `soundfont.rs` `serve_preview`/`regenerate_preview`): `GET /scores/{id}/preview` (authenticated, moderation-visible, no quota gate, 404 when absent) and `POST /scores/{id}/preview` (admin/moderator, inline render, overwrite + stamp). Route tests for visibility split, 404, non-privileged refusal.
+- [ ] 3.5 Backfill: `--enqueue-missing-previews` mode of the maintenance binary (or scheduler entry) enqueuing `SCORE_PREVIEW_RENDER` for accepted rows with `preview_rendered_at IS NULL`; idempotent re-run.
+- [ ] 3.6 Listing: `CatalogHit.has_preview` from `preview_rendered_at` (public + admin reads); admin search filter `has_preview` (`""|"yes"|"no"`).
 
-## 4. Score audio preview (backend, reuses soundfont render engine)
+## 4. App (Flutter)
 
-- [ ] 4.1 Add a host-testable helper: MusicXML → bounded (~N s) render sequence for a piece; reuse `render_preview_pcm`/`encode_preview` from `add-soundfont-entitlement-previews` with a default soundfont.
-- [ ] 4.2 Add a **public** score-preview object namespace (`score-preview/{catalogId}.wav`).
-- [ ] 4.3 Hook render into the **accept** transition: after accept, render + store the public preview; failure logs and is non-fatal.
-- [ ] 4.4 Add `GetScorePreviewBytes(catalogId)`: serve the public clip, moderation-visibility only, no quota/points gate; not-found when absent. Add an admin-gated regenerate RPC/action.
-- [ ] 4.5 Unit-test the sequence bounding + determinism; encoder output validity.
+- [ ] 4.1 `CatalogService`: `fetchScoreBytes` result carries `access` (Freezed `CatalogAccessState`); add `dailyAccess()` and `unlockForToday(id)`; `CatalogHit.hasPreview`.
+- [ ] 4.2 `ScorePreviewService` (twin of `SoundFontPreviewService`: `GET /scores/{id}/preview` with bearer, 404 → false) behind a provider; playback via `soundClipPlayerProvider`.
+- [ ] 4.3 `catalogDailyAccessProvider` (keepAlive, identity-scoped; refreshed on served open, unlock, app resume, auth change) + `catalogUnlockProvider` notifier (`unlock(id)` fire-and-observe, `AsyncValue` state, monotonic `seq`).
+- [ ] 4.4 Notation load: on `access.locked` expose `ScoreLoadFailure.locked` (no error snackbar, no engagement); **online cache-hit path performs the conditional fetch first** and treats locked as "do not play from cache"; offline keeps playing from cache.
+- [ ] 4.5 Unlock sheet from `openScore`: title/composer, "écouter un extrait" (audition; greyed when `!hasPreview`), "débloquer pour X pts aujourd'hui" (disabled with shortfall when balance < cost), upsell placeholder line reusing the shop's premium "coming later" copy; confirm → `unlock(id)`.
+- [ ] 4.6 Dedicated listener widget: unlock success → re-select the score (served) + bump `rewardRevisionProvider`; failure → localized snackbar; never await-and-branch in the UI.
+- [ ] 4.7 Surfaces: hub/library header chip "N ouvertures gratuites · réinit. dans Xh"; opened-today mark on `ScoreCard` (cover overlay — bottom-left slot is taken by offline/status tags); locked cost hint on cards.
+- [ ] 4.8 Activity feed: label the `score_day_slot` redeem with the piece title (no raw kind/reward key in UI).
+- [ ] 4.9 Analytics actions in `usage_actions.dart`: `catalog_quota_reached`, `catalog_day_slot_unlock`, `catalog_preview_audition`.
+- [ ] 4.10 l10n en/fr/it/es for every new string.
+- [ ] 4.11 Tests (mockito mocks via provider overrides): quota chip; locked open shows the sheet and never fetches/plays MusicXML; audition plays the clip / greyed without preview; unlock spends and re-opens; re-open same day free; online cached favourite locked does not play, offline plays; gate-off path unchanged.
 
-## 5. App (Flutter)
+## 5. Back office (Vue)
 
-- [ ] 5.1 Surface each catalog item's access state (free-opens-left / opened-today / locked-needs-points / subscriber) from the gate response.
-- [ ] 5.2 Locked-piece flow: show the strong unlock affordance; play button auditions `GetScorePreviewBytes` via the audio playback seam; grey it when no preview.
-- [ ] 5.3 Unlock confirmation ("débloquer pour X points aujourd'hui ?") → call `UnlockScoreForToday`; on success open the piece; react to state (no await-and-branch).
-- [ ] 5.4 Leave a placeholder upsell hook at the quota-reached / unlock moment (wired to the real offer once subscriptions exist).
-- [ ] 5.5 Widget/state tests: quota-remaining display; locked piece auditions the clip and never fetches MusicXML; unlock spends points and opens; re-open same day is free.
+- [ ] 5.1 `regenerateScorePreview(id)` injectable transport (`POST /scores/{id}/preview`, `setRegenerateScorePreviewForTest`) in the catalog store with a dedicated `Async<void>` `preview` ref + optimistic `hasPreview`.
+- [ ] 5.2 "Generate sample" action in the score detail / table row (play when `hasPreview`, generate otherwise — SoundFonts pattern), state via `match(...).exhaustive()`; toasts.
+- [ ] 5.3 `hasPreview` filter on `FiltersBar` (`""|"yes"|"no"`) → admin search param; e2e fake seam entries.
+- [ ] 5.4 Vitest (success/error/filter) + Playwright spec through the seam; en/fr strings.
 
-## 6. Back office (Vue)
+## 6. Coverage, gates & verification
 
-- [ ] 6.1 Add a `regenerateScorePreview(id)` call behind the injectable client seam (`lib/api.ts` + `setClientsForTest`).
-- [ ] 6.2 Add a **"Generate sample"** action to the score admin screen, state as an `Async<T>` union matched with `match(...).exhaustive()`.
-- [ ] 6.3 Expose a `has_preview` flag on the admin score listing (derivable without downloading clips) and add a **"no sample" filter** to the score screen to list only pieces missing a preview (backfill workflow).
-- [ ] 6.4 Vitest coverage (success + error; filter) via the client seam.
-
-## 7. Coverage, gates & verification
-
-- [ ] 7.1 Rust: `cargo fmt` + `clippy -D warnings`; `cargo llvm-cov --workspace --fail-under-lines 80` (access + debit + sequence cores covered; gRPC/route/synth glue excluded).
-- [ ] 7.2 Flutter: `dart run build_runner build`; `melos run analyze` + `dart run custom_lint`; `flutter test --coverage` ≥ 80%.
-- [ ] 7.3 Back office: `yarn lint` + `yarn test` green.
-- [ ] 7.4 Manual: exhaust the daily quota → (N+1)th piece locked, audio preview plays, MusicXML refused; spend points → opens + re-open free same day; next day re-charges; back-office "Generate sample" backfills a preview.
-- [ ] 7.5 `openspec validate add-score-daily-access-rewards --strict` passes.
+- [ ] 6.1 Rust: `cargo fmt` + `clippy -D warnings`; `cargo llvm-cov --workspace --fail-under-lines 80` (decision + day-slot + sequence cores and seams covered; gRPC/route/synth/worker glue excluded).
+- [ ] 6.2 Flutter: `dart run build_runner build`; `melos run analyze` + `dart run custom_lint`; `flutter test --coverage` ≥ 80%.
+- [ ] 6.3 Back office: `yarn lint` + `yarn test` + e2e green.
+- [ ] 6.4 Manual (staff-only rollout, real backend): exhaust the quota → (N+1)th piece locked, clip plays, MusicXML refused; spend points → opens + re-open free; cached favourite locked online / plays offline; server-day rollover recharges; accept a piece → job renders a preview; BO "Generate sample" + "no sample" filter; backfill enqueues the corpus.
+- [ ] 6.5 `openspec validate add-score-daily-access-rewards --strict` passes.
