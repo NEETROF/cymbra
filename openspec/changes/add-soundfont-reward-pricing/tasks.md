@@ -29,5 +29,5 @@
 - [x] 4.1 Rust: `cargo fmt` + `clippy -D warnings`; `cargo llvm-cov --workspace --fail-under-lines 80` (pricing decision + repo fake covered; RPC/pg glue excluded as usual).
 - [x] 4.2 App: `dart run build_runner build`; `melos run analyze` + `dart run custom_lint`; `flutter test` green (no app behavior change, but stubs regenerated).
 - [x] 4.3 Back office: `yarn lint` + `yarn test` (vitest) + `yarn format:check` green; `yarn dart format`/`prettier` clean.
-- [ ] 4.4 Manual: as an admin, price a free accepted font (cost > 0) → a non-entitled user's download is 404, the app locks it and auditions the preview, and it appears redeemable in the shop; redeem → download works; set cost back to 0 → free again. A moderator sees no pricing control. Also price a **pending** font and confirm it is priced in the back office but absent from the app's shop until it is accepted.
+- [x] 4.4 Manual: as an admin, price a free accepted font (cost > 0) → a non-entitled user's download is 404, the app locks it and auditions the preview, and it appears redeemable in the shop; redeem → download works; set cost back to 0 → free again. A moderator sees no pricing control. Also price a **pending** font and confirm it is priced in the back office but absent from the app's shop until it is accepted.
 - [x] 4.5 `openspec validate add-soundfont-reward-pricing --strict` passes.

@@ -38,5 +38,5 @@
 - [x] 7.1 `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo llvm-cov --workspace --fail-under-lines 80` pass (new `soundfont.rs`/glue kept in the coverage ignore regex as applicable; pure repo/mapping logic tested).
 - [x] 7.2 `apps/music`: `dart run build_runner build`, `melos run analyze`, `dart format`, `dart run custom_lint` clean; `flutter test --coverage --exclude-tags golden` green and ≥ 80%.
 - [x] 7.3 `apps/back-office`: `yarn gen` regenerates stubs; `yarn typecheck`/`lint` clean (no behavior change).
-- [ ] 7.4 Manually confirm: with only the CC0 seed, the app picker shows just the bundled default + import (no fictional grands); inserting a font row + uploading its object makes it appear and download; a listing failure degrades to bundled + imports.
+- [x] 7.4 Manually confirm: with only the CC0 seed, the app picker shows just the bundled default + import (no fictional grands); inserting a font row + uploading its object makes it appear and download; a listing failure degrades to bundled + imports.
 - [x] 7.5 `openspec validate add-soundfont-catalog-db --strict` passes.

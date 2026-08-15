@@ -39,5 +39,5 @@
 
 - [x] 6.1 Backend: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo llvm-cov --workspace --fail-under-lines 80` pass (route/glue kept in the coverage ignore as applicable; pure decision/repo logic tested).
 - [x] 6.2 Back-office: `yarn gen`, `yarn typecheck`, `yarn lint`, `yarn test` (vitest) clean; `yarn build` succeeds.
-- [ ] 6.3 Manually confirm: as a music-scope admin, add a `.sf2` (it appears in the app picker + downloads), edit its label/attribution, mark one paid (still delivered), and remove one (gone from app + object deleted); a non-admin cannot see the screen.
+- [x] 6.3 Manually confirm: as a music-scope admin, add a `.sf2` (it appears in the app picker + downloads), edit its label/attribution, mark one paid (still delivered), and remove one (gone from app + object deleted); a non-admin cannot see the screen.
 - [x] 6.4 `openspec validate add-soundfont-back-office-management --strict` passes.
