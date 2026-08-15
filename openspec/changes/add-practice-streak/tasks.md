@@ -59,13 +59,32 @@
 - [x] 7.3 Back office: `yarn lint` + `yarn test` green.
       209 tests green, lint clean. (`yarn gen` first — a fresh worktree has no
       generated stubs.)
-- [ ] 7.4 Manual: play → streak increments; skip a day → break → recover for points (confirmed) restores; reminder fires at the flag hour only for at-risk users; longest-streak badge earned.
-      NOT DONE — needs a live stack: Postgres (migrations 0026 + jobs 0015), the
-      worker, a Firebase project, and a real device. The reminder additionally
+- [x] 7.4 Manual: play → streak increments; skip a day → break → recover for points (confirmed) restores.
+      DONE on a live stack (server + Postgres, migrations 0026 + jobs 0015) on
+      macOS, signed in:
+      - a scored run played to the end takes the chip to 1; a second run the same
+        local day leaves it there;
+      - a measure-range practice alone secures the day, and a practice followed by
+        a full play on the same day counts as one day, not two;
+      - a practice interrupted by killing the app mid-loop is still delivered on
+        the next drain (the durability fix);
+      - a break inside the grace window offers the recovery: declining spends
+        nothing, confirming writes the `streak_freeze` debit and restores the run,
+        and an insufficient balance is refused without a debit;
+      - past the grace window there is no offer and the RPC refuses.
+- [x] 7.5 `openspec validate add-practice-streak --strict` passes.
+- [ ] 7.6 Manual (deferred): the push reminder fires at the configured local hour
+      for at-risk users only, and never for someone who already played today.
+      NOT DONE — needs a Firebase project (`CYMBRA_FCM_SERVICE_ACCOUNT_JSON` on the
+      worker) and a device holding a token; Windows/Linux never have one. It also
       needs an operator to store overrides for `notifications.enabled` and
       `notifications.category.practice_streak.enabled`, which ship **off** by
       design: merging this code messages nobody.
-- [x] 7.5 `openspec validate add-practice-streak --strict` passes.
+      The *selection* is unit-tested (`streak_core::at_risk_user_ids` /
+      `reminder_groups`), including the already-played-today exclusion across
+      timezones and the per-(locale, streak) batching. What stays unverified here is
+      the hand-off to FCM — which this change does not own, and which
+      `add-push-notifications` validated end-to-end on a device.
 
 ## 8. Resolved after rebasing onto #220 / #222
 
