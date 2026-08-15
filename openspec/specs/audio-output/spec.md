@@ -6,17 +6,14 @@ TBD - created by archiving change piano-sound-output. Update Purpose after archi
 ### Requirement: SoundFont Piano Synthesis
 
 The Rust engine SHALL provide a polyphonic piano synthesizer that renders audio
-from a bundled SoundFont (`.sf2`) to a **selectable** audio output device,
-defaulting to the system's default output device when no selection has been made
-(on Android the default is policy-resolved and never lands on a USB-audio
-output — see the audio-output-routing capability).
-The synthesizer SHALL support multiple simultaneous voices (chords and overlapping
+from a SoundFont (`.sf2`) to the system's default audio output device. The
+synthesizer SHALL support multiple simultaneous voices (chords and overlapping
 notes) and SHALL expose a minimal control surface — initialize with a SoundFont,
-note-on (pitch, velocity), note-off (pitch), all-notes-off, and selecting or
-reporting the output device — through the flutter_rust_bridge FFI. Changing the
-output device SHALL rebuild the audio stream without requiring the SoundFont to be
-reloaded and SHALL silence sounding voices first so none is stranded on the
-previous device. The native audio output and synthesis thread SHALL be kept behind
+**load a different SoundFont at runtime**, note-on (pitch, velocity), note-off
+(pitch), and all-notes-off — through the flutter_rust_bridge FFI. Loading a
+different SoundFont SHALL replace the active instrument **without tearing down the
+audio output stream**, and SHALL issue an all-notes-off across the swap so no voice
+is left hanging. The native audio output and synthesis thread SHALL be kept behind
 that seam so the rest of the app does not depend on them directly.
 
 #### Scenario: Note sounds a piano voice
@@ -31,14 +28,15 @@ that seam so the rest of the app does not depend on them directly.
 - **WHEN** a note-off for a sounding pitch is sent
 - **THEN** that voice enters its release and stops, leaving other voices sounding
 
-#### Scenario: Default output when nothing is selected
-- **WHEN** no output device has been selected
-- **THEN** the engine renders to the system's default output device
+#### Scenario: Runtime SoundFont swap
+- **WHEN** a different SoundFont is loaded while the engine is running
+- **THEN** subsequent note-ons sound with the new SoundFont and the audio stream
+  keeps running (no device re-acquisition)
 
-#### Scenario: Output device change rebuilds the stream
-- **WHEN** a different output device is selected
-- **THEN** the audio stream is rebuilt on that device, sounding voices are silenced
-  first, and the SoundFont is not reloaded
+#### Scenario: Swap silences hanging voices
+- **WHEN** a note is held and the SoundFont is swapped
+- **THEN** an all-notes-off is applied across the swap so the held voice does not
+  hang
 
 ### Requirement: Live Note Sounding From Any Input
 

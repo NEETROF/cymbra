@@ -7,15 +7,18 @@ TBD - created by archiving change add-curation-rewards. Update Purpose after arc
 
 The system SHALL track two totals from the one append-only ledger: **lifetime earned
 points** (the sum of all awards, which only ever rises) and a **spendable balance**
-(lifetime earned minus points already redeemed). Levels and badges SHALL be driven by
-**lifetime earned** points, so **spending points in the reward shop never lowers a user's
-level or removes a badge**. The spendable balance SHALL decrease when the user redeems a
-reward and MUST never go negative.
+(lifetime earned minus points already redeemed). Levels SHALL be driven by **lifetime
+earned** points, so **spending points in the reward shop never lowers a user's level**.
+Badges are NOT driven by points at all — they are earned against activity counters owned by
+the `achievement-badges` capability — so spending points can never remove a badge either.
+The spendable balance SHALL decrease when the user redeems a reward and MUST never go
+negative.
 
 #### Scenario: Spending does not lower level
 
 - **WHEN** a user redeems a reward and their spendable balance decreases
-- **THEN** their level and badges are unchanged, because those derive from lifetime earned points
+- **THEN** their level is unchanged, because it derives from lifetime earned points, and
+  their badges are unchanged, because they derive from activity counters
 
 #### Scenario: Balance cannot go negative
 
@@ -49,6 +52,13 @@ Rewards SHALL be limited only by their cost against the user's balance — not g
 **pianos/SoundFonts** (integrating with the existing piano-selection catalog); **temporary
 premium access** is listed as a **future** item and is NOT redeemable yet.
 
+The shop SHALL offer **only accepted** SoundFonts. Pricing a font is deliberately
+independent of moderation — an operator may set a price while the font is still in review,
+so it is ready the moment it is accepted — but an unvalidated (pending or rejected) font
+SHALL NOT appear in the shop and SHALL NOT be redeemable by key, so a price never makes an
+unvalidated font reachable from the app. This rule applies to both the shop listing and the
+redemption lookup.
+
 #### Scenario: User redeems an affordable piano
 
 - **WHEN** a user with enough spendable balance redeems a piano from the shop
@@ -69,16 +79,38 @@ premium access** is listed as a **future** item and is NOT redeemable yet.
 - **WHEN** a user views the future temporary-premium item in the shop
 - **THEN** it is shown as coming later and cannot be redeemed
 
+#### Scenario: A priced font still in review is not offered
+
+- **WHEN** an operator prices a SoundFont that is still pending (or was rejected) and a user opens the shop
+- **THEN** that font is absent from the listing
+
+#### Scenario: A priced font still in review cannot be redeemed by key
+
+- **WHEN** a user submits a redemption naming a priced but unaccepted SoundFont
+- **THEN** the request reports not-found, nothing is granted and nothing is charged
+
 ### Requirement: Badges earned by milestones
 
-The system SHALL grant **badges** at defined milestones (for example a first set of ratings,
-a count of aligned ratings, or coverage of rarely-rated scores). Badges are **earned, not
-purchased** — they cost no points and cannot be redeemed — and once earned SHALL be kept.
+The curation domain SHALL contribute its **milestone counters** — number of ratings
+recorded, number of ratings that settled aligned with ground truth, and number of scores the
+user was the first to rate — to the badge registry owned by the `achievement-badges`
+capability. The curation badge keys and thresholds already granted SHALL be preserved
+unchanged, and the durable grant store SHALL remain the one this capability introduced, so
+no badge already earned is lost. Curation SHALL NOT define, evaluate or render badges
+itself; badges are **earned, not purchased** — they cost no points and cannot be redeemed.
 
-#### Scenario: Milestone grants a badge
+#### Scenario: Curation counters feed the registry
 
-- **WHEN** a user meets a badge milestone (e.g. a number of aligned ratings)
-- **THEN** the badge is granted and retained
+- **WHEN** a user records a rating, has a rating settle aligned, or is the first to rate a
+  score
+- **THEN** the corresponding curation counter advances and any curation badge whose
+  threshold it reaches is earned through the badge registry
+
+#### Scenario: Existing curation badges are preserved
+
+- **WHEN** a user had already earned curation badges before badges moved to the registry
+- **THEN** those badges remain earned, under the same keys and thresholds, with their
+  original earned moment
 
 #### Scenario: Badges are not for sale
 
@@ -89,26 +121,27 @@ purchased** — they cost no points and cannot be redeemed — and once earned S
 
 The app SHALL provide a **full-screen** "curator profile" that shows the signed-in user:
 their **current level and lifetime points** (with progress toward the next level); their
-**spendable balance** and an entry into the **reward shop**; a **badge grid** showing earned
-badges and locked ones (locked shown with the milestone hint); and their **personal curation
+**spendable balance** and an entry into the **reward shop**; and their **personal curation
 stats** — number of ratings, coverage contribution, and their own **alignment rate** (the
-same reliability figure the back office shows moderators, here as a self-view). This screen
-SHALL be driven through injectable state so it is testable without the native library or a
-live backend.
+same reliability figure the back office shows moderators, here as a self-view). The badge
+grid SHALL NOT live here: badges are presented in the profile's own Achievements section,
+owned by the `achievement-badges` capability. This screen SHALL be driven through injectable
+state so it is testable without the native library or a live backend.
 
 #### Scenario: Profile shows level, balance and shop entry
 
 - **WHEN** a signed-in user opens the curator profile
-- **THEN** they see their level and lifetime points, their spendable balance, and a way into the reward shop
+- **THEN** they see their level and lifetime points, their spendable balance, and a way into
+  the reward shop
 
-#### Scenario: Badge grid shows earned and locked
+#### Scenario: Curator section carries no badge grid
 
-- **WHEN** the user opens the profile
-- **THEN** earned badges are shown as earned and unearned badges are shown locked with their milestone hint
+- **WHEN** the user opens the curator profile
+- **THEN** it shows no badge grid; badges appear in the Achievements section instead
 
 #### Scenario: Personal stats include alignment rate
 
-- **WHEN** the user opens the profile
+- **WHEN** the user opens the curator profile
 - **THEN** it shows their rating count, coverage contribution, and their own alignment rate
 
 ### Requirement: Persistent reward indicator entry point
@@ -129,19 +162,37 @@ glanceable from the main surfaces.
 
 ### Requirement: Immediate and milestone reward feedback
 
-When a user earns coverage points by rating, the app SHALL give **immediate** feedback (a
-"+N" points cue on the action). When a user crosses a level, unlocks content, or earns a
-badge, the app SHALL show a **celebration** moment for that event.
+When a user earns points for an action, the app SHALL give **immediate** feedback on that
+action — a "+N" points cue where the work happened. This SHALL apply to **every** earning
+action, not only rating: coverage points show their cue on the rating action, and points
+earned by playing show theirs on the session summary at the end of the run. When a user
+crosses a level, unlocks content, or earns a badge, the app SHALL show a **celebration**
+moment for that event, whichever activity caused it.
 
 #### Scenario: Coverage points shown immediately on rating
 
 - **WHEN** a user rates a score and earns coverage points
 - **THEN** a "+N" points cue is shown on the rating action
 
+#### Scenario: Play points shown on the session summary
+
+- **WHEN** a user finishes a run that earned points
+- **THEN** a "+N" points cue is shown on the session summary
+
+#### Scenario: A session that earned nothing shows no cue
+
+- **WHEN** a user finishes a run that earned no points
+- **THEN** no points cue is shown, and the session summary is otherwise unchanged
+
 #### Scenario: Level-up / unlock / badge is celebrated
 
 - **WHEN** the user crosses a level, unlocks a piano, or earns a badge
 - **THEN** the app shows a celebration for that event
+
+#### Scenario: A level crossed by playing is celebrated the same way
+
+- **WHEN** a user crosses a level because of points earned by playing
+- **THEN** the same celebration is shown as for a level crossed by rating
 
 ### Requirement: Deferred honesty rewards are surfaced
 

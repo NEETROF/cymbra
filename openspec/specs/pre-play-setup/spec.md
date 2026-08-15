@@ -27,15 +27,11 @@ once per opened score.
 The modal SHALL show the score's information — title, composer, difficulty, and
 the key signature, time signature and tempo when known (missing values are
 omitted, not shown as defaults). It SHALL let the user choose which hands to play
-(left / right / both), adjust the playback tempo and toggle the metronome, and
-see and select the MIDI input device. The hand choice SHALL be offered only when
-the piece has more than one staff; for a single-staff piece it SHALL be omitted
-and the selection stays at both. The modal SHALL additionally offer a sound
-output section showing where the app's audio goes — the selectable output device
-on desktop and Android (USB outputs labelled experimental on Android), or the
-active route with access to the system route picker on iOS — together with the
-instrument-sounds-itself setting. The output list SHALL be re-read each time the
-modal opens, so a device plugged in since the app started is offered.
+(left / right / both), adjust the playback tempo, toggle the metronome, choose the
+note reading aid level (off / note name / note name and rhythm), and see and
+select the MIDI input device. The hand choice SHALL be offered only when the piece
+has more than one staff; for a single-staff piece it SHALL be omitted and the
+selection stays at both.
 
 #### Scenario: Score information is shown
 
@@ -57,24 +53,11 @@ modal opens, so a device plugged in since the app started is offered.
   is shown (the Android USB-OTG / charge-only-cable advice, otherwise a plain
   no-device state)
 
-#### Scenario: Sound output is shown
+#### Scenario: Reading aid level is shown and selectable
 
 - **WHEN** the modal is shown
-- **THEN** a sound output section shows where the app's audio goes — the output
-  device list on desktop and Android, or the active route plus access to the
-  system route picker on iOS
-
-#### Scenario: Output list is current
-
-- **WHEN** the modal is opened after an output device was plugged or unplugged
-- **THEN** the sound output section lists the outputs as they are now, not as
-  they were when the app started
-
-#### Scenario: Instrument-sounds-itself is offered with the sound output
-
-- **WHEN** the modal is shown and a MIDI instrument is connected
-- **THEN** the sound output section offers the instrument-sounds-itself setting,
-  which is shown disabled with its reason when no instrument is connected
+- **THEN** the note reading aid offers the three levels (off / note name / note
+  name and rhythm), with the currently persisted level preselected
 
 ### Requirement: Validate applies, close keeps current settings
 
@@ -98,16 +81,17 @@ current settings unchanged. In both cases the user remains on the player.
 ### Requirement: Setup choices persist across scores and restarts
 
 The system SHALL remember the play settings (hands, tempo/playback speed,
-metronome, score size, and the chosen MIDI device) on the device. Applied
-choices SHALL
-persist across scores and SHALL survive an app restart, and each newly opened
-score SHALL be seeded from them. The same settings SHALL be editable both in the
-modal and in the in-game settings, and a change made in either place SHALL update
-the shared, persisted value.
+metronome, the note reading aid level, and the chosen MIDI device) on the device.
+Applied choices SHALL persist across scores and SHALL survive an app restart, and
+each newly opened score SHALL be seeded from them. The same settings SHALL be
+editable both in the modal and in the in-game settings, and a change made in
+either place SHALL update the shared, persisted value. A stored value that is
+missing or unrecognized SHALL fall back to that setting's default rather than
+discarding the whole stored record.
 
 #### Scenario: Choices are remembered on the next score
 
-- **WHEN** the user sets the hands/tempo/metronome/device/score size (in the
+- **WHEN** the user sets the hands/tempo/metronome/reading aid/device (in the
   modal or the in-game settings) and later opens another score
 - **THEN** that score is seeded with the same settings
 
@@ -121,4 +105,12 @@ the shared, persisted value.
 - **WHEN** the user changes a setting from the in-game settings while playing
 - **THEN** the shared persisted value is updated (the next score and the next
   launch reflect it)
+
+#### Scenario: Unknown stored setting falls back to its default
+
+- **WHEN** the persisted settings were written by an earlier version and carry no
+  reading aid level, or carry a value the app does not recognize
+- **THEN** the reading aid falls back to its default while the other stored
+  settings are still restored; a level the user *did* choose is never overridden
+  by that default
 
