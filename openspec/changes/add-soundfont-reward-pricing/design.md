@@ -73,7 +73,23 @@ through the injectable client seam, its state an `Async<T>` union, results surfa
 existing toasts. Only visible to an admin (the screen already knows the caller's scope for
 the accept/reject controls). No new screen.
 
-### 5. Preview independence
+### 5. Pricing before acceptance, but the shop gates on it
+Pricing and moderation stay **independent**: an operator prices a font while it is still in
+review so it is ready the moment it is accepted, and the pricing RPC therefore does not
+check moderation status. That independence exposes a leak, because `shop_items` /
+`shop_item` read `music.soundfonts` **directly** — they are the only app-facing read path
+that does not pass through the moderation-visibility gate (the public listing uses
+`list_accepted`; the bytes route gates before entitlement). Before this change nothing
+could set a price from the UI, so a pending font never met the shop's
+`point_cost > 0 OR redeemable = FALSE` predicate in practice; pricing makes that reachable.
+
+So the gate lands in the shop, not in the pricing RPC: both queries add
+`moderation_status = 'accepted'`. The **single-item** lookup matters as much as the
+listing — it is what `redeem` resolves, so without it a crafted redemption could grant an
+unvalidated font by key. Net rule: **the back office may price anything; the app sees
+accepted only.**
+
+### 6. Preview independence
 A font may be priced whether or not it has a preview: pricing writes the economy fields;
 the app **greys** a locked font's play until a preview exists (already implemented) and the
 **accept-requires-a-preview** rule is unchanged. So the operational flow is: upload →

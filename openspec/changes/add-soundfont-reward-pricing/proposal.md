@@ -45,9 +45,14 @@ exists). This change only lets an operator *set the price*.
   back-office admin listing.
 
 ### Modified Capabilities
-<!-- None. Pricing writes the fields the reward shop (curation-rewards) and the entitlement
-     gate (soundfont-entitlement, from add-soundfont-entitlement-previews) already read;
-     their requirements are unchanged, only now driveable from the back office. -->
+- `reward-unlocks`: the shop now offers **accepted** fonts only. Pricing is deliberately
+  allowed before acceptance (an operator prices a font while it is in review so it is
+  ready on acceptance), which makes the shop the one read path onto `music.soundfonts`
+  that does not go through the moderation-visibility gate — so it gains the gate itself,
+  on both the listing and the redemption lookup.
+
+<!-- The entitlement gate (soundfont-entitlement, from add-soundfont-entitlement-previews)
+     is unchanged: pricing just writes the fields it already reads. -->
 
 ## Impact
 

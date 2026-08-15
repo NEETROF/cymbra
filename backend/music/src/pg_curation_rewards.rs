@@ -506,7 +506,8 @@ impl CurationRewardsRepo for PgCurationRewardsRepo {
              (s.point_cost = 0 OR EXISTS(SELECT 1 FROM music.curation_grants g \
                WHERE g.user_id = $1 AND g.key = s.id)) AS owned \
              FROM music.soundfonts s \
-             WHERE s.point_cost > 0 OR s.redeemable = FALSE \
+             WHERE s.moderation_status = 'accepted' \
+               AND (s.point_cost > 0 OR s.redeemable = FALSE) \
              ORDER BY s.point_cost, s.label",
         )
         .bind(uid(user_id)?)
@@ -522,7 +523,8 @@ impl CurationRewardsRepo for PgCurationRewardsRepo {
              s.point_cost, s.redeemable, \
              (s.point_cost = 0 OR EXISTS(SELECT 1 FROM music.curation_grants g \
                WHERE g.user_id = $1 AND g.key = s.id)) AS owned \
-             FROM music.soundfonts s WHERE s.id = $2",
+             FROM music.soundfonts s \
+             WHERE s.id = $2 AND s.moderation_status = 'accepted'",
         )
         .bind(uid(user_id)?)
         .bind(key)

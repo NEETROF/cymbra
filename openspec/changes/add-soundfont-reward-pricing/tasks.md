@@ -18,10 +18,16 @@
 - [x] 3.3 When pricing a font that has `has_preview = false`, show a non-blocking hint that the app will grey its play until a sample is generated.
 - [x] 3.4 Vitest: the store action (success + error) via the client seam; the admin gate (control absent for a moderator).
 
+## 3b. Shop gates on acceptance (backend)
+
+- [x] 3b.1 Add `moderation_status = 'accepted'` to `PgCurationRewardsRepo::shop_items` **and** `shop_item` (`backend/music/src/pg_curation_rewards.rs`): pricing stays allowed before acceptance, so the shop — the one app-facing read of `music.soundfonts` that skips the moderation-visibility gate — applies it itself. The single-item lookup is the redeem path, so it must gate too.
+- [x] 3b.2 Mirror the rule in `FakeCurationRewardsRepo` (`moderation_status` on the seeded row, `seed_shop_item` defaults to accepted, `seed_shop_item_status` for the rest) and document it on the `CurationRewardsRepo` trait.
+- [x] 3b.3 Module test: a priced pending/rejected font is absent from `list_shop` and `redeem`s as `NotFound`, with nothing granted and nothing charged.
+
 ## 4. Verification & gates
 
 - [x] 4.1 Rust: `cargo fmt` + `clippy -D warnings`; `cargo llvm-cov --workspace --fail-under-lines 80` (pricing decision + repo fake covered; RPC/pg glue excluded as usual).
 - [x] 4.2 App: `dart run build_runner build`; `melos run analyze` + `dart run custom_lint`; `flutter test` green (no app behavior change, but stubs regenerated).
 - [x] 4.3 Back office: `yarn lint` + `yarn test` (vitest) + `yarn format:check` green; `yarn dart format`/`prettier` clean.
-- [ ] 4.4 Manual: as an admin, price a free accepted font (cost > 0) → a non-entitled user's download is 404, the app locks it and auditions the preview, and it appears redeemable in the shop; redeem → download works; set cost back to 0 → free again. A moderator sees no pricing control.
+- [ ] 4.4 Manual: as an admin, price a free accepted font (cost > 0) → a non-entitled user's download is 404, the app locks it and auditions the preview, and it appears redeemable in the shop; redeem → download works; set cost back to 0 → free again. A moderator sees no pricing control. Also price a **pending** font and confirm it is priced in the back office but absent from the app's shop until it is accepted.
 - [x] 4.5 `openspec validate add-soundfont-reward-pricing --strict` passes.
