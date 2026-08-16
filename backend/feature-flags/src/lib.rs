@@ -27,7 +27,7 @@ pub mod service;
 pub mod store;
 pub mod value;
 
-pub use context::{APP_ALL, EvalContext, RolloutScope};
+pub use context::{APP_ALL, EvalContext, NoPlanContext, PlanContextSource, RolloutScope};
 pub use invalidation::{
     DEFAULT_CHANNEL, InvalidationBus, NoopBus, RedisInvalidationBus, run_invalidation_listener,
 };

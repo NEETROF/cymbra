@@ -107,6 +107,40 @@ pub const CATALOG_LIMITS_ENUM_MAX: &str = "catalog.access_limits.enum_max";
 /// Length in SECONDS of the enumeration window.
 pub const CATALOG_LIMITS_ENUM_WINDOW_S: &str = "catalog.access_limits.enum_window_s";
 
+// --- plans & billing (change: add-premium-subscription). Read per call by the
+// plans module + the music quotas through trait seams. `plans.enabled` is the
+// kill-switch of the whole plan system (off = everyone is `free`, no memberships,
+// exactly the pre-plan behaviour); each purchase channel has its own switch that
+// hides the paywall's purchase button and makes the provider notification route
+// acknowledge-and-ignore. Both kinds are sensitive (they change what is sold).
+
+/// Kill-switch of the plan system: off ⇒ every plan-aware seam answers `free`.
+pub const PLANS_ENABLED: &str = "plans.enabled";
+/// Days a row in provider billing-retry stays active past `ends_at`.
+pub const PLANS_GRACE_DAYS: &str = "plans.grace_days";
+/// Store/MoR product ids offered on the paywall (JSON array of strings; prices come
+/// from the store).
+pub const PLANS_PREMIUM_PRODUCTS: &str = "plans.premium.products";
+/// Private `.sf2` library cap for the free plan (today's constant).
+pub const PLANS_SF_LIBRARY_MAX_FREE: &str = "plans.soundfont_library.max_fonts.free";
+/// Private `.sf2` library cap for a plan granting `soundfont_library.extended`.
+pub const PLANS_SF_LIBRARY_MAX_PREMIUM: &str = "plans.soundfont_library.max_fonts.premium";
+/// Rolling score-upload quota for the free plan (JSON `{max, window_days}`).
+pub const PLANS_SCORES_UPLOAD_QUOTA_FREE: &str = "plans.scores.upload_quota.free";
+/// Rolling score-upload quota for a plan granting `scores.extended_quotas`.
+pub const PLANS_SCORES_UPLOAD_QUOTA_PREMIUM: &str = "plans.scores.upload_quota.premium";
+/// Private score-library cap for the free plan (uploads not yet accepted into the
+/// public catalog).
+pub const PLANS_SCORES_LIBRARY_MAX_FREE: &str = "plans.scores.library_max.free";
+/// Private score-library cap for a plan granting `scores.extended_quotas`.
+pub const PLANS_SCORES_LIBRARY_MAX_PREMIUM: &str = "plans.scores.library_max.premium";
+/// Apple purchase channel (App Store): paywall button + notification route.
+pub const BILLING_APPLE_ENABLED: &str = "billing.apple.enabled";
+/// Google purchase channel (Play): paywall button + notification route.
+pub const BILLING_GOOGLE_ENABLED: &str = "billing.google.enabled";
+/// Web merchant-of-record channel: checkout creation + webhook route.
+pub const BILLING_WEB_ENABLED: &str = "billing.web.enabled";
+
 // Sensitive legal/infra values (not casually editable).
 pub const ACCOUNT_MIN_PUBLIC_SHARING_AGE: &str = "account.min_public_sharing_age";
 pub const DATA_RETENTION_PLAY_DETAIL_DAYS: &str = "data.retention.play_detail_days";
@@ -501,6 +535,91 @@ pub fn builtin() -> Vec<KeyDef> {
             FlagValue::Int(60),
             false,
             "Length in seconds of the catalog enumeration window.",
+        ),
+        // -- plans & billing (change: add-premium-subscription) --
+        flag(
+            PLANS_ENABLED,
+            APP_MUSIC,
+            false,
+            true,
+            "Plan system kill-switch: off = everyone is free, no betas, no paywall.",
+        ),
+        cfg(
+            PLANS_GRACE_DAYS,
+            APP_MUSIC,
+            FlagValue::Int(3),
+            false,
+            "Days a subscription in provider billing-retry stays active past its end.",
+        ),
+        cfg(
+            PLANS_PREMIUM_PRODUCTS,
+            APP_MUSIC,
+            FlagValue::Json(json!(["premium_monthly", "premium_yearly"])),
+            false,
+            "Store/MoR product ids the paywall offers (prices come from the store).",
+        ),
+        cfg(
+            PLANS_SF_LIBRARY_MAX_FREE,
+            APP_MUSIC,
+            FlagValue::Int(5),
+            false,
+            "Private .sf2 library cap on the free plan.",
+        ),
+        cfg(
+            PLANS_SF_LIBRARY_MAX_PREMIUM,
+            APP_MUSIC,
+            FlagValue::Int(50),
+            false,
+            "Private .sf2 library cap on a plan with the extended library unlock.",
+        ),
+        cfg(
+            PLANS_SCORES_UPLOAD_QUOTA_FREE,
+            APP_MUSIC,
+            FlagValue::Json(json!({"max": 5, "window_days": 7})),
+            false,
+            "Rolling score-upload quota on the free plan ({max, window_days}).",
+        ),
+        cfg(
+            PLANS_SCORES_UPLOAD_QUOTA_PREMIUM,
+            APP_MUSIC,
+            FlagValue::Json(json!({"max": 50, "window_days": 7})),
+            false,
+            "Rolling score-upload quota on a plan with the extended score quotas.",
+        ),
+        cfg(
+            PLANS_SCORES_LIBRARY_MAX_FREE,
+            APP_MUSIC,
+            FlagValue::Int(20),
+            false,
+            "Private score-library cap on the free plan (accepted catalog scores excluded).",
+        ),
+        cfg(
+            PLANS_SCORES_LIBRARY_MAX_PREMIUM,
+            APP_MUSIC,
+            FlagValue::Int(500),
+            false,
+            "Private score-library cap on a plan with the extended score quotas.",
+        ),
+        flag(
+            BILLING_APPLE_ENABLED,
+            APP_MUSIC,
+            false,
+            true,
+            "Apple purchase channel: paywall button + App Store notification route.",
+        ),
+        flag(
+            BILLING_GOOGLE_ENABLED,
+            APP_MUSIC,
+            false,
+            true,
+            "Google purchase channel: paywall button + Play RTDN route.",
+        ),
+        flag(
+            BILLING_WEB_ENABLED,
+            APP_MUSIC,
+            false,
+            true,
+            "Web merchant-of-record channel: checkout + webhook route.",
         ),
         // -- sensitive legal/infra values --
         cfg(

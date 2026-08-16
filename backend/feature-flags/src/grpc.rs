@@ -20,11 +20,23 @@ use tonic::{Request, Response, Status};
 /// gRPC adapter wrapping the shared [`FlagService`].
 pub struct FlagGrpc {
     svc: Arc<FlagService>,
+    /// Plan dimensions of the caller (change: add-premium-subscription); the
+    /// inert source until the server wires the plans module.
+    plans: Arc<dyn crate::context::PlanContextSource>,
 }
 
 impl FlagGrpc {
     pub fn new(svc: Arc<FlagService>) -> Self {
-        Self { svc }
+        Self {
+            svc,
+            plans: Arc::new(crate::context::NoPlanContext),
+        }
+    }
+
+    /// Wire the plan-context source (effective plan + beta memberships).
+    pub fn with_plans(mut self, plans: Arc<dyn crate::context::PlanContextSource>) -> Self {
+        self.plans = plans;
+        self
     }
 
     /// Package the adapter as a tonic server (caller adds the interceptor).
@@ -71,7 +83,10 @@ impl FlagServiceTrait for FlagGrpc {
         // it can't widen the set); unauthenticated ⇒ the anonymous set for the app
         // the caller named.
         let ctx = match &identity {
-            Some(id) => EvalContext::authenticated(&id.audience, &id.roles),
+            Some(id) => {
+                let (premium, betas) = self.plans.plan_context(&id.user_id).await;
+                EvalContext::authenticated(&id.audience, &id.roles).with_plan(premium, betas)
+            }
             None => EvalContext::anonymous(&r.app),
         };
         let set = self.svc.effective(&ctx);
@@ -232,7 +247,7 @@ fn definition_to_proto(k: &KeyState, editable: bool) -> proto::FlagDefinition {
         default_value: Some(value_to_proto(&k.def.default)),
         effective_value: Some(value_to_proto(&k.effective)),
         has_override: k.has_override,
-        rollout_scope: k.rollout.as_str().to_string(),
+        rollout_scope: k.rollout.to_key(),
         sensitive: k.def.sensitive,
         doc: k.def.doc.to_string(),
         editable,

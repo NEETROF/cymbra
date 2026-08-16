@@ -144,7 +144,7 @@ impl FlagStore for PgFlagStore {
         .bind(&w.key)
         .bind(w.value_type.as_str())
         .bind(&json)
-        .bind(w.rollout.as_str())
+        .bind(w.rollout.to_key())
         .bind(w.sensitive)
         .bind(actor)
         .execute(&mut *tx)

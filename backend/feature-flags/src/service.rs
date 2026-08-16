@@ -187,7 +187,7 @@ impl FlagService {
         let ov = snap
             .overrides
             .get(&(def.app.to_string(), def.key.to_string()))?;
-        if ov.value_type != def.value_type || !ctx.rollout_reaches(ov.rollout) {
+        if ov.value_type != def.value_type || !ctx.rollout_reaches(&ov.rollout) {
             return None;
         }
         Some(ov.value.clone())
@@ -354,7 +354,7 @@ impl FlagService {
                 def: def.clone(),
                 effective: o.value.clone(),
                 has_override: true,
-                rollout: o.rollout,
+                rollout: o.rollout.clone(),
                 updated_by: Some(o.updated_by.clone()),
                 updated_at: Some(o.updated_at.to_rfc3339()),
             },
@@ -362,7 +362,7 @@ impl FlagService {
                 def: def.clone(),
                 effective: def.default.clone(),
                 has_override: false,
-                rollout: def.rollout,
+                rollout: def.rollout.clone(),
                 updated_by: None,
                 updated_at: None,
             },
@@ -415,8 +415,8 @@ impl FlagService {
             .get(&(def.app.to_string(), def.key.to_string()))
             .cloned();
         let rollout = rollout
-            .or_else(|| prev.as_ref().map(|p| p.rollout))
-            .unwrap_or(def.rollout);
+            .or_else(|| prev.as_ref().map(|p| p.rollout.clone()))
+            .unwrap_or_else(|| def.rollout.clone());
         let old_display = prev.as_ref().map(|p| p.value.display());
 
         store
@@ -425,7 +425,7 @@ impl FlagService {
                 key: def.key.to_string(),
                 value_type: def.value_type,
                 value: value.clone(),
-                rollout,
+                rollout: rollout.clone(),
                 sensitive: def.sensitive,
                 actor: actor.user_id.clone(),
                 old_display,

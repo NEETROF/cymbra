@@ -93,6 +93,38 @@ pub struct ScoreBytes {
     pub unchanged: bool,
 }
 
+/// Per-plan score quotas (change: add-premium-subscription), resolved **per
+/// request**: the rolling upload quota and the private-library cap, for the free
+/// plan and for a plan granting the `scores.extended_quotas` unlock.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ScoreQuotas {
+    pub upload_max: u32,
+    pub upload_window_days: u32,
+    /// `None` = no library cap.
+    pub library_max: Option<i64>,
+}
+
+/// Where the score module reads its per-plan quotas (runtime config in
+/// production, fixed values in tests).
+#[cfg_attr(test, mockall::automock)]
+pub trait ScoreQuotaSource: Send + Sync {
+    fn score_quotas(&self, extended: bool) -> ScoreQuotas;
+}
+
+/// Fixed quotas: `free` = the constructor's values (today's behaviour),
+/// `premium` = the design defaults.
+#[derive(Debug, Clone, Copy)]
+pub struct FixedScoreQuotas {
+    pub free: ScoreQuotas,
+    pub premium: ScoreQuotas,
+}
+
+impl ScoreQuotaSource for FixedScoreQuotas {
+    fn score_quotas(&self, extended: bool) -> ScoreQuotas {
+        if extended { self.premium } else { self.free }
+    }
+}
+
 /// User-upload logic + catalog search / saved library / score ratings, over
 /// owner-scoped repos, the public-catalog read port, and the object store.
 pub struct ScoreModule {
@@ -101,8 +133,6 @@ pub struct ScoreModule {
     library: Arc<dyn UserLibraryRepo>,
     ratings: Arc<dyn ScoreRatingRepo>,
     storage: Arc<dyn ObjectStorage>,
-    quota_max: u32,
-    quota_window_days: u32,
     max_bytes: usize,
     /// Hybrid re-review thresholds (change: add-app-score-rating, design D4).
     /// Defaults to N=5, T=2.0; overridable via [`Self::with_rating_config`].
@@ -128,6 +158,13 @@ pub struct ScoreModule {
     /// [`Self::with_daily_access`]; even when wired, the gate is OFF until its
     /// flag is on.
     daily_access: Option<Arc<CatalogDailyAccess>>,
+    /// Effective-plan source (change: add-premium-subscription): a plan granting
+    /// `scores.extended_quotas` gets the premium upload quota / library cap. `None`
+    /// ⇒ everyone is `free`.
+    plans: Option<Arc<dyn cymbra_plans::PlanSource>>,
+    /// Per-plan quotas; defaults to the constructor's values for free and the
+    /// design defaults for premium; the server overrides with the flag-backed source.
+    score_quotas: Arc<dyn ScoreQuotaSource>,
 }
 
 /// Who is opening a catalog piece in the player (change: add-score-daily-access-
@@ -199,14 +236,52 @@ impl ScoreModule {
             library,
             ratings,
             storage,
-            quota_max,
-            quota_window_days,
             max_bytes,
             rating_config: RatingConfig::default(),
             user: None,
             rewards: None,
             offline_secrets: Arc::new(FakeOfflineSecretRepo::default()),
             daily_access: None,
+            plans: None,
+            score_quotas: Arc::new(FixedScoreQuotas {
+                free: ScoreQuotas {
+                    upload_max: quota_max,
+                    upload_window_days: quota_window_days,
+                    library_max: None,
+                },
+                premium: ScoreQuotas {
+                    upload_max: quota_max.max(50),
+                    upload_window_days: quota_window_days,
+                    library_max: None,
+                },
+            }),
+        }
+    }
+
+    /// Wire the plan seam (change: add-premium-subscription).
+    pub fn with_plans(mut self, plans: Arc<dyn cymbra_plans::PlanSource>) -> Self {
+        self.plans = Some(plans);
+        self
+    }
+
+    /// Override the per-plan quota source (the server's flag-backed one; tests).
+    pub fn with_score_quotas(mut self, quotas: Arc<dyn ScoreQuotaSource>) -> Self {
+        self.score_quotas = quotas;
+        self
+    }
+
+    /// Whether the caller's effective plan grants the extended score quotas —
+    /// `false` when plans are not wired or the read fails (never grant on error).
+    async fn plan_extends_quotas(&self, user_id: &str) -> bool {
+        match self.plans.as_ref() {
+            None => false,
+            Some(p) => match p.snapshot(user_id).await {
+                Ok(s) => s.grants(cymbra_plans::Unlock::ScoresExtendedQuotas),
+                Err(e) => {
+                    tracing::warn!(error = %e, "plan snapshot failed; quotas treat caller as free");
+                    false
+                }
+            },
         }
     }
 
@@ -273,16 +348,30 @@ impl ScoreModule {
             return Err(AppError::InvalidArgument("file is too large".into()));
         }
 
-        // 2. Quota — before any validation/storage work (design 9).
+        // 2. Quotas — before any validation/storage work (design 9), resolved per
+        //    request from the caller's plan (change: add-premium-subscription). The
+        //    refusal tells the app whether a higher plan raises the limit
+        //    (`upgrade_raises_limit`), so the surface can upsell.
+        let extended = self.plan_extends_quotas(owner_id).await;
+        let quotas = self.score_quotas.score_quotas(extended);
         let recent = self
             .repo
-            .count_recent(owner_id, self.quota_window_days)
+            .count_recent(owner_id, quotas.upload_window_days)
             .await?;
-        if recent >= self.quota_max as i64 {
+        if recent >= quotas.upload_max as i64 {
             return Err(AppError::ResourceExhausted(format!(
-                "upload quota reached ({} per {} days)",
-                self.quota_max, self.quota_window_days
+                "upload quota reached ({} per {} days); upgrade_raises_limit={}",
+                quotas.upload_max, quotas.upload_window_days, !extended
             )));
+        }
+        if let Some(cap) = quotas.library_max {
+            let held = self.repo.count_library(owner_id).await?;
+            if held >= cap {
+                return Err(AppError::ResourceExhausted(format!(
+                    "private library full ({cap} scores); upgrade_raises_limit={}",
+                    !extended
+                )));
+            }
         }
 
         // 3. Re-validate the received bytes and re-derive metadata (never trust
@@ -1516,6 +1605,104 @@ mod tests {
             Err(AppError::ResourceExhausted(_))
         ));
         assert_eq!(store.len(), 2); // the rejected one stored nothing
+    }
+
+    /// Per-plan quotas (change: add-premium-subscription): a plan granting the
+    /// extended unlock gets the premium quota; the free refusal says a higher plan
+    /// raises the limit; the library cap refuses before storing.
+    #[tokio::test]
+    async fn quotas_are_resolved_per_plan_and_library_cap_refuses() {
+        use cymbra_plans::ports::MockPlanSource;
+        use cymbra_plans::{Plan, PlanSnapshot};
+        let (m, _repo, store) = module(1, 7);
+        let mut plans = MockPlanSource::new();
+        plans.expect_snapshot().returning(|u| {
+            Ok(if u == "premium" {
+                PlanSnapshot {
+                    plan: Plan::Premium,
+                    ..PlanSnapshot::free()
+                }
+            } else {
+                PlanSnapshot::free()
+            })
+        });
+        let m = m
+            .with_plans(Arc::new(plans))
+            .with_score_quotas(Arc::new(FixedScoreQuotas {
+                free: ScoreQuotas {
+                    upload_max: 1,
+                    upload_window_days: 7,
+                    library_max: Some(1),
+                },
+                premium: ScoreQuotas {
+                    upload_max: 3,
+                    upload_window_days: 7,
+                    library_max: Some(2),
+                },
+            }));
+        // Free: one upload, then the rolling quota refuses and names the upgrade.
+        m.upload(
+            "free",
+            input(
+                &VALID.replace("Test Piece", "F1"),
+                "beginner",
+                "own_work",
+                true,
+            ),
+        )
+        .await
+        .unwrap();
+        match m
+            .upload(
+                "free",
+                input(
+                    &VALID.replace("Test Piece", "F2"),
+                    "beginner",
+                    "own_work",
+                    true,
+                ),
+            )
+            .await
+        {
+            Err(AppError::ResourceExhausted(msg)) => {
+                assert!(msg.contains("upgrade_raises_limit=true"), "{msg}");
+            }
+            other => panic!("expected quota refusal, got {other:?}"),
+        }
+        // Premium: the upload quota is 3 but the library cap (2) refuses the third,
+        // and says no upgrade will help.
+        for i in 0..2 {
+            m.upload(
+                "premium",
+                input(
+                    &VALID.replace("Test Piece", &format!("P{i}")),
+                    "beginner",
+                    "own_work",
+                    true,
+                ),
+            )
+            .await
+            .unwrap();
+        }
+        match m
+            .upload(
+                "premium",
+                input(
+                    &VALID.replace("Test Piece", "P9"),
+                    "beginner",
+                    "own_work",
+                    true,
+                ),
+            )
+            .await
+        {
+            Err(AppError::ResourceExhausted(msg)) => {
+                assert!(msg.contains("library full"), "{msg}");
+                assert!(msg.contains("upgrade_raises_limit=false"), "{msg}");
+            }
+            other => panic!("expected library-cap refusal, got {other:?}"),
+        }
+        assert_eq!(store.len(), 3);
     }
 
     #[tokio::test]

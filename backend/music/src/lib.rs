@@ -79,7 +79,7 @@ pub use badges_module::BadgesModule;
 pub use catalog_daily_access::{
     AccessState, CatalogDailyAccess, CatalogDayAccessRepo, DAY_SLOT_REWARD_KEY,
     DailyAccessConfigSource, FakeCatalogDayAccessRepo, FixedDailyAccessConfig, NoSubscriptions,
-    OpenDecision, SubscriptionSource,
+    OpenDecision, PlanSubscriptions, SubscriptionSource,
 };
 pub use catalog_daily_access_core::{CallerKind, DailyAccessConfig, DayState};
 pub use catalog_limits::{CatalogAccessLimiter, CatalogLimitsConfigSource, FixedCatalogLimits};
@@ -114,7 +114,9 @@ pub use leaderboard::{
 };
 pub use leaderboard_grpc::LeaderboardGrpc;
 pub use leaderboard_module::{Board, BoardEntry, LeaderboardModule, MyStanding};
-pub use module::{ScoreBytes, ScoreModule, UploadInput};
+pub use module::{
+    FixedScoreQuotas, ScoreBytes, ScoreModule, ScoreQuotaSource, ScoreQuotas, UploadInput,
+};
 pub use offline_secret::{
     FakeOfflineSecretRepo, OFFLINE_SECRET_LEN, OfflineSecretRepo, generate_offline_secret,
 };
@@ -163,7 +165,8 @@ pub use streak_module::{StreakConfigSource, StreakModule, StreakStanding};
 pub use user_library::{FakeUserLibraryRepo, UserLibraryRepo};
 pub use user_scores::{FakeUserScoreRepo, UserScore, UserScoreRepo};
 pub use user_soundfont::{
-    FakeUserSoundFontRepo, PgUserSoundFontRepo, UserFontEntry, UserSoundFontRepo,
+    DEFAULT_LIBRARY_MAX_FONTS, FakeUserSoundFontRepo, FixedLibraryQuota, LibraryQuotaSource,
+    PgUserSoundFontRepo, UserFontEntry, UserSoundFontRepo,
 };
 
 /// Generated protobuf messages + tonic client/server stubs for `cymbra.music.v1`

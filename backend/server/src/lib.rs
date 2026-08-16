@@ -19,7 +19,8 @@ pub use web_auth::{WebAuthConfig, web_auth_router};
 
 pub mod flags;
 pub use flags::{
-    FlagCatalogLimitsConfig, FlagDailyAccessConfig, FlagScorePreviewConfig, FlagStreakConfig,
+    FlagCatalogLimitsConfig, FlagDailyAccessConfig, FlagLibraryQuota, FlagPlanConfig,
+    FlagScorePreviewConfig, FlagScoreQuotas, FlagStreakConfig, OfflineSecretRotator, PlanContext,
     build_flag_service, spawn_flag_refreshers,
 };
 

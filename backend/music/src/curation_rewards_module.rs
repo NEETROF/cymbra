@@ -80,6 +80,10 @@ pub struct CurationRewardsModule {
     repo: Arc<dyn CurationRewardsRepo>,
     config: RewardConfig,
     play_config: PlayRewardConfig,
+    /// Effective-plan source (change: add-premium-subscription): a caller whose plan
+    /// grants the SoundFont library unlock owns every shop item without a grant row
+    /// and is never charged. `None` ⇒ everyone is `free` (pre-plan behaviour).
+    plans: Option<Arc<dyn cymbra_plans::PlanSource>>,
 }
 
 impl CurationRewardsModule {
@@ -89,6 +93,28 @@ impl CurationRewardsModule {
             repo,
             config: RewardConfig::default(),
             play_config: PlayRewardConfig::default(),
+            plans: None,
+        }
+    }
+
+    /// Wire the plan seam (change: add-premium-subscription).
+    pub fn with_plans(mut self, plans: Arc<dyn cymbra_plans::PlanSource>) -> Self {
+        self.plans = Some(plans);
+        self
+    }
+
+    /// Whether the caller's effective plan grants the SoundFont library unlock —
+    /// `false` when plans are not wired or the read fails (never grant on error).
+    async fn plan_unlocks_library(&self, user_id: &str) -> bool {
+        match self.plans.as_ref() {
+            None => false,
+            Some(p) => match p.snapshot(user_id).await {
+                Ok(s) => s.grants(cymbra_plans::Unlock::SoundfontsLibrary),
+                Err(e) => {
+                    tracing::warn!(error = %e, "plan snapshot failed; shop treats caller as free");
+                    false
+                }
+            },
         }
     }
 
@@ -161,25 +187,42 @@ impl CurationRewardsModule {
 
     // --- reward shop -------------------------------------------------------
 
-    /// The reward-shop catalogue for the caller (priced/coming-soon SoundFonts with
-    /// ownership resolved).
+    /// The reward-shop catalogue for the caller (priced / premium-only SoundFonts with
+    /// ownership resolved). A plan that grants the library unlock owns every item
+    /// (change: add-premium-subscription) — the module-level twin of the SQL `owned`.
     pub async fn list_shop(&self, user_id: &str) -> Result<Vec<ShopItem>> {
-        self.repo.shop_items(user_id).await
+        let mut items = self.repo.shop_items(user_id).await?;
+        if self.plan_unlocks_library(user_id).await {
+            for it in &mut items {
+                it.owned = true;
+            }
+        }
+        Ok(items)
     }
 
-    /// Redeem a reward by key: refuse a coming-soon item or an unaffordable one;
-    /// otherwise grant it once and deduct its cost. Idempotent — a retried redeem
-    /// (already owned) charges nothing and reports success. Never goes negative.
+    /// Redeem a reward by key: refuse a premium-only item (`redeemable = false`,
+    /// "included in premium") or an unaffordable one; otherwise grant it once and
+    /// deduct its cost. Idempotent — a retried redeem (already owned) charges nothing
+    /// and reports success. A caller whose plan already unlocks the library is never
+    /// charged. Never goes negative.
     pub async fn redeem(&self, user_id: &str, key: &str) -> Result<RedeemResult> {
         let item = self
             .repo
             .shop_item(user_id, key)
             .await?
             .ok_or_else(|| AppError::NotFound("reward not found".into()))?;
+        // The plan already unlocks it: owned, nothing to charge (no grant row minted —
+        // the unlock lives with the plan and lapses with it).
+        if self.plan_unlocks_library(user_id).await {
+            let balance = self.repo.spendable_balance(user_id).await?;
+            return Ok(RedeemResult {
+                key: key.to_string(),
+                new_balance: balance,
+                owned: true,
+            });
+        }
         if !item.redeemable {
-            return Err(AppError::FailedPrecondition(
-                "this reward is not available yet".into(),
-            ));
+            return Err(AppError::FailedPrecondition("included_in_premium".into()));
         }
         // Already owned (a prior grant, or a free/default font): idempotent success,
         // no charge.
@@ -667,6 +710,51 @@ mod tests {
             Err(AppError::FailedPrecondition(_))
         ));
         assert_eq!(repo.spendable_balance("u1").await.unwrap(), 10);
+    }
+
+    /// A premium plan (any source) owns the whole shop without grant rows and is
+    /// never charged; a `redeemable = false` item is "included in premium" for free
+    /// callers (change: add-premium-subscription).
+    #[tokio::test]
+    async fn premium_plan_owns_the_shop_and_is_never_charged() {
+        use cymbra_plans::ports::MockPlanSource;
+        use cymbra_plans::{Plan, PlanSnapshot};
+        let repo = Arc::new(FakeCurationRewardsRepo::default());
+        let mut plans = MockPlanSource::new();
+        plans.expect_snapshot().returning(|u| {
+            Ok(if u == "premium" {
+                PlanSnapshot {
+                    plan: Plan::Premium,
+                    ..PlanSnapshot::free()
+                }
+            } else {
+                PlanSnapshot::free()
+            })
+        });
+        let m = CurationRewardsModule::new(repo.clone()).with_plans(Arc::new(plans));
+        repo.seed_shop_item("grand", "Grand", 50, true);
+        repo.seed_shop_item("vip", "VIP piano", 500, false);
+        // Premium: everything owned, redeem is a free no-op, no grant row minted.
+        let items = m.list_shop("premium").await.unwrap();
+        assert!(items.iter().all(|i| i.owned));
+        let r = m.redeem("premium", "grand").await.unwrap();
+        assert!(r.owned);
+        assert_eq!(r.new_balance, 0);
+        assert!(m.redeem("premium", "vip").await.unwrap().owned);
+        assert!(
+            !repo
+                .granted_keys("premium")
+                .await
+                .unwrap()
+                .contains("grand")
+        );
+        // Free: nothing owned; the premium-only item is refused with its reason.
+        let items = m.list_shop("free").await.unwrap();
+        assert!(items.iter().all(|i| !i.owned));
+        assert!(matches!(
+            m.redeem("free", "vip").await,
+            Err(AppError::FailedPrecondition(msg)) if msg == "included_in_premium"
+        ));
     }
 
     #[tokio::test]
