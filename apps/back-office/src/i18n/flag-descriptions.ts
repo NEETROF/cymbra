@@ -68,6 +68,22 @@ const FR: Record<string, string> = {
   "catalog.access_limits.enum_max":
     "Nombre maximum de requêtes de parcours du catalogue (recherche / navigation / deck de notation) par fenêtre.",
   "catalog.access_limits.enum_window_s": "Durée en secondes de la fenêtre de parcours du catalogue.",
+  // -- plans & billing (change: add-premium-subscription) --
+  "plans.enabled": "Coupe-circuit du système de plans : désactivé, tout le monde est gratuit, sans bêta ni paywall.",
+  "plans.grace_days": "Jours pendant lesquels un abonnement en relance de paiement reste actif après sa fin.",
+  "plans.premium.products": "Identifiants produit (stores / MoR) proposés par le paywall (les prix viennent du store).",
+  "plans.soundfont_library.max_fonts.free": "Plafond de la bibliothèque .sf2 privée sur le plan gratuit.",
+  "plans.soundfont_library.max_fonts.premium":
+    "Plafond de la bibliothèque .sf2 privée avec le déblocage « bibliothèque étendue ».",
+  "plans.scores.upload_quota.free": "Quota glissant d’envois de partitions sur le plan gratuit ({max, window_days}).",
+  "plans.scores.upload_quota.premium": "Quota glissant d’envois de partitions avec le déblocage « quotas étendus ».",
+  "plans.scores.library_max.free":
+    "Plafond de la bibliothèque de partitions privée sur le plan gratuit (partitions acceptées du catalogue exclues).",
+  "plans.scores.library_max.premium":
+    "Plafond de la bibliothèque de partitions privée avec le déblocage « quotas étendus ».",
+  "billing.apple.enabled": "Canal d’achat Apple : bouton du paywall + route des notifications App Store.",
+  "billing.google.enabled": "Canal d’achat Google : bouton du paywall + route des notifications Play.",
+  "billing.web.enabled": "Canal d’achat web (marchand officiel) : checkout hébergé + webhook.",
 };
 
 const BY_LOCALE: Record<string, Record<string, string>> = { fr: FR };

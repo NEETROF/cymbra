@@ -67,11 +67,11 @@
 
 ## 9. Back office: `Plans` view (D11)
 
-- [ ] 9.1 Add the `plans` store (Pinia, `Async<T>` unions) over the admin RPCs behind the injectable client seam; role-gate the route to music admins
-- [ ] 9.2 Build the view: handle lookup → entitlement rows + memberships + effective plan; grant/revoke and enrol/unenrol dialogs with reason (open-ended confirmation); campaigns table (create with kind + duration, close enrolment, close feature campaign); mint N codes (shown once, download once); revoke; members list + CSV export
-- [ ] 9.3 Flags console: rollout selector gains `premium_only` and `beta:<campaign>` populated from `ListOpenCampaigns` (no free text), with plan-/beta-scoped markers; new keys visible with descriptions; `plans.enabled` and `billing.*.enabled` marked sensitive
-- [ ] 9.4 Accounts directory: plan/beta badge columns (batch `GetPlansForAccounts` per page) and the plan / beta filters (resolve via `ListAccountIdsByPlan` → `ListAccounts(ids)`); columns and filters absent for non-music-admins
-- [ ] 9.5 Component tests + a Playwright e2e on the fake-client seam (lookup, grant, enrol, close a feature campaign, mint codes shown once, beta selector lists open campaigns only, directory filter by trial and by beta)
+- [x] 9.1 Add the `plans` store (Pinia, `Async<T>` unions) over the admin RPCs behind the injectable client seam; role-gate the route to music admins
+- [x] 9.2 Build the view: handle lookup → entitlement rows + memberships + effective plan; grant/revoke and enrol/unenrol dialogs with reason (open-ended confirmation); campaigns table (create with kind + duration, close enrolment, close feature campaign); mint N codes (shown once, download once); revoke; members list + CSV export
+- [x] 9.3 Flags console: rollout selector gains `premium_only` and `beta:<campaign>` populated from `ListOpenCampaigns` (no free text), with plan-/beta-scoped markers; new keys visible with descriptions; `plans.enabled` and `billing.*.enabled` marked sensitive
+- [x] 9.4 Accounts directory: plan/beta badge columns (batch `GetPlansForAccounts` per page) and the plan / beta filters (resolve via `ListAccountIdsByPlan` → `ListAccounts(ids)`); columns and filters absent for non-music-admins
+- [x] 9.5 Component tests + a Playwright e2e on the fake-client seam (lookup, grant, enrol, close a feature campaign, mint codes shown once, beta selector lists open campaigns only, directory filter by trial and by beta)
 
 ## 10. Legal, ops, docs
 
@@ -82,10 +82,10 @@
 
 ## 11. Verification
 
-- [ ] 11.1 `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo llvm-cov --workspace --fail-under-lines 80` green with `cymbra-plans` included
-- [ ] 11.2 `melos run analyze`, `dart run custom_lint`, `dart format`, `flutter test --coverage` green
-- [ ] 11.3 Back office: `yarn lint`, `yarn test`, e2e green (own `BO_E2E_PORT`)
-- [ ] 11.4 `openspec validate add-premium-subscription --strict` passes
+- [x] 11.1 `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo llvm-cov --workspace --fail-under-lines 80` green with `cymbra-plans` included
+- [x] 11.2 `melos run analyze`, `dart run custom_lint`, `dart format`, `flutter test --coverage` green
+- [x] 11.3 Back office: `yarn lint`, `yarn test`, e2e green (own `BO_E2E_PORT`)
+- [x] 11.4 `openspec validate add-premium-subscription --strict` passes
 - [ ] 11.5 Manual — dark deploy: all flags off ⇒ app identical to before, webhook routes acknowledge and ignore, `GetMyPlan` says free
 - [ ] 11.6 Manual — withdrawal: let a trial expire on an account with cached catalog scores, own uploads, an imported .sf2 and a premium .sf2 → reconnect: catalog cache and premium font gone, upload cache + import intact, notice shown; then re-subscribe in sandbox → content re-fetchable, favorites intact
 - [ ] 11.7 Manual — trial: create a 90-day trial campaign, mint a code, redeem on the web, verify premium on iOS/Android/macOS/Linux/Windows builds of the same account, close enrolment and confirm the trial keeps running, revoke a membership and confirm immediate degradation

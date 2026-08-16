@@ -37,6 +37,7 @@ const ICONS: Record<string, string> = {
   catalog: "M9 18V5l12-2v13M9 13l12-2M9 18a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm12-2a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z",
   roles: "M12 2 4 6v6c0 5 3.5 8 8 10 4.5-2 8-5 8-10V6l-8-4Z",
   flags: "M4 22V4m0 0 8-2 8 3v9l-8-2-8 2",
+  plans: "M12 2 15 8.5 22 9.3 17 14.1 18.2 21 12 17.6 5.8 21 7 14.1 2 9.3 9 8.5Z",
   soundfonts: "M9 18V5l12-2v13M9 13l12-2M9 18a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm12-2a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z",
   usage: "M3 3v18h18M7 15l4-4 3 3 5-6",
   notifications: "M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0",
@@ -51,6 +52,7 @@ const nav = computed(() => {
     items.push(
       { to: "/roles", key: "nav.roles", icon: "roles" },
       { to: "/flags", key: "nav.flags", icon: "flags" },
+      { to: "/plans", key: "nav.plans", icon: "plans" },
       { to: "/soundfonts", key: "nav.soundfonts", icon: "soundfonts" },
       { to: "/usage", key: "nav.usage", icon: "usage" },
       { to: "/notifications", key: "nav.notifications", icon: "notifications" },

@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { createPinia, setActivePinia } from "pinia";
 import { PAGE_SIZE, useRolesStore } from "@/stores/roles";
+import { useAuthStore } from "@/stores/auth";
 import { setClientsForTest } from "@/lib/api";
-import { makeFakeClients } from "./fakes";
+import { makeFakeClients, makeJwt } from "./fakes";
 
 describe("roles store", () => {
   beforeEach(() => setActivePinia(createPinia()));
@@ -15,7 +16,7 @@ describe("roles store", () => {
 
     await store.list("ada", 0);
 
-    expect(state.listAccountsCalls).toEqual([{ query: "ada", limit: PAGE_SIZE, offset: 0 }]);
+    expect(state.listAccountsCalls).toEqual([{ query: "ada", limit: PAGE_SIZE, offset: 0, ids: [] }]);
     expect(store.directory.status).toBe("success");
     if (store.directory.status === "success") {
       expect(store.directory.data.total).toBe(1);
@@ -100,6 +101,52 @@ describe("roles store", () => {
       expect(store.reliability.error).not.toContain("permission denied");
       expect(store.reliability.error.length).toBeGreaterThan(0);
     }
+  });
+
+  // --- plan / beta criteria (change: add-premium-subscription) ---
+
+  it("a plan filter is pre-resolved into ids by the plan service and passed to listAccounts", async () => {
+    const accounts = [{ userId: "u1", handle: "ada", rolesByScope: [] }];
+    const { clients, state } = makeFakeClients({ accounts, idsByPlan: ["u1", "u9"] });
+    setClientsForTest(clients);
+    const store = useRolesStore();
+
+    await store.list("", 0, "trial", "");
+
+    expect(state.idsByPlanCalls).toEqual([{ plan: "trial", betaCampaignKey: "" }]);
+    expect(state.listAccountsCalls).toEqual([{ query: "", limit: PAGE_SIZE, offset: 0, ids: ["u1", "u9"] }]);
+    expect(store.params).toMatchObject({ plan: "trial", beta: "" });
+  });
+
+  it("a beta filter with an empty resolved set is an empty page without calling listAccounts", async () => {
+    const { clients, state } = makeFakeClients({ idsByPlan: [] });
+    setClientsForTest(clients);
+    const store = useRolesStore();
+
+    await store.list("", 0, "any", "midi-drums");
+
+    expect(state.idsByPlanCalls).toEqual([{ plan: "any", betaCampaignKey: "midi-drums" }]);
+    expect(state.listAccountsCalls).toEqual([]);
+    expect(store.directory).toEqual({ status: "success", data: { accounts: [], total: 0 } });
+  });
+
+  it("no filter ⇒ the plan service is not consulted; the page's badges are batched for a music admin only", async () => {
+    const accounts = [{ userId: "u1", handle: "ada", rolesByScope: [] }];
+    const { clients, state } = makeFakeClients({ accounts });
+    setClientsForTest(clients);
+    const store = useRolesStore();
+
+    // Signed in as a non-music admin (roles are `global: user`) ⇒ no badge batch.
+    await store.list("", 0);
+    expect(state.idsByPlanCalls).toEqual([]);
+    expect(state.plansForAccountsCalls).toEqual([]);
+
+    // A music-scope admin gets the batch, one call for the page.
+    useAuthStore().setToken(
+      makeJwt({ sub: "a", roles: ["admin"], roles_by_scope: { music: ["admin"] }, exp: 4102444800 }),
+    );
+    await store.list("", 0);
+    expect(state.plansForAccountsCalls).toEqual([["u1"]]);
   });
 
   it("captures a denied grant in the op state instead of throwing", async () => {

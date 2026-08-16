@@ -2,6 +2,7 @@
 import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import type { AuditRow, FlagRow } from "@/stores/flags";
+import { usePlansStore } from "@/stores/plans";
 import { flagDescription } from "@/i18n/flag-descriptions";
 import { appLabel } from "@/i18n/app-label";
 import AuditTimeline from "./AuditTimeline.vue";
@@ -24,6 +25,18 @@ const emit = defineEmits<{
 }>();
 
 const { t, locale } = useI18n();
+// Beta-scoped rollouts pick from the OPEN campaigns (change: add-premium-subscription)
+// — never free text. The list is (re)loaded through the store each time the drawer
+// opens, so a campaign closed in the plans console disappears from the selector.
+const plans = usePlansStore();
+const betaOptions = computed(() => plans.openCampaigns.map((c) => ({ value: `beta:${c.key}`, name: c.name })));
+// A stored scope no longer offered (e.g. a closed campaign) stays selectable so the
+// select never silently rewrites it.
+const staleScope = computed(() => {
+  const cur = props.row?.rolloutScope ?? "";
+  const known = ["", "global", "staff_only", "premium_only", ...betaOptions.value.map((o) => o.value)];
+  return known.includes(cur) ? null : cur;
+});
 
 const boolVal = ref(false);
 const scalarVal = ref("");
@@ -61,6 +74,7 @@ watch(
   () => props.row,
   (row) => {
     if (!row) return;
+    void plans.loadCampaigns();
     rollout.value = row.rolloutScope || "global";
     if (row.valueType === "bool") {
       boolVal.value = row.effectiveBool;
@@ -216,6 +230,11 @@ const desc = computed(() => (props.row ? flagDescription(props.row.key, props.ro
         <select v-model="rollout" :aria-label="t('flags.rolloutFor', { key: row.key })" :disabled="busy">
           <option value="global">{{ t("flags.global") }}</option>
           <option value="staff_only">{{ t("flags.staffOnly") }}</option>
+          <option value="premium_only">{{ t("flags.premiumOnly") }}</option>
+          <option v-for="o in betaOptions" :key="o.value" :value="o.value">
+            {{ t("flags.beta", { name: o.name }) }}
+          </option>
+          <option v-if="staleScope" :value="staleScope">{{ staleScope }}</option>
         </select>
       </section>
 

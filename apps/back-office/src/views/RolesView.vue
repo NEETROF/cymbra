@@ -3,6 +3,7 @@ import { computed, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { match } from "ts-pattern";
 import { PAGE_SIZE, useRolesStore } from "@/stores/roles";
+import { type PlanFilter, usePlansStore } from "@/stores/plans";
 import { useSessionsStore } from "@/stores/sessions";
 import { useAuthStore } from "@/stores/auth";
 import { useToastsStore } from "@/stores/toasts";
@@ -18,11 +19,24 @@ import CuratorReliabilityDrawer from "@/components/CuratorReliabilityDrawer.vue"
 // (change: scope-aware-role-admin). All API work lives in the store; this view only
 // matches on the Async unions.
 const store = useRolesStore();
+const plans = usePlansStore();
 const sessions = useSessionsStore();
 const auth = useAuthStore();
 const toasts = useToastsStore();
 const { t } = useI18n();
 const filter = ref("");
+// Plan / beta criteria (change: add-premium-subscription). Only a music-scope admin
+// sees the plan columns and filters — the store also skips the badge batch otherwise.
+const planFilter = ref<PlanFilter>("any");
+const betaFilter = ref("");
+const showPlans = computed(() => auth.adminScopes.includes("music"));
+const openCampaigns = computed(() => plans.openCampaigns);
+const badges = computed(() =>
+  match(plans.badges)
+    .with({ status: "success" }, ({ data }) => data)
+    .otherwise(() => ({})),
+);
+const badgeFor = (userId: string) => badges.value[userId];
 const selected = ref<string | null>(null);
 // Which expandable panel is open for the selected row: the audit history or the
 // read-only curator-reliability indicator (they share the `selected` row).
@@ -117,7 +131,7 @@ const reliabilityOpen = computed(() => !!selected.value && panel.value === "reli
 const selectedHandle = computed(() => vm.value.accounts.find((a) => a.userId === selected.value)?.handle ?? "");
 
 function search() {
-  store.list(filter.value.trim(), 0);
+  store.list(filter.value.trim(), 0, planFilter.value, betaFilter.value);
 }
 function prev() {
   if (canPrev.value) store.list(store.params.query, Math.max(0, offset.value - PAGE_SIZE));
@@ -125,6 +139,7 @@ function prev() {
 function next() {
   if (canNext.value) store.list(store.params.query, offset.value + PAGE_SIZE);
 }
+const colCount = computed(() => (showPlans.value ? 6 : 4));
 function toggle(account: AccountRow, role: string) {
   if (rolesInScope(account).includes(role)) store.revoke(account.userId, role, selectedScope.value);
   else store.grant(account.userId, role, selectedScope.value);
@@ -158,7 +173,10 @@ function when(atSeconds: bigint | number): string {
   return ms > 0 ? new Date(ms).toISOString().replace("T", " ").slice(0, 19) : "—";
 }
 
-onMounted(() => store.list("", 0));
+onMounted(() => {
+  store.list("", 0, "any", "");
+  if (showPlans.value) plans.loadCampaigns();
+});
 </script>
 
 <template>
@@ -179,6 +197,25 @@ onMounted(() => store.list("", 0));
       :aria-label="$t('roles.searchPlaceholder')"
       @keyup.enter="search"
     />
+    <template v-if="showPlans">
+      <label class="scope-picker">
+        {{ $t("roles.planFilter") }}
+        <select v-model="planFilter" :aria-label="$t('roles.planFilter')" @change="search">
+          <option value="any">{{ $t("roles.planAny") }}</option>
+          <option value="premium">{{ $t("plans.premium") }}</option>
+          <option value="trial">{{ $t("plans.premiumTrial") }}</option>
+        </select>
+      </label>
+      <label class="scope-picker">
+        {{ $t("roles.betaFilter") }}
+        <select v-model="betaFilter" :aria-label="$t('roles.betaFilter')" @change="search">
+          <option value="">{{ $t("roles.betaAny") }}</option>
+          <option v-for="c in openCampaigns" :key="c.key" :value="c.key">
+            {{ c.name }} ({{ $t(`plans.kind.${c.kind}`) }})
+          </option>
+        </select>
+      </label>
+    </template>
     <button type="button" @click="search">{{ $t("roles.search") }}</button>
   </div>
 
@@ -191,6 +228,8 @@ onMounted(() => store.list("", 0));
           <th>{{ $t("roles.colHandle") }}</th>
           <th>{{ $t("roles.colName") }}</th>
           <th>{{ $t("roles.colRoles") }}</th>
+          <th v-if="showPlans">{{ $t("roles.colPlan") }}</th>
+          <th v-if="showPlans">{{ $t("roles.colBeta") }}</th>
           <th>{{ $t("roles.colActions") }}</th>
         </tr>
       </thead>
@@ -202,6 +241,21 @@ onMounted(() => store.list("", 0));
             <div class="rolechips">
               <AppTag v-for="r in rolesInScope(a)" :key="r" variant="accent" cap>{{ $t(`role.${r}`) }}</AppTag>
               <span v-if="rolesInScope(a).length === 0" class="muted">—</span>
+            </div>
+          </td>
+          <td v-if="showPlans" class="plan-cell">
+            <template v-if="badgeFor(a.userId)?.plan === 'premium'">
+              <AppTag variant="accepted" :title="badgeFor(a.userId)?.endsAt">
+                {{ $t("plans.premium")
+                }}<template v-if="badgeFor(a.userId)?.trial"> · {{ $t("plans.trialTag") }}</template>
+              </AppTag>
+            </template>
+            <span v-else class="muted">{{ $t("plans.free") }}</span>
+          </td>
+          <td v-if="showPlans">
+            <div class="rolechips">
+              <AppTag v-for="k in badgeFor(a.userId)?.betaKeys ?? []" :key="k" variant="neutral" mono>{{ k }}</AppTag>
+              <span v-if="(badgeFor(a.userId)?.betaKeys ?? []).length === 0" class="muted">—</span>
             </div>
           </td>
           <td class="actions">
@@ -231,7 +285,7 @@ onMounted(() => store.list("", 0));
           </td>
         </tr>
         <tr v-if="vm.accounts.length === 0">
-          <td colspan="4" class="empty">{{ vm.loading ? $t("common.loading") : $t("roles.noAccounts") }}</td>
+          <td :colspan="colCount" class="empty">{{ vm.loading ? $t("common.loading") : $t("roles.noAccounts") }}</td>
         </tr>
       </tbody>
     </table>
@@ -285,6 +339,8 @@ onMounted(() => store.list("", 0));
   display: flex;
   gap: 0.5rem;
   margin: 1.25rem 0;
+  flex-wrap: wrap;
+  align-items: center;
 }
 .filter input[type="search"] {
   min-width: 16rem;
