@@ -217,6 +217,87 @@ impl cymbra_music::ScorePreviewConfigSource for FlagScorePreviewConfig {
     }
 }
 
+/// Feature-flag-backed catalog access limits (change: add-catalog-access-limits,
+/// task 1.3) — the per-user scrape guardrail's thresholds. Resolved on **every**
+/// checked request, so an operator retuning a limit in the back office, or
+/// tripping the kill-switch when the guardrail misfires, applies to the next
+/// request without a redeploy.
+///
+/// The `base` config parsed from the environment is each key's default, so an
+/// unset override keeps the deployment's own baseline. Reads are evaluation-only
+/// and never fail: an unreachable store serves that baseline.
+pub struct FlagCatalogLimitsConfig {
+    flags: Arc<FlagService>,
+    base: cymbra_platform::config::CatalogLimitsConfig,
+}
+
+impl FlagCatalogLimitsConfig {
+    pub fn new(
+        flags: Arc<FlagService>,
+        base: cymbra_platform::config::CatalogLimitsConfig,
+    ) -> Self {
+        Self { flags, base }
+    }
+}
+
+impl cymbra_music::CatalogLimitsConfigSource for FlagCatalogLimitsConfig {
+    fn catalog_limits(&self) -> cymbra_platform::config::CatalogLimitsConfig {
+        use cymbra_feature_flags::registry;
+        // Server-side enforcement with no app context: an anonymous music context
+        // resolves the global override, the only rollout these tunables use.
+        let ctx = cymbra_feature_flags::EvalContext::anonymous(registry::APP_MUSIC);
+        // Counts are `u32` and windows are seconds; a negative or absurd override
+        // is clamped rather than wrapped — a bad edit must not mint an unlimited
+        // (or zero-second) window.
+        let count = |key: &str, default: u32| -> u32 {
+            self.flags
+                .int(key, i64::from(default), &ctx)
+                .clamp(0, i64::from(u32::MAX)) as u32
+        };
+        let window = |key: &str, default: std::time::Duration| -> std::time::Duration {
+            let secs = self
+                .flags
+                .int(key, default.as_secs() as i64, &ctx)
+                .clamp(1, 365 * 24 * 3600);
+            std::time::Duration::from_secs(secs as u64)
+        };
+        cymbra_platform::config::CatalogLimitsConfig {
+            enabled: self
+                .flags
+                .bool(registry::CATALOG_LIMITS_ENABLED, self.base.enabled, &ctx),
+            download_burst_max: count(
+                registry::CATALOG_LIMITS_DL_BURST_MAX,
+                self.base.download_burst_max,
+            ),
+            download_burst_window: window(
+                registry::CATALOG_LIMITS_DL_BURST_WINDOW_S,
+                self.base.download_burst_window,
+            ),
+            volume_window: window(
+                registry::CATALOG_LIMITS_DL_VOLUME_WINDOW_S,
+                self.base.volume_window,
+            ),
+            volume_base_floor: count(
+                registry::CATALOG_LIMITS_DL_BASE_FLOOR,
+                self.base.volume_base_floor,
+            ),
+            volume_per_engagement: count(
+                registry::CATALOG_LIMITS_DL_PER_ENGAGEMENT,
+                self.base.volume_per_engagement,
+            ),
+            volume_hard_ceiling: count(
+                registry::CATALOG_LIMITS_DL_HARD_CEILING,
+                self.base.volume_hard_ceiling,
+            ),
+            enum_max: count(registry::CATALOG_LIMITS_ENUM_MAX, self.base.enum_max),
+            enum_window: window(
+                registry::CATALOG_LIMITS_ENUM_WINDOW_S,
+                self.base.enum_window,
+            ),
+        }
+    }
+}
+
 /// Spawn the background refreshers: a TTL backstop tick and (when a store is
 /// configured) the Redis invalidation listener that refreshes L1 on each ping.
 pub fn spawn_flag_refreshers(cfg: &Config, service: Arc<FlagService>) {
@@ -255,5 +336,127 @@ pub fn spawn_flag_refreshers(cfg: &Config, service: Arc<FlagService>) {
                 tracing::warn!("feature-flag invalidation listener ended: {e}");
             }
         });
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use cymbra_feature_flags::registry::{self, APP_MUSIC};
+    use cymbra_feature_flags::resolver::MockAdminScopeResolver;
+    use cymbra_feature_flags::store::{MockFlagStore, StoredOverride};
+    use cymbra_feature_flags::{FlagValue, RolloutScope};
+    use cymbra_music::CatalogLimitsConfigSource;
+    use cymbra_platform::config::CatalogLimitsConfig;
+    use std::time::Duration;
+
+    /// The env baseline the overrides below have to visibly move away from.
+    fn base() -> CatalogLimitsConfig {
+        CatalogLimitsConfig {
+            enabled: true,
+            download_burst_max: 20,
+            download_burst_window: Duration::from_secs(60),
+            volume_window: Duration::from_secs(24 * 3600),
+            volume_base_floor: 30,
+            volume_per_engagement: 3,
+            volume_hard_ceiling: 500,
+            enum_max: 60,
+            enum_window: Duration::from_secs(60),
+        }
+    }
+
+    fn int_override(key: &str, v: i64) -> StoredOverride {
+        StoredOverride {
+            app: APP_MUSIC.into(),
+            key: key.into(),
+            value_type: cymbra_feature_flags::ValueType::Int,
+            value: FlagValue::Int(v),
+            rollout: RolloutScope::Global,
+            sensitive: false,
+            updated_by: "op".into(),
+            updated_at: chrono::Utc::now(),
+        }
+    }
+
+    /// Build a flag service whose store serves `overrides`.
+    async fn service(overrides: Vec<StoredOverride>) -> Arc<FlagService> {
+        let mut store = MockFlagStore::new();
+        store
+            .expect_load_all()
+            .returning(move || Ok(overrides.clone()));
+        let svc = Arc::new(FlagService::new(
+            cymbra_feature_flags::Registry::default(),
+            Some(Arc::new(store)),
+            Arc::new(cymbra_feature_flags::NoopBus),
+            Arc::new(MockAdminScopeResolver::new()),
+        ));
+        svc.refresh().await.unwrap();
+        svc
+    }
+
+    #[tokio::test]
+    async fn unset_overrides_serve_the_env_baseline() {
+        let src = FlagCatalogLimitsConfig::new(service(vec![]).await, base());
+        assert_eq!(src.catalog_limits(), base());
+    }
+
+    /// Every knob is wired to its own key: a distinct override per key must land
+    /// on the matching field (a copy/paste key mix-up shows up here).
+    #[tokio::test]
+    async fn each_override_lands_on_its_own_threshold() {
+        let src = FlagCatalogLimitsConfig::new(
+            service(vec![
+                int_override(registry::CATALOG_LIMITS_DL_BURST_MAX, 7),
+                int_override(registry::CATALOG_LIMITS_DL_BURST_WINDOW_S, 11),
+                int_override(registry::CATALOG_LIMITS_DL_VOLUME_WINDOW_S, 3_600),
+                int_override(registry::CATALOG_LIMITS_DL_BASE_FLOOR, 5),
+                int_override(registry::CATALOG_LIMITS_DL_PER_ENGAGEMENT, 9),
+                int_override(registry::CATALOG_LIMITS_DL_HARD_CEILING, 42),
+                int_override(registry::CATALOG_LIMITS_ENUM_MAX, 13),
+                int_override(registry::CATALOG_LIMITS_ENUM_WINDOW_S, 17),
+            ])
+            .await,
+            base(),
+        );
+        let cfg = src.catalog_limits();
+        assert_eq!(cfg.download_burst_max, 7);
+        assert_eq!(cfg.download_burst_window, Duration::from_secs(11));
+        assert_eq!(cfg.volume_window, Duration::from_secs(3_600));
+        assert_eq!(cfg.volume_base_floor, 5);
+        assert_eq!(cfg.volume_per_engagement, 9);
+        assert_eq!(cfg.volume_hard_ceiling, 42);
+        assert_eq!(cfg.enum_max, 13);
+        assert_eq!(cfg.enum_window, Duration::from_secs(17));
+        assert!(cfg.enabled, "untouched by the threshold overrides");
+    }
+
+    #[tokio::test]
+    async fn the_kill_switch_override_disables_the_guardrail() {
+        let off = StoredOverride {
+            value_type: cymbra_feature_flags::ValueType::Bool,
+            value: FlagValue::Bool(false),
+            ..int_override(registry::CATALOG_LIMITS_ENABLED, 0)
+        };
+        let src = FlagCatalogLimitsConfig::new(service(vec![off]).await, base());
+        assert!(!src.catalog_limits().enabled);
+    }
+
+    /// A fat-fingered edit must not wrap into an unlimited allowance or a
+    /// zero-second (i.e. never-resetting-usefully) window.
+    #[tokio::test]
+    async fn absurd_overrides_are_clamped() {
+        let src = FlagCatalogLimitsConfig::new(
+            service(vec![
+                int_override(registry::CATALOG_LIMITS_DL_BASE_FLOOR, -1),
+                int_override(registry::CATALOG_LIMITS_ENUM_WINDOW_S, 0),
+                int_override(registry::CATALOG_LIMITS_DL_HARD_CEILING, i64::MAX),
+            ])
+            .await,
+            base(),
+        );
+        let cfg = src.catalog_limits();
+        assert_eq!(cfg.volume_base_floor, 0);
+        assert_eq!(cfg.enum_window, Duration::from_secs(1));
+        assert_eq!(cfg.volume_hard_ceiling, u32::MAX);
     }
 }

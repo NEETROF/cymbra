@@ -1188,6 +1188,7 @@ dependencies = [
  "dotenvy",
  "http",
  "jsonwebtoken",
+ "mockall",
  "serde",
  "serde_json",
  "sqlx",

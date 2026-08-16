@@ -53,6 +53,21 @@ const FR: Record<string, string> = {
   "catalog.preview.max_ms": "Durée maximale (ms) de l’extrait audio rendu pour un morceau du catalogue.",
   "catalog.preview.soundfont_id":
     "Identifiant de la SoundFont acceptée du catalogue utilisée pour rendre les extraits (vide = extraits inactifs).",
+  "catalog.access_limits.enabled":
+    "Limites d’accès au catalogue par utilisateur (actives par défaut ; couper désactive le garde-fou anti-aspiration sans nouvelle version).",
+  "catalog.access_limits.download.burst_max": "Nombre maximum de téléchargements de partition par fenêtre de rafale.",
+  "catalog.access_limits.download.burst_window_s": "Durée en secondes de la fenêtre de rafale.",
+  "catalog.access_limits.download.volume_window_s":
+    "Durée en secondes de la fenêtre glissante sur laquelle le volume de téléchargement est compté.",
+  "catalog.access_limits.download.base_floor":
+    "Téléchargements toujours autorisés par fenêtre, quelle que soit l’activité (le plancher).",
+  "catalog.access_limits.download.per_engagement":
+    "Téléchargements supplémentaires gagnés par événement d’activité dans la fenêtre (une session de jeu ou une notation).",
+  "catalog.access_limits.download.hard_ceiling":
+    "Plafond absolu de l’allocation de téléchargement, quelle que soit l’activité.",
+  "catalog.access_limits.enum_max":
+    "Nombre maximum de requêtes de parcours du catalogue (recherche / navigation / deck de notation) par fenêtre.",
+  "catalog.access_limits.enum_window_s": "Durée en secondes de la fenêtre de parcours du catalogue.",
 };
 
 const BY_LOCALE: Record<string, Record<string, string>> = { fr: FR };

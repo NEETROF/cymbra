@@ -78,16 +78,37 @@ pub mod catalog_limits_core {
     }
 }
 
+/// Where the guardrail's thresholds come from at **check** time (task 1.3). Read
+/// per request, so retuning a limit — or tripping the kill-switch when it misfires
+/// — takes effect on the next request with no redeploy. The music crate stays
+/// flag-free: the server implements this over the flag service like
+/// `DailyAccessConfigSource`, with the env-parsed config as its defaults.
+pub trait CatalogLimitsConfigSource: Send + Sync {
+    fn catalog_limits(&self) -> CatalogLimitsConfig;
+}
+
+/// A fixed configuration (tests, or a deployment with no flag store) — the
+/// env-parsed thresholds, unchanging until restart.
+pub struct FixedCatalogLimits(pub CatalogLimitsConfig);
+
+impl CatalogLimitsConfigSource for FixedCatalogLimits {
+    fn catalog_limits(&self) -> CatalogLimitsConfig {
+        self.0.clone()
+    }
+}
+
 /// Enforces the per-user catalog access limits over the shared cache, play port, and
 /// rating port.
 pub struct CatalogAccessLimiter {
     cache: Arc<dyn Cache>,
     plays: Arc<dyn PlayRepo>,
     ratings: Arc<dyn ScoreRatingRepo>,
-    cfg: CatalogLimitsConfig,
+    cfg: Arc<dyn CatalogLimitsConfigSource>,
 }
 
 impl CatalogAccessLimiter {
+    /// Build with fixed thresholds (the env baseline). Call
+    /// [`Self::with_config_source`] to make them hot-reloadable.
     pub fn new(
         cache: Arc<dyn Cache>,
         plays: Arc<dyn PlayRepo>,
@@ -98,8 +119,15 @@ impl CatalogAccessLimiter {
             cache,
             plays,
             ratings,
-            cfg,
+            cfg: Arc::new(FixedCatalogLimits(cfg)),
         }
+    }
+
+    /// Resolve the thresholds per request instead — the composition root passes a
+    /// flag-backed source so the back office retunes them without a redeploy.
+    pub fn with_config_source(mut self, source: Arc<dyn CatalogLimitsConfigSource>) -> Self {
+        self.cfg = source;
+        self
     }
 
     /// Who bypasses the guardrail. Exempt:
@@ -121,7 +149,8 @@ impl CatalogAccessLimiter {
     /// guard is disabled, the caller is exempt, or both tiers pass; `ResourceExhausted`
     /// on breach (checked before any storage read, so a reject never egresses bytes).
     pub async fn check_download(&self, id: &AuthIdentity) -> Result<()> {
-        if !self.cfg.enabled || self.exempt(id) {
+        let cfg = self.cfg.catalog_limits();
+        if !cfg.enabled || self.exempt(id) {
             return Ok(());
         }
         let subject = &id.user_id;
@@ -131,20 +160,20 @@ impl CatalogAccessLimiter {
                 self.cache.as_ref(),
                 "cat_dl_burst",
                 subject,
-                self.cfg.download_burst_max,
-                self.cfg.download_burst_window,
+                cfg.download_burst_max,
+                cfg.download_burst_window,
             )
             .await,
             subject,
             "download-burst",
         )?;
         // Tier 2 — engagement-aware volume allowance.
-        let engagement = self.engagement_in_window(subject).await;
+        let engagement = self.engagement_in_window(subject, cfg.volume_window).await;
         let effective = catalog_limits_core::effective_allowance(
-            self.cfg.volume_base_floor,
-            self.cfg.volume_per_engagement,
+            cfg.volume_base_floor,
+            cfg.volume_per_engagement,
             engagement,
-            self.cfg.volume_hard_ceiling,
+            cfg.volume_hard_ceiling,
         );
         log_reject(
             ratelimit::check(
@@ -152,7 +181,7 @@ impl CatalogAccessLimiter {
                 "cat_dl_vol",
                 subject,
                 effective,
-                self.cfg.volume_window,
+                cfg.volume_window,
             )
             .await,
             subject,
@@ -162,7 +191,8 @@ impl CatalogAccessLimiter {
 
     /// Request-rate cap on catalog enumeration (search / browse / rating deck).
     pub async fn check_enumeration(&self, id: &AuthIdentity) -> Result<()> {
-        if !self.cfg.enabled || self.exempt(id) {
+        let cfg = self.cfg.catalog_limits();
+        if !cfg.enabled || self.exempt(id) {
             return Ok(());
         }
         log_reject(
@@ -170,8 +200,8 @@ impl CatalogAccessLimiter {
                 self.cache.as_ref(),
                 "cat_enum",
                 &id.user_id,
-                self.cfg.enum_max,
-                self.cfg.enum_window,
+                cfg.enum_max,
+                cfg.enum_window,
             )
             .await,
             &id.user_id,
@@ -182,14 +212,13 @@ impl CatalogAccessLimiter {
     /// In-window engagement = play sessions + score ratings, cached in the shared
     /// cache with a short TTL so the hot download path avoids repeat DB reads. Any
     /// cache/repo error fails safe toward 0 — the caller then gets the base floor.
-    async fn engagement_in_window(&self, user_id: &str) -> u64 {
+    async fn engagement_in_window(&self, user_id: &str, window: Duration) -> u64 {
         let key = format!("catengage:{user_id}");
         if let Ok(Some(v)) = self.cache.get(&key).await
             && let Ok(n) = v.parse::<u64>()
         {
             return n;
         }
-        let window = self.cfg.volume_window;
         // Plays: filter the user's session timestamps to the window.
         let now_ms = chrono::Utc::now().timestamp_millis();
         let window_ms = window.as_millis() as i64;
@@ -233,6 +262,7 @@ mod tests {
     use crate::score_rating::{FakeScoreRatingRepo, Verdict};
     use cymbra_platform::cache::FakeCache;
     use std::collections::BTreeMap;
+    use std::sync::Mutex;
 
     fn cfg() -> CatalogLimitsConfig {
         CatalogLimitsConfig {
@@ -471,6 +501,44 @@ mod tests {
         for _ in 0..100 {
             l.check_download(&id).await.expect("disabled ⇒ no limit");
             l.check_enumeration(&id).await.expect("disabled ⇒ no limit");
+        }
+    }
+
+    /// A config source whose value can be swapped between checks — stands in for
+    /// the server's flag-backed source after an operator edits a threshold.
+    struct MutableLimits(Mutex<CatalogLimitsConfig>);
+
+    impl CatalogLimitsConfigSource for MutableLimits {
+        fn catalog_limits(&self) -> CatalogLimitsConfig {
+            self.0.lock().unwrap().clone()
+        }
+    }
+
+    #[tokio::test]
+    async fn thresholds_are_resolved_per_request_so_a_retune_needs_no_restart() {
+        // Task 1.3: the source is consulted on every check, not captured at build.
+        let source = Arc::new(MutableLimits(Mutex::new(cfg())));
+        let l = CatalogAccessLimiter::new(
+            Arc::new(FakeCache::default()),
+            Arc::new(FakePlayRepo::default()),
+            Arc::new(FakeScoreRatingRepo::default()),
+            cfg(),
+        )
+        .with_config_source(source.clone());
+        let id = regular("u1");
+        // Floor 3 with no engagement: the 4th download is rejected.
+        for _ in 0..3 {
+            l.check_download(&id).await.unwrap();
+        }
+        assert!(l.check_download(&id).await.is_err());
+        // An operator raises the floor — the very next request is judged against
+        // the new value, with no restart.
+        source.0.lock().unwrap().volume_base_floor = 5;
+        l.check_download(&id).await.expect("retuned floor applies");
+        // ...and the kill-switch lands just as immediately.
+        source.0.lock().unwrap().enabled = false;
+        for _ in 0..50 {
+            l.check_download(&id).await.expect("kill-switch applies");
         }
     }
 

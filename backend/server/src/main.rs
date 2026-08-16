@@ -403,12 +403,23 @@ async fn main() -> anyhow::Result<()> {
                     );
                     // Per-user scrape guardrail over the shared Redis cache + play &
                     // rating ports (engagement = plays + ratings).
-                    let limiter = Arc::new(cymbra_music::CatalogAccessLimiter::new(
-                        cache.clone(),
-                        play_repo.clone(),
-                        rating_repo,
-                        cfg.catalog_limits.clone(),
-                    ));
+                    // Thresholds resolve per request through the flag service (with
+                    // the env config as their defaults), so a retune or the
+                    // kill-switch applies without a redeploy.
+                    let limiter = Arc::new(
+                        cymbra_music::CatalogAccessLimiter::new(
+                            cache.clone(),
+                            play_repo.clone(),
+                            rating_repo,
+                            cfg.catalog_limits.clone(),
+                        )
+                        .with_config_source(Arc::new(
+                            cymbra_server::FlagCatalogLimitsConfig::new(
+                                flag_service.clone(),
+                                cfg.catalog_limits.clone(),
+                            ),
+                        )),
+                    );
                     let score_svc = Some(ScoreServiceServer::with_interceptor(
                         ScoreGrpc::new(module)
                             .with_limiter(limiter)

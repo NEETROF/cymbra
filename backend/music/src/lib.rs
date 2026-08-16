@@ -82,7 +82,7 @@ pub use catalog_daily_access::{
     OpenDecision, SubscriptionSource,
 };
 pub use catalog_daily_access_core::{CallerKind, DailyAccessConfig, DayState};
-pub use catalog_limits::CatalogAccessLimiter;
+pub use catalog_limits::{CatalogAccessLimiter, CatalogLimitsConfigSource, FixedCatalogLimits};
 pub use catalog_search::{
     CatalogHit, CatalogObjectRef, CatalogSearchParams, CatalogSearchRepo, FakeCatalogRow,
     FakeCatalogSearchRepo,

@@ -63,6 +63,10 @@ dotenvy.workspace = true
 
 [dev-dependencies]
 chrono.workspace = true
+# Mock the flag store / admin-scope resolver when testing the flag-backed config
+# sources (rust-testing default). Test-only: the mocks never ship in release.
+cymbra-feature-flags = { path = "../feature-flags", features = ["mock"] }
+mockall.workspace = true
 # `ServiceExt::oneshot` drives the Axum router in web-auth handler tests (no socket).
 tower.workspace = true
 # Implement the `AuthPort` test double (a fake, no signing key) for the handler tests.
