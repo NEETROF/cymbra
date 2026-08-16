@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.16.0](https://github.com/NEETROF/cymbra/compare/backend-v0.15.0...backend-v0.16.0) (2026-08-16)
+
+
+### Features
+
+* **backend:** point the branded emails at the hosted Cymbra ID logo ([#233](https://github.com/NEETROF/cymbra/issues/233)) ([89534b6](https://github.com/NEETROF/cymbra/commit/89534b6b2b9fabb42cbbcc11b3bc7ae990d1f2a6))
+* **badges:** cross-domain achievement registry ([#220](https://github.com/NEETROF/cymbra/issues/220)) ([bda89b3](https://github.com/NEETROF/cymbra/commit/bda89b310d9184aad350c086ea8716ba55e9ac51))
+* **music:** award points for playing and practising ([#222](https://github.com/NEETROF/cymbra/issues/222)) ([344c8b7](https://github.com/NEETROF/cymbra/commit/344c8b71c29a2d4008fac78acd63309fbbf22810))
+* **music:** finish the opt-in score catalog proposal — public credit, named refusals, moderator motive ([#228](https://github.com/NEETROF/cymbra/issues/228)) ([6b6ea3c](https://github.com/NEETROF/cymbra/commit/6b6ea3c91a5a2242740ed8170736959d37213fa5))
+* **music:** freemium daily access on catalog opens + score audio teaser ([#229](https://github.com/NEETROF/cymbra/issues/229)) ([6c006e2](https://github.com/NEETROF/cymbra/commit/6c006e2e0fbad1f5b8974bb6633637a1deb3a92b))
+* **music:** make catalog access limits runtime-tunable ([#236](https://github.com/NEETROF/cymbra/issues/236)) ([da35358](https://github.com/NEETROF/cymbra/commit/da353587e3b256b61458012d53d3d9d280d1dd04))
+* **notifications:** per-category foreground presentation with in-app banner ([#217](https://github.com/NEETROF/cymbra/issues/217)) ([cbb9fd7](https://github.com/NEETROF/cymbra/commit/cbb9fd794f8ac5ea80850381adf3048adfcab8ae))
+* **notifications:** server-driven push platform (FCM iOS/Android/macOS) ([#187](https://github.com/NEETROF/cymbra/issues/187)) ([8ffb743](https://github.com/NEETROF/cymbra/commit/8ffb743432a28bd8d9366f5ff2ffceeb50b2c6a4))
+* **soundfonts:** admin-set reward pricing, gated shop and coming-soon lock ([#225](https://github.com/NEETROF/cymbra/issues/225)) ([969749b](https://github.com/NEETROF/cymbra/commit/969749b76d361723d7a3fc40e4ca1fe8c864c1d5))
+* **streak:** server-tracked practice streak with a confirmed points freeze ([#224](https://github.com/NEETROF/cymbra/issues/224)) ([e872377](https://github.com/NEETROF/cymbra/commit/e872377cba34e1a282547c80438a92180e5e1435))
+
 ## [0.15.0](https://github.com/NEETROF/cymbra/compare/backend-v0.14.0...backend-v0.15.0) (2026-08-10)
 
 
