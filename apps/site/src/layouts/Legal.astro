@@ -1,0 +1,14 @@
+---
+import Base from './Base.astro';
+const { frontmatter } = Astro.props;
+const lang = frontmatter.lang ?? 'fr';
+const updatedLabel = lang === 'fr' ? 'Dernière mise à jour' : 'Last updated';
+---
+
+<Base title={`${frontmatter.title} — Cymbra`} lang={lang}>
+  <article class="container prose">
+    <h1>{frontmatter.title}</h1>
+    {frontmatter.updated && <p class="updated">{updatedLabel} : {frontmatter.updated}</p>}
+    <slot />
+  </article>
+</Base>
