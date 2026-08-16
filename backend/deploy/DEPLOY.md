@@ -458,6 +458,19 @@ is set. To turn it on:
    `music.catalog_scores` + `music.user_scores`, and the log shows the ScoreService
    mounted instead of `score-upload disabled`.
 
+### Adding an HTTP (Axum) route: update the Caddyfile
+
+Caddy splits one host by **path**: an allow-list of prefixes goes to Axum
+(`server:8081`), everything else to tonic (`server:50051`). A new Axum route
+prefix that is not in that list is silently swallowed by tonic — the client gets
+`200` with `grpc-status: 12` and an empty body (a webhook provider believes it was
+delivered). When you mount a new prefix in `cymbra-server`, add it to the `@http`
+matcher in `Caddyfile`, copy the file to the box and hot-reload:
+```bash
+scp backend/deploy/Caddyfile cymbra-prod:/opt/cymbra/backend/deploy/Caddyfile
+ssh cymbra-prod docker exec cymbra-prod-caddy-1 caddy reload --config /etc/caddy/Caddyfile
+```
+
 ### Enabling the premium plan / beta module (`cymbra-plans`)
 
 Off by default — the server logs `plans disabled (CYMBRA_PLANS_DATABASE_URL unset)`
