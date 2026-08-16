@@ -29,6 +29,39 @@ pub use soundfont::{JwtAuth, SoundfontAuth, SoundfontState, soundfont_router};
 pub mod score_preview;
 pub use score_preview::{ScorePreviewState, score_preview_router};
 
+/// Shared wiring for the one-off maintenance binaries (`backfill-titles`,
+/// `reconcile-corpus`). They must read exactly the keyspace the server reads, so
+/// the store is built here once rather than copied into each `bin`.
+pub mod maintenance {
+    use std::sync::Arc;
+
+    use cymbra_platform::config::Config;
+    use cymbra_storage::{LocalFirstStore, ObjectStorage, S3Params};
+
+    /// The score object store the server itself uses: local-first reads with the
+    /// S3 bucket as the durable origin.
+    pub fn score_object_store(cfg: &Config) -> anyhow::Result<Arc<dyn ObjectStorage>> {
+        use anyhow::Context;
+        let s3 = cfg.score_storage.as_ref().context(
+            "CYMBRA_SCORE_S3_BUCKET (+ credentials) is required to reach the score corpus",
+        )?;
+        Ok(Arc::new(
+            LocalFirstStore::from_config(
+                &cfg.score_local_root,
+                &S3Params {
+                    bucket: s3.bucket.clone(),
+                    endpoint: s3.endpoint.clone(),
+                    region: s3.region.clone(),
+                    access_key: s3.access_key.clone(),
+                    secret_key: s3.secret_key.clone(),
+                    allow_http: s3.allow_http,
+                },
+            )
+            .context("building the score object store")?,
+        ))
+    }
+}
+
 /// Liveness/readiness logic (pure; the HTTP/gRPC surfaces apply it).
 pub mod health {
     /// Ready only when every critical dependency is reachable.
