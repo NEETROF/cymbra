@@ -7,7 +7,7 @@ import { computed, onMounted, ref } from "vue";
 import { useAppleSignIn, useGoogleSignIn } from "@cymbra/web-auth";
 import { config } from "../lib/config";
 import { t, type Lang } from "../lib/i18n";
-import { humanError } from "../lib/plan-view";
+import { appleReturnUrl, humanError } from "../lib/plan-view";
 import { useSession } from "../lib/session";
 
 const props = defineProps<{ lang: Lang }>();
@@ -36,7 +36,11 @@ const mapError = (e: unknown) => humanError(props.lang, e);
 const googleSlot = ref<HTMLElement | null>(null);
 const google = config.googleClientId ? useGoogleSignIn(config.googleClientId, submitOidc, { mapError }) : null;
 const googleFailed = computed(() => google?.status.value.status === "error");
-const appleRedirect = globalThis.location ? `${globalThis.location.origin}${globalThis.location.pathname}` : "";
+// Apple validates the redirect URI against the Services ID's registered Return
+// URLs with an EXACT match. The pages are served with a trailing slash and the
+// English ones under /en/, so send the canonical page URL registered at Apple
+// (https://cymbra.app/redeem, https://cymbra.app/account) — see `appleReturnUrl`.
+const appleRedirect = globalThis.location ? appleReturnUrl(globalThis.location.origin, globalThis.location.pathname) : "";
 const apple = config.appleClientId
   ? useAppleSignIn(config.appleClientId, appleRedirect, submitOidc, { mapError })
   : null;
