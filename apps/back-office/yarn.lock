@@ -178,6 +178,7 @@ __metadata:
     "@bufbuild/protoc-gen-es": "npm:^2.2.3"
     "@connectrpc/connect": "npm:^2.0.1"
     "@connectrpc/connect-web": "npm:^2.0.1"
+    "@cymbra/web-auth": "portal:../../packages/web-auth"
     "@playwright/test": "npm:^1.62.0"
     "@vitejs/plugin-vue": "npm:^5.2.1"
     "@vitest/coverage-v8": "npm:^3.2.6"
@@ -200,6 +201,14 @@ __metadata:
     vue-router: "npm:^4.4.5"
     vue-tsc: "npm:^2.1.10"
   languageName: unknown
+  linkType: soft
+
+"@cymbra/web-auth@portal:../../packages/web-auth::locator=%40cymbra%2Fback-office%40workspace%3A.":
+  version: 0.0.0-use.local
+  resolution: "@cymbra/web-auth@portal:../../packages/web-auth::locator=%40cymbra%2Fback-office%40workspace%3A."
+  peerDependencies:
+    vue: ^3.5.0
+  languageName: node
   linkType: soft
 
 "@esbuild/aix-ppc64@npm:0.25.12":

@@ -68,6 +68,9 @@ pub trait UserScoreRepo: Send + Sync {
     async fn delete_owned(&self, id: &str, owner_id: &str) -> Result<Option<UserScore>>;
     /// Count the caller's scores created within the last `window_days` (quota).
     async fn count_recent(&self, owner_id: &str, window_days: u32) -> Result<i64>;
+    /// Count the caller's private library — every upload NOT yet accepted into the
+    /// public catalog (change: add-premium-subscription, per-plan library cap).
+    async fn count_library(&self, owner_id: &str) -> Result<i64>;
     /// Set the favorite flag on a score the caller owns; `NotFound` if absent or
     /// not theirs. Never deletes the upload.
     async fn set_favorite(&self, id: &str, owner_id: &str, favorite: bool) -> Result<()>;
@@ -154,6 +157,13 @@ impl UserScoreRepo for FakeUserScoreRepo {
             .iter()
             .filter(|r| r.owner_id == owner_id && r.created_at >= cutoff)
             .count() as i64)
+    }
+
+    async fn count_library(&self, owner_id: &str) -> Result<i64> {
+        // The fake has no catalog to join: every upload counts (accepted-in-catalog
+        // exclusion is exercised by the Postgres query).
+        let rows = self.rows.lock().expect("user_scores fake lock");
+        Ok(rows.iter().filter(|r| r.owner_id == owner_id).count() as i64)
     }
 
     async fn set_favorite(&self, id: &str, owner_id: &str, favorite: bool) -> Result<()> {

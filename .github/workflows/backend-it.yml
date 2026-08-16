@@ -43,6 +43,7 @@ jobs:
       CYMBRA_USER_DATABASE_URL: postgres://user_svc:user_dev_pw@localhost:5432/cymbra
       CYMBRA_WORKER_DATABASE_URL: postgres://worker_svc:worker_dev_pw@localhost:5432/cymbra
       CYMBRA_ADMIN_DATABASE_URL: postgres://admin_svc:admin_dev_pw@localhost:5432/cymbra
+      CYMBRA_PLANS_DATABASE_URL: postgres://plans_svc:plans_dev_pw@localhost:5432/cymbra
       CYMBRA_REDIS_URL: redis://localhost:6379
     steps:
       - uses: actions/checkout@v4
@@ -58,4 +59,4 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - name: Integration tests (ignored set)
-        run: cargo test -p cymbra-auth -p cymbra-user -p cymbra-jobs -- --ignored
+        run: cargo test -p cymbra-auth -p cymbra-user -p cymbra-jobs -p cymbra-plans -- --ignored

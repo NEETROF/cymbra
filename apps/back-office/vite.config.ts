@@ -87,6 +87,10 @@ export default defineConfig(({ mode }) => {
     plugins: [vue(), cspMetaPlugin(csp)],
     resolve: {
       alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) },
+      // `@cymbra/web-auth` is a source-only portal package (packages/web-auth) whose
+      // composables import `vue`: force ONE Vue instance from this app, never the
+      // package's own node_modules (a second copy would break reactivity).
+      dedupe: ["vue"],
     },
     // The score engine worker (lib/worker/) lazy-imports the wasm modules, so its
     // bundle is code-split — which requires ES-module worker output (the default

@@ -175,7 +175,10 @@ class HttpPrivateSoundFontService implements PrivateSoundFontService {
       );
       // 201 created, or 200 when identical content already existed (idempotent).
       if (resp.statusCode != 201 && resp.statusCode != 200) {
-        throw PrivateSoundFontException('import: HTTP ${resp.statusCode}');
+        throw PrivateSoundFontException(
+          'import: HTTP ${resp.statusCode}',
+          statusCode: resp.statusCode,
+        );
       }
       return RemoteSoundFont.fromJson(
         jsonDecode(resp.body) as Map<String, dynamic>,

@@ -65,6 +65,13 @@ export interface E2EData {
    * Mutated in place by setFlag/setConfig/clearOverride so the panel's re-read
    * reflects the change. `value` is a bool for a flag, a number for an hour. */
   flags?: E2EFlag[];
+  /** Plan console fixtures (change: add-premium-subscription): campaigns (mutated in
+   * place by create/close), per-account plan data (mutated by grant/revoke/enrol —
+   * keyed by user id; a handle lookup resolves through `accounts`), and the
+   * deterministic clear-text codes `mintCodes` hands out. */
+  campaigns?: E2ECampaign[];
+  plans?: Record<string, E2EAccountPlan>;
+  mintedCodes?: string[];
   /** Force a method to reject with a ConnectError, keyed by method name. */
   fail?: Record<string, E2EFailure>;
   /** Force a method to reject with a ConnectError exactly ONCE (then succeed) —
@@ -79,6 +86,27 @@ export interface E2EFlag {
   value: boolean | number;
   hasOverride?: boolean;
   editable?: boolean;
+  /** `global` | `staff_only` | `premium_only` | `beta:<key>` (default global). */
+  rolloutScope?: string;
+}
+
+/** One campaign as the seam models it (a subset of `CampaignMsg`). */
+export interface E2ECampaign {
+  key: string;
+  name: string;
+  kind: "premium_trial" | "feature";
+  durationDays?: number;
+  acceptsEnrolment?: boolean;
+  enrollmentClosesAt?: string;
+  closedAt?: string;
+}
+
+/** One account's plan data: entitlement rows + memberships; the effective plan is
+ * derived like the server does (any active row ⇒ premium; a trial-campaign row marks
+ * the trial). */
+export interface E2EAccountPlan {
+  rows?: Record<string, unknown>[];
+  memberships?: Record<string, unknown>[];
 }
 
 interface DirectoryAccount {
@@ -130,6 +158,65 @@ export function installE2EClients(): void {
     for (const [scope, rs] of Object.entries(src)) roles[scope] = [...rs];
     return { userId: a.userId, handle: a.handle, displayName: a.displayName, roles };
   });
+
+  // Plan console state (change: add-premium-subscription). Mutable copies so grant /
+  // revoke / enrol / create / close change what the next lookup or list returns.
+  const campaigns: E2ECampaign[] = (data.campaigns ?? []).map((c) => ({ acceptsEnrolment: true, ...c }));
+  const plans: Record<string, { rows: Record<string, unknown>[]; memberships: Record<string, unknown>[] }> = {};
+  for (const [uid, p] of Object.entries(data.plans ?? {})) {
+    plans[uid] = {
+      rows: (p.rows ?? []).map((r) => ({ ...r })),
+      memberships: (p.memberships ?? []).map((m) => ({ ...m })),
+    };
+  }
+  const planOf = (uid: string) => (plans[uid] ??= { rows: [], memberships: [] });
+  /** Resolve `{userId, handle}` to a directory user id (handle → id via `accounts`). */
+  const resolveUser = (req: { userId?: string; handle?: string }): string => {
+    if (req.userId) return req.userId;
+    const acc = byScope.find((a) => a.handle === req.handle);
+    if (!acc) throw new ConnectError("account not found", Code.NotFound);
+    return acc.userId;
+  };
+  const activeRows = (uid: string) =>
+    planOf(uid).rows.filter((r) => (r.status ?? "active") === "active" && !r.revokedAt);
+  const campaignByKey = (key: string) => campaigns.find((c) => c.key === key);
+  const campaignById = (id: string | undefined) => campaigns.find((c) => c.key === id);
+  const trialRow = (uid: string) =>
+    activeRows(uid).find((r) => campaignById(r.campaignId as string | undefined)?.kind === "premium_trial");
+  /** The effective plan snapshot the server would compute for an account. */
+  const snapshotOf = (uid: string) => {
+    const rows = activeRows(uid);
+    const later = rows.reduce<Record<string, unknown> | null>((best, r) => {
+      if (!best) return r;
+      if (!r.endsAt) return r; // open-ended wins
+      if (!best.endsAt) return best;
+      return (r.endsAt as string) > (best.endsAt as string) ? r : best;
+    }, null);
+    const trial = trialRow(uid);
+    const memberships = planOf(uid).memberships.filter((m) => !m.revokedAt);
+    return {
+      plan: later ? "premium" : "free",
+      source: later?.source,
+      endsAt: later?.endsAt,
+      endsWithoutRenewal: !!later && later.source !== "apple" && later.source !== "google",
+      trialCampaignKey: trial?.campaignId,
+      trialCampaignName: trial ? campaignById(trial.campaignId as string)?.name : undefined,
+      trialEndsAt: trial?.endsAt,
+      betas: memberships.map((m) => ({
+        campaignKey: m.campaignKey,
+        campaignName: m.campaignName ?? campaignByKey(m.campaignKey as string)?.name ?? "",
+        kind: m.kind,
+        joinedAt: m.enrolledAt,
+        endsAt: m.endsAt,
+      })),
+      managedOn: 0,
+      canPurchaseHere: false,
+      purchaseChannel: 0,
+      products: [],
+      unlocks: [],
+    };
+  };
+  const nowIso = () => new Date().toISOString();
 
   function failIfSet(method: string): void {
     const f = data.fail?.[method];
@@ -290,14 +377,16 @@ export function installE2EClients(): void {
         if (req.locale) data.accountLocale = req.locale; // reflect the write
         return { userId: "u1", locale: data.accountLocale };
       },
-      listAccounts: async (req: { query: string; limit: number; offset: number }) => {
+      listAccounts: async (req: { query: string; limit: number; offset: number; ids?: string[] }) => {
         failIfSet("listAccounts");
         const q = (req.query ?? "").toLowerCase();
+        // `ids` (pre-resolved by the plan service) narrows the directory like the server.
+        const scoped = req.ids && req.ids.length > 0 ? byScope.filter((a) => req.ids!.includes(a.userId)) : byScope;
         const filtered = q
-          ? byScope.filter(
+          ? scoped.filter(
               (a) => (a.handle ?? "").toLowerCase().includes(q) || (a.displayName ?? "").toLowerCase().includes(q),
             )
-          : byScope;
+          : scoped;
         const page = filtered.slice(req.offset ?? 0, (req.offset ?? 0) + (req.limit ?? 25)).map((a) => ({
           userId: a.userId,
           handle: a.handle,
@@ -364,7 +453,7 @@ export function installE2EClients(): void {
               defaultValue: wire,
               effectiveValue: wire,
               hasOverride: f.hasOverride ?? false,
-              rolloutScope: "global",
+              rolloutScope: f.rolloutScope ?? "global",
               sensitive: false,
               doc: "",
               editable: f.editable ?? true,
@@ -375,21 +464,27 @@ export function installE2EClients(): void {
         };
       },
       listFlagChanges: async () => ({ changes: [] }),
-      setFlag: async (req: { key: string; enabled: boolean }) => {
+      setFlag: async (req: { key: string; enabled: boolean; rolloutScope?: string }) => {
         failIfSet("setFlag");
         const f = findFlag(req.key);
         if (f) {
           f.value = req.enabled;
           f.hasOverride = true;
+          if (req.rolloutScope) f.rolloutScope = req.rolloutScope;
         }
         return {};
       },
-      setConfig: async (req: { key: string; value: { kind?: { case: string; value: unknown } } }) => {
+      setConfig: async (req: {
+        key: string;
+        value: { kind?: { case: string; value: unknown } };
+        rolloutScope?: string;
+      }) => {
         failIfSet("setConfig");
         const f = findFlag(req.key);
         if (f && req.value.kind?.case === "intValue") {
           f.value = Number(req.value.kind.value as bigint);
           f.hasOverride = true;
+          if (req.rolloutScope) f.rolloutScope = req.rolloutScope;
         }
         return {};
       },
@@ -398,6 +493,176 @@ export function installE2EClients(): void {
         const f = findFlag(req.key);
         if (f) f.hasOverride = false;
         return {};
+      },
+    },
+    // Plan console (change: add-premium-subscription). Music-admin only server-side;
+    // here every mutation is applied to the seeded state so the re-lookup / re-list
+    // the store performs reflects it.
+    plans: {
+      lookupAccountPlan: async (req: { userId: string; handle: string }) => {
+        failIfSet("lookupAccountPlan");
+        const uid = resolveUser(req);
+        const p = planOf(uid);
+        return {
+          userId: uid,
+          snapshot: snapshotOf(uid),
+          rows: p.rows.map((r) => ({ ...r })),
+          memberships: [...p.memberships],
+        };
+      },
+      getPlansForAccounts: async (req: { userIds: string[] }) => {
+        failIfSet("getPlansForAccounts");
+        return {
+          badges: req.userIds.map((uid) => {
+            const snap = snapshotOf(uid);
+            return {
+              userId: uid,
+              plan: snap.plan,
+              trial: !!snap.trialCampaignKey,
+              endsAt: snap.endsAt,
+              betaKeys: snap.betas.map((b) => b.campaignKey),
+            };
+          }),
+        };
+      },
+      listAccountIdsByPlan: async (req: { plan: string; betaCampaignKey: string }) => {
+        failIfSet("listAccountIdsByPlan");
+        const ids = byScope
+          .map((a) => a.userId)
+          .filter((uid) => {
+            const snap = snapshotOf(uid);
+            const planOk =
+              req.plan === "premium" ? snap.plan === "premium" : req.plan === "trial" ? !!snap.trialCampaignKey : true;
+            const betaOk = req.betaCampaignKey ? snap.betas.some((b) => b.campaignKey === req.betaCampaignKey) : true;
+            return planOk && betaOk;
+          });
+        return { userIds: ids };
+      },
+      grantPremium: async (req: { userId: string; handle: string; endsAt?: string; confirmOpenEnded: boolean }) => {
+        failIfSet("grantPremium");
+        if (!req.endsAt && !req.confirmOpenEnded) {
+          throw new ConnectError("open-ended grant requires confirmation", Code.FailedPrecondition);
+        }
+        const uid = resolveUser(req);
+        const row = {
+          id: `e-${Date.now()}`,
+          source: "admin",
+          providerRef: "",
+          startsAt: nowIso(),
+          endsAt: req.endsAt,
+          status: "active",
+        };
+        planOf(uid).rows.push(row);
+        return { row };
+      },
+      revokeEntitlement: async (req: { entitlementId: string }) => {
+        failIfSet("revokeEntitlement");
+        for (const p of Object.values(plans)) {
+          const r = p.rows.find((x) => x.id === req.entitlementId);
+          if (r) {
+            r.status = "revoked";
+            r.revokedAt = nowIso();
+          }
+        }
+        return {};
+      },
+      enrolHandle: async (req: { userId: string; handle: string; campaignKey: string }) => {
+        failIfSet("enrolHandle");
+        const uid = resolveUser(req);
+        const c = campaignByKey(req.campaignKey);
+        if (!c || c.closedAt) throw new ConnectError("campaign not open", Code.FailedPrecondition);
+        const endsAt =
+          c.kind === "premium_trial" && c.durationDays
+            ? new Date(Date.now() + c.durationDays * 86_400_000).toISOString()
+            : undefined;
+        const membership = {
+          campaignKey: c.key,
+          campaignName: c.name,
+          kind: c.kind,
+          userId: uid,
+          enrolledAt: nowIso(),
+          endsAt,
+          source: "admin",
+        };
+        planOf(uid).memberships.push(membership);
+        if (c.kind === "premium_trial") {
+          planOf(uid).rows.push({
+            id: `e-${Date.now()}`,
+            source: "admin",
+            providerRef: "",
+            campaignId: c.key,
+            startsAt: nowIso(),
+            endsAt,
+            status: "active",
+          });
+        }
+        return { membership };
+      },
+      revokeMembership: async (req: { userId: string; handle: string; campaignKey: string }) => {
+        failIfSet("revokeMembership");
+        const uid = resolveUser(req);
+        const m = planOf(uid).memberships.find((x) => x.campaignKey === req.campaignKey && !x.revokedAt);
+        if (m) m.revokedAt = nowIso();
+        return {};
+      },
+      createCampaign: async (req: { key: string; name: string; kind: string; durationDays?: number }) => {
+        failIfSet("createCampaign");
+        if (campaignByKey(req.key)) throw new ConnectError("key taken", Code.AlreadyExists);
+        const c: E2ECampaign = {
+          key: req.key,
+          name: req.name,
+          kind: req.kind as E2ECampaign["kind"],
+          durationDays: req.durationDays,
+          acceptsEnrolment: true,
+        };
+        campaigns.push(c);
+        return { campaign: { ...c, id: c.key, createdBy: "u1", createdAt: nowIso() } };
+      },
+      listCampaigns: async (req: { includeClosed: boolean }) => {
+        failIfSet("listCampaigns");
+        return {
+          campaigns: campaigns
+            .filter((c) => req.includeClosed || !c.closedAt)
+            .map((c) => ({ ...c, id: c.key, createdBy: "u1", createdAt: "2026-01-01T00:00:00Z" })),
+        };
+      },
+      closeEnrollment: async (req: { campaignKey: string }) => {
+        failIfSet("closeEnrollment");
+        const c = campaignByKey(req.campaignKey);
+        if (c) {
+          c.acceptsEnrolment = false;
+          c.enrollmentClosesAt = nowIso();
+        }
+        return {};
+      },
+      closeCampaign: async (req: { campaignKey: string }) => {
+        failIfSet("closeCampaign");
+        const c = campaignByKey(req.campaignKey);
+        if (c) {
+          c.acceptsEnrolment = false;
+          c.closedAt = nowIso();
+          for (const p of Object.values(plans)) {
+            for (const m of p.memberships) if (m.campaignKey === c.key && !m.revokedAt) m.revokedAt = c.closedAt;
+          }
+        }
+        return {};
+      },
+      mintCodes: async (req: { campaignKey: string; count: number }) => {
+        failIfSet("mintCodes");
+        const pool = data.mintedCodes ?? ["E2E-CODE-1", "E2E-CODE-2", "E2E-CODE-3"];
+        return { codes: pool.slice(0, req.count) };
+      },
+      revokeCodes: async () => {
+        failIfSet("revokeCodes");
+        return { revoked: 0 };
+      },
+      listMembers: async (req: { campaignKey: string }) => {
+        failIfSet("listMembers");
+        const members: Record<string, unknown>[] = [];
+        for (const [uid, p] of Object.entries(plans)) {
+          for (const m of p.memberships) if (m.campaignKey === req.campaignKey) members.push({ ...m, userId: uid });
+        }
+        return { members };
       },
     },
   } as unknown as Clients;

@@ -15,6 +15,7 @@
 import 'package:cymbra_flags/cymbra_flags.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../state/plan_notifier.dart';
 import '../state/session_notifier.dart';
 import 'grpc_client.dart';
 import 'token_store.dart';
@@ -36,7 +37,17 @@ class AppFlagBearer implements FlagBearer {
 /// over the same channel as every other RPC.
 List<Override> cymbraFlagOverrides() => [
   flagChannelProvider.overrideWith((ref) => ref.watch(cymbraChannelProvider)),
-  flagIdentityProvider.overrideWith((ref) => ref.watch(currentUserIdProvider)),
+  // Identity + plan + betas (change: add-premium-subscription): a purchase, an
+  // enrolment, a lapse or a beta closing changes the key, so premium_only /
+  // beta:<key> rollouts refetch instead of serving a stale snapshot.
+  flagIdentityProvider.overrideWith((ref) {
+    final user = ref.watch(currentUserIdProvider);
+    if (user == null) return null;
+    final plan = ref.watch(planProvider).valueOrNull;
+    if (plan == null) return user;
+    final betas = plan.betas.map((b) => b.campaignKey).toList()..sort();
+    return '$user|${plan.plan}|${betas.join(',')}';
+  }),
   flagBearerProvider.overrideWith(
     (ref) => AppFlagBearer(ref.watch(tokenStoreProvider)),
   ),

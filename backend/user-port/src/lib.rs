@@ -118,6 +118,19 @@ pub struct AccountSummary {
     pub roles_by_scope: Vec<ScopeRoles>,
 }
 
+/// Directory filter (change: add-premium-subscription): the free-text `query`
+/// plus an optional explicit id set / exclusion set, so a product back office
+/// can pre-resolve a product-specific criterion (a plan, a beta membership) into
+/// account ids without the identity service learning that criterion.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct AccountFilter {
+    pub query: String,
+    /// When non-empty, only these accounts.
+    pub ids: Vec<String>,
+    /// Never these accounts.
+    pub exclude_ids: Vec<String>,
+}
+
 /// A page of the admin account directory plus the total matching count.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AccountPage {
@@ -233,6 +246,27 @@ pub trait UserPort: Send + Sync {
         offset: i64,
         scopes: &[String],
     ) -> Result<AccountPage>;
+
+    /// [`Self::list_accounts`] with an [`AccountFilter`] (explicit `ids` /
+    /// `exclude_ids`; change: add-premium-subscription). The default delegates to
+    /// the plain listing when no id set is given and refuses otherwise, so an
+    /// adapter that cannot filter by ids never silently returns the wrong page.
+    async fn list_accounts_filtered(
+        &self,
+        filter: &AccountFilter,
+        limit: i64,
+        offset: i64,
+        scopes: &[String],
+    ) -> Result<AccountPage> {
+        if filter.ids.is_empty() && filter.exclude_ids.is_empty() {
+            return self
+                .list_accounts(&filter.query, limit, offset, scopes)
+                .await;
+        }
+        Err(AppError::FailedPrecondition(
+            "id filtering is not supported by this account directory".into(),
+        ))
+    }
 
     // --- Public player profile (change: add-play-activity-profile) -----------
 

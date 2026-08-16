@@ -31,9 +31,12 @@ fonctionnement du compte et de l'application.
 | Préférences applicatives | vous | mémoriser vos réglages |
 | Jetons de session (refresh tokens) | généré au login | maintenir votre session connectée |
 | Journaux techniques (adresse IP, horodatages, erreurs) | serveur | sécurité, prévention des abus, bon fonctionnement |
+| Statut d'abonnement (offre, source, dates de début/fin), **identifiants opaques** de l'abonnement chez le canal d'achat (Apple, Google, Paddle), campagnes bêta rejointes, codes d'accès utilisés | canal d'achat / vous | activer l'offre Premium sur vos appareils, gérer essais et bêtas |
 
 Nous **ne** collectons **pas** de données de localisation précise, ne vendons aucune
-donnée, et n'utilisons pas de publicité tierce ni de traceurs publicitaires.
+donnée, et n'utilisons pas de publicité tierce ni de traceurs publicitaires. Nous ne
+recevons et ne stockons **jamais** vos numéros de carte, adresses de facturation ni
+factures : ils sont traités exclusivement par le canal d'achat (Apple, Google, Paddle).
 
 ## 3. Bases légales (RGPD art. 6)
 
@@ -50,7 +53,11 @@ Nous partageons le strict nécessaire avec des prestataires agissant pour notre 
 - **OVHcloud** (France, UE) — hébergement du serveur et des sauvegardes.
 - **Brevo** (UE) — envoi des emails transactionnels (vérification, réinitialisation).
 - **Google** / **Apple** — uniquement si vous utilisez leur connexion (vérification de
-  votre identité via leur jeton).
+  votre identité via leur jeton), ou si vous vous abonnez via l'App Store / Google Play
+  (ils nous notifient l'état de l'abonnement, jamais vos données de paiement).
+- **Paddle** (vendeur officiel, Royaume-Uni/UE) — uniquement si vous vous abonnez depuis
+  Linux, Windows ou le site web : il encaisse, facture et nous notifie l'état de
+  l'abonnement associé à un identifiant opaque.
 
 Vos données sont **hébergées dans l'Union européenne** (France). Nous ne procédons à
 aucun transfert hors UE.

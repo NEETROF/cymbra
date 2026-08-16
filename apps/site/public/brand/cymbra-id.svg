@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024" role="img" aria-label="Cymbra">
+  <defs>
+    <linearGradient id="c" gradientUnits="userSpaceOnUse" x1="429.3" y1="181.4" x2="600.7" y2="839.6" gradientTransform="translate(515 510.5) scale(1.15) translate(-515 -510.5)">
+      <stop offset="0" stop-color="#00FCF6"/><stop offset="1" stop-color="#B412FF"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="228" ry="228" fill="#0D1633"/>
+  <g transform="translate(515 510.5) scale(1.15) translate(-515 -510.5)">
+    <path fill="url(#c)" d="M786.3 305.6 A340 340 0 1 0 786.3 715.4 L696.5 636.6 A221 221 0 1 1 696.5 384.4 Z"/>
+  </g>
+</svg>

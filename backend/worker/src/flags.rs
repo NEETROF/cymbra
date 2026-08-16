@@ -93,3 +93,58 @@ impl cymbra_music::ScorePreviewConfigSource for WorkerScorePreviewConfig {
         }
     }
 }
+
+/// Flag-backed [`cymbra_plans::PlanConfigSource`] for the worker sweeps: the
+/// kill-switch + grace period (mirrors the server's `FlagPlanConfig`).
+pub struct WorkerPlanConfig {
+    flags: Arc<FlagService>,
+}
+
+impl WorkerPlanConfig {
+    pub fn new(flags: Arc<FlagService>) -> Self {
+        Self { flags }
+    }
+}
+
+impl cymbra_plans::PlanConfigSource for WorkerPlanConfig {
+    fn plan_config(&self) -> cymbra_plans::PlanConfig {
+        use cymbra_feature_flags::registry;
+        let ctx = cymbra_feature_flags::EvalContext::anonymous(registry::APP_MUSIC);
+        let defaults = cymbra_plans::PlanConfig::default();
+        cymbra_plans::PlanConfig {
+            enabled: self
+                .flags
+                .bool(registry::PLANS_ENABLED, defaults.enabled, &ctx),
+            grace_days: self
+                .flags
+                .int(
+                    registry::PLANS_GRACE_DAYS,
+                    i64::from(defaults.grace_days),
+                    &ctx,
+                )
+                .clamp(0, 365) as u32,
+        }
+    }
+}
+
+/// Withdrawal-on-lapse rotator (design D13) over the music offline-secret store,
+/// on the worker's `admin_svc` connection.
+pub struct OfflineSecretRotator {
+    secrets: Arc<dyn cymbra_music::OfflineSecretRepo>,
+}
+
+impl OfflineSecretRotator {
+    pub fn new(secrets: Arc<dyn cymbra_music::OfflineSecretRepo>) -> Self {
+        Self { secrets }
+    }
+}
+
+#[async_trait]
+impl cymbra_plans::CacheSecretRotator for OfflineSecretRotator {
+    async fn rotate(&self, user_id: &str) -> cymbra_platform::Result<()> {
+        let fresh = cymbra_music::generate_offline_secret();
+        self.secrets.rotate(user_id, &fresh).await.map_err(|e| {
+            cymbra_platform::AppError::Internal(anyhow::anyhow!("rotate offline secret: {e}"))
+        })
+    }
+}

@@ -1,5 +1,6 @@
 import { ref } from "vue";
-import { type Async, idle, run } from "@/lib/async";
+import { type Async, idle, run } from "./async";
+import type { SignInOptions } from "./google";
 
 // Sign in with Apple (web) — Apple's JS SDK, loaded on demand. Unlike Google's GSI,
 // Apple renders no button for us: we init the SDK, show our own Apple-styled button,
@@ -7,8 +8,9 @@ import { type Async, idle, run } from "@/lib/async";
 // handed to the caller, who exchanges it for a Cymbra token via the auth store.
 //
 // Web needs a Services ID as the client id (NOT the app bundle id) and a registered
-// Return URL — see apps/back-office/README.md. Until those exist, `signIn()` errors;
-// the button stays hidden entirely when no client id is configured.
+// Return URL (each consuming origin — bo.cymbra.app, cymbra.app — is declared on the
+// Services ID). Until those exist, `signIn()` errors; the button stays hidden entirely
+// when no client id is configured.
 const SDK_BASE = "https://appleid.cdn-apple.com/appleauth/static/jsapi/appleid/1";
 
 // Apple locale segment in the SDK URL (drives the SDK's own copy). We ship en/fr.
@@ -72,15 +74,24 @@ function loadAppleId(locale: string): Promise<AppleId> {
  * the resulting id_token to `onCredential`; a cancelled popup rejects (the caller
  * swallows it — Apple's own UI already told the user).
  */
-export function useAppleSignIn(clientId: string, redirectUri: string, onCredential: (idToken: string) => void) {
+export function useAppleSignIn(
+  clientId: string,
+  redirectUri: string,
+  onCredential: (idToken: string) => void,
+  opts: SignInOptions = {},
+) {
   const status = ref<Async<void>>(idle);
   let sdk: AppleId | null = null;
 
   async function load(locale: string): Promise<void> {
-    await run(status, async () => {
-      sdk = await loadAppleId(locale);
-      sdk.auth.init({ clientId, scope: "name email", redirectURI: redirectUri, usePopup: true });
-    });
+    await run(
+      status,
+      async () => {
+        sdk = await loadAppleId(locale);
+        sdk.auth.init({ clientId, scope: "name email", redirectURI: redirectUri, usePopup: true });
+      },
+      opts.mapError,
+    );
   }
 
   async function signIn(): Promise<void> {

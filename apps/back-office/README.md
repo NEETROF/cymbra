@@ -95,7 +95,10 @@ an XSS can't exfiltrate a replayable session (change: `add-web-auth-cookies`).
 - Sign-in / refresh / sign-out go over the **web-auth HTTP surface** (`VITE_WEB_AUTH_URL`,
   the backend's HTTP port), not gRPC. The server sets/rotates/clears the refresh token
   in an `HttpOnly; Secure; SameSite=Strict; Path=/web/auth` cookie and returns the access
-  token in the JSON body. See `src/lib/web-auth.ts` (injectable seam, like `lib/api.ts`).
+  token in the JSON body. See `src/lib/web-auth.ts` (injectable seam, like `lib/api.ts`)
+  over the shared **`packages/web-auth`** package (`@cymbra/web-auth`, a Yarn `portal:`):
+  the web-auth client and the Google / Apple sign-in composables live there, one
+  implementation for this console and the public site (`apps/site`).
 - On load the SPA calls `/web/auth/refresh` (credentialed) to **re-mint** an access token
   from the cookie — a reload stays signed in with nothing persisted. On a gRPC
   `UNAUTHENTICATED` the transport refreshes once via the cookie and retries; only if that
@@ -176,14 +179,16 @@ provider from the token's issuer and verifies its `aud` against the matching
 `CYMBRA_*_AUDIENCE` (both accept a comma-separated set).
 
 - **Google** — set `VITE_GOOGLE_CLIENT_ID` to the Google **Web** OAuth client id (the
-  same value as the backend's `CYMBRA_GOOGLE_AUDIENCE`). Add `https://bo.cymbra.app` to
-  that client's _Authorized JavaScript origins_ in Google Cloud Console.
+  same value as the backend's `CYMBRA_GOOGLE_AUDIENCE`). Add `https://bo.cymbra.app` (and
+  `https://cymbra.app` for the site's sign-in) to that client's _Authorized JavaScript
+  origins_ in Google Cloud Console.
 - **Apple** — set `VITE_APPLE_CLIENT_ID` to a **Services ID** (e.g. `com.cymbra.bo.web`),
   **not** the app bundle id, and optionally `VITE_APPLE_REDIRECT_URI` (defaults to the SPA
   origin — we use `https://bo.cymbra.app/signin`). In the Apple Developer portal, on that
   Services ID: enable "Sign in with Apple" → Configure → pick the primary App ID
-  (`com.cymbra.music`) → register the domain `bo.cymbra.app` and the Return URL
-  `https://bo.cymbra.app/signin` (comma-delimited lists) → Done → Continue → Save. Apple's
+  (`com.cymbra.music`) → register the domains `bo.cymbra.app`, `cymbra.app` and the Return
+  URLs `https://bo.cymbra.app/signin`, `https://cymbra.app/redeem`, `https://cymbra.app/account`
+  (comma-delimited lists; the site reuses the same Services ID) → Done → Continue → Save. Apple's
   current flow needs **no** domain-association file / `.well-known` hosting. Add the
   Services ID to the backend's `CYMBRA_APPLE_AUDIENCE` (alongside the app bundle,
   comma-separated) so web tokens verify — no backend code change needed.

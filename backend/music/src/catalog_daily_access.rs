@@ -60,15 +60,16 @@ impl DailyAccessConfigSource for FixedDailyAccessConfig {
     }
 }
 
-/// The subscription seam (design D6): a subscriber has unlimited opens. No
-/// billing exists yet — [`NoSubscriptions`] answers `false`; the future billing
-/// work implements this trait and nothing else in the gate changes.
+/// The subscription seam (design D6): a subscriber has unlimited opens. Implemented
+/// over the plan entitlements by [`PlanSubscriptions`] (change:
+/// add-premium-subscription); [`NoSubscriptions`] is the inert stub (tests, or a
+/// deployment without the plans module). The gate never learns plan names.
 #[async_trait]
 pub trait SubscriptionSource: Send + Sync {
     async fn has_active_subscription(&self, user_id: &str) -> bool;
 }
 
-/// The stub in force until a billing system exists.
+/// The stub in force when no plans module is configured.
 #[derive(Default)]
 pub struct NoSubscriptions;
 
@@ -76,6 +77,25 @@ pub struct NoSubscriptions;
 impl SubscriptionSource for NoSubscriptions {
     async fn has_active_subscription(&self, _user_id: &str) -> bool {
         false
+    }
+}
+
+/// The plan-backed seam: `has_active_subscription(u)` ≡ the effective plan grants
+/// the `catalog.unlimited` unlock (premium, whatever its source — store, web, trial,
+/// admin). A failed read is `false` (fail-closed: never grant on error); the
+/// kill-switch is honoured by the plan source itself (`free` when off).
+pub struct PlanSubscriptions(pub Arc<dyn cymbra_plans::PlanSource>);
+
+#[async_trait]
+impl SubscriptionSource for PlanSubscriptions {
+    async fn has_active_subscription(&self, user_id: &str) -> bool {
+        match self.0.snapshot(user_id).await {
+            Ok(s) => s.grants(cymbra_plans::Unlock::CatalogUnlimited),
+            Err(e) => {
+                tracing::warn!(error = %e, "plan snapshot failed; caller treated as non-subscriber");
+                false
+            }
+        }
     }
 }
 
@@ -687,5 +707,30 @@ mod tests {
         repo.record_open("u1", P1, d2).await.unwrap();
         assert_eq!(repo.prune_before(d2).await.unwrap(), 1);
         assert_eq!(repo.day_state("u1", d2).await.unwrap().opened.len(), 1);
+    }
+}
+
+#[cfg(test)]
+mod plan_subscriptions_tests {
+    use super::*;
+    use cymbra_plans::ports::MockPlanSource;
+    use cymbra_plans::{Plan, PlanSnapshot};
+
+    #[tokio::test]
+    async fn premium_snapshot_is_a_subscriber_and_free_or_error_is_not() {
+        let mut m = MockPlanSource::new();
+        m.expect_snapshot().returning(|u| match u {
+            "premium" => Ok(PlanSnapshot {
+                plan: Plan::Premium,
+                ..PlanSnapshot::free()
+            }),
+            "free" => Ok(PlanSnapshot::free()),
+            _ => Err(AppError::Internal(anyhow::anyhow!("db down"))),
+        });
+        let src = PlanSubscriptions(Arc::new(m));
+        assert!(src.has_active_subscription("premium").await);
+        assert!(!src.has_active_subscription("free").await);
+        assert!(!src.has_active_subscription("boom").await);
+        assert!(!NoSubscriptions.has_active_subscription("premium").await);
     }
 }

@@ -210,6 +210,12 @@ class ImportedSoundFonts extends _$ImportedSoundFonts {
             .import(bytes, entry.label);
         synced = entry.copyWith(remoteId: remote.id);
       }
+    } on PrivateSoundFontException catch (e) {
+      // A quota refusal (403) is surfaced as an upsell cue (change:
+      // add-premium-subscription); anything else stays a silent local-only import.
+      if (e.statusCode == 403) {
+        ref.read(libraryQuotaCueProvider.notifier).bump();
+      }
     } catch (_) {
       // Offline / server error: keep the local import; it migrates on next sync.
     }
@@ -236,6 +242,10 @@ class ImportedSoundFonts extends _$ImportedSoundFonts {
           .read(privateSoundFontServiceProvider)
           .import(bytes, entry.label);
       synced = entry.copyWith(remoteId: remote.id);
+    } on PrivateSoundFontException catch (e) {
+      if (e.statusCode == 403) {
+        ref.read(libraryQuotaCueProvider.notifier).bump();
+      }
     } catch (_) {
       // Offline / server error: keep the local import; it migrates on next sync.
     }
@@ -360,4 +370,15 @@ class ImportedSoundFonts extends _$ImportedSoundFonts {
       return null; // corrupt value → keep defaults
     }
   }
+}
+
+/// Transient cue: the private `.sf2` library quota refused an import (HTTP 403,
+/// change: add-premium-subscription). A dedicated listener surfaces it once with
+/// the "Premium raises the limit" upsell; the import itself stays local-only.
+@Riverpod(keepAlive: true)
+class LibraryQuotaCue extends _$LibraryQuotaCue {
+  @override
+  int build() => 0;
+
+  void bump() => state = state + 1;
 }

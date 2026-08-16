@@ -277,7 +277,38 @@ impl<R: UserRepo> UserPort for UserModule<R> {
             crate::handle_core::normalize(query)
         };
         self.repo
-            .list_accounts(query, &handle_key, limit, offset, scopes)
+            .list_accounts(query, &handle_key, limit, offset, scopes, &[], &[])
+            .await
+    }
+
+    async fn list_accounts_filtered(
+        &self,
+        filter: &cymbra_user_port::AccountFilter,
+        limit: i64,
+        offset: i64,
+        scopes: &[String],
+    ) -> Result<AccountPage> {
+        let limit = if limit <= 0 {
+            DEFAULT_PAGE
+        } else {
+            limit.min(MAX_PAGE)
+        };
+        let offset = offset.max(0);
+        let handle_key = if filter.query.is_empty() {
+            String::new()
+        } else {
+            crate::handle_core::normalize(&filter.query)
+        };
+        self.repo
+            .list_accounts(
+                &filter.query,
+                &handle_key,
+                limit,
+                offset,
+                scopes,
+                &filter.ids,
+                &filter.exclude_ids,
+            )
             .await
     }
 
@@ -817,6 +848,103 @@ mod tests {
             .unwrap();
         assert_eq!(none.total, 0);
         assert!(none.entries.is_empty());
+    }
+
+    /// Explicit id set / exclusion set (change: add-premium-subscription): the
+    /// directory can be restricted to pre-resolved ids, combined with the handle
+    /// query, without the identity module learning why.
+    #[tokio::test]
+    async fn list_accounts_filtered_restricts_to_ids_and_excludes() {
+        use cymbra_user_port::AccountFilter;
+        let m = module();
+        let a = m.resolve_or_provision("google", "a").await.unwrap();
+        m.update_account(&a, None, Some("ada".into()), "{}", 1)
+            .await
+            .unwrap();
+        let b = m.resolve_or_provision("google", "b").await.unwrap();
+        m.update_account(&b, None, Some("adam".into()), "{}", 1)
+            .await
+            .unwrap();
+        let c = m.resolve_or_provision("google", "c").await.unwrap();
+        m.update_account(&c, None, Some("carol".into()), "{}", 1)
+            .await
+            .unwrap();
+        let sc_music = sc(&["music"]);
+        // ids only
+        let page = m
+            .list_accounts_filtered(
+                &AccountFilter {
+                    ids: vec![a.clone(), c.clone()],
+                    ..Default::default()
+                },
+                25,
+                0,
+                &sc_music,
+            )
+            .await
+            .unwrap();
+        assert_eq!(page.total, 2);
+        assert!(
+            page.entries
+                .iter()
+                .all(|e| e.user_id == a || e.user_id == c)
+        );
+        // ids + handle query
+        let page = m
+            .list_accounts_filtered(
+                &AccountFilter {
+                    query: "ad".into(),
+                    ids: vec![a.clone(), b.clone(), c.clone()],
+                    ..Default::default()
+                },
+                25,
+                0,
+                &sc_music,
+            )
+            .await
+            .unwrap();
+        assert_eq!(page.total, 2);
+        assert!(
+            page.entries
+                .iter()
+                .all(|e| e.user_id == a || e.user_id == b)
+        );
+        // exclusion
+        let page = m
+            .list_accounts_filtered(
+                &AccountFilter {
+                    exclude_ids: vec![a.clone(), b.clone()],
+                    ..Default::default()
+                },
+                25,
+                0,
+                &sc_music,
+            )
+            .await
+            .unwrap();
+        assert!(
+            page.entries
+                .iter()
+                .all(|e| e.user_id != a && e.user_id != b)
+        );
+        // an id set matching nothing → empty page, total 0
+        let none = m
+            .list_accounts_filtered(
+                &AccountFilter {
+                    ids: vec!["00000000-0000-0000-0000-000000000000".into()],
+                    ..Default::default()
+                },
+                25,
+                0,
+                &sc_music,
+            )
+            .await
+            .unwrap();
+        assert_eq!(none.total, 0);
+        // The identity module stays product-agnostic: no plan / subscription
+        // concept in its schema.
+        let sql = include_str!("../migrations/0001_init.sql");
+        assert!(!sql.contains("plan_") && !sql.contains("subscription"));
     }
 
     #[tokio::test]

@@ -39,19 +39,25 @@ pub enum Access {
 /// - the font is **free** (`point_cost == 0`);
 /// - the font is the caller's **own import** (`uploaded_by == caller`);
 /// - the caller **owns** it (`has_grant` — a `music.curation_grants` row);
+/// - the caller's **effective plan grants the SoundFont library unlock**
+///   (`plan_unlocks_library` — premium, whatever its source; change:
+///   add-premium-subscription); the route passes `false` while `plans.enabled` is off;
 /// - the caller is a **music-scope moderator/admin** (`is_music_mod_admin`, exempt).
 ///
 /// Otherwise `Deny`. `redeemable` is deliberately *not* consulted: it is a catalog
-/// display flag ("offered in the shop"), so a non-redeemable costed font is still gated.
+/// display flag ("offered in the shop" / "included in premium"), so a non-redeemable
+/// costed font is still gated for a free caller.
 pub fn entitlement(
     caller: &str,
     font: &FontEntry,
     has_grant: bool,
+    plan_unlocks_library: bool,
     is_music_mod_admin: bool,
 ) -> Access {
     let entitled = font.point_cost == 0
         || font.uploaded_by.as_deref() == Some(caller)
         || has_grant
+        || plan_unlocks_library
         || is_music_mod_admin;
     if entitled {
         Access::Allow
@@ -96,33 +102,69 @@ mod tests {
 
     #[test]
     fn free_font_is_allowed_for_anyone() {
-        assert_eq!(entitlement("u", &free(), false, false), Access::Allow);
+        assert_eq!(
+            entitlement("u", &free(), false, false, false),
+            Access::Allow
+        );
     }
 
     #[test]
     fn own_import_is_allowed() {
         // The caller uploaded this costed font: allowed without a grant or role.
         assert_eq!(
-            entitlement("owner", &costed(Some("owner")), false, false),
+            entitlement("owner", &costed(Some("owner")), false, false, false),
             Access::Allow
         );
     }
 
     #[test]
     fn owned_via_grant_is_allowed() {
-        assert_eq!(entitlement("u", &costed(None), true, false), Access::Allow);
+        assert_eq!(
+            entitlement("u", &costed(None), true, false, false),
+            Access::Allow
+        );
+    }
+
+    #[test]
+    fn plan_unlock_is_allowed_without_grant() {
+        // Premium (any source) unlocks the whole library — no grant row needed.
+        assert_eq!(
+            entitlement("u", &costed(None), false, true, false),
+            Access::Allow
+        );
+        // A non-redeemable ("included in premium") font too.
+        let mut f = costed(None);
+        f.redeemable = false;
+        assert_eq!(entitlement("u", &f, false, true, false), Access::Allow);
+    }
+
+    #[test]
+    fn lapsed_plan_is_denied_like_any_locked_font() {
+        assert_eq!(
+            entitlement("u", &costed(None), false, false, false),
+            Access::Deny
+        );
     }
 
     #[test]
     fn music_moderator_admin_is_exempt() {
-        assert_eq!(entitlement("m", &costed(None), false, true), Access::Allow);
+        assert_eq!(
+            entitlement("m", &costed(None), false, false, true),
+            Access::Allow
+        );
     }
 
     #[test]
     fn locked_costed_font_is_denied() {
         // No grant, not the uploader, not a moderator/admin → refused.
         assert_eq!(
-            entitlement("intruder", &costed(Some("someone-else")), false, false),
+            entitlement(
+                "intruder",
+                &costed(Some("someone-else")),
+                false,
+                false,
+                false
+            ),
             Access::Deny
         );
     }
@@ -133,8 +175,8 @@ mod tests {
         // absent a grant — `redeemable` is display-only, never an entitlement.
         let mut f = costed(None);
         f.redeemable = false;
-        assert_eq!(entitlement("u", &f, false, false), Access::Deny);
+        assert_eq!(entitlement("u", &f, false, false, false), Access::Deny);
         f.redeemable = true;
-        assert_eq!(entitlement("u", &f, false, false), Access::Deny);
+        assert_eq!(entitlement("u", &f, false, false, false), Access::Deny);
     }
 }

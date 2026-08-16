@@ -37,6 +37,7 @@ import '../state/reward_shop_notifier.dart';
 import '../state/selected_piano.dart';
 import '../state/sound_preview_sample.dart';
 import '../theme/cymbra_theme.dart';
+import 'plan_screen.dart';
 import '../widgets/app_snackbar.dart';
 import '../widgets/reward_celebration.dart';
 
@@ -756,13 +757,14 @@ class _RewardLock extends StatelessWidget {
         ),
         const SizedBox(width: 8),
         if (comingSoon)
-          Text(
-            l10n.rewardShopComingSoon,
-            style: const TextStyle(
-              color: CymbraColors.onSurfaceVariant,
-              fontSize: 12.5,
-              fontWeight: FontWeight.w600,
-            ),
+          // `redeemable = false` = "included in Premium" (change:
+          // add-premium-subscription): not redeemable with points, unlocked by
+          // the plan — the tag leads to the plan screen.
+          TextButton.icon(
+            key: const Key('soundfont-included-in-premium'),
+            onPressed: () => openPlanScreen(context),
+            icon: const Icon(Icons.workspace_premium, size: 16),
+            label: Text(l10n.soundfontIncludedInPremium),
           )
         else
           FilledButton.icon(

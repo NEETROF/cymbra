@@ -199,11 +199,38 @@ pub struct SoundfontState {
     /// `/me/soundfonts` routes (503).
     pub user_repo: Option<Arc<dyn UserSoundFontRepo>>,
     pub auth: Arc<dyn SoundfontAuth>,
+    /// Effective-plan source (change: add-premium-subscription): premium unlocks the
+    /// whole catalog library and the extended private quota. `None` (plans not
+    /// configured, or the kill-switch off) ⇒ every caller is `free`.
+    pub plans: Option<Arc<dyn cymbra_plans::PlanSource>>,
+    /// Per-plan private-library quota; `None` ⇒ the fixed defaults.
+    pub library_quota: Option<Arc<dyn cymbra_music::LibraryQuotaSource>>,
 }
 
-/// Largest private library for a plain (non-moderator/admin) user (change:
-/// add-soundfont-moderation). Moderators/admins are exempt (they curate the catalog).
-const USER_LIBRARY_MAX_FONTS: i64 = 5;
+impl SoundfontState {
+    /// Whether `user_id`'s effective plan grants `unlock` — `false` when plans are
+    /// not wired or the read fails (fail-closed: never grant on error).
+    async fn plan_grants(&self, user_id: &str, unlock: cymbra_plans::Unlock) -> bool {
+        match self.plans.as_ref() {
+            None => false,
+            Some(p) => match p.snapshot(user_id).await {
+                Ok(s) => s.grants(unlock),
+                Err(e) => {
+                    tracing::warn!(error = %e, "plan snapshot failed; treating caller as free");
+                    false
+                }
+            },
+        }
+    }
+
+    fn library_max(&self, extended: bool) -> i64 {
+        use cymbra_music::LibraryQuotaSource as _;
+        self.library_quota
+            .as_ref()
+            .map(|q| q.max_fonts(extended))
+            .unwrap_or_else(|| cymbra_music::FixedLibraryQuota::default().max_fonts(extended))
+    }
+}
 
 /// The SoundFont delivery router (`GET /soundfonts/:id`), ready to `.merge()` into the
 /// HTTP server. Always mounted; when unconfigured it responds 503.
@@ -467,10 +494,26 @@ async fn import_mine(
         Ok(None) => {}
         Err(_) => return status(StatusCode::INTERNAL_SERVER_ERROR),
     }
-    // Quota: a plain user may hold at most USER_LIBRARY_MAX_FONTS; mod/admin are exempt.
+    // Quota, resolved per request from the caller's plan (change: add-premium-
+    // subscription): free keeps the historical cap, premium the extended one; mod/admin
+    // are exempt. The refusal tells the app a higher plan raises the limit.
     if guard::require_moderator_or_admin(&identity).is_err() {
+        let extended = s
+            .plan_grants(&user_id, cymbra_plans::Unlock::SoundfontLibraryExtended)
+            .await;
+        let max = s.library_max(extended);
         match repo.count(&user_id).await {
-            Ok(n) if n >= USER_LIBRARY_MAX_FONTS => return status(StatusCode::FORBIDDEN),
+            Ok(n) if n >= max => {
+                return (
+                    StatusCode::FORBIDDEN,
+                    Json(serde_json::json!({
+                        "code": "library_quota",
+                        "max": max,
+                        "upgrade_raises_limit": !extended,
+                    })),
+                )
+                    .into_response();
+            }
             Ok(_) => {}
             Err(_) => return status(StatusCode::INTERNAL_SERVER_ERROR),
         }
@@ -777,12 +820,18 @@ async fn serve(
     // `decide` returned `Serve` only for a font the caller may view, so both are `Some`.
     let font = font.expect("decide returns Serve only for a known font");
     let caller = user.as_deref().expect("authenticated above");
-    // Cheap checks first (free / own import / moderator-admin); only read the grants
-    // table when still not entitled, so free fonts never incur an extra query.
-    let has_grant = if font.point_cost == 0
-        || font.uploaded_by.as_deref() == Some(caller)
-        || can_view_unvalidated
-    {
+    // Cheap checks first (free / own import / moderator-admin), then the plan
+    // (change: add-premium-subscription), then the grants table only when still not
+    // entitled — so free fonts never incur an extra query.
+    let cheap =
+        font.point_cost == 0 || font.uploaded_by.as_deref() == Some(caller) || can_view_unvalidated;
+    let plan_unlocks = if cheap {
+        false
+    } else {
+        s.plan_grants(caller, cymbra_plans::Unlock::SoundfontsLibrary)
+            .await
+    };
+    let has_grant = if cheap || plan_unlocks {
         false
     } else {
         match repo.has_grant(caller, &id).await {
@@ -793,7 +842,7 @@ async fn serve(
     // A non-entitled caller is refused with the SAME not-found response as a missing
     // font — no existence oracle for costed fonts. This also gates the in-app instrument
     // load (`GET /soundfonts/{id}`), so a locked font can never be loaded server-side.
-    if entitlement(caller, &font, has_grant, can_view_unvalidated) == Access::Deny {
+    if entitlement(caller, &font, has_grant, plan_unlocks, can_view_unvalidated) == Access::Deny {
         return status(StatusCode::NOT_FOUND);
     }
     let Some(store) = s.store.as_ref() else {
@@ -1147,6 +1196,8 @@ mod tests {
                 repo,
                 user_repo: None,
                 auth: Arc::new(FixedAuth(user)),
+                plans: None,
+                library_quota: None,
             },
             vec!["https://bo.cymbra.app".to_string()],
         )
@@ -1340,6 +1391,8 @@ mod tests {
                 repo: Some(repo),
                 user_repo: None,
                 auth: Arc::new(FixedAdminAuth(user)),
+                plans: None,
+                library_quota: None,
             },
             vec!["https://bo.cymbra.app".to_string()],
         )
@@ -1581,6 +1634,8 @@ mod tests {
                 repo: Some(repo.clone()),
                 user_repo: None,
                 auth: Arc::new(FixedAdminAuth(Some(ident("a", &["admin"])))),
+                plans: None,
+                library_quota: None,
             },
             vec!["https://bo.cymbra.app".to_string()],
         );
@@ -1620,6 +1675,8 @@ mod tests {
                 repo: Some(Arc::new(cymbra_music::FakeSoundFontRepo::default())),
                 user_repo: None,
                 auth: Arc::new(FixedAdminAuth(identity)),
+                plans: None,
+                library_quota: None,
             },
             vec!["https://bo.cymbra.app".to_string()],
         )
@@ -1690,6 +1747,8 @@ mod tests {
                 repo: Some(repo.clone()),
                 user_repo: None,
                 auth: Arc::new(FixedAdminAuth(Some(ident("a", &["admin"])))),
+                plans: None,
+                library_quota: None,
             },
             vec!["https://bo.cymbra.app".to_string()],
         );
@@ -1719,6 +1778,8 @@ mod tests {
                 repo: Some(repo.clone()),
                 user_repo: None,
                 auth: Arc::new(FixedAdminAuth(Some(ident("m", &["moderator"])))),
+                plans: None,
+                library_quota: None,
             },
             vec!["https://bo.cymbra.app".to_string()],
         );
@@ -1761,6 +1822,8 @@ mod tests {
                 repo: Some(repo),
                 user_repo: None,
                 auth: Arc::new(FixedAdminAuth(Some(ident("a", &["admin"])))),
+                plans: None,
+                library_quota: None,
             },
             vec!["https://bo.cymbra.app".to_string()],
         );
@@ -1796,6 +1859,8 @@ mod tests {
                 repo: Some(repo),
                 user_repo: None,
                 auth: Arc::new(FixedAdminAuth(Some(ident("a", &["admin"])))),
+                plans: None,
+                library_quota: None,
             },
             vec!["https://bo.cymbra.app".to_string()],
         );
@@ -1819,6 +1884,8 @@ mod tests {
                 repo: Some(Arc::new(cymbra_music::FakeSoundFontRepo::default())),
                 user_repo: Some(user_repo),
                 auth: Arc::new(FixedAdminAuth(Some(identity))),
+                plans: None,
+                library_quota: None,
             },
             vec!["https://bo.cymbra.app".to_string()],
         )
@@ -1997,6 +2064,8 @@ mod tests {
                 repo: Some(catalog),
                 user_repo: Some(user_repo),
                 auth: Arc::new(FixedAdminAuth(Some(identity))),
+                plans: None,
+                library_quota: None,
             },
             vec!["https://bo.cymbra.app".to_string()],
         )

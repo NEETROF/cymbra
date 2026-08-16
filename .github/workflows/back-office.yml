@@ -4,6 +4,8 @@ name: back-office
 # from the backend protos, then typechecks, runs the Vitest unit/widget suite and
 # the Playwright e2e suite (real app, fake-client seam, no backend). The gen stubs
 # are gitignored like the Flutter app's, so CI produces them with protoc.
+# Also gates the shared `packages/web-auth` package (Google/Apple sign-in +
+# web-auth client) the console depends on through a Yarn portal.
 on:
   push:
     branches: [main]
@@ -30,12 +32,38 @@ jobs:
           filters: |
             bo:
               - 'apps/back-office/**'
+              - 'packages/web-auth/**'
               - 'backend/auth-port/proto/**'
               - 'backend/user-port/proto/**'
               - 'backend/music/proto/**'
               - 'crates/musicxml-wasm/**'
               - 'crates/musicxml-core/**'
               - '.github/workflows/back-office.yml'
+
+  web-auth:
+    needs: changes
+    if: ${{ github.event_name != 'pull_request' || needs.changes.outputs.bo == 'true' }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: packages/web-auth
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Enable Corepack (Yarn Berry)
+        run: corepack enable
+      - name: Install dependencies
+        run: yarn install --immutable
+      - name: Lint (ESLint)
+        run: yarn lint
+      - name: Format check (Prettier)
+        run: yarn format:check
+      - name: Typecheck
+        run: yarn typecheck
+      - name: Unit tests
+        run: yarn test
 
   test:
     needs: changes

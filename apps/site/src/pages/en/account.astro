@@ -1,0 +1,13 @@
+---
+import Base from '../../layouts/Base.astro';
+import AccountIsland from '../../components/AccountIsland.vue';
+import Downloads from '../../components/Downloads.astro';
+---
+
+<Base title="My account — Cymbra" description="Your Cymbra plan, your betas, your subscription management." lang="en" noindex>
+  <section class="container narrow">
+    <h1>My account</h1>
+    <AccountIsland client:load lang="en" />
+    <Downloads lang="en" />
+  </section>
+</Base>
