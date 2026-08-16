@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.16.1](https://github.com/NEETROF/cymbra/compare/backend-v0.16.0...backend-v0.16.1) (2026-08-16)
+
+
+### Bug Fixes
+
+* **corpus:** keep the crawler's working files out of the served corpus ([#240](https://github.com/NEETROF/cymbra/issues/240)) ([feb786f](https://github.com/NEETROF/cymbra/commit/feb786fe8a2596e4c647e6969efdd2ee44adeae1))
+
 ## [0.16.0](https://github.com/NEETROF/cymbra/compare/backend-v0.15.0...backend-v0.16.0) (2026-08-16)
 
 
