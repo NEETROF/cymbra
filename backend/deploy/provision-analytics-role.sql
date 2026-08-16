@@ -37,7 +37,7 @@ REVOKE ALL ON SCHEMA public FROM "analytics_svc";
 DO $$
 BEGIN
   IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'admin_svc') THEN
-    EXECUTE 'ALTER ROLE admin_svc SET search_path = auth, user_account, music, jobs, feature_flags, analytics, public';
+    EXECUTE 'ALTER ROLE admin_svc SET search_path = auth, user_account, music, jobs, feature_flags, analytics, plans, public';
   END IF;
 END $$;
 
