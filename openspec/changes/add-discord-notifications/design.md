@@ -37,6 +37,8 @@ Constraints that shape the design:
 - The whole surface can be muted from the back office without a redeploy, and hard-killed by
   revoking a webhook URL in Discord.
 - Slash commands and Discord role grants are possible without hosting a gateway process.
+- A community member can claim beta access from Discord in one command, once, without a code
+  list ever being distributed.
 
 **Non-Goals:**
 
@@ -206,6 +208,41 @@ user id. No OAuth client, no redirect, no browser round-trip.
 adds an OAuth client, a redirect surface and secret handling for a v1 whose only consumer is one
 role. Reconsider when roles multiply.
 
+### D11 — Beta access is *claimed* with `/beta`, one per member per campaign, delivered ephemerally
+
+Beta testers come from the community; the community lives on Discord. Rather than minting a
+list of codes and pasting it into a channel (it leaks the first time someone screenshots it),
+the member **claims** access: `/beta`, run in the configured beta channel, asks the access-code
+port (`music-access-codes`, from `add-premium-subscription`) for **one single-use code bound
+to the current campaign**, records `(campaign, discord_user_id) → code` so a second `/beta` from
+the same member returns the *same* link instead of a new code, and answers with an
+**ephemeral** message (visible to the requester only) holding `cymbra.app/redeem?code=…`. If the
+member's Cymbra account is already linked (D10), the handler grants the entitlement directly and
+says so — no link to click. Both paths end in the same `plan_entitlements` row.
+
+What Discord contributes here is the **anti-abuse and the cohort**, for free: one claim per
+Discord account (not per Cymbra account, which the member may not have yet), a channel or role
+restriction the community owner controls (`@beta-testeur` self-assigned or granted), Discord's
+own account-age and anti-alt defences, and a table of who claimed — the exact list to ping when
+the beta ends and the "thank you" store offer opens. Everything about *what* the code unlocks
+(plan, campaign end date, expiry, revocation) belongs to `music-access-codes`; the command is a
+thin issuer.
+
+Two rules keep this out of the stores' way: `/beta` mints **free, campaign-bounded access
+only** — never a price, never a discount (those are Apple/Google/MoR offers) — and the code is
+redeemed **on the web**, never through a code-entry field in the App Store / Play builds
+(Apple 3.1.1 explicitly names licence keys as a forbidden unlock mechanism). The
+`community-invite-entry` link is therefore also the natural surface for "want early access? join
+the Discord" while a campaign is open — that placement is decided in `add-premium-subscription`.
+
+*Alternative considered*: a shared multi-use code pinned in a role-locked channel. Zero
+interaction code, but it leaks, needs `max_uses` + revocation babysitting, and yields no cohort.
+Kept only as the manual fallback if the interactions endpoint is not yet deployed.
+
+*Alternative considered*: granting from a Discord **role** (`@beta-testeur` ⇒ entitlement) via
+D10's link. Elegant, but it requires the link first, and it inverts D10's direction (Cymbra
+state → Discord role); a claim command is explicit, auditable and works before any link exists.
+
 ## Risks / Trade-offs
 
 - **Channel flooding kills the community** → digest tier + per-player throttle + aggregate
@@ -219,6 +256,11 @@ role. Reconsider when roles multiply.
 - **The interactions endpoint is public by construction** → signature verification before any
   side effect, `401` on failure, and no state mutation on unverified input; it is also a
   denial-of-service surface, so it stays cheap and rate-limited.
+- **`/beta` mints entitlements from an external identity** → one claim per Discord account per
+  campaign (idempotent: re-running returns the same link), channel/role restriction checked
+  server-side from the interaction payload (not trusted from the client), campaign closed ⇒
+  neutral "beta not open" answer, and the minted access is free and campaign-bounded so a leaked
+  link is worth at most one free beta seat until the campaign ends.
 - **Publishing personal data is legally irreversible** → dedicated opt-in, forward-only
   revocation stated in the app copy *before* opting in, privacy documentation updated in both
   languages, consent erased with the account.

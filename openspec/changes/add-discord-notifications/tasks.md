@@ -53,6 +53,11 @@
 - [ ] 6.5 Drive the role from account state (grant on qualifying, revoke on losing it) via a job, and test the idempotent repeat
 - [ ] 6.6 Apply the D6 gate to any player-data answer a command returns, and return the same neutral "not available" answer for private, not-eligible, and unknown players
 - [ ] 6.7 Document all Discord secrets in `backend/.env.example` (per-channel webhook URLs, bot token, application public key) and assert missing config disables rather than degrades
+- [ ] 6.8 Define the `AccessCodeIssuer` port consumed by `/beta` (mint one single-use code for the open campaign; grant directly for a known account) with a `NoCampaign` default impl answering "beta not open"; the real impl comes from `add-premium-subscription` (`music-access-codes`) — `#[automock]` per the `rust-testing` convention
+- [ ] 6.9 Add `discord.beta_claims (campaign, discord_user_id, code_ref, claimed_at)` to `backend/discord/migrations/` (PK `(campaign, discord_user_id)`) so a repeated `/beta` is idempotent and the cohort is queryable
+- [ ] 6.10 Implement `/beta` (D11): channel + optional role check from the interaction payload, claim lookup → reuse, else mint via the port and insert the claim in one transaction, ephemeral reply with `cymbra.app/redeem?code=…`, or direct grant + confirmation when the member is linked (D10); register the command with `default_member_permissions` so it is invisible outside the beta channel
+- [ ] 6.11 Test `/beta`: first claim mints once and records the claim; second claim mints nothing and repeats the link; wrong channel / missing role refuse without side effect; closed campaign answers "beta not open"; linked account is granted directly; the reply is always ephemeral; and a **direct-grant** path never bypasses the campaign end
+- [ ] 6.12 Read the beta channel id / role id from configuration (`DISCORD_BETA_CHANNEL_ID`, `DISCORD_BETA_ROLE_ID`, documented in `backend/.env.example`); absent channel id disables `/beta` rather than accepting it everywhere
 
 ## 7. App: consent toggle + community entry point
 
