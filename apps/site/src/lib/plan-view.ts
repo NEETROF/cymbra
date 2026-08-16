@@ -122,3 +122,13 @@ export function productLabel(lang: Lang, productId: string): string {
   if (productId.includes("year")) return t(lang, "productYearly");
   return productId;
 }
+
+/**
+ * The Sign in with Apple return URL for the current page: the canonical, registered
+ * form — no trailing slash, no `/en` locale prefix (`https://cymbra.app/redeem`,
+ * `https://cymbra.app/account`). Apple matches Return URLs exactly.
+ */
+export function appleReturnUrl(origin: string, pathname: string): string {
+  const path = pathname.replace(/^\/en(?=\/|$)/, "").replace(/\/+$/, "");
+  return `${origin}${path || "/"}`;
+}

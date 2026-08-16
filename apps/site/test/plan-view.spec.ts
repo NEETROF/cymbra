@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { WebAuthError } from "@cymbra/web-auth";
 import {
+  appleReturnUrl,
   codeFromQuery,
   humanError,
   manageAction,
@@ -174,5 +175,16 @@ describe("config", () => {
     expect(d.googleClientId).toBe("g");
     expect(d.paddleEnv).toBe("sandbox");
     expect(d.paddleClientToken).toBe("test_tok");
+  });
+});
+
+describe("Apple return URL", () => {
+  it("is the canonical registered page URL: no trailing slash, no /en prefix", () => {
+    expect(appleReturnUrl("https://cymbra.app", "/redeem/")).toBe("https://cymbra.app/redeem");
+    expect(appleReturnUrl("https://cymbra.app", "/en/redeem/")).toBe("https://cymbra.app/redeem");
+    expect(appleReturnUrl("https://cymbra.app", "/en/account")).toBe("https://cymbra.app/account");
+    expect(appleReturnUrl("https://cymbra.app", "/account")).toBe("https://cymbra.app/account");
+    expect(appleReturnUrl("https://cymbra.app", "/en/")).toBe("https://cymbra.app/");
+    expect(appleReturnUrl("https://cymbra.app", "/english/")).toBe("https://cymbra.app/english");
   });
 });
