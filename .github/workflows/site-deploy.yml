@@ -9,7 +9,8 @@ name: site-deploy
 # Dormant until configured: gated on the `CF_PAGES_SITE_PROJECT` repo variable, so
 # until the Pages project is (re)pointed at this monorepo the job is skipped.
 #
-# Required repo VARIABLES: CF_PAGES_SITE_PROJECT (Cloudflare Pages project name)
+# Required repo VARIABLES: CF_PAGES_SITE_PROJECT (Cloudflare Pages project name),
+# PUBLIC_API_URL / PUBLIC_GOOGLE_CLIENT_ID / PUBLIC_APPLE_CLIENT_ID (+ PUBLIC_PADDLE_*)
 # Required repo SECRETS:  CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID (shared with
 #                         the back-office deploy)
 on:
@@ -42,6 +43,15 @@ jobs:
       - name: Install dependencies
         run: yarn install --immutable
       - name: Build
+        # Public build-time config of the islands (change: add-site-account-pages):
+        # repo VARIABLES (not secrets — they are inlined in the bundle). Same client
+        # ids as the back office; a missing id hides that sign-in button.
+        env:
+          PUBLIC_API_URL: ${{ vars.PUBLIC_API_URL }}
+          PUBLIC_GOOGLE_CLIENT_ID: ${{ vars.PUBLIC_GOOGLE_CLIENT_ID }}
+          PUBLIC_APPLE_CLIENT_ID: ${{ vars.PUBLIC_APPLE_CLIENT_ID }}
+          PUBLIC_PADDLE_ENV: ${{ vars.PUBLIC_PADDLE_ENV }}
+          PUBLIC_PADDLE_CLIENT_TOKEN: ${{ vars.PUBLIC_PADDLE_CLIENT_TOKEN }}
         run: yarn build
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
