@@ -1,5 +1,28 @@
 # Changelog
 
+## [1.22.0](https://github.com/NEETROF/cymbra/compare/music-v1.21.0...music-v1.22.0) (2026-08-16)
+
+
+### Features
+
+* **audio:** selectable sound output, source-aware sounding and delay compensation ([#218](https://github.com/NEETROF/cymbra/issues/218)) ([a088197](https://github.com/NEETROF/cymbra/commit/a0881971d2ed2bcbeba8bab3a770bd687db9fe2e))
+* **badges:** cross-domain achievement registry ([#220](https://github.com/NEETROF/cymbra/issues/220)) ([bda89b3](https://github.com/NEETROF/cymbra/commit/bda89b310d9184aad350c086ea8716ba55e9ac51))
+* **music:** award points for playing and practising ([#222](https://github.com/NEETROF/cymbra/issues/222)) ([344c8b7](https://github.com/NEETROF/cymbra/commit/344c8b71c29a2d4008fac78acd63309fbbf22810))
+* **music:** finish the opt-in score catalog proposal — public credit, named refusals, moderator motive ([#228](https://github.com/NEETROF/cymbra/issues/228)) ([6b6ea3c](https://github.com/NEETROF/cymbra/commit/6b6ea3c91a5a2242740ed8170736959d37213fa5))
+* **music:** freemium daily access on catalog opens + score audio teaser ([#229](https://github.com/NEETROF/cymbra/issues/229)) ([6c006e2](https://github.com/NEETROF/cymbra/commit/6c006e2e0fbad1f5b8974bb6633637a1deb3a92b))
+* **music:** in-game measure rewind and full-screen measure selection ([#219](https://github.com/NEETROF/cymbra/issues/219)) ([349aa88](https://github.com/NEETROF/cymbra/commit/349aa883ea4535acafa8e25d6533e202027b60d2))
+* **music:** open source license attributions screen ([#212](https://github.com/NEETROF/cymbra/issues/212)) ([c8642d6](https://github.com/NEETROF/cymbra/commit/c8642d68ac46e57fe8970a0b019840e84409b4a8))
+* **music:** scripted store screenshot harness, 4 targets x 4 locales ([#232](https://github.com/NEETROF/cymbra/issues/232)) ([7023ba9](https://github.com/NEETROF/cymbra/commit/7023ba96c97fc18ef2872980a798bf83c3dcc91a))
+* **notifications:** per-category foreground presentation with in-app banner ([#217](https://github.com/NEETROF/cymbra/issues/217)) ([cbb9fd7](https://github.com/NEETROF/cymbra/commit/cbb9fd794f8ac5ea80850381adf3048adfcab8ae))
+* **notifications:** server-driven push platform (FCM iOS/Android/macOS) ([#187](https://github.com/NEETROF/cymbra/issues/187)) ([8ffb743](https://github.com/NEETROF/cymbra/commit/8ffb743432a28bd8d9366f5ff2ffceeb50b2c6a4))
+* **soundfonts:** admin-set reward pricing, gated shop and coming-soon lock ([#225](https://github.com/NEETROF/cymbra/issues/225)) ([969749b](https://github.com/NEETROF/cymbra/commit/969749b76d361723d7a3fc40e4ca1fe8c864c1d5))
+* **streak:** server-tracked practice streak with a confirmed points freeze ([#224](https://github.com/NEETROF/cymbra/issues/224)) ([e872377](https://github.com/NEETROF/cymbra/commit/e872377cba34e1a282547c80438a92180e5e1435))
+
+
+### Bug Fixes
+
+* **music:** merge tie chains so Wait Mode never gates a tie continuation ([#211](https://github.com/NEETROF/cymbra/issues/211)) ([0e667cf](https://github.com/NEETROF/cymbra/commit/0e667cfb71098f77fe4f4634fc28eee70354f013))
+
 ## [1.21.0](https://github.com/NEETROF/cymbra/compare/music-v1.20.0...music-v1.21.0) (2026-08-10)
 
 
