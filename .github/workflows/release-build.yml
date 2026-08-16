@@ -566,17 +566,19 @@ jobs:
           set -euo pipefail
           # Drive the archive phase to manual signing (Flutter's Runner target
           # leaves CODE_SIGN_STYLE unset, so the xcconfig value applies).
+          # APS_ENVIRONMENT: the checked-in default is 'development' (the only
+          # value a development profile allows), so the production value is set
+          # HERE, where the build is already distribution-signed — App Store
+          # Connect rejects an upload that claims 'development'.
+          # NOTE: everything below lands in an .xcconfig, where a leading '#' is
+          # a preprocessor directive, not a comment ('//' is). Keep the block to
+          # bare assignments and keep the rationale in these shell comments.
           cat >> Flutter/Release.xcconfig <<EOF
 
           CODE_SIGN_STYLE = Manual
           DEVELOPMENT_TEAM = ${TEAM_ID}
           PROVISIONING_PROFILE_SPECIFIER = ${PROFILE_NAME}
           CODE_SIGN_IDENTITY = Apple Distribution
-          # App Store APNs environment (change: add-push-notifications). The
-          # checked-in default is `development` — the only value a development
-          # profile allows — so the production value is set HERE, where the build
-          # is already distribution-signed. An upload with `development` is
-          # rejected by App Store Connect.
           APS_ENVIRONMENT = production
           EOF
           # CI export options: manual, map the bundle id to the profile by name.
