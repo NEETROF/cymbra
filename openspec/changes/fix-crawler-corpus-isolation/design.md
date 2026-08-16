@@ -57,21 +57,35 @@ the corpus.
 mirror's exclusions. Rejected: it keeps the served corpus impure, and makes correctness depend
 entirely on one `--exclude` in a shell script.
 
-### D2 — Content-addressed object keys
+### D2 — Content-addressed object keys, catalog id left alone
 
-Derive the object key's identifier from the content fingerprint (a stable UUIDv5-style
-derivation over the same fingerprint ingest already deduplicates on) instead of a per-run
-UUIDv7. Re-crawling unchanged content then resolves to the *same* key and rewrites the same
+Today one UUIDv7 serves as both the catalog primary key and the object-store key
+(`crawl.rs`: *"A stable UUID v7 identifies the score everywhere: the catalog PK AND the
+object-store key"*). Minting it per run is exactly why a re-crawl of unchanged content writes a
+second object.
+
+Derive the **object key** from the content hash the run already computes (`sha256` of the
+canonical MusicXML — the same value ingest deduplicates on), and **leave the catalog id a
+UUIDv7**. Re-crawling unchanged content then resolves to the same key and rewrites the same
 object — idempotent by construction, with no lookup.
 
-This is preferred over asking the catalog before writing: the writer is currently DB-free and
-runs before the DB is even connected, and a pre-write query would make every write depend on
-catalog availability while still racing concurrent source containers.
+Decoupling the two is safe because the server resolves bytes exclusively through the row's
+stored `object_key` (`music/src/module.rs`), never by rebuilding a path from the id.
 
-*Consequence to handle:* identical content crawled from two sources now shares one object,
-so two catalog rows may reference the same `object_key`. That is correct de-duplication, but
-it makes "delete the object when its row disappears" wrong — D3 must reason over the set of
-referenced keys, never per-row.
+*Alternative considered:* make the id itself content-derived, keeping id == object key.
+Rejected: the id is the catalog primary key, so a content-derived id changes the PK
+derivation for every new row and drops the UUIDv7 time-ordering that `ORDER BY id` keyset
+pagination reads (`music/src/pg.rs`) — real blast radius for no gain, since only the *key*
+needs to be stable per content.
+
+*Alternative considered:* query the catalog before writing. Rejected: the writer is DB-free
+and runs before the DB is even connected, and a pre-write query would make every write depend
+on catalog availability while still racing concurrent source containers.
+
+*Note on multiplicity:* identical content never produces two rows — dedup at ingest (SHA-256,
+against both the in-run set and existing rows) collapses it to one. So a content-derived key
+does not create rows sharing an object; it makes a given content resolve to exactly one row
+and exactly one object, however many sources or runs encounter it.
 
 ### D3 — Reconciliation as a maintenance bin, dry-run by default
 
@@ -105,10 +119,11 @@ unchanged, since these prefixes *are* the key namespace.
 
 - **Content-addressed keys change the shape of new keys** → Existing rows are untouched and
   keep serving; only newly written objects use the new derivation. The shard directory
-  continues to come from the identifier, so the on-disk layout and the S3 keyspace are
+  continues to come from the key's identifier, so the on-disk layout and the S3 keyspace are
   structurally identical.
-- **Two rows sharing one object** → Reconciliation operates on the referenced-key *set*, and
-  the spec states it; removal of one row can never orphan an object another row still uses.
+- **Reconciliation still reasons over the referenced-key set, not per row** → Even though a
+  content maps to a single row today, set-based reasoning is what makes the tool safe if that
+  ever stops holding; it costs nothing and the spec states it.
 - **Reconciliation deletes ~145 430 objects on its first real run** → Dry run reviewed first,
   an abort threshold, and quarantine-then-purge instead of direct deletion.
 - **The crawler now fails to start on a bad work-dir mount** → Deliberate. The failure mode it

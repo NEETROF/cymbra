@@ -233,9 +233,13 @@ impl Orchestrator {
         let difficulty = assess(&doc, item.source_grade);
 
         let entry = ManifestEntry {
-            // A stable UUID v7 identifies the score everywhere: the catalog PK
-            // AND the object-store key (see OutputWriter::object_key). Provenance
-            // stays in `source` + `source_item_id`, not the id.
+            // A stable UUID v7 is the score's catalog PK. It is deliberately NOT
+            // the object-store key: that one is derived from `sha256` so a
+            // re-crawl of unchanged content rewrites the same object instead of
+            // minting a new one (see OutputWriter::object_key; change:
+            // fix-crawler-corpus-isolation). Keeping the PK a v7 preserves the
+            // time-ordering that `ORDER BY id` keyset pagination relies on.
+            // Provenance stays in `source` + `source_item_id`, not the id.
             id: uuid::Uuid::now_v7().to_string(),
             // Prefer the real title parsed from the score's `<work-title>`; only
             // fall back to the adapter's title when the score carries none. Git

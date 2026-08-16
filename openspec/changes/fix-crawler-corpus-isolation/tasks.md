@@ -8,43 +8,59 @@
 
 ## 1. Work location separated from the corpus root
 
-- [ ] 1.1 Add a work-location setting to the crawler config (`CYMBRA_SCORE_WORK_DIR`, same
+- [x] 1.1 Add a work-location setting to the crawler config (`CYMBRA_SCORE_WORK_DIR`, same
       `CYMBRA_SCORE_*` convention as the existing overrides), resolved independently of the
-      store root, with a default that is never a child of it.
-- [ ] 1.2 Resolve the source-checkout directory from the work location instead of
+      store root, with a default that is never a child of it. — `Config::work_dir`, default
+      `./work` (sibling of `./output`); `Config`'s derived `Default` was replaced by a
+      hand-written one so the field cannot default to an empty path.
+- [x] 1.2 Resolve the source-checkout directory from the work location instead of
       `root.join(".checkouts")` in `crates/score-crawler/src/main.rs`, and thread it through
-      `build_adapters`.
-- [ ] 1.3 Refuse to start when the resolved work location is inside the corpus root: exit with
-      a clear error before any crawl or write.
-- [ ] 1.4 Unit tests: checkouts resolve under the work location; a work location nested in the
+      `build_adapters`. — now `work_dir.join("checkouts")`. The run summary also prints both
+      roots resolved (`Corpus: … | Work: …`); the old bare `Output: ./output` is what hid a
+      month-old mount in production.
+- [x] 1.3 Refuse to start when the resolved work location is inside the corpus root: exit with
+      a clear error before any crawl or write. — `Config::resolved_work_dir`, called before
+      `build_adapters`. Containment is compared lexically (both sides normalised, `..`
+      collapsed) because neither directory need exist yet.
+- [x] 1.4 Unit tests: checkouts resolve under the work location; a work location nested in the
       corpus root is rejected before writing; the default resolves outside the corpus root.
+      — 8 tests in `config.rs`, including the exact production shape
+      (`/var/lib/cymbra/scores/.checkouts`), equality with the root, `..` escaping, and the
+      S3 backend having no local root to nest in.
 
 ## 2. Run artefacts out of the corpus root
 
-- [ ] 2.1 Write `manifest.json`, `manifest.csv` and `rejected.log` to the work location in
+- [x] 2.1 Write `manifest.json`, `manifest.csv` and `rejected.log` to the work location in
       `crates/score-crawler/src/output.rs`, leaving the servable object layout
-      (`<prefix>/<shard>/<uuid>.mxl`) unchanged under the corpus root.
-- [ ] 2.2 Unit test: after a write, the corpus root contains only servable objects and the
-      artefacts are found at the work location.
+      (`<prefix>/<shard>/<uuid>.mxl`) unchanged under the corpus root. — `OutputWriter` now
+      takes the work dir as its second argument.
+- [x] 2.2 Unit test: after a write, the corpus root contains only servable objects and the
+      artefacts are found at the work location. — `corpus_root_holds_only_servable_objects`
+      asserts the corpus top level is exactly `["low_confidence", "safe"]`.
 
 ## 3. Write-time idempotence (stop the accumulation)
 
-- [ ] 3.1 Derive the object key's identifier from the content fingerprint instead of a
-      per-run UUIDv7, so re-crawling unchanged content resolves to the same key. Keep the
-      shard-directory derivation and the `<prefix>/<shard>/<id>.mxl` shape intact.
-- [ ] 3.2 Verify the ingest path still matches rows to objects correctly when two sources
-      yield the same content (one object, two rows sharing `object_key`).
-- [ ] 3.3 Unit tests: the same content written twice yields one object and a stable key;
-      different content yields different keys; existing rows' keys are untouched (no
-      re-keying, no migration).
+- [x] 3.1 Derive the object key from the entry's content hash (`sha256`) instead of the
+      per-run UUIDv7 `id`, so re-crawling unchanged content resolves to the same key. Keep the
+      `<prefix>/<shard>/<name>.mxl` shape and the shard derivation intact. **Leave `id` a
+      UUIDv7**: it is the catalog PK and `ORDER BY id` keyset pagination reads its ordering.
+- [x] 3.2 Update the `crawl.rs` comment that claims the UUID is "the catalog PK AND the
+      object-store key", which stops being true.
+- [x] 3.3 Unit tests: the same content written twice yields one object and a stable key;
+      different content yields different keys; the key no longer contains the row id.
+      — `rewriting_identical_content_does_not_add_an_object` writes the same outcome twice and
+      asserts the object count is unchanged while the row ids differ.
 
 ## 4. Mirror allow-list
 
-- [ ] 4.1 Rewrite `backend/deploy/sync-scores.sh` to sync the servable prefixes explicitly
+- [x] 4.1 Rewrite `backend/deploy/sync-scores.sh` to sync the servable prefixes explicitly
       (`safe/`, `low_confidence/`, `user-scores/`) instead of syncing `$SCORES_DIR` whole, so
       anything else at the corpus root is not mirrored. Keep S3 key == `object_key` and keep
-      the absence of `--delete`.
-- [ ] 4.2 Update the script header and `DEPLOY.md` to state the allow-list and why it is
+      the absence of `--delete`. — one `aws s3 sync` per prefix onto the same prefix in the
+      bucket; the corpus count also stops counting non-servable `.mxl`, and a non-servable
+      entry at the corpus root is warned about. Exercised against a fake corpus containing
+      `.checkouts/` and `manifest.json`: both warned, neither mirrored.
+- [x] 4.2 Update the script header and `DEPLOY.md` to state the allow-list and why it is
       deliberately redundant with section 1.
 
 ## 5. Corpus↔catalog reconciliation
@@ -66,11 +82,17 @@
 
 ## 6. Deployment
 
-- [ ] 6.1 Add the work-location mount to `backend/deploy/docker-compose.crawler.prod.yml`
-      next to the `SCORES_DIR` mount, and document the required ownership.
-- [ ] 6.2 Note in `DEPLOY.md` that `/opt/cymbra/backend` is not a git checkout, so compose and
+- [x] 6.1 Add the work-location mount to `backend/deploy/docker-compose.crawler.prod.yml`
+      next to the `SCORES_DIR` mount, and document the required ownership. —
+      `${CRAWL_WORK:-/opt/cymbra/score-crawler/work}/<source>:/work/crawler` on all five
+      services, **per source** so concurrent containers never race on checkouts or overwrite
+      each other's manifest export, with `CYMBRA_SCORE_WORK_DIR=/work/crawler` on the shared
+      env anchor.
+- [x] 6.2 Note in `DEPLOY.md` that `/opt/cymbra/backend` is not a git checkout, so compose and
       script changes must be copied to the box explicitly — the box ran a month-old crawler
       compose during the 2026-08-16 investigation precisely because this step was implicit.
+      Also documented: always `pull` before a run, and what the misleading
+      "migration N … missing in the resolved migrations" error actually means.
 
 ## 7. Validation
 

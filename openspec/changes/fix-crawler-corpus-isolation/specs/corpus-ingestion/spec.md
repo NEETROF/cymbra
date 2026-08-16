@@ -95,14 +95,13 @@ in-run set and existing `catalog_scores` rows.
 Object-level idempotence SHALL hold **at write time and without consulting the catalog**,
 because the crawler writes its objects before — and independently of — any catalog
 connection. The object key of a retained score SHALL therefore be derived from its content
-fingerprint, so that re-crawling unchanged content resolves to the same key and rewrites the
-same object instead of creating a second one. A crawl that retains only already-known content
+hash, so that re-crawling unchanged content resolves to the same key and rewrites the same
+object instead of creating a second one. A crawl that retains only already-known content
 SHALL leave the number of corpus objects unchanged.
 
-Because the key is content-derived, identical content retained from two different sources
-SHALL resolve to a single object referenced by both rows; this is the intended
-de-duplication, and consumers SHALL NOT assume a one-to-one mapping between catalog rows and
-corpus objects.
+Deriving the object key from content SHALL NOT change how a catalog row is identified: the
+row's own identifier stays independent of the key, and readers SHALL resolve an object only
+through the `object_key` recorded on the row, never by rebuilding it from the identifier.
 
 #### Scenario: Re-ingesting existing content is a no-op
 - **WHEN** the crawler encounters content whose SHA-256 already exists in
@@ -114,7 +113,12 @@ corpus objects.
 - **THEN** the corpus contains no object it did not contain before the run, the earlier
   objects remaining referenced by their existing rows
 
-#### Scenario: Identical content from two sources shares one object
-- **WHEN** the same content is retained from two different sources
-- **THEN** both `catalog_scores` rows carry the same `object_key` and a single corpus object
-  serves them
+#### Scenario: Identical content resolves to one row and one object
+- **WHEN** the same content is retained from two different sources, or by two successive runs
+- **THEN** a single `catalog_scores` row and a single corpus object exist for it, dedup having
+  collapsed the duplicate before a second row or object could be created
+
+#### Scenario: Row identity is unaffected by the content-derived key
+- **WHEN** a score is ingested with a content-derived `object_key`
+- **THEN** its catalog row keeps its own identifier, and the object is resolved from the
+  stored `object_key` rather than from that identifier

@@ -283,9 +283,26 @@ servable, with no deferred merge. `SCORES_DIR` must therefore be writable by the
 crawler container UID (the server owns it as 1000:1000 — see the `chown` in the
 user-upload section below).
 
+Only servable objects belong under `SCORES_DIR`. The crawler's own files — source
+checkouts and the per-run artefacts (`manifest.json`, `manifest.csv`,
+`rejected.log`) — go to a **separate work dir** (`CYMBRA_SCORE_WORK_DIR`, its own
+mount in the compose). The crawler **refuses to start** if that dir resolves inside
+`SCORES_DIR`. This is not cosmetic: while it was derived from the corpus root, a
+single run put 4.4 GB of git checkouts inside the served corpus, one nightly cron
+away from being mirrored to the bucket (change: fix-crawler-corpus-isolation).
+
+> **The box is not a git checkout.** `/opt/cymbra/backend` holds copied files, so
+> merging a change that touches `backend/deploy/` deploys **nothing** — the compose
+> file and the scripts must be copied explicitly (`scp … cymbra-prod:/opt/cymbra/backend/deploy/`).
+> A month-old `docker-compose.crawler.prod.yml` silently kept writing to the old
+> per-source `CRAWL_OUT` layout for weeks because this step was implicit.
+
 ```bash
 cd /opt/cymbra/backend/deploy
 docker login ghcr.io                     # once (or reuse the deploy pull creds)
+# ALWAYS pull before a run: the box does not refresh `latest` on its own, and an
+# image older than the DB's migrations fails with the misleading
+# "migration N was previously applied but is missing in the resolved migrations".
 docker compose -f docker-compose.crawler.prod.yml pull
 
 # smoke test: a few scores per source into the prod catalog (--env-file for the DB pw)
@@ -305,12 +322,18 @@ The crawler connects as the DB superuser by default (it runs its own `score`
 migrations then ingests); override `CYMBRA_SCORE_DATABASE_URL` for a dedicated role.
 
 **Nightly** `bootstrap.sh` installs a cron (04:00) that runs `sync-scores.sh`:
-it mirrors `SCORES_DIR` to the **bucket root** `s3://$SCORES_S3_BUCKET` — same
-`/etc/cymbra/backup.env` creds as the DB backup. Set `SCORES_DIR` there (default
-`/var/lib/cymbra/scores`). Since the crawler now writes straight into `SCORES_DIR`,
-the script only mirrors off-box (no merge). Mirroring to the root (not a `scores/`
-prefix) keeps the S3 key equal to `object_key`, so the server's S3 fallback and user
-uploads (`user-scores/…`) share one keyspace.
+it mirrors the **servable prefixes** (`safe/`, `low_confidence/`, `user-scores/`)
+to `s3://$SCORES_S3_BUCKET` — same `/etc/cymbra/backup.env` creds as the DB backup.
+Set `SCORES_DIR` there (default `/var/lib/cymbra/scores`). Since the crawler now
+writes straight into `SCORES_DIR`, the script only mirrors off-box (no merge).
+Each prefix maps onto the same prefix in the bucket, so the S3 key stays equal to
+`object_key` and the server's S3 fallback and user uploads share one keyspace.
+
+The prefix list is an **allow-list, not exclusions**: this job is billed, nightly
+and unattended, so anything that is not a servable prefix is simply never shipped —
+the script warns about it instead. That redundancy with the work-dir separation
+above is deliberate; a deny-list would only have covered the cases someone
+anticipated, and `aws s3 sync` does not skip dot-directories.
 
 > **`SCORES_S3_BUCKET` is DISTINCT from the DB-backup `S3_BUCKET`.** The scores
 > bucket must equal the server's `CYMBRA_SCORE_S3_BUCKET` (e.g. `cymbra-scores`),
