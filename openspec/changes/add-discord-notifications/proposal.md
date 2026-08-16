@@ -45,7 +45,8 @@ consent + rate discipline that make it safe.
   point withdrawn without shipping a release.
 - **Beta access is claimed on Discord, never distributed as a list of codes**: a `/beta`
   slash command, restricted to a configured channel (and optionally a role), lets a member
-  claim **one** beta access per Discord account per campaign. The handler asks the access-code
+  claim **one** beta access per Discord account per campaign — the channel decides the campaign
+  (a premium trial such as `#beta-premium`, or a feature beta such as `#beta-midi-drums`). The handler asks the access-code
   capability (`music-access-codes`, introduced by `add-premium-subscription`) to mint a
   **single-use** code and answers with an **ephemeral** message holding the web redeem link;
   a member whose Cymbra account is already linked (D10) is granted directly and told so. The

@@ -212,9 +212,10 @@ role. Reconsider when roles multiply.
 
 Beta testers come from the community; the community lives on Discord. Rather than minting a
 list of codes and pasting it into a channel (it leaks the first time someone screenshots it),
-the member **claims** access: `/beta`, run in the configured beta channel, asks the access-code
+the member **claims** access: `/beta`, run in a configured beta channel, asks the access-code
 port (`music-access-codes`, from `add-premium-subscription`) for **one single-use code bound
-to the current campaign**, records `(campaign, discord_user_id) → code` so a second `/beta` from
+to the campaign mapped to that channel** (one channel per campaign — a premium trial or a
+feature beta such as `midi-drums`), records `(campaign, discord_user_id) → code` so a second `/beta` from
 the same member returns the *same* link instead of a new code, and answers with an
 **ephemeral** message (visible to the requester only) holding `cymbra.app/redeem?code=…`. If the
 member's Cymbra account is already linked (D10), the handler grants the entitlement directly and
