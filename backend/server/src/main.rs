@@ -655,6 +655,15 @@ async fn main() -> anyhow::Result<()> {
         Some(r) => http.merge(r),
         None => http,
     };
+    // Browser account summary for the public site (change: add-site-account-pages):
+    // handle + linked sign-in methods, read-only, same bearer seam + web origins.
+    let http = http.merge(cymbra_server::web_account_router(
+        cymbra_server::WebAccountState {
+            users: user_dyn.clone(),
+            auth: web_plans_auth.clone(),
+        },
+        cfg.web_origins.clone(),
+    ));
     // Browser plan JSON routes for the public site (change: add-site-account-pages):
     // bearer-authenticated through the same seam as the SoundFont routes, CORS
     // restricted to the web origins. Mounted only when the plans module is wired.

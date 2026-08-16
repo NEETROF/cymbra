@@ -62,58 +62,73 @@ class PlanScreen extends ConsumerWidget {
     return PlanListener(
       child: Scaffold(
         backgroundColor: CymbraColors.background,
-        appBar: AppBar(title: Text(l10n.planTitle)),
-        body: RefreshIndicator(
-          onRefresh: () => ref.read(planProvider.notifier).refresh(),
-          child: ListView(
-            key: const Key('plan-screen'),
-            padding: const EdgeInsets.all(16),
-            children: [
-              switch (plan) {
-                AsyncData(:final value) => _StatusCard(
-                  snapshot: value,
-                  platform: platform,
-                ),
-                AsyncError() => _StatusCard(
-                  snapshot: PlanSnapshotView.free,
-                  platform: platform,
-                ),
-                _ => const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(24),
-                    child: CircularProgressIndicator(),
-                  ),
-                ),
-              },
-              const SizedBox(height: 16),
-              if (plan.valueOrNull case final snap?) ...[
-                if (snap.betas.isNotEmpty) ...[
-                  _BetasCard(betas: snap.betas),
-                  const SizedBox(height: 16),
-                ],
-                _BenefitsCard(),
-                const SizedBox(height: 16),
-                if (snap.canPurchaseHere)
-                  _PurchaseCard(
-                    snapshot: snap,
+        // The AppBar only pads the TOP inset; in landscape the sensor housing sits
+        // on the side and would cover the back button — pad the sides too. Same for
+        // the body: the ListView has its own padding, so it would not apply the
+        // MediaQuery insets by itself.
+        appBar: PreferredSize(
+          preferredSize: const Size.fromHeight(kToolbarHeight),
+          child: SafeArea(
+            top: false,
+            bottom: false,
+            child: AppBar(title: Text(l10n.planTitle)),
+          ),
+        ),
+        body: SafeArea(
+          top: false,
+          child: RefreshIndicator(
+            onRefresh: () => ref.read(planProvider.notifier).refresh(),
+            child: ListView(
+              key: const Key('plan-screen'),
+              padding: const EdgeInsets.all(16),
+              children: [
+                switch (plan) {
+                  AsyncData(:final value) => _StatusCard(
+                    snapshot: value,
                     platform: platform,
-                    busy: flow.busy,
-                  )
-                else if (snap.managedOn != null)
-                  _ManagedElsewhereCard(channel: snap.managedOn!),
-                if (platform.isStoreBuild) ...[
-                  const SizedBox(height: 8),
-                  TextButton(
-                    key: const Key('plan-restore'),
-                    onPressed: flow.busy
-                        ? null
-                        : () =>
-                              ref.read(purchaseFlowProvider.notifier).restore(),
-                    child: Text(l10n.planRestore),
                   ),
+                  AsyncError() => _StatusCard(
+                    snapshot: PlanSnapshotView.free,
+                    platform: platform,
+                  ),
+                  _ => const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(24),
+                      child: CircularProgressIndicator(),
+                    ),
+                  ),
+                },
+                const SizedBox(height: 16),
+                if (plan.valueOrNull case final snap?) ...[
+                  if (snap.betas.isNotEmpty) ...[
+                    _BetasCard(betas: snap.betas),
+                    const SizedBox(height: 16),
+                  ],
+                  _BenefitsCard(),
+                  const SizedBox(height: 16),
+                  if (snap.canPurchaseHere)
+                    _PurchaseCard(
+                      snapshot: snap,
+                      platform: platform,
+                      busy: flow.busy,
+                    )
+                  else if (snap.managedOn != null)
+                    _ManagedElsewhereCard(channel: snap.managedOn!),
+                  if (platform.isStoreBuild) ...[
+                    const SizedBox(height: 8),
+                    TextButton(
+                      key: const Key('plan-restore'),
+                      onPressed: flow.busy
+                          ? null
+                          : () => ref
+                                .read(purchaseFlowProvider.notifier)
+                                .restore(),
+                      child: Text(l10n.planRestore),
+                    ),
+                  ],
                 ],
               ],
-            ],
+            ),
           ),
         ),
       ),

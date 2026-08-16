@@ -27,7 +27,7 @@ else stays static:
 | Page (fr / en) | Island | Talks to |
 |---|---|---|
 | `/redeem`, `/en/redeem` | `RedeemIsland` — sign-in gate, `?code=` prefill, neutral refusals | `POST /web/plans/redeem` |
-| `/account`, `/en/account` | `AccountIsland` — plan, betas, rights-end date, manage (web portal / store page / web checkout), sign-out | `GET /web/plans/me`, `/portal`, `POST /checkout` |
+| `/account`, `/en/account` | `AccountIsland` — who is signed in (handle, sign-in methods), plan, betas, rights-end date, manage (web portal / store page / web checkout), sign-out | `GET /web/account/me`, `GET /web/plans/me`, `/portal`, `POST /checkout` |
 | `/checkout` (+ `/en/`) | `CheckoutIsland` — Paddle.js overlay for `_ptxn`, no sign-in | Paddle.js (CDN) |
 | `/checkout/done` (+ `/en/`) | static — "go back to the app and refresh" | — |
 

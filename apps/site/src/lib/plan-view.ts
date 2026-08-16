@@ -3,7 +3,7 @@
 
 import { WebAuthError } from "@cymbra/web-auth";
 import { formatDate, t, type Lang, type MessageKey } from "./i18n";
-import type { PlanView, RedeemView } from "./web-plans";
+import type { IdentityView, PlanView, RedeemView } from "./web-plans";
 
 /** Localized, never raw: HTTP status → copy; unknown → generic. */
 export function humanError(lang: Lang, e: unknown): string {
@@ -131,4 +131,18 @@ export function productLabel(lang: Lang, productId: string): string {
 export function appleReturnUrl(origin: string, pathname: string): string {
   const path = pathname.replace(/^\/en(?=\/|$)/, "").replace(/\/+$/, "");
   return `${origin}${path || "/"}`;
+}
+
+/** "E-mail (address)" / "Google" / "Apple" — never an OIDC subject. */
+export function identityLabel(lang: Lang, id: IdentityView): string {
+  switch (id.provider) {
+    case "local":
+      return t(lang, "methodEmail", { email: id.email ?? "" });
+    case "google":
+      return t(lang, "methodGoogle");
+    case "apple":
+      return t(lang, "methodApple");
+    default:
+      return id.provider;
+  }
 }

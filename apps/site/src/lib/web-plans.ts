@@ -35,8 +35,25 @@ export interface RedeemView {
   ends_at: string | null;
 }
 
+/** One linked sign-in method; `email` only for the `local` provider. */
+export interface IdentityView {
+  provider: "local" | "google" | "apple" | string;
+  email: string | null;
+  linked_at: number;
+}
+
+/** The caller's account summary (`GET /web/account/me`, Cymbra ID). */
+export interface AccountView {
+  handle: string | null;
+  display_name: string | null;
+  locale: string | null;
+  identities: IdentityView[];
+}
+
 export interface WebPlansClient {
   me(accessToken: string): Promise<PlanView>;
+  /** Handle + linked sign-in methods (spec `web-auth-session`). */
+  account(accessToken: string): Promise<AccountView>;
   redeem(accessToken: string, code: string): Promise<RedeemView>;
   checkout(accessToken: string, productId: string): Promise<{ checkout_url: string }>;
   portal(accessToken: string): Promise<{ portal_url: string }>;
@@ -46,6 +63,7 @@ export function createWebPlansClient(apiUrl: string): WebPlansClient {
   const url = (path: string) => `${apiUrl}${path}`;
   return {
     me: (accessToken) => fetchJson<PlanView>(url("/web/plans/me"), { accessToken }),
+    account: (accessToken) => fetchJson<AccountView>(url("/web/account/me"), { accessToken }),
     redeem: (accessToken, code) =>
       fetchJson<RedeemView>(url("/web/plans/redeem"), { accessToken, body: { code: code.trim() } }),
     checkout: (accessToken, productId) =>

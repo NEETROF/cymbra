@@ -76,6 +76,7 @@ chrono.workspace = true
 # sources (rust-testing default). Test-only: the mocks never ship in release.
 cymbra-feature-flags = { path = "../feature-flags", features = ["mock"] }
 cymbra-plans = { path = "../plans", features = ["mock"] }
+cymbra-user-port = { path = "../user-port", features = ["mock"] }
 mockall.workspace = true
 # `ServiceExt::oneshot` drives the Axum router in web-auth handler tests (no socket).
 tower.workspace = true

@@ -7,11 +7,25 @@ import { onMounted } from "vue";
 import SignInForm from "./SignInForm.vue";
 import { useAccount } from "../composables/useAccount";
 import { formatDate, t, type Lang } from "../lib/i18n";
-import { productLabel } from "../lib/plan-view";
+import { identityLabel, productLabel } from "../lib/plan-view";
 
 const props = defineProps<{ lang: Lang }>();
-const { booted, plan, action, signedIn, summary, manage, betas, actionBusy, boot, load, openPortal, checkout, signOut } =
-  useAccount(props.lang, (url) => globalThis.location?.assign(url));
+const {
+  booted,
+  plan,
+  account,
+  action,
+  signedIn,
+  summary,
+  manage,
+  betas,
+  actionBusy,
+  boot,
+  load,
+  openPortal,
+  checkout,
+  signOut,
+} = useAccount(props.lang, (url) => globalThis.location?.assign(url));
 
 onMounted(boot);
 </script>
@@ -23,6 +37,21 @@ onMounted(boot);
 
     <section v-else class="card" data-testid="account">
       <h2>{{ t(lang, "accountTitle") }}</h2>
+
+      <dl v-if="account.status === 'success'" class="plan identity" data-testid="identity">
+        <dt>{{ t(lang, "handleLabel") }}</dt>
+        <dd>
+          <strong v-if="account.data.handle">@{{ account.data.handle }}</strong>
+          <span v-else class="muted">{{ t(lang, "noHandle") }}</span>
+        </dd>
+        <dt>{{ t(lang, "signInMethods") }}</dt>
+        <dd>
+          <span v-for="i in account.data.identities" :key="i.provider + (i.email ?? '')" class="line">
+            {{ identityLabel(lang, i) }}
+          </span>
+        </dd>
+      </dl>
+
       <p v-if="plan.status === 'loading' || plan.status === 'idle'" class="muted">…</p>
       <p v-else-if="plan.status === 'error'" class="error" role="alert">{{ plan.error }}</p>
 

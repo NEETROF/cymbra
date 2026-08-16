@@ -19,6 +19,7 @@
 - [x] 3.4 `/checkout` + `/checkout/done` (fr/en): `CheckoutIsland.vue` loads Paddle.js (CSP for that page only), `Paddle.Initialize({ token, environment })`, `Paddle.Checkout.open({ transactionId: _ptxn, settings: { successUrl } })`; missing `_ptxn` → localized message; done page → "refresh in the app" + link to `/account`
 - [x] 3.5 `/account` (fr/en): `AccountIsland.vue` — sign-in gate, plan / trial / betas / rights-end line, manage (portal URL for web, store pages for apple/google), optional web checkout when `can_purchase_here`, sign-out, links to the app; no account-management features
 - [x] 3.6 Nav / footer entries ("Mon compte" / "Account"), `Base.astro` CSP additions scoped to the pages that need them (accounts.google.com, appleid.apple.com, Paddle)
+- [x] 3.8 Account identity summary: `GET /web/account/me` (`backend/server/src/web_account.rs`, bearer seam, web-origins CORS, `email` for `local` only) + tests; site: `useAccount` loads it, `AccountIsland` shows handle + sign-in methods (fr/en) + tests
 - [x] 3.7 vitest (`apps/site`): redeem outcome mapping, manage-action mapping, prefill parsing, web-plans client error mapping; `yarn check` + `yarn build` green; extend `site.yml` with `yarn test`
 
 ## 4. Wiring + docs
@@ -32,5 +33,5 @@
 
 - [x] 5.1 Rust: fmt / clippy / tests / coverage gate green with the new routes (glue in the ignore regex, tests on the handler logic)
 - [x] 5.2 Back office: lint / test / e2e green after the extraction
-- [ ] 5.3 Site: check / build / test green (DONE); a local run against a dev backend: sign in (email + Google), redeem a minted code, see it in the app after refresh, open the account page, portal for a sandbox web subscription
+- [x] 5.3 Site: check / build / test green; validated on prod 2026-08-16 (e-mail + Google + Apple sign-in, code redeemed on /redeem, /account shows the trial): sign in (email + Google), redeem a minted code, see it in the app after refresh, open the account page, portal for a sandbox web subscription
 - [ ] 5.4 Manual: Google / Apple consoles updated for `https://cymbra.app`; a Paddle sandbox checkout from a Windows build lands on `/checkout`, completes, returns to `/checkout/done`, and the app shows premium after refresh

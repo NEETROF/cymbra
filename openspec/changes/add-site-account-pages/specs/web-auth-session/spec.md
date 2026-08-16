@@ -17,3 +17,23 @@ for the site (same registrable domain as the web-auth surface).
 
 - **WHEN** a `web`-audience token calls a console-only method
 - **THEN** it is refused exactly like a plain `music` user
+
+### Requirement: Browser clients read their own account summary through a bearer JSON route
+
+The backend SHALL expose `GET /web/account/me`, bearer-authenticated with the same
+short-lived access token as the plan routes and served under the same web-origins CORS
+policy, answering the caller's own account summary: `handle`, `display_name`, `locale`,
+and the linked identities as `{ provider, email, linked_at }` where `email` is set only
+for the `local` provider (the OIDC subjects of Google / Apple MUST NOT be exposed). A
+missing or invalid bearer SHALL be refused with `401` before any read. The route is
+read-only: no account mutation is offered on the web.
+
+#### Scenario: Summary for a signed-in web session
+
+- **WHEN** a signed-in web session calls `GET /web/account/me`
+- **THEN** the JSON carries the handle and the identity providers, with the e-mail for the local identity only
+
+#### Scenario: Missing bearer
+
+- **WHEN** the route is called without a valid bearer
+- **THEN** the answer is `401` and no account data is read
