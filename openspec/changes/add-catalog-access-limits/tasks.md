@@ -2,7 +2,7 @@
 
 - [x] 1.1 Add rate-limit config knobs to `backend/platform/src/config.rs` beside the existing throttle config: download burst (max + window); engagement-aware volume allowance (`base_floor`, engagement multiplier `k` = `volume_per_engagement`, `hard_ceiling`, allowance window); enumeration (max + window); and an enable/kill-switch boolean. *(Added `CatalogLimitsConfig` + `catalog_limits()` parser.)*
 - [x] 1.2 Give every knob a documented non-zero default (permissive; generous for real human use) so egress is never unlimited when overrides are absent. *(burst 20/1m, floor 30, k 3, ceiling 500, window 24h, enum 60/1m, enabled=true.)*
-- [ ] 1.3 Expose the thresholds and kill-switch through the runtime feature-flags / config platform (`cymbra-feature-flags`) so they can be changed without a redeploy. **DEFERRED** — env-config knobs + the `enabled` kill-switch cover the operational need now; hot-reload via the flags registry is a follow-up (declare keys in `feature-flags` registry + read on the hot path).
+- [x] 1.3 Expose the thresholds and kill-switch through the runtime feature-flags / config platform (`cymbra-feature-flags`) so they can be changed without a redeploy. *(Declared the nine `catalog.access_limits.*` keys (app `music`) in the flags registry — defaults ON and mirroring the env baseline, since unlimited egress is the unsafe direction. Added the `CatalogLimitsConfigSource` seam (`catalog_limits.rs`, + `FixedCatalogLimits`) so the music crate stays flag-free, and `FlagCatalogLimitsConfig` (`server/src/flags.rs`) resolves it **per checked request** with the env config as each key's default — clearing an override falls back to the deployment baseline. Windows are seconds in the flag; counts/windows are clamped so a fat-fingered edit can't wrap to an unlimited allowance or a 0s window. FR descriptions added to the back-office flag panel.)*
 
 ## 2. Wire the limiter into the score service
 
@@ -41,10 +41,11 @@
 - [x] 7.2 Rust handler-level test (`grpc.rs`): `get_catalog_score_bytes` / `get_rating_preview_bytes` return `RESOURCE_EXHAUSTED` on breach; `search_catalog` throttled while the page-size clamp still applies.
 - [x] 7.3 Flutter tests: `notation_notifier_test` asserts an `AuthError.rateLimited` classifies as `ScoreLoadFailure.rateLimited`; `player_load_feedback_test` asserts the localized "slow down" message renders (no raw enum/gRPC text). Full non-golden suite green (640 tests).
 - [x] 7.4 New code is covered by the added unit/handler/widget tests; the 80% line-coverage gate itself runs in CI (`cargo llvm-cov` + `very_good_coverage`) — not re-measured locally here.
+- [x] 7.5 Runtime-tunability tests (task 1.3): `catalog_limits.rs` asserts the source is consulted **per request** (a retuned floor, then the kill-switch, apply with no restart); `server/src/flags.rs` asserts unset overrides serve the env baseline, each of the eight thresholds lands on its own field (catches a key mix-up), the kill-switch override disables the guardrail, and absurd values are clamped; `registry.rs` pins the declared defaults to the env baseline.
 
 ## 8. Validation & docs
 
-- [ ] 8.1 `openspec validate add-catalog-access-limits --strict` passes.
-- [x] 8.2 Backend green: `cargo fmt --all --check`, `cargo clippy -p cymbra-music -p cymbra-platform -p cymbra-server --all-targets -- -D warnings`, tests pass.
+- [x] 8.1 `openspec validate add-catalog-access-limits --strict` passes.
+- [x] 8.2 Backend green: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, full workspace tests pass (1069).
 - [x] 8.3 Flutter green: `flutter analyze` clean, `dart format` clean, `dart run custom_lint` clean, full non-golden suite passes (640).
-- [x] 8.4 Documented the knobs, defaults, the play-aware formula, and the kill-switch in `backend/.env.example` (per-user catalog access limits section).
+- [x] 8.4 Documented the knobs, defaults, the play-aware formula, and the kill-switch in `backend/.env.example` (per-user catalog access limits section) — including that every knob is also a `catalog.access_limits.*` flag key whose back-office override wins over the env baseline with no redeploy.

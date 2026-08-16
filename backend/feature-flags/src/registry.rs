@@ -76,6 +76,37 @@ pub const CATALOG_PREVIEW_MAX_MS: &str = "catalog.preview.max_ms";
 /// Empty = previews are dormant (nothing rendered, nothing broken).
 pub const CATALOG_PREVIEW_SOUNDFONT_ID: &str = "catalog.preview.soundfont_id";
 
+// --- catalog access limits — the per-user scrape guardrail on catalog egress
+// (change: add-catalog-access-limits, task 1.3). Read per request by the score
+// service through a trait seam, so an operator retunes a threshold — or trips the
+// kill-switch when the guardrail misfires — with no redeploy. Unlike most gates
+// this one defaults **on**: leaving egress unlimited is the unsafe direction. The
+// declared defaults mirror the deployment baseline parsed from the environment
+// (`cymbra_platform::config::CatalogLimitsConfig`), which is what a call site
+// passes as its own default, so an unset override changes nothing.
+
+/// Kill-switch of the whole catalog access guardrail. Off = no burst cap, no
+/// volume allowance, no enumeration cap.
+pub const CATALOG_LIMITS_ENABLED: &str = "catalog.access_limits.enabled";
+/// Max raw-bytes downloads per burst window (pure rate, everyone).
+pub const CATALOG_LIMITS_DL_BURST_MAX: &str = "catalog.access_limits.download.burst_max";
+/// Length in SECONDS of the download burst window.
+pub const CATALOG_LIMITS_DL_BURST_WINDOW_S: &str = "catalog.access_limits.download.burst_window_s";
+/// Length in SECONDS of the rolling window the volume allowance is counted over.
+pub const CATALOG_LIMITS_DL_VOLUME_WINDOW_S: &str =
+    "catalog.access_limits.download.volume_window_s";
+/// Downloads always allowed in the volume window regardless of engagement.
+pub const CATALOG_LIMITS_DL_BASE_FLOOR: &str = "catalog.access_limits.download.base_floor";
+/// Extra download headroom earned per in-window engagement event (a play session
+/// or a score rating).
+pub const CATALOG_LIMITS_DL_PER_ENGAGEMENT: &str = "catalog.access_limits.download.per_engagement";
+/// Absolute ceiling on the volume allowance, whatever the engagement.
+pub const CATALOG_LIMITS_DL_HARD_CEILING: &str = "catalog.access_limits.download.hard_ceiling";
+/// Max enumeration requests (search / browse / rating deck) per window.
+pub const CATALOG_LIMITS_ENUM_MAX: &str = "catalog.access_limits.enum_max";
+/// Length in SECONDS of the enumeration window.
+pub const CATALOG_LIMITS_ENUM_WINDOW_S: &str = "catalog.access_limits.enum_window_s";
+
 // Sensitive legal/infra values (not casually editable).
 pub const ACCOUNT_MIN_PUBLIC_SHARING_AGE: &str = "account.min_public_sharing_age";
 pub const DATA_RETENTION_PLAY_DETAIL_DAYS: &str = "data.retention.play_detail_days";
@@ -405,6 +436,72 @@ pub fn builtin() -> Vec<KeyDef> {
             false,
             "Id of the accepted catalog SoundFont score teasers are rendered with (empty = dormant).",
         ),
+        // -- catalog access limits (per-user scrape guardrail on catalog egress).
+        // Defaults ON and mirror the env baseline: unlimited egress is the unsafe
+        // direction, so this switch exists to turn the guardrail OFF if it misfires.
+        flag(
+            CATALOG_LIMITS_ENABLED,
+            APP_MUSIC,
+            true,
+            false,
+            "Per-user catalog access limits (defaults on; flip off to disable the scrape guardrail without a redeploy).",
+        ),
+        cfg(
+            CATALOG_LIMITS_DL_BURST_MAX,
+            APP_MUSIC,
+            FlagValue::Int(20),
+            false,
+            "Max score-bytes downloads a user may make per burst window.",
+        ),
+        cfg(
+            CATALOG_LIMITS_DL_BURST_WINDOW_S,
+            APP_MUSIC,
+            FlagValue::Int(60),
+            false,
+            "Length in seconds of the download burst window.",
+        ),
+        cfg(
+            CATALOG_LIMITS_DL_VOLUME_WINDOW_S,
+            APP_MUSIC,
+            FlagValue::Int(24 * 3600),
+            false,
+            "Length in seconds of the rolling window the download volume allowance is counted over.",
+        ),
+        cfg(
+            CATALOG_LIMITS_DL_BASE_FLOOR,
+            APP_MUSIC,
+            FlagValue::Int(30),
+            false,
+            "Downloads allowed per volume window regardless of engagement (the floor).",
+        ),
+        cfg(
+            CATALOG_LIMITS_DL_PER_ENGAGEMENT,
+            APP_MUSIC,
+            FlagValue::Int(3),
+            false,
+            "Extra downloads earned per in-window engagement event (a play session or a score rating).",
+        ),
+        cfg(
+            CATALOG_LIMITS_DL_HARD_CEILING,
+            APP_MUSIC,
+            FlagValue::Int(500),
+            false,
+            "Absolute ceiling on the download volume allowance, whatever the engagement.",
+        ),
+        cfg(
+            CATALOG_LIMITS_ENUM_MAX,
+            APP_MUSIC,
+            FlagValue::Int(60),
+            false,
+            "Max catalog enumeration requests (search / browse / rating deck) per window.",
+        ),
+        cfg(
+            CATALOG_LIMITS_ENUM_WINDOW_S,
+            APP_MUSIC,
+            FlagValue::Int(60),
+            false,
+            "Length in seconds of the catalog enumeration window.",
+        ),
         // -- sensitive legal/infra values --
         cfg(
             ACCOUNT_MIN_PUBLIC_SHARING_AGE,
@@ -598,6 +695,36 @@ mod tests {
             r.get(APP_MUSIC, STREAK_GRACE_DAYS).unwrap().default,
             FlagValue::Int(1)
         );
+    }
+
+    /// The scrape guardrail is the one gate whose safe state is ON, and its
+    /// declared defaults must mirror the env baseline in
+    /// `cymbra_platform::config::CatalogLimitsConfig` — otherwise the value an
+    /// operator sees in the back office is not the value in force.
+    #[test]
+    fn catalog_access_limits_default_on_with_the_env_baseline() {
+        let r = Registry::default();
+        assert_eq!(
+            r.get(APP_MUSIC, CATALOG_LIMITS_ENABLED).unwrap().default,
+            FlagValue::Bool(true),
+            "unlimited egress is the unsafe direction"
+        );
+        for (key, expected) in [
+            (CATALOG_LIMITS_DL_BURST_MAX, 20),
+            (CATALOG_LIMITS_DL_BURST_WINDOW_S, 60),
+            (CATALOG_LIMITS_DL_VOLUME_WINDOW_S, 86_400),
+            (CATALOG_LIMITS_DL_BASE_FLOOR, 30),
+            (CATALOG_LIMITS_DL_PER_ENGAGEMENT, 3),
+            (CATALOG_LIMITS_DL_HARD_CEILING, 500),
+            (CATALOG_LIMITS_ENUM_MAX, 60),
+            (CATALOG_LIMITS_ENUM_WINDOW_S, 60),
+        ] {
+            assert_eq!(
+                r.get(APP_MUSIC, key).unwrap().default,
+                FlagValue::Int(expected),
+                "{key}"
+            );
+        }
     }
 
     #[test]
