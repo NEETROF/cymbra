@@ -972,6 +972,51 @@ impl PgTitleBackfillRepo {
     }
 }
 
+use crate::reconcile::ReconcileRepo;
+
+/// Postgres-backed [`ReconcileRepo`] over an ingestion/admin pool.
+///
+/// Deliberately reads EVERY row's `object_key`, with no status or edit filter:
+/// an object referenced by any row at all must survive reconciliation.
+pub struct PgReconcileRepo {
+    pool: PgPool,
+}
+
+impl PgReconcileRepo {
+    pub fn new(pool: PgPool) -> Self {
+        Self { pool }
+    }
+}
+
+#[async_trait]
+impl ReconcileRepo for PgReconcileRepo {
+    async fn page_object_keys(&self, after: &str, limit: i64) -> Result<Vec<(String, String)>> {
+        // Keyset paging on the UUID PK, same shape as the title backfill: stable
+        // and resumable over a 150k-row catalog. An unparseable `after`
+        // (including "") means "from the start".
+        let after_uuid = uuid::Uuid::parse_str(after).ok();
+        let rows = sqlx::query(
+            "SELECT id, object_key FROM music.catalog_scores \
+             WHERE ($1::uuid IS NULL OR id > $1) \
+             ORDER BY id ASC LIMIT $2",
+        )
+        .bind(after_uuid)
+        .bind(limit)
+        .fetch_all(&self.pool)
+        .await
+        .context("reconcile page")?;
+        Ok(rows
+            .iter()
+            .map(|r| {
+                (
+                    r.get::<uuid::Uuid, _>("id").to_string(),
+                    r.get::<String, _>("object_key"),
+                )
+            })
+            .collect())
+    }
+}
+
 #[async_trait]
 impl TitleBackfillRepo for PgTitleBackfillRepo {
     async fn page(

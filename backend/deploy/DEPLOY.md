@@ -335,6 +335,31 @@ the script warns about it instead. That redundancy with the work-dir separation
 above is deliberate; a deny-list would only have covered the cases someone
 anticipated, and `aws s3 sync` does not skip dot-directories.
 
+### Reconciling the corpus against the catalog
+
+Object keys are derived from the score's content hash, so a re-crawl of unchanged
+content rewrites the same object. Before that, keys embedded a per-run UUID, so
+every re-crawl wrote a *second* object while ingest deduplicated the row away —
+production accumulated ~145 430 objects no row references, about half the corpus,
+mirrored to S3 too. `reconcile-corpus` cleans up that backlog:
+
+```bash
+cd /opt/cymbra/backend/deploy
+# 1. Report only — writes nothing. Check the count looks like what you expect.
+docker compose --env-file .env -f docker-compose.prod.yml run --rm server reconcile-corpus
+# 2. Move the unreferenced objects to `quarantine/` (still restorable).
+docker compose --env-file .env -f docker-compose.prod.yml run --rm server reconcile-corpus --apply
+# 3. Only after a grace period, and irreversibly:
+docker compose --env-file .env -f docker-compose.prod.yml run --rm server reconcile-corpus --purge
+```
+
+It aborts without writing if the catalog reports **zero** referenced keys (a DB
+problem must never read as "the whole corpus is garbage") or if the share to
+remove exceeds `--max-removal-ratio` (default 0.75). It reasons over the *set* of
+referenced keys, so an object referenced by any row survives. `quarantine/` is
+outside every servable prefix, so quarantined objects stop being mirrored and stop
+looking servable the moment they move.
+
 > **`SCORES_S3_BUCKET` is DISTINCT from the DB-backup `S3_BUCKET`.** The scores
 > bucket must equal the server's `CYMBRA_SCORE_S3_BUCKET` (e.g. `cymbra-scores`),
 > NOT the backups bucket (`cymbra-backups`). Add `SCORES_S3_BUCKET=cymbra-scores`

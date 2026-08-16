@@ -1,10 +1,11 @@
 ## 0. Operational precondition
 
-- [ ] 0.1 Keep production crawls **paused** until section 1 ships: any run under the current
+- [x] 0.1 Keep production crawls **paused** until section 1 ships: any run under the current
       code recreates `.checkouts` inside the served corpus. (Production was realigned by hand
       on 2026-08-16 — 4.4 GB of checkouts and the three run artefacts moved out of
       `SCORES_DIR`, corpus back to 1.8 GB — so the nightly 04:00 UTC mirror is harmless in
-      the meantime.)
+      the meantime.) — held; the constraint now transfers to 7.3: the box still runs the old
+      image and compose, so **crawls stay paused until both are deployed**.
 
 ## 1. Work location separated from the corpus root
 
@@ -65,20 +66,31 @@
 
 ## 5. Corpus↔catalog reconciliation
 
-- [ ] 5.1 Add a `reconcile-corpus` maintenance binary in `backend/server` alongside
+- [x] 5.1 Add a `reconcile-corpus` maintenance binary in `backend/server` alongside
       `backfill-titles`, reusing the server config and the `cymbra-storage` object port so it
-      reconciles the same keyspace the server reads (local + S3).
-- [ ] 5.2 Compute the unreferenced set as corpus objects minus the **set** of `object_key`
-      values referenced by any `catalog_scores` row (never per row).
-- [ ] 5.3 Dry run by default; `--apply` performs removals — matching `backfill-titles` /
-      `backfill-mutopia-titles`.
-- [ ] 5.4 Safety guards: abort without writing when the referenced set is empty or when the
-      share of objects to remove exceeds a configurable threshold; report why.
-- [ ] 5.5 Make removal reversible — move to a quarantine prefix (local and S3) — with a
-      separate explicit purge step.
-- [ ] 5.6 Unit tests: referenced objects are never removed, including one referenced by a
+      reconciles the same keyspace the server reads (local + S3). — logic in
+      `cymbra_music::reconcile` (testable), binary is wiring; shipped in the backend image.
+      **The port had no `list`**: added `ObjectStorage::list(prefix)` returning the union of
+      both backends, implemented for `LocalFirstStore` (via `object_store`'s stream) and
+      `FakeStore`. `delete` already removed from origin *and* cache, so one call per key
+      covers both sides.
+- [x] 5.2 Compute the unreferenced set as corpus objects minus the **set** of `object_key`
+      values referenced by any `catalog_scores` row (never per row). — `PgReconcileRepo` reads
+      every row with no status or edit filter; an object referenced by any row at all
+      survives.
+- [x] 5.3 Dry run by default; `--apply` performs removals — matching `backfill-titles` /
+      `backfill-mutopia-titles`. `--apply` and `--purge` are mutually exclusive.
+- [x] 5.4 Safety guards: abort without writing when the referenced set is empty or when the
+      share of objects to remove exceeds a configurable threshold; report why. — threshold
+      default 0.75 (above the known ~50% backlog, still catching "the query returned almost
+      nothing"), checked only when about to write.
+- [x] 5.5 Make removal reversible — move to a quarantine prefix (local and S3) — with a
+      separate explicit purge step. — `quarantine/<key>`, outside every servable prefix, so a
+      quarantined object immediately stops being mirrored and stops looking servable.
+- [x] 5.6 Unit tests: referenced objects are never removed, including one referenced by a
       second row; empty reference set aborts; over-threshold aborts; dry run writes nothing;
-      quarantined objects are restorable before purge.
+      quarantined objects are restorable before purge. — 7 tests in `reconcile.rs`, plus
+      "objects outside the corpus prefixes are ignored" and multi-page reference collection.
 
 ## 6. Deployment
 
@@ -96,9 +108,10 @@
 
 ## 7. Validation
 
-- [ ] 7.1 `openspec validate fix-crawler-corpus-isolation --strict` passes.
-- [ ] 7.2 `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`,
-      and `cargo llvm-cov --workspace --fail-under-lines 80` pass.
+- [x] 7.1 `openspec validate fix-crawler-corpus-isolation --strict` passes.
+- [x] 7.2 `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`,
+      and `cargo llvm-cov --workspace --fail-under-lines 80` pass. — coverage 86.95% lines;
+      556 tests green across the touched crates (444 music, 102 crawler, 10 storage).
 - [ ] 7.3 MANUAL / prod: deploy the compose + script, run a crawl, confirm the corpus root
       gains only servable objects while the work location fills outside it, and confirm a
       re-crawl of unchanged content leaves the object count unchanged.
