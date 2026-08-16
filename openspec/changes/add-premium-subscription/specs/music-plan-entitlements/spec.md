@@ -3,8 +3,9 @@
 ### Requirement: Two plans with a fixed premium unlock set
 
 The system SHALL define the plans `free` and `premium`. `premium` SHALL map to a set of named
-**unlocks** fixed in code (for example `catalog.unlimited`, `soundfonts.library`,
-`soundfont_library.extended`, `scores.extended_quotas`); `free` SHALL grant no unlock. Consumers
+**unlocks** fixed in code (`catalog.unlimited`, `soundfonts.library`,
+`soundfont_library.extended`, `scores.extended_quotas`, `offline.cache`); `free` SHALL grant
+no unlock. Consumers
 SHALL ask "does the effective plan grant unlock X" and MUST NOT compare plan names. Security
 guardrails (catalog download/enumeration limits, auth throttles) MUST NOT depend on the plan or
 on any beta membership.
@@ -112,8 +113,9 @@ memberships SHALL be exposed to feature-flag evaluation and to the app.
 
 A row whose provider reports a grace or billing-retry state SHALL remain active until
 `ends_at + plans.grace_days` (runtime config). After that, or on refund/revocation, the
-effective plan degrades. Degradation MUST NOT delete or alter user data (favorites, offline
-cache, imported fonts, uploads, points, badges); only future gate decisions change.
+effective plan degrades. Degradation MUST NOT delete or alter what the user owns (favorites
+list, imported fonts, uploads, points-redeemed pianos, points, badges, progression); only future
+gate decisions change and plan-only content is withdrawn (see below).
 
 #### Scenario: Billing retry keeps access during grace
 
@@ -128,7 +130,7 @@ cache, imported fonts, uploads, points, badges); only future gate decisions chan
 #### Scenario: Degradation loses no data
 
 - **WHEN** a premium user degrades to free
-- **THEN** their favorites, cached scores, imported fonts, uploads, points and badges are intact
+- **THEN** their favorites list, imported fonts, uploads, points-redeemed pianos, points and badges are intact
 
 ### Requirement: Plan and memberships are readable by the app in one call
 
@@ -181,3 +183,46 @@ is active, so a deleted account is not billed.
 
 - **WHEN** an erased account had an active `web` row
 - **THEN** a cancellation is requested from the web provider before the row is purged
+
+### Requirement: Plan-only content is withdrawn after the entitlement ends, never during grace
+
+The system SHALL **withdraw the content a plan granted** when a user's effective plan drops to
+`free` — trial ended, subscription lapsed past `plans.grace_days`, comp expired, admin
+revocation: it SHALL rotate the user's offline cache secret once (so cached catalog
+scores become unreadable on every device) and SHALL keep refusing plan-only SoundFont bytes
+through the existing entitlement gate. Withdrawal SHALL happen **once per lapse**, be idempotent,
+and MUST NOT run while a row is in grace or billing retry. Withdrawal MUST NOT touch anything the
+user owns: imported `.sf2`, uploads, points-redeemed fonts, the favorites list, points, badges,
+progression. Re-acquiring premium later SHALL require no repair: favorites are intact and content
+is simply fetched again. A feature-beta closing SHALL trigger no withdrawal (it granted no
+content).
+
+#### Scenario: Trial ends
+
+- **WHEN** a premium-trial tester's row passes `ends_at` and no other row is active
+- **THEN** the offline cache secret is rotated once and plan-only SoundFont downloads are refused from then on
+
+#### Scenario: Grace is respected
+
+- **WHEN** a subscriber's row is in billing retry within `plans.grace_days`
+- **THEN** no withdrawal happens and the effective plan is still `premium`
+
+#### Scenario: Owned content survives
+
+- **WHEN** withdrawal runs for a user with imported fonts, uploads and points-redeemed pianos
+- **THEN** none of those, nor the favorites list, points or badges, is affected
+
+#### Scenario: Idempotent across devices and retries
+
+- **WHEN** the lapse is evaluated several times (sweep job, plan RPC, several devices reconnecting)
+- **THEN** the secret is rotated exactly once for that lapse
+
+#### Scenario: Re-subscription needs no repair
+
+- **WHEN** a lapsed user purchases premium again
+- **THEN** their favorites are still listed and cached/plan-only content becomes fetchable again
+
+#### Scenario: Feature beta closing withdraws nothing
+
+- **WHEN** a feature campaign is closed
+- **THEN** no secret rotation and no download refusal results from it

@@ -47,8 +47,7 @@ the beta must not undermine the paid tier.
 **Non-Goals:**
 
 - Selling premium for points, family sharing, lifetime purchases, regional pricing logic (the
-  stores/MoR own pricing), promotional or win-back offers (store-native, later), the offline
-  favorites cap (belongs to `add-offline-score-cache`), a Live plan (schema is ready, product is
+  stores/MoR own pricing), promotional or win-back offers (store-native, later), a Live plan (schema is ready, product is
   not), reader-app / external-link entitlement exceptions on iOS (jurisdiction-specific, later),
   a self-hosted invoicing or tax pipeline (explicitly refused).
 
@@ -238,6 +237,31 @@ enable `plans.enabled` with a staff-only trial campaign → open the community t
 beta (Discord `/beta`)
 → Apple sandbox → Apple prod → Google → web.
 
+### D13 — Withdrawal on lapse: server rotates the cache secret, app purges plan-only files
+
+Offline content is a **lease**, not a gift: without withdrawal, a 90-day trial is "cache 300
+favourites, drop to free, play offline forever" — the offline cache deliberately bypasses the daily
+quota when offline, so the loophole would be structural. Hence (a) `offline.cache` is a premium
+unlock (free = catalog online only; bundled demos and own uploads offline for everyone), and (b)
+when the effective plan drops to `free` **past grace**, the server rotates the user's offline
+cache secret once (the seam already specified by `backend-offline-key`) and the entitlement gate
+keeps refusing premium `.sf2` bytes. The app, at its next connection, deletes premium SoundFonts it
+no longer owns and cached catalog scores, keeps everything the user owns, and shows a localized
+notice; the plan status has announced the "rights end on <date>" beforehand. As a local belt the
+app stops opening plan-only content after `ends_at + grace` from its last snapshot while offline.
+
+Mechanics: a nullable `withdrawn_at` on the entitlement row + a daily sweep job
+(`plans_withdraw`) **and** the same check on `GetMyPlan`/`GetOfflineCacheKey`; whichever sees
+"no active row ∧ latest `effective_end` < now ∧ not yet withdrawn" rotates once and stamps —
+idempotent across devices and retries. Nothing runs while a row is in grace/billing retry.
+Re-subscription needs no repair (favorites intact, content re-fetched). Feature betas grant no
+content, so closing one withdraws nothing.
+
+*Alternative considered*: trusting the client to delete on its clock. Gameable and time-zone
+sensitive; kept only as the offline belt. *Alternative*: keeping a small free offline cache
+(N favourites). Rejected by the owner — premium needs tangible privileges and the rule stays
+explainable ("offline = premium").
+
 ## Risks / Trade-offs
 
 - **Apple JWS verification done by hand** (no official Rust library) → bundle Apple's root CAs,
@@ -263,9 +287,12 @@ beta (Discord `/beta`)
   idempotency by provider event id, always-2xx-when-disabled to avoid retry storms, rate-limited.
 - **Provider state drift** (missed webhook) → reconciliation job on rows nearing expiry, and
   `ReportStorePurchase`/restore lets the client re-assert a transaction at any time.
-- **Grace and lapse behaviour surprises** → `plans.grace_days` flag, lapse degrades to free
-  without deleting anything: favorites, cache, imported fonts stay; re-download of premium fonts
-  is refused by `entitlement()` exactly like any locked font.
+- **Grace and lapse behaviour surprises** → `plans.grace_days` flag; withdrawal only past
+  grace, announced in advance with the date, never silent, never touching owned content;
+  re-subscription restores without repair.
+- **Withdrawal wiping a paying user by mistake** (missed renewal webhook) → withdrawal keys on
+  "no active row past grace", the reconciliation job runs before the sweep, and a re-asserted
+  store transaction re-activates immediately; the cache is re-fetched, nothing owned was lost.
 - **Coverage** → new workspace member; cores fully tested, webhook/HTTP glue in the ignore regex.
 - **Legal** → subscription terms and privacy update are part of the change (Impact); no launch of
   a channel before its terms are published.

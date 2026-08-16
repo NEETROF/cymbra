@@ -52,6 +52,15 @@ subscription middleware taking a cut.
 - **A back-office plan console**: look up an account's entitlements and betas, grant/revoke by
   handle, create campaigns of either kind, close enrolment or close a feature beta, mint or revoke
   codes, see who joined what, export a campaign's members.
+- **Content granted by a plan is withdrawn when the plan ends — never during grace, never
+  what the user owns.** Offline caching of catalog scores becomes a premium unlock (free plays
+  the catalog online only; bundled demos and the user's own uploads stay offline for everyone).
+  When the effective plan drops to `free` past grace (trial end, lapse, comp expiry, revocation)
+  the server rotates the user's offline cache secret once and keeps refusing premium SoundFont
+  bytes; at its next connection the app deletes premium SoundFonts and cached catalog scores it no
+  longer owns, keeps imports/uploads/points-redeemed pianos/favorites/progression, and says so with
+  a localized notice. The plan status announces the **"rights end on <date>"** in advance.
+  Re-subscribing needs no repair. A feature beta closing withdraws nothing.
 - **Everything ships dark**: a `plans.enabled` kill-switch (default off) plus one flag per
   purchase channel; with all flags off the app is exactly today's app.
 
@@ -101,6 +110,11 @@ subscription middleware taking a cut.
 - `admin-account-directory`: `ListAccounts` accepts an explicit `ids` set so the back office can
   filter the accounts directory by plan / beta after resolving the criterion through the plan
   service — the identity service stays product-agnostic.
+- `offline-score-cache` (in-flight, `add-offline-score-cache`): caching **catalog** scores
+  offline requires the `offline.cache` unlock; own uploads cache on any plan; catalog entries are
+  evicted on lapse.
+- `backend-offline-key` (in-flight, `add-offline-score-cache`): the offline cache secret rotates
+  once per plan lapse, never during grace, never on a feature-beta close.
 
 ## Impact
 
@@ -144,6 +158,7 @@ Products (consumed vs new):
   lifecycle, state mapping, code lifecycle) are host-testable, the HTTP/webhook glue is added to
   the `--ignore-filename-regex` list like the other adapters.
 - **Cross-change** — `add-discord-notifications` consumes `music-access-codes` through an issuer
-  port (`/beta`, campaign chosen by the channel's configuration); the in-flight
-  `add-offline-score-cache` may later add a per-plan favorites cap on the same ledger —
-  deliberately out of scope here.
+  port (`/beta`, campaign chosen by the channel's configuration); this change adds two ADDED
+  requirements on capabilities introduced by the in-flight `add-offline-score-cache`
+  (`offline-score-cache`, `backend-offline-key`) — both are additive so archive order does not
+  matter; the offline change's own eviction/rotation seams are what the withdrawal uses.
