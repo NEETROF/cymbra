@@ -112,9 +112,20 @@
 - [x] 7.2 `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`,
       and `cargo llvm-cov --workspace --fail-under-lines 80` pass. — coverage 86.95% lines;
       556 tests green across the touched crates (444 music, 102 crawler, 10 storage).
-- [ ] 7.3 MANUAL / prod: deploy the compose + script, run a crawl, confirm the corpus root
+- [x] 7.3 MANUAL / prod: deploy the compose + script, run a crawl, confirm the corpus root
       gains only servable objects while the work location fills outside it, and confirm a
-      re-crawl of unchanged content leaves the object count unchanged.
+      re-crawl of unchanged content leaves the object count unchanged. — **done 2026-08-16**
+      (`LIMIT=20 … up musetrainer`). Corpus root stayed exactly
+      `safe/ low_confidence/ user-scores/`; checkouts, `manifest.json`, `manifest.csv` and
+      `rejected.log` all landed under `CRAWL_WORK/musetrainer/`. The run summary now prints
+      both resolved roots (`Corpus: /work/output | Work: /work/crawler`).
+      Object count 290 778 → 290 798 → **290 798**: the first crawl after the change writes
+      each retained item once more under its new content-derived key (a one-time migration
+      cost, and one new orphan per item for `reconcile-corpus` to collect), and the second,
+      identical crawl adds nothing — which is the idempotence this change exists for.
+      Ownership gotcha found and fixed here: the work dir must stay **root**-owned, not
+      `1000:1000` — the crawler runs as root and git 2.35.2+ refuses a repo owned by another
+      user, so the first attempt died with `prepare failed; skipping` on every source.
 - [ ] 7.4 MANUAL / prod: run `reconcile-corpus` dry, check the count against the ~145 430
       unreferenced objects measured on 2026-08-16 (290 637 files under `safe/` for 145 280
       rows; 141 under `low_confidence/` for 68 rows), then `--apply` to quarantine, then purge

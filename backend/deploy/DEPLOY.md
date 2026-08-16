@@ -291,6 +291,13 @@ mount in the compose). The crawler **refuses to start** if that dir resolves ins
 single run put 4.4 GB of git checkouts inside the served corpus, one nightly cron
 away from being mirrored to the bucket (change: fix-crawler-corpus-isolation).
 
+> **The two mounts want different owners.** `SCORES_DIR` is `1000:1000` (the
+> *server* image runs as `USER 1000:1000` and serves from it). `CRAWL_WORK` stays
+> owned by **root** — the *crawler* image runs as root, and since git 2.35.2 git
+> refuses a repository owned by another user even when running as root
+> ("detected dubious ownership"). Chowning the work dir to `1000:1000` makes every
+> source fail with `prepare failed; skipping` and the run silently ingests nothing.
+
 > **The box is not a git checkout.** `/opt/cymbra/backend` holds copied files, so
 > merging a change that touches `backend/deploy/` deploys **nothing** — the compose
 > file and the scripts must be copied explicitly (`scp … cymbra-prod:/opt/cymbra/backend/deploy/`).
