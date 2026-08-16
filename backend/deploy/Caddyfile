@@ -19,11 +19,24 @@
 # connect with ChannelCredentials.secure() to $API_DOMAIN:443.
 
 {$API_DOMAIN} {
-	# Axum HTTP surface (JWKS + health/readiness + web-auth cookie endpoints +
-	# SoundFont delivery streaming route, change: add-soundfont-delivery). The
-	# /soundfonts/* route is authenticated (Bearer) + range-capable, disjoint from the
-	# gRPC service paths, so it belongs on the Axum port with the other HTTP endpoints.
-	@http path /.well-known/* /healthz /readyz /web/auth/* /soundfonts/*
+	# Axum HTTP surface — every non-gRPC route the server mounts:
+	#   /.well-known/*   JWKS
+	#   /healthz /readyz health + readiness
+	#   /web/*           browser surfaces: /web/auth/* (cookie sign-in, refresh,
+	#                    logout) and /web/plans/* (the site's plan JSON routes,
+	#                    change: add-site-account-pages)
+	#   /soundfonts/*    SoundFont delivery (Bearer, range-capable)
+	#   /me/*            private SoundFont library (/me/soundfonts, upload + list,
+	#                    change: add-soundfont-moderation)
+	#   /scores/*        score audio teasers (/scores/:id/preview, change:
+	#                    add-score-daily-access-rewards)
+	#   /billing/*       provider notification webhooks (App Store Server
+	#                    Notifications, Play RTDN, Paddle — change:
+	#                    add-premium-subscription). MUST reach Axum: routed to tonic
+	#                    a webhook gets a 200 with grpc-status 12 and the provider
+	#                    believes it was delivered.
+	# All disjoint from the gRPC service paths (`/<package>.<Service>/<Method>`).
+	@http path /.well-known/* /healthz /readyz /web/* /soundfonts/* /me/* /scores/* /billing/*
 	reverse_proxy @http server:8081
 
 	# gRPC + gRPC-web (incl. the CORS preflight) over cleartext HTTP/2 (h2c) on the
