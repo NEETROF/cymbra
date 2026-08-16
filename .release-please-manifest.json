@@ -2,5 +2,5 @@
   "apps/music": "1.23.0",
   "backend": "0.17.1",
   "apps/back-office": "0.8.0",
-  "apps/site": "0.1.0"
+  "apps/site": "0.1.1"
 }

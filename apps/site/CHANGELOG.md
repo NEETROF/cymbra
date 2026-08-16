@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1](https://github.com/NEETROF/cymbra/compare/site-v0.1.0...site-v0.1.1) (2026-08-16)
+
+
+### Bug Fixes
+
+* **site:** send Apple the canonical registered return URL ([#247](https://github.com/NEETROF/cymbra/issues/247)) ([c09ca4f](https://github.com/NEETROF/cymbra/commit/c09ca4f03b90863fbcdb7f59a31621f72cf8c0d9))
+
 ## [0.1.0](https://github.com/NEETROF/cymbra/compare/site-v0.0.1...site-v0.1.0) (2026-08-16)
 
 
