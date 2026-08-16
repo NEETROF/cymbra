@@ -55,6 +55,11 @@ pub struct WorkerConfig {
     /// so the usage-purge job uses the code-default retention window. Mirrors the
     /// server's `CYMBRA_FLAGS_DATABASE_URL`.
     pub flags_database_url: Option<String>,
+    /// `plans_svc` connection for the plans module (change: add-premium-
+    /// subscription): the `plans_reconcile` / `plans_withdraw` sweeps and the
+    /// erasure's web-subscription cancellation. `None` leaves those jobs inert.
+    /// Mirrors the server's `CYMBRA_PLANS_DATABASE_URL`.
+    pub plans_database_url: Option<String>,
     /// Firebase service-account key JSON for the FCM sender (change: add-push-
     /// notifications). `None` leaves the `push_dispatch` job inert (it logs and
     /// completes) so a deployment without a Firebase project simply sends nothing.
@@ -104,6 +109,10 @@ pub mod core {
             play_detail_retention_days: num(m, "CYMBRA_PLAY_DETAIL_RETENTION_DAYS", 90)?,
             flags_database_url: m
                 .get("CYMBRA_FLAGS_DATABASE_URL")
+                .filter(|v| !v.is_empty())
+                .cloned(),
+            plans_database_url: m
+                .get("CYMBRA_PLANS_DATABASE_URL")
                 .filter(|v| !v.is_empty())
                 .cloned(),
             fcm_service_account_json: m

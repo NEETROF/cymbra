@@ -49,6 +49,17 @@ pub struct WorkerCtx {
     /// add-score-daily-access-rewards). `None` when the score or SoundFont store
     /// is unconfigured — the job then completes as a no-op (dormant, not failing).
     pub score_preview: Option<Arc<cymbra_music::ScorePreviewRenderer>>,
+    /// Plans (change: add-premium-subscription): the service the reconciliation
+    /// and withdrawal sweeps run against. `None` (no `CYMBRA_PLANS_DATABASE_URL`)
+    /// leaves both jobs inert (they log and complete).
+    pub plans: Option<Arc<cymbra_plans::PlanService>>,
+    /// Provider clients for the reconciliation sweep (each `None` when its channel
+    /// is unconfigured — its rows are skipped).
+    pub plan_reconcilers: Arc<cymbra_plans::billing::reconcile::Reconcilers>,
+    /// Web merchant-of-record cancellation for the erasure job: an active `web`
+    /// subscription is cancelled on the provider before the account's plan rows are
+    /// erased. `None` when the web channel is unconfigured.
+    pub web_cancel: Option<Arc<dyn cymbra_plans::WebSubscriptionCanceller>>,
 }
 
 /// Payload of the `score_preview_render` job (change: add-score-daily-access-rewards).
@@ -144,7 +155,8 @@ pub async fn purge_user(mut job: CurrentJob, ctx: WorkerCtx) -> Result<(), BoxEr
     let span = tracing::info_span!("job.purge_user", job_id = %job.id());
     async move {
         let p: PurgeUserJob = job.json()?.ok_or("purge_user: missing JSON payload")?;
-        cymbra_worker::purge_user(&ctx.admin_pool, &p.user_id).await?;
+        cymbra_worker::purge_user_with(&ctx.admin_pool, &p.user_id, ctx.web_cancel.as_deref())
+            .await?;
         tracing::info!(user_id = %p.user_id, "account data purged");
         job.complete().await?;
         Ok(())
@@ -491,6 +503,65 @@ pub async fn streak_reminder(mut job: CurrentJob, ctx: WorkerCtx) -> Result<(), 
     .await
 }
 
+/// Re-read the provider state of paid plan rows nearing their end (change:
+/// add-premium-subscription, spec `music-subscription-billing`). Scheduled daily
+/// (`plans_reconcile_daily`) on the ordered `plans.maintenance` channel BEFORE the
+/// withdrawal sweep. Idempotent (forward-only upserts); a per-row provider failure
+/// is logged and retried next run. Inert while `plans.enabled` is off or the plans
+/// module is unconfigured.
+#[sqlxmq::job("plans_reconcile")]
+pub async fn plans_reconcile(mut job: CurrentJob, ctx: WorkerCtx) -> Result<(), BoxError> {
+    let span = tracing::info_span!("job.plans_reconcile", job_id = %job.id());
+    async move {
+        if let Err(e) = ctx.flags.refresh().await {
+            tracing::warn!(error = %e, "plans_reconcile flag refresh failed; using last-known/default");
+        }
+        match &ctx.plans {
+            Some(plans) if plans.enabled() => {
+                let n = cymbra_plans::billing::reconcile::reconcile(
+                    plans,
+                    &ctx.plan_reconcilers,
+                    chrono::Utc::now(),
+                    chrono::Duration::days(3),
+                )
+                .await?;
+                tracing::info!(reapplied = n, "plans reconciliation complete");
+            }
+            Some(_) => tracing::info!("plans_reconcile inert (plans.enabled off)"),
+            None => tracing::info!("plans_reconcile inert (plans unconfigured)"),
+        }
+        job.complete().await?;
+        Ok(())
+    }
+    .instrument(span)
+    .await
+}
+
+/// Withdraw plan-only content from accounts whose plan lapsed past grace
+/// (change: add-premium-subscription, design D13): rotate the offline cache
+/// secret once and stamp the rows. Scheduled daily AFTER `plans_reconcile`.
+/// Idempotent by the `withdrawn_at` claim, so at-least-once delivery is safe.
+#[sqlxmq::job("plans_withdraw")]
+pub async fn plans_withdraw(mut job: CurrentJob, ctx: WorkerCtx) -> Result<(), BoxError> {
+    let span = tracing::info_span!("job.plans_withdraw", job_id = %job.id());
+    async move {
+        if let Err(e) = ctx.flags.refresh().await {
+            tracing::warn!(error = %e, "plans_withdraw flag refresh failed; using last-known/default");
+        }
+        match &ctx.plans {
+            Some(plans) => {
+                let n = plans.sweep_withdrawals().await?;
+                tracing::info!(withdrawn = n, "plans withdrawal sweep complete");
+            }
+            None => tracing::info!("plans_withdraw inert (plans unconfigured)"),
+        }
+        job.complete().await?;
+        Ok(())
+    }
+    .instrument(span)
+    .await
+}
+
 /// Build the job registry with all handlers registered and the shared context set.
 pub fn registry(ctx: WorkerCtx) -> JobRegistry {
     let mut registry = JobRegistry::new(&[
@@ -507,6 +578,8 @@ pub fn registry(ctx: WorkerCtx) -> JobRegistry {
         global_season_snapshot,
         push_dispatch,
         streak_reminder,
+        plans_reconcile,
+        plans_withdraw,
     ]);
     registry.set_context(ctx);
     registry

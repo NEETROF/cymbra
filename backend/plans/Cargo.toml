@@ -24,6 +24,13 @@ sha2 = "0.10"
 reqwest.workspace = true
 jsonwebtoken.workspace = true
 base64.workspace = true
+hmac.workspace = true
+# Apple signed payloads (App Store Server Notifications v2 / signed transactions):
+# x5c chain parsing + ECDSA verification against the pinned Apple Root CA G3
+# (P-256 leaf/intermediate, P-384 root) — pure Rust, no OpenSSL.
+x509-parser = "0.16"
+p256 = { version = "0.13", features = ["ecdsa"] }
+p384 = { version = "0.13", features = ["ecdsa"] }
 # gRPC PlanService (client + admin surface).
 tonic.workspace = true
 prost.workspace = true
@@ -41,3 +48,7 @@ mock = ["dep:mockall"]
 [dev-dependencies]
 tokio = { workspace = true }
 mockall = { workspace = true }
+# Self-signed test chains for the Apple JWS verifier (root → leaf), signed JWS
+# with the leaf key.
+rcgen = "0.13"
+p256 = { version = "0.13", features = ["ecdsa", "pkcs8"] }

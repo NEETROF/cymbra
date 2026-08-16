@@ -520,6 +520,29 @@ impl PlanService {
         Ok(row)
     }
 
+    /// The account a provider reference belongs to (a notification without an
+    /// account token resolves its user through the existing row).
+    pub async fn user_for_ref(&self, source: Source, provider_ref: &str) -> Result<Option<String>> {
+        Ok(self
+            .d
+            .entitlements
+            .find_by_provider_ref(source, provider_ref)
+            .await?
+            .map(|r| r.user_id))
+    }
+
+    /// Rows of paid channels ending in `[from, to)` — the reconciliation window.
+    pub async fn rows_ending_between(
+        &self,
+        from: DateTime<Utc>,
+        to: DateTime<Utc>,
+    ) -> Result<Vec<EntitlementRow>> {
+        self.d
+            .entitlements
+            .list_ending_between(from, to, &[Source::Apple, Source::Google, Source::Web])
+            .await
+    }
+
     /// Idempotency gate for provider notifications.
     pub async fn record_event(
         &self,

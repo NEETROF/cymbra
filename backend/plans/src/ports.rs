@@ -78,6 +78,13 @@ impl Clock for SystemClock {
 pub trait EntitlementRepo: Send + Sync {
     async fn list_for_user(&self, user_id: &str) -> Result<Vec<EntitlementRow>>;
     async fn get(&self, id: Uuid) -> Result<Option<EntitlementRow>>;
+    /// The row for `(source, provider_ref)` — how a provider notification that
+    /// carries no account token finds its user.
+    async fn find_by_provider_ref(
+        &self,
+        source: Source,
+        provider_ref: &str,
+    ) -> Result<Option<EntitlementRow>>;
     /// Upsert by `(source, provider_ref)`; forward-only `ends_at` unless terminal.
     async fn upsert(&self, write: EntitlementWrite) -> Result<EntitlementRow>;
     async fn revoke(&self, id: Uuid, at: DateTime<Utc>) -> Result<()>;

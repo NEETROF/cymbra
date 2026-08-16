@@ -221,21 +221,43 @@ async fn main() -> anyhow::Result<()> {
     };
     let flag_svc = FlagServiceServer::with_interceptor(flag_grpc, optional);
 
-    // PlanService gRPC (app + music-admin console), strict auth. Store purchase
-    // verifiers and the web merchant-of-record are wired per channel below when
-    // configured; unconfigured channels answer `unimplemented`.
+    // Purchase channels (Apple / Google / web MoR), each wired only when its
+    // environment block is present; the paywall flags gate them at runtime.
+    let billing_channels = cymbra_server::billing::BillingChannels::build(
+        &cymbra_server::billing::BillingEnv::from_env(),
+    );
+    let paywall_cfg: Arc<dyn cymbra_plans::PaywallConfigSource> =
+        Arc::new(cymbra_server::FlagPaywallConfig::new(flag_service.clone()));
+
+    // PlanService gRPC (app + music-admin console), strict auth. Unconfigured
+    // channels answer `unimplemented`.
     let plan_svc = plan_service.clone().map(|ps| {
-        cymbra_plans::proto::plan_service_server::PlanServiceServer::with_interceptor(
-            cymbra_plans::grpc::PlanGrpc::new(
-                ps,
-                Arc::new(cymbra_server::FlagPaywallConfig::new(flag_service.clone())),
-                cache.clone(),
-            )
+        let mut g = cymbra_plans::grpc::PlanGrpc::new(ps, paywall_cfg.clone(), cache.clone())
             .with_handles(Arc::new(cymbra_server::UserPortHandles::new(
                 user_dyn.clone(),
-            ))),
+            )));
+        if let Some(v) = &billing_channels.apple_verifier {
+            g = g.with_verifier(cymbra_plans::Channel::Apple, v.clone());
+        }
+        if let Some(v) = &billing_channels.google_verifier {
+            g = g.with_verifier(cymbra_plans::Channel::Google, v.clone());
+        }
+        if let Some(w) = &billing_channels.web {
+            g = g.with_web(w.clone());
+        }
+        cymbra_plans::proto::plan_service_server::PlanServiceServer::with_interceptor(
+            g,
             strict.clone(),
         )
+    });
+    // Provider notification routes (App Store Server Notifications v2, Play RTDN
+    // push, web webhooks) — mounted only when the plans module is wired.
+    let billing_http = plan_service.clone().map(|ps| {
+        cymbra_server::billing::billing_router(cymbra_server::billing::BillingState {
+            svc: ps,
+            paywall: paywall_cfg.clone(),
+            channels: billing_channels.clone(),
+        })
     });
 
     // --- analytics UsageService (feature-usage telemetry ingestion; change:
@@ -626,6 +648,11 @@ async fn main() -> anyhow::Result<()> {
             score_preview_state,
             cfg.back_office_origins.clone(),
         ));
+    // Provider notification routes (change: add-premium-subscription).
+    let http = match billing_http {
+        Some(r) => http.merge(r),
+        None => http,
+    };
 
     let grpc_addr: SocketAddr = cfg.grpc_addr.parse()?;
     let http_addr: SocketAddr = cfg.http_addr.parse()?;

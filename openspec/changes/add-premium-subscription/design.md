@@ -316,11 +316,10 @@ ignore webhooks (logged). Schema is additive; rows are inert when the code is re
 
 ## Open Questions
 
-- Which MoR — **leaning Paddle Billing** for an EU-first audience (mature subscription
-  lifecycle, EU local payment methods, established VAT handling); Polar (EU company, cheaper) to
-  be checked as a challenger; Lemon Squeezy as fallback given its post-acquisition uncertainty.
-  Fees, payout currency and sandbox quality to be verified at signing; the adapter is one module
-  either way.
+- ~~Which MoR~~ — **decided: Paddle Billing** for an EU-first audience (mature subscription
+  lifecycle, EU local payment methods, established VAT handling); the adapter
+  (`billing/web.rs`) sits behind the `WebBillingProvider` port, so Polar or Lemon Squeezy would
+  be a second adapter, not a redesign. Fees / payout currency to be confirmed at signing.
 - ~~Beta as a plan~~ — **decided**: two axes (D2); trials = premium N days per tester (default
   90); feature betas closed by hand; guardrails plan-independent.
 - Prices and periods live in the stores/MoR; the app only needs *which* products to offer —

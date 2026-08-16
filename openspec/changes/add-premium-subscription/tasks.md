@@ -36,22 +36,22 @@
 
 ## 5. Apple channel (D7)
 
-- [ ] 5.1 Implement the pure JWS verifier: x5c chain validation against bundled Apple root CAs, ES256 signature, `bundleId`, `environment`, `expiresDate`; fixture-test with Apple sandbox JWS samples (valid, tampered, wrong bundle, expired chain)
-- [ ] 5.2 Implement the pure Apple state mapper: `notificationType/subtype` (+ transaction/renewal info) → entitlement transition (renew, grace, billing retry, cancel, refund, revoke, plan change); table-driven tests
-- [ ] 5.3 `POST /billing/apple/notifications`: verify → `billing_events` idempotency → map → upsert; `billing.apple.enabled` off ⇒ 200 + logged skip; tests for replay, invalid signature (no side effect), disabled channel
-- [ ] 5.4 `ReportStorePurchase` (Apple arm) + `RestorePurchases`: verify each JWS, upsert by `originalTransactionId`; App Store Server API client (JWT signed with the ASC key) for `get_all_subscription_statuses` used by reconciliation; secrets documented in `backend/.env.example`
+- [x] 5.1 Implement the pure JWS verifier: x5c chain validation against bundled Apple root CAs, ES256 signature, `bundleId`, `environment`, `expiresDate`; fixture-test with Apple sandbox JWS samples (valid, tampered, wrong bundle, expired chain)
+- [x] 5.2 Implement the pure Apple state mapper: `notificationType/subtype` (+ transaction/renewal info) → entitlement transition (renew, grace, billing retry, cancel, refund, revoke, plan change); table-driven tests
+- [x] 5.3 `POST /billing/apple/notifications`: verify → `billing_events` idempotency → map → upsert; `billing.apple.enabled` off ⇒ 200 + logged skip; tests for replay, invalid signature (no side effect), disabled channel
+- [x] 5.4 `ReportStorePurchase` (Apple arm) + `RestorePurchases`: verify each JWS, upsert by `originalTransactionId`; App Store Server API client (JWT signed with the ASC key) for `get_all_subscription_statuses` used by reconciliation; secrets documented in `backend/.env.example`
 
 ## 6. Google channel (D8)
 
-- [ ] 6.1 Play Developer API client (service-account JWT): `purchases.subscriptionsv2.get` + `acknowledge`; pure mapper from `subscriptionState`/`linkedPurchaseToken` to entitlement transitions; table-driven tests
-- [ ] 6.2 `ReportStorePurchase` (Google arm): validate token via the API, upsert by the subscription's stable id, acknowledge server-side; test the unacknowledged and refunded paths
-- [ ] 6.3 `POST /billing/google/rtdn`: verify the Pub/Sub push OIDC token, `messageId` idempotency, re-read state from the API (never trust the notification body), upsert; disabled ⇒ 200 + skip; tests
+- [x] 6.1 Play Developer API client (service-account JWT): `purchases.subscriptionsv2.get` + `acknowledge`; pure mapper from `subscriptionState`/`linkedPurchaseToken` to entitlement transitions; table-driven tests
+- [x] 6.2 `ReportStorePurchase` (Google arm): validate token via the API, upsert by the subscription's stable id, acknowledge server-side; test the unacknowledged and refunded paths
+- [x] 6.3 `POST /billing/google/rtdn`: verify the Pub/Sub push OIDC token, `messageId` idempotency, re-read state from the API (never trust the notification body), upsert; disabled ⇒ 200 + skip; tests
 
 ## 7. Web Merchant-of-Record channel (D9)
 
-- [ ] 7.1 Choose the provider (Paddle Billing vs Lemon Squeezy — record the decision in design.md Open Questions) and implement `WebBillingProvider` port: `create_checkout(user_id) -> url`, `portal_url(customer_id)`, `cancel(subscription_id)`; mock for tests
-- [ ] 7.2 `CreateWebCheckout`: only when `billing.web.enabled`, only for non-store audiences, custom data = user id; `POST /billing/web/webhook`: HMAC verification, event-id idempotency, pure mapper (created/updated/past_due/cancelled/refunded → transitions), upsert; tests incl. replay and bad signature
-- [ ] 7.3 Reconciliation job (`plans_reconcile`, scheduled via `cymbra_jobs::registry`): for rows ending within N days without an event in the last M days, re-read provider state (Apple statuses, Google get, web get) and upsert; test the "missed renewal repaired" and "refund caught" cases
+- [x] 7.1 Choose the provider (Paddle Billing vs Lemon Squeezy — record the decision in design.md Open Questions) and implement `WebBillingProvider` port: `create_checkout(user_id) -> url`, `portal_url(customer_id)`, `cancel(subscription_id)`; mock for tests
+- [x] 7.2 `CreateWebCheckout`: only when `billing.web.enabled`, only for non-store audiences, custom data = user id; `POST /billing/web/webhook`: HMAC verification, event-id idempotency, pure mapper (created/updated/past_due/cancelled/refunded → transitions), upsert; tests incl. replay and bad signature
+- [x] 7.3 Reconciliation job (`plans_reconcile`, scheduled via `cymbra_jobs::registry`): for rows ending within N days without an event in the last M days, re-read provider state (Apple statuses, Google get, web get) and upsert; test the "missed renewal repaired" and "refund caught" cases
 
 ## 8. App: plan state, paywall, unlock mirrors (D5, D10)
 

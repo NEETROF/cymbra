@@ -19,6 +19,7 @@
 //! `cymbra-music` and the flags service consume the crate through
 //! [`ports::PlanSource`] only — `plans` never depends on `music`.
 
+pub mod billing;
 pub mod codes;
 pub mod core;
 pub mod grpc;
@@ -27,6 +28,7 @@ pub mod pg;
 pub mod ports;
 pub mod service;
 
+pub use cymbra_platform::AppError;
 pub use model::{
     AccessCode, BetaInfo, Campaign, CampaignKind, EntitlementRow, EntitlementStatus, Membership,
     MembershipRow, MembershipSource, PREMIUM_UNLOCKS, Plan, PlanSnapshot, Redemption, Source,

@@ -72,6 +72,18 @@ pub const STREAK_REMINDER: &str = "streak_reminder";
 /// row's rendered marker. Idempotent (a re-render overwrites the same object), so
 /// at-least-once delivery is safe.
 pub const SCORE_PREVIEW_RENDER: &str = "score_preview_render";
+/// Stable name of the plan reconciliation sweep (change: add-premium-subscription,
+/// design D7–D9). No payload. Scheduled daily: re-reads the provider state of paid
+/// entitlement rows nearing their end and re-applies it, so a missed store /
+/// merchant-of-record notification never leaves a paying user degraded nor a
+/// refunded user active. Idempotent (forward-only upserts). MUST run before
+/// [`PLANS_WITHDRAW`] — same ordered channel, earlier cron time.
+pub const PLANS_RECONCILE: &str = "plans_reconcile";
+/// Stable name of the withdrawal sweep (change: add-premium-subscription, design
+/// D13). No payload. Scheduled daily AFTER [`PLANS_RECONCILE`]: for every account
+/// whose plan lapsed past grace and is not yet withdrawn, rotates the offline
+/// cache secret once and stamps the rows. Idempotent by the `withdrawn_at` claim.
+pub const PLANS_WITHDRAW: &str = "plans_withdraw";
 
 /// Static description of one job type.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -204,6 +216,18 @@ pub fn builtin() -> Vec<JobSpec> {
             // every gate — a late retry simply sends nothing.
             RetryPolicy::new(3, Duration::from_secs(60), Duration::from_secs(900)),
         ),
+        JobSpec::new(
+            PLANS_RECONCILE,
+            // Ordered with the withdrawal sweep: reconcile first, so a missed
+            // renewal is repaired before anyone is withdrawn.
+            Channel::ordered("plans", "maintenance"),
+            RetryPolicy::new(3, Duration::from_secs(60), Duration::from_secs(3600)),
+        ),
+        JobSpec::new(
+            PLANS_WITHDRAW,
+            Channel::ordered("plans", "maintenance"),
+            RetryPolicy::new(3, Duration::from_secs(60), Duration::from_secs(3600)),
+        ),
     ]
 }
 
@@ -229,6 +253,16 @@ mod tests {
         assert!(names.contains(&PUSH_DISPATCH.to_string()));
         assert!(names.contains(&STREAK_REMINDER.to_string()));
         assert!(names.contains(&SCORE_PREVIEW_RENDER.to_string()));
+    }
+
+    #[test]
+    fn plans_reconcile_runs_before_withdraw_on_one_ordered_channel() {
+        let reconcile = spec(PLANS_RECONCILE).unwrap();
+        let withdraw = spec(PLANS_WITHDRAW).unwrap();
+        assert_eq!(reconcile.channel().name(), "plans.maintenance");
+        assert_eq!(withdraw.channel().name(), "plans.maintenance");
+        assert!(reconcile.channel().is_ordered());
+        assert!(withdraw.channel().is_ordered());
     }
 
     #[test]

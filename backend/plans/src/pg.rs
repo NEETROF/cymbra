@@ -106,6 +106,22 @@ impl EntitlementRepo for PgEntitlementRepo {
         row.as_ref().map(row_from_pg).transpose()
     }
 
+    async fn find_by_provider_ref(
+        &self,
+        source: Source,
+        provider_ref: &str,
+    ) -> Result<Option<EntitlementRow>> {
+        let row = sqlx::query(&format!(
+            "SELECT {ENTITLEMENT_COLS} FROM plan_entitlements WHERE source = $1 AND provider_ref = $2"
+        ))
+        .bind(source.as_str())
+        .bind(provider_ref)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(|e| internal("find entitlement by ref", e))?;
+        row.as_ref().map(row_from_pg).transpose()
+    }
+
     async fn upsert(&self, w: EntitlementWrite) -> Result<EntitlementRow> {
         let uid = parse_uuid(&w.user_id)?;
         let terminal = w.status.is_terminal();
