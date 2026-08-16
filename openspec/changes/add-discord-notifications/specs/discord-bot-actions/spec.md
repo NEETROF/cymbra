@@ -70,7 +70,8 @@ The Discord application SHALL offer a `/beta` slash command that claims beta acc
 requesting member. The handler SHALL accept the command only from the configured beta channel
 (and, when configured, only from members holding the configured role), evaluated
 **server-side** from the interaction payload. It SHALL obtain **one single-use code bound to
-the currently open campaign** from the access-code capability (`music-access-codes`), record
+the beta campaign configured for that channel** (a premium trial or a feature beta, per
+`music-access-codes`) from the access-code capability, record
 the claim `(campaign, discord_user_id)`, and answer with an **ephemeral** message containing the
 web redeem link. The claim SHALL be **idempotent per member and campaign**: a repeated `/beta`
 returns the same link and mints nothing new. When the member's Cymbra account is already linked,
@@ -100,7 +101,7 @@ paid unlock — and SHALL NOT expose the code in a non-ephemeral message.
 
 #### Scenario: No open campaign
 
-- **WHEN** `/beta` is run while no campaign is open, or the access-code capability is not deployed
+- **WHEN** `/beta` is run while the channel's campaign is closed (or its enrolment closed), or the access-code capability is not deployed
 - **THEN** the command answers "beta not open" and mints nothing
 
 #### Scenario: Never a paid or discounted unlock
