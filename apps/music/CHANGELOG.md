@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.22.1](https://github.com/NEETROF/cymbra/compare/music-v1.22.0...music-v1.22.1) (2026-08-16)
+
+
+### Bug Fixes
+
+* **music:** stop the second macOS keychain prompt (offline cache key) ([#238](https://github.com/NEETROF/cymbra/issues/238)) ([816980b](https://github.com/NEETROF/cymbra/commit/816980bea2ca267c4bfad0ee09010f2c348fac93))
+
 ## [1.22.0](https://github.com/NEETROF/cymbra/compare/music-v1.21.0...music-v1.22.0) (2026-08-16)
 
 
