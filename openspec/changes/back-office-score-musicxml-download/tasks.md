@@ -28,6 +28,6 @@
 
 ## 6. Verification & polish
 
-- [ ] 6.1 Manual verification in a running back office (needs a live backend + moderator session — not runnable headless here): download a `pending`, `rejected`, and `accepted` score and confirm the saved `.musicxml` opens in external notation software.
+- [x] 6.1 Manual verification in a running back office — **done 2026-08-16** against the live backend with a moderator session: a `pending`, a `rejected` and an `accepted` score each downloaded. All three saved files verified well-formed (`xmllint --noout`), `XML 1.0 document text` (not a zip — `decode_canonical` decompressed the stored `.mxl`), MusicXML 3.1 Partwise DOCTYPE, closed `</score-partwise>`, with real pitched content (85/32/193 notes over 29/20/25 measures). The third also exercised the filename fallback: its `work-title` is `?`, sanitised to empty, so the name fell back to the identifier per `musicxmlFileName`.
 - [x] 6.2 `yarn lint`, `yarn typecheck` (clean for all changed files; remaining errors are the pre-existing `@/wasm/pkg*` codegen seams, unrelated), and `yarn vitest run` — the download/catalog/components/i18n suites pass (32 new/edited assertions; 104 total non-wasm tests green). New code is fully exercised by tests.
 - [x] 6.3 `openspec validate back-office-score-musicxml-download --strict` → valid.
