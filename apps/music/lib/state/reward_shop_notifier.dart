@@ -18,6 +18,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../services/curator_rewards_service.dart';
 import 'curator_profile_notifier.dart';
+import 'plan_notifier.dart';
 
 part 'reward_shop_notifier.freezed.dart';
 part 'reward_shop_notifier.g.dart';
@@ -49,6 +50,11 @@ abstract class RewardShopState with _$RewardShopState {
 class RewardShop extends _$RewardShop {
   @override
   Future<RewardShopState> build() async {
+    // Ownership depends on the plan (premium owns the whole shop; change:
+    // add-premium-subscription): re-read when the effective plan changes
+    // (the derived sync value, so a loading→data transition of the same plan
+    // does not churn the shop).
+    ref.watch(effectivePlanProvider.select((p) => p.plan));
     final items = await ref.read(curatorRewardsServiceProvider).listShop();
     return RewardShopState(items: items);
   }

@@ -27,6 +27,7 @@ import '../services/score_asset_source.dart';
 import '../services/score_upload_service.dart';
 import 'catalog_daily_access_notifier.dart';
 import 'notation_data.dart';
+import 'plan_notifier.dart';
 import 'saved_catalog_scores.dart';
 import 'score_catalog.dart';
 import 'usage_tracking_notifier.dart';
@@ -259,10 +260,13 @@ class Notation extends _$Notation {
 
   /// Whether [entry] is currently in the user's favorites (the cache-write gate).
   /// Uploads carry their own flag; a catalog entry is a favorite iff it is in the
-  /// saved-library list.
+  /// saved-library list AND the plan allows caching catalog scores offline
+  /// (spec `offline-score-cache`: a premium unlock once the plan system is on;
+  /// own uploads are never gated — change: add-premium-subscription).
   Future<bool> _isFavorite(CatalogEntry entry) async {
     if (entry.contributedId != null) return entry.favorite;
     if (entry.catalogId != null) {
+      if (!ref.read(catalogOfflineCacheAllowedProvider)) return false;
       final saved =
           ref.read(savedCatalogScoresProvider).valueOrNull ?? const [];
       return saved.any((e) => e.catalogId == entry.catalogId);
