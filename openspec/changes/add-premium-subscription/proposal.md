@@ -98,6 +98,9 @@ subscription middleware taking a cut.
   beta campaigns; rollouts `premium_only` and `beta:<campaign>` join `global`/`staff_only`; the
   client snapshot is keyed by plan and memberships as well as identity.
 - `feature-flags-admin`: the flags console can pick the plan- and beta-scoped rollouts.
+- `admin-account-directory`: `ListAccounts` accepts an explicit `ids` set so the back office can
+  filter the accounts directory by plan / beta after resolving the criterion through the plan
+  service — the identity service stays product-agnostic.
 
 ## Impact
 
@@ -127,9 +130,11 @@ Products (consumed vs new):
   reconciliation job (re-check provider state for entitlements nearing expiry) and the purge
   hook; rate limiting on `RedeemAccessCode` and the webhook routes via the existing
   `ratelimit::check`.
-- **Back office (new screen)** — `Plans` view: account lookup, grants, campaigns (both kinds),
-  codes, members; consumes the existing roles/audit patterns (`RolesView`, `role_grants`) and the
-  flags console for the new keys.
+- **Back office (new screen + directory columns)** — `Plans` view: account lookup, grants,
+  campaigns (both kinds), codes, members; the accounts directory gains plan/beta badges and
+  filters (premium, premium trial, beta by campaign) via `ListAccountIdsByPlan` +
+  `GetPlansForAccounts`; consumes the existing roles/audit patterns (`RolesView`, `role_grants`)
+  and the flags console for the new keys.
 - **Cymbra Live** — untouched; the `product` column and the crate are ready for it.
 - **Legal/ops** — terms of sale (subscription, renewal, refunds handled by the store/MoR; beta
   access free, time-bounded, revocable), privacy policy (provider identifiers stored, no card

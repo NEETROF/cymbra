@@ -26,11 +26,12 @@
 
 ## 4. gRPC surface: `PlanService` (D10)
 
-- [ ] 4.1 Add `backend/plans/proto/plans.proto`: `GetMyPlan` (plan, source, ends_at, trial {campaign, ends_at}, betas [{campaign, kind, joined_at}], manage kind, can_purchase_here, purchase channel), `RedeemAccessCode`, `CreateWebCheckout`, `ReportStorePurchase` (Apple JWS | Google token), `RestorePurchases`; admin: `LookupAccountPlan`, `GrantPremium`, `RevokeEntitlement`, `EnrolHandle`, `RevokeMembership`, `CreateCampaign`, `CloseEnrollment`, `CloseCampaign`, `MintCodes`, `RevokeCodes`, `ListMembers`, `ExportMembers`, `ListOpenCampaigns` (for the flags console selector)
+- [ ] 4.1 Add `backend/plans/proto/plans.proto`: `GetMyPlan` (plan, source, ends_at, trial {campaign, ends_at}, betas [{campaign, kind, joined_at}], manage kind, can_purchase_here, purchase channel), `RedeemAccessCode`, `CreateWebCheckout`, `ReportStorePurchase` (Apple JWS | Google token), `RestorePurchases`; admin: `LookupAccountPlan`, `GrantPremium`, `RevokeEntitlement`, `EnrolHandle`, `RevokeMembership`, `CreateCampaign`, `CloseEnrollment`, `CloseCampaign`, `MintCodes`, `RevokeCodes`, `ListMembers`, `ExportMembers`, `ListOpenCampaigns` (for the flags console selector), `ListAccountIdsByPlan` (plan any/free/premium/trial × beta campaign) and `GetPlansForAccounts(ids)` (batch badges for a directory page)
 - [ ] 4.2 Implement `GetMyPlan`: `can_purchase_here` decided from the token audience/platform hint and the presence of an active paid row from another source; `plans.enabled` off ⇒ `free`, no betas, no purchase; tests for trial tester, feature-beta member on free, store subscriber on another platform, kill-switch off
 - [ ] 4.3 Implement `RedeemAccessCode` (= enrol) with `ratelimit::check` per user and per address **before** any lookup, neutral refusal for unknown/revoked/used, concurrent-trial refusal, and the web-only surface (reject when the caller audience is a store build); tests
 - [ ] 4.4 Implement the admin RPCs behind `guard::require_admin_in_scope("music")` with audit rows (acting admin, target, action, reason) mirroring `role_grants`; open-ended grant requires an explicit `confirm_open_ended` flag; store/web rows are not revocable; closing a feature campaign ends memberships in one statement; tests for moderator rejection and each mutation's audit
-- [ ] 4.5 Regenerate the Dart gRPC stubs (`melos gen-grpc`) and the back-office client (`yarn gen`)
+- [ ] 4.5 Identity service: add the optional `ids` set to `ListAccounts` (`backend/user-port/proto/user.proto`, repo query, combined with `query`); tests for ids-only, ids + query, empty set — and assert no plan concept enters the user crate
+- [ ] 4.6 Regenerate the Dart gRPC stubs (`melos gen-grpc`) and the back-office client (`yarn gen`)
 
 ## 5. Apple channel (D7)
 
@@ -67,7 +68,8 @@
 - [ ] 9.1 Add the `plans` store (Pinia, `Async<T>` unions) over the admin RPCs behind the injectable client seam; role-gate the route to music admins
 - [ ] 9.2 Build the view: handle lookup → entitlement rows + memberships + effective plan; grant/revoke and enrol/unenrol dialogs with reason (open-ended confirmation); campaigns table (create with kind + duration, close enrolment, close feature campaign); mint N codes (shown once, download once); revoke; members list + CSV export
 - [ ] 9.3 Flags console: rollout selector gains `premium_only` and `beta:<campaign>` populated from `ListOpenCampaigns` (no free text), with plan-/beta-scoped markers; new keys visible with descriptions; `plans.enabled` and `billing.*.enabled` marked sensitive
-- [ ] 9.4 Component tests + a Playwright e2e on the fake-client seam (lookup, grant, enrol, close a feature campaign, mint codes shown once, beta selector lists open campaigns only)
+- [ ] 9.4 Accounts directory: plan/beta badge columns (batch `GetPlansForAccounts` per page) and the plan / beta filters (resolve via `ListAccountIdsByPlan` → `ListAccounts(ids)`); columns and filters absent for non-music-admins
+- [ ] 9.5 Component tests + a Playwright e2e on the fake-client seam (lookup, grant, enrol, close a feature campaign, mint codes shown once, beta selector lists open campaigns only, directory filter by trial and by beta)
 
 ## 10. Legal, ops, docs
 

@@ -57,6 +57,37 @@ NOT be revocable from the console (they end on the provider's side).
 - **WHEN** an admin attempts to revoke an `apple`, `google` or `web` row
 - **THEN** the action is unavailable and the row is unchanged
 
+### Requirement: The accounts directory shows and filters by plan and beta
+
+The back-office accounts directory SHALL show, for each listed account, its effective plan
+(`free` / `premium`, with `trial` marked when premium comes from a premium trial) and its
+active beta memberships by campaign, and SHALL offer search criteria **plan** (any / free /
+premium / premium trial) and **beta** (any / a specific campaign, listed by kind). The criteria
+SHALL be resolved by the plan service into account ids (`ListAccountIdsByPlan`) which the
+directory then lists (`ListAccounts` with `ids`), and the badges SHALL come from a batch lookup
+(`GetPlansForAccounts`) for the displayed page — the identity service MUST NOT learn plan or
+beta concepts. Both RPCs are music-admin only.
+
+#### Scenario: Filter by premium trial
+
+- **WHEN** an admin selects plan = "premium trial" in the accounts directory
+- **THEN** only accounts with an active premium-trial row are listed, each showing the trial campaign and its end
+
+#### Scenario: Filter by feature beta
+
+- **WHEN** an admin selects beta = `midi-drums`
+- **THEN** only active members of that campaign are listed, whatever their plan
+
+#### Scenario: Badges on every row
+
+- **WHEN** an admin lists any page of accounts
+- **THEN** each row shows the effective plan and the beta memberships, fetched in one batch call for the page
+
+#### Scenario: Moderator sees no plan data
+
+- **WHEN** a music moderator opens the accounts directory
+- **THEN** the plan/beta columns and filters are absent and the batch lookup is not called
+
 ### Requirement: Campaign and code management, member export
 
 The console SHALL let an admin create campaigns (key, name, kind, and `duration_days` for
