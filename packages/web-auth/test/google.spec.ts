@@ -21,7 +21,7 @@ afterEach(() => {
 describe("useGoogleSignIn", () => {
   it("initialises GSI and renders the button into the slot", async () => {
     const { initialize, renderButton } = installGsi();
-    const { useGoogleSignIn } = await import("@/composables/useGoogleSignIn");
+    const { useGoogleSignIn } = await import("../src/google");
     const parent = document.createElement("div");
     const { status, render } = useGoogleSignIn("client-123", vi.fn());
 
@@ -35,7 +35,7 @@ describe("useGoogleSignIn", () => {
   it("forwards a credential to onCredential", async () => {
     const { initialize } = installGsi();
     const onCredential = vi.fn();
-    const { useGoogleSignIn } = await import("@/composables/useGoogleSignIn");
+    const { useGoogleSignIn } = await import("../src/google");
     await useGoogleSignIn("c", onCredential).render(document.createElement("div"));
 
     initialize.mock.calls[0][0].callback({ credential: "id-token-abc" });
@@ -46,7 +46,7 @@ describe("useGoogleSignIn", () => {
   it("ignores a callback with no credential", async () => {
     const { initialize } = installGsi();
     const onCredential = vi.fn();
-    const { useGoogleSignIn } = await import("@/composables/useGoogleSignIn");
+    const { useGoogleSignIn } = await import("../src/google");
     await useGoogleSignIn("c", onCredential).render(document.createElement("div"));
 
     initialize.mock.calls[0][0].callback({});
@@ -60,7 +60,7 @@ describe("useGoogleSignIn", () => {
         throw new Error("boom");
       },
     });
-    const { useGoogleSignIn } = await import("@/composables/useGoogleSignIn");
+    const { useGoogleSignIn } = await import("../src/google");
     const { status, render } = useGoogleSignIn("c", vi.fn());
 
     await render(document.createElement("div"));
@@ -69,7 +69,7 @@ describe("useGoogleSignIn", () => {
   });
 
   it("loads the GSI <script> when the SDK is absent, then renders", async () => {
-    const { useGoogleSignIn } = await import("@/composables/useGoogleSignIn");
+    const { useGoogleSignIn } = await import("../src/google");
     const { status, render } = useGoogleSignIn("c", vi.fn());
 
     const pending = render(document.createElement("div"));
@@ -87,7 +87,7 @@ describe("useGoogleSignIn", () => {
   });
 
   it("fails the status when the script errors", async () => {
-    const { useGoogleSignIn } = await import("@/composables/useGoogleSignIn");
+    const { useGoogleSignIn } = await import("../src/google");
     const { status, render } = useGoogleSignIn("c", vi.fn());
 
     const pending = render(document.createElement("div"));

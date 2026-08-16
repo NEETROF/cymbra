@@ -27,6 +27,7 @@
     "@bufbuild/protobuf": "^2.2.3",
     "@connectrpc/connect": "^2.0.1",
     "@connectrpc/connect-web": "^2.0.1",
+    "@cymbra/web-auth": "portal:../../packages/web-auth",
     "chart.js": "^4.5.1",
     "pinia": "^2.2.6",
     "ts-pattern": "^5.5.0",

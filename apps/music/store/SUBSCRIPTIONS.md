@@ -56,12 +56,24 @@ every channel you enable.
       subscribed to `subscription.*`, `transaction.completed`, `adjustment.created`
       → its endpoint secret in `CYMBRA_PADDLE_WEBHOOK_SECRET`.
 - [ ] API key → `CYMBRA_PADDLE_API_KEY`; hosted checkout page
-      `CYMBRA_PADDLE_CHECKOUT_PAGE=https://cymbra.app/checkout` (a page hosting the
-      Paddle.js overlay that reads `_ptxn`); optional `CYMBRA_PADDLE_SUCCESS_URL`.
-- [ ] Verify in sandbox from a Windows/Linux build: checkout opens in the browser,
-      webhook activates the plan, "I've paid — refresh" shows Premium, portal
-      management, cancel, refund; and that the iOS/Android builds show "managed on
-      the web" instead of a second purchase.
+      `CYMBRA_PADDLE_CHECKOUT_PAGE=https://cymbra.app/checkout` — the site page hosting
+      the Paddle.js overlay (`apps/site`, change add-site-account-pages); it reads
+      `_ptxn` and returns to `https://cymbra.app/checkout/done`. Approve the domain
+      `cymbra.app` in Paddle (Checkout → Website approval) and set the site's
+      `PUBLIC_PADDLE_ENV` + `PUBLIC_PADDLE_CLIENT_TOKEN` (client-side token).
+- [ ] Web sign-in for the site: `web` in `CYMBRA_ALLOWED_AUDIENCES`,
+      `https://cymbra.app` in `CYMBRA_WEB_ORIGINS`, the site origin on the Google web
+      client (Authorized JavaScript origins) and on the Apple Services ID (domain
+      `cymbra.app`, Return URLs `/redeem`, `/account`) — the same client ids as the
+      back office, set as `PUBLIC_GOOGLE_CLIENT_ID` / `PUBLIC_APPLE_CLIENT_ID`.
+- [ ] Verify in sandbox from a Windows/Linux build: checkout opens in the browser
+      on `/checkout`, completes, lands on `/checkout/done`; the webhook activates the
+      plan, "I've paid — refresh" shows Premium; `/account` opens the portal
+      (management, cancel, refund); and the iOS/Android builds show "managed on the
+      web" instead of a second purchase.
+- [ ] Beta codes: mint codes in the back office (Plans → campaign → codes), redeem
+      one on `https://cymbra.app/redeem?code=…` (sign-in required), see it in the
+      app after a refresh; the store builds have no code field and no `/redeem` link.
 
 ## Rollout order (design D12)
 

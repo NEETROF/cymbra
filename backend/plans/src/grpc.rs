@@ -16,23 +16,15 @@ use crate::ports::{
 use crate::proto::plan_service_server::{PlanService as PlanServiceTrait, PlanServiceServer};
 use crate::proto::{self};
 use crate::service::{PlanFilter, PlanService};
+use crate::web;
 use chrono::{DateTime, Utc};
 use cymbra_platform::cache::Cache;
 use cymbra_platform::identity::AuthIdentity;
-use cymbra_platform::{AppError, guard, ratelimit};
+use cymbra_platform::{AppError, guard};
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::time::Duration;
 use tonic::{Request, Response, Status};
 use uuid::Uuid;
-
-/// Redemption throttle: attempts per account and per address per window.
-const REDEEM_MAX_PER_USER: u32 = 10;
-const REDEEM_MAX_PER_ADDR: u32 = 30;
-const REDEEM_WINDOW: Duration = Duration::from_secs(600);
-
-/// The store-build audience: never offered the web channel or the redeem field.
-const APP_AUDIENCE: &str = "music";
 
 pub struct PlanGrpc {
     svc: Arc<PlanService>,
@@ -104,69 +96,67 @@ impl PlanGrpc {
             .ok_or_else(|| Status::not_found("no account with that handle"))
     }
 
-    /// The paywall part of the plan answer: managed-on + can-purchase-here.
-    fn purchase_view(
-        &self,
-        snapshot: &PlanSnapshot,
-        platform: Option<Platform>,
-    ) -> (proto::Channel, bool, proto::Channel) {
-        let managed_on = snapshot.source.and_then(Channel::from_source);
-        let channel = platform.map(Platform::channel);
-        let can_purchase = match (managed_on, channel) {
-            (Some(_), _) => false,
-            (None, Some(c)) => self.paywall.channel_enabled(c) && self.svc.enabled(),
-            (None, None) => false,
-        };
-        (
-            managed_on.map(channel_to_proto).unwrap_or_default(),
-            can_purchase,
-            channel
-                .filter(|_| can_purchase)
-                .map(channel_to_proto)
-                .unwrap_or_default(),
-        )
-    }
-
     fn plan_response(
         &self,
         snapshot: &PlanSnapshot,
         platform: Option<Platform>,
     ) -> proto::GetMyPlanResponse {
-        let (managed_on, can_purchase_here, purchase_channel) =
-            self.purchase_view(snapshot, platform);
-        proto::GetMyPlanResponse {
-            plan: snapshot.plan.as_str().to_string(),
-            source: snapshot.source.map(|s| s.as_str().to_string()),
-            ends_at: snapshot.ends_at.map(rfc3339),
-            ends_without_renewal: snapshot.ends_without_renewal,
-            trial_campaign_key: snapshot.trial.as_ref().map(|t| t.campaign_key.clone()),
-            trial_campaign_name: snapshot.trial.as_ref().map(|t| t.campaign_name.clone()),
-            trial_ends_at: snapshot.trial.as_ref().map(|t| rfc3339(t.ends_at)),
-            betas: snapshot
-                .betas
-                .iter()
-                .map(|b| proto::BetaMembership {
-                    campaign_key: b.campaign_key.clone(),
-                    campaign_name: b.campaign_name.clone(),
-                    kind: b.kind.as_str().to_string(),
-                    joined_at: rfc3339(b.joined_at),
-                    ends_at: b.ends_at.map(rfc3339),
-                })
-                .collect(),
-            managed_on: managed_on.into(),
-            can_purchase_here,
-            purchase_channel: purchase_channel.into(),
-            products: if can_purchase_here {
-                self.paywall.products()
-            } else {
-                Vec::new()
-            },
-            unlocks: crate::model::PREMIUM_UNLOCKS
-                .iter()
-                .filter(|u| snapshot.grants(**u))
-                .map(|u| u.key().to_string())
-                .collect(),
-        }
+        plan_view_to_proto(web::plan_view(
+            &self.svc,
+            self.paywall.as_ref(),
+            snapshot,
+            platform,
+        ))
+    }
+}
+
+/// The user-facing view (shared with the browser JSON routes) as the proto message.
+fn plan_view_to_proto(v: web::PlanView) -> proto::GetMyPlanResponse {
+    proto::GetMyPlanResponse {
+        plan: v.plan,
+        source: v.source,
+        ends_at: v.ends_at,
+        ends_without_renewal: v.ends_without_renewal,
+        trial_campaign_key: v.trial_campaign_key,
+        trial_campaign_name: v.trial_campaign_name,
+        trial_ends_at: v.trial_ends_at,
+        betas: v
+            .betas
+            .into_iter()
+            .map(|b| proto::BetaMembership {
+                campaign_key: b.campaign_key,
+                campaign_name: b.campaign_name,
+                kind: b.kind,
+                joined_at: b.joined_at,
+                ends_at: b.ends_at,
+            })
+            .collect(),
+        managed_on: v
+            .managed_on
+            .as_deref()
+            .and_then(channel_from_key)
+            .map(channel_to_proto)
+            .unwrap_or_default()
+            .into(),
+        can_purchase_here: v.can_purchase_here,
+        purchase_channel: v
+            .purchase_channel
+            .as_deref()
+            .and_then(channel_from_key)
+            .map(channel_to_proto)
+            .unwrap_or_default()
+            .into(),
+        products: v.products,
+        unlocks: v.unlocks,
+    }
+}
+
+fn channel_from_key(k: &str) -> Option<Channel> {
+    match k {
+        "apple" => Some(Channel::Apple),
+        "google" => Some(Channel::Google),
+        "web" => Some(Channel::Web),
+        _ => None,
     }
 }
 
@@ -300,44 +290,28 @@ impl PlanServiceTrait for PlanGrpc {
         req: Request<proto::RedeemAccessCodeRequest>,
     ) -> Result<Response<proto::RedeemAccessCodeResponse>, Status> {
         let id = identity(&req)?;
-        // Web-only: the store builds carry no code entry (Apple 3.1.1).
-        if id.audience == APP_AUDIENCE {
-            return Err(Status::failed_precondition("codes are redeemed on the web"));
-        }
         let addr = req
             .remote_addr()
             .map(|a| a.ip().to_string())
             .unwrap_or_else(|| "unknown".into());
-        // Throttle BEFORE any lookup (per account and per address).
-        ratelimit::check(
-            self.cache.as_ref(),
-            "redeem_code_user",
-            &id.user_id,
-            REDEEM_MAX_PER_USER,
-            REDEEM_WINDOW,
-        )
-        .await
-        .map_err(|e| e.to_status())?;
-        ratelimit::check(
-            self.cache.as_ref(),
-            "redeem_code_addr",
-            &addr,
-            REDEEM_MAX_PER_ADDR,
-            REDEEM_WINDOW,
-        )
-        .await
-        .map_err(|e| e.to_status())?;
         let code = req.into_inner().code;
-        let out = self
-            .svc
-            .redeem(&id.user_id, &code)
-            .await
-            .map_err(|e| e.to_status())?;
+        // Web-only + throttle-before-lookup live in `web::redeem` (shared with the
+        // site's JSON route).
+        let out = web::redeem(
+            &self.svc,
+            self.cache.as_ref(),
+            &id.user_id,
+            &id.audience,
+            &addr,
+            &code,
+        )
+        .await
+        .map_err(|e| e.to_status())?;
         Ok(Response::new(proto::RedeemAccessCodeResponse {
             campaign_key: out.campaign_key,
             campaign_name: out.campaign_name,
-            kind: out.kind.as_str().to_string(),
-            ends_at: out.ends_at.map(rfc3339),
+            kind: out.kind,
+            ends_at: out.ends_at,
         }))
     }
 
@@ -392,31 +366,16 @@ impl PlanServiceTrait for PlanGrpc {
         req: Request<proto::CreateWebCheckoutRequest>,
     ) -> Result<Response<proto::CreateWebCheckoutResponse>, Status> {
         let id = identity(&req)?;
-        if !self.svc.enabled() || !self.paywall.channel_enabled(Channel::Web) {
-            return Err(Status::failed_precondition("web channel disabled"));
-        }
-        let web = self
-            .web
-            .as_ref()
-            .ok_or_else(|| Status::unimplemented("web billing not configured"))?;
-        let snapshot = self
-            .svc
-            .snapshot(&id.user_id)
-            .await
-            .map_err(|e| e.to_status())?;
-        if snapshot.source.is_some_and(|s| s.is_paid_channel()) {
-            return Err(Status::failed_precondition(
-                "already subscribed on another channel",
-            ));
-        }
         let product = req.into_inner().product_id;
-        if !self.paywall.products().contains(&product) {
-            return Err(Status::invalid_argument("unknown product"));
-        }
-        let url = web
-            .create_checkout(&id.user_id, &product)
-            .await
-            .map_err(|e| e.to_status())?;
+        let url = web::create_checkout(
+            &self.svc,
+            self.paywall.as_ref(),
+            self.web.as_ref(),
+            &id.user_id,
+            &product,
+        )
+        .await
+        .map_err(|e| e.to_status())?;
         Ok(Response::new(proto::CreateWebCheckoutResponse {
             checkout_url: url,
         }))

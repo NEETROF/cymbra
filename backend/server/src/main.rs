@@ -607,9 +607,11 @@ async fn main() -> anyhow::Result<()> {
         cookie_secure: cfg.web_auth_cookie_secure,
         cookie_path: cymbra_server::WebAuthConfig::DEFAULT_PATH.to_string(),
         refresh_ttl: cfg.token.refresh_ttl,
-        allowed_origins: cfg.back_office_origins.clone(),
+        // Site + back office (change: add-site-account-pages).
+        allowed_origins: cfg.web_origins.clone(),
     };
     let soundfont_auth: Arc<dyn cymbra_server::SoundfontAuth> = Arc::new(soundfont_auth);
+    let web_plans_auth = soundfont_auth.clone();
     // Score audio-teaser routes (change: add-score-daily-access-rewards); the same
     // auth seam as the SoundFont routes.
     let (sp_store, sp_catalog, sp_renderer) = match score_preview_parts {
@@ -651,6 +653,25 @@ async fn main() -> anyhow::Result<()> {
     // Provider notification routes (change: add-premium-subscription).
     let http = match billing_http {
         Some(r) => http.merge(r),
+        None => http,
+    };
+    // Browser plan JSON routes for the public site (change: add-site-account-pages):
+    // bearer-authenticated through the same seam as the SoundFont routes, CORS
+    // restricted to the web origins. Mounted only when the plans module is wired.
+    let http = match plan_service.clone() {
+        Some(ps) => http.merge(cymbra_server::web_plans_router(
+            cymbra_server::WebPlansState {
+                svc: ps,
+                paywall: paywall_cfg.clone(),
+                cache: cache.clone(),
+                web: billing_channels
+                    .web
+                    .clone()
+                    .map(|w| w as Arc<dyn cymbra_plans::WebBillingProvider>),
+                auth: web_plans_auth,
+            },
+            cfg.web_origins.clone(),
+        )),
         None => http,
     };
 

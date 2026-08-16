@@ -78,8 +78,11 @@ compute the initial value and return it.
 
 For Vue web apps (e.g. `apps/back-office`), follow the **`vue-frontend-architecture`**
 skill (`.claude/skills/`). The public site `apps/site` is Astro (static, fr/en); its
-interactive islands (sign-in, code redemption, account) follow the same two rules
-and reuse the back office's web-auth code rather than re-implementing it. Two hard rules, applied proactively:
+interactive islands (sign-in, code redemption, account, checkout — Vue) follow the
+same two rules and consume the shared **`packages/web-auth`** package
+(`@cymbra/web-auth`, Yarn `portal:` — Google/Apple sign-in composables + the web-auth
+client; one implementation for the back office and the site, never a copy). Two hard
+rules, applied proactively:
 - **A screen/component NEVER calls an API directly** — only Pinia stores/composables
   do, behind an injectable client seam (`lib/api.ts` + `setClientsForTest`).
 - **Async state is one `ts-pattern` discriminated union** (`Async<T>`:

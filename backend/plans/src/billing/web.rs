@@ -234,21 +234,17 @@ pub async fn handle_webhook(
 pub struct PaddleProvider {
     api_key: String,
     base: String,
-    /// The hosted checkout page that receives `_ptxn=<transaction id>`.
+    /// The hosted checkout page (the site page carrying Paddle.js) that receives
+    /// `_ptxn=<transaction id>`; also sent as the transaction's `checkout.url` so
+    /// Paddle binds the transaction to that approved page. The success URL is a
+    /// client-side setting of the page (`/checkout/done`), not a transaction field.
     checkout_page: String,
-    /// Optional `success_url` the checkout returns to (desktop deep link / page).
-    success_url: Option<String>,
     http: reqwest::Client,
 }
 
 impl PaddleProvider {
     /// `sandbox` selects the sandbox API host.
-    pub fn new(
-        api_key: String,
-        sandbox: bool,
-        checkout_page: String,
-        success_url: Option<String>,
-    ) -> Self {
+    pub fn new(api_key: String, sandbox: bool, checkout_page: String) -> Self {
         Self {
             api_key,
             base: if sandbox {
@@ -257,7 +253,6 @@ impl PaddleProvider {
                 "https://api.paddle.com".into()
             },
             checkout_page,
-            success_url,
             http: reqwest::Client::new(),
         }
     }
@@ -303,13 +298,13 @@ impl PaddleProvider {
 impl WebBillingProvider for PaddleProvider {
     async fn create_checkout(&self, user_id: &str, product_id: &str) -> Result<String> {
         // `product_id` is the Paddle price id configured in `plans.premium.products`.
-        let mut body = serde_json::json!({
+        let body = serde_json::json!({
             "items": [{ "price_id": product_id, "quantity": 1 }],
             "custom_data": { "user_id": user_id },
+            // Paddle's `checkout.url` is the page hosting Paddle.js (an approved
+            // domain), never the success URL.
+            "checkout": { "url": self.checkout_page },
         });
-        if let Some(u) = &self.success_url {
-            body["checkout"] = serde_json::json!({ "url": u });
-        }
         let v = self.post("/transactions", body).await?;
         let txn = v["data"]["id"]
             .as_str()

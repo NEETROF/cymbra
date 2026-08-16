@@ -93,11 +93,10 @@ mod tests {
 
     /// A service whose ledger is an in-memory map keyed by (source, provider_ref)
     /// and whose event log de-duplicates by (provider, event_id).
-    fn service() -> (
-        PlanService,
-        Arc<Mutex<Vec<EntitlementWrite>>>,
-        Arc<Mutex<Vec<String>>>,
-    ) {
+    type Ledger = Arc<Mutex<Vec<EntitlementWrite>>>;
+    type EventLog = Arc<Mutex<Vec<String>>>;
+
+    fn service() -> (PlanService, Ledger, EventLog) {
         let writes = Arc::new(Mutex::new(Vec::<EntitlementWrite>::new()));
         let events = Arc::new(Mutex::new(Vec::<String>::new()));
         let mut ent = MockEntitlementRepo::new();
@@ -357,13 +356,14 @@ mod tests {
             IngestOutcome::Applied
         );
         // the superseded token is ended, the new one active
-        let ws = writes.lock().unwrap();
-        assert_eq!(ws.len(), 2);
-        assert_eq!(ws[0].provider_ref, "old-tok");
-        assert_eq!(ws[0].status, EntitlementStatus::Ended);
-        assert_eq!(ws[1].provider_ref, "new-tok");
-        assert_eq!(ws[1].status, EntitlementStatus::Active);
-        drop(ws);
+        {
+            let ws = writes.lock().unwrap();
+            assert_eq!(ws.len(), 2);
+            assert_eq!(ws[0].provider_ref, "old-tok");
+            assert_eq!(ws[0].status, EntitlementStatus::Ended);
+            assert_eq!(ws[1].provider_ref, "new-tok");
+            assert_eq!(ws[1].status, EntitlementStatus::Active);
+        }
         assert_eq!(
             handle_rtdn(&svc, &api, "com.cymbra.music", &body, now)
                 .await
@@ -412,10 +412,11 @@ mod tests {
                 .unwrap(),
             IngestOutcome::Applied
         );
-        let ws = writes.lock().unwrap();
-        assert_eq!(ws[1].status, EntitlementStatus::Refunded);
-        assert_eq!(ws[1].user_id, "u1");
-        drop(ws);
+        {
+            let ws = writes.lock().unwrap();
+            assert_eq!(ws[1].status, EntitlementStatus::Refunded);
+            assert_eq!(ws[1].user_id, "u1");
+        }
         // unrelated event: acknowledged as a no-op
         let other =
             serde_json::json!({"event_id": "evt_c", "event_type": "transaction.paid", "data": {}});

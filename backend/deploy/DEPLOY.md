@@ -173,8 +173,11 @@ same `api.<your-domain>` over gRPC-web + the web-auth cookie endpoints, so the b
 needs two things (both already in `.env.prod.example`):
 
 - `CYMBRA_BACK_OFFICE_ORIGINS=https://bo.<your-domain>` — CORS allow-list for the
-  gRPC-web CorsLayer **and** the web-auth cookie. Empty (default) = the console is
-  blocked.
+  gRPC-web CorsLayer. Empty (default) = the console is blocked.
+- `CYMBRA_WEB_ORIGINS=https://<your-domain>,https://bo.<your-domain>` — CORS
+  allow-list for the web-auth cookie surface **and** the public site's plan routes
+  (`/web/plans/*`, change: add-site-account-pages). Unset = same as the back-office
+  list (site sign-in blocked). Add `web` to `CYMBRA_ALLOWED_AUDIENCES` as well.
 - `CYMBRA_WEB_AUTH_COOKIE_DOMAIN=<your-domain>` — the registrable domain shared by
   `api.` and `bo.`, so the refresh cookie is first-party for the console. Host-only
   (unset) is never sent by `bo.*` → sign-in won't persist.

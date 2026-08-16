@@ -1,10 +1,10 @@
 import { ref } from "vue";
-import { type Async, idle, run } from "@/lib/async";
+import { type Async, idle, run } from "./async";
 
 // Google Identity Services (GSI) — the browser SDK that mints a Google id_token.
 // We load it on demand (only when a client id is configured), render its official
 // button, and hand the resulting credential to the caller. The backend exchange
-// (SignInOidc) stays in the auth store; this composable is pure browser glue.
+// (SignInOidc) stays in the caller's store; this composable is pure browser glue.
 const GSI_SRC = "https://accounts.google.com/gsi/client";
 
 interface CredentialResponse {
@@ -63,33 +63,44 @@ function loadGsi(): Promise<GsiId> {
   return loader;
 }
 
+export interface SignInOptions {
+  /** Error → user-facing message for the `status` union (default: the raw message). */
+  mapError?: (e: unknown) => string;
+}
+
+export type { GsiButtonOptions };
+
 /**
  * Load GSI and render its sign-in button into `parent`. The credential (a Google
  * id_token) is passed to `onCredential`; the caller exchanges it for a Cymbra token
- * via the auth store. `status` is the load state so the view can keep the slot
+ * via its auth store. `status` is the load state so the view can keep the slot
  * hidden until the button is ready and show a fallback if GSI never loads.
  */
-export function useGoogleSignIn(clientId: string, onCredential: (idToken: string) => void) {
+export function useGoogleSignIn(clientId: string, onCredential: (idToken: string) => void, opts: SignInOptions = {}) {
   const status = ref<Async<void>>(idle);
 
   async function render(parent: HTMLElement, options: GsiButtonOptions = {}): Promise<void> {
-    await run(status, async () => {
-      const id = await loadGsi();
-      id.initialize({
-        client_id: clientId,
-        callback: (response) => {
-          if (response.credential) onCredential(response.credential);
-        },
-      });
-      id.renderButton(parent, {
-        type: "standard",
-        theme: "outline",
-        size: "large",
-        text: "signin_with",
-        shape: "pill",
-        ...options,
-      });
-    });
+    await run(
+      status,
+      async () => {
+        const id = await loadGsi();
+        id.initialize({
+          client_id: clientId,
+          callback: (response) => {
+            if (response.credential) onCredential(response.credential);
+          },
+        });
+        id.renderButton(parent, {
+          type: "standard",
+          theme: "outline",
+          size: "large",
+          text: "signin_with",
+          shape: "pill",
+          ...options,
+        });
+      },
+      opts.mapError,
+    );
   }
 
   return { status, render };

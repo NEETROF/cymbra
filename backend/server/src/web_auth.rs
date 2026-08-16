@@ -164,7 +164,7 @@ fn build_cookie(cfg: &WebAuthConfig, value: &str, max_age: u64) -> String {
 
 /// Map an auth-module error to an HTTP status. 4xx messages are safe to surface
 /// (per `AppError`); 5xx collapse to a generic message.
-fn http_status(e: &AppError) -> StatusCode {
+pub(crate) fn http_status(e: &AppError) -> StatusCode {
     match e {
         AppError::InvalidArgument(_) => StatusCode::BAD_REQUEST,
         AppError::Unauthenticated(_) => StatusCode::UNAUTHORIZED,
@@ -178,7 +178,7 @@ fn http_status(e: &AppError) -> StatusCode {
 }
 
 /// Client-safe message: never leak an internal/config cause.
-fn safe_message(e: &AppError) -> String {
+pub(crate) fn safe_message(e: &AppError) -> String {
     match e {
         AppError::Config(_) | AppError::Internal(_) => "internal error".to_string(),
         other => other.to_string(),

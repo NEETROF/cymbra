@@ -27,6 +27,7 @@ pub mod model;
 pub mod pg;
 pub mod ports;
 pub mod service;
+pub mod web;
 
 pub use cymbra_platform::AppError;
 pub use model::{

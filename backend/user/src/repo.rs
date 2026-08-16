@@ -91,6 +91,7 @@ pub trait UserRepo: Send + Sync {
     /// email equals `query` — ordered by handle (nulls last) then creation, plus the
     /// total count. Only roles in `scopes` are returned (change:
     /// scope-aware-role-admin).
+    #[allow(clippy::too_many_arguments)]
     async fn list_accounts(
         &self,
         query: &str,
@@ -419,6 +420,7 @@ impl UserRepo for FakeUserRepo {
             .collect())
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn list_accounts(
         &self,
         query: &str,

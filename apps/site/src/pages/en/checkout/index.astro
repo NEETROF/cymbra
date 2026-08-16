@@ -1,0 +1,11 @@
+---
+import Base from '../../../layouts/Base.astro';
+import CheckoutIsland from '../../../components/CheckoutIsland.vue';
+---
+
+<Base title="Checkout — Cymbra" description="Secure checkout for your Cymbra Premium subscription." lang="en" noindex>
+  <section class="container narrow">
+    <h1>Checkout</h1>
+    <CheckoutIsland client:load lang="en" doneUrl="/en/checkout/done" />
+  </section>
+</Base>

@@ -380,6 +380,7 @@ impl UserRepo for PgUserRepo {
             .collect())
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn list_accounts(
         &self,
         query: &str,

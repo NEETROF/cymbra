@@ -83,6 +83,12 @@ pub struct Config {
     /// is a full origin, e.g. `https://bo.cymbra.app`. Also used as the credentialed
     /// allow-list for the web-auth cookie surface (change: add-web-auth-cookies).
     pub back_office_origins: Vec<String>,
+    /// Allowed browser origins for the **web-auth cookie surface and the site's
+    /// plan JSON routes** (change: add-site-account-pages): the public site
+    /// (`https://cymbra.app`) plus the back office. `CYMBRA_WEB_ORIGINS`; when
+    /// unset it defaults to `back_office_origins` (the pre-site behaviour). The
+    /// gRPC-web layer keeps using `back_office_origins` only.
+    pub web_origins: Vec<String>,
     /// `Domain` attribute for the web-auth refresh cookie. `None` (the default)
     /// scopes the cookie to the exact API host; set it to the shared registrable
     /// parent (e.g. `cymbra.app`) so `api.` and `bo.` share the first-party cookie.
@@ -260,6 +266,15 @@ pub mod config_core {
             upload_max_bytes: num(m, "CYMBRA_SCORE_UPLOAD_MAX_BYTES", 8 * 1024 * 1024)?,
             // Optional; absent = no cross-origin browser access (gRPC-web stays closed).
             back_office_origins: csv(m, "CYMBRA_BACK_OFFICE_ORIGINS"),
+            // Site + back office; unset ⇒ the back-office list (superset by construction).
+            web_origins: {
+                let v = csv(m, "CYMBRA_WEB_ORIGINS");
+                if v.is_empty() {
+                    csv(m, "CYMBRA_BACK_OFFICE_ORIGINS")
+                } else {
+                    v
+                }
+            },
             web_auth_cookie_domain: m
                 .get("CYMBRA_WEB_AUTH_COOKIE_DOMAIN")
                 .filter(|v| !v.is_empty())
@@ -464,6 +479,28 @@ mod tests {
         // Web-auth cookie: no Domain by default, Secure fail-closed to true.
         assert!(c.web_auth_cookie_domain.is_none());
         assert!(c.web_auth_cookie_secure);
+    }
+
+    #[test]
+    fn web_origins_default_to_the_back_office_list_and_override_it() {
+        let mut m = base();
+        m.insert(
+            "CYMBRA_BACK_OFFICE_ORIGINS".into(),
+            "https://bo.cymbra.app".into(),
+        );
+        let c = config_core::parse(&m).unwrap();
+        assert_eq!(c.web_origins, vec!["https://bo.cymbra.app"]);
+        m.insert(
+            "CYMBRA_WEB_ORIGINS".into(),
+            "https://cymbra.app, https://bo.cymbra.app".into(),
+        );
+        let c = config_core::parse(&m).unwrap();
+        assert_eq!(
+            c.web_origins,
+            vec!["https://cymbra.app", "https://bo.cymbra.app"]
+        );
+        // The gRPC-web list is untouched by the site origin.
+        assert_eq!(c.back_office_origins, vec!["https://bo.cymbra.app"]);
     }
 
     #[test]

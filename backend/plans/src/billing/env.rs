@@ -45,7 +45,6 @@ pub struct WebEnv {
     pub sandbox: bool,
     pub webhook_secret: String,
     pub checkout_page: String,
-    pub success_url: Option<String>,
 }
 
 fn env(name: &str) -> Option<String> {
@@ -92,7 +91,6 @@ impl BillingEnv {
                     .is_some_and(|v| matches!(v.as_str(), "1" | "true" | "yes")),
                 webhook_secret,
                 checkout_page,
-                success_url: env("CYMBRA_PADDLE_SUCCESS_URL"),
             }),
             _ => None,
         };
@@ -152,7 +150,6 @@ impl BillingChannels {
                 w.api_key.clone(),
                 w.sandbox,
                 w.checkout_page.clone(),
-                w.success_url.clone(),
             )));
             c.web_secret = Some(w.webhook_secret.clone());
         }

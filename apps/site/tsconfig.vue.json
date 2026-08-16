@@ -1,0 +1,10 @@
+{
+  "extends": "astro/tsconfigs/strict",
+  "compilerOptions": {
+    "types": ["vitest/globals"],
+    "noEmit": true,
+    "jsx": "preserve"
+  },
+  "include": ["src/env.d.ts", "src/**/*.ts", "src/**/*.vue", "test/**/*.ts"],
+  "exclude": ["dist"]
+}

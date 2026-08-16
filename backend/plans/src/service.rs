@@ -84,11 +84,13 @@ impl PlanService {
         self.cfg().enabled
     }
 
-    fn grace(&self) -> Duration {
+    /// Grace period past a row's end during which it still counts as active.
+    pub fn grace(&self) -> Duration {
         Duration::days(i64::from(self.cfg().grace_days))
     }
 
-    fn now(&self) -> DateTime<Utc> {
+    /// The service clock (injected).
+    pub fn now(&self) -> DateTime<Utc> {
         self.d.clock.now()
     }
 

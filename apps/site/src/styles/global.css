@@ -84,3 +84,40 @@ a:hover { text-decoration: underline; }
 .prose th { background: var(--surface); }
 .prose code { background: var(--surface); padding: 0.1rem 0.35rem; border-radius: 5px; font-size: 0.9em; }
 .prose ul { padding-left: 1.2rem; }
+
+/* Interactive islands (account, redeem, checkout) */
+.narrow { max-width: 560px; padding-top: 2.5rem; padding-bottom: 1rem; }
+.narrow h1 { font-size: 2rem; margin-bottom: 1rem; }
+.island .card { margin-top: 0.5rem; }
+.island h2 { margin: 0 0 0.5rem; font-size: 1.3rem; }
+.island h3 { margin: 1.5rem 0 0.5rem; font-size: 1.05rem; }
+.muted { color: var(--muted); }
+.small { font-size: 0.85rem; }
+.error { color: #ff7a7a; margin: 0.25rem 0 0; }
+.form { display: grid; gap: 0.9rem; margin-top: 0.75rem; }
+.form label { display: grid; gap: 0.3rem; font-size: 0.9rem; color: var(--muted); }
+.form input {
+  font: inherit; color: var(--text); background: var(--bg);
+  border: 1px solid var(--border); border-radius: 8px; padding: 0.6rem 0.75rem;
+}
+.form input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.form input.code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 0.08em; text-transform: uppercase; }
+.form .btn, .manage .btn, .outcome .btn { justify-self: start; }
+.btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.btn-apple { background: #fff; color: #000; border-color: transparent; }
+.social { display: grid; gap: 0.75rem; margin: 1rem 0 0.5rem; }
+.google-slot { min-height: 44px; }
+.or { display: flex; align-items: center; gap: 0.75rem; color: var(--muted); font-size: 0.85rem; }
+.or::before, .or::after { content: ""; flex: 1; border-top: 1px solid var(--border); }
+.outcome h3 { margin-top: 0.5rem; color: var(--accent-2); }
+.signout { margin: 1.5rem 0 0; font-size: 0.9rem; }
+.plan { display: grid; grid-template-columns: auto 1fr; gap: 0.35rem 1rem; margin: 0.75rem 0; }
+.plan dt { color: var(--muted); }
+.plan dd { margin: 0; display: grid; gap: 0.15rem; }
+.plan .line { color: var(--muted); font-size: 0.9rem; }
+.manage { display: grid; gap: 0.6rem; margin: 1rem 0; }
+.products { display: flex; gap: 0.6rem; flex-wrap: wrap; }
+.betas { padding-left: 1.1rem; margin: 0; display: grid; gap: 0.35rem; }
+.downloads { margin-top: 2rem; }
+.downloads h3 { font-size: 1.05rem; margin-bottom: 0.5rem; }
+.cta-row.left { justify-content: flex-start; }

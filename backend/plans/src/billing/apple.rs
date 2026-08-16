@@ -166,7 +166,7 @@ pub fn verify_jws(jws: &str, roots: &[&[u8]], now: DateTime<Utc>) -> Result<Vec<
     // The last one must be a pinned root, or be signed by one.
     let last_der = ders.last().expect("non-empty");
     let last = certs.last().expect("non-empty");
-    let anchored = roots.iter().any(|r| *r == last_der.as_slice())
+    let anchored = roots.contains(&last_der.as_slice())
         || roots.iter().any(|r| {
             X509Certificate::from_der(r)
                 .ok()

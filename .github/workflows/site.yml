@@ -29,6 +29,7 @@ jobs:
           filters: |
             site:
               - 'apps/site/**'
+              - 'packages/web-auth/**'
               - '.github/workflows/site.yml'
 
   build:
@@ -47,7 +48,11 @@ jobs:
         run: corepack enable
       - name: Install dependencies
         run: yarn install --immutable
-      - name: Type check
+      - name: Type check (Astro)
         run: yarn check
+      - name: Type check (Vue islands)
+        run: yarn typecheck
+      - name: Unit tests
+        run: yarn test
       - name: Build
         run: yarn build
