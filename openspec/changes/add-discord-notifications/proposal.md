@@ -43,6 +43,15 @@ consent + rate discipline that make it safe.
 - **The invite URL is never hardcoded**: the app opens a stable redirect
   (`cymbra.app/discord`) behind a runtime flag, so the invite can be rotated or the entry
   point withdrawn without shipping a release.
+- **Beta access is claimed on Discord, never distributed as a list of codes**: a `/beta`
+  slash command, restricted to a configured channel (and optionally a role), lets a member
+  claim **one** beta access per Discord account per campaign. The handler asks the access-code
+  capability (`music-access-codes`, introduced by `add-premium-subscription`) to mint a
+  **single-use** code and answers with an **ephemeral** message holding the web redeem link;
+  a member whose Cymbra account is already linked (D10) is granted directly and told so. The
+  command mints only **free, campaign-bounded** access — never a discount and never a paid
+  unlock — so it stays outside the stores' in-app-purchase rules; the store builds contain no
+  code-entry field, redemption happens on the web.
 
 ## Capabilities
 
@@ -52,8 +61,9 @@ consent + rate discipline that make it safe.
   named announcements, per-player throttling, idempotent at-least-once delivery, and the
   kill-switch.
 - `discord-bot-actions`: the Cymbra Discord application — signature-verified interactions
-  endpoint for slash commands, and Discord role grants/revocations driven by Cymbra account
-  state, with least-privilege bot permissions.
+  endpoint for slash commands, Discord role grants/revocations driven by Cymbra account
+  state, the `/beta` claim command (one free, campaign-bounded access per member, delivered
+  ephemerally), with least-privilege bot permissions.
 - `community-invite-entry`: the flag-gated in-app entry point to the community, resolved
   through a stable redirect rather than a hardcoded invite link.
 
@@ -85,3 +95,9 @@ consent + rate discipline that make it safe.
 - **External dependency**: Discord's API and its rate limits (~5 requests/second per webhook,
   ~30 messages/minute per channel) become a runtime constraint; the digest exists to stay far
   below them.
+- **Cross-change dependency**: the `/beta` command consumes the access-code issuing port
+  defined by `add-premium-subscription` (`music-access-codes`: campaigns, single-use codes,
+  one claim per external identity per campaign). Until that change lands, the command is
+  registered but answers "beta not open" — the interactions endpoint, linking and roles do
+  not depend on it. The Discord change records the `discord_user_id → code` claim so the
+  cohort of beta testers is known without any Cymbra account link.
