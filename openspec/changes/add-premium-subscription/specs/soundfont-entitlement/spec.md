@@ -10,8 +10,8 @@ following holds:
 - the caller **owns** the font (a `music.curation_grants` row for that caller and
   that font — i.e. a redeemed reward); OR
 - the font is the caller's **own import** (the caller uploaded it); OR
-- the caller's **effective plan grants the `soundfonts.library` unlock** (premium
-  always; beta when configured); OR
+- the caller's **effective plan grants the `soundfonts.library` unlock** (`premium`,
+  whatever its source — store, web, trial or admin); OR
 - the caller is a **music-scope moderator or admin** (exempt).
 
 The existing moderation-visibility gate SHALL be applied **before** entitlement: a

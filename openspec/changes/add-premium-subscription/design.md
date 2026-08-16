@@ -34,8 +34,10 @@ the beta must not undermine the paid tier.
 **Goals:**
 
 - One server-side answer to "effective plan for user U now", identical on every platform.
-- Beta ⊂ premium by construction; premium always wins; a paid entitlement is never affected by a
-  beta campaign ending; a beta tester can subscribe at any time and lands on premium immediately.
+- Plan and beta membership are two independent axes: a beta never *is* a plan; a paid entitlement
+  is never affected by anything a beta does; a beta tester can subscribe at any time.
+- Betas are targeted and bounded: a premium trial ends N days after each tester's enrolment; a
+  feature beta ends the day the operator closes it.
 - Every existing gate consumes the plan through its existing seam; no gate is redeclared.
 - Purchases on Apple, Google and the web all end in the same ledger row; management happens on
   the provider's portal; the backend stores identifiers only.
@@ -57,46 +59,65 @@ the beta must not undermine the paid tier.
 Entitlements, campaigns/codes and the three billing adapters live in `backend/plans`, modelled
 on `cymbra-notifications` / `cymbra-discord`: **pure host-testable cores** (precedence, unlock
 sets, provider-state mapping, code lifecycle) + thin adapters (Postgres repos, HTTP webhook
-glue). Tables: `plans.plan_entitlements`, `plans.plan_campaigns`, `plans.access_codes`,
-`plans.access_code_redemptions`, `plans.billing_events`, all with a `product` column
-(`'music'` today) so a Live plan is a new row value, not a rename. `backend/music` consumes the
-crate through two small ports: `SubscriptionSource` (already exists) and a new `PlanSource`
-(`effective_plan(user_id) -> PlanSnapshot`), so `soundfont_access`, the shop and the library
-quota depend on a trait, not on the crate's tables.
+glue). Tables: `plans.plan_entitlements`, `plans.beta_campaigns`, `plans.beta_memberships`,
+`plans.access_codes`, `plans.access_code_redemptions`, `plans.billing_events`, all with a
+`product` column (`'music'` today) so a Live plan is a new row value, not a rename.
+`backend/music` consumes the crate through two small ports: `SubscriptionSource` (already
+exists) and a new `PlanSource` (`snapshot(user_id) -> PlanSnapshot { plan, betas }`), so
+`soundfont_access`, the shop and the library/upload quotas depend on a trait, not on the
+crate's tables.
 
 *Alternative considered*: a `plan` column on `user_account.users` or a `music/premium` role in
 `user_roles`. Roles reuse grant RPCs and token claims for free, but have no expiry, no source, no
 provider reference, and would put a commercial concept in the identity model — every gate would
 have to special-case "role but expired". Rejected.
 
-### D2 — Plans are ranked, unlock sets are explicit, beta is a configurable *subset*
+### D2 — Two axes: plan (`free`/`premium`) and beta memberships; guardrails stay plan-independent
 
-`Plan ∈ {Free = 0, Beta = 1, Premium = 2}`. A row grants a plan; the **effective plan** is the
-highest-ranked row that is active now (`starts_at ≤ now < ends_at`, not revoked). Unlocks are
-named keys (`catalog.unlimited`, `soundfonts.library`, `soundfont_library.extended`, …):
+**Plan.** `Plan ∈ {Free, Premium}`. A row grants premium from a source; the **effective plan** is
+`Premium` iff at least one row is active now (`starts_at ≤ now < effective_end`, not revoked,
+grace included), else `Free`. Unlocks are named keys (`catalog.unlimited`, `soundfonts.library`,
+`soundfont_library.extended`, `scores.extended_quotas`, …) and **premium's set is fixed in code**
+— it is what the store listing sells; changing it is a release, not a config edit. Consumers ask
+`grants(unlock)`, never the plan name. `SubscriptionSource::has_active_subscription(u)` ≡
+`effective_plan(u).grants(catalog.unlimited)` — the daily-access gate keeps its `Subscriber`
+vocabulary.
 
-- **Premium's set is fixed in code** — it is what the store listing sells; changing it is a
-  release, not a config edit.
-- **Beta's set is a flag config** `plans.beta.features` (list of keys) whose evaluation is
-  `intersect(configured, premium_set)`: beta can never grant an unlock premium does not have.
-  Preview features for the beta cohort go through the flag rollout `beta_only` (D6), not through
-  the unlock set, so "beta sees unreleased feature X" and "beta gets premium unlock Y" stay
-  distinct and both stay under back-office control.
-- **`SubscriptionSource::has_active_subscription(u)` ≡ `effective_plan(u).grants(catalog.unlimited)`**
-  — the daily-access gate keeps its `Subscriber` vocabulary and never learns about beta; whether
-  beta includes unlimited catalog is a config decision, off by default (beta testers exercise the
-  quota path too — they are testers).
+**Beta membership.** An account belongs to zero or more **campaigns**. A campaign has a `kind`:
 
-*Beta ↔ premium precedence rules* (the invariants the specs test):
-1. premium row active ⇒ effective plan is premium regardless of beta rows;
-2. a beta campaign closing or being revoked changes nothing for a user with an active paid row;
-3. a beta user may purchase at any time; the paywall is not hidden for beta, it says "beta until
-   X — subscribe to keep it"; after purchase, the beta row is simply outranked (kept for the
-   cohort record);
-4. codes/grants can mint `beta` or, for comps, `premium` — with an `ends_at` and a `source`
-   that is never a store, so a comp is visibly not a sale;
+- `premium_trial` — "beta d'usage premium": enrolment creates a membership **and** a
+  `premium` entitlement row (`source = code` or `admin`, `campaign_id` set) whose `ends_at` is
+  `enrolled_at + duration_days` (campaign field, default **90**, fixed at creation). Closing
+  enrolment stops new members; nobody is shortened. At most **one active premium trial per
+  account** (a second trial campaign refuses an account whose trial is still running).
+- `feature` — "beta par fonctionnalité" (`midi-drums`, …): enrolment creates a membership only,
+  with **no end date**; feature flags rolled out with scope `beta:<campaign_key>` reach its active
+  members (D6). The operator **closes** the campaign when the feature is stable → every membership
+  ends at `closed_at`, early access stops for everyone at once. A feature beta may run for months.
+
+Membership is active iff the campaign is not closed, `ends_at` is null or in the future, and the
+row is not revoked. Memberships are the **cohort record**: who joined which beta and when — the
+list to announce to, thank, and export.
+
+**Invariants (what the specs test):**
+1. a paid row is never created, shortened or ended by any campaign operation;
+2. a premium-trial tester who purchases has two premium rows; the later `ends_at` governs; the
+   trial ending changes nothing for them;
+3. a member of a feature beta keeps early access whether free, trialling or paying — and a paying
+   user outside it never sees the unfinished feature (they pay for stability);
+4. codes/grants mint **free** access only (trial or membership); a comp is a `premium` row with a
+   non-store `source` and an `ends_at`, visibly not a sale;
 5. an admin `premium` grant with no end (`ends_at = NULL`) is allowed only for the music-admin's
-   own testing accounts and is flagged in the console; everything else expires.
+   own testing accounts and is flagged in the console;
+6. **security guardrails ignore both axes**: `catalog-access-limits` (download burst,
+   engagement-aware volume, enumeration cap) and the auth throttles apply to free, trial and
+   premium alike; a plan changes *product* limits (quota, library size, fonts), never *security*
+   ceilings.
+
+*Alternative considered*: a ranked `beta` plan between free and premium with a configurable
+unlock subset. It forces precedence rules ("premium beats beta", "beta ⊂ premium") that only exist
+because beta was a rank, and it cannot express "in the MIDI-drums beta but on the free plan".
+Rejected in favour of the two axes.
 
 ### D3 — Ledger semantics: append-only rows, idempotent upserts by `(source, provider_ref)`
 
@@ -108,22 +129,30 @@ id as unique key, so a replayed webhook is a no-op and a disputed row can be exp
 ever deleted except by account erasure. Grace: a row in the provider's grace/billing-retry state
 stays active until `ends_at + plans.grace_days` (flag), then lapses.
 
-### D4 — Codes and campaigns: campaign owns the clock, code is single-use, one per account
+### D4 — Codes and campaigns: the campaign owns the effect and the clock, the code is single-use
 
-`plan_campaigns(id, product, name, plan, ends_at, open, created_by)`; `access_codes(id,
-campaign_id, code_hash, issued_by, issued_to_hint, max_uses = 1, uses, revoked_at)`;
-`access_code_redemptions(code_id, user_id, redeemed_at)` unique on `(campaign_id, user_id)` so
-one account consumes at most one code per campaign. Codes are ≥ 128-bit random, displayed once at
-mint time, stored hashed; redemption is rate-limited per user and per IP through the existing
-`ratelimit::check`. Redeeming writes an entitlement row `source = code, ends_at = campaign.ends_at`;
-**moving the campaign end date moves every entitlement it produced** (the row stores
-`campaign_id`, and effective `ends_at` = `COALESCE(row.ends_at_override, campaign.ends_at)`).
-Closing a campaign stops new redemptions but does not shorten existing rows unless the operator
-also moves the end date. Issuers implement one port (`AccessCodeIssuer::mint(campaign,
-issued_by, hint)`); the back-office console and the Discord `/beta` command are two callers.
+`beta_campaigns(id, product, key, name, kind, duration_days NULL, enrollment_closes_at NULL,
+closed_at NULL, created_by)`; `beta_memberships(campaign_id, user_id, enrolled_at, ends_at NULL,
+revoked_at, source)` unique on `(campaign_id, user_id)`; `access_codes(id, campaign_id,
+code_hash, issued_by, issued_to_hint, max_uses = 1, uses, revoked_at)`;
+`access_code_redemptions(code_id, user_id, redeemed_at)`. Codes are ≥ 128-bit random, displayed
+once at mint time, stored hashed; redemption is rate-limited per user and per address through the
+existing `ratelimit::check` and refuses without revealing whether a code exists.
 
-*Alternative considered*: per-code duration ("30 days from redeem"). Right for marketing later
-(the column `ends_at_override` is there), wrong for a beta whose end you will move.
+Redeeming a code = **enrolling** in its campaign: one transaction marks the code used, inserts the
+membership, and — for `premium_trial` — upserts the premium row with `ends_at = now +
+duration_days`. Enrolment is refused when the campaign is closed, enrolment is closed, the
+account is already a member, or (trial) another premium trial is active for the account.
+Revoking a code stops its redemption only; revoking a membership ends it (and its trial row) now.
+Issuers implement one port (`AccessCodeIssuer::mint(campaign, issued_by, hint)`); the back-office
+console and the Discord `/beta` command (campaign chosen by the channel's configuration) are two
+callers. Nominative enrolment by handle from the console goes through the same enrolment path
+with `source = admin` and no code.
+
+*Alternative considered*: a campaign-wide movable end date for trials. Right when the whole beta
+should end together, but the owner wants each tester to get the same N days from *their* start —
+so the clock is per membership; the operator's lever is closing enrolment. Feature betas are the
+opposite (no clock, closed by hand), which is why `kind` exists rather than a nullable date.
 
 ### D5 — Redemption on the web only; store builds carry no code entry
 
@@ -133,13 +162,17 @@ cookie, or by the site calling `RedeemAccessCode`) is the only entry. Because th
 account-bound, it applies on the store builds within one plan refresh. Desktop and web builds may
 deep-link the page; store builds must not render a code field or text inviting one.
 
-### D6 — Feature flags gain a `plan` dimension, not a per-user table
+### D6 — Feature flags gain `plan` and `betas`, not a per-user table
 
-`EvalContext { app, staff, plan }`; `RolloutScope` gains `beta_only` and `premium_only`
-(`beta_only` reaches beta **and** premium and staff; `premium_only` reaches premium and staff).
-The client snapshot key includes the plan so a purchase invalidates the cache. This is the
-generic seam that makes every future feature plan-gatable from the flags console; per-user
-targeting is still deliberately absent.
+`EvalContext { app, staff, plan, betas: Set<campaign_key> }`. `RolloutScope` gains `premium_only`
+(reaches effective-plan premium and staff) and `beta:<campaign_key>` (reaches active members of
+that campaign and staff — **not** premium payers outside it). The stored `rollout_scope` is a
+string validated by pattern (`global | staff_only | premium_only | beta:[a-z0-9-]+`) instead of the
+current two-value CHECK. The client snapshot key includes plan and memberships so a purchase, an
+enrolment, a lapse or a beta closing invalidates the cache. This is the generic seam that makes
+every future feature plan- or beta-gatable from the flags console; per-user targeting is still
+deliberately absent. Closing a feature beta therefore needs no flag edit: members simply stop
+matching; when the feature is stable the operator moves the flag to `global` (or `premium_only`).
 
 ### D7 — Apple: StoreKit 2 through `in_app_purchase`, verification server-side, no middleware
 
@@ -177,8 +210,9 @@ provider customer/subscription ids and nothing else about the buyer.
 
 ### D10 — Channel-aware paywall; the plan is a `GetMyPlan` snapshot plus the flags dimension
 
-`GetMyPlan` returns `{ effective_plan, source, ends_at, manage: {kind: apple|google|web|none},
-beta_campaign_ends_at?, can_purchase_here: bool }`. `can_purchase_here` is decided **server-side
+`GetMyPlan` returns `{ effective_plan, source, ends_at, trial: {campaign, ends_at}?,
+betas: [{campaign, kind, joined_at}], manage: {kind: apple|google|web|none},
+can_purchase_here: bool }`. `can_purchase_here` is decided **server-side
 per audience/platform** so store builds never show a channel they must not: iOS/macOS → Apple,
 Android → Google, Linux/Windows/web → web checkout. A user already premium via channel A sees
 "managed on A" instead of a second purchase button on channel B (double subscription is the
@@ -188,8 +222,9 @@ on app resume, after a purchase/restore, and by the flags poll (plan is part of 
 ### D11 — Back office: one `Plans` view on the existing role/audit patterns, music-admin only
 
 Account lookup by handle → entitlement rows (source, plan, ends_at, provider ref hidden behind a
-copy button), grant/revoke with reason (audited like `role_grants`), campaigns (create, move end
-date, open/close), codes (mint N, show once, revoke), redemptions list (cohort export as CSV for
+copy button) and its beta memberships, grant/revoke and enrol/unenrol with reason (audited like
+`role_grants`), campaigns (create with kind + duration, close enrolment, close a feature beta),
+codes (mint N, show once, revoke), members list per campaign (export as CSV for announcements or
 the "thank you" store offer). Guarded by `require_admin_in_scope("music")` — a moderator can
 neither see who pays nor grant.
 
@@ -199,7 +234,8 @@ neither see who pays nor grant.
 `billing.apple.enabled`, `billing.google.enabled`, `billing.web.enabled` gate the paywall's
 purchase button per channel and the webhook routes' acceptance (routes always answer 2xx to
 avoid provider retries storms but ignore payloads when disabled — logged). Sequence: land dark →
-enable `plans.enabled` with a staff-only beta campaign → open the community beta (Discord `/beta`)
+enable `plans.enabled` with a staff-only trial campaign → open the community trial and the first feature
+beta (Discord `/beta`)
 → Apple sandbox → Apple prod → Google → web.
 
 ## Risks / Trade-offs
@@ -211,9 +247,12 @@ enable `plans.enabled` with a staff-only beta campaign → open the community be
 - **Double subscription across channels** → `can_purchase_here` is false when a paid row from
   another source is active; the paywall shows where it is managed; support runbook documents the
   provider-side refund path.
-- **Beta undermining premium** → beta set is an intersection with the premium set, default
-  excludes `catalog.unlimited`; the beta campaign has an end date from creation; comps are
-  visibly non-store; the console flags open-ended grants.
+- **Betas undermining premium** → a trial is premium for a fixed N days per tester and one trial
+  per account at a time; a feature beta grants no plan at all; comps are visibly non-store; the
+  console flags open-ended grants; a paying user never receives unfinished features.
+- **Trial testers never exercise the free path** (quota, paywall, upsell) → run a small
+  `feature`-kind campaign on the free plan for a handful of testers, or revoke your own grant from
+  the console before release.
 - **A leaked code list** → codes are minted one at a time, hashed at rest, single-use, one per
   account per campaign, rate-limited; a leak costs at most one seat per code until the campaign
   end; whole-campaign revocation exists.
@@ -239,7 +278,8 @@ enable `plans.enabled` with a staff-only beta campaign → open the community be
    quota, `EvalContext.plan`) — all no-ops while `plans.enabled` is off.
 3. Ship the back-office console; create a staff campaign; grant the owner's accounts.
 4. Ship the app (paywall hidden while `plans.enabled` is off; plan status shows "free").
-5. Enable `plans.enabled` → beta campaign open → Discord `/beta` (other change) → observe.
+5. Enable `plans.enabled` → trial campaign + first feature beta open → Discord `/beta` (other
+   change) → observe.
 6. Apple sandbox with `billing.apple.enabled` on a TestFlight build; then production; then
    Google; then web after the MoR account and terms are ready.
 
@@ -249,12 +289,15 @@ ignore webhooks (logged). Schema is additive; rows are inert when the code is re
 
 ## Open Questions
 
-- Which MoR (Paddle Billing vs Lemon Squeezy) — decide on fees, payout currency and the quality of
-  their sandbox; the adapter is one module either way.
-- Does the beta unlock set include unlimited catalog from day one, or only SoundFonts + preview
-  features? Default in this design: **not** included (testers exercise the quota path).
-- Prices and periods (monthly/yearly) — a store/MoR configuration, not code; but the
-  `plans.premium.periods` shown on the paywall must match, so a config key or a hard list?
+- Which MoR — **leaning Paddle Billing** for an EU-first audience (mature subscription
+  lifecycle, EU local payment methods, established VAT handling); Polar (EU company, cheaper) to
+  be checked as a challenger; Lemon Squeezy as fallback given its post-acquisition uncertainty.
+  Fees, payout currency and sandbox quality to be verified at signing; the adapter is one module
+  either way.
+- ~~Beta as a plan~~ — **decided**: two axes (D2); trials = premium N days per tester (default
+  90); feature betas closed by hand; guardrails plan-independent.
+- Prices and periods live in the stores/MoR; the app only needs *which* products to offer —
+  runtime config `plans.premium.products` (leaning) rather than a hard list.
 - Whether the redeem page lives on the Astro site (calls `RedeemAccessCode` with the web
   session) or is served by the backend (`GET /redeem`), given the site is a separate repo.
 - Should the "thank you" for beta testers be a comp (`premium`, source `admin`, N months) or a

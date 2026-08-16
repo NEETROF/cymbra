@@ -48,22 +48,30 @@ string SHALL be shown.
 - **WHEN** a purchase or restore fails
 - **THEN** the user sees a localized message and the cause is logged, never a raw store or gRPC string
 
-### Requirement: Beta testers see their beta end and can still subscribe
+### Requirement: Trial testers see their trial end and can still subscribe; betas are listed
 
-A user whose effective plan is `beta` SHALL see "beta until <date>" in the plan status and on
-locked surfaces that beta does not unlock, and SHALL be able to purchase premium at any time. The
-paywall MUST NOT be hidden for beta users. Once a beta user is premium, the beta mention
-disappears from purchase surfaces but the campaign remains visible in the plan status detail.
+A user whose premium comes from a **premium trial** SHALL see "premium trial until <date> —
+subscribe to keep it" in the plan status, and SHALL be able to purchase premium at any time on a
+platform with a purchase channel; the paywall MUST NOT be hidden for trial testers. Once a trial
+tester holds a paid row, the trial mention disappears from purchase surfaces. Account settings
+SHALL list the user's **active beta memberships** (campaign name, kind, joined date) so a tester
+knows which unfinished features they are seeing; a feature-beta member on the free plan sees the
+normal free paywall.
 
-#### Scenario: Beta status is explicit
+#### Scenario: Trial status is explicit
 
-- **WHEN** a beta tester opens account settings
-- **THEN** they see the beta plan and the campaign end date
+- **WHEN** a trial tester opens account settings
+- **THEN** they see premium, the trial campaign, its end date and a subscribe action
 
-#### Scenario: Beta tester can subscribe
+#### Scenario: Trial tester can subscribe
 
-- **WHEN** a beta tester opens the paywall on a platform with a purchase channel
+- **WHEN** a trial tester opens the paywall on a platform with a purchase channel
 - **THEN** the purchase action is available exactly as for a free user
+
+#### Scenario: Betas are listed
+
+- **WHEN** a member of the `midi-drums` feature beta opens account settings
+- **THEN** the beta appears in a "betas" section with its name and join date, whatever their plan
 
 ### Requirement: Restore purchases and refresh are always reachable
 
