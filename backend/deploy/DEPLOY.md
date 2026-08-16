@@ -458,6 +458,28 @@ is set. To turn it on:
    `music.catalog_scores` + `music.user_scores`, and the log shows the ScoreService
    mounted instead of `score-upload disabled`.
 
+### Enabling the premium plan / beta module (`cymbra-plans`)
+
+Off by default — the server logs `plans disabled (CYMBRA_PLANS_DATABASE_URL unset)`
+and behaves exactly as before. The dark deploy (change: add-premium-subscription):
+
+1. **Choose the `plans_svc` password** (`openssl rand -base64 24`) and **provision the
+   role + schema** on the live box (idempotent, targeted; does NOT reset other roles):
+   ```bash
+   docker exec -e PPW='<plans pw>' -i <postgres-container> \
+     psql -U <superuser> -d cymbra -v plans_pw="$PPW" -f - < provision-plans-role.sql
+   ```
+2. **Fill the `.env` block** (see `.env.prod.example` → "Premium plan / beta module"):
+   `CYMBRA_PLANS_DB_PASSWORD` + `CYMBRA_PLANS_DATABASE_URL` (same password), add `web`
+   to `CYMBRA_ALLOWED_AUDIENCES` and set `CYMBRA_WEB_ORIGINS` (site + back office).
+   Leave every purchase-channel block unset for now.
+3. Roll: `./deploy.sh <version>` — the server's MIGRATOR creates the `plans` tables,
+   the log shows `PlanService` mounted; the worker picks up `plans_reconcile` /
+   `plans_withdraw` (inert while `plans.enabled` is off).
+4. Check: the app is unchanged, `GetMyPlan` answers `free`, the back office shows the
+   **Plans** screen. Then follow the rollout order in
+   `apps/music/store/SUBSCRIPTIONS.md` (flags on, channels one by one).
+
 ## Enabling SoundFont delivery (`/soundfonts/*`)
 
 Turned on by the `CYMBRA_SOUNDFONT_S3_BUCKET` block in `.env` (see `.env.prod.example`
