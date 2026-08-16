@@ -19,9 +19,9 @@ pub use web_auth::{WebAuthConfig, web_auth_router};
 
 pub mod flags;
 pub use flags::{
-    FlagCatalogLimitsConfig, FlagDailyAccessConfig, FlagLibraryQuota, FlagPlanConfig,
-    FlagScorePreviewConfig, FlagScoreQuotas, FlagStreakConfig, OfflineSecretRotator, PlanContext,
-    build_flag_service, spawn_flag_refreshers,
+    FlagCatalogLimitsConfig, FlagDailyAccessConfig, FlagLibraryQuota, FlagPaywallConfig,
+    FlagPlanConfig, FlagScorePreviewConfig, FlagScoreQuotas, FlagStreakConfig,
+    OfflineSecretRotator, PlanContext, UserPortHandles, build_flag_service, spawn_flag_refreshers,
 };
 
 pub mod soundfont;

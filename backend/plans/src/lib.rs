@@ -21,6 +21,7 @@
 
 pub mod codes;
 pub mod core;
+pub mod grpc;
 pub mod model;
 pub mod pg;
 pub mod ports;
@@ -33,9 +34,10 @@ pub use model::{
 };
 pub use ports::{
     AccessCodeIssuer, AccessCodeRepo, AuditEntry, AuditRepo, BillingEventRepo, CacheSecretRotator,
-    CampaignRepo, Clock, Enrolment, EntitlementRepo, EntitlementWrite, FixedPlanConfig,
-    MembershipRepo, MintedCode, NewCampaign, PlanConfig, PlanConfigSource, PlanSource, SystemClock,
-    WebSubscriptionCanceller,
+    CampaignRepo, Channel, Clock, Enrolment, EntitlementRepo, EntitlementWrite, FixedPaywallConfig,
+    FixedPlanConfig, HandleResolver, MembershipRepo, MintedCode, NewCampaign, PaywallConfigSource,
+    PlanConfig, PlanConfigSource, PlanSource, Platform, StorePurchaseVerifier, SystemClock,
+    VerifiedPurchase, WebBillingProvider, WebSubscriptionCanceller,
 };
 pub use service::{AccountPlan, EnrolOutcome, PlanDeps, PlanFilter, PlanService};
 

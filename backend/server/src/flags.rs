@@ -627,3 +627,74 @@ impl cymbra_plans::CacheSecretRotator for OfflineSecretRotator {
             .map_err(|e| AppError::Internal(anyhow::anyhow!("rotate offline secret: {e}")))
     }
 }
+
+/// Flag-backed paywall knobs: per-channel switches + the product ids offered.
+pub struct FlagPaywallConfig {
+    flags: Arc<FlagService>,
+}
+
+impl FlagPaywallConfig {
+    pub fn new(flags: Arc<FlagService>) -> Self {
+        Self { flags }
+    }
+}
+
+impl cymbra_plans::PaywallConfigSource for FlagPaywallConfig {
+    fn channel_enabled(&self, channel: cymbra_plans::Channel) -> bool {
+        use cymbra_feature_flags::registry;
+        let ctx = cymbra_feature_flags::EvalContext::anonymous(registry::APP_MUSIC);
+        let key = match channel {
+            cymbra_plans::Channel::Apple => registry::BILLING_APPLE_ENABLED,
+            cymbra_plans::Channel::Google => registry::BILLING_GOOGLE_ENABLED,
+            cymbra_plans::Channel::Web => registry::BILLING_WEB_ENABLED,
+        };
+        self.flags.bool(key, false, &ctx)
+    }
+
+    fn products(&self) -> Vec<String> {
+        use cymbra_feature_flags::registry;
+        let ctx = cymbra_feature_flags::EvalContext::anonymous(registry::APP_MUSIC);
+        self.flags
+            .json(
+                registry::PLANS_PREMIUM_PRODUCTS,
+                serde_json::json!(["premium_monthly", "premium_yearly"]),
+                &ctx,
+            )
+            .as_array()
+            .map(|a| {
+                a.iter()
+                    .filter_map(|v| v.as_str().map(str::to_string))
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+}
+
+/// Handle → account id for the plan console, over the identity port's directory
+/// (prefix search, then the exact normalized match).
+pub struct UserPortHandles {
+    users: Arc<dyn cymbra_user_port::UserPort>,
+}
+
+impl UserPortHandles {
+    pub fn new(users: Arc<dyn cymbra_user_port::UserPort>) -> Self {
+        Self { users }
+    }
+}
+
+#[async_trait]
+impl cymbra_plans::HandleResolver for UserPortHandles {
+    async fn user_id_for_handle(&self, handle: &str) -> Result<Option<String>> {
+        let wanted = handle.trim().trim_start_matches('@').to_lowercase();
+        let page = self.users.list_accounts(&wanted, 10, 0, &[]).await?;
+        Ok(page
+            .entries
+            .into_iter()
+            .find(|a| {
+                a.handle
+                    .as_deref()
+                    .is_some_and(|h| h.to_lowercase() == wanted)
+            })
+            .map(|a| a.user_id))
+    }
+}

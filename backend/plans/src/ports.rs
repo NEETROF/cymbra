@@ -252,3 +252,123 @@ pub trait AccessCodeIssuer: Send + Sync {
         issued_to_hint: Option<String>,
     ) -> Result<MintedCode>;
 }
+
+/// Purchase channels (mirrors the proto enum).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Channel {
+    Apple,
+    Google,
+    Web,
+}
+
+impl Channel {
+    pub fn source(self) -> Source {
+        match self {
+            Channel::Apple => Source::Apple,
+            Channel::Google => Source::Google,
+            Channel::Web => Source::Web,
+        }
+    }
+
+    pub fn from_source(s: Source) -> Option<Channel> {
+        match s {
+            Source::Apple => Some(Channel::Apple),
+            Source::Google => Some(Channel::Google),
+            Source::Web => Some(Channel::Web),
+            Source::Code | Source::Admin => None,
+        }
+    }
+}
+
+/// The client's declared platform (mirrors the proto enum).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Platform {
+    Ios,
+    Macos,
+    Android,
+    Linux,
+    Windows,
+    Web,
+}
+
+impl Platform {
+    /// The one channel a platform may buy through: store builds their store,
+    /// desktop / web the merchant of record.
+    pub fn channel(self) -> Channel {
+        match self {
+            Platform::Ios | Platform::Macos => Channel::Apple,
+            Platform::Android => Channel::Google,
+            Platform::Linux | Platform::Windows | Platform::Web => Channel::Web,
+        }
+    }
+}
+
+/// Paywall knobs read per call: which channels are open and which products to
+/// offer.
+#[cfg_attr(any(test, feature = "mock"), automock)]
+pub trait PaywallConfigSource: Send + Sync {
+    fn channel_enabled(&self, channel: Channel) -> bool;
+    fn products(&self) -> Vec<String>;
+}
+
+/// Fixed paywall config (tests).
+#[derive(Debug, Clone)]
+pub struct FixedPaywallConfig {
+    pub apple: bool,
+    pub google: bool,
+    pub web: bool,
+    pub products: Vec<String>,
+}
+
+impl PaywallConfigSource for FixedPaywallConfig {
+    fn channel_enabled(&self, channel: Channel) -> bool {
+        match channel {
+            Channel::Apple => self.apple,
+            Channel::Google => self.google,
+            Channel::Web => self.web,
+        }
+    }
+    fn products(&self) -> Vec<String> {
+        self.products.clone()
+    }
+}
+
+/// Resolves a handle to an account id (the console addresses accounts by handle;
+/// implemented by the server over the identity port).
+#[cfg_attr(any(test, feature = "mock"), automock)]
+#[async_trait]
+pub trait HandleResolver: Send + Sync {
+    async fn user_id_for_handle(&self, handle: &str) -> Result<Option<String>>;
+}
+
+/// A verified store purchase, ready to be written to the ledger.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct VerifiedPurchase {
+    pub write: EntitlementWrite,
+}
+
+/// Verifies a store purchase reported by the app (Apple signed transaction JWS,
+/// Google purchase token) against the provider and maps it to a ledger write.
+/// Implemented by the Apple / Google adapters.
+#[cfg_attr(any(test, feature = "mock"), automock)]
+#[async_trait]
+pub trait StorePurchaseVerifier: Send + Sync {
+    async fn verify(
+        &self,
+        user_id: &str,
+        payload: &str,
+        product_id: &str,
+    ) -> Result<VerifiedPurchase>;
+}
+
+/// The web merchant-of-record: hosted checkout + portal + cancellation.
+#[cfg_attr(any(test, feature = "mock"), automock)]
+#[async_trait]
+pub trait WebBillingProvider: Send + Sync {
+    /// A hosted checkout URL for `product_id` carrying `user_id` as custom data.
+    async fn create_checkout(&self, user_id: &str, product_id: &str) -> Result<String>;
+    /// The hosted management portal URL for a subscription.
+    async fn portal_url(&self, subscription_ref: &str) -> Result<String>;
+    /// Cancel a subscription (account erasure).
+    async fn cancel(&self, subscription_ref: &str) -> Result<()>;
+}

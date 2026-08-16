@@ -98,6 +98,8 @@ pub trait UserRepo: Send + Sync {
         limit: i64,
         offset: i64,
         scopes: &[String],
+        ids: &[String],
+        exclude_ids: &[String],
     ) -> Result<AccountPage>;
 
     /// Read the profile row (identity + visibility + eligibility) for `user_id`
@@ -424,14 +426,19 @@ impl UserRepo for FakeUserRepo {
         limit: i64,
         offset: i64,
         scopes: &[String],
+        ids: &[String],
+        exclude_ids: &[String],
     ) -> Result<AccountPage> {
         let s = self.state.lock().unwrap();
         let email = query.to_lowercase();
         // Filter: empty query = all; else a handle-key prefix OR a `local` identity
-        // whose email equals the query (case-insensitive) — mirrors the SQL.
+        // whose email equals the query (case-insensitive) — mirrors the SQL. An
+        // explicit id set / exclusion set narrows further.
         let mut matched: Vec<(&String, &AccountRow)> =
             s.users
                 .iter()
+                .filter(|(uid, _)| ids.is_empty() || ids.contains(uid))
+                .filter(|(uid, _)| !exclude_ids.contains(uid))
                 .filter(|(uid, row)| {
                     if query.is_empty() {
                         return true;

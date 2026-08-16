@@ -79,6 +79,11 @@ impl PlanService {
         self.d.config.plan_config()
     }
 
+    /// The kill-switch, as read now.
+    pub fn enabled(&self) -> bool {
+        self.cfg().enabled
+    }
+
     fn grace(&self) -> Duration {
         Duration::days(i64::from(self.cfg().grace_days))
     }

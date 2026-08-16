@@ -221,6 +221,23 @@ async fn main() -> anyhow::Result<()> {
     };
     let flag_svc = FlagServiceServer::with_interceptor(flag_grpc, optional);
 
+    // PlanService gRPC (app + music-admin console), strict auth. Store purchase
+    // verifiers and the web merchant-of-record are wired per channel below when
+    // configured; unconfigured channels answer `unimplemented`.
+    let plan_svc = plan_service.clone().map(|ps| {
+        cymbra_plans::proto::plan_service_server::PlanServiceServer::with_interceptor(
+            cymbra_plans::grpc::PlanGrpc::new(
+                ps,
+                Arc::new(cymbra_server::FlagPaywallConfig::new(flag_service.clone())),
+                cache.clone(),
+            )
+            .with_handles(Arc::new(cymbra_server::UserPortHandles::new(
+                user_dyn.clone(),
+            ))),
+            strict.clone(),
+        )
+    });
+
     // --- analytics UsageService (feature-usage telemetry ingestion; change:
     // add-feature-usage-analytics, design D5/D10). Wired only when BOTH the
     // dedicated `analytics` DB URL AND the bucket master secret are set — a missing
@@ -660,6 +677,9 @@ async fn main() -> anyhow::Result<()> {
     }
     if let Some(usage_svc) = usage_svc {
         router = router.add_service(usage_svc);
+    }
+    if let Some(plan_svc) = plan_svc {
+        router = router.add_service(plan_svc);
     }
     let grpc = router.serve(grpc_addr);
     let listener = tokio::net::TcpListener::bind(http_addr).await?;

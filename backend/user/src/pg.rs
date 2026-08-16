@@ -387,18 +387,36 @@ impl UserRepo for PgUserRepo {
         limit: i64,
         offset: i64,
         scopes: &[String],
+        ids: &[String],
+        exclude_ids: &[String],
     ) -> Result<AccountPage> {
         // Filter predicate (shared by count + page): empty query = all; else a
-        // handle-key prefix OR a `local` identity email equal to the query.
+        // handle-key prefix OR a `local` identity email equal to the query; an
+        // explicit id set ($3, empty = any) and exclusion set ($4) narrow further
+        // (change: add-premium-subscription).
         const WHERE: &str = "($1 = '' \
             OR ($2 <> '' AND u.handle_key LIKE $2 || '%') \
             OR EXISTS (SELECT 1 FROM user_identities i \
                        WHERE i.user_id = u.id AND i.provider = 'local' \
-                         AND lower(i.subject) = lower($1)))";
+                         AND lower(i.subject) = lower($1))) \
+            AND (cardinality($3::uuid[]) = 0 OR u.id = ANY($3::uuid[])) \
+            AND NOT (u.id = ANY($4::uuid[]))";
+        let parse_ids = |v: &[String]| -> Result<Vec<uuid::Uuid>> {
+            v.iter()
+                .map(|s| {
+                    uuid::Uuid::parse_str(s)
+                        .map_err(|_| AppError::InvalidArgument(format!("invalid uuid: {s}")))
+                })
+                .collect()
+        };
+        let id_set = parse_ids(ids)?;
+        let excl_set = parse_ids(exclude_ids)?;
 
         let total: i64 = sqlx::query_scalar(&format!("SELECT count(*) FROM users u WHERE {WHERE}"))
             .bind(query)
             .bind(handle_key)
+            .bind(&id_set)
+            .bind(&excl_set)
             .fetch_one(&self.pool)
             .await
             .map_err(internal)?;
@@ -409,10 +427,12 @@ impl UserRepo for PgUserRepo {
              FROM users u \
              WHERE {WHERE} \
              ORDER BY u.handle ASC NULLS LAST, u.created_at, u.id \
-             LIMIT $3 OFFSET $4"
+             LIMIT $5 OFFSET $6"
         ))
         .bind(query)
         .bind(handle_key)
+        .bind(&id_set)
+        .bind(&excl_set)
         .bind(limit)
         .bind(offset)
         .fetch_all(&self.pool)

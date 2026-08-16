@@ -1,6 +1,294 @@
 syntax = "proto3";
 
+// Plans: the free/premium plan + beta memberships of an account (change:
+// add-premium-subscription). One service, two audiences: the app (read its own
+// plan, redeem a code, report/restore store purchases, start a web checkout)
+// and the music-scope admin console (lookup, grants, campaigns, codes, members).
+// Identifiers only — no personal billing data ever crosses this surface.
 package cymbra.plans.v1;
 
-// Placeholder — filled in by task 4.1 (PlanService).
-message PlanSnapshotStub {}
+service PlanService {
+  // App: the caller's effective plan + betas + how/where to purchase from THIS
+  // platform. Server-decided; the app never derives its plan locally.
+  rpc GetMyPlan(GetMyPlanRequest) returns (GetMyPlanResponse);
+  // App (web audience only): redeem an access code = enrol in its campaign.
+  // Neutral refusal for unknown / revoked / spent codes; rate-limited.
+  rpc RedeemAccessCode(RedeemAccessCodeRequest) returns (RedeemAccessCodeResponse);
+  // App: report a store purchase (Apple signed transaction JWS | Google purchase
+  // token) for server-side verification. Also used by "restore purchases".
+  rpc ReportStorePurchase(ReportStorePurchaseRequest) returns (ReportStorePurchaseResponse);
+  // App (desktop / web): a hosted merchant-of-record checkout URL bound to the
+  // caller.
+  rpc CreateWebCheckout(CreateWebCheckoutRequest) returns (CreateWebCheckoutResponse);
+
+  // Admin (music scope): everything the console shows for one account.
+  rpc LookupAccountPlan(LookupAccountPlanRequest) returns (LookupAccountPlanResponse);
+  // Admin: batch plan/beta badges for a directory page.
+  rpc GetPlansForAccounts(GetPlansForAccountsRequest) returns (GetPlansForAccountsResponse);
+  // Admin: account ids matching a plan / beta filter (the directory resolves
+  // them through the identity service's `ListAccounts(ids)`).
+  rpc ListAccountIdsByPlan(ListAccountIdsByPlanRequest) returns (ListAccountIdsByPlanResponse);
+  // Admin: comp — a premium row until `ends_at` (open-ended needs confirmation).
+  rpc GrantPremium(GrantPremiumRequest) returns (GrantPremiumResponse);
+  // Admin: revoke a `code`/`admin` row (store/web rows are read-only here).
+  rpc RevokeEntitlement(RevokeEntitlementRequest) returns (RevokeEntitlementResponse);
+  // Admin: nominative enrolment of a handle in a campaign (no code).
+  rpc EnrolHandle(EnrolHandleRequest) returns (EnrolHandleResponse);
+  // Admin: end a membership (and its trial row) now.
+  rpc RevokeMembership(RevokeMembershipRequest) returns (RevokeMembershipResponse);
+  // Admin: campaigns.
+  rpc CreateCampaign(CreateCampaignRequest) returns (CreateCampaignResponse);
+  rpc ListCampaigns(ListCampaignsRequest) returns (ListCampaignsResponse);
+  rpc CloseEnrollment(CloseEnrollmentRequest) returns (CloseEnrollmentResponse);
+  rpc CloseCampaign(CloseCampaignRequest) returns (CloseCampaignResponse);
+  // Admin: codes — clear texts are returned ONCE.
+  rpc MintCodes(MintCodesRequest) returns (MintCodesResponse);
+  rpc RevokeCodes(RevokeCodesRequest) returns (RevokeCodesResponse);
+  // Admin: members of a campaign (+ CSV export of the same rows).
+  rpc ListMembers(ListMembersRequest) returns (ListMembersResponse);
+}
+
+// ---------------------------------------------------------------- app surface
+
+// The client's platform, declared so the server can pick the purchase channel
+// store builds are allowed to show.
+enum Platform {
+  PLATFORM_UNSPECIFIED = 0;
+  PLATFORM_IOS = 1;
+  PLATFORM_MACOS = 2;
+  PLATFORM_ANDROID = 3;
+  PLATFORM_LINUX = 4;
+  PLATFORM_WINDOWS = 5;
+  PLATFORM_WEB = 6;
+}
+
+// Where a subscription is bought / managed.
+enum Channel {
+  CHANNEL_UNSPECIFIED = 0;
+  CHANNEL_APPLE = 1;
+  CHANNEL_GOOGLE = 2;
+  CHANNEL_WEB = 3;
+}
+
+message GetMyPlanRequest {
+  Platform platform = 1;
+}
+
+message BetaMembership {
+  string campaign_key = 1;
+  string campaign_name = 2;
+  string kind = 3;              // premium_trial | feature
+  string joined_at = 4;         // RFC 3339
+  optional string ends_at = 5;  // RFC 3339; absent for feature betas
+}
+
+message GetMyPlanResponse {
+  string plan = 1;                      // free | premium
+  optional string source = 2;           // apple | google | web | code | admin
+  optional string ends_at = 3;          // RFC 3339; absent = open-ended / free
+  // True when the plan ends without renewal (trial, cancelled, comp): the app
+  // shows "rights end on <date>".
+  bool ends_without_renewal = 4;
+  // The active premium trial, if any.
+  optional string trial_campaign_key = 5;
+  optional string trial_campaign_name = 6;
+  optional string trial_ends_at = 7;
+  repeated BetaMembership betas = 8;
+  // Where the current subscription is managed (absent for free / trial / admin).
+  Channel managed_on = 9;
+  // Whether a purchase may be started from the calling platform right now.
+  bool can_purchase_here = 10;
+  // The channel this platform buys through (when can_purchase_here).
+  Channel purchase_channel = 11;
+  // Store/MoR product ids to offer (prices come from the store).
+  repeated string products = 12;
+  // The unlock keys the effective plan grants (for client-side mirrors).
+  repeated string unlocks = 13;
+}
+
+message RedeemAccessCodeRequest {
+  string code = 1;
+}
+message RedeemAccessCodeResponse {
+  string campaign_key = 1;
+  string campaign_name = 2;
+  string kind = 3;
+  optional string ends_at = 4;
+}
+
+message ReportStorePurchaseRequest {
+  Channel channel = 1;                 // apple | google
+  // Apple: the signed transaction JWS; Google: the purchase token.
+  string payload = 2;
+  // Google only: the product id the token was purchased under.
+  string product_id = 3;
+}
+message ReportStorePurchaseResponse {
+  GetMyPlanResponse plan = 1;
+}
+
+message CreateWebCheckoutRequest {
+  string product_id = 1;
+}
+message CreateWebCheckoutResponse {
+  string checkout_url = 1;
+}
+
+// -------------------------------------------------------------- admin surface
+
+message EntitlementRowMsg {
+  string id = 1;
+  string source = 2;
+  string provider_ref = 3;
+  optional string campaign_id = 4;
+  string starts_at = 5;
+  optional string ends_at = 6;
+  string status = 7;
+  optional string revoked_at = 8;
+  optional string withdrawn_at = 9;
+}
+
+message MembershipMsg {
+  string campaign_key = 1;
+  string campaign_name = 2;
+  string kind = 3;
+  string user_id = 4;
+  string enrolled_at = 5;
+  optional string ends_at = 6;
+  optional string revoked_at = 7;
+  string source = 8;            // code | admin
+}
+
+message LookupAccountPlanRequest {
+  // Either the account id or the handle.
+  string user_id = 1;
+  string handle = 2;
+}
+message LookupAccountPlanResponse {
+  string user_id = 1;
+  GetMyPlanResponse snapshot = 2;
+  repeated EntitlementRowMsg rows = 3;
+  repeated MembershipMsg memberships = 4;
+}
+
+message GetPlansForAccountsRequest {
+  repeated string user_ids = 1;
+}
+message AccountPlanBadge {
+  string user_id = 1;
+  string plan = 2;                 // free | premium
+  bool trial = 3;
+  optional string ends_at = 4;
+  repeated string beta_keys = 5;
+}
+message GetPlansForAccountsResponse {
+  repeated AccountPlanBadge badges = 1;
+}
+
+message ListAccountIdsByPlanRequest {
+  string plan = 1;                 // any | premium | trial
+  string beta_campaign_key = 2;    // empty = any
+}
+message ListAccountIdsByPlanResponse {
+  repeated string user_ids = 1;
+}
+
+message GrantPremiumRequest {
+  string user_id = 1;
+  string handle = 2;
+  optional string ends_at = 3;     // RFC 3339; absent = open-ended (needs confirm)
+  bool confirm_open_ended = 4;
+  string reason = 5;
+}
+message GrantPremiumResponse {
+  EntitlementRowMsg row = 1;
+}
+
+message RevokeEntitlementRequest {
+  string entitlement_id = 1;
+  string reason = 2;
+}
+message RevokeEntitlementResponse {}
+
+message EnrolHandleRequest {
+  string user_id = 1;
+  string handle = 2;
+  string campaign_key = 3;
+  string reason = 4;
+}
+message EnrolHandleResponse {
+  MembershipMsg membership = 1;
+}
+
+message RevokeMembershipRequest {
+  string user_id = 1;
+  string handle = 2;
+  string campaign_key = 3;
+  string reason = 4;
+}
+message RevokeMembershipResponse {}
+
+message CampaignMsg {
+  string id = 1;
+  string key = 2;
+  string name = 3;
+  string kind = 4;                     // premium_trial | feature
+  optional uint32 duration_days = 5;
+  optional string enrollment_closes_at = 6;
+  optional string closed_at = 7;
+  string created_by = 8;
+  string created_at = 9;
+  bool accepts_enrolment = 10;
+}
+
+message CreateCampaignRequest {
+  string key = 1;
+  string name = 2;
+  string kind = 3;                     // premium_trial | feature
+  optional uint32 duration_days = 4;   // trials; default 90
+}
+message CreateCampaignResponse {
+  CampaignMsg campaign = 1;
+}
+
+message ListCampaignsRequest {
+  bool include_closed = 1;
+}
+message ListCampaignsResponse {
+  repeated CampaignMsg campaigns = 1;
+}
+
+message CloseEnrollmentRequest {
+  string campaign_key = 1;
+}
+message CloseEnrollmentResponse {}
+
+message CloseCampaignRequest {
+  string campaign_key = 1;
+}
+message CloseCampaignResponse {}
+
+message MintCodesRequest {
+  string campaign_key = 1;
+  uint32 count = 2;
+  string issued_to_hint = 3;
+}
+message MintCodesResponse {
+  // Clear texts, returned once; never retrievable again.
+  repeated string codes = 1;
+}
+
+message RevokeCodesRequest {
+  string campaign_key = 1;             // revoke every code of the campaign…
+  repeated string code_ids = 2;        // …or these specific codes
+}
+message RevokeCodesResponse {
+  uint32 revoked = 1;
+}
+
+message ListMembersRequest {
+  string campaign_key = 1;
+}
+message ListMembersResponse {
+  repeated MembershipMsg members = 1;
+}
