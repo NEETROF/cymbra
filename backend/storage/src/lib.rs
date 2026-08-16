@@ -65,6 +65,14 @@ pub trait ObjectStorage: Send + Sync {
     /// assets (SoundFonts) can be delivered in parts rather than buffered whole. The
     /// range is clamped to the object; an out-of-range start yields an empty slice.
     async fn get_range(&self, key: &str, range: std::ops::Range<usize>) -> Result<Vec<u8>>;
+    /// Every object key under `prefix`, across **all** backends this store reads,
+    /// deduplicated — so a caller enumerating the corpus sees an object whether it
+    /// lives locally, off-box, or both.
+    ///
+    /// Added for corpus↔catalog reconciliation (change:
+    /// fix-crawler-corpus-isolation), which must find objects no catalog row
+    /// references. Keys come back in no particular order.
+    async fn list(&self, prefix: &str) -> Result<Vec<String>>;
 }
 
 /// In-memory [`ObjectStorage`] for unit tests — no disk, no network.
@@ -132,6 +140,17 @@ impl ObjectStorage for FakeStore {
             .get(key)
             .ok_or_else(|| StorageError::NotFound(key.to_string()))?;
         Ok(slice_range(v, range))
+    }
+
+    async fn list(&self, prefix: &str) -> Result<Vec<String>> {
+        Ok(self
+            .objects
+            .lock()
+            .expect("fake store lock")
+            .keys()
+            .filter(|k| k.starts_with(prefix))
+            .cloned()
+            .collect())
     }
 }
 
@@ -282,6 +301,34 @@ impl ObjectStorage for LocalFirstStore {
             Err(e) => Err(map_err(key, e)),
         }
     }
+
+    async fn list(&self, prefix: &str) -> Result<Vec<String>> {
+        // Union of both backends: an object may have been evicted from the cache
+        // but still live in the origin, or warmed locally and (wrongly) absent
+        // off-box. Reconciliation must see it either way.
+        let mut keys = std::collections::BTreeSet::new();
+        for backend in [&self.origin, &self.local] {
+            keys.extend(list_keys(backend, prefix).await?);
+        }
+        Ok(keys.into_iter().collect())
+    }
+}
+
+/// Collects every key under `prefix` from one `object_store` backend.
+async fn list_keys(store: &Arc<dyn ObjectStore>, prefix: &str) -> Result<Vec<String>> {
+    use futures_util::StreamExt;
+    let path = ObjPath::from(prefix);
+    let mut out = Vec::new();
+    let mut stream = store.list(Some(&path));
+    while let Some(meta) = stream.next().await {
+        match meta {
+            Ok(m) => out.push(m.location.to_string()),
+            // A prefix that has never been written is empty, not an error.
+            Err(object_store::Error::NotFound { .. }) => break,
+            Err(e) => return Err(StorageError::Backend(e.into())),
+        }
+    }
+    Ok(out)
 }
 
 #[cfg(test)]

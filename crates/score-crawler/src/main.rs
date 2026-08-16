@@ -60,13 +60,18 @@ async fn main() -> Result<()> {
         }
     };
 
-    let built = build_adapters(&sources, &root.join(".checkouts"));
+    // The crawler's own files (source checkouts, run artefacts) live OUTSIDE the
+    // corpus root — resolving this also refuses a work dir nested in it, before
+    // anything is written (change: fix-crawler-corpus-isolation).
+    let work_dir = config.resolved_work_dir()?;
+
+    let built = build_adapters(&sources, &work_dir.join("checkouts"));
     for name in &built.unsupported {
         warn!(source = %name, "adapter not implemented yet; skipping");
     }
 
     let outcome = run_all(&built.adapters, limit).await;
-    let (summary, entries) = OutputWriter::new(&root, safe_prefix, low_prefix)
+    let (summary, entries) = OutputWriter::new(&root, &work_dir, safe_prefix, low_prefix)
         .write(&outcome)
         .context("writing corpus output")?;
 
@@ -89,12 +94,18 @@ async fn main() -> Result<()> {
         None
     };
 
+    // Report both roots, resolved: a bare relative "Output: ./output" told an
+    // operator nothing about which host directory a container had actually
+    // written to, which is how a month-old mount went unnoticed in production.
     println!(
-        "Done — safe: {}, low-confidence: {}, rejected/failed: {}. Output: {}",
+        "Done — safe: {}, low-confidence: {}, rejected/failed: {}. Corpus: {} | Work: {}",
         summary.safe,
         summary.low_confidence,
         summary.rejected,
-        root.display()
+        std::path::absolute(&root)
+            .unwrap_or_else(|_| root.clone())
+            .display(),
+        work_dir.display()
     );
     match ingested {
         Some(n) => println!("Catalog rows inserted: {n}"),

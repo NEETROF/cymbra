@@ -6,8 +6,19 @@
 # servable — no deferred merge needed. sync-scores.sh then only MIRRORS SCORES_DIR
 # off-box to S3 (durability + the S3 read-fallback).
 #
-# NOTE: SCORES_DIR must be writable by the crawler container UID (the server owns
-# it as 1000:1000 — `sudo chown -R 1000:1000 $SCORES_DIR`).
+# The crawler's OWN files — source checkouts and the per-run artefacts
+# (manifest.json/.csv, rejected.log) — go to CRAWL_WORK, a SEPARATE mount. They
+# used to be derived from the output root, which meant that pointing the output
+# root at SCORES_DIR put 4.4 GB of git checkouts inside the served corpus, one
+# nightly `sync-scores.sh` away from the bucket. The crawler now refuses to start
+# if its work dir resolves inside the corpus (change: fix-crawler-corpus-isolation).
+#
+# NOTE: SCORES_DIR and CRAWL_WORK must both be writable by the crawler container
+# UID (the server owns the corpus as 1000:1000 —
+# `sudo chown -R 1000:1000 $SCORES_DIR $CRAWL_WORK`).
+#
+# NOTE: /opt/cymbra/backend is NOT a git checkout — merging a change that edits
+# this file deploys nothing. Copy it to the box explicitly.
 #
 # One-time: log in to GHCR (or reuse the deploy pull creds), then pull:
 #   docker login ghcr.io
@@ -29,6 +40,10 @@ x-crawler: &crawler
   image: ghcr.io/neetrof/cymbra-score-crawler:${CRAWLER_TAG:-latest}
   environment: &crawler-env
     LIMIT: ${LIMIT:-}
+    # Work location, mounted separately below. Per-source so concurrent
+    # containers never race on the same checkouts or overwrite each other's
+    # manifest export.
+    CYMBRA_SCORE_WORK_DIR: /work/crawler
     # The crawler runs its own migrations then ingests, so it needs a role that
     # can create/write the `score` schema. Defaults to the superuser on the
     # private network; override with a dedicated role if you prefer.
@@ -43,22 +58,30 @@ services:
   mutopia:
     <<: *crawler
     command: ["score-crawler --sources mutopia $${LIMIT:+--limit $$LIMIT}"]
-    volumes: ["${SCORES_DIR:-/var/lib/cymbra/scores}:/work/output"]
+    volumes:
+      - "${SCORES_DIR:-/var/lib/cymbra/scores}:/work/output"
+      - "${CRAWL_WORK:-/opt/cymbra/score-crawler/work}/mutopia:/work/crawler"
 
   musetrainer:
     <<: *crawler
     command: ["score-crawler --sources musetrainer $${LIMIT:+--limit $$LIMIT}"]
-    volumes: ["${SCORES_DIR:-/var/lib/cymbra/scores}:/work/output"]
+    volumes:
+      - "${SCORES_DIR:-/var/lib/cymbra/scores}:/work/output"
+      - "${CRAWL_WORK:-/opt/cymbra/score-crawler/work}/musetrainer:/work/crawler"
 
   eduardomourar:
     <<: *crawler
     command: ["score-crawler --sources eduardomourar $${LIMIT:+--limit $$LIMIT}"]
-    volumes: ["${SCORES_DIR:-/var/lib/cymbra/scores}:/work/output"]
+    volumes:
+      - "${SCORES_DIR:-/var/lib/cymbra/scores}:/work/output"
+      - "${CRAWL_WORK:-/opt/cymbra/score-crawler/work}/eduardomourar:/work/crawler"
 
   pdmx:
     <<: *crawler
     command: ["score-crawler --sources pdmx $${LIMIT:+--limit $$LIMIT}"]
-    volumes: ["${SCORES_DIR:-/var/lib/cymbra/scores}:/work/output"]
+    volumes:
+      - "${SCORES_DIR:-/var/lib/cymbra/scores}:/work/output"
+      - "${CRAWL_WORK:-/opt/cymbra/score-crawler/work}/pdmx:/work/crawler"
 
   openscore:
     <<: *crawler
@@ -70,6 +93,7 @@ services:
       TMPDIR: ${SC_CONVTMP:-/tmp/cymbra-conv}
     volumes:
       - "${SCORES_DIR:-/var/lib/cymbra/scores}:/work/output"
+      - "${CRAWL_WORK:-/opt/cymbra/score-crawler/work}/openscore:/work/crawler"
       - "/var/run/docker.sock:/var/run/docker.sock"
       - "${SC_CONVTMP:-/tmp/cymbra-conv}:${SC_CONVTMP:-/tmp/cymbra-conv}"
 

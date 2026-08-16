@@ -1587,6 +1587,9 @@ mod tests {
         ) -> cymbra_storage::Result<Vec<u8>> {
             self.inner.get_range(key, range).await
         }
+        async fn list(&self, prefix: &str) -> cymbra_storage::Result<Vec<String>> {
+            self.inner.list(prefix).await
+        }
     }
 
     #[tokio::test]

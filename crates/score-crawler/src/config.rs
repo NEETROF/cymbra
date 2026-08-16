@@ -28,7 +28,7 @@ use serde::{Deserialize, Serialize};
 use crate::convert::{ConverterBackend, Converters};
 
 /// Top-level crawler configuration.
-#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Config {
     /// Enabled source names (empty = none until selected on the CLI).
     #[serde(default)]
@@ -39,6 +39,19 @@ pub struct Config {
     /// Where retained scores are written.
     #[serde(default)]
     pub store: StoreConfig,
+    /// Where the crawler keeps files that are ITS OWN, not the corpus': source
+    /// checkouts and the per-run artefacts (manifest export, rejection log).
+    ///
+    /// Resolved **independently** of the store root and never derived from it.
+    /// It used to be `<store root>/.checkouts`, which was harmless while the root
+    /// was a staging directory but put 4.4 GB of git clones inside the served
+    /// corpus once the root became `SCORES_DIR` (change:
+    /// fix-crawler-corpus-isolation). The default is a sibling of the store
+    /// default, and [`Config::resolved_work_dir`] refuses a value nested in the
+    /// corpus root, so a wrong mount fails loudly instead of polluting silently.
+    /// Overridable via `CYMBRA_SCORE_WORK_DIR`.
+    #[serde(default = "default_work_dir")]
+    pub work_dir: PathBuf,
     /// Optional Postgres connection for ingesting the provenance into the shared
     /// `score` catalog (`catalog_scores`). When absent, only the local corpus +
     /// manifest are written. Overridable via `CYMBRA_SCORE_DATABASE_URL`.
@@ -125,7 +138,48 @@ pub enum StoreBackend {
     },
 }
 
+impl Default for Config {
+    // Hand-written (not derived) because `work_dir` must default to a real path:
+    // a derived `PathBuf::default()` would be empty, i.e. the process cwd, which
+    // is exactly the kind of silent-and-wrong default this change exists to remove.
+    fn default() -> Self {
+        Self {
+            sources: Vec::new(),
+            limit_per_source: None,
+            store: StoreConfig::default(),
+            work_dir: default_work_dir(),
+            catalog_database_url: None,
+            converters: ConverterSettings::default(),
+        }
+    }
+}
+
 impl Config {
+    /// The validated work location: where source checkouts and run artefacts go.
+    ///
+    /// Fails when it resolves inside the corpus root — the failure this change
+    /// was written for. Comparison is lexical (both sides normalised, `..`
+    /// collapsed) because neither directory necessarily exists yet, so it cannot
+    /// rely on `canonicalize`.
+    pub fn resolved_work_dir(&self) -> Result<PathBuf> {
+        let work = normalize(&self.work_dir);
+        match &self.store.backend {
+            StoreBackend::LocalFs { root } => {
+                let root = normalize(root);
+                anyhow::ensure!(
+                    !work.starts_with(&root),
+                    "work dir {} is inside the corpus root {}: the served corpus must hold \
+                     only servable objects — point CYMBRA_SCORE_WORK_DIR outside it",
+                    work.display(),
+                    root.display(),
+                );
+            }
+            // An S3 corpus has no local root to be nested in.
+            StoreBackend::S3 { .. } => {}
+        }
+        Ok(work)
+    }
+
     /// Loads and parses a `config.yaml`, then applies env overrides.
     pub fn load(path: &std::path::Path) -> Result<Self> {
         let text = std::fs::read_to_string(path)
@@ -159,6 +213,9 @@ impl Config {
         if env.catalog_url.is_some() {
             self.catalog_database_url = env.catalog_url.clone();
         }
+        if let Some(dir) = env.work_dir.clone() {
+            self.work_dir = PathBuf::from(dir);
+        }
         // Converter backend + images: let the deployment pick `docker` (and the
         // MuseScore/Verovio/python-ly images) without editing config.yaml — e.g.
         // the compose openscore service that converts `.mscx` via a MuseScore
@@ -188,6 +245,7 @@ pub struct EnvSource {
     pub endpoint: Option<String>,
     pub region: Option<String>,
     pub catalog_url: Option<String>,
+    pub work_dir: Option<String>,
     pub converter_backend: Option<String>,
     pub musescore_image: Option<String>,
     pub verovio_image: Option<String>,
@@ -203,6 +261,7 @@ impl EnvSource {
             region: std::env::var("CYMBRA_SCORE_S3_REGION").ok(),
             // An empty value means "no catalog DB" (local corpus only).
             catalog_url: non_empty("CYMBRA_SCORE_DATABASE_URL"),
+            work_dir: non_empty("CYMBRA_SCORE_WORK_DIR"),
             converter_backend: non_empty("CYMBRA_SCORE_CONVERTER_BACKEND"),
             musescore_image: non_empty("CYMBRA_SCORE_MUSESCORE_IMAGE"),
             verovio_image: non_empty("CYMBRA_SCORE_VEROVIO_IMAGE"),
@@ -229,8 +288,37 @@ impl Default for StoreBackend {
     }
 }
 
+/// Absolute, lexically-cleaned form of `p` (`.` dropped, `..` collapsed), used to
+/// compare two directories that may not exist yet. Purely lexical: it does not
+/// touch the filesystem and does not resolve symlinks.
+fn normalize(p: &std::path::Path) -> PathBuf {
+    let abs = if p.is_absolute() {
+        p.to_path_buf()
+    } else {
+        std::env::current_dir()
+            .unwrap_or_else(|_| PathBuf::from("/"))
+            .join(p)
+    };
+    let mut out = PathBuf::new();
+    for c in abs.components() {
+        match c {
+            std::path::Component::CurDir => {}
+            std::path::Component::ParentDir => {
+                out.pop();
+            }
+            other => out.push(other),
+        }
+    }
+    out
+}
+
 fn default_root() -> PathBuf {
     PathBuf::from("./output")
+}
+/// Sibling of [`default_root`], never a child of it — the whole point of the
+/// setting is that the work location cannot silently follow the corpus root.
+fn default_work_dir() -> PathBuf {
+    PathBuf::from("./work")
 }
 fn default_safe_prefix() -> String {
     "safe".to_string()
@@ -319,6 +407,103 @@ converters:
             }
             _ => panic!("expected S3 backend"),
         }
+    }
+
+    // --- work location (change: fix-crawler-corpus-isolation) ---
+
+    #[test]
+    fn default_work_dir_is_not_inside_the_corpus_root() {
+        let cfg = Config::default();
+        let work = cfg.resolved_work_dir().expect("default must be accepted");
+        let root = match &cfg.store.backend {
+            StoreBackend::LocalFs { root } => normalize(root),
+            _ => panic!("expected the local_fs default"),
+        };
+        assert!(
+            !work.starts_with(&root),
+            "default work dir {} must not sit inside the corpus root {}",
+            work.display(),
+            root.display()
+        );
+    }
+
+    #[test]
+    fn work_dir_nested_in_the_corpus_root_is_refused() {
+        let mut cfg = Config::default();
+        cfg.store.backend = StoreBackend::LocalFs {
+            root: PathBuf::from("/var/lib/cymbra/scores"),
+        };
+        // Exactly the production failure: checkouts under the served corpus.
+        cfg.work_dir = PathBuf::from("/var/lib/cymbra/scores/.checkouts");
+        let err = cfg.resolved_work_dir().expect_err("must be refused");
+        assert!(
+            err.to_string().contains("inside the corpus root"),
+            "unexpected error: {err}"
+        );
+    }
+
+    #[test]
+    fn work_dir_equal_to_the_corpus_root_is_refused() {
+        let mut cfg = Config::default();
+        cfg.store.backend = StoreBackend::LocalFs {
+            root: PathBuf::from("/var/lib/cymbra/scores"),
+        };
+        cfg.work_dir = PathBuf::from("/var/lib/cymbra/scores");
+        assert!(cfg.resolved_work_dir().is_err());
+    }
+
+    #[test]
+    fn work_dir_reaching_out_with_dotdot_is_accepted() {
+        let mut cfg = Config::default();
+        cfg.store.backend = StoreBackend::LocalFs {
+            root: PathBuf::from("/var/lib/cymbra/scores"),
+        };
+        // Lexically inside until `..` is collapsed — normalisation must see it out.
+        cfg.work_dir = PathBuf::from("/var/lib/cymbra/scores/../crawler-work");
+        let work = cfg.resolved_work_dir().expect("must be accepted");
+        assert_eq!(work, PathBuf::from("/var/lib/cymbra/crawler-work"));
+    }
+
+    #[test]
+    fn work_dir_is_independent_of_the_corpus_root() {
+        let mut cfg = Config::default();
+        cfg.store.backend = StoreBackend::LocalFs {
+            root: PathBuf::from("/srv/corpus"),
+        };
+        cfg.work_dir = PathBuf::from("/srv/crawler-work");
+        assert_eq!(
+            cfg.resolved_work_dir().unwrap(),
+            PathBuf::from("/srv/crawler-work")
+        );
+    }
+
+    #[test]
+    fn s3_corpus_has_no_local_root_to_nest_in() {
+        let mut cfg = Config::default();
+        cfg.store.backend = StoreBackend::S3 {
+            bucket: "cymbra-scores".into(),
+            endpoint: None,
+            region: None,
+        };
+        cfg.work_dir = PathBuf::from("/anywhere");
+        assert!(cfg.resolved_work_dir().is_ok());
+    }
+
+    #[test]
+    fn env_override_sets_the_work_dir() {
+        let mut cfg = Config::default();
+        let env = EnvSource {
+            work_dir: Some("/srv/crawler-work".into()),
+            ..Default::default()
+        };
+        cfg.apply_env_overrides(&env);
+        assert_eq!(cfg.work_dir, PathBuf::from("/srv/crawler-work"));
+    }
+
+    #[test]
+    fn work_dir_parses_from_yaml() {
+        let cfg = Config::from_yaml("work_dir: /srv/crawler-work").unwrap();
+        assert_eq!(cfg.work_dir, PathBuf::from("/srv/crawler-work"));
     }
 
     #[test]

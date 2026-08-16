@@ -38,8 +38,10 @@ async fn crawl_fixture_and_ingest_into_postgres() {
 
     // 2. Write the corpus (sets each entry's object_key).
     let root = std::env::temp_dir().join("sc_pg_it_corpus");
+    let work = std::env::temp_dir().join("sc_pg_it_work");
     let _ = std::fs::remove_dir_all(&root);
-    let (_summary, entries) = OutputWriter::new(&root, "safe", "low_confidence")
+    let _ = std::fs::remove_dir_all(&work);
+    let (_summary, entries) = OutputWriter::new(&root, &work, "safe", "low_confidence")
         .write(&outcome)
         .expect("write corpus");
     assert_eq!(entries.len(), 2);
