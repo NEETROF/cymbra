@@ -174,7 +174,8 @@ pub trait AccessCodeRepo: Send + Sync {
     ) -> Result<AccessCode>;
     async fn find_by_hash(&self, code_hash: &str) -> Result<Option<AccessCode>>;
     async fn revoke(&self, id: Uuid, at: DateTime<Utc>) -> Result<()>;
-    /// Revoke every code of a campaign; returns how many were revoked.
+    /// Revoke every still-redeemable code of a campaign (spent codes are already
+    /// inert and are left as redemption records); returns how many were revoked.
     async fn revoke_campaign(&self, campaign_id: Uuid, at: DateTime<Utc>) -> Result<u64>;
     async fn redemptions(&self, campaign_id: Uuid) -> Result<Vec<Redemption>>;
     async fn purge_user(&self, user_id: &str) -> Result<()>;

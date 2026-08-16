@@ -692,8 +692,11 @@ impl AccessCodeRepo for PgAccessCodeRepo {
     }
 
     async fn revoke_campaign(&self, campaign_id: Uuid, at: DateTime<Utc>) -> Result<u64> {
+        // Only codes that could still be redeemed: a spent code is already inert
+        // and stays a redemption record, so it is neither touched nor counted.
         let res = sqlx::query(
-            "UPDATE access_codes SET revoked_at = $2 WHERE campaign_id = $1 AND revoked_at IS NULL",
+            "UPDATE access_codes SET revoked_at = $2 \
+             WHERE campaign_id = $1 AND revoked_at IS NULL AND uses < max_uses",
         )
         .bind(campaign_id)
         .bind(at)

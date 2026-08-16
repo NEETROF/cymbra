@@ -125,7 +125,7 @@ async fn enrolment_is_transactional_single_use_and_one_per_account_per_campaign(
     let code_repo = PgAccessCodeRepo::new(pool.clone());
     let entitlements = PgEntitlementRepo::new(pool.clone());
     let admin = Uuid::now_v7();
-    let key = format!("it-trial-{}", &Uuid::now_v7().simple().to_string()[..8]);
+    let key = format!("it-trial-{}", &Uuid::now_v7().simple().to_string()[24..]);
     let campaign = campaigns
         .create(NewCampaign {
             key: key.clone(),
