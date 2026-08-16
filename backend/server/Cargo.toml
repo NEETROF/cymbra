@@ -24,6 +24,11 @@ path = "src/bin/backfill_titles.rs"
 name = "backfill-score-previews"
 path = "src/bin/backfill_score_previews.rs"
 
+# One-off maintenance: quarantine corpus objects no catalog row references.
+[[bin]]
+name = "reconcile-corpus"
+path = "src/bin/reconcile_corpus.rs"
+
 [dependencies]
 cymbra-platform = { path = "../platform" }
 cymbra-auth = { path = "../auth" }

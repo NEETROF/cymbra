@@ -66,13 +66,16 @@ abstract class SecureBytesStore {
 /// from throwing here.
 class SecureStorageBytesStore implements SecureBytesStore {
   SecureStorageBytesStore([FlutterSecureStorage? storage])
-    : _storage =
-          storage ??
-          const FlutterSecureStorage(
-            // Same macOS legacy-keychain choice as SecureTokenStore (avoids the
-            // data-protection keychain's entitlement requirement).
-            mOptions: MacOsOptions(usesDataProtectionKeychain: false),
-          );
+    // Defaults on every platform, including macOS, where that means the
+    // data-protection keychain — same rationale as SecureTokenStore, which this
+    // store used to mirror. Forcing `usesDataProtectionKeychain: false` falls
+    // back to the legacy *login* keychain, whose items are guarded by an ACL
+    // bound to the binary's designated requirement, so any signing-identity
+    // change (development → Apple Distribution, i.e. every TestFlight or App
+    // Store build) makes macOS prompt for the login keychain password. The app
+    // ships `keychain-access-groups`, so the default is app-scoped: no ACL, no
+    // prompt.
+    : _storage = storage ?? const FlutterSecureStorage();
 
   final FlutterSecureStorage _storage;
 

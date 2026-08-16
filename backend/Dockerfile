@@ -22,12 +22,12 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/src/target \
     cargo build --release --locked -p cymbra-server -p cymbra-worker \
     && cp target/release/cymbra-server target/release/cymbra-worker \
-          target/release/backfill-titles /usr/local/bin/ \
+          target/release/backfill-titles target/release/reconcile-corpus /usr/local/bin/ \
     # Strip debug symbols here (Dockerfile-scoped) rather than via a workspace-wide
     # [profile.release] strip=true, which would also touch the Flutter FFI crates'
     # release builds (apps/*/rust) — out of scope for this image.
     && strip --strip-all /usr/local/bin/cymbra-server /usr/local/bin/cymbra-worker \
-             /usr/local/bin/backfill-titles
+             /usr/local/bin/backfill-titles /usr/local/bin/reconcile-corpus
 
 # Distroless "cc" runtime: glibc + libgcc + libstdc++ + ca-certificates, no shell,
 # no package manager. `ldd` on the built binaries shows only libc/libgcc/libm (the
@@ -41,8 +41,9 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
 FROM gcr.io/distroless/cc-debian12@sha256:e8e7ee4b8b106d4c5fde9e422a321b2b8a2d5cca546c97adcce927f3e1d36e36 AS runtime
 COPY --from=builder /usr/local/bin/cymbra-server /usr/local/bin/cymbra-server
 COPY --from=builder /usr/local/bin/cymbra-worker /usr/local/bin/cymbra-worker
-# One-off maintenance bin, run via `docker compose run --rm server backfill-titles`.
+# One-off maintenance bins, run via `docker compose run --rm server <bin> …`.
 COPY --from=builder /usr/local/bin/backfill-titles /usr/local/bin/backfill-titles
+COPY --from=builder /usr/local/bin/reconcile-corpus /usr/local/bin/reconcile-corpus
 USER 1000:1000
 # Overridden per service in docker-compose (server vs worker).
 CMD ["cymbra-server"]

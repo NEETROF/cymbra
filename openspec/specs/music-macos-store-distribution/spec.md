@@ -71,12 +71,18 @@ sandbox.
 
 #### Scenario: No keychain prompt on launch
 
-- **WHEN** a store-signed build reads its stored credentials
+- **WHEN** a store-signed build reads **any** secret it keeps in the OS keystore —
+  session credentials, offline-cache key material, or any later addition
 - **THEN** the read SHALL be authorised by the app's own keychain access group and
-  SHALL NOT ask the user for their login keychain password — credentials therefore
-  SHALL be stored in the app-scoped keychain, not in a keychain whose items are
-  guarded by an ACL bound to the binary's designated requirement (which changes
-  with the signing identity, so every store build would prompt)
+  SHALL NOT ask the user for their login keychain password — every such secret
+  therefore SHALL be stored in the app-scoped keychain, not in a keychain whose
+  items are guarded by an ACL bound to the binary's designated requirement (which
+  changes with the signing identity, so every store build would prompt)
+- **AND** no `flutter_secure_storage` construction SHALL set
+  `MacOsOptions(usesDataProtectionKeychain: false)` — that opt-out is what selects
+  the legacy login keychain, and fixing only one call site leaves the prompt
+  (build 1.22 still prompted from the offline-cache key store after the token
+  store had been fixed)
 
 #### Scenario: Debug and release entitlements stay consistent
 

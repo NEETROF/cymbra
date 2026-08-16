@@ -27,12 +27,10 @@
 //!     cargo run -p cymbra-server --bin backfill-titles -- --apply         # writes
 //!     cargo run -p cymbra-server --bin backfill-titles -- --apply --source openscore
 
-use std::sync::Arc;
-
 use anyhow::{Context, Result};
 use cymbra_music::{PgTitleBackfillRepo, run_title_backfill};
 use cymbra_platform::config::Config;
-use cymbra_storage::{LocalFirstStore, ObjectStorage, S3Params};
+use cymbra_server::maintenance::score_object_store;
 
 /// Parsed command-line options.
 struct Opts {
@@ -94,28 +92,11 @@ async fn main() -> Result<()> {
         .music_database_url
         .as_deref()
         .context("CYMBRA_MUSIC_DATABASE_URL is required for the title backfill")?;
-    let s3 = cfg
-        .score_storage
-        .as_ref()
-        .context("CYMBRA_SCORE_S3_BUCKET (+ credentials) is required to read stored scores")?;
 
     let pool = cymbra_music::connect(db_url, 4)
         .await
         .context("connecting to the music database")?;
-    let storage: Arc<dyn ObjectStorage> = Arc::new(
-        LocalFirstStore::from_config(
-            &cfg.score_local_root,
-            &S3Params {
-                bucket: s3.bucket.clone(),
-                endpoint: s3.endpoint.clone(),
-                region: s3.region.clone(),
-                access_key: s3.access_key.clone(),
-                secret_key: s3.secret_key.clone(),
-                allow_http: s3.allow_http,
-            },
-        )
-        .context("building the score object store")?,
-    );
+    let storage = score_object_store(&cfg)?;
 
     let repo = PgTitleBackfillRepo::new(pool);
     if !opts.apply {
