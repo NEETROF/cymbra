@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.17.1](https://github.com/NEETROF/cymbra/compare/backend-v0.17.0...backend-v0.17.1) (2026-08-16)
+
+
+### Bug Fixes
+
+* **deploy:** route every Axum prefix to the HTTP port in Caddy ([#245](https://github.com/NEETROF/cymbra/issues/245)) ([3e06212](https://github.com/NEETROF/cymbra/commit/3e0621287b78b008505acc2cd535021c2f2eb5b9))
+
 ## [0.17.0](https://github.com/NEETROF/cymbra/compare/backend-v0.16.1...backend-v0.17.0) (2026-08-16)
 
 
