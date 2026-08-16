@@ -130,5 +130,13 @@
       unreferenced objects measured on 2026-08-16 (290 637 files under `safe/` for 145 280
       rows; 141 under `low_confidence/` for 68 rows), then `--apply` to quarantine, then purge
       after a grace period.
-- [ ] 7.5 MANUAL / prod: after the mirror change, confirm a non-servable entry left at the
-      corpus root is not transferred by `sync-scores.sh`.
+- [x] 7.5 MANUAL / prod: after the mirror change, confirm a non-servable entry left at the
+      corpus root is not transferred by `sync-scores.sh`. — **done 2026-08-16**. A
+      `DO-NOT-MIRROR.txt` placed at the corpus root produced
+      `WARNING: DO-NOT-MIRROR.txt is not a servable prefix — not mirrored`, the full mirror
+      then ran to completion (`mirrored safe low_confidence user-scores -> s3://cymbra-scores`),
+      and the bucket root afterwards listed **only** `safe/`, `low_confidence/` and
+      `user-scores/` — the marker never left the box. Marker removed.
+      Operational note: `/etc/cymbra/backup.env` is root-only, so a hand-run without `sudo`
+      silently reports "SCORES_S3_BUCKET unset — local corpus only" and mirrors nothing; the
+      cron runs as root and is unaffected.
