@@ -75,10 +75,10 @@
 
 ## 10. Legal, ops, docs
 
-- [ ] 10.1 Update terms (`docs/legal/`): subscription, renewal, cancellation and refunds handled by the App Store / Google Play / web provider; beta access is free, time-bounded and revocable
-- [ ] 10.2 Update privacy policies: provider identifiers stored, no card/address data, erasure behaviour
-- [ ] 10.3 Document all secrets and setup in `backend/.env.example` + `backend/plans/README.md`: ASC key + issuer/key ids, Apple root CAs bundle, Google service account + Pub/Sub topic, web provider API key + webhook secret, product ids per channel; runbook: rotate a webhook secret, disable a channel, refund path, cohort export
-- [ ] 10.4 Store setup checklist (App Store Connect subscription group + products, Play Console base plans, MoR products) recorded in `apps/music/store/`
+- [x] 10.1 Update terms (`docs/legal/`): subscription, renewal, cancellation and refunds handled by the App Store / Google Play / web provider; beta access is free, time-bounded and revocable
+- [x] 10.2 Update privacy policies: provider identifiers stored, no card/address data, erasure behaviour
+- [x] 10.3 Document all secrets and setup in `backend/.env.example` + `backend/plans/README.md`: ASC key + issuer/key ids, Apple root CAs bundle, Google service account + Pub/Sub topic, web provider API key + webhook secret, product ids per channel; runbook: rotate a webhook secret, disable a channel, refund path, cohort export
+- [x] 10.4 Store setup checklist (App Store Connect subscription group + products, Play Console base plans, MoR products) recorded in `apps/music/store/`
 
 ## 11. Verification
 

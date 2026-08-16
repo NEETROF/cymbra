@@ -45,6 +45,22 @@ migrations/     plans schema (role plans_svc)
 `cymbra-music` and the flags service depend on this crate through
 `ports::PlanSource` only; `plans` never depends on `music`.
 
+## Purchase channels
+
+Each channel is wired only when its environment block is present
+(`backend/.env.example`, "purchase channels"); `billing.<channel>.enabled` gates a
+wired channel at runtime. Adapters live in `src/billing/`:
+
+| Channel | Verifies | Route | Reconciliation read |
+|---|---|---|---|
+| Apple | signed transaction / notification JWS: `x5c` chain to the pinned Root CA G3, ES256, bundle id, environment | `POST /billing/apple/notifications` (ASN v2) | App Store Server API (JWT with the ASC key) |
+| Google | Play Developer API `subscriptionsv2.get` (+ server-side acknowledge) | `POST /billing/google/rtdn` (Pub/Sub push, Google OIDC token) — state is re-read from the API, never trusted from the body | same API |
+| Web (Paddle) | HMAC `Paddle-Signature` over `ts:body`, replay-bounded | `POST /billing/web/webhook` | `GET /subscriptions/{id}` |
+
+Every notification is applied at most once (`billing_events`, provider event id);
+an unmappable one (no account token, no known row) is acknowledged and logged; a
+disabled channel answers 200 and ignores (no provider retry storm).
+
 ## Operations
 
 - Connection: `CYMBRA_PLANS_DATABASE_URL` (role `plans_svc`, search_path `plans`).
@@ -54,6 +70,14 @@ migrations/     plans schema (role plans_svc)
 - Disable everything: `plans.enabled = false` (no redeploy).
 - Disable one purchase channel: `billing.<channel>.enabled = false` — its
   notification endpoint acknowledges and ignores (logged), the paywall hides it.
-- Sweep: `plans_withdraw` (daily, after `plans_reconcile`).
+- Sweeps: `plans_reconcile` (daily 04:10 UTC — re-read paid rows ending within 3
+  days) then `plans_withdraw` (04:40 — withdrawal on lapse), both on the ordered
+  `plans.maintenance` channel; missed runs are skipped (idempotent).
+- Rotate a webhook / API secret: change the env value and restart — the plans
+  crate holds no key material of its own; the Apple root CA is pinned in
+  `certs/AppleRootCA-G3.cer` (expires 2039).
+- Refund path: the provider refunds (store / Paddle portal); the notification
+  ends the row and, past grace, the next sweep withdraws plan-only content.
+- Cohort export: back office → Plans → campaign → members → CSV.
 - Erasure: `PlanService::purge_user` (called by the account erasure job); an
   active `web` row is cancelled on the provider first.
