@@ -64,6 +64,50 @@ whether the account exists.
 - **WHEN** a command asks about a player who is private, not age-eligible, or unknown
 - **THEN** the same neutral "not available" answer is returned in all three cases, so existence is not disclosed
 
+### Requirement: A `/beta` command lets a member claim one beta access per campaign
+
+The Discord application SHALL offer a `/beta` slash command that claims beta access for the
+requesting member. The handler SHALL accept the command only from the configured beta channel
+(and, when configured, only from members holding the configured role), evaluated
+**server-side** from the interaction payload. It SHALL obtain **one single-use code bound to
+the currently open campaign** from the access-code capability (`music-access-codes`), record
+the claim `(campaign, discord_user_id)`, and answer with an **ephemeral** message containing the
+web redeem link. The claim SHALL be **idempotent per member and campaign**: a repeated `/beta`
+returns the same link and mints nothing new. When the member's Cymbra account is already linked,
+the handler SHALL grant the entitlement directly and say so instead of returning a link. The
+command SHALL only ever mint **free, campaign-bounded** access — never a price, discount, or
+paid unlock — and SHALL NOT expose the code in a non-ephemeral message.
+
+#### Scenario: First claim returns an ephemeral redeem link
+
+- **WHEN** an eligible member runs `/beta` in the beta channel for the first time during an open campaign
+- **THEN** one single-use code is minted for that campaign, the claim is recorded against the member's Discord user id, and the reply is ephemeral and contains the redeem link
+
+#### Scenario: Repeated claim is idempotent
+
+- **WHEN** the same member runs `/beta` again during the same campaign
+- **THEN** no new code is minted and the reply repeats the same redeem link (or confirms the access already granted)
+
+#### Scenario: Linked account is granted directly
+
+- **WHEN** a member whose Cymbra account is linked runs `/beta`
+- **THEN** the beta entitlement is granted to that account without a link to click, and the ephemeral reply confirms it
+
+#### Scenario: Wrong channel or missing role is refused
+
+- **WHEN** `/beta` is run outside the configured channel, or by a member lacking the configured role
+- **THEN** the command answers with a neutral refusal and mints nothing
+
+#### Scenario: No open campaign
+
+- **WHEN** `/beta` is run while no campaign is open, or the access-code capability is not deployed
+- **THEN** the command answers "beta not open" and mints nothing
+
+#### Scenario: Never a paid or discounted unlock
+
+- **WHEN** the set of things `/beta` can mint is reviewed
+- **THEN** it contains only free access bounded by the campaign end, and no price or discount
+
 ### Requirement: Discord roles are granted from Cymbra account state
 
 The system SHALL be able to grant and revoke Discord roles from the worker via Discord's REST
