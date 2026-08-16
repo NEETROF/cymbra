@@ -463,6 +463,12 @@ is set. To turn it on:
 Off by default — the server logs `plans disabled (CYMBRA_PLANS_DATABASE_URL unset)`
 and behaves exactly as before. The dark deploy (change: add-premium-subscription):
 
+0. **Prerequisite — a real flag store.** The whole module is driven by runtime flags
+   (`plans.enabled`, `billing.*.enabled`, quotas). If the server logs
+   `feature flags in defaults-only mode` (no `CYMBRA_FLAGS_DATABASE_URL`), provision
+   `flags_svc` first with `provision-flags-role.sql` (same pattern as below, variable
+   `flags_pw`), set `CYMBRA_FLAGS_DB_PASSWORD` + `CYMBRA_FLAGS_DATABASE_URL`, roll — the
+   back office Flags screen becomes writable. Check with `\du` whether `flags_svc` exists.
 1. **Choose the `plans_svc` password** (`openssl rand -base64 24`) and **provision the
    role + schema** on the live box (idempotent, targeted; does NOT reset other roles):
    ```bash
