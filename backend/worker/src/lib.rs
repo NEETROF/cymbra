@@ -28,8 +28,57 @@ use sqlx::PgPool;
 /// delete (and enqueues nothing) and succeeds. Callers (the `purge_user` job
 /// handler) get at-least-once delivery, so this idempotency is required.
 pub async fn purge_user(admin_pool: &PgPool, user_id: &str) -> anyhow::Result<()> {
+    purge_user_with(admin_pool, user_id, None).await
+}
+
+/// [`purge_user`] with the optional web-subscription cancellation seam (change:
+/// add-premium-subscription): an active `web` plan row is cancelled on the
+/// merchant-of-record BEFORE the rows are erased, so a deleted account is never
+/// billed again. Store rows are the user's to cancel on the store. When the
+/// `plans` schema is not deployed (no `CYMBRA_PLANS_DATABASE_URL`), the plans
+/// step is skipped entirely.
+pub async fn purge_user_with(
+    admin_pool: &PgPool,
+    user_id: &str,
+    web_cancel: Option<&dyn cymbra_plans::WebSubscriptionCanceller>,
+) -> anyhow::Result<()> {
     let uid = uuid::Uuid::parse_str(user_id)
         .map_err(|_| anyhow::anyhow!("purge_user: invalid user_id {user_id:?}"))?;
+
+    // The plans schema is optional infrastructure: probe it once.
+    let plans_deployed: bool =
+        sqlx::query_scalar("SELECT to_regclass('plans.plan_entitlements') IS NOT NULL")
+            .fetch_one(admin_pool)
+            .await
+            .unwrap_or(false);
+
+    if plans_deployed {
+        // Cancel active web subscriptions on the provider first (outside the
+        // erasure transaction: a provider failure must retry the job, not leave a
+        // half-erased account).
+        let web_refs: Vec<String> = sqlx::query_scalar(
+            "SELECT provider_ref FROM plans.plan_entitlements \
+             WHERE user_id = $1 AND source = 'web' AND revoked_at IS NULL \
+               AND status NOT IN ('refunded', 'revoked', 'ended') \
+               AND (ends_at IS NULL OR ends_at > now())",
+        )
+        .bind(uid)
+        .fetch_all(admin_pool)
+        .await?;
+        if !web_refs.is_empty() {
+            let canceller = web_cancel.ok_or_else(|| {
+                anyhow::anyhow!(
+                    "purge_user: active web subscription but no web billing provider configured"
+                )
+            })?;
+            for r in &web_refs {
+                canceller
+                    .cancel(r)
+                    .await
+                    .map_err(|e| anyhow::anyhow!("cancel web subscription {r}: {e}"))?;
+            }
+        }
+    }
 
     let mut tx = admin_pool.begin().await?;
 
@@ -184,6 +233,25 @@ pub async fn purge_user(admin_pool: &PgPool, user_id: &str) -> anyhow::Result<()
             .bind(uid)
             .execute(&mut *tx)
             .await?;
+    }
+
+    // The user's plan data (change: add-premium-subscription): entitlement rows,
+    // beta memberships, code redemptions and billing-event references — all keyed
+    // by user_id in the `plans` schema (no cross-schema FK). Identifiers only, but
+    // they still name the account: erase them in the same transaction. Campaigns,
+    // codes and the admin audit are not the user's (they survive).
+    if plans_deployed {
+        for table in [
+            "plans.access_code_redemptions",
+            "plans.beta_memberships",
+            "plans.billing_events",
+            "plans.plan_entitlements",
+        ] {
+            sqlx::query(&format!("DELETE FROM {table} WHERE user_id = $1"))
+                .bind(uid)
+                .execute(&mut *tx)
+                .await?;
+        }
     }
 
     tx.commit().await?;

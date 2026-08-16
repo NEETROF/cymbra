@@ -58,6 +58,10 @@ pub struct Config {
     /// add-feature-usage-analytics). `None` leaves the `UsageService` unwired (the
     /// telemetry ingestion + reporting feature stays inert until configured).
     pub analytics_database_url: Option<String>,
+    /// Postgres URL for the `plans` schema (role `plans_svc`; change:
+    /// add-premium-subscription). `None` leaves `PlanService` unwired: every
+    /// plan-aware seam answers `free`, exactly the pre-plan behaviour.
+    pub plans_database_url: Option<String>,
     /// Master secret for the period-salted pseudonymous analytics `user_bucket`
     /// (design D2, Option A): `salt(month) = HMAC(secret, "YYYY-MM")`. Required to
     /// wire the `UsageService`; `None` leaves it unwired even if the DB is set (a
@@ -240,6 +244,10 @@ pub mod config_core {
                 .cloned(),
             analytics_database_url: m
                 .get("CYMBRA_ANALYTICS_DATABASE_URL")
+                .filter(|v| !v.is_empty())
+                .cloned(),
+            plans_database_url: m
+                .get("CYMBRA_PLANS_DATABASE_URL")
                 .filter(|v| !v.is_empty())
                 .cloned(),
             analytics_bucket_secret: m

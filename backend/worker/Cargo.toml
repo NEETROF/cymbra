@@ -35,6 +35,9 @@ cymbra-music = { path = "../music" }
 # The push_dispatch job runs the notification platform's selection → send → prune
 # loop (change: add-push-notifications, design D6).
 cymbra-notifications = { path = "../notifications" }
+# Plans: erasure cancels an active web-MoR subscription first, and the worker
+# runs the withdrawal sweep + provider reconciliation (change: add-premium-subscription).
+cymbra-plans = { path = "../plans" }
 sqlxmq.workspace = true
 sqlx.workspace = true
 uuid.workspace = true

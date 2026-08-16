@@ -1,0 +1,6 @@
+syntax = "proto3";
+
+package cymbra.plans.v1;
+
+// Placeholder — filled in by task 4.1 (PlanService).
+message PlanSnapshotStub {}

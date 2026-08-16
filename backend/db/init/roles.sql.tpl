@@ -93,9 +93,24 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA analytics TO :"anal
 ALTER DEFAULT PRIVILEGES IN SCHEMA analytics
   GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO :"analytics_role";
 
+-- plans module (free/premium entitlement ledger, beta campaigns, access codes,
+-- billing events; change: add-premium-subscription) — owned by plans_svc,
+-- confined to its own schema. Identifiers only, never billing PII. The server
+-- runs its MIGRATOR and serves PlanService on this role; the worker's sweep /
+-- reconciliation jobs use it too. No FK to user_account (purge by user_id).
+SELECT format('CREATE ROLE %I LOGIN', :'plans_role')
+WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'plans_role')
+\gexec
+ALTER ROLE :"plans_role" WITH LOGIN PASSWORD :'plans_pw';
+CREATE SCHEMA IF NOT EXISTS plans AUTHORIZATION :"plans_role";
+ALTER ROLE :"plans_role" SET search_path = plans;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA plans TO :"plans_role";
+ALTER DEFAULT PRIVILEGES IN SCHEMA plans
+  GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO :"plans_role";
+
 -- Keep the module roles out of the shared `public` schema so the only namespaces
 -- each can touch are its own (+ the narrow jobs.enqueue grant from the migration).
-REVOKE ALL ON SCHEMA public FROM :"auth_role", :"user_role", :"music_role", :"worker_role", :"flags_role", :"analytics_role";
+REVOKE ALL ON SCHEMA public FROM :"auth_role", :"user_role", :"music_role", :"worker_role", :"flags_role", :"analytics_role", :"plans_role";
 
 -- Ops role: read+write EVERY schema from a single connection (design OD1/OD2) --
 -- `pg_read_all_data` + `pg_write_all_data` cover all current AND future schemas
