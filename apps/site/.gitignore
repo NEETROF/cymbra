@@ -5,6 +5,8 @@ dist/
 
 # dependencies
 node_modules/
+# Yarn Berry (node-modules linker): commit yarn.lock + .yarnrc.yml, ignore the rest.
+.yarn/*
 
 # logs
 npm-debug.log*

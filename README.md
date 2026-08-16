@@ -10,11 +10,14 @@ Free and open source under the [Apache License 2.0](LICENSE).
 ## Monorepo layout
 
 ```
-apps/        # deployable Flutter + Rust apps (desktop / Android / iOS)
-  music/     # interactive piano (the first app; was the POC)
-crates/      # shared pure-Rust libraries (the common engine) — coming soon
-packages/    # shared Dart/Flutter packages (UI kit, theme) — coming soon
-backend/     # pure-Rust modular-monolith backend — coming soon
+apps/            # deployable apps
+  music/         # Cymbra Music — Flutter + Rust (desktop / Android / iOS)
+  back-office/   # moderation & admin console — Vue 3 (bo.cymbra.app)
+  site/          # public web site — Astro (cymbra.app): showcase, legal, web sign-in,
+                 # code redemption, checkout, subscription management
+crates/          # shared pure-Rust libraries (the common engine)
+packages/        # shared Dart/Flutter packages (flags client, …)
+backend/         # pure-Rust modular-monolith backend
 ```
 
 The taxonomy is **deployable vs shared**, per ecosystem:
@@ -23,6 +26,7 @@ The taxonomy is **deployable vs shared**, per ecosystem:
 |--------|------------|----------------|
 | Rust   | `backend/` | `crates/`      |
 | Dart   | `apps/`    | `packages/`    |
+| JS/TS  | `apps/back-office`, `apps/site` (Yarn Berry) | — |
 
 ## Tooling
 

@@ -1,0 +1,53 @@
+name: site
+
+# Web-site gate (apps/site, Astro): `astro check` + production build on PRs and
+# main pushes that touch the site (dorny/paths-filter), always on manual dispatch.
+# The site is deployed by `site-deploy.yml` on a `site-v*` tag.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: site-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      site: ${{ steps.f.outputs.site }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: f
+        with:
+          filters: |
+            site:
+              - 'apps/site/**'
+              - '.github/workflows/site.yml'
+
+  build:
+    needs: changes
+    if: ${{ github.event_name != 'pull_request' || needs.changes.outputs.site == 'true' }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/site
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Enable Corepack (Yarn Berry)
+        run: corepack enable
+      - name: Install dependencies
+        run: yarn install --immutable
+      - name: Type check
+        run: yarn check
+      - name: Build
+        run: yarn build

@@ -28,6 +28,7 @@ la racine du repo) :
 | `live-` | Cymbra Live — web + Tauri |
 | `platform-` | socle transverse — flags, jobs, observabilité, i18n, DB |
 | `admin-` | back-office Vue |
+| `site-` | site public `cymbra.app` — `apps/site` (Astro) : vitrine, légal, connexion web, rachat de code, checkout |
 
 Un produit **consomme** le socle, il ne le redéclare pas : avant toute nouvelle
 capability, vérifier qu'une `id-*`/`platform-*` (ou son équivalent legacy) ne la
@@ -76,7 +77,9 @@ compute the initial value and return it.
 ### Web front-ends (Vue 3 + TS)
 
 For Vue web apps (e.g. `apps/back-office`), follow the **`vue-frontend-architecture`**
-skill (`.claude/skills/`). Two hard rules, applied proactively:
+skill (`.claude/skills/`). The public site `apps/site` is Astro (static, fr/en); its
+interactive islands (sign-in, code redemption, account) follow the same two rules
+and reuse the back office's web-auth code rather than re-implementing it. Two hard rules, applied proactively:
 - **A screen/component NEVER calls an API directly** — only Pinia stores/composables
   do, behind an injectable client seam (`lib/api.ts` + `setClientsForTest`).
 - **Async state is one `ts-pattern` discriminated union** (`Async<T>`:

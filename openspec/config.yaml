@@ -13,6 +13,9 @@ context: |
     - `platform-*` socle transverse : feature flags, jobs, observabilité,
                    i18n, accès DB, service backend
     - `admin-*`    back-office Vue (apps/back-office)
+    - `site-*`     site public cymbra.app (apps/site, Astro) : vitrine, pages
+                   légales publiées, connexion web, rachat de code, checkout et
+                   gestion d'abonnement web
 
   Un produit CONSOMME le socle, il ne le redéclare jamais. Une capability
   appartient à un seul domaine ; si elle en sert deux, c'est du `platform-*`.
@@ -37,7 +40,7 @@ context: |
 # Per-artifact rules
 rules:
   specs:
-    - Préfixer toute NOUVELLE capability par id-/music-/live-/platform-/admin-.
+    - Préfixer toute NOUVELLE capability par id-/music-/live-/platform-/admin-/site-.
     - Avant de créer une capability, vérifier via `openspec list --specs` qu'une
       capability existante (surtout `id-*` / `platform-*` et leurs équivalents
       legacy) ne la couvre pas déjà — étendre plutôt que dupliquer.
@@ -45,4 +48,4 @@ rules:
       besoin du même comportement, la spec est unique et `platform-*`/`id-*`.
   proposal:
     - Indiquer explicitement les produits impactés (ID / Music / Live /
-      back-office) et, pour chacun, ce qui est consommé vs ce qui est nouveau.
+      back-office / site) et, pour chacun, ce qui est consommé vs ce qui est nouveau.
