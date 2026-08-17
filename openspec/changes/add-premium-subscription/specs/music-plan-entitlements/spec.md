@@ -49,14 +49,24 @@ ledger MUST NOT store names, addresses, emails, card or invoice data.
 
 The effective plan SHALL be `premium` when at least one row is active now (`starts_at ≤ now <
 effective_end`, not revoked, grace included) and `free` otherwise. When several rows are active
-the latest `effective_end` governs. No campaign operation (enrolment closing, feature-beta closing,
-membership revocation, code revocation) SHALL create, shorten or end a row whose source is
-`apple`, `google` or `web`. A user in any beta MUST be able to purchase at any time.
+the latest `effective_end` governs the plan end. Independently, the snapshot SHALL carry the
+source of the active **paid-channel** row (`apple` / `google` / `web`) when there is one, even if
+a trial or admin grant outlasts it: that paid source — not the governing row — drives
+"managed on <channel>", the refusal of a second purchase on any channel and the web portal, so a
+tester can never end up with two subscriptions. No campaign operation (enrolment closing,
+feature-beta closing, membership revocation, code revocation) SHALL create, shorten or end a row
+whose source is `apple`, `google` or `web`. A user in any beta MUST be able to purchase at any
+time — once.
 
 #### Scenario: Two rows, latest end governs
 
 - **WHEN** a user has a trial row ending March 1 and an Apple row ending June 1
 - **THEN** the effective plan is `premium` until June 1
+
+#### Scenario: A trial that outlasts a subscription still says "managed on the store"
+
+- **WHEN** a premium-trial tester whose trial ends November 14 buys a monthly Apple subscription
+- **THEN** the plan is `premium`, the reported end is November 14, the paid source is `apple`, the paywall says "managed on the App Store" and offers no purchase, and a web checkout is refused
 
 #### Scenario: Trial end does not touch a purchase
 

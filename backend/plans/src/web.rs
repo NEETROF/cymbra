@@ -92,7 +92,8 @@ fn purchase_view(
     snapshot: &PlanSnapshot,
     platform: Option<Platform>,
 ) -> (Option<Channel>, bool, Option<Channel>) {
-    let managed_on = snapshot.source.and_then(Channel::from_source);
+    // The paid row, not the governing one: a trial may outlast a subscription.
+    let managed_on = snapshot.paid_source.and_then(Channel::from_source);
     let channel = platform.map(Platform::channel);
     let can_purchase = match (managed_on, channel) {
         (Some(_), _) => false,
@@ -213,7 +214,7 @@ pub async fn create_checkout(
     }
     let web = web.ok_or_else(|| AppError::Config("web billing not configured".into()))?;
     let snapshot = svc.snapshot(user_id).await?;
-    if snapshot.source.is_some_and(|s| s.is_paid_channel()) {
+    if snapshot.paid_source.is_some() {
         return Err(AppError::FailedPrecondition(
             "already subscribed on another channel".into(),
         ));
@@ -234,14 +235,12 @@ pub async fn portal_url(
 ) -> Result<String> {
     let web = web.ok_or_else(|| AppError::Config("web billing not configured".into()))?;
     let ap = svc.account_plan(user_id).await?;
-    if ap.snapshot.source != Some(Source::Web) {
+    if ap.snapshot.paid_source != Some(Source::Web) {
         return Err(AppError::FailedPrecondition(
             "subscription is not managed on the web".into(),
         ));
     }
-    let now = svc.now();
-    let grace = svc.grace();
-    let row = crate::core::governing_row(&ap.rows, now, grace)
+    let row = crate::core::active_paid_row(&ap.rows, svc.now(), svc.grace())
         .map(|g| g.row)
         .filter(|r| r.source == Source::Web)
         .ok_or_else(|| AppError::FailedPrecondition("no active web subscription".into()))?;
@@ -353,6 +352,7 @@ mod tests {
         let snapshot = PlanSnapshot {
             plan: Plan::Premium,
             source: Some(Source::Apple),
+            paid_source: Some(Source::Apple),
             ends_at: Some(t(20)),
             ..PlanSnapshot::free()
         };
@@ -432,6 +432,52 @@ mod tests {
             .await
             .unwrap();
         assert!(url.contains("_ptxn=txn_1"));
+    }
+
+    #[tokio::test]
+    async fn a_trial_outlasting_the_subscription_still_says_managed_on_the_store() {
+        // Task 11.9: trial (code) row ends after the Apple row → the trial governs
+        // the end date, but the paywall says "managed on Apple", offers no purchase
+        // and the web checkout refuses.
+        let svc = service(
+            true,
+            vec![
+                row(Source::Apple, Some(t(20))),
+                row(Source::Code, Some(t(28))),
+            ],
+        );
+        let v = my_plan(&svc, &paywall(true), "u1", Some(Platform::Web))
+            .await
+            .unwrap();
+        assert_eq!(v.plan, "premium");
+        assert_eq!(v.source.as_deref(), Some("code"));
+        assert_eq!(v.managed_on.as_deref(), Some("apple"));
+        assert!(!v.can_purchase_here);
+        assert!(v.products.is_empty());
+        let mut web = MockWebBillingProvider::new();
+        web.expect_create_checkout().never();
+        let web: Arc<dyn WebBillingProvider> = Arc::new(web);
+        let err = create_checkout(&svc, &paywall(true), Some(&web), "u1", "premium_monthly")
+            .await
+            .unwrap_err();
+        assert!(matches!(err, AppError::FailedPrecondition(_)));
+    }
+
+    #[tokio::test]
+    async fn portal_works_when_a_trial_outlasts_the_web_subscription() {
+        let mut web = MockWebBillingProvider::new();
+        web.expect_portal_url()
+            .withf(|r| r == "web-ref")
+            .returning(|_| Ok("https://portal.example/session".into()));
+        let web: Arc<dyn WebBillingProvider> = Arc::new(web);
+        let svc = service(
+            true,
+            vec![
+                row(Source::Web, Some(t(20))),
+                row(Source::Code, Some(t(28))),
+            ],
+        );
+        assert!(portal_url(&svc, Some(&web), "u1").await.is_ok());
     }
 
     #[tokio::test]
