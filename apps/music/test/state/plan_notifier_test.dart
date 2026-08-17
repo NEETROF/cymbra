@@ -16,6 +16,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:grpc/grpc.dart' show GrpcError;
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 import 'package:music/services/app_platform.dart';
@@ -255,6 +256,70 @@ void main() {
         events.add(const StoreEvent.pending());
         await Future<void>.delayed(Duration.zero);
         expect(c.read(purchaseFlowProvider).outcome, PurchaseOutcome.pending);
+        await events.close();
+      },
+    );
+
+    test(
+      'a receipt bound to another Cymbra account is completed and reported as such',
+      () async {
+        // The store transaction was bought under another Cymbra account: the
+        // server refuses (permission denied); the app finishes the transaction
+        // (it can never be granted here) and tells the user to sign in with
+        // that account — not the generic "could not be completed".
+        final svc = MockPlanService();
+        when(svc.getMyPlan(any)).thenAnswer((_) async => PlanSnapshotView.free);
+        when(
+          svc.reportStorePurchase(
+            channel: anyNamed('channel'),
+            payload: anyNamed('payload'),
+            productId: anyNamed('productId'),
+          ),
+        ).thenThrow(
+          const GrpcError.permissionDenied(
+            'purchase belongs to another account',
+          ),
+        );
+        final store = MockStoreClient();
+        final events = StreamController<StoreEvent>.broadcast();
+        when(store.events).thenAnswer((_) => events.stream);
+        when(store.complete(any)).thenAnswer((_) async {});
+        final c = _container(service: svc, store: store);
+        await c.read(planProvider.future);
+        c.read(purchaseFlowProvider);
+        events.add(
+          const StoreEvent.receipt(
+            StoreReceipt(
+              productId: 'premium_monthly',
+              payload: 'jws',
+              restored: true,
+            ),
+          ),
+        );
+        await Future<void>.delayed(Duration.zero);
+        await Future<void>.delayed(Duration.zero);
+        verify(store.complete(any)).called(1);
+        expect(
+          c.read(purchaseFlowProvider).outcome,
+          PurchaseOutcome.otherAccount,
+        );
+        expect(c.read(planProvider).valueOrNull?.isPremium, isFalse);
+        // Any other server error stays the generic failure.
+        when(
+          svc.reportStorePurchase(
+            channel: anyNamed('channel'),
+            payload: anyNamed('payload'),
+            productId: anyNamed('productId'),
+          ),
+        ).thenThrow(const GrpcError.unavailable('down'));
+        events.add(
+          const StoreEvent.receipt(
+            StoreReceipt(productId: 'premium_monthly', payload: 'jws2'),
+          ),
+        );
+        await Future<void>.delayed(Duration.zero);
+        await Future<void>.delayed(Duration.zero);
+        expect(c.read(purchaseFlowProvider).outcome, PurchaseOutcome.failed);
         await events.close();
       },
     );

@@ -719,6 +719,7 @@
   "planPurchasePending": "Achat en attente d'approbation",
   "planCheckoutOpened": "Le paiement s'est ouvert dans votre navigateur. Revenez et actualisez une fois terminé.",
   "planRestoreNothing": "Aucun achat à restaurer sur ce compte",
+  "planPurchaseOtherAccount": "Cet achat est rattaché à un autre compte Cymbra. Connectez-vous avec ce compte pour en profiter.",
   "planPurchaseFailed": "L'achat n'a pas pu aboutir. Cymbra n'a rien prélevé.",
   "planWithdrawnNotice": "Votre accès Premium a pris fin : les pièces du catalogue hors ligne et les pianos Premium ont été retirés de cet appareil.",
   "accountPlanMenu": "Abonnement",
