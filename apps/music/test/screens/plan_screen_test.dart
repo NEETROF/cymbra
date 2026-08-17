@@ -12,9 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:grpc/grpc.dart' show GrpcError;
 import 'package:mockito/mockito.dart';
 import 'package:music/screens/plan_screen.dart';
 import 'package:music/services/app_platform.dart';
@@ -35,8 +38,11 @@ class _RecordingLauncher implements LegalLinkLauncher {
 }
 
 class _FakeStore extends Fake implements StoreClient {
-  _FakeStore({this.available = true});
+  _FakeStore({this.available = true, Stream<StoreEvent>? events})
+    : _events = events ?? const Stream.empty();
   final bool available;
+  final Stream<StoreEvent> _events;
+  final List<StoreReceipt> completed = [];
   @override
   Future<bool> isAvailable() async => available;
   @override
@@ -50,7 +56,9 @@ class _FakeStore extends Fake implements StoreClient {
       ),
   ];
   @override
-  Stream<StoreEvent> get events => const Stream.empty();
+  Stream<StoreEvent> get events => _events;
+  @override
+  Future<void> complete(StoreReceipt receipt) async => completed.add(receipt);
 }
 
 Future<void> _pump(
@@ -60,8 +68,9 @@ Future<void> _pump(
   StoreClient? store,
   LegalLinkLauncher? launcher,
   EdgeInsets viewPadding = EdgeInsets.zero,
+  MockPlanService? service,
 }) async {
-  final svc = MockPlanService();
+  final svc = service ?? MockPlanService();
   when(svc.getMyPlan(any)).thenAnswer((_) async => snapshot);
   await tester.pumpWidget(
     ProviderScope(
@@ -252,6 +261,50 @@ void main() {
       );
       expect(find.byKey(const Key('plan-store-unavailable')), findsOneWidget);
       expect(find.byKey(const Key('plan-buy-premium_monthly')), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'a receipt bound to another Cymbra account: explicit snackbar, receipt completed',
+    (tester) async {
+      final svc = MockPlanService();
+      when(
+        svc.reportStorePurchase(
+          channel: anyNamed('channel'),
+          payload: anyNamed('payload'),
+          productId: anyNamed('productId'),
+        ),
+      ).thenThrow(
+        const GrpcError.permissionDenied('purchase belongs to another account'),
+      );
+      final events = StreamController<StoreEvent>.broadcast();
+      final store = _FakeStore(events: events.stream);
+      await _pump(
+        tester,
+        snapshot: _free,
+        platform: AppPlatform.ios,
+        store: store,
+        service: svc,
+      );
+      events.add(
+        const StoreEvent.receipt(
+          StoreReceipt(
+            productId: 'premium_monthly',
+            payload: 'jws',
+            restored: true,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        find.text(
+          'This purchase is linked to another Cymbra account. '
+          'Sign in with that account to use it.',
+        ),
+        findsOneWidget,
+      );
+      expect(store.completed, hasLength(1));
+      await events.close();
     },
   );
 
