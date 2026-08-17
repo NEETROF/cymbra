@@ -732,6 +732,7 @@
   "planPurchasePending": "Acquisto in attesa di approvazione",
   "planCheckoutOpened": "Il pagamento si è aperto nel browser. Torna e aggiorna quando hai finito.",
   "planRestoreNothing": "Nessun acquisto da ripristinare su questo account",
+  "planPurchaseOtherAccount": "Questo acquisto è collegato a un altro account Cymbra. Accedi con quell'account per usarlo.",
   "planPurchaseFailed": "Impossibile completare l'acquisto. Cymbra non ha addebitato nulla.",
   "planWithdrawnNotice": "Il tuo accesso Premium è terminato: i brani del catalogo offline e i pianoforti Premium sono stati rimossi da questo dispositivo.",
   "accountPlanMenu": "Abbonamento",

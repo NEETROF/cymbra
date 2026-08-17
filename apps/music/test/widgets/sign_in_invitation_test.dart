@@ -59,6 +59,7 @@ class _GatedActionHost extends ConsumerWidget {
 Future<({ProviderContainer container, List<String> resumed})> _pumpHost(
   WidgetTester tester, {
   FakeTokenStore? store,
+  FakeOidcTokenSource? oidc,
 }) async {
   await tester.binding.setSurfaceSize(const Size(1200, 900));
   addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -66,6 +67,7 @@ Future<({ProviderContainer container, List<String> resumed})> _pumpHost(
     store: store ?? FakeTokenStore(guest: true),
     // A resolvable account, so completing sign-in lands on a usable session.
     account: FakeAccountService(account: fakeAccount(handle: 'player')),
+    oidc: oidc,
   );
   final resumed = <String>[];
   await tester.pumpWidget(
@@ -137,6 +139,33 @@ void main() {
     expect(find.byKey(const Key('gated-action')), findsOneWidget);
     expect(host.resumed, ['go']);
   });
+
+  testWidgets(
+    'a native sign-in SDK failure keeps the invitation usable and says so',
+    (tester) async {
+      // The platform SDK (Google / Apple) can throw before any token exists —
+      // e.g. the macOS sandbox refusing the auth session. The invitation must
+      // stay put, show the generic entry error, and not break the flow.
+      final host = await _pumpHost(
+        tester,
+        oidc: FakeOidcTokenSource(googleError: StateError('sdk failure')),
+      );
+      await tester.tap(find.byKey(const Key('gated-action')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('sign-in-invitation-accept')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('invite-google')));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(SignInInvitationScreen), findsOneWidget);
+      expect(
+        find.text('Something went wrong. Please try again.'),
+        findsOneWidget,
+      );
+      expect(host.container.read(canUseOnlineServicesProvider), isFalse);
+      expect(host.resumed, isEmpty);
+    },
+  );
 
   testWidgets(
     'a signed-out library entry point routes through the invitation',

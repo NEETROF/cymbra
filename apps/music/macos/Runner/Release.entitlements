@@ -15,17 +15,20 @@
 	<true/>
 	<key>com.apple.security.network.client</key>
 	<true/>
+	<!-- Required by the native Google Sign-In flow on macOS (GoogleSignIn / AppAuth
+	     under App Sandbox): without it "Continue with Google" fails silently in a
+	     signed sandboxed build ("Something went wrong", no auth window) while the
+	     dev build — which carries it in DebugProfile.entitlements — works. Verified
+	     by differential test on the release build (2026-08-17). -->
+	<key>com.apple.security.network.server</key>
+	<true/>
 	<key>com.apple.security.files.user-selected.read-only</key>
 	<true/>
 	<!-- flutter_secure_storage needs an explicit access group to reach the keychain
 	     under App Sandbox; without it a signed sandboxed build loses its session
 	     token on every launch. Must stay identical in DebugProfile.entitlements —
 	     the asymmetry is how this went unnoticed (the CI artifact was unsigned, so
-	     the sandbox was never really exercised).
-
-	     Deliberately NOT here: com.apple.security.network.server. macOS sign-in uses
-	     the native Google SDK / Sign in with Apple, not the loopback listener that
-	     Windows and Linux need (lib/services/oidc_token_source.dart). -->
+	     the sandbox was never really exercised). -->
 	<key>keychain-access-groups</key>
 	<array>
 		<string>$(AppIdentifierPrefix)com.cymbra.music</string>
