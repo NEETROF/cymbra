@@ -336,8 +336,20 @@ impl PlanServiceTrait for PlanGrpc {
         let verified = verifier
             .verify(&id.user_id, &r.payload, &r.product_id)
             .await
-            .map_err(|e| e.to_status())?;
+            .map_err(|e| {
+                // Ownership refusals are the support question ("I bought on the
+                // other account") — leave a trace; the message stays neutral.
+                if matches!(e, AppError::PermissionDenied(_)) {
+                    tracing::warn!(
+                        user = %id.user_id,
+                        channel = ?channel,
+                        "store purchase refused: transaction bound to another account"
+                    );
+                }
+                e.to_status()
+            })?;
         if verified.write.user_id != id.user_id {
+            tracing::warn!(user = %id.user_id, channel = ?channel, "store purchase refused: owner mismatch");
             return Err(Status::permission_denied(
                 "purchase belongs to another account",
             ));

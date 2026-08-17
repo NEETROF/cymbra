@@ -142,8 +142,10 @@ class _SignInInvitationScreenState
       if (mounted) {
         showAuthError(context, e, fallback: l10n.authErrUnauthenticated);
       }
-    } catch (_) {
-      // A native SDK / platform failure must not break the invitation.
+    } catch (e) {
+      // A native SDK / platform failure must not break the invitation — but it
+      // must be traceable (release builds only surface the generic message).
+      debugPrint('sign-in: platform failure: $e');
       if (mounted) showAppSnackBar(messenger, l10n.entryError);
     } finally {
       if (mounted) setState(() => _busy = false);

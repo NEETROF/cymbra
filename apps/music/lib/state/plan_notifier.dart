@@ -17,6 +17,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:grpc/grpc.dart' show GrpcError, StatusCode;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../services/app_platform.dart';
@@ -127,6 +128,11 @@ enum PurchaseOutcome {
   pending,
   checkoutOpened,
   nothingToRestore,
+
+  /// The store transaction is bound to another Cymbra account (a purchase or
+  /// restore from a device signed in with a different account than the one
+  /// that bought). The user must sign in with that account.
+  otherAccount,
   failed,
 }
 
@@ -269,8 +275,21 @@ class PurchaseFlow extends _$PurchaseFlow {
       } else {
         _finish(PurchaseOutcome.purchased);
       }
-    } catch (e) {
+    } on GrpcError catch (e) {
+      _restoring = false;
+      if (e.code == StatusCode.permissionDenied) {
+        // Bound to another Cymbra account: the transaction can never be
+        // granted here, so finish it locally (the owning account restores it)
+        // and tell the user which way out exists.
+        debugPrint('purchase belongs to another account: ${e.message}');
+        await ref.read(storeClientProvider).complete(receipt);
+        _finish(PurchaseOutcome.otherAccount);
+        return;
+      }
       // The store keeps the transaction pending; a later restore re-reports it.
+      debugPrint('purchase report failed: $e');
+      _finish(PurchaseOutcome.failed);
+    } catch (e) {
       debugPrint('purchase report failed: $e');
       _restoring = false;
       _finish(PurchaseOutcome.failed);

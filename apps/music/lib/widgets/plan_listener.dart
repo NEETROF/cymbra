@@ -55,6 +55,7 @@ class PlanListener extends ConsumerWidget {
         PurchaseOutcome.pending => l10n.planPurchasePending,
         PurchaseOutcome.checkoutOpened => l10n.planCheckoutOpened,
         PurchaseOutcome.nothingToRestore => l10n.planRestoreNothing,
+        PurchaseOutcome.otherAccount => l10n.planPurchaseOtherAccount,
         PurchaseOutcome.failed => l10n.planPurchaseFailed,
         PurchaseOutcome.none => null,
       };
