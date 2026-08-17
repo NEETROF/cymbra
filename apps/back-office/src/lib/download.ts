@@ -26,6 +26,11 @@ export function musicxmlFileName(title: string | null | undefined, id: string): 
   return `${base}.musicxml`;
 }
 
+/** Save a text document (e.g. minted codes `.txt`, a members `.csv`) — UTF-8. */
+export function saveTextAsFile(text: string, fileName: string, mime = "text/plain;charset=utf-8"): void {
+  saveBytesAsFile(new TextEncoder().encode(text), fileName, mime);
+}
+
 /** Save raw bytes to the operator's machine via a transient `<a download>`. */
 export function saveBytesAsFile(bytes: Uint8Array, fileName: string, mime: string = MUSICXML_MIME): void {
   const url = URL.createObjectURL(new Blob([bytes], { type: mime }));

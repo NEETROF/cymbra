@@ -39,6 +39,11 @@ services:
       CYMBRA_USER_DB_PASSWORD: ${CYMBRA_USER_DB_PASSWORD:?}
       CYMBRA_WORKER_DB_PASSWORD: ${CYMBRA_WORKER_DB_PASSWORD:?}
       CYMBRA_ADMIN_DB_PASSWORD: ${CYMBRA_ADMIN_DB_PASSWORD:?}
+      # Optional modules (dev default when unset — provision-*.sql on a live box):
+      CYMBRA_MUSIC_DB_PASSWORD: ${CYMBRA_MUSIC_DB_PASSWORD:-music_dev_pw}
+      CYMBRA_FLAGS_DB_PASSWORD: ${CYMBRA_FLAGS_DB_PASSWORD:-flags_dev_pw}
+      CYMBRA_ANALYTICS_DB_PASSWORD: ${CYMBRA_ANALYTICS_DB_PASSWORD:-analytics_dev_pw}
+      CYMBRA_PLANS_DB_PASSWORD: ${CYMBRA_PLANS_DB_PASSWORD:-plans_dev_pw}
     volumes:
       - ../db/init:/docker-entrypoint-initdb.d:ro
       - pg:/var/lib/postgresql/data

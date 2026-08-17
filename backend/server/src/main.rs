@@ -160,11 +160,105 @@ async fn main() -> anyhow::Result<()> {
     // without a token (pre-account UI respects kill-switches), while the admin
     // methods still require an authenticated admin. Defaults-only when no flags DB.
     let flag_service = cymbra_server::build_flag_service(&cfg, flags_resolver_pool).await?;
-    let flag_svc = FlagServiceServer::with_interceptor(
-        cymbra_feature_flags::grpc::FlagGrpc::new(flag_service.clone()),
-        optional,
-    );
     cymbra_server::spawn_flag_refreshers(&cfg, flag_service.clone());
+
+    // --- plans (free/premium ledger, beta campaigns, access codes; change:
+    // add-premium-subscription). Wired only when `CYMBRA_PLANS_DATABASE_URL` is set;
+    // otherwise every plan-aware seam below stays on its inert default (everyone is
+    // `free`, exactly the pre-plan behaviour). Even when wired, `plans.enabled`
+    // (default off) keeps it dark. The withdrawal-on-lapse rotator needs the music
+    // offline-secret store, so it gets its own small music connection.
+    let plan_service: Option<Arc<cymbra_plans::PlanService>> = match cfg
+        .plans_database_url
+        .as_deref()
+    {
+        Some(url) => {
+            let plans_pool = cymbra_plans::pg::connect(url, 5).await?;
+            cymbra_plans::MIGRATOR.run(&plans_pool).await?;
+            let rotator: Option<Arc<dyn cymbra_plans::CacheSecretRotator>> =
+                match cfg.music_database_url.as_deref() {
+                    Some(music_url) => {
+                        let pool = db::connect(music_url, 2).await?;
+                        Some(Arc::new(cymbra_server::OfflineSecretRotator::new(
+                            Arc::new(PgOfflineSecretRepo::new(pool)),
+                        )))
+                    }
+                    None => None,
+                };
+            Some(Arc::new(cymbra_plans::PlanService::new(
+                cymbra_plans::PlanDeps {
+                    entitlements: Arc::new(cymbra_plans::pg::PgEntitlementRepo::new(
+                        plans_pool.clone(),
+                    )),
+                    campaigns: Arc::new(cymbra_plans::pg::PgCampaignRepo::new(plans_pool.clone())),
+                    memberships: Arc::new(cymbra_plans::pg::PgMembershipRepo::new(
+                        plans_pool.clone(),
+                    )),
+                    codes: Arc::new(cymbra_plans::pg::PgAccessCodeRepo::new(plans_pool.clone())),
+                    billing_events: Arc::new(cymbra_plans::pg::PgBillingEventRepo::new(
+                        plans_pool.clone(),
+                    )),
+                    audit: Arc::new(cymbra_plans::pg::PgAuditRepo::new(plans_pool)),
+                    config: Arc::new(cymbra_server::FlagPlanConfig::new(flag_service.clone())),
+                    clock: Arc::new(cymbra_plans::SystemClock),
+                    rotator,
+                },
+            )))
+        }
+        None => {
+            tracing::info!("plans disabled (CYMBRA_PLANS_DATABASE_URL unset)");
+            None
+        }
+    };
+    let plan_source: Option<Arc<dyn cymbra_plans::PlanSource>> = plan_service
+        .clone()
+        .map(|p| p as Arc<dyn cymbra_plans::PlanSource>);
+
+    let flag_grpc = match &plan_source {
+        Some(p) => cymbra_feature_flags::grpc::FlagGrpc::new(flag_service.clone())
+            .with_plans(Arc::new(cymbra_server::PlanContext::new(p.clone()))),
+        None => cymbra_feature_flags::grpc::FlagGrpc::new(flag_service.clone()),
+    };
+    let flag_svc = FlagServiceServer::with_interceptor(flag_grpc, optional);
+
+    // Purchase channels (Apple / Google / web MoR), each wired only when its
+    // environment block is present; the paywall flags gate them at runtime.
+    let billing_channels = cymbra_server::billing::BillingChannels::build(
+        &cymbra_server::billing::BillingEnv::from_env(),
+    );
+    let paywall_cfg: Arc<dyn cymbra_plans::PaywallConfigSource> =
+        Arc::new(cymbra_server::FlagPaywallConfig::new(flag_service.clone()));
+
+    // PlanService gRPC (app + music-admin console), strict auth. Unconfigured
+    // channels answer `unimplemented`.
+    let plan_svc = plan_service.clone().map(|ps| {
+        let mut g = cymbra_plans::grpc::PlanGrpc::new(ps, paywall_cfg.clone(), cache.clone())
+            .with_handles(Arc::new(cymbra_server::UserPortHandles::new(
+                user_dyn.clone(),
+            )));
+        if let Some(v) = &billing_channels.apple_verifier {
+            g = g.with_verifier(cymbra_plans::Channel::Apple, v.clone());
+        }
+        if let Some(v) = &billing_channels.google_verifier {
+            g = g.with_verifier(cymbra_plans::Channel::Google, v.clone());
+        }
+        if let Some(w) = &billing_channels.web {
+            g = g.with_web(w.clone());
+        }
+        cymbra_plans::proto::plan_service_server::PlanServiceServer::with_interceptor(
+            g,
+            strict.clone(),
+        )
+    });
+    // Provider notification routes (App Store Server Notifications v2, Play RTDN
+    // push, web webhooks) — mounted only when the plans module is wired.
+    let billing_http = plan_service.clone().map(|ps| {
+        cymbra_server::billing::billing_router(cymbra_server::billing::BillingState {
+            svc: ps,
+            paywall: paywall_cfg.clone(),
+            channels: billing_channels.clone(),
+        })
+    });
 
     // --- analytics UsageService (feature-usage telemetry ingestion; change:
     // add-feature-usage-analytics, design D5/D10). Wired only when BOTH the
@@ -263,9 +357,14 @@ async fn main() -> anyhow::Result<()> {
             // storage-gated score block below.
             let curation_repo: Arc<dyn cymbra_music::CurationRewardsRepo> =
                 Arc::new(cymbra_music::PgCurationRewardsRepo::new(music_pool.clone()));
-            let rewards_module = Arc::new(cymbra_music::CurationRewardsModule::new(
-                curation_repo.clone(),
-            ));
+            let rewards_module = {
+                let m = cymbra_music::CurationRewardsModule::new(curation_repo.clone());
+                // Premium owns the whole shop (change: add-premium-subscription).
+                Arc::new(match &plan_source {
+                    Some(p) => m.with_plans(p.clone()),
+                    None => m,
+                })
+            };
             // Practice streak (change: add-practice-streak): advanced on the play
             // ingest and read by the app-bar chip. Its freeze cost + grace window
             // are resolved from the flag service on every call, so the back office
@@ -367,40 +466,57 @@ async fn main() -> anyhow::Result<()> {
                     // Per-user course completion, cross-device (change: add-notation-courses).
                     let course_progress: Arc<dyn cymbra_music::CourseProgressStore> =
                         Arc::new(cymbra_music::PgCourseProgressStore::new(music_pool.clone()));
-                    let module = Arc::new(
-                        ScoreModule::new(
-                            Arc::new(PgUserScoreRepo::new(music_pool.clone())),
-                            catalog_repo.clone(),
-                            Arc::new(PgUserLibraryRepo::new(music_pool.clone())),
-                            rating_repo.clone(),
-                            storage.clone(),
-                            cfg.upload_quota_max,
-                            cfg.upload_quota_window_days,
-                            cfg.upload_max_bytes,
-                        )
-                        // Resolve proposer attribution (change: add-score-catalog-proposal).
-                        .with_user(user_dyn.clone())
-                        // Award coverage / settle honesty (change: add-curation-rewards).
-                        .with_rewards(rewards_sink)
-                        // Persist the per-user offline-cache secret (change:
-                        // add-offline-score-cache); the default is an in-memory fake.
-                        .with_offline_secrets(Arc::new(PgOfflineSecretRepo::new(
-                            music_pool.clone(),
+                    let module = ScoreModule::new(
+                        Arc::new(PgUserScoreRepo::new(music_pool.clone())),
+                        catalog_repo.clone(),
+                        Arc::new(PgUserLibraryRepo::new(music_pool.clone())),
+                        rating_repo.clone(),
+                        storage.clone(),
+                        cfg.upload_quota_max,
+                        cfg.upload_quota_window_days,
+                        cfg.upload_max_bytes,
+                    )
+                    // Resolve proposer attribution (change: add-score-catalog-proposal).
+                    .with_user(user_dyn.clone())
+                    // Award coverage / settle honesty (change: add-curation-rewards).
+                    .with_rewards(rewards_sink)
+                    // Persist the per-user offline-cache secret (change:
+                    // add-offline-score-cache); the default is an in-memory fake.
+                    .with_offline_secrets(Arc::new(PgOfflineSecretRepo::new(music_pool.clone())))
+                    // Per-plan upload quota + library cap (change:
+                    // add-premium-subscription), flag-backed with the env values
+                    // as the free defaults.
+                    .with_score_quotas(Arc::new(cymbra_server::FlagScoreQuotas::new(
+                        flag_service.clone(),
+                        cymbra_music::ScoreQuotas {
+                            upload_max: cfg.upload_quota_max,
+                            upload_window_days: cfg.upload_quota_window_days,
+                            library_max: None,
+                        },
+                    )))
+                    // The freemium daily-access gate on catalog player-opens
+                    // (change: add-score-daily-access-rewards): flag-backed
+                    // (OFF by default, staff-only rollout first); the
+                    // subscription seam is the plan ledger when wired.
+                    .with_daily_access(Arc::new(
+                        cymbra_music::CatalogDailyAccess::new(Arc::new(
+                            cymbra_music::PgCatalogDayAccessRepo::new(music_pool.clone()),
+                        ))
+                        .with_config_source(Arc::new(cymbra_server::FlagDailyAccessConfig::new(
+                            flag_service.clone(),
                         )))
-                        // The freemium daily-access gate on catalog player-opens
-                        // (change: add-score-daily-access-rewards): flag-backed
-                        // (OFF by default, staff-only rollout first), no
-                        // subscriptions until billing exists.
-                        .with_daily_access(Arc::new(
-                            cymbra_music::CatalogDailyAccess::new(Arc::new(
-                                cymbra_music::PgCatalogDayAccessRepo::new(music_pool.clone()),
-                            ))
-                            .with_config_source(Arc::new(
-                                cymbra_server::FlagDailyAccessConfig::new(flag_service.clone()),
-                            ))
-                            .with_subscriptions(Arc::new(cymbra_music::NoSubscriptions)),
-                        )),
-                    );
+                        .with_subscriptions(match &plan_source {
+                            Some(p) => Arc::new(cymbra_music::PlanSubscriptions(p.clone()))
+                                as Arc<dyn cymbra_music::SubscriptionSource>,
+                            None => Arc::new(cymbra_music::NoSubscriptions),
+                        }),
+                    ));
+                    // Premium gets the extended score quotas (change:
+                    // add-premium-subscription).
+                    let module = Arc::new(match &plan_source {
+                        Some(p) => module.with_plans(p.clone()),
+                        None => module,
+                    });
                     // Per-user scrape guardrail over the shared Redis cache + play &
                     // rating ports (engagement = plays + ratings).
                     // Thresholds resolve per request through the flag service (with
@@ -491,9 +607,11 @@ async fn main() -> anyhow::Result<()> {
         cookie_secure: cfg.web_auth_cookie_secure,
         cookie_path: cymbra_server::WebAuthConfig::DEFAULT_PATH.to_string(),
         refresh_ttl: cfg.token.refresh_ttl,
-        allowed_origins: cfg.back_office_origins.clone(),
+        // Site + back office (change: add-site-account-pages).
+        allowed_origins: cfg.web_origins.clone(),
     };
     let soundfont_auth: Arc<dyn cymbra_server::SoundfontAuth> = Arc::new(soundfont_auth);
+    let web_plans_auth = soundfont_auth.clone();
     // Score audio-teaser routes (change: add-score-daily-access-rewards); the same
     // auth seam as the SoundFont routes.
     let (sp_store, sp_catalog, sp_renderer) = match score_preview_parts {
@@ -515,6 +633,12 @@ async fn main() -> anyhow::Result<()> {
         // `/me/soundfonts` routes.
         user_repo: user_soundfont_repo,
         auth: soundfont_auth,
+        // Premium unlocks the whole catalog library and the extended private quota
+        // (change: add-premium-subscription).
+        plans: plan_source.clone(),
+        library_quota: Some(Arc::new(cymbra_server::FlagLibraryQuota::new(
+            flag_service.clone(),
+        ))),
     };
     let http = cymbra_server::http_router(jwks, ready_pool, cache.clone())
         .merge(cymbra_server::web_auth_router(auth_port, web_auth_cfg))
@@ -526,6 +650,39 @@ async fn main() -> anyhow::Result<()> {
             score_preview_state,
             cfg.back_office_origins.clone(),
         ));
+    // Provider notification routes (change: add-premium-subscription).
+    let http = match billing_http {
+        Some(r) => http.merge(r),
+        None => http,
+    };
+    // Browser account summary for the public site (change: add-site-account-pages):
+    // handle + linked sign-in methods, read-only, same bearer seam + web origins.
+    let http = http.merge(cymbra_server::web_account_router(
+        cymbra_server::WebAccountState {
+            users: user_dyn.clone(),
+            auth: web_plans_auth.clone(),
+        },
+        cfg.web_origins.clone(),
+    ));
+    // Browser plan JSON routes for the public site (change: add-site-account-pages):
+    // bearer-authenticated through the same seam as the SoundFont routes, CORS
+    // restricted to the web origins. Mounted only when the plans module is wired.
+    let http = match plan_service.clone() {
+        Some(ps) => http.merge(cymbra_server::web_plans_router(
+            cymbra_server::WebPlansState {
+                svc: ps,
+                paywall: paywall_cfg.clone(),
+                cache: cache.clone(),
+                web: billing_channels
+                    .web
+                    .clone()
+                    .map(|w| w as Arc<dyn cymbra_plans::WebBillingProvider>),
+                auth: web_plans_auth,
+            },
+            cfg.web_origins.clone(),
+        )),
+        None => http,
+    };
 
     let grpc_addr: SocketAddr = cfg.grpc_addr.parse()?;
     let http_addr: SocketAddr = cfg.http_addr.parse()?;
@@ -577,6 +734,9 @@ async fn main() -> anyhow::Result<()> {
     }
     if let Some(usage_svc) = usage_svc {
         router = router.add_service(usage_svc);
+    }
+    if let Some(plan_svc) = plan_svc {
+        router = router.add_service(plan_svc);
     }
     let grpc = router.serve(grpc_addr);
     let listener = tokio::net::TcpListener::bind(http_addr).await?;

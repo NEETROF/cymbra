@@ -128,6 +128,56 @@ async fn main() -> anyhow::Result<()> {
         }
     };
 
+    // Plans (change: add-premium-subscription): the reconciliation + withdrawal
+    // sweeps and the erasure's web-subscription cancellation. Wired only when the
+    // plans DB is configured; the provider clients come from the same environment
+    // block the server reads (channels missing their variables are skipped).
+    let (plans, plan_reconcilers, web_cancel) = match cfg.plans_database_url.as_deref() {
+        Some(url) => {
+            let plans_pool = cymbra_plans::pg::connect(url, 2).await?;
+            let rotator: Arc<dyn cymbra_plans::CacheSecretRotator> =
+                Arc::new(flags::OfflineSecretRotator::new(Arc::new(
+                    cymbra_music::PgOfflineSecretRepo::new(admin_pool.clone()),
+                )));
+            let svc = Arc::new(cymbra_plans::PlanService::new(cymbra_plans::PlanDeps {
+                entitlements: Arc::new(cymbra_plans::pg::PgEntitlementRepo::new(
+                    plans_pool.clone(),
+                )),
+                campaigns: Arc::new(cymbra_plans::pg::PgCampaignRepo::new(plans_pool.clone())),
+                memberships: Arc::new(cymbra_plans::pg::PgMembershipRepo::new(plans_pool.clone())),
+                codes: Arc::new(cymbra_plans::pg::PgAccessCodeRepo::new(plans_pool.clone())),
+                billing_events: Arc::new(cymbra_plans::pg::PgBillingEventRepo::new(
+                    plans_pool.clone(),
+                )),
+                audit: Arc::new(cymbra_plans::pg::PgAuditRepo::new(plans_pool)),
+                config: Arc::new(flags::WorkerPlanConfig::new(flag_service.clone())),
+                clock: Arc::new(cymbra_plans::SystemClock),
+                rotator: Some(rotator),
+            }));
+            let channels = cymbra_plans::billing::env::BillingChannels::build(
+                &cymbra_plans::billing::env::BillingEnv::from_env(),
+            );
+            let reconcilers = Arc::new(cymbra_plans::billing::reconcile::Reconcilers {
+                apple: channels.apple_api.clone(),
+                google: channels.google_api.clone(),
+                web: channels.web.clone(),
+            });
+            let web_cancel: Option<Arc<dyn cymbra_plans::WebSubscriptionCanceller>> = channels
+                .web
+                .clone()
+                .map(|w| w as Arc<dyn cymbra_plans::WebSubscriptionCanceller>);
+            (Some(svc), reconcilers, web_cancel)
+        }
+        None => {
+            tracing::info!("plans jobs inert (CYMBRA_PLANS_DATABASE_URL unset)");
+            (
+                None,
+                Arc::new(cymbra_plans::billing::reconcile::Reconcilers::default()),
+                None,
+            )
+        }
+    };
+
     let ctx = WorkerCtx {
         email,
         user,
@@ -139,6 +189,9 @@ async fn main() -> anyhow::Result<()> {
         flags: flag_service,
         push,
         score_preview,
+        plans,
+        plan_reconcilers,
+        web_cancel,
     };
 
     // --- sqlxmq runner: executes queued jobs (event-driven; design D7) ---

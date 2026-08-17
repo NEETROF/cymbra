@@ -227,7 +227,16 @@ impl<P: UserPort + 'static> UserService for UserGrpc<P> {
         let r = req.into_inner();
         let page = self
             .port
-            .list_accounts(&r.query, r.limit as i64, r.offset as i64, &scopes)
+            .list_accounts_filtered(
+                &cymbra_user_port::AccountFilter {
+                    query: r.query,
+                    ids: r.ids,
+                    exclude_ids: r.exclude_ids,
+                },
+                r.limit as i64,
+                r.offset as i64,
+                &scopes,
+            )
             .await?;
         let accounts = page
             .entries
@@ -446,6 +455,7 @@ mod tests {
                     limit: 25,
                     offset: 0,
                     query: String::new(),
+                    ..Default::default()
                 },
                 "u1",
                 &["user", "moderator"],
@@ -460,6 +470,7 @@ mod tests {
                     limit: 25,
                     offset: 0,
                     query: "ada".into(),
+                    ..Default::default()
                 },
                 "admin1",
                 &["user", "admin"],
@@ -570,6 +581,7 @@ mod tests {
                     limit: 25,
                     offset: 0,
                     query: "tara".into(),
+                    ..Default::default()
                 },
                 "m",
                 &[("music", &["admin"])],
@@ -591,6 +603,7 @@ mod tests {
                     limit: 25,
                     offset: 0,
                     query: "tara".into(),
+                    ..Default::default()
                 },
                 "gg",
                 &[("global", &["admin"])],
@@ -613,6 +626,7 @@ mod tests {
                     limit: 25,
                     offset: 0,
                     query: String::new(),
+                    ..Default::default()
                 },
                 "u",
                 &[("music", &["moderator"])],

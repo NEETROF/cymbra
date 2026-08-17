@@ -25,6 +25,9 @@ MUSIC_PROTO_DIR="$REPO_ROOT/backend/music/proto"
 ANALYTICS_PROTO_DIR="$REPO_ROOT/backend/analytics/proto"
 # The push-notification platform (token registry / consent / timezone).
 NOTIFICATIONS_PROTO_DIR="$REPO_ROOT/backend/notifications/proto"
+# The plans module (free/premium plan, betas, codes, purchases; change:
+# add-premium-subscription).
+PLANS_PROTO_DIR="$REPO_ROOT/backend/plans/proto"
 
 command -v protoc >/dev/null 2>&1 || {
   echo "error: protoc not found on PATH (brew install protobuf)" >&2
@@ -57,8 +60,9 @@ protoc \
   --proto_path="$(to_native "$MUSIC_PROTO_DIR")" \
   --proto_path="$(to_native "$ANALYTICS_PROTO_DIR")" \
   --proto_path="$(to_native "$NOTIFICATIONS_PROTO_DIR")" \
+  --proto_path="$(to_native "$PLANS_PROTO_DIR")" \
   --dart_out=grpc:"$(to_native "$OUT_DIR")" \
   auth.proto user.proto score.proto play.proto leaderboard.proto global_leaderboard.proto \
-  usage.proto notifications.proto
+  usage.proto notifications.proto plans.proto
 
 echo "Generated gRPC Dart stubs into $OUT_DIR"

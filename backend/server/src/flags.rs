@@ -339,6 +339,244 @@ pub fn spawn_flag_refreshers(cfg: &Config, service: Arc<FlagService>) {
     }
 }
 
+// --- plans (change: add-premium-subscription) ------------------------------------
+
+/// Flag-backed [`cymbra_plans::PlanConfigSource`]: the kill-switch + grace period,
+/// read per call so an operator flips them with no redeploy.
+pub struct FlagPlanConfig {
+    flags: Arc<FlagService>,
+}
+
+impl FlagPlanConfig {
+    pub fn new(flags: Arc<FlagService>) -> Self {
+        Self { flags }
+    }
+}
+
+impl cymbra_plans::PlanConfigSource for FlagPlanConfig {
+    fn plan_config(&self) -> cymbra_plans::PlanConfig {
+        use cymbra_feature_flags::registry;
+        let ctx = cymbra_feature_flags::EvalContext::anonymous(registry::APP_MUSIC);
+        let defaults = cymbra_plans::PlanConfig::default();
+        cymbra_plans::PlanConfig {
+            enabled: self
+                .flags
+                .bool(registry::PLANS_ENABLED, defaults.enabled, &ctx),
+            grace_days: self
+                .flags
+                .int(
+                    registry::PLANS_GRACE_DAYS,
+                    i64::from(defaults.grace_days),
+                    &ctx,
+                )
+                .clamp(0, 365) as u32,
+        }
+    }
+}
+
+/// Flag-backed private `.sf2` library quota per plan.
+pub struct FlagLibraryQuota {
+    flags: Arc<FlagService>,
+}
+
+impl FlagLibraryQuota {
+    pub fn new(flags: Arc<FlagService>) -> Self {
+        Self { flags }
+    }
+}
+
+impl cymbra_music::LibraryQuotaSource for FlagLibraryQuota {
+    fn max_fonts(&self, extended: bool) -> i64 {
+        use cymbra_feature_flags::registry;
+        let ctx = cymbra_feature_flags::EvalContext::anonymous(registry::APP_MUSIC);
+        let defaults = cymbra_music::FixedLibraryQuota::default();
+        let (key, default) = if extended {
+            (registry::PLANS_SF_LIBRARY_MAX_PREMIUM, defaults.premium)
+        } else {
+            (registry::PLANS_SF_LIBRARY_MAX_FREE, defaults.free)
+        };
+        self.flags.int(key, default, &ctx).max(0)
+    }
+}
+
+/// Flag-backed score quotas per plan (rolling upload quota + private library cap).
+/// `base` = the environment defaults for the free plan (`CYMBRA_SCORE_UPLOAD_QUOTA_*`).
+pub struct FlagScoreQuotas {
+    flags: Arc<FlagService>,
+    base: cymbra_music::ScoreQuotas,
+}
+
+impl FlagScoreQuotas {
+    pub fn new(flags: Arc<FlagService>, base: cymbra_music::ScoreQuotas) -> Self {
+        Self { flags, base }
+    }
+}
+
+impl cymbra_music::ScoreQuotaSource for FlagScoreQuotas {
+    fn score_quotas(&self, extended: bool) -> cymbra_music::ScoreQuotas {
+        use cymbra_feature_flags::registry;
+        let ctx = cymbra_feature_flags::EvalContext::anonymous(registry::APP_MUSIC);
+        let (quota_key, lib_key, default_max, default_lib) = if extended {
+            (
+                registry::PLANS_SCORES_UPLOAD_QUOTA_PREMIUM,
+                registry::PLANS_SCORES_LIBRARY_MAX_PREMIUM,
+                self.base.upload_max.max(50),
+                500,
+            )
+        } else {
+            (
+                registry::PLANS_SCORES_UPLOAD_QUOTA_FREE,
+                registry::PLANS_SCORES_LIBRARY_MAX_FREE,
+                self.base.upload_max,
+                20,
+            )
+        };
+        let quota = self.flags.json(
+            quota_key,
+            serde_json::json!({
+                "max": default_max,
+                "window_days": self.base.upload_window_days,
+            }),
+            &ctx,
+        );
+        let upload_max = quota
+            .get("max")
+            .and_then(|v| v.as_u64())
+            .map(|v| v.min(u64::from(u32::MAX)) as u32)
+            .unwrap_or(default_max);
+        let upload_window_days = quota
+            .get("window_days")
+            .and_then(|v| v.as_u64())
+            .map(|v| v.clamp(1, 3650) as u32)
+            .unwrap_or(self.base.upload_window_days);
+        let library_max = self.flags.int(lib_key, default_lib, &ctx);
+        cymbra_music::ScoreQuotas {
+            upload_max,
+            upload_window_days,
+            library_max: (library_max > 0).then_some(library_max),
+        }
+    }
+}
+
+/// The plans → flags bridge: the caller's effective plan + active beta keys, so a
+/// `premium_only` / `beta:<key>` rollout can be evaluated. Read errors ⇒ free.
+pub struct PlanContext {
+    plans: Arc<dyn cymbra_plans::PlanSource>,
+}
+
+impl PlanContext {
+    pub fn new(plans: Arc<dyn cymbra_plans::PlanSource>) -> Self {
+        Self { plans }
+    }
+}
+
+#[async_trait]
+impl cymbra_feature_flags::PlanContextSource for PlanContext {
+    async fn plan_context(&self, user_id: &str) -> (bool, Vec<String>) {
+        match self.plans.snapshot(user_id).await {
+            Ok(s) => (s.plan == cymbra_plans::Plan::Premium, s.beta_keys()),
+            Err(e) => {
+                tracing::warn!(error = %e, "plan snapshot failed; flags evaluate caller as free");
+                (false, Vec::new())
+            }
+        }
+    }
+}
+
+/// The plans → music bridge for withdrawal on lapse (design D13): rotating the
+/// user's offline cache secret makes every cached catalog score unreadable.
+pub struct OfflineSecretRotator {
+    secrets: Arc<dyn cymbra_music::OfflineSecretRepo>,
+}
+
+impl OfflineSecretRotator {
+    pub fn new(secrets: Arc<dyn cymbra_music::OfflineSecretRepo>) -> Self {
+        Self { secrets }
+    }
+}
+
+#[async_trait]
+impl cymbra_plans::CacheSecretRotator for OfflineSecretRotator {
+    async fn rotate(&self, user_id: &str) -> Result<()> {
+        let fresh = cymbra_music::generate_offline_secret();
+        self.secrets
+            .rotate(user_id, &fresh)
+            .await
+            .map_err(|e| AppError::Internal(anyhow::anyhow!("rotate offline secret: {e}")))
+    }
+}
+
+/// Flag-backed paywall knobs: per-channel switches + the product ids offered.
+pub struct FlagPaywallConfig {
+    flags: Arc<FlagService>,
+}
+
+impl FlagPaywallConfig {
+    pub fn new(flags: Arc<FlagService>) -> Self {
+        Self { flags }
+    }
+}
+
+impl cymbra_plans::PaywallConfigSource for FlagPaywallConfig {
+    fn channel_enabled(&self, channel: cymbra_plans::Channel) -> bool {
+        use cymbra_feature_flags::registry;
+        let ctx = cymbra_feature_flags::EvalContext::anonymous(registry::APP_MUSIC);
+        let key = match channel {
+            cymbra_plans::Channel::Apple => registry::BILLING_APPLE_ENABLED,
+            cymbra_plans::Channel::Google => registry::BILLING_GOOGLE_ENABLED,
+            cymbra_plans::Channel::Web => registry::BILLING_WEB_ENABLED,
+        };
+        self.flags.bool(key, false, &ctx)
+    }
+
+    fn products(&self) -> Vec<String> {
+        use cymbra_feature_flags::registry;
+        let ctx = cymbra_feature_flags::EvalContext::anonymous(registry::APP_MUSIC);
+        self.flags
+            .json(
+                registry::PLANS_PREMIUM_PRODUCTS,
+                serde_json::json!(["premium_monthly", "premium_yearly"]),
+                &ctx,
+            )
+            .as_array()
+            .map(|a| {
+                a.iter()
+                    .filter_map(|v| v.as_str().map(str::to_string))
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+}
+
+/// Handle → account id for the plan console, over the identity port's directory
+/// (prefix search, then the exact normalized match).
+pub struct UserPortHandles {
+    users: Arc<dyn cymbra_user_port::UserPort>,
+}
+
+impl UserPortHandles {
+    pub fn new(users: Arc<dyn cymbra_user_port::UserPort>) -> Self {
+        Self { users }
+    }
+}
+
+#[async_trait]
+impl cymbra_plans::HandleResolver for UserPortHandles {
+    async fn user_id_for_handle(&self, handle: &str) -> Result<Option<String>> {
+        let wanted = handle.trim().trim_start_matches('@').to_lowercase();
+        let page = self.users.list_accounts(&wanted, 10, 0, &[]).await?;
+        Ok(page
+            .entries
+            .into_iter()
+            .find(|a| {
+                a.handle
+                    .as_deref()
+                    .is_some_and(|h| h.to_lowercase() == wanted)
+            })
+            .map(|a| a.user_id))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

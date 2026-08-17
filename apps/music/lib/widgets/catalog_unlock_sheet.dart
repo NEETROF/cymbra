@@ -18,6 +18,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../l10n/gen/app_localizations.dart';
+import '../screens/plan_screen.dart';
 import '../services/catalog_access_state.dart';
 import '../state/catalog_daily_access_notifier.dart';
 import '../state/score_catalog.dart';
@@ -156,14 +157,17 @@ class _CatalogUnlockSheetState extends ConsumerState<_CatalogUnlockSheet> {
             ),
             if (access?.upsell ?? false) ...[
               const SizedBox(height: 12),
-              Text(
-                l10n.catalogUnlockUpsell,
+              // The subscription upsell (change: add-premium-subscription): a
+              // real call to action to the plan screen, whose purchase entry is
+              // decided server-side for this platform.
+              OutlinedButton.icon(
                 key: const Key('catalog-unlock-upsell'),
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: CymbraColors.onSurfaceVariant,
-                  fontSize: 12,
-                ),
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  openPlanScreen(context);
+                },
+                icon: const Icon(Icons.workspace_premium, size: 18),
+                label: Text(l10n.catalogUnlockUpsellCta),
               ),
             ],
             const SizedBox(height: 4),

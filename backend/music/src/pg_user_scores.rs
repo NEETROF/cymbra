@@ -187,6 +187,23 @@ impl UserScoreRepo for PgUserScoreRepo {
         Ok(row.get::<i64, _>("n"))
     }
 
+    async fn count_library(&self, owner_id: &str) -> Result<i64> {
+        let owner = parse_uuid(owner_id)?;
+        // Uploads accepted into the public catalog no longer count against the
+        // private library cap (they became public content).
+        let row = sqlx::query(
+            "SELECT count(*) AS n FROM music.user_scores s \
+             WHERE s.owner_id = $1 AND NOT EXISTS ( \
+               SELECT 1 FROM music.catalog_scores c \
+               WHERE c.id = s.proposed_catalog_id AND c.moderation_status = 'accepted')",
+        )
+        .bind(owner)
+        .fetch_one(&self.pool)
+        .await
+        .map_err(internal)?;
+        Ok(row.get::<i64, _>("n"))
+    }
+
     async fn set_favorite(&self, id: &str, owner_id: &str, favorite: bool) -> Result<()> {
         let (id, owner) = (parse_uuid(id)?, parse_uuid(owner_id)?);
         let res = sqlx::query(

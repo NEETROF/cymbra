@@ -95,6 +95,11 @@ message ListAccountsRequest {
   uint32 limit = 1;
   uint32 offset = 2;
   string query = 3;
+  // Optional explicit id set / exclusion set (change: add-premium-subscription):
+  // a product back office pre-resolves a plan / beta criterion into ids; the
+  // identity service never learns the criterion.
+  repeated string ids = 4;
+  repeated string exclude_ids = 5;
 }
 // Roles an account holds in one scope (change: scope-aware-role-admin).
 message ScopeRoles {

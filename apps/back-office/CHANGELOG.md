@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.0](https://github.com/NEETROF/cymbra/compare/back-office-v0.7.0...back-office-v0.8.0) (2026-08-16)
+
+
+### Features
+
+* **plans:** premium subscription, beta access codes, and cymbra.app account pages ([#242](https://github.com/NEETROF/cymbra/issues/242)) ([6406a66](https://github.com/NEETROF/cymbra/commit/6406a665616463968cc5097b83999d19e07c3fe4))
+
 ## [0.7.0](https://github.com/NEETROF/cymbra/compare/back-office-v0.6.2...back-office-v0.7.0) (2026-08-16)
 
 

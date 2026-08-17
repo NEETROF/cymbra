@@ -37,6 +37,15 @@ const acting = computed(() => store.op.status === "loading");
 const opError = computed(() => (store.op.status === "error" ? store.op.error : null));
 
 const desc = (r: FlagRow) => flagDescription(r.key, r.doc, locale.value);
+// Plan-/beta-scoped rollouts are marked in the row so an operator sees at a glance
+// which features are gated by plan or by beta (change: add-premium-subscription).
+const scopeTags = (r: FlagRow): { label: string; title: string }[] => {
+  const s = r.rolloutScope;
+  if (s === "premium_only") return [{ label: t("flags.planTag"), title: s }];
+  if (s.startsWith("beta:")) return [{ label: t("flags.betaTag"), title: s }];
+  if (s === "staff_only") return [{ label: t("flags.staffTag"), title: s }];
+  return [];
+};
 const short = (s: string) => (s.length > 42 ? `${s.slice(0, 42)}…` : s);
 function dateShort(iso: string): string {
   const d = new Date(iso);
@@ -179,6 +188,9 @@ function openGlobal() {
                     : short(r.effectiveDisplay)
                 }}</code>
                 <AppTag v-if="r.hasOverride">{{ t("flags.override") }}</AppTag>
+                <AppTag v-for="tag in scopeTags(r)" :key="tag.label" variant="warn" mono :title="tag.title">
+                  {{ tag.label }}
+                </AppTag>
               </div>
             </td>
             <td>

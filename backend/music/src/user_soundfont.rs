@@ -25,6 +25,40 @@ use std::sync::Mutex;
 
 use anyhow::{Context, Result};
 use async_trait::async_trait;
+
+/// Today's private-library cap for a plain user (the pre-plan constant, kept as the
+/// `free` default; change: add-premium-subscription).
+pub const DEFAULT_LIBRARY_MAX_FONTS: i64 = 5;
+
+/// Per-plan private-library quota, resolved **per request** (runtime config):
+/// `extended` is whether the caller's effective plan grants the
+/// `soundfont_library.extended` unlock. Moderators/admins are exempt upstream.
+#[cfg_attr(test, mockall::automock)]
+pub trait LibraryQuotaSource: Send + Sync {
+    fn max_fonts(&self, extended: bool) -> i64;
+}
+
+/// Fixed quotas (tests, or a deployment with no flag store).
+#[derive(Debug, Clone, Copy)]
+pub struct FixedLibraryQuota {
+    pub free: i64,
+    pub premium: i64,
+}
+
+impl Default for FixedLibraryQuota {
+    fn default() -> Self {
+        Self {
+            free: DEFAULT_LIBRARY_MAX_FONTS,
+            premium: 50,
+        }
+    }
+}
+
+impl LibraryQuotaSource for FixedLibraryQuota {
+    fn max_fonts(&self, extended: bool) -> i64 {
+        if extended { self.premium } else { self.free }
+    }
+}
 use sqlx::{PgPool, Row, postgres::PgRow};
 
 /// One private-library font row. `id` and `user_id` are UUID strings; `object_key`

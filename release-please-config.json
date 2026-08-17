@@ -14,6 +14,10 @@
     "apps/back-office": {
       "release-type": "node",
       "component": "back-office"
+    },
+    "apps/site": {
+      "release-type": "node",
+      "component": "site"
     }
   }
 }

@@ -42,6 +42,10 @@ cymbra-storage = { path = "../storage" }
 cymbra-jobs = { path = "../jobs" }
 # Shared runtime feature-flag & config service (change: add-runtime-feature-flags).
 cymbra-feature-flags = { path = "../feature-flags" }
+# Plans (change: add-premium-subscription): PlanService gRPC, plan-aware gates,
+# provider notification routes.
+cymbra-plans = { path = "../plans" }
+chrono.workspace = true
 # Analytics module (feature-usage telemetry ingestion; change: add-feature-usage-analytics).
 cymbra-analytics = { path = "../analytics" }
 # Push-notification platform (token registry / consent / timezone RPCs; change:
@@ -71,6 +75,8 @@ chrono.workspace = true
 # Mock the flag store / admin-scope resolver when testing the flag-backed config
 # sources (rust-testing default). Test-only: the mocks never ship in release.
 cymbra-feature-flags = { path = "../feature-flags", features = ["mock"] }
+cymbra-plans = { path = "../plans", features = ["mock"] }
+cymbra-user-port = { path = "../user-port", features = ["mock"] }
 mockall.workspace = true
 # `ServiceExt::oneshot` drives the Axum router in web-auth handler tests (no socket).
 tower.workspace = true

@@ -28,6 +28,7 @@ la racine du repo) :
 | `live-` | Cymbra Live — web + Tauri |
 | `platform-` | socle transverse — flags, jobs, observabilité, i18n, DB |
 | `admin-` | back-office Vue |
+| `site-` | site public `cymbra.app` — `apps/site` (Astro) : vitrine, légal, connexion web, rachat de code, checkout |
 
 Un produit **consomme** le socle, il ne le redéclare pas : avant toute nouvelle
 capability, vérifier qu'une `id-*`/`platform-*` (ou son équivalent legacy) ne la
@@ -76,7 +77,12 @@ compute the initial value and return it.
 ### Web front-ends (Vue 3 + TS)
 
 For Vue web apps (e.g. `apps/back-office`), follow the **`vue-frontend-architecture`**
-skill (`.claude/skills/`). Two hard rules, applied proactively:
+skill (`.claude/skills/`). The public site `apps/site` is Astro (static, fr/en); its
+interactive islands (sign-in, code redemption, account, checkout — Vue) follow the
+same two rules and consume the shared **`packages/web-auth`** package
+(`@cymbra/web-auth`, Yarn `portal:` — Google/Apple sign-in composables + the web-auth
+client; one implementation for the back office and the site, never a copy). Two hard
+rules, applied proactively:
 - **A screen/component NEVER calls an API directly** — only Pinia stores/composables
   do, behind an injectable client seam (`lib/api.ts` + `setClientsForTest`).
 - **Async state is one `ts-pattern` discriminated union** (`Async<T>`:
@@ -94,7 +100,8 @@ code needs tests. CI fails under 80% and also reports to SonarCloud (decoration)
   generated bridge, `lib.rs`, the hardware/thread glue in `api/midi.rs`, the
   thin MusicXML FFI seam in `api/musicxml.rs`, and the cpal/rustysynth audio glue
   in `api/audio.rs`, `api/renderer.rs` and `api/platform_log.rs` (`api/android_output.rs`
-  is cfg-gated off the host build already).
+  is cfg-gated off the host build already), and the thin Postgres/HTTP adapters of the
+  backend crates (`pg*.rs`, `grpc.rs`, provider webhook glue).
   Keep pure, testable logic in host-testable modules like `api/midi_core.rs`,
   `api/musicxml_core.rs` and `api/audio_core.rs`. Trait dependencies are doubled
   with **mockall generated mocks by default** (hand fakes only for special cases —

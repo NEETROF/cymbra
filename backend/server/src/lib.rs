@@ -16,11 +16,17 @@ use sqlx::PgPool;
 
 pub mod web_auth;
 pub use web_auth::{WebAuthConfig, web_auth_router};
+pub mod web_plans;
+pub use web_plans::{WebPlansState, web_plans_router};
+pub mod web_account;
+pub use web_account::{WebAccountState, web_account_router};
 
+pub mod billing;
 pub mod flags;
 pub use flags::{
-    FlagCatalogLimitsConfig, FlagDailyAccessConfig, FlagScorePreviewConfig, FlagStreakConfig,
-    build_flag_service, spawn_flag_refreshers,
+    FlagCatalogLimitsConfig, FlagDailyAccessConfig, FlagLibraryQuota, FlagPaywallConfig,
+    FlagPlanConfig, FlagScorePreviewConfig, FlagScoreQuotas, FlagStreakConfig,
+    OfflineSecretRotator, PlanContext, UserPortHandles, build_flag_service, spawn_flag_refreshers,
 };
 
 pub mod soundfont;

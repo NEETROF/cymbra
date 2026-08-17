@@ -54,6 +54,30 @@ export interface FakeState {
   flagChanges: unknown[];
   /** Make `listFlagDefinitions` reject, so a caller's error branch is exercised. */
   failFlags?: boolean;
+  // plans console (change: add-premium-subscription)
+  lookupCalls: { userId: string; handle: string }[];
+  /** What `lookupAccountPlan` returns (a LookupAccountPlanResponse-shaped object). */
+  lookup?: unknown;
+  campaigns: unknown[];
+  members: unknown[];
+  grantPremiumCalls: { userId: string; handle: string; endsAt?: string; confirmOpenEnded: boolean; reason: string }[];
+  revokeEntitlementCalls: { entitlementId: string; reason: string }[];
+  enrolCalls: { userId: string; handle: string; campaignKey: string; reason: string }[];
+  revokeMembershipCalls: { userId: string; handle: string; campaignKey: string; reason: string }[];
+  createCampaignCalls: { key: string; name: string; kind: string; durationDays?: number }[];
+  closeEnrollmentCalls: string[];
+  closeCampaignCalls: string[];
+  mintCalls: { campaignKey: string; count: number; issuedToHint: string }[];
+  /** Codes `mintCodes` returns (deterministic). */
+  mintedCodes: string[];
+  revokeCodesCalls: { campaignKey: string; codeIds: string[] }[];
+  listMembersCalls: string[];
+  idsByPlanCalls: { plan: string; betaCampaignKey: string }[];
+  /** What `listAccountIdsByPlan` resolves to. */
+  idsByPlan: string[];
+  plansForAccountsCalls: string[][];
+  /** Badges `getPlansForAccounts` returns. */
+  badges: unknown[];
 }
 
 // Build a fake `Clients` recording calls, castable to the real (large) generated
@@ -84,6 +108,25 @@ export function makeFakeClients(state: Partial<FakeState> = {}): { clients: Clie
     flagDefs: state.flagDefs ?? [],
     flagChanges: state.flagChanges ?? [],
     failFlags: state.failFlags,
+    lookupCalls: [],
+    lookup: state.lookup,
+    campaigns: state.campaigns ?? [],
+    members: state.members ?? [],
+    grantPremiumCalls: [],
+    revokeEntitlementCalls: [],
+    enrolCalls: [],
+    revokeMembershipCalls: [],
+    createCampaignCalls: [],
+    closeEnrollmentCalls: [],
+    closeCampaignCalls: [],
+    mintCalls: [],
+    mintedCodes: state.mintedCodes ?? ["CODE-1", "CODE-2"],
+    revokeCodesCalls: [],
+    listMembersCalls: [],
+    idsByPlanCalls: [],
+    idsByPlan: state.idsByPlan ?? [],
+    plansForAccountsCalls: [],
+    badges: state.badges ?? [],
   };
   const clients = {
     auth: {
@@ -133,7 +176,7 @@ export function makeFakeClients(state: Partial<FakeState> = {}): { clients: Clie
         return {};
       },
       listRoleGrants: async () => ({ grants: s.grants }),
-      listAccounts: async (req: { query: string; limit: number; offset: number }) => {
+      listAccounts: async (req: { query: string; limit: number; offset: number; ids?: string[] }) => {
         s.listAccountsCalls.push(req);
         return { accounts: s.accounts, total: s.accounts.length };
       },
@@ -165,6 +208,61 @@ export function makeFakeClients(state: Partial<FakeState> = {}): { clients: Clie
       clearOverride: async (req: { key: string; app: string; confirm: boolean }) => {
         s.clearCalls.push(req);
         return {};
+      },
+    },
+    plans: {
+      lookupAccountPlan: async (req: { userId: string; handle: string }) => {
+        s.lookupCalls.push(req);
+        return s.lookup ?? { userId: "u-x", snapshot: { plan: "free", betas: [] }, rows: [], memberships: [] };
+      },
+      listCampaigns: async () => ({ campaigns: s.campaigns }),
+      listMembers: async (req: { campaignKey: string }) => {
+        s.listMembersCalls.push(req.campaignKey);
+        return { members: s.members };
+      },
+      grantPremium: async (req: FakeState["grantPremiumCalls"][number]) => {
+        s.grantPremiumCalls.push(req);
+        return { row: { id: "e-new" } };
+      },
+      revokeEntitlement: async (req: { entitlementId: string; reason: string }) => {
+        s.revokeEntitlementCalls.push(req);
+        return {};
+      },
+      enrolHandle: async (req: FakeState["enrolCalls"][number]) => {
+        s.enrolCalls.push(req);
+        return { membership: {} };
+      },
+      revokeMembership: async (req: FakeState["revokeMembershipCalls"][number]) => {
+        s.revokeMembershipCalls.push(req);
+        return {};
+      },
+      createCampaign: async (req: FakeState["createCampaignCalls"][number]) => {
+        s.createCampaignCalls.push(req);
+        return { campaign: { ...req, id: "c-new" } };
+      },
+      closeEnrollment: async (req: { campaignKey: string }) => {
+        s.closeEnrollmentCalls.push(req.campaignKey);
+        return {};
+      },
+      closeCampaign: async (req: { campaignKey: string }) => {
+        s.closeCampaignCalls.push(req.campaignKey);
+        return {};
+      },
+      mintCodes: async (req: { campaignKey: string; count: number; issuedToHint: string }) => {
+        s.mintCalls.push(req);
+        return { codes: s.mintedCodes.slice(0, req.count) };
+      },
+      revokeCodes: async (req: { campaignKey: string; codeIds: string[] }) => {
+        s.revokeCodesCalls.push(req);
+        return { revoked: 3 };
+      },
+      listAccountIdsByPlan: async (req: { plan: string; betaCampaignKey: string }) => {
+        s.idsByPlanCalls.push(req);
+        return { userIds: s.idsByPlan };
+      },
+      getPlansForAccounts: async (req: { userIds: string[] }) => {
+        s.plansForAccountsCalls.push(req.userIds);
+        return { badges: s.badges };
       },
     },
   } as unknown as Clients;

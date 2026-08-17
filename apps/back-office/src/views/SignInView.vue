@@ -5,8 +5,8 @@ import { match } from "ts-pattern";
 import { useAuthStore } from "@/stores/auth";
 import { type Async, idle, run } from "@/lib/async";
 import { currentLocale } from "@/i18n";
-import { useGoogleSignIn } from "@/composables/useGoogleSignIn";
-import { useAppleSignIn } from "@/composables/useAppleSignIn";
+import { useAppleSignIn, useGoogleSignIn } from "@cymbra/web-auth";
+import { humanError } from "@/lib/errors";
 
 const auth = useAuthStore();
 const router = useRouter();
@@ -47,10 +47,12 @@ defineExpose({ submitOidcCredential });
 // → the local form is the sole path). Each hands us an id_token that
 // `submitOidcCredential` exchanges for a Cymbra token.
 const googleButton = useTemplateRef<HTMLDivElement>("googleButton");
-const google = googleClientId ? useGoogleSignIn(googleClientId, submitOidcCredential) : null;
+const google = googleClientId ? useGoogleSignIn(googleClientId, submitOidcCredential, { mapError: humanError }) : null;
 const googleLoadFailed = computed(() => google?.status.value.status === "error");
 
-const apple = appleClientId ? useAppleSignIn(appleClientId, appleRedirectUri, submitOidcCredential) : null;
+const apple = appleClientId
+  ? useAppleSignIn(appleClientId, appleRedirectUri, submitOidcCredential, { mapError: humanError })
+  : null;
 const appleLoadFailed = computed(() => apple?.status.value.status === "error");
 
 // The Apple SDK renders no button — we show our own and start its popup on click.

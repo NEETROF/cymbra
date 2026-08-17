@@ -35,8 +35,12 @@ String uploadErrorMessage(Object error) {
   if (error is AuthException) {
     return switch (error.error) {
       AuthError.alreadyExists => 'Vous avez déjà importé cette partition.',
+      // The refusal names whether a higher plan raises the limit (change:
+      // add-premium-subscription) — the surface can then upsell.
       AuthError.rateLimited =>
-        'Vous avez atteint votre quota d\'envois. Réessayez plus tard.',
+        (error.message ?? '').contains('upgrade_raises_limit=true')
+            ? 'Vous avez atteint votre quota d\'envois. Premium relève la limite.'
+            : 'Vous avez atteint votre quota d\'envois. Réessayez plus tard.',
       AuthError.invalidArgument =>
         'Ce fichier n\'a pas pu être accepté (format ou contenu invalide).',
       AuthError.unauthenticated =>

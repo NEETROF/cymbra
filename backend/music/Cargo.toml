@@ -43,6 +43,10 @@ cymbra-musicxml-core = { path = "../../crates/musicxml-core" }
 # reaching into the `user_account` schema directly.
 cymbra-user-port = { path = "../user-port" }
 cymbra-jobs = { path = "../jobs" }
+# Plan seams (change: add-premium-subscription): the daily-access `SubscriptionSource`,
+# the shop `owned` input and the per-plan quotas consume `PlanSource`/`Unlock` from the
+# plans crate — a port dependency; `plans` never depends on `music`.
+cymbra-plans = { path = "../plans" }
 
 [build-dependencies]
 tonic-build.workspace = true
@@ -53,3 +57,5 @@ tokio = { workspace = true }
 cymbra-user-port = { path = "../user-port", features = ["mock"] }
 # `MockBadgeRepo` for the badge awarding module (rust-testing default).
 mockall = { workspace = true }
+# `MockPlanSource` for the plan-aware gates (rust-testing default).
+cymbra-plans = { path = "../plans", features = ["mock"] }

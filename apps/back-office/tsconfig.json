@@ -16,7 +16,10 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
     "types": ["vitest/globals"],
-    "paths": { "@/*": ["./src/*"] }
+    "paths": {
+      "@/*": ["./src/*"]
+    },
+    "preserveSymlinks": true
   },
   "include": ["src/**/*.ts", "src/**/*.vue", "test/**/*.ts", "env.d.ts"]
 }

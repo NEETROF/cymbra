@@ -173,8 +173,11 @@ same `api.<your-domain>` over gRPC-web + the web-auth cookie endpoints, so the b
 needs two things (both already in `.env.prod.example`):
 
 - `CYMBRA_BACK_OFFICE_ORIGINS=https://bo.<your-domain>` — CORS allow-list for the
-  gRPC-web CorsLayer **and** the web-auth cookie. Empty (default) = the console is
-  blocked.
+  gRPC-web CorsLayer. Empty (default) = the console is blocked.
+- `CYMBRA_WEB_ORIGINS=https://<your-domain>,https://bo.<your-domain>` — CORS
+  allow-list for the web-auth cookie surface **and** the public site's plan routes
+  (`/web/plans/*`, change: add-site-account-pages). Unset = same as the back-office
+  list (site sign-in blocked). Add `web` to `CYMBRA_ALLOWED_AUDIENCES` as well.
 - `CYMBRA_WEB_AUTH_COOKIE_DOMAIN=<your-domain>` — the registrable domain shared by
   `api.` and `bo.`, so the refresh cookie is first-party for the console. Host-only
   (unset) is never sent by `bo.*` → sign-in won't persist.
@@ -476,6 +479,47 @@ is set. To turn it on:
 4. Roll: `./deploy.sh <version>` — the server's MIGRATOR then creates
    `music.catalog_scores` + `music.user_scores`, and the log shows the ScoreService
    mounted instead of `score-upload disabled`.
+
+### Adding an HTTP (Axum) route: update the Caddyfile
+
+Caddy splits one host by **path**: an allow-list of prefixes goes to Axum
+(`server:8081`), everything else to tonic (`server:50051`). A new Axum route
+prefix that is not in that list is silently swallowed by tonic — the client gets
+`200` with `grpc-status: 12` and an empty body (a webhook provider believes it was
+delivered). When you mount a new prefix in `cymbra-server`, add it to the `@http`
+matcher in `Caddyfile`, copy the file to the box and hot-reload:
+```bash
+scp backend/deploy/Caddyfile cymbra-prod:/opt/cymbra/backend/deploy/Caddyfile
+ssh cymbra-prod docker exec cymbra-prod-caddy-1 caddy reload --config /etc/caddy/Caddyfile
+```
+
+### Enabling the premium plan / beta module (`cymbra-plans`)
+
+Off by default — the server logs `plans disabled (CYMBRA_PLANS_DATABASE_URL unset)`
+and behaves exactly as before. The dark deploy (change: add-premium-subscription):
+
+0. **Prerequisite — a real flag store.** The whole module is driven by runtime flags
+   (`plans.enabled`, `billing.*.enabled`, quotas). If the server logs
+   `feature flags in defaults-only mode` (no `CYMBRA_FLAGS_DATABASE_URL`), provision
+   `flags_svc` first with `provision-flags-role.sql` (same pattern as below, variable
+   `flags_pw`), set `CYMBRA_FLAGS_DB_PASSWORD` + `CYMBRA_FLAGS_DATABASE_URL`, roll — the
+   back office Flags screen becomes writable. Check with `\du` whether `flags_svc` exists.
+1. **Choose the `plans_svc` password** (`openssl rand -base64 24`) and **provision the
+   role + schema** on the live box (idempotent, targeted; does NOT reset other roles):
+   ```bash
+   docker exec -e PPW='<plans pw>' -i <postgres-container> \
+     psql -U <superuser> -d cymbra -v plans_pw="$PPW" -f - < provision-plans-role.sql
+   ```
+2. **Fill the `.env` block** (see `.env.prod.example` → "Premium plan / beta module"):
+   `CYMBRA_PLANS_DB_PASSWORD` + `CYMBRA_PLANS_DATABASE_URL` (same password), add `web`
+   to `CYMBRA_ALLOWED_AUDIENCES` and set `CYMBRA_WEB_ORIGINS` (site + back office).
+   Leave every purchase-channel block unset for now.
+3. Roll: `./deploy.sh <version>` — the server's MIGRATOR creates the `plans` tables,
+   the log shows `PlanService` mounted; the worker picks up `plans_reconcile` /
+   `plans_withdraw` (inert while `plans.enabled` is off).
+4. Check: the app is unchanged, `GetMyPlan` answers `free`, the back office shows the
+   **Plans** screen. Then follow the rollout order in
+   `apps/music/store/SUBSCRIPTIONS.md` (flags on, channels one by one).
 
 ## Enabling SoundFont delivery (`/soundfonts/*`)
 

@@ -34,6 +34,7 @@ import 'state/language_sync_listener.dart';
 import 'state/push_registration_listener.dart';
 import 'state/score_preview_playback.dart';
 import 'state/selected_piano.dart';
+import 'state/plan_notifier.dart';
 import 'state/usage_tracking_notifier.dart';
 import 'theme/cymbra_theme.dart';
 import 'widgets/coach_layer.dart';
@@ -66,6 +67,11 @@ Future<void> main() async {
         (ref) => ref
             .watch(flagsProvider)
             .getBool(kAnalyticsCollectionFlag, or: true),
+      ),
+      // The plan system kill-switch (change: add-premium-subscription): plain
+      // `false` in tests, the remote `plans.enabled` flag in the app.
+      plansEnabledProvider.overrideWith(
+        (ref) => ref.watch(flagsProvider).getBool('plans.enabled', or: false),
       ),
     ],
   );

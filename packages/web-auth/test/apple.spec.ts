@@ -21,7 +21,7 @@ afterEach(() => {
 describe("useAppleSignIn", () => {
   it("loads + initialises the SDK with the Services ID and popup flow", async () => {
     const { init } = installApple();
-    const { useAppleSignIn } = await import("@/composables/useAppleSignIn");
+    const { useAppleSignIn } = await import("../src/apple");
     const { status, load } = useAppleSignIn("com.cymbra.bo.web", "https://bo.cymbra.app", vi.fn());
 
     await load("fr");
@@ -39,7 +39,7 @@ describe("useAppleSignIn", () => {
   it("signIn is a no-op before the SDK is loaded", async () => {
     const { signIn } = installApple();
     const onCredential = vi.fn();
-    const { useAppleSignIn } = await import("@/composables/useAppleSignIn");
+    const { useAppleSignIn } = await import("../src/apple");
 
     await useAppleSignIn("c", "r", onCredential).signIn();
 
@@ -50,7 +50,7 @@ describe("useAppleSignIn", () => {
   it("forwards the Apple id_token to onCredential", async () => {
     installApple({ signIn: () => Promise.resolve({ authorization: { id_token: "apple-tok" } }) });
     const onCredential = vi.fn();
-    const { useAppleSignIn } = await import("@/composables/useAppleSignIn");
+    const { useAppleSignIn } = await import("../src/apple");
     const apple = useAppleSignIn("c", "r", onCredential);
 
     await apple.load("en");
@@ -62,7 +62,7 @@ describe("useAppleSignIn", () => {
   it("ignores an Apple response with no id_token", async () => {
     installApple({ signIn: () => Promise.resolve({ authorization: {} }) });
     const onCredential = vi.fn();
-    const { useAppleSignIn } = await import("@/composables/useAppleSignIn");
+    const { useAppleSignIn } = await import("../src/apple");
     const apple = useAppleSignIn("c", "r", onCredential);
 
     await apple.load("en");
@@ -76,7 +76,7 @@ describe("useAppleSignIn", () => {
     init.mockImplementation(() => {
       throw new Error("bad services id");
     });
-    const { useAppleSignIn } = await import("@/composables/useAppleSignIn");
+    const { useAppleSignIn } = await import("../src/apple");
     const { status, load } = useAppleSignIn("c", "r", vi.fn());
 
     await load("en");
@@ -85,7 +85,7 @@ describe("useAppleSignIn", () => {
   });
 
   it("loads the Apple <script> when the SDK is absent, then initialises", async () => {
-    const { useAppleSignIn } = await import("@/composables/useAppleSignIn");
+    const { useAppleSignIn } = await import("../src/apple");
     const { status, load } = useAppleSignIn("c", "r", vi.fn());
 
     const pending = load("en");

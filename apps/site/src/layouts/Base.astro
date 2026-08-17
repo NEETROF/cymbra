@@ -1,0 +1,88 @@
+---
+import '../styles/global.css';
+
+const {
+  title,
+  description = 'Cymbra — pratique et cours de musique connectés à vos instruments.',
+  lang = 'fr',
+  // Account / redeem / checkout pages are personal surfaces, not landing content.
+  noindex = false,
+} = Astro.props;
+
+const isFr = lang === 'fr';
+const nav = isFr
+  ? [
+      { href: '/#fonctionnalites', label: 'Fonctionnalités' },
+      { href: '/confidentialite', label: 'Confidentialité' },
+      { href: '/cgu', label: 'CGU' },
+      { href: '/account', label: 'Mon compte' },
+    ]
+  : [
+      { href: '/en/#features', label: 'Features' },
+      { href: '/en/privacy', label: 'Privacy' },
+      { href: '/en/terms', label: 'Terms' },
+      { href: '/en/account', label: 'Account' },
+    ];
+const otherLocale = isFr ? { href: '/en/', label: 'EN' } : { href: '/', label: 'FR' };
+const home = isFr ? '/' : '/en/';
+---
+
+<!doctype html>
+<html lang={lang}>
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" sizes="48x48" href="/favicon.ico" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="generator" content={Astro.generator} />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    {noindex && <meta name="robots" content="noindex" />}
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content="website" />
+    <link rel="alternate" hreflang="fr" href="https://cymbra.app/" />
+    <link rel="alternate" hreflang="en" href="https://cymbra.app/en/" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="container">
+        <a class="brand" href={home}>Cymbra</a>
+        <nav class="nav-links">
+          {nav.map((l) => <a href={l.href}>{l.label}</a>)}
+          <a href={otherLocale.href}>{otherLocale.label}</a>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <slot />
+    </main>
+
+    <footer class="site-footer">
+      <div class="container">
+        <span>© {new Date().getFullYear()} NEETROF — Cymbra</span>
+        <nav>
+          {isFr ? (
+            <>
+              <a href="/confidentialite">Confidentialité</a>
+              <a href="/cgu">CGU</a>
+              <a href="/account">Mon compte</a>
+              <a href="/redeem">Code d'accès</a>
+              <a href="/en/">EN</a>
+            </>
+          ) : (
+            <>
+              <a href="/en/privacy">Privacy</a>
+              <a href="/en/terms">Terms</a>
+              <a href="/en/account">Account</a>
+              <a href="/en/redeem">Access code</a>
+              <a href="/">FR</a>
+            </>
+          )}
+        </nav>
+      </div>
+    </footer>
+  </body>
+</html>

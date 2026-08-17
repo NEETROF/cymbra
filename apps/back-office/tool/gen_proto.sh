@@ -18,6 +18,8 @@ MUSIC_PROTO_DIR="$REPO_ROOT/backend/music/proto"
 FLAGS_PROTO_DIR="$REPO_ROOT/backend/feature-flags/proto"
 # Feature-usage analytics reporting (change: add-feature-usage-analytics).
 ANALYTICS_PROTO_DIR="$REPO_ROOT/backend/analytics/proto"
+# Plans console (change: add-premium-subscription).
+PLANS_PROTO_DIR="$REPO_ROOT/backend/plans/proto"
 
 command -v protoc >/dev/null 2>&1 || {
   echo "error: protoc not found on PATH (brew install protobuf)" >&2
@@ -39,9 +41,10 @@ protoc \
   --proto_path="$MUSIC_PROTO_DIR" \
   --proto_path="$FLAGS_PROTO_DIR" \
   --proto_path="$ANALYTICS_PROTO_DIR" \
+  --proto_path="$PLANS_PROTO_DIR" \
   --plugin=protoc-gen-es="$PLUGIN" \
   --es_out="$OUT_DIR" \
   --es_opt=target=ts \
-  auth.proto user.proto score.proto flags.proto usage.proto
+  auth.proto user.proto score.proto flags.proto usage.proto plans.proto
 
 echo "Generated TS gRPC stubs into $OUT_DIR"

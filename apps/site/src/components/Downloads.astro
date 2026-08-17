@@ -1,0 +1,21 @@
+---
+// App download links per platform (design open question → yes): a useful landing
+// after a web purchase. Store links become live when the listings are; until then
+// the buttons stay disabled like the home page's.
+const { lang = 'fr' } = Astro.props;
+const fr = lang === 'fr';
+const links = [
+  { label: fr ? 'App Store (iOS, macOS)' : 'App Store (iOS, macOS)', href: '#', live: false },
+  { label: 'Google Play', href: '#', live: false },
+  { label: fr ? 'Windows / Linux' : 'Windows / Linux', href: '#', live: false },
+];
+---
+
+<section class="downloads">
+  <h3>{fr ? 'Télécharger Cymbra' : 'Get Cymbra'}</h3>
+  <div class="cta-row left">
+    {links.map((l) => (
+      <a class={`btn btn-ghost${l.live ? '' : ' disabled'}`} href={l.href}>{l.label}</a>
+    ))}
+  </div>
+</section>
