@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.0](https://github.com/NEETROF/cymbra/compare/site-v0.1.1...site-v0.2.0) (2026-08-17)
+
+
+### Features
+
+* **site:** show who is signed in on /account; fix(music): plan screen side safe area ([#249](https://github.com/NEETROF/cymbra/issues/249)) ([ea55d45](https://github.com/NEETROF/cymbra/commit/ea55d4548ec0974979cb25d091ab24edb7f7b4dd))
+
 ## [0.1.1](https://github.com/NEETROF/cymbra/compare/site-v0.1.0...site-v0.1.1) (2026-08-16)
 
 
