@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.18.0](https://github.com/NEETROF/cymbra/compare/backend-v0.17.1...backend-v0.18.0) (2026-08-17)
+
+
+### Features
+
+* **site:** show who is signed in on /account; fix(music): plan screen side safe area ([#249](https://github.com/NEETROF/cymbra/issues/249)) ([ea55d45](https://github.com/NEETROF/cymbra/commit/ea55d4548ec0974979cb25d091ab24edb7f7b4dd))
+
+
+### Bug Fixes
+
+* **music:** macOS Google sign-in in sandboxed builds needs network.server ([#252](https://github.com/NEETROF/cymbra/issues/252)) ([846bef2](https://github.com/NEETROF/cymbra/commit/846bef211ea5ad69ba48ce44c42dd29369740574))
+* **plans:** the paid row, not the governing row, drives managed-on and the cross-channel purchase refusal ([#250](https://github.com/NEETROF/cymbra/issues/250)) ([7f67ffe](https://github.com/NEETROF/cymbra/commit/7f67ffe9163cdbcb99602038f93d18c8fffb6145))
+
 ## [0.17.1](https://github.com/NEETROF/cymbra/compare/backend-v0.17.0...backend-v0.17.1) (2026-08-16)
 
 
