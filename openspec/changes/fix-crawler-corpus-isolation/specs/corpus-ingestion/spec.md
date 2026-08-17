@@ -55,10 +55,15 @@ references. The operation SHALL report without writing by default, and remove th
 objects only when explicitly asked to apply.
 
 The operation SHALL reason over the *set* of referenced `object_key` values, never per row, so
-an object referenced by any remaining row is never removed. It SHALL abort without writing
-when the referenced set is empty or when the proportion of objects it would remove exceeds a
-configured safety threshold, so a failed or mis-scoped catalog query cannot empty the corpus.
-Removal SHALL be reversible until an explicit, separate purge step.
+an object referenced by any remaining row is never removed. That set SHALL cover **every**
+store of references to corpus objects, not only the catalog: an object whose only reference
+lives in another table is a referenced object, and treating it otherwise destroys live data.
+
+It SHALL abort without writing when the referenced set is empty, when the proportion of
+objects it would remove exceeds a configured safety threshold, or when **any single corpus
+prefix holds objects of which none at all are referenced** — a wholly unreferenced prefix
+indicates a reference source missing from the query far more often than it indicates a prefix
+of pure garbage. Removal SHALL be reversible until an explicit, separate purge step.
 
 #### Scenario: Dry run reports without writing
 
@@ -77,6 +82,18 @@ Removal SHALL be reversible until an explicit, separate purge step.
 - **WHEN** the referenced-key set is empty, or the share of objects to remove exceeds the
   safety threshold
 - **THEN** the operation aborts without removing anything and reports why
+
+#### Scenario: A wholly unreferenced prefix aborts the run
+
+- **WHEN** one corpus prefix holds objects and not one of them is referenced
+- **THEN** the operation aborts without removing anything and reports that a reference source
+  is likely missing, rather than treating the entire prefix as garbage
+
+#### Scenario: Objects referenced outside the catalog are kept
+
+- **WHEN** an object's only reference is held by a store other than the score catalog, such as
+  a user's own uploaded scores
+- **THEN** it counts as referenced and is never removed
 
 #### Scenario: Removal is reversible until purged
 

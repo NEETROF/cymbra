@@ -138,8 +138,18 @@
       unreferenced**; the catalog holds 145 348 rows with 145 348 **distinct** object keys,
       so the two sets coincide exactly (nothing extra, nothing missing); and 30 randomly
       sampled referenced keys all resolve on disk.
-      Remaining: `--purge` after the grace period, once the app has been exercised normally.
-      Original wording kept below for reference.
+      **INCIDENT, found before purging (2026-08-16):** the bucket listing showed `user-scores/`
+      gone. `PgReconcileRepo` read only `catalog_scores`, but user uploads are referenced by
+      `music.user_scores` — so all **6** user-uploaded scores under the scanned `user-scores/`
+      prefix looked orphaned and were quarantined, leaving them unservable. They were restored
+      from quarantine (`aws s3 mv`) and verified back in place. Nothing was lost, which is
+      exactly what the quarantine-before-purge design was for.
+      Fixed: the repo query now UNIONs `catalog_scores` and `user_scores`, and
+      `run_reconcile` aborts when any single prefix holds objects of which **none** are
+      referenced — the structural signature of a missing reference source. Two tests cover it.
+      Remaining: re-run the dry pass on the fixed binary, then `--purge` after the grace
+      period. **Do not purge until the fixed image is deployed and a dry run reports a sane
+      per-prefix split.** Original wording kept below for reference.
 - [ ] 7.4b MANUAL / prod: run `reconcile-corpus` dry, check the count against the ~145 430
       unreferenced objects measured on 2026-08-16 (290 637 files under `safe/` for 145 280
       rows; 141 under `low_confidence/` for 68 rows), then `--apply` to quarantine, then purge

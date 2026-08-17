@@ -995,8 +995,18 @@ impl ReconcileRepo for PgReconcileRepo {
         // and resumable over a 150k-row catalog. An unparseable `after`
         // (including "") means "from the start".
         let after_uuid = uuid::Uuid::parse_str(after).ok();
+        // EVERY table that points at a corpus object must appear here. Reading
+        // only `catalog_scores` is what quarantined all six user uploads in
+        // production on 2026-08-16: they live under the `user-scores/` prefix the
+        // reconciler scans, but their keys are in `user_scores`, so they looked
+        // unreferenced. Adding a table that stores an `object_key` without adding
+        // it to this union will silently delete its objects.
         let rows = sqlx::query(
-            "SELECT id, object_key FROM music.catalog_scores \
+            "SELECT id, object_key FROM ( \
+                 SELECT id, object_key FROM music.catalog_scores \
+                 UNION ALL \
+                 SELECT id, object_key FROM music.user_scores \
+             ) refs \
              WHERE ($1::uuid IS NULL OR id > $1) \
              ORDER BY id ASC LIMIT $2",
         )
