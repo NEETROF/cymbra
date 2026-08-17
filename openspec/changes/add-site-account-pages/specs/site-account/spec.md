@@ -24,6 +24,18 @@ may purchase, the page MAY offer the web checkout (calling the web plan API).
 - **WHEN** a premium-trial tester opens `/account`
 - **THEN** the trial campaign and its end date are shown with the rights-end wording
 
+### Requirement: `/account` shows who is signed in
+
+The page SHALL show the account summary from `GET /web/account/me`: the handle (or a
+"no handle yet" hint), and the linked sign-in methods — "E-mail (address)", "Google",
+"Apple" — so the user knows which account they are looking at and how they can sign in.
+Never an OIDC subject.
+
+#### Scenario: Handle and sign-in methods
+
+- **WHEN** a user with a handle, a Google identity and an e-mail identity opens `/account`
+- **THEN** the page shows the handle, "Google" and "E-mail (their address)"
+
 ### Requirement: The account page is not the app's account management
 
 The page SHALL NOT offer email/password changes, identity linking or account deletion — those

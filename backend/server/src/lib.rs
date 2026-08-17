@@ -18,6 +18,8 @@ pub mod web_auth;
 pub use web_auth::{WebAuthConfig, web_auth_router};
 pub mod web_plans;
 pub use web_plans::{WebPlansState, web_plans_router};
+pub mod web_account;
+pub use web_account::{WebAccountState, web_account_router};
 
 pub mod billing;
 pub mod flags;

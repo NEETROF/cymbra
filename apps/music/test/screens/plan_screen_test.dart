@@ -59,6 +59,7 @@ Future<void> _pump(
   required AppPlatform platform,
   StoreClient? store,
   LegalLinkLauncher? launcher,
+  EdgeInsets viewPadding = EdgeInsets.zero,
 }) async {
   final svc = MockPlanService();
   when(svc.getMyPlan(any)).thenAnswer((_) async => snapshot);
@@ -76,7 +77,12 @@ Future<void> _pump(
           launcher ?? _RecordingLauncher(),
         ),
       ],
-      child: localizedApp(const PlanScreen()),
+      child: localizedApp(
+        MediaQuery(
+          data: MediaQueryData(padding: viewPadding, viewPadding: viewPadding),
+          child: const PlanScreen(),
+        ),
+      ),
     ),
   );
   await tester.pumpAndSettle();
@@ -257,5 +263,22 @@ void main() {
     expect(find.byKey(const Key('plan-purchase')), findsNothing);
     expect(find.byKey(const Key('plan-managed-elsewhere')), findsNothing);
     expect(find.byKey(const Key('plan-restore')), findsNothing);
+  });
+
+  testWidgets('landscape notch: app bar and content clear the side inset', (
+    tester,
+  ) async {
+    // iPhone landscape: no top inset, a sensor-housing inset on the left.
+    await _pump(
+      tester,
+      snapshot: _free,
+      platform: AppPlatform.ios,
+      viewPadding: const EdgeInsets.only(left: 59),
+    );
+    expect(tester.getTopLeft(find.byType(AppBar)).dx, greaterThanOrEqualTo(59));
+    expect(
+      tester.getTopLeft(find.byKey(const Key('plan-screen'))).dx,
+      greaterThanOrEqualTo(59),
+    );
   });
 }

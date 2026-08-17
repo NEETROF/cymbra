@@ -40,6 +40,15 @@ function fakeAuth(over: Partial<WebAuthClient> = {}): WebAuthClient {
 function fakePlans(over: Partial<WebPlansClient> = {}): WebPlansClient {
   return {
     me: vi.fn(async () => free),
+    account: vi.fn(async () => ({
+      handle: "neetrof",
+      display_name: null,
+      locale: "fr",
+      identities: [
+        { provider: "google", email: null, linked_at: 10 },
+        { provider: "local", email: "g@example.org", linked_at: 20 },
+      ],
+    })),
     redeem: vi.fn(async () => ({
       campaign_key: "beta-premium",
       campaign_name: "Bêta Premium",
@@ -135,6 +144,12 @@ describe("AccountIsland", () => {
     const w = mount(AccountIsland, { props: { lang: "en" } });
     await flushPromises();
     expect(plans.me).toHaveBeenCalledWith("tok-cookie");
+    expect(plans.account).toHaveBeenCalledWith("tok-cookie");
+    // Who is signed in: handle + sign-in methods, never an OIDC subject.
+    const who = w.find('[data-testid="identity"]');
+    expect(who.text()).toContain("@neetrof");
+    expect(who.text()).toContain(t("en", "methodGoogle"));
+    expect(who.text()).toContain(t("en", "methodEmail", { email: "g@example.org" }));
     expect(w.find('[data-testid="plan-title"]').text()).toBe(t("en", "planFree"));
     expect(w.text()).toContain(t("en", "noBetas"));
     const buy = w.find(".products button");

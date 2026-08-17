@@ -3,6 +3,7 @@ import { WebAuthError } from "@cymbra/web-auth";
 import {
   appleReturnUrl,
   codeFromQuery,
+  identityLabel,
   humanError,
   manageAction,
   planSummary,
@@ -186,5 +187,16 @@ describe("Apple return URL", () => {
     expect(appleReturnUrl("https://cymbra.app", "/account")).toBe("https://cymbra.app/account");
     expect(appleReturnUrl("https://cymbra.app", "/en/")).toBe("https://cymbra.app/");
     expect(appleReturnUrl("https://cymbra.app", "/english/")).toBe("https://cymbra.app/english");
+  });
+});
+
+describe("identity labels", () => {
+  it("names the provider, with the e-mail for the local identity only", () => {
+    expect(identityLabel("fr", { provider: "local", email: "a@x.dev", linked_at: 1 })).toBe(
+      t("fr", "methodEmail", { email: "a@x.dev" }),
+    );
+    expect(identityLabel("en", { provider: "google", email: null, linked_at: 1 })).toBe(t("en", "methodGoogle"));
+    expect(identityLabel("en", { provider: "apple", email: null, linked_at: 1 })).toBe(t("en", "methodApple"));
+    expect(identityLabel("en", { provider: "github", email: null, linked_at: 1 })).toBe("github");
   });
 });

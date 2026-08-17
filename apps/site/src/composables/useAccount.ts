@@ -5,7 +5,7 @@ import { type Async, idle, run } from "@cymbra/web-auth";
 import type { Lang } from "../lib/i18n";
 import { humanError, manageAction, planSummary } from "../lib/plan-view";
 import { usePlans, useSession } from "../lib/session";
-import type { PlanView } from "../lib/web-plans";
+import type { AccountView, PlanView } from "../lib/web-plans";
 
 export function useAccount(lang: Lang, navigate: (url: string) => void) {
   const session = useSession(lang);
@@ -13,6 +13,8 @@ export function useAccount(lang: Lang, navigate: (url: string) => void) {
 
   const booted = ref(false);
   const plan = ref<Async<PlanView>>(idle);
+  /** Handle + sign-in methods (Cymbra ID); loaded with the plan, shown when it lands. */
+  const account = ref<Async<AccountView>>(idle);
   /** The portal / checkout URL fetch (at click time). */
   const action = ref<Async<string>>(idle);
   const signedIn = computed(() => session.state.value.kind === "signedIn");
@@ -24,7 +26,10 @@ export function useAccount(lang: Lang, navigate: (url: string) => void) {
   async function load(): Promise<void> {
     const token = session.accessToken.value;
     if (!token) return;
-    await run(plan, () => plans.me(token), (e) => humanError(lang, e));
+    await Promise.all([
+      run(plan, () => plans.me(token), (e) => humanError(lang, e)),
+      run(account, () => plans.account(token), (e) => humanError(lang, e)),
+    ]);
   }
 
   async function boot(): Promise<void> {
@@ -54,8 +59,9 @@ export function useAccount(lang: Lang, navigate: (url: string) => void) {
   async function signOut(): Promise<void> {
     await session.signOut();
     plan.value = idle;
+    account.value = idle;
     action.value = idle;
   }
 
-  return { booted, plan, action, signedIn, summary, manage, betas, actionBusy, boot, load, openPortal, checkout, signOut };
+  return { booted, plan, account, action, signedIn, summary, manage, betas, actionBusy, boot, load, openPortal, checkout, signOut };
 }
