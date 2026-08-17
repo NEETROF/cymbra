@@ -340,6 +340,12 @@ pub struct PlanSnapshot {
     /// True when the governing row will end without renewal (trial, cancelled,
     /// comp) — the app shows "rights end on <date>".
     pub ends_without_renewal: bool,
+    /// Source of the active **paid-channel** row (`apple` / `google` / `web`) when
+    /// there is one, whichever row governs the end date. A trial or admin grant may
+    /// outlast a subscription; the paywall must still say "managed on <store>" and
+    /// refuse a second purchase / a web checkout — never a double subscription.
+    #[serde(default)]
+    pub paid_source: Option<Source>,
     pub trial: Option<TrialInfo>,
     pub betas: Vec<BetaInfo>,
 }
@@ -352,6 +358,7 @@ impl PlanSnapshot {
             source: None,
             ends_at: None,
             ends_without_renewal: false,
+            paid_source: None,
             trial: None,
             betas: Vec::new(),
         }

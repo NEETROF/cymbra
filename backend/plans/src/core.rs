@@ -68,6 +68,28 @@ pub fn governing_row<'a>(
     best
 }
 
+/// The active **paid-channel** row (`apple` / `google` / `web`) with the latest
+/// effective end, if any — independent of which row governs the plan end. Drives
+/// "managed on", the cross-channel purchase refusal and the web portal.
+pub fn active_paid_row<'a>(
+    rows: &'a [EntitlementRow],
+    now: DateTime<Utc>,
+    grace: Duration,
+) -> Option<GoverningRow<'a>> {
+    let paid: Vec<EntitlementRow> = rows
+        .iter()
+        .filter(|r| r.source.is_paid_channel())
+        .cloned()
+        .collect();
+    let g = governing_row(&paid, now, grace)?;
+    // Map back to the caller's slice (same id) so the borrow outlives `paid`.
+    let row = rows.iter().find(|r| r.id == g.row.id)?;
+    Some(GoverningRow {
+        row,
+        effective_end: g.effective_end,
+    })
+}
+
 /// `Premium` iff any row is active now (spec: "premium while any row is active").
 pub fn effective_plan(rows: &[EntitlementRow], now: DateTime<Utc>, grace: Duration) -> Plan {
     if governing_row(rows, now, grace).is_some() {
@@ -172,6 +194,7 @@ pub fn snapshot(
     grace: Duration,
 ) -> PlanSnapshot {
     let governing = governing_row(rows, now, grace);
+    let paid_source = active_paid_row(rows, now, grace).map(|g| g.row.source);
     let active = active_memberships(memberships, now);
 
     let trial = active
@@ -203,6 +226,7 @@ pub fn snapshot(
             source: None,
             ends_at: None,
             ends_without_renewal: false,
+            paid_source: None,
             trial,
             betas,
         },
@@ -220,6 +244,7 @@ pub fn snapshot(
                 source: Some(g.row.source),
                 ends_at: g.effective_end,
                 ends_without_renewal,
+                paid_source,
                 trial,
                 betas,
             }
@@ -300,6 +325,25 @@ mod tests {
         let s = snapshot(&rows, &[], t(15), GRACE);
         assert_eq!(s.source, Some(Source::Apple));
         assert!(!s.ends_without_renewal);
+    }
+
+    #[test]
+    fn a_trial_outlasting_a_subscription_keeps_the_paid_source() {
+        // Task 11.9 precedence: the trial governs the end date, but the paywall
+        // must still know the account is subscribed on the App Store.
+        let apple = row(Source::Apple, Some(10), EntitlementStatus::Active);
+        let trial = row(Source::Code, Some(20), EntitlementStatus::Active);
+        let rows = vec![apple.clone(), trial.clone()];
+        let s = snapshot(&rows, &[], t(5), GRACE);
+        assert_eq!(s.source, Some(Source::Code));
+        assert_eq!(s.ends_at, Some(t(20)));
+        assert_eq!(s.paid_source, Some(Source::Apple));
+        // Once the subscription lapses, no paid source (rights carry on via the trial).
+        let s = snapshot(&rows, &[], t(15), GRACE);
+        assert_eq!(s.paid_source, None);
+        assert_eq!(s.plan, Plan::Premium);
+        // No paid row at all → None.
+        assert_eq!(snapshot(&[trial], &[], t(5), GRACE).paid_source, None);
     }
 
     #[test]
