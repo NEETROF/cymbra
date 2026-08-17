@@ -126,7 +126,21 @@
       Ownership gotcha found and fixed here: the work dir must stay **root**-owned, not
       `1000:1000` — the crawler runs as root and git 2.35.2+ refuses a repo owned by another
       user, so the first attempt died with `prepare failed; skipping` on every source.
-- [ ] 7.4 MANUAL / prod: run `reconcile-corpus` dry, check the count against the ~145 430
+- [ ] 7.4 MANUAL / prod — **quarantine done 2026-08-16, purge still pending.** Dry run
+      reported 290 799 objects / 145 348 referenced / **145 451 unreferenced** (50.0%, under
+      the 0.75 abort threshold), matching the ~145 430 measured before the fix plus the 21
+      objects today's test crawls migrated. `--apply` quarantined all of them.
+      A second dry run then showed **18 survivors**: the crawler writes into the corpus as
+      root, and a `1000` process cannot unlink inside a root-owned shard directory —
+      `LocalFirstStore::delete` swallows that local failure, so the run had reported success.
+      `chown -R 1000:1000 $SCORES_DIR` plus a second `--apply` cleared them.
+      Final state verified three ways: 145 348 objects / 145 348 referenced / **0
+      unreferenced**; the catalog holds 145 348 rows with 145 348 **distinct** object keys,
+      so the two sets coincide exactly (nothing extra, nothing missing); and 30 randomly
+      sampled referenced keys all resolve on disk.
+      Remaining: `--purge` after the grace period, once the app has been exercised normally.
+      Original wording kept below for reference.
+- [ ] 7.4b MANUAL / prod: run `reconcile-corpus` dry, check the count against the ~145 430
       unreferenced objects measured on 2026-08-16 (290 637 files under `safe/` for 145 280
       rows; 141 under `low_confidence/` for 68 rows), then `--apply` to quarantine, then purge
       after a grace period.

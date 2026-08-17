@@ -291,12 +291,27 @@ mount in the compose). The crawler **refuses to start** if that dir resolves ins
 single run put 4.4 GB of git checkouts inside the served corpus, one nightly cron
 away from being mirrored to the bucket (change: fix-crawler-corpus-isolation).
 
-> **The two mounts want different owners.** `SCORES_DIR` is `1000:1000` (the
-> *server* image runs as `USER 1000:1000` and serves from it). `CRAWL_WORK` stays
-> owned by **root** — the *crawler* image runs as root, and since git 2.35.2 git
-> refuses a repository owned by another user even when running as root
-> ("detected dubious ownership"). Chowning the work dir to `1000:1000` makes every
-> source fail with `prepare failed; skipping` and the run silently ingests nothing.
+> **Ownership: the crawler runs as root, everything else as `1000:1000`.** This
+> asymmetry bites twice, so read both halves.
+>
+> `CRAWL_WORK` must stay owned by **root**: it holds git checkouts, and since git
+> 2.35.2 git refuses a repository owned by another user even when running as root
+> ("detected dubious ownership"). Chowning it to `1000:1000` makes every source
+> fail with `prepare failed; skipping` while the run still exits 0, having ingested
+> nothing.
+>
+> `SCORES_DIR` must be `1000:1000`, because the server image runs as
+> `USER 1000:1000`. But the crawler writes into it **as root**, creating
+> root-owned shard directories. The server can still read them (mode 644/755), so
+> serving is unaffected — but `reconcile-corpus` and any other `1000` process
+> cannot unlink inside them, and `LocalFirstStore::delete` swallows the local
+> failure, so objects silently survive a quarantine that reports success.
+> **Therefore: `sudo chown -R 1000:1000 $SCORES_DIR` after every crawl run.**
+>
+> The proper fix is to run the crawler containers as `1000:1000` too, so both
+> mounts can be `1000`-owned and no post-run chown is needed; it needs care for the
+> `openscore` service, which talks to the mounted docker socket and would need the
+> right supplementary group. Until then the chown above is the operational rule.
 
 > **The box is not a git checkout.** `/opt/cymbra/backend` holds copied files, so
 > merging a change that touches `backend/deploy/` deploys **nothing** — the compose
