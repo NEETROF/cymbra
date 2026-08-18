@@ -34,8 +34,12 @@ use async_trait::async_trait;
 use cymbra_storage::ObjectStorage;
 
 /// The prefixes that hold servable corpus objects — the same allow-list the S3
-/// mirror uses. `user-scores/` is deliberately included: those objects are
-/// referenced by rows too, so they are covered by the same reference check.
+/// mirror uses.
+///
+/// `user-scores/` is included, but note what that demands of the [`ReconcileRepo`]
+/// implementation: its objects are referenced by `user_scores`, **not** by
+/// `catalog_scores`. Any prefix listed here must have every table that references
+/// it covered by the repo's query, or its objects read as orphans.
 pub const CORPUS_PREFIXES: [&str; 3] = ["safe/", "low_confidence/", "user-scores/"];
 
 /// Where quarantined objects are moved. Outside every corpus prefix, so a
@@ -107,14 +111,29 @@ pub async fn run_reconcile(
     );
 
     // 2. Everything the store holds under the servable prefixes.
+    //
+    // Per prefix, because a prefix whose objects are *entirely* unreferenced is
+    // the signature of a missing reference source, not of a prefix full of
+    // garbage. That is exactly how all six user uploads were quarantined in
+    // production: `user-scores/` was scanned while its keys live in a table the
+    // repo did not read. Aborting here turns that class of mistake into a loud
+    // failure instead of silent data loss.
     let mut objects = BTreeSet::new();
     for prefix in CORPUS_PREFIXES {
-        objects.extend(
-            store
-                .list(prefix)
-                .await
-                .with_context(|| format!("listing corpus objects under {prefix}"))?,
-        );
+        let found: Vec<String> = store
+            .list(prefix)
+            .await
+            .with_context(|| format!("listing corpus objects under {prefix}"))?;
+        if !found.is_empty() && !found.iter().any(|k| referenced.contains(k)) {
+            anyhow::bail!(
+                "prefix {prefix} holds {} objects and NOT ONE is referenced — refusing to \
+                 continue: a whole prefix being orphaned almost always means a table that \
+                 references these objects is missing from the reference query, not that \
+                 every object is garbage",
+                found.len()
+            );
+        }
+        objects.extend(found);
     }
 
     let unreferenced: Vec<String> = objects
@@ -322,6 +341,53 @@ mod tests {
 
         assert!(err.to_string().contains("safety threshold"), "{err}");
         assert_eq!(store.len(), 4, "the guard must fire before any write");
+    }
+
+    /// The production incident of 2026-08-16, as a test: `user-scores/` objects
+    /// are referenced by a different table, so a repo that reads only the catalog
+    /// makes the whole prefix look orphaned. That must abort, not delete.
+    #[tokio::test]
+    async fn a_wholly_unreferenced_prefix_aborts() {
+        let store = store_with(&[
+            "safe/aa/kept.mxl",
+            "user-scores/u1/a.musicxml",
+            "user-scores/u1/b.musicxml",
+        ])
+        .await;
+        // Catalog rows only — the user_scores table is missing from the query.
+        let repo = repo(&[("id1", "safe/aa/kept.mxl")]);
+        let opts = ReconcileOptions {
+            apply: true,
+            ..Default::default()
+        };
+
+        let err = run_reconcile(&store, &repo, &opts).await.unwrap_err();
+
+        assert!(err.to_string().contains("NOT ONE is referenced"), "{err}");
+        assert!(store.contains("user-scores/u1/a.musicxml"));
+        assert!(store.contains("user-scores/u1/b.musicxml"));
+    }
+
+    /// A prefix with a mix of referenced and unreferenced objects is normal work,
+    /// not a missing reference source.
+    #[tokio::test]
+    async fn a_partially_referenced_prefix_proceeds() {
+        let store = store_with(&[
+            "user-scores/u1/kept.musicxml",
+            "user-scores/u1/gone.musicxml",
+        ])
+        .await;
+        let repo = repo(&[("id1", "user-scores/u1/kept.musicxml")]);
+        let opts = ReconcileOptions {
+            apply: true,
+            ..Default::default()
+        };
+
+        let r = run_reconcile(&store, &repo, &opts).await.unwrap();
+
+        assert_eq!(r.quarantined, 1);
+        assert!(store.contains("user-scores/u1/kept.musicxml"));
+        assert!(!store.contains("user-scores/u1/gone.musicxml"));
     }
 
     #[tokio::test]
