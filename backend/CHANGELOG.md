@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.18.1](https://github.com/NEETROF/cymbra/compare/backend-v0.18.0...backend-v0.18.1) (2026-08-18)
+
+
+### Bug Fixes
+
+* **corpus:** count user uploads as referenced when reconciling ([#255](https://github.com/NEETROF/cymbra/issues/255)) ([2ef19b3](https://github.com/NEETROF/cymbra/commit/2ef19b35be63bfd4c993b2bb9a2330cb4617d043))
+
 ## [0.18.0](https://github.com/NEETROF/cymbra/compare/backend-v0.17.1...backend-v0.18.0) (2026-08-17)
 
 
