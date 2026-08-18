@@ -298,10 +298,20 @@ jobs:
       # tool writes, so archiving without this pass would ship a build pointing at
       # the dev gRPC endpoint. prod.json carries api.cymbra.app:443 over TLS; the
       # reversed Google client id comes from Secrets.xcconfig injected above.
+      # Apple build number: iOS and macOS share one App Store Connect record
+      # (universal purchase), and App Store Connect requires every uploaded
+      # CFBundleVersion to be HIGHER than the last one across BOTH platforms — a
+      # macOS upload numbered like the iOS one of the same release is rejected
+      # ("must be higher than the previously uploaded version"). Derive it from
+      # the workflow run number instead of pubspec's `+N`: iOS = run×10,
+      # macOS = run×10+1 — strictly increasing across releases and platforms, and
+      # a re-dispatch (new run) can deliver again. Android keeps pubspec's `+N`
+      # (its own store, its own monotonic versionCode).
       - name: Build (release, prod config)
         working-directory: apps/music
         run: >-
           flutter build macos --release
+          --build-number=$(( GITHUB_RUN_NUMBER * 10 + 1 ))
           --dart-define-from-file=config/prod.json
           --dart-define=GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
       - name: Archive + export .pkg (app-store)
@@ -600,10 +610,13 @@ jobs:
           </dict>
           </plist>
           EOF
+      # Build number = run×10 (see the macOS job: iOS and macOS share one App
+      # Store Connect record and their build numbers must increase across both).
       - name: Build IPA (release, prod config)
         working-directory: apps/music
         run: |
           flutter build ipa --release \
+            --build-number=$(( GITHUB_RUN_NUMBER * 10 )) \
             --dart-define-from-file=config/prod.json \
             --export-options-plist ios/ExportOptions-ci.plist
       - name: Rename
