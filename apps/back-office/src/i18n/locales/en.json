@@ -414,6 +414,7 @@
     },
     "openEnded": "open-ended",
     "lookupTitle": "Account lookup",
+    "openInRevenueCat": "Open in RevenueCat",
     "lookupPlaceholder": "handle or account id",
     "lookup": "Look up",
     "clear": "Clear",

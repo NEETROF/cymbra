@@ -2,7 +2,7 @@
 layout: ../../layouts/Legal.astro
 title: Privacy Policy
 lang: en
-updated: 30/07/2026
+updated: 18/08/2026
 ---
 
 This policy explains what personal data the **Cymbra services** (published by
@@ -30,9 +30,12 @@ account and the application.
 | App preferences | you | remember your settings |
 | Session tokens (refresh tokens) | generated at login | keep you signed in |
 | Technical logs (IP address, timestamps, errors) | server | security, abuse prevention, correct operation |
+| Subscription status (plan, source, start/end dates), **opaque identifiers** of the subscription at the purchase channel (Apple, Google, Paddle — via RevenueCat for the App Store and Google Play), beta campaigns joined, access codes used | purchase channel / you | activate the Premium plan on your devices, manage trials and betas |
 
 We do **not** collect precise location data, do **not** sell any data, and do **not**
-use third-party advertising or advertising trackers.
+use third-party advertising or advertising trackers. We **never** receive or store your
+card numbers, billing addresses or invoices: they are processed exclusively by the
+purchase channel (Apple, Google, Paddle).
 
 ## 3. Legal bases (GDPR art. 6)
 
@@ -48,10 +51,24 @@ We share only what is necessary with providers acting on our behalf:
 - **OVHcloud** (France, EU) — hosting of the server and backups.
 - **Brevo** (EU) — sending transactional emails (verification, password reset).
 - **Google** / **Apple** — only if you use their sign-in (verifying your identity via
-  their token).
+  their token), or if you subscribe through the App Store / Google Play (they are the
+  merchants of record: they charge and invoice; we never see your payment data).
+- **RevenueCat, Inc.** (United States) — only if you subscribe through the App Store or
+  Google Play: it verifies the purchase with the store and tracks the subscription
+  lifecycle (renewal, grace period, cancellation, refund) on our behalf, and provides
+  us with aggregated subscription and revenue analytics. It receives an **opaque
+  account identifier**, technical information about the app and device, and the
+  store's transaction facts (product, price, currency, country, dates) — never your
+  name, email, handle or payment details. This transfer outside the EU is framed by
+  the European Commission's Standard Contractual Clauses (data processing agreement
+  signed with RevenueCat). Its record is deleted when you delete your account.
+- **Paddle** (merchant of record, UK/EU) — only if you subscribe from Linux, Windows or
+  the website: it charges, invoices and notifies us of the subscription state bound to
+  an opaque identifier.
 
-Your data is **hosted in the European Union** (France). We do not transfer data outside
-the EU.
+Your data is **hosted in the European Union** (France). Apart from the subscription
+verification described above (RevenueCat, United States, under Standard Contractual
+Clauses), we do not transfer data outside the EU.
 
 ## 5. Retention
 

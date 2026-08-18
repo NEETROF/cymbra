@@ -2,7 +2,7 @@
 import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { match } from "ts-pattern";
-import { type CampaignKind, isRevocableSource, membersCsv, usePlansStore } from "@/stores/plans";
+import { type CampaignKind, isRevocableSource, membersCsv, revenueCatCustomerUrl, usePlansStore } from "@/stores/plans";
 import { useRolesStore } from "@/stores/roles";
 import { useToastsStore } from "@/stores/toasts";
 import { saveTextAsFile } from "@/lib/download";
@@ -219,6 +219,12 @@ const membersVm = computed(() =>
     .with({ status: "error" }, ({ error }) => ({ loading: false, error, rows: [] as MembershipMsg[] }))
     .otherwise(() => ({ loading: true, error: null as string | null, rows: [] as MembershipMsg[] })),
 );
+/** The aggregator's customer page for the looked-up account (D5); `undefined`
+ *  when `VITE_REVENUECAT_PROJECT_ID` is unset or nothing is looked up. */
+const revenueCatUrl = computed(() =>
+  revenueCatCustomerUrl(import.meta.env.VITE_REVENUECAT_PROJECT_ID, lookupVm.value.data?.userId),
+);
+
 /** Best-effort handle for a member: the directory page (if loaded) or the last lookup. */
 function handleFor(userId: string): string | undefined {
   const dir = roles.directory.status === "success" ? roles.directory.data.accounts : [];
@@ -316,6 +322,18 @@ onMounted(() => void store.loadCampaigns(true));
           <button type="button" :disabled="acting || enrollable.length === 0" @click="openEnrol">
             {{ t("plans.enrol") }}
           </button>
+          <!-- Store facts (transactions, renewals, refunds) and revenue live at the
+               aggregator (change: swap-store-billing-to-revenuecat, D5): one link
+               to the customer page; hidden when the project id is not configured. -->
+          <a
+            v-if="revenueCatUrl"
+            :href="revenueCatUrl"
+            target="_blank"
+            rel="noopener noreferrer"
+            data-testid="revenuecat-link"
+          >
+            {{ t("plans.openInRevenueCat") }} ↗
+          </a>
         </div>
       </div>
 

@@ -18,6 +18,10 @@ interface ImportMetaEnv {
    * (see lib/e2e-seam.ts) so the app runs end-to-end with no backend. Never set in
    * production builds. */
   readonly VITE_E2E?: string;
+  /** Store aggregator project id (change: swap-store-billing-to-revenuecat):
+   * builds the "open in RevenueCat" customer link on the plan console. Unset →
+   * no link. */
+  readonly VITE_REVENUECAT_PROJECT_ID?: string;
 }
 interface ImportMeta {
   readonly env: ImportMetaEnv;
