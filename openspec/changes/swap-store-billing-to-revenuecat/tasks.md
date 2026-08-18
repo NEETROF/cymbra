@@ -1,6 +1,6 @@
 ## 1. Spec ordering + RevenueCat project (D8 step 2 — no code)
 
-- [ ] 1.1 Archive `add-premium-subscription` (or `/opsx:sync` its specs) so `music-subscription-billing` and `music-premium-paywall` exist under `openspec/specs/` before this change is archived; add a "superseded by swap-store-billing-to-revenuecat (2026-08-18)" note under D7/D8 of its `design.md`
+- [x] 1.1 Archived `add-premium-subscription` (2026-08-18-add-premium-subscription, +34/~6 requirements merged into `openspec/specs/`, incl. `music-subscription-billing` + `music-premium-paywall`); D7/D8 of its `design.md` carry the "superseded by swap-store-billing-to-revenuecat (2026-08-18)" note
 - [ ] 1.2 Create the RevenueCat project + apps (App Store: bundle `com.cymbra.music` iOS + macOS; Play: package `com.cymbra.music`); entitlement `premium` attached to `premium_monthly` / `premium_yearly` on each store; restore behaviour **Keep with original App User ID**; record project id, public SDK keys (Apple / Google) and the v1 secret API key
 - [ ] 1.3 App Store side: In-App Purchase key (.p8) uploaded to RevenueCat, App Store Server Notifications v2 URL (production + sandbox) pointed at RevenueCat's URL, subscription group + products per the existing checklist; Play side: service-account JSON with Play Developer API + financial data access uploaded to RevenueCat, RTDN Pub/Sub topic pointed at RevenueCat's topic; note in `apps/music/store/SUBSCRIPTIONS.md` that these secrets no longer live in our environment
 - [ ] 1.4 RevenueCat webhook: URL `https://api.cymbra.app/billing/revenuecat/webhook` (staging host too), generated `Authorization` header value → `CYMBRA_REVENUECAT_WEBHOOK_SECRET`; sign the RevenueCat DPA and record the transfer mechanism (SCCs) in `backend/plans/README.md`
@@ -39,7 +39,7 @@
 - [ ] 5.1 `apps/back-office`: `plans` store/view — "open in RevenueCat" link on the account lookup (`https://app.revenuecat.com/customers/<project>/<user_id>`, project id from `VITE_REVENUECAT_PROJECT_ID`, hidden when unset); regenerate the client (`yarn gen`) for the proto change; component test
 - [ ] 5.2 `apps/music/store/SUBSCRIPTIONS.md`: rewrite the Apple / Google sections for the RevenueCat setup (keys and notification URLs configured in RevenueCat, restore behaviour, webhook, sandbox testers still needed), keep Paddle direct, add the "Rollout order" step for `CYMBRA_REVENUECAT_ALLOW_SANDBOX`; `backend/plans/README.md`: purchase channels + runbook (rotate the webhook secret / API key, disable a store, refund path via the store console + RevenueCat customer page, erasure, where revenue is read)
 - [ ] 5.3 Legal: name RevenueCat as sub-processor (purpose: subscription verification and analytics; data: opaque account id + store transaction facts; US, SCCs) in `docs/legal/privacy-policy.md` + `politique-de-confidentialite.md`, and align the site pages `apps/site/src/pages/confidentialite.md` + `en/privacy.md` (which today do not mention the purchase channels at all); terms unchanged
-- [ ] 5.4 Update `openspec/changes/add-premium-subscription/tasks.md` 11.9/11.10 wording (sandbox validation now through RevenueCat) or mark them superseded by §7 below
+- [x] 5.4 `add-premium-subscription` tasks 11.5–11.8 moved to §7 (7.10–7.14) and 11.9/11.10 marked superseded before its archive (done 2026-08-18)
 
 ## 6. Verification
 
@@ -59,6 +59,14 @@
 - [ ] 7.7 Erasure: delete a sandbox account → RevenueCat customer gone, plan rows purged
 - [ ] 7.8 Visibility: RevenueCat Overview / Charts show the sandbox actives, MRR and current-month revenue per store; BO lookup link opens the customer page
 - [ ] 7.9 Production flags: `billing.apple.enabled` on → real purchase on TestFlight (production environment) lands; then `billing.google.enabled`
+
+Plan validations inherited from `add-premium-subscription` 11.5–11.9 (moved here 2026-08-18; independent of the aggregator, run in the same staging session):
+
+- [ ] 7.10 Manual — dark deploy: all flags off ⇒ app identical to before, the RevenueCat webhook acknowledges and ignores, `GetMyPlan` says free
+- [ ] 7.11 Manual — withdrawal: let a trial expire on an account with cached catalog scores, own uploads, an imported .sf2 and a premium .sf2 → reconnect: catalog cache and premium font gone, upload cache + import intact, notice shown; then re-subscribe in sandbox (through RevenueCat) → content re-fetchable, favorites intact
+- [ ] 7.12 Manual — trial: create a 90-day trial campaign, mint a code, redeem on the web, verify premium on iOS/Android/macOS/Linux/Windows builds of the same account, close enrolment and confirm the trial keeps running, revoke a membership and confirm immediate degradation
+- [ ] 7.13 Manual — feature beta: create `midi-drums`, scope a flag `beta:midi-drums`, enrol one free and one premium account, confirm only members see the feature, close the campaign, confirm the feature disappears for members without a flag edit
+- [ ] 7.14 Manual — precedence: trial tester purchases in the App Store sandbox (through RevenueCat) ⇒ still premium after the trial ends; sandbox refund ⇒ back to trial (if running) or free
 
 ## 8. Deferred — Paddle into RevenueCat (D7; only when Windows / Linux purchases open)
 

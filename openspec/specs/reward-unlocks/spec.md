@@ -48,9 +48,13 @@ cost**, and SHALL let a signed-in user **choose which reward to redeem** by spen
 spendable balance. Redemption SHALL deduct the cost from the spendable balance, be
 **idempotent** (a retried redemption charges once), and grant the reward **durably**.
 Rewards SHALL be limited only by their cost against the user's balance — not gated by level
-— so the user is free to choose what to unlock. Redeemable rewards in this change are
-**pianos/SoundFonts** (integrating with the existing piano-selection catalog); **temporary
-premium access** is listed as a **future** item and is NOT redeemable yet.
+— so the user is free to choose what to unlock. Redeemable rewards are **pianos/SoundFonts**
+(integrating with the existing piano-selection catalog). **Premium access is not a shop
+item**: points cannot buy a plan; a font flagged `redeemable = false` SHALL be presented as
+**included in premium** (not "coming later") and SHALL refuse redemption by points. A caller
+whose effective plan grants the `soundfonts.library` unlock SHALL see every shop item as
+**owned** without a grant row and without being charged; the shop MUST NOT charge points for
+an item the plan already unlocks.
 
 The shop SHALL offer **only accepted** SoundFonts. Pricing a font is deliberately
 independent of moderation — an operator may set a price while the font is still in review,
@@ -74,10 +78,15 @@ redemption lookup.
 - **WHEN** the same redemption is submitted more than once
 - **THEN** the user is charged only once and the reward is granted once
 
-#### Scenario: Premium item is not redeemable yet
+#### Scenario: Premium-only item is not redeemable by points
 
-- **WHEN** a user views the future temporary-premium item in the shop
-- **THEN** it is shown as coming later and cannot be redeemed
+- **WHEN** a user views a `redeemable = false` font in the shop
+- **THEN** it is shown as included in premium and cannot be redeemed with points
+
+#### Scenario: Plan holder owns the shop
+
+- **WHEN** a user whose plan grants `soundfonts.library` opens the shop or attempts a redemption
+- **THEN** every item is reported as owned and no points are charged
 
 #### Scenario: A priced font still in review is not offered
 
