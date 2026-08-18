@@ -126,7 +126,7 @@
       Ownership gotcha found and fixed here: the work dir must stay **root**-owned, not
       `1000:1000` — the crawler runs as root and git 2.35.2+ refuses a repo owned by another
       user, so the first attempt died with `prepare failed; skipping` on every source.
-- [ ] 7.4 MANUAL / prod — **quarantine done 2026-08-16, purge still pending.** Dry run
+- [x] 7.4 MANUAL / prod — **complete 2026-08-18.** Dry run
       reported 290 799 objects / 145 348 referenced / **145 451 unreferenced** (50.0%, under
       the 0.75 abort threshold), matching the ~145 430 measured before the fix plus the 21
       objects today's test crawls migrated. `--apply` quarantined all of them.
@@ -147,10 +147,17 @@
       Fixed: the repo query now UNIONs `catalog_scores` and `user_scores`, and
       `run_reconcile` aborts when any single prefix holds objects of which **none** are
       referenced — the structural signature of a missing reference source. Two tests cover it.
-      Remaining: re-run the dry pass on the fixed binary, then `--purge` after the grace
-      period. **Do not purge until the fixed image is deployed and a dry run reports a sane
-      per-prefix split.** Original wording kept below for reference.
-- [ ] 7.4b MANUAL / prod: run `reconcile-corpus` dry, check the count against the ~145 430
+      **Closed out 2026-08-18** on the fixed image (`backend-v0.18.1`). Dry run:
+      **145 354 objects / 145 354 referenced / 0 unreferenced** — the six user uploads now
+      count as referenced, so the object set and the reference set coincide exactly
+      (145 348 catalog rows + 6 user_scores rows). `--purge` then deleted
+      **145 450** quarantined objects.
+      Post-purge verification, three ways: the quarantine is **empty**; the bucket lists only
+      `safe/`, `low_confidence/` and `user-scores/`; and a final dry run still reports
+      145 354 / 145 354 / **0**, with the 6 user uploads present in both the bucket and
+      `music.user_scores` — nothing live was destroyed.
+      Original wording kept below for reference.
+- [x] 7.4b MANUAL / prod: run `reconcile-corpus` dry, check the count against the ~145 430
       unreferenced objects measured on 2026-08-16 (290 637 files under `safe/` for 145 280
       rows; 141 under `low_confidence/` for 68 rows), then `--apply` to quarantine, then purge
       after a grace period.
