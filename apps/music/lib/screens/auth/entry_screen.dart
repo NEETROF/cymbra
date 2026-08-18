@@ -47,9 +47,16 @@ class _EntryScreenState extends ConsumerState<EntryScreen> {
     try {
       await action();
     } on AuthException catch (e) {
+      // The user only ever sees the localized copy, so log the cause: an
+      // `unknown` maps to the same generic sentence as a platform failure, and
+      // without this the two are indistinguishable in a release build.
+      debugPrint('entry: auth failure: $e');
       if (mounted) showAuthError(context, e);
     } catch (e) {
-      // A native SDK / platform failure must not crash the entry screen.
+      // A native SDK / platform failure must not crash the entry screen — but it
+      // must be traceable (release builds only surface the generic message), the
+      // same way the onboarding invitation screen records it.
+      debugPrint('entry: platform failure: $e');
       if (mounted) {
         showAppSnackBar(
           ScaffoldMessenger.of(context),
