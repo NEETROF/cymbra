@@ -371,3 +371,77 @@ async fn purge_erases_global_leaderboard_season_data() {
         .await
         .unwrap();
 }
+
+/// swap-store-billing-to-revenuecat 3.3 — with the `plans` schema deployed, the
+/// account's store-aggregator customer is deleted BEFORE its plan rows are
+/// erased; an aggregator failure fails the job (retried) and erases nothing.
+#[tokio::test]
+#[ignore = "needs docker compose (Postgres) with per-module roles"]
+async fn purge_deletes_the_aggregator_customer_before_the_plan_rows() {
+    use cymbra_plans::ports::MockStoreCustomerEraser;
+    migrate().await;
+    let plans = connect("CYMBRA_PLANS_DATABASE_URL").await;
+    cymbra_plans::MIGRATOR.run(&plans).await.unwrap();
+    let admin = connect("CYMBRA_ADMIN_DATABASE_URL").await;
+
+    let email = format!("purge-rc-{}@x.dev", uuid::Uuid::now_v7());
+    let uid = seed_user(&admin, "local", &email).await;
+    // One store row for the account (identifiers only).
+    sqlx::query(
+        "INSERT INTO plans.plan_entitlements \
+           (id, user_id, source, provider_ref, starts_at, ends_at, status) \
+         VALUES ($1, $2, 'apple', $3, now() - interval '1 day', now() + interval '29 days', 'active')",
+    )
+    .bind(uuid::Uuid::now_v7())
+    .bind(uid)
+    .bind(format!("otx-{uid}"))
+    .execute(&plans)
+    .await
+    .unwrap();
+
+    // 1) aggregator down ⇒ the job fails and the account is untouched
+    let mut failing = MockStoreCustomerEraser::new();
+    failing
+        .expect_delete_customer()
+        .returning(|_| Err(cymbra_platform::AppError::Internal(anyhow::anyhow!("down"))));
+    let err = cymbra_worker::purge_user_with(&admin, &uid.to_string(), None, Some(&failing))
+        .await
+        .expect_err("aggregator failure must fail the job");
+    assert!(err.to_string().contains("delete aggregator customer"));
+    assert_eq!(
+        users_count(&admin, uid).await,
+        1,
+        "nothing erased on failure"
+    );
+    assert_eq!(
+        count(
+            &admin,
+            "SELECT count(*) FROM plans.plan_entitlements WHERE user_id = $1::uuid",
+            &uid.to_string(),
+        )
+        .await,
+        1
+    );
+
+    // 2) aggregator ok ⇒ customer deleted (exactly once, for this account) then rows erased
+    let mut ok = MockStoreCustomerEraser::new();
+    let expected = uid.to_string();
+    ok.expect_delete_customer()
+        .withf(move |u| u == expected)
+        .times(1)
+        .returning(|_| Ok(()));
+    cymbra_worker::purge_user_with(&admin, &uid.to_string(), None, Some(&ok))
+        .await
+        .expect("purge should succeed");
+    assert_eq!(users_count(&admin, uid).await, 0);
+    assert_eq!(
+        count(
+            &admin,
+            "SELECT count(*) FROM plans.plan_entitlements WHERE user_id = $1::uuid",
+            &uid.to_string(),
+        )
+        .await,
+        0,
+        "plan rows must be gone"
+    );
+}

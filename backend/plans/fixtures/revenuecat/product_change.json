@@ -1,0 +1,38 @@
+{
+  "api_version": "1.0",
+  "event": {
+    "id": "evt-pc-1",
+    "type": "PRODUCT_CHANGE",
+    "app_user_id": "018f0000-0000-7000-8000-000000000001",
+    "original_app_user_id": "018f0000-0000-7000-8000-000000000001",
+    "aliases": [
+      "018f0000-0000-7000-8000-000000000001"
+    ],
+    "environment": "SANDBOX",
+    "event_timestamp_ms": 1700000000000,
+    "app_id": "app1234",
+    "country_code": "FR",
+    "entitlement_ids": [
+      "premium"
+    ],
+    "entitlement_id": "premium",
+    "period_type": "NORMAL",
+    "presented_offering_id": null,
+    "price": 4.99,
+    "price_in_purchased_currency": 4.99,
+    "currency": "EUR",
+    "takehome_percentage": 0.85,
+    "tax_percentage": 0.2,
+    "commission_percentage": 0.15,
+    "is_family_share": false,
+    "offer_code": null,
+    "subscriber_attributes": {},
+    "new_product_id": "premium_yearly",
+    "store": "APP_STORE",
+    "product_id": "premium_monthly",
+    "transaction_id": "2000000123456789",
+    "original_transaction_id": "2000000111111111",
+    "purchased_at_ms": 1699913600000,
+    "expiration_at_ms": 1702505600000
+  }
+}

@@ -3,8 +3,8 @@
 //! trait is `#[automock]`-able under the `mock` feature (rust-testing default).
 
 use crate::model::{
-    AccessCode, Campaign, CampaignKind, EntitlementRow, EntitlementStatus, Membership,
-    MembershipRow, MembershipSource, PlanSnapshot, Redemption, Source,
+    AccessCode, Campaign, CampaignKind, EntitlementRow, EntitlementStatus, EventProvider,
+    Membership, MembershipRow, MembershipSource, PlanSnapshot, Redemption, Source,
 };
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
@@ -189,12 +189,12 @@ pub trait BillingEventRepo: Send + Sync {
     /// `false` when already seen (no-op).
     async fn record_if_new(
         &self,
-        provider: Source,
+        provider: EventProvider,
         event_id: &str,
         user_id: Option<String>,
         payload_ref: &str,
     ) -> Result<bool>;
-    async fn mark_applied(&self, provider: Source, event_id: &str) -> Result<()>;
+    async fn mark_applied(&self, provider: EventProvider, event_id: &str) -> Result<()>;
     async fn purge_user(&self, user_id: &str) -> Result<()>;
 }
 
@@ -349,24 +349,39 @@ pub trait HandleResolver: Send + Sync {
     async fn user_id_for_handle(&self, handle: &str) -> Result<Option<String>>;
 }
 
-/// A verified store purchase, ready to be written to the ledger.
+/// One store subscription as the aggregator reports it for a customer (change:
+/// swap-store-billing-to-revenuecat, D3) — provider-neutral shape the pure
+/// mapper consumes. Dates are the store's; `provider_ref` is the store's original
+/// transaction id as the aggregator reports it (the ledger key).
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct VerifiedPurchase {
-    pub write: EntitlementWrite,
+pub struct StoreSubscription {
+    /// Aggregator store name (`APP_STORE`, `MAC_APP_STORE`, `PLAY_STORE`, `PADDLE`, …).
+    pub store: String,
+    pub product_id: String,
+    pub provider_ref: String,
+    pub purchase_at: Option<DateTime<Utc>>,
+    pub expires_at: Option<DateTime<Utc>>,
+    pub unsubscribe_detected_at: Option<DateTime<Utc>>,
+    pub billing_issues_detected_at: Option<DateTime<Utc>>,
+    pub grace_period_expires_at: Option<DateTime<Utc>>,
+    pub refunded_at: Option<DateTime<Utc>>,
+    pub is_sandbox: bool,
 }
 
-/// Verifies a store purchase reported by the app (Apple signed transaction JWS,
-/// Google purchase token) against the provider and maps it to a ledger write.
-/// Implemented by the Apple / Google adapters.
+/// Reads one account's subscriptions from the store aggregator (the pull side of
+/// D3: plan sync after purchase/restore, and reconciliation). Reads only the
+/// given account — never another one's.
 #[cfg_attr(any(test, feature = "mock"), automock)]
 #[async_trait]
-pub trait StorePurchaseVerifier: Send + Sync {
-    async fn verify(
-        &self,
-        user_id: &str,
-        payload: &str,
-        product_id: &str,
-    ) -> Result<VerifiedPurchase>;
+pub trait StoreCustomerSource: Send + Sync {
+    async fn subscriptions(&self, user_id: &str) -> Result<Vec<StoreSubscription>>;
+}
+
+/// Deletes an account's aggregator customer (account erasure, D6).
+#[cfg_attr(any(test, feature = "mock"), automock)]
+#[async_trait]
+pub trait StoreCustomerEraser: Send + Sync {
+    async fn delete_customer(&self, user_id: &str) -> Result<()>;
 }
 
 /// The web merchant-of-record: hosted checkout + portal + cancellation.

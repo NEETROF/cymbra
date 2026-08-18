@@ -115,6 +115,29 @@ impl Source {
     }
 }
 
+/// Who delivered a billing notification — the idempotency scope of
+/// `billing_events` (change: swap-store-billing-to-revenuecat, D1). Distinct from
+/// [`Source`]: the aggregator delivers events for several stores, and the ledger
+/// row keeps the *store* as its `source`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum EventProvider {
+    /// The web merchant-of-record's own webhook (Paddle, direct).
+    Web,
+    /// The store aggregator's webhook / customer API (App Store, Play, and Paddle
+    /// once routed through it).
+    Revenuecat,
+}
+
+impl EventProvider {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            EventProvider::Web => "web",
+            EventProvider::Revenuecat => "revenuecat",
+        }
+    }
+}
+
 /// Provider-reported lifecycle state of a row. `BillingRetry` is the only state
 /// that extends activity past `ends_at` (by the grace period).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]

@@ -5,7 +5,7 @@
 //! are the pure cores.
 
 use crate::billing::{IngestOutcome, ProviderEvent, ingest, payload_digest};
-use crate::model::{EntitlementStatus, Source};
+use crate::model::{EntitlementStatus, EventProvider, Source};
 use crate::ports::{EntitlementWrite, WebBillingProvider, WebSubscriptionCanceller};
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
@@ -219,7 +219,7 @@ pub async fn handle_webhook(
     ingest(
         svc,
         ProviderEvent {
-            source: Source::Web,
+            provider: EventProvider::Web,
             event_id: env.event_id,
             payload_digest: payload_digest(body),
             writes,

@@ -1,5 +1,6 @@
-//! Provider notification routes + channel wiring (change: add-premium-subscription,
-//! design D7–D9). Three public HTTP endpoints, each authenticated by its
+//! Provider notification routes + channel wiring (change: add-premium-subscription
+//! D9 for the web merchant-of-record; swap-store-billing-to-revenuecat D4 for the
+//! store aggregator). Two public HTTP endpoints, each authenticated by its
 //! provider's own mechanism BEFORE any side effect, idempotent by event id, and
 //! **acknowledge-and-ignore** while the channel's flag is off (a disabled channel
 //! must not make the provider retry forever). Configuration comes from the
@@ -14,7 +15,8 @@ use axum::http::{HeaderMap, StatusCode};
 use axum::routing::post;
 use axum::{Router, response::IntoResponse};
 use chrono::Utc;
-pub use cymbra_plans::billing::env::{AppleEnv, BillingChannels, BillingEnv, GoogleEnv, WebEnv};
+pub use cymbra_plans::billing::env::{BillingChannels, BillingEnv, RevenueCatEnv, WebEnv};
+use cymbra_plans::billing::revenuecat::WebhookOutcome;
 use cymbra_plans::billing::web::verify_signature;
 use cymbra_plans::{AppError, Channel, PaywallConfigSource, PlanService};
 
@@ -28,11 +30,8 @@ pub struct BillingState {
 /// The provider notification routes; unconfigured channels are not mounted.
 pub fn billing_router(state: BillingState) -> Router {
     let mut r = Router::new();
-    if state.channels.apple.is_some() {
-        r = r.route("/billing/apple/notifications", post(apple_notifications));
-    }
-    if state.channels.google_api.is_some() {
-        r = r.route("/billing/google/rtdn", post(google_rtdn));
+    if state.channels.revenuecat.is_some() {
+        r = r.route("/billing/revenuecat/webhook", post(revenuecat_webhook));
     }
     if state.channels.web.is_some() {
         r = r.route("/billing/web/webhook", post(web_webhook));
@@ -48,64 +47,47 @@ fn status_for(e: &AppError) -> StatusCode {
     }
 }
 
-async fn apple_notifications(
-    State(s): State<BillingState>,
-    body: Bytes,
-) -> axum::response::Response {
-    if !s.paywall.channel_enabled(Channel::Apple) {
-        tracing::info!("apple notification ignored (billing.apple.enabled off)");
-        return StatusCode::OK.into_response();
-    }
-    let Some(cfg) = s.channels.apple.as_ref() else {
-        return StatusCode::NOT_FOUND.into_response();
-    };
-    match cymbra_plans::billing::apple::handle_notification(&s.svc, cfg, &body, Utc::now()).await {
-        Ok(outcome) => {
-            tracing::info!(?outcome, "apple notification");
-            StatusCode::OK.into_response()
-        }
-        Err(e) => {
-            tracing::warn!(error = %e, "apple notification refused");
-            status_for(&e).into_response()
-        }
-    }
-}
-
-async fn google_rtdn(
+/// The store aggregator's webhook: shared-secret `Authorization` header
+/// (constant-time), event id idempotency, per-store flag inside the handler.
+/// Past authentication the answer is always 200 — RevenueCat retries on anything
+/// else, and a skip is a decision, not a failure.
+async fn revenuecat_webhook(
     State(s): State<BillingState>,
     headers: HeaderMap,
     body: Bytes,
 ) -> axum::response::Response {
-    if !s.paywall.channel_enabled(Channel::Google) {
-        tracing::info!("google rtdn ignored (billing.google.enabled off)");
-        return StatusCode::OK.into_response();
-    }
-    let (Some(api), Some(auth), Some(pkg)) = (
-        s.channels.google_api.as_ref(),
-        s.channels.google_push_auth.as_ref(),
-        s.channels.google_package.as_deref(),
-    ) else {
+    let Some(cfg) = s.channels.revenuecat.as_ref() else {
         return StatusCode::NOT_FOUND.into_response();
     };
-    // Authenticate the push (Google-signed OIDC token) BEFORE any side effect.
-    let bearer = headers
+    let authorization = headers
         .get(axum::http::header::AUTHORIZATION)
-        .and_then(|v| v.to_str().ok())
-        .and_then(|v| v.strip_prefix("Bearer "))
-        .unwrap_or("");
-    if let Err(e) = auth.verify(bearer).await {
-        tracing::warn!(error = %e, "google rtdn refused");
-        return StatusCode::UNAUTHORIZED.into_response();
-    }
-    match cymbra_plans::billing::google::handle_rtdn(&s.svc, api.as_ref(), pkg, &body, Utc::now())
-        .await
+        .and_then(|v| v.to_str().ok());
+    match cymbra_plans::billing::revenuecat::handle_webhook(
+        &s.svc,
+        cfg,
+        s.paywall.as_ref(),
+        s.channels.rc_customers.as_deref(),
+        authorization,
+        &body,
+        Utc::now(),
+    )
+    .await
     {
         Ok(outcome) => {
-            tracing::info!(?outcome, "google rtdn");
+            match &outcome {
+                WebhookOutcome::ChannelDisabled(src) => tracing::info!(
+                    source = src.as_str(),
+                    "revenuecat event ignored (billing.<channel>.enabled off)"
+                ),
+                WebhookOutcome::Skipped(reason) => {
+                    tracing::info!(?reason, "revenuecat event skipped")
+                }
+                other => tracing::info!(?other, "revenuecat webhook"),
+            }
             StatusCode::OK.into_response()
         }
         Err(e) => {
-            tracing::warn!(error = %e, "google rtdn failed");
+            tracing::warn!(error = %e, "revenuecat webhook refused");
             status_for(&e).into_response()
         }
     }

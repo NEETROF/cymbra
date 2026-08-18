@@ -132,7 +132,7 @@ async fn main() -> anyhow::Result<()> {
     // sweeps and the erasure's web-subscription cancellation. Wired only when the
     // plans DB is configured; the provider clients come from the same environment
     // block the server reads (channels missing their variables are skipped).
-    let (plans, plan_reconcilers, web_cancel) = match cfg.plans_database_url.as_deref() {
+    let (plans, plan_reconciler, web_cancel, rc_erase) = match cfg.plans_database_url.as_deref() {
         Some(url) => {
             let plans_pool = cymbra_plans::pg::connect(url, 2).await?;
             let rotator: Arc<dyn cymbra_plans::CacheSecretRotator> =
@@ -157,22 +157,30 @@ async fn main() -> anyhow::Result<()> {
             let channels = cymbra_plans::billing::env::BillingChannels::build(
                 &cymbra_plans::billing::env::BillingEnv::from_env(),
             );
-            let reconcilers = Arc::new(cymbra_plans::billing::reconcile::Reconcilers {
-                apple: channels.apple_api.clone(),
-                google: channels.google_api.clone(),
-                web: channels.web.clone(),
+            let reconciler = Arc::new(cymbra_plans::billing::reconcile::Reconciler {
+                customers: channels.rc_customers.clone(),
+                allow_sandbox: channels
+                    .revenuecat
+                    .as_ref()
+                    .is_some_and(|rc| rc.allow_sandbox),
             });
             let web_cancel: Option<Arc<dyn cymbra_plans::WebSubscriptionCanceller>> = channels
                 .web
                 .clone()
                 .map(|w| w as Arc<dyn cymbra_plans::WebSubscriptionCanceller>);
-            (Some(svc), reconcilers, web_cancel)
+            (
+                Some(svc),
+                reconciler,
+                web_cancel,
+                channels.rc_eraser.clone(),
+            )
         }
         None => {
             tracing::info!("plans jobs inert (CYMBRA_PLANS_DATABASE_URL unset)");
             (
                 None,
-                Arc::new(cymbra_plans::billing::reconcile::Reconcilers::default()),
+                Arc::new(cymbra_plans::billing::reconcile::Reconciler::default()),
+                None,
                 None,
             )
         }
@@ -186,12 +194,14 @@ async fn main() -> anyhow::Result<()> {
         storage,
         reap_grace_secs: cfg.orphan_reap_grace.as_secs() as i64,
         play_detail_retention_days: cfg.play_detail_retention_days as i64,
-        flags: flag_service,
+        flags: flag_service.clone(),
         push,
         score_preview,
         plans,
-        plan_reconcilers,
+        plan_reconciler,
+        plan_paywall: Arc::new(flags::WorkerPaywallConfig::new(flag_service.clone())),
         web_cancel,
+        rc_erase,
     };
 
     // --- sqlxmq runner: executes queued jobs (event-driven; design D7) ---

@@ -4,7 +4,7 @@ version = "0.1.0"
 edition.workspace = true
 license.workspace = true
 authors.workspace = true
-description = "Cymbra plans — the free/premium entitlement ledger (multi-source, expiring), beta campaigns + memberships (premium trials, feature betas), single-use access codes, and the purchase-channel adapters (Apple, Google, web merchant-of-record). Owns the `plans` schema. Stores identifiers only — never billing personal data. Change: add-premium-subscription."
+description = "Cymbra plans — the free/premium entitlement ledger (multi-source, expiring), beta campaigns + memberships (premium trials, feature betas), single-use access codes, and the purchase-channel adapters (store aggregator for App Store / Play, web merchant-of-record). Owns the `plans` schema. Stores identifiers only — never billing personal data. Changes: add-premium-subscription, swap-store-billing-to-revenuecat."
 
 [dependencies]
 async-trait.workspace = true
@@ -20,17 +20,10 @@ chrono = { workspace = true, features = ["serde"] }
 # Access codes: 128-bit CSPRNG, base32-ish clear text, SHA-256 at rest.
 getrandom = "0.2"
 sha2 = "0.10"
-# Provider webhooks / APIs (Apple JWS, Google Play API, web MoR): reqwest + JWT.
+# Provider webhooks / APIs (store aggregator customer API, web MoR): reqwest;
+# HMAC for the web MoR webhook signature.
 reqwest.workspace = true
-jsonwebtoken.workspace = true
-base64.workspace = true
 hmac.workspace = true
-# Apple signed payloads (App Store Server Notifications v2 / signed transactions):
-# x5c chain parsing + ECDSA verification against the pinned Apple Root CA G3
-# (P-256 leaf/intermediate, P-384 root) — pure Rust, no OpenSSL.
-x509-parser = "0.16"
-p256 = { version = "0.13", features = ["ecdsa"] }
-p384 = { version = "0.13", features = ["ecdsa"] }
 # gRPC PlanService (client + admin surface).
 tonic.workspace = true
 prost.workspace = true
@@ -48,7 +41,3 @@ mock = ["dep:mockall"]
 [dev-dependencies]
 tokio = { workspace = true }
 mockall = { workspace = true }
-# Self-signed test chains for the Apple JWS verifier (root → leaf), signed JWS
-# with the leaf key.
-rcgen = "0.13"
-p256 = { version = "0.13", features = ["ecdsa", "pkcs8"] }

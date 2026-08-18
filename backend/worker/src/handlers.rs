@@ -53,13 +53,19 @@ pub struct WorkerCtx {
     /// and withdrawal sweeps run against. `None` (no `CYMBRA_PLANS_DATABASE_URL`)
     /// leaves both jobs inert (they log and complete).
     pub plans: Option<Arc<cymbra_plans::PlanService>>,
-    /// Provider clients for the reconciliation sweep (each `None` when its channel
-    /// is unconfigured — its rows are skipped).
-    pub plan_reconcilers: Arc<cymbra_plans::billing::reconcile::Reconcilers>,
+    /// The store aggregator's customer reads for the reconciliation sweep (inert
+    /// when the aggregator is unconfigured).
+    pub plan_reconciler: Arc<cymbra_plans::billing::reconcile::Reconciler>,
+    /// Paywall knobs (the premium product set the reconciler grants for).
+    pub plan_paywall: Arc<dyn cymbra_plans::PaywallConfigSource>,
     /// Web merchant-of-record cancellation for the erasure job: an active `web`
     /// subscription is cancelled on the provider before the account's plan rows are
     /// erased. `None` when the web channel is unconfigured.
     pub web_cancel: Option<Arc<dyn cymbra_plans::WebSubscriptionCanceller>>,
+    /// Store aggregator customer deletion for the erasure job (change:
+    /// swap-store-billing-to-revenuecat, D6): the account's aggregator customer is
+    /// deleted before its plan rows are erased. `None` when unconfigured.
+    pub rc_erase: Option<Arc<dyn cymbra_plans::StoreCustomerEraser>>,
 }
 
 /// Payload of the `score_preview_render` job (change: add-score-daily-access-rewards).
@@ -155,8 +161,13 @@ pub async fn purge_user(mut job: CurrentJob, ctx: WorkerCtx) -> Result<(), BoxEr
     let span = tracing::info_span!("job.purge_user", job_id = %job.id());
     async move {
         let p: PurgeUserJob = job.json()?.ok_or("purge_user: missing JSON payload")?;
-        cymbra_worker::purge_user_with(&ctx.admin_pool, &p.user_id, ctx.web_cancel.as_deref())
-            .await?;
+        cymbra_worker::purge_user_with(
+            &ctx.admin_pool,
+            &p.user_id,
+            ctx.web_cancel.as_deref(),
+            ctx.rc_erase.as_deref(),
+        )
+        .await?;
         tracing::info!(user_id = %p.user_id, "account data purged");
         job.complete().await?;
         Ok(())
@@ -520,7 +531,8 @@ pub async fn plans_reconcile(mut job: CurrentJob, ctx: WorkerCtx) -> Result<(), 
             Some(plans) if plans.enabled() => {
                 let n = cymbra_plans::billing::reconcile::reconcile(
                     plans,
-                    &ctx.plan_reconcilers,
+                    &ctx.plan_reconciler,
+                    ctx.plan_paywall.as_ref(),
                     chrono::Utc::now(),
                     chrono::Duration::days(3),
                 )
