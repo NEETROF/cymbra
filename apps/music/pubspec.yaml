@@ -125,7 +125,10 @@ dependencies:
   # DST correctly — the backend requires an IANA name. Behind the injectable
   # `timezoneServiceProvider` seam (change: add-push-notifications).
   flutter_timezone: ^3.0.1
-  in_app_purchase: ^3.3.0
+  # Store aggregator SDK (RevenueCat: StoreKit 2 / Play Billing behind it) —
+  # behind the injectable `storeClientProvider` seam (`RcSdk` sub-seam), so no
+  # widget or notifier imports it (change: swap-store-billing-to-revenuecat).
+  purchases_flutter: ^10.9.0
 
 dev_dependencies:
   flutter_test:

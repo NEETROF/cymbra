@@ -17,7 +17,6 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
-import 'package:grpc/grpc.dart' show GrpcError, StatusCode;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../services/app_platform.dart';
@@ -133,6 +132,10 @@ enum PurchaseOutcome {
   /// restore from a device signed in with a different account than the one
   /// that bought). The user must sign in with that account.
   otherAccount,
+
+  /// The store side succeeded but the server plan sync failed (offline,
+  /// aggregator lag): the plan refreshes on resume / next request.
+  syncPending,
   failed,
 }
 
@@ -148,11 +151,13 @@ abstract class PurchaseFlowState with _$PurchaseFlowState {
   }) = _PurchaseFlowState;
 }
 
-/// Drives purchases and restores (change: add-premium-subscription, design D7–D10):
-/// store builds go through the [StoreClient] (StoreKit 2 / Play Billing) and
-/// report every receipt to the server for verification; desktop / web open the
+/// Drives purchases and restores (change: add-premium-subscription D10;
+/// swap-store-billing-to-revenuecat D2): store builds go through the
+/// [StoreClient] (the aggregator SDK over StoreKit 2 / Play Billing) and then
+/// ask the server to sync the plan from the aggregator; desktop / web open the
 /// hosted merchant-of-record checkout in the browser. Fire-and-observe: the UI
-/// never awaits [buy] / [restore]; it reacts to [PurchaseFlowState].
+/// never awaits [buy] / [restore]; it reacts to [PurchaseFlowState]. Also keeps
+/// the store SDK bound to the signed-in account (identity = Cymbra account id).
 @Riverpod(keepAlive: true)
 class PurchaseFlow extends _$PurchaseFlow {
   StreamSubscription<StoreEvent>? _sub;
@@ -161,8 +166,14 @@ class PurchaseFlow extends _$PurchaseFlow {
   @override
   PurchaseFlowState build() {
     _sub?.cancel();
-    _sub = ref.watch(storeClientProvider).events.listen(_onStoreEvent);
+    final store = ref.watch(storeClientProvider);
+    _sub = store.events.listen(_onStoreEvent);
     ref.onDispose(() => _sub?.cancel());
+    // Bind / unbind the SDK on every session change (sign-out resets before
+    // the next sign-in configures the new account).
+    ref.listen(currentUserIdProvider, (_, next) {
+      unawaited(store.setAccount(next));
+    }, fireImmediately: true);
     return const PurchaseFlowState();
   }
 
@@ -212,31 +223,20 @@ class PurchaseFlow extends _$PurchaseFlow {
     }
   }
 
-  /// Re-assert the store transactions of this account ("restore purchases").
+  /// Restore this account's store transactions ("restore purchases"): the SDK
+  /// settles synchronously; the outcome arrives on the event stream.
   Future<void> restore() async {
     if (state.busy) return;
     final userId = ref.read(currentUserIdProvider);
     if (userId == null) return;
     state = state.copyWith(busy: true);
-    _restoring = true;
-    _restoredAny = false;
     try {
       await ref.read(storeClientProvider).restore(accountToken: userId);
-      // Give the store a moment to replay; then settle if nothing came back.
-      await Future<void>.delayed(const Duration(seconds: 3));
-      if (_restoring && !_restoredAny) {
-        _restoring = false;
-        _finish(PurchaseOutcome.nothingToRestore);
-      }
     } catch (e) {
       debugPrint('restore failed: $e');
-      _restoring = false;
       _finish(PurchaseOutcome.failed);
     }
   }
-
-  bool _restoring = false;
-  bool _restoredAny = false;
 
   Future<void> _onStoreEvent(StoreEvent event) async {
     switch (event) {
@@ -244,55 +244,36 @@ class PurchaseFlow extends _$PurchaseFlow {
         _finish(PurchaseOutcome.cancelled);
       case StoreEventPending():
         _finish(PurchaseOutcome.pending);
+      case StoreEventOtherAccount():
+        // The aggregator keeps the receipt with its original account: nothing
+        // to sync here; tell the user which way out exists.
+        _finish(PurchaseOutcome.otherAccount);
+      case StoreEventNothingToRestore():
+        _finish(PurchaseOutcome.nothingToRestore);
       case StoreEventError(:final message):
         debugPrint('store error: $message');
         _finish(PurchaseOutcome.failed);
       case StoreEventReceipt(:final receipt):
-        await _report(receipt);
+        await _sync(receipt);
     }
   }
 
-  Future<void> _report(StoreReceipt receipt) async {
+  /// The store side is done: the server re-reads the aggregator customer and
+  /// the app adopts the returned plan (never the SDK's local customer info).
+  Future<void> _sync(StoreReceipt receipt) async {
     final platform = ref.read(appPlatformProvider);
-    final channel = switch (platform) {
-      AppPlatform.android => PlanChannel.google,
-      _ => PlanChannel.apple,
-    };
     try {
-      final view = await ref
-          .read(planServiceProvider)
-          .reportStorePurchase(
-            channel: channel,
-            payload: receipt.payload,
-            productId: receipt.productId,
-          );
+      final view = await ref.read(planServiceProvider).syncStorePlan(platform);
       await ref.read(storeClientProvider).complete(receipt);
       ref.read(planProvider.notifier).adopt(view.plan);
-      if (receipt.restored) {
-        _restoredAny = true;
-        _restoring = false;
-        _finish(PurchaseOutcome.restored);
-      } else {
-        _finish(PurchaseOutcome.purchased);
-      }
-    } on GrpcError catch (e) {
-      _restoring = false;
-      if (e.code == StatusCode.permissionDenied) {
-        // Bound to another Cymbra account: the transaction can never be
-        // granted here, so finish it locally (the owning account restores it)
-        // and tell the user which way out exists.
-        debugPrint('purchase belongs to another account: ${e.message}');
-        await ref.read(storeClientProvider).complete(receipt);
-        _finish(PurchaseOutcome.otherAccount);
-        return;
-      }
-      // The store keeps the transaction pending; a later restore re-reports it.
-      debugPrint('purchase report failed: $e');
-      _finish(PurchaseOutcome.failed);
+      _finish(
+        receipt.restored ? PurchaseOutcome.restored : PurchaseOutcome.purchased,
+      );
     } catch (e) {
-      debugPrint('purchase report failed: $e');
-      _restoring = false;
-      _finish(PurchaseOutcome.failed);
+      // The store side succeeded; the plan refresh on resume / next request
+      // (and the aggregator webhook) will land it. Say so, never "failed".
+      debugPrint('store plan sync failed: $e');
+      _finish(PurchaseOutcome.syncPending);
     }
   }
 }

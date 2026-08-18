@@ -733,6 +733,7 @@
   "planCheckoutOpened": "El pago se abrió en tu navegador. Vuelve y actualiza cuando termines.",
   "planRestoreNothing": "No hay compras que restaurar en esta cuenta",
   "planPurchaseOtherAccount": "Esta compra está vinculada a otra cuenta de Cymbra. Inicia sesión con esa cuenta para usarla.",
+  "planSyncPending": "Compra confirmada por la tienda: tu plan se actualizará en un momento.",
   "planPurchaseFailed": "No se pudo completar la compra. Cymbra no ha cobrado nada.",
   "planWithdrawnNotice": "Tu acceso Premium ha terminado: las piezas del catálogo sin conexión y los pianos Premium se han eliminado de este dispositivo.",
   "accountPlanMenu": "Suscripción",

@@ -96,7 +96,7 @@ abstract class PlanSnapshotView with _$PlanSnapshotView {
   bool get isTrial => isPremium && trialCampaignKey != null && source == 'code';
 }
 
-/// Outcome of a store purchase report / restore: the refreshed plan.
+/// Outcome of a store plan sync (after a purchase / restore): the refreshed plan.
 @freezed
 abstract class PurchaseReportView with _$PurchaseReportView {
   const factory PurchaseReportView({required PlanSnapshotView plan}) =
@@ -112,12 +112,6 @@ PlanChannel? _channel(plans.Channel c) => switch (c) {
   plans.Channel.CHANNEL_GOOGLE => PlanChannel.google,
   plans.Channel.CHANNEL_WEB => PlanChannel.web,
   _ => null,
-};
-
-plans.Channel _toChannel(PlanChannel c) => switch (c) {
-  PlanChannel.apple => plans.Channel.CHANNEL_APPLE,
-  PlanChannel.google => plans.Channel.CHANNEL_GOOGLE,
-  PlanChannel.web => plans.Channel.CHANNEL_WEB,
 };
 
 plans.Platform _toPlatform(AppPlatform p) => switch (p) {
@@ -156,22 +150,20 @@ PlanSnapshotView toPlanView(plans.GetMyPlanResponse r) => PlanSnapshotView(
 
 // --- Service seam ------------------------------------------------------------
 
-/// Seam over the backend `PlanService` (change: add-premium-subscription): the
-/// caller's plan for this platform, store purchase reports (also restore), and
-/// the web checkout URL. Every call is bearer-authenticated; the production impl
-/// refreshes transparently on `UNAUTHENTICATED`. Tests override the provider
-/// with a mockito mock. Failures throw `AuthException`.
+/// Seam over the backend `PlanService` (change: add-premium-subscription;
+/// store sync since swap-store-billing-to-revenuecat): the caller's plan for
+/// this platform, the store plan sync (after a purchase / restore through the
+/// aggregator SDK), and the web checkout URL. Every call is bearer-authenticated;
+/// the production impl refreshes transparently on `UNAUTHENTICATED`. Tests
+/// override the provider with a mockito mock. Failures throw `AuthException`.
 abstract class PlanService {
   /// The caller's plan + what [platform] may purchase.
   Future<PlanSnapshotView> getMyPlan(AppPlatform platform);
 
-  /// Report a store purchase for server-side verification ([payload] = Apple
-  /// signed transaction JWS | Google purchase token). Returns the refreshed plan.
-  Future<PurchaseReportView> reportStorePurchase({
-    required PlanChannel channel,
-    required String payload,
-    required String productId,
-  });
+  /// Ask the server to re-read the caller's aggregator customer and reconcile
+  /// the ledger (no payload: the app never carries a receipt). Returns the
+  /// refreshed plan for [platform].
+  Future<PurchaseReportView> syncStorePlan(AppPlatform platform);
 
   /// A hosted merchant-of-record checkout URL for [productId] (desktop / web).
   Future<Uri> createWebCheckout(String productId);
@@ -199,21 +191,14 @@ class GrpcPlanService implements PlanService {
   );
 
   @override
-  Future<PurchaseReportView> reportStorePurchase({
-    required PlanChannel channel,
-    required String payload,
-    required String productId,
-  }) => _authed((bearer) async {
-    final resp = await _client.reportStorePurchase(
-      plans.ReportStorePurchaseRequest(
-        channel: _toChannel(channel),
-        payload: payload,
-        productId: productId,
-      ),
-      options: bearerOptions(bearer),
-    );
-    return PurchaseReportView(plan: toPlanView(resp.plan));
-  });
+  Future<PurchaseReportView> syncStorePlan(AppPlatform platform) =>
+      _authed((bearer) async {
+        final resp = await _client.syncStorePlan(
+          plans.SyncStorePlanRequest(platform: _toPlatform(platform)),
+          options: bearerOptions(bearer),
+        );
+        return PurchaseReportView(plan: toPlanView(resp.plan));
+      });
 
   @override
   Future<Uri> createWebCheckout(String productId) => _authed((bearer) async {

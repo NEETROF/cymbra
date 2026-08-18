@@ -145,7 +145,13 @@ PODS:
   - PromisesObjC (2.4.1)
   - PromisesSwift (2.4.1):
     - PromisesObjC (= 2.4.1)
+  - purchases_flutter (10.9.0):
+    - Flutter
+    - PurchasesHybridCommon (= 18.30.0)
+  - PurchasesHybridCommon (18.30.0):
+    - RevenueCat (= 5.83.1)
   - RecaptchaInterop (101.0.0)
+  - RevenueCat (5.83.1)
   - rust_lib_music (0.0.1):
     - Flutter
   - SDWebImage (5.21.7):
@@ -172,6 +178,7 @@ DEPENDENCIES:
   - google_sign_in_ios (from `.symlinks/plugins/google_sign_in_ios/darwin`)
   - integration_test (from `.symlinks/plugins/integration_test/ios`)
   - package_info_plus (from `.symlinks/plugins/package_info_plus/ios`)
+  - purchases_flutter (from `.symlinks/plugins/purchases_flutter/ios`)
   - rust_lib_music (from `.symlinks/plugins/rust_lib_music/ios`)
   - shared_preferences_foundation (from `.symlinks/plugins/shared_preferences_foundation/darwin`)
   - sign_in_with_apple (from `.symlinks/plugins/sign_in_with_apple/ios`)
@@ -196,7 +203,9 @@ SPEC REPOS:
     - nanopb
     - PromisesObjC
     - PromisesSwift
+    - PurchasesHybridCommon
     - RecaptchaInterop
+    - RevenueCat
     - SDWebImage
     - SwiftyGif
 
@@ -223,6 +232,8 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/integration_test/ios"
   package_info_plus:
     :path: ".symlinks/plugins/package_info_plus/ios"
+  purchases_flutter:
+    :path: ".symlinks/plugins/purchases_flutter/ios"
   rust_lib_music:
     :path: ".symlinks/plugins/rust_lib_music/ios"
   shared_preferences_foundation:
@@ -261,7 +272,10 @@ SPEC CHECKSUMS:
   package_info_plus: c0502532a26c7662a62a356cebe2692ec5fe4ec4
   PromisesObjC: 752c3227f599e3467650e47ea36f433eeb10c273
   PromisesSwift: 217dea0fd5d2ad65222a109c48698add13cc1c5b
+  purchases_flutter: de34677626576d2fad91a0de0930e6ba0e096bcb
+  PurchasesHybridCommon: 6a2230d42f14de597e3f6a0633938992c2442133
   RecaptchaInterop: 11e0b637842dfb48308d242afc3f448062325aba
+  RevenueCat: 9a06074a6aebf09f749c19a73a96f0870ad477e6
   rust_lib_music: fbd132ed0e4c09507a7296d71cd1ad0ae6dd92fa
   SDWebImage: e9fc87c1aab89a8ab1bbd74eba378c6f53be8abf
   shared_preferences_foundation: 5086985c1d43c5ba4d5e69a4e8083a389e2909e6
