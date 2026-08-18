@@ -43,10 +43,10 @@
 
 ## 6. Verification
 
-- [ ] 6.1 `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo llvm-cov --workspace --fail-under-lines 80` green (mappers + service covered; only the reqwest glue ignored)
-- [ ] 6.2 `melos run analyze`, `dart run custom_lint`, `dart format`, `flutter test --coverage` green; `flutter build` for iOS, macOS, Android with the RC keys, and Linux/Windows without (Noop path)
-- [ ] 6.3 Back office `yarn lint`, `yarn test`, e2e green (own `BO_E2E_PORT`)
-- [ ] 6.4 `openspec validate swap-store-billing-to-revenuecat --strict` passes
+- [x] 6.1 `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo llvm-cov --workspace --fail-under-lines 80` green (mappers + service covered; only the reqwest glue ignored)
+- [x] 6.2 `melos run analyze`, `dart run custom_lint`, `dart format`, `flutter test --coverage` green; `flutter build` for iOS, macOS, Android with the RC keys, and Linux/Windows without (Noop path)
+- [x] 6.3 Back office `yarn lint`, `yarn test`, e2e green (own `BO_E2E_PORT`)
+- [x] 6.4 `openspec validate swap-store-billing-to-revenuecat --strict` passes
 
 ## 7. Manual — sandbox through RevenueCat (D8 step 3)
 
