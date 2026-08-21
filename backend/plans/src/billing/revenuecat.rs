@@ -76,8 +76,13 @@ fn ms(v: i64) -> Option<DateTime<Utc>> {
 
 fn is_premium_product(products: &[String], product: &str) -> bool {
     // An empty product set would grant nothing; treat it as "any" and let the
-    // paywall config own the list.
-    products.is_empty() || products.iter().any(|p| p == product)
+    // paywall config own the list. Play subscriptions under the base-plans model
+    // are reported as `subscription_id:base_plan_id` (e.g.
+    // `premium_monthly:monthly`): the part before `:` is the store product id,
+    // so both spellings match the configured set (`:` is not a legal store id
+    // character, the split is unambiguous).
+    let base = product.split(':').next().unwrap_or(product);
+    products.is_empty() || products.iter().any(|p| p == product || p == base)
 }
 
 // ------------------------------------------------------------- event shape
@@ -740,6 +745,22 @@ mod tests {
         // empty product set = any product
         let ev = event("renewal");
         assert!(matches!(map_event(&ev, &[], n, true), Mapped::Writes(_)));
+    }
+
+    #[test]
+    fn play_base_plan_suffix_still_matches_the_premium_set() {
+        // RevenueCat reports Play base-plan subscriptions as `id:base_plan`.
+        let mut ev = event("uncancellation"); // PLAY_STORE fixture
+        ev.product_id = Some("premium_yearly:yearly".into());
+        assert!(matches!(
+            map_event(&ev, &products(), now(), true),
+            Mapped::Writes(_)
+        ));
+        ev.product_id = Some("coins_100:monthly".into());
+        assert_eq!(
+            map_event(&ev, &products(), now(), true),
+            Mapped::Skip(SkipReason::ProductNotPremium("coins_100:monthly".into()))
+        );
     }
 
     #[test]
