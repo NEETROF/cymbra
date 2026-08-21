@@ -172,6 +172,9 @@ pub use user_soundfont::{
 
 /// Generated protobuf messages + tonic client/server stubs for `cymbra.music.v1`
 /// (the ScoreService — user uploads).
+// `tonic::Status` is large by design; newer clippy flags every generated
+// client/server signature for it.
+#[allow(clippy::result_large_err)]
 pub mod proto {
     tonic::include_proto!("cymbra.music.v1");
 }

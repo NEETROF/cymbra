@@ -45,6 +45,9 @@ pub use ports::{
 pub use service::{AccountPlan, EnrolOutcome, PlanDeps, PlanFilter, PlanService};
 
 /// Generated `cymbra.plans.v1` protobuf types + tonic client/server stubs.
+// `tonic::Status` is large by design; newer clippy flags every generated
+// client/server signature for it.
+#[allow(clippy::result_large_err)]
 pub mod proto {
     tonic::include_proto!("cymbra.plans.v1");
 }

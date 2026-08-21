@@ -38,6 +38,9 @@ pub use store::{ChangeRecord, FlagStore, OverrideWrite, PgFlagStore, StoredOverr
 pub use value::{FlagValue, ValueType};
 
 /// Generated `cymbra.flags.v1` protobuf types + tonic client/server stubs.
+// `tonic::Status` is large by design; newer clippy flags every generated
+// client/server signature for it.
+#[allow(clippy::result_large_err)]
 pub mod proto {
     tonic::include_proto!("cymbra.flags.v1");
 }

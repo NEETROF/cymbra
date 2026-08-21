@@ -31,6 +31,9 @@ pub use usage_core::{Invalid, RawEvent, ValidEvent, user_bucket, validate};
 
 /// Generated `cymbra.analytics.v1` protobuf messages + tonic client/server stubs
 /// (the UsageService — batched feature-usage ingestion).
+// `tonic::Status` is large by design; newer clippy flags every generated
+// client/server signature for it.
+#[allow(clippy::result_large_err)]
 pub mod proto {
     tonic::include_proto!("cymbra.analytics.v1");
 }

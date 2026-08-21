@@ -10,6 +10,9 @@ use cymbra_platform::{AppError, Result};
 use std::collections::BTreeMap;
 
 /// Generated protobuf messages + tonic client/server stubs for `cymbra.user.v1`.
+// `tonic::Status` is large by design; newer clippy flags every generated
+// client/server signature for it.
+#[allow(clippy::result_large_err)]
 pub mod proto {
     tonic::include_proto!("cymbra.user.v1");
 }
