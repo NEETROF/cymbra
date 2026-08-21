@@ -365,6 +365,8 @@ impl GrpcUserClient {
     }
 
     /// Read the caller's account (auth carried in request metadata).
+    // `tonic::Status` is large by design, like every gRPC adapter signature.
+    #[allow(clippy::result_large_err)]
     pub async fn get_account(&mut self) -> std::result::Result<proto::Account, tonic::Status> {
         Ok(self
             .inner
