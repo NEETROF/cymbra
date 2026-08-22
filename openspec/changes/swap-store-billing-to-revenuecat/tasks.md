@@ -50,7 +50,7 @@
 
 ## 7. Manual — sandbox through RevenueCat (D8 step 3)
 
-- [ ] 7.1 Dark: webhook secret unset ⇒ route absent; set ⇒ RevenueCat "send test event" returns 200 and a `TEST` no-op is counted; wrong header ⇒ 401
+- [x] 7.1 Dark: webhook secret unset ⇒ route absent; set ⇒ RevenueCat "send test event" returns 200 and a `TEST` no-op is counted; wrong header ⇒ 401 — *2026-08-22 on prod (backend 0.19.0 deployed): POST without auth ⇒ 401 (route mounted, Caddy passes the prefix); RC "Send Test Event" ⇒ Response 200 in the dashboard (TEST payload, environment SANDBOX)*
 - [ ] 7.2 iOS sandbox tester: purchase `premium_monthly` → RevenueCat customer shows the subscription → webhook `INITIAL_PURCHASE` lands (`billing_events` row, `apple` entitlement row) → app `SyncStorePlan` shows premium; accelerated renewal moves `ends_at`; cancel keeps access to the end; sandbox refund ends now; verify the D1 key-consistency (webhook `original_transaction_id` == subscriber fetch key) — if not equal, apply the documented fallback key and re-test
 - [ ] 7.3 macOS App Store build: same purchase appears as `MAC_APP_STORE` → `apple`; iPhone signed in as the same account shows premium without a second purchase
 - [ ] 7.4 Android license tester: purchase → `PLAY_STORE` → `google` row; RTDN-driven renewal / cancel / on-hold (`BILLING_ISSUE` grace) / refund; pause → row ended, resume → renewal
