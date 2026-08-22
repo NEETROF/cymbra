@@ -90,14 +90,20 @@
 - [ ] 5.1 `open_score.dart`: add a cancel affordance to the progress dialog. Keep
       `barrierDismissible: false` (an accidental barrier tap should not cancel a load)
       — the exit is the explicit control.
-- [ ] 5.2 On cancel: complete the completer, pop the dialog, and clear
-      `selectedScoreProvider` so `_load`'s existing
-      `if (ref.read(selectedScoreProvider) != entry) return` guards discard the late
-      result. Do not add a separate "cancelled" flag.
-- [ ] 5.3 Cancelling shows **no** error banner and returns the user to the previous
+- [ ] 5.2 On cancel: clear `selectedScoreProvider` (the existing
+      `if (ref.read(selectedScoreProvider) != entry) return` guards then discard the
+      late result — no notifier-side "cancelled" flag) and resolve the wait with a
+      **cancelled outcome distinct from failure**, e.g. a local tri-state in
+      `openScore`. Completing the existing `Completer<bool>` with `false` is wrong:
+      the `else` branch reads `notationProvider.failure` and shows a snackbar
+      (`open_score.dart:127`), which must not run on cancel.
+- [ ] 5.3 The cancel control must **not** pop the dialog itself — the main flow
+      already pops once the completer resolves (`open_score.dart:110`), and a second
+      pop would dismiss the underlying screen. One pop, owned by the main flow.
+- [ ] 5.4 Cancelling shows **no** error banner and returns the user to the previous
       screen — it is a user decision, not a failure.
-- [ ] 5.4 Add the localized cancel label to the ARB files and regenerate l10n.
-- [ ] 5.5 Make sure `sub.close()` still runs on the cancel path (today it only runs
+- [ ] 5.5 Add the localized cancel label to the ARB files and regenerate l10n.
+- [ ] 5.6 Make sure `sub.close()` still runs on the cancel path (today it only runs
       via the loaded/failed branches).
 
 ## 6. Abandon the upload on leave (design D11)
@@ -130,6 +136,10 @@
 - [ ] 7.4 Make sure a timeout surfaces as the seam's own exception type
       (`PrivateSoundFontException` etc.), not a raw `TimeoutException`, so no raw
       technical text can reach the UI.
+- [ ] 7.5 `imported_soundfonts.dart` `importSoundFont()`: persist the local registry
+      entry **before** awaiting the server upload (design D5). The upload is already
+      designed non-fatal ("syncs on a later build"), but a hung uncapped upload never
+      throws, so today it wedges the import it was not supposed to be able to fail.
 
 ## 8. Tests
 

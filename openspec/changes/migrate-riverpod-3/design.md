@@ -12,7 +12,9 @@ The surface, measured rather than estimated:
 
 - **136 providers** (68 `@Riverpod(keepAlive: true)`, 68 autoDispose) over 95 files.
 - **500 `overrideWithValue`** call sites in tests (478 `test/`, 22 `integration_test/`)
-  — the DI mechanism `CLAUDE.md` mandates.
+  — the DI mechanism `CLAUDE.md` mandates. Verified present in `flutter_riverpod`
+  3.0.3 (its own docs use it for provider overrides), so task 8.1 is a confirmation
+  pass, not a gamble.
 - **52 `AsyncValue.valueOrNull`** (47 in `lib/`).
 - **45** async providers whose errors escape into `AsyncValue`.
 - **5** sites type-testing an error cause (`is AuthException`, `is GrpcError`).
@@ -149,9 +151,9 @@ after the gates are green.
 
 ## Open Questions
 
-- Does a `riverpod_lint` 3.x matching `riverpod_generator` 3.0.3 exist on pub, with the
-  repo's `custom_lint` gate still passing? Confirm before starting; it is the only thing
-  that could stop this change dead.
+- ~~Does a `riverpod_lint` 3.x exist on pub?~~ **Resolved 2026-08-23**: latest on pub
+  is `riverpod_lint` 3.1.8, well past 3.0. What remains of task 1.1 is only confirming
+  the repo's `custom_lint` gate passes with it — a run, not an existence question.
 - Should any provider opt back **into** retry once the default is off (D3)? Answer per
   provider during the migration, not up front — the honest default is "none until one
   proves it wants it".

@@ -106,7 +106,7 @@ of explicit overrides plus a default of `interactive`:
 
 ```
 transfer (30s): GetCatalogScoreBytes, GetScoreBytes, GetRatingPreviewBytes,
-                GetCourseManifest
+                GetCourse (returns the manifest blob)
 long   (120s):  UploadScore
 default (10s):  everything else
 ```
@@ -162,10 +162,23 @@ setup only. Picking an arbitrary "generous" number here would be a latent bug th
 only fires for users on poor connections with big files — the worst possible
 population to fail on silently.
 
-Alternative for later, deliberately not taken now: move the bulk seams to
-`HttpClient` (`dart:io`) which exposes `connectionTimeout` and `idleTimeout`
-(no-progress) separately. That is the right long-term shape but rewrites four working
-seams and their tests; it is noted as a follow-up rather than smuggled in here.
+One claim needs qualifying: "bounded at connection establishment" does not make a
+half-open socket safe. Once connected, a **send** on a dead socket errors only when the
+OS exhausts TCP retransmissions (minutes, platform-dependent), and a **read-wait** can
+hang indefinitely — TCP keepalive is off by default and gRPC keepalive (D9) does not
+cover these seams at all; they are `package:http`. So the uncapped bulk paths keep a
+real residual hang window. Two consequences drawn here rather than hidden:
+
+- The private SoundFont import currently `await`s the server upload **before**
+  persisting the local registry entry, even though a failed upload is already designed
+  to be non-fatal ("stays local-only and syncs on a later build") — a hung upload
+  therefore wedges the whole import despite that intent, because a hang never throws
+  and so never reaches the catch. Reorder: persist the local entry first, then upload;
+  the existing later-sync path already reconciles the `remoteId`.
+- A true no-progress bound is expressible for the bulk **download** with the streaming
+  API (`send()` + a per-chunk `.timeout` on the byte stream); the upload side has no
+  equivalent hook in `package:http`. That, or moving the seams to `dart:io HttpClient`,
+  stays a follow-up — it rewrites working seams and their tests.
 
 ### D6 — Set `connectTimeout` anyway
 

@@ -1,8 +1,8 @@
 ## 1. Confirm the toolchain before touching anything
 
-- [ ] 1.1 Verify a `riverpod_lint` major matching `riverpod_generator` 3.x exists on
-      pub. `custom_lint` is a CI gate — if this does not exist, stop here and report;
-      nothing else in this change matters (design Open Questions).
+- [ ] 1.1 `riverpod_lint` 3.x existence: **confirmed 2026-08-23** (3.1.8 on pub).
+      Remaining: pin the major matching `riverpod_generator` 3.x and confirm the
+      repo's `custom_lint` gate still passes with it — it is a CI gate.
 - [ ] 1.2 Verify `riverpod_generator` 3.x still pulls a Freezed major compatible with
       the repo's Freezed 3 syntax (`abstract class … with _$…`).
 - [ ] 1.3 Confirm this change is starting **after** `add-client-transport-deadlines` has
