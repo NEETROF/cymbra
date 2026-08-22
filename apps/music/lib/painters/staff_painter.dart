@@ -37,6 +37,14 @@ class StaffPainter extends CustomPainter {
   /// by time like the notes, routed to their staff.
   final List<TimedRest> rests;
 
+  /// Tie continuations to engrave on the staff (render-only; never played or
+  /// scored): the `tie stop` notes whose durations were merged into their
+  /// chain's first note in [notes]. Drawn exactly like notes — head, stem/beam,
+  /// dots — plus the tie arc back to the engraved note each one prolongs
+  /// ([TimedNote.tieFromMs]), so the notation stays as written instead of
+  /// leaving the prolonged measures empty.
+  final List<TimedNote> tieContinuations;
+
   final double elapsedMs;
   final Set<int> activeNotes;
 
@@ -101,6 +109,7 @@ class StaffPainter extends CustomPainter {
     required this.bpm,
     required this.songEndMs,
     this.rests = const [],
+    this.tieContinuations = const [],
     this.keyFifths = 0,
     this.measureKeyFifths = const [],
     this.beats = 4,
@@ -567,11 +576,18 @@ class StaffPainter extends CustomPainter {
       return ratio <= 0.32 ? 2 : (ratio <= 0.62 ? 1 : 0);
     }
 
+    // Everything engraved as a note: the playable notes plus the render-only
+    // tie continuations, merged by onset (both lists arrive start-sorted) so
+    // beam groups keep their engraved member order — a continuation can open a
+    // beam group whose remaining members are playable (e.g. an eighth tied from
+    // the previous measure beamed with the sixteenths that follow it).
+    final drawNotes = _mergedByStart(notes, tieContinuations);
+
     // Beam groups carried from the notation (per staff). Members get a beam
     // instead of individual flags.
     final beamGroups = <List<TimedNote>>[];
     final openGroups = <int, List<TimedNote>>{};
-    for (final n in notes) {
+    for (final n in drawNotes) {
       if (n.beams.isEmpty) continue;
       final g = openGroups.putIfAbsent(n.staff, () => <TimedNote>[]);
       g.add(n);
@@ -605,18 +621,18 @@ class StaffPainter extends CustomPainter {
     canvas.save();
     canvas.clipRect(Rect.fromLTRB(headEnd, 0, size.width, size.height));
 
-    // 4) Scrolling notes, routed to their staff.
-    for (var i = 0; i < notes.length; i++) {
-      final n = notes[i];
+    // 4) Scrolling notes, routed to their staff. One body for both channels:
+    // playable notes (which can carry a replay mistake ring) and the render-only
+    // tie continuations (which cannot — the mistake overlay indexes [notes]).
+    void drawNoteGlyphs(TimedNote n, {Color? mistake}) {
       final x = xForTime(n.startMs.toDouble());
-      if (!visible(x)) continue;
+      if (!visible(x)) return;
       final y = noteY(n);
       final atPlayhead =
           n.startMs <= elapsedMs && elapsedMs < n.startMs + n.durationMs;
       final color = colorFor(n);
 
       // Replay: ring the note in its mistake colour, in place on the staff.
-      final mistake = mistakeColors[i];
       if (mistake != null) {
         canvas.drawCircle(
           Offset(x, y),
@@ -714,6 +730,15 @@ class StaffPainter extends CustomPainter {
       }
     }
 
+    for (var i = 0; i < notes.length; i++) {
+      drawNoteGlyphs(notes[i], mistake: mistakeColors[i]);
+    }
+    // 4a) The engraved tie continuations, drawn identically (their beamed
+    // members share the group pass below like everyone else's).
+    for (final n in tieContinuations) {
+      drawNoteGlyphs(n);
+    }
+
     // 4b) Scrolling rests, routed to their staff and centred on its middle line
     // (two spaces above the bottom line), like the engraved Partition view.
     final restColor = palette.staffLine;
@@ -794,7 +819,71 @@ class StaffPainter extends CustomPainter {
       );
     }
 
+    // 5b) Tie arcs: each continuation is joined to the engraved note it
+    // prolongs, on the head side (away from the stem), like the Partition view.
+    final headHalf = Smufl.noteheadWidth * lineGap / 2;
+    for (final n in tieContinuations) {
+      final from = n.tieFromMs;
+      if (from == null) continue;
+      final x1 = xForTime(from.toDouble()) + headHalf;
+      final x2 = xForTime(n.startMs.toDouble()) - headHalf;
+      // Cull only when the whole span is off-screen: a chain crossing the edge
+      // still shows its arc up to the clip.
+      if (x2 < margin - lineGap || x1 > size.width - margin + lineGap) continue;
+      final y = noteY(n);
+      final bowUp = !stemUpOf(n);
+      _drawTieArc(canvas, x1, x2, y, lineGap, bowUp);
+      record(
+        Rect.fromLTRB(
+          math.min(x1, x2),
+          y - lineGap * (bowUp ? 1.6 : 0.4),
+          math.max(x1, x2),
+          y + lineGap * (bowUp ? 0.4 : 1.6),
+        ),
+        const SymbolDescriptor.tie(),
+      );
+    }
+
     canvas.restore(); // end the scrolling-glyph clip
+  }
+
+  /// Playable notes and tie continuations interleaved by onset — a stable merge
+  /// of two start-sorted lists, so beam groups see the engraved member order.
+  static List<TimedNote> _mergedByStart(List<TimedNote> a, List<TimedNote> b) {
+    if (b.isEmpty) return a;
+    if (a.isEmpty) return b;
+    final merged = <TimedNote>[];
+    var i = 0, j = 0;
+    while (i < a.length && j < b.length) {
+      merged.add(a[i].startMs <= b[j].startMs ? a[i++] : b[j++]);
+    }
+    merged
+      ..addAll(a.sublist(i))
+      ..addAll(b.sublist(j));
+    return merged;
+  }
+
+  /// A tie between two same-pitch heads: a shallow arc from the previous head's
+  /// right edge to the continuation's left edge, bowed on the head side.
+  void _drawTieArc(
+    Canvas canvas,
+    double x1,
+    double x2,
+    double y,
+    double lineGap,
+    bool bowUp,
+  ) {
+    final dir = bowUp ? -1.0 : 1.0;
+    final yEdge = y + dir * lineGap * 0.55;
+    canvas.drawPath(
+      Path()
+        ..moveTo(x1, yEdge)
+        ..quadraticBezierTo((x1 + x2) / 2, yEdge + dir * lineGap, x2, yEdge),
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = Smufl.stemThickness * lineGap
+        ..color = palette.staffLine.withValues(alpha: 0.75),
+    );
   }
 
   void _drawStaffLines(
@@ -1094,6 +1183,7 @@ class StaffPainter extends CustomPainter {
       old.activeNotes != activeNotes ||
       old.notes != notes ||
       old.rests != rests ||
+      old.tieContinuations != tieContinuations ||
       old.measureStartMs != measureStartMs ||
       old.measureKeyFifths != measureKeyFifths ||
       old.mistakeColors != mistakeColors ||

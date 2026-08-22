@@ -53,6 +53,11 @@ Color colorForMark(ReplayMark m) => switch (m) {
 /// captured from the player when the run finished.
 class ReplayScore {
   final List<TimedNote> notes;
+
+  /// Render-only tie continuations of the piece (`PlayerData.tieContinuations`
+  /// hand-filtered), so the replay staff engraves tied notation the same way
+  /// the live one does.
+  final List<TimedNote> tieContinuations;
   final int bpm;
   final double songEndMs;
   final int keyFifths;
@@ -63,6 +68,7 @@ class ReplayScore {
 
   const ReplayScore({
     required this.notes,
+    this.tieContinuations = const [],
     required this.bpm,
     required this.songEndMs,
     required this.keyFifths,
@@ -75,6 +81,7 @@ class ReplayScore {
   /// Builds the replay context from the current player state (same piece).
   factory ReplayScore.fromPlayer(PlayerData d) => ReplayScore(
     notes: d.visibleNotes,
+    tieContinuations: d.visibleTieContinuations,
     bpm: d.bpm,
     songEndMs: d.songEndMs,
     keyFifths: d.keyFifths,
@@ -269,6 +276,7 @@ class _ReplayDialogState extends ConsumerState<_ReplayDialog>
               size: Size.infinite,
               painter: StaffPainter(
                 notes: _score.notes,
+                tieContinuations: _score.tieContinuations,
                 elapsedMs: _elapsed,
                 activeNotes: _sounding,
                 bpm: _score.bpm,

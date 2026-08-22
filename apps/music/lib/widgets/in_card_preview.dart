@@ -197,6 +197,7 @@ class _InCardPreviewState extends ConsumerState<InCardPreview>
                 painter: StaffPainter(
                   notes: score.notes,
                   rests: score.rests,
+                  tieContinuations: score.tieContinuations,
                   elapsedMs: _elapsedMs,
                   activeNotes: const <int>{}, // read-only: nothing pressed
                   bpm: score.bpm,

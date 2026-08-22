@@ -499,6 +499,77 @@ void main() {
         );
         expect(notationToTimedNotes(doc).notes, hasLength(2));
       });
+
+      // The merged continuations must NOT vanish from the notation: dropping
+      // them left the prolonged measures looking empty (an eighth "stretching"
+      // over the next bar — the River Flows In You report). They come back on a
+      // render-only channel, engraved as written and anchored for the tie arc.
+      test(
+        'continuations surface on the render-only channel with arc anchors',
+        () {
+          final doc = _docWith(
+            notes: [
+              // River-like chain: eighth (tie start) → dotted half (stop+start)
+              // → eighth (stop). One attack, three engraved notes.
+              noteEvent(
+                positionDivisions: 0,
+                durationDivisions: 2,
+                noteType: 'eighth',
+                pitch: const Pitch(step: 'D', octave: 5, alter: 0),
+                tieStart: true,
+              ),
+              noteEvent(
+                positionDivisions: 2,
+                durationDivisions: 12,
+                noteType: 'half',
+                dots: 1,
+                pitch: const Pitch(step: 'D', octave: 5, alter: 0),
+                tieStop: true,
+                tieStart: true,
+              ),
+              noteEvent(
+                positionDivisions: 14,
+                durationDivisions: 2,
+                noteType: 'eighth',
+                pitch: const Pitch(step: 'D', octave: 5, alter: 0),
+                tieStop: true,
+              ),
+            ],
+          );
+          final d = notationToTimedNotes(doc);
+          // Playback: one merged attack spanning the whole chain, keeping the
+          // first note's engraved figure.
+          expect(d.notes, hasLength(1));
+          expect(d.notes.single.noteType, 'eighth');
+          expect(d.notes.single.durationMs, (quarterMs * 4).round());
+          // Notation: both continuations kept, as written, each anchored to the
+          // engraved note it prolongs (a chain arcs link-to-link, not all-to-first).
+          expect(d.tieContinuations, hasLength(2));
+          final half = d.tieContinuations[0];
+          expect(half.noteType, 'half');
+          expect(half.dots, 1);
+          expect(half.startMs, (quarterMs / 2).round());
+          expect(half.tieFromMs, 0);
+          final eighth = d.tieContinuations[1];
+          expect(eighth.noteType, 'eighth');
+          expect(eighth.startMs, (quarterMs * 3.5).round());
+          expect(eighth.tieFromMs, half.startMs);
+        },
+      );
+
+      test('a plain playable note carries no arc anchor', () {
+        final doc = _docWith(
+          notes: [
+            noteEvent(
+              positionDivisions: 0,
+              pitch: const Pitch(step: 'C', octave: 4, alter: 0),
+            ),
+          ],
+        );
+        final d = notationToTimedNotes(doc);
+        expect(d.notes.single.tieFromMs, isNull);
+        expect(d.tieContinuations, isEmpty);
+      });
     });
 
     test('carries the written diatonic step, not the MIDI collapse', () {
