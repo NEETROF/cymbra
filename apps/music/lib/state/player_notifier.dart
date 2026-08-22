@@ -427,7 +427,7 @@ class Player extends _$Player {
     // onset or records an extra note (a no-op when no run is active). Presses
     // made during the pre-start countdown are warm-ups and are not scored.
     if (state.countdownMs <= 0) {
-      _scorer.noteOn(pitch, state.referenceMs, waitMode: state.waitMode);
+      _scorer.noteOn(pitch, state.judgmentClockMs, waitMode: state.waitMode);
     }
   }
 
@@ -444,7 +444,7 @@ class Player extends _$Player {
         consumedHeld: {...state.consumedHeld}..remove(pitch),
       );
     }
-    _scorer.noteOff(pitch, state.referenceMs);
+    _scorer.noteOff(pitch, state.judgmentClockMs);
   }
 
   // --- Playback controls ------------------------------------------------
@@ -720,12 +720,13 @@ class Player extends _$Player {
     // Mode blocked early-return below so the gate-open time is stamped even while
     // the cascade is frozen. A no-op when no run is active.
     //
-    // The scorer is driven on the **heard** clock throughout (change:
-    // add-audio-output-routing): gate-open stamps, attacks and miss windows all
-    // read [PlayerData.referenceMs], so the whole judgment timeline is one
-    // uniform translation of the playhead — identical to today whenever the
-    // output offset is 0.
-    _scorer.tick(s.referenceMs, waitMode: s.waitMode);
+    // The scorer is driven on [PlayerData.judgmentClockMs] throughout — the
+    // heard clock in free run (change: add-audio-output-routing), the emission
+    // clock in Wait Mode, where the frozen playhead has to match its own onset
+    // to the millisecond. Gate-open stamps, attacks and miss windows all read
+    // the same one, so the judgment timeline never splits. Identical to a bare
+    // playhead whenever the output offset is 0.
+    _scorer.tick(s.judgmentClockMs, waitMode: s.waitMode);
 
     // Wait Mode tolerance: a key already held (and not already consumed by an
     // earlier onset) when the playhead reaches this onset counts as attacked —
@@ -745,7 +746,7 @@ class Player extends _$Player {
         // no fresh attack — credit the scorer for it (reaction ≈ 0) so it is not
         // later marked missed.
         for (final p in heldDue) {
-          _scorer.noteOn(p, s.referenceMs, waitMode: true);
+          _scorer.noteOn(p, s.judgmentClockMs, waitMode: true);
         }
       }
     }
@@ -884,7 +885,7 @@ class Player extends _$Player {
     // pause at the last position rather than looping.
     if (finishScoredRun) {
       _silenceAll();
-      _scorer.finishRun(next - s.outputOffsetMs, waitMode: s.waitMode);
+      _scorer.finishRun(s.judgmentClockAt(next), waitMode: s.waitMode);
       state = state.copyWith(isPlaying: false);
     }
   }
