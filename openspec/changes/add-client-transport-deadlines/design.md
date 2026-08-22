@@ -186,10 +186,25 @@ cancel handle is **erased at the seam**. Recovering it means changing the return
 of every adapter method the notifiers await, and threading a cancellation token
 through 16 adapters — a large, invasive diff for an abort we can get for free.
 
-Chosen: **race** the awaited work against the connectivity transition inside the
-notifier. First to resolve wins; if the offline signal wins, the notifier goes
-straight to its offline outcome and the orphaned RPC dies on its own deadline (D1) in
-the background, harmlessly. No adapter signature changes.
+Chosen: **race** the awaited work against the connectivity transition. First to resolve
+wins; if the offline signal wins, the caller goes straight to its offline outcome and
+the orphaned RPC dies on its own deadline (D1) in the background, harmlessly. No
+adapter signature changes.
+
+The helper is **shared from the start**, in its own file — not private to the notation
+notifier. It is a ~10-line utility with one plausible signature (race this future
+against the offline transition, throw a sentinel if offline wins); the part that varies
+between callers is what to *do* on abort, and that stays at the call site in the
+`catch`. There is no abstraction bet to hedge here, so building it private and
+extracting it later would just mean doing the same edit twice.
+
+What is *not* rolled out broadly is the **adoption**, and for a reason that is not
+plumbing: applying the race to a screen presupposes that screen has a defined offline
+behaviour. Only `notation_notifier` and `library_screen` touch connectivity today.
+`community`, `profile`, the leaderboards, `score_hub` and the rating deck have no
+offline concept at all, so aborting their load at 0 ms instead of 10 s would only change
+*when* the same generic error appears, not what it says. Those screens adopt the helper
+as each one gains a real offline outcome — which is product work, not transport work.
 
 Two implementation constraints that are easy to get wrong:
 
@@ -374,7 +389,8 @@ live offline-cache regression.
   (D5 alternative)? Deferred — it is a separate refactor of four working seams.
 - What keepalive interval does Caddy tolerate (D9)? Blocking for the keepalive task
   only; the rest of the change does not depend on the answer.
-- Should the race + pre-flight live in a reusable helper for every notifier that awaits
-  the network, or stay local to the notation load? Built local first — the score open is
-  the one place with a blocking modal. Generalize when a second caller needs it, rather
-  than designing an abstraction for one user.
+- Which screens beyond the score open should adopt the race? Deliberately left open:
+  the helper is shared from day one, but adoption waits on each screen having an offline
+  outcome worth showing (D7). Answering it for `community` / `profile` / leaderboards is
+  a product question about what those screens display offline, and belongs in whatever
+  change decides that.

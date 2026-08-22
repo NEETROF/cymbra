@@ -62,9 +62,11 @@
 
 ## 4. Abort on connectivity loss (design D7, D8)
 
-- [ ] 4.1 Add a race helper to `notation_notifier.dart`: run the awaited network work
-      against the first `false` **event** on `connectivityService.onlineStatus`, and
-      resolve to the offline outcome if the transition wins.
+- [ ] 4.1 Add a **shared** race helper in its own file (e.g.
+      `apps/music/lib/state/offline_race.dart`) — not private to the notation notifier:
+      run an awaited future against the first `false` **event** on
+      `connectivityService.onlineStatus`, throwing a sentinel when the transition wins.
+      What to do on abort stays at each call site.
 - [ ] 4.2 The helper MUST own an explicit `StreamSubscription` and cancel it in a
       `finally` — `onlineStatus` is a broadcast stream, so an unsatisfied listener
       leaks one subscription per score open.
@@ -77,8 +79,11 @@
 - [ ] 4.5 Add the pre-flight `isOnline()` gate to the cache-**miss** path, mirroring
       the one `_decideCachedCatalogOpen` already has at line 164. Short-circuit on a
       `false` reading only; a `true` reading proves nothing and the call proceeds.
-- [ ] 4.6 Confirm no other notifier awaits a blocking network call behind a modal; if
-      one appears, note it rather than widening this change (design D10 scope).
+- [ ] 4.6 Do **not** roll the race out to the other screens (`community`, `profile`,
+      leaderboards, `score_hub`, rating deck). They have no offline behaviour to fall
+      back to — only `notation_notifier` and `library_screen` touch connectivity today
+      — so aborting early would just change *when* the same generic error shows. They
+      adopt the helper when they gain a real offline outcome (design D7).
 
 ## 5. Escapable blocking wait (design D10)
 
