@@ -85,6 +85,28 @@ fn is_premium_product(products: &[String], product: &str) -> bool {
     products.is_empty() || products.iter().any(|p| p == product || p == base)
 }
 
+/// Google order ids gain a `..N` suffix on every renewal (`GPA.x-x-x-x..0`,
+/// `..1`, …) while the base id names the subscription for its whole life.
+/// RevenueCat is not consistent about which spelling an event carries (observed
+/// in 7.4: `INITIAL_PURCHASE`/`RENEWAL` carry the base id, `CANCELLATION` the
+/// suffixed one), and a ledger keyed on the raw value splits one subscription
+/// across `(source, provider_ref)` rows. Strip the suffix for `google` refs;
+/// Apple/web ids never use this spelling.
+fn normalize_provider_ref(source: Source, provider_ref: String) -> String {
+    if source != Source::Google {
+        return provider_ref;
+    }
+    match provider_ref.rfind("..") {
+        Some(i)
+            if i + 2 < provider_ref.len()
+                && provider_ref[i + 2..].bytes().all(|b| b.is_ascii_digit()) =>
+        {
+            provider_ref[..i].to_string()
+        }
+        _ => provider_ref,
+    }
+}
+
 // ------------------------------------------------------------- event shape
 
 /// A RevenueCat webhook body: `{ "api_version": "1.0", "event": { … } }`.
@@ -213,6 +235,7 @@ pub fn map_event(
         .original_transaction_id
         .clone()
         .or_else(|| ev.transaction_id.clone())
+        .map(|r| normalize_provider_ref(source, r))
     else {
         return Mapped::Skip(SkipReason::MissingFields("original_transaction_id"));
     };
@@ -298,7 +321,7 @@ pub fn map_customer(
         out.push(EntitlementWrite {
             user_id: user_id.to_string(),
             source,
-            provider_ref: s.provider_ref.clone(),
+            provider_ref: normalize_provider_ref(source, s.provider_ref.clone()),
             campaign_id: None,
             starts_at: s.purchase_at.unwrap_or(now),
             ends_at: Some(ends_at),
@@ -598,6 +621,46 @@ mod tests {
         ] {
             assert_eq!(store_to_source(s), None, "{s}");
         }
+    }
+
+    #[test]
+    fn google_provider_refs_are_normalized_to_the_base_order_id() {
+        for (raw, want) in [
+            ("GPA.3390-0929-2914-92454..0", "GPA.3390-0929-2914-92454"),
+            ("GPA.3390-0929-2914-92454..12", "GPA.3390-0929-2914-92454"),
+            ("GPA.3390-0929-2914-92454", "GPA.3390-0929-2914-92454"),
+            ("GPA.3390..", "GPA.3390.."), // nothing after `..` — untouched
+            ("GPA.3390..x1", "GPA.3390..x1"), // non-numeric suffix — untouched
+        ] {
+            assert_eq!(
+                normalize_provider_ref(Source::Google, raw.into()),
+                want,
+                "{raw}"
+            );
+        }
+        // Only google refs are rewritten.
+        assert_eq!(
+            normalize_provider_ref(Source::Apple, "otx..0".into()),
+            "otx..0"
+        );
+        // End to end: a Play CANCELLATION carrying the renewal-suffixed order id
+        // (observed live in 7.4) keys the same row as the INITIAL_PURCHASE did.
+        let ev = RcEvent {
+            id: "e-cancel-google".into(),
+            kind: "CANCELLATION".into(),
+            app_user_id: U1.into(),
+            store: Some("PLAY_STORE".into()),
+            product_id: Some("premium_monthly:monthly".into()),
+            original_transaction_id: Some("GPA.3390-0929-2914-92454..0".into()),
+            purchased_at_ms: Some(1_700_000_000_000),
+            expiration_at_ms: Some(1_700_000_300_000),
+            ..Default::default()
+        };
+        let Mapped::Writes(ws) = map_event(&ev, &products(), now(), true) else {
+            panic!("expected writes");
+        };
+        assert_eq!(ws[0].provider_ref, "GPA.3390-0929-2914-92454");
+        assert_eq!(ws[0].status, S::Cancelled);
     }
 
     #[test]
