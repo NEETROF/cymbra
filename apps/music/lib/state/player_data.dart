@@ -392,12 +392,14 @@ abstract class PlayerData with _$PlayerData {
     /// either way.
     @Default(false) bool instrumentSoundsItself,
 
-    /// Output latency compensation in milliseconds (change:
+    /// Output latency compensation in **wall-clock** milliseconds (change:
     /// add-audio-output-routing), seeded from the persisted play preferences.
     /// The audio the user hears at any instant is what the engine emitted this
-    /// many milliseconds ago, so [referenceMs] — the position they are actually
-    /// hearing — is what the playhead is drawn at and what attacks are judged
-    /// against. 0 (the default) makes it a no-op.
+    /// many real milliseconds ago, so [referenceMs] — the position they are
+    /// actually hearing — is what the playhead is drawn at and what a free-run
+    /// attack is judged against. 0 (the default) makes it a no-op, at every
+    /// transport speed and in both modes. See [referenceMs] for the known
+    /// wall-clock/score-clock unit defect at speeds other than 1x.
     @Default(0) int outputOffsetMs,
 
     /// First measure of the **active practice range** (index into
@@ -425,10 +427,47 @@ abstract class PlayerData with _$PlayerData {
   ///
   /// [elapsedMs] is the emission clock: it is what decides when a note is handed
   /// to the audio engine. On a delayed route that sound only reaches the ear
-  /// [outputOffsetMs] later, so this is the position the highlight must show and
-  /// the reference an attack must be judged against — one number, so the two can
-  /// never drift apart. With the default offset of 0 it *is* [elapsedMs].
+  /// [outputOffsetMs] later, so this is the position the highlight must show —
+  /// and, in free run, the reference an attack is judged against. With the
+  /// default offset of 0 it *is* [elapsedMs].
+  ///
+  /// **Known defect, deliberately not fixed here** (see the
+  /// `fix-output-offset-units` change): [outputOffsetMs] is a *wall-clock*
+  /// latency while this is a *score* clock, so at a transport speed other than
+  /// 1x the shift is off by a factor of `speed`. Rescaling it instantly
+  /// (`outputOffsetMs * speed`) is NOT the fix — it makes this clock a function
+  /// of a value the user can change mid-run, and a tempo tap then teleports it
+  /// by `outputOffsetMs * Δspeed`, sweeping pending onsets into `missed` and
+  /// truncating sustains. The lag has to *drain* like the audio it models, i.e.
+  /// this has to become a delayed copy of the playhead rather than a rescale.
   double get referenceMs => elapsedMs - outputOffsetMs;
+
+  /// The score clock the scorer is driven on, for a playhead at [playheadMs].
+  ///
+  /// **Free run** judges an attack by its distance from the onset, and the
+  /// player is reacting to what they *hear*, so the heard position is the fair
+  /// reference — that is the whole point of the output offset.
+  ///
+  /// **Wait Mode** is different, and must use the emission clock. There the
+  /// judgment is a reaction time measured on the wall clock; the score clock is
+  /// used only to identify *which* onset is gating, by matching the frozen
+  /// playhead to within a millisecond. Nothing has sounded yet during a freeze —
+  /// the player is waiting to play the note, not to hear it — so shifting that
+  /// clock buys nothing and makes the frozen playhead miss its own onset, which
+  /// silently drops every press on the floor.
+  ///
+  /// Toggling Wait Mode mid-run switches clocks by [outputOffsetMs]. The verdict
+  /// model changes with it anyway (reaction time vs timing offset), but a note
+  /// held *across* the toggle has its sustain measured on two different clocks
+  /// and comes out short. That edge is strictly better than what it replaces —
+  /// before, a Wait-Mode press under any offset bound to nothing at all and the
+  /// note ended `missed` with no sustain — but it is not free, and it is the
+  /// second reason the lag wants to be a drained, continuous quantity.
+  double judgmentClockAt(double playheadMs) =>
+      waitMode ? playheadMs : playheadMs - outputOffsetMs;
+
+  /// [judgmentClockAt] for the current playhead.
+  double get judgmentClockMs => judgmentClockAt(elapsedMs);
 
   /// Whether the instrument-sounds-itself setting can do anything right now: it
   /// only ever suppresses notes arriving from an instrument, so with no MIDI
