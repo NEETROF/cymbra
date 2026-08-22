@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/NEETROF/cymbra/compare/site-v0.2.0...site-v0.3.0) (2026-08-22)
+
+
+### Features
+
+* **plans:** route store billing through RevenueCat ([#261](https://github.com/NEETROF/cymbra/issues/261)) ([a42ab2a](https://github.com/NEETROF/cymbra/commit/a42ab2a5eed6b9da9adb0c8b7a209aae866d7ef6))
+
 ## [0.2.0](https://github.com/NEETROF/cymbra/compare/site-v0.1.1...site-v0.2.0) (2026-08-17)
 
 
