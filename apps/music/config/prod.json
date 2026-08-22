@@ -4,5 +4,7 @@
   "APPLE_SIGN_IN_ENABLED": true,
   "CYMBRA_GRPC_HOST": "api.cymbra.app",
   "CYMBRA_GRPC_PORT": 443,
-  "CYMBRA_GRPC_SECURE": true
+  "CYMBRA_GRPC_SECURE": true,
+  "CYMBRA_RC_APPLE_KEY": "appl_QoNOymGnXeVYQIioIXinuWitPPr",
+  "CYMBRA_RC_GOOGLE_KEY": "goog_BdmVezJtuWseDrPMydRTOTYXjdI"
 }
