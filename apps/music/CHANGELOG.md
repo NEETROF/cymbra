@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.25.0](https://github.com/NEETROF/cymbra/compare/music-v1.24.0...music-v1.25.0) (2026-08-22)
+
+
+### Features
+
+* **plans:** route store billing through RevenueCat ([#261](https://github.com/NEETROF/cymbra/issues/261)) ([a42ab2a](https://github.com/NEETROF/cymbra/commit/a42ab2a5eed6b9da9adb0c8b7a209aae866d7ef6))
+
+
+### Bug Fixes
+
+* **music:** record the cause behind the entry screen's generic sign-in error ([#258](https://github.com/NEETROF/cymbra/issues/258)) ([afe1a4f](https://github.com/NEETROF/cymbra/commit/afe1a4fae4998ccfaf474319a4867e967217c3a1))
+
 ## [1.24.0](https://github.com/NEETROF/cymbra/compare/music-v1.23.0...music-v1.24.0) (2026-08-17)
 
 

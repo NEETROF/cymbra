@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.0](https://github.com/NEETROF/cymbra/compare/back-office-v0.8.0...back-office-v0.9.0) (2026-08-22)
+
+
+### Features
+
+* **plans:** route store billing through RevenueCat ([#261](https://github.com/NEETROF/cymbra/issues/261)) ([a42ab2a](https://github.com/NEETROF/cymbra/commit/a42ab2a5eed6b9da9adb0c8b7a209aae866d7ef6))
+
 ## [0.8.0](https://github.com/NEETROF/cymbra/compare/back-office-v0.7.0...back-office-v0.8.0) (2026-08-16)
 
 
