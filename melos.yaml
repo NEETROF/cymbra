@@ -46,7 +46,10 @@ scripts:
     description: Run tests (with coverage) across all Flutter packages that have a test/ dir.
     # Goldens are excluded from the cross-platform gate; run them locally with
     # `flutter test --tags golden`.
-    run: melos exec -- flutter test --coverage --exclude-tags golden
+    # Serialized: two concurrent `flutter test` invocations race on the tool's
+    # startup lock and one can 404 on an empty-version engine_stamp fetch (seen
+    # on CI); the lock forces near-serial execution anyway, so -c 1 is free.
+    run: melos exec --concurrency=1 -- flutter test --coverage --exclude-tags golden
     packageFilters:
       flutter: true
       dirExists: test
