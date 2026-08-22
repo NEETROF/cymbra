@@ -483,7 +483,7 @@ class Player extends _$Player {
 
   String? get _currentScoreId => ref.read(selectedScoreProvider)?.id;
 
-  /// Starts playback from the transport, arming a get-ready countdown (5…1…GO)
+  /// Starts playback from the transport, arming a get-ready countdown (3…2…1…GO)
   /// when starting a **free-run** piece from the top, so the player has time to
   /// ready their hands before the notes start moving. In Wait Mode the cascade
   /// already freezes at the first onset (unlimited ready time), so no countdown
@@ -684,7 +684,13 @@ class Player extends _$Player {
 
   // --- Time advance (called by the screen's Ticker) ---------------------
 
-  /// Advances the playhead by [dtMs] ms (already multiplied by the speed).
+  /// Advances the transport by [dtMs] ms of **real** (wall-clock) frame time.
+  ///
+  /// The playhead moves by `dtMs * speed` — the transport speed is applied here,
+  /// not by the caller, so that the parts of the frame that are *not* musical
+  /// time keep running at wall-clock rate. The pre-start countdown is one such
+  /// part: a get-ready beat is a real-world beat, so 3…2…1…GO always lasts
+  /// [kCountdownStartMs] whether the piece is played at 0.25× or 2×.
   ///
   /// Wait Mode gates on note *onsets*: the cascade freezes at each onset until
   /// every note starting there has been pressed (latched in [PlayerData.gateSatisfied]),
@@ -695,12 +701,17 @@ class Player extends _$Player {
     if (!s.isPlaying || s.notes.isEmpty) return;
 
     // Pre-start countdown: freeze the playhead (and audio/scoring) while the
-    // 5…1…GO ticks down in real time, then playback proceeds normally.
+    // 3…2…1…GO ticks down in REAL time — deliberately on [dtMs] and not on the
+    // speed-scaled delta below, so slowing the tempo down does not stretch the
+    // wait before the first note. Then playback proceeds normally.
     if (s.countdownMs > 0) {
       final remaining = s.countdownMs - dtMs;
       state = s.copyWith(countdownMs: remaining > 0 ? remaining : 0);
       return;
     }
+
+    // Past the countdown, everything below is musical time: scale by the speed.
+    final musicalDtMs = dtMs * s.speed;
 
     final onset = s.onsetPitchesAt(s.elapsedMs);
 
@@ -748,7 +759,7 @@ class Player extends _$Player {
       return;
     }
 
-    var next = s.elapsedMs + dtMs;
+    var next = s.elapsedMs + musicalDtMs;
 
     // In Wait Mode, don't go past the next onset until it's validated.
     if (s.waitMode) {

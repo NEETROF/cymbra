@@ -143,8 +143,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     final dt = (elapsed - _lastTick).inMicroseconds / 1000.0; // ms
     _lastTick = elapsed;
     if (dt > 0 && dt < 100) {
-      final speed = ref.read(playerProvider).speed;
-      ref.read(playerProvider.notifier).advance(dt * speed);
+      // Real frame time: the notifier applies the transport speed itself, so the
+      // pre-start countdown keeps ticking in wall-clock seconds at any tempo.
+      ref.read(playerProvider.notifier).advance(dt);
     }
   }
 
