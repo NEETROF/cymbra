@@ -17,6 +17,7 @@ import 'package:http/http.dart' as http;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import 'grpc_client.dart';
+import 'rpc_deadlines.dart';
 import 'sound_clip_player.dart';
 import 'soundfont_source.dart' show soundFontDeliveryOrigin;
 import 'token_store.dart';
@@ -69,13 +70,18 @@ class SoundFontPreviewServiceImpl implements SoundFontPreviewService {
     try {
       final tokens = await _ref.read(tokenStoreProvider).readTokens();
       final token = tokens?.accessToken;
-      resp = await _client.get(
-        uri,
-        headers: {
-          if (token != null && token.isNotEmpty)
-            'authorization': 'Bearer $token',
-        },
-      );
+      // Bounded media fetch (change: add-client-transport-deadlines): a
+      // preview clip is small, so the transfer budget applies. A timeout
+      // surfaces as the seam's own exception below, never raw in the UI.
+      resp = await _client
+          .get(
+            uri,
+            headers: {
+              if (token != null && token.isNotEmpty)
+                'authorization': 'Bearer $token',
+            },
+          )
+          .timeout(kTransferDeadline);
     } catch (e) {
       throw SoundFontPreviewException('fetch $fontId preview: $e');
     }

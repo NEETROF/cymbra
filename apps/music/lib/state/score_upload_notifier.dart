@@ -34,7 +34,12 @@ part 'score_upload_notifier.g.dart';
 String uploadErrorMessage(Object error) {
   if (error is AuthException) {
     return switch (error.error) {
-      AuthError.alreadyExists => 'Vous avez déjà importé cette partition.',
+      // A fact, not a failure (change: add-client-transport-deadlines):
+      // after an abandoned upload that in fact landed, re-submitting is the
+      // expected path — the server dedups on (owner, sha256), so nothing was
+      // duplicated and nothing went wrong.
+      AuthError.alreadyExists =>
+        'Cette partition est déjà dans votre bibliothèque.',
       // The refusal names whether a higher plan raises the limit (change:
       // add-premium-subscription) — the surface can then upsell.
       AuthError.rateLimited =>
@@ -125,8 +130,21 @@ abstract class ScoreUploadState with _$ScoreUploadState {
 /// it is fully testable without the native library or a live backend.
 @riverpod
 class ScoreUploadNotifier extends _$ScoreUploadNotifier {
+  /// Set when the user leaves the upload flow (the provider is autoDispose).
+  /// Post-`await` state writes in [submit] check it so an abandoned upload's
+  /// late result is discarded **explicitly** — under Riverpod 2.6.1 a write to
+  /// a disposed notifier happens to be dropped silently, but that is an
+  /// implementation detail (3.x throws), not a contract. `Ref.mounted` does
+  /// not exist on this major. Abandoning claims nothing: no "cancelled", no
+  /// "sent" — the request may already have been applied server-side, and
+  /// `MyUploads` reports the truth on its next refresh (design D11).
+  var _disposed = false;
+
   @override
-  ScoreUploadState build() => const ScoreUploadState();
+  ScoreUploadState build() {
+    ref.onDispose(() => _disposed = true);
+    return const ScoreUploadState();
+  }
 
   /// Pick a file and validate it locally. A cancelled pick is a no-op.
   Future<void> pickAndValidate() async {
@@ -203,6 +221,7 @@ class ScoreUploadNotifier extends _$ScoreUploadNotifier {
             fallbackTitle: state.fallbackTitle,
             fallbackComposer: state.fallbackComposer,
           );
+      if (_disposed) return; // Abandoned: discard the late result, say nothing.
       // Setting `result` is the signal: `MyUploads` listens for this transition
       // and refreshes itself (which cascades to myContributedScores +
       // favoriteScores). The uploader does NOT invalidate a sibling provider.
@@ -214,6 +233,7 @@ class ScoreUploadNotifier extends _$ScoreUploadNotifier {
             .record(UsageActions.scoreUpload, subjectId: record.id),
       );
     } catch (e) {
+      if (_disposed) return; // Abandoned: a late failure is nobody's news.
       state = state.copyWith(
         submitting: false,
         submitError: uploadErrorMessage(e),

@@ -27,6 +27,7 @@ import '../services/score_asset_source.dart';
 import '../services/score_upload_service.dart';
 import 'catalog_daily_access_notifier.dart';
 import 'notation_data.dart';
+import 'offline_race.dart';
 import 'plan_notifier.dart';
 import 'saved_catalog_scores.dart';
 import 'score_catalog.dart';
@@ -89,7 +90,18 @@ class Notation extends _$Notation {
           // decision; a locked answer never plays the cached copy (kept: access
           // is per-day). OFFLINE (or unreachable) the cached copy plays — the
           // documented offline grace.
-          final decided = await _decideCachedCatalogOpen(entry, cached);
+          Uint8List? decided;
+          try {
+            decided = await raceAgainstOffline(
+              _decideCachedCatalogOpen(entry, cached),
+              ref.read(connectivityServiceProvider),
+            );
+          } on OfflineDuringLoad {
+            // Connectivity dropped mid-decide: the offline grace applies — the
+            // copy was legitimately obtained. The orphaned fetch dies on its
+            // own deadline in the background.
+            decided = cached.bytes;
+          }
           if (decided == null) {
             // Locked — the failure is typed; the numbers went to the daily-access
             // provider. Nothing is played.
@@ -110,7 +122,20 @@ class Notation extends _$Notation {
           // Miss: the network fetch is the source of truth; store its bytes AND
           // its content hash (ETag) when the entry is a favorite, so a later open
           // can do a conditional refresh instead of re-downloading.
-          final fetched = await _fetchScoreBytes(entry);
+          //
+          // Offline it cannot succeed (change: add-client-transport-deadlines):
+          // pre-flight, don't even open a socket — the reading is trusted
+          // *negatively only* (a captive portal still reports "online", and
+          // then the call proceeds and fails on its deadline). Mid-flight, the
+          // race aborts at once on the connectivity transition instead of
+          // waiting out the deadline.
+          if (!await ref.read(connectivityServiceProvider).isOnline()) {
+            throw const OfflineDuringLoad();
+          }
+          final fetched = await raceAgainstOffline(
+            _fetchScoreBytes(entry),
+            ref.read(connectivityServiceProvider),
+          );
           _reportAccess(entry, fetched);
           if (fetched.locked) {
             if (ref.read(selectedScoreProvider) != entry) return;
@@ -282,6 +307,10 @@ class Notation extends _$Notation {
     String? cacheKey,
     Object e,
   ) async {
+    // Aborted by the offline pre-flight or the mid-flight race: there is no
+    // cached copy on this path, so the dedicated "not available offline"
+    // message is the honest outcome.
+    if (e is OfflineDuringLoad) return ScoreLoadFailure.offlineUnavailable;
     if (cacheKey != null &&
         e is AuthException &&
         e.error == AuthError.unavailable) {

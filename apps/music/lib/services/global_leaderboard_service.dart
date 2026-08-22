@@ -20,6 +20,7 @@ import '../src/grpc/global_leaderboard.pbgrpc.dart' as gl;
 import '../state/global_leaderboard.dart';
 import '../state/leaderboard.dart';
 import 'grpc_client.dart';
+import 'rpc_deadlines.dart';
 
 part 'global_leaderboard_service.g.dart';
 
@@ -50,7 +51,11 @@ class GrpcGlobalLeaderboardService implements GlobalLeaderboardService {
   GrpcGlobalLeaderboardService({
     required ClientChannel channel,
     required AuthedRunner authed,
-  }) : _client = gl.GlobalLeaderboardServiceClient(channel),
+    RpcDeadlines deadlines = const RpcDeadlines(),
+  }) : _client = gl.GlobalLeaderboardServiceClient(
+         channel,
+         interceptors: [deadlines],
+       ),
        _authed = authed;
 
   final gl.GlobalLeaderboardServiceClient _client;
@@ -115,4 +120,5 @@ GlobalLeaderboardService globalLeaderboardService(Ref ref) =>
     GrpcGlobalLeaderboardService(
       channel: ref.watch(cymbraChannelProvider),
       authed: ref.watch(authedRunnerProvider),
+      deadlines: ref.watch(rpcDeadlinesProvider),
     );

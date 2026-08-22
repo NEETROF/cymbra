@@ -18,6 +18,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../src/grpc/notifications.pbgrpc.dart' as pb;
 import 'grpc_client.dart';
+import 'rpc_deadlines.dart';
 
 part 'notification_service.g.dart';
 
@@ -72,7 +73,11 @@ class GrpcNotificationRegistryService implements NotificationRegistryService {
   GrpcNotificationRegistryService({
     required ClientChannel channel,
     required AuthedRunner authed,
-  }) : _client = pb.NotificationServiceClient(channel),
+    RpcDeadlines deadlines = const RpcDeadlines(),
+  }) : _client = pb.NotificationServiceClient(
+         channel,
+         interceptors: [deadlines],
+       ),
        _authed = authed;
 
   final pb.NotificationServiceClient _client;
@@ -134,4 +139,5 @@ NotificationRegistryService notificationRegistryService(Ref ref) =>
     GrpcNotificationRegistryService(
       channel: ref.watch(cymbraChannelProvider),
       authed: ref.watch(authedRunnerProvider),
+      deadlines: ref.watch(rpcDeadlinesProvider),
     );

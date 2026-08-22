@@ -21,6 +21,7 @@ import '../courses/course_manifest.dart'
     show InlineText, parseInlineJson, resolveInline;
 import '../src/grpc/score.pbgrpc.dart' as score;
 import 'grpc_client.dart';
+import 'rpc_deadlines.dart';
 
 part 'achievements_service.freezed.dart';
 part 'achievements_service.g.dart';
@@ -124,7 +125,8 @@ class GrpcAchievementsService implements AchievementsService {
   GrpcAchievementsService({
     required ClientChannel channel,
     required AuthedRunner authed,
-  }) : _client = score.ScoreServiceClient(channel),
+    RpcDeadlines deadlines = const RpcDeadlines(),
+  }) : _client = score.ScoreServiceClient(channel, interceptors: [deadlines]),
        _authed = authed;
 
   final score.ScoreServiceClient _client;
@@ -147,4 +149,5 @@ class GrpcAchievementsService implements AchievementsService {
 AchievementsService achievementsService(Ref ref) => GrpcAchievementsService(
   channel: ref.watch(cymbraChannelProvider),
   authed: ref.watch(authedRunnerProvider),
+  deadlines: ref.watch(rpcDeadlinesProvider),
 );

@@ -21,6 +21,7 @@ import '../src/grpc/play.pbgrpc.dart' as play;
 import '../state/play_activity.dart';
 import '../state/play_session_envelope.dart';
 import 'grpc_client.dart';
+import 'rpc_deadlines.dart';
 
 part 'play_sync_service.g.dart';
 
@@ -58,7 +59,8 @@ class GrpcPlaySyncService implements PlaySyncService {
   GrpcPlaySyncService({
     required ClientChannel channel,
     required AuthedRunner authed,
-  }) : _client = play.PlayServiceClient(channel),
+    RpcDeadlines deadlines = const RpcDeadlines(),
+  }) : _client = play.PlayServiceClient(channel, interceptors: [deadlines]),
        _authed = authed;
 
   final play.PlayServiceClient _client;
@@ -123,4 +125,5 @@ class GrpcPlaySyncService implements PlaySyncService {
 PlaySyncService playSyncService(Ref ref) => GrpcPlaySyncService(
   channel: ref.watch(cymbraChannelProvider),
   authed: ref.watch(authedRunnerProvider),
+  deadlines: ref.watch(rpcDeadlinesProvider),
 );
