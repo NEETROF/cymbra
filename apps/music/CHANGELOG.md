@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.25.1](https://github.com/NEETROF/cymbra/compare/music-v1.25.0...music-v1.25.1) (2026-08-22)
+
+
+### Bug Fixes
+
+* **music:** ship the RevenueCat public SDK keys in the prod build config ([#264](https://github.com/NEETROF/cymbra/issues/264)) ([3829169](https://github.com/NEETROF/cymbra/commit/3829169b8006f0a69e68f7c772f8308d3470cd70))
+
 ## [1.25.0](https://github.com/NEETROF/cymbra/compare/music-v1.24.0...music-v1.25.0) (2026-08-22)
 
 
