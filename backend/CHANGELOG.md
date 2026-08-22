@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.19.2](https://github.com/NEETROF/cymbra/compare/backend-v0.19.1...backend-v0.19.2) (2026-08-22)
+
+
+### Bug Fixes
+
+* **plans:** key Google entitlements on the base order id ([#266](https://github.com/NEETROF/cymbra/issues/266)) ([3499f36](https://github.com/NEETROF/cymbra/commit/3499f36dac1c609b936950f45255d6837a6391c0))
+
 ## [0.19.1](https://github.com/NEETROF/cymbra/compare/backend-v0.19.0...backend-v0.19.1) (2026-08-22)
 
 
