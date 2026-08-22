@@ -76,8 +76,13 @@ instead of migrating.
 **What RevenueCat knows** (D6): the opaque Cymbra account id (`app_user_id`),
 platform/SDK metadata and store transaction facts (product, price, currency,
 country, dates). Never a name, email, handle or attribute — the app's store seam
-exposes no attribute API. RevenueCat is a US company; its DPA (SCCs) is signed
-and it is listed as a sub-processor in the privacy policies. Revenue and
+exposes no attribute API. RevenueCat is a US company; its DPA
+(https://www.revenuecat.com/dpa, effective August 2026) is incorporated by
+reference into the Terms of Use accepted at account creation — there is nothing
+to countersign in the dashboard. Transfer mechanism: EU SCCs module 2
+(Controller→Processor, Irish law) incorporated into that DPA; sub-processors are
+listed in its Annex 3. RevenueCat is listed as a sub-processor in our privacy
+policies. Revenue and
 subscription analytics are read on its dashboards; nothing about amounts is
 stored here (D5).
 
