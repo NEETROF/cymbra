@@ -2888,6 +2888,8 @@
   "@planRestoreNothing": {"description": "Snackbar: restore found nothing."},
   "planPurchaseOtherAccount": "This purchase is linked to another Cymbra account. Sign in with that account to use it.",
   "@planPurchaseOtherAccount": {"description": "Snackbar: the store transaction is bound to a different Cymbra account (purchase / restore refused)."},
+  "planSyncPending": "Purchase confirmed by the store — your plan will update in a moment.",
+  "@planSyncPending": {"description": "Snackbar: the store purchase / restore succeeded but the server plan sync failed (offline, aggregator lag); the plan refreshes on resume."},
   "planPurchaseFailed": "The purchase could not be completed. Nothing was charged by Cymbra.",
   "@planPurchaseFailed": {"description": "Snackbar: purchase / restore failed (cause logged, never shown)."},
   "planWithdrawnNotice": "Your Premium access ended: offline catalog pieces and Premium pianos were removed from this device.",

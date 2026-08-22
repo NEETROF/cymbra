@@ -414,6 +414,7 @@
     },
     "openEnded": "sans fin",
     "lookupTitle": "Recherche de compte",
+    "openInRevenueCat": "Ouvrir dans RevenueCat",
     "lookupPlaceholder": "handle ou identifiant de compte",
     "lookup": "Rechercher",
     "clear": "Effacer",

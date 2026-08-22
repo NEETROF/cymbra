@@ -1,0 +1,48 @@
+{
+  "request_date": "2023-11-14T22:13:20Z",
+  "request_date_ms": 1700000000000,
+  "subscriber": {
+    "original_app_user_id": "018f0000-0000-7000-8000-000000000001",
+    "original_application_version": "1.0",
+    "first_seen": "2023-11-13T22:13:20Z",
+    "last_seen": "2023-11-14T22:13:20Z",
+    "management_url": "https://apps.apple.com/account/subscriptions",
+    "entitlements": {
+      "premium": {
+        "expires_date": "2023-12-13T22:13:20Z",
+        "grace_period_expires_date": null,
+        "product_identifier": "premium_monthly",
+        "purchase_date": "2023-11-13T22:13:20Z"
+      }
+    },
+    "subscriptions": {
+      "premium_monthly": {
+        "auto_resume_date": null,
+        "billing_issues_detected_at": null,
+        "expires_date": "2023-12-13T22:13:20Z",
+        "grace_period_expires_date": null,
+        "is_sandbox": true,
+        "original_purchase_date": "2023-11-13T22:13:20Z",
+        "ownership_type": "PURCHASED",
+        "period_type": "normal",
+        "purchase_date": "2023-11-13T22:13:20Z",
+        "refunded_at": null,
+        "store": "app_store",
+        "store_transaction_id": "2000000123456789",
+        "original_transaction_id": "2000000111111111",
+        "unsubscribe_detected_at": null
+      },
+      "coins_100": {
+        "expires_date": "2023-11-24T22:13:20Z",
+        "is_sandbox": true,
+        "purchase_date": "2023-11-13T22:13:20Z",
+        "store": "play_store",
+        "store_transaction_id": "GPA.9999",
+        "unsubscribe_detected_at": null
+      }
+    },
+    "non_subscriptions": {},
+    "other_purchases": {},
+    "subscriber_attributes": {}
+  }
+}

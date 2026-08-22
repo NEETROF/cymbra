@@ -2,7 +2,7 @@
 layout: ../layouts/Legal.astro
 title: Politique de confidentialité
 lang: fr
-updated: 30/07/2026
+updated: 18/08/2026
 ---
 
 La présente politique explique quelles données personnelles les **services Cymbra**
@@ -30,9 +30,12 @@ fonctionnement du compte et de l'application.
 | Préférences applicatives | vous | mémoriser vos réglages |
 | Jetons de session (refresh tokens) | généré au login | maintenir votre session connectée |
 | Journaux techniques (adresse IP, horodatages, erreurs) | serveur | sécurité, prévention des abus, bon fonctionnement |
+| Statut d'abonnement (offre, source, dates de début/fin), **identifiants opaques** de l'abonnement chez le canal d'achat (Apple, Google, Paddle — via RevenueCat pour l'App Store et Google Play), campagnes bêta rejointes, codes d'accès utilisés | canal d'achat / vous | activer l'offre Premium sur vos appareils, gérer essais et bêtas |
 
 Nous **ne** collectons **pas** de données de localisation précise, ne vendons aucune
-donnée, et n'utilisons pas de publicité tierce ni de traceurs publicitaires.
+donnée, et n'utilisons pas de publicité tierce ni de traceurs publicitaires. Nous ne
+recevons et ne stockons **jamais** vos numéros de carte, adresses de facturation ni
+factures : ils sont traités exclusivement par le canal d'achat (Apple, Google, Paddle).
 
 ## 3. Bases légales (RGPD art. 6)
 
@@ -49,10 +52,26 @@ Nous partageons le strict nécessaire avec des prestataires agissant pour notre 
 - **OVHcloud** (France, UE) — hébergement du serveur et des sauvegardes.
 - **Brevo** (UE) — envoi des emails transactionnels (vérification, réinitialisation).
 - **Google** / **Apple** — uniquement si vous utilisez leur connexion (vérification de
-  votre identité via leur jeton).
+  votre identité via leur jeton), ou si vous vous abonnez via l'App Store / Google Play
+  (ils sont les vendeurs officiels : ils encaissent et facturent ; nous ne voyons jamais
+  vos données de paiement).
+- **RevenueCat, Inc.** (États-Unis) — uniquement si vous vous abonnez via l'App Store ou
+  Google Play : il vérifie l'achat auprès de la boutique et suit le cycle de vie de
+  l'abonnement (renouvellement, période de grâce, résiliation, remboursement) pour notre
+  compte, et nous fournit des statistiques agrégées d'abonnements et de revenus. Il
+  reçoit un **identifiant de compte opaque**, des informations techniques sur
+  l'application et l'appareil, et les faits de transaction de la boutique (produit,
+  prix, devise, pays, dates) — jamais votre nom, email, pseudonyme ni vos données de
+  paiement. Ce transfert hors UE est encadré par les clauses contractuelles types de la
+  Commission européenne (accord de traitement des données signé avec RevenueCat). Sa
+  fiche est supprimée à la suppression de votre compte.
+- **Paddle** (vendeur officiel, Royaume-Uni/UE) — uniquement si vous vous abonnez depuis
+  Linux, Windows ou le site web : il encaisse, facture et nous notifie l'état de
+  l'abonnement associé à un identifiant opaque.
 
-Vos données sont **hébergées dans l'Union européenne** (France). Nous ne procédons à
-aucun transfert hors UE.
+Vos données sont **hébergées dans l'Union européenne** (France). En dehors de la
+vérification des abonnements décrite ci-dessus (RevenueCat, États-Unis, sous clauses
+contractuelles types), nous ne procédons à aucun transfert hors UE.
 
 ## 5. Durée de conservation
 

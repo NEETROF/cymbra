@@ -86,9 +86,9 @@
 - [x] 11.2 `melos run analyze`, `dart run custom_lint`, `dart format`, `flutter test --coverage` green
 - [x] 11.3 Back office: `yarn lint`, `yarn test`, e2e green (own `BO_E2E_PORT`)
 - [x] 11.4 `openspec validate add-premium-subscription --strict` passes
-- [ ] 11.5 Manual — dark deploy: all flags off ⇒ app identical to before, webhook routes acknowledge and ignore, `GetMyPlan` says free
-- [ ] 11.6 Manual — withdrawal: let a trial expire on an account with cached catalog scores, own uploads, an imported .sf2 and a premium .sf2 → reconnect: catalog cache and premium font gone, upload cache + import intact, notice shown; then re-subscribe in sandbox → content re-fetchable, favorites intact
-- [ ] 11.7 Manual — trial: create a 90-day trial campaign, mint a code, redeem on the web, verify premium on iOS/Android/macOS/Linux/Windows builds of the same account, close enrolment and confirm the trial keeps running, revoke a membership and confirm immediate degradation
-- [ ] 11.8 Manual — feature beta: create `midi-drums`, scope a flag `beta:midi-drums`, enrol one free and one premium account, confirm only members see the feature, close the campaign, confirm the feature disappears for members without a flag edit
-- [ ] 11.9 Manual — precedence: trial tester purchases in Apple sandbox ⇒ still premium after the trial ends; refund in sandbox ⇒ back to trial (if running) or free
-- [ ] 11.10 Manual — channels: Apple sandbox (purchase, renew, grace, restore on second device), Google test track (purchase, RTDN, acknowledge), web provider sandbox from a Windows build (checkout, webhook, portal, cancel); confirm no double purchase offered cross-channel
+- [x] 11.5 Manual — dark deploy — **moved** to `swap-store-billing-to-revenuecat` §7 (7.10) on 2026-08-18: same validation, run in the RevenueCat staging session
+- [x] 11.6 Manual — withdrawal — **moved** to `swap-store-billing-to-revenuecat` §7 (7.11)
+- [x] 11.7 Manual — trial — **moved** to `swap-store-billing-to-revenuecat` §7 (7.12)
+- [x] 11.8 Manual — feature beta — **moved** to `swap-store-billing-to-revenuecat` §7 (7.13)
+- [x] 11.9 Manual — precedence (trial tester purchases / refund) — **superseded** by `swap-store-billing-to-revenuecat` §7 (7.14): the store channels now go through RevenueCat (D7/D8 reversed 2026-08-18)
+- [x] 11.10 Manual — channels (Apple sandbox, Google test track, web) — **superseded** by `swap-store-billing-to-revenuecat` §7 (7.2–7.9) for the store channels; the web-provider sandbox stays as its deferred §8.3

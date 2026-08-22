@@ -1,9 +1,11 @@
 syntax = "proto3";
 
 // Plans: the free/premium plan + beta memberships of an account (change:
-// add-premium-subscription). One service, two audiences: the app (read its own
-// plan, redeem a code, report/restore store purchases, start a web checkout)
-// and the music-scope admin console (lookup, grants, campaigns, codes, members).
+// add-premium-subscription; store channels through the aggregator since
+// swap-store-billing-to-revenuecat). One service, two audiences: the app (read
+// its own plan, redeem a code, sync its store subscriptions after a purchase /
+// restore, start a web checkout) and the music-scope admin console (lookup,
+// grants, campaigns, codes, members).
 // Identifiers only — no personal billing data ever crosses this surface.
 package cymbra.plans.v1;
 
@@ -14,9 +16,11 @@ service PlanService {
   // App (web audience only): redeem an access code = enrol in its campaign.
   // Neutral refusal for unknown / revoked / spent codes; rate-limited.
   rpc RedeemAccessCode(RedeemAccessCodeRequest) returns (RedeemAccessCodeResponse);
-  // App: report a store purchase (Apple signed transaction JWS | Google purchase
-  // token) for server-side verification. Also used by "restore purchases".
-  rpc ReportStorePurchase(ReportStorePurchaseRequest) returns (ReportStorePurchaseResponse);
+  // App (store builds): after a purchase or a restore through the store
+  // aggregator SDK, ask the server to re-read the CALLER's aggregator customer
+  // and reconcile the ledger from it. No payload: the app never carries a
+  // receipt, and no account can claim another one's subscription. Rate-limited.
+  rpc SyncStorePlan(SyncStorePlanRequest) returns (SyncStorePlanResponse);
   // App (desktop / web): a hosted merchant-of-record checkout URL bound to the
   // caller.
   rpc CreateWebCheckout(CreateWebCheckoutRequest) returns (CreateWebCheckoutResponse);
@@ -116,14 +120,11 @@ message RedeemAccessCodeResponse {
   optional string ends_at = 4;
 }
 
-message ReportStorePurchaseRequest {
-  Channel channel = 1;                 // apple | google
-  // Apple: the signed transaction JWS; Google: the purchase token.
-  string payload = 2;
-  // Google only: the product id the token was purchased under.
-  string product_id = 3;
+message SyncStorePlanRequest {
+  // Where the app runs — decides `can_purchase_here` in the returned view.
+  Platform platform = 1;
 }
-message ReportStorePurchaseResponse {
+message SyncStorePlanResponse {
   GetMyPlanResponse plan = 1;
 }
 

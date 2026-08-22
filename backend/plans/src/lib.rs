@@ -31,20 +31,23 @@ pub mod web;
 
 pub use cymbra_platform::AppError;
 pub use model::{
-    AccessCode, BetaInfo, Campaign, CampaignKind, EntitlementRow, EntitlementStatus, Membership,
-    MembershipRow, MembershipSource, PREMIUM_UNLOCKS, Plan, PlanSnapshot, Redemption, Source,
-    TrialInfo, Unlock,
+    AccessCode, BetaInfo, Campaign, CampaignKind, EntitlementRow, EntitlementStatus, EventProvider,
+    Membership, MembershipRow, MembershipSource, PREMIUM_UNLOCKS, Plan, PlanSnapshot, Redemption,
+    Source, TrialInfo, Unlock,
 };
 pub use ports::{
     AccessCodeIssuer, AccessCodeRepo, AuditEntry, AuditRepo, BillingEventRepo, CacheSecretRotator,
     CampaignRepo, Channel, Clock, Enrolment, EntitlementRepo, EntitlementWrite, FixedPaywallConfig,
     FixedPlanConfig, HandleResolver, MembershipRepo, MintedCode, NewCampaign, PaywallConfigSource,
-    PlanConfig, PlanConfigSource, PlanSource, Platform, StorePurchaseVerifier, SystemClock,
-    VerifiedPurchase, WebBillingProvider, WebSubscriptionCanceller,
+    PlanConfig, PlanConfigSource, PlanSource, Platform, StoreCustomerEraser, StoreCustomerSource,
+    StoreSubscription, SystemClock, WebBillingProvider, WebSubscriptionCanceller,
 };
 pub use service::{AccountPlan, EnrolOutcome, PlanDeps, PlanFilter, PlanService};
 
 /// Generated `cymbra.plans.v1` protobuf types + tonic client/server stubs.
+// `tonic::Status` is large by design; newer clippy flags every generated
+// client/server signature for it.
+#[allow(clippy::result_large_err)]
 pub mod proto {
     tonic::include_proto!("cymbra.plans.v1");
 }

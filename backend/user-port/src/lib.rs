@@ -10,6 +10,9 @@ use cymbra_platform::{AppError, Result};
 use std::collections::BTreeMap;
 
 /// Generated protobuf messages + tonic client/server stubs for `cymbra.user.v1`.
+// `tonic::Status` is large by design; newer clippy flags every generated
+// client/server signature for it.
+#[allow(clippy::result_large_err)]
 pub mod proto {
     tonic::include_proto!("cymbra.user.v1");
 }
@@ -362,6 +365,8 @@ impl GrpcUserClient {
     }
 
     /// Read the caller's account (auth carried in request metadata).
+    // `tonic::Status` is large by design, like every gRPC adapter signature.
+    #[allow(clippy::result_large_err)]
     pub async fn get_account(&mut self) -> std::result::Result<proto::Account, tonic::Status> {
         Ok(self
             .inner

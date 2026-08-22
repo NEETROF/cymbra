@@ -16,7 +16,6 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:grpc/grpc.dart' show GrpcError;
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 import 'package:music/services/app_platform.dart';
@@ -183,7 +182,7 @@ void main() {
     });
 
     test(
-      'store buy binds the account and a receipt is reported + completed',
+      'store buy binds the account; the store receipt triggers a plan sync',
       () async {
         final svc = MockPlanService();
         when(svc.getMyPlan(any)).thenAnswer(
@@ -192,41 +191,34 @@ void main() {
           ).copyWith(plan: 'free', source: null, unlocks: const []),
         );
         when(
-          svc.reportStorePurchase(
-            channel: anyNamed('channel'),
-            payload: anyNamed('payload'),
-            productId: anyNamed('productId'),
-          ),
+          svc.syncStorePlan(any),
         ).thenAnswer((_) async => PurchaseReportView(plan: _premium()));
         final store = MockStoreClient();
         final events = StreamController<StoreEvent>.broadcast();
         when(store.events).thenAnswer((_) => events.stream);
+        when(store.setAccount(any)).thenAnswer((_) async {});
         when(
           store.buy(any, accountToken: anyNamed('accountToken')),
         ).thenAnswer((_) async {});
         when(store.complete(any)).thenAnswer((_) async {});
         final c = _container(service: svc, store: store);
         await c.read(planProvider.future);
-        // Subscribe the flow (build) before events arrive.
+        // Subscribe the flow (build) before events arrive; build binds the
+        // SDK to the signed-in account.
         c.read(purchaseFlowProvider);
+        await Future<void>.delayed(Duration.zero);
+        verify(store.setAccount('u1')).called(1);
         await c.read(purchaseFlowProvider.notifier).buy('premium_monthly');
         verify(store.buy('premium_monthly', accountToken: 'u1')).called(1);
         expect(c.read(purchaseFlowProvider).busy, isTrue);
 
         events.add(
-          const StoreEvent.receipt(
-            StoreReceipt(productId: 'premium_monthly', payload: 'jws'),
-          ),
+          const StoreEvent.receipt(StoreReceipt(productId: 'premium_monthly')),
         );
         await Future<void>.delayed(Duration.zero);
         await Future<void>.delayed(Duration.zero);
-        verify(
-          svc.reportStorePurchase(
-            channel: PlanChannel.apple,
-            payload: 'jws',
-            productId: 'premium_monthly',
-          ),
-        ).called(1);
+        // No payload ever crosses: the server re-reads the aggregator.
+        verify(svc.syncStorePlan(AppPlatform.ios)).called(1);
         verify(store.complete(any)).called(1);
         expect(c.read(purchaseFlowProvider).outcome, PurchaseOutcome.purchased);
         expect(c.read(planProvider).valueOrNull?.isPremium, isTrue);
@@ -242,6 +234,7 @@ void main() {
         final store = MockStoreClient();
         final events = StreamController<StoreEvent>.broadcast();
         when(store.events).thenAnswer((_) => events.stream);
+        when(store.setAccount(any)).thenAnswer((_) async {});
         final c = _container(service: svc, store: store);
         c.read(purchaseFlowProvider);
         events.add(const StoreEvent.cancelled());
@@ -261,66 +254,99 @@ void main() {
     );
 
     test(
-      'a receipt bound to another Cymbra account is completed and reported as such',
+      'restore settles from the store events: found ⇒ sync + restored, '
+      'none ⇒ nothingToRestore, another account ⇒ otherAccount (no sync)',
       () async {
-        // The store transaction was bought under another Cymbra account: the
-        // server refuses (permission denied); the app finishes the transaction
-        // (it can never be granted here) and tells the user to sign in with
-        // that account — not the generic "could not be completed".
         final svc = MockPlanService();
         when(svc.getMyPlan(any)).thenAnswer((_) async => PlanSnapshotView.free);
         when(
-          svc.reportStorePurchase(
-            channel: anyNamed('channel'),
-            payload: anyNamed('payload'),
-            productId: anyNamed('productId'),
-          ),
-        ).thenThrow(
-          const GrpcError.permissionDenied(
-            'purchase belongs to another account',
-          ),
-        );
+          svc.syncStorePlan(any),
+        ).thenAnswer((_) async => PurchaseReportView(plan: _premium()));
         final store = MockStoreClient();
         final events = StreamController<StoreEvent>.broadcast();
         when(store.events).thenAnswer((_) => events.stream);
+        when(store.setAccount(any)).thenAnswer((_) async {});
         when(store.complete(any)).thenAnswer((_) async {});
+        when(
+          store.restore(accountToken: anyNamed('accountToken')),
+        ).thenAnswer((_) async {});
         final c = _container(service: svc, store: store);
         await c.read(planProvider.future);
         c.read(purchaseFlowProvider);
-        events.add(
-          const StoreEvent.receipt(
-            StoreReceipt(
-              productId: 'premium_monthly',
-              payload: 'jws',
-              restored: true,
-            ),
-          ),
-        );
+
+        // The aggregator refused (receipt kept with its original account):
+        // the outcome is explicit and the server is not asked to sync.
+        await c.read(purchaseFlowProvider.notifier).restore();
+        verify(store.restore(accountToken: 'u1')).called(1);
+        events.add(const StoreEvent.otherAccount());
         await Future<void>.delayed(Duration.zero);
-        await Future<void>.delayed(Duration.zero);
-        verify(store.complete(any)).called(1);
         expect(
           c.read(purchaseFlowProvider).outcome,
           PurchaseOutcome.otherAccount,
         );
+        verifyNever(svc.syncStorePlan(any));
         expect(c.read(planProvider).valueOrNull?.isPremium, isFalse);
-        // Any other server error stays the generic failure.
-        when(
-          svc.reportStorePurchase(
-            channel: anyNamed('channel'),
-            payload: anyNamed('payload'),
-            productId: anyNamed('productId'),
-          ),
-        ).thenThrow(const GrpcError.unavailable('down'));
+
+        // Nothing to restore: settles immediately, no timed wait.
+        await c.read(purchaseFlowProvider.notifier).restore();
+        events.add(const StoreEvent.nothingToRestore());
+        await Future<void>.delayed(Duration.zero);
+        expect(
+          c.read(purchaseFlowProvider).outcome,
+          PurchaseOutcome.nothingToRestore,
+        );
+        expect(c.read(purchaseFlowProvider).busy, isFalse);
+
+        // Found: sync then restored.
+        await c.read(purchaseFlowProvider.notifier).restore();
         events.add(
-          const StoreEvent.receipt(
-            StoreReceipt(productId: 'premium_monthly', payload: 'jws2'),
-          ),
+          const StoreEvent.receipt(StoreReceipt(productId: '', restored: true)),
         );
         await Future<void>.delayed(Duration.zero);
         await Future<void>.delayed(Duration.zero);
-        expect(c.read(purchaseFlowProvider).outcome, PurchaseOutcome.failed);
+        verify(svc.syncStorePlan(any)).called(1);
+        expect(c.read(purchaseFlowProvider).outcome, PurchaseOutcome.restored);
+        expect(c.read(planProvider).valueOrNull?.isPremium, isTrue);
         await events.close();
+      },
+    );
+
+    test('a failed sync after a store success is "pending", never "failed", '
+        'and keeps the last-known plan', () async {
+      final svc = MockPlanService();
+      when(svc.getMyPlan(any)).thenAnswer((_) async => PlanSnapshotView.free);
+      when(svc.syncStorePlan(any)).thenThrow(Exception('offline'));
+      final store = MockStoreClient();
+      final events = StreamController<StoreEvent>.broadcast();
+      when(store.events).thenAnswer((_) => events.stream);
+      when(store.setAccount(any)).thenAnswer((_) async {});
+      final c = _container(service: svc, store: store);
+      await c.read(planProvider.future);
+      c.read(purchaseFlowProvider);
+      events.add(
+        const StoreEvent.receipt(StoreReceipt(productId: 'premium_monthly')),
+      );
+      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(Duration.zero);
+      expect(c.read(purchaseFlowProvider).outcome, PurchaseOutcome.syncPending);
+      expect(c.read(planProvider).valueOrNull, PlanSnapshotView.free);
+      await events.close();
+    });
+
+    test(
+      'signed out ⇒ the store SDK is unbound and no restore starts',
+      () async {
+        final svc = MockPlanService();
+        when(svc.getMyPlan(any)).thenAnswer((_) async => PlanSnapshotView.free);
+        final store = MockStoreClient();
+        when(store.events).thenAnswer((_) => const Stream.empty());
+        when(store.setAccount(any)).thenAnswer((_) async {});
+        final c = _container(service: svc, store: store, userId: null);
+        c.read(purchaseFlowProvider);
+        await Future<void>.delayed(Duration.zero);
+        verify(store.setAccount(null)).called(1);
+        await c.read(purchaseFlowProvider.notifier).restore();
+        verifyNever(store.restore(accountToken: anyNamed('accountToken')));
       },
     );
 

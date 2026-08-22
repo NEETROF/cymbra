@@ -1,20 +1,21 @@
-//! Purchase-channel adapters (design D7–D9): each turns a provider's signed
-//! events into [`EntitlementWrite`]s and hands them to
-//! [`PlanService::apply`] behind the idempotency gate. The pure parts —
-//! signature verification cores, payload → transition mappers — are host-tested;
-//! the HTTP/webhook glue is thin.
+//! Purchase-channel adapters: the store aggregator (RevenueCat — App Store,
+//! Play, later Paddle; change: swap-store-billing-to-revenuecat) and the direct
+//! web merchant-of-record (Paddle; add-premium-subscription D9). Each turns a
+//! provider's authenticated events into [`EntitlementWrite`]s and hands them to
+//! [`PlanService::apply`] behind the idempotency gate. The pure parts — payload →
+//! transition mappers — are host-tested; the HTTP/webhook glue is thin.
 //!
 //! Shared rules: a provider event is applied at most once (`billing_events`),
 //! an event that cannot be mapped to a user is acknowledged and logged (never
 //! retried forever), and a disabled channel acknowledges without applying.
 
-pub mod apple;
 pub mod env;
-pub mod google;
+pub mod rc_client;
 pub mod reconcile;
+pub mod revenuecat;
 pub mod web;
 
-use crate::model::Source;
+use crate::model::EventProvider;
 use crate::ports::EntitlementWrite;
 use crate::service::PlanService;
 use cymbra_platform::Result;
@@ -23,7 +24,8 @@ use sha2::{Digest, Sha256};
 /// A provider notification reduced to what the ledger needs.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ProviderEvent {
-    pub source: Source,
+    /// Who delivered it — the `billing_events` idempotency scope.
+    pub provider: EventProvider,
     /// The provider's event id (idempotency key).
     pub event_id: String,
     /// Short digest of the raw payload (never the payload itself).
@@ -56,7 +58,7 @@ pub async fn ingest(svc: &PlanService, event: ProviderEvent) -> Result<IngestOut
     let user_hint = event.writes.first().map(|w| w.user_id.clone());
     let fresh = svc
         .record_event(
-            event.source,
+            event.provider,
             &event.event_id,
             user_hint.as_deref(),
             &event.payload_digest,
@@ -66,22 +68,22 @@ pub async fn ingest(svc: &PlanService, event: ProviderEvent) -> Result<IngestOut
         return Ok(IngestOutcome::Duplicate);
     }
     if event.writes.is_empty() {
-        svc.mark_event_applied(event.source, &event.event_id)
+        svc.mark_event_applied(event.provider, &event.event_id)
             .await?;
         return Ok(IngestOutcome::NoOp);
     }
     for w in event.writes {
         svc.apply(w).await?;
     }
-    svc.mark_event_applied(event.source, &event.event_id)
+    svc.mark_event_applied(event.provider, &event.event_id)
         .await?;
     Ok(IngestOutcome::Applied)
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
-    use crate::model::{EntitlementRow, EntitlementStatus};
+    use crate::model::{EntitlementRow, EntitlementStatus, Source};
     use crate::ports::{
         MockAccessCodeRepo, MockAuditRepo, MockBillingEventRepo, MockCampaignRepo, MockClock,
         MockEntitlementRepo, MockMembershipRepo, MockPlanConfigSource, PlanConfig,
@@ -93,71 +95,73 @@ mod tests {
 
     /// A service whose ledger is an in-memory map keyed by (source, provider_ref)
     /// and whose event log de-duplicates by (provider, event_id).
-    type Ledger = Arc<Mutex<Vec<EntitlementWrite>>>;
-    type EventLog = Arc<Mutex<Vec<String>>>;
+    pub(crate) type Ledger = Arc<Mutex<Vec<EntitlementWrite>>>;
+    pub(crate) type EventLog = Arc<Mutex<Vec<String>>>;
 
-    fn service() -> (PlanService, Ledger, EventLog) {
+    fn row_of(w: &EntitlementWrite) -> EntitlementRow {
+        EntitlementRow {
+            id: Uuid::new_v4(),
+            user_id: w.user_id.clone(),
+            source: w.source,
+            provider_ref: w.provider_ref.clone(),
+            campaign_id: None,
+            starts_at: w.starts_at,
+            ends_at: w.ends_at,
+            status: w.status,
+            revoked_at: None,
+            withdrawn_at: None,
+        }
+    }
+
+    /// The "table" view of the write log: the latest write per
+    /// `(source, provider_ref)` wins, like the real upsert.
+    fn table(writes: &[EntitlementWrite]) -> Vec<EntitlementRow> {
+        let mut latest: Vec<EntitlementWrite> = Vec::new();
+        for w in writes {
+            if let Some(slot) = latest
+                .iter_mut()
+                .find(|x| x.source == w.source && x.provider_ref == w.provider_ref)
+            {
+                *slot = w.clone();
+            } else {
+                latest.push(w.clone());
+            }
+        }
+        latest.iter().map(row_of).collect()
+    }
+
+    pub(crate) fn service() -> (PlanService, Ledger, EventLog) {
         let writes = Arc::new(Mutex::new(Vec::<EntitlementWrite>::new()));
         let events = Arc::new(Mutex::new(Vec::<String>::new()));
         let mut ent = MockEntitlementRepo::new();
         let w1 = writes.clone();
         ent.expect_upsert().returning(move |w| {
             w1.lock().unwrap().push(w.clone());
-            Ok(EntitlementRow {
-                id: Uuid::new_v4(),
-                user_id: w.user_id,
-                source: w.source,
-                provider_ref: w.provider_ref,
-                campaign_id: None,
-                starts_at: w.starts_at,
-                ends_at: w.ends_at,
-                status: w.status,
-                revoked_at: None,
-                withdrawn_at: None,
-            })
+            Ok(row_of(&w))
         });
         let w2 = writes.clone();
         ent.expect_find_by_provider_ref().returning(move |src, r| {
-            Ok(w2
-                .lock()
-                .unwrap()
-                .iter()
-                .find(|w| w.source == src && w.provider_ref == r)
-                .map(|w| EntitlementRow {
-                    id: Uuid::new_v4(),
-                    user_id: w.user_id.clone(),
-                    source: w.source,
-                    provider_ref: w.provider_ref.clone(),
-                    campaign_id: None,
-                    starts_at: w.starts_at,
-                    ends_at: w.ends_at,
-                    status: w.status,
-                    revoked_at: None,
-                    withdrawn_at: None,
-                }))
+            Ok(table(&w2.lock().unwrap())
+                .into_iter()
+                .find(|w| w.source == src && w.provider_ref == r))
         });
         let w3 = writes.clone();
         ent.expect_list_for_user().returning(move |u| {
-            Ok(w3
-                .lock()
-                .unwrap()
-                .iter()
+            Ok(table(&w3.lock().unwrap())
+                .into_iter()
                 .filter(|w| w.user_id == u)
-                .map(|w| EntitlementRow {
-                    id: Uuid::new_v4(),
-                    user_id: w.user_id.clone(),
-                    source: w.source,
-                    provider_ref: w.provider_ref.clone(),
-                    campaign_id: None,
-                    starts_at: w.starts_at,
-                    ends_at: w.ends_at,
-                    status: w.status,
-                    revoked_at: None,
-                    withdrawn_at: None,
-                })
                 .collect())
         });
         ent.expect_mark_withdrawn().returning(|_, _| Ok(0));
+        let w4 = writes.clone();
+        ent.expect_list_ending_between()
+            .returning(move |from, to, sources| {
+                Ok(table(&w4.lock().unwrap())
+                    .into_iter()
+                    .filter(|w| sources.contains(&w.source))
+                    .filter(|w| w.ends_at.is_some_and(|e| e >= from && e < to))
+                    .collect())
+            });
         let mut billing = MockBillingEventRepo::new();
         let e1 = events.clone();
         billing
@@ -200,7 +204,7 @@ mod tests {
     async fn ingest_applies_once_and_replays_are_no_ops() {
         let (svc, writes, _) = service();
         let ev = ProviderEvent {
-            source: Source::Web,
+            provider: EventProvider::Web,
             event_id: "evt_1".into(),
             payload_digest: "d".into(),
             writes: vec![EntitlementWrite {
@@ -220,161 +224,12 @@ mod tests {
         assert_eq!(ingest(&svc, ev).await.unwrap(), IngestOutcome::Duplicate);
         assert_eq!(writes.lock().unwrap().len(), 1);
         let empty = ProviderEvent {
-            source: Source::Web,
+            provider: EventProvider::Web,
             event_id: "evt_2".into(),
             payload_digest: "d".into(),
             writes: vec![],
         };
         assert_eq!(ingest(&svc, empty).await.unwrap(), IngestOutcome::NoOp);
-    }
-
-    #[tokio::test]
-    async fn apple_notification_is_verified_mapped_and_idempotent() {
-        use crate::billing::apple::{AppleConfig, handle_notification, tests::*};
-        let (svc, writes, _) = service();
-        let (root, leaf, key) = test_chain();
-        let mut cfg = AppleConfig::new("com.cymbra.music", true);
-        cfg.roots = vec![root.clone()];
-        let now = Utc::now();
-        let tx = serde_json::json!({
-            "originalTransactionId": "otx-77",
-            "productId": "premium_monthly",
-            "bundleId": "com.cymbra.music",
-            "environment": "Sandbox",
-            "purchaseDate": (now - Duration::days(1)).timestamp_millis(),
-            "expiresDate": (now + Duration::days(29)).timestamp_millis(),
-            "appAccountToken": "u1",
-            "type": "Auto-Renewable Subscription",
-        });
-        let tx_jws = sign_jws(&tx, &[&leaf, &root], &key);
-        let renewal_jws = sign_jws(
-            &serde_json::json!({"autoRenewStatus": 1}),
-            &[&leaf, &root],
-            &key,
-        );
-        let payload = serde_json::json!({
-            "notificationType": "DID_RENEW",
-            "notificationUUID": "n-1",
-            "data": {
-                "bundleId": "com.cymbra.music",
-                "environment": "Sandbox",
-                "signedTransactionInfo": tx_jws,
-                "signedRenewalInfo": renewal_jws,
-            }
-        });
-        let signed = sign_jws(&payload, &[&leaf, &root], &key);
-        let body = serde_json::to_vec(&serde_json::json!({"signedPayload": signed})).unwrap();
-        assert_eq!(
-            handle_notification(&svc, &cfg, &body, now).await.unwrap(),
-            IngestOutcome::Applied
-        );
-        assert_eq!(writes.lock().unwrap()[0].provider_ref, "otx-77");
-        assert_eq!(writes.lock().unwrap()[0].status, EntitlementStatus::Active);
-        // replay
-        assert_eq!(
-            handle_notification(&svc, &cfg, &body, now).await.unwrap(),
-            IngestOutcome::Duplicate
-        );
-        // a REFUND for the same subscription WITHOUT the account token resolves
-        // the user through the existing row
-        let tx2 = serde_json::json!({
-            "originalTransactionId": "otx-77",
-            "productId": "premium_monthly",
-            "bundleId": "com.cymbra.music",
-            "environment": "Sandbox",
-            "expiresDate": (now + Duration::days(29)).timestamp_millis(),
-            "revocationDate": now.timestamp_millis(),
-            "type": "Auto-Renewable Subscription",
-        });
-        let payload2 = serde_json::json!({
-            "notificationType": "REFUND",
-            "notificationUUID": "n-2",
-            "data": { "bundleId": "com.cymbra.music", "environment": "Sandbox",
-                      "signedTransactionInfo": sign_jws(&tx2, &[&leaf, &root], &key) }
-        });
-        let body2 = serde_json::to_vec(&serde_json::json!({
-            "signedPayload": sign_jws(&payload2, &[&leaf, &root], &key)
-        }))
-        .unwrap();
-        assert_eq!(
-            handle_notification(&svc, &cfg, &body2, now).await.unwrap(),
-            IngestOutcome::Applied
-        );
-        assert_eq!(
-            writes.lock().unwrap()[1].status,
-            EntitlementStatus::Refunded
-        );
-        assert_eq!(writes.lock().unwrap()[1].user_id, "u1");
-        // an unsigned / tampered body is refused with no side effect
-        let bad = serde_json::to_vec(&serde_json::json!({"signedPayload": "a.b.c"})).unwrap();
-        assert!(handle_notification(&svc, &cfg, &bad, now).await.is_err());
-        assert_eq!(writes.lock().unwrap().len(), 2);
-    }
-
-    #[tokio::test]
-    async fn google_rtdn_rereads_state_and_is_idempotent() {
-        use crate::billing::google::{
-            ExternalAccountIdentifiers, LineItem, MockPlayApi, SubscriptionV2, handle_rtdn,
-        };
-        use base64::Engine as _;
-        let (svc, writes, _) = service();
-        let mut api = MockPlayApi::new();
-        api.expect_get_subscription().returning(|_| {
-            Ok(SubscriptionV2 {
-                subscription_state: Some("SUBSCRIPTION_STATE_ACTIVE".into()),
-                start_time: Some(Utc::now()),
-                line_items: vec![LineItem {
-                    product_id: Some("premium_monthly".into()),
-                    expiry_time: Some(Utc::now() + Duration::days(30)),
-                }],
-                linked_purchase_token: Some("old-tok".into()),
-                acknowledgement_state: None,
-                external_account_identifiers: Some(ExternalAccountIdentifiers {
-                    obfuscated_external_account_id: Some("u1".into()),
-                }),
-                canceled_state_context: None,
-            })
-        });
-        let data = serde_json::json!({
-            "version": "1.0",
-            "packageName": "com.cymbra.music",
-            "subscriptionNotification": { "version": "1.0", "notificationType": 2, "purchaseToken": "new-tok", "subscriptionId": "premium_monthly" }
-        });
-        let body = serde_json::to_vec(&serde_json::json!({
-            "message": {
-                "data": base64::engine::general_purpose::STANDARD.encode(serde_json::to_vec(&data).unwrap()),
-                "messageId": "m-1"
-            },
-            "subscription": "projects/x/subscriptions/y"
-        }))
-        .unwrap();
-        let now = Utc::now();
-        assert_eq!(
-            handle_rtdn(&svc, &api, "com.cymbra.music", &body, now)
-                .await
-                .unwrap(),
-            IngestOutcome::Applied
-        );
-        // the superseded token is ended, the new one active
-        {
-            let ws = writes.lock().unwrap();
-            assert_eq!(ws.len(), 2);
-            assert_eq!(ws[0].provider_ref, "old-tok");
-            assert_eq!(ws[0].status, EntitlementStatus::Ended);
-            assert_eq!(ws[1].provider_ref, "new-tok");
-            assert_eq!(ws[1].status, EntitlementStatus::Active);
-        }
-        assert_eq!(
-            handle_rtdn(&svc, &api, "com.cymbra.music", &body, now)
-                .await
-                .unwrap(),
-            IngestOutcome::Duplicate
-        );
-        assert!(
-            handle_rtdn(&svc, &api, "com.other", &body, now)
-                .await
-                .is_err()
-        );
     }
 
     #[tokio::test]

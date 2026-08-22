@@ -12,8 +12,8 @@ use cymbra_plans::pg::{
 };
 use cymbra_plans::{
     AccessCodeRepo, BillingEventRepo, CampaignKind, CampaignRepo, Enrolment, EntitlementRepo,
-    EntitlementStatus, EntitlementWrite, MembershipRepo, MembershipSource, NewCampaign, Source,
-    codes,
+    EntitlementStatus, EntitlementWrite, EventProvider, MembershipRepo, MembershipSource,
+    NewCampaign, Source, codes,
 };
 use cymbra_platform::AppError;
 use sqlx::PgPool;
@@ -286,15 +286,17 @@ async fn billing_events_are_idempotent() {
     let repo = PgBillingEventRepo::new(pool);
     let id = format!("evt-{}", Uuid::now_v7());
     assert!(
-        repo.record_if_new(Source::Apple, &id, None, "sha")
+        repo.record_if_new(EventProvider::Revenuecat, &id, None, "sha")
             .await
             .unwrap()
     );
     assert!(
         !repo
-            .record_if_new(Source::Apple, &id, None, "sha")
+            .record_if_new(EventProvider::Revenuecat, &id, None, "sha")
             .await
             .unwrap()
     );
-    repo.mark_applied(Source::Apple, &id).await.unwrap();
+    repo.mark_applied(EventProvider::Revenuecat, &id)
+        .await
+        .unwrap();
 }

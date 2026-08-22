@@ -175,6 +175,11 @@ matching; when the feature is stable the operator moves the flag to `global` (or
 
 ### D7 — Apple: StoreKit 2 through `in_app_purchase`, verification server-side, no middleware
 
+> **Superseded 2026-08-18 by `swap-store-billing-to-revenuecat`** (D1–D4 there): the store
+> channels go through RevenueCat (SDK behind the same `StoreClient` seam, one webhook, pull
+> `SyncStorePlan`); the in-house JWS verifier / App Store Server API client are removed. The
+> ledger semantics below (source = `apple`, upsert by original transaction id) are unchanged.
+
 App: `in_app_purchase` (official Flutter plugin; iOS + macOS via `in_app_purchase_storekit`)
 behind an injectable `StoreClient` seam. On purchase/restore the app sends the **signed
 transaction JWS** to `ReportStorePurchase`; the server verifies the JWS chain against Apple's
@@ -189,6 +194,10 @@ revenue and one more third party in the payment truth path. Refused by the owner
 verification is the only genuinely delicate piece and it is bounded.
 
 ### D8 — Google: Play Billing through `in_app_purchase`, RTDN + Play Developer API
+
+> **Superseded 2026-08-18 by `swap-store-billing-to-revenuecat`**: Play Billing goes through
+> RevenueCat; the Play Developer API client and the RTDN push endpoint are removed. Ledger
+> semantics (source = `google`) unchanged.
 
 Purchase token → `ReportStorePurchase` → server calls
 `purchases.subscriptionsv2.get` (service-account JWT) to validate and read state, then

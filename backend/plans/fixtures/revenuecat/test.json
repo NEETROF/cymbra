@@ -1,0 +1,13 @@
+{
+  "api_version": "1.0",
+  "event": {
+    "id": "evt-test-1",
+    "type": "TEST",
+    "app_user_id": "018f0000-0000-7000-8000-000000000001",
+    "environment": "SANDBOX",
+    "event_timestamp_ms": 1700000000000,
+    "app_id": "app1234",
+    "store": "APP_STORE",
+    "product_id": "premium_monthly"
+  }
+}

@@ -3,8 +3,8 @@
 //! exercised by the `#[ignore]` integration tests against a real database.
 
 use crate::model::{
-    AccessCode, Campaign, CampaignKind, EntitlementRow, EntitlementStatus, Membership,
-    MembershipRow, MembershipSource, Redemption, Source,
+    AccessCode, Campaign, CampaignKind, EntitlementRow, EntitlementStatus, EventProvider,
+    Membership, MembershipRow, MembershipSource, Redemption, Source,
 };
 use crate::ports::{
     AccessCodeRepo, AuditEntry, AuditRepo, BillingEventRepo, CampaignRepo, Enrolment,
@@ -759,7 +759,7 @@ impl PgBillingEventRepo {
 impl BillingEventRepo for PgBillingEventRepo {
     async fn record_if_new(
         &self,
-        provider: Source,
+        provider: EventProvider,
         event_id: &str,
         user_id: Option<String>,
         payload_ref: &str,
@@ -779,7 +779,7 @@ impl BillingEventRepo for PgBillingEventRepo {
         Ok(res.rows_affected() == 1)
     }
 
-    async fn mark_applied(&self, provider: Source, event_id: &str) -> Result<()> {
+    async fn mark_applied(&self, provider: EventProvider, event_id: &str) -> Result<()> {
         sqlx::query(
             "UPDATE billing_events SET applied_at = now() WHERE provider = $1 AND event_id = $2",
         )

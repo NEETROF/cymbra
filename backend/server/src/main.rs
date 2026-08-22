@@ -221,7 +221,7 @@ async fn main() -> anyhow::Result<()> {
     };
     let flag_svc = FlagServiceServer::with_interceptor(flag_grpc, optional);
 
-    // Purchase channels (Apple / Google / web MoR), each wired only when its
+    // Purchase channels (store aggregator / web MoR), each wired only when its
     // environment block is present; the paywall flags gate them at runtime.
     let billing_channels = cymbra_server::billing::BillingChannels::build(
         &cymbra_server::billing::BillingEnv::from_env(),
@@ -236,11 +236,10 @@ async fn main() -> anyhow::Result<()> {
             .with_handles(Arc::new(cymbra_server::UserPortHandles::new(
                 user_dyn.clone(),
             )));
-        if let Some(v) = &billing_channels.apple_verifier {
-            g = g.with_verifier(cymbra_plans::Channel::Apple, v.clone());
-        }
-        if let Some(v) = &billing_channels.google_verifier {
-            g = g.with_verifier(cymbra_plans::Channel::Google, v.clone());
+        if let (Some(customers), Some(rc)) =
+            (&billing_channels.rc_customers, &billing_channels.revenuecat)
+        {
+            g = g.with_store(customers.clone(), rc.allow_sandbox);
         }
         if let Some(w) = &billing_channels.web {
             g = g.with_web(w.clone());
@@ -250,8 +249,8 @@ async fn main() -> anyhow::Result<()> {
             strict.clone(),
         )
     });
-    // Provider notification routes (App Store Server Notifications v2, Play RTDN
-    // push, web webhooks) — mounted only when the plans module is wired.
+    // Provider notification routes (store aggregator webhook, web webhooks) —
+    // mounted only when the plans module is wired.
     let billing_http = plan_service.clone().map(|ps| {
         cymbra_server::billing::billing_router(cymbra_server::billing::BillingState {
             svc: ps,

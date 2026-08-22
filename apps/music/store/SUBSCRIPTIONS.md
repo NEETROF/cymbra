@@ -1,48 +1,85 @@
 # Premium subscription — store & merchant-of-record setup
 
-Checklist for the purchase channels of the Premium plan (change:
-add-premium-subscription). The backend stores **identifiers only**; every channel is
-the merchant of record for its sales (Apple, Google, Paddle). Nothing below is a
-secret — secrets go in the deployment environment (see `backend/.env.example`,
+Checklist for the purchase channels of the Premium plan (changes:
+add-premium-subscription, swap-store-billing-to-revenuecat). The backend stores
+**identifiers only**; every channel is the merchant of record for its sales (Apple,
+Google, Paddle). Nothing below is a secret — store credentials go **into RevenueCat**,
+Cymbra's own secrets go in the deployment environment (see `backend/.env.example`,
 "purchase channels").
 
 The product ids offered by the paywall are the runtime config `plans.premium.products`
 (default `premium_monthly`, `premium_yearly`): they must exist under the **same ids** on
 every channel you enable.
 
-## Apple — App Store Connect (iOS + macOS)
+## Store aggregator — RevenueCat (App Store + Google Play)
+
+Since `swap-store-billing-to-revenuecat` the store channels go through RevenueCat:
+the app purchases through its SDK, RevenueCat verifies with the store and tracks
+renewals / grace / cancellations / refunds, and the backend learns store facts from
+**one** webhook plus the customer API. Store consoles still hold the products; the
+store **credentials** are configured in RevenueCat, **not** in our environment.
+
+- [ ] RevenueCat project "Cymbra" with two apps: **App Store** (bundle
+      `com.cymbra.music`, iOS + macOS) and **Play Store** (package `com.cymbra.music`).
+      Note the project id (`CYMBRA_REVENUECAT_PROJECT_ID`, `VITE_REVENUECAT_PROJECT_ID`)
+      and the two **public** SDK keys (`--dart-define=CYMBRA_RC_APPLE_KEY=…`,
+      `CYMBRA_RC_GOOGLE_KEY=…` at build time — empty ⇒ the app's store client is a no-op).
+- [ ] Entitlement **`premium`** attached to `premium_monthly` and `premium_yearly` on
+      each store (products imported into RevenueCat once they exist in the consoles).
+      Offerings / Paywalls are **not** used: the app lists products by id from
+      `plans.premium.products`.
+- [ ] Project settings → **Restore behavior: "Keep with original App User ID"** — a
+      receipt bound to another Cymbra account is refused by the SDK
+      (`receiptAlreadyInUse` → "linked to another account"), never migrated.
+- [ ] Webhook (Integrations → Webhooks): URL `https://api.cymbra.app/billing/revenuecat/webhook`
+      (staging: the staging host), **Authorization header value** generated there →
+      `CYMBRA_REVENUECAT_WEBHOOK_SECRET`; environment "Production + Sandbox" (the
+      backend applies sandbox only where `CYMBRA_REVENUECAT_ALLOW_SANDBOX=true`).
+      "Send test event" must answer 200.
+- [ ] Secret **v1 API key** (Project → API keys) → `CYMBRA_REVENUECAT_API_KEY`
+      (customer reads for `SyncStorePlan` / reconciliation, customer deletion on erasure).
+- [ ] Legal: sign the RevenueCat DPA (Account → Legal); RevenueCat is listed as a
+      sub-processor in the privacy policies. The SDK is configured with the Cymbra
+      account id only — no attributes, no email, no advertising ids.
+- [ ] Dashboards: RevenueCat Overview / Charts are where active subscriptions, MRR
+      and monthly revenue (current month included) are read — per store, product,
+      country. Optionally set Charts' net-revenue estimate to the Small Business
+      Program rate once enrolled.
+
+### Apple — App Store Connect (iOS + macOS)
 
 - [ ] Agreements: Paid Apps agreement active, banking + tax forms complete.
 - [ ] Subscription group **"Cymbra Premium"** with two auto-renewable subscriptions:
       `premium_monthly` (1 month), `premium_yearly` (1 year); localized display names
       (en/fr/es/it), prices per territory, review screenshot + notes.
-- [ ] App Store Server Notifications **v2**: production URL
-      `https://api.cymbra.app/billing/apple/notifications`, sandbox URL the staging
-      host; both `POST`, no auth header (payloads are signed JWS).
-- [ ] App Store Server API key (In-App Purchase role): key id + issuer id + `.p8` →
-      `CYMBRA_APPLE_ASC_KEY_ID`, `CYMBRA_APPLE_ASC_ISSUER_ID`, `CYMBRA_APPLE_ASC_KEY_PEM`.
-- [ ] `CYMBRA_APPLE_BUNDLE_ID=com.cymbra.music`; staging sets
-      `CYMBRA_APPLE_ALLOW_SANDBOX=true`, production **must not**.
-- [ ] Sandbox tester accounts (one per locale) for TestFlight; verify purchase, renewal
-      (accelerated), grace / billing retry, cancel, refund via the sandbox request, and
-      "restore purchases" on a second device.
+- [ ] **In-App Purchase key** (Users and Access → Integrations → In-App Purchase):
+      generate, upload the `.p8` + key id + issuer id **to RevenueCat** (App Store app
+      → In-app purchase key configuration). Nothing goes in our environment.
+- [ ] App Store Server Notifications **v2**: production and sandbox URLs set to the
+      URL RevenueCat shows for the app (App Store app → App Store Server Notifications),
+      not to our backend.
+- [ ] Sandbox tester accounts (one per locale) for TestFlight; verify purchase,
+      renewal (accelerated), grace / billing retry, cancel, refund via the sandbox
+      request, and "restore purchases" on a second device — each visible as a
+      RevenueCat customer event AND as a `plans` row through the webhook.
 - [ ] Review notes: no external purchase link, no code entry field, no discount copy in
       the app; the trial is a free, campaign-bounded access (not an introductory offer).
 
-## Google — Play Console (Android)
+### Google — Play Console (Android)
 
 - [ ] Merchant account set up; app on the closed/internal track with billing enabled.
 - [ ] Subscription products `premium_monthly`, `premium_yearly`, each with one base plan
       (auto-renewing, monthly / yearly), localized listing, prices per country.
-- [ ] Real-time developer notifications: Pub/Sub topic + a **push** subscription to
-      `https://api.cymbra.app/billing/google/rtdn` authenticated with an OIDC token
-      (audience = that URL, service account = the push account) →
-      `CYMBRA_GOOGLE_RTDN_AUDIENCE`, `CYMBRA_GOOGLE_RTDN_SA_EMAIL`.
-- [ ] Service account with the Play Developer API enabled and **View financial data /
-      Manage orders** permission → `CYMBRA_GOOGLE_SA_EMAIL`, `CYMBRA_GOOGLE_SA_KEY_PEM`;
-      `CYMBRA_GOOGLE_PACKAGE_NAME=com.cymbra.music`.
-- [ ] License testers for the test track; verify purchase (server acknowledges), RTDN
-      delivery, cancel, on-hold, refund/void, and restore on a second device.
+- [ ] Service account (Google Cloud) with the Play Developer API enabled and, in the
+      Play Console, **View financial data + Manage orders** permission → its JSON key
+      is uploaded **to RevenueCat** (Play app → Service account credentials). Nothing
+      goes in our environment.
+- [ ] Real-time developer notifications: Play Console → Monetization setup → topic
+      name = the Pub/Sub topic RevenueCat provides for the app (Play app → Google
+      Real-Time Developer Notifications); "Send test notification" green in RevenueCat.
+- [ ] License testers for the test track; verify purchase, RTDN-driven renewal, cancel,
+      on-hold (billing issue → grace), pause / resume, refund/void, and restore on a
+      second device — each visible in RevenueCat AND as a `plans` row.
 
 ## Web — Paddle Billing (Linux, Windows, site)
 
@@ -80,9 +117,12 @@ every channel you enable.
 1. Everything dark: `plans.enabled` off, every `billing.*.enabled` off.
 2. `plans.enabled` on with a staff-only trial campaign; then the community beta
    (Discord `/beta`) and the first feature beta.
-3. `billing.apple.enabled` on sandbox (TestFlight) → production; then Google; then web
-   once the Paddle review and the legal pages are live.
+3. Staging with `CYMBRA_REVENUECAT_ALLOW_SANDBOX=true`: sandbox purchases through
+   RevenueCat on iOS / macOS / Android (webhook + `SyncStorePlan` + reconciliation);
+   then production: `billing.apple.enabled` (TestFlight, production environment)
+   → `billing.google.enabled`; then web once the Paddle review and the legal pages
+   are live (Paddle is routed into RevenueCat at that point — see the change's §8).
 
-Rollback at any step: flip the flag off — a disabled channel hides its purchase button
-and its notification route acknowledges-and-ignores; `plans.enabled` off restores the
-pre-plan behaviour for everyone.
+Rollback at any step: flip the flag off — a disabled store hides its purchase button
+and the aggregator webhook acknowledges-and-ignores its events; `plans.enabled` off
+restores the pre-plan behaviour for everyone.

@@ -42,6 +42,9 @@ pub use sender::{PushMessage, PushSender, SendOutcome};
 
 /// Generated `cymbra.notifications.v1` protobuf messages + tonic client/server
 /// stubs (the NotificationService).
+// `tonic::Status` is large by design; newer clippy flags every generated
+// client/server signature for it.
+#[allow(clippy::result_large_err)]
 pub mod proto {
     tonic::include_proto!("cymbra.notifications.v1");
 }

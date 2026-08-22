@@ -1,17 +1,17 @@
 //! gRPC adapter (`cymbra.plans.v1.PlanService`) over [`PlanService`]: the app
-//! surface (my plan, redeem, store purchases, web checkout) and the music-admin
+//! surface (my plan, redeem, store plan sync, web checkout) and the music-admin
 //! console surface. Thin: auth + rate limit + proto mapping; every decision is in
 //! the service / core. Coverage-excluded like the other `grpc.rs` adapters.
 
 // `tonic::Status` is large by design; every adapter in the workspace allows this.
 #![allow(clippy::result_large_err)]
 
+use crate::billing::revenuecat::sync_customer;
 use crate::model::{
     Campaign, CampaignKind, EntitlementRow, Membership, MembershipRow, PlanSnapshot, Source,
 };
 use crate::ports::{
-    Channel, HandleResolver, PaywallConfigSource, Platform, StorePurchaseVerifier,
-    WebBillingProvider,
+    Channel, HandleResolver, PaywallConfigSource, Platform, StoreCustomerSource, WebBillingProvider,
 };
 use crate::proto::plan_service_server::{PlanService as PlanServiceTrait, PlanServiceServer};
 use crate::proto::{self};
@@ -20,8 +20,7 @@ use crate::web;
 use chrono::{DateTime, Utc};
 use cymbra_platform::cache::Cache;
 use cymbra_platform::identity::AuthIdentity;
-use cymbra_platform::{AppError, guard};
-use std::collections::HashMap;
+use cymbra_platform::{AppError, guard, ratelimit};
 use std::sync::Arc;
 use tonic::{Request, Response, Status};
 use uuid::Uuid;
@@ -31,9 +30,16 @@ pub struct PlanGrpc {
     paywall: Arc<dyn PaywallConfigSource>,
     cache: Arc<dyn Cache>,
     handles: Option<Arc<dyn HandleResolver>>,
-    verifiers: HashMap<Channel, Arc<dyn StorePurchaseVerifier>>,
+    /// The store aggregator's customer API + its sandbox rule; `None` ⇒
+    /// `SyncStorePlan` answers `unimplemented`.
+    store: Option<(Arc<dyn StoreCustomerSource>, bool)>,
     web: Option<Arc<dyn WebBillingProvider>>,
 }
+
+/// `SyncStorePlan` hits a third party: a small per-user burst is plenty (a
+/// purchase, a restore, a retry).
+const SYNC_MAX_PER_USER: u32 = 12;
+const SYNC_WINDOW: std::time::Duration = std::time::Duration::from_secs(60 * 10);
 
 impl PlanGrpc {
     pub fn new(
@@ -46,7 +52,7 @@ impl PlanGrpc {
             paywall,
             cache,
             handles: None,
-            verifiers: HashMap::new(),
+            store: None,
             web: None,
         }
     }
@@ -56,8 +62,14 @@ impl PlanGrpc {
         self
     }
 
-    pub fn with_verifier(mut self, channel: Channel, v: Arc<dyn StorePurchaseVerifier>) -> Self {
-        self.verifiers.insert(channel, v);
+    /// Wire the store aggregator (customer reads) and whether sandbox
+    /// subscriptions are applied (staging only).
+    pub fn with_store(
+        mut self,
+        customers: Arc<dyn StoreCustomerSource>,
+        allow_sandbox: bool,
+    ) -> Self {
+        self.store = Some((customers, allow_sandbox));
         self
     }
 
@@ -315,60 +327,47 @@ impl PlanServiceTrait for PlanGrpc {
         }))
     }
 
-    async fn report_store_purchase(
+    async fn sync_store_plan(
         &self,
-        req: Request<proto::ReportStorePurchaseRequest>,
-    ) -> Result<Response<proto::ReportStorePurchaseResponse>, Status> {
+        req: Request<proto::SyncStorePlanRequest>,
+    ) -> Result<Response<proto::SyncStorePlanResponse>, Status> {
         let id = identity(&req)?;
-        let r = req.into_inner();
-        let channel = match proto::Channel::try_from(r.channel) {
-            Ok(proto::Channel::Apple) => Channel::Apple,
-            Ok(proto::Channel::Google) => Channel::Google,
-            _ => return Err(Status::invalid_argument("channel must be apple or google")),
-        };
-        if !self.paywall.channel_enabled(channel) {
-            return Err(Status::failed_precondition("channel disabled"));
-        }
-        let verifier = self
-            .verifiers
-            .get(&channel)
-            .ok_or_else(|| Status::unimplemented("purchase channel not configured"))?;
-        let verified = verifier
-            .verify(&id.user_id, &r.payload, &r.product_id)
-            .await
-            .map_err(|e| {
-                // Ownership refusals are the support question ("I bought on the
-                // other account") — leave a trace; the message stays neutral.
-                if matches!(e, AppError::PermissionDenied(_)) {
-                    tracing::warn!(
-                        user = %id.user_id,
-                        channel = ?channel,
-                        "store purchase refused: transaction bound to another account"
-                    );
-                }
-                e.to_status()
-            })?;
-        if verified.write.user_id != id.user_id {
-            tracing::warn!(user = %id.user_id, channel = ?channel, "store purchase refused: owner mismatch");
-            return Err(Status::permission_denied(
-                "purchase belongs to another account",
-            ));
-        }
-        self.svc
-            .apply(verified.write)
+        let platform = platform_from_proto(req.into_inner().platform);
+        // Kill-switch off: the free view, no third-party call.
+        if self.svc.enabled() {
+            let (customers, allow_sandbox) = self
+                .store
+                .as_ref()
+                .ok_or_else(|| Status::unimplemented("store aggregator not configured"))?;
+            ratelimit::check(
+                self.cache.as_ref(),
+                "sync_store_plan",
+                &id.user_id,
+                SYNC_MAX_PER_USER,
+                SYNC_WINDOW,
+            )
             .await
             .map_err(|e| e.to_status())?;
+            let products = self.paywall.products();
+            // Only the CALLER's customer is read: nothing to claim for anyone else.
+            let n = sync_customer(
+                &self.svc,
+                customers.as_ref(),
+                &id.user_id,
+                &products,
+                *allow_sandbox,
+                Utc::now(),
+            )
+            .await
+            .map_err(|e| e.to_status())?;
+            tracing::info!(user = %id.user_id, rows = n, "store plan synced");
+        }
         let snapshot = self
             .svc
             .snapshot(&id.user_id)
             .await
             .map_err(|e| e.to_status())?;
-        let platform = match channel {
-            Channel::Apple => Some(Platform::Ios),
-            Channel::Google => Some(Platform::Android),
-            Channel::Web => Some(Platform::Web),
-        };
-        Ok(Response::new(proto::ReportStorePurchaseResponse {
+        Ok(Response::new(proto::SyncStorePlanResponse {
             plan: Some(self.plan_response(&snapshot, platform)),
         }))
     }

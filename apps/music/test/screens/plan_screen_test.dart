@@ -17,7 +17,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:grpc/grpc.dart' show GrpcError;
 import 'package:mockito/mockito.dart';
 import 'package:music/screens/plan_screen.dart';
 import 'package:music/services/app_platform.dart';
@@ -43,8 +42,11 @@ class _FakeStore extends Fake implements StoreClient {
   final bool available;
   final Stream<StoreEvent> _events;
   final List<StoreReceipt> completed = [];
+  final List<String?> accounts = [];
   @override
   Future<bool> isAvailable() async => available;
+  @override
+  Future<void> setAccount(String? userId) async => accounts.add(userId);
   @override
   Future<List<StoreProduct>> products(Set<String> ids) async => [
     for (final id in ids)
@@ -265,18 +267,12 @@ void main() {
   );
 
   testWidgets(
-    'a receipt bound to another Cymbra account: explicit snackbar, receipt completed',
+    'a receipt bound to another Cymbra account: explicit snackbar, no sync',
     (tester) async {
+      // The aggregator keeps the receipt with its original account (restore
+      // policy "keep with original"): the store client reports it, the plan is
+      // not synced, and the user is told which way out exists.
       final svc = MockPlanService();
-      when(
-        svc.reportStorePurchase(
-          channel: anyNamed('channel'),
-          payload: anyNamed('payload'),
-          productId: anyNamed('productId'),
-        ),
-      ).thenThrow(
-        const GrpcError.permissionDenied('purchase belongs to another account'),
-      );
       final events = StreamController<StoreEvent>.broadcast();
       final store = _FakeStore(events: events.stream);
       await _pump(
@@ -286,15 +282,7 @@ void main() {
         store: store,
         service: svc,
       );
-      events.add(
-        const StoreEvent.receipt(
-          StoreReceipt(
-            productId: 'premium_monthly',
-            payload: 'jws',
-            restored: true,
-          ),
-        ),
-      );
+      events.add(const StoreEvent.otherAccount());
       await tester.pumpAndSettle();
       expect(
         find.text(
@@ -303,10 +291,38 @@ void main() {
         ),
         findsOneWidget,
       );
-      expect(store.completed, hasLength(1));
+      verifyNever(svc.syncStorePlan(any));
       await events.close();
     },
   );
+
+  testWidgets('store success but sync failed: "pending" snackbar, plan kept', (
+    tester,
+  ) async {
+    final svc = MockPlanService();
+    when(svc.syncStorePlan(any)).thenThrow(Exception('offline'));
+    final events = StreamController<StoreEvent>.broadcast();
+    final store = _FakeStore(events: events.stream);
+    await _pump(
+      tester,
+      snapshot: _free,
+      platform: AppPlatform.ios,
+      store: store,
+      service: svc,
+    );
+    events.add(
+      const StoreEvent.receipt(StoreReceipt(productId: 'premium_monthly')),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.text(
+        'Purchase confirmed by the store — your plan will update in a moment.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Free plan'), findsOneWidget);
+    await events.close();
+  });
 
   testWidgets('plans disabled / free with no channel: status only', (
     tester,

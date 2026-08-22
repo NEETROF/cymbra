@@ -75,7 +75,7 @@ jobs:
         run: >-
           cargo llvm-cov --workspace --lcov --output-path target/lcov.info
           --fail-under-lines 80
-          --ignore-filename-regex 'frb_generated|cymbra\.(auth|user|music|analytics|notifications|plans)\.v1|/lib\.rs|/main\.rs|/backfill_titles\.rs|/midi\.rs|/musicxml\.rs|/audio\.rs|/renderer\.rs|/platform_log\.rs|/soundfont_synth\.rs|/grpc\.rs|/play_grpc\.rs|/pg\.rs|/pg_play\.rs|/pg_streak\.rs|/pg_curation_rewards\.rs|/pg_badges\.rs|plans/src/pg\.rs|plans/src/billing/env\.rs|plans/src/billing/reconcile\.rs|server/src/billing\.rs|analytics/src/repo\.rs|analytics/src/read\.rs|analytics/src/rollup\.rs|notifications/src/fcm\.rs|worker/src/flags\.rs|/creds_pg\.rs|/verifier\.rs|/telemetry\.rs|/metrics\.rs|/cache\.rs|/email\.rs|/db\.rs|/jwks\.rs|/interceptor\.rs|/logging\.rs|/session\.rs|/engine\.rs|/scheduler\.rs|/handlers\.rs'
+          --ignore-filename-regex 'frb_generated|cymbra\.(auth|user|music|analytics|notifications|plans)\.v1|/lib\.rs|/main\.rs|/backfill_titles\.rs|/midi\.rs|/musicxml\.rs|/audio\.rs|/renderer\.rs|/platform_log\.rs|/soundfont_synth\.rs|/grpc\.rs|/play_grpc\.rs|/pg\.rs|/pg_play\.rs|/pg_streak\.rs|/pg_curation_rewards\.rs|/pg_badges\.rs|plans/src/pg\.rs|plans/src/billing/env\.rs|plans/src/billing/rc_client\.rs|server/src/billing\.rs|analytics/src/repo\.rs|analytics/src/read\.rs|analytics/src/rollup\.rs|notifications/src/fcm\.rs|worker/src/flags\.rs|/creds_pg\.rs|/verifier\.rs|/telemetry\.rs|/metrics\.rs|/cache\.rs|/email\.rs|/db\.rs|/jwks\.rs|/interceptor\.rs|/logging\.rs|/session\.rs|/engine\.rs|/scheduler\.rs|/handlers\.rs'
       - name: Build
         run: cargo build --workspace
       # Regression guard for the shared-musicxml-crate wasm-buildability requirement:

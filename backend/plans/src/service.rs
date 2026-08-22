@@ -8,8 +8,8 @@
 use crate::codes::{generate_code, hash_code};
 use crate::core;
 use crate::model::{
-    AccessCode, Campaign, CampaignKind, EntitlementRow, EntitlementStatus, Membership,
-    MembershipRow, MembershipSource, PlanSnapshot, Redemption, Source, Unlock,
+    AccessCode, Campaign, CampaignKind, EntitlementRow, EntitlementStatus, EventProvider,
+    Membership, MembershipRow, MembershipSource, PlanSnapshot, Redemption, Source, Unlock,
 };
 use crate::ports::{
     AccessCodeIssuer, AccessCodeRepo, AuditEntry, AuditRepo, BillingEventRepo, CacheSecretRotator,
@@ -512,8 +512,8 @@ impl PlanService {
 
     // ------------------------------------------------- provider events (D3)
 
-    /// Apply a provider-derived write (Apple/Google/web adapters call this
-    /// after their own verification + idempotency check).
+    /// Apply a provider-derived write (the aggregator / web adapters call this
+    /// after their own authentication + idempotency check).
     pub async fn apply(&self, write: EntitlementWrite) -> Result<EntitlementRow> {
         let user_id = write.user_id.clone();
         let row = self.d.entitlements.upsert(write).await?;
@@ -548,7 +548,7 @@ impl PlanService {
     /// Idempotency gate for provider notifications.
     pub async fn record_event(
         &self,
-        provider: Source,
+        provider: EventProvider,
         event_id: &str,
         user_id: Option<&str>,
         payload_ref: &str,
@@ -559,7 +559,7 @@ impl PlanService {
             .await
     }
 
-    pub async fn mark_event_applied(&self, provider: Source, event_id: &str) -> Result<()> {
+    pub async fn mark_event_applied(&self, provider: EventProvider, event_id: &str) -> Result<()> {
         self.d.billing_events.mark_applied(provider, event_id).await
     }
 
@@ -628,6 +628,12 @@ impl PlanService {
         self.d.memberships.purge_user(user_id).await?;
         self.d.billing_events.purge_user(user_id).await?;
         self.d.entitlements.purge_user(user_id).await
+    }
+
+    /// Every ledger row of a user (the aggregator's `TRANSFER` ends the source
+    /// account's store rows through this).
+    pub async fn rows_for_user(&self, user_id: &str) -> Result<Vec<EntitlementRow>> {
+        self.d.entitlements.list_for_user(user_id).await
     }
 
     /// Active `web` rows of a user (erasure cancels them on the provider first).
@@ -1267,7 +1273,7 @@ mod tests {
         m.billing.expect_mark_applied().returning(|_, _| Ok(()));
         let s = service(m);
         assert!(
-            s.record_event(Source::Apple, "e1", Some("u1"), "p")
+            s.record_event(EventProvider::Revenuecat, "e1", Some("u1"), "p")
                 .await
                 .unwrap()
         );
@@ -1282,6 +1288,8 @@ mod tests {
         })
         .await
         .unwrap();
-        s.mark_event_applied(Source::Apple, "e1").await.unwrap();
+        s.mark_event_applied(EventProvider::Revenuecat, "e1")
+            .await
+            .unwrap();
     }
 }

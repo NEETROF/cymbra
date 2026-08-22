@@ -49,17 +49,37 @@ migrations/     plans schema (role plans_svc)
 
 Each channel is wired only when its environment block is present
 (`backend/.env.example`, "purchase channels"); `billing.<channel>.enabled` gates a
-wired channel at runtime. Adapters live in `src/billing/`:
+wired channel at runtime. Adapters live in `src/billing/`. Since
+`swap-store-billing-to-revenuecat` the **store** channels (App Store on iOS +
+macOS, Google Play) go through one aggregator, **RevenueCat**: the app purchases
+through its SDK, RevenueCat verifies with the store and tracks the lifecycle, and
+Cymbra learns store facts two ways that end in the same forward-only upsert —
+the webhook (push) and the customer API (pull: `SyncStorePlan` after a
+purchase/restore, and the reconciliation sweep). Ledger rows keep the **store** as
+`source` (`APP_STORE`/`MAC_APP_STORE` → `apple`, `PLAY_STORE` → `google`,
+`PADDLE` → `web`); `billing_events.provider` is where the aggregator shows up.
 
-| Channel | Verifies | Route | Reconciliation read |
+| Channel | Authenticates | Route | Reconciliation read |
 |---|---|---|---|
-| Apple | signed transaction / notification JWS: `x5c` chain to the pinned Root CA G3, ES256, bundle id, environment | `POST /billing/apple/notifications` (ASN v2) | App Store Server API (JWT with the ASC key) |
-| Google | Play Developer API `subscriptionsv2.get` (+ server-side acknowledge) | `POST /billing/google/rtdn` (Pub/Sub push, Google OIDC token) — state is re-read from the API, never trusted from the body | same API |
-| Web (Paddle) | HMAC `Paddle-Signature` over `ts:body`, replay-bounded | `POST /billing/web/webhook` | `GET /subscriptions/{id}` |
+| RevenueCat (App Store, Play; Paddle once routed through it) | shared-secret `Authorization` header (constant-time) before the body is read | `POST /billing/revenuecat/webhook` — event id idempotency, per-store `billing.<channel>.enabled` skip, pure mapper (`revenuecat.rs`, D4 table) | `GET /v1/subscribers/{app_user_id}` (secret API key), same mapper rules |
+| Web (Paddle, direct) | HMAC `Paddle-Signature` over `ts:body`, replay-bounded | `POST /billing/web/webhook` | through the aggregator once Paddle is routed there |
 
 Every notification is applied at most once (`billing_events`, provider event id);
-an unmappable one (no account token, no known row) is acknowledged and logged; a
-disabled channel answers 200 and ignores (no provider retry storm).
+an unmappable one (unknown store, non-premium product, malformed account id,
+sandbox in production, informational type) is acknowledged as a counted no-op; a
+disabled channel answers 200 and ignores (no provider retry storm). The
+`TRANSFER` event is applied defensively (source rows ended, destinations re-read)
+even though the project's restore behaviour is "keep with original App User ID"
+— a receipt bound to another account fails in the SDK (`receiptAlreadyInUse`)
+instead of migrating.
+
+**What RevenueCat knows** (D6): the opaque Cymbra account id (`app_user_id`),
+platform/SDK metadata and store transaction facts (product, price, currency,
+country, dates). Never a name, email, handle or attribute — the app's store seam
+exposes no attribute API. RevenueCat is a US company; its DPA (SCCs) is signed
+and it is listed as a sub-processor in the privacy policies. Revenue and
+subscription analytics are read on its dashboards; nothing about amounts is
+stored here (D5).
 
 ## Operations
 
@@ -73,11 +93,26 @@ disabled channel answers 200 and ignores (no provider retry storm).
 - Sweeps: `plans_reconcile` (daily 04:10 UTC — re-read paid rows ending within 3
   days) then `plans_withdraw` (04:40 — withdrawal on lapse), both on the ordered
   `plans.maintenance` channel; missed runs are skipped (idempotent).
-- Rotate a webhook / API secret: change the env value and restart — the plans
-  crate holds no key material of its own; the Apple root CA is pinned in
-  `certs/AppleRootCA-G3.cer` (expires 2039).
-- Refund path: the provider refunds (store / Paddle portal); the notification
-  ends the row and, past grace, the next sweep withdraws plan-only content.
+- Rotate the RevenueCat webhook secret: set a new `Authorization` value on the
+  webhook in the RevenueCat dashboard, put it in `CYMBRA_REVENUECAT_WEBHOOK_SECRET`,
+  restart (RevenueCat retries the deliveries refused in between). Rotate the API
+  key: issue a new v1 secret key in RevenueCat → `CYMBRA_REVENUECAT_API_KEY` →
+  restart → revoke the old one. Paddle: change the env value and restart. The
+  plans crate holds no key material of its own.
+- Disable a store: `billing.apple.enabled` / `billing.google.enabled = false` —
+  the paywall hides its button and the webhook acknowledges-and-ignores that
+  store's events (not recorded: once re-enabled, the reconciliation sweep
+  re-reads the accounts). Unset `CYMBRA_REVENUECAT_*` to unmount the route.
+- Sandbox: `CYMBRA_REVENUECAT_ALLOW_SANDBOX=true` on staging only; production
+  ignores (counts) `SANDBOX` events and subscriptions.
+- Refund path: the store refunds (App Store / Play console, or Paddle portal);
+  RevenueCat forwards it (`CANCELLATION` / `CUSTOMER_SUPPORT`) and the row ends
+  now; past grace, the next sweep withdraws plan-only content. Support looks the
+  account up in the back office → "open in RevenueCat" for the store facts.
+- Where revenue is read: RevenueCat Overview / Charts (active subscriptions,
+  MRR, revenue with month-to-date, trials, churn; by store / product / country).
 - Cohort export: back office → Plans → campaign → members → CSV.
-- Erasure: `PlanService::purge_user` (called by the account erasure job); an
-  active `web` row is cancelled on the provider first.
+- Erasure: `PlanService::purge_user` (called by the account erasure job); the
+  RevenueCat customer is deleted (`DELETE /v1/subscribers/{id}`, idempotent) and
+  an active `web` row is cancelled on Paddle first — both outside the erasure
+  transaction, so a provider failure retries the job.

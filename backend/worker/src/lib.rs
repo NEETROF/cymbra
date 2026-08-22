@@ -28,19 +28,23 @@ use sqlx::PgPool;
 /// delete (and enqueues nothing) and succeeds. Callers (the `purge_user` job
 /// handler) get at-least-once delivery, so this idempotency is required.
 pub async fn purge_user(admin_pool: &PgPool, user_id: &str) -> anyhow::Result<()> {
-    purge_user_with(admin_pool, user_id, None).await
+    purge_user_with(admin_pool, user_id, None, None).await
 }
 
-/// [`purge_user`] with the optional web-subscription cancellation seam (change:
-/// add-premium-subscription): an active `web` plan row is cancelled on the
-/// merchant-of-record BEFORE the rows are erased, so a deleted account is never
-/// billed again. Store rows are the user's to cancel on the store. When the
-/// `plans` schema is not deployed (no `CYMBRA_PLANS_DATABASE_URL`), the plans
-/// step is skipped entirely.
+/// [`purge_user`] with the optional billing seams (changes: add-premium-subscription
+/// and swap-store-billing-to-revenuecat D6): an active `web` plan row is cancelled
+/// on the merchant-of-record and the account's store-aggregator customer is
+/// deleted BEFORE the rows are erased, so a deleted account is never billed again
+/// and leaves no trace at the aggregator. Store subscriptions themselves are the
+/// user's to cancel on the store. Both calls happen outside the erasure
+/// transaction: a provider failure retries the job, never half-erases. When the
+/// `plans` schema is not deployed (no `CYMBRA_PLANS_DATABASE_URL`), the plans step
+/// is skipped entirely.
 pub async fn purge_user_with(
     admin_pool: &PgPool,
     user_id: &str,
     web_cancel: Option<&dyn cymbra_plans::WebSubscriptionCanceller>,
+    rc_erase: Option<&dyn cymbra_plans::StoreCustomerEraser>,
 ) -> anyhow::Result<()> {
     let uid = uuid::Uuid::parse_str(user_id)
         .map_err(|_| anyhow::anyhow!("purge_user: invalid user_id {user_id:?}"))?;
@@ -77,6 +81,14 @@ pub async fn purge_user_with(
                     .await
                     .map_err(|e| anyhow::anyhow!("cancel web subscription {r}: {e}"))?;
             }
+        }
+        // Forget the account at the store aggregator (idempotent: a missing
+        // customer is a success). Unconfigured aggregator ⇒ nothing to forget.
+        if let Some(eraser) = rc_erase {
+            eraser
+                .delete_customer(user_id)
+                .await
+                .map_err(|e| anyhow::anyhow!("delete aggregator customer: {e}"))?;
         }
     }
 

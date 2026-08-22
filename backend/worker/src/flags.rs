@@ -127,6 +127,50 @@ impl cymbra_plans::PlanConfigSource for WorkerPlanConfig {
     }
 }
 
+/// Flag-backed [`cymbra_plans::PaywallConfigSource`] for the worker: per-channel
+/// switches + the premium product ids (mirrors the server's `FlagPaywallConfig`);
+/// the reconciliation sweep grants only for those products.
+pub struct WorkerPaywallConfig {
+    flags: Arc<FlagService>,
+}
+
+impl WorkerPaywallConfig {
+    pub fn new(flags: Arc<FlagService>) -> Self {
+        Self { flags }
+    }
+}
+
+impl cymbra_plans::PaywallConfigSource for WorkerPaywallConfig {
+    fn channel_enabled(&self, channel: cymbra_plans::Channel) -> bool {
+        use cymbra_feature_flags::registry;
+        let ctx = cymbra_feature_flags::EvalContext::anonymous(registry::APP_MUSIC);
+        let key = match channel {
+            cymbra_plans::Channel::Apple => registry::BILLING_APPLE_ENABLED,
+            cymbra_plans::Channel::Google => registry::BILLING_GOOGLE_ENABLED,
+            cymbra_plans::Channel::Web => registry::BILLING_WEB_ENABLED,
+        };
+        self.flags.bool(key, false, &ctx)
+    }
+
+    fn products(&self) -> Vec<String> {
+        use cymbra_feature_flags::registry;
+        let ctx = cymbra_feature_flags::EvalContext::anonymous(registry::APP_MUSIC);
+        self.flags
+            .json(
+                registry::PLANS_PREMIUM_PRODUCTS,
+                serde_json::json!(["premium_monthly", "premium_yearly"]),
+                &ctx,
+            )
+            .as_array()
+            .map(|a| {
+                a.iter()
+                    .filter_map(|v| v.as_str().map(str::to_string))
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+}
+
 /// Withdrawal-on-lapse rotator (design D13) over the music offline-secret store,
 /// on the worker's `admin_svc` connection.
 pub struct OfflineSecretRotator {
