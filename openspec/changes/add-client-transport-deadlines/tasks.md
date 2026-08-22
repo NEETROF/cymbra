@@ -37,7 +37,9 @@
       `GrpcGlobalLeaderboardService`, `GrpcPlaySyncService`, `GrpcStreakService`,
       `GrpcProfileService`, `GrpcNotificationRegistryService`,
       `GrpcAchievementsService`, `GrpcCuratorRewardsService`,
-      `GrpcSoundFontCatalogService`, `GrpcUsageTrackingService`.
+      `GrpcSoundFontCatalogService`, `GrpcUsageTrackingService`, and
+      `GrpcPlanService` (added on main by the plans work — `getMyPlan`,
+      `syncStorePlan`, `createWebCheckout` are all `interactive`).
 - [ ] 2.4 Wire the interceptor into the `AuthServiceClient` that `tokenRefresher`
       builds directly (`grpc_client.dart:398`) — it bypasses every adapter, and an
       unbounded refresh there means a hung sign-in.
