@@ -135,10 +135,11 @@ result reaches `createCall`; `ClientCall` arms its deadline at *call creation*, 
 deadline already covers connection establishment; `ClientKeepAliveOptions` is
 implemented but disabled by default (`pingInterval: null`).
 
-**External check required**: prod terminates TLS at Caddy in front of tonic. The
-backend sets no keepalive policy ([main.rs:557](../../../backend/server/src/main.rs)),
-but the ping interval must be validated against Caddy so frequent pings are not
-answered with `GOAWAY`.
+**External check required**: prod terminates TLS at Caddy, which reverse-proxies to
+tonic over h2c ([Caddyfile:31](../../../backend/deploy/Caddyfile)). Two consequences:
+the ping interval must be validated against Caddy so frequent pings are not answered
+with `GOAWAY`, and — since `PING` is hop-by-hop and stops at the proxy — keepalive
+detects a dead link to the **edge**, not a hung backend. See design D9.
 
 **Coverage**: Flutter gate is 80%; the policy table, the interceptor and the race
 helper are pure Dart and unit-testable without a channel or a server.

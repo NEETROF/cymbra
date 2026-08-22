@@ -69,6 +69,16 @@ to `null` → the OS timeout. Setting `connectionTimeout` would do nothing for t
 - Streaming RPCs — the app currently issues none (the only `Stream`s in `services/`
   are local `StreamController`s in `audio_routing_service.dart`).
 - Per-user or remotely-tunable budgets. Constants; revisit if field data justifies it.
+- **Cancelling an upload.** `ScoreUploadScreen` replaces its forward button with a
+  spinner while `state.submitting`
+  ([score_upload_screen.dart:131](../../../apps/music/lib/screens/score_upload_screen.dart)),
+  so on a bad link the user watches it for up to the `long` budget with no way to stop.
+  That screen has no `PopScope`, so the user can navigate away — it is not an
+  inescapable wait and does not violate D10 — but leaving cancels nothing, and they
+  are left unsure whether the upload happened. Excluded because the fix is not "add a
+  button": it requires deciding what cancelling an upload *means* when the server may
+  already hold the bytes and the score row may already exist. That is a product
+  decision about upload semantics, not a transport bound.
 
 ## Decisions
 
@@ -234,11 +244,24 @@ today only the (absent) call deadline would ever end it.
 a call is in flight, which is exactly when we care, and an idle app never wakes the
 radio. So the battery objection to keepalive does not apply to this configuration.
 
+**What keepalive actually proves here.** Prod runs
+`reverse_proxy h2c://server:50051` ([Caddyfile:31](../../../backend/deploy/Caddyfile)),
+so the client's HTTP/2 connection terminates at **Caddy**, which opens a separate h2c
+connection to tonic. `PING` is a connection-level, hop-by-hop frame and is not
+forwarded — the pongs come from Caddy. Keepalive therefore detects *"my link to the
+edge is dead"* (the mobile-network-switch and dropped-NAT cases this targets) and
+**not** *"the backend is hung"*. It is not a backend health check, and nothing in this
+design should later be built on the assumption that it is.
+
 Interval and timeout are proposed at 5 s / 5 s (detection in ~10 s worst case) but must
-be validated against the edge before merge: prod terminates TLS at **Caddy** in front
-of tonic, and the backend sets no keepalive policy of its own
-([main.rs:557](../../../backend/server/src/main.rs)). A too-aggressive ping rate can be
-answered with `GOAWAY`, which would be worse than the bug. Verify, then pick.
+be validated against the edge before merge. The gRPC spec allows a server to enforce a
+minimum ping interval and answer a too-eager client with `GOAWAY ENHANCE_YOUR_CALM`;
+gRPC-core's default is 5 minutes without data, after 2 strikes. Two reasons the risk is
+low here — that rule targets pings **without data**, and `permitWithoutCalls: false`
+means we only ping during a call; and the path is Caddy (Go `net/http2`) then tonic
+(hyper), neither of which implements gRPC-core's enforcement policy. But the failure
+mode is *every call dropped*, not *degraded detection*, so "probably fine" is not a
+basis to ship it. The check is minutes; do it, then pick the interval.
 
 ### D10 — The blocking wait gets an exit, independent of how fast detection is
 

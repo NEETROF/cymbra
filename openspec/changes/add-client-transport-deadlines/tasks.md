@@ -160,12 +160,15 @@
       budget), and a private SoundFont import of a large file still completes.
 - [ ] 8.5 **Blocking for 2.2**: validate the keepalive ping interval against prod's
       Caddy front end — confirm pings at the chosen rate are answered and do not draw
-      a `GOAWAY`. If they do, raise the interval or ship keepalive disabled; the other
-      mechanisms stand without it.
-- [ ] 8.6 Verify the offline path end to end on device: airplane mode, open a cached
+      a `GOAWAY` (`ENHANCE_YOUR_CALM`). If they do, raise the interval or ship
+      keepalive disabled; the other mechanisms stand without it.
+- [ ] 8.6 Record in the code comment that keepalive pongs come from **Caddy**, not
+      tonic (`reverse_proxy h2c://`, PING is hop-by-hop) — it detects a dead link to
+      the edge, never a hung backend.
+- [ ] 8.7 Verify the offline path end to end on device: airplane mode, open a cached
       favorite (plays) and an uncached one (dedicated offline message, not the
       generic one).
-- [ ] 8.7 Sanity-check the budgets on a throttled connection (design Open Questions)
+- [ ] 8.8 Sanity-check the budgets on a throttled connection (design Open Questions)
       and adjust the constants if 10 s proves tight on a real slow link.
-- [ ] 8.8 `melos run analyze`, `dart format`, and `dart run custom_lint` clean.
-- [ ] 8.9 `openspec validate add-client-transport-deadlines --strict` passes.
+- [ ] 8.9 `melos run analyze`, `dart format`, and `dart run custom_lint` clean.
+- [ ] 8.10 `openspec validate add-client-transport-deadlines --strict` passes.
