@@ -268,7 +268,7 @@ void main() {
         speed: 1,
         notes: const <TimedNote>[],
       )
-      ..finishRun(1000, waitMode: false);
+      ..finishRun((emission: 1000, heard: 1000), waitMode: false);
     await _frames(tester, 20);
     // The end-of-session summary is up (the pre-play modal is already closed,
     // so this dialog and its close control are the summary's).
