@@ -118,3 +118,96 @@ silently overwritten.
 - **WHEN** a call is issued with an explicit deadline that differs from its
   category's budget
 - **THEN** the explicit deadline is the one sent to the server
+
+### Requirement: Losing connectivity aborts in-flight work immediately
+
+A client SHALL NOT wait out a deadline for work it already knows cannot succeed. When
+the device reports a transition to offline while a backend call is in flight, the
+operation waiting on that call SHALL resolve immediately — to its offline outcome
+(cached content, or the dedicated offline message) — rather than waiting for the call
+to exhaust its deadline.
+
+The abandoned call MAY be left to expire on its own deadline; what MUST NOT happen is
+the user-visible operation staying pending after the device knows it is offline.
+
+#### Scenario: Airplane mode ends a pending load at once
+
+- **WHEN** a score is loading over the network and the user enables airplane mode
+- **THEN** the load resolves as soon as the connectivity transition is reported —
+  playing a cached copy if one exists, otherwise showing the dedicated offline message
+  — and the blocking wait ends without running to the call's deadline
+
+#### Scenario: A completed load is unaffected by a later transition
+
+- **WHEN** a load completes successfully and connectivity is lost afterwards
+- **THEN** the loaded content stays available and no failure is surfaced for it
+
+#### Scenario: Watching connectivity leaks nothing
+
+- **WHEN** a load completes normally, without any connectivity transition
+- **THEN** any subscription opened to observe connectivity for that load is released
+
+### Requirement: A call known to be pointless is never issued
+
+Before opening a connection for a user-facing read, a client SHALL consult the
+device's reported reachability, and when the device is offline SHALL resolve the
+operation from local state (cache, or the dedicated offline message) without issuing a
+network call.
+
+Reported reachability is evidence of a *negative* only: a device reporting a usable
+interface MAY still be unable to reach the backend (captive portal, backend down), so
+a positive reading SHALL NOT be treated as proof and the call proceeds under its
+normal deadline.
+
+#### Scenario: Offline at tap opens no socket
+
+- **WHEN** the user opens a score while the device reports no connectivity
+- **THEN** the outcome is decided from the local cache or the offline message with no
+  network call attempted, and the result is immediate
+
+#### Scenario: Connected but unreachable still fails on its deadline
+
+- **WHEN** the device reports a usable interface but the backend cannot be reached
+- **THEN** the call is issued normally and fails on its deadline, classified as an
+  unreachable backend
+
+### Requirement: A dead connection is detected by keepalive, not by call deadlines
+
+The client channel SHALL send keepalive pings while calls are in flight and SHALL tear
+down a connection whose ping goes unanswered within a bounded time, so that a
+connection that has died without either endpoint noticing (half-open socket, network
+switch, dropped NAT mapping) is discovered independently of any individual call's
+deadline, and in-flight calls on it fail as soon as it is torn down.
+
+Pings SHALL NOT be sent while no call is in flight, so an idle app does not wake the
+radio. The ping interval SHALL be validated against the deployed edge so that a
+conforming client is not penalized for its ping rate.
+
+#### Scenario: Half-open connection fails fast
+
+- **WHEN** a call is in flight on a connection that has silently died
+- **THEN** the unanswered ping tears the connection down and the call fails at that
+  point rather than at its own deadline
+
+#### Scenario: Idle app sends no pings
+
+- **WHEN** the app has no call in flight
+- **THEN** no keepalive ping is sent
+
+### Requirement: No backend wait is both blocking and inescapable
+
+A UI that blocks interaction while waiting on a backend call SHALL offer the user a
+way out at all times. Cancelling SHALL return the user to where they were, SHALL NOT
+present the cancellation as an error, and SHALL ensure a late result from the
+abandoned call cannot alter the screen the user has returned to.
+
+#### Scenario: The user leaves a slow load
+
+- **WHEN** a blocking load is taking too long and the user cancels it
+- **THEN** the blocking UI closes, the user is back on the previous screen, no error
+  message is shown, and the load's late result — success or failure — changes nothing
+
+#### Scenario: No blocking wait lacks an exit
+
+- **WHEN** any modal blocking UI is shown for the duration of a backend call
+- **THEN** it exposes a cancel affordance for the whole time it is displayed

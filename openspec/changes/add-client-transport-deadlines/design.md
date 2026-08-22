@@ -44,6 +44,11 @@ to `null` → the OS timeout. Setting `connectionTimeout` would do nothing for t
 **Goals:**
 
 - An unreachable backend surfaces an error in seconds, not tens of seconds.
+- A connection lost *during* a load ends that load at once, rather than after its
+  deadline — the device already knows, so the app should too.
+- A load that cannot possibly succeed opens no socket at all.
+- A silently-dead connection is discovered without waiting on a call deadline.
+- The user is never trapped in a blocking wait, whatever bound applies to it.
 - Long operations (score upload, 400 MiB SoundFont import) keep working unchanged.
 - A timeout is indistinguishable from `UNAVAILABLE` to every downstream consumer, so
   the offline score cache, session refresh and UI messaging keep their behaviour.
@@ -53,7 +58,12 @@ to `null` → the OS timeout. Setting `connectionTimeout` would do nothing for t
 **Non-Goals:**
 
 - Retries, backoff, hedging, or circuit breaking. Out of scope; `authedCall`'s
-  existing refresh-once-on-`UNAUTHENTICATED` retry is untouched.
+  existing refresh-once-on-`UNAUTHENTICATED` retry is untouched. In particular, a
+  sticky "backend is down" state that would let calls 2..N fail instantly after the
+  first failure is deliberately deferred — it is a behaviour change with its own
+  staleness questions, not a bound.
+- Reachability probing beyond what the OS reports (no health-check RPC, no captive-
+  portal detection). The pre-flight check trusts the OS negatively only (D8).
 - Server-side deadline propagation / `tonic` honouring `grpc-timeout`.
 - The back-office (Vue) grpc-web client, and Cymbra Live.
 - Streaming RPCs — the app currently issues none (the only `Stream`s in `services/`
@@ -160,6 +170,96 @@ Per fact (1) the per-call deadline already covers connect, so `connectTimeout: 1
 setup for any future path that doesn't go through a deadline-carrying call, and it
 documents intent next to the credentials. Cheap defence in depth.
 
+### D7 — Abort on the connectivity transition by **racing**, not by cancelling
+
+The user-visible bug is that airplane mode does not stop the loader. The device knows
+it is offline within milliseconds; the app finds out only when the call gives up.
+
+The direct fix would be to cancel the in-flight call — grpc-dart exposes
+`ResponseFuture.cancel()` (`common.dart:41`). Rejected: the adapters return plain
+`Future<T>`, not `ResponseFuture<T>` (e.g. `CatalogService.fetchScoreBytes`), so the
+cancel handle is **erased at the seam**. Recovering it means changing the return type
+of every adapter method the notifiers await, and threading a cancellation token
+through 16 adapters — a large, invasive diff for an abort we can get for free.
+
+Chosen: **race** the awaited work against the connectivity transition inside the
+notifier. First to resolve wins; if the offline signal wins, the notifier goes
+straight to its offline outcome and the orphaned RPC dies on its own deadline (D1) in
+the background, harmlessly. No adapter signature changes.
+
+Two implementation constraints that are easy to get wrong:
+
+- **The subscription must be released when the work wins.** `onlineStatus` is a
+  broadcast stream from `connectivity_plus`; a `firstWhere` that is never satisfied
+  keeps its subscription alive, so every score open would leak one. The helper owns an
+  explicit `StreamSubscription` and cancels it in a `finally`.
+- **Only the *transition* counts, not the current value.** The race listens for a
+  `false` **event**; it must not re-read the current state, or a load starting while
+  `onlineStatus` has already emitted `false` would be decided by the pre-flight check
+  (D8) rather than by the race, and the two would double-fire.
+
+A cancellation token remains the better long-term shape if a second consumer ever
+needs to abort for a non-connectivity reason. Noted, not built.
+
+### D8 — Pre-flight check generalizes an existing pattern
+
+`_decideCachedCatalogOpen` already gates on
+`await ref.read(connectivityServiceProvider).isOnline()`
+([notation_notifier.dart:164](../../../apps/music/lib/state/notation_notifier.dart))
+before hitting the network for a *cached* catalog piece. The cache-**miss** path
+(`_fetchScoreBytes`, line 112) has no such gate — so a load that cannot possibly
+succeed still opens a socket and waits. Extending the existing check there is a small,
+consistent edit, not a new mechanism.
+
+The reading is trusted **negatively only**. `connectivity_plus` reports interface
+state, not reachability: a captive portal or a down backend both report "online". So
+`false` short-circuits, `true` proves nothing and the call proceeds under its deadline.
+`ConnectivityPlusService.isOnline()` already fails closed (`catch (_) → false`), which
+is the right bias here too — worst case we serve the cache.
+
+### D9 — Enable gRPC keepalive, with idle pings off
+
+`ClientKeepAliveOptions` is fully implemented in grpc 4.2.0 (`client_keepalive.dart`,
+wired at `http2_connection.dart:113`) but **disabled by default**: `pingInterval` is
+`null`, so `shouldSendPings` is false and no ping is ever sent. On ping timeout the
+transport calls `transport.finish()`, which tears the connection down and fails its
+in-flight calls immediately.
+
+This is the only mechanism here that addresses an *unstable* connection rather than a
+cleanly lost one: a socket the NAT dropped or that died in a network switch looks alive
+to both endpoints, so neither the OS nor `connectivity_plus` reports anything, and
+today only the (absent) call deadline would ever end it.
+
+`permitWithoutCalls: false` — the default — is deliberately kept: pings flow only while
+a call is in flight, which is exactly when we care, and an idle app never wakes the
+radio. So the battery objection to keepalive does not apply to this configuration.
+
+Interval and timeout are proposed at 5 s / 5 s (detection in ~10 s worst case) but must
+be validated against the edge before merge: prod terminates TLS at **Caddy** in front
+of tonic, and the backend sets no keepalive policy of its own
+([main.rs:557](../../../backend/server/src/main.rs)). A too-aggressive ping rate can be
+answered with `GOAWAY`, which would be worse than the bug. Verify, then pick.
+
+### D10 — The blocking wait gets an exit, independent of how fast detection is
+
+`open_score.dart:77` shows `showDialog(barrierDismissible: false)` with no cancel
+affordance, popped only when the completer resolves
+([open_score.dart:63](../../../apps/music/lib/screens/open_score.dart)). Every bound in
+this design is a bound on *how long the user is trapped*, not on *whether* they are —
+and no bound we pick is short enough to justify an inescapable modal. This is a
+separate defect from the transport ones and is fixed on its own terms.
+
+Cancelling clears `selectedScoreProvider`. That is not incidental: `_load` already
+guards every state write with `if (ref.read(selectedScoreProvider) != entry) return`
+(three times, including after the `catch`), so clearing the selection makes the
+existing guard discard the late result. No new "was this cancelled?" flag, no race
+between the cancel and the load's completion.
+
+Cancelling is a user decision, not a failure: the dialog closes, the user is back on
+the list, and **no** error banner is shown. Surfacing "load failed" for something the
+user deliberately stopped is the kind of dishonest message the offline-cache work
+already fought.
+
 ## Risks / Trade-offs
 
 - **A 10 s default is too tight on a bad mobile link** → The categories exist precisely
@@ -183,6 +283,19 @@ documents intent next to the credentials. Cheap defence in depth.
   fails at connect; the uncapped part is the transfer of a healthy, progressing
   connection. Follow-up noted (`dart:io HttpClient` idle timeout).
 
+- **The race leaks a connectivity subscription per load** → The helper owns the
+  subscription and cancels it in a `finally`; a dedicated test asserts release on the
+  normal (work-wins) path, since a leak here is invisible until it is a lot of leaks.
+- **Keepalive pings draw a `GOAWAY` from Caddy** → Validated against the deployed edge
+  before merge (D9); `permitWithoutCalls: false` keeps the ping rate proportional to
+  real traffic. If the edge is unhappy, the interval grows or keepalive ships disabled
+  — the other four mechanisms stand on their own.
+- **Pre-flight check trusts a false "online"** → Only the negative reading
+  short-circuits (D8); a positive reading changes nothing about the call path.
+- **Cancel leaves the notifier writing state for an abandoned load** → Cancel clears
+  `selectedScoreProvider`, which the existing stale-load guards already honour (D10);
+  the test drives a cancel followed by a late completion and asserts no state change.
+
 ## Migration Plan
 
 Additive and self-contained; no schema, no wire, no server change, so no rollout
@@ -200,3 +313,9 @@ live offline-cache regression.
   not the exact values. Worth one pass on a throttled connection before merge.
 - Should the bulk HTTP seams move to `dart:io HttpClient` for a real no-progress bound
   (D5 alternative)? Deferred — it is a separate refactor of four working seams.
+- What keepalive interval does Caddy tolerate (D9)? Blocking for the keepalive task
+  only; the rest of the change does not depend on the answer.
+- Should the race + pre-flight live in a reusable helper for every notifier that awaits
+  the network, or stay local to the notation load? Built local first — the score open is
+  the one place with a blocking modal. Generalize when a second caller needs it, rather
+  than designing an abstraction for one user.
