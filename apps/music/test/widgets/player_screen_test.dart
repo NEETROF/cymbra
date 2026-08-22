@@ -139,6 +139,57 @@ void main() {
     await teardownScreen(tester);
   });
 
+  /// Drives the screen's real Ticker for [totalMs] of wall-clock time in frames
+  /// small enough to pass `_onTick`'s `dt < 100` sanity guard — a single big
+  /// pump would be discarded whole and make any assertion below vacuous.
+  Future<void> pumpFrames(WidgetTester tester, double totalMs) async {
+    for (var t = 0.0; t < totalMs; t += 16) {
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+  }
+
+  testWidgets(
+    'the get-ready countdown lasts the same wall-clock time at any tempo',
+    (tester) async {
+      // Guards the Ticker → notifier seam, where the bug actually lived: the
+      // screen used to hand `advance()` a speed-scaled delta, so at 0.25x the
+      // 3…2…1…GO took 4x as long in real time. A notifier-level test cannot see
+      // this — it has to come through the real Ticker.
+      await pumpScreen(tester);
+      notifier().toggleWaitMode(); // countdown is a free-run feature
+      notifier().setSpeed(0.25);
+      await tester.tap(find.byIcon(Icons.play_arrow));
+      await tester.pump();
+      expect(state().countdownMs, kCountdownStartMs);
+
+      // Half the countdown's worth of real frames → about half of it left.
+      await pumpFrames(tester, kCountdownStartMs / 2);
+      expect(state().countdownMs, closeTo(kCountdownStartMs / 2, 32));
+
+      // The rest of it → over, having consumed real time, not musical time.
+      await pumpFrames(tester, kCountdownStartMs / 2 + 32);
+      expect(state().countdownMs, 0);
+      await teardownScreen(tester);
+    },
+  );
+
+  testWidgets('the playhead runs at exactly the transport speed, once', (
+    tester,
+  ) async {
+    // The counterpart of the countdown test: the speed factor must be applied
+    // exactly once across the Ticker → notifier seam. Applying it on both sides
+    // would move the playhead at speed² (0.0625x here) and drop nothing else.
+    await pumpScreen(tester);
+    notifier().toggleWaitMode(); // free run
+    notifier().setSpeed(0.25);
+    notifier().setPlaying(true); // resume-style start: no countdown
+    await pumpFrames(tester, 800);
+    // 800ms of wall clock at 0.25x ≈ 200ms of score time (the first frame of a
+    // freshly started Ticker carries dt 0, hence the tolerance).
+    expect(state().elapsedMs, closeTo(200, 20));
+    await teardownScreen(tester);
+  });
+
   /// Opens the settings surface — the pre-play popup reopened in-game (the gear
   /// button). The screen runs a Ticker (never settles), so pump explicitly.
   Future<void> openSettingsPopup(WidgetTester tester) async {

@@ -19,7 +19,7 @@ import '../state/countdown.dart';
 import '../state/player_notifier.dart';
 import '../theme/cymbra_theme.dart';
 
-/// The race-game style pre-start countdown (5…4…3…2…1…GO) shown centred over the
+/// The race-game style pre-start countdown (3…2…1…GO) shown centred over the
 /// player while playback is armed but the playhead is frozen. Each step fades in
 /// and scales up, then fades out as the next appears; the GO step disappears when
 /// the countdown reaches 0 (before the first note). Renders nothing when there is

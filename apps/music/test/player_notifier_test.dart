@@ -242,6 +242,23 @@ void main() {
       expect(read().gateSatisfied, isEmpty);
     });
 
+    test('changing hands mid-run restarts scoring from the top', () async {
+      await build();
+      // Synthesia (default) + play from the top opens a scored run.
+      notifier().togglePlay();
+      notifier().toggleWaitMode(); // free run so the playhead advances
+      notifier().advance(200);
+      expect(read().elapsedMs, greaterThan(0));
+      expect(container.read(performanceScorerProvider).active, isTrue);
+      // A hand switch restarts the piece with a fresh, still-active run for the
+      // new selection (demo notes are right-hand, so a run opens).
+      notifier().setSelectedHands(Hand.right);
+      expect(read().elapsedMs, 0);
+      expect(container.read(performanceScorerProvider).active, isTrue);
+    });
+  });
+
+  group('pre-start countdown', () {
     test(
       'startPlayback arms a countdown from the top, freezing the playhead',
       () async {
@@ -259,6 +276,45 @@ void main() {
         expect(read().countdownMs, 0);
         notifier().advance(200);
         expect(read().elapsedMs, greaterThan(0));
+      },
+    );
+
+    test(
+      'the countdown runs on wall-clock time, not on the transport speed',
+      () async {
+        await build();
+        notifier().toggleWaitMode(); // countdown is a free-run feature
+
+        // A quarter-speed run: the playhead crawls, but the get-ready beat is a
+        // real-world beat — 3…2…1…GO must still last kCountdownStartMs of real
+        // time, not 4x that (bug: the countdown consumed the speed-scaled delta).
+        notifier().setSpeed(0.25);
+        notifier().startPlayback();
+        expect(read().countdownMs, kCountdownStartMs);
+
+        // Feed exactly the countdown's worth of REAL frame time.
+        notifier().advance(kCountdownStartMs);
+        expect(read().countdownMs, 0);
+        expect(read().elapsedMs, 0); // frozen for the whole countdown
+
+        // ...and the same at double speed: the countdown is never shortened.
+        notifier().restartFromTop();
+        notifier().setSpeed(2);
+        expect(read().countdownMs, kCountdownStartMs);
+        notifier().advance(kCountdownStartMs - 1);
+        expect(read().countdownMs, 1);
+      },
+    );
+
+    test(
+      'past the countdown, the playhead advances at the transport speed',
+      () async {
+        await build();
+        notifier().toggleWaitMode(); // free run
+        notifier().setSpeed(0.5);
+        notifier().setPlaying(true); // no countdown via setPlaying
+        notifier().advance(400); // 400ms of real time at 0.5x
+        expect(read().elapsedMs, 200);
       },
     );
 
@@ -304,21 +360,6 @@ void main() {
       expect(scoring.active, isTrue); // the run is armed
       expect(scoring.recentHits, isEmpty); // but the press was not scored
       expect(scoring.combo, 0);
-    });
-
-    test('changing hands mid-run restarts scoring from the top', () async {
-      await build();
-      // Synthesia (default) + play from the top opens a scored run.
-      notifier().togglePlay();
-      notifier().toggleWaitMode(); // free run so the playhead advances
-      notifier().advance(200);
-      expect(read().elapsedMs, greaterThan(0));
-      expect(container.read(performanceScorerProvider).active, isTrue);
-      // A hand switch restarts the piece with a fresh, still-active run for the
-      // new selection (demo notes are right-hand, so a run opens).
-      notifier().setSelectedHands(Hand.right);
-      expect(read().elapsedMs, 0);
-      expect(container.read(performanceScorerProvider).active, isTrue);
     });
   });
 

@@ -315,8 +315,9 @@ abstract class PlayerData with _$PlayerData {
 
     /// Remaining pre-start countdown in ms (0 = none). While > 0, playback is
     /// "armed" ([isPlaying] is true) but the playhead is frozen so the player has
-    /// time to get ready; the screen shows a 5…1…GO countdown. Counts down in
-    /// [advance] using real frame time, then playback proceeds normally.
+    /// time to get ready; the screen shows a 3…2…1…GO countdown. Counts down on
+    /// **real** frame time — never scaled by [speed], so a slow-tempo practice
+    /// run does not stretch the wait — then playback proceeds normally.
     @Default(0.0) double countdownMs,
 
     /// Playback position (playhead), in milliseconds.
