@@ -18,6 +18,7 @@ import '../painters/keyboard_range.dart';
 import '../src/rust/api/musicxml.dart' show BeamState;
 import '../src/rust/api/score.dart';
 import 'note_density_core.dart';
+import 'performance_scoring_core.dart' show ScoreClocks, judgmentClock;
 
 export '../painters/keyboard_range.dart'
     show KeyboardRangeMode, KeyboardRangeModeLabel;
@@ -443,6 +444,18 @@ abstract class PlayerData with _$PlayerData {
   /// this has to become a delayed copy of the playhead rather than a rescale.
   double get referenceMs => elapsedMs - outputOffsetMs;
 
+  /// Both score clocks for a playhead at [playheadMs]: the emission clock (the
+  /// playhead itself) and the heard clock (shifted back by [outputOffsetMs] —
+  /// [referenceMs] for the current playhead). The single place the pair is
+  /// assembled; the scorer receives both and picks per call — and, for
+  /// sustains, per note (see `judgmentClock` / `sustainClock` in
+  /// `performance_scoring_core.dart`).
+  ScoreClocks clocksAt(double playheadMs) =>
+      (emission: playheadMs, heard: playheadMs - outputOffsetMs);
+
+  /// [clocksAt] for the current playhead.
+  ScoreClocks get clocks => clocksAt(elapsedMs);
+
   /// The score clock the scorer is driven on, for a playhead at [playheadMs].
   ///
   /// **Free run** judges an attack by its distance from the onset, and the
@@ -457,18 +470,27 @@ abstract class PlayerData with _$PlayerData {
   /// clock buys nothing and makes the frozen playhead miss its own onset, which
   /// silently drops every press on the floor.
   ///
-  /// Toggling Wait Mode mid-run switches clocks by [outputOffsetMs]. The verdict
-  /// model changes with it anyway (reaction time vs timing offset), but a note
-  /// held *across* the toggle has its sustain measured on two different clocks
-  /// and comes out short. That edge is strictly better than what it replaces —
-  /// before, a Wait-Mode press under any offset bound to nothing at all and the
-  /// note ended `missed` with no sustain — but it is not free, and it is the
-  /// second reason the lag wants to be a drained, continuous quantity.
+  /// Toggling Wait Mode mid-run switches this clock by [outputOffsetMs]. The
+  /// verdict model changes with it anyway (reaction time vs timing offset) —
+  /// but a *sustain* must never straddle the switch, which is why the scorer
+  /// measures each note's hold on the clock that bound it, not on this one
+  /// (see `sustainClock` in `performance_scoring_core.dart`).
   double judgmentClockAt(double playheadMs) =>
-      waitMode ? playheadMs : playheadMs - outputOffsetMs;
+      judgmentClock(clocksAt(playheadMs), waitMode: waitMode);
 
   /// [judgmentClockAt] for the current playhead.
   double get judgmentClockMs => judgmentClockAt(elapsedMs);
+
+  /// The emission-clock position a scored run finishes at: the first playhead
+  /// whose *judgment* clock has reached [endMs]. In Wait Mode — and always at
+  /// the default offset of 0 — that is [endMs] itself. In free run under an
+  /// output offset the judgment clock trails the playhead by [outputOffsetMs],
+  /// so the run keeps judging through that drain tail: finalizing at [endMs]
+  /// would resolve every onset in the piece's last [outputOffsetMs] as
+  /// `missed` before the player has even heard it, and truncate the final
+  /// sustains by the same amount — the tail of the piece would be unreachable
+  /// on a delayed route.
+  double get scoredRunEndMs => waitMode ? endMs : endMs + outputOffsetMs;
 
   /// Whether the instrument-sounds-itself setting can do anything right now: it
   /// only ever suppresses notes arriving from an instrument, so with no MIDI

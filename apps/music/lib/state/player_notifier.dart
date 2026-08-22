@@ -427,7 +427,7 @@ class Player extends _$Player {
     // onset or records an extra note (a no-op when no run is active). Presses
     // made during the pre-start countdown are warm-ups and are not scored.
     if (state.countdownMs <= 0) {
-      _scorer.noteOn(pitch, state.judgmentClockMs, waitMode: state.waitMode);
+      _scorer.noteOn(pitch, state.clocks, waitMode: state.waitMode);
     }
   }
 
@@ -444,7 +444,7 @@ class Player extends _$Player {
         consumedHeld: {...state.consumedHeld}..remove(pitch),
       );
     }
-    _scorer.noteOff(pitch, state.judgmentClockMs);
+    _scorer.noteOff(pitch, state.clocks);
   }
 
   // --- Playback controls ------------------------------------------------
@@ -720,13 +720,14 @@ class Player extends _$Player {
     // Mode blocked early-return below so the gate-open time is stamped even while
     // the cascade is frozen. A no-op when no run is active.
     //
-    // The scorer is driven on [PlayerData.judgmentClockMs] throughout — the
-    // heard clock in free run (change: add-audio-output-routing), the emission
-    // clock in Wait Mode, where the frozen playhead has to match its own onset
-    // to the millisecond. Gate-open stamps, attacks and miss windows all read
-    // the same one, so the judgment timeline never splits. Identical to a bare
-    // playhead whenever the output offset is 0.
-    _scorer.tick(s.judgmentClockMs, waitMode: s.waitMode);
+    // The scorer receives BOTH clocks ([PlayerData.clocks]) and picks per call:
+    // gate-open stamps, attacks and miss windows read the mode's judgment clock
+    // — the heard clock in free run (change: add-audio-output-routing), the
+    // emission clock in Wait Mode, where the frozen playhead has to match its
+    // own onset to the millisecond — while each sustain is measured on the
+    // clock that bound its note, so a hold straddling a Wait Mode toggle never
+    // switches clocks. Identical to a bare playhead whenever the offset is 0.
+    _scorer.tick(s.clocks, waitMode: s.waitMode);
 
     // Wait Mode tolerance: a key already held (and not already consumed by an
     // earlier onset) when the playhead reaches this onset counts as attacked —
@@ -746,7 +747,7 @@ class Player extends _$Player {
         // no fresh attack — credit the scorer for it (reaction ≈ 0) so it is not
         // later marked missed.
         for (final p in heldDue) {
-          _scorer.noteOn(p, s.judgmentClockMs, waitMode: true);
+          _scorer.noteOn(p, s.clocks, waitMode: true);
         }
       }
     }
@@ -781,9 +782,18 @@ class Player extends _$Player {
     final endMs = s.endMs;
     if (endMs > 0 && next >= endMs) {
       if (ref.read(performanceScorerProvider).active) {
-        // A scored run ends the piece (produces the summary) instead of looping.
-        next = endMs;
-        finishScoredRun = true;
+        // A scored run ends the piece (produces the summary) instead of looping
+        // — once the JUDGMENT clock reaches the end, not the emission clock. On
+        // a delayed route the player is still hearing (and being judged on) the
+        // last [outputOffsetMs] of the piece when the playhead reaches endMs,
+        // so the run keeps judging through that drain tail; finalizing at endMs
+        // would sweep the piece's unheard tail into `missed` (see
+        // [PlayerData.scoredRunEndMs]). No-op in Wait Mode and at offset 0.
+        final finishAt = s.scoredRunEndMs;
+        if (next >= finishAt) {
+          next = finishAt;
+          finishScoredRun = true;
+        }
       } else {
         // Simple loop — wrap to the effective start (the range's first measure
         // for a selective run), not 0.
@@ -885,7 +895,7 @@ class Player extends _$Player {
     // pause at the last position rather than looping.
     if (finishScoredRun) {
       _silenceAll();
-      _scorer.finishRun(s.judgmentClockAt(next), waitMode: s.waitMode);
+      _scorer.finishRun(s.clocksAt(next), waitMode: s.waitMode);
       state = state.copyWith(isPlaying: false);
     }
   }

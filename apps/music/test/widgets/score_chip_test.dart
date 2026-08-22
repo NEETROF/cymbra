@@ -104,7 +104,7 @@ void main() {
     final idleSize = tester.getSize(find.byType(ScoreChip));
 
     // A perfect hit starts the streak → the full chip shows ×1…
-    scorer.noteOn(60, 0, waitMode: false);
+    scorer.noteOn(60, (emission: 0, heard: 0), waitMode: false);
     await tester.pump();
     expect(comboText(), findsOneWidget);
     // …in its reserved slot: the pill never resizes when the combo appears.

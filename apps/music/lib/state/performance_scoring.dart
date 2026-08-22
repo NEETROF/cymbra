@@ -166,10 +166,12 @@ class PerformanceScorer extends _$PerformanceScorer {
     state = state.copyWith(active: false);
   }
 
-  /// Records a key press at score-clock [playheadMs] under [waitMode]. Binds to
-  /// the best matching pending onset or records an extra/wrong note.
-  void noteOn(int pitch, double playheadMs, {required bool waitMode}) {
+  /// Records a key press at [clocks] under [waitMode]. Binds to the best
+  /// matching pending onset — judged on the mode's clock (see [judgmentClock])
+  /// — or records an extra/wrong note.
+  void noteOn(int pitch, ScoreClocks clocks, {required bool waitMode}) {
     if (!state.active) return;
+    final playheadMs = judgmentClock(clocks, waitMode: waitMode);
     final match = _matchOnset(pitch, playheadMs, waitMode: waitMode);
     if (match == null) {
       // In Wait Mode a press only counts as wrong when a gate is actually open
@@ -212,25 +214,31 @@ class PerformanceScorer extends _$PerformanceScorer {
     _recompute();
   }
 
-  /// Finalizes the sustain of the bound note for [pitch] released at [playheadMs].
-  void noteOff(int pitch, double playheadMs) {
+  /// Finalizes the sustain of the bound note for [pitch] released at [clocks]
+  /// — measured on the clock that *bound* the note (see [sustainClock]), so a
+  /// hold that straddles a Wait Mode toggle is not cut short (or stretched) by
+  /// the output offset.
+  void noteOff(int pitch, ScoreClocks clocks) {
     if (!state.active) return;
     final idx = _heldBound.remove(pitch);
     if (idx == null) return;
     final t = _tracked[idx];
     if (t.sustainFinal) return;
-    final held = (playheadMs - t.note.startMs).clamp(0.0, double.infinity);
+    final releasedAt = sustainClock(clocks, boundInWaitMode: t.waitMode);
+    final held = (releasedAt - t.note.startMs).clamp(0.0, double.infinity);
     t.sustainRatio = sustainRatioFor(held, t.note.durationMs.toDouble());
     t.sustainFinal = true;
     _recompute();
   }
 
-  /// Advances time-based bookkeeping to [playheadMs] under [waitMode]: stamps the
+  /// Advances time-based bookkeeping to [clocks] under [waitMode]: stamps the
   /// gate-open time for onsets the frozen playhead has reached (Wait Mode), marks
   /// unplayed onsets missed once their bind window has passed (free run only), and
-  /// auto-finalizes sustain for notes held past their end.
-  void tick(double playheadMs, {required bool waitMode}) {
+  /// auto-finalizes sustain for notes held past their end — each on the clock
+  /// that bound it (see [sustainClock]).
+  void tick(ScoreClocks clocks, {required bool waitMode}) {
     if (!state.active) return;
+    final playheadMs = judgmentClock(clocks, waitMode: waitMode);
     var changed = false;
     for (final t in _tracked) {
       if (waitMode &&
@@ -249,26 +257,26 @@ class PerformanceScorer extends _$PerformanceScorer {
         _pushEffect(t.note.pitch, TimingVerdict.missed, wrong: false);
         changed = true;
       }
-      if (t.isHit &&
-          !t.sustainFinal &&
-          !_heldBound.containsValue(t.index) &&
-          playheadMs >= t.note.startMs + t.note.durationMs) {
-        t.sustainRatio = sustainRatioFor(
-          (playheadMs - t.note.startMs),
-          t.note.durationMs.toDouble(),
-        );
-        t.sustainFinal = true;
-        changed = true;
+      if (t.isHit && !t.sustainFinal && !_heldBound.containsValue(t.index)) {
+        final noteClock = sustainClock(clocks, boundInWaitMode: t.waitMode);
+        if (noteClock >= t.note.startMs + t.note.durationMs) {
+          t.sustainRatio = sustainRatioFor(
+            (noteClock - t.note.startMs),
+            t.note.durationMs.toDouble(),
+          );
+          t.sustainFinal = true;
+          changed = true;
+        }
       }
     }
     if (changed) _recompute();
   }
 
-  /// Ends the run at [playheadMs], producing and storing the [SessionResult].
-  void finishRun(double playheadMs, {required bool waitMode}) {
+  /// Ends the run at [clocks], producing and storing the [SessionResult].
+  void finishRun(ScoreClocks clocks, {required bool waitMode}) {
     if (!state.active) return;
     // Resolve stragglers: unplayed onsets miss; still-held notes get their
-    // sustain from how far the playhead reached.
+    // sustain from how far the clock that bound them reached.
     for (final t in _tracked) {
       if (!t.resolved) {
         t.verdict = TimingVerdict.missed;
@@ -276,8 +284,9 @@ class PerformanceScorer extends _$PerformanceScorer {
         t.resolved = true;
       }
       if (t.isHit && !t.sustainFinal) {
+        final noteClock = sustainClock(clocks, boundInWaitMode: t.waitMode);
         t.sustainRatio = sustainRatioFor(
-          (playheadMs - t.note.startMs).clamp(0.0, double.infinity),
+          (noteClock - t.note.startMs).clamp(0.0, double.infinity),
           t.note.durationMs.toDouble(),
         );
         t.sustainFinal = true;

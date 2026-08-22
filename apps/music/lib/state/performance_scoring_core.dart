@@ -21,6 +21,33 @@ import 'dart:math' as math;
 /// (`performance_scoring.dart`) collects live judgments and calls into this
 /// module; the models (`session_summary.dart`) reuse the enums defined here.
 
+/// The pair of score clocks every scorer entry point receives. [emission] is
+/// the transport playhead — the clock that decides when a note is handed to
+/// the audio engine — and [heard] is the position the player is actually
+/// hearing: the emission clock shifted back by the output offset (see
+/// `PlayerData.clocksAt`). Identical at the default offset of 0.
+///
+/// The scorer takes both rather than one pre-picked value so that *per-note*
+/// choices stay possible: an attack is judged on the clock of the mode it is
+/// made in, but a sustain must be measured on the clock that *bound* the note
+/// — see [judgmentClock] and [sustainClock].
+typedef ScoreClocks = ({double emission, double heard});
+
+/// The clock an attack (or a miss window, or a gate stamp) is judged on under
+/// [waitMode]: the emission clock in Wait Mode, where the frozen playhead has
+/// to match its own onset to the millisecond, and the heard clock in free run,
+/// where the player is reacting to sound.
+double judgmentClock(ScoreClocks clocks, {required bool waitMode}) =>
+    waitMode ? clocks.emission : clocks.heard;
+
+/// The clock a bound note's sustain is measured on: the SAME one that bound it
+/// ([boundInWaitMode]), regardless of the mode at release time. A note held
+/// across a mid-hold Wait Mode toggle would otherwise have its hold measured
+/// on two clocks a whole output offset apart, and come out short (Wait → free)
+/// or long (free → Wait) by exactly that.
+double sustainClock(ScoreClocks clocks, {required bool boundInWaitMode}) =>
+    boundInWaitMode ? clocks.emission : clocks.heard;
+
 /// Ordered timing verdict for one onset, best (`perfect`) to worst (`missed`).
 ///
 /// In free-run (Wait Mode off) the verdict comes from the signed offset of the
