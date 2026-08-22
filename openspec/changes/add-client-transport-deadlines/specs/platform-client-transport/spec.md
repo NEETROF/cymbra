@@ -211,3 +211,39 @@ abandoned call cannot alter the screen the user has returned to.
 
 - **WHEN** any modal blocking UI is shown for the duration of a backend call
 - **THEN** it exposes a cancel affordance for the whole time it is displayed
+
+### Requirement: Abandoning a wait never claims an outcome the client cannot know
+
+When the user leaves a screen while a mutating call is in flight, the client SHALL stop
+waiting and discard the result, and SHALL NOT present the operation as cancelled,
+failed, or succeeded — it cannot know which, because the request may already have been
+applied by the server.
+
+The client SHALL instead let the next successful read of the affected collection report
+the truth, and the operation SHALL be safe to retry: a repeated attempt MUST NOT create
+a duplicate. Where the server rejects a repeat as already-existing, the client SHALL
+present that as a statement of fact, not as an error.
+
+#### Scenario: Leaving mid-upload makes no claim
+
+- **WHEN** the user leaves the upload screen while the submission is in flight
+- **THEN** the wait is abandoned with no "cancelled", "failed" or "sent" message, and
+  the user's list of contributions reflects the real outcome on its next refresh
+
+#### Scenario: An abandoned upload that landed shows up as a normal contribution
+
+- **WHEN** an abandoned upload in fact completed on the server
+- **THEN** it appears in the user's contributions on the next refresh, with no error
+  and no duplicate
+
+#### Scenario: Retrying an upload that already landed is not an error
+
+- **WHEN** the user re-submits a score whose content the server already holds for them
+- **THEN** the app tells them the score is already in their library, worded as a fact
+  rather than as a failure, and no duplicate is created
+
+#### Scenario: The exit is never gated on a network answer
+
+- **WHEN** the user leaves a screen with a call in flight
+- **THEN** leaving does not wait on, and is not blocked by, any additional request to
+  confirm what happened

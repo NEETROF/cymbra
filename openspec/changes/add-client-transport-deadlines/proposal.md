@@ -67,6 +67,13 @@ multi-minute transfer — so budgets are **per category**.
 - **A blocking wait on a backend call must be cancellable.** The score-open spinner
   gains a cancel affordance; cancelling clears the score selection so the existing
   stale-load guard discards the late result.
+- **Leaving the upload screen abandons the upload** and claims nothing. The client
+  stops waiting and discards the result; it does not say "cancelled", because the
+  request may already have been applied. `MyUploads` reports the truth on its next
+  refresh, and a retry cannot duplicate — `(owner_id, sha256)` is UNIQUE over the
+  canonical decoded MusicXML — so `AlreadyExists` is reworded as a fact, not an error.
+  Deliberately **no** `PopScope`: gating the exit on a "did it land?" request would
+  make it depend on the network that just failed.
 
 **Status mapping**
 
@@ -125,6 +132,8 @@ the offline score cache would stop working exactly when it is needed.
 - `apps/music/lib/services/auth_service.dart` — `authErrorFromCode` code 4.
 - `apps/music/lib/state/notation_notifier.dart` — offline race + pre-flight check.
 - `apps/music/lib/screens/open_score.dart` — cancellable wait.
+- `apps/music/lib/state/score_upload_notifier.dart` — explicit disposal guard
+  (`Ref.mounted` does not exist in riverpod 2.6.1) and the reworded `AlreadyExists`.
 - 4 HTTP seams: `soundfont_source.dart`, `soundfont_preview_service.dart`,
   `score_preview_service.dart`, `private_soundfont_service.dart`.
 

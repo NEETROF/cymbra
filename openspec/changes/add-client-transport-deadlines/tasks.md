@@ -27,7 +27,7 @@
       alone — `connectionTimeout` is connection *reuse* (50 min default), not connect.
 - [ ] 2.2 Same `ChannelOptions`: add
       `keepAlive: ClientKeepAliveOptions(pingInterval: …, timeout: …, permitWithoutCalls: false)`
-      (design D9). Do **not** pick the interval blind — task 8.5 validates it against
+      (design D9). Do **not** pick the interval blind — task 9.6 validates it against
       Caddy first; land the wiring with the validated values.
 - [ ] 2.3 Give each adapter an injected `RpcDeadlines` and pass it as
       `interceptors: [deadlines]` on its generated client constructor. Adapters:
@@ -95,80 +95,106 @@
 - [ ] 5.5 Make sure `sub.close()` still runs on the cancel path (today it only runs
       via the loaded/failed branches).
 
-## 6. HTTP seam deadlines
+## 6. Abandon the upload on leave (design D11)
 
-- [ ] 6.1 `private_soundfont_service.dart`: `interactive` timeout on `list`,
+- [ ] 6.1 `score_upload_notifier.dart`: add a disposal flag set from `ref.onDispose`
+      in `build()`, and check it before every post-`await` `state = …` write in
+      `submit()`. `Ref.mounted` does NOT exist in riverpod 2.6.1 — do not reach for it.
+- [ ] 6.2 Do **not** add a `PopScope` to `ScoreUploadScreen`. Leaving stays free; the
+      exit must never wait on a network answer (design D11).
+- [ ] 6.3 Show **no** message on leave — not "cancelled", not "failed", not "sent".
+      The app cannot know which. `MyUploads` already refreshes on the `result`
+      transition and reports the truth.
+- [ ] 6.4 Reword the `AlreadyExists` case in `uploadErrorMessage` as a statement of
+      fact ("this score is already in your library"), not as an error — a retry after
+      an abandoned upload is the expected path, not an exception. Update the ARB
+      strings.
+- [ ] 6.5 Confirm the dedup claim before relying on it: `(owner_id, sha256)` UNIQUE
+      (`0003_user_scores.sql:42`) over the **canonical** decoded MusicXML
+      (`module.rs` step 4), so a re-zip of the same piece still collides.
+
+## 7. HTTP seam deadlines
+
+- [ ] 7.1 `private_soundfont_service.dart`: `interactive` timeout on `list`,
       `delete`, `propose`. Leave `import` and `download` **uncapped** with a comment
       explaining why a wall-clock bound on a 400 MiB transfer is a bug (design D5).
-- [ ] 6.2 `soundfont_source.dart`: font-bytes download is `bulk` — uncapped, same
+- [ ] 7.2 `soundfont_source.dart`: font-bytes download is `bulk` — uncapped, same
       comment.
-- [ ] 6.3 `soundfont_preview_service.dart` and `score_preview_service.dart`: bounded
+- [ ] 7.3 `soundfont_preview_service.dart` and `score_preview_service.dart`: bounded
       media fetches — `transfer` timeout.
-- [ ] 6.4 Make sure a timeout surfaces as the seam's own exception type
+- [ ] 7.4 Make sure a timeout surfaces as the seam's own exception type
       (`PrivateSoundFontException` etc.), not a raw `TimeoutException`, so no raw
       technical text can reach the UI.
 
-## 7. Tests
+## 8. Tests
 
-- [ ] 7.1 `test/services/rpc_deadlines_test.dart` — table test over
+- [ ] 8.1 `test/services/rpc_deadlines_test.dart` — table test over
       `deadlineForMethod`: every override path returns its category budget, and an
       unknown path returns `interactive`.
-- [ ] 7.2 Assert the interceptor actually attaches the deadline: call
+- [ ] 8.2 Assert the interceptor actually attaches the deadline: call
       `interceptUnary` with a fake invoker that captures the `CallOptions` it
       receives, and assert `timeout` equals the category budget.
-- [ ] 7.3 Assert the merge direction (design D3): an explicit per-call
+- [ ] 8.3 Assert the merge direction (design D3): an explicit per-call
       `CallOptions(timeout: …)` reaches the invoker unchanged and is **not**
       overwritten by the policy. This test is the guard on the one invertible line.
-- [ ] 7.4 Per-adapter wiring test: for each of the 17 clients from 2.3/2.4, assert the
+- [ ] 8.4 Per-adapter wiring test: for each of the 17 clients from 2.3/2.4, assert the
       constructed client carries the interceptor. Drive it through a fake
       `ClientChannel`/`ChannelBase` that records the `CallOptions` reaching
       `createCall`, so the assertion is "the deadline is on the call", not "the
       constructor was passed a list".
-- [ ] 7.5 Regression test for the offline fallback: a fetch failing with
+- [ ] 8.5 Regression test for the offline fallback: a fetch failing with
       `GrpcError.deadlineExceeded` drives `notation_notifier` to
       `ScoreLoadFailure.offlineUnavailable` when offline with no cached copy, and to
       the cached bytes when a copy exists — the same outcomes as for `UNAVAILABLE`.
-- [ ] 7.6 Test that a timed-out refresh is classified transient and leaves the stored
+- [ ] 8.6 Test that a timed-out refresh is classified transient and leaves the stored
       session intact (extend `test/services/token_refresher_test.dart`).
-- [ ] 7.7 Race test: with a never-completing fetch, emit `false` on a controllable
+- [ ] 8.7 Race test: with a never-completing fetch, emit `false` on a controllable
       `onlineStatus` and assert the notifier resolves immediately to the offline
       outcome — this is the airplane-mode repro as a unit test.
-- [ ] 7.8 Leak test: on a normal load with no connectivity transition, assert the
+- [ ] 8.8 Leak test: on a normal load with no connectivity transition, assert the
       connectivity subscription is cancelled (a fake `ConnectivityService` counting
       listen/cancel).
-- [ ] 7.9 Test that a late result from an abandoned load — arriving after cancel or
+- [ ] 8.9 Test that a late result from an abandoned load — arriving after cancel or
       after an offline abort — does not overwrite state.
-- [ ] 7.10 Pre-flight test: offline at load time produces the offline outcome with the
+- [ ] 8.10 Pre-flight test: offline at load time produces the offline outcome with the
       catalog service never called (verify with a strict mock).
-- [ ] 7.11 Widget test on `open_score`: the progress dialog exposes a cancel control,
+- [ ] 8.11 Widget test on `open_score`: the progress dialog exposes a cancel control,
       and cancelling pops it, clears the selection and shows no error banner.
-- [ ] 7.12 HTTP seam tests: a control call times out and surfaces the seam's own
+- [ ] 8.12 HTTP seam tests: a control call times out and surfaces the seam's own
       exception; a bulk call is issued with no wall-clock timeout.
-- [ ] 7.13 `flutter test --coverage --exclude-tags golden` and confirm the gate stays
+- [ ] 8.13 Upload-abandon test: dispose the notifier mid-`submit()` and assert the
+      late completion writes no state and throws nothing, in both debug and release
+      semantics (the flag, not the incidental drop).
+- [ ] 8.14 Assert leaving mid-upload surfaces no message at all, and that a subsequent
+      `AlreadyExists` is rendered as a fact rather than an error.
+- [ ] 8.15 `flutter test --coverage --exclude-tags golden` and confirm the gate stays
       ≥ 80%.
 
-## 8. Verification and gates
+## 9. Verification and gates
 
-- [ ] 8.1 Reproduce the original bug on device with the backend unreachable: tapping a
+- [ ] 9.1 Reproduce the original bug on device with the backend unreachable: tapping a
       catalog score now surfaces the error banner within the interactive budget
       instead of 30+ s. Record the observed delay.
-- [ ] 8.2 Reproduce the reported symptom: start a load on an unstable connection, then
+- [ ] 9.2 Reproduce the reported symptom: start a load on an unstable connection, then
       enable airplane mode — the loader must end at once, not after the deadline.
-- [ ] 8.3 Verify the cancel control on a genuinely slow load, and confirm the app
+- [ ] 9.3 Verify the cancel control on a genuinely slow load, and confirm the app
       returns to the list with no error banner and no late state change.
-- [ ] 8.4 Verify a real score upload still completes (it must not hit the `long`
+- [ ] 9.4 Verify a real score upload still completes (it must not hit the `long`
       budget), and a private SoundFont import of a large file still completes.
-- [ ] 8.5 **Blocking for 2.2**: validate the keepalive ping interval against prod's
+- [ ] 9.5 On device: start an upload, leave the screen mid-flight, and confirm no
+      message is shown, no duplicate appears, and the contribution shows up in
+      `MyUploads` if it landed.
+- [ ] 9.6 **Blocking for 2.2**: validate the keepalive ping interval against prod's
       Caddy front end — confirm pings at the chosen rate are answered and do not draw
       a `GOAWAY` (`ENHANCE_YOUR_CALM`). If they do, raise the interval or ship
       keepalive disabled; the other mechanisms stand without it.
-- [ ] 8.6 Record in the code comment that keepalive pongs come from **Caddy**, not
+- [ ] 9.7 Record in the code comment that keepalive pongs come from **Caddy**, not
       tonic (`reverse_proxy h2c://`, PING is hop-by-hop) — it detects a dead link to
       the edge, never a hung backend.
-- [ ] 8.7 Verify the offline path end to end on device: airplane mode, open a cached
+- [ ] 9.8 Verify the offline path end to end on device: airplane mode, open a cached
       favorite (plays) and an uncached one (dedicated offline message, not the
       generic one).
-- [ ] 8.8 Sanity-check the budgets on a throttled connection (design Open Questions)
+- [ ] 9.9 Sanity-check the budgets on a throttled connection (design Open Questions)
       and adjust the constants if 10 s proves tight on a real slow link.
-- [ ] 8.9 `melos run analyze`, `dart format`, and `dart run custom_lint` clean.
-- [ ] 8.10 `openspec validate add-client-transport-deadlines --strict` passes.
+- [ ] 9.10 `melos run analyze`, `dart format`, and `dart run custom_lint` clean.
+- [ ] 9.11 `openspec validate add-client-transport-deadlines --strict` passes.

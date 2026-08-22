@@ -69,16 +69,10 @@ to `null` → the OS timeout. Setting `connectionTimeout` would do nothing for t
 - Streaming RPCs — the app currently issues none (the only `Stream`s in `services/`
   are local `StreamController`s in `audio_routing_service.dart`).
 - Per-user or remotely-tunable budgets. Constants; revisit if field data justifies it.
-- **Cancelling an upload.** `ScoreUploadScreen` replaces its forward button with a
-  spinner while `state.submitting`
-  ([score_upload_screen.dart:131](../../../apps/music/lib/screens/score_upload_screen.dart)),
-  so on a bad link the user watches it for up to the `long` budget with no way to stop.
-  That screen has no `PopScope`, so the user can navigate away — it is not an
-  inescapable wait and does not violate D10 — but leaving cancels nothing, and they
-  are left unsure whether the upload happened. Excluded because the fix is not "add a
-  button": it requires deciding what cancelling an upload *means* when the server may
-  already hold the bytes and the score row may already exist. That is a product
-  decision about upload semantics, not a transport bound.
+- **Network-level cancellation of an upload.** Leaving the upload screen abandons the
+  *wait* (D11); it does not reset the gRPC stream. Plumbing `ResponseFuture.cancel()`
+  through the one upload adapter method is feasible but not worth it: user scores are
+  small MusicXML files, so the bandwidth an early reset would save is negligible.
 
 ## Decisions
 
@@ -283,6 +277,44 @@ the list, and **no** error banner is shown. Surfacing "load failed" for somethin
 user deliberately stopped is the kind of dishonest message the offline-cache work
 already fought.
 
+### D11 — Leaving the upload screen abandons the upload, and claims nothing
+
+Decided with the owner: cutting the upload when the user leaves the screen is
+acceptable. That removes the product question that previously kept this out of scope.
+
+What "cutting" can and cannot mean is the whole design. The client can stop waiting; it
+cannot un-send. By the time the user leaves, the request may already have reached the
+server, which may already have stored the object and inserted the row — the upload path
+writes the object then the row ([module.rs:339](../../../backend/music/src/module.rs)).
+So the app abandons the *wait* and discards the *result*, and **must not tell the user
+it was cancelled**. It says nothing at all: the screen closes, and `MyUploads` shows
+the truth on its next refresh.
+
+That is safe because the server already dedups. `(owner_id, sha256)` is UNIQUE
+([0003_user_scores.sql:42](../../../backend/music/migrations/0003_user_scores.sql)) and
+the hash is taken over the **canonical** decoded MusicXML, so even a re-zip of the same
+piece collides. A second attempt therefore cannot create a duplicate — worst case it
+returns `AlreadyExists`, which is information, not damage. It follows that the
+`AlreadyExists` message must read as a statement of fact ("this score is already in
+your library"), not as a failure; today it goes through `uploadErrorMessage` with
+everything else.
+
+**No `PopScope`.** Intercepting the pop to first ask the server "did it land?" was
+considered and rejected: that check is itself a network call, so in the very scenario
+that creates the ambiguity — the network is dead — it cannot answer either. It would
+convert an escapable ambiguous wait into an inescapable one, which is exactly what D10
+forbids. The exit stays free; the reconciliation happens after it, for free, on a list
+refresh the flow already performs.
+
+**Make the abandon explicit.** `ScoreUploadNotifier` is `@riverpod`, i.e. autoDispose
+([score_upload_notifier.dart:122](../../../apps/music/lib/state/score_upload_notifier.dart)),
+so leaving already disposes it and the post-`await` `state = …` writes are already
+dropped. But they are dropped *incidentally* — riverpod 2.6.1 guards that path mostly
+with asserts, so the behaviour differs between debug and release. `Ref.mounted` does
+not exist in 2.6.1 (it is a 3.x addition), so the guard is a local flag set from
+`ref.onDispose`, checked before each write. Relying on the accidental drop would leave
+a behaviour that changes the day the package is upgraded.
+
 ## Risks / Trade-offs
 
 - **A 10 s default is too tight on a bad mobile link** → The categories exist precisely
@@ -315,6 +347,10 @@ already fought.
   — the other four mechanisms stand on their own.
 - **Pre-flight check trusts a false "online"** → Only the negative reading
   short-circuits (D8); a positive reading changes nothing about the call path.
+- **The user leaves, the upload lands anyway, and the app implied otherwise** → The
+  app makes no claim on exit (D11); the library refresh is the source of truth, and the
+  sha uniqueness makes a retry harmless. The failure mode to avoid is a "cancelled"
+  message, not the late success itself.
 - **Cancel leaves the notifier writing state for an abandoned load** → Cancel clears
   `selectedScoreProvider`, which the existing stale-load guards already honour (D10);
   the test drives a cancel followed by a late completion and asserts no state change.
