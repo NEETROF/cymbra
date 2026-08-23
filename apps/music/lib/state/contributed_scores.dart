@@ -238,6 +238,7 @@ CatalogEntry contributedEntry(ContributedScore s, {String? uploaderHandle}) {
     uploaderHandle: uploaderHandle,
     proposalStatus: s.proposalStatus,
     proposalRejectionReason: s.rejectionReason,
+    instrument: s.instrument,
   );
 }
 

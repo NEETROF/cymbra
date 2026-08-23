@@ -22,7 +22,8 @@ import '../services/auth_service.dart' show AuthError, AuthException;
 import '../services/file_picker_service.dart';
 import '../services/notation_engine.dart';
 import '../services/score_upload_service.dart';
-import '../src/rust/api/musicxml.dart' show ScoreSummary;
+import '../src/rust/api/musicxml.dart' show InstrumentKind, ScoreSummary;
+import 'drums_access.dart';
 import 'score_catalog.dart' show PracticeLevel;
 import 'usage_tracking_notifier.dart';
 
@@ -98,6 +99,11 @@ abstract class ScoreUploadState with _$ScoreUploadState {
 
     /// A recoverable submission error message (inputs are kept).
     String? submitError,
+
+    /// Typed code of a submission refusal the UI localizes itself (change:
+    /// add-drums-access) — e.g. `drums_not_available`. Wins over [submitError]
+    /// so no raw/pre-baked string is shown for a typed refusal.
+    String? submitErrorCode,
   }) = _ScoreUploadState;
 
   /// A file passed client-side validation (has a summary, no reject).
@@ -155,10 +161,20 @@ class ScoreUploadNotifier extends _$ScoreUploadNotifier {
     final outcome = await ref
         .read(notationEngineProvider)
         .validate(picked.bytes);
+    var rejectCode = outcome.rejectCode;
+    // Drum gate (change: add-drums-access): a percussion score is valid, but
+    // uploading one requires the drum feature — refuse locally, like any other
+    // validation refusal, when it is not visible to this caller. The backend
+    // refuses the same upload independently (defence in depth).
+    if (rejectCode == null &&
+        outcome.summary?.instrument == InstrumentKind.percussion &&
+        !ref.read(drumsEnabledProvider)) {
+      rejectCode = kDrumsNotAvailableCode;
+    }
     state = state.copyWith(
       validating: false,
       summary: outcome.summary,
-      rejectCode: outcome.rejectCode,
+      rejectCode: rejectCode,
     );
   }
 
@@ -208,7 +224,11 @@ class ScoreUploadNotifier extends _$ScoreUploadNotifier {
         !state.hasTitle) {
       return;
     }
-    state = state.copyWith(submitting: true, submitError: null);
+    state = state.copyWith(
+      submitting: true,
+      submitError: null,
+      submitErrorCode: null,
+    );
     try {
       final record = await ref
           .read(scoreUploadServiceProvider)
@@ -234,12 +254,28 @@ class ScoreUploadNotifier extends _$ScoreUploadNotifier {
       );
     } catch (e) {
       if (_disposed) return; // Abandoned: a late failure is nobody's news.
+      // The backend's typed drum refusal (change: add-drums-access) maps to the
+      // same localized reason as the local one — never the raw gRPC string.
+      if (_isDrumsRefusal(e)) {
+        state = state.copyWith(
+          submitting: false,
+          submitErrorCode: kDrumsNotAvailableCode,
+        );
+        return;
+      }
       state = state.copyWith(
         submitting: false,
         submitError: uploadErrorMessage(e),
       );
     }
   }
+
+  /// Whether [e] is the backend's typed drum-gate refusal: a
+  /// `PERMISSION_DENIED` whose message starts with `drums_not_available`.
+  static bool _isDrumsRefusal(Object e) =>
+      e is AuthException &&
+      e.error == AuthError.permissionDenied &&
+      (e.message ?? '').startsWith(kDrumsNotAvailableCode);
 
   /// Reset the whole flow (e.g. after a successful upload, to contribute again).
   void reset() => state = const ScoreUploadState();

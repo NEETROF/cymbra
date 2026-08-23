@@ -8,6 +8,7 @@ export function makeJwt(payload: Record<string, unknown>): string {
 
 export interface SearchCall {
   query: string;
+  instrument?: string;
   moderationStatus?: string;
   reviewQueue?: boolean;
   allStatuses?: boolean;

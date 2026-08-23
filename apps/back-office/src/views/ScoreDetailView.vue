@@ -57,10 +57,21 @@ const bytesVm = computed(() =>
 // the bytes Async; failures degrade to a placeholder inside the preview.
 const scoreBytes = computed(() => bytesVm.value.bytes);
 const { notation } = useScoreRenderer(scoreBytes);
+// Drum guard (change: add-drums-access): `audio-wasm` renders through the hardcoded
+// piano channel, so a percussion score is never fed to the player — the preview shows
+// its localised "not previewable/auditionable yet" panel instead of a transport. The
+// recorded instrument gates immediately; the renderer's detection covers a drum score
+// still recorded `unknown`. `add-drum-audio-channel` lifts this guard.
+const isPercussion = computed(
+  () =>
+    hitVm.value.hit?.instrument === "percussion" ||
+    (notation.value.status === "success" && notation.value.data.kind === "percussion_unsupported"),
+);
+const playerBytes = computed(() => (isPercussion.value ? null : scoreBytes.value));
 // Preview instrument sound: default piano, or a catalog font the moderator picks.
 const { fonts, selectedId, sf2Bytes, loading: soundLoading, error: soundError } = useSoundFontChoice();
 // Audio playback + playhead clock (Play/Pause only), reusing the app's synth/schedule.
-const player = useScorePlayer(scoreBytes, sf2Bytes);
+const player = useScorePlayer(playerBytes, sf2Bytes);
 const acting = computed(() => decision.value.status === "loading");
 // A failed moderation decision (accept/reject/re-queue) surfaces as a toast; the
 // score LOAD error stays inline, and the edit-form error stays in the form.

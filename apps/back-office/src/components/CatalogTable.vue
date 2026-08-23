@@ -123,7 +123,20 @@ function rowStatus(h: CatalogHit): ModerationStatus {
               </svg>
             </span>
             <span class="title-text">
-              <span class="t-name">{{ h.title || "—" }}</span>
+              <span class="t-name">
+                {{ h.title || "—" }}
+                <!-- Instrument badge (change: add-drums-access): a percussion row is
+                     identifiable BEFORE it is opened — the moderator then knows why
+                     its preview/audition is unavailable. Keyboard/unknown rows show
+                     nothing. -->
+                <AppTag
+                  v-if="h.instrument === 'percussion'"
+                  variant="accent"
+                  class="perc-tag"
+                  :title="t('table.percussionHint')"
+                  >{{ t("table.percussion") }}</AppTag
+                >
+              </span>
               <IdBadge :id="h.id" @click.stop />
             </span>
           </div>
@@ -290,6 +303,11 @@ function rowStatus(h: CatalogHit): ModerationStatus {
 .t-name {
   font-weight: 600;
   color: var(--text);
+}
+/* Drums badge beside the title (change: add-drums-access). */
+.perc-tag {
+  margin-left: 0.35rem;
+  vertical-align: middle;
 }
 
 .num {

@@ -93,13 +93,19 @@ const scoreBytes = (id: string) => new Uint8Array([id.charCodeAt(0)]);
  *  decision shortcuts, and a leaked listener would decide another test's score. */
 const mounted: { unmount: () => void }[] = [];
 
-function mountReview(opts: { audioDelay?: () => Promise<void> } = {}) {
+function mountReview(opts: { audioDelay?: () => Promise<void>; percussion?: string[] } = {}) {
   setActivePinia(createPinia());
   const token = makeJwt({ roles: ["moderator"], sub: "u1" });
   const { clients, state } = makeFakeClients({ tokens: { accessToken: token, refreshToken: "r" } });
+  // A row's recorded instrument (change: add-drums-access): ids listed in
+  // `opts.percussion` are drum scores, gated out of the piano-channel audition.
+  const hitOf = (id: string) => ({
+    ...hit(id),
+    ...(opts.percussion?.includes(id) ? { instrument: "percussion" } : {}),
+  });
   const rows = new Map([
-    ["a", hit("a")],
-    ["b", hit("b")],
+    ["a", hitOf("a")],
+    ["b", hitOf("b")],
   ]);
   let page = 0;
   Object.assign(clients.score as unknown as Record<string, unknown>, {
@@ -128,7 +134,7 @@ function mountReview(opts: { audioDelay?: () => Promise<void> } = {}) {
   useAuthStore().setToken(token);
 
   setNotationWasmForTest({
-    render: async () => ({ svg: "<svg></svg>", layout: { width: 10, height: 10, measures: [] } }),
+    render: async () => ({ kind: "notation", svg: "<svg></svg>", layout: { width: 10, height: 10, measures: [] } }),
     schedule: async () => schedule,
   });
   setAudioWasmForTest({
@@ -217,6 +223,34 @@ describe("review mode playback", () => {
     await flushPromises();
 
     expect(liveMarkers()).not.toContain(A);
+  });
+
+  // Drum guard (change: add-drums-access): the console's audio path renders through
+  // the hardcoded piano channel, so a percussion score is never auditioned.
+  it("refuses to audition a percussion score — no autoplay, disabled Play, quiet note", async () => {
+    const { w } = mountReview({ percussion: ["a"] });
+    await flushPromises();
+
+    // No source ever started for the drum score (no autoplay).
+    expect(started).toHaveLength(0);
+    // The Play control is a quiet disabled/explained affordance, not an error.
+    expect(w.get(".actions button.play").attributes("disabled")).toBeDefined();
+    expect(w.get('[data-testid="drums-no-audition"]').text()).toContain("not auditionable yet");
+    expect(w.find(".error").exists()).toBe(false);
+    // The instrument badge identifies the drum proposal up front.
+    expect(w.get("h2.score-title").text()).toContain("Drums");
+
+    // The spacebar shortcut stays inert too.
+    document.body.dispatchEvent(new KeyboardEvent("keydown", { key: " ", bubbles: true }));
+    await flushPromises();
+    expect(started).toHaveLength(0);
+
+    // Deciding it advances to the keyboard score, which auditions as before.
+    await w.get("button.accept").trigger("click");
+    await flushPromises();
+    await flushPromises();
+    expect(liveMarkers()).toEqual([B]);
+    expect(w.find('[data-testid="drums-no-audition"]').exists()).toBe(false);
   });
 });
 

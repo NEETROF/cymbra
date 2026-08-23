@@ -37,7 +37,8 @@ class _FakeCatalog implements CatalogService {
   final List<String> saveCalls = [];
   final List<String> removeCalls = [];
   // Records the last call's facet arguments (for assertions).
-  bool? lastIsPiano;
+  ScoreInstrument? lastInstrument;
+  bool instrumentEverSet = false;
   int? lastMaxNoteValue;
 
   @override
@@ -49,7 +50,8 @@ class _FakeCatalog implements CatalogService {
     int limit = 20,
     int offset = 0,
   }) async {
-    lastIsPiano = filters.isPiano;
+    lastInstrument = filters.instrument;
+    instrumentEverSet = instrumentEverSet || filters.instrument != null;
     lastMaxNoteValue = filters.maxNoteValue;
     final q = query.toLowerCase();
     final a = author?.toLowerCase();
@@ -292,13 +294,15 @@ void main() {
   });
 
   test(
-    'catalog search pins is_piano and applies advanced facet filters',
+    'catalog search is NOT pinned to an instrument and applies facet filters',
     () async {
       final catalog = _FakeCatalog(_corpus());
       final c = _container(catalog);
       await _settled(c);
-      // The production catalog call always constrains to piano.
-      expect(catalog.lastIsPiano, isTrue);
+      // No instrument constraint of the hub's own (change: add-drums-access):
+      // the backend already withholds what the caller may not see.
+      expect(catalog.instrumentEverSet, isFalse);
+      expect(catalog.lastInstrument, isNull);
 
       // Applying a rhythmic-granularity filter re-queries with it.
       c.read(catalogSearchProvider.notifier).setMaxNoteValue(8);
@@ -314,4 +318,33 @@ void main() {
       expect(s2.entries, isNotEmpty);
     },
   );
+
+  test('the instrument filter maps into the catalog request', () async {
+    final catalog = _FakeCatalog(_corpus());
+    final c = _container(catalog);
+    await _settled(c);
+
+    c
+        .read(catalogSearchProvider.notifier)
+        .setInstrument(ScoreInstrument.percussion);
+    await _settled(c);
+    expect(catalog.lastInstrument, ScoreInstrument.percussion);
+    expect(c.read(catalogSearchProvider).hasAdvancedFilters, isTrue);
+
+    // Back to "any": the constraint is dropped, not sent as keyboard.
+    c.read(catalogSearchProvider.notifier).setInstrument(null);
+    await _settled(c);
+    expect(catalog.lastInstrument, isNull);
+
+    // Reset-all clears it too.
+    c
+        .read(catalogSearchProvider.notifier)
+        .setInstrument(ScoreInstrument.keyboard);
+    await _settled(c);
+    expect(catalog.lastInstrument, ScoreInstrument.keyboard);
+    c.read(catalogSearchProvider.notifier).clearAdvancedFilters();
+    await _settled(c);
+    expect(catalog.lastInstrument, isNull);
+    expect(c.read(catalogSearchProvider).hasAdvancedFilters, isFalse);
+  });
 }

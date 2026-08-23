@@ -17,6 +17,7 @@ import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:music/services/score_asset_source.dart';
+import 'package:music/state/drums_access.dart';
 import 'package:music/state/score_catalog.dart';
 
 import '../support/notation_fakes.dart';
@@ -76,6 +77,24 @@ void main() {
       final entry = container.read(scoreCatalogProvider).first;
       container.read(selectedScoreProvider.notifier).select(entry);
       expect(container.read(selectedScoreProvider), entry);
+    });
+  });
+
+  group('instrument (change: add-drums-access)', () {
+    test('the wire instrument maps to the enum, unknown to null', () {
+      expect(scoreInstrumentFromWire('keyboard'), ScoreInstrument.keyboard);
+      expect(scoreInstrumentFromWire('percussion'), ScoreInstrument.percussion);
+      expect(scoreInstrumentFromWire('unknown'), isNull);
+      expect(scoreInstrumentFromWire(''), isNull);
+      expect(scoreInstrumentFromWire(null), isNull);
+    });
+
+    test('drums are invisible by default (the safe test default)', () {
+      // main.dart overrides this with the remote `drums.enabled` flag; the
+      // un-overridden default must be off so no test surface shows drums.
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      expect(container.read(drumsEnabledProvider), isFalse);
     });
   });
 }

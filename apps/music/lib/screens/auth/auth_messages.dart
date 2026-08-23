@@ -46,6 +46,10 @@ String authErrorMessage(
       return l10n.authErrConflict;
     case AuthError.notFound:
       return l10n.authErrNotFound;
+    case AuthError.permissionDenied:
+      // No auth flow produces this today (it exists for typed feature refusals
+      // like the drum gate, mapped where they occur) — a neutral fallback here.
+      return fallback ?? l10n.authErrUnknown;
     case AuthError.unavailable:
       return l10n.authErrUnavailable;
     case AuthError.unknown:

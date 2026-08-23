@@ -3,6 +3,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
 import { match } from "ts-pattern";
+import AppTag from "@/components/AppTag.vue";
 import ScorePreview from "@/components/ScorePreview.vue";
 import ScoreEditDrawer from "@/components/ScoreEditDrawer.vue";
 import SoundFontPicker from "@/components/SoundFontPicker.vue";
@@ -60,9 +61,23 @@ const bytesVm = computed(() =>
 );
 
 const { notation } = useScoreRenderer(bytesData);
+// Drum guard (change: add-drums-access): the console's audio path is keyboard-shaped
+// (`audio-wasm` renders through the hardcoded piano channel), so a percussion score
+// must never be auditioned — it would play silence or piano nonsense. The recorded
+// instrument gates immediately; the renderer's own percussion detection covers a drum
+// score still recorded `unknown`. Not an error: the transport shows a quiet localised
+// "not auditionable yet" note instead. `add-drum-audio-channel` lifts this guard.
+const isPercussion = computed(
+  () =>
+    session.current.value?.instrument === "percussion" ||
+    (notation.value.status === "success" && notation.value.data.kind === "percussion_unsupported"),
+);
+// Gating the BYTES fed to the player silences every path at once: no schedule, so
+// canPlay stays false (disabled Play, inert spacebar) and auto-play never fires.
+const playerBytes = computed(() => (isPercussion.value ? null : bytesData.value));
 // Preview instrument sound: default piano, or a catalog font the moderator picks.
 const { fonts, selectedId, sf2Bytes, loading: soundLoading, error: soundError } = useSoundFontChoice();
-const player = useScorePlayer(bytesData, sf2Bytes);
+const player = useScorePlayer(playerBytes, sf2Bytes);
 
 // Hands-free review: auto-play each score once, as soon as it's playable (a decided
 // score leaves and the next one starts on its own). Only once per score — pausing is
@@ -244,6 +259,11 @@ const currentHit = computed(() => session.current.value as CatalogHit | null);
       </button>
       <output v-if="audioLoading" class="spinner" :aria-label="audioMsg ?? ''"></output>
       <span v-if="audioMsg" class="muted audio-msg">{{ audioMsg }}</span>
+      <!-- Quiet drum guard note (change: add-drums-access): explains the disabled
+           Play, deliberately NOT styled as an error. -->
+      <span v-if="isPercussion" class="muted audio-msg" data-testid="drums-no-audition">{{
+        t("preview.percussionNotAuditionable")
+      }}</span>
       <button type="button" class="accept" :disabled="acting" @click="decide('accepted')">
         {{ $t("review.accept") }}
       </button>
@@ -272,7 +292,15 @@ const currentHit = computed(() => session.current.value as CatalogHit | null);
       :loading="soundLoading"
       :error="soundError"
     />
-    <h2 class="score-title">{{ currentHit.title || $t("detail.score") }}</h2>
+    <h2 class="score-title">
+      {{ currentHit.title || $t("detail.score") }}
+      <!-- Instrument badge (change: add-drums-access): a percussion proposal is
+           identified up front, so the unavailable preview/audition reads as expected
+           rather than as a corrupt file. -->
+      <AppTag v-if="currentHit.instrument === 'percussion'" variant="accent" :title="$t('table.percussionHint')">{{
+        $t("table.percussion")
+      }}</AppTag>
+    </h2>
     <!-- Proposal attribution (moderator/admin-only privileged fields). -->
     <div v-if="attribution?.isUserProposed" class="attribution">
       <span class="badge">{{ $t("review.userProposed") }}</span>

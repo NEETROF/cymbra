@@ -13,6 +13,9 @@ export type StatusFilter = ModerationStatus | "";
 /** The audio-teaser filter (change: add-score-daily-access-rewards): "" = any,
  * "yes" = pieces with a rendered sample, "no" = pieces WITHOUT one (the backfill view). */
 export type PreviewFilter = "" | "yes" | "no";
+/** The instrument-family filter (change: add-drums-access): "" = all instruments.
+ * Replaces the retired piano checkbox (`is_piano` staff-count proxy). */
+export type InstrumentFilter = "" | "keyboard" | "percussion";
 export interface SortKeyInit {
   field: string;
   descending: boolean;
@@ -23,7 +26,8 @@ export interface Filters {
   query: string;
   author: string;
   level: string;
-  isPiano: boolean | undefined;
+  // Instrument family (change: add-drums-access): "" = all.
+  instrument: InstrumentFilter;
   // "" = all statuses (Tous) — the BO catalog default (change: add-score-catalog-proposal).
   moderationStatus: StatusFilter;
   // Origin filter: "" = any source, else e.g. "user-proposal".
@@ -49,7 +53,7 @@ export function defaultCatalogView(): CatalogView {
       query: "",
       author: "",
       level: "",
-      isPiano: undefined,
+      instrument: "",
       moderationStatus: "",
       source: "",
       hasPreview: "",
@@ -65,7 +69,10 @@ export interface SearchParams {
   query?: string;
   author?: string;
   level?: string;
-  isPiano?: boolean;
+  // Instrument family: "keyboard" | "percussion"; undefined = not constrained.
+  // Narrows only — the server always constrains results by the caller's drum
+  // eligibility, whatever filter is supplied (change: add-drums-access).
+  instrument?: "keyboard" | "percussion";
   moderationStatus?: ModerationStatus;
   // Review-queue mode: the moderation work list = pending scores PLUS accepted
   // scores flagged for re-review by community ratings. Overrides moderationStatus.
@@ -213,7 +220,7 @@ export const useCatalogStore = defineStore("catalog", () => {
         query: params.query ?? "",
         author: params.author,
         level: params.level,
-        isPiano: params.isPiano,
+        instrument: params.instrument,
         moderationStatus: params.moderationStatus,
         reviewQueue: params.reviewQueue,
         allStatuses: params.allStatuses,

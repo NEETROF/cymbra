@@ -82,4 +82,15 @@ void main() {
       expect(msg, isNot(l10n.authErrUnverified));
     });
   });
+
+  test('PERMISSION_DENIED reads the neutral fallback, never a raw string', () {
+    // No auth flow produces it today (typed feature refusals like the drum
+    // gate are mapped where they occur); the generic mapper stays neutral.
+    final msg = authErrorMessage(
+      l10n,
+      const AuthException(AuthError.permissionDenied, 'drums_not_available'),
+    );
+    expect(msg, l10n.authErrUnknown);
+    expect(msg, isNot(contains('drums_not_available')));
+  });
 }

@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { renderNotation } from "@/lib/notation/painter";
+import { renderNotation, type NotationRender } from "@/lib/notation/painter";
 import type { NotationMeasure, RenderedScore, RepeatMarks } from "@/lib/notation/geometry";
+
+/** Paint a keyboard fixture, asserting the outcome is a drawn notation (the union's
+ *  other member is the percussion carve-out — covered in notation.spec.ts). */
+function paint(geo: RenderedScore, width: number): NotationRender {
+  const result = renderNotation(geo, width);
+  if (result.kind !== "notation") throw new Error(`expected a drawn notation, got ${result.kind}`);
+  return result;
+}
 import { type PlaybackSchedule, startOfWrittenMeasure, writtenMeasureAt } from "@/lib/notation/schedule";
 
 // --- Schedule mapping (played slots ↔ written measures) ----------------------
@@ -78,7 +86,7 @@ const rendered = (measures: NotationMeasure[]): RenderedScore => ({
 
 describe("repeat notation engraving", () => {
   it("draws repeat barline dots, the volta label, % and segno", () => {
-    const { svg } = renderNotation(
+    const { svg } = paint(
       rendered([
         measure(0, marks({ forward: true, segno: true })),
         measure(1, marks({ backward_times: 2, ending_start: [1], ending_stop: true })),
@@ -93,7 +101,7 @@ describe("repeat notation engraving", () => {
   });
 
   it("is unchanged for measures without repeat marks", () => {
-    const { svg } = renderNotation(rendered([measure(0), measure(1)]), 900);
+    const { svg } = paint(rendered([measure(0), measure(1)]), 900);
     expect(svg).not.toContain("<circle");
     expect(svg).not.toContain("\u{E500}");
   });

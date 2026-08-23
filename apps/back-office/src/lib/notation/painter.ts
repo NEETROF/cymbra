@@ -85,9 +85,35 @@ export interface MeasureRect {
 }
 
 /** The painted SVG plus a layout map for the playback overlay. */
-export interface RenderResult {
+export interface NotationRender {
+  kind: "notation";
   svg: string;
   layout: { width: number; height: number; measures: MeasureRect[] };
+}
+
+/** Explicit "not previewable yet" state for a percussion score (change:
+ * add-drums-access): the file is fine, but this painter still assumes pitched
+ * notation on a treble/bass staff (no percussion clef, alternative noteheads or
+ * two-voice single-staff layout), so drawing it would be a confident WRONG
+ * rendering a moderator would read as a corrupt file. A distinct state — not a
+ * render failure — is returned instead; `add-drum-notation-render` lifts it. */
+export interface PercussionNotSupported {
+  kind: "percussion_unsupported";
+}
+
+/** What a render produces: the drawn notation, or the explicit percussion state. */
+export type RenderResult = NotationRender | PercussionNotSupported;
+
+/** True when the parsed document is percussion notation: a percussion clef on any
+ *  staff (document attributes or a mid-piece change), or any note carried on the
+ *  unpitched channel. Either signal alone marks the score — a drum part exported
+ *  without its `<clef sign="percussion">` still carries `<unpitched>` notes. */
+export function isPercussionScore(doc: ScoreDocument): boolean {
+  const percClef = (c: Clef): boolean => c.sign === "percussion";
+  return (
+    doc.attributes.clefs.some(percClef) ||
+    doc.measures.some((m) => m.clefs.some(percClef) || m.notes.some((n) => n.unpitched != null))
+  );
 }
 
 /** Invariant render state threaded through the paint routines (keeps their parameter
@@ -109,12 +135,19 @@ interface Ctx {
 export function renderNotation(rendered: RenderedScore, width: number): RenderResult {
   const svg = new Svg();
   const { document: doc, systems } = rendered;
+  // Percussion carve-out (change: add-drums-access): refuse to draw rather than
+  // engrave a drum part with pitched treble/bass assumptions.
+  if (isPercussionScore(doc)) return { kind: "percussion_unsupported" };
   const twoStaff = doc.staves >= 2;
   const systemHeight = topPad + staffHeight + (twoStaff ? interStaff + staffHeight : 0) + bottomPad;
   const height = systems.length * (systemHeight + systemGap) + systemGap;
   const measures: MeasureRect[] = [];
   if (systems.length === 0) {
-    return { svg: svg.toString(width, systemHeight), layout: { width, height: systemHeight, measures } };
+    return {
+      kind: "notation",
+      svg: svg.toString(width, systemHeight),
+      layout: { width, height: systemHeight, measures },
+    };
   }
 
   const ctx: Ctx = {
@@ -132,7 +165,7 @@ export function renderNotation(rendered: RenderedScore, width: number): RenderRe
     paintSystem(ctx, systems[i], y, i === 0);
     y += systemHeight + systemGap;
   }
-  return { svg: svg.toString(width, height), layout: { width, height, measures } };
+  return { kind: "notation", svg: svg.toString(width, height), layout: { width, height, measures } };
 }
 
 function divisionsPerMeasure(doc: ScoreDocument): number {

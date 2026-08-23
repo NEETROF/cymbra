@@ -45,6 +45,9 @@ abstract class CatalogSearchState with _$CatalogSearchState {
     // Advanced musical-facet filters (change: score-catalog-facets). Each null =
     // no constraint. Applied to the catalog source only (uploads carry no facet
     // data in the app).
+    /// Instrument-family filter (change: add-drums-access): null = no
+    /// constraint (the backend already withholds what the caller may not see).
+    ScoreInstrument? instrument,
     int? maxNoteValue,
     bool? hasChords,
     bool? hasTuplets,
@@ -92,6 +95,7 @@ abstract class CatalogSearchState with _$CatalogSearchState {
 
   /// Whether any advanced facet filter is active.
   bool get hasAdvancedFilters =>
+      instrument != null ||
       maxNoteValue != null ||
       hasChords != null ||
       hasTuplets != null ||
@@ -152,6 +156,12 @@ class CatalogSearch extends _$CatalogSearch {
   // --- advanced facet filters (change: score-catalog-facets) --------------
   // Applied to the catalog source; each reloads immediately.
 
+  /// Instrument-family filter (change: add-drums-access), or null for "tout".
+  void setInstrument(ScoreInstrument? instrument) {
+    state = state.copyWith(instrument: instrument);
+    unawaited(_reload());
+  }
+
   /// Fastest allowed note value (power-of-two denominator), or null for "tout".
   void setMaxNoteValue(int? denominator) {
     state = state.copyWith(maxNoteValue: denominator);
@@ -189,6 +199,7 @@ class CatalogSearch extends _$CatalogSearch {
   /// Clear every advanced facet filter (keeps text/author/level/source).
   void clearAdvancedFilters() {
     state = state.copyWith(
+      instrument: null,
       maxNoteValue: null,
       hasChords: null,
       hasTuplets: null,
@@ -264,10 +275,12 @@ class CatalogSearch extends _$CatalogSearch {
     return uploads.where(_matchesFilters).toList();
   }
 
-  /// The current musical-facet filters for the catalog query. The corpus is
-  /// piano-only for now, so `isPiano` is always constrained to true.
+  /// The current musical-facet filters for the catalog query. No instrument is
+  /// pinned (change: add-drums-access): the corpus is no longer keyboard-only,
+  /// and the backend already withholds what the caller may not see — the
+  /// user's optional instrument filter only narrows.
   CatalogFilters get _filters => CatalogFilters(
-    isPiano: true,
+    instrument: state.instrument,
     maxNoteValue: state.maxNoteValue,
     hasChords: state.hasChords,
     hasTuplets: state.hasTuplets,

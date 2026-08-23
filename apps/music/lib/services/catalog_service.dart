@@ -19,7 +19,8 @@ import 'package:grpc/grpc.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../src/grpc/score.pbgrpc.dart' as score;
-import '../state/score_catalog.dart' show PracticeLevel;
+import '../state/score_catalog.dart'
+    show PracticeLevel, ScoreInstrument, scoreInstrumentFromWire;
 import 'catalog_access_state.dart';
 import 'grpc_client.dart';
 import 'rpc_deadlines.dart';
@@ -74,6 +75,10 @@ class CatalogHit {
   /// piece without a probe.
   final bool hasPreview;
 
+  /// The score's stored instrument family (change: add-drums-access); `null`
+  /// when the server recorded it as `unknown` (nothing is then shown).
+  final ScoreInstrument? instrument;
+
   const CatalogHit({
     required this.id,
     required this.license,
@@ -92,6 +97,7 @@ class CatalogHit {
     this.moderationStatus,
     this.contributorCredit,
     this.hasPreview = false,
+    this.instrument,
   });
 }
 
@@ -119,7 +125,7 @@ class CatalogSearchPage {
 /// one object so `search` stays within a sane parameter count.
 class CatalogFilters {
   const CatalogFilters({
-    this.isPiano,
+    this.instrument,
     this.maxNoteValue,
     this.hasChords,
     this.hasTuplets,
@@ -129,7 +135,9 @@ class CatalogFilters {
     this.maxBpm,
   });
 
-  final bool? isPiano;
+  /// Instrument-family filter (change: add-drums-access): `null` = no
+  /// constraint. Replaces the retired boolean piano (grand-staff proxy) filter.
+  final ScoreInstrument? instrument;
   final int? maxNoteValue;
   final bool? hasChords;
   final bool? hasTuplets;
@@ -252,6 +260,9 @@ class GrpcCatalogService implements CatalogService {
         ? h.contributorCredit
         : null,
     hasPreview: h.hasPreview,
+    instrument: scoreInstrumentFromWire(
+      h.hasInstrument() ? h.instrument : null,
+    ),
   );
 
   @override
@@ -268,7 +279,9 @@ class GrpcCatalogService implements CatalogService {
         query: query,
         author: author,
         level: _levelWire(level),
-        isPiano: filters.isPiano,
+        // The instrument-family filter (change: add-drums-access); unset = no
+        // constraint (the backend already withholds what the caller may not see).
+        instrument: filters.instrument?.name,
         maxNoteValue: filters.maxNoteValue,
         hasChords: filters.hasChords,
         hasTuplets: filters.hasTuplets,

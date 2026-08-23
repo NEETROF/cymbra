@@ -50,7 +50,13 @@ function idleMessage(): string {
 
 const notationView = computed(() =>
   match(props.notation ?? idle)
-    .with({ status: "success" }, ({ data }) => ({ kind: "svg" as const, svg: data.svg }))
+    // Percussion (change: add-drums-access): its OWN case, visually distinct from the
+    // failure placeholder — the file is fine, the renderer just can't draw drums yet.
+    .with({ status: "success", data: { kind: "percussion_unsupported" } }, () => ({
+      kind: "percussion" as const,
+      msg: t("preview.percussionNotPreviewable"),
+    }))
+    .with({ status: "success", data: { kind: "notation" } }, ({ data }) => ({ kind: "svg" as const, svg: data.svg }))
     .with({ status: "loading" }, () => ({ kind: "msg" as const, msg: t("preview.rendering") }))
     .with({ status: "error" }, () => ({ kind: "msg" as const, msg: t("preview.renderError") }))
     .otherwise(() => ({ kind: "msg" as const, msg: idleMessage() })),
@@ -69,7 +75,9 @@ const audioLoading = computed(() => (props.audio ?? idle).status === "loading");
 
 const wrapRef = ref<HTMLElement | null>(null);
 const svgString = computed(() => (notationView.value.kind === "svg" ? notationView.value.svg : null));
-const layout = computed(() => (props.notation?.status === "success" ? props.notation.data.layout : null));
+const layout = computed(() =>
+  props.notation?.status === "success" && props.notation.data.kind === "notation" ? props.notation.data.layout : null,
+);
 const scheduleData = computed(() => (props.schedule?.status === "success" ? props.schedule.data : null));
 usePlayhead({
   container: wrapRef,
@@ -126,6 +134,15 @@ function meta(): { label: string; value: string }[] {
       <!-- eslint-disable-next-line vue/no-v-html -- SVG is painter-generated, not user input -->
       <div ref="wrapRef" class="svg-wrap" aria-label="score preview" v-html="notationView.svg"></div>
     </div>
+    <!-- Percussion (change: add-drums-access): a deliberate, distinct state — solid
+         accent panel with an explanation, NOT the dashed failure placeholder — so a
+         moderator never reads a fine drum file as corrupt. -->
+    <div v-else-if="notationView.kind === 'percussion'" class="notation percussion" aria-label="score preview">
+      <div>
+        <p class="perc-title">{{ notationView.msg }}</p>
+        <p class="muted perc-hint">{{ t("preview.percussionHint") }}</p>
+      </div>
+    </div>
     <div v-else class="notation" aria-label="score preview">
       <p class="muted">{{ notationView.msg }}</p>
     </div>
@@ -161,6 +178,20 @@ function meta(): { label: string; value: string }[] {
   justify-content: center;
   padding: 1rem;
   text-align: center;
+}
+/* The percussion state is NOT a failure: solid accent border + explanation, so it
+   never reads as the dashed "could not render" placeholder. */
+.notation.percussion {
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  background: color-mix(in srgb, var(--accent-strong) 8%, transparent);
+}
+.perc-title {
+  margin: 0 0 0.35rem;
+  font-weight: 600;
+}
+.perc-hint {
+  margin: 0;
+  font-size: 0.9rem;
 }
 .score {
   display: flex;

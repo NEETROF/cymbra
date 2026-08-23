@@ -22,6 +22,27 @@ part 'score_catalog.g.dart';
 /// Practice difficulty of a bundled score.
 enum PracticeLevel { beginner, intermediate, advanced }
 
+/// Instrument family of a score (change: add-drums-access). Mirrors the wire
+/// values `keyboard` | `percussion`; an unrecorded/`unknown` instrument is
+/// represented as `null` on [CatalogEntry] and shows nothing in the UI.
+enum ScoreInstrument { keyboard, percussion }
+
+/// Maps a wire instrument (`keyboard` | `percussion` | `unknown`/absent) to
+/// [ScoreInstrument]; anything undeterminable maps to `null` (show nothing).
+ScoreInstrument? scoreInstrumentFromWire(String? s) => switch (s) {
+  'keyboard' => ScoreInstrument.keyboard,
+  'percussion' => ScoreInstrument.percussion,
+  _ => null,
+};
+
+/// Localized label for a [ScoreInstrument] ("Keyboard" / "Drums").
+extension ScoreInstrumentLabel on ScoreInstrument {
+  String localizedLabel(AppLocalizations l10n) => switch (this) {
+    ScoreInstrument.keyboard => l10n.instrumentKeyboard,
+    ScoreInstrument.percussion => l10n.instrumentDrums,
+  };
+}
+
 /// Human-readable label for a [PracticeLevel].
 extension PracticeLevelLabel on PracticeLevel {
   String get label => switch (this) {
@@ -82,6 +103,10 @@ class CatalogEntry {
   final String? timeSig;
   final int? keyFifths;
 
+  /// The score's instrument family (change: add-drums-access); `null` when
+  /// unknown/unrecorded — the card then shows no instrument indication.
+  final ScoreInstrument? instrument;
+
   /// For a contributed (upload) entry: whether it is in the user's favorites.
   /// Meaningless (and `true`) for bundled/catalog entries.
   final bool favorite;
@@ -135,6 +160,7 @@ class CatalogEntry {
     this.highestMidi,
     this.timeSig,
     this.keyFifths,
+    this.instrument,
     this.favorite = true,
     this.uploaderHandle,
     this.moderationStatus,

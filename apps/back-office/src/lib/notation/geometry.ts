@@ -13,7 +13,7 @@ export interface Pitch {
 
 export interface Clef {
   staff: number;
-  sign: string; // "G" | "F" | "C"
+  sign: string; // "G" | "F" | "C" | "percussion"
   line: number;
 }
 
@@ -42,6 +42,17 @@ export interface Lyric {
   text: string;
 }
 
+/** A percussion note's written staff position and resolved sound (`<unpitched>`),
+ * mirroring `cymbra-musicxml-core::Unpitched` (change: add-unpitched-notation). */
+export interface Unpitched {
+  /** `display-step`: the written staff placement's diatonic step (A–G). */
+  display_step: string;
+  /** `display-octave`: the written staff placement's octave. */
+  display_octave: number;
+  /** General MIDI percussion number (0-based), or null when unresolved. */
+  gm_number?: number | null;
+}
+
 export interface NoteEvent {
   staff: number;
   voice: number;
@@ -64,6 +75,12 @@ export interface NoteEvent {
   stem?: StemDir | null;
   beams: BeamState[];
   lyric?: Lyric | null;
+  /** Percussion channel (change: add-drums-access): the written placement of an
+   * unpitched note. Distinct from `pitch` — a note is exactly one of pitched,
+   * unpitched, or a rest. Absent/null on pitched notes and pre-drums wasm builds. */
+  unpitched?: Unpitched | null;
+  /** The note's `<instrument id>` reference when present. */
+  instrument_id?: string | null;
 }
 
 /** Repeat notation engraved on one measure (serde snake_case), mirroring

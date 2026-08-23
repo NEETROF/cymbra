@@ -23,7 +23,9 @@ import 'package:music/services/audio_service.dart';
 import 'package:music/services/file_picker_service.dart';
 import 'package:music/services/notation_engine.dart';
 import 'package:music/services/score_upload_service.dart';
-import 'package:music/src/rust/api/musicxml.dart' show ValidationOutcome;
+import 'package:music/src/rust/api/musicxml.dart'
+    show InstrumentKind, ScoreSummary, ValidationOutcome;
+import 'package:music/state/drums_access.dart';
 import 'package:music/state/score_catalog.dart';
 
 import '../support/fakes.dart';
@@ -99,6 +101,7 @@ ProviderContainer _container({
   PickedScoreFile? pick,
   _FakeUpload? upload,
   FakeNotationEngine? engine,
+  bool drumsEnabled = false,
 }) {
   final c = ProviderContainer(
     overrides: [
@@ -106,11 +109,28 @@ ProviderContainer _container({
       notationEngineProvider.overrideWithValue(engine ?? FakeNotationEngine()),
       scoreUploadServiceProvider.overrideWithValue(upload ?? _FakeUpload()),
       audioServiceProvider.overrideWithValue(RecordingAudioService()),
+      drumsEnabledProvider.overrideWithValue(drumsEnabled),
     ],
   );
   addTearDown(c.dispose);
   return c;
 }
+
+/// A validation outcome whose summary is a valid percussion (drum) score.
+ValidationOutcome _percussionOutcome() => const ValidationOutcome(
+  summary: ScoreSummary(
+    title: 'Groove',
+    composer: 'A. Drummer',
+    titleNorm: 'groove',
+    workKey: 'a. drummer::groove',
+    instrument: InstrumentKind.percussion,
+    staves: 1,
+    keyFifths: 0,
+    timeSig: '4/4',
+    measureCount: 4,
+    noteCount: 8,
+  ),
+);
 
 Future<void> _pump(WidgetTester tester, ProviderContainer container) async {
   await tester.binding.setSurfaceSize(const Size(900, 1400));
@@ -394,4 +414,80 @@ void main() {
     expect(upload.proposed, ['new-id']);
     await _teardown(tester);
   });
+
+  testWidgets(
+    'the Verify summary shows the DETECTED instrument, with no control',
+    (tester) async {
+      // The default fake summary is a keyboard score.
+      final container = _container(pick: _validFile());
+      await _pump(tester, container);
+
+      await tester.tap(find.text('Choose a file'));
+      await _pumpFrames(tester);
+      await tester.tap(find.text('I am the author'));
+      await tester.pump();
+      await tester.tap(find.byType(CheckboxListTile));
+      await tester.pump();
+      await tester.tap(find.text('Verify'));
+      await _pumpFrames(tester);
+
+      // Read-only row naming the detected family — display only: no dropdown,
+      // switch or radio offers to change it.
+      expect(find.text('Instrument'), findsOneWidget);
+      expect(find.text('Keyboard'), findsOneWidget);
+      expect(find.byType(DropdownButton), findsNothing);
+      expect(find.byType(Switch), findsNothing);
+      await _teardown(tester);
+    },
+  );
+
+  testWidgets('a percussion upload shows Drums in the Verify summary', (
+    tester,
+  ) async {
+    final engine = FakeNotationEngine(validateOutcome: _percussionOutcome());
+    final container = _container(
+      pick: _validFile(),
+      engine: engine,
+      drumsEnabled: true,
+    );
+    await _pump(tester, container);
+
+    await tester.tap(find.text('Choose a file'));
+    await _pumpFrames(tester);
+    await tester.tap(find.text('I am the author'));
+    await tester.pump();
+    await tester.tap(find.byType(CheckboxListTile));
+    await tester.pump();
+    await tester.tap(find.text('Verify'));
+    await _pumpFrames(tester);
+
+    expect(find.text('Instrument'), findsOneWidget);
+    expect(find.text('Drums'), findsOneWidget);
+    await _teardown(tester);
+  });
+
+  testWidgets(
+    'a percussion file is refused with a localized reason when drums are invisible',
+    (tester) async {
+      final engine = FakeNotationEngine(validateOutcome: _percussionOutcome());
+      // drumsEnabled defaults to false — the drum feature is not visible.
+      final container = _container(pick: _validFile(), engine: engine);
+      await _pump(tester, container);
+
+      await tester.tap(find.text('Choose a file'));
+      await _pumpFrames(tester);
+
+      // The localized refusal shows; the flow does not advance (no attestation
+      // controls, Verify stays disabled) — and never a raw technical string.
+      expect(
+        find.text('Drum scores are not available on your account yet.'),
+        findsOneWidget,
+      );
+      expect(find.textContaining('is valid'), findsNothing);
+      expect(find.byType(CheckboxListTile), findsNothing);
+      expect(_enabled(tester, 'Verify'), isFalse);
+      expect(find.textContaining('drums_not_available'), findsNothing);
+      await _teardown(tester);
+    },
+  );
 }

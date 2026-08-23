@@ -21,7 +21,9 @@ import '../painters/staff_painter.dart';
 import '../services/audio_service.dart';
 import '../services/notation_engine.dart';
 import '../services/score_upload_service.dart';
-import '../src/rust/api/musicxml.dart' show ScoreDocument, ScoreSummary;
+import '../src/rust/api/musicxml.dart'
+    show InstrumentKind, ScoreDocument, ScoreSummary;
+import '../state/drums_access.dart';
 import '../state/notation_playback.dart';
 import '../state/note_density_core.dart';
 import '../state/contributed_scores.dart';
@@ -273,6 +275,9 @@ String _rejectMessage(AppLocalizations l10n, String code) => switch (code) {
   'undecodable' => l10n.uploadRejectUndecodable,
   'unparseable' => l10n.uploadRejectUnparseable,
   'no_notes' => l10n.uploadRejectNoNotes,
+  // The drum gate (change: add-drums-access) — the file is fine, the feature
+  // is not available to this caller. Local and backend refusals share it.
+  kDrumsNotAvailableCode => l10n.uploadRejectDrumsNotAvailable,
   _ => l10n.uploadRejectGeneric,
 };
 
@@ -677,12 +682,16 @@ class _ConfirmStepView extends ConsumerWidget {
             label: l10n.uploadFallbackComposerLabel,
             onChanged: notifier.setFallbackComposer,
           ),
-        if (state.submitError != null) ...[
+        if (state.submitErrorCode != null || state.submitError != null) ...[
           const SizedBox(height: 12),
           _Banner(
             icon: Icons.error_outline,
             color: Theme.of(context).colorScheme.error,
-            text: state.submitError!,
+            // A typed refusal code (e.g. the drum gate) is localized here; it
+            // wins over the pre-baked message so no raw string ever shows.
+            text: state.submitErrorCode != null
+                ? _rejectMessage(l10n, state.submitErrorCode!)
+                : state.submitError!,
           ),
         ],
         const SizedBox(height: 20),
@@ -693,6 +702,15 @@ class _ConfirmStepView extends ConsumerWidget {
 }
 
 // --- Shared bits ------------------------------------------------------------
+
+/// Localized label for a detected [InstrumentKind]; `null` (no row) when the
+/// parse could not determine one — never an "unknown" placeholder.
+String? _instrumentLabel(AppLocalizations l10n, InstrumentKind kind) =>
+    switch (kind) {
+      InstrumentKind.keyboard => l10n.instrumentKeyboard,
+      InstrumentKind.percussion => l10n.instrumentDrums,
+      InstrumentKind.unknown => null,
+    };
 
 class _MetadataCard extends StatelessWidget {
   const _MetadataCard({required this.summary});
@@ -728,6 +746,11 @@ class _MetadataCard extends StatelessWidget {
             const SizedBox(height: 8),
             row(l10n.uploadFieldTitle, summary.title ?? '—'),
             row(l10n.uploadFieldComposer, summary.composer ?? '—'),
+            // The DETECTED instrument (change: add-drums-access): display only,
+            // never a control — the facet is derived, like the key or the time
+            // signature. An unknown instrument shows nothing at all.
+            if (_instrumentLabel(l10n, summary.instrument) case final label?)
+              row(l10n.uploadFieldInstrument, label),
             row(l10n.uploadFieldKey, l10n.uploadKeyValue(summary.keyFifths)),
             row(l10n.uploadFieldTimeSig, summary.timeSig),
             row(l10n.uploadFieldMeasureCount, '${summary.measureCount}'),

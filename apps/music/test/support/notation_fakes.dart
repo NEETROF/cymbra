@@ -65,7 +65,6 @@ class FakeNotationEngine implements NotationEngine {
             composer: 'A. Composer',
             titleNorm: 'sample',
             workKey: 'a. composer::sample',
-            isPiano: true,
             instrument: InstrumentKind.keyboard,
             staves: 2,
             keyFifths: 0,

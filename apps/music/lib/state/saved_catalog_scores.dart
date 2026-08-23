@@ -54,6 +54,7 @@ CatalogEntry catalogEntryFromHit(CatalogHit h) => CatalogEntry(
   moderationStatus: h.moderationStatus,
   contributorCredit: h.contributorCredit,
   hasPreview: h.hasPreview,
+  instrument: h.instrument,
 );
 
 /// The signed-in user's saved catalog scores, as [CatalogEntry]s, newest-saved

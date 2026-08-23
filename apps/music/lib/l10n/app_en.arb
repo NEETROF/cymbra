@@ -931,6 +931,18 @@
   "@scoreHubTempoFast": {
     "description": "Tempo band: fast (> 120 BPM)."
   },
+  "scoreHubInstrument": "Instrument",
+  "@scoreHubInstrument": {
+    "description": "Drawer section header for the instrument-family filter (shown only to the drum audience)."
+  },
+  "instrumentKeyboard": "Keyboard",
+  "@instrumentKeyboard": {
+    "description": "Instrument-family label: keyboard scores (hub filter chip, score cards, upload summary)."
+  },
+  "instrumentDrums": "Drums",
+  "@instrumentDrums": {
+    "description": "Instrument-family label: drum/percussion scores (hub filter chip, score cards, upload summary)."
+  },
   "scoreHubDifficulty": "Difficulty",
   "@scoreHubDifficulty": {
     "description": "Drawer section header for the difficulty filter."
@@ -1165,6 +1177,10 @@
   "@uploadRejectNoNotes": {
     "description": "Rejection banner: the parsed score has no playable notes."
   },
+  "uploadRejectDrumsNotAvailable": "Drum scores are not available on your account yet.",
+  "@uploadRejectDrumsNotAvailable": {
+    "description": "Refusal banner: uploading a drum (percussion) score requires the drum feature, which is not visible to this account. Shown for the local refusal and the backend's typed refusal alike."
+  },
   "uploadRejectGeneric": "Invalid file.",
   "@uploadRejectGeneric": {
     "description": "Rejection banner: generic fallback for an invalid file."
@@ -1261,6 +1277,10 @@
   "@uploadFieldComposer": {
     "description": "Metadata card row label: composer."
   },
+  "uploadFieldInstrument": "Instrument",
+  "@uploadFieldInstrument": {
+    "description": "Metadata card row label: the instrument detected by the parse (display only, never a control; omitted when unknown)."
+  },
   "uploadFieldKey": "Key",
   "@uploadFieldKey": {
     "description": "Metadata card row label: key signature."
@@ -1282,6 +1302,14 @@
   "uploadFieldMeasureCount": "Number of measures",
   "@uploadFieldMeasureCount": {
     "description": "Metadata card row label: number of measures."
+  },
+  "drumsNotPlayableTitle": "Drums aren't playable yet",
+  "@drumsNotPlayableTitle": {
+    "description": "Title of the interim state shown instead of the player when opening a drum score (the drum play view is not built yet — not an error)."
+  },
+  "drumsNotPlayableBody": "This drum score is fine — the drum play view is still being built. You'll be able to play it in an upcoming update.",
+  "@drumsNotPlayableBody": {
+    "description": "Body of the interim drums-not-playable state; reassures that the file is valid and the feature is coming."
   },
   "ratingDeckTitle": "Rate scores",
   "@ratingDeckTitle": {

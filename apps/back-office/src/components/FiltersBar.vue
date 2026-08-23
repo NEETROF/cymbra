@@ -3,7 +3,7 @@ import { reactive, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import type { Filters, StatusFilter } from "@/stores/catalog";
 
-// Reuses the app-hub filters (text/author/level/piano) plus the back-office-only
+// Reuses the app-hub filters (text/author/level/instrument) plus the back-office-only
 // moderation-status + source selectors. Emits the current filter set whenever it changes.
 const emit = defineEmits<{ change: [Filters] }>();
 const { t } = useI18n();
@@ -26,7 +26,7 @@ const f = reactive<Filters>(
         query: "",
         author: "",
         level: "",
-        isPiano: undefined,
+        instrument: "",
         moderationStatus: props.status,
         source: props.source,
         hasPreview: "",
@@ -51,10 +51,13 @@ watch(f, () => emit("change", { ...f }), { deep: true });
       <option value="intermediate">{{ t("level.intermediate") }}</option>
       <option value="advanced">{{ t("level.advanced") }}</option>
     </select>
-    <label class="piano">
-      <input type="checkbox" :checked="f.isPiano === true" @change="f.isPiano = f.isPiano ? undefined : true" />
-      {{ t("filters.pianoOnly") }}
-    </label>
+    <!-- Instrument family (change: add-drums-access) — replaces the piano checkbox;
+         "" = every instrument, mapped to an unset request field. -->
+    <select v-model="f.instrument" :aria-label="t('filters.instrumentLabel')" class="instrument">
+      <option value="">{{ t("filters.instrumentAny") }}</option>
+      <option value="keyboard">{{ t("filters.instrumentKeyboard") }}</option>
+      <option value="percussion">{{ t("filters.instrumentPercussion") }}</option>
+    </select>
     <select v-model="f.moderationStatus" :aria-label="t('filters.statusLabel')" class="status">
       <option value="">{{ t("status.all") }}</option>
       <option value="pending">{{ t("status.pending") }}</option>
@@ -94,17 +97,5 @@ watch(f, () => emit("change", { ...f }), { deep: true });
 }
 .filters input[type="search"] {
   min-width: 12rem;
-}
-.piano {
-  display: flex;
-  gap: 0.35rem;
-  align-items: center;
-  color: var(--muted);
-  font-size: 0.9rem;
-  padding: 0 0.3rem;
-  white-space: nowrap;
-}
-.piano input {
-  accent-color: var(--accent-strong);
 }
 </style>

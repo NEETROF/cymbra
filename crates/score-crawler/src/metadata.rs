@@ -132,4 +132,32 @@ mod tests {
         assert_eq!(m.language, None);
         assert_eq!(m.voicing, None);
     }
+
+    /// Task 3.9 of add-drums-access: a percussion score flows through the
+    /// crawler's shared validate + extract path — no instrument condition is
+    /// added to admission (the whitelist stays the only gate), and the derived
+    /// metadata records the family the backend's enforcement keys on.
+    #[test]
+    fn a_percussion_score_is_ingestable_and_classified() {
+        const DRUMS: &str = r#"<?xml version="1.0"?>
+<score-partwise version="4.0">
+  <work><work-title>Basic Groove</work-title></work>
+  <part-list><score-part id="P1">
+    <score-instrument id="P1-I38"><instrument-name>Snare Drum</instrument-name></score-instrument>
+    <midi-instrument id="P1-I38"><midi-unpitched>39</midi-unpitched></midi-instrument>
+  </score-part></part-list>
+  <part id="P1"><measure number="1">
+    <attributes><divisions>1</divisions><clef><sign>percussion</sign><line>2</line></clef></attributes>
+    <note><unpitched><display-step>C</display-step><display-octave>5</display-octave></unpitched><duration>4</duration><instrument id="P1-I38"/><voice>1</voice></note>
+  </measure></part></score-partwise>"#;
+        // The shared admission gate accepts it (unpitched notes are playable)…
+        let summary = cymbra_musicxml_core::validate(DRUMS.as_bytes()).unwrap();
+        assert!(summary.note_count > 0);
+        // …and the crawler's derivation records the percussion family.
+        let doc = cymbra_musicxml_core::parse(DRUMS.as_bytes()).unwrap();
+        let m = extract(&doc);
+        assert_eq!(m.instrument, cymbra_musicxml_core::InstrumentKind::Percussion);
+        assert_eq!(m.title.as_deref(), Some("Basic Groove"));
+    }
+
 }

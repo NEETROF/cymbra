@@ -18,6 +18,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../l10n/gen/app_localizations.dart';
 import '../state/catalog_search_notifier.dart';
 import '../state/contributed_scores.dart';
+import '../state/drums_access.dart';
 import '../state/score_catalog.dart';
 import '../theme/cymbra_theme.dart';
 import '../widgets/catalog_access_widgets.dart';
@@ -66,7 +67,16 @@ class _ScoreHubScreenState extends ConsumerState<ScoreHubScreen> {
     return LibraryListeners(
       child: Scaffold(
         backgroundColor: CymbraColors.background,
-        endDrawer: _FiltersDrawer(state: state, notifier: notifier, l10n: l10n),
+        endDrawer: _FiltersDrawer(
+          state: state,
+          notifier: notifier,
+          l10n: l10n,
+          // The instrument filter is offered only when the drum feature is
+          // visible to this caller (change: add-drums-access); otherwise the
+          // drawer is exactly as before. Defence in depth — the backend
+          // enforces the audience regardless.
+          showInstrumentFilter: ref.watch(drumsEnabledProvider),
+        ),
         appBar: AppBar(
           title: Text(l10n.scoreHubTitle),
           backgroundColor: CymbraColors.surfaceContainerLowest,
@@ -487,11 +497,16 @@ class _FiltersDrawer extends StatefulWidget {
     required this.state,
     required this.notifier,
     required this.l10n,
+    this.showInstrumentFilter = false,
   });
 
   final CatalogSearchState state;
   final CatalogSearch notifier;
   final AppLocalizations l10n;
+
+  /// Whether to offer the instrument filter — true only for the drum audience
+  /// (change: add-drums-access); false keeps the drawer exactly as before.
+  final bool showInstrumentFilter;
 
   @override
   State<_FiltersDrawer> createState() => _FiltersDrawerState();
@@ -554,6 +569,34 @@ class _FiltersDrawerState extends State<_FiltersDrawer> {
                       isDense: true,
                     ),
                   ),
+                  // Instrument filter (change: add-drums-access), offered only
+                  // to the drum audience; the drum option filters to percussion
+                  // scores, which the backend serves only to that audience.
+                  if (widget.showInstrumentFilter)
+                    _Section(
+                      icon: Icons.music_note,
+                      label: l10n.scoreHubInstrument,
+                      children: [
+                        _choice(
+                          l10n.scoreHubAny,
+                          state.instrument == null,
+                          () => notifier.setInstrument(null),
+                        ),
+                        _choice(
+                          l10n.instrumentKeyboard,
+                          state.instrument == ScoreInstrument.keyboard,
+                          () =>
+                              notifier.setInstrument(ScoreInstrument.keyboard),
+                        ),
+                        _choice(
+                          l10n.instrumentDrums,
+                          state.instrument == ScoreInstrument.percussion,
+                          () => notifier.setInstrument(
+                            ScoreInstrument.percussion,
+                          ),
+                        ),
+                      ],
+                    ),
                   _Section(
                     icon: Icons.bar_chart,
                     label: l10n.scoreHubDifficulty,
