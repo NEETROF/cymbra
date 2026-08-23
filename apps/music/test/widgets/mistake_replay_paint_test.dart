@@ -270,6 +270,66 @@ void main() {
       expect(find.text('Early 40 ms'), findsOneWidget);
     });
 
+    testWidgets('the mistake bar scrolls along with the staff', (tester) async {
+      // A long run with enough mistakes to overflow the bar horizontally.
+      final judgments = [
+        for (var i = 0; i < 12; i++)
+          _j(i, TimingVerdict.missed, startMs: i * 500),
+      ];
+      final long = ReplayScore(
+        notes: [
+          for (var i = 0; i < 12; i++)
+            TimedNote(pitch: 60 + i, startMs: i * 500, durationMs: 500),
+        ],
+        bpm: 120,
+        songEndMs: 6000,
+        keyFifths: 0,
+        beats: 4,
+        beatType: 4,
+        measureStartMs: const [0, 2000, 4000],
+      );
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            audioServiceProvider.overrideWithValue(RecordingAudioService()),
+          ],
+          child: localizedApp(
+            Scaffold(
+              body: Builder(
+                builder: (context) => ElevatedButton(
+                  onPressed: () =>
+                      showMistakeReplay(context, long, _result(judgments)),
+                  child: const Text('go'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('go'));
+      await tester.pump();
+
+      final list = find.byKey(const ValueKey('replay-mistake-list'));
+      double offset() => tester.widget<ListView>(list).controller!.offset;
+      expect(offset(), 0);
+
+      await tester.tap(find.byIcon(Icons.play_circle));
+      for (var i = 0; i < 60; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+      // The playhead has walked into later mistakes, so the bar followed it.
+      expect(offset(), greaterThan(0));
+
+      // Jumping back to the top of the run brings the bar back with it.
+      await tester.tap(find.byIcon(Icons.pause_circle));
+      await tester.pump();
+      await tester.drag(find.byType(Slider), const Offset(-1000, 0));
+      for (var i = 0; i < 20; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+      expect(offset(), 0);
+    });
+
     testWidgets('tapping a mistake jumps to it without error', (tester) async {
       await _openReplay(
         tester,

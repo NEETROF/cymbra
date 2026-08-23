@@ -40,6 +40,13 @@ ReplayMark markFor(NoteJudgment j) {
   return ReplayMark.correct;
 }
 
+/// Geometry of a mistake chip in the bottom bar. The list is a fixed-extent
+/// row, so the replay can compute where a chip sits without measuring it.
+const double _kChipWidth = 150;
+const double _kChipGap = 8;
+const double _kChipPadding = 12;
+const double _kChipStride = _kChipWidth + _kChipGap;
+
 /// The mistake colours, matching the summary/replay legend.
 Color colorForMark(ReplayMark m) => switch (m) {
   ReplayMark.correct => CymbraColors.tertiary,
@@ -123,6 +130,14 @@ class _ReplayDialogState extends ConsumerState<_ReplayDialog>
   Duration _lastTick = Duration.zero;
   final Set<int> _sounding = {};
 
+  /// Scrolls the bottom mistake bar so it tracks the staff.
+  final ScrollController _mistakeScroll = ScrollController();
+
+  /// Index of the mistake the bar is currently centred on, so the follow only
+  /// animates when the playhead actually moves to another mistake (not on
+  /// every tick).
+  int _followed = -1;
+
   double _elapsed = 0;
   bool _playing = false;
 
@@ -193,6 +208,7 @@ class _ReplayDialogState extends ConsumerState<_ReplayDialog>
   @override
   void dispose() {
     _ticker.dispose();
+    _mistakeScroll.dispose();
     _audio.allNotesOff();
     super.dispose();
   }
@@ -205,14 +221,60 @@ class _ReplayDialogState extends ConsumerState<_ReplayDialog>
     _applyAudio(_elapsed, next);
     if (next >= _score.songEndMs) {
       _stopAudio();
-      setState(() {
-        _elapsed = _score.songEndMs;
-        _playing = false;
-      });
+      _setElapsed(_score.songEndMs, playing: false);
       _ticker.stop();
     } else {
-      setState(() => _elapsed = next);
+      _setElapsed(next);
     }
+  }
+
+  /// Moves the playhead and keeps the bottom mistake bar aligned with it.
+  void _setElapsed(double ms, {bool? playing}) {
+    setState(() {
+      _elapsed = ms;
+      if (playing != null) _playing = playing;
+    });
+    _followMistakes();
+  }
+
+  /// Index of the mistake sitting closest to the playhead — the one the staff
+  /// is showing right now. Ties (and the stretch before the first mistake)
+  /// resolve to the earlier mistake, so the bar never jumps ahead of the staff.
+  int _nearestMistake() {
+    var best = 0;
+    var bestGap = double.infinity;
+    for (var i = 0; i < _mistakes.length; i++) {
+      final gap = (_mistakes[i].startMs - _elapsed).abs();
+      if (gap < bestGap) {
+        bestGap = gap;
+        best = i;
+      }
+    }
+    return best;
+  }
+
+  /// Scrolls the mistake bar so the mistake under the playhead is centred,
+  /// mirroring the staff scrolling underneath it. Only fires when the playhead
+  /// crosses into another mistake, so a manual scroll of the bar survives until
+  /// the run actually reaches the next one.
+  void _followMistakes() {
+    if (_mistakes.isEmpty) return;
+    final index = _nearestMistake();
+    if (index == _followed) return;
+    _followed = index;
+    if (!_mistakeScroll.hasClients) return;
+    final position = _mistakeScroll.position;
+    final target =
+        (_kChipPadding +
+                index * _kChipStride +
+                _kChipWidth / 2 -
+                position.viewportDimension / 2)
+            .clamp(position.minScrollExtent, position.maxScrollExtent);
+    _mistakeScroll.animateTo(
+      target,
+      duration: const Duration(milliseconds: 240),
+      curve: Curves.easeOut,
+    );
   }
 
   void _applyAudio(double from, double to) {
@@ -253,7 +315,7 @@ class _ReplayDialogState extends ConsumerState<_ReplayDialog>
 
   void _seek(double ms) {
     _stopAudio();
-    setState(() => _elapsed = ms.clamp(0, _score.songEndMs));
+    _setElapsed(ms.clamp(0, _score.songEndMs));
   }
 
   @override
@@ -355,27 +417,38 @@ class _ReplayDialogState extends ConsumerState<_ReplayDialog>
         ),
       );
     }
+    final current = _nearestMistake();
     return SizedBox(
       height: 96,
       child: ListView.separated(
+        key: const ValueKey('replay-mistake-list'),
+        controller: _mistakeScroll,
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.symmetric(
+          horizontal: _kChipPadding,
+          vertical: 8,
+        ),
         itemCount: _mistakes.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 8),
+        separatorBuilder: (_, _) => const SizedBox(width: _kChipGap),
         itemBuilder: (context, i) {
           final j = _mistakes[i];
           final mark = markFor(j);
           final color = colorForMark(mark);
+          // The chip under the playhead is ringed thicker and lifted, so the
+          // bar reads as "here is where you are" while the staff scrolls.
+          final active = i == current;
           return InkWell(
             onTap: () => _seek(j.startMs.toDouble()),
             borderRadius: BorderRadius.circular(10),
             child: Container(
-              width: 150,
+              width: _kChipWidth,
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
               decoration: BoxDecoration(
-                color: CymbraColors.surfaceContainerLow,
+                color: active
+                    ? CymbraColors.surfaceContainerHigh
+                    : CymbraColors.surfaceContainerLow,
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: color, width: 1),
+                border: Border.all(color: color, width: active ? 2 : 1),
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
