@@ -210,6 +210,9 @@ void main() {
       final d = notationToTimedNotes(doc);
       expect(d.notes, hasLength(2));
       expect(d.notes[0].startMs, d.notes[1].startMs);
+      // The chord flag survives the flattening: the Staff painter needs it so a
+      // member never grows a stem/flag of its own next to the principal's.
+      expect(d.notes.map((n) => n.isChord), [false, true]);
     });
 
     test('songEndMs reaches the end of the last note', () {

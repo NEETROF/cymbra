@@ -120,6 +120,11 @@ class TimedNote {
   /// the Staff painter.
   final bool isGrace;
 
+  /// True for a chord member (`<chord/>`): it sounds with the preceding
+  /// principal note and shares its stem — the Staff painter draws its head but
+  /// never a stem or flag of its own, matching the engraved Partition.
+  final bool isChord;
+
   const TimedNote({
     required this.pitch,
     required this.startMs,
@@ -135,6 +140,7 @@ class TimedNote {
     this.stemUp,
     this.tieFromMs,
     this.isGrace = false,
+    this.isChord = false,
   });
 }
 

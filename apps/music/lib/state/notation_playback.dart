@@ -222,6 +222,7 @@ DerivedPlayback notationToTimedNotes(ScoreDocument document) {
           },
           tieFromMs: tieFromMs,
           isGrace: note.isGrace,
+          isChord: note.isChord,
         );
       }
 
@@ -300,6 +301,7 @@ TimedNote _withDuration(TimedNote n, int durationMs) => TimedNote(
   stemUp: n.stemUp,
   tieFromMs: n.tieFromMs,
   isGrace: n.isGrace,
+  isChord: n.isChord,
 );
 
 /// For each note of a measure, how many grace slots *before its position* it

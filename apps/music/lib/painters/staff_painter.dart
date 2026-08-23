@@ -694,8 +694,11 @@ class StaffPainter extends CustomPainter {
         }
       }
       // Whole notes carry no stem; others do. Beamed notes get their stem/beam
-      // from the group pass, so only unbeamed non-whole notes stem here.
-      if (!beamed.contains(n) && head != Smufl.noteheadWhole) {
+      // from the group pass, and a chord member shares its principal's stem
+      // (drawing its own put a spurious flag next to the principal's beam), so
+      // only unbeamed, non-whole, non-chord notes stem here — the same rule the
+      // engraved Partition applies.
+      if (!beamed.contains(n) && head != Smufl.noteheadWhole && !n.isChord) {
         _drawStemFlag(
           canvas,
           Offset(x, y),
