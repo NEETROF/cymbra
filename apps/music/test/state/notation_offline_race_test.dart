@@ -207,6 +207,36 @@ void main() {
     });
   });
 
+  group('mid-load selection change', () {
+    test(
+      'reselecting during an in-flight decide leaves no unhandled error',
+      () async {
+        // Observed live on prod: switching pieces while a cached-catalog decide
+        // was awaiting its conditional fetch asserted on a dependency-outdated
+        // ref while evaluating the race's arguments, leaving the work future
+        // orphaned — an UNHANDLED error (which fails this test if it recurs).
+        final cache = InMemoryOfflineScoreCache();
+        await cache.write('contributed:1', bytes(), etag: 'e');
+        final upload = _FakeUpload(bytes(), hang: true);
+        final c = _build(upload: upload, conn: _Conn(true), cache: cache);
+
+        c.read(selectedScoreProvider.notifier).select(_upload());
+        await _flush();
+        expect(upload.fetchCalls, 1, reason: 'decide fetch in flight');
+
+        // The user opens another piece (here: clears — same dependency change).
+        c.read(selectedScoreProvider.notifier).clear();
+        await _flush();
+
+        // The abandoned fetch resolves late; nothing may throw or write.
+        upload.pending.complete(ScoreBytesResult(data: bytes(), etag: 'e'));
+        await _flush();
+        expect(c.read(notationProvider).hasDocument, isFalse);
+        expect(c.read(notationProvider).failure, isNull);
+      },
+    );
+  });
+
   group('pre-flight gate', () {
     test('offline at open issues no network call at all', () async {
       final c = _build(upload: _NeverCalledUpload(), conn: _Conn(false));

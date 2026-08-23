@@ -84,6 +84,11 @@ class Notation extends _$Notation {
         ? state.availableWidth
         : _initialWidth;
     final cacheKey = offlineCacheKeyFor(entry);
+    // Captured BEFORE any await: after one, a selection change marks this
+    // element dependency-outdated and a bare `ref.read` asserts — observed
+    // live as an unhandled error when the read happened while evaluating the
+    // race's arguments, so the orphaned work future had no listener yet.
+    final connectivity = ref.read(connectivityServiceProvider);
     try {
       // Bytes come from a byte-sourced score (a user upload or a saved public-
       // catalog score), preferring a valid local encrypted copy so a favorited-
@@ -108,8 +113,8 @@ class Notation extends _$Notation {
           Uint8List? decided;
           try {
             decided = await raceAgainstOffline(
-              _decideCachedCatalogOpen(entry, cached),
-              ref.read(connectivityServiceProvider),
+              _decideCachedCatalogOpen(entry, cached, connectivity),
+              connectivity,
             );
           } on OfflineDuringLoad {
             // Connectivity dropped mid-decide: the offline grace applies — the
@@ -145,14 +150,12 @@ class Notation extends _$Notation {
           // answer must not gate the call at all. Mid-flight, the race aborts
           // at once on the connectivity transition instead of waiting out the
           // deadline.
-          if (await ref
-              .read(connectivityServiceProvider)
-              .isDefinitelyOffline()) {
+          if (await connectivity.isDefinitelyOffline()) {
             throw const OfflineDuringLoad();
           }
           final fetched = await raceAgainstOffline(
             _fetchScoreBytes(entry),
-            ref.read(connectivityServiceProvider),
+            connectivity,
           );
           if (_abandoned(entry)) return;
           _reportAccess(entry, fetched);
@@ -205,8 +208,9 @@ class Notation extends _$Notation {
   Future<Uint8List?> _decideCachedCatalogOpen(
     CatalogEntry entry,
     CachedScore cached,
+    ConnectivityService connectivity,
   ) async {
-    if (!await ref.read(connectivityServiceProvider).isOnline()) {
+    if (!await connectivity.isOnline()) {
       return cached.bytes;
     }
     final ScoreBytesResult fetched;
@@ -221,6 +225,9 @@ class Notation extends _$Notation {
       debugPrint('Notation access check failed for ${entry.id}: $e');
       return cached.bytes;
     }
+    // Abandoned mid-decide (selection changed): the caller discards the
+    // result anyway, and any further ref use would assert — serve the copy.
+    if (_abandoned(entry)) return cached.bytes;
     _reportAccess(entry, fetched);
     if (fetched.locked) return null;
     final data = fetched.data;
@@ -287,6 +294,7 @@ class Notation extends _$Notation {
     String cachedEtag,
   ) async {
     try {
+      if (_abandoned(entry)) return;
       if (!await ref.read(connectivityServiceProvider).isOnline()) return;
       final fetched = await _fetchScoreBytes(
         entry,
