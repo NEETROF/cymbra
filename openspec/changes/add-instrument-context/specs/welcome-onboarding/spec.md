@@ -19,6 +19,12 @@ catalog row's crawler-assigned licence classification SHALL NOT be treated as su
 confirmation: shipping bytes inside the binary is a higher bar than holding them in a moderated
 catalog.
 
+Shipping is not showing. Bundled assets are client-local — the server's drum gate cannot reach
+them — so while the feature is beta-scoped the bundled drum scores SHALL be **listed only where
+drums are visible**: an installation that cannot see drums finds them in no listing — not the
+welcome try surface, not the bundled sections, not any local list — even though the bytes are
+in its binary.
+
 #### Scenario: Try the core loop with no account
 
 - **WHEN** a user chooses to try from the welcome without signing in
@@ -41,18 +47,29 @@ catalog.
 - **THEN** it is included only if its licence is confirmed, and a crawler classification alone
   does not qualify
 
+#### Scenario: Bundled drum scores stay hidden while drums are not visible
+
+- **WHEN** drums are beta-scoped and not visible to this installation
+- **THEN** no listing offers a bundled drum score — not the try surface, not the bundled
+  sections — although the files ship in the binary
+
 ## ADDED Requirements
 
 ### Requirement: The instrument choice is contextual, not a first-run step
 
-The instrument choice SHALL NOT be added to the first-run sequence that precedes the welcome.
-While the drum feature is beta-scoped it is resolved from the caller's identity, and the first
-run happens deliberately **without an account** — so drums are not knowable at that point and
-the question would offer a single option to everyone, for as long as the rollout lasts.
+The instrument choice SHALL NOT be a step of the first-run sequence (language → welcome →
+optional sign-in → handle gate). While the drum feature is beta-scoped it is resolved from the
+caller's identity, and the first run happens deliberately **without an account** — so drums are
+not knowable at that point and the question would offer a single option to everyone, for as
+long as the rollout lasts.
 
 The choice SHALL instead be offered when the drum feature first becomes visible to the
-installation (see `music-instrument-context`), which lands inside the first-run sequence
-naturally once the feature is generally available, and after sign-in before then.
+installation, on the next arrival at the home — never over the player or any first-run screen
+(see `music-instrument-context`). Once the feature is generally available that is the first
+arrival at the home, immediately **after** the welcome sequence; during the beta it follows the
+first eligible sign-in. An offline first launch resolves no flags, so drums stay invisible and
+the choice is simply not offered until they actually become visible on a later, connected
+launch — the same rule, not an exception to it.
 
 #### Scenario: No instrument question during the beta's first run
 
@@ -62,5 +79,17 @@ naturally once the feature is generally available, and after sign-in before then
 #### Scenario: The question arrives when it can be answered
 
 - **WHEN** drums become visible to the installation
-- **THEN** the choice is offered at that moment, whether that falls during first run or after a
-  later sign-in
+- **THEN** the choice is offered on the next arrival at the home, whether that follows the
+  first run or a later sign-in
+
+#### Scenario: At general availability the choice follows the welcome
+
+- **WHEN** drums are generally available and a user completes a first launch online
+- **THEN** the first-run sequence runs unchanged and the instrument choice is offered on the
+  first arrival at the home, after the welcome
+
+#### Scenario: An offline first launch defers the choice
+
+- **WHEN** a first launch happens with no network, so no flag resolves
+- **THEN** no instrument question is asked, and the choice arrives once drums actually become
+  visible on a later launch

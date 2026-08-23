@@ -28,6 +28,28 @@ lane rather than splitting it.
 - **WHEN** a score uses two General MIDI numbers that denote the same physical piece
 - **THEN** both are drawn in the same lane
 
+### Requirement: Every resolved number is represented — nothing is dropped silently
+
+The cascade SHALL represent every General MIDI percussion number the loaded
+score's notes resolve to: as a note in a lane for a hand-struck piece, or as the
+full-width bar for the kick. General MIDI 35 and 36 both denote the
+kick — the acoustic and the electric flavour of the same pedal — and both SHALL
+drive the bar. A number outside the named roles (cowbell, hand clap, tambourine,
+claves, wood blocks…) SHALL take a lane of its own as a generic piece rather than
+being dropped: a note the player cannot see but is still expected to play — or
+one that silently vanishes from the groove — is a worse failure than an
+imperfectly placed lane.
+
+#### Scenario: A cowbell part gets a lane
+
+- **WHEN** a score contains cowbell notes (General MIDI 56)
+- **THEN** the cowbell has its own lane and its notes are drawn in it
+
+#### Scenario: Both kick numbers drive the bar
+
+- **WHEN** a score mixes General MIDI 35 and 36
+- **THEN** both are drawn as the full-width kick bar, and neither occupies a lane
+
 ### Requirement: Lane order follows a fixed rule
 
 The lane order SHALL be produced by sorting the pieces present, in this order:
@@ -36,23 +58,43 @@ The lane order SHALL be produced by sorting the pieces present, in this order:
 2. the snare;
 3. the toms, highest to lowest;
 4. the remaining cymbals (the ride when a hi-hat already took position 1, then the
-   crashes and other accent cymbals).
+   crashes and other accent cymbals);
+5. everything else — the auxiliary percussion a drum-set part may carry (cowbell,
+   hand clap, tambourine, claves, wood blocks…), after the cymbals, in stable
+   ascending General MIDI order.
 
 The order SHALL be a rule applied to the pieces present, not a fixed list, so that
-adding or removing a piece never reorders the others.
+adding or removing a piece never reorders the others. The terminal bucket makes
+the rule **total**: every piece the score resolves falls into exactly one bucket,
+so no piece is ever left without a position — the counterpart of the no-silent-drop
+requirement above.
 
 The rule protects one invariant: **position 1 is whatever the player strikes
-continuously and position 2 is the snare.** Those two carry the overwhelming
-majority of a groove's notes, so they must sit adjacent — inside a single eye
-fixation — and any further piece must be appended to their right rather than
-inserted between them. A player moving from a sparse score to a dense one therefore
-never has to relearn where to look.
+continuously and position 2 is the snare, when the score contains one.** Those two
+carry the overwhelming majority of a groove's notes, so they must sit adjacent —
+inside a single eye fixation — and any further piece must be appended to their
+right rather than inserted between them. A player moving from a sparse score to a
+dense one therefore never has to relearn where to look. When a score has no snare
+(tom exercises, cymbal studies exist), the remaining pieces close ranks leftward:
+an empty bucket is skipped, never reserved.
 
 #### Scenario: The core of the groove is leftmost and adjacent
 
-- **WHEN** any percussion score is loaded
+- **WHEN** a percussion score containing a snare is loaded
 - **THEN** the continuously-struck piece is in position 1 and the snare in position
   2, whatever else the score contains
+
+#### Scenario: A snare-less score closes ranks
+
+- **WHEN** a score uses only toms and a ride, with no snare and no hi-hat
+- **THEN** the ride takes position 1 and the toms follow, highest to lowest, from
+  position 2 — the empty snare bucket is skipped, not reserved
+
+#### Scenario: An auxiliary piece sorts after the cymbals
+
+- **WHEN** a score uses hi-hat, snare, a crash and a cowbell
+- **THEN** the cowbell's lane comes last, after the crash — the core pair keeps
+  positions 1 and 2
 
 #### Scenario: The ride takes position 1 when there is no hi-hat
 
@@ -82,6 +124,11 @@ not exist, and forces the eye to compare two horizontally distant positions to
 answer the question that actually matters in drumming: does the foot land **with**
 a hand stroke or **between** hand strokes? A full-width bar answers it by
 intersection, without moving the gaze.
+
+Whether an event counts as hand-struck or foot-struck follows the hands/feet
+classification stated normatively in `hand-color-coding` — the two-voice
+convention, with the single-voice General MIDI fallback — so the bar, the colours
+and the hand filter all split the score the same way.
 
 #### Scenario: A kick coinciding with a hand stroke reads as simultaneous
 
@@ -164,13 +211,86 @@ file does not contain.
 - **WHEN** an open hi-hat stroke is shown
 - **THEN** no bar and no additional lane is drawn for it
 
+### Requirement: The pedal "chick" takes an ordinary lane until its encoding lands
+
+The cascade SHALL render a pedal hi-hat note (General MIDI 44 — the foot closing
+the cymbals alone, no hand stroke) as an ordinary lane through the sort rule's
+terminal bucket, like any other piece outside the named roles, until its
+dedicated encoding is designed against a real score (`design.md` records the
+candidate — a second, hollow full-width bar — and its fallback). This concedes
+the "the foot does not aim" principle for one rare event, deliberately: visible
+and aim-able beats invisible-but-scheduled, and the no-silent-drop requirement
+holds for the chick as for everything else.
+
+#### Scenario: A chick gets a lane, not a bar and not a drop
+
+- **WHEN** a score contains a General MIDI 44 note
+- **THEN** it is drawn in its own lane, ordered after the cymbals — no second
+  full-width bar is drawn, and no note is dropped
+
+### Requirement: The notation modes are not offered for a percussion score, for now
+
+Until `add-drum-notation-render` lands, the render-mode toggle SHALL offer only
+the cascade for a percussion score: the scrolling Staff and the engraved
+Partition SHALL be omitted. The existing notation painters have no percussion
+path — no percussion clef, no alternative noteheads, no two-voices-on-one-staff
+layout — and offering a mode that renders undefined output is worse than
+withholding it. The restriction SHALL apply to percussion scores only; a keyboard
+score keeps all three modes.
+
+#### Scenario: The mode toggle offers only the cascade
+
+- **WHEN** a percussion score is loaded
+- **THEN** the mode toggle presents the cascade, and neither Staff nor Partition
+  can be selected
+
+#### Scenario: Keyboard scores keep the three modes
+
+- **WHEN** a keyboard score is loaded
+- **THEN** Synthesia, Staff and Partition are all offered, exactly as before
+
+### Requirement: Wait Mode is not offered for a percussion score, for now
+
+Until `add-drum-scoring` lands, a percussion score SHALL be playable in the
+timed modes only, and Wait Mode SHALL NOT be offered for it. This change ships
+the pads display-only (see `keyboard-display`) and no percussion input path
+exists yet, so a Wait Mode gate would block forever on input that cannot
+arrive. The restriction SHALL apply to percussion scores only.
+
+#### Scenario: Wait Mode absent for a percussion score
+
+- **WHEN** a percussion score is loaded
+- **THEN** Wait Mode is not offered, and playback runs in the timed modes only
+
+#### Scenario: Keyboard scores keep Wait Mode
+
+- **WHEN** a keyboard score is loaded
+- **THEN** Wait Mode is offered exactly as before
+
+### Requirement: Lanes and pads carry the kit-piece names
+
+Each lane and its pad SHALL carry the localized name of its kit piece (fr/en) —
+charley/hi-hat, caisse claire/snare, and so on — so a player who does not yet
+map positions to pieces can read the strip like a legend. A generic piece from
+the sort rule's terminal bucket SHALL carry its General MIDI name.
+
+#### Scenario: Labels name the pieces
+
+- **WHEN** the cascade and the pad strip are shown for a score using hi-hat and
+  snare
+- **THEN** the hi-hat lane and pad, and the snare lane and pad, each carry the
+  piece's localized name
+
 ### Requirement: The inverted-kit setting mirrors the controller only
 
 The player SHALL be able to enable an **inverted kit** layout, which reverses the
-lane order and the pad strip **together**. It SHALL NOT reverse the notation modes:
-drum notation is a fixed convention, and a player whose kit is mirrored reads the
-same score as anyone else. It SHALL NOT affect how incoming notes are interpreted:
-a hi-hat reports the same General MIDI number wherever it physically stands.
+lane order and the pad strip **together**. The setting's contract stops there, as
+a property of the setting itself: it SHALL NOT alter notation — drum notation is
+a fixed convention, and a player whose kit is mirrored reads the same score as
+anyone else, on whatever notation surfaces exist now or later — and it SHALL NOT
+perform any input remapping: the inversion applies to the derived presentation
+layout only, never to note-interpretation data, so a hi-hat reports the same
+General MIDI number wherever it physically stands.
 
 The setting SHALL be persisted, SHALL default to the standard layout, and SHALL NOT
 be inferred — nothing in a score or a device reveals how a player's kit is set up.
@@ -185,15 +305,18 @@ enable a setting that does not apply to them.
 - **THEN** the lane order and the pad strip are both reversed, and they still match
   each other
 
-#### Scenario: Notation is unaffected
+#### Scenario: The setting never alters notation
 
-- **WHEN** the setting is enabled and a notation mode is shown
-- **THEN** the score is engraved exactly as with the standard layout
+- **WHEN** the setting is enabled
+- **THEN** it has no effect on how the score is engraved — the setting reaches
+  the cascade and the pad strip, and nothing else
 
-#### Scenario: Input is unaffected
+#### Scenario: The setting performs no input remapping
 
-- **WHEN** the setting is enabled and a pad is struck
-- **THEN** the note is interpreted from its General MIDI number, unchanged
+- **WHEN** the setting is enabled
+- **THEN** only the derived presentation layout is reversed; no
+  note-interpretation data changes, and an incoming General MIDI number keeps
+  its meaning
 
 #### Scenario: The setting persists and is never guessed
 

@@ -31,6 +31,10 @@
 </head>
 <body>
 
+<div style="background:#7a1f1f;color:#fff;border:3px solid #ffb454;border-radius:8px;padding:14px 18px;margin:0 0 20px;font-weight:700;font-size:15px;line-height:1.5">
+SUPERSEDED — the settled reference is <code style="color:#ffd9a0">cascade.html</code> and the delta spec; this file records an earlier iteration (kick as lane/pad instead of the full-width bar and pedal, non-settled lane order, and superseded notes about <code style="color:#ffd9a0">keyboard_range.dart</code>).
+</div>
+
 <h1>Batterie — les trois modes de jeu</h1>
 <p class="sub">Maquettes à la palette réelle de l'app. La barre du haut, le sélecteur de mode et la barre de transport sont <b>identiques à aujourd'hui</b> : seuls la zone de partition et le contrôleur du bas changent. Mains = bleu <code>handRight</code>, pieds = orange <code>handLeft</code> — le codage couleur existant se transpose sans rien inventer.</p>
 
@@ -158,7 +162,7 @@
   </svg>
   </div>
 
-  <div class="note"><b>Ce qui change vraiment :</b> <code>keyboard_range.dart</code> disparaît. Plus de plage <code>21..108</code>, plus de préréglages 25/49/61/88, plus d'auto-fit par hauteur — un kit est un ensemble non ordonné de ~10 pièces. Le nouveau concept est un « layout de kit » dérivé des pièces <b>réellement présentes</b> dans le morceau : ici six lanes parce que le morceau n'utilise que six éléments.</div>
+  <div class="note"><b>Ce qui change vraiment :</b> <code>keyboard_range.dart</code> est contourné — le fichier reste, un score percussion ne le consulte simplement jamais. Plus de plage <code>21..108</code>, plus de préréglages 25/49/61/88, plus d'auto-fit par hauteur — un kit est un ensemble non ordonné de ~10 pièces. Le nouveau concept est un « layout de kit » dérivé des pièces <b>réellement présentes</b> dans le morceau : ici six lanes parce que le morceau n'utilise que six éléments.</div>
 </section>
 
 <!-- ══════════════ 2. PORTÉE ══════════════ -->

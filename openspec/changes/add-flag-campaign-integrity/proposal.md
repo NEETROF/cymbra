@@ -30,10 +30,16 @@ attribute it.
   true.
 - The composition root implements the port beside the **existing** plans → flags
   bridge (`backend/server/src/flags.rs:461`), which already injects the caller's
-  plan and beta keys into the evaluation context. This is the same seam, used the
-  same way.
-- `SetFlag` and `SetConfig` reject a `beta:<key>` naming no campaign, with a typed
-  error the console surfaces as a message rather than a raw status.
+  plan and beta keys into the evaluation context. Same seam, same placement —
+  but not the same error contract: the bridge treats errors as free, which is
+  right for evaluation and wrong here, so the port is fallible (see the design).
+- A write that **sets or changes** a rollout scope to a `beta:<key>` naming no
+  campaign is rejected inside `FlagService::set_value` — the write boundary where
+  every sibling invariant already lives — with a typed error the console surfaces
+  as a message rather than a raw status. The check sees the **effective** scope
+  about to be stored, not merely the request's, so a scope arriving via
+  preservation or a registry default is covered, and so is any future non-gRPC
+  adapter over the same service.
 
 **Existence, not openness**
 
@@ -58,11 +64,13 @@ attribute it.
 ### Modified Capabilities
 
 - `runtime-feature-flags`: a beta-scoped rollout SHALL name an existing campaign,
-  verified when the override is written; the verification fails closed; and it
-  tests existence rather than openness so closing a campaign keeps withdrawing
-  access without a flag edit.
+  verified at the service write boundary whenever a write sets or changes the
+  stored scope; the verification fails closed, with "names no campaign" and
+  "cannot verify" kept distinct; and it tests existence rather than openness so
+  closing a campaign keeps withdrawing access without a flag edit.
 - `feature-flags-admin`: a stored scope naming no existing campaign is presented
-  distinctly from a valid one, and a rejected write surfaces a localised reason.
+  distinctly from a valid one, and a rejected write surfaces a localised reason
+  that distinguishes a bad scope from an unverifiable check.
 
 ## Impact
 
@@ -70,7 +78,7 @@ attribute it.
 
 | Product | Consumes | New |
 |---|---|---|
-| **Platform** (feature flags) | the existing composition-root bridge to plans | one declared port; a validation on two admin RPCs |
+| **Platform** (feature flags) | the existing composition-root bridge to plans | one declared port; a validation in the service write path behind both admin RPCs |
 | **Back-office** | the same flags RPCs | a dangling-scope presentation and a refusal message |
 | **Plans** | — | a campaign-existence read behind the port; no new coupling |
 | **Music / ID / Live / Site** | — | untouched |
@@ -78,7 +86,9 @@ attribute it.
 **Code**
 
 - `backend/feature-flags/src/`: the port trait, its wiring into the service, and the
-  validation in `grpc.rs` where `parse_rollout_opt` is called (`grpc.rs:140,164`).
+  validation inside `FlagService::set_value` (`service.rs`), where the effective
+  rollout is resolved and every sibling write invariant already lives — not in
+  `grpc.rs`, which would see only the request's scope and guard only one adapter.
 - `backend/server/src/flags.rs`: the adapter, beside the existing plans bridge.
 - `apps/back-office/src/components/FlagDrawer.vue` + `stores/flags.ts`: the dangling
   presentation and the refusal path.

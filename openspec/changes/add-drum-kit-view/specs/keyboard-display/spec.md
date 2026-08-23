@@ -89,3 +89,198 @@ strip would take height from the cascade for no gain.
 #### Scenario: Pad strip height ignores the piece count
 - **WHEN** a percussion score uses three pieces and another uses seven
 - **THEN** the pad strip has the same height in both, governed by the viewport
+
+### Requirement: On-Screen Key Input
+
+For a **keyboard** score the on-screen keyboard SHALL be playable by mouse and
+touch at all times — **while playback is running and while it is stopped** — in
+every render mode. A pointer-down on a key SHALL produce a note-on for that
+key's pitch and the matching pointer-up (or pointer-cancel) SHALL produce a
+note-off. On-screen play SHALL be handled identically to a physical MIDI key —
+internally it reuses the player's note-on/note-off entry points — so it drives
+the pressed-key feedback and the Wait Mode gate the same way, including while
+Wait Mode is blocking.
+
+For a **percussion** score the pad strip SHALL be display-only in this change: a
+tap on a pad SHALL produce no note, no feedback, and no gate effect. Pad input —
+a tap emitting the pad's General MIDI note through the same note-on/off entry
+points — arrives with `add-drum-input-mapping`. The interim is stated here
+deliberately, so the archived spec never claims an input path the code does not
+have; it is also why Wait Mode is not offered for a percussion score in the
+meantime (see `music-drum-kit-view`).
+
+#### Scenario: Tap plays a note
+- **WHEN** the user presses a displayed key with mouse or finger
+- **THEN** a note-on for that key's pitch is emitted and the key shows the pressed
+  state
+
+#### Scenario: Release stops the note
+- **WHEN** the user lifts the pointer that pressed a key
+- **THEN** a note-off for that pitch is emitted and the key leaves the pressed
+  state
+
+#### Scenario: On-screen play satisfies the gate
+- **WHEN** Wait Mode awaits a note and the user presses that note on the on-screen
+  keyboard
+- **THEN** the gate is satisfied exactly as if the note arrived from MIDI
+
+#### Scenario: Playable in every mode
+- **WHEN** the player is in Synthesia, Staff, or Partition mode
+- **THEN** the on-screen keys respond to pointer input
+
+#### Scenario: Playable while stopped
+- **WHEN** playback is stopped (the playhead is not advancing)
+- **THEN** pressing on-screen keys still emits note-on/note-off and shows the
+  pressed state, so the user can play freely
+
+#### Scenario: A pad tap does nothing yet
+- **WHEN** a percussion score is shown and the user taps a pad
+- **THEN** no note is emitted and no visual state changes — the strip is
+  display-only until `add-drum-input-mapping`
+
+### Requirement: Three-State Key Feedback
+
+The keyboard SHALL render three visual states per key derived from the notes
+required at the current playhead and the notes currently held: a key that is
+required but not held SHALL show an "expected / press-this" color; a key that is
+required and held SHALL show a distinct "correct" color; a key that is held but
+not required SHALL show the "pressed" color. The required set SHALL be the same
+gate used by Wait Mode at the current playback position, and SHALL include only
+notes belonging to the selected hand(s): when a single hand is selected, notes of
+the unselected hand SHALL NOT appear in the required set and SHALL NOT be shown in
+the expected or correct state.
+
+For a **percussion** score the pads SHALL carry none of these states in this
+change: the strip is display-only, so there is nothing held to reflect. Pad
+feedback — including the "validated pad" the exploration mockups sketch —
+arrives with `add-drum-input-mapping`, together with the input it reflects.
+
+#### Scenario: Expected key highlighted
+- **WHEN** a note is required at the playhead and not currently held
+- **THEN** its key shows the expected/press-this color
+
+#### Scenario: Correct key highlighted distinctly
+- **WHEN** a required note is currently held
+- **THEN** its key shows the correct color, distinct from the expected color
+
+#### Scenario: Extra pressed key
+- **WHEN** a key is held that is not required
+- **THEN** it shows the pressed color
+
+#### Scenario: Narrow black key remains visible
+- **WHEN** a required or correct key is a black key at a small on-screen width
+- **THEN** its highlight remains visible (e.g. via an outline/cap)
+
+#### Scenario: Unselected hand never expected
+- **WHEN** a single hand is selected and a note of the other hand falls at the
+  playhead
+- **THEN** that note's key is not shown in the expected or correct state and is
+  absent from the required set
+
+#### Scenario: Pads carry no feedback states yet
+- **WHEN** a percussion score is shown
+- **THEN** the pads render without expected, correct or pressed states — pad
+  feedback arrives with `add-drum-input-mapping`
+
+### Requirement: Multi-Touch Polyphony
+
+The on-screen keyboard SHALL support multiple simultaneous pointers so that
+chords can be played where the platform reports multi-touch. Each pointer SHALL
+track its own pressed pitch independently, so releasing one finger SHALL note-off
+only that finger's pitch and leave the others sounding.
+
+The requirement binds the **keyboard**; the pad strip, display-only in this
+change, has no pointer behaviour to make polyphonic. Multi-touch pad play — two
+hands striking two pads at once — arrives with `add-drum-input-mapping` and will
+be specified there.
+
+#### Scenario: Two keys held at once
+- **WHEN** two pointers press two different keys simultaneously
+- **THEN** both pitches are note-on and held together
+
+#### Scenario: Independent release
+- **WHEN** two keys are held by two pointers and one pointer lifts
+- **THEN** only that pointer's pitch is note-off and the other remains held
+
+### Requirement: Assisted Correct-Hand Keys
+
+For a **keyboard** score the desktop keyboard SHALL provide two assist keys that
+play the notes expected at the current playhead for one hand: the **left-hand**
+key plays all expected staff-2 notes and the **right-hand** key plays all
+expected staff-1 notes. The expected set is the same gate used by Wait Mode at
+the playhead. Pressing the key SHALL note-on every expected pitch for that hand
+and releasing it SHALL note-off those pitches, through the same note-on/off path
+as MIDI, so playing the correct hand key satisfies the gate. When no note is
+expected for that hand, the key SHALL do nothing.
+
+For a **percussion** score the assist keys SHALL NOT be offered in this change:
+their staff-1/staff-2 keying is meaningless for a single-staff drum part, and
+with no percussion input path there is no gate for them to satisfy. When
+`add-drum-input-mapping` lands, any percussion assist scheme SHALL key on the
+hands/feet voice convention stated in `hand-color-coding`, not on staves.
+
+#### Scenario: Right-hand key plays the expected right-hand notes
+- **WHEN** staff-1 notes are expected at the playhead and the right-hand assist
+  key is pressed
+- **THEN** those pitches are note-on (and note-off on release), satisfying the
+  Wait Mode gate for the right hand
+
+#### Scenario: Left-hand key plays the expected left-hand notes
+- **WHEN** staff-2 notes are expected and the left-hand assist key is pressed
+- **THEN** those pitches are note-on and note-off on release
+
+#### Scenario: Chord of expected notes
+- **WHEN** a hand has several notes expected at the same playhead
+- **THEN** pressing that hand's key plays all of them together
+
+#### Scenario: Nothing expected for the hand
+- **WHEN** no note is expected for a hand at the playhead
+- **THEN** pressing that hand's assist key produces no note
+
+#### Scenario: No assist keys for a percussion score
+- **WHEN** a percussion score is loaded on desktop
+- **THEN** the assist keys produce no notes
+
+### Requirement: Hideable Keyboard In Notation Modes
+
+The user SHALL be able to hide the on-screen keyboard while in the scrolling
+staff (Portée) render mode, handing the freed height to the score; the setting
+SHALL be reachable from the player settings. In Synthesia the keyboard SHALL
+always be shown regardless of the setting, because its cascade aligns to the
+keys, and the hide option SHALL NOT be offered in Synthesia. In the engraved
+Partition mode the keyboard SHALL NOT be shown at all and the hide option SHALL
+NOT be offered there: the notation's own expected-note emphasis already tells
+the player what to play, and the freed height is what keeps the current and
+next staff lines on screen together. The setting SHALL default to visible and
+be session-scoped.
+
+The same policy SHALL govern the **pad strip**: in the percussion cascade —
+which, like Synthesia, aligns its falling notes to its controller — the strip
+SHALL always be shown and the hide option SHALL NOT be offered. Since the
+notation modes are not offered for a percussion score in the interim (see
+`music-drum-kit-view`), the hide setting is simply absent for percussion until
+`add-drum-notation-render` lands, at which point the strip SHALL follow the
+same per-mode rules as the keyboard.
+
+#### Scenario: Hide the keyboard in the scrolling staff
+- **WHEN** the user turns the keyboard off while in Staff (Portée) mode
+- **THEN** the on-screen keyboard is not rendered and the score takes the freed
+  height
+
+#### Scenario: Synthesia always keeps the keyboard
+- **WHEN** the mode is Synthesia and the keyboard has been set hidden
+- **THEN** the keyboard is still shown, and the hide option is absent from the
+  settings
+
+#### Scenario: Partition never shows the keyboard
+- **WHEN** the mode is the engraved Partition, whatever the keyboard setting
+- **THEN** the on-screen keyboard is not rendered, the hide option is absent
+  from the settings, and the engraving takes the full height
+
+#### Scenario: Default is visible
+- **WHEN** a session starts
+- **THEN** the on-screen keyboard is visible (in the modes that show it)
+
+#### Scenario: The cascade always keeps the pad strip
+- **WHEN** a percussion score is shown in the cascade
+- **THEN** the pad strip is shown and no hide option is offered

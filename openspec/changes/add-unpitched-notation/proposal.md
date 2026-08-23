@@ -12,7 +12,10 @@ requires access controls, delivered by the companion change `add-drums-access`.
 
 Splitting it this way keeps each change safe on its own. This one is inert
 end-to-end: a percussion score parses correctly when the parser is called directly,
-and is refused by upload and by the crawler exactly as it is today.
+and is refused by upload and by the crawler exactly as it is today. A **mixed**
+pitched-and-unpitched score — which today's gate already admits, since it counts
+only pitched notes — also keeps its exact current playback, because schedule
+emission of unpitched notes is gated on the score classifying as percussion.
 
 ## What Changes
 
@@ -25,14 +28,19 @@ and is refused by upload and by the crawler exactly as it is today.
 - Parse the `<part-list>` instrument declarations —
   `<score-part>/<score-instrument>` and `<midi-instrument>/<midi-unpitched>` —
   which carry the mapping from a note's `<instrument id>` to its General MIDI
-  percussion number (35–81). This mapping is the only authoritative link between
-  a written drum note and the sound it denotes.
+  percussion number (35–81). `<midi-unpitched>` is **one-based** (1–128), so the
+  General MIDI number is the element value minus one — MuseScore writes 39 for
+  the GM-38 snare. This mapping is the only authoritative link between a written
+  drum note and the sound it denotes.
 - Accept the percussion clef. **BREAKING (crate API):** `Clef.sign` is a `char`
   and cannot hold `percussion`; it becomes a typed clef sign.
 - Derive each score's **instrument classification** (keyboard / percussion /
   unknown) from the parse alone.
-- Emit unpitched notes in the playback schedule, and mirror the same rule in the
-  app's `notationToTimedNotes`.
+- Emit unpitched notes in the playback schedule **when the score classifies as
+  percussion** — a mixed score, admissible through today's gate, keeps its
+  current playback — and mirror the same rule in the app's
+  `notationToTimedNotes`, tied unpitched chains merging into one prolonged note
+  on both sides.
 
 **Deliberately unchanged**
 
@@ -55,8 +63,8 @@ mapping and instrument-aware scoring.
   notation — unpitched note events and their written staff position, the part-list
   instrument table mapping a note to its General MIDI percussion number, the
   percussion clef, the derived instrument classification, the presence of unpitched
-  notes in the playback schedule, and the explicit fact that the validation gate
-  stays closed until access controls exist.
+  notes in the playback schedule of a percussion-classified score, and the explicit
+  fact that the validation gate stays closed until access controls exist.
 
 ### Modified Capabilities
 

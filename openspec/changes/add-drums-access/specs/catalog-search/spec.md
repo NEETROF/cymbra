@@ -1,6 +1,11 @@
+## RENAMED Requirements
+
+- FROM: `### Requirement: Piano-only filter parameter`
+  TO: `### Requirement: Instrument filter parameter`
+
 ## MODIFIED Requirements
 
-### Requirement: Piano-only filter parameter
+### Requirement: Instrument filter parameter
 
 The search operation SHALL accept an optional **instrument** filter naming an
 instrument family (`keyboard` or `percussion`); when set, only scores recorded with

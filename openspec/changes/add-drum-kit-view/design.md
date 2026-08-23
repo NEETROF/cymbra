@@ -2,8 +2,10 @@
 
 Synthesia and the on-screen keyboard are one system built on a single assumption:
 notes live on a contiguous, ordered axis of pitch. `keyboard_range.dart` encodes it
-directly — `kPianoLowest 21 .. kPianoHighest 108`, presets of 25/37/49/61/76/88
-keys, an auto-fit that snaps to octave boundaries and widens the window so the
+directly — `kPianoLowest 21 .. kPianoHighest 108`, presets of 25/49/61/88 keys
+(the `keyboard-display` spec still lists 37- and 76-key presets the code never
+grew — a divergence to reconcile on its own, not smuggled into this change), an
+auto-fit that snaps to octave boundaries and widens the window so the
 cascade never drops a note. The `keyboard-display` capability then guarantees the
 keyboard and the waterfall share that range, which is what keeps falling columns
 above their keys.
@@ -13,9 +15,10 @@ ten pieces**. There is no interval, no octave boundary, no 61-key subset. Every
 concept in that file is inapplicable rather than merely inconvenient.
 
 The design below was worked out interactively against a drummer's feedback, and
-several first attempts were wrong in instructive ways. `mockups/` holds the
-resulting reference; this document holds the reasoning, including what was rejected,
-so the same ground is not re-covered.
+several first attempts were wrong in instructive ways. `mockups/cascade.html`
+holds the resulting reference (the other mockups record the earlier iterations
+and are banner-marked as superseded); this document holds the reasoning,
+including what was rejected, so the same ground is not re-covered.
 
 ## Goals / Non-Goals
 
@@ -82,10 +85,17 @@ for precisely that reason.
 ### Lane order is a sort rule protecting one invariant
 
 Hi-hat (or ride when there is no hi-hat), then snare, then toms high-to-low, then
-the remaining cymbals.
+the remaining cymbals — then everything else (cowbell, clap, tambourine, claves…)
+in stable ascending General MIDI order. The terminal bucket is what makes the rule
+total: a drum-set part is not limited to the canonical pieces, and a rule that
+cannot place a cowbell either drops it silently or leaves the implementer to
+invent a position. Neither is acceptable, so the rule ends with a bucket that
+catches everything, ordered deterministically.
 
 *Rationale:* the invariant matters more than the list — **position 1 is whatever is
-struck continuously, position 2 is the snare**. Those two carry the overwhelming
+struck continuously, position 2 is the snare when the score has one** (a snare-less
+score closes ranks leftward; empty buckets are skipped, never reserved). Those two
+carry the overwhelming
 majority of a groove's notes and must sit inside a single eye fixation; further
 pieces must append to the right rather than insert between them, so a player moving
 from a sparse score to a dense one never relearns where to look. Hi-hat leftmost
@@ -120,6 +130,12 @@ The **chick** (General MIDI 44, foot alone, no hand) is a genuine second foot ev
 chick is rare outside jazz, and designing its encoding without a real score to test
 against would mean designing it badly — the corpus may well contain none for a long
 time.
+
+*Interim, pinned in the spec:* until the encoding is designed, a General MIDI 44
+note takes an ordinary lane through the sort rule's terminal bucket. That concedes
+"the foot does not aim" for one rare event, but visible and aim-able beats
+invisible-but-scheduled, and the no-silent-drop requirement applies to the chick
+like everything else.
 
 *Candidate approach, recorded not adopted:* a second full-width bar, hollow
 (outline only) and in a distinct hue. Hollow-plus-hue works on two perceptual
@@ -158,7 +174,7 @@ is a second input both consumers would have to honour identically.
 
 **The whole design is judged on feel, not on tests** → lane widths, bar attenuation
 and the open-hi-hat variant are all "does it read at speed" questions that a unit
-test cannot answer. Mitigation: the mockups are a shared reference before code, and
+test cannot answer. Mitigation: `cascade.html` is a shared reference before code, and
 the manual pass drives real scores at real tempo, on a phone as well as a tablet.
 Two known unknowns are already flagged for that pass: whether ~60% attenuation
 survives motion (a scrolling bar reads weaker than a static one), and whether the

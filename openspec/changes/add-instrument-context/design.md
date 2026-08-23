@@ -1,9 +1,10 @@
 ## Context
 
 Every discovery surface in the app is implicitly keyboard: the Score Hub pins the
-piano filter, the home sections and courses assume one instrument, the sound picker
-lists every font. With drums added, each of these either stays keyboard — hiding
-drums — or shows both, which makes each half noisier for everyone.
+piano filter, the home sections and courses assume one instrument. With drums
+added, each of these either stays keyboard — hiding drums — or shows both, which
+makes each half noisier for everyone. (The sound picker also lists every font, but
+it is a player-path surface, not a discovery one — see Non-Goals.)
 
 Two facts shape the answer, and they pull in opposite directions.
 
@@ -31,6 +32,10 @@ everyone, for the whole length of the rollout.
 
 - Governing the player. A score carries its instrument; the context is for
   discovery only.
+- Seeding the sound picker. It is a player-path surface where the score's
+  instrument must decide the family — a keyboard score under a drums context still
+  needs piano fonts — and its family filtering is owned by `add-drum-audio-channel`,
+  exactly where `add-drums-access` deferred it.
 - Supporting a "both" context. The score is keyboard **or** drums, and a mixed view
   makes each half noisier; a user who plays both switches, which is one tap.
 - Inferring the context from behaviour — see Decisions.
@@ -42,6 +47,13 @@ everyone, for the whole length of the rollout.
 *Rationale:* it is one rule that resolves to the right moment in each phase — after
 sign-in while beta-scoped, at first launch once global. The alternative, naming a
 moment, forces a second rule and a migration the day the rollout completes.
+
+The trigger *arms* the offer; the home *presents* it. Visibility resolves from an
+asynchronous flag fetch — bootstrap, a periodic poll, resume, an identity change —
+so the flip can land at any moment, including mid-play. Left unbounded, "offered
+when visible" mandates a dialog over whatever screen the user is on. The offer is
+therefore bound to the home: the next time the user is on, or arrives at, the home
+while drums are visible, and never over the player or any other surface.
 
 *Alternative rejected:* an instrument step in the first-run sequence. It cannot work
 while drums are beta-scoped, because the first run is deliberately account-less and
@@ -86,6 +98,12 @@ every return. Separating the durable preference from the session's working state
 costs one extra piece of state and removes the annoyance without making the app
 guess.
 
+The working state yields to exactly one thing: an explicit context change. Flipping
+the switcher (or answering the modal) re-seeds the filter even over a session
+adjustment — the act's whole meaning is "re-point the app" — while navigation alone
+never re-seeds. Retention protects the user from the app; it does not protect the
+session from the user.
+
 ### Bundled drum scores are authored, not promoted from the catalog
 
 *Rationale:* the existing bundled scores are authored for the project
@@ -103,22 +121,33 @@ catalog.
 *Side benefit:* authoring at a chosen level sidesteps the unresolved
 drum-difficulty question, which only bites for catalog content.
 
-### Degradation is specified, because both failure modes are silent
+### Degradation is presentational-only, because the invisible state is routine
 
-A context naming a no-longer-visible instrument falls back silently; a context with
-nothing to show explains itself.
+A context naming a not-currently-visible instrument renders as keyboard silently; a
+context with nothing to show explains itself. The fallback never writes: neither
+the stored context nor the offered-once marker is modified by a visibility change,
+and the context reapplies unchanged the moment drums are visible again.
 
 *Rationale:* both are states a user lands in without having done anything wrong, and
-both would otherwise present as "the app is broken". The withdrawal case is narrow —
-after general availability, closing a campaign takes nothing away — but it is exactly
-the case that arises if the rollout is abandoned.
+both would otherwise present as "the app is broken". And the invisible state is not
+the narrow campaign-abandonment case it first looks like: the flag client begins
+every cold launch on an empty snapshot and resets it on sign-out, so *every* launch
+and *every* account switch passes through a moment where drums are invisible. A
+fallback that persisted would erase the user's choice on each of them — and since
+the choice is offered at most once, erase it permanently, with no re-offer to
+recover it. Presentation-only is the only implementation that survives the flag
+client's own lifecycle.
 
 ## Risks / Trade-offs
 
 **Shipping this before drums are playable** → a user could pick drums and find
 nothing to play. It has no code dependency on the audio, rendering or kit-view
-changes, which makes the mistake easy. Mitigation: stated as a sequencing constraint
-in the proposal, and the empty-context invitation is a backstop rather than a plan.
+changes, which makes the mistake easy. Mitigation: the sequencing constraint in the
+proposal — land after `add-drum-kit-view`, so a bundled drum score at least opens
+and renders — with this change's own gates scoped to exactly that, the full loop
+(gauge and summary) named a general-availability prerequisite on
+`add-drum-audio-channel`, `add-drum-input-mapping` and `add-drum-scoring`, and the
+empty-context invitation as a backstop rather than a plan.
 
 **Two surfaces can disagree about visibility** → the modal trigger and the
 switcher's presence both depend on "are drums visible", read at different times.

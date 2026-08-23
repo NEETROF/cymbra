@@ -9,10 +9,12 @@ correct staff; when no staff is indicated, the element SHALL default to staff 1.
 
 The parser SHALL additionally read the part list's **instrument declarations** —
 `<score-part>/<score-instrument>` and their `<midi-instrument>` children — and
-retain, per instrument id, the General MIDI percussion number declared by
-`<midi-unpitched>`, so an unpitched note can resolve the sound it denotes (see the
-`music-percussion-notation` capability). A part list carrying no instrument
-declaration SHALL parse exactly as before.
+retain, per instrument id, the General MIDI percussion number derived from
+`<midi-unpitched>`. That element is **one-based** (MusicXML numbers MIDI notes
+1–128), so the General MIDI number is the element value minus one; the full
+resolution rule lives in the `music-percussion-notation` capability, which this
+table exists to serve. A part list carrying no instrument declaration SHALL parse
+exactly as before.
 
 #### Scenario: Piano part has two staves
 - **WHEN** the part declares `staves` of 2
@@ -29,8 +31,9 @@ declaration SHALL parse exactly as before.
 
 #### Scenario: Instrument declarations are retained
 - **WHEN** the part list declares a `score-instrument` whose `midi-instrument`
-  carries a `midi-unpitched` number
-- **THEN** the document retains that number against the instrument's id
+  carries a `midi-unpitched` of 39
+- **THEN** the document retains General MIDI percussion number 38 — the one-based
+  element value minus one — against the instrument's id
 
 #### Scenario: A part list without instruments is unchanged
 - **WHEN** the part list declares no `score-instrument`
@@ -95,6 +98,18 @@ An unpitched note's written position SHALL NOT be exposed as a pitch, because it
 denotes a staff placement rather than a sounding pitch; deriving a MIDI number from
 it would fabricate a frequency the score never states.
 
+An `<unpitched/>` carrying no display position is **valid** MusicXML denoting the
+middle staff line: the note event SHALL be produced with that default placement
+rather than dropped — a minimally-authored single-line part writes every note
+this way, and dropping them would silently erase the whole part.
+
+A degenerate `<note>` — one carrying none of `<pitch>`, `<unpitched>` or `<rest>`
+— fits none of the three forms and SHALL be skipped: no note event is produced,
+its declared duration still advances the running position so the surrounding
+notes keep their written times, and parsing succeeds. This follows the parser's
+degrade-don't-fail posture — rejecting a whole file over one malformed note
+would be a worse outcome than dropping the note.
+
 A note's alteration SHALL be taken from its explicit `<alter>` element when
 present (defaulting to 0 when absent), EXCEPT that for a document with no explicit
 alteration anywhere the key signature is applied per the **Key-Signature Pitch
@@ -131,6 +146,16 @@ signature.
 - **WHEN** a note carries an `<instrument>` element
 - **THEN** the note event retains that instrument id
 
+#### Scenario: Empty unpitched element defaults to the middle line
+- **WHEN** a note carries an empty `<unpitched/>` with no display position
+- **THEN** a note event is produced with the middle-line placement, the MusicXML
+  default
+
+#### Scenario: Degenerate note is skipped, parsing succeeds
+- **WHEN** a note carries none of pitch, unpitched or rest
+- **THEN** no note event is produced for it, its declared duration still advances
+  the running position, and parsing succeeds
+
 ### Requirement: Derived Playback Timing
 
 The system SHALL derive a playback timing from a parsed score so the time-based
@@ -139,10 +164,15 @@ the audio synthesizer can play it. For each non-rest note it SHALL compute a sta
 time and duration in milliseconds from the note's running division position and a
 tempo (taken from a `metronome` direction when present, otherwise a default), and a
 MIDI number obtained as follows: for a **pitched** note, computed from the note's
-step, octave and alteration; for an **unpitched** note, the General MIDI percussion
-number resolved from the part list's instrument declarations. An unpitched note
-whose number cannot be resolved SHALL be omitted rather than emitted with a
-fabricated number. Chord members SHALL share the onset of the note they attach to;
+step, octave and alteration; for an **unpitched** note — emitted only when the
+score classifies as percussion (see the `music-percussion-notation` capability),
+so a mixed score admissible through today's validation gate keeps its exact
+current playback — the General MIDI percussion number resolved from the part
+list's instrument declarations. An unpitched note whose number cannot be resolved
+SHALL be omitted rather than emitted with a fabricated number; tied unpitched
+notes merge into one prolonged note keyed by voice and resolved General MIDI
+number, and a chain whose number is unresolved is omitted entirely. Chord members
+SHALL share the onset of the note they attach to;
 rests SHALL NOT produce a played note. Each derived note SHALL also carry its
 staff, beam states and the clef in effect, so the scrolling Staff mode can lay out
 a grand staff with beamed groups and position notes by the clef in force (honouring
@@ -176,9 +206,15 @@ that consumes this timing (see the `audio-output` capability).
   its computed duration
 
 #### Scenario: Unpitched note takes its General MIDI percussion number
-- **WHEN** an unpitched note resolves to a part-list instrument whose
-  `midi-unpitched` is 38
-- **THEN** the derived note carries MIDI number 38, timed like any other note
+- **WHEN** an unpitched note in a percussion-classified score resolves to a
+  part-list instrument whose `midi-unpitched` is 39
+- **THEN** the derived note carries General MIDI percussion number 38 — the
+  one-based element value minus one — timed like any other note
+
+#### Scenario: A mixed score schedules only its pitched notes
+- **WHEN** a score containing both pitched and unpitched notes is scheduled
+- **THEN** only the pitched notes produce derived notes, exactly as before this
+  change
 
 #### Scenario: Unresolvable unpitched note is omitted
 - **WHEN** an unpitched note's General MIDI number cannot be resolved

@@ -33,17 +33,47 @@ rest.
 
 The parser SHALL read the `<part-list>` instrument declarations —
 `<score-part>/<score-instrument>` and their `<midi-instrument>` children — and
-expose, per instrument id, the General MIDI percussion number declared by
-`<midi-unpitched>`. This table is the ONLY authoritative link between a written
+expose, per instrument id, the General MIDI percussion number derived from
+`<midi-unpitched>`. The element is **one-based**: MusicXML numbers MIDI notes
+1–128 where MIDI itself counts 0–127, so the General MIDI number is the element
+value **minus one**. A conformant exporter (MuseScore among them) writes `39` for
+the GM-38 acoustic snare and `43` for the GM-42 closed hi-hat; taking the element
+value verbatim would shift every kit piece one instrument off (a real file's
+hi-hat would read as a high floor tom) while self-consistent fixtures kept the
+tests green. This table is the ONLY authoritative link between a written
 percussion note and the sound it denotes, so an unpitched note's `<instrument id>`
 SHALL resolve through it rather than through any inference from the note's written
 position.
 
+An unpitched note carrying no `<instrument>` element SHALL resolve to the part's
+**sole** declared instrument when the part list declares exactly one
+`score-instrument` with a `midi-unpitched` — the MusicXML default-instrument
+convention, routine in Finale/Sibelius/Dorico exports of single-line percussion (a
+tambourine part, a one-instrument drum line), where notes never reference the one
+instrument they can only mean. When several instruments are declared and a note
+references none, the ambiguity SHALL NOT be guessed away: the note's General MIDI
+number stays unknown.
+
 #### Scenario: Instrument id resolves to its General MIDI number
 
-- **WHEN** the part list declares an instrument whose `midi-unpitched` is 38 and a
+- **WHEN** the part list declares an instrument whose `midi-unpitched` is 39 and a
   note references that instrument id
-- **THEN** that note event resolves to General MIDI percussion number 38
+- **THEN** that note event resolves to General MIDI percussion number 38 — the
+  one-based element value minus one
+
+#### Scenario: A note without an instrument reference falls back to the sole instrument
+
+- **WHEN** a part list declares exactly one `score-instrument` whose
+  `midi-unpitched` is 39, and an unpitched note carries no `<instrument>` element
+- **THEN** that note event resolves to General MIDI percussion number 38, the
+  part's default instrument
+
+#### Scenario: Several instruments and no reference stays unknown
+
+- **WHEN** a part list declares several instruments and an unpitched note carries
+  no `<instrument>` element
+- **THEN** that note event's General MIDI number is left unknown rather than picked
+  arbitrarily among the declarations
 
 #### Scenario: Unresolvable instrument leaves the sound unknown
 
@@ -84,21 +114,40 @@ rather than failing the parse.
 ### Requirement: Instrument classification of a score
 
 The parser SHALL derive, from a parsed document, which instrument family the score
-is written for — keyboard or percussion — as a single value for the whole score. A
-score is classified as percussion when its notes are unpitched; classification
-SHALL be derived from the parse alone and never from a filename, a part name typed
-by a contributor, or any other external claim. A score whose classification cannot
-be determined SHALL be reported as unknown rather than defaulted to either family.
+is written for — keyboard, percussion, or unknown — as a single value for the whole
+score. A score SHALL classify as **percussion** when every non-rest note of the
+parsed part is unpitched, as **keyboard** when every non-rest note is pitched, and
+as **unknown** otherwise — mixed pitched-and-unpitched content, or a score with no
+notes at all. The all-or-nothing rule is deliberate: the product premise is that a
+score is piano XOR drums, and a file violating that premise is a fact to report,
+not to round off — `add-drums-access` keys server-side access control and catalog
+filtering on this value, so a guessed family would become a guessed disclosure
+decision. Classification reads the **first part only**, matching the parser's
+existing single-part document model: whichever part a multi-part file puts first
+is the part being classified. Classification SHALL be derived from the parse alone
+and never from a filename, a part name typed by a contributor, or any other
+external claim.
 
 #### Scenario: A drum score is classified as percussion
 
-- **WHEN** a score whose notes are unpitched is parsed
+- **WHEN** a score whose non-rest notes are all unpitched is parsed
 - **THEN** its derived instrument classification is percussion
 
 #### Scenario: A piano score is classified as keyboard
 
-- **WHEN** a score whose notes are pitched is parsed
+- **WHEN** a score whose non-rest notes are all pitched is parsed
 - **THEN** its derived instrument classification is keyboard
+
+#### Scenario: A mixed score is classified as unknown
+
+- **WHEN** the parsed part contains both pitched and unpitched non-rest notes
+- **THEN** its derived instrument classification is unknown — neither family is
+  guessed for a score that violates the piano-XOR-drums premise
+
+#### Scenario: A score with no notes is classified as unknown
+
+- **WHEN** the parsed part contains only rests, or no notes at all
+- **THEN** its derived instrument classification is unknown
 
 #### Scenario: Classification never trusts external metadata
 
@@ -128,20 +177,46 @@ Until then this capability is reachable only by a direct call to the parser.
 
 ### Requirement: Unpitched notes reach the playback schedule
 
-The playback schedule SHALL include unpitched notes, timed by the same rules as
-pitched notes, carrying the General MIDI percussion number resolved from the
-part-list instrument table instead of a pitch. An unpitched note whose General MIDI
-number could not be resolved SHALL be omitted from the schedule rather than emitted
-with a fabricated number. This rule SHALL hold identically in the shared crate's
-schedule and in the app's mirror implementation, which are deliberate duplicates:
-a divergence would make the back-office preview time a score differently from the
-app.
+The playback schedule SHALL include unpitched notes when, and only when, the score
+classifies as **percussion**, timed by the same rules as pitched notes and carrying
+the General MIDI percussion number resolved from the part-list instrument table
+instead of a pitch. The condition is what keeps this change inert: the validation
+gate counts only pitched notes, so a score mixing pitched and unpitched notes is
+admissible **today** and can already sit in the corpus — its unpitched notes
+currently parse to nothing and play as silence. Emitting them unconditionally
+would change that score's playback (General MIDI numbers rendered through the
+piano synth, Wait Mode gating on notes that were silent yesterday) with no access
+control in front of it. Gated on the classification — which a mixed score fails,
+reading as unknown — emission is reachable only by scores the still-closed gate
+refuses, so every score admissible today plays exactly as before.
+
+An unpitched note whose General MIDI number could not be resolved SHALL be omitted
+from the schedule rather than emitted with a fabricated number. Tied unpitched
+notes SHALL merge into ONE prolonged note keyed by (voice, resolved General MIDI
+number) — a drum tie means "let ring", not "strike again" — and a tie chain whose
+links' General MIDI number is unresolved SHALL be omitted entirely: half a merged
+chain is a fabricated rhythm.
+
+This rule SHALL hold identically in the shared crate's schedule and in the app's
+mirror implementation, which are deliberate duplicates: a divergence would make
+the back-office preview time a score differently from the app. The crate schedule
+performs no tie merging for **pitched** notes today while the app mirror does;
+that pre-existing divergence is out of scope here and does not undermine parity,
+which quantifies over percussion-classified scores — where both sides apply this
+same unpitched tie rule.
 
 #### Scenario: A percussion note is scheduled
 
-- **WHEN** a score with unpitched notes is scheduled
-- **THEN** each note appears at its computed start time carrying its General MIDI
-  percussion number
+- **WHEN** a score classified as percussion is scheduled
+- **THEN** each unpitched note appears at its computed start time carrying its
+  General MIDI percussion number
+
+#### Scenario: A mixed score keeps today's behaviour
+
+- **WHEN** a score containing both pitched and unpitched notes — admissible
+  through today's validation gate — is scheduled
+- **THEN** its pitched notes are scheduled exactly as before and its unpitched
+  notes are skipped, exactly as today
 
 #### Scenario: An unresolvable note is omitted, not fabricated
 
@@ -149,9 +224,16 @@ app.
 - **THEN** it does not appear in the schedule, and the surrounding notes keep their
   computed times
 
+#### Scenario: Tied unpitched notes merge into one prolonged note
+
+- **WHEN** a percussion score ties a cymbal note across a barline
+- **THEN** the schedule contains one note whose duration spans the whole chain,
+  keyed by its voice and resolved General MIDI number — in the crate schedule and
+  the app mirror alike
+
 #### Scenario: The crate and the app schedule identically
 
-- **WHEN** the same percussion score is scheduled by the shared crate and by the
-  app's mirror implementation
+- **WHEN** the same percussion-classified score — tied cymbals included — is
+  scheduled by the shared crate and by the app's mirror implementation
 - **THEN** both produce the same notes with the same start times, durations and
   General MIDI numbers

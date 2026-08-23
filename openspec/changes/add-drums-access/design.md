@@ -47,9 +47,19 @@ instrument.
 - SoundFont selection by instrument family, and verifying an uploaded font's
   declared family from its preset banks — `add-drum-audio-channel`, since a drum kit
   is only selectable once drums can sound.
-- Making drum scores *useful*. Until the rendering and audio changes land, a drum
-  score in the app is an empty staff and silence. That is precisely why the audience
-  is restricted.
+- Making drum scores *useful*. Until the rendering and audio changes land, the app
+  has no honest presentation of a drum score — and the dishonest one is worse than
+  empty: per `add-unpitched-notation`'s schedule spec, unpitched notes enter the
+  timed stream with GM numbers 35–81 in the MIDI slot, so the waterfall would draw
+  them as falling *piano* notes and the piano synthesizer would sound them. That is
+  precisely why the audience is restricted, and why the app shows an explicit
+  "drums not playable yet" state instead of entering the player (the app-side
+  mirror of the console guard below, removed by `add-drum-kit-view`).
+- Scoring drum plays. Until `add-drum-scoring`, a percussion run engages no
+  rewards, leaderboards, streak or daily-access consumption — those artifacts are
+  permanent (ledger rows, monotone bests, badges never lost), so keyboard-shaped
+  scoring of a drum part would bake wrong data nothing could cleanly unwind. The
+  ingest sites fail closed on `instrument = 'percussion'`.
 - Sourcing a drum corpus. The catalog can hold drum scores after this change; where
   they come from is an open product question.
 
@@ -70,12 +80,22 @@ reach into the query, not the method.
 
 ### An ineligible caller gets "not found", not "forbidden"
 
-Withheld scores are absent from listings and unknown on direct fetch.
+Withheld scores are absent from listings and unknown on direct fetch — and this
+rule scopes to **read** paths. On the accepting paths (upload, propose) the caller
+already holds the file, so nothing can be disclosed and a not-found answer would
+be incoherent; there the refusal is typed and localisable.
 
-*Rationale:* a distinguishable refusal is itself a disclosure — it tells the caller
-that a percussion score exists at that id. This also keeps the search path simple:
-one predicate in the `WHERE` clause rather than a post-filter that would corrupt
-paging counts.
+*Rationale:* a distinguishable refusal on a read path is itself a disclosure — it
+tells the caller that a percussion score exists at that id. This also keeps the
+search path simple: one predicate in the `WHERE` clause rather than a post-filter
+that would corrupt paging counts.
+
+One carve-out, decided rather than left to emerge: the gate does **not** apply to
+a caller's own uploads. Listing, fetching and deleting one's own scores always
+works — there is no disclosure in showing someone their own file, and gating it
+would strand a former tester with quota held by scores that are invisible in
+their library yet deletable by id. Only `ProposeScore` (pushing toward the public
+catalog) and uploading a *new* percussion score require eligibility.
 
 ### Fail closed about the caller, fail *open* about the score
 
@@ -86,22 +106,40 @@ score does the opposite — an `unknown` instrument is served normally.
 *Rationale:* the two uncertainties are not symmetric. Denying on an unknown caller
 costs a staff member a feature for a moment. Denying on an unknown *score* would
 hide a slice of the existing corpus from users who can read it today — a live
-regression, not a safety gain. It is sound because every `unknown` row predates the
-gate opening and the gate refused percussion, so no `unknown` row can be percussion.
-This invariant is worth stating in the migration, because it stops holding the
-moment anyone inserts a row without classifying it.
+regression, not a safety gain. But fail-open-about-the-score is only sound once
+every row's instrument has been **derived from its bytes**: the corpus already
+contains real percussion scores (they were ingested despite the playable-notes
+gate — prod holds ~252 scores with unpitched notes, ~29 pure drum parts), so an
+`unknown` row *can* be percussion until it has been re-derived. That is why the
+gate is not treated as a boundary before the re-derivation pass below completes,
+and why the flag is not activated before it has run.
 
-### The backfill records `unknown`, not a definite family
+### The backfill re-derives from the stored bytes; it is an application pass, not SQL
 
-`is_piano = true → keyboard`; `is_piano = false → unknown`.
+The instrument is filled by parsing each row's stored `.mxl` with the **new**
+classifier from `add-unpitched-notation` — never by translating `is_piano`.
 
-*Alternative rejected:* mapping `false → other`. It reads tidier and it is wrong:
-`false` meant "fewer than two staves", which includes single-staff piano pieces.
-Asserting they are not keyboard would permanently mislabel them, and the catalog has
-no second signal to recover from it. `unknown` is the truthful value, it preserves
-current behaviour (those rows are already excluded by the pinned piano filter), and
-re-crawling replaces it with the derived value through the existing ingest path —
-which is how `score-facets` already says the corpus gets repopulated.
+*Alternative rejected:* translating the flag (`true → keyboard`,
+`false → unknown`). It reads cheaper and it is wrong on real rows: `false` covers
+single-staff piano *and* every existing percussion score alike, so the translation
+would record real drum parts as `unknown` — which the gate then serves to
+everyone, defeating the change's central guarantee. `unknown` remains the honest
+value only for rows whose bytes cannot be read or parsed.
+
+*Alternative rejected:* mapping `false → other`. Asserting single-staff pieces are
+not keyboard would permanently mislabel them, with no second signal to recover
+from it.
+
+**Mechanism.** The tables hold only an `object_key`; the bytes live in the private
+object store, so a Postgres migration cannot do this. The schema migration only
+**adds** the column (`NOT NULL DEFAULT 'unknown'`, CHECK on the three values — the
+column is never NULL, so the gate and the filters test exactly one undeterminable
+value). A separate one-shot **application-level backfill** — an admin command or
+worker job, idempotent so it can resume — streams each object, parses it with the
+new classifier, and updates the row; an unreadable or unparseable object leaves
+`unknown`. Re-crawling still repopulates the *general* facets as `score-facets`
+says, but it cannot substitute here: user uploads are never re-crawled, and the
+gate needs every row classified, not just the crawler's.
 
 ### The Score Hub stops pinning a filter
 
@@ -116,12 +154,22 @@ withholds what a user may not see, so the hub does not need to defend anything.
 
 ### The rating deck predicate follows the same rule
 
-`pg.rs:796` sources the deck with `AND cs.is_piano`. It becomes an instrument
-predicate honouring the caller's eligibility, so a drummer can rate drum scores and
-a pianist is never handed one.
+`pg.rs:796` sources the deck with `AND cs.is_piano`. It becomes the explicit
+predicate `instrument <> 'percussion' OR caller_is_eligible` — that is, keyboard
+**and `unknown`** rows are dealt to every rater, percussion rows only to the
+eligible — so a drummer can rate drum scores and a pianist is never handed one.
 
 *Rationale:* left alone, this line would silently make drum scores unratable
-forever — a defect nothing in the UI would reveal.
+forever — a defect nothing in the UI would reveal. Stating the predicate matters
+because the naive translation is ambiguous about `unknown`: today's proxy excluded
+every `is_piano = false` row, so the deck silently skipped single-staff keyboard
+pieces and everything unclassified. That exclusion was the proxy's bug, not a
+design intent — after re-derivation, `unknown` means "bytes we could not parse",
+which is still worth a human rating — so the deck deliberately **widens** to
+single-staff keyboard and `unknown` rows for everyone. The per-score preview bytes
+path (`GetRatingPreviewBytes`) and the rating submission itself carry the same
+eligibility predicate, since each would otherwise disclose (or accept ratings for)
+a percussion score by id.
 
 ### The console refuses to draw percussion rather than drawing it wrong
 
@@ -173,15 +221,27 @@ and the enforcement code keeps running and keeps passing.
 
 **A breaking schema and wire change land together** → the column, the proto and both
 front ends move in one commit. Mitigation: the migration is additive-then-drop
-(add `instrument`, backfill, switch readers, drop `is_piano`), so a rollback between
-steps is possible; and the generated clients are regenerated as part of the change
-(`melos run gen-grpc` for the app, `yarn gen` for the console).
+(add `instrument`, run the re-derivation pass, switch readers, drop `is_piano`), so
+a rollback between steps is possible; and the generated clients are regenerated as
+part of the change (`melos run gen-grpc` for the app, `yarn gen` for the console).
+The in-repo clients are only half the story: **shipped app versions cannot be
+regenerated** and keep sending `is_piano = 6` for months. The proto therefore
+retires the field (`reserved 6; reserved "is_piano";`) and the instrument filter
+takes a fresh number — an old client's pinned piano filter lands on a reserved
+number and is silently ignored, so old-version hubs see unfiltered results
+including `unknown`-instrument rows. Accepted: the pin's premise is gone, nothing
+is disclosed that the server-side gate would withhold, and the alternative (reusing
+number 6) would misdecode the old boolean as the new field.
 
-**The gate is only as good as its least-guarded path** → six call sites can disclose
-a score (search, catalog bytes, user bytes, saved list, owned list, rating deck) and
-missing one silently defeats the whole change. Mitigation: enumerate them in the
-tasks, and test each for the ineligible case rather than testing the predicate once
-in isolation.
+**The gate is only as good as its least-guarded path** → the disclosing surface is
+larger than the obvious call sites: beyond search, bytes, the listings and the
+deck, a percussion score leaks through the metadata read by id, the deck's
+per-score preview bytes, the success-versus-not-found answers of the save/rating
+submissions, the daily unlock, and the HTTP audio-preview clip route — and missing
+any one silently defeats the whole change. Mitigation: the spec enumerates the
+known surface as a floor, not a ceiling; the tasks carry one ineligible-case test
+per path rather than testing the predicate once in isolation; and any new
+disclosing path inherits the obligation by spec.
 
 **`music` becomes a flag consumer** → a new dependency on `FlagService` in a module
 that had none, and a flag read on hot catalog paths. Mitigation: follow
@@ -194,9 +254,11 @@ bug to a tester who was promised access. Mitigation: creating and populating the
 campaign is a named manual task, done before the flag is switched on.
 
 **Drum scores become uploadable before they are playable** → an eligible tester can
-put a drum score in their library and find it renders as an empty staff. Accepted
-and intended: that audience is the people building the feature. It is also why the
-audience is not merely hidden but enforced.
+put a drum score in their library and find it is not playable yet: opening it shows
+the localised interim state rather than the player, because the player's honest
+alternative does not exist (the waterfall would draw and sound the part as piano).
+Accepted and intended: that audience is the people building the feature. It is also
+why the audience is not merely hidden but enforced.
 
 **Drum proposals arrive before they can be judged** → public proposal stays open for
 percussion, with moderation as the gate. But the console cannot draw a drum score
@@ -208,16 +270,24 @@ review row is badged with the instrument so the cause is visible without opening
 
 ## Migration Plan
 
-1. Add `instrument TEXT` to `music.catalog_scores` and `music.user_scores`, nullable.
-2. Backfill: `true → 'keyboard'`, `false → 'unknown'`.
-3. Switch every reader and writer to `instrument`; regenerate the app and console
+1. Add `instrument TEXT NOT NULL DEFAULT 'unknown'` (CHECK: `keyboard` |
+   `percussion` | `unknown`) to `music.catalog_scores` and `music.user_scores` —
+   the schema migration does nothing else.
+2. Run the one-shot application-level re-derivation pass: stream each row's object
+   from the store, parse it with the new classifier, update the row; unreadable or
+   unparseable objects stay `unknown`. The gate is not a boundary until this pass
+   completes.
+3. Switch every reader and writer to `instrument` (backend, crawler,
+   `musicxml-core` summary, the frb bridge); regenerate the app and console
    clients.
 4. Drop `is_piano` once no reader remains.
-5. Declare the flag (default off). Create the `midi-drums` campaign and enrol
-   testers. Only then set the override to `beta:midi-drums`.
+5. Declare the flag (`drums.enabled`, default off). Create the `midi-drums`
+   campaign and enrol testers. Only then — and only after step 2 has been verified —
+   set the override to `beta:midi-drums`.
 
-Steps 1–2 are safe on their own and reversible. Step 4 is the point of no return;
-it should land after step 3 has been observed working.
+Steps 1–2 are safe on their own and reversible (rerunning the pass is idempotent).
+Step 4 is the point of no return; it should land after step 3 has been observed
+working.
 
 Rollback after step 5 is a flag edit, not a deploy: clearing the override closes the
 feature for everyone including staff, leaving any drum score already uploaded in

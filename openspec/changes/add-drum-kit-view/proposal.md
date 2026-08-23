@@ -13,8 +13,10 @@ It is the mode where a drummer actually reads the music, so it is where the desi
 has to be right rather than merely working.
 
 The design was settled against a drummer's feedback during exploration; the
-mockups under `mockups/` are the reference, and the alternatives that were tried
-and rejected are recorded in `design.md` so the debate is not re-run later.
+settled reference is `mockups/cascade.html` together with the delta specs, while
+the other mockups record earlier iterations (banner-marked as superseded), and
+the alternatives that were tried and rejected are recorded in `design.md` so the
+debate is not re-run later.
 
 ## What Changes
 
@@ -24,11 +26,15 @@ and rejected are recorded in `design.md` so the debate is not re-run later.
   fixed kit. A three-element groove gets three wide lanes, not ten narrow ones with
   seven empty.
 - The order is a sort rule, not a list: hi-hat (or ride when there is no hi-hat)
-  first, then snare, then toms high-to-low, then ride/crash and accent cymbals.
+  first, then snare, then toms high-to-low, then ride/crash and accent cymbals,
+  then any auxiliary percussion (cowbell, clap, tambourine…) in stable General
+  MIDI order — a terminal bucket that makes the rule total, so nothing the score
+  contains is ever dropped or left unplaced.
 - The invariant the rule protects: **position 1 is whatever is struck continuously,
-  position 2 is the snare**. Together they carry the overwhelming majority of a
-  groove's notes, so they must fall inside a single eye fixation, and added pieces
-  must appear on the right rather than pushing between them.
+  position 2 is the snare when the score has one**. Together they carry the
+  overwhelming majority of a groove's notes, so they must fall inside a single eye
+  fixation, and added pieces must appear on the right rather than pushing between
+  them; a snare-less score simply closes ranks leftward.
 
 **The kick is a full-width bar, never a lane**
 
@@ -64,11 +70,20 @@ and rejected are recorded in `design.md` so the debate is not re-run later.
 
 - The **pedal hi-hat "chick"** (General MIDI 44, foot alone): rare outside jazz, and
   designing its encoding without a real score in hand would mean designing it badly.
-  The candidate approach and its fallback are recorded in `design.md`.
+  The candidate approach and its fallback are recorded in `design.md`. In the
+  interim a GM 44 note takes an ordinary lane through the sort rule's terminal
+  bucket — visible and aim-able beats invisible-but-scheduled.
 - Percussion **notation** rendering (percussion clef, alternative noteheads, two
-  voices on one staff) — `add-drum-notation-render`.
+  voices on one staff) — `add-drum-notation-render`. Until it lands, the mode
+  toggle offers only the cascade for a percussion score: Staff and Partition are
+  omitted rather than rendering undefined output.
 - Percussion **audio** and pad input — `add-drum-audio-channel`,
-  `add-drum-input-mapping`.
+  `add-drum-input-mapping`; percussion **scoring** and Wait Mode —
+  `add-drum-scoring`. The interim is stated in the deltas rather than left
+  implicit: the pads ship display-only with no feedback (a tap produces nothing
+  until input mapping lands), and Wait Mode is not offered for a percussion score
+  — with no input path, its gate would wait forever — so playback runs in the
+  timed modes only.
 
 ## Capabilities
 
@@ -85,9 +100,17 @@ and rejected are recorded in `design.md` so the debate is not re-run later.
   the pad strip, and the range apparatus (range modes, auto-fit, preset coverage,
   key-count-driven height) does not apply; the "shared range" contract between
   keyboard and waterfall becomes a shared **lane order** between pads and cascade.
+  The input, feedback, polyphony, assist-key and hideability requirements are
+  scoped to keyboard scores, with the pad interim stated explicitly: the strip is
+  display-only until `add-drum-input-mapping`.
 - `hand-color-coding`: the blue/amber convention is keyed to **voice** (hands /
   feet) for a percussion score rather than to staff 1 / staff 2, since a drum score
-  is written on a single staff.
+  is written on a single staff — voice 1 (stems up) is the hands, voice 2 (stems
+  down) the feet, with a single-voice fallback by General MIDI number. The
+  convention is stated there once, normatively, and referenced everywhere else.
+- `hand-selection`: for a percussion score the selector reads **hands / feet**
+  instead of right/left, keyed to the same voice convention as the colours, and is
+  offered despite the single staff; hiding the feet hides the kick bar.
 
 ## Impact
 
@@ -113,8 +136,13 @@ and rejected are recorded in `design.md` so the debate is not re-run later.
 `add-drums-access` (the instrument classification and the audience gate). It does
 not depend on the audio or notation-rendering changes and can land before either.
 
-**Reference material.** `mockups/cascade.html` is the settled design, including the
-draw-order defect and its fix; `mockups/lane-order-alternatives.html` compares the
-adopted ordering against the rejected pitch ordering; `mockups/hihat-pedal.html`
-separates the two hi-hat-pedal cases; `mockups/play-modes.html` situates the
-cascade among the three play modes.
+**Reference material.** `mockups/cascade.html` is the settled design, including
+the draw-order defect and its fix — it and the delta specs are the reference. The
+other three mockups record earlier iterations and are banner-marked as
+superseded: `mockups/lane-order-alternatives.html` argues the core-adjacency case
+against the rejected pitch ordering, but the order it presents as the winner is
+the initially-adopted snare-first one, later revised to hi-hat-first (see
+`design.md`); `mockups/hihat-pedal.html` separates the two hi-hat-pedal cases but
+carries the same superseded snare-first lane labels; `mockups/play-modes.html`
+situates the cascade among the three play modes but still draws the kick as a
+lane and a pad rather than the settled full-width bar and pedal.

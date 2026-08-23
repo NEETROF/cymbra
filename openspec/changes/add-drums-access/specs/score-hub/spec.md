@@ -1,6 +1,11 @@
+## RENAMED Requirements
+
+- FROM: `### Requirement: Hub constrains to piano scores`
+  TO: `### Requirement: Hub constrains by instrument`
+
 ## MODIFIED Requirements
 
-### Requirement: Hub constrains to piano scores
+### Requirement: Hub constrains by instrument
 
 The Score Hub SHALL constrain catalog results by **instrument** rather than by the
 former staff-count piano proxy. The corpus is no longer keyboard-only, so the hub
@@ -27,3 +32,23 @@ the backend already withholds what they may not see.
 - **WHEN** a user for whom the drum feature is visible sets the instrument filter to
   drums
 - **THEN** only percussion scores are returned
+
+## ADDED Requirements
+
+### Requirement: Score cards show the instrument
+
+Score cards in the hub and the library SHALL display the score's instrument, so a
+mixed listing is legible at a glance — the corpus stops being implicitly keyboard
+the moment percussion scores exist, and a card that names its instrument is the
+cheapest way to keep the listing honest. A score whose instrument is `unknown`
+SHALL simply omit the indication rather than display a placeholder.
+
+#### Scenario: A card names its instrument
+
+- **WHEN** a score card is rendered for a score with a recorded instrument
+- **THEN** the card shows that instrument
+
+#### Scenario: Unknown instrument shows nothing
+
+- **WHEN** a score card is rendered for a score whose instrument is `unknown`
+- **THEN** no instrument indication is shown, rather than an "unknown" label

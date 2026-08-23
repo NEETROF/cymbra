@@ -1,6 +1,11 @@
+## RENAMED Requirements
+
+- FROM: `### Requirement: The validation gate stays closed in this change`
+  TO: `### Requirement: The validation gate admits percussion`
+
 ## MODIFIED Requirements
 
-### Requirement: The validation gate stays closed in this change
+### Requirement: The validation gate admits percussion
 
 The shared validation gate SHALL count unpitched notes as playable notes, so a
 percussion score passes validation instead of being rejected as containing none.

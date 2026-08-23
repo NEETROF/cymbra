@@ -9,11 +9,18 @@ from the "correct" state (green) and the "extra key pressed" state (purple) used
 by the feedback.
 
 For a **percussion** score the same two colours SHALL distinguish **hands from
-feet**, keyed to the note's **voice** rather than to its staff: a drum part is
-written on a single staff in two voices — hands with stems up, feet with stems
-down — so a staff-based split would put everything in one colour. Hand-struck
-pieces take the blue, foot-struck ones the amber. The distinction from the
-correct/pressed feedback colours is unchanged.
+feet**, keyed to the note's **voice** rather than to its staff — a drum part is
+written on a single staff, so a staff-based split would put everything in one
+colour. The convention is stated here once, normatively, and every capability
+that needs the hands/feet split (the cascade's foot bars, the hand filter)
+references it rather than restating it: **in a drum part written in two voices,
+voice 1 — the stems-up voice — is the hands, and voice 2 — the stems-down
+voice — is the feet.** For a **single-voice** file — common in real exports,
+where everything including the kick sits in voice 1 — the voice cannot
+discriminate, and the split SHALL fall back to the note's General MIDI number:
+the kick (35 and 36) and the pedal hi-hat (44) are feet, everything else is
+hands. Hand-struck events take the blue, foot-struck ones the amber; the
+distinction from the correct/pressed feedback colours is unchanged.
 
 #### Scenario: Right and left hands use distinct colours
 - **WHEN** a right-hand note and a left-hand note are shown together
@@ -29,6 +36,11 @@ correct/pressed feedback colours is unchanged.
 - **THEN** the hand-struck note is blue and the foot-struck one amber, although
   both are on the same staff
 
+#### Scenario: A single-voice drum file still splits hands from feet
+- **WHEN** a percussion score is written in a single voice, kick included
+- **THEN** the kick classifies as feet by its General MIDI number and its bar is
+  amber, while the hand-struck notes stay blue
+
 ### Requirement: Hand Colours In The Render Modes
 
 Every mode that draws notes SHALL colour each note by its hand (right = blue,
@@ -36,10 +48,14 @@ left = amber) — the Synthesia waterfall, the scrolling Staff, and the Partitio
 engraving. A note at the playhead SHALL be emphasised: green once its key is held,
 otherwise a brighter tint of its hand colour.
 
-For a percussion score the same rule applies with hands/feet in place of
-right/left, and it extends to the cascade's **foot bars**, which take the amber of
-the foot voice — so the colour carries the same meaning whether an event is drawn
-as a note in a lane or as a bar across the width.
+For a percussion score the rule SHALL apply with hands/feet in place of
+right/left — classified by the voice convention above — **in the cascade only**,
+extending to its **foot bars**, which take the amber of the feet, so the colour
+carries the same meaning whether an event is drawn as a note in a lane or as a
+bar across the width. What the Staff and Partition modes do for a percussion
+score is deferred, with the rest of percussion notation, to
+`add-drum-notation-render`; in the interim those modes are not offered for a
+percussion score at all (see `music-drum-kit-view`).
 
 #### Scenario: Falling notes coloured by hand (Synthesia)
 - **WHEN** the Synthesia waterfall shows a right-hand and a left-hand note

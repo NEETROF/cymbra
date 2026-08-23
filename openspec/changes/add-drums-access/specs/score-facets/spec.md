@@ -87,16 +87,24 @@ major/minor facet and the ornaments/articulations/pedal expressivity flags. The 
 
 The derived facets SHALL be persisted as nullable fields on the public catalog scores (and the
 same columns SHALL exist on user-uploaded scores for parity), so search can filter by these
-traits. The catalog facets SHALL be **populated by the crawler at ingest** (it already parses
-each score), so the existing corpus is repopulated by re-crawling — no separate backfill pass.
+traits. The general catalog facets SHALL be **populated by the crawler at ingest** (it already
+parses each score), so for them the existing corpus is repopulated by re-crawling — no separate
+backfill pass. The **instrument** facet is the one exception: it is the predicate the drum
+audience enforcement reads, so it gets a one-time application-level re-derivation pass over the
+stored bytes (below) rather than waiting on a re-crawl that user uploads would never receive.
 A score whose facet cannot be determined SHALL store a null for that facet rather than a
-fabricated value.
+fabricated value — **except the instrument**, which SHALL store the literal `unknown` and never
+NULL, so the enforcement gate and the instrument filter each test exactly one undeterminable
+value instead of two spellings of it (the column is `NOT NULL DEFAULT 'unknown'` with a CHECK
+on the three values).
 
 The stored **instrument** column replaces the stored boolean grand-staff column on both tables.
 The grand-staff flag cannot be translated into an instrument: `true` only ever meant "two or
 more staves" and `false` "fewer than two", which includes single-staff keyboard pieces *and*
 percussion parts alike. Existing rows SHALL therefore be **re-derived from their stored bytes**
-rather than mapped from the flag. A row whose bytes cannot be read or parsed SHALL be recorded
+rather than mapped from the flag. Because the bytes live in the object store, not in the row,
+this re-derivation is an application-level pass (see `music-drums-visibility` and the change's
+tasks), not a SQL backfill. A row whose bytes cannot be read or parsed SHALL be recorded
 as `unknown` rather than assigned a family.
 
 This matters beyond tidiness: the corpus already contains percussion scores, ingested despite
@@ -127,6 +135,11 @@ wrong about real rows.
 
 #### Scenario: Undeterminable facet stored as null
 
-- **WHEN** a facet cannot be derived for a score
+- **WHEN** a facet other than the instrument cannot be derived for a score
 - **THEN** that facet is stored as null and the row is still persisted
+
+#### Scenario: The instrument is never NULL
+
+- **WHEN** any row is written or backfilled and the instrument cannot be determined
+- **THEN** the instrument column holds the literal `unknown`, never NULL
 

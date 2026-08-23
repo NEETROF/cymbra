@@ -1,3 +1,44 @@
+## MODIFIED Requirements
+
+### Requirement: Read-only notation rendered in the browser
+
+The system SHALL render the notation geometry produced by the wasm module into a
+**read-only** on-screen view in the browser, drawing staves, clefs, note heads,
+stems, beams, accidentals, dots, and rests with SMuFL glyphs, faithfully to how the
+app draws the same geometry. The rendered view MUST NOT offer any affordance to edit
+the score. The SMuFL font SHALL be served same-origin (no external font fetch), and
+the module SHALL be instantiable under the application's content-security policy.
+
+**Percussion scores are carved out** of this obligation until the renderer supports
+percussion notation: a percussion score's geometry is available (it parses and lays
+out), but drawing it with the renderer's pitched treble/bass assumptions would be a
+confident wrong rendering, so the unpreviewable state defined below applies instead.
+Once percussion drawing lands (`add-drum-notation-render`) the carve-out disappears
+and this requirement applies to percussion scores like any other.
+
+#### Scenario: Notation is drawn from the geometry
+
+- **WHEN** a non-percussion score's geometry is available
+- **THEN** its notation is drawn on screen (staves, clefs, notes, stems, beams,
+  accidentals, rests) rather than shown as a bytes/placeholder message
+
+#### Scenario: Rendering is faithful to the app
+
+- **WHEN** a score is rendered in the browser and in the app
+- **THEN** the browser view reflects the same notation content and layout the app
+  shows for that score, so a reviewer judges it as users will see it
+
+#### Scenario: The rendered view is read-only
+
+- **WHEN** a user views a rendered score
+- **THEN** no control edits, reorders, or alters the notation; the view only displays
+
+#### Scenario: A percussion score is not drawn
+
+- **WHEN** a percussion score's geometry is available but the renderer lacks
+  percussion support
+- **THEN** the unpreviewable state is shown instead of a drawing
+
 ## ADDED Requirements
 
 ### Requirement: A percussion score is declared unpreviewable until it can be drawn

@@ -4,9 +4,20 @@
 
 The app SHALL hold one **instrument context** — keyboard or drums — persisted across
 launches, which seeds what the discovery surfaces present: the Score Hub's
-instrument filter, the home sections, the family offered by the sound picker, and
-the courses surfaced. It SHALL default to keyboard, which is the app's existing
-behaviour.
+instrument filter, the home sections, and the courses surfaced. It SHALL default to
+keyboard, which is the app's existing behaviour.
+
+The sound picker is deliberately **not** among the seeded surfaces. It is a
+player-path surface, and the player follows the score: a keyboard score opened under
+a drums context still needs piano fonts, so the *score's* instrument must decide the
+family there. Family filtering of the picker is owned by `add-drum-audio-channel` —
+the deferral `add-drums-access` already records — not by this change.
+
+Courses are seeded like the rest, with a present-tense caveat: no drum courses exist
+yet, so under a drums context the course surface shows the same explicit invitation
+as an empty context (see "The context degrades gracefully"), never a bare blank. The
+course cards in `mockups/context.html` are illustrative of the seeded layout, not of
+available content.
 
 The context SHALL be **sticky**: it changes only when the user changes it. Opening,
 playing or finishing a score SHALL NOT modify it, whatever that score's instrument.
@@ -18,8 +29,14 @@ incoming shared link would be enough to reconfigure the app.
 #### Scenario: The context seeds the discovery surfaces
 
 - **WHEN** the context is drums
-- **THEN** the hub's instrument filter, the home sections, the sound picker's family
-  and the surfaced courses all start from drums
+- **THEN** the hub's instrument filter, the home sections and the surfaced courses
+  all start from drums
+
+#### Scenario: A drums context with no drum courses explains itself
+
+- **WHEN** the context is drums and no drum course exists yet
+- **THEN** the courses surface shows the explicit empty-context invitation, not a
+  bare blank
 
 #### Scenario: Playing a score never changes the context
 
@@ -42,6 +59,11 @@ The Score Hub's instrument filter SHALL be **seeded** from the context and then
 remain independently adjustable, retaining the user's adjustment for the session.
 Adjusting it SHALL NOT write back to the context.
 
+Changing the **context** — from the switcher or the choice modal — SHALL re-seed the
+filter immediately, even over an adjustment made this session: an explicit act on
+the context outranks the session's working state, which exists to survive mere
+navigation, never a deliberate re-pointing. Navigation alone SHALL never re-seed.
+
 This separates a durable preference from a working state: a user can explore
 another instrument's catalogue at length without either being nagged back to their
 context on every return, or having their whole app quietly re-pointed because they
@@ -55,7 +77,14 @@ went looking.
 #### Scenario: An adjusted filter is kept for the session
 
 - **WHEN** the user changes the hub's instrument filter and navigates away and back
+  without touching the context
 - **THEN** the filter is still on their adjusted value
+
+#### Scenario: Switching the context re-seeds an adjusted filter
+
+- **WHEN** the user has adjusted the hub's filter this session and then changes the
+  context
+- **THEN** the filter is re-seeded to the new context's instrument
 
 #### Scenario: Adjusting the filter leaves the context alone
 
@@ -89,6 +118,12 @@ is visible to this installation — after sign-in for an eligible account while 
 feature is beta-scoped, and at first launch once it is generally available. The same
 rule SHALL cover both, so the rollout's completion needs no special case.
 
+The offer SHALL be presented **on the home only**: the next time the user is on, or
+arrives at, the home while drums are visible — never over the player or any other
+surface. Visibility resolves from an asynchronous flag fetch (bootstrap, a periodic
+poll, resume, an identity change), so the flip can land at any moment, including
+mid-play; when it does, the offer defers to the next arrival at the home.
+
 The choice SHALL be worded as a **choice**, not as an unlock or a reward: a user for
 whom drums were always available has unlocked nothing, and unlock wording would have
 to be rewritten the day the rollout completes. It SHALL state that the choice can be
@@ -97,7 +132,13 @@ changed later, and SHALL NOT block: either option proceeds.
 #### Scenario: Offered on first visibility, whenever that is
 
 - **WHEN** the drum feature becomes visible to an installation for the first time
-- **THEN** the instrument choice is offered
+- **THEN** the instrument choice is offered on the next presence on the home
+
+#### Scenario: A mid-play visibility flip defers the offer
+
+- **WHEN** drums become visible while the user is in the player
+- **THEN** nothing interrupts the session, and the choice is offered on the next
+  arrival at the home
 
 #### Scenario: Offered only once
 
@@ -131,11 +172,20 @@ on the user's behalf.
 
 ### Requirement: The context degrades gracefully
 
-The app SHALL degrade gracefully when the context cannot be honoured. When the
-context names an instrument that is no longer visible — a beta campaign closed
-without the feature having been widened — it SHALL fall back to keyboard
-**silently**, without an error, leaving the user on a working home rather than an
-empty one.
+The app SHALL degrade gracefully when the context cannot be honoured, and the
+degradation SHALL be **presentational only**: neither the stored context nor the
+offered-once marker is ever modified by a change of visibility. When the context
+names an instrument that is not currently visible — a beta campaign closed without
+the feature having been widened, or simply a flag snapshot that has not resolved
+yet — the home SHALL render as keyboard **silently**, without an error, leaving the
+user on a working home rather than an empty one; the moment drums are visible
+again, the stored context reapplies unchanged.
+
+Persisting the fallback is the wrong implementation, not merely an unspecified one:
+the flag snapshot is empty on every cold launch and resets on sign-out, so a
+fallback that wrote back would silently erase the user's choice on every launch and
+every account switch — and since the choice is offered at most once, erase it
+permanently.
 
 When the context is in force and there is nothing to show for it — drums chosen but
 no drum score reachable — the app SHALL surface an explicit invitation naming the
@@ -144,7 +194,21 @@ cause and offering to switch, never a bare empty screen.
 #### Scenario: Withdrawn instrument falls back silently
 
 - **WHEN** the context is drums and the drum feature stops being visible
-- **THEN** the context falls back to keyboard without an error, and the home works
+- **THEN** the home renders as keyboard without an error, and the stored context is
+  still drums
+
+#### Scenario: A cold start does not erase the context
+
+- **WHEN** the context is drums and the app cold-starts with the flag snapshot not
+  yet resolved
+- **THEN** the home first renders as keyboard, then reapplies drums once the flag
+  resolves, and the stored value was never modified
+
+#### Scenario: A sign-out/sign-in round trip keeps the context
+
+- **WHEN** the context is drums, the user signs out — drums no longer visible — and
+  signs back in on an eligible account
+- **THEN** the context is drums again, without the choice being re-offered
 
 #### Scenario: An empty context explains itself
 

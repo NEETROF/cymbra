@@ -18,8 +18,12 @@ ordinary option — an unrecognised-but-valid scope (a closed campaign, still le
 and a dangling one (a campaign that never existed) are otherwise indistinguishable, and only the
 second is a defect.
 
-When a write is refused because its scope names no campaign, the panel SHALL surface a localised
-explanation of the cause, never a raw transport status.
+When a write is refused, the panel SHALL surface a localised explanation of the cause, never a
+raw transport status — and the two refusal causes SHALL read differently: a scope naming no
+campaign calls for **fixing the scope**, while a check that could not be performed (the campaign
+directory unreachable) calls for **retrying later**. Collapsing them would be worse than
+unhelpful: an outage message claiming the campaign does not exist invites exactly the
+destructive scope edit this validation exists to prevent.
 
 #### Scenario: Admin scopes a flag to a beta campaign
 
@@ -30,6 +34,11 @@ explanation of the cause, never a raw transport status.
 
 - **WHEN** an admin opens the rollout selector
 - **THEN** the beta options are exactly the campaigns that are not closed
+
+#### Scenario: Billing switches are sensitive
+
+- **WHEN** an admin toggles `billing.apple.enabled`
+- **THEN** the sensitive-key protection applies before the change is made
 
 #### Scenario: A closed campaign's stored scope stays selectable and unremarkable
 
@@ -46,3 +55,9 @@ explanation of the cause, never a raw transport status.
 
 - **WHEN** a save is rejected because its scope names no campaign
 - **THEN** the panel shows a localised explanation rather than a raw transport status
+
+#### Scenario: An outage refusal says retry, not fix
+
+- **WHEN** a save is refused because campaign existence could not be verified
+- **THEN** the panel says the check is temporarily unavailable and to retry — it never claims
+  the campaign does not exist

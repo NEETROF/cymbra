@@ -20,14 +20,29 @@ audited as a legitimate change, and then matches nobody indefinitely — a failu
 the operator who made it, because staff match every beta scope regardless of whether the key is
 correct.
 
+The verification SHALL apply to the **effective** scope about to be stored — the
+request-supplied one, else the scope preserved from the existing override, else the registry
+default — and SHALL run only when the write would **set or change** the stored scope. A write
+that leaves the stored scope untouched — disabling a flag, editing an unrelated field, a save
+that re-submits the same scope — is never subject to the check: it cannot introduce a dangling
+scope, and it keeps every flag disablable while the campaign directory is down. An incident
+must never be un-mitigatable because an unrelated service is.
+
 The verification SHALL test **existence, not openness**. A closed campaign's scope stays valid,
 because closing a campaign is how a feature is withdrawn from its members *without* a flag edit;
 invalidating the stored scope would break that and force an edit precisely when none is wanted.
+Existence is also **kind-agnostic**: a campaign of any kind satisfies it, trials included — the
+scope's evaluation semantics do not depend on kind, and filtering by kind would refuse
+legitimately evaluable scopes.
 
-The verification SHALL fail closed: when campaign existence cannot be determined, the write
-SHALL be refused rather than stored unverified. An override write is a rare, retryable
-operator action, so refusing it costs little, while storing an unverifiable scope reintroduces
-exactly the silent failure this requirement exists to prevent.
+The verification SHALL fail closed: when campaign existence cannot be determined, a write that
+would set or change the scope SHALL be refused rather than stored unverified. An override write
+is a rare, retryable operator action, so refusing it costs little, while storing an unverifiable
+scope reintroduces exactly the silent failure this requirement exists to prevent. The two
+refusal causes — the scope **names no campaign**, and existence **could not be determined** —
+SHALL be distinct typed errors, so a client can tell "fix the scope" from "retry later"; the
+check that produces them is therefore fallible by design, answering exists, does not exist, or
+cannot determine — never collapsing an error into either definite answer.
 
 #### Scenario: Staff-only feature is limited to staff
 
@@ -56,7 +71,7 @@ exactly the silent failure this requirement exists to prevent.
 
 #### Scenario: A scope naming no campaign is refused
 
-- **WHEN** any caller writes a rollout scope of `beta:<key>` where no campaign has that key
+- **WHEN** any caller sets or changes a rollout scope to `beta:<key>` where no campaign has that key
 - **THEN** the write is rejected with a typed error and no override is stored
 
 #### Scenario: A closed campaign's scope is still accepted
@@ -66,8 +81,20 @@ exactly the silent failure this requirement exists to prevent.
 
 #### Scenario: An unverifiable check refuses the write
 
-- **WHEN** campaign existence cannot be determined at write time
-- **THEN** the write is refused rather than stored unverified
+- **WHEN** campaign existence cannot be determined and the write would set or change the stored scope
+- **THEN** the write is refused rather than stored unverified, with a typed error distinct from
+  the one for a scope naming no campaign
+
+#### Scenario: Disabling a beta-scoped flag survives a directory outage
+
+- **WHEN** the campaign directory is unreachable and a write disables a flag whose stored scope
+  is `beta:<key>` without changing that scope
+- **THEN** the write succeeds, because it leaves the stored scope untouched
+
+#### Scenario: An unrelated edit to a dangling scope saves
+
+- **WHEN** a flag's stored scope names no campaign and a write changes only the flag's value
+- **THEN** the write succeeds and the stored scope stays exactly as it was
 
 #### Scenario: Evaluation is unchanged
 
