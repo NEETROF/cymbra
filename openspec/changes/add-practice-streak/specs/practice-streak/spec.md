@@ -61,6 +61,14 @@ existing curator standing pill (alongside level and points), so it is always vis
 on the home screen. A zero streak SHALL render a muted/hint state rather than being
 hidden.
 
+The number reported to the app SHALL be the **live** run — a run whose last
+activity was today or yesterday — and SHALL be zero once the run is broken, even
+though `current_streak` is still stored (nothing decays the row, and
+`longest_streak` is measured from it). Liveness is a property of the stored state
+**and** the reader's local day, resolved on every read: a run is otherwise
+displayed as alive forever, and the lit flame contradicts the very dialog offering
+to buy the streak back.
+
 #### Scenario: Active streak is visible
 - **WHEN** a user with current_streak = N opens the home screen
 - **THEN** the standing pill shows a flame with N
@@ -68,6 +76,11 @@ hidden.
 #### Scenario: Zero streak shows a hint
 - **WHEN** a user has current_streak = 0
 - **THEN** the pill shows a muted flame/hint (start a streak), not a hidden control
+
+#### Scenario: A broken run stops being displayed
+- **WHEN** a user whose last activity was two or more local days ago opens the home screen
+- **THEN** the pill shows the muted zero state, while longest_streak still reflects the run
+  and any recovery offer still names what it would restore
 
 ### Requirement: Streak protected by a confirmed points freeze
 
@@ -80,6 +93,17 @@ today; it SHALL reject if the balance is insufficient. A freeze SHALL be charged
 AT MOST ONCE per user per local day, enforced by the ledger's idempotency key
 rather than by the read-then-write decision alone. Beyond the grace window the
 streak SHALL NOT be recoverable.
+
+A declined offer SHALL be remembered **on the device for the local day it was
+declined on**, so the same question is not re-opened on the next launch, nor when
+the user reaches another screen that hosts the streak listener. Since the grace
+window is one local day, declining silences that offer for its whole life; a break
+on a later day is a new question and is asked again.
+
+#### Scenario: A declined offer stays declined
+- **WHEN** a user answers "not this time" and later relaunches the app while the same
+  break is still inside the grace window
+- **THEN** the confirmation is not shown again and nothing is debited
 
 #### Scenario: Recover within the grace window
 - **WHEN** a user with enough points confirms recovering an N-day streak broken within the grace window
@@ -105,8 +129,11 @@ streak SHALL NOT be recoverable.
 
 The streak SHALL register a `streak_reminder` notification **category** on the push
 platform: a daily send at a **back-office-configurable hour** (a hot-reloadable flag)
-targeting only users with `current_streak > 0 AND last_played_date < today` (the
-server-side at-risk set). Consent, the kill-switch, and platform selection
+targeting only users whose streak is **live and unsecured** — `current_streak > 0`
+AND `last_played_date` is exactly the user's own yesterday (the server-side at-risk
+set). A run last touched two or more days ago is already broken and SHALL NOT be
+targeted: there is nothing left to defend, and "keep your N-day streak" about a
+lost streak is wrong on its face. Consent, the kill-switch, and platform selection
 (iOS/Android/macOS) are enforced by the push platform. Users who already played today
 SHALL NOT be reminded. Windows/Linux users (no push token) SHALL NOT receive it and
 SHALL keep the in-app streak cue.
@@ -117,6 +144,11 @@ SHALL keep the in-app streak cue.
 
 #### Scenario: Already-played user is not reminded
 - **WHEN** the reminder job runs and a user already played today
+- **THEN** that user is not sent a reminder
+
+#### Scenario: A user whose streak is already broken is not reminded
+- **WHEN** the reminder job runs and a user's last activity is two or more of their own
+  local days ago
 - **THEN** that user is not sent a reminder
 
 #### Scenario: Reminder hour is changed from the back office

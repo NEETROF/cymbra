@@ -47,11 +47,33 @@ impl StreakState {
         self.last_played == Some(today)
     }
 
-    /// Whether a live streak is at risk **right now**: it exists and today's play
-    /// has not happened yet. A user with no streak has nothing to lose, and one
-    /// who already played today must never be nudged.
+    /// Whether the run stored here is **still alive** on `today`: it exists and
+    /// the last play was today or yesterday.
+    ///
+    /// The stored `current` is a plain number that nothing ever decays — the row
+    /// is only written by a play or a granted freeze — so a run abandoned months
+    /// ago still reads as `current = 7`. Liveness is therefore a property of
+    /// `(state, today)`, never of the row alone: every surface that shows or
+    /// defends a streak asks this rather than `current > 0`.
+    pub fn is_live(&self, today: NaiveDate) -> bool {
+        self.current > 0 && self.days_since(today).is_some_and(|d| (0..=1).contains(&d))
+    }
+
+    /// Whether the run is broken on `today` — it existed and the last play is two
+    /// or more days behind. Whether it can still be bought back is
+    /// [`recover_decision`]'s call; this only says there is something to decide.
+    pub fn is_broken(&self, today: NaiveDate) -> bool {
+        self.current > 0 && self.days_since(today).is_some_and(|d| d >= 2)
+    }
+
+    /// Whether a live streak is at risk **right now**: the last play was
+    /// yesterday and today is not secured yet.
+    ///
+    /// Bounded to a *live* run on purpose. Left open-ended it also matched every
+    /// long-dead row, and the reminder job then pushed "keep your 1-day streak"
+    /// to players whose streak had been gone for weeks.
     pub fn at_risk(&self, today: NaiveDate) -> bool {
-        self.current > 0 && self.last_played.is_some_and(|d| d < today)
+        self.current > 0 && self.days_since(today) == Some(1)
     }
 
     /// Whole days elapsed since the last play (`None` = never played). `0` is a
@@ -511,6 +533,47 @@ mod tests {
         assert!(!state(0, 9, Some(ymd(2026, 8, 1))).at_risk(ymd(2026, 8, 13)));
     }
 
+    #[test]
+    fn a_broken_run_is_never_at_risk() {
+        // The row still says "3", but the run died two days ago: there is nothing
+        // left to defend, so no nudge and no reminder — the message would be
+        // "keep your 3-day streak" about a streak the player no longer has.
+        let s = state(3, 3, Some(ymd(2026, 8, 12)));
+        assert!(!s.at_risk(ymd(2026, 8, 14)), "broken, not at risk");
+        assert!(
+            !s.at_risk(ymd(2026, 12, 25)),
+            "long dead, still not at risk"
+        );
+    }
+
+    #[test]
+    fn liveness_is_a_property_of_the_state_and_the_day() {
+        let s = state(3, 3, Some(ymd(2026, 8, 12)));
+        assert!(s.is_live(ymd(2026, 8, 12)), "played today");
+        assert!(
+            s.is_live(ymd(2026, 8, 13)),
+            "played yesterday, today is open"
+        );
+        assert!(!s.is_live(ymd(2026, 8, 14)), "a whole day was missed");
+        assert!(!s.is_live(ymd(2026, 12, 25)));
+        // A stored zero and a never-played row are never live.
+        assert!(!state(0, 9, Some(ymd(2026, 8, 12))).is_live(ymd(2026, 8, 12)));
+        assert!(!StreakState::default().is_live(ymd(2026, 8, 12)));
+    }
+
+    #[test]
+    fn broken_is_the_complement_of_live_once_a_run_exists() {
+        let s = state(3, 3, Some(ymd(2026, 8, 12)));
+        for day in [ymd(2026, 8, 12), ymd(2026, 8, 13)] {
+            assert!(!s.is_broken(day), "{day} is still live");
+        }
+        for day in [ymd(2026, 8, 14), ymd(2026, 12, 25)] {
+            assert!(s.is_broken(day), "{day} is past the break");
+        }
+        // Nothing to break without a run.
+        assert!(!StreakState::default().is_broken(ymd(2026, 8, 14)));
+    }
+
     // --- reminder candidates -------------------------------------------------
 
     fn candidate(user: &str, current: i64, last: NaiveDate, tz: &str) -> ReminderCandidate {
@@ -551,7 +614,7 @@ mod tests {
     #[test]
     fn users_without_a_streak_are_never_candidates() {
         let rows = vec![
-            candidate("live", 3, ymd(2026, 8, 10), "Europe/Paris"),
+            candidate("live", 3, ymd(2026, 8, 12), "Europe/Paris"),
             candidate("none", 0, ymd(2026, 7, 1), "Europe/Paris"),
             ReminderCandidate {
                 user_id: "never".into(),

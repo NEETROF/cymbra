@@ -260,7 +260,9 @@ fn to_proto_standing(s: &StreakStanding) -> ProtoStreakStanding {
         _ => (false, 0, 0),
     };
     ProtoStreakStanding {
-        current: s.state.current as i32,
+        // The LIVE run, zero once it is broken — a stored count that nothing
+        // decays must never reach the chip raw (see `display_streak`).
+        current: s.display_streak() as i32,
         longest: s.state.longest as i32,
         played_today: s.played_today,
         recoverable,
@@ -934,6 +936,11 @@ mod tests {
         assert_eq!(before.recover_cost, 30);
         assert_eq!(before.recoverable_streak, 7);
         assert!(!before.played_today);
+        assert_eq!(
+            before.current, 0,
+            "the run is broken: the chip must not keep claiming it while the \
+             dialog offers to buy it back"
+        );
         // Merely LOOKING at the offer must never charge (design: no silent debit).
         assert!(repo.debits().is_empty());
 
@@ -953,6 +960,45 @@ mod tests {
         assert!(!after.recoverable);
         assert_eq!(resp.new_balance, 70);
         assert_eq!(repo.debits(), vec![("u1".to_string(), 30)]);
+    }
+
+    #[tokio::test]
+    async fn a_streak_past_the_grace_window_reads_as_zero() {
+        // The row keeps `current_streak = 7` forever — nothing decays it, and
+        // nothing should: `longest` is measured from it. What the app must not be
+        // told is that the run is still going, or the flame stays lit (and the
+        // at-risk nudge keeps firing) on a streak lost weeks ago.
+        let (g, repo) = grpc_with_streak();
+        let today = crate::play_core::local_day(chrono::Utc::now().timestamp_millis(), 0);
+        repo.seed(
+            "u1",
+            crate::streak_core::StreakState {
+                current: 7,
+                longest: 7,
+                last_played: Some(today - chrono::Duration::days(30)),
+            },
+        );
+        repo.seed_balance("u1", 1000);
+        let s = g
+            .get_streak(authed(
+                GetStreakRequest {
+                    tz_offset_minutes: 0,
+                },
+                "u1",
+            ))
+            .await
+            .unwrap()
+            .into_inner()
+            .standing
+            .unwrap();
+        assert_eq!(s.current, 0, "the run is gone");
+        assert_eq!(s.longest, 7, "the record it set is not");
+        assert!(!s.played_today);
+        assert!(
+            !s.recoverable,
+            "past the grace window there is nothing to buy"
+        );
+        assert_eq!(s.recoverable_streak, 0);
     }
 
     #[tokio::test]

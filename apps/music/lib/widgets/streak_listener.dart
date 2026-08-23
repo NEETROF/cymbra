@@ -32,7 +32,10 @@ import 'app_snackbar.dart';
 ///
 /// * the **recovery offer** — when the server reports a broken-but-recoverable
 ///   streak, one confirmation asking whether to spend points. Nothing is ever
-///   debited without that explicit yes (design D2);
+///   debited without that explicit yes (design D2), and a "not this time" is
+///   remembered for the day (`streakRecoveryDeclineProvider`) rather than for the
+///   life of this widget — two screens mount this listener, so a widget-local
+///   flag re-asked on every navigation and on every cold start;
 /// * the **at-risk nudge** — a quiet in-app cue for a live streak with no play
 ///   today. This is the only reminder Windows/Linux get (they have no push
 ///   token), and it is harmless duplication elsewhere;
@@ -51,12 +54,11 @@ class StreakListener extends ConsumerStatefulWidget {
 }
 
 class _StreakListenerState extends ConsumerState<StreakListener> {
-  /// One offer per app session: a user who declines is not asked again on every
-  /// rebuild (or every return to the home screen).
-  bool _offered = false;
-
-  /// Same for the at-risk cue — a nudge that reappears is nagging, not helpful.
-  bool _nudged = false;
+  /// Whether the confirmation is on screen right now. Purely a re-entrancy guard:
+  /// the offer provider can emit again (a refresh, a delivered play) before the
+  /// user has answered, and that must not stack a second dialog. Whether the
+  /// question should be asked at all is the provider's call, not this flag's.
+  bool _asking = false;
 
   /// The streak we asked the user to confirm, so the success message can name it
   /// after the state has already moved on.
@@ -65,16 +67,19 @@ class _StreakListenerState extends ConsumerState<StreakListener> {
   @override
   void initState() {
     super.initState();
-    // `listenManual` + `fireImmediately`: the chip watches the same provider, so
+    // `listenManual` + `fireImmediately`: the chip watches the same providers, so
     // by the time this subtree is (re-)entered the standing may already be
     // loaded. A plain `ref.listen` in build only sees CHANGES, so a recovery
     // offer would appear on the very first load and never again.
+    ref.listenManual(streakRecoveryOfferedProvider, fireImmediately: true, (
+      _,
+      offered,
+    ) {
+      if (offered) _maybeOfferRecovery();
+    });
     ref.listenManual(streakProvider, fireImmediately: true, (previous, next) {
       final streak = next.valueOrNull;
-      if (streak != null) {
-        _maybeOfferRecovery(streak);
-        _maybeNudge(streak);
-      }
+      if (streak != null) _maybeNudge(streak);
       _reportOutcome(previous, next);
     });
   }
@@ -91,9 +96,10 @@ class _StreakListenerState extends ConsumerState<StreakListener> {
     });
   }
 
-  void _maybeOfferRecovery(StreakView streak) {
-    if (_offered || !streak.recoverable) return;
-    _offered = true;
+  void _maybeOfferRecovery() {
+    final streak = ref.read(streakProvider).valueOrNull;
+    if (_asking || streak == null || !streak.recoverable) return;
+    _asking = true;
     _pendingRestore = streak.recoverableStreak;
     _afterFrame(() => unawaited(_confirmRecovery(streak)));
   }
@@ -123,16 +129,24 @@ class _StreakListenerState extends ConsumerState<StreakListener> {
         ],
       ),
     );
+    _asking = false;
+    if (!mounted) return;
     // Declining spends nothing and asks nothing further — the streak simply
-    // lapses at the end of the grace window.
-    if (confirmed != true) return;
+    // lapses at the end of the grace window. Recorded for the day so neither a
+    // relaunch nor the other screen re-opens the same question.
+    if (confirmed != true) {
+      unawaited(
+        ref.read(streakRecoveryDeclineProvider.notifier).declineToday(),
+      );
+      return;
+    }
     // Fire the action; the outcome arrives as state, not as a return value.
     unawaited(ref.read(streakProvider.notifier).recover());
   }
 
   void _maybeNudge(StreakView streak) {
-    if (_nudged || _offered || !streak.atRisk) return;
-    _nudged = true;
+    if (ref.read(streakNudgeShownProvider) || _asking || !streak.atRisk) return;
+    ref.read(streakNudgeShownProvider.notifier).mark();
     _afterFrame(
       () => showAppSnackBar(
         ScaffoldMessenger.of(context),

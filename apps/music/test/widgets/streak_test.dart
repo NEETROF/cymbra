@@ -20,6 +20,7 @@ import 'package:mockito/mockito.dart';
 import 'package:music/services/curator_rewards_service.dart';
 import 'package:music/services/preferences_service.dart';
 import 'package:music/services/streak_service.dart';
+import 'package:music/state/rating_activity_notifier.dart';
 import 'package:music/state/session_notifier.dart';
 import 'package:music/state/streak_notifier.dart';
 import 'package:music/theme/cymbra_theme.dart';
@@ -81,10 +82,18 @@ CuratorRewardsService _rewardsService() {
   return rewards;
 }
 
-List<Override> _overrides(StreakService streak, {bool online = true}) => [
+List<Override> _overrides(
+  StreakService streak, {
+  bool online = true,
+  PreferencesService? prefs,
+  DateTime Function()? now,
+}) => [
   streakServiceProvider.overrideWithValue(streak),
   curatorRewardsServiceProvider.overrideWithValue(_rewardsService()),
-  preferencesServiceProvider.overrideWithValue(FakePreferencesService()),
+  preferencesServiceProvider.overrideWithValue(
+    prefs ?? FakePreferencesService(),
+  ),
+  if (now != null) nowFnProvider.overrideWithValue(now),
   // The streak is server-owned account data: it is only read when signed in.
   canUseOnlineServicesProvider.overrideWithValue(online),
 ];
@@ -96,8 +105,12 @@ Widget _hostPill(StreakService service) => ProviderScope(
   ),
 );
 
-Widget _hostListener(StreakService service) => ProviderScope(
-  overrides: _overrides(service),
+Widget _hostListener(
+  StreakService service, {
+  PreferencesService? prefs,
+  DateTime Function()? now,
+}) => ProviderScope(
+  overrides: _overrides(service, prefs: prefs, now: now),
   child: localizedApp(
     const StreakListener(child: Scaffold(body: SizedBox.shrink())),
   ),
@@ -193,6 +206,51 @@ void main() {
 
       verifyNever(service.recover());
       expect(find.byKey(const Key('streak-recover-dialog')), findsNothing);
+    });
+
+    testWidgets('declining is remembered across a relaunch', (tester) async {
+      // The regression this guards: the decline used to live in the listener's
+      // State, so the same question re-opened on every cold start (and on every
+      // navigation to the other screen that mounts this listener) for as long as
+      // the grace window held.
+      final prefs = FakePreferencesService();
+      final service = MockStreakService();
+      when(service.getStreak()).thenAnswer((_) async => _broken());
+      await tester.pumpWidget(_hostListener(service, prefs: prefs));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('streak-recover-dismiss')));
+      await tester.pumpAndSettle();
+      // The refusal is written, not just held in memory.
+      expect(prefs.store[StreakRecoveryDecline.prefsKey], isNotNull);
+
+      // A fresh app: same device storage, same standing still on offer.
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pumpWidget(_hostListener(service, prefs: prefs));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('streak-recover-dialog')), findsNothing);
+      verifyNever(service.recover());
+    });
+
+    testWidgets('a break on a later day is asked about again', (tester) async {
+      // The decline is filed under the day it was made: it silences THIS offer,
+      // not every future one. (The grace window is one local day, so a standing
+      // offer never outlives its decline.)
+      final prefs = FakePreferencesService({
+        StreakRecoveryDecline.prefsKey: '2026-08-20',
+      });
+      final service = MockStreakService();
+      when(service.getStreak()).thenAnswer((_) async => _broken());
+      await tester.pumpWidget(
+        _hostListener(
+          service,
+          prefs: prefs,
+          now: () => DateTime(2026, 8, 23, 9),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('streak-recover-dialog')), findsOneWidget);
     });
 
     testWidgets('a refused recovery is reported without a raw error', (
@@ -295,12 +353,54 @@ void main() {
       addTearDown(container.dispose);
 
       await container.read(streakProvider.future);
+      // The offer also waits on the persisted decline: no recorded "not this
+      // time" here, so the question stands.
+      await container.read(streakRecoveryDeclineProvider.future);
       expect(container.read(streakRecoveryOfferedProvider), isTrue);
 
       await container.read(streakProvider.notifier).recover();
       final after = container.read(streakProvider).requireValue;
       expect(after.current, 7);
       expect(after.playedToday, isTrue);
+      expect(container.read(streakRecoveryOfferedProvider), isFalse);
+    });
+
+    test('a decline made today withdraws the offer', () async {
+      final service = MockStreakService();
+      when(service.getStreak()).thenAnswer((_) async => _broken());
+      final container = ProviderContainer(
+        overrides: _overrides(service, now: () => DateTime(2026, 8, 23, 9)),
+      );
+      addTearDown(container.dispose);
+
+      await container.read(streakProvider.future);
+      await container.read(streakRecoveryDeclineProvider.future);
+      expect(container.read(streakRecoveryOfferedProvider), isTrue);
+
+      await container
+          .read(streakRecoveryDeclineProvider.notifier)
+          .declineToday();
+
+      expect(container.read(streakRecoveryOfferedProvider), isFalse);
+      // The standing itself is untouched — the server still says it is
+      // recoverable; only this device stopped asking.
+      expect(container.read(streakProvider).requireValue.recoverable, isTrue);
+    });
+
+    test('no offer is derived before the decline has been read', () async {
+      // Ordering matters: the standing resolves from the network, the decline
+      // from disk. Offering while the decline is still loading is exactly how a
+      // refused question comes back.
+      final service = MockStreakService();
+      when(service.getStreak()).thenAnswer((_) async => _broken());
+      final container = ProviderContainer(overrides: _overrides(service));
+      addTearDown(container.dispose);
+
+      await container.read(streakProvider.future);
+      expect(
+        container.read(streakRecoveryDeclineProvider),
+        isA<AsyncLoading<String?>>(),
+      );
       expect(container.read(streakRecoveryOfferedProvider), isFalse);
     });
 
