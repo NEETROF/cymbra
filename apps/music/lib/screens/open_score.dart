@@ -70,7 +70,14 @@ Future<void> openScore(
   }, fireImmediately: true);
 
   // Blocking progress while the score pre-loads — a spinner + label in a card so
-  // it reads as a real loading step.
+  // it reads as a real loading step. The wait is escapable (change:
+  // add-client-transport-deadlines): the cancel control clears the selection so
+  // the load's stale-entry guards discard the late result, and completes the
+  // wait with `cancelled` set. It does NOT pop the dialog itself — the main
+  // flow below owns the single pop; a second one would dismiss the underlying
+  // screen. The barrier stays non-dismissible: an accidental tap outside must
+  // not cancel a load.
+  var cancelled = false;
   unawaited(
     showDialog<void>(
       context: context,
@@ -92,6 +99,15 @@ Future<void> openScore(
                   l10n.playerScoreLoading,
                   style: const TextStyle(color: CymbraColors.onSurfaceVariant),
                 ),
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: () {
+                    cancelled = true;
+                    ref.read(selectedScoreProvider.notifier).clear();
+                    if (!completer.isCompleted) completer.complete(false);
+                  },
+                  child: Text(l10n.cancel),
+                ),
               ],
             ),
           ),
@@ -109,6 +125,13 @@ Future<void> openScore(
   // Dismiss the progress dialog (pushed on the root navigator).
   if (rootNavigator.canPop()) rootNavigator.pop();
 
+  if (cancelled) {
+    // A user decision, not a failure: no banner, stay on the current screen.
+    // The selection is already cleared, so the in-flight load's guards discard
+    // its late result whether it succeeds or fails.
+    sub.close();
+    return;
+  }
   if (loaded) {
     await navigator
         .push(MaterialPageRoute<void>(builder: (_) => const PlayerScreen()))

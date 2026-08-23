@@ -19,6 +19,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../src/grpc/play.pbgrpc.dart' as play;
 import 'grpc_client.dart';
+import 'rpc_deadlines.dart';
 
 part 'streak_service.freezed.dart';
 part 'streak_service.g.dart';
@@ -113,7 +114,8 @@ class GrpcStreakService implements StreakService {
   GrpcStreakService({
     required ClientChannel channel,
     required AuthedRunner authed,
-  }) : _client = play.PlayServiceClient(channel),
+    RpcDeadlines deadlines = const RpcDeadlines(),
+  }) : _client = play.PlayServiceClient(channel, interceptors: [deadlines]),
        _authed = authed;
 
   final play.PlayServiceClient _client;
@@ -150,4 +152,5 @@ class GrpcStreakService implements StreakService {
 StreakService streakService(Ref ref) => GrpcStreakService(
   channel: ref.watch(cymbraChannelProvider),
   authed: ref.watch(authedRunnerProvider),
+  deadlines: ref.watch(rpcDeadlinesProvider),
 );

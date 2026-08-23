@@ -19,6 +19,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../src/grpc/score.pbgrpc.dart' as score;
 import 'grpc_client.dart';
+import 'rpc_deadlines.dart';
 
 part 'curator_rewards_service.freezed.dart';
 part 'curator_rewards_service.g.dart';
@@ -183,7 +184,8 @@ class GrpcCuratorRewardsService implements CuratorRewardsService {
   GrpcCuratorRewardsService({
     required ClientChannel channel,
     required AuthedRunner authed,
-  }) : _client = score.ScoreServiceClient(channel),
+    RpcDeadlines deadlines = const RpcDeadlines(),
+  }) : _client = score.ScoreServiceClient(channel, interceptors: [deadlines]),
        _authed = authed;
 
   final score.ScoreServiceClient _client;
@@ -229,4 +231,5 @@ CuratorRewardsService curatorRewardsService(Ref ref) =>
     GrpcCuratorRewardsService(
       channel: ref.watch(cymbraChannelProvider),
       authed: ref.watch(authedRunnerProvider),
+      deadlines: ref.watch(rpcDeadlinesProvider),
     );

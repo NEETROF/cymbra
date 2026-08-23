@@ -22,6 +22,7 @@ import '../src/grpc/score.pbgrpc.dart' as score;
 import '../state/score_catalog.dart' show PracticeLevel;
 import 'catalog_access_state.dart';
 import 'grpc_client.dart';
+import 'rpc_deadlines.dart';
 import 'score_bytes_result.dart';
 import 'score_upload_service.dart' show practiceLevelFromWire;
 
@@ -223,7 +224,8 @@ class GrpcCatalogService implements CatalogService {
   GrpcCatalogService({
     required ClientChannel channel,
     required AuthedRunner authed,
-  }) : _client = score.ScoreServiceClient(channel),
+    RpcDeadlines deadlines = const RpcDeadlines(),
+  }) : _client = score.ScoreServiceClient(channel, interceptors: [deadlines]),
        _authed = authed;
 
   final score.ScoreServiceClient _client;
@@ -394,4 +396,5 @@ class GrpcCatalogService implements CatalogService {
 CatalogService catalogService(Ref ref) => GrpcCatalogService(
   channel: ref.watch(cymbraChannelProvider),
   authed: ref.watch(authedRunnerProvider),
+  deadlines: ref.watch(rpcDeadlinesProvider),
 );

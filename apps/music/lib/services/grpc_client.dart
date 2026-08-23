@@ -21,6 +21,7 @@ import '../src/grpc/auth.pbgrpc.dart' as auth;
 import '../src/grpc/user.pbgrpc.dart' as user;
 import 'account_service.dart';
 import 'auth_service.dart';
+import 'rpc_deadlines.dart';
 import 'token_refresher.dart';
 import 'token_store.dart';
 
@@ -66,6 +67,11 @@ ClientChannel cymbraChannel(Ref ref) {
       credentials: ep.secure
           ? const ChannelCredentials.secure()
           : const ChannelCredentials.insecure(),
+      // Bound on establishing a connection (change:
+      // add-client-transport-deadlines). NOT `connectionTimeout`, which is how
+      // long an established connection is *reused* (50 min default) — that one
+      // and `idleTimeout` are deliberately left at their defaults.
+      connectTimeout: kConnectTimeout,
     ),
   );
   ref.onDispose(() => channel.shutdown());
@@ -163,9 +169,12 @@ class AuthedRunner {
 /// is a thin translate-and-map: build the request, call the stub, map a
 /// [GrpcError] to an [AuthException]. Sign-in calls carry the `music` audience.
 class GrpcAuthService implements AuthService {
-  GrpcAuthService(ClientChannel channel, {required AuthedRunner authed})
-    : _client = auth.AuthServiceClient(channel),
-      _authed = authed;
+  GrpcAuthService(
+    ClientChannel channel, {
+    required AuthedRunner authed,
+    RpcDeadlines deadlines = const RpcDeadlines(),
+  }) : _client = auth.AuthServiceClient(channel, interceptors: [deadlines]),
+       _authed = authed;
 
   final auth.AuthServiceClient _client;
   // Only the authenticated RPCs (revokeAllSessions) go through `_authed`; the
@@ -304,7 +313,8 @@ class GrpcAccountService implements AccountService {
   GrpcAccountService({
     required ClientChannel channel,
     required AuthedRunner authed,
-  }) : _client = user.UserServiceClient(channel),
+    RpcDeadlines deadlines = const RpcDeadlines(),
+  }) : _client = user.UserServiceClient(channel, interceptors: [deadlines]),
        _authed = authed;
 
   final user.UserServiceClient _client;
@@ -395,7 +405,12 @@ class GrpcAccountService implements AccountService {
 /// service can consume it without a provider cycle.
 @Riverpod(keepAlive: true)
 TokenRefresher tokenRefresher(Ref ref) {
-  final client = auth.AuthServiceClient(ref.watch(cymbraChannelProvider));
+  // This client bypasses every adapter, so it gets the deadline interceptor
+  // explicitly — an unbounded Refresh here would mean a hung sign-in.
+  final client = auth.AuthServiceClient(
+    ref.watch(cymbraChannelProvider),
+    interceptors: [ref.watch(rpcDeadlinesProvider)],
+  );
   return CoordinatedTokenRefresher(
     tokenStore: ref.watch(tokenStoreProvider),
     // A raw GrpcError propagates: the refresher classifies it by status code.
@@ -424,6 +439,7 @@ AuthedRunner authedRunner(Ref ref) => AuthedRunner(
 AuthService authService(Ref ref) => GrpcAuthService(
   ref.watch(cymbraChannelProvider),
   authed: ref.watch(authedRunnerProvider),
+  deadlines: ref.watch(rpcDeadlinesProvider),
 );
 
 /// Production account-service provider. Override in tests with a fake.
@@ -431,4 +447,5 @@ AuthService authService(Ref ref) => GrpcAuthService(
 AccountService accountService(Ref ref) => GrpcAccountService(
   channel: ref.watch(cymbraChannelProvider),
   authed: ref.watch(authedRunnerProvider),
+  deadlines: ref.watch(rpcDeadlinesProvider),
 );

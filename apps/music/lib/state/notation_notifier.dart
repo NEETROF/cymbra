@@ -27,6 +27,7 @@ import '../services/score_asset_source.dart';
 import '../services/score_upload_service.dart';
 import 'catalog_daily_access_notifier.dart';
 import 'notation_data.dart';
+import 'offline_race.dart';
 import 'plan_notifier.dart';
 import 'saved_catalog_scores.dart';
 import 'score_catalog.dart';
@@ -60,6 +61,21 @@ class Notation extends _$Notation {
     return const NotationData();
   }
 
+  /// Whether this in-flight load no longer belongs to the current selection.
+  /// Post-`await` continuations must consult THIS, never a bare
+  /// `ref.read(selectedScoreProvider)`: when the selection changed (e.g. the
+  /// user cancelled the open, which clears it), riverpod flags the element as
+  /// dependency-outdated and a plain `ref.read` asserts in the window before
+  /// the rebuild (change: add-client-transport-deadlines). An unusable ref
+  /// means the selection changed, which means this load is abandoned.
+  bool _abandoned(CatalogEntry entry) {
+    try {
+      return ref.read(selectedScoreProvider) != entry;
+    } catch (_) {
+      return true;
+    }
+  }
+
   ScoreAssetSource get _source => ref.read(scoreAssetSourceProvider);
   NotationEngine get _engine => ref.read(notationEngineProvider);
 
@@ -68,6 +84,11 @@ class Notation extends _$Notation {
         ? state.availableWidth
         : _initialWidth;
     final cacheKey = offlineCacheKeyFor(entry);
+    // Captured BEFORE any await: after one, a selection change marks this
+    // element dependency-outdated and a bare `ref.read` asserts — observed
+    // live as an unhandled error when the read happened while evaluating the
+    // race's arguments, so the orphaned work future had no listener yet.
+    final connectivity = ref.read(connectivityServiceProvider);
     try {
       // Bytes come from a byte-sourced score (a user upload or a saved public-
       // catalog score), preferring a valid local encrypted copy so a favorited-
@@ -89,11 +110,22 @@ class Notation extends _$Notation {
           // decision; a locked answer never plays the cached copy (kept: access
           // is per-day). OFFLINE (or unreachable) the cached copy plays — the
           // documented offline grace.
-          final decided = await _decideCachedCatalogOpen(entry, cached);
+          Uint8List? decided;
+          try {
+            decided = await raceAgainstOffline(
+              _decideCachedCatalogOpen(entry, cached, connectivity),
+              connectivity,
+            );
+          } on OfflineDuringLoad {
+            // Connectivity dropped mid-decide: the offline grace applies — the
+            // copy was legitimately obtained. The orphaned fetch dies on its
+            // own deadline in the background.
+            decided = cached.bytes;
+          }
           if (decided == null) {
             // Locked — the failure is typed; the numbers went to the daily-access
             // provider. Nothing is played.
-            if (ref.read(selectedScoreProvider) != entry) return;
+            if (_abandoned(entry)) return;
             state = NotationData(
               failure: ScoreLoadFailure.locked,
               availableWidth: width,
@@ -110,10 +142,25 @@ class Notation extends _$Notation {
           // Miss: the network fetch is the source of truth; store its bytes AND
           // its content hash (ETag) when the entry is a favorite, so a later open
           // can do a conditional refresh instead of re-downloading.
-          final fetched = await _fetchScoreBytes(entry);
+          //
+          // Offline it cannot succeed (change: add-client-transport-deadlines):
+          // pre-flight, don't even open a socket — but only on a POSITIVE
+          // "offline" report. A captive portal still reads "online" (the call
+          // then proceeds and fails on its deadline), and a plugin that cannot
+          // answer must not gate the call at all. Mid-flight, the race aborts
+          // at once on the connectivity transition instead of waiting out the
+          // deadline.
+          if (await connectivity.isDefinitelyOffline()) {
+            throw const OfflineDuringLoad();
+          }
+          final fetched = await raceAgainstOffline(
+            _fetchScoreBytes(entry),
+            connectivity,
+          );
+          if (_abandoned(entry)) return;
           _reportAccess(entry, fetched);
           if (fetched.locked) {
-            if (ref.read(selectedScoreProvider) != entry) return;
+            if (_abandoned(entry)) return;
             state = NotationData(
               failure: ScoreLoadFailure.locked,
               availableWidth: width,
@@ -130,7 +177,7 @@ class Notation extends _$Notation {
       }
       final document = await _engine.parse(bytes);
       // Guard against a selection change while we were loading.
-      if (ref.read(selectedScoreProvider) != entry) return;
+      if (_abandoned(entry)) return;
       final systems = _engine.layout(document, width);
       state = NotationData(
         document: document,
@@ -143,13 +190,13 @@ class Notation extends _$Notation {
         await _refreshCachedEntry(entry, cacheKey, cached.etag);
       }
     } catch (e) {
-      if (ref.read(selectedScoreProvider) != entry) return;
+      if (_abandoned(entry)) return;
       // Keep the technical cause in the logs only — the UI shows a localized
       // message keyed off the typed [ScoreLoadFailure], never the raw
       // exception/gRPC text.
       debugPrint('Notation load failed for ${entry.id}: $e');
       final failure = await _classifyLoad(entry, cacheKey, e);
-      if (ref.read(selectedScoreProvider) != entry) return;
+      if (_abandoned(entry)) return;
       state = NotationData(failure: failure, availableWidth: width);
     }
   }
@@ -161,8 +208,9 @@ class Notation extends _$Notation {
   Future<Uint8List?> _decideCachedCatalogOpen(
     CatalogEntry entry,
     CachedScore cached,
+    ConnectivityService connectivity,
   ) async {
-    if (!await ref.read(connectivityServiceProvider).isOnline()) {
+    if (!await connectivity.isOnline()) {
       return cached.bytes;
     }
     final ScoreBytesResult fetched;
@@ -177,6 +225,9 @@ class Notation extends _$Notation {
       debugPrint('Notation access check failed for ${entry.id}: $e');
       return cached.bytes;
     }
+    // Abandoned mid-decide (selection changed): the caller discards the
+    // result anyway, and any further ref use would assert — serve the copy.
+    if (_abandoned(entry)) return cached.bytes;
     _reportAccess(entry, fetched);
     if (fetched.locked) return null;
     final data = fetched.data;
@@ -198,6 +249,9 @@ class Notation extends _$Notation {
   void _reportAccess(CatalogEntry entry, ScoreBytesResult fetched) {
     final access = fetched.access;
     if (access == null) return;
+    // Best-effort: after a cancel mid-load the ref may be dependency-outdated
+    // (see [_abandoned]); an abandoned load has nothing to report.
+    if (_abandoned(entry)) return;
     ref.read(catalogDailyAccessProvider.notifier).report(access);
     if (access.locked) {
       unawaited(
@@ -240,6 +294,7 @@ class Notation extends _$Notation {
     String cachedEtag,
   ) async {
     try {
+      if (_abandoned(entry)) return;
       if (!await ref.read(connectivityServiceProvider).isOnline()) return;
       final fetched = await _fetchScoreBytes(
         entry,
@@ -282,6 +337,10 @@ class Notation extends _$Notation {
     String? cacheKey,
     Object e,
   ) async {
+    // Aborted by the offline pre-flight or the mid-flight race: there is no
+    // cached copy on this path, so the dedicated "not available offline"
+    // message is the honest outcome.
+    if (e is OfflineDuringLoad) return ScoreLoadFailure.offlineUnavailable;
     if (cacheKey != null &&
         e is AuthException &&
         e.error == AuthError.unavailable) {

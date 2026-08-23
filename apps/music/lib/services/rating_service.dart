@@ -18,6 +18,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../src/grpc/score.pbgrpc.dart' as score;
 import 'grpc_client.dart';
+import 'rpc_deadlines.dart';
 
 part 'rating_service.g.dart';
 
@@ -120,7 +121,8 @@ class GrpcRatingService implements RatingService {
   GrpcRatingService({
     required ClientChannel channel,
     required AuthedRunner authed,
-  }) : _client = score.ScoreServiceClient(channel),
+    RpcDeadlines deadlines = const RpcDeadlines(),
+  }) : _client = score.ScoreServiceClient(channel, interceptors: [deadlines]),
        _authed = authed;
 
   final score.ScoreServiceClient _client;
@@ -172,4 +174,5 @@ class GrpcRatingService implements RatingService {
 RatingService ratingService(Ref ref) => GrpcRatingService(
   channel: ref.watch(cymbraChannelProvider),
   authed: ref.watch(authedRunnerProvider),
+  deadlines: ref.watch(rpcDeadlinesProvider),
 );

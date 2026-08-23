@@ -21,6 +21,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../src/grpc/score.pbgrpc.dart' as score;
 import '../state/score_catalog.dart' show PracticeLevel;
 import 'grpc_client.dart';
+import 'rpc_deadlines.dart';
 import 'score_bytes_result.dart';
 
 export 'score_bytes_result.dart' show ScoreBytesResult;
@@ -154,7 +155,8 @@ class GrpcScoreUploadService implements ScoreUploadService {
   GrpcScoreUploadService({
     required ClientChannel channel,
     required AuthedRunner authed,
-  }) : _client = score.ScoreServiceClient(channel),
+    RpcDeadlines deadlines = const RpcDeadlines(),
+  }) : _client = score.ScoreServiceClient(channel, interceptors: [deadlines]),
        _authed = authed;
 
   final score.ScoreServiceClient _client;
@@ -276,4 +278,5 @@ class GrpcScoreUploadService implements ScoreUploadService {
 ScoreUploadService scoreUploadService(Ref ref) => GrpcScoreUploadService(
   channel: ref.watch(cymbraChannelProvider),
   authed: ref.watch(authedRunnerProvider),
+  deadlines: ref.watch(rpcDeadlinesProvider),
 );

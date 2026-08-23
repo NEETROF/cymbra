@@ -20,6 +20,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../src/grpc/plans.pbgrpc.dart' as plans;
 import 'app_platform.dart';
 import 'grpc_client.dart';
+import 'rpc_deadlines.dart';
 
 part 'plan_service.freezed.dart';
 part 'plan_service.g.dart';
@@ -174,7 +175,8 @@ class GrpcPlanService implements PlanService {
   GrpcPlanService({
     required ClientChannel channel,
     required AuthedRunner authed,
-  }) : _client = plans.PlanServiceClient(channel),
+    RpcDeadlines deadlines = const RpcDeadlines(),
+  }) : _client = plans.PlanServiceClient(channel, interceptors: [deadlines]),
        _authed = authed;
 
   final plans.PlanServiceClient _client;
@@ -215,4 +217,5 @@ class GrpcPlanService implements PlanService {
 PlanService planService(Ref ref) => GrpcPlanService(
   channel: ref.watch(cymbraChannelProvider),
   authed: ref.watch(authedRunnerProvider),
+  deadlines: ref.watch(rpcDeadlinesProvider),
 );

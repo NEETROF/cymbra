@@ -249,8 +249,13 @@ void main() {
       n.setLevel(PracticeLevel.beginner);
       await n.submit();
       final s = c.read(scoreUploadNotifierProvider);
-      // Mapped to a clean FR message — the raw exception is never shown.
-      expect(s.submitError, 'Vous avez déjà importé cette partition.');
+      // Mapped to a clean FR message — the raw exception is never shown. Worded
+      // as a fact, not a failure (change: add-client-transport-deadlines):
+      // retrying after an abandoned upload is the expected path.
+      expect(
+        s.submitError,
+        'Cette partition est déjà dans votre bibliothèque.',
+      );
       expect(s.submitError, isNot(contains('AuthException')));
       expect(s.isDone, isFalse);
       expect(s.level, PracticeLevel.beginner);
