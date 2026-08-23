@@ -133,11 +133,6 @@ class _ReplayDialogState extends ConsumerState<_ReplayDialog>
   /// Scrolls the bottom mistake bar so it tracks the staff.
   final ScrollController _mistakeScroll = ScrollController();
 
-  /// Index of the mistake the bar is currently centred on, so the follow only
-  /// animates when the playhead actually moves to another mistake (not on
-  /// every tick).
-  int _followed = -1;
-
   double _elapsed = 0;
   bool _playing = false;
 
@@ -229,12 +224,15 @@ class _ReplayDialogState extends ConsumerState<_ReplayDialog>
   }
 
   /// Moves the playhead and keeps the bottom mistake bar aligned with it.
-  void _setElapsed(double ms, {bool? playing}) {
+  /// [animate] is for a discrete jump (tapping a mistake chip); the ticker and
+  /// the slider follow continuously instead, so the bar glides rather than
+  /// snapping from one chip to the next.
+  void _setElapsed(double ms, {bool? playing, bool animate = false}) {
     setState(() {
       _elapsed = ms;
       if (playing != null) _playing = playing;
     });
-    _followMistakes();
+    _followMistakes(animate: animate);
   }
 
   /// Index of the mistake sitting closest to the playhead — the one the staff
@@ -253,28 +251,53 @@ class _ReplayDialogState extends ConsumerState<_ReplayDialog>
     return best;
   }
 
-  /// Scrolls the mistake bar so the mistake under the playhead is centred,
-  /// mirroring the staff scrolling underneath it. Only fires when the playhead
-  /// crosses into another mistake, so a manual scroll of the bar survives until
-  /// the run actually reaches the next one.
-  void _followMistakes() {
-    if (_mistakes.isEmpty) return;
-    final index = _nearestMistake();
-    if (index == _followed) return;
-    _followed = index;
-    if (!_mistakeScroll.hasClients) return;
+  /// Centre of the chip for mistake [i] in scroll coordinates.
+  double _chipCenter(int i) =>
+      _kChipPadding + i * _kChipStride + _kChipWidth / 2;
+
+  /// Where the bar should sit for the current playhead, in scroll coordinates:
+  /// the chip centres interpolated *between* consecutive mistakes, so the bar
+  /// creeps forward with the run at the same pace the staff scrolls instead of
+  /// jumping a whole chip at a time. Before the first mistake and after the
+  /// last one it simply rests on that chip.
+  double _followCenter() {
+    if (_elapsed <= _mistakes.first.startMs) return _chipCenter(0);
+    final last = _mistakes.length - 1;
+    if (_elapsed >= _mistakes[last].startMs) return _chipCenter(last);
+    for (var i = 0; i < last; i++) {
+      final from = _mistakes[i].startMs.toDouble();
+      final to = _mistakes[i + 1].startMs.toDouble();
+      if (_elapsed < to) {
+        final span = to - from;
+        final t = span <= 0 ? 0.0 : (_elapsed - from) / span;
+        return _chipCenter(i) + (_chipCenter(i + 1) - _chipCenter(i)) * t;
+      }
+    }
+    return _chipCenter(last);
+  }
+
+  /// Scrolls the mistake bar so the run's position is centred, mirroring the
+  /// staff scrolling underneath it. Driven every tick, which is what makes the
+  /// motion continuous; only an explicit jump (tapping a chip) animates.
+  void _followMistakes({bool animate = false}) {
+    if (_mistakes.isEmpty || !_mistakeScroll.hasClients) return;
     final position = _mistakeScroll.position;
-    final target =
-        (_kChipPadding +
-                index * _kChipStride +
-                _kChipWidth / 2 -
-                position.viewportDimension / 2)
-            .clamp(position.minScrollExtent, position.maxScrollExtent);
-    _mistakeScroll.animateTo(
-      target,
-      duration: const Duration(milliseconds: 240),
-      curve: Curves.easeOut,
+    final target = (_followCenter() - position.viewportDimension / 2).clamp(
+      position.minScrollExtent,
+      position.maxScrollExtent,
     );
+    if ((target - position.pixels).abs() < 0.5) return;
+    if (animate) {
+      _mistakeScroll.animateTo(
+        target,
+        duration: const Duration(milliseconds: 320),
+        curve: Curves.easeOutCubic,
+      );
+      return;
+    }
+    // A drag of the bar itself owns the scroll while it lasts — don't fight it.
+    if (position.isScrollingNotifier.value) return;
+    _mistakeScroll.jumpTo(target);
   }
 
   void _applyAudio(double from, double to) {
@@ -313,9 +336,9 @@ class _ReplayDialogState extends ConsumerState<_ReplayDialog>
     _ticker.start();
   }
 
-  void _seek(double ms) {
+  void _seek(double ms, {bool animate = false}) {
     _stopAudio();
-    _setElapsed(ms.clamp(0, _score.songEndMs));
+    _setElapsed(ms.clamp(0, _score.songEndMs), animate: animate);
   }
 
   @override
@@ -434,21 +457,39 @@ class _ReplayDialogState extends ConsumerState<_ReplayDialog>
           final j = _mistakes[i];
           final mark = markFor(j);
           final color = colorForMark(mark);
-          // The chip under the playhead is ringed thicker and lifted, so the
-          // bar reads as "here is where you are" while the staff scrolls.
+          // The chip under the playhead is ringed thick, tinted in its own
+          // mistake colour and haloed, so the bar reads at a glance as "here is
+          // where you are" while the staff scrolls. The others stay muted.
           final active = i == current;
           return InkWell(
-            onTap: () => _seek(j.startMs.toDouble()),
+            onTap: () => _seek(j.startMs.toDouble(), animate: true),
             borderRadius: BorderRadius.circular(10),
-            child: Container(
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeOut,
               width: _kChipWidth,
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
               decoration: BoxDecoration(
                 color: active
-                    ? CymbraColors.surfaceContainerHigh
+                    ? Color.alphaBlend(
+                        color.withValues(alpha: 0.22),
+                        CymbraColors.surfaceContainerHigh,
+                      )
                     : CymbraColors.surfaceContainerLow,
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: color, width: active ? 2 : 1),
+                border: Border.all(
+                  color: active ? color : color.withValues(alpha: 0.45),
+                  width: active ? 3 : 1,
+                ),
+                boxShadow: active
+                    ? [
+                        BoxShadow(
+                          color: color.withValues(alpha: 0.45),
+                          blurRadius: 12,
+                          spreadRadius: 1,
+                        ),
+                      ]
+                    : null,
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,

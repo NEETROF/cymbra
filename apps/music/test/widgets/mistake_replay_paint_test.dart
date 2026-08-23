@@ -314,11 +314,21 @@ void main() {
       expect(offset(), 0);
 
       await tester.tap(find.byIcon(Icons.play_circle));
+      // The bar glides: between two mistakes it creeps forward every frame by
+      // much less than a whole chip, instead of jumping chip to chip.
+      final samples = <double>[];
       for (var i = 0; i < 60; i++) {
         await tester.pump(const Duration(milliseconds: 50));
+        samples.add(offset());
       }
       // The playhead has walked into later mistakes, so the bar followed it.
       expect(offset(), greaterThan(0));
+      final moving = samples.sublist(10, 40);
+      for (var i = 1; i < moving.length; i++) {
+        expect(moving[i], greaterThanOrEqualTo(moving[i - 1]));
+        expect(moving[i] - moving[i - 1], lessThan(158));
+      }
+      expect(moving.toSet().length, greaterThan(5));
 
       // Jumping back to the top of the run brings the bar back with it.
       await tester.tap(find.byIcon(Icons.pause_circle));
