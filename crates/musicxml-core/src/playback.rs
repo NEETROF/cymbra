@@ -143,11 +143,23 @@ fn tempo_of(document: &ScoreDocument) -> u16 {
 /// zero-length notes stacked on the principal, so each grace gets a short nominal
 /// duration ([`grace_ms_of`]) played *before* its position (acciaccatura style),
 /// consecutive graces stacking backwards; the principal's own timing is unchanged.
+///
+/// **Unpitched notes** are emitted — carrying their resolved General MIDI
+/// percussion number in the `midi` slot — only when the score classifies as
+/// percussion. The condition is what keeps this change inert for every score
+/// admissible today: a *mixed* score (pitched plus stray unpitched notes) can
+/// already pass the validation gate and sit in the corpus, and unconditional
+/// emission would change its playback with no access control. A note whose
+/// number could not be resolved is omitted, never fabricated. Tied unpitched
+/// chains merge into one prolonged note (keyed by voice and number), exactly as
+/// the app's mirror does — a tied cymbal is one attack, not several.
 pub fn schedule(document: &ScoreDocument) -> PlaybackSchedule {
     let divisions = document.attributes.divisions.max(1);
     let bpm = tempo_of(document);
     let ms_per_division = (60000.0 / f64::from(bpm)) / f64::from(divisions);
     let grace_ms = grace_ms_of(bpm);
+    let percussion =
+        crate::meta::instrument_of(document) == crate::meta::InstrumentKind::Percussion;
 
     let time = &document.attributes.time;
     let beat_type = if time.beat_type == 0 {
@@ -162,6 +174,14 @@ pub fn schedule(document: &ScoreDocument) -> PlaybackSchedule {
     let mut written_measure: Vec<u32> = Vec::new();
     let mut song_end_ms = 0.0_f64;
     let mut measure_start_div: u32 = 0;
+
+    // Open unpitched tie chains, keyed by (staff, voice, GM number): the index
+    // (into `notes`, stable until the final sort) of the chain's first note and
+    // where the chain currently ends in absolute divisions. Junctions must abut
+    // exactly, mirroring the app's rule; a stop that does not abut falls back
+    // to a normal attack.
+    let mut open_ties: std::collections::HashMap<(u32, u32, i32), (usize, u32)> =
+        std::collections::HashMap::new();
 
     // The playback order resolved at parse time: repeated sections once per
     // pass, voltas selected, jumps followed. Documents built by hand (tests)
@@ -205,14 +225,70 @@ pub fn schedule(document: &ScoreDocument) -> PlaybackSchedule {
                 duration_ms = grace_ms;
             }
 
-            let Some(pitch) = note.pitch.as_ref() else {
-                continue;
-            };
             if note.is_rest {
                 continue;
             }
+            let midi = if let Some(pitch) = note.pitch.as_ref() {
+                midi_of_pitch(pitch)
+            } else if percussion {
+                match note.unpitched.as_ref().and_then(|u| u.gm_number) {
+                    Some(gm) => gm as i32,
+                    // Unresolvable: omitted rather than fabricated; the
+                    // surrounding notes keep their computed times.
+                    None => continue,
+                }
+            } else {
+                // A pitchless non-rest outside a percussion score (a stray
+                // unpitched note in a mixed file) is skipped, exactly as
+                // before this change.
+                continue;
+            };
+
+            // Tied unpitched chains merge into one prolonged note: the merge
+            // is end-aligned in ms so rounding never drifts across a chain.
+            if note.unpitched.is_some() {
+                let key = (note.staff, note.voice, midi);
+                let start_div = measure_start_div + note.position_divisions;
+                let end_div = start_div + note.duration_divisions;
+                // A dangling stop (the `remove` ran but the junction does not
+                // abut) closes the chain and falls through to a normal attack.
+                if note.tie_stop
+                    && let Some((idx, open_end)) = open_ties.remove(&key)
+                    && open_end == start_div
+                {
+                    let end_ms = f64::from(end_div) * ms_per_division;
+                    notes[idx].duration_ms =
+                        (end_ms.round() as u32).saturating_sub(notes[idx].onset_ms);
+                    // A stop that also starts is the middle of a chain.
+                    if note.tie_start {
+                        open_ties.insert(key, (idx, end_div));
+                    }
+                    if end_ms > song_end_ms {
+                        song_end_ms = end_ms;
+                    }
+                    continue;
+                }
+                notes.push(TimedNote {
+                    midi,
+                    onset_ms: start_ms.round() as u32,
+                    duration_ms: duration_ms.round() as u32,
+                    staff: note.staff,
+                    measure_index: mi as u32,
+                    note_index: ni as u32,
+                });
+                if note.tie_start {
+                    open_ties.insert(key, (notes.len() - 1, end_div));
+                } else {
+                    open_ties.remove(&key);
+                }
+                if start_ms + duration_ms > song_end_ms {
+                    song_end_ms = start_ms + duration_ms;
+                }
+                continue;
+            }
+
             notes.push(TimedNote {
-                midi: midi_of_pitch(pitch),
+                midi,
                 onset_ms: start_ms.round() as u32,
                 duration_ms: duration_ms.round() as u32,
                 staff: note.staff,
@@ -415,6 +491,74 @@ mod tests {
         assert_eq!(s.notes[1].measure_index, 0);
         assert_eq!(s.written_measure, vec![0, 1]);
         assert_eq!(s.song_end_ms, 4000);
+    }
+
+    // --- Percussion (change: add-unpitched-notation) ----------------------
+
+    #[test]
+    fn percussion_score_schedules_gm_numbers() {
+        let doc = parse(crate::fixtures::ROCK_GROOVE.as_bytes()).unwrap();
+        let s = schedule(&doc);
+        // 120 bpm, divisions=2 → an eighth = 250 ms, a measure = 2000 ms.
+        // Kick (GM 36) on beats 1 and 3 of measure 1, beat 1 of measure 2.
+        let kicks: Vec<u32> = s
+            .notes
+            .iter()
+            .filter(|n| n.midi == 36)
+            .map(|n| n.onset_ms)
+            .collect();
+        assert_eq!(kicks, vec![0, 1000, 2000]);
+        // Snare (GM 38) chords on beats 2 and 4, sharing the hat's onset.
+        let snares: Vec<u32> = s
+            .notes
+            .iter()
+            .filter(|n| n.midi == 38)
+            .map(|n| n.onset_ms)
+            .collect();
+        assert_eq!(snares, vec![500, 1500]);
+        // Hat (GM 42) eighths: 8 of them, 250 ms apart.
+        let hats: Vec<u32> = s
+            .notes
+            .iter()
+            .filter(|n| n.midi == 42)
+            .map(|n| n.onset_ms)
+            .collect();
+        assert_eq!(hats, vec![0, 250, 500, 750, 1000, 1250, 1500, 1750]);
+    }
+
+    #[test]
+    fn unresolvable_note_is_omitted_and_neighbours_keep_their_times() {
+        let doc = parse(crate::fixtures::DEGRADED.as_bytes()).unwrap();
+        let s = schedule(&doc);
+        // Three written quarters; the middle one (unknown id) is omitted, not
+        // fabricated — and the third keeps its computed onset at beat 3.
+        let onsets: Vec<(i32, u32)> = s.notes.iter().map(|n| (n.midi, n.onset_ms)).collect();
+        assert_eq!(onsets, vec![(38, 0), (38, 1000)]);
+    }
+
+    #[test]
+    fn mixed_score_keeps_todays_behaviour() {
+        // A mixed score is admissible through today's gate: its unpitched
+        // notes must NOT start sounding — emission is gated on the score
+        // classifying as percussion, which a mixed score does not.
+        let doc = parse(crate::fixtures::MIXED.as_bytes()).unwrap();
+        let s = schedule(&doc);
+        let midis: Vec<i32> = s.notes.iter().map(|n| n.midi).collect();
+        assert_eq!(midis, vec![60, 64]); // the two pitched notes only
+    }
+
+    #[test]
+    fn tied_unpitched_chain_merges_into_one_prolonged_note() {
+        let doc = parse(crate::fixtures::TIED_CYMBAL.as_bytes()).unwrap();
+        let s = schedule(&doc);
+        // A whole tied across the barline is ONE attack of two measures
+        // (4000 ms at 120 bpm), then the fresh attack in measure 3 is its own.
+        assert_eq!(s.notes.len(), 2);
+        assert_eq!((s.notes[0].midi, s.notes[0].onset_ms), (49, 0));
+        assert_eq!(s.notes[0].duration_ms, 4000);
+        assert_eq!(s.notes[1].onset_ms, 4000);
+        assert_eq!(s.notes[1].duration_ms, 2000);
+        assert_eq!(s.song_end_ms, 6000);
     }
 
     #[test]

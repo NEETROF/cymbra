@@ -100,6 +100,34 @@ int midiOfPitch(Pitch pitch) {
   return (pitch.octave + 1) * 12 + base + pitch.alter;
 }
 
+/// The clef sign as the single-letter token the painters and
+/// [TimedNote.clefSign] compare against (`'G'`/`'F'`/`'C'`), or
+/// `'percussion'`. Keeps the render path `String`-typed while the bridged
+/// model carries a typed sign.
+String clefSignLetter(ClefSign sign) => switch (sign) {
+  ClefSign.g => 'G',
+  ClefSign.f => 'F',
+  ClefSign.c => 'C',
+  ClefSign.percussion => 'percussion',
+};
+
+/// Whether the score classifies as percussion: every non-rest note is
+/// unpitched (and there is at least one). Mirrors the crate's
+/// `instrument_of` — mixed content is NOT percussion, so a mixed score
+/// admissible through today's gate keeps its existing playback.
+bool _isPercussion(ScoreDocument document) {
+  var pitched = false;
+  var unpitched = false;
+  for (final measure in document.measures) {
+    for (final note in measure.notes) {
+      if (note.isRest) continue;
+      pitched |= note.pitch != null;
+      unpitched |= note.unpitched != null;
+    }
+  }
+  return unpitched && !pitched;
+}
+
 /// Converts a parsed score into visual playback notes.
 ///
 /// Each non-rest note becomes a [TimedNote] whose start/duration come from its
@@ -128,6 +156,11 @@ DerivedPlayback notationToTimedNotes(
   final divisions = document.attributes.divisions < 1
       ? 1
       : document.attributes.divisions;
+  // Unpitched notes are emitted — carrying their resolved General MIDI
+  // percussion number in the MIDI slot — only when the score classifies as
+  // percussion, mirroring the crate's schedule. A mixed score keeps today's
+  // behaviour: its unpitched notes stay skipped.
+  final percussion = _isPercussion(document);
   final bpm = _tempoOf(document);
   final msPerDivision = (60000.0 / bpm) / divisions;
   // Nominal audible duration of one grace note: an eighth of a quarter —
@@ -211,9 +244,13 @@ DerivedPlayback notationToTimedNotes(
       }
 
       final pitch = note.pitch;
-      // Rests go to their own channel (render-only); pitchless non-rests are
-      // skipped entirely.
-      if (note.isRest || pitch == null) {
+      // The unpitched channel sounds only for a percussion-classified score,
+      // and only when its General MIDI number was resolved — an unresolvable
+      // note is omitted, never fabricated.
+      final gm = percussion ? note.unpitched?.gmNumber : null;
+      // Rests go to their own channel (render-only); pitchless non-rests with
+      // nothing to sound are skipped entirely.
+      if (note.isRest || (pitch == null && gm == null)) {
         if (note.isRest) {
           rests.add(
             TimedRest(
@@ -231,8 +268,20 @@ DerivedPlayback notationToTimedNotes(
         continue;
       }
 
-      final midi = midiOfPitch(pitch);
-      final tieKey = '${note.staff}/${note.voice}/$midi';
+      final midi = pitch != null ? midiOfPitch(pitch) : gm!;
+      // Distinct key spaces: a GM number is not a MIDI pitch, so an unpitched
+      // chain must never merge with a pitched one.
+      final tieKey = pitch != null
+          ? '${note.staff}/${note.voice}/$midi'
+          : '${note.staff}/${note.voice}/u$midi';
+
+      // An unpitched note's written position is a staff placement: its
+      // diatonic index comes from the display step/octave, exactly as a
+      // pitch's does from its step/octave.
+      final diatonic = pitch != null
+          ? pitch.octave * 7 + (_diatonicOfStep[pitch.step] ?? 0)
+          : note.unpitched!.displayOctave * 7 +
+                (_diatonicOfStep[note.unpitched!.displayStep] ?? 0);
 
       // The engraved note as a TimedNote — used both by the playable path and
       // by a tie continuation (which keeps its written figure but is routed to
@@ -245,11 +294,13 @@ DerivedPlayback notationToTimedNotes(
           durationMs: durationMs.round(),
           staff: note.staff,
           beams: note.beams,
-          clefSign: c?.sign ?? (note.staff >= 2 ? 'F' : 'G'),
+          clefSign: c != null
+              ? clefSignLetter(c.sign)
+              : (note.staff >= 2 ? 'F' : 'G'),
           clefLine: c?.line ?? (note.staff >= 2 ? 4 : 2),
           noteType: note.noteType,
           dots: note.dots,
-          diatonic: pitch.octave * 7 + (_diatonicOfStep[pitch.step] ?? 0),
+          diatonic: diatonic,
           accidental: note.accidental,
           stemUp: switch (note.stem) {
             StemDir.up => true,

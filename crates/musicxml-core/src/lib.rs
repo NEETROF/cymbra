@@ -29,7 +29,7 @@ pub mod playback;
 pub mod repeats;
 pub mod validate;
 
-pub use meta::{ScoreFacets, ScoreSummary, normalize_text};
+pub use meta::{InstrumentKind, ScoreFacets, ScoreSummary, instrument_of, normalize_text};
 pub use model::*;
 pub use playback::{
     DEFAULT_VELOCITY, PlaybackSchedule, TimedNote, grace_ms_of, midi_of_pitch, schedule,
@@ -42,6 +42,162 @@ use std::collections::BTreeMap;
 use anyhow::{Result, anyhow};
 use quick_xml::events::{BytesStart, Event};
 use quick_xml::reader::Reader;
+
+/// Percussion fixtures shared by the parser, meta, playback and validate
+/// tests, so every module exercises the same notation. `<midi-unpitched>`
+/// values are deliberately **1-based** (General MIDI number plus one), exactly
+/// as conforming exporters write them: MuseScore writes 39 for the GM-38
+/// snare, 43 for the GM-42 closed hi-hat, 37 for the GM-36 kick.
+#[cfg(test)]
+pub(crate) mod fixtures {
+    /// Fixture 1.1: a two-measure rock groove in two voices — closed hi-hat
+    /// eighths with snare chords on beats 2 and 4 (voice 1, stems up), kick on
+    /// beats 1 and 3 (voice 2, stems down) — under a percussion clef, at
+    /// 120 bpm with `divisions` 2 (an eighth = 1 division = 250 ms).
+    pub(crate) const ROCK_GROOVE: &str = r#"<?xml version="1.0"?>
+<score-partwise version="4.0">
+  <work><work-title>Groove</work-title></work>
+  <part-list>
+    <score-part id="P1">
+      <part-name>Drumset</part-name>
+      <score-instrument id="P1-I36"><instrument-name>Bass Drum 1</instrument-name></score-instrument>
+      <score-instrument id="P1-I38"><instrument-name>Snare Drum</instrument-name></score-instrument>
+      <score-instrument id="P1-I42"><instrument-name>Closed Hi-hat</instrument-name></score-instrument>
+      <midi-instrument id="P1-I36"><midi-channel>10</midi-channel><midi-unpitched>37</midi-unpitched></midi-instrument>
+      <midi-instrument id="P1-I38"><midi-channel>10</midi-channel><midi-unpitched>39</midi-unpitched></midi-instrument>
+      <midi-instrument id="P1-I42"><midi-channel>10</midi-channel><midi-unpitched>43</midi-unpitched></midi-instrument>
+    </score-part>
+  </part-list>
+  <part id="P1">
+    <measure number="1">
+      <attributes>
+        <divisions>2</divisions>
+        <key><fifths>0</fifths></key>
+        <time><beats>4</beats><beat-type>4</beat-type></time>
+        <clef><sign>percussion</sign><line>2</line></clef>
+      </attributes>
+      <direction><direction-type><metronome><beat-unit>quarter</beat-unit><per-minute>120</per-minute></metronome></direction-type></direction>
+      <note><unpitched><display-step>G</display-step><display-octave>5</display-octave></unpitched><duration>1</duration><instrument id="P1-I42"/><voice>1</voice><type>eighth</type><stem>up</stem></note>
+      <note><unpitched><display-step>G</display-step><display-octave>5</display-octave></unpitched><duration>1</duration><instrument id="P1-I42"/><voice>1</voice><type>eighth</type><stem>up</stem></note>
+      <note><unpitched><display-step>G</display-step><display-octave>5</display-octave></unpitched><duration>1</duration><instrument id="P1-I42"/><voice>1</voice><type>eighth</type><stem>up</stem></note>
+      <note><chord/><unpitched><display-step>C</display-step><display-octave>5</display-octave></unpitched><duration>1</duration><instrument id="P1-I38"/><voice>1</voice><type>eighth</type><stem>up</stem></note>
+      <note><unpitched><display-step>G</display-step><display-octave>5</display-octave></unpitched><duration>1</duration><instrument id="P1-I42"/><voice>1</voice><type>eighth</type><stem>up</stem></note>
+      <note><unpitched><display-step>G</display-step><display-octave>5</display-octave></unpitched><duration>1</duration><instrument id="P1-I42"/><voice>1</voice><type>eighth</type><stem>up</stem></note>
+      <note><unpitched><display-step>G</display-step><display-octave>5</display-octave></unpitched><duration>1</duration><instrument id="P1-I42"/><voice>1</voice><type>eighth</type><stem>up</stem></note>
+      <note><unpitched><display-step>G</display-step><display-octave>5</display-octave></unpitched><duration>1</duration><instrument id="P1-I42"/><voice>1</voice><type>eighth</type><stem>up</stem></note>
+      <note><chord/><unpitched><display-step>C</display-step><display-octave>5</display-octave></unpitched><duration>1</duration><instrument id="P1-I38"/><voice>1</voice><type>eighth</type><stem>up</stem></note>
+      <note><unpitched><display-step>G</display-step><display-octave>5</display-octave></unpitched><duration>1</duration><instrument id="P1-I42"/><voice>1</voice><type>eighth</type><stem>up</stem></note>
+      <backup><duration>8</duration></backup>
+      <note><unpitched><display-step>F</display-step><display-octave>4</display-octave></unpitched><duration>2</duration><instrument id="P1-I36"/><voice>2</voice><type>quarter</type><stem>down</stem></note>
+      <note><rest/><duration>2</duration><voice>2</voice><type>quarter</type></note>
+      <note><unpitched><display-step>F</display-step><display-octave>4</display-octave></unpitched><duration>2</duration><instrument id="P1-I36"/><voice>2</voice><type>quarter</type><stem>down</stem></note>
+      <note><rest/><duration>2</duration><voice>2</voice><type>quarter</type></note>
+    </measure>
+    <measure number="2">
+      <note><unpitched><display-step>F</display-step><display-octave>4</display-octave></unpitched><duration>2</duration><instrument id="P1-I36"/><voice>2</voice><type>quarter</type><stem>down</stem></note>
+      <note><rest/><duration>6</duration><voice>2</voice><type>half</type><dot/></note>
+    </measure>
+  </part>
+</score-partwise>"#;
+
+    /// Fixture 1.2, the degraded cases: an unpitched note whose
+    /// `<instrument id>` is absent from the part list, next to a resolvable
+    /// one — under a clef sign the parser does not recognise.
+    pub(crate) const DEGRADED: &str = r#"<?xml version="1.0"?>
+<score-partwise version="4.0">
+  <part-list>
+    <score-part id="P1">
+      <score-instrument id="P1-I38"><instrument-name>Snare Drum</instrument-name></score-instrument>
+      <score-instrument id="P1-I42"><instrument-name>Closed Hi-hat</instrument-name></score-instrument>
+      <midi-instrument id="P1-I38"><midi-unpitched>39</midi-unpitched></midi-instrument>
+      <midi-instrument id="P1-I42"><midi-unpitched>43</midi-unpitched></midi-instrument>
+    </score-part>
+  </part-list>
+  <part id="P1">
+    <measure number="1">
+      <attributes><divisions>2</divisions><time><beats>4</beats><beat-type>4</beat-type></time>
+        <clef><sign>TAB</sign><line>5</line></clef>
+      </attributes>
+      <direction><direction-type><metronome><beat-unit>quarter</beat-unit><per-minute>120</per-minute></metronome></direction-type></direction>
+      <note><unpitched><display-step>C</display-step><display-octave>5</display-octave></unpitched><duration>2</duration><instrument id="P1-I38"/><voice>1</voice><type>quarter</type></note>
+      <note><unpitched><display-step>E</display-step><display-octave>5</display-octave></unpitched><duration>2</duration><instrument id="P9-MISSING"/><voice>1</voice><type>quarter</type></note>
+      <note><unpitched><display-step>C</display-step><display-octave>5</display-octave></unpitched><duration>2</duration><instrument id="P1-I38"/><voice>1</voice><type>quarter</type></note>
+      <note><rest/><duration>2</duration><voice>1</voice><type>quarter</type></note>
+    </measure>
+  </part>
+</score-partwise>"#;
+
+    /// A single-instrument part (tambourine) whose notes omit the
+    /// `<instrument>` reference — the MusicXML default-instrument convention.
+    /// One note is written as an empty `<unpitched/>` (middle-line placement).
+    pub(crate) const SOLE_INSTRUMENT: &str = r#"<?xml version="1.0"?>
+<score-partwise version="4.0">
+  <part-list>
+    <score-part id="P1">
+      <score-instrument id="P1-I54"><instrument-name>Tambourine</instrument-name></score-instrument>
+      <midi-instrument id="P1-I54"><midi-unpitched>55</midi-unpitched></midi-instrument>
+    </score-part>
+  </part-list>
+  <part id="P1">
+    <measure number="1">
+      <attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time>
+        <clef><sign>percussion</sign><line>2</line></clef>
+      </attributes>
+      <note><unpitched><display-step>D</display-step><display-octave>5</display-octave></unpitched><duration>1</duration><voice>1</voice><type>quarter</type></note>
+      <note><unpitched/><duration>1</duration><voice>1</voice><type>quarter</type></note>
+    </measure>
+  </part>
+</score-partwise>"#;
+
+    /// A crash cymbal whole note tied across the barline, then a fresh attack:
+    /// the chain must merge into one prolonged note, the fresh attack must not.
+    pub(crate) const TIED_CYMBAL: &str = r#"<?xml version="1.0"?>
+<score-partwise version="4.0">
+  <part-list>
+    <score-part id="P1">
+      <score-instrument id="P1-I49"><instrument-name>Crash Cymbal 1</instrument-name></score-instrument>
+      <midi-instrument id="P1-I49"><midi-unpitched>50</midi-unpitched></midi-instrument>
+    </score-part>
+  </part-list>
+  <part id="P1">
+    <measure number="1">
+      <attributes><divisions>2</divisions><time><beats>4</beats><beat-type>4</beat-type></time>
+        <clef><sign>percussion</sign><line>2</line></clef>
+      </attributes>
+      <direction><direction-type><metronome><beat-unit>quarter</beat-unit><per-minute>120</per-minute></metronome></direction-type></direction>
+      <note><unpitched><display-step>A</display-step><display-octave>5</display-octave></unpitched><duration>8</duration><tie type="start"/><instrument id="P1-I49"/><voice>1</voice><type>whole</type></note>
+    </measure>
+    <measure number="2">
+      <note><unpitched><display-step>A</display-step><display-octave>5</display-octave></unpitched><duration>8</duration><tie type="stop"/><instrument id="P1-I49"/><voice>1</voice><type>whole</type></note>
+    </measure>
+    <measure number="3">
+      <note><unpitched><display-step>A</display-step><display-octave>5</display-octave></unpitched><duration>8</duration><instrument id="P1-I49"/><voice>1</voice><type>whole</type></note>
+    </measure>
+  </part>
+</score-partwise>"#;
+
+    /// A *mixed* score — pitched notes plus a stray unpitched one — which is
+    /// admissible through today's validation gate: its unpitched note must
+    /// keep being skipped by the schedules, and its classification is unknown.
+    pub(crate) const MIXED: &str = r#"<?xml version="1.0"?>
+<score-partwise version="4.0">
+  <part-list>
+    <score-part id="P1">
+      <score-instrument id="P1-I38"/>
+      <midi-instrument id="P1-I38"><midi-unpitched>39</midi-unpitched></midi-instrument>
+    </score-part>
+  </part-list>
+  <part id="P1">
+    <measure number="1">
+      <attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes>
+      <direction><direction-type><metronome><beat-unit>quarter</beat-unit><per-minute>120</per-minute></metronome></direction-type></direction>
+      <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type></note>
+      <note><unpitched><display-step>C</display-step><display-octave>5</display-octave></unpitched><duration>1</duration><instrument id="P1-I38"/><voice>1</voice><type>quarter</type></note>
+      <note><pitch><step>E</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type></note>
+    </measure>
+  </part>
+</score-partwise>"#;
+}
 
 // --- Geometry constants --------------------------------------------------
 
@@ -190,6 +346,11 @@ struct Parser {
     key_fifths: i32,
     beats: u32,
     beat_type: u32,
+    // part-list instrument declarations (id → General MIDI number)
+    instruments: Vec<InstrumentDecl>,
+    /// `id` of the `<midi-instrument>` currently open, so its
+    /// `<midi-unpitched>` lands on the right declaration.
+    midi_instrument_id: Option<String>,
     // parts / measures
     current_part: u32,
     measure_index: u32,
@@ -206,8 +367,12 @@ struct Parser {
     // per-element builders
     note: Option<NoteEvent>,
     pitch: Option<Pitch>,
+    unpitched: Option<Unpitched>,
     clef_number: u32,
-    clef_sign: char,
+    /// `None` when the declared sign is one the parser does not act on
+    /// (`TAB`, `jianpu`, `none`, or garbage): the clef is then not recorded and
+    /// the staff keeps its default, rather than failing the parse.
+    clef_sign: Option<ClefSign>,
     clef_line: i32,
     tuplet_actual: u32,
     tuplet_normal: u32,
@@ -253,10 +418,13 @@ impl Parser {
             measure_clefs: Vec::new(),
             measures: Vec::new(),
             saw_alteration: false,
+            instruments: Vec::new(),
+            midi_instrument_id: None,
             note: None,
             pitch: None,
+            unpitched: None,
             clef_number: 1,
-            clef_sign: 'G',
+            clef_sign: Some(ClefSign::G),
             clef_line: 2,
             tuplet_actual: 0,
             tuplet_normal: 0,
@@ -311,6 +479,8 @@ impl Parser {
                     stem: None,
                     beams: Vec::new(),
                     lyric: None,
+                    unpitched: None,
+                    instrument_id: None,
                 });
             }
             b"chord" => {
@@ -359,9 +529,37 @@ impl Parser {
                     alter: 0,
                 });
             }
+            // A percussion note's written position. `display-step`/`display-octave`
+            // are optional: an empty `<unpitched/>` denotes the middle staff line
+            // (B4 in treble-equivalent numbering), per the MusicXML default.
+            b"unpitched" => {
+                self.unpitched = Some(Unpitched {
+                    display_step: 'B',
+                    display_octave: 4,
+                    gm_number: None,
+                });
+            }
+            // A note's `<instrument id>` reference (an empty element).
+            b"instrument" => {
+                if let Some(n) = self.note.as_mut() {
+                    n.instrument_id = attr(e, b"id");
+                }
+            }
+            b"score-instrument" => {
+                if let Some(id) = attr(e, b"id") {
+                    self.instruments.push(InstrumentDecl {
+                        id,
+                        name: None,
+                        gm_number: None,
+                    });
+                }
+            }
+            b"midi-instrument" => {
+                self.midi_instrument_id = attr(e, b"id");
+            }
             b"clef" => {
                 self.clef_number = attr(e, b"number").and_then(|s| s.parse().ok()).unwrap_or(1);
-                self.clef_sign = 'G';
+                self.clef_sign = Some(ClefSign::G);
                 self.clef_line = 2;
             }
             b"time-modification" => {
@@ -527,7 +725,17 @@ impl Parser {
                 }
             }
             b"sign" => {
-                self.clef_sign = text.chars().next().unwrap_or('G');
+                // The full token, not its first character: `percussion` is a
+                // multi-character sign. An unrecognised sign (TAB, jianpu,
+                // none, garbage) yields `None` — the clef is then simply not
+                // recorded, leaving the staff at its default.
+                self.clef_sign = match text {
+                    "G" => Some(ClefSign::G),
+                    "F" => Some(ClefSign::F),
+                    "C" => Some(ClefSign::C),
+                    "percussion" => Some(ClefSign::Percussion),
+                    _ => None,
+                };
             }
             b"line" => {
                 if let Ok(v) = text.parse() {
@@ -535,9 +743,12 @@ impl Parser {
                 }
             }
             b"clef" => {
+                let Some(sign) = self.clef_sign else {
+                    return;
+                };
                 let clef = Clef {
                     staff: self.clef_number,
-                    sign: self.clef_sign,
+                    sign,
                     line: self.clef_line,
                 };
                 // Record this measure's clef change (replace by staff).
@@ -577,6 +788,44 @@ impl Parser {
                     n.pitch = self.pitch.take();
                 }
             }
+            b"display-step" => {
+                if let (Some(u), Some(c)) = (self.unpitched.as_mut(), text.chars().next()) {
+                    u.display_step = c;
+                }
+            }
+            b"display-octave" => {
+                if let (Some(u), Ok(v)) = (self.unpitched.as_mut(), text.parse()) {
+                    u.display_octave = v;
+                }
+            }
+            b"unpitched" => {
+                if let Some(n) = self.note.as_mut() {
+                    n.unpitched = self.unpitched.take();
+                }
+            }
+            b"instrument-name" => {
+                if let (Some(decl), false) = (self.instruments.last_mut(), text.is_empty()) {
+                    decl.name = Some(text.to_string());
+                }
+            }
+            // MusicXML's `<midi-unpitched>` is **1-based** (1–128): conforming
+            // exporters write the General MIDI number plus one (MuseScore writes
+            // 39 for the GM-38 snare), so the stored number is the element value
+            // minus one. An out-of-range value is ignored rather than guessed.
+            b"midi-unpitched" => {
+                if let Ok(v) = text.parse::<u32>()
+                    && (1..=128).contains(&v)
+                {
+                    let id = self.midi_instrument_id.as_deref();
+                    if let Some(decl) = match id {
+                        Some(id) => self.instruments.iter_mut().find(|d| d.id == id),
+                        None => self.instruments.last_mut(),
+                    } {
+                        decl.gm_number = Some(v - 1);
+                    }
+                }
+            }
+            b"midi-instrument" => self.midi_instrument_id = None,
             b"duration" => {
                 if let Ok(v) = text.parse::<u32>() {
                     if self.in_backup {
@@ -734,14 +983,30 @@ impl Parser {
         let Some(mut n) = self.note.take() else {
             return;
         };
+        // An empty `<unpitched/>` element produces no End event, so its builder
+        // is still pending here: attach it with its default (middle-line)
+        // position.
+        if n.unpitched.is_none() {
+            n.unpitched = self.unpitched.take();
+        }
+        self.unpitched = None;
+        // A degenerate note carrying none of pitch/unpitched/rest is skipped —
+        // it has nothing any consumer could draw or sound — but its duration
+        // still advances the cursor so the surrounding notes keep their
+        // positions.
+        let degenerate = n.pitch.is_none() && n.unpitched.is_none() && !n.is_rest;
         if n.is_chord {
             n.position_divisions = self.last_onset;
-            self.notes.push(n);
+            if !degenerate {
+                self.notes.push(n);
+            }
         } else {
             n.position_divisions = self.cursor;
             self.last_onset = self.cursor;
             self.cursor = self.cursor.saturating_add(n.duration_divisions);
-            self.notes.push(n);
+            if !degenerate {
+                self.notes.push(n);
+            }
         }
     }
 
@@ -807,6 +1072,35 @@ impl Parser {
                 }
             }
         }
+        // Resolve each unpitched note's General MIDI number against the
+        // part-list instrument table — the ONE resolution site all four
+        // consumers share. A note with no `<instrument>` reference in a part
+        // declaring exactly one sounding instrument resolves to that
+        // instrument (the MusicXML default-instrument convention, routine in
+        // single-line percussion exports); anything else unresolvable stays
+        // `None`, never inferred from the written position.
+        let sole_gm = {
+            let mut gms = self.instruments.iter().filter_map(|d| d.gm_number);
+            match (gms.next(), gms.next()) {
+                (Some(gm), None) => Some(gm),
+                _ => None,
+            }
+        };
+        for measure in &mut self.measures {
+            for note in &mut measure.notes {
+                let Some(u) = note.unpitched.as_mut() else {
+                    continue;
+                };
+                u.gm_number = match note.instrument_id.as_deref() {
+                    Some(id) => self
+                        .instruments
+                        .iter()
+                        .find(|d| d.id == id)
+                        .and_then(|d| d.gm_number),
+                    None => sole_gm,
+                };
+            }
+        }
         let play_order = repeats::play_order(&self.measures);
         ScoreDocument {
             meta: ScoreMeta {
@@ -814,6 +1108,7 @@ impl Parser {
                 composer: self.composer,
             },
             staves: self.staves.unwrap_or(1).max(1),
+            instruments: self.instruments,
             attributes: Attributes {
                 divisions: self.divisions,
                 clefs: self.clefs,
@@ -999,8 +1294,8 @@ mod tests {
         let doc = parse_ok(GRAND);
         let treble = doc.attributes.clefs.iter().find(|c| c.staff == 1).unwrap();
         let bass = doc.attributes.clefs.iter().find(|c| c.staff == 2).unwrap();
-        assert_eq!((treble.sign, treble.line), ('G', 2));
-        assert_eq!((bass.sign, bass.line), ('F', 4));
+        assert_eq!((treble.sign, treble.line), (ClefSign::G, 2));
+        assert_eq!((bass.sign, bass.line), (ClefSign::F, 4));
     }
 
     #[test]
@@ -1026,16 +1321,16 @@ mod tests {
         let doc = parse_ok(xml);
         // Initial clef for staff 2 is treble.
         let init2 = doc.attributes.clefs.iter().find(|c| c.staff == 2).unwrap();
-        assert_eq!((init2.sign, init2.line), ('G', 2));
+        assert_eq!((init2.sign, init2.line), (ClefSign::G, 2));
         // Measure 1 declares both clefs; measure 2 changes staff 2 to bass.
         assert!(
             doc.measures[0]
                 .clefs
                 .iter()
-                .any(|c| c.staff == 2 && c.sign == 'G')
+                .any(|c| c.staff == 2 && c.sign == ClefSign::G)
         );
         let m2 = doc.measures[1].clefs.iter().find(|c| c.staff == 2).unwrap();
-        assert_eq!((m2.sign, m2.line), ('F', 4));
+        assert_eq!((m2.sign, m2.line), (ClefSign::F, 4));
         assert!(doc.measures[1].clefs.iter().all(|c| c.staff != 1));
     }
 
@@ -1457,6 +1752,8 @@ mod tests {
             stem: None,
             beams: Vec::new(),
             lyric: None,
+            unpitched: None,
+            instrument_id: None,
         };
         let run: Vec<NoteEvent> = (0..8).map(note).collect();
         // Eight 16th columns each get the full floor, not a compressed share.
@@ -1486,6 +1783,8 @@ mod tests {
             stem: None,
             beams: Vec::new(),
             lyric: None,
+            unpitched: None,
+            instrument_id: None,
         };
         let one = vec![note(0)];
         let two_same = vec![note(0), note(0)];
@@ -1516,6 +1815,8 @@ mod tests {
             stem: None,
             beams: Vec::new(),
             lyric: None,
+            unpitched: None,
+            instrument_id: None,
         }];
         assert!(min_width(&rest, 4) >= FLOOR);
     }
@@ -1529,6 +1830,7 @@ mod tests {
                 composer: None,
             },
             staves: 2,
+            instruments: Vec::new(),
             attributes: Attributes {
                 divisions: 4,
                 clefs: Vec::new(),
@@ -1601,5 +1903,132 @@ mod tests {
     fn empty_document_lays_out_to_no_systems() {
         let doc = doc_with_widths(&[]);
         assert!(layout_systems(&doc, 500.0).is_empty());
+    }
+
+    // --- Percussion notation (change: add-unpitched-notation) -------------
+
+    #[test]
+    fn percussion_fixture_parses_positions_and_resolves_gm_numbers() {
+        let doc = parse(crate::fixtures::ROCK_GROOVE.as_bytes()).unwrap();
+
+        // The part-list instrument table, with 1-based element values
+        // converted: 37 → GM 36 (kick), 39 → GM 38 (snare), 43 → GM 42 (hat).
+        let gm_of = |id: &str| {
+            doc.instruments
+                .iter()
+                .find(|d| d.id == id)
+                .and_then(|d| d.gm_number)
+        };
+        assert_eq!(gm_of("P1-I36"), Some(36));
+        assert_eq!(gm_of("P1-I38"), Some(38));
+        assert_eq!(gm_of("P1-I42"), Some(42));
+        let snare = doc.instruments.iter().find(|d| d.id == "P1-I38").unwrap();
+        assert_eq!(snare.name.as_deref(), Some("Snare Drum"));
+
+        // Every sounding note is unpitched, carries its written position, its
+        // voice, and the resolved GM number; none is exposed as a pitch.
+        let m1 = &doc.measures[0];
+        let hat = &m1.notes[0];
+        assert!(hat.pitch.is_none() && !hat.is_rest);
+        let u = hat.unpitched.as_ref().unwrap();
+        assert_eq!((u.display_step, u.display_octave), ('G', 5));
+        assert_eq!(u.gm_number, Some(42));
+        assert_eq!(hat.voice, 1);
+        // The chorded snare shares the hat's onset.
+        let snare_note = m1
+            .notes
+            .iter()
+            .find(|n| {
+                n.unpitched
+                    .as_ref()
+                    .is_some_and(|u| u.gm_number == Some(38))
+            })
+            .unwrap();
+        assert!(snare_note.is_chord);
+        // The kick is in voice 2, stems down.
+        let kick = m1
+            .notes
+            .iter()
+            .find(|n| {
+                n.unpitched
+                    .as_ref()
+                    .is_some_and(|u| u.gm_number == Some(36))
+            })
+            .unwrap();
+        assert_eq!(kick.voice, 2);
+        assert_eq!(kick.stem, Some(StemDir::Down));
+
+        // The percussion clef is reported as such.
+        assert_eq!(doc.attributes.clefs[0].sign, ClefSign::Percussion);
+    }
+
+    #[test]
+    fn unresolvable_instrument_id_is_left_unknown_and_unknown_clef_degrades() {
+        let doc = parse(crate::fixtures::DEGRADED.as_bytes()).unwrap();
+        let notes = &doc.measures[0].notes;
+        assert_eq!(notes[0].unpitched.as_ref().unwrap().gm_number, Some(38));
+        // The id absent from the part list resolves to unknown, never guessed
+        // from the written position.
+        assert_eq!(notes[1].unpitched.as_ref().unwrap().gm_number, None);
+        assert_eq!(notes[1].instrument_id.as_deref(), Some("P9-MISSING"));
+        // A `TAB` clef sign is not recognised: the staff keeps its default —
+        // no clef is recorded at all.
+        assert!(doc.attributes.clefs.is_empty());
+    }
+
+    #[test]
+    fn score_without_instrument_table_still_parses() {
+        // MINIMAL declares no <score-instrument>: the table is empty.
+        let doc = parse(MINIMAL.as_bytes()).unwrap();
+        assert!(doc.instruments.is_empty());
+    }
+
+    #[test]
+    fn sole_instrument_fallback_and_empty_unpitched_default() {
+        let doc = parse(crate::fixtures::SOLE_INSTRUMENT.as_bytes()).unwrap();
+        let notes = &doc.measures[0].notes;
+        // No <instrument> reference, one declared instrument: both notes
+        // resolve to the tambourine (element 55 → GM 54).
+        assert_eq!(notes[0].unpitched.as_ref().unwrap().gm_number, Some(54));
+        // The empty <unpitched/> is a valid note at the middle-line default.
+        let u = notes[1].unpitched.as_ref().unwrap();
+        assert_eq!((u.display_step, u.display_octave), ('B', 4));
+        assert_eq!(u.gm_number, Some(54));
+    }
+
+    #[test]
+    fn several_declared_instruments_leave_a_referenceless_note_unknown() {
+        // DEGRADED declares two instruments: a note with no <instrument>
+        // element cannot use the sole-instrument fallback.
+        let xml = crate::fixtures::DEGRADED.replace(r#"<instrument id="P1-I38"/>"#, "");
+        let doc = parse(xml.as_bytes()).unwrap();
+        let notes = &doc.measures[0].notes;
+        assert_eq!(notes[0].unpitched.as_ref().unwrap().gm_number, None);
+    }
+
+    #[test]
+    fn degenerate_note_is_skipped_but_advances_the_cursor() {
+        let xml = r#"<score-partwise><part-list><score-part id="P1"/></part-list>
+        <part id="P1"><measure number="1">
+          <attributes><divisions>1</divisions></attributes>
+          <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration></note>
+          <note><duration>1</duration></note>
+          <note><pitch><step>D</step><octave>4</octave></pitch><duration>1</duration></note>
+        </measure></part></score-partwise>"#;
+        let doc = parse(xml.as_bytes()).unwrap();
+        let notes = &doc.measures[0].notes;
+        // The degenerate middle note is dropped…
+        assert_eq!(notes.len(), 2);
+        // …but its duration still advanced the cursor: D4 sits at position 2.
+        assert_eq!(notes[1].position_divisions, 2);
+    }
+
+    #[test]
+    fn mixed_score_keeps_both_channels() {
+        let doc = parse(crate::fixtures::MIXED.as_bytes()).unwrap();
+        let notes = &doc.measures[0].notes;
+        assert!(notes[0].pitch.is_some() && notes[0].unpitched.is_none());
+        assert!(notes[1].pitch.is_none() && notes[1].unpitched.is_some());
+        assert_eq!(notes[1].unpitched.as_ref().unwrap().gm_number, Some(38));
     }
 }

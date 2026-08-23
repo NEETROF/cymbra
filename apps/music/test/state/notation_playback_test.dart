@@ -25,6 +25,7 @@ ScoreDocument _docWith({
   int beatType = 4,
   List<Direction> directions = const [],
 }) => ScoreDocument(
+  instruments: const [],
   playOrder: const [],
   meta: const ScoreMeta(title: 'T', composer: 'C'),
   staves: 1,
@@ -52,6 +53,7 @@ ScoreDocument _docWithMeasures(
   List<NotationMeasure> measures, {
   List<PlayedMeasure> playOrder = const [],
 }) => ScoreDocument(
+  instruments: const [],
   playOrder: playOrder,
   meta: const ScoreMeta(title: 'T', composer: 'C'),
   staves: 1,
@@ -268,6 +270,7 @@ void main() {
       'measures accumulate so the second measure starts after the first',
       () {
         final doc = ScoreDocument(
+          instruments: const [],
           playOrder: const [],
           meta: const ScoreMeta(title: 'T', composer: 'C'),
           staves: 1,
@@ -335,6 +338,7 @@ void main() {
         ],
       );
       final doc = ScoreDocument(
+        instruments: const [],
         playOrder: const [],
         meta: const ScoreMeta(title: 'T', composer: 'C'),
         staves: 1,
@@ -410,6 +414,7 @@ void main() {
 
       test('a tie across the barline merges', () {
         final doc = ScoreDocument(
+          instruments: const [],
           playOrder: const [],
           meta: const ScoreMeta(title: 'T', composer: 'C'),
           staves: 1,
@@ -854,6 +859,261 @@ void main() {
       // Played adjacency holds here: one merged attack spanning both slots.
       expect(d.notes, hasLength(1));
       expect(d.notes.single.durationMs, (wholeMs * 2).round());
+    });
+  });
+
+  group('percussion (add-unpitched-notation)', () {
+    // The Dart mirror of the crate's ROCK_GROOVE fixture (task 1.3): two
+    // measures at 120 bpm, divisions 2 — closed hi-hat (GM 42) eighths with
+    // snare (GM 38) chords on beats 2 and 4 in voice 1, kick (GM 36) on
+    // beats 1 and 3 in voice 2. The parity test below asserts the exact
+    // numbers the crate test `percussion_score_schedules_gm_numbers` asserts,
+    // so a drift between the two schedules fails a test on whichever side
+    // moved.
+    NoteEvent hat(int pos) => noteEvent(
+      positionDivisions: pos,
+      durationDivisions: 1,
+      noteType: 'eighth',
+      unpitched: const Unpitched(
+        displayStep: 'G',
+        displayOctave: 5,
+        gmNumber: 42,
+      ),
+      instrumentId: 'P1-I42',
+    );
+    NoteEvent snare(int pos) => noteEvent(
+      positionDivisions: pos,
+      durationDivisions: 1,
+      isChord: true,
+      noteType: 'eighth',
+      unpitched: const Unpitched(
+        displayStep: 'C',
+        displayOctave: 5,
+        gmNumber: 38,
+      ),
+      instrumentId: 'P1-I38',
+    );
+    NoteEvent kick(int pos) => noteEvent(
+      positionDivisions: pos,
+      voice: 2,
+      durationDivisions: 2,
+      noteType: 'quarter',
+      stem: StemDir.down,
+      unpitched: const Unpitched(
+        displayStep: 'F',
+        displayOctave: 4,
+        gmNumber: 36,
+      ),
+      instrumentId: 'P1-I36',
+    );
+
+    ScoreDocument grooveDoc() => ScoreDocument(
+      instruments: const [
+        InstrumentDecl(id: 'P1-I36', name: 'Bass Drum 1', gmNumber: 36),
+        InstrumentDecl(id: 'P1-I38', name: 'Snare Drum', gmNumber: 38),
+        InstrumentDecl(id: 'P1-I42', name: 'Closed Hi-hat', gmNumber: 42),
+      ],
+      playOrder: const [],
+      meta: const ScoreMeta(title: 'Groove', composer: null),
+      staves: 1,
+      attributes: const Attributes(
+        divisions: 2,
+        clefs: [Clef(staff: 1, sign: ClefSign.percussion, line: 2)],
+        keyFifths: 0,
+        time: TimeSignature(beats: 4, beatType: 4),
+      ),
+      measures: [
+        NotationMeasure(
+          repeats: noRepeats,
+          index: 0,
+          clefs: const [],
+          keyFifths: 0,
+          minWidth: 100,
+          directions: [
+            Direction(
+              staff: 1,
+              positionDivisions: 0,
+              kind: DirectionKind.metronome(
+                beatUnit: 'quarter',
+                perMinute: 120,
+              ),
+            ),
+          ],
+          notes: [
+            for (var i = 0; i < 8; i++) ...[
+              hat(i),
+              if (i == 2 || i == 6) snare(i),
+            ],
+            kick(0),
+            noteEvent(
+              positionDivisions: 2,
+              voice: 2,
+              durationDivisions: 2,
+              isRest: true,
+            ),
+            kick(4),
+            noteEvent(
+              positionDivisions: 6,
+              voice: 2,
+              durationDivisions: 2,
+              isRest: true,
+            ),
+          ],
+        ),
+        NotationMeasure(
+          repeats: noRepeats,
+          index: 1,
+          clefs: const [],
+          keyFifths: 0,
+          minWidth: 100,
+          directions: const [],
+          notes: [
+            kick(0),
+            noteEvent(
+              positionDivisions: 2,
+              voice: 2,
+              durationDivisions: 6,
+              isRest: true,
+              noteType: 'half',
+              dots: 1,
+            ),
+          ],
+        ),
+      ],
+    );
+
+    test('a percussion score schedules its General MIDI numbers (parity)', () {
+      final d = notationToTimedNotes(grooveDoc());
+      // Same expectations as the crate's percussion_score_schedules_gm_numbers.
+      final kicks = d.notes
+          .where((n) => n.pitch == 36)
+          .map((n) => n.startMs)
+          .toList();
+      expect(kicks, [0, 1000, 2000]);
+      final snares = d.notes
+          .where((n) => n.pitch == 38)
+          .map((n) => n.startMs)
+          .toList();
+      expect(snares, [500, 1500]);
+      final hats = d.notes
+          .where((n) => n.pitch == 42)
+          .map((n) => n.startMs)
+          .toList();
+      expect(hats, [0, 250, 500, 750, 1000, 1250, 1500, 1750]);
+      // The written position feeds the diatonic index like a pitch would.
+      expect(
+        d.notes.firstWhere((n) => n.pitch == 42).diatonic,
+        5 * 7 + 4, // G5
+      );
+      expect(d.notes.firstWhere((n) => n.pitch == 42).clefSign, 'percussion');
+    });
+
+    test('an unresolvable unpitched note is omitted, never fabricated', () {
+      final doc = _docWith(
+        divisions: 2,
+        notes: [
+          noteEvent(
+            positionDivisions: 0,
+            durationDivisions: 2,
+            unpitched: const Unpitched(
+              displayStep: 'C',
+              displayOctave: 5,
+              gmNumber: 38,
+            ),
+          ),
+          noteEvent(
+            positionDivisions: 2,
+            durationDivisions: 2,
+            unpitched: const Unpitched(
+              displayStep: 'E',
+              displayOctave: 5,
+              gmNumber: null,
+            ),
+          ),
+          noteEvent(
+            positionDivisions: 4,
+            durationDivisions: 2,
+            unpitched: const Unpitched(
+              displayStep: 'C',
+              displayOctave: 5,
+              gmNumber: 38,
+            ),
+          ),
+        ],
+      );
+      final d = notationToTimedNotes(doc);
+      // The middle note is dropped; its neighbour keeps its computed time.
+      expect(d.notes, hasLength(2));
+      expect(d.notes[1].startMs, greaterThan(d.notes[0].startMs));
+    });
+
+    test('a mixed score keeps today\'s behaviour: unpitched stays silent', () {
+      final doc = _docWith(
+        notes: [
+          noteEvent(
+            positionDivisions: 0,
+            pitch: const Pitch(step: 'C', octave: 4, alter: 0),
+          ),
+          noteEvent(
+            positionDivisions: 4,
+            unpitched: const Unpitched(
+              displayStep: 'C',
+              displayOctave: 5,
+              gmNumber: 38,
+            ),
+          ),
+          noteEvent(
+            positionDivisions: 8,
+            pitch: const Pitch(step: 'E', octave: 4, alter: 0),
+          ),
+        ],
+      );
+      final d = notationToTimedNotes(doc);
+      expect(d.notes.map((n) => n.pitch), [60, 64]);
+    });
+
+    test('tied unpitched chains merge into one prolonged note', () {
+      // A crash (GM 49) whole tied across the barline, then a fresh attack —
+      // mirrors the crate's tied_unpitched_chain_merges test: one 4000 ms
+      // attack, then a separate 2000 ms one.
+      const crash = Unpitched(displayStep: 'A', displayOctave: 5, gmNumber: 49);
+      final doc = _docWithMeasures([
+        _measure(0, [
+          noteEvent(
+            positionDivisions: 0,
+            durationDivisions: 16,
+            noteType: 'whole',
+            tieStart: true,
+            unpitched: crash,
+          ),
+        ]),
+        _measure(1, [
+          noteEvent(
+            positionDivisions: 0,
+            durationDivisions: 16,
+            noteType: 'whole',
+            tieStop: true,
+            unpitched: crash,
+          ),
+        ]),
+        _measure(2, [
+          noteEvent(
+            positionDivisions: 0,
+            durationDivisions: 16,
+            noteType: 'whole',
+            unpitched: crash,
+          ),
+        ]),
+      ]);
+      // divisions 4, default 90 bpm → whole (16 div) = 16 * 666.67 ms.
+      final d = notationToTimedNotes(doc);
+      expect(d.notes, hasLength(2));
+      const wholeMs = 16 * (60000.0 / 90) / 4;
+      expect(d.notes[0].startMs, 0);
+      expect(d.notes[0].durationMs, (wholeMs * 2).round());
+      expect(d.notes[1].startMs, (wholeMs * 2).round());
+      // The merged continuation is kept on the render-only channel.
+      expect(d.tieContinuations, hasLength(1));
     });
   });
 }

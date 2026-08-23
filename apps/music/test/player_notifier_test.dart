@@ -48,6 +48,7 @@ Future<void> _flush() => Future<void>.delayed(Duration.zero);
 ScoreDocument _untitled() {
   final titled = sampleFourMeasureDocument();
   return ScoreDocument(
+      instruments: const [],
     playOrder: const [],
     meta: const ScoreMeta(composer: 'Christian Petzold'),
     staves: titled.staves,
@@ -694,12 +695,13 @@ void main() {
         // score demands) while attacking E5 must open the gate — the tie is a
         // single attack, never a re-press.
         final doc = ScoreDocument(
+      instruments: const [],
           playOrder: const [],
           meta: const ScoreMeta(title: 'Tied', composer: 'T'),
           staves: 1,
           attributes: const Attributes(
             divisions: 4,
-            clefs: [Clef(staff: 1, sign: 'G', line: 2)],
+            clefs: [Clef(staff: 1, sign: ClefSign.g, line: 2)],
             keyFifths: 0,
             time: TimeSignature(beats: 4, beatType: 4),
           ),
@@ -1147,12 +1149,13 @@ void main() {
     // resolves well before songEndMs (which the rest inflates). endMs is the
     // note's resolution; songEndMs runs on to the end of the rest.
     ScoreDocument trailingRestDoc() => ScoreDocument(
+      instruments: const [],
       playOrder: const [],
       meta: const ScoreMeta(title: 'Trail', composer: 'T'),
       staves: 1,
       attributes: const Attributes(
         divisions: 4,
-        clefs: [Clef(staff: 1, sign: 'G', line: 2)],
+        clefs: [Clef(staff: 1, sign: ClefSign.g, line: 2)],
         keyFifths: 0,
         time: TimeSignature(beats: 4, beatType: 4),
       ),
@@ -1189,14 +1192,15 @@ void main() {
     // measure while the left hand (staff 2) stops in the 1st — so each hand
     // has a different last-note resolution.
     ScoreDocument grandStaffDoc() => ScoreDocument(
+      instruments: const [],
       playOrder: const [],
       meta: const ScoreMeta(title: 'Grand', composer: 'T'),
       staves: 2,
       attributes: const Attributes(
         divisions: 4,
         clefs: [
-          Clef(staff: 1, sign: 'G', line: 2),
-          Clef(staff: 2, sign: 'F', line: 4),
+          Clef(staff: 1, sign: ClefSign.g, line: 2),
+          Clef(staff: 2, sign: ClefSign.f, line: 4),
         ],
         keyFifths: 0,
         time: TimeSignature(beats: 4, beatType: 4),

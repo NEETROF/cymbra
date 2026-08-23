@@ -15,6 +15,7 @@
 import 'package:flutter/material.dart';
 
 import '../src/rust/api/musicxml.dart';
+import '../state/notation_playback.dart' show clefSignLetter;
 import '../state/player_data.dart' show Hand;
 import '../theme/cymbra_theme.dart';
 import 'notation_palette.dart';
@@ -318,8 +319,8 @@ class PartitionPainter extends CustomPainter {
   Clef _clefFor(Map<int, Clef> clefs, int staff) =>
       clefs[staff] ??
       (staff >= 2
-          ? const Clef(staff: 2, sign: 'F', line: 4)
-          : const Clef(staff: 1, sign: 'G', line: 2));
+          ? const Clef(staff: 2, sign: ClefSign.f, line: 4)
+          : const Clef(staff: 1, sign: ClefSign.g, line: 2));
 
   void _paintSystem(
     Canvas canvas,
@@ -696,10 +697,17 @@ class PartitionPainter extends CustomPainter {
     double size,
   ) {
     final baselineY = staffBottom - (clef.line - 1) * size;
-    Smufl.draw(canvas, Smufl.clef(clef.sign), x, baselineY, size, _ink);
+    Smufl.draw(
+      canvas,
+      Smufl.clef(clefSignLetter(clef.sign)),
+      x,
+      baselineY,
+      size,
+      _ink,
+    );
     _record(
       Rect.fromLTWH(x - 2, staffBottom - 4 * size - size, size * 3.2, size * 6),
-      SymbolDescriptor.clef(sign: clef.sign),
+      SymbolDescriptor.clef(sign: clefSignLetter(clef.sign)),
     );
   }
 
@@ -924,7 +932,7 @@ class PartitionPainter extends CustomPainter {
         SymbolDescriptor.note(
           pitch: _midiOf(pitch),
           diatonic: pitch.octave * 7 + (_stepOrder[pitch.step] ?? 0),
-          clefSign: clef.sign,
+          clefSign: clefSignLetter(clef.sign),
           staff: note.staff,
           noteType: note.noteType,
           dots: note.dots,
@@ -1141,8 +1149,8 @@ class PartitionPainter extends CustomPainter {
   /// `line` (G→G4, F→F3, C→C4); each staff line is two diatonic steps apart.
   int _clefBottomDiatonic(Clef clef) {
     final refOnLine = switch (clef.sign) {
-      'F' => 3 * 7 + 3, // F3
-      'C' => 4 * 7 + 0, // C4
+      ClefSign.f => 3 * 7 + 3, // F3
+      ClefSign.c => 4 * 7 + 0, // C4
       _ => 4 * 7 + 4, // G4
     };
     return refOnLine - (clef.line - 1) * 2;

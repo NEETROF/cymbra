@@ -52,14 +52,15 @@ ScoreDocument _threeFour() {
     notes: notes,
   );
   return ScoreDocument(
+      instruments: const [],
     playOrder: const [],
     meta: const ScoreMeta(title: 'Minuet', composer: 'Bach'),
     staves: 2,
     attributes: const Attributes(
       divisions: 4,
       clefs: [
-        Clef(staff: 1, sign: 'G', line: 2),
-        Clef(staff: 2, sign: 'F', line: 4),
+        Clef(staff: 1, sign: ClefSign.g, line: 2),
+        Clef(staff: 2, sign: ClefSign.f, line: 4),
       ],
       keyFifths: 1,
       time: TimeSignature(beats: 3, beatType: 4),

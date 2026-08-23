@@ -46,6 +46,45 @@ pub struct ScoreSummary {
     pub measure_count: u32,
     /// Count of pitched (non-rest) note events — the "playable notes" check.
     pub note_count: u32,
+    /// Which instrument family the score is written for, derived from the
+    /// notation alone (see [`instrument_of`]).
+    pub instrument: InstrumentKind,
+}
+
+/// Which instrument family a score is written for, derived from its notation
+/// alone — never from a filename, a part name, or any other external claim.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum InstrumentKind {
+    /// Every non-rest note is pitched.
+    Keyboard,
+    /// Every non-rest note is unpitched.
+    Percussion,
+    /// Mixed pitched and unpitched content, or no notes at all: the family
+    /// cannot be determined and is reported as such rather than defaulted.
+    Unknown,
+}
+
+/// Derives the score's instrument classification from the parsed (first) part:
+/// [`InstrumentKind::Percussion`] when every non-rest note is unpitched,
+/// [`InstrumentKind::Keyboard`] when every non-rest note is pitched, and
+/// [`InstrumentKind::Unknown`] for mixed content or a score with no notes.
+/// The product premise is that a score is one instrument — a file violating it
+/// is reported unknown, not forced into a family.
+pub fn instrument_of(doc: &ScoreDocument) -> InstrumentKind {
+    let mut pitched = false;
+    let mut unpitched = false;
+    for note in doc.measures.iter().flat_map(|m| &m.notes) {
+        if note.is_rest {
+            continue;
+        }
+        pitched |= note.pitch.is_some();
+        unpitched |= note.unpitched.is_some();
+    }
+    match (pitched, unpitched) {
+        (true, false) => InstrumentKind::Keyboard,
+        (false, true) => InstrumentKind::Percussion,
+        _ => InstrumentKind::Unknown,
+    }
 }
 
 /// Musical facets derived from a parsed score for catalog search filters
@@ -114,6 +153,7 @@ impl ScoreSummary {
             ),
             measure_count: doc.measures.len() as u32,
             note_count,
+            instrument: instrument_of(doc),
         }
     }
 }
@@ -416,6 +456,56 @@ mod tests {
         assert_eq!(s.lowest_midi, None);
         assert_eq!(s.highest_midi, None);
         assert_eq!(s.note_count, 0);
+    }
+
+    // --- Instrument classification (change: add-unpitched-notation) -------
+
+    #[test]
+    fn classification_covers_all_four_input_shapes() {
+        // Every non-rest note unpitched → percussion.
+        let drums = parse(crate::fixtures::ROCK_GROOVE.as_bytes()).unwrap();
+        assert_eq!(instrument_of(&drums), InstrumentKind::Percussion);
+        // Every non-rest note pitched → keyboard.
+        let piano = parse(SCORE.as_bytes()).unwrap();
+        assert_eq!(instrument_of(&piano), InstrumentKind::Keyboard);
+        // Mixed pitched and unpitched → unknown, never forced into a family.
+        let mixed = parse(crate::fixtures::MIXED.as_bytes()).unwrap();
+        assert_eq!(instrument_of(&mixed), InstrumentKind::Unknown);
+        // No notes at all → unknown.
+        let rests = r#"<score-partwise><part-list><score-part id="P1"/></part-list>
+        <part id="P1"><measure number="1">
+          <attributes><divisions>1</divisions></attributes>
+          <note><rest/><duration>4</duration></note>
+        </measure></part></score-partwise>"#;
+        let rests = parse(rests.as_bytes()).unwrap();
+        assert_eq!(instrument_of(&rests), InstrumentKind::Unknown);
+    }
+
+    #[test]
+    fn summary_carries_the_classification_and_keeps_the_old_facets() {
+        let drums = parse(crate::fixtures::ROCK_GROOVE.as_bytes()).unwrap();
+        let s = ScoreSummary::from_document(&drums);
+        assert_eq!(s.instrument, InstrumentKind::Percussion);
+        // `is_piano` keeps its staff-count meaning, and `note_count` still
+        // counts pitched notes only — the gate has not moved in this change.
+        assert!(!s.is_piano);
+        assert_eq!(s.note_count, 0);
+        let piano = parse(SCORE.as_bytes()).unwrap();
+        assert_eq!(
+            ScoreSummary::from_document(&piano).instrument,
+            InstrumentKind::Keyboard
+        );
+    }
+
+    #[test]
+    fn percussion_score_has_no_ambitus() {
+        // Written staff positions are placements, not pitches: the ambitus is
+        // left unknown rather than derived from them.
+        let drums = parse(crate::fixtures::ROCK_GROOVE.as_bytes()).unwrap();
+        let f = ScoreFacets::from_document(&drums);
+        assert_eq!(f.lowest_midi, None);
+        assert_eq!(f.highest_midi, None);
+        assert_eq!(f.note_count, 0);
     }
 
     #[test]

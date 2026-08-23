@@ -198,6 +198,7 @@ void main() {
             titleNorm: null,
             workKey: '::',
             isPiano: true,
+            instrument: InstrumentKind.keyboard,
             staves: 2,
             keyFifths: 0,
             timeSig: '4/4',

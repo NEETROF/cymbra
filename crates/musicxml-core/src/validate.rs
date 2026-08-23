@@ -203,6 +203,22 @@ mod tests {
         );
     }
 
+    /// The deliberate boundary of `add-unpitched-notation`: a percussion score
+    /// parses fully, but the admission gate still refuses it — opening the
+    /// gate belongs to `add-drums-access`, together with the access controls.
+    /// This test is the explicit tripwire a later change must consciously move.
+    #[test]
+    fn percussion_score_is_still_refused_by_the_gate() {
+        assert_eq!(
+            validate(crate::fixtures::ROCK_GROOVE.as_bytes()),
+            Err(RejectReason::NoNotes)
+        );
+        // …while the parser, called directly, yields the full document.
+        let doc = crate::parse(crate::fixtures::ROCK_GROOVE.as_bytes()).unwrap();
+        assert!(!doc.instruments.is_empty());
+        assert!(doc.measures[0].notes.iter().any(|n| n.unpitched.is_some()));
+    }
+
     #[test]
     fn summary_carries_derived_facets() {
         // The gate returns the shared summary — musical facets included.

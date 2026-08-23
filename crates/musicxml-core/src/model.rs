@@ -34,6 +34,13 @@ pub struct ScoreDocument {
     /// Number of staves in the (single) part — e.g. 2 for a piano grand staff.
     pub staves: u32,
     pub attributes: Attributes,
+    /// The part-list instrument table: one entry per declared
+    /// `<score-instrument>`, carrying the General MIDI percussion number its
+    /// `<midi-instrument>/<midi-unpitched>` denotes. The only authoritative
+    /// link between a written percussion note and the sound it denotes; empty
+    /// for a score declaring no instruments (the overwhelmingly common
+    /// keyboard case).
+    pub instruments: Vec<InstrumentDecl>,
     pub measures: Vec<NotationMeasure>,
     /// The **playback order**: the sequence of written-measure passes a
     /// performer would play, resolved from the repeat structure (repeat
@@ -79,8 +86,26 @@ pub struct Attributes {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Clef {
     pub staff: u32,
-    pub sign: char,
+    pub sign: ClefSign,
     pub line: i32,
+}
+
+/// A clef sign the renderers act on. MusicXML defines seven signs; `TAB`,
+/// `jianpu` and `none` are out of scope for a keyboard-and-drums product, and an
+/// unrecognised sign leaves the staff at its default clef rather than failing
+/// the parse — so this enum never needs a catch-all variant.
+///
+/// The single-letter variants serialize as `"G"`/`"F"`/`"C"`, exactly what the
+/// former `char` field produced, so the wasm consumer's JSON is unchanged;
+/// `Percussion` serializes as the MusicXML token `"percussion"`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum ClefSign {
+    G,
+    F,
+    C,
+    #[cfg_attr(feature = "serde", serde(rename = "percussion"))]
+    Percussion,
 }
 
 /// A time signature, e.g. 3/4 → `beats = 3`, `beat_type = 4`.
@@ -191,6 +216,46 @@ pub struct NoteEvent {
     pub stem: Option<StemDir>,
     pub beams: Vec<BeamState>,
     pub lyric: Option<Lyric>,
+    /// Written staff position of a percussion note (`<unpitched>`), with its
+    /// resolved General MIDI number. Held in a channel **distinct** from
+    /// [`Self::pitch`]: the written position is a staff placement, not a
+    /// sounding pitch, and exposing it as a `Pitch` would let a consumer
+    /// compute a meaningless frequency from it. A note is exactly one of
+    /// pitched, unpitched, or a rest.
+    pub unpitched: Option<Unpitched>,
+    /// The note's `<instrument id>` reference when present, kept so a consumer
+    /// can reach the part-list declaration (e.g. for the instrument's name).
+    pub instrument_id: Option<String>,
+}
+
+/// A percussion note's written staff position and resolved sound.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct Unpitched {
+    /// `display-step`: the written staff placement's diatonic step (A–G).
+    pub display_step: char,
+    /// `display-octave`: the written staff placement's octave.
+    pub display_octave: i32,
+    /// The General MIDI percussion number (0-based, 35–81 for the standard
+    /// kit) resolved from the part-list instrument table at parse time — the
+    /// element value **minus one**, since MusicXML's `<midi-unpitched>` is
+    /// 1-based. `None` when the note's instrument could not be resolved; a
+    /// consumer must omit such a note rather than fabricate a number.
+    pub gm_number: Option<u32>,
+}
+
+/// One `<score-instrument>` declaration from the part list.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct InstrumentDecl {
+    /// The declaration's `id`, referenced by a note's `<instrument id>`.
+    pub id: String,
+    /// `<instrument-name>` when declared (e.g. "Snare Drum").
+    pub name: Option<String>,
+    /// General MIDI percussion number (0-based) from `<midi-unpitched>`,
+    /// already converted from the element's 1-based value. `None` when the
+    /// declaration carries no `<midi-unpitched>`.
+    pub gm_number: Option<u32>,
 }
 
 /// A pitch: diatonic step, octave, and chromatic alteration (semitones).

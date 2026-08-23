@@ -66,6 +66,7 @@ class FakeNotationEngine implements NotationEngine {
             titleNorm: 'sample',
             workKey: 'a. composer::sample',
             isPiano: true,
+            instrument: InstrumentKind.keyboard,
             staves: 2,
             keyFifths: 0,
             timeSig: '4/4',
@@ -157,6 +158,8 @@ NoteEvent noteEvent({
   bool slurStart = false,
   bool slurStop = false,
   List<BeamState> beams = const [],
+  Unpitched? unpitched,
+  String? instrumentId,
 }) => NoteEvent(
   staff: staff,
   voice: voice,
@@ -177,17 +180,20 @@ NoteEvent noteEvent({
   stem: stem,
   beams: beams,
   lyric: lyric,
+  unpitched: unpitched,
+  instrumentId: instrumentId,
 );
 
 /// A treble document with a phrase slur over four notes and a tie between the
 /// last two (same pitch) — to eyeball tie/slur arcs.
 ScoreDocument sampleTieSlurDocument() => ScoreDocument(
+  instruments: const [],
   playOrder: const [],
   meta: const ScoreMeta(title: 'TieSlur', composer: 'Tester'),
   staves: 1,
   attributes: const Attributes(
     divisions: 4,
-    clefs: [Clef(staff: 1, sign: 'G', line: 2)],
+    clefs: [Clef(staff: 1, sign: ClefSign.g, line: 2)],
     keyFifths: 0,
     time: TimeSignature(beats: 4, beatType: 4),
   ),
@@ -260,12 +266,13 @@ ScoreDocument sampleBeamedDocument() {
     lyric: null,
   );
   return ScoreDocument(
+    instruments: const [],
     playOrder: const [],
     meta: const ScoreMeta(title: 'Beamed', composer: 'Tester'),
     staves: 1,
     attributes: const Attributes(
       divisions: 4,
-      clefs: [Clef(staff: 1, sign: 'G', line: 2)],
+      clefs: [Clef(staff: 1, sign: ClefSign.g, line: 2)],
       keyFifths: 0,
       time: TimeSignature(beats: 4, beatType: 4),
     ),
@@ -295,14 +302,15 @@ ScoreDocument sampleBeamedDocument() {
 /// plus two overlapping word directions at the same beat — to eyeball the clef
 /// change and the word de-overlap.
 ScoreDocument sampleClefChangeDocument() => ScoreDocument(
+  instruments: const [],
   playOrder: const [],
   meta: const ScoreMeta(title: 'ClefChange', composer: 'Tester'),
   staves: 2,
   attributes: const Attributes(
     divisions: 4,
     clefs: [
-      Clef(staff: 1, sign: 'G', line: 2),
-      Clef(staff: 2, sign: 'G', line: 2), // left hand starts in treble
+      Clef(staff: 1, sign: ClefSign.g, line: 2),
+      Clef(staff: 2, sign: ClefSign.g, line: 2), // left hand starts in treble
     ],
     keyFifths: 0,
     time: TimeSignature(beats: 4, beatType: 4),
@@ -334,7 +342,7 @@ ScoreDocument sampleClefChangeDocument() => ScoreDocument(
     NotationMeasure(
       repeats: noRepeats,
       index: 1,
-      clefs: const [Clef(staff: 2, sign: 'F', line: 4)], // → bass clef
+      clefs: const [Clef(staff: 2, sign: ClefSign.f, line: 4)], // → bass clef
       keyFifths: 0,
       minWidth: 140,
       directions: const [],
@@ -349,12 +357,13 @@ ScoreDocument sampleClefChangeDocument() => ScoreDocument(
 /// A treble document with [count] one-note 4/4 measures, so the fake layout
 /// (one system per measure) produces many systems — tall enough to scroll.
 ScoreDocument tallDocument(int count) => ScoreDocument(
+  instruments: const [],
   playOrder: const [],
   meta: const ScoreMeta(title: 'Tall', composer: 'Tester'),
   staves: 1,
   attributes: const Attributes(
     divisions: 4,
-    clefs: [Clef(staff: 1, sign: 'G', line: 2)],
+    clefs: [Clef(staff: 1, sign: ClefSign.g, line: 2)],
     keyFifths: 0,
     time: TimeSignature(beats: 4, beatType: 4),
   ),
@@ -382,14 +391,15 @@ ScoreDocument tallDocument(int count) => ScoreDocument(
 /// A small two-staff (grand-staff) document: one 4/4 measure with a treble note,
 /// a bass note, a `words` direction, and a `dynamics` direction.
 ScoreDocument sampleGrandStaffDocument() => ScoreDocument(
+  instruments: const [],
   playOrder: const [],
   meta: const ScoreMeta(title: 'Sample', composer: 'Tester'),
   staves: 2,
   attributes: const Attributes(
     divisions: 4,
     clefs: [
-      Clef(staff: 1, sign: 'G', line: 2),
-      Clef(staff: 2, sign: 'F', line: 4),
+      Clef(staff: 1, sign: ClefSign.g, line: 2),
+      Clef(staff: 2, sign: ClefSign.f, line: 4),
     ],
     keyFifths: 3, // 3 sharps → shows the key signature (armature)
     time: TimeSignature(beats: 4, beatType: 4),
@@ -443,12 +453,13 @@ ScoreDocument sampleGrandStaffDocument() => ScoreDocument(
 /// 12000]` and `songEndMs` is 16000. Each measure holds one whole note, so every
 /// measure has an onset the Wait-Mode gate and the scorer can see.
 ScoreDocument sampleFourMeasureDocument() => ScoreDocument(
+  instruments: const [],
   playOrder: const [],
   meta: const ScoreMeta(title: 'FourBars', composer: 'Tester'),
   staves: 1,
   attributes: const Attributes(
     divisions: 4,
-    clefs: [Clef(staff: 1, sign: 'G', line: 2)],
+    clefs: [Clef(staff: 1, sign: ClefSign.g, line: 2)],
     keyFifths: 0,
     time: TimeSignature(beats: 4, beatType: 4),
   ),
@@ -489,6 +500,7 @@ ScoreDocument sampleFourMeasureDocument() => ScoreDocument(
 /// playOrder [0, 0, 1]) — the smallest repeat-carrying piece: unrolled tables
 /// have three 4000ms slots, the written-linear (practice) ones two.
 ScoreDocument sampleRepeatDocument() => ScoreDocument(
+  instruments: const [],
   playOrder: const [
     PlayedMeasure(writtenIndex: 0, pass: 1),
     PlayedMeasure(writtenIndex: 0, pass: 2),
@@ -498,7 +510,7 @@ ScoreDocument sampleRepeatDocument() => ScoreDocument(
   staves: 1,
   attributes: const Attributes(
     divisions: 4,
-    clefs: [Clef(staff: 1, sign: 'G', line: 2)],
+    clefs: [Clef(staff: 1, sign: ClefSign.g, line: 2)],
     keyFifths: 0,
     time: TimeSignature(beats: 4, beatType: 4),
   ),
@@ -548,12 +560,13 @@ ScoreDocument sampleRepeatDocument() => ScoreDocument(
 /// the practice ribbon genuinely scrollable (four bars fit without scrolling,
 /// which hid the auto-scroll bug).
 ScoreDocument sampleManyMeasureDocument({int bars = 24}) => ScoreDocument(
+  instruments: const [],
   playOrder: const [],
   meta: const ScoreMeta(title: 'ManyBars', composer: 'Tester'),
   staves: 1,
   attributes: const Attributes(
     divisions: 4,
-    clefs: [Clef(staff: 1, sign: 'G', line: 2)],
+    clefs: [Clef(staff: 1, sign: ClefSign.g, line: 2)],
     keyFifths: 0,
     time: TimeSignature(beats: 4, beatType: 4),
   ),
