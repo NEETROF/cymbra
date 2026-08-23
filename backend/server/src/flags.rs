@@ -483,6 +483,30 @@ impl cymbra_feature_flags::PlanContextSource for PlanContext {
     }
 }
 
+/// The plans → flags campaign-existence bridge (change:
+/// add-flag-campaign-integrity), beside [`PlanContext`] — same seam, same
+/// direction, opposite error posture: unlike `plan_context`, this one
+/// PROPAGATES errors, because swallowing one would tell the operator a
+/// campaign does not exist when the truth is that nobody could ask.
+pub struct CampaignExistence {
+    campaigns: Arc<dyn cymbra_plans::CampaignRepo>,
+}
+
+impl CampaignExistence {
+    pub fn new(campaigns: Arc<dyn cymbra_plans::CampaignRepo>) -> Self {
+        Self { campaigns }
+    }
+}
+
+#[async_trait]
+impl cymbra_feature_flags::CampaignDirectory for CampaignExistence {
+    async fn campaign_exists(&self, key: &str) -> Result<bool> {
+        // `get_by_key` does not filter on `closed_at`: existence includes
+        // closed campaigns, which is exactly the contract.
+        Ok(self.campaigns.get_by_key(key).await?.is_some())
+    }
+}
+
 /// The plans → music bridge for withdrawal on lapse (design D13): rotating the
 /// user's offline cache secret makes every cached catalog score unreadable.
 pub struct OfflineSecretRotator {

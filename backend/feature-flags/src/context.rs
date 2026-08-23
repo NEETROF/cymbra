@@ -85,6 +85,24 @@ impl PlanContextSource for NoPlanContext {
     }
 }
 
+/// Whether a beta campaign with a given key exists (change:
+/// add-flag-campaign-integrity) — the write-boundary check behind a
+/// `beta:<key>` rollout scope. Existence only: closed campaigns count (closing
+/// one is the documented withdrawal mechanism), and any campaign kind counts,
+/// trials included. Declared here and implemented by the composition root over
+/// plans, so this crate acquires no dependency on `cymbra-plans` — the same
+/// seam as [`PlanContextSource`], but in the opposite error posture: this one
+/// is **fallible on purpose**, because "names no campaign" and "cannot verify"
+/// must stay distinguishable all the way to the console.
+#[cfg_attr(any(test, feature = "mock"), mockall::automock)]
+#[async_trait::async_trait]
+pub trait CampaignDirectory: Send + Sync {
+    /// `Ok(true)`: a campaign with `key` exists, open or closed. `Ok(false)`:
+    /// none does. `Err`: existence could not be determined — never defaulted,
+    /// so a directory outage is never presented as a missing campaign.
+    async fn campaign_exists(&self, key: &str) -> cymbra_platform::error::Result<bool>;
+}
+
 /// The caller context an evaluation resolves against.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct EvalContext {

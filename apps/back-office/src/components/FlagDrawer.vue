@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
+import { match } from "ts-pattern";
 import type { AuditRow, FlagRow } from "@/stores/flags";
 import { usePlansStore } from "@/stores/plans";
 import { flagDescription } from "@/i18n/flag-descriptions";
@@ -30,13 +31,43 @@ const { t, locale } = useI18n();
 // opens, so a campaign closed in the plans console disappears from the selector.
 const plans = usePlansStore();
 const betaOptions = computed(() => plans.openCampaigns.map((c) => ({ value: `beta:${c.key}`, name: c.name })));
-// A stored scope no longer offered (e.g. a closed campaign) stays selectable so the
-// select never silently rewrites it.
-const staleScope = computed(() => {
+// A stored scope no longer offered stays selectable so the select never silently
+// rewrites it — but the reasons read differently (change: add-flag-campaign-integrity):
+// a CLOSED campaign still legitimately gates and is merely suffixed, while a beta
+// scope naming NO campaign at all is a defect and says so. The store load carries
+// the closed campaigns too, so the two can be told apart; until it has loaded, the
+// scope shows as-is — it is never claimed missing when nobody could check.
+type StaleScope =
+  | { readonly kind: "plain"; readonly scope: string }
+  | { readonly kind: "closed"; readonly scope: string; readonly name: string }
+  | { readonly kind: "dangling"; readonly scope: string };
+const staleScope = computed<StaleScope | null>(() => {
   const cur = props.row?.rolloutScope ?? "";
   const known = ["", "global", "staff_only", "premium_only", ...betaOptions.value.map((o) => o.value)];
-  return known.includes(cur) ? null : cur;
+  if (known.includes(cur)) return null;
+  if (!cur.startsWith("beta:") || plans.campaigns.status !== "success") return { kind: "plain", scope: cur };
+  const campaign = plans.campaigns.data.find((c) => `beta:${c.key}` === cur);
+  // Found here but not offered means closed (the open ones are already `known`).
+  return campaign ? { kind: "closed", scope: cur, name: campaign.name } : { kind: "dangling", scope: cur };
 });
+// Template-safe fold: the option's label, and whether to show the defect hint.
+const staleVm = computed(() =>
+  staleScope.value === null
+    ? null
+    : match(staleScope.value)
+        .with({ kind: "plain" }, ({ scope }) => ({ scope, label: scope, dangling: false }))
+        .with({ kind: "closed" }, ({ scope, name }) => ({
+          scope,
+          label: t("flags.betaClosed", { name }),
+          dangling: false,
+        }))
+        .with({ kind: "dangling" }, ({ scope }) => ({
+          scope,
+          label: t("flags.betaDangling", { scope }),
+          dangling: true,
+        }))
+        .exhaustive(),
+);
 
 const boolVal = ref(false);
 const scalarVal = ref("");
@@ -234,8 +265,11 @@ const desc = computed(() => (props.row ? flagDescription(props.row.key, props.ro
           <option v-for="o in betaOptions" :key="o.value" :value="o.value">
             {{ t("flags.beta", { name: o.name }) }}
           </option>
-          <option v-if="staleScope" :value="staleScope">{{ staleScope }}</option>
+          <option v-if="staleVm" :value="staleVm.scope" :class="{ dangling: staleVm.dangling }">
+            {{ staleVm.label }}
+          </option>
         </select>
+        <p v-if="staleVm?.dangling" class="scope-warn" role="alert">{{ t("flags.scopeDanglingHint") }}</p>
       </section>
 
       <div class="actions">
@@ -403,6 +437,15 @@ header {
 .error {
   color: var(--danger, #e55);
   font-size: 0.85rem;
+  margin: 0;
+}
+/* A dangling stored scope is a defect — the option and its hint say so. */
+option.dangling {
+  color: var(--amber);
+}
+.scope-warn {
+  color: var(--amber);
+  font-size: 0.78rem;
   margin: 0;
 }
 </style>

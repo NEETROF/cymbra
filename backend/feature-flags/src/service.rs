@@ -8,7 +8,7 @@
 //! fail-safe: no store / a failed refresh / an outage all resolve to the code
 //! defaults, and kill-switches stay in their safe (disabled) state.
 
-use crate::context::{EvalContext, RolloutScope};
+use crate::context::{CampaignDirectory, EvalContext, RolloutScope};
 use crate::invalidation::InvalidationBus;
 use crate::registry::{KeyDef, Registry};
 use crate::resolver::AdminScopeResolver;
@@ -18,7 +18,7 @@ use cymbra_platform::error::{AppError, Result};
 use std::collections::HashMap;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, OnceLock, RwLock};
 use std::time::{Duration, Instant};
 
 /// The L1 snapshot: the whole override set, keyed by `(app, key)`.
@@ -106,6 +106,11 @@ pub struct FlagService {
     store: Option<Arc<dyn FlagStore>>,
     bus: Arc<dyn InvalidationBus>,
     resolver: Arc<dyn AdminScopeResolver>,
+    /// Campaign-existence port (change: add-flag-campaign-integrity), wired
+    /// once by the composition root — after construction, because the plans
+    /// store connects later than this service is built. Unwired, every write
+    /// that would set or change a `beta:` scope refuses (fail-closed).
+    campaigns: OnceLock<Arc<dyn CampaignDirectory>>,
     snapshot: RwLock<Arc<Snapshot>>,
     ttl: Duration,
 }
@@ -122,9 +127,23 @@ impl FlagService {
             store,
             bus,
             resolver,
+            campaigns: OnceLock::new(),
             snapshot: RwLock::new(Arc::new(Snapshot::default())),
             ttl: DEFAULT_TTL,
         }
+    }
+
+    /// Wire the campaign-existence port (composition root, once; later calls
+    /// are ignored). See the field's note for why this is post-construction.
+    pub fn set_campaign_directory(&self, dir: Arc<dyn CampaignDirectory>) {
+        let _ = self.campaigns.set(dir);
+    }
+
+    /// Whether the campaign-existence port is wired — the composition root
+    /// asserts this at startup when plans are deployed, so a forgotten wiring
+    /// fails loudly there instead of refusing every beta-scoped write.
+    pub fn has_campaign_directory(&self) -> bool {
+        self.campaigns.get().is_some()
     }
 
     /// Override the L1 TTL backstop (mainly for tests / tuning).
@@ -417,6 +436,32 @@ impl FlagService {
         let rollout = rollout
             .or_else(|| prev.as_ref().map(|p| p.rollout.clone()))
             .unwrap_or_else(|| def.rollout.clone());
+        // A `beta:` scope about to be SET or CHANGED must name an existing
+        // campaign (change: add-flag-campaign-integrity) — checked here on the
+        // effective rollout, not in an adapter, so every write path is guarded.
+        // Only that write: a value-only save re-submits the stored scope (the
+        // console does on every save) and must stay writable mid-incident, so
+        // an unchanged scope skips the lookup entirely. Existence includes
+        // closed campaigns — closing one is how a feature is withdrawn, and it
+        // must not make its flag unwritable.
+        let scope_changes = prev.as_ref().is_none_or(|p| p.rollout != rollout);
+        if scope_changes && let RolloutScope::Beta(campaign) = &rollout {
+            match self.campaigns.get() {
+                None => return Err(Self::unverifiable(campaign)),
+                Some(dir) => match dir.campaign_exists(campaign).await {
+                    Ok(true) => {}
+                    Ok(false) => {
+                        return Err(AppError::FailedPrecondition(format!(
+                            "unknown_campaign: rollout scope `beta:{campaign}` names no campaign"
+                        )));
+                    }
+                    Err(e) => {
+                        tracing::warn!(error = %e, campaign, "campaign existence lookup failed; refusing the scope write");
+                        return Err(Self::unverifiable(campaign));
+                    }
+                },
+            }
+        }
         let old_display = prev.as_ref().map(|p| p.value.display());
 
         store
@@ -443,6 +488,16 @@ impl FlagService {
             updated_by: Some(actor.user_id.clone()),
             updated_at: Some(chrono::Utc::now().to_rfc3339()),
         })
+    }
+
+    /// The fail-closed refusal when campaign existence cannot be determined
+    /// (directory down, or the port unwired): `Aborted` — retryable — with a
+    /// message DISTINCT from `unknown_campaign`, so the console can say "retry
+    /// later" instead of the destructive "fix the scope".
+    fn unverifiable(campaign: &str) -> AppError {
+        AppError::Aborted(format!(
+            "campaign_unverifiable: cannot verify rollout scope `beta:{campaign}` right now; retry later"
+        ))
     }
 
     /// Clear a key's override, reverting it to the code default (audited).
@@ -556,6 +611,7 @@ fn version_of(entries: &[EffectiveEntry]) -> String {
 mod tests {
     use super::*;
     use crate::context::APP_ALL;
+    use crate::context::MockCampaignDirectory;
     use crate::invalidation::{NoopBus, RecordingBus};
     use crate::registry::{self, APP_MUSIC};
     use crate::resolver::MockAdminScopeResolver;
@@ -1182,5 +1238,252 @@ mod tests {
         // app filter to `all` yields only shared keys
         let shared = svc.definitions(APP_MUSIC, Some(APP_ALL));
         assert!(shared.iter().all(|k| k.def.app == APP_ALL));
+    }
+
+    // --- campaign integrity at the write boundary (add-flag-campaign-integrity)
+
+    /// A directory whose every lookup answers `answer` (`Err(...)` = outage).
+    fn directory(answer: std::result::Result<bool, ()>) -> Arc<MockCampaignDirectory> {
+        let mut d = MockCampaignDirectory::new();
+        d.expect_campaign_exists().returning(move |_| {
+            answer.map_err(|_| AppError::Internal(anyhow::anyhow!("plans store unreachable")))
+        });
+        Arc::new(d)
+    }
+
+    /// A directory that must never be consulted.
+    fn untouched_directory() -> Arc<MockCampaignDirectory> {
+        let mut d = MockCampaignDirectory::new();
+        d.expect_campaign_exists().times(0);
+        Arc::new(d)
+    }
+
+    fn beta(key: &str) -> Option<RolloutScope> {
+        Some(RolloutScope::Beta(key.into()))
+    }
+
+    /// A store that must not receive any upsert (a refused write stores nothing).
+    fn read_only_service(overrides: Vec<StoredOverride>) -> FlagService {
+        let mut store = MockFlagStore::new();
+        store
+            .expect_load_all()
+            .returning(move || Ok(overrides.clone()));
+        store.expect_upsert().times(0);
+        FlagService::new(
+            Registry::default(),
+            Some(Arc::new(store)),
+            Arc::new(NoopBus),
+            resolver(false),
+        )
+    }
+
+    #[tokio::test]
+    async fn beta_scope_naming_an_existing_campaign_is_accepted() {
+        // Existence is the whole check — the directory answers true for open
+        // AND closed campaigns alike (closing one is withdrawal, not
+        // invalidation), so this test covers 4.1 and 4.2 at the service level.
+        let svc = writable_service(Arc::new(RecordingBus::default()), resolver(false), |w| {
+            w.rollout == RolloutScope::Beta("midi-drums".into())
+        });
+        svc.set_campaign_directory(directory(Ok(true)));
+        svc.set_value(
+            &actor(APP_MUSIC, true),
+            APP_MUSIC,
+            registry::DRUMS_ENABLED,
+            FlagValue::Bool(true),
+            beta("midi-drums"),
+            false,
+        )
+        .await
+        .unwrap();
+    }
+
+    #[tokio::test]
+    async fn beta_scope_naming_no_campaign_is_refused_and_stores_nothing() {
+        let svc = read_only_service(vec![]);
+        svc.set_campaign_directory(directory(Ok(false)));
+        let err = svc
+            .set_value(
+                &actor(APP_MUSIC, true),
+                APP_MUSIC,
+                registry::DRUMS_ENABLED,
+                FlagValue::Bool(true),
+                beta("mdii-drums"), // a typo — the defect this change exists for
+                false,
+            )
+            .await
+            .unwrap_err();
+        // Typed, and distinguishable from a malformed scope (InvalidArgument).
+        assert!(
+            matches!(&err, AppError::FailedPrecondition(m) if m.starts_with("unknown_campaign")),
+            "got {err:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn unavailable_directory_fails_closed_with_a_distinct_error() {
+        // A plans outage must refuse the scope write — and say "cannot
+        // verify", never "does not exist": inviting the operator to "fix" a
+        // scope nobody could check is the destructive path.
+        let svc = read_only_service(vec![]);
+        svc.set_campaign_directory(directory(Err(())));
+        let err = svc
+            .set_value(
+                &actor(APP_MUSIC, true),
+                APP_MUSIC,
+                registry::DRUMS_ENABLED,
+                FlagValue::Bool(true),
+                beta("midi-drums"),
+                false,
+            )
+            .await
+            .unwrap_err();
+        assert!(
+            matches!(&err, AppError::Aborted(m) if m.starts_with("campaign_unverifiable")),
+            "got {err:?}"
+        );
+
+        // The unwired port refuses the same way (fail-closed, not fail-open).
+        let svc = read_only_service(vec![]);
+        let err = svc
+            .set_value(
+                &actor(APP_MUSIC, true),
+                APP_MUSIC,
+                registry::DRUMS_ENABLED,
+                FlagValue::Bool(true),
+                beta("midi-drums"),
+                false,
+            )
+            .await
+            .unwrap_err();
+        assert!(
+            matches!(&err, AppError::Aborted(m) if m.starts_with("campaign_unverifiable")),
+            "got {err:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn non_beta_scopes_never_consult_the_directory() {
+        for scope in [
+            RolloutScope::Global,
+            RolloutScope::StaffOnly,
+            RolloutScope::PremiumOnly,
+        ] {
+            let svc =
+                writable_service(Arc::new(RecordingBus::default()), resolver(false), |_| true);
+            svc.set_campaign_directory(untouched_directory());
+            svc.set_value(
+                &actor(APP_MUSIC, true),
+                APP_MUSIC,
+                registry::DRUMS_ENABLED,
+                FlagValue::Bool(true),
+                Some(scope),
+                false,
+            )
+            .await
+            .unwrap();
+        }
+    }
+
+    #[tokio::test]
+    async fn stored_dangling_scope_still_evaluates_exactly_as_before() {
+        // The change is write-only: an already-stored scope naming no campaign
+        // keeps matching staff only, exactly as today.
+        let svc = service_with(vec![ov(
+            APP_MUSIC,
+            registry::DRUMS_ENABLED,
+            FlagValue::Bool(true),
+            RolloutScope::Beta("ghost".into()),
+        )])
+        .await;
+        assert!(svc.bool(registry::DRUMS_ENABLED, false, &staff_ctx(APP_MUSIC)));
+        assert!(!svc.bool(registry::DRUMS_ENABLED, false, &user_ctx(APP_MUSIC)));
+    }
+
+    #[tokio::test]
+    async fn scope_preserving_write_skips_the_lookup_even_when_it_dangles() {
+        // The console re-submits the stored scope on EVERY save; with the
+        // request carrying no scope, the effective one resolves to the stored
+        // beta scope, is unchanged, and the lookup is skipped — so a
+        // beta-gated flag stays disablable with the directory down AND with a
+        // dangling stored scope.
+        let stored = ov(
+            APP_MUSIC,
+            registry::DRUMS_ENABLED,
+            FlagValue::Bool(true),
+            RolloutScope::Beta("ghost".into()),
+        );
+        let mut store = MockFlagStore::new();
+        let loaded = vec![stored];
+        store
+            .expect_load_all()
+            .returning(move || Ok(loaded.clone()));
+        store
+            .expect_upsert()
+            .withf(|w| {
+                w.value == FlagValue::Bool(false) && w.rollout == RolloutScope::Beta("ghost".into())
+            })
+            .returning(|_| Ok(()));
+        let svc = FlagService::new(
+            Registry::default(),
+            Some(Arc::new(store)),
+            Arc::new(NoopBus),
+            resolver(false),
+        );
+        svc.refresh().await.unwrap();
+        svc.set_campaign_directory(directory(Err(()))); // directory down
+        svc.set_value(
+            &actor(APP_MUSIC, true),
+            APP_MUSIC,
+            registry::DRUMS_ENABLED,
+            FlagValue::Bool(false),
+            None,
+            false,
+        )
+        .await
+        .unwrap();
+    }
+
+    #[tokio::test]
+    async fn beta_scoped_registry_default_is_checked_on_first_write() {
+        // A first write carrying no scope resolves the effective one from the
+        // registry default; a beta-scoped default must name a real campaign —
+        // a check in the gRPC adapter would never see this scope.
+        let def = KeyDef {
+            key: "test.beta_default",
+            app: APP_MUSIC,
+            value_type: ValueType::Bool,
+            default: FlagValue::Bool(false),
+            rollout: RolloutScope::Beta("ghost".into()),
+            sensitive: false,
+            doc: "test-only",
+        };
+        let mut defs = crate::registry::builtin();
+        defs.push(def);
+        let mut store = MockFlagStore::new();
+        store.expect_load_all().returning(|| Ok(vec![]));
+        store.expect_upsert().times(0);
+        let svc = FlagService::new(
+            Registry::new(defs),
+            Some(Arc::new(store)),
+            Arc::new(NoopBus),
+            resolver(false),
+        );
+        svc.set_campaign_directory(directory(Ok(false)));
+        let err = svc
+            .set_value(
+                &actor(APP_MUSIC, true),
+                APP_MUSIC,
+                "test.beta_default",
+                FlagValue::Bool(true),
+                None,
+                false,
+            )
+            .await
+            .unwrap_err();
+        assert!(
+            matches!(&err, AppError::FailedPrecondition(m) if m.starts_with("unknown_campaign")),
+            "got {err:?}"
+        );
     }
 }

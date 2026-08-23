@@ -24,8 +24,8 @@ pub use web_account::{WebAccountState, web_account_router};
 pub mod billing;
 pub mod flags;
 pub use flags::{
-    FlagCatalogLimitsConfig, FlagDailyAccessConfig, FlagLibraryQuota, FlagPaywallConfig,
-    FlagPlanConfig, FlagScorePreviewConfig, FlagScoreQuotas, FlagStreakConfig,
+    CampaignExistence, FlagCatalogLimitsConfig, FlagDailyAccessConfig, FlagLibraryQuota,
+    FlagPaywallConfig, FlagPlanConfig, FlagScorePreviewConfig, FlagScoreQuotas, FlagStreakConfig,
     OfflineSecretRotator, PlanContext, UserPortHandles, build_flag_service, spawn_flag_refreshers,
 };
 

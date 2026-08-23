@@ -240,6 +240,11 @@
     "noAudit": "Aucun changement pour l’instant.",
     "premiumOnly": "Premium uniquement",
     "beta": "bêta : {name}",
+    "betaClosed": "bêta : {name} (fermée)",
+    "betaDangling": "{scope} — ne nomme aucune campagne existante",
+    "scopeDanglingHint": "Cette portée ne nomme aucune campagne existante : le flag n’atteint que le staff. Choisissez une campagne ouverte ou une autre portée.",
+    "scopeNoCampaign": "La portée bêta choisie ne nomme aucune campagne existante — corrigez la portée, puis réenregistrez.",
+    "scopeUnverifiable": "L’annuaire des campagnes est injoignable : la portée n’a pas pu être vérifiée. Rien n’a été enregistré — réessayez plus tard.",
     "planTag": "plan",
     "betaTag": "bêta",
     "staffTag": "staff"

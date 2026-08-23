@@ -175,6 +175,13 @@ async fn main() -> anyhow::Result<()> {
         Some(url) => {
             let plans_pool = cymbra_plans::pg::connect(url, 5).await?;
             cymbra_plans::MIGRATOR.run(&plans_pool).await?;
+            // With plans deployed, the flag service can verify that a `beta:`
+            // rollout scope names a real campaign (change:
+            // add-flag-campaign-integrity). Wired here — the plans pool does
+            // not exist when the flag service is built.
+            flag_service.set_campaign_directory(Arc::new(cymbra_server::CampaignExistence::new(
+                Arc::new(cymbra_plans::pg::PgCampaignRepo::new(plans_pool.clone())),
+            )));
             let rotator: Option<Arc<dyn cymbra_plans::CacheSecretRotator>> =
                 match cfg.music_database_url.as_deref() {
                     Some(music_url) => {
@@ -213,6 +220,15 @@ async fn main() -> anyhow::Result<()> {
     let plan_source: Option<Arc<dyn cymbra_plans::PlanSource>> = plan_service
         .clone()
         .map(|p| p as Arc<dyn cymbra_plans::PlanSource>);
+    // Composition-root assertion (change: add-flag-campaign-integrity): with
+    // plans deployed, an unwired campaign directory would refuse every
+    // beta-scoped flag write — fail loudly here instead.
+    if plan_service.is_some() {
+        anyhow::ensure!(
+            flag_service.has_campaign_directory(),
+            "campaign directory not wired into the flag service"
+        );
+    }
 
     let flag_grpc = match &plan_source {
         Some(p) => cymbra_feature_flags::grpc::FlagGrpc::new(flag_service.clone())

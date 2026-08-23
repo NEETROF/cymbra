@@ -1,11 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createPinia, setActivePinia } from "pinia";
 import { flushPromises, mount } from "@vue/test-utils";
+import { Code, ConnectError } from "@connectrpc/connect";
 import { setClientsForTest } from "@/lib/api";
 import { i18n } from "@/i18n";
 import { buildValueKind, readBool, readValue, useFlagsStore } from "@/stores/flags";
 import FlagsView from "@/views/FlagsView.vue";
-import { makeFakeClients } from "./fakes";
+import { makeFakeClients, type FakeState } from "./fakes";
 
 // FlagValue wire-shape helpers (Connect-ES oneof: { case, value }).
 const boolVal = (v: boolean) => ({ kind: { case: "boolValue", value: v } });
@@ -40,6 +41,22 @@ const DEFS = [
     effectiveValue: intVal(16),
     sensitive: true,
   }),
+];
+
+// The write refusals of change add-flag-campaign-integrity, exactly as the backend
+// sends them: gRPC code + a stable message prefix.
+const unknownCampaignErr = () =>
+  new ConnectError("unknown_campaign: rollout scope `beta:ghost` names no campaign", Code.FailedPrecondition);
+const unverifiableErr = () =>
+  new ConnectError(
+    "campaign_unverifiable: cannot verify rollout scope `beta:ghost` right now; retry later",
+    Code.Aborted,
+  );
+
+// Campaigns as `ListCampaigns` returns them (closed ones included).
+const CAMPAIGNS = [
+  { id: "c1", key: "midi-drums", name: "MIDI drums", kind: "feature", closedAt: "2026-08-01T00:00:00Z" },
+  { id: "c2", key: "spring-beta", name: "Spring beta", kind: "feature" },
 ];
 
 describe("flags value helpers", () => {
@@ -124,13 +141,44 @@ describe("flags store", () => {
     await store.clearOverride("rating.enabled", "music", false);
     expect(state.clearCalls).toEqual([{ key: "rating.enabled", app: "music", confirm: false }]);
   });
+
+  // The campaign-integrity refusals (change: add-flag-campaign-integrity) land as
+  // their OWN union cases, so the view can tell "fix the scope" from "retry later".
+  it("maps a scope naming no campaign onto its own refusal case", async () => {
+    const { clients } = makeFakeClients({ flagDefs: DEFS, failFlagWrite: unknownCampaignErr() });
+    setClientsForTest(clients);
+    const store = useFlagsStore();
+    const outcome = await store.setFlag("rating.enabled", "music", true, "beta:ghost", false);
+    expect(outcome).toEqual({ status: "error", error: { kind: "unknownCampaign" } });
+    expect(store.op).toEqual(outcome);
+  });
+
+  it("maps an unverifiable campaign check onto its own refusal case", async () => {
+    const { clients } = makeFakeClients({ flagDefs: DEFS, failFlagWrite: unverifiableErr() });
+    setClientsForTest(clients);
+    const store = useFlagsStore();
+    const outcome = await store.setConfig("rating.review.min_votes", "music", "int", "9", "beta:ghost", false);
+    expect(outcome).toEqual({ status: "error", error: { kind: "campaignUnverifiable" } });
+  });
+
+  it("keeps an unrelated FAILED_PRECONDITION a generic error, never a campaign refusal", async () => {
+    const { clients } = makeFakeClients({
+      flagDefs: DEFS,
+      failFlagWrite: new ConnectError("some other precondition", Code.FailedPrecondition),
+    });
+    setClientsForTest(clients);
+    const store = useFlagsStore();
+    const outcome = await store.setFlag("rating.enabled", "music", true, "global", false);
+    expect(outcome.status).toBe("error");
+    if (outcome.status === "error") expect(outcome.error.kind).toBe("other");
+  });
 });
 
 describe("FlagsView", () => {
   beforeEach(() => setActivePinia(createPinia()));
 
-  async function mountView(defs: unknown[] = DEFS, accounts: unknown[] = []) {
-    const { clients, state } = makeFakeClients({ flagDefs: defs, accounts });
+  async function mountView(defs: unknown[] = DEFS, accounts: unknown[] = [], extra: Partial<FakeState> = {}) {
+    const { clients, state } = makeFakeClients({ flagDefs: defs, accounts, ...extra });
     setClientsForTest(clients);
     const pinia = createPinia();
     setActivePinia(pinia);
@@ -262,5 +310,69 @@ describe("FlagsView", () => {
       .trigger("click");
     await flushPromises();
     expect(state.listChangesCalls.at(-1)).toEqual({ appFilter: "", key: "rating.enabled" });
+  });
+
+  // --- stale stored scopes (change: add-flag-campaign-integrity) ---
+
+  it("shows a closed campaign's stored scope suffixed, selectable and not as a defect", async () => {
+    const { w } = await mountView([def({ key: "drums.enabled", rolloutScope: "beta:midi-drums" })], [], {
+      campaigns: CAMPAIGNS,
+    });
+    await openEdit(w);
+    const options = w.get(".drawer select").findAll("option");
+    const texts = options.map((o) => o.text());
+    // offered list = fixed scopes + OPEN campaigns only; the closed one appears
+    // solely as the stored option, quietly suffixed.
+    expect(texts).toContain("beta: Spring beta");
+    expect(texts).toContain("beta: MIDI drums (closed)");
+    expect(texts).not.toContain("beta: MIDI drums");
+    const stale = options.find((o) => o.attributes("value") === "beta:midi-drums")!;
+    expect(stale.classes()).not.toContain("dangling");
+    expect(w.find(".drawer .scope-warn").exists()).toBe(false);
+  });
+
+  it("marks a scope naming no campaign as a defect, naming the cause", async () => {
+    const { w } = await mountView([def({ key: "drums.enabled", rolloutScope: "beta:ghost" })], [], {
+      campaigns: CAMPAIGNS,
+    });
+    await openEdit(w);
+    const options = w.get(".drawer select").findAll("option");
+    // still selectable (never silently rewritten), but distinct and explained.
+    const stale = options.find((o) => o.attributes("value") === "beta:ghost")!;
+    expect(stale.text()).toBe("beta:ghost — names no existing campaign");
+    expect(stale.classes()).toContain("dangling");
+    expect(w.get(".drawer .scope-warn").text()).toContain("names no existing campaign");
+    // the selector stays a closed list: fixed scopes + open campaigns + the stored value.
+    expect(options).toHaveLength(5);
+  });
+
+  // --- refused writes (change: add-flag-campaign-integrity) ---
+
+  it("surfaces a scope-naming-no-campaign refusal as 'fix the scope', never the raw status", async () => {
+    const { w } = await mountView([def({ key: "drums.enabled", valueType: "bool" })], [], {
+      failFlagWrite: unknownCampaignErr(),
+    });
+    await openEdit(w);
+    await clickSave(w);
+    expect(w.get(".drawer .error").text()).toBe(
+      "The selected beta scope names no existing campaign — fix the scope, then save again.",
+    );
+    expect(w.text()).not.toContain("unknown_campaign");
+    expect(w.text()).not.toContain("failed_precondition");
+  });
+
+  it("surfaces an unverifiable check as 'retry later', never claiming the campaign is missing", async () => {
+    const { w } = await mountView([def({ key: "drums.enabled", valueType: "bool" })], [], {
+      failFlagWrite: unverifiableErr(),
+    });
+    await openEdit(w);
+    await clickSave(w);
+    const msg = w.get(".drawer .error").text();
+    expect(msg).toBe(
+      "The campaign directory can’t be reached, so the scope couldn’t be checked. Nothing was saved — try again later.",
+    );
+    expect(msg).not.toContain("no existing campaign");
+    expect(w.text()).not.toContain("campaign_unverifiable");
+    expect(w.text()).not.toContain("aborted");
   });
 });

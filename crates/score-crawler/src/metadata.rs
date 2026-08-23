@@ -156,8 +156,10 @@ mod tests {
         // …and the crawler's derivation records the percussion family.
         let doc = cymbra_musicxml_core::parse(DRUMS.as_bytes()).unwrap();
         let m = extract(&doc);
-        assert_eq!(m.instrument, cymbra_musicxml_core::InstrumentKind::Percussion);
+        assert_eq!(
+            m.instrument,
+            cymbra_musicxml_core::InstrumentKind::Percussion
+        );
         assert_eq!(m.title.as_deref(), Some("Basic Groove"));
     }
-
 }

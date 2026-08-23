@@ -240,6 +240,11 @@
     "noAudit": "No changes yet.",
     "premiumOnly": "Premium only",
     "beta": "beta: {name}",
+    "betaClosed": "beta: {name} (closed)",
+    "betaDangling": "{scope} — names no existing campaign",
+    "scopeDanglingHint": "This scope names no existing campaign, so the flag currently reaches staff only. Pick an open campaign or another scope.",
+    "scopeNoCampaign": "The selected beta scope names no existing campaign — fix the scope, then save again.",
+    "scopeUnverifiable": "The campaign directory can’t be reached, so the scope couldn’t be checked. Nothing was saved — try again later.",
     "planTag": "plan",
     "betaTag": "beta",
     "staffTag": "staff"

@@ -1,7 +1,9 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
+import { Code, ConnectError } from "@connectrpc/connect";
 import { api } from "@/lib/api";
-import { type Async, idle, run } from "@/lib/async";
+import { type Async, failure, idle, loading, run, success } from "@/lib/async";
+import { humanError } from "@/lib/errors";
 import type { FlagChange, FlagDefinition, FlagValue } from "@/gen/flags_pb";
 
 // The declared value types (mirrors the backend registry / proto `value_type`).
@@ -112,13 +114,41 @@ function toAuditRow(c: FlagChange): AuditRow {
   return { key: c.key, app: c.app, oldValue: c.oldValue, newValue: c.newValue, actor: c.actor, at: c.at };
 }
 
+/** A refused flag write, as the drawer must tell the causes apart (change:
+ *  add-flag-campaign-integrity): a beta scope naming no campaign calls for fixing
+ *  the scope, an unverifiable check calls for retrying later, anything else keeps
+ *  the generic localized message. */
+export type FlagOpError =
+  | { readonly kind: "unknownCampaign" }
+  | { readonly kind: "campaignUnverifiable" }
+  | { readonly kind: "other"; readonly message: string };
+
+/** Map a SetFlag/SetConfig rejection onto its `FlagOpError` case. The backend
+ *  refuses a beta scope naming no campaign with FAILED_PRECONDITION and a
+ *  `unknown_campaign:` message, and an unverifiable existence check with ABORTED
+ *  and `campaign_unverifiable:` — matched here by code + prefix so neither ever
+ *  collapses into the other (or into a raw transport status). */
+function toOpError(e: unknown): FlagOpError {
+  if (e instanceof ConnectError) {
+    if (e.code === Code.FailedPrecondition && e.rawMessage.startsWith("unknown_campaign:")) {
+      console.error("flag write refused:", e); // cause logged; the UI shows a localized reason
+      return { kind: "unknownCampaign" };
+    }
+    if (e.code === Code.Aborted && e.rawMessage.startsWith("campaign_unverifiable:")) {
+      console.error("flag write refused:", e);
+      return { kind: "campaignUnverifiable" };
+    }
+  }
+  return { kind: "other", message: humanError(e) }; // humanError logs the cause
+}
+
 // All API access goes through the `api()` client seam; components only ever call
 // these store actions. Async state is one `Async<T>` union per resource.
 export const useFlagsStore = defineStore("flags", () => {
   const definitions = ref<Async<FlagRow[]>>(idle);
   const audit = ref<Async<AuditRow[]>>(idle); // global audit (searchable)
   const keyAudit = ref<Async<AuditRow[]>>(idle); // per-key audit (drawer)
-  const op = ref<Async<void>>(idle);
+  const op = ref<Async<void, FlagOpError>>(idle);
   const appFilter = ref("");
   // uuid → display name, resolved once from the admin directory (the flags schema
   // is isolated and only stores actor uuids). Best-effort: falls back to the uuid.
@@ -169,36 +199,39 @@ export const useFlagsStore = defineStore("flags", () => {
     await load();
   }
 
-  async function setFlag(key: string, app: string, enabled: boolean, rolloutScope: string, confirm: boolean) {
-    const outcome = await run(op, async () => {
-      await api().flags.setFlag({ key, app, enabled, rolloutScope, confirm });
-    });
+  /** Fold a flag mutation into `op`, then re-list on success. Not `run(...)`,
+   *  whose error type is a plain message: the write path keeps the typed
+   *  campaign-integrity refusals as their own union cases. */
+  async function mutate(fn: () => Promise<void>): Promise<Async<void, FlagOpError>> {
+    op.value = loading;
+    try {
+      await fn();
+      op.value = success(undefined);
+    } catch (e) {
+      op.value = failure(toOpError(e));
+    }
+    const outcome = op.value;
     if (outcome.status === "success") await refresh();
     return outcome;
   }
 
-  async function setConfig(
-    key: string,
-    app: string,
-    kind: FlagKind,
-    input: string,
-    rolloutScope: string,
-    confirm: boolean,
-  ) {
-    const outcome = await run(op, async () => {
+  function setFlag(key: string, app: string, enabled: boolean, rolloutScope: string, confirm: boolean) {
+    return mutate(async () => {
+      await api().flags.setFlag({ key, app, enabled, rolloutScope, confirm });
+    });
+  }
+
+  function setConfig(key: string, app: string, kind: FlagKind, input: string, rolloutScope: string, confirm: boolean) {
+    return mutate(async () => {
       const value: { kind: FlagValue["kind"] } = { kind: buildValueKind(kind, input) };
       await api().flags.setConfig({ key, app, value, rolloutScope, confirm });
     });
-    if (outcome.status === "success") await refresh();
-    return outcome;
   }
 
-  async function clearOverride(key: string, app: string, confirm: boolean) {
-    const outcome = await run(op, async () => {
+  function clearOverride(key: string, app: string, confirm: boolean) {
+    return mutate(async () => {
       await api().flags.clearOverride({ key, app, confirm });
     });
-    if (outcome.status === "success") await refresh();
-    return outcome;
   }
 
   return {
