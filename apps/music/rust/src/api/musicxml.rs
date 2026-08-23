@@ -33,7 +33,7 @@ use flutter_rust_bridge::frb;
 // The real types live in the shared crate; re-export so downstream Rust (and the
 // bridge functions below) refer to them by these names.
 pub use cymbra_musicxml_core::{
-    Attributes, BeamState, Clef, ClefSign, Direction, DirectionKind, InstrumentDecl,
+    Attributes, BeamState, Clef, ClefSign, Direction, DirectionKind, HeadClass, InstrumentDecl,
     InstrumentKind, Lyric, NotationMeasure, NoteEvent, Pitch, PlayedMeasure, RepeatMarks,
     ScoreDocument, ScoreMeta, ScoreSummary, StemDir, System, TimeSignature, Tuplet, Unpitched,
 };
@@ -239,6 +239,20 @@ pub struct _Unpitched {
     /// `None` when the note's instrument could not be resolved; a consumer
     /// must omit such a note rather than fabricate a number.
     pub gm_number: Option<u32>,
+    /// The engraved head class derived beside the number (change:
+    /// add-drum-notation-render) — the painters consume it verbatim.
+    pub head_class: HeadClass,
+}
+
+/// How an unpitched note's head is engraved (change: add-drum-notation-render).
+#[frb(mirror(HeadClass))]
+pub enum _HeadClass {
+    /// Ordinary oval head — drums, and any unresolved note.
+    Oval,
+    /// X-form head — cymbals, following the duration class.
+    X,
+    /// X head carrying the open mark — the open hi-hat (GM 46).
+    XOpen,
 }
 
 /// One `<score-instrument>` declaration from the part list.

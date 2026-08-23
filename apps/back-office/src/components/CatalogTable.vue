@@ -127,8 +127,8 @@ function rowStatus(h: CatalogHit): ModerationStatus {
                 {{ h.title || "—" }}
                 <!-- Instrument badge (change: add-drums-access): a percussion row is
                      identifiable BEFORE it is opened — the moderator then knows why
-                     its preview/audition is unavailable. Keyboard/unknown rows show
-                     nothing. -->
+                     Play is unavailable (the preview renders since
+                     add-drum-notation-render). Keyboard/unknown rows show nothing. -->
                 <AppTag
                   v-if="h.instrument === 'percussion'"
                   variant="accent"

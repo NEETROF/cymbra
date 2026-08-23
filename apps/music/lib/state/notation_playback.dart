@@ -265,6 +265,10 @@ DerivedPlayback notationToTimedNotes(
               staff: note.staff,
               noteType: note.noteType,
               dots: note.dots,
+              // The rest's voice rides along so the notation painters can
+              // displace two-voice percussion rests per voice (change:
+              // add-drum-notation-render).
+              voice: note.voice,
             ),
           );
           if (startMs + durationMs > songEndMs) {
@@ -317,6 +321,9 @@ DerivedPlayback notationToTimedNotes(
           tieFromMs: tieFromMs,
           isGrace: note.isGrace,
           isChord: note.isChord,
+          // The engraved head class comes from the bridge (the shared crate
+          // derived it beside the GM number) — never re-derived here.
+          headClass: pitch != null ? null : note.unpitched!.headClass,
         );
       }
 
@@ -405,6 +412,7 @@ TimedNote _withDuration(TimedNote n, int durationMs, {int? sustainFromMs}) =>
       isGrace: n.isGrace,
       isChord: n.isChord,
       sustainFromMs: sustainFromMs ?? n.sustainFromMs,
+      headClass: n.headClass,
     );
 
 /// For each note of a measure, how many grace slots *before its position* it

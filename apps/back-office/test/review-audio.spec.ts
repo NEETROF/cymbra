@@ -134,7 +134,12 @@ function mountReview(opts: { audioDelay?: () => Promise<void>; percussion?: stri
   useAuthStore().setToken(token);
 
   setNotationWasmForTest({
-    render: async () => ({ kind: "notation", svg: "<svg></svg>", layout: { width: 10, height: 10, measures: [] } }),
+    render: async () => ({
+      kind: "notation",
+      svg: "<svg></svg>",
+      layout: { width: 10, height: 10, measures: [] },
+      percussion: false,
+    }),
     schedule: async () => schedule,
   });
   setAudioWasmForTest({

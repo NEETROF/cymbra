@@ -79,14 +79,14 @@ function makeGeometry(): RenderedScore {
 }
 
 const gClef = "\u{E050}";
+const percussionClef = "\u{E069}";
 const noteheadBlack = "\u{E0A4}";
+const noteheadXBlack = "\u{E0A9}";
 
-/** Paint a keyboard fixture, asserting the outcome is a drawn notation (the union's
- *  other member is the percussion carve-out — see the dedicated tests). */
+/** Paint a fixture. Every document draws now — the percussion carve-out is retired
+ *  (change: add-drum-notation-render); percussion routes to its own paint path. */
 function paint(geo: RenderedScore, width = 1000): NotationRender {
-  const result = renderNotation(geo, width);
-  if (result.kind !== "notation") throw new Error(`expected a drawn notation, got ${result.kind}`);
-  return result;
+  return renderNotation(geo, width);
 }
 
 // The seam now paints in the worker, so `render` resolves a finished RenderResult
@@ -163,15 +163,18 @@ describe("notation painter", () => {
     expect(svg).toContain(natural);
   });
 
-  // --- percussion carve-out (change: add-drums-access) -----------------------
+  // --- percussion routing (change: add-drum-notation-render) ------------------
 
-  /** A drum fixture: percussion clef + one unpitched note (snare on the GM kit). */
+  /** A drum fixture: percussion clef + one unpitched note (snare-position C5). */
   function percussionGeometry(over: { clefSign?: string; unpitched?: boolean } = {}): RenderedScore {
     const geo = makeGeometry();
     geo.document.attributes.clefs = [{ staff: 1, sign: over.clefSign ?? "percussion", line: 2 }];
     if (over.unpitched !== false) {
       geo.document.measures[0].notes = [
-        note({ pitch: null, unpitched: { display_step: "C", display_octave: 5, gm_number: 37 } }),
+        note({
+          pitch: null,
+          unpitched: { display_step: "C", display_octave: 5, gm_number: 38, head_class: "Oval" },
+        }),
       ];
     }
     return geo;
@@ -191,14 +194,90 @@ describe("notation painter", () => {
     expect(isPercussionScore(makeGeometry().document)).toBe(false);
   });
 
-  it("returns the explicit not-previewable state for a percussion score instead of drawing", () => {
+  it("routes a percussion document to the percussion paint path (percussion clef drawn)", () => {
     const result = renderNotation(percussionGeometry(), 1000);
-    expect(result).toEqual({ kind: "percussion_unsupported" });
+    expect(result.kind).toBe("notation");
+    expect(result.percussion).toBe(true);
+    // The clef glyph specifically — the default-to-treble fallback would draw a
+    // G clef and a bare "a clef is drawn" assertion would not catch it.
+    expect(result.svg).toContain(percussionClef);
+    expect(result.svg).not.toContain(gClef);
+  });
+
+  it("routes a clef-less drum export (unpitched notes only) to the percussion path", () => {
+    // The document declares a G clef, but the unpitched channel marks it as drums:
+    // the percussion clef is drawn, not a treble staff's.
+    const result = renderNotation(percussionGeometry({ clefSign: "G" }), 1000);
+    expect(result.percussion).toBe(true);
+    expect(result.svg).toContain(percussionClef);
+    expect(result.svg).not.toContain(gClef);
+  });
+
+  it("stems a bare percussion note by voice — 1 up, 2 down — and follows an explicit <stem>", () => {
+    const geo = percussionGeometry();
+    const unp = { display_step: "C", display_octave: 5, gm_number: 38, head_class: "Oval" as const };
+    geo.document.measures[0].notes = [
+      // Voice 1, no <stem> → up; voice 2, no <stem> → down; voice 2 with an
+      // explicit Up → the file wins.
+      note({ pitch: null, unpitched: unp, stem: null, voice: 1, position_divisions: 0 }),
+      note({ pitch: null, unpitched: unp, stem: null, voice: 2, position_divisions: 4 }),
+      note({
+        pitch: null,
+        unpitched: { ...unp, display_step: "F", display_octave: 4 },
+        stem: "Up",
+        voice: 2,
+        position_divisions: 8,
+      }),
+    ];
+    const { svg } = paint(geo);
+    const stems = [...svg.matchAll(/<line x1="[^"]*" y1="([-\d.]+)" x2="[^"]*" y2="([-\d.]+)" class="stem"\/>/g)].map(
+      (m) => ({ y1: Number(m[1]), y2: Number(m[2]) }),
+    );
+    expect(stems).toHaveLength(3);
+    expect(stems[0].y2).toBeLessThan(stems[0].y1); // voice 1 → up
+    expect(stems[1].y2).toBeGreaterThan(stems[1].y1); // voice 2 → down
+    expect(stems[2].y2).toBeLessThan(stems[2].y1); // explicit Up wins over voice 2
+  });
+
+  it("offsets the second voice's head on a same-position shared onset (neither hides)", () => {
+    const geo = percussionGeometry();
+    const unp = { display_step: "C", display_octave: 5, gm_number: 38, head_class: "Oval" as const };
+    geo.document.measures[0].notes = [
+      note({ pitch: null, unpitched: unp, voice: 1, position_divisions: 0 }),
+      note({ pitch: null, unpitched: unp, voice: 2, position_divisions: 0, stem: "Down" }),
+    ];
+    const { svg } = paint(geo);
+    const heads = [...svg.matchAll(/<text x="([-\d.]+)" y="[-\d.]+" class="glyph ink"[^>]*data-note="0:\d+">/g)].map(
+      (m) => Number(m[1]),
+    );
+    // Both heads are engraved, at distinct x positions.
+    expect(heads).toHaveLength(2);
+    expect(heads[1]).toBeGreaterThan(heads[0]);
+  });
+
+  it("keeps rests at the midline in a single-voice percussion measure", () => {
+    const geo = percussionGeometry();
+    geo.document.measures[0].notes = [
+      note({ pitch: null, is_rest: true, note_type: "quarter", voice: 1, position_divisions: 0 }),
+    ];
+    const { svg } = paint(geo);
+    // First system's midline: systemGap + topPad + staffHeight − 2 staff spaces
+    // = 36 + 60 + 48 − 24 = 120 (see the painter's constants).
+    const rest =
+      /<text x="[-\d.]+" y="([-\d.]+)" class="glyph ink" font-size="[\d.]+" text-anchor="middle">\u{E4E5}<\/text>/u.exec(
+        svg,
+      );
+    expect(rest).not.toBeNull();
+    expect(Number(rest![1])).toBe(120);
   });
 
   it("still draws a keyboard score exactly as before (no percussion false positive)", () => {
     const result = renderNotation(makeGeometry(), 1000);
     expect(result.kind).toBe("notation");
+    expect(result.percussion).toBe(false);
+    expect(result.svg).toContain(gClef);
+    expect(result.svg).not.toContain(percussionClef);
+    expect(result.svg).not.toContain(noteheadXBlack);
   });
 });
 
@@ -356,27 +435,37 @@ describe("ScorePreview notation states", () => {
     expect(w.text()).toContain("Rendering notation…");
   });
 
-  // --- percussion carve-out (change: add-drums-access) -----------------------
+  // --- percussion (change: add-drum-notation-render lifts the preview guard) --
 
-  it("renders the percussion state as its own case, distinct from a render failure", () => {
+  it("renders a percussion score's SVG while the Play guard shows its localised note", () => {
+    const geo = makeGeometry();
+    geo.document.attributes.clefs = [{ staff: 1, sign: "percussion", line: 2 }];
+    geo.document.measures[0].notes = [
+      {
+        ...geo.document.measures[0].notes[0],
+        pitch: null,
+        unpitched: { display_step: "C", display_octave: 5, gm_number: 38, head_class: "Oval" },
+      },
+    ];
     const w = mount(ScorePreview, {
       global: withI18n,
       props: {
         hit: hit as never,
         bytes: new Uint8Array([1]),
         loading: false,
-        notation: success({ kind: "percussion_unsupported" as const }),
+        notation: success(paint(geo)),
+        // The Play guard (add-drum-audio-channel's to lift): no playable schedule…
+        canPlay: false,
+        // …and the view flags the percussion reason for the transport note.
+        percussionGuard: true,
       },
     });
-    // Its own panel — not the SVG, and visually distinct from the failure placeholder.
-    expect(w.find(".svg-wrap").exists()).toBe(false);
-    expect(w.find(".notation.percussion").exists()).toBe(true);
-    expect(w.text()).toContain("Drum score — not previewable yet.");
-    // The explanation says the file is fine (the renderer is what's not ready)…
-    expect(w.text()).toContain("The file is fine");
-    // …and the failure wording never appears, so the score can't read as corrupt.
+    // The notation IS drawn now — no unpreviewable panel, no failure wording.
+    expect(w.find(".svg-wrap svg").exists()).toBe(true);
+    expect(w.text()).not.toContain("not previewable");
     expect(w.text()).not.toContain("Notation could not be rendered.");
-    // No transport either: the score cannot be auditioned through the piano channel.
-    expect(w.findAll("button")).toHaveLength(0);
+    // Play stays refused, as an explicit localised state distinct from an error.
+    expect(w.get("button.play").attributes("disabled")).toBeDefined();
+    expect(w.get('[data-testid="drums-no-audition"]').text()).toContain("not auditionable yet");
   });
 });

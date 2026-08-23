@@ -878,6 +878,7 @@ void main() {
         displayStep: 'G',
         displayOctave: 5,
         gmNumber: 42,
+        headClass: HeadClass.x,
       ),
       instrumentId: 'P1-I42',
     );
@@ -890,6 +891,7 @@ void main() {
         displayStep: 'C',
         displayOctave: 5,
         gmNumber: 38,
+        headClass: HeadClass.oval,
       ),
       instrumentId: 'P1-I38',
     );
@@ -903,6 +905,7 @@ void main() {
         displayStep: 'F',
         displayOctave: 4,
         gmNumber: 36,
+        headClass: HeadClass.oval,
       ),
       instrumentId: 'P1-I36',
     );
@@ -1019,6 +1022,7 @@ void main() {
               displayStep: 'C',
               displayOctave: 5,
               gmNumber: 38,
+              headClass: HeadClass.oval,
             ),
           ),
           noteEvent(
@@ -1028,6 +1032,7 @@ void main() {
               displayStep: 'E',
               displayOctave: 5,
               gmNumber: null,
+              headClass: HeadClass.oval,
             ),
           ),
           noteEvent(
@@ -1037,6 +1042,7 @@ void main() {
               displayStep: 'C',
               displayOctave: 5,
               gmNumber: 38,
+              headClass: HeadClass.oval,
             ),
           ),
         ],
@@ -1060,6 +1066,7 @@ void main() {
               displayStep: 'C',
               displayOctave: 5,
               gmNumber: 38,
+              headClass: HeadClass.oval,
             ),
           ),
           noteEvent(
@@ -1076,7 +1083,12 @@ void main() {
       // A crash (GM 49) whole tied across the barline, then a fresh attack —
       // mirrors the crate's tied_unpitched_chain_merges test: one 4000 ms
       // attack, then a separate 2000 ms one.
-      const crash = Unpitched(displayStep: 'A', displayOctave: 5, gmNumber: 49);
+      const crash = Unpitched(
+        displayStep: 'A',
+        displayOctave: 5,
+        gmNumber: 49,
+        headClass: HeadClass.x,
+      );
       final doc = _docWithMeasures([
         _measure(0, [
           noteEvent(

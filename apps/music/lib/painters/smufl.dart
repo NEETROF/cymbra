@@ -31,6 +31,12 @@ class Smufl {
   static const String noteheadHalf = '\u{E0A3}';
   static const String noteheadWhole = '\u{E0A2}';
 
+  // X-form note heads for cymbals (change: add-drum-notation-render),
+  // following the duration class like the ordinary heads above.
+  static const String noteheadXBlack = '\u{E0A9}';
+  static const String noteheadXHalf = '\u{E0A8}';
+  static const String noteheadXWhole = '\u{E0A7}';
+
   // Complete note glyphs (head + stem + flag), for naming a rhythmic figure in
   // running text — the painters build their notes from heads and stems instead.
   static const String noteDoubleWhole = '\u{E1D0}';
@@ -44,6 +50,11 @@ class Smufl {
   static const String gClef = '\u{E050}';
   static const String fClef = '\u{E062}';
   static const String cClef = '\u{E05C}';
+
+  /// Percussion clef (SMuFL `unpitchedPercussionClef1`, change:
+  /// add-drum-notation-render). Drawn centred on the middle staff line, not on
+  /// a clef `line` like G/F/C.
+  static const String percussionClef = '\u{E069}';
 
   static const String flag8thUp = '\u{E240}';
   static const String flag8thDown = '\u{E241}';
@@ -244,10 +255,15 @@ class Smufl {
     _ => null,
   };
 
-  /// Clef glyph for a MusicXML clef sign (G/F/C), defaulting to treble.
+  /// Clef glyph for a MusicXML clef sign (G/F/C/percussion), defaulting to
+  /// treble. The percussion sign is mapped **explicitly** (change:
+  /// add-drum-notation-render): the default-to-treble fallback below would
+  /// otherwise silently draw a G clef on a drum staff, and no "a clef is
+  /// drawn" assertion could catch it.
   static String clef(String sign) => switch (sign) {
     'F' => fClef,
     'C' => cClef,
+    'percussion' => percussionClef,
     _ => gClef,
   };
 

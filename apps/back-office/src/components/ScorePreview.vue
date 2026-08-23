@@ -33,6 +33,11 @@ const props = defineProps<{
   // an opt-out because Vue casts an absent boolean prop to `false`, so the default has
   // to be the "transport visible" case.
   hideTransport?: boolean;
+  // The Play guard's reason line (installed by add-drums-access, lifted by
+  // add-drum-audio-channel): the score is percussion, so Play stays refused with a
+  // localised "not auditionable yet" note — while the notation now renders
+  // normally (change: add-drum-notation-render lifted the preview guard).
+  percussionGuard?: boolean;
 }>();
 const emit = defineEmits<{ toggle: []; seek: [ms: number] }>();
 const { t } = useI18n();
@@ -50,12 +55,6 @@ function idleMessage(): string {
 
 const notationView = computed(() =>
   match(props.notation ?? idle)
-    // Percussion (change: add-drums-access): its OWN case, visually distinct from the
-    // failure placeholder — the file is fine, the renderer just can't draw drums yet.
-    .with({ status: "success", data: { kind: "percussion_unsupported" } }, () => ({
-      kind: "percussion" as const,
-      msg: t("preview.percussionNotPreviewable"),
-    }))
     .with({ status: "success", data: { kind: "notation" } }, ({ data }) => ({ kind: "svg" as const, svg: data.svg }))
     .with({ status: "loading" }, () => ({ kind: "msg" as const, msg: t("preview.rendering") }))
     .with({ status: "error" }, () => ({ kind: "msg" as const, msg: t("preview.renderError") }))
@@ -127,21 +126,19 @@ function meta(): { label: string; value: string }[] {
         </button>
         <output v-if="audioLoading" class="spinner" :aria-label="audioMsg ?? ''"></output>
         <span v-if="audioMsg" class="muted">{{ audioMsg }}</span>
+        <!-- Drum guard note (change: add-drums-access): explains the disabled Play —
+             deliberately NOT styled as an error; the notation above renders fine. -->
+        <span v-else-if="percussionGuard" class="muted" data-testid="drums-no-audition">{{
+          t("preview.percussionNotAuditionable")
+        }}</span>
         <span v-else class="muted hint">{{ t("preview.seekHint") }}</span>
       </div>
-      <!-- The transport moved out (review mode): keep the seek affordance visible. -->
-      <p v-else class="muted hint transport-hint">{{ t("preview.seekHint") }}</p>
+      <!-- The transport moved out (review mode): keep the seek affordance visible —
+           unless the drum Play guard makes seeking inert (the host view shows its
+           own "not auditionable yet" note next to the hoisted transport). -->
+      <p v-else-if="!percussionGuard" class="muted hint transport-hint">{{ t("preview.seekHint") }}</p>
       <!-- eslint-disable-next-line vue/no-v-html -- SVG is painter-generated, not user input -->
       <div ref="wrapRef" class="svg-wrap" aria-label="score preview" v-html="notationView.svg"></div>
-    </div>
-    <!-- Percussion (change: add-drums-access): a deliberate, distinct state — solid
-         accent panel with an explanation, NOT the dashed failure placeholder — so a
-         moderator never reads a fine drum file as corrupt. -->
-    <div v-else-if="notationView.kind === 'percussion'" class="notation percussion" aria-label="score preview">
-      <div>
-        <p class="perc-title">{{ notationView.msg }}</p>
-        <p class="muted perc-hint">{{ t("preview.percussionHint") }}</p>
-      </div>
     </div>
     <div v-else class="notation" aria-label="score preview">
       <p class="muted">{{ notationView.msg }}</p>
@@ -178,20 +175,6 @@ function meta(): { label: string; value: string }[] {
   justify-content: center;
   padding: 1rem;
   text-align: center;
-}
-/* The percussion state is NOT a failure: solid accent border + explanation, so it
-   never reads as the dashed "could not render" placeholder. */
-.notation.percussion {
-  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
-  background: color-mix(in srgb, var(--accent-strong) 8%, transparent);
-}
-.perc-title {
-  margin: 0 0 0.35rem;
-  font-weight: 600;
-}
-.perc-hint {
-  margin: 0;
-  font-size: 0.9rem;
 }
 .score {
   display: flex;

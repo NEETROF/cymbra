@@ -883,6 +883,7 @@ const _: fn() = || {
         let _: char = Unpitched.display_step;
         let _: i32 = Unpitched.display_octave;
         let _: Option<u32> = Unpitched.gm_number;
+        let _: crate::api::musicxml::HeadClass = Unpitched.head_class;
     }
 };
 
@@ -1067,6 +1068,19 @@ impl SseDecode for f64 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         deserializer.cursor.read_f64::<NativeEndian>().unwrap()
+    }
+}
+
+impl SseDecode for crate::api::musicxml::HeadClass {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::api::musicxml::HeadClass::Oval,
+            1 => crate::api::musicxml::HeadClass::X,
+            2 => crate::api::musicxml::HeadClass::XOpen,
+            _ => unreachable!("Invalid variant for HeadClass: {}", inner),
+        };
     }
 }
 
@@ -1738,10 +1752,12 @@ impl SseDecode for crate::api::musicxml::Unpitched {
         let mut var_displayStep = <char>::sse_decode(deserializer);
         let mut var_displayOctave = <i32>::sse_decode(deserializer);
         let mut var_gmNumber = <Option<u32>>::sse_decode(deserializer);
+        let mut var_headClass = <crate::api::musicxml::HeadClass>::sse_decode(deserializer);
         return crate::api::musicxml::Unpitched {
             display_step: var_displayStep,
             display_octave: var_displayOctave,
             gm_number: var_gmNumber,
+            head_class: var_headClass,
         };
     }
 }
@@ -2003,6 +2019,28 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::musicxml::Directio
     for crate::api::musicxml::DirectionKind
 {
     fn into_into_dart(self) -> FrbWrapper<crate::api::musicxml::DirectionKind> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::musicxml::HeadClass> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self.0 {
+            crate::api::musicxml::HeadClass::Oval => 0.into_dart(),
+            crate::api::musicxml::HeadClass::X => 1.into_dart(),
+            crate::api::musicxml::HeadClass::XOpen => 2.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::musicxml::HeadClass>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::musicxml::HeadClass>>
+    for crate::api::musicxml::HeadClass
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::musicxml::HeadClass> {
         self.into()
     }
 }
@@ -2469,6 +2507,7 @@ impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::musicxml::Unpitche
             self.0.display_step.into_into_dart().into_dart(),
             self.0.display_octave.into_into_dart().into_dart(),
             self.0.gm_number.into_into_dart().into_dart(),
+            self.0.head_class.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -2669,6 +2708,23 @@ impl SseEncode for f64 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         serializer.cursor.write_f64::<NativeEndian>(self).unwrap();
+    }
+}
+
+impl SseEncode for crate::api::musicxml::HeadClass {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::api::musicxml::HeadClass::Oval => 0,
+                crate::api::musicxml::HeadClass::X => 1,
+                crate::api::musicxml::HeadClass::XOpen => 2,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
     }
 }
 
@@ -3179,6 +3235,7 @@ impl SseEncode for crate::api::musicxml::Unpitched {
         <char>::sse_encode(self.display_step, serializer);
         <i32>::sse_encode(self.display_octave, serializer);
         <Option<u32>>::sse_encode(self.gm_number, serializer);
+        <crate::api::musicxml::HeadClass>::sse_encode(self.head_class, serializer);
     }
 }
 

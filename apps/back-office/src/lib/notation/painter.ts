@@ -4,11 +4,16 @@
 // lines, the grand-staff bracket, clefs, key/time signatures, barlines, note heads,
 // stems, flags, beams, accidentals, augmentation dots, rests and ledger lines.
 //
+// Percussion (change: add-drum-notation-render): a percussion document routes to the
+// percussion engraving rules — single five-line staff under the percussion clef, no
+// armature ever, written-position placement, the crate's head classes (x heads for
+// cymbals), two-voice stems/rests — per `music-percussion-engraving`.
+//
 // Intentionally NOT drawn in v1 (best-effort later, not required by the preview
 // contract): expression/dynamics directions, lyrics, ties, slurs, tuplet
 // numbers/brackets, and the playback cursor (playback is out of scope here).
 
-import type { Clef, NoteEvent, RenderedScore, RepeatMarks, ScoreDocument, System } from "./geometry";
+import type { Clef, NoteEvent, RenderedScore, RepeatMarks, ScoreDocument, System, Unpitched } from "./geometry";
 import * as S from "./smufl";
 
 // Staff space (px): every dimension derives from it, matching partition_painter.dart.
@@ -32,6 +37,12 @@ class Svg {
 
   circle(cx: number, cy: number, radius: number): void {
     this.parts.push(`<circle cx="${r(cx)}" cy="${r(cy)}" r="${r(radius)}" fill="currentColor"/>`);
+  }
+
+  /** The conventional open mark above an open hi-hat head: a small UNFILLED circle
+   *  (stroked in ink), kept off the font so it cannot render as tofu. */
+  openMark(cx: number, cy: number, radius: number): void {
+    this.parts.push(`<circle cx="${r(cx)}" cy="${r(cy)}" r="${r(radius)}" class="open-mark"/>`);
   }
 
   label(text: string, x: number, y: number, size: number): void {
@@ -64,6 +75,8 @@ class Svg {
       `.notation-svg .ledger{stroke:var(--muted);stroke-width:${r(S.legerLineThickness * s)};opacity:.8}` +
       `.notation-svg .bar{stroke:currentColor;stroke-width:${r(S.thinBarlineThickness * s)};opacity:.7}` +
       `.notation-svg .bracket{stroke:currentColor;stroke-width:${r(s * 0.35)};stroke-linecap:round;opacity:.8}` +
+      // The open hi-hat's "o": stroked, never filled (an unfilled circle above the head).
+      `.notation-svg .open-mark{fill:none;stroke:currentColor;stroke-width:${r(s * 0.14)}}` +
       // Playback overlay: the moving cursor and the currently-sounding note heads.
       `.notation-svg .cursor{stroke:var(--teal, #44e2cd);stroke-width:${r(s * 0.18)};stroke-linecap:round}` +
       `.notation-svg .glyph.playing{fill:var(--teal, #44e2cd)}` +
@@ -89,25 +102,23 @@ export interface NotationRender {
   kind: "notation";
   svg: string;
   layout: { width: number; height: number; measures: MeasureRect[] };
+  /** True when the document routed through the percussion engraving rules. Kept on
+   * the result so the views' Play guard (installed by `add-drums-access`, and
+   * `add-drum-audio-channel`'s to lift) can still refuse a drum audition for a
+   * score whose recorded instrument is `unknown`. */
+  percussion: boolean;
 }
 
-/** Explicit "not previewable yet" state for a percussion score (change:
- * add-drums-access): the file is fine, but this painter still assumes pitched
- * notation on a treble/bass staff (no percussion clef, alternative noteheads or
- * two-voice single-staff layout), so drawing it would be a confident WRONG
- * rendering a moderator would read as a corrupt file. A distinct state — not a
- * render failure — is returned instead; `add-drum-notation-render` lifts it. */
-export interface PercussionNotSupported {
-  kind: "percussion_unsupported";
-}
-
-/** What a render produces: the drawn notation, or the explicit percussion state. */
-export type RenderResult = NotationRender | PercussionNotSupported;
+/** What a render produces. The `percussion_unsupported` arm is retired (change:
+ * add-drum-notation-render) — a percussion score now draws like any other. */
+export type RenderResult = NotationRender;
 
 /** True when the parsed document is percussion notation: a percussion clef on any
  *  staff (document attributes or a mid-piece change), or any note carried on the
- *  unpitched channel. Either signal alone marks the score — a drum part exported
- *  without its `<clef sign="percussion">` still carries `<unpitched>` notes. */
+ *  unpitched channel. Either signal alone ROUTES the score to the percussion paint
+ *  path (change: add-drum-notation-render) — a drum part exported without its
+ *  `<clef sign="percussion">` still carries `<unpitched>` notes and still needs
+ *  the percussion rules, not treble-staff assumptions. */
 export function isPercussionScore(doc: ScoreDocument): boolean {
   const percClef = (c: Clef): boolean => c.sign === "percussion";
   return (
@@ -124,6 +135,9 @@ interface Ctx {
   width: number;
   divPerMeasure: number;
   twoStaff: boolean;
+  /** Percussion route (change: add-drum-notation-render): single staff, percussion
+   *  clef, no armature, written-position heads, voice-aware stems and rests. */
+  percussion: boolean;
   clefAt: Map<number, Clef>[];
   measures: MeasureRect[];
 }
@@ -135,10 +149,11 @@ interface Ctx {
 export function renderNotation(rendered: RenderedScore, width: number): RenderResult {
   const svg = new Svg();
   const { document: doc, systems } = rendered;
-  // Percussion carve-out (change: add-drums-access): refuse to draw rather than
-  // engrave a drum part with pitched treble/bass assumptions.
-  if (isPercussionScore(doc)) return { kind: "percussion_unsupported" };
-  const twoStaff = doc.staves >= 2;
+  // Percussion routing (change: add-drum-notation-render): a percussion document —
+  // detected by clef OR by unpitched notes — takes the percussion engraving rules
+  // on a single five-line staff, whatever `staves` the file declares.
+  const percussion = isPercussionScore(doc);
+  const twoStaff = !percussion && doc.staves >= 2;
   const systemHeight = topPad + staffHeight + (twoStaff ? interStaff + staffHeight : 0) + bottomPad;
   const height = systems.length * (systemHeight + systemGap) + systemGap;
   const measures: MeasureRect[] = [];
@@ -147,6 +162,7 @@ export function renderNotation(rendered: RenderedScore, width: number): RenderRe
       kind: "notation",
       svg: svg.toString(width, systemHeight),
       layout: { width, height: systemHeight, measures },
+      percussion,
     };
   }
 
@@ -156,6 +172,7 @@ export function renderNotation(rendered: RenderedScore, width: number): RenderRe
     width,
     divPerMeasure: divisionsPerMeasure(doc),
     twoStaff,
+    percussion,
     clefAt: computeClefAt(doc),
     measures,
   };
@@ -165,7 +182,7 @@ export function renderNotation(rendered: RenderedScore, width: number): RenderRe
     paintSystem(ctx, systems[i], y, i === 0);
     y += systemHeight + systemGap;
   }
-  return { kind: "notation", svg: svg.toString(width, height), layout: { width, height, measures } };
+  return { kind: "notation", svg: svg.toString(width, height), layout: { width, height, measures }, percussion };
 }
 
 function divisionsPerMeasure(doc: ScoreDocument): number {
@@ -204,25 +221,32 @@ function paintSystem(ctx: Ctx, system: System, yTop: number, isFirst: boolean): 
   // Left system bracket connecting the grand staff.
   svg.line(1.2, systemTop, 1.2, systemBottom, "bracket");
 
-  // Header: clef, key signature, and (first system only) time signature.
-  drawClef(svg, clefFor(headerClefs, 1), s * 0.4, trebleBottom, s);
+  // Header: clef, key signature, and (first system only) time signature. A
+  // percussion system always opens with the percussion clef — even for a drum
+  // export that never declared one (the route, not the file, decides).
+  const headerClef1: Clef = ctx.percussion ? { staff: 1, sign: "percussion", line: 3 } : clefFor(headerClefs, 1);
+  drawClef(svg, headerClef1, s * 0.4, trebleBottom, s);
   if (twoStaff) drawClef(svg, clefFor(headerClefs, 2), s * 0.4, bassBottom, s);
   let hx = s * 3.0;
 
   // Armure of THIS system: the key in force at its first measure, not one
   // document-wide value — so a piece that modulates shows the right signature on
   // every line, and a key change at the system boundary shows the change
-  // (cancelling naturals + new signature).
-  const firstIdx = system.measures[0];
-  const systemKey = doc.measures[firstIdx].key_fifths;
-  const prevKey = firstIdx > 0 ? doc.measures[firstIdx - 1].key_fifths : null;
-  const drawHeaderKey = (sb: number, bass: boolean): number =>
-    prevKey !== null && prevKey !== systemKey
-      ? drawKeyChange(svg, hx, sb, prevKey, systemKey, bass)
-      : drawKeySignature(svg, hx, sb, systemKey, bass);
-  const keyWidth = drawHeaderKey(trebleBottom, false);
-  if (twoStaff) drawHeaderKey(bassBottom, true);
-  hx += keyWidth;
+  // (cancelling naturals + new signature). A percussion staff NEVER draws an
+  // armature or its cancelling naturals, whatever `fifths` the file declares — an
+  // unpitched part has no tonality (spec: music-percussion-engraving).
+  if (!ctx.percussion) {
+    const firstIdx = system.measures[0];
+    const systemKey = doc.measures[firstIdx].key_fifths;
+    const prevKey = firstIdx > 0 ? doc.measures[firstIdx - 1].key_fifths : null;
+    const drawHeaderKey = (sb: number, bass: boolean): number =>
+      prevKey !== null && prevKey !== systemKey
+        ? drawKeyChange(svg, hx, sb, prevKey, systemKey, bass)
+        : drawKeySignature(svg, hx, sb, systemKey, bass);
+    const keyWidth = drawHeaderKey(trebleBottom, false);
+    if (twoStaff) drawHeaderKey(bassBottom, true);
+    hx += keyWidth;
+  }
 
   if (isFirst) {
     const t = doc.attributes.time;
@@ -323,7 +347,10 @@ function drawStaffLines(svg: Svg, bottom: number, width: number): void {
 }
 
 function drawClef(svg: Svg, clef: Clef, x: number, staffBottom: number, size: number): void {
-  const baselineY = staffBottom - (clef.line - 1) * size;
+  // The percussion clef is centred on the staff (middle line), whatever `line`
+  // the exporter declared — its SMuFL registration is the staff centre.
+  const line = clef.sign === "percussion" ? 3 : clef.line;
+  const baselineY = staffBottom - (line - 1) * size;
   svg.glyph(S.clefGlyph(clef.sign), x, baselineY, size);
 }
 
@@ -403,11 +430,35 @@ function paintMeasure(
 
   // A mid-system key change (modulation): cancelling naturals + the new
   // signature at the measure start, reserving space before the first note.
+  // Never on a percussion staff (no armature, no cancelling naturals).
   let keyLead = 0;
-  if (previousKeyFifths !== null && measure.key_fifths !== previousKeyFifths) {
+  if (!ctx.percussion && previousKeyFifths !== null && measure.key_fifths !== previousKeyFifths) {
     keyLead = drawKeyChange(ctx.svg, measureX + s * 0.3, trebleBottom, previousKeyFifths, measure.key_fifths, false);
     if (ctx.twoStaff)
       drawKeyChange(ctx.svg, measureX + s * 0.3, bassBottom, previousKeyFifths, measure.key_fifths, true);
+  }
+
+  // Voice census for the percussion two-voice rules: rests displace by voice only
+  // in a measure where both voices are present (single-voice rests keep the
+  // ordinary midline).
+  const voices = new Set<number>();
+  for (const n of measure.notes) voices.add(n.voice);
+  const multiVoice = voices.size > 1;
+
+  // Shared-onset collision (percussion): when both voices strike the same instant
+  // on the same written position, the later head is offset horizontally so neither
+  // hides. Chords within one voice already offset via `is_chord`/grace handling.
+  const collided = new Set<number>();
+  if (ctx.percussion) {
+    const seen = new Map<string, number>(); // "position:y" → voice of the first head
+    for (let ni = 0; ni < measure.notes.length; ni++) {
+      const n = measure.notes[ni];
+      if (n.is_rest || n.unpitched == null) continue;
+      const key = `${n.position_divisions}:${yForUnpitched(n.unpitched, trebleBottom)}`;
+      const first = seen.get(key);
+      if (first === undefined) seen.set(key, n.voice);
+      else if (first !== n.voice) collided.add(ni);
+    }
   }
 
   const xForPosition = (position: number): number => {
@@ -419,16 +470,20 @@ function paintMeasure(
     const note = measure.notes[ni];
     // A grace note shares its principal's position (duration 0): offset it left
     // of the principal's column so the two heads don't engrave on top of each
-    // other.
+    // other. A cross-voice same-position head offsets right instead.
     paintNote(ctx, {
       note,
       ni,
       measureIdx,
-      x: xForPosition(note.position_divisions) - (note.is_grace ? S.noteheadWidth * s * 1.4 : 0),
+      x:
+        xForPosition(note.position_divisions) -
+        (note.is_grace ? S.noteheadWidth * s * 1.4 : 0) +
+        (collided.has(ni) ? S.noteheadWidth * s : 0),
       trebleBottom,
       bassBottom,
       clefs,
       beamGroups,
+      multiVoice,
     });
   }
   // Any beam group left open at the barline (defensive).
@@ -444,6 +499,8 @@ interface PaintNoteOpts {
   bassBottom: number;
   clefs: Map<number, Clef>;
   beamGroups: Map<string, StemNote[]>;
+  /** Both voices present in this measure (drives percussion rest displacement). */
+  multiVoice: boolean;
 }
 
 function paintNote(ctx: Ctx, o: PaintNoteOpts): void {
@@ -451,11 +508,45 @@ function paintNote(ctx: Ctx, o: PaintNoteOpts): void {
   const { note, x } = o;
   const isBass = note.staff >= 2 && ctx.twoStaff;
   const staffBottom = isBass ? o.bassBottom : o.trebleBottom;
+  const midY = staffBottom - 2 * s;
 
   if (note.is_rest) {
-    svg.glyph(S.restGlyph(note), x, staffBottom - 2 * s, s, "ink", true);
+    // On a two-voice percussion measure rests displace by voice — voice 1 above
+    // the middle line, voice 2 below — so a rest never sits on the midline where
+    // the other voice's material runs; single-voice measures keep the midline.
+    const restY = ctx.percussion && o.multiVoice ? (note.voice <= 1 ? midY - s : midY + s) : midY;
+    svg.glyph(S.restGlyph(note), x, restY, s, "ink", true);
     return;
   }
+
+  const u = note.unpitched;
+  if (u != null) {
+    // Percussion head: placed by its WRITTEN position (display step/octave) through
+    // the same diatonic machinery as pitched notes, with the treble reference — the
+    // MusicXML display-placement convention. Never placed from the GM number, and a
+    // note whose GM number is unresolved is still engraved (omission-when-unresolved
+    // is a playback rule, not an engraving rule).
+    const y = yForUnpitched(u, staffBottom);
+    drawLedgerLines(svg, x, y, staffBottom);
+
+    const head = S.unpitchedHeadGlyph(note, u.head_class ?? "Oval", ctx.doc.attributes.divisions);
+    const headLeft = x - (S.noteheadWidth * s) / 2;
+    svg.glyph(head, headLeft, y, s, "ink", false, ` data-note="${o.measureIdx}:${o.ni}"`);
+    drawDots(svg, x, y, note.dots);
+
+    // Stems: the file's explicit <stem> wins; a bare note follows the drum
+    // convention — voice 1 (hands) up, voice 2 (feet) down.
+    const up = note.stem != null ? note.stem === "Up" : note.voice <= 1;
+    if (u.head_class === "XOpen") {
+      // The conventional open mark of the open hi-hat (GM 46): a small circle above
+      // the head — clear of the stem when it points up.
+      const markY = up && !note.is_chord ? y - (stemLen + 0.9) * s : y - 1.1 * s;
+      svg.openMark(x, markY, s * 0.28);
+    }
+    queueStem(svg, { x, y, up: false, note }, head, o.beamGroups, up);
+    return;
+  }
+
   const pitch = note.pitch;
   if (pitch == null) return;
 
@@ -474,22 +565,24 @@ function paintNote(ctx: Ctx, o: PaintNoteOpts): void {
   }
   drawDots(svg, x, y, note.dots);
 
-  queueStem(svg, { x, y, up: false, note }, staffBottom, head, o.beamGroups);
+  queueStem(svg, { x, y, up: false, note }, head, o.beamGroups, y >= midY);
 }
 
-// Stem + beam grouping (chord members share the principal note's stem; whole notes
-// have no stem). Draws a lone stem/flag immediately, or accumulates a beam group and
-// flushes it on the group's End note.
+// Stem + beam grouping (chord members share the principal note's stem; whole notes —
+// oval or x-form — have no stem). Draws a lone stem/flag immediately, or accumulates
+// a beam group and flushes it on the group's End note. `fallbackUp` is the direction
+// when the file carries no explicit <stem>: below-midline for pitched notes, the
+// voice convention for percussion. Beam groups stay keyed on staff_voice, so beams
+// never merge notes of different voices.
 function queueStem(
   svg: Svg,
   n: StemNote,
-  staffBottom: number,
   head: string,
   beamGroups: Map<string, StemNote[]>,
+  fallbackUp: boolean,
 ): void {
-  if (head === S.noteheadWhole || n.note.is_chord) return;
-  const midY = staffBottom - 2 * s;
-  const stem: StemNote = { ...n, up: n.note.stem != null ? n.note.stem === "Up" : n.y >= midY };
+  if (head === S.noteheadWhole || head === S.noteheadXWhole || n.note.is_chord) return;
+  const stem: StemNote = { ...n, up: n.note.stem != null ? n.note.stem === "Up" : fallbackUp };
 
   if (n.note.beams.length === 0) {
     drawStemAndFlag(svg, stem);
@@ -508,6 +601,16 @@ function queueStem(
 function yForPitch(step: string, octave: number, bottomLineY: number, clef: Clef): number {
   const diatonic = octave * 7 + (stepOrder[step] ?? 0);
   return bottomLineY - (diatonic - clefBottomDiatonic(clef)) * (s / 2);
+}
+
+// An unpitched note's written display position maps to lines and spaces exactly as
+// a treble (G, line 2) staff maps pitched spellings — the MusicXML convention for
+// unpitched display placement (snare C5 third space, kick F4 bottom space) —
+// regardless of the percussion clef's declared `line`.
+const trebleReference: Clef = { staff: 1, sign: "G", line: 2 };
+
+function yForUnpitched(u: Unpitched, bottomLineY: number): number {
+  return yForPitch(u.display_step, u.display_octave, bottomLineY, trebleReference);
 }
 
 // Diatonic value of a clef's bottom staff line (G→G4, F→F3, C→C4; each line = 2 steps).

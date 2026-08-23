@@ -848,6 +848,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  HeadClass dco_decode_head_class(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return HeadClass.values[raw as int];
+  }
+
+  @protected
   int dco_decode_i_32(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as int;
@@ -1300,12 +1306,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   Unpitched dco_decode_unpitched(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 3)
-      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
     return Unpitched(
       displayStep: dco_decode_Char(arr[0]),
       displayOctave: dco_decode_i_32(arr[1]),
       gmNumber: dco_decode_opt_box_autoadd_u_32(arr[2]),
+      headClass: dco_decode_head_class(arr[3]),
     );
   }
 
@@ -1514,6 +1521,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   double sse_decode_f_64(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getFloat64();
+  }
+
+  @protected
+  HeadClass sse_decode_head_class(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return HeadClass.values[inner];
   }
 
   @protected
@@ -2111,10 +2125,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_displayStep = sse_decode_Char(deserializer);
     var var_displayOctave = sse_decode_i_32(deserializer);
     var var_gmNumber = sse_decode_opt_box_autoadd_u_32(deserializer);
+    var var_headClass = sse_decode_head_class(deserializer);
     return Unpitched(
       displayStep: var_displayStep,
       displayOctave: var_displayOctave,
       gmNumber: var_gmNumber,
+      headClass: var_headClass,
     );
   }
 
@@ -2322,6 +2338,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   void sse_encode_f_64(double self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putFloat64(self);
+  }
+
+  @protected
+  void sse_encode_head_class(HeadClass self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
   }
 
   @protected
@@ -2827,6 +2849,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_Char(self.displayStep, serializer);
     sse_encode_i_32(self.displayOctave, serializer);
     sse_encode_opt_box_autoadd_u_32(self.gmNumber, serializer);
+    sse_encode_head_class(self.headClass, serializer);
   }
 
   @protected

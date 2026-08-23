@@ -42,6 +42,11 @@ export interface Lyric {
   text: string;
 }
 
+/** How an unpitched note's head is engraved (change: add-drum-notation-render),
+ * mirroring `cymbra-musicxml-core::HeadClass`. Derived once in the crate beside
+ * the resolved General MIDI number, so this painter never owns GM ranges. */
+export type HeadClass = "Oval" | "X" | "XOpen";
+
 /** A percussion note's written staff position and resolved sound (`<unpitched>`),
  * mirroring `cymbra-musicxml-core::Unpitched` (change: add-unpitched-notation). */
 export interface Unpitched {
@@ -51,6 +56,11 @@ export interface Unpitched {
   display_octave: number;
   /** General MIDI percussion number (0-based), or null when unresolved. */
   gm_number?: number | null;
+  /** Engraved head class the crate derived from the GM number: "X" for cymbals,
+   * "XOpen" for the open hi-hat (GM 46, x head + open mark), "Oval" for drums
+   * and unresolved notes. Absent on pre-drum-render wasm builds (treated as
+   * "Oval" — the ordinary head, never a re-derivation from GM ranges). */
+  head_class?: HeadClass;
 }
 
 export interface NoteEvent {

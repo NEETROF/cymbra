@@ -57,15 +57,16 @@ const bytesVm = computed(() =>
 // the bytes Async; failures degrade to a placeholder inside the preview.
 const scoreBytes = computed(() => bytesVm.value.bytes);
 const { notation } = useScoreRenderer(scoreBytes);
-// Drum guard (change: add-drums-access): `audio-wasm` renders through the hardcoded
-// piano channel, so a percussion score is never fed to the player — the preview shows
-// its localised "not previewable/auditionable yet" panel instead of a transport. The
-// recorded instrument gates immediately; the renderer's detection covers a drum score
-// still recorded `unknown`. `add-drum-audio-channel` lifts this guard.
+// Drum Play guard (change: add-drums-access): `audio-wasm` renders through the
+// hardcoded piano channel, so a percussion score is never fed to the player — the
+// transport shows a localised "not auditionable yet" note while the notation now
+// renders normally (add-drum-notation-render lifted the preview guard). The recorded
+// instrument gates immediately; the render result's `percussion` flag covers a drum
+// score still recorded `unknown`. `add-drum-audio-channel` lifts this guard.
 const isPercussion = computed(
   () =>
     hitVm.value.hit?.instrument === "percussion" ||
-    (notation.value.status === "success" && notation.value.data.kind === "percussion_unsupported"),
+    (notation.value.status === "success" && notation.value.data.percussion),
 );
 const playerBytes = computed(() => (isPercussion.value ? null : scoreBytes.value));
 // Preview instrument sound: default piano, or a catalog font the moderator picks.
@@ -261,6 +262,7 @@ async function saveEdit(edit: MetadataEdit) {
       :elapsed-ms="player.elapsedMs.value"
       :playing="player.playing.value"
       :can-play="player.canPlay.value"
+      :percussion-guard="isPercussion"
       show-meta
       @toggle="player.toggle"
       @seek="player.playFrom"

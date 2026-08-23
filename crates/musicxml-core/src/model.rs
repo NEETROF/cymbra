@@ -228,6 +228,51 @@ pub struct NoteEvent {
     pub instrument_id: Option<String>,
 }
 
+/// How an unpitched note's head is engraved (change: add-drum-notation-render).
+///
+/// Derived once here, beside the resolved General MIDI number, and carried to
+/// both painters (serde → console wasm, frb → app) so neither re-derives head
+/// classes from GM ranges of its own — two hand-maintained tables of the same
+/// knowledge is exactly how independent painters drift. The app's kit-view
+/// table stays the separate authority for the *gameplay* question (lanes and
+/// pads); the cymbal overlap between the two is pinned by an app test.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum HeadClass {
+    /// Ordinary oval head — the drums, and any unresolved note (the written
+    /// position is authoritative even when the sound is not).
+    Oval,
+    /// X-form head — the cymbals, following the duration class like ordinary
+    /// heads (filled x for quarter and shorter, open x forms above).
+    X,
+    /// X-form head carrying the conventional open mark (a small circle above
+    /// the head) — the open hi-hat stroke, GM 46, so the open/closed
+    /// distinction the file encodes as two GM numbers stays readable.
+    XOpen,
+}
+
+/// The cymbal sounds of the standard kit (0-based General MIDI): hi-hats
+/// (42/44/46 — 44, the pedal "chick", is a cymbal *sound* and engraves as x
+/// by convention even though the kit view lanes it generically), crashes
+/// (49/52/55/57), rides (51/53/59). Everything else — and every unresolved
+/// note — takes the ordinary oval head.
+const CYMBAL_GM: [u32; 10] = [42, 44, 46, 49, 51, 52, 53, 55, 57, 59];
+
+/// GM 46, the open hi-hat — the one stroke that carries the open mark.
+const OPEN_HI_HAT_GM: u32 = 46;
+
+impl HeadClass {
+    /// Classify a resolved General MIDI number (0-based) into its engraved
+    /// head class; `None` (unresolved) takes the ordinary oval.
+    pub fn of(gm_number: Option<u32>) -> Self {
+        match gm_number {
+            Some(OPEN_HI_HAT_GM) => HeadClass::XOpen,
+            Some(gm) if CYMBAL_GM.contains(&gm) => HeadClass::X,
+            _ => HeadClass::Oval,
+        }
+    }
+}
+
 /// A percussion note's written staff position and resolved sound.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -242,6 +287,9 @@ pub struct Unpitched {
     /// 1-based. `None` when the note's instrument could not be resolved; a
     /// consumer must omit such a note rather than fabricate a number.
     pub gm_number: Option<u32>,
+    /// The engraved head class ([`HeadClass::of`] the resolved number) — the
+    /// painters consume this verbatim and never own GM ranges.
+    pub head_class: HeadClass,
 }
 
 /// One `<score-instrument>` declaration from the part list.

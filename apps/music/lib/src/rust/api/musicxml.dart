@@ -146,6 +146,18 @@ sealed class DirectionKind with _$DirectionKind {
   }) = DirectionKind_Metronome;
 }
 
+/// How an unpitched note's head is engraved (change: add-drum-notation-render).
+enum HeadClass {
+  /// Ordinary oval head — drums, and any unresolved note.
+  oval,
+
+  /// X-form head — cymbals, following the duration class.
+  x,
+
+  /// X head carrying the open mark — the open hi-hat (GM 46).
+  xOpen,
+}
+
 /// One `<score-instrument>` declaration from the part list.
 class InstrumentDecl {
   /// The declaration's `id`, referenced by a note's `<instrument id>`.
@@ -754,15 +766,23 @@ class Unpitched {
   /// must omit such a note rather than fabricate a number.
   final int? gmNumber;
 
+  /// The engraved head class derived beside the number (change:
+  /// add-drum-notation-render) — the painters consume it verbatim.
+  final HeadClass headClass;
+
   const Unpitched({
     required this.displayStep,
     required this.displayOctave,
     this.gmNumber,
+    required this.headClass,
   });
 
   @override
   int get hashCode =>
-      displayStep.hashCode ^ displayOctave.hashCode ^ gmNumber.hashCode;
+      displayStep.hashCode ^
+      displayOctave.hashCode ^
+      gmNumber.hashCode ^
+      headClass.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -771,7 +791,8 @@ class Unpitched {
           runtimeType == other.runtimeType &&
           displayStep == other.displayStep &&
           displayOctave == other.displayOctave &&
-          gmNumber == other.gmNumber;
+          gmNumber == other.gmNumber &&
+          headClass == other.headClass;
 }
 
 /// Client-side validation outcome: on success the parsed [`ScoreSummary`]; on

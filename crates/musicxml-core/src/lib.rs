@@ -537,6 +537,7 @@ impl Parser {
                     display_step: 'B',
                     display_octave: 4,
                     gm_number: None,
+                    head_class: HeadClass::Oval,
                 });
             }
             // A note's `<instrument id>` reference (an empty element).
@@ -1099,6 +1100,9 @@ impl Parser {
                         .and_then(|d| d.gm_number),
                     None => sole_gm,
                 };
+                // The engraved head class rides beside the resolved number so
+                // the painters never own GM ranges (add-drum-notation-render).
+                u.head_class = HeadClass::of(u.gm_number);
             }
         }
         let play_order = repeats::play_order(&self.measures);
@@ -1906,6 +1910,70 @@ mod tests {
     }
 
     // --- Percussion notation (change: add-unpitched-notation) -------------
+
+    #[test]
+    fn head_classes_split_cymbals_from_drums_and_mark_the_open_hat() {
+        // The cymbal set takes x heads; 46 additionally the open mark.
+        for gm in [42, 44, 49, 51, 52, 53, 55, 57, 59] {
+            assert_eq!(HeadClass::of(Some(gm)), HeadClass::X, "GM {gm}");
+        }
+        assert_eq!(HeadClass::of(Some(46)), HeadClass::XOpen);
+        // The drums take the ordinary oval — kick, snares, toms, percussion
+        // accessories alike — and so does an unresolved note: the written
+        // position is authoritative even when the sound is not.
+        for gm in [35, 36, 37, 38, 40, 41, 43, 45, 47, 48, 50, 54, 56] {
+            assert_eq!(HeadClass::of(Some(gm)), HeadClass::Oval, "GM {gm}");
+        }
+        assert_eq!(HeadClass::of(None), HeadClass::Oval);
+    }
+
+    #[test]
+    fn parse_derives_the_head_class_beside_the_resolved_number() {
+        let doc = parse(crate::fixtures::ROCK_GROOVE.as_bytes()).unwrap();
+        let class_of = |gm: u32| {
+            doc.measures
+                .iter()
+                .flat_map(|m| &m.notes)
+                .find_map(|n| {
+                    n.unpitched
+                        .as_ref()
+                        .filter(|u| u.gm_number == Some(gm))
+                        .map(|u| u.head_class)
+                })
+                .unwrap()
+        };
+        assert_eq!(class_of(42), HeadClass::X); // closed hi-hat
+        assert_eq!(class_of(38), HeadClass::Oval); // snare
+        assert_eq!(class_of(36), HeadClass::Oval); // kick
+
+        // An unresolvable note keeps the oval (engraved, never dropped).
+        let degraded = parse(crate::fixtures::DEGRADED.as_bytes()).unwrap();
+        let unresolved = degraded
+            .measures
+            .iter()
+            .flat_map(|m| &m.notes)
+            .filter_map(|n| n.unpitched.as_ref())
+            .find(|u| u.gm_number.is_none())
+            .expect("the degraded fixture carries an unresolved note");
+        assert_eq!(unresolved.head_class, HeadClass::Oval);
+    }
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn head_class_rides_the_wasm_json_contract() {
+        // The console painter consumes the field from the serde JSON — the
+        // variant names are the wire contract.
+        let u = Unpitched {
+            display_step: 'G',
+            display_octave: 5,
+            gm_number: Some(46),
+            head_class: HeadClass::of(Some(46)),
+        };
+        let json = serde_json::to_string(&u).unwrap();
+        assert!(json.contains("\"head_class\":\"XOpen\""), "got {json}");
+        let back: Unpitched = serde_json::from_str(&json).unwrap();
+        assert_eq!(back, u);
+    }
 
     #[test]
     fn percussion_fixture_parses_positions_and_resolves_gm_numbers() {

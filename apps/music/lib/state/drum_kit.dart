@@ -228,7 +228,18 @@ int? laneIndexOf(List<DrumLane> lanes, int gm) {
 /// everything else hands. [multiVoice] is whether the loaded score's
 /// percussion notes span more than one voice (precomputed once).
 bool isFootNote(TimedNote n, {required bool multiVoice}) =>
-    multiVoice ? n.voice >= 2 : kFootGmNumbers.contains(n.pitch);
+    isFootEvent(voice: n.voice, gmNumber: n.pitch, multiVoice: multiVoice);
+
+/// [isFootNote] over raw values, for consumers that hold the parsed document
+/// rather than [TimedNote]s (the engraved Partition painter, change:
+/// add-drum-notation-render). The single implementation of the convention —
+/// the surfaces cannot drift. A null [gmNumber] (unresolved) counts as a hand
+/// under the single-voice fallback: only the named foot numbers are feet.
+bool isFootEvent({
+  required int voice,
+  required int? gmNumber,
+  required bool multiVoice,
+}) => multiVoice ? voice >= 2 : kFootGmNumbers.contains(gmNumber);
 
 /// Whether [notes] span more than one voice — the precondition for the
 /// voice-keyed hands/feet split (single-voice files use the GM fallback).

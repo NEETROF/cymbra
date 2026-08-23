@@ -302,7 +302,7 @@
     "resubmitted": "Re-submitted",
     "resubmittedHint": "Re-proposed after a rejection — {note}",
     "percussion": "Drums",
-    "percussionHint": "Percussion score — its notation preview and audio audition are not available in the console yet."
+    "percussionHint": "Percussion score — its audio audition is not available in the console yet."
   },
   "filters": {
     "query": "title or composer",
@@ -364,8 +364,6 @@
     "loading": "Loading score…",
     "rendering": "Rendering notation…",
     "renderError": "Notation could not be rendered.",
-    "percussionNotPreviewable": "Drum score — not previewable yet.",
-    "percussionHint": "The file is fine: the console cannot draw or audition percussion notation yet.",
     "percussionNotAuditionable": "Drum score — not auditionable yet.",
     "noBytes": "No score bytes.",
     "play": "▶ Play",

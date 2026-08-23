@@ -594,10 +594,13 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     // unavailable on phones and falls back to the staff view. The mode toggle
     // also hides the Partition segment on phones, so this is only reached if the
     // mode was set on a larger screen before switching to a phone layout.
-    if (data.isPercussion) {
-      // The percussion cascade (change: add-drum-kit-view): the only render
-      // mode for a drum score until add-drum-notation-render. No scoring
-      // overlay — nothing is scoreable until add-drum-input-mapping.
+    if (data.isPercussion && data.mode == RenderMode.synthesia) {
+      // The percussion cascade (change: add-drum-kit-view): the drum score's
+      // default reading surface, in Synthesia's slot. The notation modes are
+      // offered alongside it (change: add-drum-notation-render) and drawn by
+      // the shared Staff/Partition paths below, which engrave the percussion
+      // rules. No scoring overlay — nothing is scoreable until
+      // add-drum-input-mapping.
       return Stack(
         children: [
           Positioned.fill(
@@ -904,9 +907,6 @@ class _ModeToggle extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final mode = ref.watch(playerProvider.select((d) => d.mode));
-    final isPercussion = ref.watch(
-      playerProvider.select((d) => d.isPercussion),
-    );
     final notifier = ref.read(playerProvider.notifier);
     final l10n = AppLocalizations.of(context);
     // On a phone the three labelled segments are too wide for the landscape top
@@ -937,18 +937,21 @@ class _ModeToggle extends ConsumerWidget {
       // viewport, so it's dropped from the toggle on phones. If the mode was set
       // to Partition on a larger screen, the selection falls back to Staff (what
       // the render area also shows) so the button keeps a valid selection.
-      // A percussion score offers only the cascade — Staff and Partition are
-      // omitted until add-drum-notation-render draws percussion notation
-      // (change: add-drum-kit-view). Keyboard scores keep all three modes.
+      // A percussion score offers the same mode set a keyboard score gets on
+      // the same device — the cascade in Synthesia's slot, plus Staff and
+      // Partition drawn per music-percussion-engraving (change:
+      // add-drum-notation-render, lifting add-drum-kit-view's interim); the
+      // cascade stays the default on load (see the notifier's document-load
+      // reset). Wait Mode remains not offered for percussion — that interim
+      // belongs to add-drum-scoring, not this change.
       segments: [
         segment(
           RenderMode.synthesia,
           l10n.modeSynthesia,
           Icons.waterfall_chart,
         ),
-        if (!isPercussion)
-          segment(RenderMode.staff, l10n.modeStaff, Icons.music_note),
-        if (!isPercussion && !isPhone)
+        segment(RenderMode.staff, l10n.modeStaff, Icons.music_note),
+        if (!isPhone)
           segment(RenderMode.partition, l10n.modePartition, Icons.article),
       ],
       selected: {
@@ -1269,8 +1272,9 @@ class _TransportBar extends ConsumerWidget {
     );
     // Wait Mode is not offered for a percussion score (change:
     // add-drum-kit-view): the pads are inert until add-drum-input-mapping, so
-    // the gate could never be satisfied. Timed modes only until
-    // add-drum-scoring.
+    // the gate could never be satisfied. Deliberately untouched by
+    // add-drum-notation-render (which re-offered the notation modes) and
+    // pinned by test — lifting this interim belongs to add-drum-scoring.
     final Widget? wait = data.isPercussion
         ? null
         : isPhone

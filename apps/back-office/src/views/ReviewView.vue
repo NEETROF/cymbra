@@ -61,16 +61,18 @@ const bytesVm = computed(() =>
 );
 
 const { notation } = useScoreRenderer(bytesData);
-// Drum guard (change: add-drums-access): the console's audio path is keyboard-shaped
-// (`audio-wasm` renders through the hardcoded piano channel), so a percussion score
-// must never be auditioned — it would play silence or piano nonsense. The recorded
-// instrument gates immediately; the renderer's own percussion detection covers a drum
-// score still recorded `unknown`. Not an error: the transport shows a quiet localised
-// "not auditionable yet" note instead. `add-drum-audio-channel` lifts this guard.
+// Drum Play guard (change: add-drums-access): the console's audio path is
+// keyboard-shaped (`audio-wasm` renders through the hardcoded piano channel), so a
+// percussion score must never be auditioned — it would play silence or piano
+// nonsense. The notation itself now renders (add-drum-notation-render lifted the
+// preview guard). The recorded instrument gates immediately; the render result's
+// `percussion` flag covers a drum score still recorded `unknown`. Not an error: the
+// transport shows a quiet localised "not auditionable yet" note instead.
+// `add-drum-audio-channel` lifts this guard.
 const isPercussion = computed(
   () =>
     session.current.value?.instrument === "percussion" ||
-    (notation.value.status === "success" && notation.value.data.kind === "percussion_unsupported"),
+    (notation.value.status === "success" && notation.value.data.percussion),
 );
 // Gating the BYTES fed to the player silences every path at once: no schedule, so
 // canPlay stays false (disabled Play, inert spacebar) and auto-play never fires.
@@ -295,8 +297,8 @@ const currentHit = computed(() => session.current.value as CatalogHit | null);
     <h2 class="score-title">
       {{ currentHit.title || $t("detail.score") }}
       <!-- Instrument badge (change: add-drums-access): a percussion proposal is
-           identified up front, so the unavailable preview/audition reads as expected
-           rather than as a corrupt file. -->
+           identified up front; since add-drum-notation-render the preview renders,
+           so the badge now explains why Play alone is unavailable. -->
       <AppTag v-if="currentHit.instrument === 'percussion'" variant="accent" :title="$t('table.percussionHint')">{{
         $t("table.percussion")
       }}</AppTag>
@@ -330,6 +332,7 @@ const currentHit = computed(() => session.current.value as CatalogHit | null);
         :notation="notation"
         show-meta
         hide-transport
+        :percussion-guard="isPercussion"
         :schedule="player.schedule.value"
         :audio="player.audio.value"
         :elapsed-ms="player.elapsedMs.value"

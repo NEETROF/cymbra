@@ -286,10 +286,10 @@ class Player extends _$Player {
       writtenMeasureCount: document.measures.length,
       // Percussion routing (change: add-drum-kit-view): the lane layout is
       // derived ONCE here and consumed by both the cascade and the pad strip.
-      // The cascade is the only mode and Wait Mode is not offered until
-      // add-drum-scoring (an inert pad strip cannot satisfy the gate); the
-      // stored mode/waitMode are left untouched for the next keyboard score
-      // by resetting them when a keyboard score loads.
+      // The cascade stays the DEFAULT presentation on load — the notation
+      // modes are offered but entered only by the player's choice (change:
+      // add-drum-notation-render) — and Wait Mode is not offered until
+      // add-drum-scoring (an inert pad strip cannot satisfy the gate).
       isPercussion: derived.isPercussion,
       drumLanes: derived.isPercussion
           ? deriveDrumLanes(derived.notes)

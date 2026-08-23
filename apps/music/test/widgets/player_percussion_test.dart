@@ -12,14 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'package:flutter/foundation.dart'
+    show debugDefaultTargetPlatformOverride;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:music/painters/drum_cascade_painter.dart';
+import 'package:music/painters/partition_painter.dart';
+import 'package:music/painters/staff_painter.dart';
 import 'package:music/screens/player_screen.dart';
 import 'package:music/services/audio_service.dart';
 import 'package:music/services/midi_service.dart';
 import 'package:music/services/notation_engine.dart';
 import 'package:music/services/score_asset_source.dart';
+import 'package:music/src/rust/api/musicxml.dart' show ScoreDocument;
 import 'package:music/state/drum_kit.dart';
 import 'package:music/state/player_data.dart';
 import 'package:music/state/player_notifier.dart';
@@ -42,6 +48,7 @@ Future<ProviderContainer> _pumpPercussion(
   WidgetTester tester, {
   Size size = const Size(1400, 900),
   bool dismissModal = true,
+  ScoreDocument? document,
 }) async {
   await tester.binding.setSurfaceSize(size);
   final container = ProviderContainer(
@@ -49,7 +56,7 @@ Future<ProviderContainer> _pumpPercussion(
       scoreCatalogProvider.overrideWithValue(const [_entry]),
       scoreAssetSourceProvider.overrideWithValue(FakeScoreAssetSource()),
       notationEngineProvider.overrideWithValue(
-        FakeNotationEngine(document: sampleDrumDocument()),
+        FakeNotationEngine(document: document ?? sampleDrumDocument()),
       ),
       midiServiceProvider.overrideWithValue(FakeMidiService()),
       scoreSourceProvider.overrideWithValue(FakeScoreSource()),
@@ -106,17 +113,130 @@ void main() {
     await _teardown(tester, c);
   });
 
-  testWidgets('neither notation modes nor Wait Mode are offered', (
+  testWidgets('the mode toggle offers the full set — cascade, Staff and '
+      'Partition — and the cascade stays the default on load '
+      '(add-drum-notation-render)', (tester) async {
+    final c = await _pumpPercussion(tester);
+    // The same mode set a keyboard score gets on this device…
+    expect(find.text('Staff'), findsOneWidget);
+    expect(find.text('Partition'), findsOneWidget);
+    expect(find.text('Synthesia'), findsOneWidget);
+    // …with the cascade (Synthesia's slot) still the default presentation.
+    expect(c.read(playerProvider).mode, RenderMode.synthesia);
+    expect(
+      find.byWidgetPredicate(
+        (w) => w is CustomPaint && w.painter is DrumCascadePainter,
+      ),
+      findsOneWidget,
+    );
+    await _teardown(tester, c);
+  });
+
+  testWidgets('Wait Mode stays NOT offered for percussion — the '
+      'add-drum-scoring interim is untouched by the mode re-offer', (
     tester,
   ) async {
     final c = await _pumpPercussion(tester);
-    // The mode toggle presents only the cascade: no Portée, no Partition.
-    expect(find.text('Portée'), findsNothing);
-    expect(find.text('Partition'), findsNothing);
-    // Wait Mode is not offered (the pads are inert until
-    // add-drum-input-mapping) and is off in state.
     expect(find.text('Wait'), findsNothing);
     expect(c.read(playerProvider).waitMode, isFalse);
+    await _teardown(tester, c);
+  });
+
+  testWidgets('switching to Staff and Partition engraves notation and '
+      'switching back preserves playback state', (tester) async {
+    final c = await _pumpPercussion(tester);
+    final notifier = c.read(playerProvider.notifier);
+    notifier.setPlaying(true);
+    for (var i = 0; i < 4; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    final wasPlaying = c.read(playerProvider).isPlaying;
+    final elapsedBefore = c.read(playerProvider).elapsedMs;
+
+    // Staff mode: the scrolling staff replaces the cascade.
+    await tester.tap(find.text('Staff'));
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(
+      find.byWidgetPredicate(
+        (w) => w is CustomPaint && w.painter is StaffPainter,
+      ),
+      findsWidgets,
+    );
+    expect(
+      find.byWidgetPredicate(
+        (w) => w is CustomPaint && w.painter is DrumCascadePainter,
+      ),
+      findsNothing,
+    );
+
+    // Partition mode: the engraved canvas appears.
+    await tester.tap(find.text('Partition'));
+    for (var i = 0; i < 3; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    expect(find.byKey(const Key('partition-canvas')), findsOneWidget);
+    expect(
+      find.byWidgetPredicate(
+        (w) => w is CustomPaint && w.painter is PartitionPainter,
+      ),
+      findsWidgets,
+    );
+
+    // Back to the cascade: playback state survived the round trip like it
+    // does for a keyboard score.
+    await tester.tap(find.text('Synthesia'));
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(
+      find.byWidgetPredicate(
+        (w) => w is CustomPaint && w.painter is DrumCascadePainter,
+      ),
+      findsOneWidget,
+    );
+    final data = c.read(playerProvider);
+    expect(data.isPlaying, wasPlaying);
+    expect(data.elapsedMs, greaterThanOrEqualTo(elapsedBefore));
+    await _teardown(tester, c);
+  });
+
+  testWidgets('the measure-select screen resolves written measures on a '
+      'percussion score (smoke)', (tester) async {
+    final c = await _pumpPercussion(
+      tester,
+      document: sampleOpenGrooveDocument(),
+    );
+    await tester.longPress(find.byKey(const Key('transport-rewind')));
+    for (var i = 0; i < 6; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    expect(find.byKey(const Key('measure-select-canvas')), findsOneWidget);
+
+    // One measure per system (fake layout): tap the middle of each line.
+    final box = tester.getRect(find.byKey(const Key('measure-select-canvas')));
+    final painter = PartitionPainter(
+      document: sampleOpenGrooveDocument(),
+      systems: const [],
+    );
+    Offset bar(int index) =>
+        box.topLeft +
+        Offset(
+          box.width * 0.7,
+          painter.systemTopY(index) + painter.systemStride / 2,
+        );
+    await tester.tapAt(bar(0));
+    for (var i = 0; i < 3; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    await tester.tapAt(bar(1));
+    for (var i = 0; i < 3; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    await tester.tap(find.byKey(const Key('measure-select-confirm')));
+    for (var i = 0; i < 12; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    final data = c.read(playerProvider);
+    expect(data.practiceStartMeasure, 0);
+    expect(data.practiceEndMeasure, 1);
     await _teardown(tester, c);
   });
 
@@ -185,22 +305,37 @@ void main() {
     await _teardown(tester, c);
   });
 
-  testWidgets('the phone layout keeps the strip and the single-segment '
-      'toggle', (tester) async {
+  testWidgets('the phone layout keeps the strip and inherits the phone mode '
+      'set: cascade + Staff, Partition remapped away', (tester) async {
     // Phone landscape: the same routing holds on the small form factor — the
     // strip follows the phone keyboard-height policy and the toggle is
-    // icon-only with a single segment. The modal is dismissed at desktop size
-    // first: it has a pre-existing overflow on phone viewports (tracked
-    // separately) that would fail the frames before the player is reachable.
+    // icon-only. Mode parity is device-relative (the spec's phrasing): a
+    // phone offers a keyboard score cascade + Staff and remaps Partition to
+    // Staff, so a percussion score gets exactly that. The modal is dismissed
+    // at desktop size first: it has a pre-existing overflow on phone
+    // viewports (tracked separately) that would fail the frames before the
+    // player is reachable.
     final c = await _pumpPercussion(tester);
-    await tester.binding.setSurfaceSize(const Size(844, 390));
-    for (var i = 0; i < 4; i++) {
-      await tester.pump(const Duration(milliseconds: 50));
+    // A desktop host always classes as desktop: simulate the phone the way
+    // the player-screen suite does — mobile platform + phone-sized view.
+    debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+    try {
+      tester.view.devicePixelRatio = 1.0;
+      tester.view.physicalSize = const Size(844, 390);
+      await tester.binding.setSurfaceSize(const Size(844, 390));
+      for (var i = 0; i < 4; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+      expect(find.byKey(const Key('pad-strip')), findsOneWidget);
+      expect(find.byKey(const Key('onscreen-keyboard')), findsNothing);
+      expect(find.byIcon(Icons.music_note), findsOneWidget); // Staff segment
+      expect(find.byIcon(Icons.article), findsNothing); // no Partition here
+      await _teardown(tester, c);
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
     }
-    expect(find.byKey(const Key('pad-strip')), findsOneWidget);
-    expect(find.byKey(const Key('onscreen-keyboard')), findsNothing);
-    expect(find.byIcon(Icons.music_note), findsNothing); // no Portée segment
-    await _teardown(tester, c);
   });
 
   testWidgets('the setup modal swaps the range chooser for the kit layout '

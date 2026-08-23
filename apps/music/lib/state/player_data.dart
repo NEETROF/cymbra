@@ -15,7 +15,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 import '../painters/keyboard_range.dart';
-import '../src/rust/api/musicxml.dart' show BeamState;
+import '../src/rust/api/musicxml.dart' show BeamState, HeadClass;
 import '../src/rust/api/score.dart';
 import 'drum_kit.dart';
 import 'note_density_core.dart';
@@ -139,6 +139,14 @@ class TimedNote {
   /// and "keep holding" read differently. Null on ordinary notes.
   final int? sustainFromMs;
 
+  /// Engraved head class of an **unpitched** (percussion) note, carried
+  /// verbatim from the bridged `Unpitched.headClass` (change:
+  /// add-drum-notation-render): the shared crate classifies cymbals as x
+  /// heads (the open hi-hat additionally marked), drums as ovals — the
+  /// painters consume it and never re-derive GM ranges of their own. Null for
+  /// pitched notes and MIDI-only sources.
+  final HeadClass? headClass;
+
   const TimedNote({
     required this.pitch,
     required this.startMs,
@@ -157,6 +165,7 @@ class TimedNote {
     this.isGrace = false,
     this.isChord = false,
     this.sustainFromMs,
+    this.headClass,
   });
 }
 
@@ -180,12 +189,19 @@ class TimedRest {
   /// Number of augmentation dots (0 when none).
   final int dots;
 
+  /// Voice the rest belongs to (change: add-drum-notation-render). On a
+  /// two-voice percussion measure the painters displace rests by voice —
+  /// voice 1 above the middle line, voice 2 below — so a rest never sits on
+  /// the midline where the other voice's material runs.
+  final int voice;
+
   const TimedRest({
     required this.startMs,
     required this.durationMs,
     this.staff = 1,
     this.noteType,
     this.dots = 0,
+    this.voice = 1,
   });
 }
 
@@ -681,20 +697,48 @@ abstract class PlayerData with _$PlayerData {
         .toList();
   }
 
+  /// Whether [selectedHands] shows this rest. Keyboard scores split by staff;
+  /// a percussion score splits by the hands/feet **voice** convention (change:
+  /// add-drum-notation-render): on a multi-voice drum part voice 1's rests
+  /// belong to the hands and voice 2's to the feet, while a single-voice
+  /// part's rests are the shared groove's and stay visible either way (a rest
+  /// carries no GM number for the fallback to key on).
+  bool _showsRest(TimedRest r, {required bool multiVoice}) => isPercussion
+      ? switch (selectedHands) {
+          Hand.both => true,
+          Hand.right => !multiVoice || r.voice < 2,
+          Hand.left => !multiVoice || r.voice >= 2,
+        }
+      : showsStaff(r.staff);
+
   /// Rests belonging to the selected hand(s) — the render-only companion to
   /// [visibleNotes], so the Staff painter hides a muted hand's rests with its
   /// notes (and, in a selective run, everything outside the passage).
-  List<TimedRest> get visibleRests => rests
-      .where((r) => showsStaff(r.staff) && _withinRun(r.startMs.toDouble()))
-      .toList();
+  List<TimedRest> get visibleRests {
+    final multiVoice = isPercussion && spansMultipleVoices(notes);
+    return rests
+        .where(
+          (r) =>
+              _showsRest(r, multiVoice: multiVoice) &&
+              _withinRun(r.startMs.toDouble()),
+        )
+        .toList();
+  }
 
   /// Tie continuations belonging to the selected hand(s) — the render-only
-  /// companion to [visibleNotes] (same filter), so a muted hand's tied notation
-  /// hides with its notes (and, in a selective run, everything outside the
-  /// passage).
-  List<TimedNote> get visibleTieContinuations => tieContinuations
-      .where((n) => showsStaff(n.staff) && _withinRun(n.startMs.toDouble()))
-      .toList();
+  /// companion to [visibleNotes] (same filter, hands/feet on percussion), so a
+  /// muted hand's tied notation hides with its notes (and, in a selective run,
+  /// everything outside the passage).
+  List<TimedNote> get visibleTieContinuations {
+    final multiVoice = isPercussion && spansMultipleVoices(notes);
+    return tieContinuations
+        .where(
+          (n) =>
+              _showsNote(n, multiVoice: multiVoice) &&
+              _withinRun(n.startMs.toDouble()),
+        )
+        .toList();
+  }
 
   /// Whether onset [t] falls inside the run. Always true for a full run; for a
   /// selective one, the half-open span of the chosen measures. Deliberately keyed
