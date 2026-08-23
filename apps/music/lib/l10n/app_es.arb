@@ -767,5 +767,10 @@
   "kitPieceCrash2": "Crash 2",
   "kitPieceSplash": "Splash",
   "kitPieceChina": "China",
-  "kitPieceKick": "Bombo"
+  "kitPieceKick": "Bombo",
+  "instrumentChoiceTitle": "¿Con qué quieres empezar?",
+  "instrumentChoiceBody": "Tu inicio mostrará ese instrumento primero. Puedes cambiarlo en cualquier momento desde el selector de arriba.",
+  "drumsEmptyTitle": "Aún no hay partituras de batería aquí",
+  "drumsEmptyBody": "No hay nada que mostrar para batería por ahora: explora el catálogo desde la lupa o vuelve al teclado.",
+  "drumsEmptySwitch": "Volver al teclado"
 }

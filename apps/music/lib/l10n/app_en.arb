@@ -3304,5 +3304,25 @@
   "kitPieceCrash2": "Crash 2",
   "kitPieceSplash": "Splash",
   "kitPieceChina": "China",
-  "kitPieceKick": "Kick"
+  "kitPieceKick": "Kick",
+  "instrumentChoiceTitle": "What would you like to start with?",
+  "@instrumentChoiceTitle": {
+    "description": "One-time instrument choice modal title (add-instrument-context). A CHOICE, never an unlock."
+  },
+  "instrumentChoiceBody": "Your home will show that instrument first. You can change it anytime from the switcher at the top.",
+  "@instrumentChoiceBody": {
+    "description": "Modal body: states the choice seeds the home and can be changed anytime."
+  },
+  "drumsEmptyTitle": "No drum scores here yet",
+  "@drumsEmptyTitle": {
+    "description": "Drums-context empty state title."
+  },
+  "drumsEmptyBody": "Nothing to show for drums right now — explore the catalog from the search icon, or switch back to keyboard.",
+  "@drumsEmptyBody": {
+    "description": "Drums-context empty state body, naming the cause and the ways out."
+  },
+  "drumsEmptySwitch": "Switch to keyboard",
+  "@drumsEmptySwitch": {
+    "description": "Button switching the context back to keyboard."
+  }
 }

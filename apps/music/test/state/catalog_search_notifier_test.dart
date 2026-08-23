@@ -17,11 +17,16 @@ import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:music/services/catalog_service.dart';
+import 'package:music/services/preferences_service.dart';
 import 'package:music/services/score_upload_service.dart';
 import 'package:music/state/catalog_search_notifier.dart';
 import 'package:music/state/contributed_scores.dart';
+import 'package:music/state/drums_access.dart';
+import 'package:music/state/instrument_context.dart';
 import 'package:music/state/score_catalog.dart';
 import 'package:music/state/session_notifier.dart';
+
+import '../support/prefs_fakes.dart';
 
 /// In-memory [CatalogService] mirroring the backend's substring/filter search.
 class _FakeCatalog implements CatalogService {
@@ -346,5 +351,91 @@ void main() {
     await _settled(c);
     expect(catalog.lastInstrument, isNull);
     expect(c.read(catalogSearchProvider).hasAdvancedFilters, isFalse);
+  });
+
+  group('instrument-context seeding (change: add-instrument-context)', () {
+    // A container where the context apparatus is live: drums visible, a real
+    // context notifier over an in-memory store. The context is primed BEFORE
+    // the hub notifier first builds — modelling a stored choice.
+    ProviderContainer contextContainer(
+      _FakeCatalog catalog, {
+      AppInstrument context = AppInstrument.keyboard,
+    }) {
+      final c = ProviderContainer(
+        overrides: [
+          catalogServiceProvider.overrideWithValue(catalog),
+          scoreUploadServiceProvider.overrideWithValue(_FakeUpload(const [])),
+          canUseOnlineServicesProvider.overrideWithValue(true),
+          preferencesServiceProvider.overrideWithValue(
+            FakePreferencesService(),
+          ),
+          drumsEnabledProvider.overrideWithValue(true),
+        ],
+      );
+      addTearDown(c.dispose);
+      if (context != AppInstrument.keyboard) {
+        c.read(instrumentContextProvider.notifier).select(context);
+      }
+      final sub = c.listen(catalogSearchProvider, (_, _) {});
+      addTearDown(sub.close);
+      return c;
+    }
+
+    test('the drums context seeds the percussion filter', () async {
+      final catalog = _FakeCatalog(_corpus());
+      final c = contextContainer(catalog, context: AppInstrument.drums);
+      expect(
+        c.read(catalogSearchProvider).instrument,
+        ScoreInstrument.percussion,
+      );
+      await _settled(c);
+      expect(catalog.lastInstrument, ScoreInstrument.percussion);
+    });
+
+    test('the keyboard context seeds the unconstrained browse', () async {
+      final catalog = _FakeCatalog(_corpus());
+      final c = contextContainer(catalog);
+      expect(c.read(catalogSearchProvider).instrument, isNull);
+      await _settled(c);
+      expect(catalog.instrumentEverSet, isFalse);
+    });
+
+    test('adjusting the filter never writes back into the context', () async {
+      final c = contextContainer(
+        _FakeCatalog(_corpus()),
+        context: AppInstrument.drums,
+      );
+      await _settled(c);
+      // The drummer browses the whole catalog for a change…
+      c.read(catalogSearchProvider.notifier).setInstrument(null);
+      await _settled(c);
+      expect(c.read(catalogSearchProvider).instrument, isNull);
+      // …and the durable context is untouched: the filter is session state.
+      expect(c.read(instrumentContextProvider).context, AppInstrument.drums);
+    });
+
+    test('an explicit context switch re-seeds, overriding an adjusted '
+        'filter — in both directions', () async {
+      final catalog = _FakeCatalog(_corpus());
+      final c = contextContainer(catalog);
+      await _settled(c);
+      // The user adjusted the filter by hand…
+      c
+          .read(catalogSearchProvider.notifier)
+          .setInstrument(ScoreInstrument.keyboard);
+      await _settled(c);
+
+      // …then switches context: the durable act outranks the session state.
+      c.read(instrumentContextProvider.notifier).select(AppInstrument.drums);
+      final s = await _settled(c);
+      expect(s.instrument, ScoreInstrument.percussion);
+      expect(catalog.lastInstrument, ScoreInstrument.percussion);
+
+      // And back: keyboard's starting value is the unconstrained browse.
+      c.read(instrumentContextProvider.notifier).select(AppInstrument.keyboard);
+      final s2 = await _settled(c);
+      expect(s2.instrument, isNull);
+      expect(catalog.lastInstrument, isNull);
+    });
   });
 }

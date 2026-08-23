@@ -21,6 +21,7 @@ import '../analytics/usage_actions.dart';
 import '../services/catalog_service.dart';
 import 'contributed_scores.dart';
 import 'saved_catalog_scores.dart';
+import 'instrument_context.dart';
 import 'score_catalog.dart';
 import 'usage_tracking_notifier.dart';
 
@@ -122,9 +123,30 @@ class CatalogSearch extends _$CatalogSearch {
     // Re-run the current query whenever the user's uploads change (e.g. a new
     // contribution) so the hub reflects it immediately without a manual reload.
     ref.listen(myContributedScoresProvider, (_, _) => unawaited(_reload()));
+    // The instrument filter is SEEDED from the context and then independently
+    // adjustable, retained for the session (change: add-instrument-context):
+    // an explicit context switch re-seeds it — the durable act outranks the
+    // session's working state — while adjusting the filter never writes back
+    // (this notifier has no path into the context). Reacting via listen keeps
+    // the layering rule: no provider imperatively invalidates a sibling.
+    ref.listen(effectiveInstrumentContextProvider, (previous, next) {
+      if (previous == next) return;
+      // The same mapping as the seed: keyboard's starting value is the
+      // unconstrained browse, drums starts on the percussion filter.
+      setInstrument(
+        next == AppInstrument.drums ? ScoreInstrument.percussion : null,
+      );
+    });
+    // Seed the initial value: only under the drums context does the filter
+    // start constrained — the keyboard default keeps today's unconstrained
+    // browse (the backend already withholds what the caller may not see).
+    final seed =
+        ref.read(effectiveInstrumentContextProvider) == AppInstrument.drums
+        ? ScoreInstrument.percussion
+        : null;
     // Kick off the initial browse after build returns (never touch state here).
     Future.microtask(_reload);
-    return const CatalogSearchState();
+    return CatalogSearchState(instrument: seed);
   }
 
   /// Update the text query and reload (debounced for search-as-you-type).

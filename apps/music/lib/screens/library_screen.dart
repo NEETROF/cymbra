@@ -19,6 +19,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../l10n/gen/app_localizations.dart';
 import '../state/contributed_scores.dart';
+import '../state/drums_access.dart';
+import '../state/instrument_context.dart';
 import '../state/favorite_scores.dart';
 import '../state/player_preferences.dart';
 import '../state/saved_catalog_scores.dart';
@@ -27,6 +29,7 @@ import '../state/session_notifier.dart';
 import '../theme/cymbra_theme.dart';
 import '../widgets/catalog_access_widgets.dart';
 import '../widgets/courses_section.dart';
+import '../widgets/instrument_context_widgets.dart';
 import '../widgets/library_listeners.dart';
 import '../widgets/rating_invite_banner.dart';
 import '../services/connectivity_service.dart';
@@ -65,6 +68,10 @@ class LibraryScreen extends ConsumerWidget {
     ref.listen(playerPreferencesProvider, (_, _) {});
     final l10n = AppLocalizations.of(context);
     final signedIn = ref.watch(canUseOnlineServicesProvider);
+    // The context switcher rides the home header, only while drums are
+    // visible (change: add-instrument-context); everyone else gets today's
+    // header untouched.
+    final drumsVisible = ref.watch(drumsEnabledProvider);
 
     return LibraryListeners(
       child: Scaffold(
@@ -72,6 +79,15 @@ class LibraryScreen extends ConsumerWidget {
         appBar: AppBar(
           title: Text(l10n.libraryTitle),
           backgroundColor: CymbraColors.surfaceContainerLowest,
+          bottom: drumsVisible
+              ? const PreferredSize(
+                  preferredSize: Size.fromHeight(54),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: InstrumentSwitcher(),
+                  ),
+                )
+              : null,
           actions: [
             // Shown to everyone: reaching them signed out is what triggers the
             // contextual sign-in invitation (change: add-welcome-onboarding, D3)
@@ -134,24 +150,35 @@ class LibraryScreen extends ConsumerWidget {
             const SizedBox(width: 8),
           ],
         ),
-        body: SafeArea(
-          top: false,
-          child: signedIn
-              ? _SignedInBody(l10n: l10n)
-              : _bundledBody(context, ref),
+        body: InstrumentChoiceListener(
+          child: SafeArea(
+            top: false,
+            child: signedIn
+                ? _SignedInBody(l10n: l10n)
+                : _bundledBody(context, ref),
+          ),
         ),
       ),
     );
   }
 
-  /// Signed-out: the bundled demo catalog, grouped by level (open-only).
+  /// Signed-out: the bundled demo catalog, grouped by level (open-only) and
+  /// seeded from the instrument context (change: add-instrument-context) —
+  /// drums shows the bundled grooves, keyboard the piano repertoire.
   Widget _bundledBody(BuildContext context, WidgetRef ref) {
     final catalog = ref.watch(scoreCatalogProvider);
+    final wantsDrums =
+        ref.watch(effectiveInstrumentContextProvider) == AppInstrument.drums;
+    final shown = [
+      for (final e in catalog)
+        if ((e.instrument == ScoreInstrument.percussion) == wantsDrums) e,
+    ];
+    if (shown.isEmpty && wantsDrums) return const DrumsEmptyInvitation();
     return ListView(
       padding: const EdgeInsets.only(bottom: 24),
       children: _levelSections(
         context,
-        catalog,
+        shown,
         onOpen: (entry) => _open(context, ref, entry),
         actionFor: (_) => null,
       ),
@@ -258,6 +285,18 @@ class _SignedInBody extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final favorites = ref.watch(favoriteScoresProvider);
+    // Under the drums context (change: add-instrument-context) the home
+    // seeds drums: favorites filter to percussion, the bundled grooves offer
+    // a starting point, and the courses card — keyboard-only for now — makes
+    // way; the explicit invitation covers the nothing-to-show case.
+    final wantsDrums =
+        ref.watch(effectiveInstrumentContextProvider) == AppInstrument.drums;
+    final bundledDrums = wantsDrums
+        ? [
+            for (final e in ref.watch(scoreCatalogProvider))
+              if (e.instrument == ScoreInstrument.percussion) e,
+          ]
+        : const <CatalogEntry>[];
     // Offline marking: a favorite with no cached bytes, while the device is
     // offline, is shown but flagged "not available offline". Both are read
     // non-blocking (default: online, everything playable) so they never gate the
@@ -267,6 +306,10 @@ class _SignedInBody extends ConsumerWidget {
         ref.watch(offlinePlayableIdsProvider).valueOrNull ?? const <String>{};
     bool offlineUnavailable(CatalogEntry entry) =>
         !online && !playable.contains(entry.id);
+    List<CatalogEntry> byContext(List<CatalogEntry> entries) => [
+      for (final e in entries)
+        if ((e.instrument == ScoreInstrument.percussion) == wantsDrums) e,
+    ];
     return CustomScrollView(
       slivers: [
         // Nudge to rate scores after a lull (renders nothing when not due).
@@ -275,18 +318,30 @@ class _SignedInBody extends ConsumerWidget {
         // renders nothing when the gate is off for this caller.
         const SliverToBoxAdapter(child: CatalogAccessChip()),
         // Interactive courses (change: add-notation-courses), above the
-        // favorites; omits itself when there are none.
-        const SliverToBoxAdapter(child: CoursesSection()),
-        switch (favorites) {
-          AsyncData(:final value) when value.isEmpty => _fill(
-            _Empty(l10n: l10n),
+        // favorites; omits itself when there are none. No drum course exists
+        // yet, so the card steps aside under the drums context.
+        if (!wantsDrums) const SliverToBoxAdapter(child: CoursesSection()),
+        if (bundledDrums.isNotEmpty)
+          SliverList.list(
+            children: _levelSections(
+              context,
+              bundledDrums,
+              onOpen: (entry) => LibraryScreen._open(context, ref, entry),
+              actionFor: (_) => null,
+            ),
           ),
+        switch (favorites) {
+          AsyncData(:final value)
+              when byContext(value).isEmpty && bundledDrums.isEmpty =>
+            _fill(
+              wantsDrums ? const DrumsEmptyInvitation() : _Empty(l10n: l10n),
+            ),
           AsyncData(:final value) => SliverPadding(
             padding: const EdgeInsets.only(bottom: 24),
             sliver: SliverList.list(
               children: _levelSections(
                 context,
-                value,
+                byContext(value),
                 onOpen: (entry) => LibraryScreen._open(context, ref, entry),
                 actionFor: (entry) => _FavoriteHeart(
                   onPressed: () => _removeFromFavorites(ref, entry),
@@ -295,7 +350,9 @@ class _SignedInBody extends ConsumerWidget {
               ),
             ),
           ),
-          AsyncError() => _fill(_Empty(l10n: l10n)),
+          AsyncError() => _fill(
+            wantsDrums ? const DrumsEmptyInvitation() : _Empty(l10n: l10n),
+          ),
           _ => _fill(const Center(child: CircularProgressIndicator())),
         },
       ],

@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import 'dart:async';
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -30,8 +31,11 @@ import 'package:music/services/offline_score_cache.dart';
 import 'package:music/services/preferences_service.dart';
 import 'package:music/services/score_asset_source.dart';
 import 'package:music/services/score_upload_service.dart';
+import 'package:music/state/drums_access.dart';
+import 'package:music/state/instrument_context.dart';
 import 'package:music/state/score_catalog.dart';
 import 'package:music/state/session_notifier.dart';
+import 'package:music/widgets/courses_section.dart';
 
 import '../support/fakes.dart';
 import '../support/localized.dart';
@@ -141,14 +145,16 @@ class _FakeCourses implements CourseCatalogService {
       '{"type":"text","text":{"en":"hello"}}]}';
 }
 
-CatalogHit _saved(String id, String title) => CatalogHit(
-  id: id,
-  title: title,
-  composer: 'Composer',
-  level: PracticeLevel.beginner,
-  license: 'CC-BY-4.0',
-  source: 'pdmx',
-);
+CatalogHit _saved(String id, String title, {ScoreInstrument? instrument}) =>
+    CatalogHit(
+      id: id,
+      title: title,
+      composer: 'Composer',
+      level: PracticeLevel.beginner,
+      license: 'CC-BY-4.0',
+      source: 'pdmx',
+      instrument: instrument,
+    );
 
 ContributedScore _upload(String id, String title, {bool favorite = true}) =>
     ContributedScore(
@@ -201,16 +207,21 @@ ProviderContainer _container(
   bool signedIn = true,
   bool withCourses = false,
   bool online = true,
+  bool drumsVisible = false,
+  List<CatalogEntry> bundled = _bundled,
+  FakePreferencesService? prefs,
   OfflineScoreCache? cache,
   _FakeConnectivity? connectivity,
 }) {
   final c = ProviderContainer(
     overrides: [
-      if (withCourses) ...[
+      if (withCourses)
         courseCatalogServiceProvider.overrideWithValue(_FakeCourses()),
-        preferencesServiceProvider.overrideWithValue(FakePreferencesService()),
-      ],
-      scoreCatalogProvider.overrideWithValue(_bundled),
+      preferencesServiceProvider.overrideWithValue(
+        prefs ?? FakePreferencesService(),
+      ),
+      drumsEnabledProvider.overrideWithValue(drumsVisible),
+      scoreCatalogProvider.overrideWithValue(bundled),
       scoreAssetSourceProvider.overrideWithValue(FakeScoreAssetSource()),
       notationEngineProvider.overrideWithValue(FakeNotationEngine()),
       midiServiceProvider.overrideWithValue(FakeMidiService()),
@@ -413,6 +424,84 @@ void main() {
       await tester.pump(const Duration(milliseconds: 20));
     }
     expect(find.text('Not available offline'), findsOneWidget);
+    await _teardown(tester);
+  });
+
+  testWidgets('signed in under the drums context: favorites filter to '
+      'percussion, the bundled grooves offer a start, courses step aside', (
+    tester,
+  ) async {
+    final prefs = FakePreferencesService({
+      InstrumentContext.prefsKey: jsonEncode({
+        'context': 'drums',
+        'choiceOffered': true,
+      }),
+    });
+    const drumEntry = CatalogEntry(
+      id: 'groove-1',
+      title: 'Bundled Groove',
+      composer: 'Cymbra',
+      assetPath: 'assets/scores/beginner/groove1.musicxml',
+      level: PracticeLevel.beginner,
+      instrument: ScoreInstrument.percussion,
+    );
+    final c = _container(
+      _FakeCatalog([
+        _saved('c1', 'Piano Favorite'),
+        _saved('c2', 'Drum Favorite', instrument: ScoreInstrument.percussion),
+      ]),
+      _FakeUpload(const []),
+      withCourses: true,
+      drumsVisible: true,
+      prefs: prefs,
+      bundled: [..._bundled, drumEntry],
+    );
+    await _pump(tester, c);
+
+    // The drum favorite and the bundled groove; the piano favorite, the
+    // bundled piano piece and the (keyboard-only) courses card step aside.
+    expect(find.text('Drum Favorite'), findsOneWidget);
+    expect(find.text('Bundled Groove'), findsOneWidget);
+    expect(find.text('Piano Favorite'), findsNothing);
+    expect(find.text('Bundled Piece'), findsNothing);
+    expect(find.byType(CoursesSection), findsNothing);
+
+    // Switching back re-seeds the signed-in home the other way.
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(const Key('instrument-switcher')),
+        matching: find.text('Keyboard'),
+      ),
+    );
+    for (var i = 0; i < 8; i++) {
+      await tester.pump(const Duration(milliseconds: 20));
+    }
+    expect(find.text('Piano Favorite'), findsOneWidget);
+    expect(find.byType(CoursesSection), findsOneWidget);
+    expect(find.text('Drum Favorite'), findsNothing);
+    expect(find.text('Bundled Groove'), findsNothing);
+    await _teardown(tester);
+  });
+
+  testWidgets('signed in, drums context, nothing to show: the explicit '
+      'invitation replaces the bare empty state', (tester) async {
+    final prefs = FakePreferencesService({
+      InstrumentContext.prefsKey: jsonEncode({
+        'context': 'drums',
+        'choiceOffered': true,
+      }),
+    });
+    final c = _container(
+      _FakeCatalog([_saved('c1', 'Piano Favorite')]),
+      _FakeUpload(const []),
+      drumsVisible: true,
+      prefs: prefs,
+      bundled: _bundled, // no percussion anywhere
+    );
+    await _pump(tester, c);
+
+    expect(find.byKey(const Key('drums-empty-switch')), findsOneWidget);
+    expect(find.text('Piano Favorite'), findsNothing);
     await _teardown(tester);
   });
 }
