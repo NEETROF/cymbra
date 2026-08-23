@@ -31,9 +31,9 @@
       played slot, replays `%` content, merges ties on played adjacency only.
 - [x] 3.2 Expose the played-slot table + written-measure mapping in
       `PlaybackSchedule`; keep the no-repeat path identical (regression tests).
-- [ ] 3.3 Verify the backend audio-preview render job picks up the unrolled
+- [x] 3.3 Verify the backend audio-preview render job picks up the unrolled
       schedule (render a repeat fixture; clip duration covers the unroll).
-- [ ] 3.4 Coverage: keep `cargo llvm-cov --workspace --fail-under-lines 80`
+- [x] 3.4 Coverage: keep `cargo llvm-cov --workspace --fail-under-lines 80`
       green (logic in host-testable modules).
 
 ## 4. Bridge + app derivation (apps/music)
@@ -88,8 +88,8 @@
 
 ## 8. Validation + release
 
-- [ ] 8.1 `openspec validate add-repeat-unrolling --strict` passes.
-- [ ] 8.2 Full gates: melos analyze/format, custom_lint, cargo fmt/clippy,
+- [x] 8.1 `openspec validate add-repeat-unrolling --strict` passes.
+- [x] 8.2 Full gates: melos analyze/format, custom_lint, cargo fmt/clippy,
       Rust + Flutter coverage ≥ 80 %, BO typecheck/test.
 - [ ] 8.3 Manual pass on device: a real repeat-carrying score (waterfall,
       Portée, Partition, Wait Mode, practice range, help long-press) + BO
