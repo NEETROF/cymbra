@@ -83,6 +83,15 @@ untouched. `billing_events.provider` gains `revenuecat` (that is where the aggre
 (`original_transaction_id` in webhook events); the REST subscriber payload's per-product
 subscription is keyed on the same identity — verified as an explicit sandbox task, with the
 fallback of keying on `(store, product_id, app_user_id)` if the two ever disagree.
+**Resolution (sandbox runs 7.2–7.4, 2026-08-22/23): they disagree — the fallback is the
+implemented key.** A Play `CANCELLATION` carries the renewal-suffixed order id where
+`INITIAL_PURCHASE`/`RENEWAL` carry the base one, and an Apple resubscription after a lapse
+re-keys the events onto fresh transaction ids; each variant split one subscription across
+rows. `provider_ref` is therefore the synthesized `{app_user_id}:{base product id}` (Play's
+`:base_plan_id` suffix stripped), present in every webhook event and subscriber entry:
+one row per (user, store, product) for the subscription's whole life, resubscriptions land
+on the same row, and no store transaction id is persisted at all (a strictly smaller
+identifier footprint than the original design).
 
 *Alternatives*: a `source = revenuecat` row family — rejected: it would push the store identity
 into a second column and force every consumer (`managed_on`, paywall, BO) to learn a new source

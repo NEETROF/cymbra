@@ -157,7 +157,7 @@ mod tests {
         {
             let ws = writes.lock().unwrap();
             let last = ws.last().unwrap();
-            assert_eq!(last.provider_ref, "otx-1");
+            assert_eq!(last.provider_ref, format!("{U1}:premium_monthly"));
             assert_eq!(last.ends_at, Some(now + Duration::days(31)));
             assert_eq!(last.status, EntitlementStatus::Active);
         }
