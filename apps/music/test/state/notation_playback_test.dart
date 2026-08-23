@@ -25,6 +25,7 @@ ScoreDocument _docWith({
   int beatType = 4,
   List<Direction> directions = const [],
 }) => ScoreDocument(
+  playOrder: const [],
   meta: const ScoreMeta(title: 'T', composer: 'C'),
   staves: 1,
   attributes: Attributes(
@@ -35,6 +36,7 @@ ScoreDocument _docWith({
   ),
   measures: [
     NotationMeasure(
+      repeats: noRepeats,
       index: 0,
       clefs: const [],
       keyFifths: 0,
@@ -43,6 +45,38 @@ ScoreDocument _docWith({
       notes: notes,
     ),
   ],
+);
+
+/// A multi-measure document with an explicit engine-resolved [playOrder].
+ScoreDocument _docWithMeasures(
+  List<NotationMeasure> measures, {
+  List<PlayedMeasure> playOrder = const [],
+}) => ScoreDocument(
+  playOrder: playOrder,
+  meta: const ScoreMeta(title: 'T', composer: 'C'),
+  staves: 1,
+  attributes: const Attributes(
+    divisions: 4,
+    clefs: [],
+    keyFifths: 0,
+    time: TimeSignature(beats: 4, beatType: 4),
+  ),
+  measures: measures,
+);
+
+NotationMeasure _measure(
+  int index,
+  List<NoteEvent> notes, {
+  RepeatMarks? repeats,
+  int keyFifths = 0,
+}) => NotationMeasure(
+  repeats: repeats ?? noRepeats,
+  index: index,
+  clefs: const [],
+  keyFifths: keyFifths,
+  minWidth: 100,
+  directions: const [],
+  notes: notes,
 );
 
 void main() {
@@ -234,6 +268,7 @@ void main() {
       'measures accumulate so the second measure starts after the first',
       () {
         final doc = ScoreDocument(
+          playOrder: const [],
           meta: const ScoreMeta(title: 'T', composer: 'C'),
           staves: 1,
           attributes: const Attributes(
@@ -244,6 +279,7 @@ void main() {
           ),
           measures: [
             NotationMeasure(
+              repeats: noRepeats,
               index: 0,
               clefs: const [],
               keyFifths: 0,
@@ -258,6 +294,7 @@ void main() {
               ],
             ),
             NotationMeasure(
+              repeats: noRepeats,
               index: 1,
               clefs: const [],
               keyFifths: 0,
@@ -283,6 +320,7 @@ void main() {
 
     test('exposes the per-measure key signature for a modulating piece', () {
       NotationMeasure measure(int index, int keyFifths) => NotationMeasure(
+        repeats: noRepeats,
         index: index,
         clefs: const [],
         keyFifths: keyFifths,
@@ -297,6 +335,7 @@ void main() {
         ],
       );
       final doc = ScoreDocument(
+        playOrder: const [],
         meta: const ScoreMeta(title: 'T', composer: 'C'),
         staves: 1,
         attributes: const Attributes(
@@ -371,6 +410,7 @@ void main() {
 
       test('a tie across the barline merges', () {
         final doc = ScoreDocument(
+          playOrder: const [],
           meta: const ScoreMeta(title: 'T', composer: 'C'),
           staves: 1,
           attributes: const Attributes(
@@ -381,6 +421,7 @@ void main() {
           ),
           measures: [
             NotationMeasure(
+              repeats: noRepeats,
               index: 0,
               clefs: const [],
               keyFifths: 0,
@@ -397,6 +438,7 @@ void main() {
               ],
             ),
             NotationMeasure(
+              repeats: noRepeats,
               index: 1,
               clefs: const [],
               keyFifths: 0,
@@ -697,6 +739,121 @@ void main() {
       expect(aFlat.diatonic, 4 * 7 + 5, reason: 'written A4 position');
       // A G4 would be one diatonic step lower — the two must not coincide.
       expect(aFlat.diatonic, isNot(4 * 7 + 4));
+    });
+  });
+
+  // The engine resolves the playback order at parse time; the derivation must
+  // follow it — repeated sections once per pass, `%` slots replaying their
+  // source, the played tables carrying the written-measure mapping — and a
+  // selective practice run must be able to opt back into the written order.
+  group('repeat unrolling', () {
+    const quarterMs = 60000 / kDefaultBpm;
+    const wholeMs = quarterMs * 4;
+
+    NoteEvent whole(String step) => noteEvent(
+      positionDivisions: 0,
+      durationDivisions: 16,
+      noteType: 'whole',
+      pitch: Pitch(step: step, octave: 4, alter: 0),
+    );
+
+    test('a repeated measure sounds once per played slot', () {
+      final doc = _docWithMeasures(
+        [
+          _measure(0, [whole('C')], repeats: repeatMarks(backwardTimes: 2)),
+          _measure(1, [whole('D')]),
+        ],
+        playOrder: const [
+          PlayedMeasure(writtenIndex: 0, pass: 1),
+          PlayedMeasure(writtenIndex: 0, pass: 2),
+          PlayedMeasure(writtenIndex: 1, pass: 1),
+        ],
+      );
+      final d = notationToTimedNotes(doc);
+      expect(d.notes.map((n) => (n.pitch, n.startMs)), [
+        (60, 0),
+        (60, wholeMs.round()),
+        (62, (wholeMs * 2).round()),
+      ]);
+      expect(d.measureStartMs, [0, wholeMs.round(), (wholeMs * 2).round()]);
+      expect(d.writtenMeasureOf, [0, 0, 1]);
+      expect(d.songEndMs, closeTo(wholeMs * 3, 1));
+      // The scrolling staff's decorations follow the written marks per slot.
+      expect(d.measureDecors.map((m) => m.repeatBackward), [true, true, false]);
+    });
+
+    test('a measure-repeat slot replays its source content', () {
+      final doc = _docWithMeasures(
+        [
+          _measure(0, [whole('C')]),
+          _measure(1, const [], repeats: repeatMarks(measureRepeatOf: 0)),
+        ],
+        playOrder: const [
+          PlayedMeasure(writtenIndex: 0, pass: 1),
+          PlayedMeasure(writtenIndex: 1, pass: 1),
+        ],
+      );
+      final d = notationToTimedNotes(doc);
+      // The `%` slot sounds the source measure instead of a bar of silence.
+      expect(d.notes.map((n) => (n.pitch, n.startMs)), [
+        (60, 0),
+        (60, wholeMs.round()),
+      ]);
+      expect(d.writtenMeasureOf, [0, 1]);
+      expect(d.measureDecors[1].measureRepeat, isTrue);
+    });
+
+    test('unroll: false plays the written order once (practice)', () {
+      final doc = _docWithMeasures(
+        [
+          _measure(0, [whole('C')], repeats: repeatMarks(backwardTimes: 2)),
+          _measure(1, [whole('D')]),
+        ],
+        playOrder: const [
+          PlayedMeasure(writtenIndex: 0, pass: 1),
+          PlayedMeasure(writtenIndex: 0, pass: 2),
+          PlayedMeasure(writtenIndex: 1, pass: 1),
+        ],
+      );
+      final d = notationToTimedNotes(doc, unroll: false);
+      expect(d.notes.map((n) => (n.pitch, n.startMs)), [
+        (60, 0),
+        (62, wholeMs.round()),
+      ]);
+      expect(d.measureStartMs, [0, wholeMs.round()]);
+    });
+
+    test('ties merge across played slots, not written adjacency', () {
+      // C4 whole tied forward in a repeated measure: on each pass the chain
+      // re-attacks (the continuation only abuts within the same pass).
+      final first = noteEvent(
+        positionDivisions: 0,
+        durationDivisions: 16,
+        noteType: 'whole',
+        pitch: const Pitch(step: 'C', octave: 4, alter: 0),
+        tieStart: true,
+      );
+      final cont = noteEvent(
+        positionDivisions: 0,
+        durationDivisions: 16,
+        noteType: 'whole',
+        pitch: const Pitch(step: 'C', octave: 4, alter: 0),
+        tieStop: true,
+      );
+      final doc = _docWithMeasures(
+        [
+          _measure(0, [first]),
+          _measure(1, [cont]),
+        ],
+        playOrder: const [
+          PlayedMeasure(writtenIndex: 0, pass: 1),
+          PlayedMeasure(writtenIndex: 1, pass: 1),
+        ],
+      );
+      final d = notationToTimedNotes(doc);
+      // Played adjacency holds here: one merged attack spanning both slots.
+      expect(d.notes, hasLength(1));
+      expect(d.notes.single.durationMs, (wholeMs * 2).round());
     });
   });
 }

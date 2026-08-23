@@ -41,39 +41,39 @@
 - [x] 4.1 Mirror the new model/play-order types in
       `apps/music/rust/src/api/musicxml.rs` and regenerate the bridge
       (`flutter_rust_bridge_codegen generate`).
-- [ ] 4.2 `notationToTimedNotes` walks the play order: repeated passes,
+- [x] 4.2 `notationToTimedNotes` walks the play order: repeated passes,
       volta selection, `%` replay, tie merge on played adjacency; tie
       continuations (render channel) follow the played slots.
-- [ ] 4.3 `measureStartMs` becomes the played-slot table + `writtenMeasureOf`
+- [x] 4.3 `measureStartMs` becomes the played-slot table + `writtenMeasureOf`
       mapping in `DerivedPlayback`/`PlayerData`; armure table aligned to
       played slots; `songEndMs`/start-trim/rewind operate on played slots.
-- [ ] 4.4 Practice: range selection stays written-measure-based; a selective
+- [x] 4.4 Practice: range selection stays written-measure-based; a selective
       run plays the chosen written measures linearly once (no unroll), `%`
       content audible; update `practice_range` logic + tests.
-- [ ] 4.5 Unit tests: unrolled timeline (repeat ×2, voltas, `%`), mapping
+- [x] 4.5 Unit tests: unrolled timeline (repeat ×2, voltas, `%`), mapping
       tables, Wait-Mode gate across a backward repeat (re-attack expected),
       no-repeat scores byte-identical.
 
 ## 5. App engraving (apps/music)
 
-- [ ] 5.1 Partition painter: repeat barlines (thick/thin + dots), volta
+- [x] 5.1 Partition painter: repeat barlines (thick/thin + dots), volta
       brackets + numbers, `%` sign, segno/coda/D.C./D.S./Fine glyphs at
       written positions.
-- [ ] 5.2 Scrolling staff: bar lines from played slots (a repeated measure
+- [x] 5.2 Scrolling staff: bar lines from played slots (a repeated measure
       scrolls past once per pass, repeat barlines drawn each pass, only the
       played volta shown); Partition cursor highlights the written measure of
       the current played slot (backward jump covered by a widget test).
-- [ ] 5.3 Painter tests via the hit index + goldens refresh on the pinned
+- [x] 5.3 Painter tests via the hit index + goldens refresh on the pinned
       platform.
 
 ## 6. Notation help (apps/music)
 
-- [ ] 6.1 New `SymbolDescriptor` kinds (repeat barline, volta, measure-repeat,
+- [x] 6.1 New `SymbolDescriptor` kinds (repeat barline, volta, measure-repeat,
       segno, coda, jump words); both painters record their regions.
-- [ ] 6.2 Help sheet + glossary entries for each family; copy added to
+- [x] 6.2 Help sheet + glossary entries for each family; copy added to
       **all four** ARB locales in the same commit (run the drift check from
       the flutter skill).
-- [ ] 6.3 Widget tests: long-press each new symbol resolves to its help; ARB
+- [x] 6.3 Widget tests: long-press each new symbol resolves to its help; ARB
       alignment test/check green.
 
 ## 7. Back office (apps/back-office)

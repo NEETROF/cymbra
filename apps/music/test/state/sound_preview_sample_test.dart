@@ -28,6 +28,7 @@ void main() {
     // The notation engine is native (FFI-absent in unit tests): fake the parse to
     // return a small document so the provider's load → parse → derive path runs.
     final doc = ScoreDocument(
+      playOrder: const [],
       meta: const ScoreMeta(title: 'Ode to Joy', composer: ''),
       staves: 1,
       attributes: Attributes(

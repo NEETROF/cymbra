@@ -67,8 +67,19 @@ class StaffPainter extends CustomPainter {
   /// Absolute start time (ms) of each measure, in order — the same table that
   /// places the notes, so the bar lines land exactly on the real measure
   /// boundaries (any time signature). Empty for the demo score, which falls back
-  /// to a meter-derived spacing.
+  /// to a meter-derived spacing. With repeats these are **played slots** (a
+  /// repeated written measure appears once per pass).
   final List<int> measureStartMs;
+
+  /// Repeat notation per played slot (repeat barlines, volta label, `%`,
+  /// segno/coda), aligned with [measureStartMs]. Empty = nothing to decorate.
+  final List<MeasureDecor> measureDecors;
+
+  /// The written measure each played slot performs, aligned with
+  /// [measureStartMs]; empty = identity. Taps on the measure band (the range
+  /// picker) resolve **written** measures through it, so picking bars works on
+  /// an unrolled timeline.
+  final List<int> writtenMeasureOf;
 
   /// Optional replay overlay: a ring colour per note **index** (into [notes]) to
   /// mark where the player made a mistake, drawn in place on the staff. Empty in
@@ -115,6 +126,8 @@ class StaffPainter extends CustomPainter {
     this.beats = 4,
     this.beatType = 4,
     this.measureStartMs = const [],
+    this.measureDecors = const [],
+    this.writtenMeasureOf = const [],
     this.mistakeColors = const {},
     this.lookAheadMs = defaultLookAheadMs,
     this.onsetGapMs,
@@ -509,9 +522,12 @@ class StaffPainter extends CustomPainter {
         final r = math.min(endX, size.width - margin);
         if (r <= l) continue;
         final bounds = Rect.fromLTRB(l, systemTop, r, systemBottom);
-        measureHits?.add((measure: i, rect: bounds));
+        // Taps and the range tint live in WRITTEN measures: on an unrolled
+        // timeline each played slot maps back to the bar it performs.
+        final written = i < writtenMeasureOf.length ? writtenMeasureOf[i] : i;
+        measureHits?.add((measure: written, rect: bounds));
         final range = practiceRange;
-        if (range != null && i >= range.start && i <= range.end) {
+        if (range != null && written >= range.start && written <= range.end) {
           canvas.drawRect(bounds, tint);
         }
       }
@@ -522,6 +538,19 @@ class StaffPainter extends CustomPainter {
         drawBar(t.toDouble());
       }
       drawBar(songEndMs, beforeDownbeat: false); // closing bar line
+      _drawRepeatDecors(
+        canvas,
+        record,
+        xForTime: xForTime,
+        barGap: barGap,
+        headEnd: headEnd,
+        rightEdge: size.width - margin,
+        systemTop: systemTop,
+        systemBottom: systemBottom,
+        lineGap: lineGap,
+        trebleBottom: trebleBottom,
+        bassBottom: bassBottom,
+      );
     } else {
       final bt = beatType == 0 ? 4 : beatType;
       final measureMs = (60000.0 / bpm) * beats * 4 / bt;
@@ -909,6 +938,180 @@ class StaffPainter extends CustomPainter {
     );
   }
 
+  /// Repeat notation over the scrolling staff (change: add-repeat-unrolling):
+  /// per played slot, the repeat barlines (thick line + dots on the repeated
+  /// side), the volta bracket + label above the system, the measure-repeat `%`
+  /// sign and segno/coda signs — each recorded for the long-press help. A
+  /// repeated written measure scrolls past once per pass, its marks each time.
+  void _drawRepeatDecors(
+    Canvas canvas,
+    void Function(Rect, SymbolDescriptor) record, {
+    required double Function(double) xForTime,
+    required double barGap,
+    required double headEnd,
+    required double rightEdge,
+    required double systemTop,
+    required double systemBottom,
+    required double lineGap,
+    required double trebleBottom,
+    required double? bassBottom,
+  }) {
+    if (measureDecors.isEmpty) return;
+    bool visible(double x) => x >= headEnd && x <= rightEdge;
+    final ink = palette.staffLine;
+    final thick = Paint()
+      ..color = ink
+      ..strokeWidth = Smufl.thickBarlineThickness * lineGap;
+    final thin = Paint()
+      ..color = ink
+      ..strokeWidth = Smufl.thinBarlineThickness * lineGap * 1.4;
+
+    // Repeat dots: one pair per drawn staff, in the middle two gaps.
+    void dots(double x) {
+      for (final base in [trebleBottom, ?bassBottom]) {
+        for (final dy in const [1.5, 2.5]) {
+          canvas.drawCircle(
+            Offset(x, base - dy * lineGap),
+            lineGap * 0.22,
+            Paint()..color = ink,
+          );
+        }
+      }
+    }
+
+    for (
+      var i = 0;
+      i < measureDecors.length && i < measureStartMs.length;
+      i++
+    ) {
+      final d = measureDecors[i];
+      if (d.isNone) continue;
+      final startT = measureStartMs[i].toDouble();
+      final endT = i + 1 < measureStartMs.length
+          ? measureStartMs[i + 1].toDouble()
+          : songEndMs;
+      // The slot's opening bar sits [barGap] left of its downbeat; its closing
+      // bar is the next slot's opening bar (the final bar at songEnd is not
+      // shifted).
+      final openX = math.max(xForTime(startT) - barGap, headEnd);
+      final closeX = i + 1 < measureStartMs.length
+          ? xForTime(endT) - barGap
+          : xForTime(endT);
+
+      if (d.repeatForward && visible(openX)) {
+        // ‖: — thick line on the bar, dots to its right (section starts).
+        canvas.drawLine(
+          Offset(openX - lineGap * 0.35, systemTop),
+          Offset(openX - lineGap * 0.35, systemBottom),
+          thick,
+        );
+        dots(openX + lineGap * 0.55);
+        record(
+          Rect.fromLTRB(
+            openX - lineGap,
+            systemTop,
+            openX + lineGap,
+            systemBottom,
+          ),
+          const SymbolDescriptor.repeatBarline(forward: true),
+        );
+      }
+      if (d.repeatBackward && visible(closeX)) {
+        // :‖ — dots left of the bar, thick line on it (section ends).
+        canvas.drawLine(
+          Offset(closeX + lineGap * 0.35, systemTop),
+          Offset(closeX + lineGap * 0.35, systemBottom),
+          thick,
+        );
+        dots(closeX - lineGap * 0.55);
+        record(
+          Rect.fromLTRB(
+            closeX - lineGap,
+            systemTop,
+            closeX + lineGap,
+            systemBottom,
+          ),
+          const SymbolDescriptor.repeatBarline(forward: false),
+        );
+      }
+      final volta = d.voltaLabel;
+      if (volta != null) {
+        // Bracket above the system spanning the slot, label at its start.
+        final l = openX;
+        final r = math.min(closeX, rightEdge);
+        if (r > l) {
+          final y = systemTop - lineGap * 0.8;
+          canvas.drawLine(Offset(l, y), Offset(r, y), thin);
+          canvas.drawLine(Offset(l, y), Offset(l, y + lineGap * 0.9), thin);
+          final tp = TextPainter(
+            text: TextSpan(
+              text: volta,
+              style: TextStyle(
+                color: ink,
+                fontSize: lineGap * 1.3,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            textDirection: TextDirection.ltr,
+          )..layout();
+          tp.paint(canvas, Offset(l + lineGap * 0.4, y + lineGap * 0.15));
+          record(
+            Rect.fromLTRB(l, y - lineGap, r, y + lineGap * 1.4),
+            SymbolDescriptor.volta(label: volta),
+          );
+        }
+      }
+      if (d.measureRepeat) {
+        final cx = (openX + math.min(closeX, rightEdge)) / 2;
+        if (visible(cx)) {
+          final y = trebleBottom - 2 * lineGap;
+          Smufl.draw(
+            canvas,
+            Smufl.repeat1Bar,
+            cx,
+            y,
+            lineGap,
+            ink,
+            centerX: true,
+          );
+          record(
+            Rect.fromCenter(
+              center: Offset(cx, y),
+              width: lineGap * 2.4,
+              height: lineGap * 2.4,
+            ),
+            const SymbolDescriptor.measureRepeat(),
+          );
+        }
+      }
+      if (d.segno || d.coda) {
+        final x = openX + lineGap * 1.2;
+        if (visible(x)) {
+          final y = systemTop - lineGap * 1.2;
+          Smufl.draw(
+            canvas,
+            d.segno ? Smufl.segno : Smufl.coda,
+            x,
+            y,
+            lineGap * 1.2,
+            ink,
+            centerX: true,
+          );
+          record(
+            Rect.fromCenter(
+              center: Offset(x, y - lineGap * 0.8),
+              width: lineGap * 2.2,
+              height: lineGap * 2.6,
+            ),
+            d.segno
+                ? const SymbolDescriptor.segno()
+                : const SymbolDescriptor.coda(),
+          );
+        }
+      }
+    }
+  }
+
   void _drawStaffLines(
     Canvas canvas,
     double bottomLineY,
@@ -1208,6 +1411,8 @@ class StaffPainter extends CustomPainter {
       old.rests != rests ||
       old.tieContinuations != tieContinuations ||
       old.measureStartMs != measureStartMs ||
+      old.measureDecors != measureDecors ||
+      old.writtenMeasureOf != writtenMeasureOf ||
       old.measureKeyFifths != measureKeyFifths ||
       old.mistakeColors != mistakeColors ||
       old.lookAheadMs != lookAheadMs ||

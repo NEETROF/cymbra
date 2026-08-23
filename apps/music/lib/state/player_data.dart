@@ -181,6 +181,47 @@ class TimedRest {
   });
 }
 
+/// Repeat notation to draw at one played slot of the scrolling staff, aligned
+/// with [PlayerData.measureStartMs]. Render-only — playback already follows
+/// the unrolled order; these are the glyphs that tell the reader why.
+class MeasureDecor {
+  /// A forward repeat (`‖:`) opens this slot's written measure.
+  final bool repeatForward;
+
+  /// A backward repeat (`:‖`) closes it.
+  final bool repeatBackward;
+
+  /// Volta label ("1." / "1.2.") when an ending bracket starts here.
+  final String? voltaLabel;
+
+  /// The written measure is a measure-repeat (`%`) sign.
+  final bool measureRepeat;
+
+  /// Segno / coda signs placed at this measure.
+  final bool segno;
+  final bool coda;
+
+  const MeasureDecor({
+    this.repeatForward = false,
+    this.repeatBackward = false,
+    this.voltaLabel,
+    this.measureRepeat = false,
+    this.segno = false,
+    this.coda = false,
+  });
+
+  static const none = MeasureDecor();
+
+  /// Whether anything is drawn for this slot at all.
+  bool get isNone =>
+      !repeatForward &&
+      !repeatBackward &&
+      voltaLabel == null &&
+      !measureRepeat &&
+      !segno &&
+      !coda;
+}
+
 /// Lead-in (ms) kept before the first note when trimming leading silence, so the
 /// first note visibly approaches (falls in / scrolls in) instead of appearing
 /// already on the hit line. A small fixed budget — on the order of the waterfall
@@ -344,6 +385,20 @@ abstract class PlayerData with _$PlayerData {
     /// [measureStartMs] — so the scrolling staff shows the armure at the playhead
     /// and a mid-piece modulation is reflected. Empty for the demo score.
     @Default(<int>[]) List<int> measureKeyFifths,
+
+    /// The written measure each played slot performs, aligned with
+    /// [measureStartMs] — a repeated written measure appears once per pass.
+    /// Empty means identity (no repeats or linear practice run).
+    @Default(<int>[]) List<int> writtenMeasureOf,
+
+    /// Repeat notation to draw per played slot on the scrolling staff,
+    /// aligned with [measureStartMs]. Render-only.
+    @Default(<MeasureDecor>[]) List<MeasureDecor> measureDecors,
+
+    /// Number of **written** measures of the loaded piece (0 for the demo).
+    /// The practice range and Partition taps live in written measures; with
+    /// repeats the played tables above are longer than this.
+    @Default(0) int writtenMeasureCount,
 
     @Default(RenderMode.synthesia) RenderMode mode,
     @Default(true) bool waitMode,
@@ -578,8 +633,22 @@ abstract class PlayerData with _$PlayerData {
   }
 
   /// Number of engraved measures with known timing (0 for the demo score, which
-  /// carries no measure table).
+  /// carries no measure table). With repeats unrolled this counts **played
+  /// slots**; the range pickers use [practiceMeasureCount] instead.
   int get measureCount => measureStartMs.length;
+
+  /// Number of **written** measures — the domain of the practice range and of
+  /// Partition taps, independent of repeat unrolling. Falls back to the played
+  /// table for pieces loaded before the written count existed (demo: 0).
+  int get practiceMeasureCount =>
+      writtenMeasureCount > 0 ? writtenMeasureCount : measureCount;
+
+  /// The written measure performed at played slot [slot] (identity when the
+  /// piece has no repeats or the run is linear).
+  int writtenMeasureAt(int slot) =>
+      (slot >= 0 && slot < writtenMeasureOf.length)
+      ? writtenMeasureOf[slot]
+      : slot;
 
   /// Index of the piece's last measure, or null when there is no measure table.
   int? get lastMeasureIndex => measureStartMs.isEmpty ? null : measureCount - 1;

@@ -28,6 +28,7 @@ const _h = 400;
 
 /// One 4/4 measure of four quarters on the beat (divisions 4 → 16 per measure).
 ScoreDocument _fourQuarters() => ScoreDocument(
+  playOrder: const [],
   meta: const ScoreMeta(title: 'P', composer: 'C'),
   staves: 1,
   attributes: const Attributes(
@@ -38,6 +39,7 @@ ScoreDocument _fourQuarters() => ScoreDocument(
   ),
   measures: [
     NotationMeasure(
+      repeats: noRepeats,
       index: 0,
       clefs: const [],
       keyFifths: 0,
