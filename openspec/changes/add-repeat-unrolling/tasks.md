@@ -91,7 +91,7 @@
 - [x] 8.1 `openspec validate add-repeat-unrolling --strict` passes.
 - [x] 8.2 Full gates: melos analyze/format, custom_lint, cargo fmt/clippy,
       Rust + Flutter coverage ≥ 80 %, BO typecheck/test.
-- [ ] 8.3 Manual pass on device: a real repeat-carrying score (waterfall,
+- [x] 8.3 Manual pass on device: a real repeat-carrying score (waterfall,
       Portée, Partition, Wait Mode, practice range, help long-press) + BO
       render/Play preview side-by-side.
 - [ ] 8.4 Regenerate the audio preview of one repeat-carrying catalog piece
