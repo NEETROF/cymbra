@@ -26,6 +26,8 @@ name: back-office-deploy
 #   VITE_GOOGLE_CLIENT_ID Google OIDC web client id (music audience)  [optional]
 #   VITE_APPLE_CLIENT_ID  Apple "Sign in with Apple" Services ID (not the app bundle)  [optional]
 #   VITE_APPLE_REDIRECT_URI Apple Return URL; defaults to the SPA origin  [optional]
+#   VITE_REVENUECAT_PROJECT_ID RevenueCat project id (e.g. proj4adaf652) for the Plans
+#                         "open in RevenueCat" link  [optional]
 # Required repo SECRETS:
 #   CLOUDFLARE_API_TOKEN  token with "Cloudflare Pages: Edit" on the account
 #   CLOUDFLARE_ACCOUNT_ID Cloudflare account id
@@ -82,6 +84,10 @@ jobs:
           # vite.config.ts). VITE_APPLE_REDIRECT_URI defaults to the SPA origin.
           VITE_APPLE_CLIENT_ID: ${{ vars.VITE_APPLE_CLIENT_ID }}
           VITE_APPLE_REDIRECT_URI: ${{ vars.VITE_APPLE_REDIRECT_URI }}
+          # RevenueCat project id (optional): bakes the "open in RevenueCat" link
+          # on the Plans lookup (swap-store-billing-to-revenuecat, D5). Unset ⇒
+          # the link is simply hidden.
+          VITE_REVENUECAT_PROJECT_ID: ${{ vars.VITE_REVENUECAT_PROJECT_ID }}
         run: yarn build
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
