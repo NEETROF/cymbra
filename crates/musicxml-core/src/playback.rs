@@ -73,6 +73,47 @@ pub struct PlaybackSchedule {
     pub bpm: u16,
 }
 
+/// Nominal audible duration (ms) of one grace note at [`bpm`]: an eighth of a
+/// quarter — short enough to read as an ornament, long enough to sound, and
+/// tempo-proportional so fast pieces keep their snap.
+pub fn grace_ms_of(bpm: u16) -> f64 {
+    (60000.0 / f64::from(bpm.max(1))) / 8.0
+}
+
+/// For each note, how many grace slots *before its position* it occupies:
+/// 0 for ordinary notes; for a run of consecutive pitched graces sharing
+/// staff/voice/position (all engraved before the same principal), the first of
+/// the run is furthest back (`run_len`), the last closest (`1`) — so they play
+/// in document order and resolve onto the principal's beat.
+fn grace_back_offsets(notes: &[crate::model::NoteEvent]) -> Vec<u32> {
+    let mut back = vec![0u32; notes.len()];
+    let mut run: Vec<usize> = Vec::new();
+    let mut run_key: Option<(u32, u32, u32)> = None;
+    let flush = |run: &mut Vec<usize>, back: &mut Vec<u32>| {
+        let len = run.len() as u32;
+        for (k, &i) in run.iter().enumerate() {
+            back[i] = len - k as u32;
+        }
+        run.clear();
+    };
+    for (ni, note) in notes.iter().enumerate() {
+        let is_grace = note.is_grace && !note.is_rest && note.pitch.is_some();
+        let key = (note.staff, note.voice, note.position_divisions);
+        if is_grace {
+            if run_key != Some(key) {
+                flush(&mut run, &mut back);
+                run_key = Some(key);
+            }
+            run.push(ni);
+        } else {
+            flush(&mut run, &mut back);
+            run_key = None;
+        }
+    }
+    flush(&mut run, &mut back);
+    back
+}
+
 /// First `metronome` per-minute in the score (as quarter BPM), else [`DEFAULT_BPM`].
 fn tempo_of(document: &ScoreDocument) -> u16 {
     for measure in &document.measures {
@@ -90,10 +131,17 @@ fn tempo_of(document: &ScoreDocument) -> u16 {
 /// Derive the playback schedule from a parsed score. Rests and pitchless notes are
 /// omitted from `notes` (they make no sound); their measures still contribute to the
 /// running time. Notes are returned sorted by onset.
+///
+/// **Grace notes** (`<grace/>`) carry no musical duration — parsed as duration 0 at
+/// their principal's position. Scheduling them verbatim made them inaudible
+/// zero-length notes stacked on the principal, so each grace gets a short nominal
+/// duration ([`grace_ms_of`]) played *before* its position (acciaccatura style),
+/// consecutive graces stacking backwards; the principal's own timing is unchanged.
 pub fn schedule(document: &ScoreDocument) -> PlaybackSchedule {
     let divisions = document.attributes.divisions.max(1);
     let bpm = tempo_of(document);
     let ms_per_division = (60000.0 / f64::from(bpm)) / f64::from(divisions);
+    let grace_ms = grace_ms_of(bpm);
 
     let time = &document.attributes.time;
     let beat_type = if time.beat_type == 0 {
@@ -110,14 +158,20 @@ pub fn schedule(document: &ScoreDocument) -> PlaybackSchedule {
 
     for (mi, measure) in document.measures.iter().enumerate() {
         measure_start_ms.push((f64::from(measure_start_div) * ms_per_division).round() as u32);
+        let grace_back = grace_back_offsets(&measure.notes);
         let mut measure_span = divisions_per_measure;
         for (ni, note) in measure.notes.iter().enumerate() {
             let end = note.position_divisions + note.duration_divisions;
             if end > measure_span {
                 measure_span = end;
             }
-            let start_ms = f64::from(measure_start_div + note.position_divisions) * ms_per_division;
-            let duration_ms = f64::from(note.duration_divisions) * ms_per_division;
+            let mut start_ms =
+                f64::from(measure_start_div + note.position_divisions) * ms_per_division;
+            let mut duration_ms = f64::from(note.duration_divisions) * ms_per_division;
+            if grace_back[ni] > 0 {
+                start_ms = (start_ms - f64::from(grace_back[ni]) * grace_ms).max(0.0);
+                duration_ms = grace_ms;
+            }
 
             let Some(pitch) = note.pitch.as_ref() else {
                 continue;
@@ -235,5 +289,60 @@ mod tests {
         );
         let doc = parse(xml.as_bytes()).unwrap();
         assert_eq!(schedule(&doc).bpm, DEFAULT_BPM);
+    }
+
+    /// An acciaccatura before a principal: no `<duration>`, so it parses at the
+    /// principal's position with duration 0. The schedule must give it a short
+    /// nominal duration *before* the principal, whose own timing is untouched.
+    const GRACE_MEASURE: &str = r#"<?xml version="1.0"?>
+<score-partwise version="3.1">
+  <part-list><score-part id="P1"/></part-list>
+  <part id="P1">
+    <measure number="1">
+      <attributes><divisions>4</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes>
+      <direction><direction-type><metronome><beat-unit>quarter</beat-unit><per-minute>120</per-minute></metronome></direction-type></direction>
+      <note><pitch><step>C</step><octave>4</octave></pitch><duration>8</duration><voice>1</voice><type>half</type></note>
+      <note><grace slash="yes"/><pitch><step>B</step><octave>4</octave></pitch><voice>1</voice><type>eighth</type></note>
+      <note><pitch><step>C</step><alter>1</alter><octave>5</octave></pitch><duration>4</duration><voice>1</voice><type>eighth</type></note>
+    </measure>
+  </part>
+</score-partwise>"#;
+
+    #[test]
+    fn grace_is_parsed_and_scheduled_before_its_principal() {
+        let doc = parse(GRACE_MEASURE.as_bytes()).unwrap();
+        let grace = &doc.measures[0].notes[1];
+        assert!(grace.is_grace);
+        assert_eq!(grace.duration_divisions, 0);
+        // Shares the principal's position: the cursor did not advance.
+        assert_eq!(
+            grace.position_divisions,
+            doc.measures[0].notes[2].position_divisions
+        );
+
+        let s = schedule(&doc);
+        // 120 bpm → grace_ms = 500/8 = 62.5ms. Principal C#5 at 1000ms.
+        let g = s.notes.iter().find(|n| n.midi == 71).unwrap();
+        let p = s.notes.iter().find(|n| n.midi == 73).unwrap();
+        assert_eq!(p.onset_ms, 1000);
+        assert_eq!(p.duration_ms, 500);
+        assert_eq!(g.onset_ms, (1000.0 - grace_ms_of(120)).round() as u32);
+        assert_eq!(g.duration_ms, grace_ms_of(120).round() as u32);
+        // The schedule is onset-sorted, so the grace precedes its principal.
+        assert!(g.onset_ms < p.onset_ms);
+    }
+
+    #[test]
+    fn grace_at_time_zero_is_clamped() {
+        // The grace opens the piece: nothing to steal from — clamp at 0.
+        let xml = GRACE_MEASURE.replace(
+            "<note><pitch><step>C</step><octave>4</octave></pitch><duration>8</duration><voice>1</voice><type>half</type></note>",
+            "",
+        );
+        let doc = parse(xml.as_bytes()).unwrap();
+        let s = schedule(&doc);
+        let g = s.notes.iter().find(|n| n.midi == 71).unwrap();
+        assert_eq!(g.onset_ms, 0);
+        assert_eq!(g.duration_ms, grace_ms_of(120).round() as u32);
     }
 }

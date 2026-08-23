@@ -572,6 +572,109 @@ void main() {
       });
     });
 
+    // A grace note parses with duration 0 at its principal's position (the
+    // cursor does not advance). Scheduling it verbatim made a zero-length note
+    // glued onto the principal — inaudible, invisible on the waterfall, and
+    // engraved on top of it (the River Flows In You measure-6 report). It gets
+    // a short nominal duration just before the principal instead — the same
+    // rule as the Rust schedule (grace_ms = quarter/8), so app and back-office
+    // previews agree.
+    group('grace notes', () {
+      const quarterMs = 60000 / kDefaultBpm;
+      const graceMs = quarterMs / 8;
+
+      test(
+        'a grace plays briefly before its principal, which is unchanged',
+        () {
+          final doc = _docWith(
+            notes: [
+              noteEvent(
+                positionDivisions: 0,
+                durationDivisions: 8,
+                noteType: 'half',
+                pitch: const Pitch(step: 'C', octave: 4, alter: 0),
+              ),
+              noteEvent(
+                positionDivisions: 8,
+                durationDivisions: 0,
+                isGrace: true,
+                noteType: 'eighth',
+                pitch: const Pitch(step: 'B', octave: 4, alter: 0),
+              ),
+              noteEvent(
+                positionDivisions: 8,
+                durationDivisions: 4,
+                noteType: 'eighth',
+                pitch: const Pitch(step: 'C', octave: 5, alter: 1),
+              ),
+            ],
+          );
+          final d = notationToTimedNotes(doc);
+          final grace = d.notes.singleWhere((n) => n.pitch == 71);
+          final principal = d.notes.singleWhere((n) => n.pitch == 73);
+          expect(grace.isGrace, isTrue);
+          expect(grace.startMs, (quarterMs * 2 - graceMs).round());
+          expect(grace.durationMs, graceMs.round());
+          expect(principal.isGrace, isFalse);
+          expect(principal.startMs, (quarterMs * 2).round());
+          expect(principal.durationMs, quarterMs.round());
+        },
+      );
+
+      test('consecutive graces stack backwards in document order', () {
+        final doc = _docWith(
+          notes: [
+            noteEvent(
+              positionDivisions: 8,
+              durationDivisions: 0,
+              isGrace: true,
+              pitch: const Pitch(step: 'A', octave: 4, alter: 0),
+            ),
+            noteEvent(
+              positionDivisions: 8,
+              durationDivisions: 0,
+              isGrace: true,
+              pitch: const Pitch(step: 'B', octave: 4, alter: 0),
+            ),
+            noteEvent(
+              positionDivisions: 8,
+              durationDivisions: 4,
+              pitch: const Pitch(step: 'C', octave: 5, alter: 0),
+            ),
+          ],
+        );
+        final d = notationToTimedNotes(doc);
+        final a = d.notes.singleWhere((n) => n.pitch == 69);
+        final b = d.notes.singleWhere((n) => n.pitch == 71);
+        final c = d.notes.singleWhere((n) => n.pitch == 72);
+        expect(a.startMs, (quarterMs * 2 - 2 * graceMs).round());
+        expect(b.startMs, (quarterMs * 2 - graceMs).round());
+        expect(c.startMs, (quarterMs * 2).round());
+      });
+
+      test('a grace opening the piece is clamped at time zero', () {
+        final doc = _docWith(
+          notes: [
+            noteEvent(
+              positionDivisions: 0,
+              durationDivisions: 0,
+              isGrace: true,
+              pitch: const Pitch(step: 'B', octave: 4, alter: 0),
+            ),
+            noteEvent(
+              positionDivisions: 0,
+              durationDivisions: 4,
+              pitch: const Pitch(step: 'C', octave: 5, alter: 0),
+            ),
+          ],
+        );
+        final d = notationToTimedNotes(doc);
+        final grace = d.notes.singleWhere((n) => n.pitch == 71);
+        expect(grace.startMs, 0);
+        expect(grace.durationMs, graceMs.round());
+      });
+    });
+
     test('carries the written diatonic step, not the MIDI collapse', () {
       // A♭4 (step A, octave 4, alter −1) must sit on the A line/space, like the
       // engraved Partition — never collapsed onto G via its MIDI number. The

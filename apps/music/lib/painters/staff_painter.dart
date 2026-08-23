@@ -571,7 +571,19 @@ class StaffPainter extends CustomPainter {
     }
 
     final quarterMs = bpm > 0 ? 60000.0 / bpm : 500.0;
+    // Flags from the engraved note type when known — a duration ratio lies for
+    // notes whose played duration differs from their figure (a merged tie
+    // chain's eighth lasting a whole, a grace note's nominal sliver) — with the
+    // ratio as the MIDI-only fallback.
     int flagsOf(TimedNote n) {
+      switch (n.noteType) {
+        case 'whole' || 'half' || 'quarter':
+          return 0;
+        case 'eighth':
+          return 1;
+        case '16th' || '32nd' || '64th':
+          return 2; // two-flag glyph is the smallest we draw
+      }
       final ratio = n.durationMs / quarterMs;
       return ratio <= 0.32 ? 2 : (ratio <= 0.62 ? 1 : 0);
     }
@@ -644,8 +656,10 @@ class StaffPainter extends CustomPainter {
         );
       }
 
+      // Grace notes engrave smaller (head, stem and flag), like the Partition.
+      final glyphGap = n.isGrace ? lineGap * 0.7 : lineGap;
       final head = _headGlyph(n, quarterMs);
-      _drawHead(canvas, Offset(x, y), lineGap, atPlayhead, color, head);
+      _drawHead(canvas, Offset(x, y), glyphGap, atPlayhead, color, head);
       record(
         Rect.fromCenter(
           center: Offset(x, y),
@@ -684,7 +698,7 @@ class StaffPainter extends CustomPainter {
         _drawStemFlag(
           canvas,
           Offset(x, y),
-          lineGap,
+          glyphGap,
           color,
           flagsOf(n),
           stemUpOf(n),

@@ -115,6 +115,11 @@ class TimedNote {
   /// draw the tie arc between the two heads. Null on every playable note.
   final int? tieFromMs;
 
+  /// True for a grace note (ornamental small note, `<grace/>`): played with a
+  /// short nominal duration just before its principal, and engraved smaller by
+  /// the Staff painter.
+  final bool isGrace;
+
   const TimedNote({
     required this.pitch,
     required this.startMs,
@@ -129,6 +134,7 @@ class TimedNote {
     this.accidental,
     this.stemUp,
     this.tieFromMs,
+    this.isGrace = false,
   });
 }
 

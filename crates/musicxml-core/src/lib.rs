@@ -30,7 +30,9 @@ pub mod validate;
 
 pub use meta::{ScoreFacets, ScoreSummary, normalize_text};
 pub use model::*;
-pub use playback::{DEFAULT_VELOCITY, PlaybackSchedule, TimedNote, midi_of_pitch, schedule};
+pub use playback::{
+    DEFAULT_VELOCITY, PlaybackSchedule, TimedNote, grace_ms_of, midi_of_pitch, schedule,
+};
 pub use validate::{RejectReason, decode_and_parse, validate};
 
 use std::collections::BTreeMap;
@@ -284,6 +286,7 @@ impl Parser {
                     pitch: None,
                     is_rest: false,
                     is_chord: false,
+                    is_grace: false,
                     duration_divisions: 0,
                     note_type: None,
                     dots: 0,
@@ -301,6 +304,11 @@ impl Parser {
             b"chord" => {
                 if let Some(n) = self.note.as_mut() {
                     n.is_chord = true;
+                }
+            }
+            b"grace" => {
+                if let Some(n) = self.note.as_mut() {
+                    n.is_grace = true;
                 }
             }
             b"rest" => {
@@ -1333,6 +1341,7 @@ mod tests {
             pitch: None,
             is_rest: false,
             is_chord: false,
+            is_grace: false,
             duration_divisions: 1,
             note_type: None,
             dots: 0,
@@ -1361,6 +1370,7 @@ mod tests {
             pitch: None,
             is_rest: false,
             is_chord: false,
+            is_grace: false,
             duration_divisions: 4,
             note_type: None,
             dots: 0,
@@ -1390,6 +1400,7 @@ mod tests {
             pitch: None,
             is_rest: true,
             is_chord: false,
+            is_grace: false,
             duration_divisions: 1,
             note_type: None,
             dots: 0,

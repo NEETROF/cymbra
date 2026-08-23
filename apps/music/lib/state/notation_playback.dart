@@ -115,6 +115,10 @@ DerivedPlayback notationToTimedNotes(ScoreDocument document) {
       : document.attributes.divisions;
   final bpm = _tempoOf(document);
   final msPerDivision = (60000.0 / bpm) / divisions;
+  // Nominal audible duration of one grace note: an eighth of a quarter —
+  // mirrors the Rust `grace_ms_of`, so the app, the back-office Play preview
+  // and the server audio previews time ornaments identically.
+  final graceMs = (60000.0 / bpm) / 8;
 
   final time = document.attributes.time;
   final beatType = time.beatType == 0 ? 4 : time.beatType;
@@ -149,14 +153,26 @@ DerivedPlayback notationToTimedNotes(ScoreDocument document) {
       clef[c.staff] = c;
     }
     var measureSpan = divisionsPerMeasure > 0 ? divisionsPerMeasure : 0;
-    for (final note in measure.notes) {
+    final graceBack = _graceBackOffsets(measure.notes);
+    for (var noteIndex = 0; noteIndex < measure.notes.length; noteIndex++) {
+      final note = measure.notes[noteIndex];
       final end = note.positionDivisions + note.durationDivisions;
       if (end > measureSpan) measureSpan = end;
 
       final startDiv = measureStartDiv + note.positionDivisions;
       final endDiv = startDiv + note.durationDivisions;
-      final startMs = startDiv * msPerDivision;
-      final durationMs = note.durationDivisions * msPerDivision;
+      var startMs = startDiv * msPerDivision;
+      var durationMs = note.durationDivisions * msPerDivision;
+      // A grace note occupies no musical time (duration 0 at its principal's
+      // position): give it the nominal duration, played just before the
+      // principal, stacking consecutive graces backwards. Scheduling it
+      // verbatim made a zero-length note glued onto the principal — inaudible,
+      // invisible on the waterfall, and engraved on top of the principal.
+      if (graceBack[noteIndex] > 0) {
+        startMs = startMs - graceBack[noteIndex] * graceMs;
+        if (startMs < 0) startMs = 0;
+        durationMs = graceMs;
+      }
 
       final pitch = note.pitch;
       // Rests go to their own channel (render-only); pitchless non-rests are
@@ -205,6 +221,7 @@ DerivedPlayback notationToTimedNotes(ScoreDocument document) {
             null => null,
           },
           tieFromMs: tieFromMs,
+          isGrace: note.isGrace,
         );
       }
 
@@ -282,7 +299,43 @@ TimedNote _withDuration(TimedNote n, int durationMs) => TimedNote(
   accidental: n.accidental,
   stemUp: n.stemUp,
   tieFromMs: n.tieFromMs,
+  isGrace: n.isGrace,
 );
+
+/// For each note of a measure, how many grace slots *before its position* it
+/// occupies: 0 for ordinary notes; a run of consecutive pitched graces sharing
+/// staff/voice/position stacks backwards (the first of the run is furthest
+/// back), so they play in document order and resolve onto the principal's
+/// beat. Mirrors the Rust `grace_back_offsets` in `musicxml-core/playback.rs`.
+List<int> _graceBackOffsets(List<NoteEvent> notes) {
+  final back = List<int>.filled(notes.length, 0);
+  final run = <int>[];
+  (int, int, int)? runKey;
+  void flush() {
+    for (var k = 0; k < run.length; k++) {
+      back[run[k]] = run.length - k;
+    }
+    run.clear();
+  }
+
+  for (var i = 0; i < notes.length; i++) {
+    final n = notes[i];
+    final isGrace = n.isGrace && !n.isRest && n.pitch != null;
+    if (isGrace) {
+      final key = (n.staff, n.voice, n.positionDivisions);
+      if (runKey != key) {
+        flush();
+        runKey = key;
+      }
+      run.add(i);
+    } else {
+      flush();
+      runKey = null;
+    }
+  }
+  flush();
+  return back;
+}
 
 /// First `metronome` `per-minute` in the score, or [kDefaultBpm] if none.
 int _tempoOf(ScoreDocument document) {
