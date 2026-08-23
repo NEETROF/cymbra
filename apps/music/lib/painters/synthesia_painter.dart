@@ -80,6 +80,22 @@ class SynthesiaPainter extends CustomPainter {
       }
     }
 
+    // Resolve every visible bar's geometry first, then paint in two passes —
+    // all sustain tails underneath, all attack bodies on top — so an attack
+    // overlapping another note's tail (e.g. the other hand striking a key the
+    // first hand holds) always reads as the event, never as buried paint.
+    final bars =
+        <
+          ({
+            TimedNote n,
+            double left,
+            double right,
+            double topY,
+            double attackTopY,
+            double bottomY,
+            Color base,
+          })
+        >[];
     for (final n in notes) {
       if (!layout.contains(n.pitch)) continue;
 
@@ -103,8 +119,6 @@ class SynthesiaPainter extends CustomPainter {
       final r = layout.keyRect(n.pitch);
       // Slight inset to give breathing room between columns.
       final inset = r.width * 0.12;
-      final left = r.left + inset;
-      final right = r.left + r.width - inset;
 
       // Falling notes are coloured by hand (right = blue, left = amber): a
       // brighter tint in the hit zone ("play now"), success green once held.
@@ -133,31 +147,65 @@ class SynthesiaPainter extends CustomPainter {
           topY,
           bottomY,
         );
-        final tailInset = (right - left) * 0.22;
-        final tail = Rect.fromLTRB(
-          left + tailInset,
-          topY,
-          right - tailInset,
-          attackTopY,
-        );
-        if (tail.height > 0) {
-          canvas.drawRRect(
-            RRect.fromRectAndCorners(
-              tail,
-              topLeft: const Radius.circular(4),
-              topRight: const Radius.circular(4),
-            ),
-            Paint()..color = base.withValues(alpha: 0.38),
-          );
-        }
       }
 
-      final rect = Rect.fromLTRB(left, attackTopY, right, bottomY);
+      bars.add((
+        n: n,
+        left: r.left + inset,
+        right: r.left + r.width - inset,
+        topY: topY,
+        attackTopY: attackTopY,
+        bottomY: bottomY,
+        base: base,
+      ));
+    }
+
+    // Pass 1 — sustain tails, with the stretch under any same-key attack
+    // carved out: another strike on a held key interrupts the hold (the
+    // player must release and re-strike), so the tail yields around it
+    // instead of running underneath as ambiguous paint.
+    for (final b in bars) {
+      final tailBottom = b.attackTopY;
+      if (tailBottom <= b.topY) continue; // no sustain segment
+      final tailInset = (b.right - b.left) * 0.22;
+
+      // Blocked y-ranges: other bars' attack segments on the same key, padded
+      // so a clear seam separates tail and strike.
+      final blocked = <(double, double)>[
+        for (final o in bars)
+          if (!identical(o, b) && o.n.pitch == b.n.pitch)
+            (o.attackTopY - 3, o.bottomY + 3),
+      ]..sort((a, c) => a.$1.compareTo(c.$1));
+
+      var segStart = b.topY;
+      void drawSeg(double from, double to) {
+        if (to - from < 2) return;
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(
+            Rect.fromLTRB(b.left + tailInset, from, b.right - tailInset, to),
+            const Radius.circular(4),
+          ),
+          Paint()..color = b.base.withValues(alpha: 0.38),
+        );
+      }
+
+      for (final (from, to) in blocked) {
+        if (to <= segStart || from >= tailBottom) continue;
+        drawSeg(segStart, from.clamp(segStart, tailBottom));
+        segStart = to.clamp(segStart, tailBottom);
+      }
+      drawSeg(segStart, tailBottom);
+    }
+
+    // Pass 2 — attack bodies (halo, gradient, strike cap), always on top.
+    for (final b in bars) {
+      final rect = Rect.fromLTRB(b.left, b.attackTopY, b.right, b.bottomY);
       if (rect.height <= 0) continue;
+      final hasTail = b.attackTopY > b.topY;
       final rrect = RRect.fromRectAndCorners(
         rect,
-        topLeft: Radius.circular(sustainFrom != null ? 0 : 4),
-        topRight: Radius.circular(sustainFrom != null ? 0 : 4),
+        topLeft: Radius.circular(hasTail ? 0 : 4),
+        topRight: Radius.circular(hasTail ? 0 : 4),
         bottomLeft: const Radius.circular(4),
         bottomRight: const Radius.circular(4),
       );
@@ -166,15 +214,25 @@ class SynthesiaPainter extends CustomPainter {
       canvas.drawRRect(
         rrect,
         Paint()
-          ..color = base.withValues(alpha: 0.55)
+          ..color = b.base.withValues(alpha: 0.55)
           ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8),
+      );
+
+      // A hairline of background around the body keeps its edge crisp over
+      // whatever sits underneath (a sustain tail, a neighbour's halo).
+      canvas.drawRRect(
+        rrect.inflate(0.75),
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.5
+          ..color = CymbraColors.background,
       );
 
       // Vertical gradient for volume.
       final gradient = LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
-        colors: [base.withValues(alpha: 0.85), base],
+        colors: [b.base.withValues(alpha: 0.85), b.base],
       ).createShader(rect);
       canvas.drawRRect(rrect, Paint()..shader = gradient);
 
@@ -184,11 +242,11 @@ class SynthesiaPainter extends CustomPainter {
       if (capH > 0) {
         canvas.drawRRect(
           RRect.fromRectAndCorners(
-            Rect.fromLTRB(left, bottomY - capH, right, bottomY),
+            Rect.fromLTRB(b.left, b.bottomY - capH, b.right, b.bottomY),
             bottomLeft: const Radius.circular(4),
             bottomRight: const Radius.circular(4),
           ),
-          Paint()..color = Color.lerp(base, const Color(0xFFFFFFFF), 0.45)!,
+          Paint()..color = Color.lerp(b.base, const Color(0xFFFFFFFF), 0.45)!,
         );
       }
     }

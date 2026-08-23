@@ -68,6 +68,40 @@ void main() {
     },
   );
 
+  test('a sustain tail is carved out around a same-key attack', () async {
+    // The other hand strikes a key the first hand holds: the hold is
+    // physically interrupted, so the tail must yield around the strike
+    // instead of running underneath it as ambiguous paint.
+    const held = TimedNote(
+      pitch: 72,
+      startMs: 1200,
+      durationMs: 3000,
+      sustainFromMs: 1500,
+    );
+    const strike = TimedNote(
+      pitch: 72,
+      startMs: 2400,
+      durationMs: 400,
+      staff: 2,
+    );
+    final combined = await _render(const [held, strike]);
+    final tailOnly = await _render(const [held]);
+
+    // Geometry (pxPerMs = 0.2): strike attack spans y 240..320, padded seam
+    // ±3 → rows ~321-322 are carved out of the tail in the combined render.
+    final r = const PianoLayout(width: _w).keyRect(72);
+    final x = (r.left + r.width / 2).round();
+    int brightness(ByteData img, int y) {
+      final i = (y * _w.toInt() + x) * 4;
+      return img.getUint8(i) + img.getUint8(i + 1) + img.getUint8(i + 2);
+    }
+
+    // The seam row is background in the combined render, tail paint alone.
+    expect(brightness(combined, 322) < brightness(tailOnly, 322), isTrue);
+    // The strike body itself is painted brightly over the carve-out.
+    expect(brightness(combined, 300) > brightness(combined, 322), isTrue);
+  });
+
   test('abutting same-key repeats get a wider separation notch', () async {
     // One bar alone vs the same bar with a back-to-back repeat on the same
     // key. With the repeat, the first bar's release edge is carved wider
