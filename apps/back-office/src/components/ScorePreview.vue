@@ -5,7 +5,7 @@ import { match } from "ts-pattern";
 import type { CatalogHit } from "@/gen/score_pb";
 import { type Async, idle } from "@/lib/async";
 import type { RenderResult } from "@/lib/notation/painter";
-import type { PlaybackSchedule } from "@/lib/notation/schedule";
+import { startOfWrittenMeasure, type PlaybackSchedule } from "@/lib/notation/schedule";
 import { usePlayhead } from "@/composables/usePlayhead";
 
 // Isolated preview module (design D5). Presentational: it shows metadata, the notation
@@ -80,7 +80,8 @@ usePlayhead({
   playing: toRef(() => props.playing ?? false),
   // Click a measure → play from its start time (resolved via the schedule).
   onSeekMeasure: (i) => {
-    const ms = scheduleData.value?.measure_start_ms[i];
+    // Taps land on engraved (written) measures: seek to their first played slot.
+    const ms = scheduleData.value ? startOfWrittenMeasure(scheduleData.value, i) : null;
     if (ms != null) emit("seek", ms);
   },
 });

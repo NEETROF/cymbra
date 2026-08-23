@@ -78,11 +78,11 @@
 
 ## 7. Back office (apps/back-office)
 
-- [ ] 7.1 Rebuild the wasm (`yarn gen:wasm`) and surface the new model in
+- [x] 7.1 Rebuild the wasm (`yarn gen:wasm`) and surface the new model in
       `lib/notation` types.
-- [ ] 7.2 Painter: draw repeat barlines, volta brackets, `%`, segno/coda/words
+- [x] 7.2 Painter: draw repeat barlines, volta brackets, `%`, segno/coda/words
       in the rendered score (written order).
-- [ ] 7.3 Play preview: confirm the worker consumes the unrolled schedule
+- [x] 7.3 Play preview: confirm the worker consumes the unrolled schedule
       (duration + repeat audible on a fixture); Vitest on the schedule
       mapping; e2e spot-check with a repeat fixture in the seam.
 
