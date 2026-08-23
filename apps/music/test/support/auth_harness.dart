@@ -21,6 +21,9 @@ import 'package:music/services/notification_service.dart';
 import 'package:music/services/oidc_token_source.dart';
 import 'package:music/services/preferences_service.dart';
 import 'package:music/services/token_store.dart';
+import 'package:music/analytics/usage_event_record.dart';
+import 'package:music/services/streak_service.dart';
+import 'package:music/services/usage_tracking_service.dart';
 
 import 'auth_fakes.dart';
 import 'prefs_fakes.dart';
@@ -84,6 +87,20 @@ class FakeNotificationRegistryService implements NotificationRegistryService {
 
 /// Override list for the Cymbra ID seams, so nothing touches a channel or
 /// platform plugin. Compose with extra overrides (e.g. `scoreCatalogProvider`).
+/// The account shell renders the streak chip; keep it off the channel.
+class _FakeStreakService extends Fake implements StreakService {
+  @override
+  Future<StreakView> getStreak() async => StreakView.none;
+}
+
+/// Screens record usage telemetry on the way through; keep it off the channel
+/// (change: add-client-transport-deadlines — a real call would arm a deadline
+/// timer the test binding flags as pending).
+class _FakeUsageTrackingService extends Fake implements UsageTrackingService {
+  @override
+  Future<void> report(List<UsageEventRecord> events) async {}
+}
+
 List<Override> authOverrides({
   FakeTokenStore? store,
   FakeAuthService? auth,
@@ -100,6 +117,8 @@ List<Override> authOverrides({
     const FakeCuratorRewardsService(),
   ),
   preferencesServiceProvider.overrideWithValue(FakePreferencesService()),
+  streakServiceProvider.overrideWithValue(_FakeStreakService()),
+  usageTrackingServiceProvider.overrideWithValue(_FakeUsageTrackingService()),
   // The account menu renders a switch per declared notification category
   // (change: add-push-notifications) and reads the stored preferences.
   notificationRegistryServiceProvider.overrideWithValue(

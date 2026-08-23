@@ -47,11 +47,19 @@ Future<T> raceAgainstOffline<T>(
   ConnectivityService connectivity,
 ) async {
   final completer = Completer<T>();
-  final sub = connectivity.onlineStatus.listen((online) {
-    if (!online && !completer.isCompleted) {
-      completer.completeError(const OfflineDuringLoad());
-    }
-  });
+  final sub = connectivity.onlineStatus.listen(
+    (online) {
+      if (!online && !completer.isCompleted) {
+        completer.completeError(const OfflineDuringLoad());
+      }
+    },
+    // A connectivity stream that cannot deliver (platform plugin missing or
+    // failing) is NO signal, not an offline signal — the race degrades to the
+    // plain awaited work, which stays bounded by its own deadline (D8: no
+    // reading is not a negative reading).
+    onError: (Object _, StackTrace _) {},
+    cancelOnError: true,
+  );
   // Route the work through the completer so a late result (or error) after an
   // offline abort is swallowed instead of surfacing as an unhandled error.
   unawaited(
@@ -67,6 +75,9 @@ Future<T> raceAgainstOffline<T>(
   try {
     return await completer.future;
   } finally {
-    await sub.cancel();
+    // Not awaited: on a misbehaving platform stream (missing plugin, failing
+    // event channel) the cancel future itself can hang or error, and the
+    // caller's result must never be held hostage by subscription teardown.
+    unawaited(sub.cancel().catchError((_) {}));
   }
 }

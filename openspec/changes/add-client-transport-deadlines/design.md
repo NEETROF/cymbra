@@ -246,8 +246,24 @@ consistent edit, not a new mechanism.
 The reading is trusted **negatively only**. `connectivity_plus` reports interface
 state, not reachability: a captive portal or a down backend both report "online". So
 `false` short-circuits, `true` proves nothing and the call proceeds under its deadline.
-`ConnectivityPlusService.isOnline()` already fails closed (`catch (_) → false`), which
-is the right bias here too — worst case we serve the cache.
+
+Three hardenings discovered during implementation, all instances of the same rule —
+*no reading is not a negative reading*:
+
+- `isOnline()`'s fail-closed bias (`catch (_) → false`) is right for preferring a
+  cache, and **wrong for a gate**: a plugin that cannot answer would read as
+  "offline" and a broken plugin would become "nothing loads". The seam gained
+  `isDefinitelyOffline()` — true only on a POSITIVE no-transport report, platform
+  failure → false — and the pre-flight gate uses that, never `isOnline()`.
+- The platform probe itself is **bounded** (500 ms in `ConnectivityPlusService`):
+  `checkConnectivity()` was observed hanging indefinitely in a plugin-less
+  environment, and an unbounded reachability probe on the score-open hot path is the
+  very disease this change treats. Past the bound, "no reading" applies with each
+  caller's own bias.
+- The race helper (D7) treats a connectivity **stream error** as no signal (swallow,
+  degrade to the plain deadline-bounded await), and its subscription teardown is not
+  awaited — on a misbehaving event channel the cancel future itself can hang, and the
+  caller's result must never be held hostage by teardown.
 
 ### D9 — Enable gRPC keepalive, with idle pings off
 
@@ -295,10 +311,17 @@ and no bound we pick is short enough to justify an inescapable modal. This is a
 separate defect from the transport ones and is fixed on its own terms.
 
 Cancelling clears `selectedScoreProvider`. That is not incidental: `_load` already
-guards every state write with `if (ref.read(selectedScoreProvider) != entry) return`
-(three times, including after the `catch`), so clearing the selection makes the
-existing guard discard the late result. No new "was this cancelled?" flag, no race
-between the cancel and the load's completion.
+guards every state write against a stale selection, so clearing the selection makes
+the existing guards discard the late result. No new "was this cancelled?" flag, no
+race between the cancel and the load's completion.
+
+One consequence found by the cancel test: `selectedScoreProvider` is a
+**dependency** of `notationProvider`, so clearing it flags the element as
+dependency-outdated, and a bare `ref.read` in a still-running `_load` continuation
+asserts in the window before the rebuild — a latent defect the old guards shared
+for any mid-load selection change. The guards now go through one `_abandoned(entry)`
+helper that treats an unusable ref as "the selection changed, so this load is
+abandoned", and `_reportAccess` (best-effort telemetry) checks it too.
 
 Cancelling is a user decision, not a failure: the dialog closes, the user is back on
 the list, and **no** error banner is shown. Surfacing "load failed" for something the

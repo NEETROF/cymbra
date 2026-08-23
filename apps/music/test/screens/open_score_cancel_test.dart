@@ -42,6 +42,8 @@ class _OnlineConn extends Fake implements ConnectivityService {
   Stream<bool> get onlineStatus => const Stream.empty();
   @override
   Future<bool> isOnline() async => true;
+  @override
+  Future<bool> isDefinitelyOffline() async => false;
 }
 
 class _Launcher extends ConsumerWidget {

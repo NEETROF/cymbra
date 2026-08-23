@@ -138,6 +138,9 @@ class CaptureConnectivity implements ConnectivityService {
   Stream<bool> get onlineStatus => const Stream<bool>.empty();
   @override
   Future<bool> isOnline() async => true;
+
+  @override
+  Future<bool> isDefinitelyOffline() async => false;
 }
 
 /// A guest [TokenStore]: no secure storage, no real identity.

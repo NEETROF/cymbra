@@ -68,6 +68,8 @@ class _Conn extends Fake implements ConnectivityService {
   Stream<bool> get onlineStatus => ctrl.stream;
   @override
   Future<bool> isOnline() async => online;
+  @override
+  Future<bool> isDefinitelyOffline() async => !online;
 }
 
 Future<void> _flush() async {

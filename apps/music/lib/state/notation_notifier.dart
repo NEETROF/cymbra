@@ -61,6 +61,21 @@ class Notation extends _$Notation {
     return const NotationData();
   }
 
+  /// Whether this in-flight load no longer belongs to the current selection.
+  /// Post-`await` continuations must consult THIS, never a bare
+  /// `ref.read(selectedScoreProvider)`: when the selection changed (e.g. the
+  /// user cancelled the open, which clears it), riverpod flags the element as
+  /// dependency-outdated and a plain `ref.read` asserts in the window before
+  /// the rebuild (change: add-client-transport-deadlines). An unusable ref
+  /// means the selection changed, which means this load is abandoned.
+  bool _abandoned(CatalogEntry entry) {
+    try {
+      return ref.read(selectedScoreProvider) != entry;
+    } catch (_) {
+      return true;
+    }
+  }
+
   ScoreAssetSource get _source => ref.read(scoreAssetSourceProvider);
   NotationEngine get _engine => ref.read(notationEngineProvider);
 
@@ -105,7 +120,7 @@ class Notation extends _$Notation {
           if (decided == null) {
             // Locked — the failure is typed; the numbers went to the daily-access
             // provider. Nothing is played.
-            if (ref.read(selectedScoreProvider) != entry) return;
+            if (_abandoned(entry)) return;
             state = NotationData(
               failure: ScoreLoadFailure.locked,
               availableWidth: width,
@@ -124,21 +139,25 @@ class Notation extends _$Notation {
           // can do a conditional refresh instead of re-downloading.
           //
           // Offline it cannot succeed (change: add-client-transport-deadlines):
-          // pre-flight, don't even open a socket — the reading is trusted
-          // *negatively only* (a captive portal still reports "online", and
-          // then the call proceeds and fails on its deadline). Mid-flight, the
-          // race aborts at once on the connectivity transition instead of
-          // waiting out the deadline.
-          if (!await ref.read(connectivityServiceProvider).isOnline()) {
+          // pre-flight, don't even open a socket — but only on a POSITIVE
+          // "offline" report. A captive portal still reads "online" (the call
+          // then proceeds and fails on its deadline), and a plugin that cannot
+          // answer must not gate the call at all. Mid-flight, the race aborts
+          // at once on the connectivity transition instead of waiting out the
+          // deadline.
+          if (await ref
+              .read(connectivityServiceProvider)
+              .isDefinitelyOffline()) {
             throw const OfflineDuringLoad();
           }
           final fetched = await raceAgainstOffline(
             _fetchScoreBytes(entry),
             ref.read(connectivityServiceProvider),
           );
+          if (_abandoned(entry)) return;
           _reportAccess(entry, fetched);
           if (fetched.locked) {
-            if (ref.read(selectedScoreProvider) != entry) return;
+            if (_abandoned(entry)) return;
             state = NotationData(
               failure: ScoreLoadFailure.locked,
               availableWidth: width,
@@ -155,7 +174,7 @@ class Notation extends _$Notation {
       }
       final document = await _engine.parse(bytes);
       // Guard against a selection change while we were loading.
-      if (ref.read(selectedScoreProvider) != entry) return;
+      if (_abandoned(entry)) return;
       final systems = _engine.layout(document, width);
       state = NotationData(
         document: document,
@@ -168,13 +187,13 @@ class Notation extends _$Notation {
         await _refreshCachedEntry(entry, cacheKey, cached.etag);
       }
     } catch (e) {
-      if (ref.read(selectedScoreProvider) != entry) return;
+      if (_abandoned(entry)) return;
       // Keep the technical cause in the logs only — the UI shows a localized
       // message keyed off the typed [ScoreLoadFailure], never the raw
       // exception/gRPC text.
       debugPrint('Notation load failed for ${entry.id}: $e');
       final failure = await _classifyLoad(entry, cacheKey, e);
-      if (ref.read(selectedScoreProvider) != entry) return;
+      if (_abandoned(entry)) return;
       state = NotationData(failure: failure, availableWidth: width);
     }
   }
@@ -223,6 +242,9 @@ class Notation extends _$Notation {
   void _reportAccess(CatalogEntry entry, ScoreBytesResult fetched) {
     final access = fetched.access;
     if (access == null) return;
+    // Best-effort: after a cancel mid-load the ref may be dependency-outdated
+    // (see [_abandoned]); an abandoned load has nothing to report.
+    if (_abandoned(entry)) return;
     ref.read(catalogDailyAccessProvider.notifier).report(access);
     if (access.locked) {
       unawaited(

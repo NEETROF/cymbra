@@ -97,6 +97,9 @@ class _FakeConnectivity implements ConnectivityService {
   Stream<bool> get onlineStatus => const Stream<bool>.empty();
   @override
   Future<bool> isOnline() async => true;
+
+  @override
+  Future<bool> isDefinitelyOffline() async => false;
 }
 
 void main() {
